@@ -1,0 +1,27 @@
+name: DB inspect (temporary)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Tables
+        run: pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+      - name: Migrations recorded
+        run: pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "SELECT id, name, batch FROM payload_migrations ORDER BY id;"
+      - name: Events table present?
+        run: pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "SELECT count(*) AS events_table FROM sqlite_master WHERE type='table' AND name='events';"
+      - name: locked_documents_rels has events_id?
+        run: pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "SELECT count(*) AS has_events_id FROM pragma_table_info('payload_locked_documents_rels') WHERE name='events_id';"
