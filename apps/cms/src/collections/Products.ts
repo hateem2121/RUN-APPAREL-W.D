@@ -2,6 +2,7 @@ import { isValidProductCode, isValidSlug } from '@run-apparel/shared'
 import type { CollectionConfig } from 'payload'
 import { isAdmin, isAdminOrEditor, isAuthenticated } from '../access/roles'
 import { cameraFields } from '../fields/camera'
+import { type GateColourway, assertPublishable } from './publishGating'
 
 export const DEFAULT_RETIRED_MESSAGE =
   'The colourway linked by this QR is no longer active. You are viewing the current available reference.'
@@ -27,81 +28,38 @@ export const Products: CollectionConfig = {
         if (status !== 'published') return data
 
         const id = originalDoc?.id
-        // Publishing rules below (at least one active colourway, exactly one
-        // default, per-colourway GLB coverage, variantId prefixes) can only be
-        // checked once the product has an ID and colourways can reference it.
-        // Block publishing on create so those checks are never silently skipped.
-        if (!id) {
-          throw new Error(
-            'Save this product as a draft first, add its colourways, then set it to Published. ' +
-              'Publishing checks need the product to exist before its colourways can be verified.',
-          )
-        }
-        const productCode = data?.productCode ?? originalDoc?.productCode
-        const variantMode = data?.variantMode ?? originalDoc?.variantMode
-        const glbAsset = data?.glbAsset ?? originalDoc?.glbAsset
-        const variantsVerified = data?.variantsVerified ?? originalDoc?.variantsVerified
-        const defaultColourway = data?.defaultColourway ?? originalDoc?.defaultColourway
-
-        if (!defaultColourway) {
-          throw new Error('A published product needs a default colourway. Select one before publishing.')
-        }
-
-        if (variantMode === 'single-glb-variants') {
-          if (!glbAsset) {
-            throw new Error(
-              'Published "single GLB with variants" products need a merged production GLB. Upload the pipeline-processed GLB, or switch to "separate GLB per colourway".',
-            )
-          }
-          if (!variantsVerified) {
-            throw new Error(
-              'Tick "Variants verified" after confirming availableVariants matches every colourway variantId (pnpm pipeline validate). Required before publishing in single-GLB mode.',
-            )
-          }
-        }
-
+        // Load all colourways for the product (only possible once it has an id).
+        let colourways: GateColourway[] = []
         if (id) {
-          const colourways = await req.payload.find({
+          const found = await req.payload.find({
             collection: 'colourways',
             where: { product: { equals: id } },
             limit: 200,
             depth: 0,
             req,
           })
-          const active = colourways.docs.filter((c) => c.active)
-          if (active.length === 0) {
-            throw new Error('A published product needs at least one active colourway.')
-          }
-          const defaults = active.filter((c) => c.isDefault)
-          if (defaults.length !== 1) {
-            throw new Error(
-              `A published product must have exactly one default active colourway (found ${defaults.length}). Fix the colourways before publishing.`,
-            )
-          }
-          const defaultId = typeof defaultColourway === 'object' ? defaultColourway?.id : defaultColourway
-          if (defaults[0]!.id !== defaultId) {
-            throw new Error(
-              'The product’s "default colourway" must be the colourway marked as active default.',
-            )
-          }
-          if (variantMode === 'separate-glb-per-colour') {
-            const missing = active.filter((c) => !c.glbAsset)
-            if (missing.length > 0) {
-              throw new Error(
-                `In "separate GLB per colourway" mode every active colourway needs its own GLB. Missing: ${missing
-                  .map((c) => c.variantId)
-                  .join(', ')}.`,
-              )
-            }
-          }
-          for (const colourway of colourways.docs) {
-            if (productCode && !String(colourway.variantId).startsWith(`${productCode}-`)) {
-              throw new Error(
-                `Colourway ${colourway.variantId} does not start with the product code ${productCode}-.`,
-              )
-            }
-          }
+          colourways = found.docs.map((c) => ({
+            id: c.id,
+            variantId: c.variantId,
+            active: Boolean(c.active),
+            isDefault: Boolean(c.isDefault),
+            glbAsset: c.glbAsset,
+          }))
         }
+
+        // All publish invariants live in a pure, unit-tested function.
+        assertPublishable(
+          {
+            id,
+            status,
+            productCode: data?.productCode ?? originalDoc?.productCode,
+            variantMode: data?.variantMode ?? originalDoc?.variantMode,
+            glbAsset: data?.glbAsset ?? originalDoc?.glbAsset,
+            variantsVerified: data?.variantsVerified ?? originalDoc?.variantsVerified,
+            defaultColourway: data?.defaultColourway ?? originalDoc?.defaultColourway,
+          },
+          colourways,
+        )
         return data
       },
     ],

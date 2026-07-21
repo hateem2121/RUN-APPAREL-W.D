@@ -9,7 +9,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"(no unit tests in cms — validated via typecheck + build)\"",
+    "test": "vitest run",
     "generate:types": "payload generate:types",
     "generate:importmap": "payload generate:importmap",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
@@ -36,6 +36,7 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "typescript": "5.9.3",
+    "vitest": "4.1.10",
     "wrangler": "4.112.0",
     "@cloudflare/workers-types": "5.20260719.1"
   }
