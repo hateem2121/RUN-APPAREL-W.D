@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { track } from '../lib/analytics'
 import { appliedTheme, toggleTheme, type Theme } from '../lib/theme'
 
@@ -8,11 +8,9 @@ interface HeaderProps {
 }
 
 export function Header({ wordmark, catalogueUrl }: HeaderProps) {
-  const [theme, setThemeState] = useState<Theme>('light')
-
-  useEffect(() => {
-    setThemeState(appliedTheme())
-  }, [])
+  // Lazy init from the already-applied theme (client-only SPA) so the toggle
+  // glyph is correct on first paint — no light→dark flash on dark systems.
+  const [theme, setThemeState] = useState<Theme>(() => appliedTheme())
 
   const onToggle = () => {
     setThemeState(toggleTheme())

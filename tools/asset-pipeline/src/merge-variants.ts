@@ -1,6 +1,6 @@
 import { mkdir, stat } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import type { Document, Primitive } from '@gltf-transform/core'
+import type { Document, Material, Primitive } from '@gltf-transform/core'
 import { KHRMaterialsVariants } from '@gltf-transform/extensions'
 import { copyToDocument, dedup, draco, prune } from '@gltf-transform/functions'
 import { createIO } from './io'
@@ -23,6 +23,35 @@ export interface MergeResult {
   primitiveCount: number
   materialCount: number
   bytes: number
+}
+
+export interface ParsedMergeArgs {
+  inputs: MergeInput[]
+  out: string | null
+  draco: boolean
+}
+
+/**
+ * Parse `merge` command arguments. Pure and exported (kept out of cli.ts,
+ * which auto-runs on import) so the CLI contract — `--out` / `--draco` and
+ * `<file>=<VARIANT-ID>` split on the LAST `=` so paths may contain `=` — is
+ * unit-testable. Throws on a malformed `<file>=<VARIANT-ID>` token.
+ */
+export function parseMergeArgs(rest: string[]): ParsedMergeArgs {
+  const inputs: MergeInput[] = []
+  let out: string | null = null
+  let draco = false
+  for (let i = 0; i < rest.length; i++) {
+    const arg = rest[i]!
+    if (arg === '--out') out = rest[++i] ?? null
+    else if (arg === '--draco') draco = true
+    else {
+      const eq = arg.lastIndexOf('=')
+      if (eq === -1) throw new Error(`Expected <file.glb>=<VARIANT-ID>, got "${arg}"`)
+      inputs.push({ file: arg.slice(0, eq), variantName: arg.slice(eq + 1) })
+    }
+  }
+  return { inputs, out, draco }
 }
 
 interface PrimitiveFingerprint {
@@ -118,11 +147,20 @@ export async function mergeVariants(
 
   // Variant 0: the base file's own materials.
   const baseVariant = variantsExt.createVariant(first.variantName)
-  const mappingLists = basePrims.map((prim) => {
+  const mappingLists = basePrims.map((prim, i) => {
     const list = variantsExt.createMappingList()
-    list.addMapping(
-      variantsExt.createMapping().setMaterial(prim.getMaterial()).addVariant(baseVariant),
-    )
+    const material = prim.getMaterial()
+    if (material) {
+      list.addMapping(variantsExt.createMapping().setMaterial(material).addVariant(baseVariant))
+    } else {
+      // A KHR_materials_variants mapping requires a material. A primitive with
+      // no material simply uses the default material for this variant; emitting
+      // a mapping with a null material would be spec-invalid.
+      console.warn(
+        `[merge] primitive #${i} has no material for variant "${first.variantName}" — ` +
+          `skipping its variant mapping (default material applies).`,
+      )
+    }
     prim.setExtension('KHR_materials_variants', list)
     return list
   })
@@ -141,12 +179,20 @@ export async function mergeVariants(
     const variant = variantsExt.createVariant(input.variantName)
     sourcePrims.forEach((prim, i) => {
       const material = prim.getMaterial()
-      const target = material ? copied.get(material) : null
+      // copyToDocument returns a Map<Property, Property>; the copy of a Material
+      // is a Material. Narrow the type here so the mapping is correctly typed.
+      const target = material ? (copied.get(material) as Material | undefined) : null
+      if (!target) {
+        // No material for this primitive in this colourway → fall back to the
+        // default material for this variant rather than binding a null mapping.
+        console.warn(
+          `[merge] primitive #${i} has no material in variant "${input.variantName}" — ` +
+            `skipping its variant mapping (default material applies).`,
+        )
+        return
+      }
       mappingLists[i]!.addMapping(
-        variantsExt
-          .createMapping()
-          .setMaterial((target ?? null) as never)
-          .addVariant(variant),
+        variantsExt.createMapping().setMaterial(target).addVariant(variant),
       )
     })
   }

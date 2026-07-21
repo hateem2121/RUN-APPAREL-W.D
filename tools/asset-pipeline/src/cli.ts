@@ -1,5 +1,5 @@
 #!/usr/bin/env tsx
-import { mergeVariants, type MergeInput } from './merge-variants'
+import { mergeVariants, parseMergeArgs, type ParsedMergeArgs } from './merge-variants'
 import { checkVariants, inspectGlb } from './validate'
 import { generatePlaceholders } from './placeholders'
 
@@ -29,19 +29,13 @@ async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2)
 
   if (command === 'merge') {
-    const inputs: MergeInput[] = []
-    let out: string | null = null
-    let useDraco = false
-    for (let i = 0; i < rest.length; i++) {
-      const arg = rest[i]!
-      if (arg === '--out') out = rest[++i] ?? null
-      else if (arg === '--draco') useDraco = true
-      else {
-        const eq = arg.lastIndexOf('=')
-        if (eq === -1) fail(`Expected <file.glb>=<VARIANT-ID>, got "${arg}"`)
-        inputs.push({ file: arg.slice(0, eq), variantName: arg.slice(eq + 1) })
+    const { inputs, out, draco: useDraco } = ((): ParsedMergeArgs => {
+      try {
+        return parseMergeArgs(rest)
+      } catch (error) {
+        fail(error instanceof Error ? error.message : String(error))
       }
-    }
+    })()
     if (!out) fail('Missing --out <merged.glb>')
     const result = await mergeVariants(inputs, out, { draco: useDraco })
     console.log(`Merged ${inputs.length} colourways → ${result.outputFile}`)

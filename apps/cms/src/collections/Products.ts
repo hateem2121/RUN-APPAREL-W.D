@@ -27,6 +27,16 @@ export const Products: CollectionConfig = {
         if (status !== 'published') return data
 
         const id = originalDoc?.id
+        // Publishing rules below (at least one active colourway, exactly one
+        // default, per-colourway GLB coverage, variantId prefixes) can only be
+        // checked once the product has an ID and colourways can reference it.
+        // Block publishing on create so those checks are never silently skipped.
+        if (!id) {
+          throw new Error(
+            'Save this product as a draft first, add its colourways, then set it to Published. ' +
+              'Publishing checks need the product to exist before its colourways can be verified.',
+          )
+        }
         const productCode = data?.productCode ?? originalDoc?.productCode
         const variantMode = data?.variantMode ?? originalDoc?.variantMode
         const glbAsset = data?.glbAsset ?? originalDoc?.glbAsset

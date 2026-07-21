@@ -207,6 +207,12 @@ export function Stage({ data, selected }: StageProps) {
                 height={selected.poster.height ?? undefined}
                 loading="eager"
                 decoding="async"
+                onError={(event) => {
+                  // Fall back to the product-level poster if a colourway poster
+                  // 404s, so the stage is never blank while 3D is unavailable.
+                  const fb = product.posterFallback?.url
+                  if (fb && event.currentTarget.src !== fb) event.currentTarget.src = fb
+                }}
               />
             </div>
           )}

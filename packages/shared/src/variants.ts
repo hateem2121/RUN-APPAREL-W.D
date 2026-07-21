@@ -22,5 +22,12 @@ export function isValidVariantId(variantId: string, productCode: string): boolea
 
 /** Derive the canonical variant ID for a colourway slug, e.g. ("N001","navy") -> "N001-NAVY". */
 export function buildVariantId(productCode: string, colourSlug: string): string {
-  return `${productCode}-${colourSlug.toUpperCase().replace(/[^A-Z0-9]+/g, '-')}`
+  // Collapse runs of non-alphanumerics to a single hyphen, then strip any
+  // leading/trailing hyphens so a sloppy slug (" navy!", "--forest--") still
+  // yields a valid variant ID rather than one isValidVariantId would reject.
+  const colour = colourSlug
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return `${productCode}-${colour}`
 }

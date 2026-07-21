@@ -4,7 +4,7 @@ import type {
   ViewerColourway,
   ViewerMediaAsset,
 } from '@run-apparel/shared'
-import { normalizeSlug } from '@run-apparel/shared'
+import { DEFAULT_SITE_SETTINGS, normalizeSlug } from '@run-apparel/shared'
 import { convertLexicalToHTML } from '@payloadcms/richtext-lexical/html'
 import type { Endpoint, PayloadRequest } from 'payload'
 
@@ -168,7 +168,9 @@ export const publicViewerEndpoint: Endpoint = {
           cameraTarget: String(product.cameraTarget ?? 'auto auto auto'),
           defaultFieldOfView: String(product.defaultFieldOfView ?? '30deg'),
         },
-        catalogueUrl: String(product.catalogueUrl ?? settings.catalogueUrl ?? 'https://wear-run.help/catalogue'),
+        catalogueUrl: String(
+          product.catalogueUrl ?? settings.catalogueUrl ?? DEFAULT_SITE_SETTINGS.catalogueUrl,
+        ),
         retiredMessage: String(product.retiredMessage ?? ''),
       },
       colourways,
@@ -176,13 +178,13 @@ export const publicViewerEndpoint: Endpoint = {
       requestedColourwayUnavailable,
       fallbackMessage: requestedColourwayUnavailable ? String(product.retiredMessage ?? '') : null,
       siteSettings: {
-        companyName: String(settings.companyName ?? 'RUN APPAREL (PVT) LTD'),
-        email: String(settings.email ?? 'partner@wear-run.com'),
-        whatsappNumber: String(settings.whatsappNumber ?? '+923361777313'),
-        catalogueUrl: String(settings.catalogueUrl ?? 'https://wear-run.help/catalogue'),
-        temporaryWordmark: String(settings.temporaryWordmark ?? 'RUN APPAREL'),
-        footerLine: String(settings.footerLine ?? 'RUN THE EXTRA MILE.'),
-        legalLine: String(settings.legalLine ?? '© RUN APPAREL (PVT) LTD'),
+        companyName: String(settings.companyName ?? DEFAULT_SITE_SETTINGS.companyName),
+        email: String(settings.email ?? DEFAULT_SITE_SETTINGS.email),
+        whatsappNumber: String(settings.whatsappNumber ?? DEFAULT_SITE_SETTINGS.whatsappNumber),
+        catalogueUrl: String(settings.catalogueUrl ?? DEFAULT_SITE_SETTINGS.catalogueUrl),
+        temporaryWordmark: String(settings.temporaryWordmark ?? DEFAULT_SITE_SETTINGS.temporaryWordmark),
+        footerLine: String(settings.footerLine ?? DEFAULT_SITE_SETTINGS.footerLine),
+        legalLine: String(settings.legalLine ?? DEFAULT_SITE_SETTINGS.legalLine),
       },
     }
 

@@ -1,5 +1,5 @@
 import type { ViewerSiteSettings } from '@run-apparel/shared'
-import { buildMailtoUrl, buildWhatsAppUrl } from '@run-apparel/shared'
+import { DEFAULT_SITE_SETTINGS, buildMailtoUrl, buildWhatsAppUrl } from '@run-apparel/shared'
 import { useEffect } from 'react'
 import { track } from '../lib/analytics'
 import { headingWithAccent } from './SerifAccent'
@@ -26,19 +26,9 @@ export function RetiredNotice({ message }: { message: string }) {
   )
 }
 
-const FALLBACK_SETTINGS: ViewerSiteSettings = {
-  companyName: 'RUN APPAREL (PVT) LTD',
-  email: 'partner@wear-run.com',
-  whatsappNumber: '+923361777313',
-  catalogueUrl: 'https://wear-run.help/catalogue',
-  temporaryWordmark: 'RUN APPAREL',
-  footerLine: 'RUN THE EXTRA MILE.',
-  legalLine: '© RUN APPAREL (PVT) LTD',
-}
-
 /** Branded state for an unpublished/absent product (or an unreachable API). */
 export function UnavailableState({ settings }: { settings?: ViewerSiteSettings }) {
-  const site = settings ?? FALLBACK_SETTINGS
+  const site = settings ?? DEFAULT_SITE_SETTINGS
 
   // Retired references shouldn't be indexed.
   useEffect(() => {

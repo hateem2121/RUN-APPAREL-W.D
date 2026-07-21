@@ -28,4 +28,14 @@ describe('buildVariantId', () => {
     expect(buildVariantId('N001', 'navy')).toBe('N001-NAVY')
     expect(buildVariantId('N001', 'deep-forest')).toBe('N001-DEEP-FOREST')
   })
+  it('strips leading/trailing hyphens and collapses runs from sloppy slugs', () => {
+    expect(buildVariantId('N001', ' navy! ')).toBe('N001-NAVY')
+    expect(buildVariantId('N001', '--forest--')).toBe('N001-FOREST')
+    expect(buildVariantId('N001', 'sea/foam')).toBe('N001-SEA-FOAM')
+  })
+  it('always produces a valid variant ID for its own product code', () => {
+    for (const slug of ['navy', ' navy! ', '--forest--', 'sea/foam', 'deep-forest']) {
+      expect(isValidVariantId(buildVariantId('N001', slug), 'N001')).toBe(true)
+    }
+  })
 })
