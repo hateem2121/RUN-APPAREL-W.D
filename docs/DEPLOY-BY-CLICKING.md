@@ -1,81 +1,71 @@
-# Deploy by clicking — no command line needed
+# Deploying — the simple version
 
-This gets the site live using only the Cloudflare dashboard (clicking), by
-connecting the GitHub repo. Cloudflare's own build servers do the work.
+**You almost never need this file.** Once the one-time setup is done, deploying
+is automatic: **push to `main` and GitHub Actions builds, tests, and deploys.**
+Watch the **Actions** tab of the `hateem2121/run-apparel-viewer` repo.
 
-You will deploy two things:
+This page covers the **one-time setup** that makes that automation work, plus a
+dashboard-only fallback if you ever want to deploy without the command line.
 
-1. **The CMS (the "brain")** — a Cloudflare Worker named `run-apparel-viewer-cms`.
-2. **The viewer (the public page)** — a Cloudflare Pages site.
-
-The database (`run-apparel-viewer-db`) and file storage (`run-apparel-viewer-media`)
-already exist and are already wired up in the code — you don't create those.
-
-> ⚠️ **Never** touch the existing `run-apparel` worker or `run-apparel-db` — that's a
-> separate live site. Everything here uses the `...-viewer...` names.
+> ⚠️ **Never** touch the existing `run-apparel` worker or `run-apparel-db` — that
+> is a separate live site. Everything here uses the `...-viewer...` names.
 
 ---
 
-## Stage 1 — Deploy the CMS (the brain)
+## One-time setup (makes `git push` deploy for you)
 
-1. Go to **https://dash.cloudflare.com** → left sidebar **Workers & Pages**.
-2. Click **Create** → tab **Import a repository** → connect GitHub if asked →
-   pick **`hateem2121/Model-Viewer`**.
-3. Fill in:
-   - **Project/Worker name:** `run-apparel-viewer-cms`
-   - **Production branch:** `main`
-   - Expand **Build settings / Advanced** and set:
-     - **Root directory:** `apps/cms`
-     - **Build command:** `pnpm install && npx opennextjs-cloudflare build`
-     - **Deploy command:** `npx wrangler deploy`
-4. Add one **Variable/Secret** (Settings → Variables, or during setup):
-   - Name: `PAYLOAD_SECRET` — Value: *(the long code Claude gave you in chat)* — mark it **Secret/Encrypt**.
-5. Click **Save and Deploy**. First build takes a few minutes.
-6. When it finishes, open **Settings → Domains & Routes → Add → Custom domain** and
-   add `cms.wear-run.help`.
+Done once, together with Claude, in [CLOUDFLARE-SETUP.md](CLOUDFLARE-SETUP.md).
+In short:
 
-Tell Claude "CMS deployed" — Claude will verify it from their side.
+1. You create a scoped **Cloudflare API token** (dashboard, ~3 minutes).
+2. Claude stores it as GitHub repo secrets `CLOUDFLARE_API_TOKEN` +
+   `CLOUDFLARE_ACCOUNT_ID`, and sets the repo variable `DEPLOY_ENABLED=true`.
+3. From then on, every push to `main` deploys automatically after tests pass.
 
 ---
 
-## Stage 2 — Deploy the viewer (the public page)
+## Fallback A — deploy from the command line
 
-1. **Workers & Pages** → **Create** → tab **Pages** → **Connect to Git** →
-   pick **`hateem2121/Model-Viewer`**.
-2. Fill in:
-   - **Project name:** `run-apparel-viewer`
-   - **Production branch:** `main`
-   - **Build command:** `pnpm install && pnpm --filter @run-apparel/viewer build`
-   - **Build output directory:** `apps/viewer/dist`
-3. Add a **Variable**:
-   - `VITE_API_BASE_URL` = `https://cms.wear-run.help`
-4. Click **Save and Deploy**.
-5. When done: **Custom domains → Set up a domain →** `viewer.wear-run.help`.
+If CI is down or you want to deploy by hand (needs `wrangler login` or the API
+token in your shell):
 
-Tell Claude "viewer deployed".
+```bash
+pnpm --filter @run-apparel/cms deploy          # the CMS "brain"
+VITE_API_BASE_URL=https://cms.wear-run.help pnpm --filter @run-apparel/viewer build
+pnpm --filter @run-apparel/viewer exec wrangler pages deploy apps/viewer/dist \
+  --project-name run-apparel-viewer --branch main
+```
 
 ---
 
-## Stage 3 — First login + content
+## Fallback B — deploy from the Cloudflare dashboard (no command line)
 
-1. Open `https://cms.wear-run.help/admin` → create your **Admin** account
-   (this is the first-user screen; pick your own email + password).
-2. Add products through the friendly admin panel, **or** ask Claude to load the
-   demo product N001 for you.
+Only if you cannot use CI **and** cannot use the command line.
+
+**CMS worker**
+
+1. https://dash.cloudflare.com → **Workers & Pages** → **Create** →
+   **Import a repository** → pick `hateem2121/run-apparel-viewer`.
+2. Project/Worker name `run-apparel-viewer-cms`, production branch `main`,
+   **Root directory** `apps/cms`, **Deploy command** `pnpm --filter @run-apparel/cms deploy`.
+3. Add the secret `PAYLOAD_SECRET` (the long code Claude generates). Save & Deploy.
+4. Settings → Domains & Routes → add `cms.wear-run.help`.
+
+**Viewer (Pages)**
+
+1. **Create → Pages → Connect to Git** → `hateem2121/run-apparel-viewer`.
+2. Project name `run-apparel-viewer`, production branch `main`,
+   build command `pnpm install --frozen-lockfile && pnpm --filter @run-apparel/viewer build`,
+   output directory `apps/viewer/dist`.
+3. Variable `VITE_API_BASE_URL=https://cms.wear-run.help`. Save & Deploy.
+4. Custom domains → `viewer.wear-run.help`.
 
 ---
 
-## Stage 4 (optional) — Visit counter
+## First login + content
 
-- Dashboard → **Analytics & Logs → Web Analytics → Add a site** → `viewer.wear-run.help`
-  → copy the **beacon token** → in the Pages project add variable
-  `VITE_CF_BEACON_TOKEN` = *(that token)* → redeploy.
+1. `https://cms.wear-run.help/admin` → the first-user screen → create **your own**
+   Admin account (your email + your password — Claude never sets this).
+2. Add products through the admin panel, or ask Claude to load the demo product.
 
----
-
-### If any screen looks different or a build fails
-
-Copy the error text to Claude. Cloudflare occasionally renames buttons; the names
-above are the current ones. If clicking gets fiddly, the alternative is to allow
-full internet on this project's environment and let Claude run the whole deploy in
-a fresh session.
+If anything looks different or a build fails, copy the error text to Claude.

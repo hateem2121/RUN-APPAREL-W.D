@@ -131,22 +131,49 @@ dark mode.
 
 ## For developers
 
+### How work ships (single branch)
+
+This repo uses **one branch, `main`, and no pull requests.** Commit to `main`
+and push — GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, all unit
+tests, the build and the Playwright e2e suite, then deploys (once
+`DEPLOY_ENABLED` is set — see [docs/CLOUDFLARE-SETUP.md](docs/CLOUDFLARE-SETUP.md)).
+A red build never deploys. Operational playbooks live in
+[docs/RUNBOOK.md](docs/RUNBOOK.md).
+
+> ⚠️ **Never run `git` from your home directory or a parent folder.** This
+> project has its own `.git`; keep git commands scoped to this directory.
+
+### Local development
+
 ```bash
 pnpm install
-pnpm typecheck && pnpm test && pnpm build   # all workspaces
+pnpm typecheck && pnpm test && pnpm build   # all workspaces (82 unit tests)
 
 pnpm seed:assets   # placeholder GLBs/posters + merged N001 file
 pnpm dev:cms       # Payload admin on http://localhost:3000 (local D1/R2 emulation)
+pnpm --filter @run-apparel/cms migrate     # apply migrations to local D1 (first run)
 pnpm seed:cms      # seed product N001 + colourways + settings + dev admin user
 pnpm dev:viewer    # viewer on http://localhost:5173 (VITE_API_BASE_URL=http://localhost:3000)
 
-cd apps/viewer && pnpm test:e2e   # Playwright suite against a mock API
+cd apps/viewer && pnpm test:e2e   # Playwright suite (mock API + real-WebGL) from a cold checkout
 ```
 
-Environment variables: see `.env.example`. Versions are pinned to the latest
-stable releases (verified 2026-07-20); the CMS workspace intentionally uses
-TypeScript 5.9 because Next.js 16 does not yet accept the TypeScript 7 native
-compiler package.
+For local CMS runs, put a `PAYLOAD_SECRET` in `apps/cms/.env`
+(`openssl rand -hex 32`). Other env vars: see `.env.example`.
+
+### Roles
+
+Two roles by design: **Admin / Director** (`admin` — full control incl. users
+and settings) and **Editor** (products/colourways/media only). "Director" is the
+admin role's label, not a separate permission tier.
+
+### Versions
+
+Dependencies are pinned to the latest stable releases. Two deliberate
+exceptions: the CMS workspace uses **TypeScript 5.9** (Next.js 16 does not yet
+accept the TypeScript 7 native compiler), and `packageManager` is pinned to
+**pnpm 10.33.0** (pnpm 11 enforces a `minimumReleaseAge` supply-chain policy that
+rejects the verified lockfile). All shipped app dependencies remain latest-stable.
 
 The seeded product **N001** demonstrates both variant modes: it publishes as
 `single-glb-variants` with the merged GLB, and every colourway also carries its

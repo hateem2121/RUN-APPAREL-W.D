@@ -63,6 +63,12 @@ npx wrangler secret put PAYLOAD_SECRET     # paste a long random string (openssl
 Review `wrangler.jsonc` vars: `CMS_PUBLIC_URL`, `PUBLIC_MEDIA_BASE_URL`,
 `VIEWER_ALLOWED_ORIGINS`, `VIEWER_API_CACHE_SECONDS`.
 
+**Optional edge rate-limit (recommended):** dashboard → the `wear-run.help` zone
+→ *Security → WAF → Rate limiting rules* → add a rule matching
+`cms.wear-run.help/api/users/login` (e.g. 10 requests / 10 min / IP → block).
+This layers on top of the built-in Payload login lockout (5 attempts → 10-min
+lock). The free plan includes one rate-limit rule.
+
 ## 4. Database schema — ✅ already applied
 
 The initial Payload migration (`apps/cms/src/migrations/20260720_185735_initial`)
@@ -83,21 +89,26 @@ migrations (i.e. after changing collections and running `migrate:create`).
 ## 5. Deploy the CMS worker
 
 ```bash
-cd apps/cms
-pnpm deploy        # = opennextjs-cloudflare build && deploy
+pnpm --filter @run-apparel/cms deploy    # canonical command (= opennextjs-cloudflare build && deploy)
 ```
 
 This deploys the Worker named **`run-apparel-viewer-cms`** (from `wrangler.jsonc`).
-**Do not rename it to `run-apparel`** — that is the separate live site.
+**Do not rename it to `run-apparel`** — that is the separate live site. On cold
+start the Worker applies any pending committed migrations automatically
+(`prodMigrations`), so **deploy = migrate**. Confirm it is healthy:
+
+```bash
+curl -f https://cms.wear-run.help/api/health     # → {"ok":true}
+```
 
 Then dashboard → Workers & Pages → `run-apparel-viewer-cms` → *Settings* →
 *Domains & Routes* → **Add custom domain** → `cms.wear-run.help`.
 
-Visit `https://cms.wear-run.help/admin` — the first-user screen appears; create the
-Admin / Director account (or run `pnpm --filter @run-apparel/cms seed` first with
-production bindings, then **change the seeded password**). Seeding also uploads the
-placeholder GLB/poster media into R2; for real products, upload pipeline-processed
-assets instead.
+Visit `https://cms.wear-run.help/admin` — the first-user screen appears; **create
+your own Admin / Director account** (your email + your password). Do **not** run
+the local dev seed against production — it creates a known-password dev admin for
+local use only. Real products: upload pipeline-processed GLB/poster assets via the
+admin panel.
 
 ## 6. Viewer on Cloudflare Pages
 
@@ -134,9 +145,30 @@ Dashboard → Analytics & Logs → **Web Analytics** → *Add a site* → `viewe
 ## 9. Smoke test
 
 1. `https://cms.wear-run.help/admin` — log in, confirm collections exist.
-2. `https://cms.wear-run.help/api/public/viewer/n001/navy` — JSON with product data.
-3. `https://viewer.wear-run.help/n001/navy` — poster appears instantly, model loads, tabs work.
-4. Run through `docs/QA-CHECKLIST.md`.
+2. `https://cms.wear-run.help/api/health` — `{"ok":true}`.
+3. `https://cms.wear-run.help/api/public/viewer/n001/navy` — JSON with product data.
+4. `https://viewer.wear-run.help/n001/navy` — poster appears instantly, model loads, tabs work.
+5. Run through `docs/QA-CHECKLIST.md`.
+
+## 10. GitHub Actions auto-deploy (makes `git push` deploy)
+
+So every push to `main` deploys automatically (after tests pass):
+
+1. Cloudflare dashboard → *My Profile → API Tokens → Create Token* → grant
+   **Workers Scripts: Edit**, **Cloudflare Pages: Edit**, **D1: Edit**,
+   **Workers R2 Storage: Edit** on this account. Copy the token.
+2. Store it and the account id as repo secrets, and enable deploys:
+
+   ```bash
+   gh secret set CLOUDFLARE_API_TOKEN --body "<token>"
+   gh secret set CLOUDFLARE_ACCOUNT_ID --body "<account-id>"
+   gh variable set DEPLOY_ENABLED --body true      # turns on the deploy/backup/uptime jobs
+   ```
+
+3. (Optional) `gh variable set VITE_CF_BEACON_TOKEN --body "<beacon>"` from step 8.
+
+Until `DEPLOY_ENABLED` is `true`, CI only runs tests — it never deploys. See
+[RUNBOOK.md](RUNBOOK.md) for the deploy/migration/uptime playbooks.
 
 ## Summary — what's done vs. what remains
 
@@ -165,14 +197,16 @@ domains, or create Web Analytics sites):
 **Never touch** the existing `run-apparel` worker, `run-apparel-db`, `run-assets`,
 or `run-private` — those belong to the separate live site.
 
-## Deployment status — completed
+## Live endpoints (once deployed)
 
-The isolated viewer stack is deployed and verified end-to-end.
+The isolated viewer stack deploys via GitHub Actions on push to `main` once
+step 10 is done (or via the manual commands above). Endpoints:
 
 | Piece | URL |
 |---|---|
-| CMS worker (`run-apparel-viewer-cms`) | `https://cms.wear-run.help` (custom domain) / `https://run-apparel-viewer-cms.hateemjamshaid.workers.dev` |
+| CMS worker (`run-apparel-viewer-cms`) | `https://cms.wear-run.help` (custom domain) |
 | CMS admin | `https://cms.wear-run.help/admin` |
+| CMS health | `https://cms.wear-run.help/api/health` |
 | Public viewer API | `https://cms.wear-run.help/api/public/viewer/n001/navy` |
 | Viewer (Pages `run-apparel-viewer`) | `https://viewer.wear-run.help` (custom domain) / `https://run-apparel-viewer.pages.dev` |
 

@@ -40,6 +40,18 @@ throttled "Slow 4G" network profile.
 - [ ] Touch: first tap selects immediately (no hover dependency); tap targets ≥ 44px
 - [ ] URL updates on every colourway change without a full reload
 
+## Motion & interaction (refined layer)
+
+- [ ] Preloader shows the blueprint counter + volt rule, then wipes up to reveal the stage (no long hold; caps ~2.5s even on slow data)
+- [ ] Sections fade/rise in as you scroll (scroll-reveal); nothing stays stuck invisible
+- [ ] Smooth-scroll feels natural; **scroll-to-zoom still works over the 3D model** (Lenis is prevented on the stage)
+- [ ] Desktop fine-pointer: the precision crosshair cursor appears and expands over links/buttons/tabs; magnetic pull on controls; the native cursor is hidden only while active
+- [ ] Theme toggle cross-fades (View Transitions) where supported; instant swap otherwise
+- [ ] Switching colourway cross-fades the poster + colour label
+- [ ] "How we build your product" expands/collapses smoothly (no instant jump); collapsed content is not keyboard-focusable
+- [ ] **Reduced motion** (`prefers-reduced-motion: reduce`): no preloader animation, no smooth-scroll, no custom cursor, no reveals held hidden — the full page is immediately present and static
+- [ ] Touch devices: no custom cursor; all interactions work by tap
+
 ## Accessibility
 
 - [ ] Full keyboard pass: every control reachable, visible focus states, no traps
