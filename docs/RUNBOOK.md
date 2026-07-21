@@ -91,6 +91,28 @@ not a hard SLA). On failure it opens a single deduplicated GitHub issue labelled
 To prove the alert path works: run `uptime.yml` via *workflow_dispatch* with a
 bogus `target` URL — it should open an `outage` issue.
 
+## Why the viewer calls workers.dev (not cms.wear-run.help)
+
+The `wear-run.help` zone has **Bot Fight Mode** enabled (protecting the separate
+live commercial site). It challenges automated requests to `cms.wear-run.help`,
+and — unlike Super Bot Fight Mode — it **cannot be exempted per-hostname** (it's
+a zone-wide toggle). A cross-origin `fetch` from the viewer can't solve that
+challenge, so the viewer would break.
+
+Fix in place: the viewer's `VITE_API_BASE_URL` **repo variable** points at the
+CMS worker's `run-apparel-viewer-cms.<account>.workers.dev` URL, which is on the
+`workers.dev` zone (no Bot Fight Mode). Visitors only ever see
+`viewer.wear-run.help`; the API URL is internal. `workers_dev: true` in
+`apps/cms/wrangler.jsonc` keeps that URL enabled.
+
+To move the API back onto the clean `cms.wear-run.help` domain later: disable
+Bot Fight Mode for that host (or upgrade to Super Bot Fight Mode + a WAF skip
+rule for `http.host eq "cms.wear-run.help"`), then
+`gh variable set VITE_API_BASE_URL --body https://cms.wear-run.help` and push.
+
+The admin panel is reachable at both `cms.wear-run.help/admin` (a real browser
+solves the managed challenge automatically) and the workers.dev `/admin`.
+
 ## Login protection
 
 The admin login locks an account for 10 minutes after 5 failed attempts

@@ -4,8 +4,12 @@
   // site. This viewer CMS is fully isolated. Never deploy over "run-apparel".
   "name": "run-apparel-viewer-cms",
   "main": ".open-next/worker.js",
-  // Temporary: expose a workers.dev URL to verify the worker behind the zone's
-  // bot challenge. Remove once the custom domain is confirmed reachable.
+  // The viewer calls the CMS API via this workers.dev URL (set as the
+  // VITE_API_BASE_URL repo variable) to bypass the wear-run.help zone's
+  // Bot Fight Mode, which challenges cms.wear-run.help and cannot be exempted
+  // per-host. Keep enabled while the viewer uses it; if Bot Fight Mode is later
+  // disabled/exempted, point VITE_API_BASE_URL back to the custom domain and
+  // this can be removed. See docs/RUNBOOK.md → "Why the viewer calls workers.dev".
   "workers_dev": true,
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
