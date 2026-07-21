@@ -1,10 +1,10 @@
-name: DB inspect (temporary)
+name: DB reconcile (temporary)
 
 on:
   workflow_dispatch:
 
 jobs:
-  inspect:
+  reconcile:
     runs-on: ubuntu-latest
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -17,24 +17,48 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Tables
-        run: pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
-      - name: Migrations recorded
-        run: pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "SELECT id, name, batch FROM payload_migrations ORDER BY id;"
-      - name: Events table present?
-        run: pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "SELECT count(*) AS events_table FROM sqlite_master WHERE type='table' AND name='events';"
-      - name: locked_documents_rels has events_id?
-        run: pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "SELECT count(*) AS has_events_id FROM pragma_table_info('payload_locked_documents_rels') WHERE name='events_id';"
 
-      - name: Capture worker exception via tail
+      - name: Write reconcile SQL
+        run: |
+          cat > /tmp/reconcile.sql <<'SQL'
+          CREATE TABLE IF NOT EXISTS `events` (
+            `id` integer PRIMARY KEY NOT NULL,
+            `type` text NOT NULL,
+            `event` text NOT NULL,
+            `product` text,
+            `variant` text,
+            `placement` text,
+            `message` text,
+            `ua` text,
+            `updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+            `created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS `events_type_idx` ON `events` (`type`);
+          CREATE INDEX IF NOT EXISTS `events_event_idx` ON `events` (`event`);
+          CREATE INDEX IF NOT EXISTS `events_updated_at_idx` ON `events` (`updated_at`);
+          CREATE INDEX IF NOT EXISTS `events_created_at_idx` ON `events` (`created_at`);
+          ALTER TABLE `payload_locked_documents_rels` ADD `events_id` integer REFERENCES events(id);
+          CREATE INDEX IF NOT EXISTS `payload_locked_documents_rels_events_id_idx` ON `payload_locked_documents_rels` (`events_id`);
+          DELETE FROM payload_migrations WHERE name = 'dev' AND batch = -1;
+          INSERT INTO payload_migrations (name, batch) VALUES ('20260721_084024_add_events', 2);
+          SQL
+          cat /tmp/reconcile.sql
+
+      - name: Apply reconcile SQL (remote D1)
+        working-directory: apps/cms
+        run: pnpm exec wrangler d1 execute run-apparel-viewer-db --remote --yes --file /tmp/reconcile.sql
+
+      - name: Verify migration state + events table
         working-directory: apps/cms
         run: |
-          pnpm exec wrangler tail run-apparel-viewer-cms --format pretty > /tmp/tail.log 2>&1 &
-          TAIL=$!
-          sleep 6
-          echo "--- hitting workers.dev /api/health (bypasses zone challenge, reaches worker) ---"
-          curl -s --max-time 25 https://run-apparel-viewer-cms.hateemjamshaid.workers.dev/api/health || true
-          sleep 12
-          kill $TAIL 2>/dev/null || true
-          echo "===== TAIL OUTPUT ====="
-          cat /tmp/tail.log || true
+          pnpm exec wrangler d1 execute run-apparel-viewer-db --remote --command "SELECT id,name,batch FROM payload_migrations ORDER BY id;"
+          pnpm exec wrangler d1 execute run-apparel-viewer-db --remote --command "SELECT count(*) AS events_table FROM sqlite_master WHERE type='table' AND name='events';"
+
+      - name: Health after reconcile (workers.dev — reaches the worker)
+        run: |
+          sleep 4
+          for i in 1 2 3 4; do
+            echo "--- try $i ---"
+            curl -s --max-time 25 -w " [HTTP %{http_code}]\n" https://run-apparel-viewer-cms.hateemjamshaid.workers.dev/api/health || true
+            sleep 6
+          done
