@@ -1,64 +1,32 @@
-name: DB reconcile (temporary)
+name: Zone security probe (temporary)
 
 on:
   workflow_dispatch:
 
 jobs:
-  reconcile:
+  probe:
     runs-on: ubuntu-latest
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      ZONE: 805d8ae5fa0dea40c960a2561f66d141
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-
-      - name: Write reconcile SQL
+      - name: Security level
         run: |
-          cat > /tmp/reconcile.sql <<'SQL'
-          CREATE TABLE IF NOT EXISTS `events` (
-            `id` integer PRIMARY KEY NOT NULL,
-            `type` text NOT NULL,
-            `event` text NOT NULL,
-            `product` text,
-            `variant` text,
-            `placement` text,
-            `message` text,
-            `ua` text,
-            `updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-            `created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL
-          );
-          CREATE INDEX IF NOT EXISTS `events_type_idx` ON `events` (`type`);
-          CREATE INDEX IF NOT EXISTS `events_event_idx` ON `events` (`event`);
-          CREATE INDEX IF NOT EXISTS `events_updated_at_idx` ON `events` (`updated_at`);
-          CREATE INDEX IF NOT EXISTS `events_created_at_idx` ON `events` (`created_at`);
-          ALTER TABLE `payload_locked_documents_rels` ADD `events_id` integer REFERENCES events(id);
-          CREATE INDEX IF NOT EXISTS `payload_locked_documents_rels_events_id_idx` ON `payload_locked_documents_rels` (`events_id`);
-          DELETE FROM payload_migrations WHERE name = 'dev' AND batch = -1;
-          INSERT INTO payload_migrations (name, batch) VALUES ('20260721_084024_add_events', 2);
-          SQL
-          cat /tmp/reconcile.sql
-
-      - name: Apply reconcile SQL (remote D1)
-        working-directory: apps/cms
-        run: pnpm exec wrangler d1 execute run-apparel-viewer-db --remote --yes --file /tmp/reconcile.sql
-
-      - name: Verify migration state + events table
-        working-directory: apps/cms
+          curl -s "https://api.cloudflare.com/client/v4/zones/$ZONE/settings/security_level" \
+            -H "Authorization: Bearer $TOKEN" | head -c 600; echo
+      - name: Bot fight mode
         run: |
-          pnpm exec wrangler d1 execute run-apparel-viewer-db --remote --command "SELECT id,name,batch FROM payload_migrations ORDER BY id;"
-          pnpm exec wrangler d1 execute run-apparel-viewer-db --remote --command "SELECT count(*) AS events_table FROM sqlite_master WHERE type='table' AND name='events';"
-
-      - name: Health after reconcile (workers.dev — reaches the worker)
+          curl -s "https://api.cloudflare.com/client/v4/zones/$ZONE/bot_management" \
+            -H "Authorization: Bearer $TOKEN" | head -c 800; echo
+      - name: WAF custom rules
         run: |
-          sleep 4
-          for i in 1 2 3 4; do
-            echo "--- try $i ---"
-            curl -s --max-time 25 -w " [HTTP %{http_code}]\n" https://run-apparel-viewer-cms.hateemjamshaid.workers.dev/api/health || true
-            sleep 6
-          done
+          curl -s "https://api.cloudflare.com/client/v4/zones/$ZONE/rulesets/phases/http_request_firewall_custom/entrypoint" \
+            -H "Authorization: Bearer $TOKEN" | head -c 2000; echo
+      - name: Legacy firewall rules
+        run: |
+          curl -s "https://api.cloudflare.com/client/v4/zones/$ZONE/firewall/rules" \
+            -H "Authorization: Bearer $TOKEN" | head -c 1500; echo
+      - name: Managed challenge / super bot fight
+        run: |
+          curl -s "https://api.cloudflare.com/client/v4/zones/$ZONE/rulesets/phases/http_request_sbfm/entrypoint" \
+            -H "Authorization: Bearer $TOKEN" | head -c 1500; echo
