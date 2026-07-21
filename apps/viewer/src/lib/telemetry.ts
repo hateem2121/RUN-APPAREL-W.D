@@ -72,54 +72,70 @@ function enqueue(item: QueuedEvent): void {
   if (!flushTimer) flushTimer = setTimeout(flush, FLUSH_MS)
 }
 
-/** Wire the analytics/diagnostic/error seams to the batching queue. Idempotent. */
-export function initTelemetry(): void {
-  if (started || typeof window === 'undefined' || typeof document === 'undefined') return
+const recordError = (message: string) => {
+  if (errorCount >= MAX_ERRORS) return
+  const key = message.slice(0, 100)
+  if (seenErrors.has(key)) return
+  seenErrors.add(key)
+  errorCount += 1
+  enqueue({ type: 'error', event: 'client_error', message })
+}
+
+/**
+ * Wire the analytics/diagnostic/error seams to the batching queue. Idempotent.
+ * Returns a teardown function that removes every listener and resets state
+ * (used by tests; the app calls this once and never tears it down).
+ */
+export function initTelemetry(): () => void {
+  const noop = () => {}
+  if (started || typeof window === 'undefined' || typeof document === 'undefined') return noop
   // Never send under automation (Playwright/headless) — keeps e2e offline.
-  if (navigator.webdriver) return
+  if (navigator.webdriver) return noop
   // No endpoint configured → nothing to send.
-  if (!API_BASE) return
+  if (!API_BASE) return noop
   started = true
 
-  document.addEventListener('run:analytics', (event) => {
+  const onAnalytics = (event: Event) => {
     if (doNotTrack()) return // analytics honours Do-Not-Track
     const detail = (event as CustomEvent<Record<string, string>>).detail ?? {}
     const { event: name, product, variant, placement } = detail
     if (!name) return
     enqueue({ type: 'analytics', event: name, product, variant, placement })
-  })
-
-  document.addEventListener('run:diagnostic', (event) => {
+  }
+  const onDiagnostic = (event: Event) => {
     const detail = (event as CustomEvent<Record<string, string>>).detail ?? {}
     const { kind, product, variant, reason, module, available } = detail
     // Operational, not tracking — sent regardless of Do-Not-Track.
-    enqueue({
-      type: 'diagnostic',
-      event: kind ?? 'diagnostic',
-      product,
-      variant,
-      message: reason ?? module ?? available,
-    })
-  })
-
-  const recordError = (message: string) => {
-    if (errorCount >= MAX_ERRORS) return
-    const key = message.slice(0, 100)
-    if (seenErrors.has(key)) return
-    seenErrors.add(key)
-    errorCount += 1
-    enqueue({ type: 'error', event: 'client_error', message })
+    enqueue({ type: 'diagnostic', event: kind ?? 'diagnostic', product, variant, message: reason ?? module ?? available })
   }
-  window.addEventListener('error', (event) => {
-    recordError(event.message || String(event.error ?? 'error'))
-  })
-  window.addEventListener('unhandledrejection', (event) => {
+  const onError = (event: ErrorEvent) => recordError(event.message || String(event.error ?? 'error'))
+  const onRejection = (event: PromiseRejectionEvent) =>
     recordError(String(event.reason ?? 'unhandledrejection'))
-  })
-
-  // Flush opportunistically as the visit ends.
-  document.addEventListener('visibilitychange', () => {
+  const onVisibility = () => {
     if (document.visibilityState === 'hidden') flush()
-  })
+  }
+
+  document.addEventListener('run:analytics', onAnalytics)
+  document.addEventListener('run:diagnostic', onDiagnostic)
+  window.addEventListener('error', onError)
+  window.addEventListener('unhandledrejection', onRejection)
+  document.addEventListener('visibilitychange', onVisibility)
   window.addEventListener('pagehide', flush)
+
+  return () => {
+    document.removeEventListener('run:analytics', onAnalytics)
+    document.removeEventListener('run:diagnostic', onDiagnostic)
+    window.removeEventListener('error', onError)
+    window.removeEventListener('unhandledrejection', onRejection)
+    document.removeEventListener('visibilitychange', onVisibility)
+    window.removeEventListener('pagehide', flush)
+    if (flushTimer) {
+      clearTimeout(flushTimer)
+      flushTimer = null
+    }
+    queue = []
+    errorCount = 0
+    seenErrors.clear()
+    started = false
+  }
 }
