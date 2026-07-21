@@ -63,7 +63,9 @@ jobs:
 
       - name: Build viewer
         env:
-          VITE_API_BASE_URL: https://cms.wear-run.help
+          # Defaults to the clean custom domain; overridable via repo variable
+          # (e.g. the CMS workers.dev URL to bypass zone-level Bot Fight Mode).
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}
           VITE_CF_BEACON_TOKEN: ${{ vars.VITE_CF_BEACON_TOKEN }}
         run: pnpm --filter @run-apparel/viewer build
 
@@ -84,4 +86,6 @@ jobs:
           --project-name run-apparel-viewer --branch main
 
       - name: Post-deploy health check
-        run: curl -fsS --retry 5 --retry-delay 10 https://cms.wear-run.help/api/health
+        run: >-
+          curl -fsS --retry 5 --retry-delay 10
+          "${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}/api/health"
