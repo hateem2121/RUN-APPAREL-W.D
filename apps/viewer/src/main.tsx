@@ -9,8 +9,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import { initAnalytics } from './lib/analytics'
+import { initTelemetry } from './lib/telemetry'
 
 initAnalytics()
+initTelemetry()
 
 // Dark-mode grain overlay (hidden in light mode via CSS).
 const grain = document.createElement('div')

@@ -7,9 +7,11 @@ import { r2Storage } from '@payloadcms/storage-r2'
 import { buildConfig } from 'payload'
 
 import { Colourways } from './collections/Colourways'
+import { Events } from './collections/Events'
 import { Media } from './collections/Media'
 import { Products } from './collections/Products'
 import { Users } from './collections/Users'
+import { eventsEndpoint } from './endpoints/events'
 import { healthEndpoint } from './endpoints/health'
 import { publicViewerEndpoint } from './endpoints/publicViewer'
 import { SiteSettings } from './globals/SiteSettings'
@@ -73,9 +75,9 @@ export default buildConfig({
       titleSuffix: ' — RUN APPAREL CMS',
     },
   },
-  collections: [Users, Media, Products, Colourways],
+  collections: [Users, Media, Products, Colourways, Events],
   globals: [SiteSettings],
-  endpoints: [publicViewerEndpoint, healthEndpoint],
+  endpoints: [publicViewerEndpoint, healthEndpoint, eventsEndpoint],
   cors: allowedOrigins,
   editor: lexicalEditor(),
   secret: env?.PAYLOAD_SECRET ?? process.env.PAYLOAD_SECRET ?? '',

@@ -71,6 +71,7 @@ export interface Config {
     media: Media;
     products: Product;
     colourways: Colourway;
+    events: Event;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -82,6 +83,7 @@ export interface Config {
     media: MediaSelect<false> | MediaSelect<true>;
     products: ProductsSelect<false> | ProductsSelect<true>;
     colourways: ColourwaysSelect<false> | ColourwaysSelect<true>;
+    events: EventsSelect<false> | EventsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -347,6 +349,30 @@ export interface Colourway {
   createdAt: string;
 }
 /**
+ * Anonymous viewer analytics, diagnostics and client errors. No IP or personal data is stored. Written only by the public events endpoint; prune periodically.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "events".
+ */
+export interface Event {
+  id: number;
+  type: 'analytics' | 'diagnostic' | 'error';
+  event: string;
+  product?: string | null;
+  variant?: string | null;
+  placement?: string | null;
+  /**
+   * Client error message (errors only).
+   */
+  message?: string | null;
+  /**
+   * Coarse, truncated user-agent. No IP is stored.
+   */
+  ua?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -385,6 +411,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'colourways';
         value: number | Colourway;
+      } | null)
+    | ({
+        relationTo: 'events';
+        value: number | Event;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -534,6 +564,21 @@ export interface ColourwaysSelect<T extends boolean = true> {
   altText?: T;
   hexSwatch?: T;
   note?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "events_select".
+ */
+export interface EventsSelect<T extends boolean = true> {
+  type?: T;
+  event?: T;
+  product?: T;
+  variant?: T;
+  placement?: T;
+  message?: T;
+  ua?: T;
   updatedAt?: T;
   createdAt?: T;
 }
