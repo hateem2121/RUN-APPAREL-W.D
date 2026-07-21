@@ -10,8 +10,10 @@ import { Colourways } from './collections/Colourways'
 import { Media } from './collections/Media'
 import { Products } from './collections/Products'
 import { Users } from './collections/Users'
+import { healthEndpoint } from './endpoints/health'
 import { publicViewerEndpoint } from './endpoints/publicViewer'
 import { SiteSettings } from './globals/SiteSettings'
+import { migrations } from './migrations'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -73,7 +75,7 @@ export default buildConfig({
   },
   collections: [Users, Media, Products, Colourways],
   globals: [SiteSettings],
-  endpoints: [publicViewerEndpoint],
+  endpoints: [publicViewerEndpoint, healthEndpoint],
   cors: allowedOrigins,
   editor: lexicalEditor(),
   secret: env?.PAYLOAD_SECRET ?? process.env.PAYLOAD_SECRET ?? '',
@@ -83,6 +85,13 @@ export default buildConfig({
   db: sqliteD1Adapter({
     // Cast: the binding is absent only in CLI contexts that never open the DB.
     binding: env?.D1 as D1Database,
+    // Apply committed migrations automatically on the deployed Worker (Payload
+    // consults prodMigrations only in production; local dev uses schema push,
+    // and the `migrate` CLI script applies them explicitly). This makes
+    // "deploy = migrate" so schema changes ship with the code. Cold-start
+    // migration risk is mitigated by the CI /api/health gate (Phase 8) and the
+    // manual fallback in docs/RUNBOOK.md.
+    prodMigrations: migrations,
   }),
   // No `sharp`: image transforms are unavailable on Workers — posters are
   // optimised by the asset pipeline before upload instead.

@@ -3,7 +3,14 @@ import { isAdmin } from '../access/roles'
 
 export const Users: CollectionConfig = {
   slug: 'users',
-  auth: true,
+  auth: {
+    // Brute-force protection for the admin login: lock an account for 10
+    // minutes after 5 consecutive failed attempts. Built into Payload — no
+    // extra infrastructure. (A Cloudflare rate-limit rule on the login route
+    // is documented as an optional extra layer in docs/CLOUDFLARE-SETUP.md.)
+    maxLoginAttempts: 5,
+    lockTime: 10 * 60 * 1000,
+  },
   admin: {
     useAsTitle: 'email',
     group: 'System',

@@ -6,6 +6,9 @@
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
+  // Workers Logs (free tier): worker errors + console output become queryable
+  // in the Cloudflare dashboard and via `wrangler tail`.
+  "observability": { "enabled": true },
   // Custom domain for this CMS worker. Cloudflare creates/manages the
   // cms.wear-run.help DNS record automatically (zone is on the same account).
   "routes": [{ "pattern": "cms.wear-run.help", "custom_domain": true }],
