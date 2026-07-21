@@ -1,0 +1,38 @@
+name: Prod verify (temporary)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Users in production (security — any known-password admin?)
+        working-directory: apps/cms
+        run: |
+          pnpm exec wrangler d1 execute run-apparel-viewer-db --remote \
+            --command "SELECT id, email, role FROM users ORDER BY id;"
+
+      - name: Content summary
+        working-directory: apps/cms
+        run: |
+          pnpm exec wrangler d1 execute run-apparel-viewer-db --remote \
+            --command "SELECT (SELECT count(*) FROM products) AS products, (SELECT count(*) FROM colourways) AS colourways, (SELECT count(*) FROM media) AS media, (SELECT count(*) FROM events) AS events, (SELECT count(*) FROM products WHERE status='published') AS published;"
+
+      - name: Backup dry-run (real D1 export)
+        run: |
+          node scripts/backup-d1.mjs --stamp=prod-verify
+          ls -la backups/d1/
+          echo "tables in export:"
+          grep -oE "CREATE TABLE \`[a-z_]+\`" backups/d1/*.sql | head -20
