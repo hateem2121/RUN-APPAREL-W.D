@@ -83,20 +83,34 @@ export async function seed(payload: Payload, assetsDir: string): Promise<void> {
     },
   })
 
-  // ── Admin user (development convenience) ─────────────────────────────
+  // ── Admin user ───────────────────────────────────────────────────────
+  // Create an admin ONLY when credentials are explicitly provided, or when the
+  // known-password dev admin is explicitly opted into (SEED_DEV_ADMIN=1, set by
+  // the local `seed` script). This guarantees the dev admin can never be created
+  // against production — there, create the first admin via the Payload
+  // first-user screen at /admin instead.
+  const explicitEmail = process.env.SEED_ADMIN_EMAIL
+  const explicitPassword = process.env.SEED_ADMIN_PASSWORD
+  const allowDevAdmin = process.env.SEED_DEV_ADMIN === '1'
   const users = await payload.find({ collection: 'users', limit: 1, depth: 0 })
-  if (users.docs.length === 0) {
+  if (users.docs.length === 0 && (explicitPassword || allowDevAdmin)) {
     await payload.create({
       collection: 'users',
       data: {
-        email: process.env.SEED_ADMIN_EMAIL ?? 'admin@wear-run.help',
-        password: process.env.SEED_ADMIN_PASSWORD ?? 'run-apparel-dev-only',
+        email: explicitEmail ?? 'admin@wear-run.help',
+        password: explicitPassword ?? 'run-apparel-dev-only',
         name: 'RUN Admin',
         role: 'admin',
       },
     })
     payload.logger.warn(
-      'Seed: created dev admin user (admin@wear-run.help / run-apparel-dev-only). CHANGE THIS PASSWORD before any real deployment.',
+      explicitPassword
+        ? `Seed: created admin ${explicitEmail ?? 'admin@wear-run.help'} from SEED_ADMIN_* env.`
+        : 'Seed: created DEV admin (admin@wear-run.help / run-apparel-dev-only) — LOCAL USE ONLY, never production.',
+    )
+  } else if (users.docs.length === 0) {
+    payload.logger.info(
+      'Seed: no admin created. Set SEED_ADMIN_EMAIL+SEED_ADMIN_PASSWORD (or SEED_DEV_ADMIN=1 for the local dev admin), or create the first admin at /admin.',
     )
   }
 

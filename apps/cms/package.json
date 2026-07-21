@@ -16,7 +16,7 @@
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "migrate:create": "PAYLOAD_LOCAL_D1=1 payload migrate:create",
     "migrate": "PAYLOAD_LOCAL_D1=1 payload run src/seed/migrate.ts",
-    "seed": "PAYLOAD_LOCAL_D1=1 payload run src/seed/run.ts"
+    "seed": "PAYLOAD_LOCAL_D1=1 SEED_DEV_ADMIN=1 payload run src/seed/run.ts"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "1.20.1",
