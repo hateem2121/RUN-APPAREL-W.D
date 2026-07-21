@@ -25,3 +25,16 @@ jobs:
         run: pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "SELECT count(*) AS events_table FROM sqlite_master WHERE type='table' AND name='events';"
       - name: locked_documents_rels has events_id?
         run: pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "SELECT count(*) AS has_events_id FROM pragma_table_info('payload_locked_documents_rels') WHERE name='events_id';"
+
+      - name: Capture worker exception via tail
+        working-directory: apps/cms
+        run: |
+          pnpm exec wrangler tail run-apparel-viewer-cms --format pretty > /tmp/tail.log 2>&1 &
+          TAIL=$!
+          sleep 6
+          echo "--- hitting /api/health ---"
+          curl -s --max-time 25 https://cms.wear-run.help/api/health || true
+          sleep 10
+          kill $TAIL 2>/dev/null || true
+          echo "===== TAIL OUTPUT ====="
+          cat /tmp/tail.log || true
