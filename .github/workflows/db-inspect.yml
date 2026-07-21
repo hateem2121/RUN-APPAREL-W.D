@@ -32,9 +32,9 @@ jobs:
           pnpm exec wrangler tail run-apparel-viewer-cms --format pretty > /tmp/tail.log 2>&1 &
           TAIL=$!
           sleep 6
-          echo "--- hitting /api/health ---"
-          curl -s --max-time 25 https://cms.wear-run.help/api/health || true
-          sleep 10
+          echo "--- hitting workers.dev /api/health (bypasses zone challenge, reaches worker) ---"
+          curl -s --max-time 25 https://run-apparel-viewer-cms.hateemjamshaid.workers.dev/api/health || true
+          sleep 12
           kill $TAIL 2>/dev/null || true
           echo "===== TAIL OUTPUT ====="
           cat /tmp/tail.log || true
