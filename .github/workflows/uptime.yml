@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
       HEALTH_URL: ${{ github.event.inputs.target || format('{0}/api/health', vars.VITE_API_BASE_URL || 'https://cms.wear-run.help') }}
       VIEWER_URL: https://viewer.wear-run.help/n001/navy
     steps:
