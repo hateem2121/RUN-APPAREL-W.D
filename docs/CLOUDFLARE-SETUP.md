@@ -89,7 +89,7 @@ migrations (i.e. after changing collections and running `migrate:create`).
 ## 5. Deploy the CMS worker
 
 ```bash
-pnpm --filter @run-apparel/cms deploy    # canonical command (= opennextjs-cloudflare build && deploy)
+pnpm --filter @run-apparel/cms run deploy    # canonical command (= opennextjs-cloudflare build && deploy)
 ```
 
 This deploys the Worker named **`run-apparel-viewer-cms`** (from `wrangler.jsonc`).

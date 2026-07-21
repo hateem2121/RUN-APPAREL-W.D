@@ -20,7 +20,7 @@ deploys. `gh run watch` follows the latest run from the CLI.
 **Manual deploy fallback** (if CI is unavailable):
 
 ```bash
-pnpm --filter @run-apparel/cms deploy          # CMS worker (canonical command)
+pnpm --filter @run-apparel/cms run deploy          # CMS worker (canonical command)
 VITE_API_BASE_URL=https://cms.wear-run.help pnpm --filter @run-apparel/viewer build
 pnpm --filter @run-apparel/viewer exec wrangler pages deploy apps/viewer/dist \
   --project-name run-apparel-viewer --branch main
@@ -61,7 +61,7 @@ are unaffected.
 ```bash
 openssl rand -hex 32 | pnpm --filter @run-apparel/cms exec wrangler secret put PAYLOAD_SECRET
 # redeploy so the running worker picks it up:
-pnpm --filter @run-apparel/cms deploy
+pnpm --filter @run-apparel/cms run deploy
 ```
 
 ## Analytics & events

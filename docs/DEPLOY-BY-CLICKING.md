@@ -30,7 +30,7 @@ If CI is down or you want to deploy by hand (needs `wrangler login` or the API
 token in your shell):
 
 ```bash
-pnpm --filter @run-apparel/cms deploy          # the CMS "brain"
+pnpm --filter @run-apparel/cms run deploy          # the CMS "brain"
 VITE_API_BASE_URL=https://cms.wear-run.help pnpm --filter @run-apparel/viewer build
 pnpm --filter @run-apparel/viewer exec wrangler pages deploy apps/viewer/dist \
   --project-name run-apparel-viewer --branch main
@@ -47,7 +47,7 @@ Only if you cannot use CI **and** cannot use the command line.
 1. https://dash.cloudflare.com → **Workers & Pages** → **Create** →
    **Import a repository** → pick `hateem2121/run-apparel-viewer`.
 2. Project/Worker name `run-apparel-viewer-cms`, production branch `main`,
-   **Root directory** `apps/cms`, **Deploy command** `pnpm --filter @run-apparel/cms deploy`.
+   **Root directory** `apps/cms`, **Deploy command** `pnpm --filter @run-apparel/cms run deploy`.
 3. Add the secret `PAYLOAD_SECRET` (the long code Claude generates). Save & Deploy.
 4. Settings → Domains & Routes → add `cms.wear-run.help`.
 
