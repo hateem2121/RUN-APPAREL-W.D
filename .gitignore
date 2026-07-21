@@ -17,6 +17,9 @@ build/
 # generated assets (reproducible via the asset pipeline)
 tools/asset-pipeline/output/
 
+# local backups (D1 exports contain password hashes — never commit)
+backups/
+
 # test artifacts
 playwright-report/
 test-results/
