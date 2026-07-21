@@ -1,0 +1,42 @@
+{
+  "name": "@run-apparel/cms",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "RUN APPAREL private content administration (Payload CMS on Cloudflare Workers, D1 + R2)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"(no unit tests in cms — validated via typecheck + build)\"",
+    "generate:types": "payload generate:types",
+    "generate:importmap": "payload generate:importmap",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "migrate:create": "PAYLOAD_LOCAL_D1=1 payload migrate:create",
+    "migrate": "PAYLOAD_LOCAL_D1=1 payload run src/seed/migrate.ts",
+    "seed": "PAYLOAD_LOCAL_D1=1 payload run src/seed/run.ts"
+  },
+  "dependencies": {
+    "@opennextjs/cloudflare": "1.20.1",
+    "@payloadcms/db-d1-sqlite": "3.86.0",
+    "@payloadcms/next": "3.86.0",
+    "@payloadcms/richtext-lexical": "3.86.0",
+    "@payloadcms/storage-r2": "3.86.0",
+    "@run-apparel/shared": "workspace:*",
+    "graphql": "16.14.2",
+    "next": "16.2.10",
+    "payload": "3.86.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "typescript": "5.9.3",
+    "wrangler": "4.112.0",
+    "@cloudflare/workers-types": "5.20260719.1"
+  }
+}

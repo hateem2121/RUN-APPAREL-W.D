@@ -1,0 +1,27 @@
+{
+  "name": "run-apparel-viewer-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "RUN APPAREL — QR-deep-linkable 3D apparel product viewer (viewer + Payload CMS + asset pipeline)",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "workerd"
+    ]
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "dev:viewer": "pnpm --filter @run-apparel/viewer dev",
+    "dev:cms": "pnpm --filter @run-apparel/cms dev",
+    "pipeline": "pnpm --filter @run-apparel/asset-pipeline start",
+    "seed:assets": "pnpm --filter @run-apparel/asset-pipeline start placeholders --out output/placeholders && pnpm --filter @run-apparel/asset-pipeline start merge --out output/n001.glb output/placeholders/n001-navy.glb=N001-NAVY output/placeholders/n001-black.glb=N001-BLACK output/placeholders/n001-crimson.glb=N001-CRIMSON && pnpm --filter @run-apparel/asset-pipeline start validate output/n001.glb --expect N001-NAVY,N001-BLACK,N001-CRIMSON",
+    "seed:cms": "pnpm --filter @run-apparel/cms seed"
+  }
+}

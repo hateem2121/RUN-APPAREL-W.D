@@ -1,0 +1,45 @@
+/// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  /** Base URL of the CMS worker, e.g. https://cms.wear-run.help */
+  readonly VITE_API_BASE_URL?: string
+  /** Cloudflare Web Analytics beacon token (optional). */
+  readonly VITE_CF_BEACON_TOKEN?: string
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}
+
+/** Attributes we use on <model-viewer>. The element itself is typed by @google/model-viewer. */
+interface ModelViewerAttributes {
+  src?: string
+  poster?: string
+  alt?: string
+  'camera-controls'?: boolean | ''
+  'camera-orbit'?: string
+  'camera-target'?: string
+  'field-of-view'?: string
+  'min-camera-orbit'?: string
+  'max-camera-orbit'?: string
+  'interaction-prompt'?: string
+  'interpolation-decay'?: string | number
+  'touch-action'?: string
+  'shadow-intensity'?: string | number
+  exposure?: string | number
+  loading?: 'auto' | 'lazy' | 'eager'
+  reveal?: 'auto' | 'manual'
+}
+
+declare module 'react' {
+  namespace JSX {
+    interface IntrinsicElements {
+      'model-viewer': React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement> & ModelViewerAttributes,
+        HTMLElement
+      >
+    }
+  }
+}
+
+export {}

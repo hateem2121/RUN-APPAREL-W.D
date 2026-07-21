@@ -1,0 +1,44 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Deliberately NOT "run-apparel" — that worker is a separate, live RUN APPAREL
+  // site. This viewer CMS is fully isolated. Never deploy over "run-apparel".
+  "name": "run-apparel-viewer-cms",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Custom domain for this CMS worker. Cloudflare creates/manages the
+  // cms.wear-run.help DNS record automatically (zone is on the same account).
+  "routes": [{ "pattern": "cms.wear-run.help", "custom_domain": true }],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "D1",
+      // Isolated viewer database (schema already applied). NOT "run-apparel-db",
+      // which belongs to the separate live site.
+      "database_name": "run-apparel-viewer-db",
+      "database_id": "41e20361-1a5f-4c87-b5ca-781c57c9b3f4"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "R2",
+      // Isolated viewer media bucket. NOT "run-assets"/"run-private" (the live site's).
+      "bucket_name": "run-apparel-viewer-media"
+    }
+  ],
+  "vars": {
+    // Public URL of this CMS worker (used to absolutise media URLs when R2 public access is not configured).
+    "CMS_PUBLIC_URL": "https://cms.wear-run.help",
+    // Public base URL for R2 media (custom domain or r2.dev). Leave empty to serve media through the CMS.
+    "PUBLIC_MEDIA_BASE_URL": "",
+    // Comma-separated origins allowed to call the public viewer API.
+    "VIEWER_ALLOWED_ORIGINS": "https://viewer.wear-run.help,https://run-apparel-viewer.pages.dev,http://localhost:5173",
+    // Edge cache lifetime (seconds) for public viewer API responses.
+    "VIEWER_API_CACHE_SECONDS": "60"
+  }
+  // Secrets (never in this file): wrangler secret put PAYLOAD_SECRET
+  // Custom domain cms.wear-run.help is attached in the Cloudflare dashboard — see docs/CLOUDFLARE-SETUP.md
+}

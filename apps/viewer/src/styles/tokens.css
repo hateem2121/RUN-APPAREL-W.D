@@ -1,0 +1,73 @@
+/**
+ * DESIGN.md — "PAPER & INK" (Olive Ink) locked tokens.
+ * Light = "The Workshop" · Dark = "The Night Shift".
+ * Components read ONLY these semantic custom properties — never raw hex.
+ * Default follows prefers-color-scheme; data-theme on <html> overrides.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* ── Constants — the signal ─────────────────────────────────────── */
+  --volt: #cdf345;
+  --volt-deep: #5f7414;
+  --ink: #1d1f1a;
+
+  /* ── Core surfaces & text (light ⇄ dark, both first-class) ──────── */
+  --bg: light-dark(#f1efea, #1c1f18);
+  --surface: light-dark(#faf9f6, #23271f);
+  --wash: light-dark(#e4e1d8, #2c3126);
+  --raised: light-dark(#ffffff, #363c2f);
+  --text: light-dark(#1d1f1a, #ecebe4); /* dark text is off-white, never #fff */
+  --muted: light-dark(#63665b, #a2a695);
+
+  /* ── Motif inks ─────────────────────────────────────────────────── */
+  --grid: light-dark(rgba(29, 31, 26, 0.05), rgba(236, 235, 228, 0.05));
+  --contour: light-dark(rgba(29, 31, 26, 0.07), rgba(236, 235, 228, 0.07));
+  --line: light-dark(rgba(29, 31, 26, 0.18), rgba(236, 235, 228, 0.18));
+
+  /* ── Mode-flip components ───────────────────────────────────────── */
+  /* Tags [ LABEL ]: light = volt block + ink text · dark = transparent + volt text */
+  --label-bg: light-dark(var(--volt), transparent);
+  --label-text: light-dark(var(--ink), var(--volt));
+  --label-border: light-dark(transparent, transparent);
+  /* Primary button: light = ink fill + volt text · dark = volt fill + ink text */
+  --btn-primary-bg: light-dark(var(--ink), var(--volt));
+  --btn-primary-text: light-dark(var(--volt), var(--ink));
+  /* Display headlines: light = ink · dark = volt */
+  --headline: light-dark(var(--ink), var(--volt));
+  /* Serif accents & dimension lines: light = volt-deep · dark = volt */
+  --serif-accent: light-dark(var(--volt-deep), var(--volt));
+  --dimension: light-dark(var(--volt-deep), var(--volt));
+
+  /* ── Dark-mode-only garnish (transparent in light) ──────────────── */
+  --glow: light-dark(transparent, rgba(205, 243, 69, 0.1));
+  --grain-color: light-dark(transparent, rgba(236, 235, 228, 1));
+
+  /* ── Focus ──────────────────────────────────────────────────────── */
+  --focus-ring: light-dark(var(--volt-deep), var(--volt));
+
+  /* ── Motion ─────────────────────────────────────────────────────── */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --fast: 200ms;
+  --settle: 500ms;
+
+  /* ── Radii ──────────────────────────────────────────────────────── */
+  --radius-panel: 18px;
+  --radius-button: 10px;
+  --radius-pill: 999px;
+
+  /* ── Type ───────────────────────────────────────────────────────── */
+  --font-display: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
+  --font-body: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}

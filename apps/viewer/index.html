@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="RUN APPAREL — interactive 3D product reference for B2B partners. Rotate, zoom and explore colourways of this development reference."
+    />
+    <title>RUN APPAREL — 3D Product Reference</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23CDF345'/%3E%3Ctext x='16' y='23' font-family='Archivo,system-ui,sans-serif' font-size='20' font-weight='900' text-anchor='middle' fill='%231D1F1A'%3ER%3C/text%3E%3C/svg%3E"
+    />
+    <script>
+      // Apply the persisted theme before first paint (no flash of wrong mode).
+      ;(function () {
+        try {
+          var stored = localStorage.getItem('run-theme')
+          if (stored === 'light' || stored === 'dark') {
+            document.documentElement.setAttribute('data-theme', stored)
+          }
+        } catch (e) {
+          /* storage unavailable — system preference applies */
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

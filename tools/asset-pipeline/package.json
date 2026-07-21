@@ -1,0 +1,29 @@
+{
+  "name": "@run-apparel/asset-pipeline",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GLB asset pipeline: merges per-colourway CLO exports into one production GLB with KHR_materials_variants, validates variants against CMS variantIds, and generates placeholder seed assets",
+  "bin": {
+    "run-asset-pipeline": "./src/cli.ts"
+  },
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "4.4.1",
+    "@gltf-transform/extensions": "4.4.1",
+    "@gltf-transform/functions": "4.4.1",
+    "draco3dgltf": "1.5.7",
+    "sharp": "0.35.3"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "tsx": "4.23.1",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}
