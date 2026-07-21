@@ -54,11 +54,26 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm --filter @run-apparel/cms deploy
 
+      - name: Apply worker secret (PAYLOAD_SECRET)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
+        run: printf '%s' "$PAYLOAD_SECRET" | pnpm --filter @run-apparel/cms exec wrangler secret put PAYLOAD_SECRET
+
       - name: Build viewer
         env:
           VITE_API_BASE_URL: https://cms.wear-run.help
           VITE_CF_BEACON_TOKEN: ${{ vars.VITE_CF_BEACON_TOKEN }}
         run: pnpm --filter @run-apparel/viewer build
+
+      - name: Ensure Pages project exists
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: >-
+          pnpm --filter @run-apparel/viewer exec wrangler pages project create run-apparel-viewer
+          --production-branch main 2>/dev/null || echo "Pages project already exists — continuing."
 
       - name: Deploy viewer (Cloudflare Pages)
         env:
