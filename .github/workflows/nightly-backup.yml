@@ -1,0 +1,58 @@
+name: Nightly backup
+
+on:
+  schedule:
+    - cron: '17 2 * * *' # 02:17 UTC nightly (GitHub cron may drift ~minutes)
+  workflow_dispatch:
+
+jobs:
+  backup:
+    # Only after go-live (remote D1/R2 exist + secrets set): Phase 10.
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Export D1
+        run: node scripts/backup-d1.mjs --stamp="$(date -u +%Y-%m-%d)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: d1-backup-${{ github.run_id }}
+          path: backups/d1/*.sql
+          retention-days: 90
+
+      - name: Mirror R2 (weekly, Mondays)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: node scripts/backup-r2.mjs --stamp="$(date -u +%Y-%m-%d)"
+      - name: Mirror R2 on schedule (Mondays only)
+        if: ${{ github.event_name == 'schedule' }}
+        run: |
+          if [ "$(date -u +%u)" = "1" ]; then
+            node scripts/backup-r2.mjs --stamp="$(date -u +%Y-%m-%d)"
+          else
+            echo "Not Monday — skipping weekly R2 mirror."
+          fi
+      - uses: actions/upload-artifact@v4
+        if: ${{ hashFiles('backups/r2/**') != '' }}
+        with:
+          name: r2-backup-${{ github.run_id }}
+          path: backups/r2/**
+          retention-days: 90
+
+      - name: Prune old events (monthly, 1st)
+        run: |
+          if [ "$(date -u +%d)" = "01" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote \
+              --command "DELETE FROM events WHERE created_at < datetime('now','-180 days')"
+          else
+            echo "Not the 1st — skipping events prune."
+          fi

@@ -1,0 +1,46 @@
+name: Uptime
+
+on:
+  schedule:
+    - cron: '*/15 * * * *' # every ~15 min (GitHub cron is best-effort — see docs/RUNBOOK.md)
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Override URL to check (use a bogus URL to test the alert path)
+        required: false
+
+permissions:
+  issues: write
+
+jobs:
+  ping:
+    # Only after go-live (Phase 10).
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      HEALTH_URL: ${{ github.event.inputs.target || 'https://cms.wear-run.help/api/health' }}
+      VIEWER_URL: https://viewer.wear-run.help/n001/navy
+    steps:
+      - name: Check CMS health + viewer
+        id: check
+        run: |
+          ok=true
+          curl -fsS --max-time 20 "$HEALTH_URL" || ok=false
+          if [ "${{ github.event.inputs.target }}" = "" ]; then
+            curl -fsS --max-time 20 -o /dev/null "$VIEWER_URL" || ok=false
+          fi
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+
+      - name: Open a deduplicated outage issue
+        if: steps.check.outputs.ok == 'false'
+        run: |
+          gh label create outage --color b60205 --description "Automated uptime alert" 2>/dev/null || true
+          open=$(gh issue list --label outage --state open --json number --jq 'length')
+          if [ "$open" = "0" ]; then
+            gh issue create --label outage \
+              --title "Outage: health check failing" \
+              --body "Automated uptime check failed at $(date -u).\n\nHealth: $HEALTH_URL\nViewer: $VIEWER_URL\n\nSee docs/RUNBOOK.md → uptime response."
+          else
+            echo "An open outage issue already exists — not duplicating."
+          fi
