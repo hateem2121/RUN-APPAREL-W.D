@@ -1,3 +1,5 @@
+import { prefersReducedMotion } from './capabilities'
+
 export type Theme = 'light' | 'dark'
 
 const STORAGE_KEY = 'run-theme'
@@ -21,11 +23,21 @@ export function appliedTheme(): Theme {
 
 /** Persist an explicit choice and apply it via data-theme on <html>. */
 export function setTheme(theme: Theme): void {
-  document.documentElement.setAttribute('data-theme', theme)
-  try {
-    localStorage.setItem(STORAGE_KEY, theme)
-  } catch {
-    /* storage unavailable — the attribute still applies for this visit */
+  const apply = () => {
+    document.documentElement.setAttribute('data-theme', theme)
+    try {
+      localStorage.setItem(STORAGE_KEY, theme)
+    } catch {
+      /* storage unavailable — the attribute still applies for this visit */
+    }
+  }
+  // Silky cross-fade between themes via the View Transitions API where
+  // available; instant swap otherwise or under reduced motion.
+  const doc = document as Document & { startViewTransition?: (cb: () => void) => void }
+  if (typeof doc.startViewTransition === 'function' && !prefersReducedMotion()) {
+    doc.startViewTransition(apply)
+  } else {
+    apply()
   }
 }
 

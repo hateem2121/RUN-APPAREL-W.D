@@ -3,7 +3,7 @@ import { track } from '../lib/analytics'
 
 export function Footer({ settings }: { settings: ViewerSiteSettings }) {
   return (
-    <footer className="footer blueprint">
+    <footer className="footer blueprint" data-reveal>
       <div className="footer__inner">
         <p className="footer__brand">{settings.temporaryWordmark}</p>
         <p className="footer__line">{settings.footerLine}</p>

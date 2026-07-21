@@ -223,4 +223,97 @@ li {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
   }
+  /* The universal rule above does not reach View Transition pseudos. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}
+
+/* ══ Refined-motion layer ════════════════════════════════════════════ */
+
+/* Lenis smooth-scroll (loaded lazily; classes applied to <html>). */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: clip;
+}
+
+/* Scroll-reveal — only hide-then-reveal when motion is welcome, so
+   reduced-motion visitors never get stuck with empty content. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(var(--reveal-y));
+    transition:
+      opacity var(--slow) var(--ease-out-expo),
+      transform var(--slow) var(--ease-out-expo);
+    will-change: opacity, transform;
+  }
+  [data-reveal].is-inview {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Theme cross-fade duration via the View Transitions API. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--settle);
+}
+
+/* Precision cursor — the component only mounts on fine pointers with motion. */
+.has-custom-cursor,
+.has-custom-cursor a,
+.has-custom-cursor button,
+.has-custom-cursor [role='tab'],
+.has-custom-cursor .theme-toggle {
+  cursor: none;
+}
+.cursor-dot,
+.cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 70;
+  pointer-events: none;
+  border-radius: 50%;
+  translate: -50% -50%;
+  transition:
+    opacity var(--fast) var(--ease),
+    width var(--fast) var(--ease),
+    height var(--fast) var(--ease);
+}
+.cursor-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--serif-accent);
+}
+.cursor-ring {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--serif-accent);
+}
+.cursor-ring[data-pointer='true'] {
+  width: 52px;
+  height: 52px;
+  background: color-mix(in srgb, var(--volt) 14%, transparent);
+}
+.cursor-dot[data-hidden='true'],
+.cursor-ring[data-hidden='true'] {
+  opacity: 0;
+}
+@media (pointer: coarse) {
+  .cursor-dot,
+  .cursor-ring {
+    display: none;
+  }
 }

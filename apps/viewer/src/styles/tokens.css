@@ -49,8 +49,12 @@
 
   /* ── Motion ─────────────────────────────────────────────────────── */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --fast: 200ms;
   --settle: 500ms;
+  --slow: 800ms;
+  --stagger: 60ms;
+  --reveal-y: 24px;
 
   /* ── Radii ──────────────────────────────────────────────────────── */
   --radius-panel: 18px;

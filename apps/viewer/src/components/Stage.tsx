@@ -166,7 +166,7 @@ export function Stage({ data, selected }: StageProps) {
   return (
     <section className="stage" aria-label="Interactive 3D product reference">
       <div className="stage__inner">
-        <div className="stage__canvas">
+        <div className="stage__canvas" data-lenis-prevent>
           <svg className="stage__contours" aria-hidden="true" viewBox="0 0 1200 640" preserveAspectRatio="xMidYMid slice">
             <g fill="none" stroke="currentColor" strokeWidth="1">
               <path d="M-40 520 C 220 430, 420 610, 700 520 S 1120 430, 1260 500" />
@@ -201,6 +201,8 @@ export function Stage({ data, selected }: StageProps) {
           {showPosterOverlay && (
             <div className="stage__poster-fallback" aria-hidden={!fallback}>
               <img
+                key={selected.slug}
+                className="stage__poster-img"
                 src={selected.poster.url}
                 alt={selected.poster.alt || selected.altText}
                 width={selected.poster.width ?? undefined}

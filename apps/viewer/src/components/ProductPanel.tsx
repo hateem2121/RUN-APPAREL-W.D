@@ -10,12 +10,13 @@ interface ProductPanelProps {
 export function ProductPanel({ data, selected, selectedIndex }: ProductPanelProps) {
   const { product } = data
   return (
-    <section className="product-info" aria-labelledby="product-heading">
+    <section className="product-info" aria-labelledby="product-heading" data-reveal>
       <div className="product-info__labels">
         <span className="label">
           [ {product.category.toUpperCase()} / {product.productCode} ]
         </span>
-        <span className="label">
+        {/* Re-keyed so switching colourway cross-fades the label. */}
+        <span className="label product-info__colour" key={selected.slug}>
           [ COLOURWAY {String(selectedIndex + 1).padStart(2, '0')} / {selected.displayName.toUpperCase()} ]
         </span>
       </div>

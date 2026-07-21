@@ -6,9 +6,10 @@ import { ContactSection, MobileActionBar, StickyContactRail } from './components
 import { CustomisationSection } from './components/CustomisationSection'
 import { Footer } from './components/Footer'
 import { Header } from './components/Header'
+import { Preloader } from './components/Preloader'
 import { ProductPanel } from './components/ProductPanel'
 import { Stage } from './components/Stage'
-import { LoadingScreen, RetiredNotice, UnavailableState } from './components/States'
+import { RetiredNotice, UnavailableState } from './components/States'
 import { track } from './lib/analytics'
 import { fetchViewerData } from './lib/api'
 import { currentRoute, onRouteChange, setColourwayUrl } from './lib/router'
@@ -20,6 +21,8 @@ type AppState =
 
 export default function App() {
   const [state, setState] = useState<AppState>({ kind: 'loading' })
+  const [preloaderGone, setPreloaderGone] = useState(false)
+  const polishStarted = useRef(false)
   const loadedFor = useRef<string | null>(null)
 
   const load = useCallback(async () => {
@@ -83,19 +86,33 @@ export default function App() {
     }
   }, [state])
 
-  if (state.kind === 'loading') {
-    return (
-      <div className="page">
-        <LoadingScreen />
-      </div>
-    )
-  }
+  // Start the refined-motion layer once, after the first ready render — lazily
+  // imported so Motion + Lenis stay out of the initial shell chunk.
+  useEffect(() => {
+    if (state.kind === 'ready' && !polishStarted.current) {
+      polishStarted.current = true
+      void import('./polish').then((m) => m.startPolish()).catch(() => {})
+    }
+  }, [state.kind])
 
   if (state.kind === 'unavailable') {
     return (
       <div className="page">
         <UnavailableState />
       </div>
+    )
+  }
+
+  const preloader = preloaderGone ? null : (
+    <Preloader done={state.kind === 'ready'} onExited={() => setPreloaderGone(true)} />
+  )
+
+  if (state.kind === 'loading') {
+    return (
+      <>
+        {preloader}
+        <div className="page" aria-hidden="true" />
+      </>
     )
   }
 
@@ -115,21 +132,24 @@ export default function App() {
   }
 
   return (
-    <div className="page">
-      <Header wordmark={data.siteSettings.temporaryWordmark} catalogueUrl={data.product.catalogueUrl} />
-      <main>
-        <Stage data={data} selected={selected} />
-        {retiredNotice && <RetiredNotice message={retiredNotice} />}
-        <div className="content">
-          <ProductPanel data={data} selected={selected} selectedIndex={Math.max(selectedIndex, 0)} />
-          <ColourwayTabs colourways={data.colourways} selected={selected} onSelect={onSelectColourway} />
-          <CustomisationSection data={data} />
-          <ContactSection settings={data.siteSettings} enquiry={enquiry} />
-        </div>
-      </main>
-      <StickyContactRail settings={data.siteSettings} enquiry={enquiry} />
-      <MobileActionBar settings={data.siteSettings} enquiry={enquiry} />
-      <Footer settings={data.siteSettings} />
-    </div>
+    <>
+      {preloader}
+      <div className="page">
+        <Header wordmark={data.siteSettings.temporaryWordmark} catalogueUrl={data.product.catalogueUrl} />
+        <main>
+          <Stage data={data} selected={selected} />
+          {retiredNotice && <RetiredNotice message={retiredNotice} />}
+          <div className="content">
+            <ProductPanel data={data} selected={selected} selectedIndex={Math.max(selectedIndex, 0)} />
+            <ColourwayTabs colourways={data.colourways} selected={selected} onSelect={onSelectColourway} />
+            <CustomisationSection data={data} />
+            <ContactSection settings={data.siteSettings} enquiry={enquiry} />
+          </div>
+        </main>
+        <StickyContactRail settings={data.siteSettings} enquiry={enquiry} />
+        <MobileActionBar settings={data.siteSettings} enquiry={enquiry} />
+        <Footer settings={data.siteSettings} />
+      </div>
+    </>
   )
 }

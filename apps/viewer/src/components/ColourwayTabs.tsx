@@ -14,7 +14,7 @@ export function ColourwayTabs({ colourways, selected, onSelect }: ColourwayTabsP
   const showPreview = previewed && previewed.slug !== selected.slug && !isCoarsePointer()
 
   return (
-    <section className="colourways" aria-label="Colourways">
+    <section className="colourways" aria-label="Colourways" data-reveal>
       <div className="colourways__preview" aria-hidden="true">
         {showPreview && (
           <div className="colourway-preview">

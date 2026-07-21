@@ -7,7 +7,7 @@ export function CustomisationSection({ data }: { data: ViewerApiSuccess }) {
   const panelId = useId()
 
   return (
-    <section className="customise" aria-labelledby="customise-heading">
+    <section className="customise" aria-labelledby="customise-heading" data-reveal>
       <p className="section-number">N°002 — CUSTOMISATION — N°002</p>
       <h2 id="customise-heading" className="display display--section">
         FROM IDEA TO <span className="serif-accent">production</span>.
@@ -35,16 +35,22 @@ export function CustomisationSection({ data }: { data: ViewerApiSuccess }) {
           >
             How we build your product {open ? '−' : '+'}
           </button>
-          <div id={panelId} className="steps" hidden={!open}>
-            {product.customisationSteps.map((step) => (
-              <div className="step" key={step.number}>
-                <span className="step__num">{String(step.number).padStart(2, '0')}</span>
-                <div>
-                  <h3 className="step__title">{step.title}</h3>
-                  <p className="step__body">{step.body}</p>
+          <div
+            id={panelId}
+            className={`steps-collapse${open ? ' steps-collapse--open' : ''}`}
+            inert={open ? undefined : true}
+          >
+            <div className="steps">
+              {product.customisationSteps.map((step) => (
+                <div className="step" key={step.number}>
+                  <span className="step__num">{String(step.number).padStart(2, '0')}</span>
+                  <div>
+                    <h3 className="step__title">{step.title}</h3>
+                    <p className="step__body">{step.body}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </>
       )}

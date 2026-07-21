@@ -659,3 +659,103 @@ model-viewer.stage__model {
     transform: translateX(350%);
   }
 }
+
+/* ══ Preloader ════════════════════════════════════════════════════════ */
+.preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  clip-path: inset(0 0 0 0);
+  transition: clip-path var(--slow) var(--ease-out-expo);
+}
+.preloader--exit {
+  clip-path: inset(0 0 100% 0);
+}
+.preloader__grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.6;
+}
+.preloader__inner {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  text-align: center;
+  padding: 24px;
+}
+.preloader__count {
+  font-size: clamp(40px, 11vw, 104px);
+  color: var(--headline);
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+.preloader__rule {
+  display: block;
+  width: min(240px, 60vw);
+  height: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.preloader__rule > span {
+  display: block;
+  height: 100%;
+  background: var(--volt);
+  transform-origin: left center;
+  transition: transform var(--fast) linear;
+}
+.preloader__status {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+}
+
+/* ══ Customisation accordion (grid-rows collapse) ═════════════════════ */
+.steps-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--settle) var(--ease);
+}
+.steps-collapse--open {
+  grid-template-rows: 1fr;
+}
+.steps-collapse > .steps {
+  min-height: 0;
+}
+
+/* ══ Colourway cross-fade + micro-states ═════════════════════════════ */
+@media (prefers-reduced-motion: no-preference) {
+  .product-info__colour {
+    animation: colour-swap var(--settle) var(--ease);
+  }
+  .stage__poster-img {
+    animation: poster-fade var(--slow) var(--ease-out-expo);
+  }
+}
+@keyframes colour-swap {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes poster-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.theme-toggle svg {
+  transition: transform var(--fast) var(--ease);
+}
+.theme-toggle:hover svg {
+  transform: rotate(18deg);
+}
