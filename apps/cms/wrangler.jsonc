@@ -4,6 +4,9 @@
   // site. This viewer CMS is fully isolated. Never deploy over "run-apparel".
   "name": "run-apparel-viewer-cms",
   "main": ".open-next/worker.js",
+  // Temporary: expose a workers.dev URL to verify the worker behind the zone's
+  // bot challenge. Remove once the custom domain is confirmed reachable.
+  "workers_dev": true,
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
   // Workers Logs (free tier): worker errors + console output become queryable
