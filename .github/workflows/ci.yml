@@ -156,7 +156,15 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm --filter @run-apparel/viewer exec wrangler deploy
+        # The Pages-style dist/_redirects ("/* /index.html 200") is rejected by
+        # Workers Static Assets as an infinite-loop rule (code 100324). On the
+        # Worker, SPA fallback is provided by not_found_handling:
+        # single-page-application in apps/viewer/wrangler.jsonc, so _redirects is
+        # redundant here — remove it before deploying. dist/_headers (CSP) stays.
+        # Only runs when target=worker, so the Pages deploy path is unaffected.
+        run: |
+          rm -f apps/viewer/dist/_redirects
+          pnpm --filter @run-apparel/viewer exec wrangler deploy
 
       - name: Post-deploy health check
         run: >-
