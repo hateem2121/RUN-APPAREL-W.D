@@ -183,27 +183,50 @@ not a hard SLA). On failure it opens a single deduplicated GitHub issue labelled
 To prove the alert path works: run `uptime.yml` via *workflow_dispatch* with a
 bogus `target` URL — it should open an `outage` issue.
 
-## Why the viewer calls workers.dev (not cms.wear-run.help)
+## API + media domain cutover
 
-The `wear-run.help` zone has **Bot Fight Mode** enabled (protecting the separate
-live commercial site). It challenges automated requests to `cms.wear-run.help`,
-and — unlike Super Bot Fight Mode — it **cannot be exempted per-hostname** (it's
-a zone-wide toggle). A cross-origin `fetch` from the viewer can't solve that
-challenge, so the viewer would break.
+**Where we are now (temporary).** The viewer calls the CMS API via the worker's
+`run-apparel-viewer-cms.<account>.workers.dev` URL (the `VITE_API_BASE_URL` repo
+variable), because the `wear-run.help` zone's **Bot Fight Mode** (protecting the
+separate live commercial site) challenges automated requests to
+`cms.wear-run.help` and — unlike Super Bot Fight Mode — it cannot be exempted
+per-hostname. Media currently streams through the worker (`PUBLIC_MEDIA_BASE_URL`
+empty). Visitors only ever see `viewer.wear-run.help`; the workers.dev URL is
+internal. This is a workaround, not the end state.
 
-Fix in place: the viewer's `VITE_API_BASE_URL` **repo variable** points at the
-CMS worker's `run-apparel-viewer-cms.<account>.workers.dev` URL, which is on the
-`workers.dev` zone (no Bot Fight Mode). Visitors only ever see
-`viewer.wear-run.help`; the API URL is internal. `workers_dev: true` in
-`apps/cms/wrangler.jsonc` keeps that URL enabled.
+**Target end state.** API served from `cms.wear-run.help` (Bot Fight Mode
+resolved), media served direct from R2 at `media.wear-run.help` with long-lived
+edge caching, and the workers.dev URL retired.
 
-To move the API back onto the clean `cms.wear-run.help` domain later: disable
-Bot Fight Mode for that host (or upgrade to Super Bot Fight Mode + a WAF skip
-rule for `http.host eq "cms.wear-run.help"`), then
-`gh variable set VITE_API_BASE_URL --body https://cms.wear-run.help` and push.
+Do this as one coordinated cutover — **in this order**, so live media/API never
+break mid-flight (each config flip is a one-liner already commented in
+`apps/cms/wrangler.jsonc`):
 
-The admin panel is reachable at both `cms.wear-run.help/admin` (a real browser
-solves the managed challenge automatically) and the workers.dev `/admin`.
+1. **Resolve Bot Fight Mode for the API host.** In the zone → *Security → Bots*,
+   turn on **Super Bot Fight Mode**, then *Security → WAF → Custom rules* add a
+   **Skip** rule (skip Super Bot Fight Mode) for
+   `http.host eq "cms.wear-run.help"`. Verify a plain `curl -fsS
+   https://cms.wear-run.help/api/health` returns `{"ok":true}` with no challenge.
+2. **Connect the media domain.** R2 → `run-apparel-viewer-media` → *Settings →
+   Public access* → connect custom domain `media.wear-run.help`. Add a Cache Rule
+   for `http.host eq "media.wear-run.help"` → *Edge TTL: a long value* (e.g. 30
+   days) so media is cached hard at the edge.
+3. **Point the viewer at the custom domain:**
+   `gh variable set VITE_API_BASE_URL --body https://cms.wear-run.help`.
+4. **Flip the two worker config values** in `apps/cms/wrangler.jsonc`:
+   `PUBLIC_MEDIA_BASE_URL` → `"https://media.wear-run.help"`, and once step 3 is
+   live, `workers_dev` → `false`. Commit + deploy (the next push/merge).
+5. **Remove the temporary WAF "skip" custom rule** that was left on the zone from
+   an earlier attempt (zone → *Security → WAF → Custom rules*) — it is superseded
+   by the step-1 rule and should not linger.
+6. **Verify:** the CSP already allows `*.wear-run.help`, so no viewer change is
+   needed. Check `curl` on the API + a `media.wear-run.help/...` URL (long
+   `cache-control`), then load `viewer.wear-run.help/n001/navy`; run the QA
+   checklist. Roll back by reverting step 4 and re-pointing `VITE_API_BASE_URL`
+   at the workers.dev URL if anything regresses.
+
+The admin panel is reachable at `cms.wear-run.help/admin` throughout (a real
+browser solves any challenge automatically).
 
 ## Login protection
 

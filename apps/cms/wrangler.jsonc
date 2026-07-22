@@ -4,13 +4,16 @@
   // site. This viewer CMS is fully isolated. Never deploy over "run-apparel".
   "name": "run-apparel-viewer-cms",
   "main": ".open-next/worker.js",
-  // The viewer calls the CMS API via this workers.dev URL (set as the
-  // VITE_API_BASE_URL repo variable) to bypass the wear-run.help zone's
-  // Bot Fight Mode, which challenges cms.wear-run.help and cannot be exempted
-  // per-host. Keep enabled while the viewer uses it; if Bot Fight Mode is later
-  // disabled/exempted, point VITE_API_BASE_URL back to the custom domain and
-  // this can be removed. See docs/RUNBOOK.md → "Why the viewer calls workers.dev".
+  // TEMPORARY: the viewer calls the CMS API via this workers.dev URL (set as the
+  // VITE_API_BASE_URL repo variable) to bypass the wear-run.help zone's Bot Fight
+  // Mode, which challenges cms.wear-run.help. This is the LAST thing flipped in
+  // the API cutover: once Bot Fight Mode is resolved and VITE_API_BASE_URL points
+  // at https://cms.wear-run.help, set this to false to retire the workers.dev URL.
+  // Full ordered steps: docs/RUNBOOK.md → "API + media domain cutover".
   "workers_dev": true,
+  // Per-version preview URLs (…-run-apparel-viewer-cms.<sub>.workers.dev) would
+  // expose /admin on ephemeral hosts; the viewer never uses them. Disabled.
+  "preview_urls": false,
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
   // Workers Logs (free tier): worker errors + console output become queryable
@@ -42,7 +45,11 @@
   "vars": {
     // Public URL of this CMS worker (used to absolutise media URLs when R2 public access is not configured).
     "CMS_PUBLIC_URL": "https://cms.wear-run.help",
-    // Public base URL for R2 media (custom domain or r2.dev). Leave empty to serve media through the CMS.
+    // Public base URL for R2 media. Empty = media streams through the CMS worker
+    // (current). In the cutover, connect the R2 public custom domain and set this
+    // to "https://media.wear-run.help" so browsers fetch media direct from R2
+    // with long-lived edge caching. Flip only AFTER the domain is live — see
+    // docs/RUNBOOK.md → "API + media domain cutover".
     "PUBLIC_MEDIA_BASE_URL": "",
     // Comma-separated origins allowed to call the public viewer API.
     "VIEWER_ALLOWED_ORIGINS": "https://viewer.wear-run.help,https://run-apparel-viewer.pages.dev,http://localhost:5173",

@@ -48,11 +48,14 @@ Work top-to-bottom; later steps depend on earlier ones.
 # To recreate:  npx wrangler r2 bucket create run-apparel-viewer-media
 ```
 
-**Public media access (recommended):** in the dashboard → R2 → `run-apparel-viewer-media`
-→ *Settings* → *Public access*, connect a custom domain, e.g. `media.wear-run.help`.
-Then set `PUBLIC_MEDIA_BASE_URL` in `wrangler.jsonc` vars to `https://media.wear-run.help`.
-If you skip this, leave the var empty — media then streams through the CMS worker
-(works, but misses R2's long-lived edge caching).
+**Public media access (recommended):** dashboard → R2 → `run-apparel-viewer-media`
+→ *Settings → Public access* → connect a custom domain `media.wear-run.help`. Add
+a **Cache Rule** for `http.host eq "media.wear-run.help"` with a long Edge TTL
+(e.g. 30 days) so media is cached hard at the edge. Then set `PUBLIC_MEDIA_BASE_URL`
+in `wrangler.jsonc` vars to `https://media.wear-run.help` and redeploy. If you skip
+this, leave the var empty — media then streams through the CMS worker (works, but
+misses R2's long-lived edge caching). This is step 2 of the coordinated cutover in
+`docs/RUNBOOK.md` → "API + media domain cutover".
 
 ## 3. CMS worker secrets & vars
 
