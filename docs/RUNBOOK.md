@@ -29,6 +29,26 @@ curl -f https://cms.wear-run.help/api/health
 
 Requires Cloudflare auth (`wrangler login` or `CLOUDFLARE_API_TOKEN`).
 
+## Deploy safety gate
+
+The `deploy` job runs in the **`production`** GitHub Environment. To make every
+production deploy pause for a human approval:
+
+- GitHub → repo *Settings → Environments → production → Required reviewers* → add
+  yourself (and anyone else who may approve). Now each push to `main` that would
+  deploy waits in the *Deploy* job until a reviewer approves in the Actions run.
+
+This layers on top of the code-review that happens before `main` (see below). The
+deploy job also `needs` both `verify` (typecheck/test/build/e2e) and `audit`
+(high/critical vulnerabilities), so a red build or a new vulnerability blocks the
+deploy regardless of approval.
+
+**Optional pre-prod staging.** For a full staging environment, create *isolated*
+staging resources (never the live ones): `run-apparel-viewer-db-staging` (D1),
+`run-apparel-viewer-media-staging` (R2), and a `run-apparel-viewer-cms-staging`
+worker via a `[env.staging]` block in `apps/cms/wrangler.jsonc`, then add a CI job
+that deploys to staging on demand for validation before promoting to production.
+
 ## Database migrations
 
 Migrations are applied by an **explicit, gated CI step** — the deployed Worker no
