@@ -227,18 +227,39 @@ bogus `target` URL — it should open an `outage` issue.
 
 ## API + media domain cutover
 
-**Where we are now (temporary).** The viewer calls the CMS API via the worker's
+> **Status (2026-07-22): MEDIA HALF DONE, API HALF BLOCKED on the free plan.**
+> - **Media:** ✅ cut over. Served direct from R2 at `media.wear-run.help`
+>   (R2 custom domain, Active) with a 30-day edge Cache Rule
+>   (`viewer-media-30d-edge-cache`) and a bucket CORS policy (viewer origins,
+>   GET/HEAD). `PUBLIC_MEDIA_BASE_URL=https://media.wear-run.help` is set in
+>   `wrangler.jsonc` and live. Reliable from datacenters too (edge-cached
+>   responses bypass Bot Fight Mode) — verified 6/6 from GitHub runners.
+> - **API:** ❌ still on `workers.dev`. A cutover attempt to `cms.wear-run.help`
+>   was **rolled back**: free **Bot Fight Mode** *intermittently* returns HTTP
+>   **403** to datacenter/automated requests on `cms.wear-run.help` (caught by
+>   the post-deploy health check; ~low frequency but real). Residential browsers
+>   usually pass, so casual `curl` tests give false confidence — do NOT trust a
+>   handful of green curls. The `workers.dev` zone has no Bot Fight Mode and is
+>   reliable. The existing "Exempt CMS API" WAF **Skip** rule cannot exempt the
+>   *free* Bot Fight Mode (only Super Bot Fight Mode is per-host exemptible), so
+>   it does NOT fully solve this — and it is therefore **load-bearing, not a
+>   redundant leftover; do not delete it.**
+> - **To finish the API half you need the Cloudflare Pro plan (~$20/mo):** enable
+>   **Super Bot Fight Mode** + a WAF Skip rule for `http.host eq
+>   "cms.wear-run.help"`, then repeat the repoint below and confirm the CI
+>   health check stays green across several deploys before retiring workers.dev.
+
+**Where we are now.** The viewer calls the CMS API via the worker's
 `run-apparel-viewer-cms.<account>.workers.dev` URL (the `VITE_API_BASE_URL` repo
 variable), because the `wear-run.help` zone's **Bot Fight Mode** (protecting the
 separate live commercial site) challenges automated requests to
 `cms.wear-run.help` and — unlike Super Bot Fight Mode — it cannot be exempted
-per-hostname. Media currently streams through the worker (`PUBLIC_MEDIA_BASE_URL`
-empty). Visitors only ever see `viewer.wear-run.help`; the workers.dev URL is
-internal. This is a workaround, not the end state.
+per-hostname. Media is served from `media.wear-run.help` (done). Visitors only
+ever see `viewer.wear-run.help`; the workers.dev URL is internal.
 
 **Target end state.** API served from `cms.wear-run.help` (Bot Fight Mode
-resolved), media served direct from R2 at `media.wear-run.help` with long-lived
-edge caching, and the workers.dev URL retired.
+resolved via Pro/Super Bot Fight Mode), media served direct from R2 at
+`media.wear-run.help` (done), and the workers.dev URL retired.
 
 Do this as one coordinated cutover — **in this order**, so live media/API never
 break mid-flight (each config flip is a one-liner already commented in
