@@ -54,7 +54,12 @@
     // Comma-separated origins allowed to call the public viewer API.
     "VIEWER_ALLOWED_ORIGINS": "https://viewer.wear-run.help,https://run-apparel-viewer.pages.dev,http://localhost:5173",
     // Edge cache lifetime (seconds) for public viewer API responses.
-    "VIEWER_API_CACHE_SECONDS": "60"
+    "VIEWER_API_CACHE_SECONDS": "60",
+    // Transactional email "From" identity (password resets / notifications). The
+    // address's domain must be verified in Resend. The API key itself is a
+    // secret: `wrangler secret put RESEND_API_KEY` — email is off until it is set.
+    "EMAIL_FROM_ADDRESS": "noreply@wear-run.help",
+    "EMAIL_FROM_NAME": "RUN APPAREL"
   }
   // Secrets (never in this file): wrangler secret put PAYLOAD_SECRET
   // Custom domain cms.wear-run.help is attached in the Cloudflare dashboard — see docs/CLOUDFLARE-SETUP.md

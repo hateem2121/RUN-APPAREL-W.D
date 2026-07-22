@@ -11,7 +11,10 @@ declare global {
     PUBLIC_MEDIA_BASE_URL?: string
     VIEWER_ALLOWED_ORIGINS?: string
     VIEWER_API_CACHE_SECONDS?: string
+    EMAIL_FROM_ADDRESS?: string
+    EMAIL_FROM_NAME?: string
     PAYLOAD_SECRET?: string
+    RESEND_API_KEY?: string
   }
 }
 

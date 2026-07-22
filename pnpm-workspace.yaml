@@ -10,7 +10,16 @@ packages:
 # `--frozen-lockfile` installs (CI, deploy) are unaffected. This was previously
 # enforced by a machine-global config (which is what blocked adopting a
 # brand-new pnpm 11); pinning it in-repo makes the policy explicit, shared and
-# version-controlled. First-party packages can be exempted if ever needed:
-#   minimumReleaseAgeExclude:
-#     - '@run-apparel/*'
+# version-controlled.
 minimumReleaseAge: 4320
+# Exempt fast-moving, trusted build-toolchain platform binaries (Vite's
+# lightningcss + esbuild), which publish per-platform packages often enough that
+# the cooldown would otherwise block routine re-resolves without adding
+# meaningful protection. The cooldown still fully covers application dependencies
+# — where a supply-chain attack actually matters. If a `pnpm add`/update is ever
+# blocked by another too-fresh transitive, add it here (pnpm prints the hint).
+minimumReleaseAgeExclude:
+  - lightningcss
+  - 'lightningcss-*'
+  - esbuild
+  - '@esbuild/*'

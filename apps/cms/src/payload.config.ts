@@ -2,6 +2,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getCloudflareContext } from '@opennextjs/cloudflare'
 import { sqliteD1Adapter } from '@payloadcms/db-d1-sqlite'
+import { resendAdapter } from '@payloadcms/email-resend'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { r2Storage } from '@payloadcms/storage-r2'
 import { buildConfig } from 'payload'
@@ -81,6 +82,16 @@ const allowedOrigins = (
   .map((origin) => origin.trim())
   .filter(Boolean)
 
+// Transactional email (password resets, admin notifications). Configured only
+// when a Resend API key is present, so local dev / builds without one fall back
+// to Payload's console-logging email adapter instead of failing. Set the key
+// with `wrangler secret put RESEND_API_KEY`; the from address/name are non-secret
+// wrangler.jsonc vars. The sending domain must be verified in Resend.
+const resendApiKey = env?.RESEND_API_KEY ?? process.env.RESEND_API_KEY ?? ''
+const emailFromAddress =
+  env?.EMAIL_FROM_ADDRESS ?? process.env.EMAIL_FROM_ADDRESS ?? 'noreply@wear-run.help'
+const emailFromName = env?.EMAIL_FROM_NAME ?? process.env.EMAIL_FROM_NAME ?? 'RUN APPAREL'
+
 export default buildConfig({
   admin: {
     user: Users.slug,
@@ -96,6 +107,15 @@ export default buildConfig({
   endpoints: [publicViewerEndpoint, healthEndpoint, eventsEndpoint],
   cors: allowedOrigins,
   editor: lexicalEditor(),
+  ...(resendApiKey
+    ? {
+        email: resendAdapter({
+          apiKey: resendApiKey,
+          defaultFromAddress: emailFromAddress,
+          defaultFromName: emailFromName,
+        }),
+      }
+    : {}),
   secret: env?.PAYLOAD_SECRET ?? process.env.PAYLOAD_SECRET ?? '',
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),

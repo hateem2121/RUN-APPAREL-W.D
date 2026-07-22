@@ -64,7 +64,20 @@ npx wrangler secret put PAYLOAD_SECRET     # paste a long random string (openssl
 ```
 
 Review `wrangler.jsonc` vars: `CMS_PUBLIC_URL`, `PUBLIC_MEDIA_BASE_URL`,
-`VIEWER_ALLOWED_ORIGINS`, `VIEWER_API_CACHE_SECONDS`.
+`VIEWER_ALLOWED_ORIGINS`, `VIEWER_API_CACHE_SECONDS`, `EMAIL_FROM_ADDRESS`,
+`EMAIL_FROM_NAME`.
+
+**Transactional email (Resend) — enables password resets & notifications.**
+Until a key is set, the CMS logs emails to the console instead of sending them
+(so `/admin` "forgot password" produces no mail).
+
+1. Create a free account at [resend.com](https://resend.com) and **verify a
+   sending domain** (add the DNS records it lists to the `wear-run.help` zone).
+2. Set `EMAIL_FROM_ADDRESS` in `wrangler.jsonc` vars to an address on that domain
+   (e.g. `noreply@wear-run.help`) and `EMAIL_FROM_NAME` to `RUN APPAREL`.
+3. Create an API key and store it as a worker secret:
+   `npx wrangler secret put RESEND_API_KEY`, then redeploy.
+4. Test: `/admin` → *Forgot password* for a real user → confirm the email lands.
 
 **Edge rate-limit on the admin login (recommended).** Dashboard → the
 `wear-run.help` zone → *Security → WAF → Rate limiting rules* → *Create rule*:
