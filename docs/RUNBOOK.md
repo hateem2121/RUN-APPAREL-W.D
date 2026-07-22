@@ -12,8 +12,10 @@ triggers `.github/workflows/ci.yml`:
 
 1. **verify** — install, typecheck, all unit tests, build, Playwright e2e.
 2. **deploy** (only if verify passes *and* `vars.DEPLOY_ENABLED == 'true'`) —
-   deploys the CMS worker, builds + deploys the viewer to Pages, then hits
-   `/api/health` as a gate.
+   deploys the CMS worker, builds + deploys the viewer to the
+   **`run-apparel-viewer-site` Worker** (Static Assets; selected by the
+   `VIEWER_DEPLOY_TARGET=worker` repo variable since the 2026-07-22 cutover),
+   then hits `/api/health` as a gate.
 
 So: **commit to `main`, push, watch the Actions tab.** A red build never
 deploys. `gh run watch` follows the latest run from the CLI.
@@ -22,9 +24,11 @@ deploys. `gh run watch` follows the latest run from the CLI.
 
 ```bash
 pnpm --filter @run-apparel/cms run deploy          # CMS worker (canonical command)
-VITE_API_BASE_URL=https://cms.wear-run.help pnpm --filter @run-apparel/viewer build
-pnpm --filter @run-apparel/viewer exec wrangler pages deploy apps/viewer/dist \
-  --project-name run-apparel-viewer --branch main
+# Use the SAME API base URL as the VITE_API_BASE_URL repo variable (currently the
+# CMS workers.dev URL — see "API + media domain cutover" below for why):
+VITE_API_BASE_URL="$(gh variable get VITE_API_BASE_URL)" pnpm --filter @run-apparel/viewer build
+rm -f apps/viewer/dist/_redirects   # Pages-only file; rejected by Workers Static Assets
+pnpm --filter @run-apparel/viewer exec wrangler deploy   # → run-apparel-viewer-site
 curl -f https://cms.wear-run.help/api/health
 ```
 
@@ -234,6 +238,14 @@ bogus `target` URL — it should open an `outage` issue.
 >   GET/HEAD). `PUBLIC_MEDIA_BASE_URL=https://media.wear-run.help` is set in
 >   `wrangler.jsonc` and live. Reliable from datacenters too (edge-cached
 >   responses bypass Bot Fight Mode) — verified 6/6 from GitHub runners.
+>   **Incident found during this work:** the deployed var had been mis-set to
+>   the literal `RUN` (stray dashboard edit) → all media URLs became
+>   `<origin>/RUN/<file>` → **every poster/GLB 404'd and the streaming fallback
+>   500'd on the live site**. If media ever breaks across the board, check this
+>   var first. Emergency fallback: set it to `""` (media streams through the
+>   CMS worker) and purge the `media.wear-run.help` hostname cache. Note R2
+>   sends `Vary: Origin`, so per-origin cache entries self-heal after a CORS
+>   policy change — but purge the hostname once after editing the policy.
 > - **API:** ❌ still on `workers.dev`. A cutover attempt to `cms.wear-run.help`
 >   was **rolled back**: free **Bot Fight Mode** *intermittently* returns HTTP
 >   **403** to datacenter/automated requests on `cms.wear-run.help` (caught by
@@ -270,18 +282,22 @@ break mid-flight (each config flip is a one-liner already commented in
    **Skip** rule (skip Super Bot Fight Mode) for
    `http.host eq "cms.wear-run.help"`. Verify a plain `curl -fsS
    https://cms.wear-run.help/api/health` returns `{"ok":true}` with no challenge.
-2. **Connect the media domain.** R2 → `run-apparel-viewer-media` → *Settings →
-   Public access* → connect custom domain `media.wear-run.help`. Add a Cache Rule
-   for `http.host eq "media.wear-run.help"` → *Edge TTL: a long value* (e.g. 30
-   days) so media is cached hard at the edge.
+2. ✅ **Connect the media domain — DONE (2026-07-22).** R2 →
+   `run-apparel-viewer-media` → custom domain `media.wear-run.help` (Active),
+   Cache Rule `viewer-media-30d-edge-cache` (Edge TTL 30 days, ignore origin
+   cache-control), bucket CORS policy for the viewer origins.
 3. **Point the viewer at the custom domain:**
    `gh variable set VITE_API_BASE_URL --body https://cms.wear-run.help`.
 4. **Flip the two worker config values** in `apps/cms/wrangler.jsonc`:
    `PUBLIC_MEDIA_BASE_URL` → `"https://media.wear-run.help"`, and once step 3 is
    live, `workers_dev` → `false`. Commit + deploy (the next push/merge).
-5. **Remove the temporary WAF "skip" custom rule** that was left on the zone from
-   an earlier attempt (zone → *Security → WAF → Custom rules*) — it is superseded
-   by the step-1 rule and should not linger.
+5. **KEEP the "Exempt CMS API subdomain from bot challenges" custom rule** —
+   this supersedes older advice to remove it. It is load-bearing (skips managed
+   rules / Browser Integrity Check / Security Level for the cms host, and
+   deliberately does *not* skip rate-limiting rules, so the merged
+   login-rate-limit keeps firing). With Super Bot Fight Mode on, its "All Super
+   Bot Fight Mode Rules" checkbox becomes the step-1 exemption — one rule doing
+   both jobs.
 6. **Verify:** the CSP already allows `*.wear-run.help`, so no viewer change is
    needed. Check `curl` on the API + a `media.wear-run.help/...` URL (long
    `cache-control`), then load `viewer.wear-run.help/n001/navy`; run the QA
@@ -295,31 +311,41 @@ browser solves any challenge automatically).
 
 The viewer can deploy either to Cloudflare **Pages** (current default) or to a
 **Worker with Static Assets** (`apps/viewer/wrangler.jsonc`, Cloudflare's 2026
-recommended static platform). The same `dist/` — SPA fallback, immutable asset
-caching, and the CSP in `dist/_headers` — serves identically on both; the
-behaviour is covered by the e2e suite regardless of platform. Pages is not
-deprecated, so this is optional. To cut over, **in order**:
+recommended static platform).
 
-1. Deploy the worker for smoke-testing (does not touch the live domain):
-   `pnpm --filter @run-apparel/viewer build && pnpm --filter @run-apparel/viewer
-   exec wrangler deploy`. It publishes `run-apparel-viewer-site` and exposes it at
-   `run-apparel-viewer-site.<account>.workers.dev`. Check a deep link like
-   `/n001/navy` resolves (SPA fallback), hashed assets are immutable-cached, and
-   the CSP header is present.
-2. **Move the custom domain.** Dashboard → Pages project `run-apparel-viewer` →
-   *Custom domains* → remove `viewer.wear-run.help`; then Workers & Pages →
-   `run-apparel-viewer-site` → *Settings → Domains & Routes* → add custom domain
-   `viewer.wear-run.help`. (A domain can only be on one resource; same-zone DNS
-   updates immediately.)
-3. `gh variable set VIEWER_DEPLOY_TARGET --body worker` so CI deploys the worker
-   from then on (until this is set, CI keeps deploying Pages).
-4. Verify `viewer.wear-run.help/n001/navy` — deep links, model, colourways, CSP —
-   and run `docs/QA-CHECKLIST.md`. Optionally set `workers_dev: false` in
-   `apps/viewer/wrangler.jsonc` afterwards.
-5. Once confident, delete the old `run-apparel-viewer` Pages project.
+> **Status: ✅ CUT OVER COMPLETE (2026-07-22).** The Worker
+> **`run-apparel-viewer-site`** serves `viewer.wear-run.help` (custom domain
+> attached in the dashboard; `VIEWER_DEPLOY_TARGET=worker`). The old
+> `run-apparel-viewer` Pages project has been **deleted**, and the worker's
+> `workers_dev`/`preview_urls` are disabled — the custom domain is the only
+> public surface. `run-apparel-viewer.pages.dev` was also removed from
+> `VIEWER_ALLOWED_ORIGINS` (CMS CORS) and from the R2 bucket CORS policy scope.
 
-Rollback: `gh variable set VIEWER_DEPLOY_TARGET --body pages` (or unset it) and
-move `viewer.wear-run.help` back to the Pages project.
+How it works / notes learned during the cutover:
+
+- SPA fallback comes from `not_found_handling: "single-page-application"` in
+  `apps/viewer/wrangler.jsonc`; the Pages-style `dist/_redirects`
+  (`/* /index.html 200`) is **rejected** by Workers Static Assets as an
+  infinite-loop rule (code 100324), so the CI worker-deploy step deletes it
+  before `wrangler deploy`. `dist/_headers` (CSP + immutable caching) is
+  honoured natively.
+- A Worker custom domain refuses a hostname that already has DNS records
+  ("externally managed DNS records"): the old proxied CNAME
+  `viewer → run-apparel-viewer.pages.dev` had to be **deleted in DNS → Records
+  first**, then the domain added to the worker (brief downtime between the two
+  steps; the worker then manages its own record).
+- Immediately after deploy/domain changes, expect a few minutes of DNS/route
+  propagation (transient 404s or stale resolution) before judging health.
+
+**Rollback to Pages** (the CI Pages steps are kept for exactly this):
+
+1. `gh variable set VIEWER_DEPLOY_TARGET --body pages` and run
+   `gh workflow run ci.yml --ref main` — the deploy job **recreates** the Pages
+   project (`run-apparel-viewer`) and deploys the viewer to it.
+2. Dashboard: remove `viewer.wear-run.help` from the worker, then add it as a
+   custom domain on the recreated Pages project.
+3. Re-add `https://run-apparel-viewer.pages.dev` to `VIEWER_ALLOWED_ORIGINS`
+   in `apps/cms/wrangler.jsonc` if the pages.dev URL is used directly.
 
 ## Login protection
 

@@ -4,26 +4,26 @@
   // recommended static-hosting platform. Fully separate from the CMS worker, and
   // NEVER named "run-apparel" (the separate live commercial site).
   //
-  // The Pages project "run-apparel-viewer" still serves viewer.wear-run.help
-  // until the cutover (docs/RUNBOOK.md → "Viewer: Pages → Worker cutover"), so
-  // this worker uses a distinct name to coexist during the move. Deploys are
-  // selected by the VIEWER_DEPLOY_TARGET repo variable in .github/workflows/ci.yml
-  // (default = Pages; set to "worker" to switch after the domain is moved).
+  // ✅ CUTOVER DONE (2026-07-22): this worker serves viewer.wear-run.help (custom
+  // domain attached in the dashboard). The old "run-apparel-viewer" Pages
+  // project has been DELETED. CI deploys here because the VIEWER_DEPLOY_TARGET
+  // repo variable is "worker". Rollback to Pages: set VIEWER_DEPLOY_TARGET=pages
+  // (CI recreates the Pages project automatically), then attach
+  // viewer.wear-run.help to it in the dashboard — see docs/RUNBOOK.md →
+  // "Viewer: Pages → Worker cutover".
   "name": "run-apparel-viewer-site",
   "compatibility_date": "2026-07-01",
+  // The internal workers.dev URL and per-version preview URLs are disabled:
+  // visitors only ever use viewer.wear-run.help. (Re-enable workers_dev
+  // temporarily if you need a pre-cutover smoke-test URL.)
+  "workers_dev": false,
+  "preview_urls": false,
   // Static-assets-only worker (no server code). `single-page-application`
-  // reproduces the Pages `_redirects` SPA fallback; dist/_headers (immutable
-  // asset caching + the CSP) is honoured natively by Static Assets.
+  // replaces the Pages `_redirects` SPA fallback (CI deletes dist/_redirects for
+  // this target — Workers Static Assets rejects the "/* /index.html 200" rule);
+  // dist/_headers (immutable asset caching + the CSP) is honoured natively.
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application"
   }
-  // Custom domain viewer.wear-run.help is moved from the Pages project to this
-  // worker in the dashboard during cutover (one domain can't be on both at once).
-  //
-  // NOTE (transitional): while VIEWER_DEPLOY_TARGET is still Pages, `wrangler
-  // pages deploy` prints "detected a configuration file … missing
-  // pages_build_output_dir … Ignoring configuration file … proceeding with
-  // project deploy" — harmless; it ignores this worker config and deploys Pages
-  // as before. The message disappears once the viewer deploys as a worker.
 }

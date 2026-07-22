@@ -48,14 +48,18 @@ Work top-to-bottom; later steps depend on earlier ones.
 # To recreate:  npx wrangler r2 bucket create run-apparel-viewer-media
 ```
 
-**Public media access (recommended):** dashboard → R2 → `run-apparel-viewer-media`
-→ *Settings → Public access* → connect a custom domain `media.wear-run.help`. Add
-a **Cache Rule** for `http.host eq "media.wear-run.help"` with a long Edge TTL
-(e.g. 30 days) so media is cached hard at the edge. Then set `PUBLIC_MEDIA_BASE_URL`
-in `wrangler.jsonc` vars to `https://media.wear-run.help` and redeploy. If you skip
-this, leave the var empty — media then streams through the CMS worker (works, but
-misses R2's long-lived edge caching). This is step 2 of the coordinated cutover in
-`docs/RUNBOOK.md` → "API + media domain cutover".
+**Public media access — ✅ done (2026-07-22):** custom domain
+`media.wear-run.help` is connected to `run-apparel-viewer-media` (Active), with
+a **Cache Rule** `viewer-media-30d-edge-cache` (`http.host eq
+"media.wear-run.help"` → eligible, Edge TTL 30 days, ignore origin
+cache-control) and a **bucket CORS policy** (GET/HEAD from
+`https://viewer.wear-run.help` and `http://localhost:5173`).
+`PUBLIC_MEDIA_BASE_URL=https://media.wear-run.help` is set in `wrangler.jsonc`.
+Fallback if media ever misbehaves: set the var to empty — media then streams
+through the CMS worker — and purge the `media.wear-run.help` hostname cache.
+⚠️ Never set this var to anything but a full `https://…` URL or empty: a stray
+value (it was once `RUN`) breaks every media URL on the live site. History and
+verification: `docs/RUNBOOK.md` → "API + media domain cutover".
 
 ## 3. CMS worker secrets & vars
 
@@ -67,12 +71,21 @@ Review `wrangler.jsonc` vars: `CMS_PUBLIC_URL`, `PUBLIC_MEDIA_BASE_URL`,
 `VIEWER_ALLOWED_ORIGINS`, `VIEWER_API_CACHE_SECONDS`, `EMAIL_FROM_ADDRESS`,
 `EMAIL_FROM_NAME`.
 
-**Transactional email (Resend) — enables password resets & notifications.**
-Until a key is set, the CMS logs emails to the console instead of sending them
-(so `/admin` "forgot password" produces no mail).
+**Transactional email (Resend) — ✅ done (2026-07-22).** `wear-run.help` is
+verified in Resend (records live on the `send.` subdomain +
+`resend._domainkey`; the root Hostinger MX/SPF were untouched, and Resend's
+"Enable Receiving" is deliberately **OFF** — inbound mail stays on Hostinger).
+`RESEND_API_KEY` is set as a worker secret (sending-only key), and the
+end-to-end test passed: `/admin` → *Forgot password* delivered to
+`admin@wear-run.help`. To rotate the key: create a new key in Resend, update
+the `RESEND_API_KEY` secret (dashboard → worker → Variables and Secrets, or
+`npx wrangler secret put RESEND_API_KEY`), then delete the old key. If email
+ever stops: check Resend's *Emails* log first, then the domain's Verified
+status. Reference for rebuilding from scratch:
 
 1. Create a free account at [resend.com](https://resend.com) and **verify a
-   sending domain** (add the DNS records it lists to the `wear-run.help` zone).
+   sending domain** (add the DNS records it lists to the `wear-run.help` zone;
+   skip Resend's optional DMARC record — the zone already has one).
 2. Set `EMAIL_FROM_ADDRESS` in `wrangler.jsonc` vars to an address on that domain
    (e.g. `noreply@wear-run.help`) and `EMAIL_FROM_NAME` to `RUN APPAREL`.
 3. Create an API key and store it as a worker secret:
@@ -146,7 +159,15 @@ the local dev seed against production — it creates a known-password dev admin 
 local use only. Real products: upload pipeline-processed GLB/poster assets via the
 admin panel.
 
-## 6. Viewer on Cloudflare Pages
+## 6. Viewer on Cloudflare Pages — ⛔ superseded (2026-07-22)
+
+> The viewer now deploys as the **`run-apparel-viewer-site` Worker** (Static
+> Assets) serving `viewer.wear-run.help`; the `run-apparel-viewer` Pages
+> project was **deleted** after the cutover. CI deploys the worker because the
+> `VIEWER_DEPLOY_TARGET` repo variable is `worker` — see `docs/RUNBOOK.md` →
+> "Viewer: Pages → Worker cutover" (including the rollback that recreates the
+> Pages project). The steps below are kept only as a historical reference for
+> that rollback.
 
 Dashboard → Workers & Pages → **Create → Pages → Connect to Git** → select this repo.
 
@@ -170,7 +191,11 @@ Cloudflare creates the DNS record automatically because the zone is on the same 
 ## 7. CORS check
 
 `VIEWER_ALLOWED_ORIGINS` in `wrangler.jsonc` must include `https://viewer.wear-run.help`
-(and `http://localhost:5173` for local development). Redeploy the worker after changes.
+(and `http://localhost:5173` for local development). Redeploy the worker after
+changes. (`https://run-apparel-viewer.pages.dev` was removed 2026-07-22 when the
+Pages project was deleted.) The R2 bucket CORS policy mirrors this list — update
+both together, and purge the `media.wear-run.help` hostname cache after editing
+the bucket policy.
 
 ## 8. Cloudflare Web Analytics (only analytics allowed)
 
@@ -243,18 +268,22 @@ step 10 is done (or via the manual commands above). Endpoints:
 
 | Piece | URL |
 |---|---|
-| CMS worker (`run-apparel-viewer-cms`) | `https://cms.wear-run.help` (custom domain) |
+| CMS worker (`run-apparel-viewer-cms`) | `https://cms.wear-run.help` (custom domain) — the viewer *calls* the API via the workers.dev URL instead (Bot Fight Mode, see RUNBOOK) |
 | CMS admin | `https://cms.wear-run.help/admin` |
 | CMS health | `https://cms.wear-run.help/api/health` |
 | Public viewer API | `https://cms.wear-run.help/api/public/viewer/n001/navy` |
-| Viewer (Pages `run-apparel-viewer`) | `https://viewer.wear-run.help` (custom domain) / `https://run-apparel-viewer.pages.dev` |
+| Media (R2 `run-apparel-viewer-media`) | `https://media.wear-run.help/<file>` (30-day edge cache) |
+| Viewer (Worker `run-apparel-viewer-site`) | `https://viewer.wear-run.help` (custom domain; workers.dev/preview URLs disabled) |
 
 Notes for future maintenance:
 
 - **CMS custom domain** is declared in `apps/cms/wrangler.jsonc` (`routes` →
   `cms.wear-run.help`, `custom_domain: true`); `wrangler deploy` manages the DNS
   record. **Viewer custom domain** `viewer.wear-run.help` is attached to the
-  Pages project (Cloudflare auto-creates the CNAME).
+  `run-apparel-viewer-site` Worker in the dashboard (the Worker manages its own
+  DNS record; since 2026-07-22 — previously a CNAME to the deleted Pages
+  project). **Media custom domain** `media.wear-run.help` is attached to the R2
+  bucket in the dashboard.
 - **`PAYLOAD_SECRET`** is set as a worker secret (`wrangler secret put`).
 - **Seeding production D1 + R2 from the CLI:** the `seed`/`migrate` scripts use
   wrangler's local platform proxy. To target the *remote* (production) D1/R2,

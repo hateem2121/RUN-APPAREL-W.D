@@ -31,9 +31,10 @@ token in your shell):
 
 ```bash
 pnpm --filter @run-apparel/cms run deploy          # the CMS "brain"
-VITE_API_BASE_URL=https://cms.wear-run.help pnpm --filter @run-apparel/viewer build
-pnpm --filter @run-apparel/viewer exec wrangler pages deploy apps/viewer/dist \
-  --project-name run-apparel-viewer --branch main
+# Build with the SAME API URL the automation uses (currently the workers.dev one):
+VITE_API_BASE_URL="$(gh variable get VITE_API_BASE_URL)" pnpm --filter @run-apparel/viewer build
+rm -f apps/viewer/dist/_redirects                  # Pages-only file, not valid on the Worker
+pnpm --filter @run-apparel/viewer exec wrangler deploy   # → run-apparel-viewer-site Worker
 ```
 
 ---
@@ -51,14 +52,13 @@ Only if you cannot use CI **and** cannot use the command line.
 3. Add the secret `PAYLOAD_SECRET` (the long code Claude generates). Save & Deploy.
 4. Settings → Domains & Routes → add `cms.wear-run.help`.
 
-**Viewer (Pages)**
+**Viewer**
 
-1. **Create → Pages → Connect to Git** → `hateem2121/run-apparel-viewer`.
-2. Project name `run-apparel-viewer`, production branch `main`,
-   build command `pnpm install --frozen-lockfile && pnpm --filter @run-apparel/viewer build`,
-   output directory `apps/viewer/dist`.
-3. Variable `VITE_API_BASE_URL=https://cms.wear-run.help`. Save & Deploy.
-4. Custom domains → `viewer.wear-run.help`.
+> Since 2026-07-22 the viewer is the **`run-apparel-viewer-site` Worker**
+> (Static Assets) — the old Pages project was deleted. A dashboard-only viewer
+> deploy isn't practical for the Worker; use CI (normal path) or Fallback A.
+> The `viewer.wear-run.help` domain lives on that Worker under
+> *Settings → Domains & Routes*.
 
 ---
 

@@ -54,7 +54,9 @@
     // domain cutover".
     "PUBLIC_MEDIA_BASE_URL": "https://media.wear-run.help",
     // Comma-separated origins allowed to call the public viewer API.
-    "VIEWER_ALLOWED_ORIGINS": "https://viewer.wear-run.help,https://run-apparel-viewer.pages.dev,http://localhost:5173",
+    // (run-apparel-viewer.pages.dev removed 2026-07-22 — the Pages project was
+    // deleted after the viewer moved to the run-apparel-viewer-site Worker.)
+    "VIEWER_ALLOWED_ORIGINS": "https://viewer.wear-run.help,http://localhost:5173",
     // Edge cache lifetime (seconds) for public viewer API responses.
     "VIEWER_API_CACHE_SECONDS": "60",
     // Transactional email "From" identity (password resets / notifications). The

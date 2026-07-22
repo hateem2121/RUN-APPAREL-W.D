@@ -129,10 +129,12 @@ jobs:
         run: pnpm --filter @run-apparel/viewer build
 
       # Viewer deploy target is selectable via the VIEWER_DEPLOY_TARGET repo
-      # variable. Default (unset) = Cloudflare Pages (current). Set it to "worker"
-      # AFTER moving viewer.wear-run.help onto the Worker with Static Assets — see
-      # docs/RUNBOOK.md → "Viewer: Pages → Worker cutover". Merging this change
-      # alone does not alter the live deploy path.
+      # variable — set to "worker" since the 2026-07-22 cutover (the Worker
+      # run-apparel-viewer-site serves viewer.wear-run.help; the old Pages
+      # project was deleted). The two Pages steps below are KEPT as the rollback
+      # path: setting VIEWER_DEPLOY_TARGET=pages makes them recreate the Pages
+      # project and deploy to it — see docs/RUNBOOK.md → "Viewer: Pages → Worker
+      # cutover".
       - name: Ensure Pages project exists
         if: vars.VIEWER_DEPLOY_TARGET != 'worker'
         env:

@@ -128,3 +128,35 @@ production mode, or it will try to push schema. This is now enforced in the
 @run-apparel/viewer test:e2e` (10) — all green. CI gates (verify, audit, gitleaks,
 lighthouse) green on the PR. Production deploy: **succeeded** (migrate no-op,
 worker + viewer deployed, `/api/health` gate passed).
+
+## Addendum — owner-extras session (2026-07-22)
+
+The deferred owner items were worked through with the owner driving
+credentials/dashboard steps. Outcomes:
+
+| Item | Outcome |
+|---|---|
+| Email (Resend) | ✅ Live. Domain verified (send-subdomain records; Hostinger inbound untouched), `RESEND_API_KEY` secret set, forgot-password tested end-to-end |
+| Deploy approval gate | ⏭️ Skipped — GitHub requires **Pro** for environment reviewers on private personal repos; automated gates deemed sufficient |
+| Admin-login rate limit | ✅ Live. Free plan = ONE rule (fixed values, read in the dashboard), and the slot held a zone-wide leaked-credential rule → **merged** into one rule (leaked-creds OR cms login POST). Live-tested: rejected logins, then 429 once over the limit |
+| Admin verify/rotate | ✅ One account only, role Admin/Director, password rotated |
+| Media cutover | ✅ `media.wear-run.help` live (30-day edge cache + bucket CORS). **Found & fixed a live outage**: deployed `PUBLIC_MEDIA_BASE_URL` had been mis-set to `RUN`, 404ing all media |
+| API cutover | ❌ Attempted, **rolled back within the hour**: free Bot Fight Mode intermittently 403s datacenter traffic to `cms.wear-run.help` (caught by the CI health-check gate — the gate design worked). Needs Cloudflare Pro / Super Bot Fight Mode |
+| Viewer → Worker | ✅ `run-apparel-viewer-site` serves `viewer.wear-run.help`; Pages project deleted; `_redirects` stripped in the worker deploy step (Workers rejects the Pages SPA rule, code 100324) |
+| Sentry / colour contrast | ⏸️ Deferred by owner |
+
+**Lessons this session:**
+
+- *A handful of green tests from one vantage is not evidence.* Residential curl,
+  a browser fetch, and one GitHub-runner check all passed against
+  `cms.wear-run.help` — then the deploy gate caught an intermittent Bot Fight
+  Mode 403 from the same runner pool. Probabilistic defenses need repeated
+  sampling from the right vantage before a cutover.
+- *Dashboard-set vars are silently overwritten by the next `wrangler deploy`* —
+  and a stray dashboard edit (`PUBLIC_MEDIA_BASE_URL="RUN"`) broke live media
+  unnoticed. Config belongs in `wrangler.jsonc`; treat the dashboard as
+  read-mostly.
+- *Platform validation errors differ between Pages and Workers*: the same
+  `dist/` is not drop-in portable (`_redirects` vs `not_found_handling`).
+- The gated deploy design (health check after deploy) caught the bad API
+  cutover exactly as intended — the second time the gate has paid for itself.
