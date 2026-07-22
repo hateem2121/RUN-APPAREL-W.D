@@ -2,7 +2,8 @@
 
 Day-to-day operations for the live stack. For first-time setup see
 [CLOUDFLARE-SETUP.md](CLOUDFLARE-SETUP.md); for backups see
-[BACKUP-RESTORE.md](BACKUP-RESTORE.md).
+[BACKUP-RESTORE.md](BACKUP-RESTORE.md); for the July 2026 hardening history,
+decisions, and lessons learned see [HARDENING-LOG.md](HARDENING-LOG.md).
 
 ## How deploys work
 
@@ -162,8 +163,13 @@ pull request:
   violations; colour-contrast is reported as advisory only (a deliberate
   palette-design decision — see the test's header comment).
 
-**Dependency updates** arrive as weekly grouped Dependabot PRs
-(`.github/dependabot.yml`); the same CI gates run on them before merge.
+**Dependency updates**: Dependabot runs in **quiet mode** — routine version-bump
+PRs are off (`open-pull-requests-limit: 0` in `.github/dependabot.yml`) to keep the
+branch list clean for a solo maintainer, but it still opens a PR automatically for
+a real **security** advisory. Day-to-day, `audit-ci` blocks high/critical
+vulnerabilities on every change. To resume routine updates, raise the limits in
+`.github/dependabot.yml` (grouping/ignore rules are kept ready); the same CI gates
+run on any Dependabot PR before merge.
 
 ## Rotating PAYLOAD_SECRET
 
