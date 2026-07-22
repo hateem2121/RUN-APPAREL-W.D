@@ -11,6 +11,29 @@ const DIST = path.resolve(dirname, '../dist')
 const ASSETS = path.resolve(dirname, '../../../tools/asset-pipeline/output')
 const PORT = Number(process.env.PORT ?? 4173)
 
+// Apply the generated dist/_headers "/*" block (incl. the CSP) to every
+// response, so the e2e suite validates the real Content-Security-Policy the way
+// Cloudflare will serve it — a missing directive surfaces as a securitypolicy
+// violation in the webgl spec instead of only in production.
+function loadGlobalHeaders() {
+  const p = path.join(DIST, '_headers')
+  if (!existsSync(p)) return {}
+  const out = {}
+  let inGlobal = false
+  for (const raw of readFileSync(p, 'utf8').split('\n')) {
+    if (raw.trim() === '' || raw.trimStart().startsWith('#')) continue
+    if (!/^\s/.test(raw)) {
+      inGlobal = raw.trim() === '/*'
+      continue
+    }
+    if (!inGlobal) continue
+    const idx = raw.indexOf(':')
+    if (idx > 0) out[raw.slice(0, idx).trim()] = raw.slice(idx + 1).trim()
+  }
+  return out
+}
+const GLOBAL_HEADERS = loadGlobalHeaders()
+
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript',
@@ -109,6 +132,10 @@ function viewerPayload(origin, colourSlug) {
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`)
   const origin = `http://localhost:${PORT}`
+
+  // Mirror Cloudflare applying the "/*" headers (CSP + security headers) to
+  // every response.
+  for (const [key, value] of Object.entries(GLOBAL_HEADERS)) res.setHeader(key, value)
 
   // Mock public viewer API
   const apiMatch = url.pathname.match(/^\/api\/public\/viewer\/([^/]+)\/([^/]+)$/)

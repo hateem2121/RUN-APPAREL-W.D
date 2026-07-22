@@ -8,6 +8,18 @@ import { expect, test } from '@playwright/test'
 test('3D model loads and switching colourway changes the KHR material variant', async ({
   page,
 }) => {
+  // Capture any Content-Security-Policy violation from the moment the page's
+  // own scripts run (the theme inline-script hash, the model-viewer chunk, the
+  // GLB fetch, Draco/KTX2 workers). Registered before goto via addInitScript.
+  await page.addInitScript(() => {
+    ;(window as unknown as { __csp: string[] }).__csp = []
+    document.addEventListener('securitypolicyviolation', (e) => {
+      ;(window as unknown as { __csp: string[] }).__csp.push(
+        `${e.violatedDirective} blocked ${e.blockedURI}`,
+      )
+    })
+  })
+
   await page.goto('/n001/navy')
 
   const hasWebGL = await page.evaluate(() => {
@@ -48,4 +60,10 @@ test('3D model loads and switching colourway changes the KHR material variant', 
     undefined,
     { timeout: 20_000 },
   )
+
+  // The whole real-3D flow ran under the production CSP with no violations.
+  const cspViolations = await page.evaluate(
+    () => (window as unknown as { __csp: string[] }).__csp,
+  )
+  expect(cspViolations, cspViolations.join('\n')).toEqual([])
 })

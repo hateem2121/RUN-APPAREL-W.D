@@ -208,9 +208,54 @@ solves the managed challenge automatically) and the workers.dev `/admin`.
 ## Login protection
 
 The admin login locks an account for 10 minutes after 5 failed attempts
-(`maxLoginAttempts`/`lockTime` on the Users collection). An optional Cloudflare
-rate-limit rule on `cms.wear-run.help/api/users/login` adds an edge layer — see
-[CLOUDFLARE-SETUP.md](CLOUDFLARE-SETUP.md).
+(`maxLoginAttempts`/`lockTime` on the Users collection). A Cloudflare rate-limit
+rule on `cms.wear-run.help/api/users/login` adds an IP-level edge layer — see
+[CLOUDFLARE-SETUP.md](CLOUDFLARE-SETUP.md) §3 for the exact rule.
+
+## Admin accounts & roles
+
+Two roles by design (enforced in `apps/cms/src/access/roles.ts`):
+
+| Role | Value | Can do |
+|---|---|---|
+| **Admin / Director** | `admin` | Everything: products, colourways, media, **users**, **site settings** |
+| **Editor** | `editor` | Products, colourways, media only — never users, roles or settings |
+
+"Director" is the admin role's label, not a separate tier. Editors can read only
+their own user record (needed for their session); only admins create/modify users
+or change roles.
+
+**Verify / rotate the `admin@wear-run.help` account** (do this on go-live and
+periodically):
+
+1. Log in at `https://cms.wear-run.help/admin` → *Users*. Confirm exactly the
+   intended people exist and that `admin@wear-run.help` has role **Admin /
+   Director**. Delete or downgrade any stray accounts.
+2. Rotate its password from the user's *Account* screen (or *Users → edit*). This
+   is independent of `PAYLOAD_SECRET` — rotating the secret logs everyone out but
+   does not change passwords (see "Rotating PAYLOAD_SECRET").
+3. The production database must **never** contain the local dev seed admin. The
+   seed only creates it when `SEED_DEV_ADMIN=1` (local `seed` script) and never
+   in production (`apps/cms/src/seed/seed.ts` guards this); confirm no
+   known-password dev admin exists in prod.
+
+## Viewer security headers (CSP)
+
+The viewer ships a Content-Security-Policy plus `X-Content-Type-Options: nosniff`
+and `Referrer-Policy` via `dist/_headers`, honoured by Cloudflare Pages and
+Workers Static Assets. `_headers` is **generated** by
+`apps/viewer/scripts/gen-headers.mjs` at build time — do not hand-edit
+`dist/_headers`. The generator:
+
+- hashes the inline theme `<script>` so `script-src` needs no `'unsafe-inline'`;
+- bakes the API origin in from `VITE_API_BASE_URL`, and allows `*.wear-run.help`
+  (media) and `www.gstatic.com` (model-viewer's Draco/KTX2 decoders).
+
+To change what the viewer may load, edit the generator (not the output) and
+re-run the build; the webgl e2e spec fails on any CSP violation, so a missing
+directive is caught in CI. If a subresource ever breaks in production, widen the
+relevant directive there. The CSP is validated against the real 3D-model load in
+`apps/viewer/e2e/webgl.spec.ts`.
 
 ## The home-directory git footgun (developer note)
 

@@ -63,11 +63,25 @@ npx wrangler secret put PAYLOAD_SECRET     # paste a long random string (openssl
 Review `wrangler.jsonc` vars: `CMS_PUBLIC_URL`, `PUBLIC_MEDIA_BASE_URL`,
 `VIEWER_ALLOWED_ORIGINS`, `VIEWER_API_CACHE_SECONDS`.
 
-**Optional edge rate-limit (recommended):** dashboard → the `wear-run.help` zone
-→ *Security → WAF → Rate limiting rules* → add a rule matching
-`cms.wear-run.help/api/users/login` (e.g. 10 requests / 10 min / IP → block).
+**Edge rate-limit on the admin login (recommended).** Dashboard → the
+`wear-run.help` zone → *Security → WAF → Rate limiting rules* → *Create rule*:
+
+| Field | Value |
+|---|---|
+| Name | `cms-admin-login` |
+| If incoming requests match | `(http.host eq "cms.wear-run.help" and http.request.uri.path eq "/api/users/login" and http.request.method eq "POST")` |
+| Rate | 10 requests per 10 minutes |
+| Counting characteristic | IP |
+| Action | Block (or Managed Challenge) for 10 minutes |
+
 This layers on top of the built-in Payload login lockout (5 attempts → 10-min
-lock). The free plan includes one rate-limit rule.
+account lock) with an IP-level edge limit, so an attacker can't cycle accounts.
+The free plan includes **one** rate-limiting rule, so spend it here (the login).
+
+**Consider a public-API limit too** (needs a 2nd rule → a paid WAF tier): a
+looser limit such as `http.request.uri.path contains "/api/public/"` at, say,
+300 req / min / IP → Managed Challenge. Not required — the public API is cached
+at the edge (`s-maxage`) and exposes only published data — but it caps abuse.
 
 ## 4. Database schema — ✅ already applied
 
