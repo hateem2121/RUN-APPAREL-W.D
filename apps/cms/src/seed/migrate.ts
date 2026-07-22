@@ -12,6 +12,11 @@ import config from '../payload.config'
 //   • PAYLOAD_LOCAL_D1=1 + PAYLOAD_MIGRATE_REMOTE=1 → remote production D1
 //     (via wrangler.migrate.jsonc; needs CLOUDFLARE_API_TOKEN)
 //
+// The remote scripts run with NODE_ENV=production so Payload does NOT auto-push
+// the schema on init (dev-mode behaviour). Pushing against the already-migrated
+// production D1 fails with "index … already exists"; migrations are the source
+// of truth there, so we only connect, then apply pending migrations explicitly.
+//
 // The explicit process.exit is required because the local wrangler platform
 // proxy keeps a workerd process alive that would otherwise hang the run.
 const payload = await getPayload({ config })

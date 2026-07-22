@@ -17,8 +17,8 @@
     "migrate:create": "PAYLOAD_LOCAL_D1=1 payload migrate:create",
     "migrate": "PAYLOAD_LOCAL_D1=1 payload run src/seed/migrate.ts",
     "migrate:down": "PAYLOAD_LOCAL_D1=1 PAYLOAD_MIGRATE_DOWN=1 payload run src/seed/migrate.ts",
-    "migrate:remote": "PAYLOAD_LOCAL_D1=1 PAYLOAD_MIGRATE_REMOTE=1 payload run src/seed/migrate.ts",
-    "migrate:remote:down": "PAYLOAD_LOCAL_D1=1 PAYLOAD_MIGRATE_REMOTE=1 PAYLOAD_MIGRATE_DOWN=1 payload run src/seed/migrate.ts",
+    "migrate:remote": "NODE_ENV=production PAYLOAD_LOCAL_D1=1 PAYLOAD_MIGRATE_REMOTE=1 payload run src/seed/migrate.ts",
+    "migrate:remote:down": "NODE_ENV=production PAYLOAD_LOCAL_D1=1 PAYLOAD_MIGRATE_REMOTE=1 PAYLOAD_MIGRATE_DOWN=1 payload run src/seed/migrate.ts",
     "seed": "PAYLOAD_LOCAL_D1=1 SEED_DEV_ADMIN=1 payload run src/seed/run.ts"
   },
   "dependencies": {
