@@ -23,6 +23,7 @@
     "react-dom": "19.2.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
     "@playwright/test": "1.61.1",
     "@types/node": "26.1.1",
     "@types/react": "19.2.17",
@@ -30,8 +31,8 @@
     "@vitejs/plugin-react": "6.0.3",
     "jsdom": "26.1.0",
     "typescript": "7.0.2",
-    "wrangler": "4.112.0",
     "vite": "8.1.5",
-    "vitest": "4.1.10"
+    "vitest": "4.1.10",
+    "wrangler": "4.112.0"
   }
 }

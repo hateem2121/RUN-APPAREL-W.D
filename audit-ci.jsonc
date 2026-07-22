@@ -1,0 +1,14 @@
+{
+  // Dependency vulnerability gate (audit-ci, Apache-2.0). Runs `pnpm audit` and
+  // fails CI on HIGH or CRITICAL advisories; moderate/low are reported but do
+  // not block. Run with: `pnpm exec audit-ci --config audit-ci.jsonc`.
+  "high": true,
+  "critical": true,
+  "report-type": "important",
+  // Continue past registry hiccups rather than flaking the build on a network
+  // blip (a real advisory still fails the run).
+  "retry-count": 3,
+  // Allowlist specific advisories that are unfixable / not exploitable in this
+  // context, with a dated justification, e.g. "GHSA-xxxx-xxxx-xxxx". Empty for now.
+  "allowlist": []
+}

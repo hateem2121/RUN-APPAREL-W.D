@@ -2,3 +2,15 @@ packages:
   - apps/*
   - packages/*
   - tools/*
+
+# Supply-chain hardening: refuse to resolve dependency versions younger than
+# this many minutes (4320 = 3 days) so a freshly-published, potentially
+# compromised release is not adopted the instant it lands. Enforced only when
+# the lockfile is (re)resolved — a `pnpm add` or a Dependabot bump — so
+# `--frozen-lockfile` installs (CI, deploy) are unaffected. This was previously
+# enforced by a machine-global config (which is what blocked adopting a
+# brand-new pnpm 11); pinning it in-repo makes the policy explicit, shared and
+# version-controlled. First-party packages can be exempted if ever needed:
+#   minimumReleaseAgeExclude:
+#     - '@run-apparel/*'
+minimumReleaseAge: 4320

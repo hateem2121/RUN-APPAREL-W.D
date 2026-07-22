@@ -1,0 +1,22 @@
+# gitleaks configuration — extends the built-in ruleset.
+# See docs/RUNBOOK.md and .github/workflows/security.yml.
+title = "run-apparel-viewer gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Non-secret placeholders and generated/lockfiles"
+# `.env.example` holds only labelled placeholders (e.g. PAYLOAD_SECRET=
+# generate-a-long-random-string); the pnpm lockfile carries integrity hashes
+# that resemble high-entropy secrets but are not. Real secrets never live in
+# either — they are set with `wrangler secret put` / GitHub secrets.
+paths = [
+  '''\.env\.example$''',
+  '''pnpm-lock\.yaml$''',
+]
+# The isolated D1 database UUID is a resource identifier, not a credential, and
+# is already committed in wrangler.jsonc by design.
+regexes = [
+  '''41e20361-1a5f-4c87-b5ca-781c57c9b3f4''',
+]

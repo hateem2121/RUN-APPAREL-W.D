@@ -117,6 +117,34 @@ pnpm exec wrangler d1 execute run-apparel-viewer-db --remote --command "
 Getting the batches right matters so `migrate:remote:down` rolls back exactly the
 last migration and no more.
 
+## CI quality gates
+
+Beyond typecheck/test/build/e2e, CI runs these on every push to `main` and every
+pull request:
+
+- **Secret scanning** — gitleaks (`.github/workflows/security.yml`, config
+  `.gitleaks.toml`). A hit fails the run. Real secrets never belong in git; use
+  `wrangler secret put` / GitHub secrets. Add proven false positives to the
+  allowlist in `.gitleaks.toml`.
+- **Dependency vulnerabilities** — `audit-ci` (config `audit-ci.jsonc`) fails on
+  **high/critical** advisories and **gates the deploy** (the `deploy` job needs
+  it). To clear one: bump the dependency, add a `pnpm.overrides` pin for a fixed
+  transitive version (how the `tmp` advisory was resolved), or — only if
+  unfixable and not exploitable here — add the `GHSA-…` id to `allowlist` in
+  `audit-ci.jsonc` with a dated reason.
+- **Performance budget** — Lighthouse CI (`lighthouserc.json`) against the viewer
+  served with the e2e mock. Deterministic byte-weight budgets fail on a real
+  regression; category scores are non-blocking warnings. This job is
+  informational (it does **not** gate the deploy, so a Chrome flake never blocks a
+  release) — make it a required check via branch protection to enforce it.
+- **Accessibility** — an axe-core check in the Playwright suite
+  (`apps/viewer/e2e/a11y.spec.ts`). It fails on serious/critical **structural**
+  violations; colour-contrast is reported as advisory only (a deliberate
+  palette-design decision — see the test's header comment).
+
+**Dependency updates** arrive as weekly grouped Dependabot PRs
+(`.github/dependabot.yml`); the same CI gates run on them before merge.
+
 ## Rotating PAYLOAD_SECRET
 
 Rotating logs everyone out of `/admin` (sessions are signed with it). Passwords

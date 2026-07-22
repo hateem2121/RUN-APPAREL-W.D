@@ -72,7 +72,14 @@ export function StickyContactRail(props: ContactProps & { stageSelector?: string
   }, [props.stageSelector])
 
   return (
-    <div className={`contact-rail${visible ? ' contact-rail--visible' : ''}`} aria-hidden={!visible}>
+    // `inert` while hidden removes the rail's links from BOTH the tab order and
+    // the accessibility tree, so keyboard users can't tab into content that
+    // aria-hidden conceals from screen readers (axe rule: aria-hidden-focus).
+    <div
+      className={`contact-rail${visible ? ' contact-rail--visible' : ''}`}
+      aria-hidden={!visible}
+      inert={!visible}
+    >
       <ContactButtons {...props} compact />
     </div>
   )

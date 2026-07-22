@@ -1,0 +1,33 @@
+version: 2
+updates:
+  # Application + tooling dependencies (pnpm workspace, npm ecosystem).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    # One PR per week grouping non-major bumps keeps review light; majors come
+    # through individually so breaking changes are reviewed in isolation.
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    # Deliberate pins that must not be auto-bumped (see README → Versions).
+    # TypeScript: block MAJOR bumps only. This keeps the CMS on 5.x (a 5→7 major
+    # is blocked — Next 16 rejects the TS7 native compiler) and the viewer on 7.x
+    # (7→8 blocked), while still letting minor/patch updates reach both. Major TS
+    # changes are reviewed by hand.
+    ignore:
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
+
+  # Keep GitHub Actions pinned refs current (security patches for actions).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5

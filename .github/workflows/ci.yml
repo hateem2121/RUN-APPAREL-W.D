@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -29,8 +30,45 @@ jobs:
       - name: e2e
         run: pnpm --filter @run-apparel/viewer test:e2e
 
+  # Dependency vulnerability gate. Runs in parallel with verify and gates the
+  # deploy: a HIGH/CRITICAL advisory blocks production until it is fixed or
+  # explicitly allowlisted (with justification) in audit-ci.jsonc.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Vulnerability audit (high/critical)
+        run: pnpm exec audit-ci --config audit-ci.jsonc
+
+  # Performance budget + a11y snapshot (Lighthouse CI) against the viewer served
+  # with the same server-side mock the e2e suite uses. Informational: it does
+  # NOT gate the deploy (a Chrome flake must never block a live release), but the
+  # deterministic byte-weight budgets in lighthouserc.json fail the check on a
+  # real regression so it surfaces on the PR. Make it a required check via branch
+  # protection if you want it to block merges.
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build viewer with the e2e mock origin
+        run: node apps/viewer/e2e/prepare.mjs
+      - name: Lighthouse CI
+        run: pnpm exec lhci autorun
+
   deploy:
-    needs: verify
+    needs: [verify, audit]
     # Enabled once Cloudflare secrets are configured (Phase 10):
     #   gh variable set DEPLOY_ENABLED --body true
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'

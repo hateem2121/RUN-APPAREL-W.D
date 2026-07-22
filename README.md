@@ -169,11 +169,26 @@ admin role's label, not a separate permission tier.
 
 ### Versions
 
-Dependencies are pinned to the latest stable releases. Two deliberate
-exceptions: the CMS workspace uses **TypeScript 5.9** (Next.js 16 does not yet
-accept the TypeScript 7 native compiler), and `packageManager` is pinned to
-**pnpm 10.33.0** (pnpm 11 enforces a `minimumReleaseAge` supply-chain policy that
-rejects the verified lockfile). All shipped app dependencies remain latest-stable.
+Dependencies are pinned to the latest stable releases. Deliberate exceptions:
+
+- The **CMS** uses **TypeScript 5.9** (Next.js 16 rejects the TS7 native
+  compiler); the **viewer** uses TypeScript 7. Dependabot blocks *major* TS bumps
+  (`.github/dependabot.yml`) so neither workspace drifts across that line silently.
+- `packageManager` stays pinned to **pnpm 10.33.0**. The `minimumReleaseAge`
+  supply-chain policy that gated adopting pnpm 11 is now declared **in-repo**
+  (`pnpm-workspace.yaml` → `minimumReleaseAge: 4320`, i.e. 3 days), so the pin is a
+  deliberate, version-controlled choice rather than an artefact of a machine-global
+  config. Moving to pnpm 11 is a safe, isolated follow-up when desired — the policy
+  travels with the repo either way. `--frozen-lockfile` installs (CI/deploy) are
+  never affected; if a `pnpm add`/update is ever blocked by a too-fresh version,
+  wait out the cooldown or add that package to `minimumReleaseAgeExclude`.
+
+`sharp` is de-duplicated to a single version via a `pnpm.overrides` pin (it is a
+build-time/optional dependency — image transforms are unavailable on Workers, so
+posters are optimised by the asset pipeline before upload). CI additionally runs
+secret scanning (gitleaks), a dependency-vulnerability gate (audit-ci, high/
+critical), a Lighthouse performance budget, and an axe accessibility check — see
+`docs/RUNBOOK.md` → "CI quality gates".
 
 The seeded product **N001** demonstrates both variant modes: it publishes as
 `single-glb-variants` with the merged GLB, and every colourway also carries its
