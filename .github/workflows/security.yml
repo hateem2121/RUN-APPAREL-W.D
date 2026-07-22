@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: read
+  # gitleaks-action lists the PR's commits to scan them (pull_request events).
+  pull-requests: read
 
 jobs:
   # Secret scanning with gitleaks (MIT). The action is free for user-owned
