@@ -121,7 +121,13 @@ jobs:
           VITE_CF_BEACON_TOKEN: ${{ vars.VITE_CF_BEACON_TOKEN }}
         run: pnpm --filter @run-apparel/viewer build
 
+      # Viewer deploy target is selectable via the VIEWER_DEPLOY_TARGET repo
+      # variable. Default (unset) = Cloudflare Pages (current). Set it to "worker"
+      # AFTER moving viewer.wear-run.help onto the Worker with Static Assets — see
+      # docs/RUNBOOK.md → "Viewer: Pages → Worker cutover". Merging this change
+      # alone does not alter the live deploy path.
       - name: Ensure Pages project exists
+        if: vars.VIEWER_DEPLOY_TARGET != 'worker'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -130,12 +136,20 @@ jobs:
           --production-branch main 2>/dev/null || echo "Pages project already exists — continuing."
 
       - name: Deploy viewer (Cloudflare Pages)
+        if: vars.VIEWER_DEPLOY_TARGET != 'worker'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: >-
           pnpm --filter @run-apparel/viewer exec wrangler pages deploy dist
           --project-name run-apparel-viewer --branch main
+
+      - name: Deploy viewer (Cloudflare Worker, static assets)
+        if: vars.VIEWER_DEPLOY_TARGET == 'worker'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm --filter @run-apparel/viewer exec wrangler deploy
 
       - name: Post-deploy health check
         run: >-

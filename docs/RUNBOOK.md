@@ -228,6 +228,36 @@ break mid-flight (each config flip is a one-liner already commented in
 The admin panel is reachable at `cms.wear-run.help/admin` throughout (a real
 browser solves any challenge automatically).
 
+## Viewer: Pages → Worker cutover
+
+The viewer can deploy either to Cloudflare **Pages** (current default) or to a
+**Worker with Static Assets** (`apps/viewer/wrangler.jsonc`, Cloudflare's 2026
+recommended static platform). The same `dist/` — SPA fallback, immutable asset
+caching, and the CSP in `dist/_headers` — serves identically on both; the
+behaviour is covered by the e2e suite regardless of platform. Pages is not
+deprecated, so this is optional. To cut over, **in order**:
+
+1. Deploy the worker for smoke-testing (does not touch the live domain):
+   `pnpm --filter @run-apparel/viewer build && pnpm --filter @run-apparel/viewer
+   exec wrangler deploy`. It publishes `run-apparel-viewer-site` and exposes it at
+   `run-apparel-viewer-site.<account>.workers.dev`. Check a deep link like
+   `/n001/navy` resolves (SPA fallback), hashed assets are immutable-cached, and
+   the CSP header is present.
+2. **Move the custom domain.** Dashboard → Pages project `run-apparel-viewer` →
+   *Custom domains* → remove `viewer.wear-run.help`; then Workers & Pages →
+   `run-apparel-viewer-site` → *Settings → Domains & Routes* → add custom domain
+   `viewer.wear-run.help`. (A domain can only be on one resource; same-zone DNS
+   updates immediately.)
+3. `gh variable set VIEWER_DEPLOY_TARGET --body worker` so CI deploys the worker
+   from then on (until this is set, CI keeps deploying Pages).
+4. Verify `viewer.wear-run.help/n001/navy` — deep links, model, colourways, CSP —
+   and run `docs/QA-CHECKLIST.md`. Optionally set `workers_dev: false` in
+   `apps/viewer/wrangler.jsonc` afterwards.
+5. Once confident, delete the old `run-apparel-viewer` Pages project.
+
+Rollback: `gh variable set VIEWER_DEPLOY_TARGET --body pages` (or unset it) and
+move `viewer.wear-run.help` back to the Pages project.
+
 ## Login protection
 
 The admin login locks an account for 10 minutes after 5 failed attempts

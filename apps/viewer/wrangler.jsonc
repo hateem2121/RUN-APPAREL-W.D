@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Viewer as a Cloudflare Worker with Static Assets — Cloudflare's 2026
+  // recommended static-hosting platform. Fully separate from the CMS worker, and
+  // NEVER named "run-apparel" (the separate live commercial site).
+  //
+  // The Pages project "run-apparel-viewer" still serves viewer.wear-run.help
+  // until the cutover (docs/RUNBOOK.md → "Viewer: Pages → Worker cutover"), so
+  // this worker uses a distinct name to coexist during the move. Deploys are
+  // selected by the VIEWER_DEPLOY_TARGET repo variable in .github/workflows/ci.yml
+  // (default = Pages; set to "worker" to switch after the domain is moved).
+  "name": "run-apparel-viewer-site",
+  "compatibility_date": "2026-07-01",
+  // Static-assets-only worker (no server code). `single-page-application`
+  // reproduces the Pages `_redirects` SPA fallback; dist/_headers (immutable
+  // asset caching + the CSP) is honoured natively by Static Assets.
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+  // Custom domain viewer.wear-run.help is moved from the Pages project to this
+  // worker in the dashboard during cutover (one domain can't be on both at once).
+  //
+  // NOTE (transitional): while VIEWER_DEPLOY_TARGET is still Pages, `wrangler
+  // pages deploy` prints "detected a configuration file … missing
+  // pages_build_output_dir … Ignoring configuration file … proceeding with
+  // project deploy" — harmless; it ignores this worker config and deploys Pages
+  // as before. The message disappears once the viewer deploys as a worker.
+}
