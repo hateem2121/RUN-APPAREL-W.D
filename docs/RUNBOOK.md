@@ -39,6 +39,12 @@ production deploy pause for a human approval:
   yourself (and anyone else who may approve). Now each push to `main` that would
   deploy waits in the *Deploy* job until a reviewer approves in the Actions run.
 
+> **Note (checked 2026-07-22):** on a **private** repo under a personal account,
+> the *Deployment protection rules* section (required reviewers / wait timer)
+> only appears with **GitHub Pro** or higher — on the Free plan the environment
+> page shows only branches/secrets/variables. Decision: skipped for now; the
+> automated gates (verify + audit + health check) remain the deploy protection.
+
 This layers on top of the code-review that happens before `main` (see below). The
 deploy job also `needs` both `verify` (typecheck/test/build/e2e) and `audit`
 (high/critical vulnerabilities), so a red build or a new vulnerability blocks the
