@@ -15,7 +15,6 @@ import { eventsEndpoint } from './endpoints/events'
 import { healthEndpoint } from './endpoints/health'
 import { publicViewerEndpoint } from './endpoints/publicViewer'
 import { SiteSettings } from './globals/SiteSettings'
-import { migrations } from './migrations'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -43,7 +42,24 @@ async function resolveCloudflareEnv(): Promise<CloudflareEnv | null> {
     const { getPlatformProxy } = (await import(
       /* webpackIgnore: true */ /* turbopackIgnore: true */ wranglerSpecifier
     )) as {
-      getPlatformProxy: (options: { persist: boolean }) => Promise<{ env: CloudflareEnv }>
+      getPlatformProxy: (options: {
+        persist?: boolean
+        configPath?: string
+        remoteBindings?: boolean
+      }) => Promise<{ env: CloudflareEnv }>
+    }
+    // PAYLOAD_MIGRATE_REMOTE=1 → open the *remote* production D1 (via the
+    // migrate-only wrangler.migrate.jsonc whose D1 binding is remote:true) so the
+    // gated CI migrate step applies pending migrations before the new Worker
+    // serves traffic. Needs CLOUDFLARE_API_TOKEN. Everything else — local dev,
+    // seed, local `migrate` — keeps using the emulated D1 exactly as before.
+    if (process.env.PAYLOAD_MIGRATE_REMOTE === '1') {
+      const proxy = await getPlatformProxy({
+        configPath: path.resolve(dirname, '../wrangler.migrate.jsonc'),
+        persist: false,
+        remoteBindings: true,
+      })
+      return proxy.env
     }
     const proxy = await getPlatformProxy({ persist: true })
     return proxy.env
@@ -87,13 +103,14 @@ export default buildConfig({
   db: sqliteD1Adapter({
     // Cast: the binding is absent only in CLI contexts that never open the DB.
     binding: env?.D1 as D1Database,
-    // Apply committed migrations automatically on the deployed Worker (Payload
-    // consults prodMigrations only in production; local dev uses schema push,
-    // and the `migrate` CLI script applies them explicitly). This makes
-    // "deploy = migrate" so schema changes ship with the code. Cold-start
-    // migration risk is mitigated by the CI /api/health gate (Phase 8) and the
-    // manual fallback in docs/RUNBOOK.md.
-    prodMigrations: migrations,
+    // NOTE: migrations are NOT applied on the deployed Worker. They run in an
+    // explicit, gated CI step (`.github/workflows/ci.yml` → the `migrate` job
+    // applies pending migrations to the *remote* production D1 *before* the new
+    // Worker is deployed). The old cold-start `prodMigrations` path is
+    // deliberately removed — running migrations lazily on first request hung in
+    // production once. Committed migrations in ./migrations remain the single
+    // source of truth; `pnpm --filter @run-apparel/cms migrate` applies them to
+    // the local emulated D1 for development.
   }),
   // No `sharp`: image transforms are unavailable on Workers — posters are
   // optimised by the asset pipeline before upload instead.

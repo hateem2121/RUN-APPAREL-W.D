@@ -31,27 +31,91 @@ Requires Cloudflare auth (`wrangler login` or `CLOUDFLARE_API_TOKEN`).
 
 ## Database migrations
 
-Schema changes ship with the code: the deployed Worker applies committed
-migrations on cold start (`prodMigrations` in `apps/cms/src/payload.config.ts`).
-The workflow to add one:
+Migrations are applied by an **explicit, gated CI step** — the deployed Worker no
+longer migrates on cold start (that lazy `prodMigrations` path hung in production
+once and has been removed). In `.github/workflows/ci.yml` the `deploy` job runs
+`pnpm --filter @run-apparel/cms migrate:remote` **before** it deploys the new
+Worker: it applies any pending committed migrations to the **remote** production
+D1, and only if that succeeds does the new Worker ship. So the new code never
+serves traffic against a stale schema, and a failed migration blocks the deploy
+instead of hanging live requests.
+
+How it targets the live DB: `migrate:remote` sets `PAYLOAD_MIGRATE_REMOTE=1`,
+which makes `payload.config.ts` open the production D1 through
+`apps/cms/wrangler.migrate.jsonc` (its D1 binding is `remote: true`) via wrangler's
+`getPlatformProxy`. It needs `CLOUDFLARE_API_TOKEN` (Account + **D1: Edit**) and
+`PAYLOAD_SECRET` in the environment — both already CI secrets.
+
+**Adding a migration:**
 
 ```bash
 # 1. change collections, then generate the migration
 pnpm --filter @run-apparel/cms migrate:create <name>
-# 2. commit the generated src/migrations/* files and push — the next deploy applies them
+# 2. review the generated src/migrations/* files. Prefer ADDITIVE changes
+#    (new tables/columns) so the running Worker tolerates the new schema in the
+#    brief window between migrate and deploy (expand/contract).
+# 3. commit and push — the next deploy's migrate step applies them, then deploys.
 ```
 
-**If a migration fails on deploy** (health check red): take a backup, then apply
-the SQL by hand and redeploy:
+**Apply / roll back by hand** (needs Cloudflare auth: `wrangler login` or
+`CLOUDFLARE_API_TOKEN`, plus `PAYLOAD_SECRET`):
 
 ```bash
-node scripts/backup-d1.mjs                     # safety first
+node scripts/backup-d1.mjs                              # ALWAYS back up first
+pnpm --filter @run-apparel/cms migrate:remote           # apply pending → remote D1
+pnpm --filter @run-apparel/cms migrate:remote:down      # roll back the most recent batch
+```
+
+The `down` runner (`payload.db.migrateDown()`) reverses the latest migration
+**batch**, so batch bookkeeping in `payload_migrations` must be correct — see
+"Canonicalising migration history" below. Test any rollback against a throwaway DB
+first (`docs/BACKUP-RESTORE.md` shows the scratch-DB pattern).
+
+**If a migration fails** (deploy stops, or health check red afterwards): back up,
+inspect what's applied, then re-run the migrate or apply the SQL by hand:
+
+```bash
+node scripts/backup-d1.mjs
 cd apps/cms
 pnpm exec wrangler d1 execute run-apparel-viewer-db --remote \
-  --command "SELECT * FROM payload_migrations"        # see what's applied
-# apply the specific migration SQL if needed:
+  --command "SELECT id, name, batch, created_at FROM payload_migrations ORDER BY id"
+# last-resort manual apply of a specific migration's SQL:
 pnpm exec wrangler d1 execute run-apparel-viewer-db --remote --file src/migrations/<file>.sql
 ```
+
+### Canonicalising migration history
+
+During an earlier recovery a `payload_migrations` row was inserted by hand, so the
+table should be verified once against the canonical history. The canonical state
+(two committed migrations, applied in order) is exactly:
+
+| id | name | batch |
+|---|---|---|
+| 1 | `20260720_185735_initial` | 1 |
+| 2 | `20260721_084024_add_events` | 2 |
+
+Verify the live table matches (run after a backup):
+
+```bash
+cd apps/cms
+pnpm exec wrangler d1 execute run-apparel-viewer-db --remote \
+  --command "SELECT id, name, batch FROM payload_migrations ORDER BY id"
+```
+
+If a `dev`/`NULL` marker row is present, or the batch numbers differ, reconcile it
+(back up first — this edits live bookkeeping, not data):
+
+```bash
+cd apps/cms
+pnpm exec wrangler d1 execute run-apparel-viewer-db --remote --command "
+  DELETE FROM payload_migrations WHERE name IS NULL OR name = 'dev';
+  UPDATE payload_migrations SET batch = 1 WHERE name = '20260720_185735_initial';
+  UPDATE payload_migrations SET batch = 2 WHERE name = '20260721_084024_add_events';
+"
+```
+
+Getting the batches right matters so `migrate:remote:down` rolls back exactly the
+last migration and no more.
 
 ## Rotating PAYLOAD_SECRET
 

@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // ─────────────────────────────────────────────────────────────────────────
+  // MIGRATE-ONLY config. This file is NEVER deployed — it exists solely so the
+  // migration runner (`src/seed/migrate.ts`, invoked with PAYLOAD_MIGRATE_REMOTE=1)
+  // can open a connection to the *remote* production D1 via wrangler's
+  // getPlatformProxy({ remoteBindings: true }). Keeping the `remote: true` flag
+  // here — instead of on the real wrangler.jsonc — guarantees the deployed
+  // Worker and normal local dev are completely unaffected by it.
+  //
+  // Requires CLOUDFLARE_API_TOKEN (Account + D1: Edit) in the environment; the
+  // proxy authenticates with it to reach the live database by id.
+  // ─────────────────────────────────────────────────────────────────────────
+  "name": "run-apparel-viewer-cms-migrate",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "D1",
+      // Same isolated viewer DB as wrangler.jsonc. NOT run-apparel-db.
+      "database_name": "run-apparel-viewer-db",
+      "database_id": "41e20361-1a5f-4c87-b5ca-781c57c9b3f4",
+      // Proxy D1 queries to the live database instead of a local emulation.
+      "remote": true
+    }
+  ],
+  "r2_buckets": [
+    {
+      // Present only so config init matches the app's binding shape; the
+      // migration runner never touches R2 (local emulation, unused).
+      "binding": "R2",
+      "bucket_name": "run-apparel-viewer-media"
+    }
+  ]
+}

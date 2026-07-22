@@ -48,6 +48,20 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm seed:assets
 
+      # Gated migration step: apply any pending committed migrations to the
+      # REMOTE production D1 *before* the new Worker is deployed. Replaces the
+      # old cold-start `prodMigrations` path (which hung in production once). If
+      # this fails the job stops here and the new Worker is never deployed, so
+      # traffic keeps hitting the last-good version against the last-good schema.
+      # Migrations should be additive (expand/contract) so the currently-running
+      # Worker tolerates the new schema during the brief window before deploy.
+      - name: Apply pending D1 migrations (gated, pre-deploy)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
+        run: pnpm --filter @run-apparel/cms migrate:remote
+
       - name: Deploy CMS worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

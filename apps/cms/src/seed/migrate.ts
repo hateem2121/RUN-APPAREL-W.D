@@ -1,10 +1,27 @@
 import { getPayload } from 'payload'
 import config from '../payload.config'
 
-// Runs pending migrations then force-exits. The explicit exit is required
-// because the local wrangler platform proxy (used for local D1 access in CLI
-// contexts) keeps a workerd process alive that would otherwise hang the run.
+// Migration runner used by the CLI scripts and the gated CI `migrate` job.
+//
+// Direction is chosen by env flag so `payload run` needs no extra args:
+//   • default            → apply all pending migrations (`up`)
+//   • PAYLOAD_MIGRATE_DOWN=1 → roll back the most recent batch (`down`)
+//
+// Target database is chosen upstream in payload.config.ts:
+//   • PAYLOAD_LOCAL_D1=1                        → local emulated D1 (dev)
+//   • PAYLOAD_LOCAL_D1=1 + PAYLOAD_MIGRATE_REMOTE=1 → remote production D1
+//     (via wrangler.migrate.jsonc; needs CLOUDFLARE_API_TOKEN)
+//
+// The explicit process.exit is required because the local wrangler platform
+// proxy keeps a workerd process alive that would otherwise hang the run.
 const payload = await getPayload({ config })
-await payload.db.migrate()
-payload.logger.info('Migrations complete.')
+
+if (process.env.PAYLOAD_MIGRATE_DOWN === '1') {
+  await payload.db.migrateDown()
+  payload.logger.info('Migration rollback (down) complete.')
+} else {
+  await payload.db.migrate()
+  payload.logger.info('Migrations complete.')
+}
+
 process.exit(0)

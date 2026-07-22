@@ -93,9 +93,11 @@ pnpm --filter @run-apparel/cms run deploy    # canonical command (= opennextjs-c
 ```
 
 This deploys the Worker named **`run-apparel-viewer-cms`** (from `wrangler.jsonc`).
-**Do not rename it to `run-apparel`** — that is the separate live site. On cold
-start the Worker applies any pending committed migrations automatically
-(`prodMigrations`), so **deploy = migrate**. Confirm it is healthy:
+**Do not rename it to `run-apparel`** — that is the separate live site. Migrations
+are **not** applied on cold start; apply any pending ones to the remote D1 first
+with `pnpm --filter @run-apparel/cms migrate:remote` (CI does this automatically in
+the `deploy` job, before the Worker ships — see `docs/RUNBOOK.md` → Database
+migrations). Confirm it is healthy:
 
 ```bash
 curl -f https://cms.wear-run.help/api/health     # → {"ok":true}
@@ -162,6 +164,9 @@ So every push to `main` deploys automatically (after tests pass):
    ```bash
    gh secret set CLOUDFLARE_API_TOKEN --body "<token>"
    gh secret set CLOUDFLARE_ACCOUNT_ID --body "<account-id>"
+   # Same value as the worker's PAYLOAD_SECRET — the deploy job's pre-deploy
+   # migration step and the "Apply worker secret" step both read it:
+   gh secret set PAYLOAD_SECRET --body "<same long random string as the worker secret>"
    gh variable set DEPLOY_ENABLED --body true      # turns on the deploy/backup/uptime jobs
    ```
 
