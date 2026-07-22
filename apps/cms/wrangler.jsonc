@@ -45,12 +45,14 @@
   "vars": {
     // Public URL of this CMS worker (used to absolutise media URLs when R2 public access is not configured).
     "CMS_PUBLIC_URL": "https://cms.wear-run.help",
-    // Public base URL for R2 media. Empty = media streams through the CMS worker
-    // (current). In the cutover, connect the R2 public custom domain and set this
-    // to "https://media.wear-run.help" so browsers fetch media direct from R2
-    // with long-lived edge caching. Flip only AFTER the domain is live — see
-    // docs/RUNBOOK.md → "API + media domain cutover".
-    "PUBLIC_MEDIA_BASE_URL": "",
+    // Public base URL for R2 media. Media is served direct from R2 at
+    // media.wear-run.help (R2 custom domain, Active) with a 30-day edge Cache
+    // Rule and a bucket CORS policy allowing the viewer origins — browsers fetch
+    // media direct from R2 with long-lived edge caching, bypassing the worker.
+    // Set live 2026-07-22 (media half of the cutover). Empty here would revert to
+    // streaming through the CMS worker — see docs/RUNBOOK.md → "API + media
+    // domain cutover".
+    "PUBLIC_MEDIA_BASE_URL": "https://media.wear-run.help",
     // Comma-separated origins allowed to call the public viewer API.
     "VIEWER_ALLOWED_ORIGINS": "https://viewer.wear-run.help,https://run-apparel-viewer.pages.dev,http://localhost:5173",
     // Edge cache lifetime (seconds) for public viewer API responses.
