@@ -185,6 +185,16 @@ prune on demand run `nightly-backup.yml` via *workflow_dispatch*.
 
 Aggregate page views (if enabled) are in Cloudflare **Web Analytics**.
 
+## Error tracking
+
+Server-side worker errors are in **Workers Logs** (Observability is enabled in
+`wrangler.jsonc`; `wrangler tail` for live). Client-side errors have two layers:
+the first-party diagnostics that land in **Events** (above), and optional
+**Sentry** (free tier) for aggregated client stack traces. Sentry is off by
+default — set the `VITE_SENTRY_DSN` build variable (Pages/Worker build env) to a
+project DSN to enable it; when unset the SDK is dead-code-eliminated from the
+bundle (zero cost). The CSP auto-allows the DSN's ingest origin at build time.
+
 ## Uptime alerts
 
 `.github/workflows/uptime.yml` pings `/api/health` and the viewer every ~15 min

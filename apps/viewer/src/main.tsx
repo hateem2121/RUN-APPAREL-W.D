@@ -9,8 +9,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import { initAnalytics } from './lib/analytics'
+import { initErrorTracking } from './lib/sentry'
 import { initTelemetry } from './lib/telemetry'
 
+initErrorTracking()
 initAnalytics()
 initTelemetry()
 

@@ -5,6 +5,10 @@ interface ImportMetaEnv {
   readonly VITE_API_BASE_URL?: string
   /** Cloudflare Web Analytics beacon token (optional). */
   readonly VITE_CF_BEACON_TOKEN?: string
+  /** Sentry DSN for client error tracking (optional; unset = disabled). */
+  readonly VITE_SENTRY_DSN?: string
+  /** Release identifier tagged on Sentry events (optional). */
+  readonly VITE_SENTRY_RELEASE?: string
 }
 
 interface ImportMeta {

@@ -176,9 +176,10 @@ Dependencies are pinned to the latest stable releases. Deliberate exceptions:
   (`.github/dependabot.yml`) so neither workspace drifts across that line silently.
 - `packageManager` stays pinned to **pnpm 10.33.0**. The `minimumReleaseAge`
   supply-chain policy that gated adopting pnpm 11 is now declared **in-repo**
-  (`pnpm-workspace.yaml` → `minimumReleaseAge: 4320`, i.e. 3 days), so the pin is a
-  deliberate, version-controlled choice rather than an artefact of a machine-global
-  config. Moving to pnpm 11 is a safe, isolated follow-up when desired — the policy
+  (`pnpm-workspace.yaml` → `minimumReleaseAge: 1440`, i.e. 24h, with the trusted
+  fast-moving build toolchain excluded), so the pin is a deliberate,
+  version-controlled choice rather than an artefact of a machine-global config.
+  Moving to pnpm 11 is a safe, isolated follow-up when desired — the policy
   travels with the repo either way. `--frozen-lockfile` installs (CI/deploy) are
   never affected; if a `pnpm add`/update is ever blocked by a too-fresh version,
   wait out the cooldown or add that package to `minimumReleaseAgeExclude`.

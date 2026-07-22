@@ -51,6 +51,18 @@ const CF_CONNECT = 'https://cloudflareinsights.com https://static.cloudflareinsi
 const GSTATIC = 'https://www.gstatic.com'
 const ZONE = 'https://*.wear-run.help'
 
+// When a Sentry DSN is configured at build time, allow its ingest origin in
+// connect-src so error reports can be sent. Empty (and omitted) otherwise.
+const sentryOrigin = (() => {
+  const dsn = process.env.VITE_SENTRY_DSN
+  if (!dsn) return ''
+  try {
+    return new URL(dsn).origin
+  } catch {
+    return ''
+  }
+})()
+
 const csp = [
   `default-src 'self'`,
   `base-uri 'self'`,
@@ -65,7 +77,10 @@ const csp = [
   `style-src 'self' 'unsafe-inline'`,
   `img-src 'self' data: blob: ${apiOrigin} ${ZONE}`,
   `font-src 'self'`,
-  `connect-src 'self' ${apiOrigin} ${ZONE} ${GSTATIC} ${CF_CONNECT}`,
+  `connect-src 'self' ${apiOrigin} ${ZONE} ${GSTATIC} ${CF_CONNECT} ${sentryOrigin}`.replace(
+    /\s+/g,
+    ' ',
+  ).trim(),
   `worker-src 'self' blob:`,
   `manifest-src 'self'`,
   `upgrade-insecure-requests`,
