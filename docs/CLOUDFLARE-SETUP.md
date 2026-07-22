@@ -79,20 +79,24 @@ Until a key is set, the CMS logs emails to the console instead of sending them
    `npx wrangler secret put RESEND_API_KEY`, then redeploy.
 4. Test: `/admin` → *Forgot password* for a real user → confirm the email lands.
 
-**Edge rate-limit on the admin login (recommended).** Dashboard → the
-`wear-run.help` zone → *Security → WAF → Rate limiting rules* → *Create rule*:
+**Edge rate-limit on the admin login — ✅ done (2026-07-22).** The free plan
+includes exactly **one** rate-limiting rule with fixed values (read them in the
+dashboard, not here; longer windows need a paid tier), and the
+slot was already used by the zone-wide "Leaked credential check" rule. The two
+were therefore **merged** into a single rule, deployed and live-tested
+(rejected logins, then 429 once over the limit):
 
 | Field | Value |
 |---|---|
-| Name | `cms-admin-login` |
-| If incoming requests match | `(http.host eq "cms.wear-run.help" and http.request.uri.path eq "/api/users/login" and http.request.method eq "POST")` |
-| Rate | 10 requests per 10 minutes |
-| Counting characteristic | IP |
-| Action | Block (or Managed Challenge) for 10 minutes |
+| Name | `Leaked credentials + CMS admin login limit` |
+| If incoming requests match | Cloudflare's leaked-credential check, OR a POST to the CMS admin login path |
+| Rate / characteristic / action | Held privately — see the operator note, not this file |
 
 This layers on top of the built-in Payload login lockout (5 attempts → 10-min
 account lock) with an IP-level edge limit, so an attacker can't cycle accounts.
-The free plan includes **one** rate-limiting rule, so spend it here (the login).
+Do not delete the leaked-credential half — it guards the whole zone (including
+the separate commercial site). Note the "Exempt CMS API" skip rule deliberately
+does **not** skip rate-limiting rules, so this rule still fires on the cms host.
 
 **Consider a public-API limit too** (needs a 2nd rule → a paid WAF tier): a
 looser limit such as `http.request.uri.path contains "/api/public/"` at, say,
