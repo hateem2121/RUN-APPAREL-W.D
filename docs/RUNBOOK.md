@@ -229,6 +229,45 @@ not a hard SLA). On failure it opens a single deduplicated GitHub issue labelled
 To prove the alert path works: run `uptime.yml` via *workflow_dispatch* with a
 bogus `target` URL — it should open an `outage` issue.
 
+## Uploading GLB assets to the CMS (and why an upload fails)
+
+**Always run the asset pipeline before uploading — never upload a raw CLO export.**
+The CMS media upload streams **through the Worker** (`r2Storage` in
+`payload.config.ts` does not set `clientUploads`), so it inherits Cloudflare's
+Worker limits on top of the app's own guardrails.
+
+When an upload "just keeps loading" / never completes, check these in order:
+
+1. **Filename.** `checkMediaUpload` (`apps/cms/src/collections/mediaRules.ts`)
+   rejects any name with spaces or characters outside `A–Z a–z 0–9 . _ -`. CLO
+   exports are named like `cycling uniform 2_Colorway 6.glb` — **rename to
+   `n002-navy.glb` style first.** This blocks the file at *any* size.
+2. **Size — 40 MB hard cap.** `GLB_HARD_MAX_BYTES = 40 MB` rejects raw/oversized
+   GLBs by design (a pipeline-processed file should be well under 8 MB).
+3. **Transport — ~100 MB Cloudflare Worker body limit** (free/pro) + 128 MB Worker
+   memory. Anything approaching these can't finish transferring. Fix a genuinely
+   large-but-valid need by enabling **direct browser→R2 upload**
+   (`clientUploads: true` on the `r2Storage` media collection), which bypasses the
+   Worker entirely. Not enabled today — see the deferred item below.
+4. **Required `alt` field.** The Media collection requires `alt`; leaving it blank
+   makes the save fail *after* the file transfers (looks like a hung upload).
+
+**The pipeline recipe for a raw CLO file** (the mesh, not the textures, is the cost
+— a real export was 9.8 M triangles / 1 MB of textures):
+
+```bash
+pnpm pipeline optimize "raw.glb" --out out.glb --simplify 0.05 --meshopt
+pnpm pipeline validate out.glb          # expect 0 translucent, < 40 MB, no CLO generator
+```
+
+`--simplify 0.05` (keep ~5 % of triangles) took one 364 MB export to 14 MB with no
+visible quality loss. Lower the ratio to approach the 8 MB mobile guideline.
+
+**Deferred (owner request):** remove/raise the 40 MB cap and add an upload
+progress %/status in the admin. Both hinge on switching media uploads to
+`clientUploads: true` (direct browser→R2) so the Worker body/memory limits and the
+opaque "just loading" spinner stop applying. Not yet actioned.
+
 ## API + media domain cutover
 
 > **Status (2026-07-22): MEDIA HALF DONE, API HALF BLOCKED on the free plan.**

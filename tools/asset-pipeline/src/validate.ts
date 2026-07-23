@@ -46,6 +46,8 @@ export interface GlbReport {
   generator: string
   /** Count of textures still stored as raw PNG/JPEG (should be WebP or KTX2). */
   uncompressedTextureCount: number
+  /** Count of materials with alphaMode BLEND — translucent, will render see-through (no OIT in model-viewer). */
+  translucentMaterialCount: number
   warnings: string[]
 }
 
@@ -84,6 +86,10 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
   const uncompressedTextureCount = textures.filter((t) =>
     UNCOMPRESSED_TEXTURE_MIME.has(t.getMimeType()),
   ).length
+  const materials = root.listMaterials()
+  // alphaMode BLEND = translucent. <model-viewer> (three.js, no OIT) renders it
+  // see-through — the classic CLO "my garment is transparent" symptom.
+  const translucentMaterialCount = materials.filter((m) => m.getAlphaMode() === 'BLEND').length
 
   const warnings: string[] = []
   // A raw CLO export must never be published — it has not been merged,
@@ -103,6 +109,11 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
       `${uncompressedTextureCount}/${textures.length} textures are raw PNG/JPEG — re-encode to WebP or KTX2 (usually the dominant size win for CLO exports).`,
     )
   }
+  if (translucentMaterialCount > 0) {
+    warnings.push(
+      `${translucentMaterialCount}/${materials.length} materials are alphaMode BLEND (translucent) — <model-viewer> has no order-independent transparency, so the garment renders see-through. Re-run "pnpm pipeline optimize" (the opaque step is on by default), unless this garment is genuinely sheer.`,
+    )
+  }
   if (primitives.length === 0) warnings.push('No mesh primitives found.')
 
   return {
@@ -115,6 +126,7 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
     textureCount: textures.length,
     generator,
     uncompressedTextureCount,
+    translucentMaterialCount,
     warnings,
   }
 }

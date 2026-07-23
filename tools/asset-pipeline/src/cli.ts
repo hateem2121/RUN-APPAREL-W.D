@@ -33,6 +33,17 @@ COMPRESSION FLAGS (merge, optimize)
   --quality <n>        WebP quality 1-100 / KTX2 ETC1S quality 1-255 (default: 82)
   --meshopt            Meshopt geometry compression (fast mobile decode)
   --draco              Draco geometry compression (smallest, slower decode)
+  --simplify <ratio>   Decimate geometry to this fraction of triangles (0-1),
+                       e.g. 0.05 keeps ~5%. ESSENTIAL for raw CLO exports, whose
+                       simulation meshes have millions of triangles — the mesh,
+                       not the textures, is usually what makes them huge
+
+MATERIAL FLAGS (merge, optimize)
+  (default)            Force fabric solid: alphaMode BLEND -> OPAQUE + double-
+                       sided. Fixes CLO exports that render see-through in
+                       <model-viewer> (which has no order-independent transparency)
+  --keep-transparency  Leave transparency untouched — ONLY for genuinely sheer
+                       garments (mesh, lace, tulle). Alias: --no-opaque
 `
 
 function fail(message: string): never {
@@ -58,6 +69,7 @@ async function main(): Promise<void> {
     console.log(`  primitives: ${result.primitiveCount}  materials: ${result.materialCount}`)
     const textureLabel = options.texture === 'webp' ? 'WebP' : options.texture === 'ktx2' ? 'KTX2' : 'unchanged'
     console.log(`  textures:   ${textureLabel}  geometry: ${options.geometry}`)
+    console.log(`  materials:  ${options.opaque === false ? 'transparency kept (--keep-transparency)' : 'forced opaque + double-sided'}`)
     console.log(`  size:       ${(result.bytes / 1024).toFixed(1)} KB`)
     console.log('\nNext: run "pnpm pipeline validate" with --expect before uploading to the CMS.')
     return
@@ -70,7 +82,9 @@ async function main(): Promise<void> {
     const result = await optimizeGlb(input, out, options)
     const pct = result.bytesBefore > 0 ? (100 * (1 - result.bytesAfter / result.bytesBefore)).toFixed(1) : '0'
     console.log(`Optimised ${input} → ${result.outputFile}`)
-    console.log(`  textures:   ${result.textureCount} (${result.textureFormats.join(', ') || 'none'})  geometry: ${result.geometry}`)
+    const simplifyLabel = options.simplify ? `  simplify: keep ${Math.round(options.simplify * 100)}% of triangles` : ''
+    console.log(`  textures:   ${result.textureCount} (${result.textureFormats.join(', ') || 'none'})  geometry: ${result.geometry}${simplifyLabel}`)
+    console.log(`  materials:  ${result.opaque ? 'forced opaque + double-sided' : 'transparency kept (--keep-transparency)'}`)
     console.log(
       `  size:       ${(result.bytesBefore / 1024).toFixed(1)} KB → ${(result.bytesAfter / 1024).toFixed(1)} KB  (−${pct}%)`,
     )
@@ -93,6 +107,7 @@ async function main(): Promise<void> {
     console.log(`  generator:  ${report.generator || '(none)'}`)
     console.log(`  meshes:     ${report.meshCount}  primitives: ${report.primitiveCount}`)
     console.log(`  materials:  ${report.materialCount}  textures: ${report.textureCount} (${report.uncompressedTextureCount} raw PNG/JPEG)`)
+    console.log(`  translucent: ${report.translucentMaterialCount} material(s) alphaMode BLEND`)
     console.log(`  variants:   ${report.variants.length ? report.variants.join(', ') : '(none bound)'}`)
     for (const warning of report.warnings) console.log(`  WARNING:    ${warning}`)
 

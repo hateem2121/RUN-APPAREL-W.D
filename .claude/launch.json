@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "viewer",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@run-apparel/viewer", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "cms",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@run-apparel/cms", "dev"],
+      "port": 3000
+    }
+  ]
+}

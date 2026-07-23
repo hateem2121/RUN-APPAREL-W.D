@@ -85,6 +85,8 @@ throttled "Slow 4G" network profile.
 - [ ] Poster visible well before the model on Slow 4G
 - [ ] GLB used is the **pipeline-processed** one (`pnpm pipeline validate --strict` passed, "Variants verified" ticked)
 - [ ] GLB is **under the size budget** (well under 8 MB; the CMS hard-blocks over 40 MB) — textures are **WebP or KTX2**, not raw PNG/JPEG
+- [ ] Geometry was **simplified** for raw CLO exports (`--simplify`) — a raw cloth-sim mesh runs to millions of triangles; the mesh, not the textures, is the size cost
+- [ ] Filename is **URL-safe** (letters, numbers, `. _ -` only — no spaces/brackets), or the CMS rejects the upload regardless of size
 - [ ] Poster images are WebP/AVIF and reasonably sized
 - [ ] Fallback image loads even when the GLB request is blocked
 
@@ -92,6 +94,7 @@ throttled "Slow 4G" network profile.
 
 - [ ] Model loads in a few seconds, not tens — no long spinner on the interactive view
 - [ ] Fabric reads as **textured with depth**, not a flat grey shape (image-based lighting is applied via `environment-image`)
+- [ ] Fabric is **solid, not see-through** (opaque + double-sided step applied; `pnpm pipeline validate` reports **0 translucent** materials — model-viewer has no OIT)
 - [ ] Printed graphics, logos and decals render **in colour**, not as solid black patches
 - [ ] Switching colourway tabs **swaps the model live** with no "temporarily unavailable" notice (variants bound correctly)
 - [ ] Browser console shows **no `[viewer:*]` warnings** (`model-load-error`, `variant-missing`, `render3d-unavailable`)

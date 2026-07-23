@@ -8,7 +8,7 @@ import {
   DEFAULT_MAX_TEXTURE,
   DEFAULT_TEXTURE_QUALITY,
   type OptimizeOptions,
-  buildOptimizeTransforms,
+  optimizeDocument,
 } from './optimize'
 
 export interface MergeInput {
@@ -59,6 +59,9 @@ export function parseMergeArgs(rest: string[]): ParsedMergeArgs {
   let geometry: OptimizeOptions['geometry'] = 'none'
   let maxTextureSize = DEFAULT_MAX_TEXTURE
   let textureQuality = DEFAULT_TEXTURE_QUALITY
+  // Solid fabric is the safe default for apparel; sheer garments opt out.
+  let opaque = true
+  let simplify: number | undefined
 
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]!
@@ -70,6 +73,9 @@ export function parseMergeArgs(rest: string[]): ParsedMergeArgs {
     else if (arg === '--ktx2') texture = 'ktx2'
     else if (arg === '--max-texture') maxTextureSize = Number(rest[++i] ?? DEFAULT_MAX_TEXTURE)
     else if (arg === '--quality') textureQuality = Number(rest[++i] ?? DEFAULT_TEXTURE_QUALITY)
+    else if (arg === '--simplify') simplify = Number(rest[++i])
+    else if (arg === '--opaque') opaque = true
+    else if (arg === '--no-opaque' || arg === '--keep-transparency') opaque = false
     else {
       const eq = arg.lastIndexOf('=')
       if (eq === -1) throw new Error(`Expected <file.glb>=<VARIANT-ID>, got "${arg}"`)
@@ -77,7 +83,12 @@ export function parseMergeArgs(rest: string[]): ParsedMergeArgs {
     }
   }
 
-  return { inputs, out, draco: geometry === 'draco', options: { texture, geometry, maxTextureSize, textureQuality } }
+  return {
+    inputs,
+    out,
+    draco: geometry === 'draco',
+    options: { texture, geometry, maxTextureSize, textureQuality, opaque, simplify },
+  }
 }
 
 interface PrimitiveFingerprint {
@@ -223,8 +234,10 @@ export async function mergeVariants(
     })
   }
 
-  const transforms = await buildOptimizeTransforms(options)
-  await base.transform(...transforms)
+  // Apply the shared optimisation chain (texture/geometry compression, plus the
+  // opaque + double-sided step) through the same path the `optimize` command
+  // uses, so merged and single-file GLBs are treated identically.
+  await optimizeDocument(base, options)
 
   await mkdir(dirname(outputFile), { recursive: true })
   await io.write(outputFile, base)

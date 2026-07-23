@@ -196,3 +196,82 @@ the owner re-exports the **correct** garment through the pipeline and re-uploads
 the live asset is still the raw jacket. The code/guardrails are the enabling
 infrastructure, not the content fix. Verification snapshot: `pnpm typecheck` ·
 `pnpm test` (102) · `audit-ci` · e2e (10, incl. real WebGL under CSP) — all green.
+
+## Addendum — opaque + simplify pipeline steps, and the CMS upload investigation (2026-07-23, session 2)
+
+Working from real owner assets (a **cycling uniform**, 5 colourways exported from
+CLO 2025.2.236). Two new pipeline capabilities shipped and one upload mystery was
+fully diagnosed.
+
+### 1. Opaque + double-sided step (fixes see-through fabric)
+
+`<model-viewer>` (three.js) has **no order-independent transparency (OIT)**. CLO
+frequently exports opaque fabric as `alphaMode: BLEND` (a stray fabric opacity
+value, or an unused alpha channel in the base-colour texture), which then renders
+**see-through** — the garment's back faces show through the front. Fix belongs in
+the material, not the viewer.
+
+- `solidifyMaterials()` in `tools/asset-pipeline/src/optimize.ts`: converts
+  **BLEND → OPAQUE** and sets every material **double-sided** (so single-layer
+  "Thin" CLO fabric is visible from the inside). **MASK** (hard alpha cutouts —
+  logo decals, mesh holes) is deliberately left alone.
+- On by default in the CLI (`merge`, `optimize`); opt out with
+  `--keep-transparency` / `--no-opaque` for genuinely sheer garments.
+- Guardrail: `validate` now warns when any material is still `alphaMode BLEND`
+  (`translucentMaterialCount`), so a see-through export is caught before upload.
+
+### 2. Simplify (geometry decimation) step — the big size lever
+
+**The key finding.** Texture compression alone barely dented the owner's files:
+a 364 MB CLO export → ~66 MB (WebP) / ~75 MB (KTX2 — *larger*, mipmaps). Byte
+breakdown of the real file exposed why:
+
+| Component | Size |
+|---|---|
+| All 22 textures (WebP) | **1.0 MB** |
+| Geometry | **153 MB raw** — 9.8 M triangles / 6.3 M vertices |
+
+CLO's cloth-simulation mesh is ~50× denser than a web viewer needs. **Geometry,
+not textures, is the dominant cost of a raw CLO export**, and splitting into
+per-colour files does NOT help (the heavy mesh is shared, so it just repeats).
+
+- New `--simplify <ratio>` flag (`optimize` + `merge`): `weld()` then
+  `simplify()` (meshoptimizer `MeshoptSimplifier`) to the requested triangle
+  fraction, before geometry compression. Off by default (lossy; opt-in).
+- Result on the real file: `optimize --simplify 0.05 --meshopt` →
+  **364 MB → 14 MB (−96 %)**, variants and colours intact, 0 translucent.
+- Gotcha learned: **KTX2 can be larger than WebP on disk** for these assets
+  (Basis + mipmaps); KTX2's win is GPU VRAM, not file size. WebP is the better
+  default for the wire; `--simplify` is the real size lever for CLO.
+
+### 3. Why CMS uploads were failing (diagnosed, not yet changed)
+
+Owner reported that uploads to `cms.wear-run.help/admin` "just keep loading" and
+never finish — a 350 MB file **and** a ~30 MB file both failed. Root causes, in
+order of how often they bit:
+
+1. **Filenames.** `checkMediaUpload` (`apps/cms/src/collections/mediaRules.ts`)
+   rejects any filename with spaces/unsafe chars. Every owner file was named like
+   `cycling uniform 2_Colorway 6.glb` / `cycling all colours-optimized (2).glb`
+   (spaces + parentheses) → **rejected regardless of size** (this is why even the
+   30 MB file failed). Proven by running `checkMediaUpload` against sample facts.
+2. **Size — 40 MB hard cap.** `GLB_HARD_MAX_BYTES = 40 MB` blocks the big files
+   by design.
+3. **Transport — Cloudflare Worker body limit (~100 MB, free/pro).** Uploads
+   stream **through** the Worker: `r2Storage` in `payload.config.ts` does **not**
+   set `clientUploads`, so the browser→Worker→R2 path inherits the Worker's
+   request-body and 128 MB memory limits. A 350 MB body can't even transfer.
+
+**Fix delivered:** ran the owner's raw 364 MB combined file through the new
+pipeline → `~/Downloads/cycling-uniform.glb` (14 MB, clean name, opaque, 5
+colourways). That file clears all three gates and uploads.
+
+**Open items (owner asked to defer — see the next-session prompt):** raising/
+removing the 40 MB cap (needs `clientUploads: true` for direct browser→R2 so the
+Worker limits stop applying), and an upload progress %/status in the admin.
+
+### Housekeeping
+- `.claude/launch.json` added — named dev servers `viewer` (Vite, 5173) and
+  `cms` (Next, 3000).
+- Verification snapshot (asset-pipeline package): `pnpm typecheck` clean ·
+  `pnpm test` **36 passing** · real-file `optimize`/`validate` runs green.

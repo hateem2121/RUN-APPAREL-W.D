@@ -7,7 +7,7 @@ import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createIO } from './io'
 import { mergeVariants, parseMergeArgs } from './merge-variants'
-import { optimizeGlb, parseOptimizeArgs } from './optimize'
+import { optimizeGlb, parseOptimizeArgs, solidifyMaterials } from './optimize'
 import {
   PLACEHOLDER_COLOURWAYS,
   buildPlaceholderTee,
@@ -47,6 +47,60 @@ async function writeTexturedGlb(file: string, sizePx = 512): Promise<void> {
   material.getBaseColorTextureInfo()?.setTexCoord(0)
   doc.createScene('s').addChild(doc.createNode('n').setMesh(doc.createMesh('m').addPrimitive(prim)))
   await io.write(file, doc)
+}
+
+/** Build a minimal GLB with a single material of the given alphaMode (double-sided off). */
+async function writeMaterialGlb(
+  file: string,
+  alphaMode: 'OPAQUE' | 'MASK' | 'BLEND',
+): Promise<void> {
+  const io = await createIO()
+  const doc = new Document()
+  doc.createBuffer()
+  const material = doc
+    .createMaterial('m')
+    .setBaseColorFactor([0.4, 0.4, 0.4, 1])
+    .setAlphaMode(alphaMode)
+    .setDoubleSided(false)
+  const position = doc
+    .createAccessor()
+    .setType('VEC3')
+    .setArray(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]))
+    .setBuffer(doc.getRoot().listBuffers()[0]!)
+  const prim = doc.createPrimitive().setAttribute('POSITION', position).setMaterial(material)
+  doc.createScene('s').addChild(doc.createNode('n').setMesh(doc.createMesh('m').addPrimitive(prim)))
+  await io.write(file, doc)
+}
+
+/** Build a GLB carrying a flat n×n triangle grid (2·n² triangles) — enough geometry to decimate. */
+async function writeGridGlb(file: string, n: number): Promise<void> {
+  const io = await createIO()
+  const doc = new Document()
+  doc.createBuffer()
+  const positions: number[] = []
+  for (let y = 0; y <= n; y++) for (let x = 0; x <= n; x++) positions.push(x / n, y / n, 0)
+  const indices: number[] = []
+  const at = (x: number, y: number) => y * (n + 1) + x
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++)
+      indices.push(at(x, y), at(x + 1, y), at(x, y + 1), at(x + 1, y), at(x + 1, y + 1), at(x, y + 1))
+  const buf = doc.getRoot().listBuffers()[0]!
+  const pos = doc.createAccessor().setType('VEC3').setArray(new Float32Array(positions)).setBuffer(buf)
+  const idx = doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(indices)).setBuffer(buf)
+  const mat = doc.createMaterial('m').setBaseColorFactor([0.5, 0.5, 0.5, 1])
+  const prim = doc.createPrimitive().setAttribute('POSITION', pos).setIndices(idx).setMaterial(mat)
+  doc.createScene('s').addChild(doc.createNode('n').setMesh(doc.createMesh('m').addPrimitive(prim)))
+  await io.write(file, doc)
+}
+
+/** Total triangle count across every primitive in a GLB. */
+async function countTriangles(file: string): Promise<number> {
+  const io = await createIO()
+  const doc = await io.read(file)
+  let indices = 0
+  for (const m of doc.getRoot().listMeshes())
+    for (const p of m.listPrimitives()) indices += p.getIndices()?.getCount() ?? 0
+  return indices / 3
 }
 
 let dir: string
@@ -379,6 +433,16 @@ describe('parseOptimizeArgs (CLI contract)', () => {
       texture: 'none', geometry: 'meshopt', maxTextureSize: 1024, textureQuality: 90,
     })
   })
+  it('defaults opaque on and honours --keep-transparency / --no-opaque', () => {
+    expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb']).options.opaque).toBe(true)
+    expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb', '--keep-transparency']).options.opaque).toBe(false)
+    expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb', '--no-opaque']).options.opaque).toBe(false)
+  })
+  it('parses --simplify <ratio> (off by default)', () => {
+    expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb']).options.simplify).toBeUndefined()
+    expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb', '--simplify', '0.05']).options.simplify).toBe(0.05)
+    expect(parseMergeArgs(['--simplify', '0.1', 'a.glb=N001-A']).options.simplify).toBe(0.1)
+  })
 })
 
 describe('parseMergeArgs — compression flags', () => {
@@ -393,6 +457,118 @@ describe('parseMergeArgs — compression flags', () => {
     expect(draco.options.geometry).toBe('draco')
     expect(draco.draco).toBe(true)
     expect(parseMergeArgs(['--no-webp', 'a.glb=N001-A']).options.texture).toBe('none')
+  })
+  it('defaults opaque on and honours --keep-transparency / --no-opaque', () => {
+    expect(parseMergeArgs(['a.glb=N001-A']).options.opaque).toBe(true)
+    expect(parseMergeArgs(['--keep-transparency', 'a.glb=N001-A']).options.opaque).toBe(false)
+    expect(parseMergeArgs(['--no-opaque', 'a.glb=N001-A']).options.opaque).toBe(false)
+  })
+})
+
+describe('solidifyMaterials (opaque + double-sided)', () => {
+  it('converts BLEND → OPAQUE, leaves MASK cutouts, and makes every material double-sided', () => {
+    const doc = new Document()
+    const blend = doc.createMaterial('blend').setAlphaMode('BLEND').setDoubleSided(false)
+    const mask = doc.createMaterial('mask').setAlphaMode('MASK').setDoubleSided(false)
+    const opaque = doc.createMaterial('opaque').setAlphaMode('OPAQUE').setDoubleSided(false)
+
+    const result = solidifyMaterials(doc)
+
+    expect(blend.getAlphaMode()).toBe('OPAQUE') // the see-through fabric, fixed
+    expect(mask.getAlphaMode()).toBe('MASK') // hard cutout (logo/mesh hole) left intentional
+    expect(opaque.getAlphaMode()).toBe('OPAQUE')
+    expect([blend, mask, opaque].every((m) => m.getDoubleSided())).toBe(true)
+    expect(result).toEqual({ opaqued: 1, doubleSided: 3 })
+  })
+})
+
+describe('optimizeGlb — opaque + double-sided step', () => {
+  it('forces a BLEND material solid and double-sided when opaque is set', async () => {
+    const src = join(dir, 'blend-src.glb')
+    await writeMaterialGlb(src, 'BLEND')
+    const out = join(dir, 'blend.opaque.glb')
+
+    const result = await optimizeGlb(src, out, { texture: 'none', opaque: true })
+    expect(result.opaque).toBe(true)
+
+    const reread = await createIO().then((io) => io.read(out))
+    const m = reread.getRoot().listMaterials()[0]!
+    expect(m.getAlphaMode()).toBe('OPAQUE')
+    expect(m.getDoubleSided()).toBe(true)
+  })
+
+  it('leaves transparency intact when opaque is not requested (--keep-transparency)', async () => {
+    const src = join(dir, 'blend-keep-src.glb')
+    await writeMaterialGlb(src, 'BLEND')
+    const out = join(dir, 'blend.keep.glb')
+
+    const result = await optimizeGlb(src, out, { texture: 'none' }) // opaque omitted
+    expect(result.opaque).toBe(false)
+
+    const reread = await createIO().then((io) => io.read(out))
+    expect(reread.getRoot().listMaterials()[0]!.getAlphaMode()).toBe('BLEND')
+  })
+})
+
+describe('mergeVariants — opaque step preserves variants', () => {
+  it('makes every merged material opaque + double-sided without dropping variant bindings', async () => {
+    const inputs = PLACEHOLDER_COLOURWAYS.map((c) => ({
+      file: join(dir, 'placeholders', `n001-${c.slug}.glb`),
+      variantName: c.variantId,
+    }))
+    const out = join(dir, 'n001-opaque.glb')
+    const result = await mergeVariants(inputs, out, { opaque: true })
+    expect(result.variants).toEqual(['N001-NAVY', 'N001-BLACK', 'N001-CRIMSON'])
+
+    const reread = await createIO().then((io) => io.read(out))
+    for (const m of reread.getRoot().listMaterials()) {
+      expect(m.getAlphaMode()).toBe('OPAQUE')
+      expect(m.getDoubleSided()).toBe(true)
+    }
+    const report = await inspectGlb(out)
+    expect(report.variants).toEqual(['N001-BLACK', 'N001-CRIMSON', 'N001-NAVY']) // still bound
+  })
+})
+
+describe('optimizeGlb — simplify (geometry decimation)', () => {
+  it('cuts the triangle count when a simplify ratio is given', async () => {
+    const src = join(dir, 'grid.glb')
+    await writeGridGlb(src, 40) // 40×40×2 = 3200 triangles
+    const before = await countTriangles(src)
+    expect(before).toBe(3200)
+
+    const out = join(dir, 'grid.simplified.glb')
+    await optimizeGlb(src, out, { texture: 'none', simplify: 0.25 })
+    const after = await countTriangles(out)
+
+    expect(after).toBeGreaterThan(0) // still a mesh, not obliterated
+    expect(after).toBeLessThan(before * 0.6) // meaningfully decimated
+  })
+
+  it('leaves geometry untouched when no simplify ratio is given', async () => {
+    const src = join(dir, 'grid-keep.glb')
+    await writeGridGlb(src, 20) // 800 triangles
+    const out = join(dir, 'grid-keep.out.glb')
+    await optimizeGlb(src, out, { texture: 'none' }) // simplify omitted
+    expect(await countTriangles(out)).toBe(800)
+  })
+})
+
+describe('inspectGlb — translucent material warning', () => {
+  it('flags alphaMode BLEND materials as see-through', async () => {
+    const src = join(dir, 'translucent.glb')
+    await writeMaterialGlb(src, 'BLEND')
+    const report = await inspectGlb(src)
+    expect(report.translucentMaterialCount).toBe(1)
+    expect(report.warnings.some((w) => /alphaMode BLEND \(translucent\)/.test(w))).toBe(true)
+  })
+
+  it('does not flag an opaque GLB', async () => {
+    const src = join(dir, 'opaque-src.glb')
+    await writeMaterialGlb(src, 'OPAQUE')
+    const report = await inspectGlb(src)
+    expect(report.translucentMaterialCount).toBe(0)
+    expect(report.warnings.some((w) => /alphaMode BLEND/.test(w))).toBe(false)
   })
 })
 

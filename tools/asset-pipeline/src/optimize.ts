@@ -1,9 +1,9 @@
 import { mkdir, stat } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { Document, Transform } from '@gltf-transform/core'
-import { dedup, draco, meshopt, prune, textureCompress } from '@gltf-transform/functions'
+import { dedup, draco, meshopt, prune, simplify, textureCompress, weld } from '@gltf-transform/functions'
 import { ktx2 } from 'ktx2-encoder/gltf-transform'
-import { MeshoptEncoder } from 'meshoptimizer'
+import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer'
 import sharp from 'sharp'
 import { createIO } from './io'
 
@@ -42,6 +42,23 @@ export interface OptimizeOptions {
   geometry?: GeometryCodec
   /** Legacy alias for `geometry: 'draco'`, kept for the existing merge API/tests. */
   draco?: boolean
+  /**
+   * Force fabric to render solid — convert alphaMode BLEND → OPAQUE and set
+   * every material double-sided. CLO frequently exports opaque fabric as
+   * translucent BLEND, which <model-viewer> (three.js, no order-independent
+   * transparency) then draws see-through. Off unless set; the CLI turns it ON
+   * by default. Opt out (`--keep-transparency`) only for genuinely sheer
+   * garments (mesh, lace, tulle).
+   */
+  opaque?: boolean
+  /**
+   * Simplify (decimate) geometry to this fraction of triangles, 0–1 — e.g. 0.05
+   * keeps ~5%. CLO exports are wildly over-tessellated (millions of triangles
+   * from the cloth simulation); the mesh, not the textures, is what makes them
+   * huge. Off (undefined) by default. The mesh is welded first so the simplifier
+   * can collapse shared edges; run before geometry compression.
+   */
+  simplify?: number
 }
 
 export const DEFAULT_MAX_TEXTURE = 2048
@@ -70,6 +87,48 @@ export function resolveGeometry(options: OptimizeOptions): GeometryCodec {
   return options.draco ? 'draco' : 'none'
 }
 
+export interface SolidifyResult {
+  /** Materials whose alphaMode was changed BLEND → OPAQUE. */
+  opaqued: number
+  /** Total materials made double-sided. */
+  doubleSided: number
+}
+
+/**
+ * Force fabric to render solid. CLO exports frequently mark opaque fabric as
+ * alphaMode BLEND (from a stray fabric opacity value, or an unused alpha channel
+ * left in the base-colour texture). <model-viewer> — three.js underneath, with
+ * NO order-independent transparency (OIT) — then draws that fabric see-through,
+ * showing the garment's back faces through the front. Converting BLEND → OPAQUE
+ * fixes it at the material, which is the only correct place: no viewer-side OIT
+ * is needed for a garment that was never meant to be translucent.
+ *
+ * Deliberately NOT touched:
+ *   - MASK materials (hard alpha cutouts — a logo decal, a genuine mesh hole).
+ *     They are order-independent and intentional; forcing them opaque would
+ *     fill the cutouts back in.
+ *   - OPAQUE materials (already solid).
+ *
+ * Every material is additionally set double-sided, so single-layer ("Thin") CLO
+ * fabric stays visible from the inside (necklines, cuffs, open plackets) instead
+ * of vanishing where a back face would be culled.
+ *
+ * Genuinely sheer garments (mesh, lace, tulle) must skip this — see the
+ * `opaque` option / `--keep-transparency`.
+ */
+export function solidifyMaterials(document: Document): SolidifyResult {
+  const materials = document.getRoot().listMaterials()
+  let opaqued = 0
+  for (const material of materials) {
+    if (material.getAlphaMode() === 'BLEND') {
+      material.setAlphaMode('OPAQUE')
+      opaqued++
+    }
+    material.setDoubleSided(true)
+  }
+  return { opaqued, doubleSided: materials.length }
+}
+
 /**
  * Build the ordered transform chain. Always dedups + prunes; conditionally
  * compresses textures and geometry. Async because Meshopt's encoder must be
@@ -77,6 +136,15 @@ export function resolveGeometry(options: OptimizeOptions): GeometryCodec {
  */
 export async function buildOptimizeTransforms(options: OptimizeOptions): Promise<Transform[]> {
   const transforms: Transform[] = [dedup(), prune({ keepExtras: true })]
+
+  // Force fabric solid before texture/geometry passes touch the materials. CLO
+  // often marks opaque fabric as translucent (alphaMode BLEND); model-viewer has
+  // no OIT and would render it see-through. Opt in — the CLI defaults it on.
+  if (options.opaque === true) {
+    transforms.push((document: Document) => {
+      solidifyMaterials(document)
+    })
+  }
 
   const max = options.maxTextureSize ?? DEFAULT_MAX_TEXTURE
   if (options.texture === 'webp') {
@@ -104,6 +172,18 @@ export async function buildOptimizeTransforms(options: OptimizeOptions): Promise
         imageDecoder,
         slots: /(baseColor|emissive|occlusion|metallicRoughness)Texture/i,
       }),
+    )
+  }
+
+  // Decimate the mesh before compressing geometry. Raw CLO simulation meshes run
+  // to millions of triangles — orders of magnitude past what a web viewer needs —
+  // and that geometry, not the textures, is what makes the file huge. Weld first
+  // so shared edges collapse; then simplify to the requested triangle fraction.
+  if (typeof options.simplify === 'number' && options.simplify > 0 && options.simplify < 1) {
+    await MeshoptSimplifier.ready
+    transforms.push(
+      weld(),
+      simplify({ simplifier: MeshoptSimplifier, ratio: options.simplify, error: 0.001 }),
     )
   }
 
@@ -153,6 +233,8 @@ export interface OptimizeResult {
   /** Distinct image mime-types remaining in the output, e.g. ['image/webp']. */
   textureFormats: string[]
   geometry: GeometryCodec
+  /** Whether the opaque + double-sided step ran. */
+  opaque: boolean
 }
 
 /**
@@ -184,6 +266,7 @@ export async function optimizeGlb(
     textureCount: textures.length,
     textureFormats,
     geometry: resolveGeometry(options),
+    opaque: options.opaque === true,
   }
 }
 
@@ -205,6 +288,9 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
   let geometry: GeometryCodec = 'none'
   let maxTextureSize = DEFAULT_MAX_TEXTURE
   let textureQuality = DEFAULT_TEXTURE_QUALITY
+  // Solid fabric is the safe default for apparel; sheer garments opt out.
+  let opaque = true
+  let simplify: number | undefined
 
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]!
@@ -216,8 +302,11 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
     else if (arg === '--meshopt') geometry = 'meshopt'
     else if (arg === '--max-texture') maxTextureSize = Number(rest[++i] ?? DEFAULT_MAX_TEXTURE)
     else if (arg === '--quality') textureQuality = Number(rest[++i] ?? DEFAULT_TEXTURE_QUALITY)
+    else if (arg === '--simplify') simplify = Number(rest[++i])
+    else if (arg === '--opaque') opaque = true
+    else if (arg === '--no-opaque' || arg === '--keep-transparency') opaque = false
     else if (!arg.startsWith('--')) input = arg
   }
 
-  return { input, out, options: { texture, geometry, maxTextureSize, textureQuality } }
+  return { input, out, options: { texture, geometry, maxTextureSize, textureQuality, opaque, simplify } }
 }

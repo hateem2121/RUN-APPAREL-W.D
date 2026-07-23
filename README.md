@@ -51,22 +51,26 @@ CLO exports **one GLB per colourway**, and raw CLO output is never publish-ready
 On a computer with this repository (needs Node.js + pnpm, one-time `pnpm install`):
 
 ```bash
-# merge the per-colour exports into one production file. Textures are compressed
-# to WebP (2048px cap) by default — the dominant size win for CLO exports. Add
-# --ktx2 for the smallest GPU footprint (model-viewer decodes it natively) and
-# --meshopt for faster-loading geometry.
-pnpm pipeline merge --out output/t004.glb --ktx2 --meshopt \
+# Merge the per-colour exports into ONE production file. By default the pipeline
+# re-encodes textures to WebP (2048px cap) AND forces fabric opaque + double-sided
+# (fixes CLO's see-through export). For raw CLO files ALWAYS add --simplify: their
+# cloth-sim meshes run to MILLIONS of triangles — that geometry, not the textures,
+# is what makes them huge (a real 364 MB export was 9.8 M triangles / only 1 MB of
+# textures). --meshopt then compresses the reduced mesh. Start at 0.05 (keep ~5%
+# of triangles) and lower if you need to hit the 8 MB mobile guideline.
+pnpm pipeline merge --out output/t004.glb --simplify 0.05 --meshopt \
   raw/t004-forest.glb=T004-FOREST \
   raw/t004-sand.glb=T004-SAND
 
 # confirm the file carries exactly the colourway IDs the CMS will use, and that
 # it is publish-ready — --strict fails on a raw CLO export, an over-budget file,
-# or uncompressed PNG/JPEG textures.
+# uncompressed textures, or translucent (see-through) materials.
 pnpm pipeline validate output/t004.glb --expect T004-FOREST,T004-SAND --strict
 ```
 
-For a single GLB that does not need merging (a separate-glb-per-colour export, or
-re-compressing one file), use `pnpm pipeline optimize <file>.glb --out <out>.glb --ktx2`.
+For a single GLB that does not need merging (a separate-glb-per-colour export, a
+CLO "all colourways" combined export, or re-compressing one file), use
+`pnpm pipeline optimize <file>.glb --out <out>.glb --simplify 0.05 --meshopt`.
 
 The names after `=` must exactly match each colourway's **variant ID** in the CMS.
 The CMS also hard-blocks a raw/oversized upload (over 40 MB) and filenames with

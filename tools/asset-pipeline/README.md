@@ -45,6 +45,42 @@ pnpm pipeline placeholders --out output/placeholders
 | `--quality <n>` | `82` | WebP quality (1–100) / KTX2 ETC1S quality (1–255). |
 | `--meshopt` | off | Meshopt geometry compression — fast decode on low-end mobile. |
 | `--draco` | off | Draco geometry compression — smaller, slower to decode. |
+| `--simplify <ratio>` | off | Decimate geometry to this fraction of triangles (0–1), e.g. `0.05` keeps ~5%. |
+
+> **`--simplify` is essential for raw CLO exports.** CLO's cloth simulation produces
+> meshes with **millions** of triangles (a real export measured 9.8 M triangles /
+> 6.3 M vertices) — 50×+ past what a web viewer needs. That geometry, not the
+> textures, is what makes the file huge: texture compression alone took one 364 MB
+> export only to ~66 MB, but `--simplify 0.05 --meshopt` brought it to **14 MB**
+> with no visible quality loss. Splitting into per-colour files does **not** help —
+> the heavy mesh is shared, so it just repeats in every file. Start around `0.05`
+> and lower it (e.g. `0.03`) if you need to get under the 8 MB mobile guideline.
+
+### Material flags (`merge`, `optimize`) — opaque + double-sided
+
+| Flag | Default | Effect |
+| --- | --- | --- |
+| _(opaque step)_ | **on** | Force every fabric material solid: convert `alphaMode` **BLEND → OPAQUE** and set it **double-sided**. |
+| `--keep-transparency` | — | Skip the opaque step. Alias: `--no-opaque`. |
+
+CLO frequently exports opaque fabric as **`alphaMode: BLEND`** — from a stray fabric
+opacity value or an unused alpha channel left in the base-colour texture. `<model-viewer>`
+(three.js underneath) has **no order-independent transparency (OIT)**, so it draws that
+fabric **see-through**: you see the garment's back faces through the front. The fix belongs
+in the material, not the viewer — a garment that was never meant to be sheer should not be
+translucent in the first place — so the pipeline converts BLEND → OPAQUE by default.
+
+The step also sets every material **double-sided**, so single-layer (CLO "Thin") fabric
+stays visible from the inside (necklines, cuffs, open plackets) instead of vanishing where a
+back face would be culled.
+
+**Deliberately left untouched:** `MASK` materials (hard alpha cutouts — a logo decal or a
+genuine mesh hole). They are order-independent and intentional; forcing them opaque would
+fill the cutouts back in.
+
+Use `--keep-transparency` **only** for genuinely sheer garments (mesh, lace, tulle). The
+`validate` command warns whenever a GLB still carries BLEND materials, so a see-through
+export is caught before upload even if the step was skipped.
 
 ### KTX2 / Basis Universal (`--ktx2`)
 
