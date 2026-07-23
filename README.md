@@ -51,16 +51,26 @@ CLO exports **one GLB per colourway**, and raw CLO output is never publish-ready
 On a computer with this repository (needs Node.js + pnpm, one-time `pnpm install`):
 
 ```bash
-# merge the per-colour exports into one production file
-pnpm pipeline merge --out output/t004.glb \
+# merge the per-colour exports into one production file. Textures are compressed
+# to WebP (2048px cap) by default — the dominant size win for CLO exports. Add
+# --ktx2 for the smallest GPU footprint (model-viewer decodes it natively) and
+# --meshopt for faster-loading geometry.
+pnpm pipeline merge --out output/t004.glb --ktx2 --meshopt \
   raw/t004-forest.glb=T004-FOREST \
   raw/t004-sand.glb=T004-SAND
 
-# confirm the file carries exactly the colourway IDs the CMS will use
-pnpm pipeline validate output/t004.glb --expect T004-FOREST,T004-SAND
+# confirm the file carries exactly the colourway IDs the CMS will use, and that
+# it is publish-ready — --strict fails on a raw CLO export, an over-budget file,
+# or uncompressed PNG/JPEG textures.
+pnpm pipeline validate output/t004.glb --expect T004-FOREST,T004-SAND --strict
 ```
 
+For a single GLB that does not need merging (a separate-glb-per-colour export, or
+re-compressing one file), use `pnpm pipeline optimize <file>.glb --out <out>.glb --ktx2`.
+
 The names after `=` must exactly match each colourway's **variant ID** in the CMS.
+The CMS also hard-blocks a raw/oversized upload (over 40 MB) and filenames with
+spaces or unsafe characters, so a broken asset can't reach production.
 Full details and troubleshooting: `tools/asset-pipeline/README.md`.
 
 ### 4. Uploading the processed GLB and posters

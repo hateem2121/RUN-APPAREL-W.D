@@ -83,6 +83,15 @@ throttled "Slow 4G" network profile.
 ## Performance & assets
 
 - [ ] Poster visible well before the model on Slow 4G
-- [ ] GLB used is the **pipeline-processed** one (`pnpm pipeline validate` passed, "Variants verified" ticked)
+- [ ] GLB used is the **pipeline-processed** one (`pnpm pipeline validate --strict` passed, "Variants verified" ticked)
+- [ ] GLB is **under the size budget** (well under 8 MB; the CMS hard-blocks over 40 MB) — textures are **WebP or KTX2**, not raw PNG/JPEG
 - [ ] Poster images are WebP/AVIF and reasonably sized
 - [ ] Fallback image loads even when the GLB request is blocked
+
+## 3D render correctness
+
+- [ ] Model loads in a few seconds, not tens — no long spinner on the interactive view
+- [ ] Fabric reads as **textured with depth**, not a flat grey shape (image-based lighting is applied via `environment-image`)
+- [ ] Printed graphics, logos and decals render **in colour**, not as solid black patches
+- [ ] Switching colourway tabs **swaps the model live** with no "temporarily unavailable" notice (variants bound correctly)
+- [ ] Browser console shows **no `[viewer:*]` warnings** (`model-load-error`, `variant-missing`, `render3d-unavailable`)

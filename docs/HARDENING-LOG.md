@@ -160,3 +160,39 @@ credentials/dashboard steps. Outcomes:
   `dist/` is not drop-in portable (`_redirects` vs `not_found_handling`).
 - The gated deploy design (health check after deploy) caught the bad API
   cutover exactly as intended — the second time the gate has paid for itself.
+
+## Addendum — 3D viewer render fix + compression pipeline (2026-07-23)
+
+Three symptoms reported on `viewer.wear-run.help/n001/navy`: very slow load,
+flat/grey fabric, and blacked-out logos. Investigation (against live production
+data) traced all three to one root cause: the CMS `glbUrl` pointed at
+`WOMEN JACK_Colorway A.glb` — a **raw 66 MB CLO export of the wrong garment**
+(generator `CLO Standalone OnlineAuth`, 43.5 MB of it uncompressed PNG, no
+`KHR_materials_variants`), served to a `<model-viewer>` that had **no
+`environment-image`** so PBR materials rendered flat.
+
+What shipped (both merged to `main`, deploying):
+
+| PR | Area | Change |
+|---|---|---|
+| #10 | Viewer lighting | `environment-image` (a generated, round-trip-verified studio HDR in `apps/viewer/public/env/` + `scripts/gen-env-hdr.mjs`), `tone-mapping="neutral"` (model-viewer v4 default), `exposure`, `shadow-softness` |
+| #10 | Pipeline | Shared optimizer (`tools/asset-pipeline/src/optimize.ts`): **WebP** textures + 2048px cap (via `sharp`), **Meshopt/Draco** geometry, a single-file **`optimize`** command |
+| #10 | Guardrails | `validate` flags raw-CLO/oversize/uncompressed textures (`--strict` = CI gate); CMS `mediaRules.ts` rejects unsafe filenames + GLBs > 40 MB |
+| #11 | Pipeline | **KTX2 / Basis** (`--ktx2`, `KHR_texture_basisu`) via WASM `ktx2-encoder` — ETC1S colour + UASTC normals; `next` 16.2.10 → 16.2.11 (clears four fresh advisories) |
+
+Gotchas learned:
+
+- *gltf-transform overwrites `asset.generator` on read* with its own value — so
+  raw-CLO detection must read the generator straight from the GLB JSON chunk
+  (`readGlbGenerator`), not from the parsed Document.
+- *`ktx2-encoder` needs a Node `imageDecoder`* (the browser build uses a canvas);
+  `sharp` supplies it and doubles as the resize step. No native `toktx` in CI.
+- *An `environment-image` alone does not fix the black logos* — model-viewer
+  already ships a neutral light; the black comes from the export's
+  `baseColorFactor [0,0,0]` decal materials. That half is a CLO re-export fix.
+
+**Status — NOT yet user-visible.** All three symptoms remain in production until
+the owner re-exports the **correct** garment through the pipeline and re-uploads;
+the live asset is still the raw jacket. The code/guardrails are the enabling
+infrastructure, not the content fix. Verification snapshot: `pnpm typecheck` ·
+`pnpm test` (102) · `audit-ci` · e2e (10, incl. real WebGL under CSP) — all green.
