@@ -67,6 +67,7 @@ export function parseMergeArgs(rest: string[]): ParsedMergeArgs {
     else if (arg === '--meshopt') geometry = 'meshopt'
     else if (arg === '--no-webp' || arg === '--no-textures') texture = 'none'
     else if (arg === '--webp') texture = 'webp'
+    else if (arg === '--ktx2') texture = 'ktx2'
     else if (arg === '--max-texture') maxTextureSize = Number(rest[++i] ?? DEFAULT_MAX_TEXTURE)
     else if (arg === '--quality') textureQuality = Number(rest[++i] ?? DEFAULT_TEXTURE_QUALITY)
     else {

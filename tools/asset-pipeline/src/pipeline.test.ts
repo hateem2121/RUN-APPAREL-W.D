@@ -296,6 +296,57 @@ describe('optimizeGlb — texture compression', () => {
   })
 })
 
+describe('optimizeGlb — KTX2 / Basis Universal textures', () => {
+  it('encodes base colour + normal maps to KTX2 (KHR_texture_basisu)', async () => {
+    const io = await createIO()
+    // Small (64px) textures keep Basis encoding fast in the test.
+    const raw = Buffer.alloc(64 * 64 * 3)
+    for (let i = 0; i < raw.length; i++) raw[i] = (Math.sin(i * 0.7) * 128 + 128) & 255
+    const png = await sharp(raw, { raw: { width: 64, height: 64, channels: 3 } }).png().toBuffer()
+
+    const doc = new Document()
+    doc.createBuffer()
+    const base = doc.createTexture('base').setImage(new Uint8Array(png)).setMimeType('image/png')
+    const normal = doc.createTexture('normal').setImage(new Uint8Array(png)).setMimeType('image/png')
+    const m = doc.createMaterial('m').setBaseColorTexture(base).setNormalTexture(normal)
+    const pos = doc
+      .createAccessor()
+      .setType('VEC3')
+      .setArray(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]))
+      .setBuffer(doc.getRoot().listBuffers()[0]!)
+    const uv = doc
+      .createAccessor()
+      .setType('VEC2')
+      .setArray(new Float32Array([0, 0, 1, 0, 0, 1]))
+      .setBuffer(doc.getRoot().listBuffers()[0]!)
+    const prim = doc
+      .createPrimitive()
+      .setAttribute('POSITION', pos)
+      .setAttribute('TEXCOORD_0', uv)
+      .setMaterial(m)
+    m.getBaseColorTextureInfo()?.setTexCoord(0)
+    m.getNormalTextureInfo()?.setTexCoord(0)
+    doc.createScene('s').addChild(doc.createNode('n').setMesh(doc.createMesh('mm').addPrimitive(prim)))
+
+    const src = join(dir, 'ktx-src.glb')
+    await io.write(src, doc)
+    const out = join(dir, 'ktx.glb')
+    const result = await optimizeGlb(src, out, { texture: 'ktx2', maxTextureSize: 64 })
+
+    expect(result.textureFormats).toEqual(['image/ktx2'])
+
+    // A fresh reader sees KTX2 textures under KHR_texture_basisu.
+    const reread = await createIO().then((io2) => io2.read(out))
+    const used = reread.getRoot().listExtensionsUsed().map((e) => e.extensionName)
+    expect(used).toContain('KHR_texture_basisu')
+    for (const t of reread.getRoot().listTextures()) {
+      expect(t.getMimeType()).toBe('image/ktx2')
+      // Valid KTX2 identifier: 0xAB 'KTX 20' 0xBB \r \n \x1A \n
+      expect(Buffer.from(t.getImage()!.slice(0, 12)).toString('hex')).toBe('ab4b5458203230bb0d0a1a0a')
+    }
+  }, 60_000)
+})
+
 describe('optimizeGlb — Meshopt geometry', () => {
   it('applies Meshopt compression and stays parseable with variants intact', async () => {
     const merged = join(dir, 'n001.glb') // produced by the mergeVariants suite above

@@ -26,8 +26,11 @@ USAGE
 
 COMPRESSION FLAGS (merge, optimize)
   --no-webp            Keep original texture formats (default: re-encode to WebP)
+  --ktx2               KTX2 / Basis Universal textures (ETC1S colour + UASTC
+                       normal maps) — smallest GPU footprint, the production
+                       target; model-viewer v4.3+ decodes it natively
   --max-texture <px>   Cap texture width/height, aspect preserved (default: 2048)
-  --quality <1-100>    WebP quality (default: 82)
+  --quality <n>        WebP quality 1-100 / KTX2 ETC1S quality 1-255 (default: 82)
   --meshopt            Meshopt geometry compression (fast mobile decode)
   --draco              Draco geometry compression (smallest, slower decode)
 `
@@ -53,7 +56,8 @@ async function main(): Promise<void> {
     console.log(`Merged ${inputs.length} colourways → ${result.outputFile}`)
     console.log(`  variants:   ${result.variants.join(', ')}`)
     console.log(`  primitives: ${result.primitiveCount}  materials: ${result.materialCount}`)
-    console.log(`  textures:   ${options.texture === 'webp' ? 'WebP' : 'unchanged'}  geometry: ${options.geometry}`)
+    const textureLabel = options.texture === 'webp' ? 'WebP' : options.texture === 'ktx2' ? 'KTX2' : 'unchanged'
+    console.log(`  textures:   ${textureLabel}  geometry: ${options.geometry}`)
     console.log(`  size:       ${(result.bytes / 1024).toFixed(1)} KB`)
     console.log('\nNext: run "pnpm pipeline validate" with --expect before uploading to the CMS.')
     return

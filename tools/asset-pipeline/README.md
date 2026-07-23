@@ -40,17 +40,27 @@ pnpm pipeline placeholders --out output/placeholders
 | --- | --- | --- |
 | _(textures)_ | **WebP, 2048px** | Re-encode every texture to WebP (via `sharp`). |
 | `--no-webp` | — | Keep original texture formats (skip re-encoding). |
+| `--ktx2` | off | KTX2 / Basis Universal textures (see below). |
 | `--max-texture <px>` | `2048` | Cap texture width/height, aspect preserved. |
-| `--quality <1-100>` | `82` | WebP quality. |
+| `--quality <n>` | `82` | WebP quality (1–100) / KTX2 ETC1S quality (1–255). |
 | `--meshopt` | off | Meshopt geometry compression — fast decode on low-end mobile. |
 | `--draco` | off | Draco geometry compression — smaller, slower to decode. |
 
-> **KTX2 / Basis (`KHR_texture_basisu`)** is the GPU-compressed target for the
-> smallest VRAM footprint and is natively supported by `<model-viewer>` v4.3+.
-> It is **not yet wired here** — it needs a Basis encoder (e.g. the WASM
-> `ktx2-encoder` package, to avoid a native `toktx` binary in CI). WebP is the
-> shipped default and already the dominant win; KTX2 is the next step, and the
-> `--texture` plumbing in `src/optimize.ts` leaves a clean seam for it.
+### KTX2 / Basis Universal (`--ktx2`)
+
+`KHR_texture_basisu` — GPU-compressed textures with the smallest VRAM footprint,
+the best-practice production target, decoded natively by `<model-viewer>` v4.3+
+(its Basis transcoder loads from `gstatic`, already allowed by the viewer CSP).
+Encoding runs fully in-process via the WASM `ktx2-encoder` (no native `toktx`
+binary in CI) with `sharp` decoding the source images. Two passes follow Basis
+best practice automatically:
+
+- **normal maps → UASTC** (preserves surface detail lossy ETC1S would smear), and
+- **colour / data maps → ETC1S** (far higher compression where it is safe).
+
+WebP remains the no-flag default: universal, needs no runtime decoder, and fast to
+encode. Reach for `--ktx2` on final production assets where GPU memory matters most.
+KTX2 encoding is slower — expect a few seconds per 2K texture.
 
 ## Workflow (must run before any product is published)
 

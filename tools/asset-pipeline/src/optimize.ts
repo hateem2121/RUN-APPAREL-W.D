@@ -2,6 +2,7 @@ import { mkdir, stat } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { Document, Transform } from '@gltf-transform/core'
 import { dedup, draco, meshopt, prune, textureCompress } from '@gltf-transform/functions'
+import { ktx2 } from 'ktx2-encoder/gltf-transform'
 import { MeshoptEncoder } from 'meshoptimizer'
 import sharp from 'sharp'
 import { createIO } from './io'
@@ -12,14 +13,21 @@ import { createIO } from './io'
  * chain here, so the compression policy lives in one tested place.
  *
  * Texture compression is the dominant win for CLO exports — raw CLO GLBs are
- * mostly uncompressed PNG/JPEG maps. WebP (via sharp, already a dependency)
- * shrinks those dramatically with no new native binary and no GPU-format
- * caveats. Geometry compression (Draco or Meshopt) is opt-in and evaluated
- * per product, per the performance brief.
+ * mostly uncompressed PNG/JPEG maps.
+ *   - 'webp' (default): re-encodes via sharp — universal, no runtime decoder,
+ *     the safe everyday choice.
+ *   - 'ktx2': GPU-compressed Basis Universal (KHR_texture_basisu) — smallest
+ *     VRAM footprint and the best-practice production target; <model-viewer>
+ *     v4.3+ decodes it natively (its Basis transcoder loads from gstatic, which
+ *     the viewer CSP already allows). Slower to encode; opt in with --ktx2.
+ * Geometry compression (Draco or Meshopt) is opt-in and evaluated per product.
  */
 
-/** 'none' keeps original formats; 'webp' re-encodes every texture to WebP. */
-export type TextureCodec = 'none' | 'webp'
+/**
+ * 'none' keeps original formats; 'webp' re-encodes every texture to WebP;
+ * 'ktx2' encodes to Basis Universal (ETC1S for colour, UASTC for normal maps).
+ */
+export type TextureCodec = 'none' | 'webp' | 'ktx2'
 /** Geometry codec: Meshopt decodes far faster on low-end mobile; Draco is smaller. */
 export type GeometryCodec = 'none' | 'draco' | 'meshopt'
 
@@ -28,7 +36,7 @@ export interface OptimizeOptions {
   texture?: TextureCodec
   /** Max texture width/height in px, aspect preserved. Applied only when texture !== 'none'. Default 2048. */
   maxTextureSize?: number
-  /** WebP quality 1–100. Default 82. */
+  /** WebP quality 1–100 / KTX2 ETC1S quality 1–255. Default 82. */
   textureQuality?: number
   /** Geometry codec. Default 'none'. */
   geometry?: GeometryCodec
@@ -38,6 +46,23 @@ export interface OptimizeOptions {
 
 export const DEFAULT_MAX_TEXTURE = 2048
 export const DEFAULT_TEXTURE_QUALITY = 82
+
+/**
+ * Node image decoder for the KTX2 encoder: sharp turns the source PNG/JPEG into
+ * raw RGBA (the browser build uses a canvas; Node must supply this). Resizing to
+ * the size cap happens here so a single decode both shrinks and feeds the
+ * encoder. Aspect ratio is preserved and images are never enlarged.
+ */
+function makeImageDecoder(maxSize: number) {
+  return async (buffer: Uint8Array): Promise<{ data: Uint8Array; width: number; height: number }> => {
+    const { data, info } = await sharp(buffer)
+      .resize(maxSize, maxSize, { fit: 'inside', withoutEnlargement: true })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+    return { data: new Uint8Array(data), width: info.width, height: info.height }
+  }
+}
 
 /** Resolve the geometry codec from the (possibly legacy) options. */
 export function resolveGeometry(options: OptimizeOptions): GeometryCodec {
@@ -53,14 +78,31 @@ export function resolveGeometry(options: OptimizeOptions): GeometryCodec {
 export async function buildOptimizeTransforms(options: OptimizeOptions): Promise<Transform[]> {
   const transforms: Transform[] = [dedup(), prune({ keepExtras: true })]
 
+  const max = options.maxTextureSize ?? DEFAULT_MAX_TEXTURE
   if (options.texture === 'webp') {
-    const max = options.maxTextureSize ?? DEFAULT_MAX_TEXTURE
     transforms.push(
       textureCompress({
         encoder: sharp,
         targetFormat: 'webp',
         resize: [max, max],
         quality: options.textureQuality ?? DEFAULT_TEXTURE_QUALITY,
+      }),
+    )
+  } else if (options.texture === 'ktx2') {
+    const imageDecoder = makeImageDecoder(max)
+    // Two passes, following Basis Universal best practice:
+    //  - Normal maps → UASTC (preserves the surface detail lossy ETC1S would smear).
+    //  - Colour / data maps → ETC1S (far higher compression where it is safe).
+    // The normal pass runs first; the ETC1S pass is scoped to colour slots so it
+    // never touches the already-encoded normal maps.
+    transforms.push(
+      ktx2({ isUASTC: true, generateMipmap: true, imageDecoder, slots: /normalTexture/i }),
+      ktx2({
+        isUASTC: false,
+        qualityLevel: options.textureQuality ?? DEFAULT_TEXTURE_QUALITY,
+        generateMipmap: true,
+        imageDecoder,
+        slots: /(baseColor|emissive|occlusion|metallicRoughness)Texture/i,
       }),
     )
   }
@@ -76,10 +118,30 @@ export async function buildOptimizeTransforms(options: OptimizeOptions): Promise
   return transforms
 }
 
+// The Basis Universal WASM encoder prints per-slice progress to stdout via
+// Emscripten's console.log. Drop only those specific lines so the pipeline's own
+// output (and CI logs) stay readable; anything else passes through untouched.
+const BASIS_NOISE = /^(Total slices:|Slice: \d|Mode: (ETC1S|UASTC)|basis_compressor::)/
+async function withQuietBasisLogs<T>(fn: () => Promise<T>): Promise<T> {
+  const original = console.log
+  console.log = (...args: unknown[]) => {
+    if (typeof args[0] === 'string' && BASIS_NOISE.test(args[0])) return
+    original(...args)
+  }
+  try {
+    return await fn()
+  } finally {
+    console.log = original
+  }
+}
+
 /** Apply the optimisation chain to an in-memory document (mutates + returns it). */
 export async function optimizeDocument(document: Document, options: OptimizeOptions): Promise<Document> {
   const transforms = await buildOptimizeTransforms(options)
-  await document.transform(...transforms)
+  const run = () => document.transform(...transforms)
+  // Only the KTX2 path is chatty; wrap just that so nothing else is filtered.
+  if (options.texture === 'ktx2') await withQuietBasisLogs(run)
+  else await run()
   return document
 }
 
@@ -149,6 +211,7 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
     if (arg === '--out') out = rest[++i] ?? null
     else if (arg === '--no-webp' || arg === '--no-textures') texture = 'none'
     else if (arg === '--webp') texture = 'webp'
+    else if (arg === '--ktx2') texture = 'ktx2'
     else if (arg === '--draco') geometry = 'draco'
     else if (arg === '--meshopt') geometry = 'meshopt'
     else if (arg === '--max-texture') maxTextureSize = Number(rest[++i] ?? DEFAULT_MAX_TEXTURE)
