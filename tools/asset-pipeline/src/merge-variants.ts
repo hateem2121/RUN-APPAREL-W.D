@@ -2,8 +2,14 @@ import { mkdir, stat } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { Document, Material, Primitive } from '@gltf-transform/core'
 import { KHRMaterialsVariants } from '@gltf-transform/extensions'
-import { copyToDocument, dedup, draco, prune } from '@gltf-transform/functions'
+import { copyToDocument } from '@gltf-transform/functions'
 import { createIO } from './io'
+import {
+  DEFAULT_MAX_TEXTURE,
+  DEFAULT_TEXTURE_QUALITY,
+  type OptimizeOptions,
+  buildOptimizeTransforms,
+} from './optimize'
 
 export interface MergeInput {
   /** Path to one raw per-colourway GLB (e.g. n001-navy.glb). */
@@ -12,10 +18,12 @@ export interface MergeInput {
   variantName: string
 }
 
-export interface MergeOptions {
-  /** Apply Draco compression to the merged output. Off by default — evaluate case-by-case. */
-  draco?: boolean
-}
+/**
+ * Merge options are the shared optimisation options. Programmatic defaults stay
+ * conservative (no re-encoding), so callers/tests opt in explicitly; the CLI
+ * defaults to WebP texture compression.
+ */
+export type MergeOptions = OptimizeOptions
 
 export interface MergeResult {
   outputFile: string
@@ -28,30 +36,47 @@ export interface MergeResult {
 export interface ParsedMergeArgs {
   inputs: MergeInput[]
   out: string | null
+  /** Retained for the historic CLI contract; mirrors `options.geometry === 'draco'`. */
   draco: boolean
+  /** Fully-resolved optimisation options passed straight to mergeVariants. */
+  options: OptimizeOptions
 }
 
 /**
  * Parse `merge` command arguments. Pure and exported (kept out of cli.ts,
- * which auto-runs on import) so the CLI contract — `--out` / `--draco` and
- * `<file>=<VARIANT-ID>` split on the LAST `=` so paths may contain `=` — is
- * unit-testable. Throws on a malformed `<file>=<VARIANT-ID>` token.
+ * which auto-runs on import) so the CLI contract is unit-testable. Splits
+ * `<file>=<VARIANT-ID>` on the LAST `=` so paths may contain `=`. Throws on a
+ * malformed token.
+ *
+ * Best-practice defaults: WebP textures capped at 2048 px (the dominant size
+ * win for CLO exports). Geometry compression stays opt-in via `--draco` /
+ * `--meshopt`. `--no-webp` disables texture re-encoding.
  */
 export function parseMergeArgs(rest: string[]): ParsedMergeArgs {
   const inputs: MergeInput[] = []
   let out: string | null = null
-  let draco = false
+  let texture: OptimizeOptions['texture'] = 'webp'
+  let geometry: OptimizeOptions['geometry'] = 'none'
+  let maxTextureSize = DEFAULT_MAX_TEXTURE
+  let textureQuality = DEFAULT_TEXTURE_QUALITY
+
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]!
     if (arg === '--out') out = rest[++i] ?? null
-    else if (arg === '--draco') draco = true
+    else if (arg === '--draco') geometry = 'draco'
+    else if (arg === '--meshopt') geometry = 'meshopt'
+    else if (arg === '--no-webp' || arg === '--no-textures') texture = 'none'
+    else if (arg === '--webp') texture = 'webp'
+    else if (arg === '--max-texture') maxTextureSize = Number(rest[++i] ?? DEFAULT_MAX_TEXTURE)
+    else if (arg === '--quality') textureQuality = Number(rest[++i] ?? DEFAULT_TEXTURE_QUALITY)
     else {
       const eq = arg.lastIndexOf('=')
       if (eq === -1) throw new Error(`Expected <file.glb>=<VARIANT-ID>, got "${arg}"`)
       inputs.push({ file: arg.slice(0, eq), variantName: arg.slice(eq + 1) })
     }
   }
-  return { inputs, out, draco }
+
+  return { inputs, out, draco: geometry === 'draco', options: { texture, geometry, maxTextureSize, textureQuality } }
 }
 
 interface PrimitiveFingerprint {
@@ -197,8 +222,7 @@ export async function mergeVariants(
     })
   }
 
-  const transforms = [dedup(), prune({ keepExtras: true })]
-  if (options.draco) transforms.push(draco())
+  const transforms = await buildOptimizeTransforms(options)
   await base.transform(...transforms)
 
   await mkdir(dirname(outputFile), { recursive: true })

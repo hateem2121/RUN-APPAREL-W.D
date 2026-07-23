@@ -167,6 +167,9 @@ importers:
       draco3dgltf:
         specifier: 1.5.7
         version: 1.5.7
+      meshoptimizer:
+        specifier: ^1.2.0
+        version: 1.2.0
       sharp:
         specifier: 0.35.3
         version: 0.35.3(@types/node@26.1.1)
@@ -3993,6 +3996,9 @@ packages:
 
   merge@2.1.1:
     resolution: {integrity: sha512-jz+Cfrg9GWOZbQAnDQ4hlVnQky+341Yk5ru8bZSe6sIDTCIg8n9i/u7hSQGSVOF3C7lH6mGtqjkiT9G4wFLL0w==}
+
+  meshoptimizer@1.2.0:
+    resolution: {integrity: sha512-davRZeIJbxJrE24cwQle7ZDsxjdk/OphNOV83oX+efQinyoHY9Jcyz3MHbaoG0qySZajldGztNZ1RN/T19PZsg==}
 
   metaviewport-parser@0.3.0:
     resolution: {integrity: sha512-EoYJ8xfjQ6kpe9VbVHvZTZHiOl4HL1Z18CrZ+qahvLXT7ZO4YTC2JMyt5FaUp9JJp6J4Ybb/z7IsCXZt86/QkQ==}
@@ -9641,6 +9647,8 @@ snapshots:
   merge-stream@2.0.0: {}
 
   merge@2.1.1: {}
+
+  meshoptimizer@1.2.0: {}
 
   metaviewport-parser@0.3.0: {}
 

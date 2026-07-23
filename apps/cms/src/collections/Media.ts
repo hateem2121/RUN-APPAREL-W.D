@@ -1,8 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { isAdmin, isAdminFieldLevel, isAdminOrEditor } from '../access/roles'
-
-/** Above this size, warn — QR-scan visitors are mobile-first. */
-const SIZE_WARNING_BYTES = 8 * 1024 * 1024
+import { SIZE_WARNING_BYTES, checkMediaUpload } from './mediaRules'
 
 const ALLOWED_MIME_TYPES = [
   'model/gltf-binary',
@@ -40,21 +38,14 @@ export const Media: CollectionConfig = {
     beforeValidate: [
       ({ data, req }) => {
         const filename = (data?.filename ?? '') as string
-        const mimeType = (data?.mimeType ?? '') as string
-        if (mimeType === 'application/octet-stream' && !filename.toLowerCase().endsWith('.glb')) {
-          throw new Error(
-            'Unsupported file type. Allowed: GLB models and WebP/AVIF/JPEG/PNG images.',
-          )
-        }
-        if (filename.toLowerCase().endsWith('.zprj')) {
-          throw new Error(
-            'CLO source files (.zprj) must never be uploaded to public media. Use the admin-only "source reference" field to record where the source lives.',
-          )
-        }
-        const filesize = (data?.filesize ?? 0) as number
-        if (filesize > SIZE_WARNING_BYTES) {
+        const { sizeWarning } = checkMediaUpload({
+          filename,
+          mimeType: (data?.mimeType ?? '') as string,
+          filesize: (data?.filesize ?? 0) as number,
+        })
+        if (sizeWarning) {
           req.payload.logger.warn(
-            `Media upload "${filename}" is ${(filesize / 1024 / 1024).toFixed(1)} MB — heavier than the ${SIZE_WARNING_BYTES / 1024 / 1024} MB mobile guideline.`,
+            `Media upload "${filename}" is ${(((data?.filesize ?? 0) as number) / 1024 / 1024).toFixed(1)} MB — heavier than the ${SIZE_WARNING_BYTES / 1024 / 1024} MB mobile guideline.`,
           )
         }
         return data

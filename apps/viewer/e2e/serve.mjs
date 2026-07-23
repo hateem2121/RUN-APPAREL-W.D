@@ -42,6 +42,7 @@ const MIME = {
   '.png': 'image/png',
   '.webp': 'image/webp',
   '.glb': 'model/gltf-binary',
+  '.hdr': 'image/vnd.radiance',
   '.woff2': 'font/woff2',
   '.woff': 'font/woff',
   '.json': 'application/json',

@@ -13,18 +13,44 @@ colourway bound as a `KHR_materials_variants` entry named after its CMS `variant
 Run from the repo root (or inside `tools/asset-pipeline` with `pnpm start`):
 
 ```bash
-# 1. Merge per-colourway exports into one production GLB
+# 1. Merge per-colourway exports into one production GLB.
+#    Textures are re-encoded to WebP and capped at 2048px by default — the
+#    dominant size win for CLO exports, which ship mostly uncompressed PNG.
 pnpm pipeline merge --out output/n001.glb \
   raw/n001-navy.glb=N001-NAVY \
   raw/n001-black.glb=N001-BLACK \
   raw/n001-crimson.glb=N001-CRIMSON
 
-# 2. Validate the merged GLB against the CMS colourway variantId list
-pnpm pipeline validate output/n001.glb --expect N001-NAVY,N001-BLACK,N001-CRIMSON
+# 1b. Optimize a single GLB (e.g. a separate-glb-per-colour export). Same
+#     compression policy as merge.
+pnpm pipeline optimize output/n001-navy.glb --out output/n001-navy.opt.glb --meshopt
+
+# 2. Validate against the CMS colourway variantId list. --strict turns any
+#    publish-readiness warning (raw CLO generator, oversize, uncompressed
+#    textures) into a non-zero exit for CI gating.
+pnpm pipeline validate output/n001.glb --expect N001-NAVY,N001-BLACK,N001-CRIMSON --strict
 
 # Generate placeholder seed assets (development only)
 pnpm pipeline placeholders --out output/placeholders
 ```
+
+### Compression flags (`merge`, `optimize`)
+
+| Flag | Default | Effect |
+| --- | --- | --- |
+| _(textures)_ | **WebP, 2048px** | Re-encode every texture to WebP (via `sharp`). |
+| `--no-webp` | — | Keep original texture formats (skip re-encoding). |
+| `--max-texture <px>` | `2048` | Cap texture width/height, aspect preserved. |
+| `--quality <1-100>` | `82` | WebP quality. |
+| `--meshopt` | off | Meshopt geometry compression — fast decode on low-end mobile. |
+| `--draco` | off | Draco geometry compression — smaller, slower to decode. |
+
+> **KTX2 / Basis (`KHR_texture_basisu`)** is the GPU-compressed target for the
+> smallest VRAM footprint and is natively supported by `<model-viewer>` v4.3+.
+> It is **not yet wired here** — it needs a Basis encoder (e.g. the WASM
+> `ktx2-encoder` package, to avoid a native `toktx` binary in CI). WebP is the
+> shipped default and already the dominant win; KTX2 is the next step, and the
+> `--texture` plumbing in `src/optimize.ts` leaves a clean seam for it.
 
 ## Workflow (must run before any product is published)
 
@@ -50,11 +76,18 @@ merge would silently mis-map materials. In that case:
   same poster-first experience. **This mode is always available — a failed merge never blocks
   publishing.**
 
-## Draco compression
+## Geometry compression — Draco vs Meshopt
 
-`--draco` is available but **off by default** — evaluate case-by-case per the performance brief.
-Draco shrinks download size but adds decode time on low-end mobile devices; test on real
-hardware before enabling it for a product.
+Both are **off by default** — evaluate case-by-case per the performance brief; textures
+(WebP, on by default) are usually the far bigger win for CLO exports.
+
+- **`--meshopt`** (`EXT_meshopt_compression`): a tiny, very fast decoder — the better
+  default for the mobile-first QR-scan audience, and it compresses further under Brotli at
+  the edge.
+- **`--draco`** (`KHR_draco_mesh_compression`): smaller on the wire, but a heavier decoder
+  and slower on low-end mobile.
+
+Test on real hardware before enabling either for a product.
 
 ## Notes
 

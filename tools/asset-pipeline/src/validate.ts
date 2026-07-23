@@ -1,10 +1,37 @@
-import { stat } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import type { Primitive } from '@gltf-transform/core'
 import type { MappingList } from '@gltf-transform/extensions'
 import { createIO } from './io'
 
 /** Warn when a production GLB is heavier than this — QR scans are mobile-first. */
 export const SIZE_WARNING_BYTES = 8 * 1024 * 1024
+
+/** Uncompressed raster formats that should be re-encoded before upload. */
+const UNCOMPRESSED_TEXTURE_MIME = new Set(['image/png', 'image/jpeg'])
+
+const GLB_MAGIC = 0x46546c67 // 'glTF' little-endian
+const GLB_JSON_CHUNK = 0x4e4f534a // 'JSON' little-endian
+
+/**
+ * Read `asset.generator` straight from the GLB's JSON chunk. This must NOT go
+ * through gltf-transform: its reader overwrites `asset.generator` with its own
+ * value on import, which would hide exactly the raw-CLO-export string we want to
+ * catch. Returns '' for a non-GLB, malformed, or generator-less file.
+ */
+export async function readGlbGenerator(file: string): Promise<string> {
+  try {
+    const buf = await readFile(file)
+    if (buf.length < 20 || buf.readUInt32LE(0) !== GLB_MAGIC) return ''
+    const jsonLen = buf.readUInt32LE(12)
+    if (buf.readUInt32LE(16) !== GLB_JSON_CHUNK || 20 + jsonLen > buf.length) return ''
+    const json = JSON.parse(buf.toString('utf8', 20, 20 + jsonLen)) as {
+      asset?: { generator?: unknown }
+    }
+    return typeof json.asset?.generator === 'string' ? json.asset.generator : ''
+  } catch {
+    return ''
+  }
+}
 
 export interface GlbReport {
   file: string
@@ -15,6 +42,10 @@ export interface GlbReport {
   primitiveCount: number
   materialCount: number
   textureCount: number
+  /** The glTF asset.generator string, e.g. "CLO Standalone OnlineAuth" for a raw CLO export. */
+  generator: string
+  /** Count of textures still stored as raw PNG/JPEG (should be WebP or KTX2). */
+  uncompressedTextureCount: number
   warnings: string[]
 }
 
@@ -48,10 +79,28 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
   }
 
   const { size } = await stat(file)
+  const generator = await readGlbGenerator(file)
+  const textures = root.listTextures()
+  const uncompressedTextureCount = textures.filter((t) =>
+    UNCOMPRESSED_TEXTURE_MIME.has(t.getMimeType()),
+  ).length
+
   const warnings: string[] = []
+  // A raw CLO export must never be published — it has not been merged,
+  // variant-bound, or compressed. This is the single most common failure.
+  if (/\bCLO\b/i.test(generator)) {
+    warnings.push(
+      `Generator is "${generator}" — this looks like a RAW CLO export. Run merge/optimize before uploading; never publish a raw CLO GLB.`,
+    )
+  }
   if (size > SIZE_WARNING_BYTES) {
     warnings.push(
-      `File is ${(size / 1024 / 1024).toFixed(1)} MB (> ${SIZE_WARNING_BYTES / 1024 / 1024} MB) — heavy for mobile QR-scan loads. Consider optimising (and evaluate Draco case-by-case).`,
+      `File is ${(size / 1024 / 1024).toFixed(1)} MB (> ${SIZE_WARNING_BYTES / 1024 / 1024} MB) — heavy for mobile QR-scan loads. Run "pnpm pipeline optimize" (WebP/KTX2 textures + Meshopt/Draco geometry).`,
+    )
+  }
+  if (uncompressedTextureCount > 0) {
+    warnings.push(
+      `${uncompressedTextureCount}/${textures.length} textures are raw PNG/JPEG — re-encode to WebP or KTX2 (usually the dominant size win for CLO exports).`,
     )
   }
   if (primitives.length === 0) warnings.push('No mesh primitives found.')
@@ -63,7 +112,9 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
     meshCount: root.listMeshes().length,
     primitiveCount: primitives.length,
     materialCount: root.listMaterials().length,
-    textureCount: root.listTextures().length,
+    textureCount: textures.length,
+    generator,
+    uncompressedTextureCount,
     warnings,
   }
 }

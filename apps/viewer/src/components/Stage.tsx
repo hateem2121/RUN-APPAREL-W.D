@@ -25,6 +25,14 @@ const VARIANT_NOTICE =
 const LOAD_NOTICE =
   'The interactive 3D view could not load here, so you are seeing the static reference instead. All product details remain accurate.'
 
+// Image-based lighting for PBR materials. Without an explicit environment,
+// <model-viewer>'s built-in neutral scene renders technical fabrics flat and
+// low-contrast; this soft studio HDR reveals weave, sheen and depth. Served
+// same-origin from public/env (already allowed by the CSP), ≤1024×512 so the
+// download stays tiny. Paired with tone-mapping="neutral" (the model-viewer
+// v4 default, tuned for e-commerce colour accuracy) so baseColor stays faithful.
+const ENVIRONMENT_IMAGE = '/env/studio-soft.hdr'
+
 /** Privacy-safe diagnostic seam (no visitor data — just what broke). */
 function diagnostic(kind: string, detail: Record<string, string>): void {
   document.dispatchEvent(new CustomEvent('run:diagnostic', { detail: { kind, ...detail } }))
@@ -193,6 +201,10 @@ export function Stage({ data, selected }: StageProps) {
               interpolation-decay={prefersReducedMotion() ? 1 : 120}
               touch-action="pan-y"
               shadow-intensity="0.6"
+              shadow-softness="0.8"
+              environment-image={ENVIRONMENT_IMAGE}
+              tone-mapping="neutral"
+              exposure="1"
               loading="eager"
               reveal="auto"
             />

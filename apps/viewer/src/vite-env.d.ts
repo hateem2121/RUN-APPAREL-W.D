@@ -30,6 +30,10 @@ interface ModelViewerAttributes {
   'interpolation-decay'?: string | number
   'touch-action'?: string
   'shadow-intensity'?: string | number
+  'shadow-softness'?: string | number
+  'environment-image'?: string
+  'skybox-image'?: string
+  'tone-mapping'?: 'auto' | 'neutral' | 'aces' | 'agx' | 'commerce' | 'legacy' | 'none'
   exposure?: string | number
   loading?: 'auto' | 'lazy' | 'eager'
   reveal?: 'auto' | 'manual'
