@@ -1,0 +1,13 @@
+diff --git a/dist/client/R2ClientUploadHandler.js b/dist/client/R2ClientUploadHandler.js
+index 2a732ef84a062b5358da0c367571c73307c8b56b..c8b28465654eb89ef4ea41929f52af00c03fbb64 100644
+--- a/dist/client/R2ClientUploadHandler.js
++++ b/dist/client/R2ClientUploadHandler.js
+@@ -2,7 +2,7 @@
+ import { createClientUploadHandler, getFileKey } from '@payloadcms/plugin-cloud-storage/client';
+ import { formatAdminURL } from 'payload/shared';
+ export const R2ClientUploadHandler = createClientUploadHandler({
+-    handler: async ({ apiRoute, collectionSlug, docPrefix, extra: { chunkSize = 5 * 1024 * 1024 }, file, prefix, serverHandlerPath, serverURL, updateFilename })=>{
++    handler: async ({ apiRoute, collectionSlug, docPrefix, extra: { chunkSize = 5 * 1024 * 1024 } = {}, file, prefix, serverHandlerPath, serverURL, updateFilename })=>{
+         const { sanitizedDocPrefix } = getFileKey({
+             collectionPrefix: prefix,
+             docPrefix,
