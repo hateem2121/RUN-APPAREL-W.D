@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types"],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true
+  },
+  // Only the Worker is typechecked here. The container app (container/) is a
+  // standalone Node service built inside Docker (it imports the pipeline source
+  // by relative path) and is validated by the image build + a real shrink run
+  // at go-live, not by this tsconfig.
+  "include": ["src/**/*.ts"]
+}

@@ -69,6 +69,7 @@ export interface Config {
   collections: {
     users: User;
     media: Media;
+    'raw-uploads': RawUpload;
     products: Product;
     colourways: Colourway;
     events: Event;
@@ -81,6 +82,7 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    'raw-uploads': RawUploadsSelect<false> | RawUploadsSelect<true>;
     products: ProductsSelect<false> | ProductsSelect<true>;
     colourways: ColourwaysSelect<false> | ColourwaysSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
@@ -140,6 +142,9 @@ export interface User {
   role: 'admin' | 'editor';
   updatedAt: string;
   createdAt: string;
+  enableAPIKey?: boolean | null;
+  apiKey?: string | null;
+  apiKeyIndex?: string | null;
   email: string;
   resetPasswordToken?: string | null;
   resetPasswordExpiration?: string | null;
@@ -177,6 +182,46 @@ export interface Media {
    * Automatically ticked when the file exceeds the 8 MB mobile guideline.
    */
   sizeWarning?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * Upload your raw CLO export here — big files and messy names are fine. It is shrunk automatically. When Status shows “ready”, open the linked product to review the colours and Publish. These files are private and never shown to customers.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "raw-uploads".
+ */
+export interface RawUpload {
+  id: number;
+  /**
+   * Which product this garment is for. Helps you find the result afterwards; you still attach and publish it yourself.
+   */
+  targetProduct?: (number | null) | Product;
+  /**
+   * Set automatically. “Ready to review” means the shrunk GLB is waiting below.
+   */
+  status?: ('queued' | 'processing' | 'ready' | 'failed') | null;
+  /**
+   * The shrunk, pipeline-processed GLB the robot produced. Attach this to the product.
+   */
+  resultGlb?: (number | null) | Media;
+  /**
+   * The pipeline report: final size, the colour variants found in the file, and any warnings. Read this before publishing.
+   */
+  report?: string | null;
+  /**
+   * Optional note to yourself, e.g. which CLO “Colorway” maps to which colourway ID (Colorway 2 = N001-NAVY). The viewer switches colours by the variant names inside the GLB.
+   */
+  variantMapping?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -405,6 +450,10 @@ export interface PayloadLockedDocument {
         value: number | Media;
       } | null)
     | ({
+        relationTo: 'raw-uploads';
+        value: number | RawUpload;
+      } | null)
+    | ({
         relationTo: 'products';
         value: number | Product;
       } | null)
@@ -467,6 +516,9 @@ export interface UsersSelect<T extends boolean = true> {
   role?: T;
   updatedAt?: T;
   createdAt?: T;
+  enableAPIKey?: T;
+  apiKey?: T;
+  apiKeyIndex?: T;
   email?: T;
   resetPasswordToken?: T;
   resetPasswordExpiration?: T;
@@ -490,6 +542,28 @@ export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   sourceReference?: T;
   sizeWarning?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "raw-uploads_select".
+ */
+export interface RawUploadsSelect<T extends boolean = true> {
+  targetProduct?: T;
+  status?: T;
+  resultGlb?: T;
+  report?: T;
+  variantMapping?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;

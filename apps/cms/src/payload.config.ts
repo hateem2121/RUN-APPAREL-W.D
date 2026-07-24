@@ -11,6 +11,7 @@ import { Colourways } from './collections/Colourways'
 import { Events } from './collections/Events'
 import { Media } from './collections/Media'
 import { Products } from './collections/Products'
+import { RawUploads } from './collections/RawUploads'
 import { Users } from './collections/Users'
 import { eventsEndpoint } from './endpoints/events'
 import { healthEndpoint } from './endpoints/health'
@@ -102,7 +103,7 @@ export default buildConfig({
       titleSuffix: ' — RUN APPAREL CMS',
     },
   },
-  collections: [Users, Media, Products, Colourways, Events],
+  collections: [Users, Media, RawUploads, Products, Colourways, Events],
   globals: [SiteSettings],
   endpoints: [publicViewerEndpoint, healthEndpoint, eventsEndpoint],
   cors: allowedOrigins,
@@ -150,6 +151,22 @@ export default buildConfig({
                 [mediaBaseUrl, prefix, name].filter(Boolean).join('/'),
             }
           : true, // fallback: media streams through the CMS (fine for dev)
+      },
+    }),
+    // Separate, PRIVATE ingest bucket for un-processed raw CLO uploads. Kept off
+    // the public media domain so a raw file is never buyer-facing (RawUploads is
+    // admin/editor-only and this bucket has no custom domain). `clientUploads`
+    // uploads the file straight to R2 in 5 MB chunks, so ~350 MB files bypass the
+    // ~100 MB Worker body limit and show real progress instead of a dead spinner.
+    r2Storage({
+      bucket: env?.R2_INGEST as R2Bucket,
+      // Chunked direct-to-R2 upload for this instance's collections. Access to
+      // the signed multipart-upload endpoint defaults to each collection's
+      // `create` access (admin/editor), so only authenticated staff can start an
+      // upload. No public URL generation (this bucket has no custom domain).
+      clientUploads: true,
+      collections: {
+        'raw-uploads': true,
       },
     }),
   ],

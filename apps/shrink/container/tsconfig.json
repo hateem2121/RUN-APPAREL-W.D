@@ -1,0 +1,21 @@
+{
+  // Standalone check for the container service (NOT wired into the monorepo
+  // typecheck — this package is built inside Docker). Run with:
+  //   cd apps/shrink/container && npm install && npm run typecheck
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true
+  },
+  // Pull in the pipeline's ambient module declarations (e.g. draco3dgltf) that
+  // its own build relies on, so this isolated check resolves the same way.
+  "include": ["server.ts", "../../../tools/asset-pipeline/src/**/*.d.ts"]
+}

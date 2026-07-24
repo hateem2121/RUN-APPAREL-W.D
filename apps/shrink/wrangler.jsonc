@@ -1,0 +1,66 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Separate Worker so the Container + Durable Object class live OUTSIDE the
+  // OpenNext CMS Worker (which cannot host a DO/container class). It consumes the
+  // glb-shrink queue, drives the Container that runs the asset pipeline, and
+  // writes results back to the CMS via an internal service binding.
+  "name": "run-apparel-viewer-shrink",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  // Internal-only worker: no public routes, no workers.dev, no preview URLs.
+  "workers_dev": false,
+  "preview_urls": false,
+
+  // The shrink Container (Node + asset pipeline). standard-4 = 4 vCPU / 12 GiB /
+  // 20 GB disk — headroom for a ~10 M-triangle CLO simplify. Occasional jobs sit
+  // well inside the Workers Paid included allotment (25 GiB-hours / 375 vCPU-min).
+  "containers": [
+    {
+      "class_name": "ShrinkContainer",
+      "image": "./Dockerfile",
+      // Build the image from the monorepo ROOT so it can COPY tools/asset-pipeline.
+      "image_build_context": "../../",
+      "instance_type": "standard-4",
+      // One garment at a time is plenty; serialise jobs to bound memory/cost.
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "class_name": "ShrinkContainer", "name": "SHRINK" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ShrinkContainer"] }],
+
+  // Consume shrink jobs enqueued by the CMS RawUploads afterChange hook. One at a
+  // time, a couple of retries, then park failures in a dead-letter queue.
+  "queues": {
+    "consumers": [
+      {
+        "queue": "glb-shrink",
+        "max_batch_size": 1,
+        "max_concurrency": 1,
+        "max_retries": 2,
+        "dead_letter_queue": "glb-shrink-dlq"
+      }
+    ]
+  },
+
+  // Internal binding to the CMS Worker — used to create the guardrailed Media doc
+  // and update the raw-upload record. Avoids the public internet (and the
+  // cms.wear-run.help Bot Fight Mode challenge) entirely.
+  "services": [{ "binding": "CMS", "service": "run-apparel-viewer-cms" }],
+
+  "vars": {
+    // R2 S3 endpoint + bucket for the private ingest bucket. The account-id host
+    // is filled in at go-live. The read-only access key/secret are SECRETS:
+    //   wrangler secret put R2_INGEST_ACCESS_KEY_ID
+    //   wrangler secret put R2_INGEST_SECRET_ACCESS_KEY
+    //   wrangler secret put CMS_ROBOT_API_KEY   (the Payload robot user's API key)
+    "R2_INGEST_S3_ENDPOINT": "https://d357a1779c40da5f8c44931f12390cc8.r2.cloudflarestorage.com",
+    "R2_INGEST_BUCKET": "run-apparel-viewer-ingest",
+    // Host used when building the request URL routed through the CMS service
+    // binding (the binding, not DNS, decides where it goes).
+    "CMS_ORIGIN": "https://cms.wear-run.help"
+  }
+}

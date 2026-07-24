@@ -1,0 +1,49 @@
+name: Deploy shrink service
+
+# Deploys the separate GLB shrink Worker + Container (apps/shrink). Kept out of
+# the main ci.yml deploy job because `wrangler deploy` builds a Docker image here
+# (ubuntu-latest has Docker), which is slower and only needs to run when the
+# shrink service itself changes.
+#
+# PREREQUISITES (one-time go-live, see docs/RAW-UPLOAD-PIPELINE.md):
+#   - R2 bucket `run-apparel-viewer-ingest` exists.
+#   - Queues `glb-shrink` and `glb-shrink-dlq` exist.
+#   - Secrets set on the worker: R2_INGEST_ACCESS_KEY_ID, R2_INGEST_SECRET_ACCESS_KEY,
+#     CMS_ROBOT_API_KEY; and R2_INGEST_S3_ENDPOINT var points at the real account.
+# Until those exist, this deploy will fail (harmlessly — it never touches the live
+# CMS or viewer).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/shrink/**'
+      - 'tools/asset-pipeline/**'
+      - '.github/workflows/deploy-shrink.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-shrink
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Deploy shrink worker + container image
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        # `wrangler deploy` builds the Dockerfile locally (Docker is preinstalled
+        # on ubuntu-latest) and pushes it to Cloudflare's registry, then deploys.
+        run: pnpm --filter @run-apparel/shrink exec wrangler deploy

@@ -10,6 +10,11 @@ export const Users: CollectionConfig = {
     // is documented as an optional extra layer in docs/CLOUDFLARE-SETUP.md.)
     maxLoginAttempts: 5,
     lockTime: 10 * 60 * 1000,
+    // Allow API-key auth so the shrink robot (apps/shrink) can create the
+    // guardrailed Media doc and update the raw-upload record after processing.
+    // Give the robot user the Editor role and enable its key on its user record;
+    // keys are per-user and revocable. Humans still sign in with email/password.
+    useAPIKey: true,
   },
   admin: {
     useAsTitle: 'email',

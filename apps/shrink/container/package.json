@@ -1,0 +1,19 @@
+{
+  "name": "shrink-container",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone Node service that runs inside the Cloudflare Container: pulls a raw GLB from R2 (S3), runs the RUN APPAREL asset pipeline (optimize --simplify + validate), and returns the shrunk GLB with a report. NOT a workspace member — built only inside Docker (see ../Dockerfile). The asset-pipeline deps are installed alongside its source in the image; only this service's own deps live here.",
+  "scripts": {
+    "start": "tsx server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "aws4fetch": "1.0.20"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "tsx": "4.23.1",
+    "typescript": "5.9.3"
+  }
+}

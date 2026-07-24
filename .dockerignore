@@ -1,0 +1,13 @@
+# Keep the shrink-container build context (apps/shrink/Dockerfile, built from the
+# repo root) small: exclude everything the image installs fresh or never needs.
+**/node_modules
+.git
+**/dist
+**/.open-next
+**/.next
+**/.wrangler
+**/output
+**/coverage
+**/playwright-report
+**/test-results
+**/*.log

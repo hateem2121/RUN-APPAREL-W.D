@@ -1,0 +1,21 @@
+{
+  "name": "@run-apparel/shrink",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GLB shrink service: a queue-consumer Worker that drives a Cloudflare Container (Node + the asset pipeline) to shrink raw CLO uploads, then creates a guardrailed Media doc in the CMS via an internal service binding.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit",
+    "test": "echo \"(no unit tests — the shrink flow is exercised end-to-end at go-live)\"",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "0.3.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260719.1",
+    "typescript": "5.9.3",
+    "wrangler": "4.112.0"
+  }
+}

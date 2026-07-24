@@ -40,8 +40,29 @@
       "binding": "R2",
       // Isolated viewer media bucket. NOT "run-assets"/"run-private" (the live site's).
       "bucket_name": "run-apparel-viewer-media"
+    },
+    {
+      // PRIVATE ingest bucket for un-processed raw CLO uploads (the RawUploads
+      // collection). Deliberately has NO custom domain and NO public access, so
+      // a raw ~350 MB file can never be served to buyers. A lifecycle rule
+      // auto-expires objects after ~14 days (set in the dashboard / via API).
+      "binding": "R2_INGEST",
+      "bucket_name": "run-apparel-viewer-ingest"
     }
   ],
+  // Producer binding: a raw upload enqueues a shrink job. The consumer + the
+  // Container that runs the asset pipeline live in the separate apps/shrink
+  // Worker (kept out of this OpenNext Worker, which cannot host a Durable
+  // Object / container class). Create the queue once: `wrangler queues create
+  // glb-shrink`.
+  "queues": {
+    "producers": [
+      {
+        "binding": "SHRINK_QUEUE",
+        "queue": "glb-shrink"
+      }
+    ]
+  },
   "vars": {
     // Public URL of this CMS worker (used to absolutise media URLs when R2 public access is not configured).
     "CMS_PUBLIC_URL": "https://cms.wear-run.help",
