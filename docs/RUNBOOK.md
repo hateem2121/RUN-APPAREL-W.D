@@ -34,6 +34,18 @@ curl -f https://cms.wear-run.help/api/health
 
 Requires Cloudflare auth (`wrangler login` or `CLOUDFLARE_API_TOKEN`).
 
+**The shrink service deploys separately.** `.github/workflows/deploy-shrink.yml`
+builds and deploys `run-apparel-viewer-shrink` (Worker + Container) and is *not*
+part of `ci.yml` — a green CI run says nothing about it.
+
+> ⛔ **It has never deployed successfully** (verified 2026-07-27: 2 runs, 2
+> failures). The Worker uploads, then the container image push is refused with
+> `ApiError: Forbidden` because the deploy token lacks container/image-push
+> permission — step 6 of the go-live checklist. Until that is granted, the
+> raw-upload auto-shrink pipeline is **not operational** and garments must be
+> shrunk by hand (README §3). Full diagnosis and the checklist state:
+> [RAW-UPLOAD-PIPELINE.md](RAW-UPLOAD-PIPELINE.md).
+
 ## Deploy safety gate
 
 The `deploy` job runs in the **`production`** GitHub Environment. To make every

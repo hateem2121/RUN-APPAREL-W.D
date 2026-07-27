@@ -4,6 +4,48 @@
 small, correct GLB you review and publish — the heavy shrinking runs on a
 Cloudflare Container, and a raw file can never reach customers.
 
+> ## ⛔ NOT LIVE YET — go-live checklist is incomplete (verified 2026-07-27)
+>
+> **Do not rely on this pipeline. Keep shrinking garments by hand** with
+> `pnpm pipeline merge ... --simplify --meshopt` (README §3) until this banner is
+> removed.
+>
+> `.github/workflows/deploy-shrink.yml` has run **twice and failed both times** —
+> `3107787` (2026-07-24, the commit that added the feature) and `dd7ada6`
+> (2026-07-27). It has never once succeeded.
+>
+> **Where it breaks:** `wrangler deploy` uploads the Worker fine ("Uploaded
+> run-apparel-viewer-shrink", 56.99 KiB), then starts `Building image
+> run-apparel-viewer-shrink-shrinkcontainer` and the push to Cloudflare's registry
+> is rejected with `ApiError: Forbidden` / `body: { error: 'Authentication error' }`.
+>
+> **So the deploy is half-applied.** The Worker `run-apparel-viewer-shrink` exists
+> in the account (created 2026-07-24, re-touched on each failed run) but **its
+> container image was never pushed**. Expect a queued job to find no image, retry
+> twice, and land in `glb-shrink-dlq` — i.e. raw uploads silently never shrink.
+>
+> **Cause: step 6 of the go-live checklist below was never done.** That step
+> already predicted this ("Expand it if container deploy is denied"). Confirmed
+> state of the checklist:
+>
+> | Step | State |
+> |---|---|
+> | 1 — ingest bucket | ✅ `run-apparel-viewer-ingest` exists (2026-07-24) |
+> | 3 — `R2_INGEST_S3_ENDPOINT` | ✅ filled in (visible in the deploy log) |
+> | 5 — shrink worker secrets | ⚠️ deploy log lists only env vars, **no secrets** — likely not set |
+> | 6 — token container permission | ❌ **not done** — this is what fails the deploy |
+> | 2, 4, 8 — queues, robot user, smoke test | ❓ unverified |
+>
+> Steps 5 and 6 both require handling credentials, so they must be done by the
+> account owner — they are not a code change, and no edit to
+> `apps/shrink/wrangler.jsonc` will fix them. Cloudflare's public docs do not name
+> the Containers permission group explicitly; use the dashboard's token editor
+> (My Profile → API Tokens → the deploy token → Edit) and grant container/image
+> push, then re-run: `gh workflow run deploy-shrink.yml --ref main`.
+>
+> Diagnose from the CLI with `pnpm --filter @run-apparel/shrink exec wrangler containers list`
+> (fails on a token missing the permission; lists deployment status once granted).
+
 This documents the flow, how to use it, how to turn it on (go-live), and how to
 recover when something goes wrong. See also
 [HARDENING-LOG.md](HARDENING-LOG.md) (the *why*) and
@@ -139,6 +181,10 @@ lifecycle-expire).
 
 - **Status stuck on Queued** → the shrink worker/queue isn't deployed or the
   `SHRINK_QUEUE` binding is missing. Check `wrangler tail run-apparel-viewer-shrink`.
+  **As of 2026-07-27 this is the expected state** — the container image has never
+  been pushed, so every job stalls then dead-letters. See the ⛔ banner at the top
+  of this file before debugging further; it is a token-permission problem, not a
+  code or binding problem.
 - **Failed: "still over the 40 MB limit"** → the shrunk file is too big; lower the
   simplify ratio (edit `--simplify 0.05` → `0.03` in `apps/shrink/container/server.ts`)
   and redeploy, or re-export a lighter mesh.
