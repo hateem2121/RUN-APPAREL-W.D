@@ -99,7 +99,7 @@ omitting `project` fails with a validation error, not a useful message.
 
 ### Scope note
 
-This is a **small** repository (~9.5k lines across 93 TypeScript files), and an
+This is a **small** repository (~8.3k lines across 93 TypeScript files), and an
 agent can read it directly without help. The graph earns its keep mainly on
 impact analysis ("what touches `buildVariantId`?") rather than on context saving.
 Keep an eye on whether it actually gets used. To remove it: delete `.mcp.json`,

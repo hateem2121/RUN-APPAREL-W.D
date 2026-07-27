@@ -164,7 +164,7 @@ A red build never deploys. Operational playbooks live in
 
 ```bash
 pnpm install
-pnpm typecheck && pnpm test && pnpm build   # all workspaces (82 unit tests)
+pnpm typecheck && pnpm test && pnpm build   # all workspaces (120 unit tests)
 
 pnpm seed:assets   # placeholder GLBs/posters + merged N001 file
 pnpm dev:cms       # Payload admin on http://localhost:3000 (local D1/R2 emulation)
