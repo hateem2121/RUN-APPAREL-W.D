@@ -126,6 +126,13 @@ jobs:
           # (e.g. the CMS workers.dev URL to bypass zone-level Bot Fight Mode).
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}
           VITE_CF_BEACON_TOKEN: ${{ vars.VITE_CF_BEACON_TOKEN }}
+          # Optional Sentry (free tier). Unset by default — apps/viewer/src/lib/sentry.ts
+          # no-ops and Vite dead-code-eliminates @sentry/browser, so this costs nothing
+          # until a DSN exists. Without these two lines the DSN could never reach the
+          # build, so RUNBOOK's "set the VITE_SENTRY_DSN build variable" was unactionable.
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
+          # Tags each Sentry issue with the commit that produced it.
+          VITE_SENTRY_RELEASE: ${{ github.sha }}
         run: pnpm --filter @run-apparel/viewer build
 
       # Viewer deploy target is selectable via the VIEWER_DEPLOY_TARGET repo
