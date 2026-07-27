@@ -32,6 +32,24 @@ Cloudflare Container, and a raw file can never reach customers.
 > deploy automatically**. Until the token is fixed, redeploy from a logged-in
 > machine: `pnpm --filter @run-apparel/shrink exec wrangler deploy`.
 >
+> **A change to `tools/asset-pipeline` also needs this redeploy.** The container
+> runs the pipeline *source* copied into its image (see `apps/shrink/Dockerfile`),
+> so a pipeline fix that is merged and deployed to the CMS is still **not** in the
+> auto-shrinker until the image is rebuilt. This bit us on 2026-07-27: the
+> logo-tearing `--simplify` fix shipped to `main` while the container kept running
+> the 2026-07-24 image. Check with `wrangler containers info <id>` — compare
+> `created_at` against the commit date.
+>
+> Requirements for that manual redeploy, in order of how often they surprise you:
+> 1. **Docker must be running.** `wrangler deploy` builds the image locally; with
+>    the daemon down it fails with a "Docker is not installed / not running" hint
+>    rather than anything about containers.
+> 2. **The image must be `linux/amd64`.** On an Apple-silicon Mac Docker emulates
+>    it, which makes the build slow (several minutes — `sharp` compiles from
+>    source). CI runners are amd64 natively and do not pay this cost.
+> 3. The local wrangler login needs `containers`/`cloudchamber` write scope. The
+>    interactive OAuth login has it; the CI token is exactly what does not.
+>
 > ### The upload bug that blocked the first two attempts — FIXED 2026-07-27
 >
 > Every upload over 50 MB failed **after all chunks had already transferred**,
