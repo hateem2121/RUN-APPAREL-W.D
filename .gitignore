@@ -25,6 +25,9 @@ playwright-report/
 test-results/
 .lighthouseci/
 
+# codebase-memory-mcp index artifact (machine-local, rebuildable — see docs/AI-TOOLING.md)
+.codebase-memory/
+
 # misc
 .DS_Store
 *.log

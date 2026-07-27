@@ -21,7 +21,7 @@ development reference for partners, not a retail page.**
 | `apps/cms` | Payload CMS — private admin + public read-only API (Cloudflare Workers, `cms.wear-run.help`) |
 | `packages/shared` | Shared types and helpers used by both |
 | `tools/asset-pipeline` | The GLB processing tool (merge colourways, validate, placeholders) |
-| `docs/` | `CLOUDFLARE-SETUP.md` (one-time setup) · `QA-CHECKLIST.md` (before every launch) |
+| `docs/` | `CLOUDFLARE-SETUP.md` (one-time setup) · `QA-CHECKLIST.md` (before every launch) · `AI-TOOLING.md` (agent tooling) |
 
 First-time deployment: follow **`docs/CLOUDFLARE-SETUP.md`** once, top to bottom.
 
