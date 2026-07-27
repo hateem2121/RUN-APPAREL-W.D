@@ -348,9 +348,10 @@ browser solves any challenge automatically).
 
 ## Viewer: Pages → Worker cutover
 
-The viewer can deploy either to Cloudflare **Pages** (current default) or to a
-**Worker with Static Assets** (`apps/viewer/wrangler.jsonc`, Cloudflare's 2026
-recommended static platform).
+The viewer can deploy either to a **Worker with Static Assets**
+(`apps/viewer/wrangler.jsonc`, Cloudflare's 2026 recommended static platform —
+**the current target**, `VIEWER_DEPLOY_TARGET=worker`) or to Cloudflare **Pages**
+(kept only as the rollback path documented at the end of this section).
 
 > **Status: ✅ CUT OVER COMPLETE (2026-07-22).** The Worker
 > **`run-apparel-viewer-site`** serves `viewer.wear-run.help` (custom domain

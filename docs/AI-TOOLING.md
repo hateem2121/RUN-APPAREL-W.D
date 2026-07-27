@@ -38,6 +38,15 @@ npm install -g codebase-memory-mcp@0.9.0
 codebase-memory-mcp --version   # expect: codebase-memory-mcp 0.9.0
 ```
 
+Upstream also ships a one-line installer that fetches the same pinned binary
+straight from GitHub Releases into `~/.local/bin` (SHA-256 verified), skipping
+the npm wrapper — equivalent for our purposes, since `.mcp.json` only needs the
+binary on `PATH`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DeusData/codebase-memory-mcp/main/install.sh | bash
+```
+
 **This is a ~270 MB download.** The npm package is a thin wrapper whose
 `postinstall` pulls a platform-specific static binary from GitHub Releases, and
 on a cold cache that takes minutes, not seconds.
@@ -108,7 +117,12 @@ than quoted from upstream:
   `search_code`, `query_graph`, `trace_path`, `get_code_snippet`,
   `get_architecture`, `get_graph_schema`. Upstream advertises 14–15; the rest
   (`list_projects`, `index_status`, `detect_changes`, `manage_adr`, …) are
-  available through the `cli` subcommand but are not in the startup tool list
+  available through the `cli` subcommand but are not in the startup tool list.
+  Re-verified 2026-07-27: the server reports `capabilities.tools.listChanged:
+  false` and the list is still 8 on a second `tools/list` after settling, so it
+  never expands. Some agent clients wrap the `cli` subcommand and *surface* the
+  extra tools anyway — if your client shows ~14, that is the client, not this
+  registration, and the 8 above is still what `.mcp.json` yields
 - Full index of this repo: **~0.7s**, 1,536 nodes / 2,306 edges
 - Warm query: **~0.07s**
 

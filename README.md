@@ -17,7 +17,7 @@ development reference for partners, not a retail page.**
 
 | Folder | What it is |
 |---|---|
-| `apps/viewer` | The public viewer site (Cloudflare Pages, `viewer.wear-run.help`) |
+| `apps/viewer` | The public viewer site (Cloudflare Worker + Static Assets, `viewer.wear-run.help`) |
 | `apps/cms` | Payload CMS — private admin + public read-only API (Cloudflare Workers, `cms.wear-run.help`) |
 | `packages/shared` | Shared types and helpers used by both |
 | `tools/asset-pipeline` | The GLB processing tool (merge colourways, validate, placeholders) |
@@ -133,8 +133,11 @@ catalogue and contact links. The public API only ever exposes published data.
 
 ### 9. Custom domain for the viewer
 
-One-time step: in Cloudflare Pages → the viewer project → *Custom domains* →
-add `viewer.wear-run.help`. Full walkthrough in `docs/CLOUDFLARE-SETUP.md` §6.
+One-time step: in Cloudflare dashboard → Workers & Pages → the
+`run-apparel-viewer-site` **Worker** → *Settings → Domains & Routes* → add
+`viewer.wear-run.help`. Full walkthrough in `docs/RUNBOOK.md` →
+"Viewer: Pages → Worker cutover". (`docs/CLOUDFLARE-SETUP.md` §6 describes the
+old Pages route and is kept only as historical reference.)
 
 ### 10. Before you announce anything
 
