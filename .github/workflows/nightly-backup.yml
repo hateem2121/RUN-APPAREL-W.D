@@ -14,9 +14,9 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -24,7 +24,7 @@ jobs:
 
       - name: Export D1
         run: node scripts/backup-d1.mjs --stamp="$(date -u +%Y-%m-%d)"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: d1-backup-${{ github.run_id }}
           path: backups/d1/*.sql
@@ -41,7 +41,7 @@ jobs:
           else
             echo "Not Monday — skipping weekly R2 mirror."
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ hashFiles('backups/r2/**') != '' }}
         with:
           name: r2-backup-${{ github.run_id }}
