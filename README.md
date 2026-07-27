@@ -196,10 +196,21 @@ Dependencies are pinned to the latest stable releases. Deliberate exceptions:
   (`pnpm-workspace.yaml` → `minimumReleaseAge: 1440`, i.e. 24h, with the trusted
   fast-moving build toolchain excluded), so the pin is a deliberate,
   version-controlled choice rather than an artefact of a machine-global config.
-  Moving to pnpm 11 is a safe, isolated follow-up when desired — the policy
-  travels with the repo either way. `--frozen-lockfile` installs (CI/deploy) are
-  never affected; if a `pnpm add`/update is ever blocked by a too-fresh version,
-  wait out the cooldown or add that package to `minimumReleaseAgeExclude`.
+  `--frozen-lockfile` installs (CI/deploy) are never affected; if a
+  `pnpm add`/update is ever blocked by a too-fresh version, wait out the cooldown
+  or add that package to `minimumReleaseAgeExclude`.
+
+  > **Correction (2026-07-27):** this section previously called moving to pnpm 11
+  > "a safe, isolated follow-up". **It is not.** pnpm 11 no longer reads the
+  > `pnpm` field in `package.json` and silently ignores it, warning only once:
+  > `The "pnpm" field in package.json is no longer read by pnpm.` That field
+  > currently carries `overrides` (the `sharp` de-duplication pin),
+  > `onlyBuiltDependencies`, **and `patchedDependencies` — the load-bearing
+  > `@payloadcms/storage-r2` patch.** Upgrading without first migrating all three
+  > into `pnpm-workspace.yaml` would silently un-apply the patch and drop the
+  > version pins. The upgrade also purges `node_modules` (store-layout change),
+  > so it needs `CI=true` or `confirmModulesPurge=false` to run non-interactively.
+  > Treat pnpm 11 as its own change with a full re-verify, not a version bump.
 
 `sharp` is de-duplicated to a single version via a `pnpm.overrides` pin (it is a
 build-time/optional dependency — image transforms are unavailable on Workers, so
