@@ -1,5 +1,5 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare'
-import type { CollectionConfig } from 'payload'
+import { APIError, type CollectionConfig } from 'payload'
 import { isAdmin, isAdminOrEditor } from '../access/roles'
 import { checkRawUpload } from './rawRules'
 
@@ -124,11 +124,18 @@ export const RawUploads: CollectionConfig = {
         req.payload.logger.error(
           `Raw upload rejected: "${key}" is not in the ingest bucket after the client upload completed.`,
         )
-        throw new Error(
+        // MUST be an APIError with an explicit status. A plain `new Error()`
+        // thrown from a hook is caught by Payload's generic handler and shown to
+        // the operator as the useless "Something went wrong." — which is exactly
+        // what happened on the first live test of this guard, costing a whole
+        // diagnostic round-trip. APIError's message is surfaced verbatim.
+        throw new APIError(
           'Your file did not finish uploading, so there is nothing to shrink. ' +
             'Nothing was saved. Please try again — keep this tab open and in the ' +
             'foreground until it finishes, and stay on the same network. ' +
-            'If it keeps failing, tell your developer: the file never reached the ingest bucket.',
+            `(Technical detail for your developer: the object "${key}" is not in the ` +
+            'ingest bucket after the client upload reported success.)',
+          400,
         )
       },
     ],
