@@ -59,10 +59,24 @@ export interface OptimizeOptions {
    * can collapse shared edges; run before geometry compression.
    */
   simplify?: number
+
+  /**
+   * Error budget for `--simplify`, as a fraction of mesh radius. The simplifier
+   * stops before reaching the target ratio rather than exceed this, so a smaller
+   * value protects printed graphics (which distort when the UVs beneath them are
+   * smeared) at the cost of a larger file. Defaults to the glTF-Transform
+   * default; raise it only when fidelity genuinely does not matter.
+   */
+  simplifyError?: number
 }
 
 export const DEFAULT_MAX_TEXTURE = 2048
 export const DEFAULT_TEXTURE_QUALITY = 82
+/**
+ * glTF-Transform's own default (0.01% of mesh radius). We previously hard-coded
+ * 0.001 here, which is 10x looser and visibly tore printed logos apart.
+ */
+export const DEFAULT_SIMPLIFY_ERROR = 0.0001
 
 /**
  * Node image decoder for the KTX2 encoder: sharp turns the source PNG/JPEG into
@@ -183,7 +197,23 @@ export async function buildOptimizeTransforms(options: OptimizeOptions): Promise
     await MeshoptSimplifier.ready
     transforms.push(
       weld(),
-      simplify({ simplifier: MeshoptSimplifier, ratio: options.simplify, error: 0.001 }),
+      simplify({
+        simplifier: MeshoptSimplifier,
+        ratio: options.simplify,
+        // Error budget as a fraction of mesh radius. This previously ran at
+        // 0.001 — TEN TIMES the library default — which let the simplifier
+        // distort geometry badly in order to hit an aggressive ratio. On a real
+        // garment that showed up as printed logos and graphics breaking apart:
+        // the artwork is a texture, and smearing the UVs underneath it tears the
+        // image. `ratio` is a TARGET, not a guarantee — the simplifier stops
+        // early once it would exceed this error, so a tighter budget trades file
+        // size for fidelity rather than silently wrecking the artwork.
+        error: options.simplifyError ?? DEFAULT_SIMPLIFY_ERROR,
+        // Preserve topological borders. UV islands (the seams bounding each
+        // printed graphic) are borders, and letting them collapse is what makes
+        // logos bleed into neighbouring surfaces.
+        lockBorder: true,
+      }),
     )
   }
 
@@ -291,6 +321,7 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
   // Solid fabric is the safe default for apparel; sheer garments opt out.
   let opaque = true
   let simplify: number | undefined
+  let simplifyError: number | undefined
 
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]!
@@ -303,10 +334,15 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
     else if (arg === '--max-texture') maxTextureSize = Number(rest[++i] ?? DEFAULT_MAX_TEXTURE)
     else if (arg === '--quality') textureQuality = Number(rest[++i] ?? DEFAULT_TEXTURE_QUALITY)
     else if (arg === '--simplify') simplify = Number(rest[++i])
+    else if (arg === '--simplify-error') simplifyError = Number(rest[++i])
     else if (arg === '--opaque') opaque = true
     else if (arg === '--no-opaque' || arg === '--keep-transparency') opaque = false
     else if (!arg.startsWith('--')) input = arg
   }
 
-  return { input, out, options: { texture, geometry, maxTextureSize, textureQuality, opaque, simplify } }
+  return {
+    input,
+    out,
+    options: { texture, geometry, maxTextureSize, textureQuality, opaque, simplify, simplifyError },
+  }
 }

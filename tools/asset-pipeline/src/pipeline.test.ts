@@ -7,7 +7,7 @@ import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createIO } from './io'
 import { mergeVariants, parseMergeArgs } from './merge-variants'
-import { optimizeGlb, parseOptimizeArgs, solidifyMaterials } from './optimize'
+import { DEFAULT_SIMPLIFY_ERROR, optimizeGlb, parseOptimizeArgs, solidifyMaterials } from './optimize'
 import {
   PLACEHOLDER_COLOURWAYS,
   buildPlaceholderTee,
@@ -442,6 +442,23 @@ describe('parseOptimizeArgs (CLI contract)', () => {
     expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb']).options.simplify).toBeUndefined()
     expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb', '--simplify', '0.05']).options.simplify).toBe(0.05)
     expect(parseMergeArgs(['--simplify', '0.1', 'a.glb=N001-A']).options.simplify).toBe(0.1)
+  })
+
+  // Regression: --simplify originally ran with a hard-coded error budget of
+  // 0.001 — 10x the glTF-Transform default — and without lockBorder. On a real
+  // garment that visibly tore printed logos apart, because the artwork is a
+  // texture and the UV islands under it were free to collapse. Keep the default
+  // conservative; --simplify-error is the deliberate opt-out.
+  it('defaults the simplify error budget to the conservative value', () => {
+    expect(DEFAULT_SIMPLIFY_ERROR).toBe(0.0001)
+    expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb']).options.simplifyError).toBeUndefined()
+  })
+
+  it('parses --simplify-error <ratio> for the rare case fidelity does not matter', () => {
+    expect(
+      parseOptimizeArgs(['in.glb', '--out', 'o.glb', '--simplify-error', '0.001']).options
+        .simplifyError,
+    ).toBe(0.001)
   })
 })
 
