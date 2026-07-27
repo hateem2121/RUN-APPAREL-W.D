@@ -11,6 +11,13 @@ const ALLOWED_MIME_TYPES = [
   // Browsers frequently upload .glb as a generic binary stream; a hook below
   // verifies the extension for these.
   'application/octet-stream',
+  // Extension, not a MIME type — deliberate. @payloadcms/ui builds the file
+  // input's `accept` attribute by joining this array verbatim, and macOS has no
+  // UTI for model/gltf-binary, so without a literal '.glb' the picker greys out
+  // GLB files and they cannot be selected at all. Payload's `validateMimeType`
+  // compares with `startsWith`, so this entry can never match a real MIME type —
+  // it is inert for validation and only fixes the picker.
+  '.glb',
 ]
 
 export const Media: CollectionConfig = {

@@ -4,47 +4,72 @@
 small, correct GLB you review and publish — the heavy shrinking runs on a
 Cloudflare Container, and a raw file can never reach customers.
 
-> ## ⛔ NOT LIVE YET — go-live checklist is incomplete (verified 2026-07-27)
+> ## ⚠️ DEPLOYED BUT NEVER SMOKE-TESTED (verified against the live account 2026-07-27)
 >
-> **Do not rely on this pipeline. Keep shrinking garments by hand** with
-> `pnpm pipeline merge ... --simplify --meshopt` (README §3) until this banner is
-> removed.
+> **Correction.** An earlier version of this banner said the pipeline was not
+> live because its container image had never been pushed. **That was wrong.**
+> The infrastructure is fully in place — it was completed by hand on 2026-07-24,
+> after (and despite) the CI workflow failing. Measured directly against the
+> Cloudflare account on 2026-07-27:
 >
-> `.github/workflows/deploy-shrink.yml` has run **twice and failed both times** —
-> `3107787` (2026-07-24, the commit that added the feature) and `dd7ada6`
-> (2026-07-27). It has never once succeeded.
+> | Step | State | Evidence |
+> |---|---|---|
+> | 1 — ingest bucket | ✅ | `run-apparel-viewer-ingest`, created 2026-07-24 |
+> | 2 — queues | ✅ | `glb-shrink` (1 producer, 1 consumer) + `glb-shrink-dlq` |
+> | 3 — `R2_INGEST_S3_ENDPOINT` | ✅ | set in `wrangler.jsonc` |
+> | 4 — robot user | ✅ | `robot@wear-run.help`, editor, API key enabled |
+> | 5 — shrink worker secrets | ✅ | all three set on the worker |
+> | 6 — container image | ✅ | `version 1`, pushed 2026-07-24T10:35Z, **`ready`, 1 healthy instance, 0 errors** |
+> | 8 — smoke test | ❌ | **`raw_uploads` is empty — never once exercised** |
 >
-> **Where it breaks:** `wrangler deploy` uploads the Worker fine ("Uploaded
-> run-apparel-viewer-shrink", 56.99 KiB), then starts `Building image
-> run-apparel-viewer-shrink-shrinkcontainer` and the push to Cloudflare's registry
-> is rejected with `ApiError: Forbidden` / `body: { error: 'Authentication error' }`.
+> The deployed image is current: `apps/shrink` has exactly one commit
+> (`3107787`), unchanged since the image was built.
 >
-> **So the deploy is half-applied.** The Worker `run-apparel-viewer-shrink` exists
-> in the account (created 2026-07-24, re-touched on each failed run) but **its
-> container image was never pushed**. Expect a queued job to find no image, retry
-> twice, and land in `glb-shrink-dlq` — i.e. raw uploads silently never shrink.
+> **What is still genuinely broken:** `.github/workflows/deploy-shrink.yml` fails
+> (`ApiError: Forbidden` on the registry push) because the *CI* API token lacks
+> container/image-push permission. This does **not** affect the running
+> pipeline — it only means **future code changes to `apps/shrink` will not
+> deploy automatically**. Until the token is fixed, redeploy from a logged-in
+> machine: `pnpm --filter @run-apparel/shrink exec wrangler deploy`.
 >
-> **Cause: step 6 of the go-live checklist below was never done.** That step
-> already predicted this ("Expand it if container deploy is denied"). Confirmed
-> state of the checklist:
+> ### The upload bug that blocked the first two attempts — FIXED 2026-07-27
 >
-> | Step | State |
-> |---|---|
-> | 1 — ingest bucket | ✅ `run-apparel-viewer-ingest` exists (2026-07-24) |
-> | 3 — `R2_INGEST_S3_ENDPOINT` | ✅ filled in (visible in the deploy log) |
-> | 5 — shrink worker secrets | ⚠️ deploy log lists only env vars, **no secrets** — likely not set |
-> | 6 — token container permission | ❌ **not done** — this is what fails the deploy |
-> | 2, 4, 8 — queues, robot user, smoke test | ❓ unverified |
+> Every upload over 50 MB failed **after all chunks had already transferred**,
+> with `File type text/plain (from extension glb) is not allowed.` Verified chain
+> through payload 3.86.0 / @payloadcms/storage-r2 3.86.0 (both `latest`):
 >
-> Steps 5 and 6 both require handling credentials, so they must be done by the
-> account owner — they are not a code change, and no edit to
-> `apps/shrink/wrangler.jsonc` will fix them. Cloudflare's public docs do not name
-> the Containers permission group explicitly; use the dashboard's token editor
-> (My Profile → API Tokens → the deploy token → Edit) and grant container/image
-> push, then re-run: `gh workflow run deploy-shrink.yml --ref main`.
+> 1. `storage-r2/dist/getFile.js` deliberately returns an **empty body** when
+>    `fileSize > 50MB && clientUploadContext` ("or the Worker will run out of memory").
+> 2. `payload/dist/utilities/addDataAndFileToRequest.js` builds `req.file.data`
+>    from that response → **0 bytes**.
+> 3. `payload/dist/uploads/checkFileRestrictions.js` runs *only because
+>    `mimeTypes` was set*; `fileTypeFromBuffer(empty)` → `undefined`, so it falls
+>    back to `getFileTypeFallback()`, whose extension map has **no `glb` entry**
+>    → it guesses `text/plain`.
+> 4. `validateMimeType('text/plain', […])` → false → `ValidationError`.
 >
-> Diagnose from the CLI with `pnpm --filter @run-apparel/shrink exec wrangler containers list`
-> (fails on a token missing the permission; lists deployment status once granted).
+> `file-type` *does* recognise GLB, which is why files **under** 50 MB always
+> worked and larger ones never did.
+>
+> **Fix:** `mimeTypes` removed from the RawUploads collection (an empty allow-list
+> short-circuits `validateMimeType` to `true` and stops the field-level validator
+> being attached at all), plus `allowRestrictedFileTypes: true`. File-type safety
+> is unchanged — `checkRawUpload()` in `rawRules.ts` was always the real gate.
+> Guarded by `apps/cms/src/collections/uploadConfig.test.ts`; **do not reinstate
+> `mimeTypes` on this collection.** A second, independent bug — macOS greying out
+> `.glb` in the file picker because `@payloadcms/ui` joins `mimeTypes` verbatim
+> into `accept` — is fixed by listing the literal `'.glb'` in Media's array.
+>
+> Upstream has related GLB mimetype issues (payloadcms/payload#7408, #12620,
+> #8673, #12905) but not this >50 MB path — worth filing so the workaround can
+> eventually be dropped.
+>
+> **Before relying on it, run the step-8 smoke test below.** Everything is wired,
+> but nothing has ever flowed through it end to end, so the first real upload is
+> also the first test. Keep the manual recipe
+> (`pnpm pipeline merge ... --simplify --meshopt`, README §3) as the fallback.
+>
+> Diagnose from the CLI with `pnpm --filter @run-apparel/shrink exec wrangler containers list`.
 
 This documents the flow, how to use it, how to turn it on (go-live), and how to
 recover when something goes wrong. See also
@@ -125,6 +150,54 @@ existing 40 MB guardrail applies.
    Add a lifecycle rule to auto-expire raw objects (~14 days) and clean incomplete
    multipart uploads (dashboard → R2 → the bucket → Settings → Object lifecycle).
    **Do not** add a custom domain or public access to this bucket.
+
+   ⚠️ **Verify the ~14-day expiry rule actually exists.** As of 2026-07-27 the
+   bucket carried only R2's default "abort incomplete multipart uploads after 7
+   days" rule, which does **not** delete completed objects — so raw ~350 MB
+   exports accumulate and bill indefinitely. Check with
+   `wrangler r2 bucket lifecycle list run-apparel-viewer-ingest`.
+
+1b. **Optional: the ingest bucket's CORS policy.**
+
+   > **Correction (2026-07-27).** An earlier version of this step claimed CORS was
+   > required and that a missing policy was what broke the first real upload
+   > attempt. **Both claims were wrong.** `clientUploads` does *not* upload
+   > directly to R2: `@payloadcms/storage-r2/dist/client/R2ClientUploadHandler.js`
+   > POSTs each 5 MB chunk to the **CMS Worker** at
+   > `{serverURL}{apiRoute}/storage-r2-multi-part-upload`, which then writes via
+   > the R2 *binding*. That is same-origin with the admin panel, so bucket CORS is
+   > never consulted on this path. The real cause was a Payload validation bug —
+   > see the ⚠️ banner at the top of this document.
+
+   A CORS policy is set on `run-apparel-viewer-ingest` anyway. It is harmless,
+   and it becomes necessary only if this project ever moves to true presigned
+   direct-to-R2 uploads. If you do that, note two traps: R2 expects its own
+   `{"rules":[…]}` schema (**not** the S3 `AllowedOrigins` shape), and
+   `exposeHeaders: ["ETag"]` is mandatory or multipart uploads cannot complete.
+
+   ```bash
+   cat > /tmp/ingest-cors.json <<'JSON'
+   {
+     "rules": [
+       {
+         "allowed": {
+           "origins": ["https://cms.wear-run.help", "http://localhost:3000"],
+           "methods": ["GET", "PUT", "POST", "DELETE", "HEAD"],
+           "headers": ["*"]
+         },
+         "exposeHeaders": ["ETag", "Location"],
+         "maxAgeSeconds": 3600
+       }
+     ]
+   }
+   JSON
+   wrangler r2 bucket cors set run-apparel-viewer-ingest --file /tmp/ingest-cors.json
+   ```
+
+   `exposeHeaders: ETag` is **not optional** — multipart uploads need to read each
+   part's ETag to complete. Note R2 expects its own `{"rules":[…]}` schema, *not*
+   the S3 `AllowedOrigins` shape. Verify with a preflight: an allowed origin
+   returns `204` + `Access-Control-Allow-Origin`; any other origin returns `403`.
 
 2. **Create the queues:**
    ```bash

@@ -19,13 +19,6 @@ import { checkRawUpload } from './rawRules'
  * guardrail (mediaRules.ts) still applies.
  */
 
-const ALLOWED_MIME_TYPES = [
-  'model/gltf-binary',
-  // Browsers frequently upload .glb as a generic binary stream; the
-  // beforeValidate hook verifies the .glb extension for these.
-  'application/octet-stream',
-]
-
 /** Message shape enqueued for the shrink Container (see apps/shrink). */
 export interface ShrinkJobMessage {
   rawUploadId: number | string
@@ -51,7 +44,28 @@ export const RawUploads: CollectionConfig = {
     delete: isAdmin,
   },
   upload: {
-    mimeTypes: ALLOWED_MIME_TYPES,
+    // ⚠️ DO NOT ADD `mimeTypes` HERE. Setting it breaks every upload over 50 MB —
+    // i.e. exactly the raw CLO exports this inbox exists for. The chain (verified
+    // against payload 3.86.0 / @payloadcms/storage-r2 3.86.0, which are `latest`):
+    //   1. storage-r2 `getFile.js` deliberately returns an EMPTY body when
+    //      `fileSize > 50MB && clientUploadContext` ("or the Worker will run out
+    //      of memory"), and this collection uses clientUploads.
+    //   2. payload `addDataAndFileToRequest.js` builds `req.file.data` from that
+    //      response → a 0-byte buffer.
+    //   3. payload `checkFileRestrictions.js` runs ONLY when `mimeTypes` is set;
+    //      `fileTypeFromBuffer(empty)` → undefined, so it falls back to
+    //      `getFileTypeFallback()`, whose extensionMap has no `glb` entry → it
+    //      guesses `text/plain`.
+    //   4. `validateMimeType('text/plain', [...])` → false → the upload dies with
+    //      "File type text/plain (from extension glb) is not allowed." — AFTER
+    //      every chunk has already transferred.
+    // An empty allow-list makes `validateMimeType` short-circuit to true and stops
+    // the field-level `mimeTypeValidator` from being attached at all. It also drops
+    // the `accept` attribute, which is what greyed out .glb in the macOS picker.
+    // Upstream has related GLB mimetype bugs (payloadcms/payload#7408, #12620,
+    // #8673, #12905) but not this >50 MB path; re-test before reinstating.
+    // File-type safety is unaffected: checkRawUpload() below is the real gate.
+    allowRestrictedFileTypes: true,
     // No imageSizes: sharp-based processing is unavailable on Workers, and raw
     // GLBs are not images. disableLocalStorage is set by the r2Storage plugin.
   },
