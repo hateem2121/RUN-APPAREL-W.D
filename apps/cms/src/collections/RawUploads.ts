@@ -85,6 +85,53 @@ export const RawUploads: CollectionConfig = {
         return data
       },
     ],
+    beforeChange: [
+      /**
+       * Confirm the uploaded bytes actually reached the ingest bucket before we
+       * commit a document that claims they did.
+       *
+       * Payload does NOT do this itself. With `clientUploads` the browser puts
+       * the file in R2 first and the document is created afterwards from
+       * client-supplied metadata; `addDataAndFileToRequest` fetches the object
+       * back through the storage adapter's staticHandler, and a **404 there is
+       * treated as success** — the response is truthy, so `req.file.data`
+       * becomes an empty buffer and the create proceeds. The result is a record
+       * with a correct-looking name and size pointing at nothing, no error
+       * anywhere, and a shrink job that fails minutes later with an opaque
+       * "Could not read raw object ... (404)".
+       *
+       * That is exactly what happened on 2026-07-27 with a 382 MB export. The
+       * upload code itself is sound — the same file, same chunk loop and same
+       * document create were reproduced end-to-end against a local CMS and
+       * succeeded — so the realistic cause is an interrupted transfer. Fail it
+       * here, loudly and in plain language, instead of letting it through.
+       */
+      async ({ data, operation, req }) => {
+        if (operation !== 'create') return data
+        const filename = data?.filename as string | undefined
+        if (!filename) return data
+
+        const cf = await getCloudflareContext({ async: true }).catch(() => null)
+        const bucket = (cf?.env as { R2_INGEST?: R2Bucket } | undefined)?.R2_INGEST
+        // No binding (local dev without remote bindings) — nothing to verify.
+        if (!bucket) return data
+
+        const prefix = (data?.prefix as string | undefined) ?? ''
+        const key = prefix ? `${prefix}/${filename}` : filename
+        const head = await bucket.head(key).catch(() => null)
+        if (head) return data
+
+        req.payload.logger.error(
+          `Raw upload rejected: "${key}" is not in the ingest bucket after the client upload completed.`,
+        )
+        throw new Error(
+          'Your file did not finish uploading, so there is nothing to shrink. ' +
+            'Nothing was saved. Please try again — keep this tab open and in the ' +
+            'foreground until it finishes, and stay on the same network. ' +
+            'If it keeps failing, tell your developer: the file never reached the ingest bucket.',
+        )
+      },
+    ],
     afterChange: [
       // On upload (create), enqueue a shrink job. Guarded so it no-ops cleanly
       // when the queue binding is absent (e.g. Phase 1 before the queue exists,
