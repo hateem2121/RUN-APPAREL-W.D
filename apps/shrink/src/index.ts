@@ -1,4 +1,12 @@
 import { Container, getContainer } from '@cloudflare/containers'
+import {
+  DEFAULT_SHRINK_DETAIL,
+  GLB_HARD_MAX_BYTES,
+  type ShrinkJobMessage,
+  formatMb,
+  nextDetailAdvice,
+  shrinkFlagsFor,
+} from '@run-apparel/shared'
 
 /**
  * Shrink service Worker.
@@ -25,13 +33,6 @@ interface Env {
   R2_INGEST_SECRET_ACCESS_KEY: string
 }
 
-/** Must match ShrinkJobMessage in apps/cms/src/collections/RawUploads.ts. */
-interface ShrinkJobMessage {
-  rawUploadId: number | string
-  filename: string
-  prefix: string | null
-}
-
 /** JSON the container returns in the `x-shrink-report` header (base64). */
 interface ShrinkReport {
   ok: boolean
@@ -55,6 +56,17 @@ export class ShrinkContainer extends Container<Env> {
   sleepAfter = '3m'
 }
 
+/**
+ * A failure that retrying cannot fix — the output was too big, the raw file is
+ * not usable, the CMS refused the document. Retrying these costs several minutes
+ * of `standard-4` container time each, three times over, for a guaranteed
+ * identical result; on a $5/month budget that matters. Transient failures
+ * (container 5xx, a dropped CMS call) still retry as before.
+ */
+class PermanentJobError extends Error {
+  readonly permanent = true
+}
+
 export default {
   async queue(batch: MessageBatch<ShrinkJobMessage>, env: Env): Promise<void> {
     for (const message of batch.messages) {
@@ -63,13 +75,20 @@ export default {
         message.ack()
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error)
-        // Record the failure on the raw-upload record so the owner sees why,
-        // then let the queue retry (and eventually dead-letter).
+        // Record the failure on the raw-upload record so the owner sees why.
         await patchRawUpload(env, message.body.rawUploadId, {
           status: 'failed',
           report: `Automatic shrink failed:\n${detail}`,
         }).catch(() => {})
-        message.retry()
+
+        if (error instanceof PermanentJobError) {
+          // The report already tells the owner what to change; a retry would
+          // only reproduce it. Ack so the job stops here instead of running the
+          // container twice more and then dead-lettering.
+          message.ack()
+        } else {
+          message.retry()
+        }
       }
     }
   },
@@ -79,9 +98,12 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   await patchRawUpload(env, job.rawUploadId, { status: 'processing' })
 
   const key = job.prefix ? `${job.prefix}/${job.filename}` : job.filename
+  const detail = job.detail ?? DEFAULT_SHRINK_DETAIL
 
   // 1. Drive the container: it pulls the raw from ingest (S3, read-only), runs
-  //    optimize --simplify + validate, and returns the small GLB + a report.
+  //    the pipeline with the flags for this job's detail level, and returns the
+  //    small GLB + a report. The flags are passed per job rather than baked into
+  //    the image, so re-tuning a garment does not need a container rebuild.
   const container = getContainer(env.SHRINK, String(job.rawUploadId))
   const containerRes = await container.fetch(
     new Request('http://shrink-container/shrink', {
@@ -89,6 +111,7 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         key,
+        flags: shrinkFlagsFor(detail),
         s3: {
           endpoint: env.R2_INGEST_S3_ENDPOINT,
           bucket: env.R2_INGEST_BUCKET,
@@ -105,17 +128,29 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   }
 
   const report = decodeReport(containerRes.headers.get('x-shrink-report'))
-  const glbBytes = new Uint8Array(await containerRes.arrayBuffer())
   if (!report || !report.ok) {
+    // Drain so the container connection is not left hanging.
+    await containerRes.body?.cancel().catch(() => {})
     throw new Error(report?.error ?? 'Container did not report a successful shrink.')
   }
 
-  // 2. Create the guardrailed Media doc from the SHRUNK output. The CMS media
-  //    rules still run — safe filename + < 40 MB — so a bad output is rejected
-  //    here rather than published.
-  const mediaId = await createMedia(env, glbBytes, report)
+  // 2. Pre-flight the size HERE, against the same constant the CMS enforces.
+  //    Without this the failure surfaces as a bare HTTP 400 from Payload with no
+  //    hint of which knob to turn — and the check is free, because the container
+  //    already measured the output.
+  if (report.sizeBytes > GLB_HARD_MAX_BYTES) {
+    await containerRes.body?.cancel().catch(() => {})
+    throw new PermanentJobError(
+      `The shrunk model is ${formatMb(report.sizeBytes)}, over the ${formatMb(GLB_HARD_MAX_BYTES)} limit for published media, so it was not saved. ${nextDetailAdvice(detail)}`,
+    )
+  }
 
-  // 3. Mark the raw upload ready for the owner to review + publish.
+  // 3. Create the guardrailed Media doc from the SHRUNK output. The CMS media
+  //    rules still run — safe filename + < 40 MB — so a bad output is rejected
+  //    there too rather than published.
+  const mediaId = await createMedia(env, containerRes, report)
+
+  // 4. Mark the raw upload ready for the owner to review + publish.
   await patchRawUpload(env, job.rawUploadId, {
     status: 'ready',
     resultGlb: mediaId,
@@ -123,25 +158,87 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   })
 }
 
+/**
+ * Build a `multipart/form-data` body that STREAMS the container's response
+ * straight through, instead of materialising it.
+ *
+ * The obvious `new File([await res.arrayBuffer()], …)` + `FormData` costs two
+ * full-size copies of the GLB on top of the original — 120–170 MB for a 40 MB
+ * model — inside a Worker isolate capped at 128 MB. Cloudflare's own guidance is
+ * explicit: use Streams to "avoid buffering large requests or responses in
+ * memory". Here the bytes are only ever in flight.
+ */
+function streamMultipart(
+  source: ReadableStream<Uint8Array>,
+  fields: { alt: string; filename: string; contentType: string },
+): { body: ReadableStream<Uint8Array>; contentType: string } {
+  const boundary = `----runapparel${crypto.randomUUID().replace(/-/g, '')}`
+  const encoder = new TextEncoder()
+  const preamble = encoder.encode(
+    `--${boundary}\r\nContent-Disposition: form-data; name="alt"\r\n\r\n${fields.alt}\r\n` +
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fields.filename}"\r\n` +
+      `Content-Type: ${fields.contentType}\r\n\r\n`,
+  )
+  const epilogue = encoder.encode(`\r\n--${boundary}--\r\n`)
+
+  const reader = source.getReader()
+  let phase: 'preamble' | 'body' | 'epilogue' = 'preamble'
+
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      if (phase === 'preamble') {
+        controller.enqueue(preamble)
+        phase = 'body'
+        return
+      }
+      if (phase === 'body') {
+        const { done, value } = await reader.read()
+        if (!done) {
+          controller.enqueue(value)
+          return
+        }
+        phase = 'epilogue'
+      }
+      controller.enqueue(epilogue)
+      controller.close()
+    },
+    cancel(reason) {
+      return reader.cancel(reason)
+    },
+  })
+
+  return { body, contentType: `multipart/form-data; boundary=${boundary}` }
+}
+
 /** POST the shrunk GLB to the CMS Media collection; returns the new media id. */
 async function createMedia(
   env: Env,
-  glbBytes: Uint8Array,
+  containerRes: Response,
   report: ShrinkReport,
 ): Promise<number | string> {
-  const form = new FormData()
-  form.append(
-    'file',
-    new File([glbBytes], report.suggestedFilename, { type: 'model/gltf-binary' }),
-  )
-  form.append('alt', `Auto-processed 3D model (${report.suggestedFilename})`)
+  if (!containerRes.body) throw new Error('Container returned no model data.')
 
-  const res = await cmsFetch(env, '/api/media', { method: 'POST', body: form })
+  const { body, contentType } = streamMultipart(containerRes.body, {
+    alt: `Auto-processed 3D model (${report.suggestedFilename})`,
+    filename: report.suggestedFilename,
+    contentType: 'model/gltf-binary',
+  })
+
+  // Deliberately no Content-Length: Payload accepts a streamed multipart body
+  // (`addDataAndFileToRequest` falls through on `hasBodyStream`), and a
+  // Content-Length that disagreed with the actual byte count by even one would
+  // hang the request instead of failing cleanly.
+  const res = await cmsFetch(env, '/api/media', {
+    method: 'POST',
+    headers: { 'content-type': contentType },
+    body,
+  })
   if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(
-      `CMS rejected the shrunk GLB (${res.status}). This usually means it is still over the 40 MB limit — lower the simplify ratio — or the filename was unsafe. Detail: ${body.slice(0, 400)}`,
-    )
+    const detail = await res.text().catch(() => '')
+    const message = `The CMS would not accept the shrunk model (${res.status}). The size was already checked, so this is most likely the filename. Detail: ${detail.slice(0, 400)}`
+    // A 4xx is the CMS's guardrails saying no — identical on every retry. A 5xx
+    // may well be transient, so let those run the normal retry path.
+    throw res.status < 500 ? new PermanentJobError(message) : new Error(message)
   }
   const created = (await res.json()) as { doc?: { id?: number | string } }
   const id = created?.doc?.id

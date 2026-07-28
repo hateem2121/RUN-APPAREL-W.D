@@ -195,7 +195,7 @@ export interface Media {
   focalY?: number | null;
 }
 /**
- * Upload your raw CLO export here — big files and messy names are fine. It is shrunk automatically. When Status shows “ready”, open the linked product to review the colours and Publish. These files are private and never shown to customers.
+ * Upload your raw CLO export here — big files and messy names are fine (give it a name ending in “.glb” so the records stay readable). It is shrunk automatically. When Status shows “ready”, open the linked product to review the colours and Publish. These files are private and never shown to customers.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "raw-uploads".
@@ -206,6 +206,10 @@ export interface RawUpload {
    * Which product this garment is for. Helps you find the result afterwards; you still attach and publish it yourself.
    */
   targetProduct?: (number | null) | Product;
+  /**
+   * How much detail to keep. Start with Balanced. If the printed graphics look soft or broken, re-upload on “Highest quality”. If it is rejected for being too big, re-upload on “Smallest file”.
+   */
+  detail?: ('balanced' | 'fidelity' | 'small') | null;
   /**
    * Set automatically. “Ready to review” means the shrunk GLB is waiting below.
    */
@@ -560,6 +564,7 @@ export interface MediaSelect<T extends boolean = true> {
  */
 export interface RawUploadsSelect<T extends boolean = true> {
   targetProduct?: T;
+  detail?: T;
   status?: T;
   resultGlb?: T;
   report?: T;

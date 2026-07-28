@@ -1,3 +1,4 @@
+import { APIError } from 'payload'
 import { describe, expect, it } from 'vitest'
 import { RAW_HARD_MAX_BYTES, type RawFileFacts, checkRawUpload } from './rawRules'
 
@@ -61,5 +62,65 @@ describe('checkRawUpload', () => {
     expect(() => checkRawUpload(facts({ filename: 'notes.txt', mimeType: '' }))).toThrow(
       /must be GLB/,
     )
+  })
+
+  // Every rejection must carry an explicit non-500 status. Payload's generic
+  // handler replaces anything else with "Something went wrong." — the dead end
+  // that cost a full diagnostic round-trip on the guard's first live test.
+  it('throws APIError(400) so the message reaches the operator verbatim', () => {
+    for (const bad of [
+      facts({ filename: 'velocity.zprj', mimeType: '' }),
+      facts({ filename: 'poster.png', mimeType: 'image/png' }),
+      facts({ filename: 'jacket?.glb' }),
+      facts({ filesize: RAW_HARD_MAX_BYTES + 1 }),
+    ]) {
+      try {
+        checkRawUpload(bad)
+        throw new Error(`expected a rejection for ${bad.filename}`)
+      } catch (error) {
+        expect(error).toBeInstanceOf(APIError)
+        expect((error as APIError).status).toBe(400)
+        expect((error as APIError).isPublic).toBe(true)
+      }
+    }
+  })
+
+  // Regression: the R2 object key is built from the raw file.name by
+  // `sanitizeFilename` (path + control chars only), but the document filename is
+  // built later by `sanitize-filename`, which ALSO strips  / ? < > \ : * |  "
+  // and trailing dots/spaces. A name containing one is stored under two
+  // different keys, so the beforeChange HEAD guard rejects a good upload with
+  // "your file did not finish uploading". Catch it here, where we can say why.
+  it.each(['jacket?.glb', 'jack*et.glb', 'a<b.glb', 'a>b.glb', 'a:b.glb', 'a|b.glb', 'a"b.glb'])(
+    'rejects %s, whose two sanitisers disagree',
+    (filename) => {
+      expect(() => checkRawUpload(facts({ filename }))).toThrow(/cannot store reliably/)
+    },
+  )
+
+  it('rejects a trailing dot or space, which sanitize-filename silently trims', () => {
+    expect(() => checkRawUpload(facts({ filename: 'cycling all colours.glb ' }))).toThrow(
+      /cannot store reliably/,
+    )
+  })
+
+  it('still allows the messy-but-safe CLO names this inbox exists for', () => {
+    for (const filename of [
+      'cycling uniform 2_Colorway 6.glb',
+      'WOMEN JACK (all colours).glb',
+      'n001 — navy.glb',
+    ]) {
+      expect(() => checkRawUpload(facts({ filename }))).not.toThrow()
+    }
+  })
+
+  // Observed live on media.id = 7 ("Maroon", mimeType image/png): macOS reports
+  // the type from the file's UTI, so a file with no extension validates fine and
+  // Payload then stores the name without one. Flag it, never block it.
+  it('reports a missing extension without rejecting the upload', () => {
+    expect(checkRawUpload(facts({ filename: 'cycling all colours' }))).toEqual({
+      missingExtension: true,
+    })
+    expect(checkRawUpload(facts({ filename: 'raw.glb' }))).toEqual({ missingExtension: false })
   })
 })

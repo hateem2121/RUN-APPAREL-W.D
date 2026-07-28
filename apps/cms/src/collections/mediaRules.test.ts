@@ -1,3 +1,5 @@
+import { GLB_HARD_MAX_BYTES as SHARED_GLB_HARD_MAX_BYTES } from '@run-apparel/shared'
+import { APIError } from 'payload'
 import { describe, expect, it } from 'vitest'
 import { GLB_HARD_MAX_BYTES, type MediaFileFacts, checkMediaUpload } from './mediaRules'
 
@@ -62,5 +64,33 @@ describe('checkMediaUpload', () => {
         filesize: GLB_HARD_MAX_BYTES + 1,
       })),
     ).toEqual({ sizeWarning: true })
+  })
+
+  // Payload's generic handler turns any error without a non-500 status into
+  // "Something went wrong." — useless to the operator, and exactly the trap that
+  // was closed in RawUploads.beforeChange but left open here until 2026-07-28.
+  it('throws APIError(400) so the message reaches the operator verbatim', () => {
+    for (const bad of [
+      facts({ filename: 'mystery.bin', mimeType: 'application/octet-stream' }),
+      facts({ filename: 'velocity.zprj', mimeType: '' }),
+      facts({ filename: 'WOMEN JACK_Colorway A.glb' }),
+      facts({ filesize: GLB_HARD_MAX_BYTES + 1 }),
+    ]) {
+      try {
+        checkMediaUpload(bad)
+        throw new Error(`expected a rejection for ${bad.filename}`)
+      } catch (error) {
+        expect(error).toBeInstanceOf(APIError)
+        expect((error as APIError).status).toBe(400)
+        expect((error as APIError).isPublic).toBe(true)
+      }
+    }
+  })
+
+  // The shrink Worker pre-flights the same number before it POSTs, so the two
+  // must be one constant. If this import ever stops resolving to the shared
+  // package, the Worker and the CMS can drift apart silently.
+  it('uses the shared ceiling, not a local copy', () => {
+    expect(GLB_HARD_MAX_BYTES).toBe(SHARED_GLB_HARD_MAX_BYTES)
   })
 })

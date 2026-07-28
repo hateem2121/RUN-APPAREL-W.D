@@ -1,4 +1,10 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare'
+import {
+  DEFAULT_SHRINK_DETAIL,
+  SHRINK_DETAIL_LEVELS,
+  type ShrinkDetailLevel,
+  type ShrinkJobMessage,
+} from '@run-apparel/shared'
 import { APIError, type CollectionConfig } from 'payload'
 import { isAdmin, isAdminOrEditor } from '../access/roles'
 import { checkRawUpload } from './rawRules'
@@ -19,21 +25,14 @@ import { checkRawUpload } from './rawRules'
  * guardrail (mediaRules.ts) still applies.
  */
 
-/** Message shape enqueued for the shrink Container (see apps/shrink). */
-export interface ShrinkJobMessage {
-  rawUploadId: number | string
-  filename: string
-  prefix: string | null
-}
-
 export const RawUploads: CollectionConfig = {
   slug: 'raw-uploads',
   admin: {
     group: 'Content',
     useAsTitle: 'filename',
-    defaultColumns: ['filename', 'status', 'targetProduct', 'resultGlb'],
+    defaultColumns: ['filename', 'status', 'detail', 'targetProduct', 'resultGlb'],
     description:
-      'Upload your raw CLO export here — big files and messy names are fine. It is shrunk automatically. When Status shows “ready”, open the linked product to review the colours and Publish. These files are private and never shown to customers.',
+      'Upload your raw CLO export here — big files and messy names are fine (give it a name ending in “.glb” so the records stay readable). It is shrunk automatically. When Status shows “ready”, open the linked product to review the colours and Publish. These files are private and never shown to customers.',
   },
   access: {
     // PRIVATE: never public. Editors run the flow; the shrink robot updates via
@@ -65,22 +64,39 @@ export const RawUploads: CollectionConfig = {
     // Upstream has related GLB mimetype bugs (payloadcms/payload#7408, #12620,
     // #8673, #12905) but not this >50 MB path; re-test before reinstating.
     // File-type safety is unaffected: checkRawUpload() below is the real gate.
-    allowRestrictedFileTypes: true,
+    //
+    // `allowRestrictedFileTypes` was ALSO set here and has been removed. It was
+    // never load-bearing: with `mimeTypes` unset, checkFileRestrictions takes the
+    // `else` branch and tests `file.name.toLowerCase().endsWith(ext)` against its
+    // executable blocklist — and no restricted extension is a suffix of "…glb",
+    // so a GLB always passed. Setting it only disabled that blocklist for the
+    // whole collection, for no benefit.
+    //
     // No imageSizes: sharp-based processing is unavailable on Workers, and raw
     // GLBs are not images. disableLocalStorage is set by the r2Storage plugin.
   },
   hooks: {
     beforeValidate: [
-      ({ data }) => {
+      ({ data, req }) => {
         // Only validate when a file is actually part of this write (an upload).
         // The robot's later status/report/resultGlb updates carry no filename, so
         // they must skip the GLB checks rather than be rejected as "not a GLB".
         if (data?.filename) {
-          checkRawUpload({
+          const { missingExtension } = checkRawUpload({
             filename: data.filename as string,
             mimeType: (data?.mimeType ?? '') as string,
             filesize: (data?.filesize ?? 0) as number,
           })
+          if (missingExtension) {
+            // Warn, never block. Payload drops the extension rather than
+            // repairing it, and we must NOT repair it either: the R2 object was
+            // already keyed from the original name at multipart-init time, so
+            // renaming here would desync the beforeChange guard and the shrink
+            // job. The pipeline renames its own output regardless.
+            req.payload.logger.warn(
+              `Raw upload "${data.filename}" has no file extension — macOS reported the type from the file's UTI, so Payload stored the name as-is. Harmless, but name the export "<something>.glb" to keep the records readable.`,
+            )
+          }
         }
         return data
       },
@@ -162,6 +178,8 @@ export const RawUploads: CollectionConfig = {
             rawUploadId: doc.id,
             filename: doc.filename as string,
             prefix: (doc.prefix as string | undefined) ?? null,
+            detail: ((doc.detail as ShrinkDetailLevel | undefined) ??
+              DEFAULT_SHRINK_DETAIL) as ShrinkDetailLevel,
           })
           req.payload.logger.info(`Queued raw upload ${doc.id} (${doc.filename}) for shrinking.`)
         } catch (error) {
@@ -181,6 +199,17 @@ export const RawUploads: CollectionConfig = {
       admin: {
         description:
           'Which product this garment is for. Helps you find the result afterwards; you still attach and publish it yourself.',
+      },
+    },
+    {
+      name: 'detail',
+      type: 'select',
+      defaultValue: DEFAULT_SHRINK_DETAIL,
+      options: SHRINK_DETAIL_LEVELS.map(({ value, label }) => ({ value, label })),
+      admin: {
+        position: 'sidebar',
+        description:
+          'How much detail to keep. Start with Balanced. If the printed graphics look soft or broken, re-upload on “Highest quality”. If it is rejected for being too big, re-upload on “Smallest file”.',
       },
     },
     {

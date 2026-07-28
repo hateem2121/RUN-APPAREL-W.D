@@ -27,6 +27,16 @@ const PORT = Number(process.env.PORT ?? 8080)
 
 interface ShrinkRequest {
   key: string
+  /**
+   * Pipeline flags for this job, chosen from the raw upload's "Detail" field by
+   * the shrink Worker (see shrinkFlagsFor in @run-apparel/shared).
+   *
+   * They are passed per request rather than hardcoded here because the pipeline
+   * source is baked into this container image: hardcoding meant every tuning
+   * change cost a Docker build and a `wrangler deploy`. Absent (an older worker,
+   * or a replayed message) falls back to the previous fixed behaviour.
+   */
+  flags?: string[]
   s3: {
     endpoint: string
     bucket: string
@@ -34,6 +44,9 @@ interface ShrinkRequest {
     secretAccessKey: string
   }
 }
+
+/** What this container did before flags were passed in; still the fallback. */
+const DEFAULT_FLAGS = ['--simplify', '0.05', '--meshopt']
 
 /** Build an R2/S3 object URL, encoding each path segment but keeping slashes. */
 function objectUrl(endpoint: string, bucket: string, key: string): string {
@@ -73,7 +86,11 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
 
     // 2. Run the SAME pipeline the CLI uses. parseOptimizeArgs applies the exact
     //    defaults (WebP textures, opaque + double-sided fabric) plus our flags.
-    const { options } = parseOptimizeArgs([rawPath, '--out', outPath, '--simplify', '0.05', '--meshopt'])
+    //    Only `--`-prefixed flags and their values are accepted, so a malformed
+    //    request can never smuggle in a second input path.
+    const requested = Array.isArray(body.flags) && body.flags.length ? body.flags : DEFAULT_FLAGS
+    const flags = requested.filter((flag): flag is string => typeof flag === 'string')
+    const { options } = parseOptimizeArgs([rawPath, '--out', outPath, ...flags])
     const opt = await optimizeGlb(rawPath, outPath, options)
 
     // 3. Validate the result for the report (variants, warnings, translucency).

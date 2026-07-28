@@ -23,8 +23,14 @@ describe('RawUploads upload config', () => {
     expect(uploadOf(RawUploads).mimeTypes).toBeUndefined()
   })
 
-  it('sets allowRestrictedFileTypes so checkFileRestrictions returns early', () => {
-    expect(uploadOf(RawUploads).allowRestrictedFileTypes).toBe(true)
+  // Removed 2026-07-28. It was believed to be load-bearing; it never was. With
+  // `mimeTypes` unset, checkFileRestrictions takes its `else` branch and tests
+  // `file.name.toLowerCase().endsWith(ext)` against an executable blocklist — and
+  // no restricted extension is a suffix of "…glb", so a GLB always passed
+  // regardless. Setting the flag only disabled that blocklist for the whole
+  // collection. Keeping the assertion inverted so it is not quietly re-added.
+  it('does NOT disable the executable blocklist — it was never needed for GLB', () => {
+    expect(uploadOf(RawUploads).allowRestrictedFileTypes).toBeUndefined()
   })
 })
 
