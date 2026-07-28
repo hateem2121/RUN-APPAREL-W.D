@@ -12,6 +12,21 @@ name: Deploy shrink service
 #     CMS_ROBOT_API_KEY; and R2_INGEST_S3_ENDPOINT var points at the real account.
 # Until those exist, this deploy will fail (harmlessly — it never touches the live
 # CMS or viewer).
+#
+# ⚠️ API TOKEN SCOPE. This job builds a Docker image and PUSHES it to Cloudflare's
+# container registry, which a plain "Edit Cloudflare Workers" token cannot do. It
+# failed on every run until 2026-07-28 with the image built successfully and then:
+#
+#     ✘ [ERROR] ApiError: Forbidden
+#       body: { error: 'Authentication error' }
+#
+# CLOUDFLARE_API_TOKEN must be a CUSTOM token (there is no template) carrying, on
+# top of the usual Workers Scripts:Edit and the Edit permission for every bound
+# resource — Account · Containers:Edit and Account · Cloudchamber:Edit. Both are
+# needed: wrangler still routes container work through its cloudchamber client,
+# and its own OAuth flow requests `containers:write` AND `cloudchamber:write`.
+# Add User · User Details:Read too, or every run ends with a confusing
+# "Unable to retrieve email for this user" warning. Full table: docs/RUNBOOK.md.
 
 on:
   push:
@@ -47,3 +62,16 @@ jobs:
         # `wrangler deploy` builds the Dockerfile locally (Docker is preinstalled
         # on ubuntu-latest) and pushes it to Cloudflare's registry, then deploys.
         run: pnpm --filter @run-apparel/shrink exec wrangler deploy
+
+      # Proof the IMAGE moved, not just the Worker script. On 2026-07-27 a
+      # pipeline fix shipped to the CMS while the container kept running a
+      # three-day-old image, because this job had already failed and nothing
+      # said so at a glance. `wrangler containers list` prints LAST MODIFIED;
+      # compare it against this run's timestamp before believing a deploy.
+      - name: Show container image state (drift check)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "This run: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          pnpm --filter @run-apparel/shrink exec wrangler containers list

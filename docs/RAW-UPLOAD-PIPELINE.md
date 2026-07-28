@@ -26,19 +26,52 @@ Cloudflare Container, and a raw file can never reach customers.
 > (`3107787`), unchanged since the image was built.
 >
 > **What is still genuinely broken:** `.github/workflows/deploy-shrink.yml` fails
-> (`ApiError: Forbidden` on the registry push) because the *CI* API token lacks
-> container/image-push permission. This does **not** affect the running
-> pipeline — it only means **future code changes to `apps/shrink` will not
-> deploy automatically**. Until the token is fixed, redeploy from a logged-in
-> machine: `pnpm --filter @run-apparel/shrink exec wrangler deploy`.
+> because the *CI* API token cannot push a container image. The build itself
+> succeeds — the log shows `writing image sha256:… done` and then:
+>
+> ```
+> ✘ [ERROR] ApiError: Forbidden
+>   body: { error: 'Authentication error' }
+> ```
+>
+> This does **not** affect the running pipeline — it only means **future code
+> changes to `apps/shrink` or `tools/asset-pipeline` will not deploy
+> automatically**. Fix it by replacing `CLOUDFLARE_API_TOKEN` with a **Custom**
+> token (there is no template for containers, and Cloudflare's docs only say
+> authentication "is handled automatically"), carrying:
+>
+> | Scope | Permission | Level |
+> |---|---|---|
+> | Account | Workers Scripts | Edit |
+> | Account | **Containers** | **Edit** |
+> | Account | **Cloudchamber** | **Edit** |
+> | Account | Workers R2 Storage | Edit |
+> | Account | D1 | Edit |
+> | Account | Queues | Edit |
+> | Account | Account Settings | Read |
+> | User | User Details | Read |
+> | Zone → wear-run.help | Workers Routes | Edit |
+>
+> Both Containers **and** Cloudchamber are needed: wrangler still routes container
+> work through its cloudchamber client, and its own OAuth flow requests
+> `containers:write` and `cloudchamber:write`. Without User Details:Read every run
+> ends with a misleading "Unable to retrieve email for this user".
+>
+> Until the token is fixed, redeploy from a logged-in machine:
+> `pnpm --filter @run-apparel/shrink exec wrangler deploy`.
 >
 > **A change to `tools/asset-pipeline` also needs this redeploy.** The container
 > runs the pipeline *source* copied into its image (see `apps/shrink/Dockerfile`),
 > so a pipeline fix that is merged and deployed to the CMS is still **not** in the
 > auto-shrinker until the image is rebuilt. This bit us on 2026-07-27: the
 > logo-tearing `--simplify` fix shipped to `main` while the container kept running
-> the 2026-07-24 image. Check with `wrangler containers info <id>` — compare
-> `created_at` against the commit date.
+> the 2026-07-24 image. Check with `wrangler containers list` — compare
+> `LAST MODIFIED` against the commit date. The workflow now prints that table as
+> its final step, so a green run carries its own proof the image actually moved.
+>
+> **What no longer needs a redeploy:** the decimation settings. They are chosen
+> per upload from the raw-upload **Detail** field and passed to the container in
+> the job, so re-tuning a garment costs one re-upload instead of a Docker build.
 >
 > Requirements for that manual redeploy, in order of how often they surprise you:
 > 1. **Docker must be running.** `wrangler deploy` builds the image locally; with
@@ -101,12 +134,27 @@ recover when something goes wrong. See also
 1. In the CMS, open **Raw uploads** → **Create new**.
 2. Pick the target **product** (optional but helpful), then upload your raw CLO
    GLB. Big files (~350 MB) and messy names are fine — it uploads in chunks with a
-   progress bar, not a frozen spinner.
-3. **Status** shows **Queued → Processing → Ready to review** (refresh after a
-   minute or two). If it says **Failed**, read the **Report** — it explains why.
-4. When **Ready**, the shrunk GLB is attached as **Result GLB** and the **Report**
+   progress bar, not a frozen spinner. Two naming notes: give the file a name
+   ending in **.glb** (macOS often hides the extension, and a file that genuinely
+   has none is stored without one — harmless, but confusing to read later), and
+   avoid `? * < > : | " / \` — those are the only characters this system cannot
+   store reliably, and an upload containing one is rejected with that message.
+3. Leave **Detail** on **Balanced** the first time. It decides how hard the
+   shrinker pushes:
+   | Detail | Use it when |
+   |---|---|
+   | **Balanced** (default) | Always start here. |
+   | **Highest quality — bigger file** | The printed graphics came back soft or broken. |
+   | **Smallest file — softer detail** | It was rejected for being too big, or it loads slowly on a phone. |
+
+   Changing Detail and uploading again re-runs the whole thing — no developer,
+   no deploy. That is the intended way to tune a garment.
+4. **Status** shows **Queued → Processing → Ready to review** (refresh after a
+   minute or two). If it says **Failed**, read the **Report** — it explains why,
+   in plain language, including which Detail setting to try next.
+5. When **Ready**, the shrunk GLB is attached as **Result GLB** and the **Report**
    lists the final size and the colour variants found.
-5. Open the target product, attach that GLB as its production model, check the
+6. Open the target product, attach that GLB as its production model, check the
    variant names match your colourway IDs, tick **Variants verified**, choose a
    default colourway, and **Publish**. (These checks are the existing safety gate —
    nothing is shown to customers until you publish.)
@@ -140,14 +188,61 @@ Owner reviews + publishes (publishGating.ts unchanged)
 ```
 
 **Components (code):**
-- `apps/cms/src/collections/RawUploads.ts` — private inbox + enqueue hook.
+- `apps/cms/src/collections/RawUploads.ts` — private inbox, **Detail** field, enqueue hook.
 - `apps/cms/src/collections/rawRules.ts` — relaxed validation (GLB, no 40 MB cap,
-  600 MB ceiling, no .zprj).
+  600 MB ceiling, no .zprj, no filename character the two sanitisers disagree on).
 - `apps/cms/src/payload.config.ts` — 2nd `r2Storage` (ingest bucket, `clientUploads`).
 - `apps/cms/wrangler.jsonc` — `R2_INGEST` bucket + `SHRINK_QUEUE` producer.
+- `packages/shared/src/shrink.ts` — the queue-message type, the detail levels and
+  the flags each maps to. One definition, imported by both sides, so the CMS and
+  the shrink Worker cannot drift.
+- `packages/shared/src/media.ts` — `GLB_HARD_MAX_BYTES`, enforced by the CMS *and*
+  pre-flighted by the shrink Worker before it POSTs.
+- `tools/asset-pipeline/src/simplify-textured.ts` — texture-aware decimation.
 - `apps/shrink/` — the shrink Worker (`src/index.ts`), the Container
   (`container/server.ts` + `Dockerfile`), and its `wrangler.jsonc`.
 - `.github/workflows/deploy-shrink.yml` — builds + deploys the shrink service.
+
+### Two design decisions worth not re-deriving
+
+**Decimation is texture-aware, not border-locked.** glTF-Transform's `simplify()`
+only sees vertex positions, so it happily smears the UVs under a printed logo and
+tears the artwork. The first fix was `lockBorder: true`, which works but freezes
+*every* mesh border — necklines, cuffs, hems, UV islands — and took the real
+373 MB export from 850 k triangles to 6.0 M / **58.3 MB**, i.e. 45% over the
+40 MB publish ceiling, so nothing could ever be published. `simplify-textured.ts`
+uses meshoptimizer's `simplifyWithAttributes` instead, which its own README
+documents for exactly this ("texture deformation (by using texture coordinates)").
+UV error is inside the error budget, so `lockBorder` is not needed and the
+interior is free to collapse. `--uv-weight` and `--simplify-error` trade directly
+against each other; the measured table is in `simplify-textured.test.ts`.
+
+Corollary, easy to get wrong: **`--simplify` is a target, not a promise.** Once
+the error budget binds, lowering the ratio does nothing at all. Raise the budget
+(or lower the UV weight) to get a smaller file.
+
+**The shrunk file is streamed to the CMS, never buffered.** `arrayBuffer()` →
+`new File([...])` → `FormData` costs two extra full-size copies inside a Worker
+isolate capped at 128 MB — 120–170 MB for a 40 MB model. `streamMultipart()` in
+`apps/shrink/src/index.ts` hand-builds the multipart envelope around the
+container's response stream so the bytes are only ever in flight.
+
+### The `@payloadcms/storage-r2` patch — when it can go
+
+`patches/@payloadcms__storage-r2@3.86.0.patch` fixes the frozen-endpoint bug that
+meant this inbox never worked (see the ⚠️ banner). Upstream has since fixed it
+themselves in **`@payloadcms/storage-r2@4.0.0-canary.17`** (`const getEndpoint =
+() => …`), but `latest` is still 3.86.0 and the 4.0 handler signature changed
+(`extra`→`props`, `serverHandlerPath`→`endpointPath`, new `name` field) — so
+dropping the patch is a **Payload 4.0 migration, not a version bump**.
+
+Two things keep it honest in the meantime:
+- pnpm 10 fails the install with `ERR_PNPM_UNUSED_PATCH` if the version key in
+  `patchedDependencies` stops matching anything. **Do not set
+  `allowUnusedPatches: true`** — that would downgrade it to a warning.
+- `apps/cms/src/collections/storageR2Patch.test.ts` asserts the *installed bytes*
+  in `node_modules` still contain the fix. That covers what pnpm cannot: the
+  patch being edited, removed, or silently applying to a file upstream changed.
 
 **Why a raw file can never go live:** the ingest bucket has no custom domain and no
 public access; `RawUploads` is admin/editor-only; the public viewer endpoint reads
@@ -169,11 +264,18 @@ existing 40 MB guardrail applies.
    multipart uploads (dashboard → R2 → the bucket → Settings → Object lifecycle).
    **Do not** add a custom domain or public access to this bucket.
 
-   ⚠️ **Verify the ~14-day expiry rule actually exists.** As of 2026-07-27 the
-   bucket carried only R2's default "abort incomplete multipart uploads after 7
-   days" rule, which does **not** delete completed objects — so raw ~350 MB
-   exports accumulate and bill indefinitely. Check with
-   `wrangler r2 bucket lifecycle list run-apparel-viewer-ingest`.
+   ⚠️ **The ~14-day expiry rule does NOT exist yet — add it.** Re-verified against
+   the live bucket on 2026-07-28: `run-apparel-viewer-ingest` still carries only
+   R2's default "abort incomplete multipart uploads after 7 days", which does
+   **not** delete completed objects, so raw ~350 MB exports accumulate and bill
+   indefinitely. Check, then add:
+
+   ```bash
+   pnpm --filter @run-apparel/cms exec wrangler r2 bucket lifecycle list run-apparel-viewer-ingest
+   ```
+   ```bash
+   pnpm --filter @run-apparel/cms exec wrangler r2 bucket lifecycle add run-apparel-viewer-ingest expire-raw-uploads --expire-days 14
+   ```
 
 1b. **Optional: the ingest bucket's CORS policy.**
 
@@ -254,10 +356,34 @@ existing 40 MB guardrail applies.
    (`deploy-shrink.yml`) or on a machine with Docker (arm64 Macs:
    build for `linux/amd64`).
 
-8. **Smoke test:** upload a real raw GLB in **Raw uploads** → watch it reach
-   **Ready** with a linked Media < 40 MB → attach, verify, publish → load
-   `viewer.wear-run.help/<product>/<colour>` and confirm it renders with no console
-   errors. Confirm an unauthenticated fetch of a raw-upload URL is denied.
+8. **Smoke test.** Nothing has ever flowed through this end to end, so the first
+   real upload is also the first test. **Arm `wrangler tail` on BOTH workers
+   before you start** — tail is live-only, there is no historical query, and a
+   redeploy kills an attached session:
+   ```bash
+   pnpm --filter @run-apparel/cms exec wrangler tail run-apparel-viewer-cms
+   ```
+   ```bash
+   pnpm --filter @run-apparel/shrink exec wrangler tail run-apparel-viewer-shrink
+   ```
+   Upload a real raw GLB in **Raw uploads** (Detail: Balanced), then check, in order:
+
+   | Watch for | Proves |
+   |---|---|
+   | POSTs to `/api/storage-r2-multi-part-upload` **carrying `multipartId`** | the storage-r2 patch is live; chunks are really being uploaded |
+   | no "did not finish uploading" | the beforeChange HEAD guard passed |
+   | `POST /api/media` returns **201, not 400** | the shrunk file is under 40 MB |
+   | no `Exceeded memory limit` on the shrink worker | the streamed multipart body works |
+   | Status reaches **Ready to review**, Report lists the colour variants | the whole chain |
+
+   Then attach, verify the variant names match the colourway IDs, publish, and load
+   `viewer.wear-run.help/<product>/<colour>` — **inspect the printed graphics at
+   zoom, on a phone**, since artwork fidelity is the thing the new decimation is
+   trading against. Confirm an unauthenticated fetch of a raw-upload URL is denied.
+
+   Negative tests worth doing once: upload a `.txt` renamed to `.glb`, and a file
+   with a `?` in its name. Both must fail with the real message — never
+   "Something went wrong."
 
 ---
 
@@ -272,16 +398,25 @@ lifecycle-expire).
 
 - **Status stuck on Queued** → the shrink worker/queue isn't deployed or the
   `SHRINK_QUEUE` binding is missing. Check `wrangler tail run-apparel-viewer-shrink`.
-  **As of 2026-07-27 this is the expected state** — the container image has never
-  been pushed, so every job stalls then dead-letters. See the ⛔ banner at the top
-  of this file before debugging further; it is a token-permission problem, not a
-  code or binding problem.
-- **Failed: "still over the 40 MB limit"** → the shrunk file is too big; lower the
-  simplify ratio (edit `--simplify 0.05` → `0.03` in `apps/shrink/container/server.ts`)
-  and redeploy, or re-export a lighter mesh.
+  The image *is* deployed and healthy (verified 2026-07-28,
+  `wrangler containers list`), so this is not the expected state any more — but
+  confirm the image is current before assuming the code you are reading is running.
+- **Failed: "The shrunk model is N MB, over the 40.0 MB limit"** → re-upload with
+  **Detail: Smallest file**. No code change or redeploy is needed; that is what the
+  field is for. If it still fails at the smallest setting, the export itself is
+  too heavy — re-export from CLO at a lower mesh density.
+- **Printed graphics look smeared or torn** → re-upload with **Detail: Highest
+  quality**. If that is not enough, raise `--uv-weight` for the level in
+  `packages/shared/src/shrink.ts` (this one *does* need a container redeploy only
+  if you also change the pipeline; a flags-only change ships with the CMS).
 - **Failed: container 5xx** → check the shrink worker logs and the container logs;
   usually a bad raw file or an out-of-memory on an unusually heavy mesh (raise the
-  instance type / lower simplify).
+  instance type / choose a smaller Detail level).
+- **Rejected: "contains a character this system cannot store reliably"** → the
+  filename has one of `? * < > : | " / \` or a trailing dot/space. Payload
+  sanitises the R2 key and the document filename with *different* rules, so such a
+  name would be stored under two different keys and later look like a failed
+  upload. Rename and re-upload; spaces and brackets are fine.
 - **Colours don't switch after publishing** → the GLB's variant names don't match
   the colourway `variantId`s. Rename the CLO colourways to match before export, or
   set the product to `separate-glb-per-colour`.

@@ -38,13 +38,59 @@ Requires Cloudflare auth (`wrangler login` or `CLOUDFLARE_API_TOKEN`).
 builds and deploys `run-apparel-viewer-shrink` (Worker + Container) and is *not*
 part of `ci.yml` — a green CI run says nothing about it.
 
-> ⛔ **It has never deployed successfully** (verified 2026-07-27: 2 runs, 2
-> failures). The Worker uploads, then the container image push is refused with
-> `ApiError: Forbidden` because the deploy token lacks container/image-push
-> permission — step 6 of the go-live checklist. Until that is granted, the
-> raw-upload auto-shrink pipeline is **not operational** and garments must be
-> shrunk by hand (README §3). Full diagnosis and the checklist state:
-> [RAW-UPLOAD-PIPELINE.md](RAW-UPLOAD-PIPELINE.md).
+> ⚠️ **This workflow has never deployed successfully** (2 runs, 2 failures) — but
+> the service itself **is** deployed and healthy. It was pushed by hand on
+> 2026-07-24 and again on 2026-07-27; verified against the live account on
+> 2026-07-28: container `ready`, 1 healthy instance, 0 errors. An earlier version
+> of this note said the pipeline was "not operational", which was wrong — it was
+> inferred from CI logs rather than measured against the platform. **Query the
+> platform, not the CI history**, with:
+>
+> ```bash
+> pnpm --filter @run-apparel/shrink exec wrangler containers list
+> ```
+>
+> What the CI failure actually costs: **future changes to `apps/shrink` or
+> `tools/asset-pipeline` do not reach the container automatically.** That nearly
+> shipped a stale pipeline on 2026-07-27.
+>
+> **The fix — a new API token (only you can create it).** The image builds fine;
+> the *registry push* is refused (`ApiError: Forbidden`, `{ error: 'Authentication
+> error' }`). There is no Cloudflare permission template for containers, so at
+> https://dash.cloudflare.com/profile/api-tokens create a **Custom** token with:
+>
+> | Scope | Permission | Level |
+> |---|---|---|
+> | Account | Workers Scripts | Edit |
+> | Account | **Containers** | **Edit** |
+> | Account | **Cloudchamber** | **Edit** |
+> | Account | Workers R2 Storage | Edit |
+> | Account | D1 | Edit |
+> | Account | Queues | Edit |
+> | Account | Account Settings | Read |
+> | User | User Details | Read |
+> | Zone → wear-run.help | Workers Routes | Edit |
+>
+> Containers **and** Cloudchamber are both required — wrangler routes container
+> work through its cloudchamber client, and its own OAuth flow asks for
+> `containers:write` and `cloudchamber:write`. Then:
+>
+> ```bash
+> gh secret set CLOUDFLARE_API_TOKEN
+> ```
+> ```bash
+> gh workflow run "Deploy shrink service"
+> ```
+>
+> The workflow's last step prints `wrangler containers list`, so a green run now
+> carries its own proof that the image moved. Until the token is replaced,
+> redeploy by hand from a machine with Docker running:
+>
+> ```bash
+> pnpm --filter @run-apparel/shrink exec wrangler deploy
+> ```
+>
+> Full diagnosis and the checklist state: [RAW-UPLOAD-PIPELINE.md](RAW-UPLOAD-PIPELINE.md).
 
 ## Deploy safety gate
 
@@ -264,6 +310,21 @@ When an upload "just keeps loading" / never completes, check these in order:
 4. **Required `alt` field.** The Media collection requires `alt`; leaving it blank
    makes the save fail *after* the file transfers (looks like a hung upload).
 
+Every one of those rejections is now an `APIError(…, 400)`, so the *real* message
+reaches the admin panel. Any rejection thrown from a Payload hook **must** be —
+a plain `new Error()` is replaced by Payload's generic handler with the useless
+"Something went wrong." (`payload/dist/utilities/isErrorPublic.js` hides anything
+without a non-500 status). That cost a full diagnostic round-trip on 2026-07-27;
+`rawRules.ts` and `mediaRules.ts` were converted on 2026-07-28.
+
+The **private raw-upload inbox** (`raw-uploads`) deliberately relaxes rules 1–3 —
+big files and messy names are its whole purpose — but it rejects the characters
+`? * < > : | " / \` and trailing dots/spaces. Not cosmetic: Payload builds the R2
+object key with `sanitizeFilename` (path + control chars only) and the document
+filename with `sanitize-filename` (which also strips those), so such a name is
+stored under two different keys and the integrity guard then reports it as a
+failed upload.
+
 **The pipeline recipe for a raw CLO file** (the mesh, not the textures, is the cost
 — a real export was 9.8 M triangles / 1 MB of textures):
 
@@ -272,8 +333,31 @@ pnpm pipeline optimize "raw.glb" --out out.glb --simplify 0.05 --meshopt
 pnpm pipeline validate out.glb          # expect 0 translucent, < 40 MB, no CLO generator
 ```
 
-`--simplify 0.05` (keep ~5 % of triangles) took one 364 MB export to 14 MB with no
-visible quality loss. Lower the ratio to approach the 8 MB mobile guideline.
+**Tuning `--simplify` — read this before turning the dial.** `--simplify` is a
+*target*, not a promise: decimation stops early once the error budget binds, and
+once it does, **lowering the ratio changes nothing at all**. The knobs that
+actually move the output are:
+
+| Flag | Default | Effect |
+|---|---|---|
+| `--simplify-error <r>` | `0.0001` | Error ceiling as a fraction of mesh radius. Raise it for a smaller file. |
+| `--uv-weight <n>` | `1` | How heavily texture distortion counts against that budget. **This is what keeps printed logos intact.** Lower it for a smaller file; raise it if artwork looks smeared. `0` turns texture-awareness off. |
+| `--normal-weight <n>` | `0.5` | Same for shading. |
+
+Those two knobs trade directly against each other, and the effect is large — the
+measured table is in `tools/asset-pipeline/src/simplify-textured.test.ts`. Note
+the effect only exists where the UV map is non-linear, which real garment unwraps
+are and a flat test plane is not.
+
+Historical numbers on one real 373 MB export at `--simplify 0.05 --meshopt`:
+`--simplify-error 0.001` with borders unlocked gave 14.2 MB but tore the printed
+logos; `lockBorder` with the same budget gave 36.1 MB; `lockBorder` with
+`0.0001` gave 58.3 MB — over the 40 MB publish cap, so unusable. Those all
+predate texture-aware decimation; re-measure rather than extrapolate.
+
+For the automatic shrinker, do **not** edit flags in the container — pick the
+**Detail** level on the raw upload instead (Balanced / Highest quality / Smallest
+file). The levels map to these flags in `packages/shared/src/shrink.ts`.
 
 **Deferred (owner request):** remove/raise the 40 MB cap and add an upload
 progress %/status in the admin. Both hinge on switching media uploads to
