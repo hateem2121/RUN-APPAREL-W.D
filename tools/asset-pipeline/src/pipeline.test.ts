@@ -460,6 +460,31 @@ describe('parseOptimizeArgs (CLI contract)', () => {
         .simplifyError,
     ).toBe(0.001)
   })
+
+  // The knobs that replaced `lockBorder`. Undefined means "use the module
+  // defaults" — the shrink container passes them explicitly per detail level.
+  it('parses --uv-weight / --normal-weight, unset by default', () => {
+    const bare = parseOptimizeArgs(['in.glb', '--out', 'o.glb']).options
+    expect(bare.simplifyUvWeight).toBeUndefined()
+    expect(bare.simplifyNormalWeight).toBeUndefined()
+
+    const weighted = parseOptimizeArgs([
+      'in.glb', '--out', 'o.glb', '--uv-weight', '2', '--normal-weight', '0.25',
+    ]).options
+    expect(weighted.simplifyUvWeight).toBe(2)
+    expect(weighted.simplifyNormalWeight).toBe(0.25)
+  })
+
+  it('exposes the same decimation flags on merge, so the two commands cannot drift', () => {
+    const parsed = parseMergeArgs([
+      '--simplify', '0.05', '--simplify-error', '0.0005', '--uv-weight', '2', 'a.glb=N001-A',
+    ]).options
+    expect(parsed).toMatchObject({
+      simplify: 0.05,
+      simplifyError: 0.0005,
+      simplifyUvWeight: 2,
+    })
+  })
 })
 
 describe('parseMergeArgs — compression flags', () => {

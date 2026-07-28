@@ -36,7 +36,16 @@ COMPRESSION FLAGS (merge, optimize)
   --simplify <ratio>   Decimate geometry to this fraction of triangles (0-1),
                        e.g. 0.05 keeps ~5%. ESSENTIAL for raw CLO exports, whose
                        simulation meshes have millions of triangles — the mesh,
-                       not the textures, is usually what makes them huge
+                       not the textures, is usually what makes them huge.
+                       A TARGET, not a promise: decimation stops early when the
+                       error budget below binds, and once it does, lowering this
+                       further changes nothing — raise --simplify-error instead
+  --simplify-error <r> Error budget as a fraction of mesh radius (default 0.0001)
+  --uv-weight <n>      How heavily UV distortion counts against that budget
+                       (default 1). This is what keeps printed logos and graphics
+                       intact; lower it for a smaller file, raise it if artwork
+                       looks smeared. 0 disables texture-aware decimation
+  --normal-weight <n>  Same for vertex normals — protects shading (default 0.5)
 
 MATERIAL FLAGS (merge, optimize)
   (default)            Force fabric solid: alphaMode BLEND -> OPAQUE + double-

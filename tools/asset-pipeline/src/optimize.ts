@@ -1,11 +1,12 @@
 import { mkdir, stat } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { Document, Transform } from '@gltf-transform/core'
-import { dedup, draco, meshopt, prune, simplify, textureCompress, weld } from '@gltf-transform/functions'
+import { dedup, draco, meshopt, prune, textureCompress } from '@gltf-transform/functions'
 import { ktx2 } from 'ktx2-encoder/gltf-transform'
 import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer'
 import sharp from 'sharp'
 import { createIO } from './io'
+import { type AttributeSimplifier, simplifyTextured } from './simplify-textured'
 
 /**
  * Shared optimisation transforms for production GLBs. Both `merge` (multi-
@@ -63,11 +64,21 @@ export interface OptimizeOptions {
   /**
    * Error budget for `--simplify`, as a fraction of mesh radius. The simplifier
    * stops before reaching the target ratio rather than exceed this, so a smaller
-   * value protects printed graphics (which distort when the UVs beneath them are
-   * smeared) at the cost of a larger file. Defaults to the glTF-Transform
-   * default; raise it only when fidelity genuinely does not matter.
+   * value protects geometry at the cost of a larger file.
+   *
+   * NOTE this is the binding constraint in practice: `ratio` is only a target,
+   * so once the budget binds, lowering `--simplify` further changes nothing.
+   * Raise the budget — or lower `simplifyUvWeight` — to get a smaller file.
    */
   simplifyError?: number
+  /**
+   * How heavily UV distortion counts against the error budget (0 disables the
+   * attribute-aware path). This is what protects printed graphics; see
+   * simplify-textured.ts for why it replaced `lockBorder`.
+   */
+  simplifyUvWeight?: number
+  /** Same for vertex normals — protects shading rather than artwork. */
+  simplifyNormalWeight?: number
 }
 
 export const DEFAULT_MAX_TEXTURE = 2048
@@ -75,8 +86,21 @@ export const DEFAULT_TEXTURE_QUALITY = 82
 /**
  * glTF-Transform's own default (0.01% of mesh radius). We previously hard-coded
  * 0.001 here, which is 10x looser and visibly tore printed logos apart.
+ *
+ * Kept as the floor even though UV error is now inside the budget
+ * (simplify-textured.ts): the two protections are complementary, and callers who
+ * want a smaller file should raise this deliberately via `--simplify-error`
+ * rather than get a looser budget by accident.
  */
 export const DEFAULT_SIMPLIFY_ERROR = 0.0001
+/**
+ * Default UV weight for attribute-aware simplification. meshoptimizer's guidance
+ * is that "a weight around 1.0 is usually appropriate" for normalized attributes,
+ * which UVs in 0–1 are.
+ */
+export const DEFAULT_SIMPLIFY_UV_WEIGHT = 1
+/** Default normal weight — half the UV weight: shading matters, artwork matters more. */
+export const DEFAULT_SIMPLIFY_NORMAL_WEIGHT = 0.5
 
 /**
  * Node image decoder for the KTX2 encoder: sharp turns the source PNG/JPEG into
@@ -191,28 +215,24 @@ export async function buildOptimizeTransforms(options: OptimizeOptions): Promise
 
   // Decimate the mesh before compressing geometry. Raw CLO simulation meshes run
   // to millions of triangles — orders of magnitude past what a web viewer needs —
-  // and that geometry, not the textures, is what makes the file huge. Weld first
-  // so shared edges collapse; then simplify to the requested triangle fraction.
+  // and that geometry, not the textures, is what makes the file huge (measured:
+  // textures were 2.1 MB in every variant of a 373 MB export).
+  //
+  // simplifyTextured() welds first, then decimates with UV *and* normal error
+  // inside the budget, so printed artwork survives without freezing every mesh
+  // border. See simplify-textured.ts for why `lockBorder` was the wrong tool —
+  // it protected the logos but produced 58.3 MB, over the 40 MB publish ceiling.
   if (typeof options.simplify === 'number' && options.simplify > 0 && options.simplify < 1) {
-    await MeshoptSimplifier.ready
     transforms.push(
-      weld(),
-      simplify({
-        simplifier: MeshoptSimplifier,
+      simplifyTextured({
+        simplifier: MeshoptSimplifier as unknown as AttributeSimplifier,
         ratio: options.simplify,
-        // Error budget as a fraction of mesh radius. This previously ran at
-        // 0.001 — TEN TIMES the library default — which let the simplifier
-        // distort geometry badly in order to hit an aggressive ratio. On a real
-        // garment that showed up as printed logos and graphics breaking apart:
-        // the artwork is a texture, and smearing the UVs underneath it tears the
-        // image. `ratio` is a TARGET, not a guarantee — the simplifier stops
-        // early once it would exceed this error, so a tighter budget trades file
-        // size for fidelity rather than silently wrecking the artwork.
+        // `ratio` is a TARGET, not a guarantee — the simplifier stops early once
+        // it would exceed this error, so the budget is what actually decides the
+        // output size once it binds.
         error: options.simplifyError ?? DEFAULT_SIMPLIFY_ERROR,
-        // Preserve topological borders. UV islands (the seams bounding each
-        // printed graphic) are borders, and letting them collapse is what makes
-        // logos bleed into neighbouring surfaces.
-        lockBorder: true,
+        uvWeight: options.simplifyUvWeight ?? DEFAULT_SIMPLIFY_UV_WEIGHT,
+        normalWeight: options.simplifyNormalWeight ?? DEFAULT_SIMPLIFY_NORMAL_WEIGHT,
       }),
     )
   }
@@ -322,6 +342,8 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
   let opaque = true
   let simplify: number | undefined
   let simplifyError: number | undefined
+  let simplifyUvWeight: number | undefined
+  let simplifyNormalWeight: number | undefined
 
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]!
@@ -335,6 +357,8 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
     else if (arg === '--quality') textureQuality = Number(rest[++i] ?? DEFAULT_TEXTURE_QUALITY)
     else if (arg === '--simplify') simplify = Number(rest[++i])
     else if (arg === '--simplify-error') simplifyError = Number(rest[++i])
+    else if (arg === '--uv-weight') simplifyUvWeight = Number(rest[++i])
+    else if (arg === '--normal-weight') simplifyNormalWeight = Number(rest[++i])
     else if (arg === '--opaque') opaque = true
     else if (arg === '--no-opaque' || arg === '--keep-transparency') opaque = false
     else if (!arg.startsWith('--')) input = arg
@@ -343,6 +367,16 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
   return {
     input,
     out,
-    options: { texture, geometry, maxTextureSize, textureQuality, opaque, simplify, simplifyError },
+    options: {
+      texture,
+      geometry,
+      maxTextureSize,
+      textureQuality,
+      opaque,
+      simplify,
+      simplifyError,
+      simplifyUvWeight,
+      simplifyNormalWeight,
+    },
   }
 }

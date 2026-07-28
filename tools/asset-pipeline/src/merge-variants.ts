@@ -62,6 +62,11 @@ export function parseMergeArgs(rest: string[]): ParsedMergeArgs {
   // Solid fabric is the safe default for apparel; sheer garments opt out.
   let opaque = true
   let simplify: number | undefined
+  // Kept in step with parseOptimizeArgs: the two commands share one compression
+  // policy, so a decimation flag that works on `optimize` must work here too.
+  let simplifyError: number | undefined
+  let simplifyUvWeight: number | undefined
+  let simplifyNormalWeight: number | undefined
 
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]!
@@ -74,6 +79,9 @@ export function parseMergeArgs(rest: string[]): ParsedMergeArgs {
     else if (arg === '--max-texture') maxTextureSize = Number(rest[++i] ?? DEFAULT_MAX_TEXTURE)
     else if (arg === '--quality') textureQuality = Number(rest[++i] ?? DEFAULT_TEXTURE_QUALITY)
     else if (arg === '--simplify') simplify = Number(rest[++i])
+    else if (arg === '--simplify-error') simplifyError = Number(rest[++i])
+    else if (arg === '--uv-weight') simplifyUvWeight = Number(rest[++i])
+    else if (arg === '--normal-weight') simplifyNormalWeight = Number(rest[++i])
     else if (arg === '--opaque') opaque = true
     else if (arg === '--no-opaque' || arg === '--keep-transparency') opaque = false
     else {
@@ -87,7 +95,17 @@ export function parseMergeArgs(rest: string[]): ParsedMergeArgs {
     inputs,
     out,
     draco: geometry === 'draco',
-    options: { texture, geometry, maxTextureSize, textureQuality, opaque, simplify },
+    options: {
+      texture,
+      geometry,
+      maxTextureSize,
+      textureQuality,
+      opaque,
+      simplify,
+      simplifyError,
+      simplifyUvWeight,
+      simplifyNormalWeight,
+    },
   }
 }
 
