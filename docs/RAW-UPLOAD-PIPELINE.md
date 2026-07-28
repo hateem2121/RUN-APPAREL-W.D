@@ -4,13 +4,11 @@
 small, correct GLB you review and publish — the heavy shrinking runs on a
 Cloudflare Container, and a raw file can never reach customers.
 
-> ## ⚠️ DEPLOYED BUT NEVER SMOKE-TESTED (verified against the live account 2026-07-27)
+> ## ⚠️ FULLY DEPLOYED, STILL NEVER SMOKE-TESTED (verified against the live account 2026-07-28)
 >
-> **Correction.** An earlier version of this banner said the pipeline was not
-> live because its container image had never been pushed. **That was wrong.**
-> The infrastructure is fully in place — it was completed by hand on 2026-07-24,
-> after (and despite) the CI workflow failing. Measured directly against the
-> Cloudflare account on 2026-07-27:
+> Every piece is in place and automatic. The **only** thing outstanding is that no
+> file has ever gone through it end to end. Measured directly against the
+> Cloudflare account, not inferred from CI logs:
 >
 > | Step | State | Evidence |
 > |---|---|---|
@@ -19,26 +17,27 @@ Cloudflare Container, and a raw file can never reach customers.
 > | 3 — `R2_INGEST_S3_ENDPOINT` | ✅ | set in `wrangler.jsonc` |
 > | 4 — robot user | ✅ | `robot@wear-run.help`, editor, API key enabled |
 > | 5 — shrink worker secrets | ✅ | all three set on the worker |
-> | 6 — container image | ✅ | `version 1`, pushed 2026-07-24T10:35Z, **`ready`, 1 healthy instance, 0 errors** |
-> | 8 — smoke test | ❌ | **`raw_uploads` is empty — never once exercised** |
+> | 6 — container image | ✅ | `version 3`, `sha256:26d43a29…`, 2026-07-28T14:28Z, **`ready`, 1 healthy instance, 0 errors** |
+> | 7 — CI deploy | ✅ | run `30368254285`, first success after 3 failures (see below) |
+> | 8 — **smoke test** | ❌ | **`raw_uploads` is empty — never once exercised** |
 >
-> The deployed image is current: `apps/shrink` has exactly one commit
-> (`3107787`), unchanged since the image was built.
+> **The first real upload is also the first test.** Run the step-8 procedure below
+> with `wrangler tail` armed on both workers, and keep the manual recipe
+> (`pnpm pipeline optimize … --simplify --meshopt`, README §3) as the fallback.
 >
-> **What is still genuinely broken:** `.github/workflows/deploy-shrink.yml` fails
-> because the *CI* API token cannot push a container image. The build itself
-> succeeds — the log shows `writing image sha256:… done` and then:
+> **CI deploy: FIXED 2026-07-28.** `.github/workflows/deploy-shrink.yml` had
+> failed on every run — the build succeeded (`writing image sha256:… done`) and
+> the registry push was then refused with:
 >
 > ```
 > ✘ [ERROR] ApiError: Forbidden
 >   body: { error: 'Authentication error' }
 > ```
 >
-> This does **not** affect the running pipeline — it only means **future code
-> changes to `apps/shrink` or `tools/asset-pipeline` will not deploy
-> automatically**. Fix it by replacing `CLOUDFLARE_API_TOKEN` with a **Custom**
-> token (there is no template for containers, and Cloudflare's docs only say
-> authentication "is handled automatically"), carrying:
+> which names neither the missing permission nor the step. Resolved by replacing
+> `CLOUDFLARE_API_TOKEN` with a **Custom** token (there is no template for
+> containers, and Cloudflare's docs only say authentication "is handled
+> automatically"), carrying:
 >
 > | Scope | Permission | Level |
 > |---|---|---|
@@ -57,17 +56,19 @@ Cloudflare Container, and a raw file can never reach customers.
 > `containers:write` and `cloudchamber:write`. Without User Details:Read every run
 > ends with a misleading "Unable to retrieve email for this user".
 >
-> Until the token is fixed, redeploy from a logged-in machine:
+> Manual fallback if CI is ever unavailable (needs Docker running):
 > `pnpm --filter @run-apparel/shrink exec wrangler deploy`.
 >
-> **A change to `tools/asset-pipeline` also needs this redeploy.** The container
-> runs the pipeline *source* copied into its image (see `apps/shrink/Dockerfile`),
-> so a pipeline fix that is merged and deployed to the CMS is still **not** in the
-> auto-shrinker until the image is rebuilt. This bit us on 2026-07-27: the
-> logo-tearing `--simplify` fix shipped to `main` while the container kept running
-> the 2026-07-24 image. Check with `wrangler containers list` — compare
-> `LAST MODIFIED` against the commit date. The workflow now prints that table as
-> its final step, so a green run carries its own proof the image actually moved.
+> **A change to `tools/asset-pipeline` also triggers this workflow — and must.**
+> The container runs the pipeline *source* copied into its image (see
+> `apps/shrink/Dockerfile`), so a pipeline fix that is merged and deployed to the
+> CMS is **not** in the auto-shrinker until the image is rebuilt. This bit us on
+> 2026-07-27: the logo-tearing `--simplify` fix shipped to `main` while the
+> container kept running the 2026-07-24 image, because the workflow that would
+> have caught up was already failing and nothing said so at a glance. The workflow
+> now ends by printing `wrangler containers list` next to the run's own timestamp,
+> so a green run carries its own proof the image actually moved. Verify by hand
+> the same way — compare `LAST MODIFIED` against the commit date.
 >
 > **What no longer needs a redeploy:** the decimation settings. They are chosen
 > per upload from the raw-upload **Detail** field and passed to the container in
@@ -114,11 +115,6 @@ Cloudflare Container, and a raw file can never reach customers.
 > Upstream has related GLB mimetype issues (payloadcms/payload#7408, #12620,
 > #8673, #12905) but not this >50 MB path — worth filing so the workaround can
 > eventually be dropped.
->
-> **Before relying on it, run the step-8 smoke test below.** Everything is wired,
-> but nothing has ever flowed through it end to end, so the first real upload is
-> also the first test. Keep the manual recipe
-> (`pnpm pipeline merge ... --simplify --meshopt`, README §3) as the fallback.
 >
 > Diagnose from the CLI with `pnpm --filter @run-apparel/shrink exec wrangler containers list`.
 

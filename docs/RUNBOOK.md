@@ -38,26 +38,26 @@ Requires Cloudflare auth (`wrangler login` or `CLOUDFLARE_API_TOKEN`).
 builds and deploys `run-apparel-viewer-shrink` (Worker + Container) and is *not*
 part of `ci.yml` — a green CI run says nothing about it.
 
-> ⚠️ **This workflow has never deployed successfully** (2 runs, 2 failures) — but
-> the service itself **is** deployed and healthy. It was pushed by hand on
-> 2026-07-24 and again on 2026-07-27; verified against the live account on
-> 2026-07-28: container `ready`, 1 healthy instance, 0 errors. An earlier version
-> of this note said the pipeline was "not operational", which was wrong — it was
-> inferred from CI logs rather than measured against the platform. **Query the
-> platform, not the CI history**, with:
+> ✅ **Working since 2026-07-28** (run `30368254285`, the first success after 3
+> failures). Before that the token could not push a container image, so the
+> service was deployed by hand and every automatic redeploy silently did nothing.
+>
+> Note for the future: the service was healthy that whole time. An earlier version
+> of this note said the pipeline was "not operational", inferred from CI logs
+> rather than measured. **Query the platform, not the CI history:**
 >
 > ```bash
 > pnpm --filter @run-apparel/shrink exec wrangler containers list
 > ```
 >
-> What the CI failure actually costs: **future changes to `apps/shrink` or
-> `tools/asset-pipeline` do not reach the container automatically.** That nearly
-> shipped a stale pipeline on 2026-07-27.
+> The workflow's last step prints exactly that, so a green run now carries its own
+> proof the *image* moved and not just the Worker script — compare `LAST MODIFIED`
+> against the run's own timestamp printed just above it.
 >
-> **The fix — a new API token (only you can create it).** The image builds fine;
-> the *registry push* is refused (`ApiError: Forbidden`, `{ error: 'Authentication
-> error' }`). There is no Cloudflare permission template for containers, so at
-> https://dash.cloudflare.com/profile/api-tokens create a **Custom** token with:
+> **The token this needs** (recorded because it took a live failure to work out,
+> and Cloudflare documents none of it). There is no permission template for
+> containers; it must be a **Custom** token created at
+> https://dash.cloudflare.com/profile/api-tokens with:
 >
 > | Scope | Permission | Level |
 > |---|---|---|
@@ -73,18 +73,15 @@ part of `ci.yml` — a green CI run says nothing about it.
 >
 > Containers **and** Cloudchamber are both required — wrangler routes container
 > work through its cloudchamber client, and its own OAuth flow asks for
-> `containers:write` and `cloudchamber:write`. Then:
+> `containers:write` and `cloudchamber:write`. A token missing them builds the
+> image fine and then fails on the push with `ApiError: Forbidden`,
+> `{ error: 'Authentication error' }` — which names neither permission.
 >
-> ```bash
-> gh secret set CLOUDFLARE_API_TOKEN
-> ```
-> ```bash
-> gh workflow run "Deploy shrink service"
-> ```
+> To rotate it: `gh secret set CLOUDFLARE_API_TOKEN`, then
+> `gh workflow run "Deploy shrink service"` to confirm before relying on it.
 >
-> The workflow's last step prints `wrangler containers list`, so a green run now
-> carries its own proof that the image moved. Until the token is replaced,
-> redeploy by hand from a machine with Docker running:
+> Manual fallback, if CI is ever unavailable (needs Docker running; on an
+> Apple-silicon Mac the amd64 build is emulated and takes several minutes):
 >
 > ```bash
 > pnpm --filter @run-apparel/shrink exec wrangler deploy
