@@ -346,6 +346,31 @@ measured table is in `tools/asset-pipeline/src/simplify-textured.test.ts`. Note
 the effect only exists where the UV map is non-linear, which real garment unwraps
 are and a flat test plane is not.
 
+**Calibration of the three Detail levels** (2026-07-28). Measured on a synthetic
+draped surface — 243,602 triangles, non-linear unwrap, hard-edged texture —
+running the real pipeline. "Texture error" is the distance between the UV the
+decimated mesh interpolates at a point and the UV that point should have; the
+undecimated control measures 1.3e-6, so the numbers below are signal.
+
+| setting | triangles | size (meshopt) | mean err | p99 err |
+|---|---|---|---|---|
+| OLD `lockBorder`, err 0.0001 | 58,378 | 0.29 MB | 0.00001 | 0.00013 |
+| OLD `lockBorder`, err 0.001 | 12,180 | 0.07 MB | 0.00006 | 0.00073 |
+| **fidelity** (uv 2, err 0.0002) | 20,421 | 0.11 MB | 0.00003 | 0.00036 |
+| **balanced** (uv 1, err 0.0005) | 12,180 | 0.07 MB | 0.00005 | 0.00054 |
+| **small** (uv 0.5, err 0.002) | 4,872 | 0.04 MB | 0.00013 | 0.00161 |
+
+Read it this way:
+- **At equal size**, texture-aware beats position-only: `balanced` and OLD-0.001
+  both land on 12,180 triangles, but p99 error is 0.00054 vs 0.00073.
+- **The size win is the big one.** `fidelity` gets p99 error within 3x of the old
+  safest setting using **2.9x fewer triangles**; `balanced` uses 4.8x fewer. That
+  ratio is what takes the real garment's 58.3 MB down under the 40 MB cap.
+- **Caveat, stated plainly:** this surface is one smooth UV patch. A real CLO
+  unwrap has many islands, and `lockBorder` freezes every island edge — so its
+  real-world cost should be *worse* than measured here, not better. Treat the
+  table as directional and re-measure on a real garment when one is available.
+
 Historical numbers on one real 373 MB export at `--simplify 0.05 --meshopt`:
 `--simplify-error 0.001` with borders unlocked gave 14.2 MB but tore the printed
 logos; `lockBorder` with the same budget gave 36.1 MB; `lockBorder` with
