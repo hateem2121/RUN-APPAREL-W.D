@@ -51,6 +51,44 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
     )
   }
 
+  // EVERY child table of `products` has to be staged, not just the new one.
+  //
+  // Learned the hard way on 2026-07-29: this migration was shipped staging only
+  // the colours, and the `DROP TABLE products` in the rebuild below cascade-
+  // deleted `products_performance_features` and `products_customisation_steps`
+  // too. The migration reported success, the colours arrived intact, and the live
+  // page quietly lost its "Performance" list and its "How we build your product"
+  // steps. Restored from the pre-deploy backup; the real fix is here.
+  //
+  // If a future migration rebuilds `products` again, every table listed by
+  //   SELECT name FROM sqlite_master WHERE sql LIKE '%REFERENCES `products`%'
+  // needs the same treatment.
+  await db.run(sql`
+    CREATE TABLE \`__staging_performance_features\` (
+      \`_order\` integer NOT NULL,
+      \`_parent_id\` integer NOT NULL,
+      \`id\` text PRIMARY KEY NOT NULL,
+      \`feature\` text NOT NULL
+    );
+  `)
+  await db.run(
+    sql`INSERT INTO \`__staging_performance_features\` SELECT "_order","_parent_id","id","feature" FROM \`products_performance_features\`;`,
+  )
+
+  await db.run(sql`
+    CREATE TABLE \`__staging_customisation_steps\` (
+      \`_order\` integer NOT NULL,
+      \`_parent_id\` integer NOT NULL,
+      \`id\` text PRIMARY KEY NOT NULL,
+      \`number\` numeric NOT NULL,
+      \`title\` text NOT NULL,
+      \`body\` text NOT NULL
+    );
+  `)
+  await db.run(
+    sql`INSERT INTO \`__staging_customisation_steps\` SELECT "_order","_parent_id","id","number","title","body" FROM \`products_customisation_steps\`;`,
+  )
+
   await db.run(sql`
     CREATE TABLE \`__staging_colourways\` (
       \`_order\` integer NOT NULL,
@@ -199,8 +237,27 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   `)
   await db.run(sql`DROP TABLE \`__staging_colourways\`;`)
 
+  // Put the two pre-existing arrays back — the rebuild's cascade emptied them.
+  await db.run(
+    sql`INSERT INTO \`products_performance_features\` ("_order","_parent_id","id","feature") SELECT "_order","_parent_id","id","feature" FROM \`__staging_performance_features\`;`,
+  )
+  await db.run(sql`DROP TABLE \`__staging_performance_features\`;`)
+  await db.run(
+    sql`INSERT INTO \`products_customisation_steps\` ("_order","_parent_id","id","number","title","body") SELECT "_order","_parent_id","id","number","title","body" FROM \`__staging_customisation_steps\`;`,
+  )
+  await db.run(sql`DROP TABLE \`__staging_customisation_steps\`;`)
+
   const landed = await db.get<{ n: number }>(sql`SELECT COUNT(*) AS n FROM \`products_colourways\`;`)
-  payload.logger.info(`inline_colourways: moved ${landed?.n ?? 0} colour(s) onto their products.`)
+  const perf = await db.get<{ n: number }>(
+    sql`SELECT COUNT(*) AS n FROM \`products_performance_features\`;`,
+  )
+  const steps = await db.get<{ n: number }>(
+    sql`SELECT COUNT(*) AS n FROM \`products_customisation_steps\`;`,
+  )
+  payload.logger.info(
+    `inline_colourways: moved ${landed?.n ?? 0} colour(s) onto their products; ` +
+      `kept ${perf?.n ?? 0} performance feature(s) and ${steps?.n ?? 0} customisation step(s) through the products rebuild.`,
+  )
 
   // `file_colours` is the list of colour names the shrink robot found inside the
   // processed GLB; it feeds the "Which colour in your CLO file is this?" dropdown
