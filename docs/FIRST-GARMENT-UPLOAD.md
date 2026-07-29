@@ -190,12 +190,18 @@ do. A bare "Something went wrong." means one slipped through the net.
 
 ---
 
-## Honest warning
+## Where this actually stands (2026-07-29)
 
-**Nothing has ever been through this pipeline.** Not once, since it was built.
-Your first upload is also its first real test, so there is a fair chance
-something unexpected happens. That isn't failure — that is what a first test is
-for. Keep the two watch windows running and whatever happens will be on screen.
+**A real garment has now been all the way through.** A 382 MB CLO export was
+uploaded, shrunk to 19 MB, its colours mapped, published, and it renders on the
+live viewer. Five separate bugs were found and fixed getting there — every one of
+them invisible until a real file went through.
 
-If it goes wrong, the manual route still works: see [README.md](../README.md) § 3,
-"Preparing 3D files".
+**One problem is still open: the printed artwork.** Logos, graphics and wording
+come back broken — half visible, half not. This is being investigated; see
+[OPEN-ISSUE-ARTWORK.md](OPEN-ISSUE-ARTWORK.md). Until it is fixed, treat the
+pipeline as working mechanically but **not yet ready for a garment you would show
+a customer**.
+
+If something goes wrong, the manual route still works: see
+[README.md](../README.md) § 3, "Preparing 3D files".

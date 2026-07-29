@@ -72,21 +72,23 @@ export function shrinkFlagsFor(detail: ShrinkDetailLevel = DEFAULT_SHRINK_DETAIL
     case 'fidelity':
       return ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.0002', '--uv-weight', '2']
     case 'small':
-      // RE-CALIBRATED 2026-07-29. This used to be `--simplify-error 0.002
-      // --uv-weight 0.5`, which was the worst of both worlds: it loosened the
-      // error budget only 4x while HALVING the one setting that protects printed
-      // artwork. That combination is why "make it smaller" has historically come
-      // back with damaged logos.
+      // 2026-07-29: `--uv-weight` raised 0.5 -> 1. It used to be HALF what
+      // "balanced" uses, so asking for a smaller file silently halved the one
+      // setting that protects printed artwork. That is why "make it smaller" has
+      // historically come back with damaged logos, and it was never a defensible
+      // trade — the error budget is the aggression dial, not the artwork guard.
       //
-      // The two knobs are independent. From the measured table in
-      // simplify-textured.test.ts, at uv weight 1:
-      //     error 0.001 -> 192 triangles
-      //     error 0.01  ->  38 triangles
-      // i.e. a 10x looser budget removes 5x more triangles with artwork
-      // protection completely unchanged. So: raise the budget hard, keep the
-      // protection at the same level "Balanced" uses. Smaller file, same defence
-      // of the graphics.
-      return ['--simplify', '0.02', '--meshopt', '--simplify-error', '0.01', '--uv-weight', '1']
+      // The budget itself is left at 0.002. It was briefly raised to 0.01 on the
+      // theory that the two knobs are independent, so the budget could be
+      // loosened 20x while "keeping protection at balanced's level". That was
+      // WRONG: UV error lives *inside* the error budget, and `uv-weight` only
+      // prices it within that ceiling — so a looser budget permits more UV
+      // distortion at any weight. The measured table in
+      // simplify-textured.test.ts shows the trade is unavoidable (at weight 1,
+      // error 0.001 -> 192 triangles, error 0.01 -> 38). Reverted pending the
+      // artwork investigation in docs/OPEN-ISSUE-ARTWORK.md; do not raise it
+      // again without comparing rendered crops of a real logo.
+      return ['--simplify', '0.02', '--meshopt', '--simplify-error', '0.002', '--uv-weight', '1']
     default:
       return ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.0005', '--uv-weight', '1']
   }
