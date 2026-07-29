@@ -3,13 +3,22 @@ import path from 'node:path'
 import type { Payload } from 'payload'
 
 /**
- * Seed dataset: product N001 "Velocity Performance Tee" with three
- * colourways, wired to demonstrate BOTH variant modes:
+ * Seed dataset: product N001 "Velocity Performance Tee" with three colours,
+ * wired to demonstrate BOTH variant modes:
  *
  * - published as `single-glb-variants` with the pipeline-merged GLB
  *   (variants N001-NAVY / N001-BLACK / N001-CRIMSON), and
- * - each colourway also carries its own per-colour GLB, so switching the
- *   product to `separate-glb-per-colour` in the admin works immediately.
+ * - each colour also carries its own per-colour GLB, so switching the product
+ *   to `separate-glb-per-colour` in the admin works immediately.
+ *
+ * Colours are now an inline array on the product, so this is a single create
+ * rather than a product + a loop of colourway documents + a back-patch to point
+ * the product at its default.
+ *
+ * `fileColours` is seeded to what `pnpm seed:assets` actually bakes into the
+ * merged GLB. That is not decoration: the publish gate derives "colours checked"
+ * by testing each colour's `variantId` against this list, so without it the seed
+ * would refuse to publish.
  *
  * Prerequisite: `pnpm seed:assets` (generates placeholders + merged GLB).
  */
@@ -37,16 +46,16 @@ const lexical = (texts: string[]) => ({
 interface SeedColourway {
   slug: string
   displayName: string
+  /** The variant's name inside the merged GLB, as `pnpm seed:assets` binds it. */
   variantId: string
   hexSwatch: string
-  sequence: number
-  isDefault: boolean
 }
 
+// Array order IS the order: Navy is first, so Navy is the default colour.
 const COLOURWAYS: SeedColourway[] = [
-  { slug: 'navy', displayName: 'Navy', variantId: 'N001-NAVY', hexSwatch: '#22314E', sequence: 1, isDefault: true },
-  { slug: 'black', displayName: 'Black', variantId: 'N001-BLACK', hexSwatch: '#17181A', sequence: 2, isDefault: false },
-  { slug: 'crimson', displayName: 'Crimson', variantId: 'N001-CRIMSON', hexSwatch: '#8C1F2F', sequence: 3, isDefault: false },
+  { slug: 'navy', displayName: 'Navy', variantId: 'N001-NAVY', hexSwatch: '#22314E' },
+  { slug: 'black', displayName: 'Black', variantId: 'N001-BLACK', hexSwatch: '#17181A' },
+  { slug: 'crimson', displayName: 'Crimson', variantId: 'N001-CRIMSON', hexSwatch: '#8C1F2F' },
 ]
 
 export async function seed(payload: Payload, assetsDir: string): Promise<void> {
@@ -138,19 +147,35 @@ export async function seed(payload: Payload, assetsDir: string): Promise<void> {
     colourGlbIds[colourway.slug] = glb.id
   }
 
-  // ── Product (draft first — publish after colourways exist) ───────────
-  const product = await payload.create({
+  // ── Product ──────────────────────────────────────────────────────────
+  // One create, published outright. The old two-phase dance (save as draft →
+  // create the colourway documents → patch the product's default → publish)
+  // existed only because colourways needed a product id to point at. They
+  // arrive with the document now, so the publish gate can check everything in
+  // a single pass.
+  await payload.create({
     collection: 'products',
     data: {
       productCode: 'N001',
       slug: 'n001',
       productName: 'Velocity Performance Tee',
       category: 'Sportswear',
-      status: 'draft',
+      status: 'published',
       variantMode: 'single-glb-variants',
-      variantsVerified: true,
       presentationMode: 'floatingGarment',
       glbAsset: mergedGlbMedia.id,
+      // What the merged GLB really contains — see the note at the top.
+      fileColours: COLOURWAYS.map((c) => c.variantId),
+      colourways: COLOURWAYS.map((colourway) => ({
+        displayName: colourway.displayName,
+        slug: colourway.slug,
+        variantId: colourway.variantId,
+        posterPreview: posterIds[colourway.slug]!,
+        glbAsset: colourGlbIds[colourway.slug]!,
+        active: true,
+        altText: `Velocity Performance Tee in ${colourway.displayName}`,
+        hexSwatch: colourway.hexSwatch,
+      })),
       posterFallback: posterIds['navy'],
       fabricComposition: 'Recycled polyester / elastane',
       gsm: '160 GSM',
@@ -197,34 +222,7 @@ export async function seed(payload: Payload, assetsDir: string): Promise<void> {
     },
   })
 
-  let defaultColourwayId: number | null = null
-  for (const colourway of COLOURWAYS) {
-    const created = await payload.create({
-      collection: 'colourways',
-      data: {
-        product: product.id,
-        variantId: colourway.variantId,
-        displayName: colourway.displayName,
-        slug: colourway.slug,
-        sequence: colourway.sequence,
-        posterPreview: posterIds[colourway.slug]!,
-        glbAsset: colourGlbIds[colourway.slug]!,
-        active: true,
-        isDefault: colourway.isDefault,
-        altText: `Velocity Performance Tee in ${colourway.displayName}`,
-        hexSwatch: colourway.hexSwatch,
-      },
-    })
-    if (colourway.isDefault) defaultColourwayId = created.id
-  }
-
-  await payload.update({
-    collection: 'products',
-    id: product.id,
-    data: { defaultColourway: defaultColourwayId, status: 'published' },
-  })
-
   payload.logger.info(
-    'Seed complete: N001 published as single-glb-variants; per-colour GLBs attached so separate-glb-per-colour also works. Try /api/public/viewer/n001/navy',
+    'Seed complete: N001 published as single-glb-variants with three inline colours; per-colour GLBs attached so separate-glb-per-colour also works. Try /api/public/viewer/n001/navy',
   )
 }

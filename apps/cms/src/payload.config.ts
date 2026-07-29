@@ -7,7 +7,6 @@ import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { r2Storage } from '@payloadcms/storage-r2'
 import { buildConfig } from 'payload'
 
-import { Colourways } from './collections/Colourways'
 import { Events } from './collections/Events'
 import { Media } from './collections/Media'
 import { Products } from './collections/Products'
@@ -15,6 +14,7 @@ import { RawUploads } from './collections/RawUploads'
 import { Users } from './collections/Users'
 import { eventsEndpoint } from './endpoints/events'
 import { healthEndpoint } from './endpoints/health'
+import { pipelinePlanEndpoint } from './endpoints/pipelinePlan'
 import { publicViewerEndpoint } from './endpoints/publicViewer'
 import { SiteSettings } from './globals/SiteSettings'
 
@@ -103,9 +103,9 @@ export default buildConfig({
       titleSuffix: ' — RUN APPAREL CMS',
     },
   },
-  collections: [Users, Media, RawUploads, Products, Colourways, Events],
+  collections: [Users, Media, RawUploads, Products, Events],
   globals: [SiteSettings],
-  endpoints: [publicViewerEndpoint, healthEndpoint, eventsEndpoint],
+  endpoints: [publicViewerEndpoint, healthEndpoint, eventsEndpoint, pipelinePlanEndpoint],
   cors: allowedOrigins,
   editor: lexicalEditor(),
   ...(resendApiKey
@@ -124,6 +124,14 @@ export default buildConfig({
   db: sqliteD1Adapter({
     // Cast: the binding is absent only in CLI contexts that never open the DB.
     binding: env?.D1 as D1Database,
+    // Drizzle "push" (auto-sync the dev database from the config) defaults to ON
+    // outside production. It silently competes with the migrations below for the
+    // role of source-of-truth, and it does not run their data backfills — on
+    // 2026-07-29 `pnpm migrate` opened with "You're about to delete colourways
+    // table with 3 items" instead of applying the migration that MOVES those
+    // three rows onto their product. Off, so local and production apply the same
+    // committed migrations. Schema changes now need `pnpm migrate:create`.
+    push: false,
     // NOTE: migrations are NOT applied on the deployed Worker. They run in an
     // explicit, gated CI step (`.github/workflows/ci.yml` → the `migrate` job
     // applies pending migrations to the *remote* production D1 *before* the new
@@ -138,6 +146,13 @@ export default buildConfig({
   graphQL: {
     disable: true,
   },
+  // ⚠️ PAYLOAD v4: storage adapters move OUT of `plugins` and into a new
+  // top-level `storage` key — "declaring adapters inside `plugins` no longer
+  // works". That key does not exist in 3.86, so the move cannot be made early.
+  // Keeping both adapters in this one array is the next best thing: the upgrade
+  // becomes `plugins: []` + `storage: storageAdapters`, with nothing else to
+  // untangle. See docs/RAW-UPLOAD-PIPELINE.md for the storage-r2 patch, which
+  // also has to be re-tested against v4's shared upload-instructions endpoint.
   plugins: [
     r2Storage({
       bucket: env?.R2 as R2Bucket,

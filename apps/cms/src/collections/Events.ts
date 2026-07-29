@@ -13,8 +13,13 @@ import { isAdmin } from '../access/roles'
  */
 export const Events: CollectionConfig = {
   slug: 'events',
+  // See Products.ts — pinned against Payload v4 flipping the default to ON.
+  // Especially unwanted here: this is the highest-volume table in the database.
+  versions: false,
   admin: {
     group: 'System',
+    // Admin-only to read anyway; hiding it keeps the editor's sidebar to three.
+    hidden: ({ user }) => (user as { role?: string } | null | undefined)?.role !== 'admin',
     useAsTitle: 'event',
     defaultColumns: ['type', 'event', 'product', 'variant', 'createdAt'],
     description:

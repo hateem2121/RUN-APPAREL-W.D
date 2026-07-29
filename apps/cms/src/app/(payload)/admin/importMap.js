@@ -1,3 +1,5 @@
+import { SourceVariantSelect as SourceVariantSelect_1ec94a7e3db73578fd244eb976d92e16 } from '../../../fields/SourceVariantSelect'
+import { ColourRowLabel as ColourRowLabel_73764905223f0a3f59a839dd6ba129a3 } from '../../../fields/ColourRowLabel'
 import { RscEntryLexicalCell as RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
 import { RscEntryLexicalField as RscEntryLexicalField_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
 import { LexicalDiffComponent as LexicalDiffComponent_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
@@ -26,6 +28,8 @@ import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } f
 
 /** @type import('payload').ImportMap */
 export const importMap = {
+  "/fields/SourceVariantSelect#SourceVariantSelect": SourceVariantSelect_1ec94a7e3db73578fd244eb976d92e16,
+  "/fields/ColourRowLabel#ColourRowLabel": ColourRowLabel_73764905223f0a3f59a839dd6ba129a3,
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalCell": RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e,
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalField": RscEntryLexicalField_44fe37237e0ebf4470c9990d8cb7b07e,
   "@payloadcms/richtext-lexical/rsc#LexicalDiffComponent": LexicalDiffComponent_44fe37237e0ebf4470c9990d8cb7b07e,

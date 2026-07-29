@@ -146,6 +146,32 @@ describe('mergeVariants', () => {
     expect(check).toEqual({ ok: true, missing: [], extra: [] })
   })
 
+  it('reports variants in FILE order as well as sorted', async () => {
+    // The CMS shows `variantsInFileOrder` back to the owner so they can say which
+    // of their colours is which. If it ever silently became sorted, "the second
+    // colourway in the file" would point at the wrong colour and the colour
+    // buttons would swap on the live page — with nothing failing anywhere.
+    // NAVY/BLACK/CRIMSON is deliberately not alphabetical, so the two lists differ.
+    const inputs = PLACEHOLDER_COLOURWAYS.map((c) => ({
+      file: join(dir, 'placeholders', `n001-${c.slug}.glb`),
+      variantName: c.variantId,
+    }))
+    const merged = join(dir, 'n001-file-order.glb')
+    await mergeVariants(inputs, merged)
+
+    const report = await inspectGlb(merged)
+    expect(report.variantsInFileOrder).toEqual(['N001-NAVY', 'N001-BLACK', 'N001-CRIMSON'])
+    expect(report.variants).toEqual(['N001-BLACK', 'N001-CRIMSON', 'N001-NAVY'])
+    // Same set, different order — never a different set.
+    expect([...report.variantsInFileOrder].sort()).toEqual(report.variants)
+  })
+
+  it('reports no file-order variants for a raw export that binds none', async () => {
+    const report = await inspectGlb(join(dir, 'placeholders', 'n001-navy.glb'))
+    expect(report.variants).toEqual([])
+    expect(report.variantsInFileOrder).toEqual([])
+  })
+
   it('detects a missing variant against the CMS list', async () => {
     const report = await inspectGlb(join(dir, 'n001.glb'))
     const check = checkVariants(report, ['N001-NAVY', 'N001-BLACK', 'N001-CRIMSON', 'N001-SAGE'])
@@ -257,10 +283,52 @@ describe('parseMergeArgs (CLI contract)', () => {
     expect(parsed.draco).toBe(false)
     expect(parsed.out).toBeNull()
   })
-  it('throws on a token missing "="', () => {
+  it('throws on a token missing "=" when --from-cms is absent', () => {
     expect(() => parseMergeArgs(['--out', 'x.glb', 'no-equals-here.glb'])).toThrow(
       /Expected <file\.glb>=<VARIANT-ID>/,
     )
+  })
+  it('points at --from-cms in that error, so the fix is in the message', () => {
+    expect(() => parseMergeArgs(['bare.glb'])).toThrow(/--from-cms <product-slug>/)
+  })
+})
+
+describe('parseMergeArgs — --from-cms (names come from the CMS, not from CLO)', () => {
+  it('accepts bare file paths and leaves the names to be filled in positionally', () => {
+    const parsed = parseMergeArgs([
+      '--from-cms',
+      'n001',
+      '--out',
+      'output/n001.glb',
+      'raw/navy.glb',
+      'raw/black.glb',
+    ])
+    expect(parsed.fromCms).toBe('n001')
+    expect(parsed.out).toBe('output/n001.glb')
+    expect(parsed.inputs).toEqual([
+      { file: 'raw/navy.glb', variantName: '' },
+      { file: 'raw/black.glb', variantName: '' },
+    ])
+  })
+
+  it('does not care where the flag appears — a flag after the files still counts', () => {
+    // Resolved before the arg loop on purpose: parsing it inline meant
+    // `merge a.glb --from-cms n001` rejected "a.glb" for having no "=".
+    const parsed = parseMergeArgs(['a.glb', 'b.glb', '--from-cms', 'n001'])
+    expect(parsed.fromCms).toBe('n001')
+    expect(parsed.inputs.map((i) => i.file)).toEqual(['a.glb', 'b.glb'])
+  })
+
+  it('still honours an explicit name given alongside --from-cms', () => {
+    const parsed = parseMergeArgs(['--from-cms', 'n001', 'a.glb=EXPLICIT', 'b.glb'])
+    expect(parsed.inputs).toEqual([
+      { file: 'a.glb', variantName: 'EXPLICIT' },
+      { file: 'b.glb', variantName: '' },
+    ])
+  })
+
+  it('defaults fromCms to null so the historic form is untouched', () => {
+    expect(parseMergeArgs(['a.glb=N001-A']).fromCms).toBeNull()
   })
 })
 

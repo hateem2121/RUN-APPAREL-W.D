@@ -63,16 +63,12 @@ export const publicViewerEndpoint: Endpoint = {
       return notFound('This product reference is not currently available.')
     }
 
-    const colourwayDocs = await req.payload.find({
-      collection: 'colourways',
-      where: {
-        and: [{ product: { equals: product.id } }, { active: { equals: true } }],
-      },
-      sort: 'sequence',
-      limit: 100,
-      depth: 1,
-      req,
-    })
+    // Colours arrive with the product (inline array, populated at depth 1), so
+    // the second query this endpoint used to run — a `where` against the old
+    // top-level `colourways` collection — is gone. One fewer D1 round trip on
+    // every QR scan. Ordering, the active filter and the default colour are all
+    // derived from the array itself inside buildViewerResponse.
+    const colourwayDocs = Array.isArray(product.colourways) ? product.colourways : []
 
     const settings = await req.payload.findGlobal({ slug: 'site-settings', depth: 0, req })
 
@@ -80,7 +76,7 @@ export const publicViewerEndpoint: Endpoint = {
     // in a pure, unit-tested function. Null → no usable colourway → 404.
     const body = buildViewerResponse(
       product as unknown as Record<string, unknown>,
-      colourwayDocs.docs as unknown as Record<string, unknown>[],
+      colourwayDocs as unknown as Record<string, unknown>[],
       settings as unknown as Record<string, unknown>,
       origin,
       colourSlug,

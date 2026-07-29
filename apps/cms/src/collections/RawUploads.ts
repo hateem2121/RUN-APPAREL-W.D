@@ -27,10 +27,18 @@ import { checkRawUpload } from './rawRules'
 
 export const RawUploads: CollectionConfig = {
   slug: 'raw-uploads',
+  // See Products.ts — pinned against Payload v4 flipping the default to ON.
+  versions: false,
   admin: {
     group: 'Content',
     useAsTitle: 'filename',
     defaultColumns: ['filename', 'status', 'detail', 'targetProduct', 'resultGlb'],
+    // Hidden from the sidebar for editors. It is NOT hidden from them as a
+    // feature: the product's "3D file" tab embeds this collection through a
+    // join field, so uploading happens on the product page and the editor never
+    // has to know this is a separate thing. Admins keep the standalone list for
+    // debugging a stuck job.
+    hidden: ({ user }) => (user as { role?: string } | null | undefined)?.role !== 'admin',
     description:
       'Upload your raw CLO export here — big files and messy names are fine (give it a name ending in “.glb” so the records stay readable). It is shrunk automatically. When Status shows “ready”, open the linked product to review the colours and Publish. These files are private and never shown to customers.',
   },
@@ -174,12 +182,19 @@ export const RawUploads: CollectionConfig = {
             )
             return doc
           }
+          // `targetProduct` is an id at depth 0 but a populated doc when the
+          // hook runs after a create with depth — normalise both.
+          const target = doc.targetProduct as { id?: number | string } | number | string | null
+          const targetProductId =
+            target && typeof target === 'object' ? (target.id ?? null) : (target ?? null)
+
           await queue.send({
             rawUploadId: doc.id,
             filename: doc.filename as string,
             prefix: (doc.prefix as string | undefined) ?? null,
             detail: ((doc.detail as ShrinkDetailLevel | undefined) ??
               DEFAULT_SHRINK_DETAIL) as ShrinkDetailLevel,
+            targetProductId,
           })
           req.payload.logger.info(`Queued raw upload ${doc.id} (${doc.filename}) for shrinking.`)
         } catch (error) {
