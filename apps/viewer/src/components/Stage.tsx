@@ -20,6 +20,9 @@ interface StageProps {
   selected: ViewerColourway
 }
 
+/** Copied into public/ by scripts/copy-meshopt-decoder.mjs — see its header. */
+const MESHOPT_DECODER_URL = '/meshopt_decoder.js'
+
 const VARIANT_NOTICE =
   'The 3D preview for this colourway is temporarily unavailable. The static reference and specifications remain accurate.'
 const LOAD_NOTICE =
@@ -63,7 +66,27 @@ export function Stage({ data, selected }: StageProps) {
     }
     let cancelled = false
     import('@google/model-viewer')
-      .then(() => {
+      .then(({ ModelViewerElement }) => {
+        // Tell model-viewer where the Meshopt decoder lives, BEFORE any model
+        // loads. Without this every production GLB fails outright with
+        //   "THREE.GLTFLoader: setMeshoptDecoder must be called before loading
+        //    compressed files"
+        // because the asset pipeline compresses geometry with EXT_meshopt_
+        // compression (chosen deliberately: Meshopt decodes far faster than Draco
+        // on low-end mobile, which is the QR-scan case) and model-viewer ships
+        // decoder locations for Draco and KTX2 but leaves Meshopt unset.
+        //
+        // Nothing caught this until the first real garment reached the viewer on
+        // 2026-07-29: the seeded placeholder GLBs are built by `merge` with no
+        // geometry compression at all, so they loaded fine and the gap stayed
+        // invisible.
+        //
+        // Served from our own origin (copied into public/ at build time by
+        // scripts/copy-meshopt-decoder.mjs), so the strict CSP needs no new host
+        // and the decoder stays locked to the `meshoptimizer` version the
+        // pipeline encodes with.
+        ;(ModelViewerElement as unknown as { meshoptDecoderLocation: string }).meshoptDecoderLocation =
+          MESHOPT_DECODER_URL
         if (!cancelled) setLibReady(true)
       })
       .catch(() => {
