@@ -46,6 +46,59 @@ const isSet = (value: unknown): boolean => {
 
 const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
 
+/**
+ * The fields whose value decides whether a product may be published. A write that
+ * leaves all of them untouched cannot make the product any more or less
+ * publishable, so re-running the gate on it achieves nothing.
+ */
+export const GATED_FIELDS = ['status', 'variantMode', 'glbAsset', 'colourways'] as const
+
+/**
+ * Reduce a value to something comparable across representations. Uploads and
+ * relationships arrive as a bare id in one place and a populated document in
+ * another depending on depth; both mean the same thing, and a naive comparison
+ * would call that a change.
+ */
+function fingerprint(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(fingerprint)
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    // A populated relationship/upload reduces to its id.
+    if ('id' in record && !('slug' in record)) return record.id
+    const out: Record<string, unknown> = {}
+    for (const key of Object.keys(record).sort()) {
+      if (key === 'id') continue // array-row ids are noise
+      out[key] = fingerprint(record[key])
+    }
+    return out
+  }
+  return value ?? null
+}
+
+/**
+ * True when `data` changes at least one of `fields` relative to `originalDoc`.
+ *
+ * Fails SAFE: anything it cannot compare cleanly reads as changed, so the caller
+ * re-runs its checks rather than skipping them.
+ */
+export function changesAnything(
+  fields: readonly string[],
+  data: Record<string, unknown> | undefined,
+  originalDoc: Record<string, unknown> | undefined,
+): boolean {
+  // A create has nothing to compare against — always check.
+  if (!originalDoc) return true
+  if (!data) return false
+  return fields.some((field) => {
+    if (!(field in data)) return false
+    try {
+      return JSON.stringify(fingerprint(data[field])) !== JSON.stringify(fingerprint(originalDoc[field]))
+    } catch {
+      return true
+    }
+  })
+}
+
 /** Normalise raw array rows from the document into the gate's flat shape. */
 export function toGateColourways(rows: unknown): GateColourway[] {
   if (!Array.isArray(rows)) return []

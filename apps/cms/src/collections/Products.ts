@@ -3,7 +3,13 @@ import { APIError, type CollectionConfig } from 'payload'
 import { isAdmin, isAdminOrEditor, isAuthenticated } from '../access/roles'
 import { cameraFields } from '../fields/camera'
 import { colourwaysField } from '../fields/colourways'
-import { assertPublishable, deriveVariantsVerified, toGateColourways } from './publishGating'
+import {
+  GATED_FIELDS,
+  assertPublishable,
+  changesAnything,
+  deriveVariantsVerified,
+  toGateColourways,
+} from './publishGating'
 
 export const DEFAULT_RETIRED_MESSAGE =
   'The colourway linked by this QR is no longer active. You are viewing the current available reference.'
@@ -64,9 +70,11 @@ export const Products: CollectionConfig = {
         //
         // A product already live in a bad state is a pre-existing condition. It is
         // fixed by attaching a model or moving to Draft, never by refusing edits.
-        const GATED_FIELDS = ['status', 'variantMode', 'glbAsset', 'colourways']
-        const touchesGated = GATED_FIELDS.some((field) => field in (data ?? {}))
-        if (!touchesGated) return data
+        // NOTE the comparison is by VALUE, not by key presence. Payload merges the
+        // whole existing document into `data` before this hook runs — a one-field
+        // PATCH arrives with all 27 keys — so "did the caller send this field?" is
+        // not answerable here and any key-presence check is always true.
+        if (!changesAnything(GATED_FIELDS, data, originalDoc)) return data
 
         // All publish invariants live in a pure, unit-tested function. It needs
         // no database access any more — the colours arrived with the document.

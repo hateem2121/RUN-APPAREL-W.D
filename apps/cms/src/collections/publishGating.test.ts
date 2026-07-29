@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  GATED_FIELDS,
   type GateColourway,
   type PublishGateInput,
   assertPublishable,
+  changesAnything,
   deriveVariantsVerified,
   toGateColourways,
 } from './publishGating'
@@ -181,34 +183,73 @@ describe('assertPublishable', () => {
   })
 })
 
-describe('which writes the gate applies to (Products.beforeChange)', () => {
-  // Mirrors the guard in Products.ts. A save that cannot change the answer must
-  // not be gated: on 2026-07-29 the shrink robot's `fileColours` write was
-  // rejected because N001 was already published without a model — the gate
-  // blocked the one write that populates the colour dropdown, i.e. it prevented
-  // recovery from the state it was objecting to. A human editing that product's
-  // fabric text hit the same wall.
-  const GATED_FIELDS = ['status', 'variantMode', 'glbAsset', 'colourways']
-  const isGated = (data: Record<string, unknown>) =>
-    GATED_FIELDS.some((field) => field in data)
+describe('changesAnything — which writes the gate applies to', () => {
+  /**
+   * A save that cannot change the answer must not be gated. On 2026-07-29 the
+   * shrink robot's `fileColours` write was rejected because N001 was published
+   * without a model — the gate blocked the one write that populates the colour
+   * dropdown, i.e. it prevented recovery from the state it was objecting to. A
+   * human editing that product's fabric text hit the same wall.
+   *
+   * The first attempt at this guard asked "did the caller send a gated field?"
+   * by checking key presence. That can never work: Payload merges the ENTIRE
+   * existing document into `data` before the collection hook runs, so a one-field
+   * PATCH arrives carrying all 27 keys and the check was always true. Comparing
+   * values against `originalDoc` is the only thing that distinguishes them.
+   */
+  const doc = (o: Record<string, unknown> = {}) => ({
+    status: 'published',
+    variantMode: 'single-glb-variants',
+    glbAsset: 10,
+    colourways: [{ id: 'row1', slug: 'navy', variantId: 'Colorway 2', active: true }],
+    gsm: '160 GSM',
+    fileColours: ['Colorway 2'],
+    ...o,
+  })
+  const changed = (data: Record<string, unknown>, original = doc()) =>
+    changesAnything(GATED_FIELDS, data, original)
 
-  it('skips the machine-written colour list', () => {
-    expect(isGated({ fileColours: ['Colorway 2'], variantsVerified: false })).toBe(false)
+  it('ignores a write that only sets the machine-written colour list', () => {
+    // Exactly the robot's PATCH, as Payload presents it: whole doc, one new value.
+    expect(changed(doc({ fileColours: ['Colorway 2', 'Colorway 3', 'Colorway 4'] }))).toBe(false)
   })
 
-  it('skips ordinary copy edits', () => {
-    expect(isGated({ fabricComposition: 'Recycled polyester', gsm: '160 GSM' })).toBe(false)
-    expect(isGated({ frontCameraOrbit: '0deg 82deg 105%' })).toBe(false)
+  it('ignores ordinary copy edits', () => {
+    expect(changed(doc({ gsm: '175 GSM' }))).toBe(false)
   })
 
-  it('still gates anything that can change publishability', () => {
-    expect(isGated({ status: 'published' })).toBe(true)
-    expect(isGated({ glbAsset: null })).toBe(true)
-    expect(isGated({ colourways: [] })).toBe(true)
-    expect(isGated({ variantMode: 'separate-glb-per-colour' })).toBe(true)
+  it('ignores a no-op save', () => {
+    expect(changed(doc())).toBe(false)
   })
 
-  it('gates a mixed write that includes a gated field', () => {
-    expect(isGated({ fabricComposition: 'Poly', status: 'published' })).toBe(true)
+  it('catches an actual publish', () => {
+    expect(changed(doc({ status: 'published' }), doc({ status: 'draft' }))).toBe(true)
+  })
+
+  it('catches the 3D file being removed or swapped', () => {
+    expect(changed(doc({ glbAsset: null }))).toBe(true)
+    expect(changed(doc({ glbAsset: 11 }))).toBe(true)
+  })
+
+  it('catches a colour being switched off or removed', () => {
+    expect(
+      changed(doc({ colourways: [{ id: 'row1', slug: 'navy', variantId: 'Colorway 2', active: false }] })),
+    ).toBe(true)
+    expect(changed(doc({ colourways: [] }))).toBe(true)
+  })
+
+  it('treats a populated upload and a bare id as the same value', () => {
+    // Depth differences must not read as a change, or every write would be gated.
+    expect(changed(doc({ glbAsset: { id: 10, url: '/media/x.glb', filename: 'x.glb' } }))).toBe(false)
+  })
+
+  it('ignores array-row ids, which Payload regenerates freely', () => {
+    expect(
+      changed(doc({ colourways: [{ id: 'DIFFERENT', slug: 'navy', variantId: 'Colorway 2', active: true }] })),
+    ).toBe(false)
+  })
+
+  it('fails safe on a create, where there is nothing to compare', () => {
+    expect(changesAnything(GATED_FIELDS, doc(), undefined)).toBe(true)
   })
 })
