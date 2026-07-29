@@ -17,10 +17,17 @@ dashboard-only fallback if you ever want to deploy without the command line.
 Done once, together with Claude, in [CLOUDFLARE-SETUP.md](CLOUDFLARE-SETUP.md).
 In short:
 
-1. You create a scoped **Cloudflare API token** (dashboard, ~3 minutes).
+1. You create a scoped **Cloudflare API token** (dashboard, ~5 minutes).
 2. Claude stores it as GitHub repo secrets `CLOUDFLARE_API_TOKEN` +
    `CLOUDFLARE_ACCOUNT_ID`, and sets the repo variable `DEPLOY_ENABLED=true`.
 3. From then on, every push to `main` deploys automatically after tests pass.
+
+> ⚠️ **The token must be a Custom one, and must include Containers + Cloudchamber.**
+> Without those two, everything appears to work — the CMS and viewer deploy fine —
+> but the shrink service's container image silently never updates, and the
+> workflow fails with `ApiError: Forbidden` that names neither the permission nor
+> the step. This cost three failed deploys and nearly shipped a stale pipeline. The
+> exact nine-row permission table is in [RUNBOOK.md](RUNBOOK.md) → *How deploys work*.
 
 ---
 

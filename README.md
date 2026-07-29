@@ -19,11 +19,35 @@ development reference for partners, not a retail page.**
 |---|---|
 | `apps/viewer` | The public viewer site (Cloudflare Worker + Static Assets, `viewer.wear-run.help`) |
 | `apps/cms` | Payload CMS — private admin + public read-only API (Cloudflare Workers, `cms.wear-run.help`) |
-| `packages/shared` | Shared types and helpers used by both |
-| `tools/asset-pipeline` | The GLB processing tool (merge colourways, validate, placeholders) |
-| `docs/` | `CLOUDFLARE-SETUP.md` (one-time setup) · `QA-CHECKLIST.md` (before every launch) · `AI-TOOLING.md` (agent tooling) |
+| `apps/shrink` | The auto-shrink service — queue consumer Worker + Container that runs the asset pipeline on raw CLO uploads |
+| `packages/shared` | Shared types, size ceilings and the shrink job contract, used by all of the above |
+| `tools/asset-pipeline` | The GLB processing tool (merge colourways, decimate, validate, placeholders) |
+| `patches/` | A pnpm patch for `@payloadcms/storage-r2` — **do not remove**, see `docs/RAW-UPLOAD-PIPELINE.md` |
+| `docs/` | see the index below |
 
 First-time deployment: follow **`docs/CLOUDFLARE-SETUP.md`** once, top to bottom.
+
+### Documentation index
+
+**Start here, depending on what you're doing:**
+
+| I want to… | Read |
+|---|---|
+| Upload a garment and get it on the site | [`docs/FIRST-GARMENT-UPLOAD.md`](docs/FIRST-GARMENT-UPLOAD.md) — plain English, no code |
+| Set the project up on Cloudflare for the first time | [`docs/CLOUDFLARE-SETUP.md`](docs/CLOUDFLARE-SETUP.md) |
+| Deploy, migrate, rotate a secret, or fix something live | [`docs/RUNBOOK.md`](docs/RUNBOOK.md) |
+| Understand the raw-upload → auto-shrink pipeline | [`docs/RAW-UPLOAD-PIPELINE.md`](docs/RAW-UPLOAD-PIPELINE.md) |
+| Check the site before announcing anything | [`docs/QA-CHECKLIST.md`](docs/QA-CHECKLIST.md) |
+| Process a GLB by hand | [`tools/asset-pipeline/README.md`](tools/asset-pipeline/README.md) |
+| Know *why* something is built the way it is | [`docs/HARDENING-LOG.md`](docs/HARDENING-LOG.md) |
+| Back up or restore the database | [`docs/BACKUP-RESTORE.md`](docs/BACKUP-RESTORE.md) |
+| Deploy without the command line | [`docs/DEPLOY-BY-CLICKING.md`](docs/DEPLOY-BY-CLICKING.md) |
+| See how the AI agent tooling is wired | [`docs/AI-TOOLING.md`](docs/AI-TOOLING.md) |
+
+**Session logs** — narrative records of expensive debugging, kept because
+re-deriving them costs days: [`docs/SESSION-2026-07-27.md`](docs/SESSION-2026-07-27.md)
+(why raw uploads never worked) · [`docs/SESSION-2026-07-28.md`](docs/SESSION-2026-07-28.md)
+(audit of those fixes; texture-aware decimation; CI token scope).
 
 ---
 
@@ -47,6 +71,12 @@ accounts manage products, colourways and media only.
 
 ### 3. Preparing 3D files — ALWAYS run the pipeline first
 
+> **There is now an easier route.** Upload the raw CLO export straight into
+> **Raw uploads** in the CMS and it is shrunk automatically — no command line, no
+> Node.js. Start there: [docs/FIRST-GARMENT-UPLOAD.md](docs/FIRST-GARMENT-UPLOAD.md).
+> The manual recipe below still works and is the fallback if the automatic route
+> fails. It has never been retired.
+
 CLO exports **one GLB per colourway**, and raw CLO output is never publish-ready.
 On a computer with this repository (needs Node.js + pnpm, one-time `pnpm install`):
 
@@ -57,7 +87,10 @@ On a computer with this repository (needs Node.js + pnpm, one-time `pnpm install
 # cloth-sim meshes run to MILLIONS of triangles — that geometry, not the textures,
 # is what makes them huge (a real 364 MB export was 9.8 M triangles / only 1 MB of
 # textures). --meshopt then compresses the reduced mesh. Start at 0.05 (keep ~5%
-# of triangles) and lower if you need to hit the 8 MB mobile guideline.
+# of triangles). NOTE: --simplify is a TARGET, not a promise — decimation stops
+# early once it would exceed --simplify-error, and past that point lowering the
+# ratio does nothing. Raise --simplify-error (or lower --uv-weight) for a smaller
+# file; see tools/asset-pipeline/README.md.
 pnpm pipeline merge --out output/t004.glb --simplify 0.05 --meshopt \
   raw/t004-forest.glb=T004-FOREST \
   raw/t004-sand.glb=T004-SAND

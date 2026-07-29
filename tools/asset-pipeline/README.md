@@ -45,16 +45,72 @@ pnpm pipeline placeholders --out output/placeholders
 | `--quality <n>` | `82` | WebP quality (1–100) / KTX2 ETC1S quality (1–255). |
 | `--meshopt` | off | Meshopt geometry compression — fast decode on low-end mobile. |
 | `--draco` | off | Draco geometry compression — smaller, slower to decode. |
-| `--simplify <ratio>` | off | Decimate geometry to this fraction of triangles (0–1), e.g. `0.05` keeps ~5%. |
+| `--simplify <ratio>` | off | Decimate geometry to this fraction of triangles (0–1), e.g. `0.05` keeps ~5%. A **target**, not a promise — see below. |
+| `--simplify-error <r>` | `0.0001` | Error ceiling as a fraction of mesh radius. Decimation stops early rather than exceed it. |
+| `--uv-weight <n>` | `1` | How heavily texture distortion counts against that budget. **This is what keeps printed logos intact.** `0` disables texture-aware decimation. |
+| `--normal-weight <n>` | `0.5` | Same idea for vertex normals — protects shading rather than artwork. |
 
 > **`--simplify` is essential for raw CLO exports.** CLO's cloth simulation produces
 > meshes with **millions** of triangles (a real export measured 9.8 M triangles /
 > 6.3 M vertices) — 50×+ past what a web viewer needs. That geometry, not the
 > textures, is what makes the file huge: texture compression alone took one 364 MB
-> export only to ~66 MB, but `--simplify 0.05 --meshopt` brought it to **14 MB**
-> with no visible quality loss. Splitting into per-colour files does **not** help —
-> the heavy mesh is shared, so it just repeats in every file. Start around `0.05`
-> and lower it (e.g. `0.03`) if you need to get under the 8 MB mobile guideline.
+> export only to ~66 MB, but `--simplify 0.05 --meshopt` brought it to **14 MB**.
+> Splitting into per-colour files does **not** help — the heavy mesh is shared, so
+> it just repeats in every file.
+
+> ⚠️ **`--simplify` is a TARGET, not a promise — and this trips people up.**
+> Decimation stops early as soon as it would exceed `--simplify-error`. Once that
+> budget is the binding constraint, **lowering the ratio changes nothing at all.**
+> (An earlier version of this README advised "lower it to 0.03 to hit the 8 MB
+> guideline". That advice does not work once the budget binds.) To get a smaller
+> file, raise `--simplify-error` or lower `--uv-weight`.
+
+### How printed artwork is protected
+
+Decimation used to tear printed logos apart, because glTF-Transform's `simplify()`
+only ever sees vertex **positions** — it cannot know how far a UV has been dragged,
+and smearing the UVs under a printed graphic tears the image.
+
+The first fix was meshoptimizer's `LockBorder` flag. It works, but for the wrong
+reason: glTF-Transform documents it for "adjacent 'chunks' of a large mesh (e.g.
+terrain) [that] share a border", and it freezes **every** topological border —
+every neckline, cuff, hem and UV-island edge. On a real 373 MB export that took the
+result from 850 k triangles to 6.0 M / **58.3 MB**, over the CMS's 40 MB publish
+ceiling, so nothing could be published at all.
+
+`src/simplify-textured.ts` now uses meshoptimizer's `simplifyWithAttributes`
+instead, which its own README documents for exactly this case: it "can improve
+shading (by using vertex normals), **texture deformation (by using texture
+coordinates)**". With UV error inside the error budget, `LockBorder` is
+unnecessary and the mesh interior — where there is nothing to protect — is free to
+collapse. Anything the fast path can't take (no UVs, quantized attributes,
+non-triangle draw modes) falls back to the library's own position-only
+`simplifyPrimitive` with `lockBorder`, so the conservative behaviour is still the
+floor.
+
+**Two knobs, trading directly against each other.** Measured on a synthetic
+243,602-triangle draped surface with a non-linear unwrap (control, undecimated:
+1.3e-6 texture error):
+
+| setting | triangles | size (meshopt) | p99 texture error |
+| --- | --- | --- | --- |
+| `--uv-weight 0 --simplify-error 0.0001` (old, lockBorder) | 58,378 | 0.29 MB | 0.00013 |
+| `--uv-weight 0 --simplify-error 0.001` (old, lockBorder) | 12,180 | 0.07 MB | 0.00073 |
+| `--uv-weight 2 --simplify-error 0.0002` | 20,421 | 0.11 MB | 0.00036 |
+| `--uv-weight 1 --simplify-error 0.0005` | 12,180 | 0.07 MB | 0.00054 |
+| `--uv-weight 0.5 --simplify-error 0.002` | 4,872 | 0.04 MB | 0.00161 |
+
+At equal size, texture-aware wins (0.00054 vs 0.00073 p99 at 12,180 triangles);
+the larger effect is size, at 2.9–4.8× fewer triangles for comparable protection.
+
+⚠️ **UV weighting only does anything where the unwrap is non-linear.** A linearly
+mapped surface keeps its texture perfectly under decimation regardless of weight —
+measured, every weight from 0 to 100 gave an identical result on a flat grid. Real
+garment unwraps are non-linear; flat test planes are not, so don't calibrate on one.
+
+For the automatic shrinker, don't set these by hand — pick the **Detail** level on
+the raw upload (Balanced / Highest quality / Smallest file). The mapping lives in
+`packages/shared/src/shrink.ts`.
 
 ### Material flags (`merge`, `optimize`) — opaque + double-sided
 

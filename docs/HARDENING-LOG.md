@@ -275,3 +275,129 @@ Worker limits stop applying), and an upload progress %/status in the admin.
   `cms` (Next, 3000).
 - Verification snapshot (asset-pipeline package): `pnpm typecheck` clean ·
   `pnpm test` **36 passing** · real-file `optimize`/`validate` runs green.
+
+---
+
+## Addendum — audit of the raw-upload fixes; texture-aware decimation (2026-07-28)
+
+Brief: independently verify the four upload defects fixed on 2026-07-27, trusting
+nothing. All four held up, and were confirmed **live in production** rather than
+only in source. The audit then found two more defects downstream that would have
+made the first end-to-end run fail, plus one false claim in these very docs.
+Full narrative: [SESSION-2026-07-28.md](SESSION-2026-07-28.md).
+
+### 1. Decimation now weighs texture error, not mesh borders
+
+The 2026-07-27 logo fix used meshoptimizer's `LockBorder`. It stopped the tearing,
+but only as a side effect of freezing **every** topological border — necklines,
+cuffs, hems, every UV-island edge. Measured on the real 373 MB export that took
+850 k triangles to 6.0 M / **58.3 MB**, against a 40 MB publish ceiling. So the
+"fix" made the pipeline incapable of ever completing: the shrink job would POST an
+over-size file, be rejected by `checkMediaUpload`, retry twice and dead-letter.
+
+`tools/asset-pipeline/src/simplify-textured.ts` uses `simplifyWithAttributes`
+instead — the function meshoptimizer's own README documents for "texture
+deformation (by using texture coordinates)", which is precisely this failure. UV
+error goes into the error budget, so `LockBorder` becomes unnecessary and the mesh
+interior is free to collapse. Anything the fast path cannot take (no UVs,
+quantized attributes, non-triangle modes) falls back to the library's position-only
+`simplifyPrimitive` with `lockBorder`, so the conservative behaviour is the floor.
+
+**Decision: keep the fallback rather than replace outright.** The new path is
+better on every measurement taken, but every one of those measurements is on a
+synthetic surface. Leaving a floor costs a few lines and removes the possibility
+of a garment shape we have not anticipated coming out worse than before.
+
+Calibration table (synthetic 243 k-triangle draped surface, non-linear unwrap,
+control = 1.3e-6): see [SESSION-2026-07-28.md](SESSION-2026-07-28.md) and
+`tools/asset-pipeline/README.md`. Headline: at equal size the texture-aware path
+has ~26 % lower p99 texture error, and it reaches comparable protection with
+2.9–4.8× fewer triangles.
+
+### 2. Tuning moved out of the container image
+
+The pipeline source is baked into the container, so changing a decimation setting
+used to cost a Docker build and a `wrangler deploy`. Settings are now chosen per
+upload from a **Detail** field on the raw upload (Balanced / Highest quality /
+Smallest file), passed through the queue message, and applied by the container.
+Re-tuning a garment is a re-upload.
+
+**Decision: three named levels, not a numeric field.** The owner is
+non-technical, and the two underlying knobs (`--uv-weight`, `--simplify-error`)
+interact in a way that is not guessable — the calibration above exists precisely
+because it was not guessable by us either.
+
+### 3. Error surfacing, finished properly
+
+`fd0ecc6` converted `RawUploads.beforeChange` to `APIError`. It did not touch
+`rawRules.ts` or `mediaRules.ts`, which still threw plain `Error` from
+`beforeValidate` — so **every routine rejection an operator actually hits** still
+rendered as "Something went wrong.". The one path that had been fixed was the rare
+one. Now `APIError(msg, 400)` at all six sites, asserted in the unit tests.
+
+**Rule going forward:** any user-facing failure thrown from a Payload hook must be
+`APIError(message, status)`. `payload/dist/utilities/isErrorPublic.js` hides
+anything without a non-500 status.
+
+### 4. Smaller things that were one incident away from mattering
+
+- **Shrink Worker memory.** `arrayBuffer()` → `new File([...])` → `FormData` cost
+  two extra full-size copies inside a 128 MB isolate — 120–170 MB for a 40 MB
+  model. Now a hand-built multipart envelope around the container's response
+  stream; the bytes are only ever in flight.
+- **Deterministic failures no longer retry.** A too-big output was worth three
+  `standard-4` container runs to reach the same answer. Permanent failures `ack()`.
+- **Filename desync.** The R2 key is built with `sanitizeFilename` (path + control
+  chars) and the document filename with `sanitize-filename` (which also strips
+  ``/ ? < > \ : * | "`` and trailing dots). A name containing one is stored under
+  two keys, and the integrity guard then reports a good upload as failed. Rejected
+  at `checkRawUpload` with a message that says to rename the file.
+- **`allowRestrictedFileTypes` dropped.** Believed load-bearing; never was. With
+  `mimeTypes` unset, `checkFileRestrictions` tests `name.endsWith(ext)` against an
+  executable blocklist, and no restricted extension is a suffix of "…glb". Setting
+  it only disabled that blocklist for the whole collection.
+- **Patch guard.** `storageR2Patch.test.ts` asserts the *installed bytes* still
+  carry the storage-r2 multipart fix. pnpm 10 raises `ERR_PNPM_UNUSED_PATCH` when
+  the version key matches nothing (verified by deliberately breaking it), but that
+  does not cover the patch being edited, removed, or applied to a file upstream
+  changed.
+
+### 5. CI could not deploy the container at all
+
+`deploy-shrink.yml` had failed on every run since it was written. The image built
+fine; the *registry push* was refused with `ApiError: Forbidden`,
+`{ error: 'Authentication error' }` — which names neither the missing permission
+nor the step. There is no Cloudflare permission template for containers and their
+docs say only that authentication "is handled automatically". The requirement,
+derived from wrangler's own OAuth scope list: Account **Containers:Edit** *and*
+**Cloudchamber:Edit**. Fixed 2026-07-28; run `30368254285` was the first success.
+
+The workflow now ends by printing `wrangler containers list` next to the run's own
+timestamp, so a green run carries its own proof the **image** moved rather than
+just the Worker script.
+
+### 6. Docs were wrong in both directions
+
+`RUNBOOK.md` claimed the auto-shrink pipeline was "not operational". It had been
+deployed by hand and was healthy the whole time; the claim was inferred from CI
+logs. Then this session created the mirror error — banners saying the CI deploy
+was broken, left in place after fixing it. Both cost real time.
+
+**Rule:** for any "is X deployed?" question, query the platform
+(`wrangler containers list`, `wrangler deployments list`, a D1 `SELECT`), never
+the CI history. And when a status claim stops being true, it is not documentation
+debt — it is a defect.
+
+### Verification snapshot
+
+`pnpm typecheck` clean · `pnpm test` **159 passing** across 5 packages ·
+`pnpm build` clean · patched storage-r2 confirmed present in the freshly-built
+client chunk *and* in the one production serves · CI green · container `version 3`
+(`sha256:26d43a29…`) `ready`, 0 errors · ingest bucket lifecycle
+`expire-raw-uploads` (14 days) live.
+
+**Still outstanding, and not a code problem:** the pipeline has never been
+exercised end to end (`raw_uploads` is empty), and N001 is published with
+`glbUrl: null` — the live page renders its static fallback with no model. Both
+need a CLO export whose colourways are named exactly `N001-NAVY`, `N001-BLACK`,
+`N001-CRIMSON`. See [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md).

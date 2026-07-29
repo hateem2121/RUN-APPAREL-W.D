@@ -80,6 +80,22 @@ throttled "Slow 4G" network profile.
 - [ ] No prices, stock, SKU, ratings, cart, checkout or retail language anywhere
 - [ ] No certifications, sustainability claims, MOQs or lead times on the page
 
+## Auto-shrink pipeline (raw uploads)
+
+Only if the garment came through **Raw uploads** rather than the manual CLI recipe.
+Full guide: [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md).
+
+- [ ] Raw upload reached **Ready to review** (not Failed, not stuck on Queued)
+- [ ] The **Report** lists the colour variants, and they match the CMS colourway
+      `variantId`s **exactly** — otherwise the colour buttons silently do nothing
+- [ ] Result GLB is **under 40 MB** (the shrink Worker pre-checks this and says so
+      in plain language if not — a bare HTTP 400 means something else went wrong)
+- [ ] A deliberately bad upload (a `.txt` renamed `.glb`, or a filename containing
+      `?`) is rejected with a **real message**, never "Something went wrong."
+- [ ] `wrangler tail run-apparel-viewer-shrink` shows **no `Exceeded memory limit`**
+- [ ] Container image is current: `wrangler containers list` → `LAST MODIFIED` is
+      at or after the last commit touching `apps/shrink` or `tools/asset-pipeline`
+
 ## Performance & assets
 
 - [ ] Poster visible well before the model on Slow 4G
@@ -96,5 +112,9 @@ throttled "Slow 4G" network profile.
 - [ ] Fabric reads as **textured with depth**, not a flat grey shape (image-based lighting is applied via `environment-image`)
 - [ ] Fabric is **solid, not see-through** (opaque + double-sided step applied; `pnpm pipeline validate` reports **0 translucent** materials — model-viewer has no OIT)
 - [ ] Printed graphics, logos and decals render **in colour**, not as solid black patches
+- [ ] **Zoom right in on a printed logo, on a phone.** Decimation trades artwork
+      fidelity for file size, so this is the check that has actually failed before —
+      logos tore apart at the settings shipped on 2026-07-27. If they look smeared,
+      re-upload with **Detail: Highest quality**
 - [ ] Switching colourway tabs **swaps the model live** with no "temporarily unavailable" notice (variants bound correctly)
 - [ ] Browser console shows **no `[viewer:*]` warnings** (`model-load-error`, `variant-missing`, `render3d-unavailable`)
