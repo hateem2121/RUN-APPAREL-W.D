@@ -16,9 +16,15 @@ export const Users: CollectionConfig = {
     // keys are per-user and revocable. Humans still sign in with email/password.
     useAPIKey: true,
   },
+  // Auth collections are the one place Payload v4 still defaults `versions` to
+  // false, but stating it keeps every collection in this config consistent.
+  versions: false,
   admin: {
     useAsTitle: 'email',
     group: 'System',
+    // Editors can only ever read their own record; showing them a "Users" entry
+    // that lists one person is noise. Keeps the editor sidebar to three items.
+    hidden: ({ user }) => (user as { role?: string } | null | undefined)?.role !== 'admin',
   },
   access: {
     // Only Admin / Director manages users. Editors may read their own record

@@ -49,6 +49,17 @@ export interface ProjectionDeps {
 /**
  * Build the public viewer payload, or `null` when the product has no active
  * colourway with a usable poster (the endpoint turns null into a 404).
+ *
+ * `colourwayDocs` used to be separate `colourways` documents fetched with their
+ * own query; it is now `product.colourways`, the inline array. The signature is
+ * unchanged on purpose — this projection IS the public API contract, and its
+ * tests are the only thing standing between a refactor and a broken viewer.
+ *
+ * Three values are now DERIVED here rather than stored, so nobody has to keep
+ * them in step by hand:
+ *   - `sequence`  — position among the colours actually on show (01, 02, 03…)
+ *   - `isDefault` — the first colour on show, i.e. the topmost switched-on row
+ *   - the active filter — previously a `where` clause on the dropped collection
  */
 export function buildViewerResponse(
   product: Doc,
@@ -62,16 +73,20 @@ export function buildViewerResponse(
 
   const colourways: ViewerColourway[] = []
   for (const doc of colourwayDocs) {
+    // `active` defaults to true, so only an explicit false retires a colour.
+    if (doc.active === false) continue
     const poster = toMediaAsset(doc.posterPreview, origin)
     if (!poster) continue // never expose a colourway without its required poster
     colourways.push({
-      variantId: String(doc.variantId),
+      variantId: String(doc.variantId ?? ''),
       displayName: String(doc.displayName),
       slug: String(doc.slug),
-      sequence: Number(doc.sequence ?? 0),
+      // Numbered by what a visitor actually sees, so a retired or poster-less
+      // colour never leaves a gap in the tab order.
+      sequence: colourways.length + 1,
       poster,
       glbUrl: separateMode ? (toMediaAsset(doc.glbAsset, origin)?.url ?? null) : null,
-      isDefault: Boolean(doc.isDefault),
+      isDefault: colourways.length === 0,
       altText: String(doc.altText ?? ''),
       hexSwatch: (doc.hexSwatch as string | null) ?? null,
     })
@@ -79,8 +94,8 @@ export function buildViewerResponse(
   if (colourways.length === 0) return null
 
   const requested = colourways.find((c) => c.slug === colourSlug) ?? null
-  const fallback = colourways.find((c) => c.isDefault) ?? colourways[0]!
-  const selectedColourway = requested ?? fallback
+  // The first colour on show is the default, by construction above.
+  const selectedColourway = requested ?? colourways[0]!
   const requestedColourwayUnavailable = requested === null
 
   return {

@@ -13,6 +13,10 @@ build/
 .env
 .env.*
 !.env.example
+# wrangler's local override file — holds secrets and local-only vars, and does
+# NOT match the .env.* patterns above.
+.dev.vars
+.dev.vars.*
 
 # generated assets (reproducible via the asset pipeline)
 tools/asset-pipeline/output/

@@ -1,6 +1,6 @@
 import { readFile, stat } from 'node:fs/promises'
 import type { Primitive } from '@gltf-transform/core'
-import type { MappingList } from '@gltf-transform/extensions'
+import type { KHRMaterialsVariants, MappingList } from '@gltf-transform/extensions'
 import { createIO } from './io'
 
 /** Warn when a production GLB is heavier than this — QR scans are mobile-first. */
@@ -36,8 +36,17 @@ export async function readGlbGenerator(file: string): Promise<string> {
 export interface GlbReport {
   file: string
   bytes: number
-  /** KHR_materials_variants names actually bound to primitives — what <model-viewer> will report as availableVariants. */
+  /** KHR_materials_variants names actually bound to primitives — what <model-viewer> will report as availableVariants. Sorted; use `variantsInFileOrder` when position matters. */
   variants: string[]
+  /**
+   * The same names, in the order the file DECLARES them.
+   *
+   * `variants` is sorted, which is right for set comparison and wrong for
+   * anything positional. The CMS shows this list to the owner so they can point
+   * each of their colours at one of the names CLO happened to use — so "the
+   * second colourway in the file" has to still be second here.
+   */
+  variantsInFileOrder: string[]
   meshCount: number
   primitiveCount: number
   materialCount: number
@@ -80,6 +89,20 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
     }
   }
 
+  // Declaration order, straight off the extension. gltf-transform's reader builds
+  // its variant list by mapping the file's `extensions.KHR_materials_variants
+  // .variants` array in order, so listVariants() preserves it — unlike the sorted
+  // set above. Filtered to the ones actually bound to a primitive, so the two
+  // lists always describe the same set and only differ in order.
+  const variantsExtension = root
+    .listExtensionsUsed()
+    .find((extension) => extension.extensionName === 'KHR_materials_variants') as
+    | KHRMaterialsVariants
+    | undefined
+  const variantsInFileOrder = (variantsExtension?.listVariants() ?? [])
+    .map((variant) => variant.getName())
+    .filter((name) => name !== '' && variants.has(name))
+
   const { size } = await stat(file)
   const generator = await readGlbGenerator(file)
   const textures = root.listTextures()
@@ -120,6 +143,7 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
     file,
     bytes: size,
     variants: [...variants].sort(),
+    variantsInFileOrder,
     meshCount: root.listMeshes().length,
     primitiveCount: primitives.length,
     materialCount: root.listMaterials().length,

@@ -4,6 +4,39 @@
 small, correct GLB you review and publish — the heavy shrinking runs on a
 Cloudflare Container, and a raw file can never reach customers.
 
+> ## 2026-07-29: CLO no longer has to name anything
+>
+> Colourways used to have to be named inside CLO 3D as `N001-NAVY`, `N001-BLACK`,
+> `N001-CRIMSON` — character for character — because the merged GLB's
+> `KHR_materials_variants` names were matched against the CMS by hand. A mismatch
+> was silent until the colour buttons died on the live page, and the fix was a
+> full re-export plus another ~350 MB upload.
+>
+> **That requirement is gone.** The names inside the file are now opaque handles:
+>
+> 1. `inspectGlb` reports `variantsInFileOrder` — the names as the file *declares*
+>    them (the pre-existing `variants` is sorted, which is right for set
+>    comparison and wrong for anything positional).
+> 2. The container puts that list in its report; the shrink Worker PATCHes it onto
+>    the raw upload's **Target product** as `fileColours`.
+> 3. On the product's **Colours** tab, each colour has a dropdown —
+>    *"Which colour in your CLO file is this?"* — offering exactly those names.
+> 4. The chosen string is stored as that colour's `variantId` and handed to
+>    `<model-viewer>` as its `variantName`.
+>
+> **Nothing is renamed**, so there is no second processing pass and no extra
+> container time. `variantsVerified` is now derived (every switched-on colour
+> points at a name that is really in the file), so the manual tick-box is gone.
+>
+> For the manual `merge` path there is no single file to read names from, so the
+> CMS supplies them instead: `pnpm pipeline merge --from-cms <product-slug>` reads
+> `GET /api/pipeline/plan/:productSlug` and names the variants positionally. The
+> old `<file.glb>=<VARIANT-ID>` form still works.
+>
+> Colours also moved from a top-level `colourways` collection to an inline array
+> on the product, and uploads are reached through the product's **3D file** tab
+> (a `join` field) rather than a separate Raw uploads page.
+
 > ## ⚠️ FULLY DEPLOYED, STILL NEVER SMOKE-TESTED (verified against the live account 2026-07-28)
 >
 > Every piece is in place and automatic. The **only** thing outstanding is that no
@@ -222,6 +255,29 @@ the error budget binds, lowering the ratio does nothing at all. Raise the budget
 isolate capped at 128 MB — 120–170 MB for a 40 MB model. `streamMultipart()` in
 `apps/shrink/src/index.ts` hand-builds the multipart envelope around the
 container's response stream so the bytes are only ever in flight.
+
+### Payload v4 — what will break here (audited 2026-07-29)
+
+v4 exists only as `4.0.0-canary.18`; `latest` is still 3.86.0, which is what this
+repo pins. Four things in this document's blast radius change on upgrade:
+
+- **Storage adapters move out of `plugins` into a new top-level `storage` key.**
+  3.86 has no such key, so the move cannot be made early. Both `r2Storage()` calls
+  are kept adjacent in `payload.config.ts` so the edit is a three-line diff.
+- **Direct uploads switch to a shared `POST /api/upload-instructions` endpoint.**
+  That is the code path the patch below lives on — re-test it, do not assume it
+  still applies.
+- **`versions` defaults to ON for every collection and global**, which would add
+  six `_versions` tables to D1 and roughly double row-writes per save. Every
+  collection and global now states `versions: false` explicitly; that is a no-op
+  on 3.86 and pins the behaviour through the upgrade.
+- **API keys created before v3.46.0 stop authenticating** (the sha1 HMAC fallback
+  is removed). **`robot@wear-run.help`'s key must be re-saved or regenerated
+  before upgrading**, or the entire auto-shrink flow dies silently.
+
+Also: v4 requires TypeScript ≥ 6.0.3. `apps/cms` is on 6.0.3 — deliberately not
+7.x, which Next.js 16 rejects ("TypeScript 7.0.2 does not provide the compiler API
+required by Next.js").
 
 ### The `@payloadcms/storage-r2` patch — when it can go
 

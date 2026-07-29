@@ -100,14 +100,23 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
     const filename = suggestedFilename(body.key)
     const beforeMb = (opt.bytesBefore / 1024 / 1024).toFixed(1)
     const afterMb = (opt.bytesAfter / 1024 / 1024).toFixed(1)
+
+    // File order, not alphabetical: the CMS lists these back to the owner so
+    // they can say which of their colours is which. Nothing is renamed, so it
+    // no longer matters what CLO called them.
+    const found = glb.variantsInFileOrder.length ? glb.variantsInFileOrder : glb.variants
     const text = [
       `Shrunk ${beforeMb} MB → ${afterMb} MB.`,
       `Suggested filename: ${filename}`,
-      `Colour variants in the file: ${glb.variants.length ? glb.variants.join(', ') : '(none bound)'}`,
+      found.length
+        ? `Colours found inside your file, in order:\n${found.map((name, i) => `  ${i + 1}. ${name}`).join('\n')}`
+        : 'No colours are stored inside this file. That is fine for a single-colour garment — set the product to “A separate file for each colour”.',
       `See-through (BLEND) materials: ${glb.translucentMaterialCount}`,
       glb.warnings.length ? `Warnings:\n- ${glb.warnings.join('\n- ')}` : 'No warnings.',
       '',
-      'Next: open the target product, attach this GLB, check the variant names match your colourway IDs, tick “Variants verified”, and Publish.',
+      found.length
+        ? 'Next: open the product’s Colours tab and answer “Which colour in your CLO file is this?” for each colour, then Publish. The names above are whatever CLO called them — they do not have to look like anything in particular.'
+        : 'Next: open the product, attach this file to the colour it belongs to, then Publish.',
     ].join('\n')
 
     const report = {
@@ -115,6 +124,7 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
       suggestedFilename: filename,
       sizeBytes: opt.bytesAfter,
       variants: glb.variants,
+      variantsInFileOrder: found,
       warnings: glb.warnings,
       translucentMaterialCount: glb.translucentMaterialCount,
       text,

@@ -36,6 +36,12 @@ export interface MergeResult {
 export interface ParsedMergeArgs {
   inputs: MergeInput[]
   out: string | null
+  /**
+   * `--from-cms <product-slug>`: take the variant names from the CMS instead of
+   * from `=VARIANT-ID` tokens on the command line. When set, inputs may be bare
+   * file paths and their `variantName` is filled in by the caller, positionally.
+   */
+  fromCms: string | null
   /** Retained for the historic CLI contract; mirrors `options.geometry === 'draco'`. */
   draco: boolean
   /** Fully-resolved optimisation options passed straight to mergeVariants. */
@@ -45,8 +51,12 @@ export interface ParsedMergeArgs {
 /**
  * Parse `merge` command arguments. Pure and exported (kept out of cli.ts,
  * which auto-runs on import) so the CLI contract is unit-testable. Splits
- * `<file>=<VARIANT-ID>` on the LAST `=` so paths may contain `=`. Throws on a
- * malformed token.
+ * `<file>=<VARIANT-ID>` on the LAST `=` so paths may contain `=`.
+ *
+ * With `--from-cms <slug>` the names come from the CMS and inputs are bare file
+ * paths, given in the same order as the product's colours. Without it, every
+ * input must still carry an explicit `=<VARIANT-ID>` — the historic form, kept
+ * working so `pnpm seed:assets` and any existing script keep running unchanged.
  *
  * Best-practice defaults: WebP textures capped at 2048 px (the dominant size
  * win for CLO exports). Geometry compression stays opt-in via `--draco` /
@@ -55,6 +65,12 @@ export interface ParsedMergeArgs {
 export function parseMergeArgs(rest: string[]): ParsedMergeArgs {
   const inputs: MergeInput[] = []
   let out: string | null = null
+  // Resolved before the main loop, not inside it: otherwise
+  // `merge a.glb b.glb --from-cms n001` would reject "a.glb" for having no
+  // `=VARIANT-ID` simply because the flag had not been reached yet. Flag order
+  // on a command line should never change what it means.
+  const fromCmsIndex = rest.indexOf('--from-cms')
+  const fromCms = fromCmsIndex === -1 ? null : (rest[fromCmsIndex + 1] ?? null)
   let texture: OptimizeOptions['texture'] = 'webp'
   let geometry: OptimizeOptions['geometry'] = 'none'
   let maxTextureSize = DEFAULT_MAX_TEXTURE
@@ -71,6 +87,7 @@ export function parseMergeArgs(rest: string[]): ParsedMergeArgs {
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]!
     if (arg === '--out') out = rest[++i] ?? null
+    else if (arg === '--from-cms') i++ // value already read above
     else if (arg === '--draco') geometry = 'draco'
     else if (arg === '--meshopt') geometry = 'meshopt'
     else if (arg === '--no-webp' || arg === '--no-textures') texture = 'none'
@@ -86,14 +103,26 @@ export function parseMergeArgs(rest: string[]): ParsedMergeArgs {
     else if (arg === '--no-opaque' || arg === '--keep-transparency') opaque = false
     else {
       const eq = arg.lastIndexOf('=')
-      if (eq === -1) throw new Error(`Expected <file.glb>=<VARIANT-ID>, got "${arg}"`)
-      inputs.push({ file: arg.slice(0, eq), variantName: arg.slice(eq + 1) })
+      if (eq === -1) {
+        if (!fromCms) {
+          throw new Error(
+            `Expected <file.glb>=<VARIANT-ID>, got "${arg}". ` +
+              'Either add "=<VARIANT-ID>", or pass --from-cms <product-slug> and list the files ' +
+              'in the same order as that product’s colours.',
+          )
+        }
+        // Name filled in positionally from the CMS plan by the caller.
+        inputs.push({ file: arg, variantName: '' })
+      } else {
+        inputs.push({ file: arg.slice(0, eq), variantName: arg.slice(eq + 1) })
+      }
     }
   }
 
   return {
     inputs,
     out,
+    fromCms,
     draco: geometry === 'draco',
     options: {
       texture,

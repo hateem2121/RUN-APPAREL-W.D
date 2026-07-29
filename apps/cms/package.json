@@ -28,6 +28,7 @@
     "@payloadcms/next": "3.86.0",
     "@payloadcms/richtext-lexical": "3.86.0",
     "@payloadcms/storage-r2": "3.86.0",
+    "@payloadcms/ui": "3.86.0",
     "@run-apparel/shared": "workspace:*",
     "graphql": "16.14.2",
     "next": "16.2.12",
@@ -40,7 +41,7 @@
     "@types/node": "26.1.1",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
-    "typescript": "5.9.3",
+    "typescript": "6.0.3",
     "vitest": "4.1.10",
     "wrangler": "4.114.0"
   }

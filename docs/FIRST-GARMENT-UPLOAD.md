@@ -15,10 +15,9 @@ Think of it like a bakery:
 
 Everything on the computer side works. What's missing is a garment file.
 
-**Right now, N001 "Velocity Performance Tee" is published with no 3D model
-attached.** If someone scans its QR code today, the page loads and all the text is
-correct, but the space where the garment should spin is empty, with a message
-saying the 3D view could not load. Attaching a model is what fixes that.
+**Right now, N001 "Velocity Performance Tee" has no 3D model attached.** If someone
+scans its QR code today, the page loads and all the text is correct, but the space
+where the garment should spin is empty. Attaching a model is what fixes that.
 
 ---
 
@@ -26,20 +25,16 @@ saying the 3D view could not load. Attaching a model is what fixes that.
 
 This is the only part nobody else can do for you.
 
-**Make ONE file that contains all three colours.** Not three files. One.
+**Make ONE file that contains all your colours.** Not three files. One.
 
-**The colour names inside CLO must match exactly.** This is the single most common
-thing that goes wrong. They must read, character for character:
+**Call the colours whatever you like.** `Colorway 1`, `Colorway 2`, your own
+names, anything — it genuinely does not matter. The website asks you which is
+which afterwards, in plain English.
 
-```
-N001-NAVY
-N001-BLACK
-N001-CRIMSON
-```
-
-Capital letters. A dash in the middle. No spaces. If one is named `Navy` or
-`N001 Navy`, the colour buttons on the website will not work and you will have to
-export the file again.
+> **This changed on 2026-07-29.** The old guide told you the colours inside CLO
+> had to read exactly `N001-NAVY`, `N001-BLACK`, `N001-CRIMSON`, character for
+> character, and that getting it wrong was the single most common thing that went
+> wrong. That rule is gone. You do not have to name anything in CLO any more.
 
 **When you save the file:**
 
@@ -49,13 +44,13 @@ export the file again.
 - Don't put a dot or a space at the very end of the name
 
 **How big can it be?** It doesn't matter. 300 MB, 400 MB — all fine. Making it
-small is the robot's job now, not yours.
+small is the robot's job, not yours.
 
-> **Why the naming rules?** Two different parts of the system tidy up filenames
-> using slightly different rules. A name containing one of those characters ends
-> up stored under two different names, and the system then thinks your upload
-> failed when it didn't. Rather than let that happen, it stops you at the door
-> with a message telling you to rename the file.
+> **Why the naming rules for the FILE?** Two different parts of the system tidy up
+> filenames using slightly different rules. A name containing one of those
+> characters ends up stored under two different names, and the system then thinks
+> your upload failed when it didn't. Rather than let that happen, it stops you at
+> the door with a message telling you to rename the file.
 
 ---
 
@@ -82,16 +77,20 @@ they wake up when you upload.
 
 ---
 
-## Step 3 — Upload
+## Step 3 — Upload, on the product page
 
-1. Open the CMS. Go to **Raw uploads** → **Create new**.
-2. **Target product:** choose *Velocity Performance Tee*.
-3. **Detail:** leave it on **Balanced**.
-4. Choose your file and upload it.
-5. Keep the tab open and in front. Don't switch away and don't let the laptop
+You no longer go to a separate "Raw uploads" page. Everything happens on the
+product.
+
+1. Open the CMS and click **Products** → *Velocity Performance Tee*.
+2. Click the **3D file** tab.
+3. Under **Your CLO files**, click to add one.
+4. **Detail:** leave it on **Balanced**.
+5. Choose your file and upload it.
+6. Keep the tab open and in front. Don't switch away and don't let the laptop
    go to sleep while it uploads.
 
-Now watch the **Status** field, refreshing every minute or so:
+Now watch the **Status** column, refreshing every minute or so:
 
 **Queued** → **Processing** → **Ready to review**
 
@@ -99,31 +98,57 @@ A large file takes a few minutes. That is normal.
 
 ---
 
-## Step 4 — Check the robot's work
+## Step 4 — Tell it which colour is which
 
-When Status says **Ready to review**, read the **Report** box. It tells you:
+This is the new bit, and it is the whole reason CLO naming no longer matters.
 
-- how big the finished file is
-- which colour names it found inside
+When Status says **Ready to review**, open the **Report**. It lists the colours it
+found inside your file, in order — whatever CLO called them:
 
-**Check the colour names.** They must read exactly `N001-NAVY`, `N001-BLACK`,
-`N001-CRIMSON`. If they say anything else, the colour buttons will not work —
-go back to CLO, rename the colourways, and export again.
+```
+Colours found inside your file, in order:
+  1. Colorway 1
+  2. Colorway 2
+  3. Colorway 3
+```
+
+Now click the **Colours** tab. Each of your colours has a question:
+
+> **Which colour in your CLO file is this?**
+
+Pick from the dropdown. It lists exactly the names above. Match Navy to whichever
+one is actually navy, and so on. Then **Save**.
+
+**Colours checked** ticks itself once every colour is matched. There is nothing
+for you to tick.
+
+> **How do I know which is which?** Look at the photos. If you get one wrong, the
+> colour buttons will show the wrong colour — change the dropdown and save again.
+> Nothing is permanent and nothing needs re-uploading.
 
 ---
 
 ## Step 5 — Put it on the website
 
-1. Open the product **Velocity Performance Tee**.
-2. Attach the finished file — it is linked from the raw upload as **Result GLB**.
-3. Tick **Variants verified**.
-4. Save.
-5. Open `https://viewer.wear-run.help/n001/navy` **on your phone**.
-6. Zoom right in on a printed logo.
+1. Still on the **3D file** tab, set **Finished 3D file** to the shrunk file the
+   robot produced.
+2. Set **Status** to **Published**.
+3. Save.
+4. Open `https://viewer.wear-run.help/n001/navy` **on your phone**.
+5. Zoom right in on a printed logo.
 
-That last step is the whole point of the 2026-07-28 work. Logos used to tear
-apart when the file was shrunk. Look closely at them before you tell anyone the
-page is ready.
+That last step matters. Logos used to tear apart when the file was shrunk. Look
+closely at them before you tell anyone the page is ready.
+
+---
+
+## Which colour do people see first?
+
+The **top** colour that is switched on. Drag the rows on the Colours tab to change
+it. There is no separate setting.
+
+Switching a colour off retires it. Old QR codes for that colour still work — they
+show your first colour instead, with the retired message.
 
 ---
 
@@ -146,7 +171,7 @@ intended way to tune a garment.
 ## If it says Failed
 
 Don't change any settings in the code. Read the **Report** — it explains itself
-in plain language now.
+in plain language.
 
 | What it says | What you do |
 |---|---|
@@ -156,6 +181,7 @@ in plain language now.
 | "cannot store reliably" | Rename the file — remove the odd character |
 | "must be GLB models" | Wrong kind of file. Export a GLB from CLO |
 | "(.zprj) are never processed here" | That's the CLO project file, not the export. Export a GLB |
+| "no colour picked from your CLO file" | Go to the Colours tab and answer the dropdown for each colour |
 | **"Something went wrong."** | **Report this** — that is a bug, not your mistake |
 | Anything else confusing | Copy both Terminal windows and send them |
 
@@ -171,5 +197,5 @@ Your first upload is also its first real test, so there is a fair chance
 something unexpected happens. That isn't failure — that is what a first test is
 for. Keep the two watch windows running and whatever happens will be on screen.
 
-If it goes wrong, the manual route still works and is unchanged: see
-[README.md](../README.md) § 3, "Preparing 3D files".
+If it goes wrong, the manual route still works: see [README.md](../README.md) § 3,
+"Preparing 3D files".

@@ -3,8 +3,14 @@ import { isAdmin, isAuthenticated } from '../access/roles'
 
 export const SiteSettings: GlobalConfig = {
   slug: 'site-settings',
-  label: 'Site Settings',
-  admin: { group: 'System' },
+  label: 'Settings',
+  // See Products.ts — pinned against Payload v4 flipping the default to ON.
+  versions: false,
+  // Deliberately no `group`: with Products and Photos & 3D files under
+  // "Content", a lone "System" heading for one entry was more chrome than
+  // information. Settings now sits on its own, which is the third and last
+  // thing a content editor ever needs.
+  admin: {},
   access: {
     // System configuration is Admin-only to change; editors may view it.
     read: isAuthenticated,

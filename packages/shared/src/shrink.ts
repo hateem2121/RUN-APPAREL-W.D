@@ -35,6 +35,17 @@ export interface ShrinkJobMessage {
   prefix: string | null
   /** Absent on messages enqueued before this field existed — treat as the default. */
   detail?: ShrinkDetailLevel
+  /**
+   * The product this garment is for, so the worker can write the colour names it
+   * found inside the file back onto that product. Those names are what the
+   * "Which colour in your CLO file is this?" dropdown offers — the mechanism that
+   * removed the requirement to name colourways `N001-NAVY` inside CLO 3D.
+   *
+   * Optional: the upload's "Target product" field is optional, and messages
+   * enqueued before this existed do not carry it. Absent simply means the owner
+   * attaches the result by hand, exactly as before.
+   */
+  targetProductId?: number | string | null
 }
 
 /**

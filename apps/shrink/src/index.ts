@@ -39,6 +39,8 @@ interface ShrinkReport {
   suggestedFilename: string
   sizeBytes: number
   variants: string[]
+  /** The same names in FILE order. Absent from containers built before this existed. */
+  variantsInFileOrder?: string[]
   warnings: string[]
   translucentMaterialCount: number
   text: string
@@ -150,7 +152,24 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   //    there too rather than published.
   const mediaId = await createMedia(env, containerRes, report)
 
-  // 4. Mark the raw upload ready for the owner to review + publish.
+  // 4. Tell the product which colours are inside the file.
+  //
+  //    This is what removed the requirement to name colourways `N001-NAVY`
+  //    inside CLO 3D — previously the merged GLB's variant names had to match
+  //    the CMS character for character, and a mismatch only showed up as dead
+  //    colour buttons on the live page after a ~350 MB re-upload. Now the file
+  //    keeps whatever names CLO gave it, the CMS lists them back to the owner,
+  //    and they point each of their colours at one. Nothing is renamed.
+  //
+  //    Best-effort on purpose: the shrink itself succeeded, and the owner can
+  //    still attach the result by hand. Failing the job here would re-run several
+  //    minutes of container time for a result that is already correct.
+  const fileColours = report.variantsInFileOrder ?? report.variants
+  if (job.targetProductId != null && fileColours.length > 0) {
+    await patchProduct(env, job.targetProductId, { fileColours }).catch(() => {})
+  }
+
+  // 5. Mark the raw upload ready for the owner to review + publish.
   await patchRawUpload(env, job.rawUploadId, {
     status: 'ready',
     resultGlb: mediaId,
@@ -259,6 +278,22 @@ async function patchRawUpload(
   if (!res.ok) {
     const body = await res.text().catch(() => '')
     throw new Error(`Failed to update raw upload ${id} (${res.status}): ${body.slice(0, 300)}`)
+  }
+}
+
+async function patchProduct(
+  env: Env,
+  id: number | string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const res = await cmsFetch(env, `/api/products/${id}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`Failed to update product ${id} (${res.status}): ${body.slice(0, 300)}`)
   }
 }
 

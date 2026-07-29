@@ -7,9 +7,19 @@ import { generatePlaceholders } from './placeholders'
 const USAGE = `RUN APPAREL — GLB asset pipeline
 
 USAGE
+  pnpm pipeline merge --from-cms <product-slug> --out <merged.glb> [flags] <file.glb> [...]
+      Merge one raw GLB per colour into a single production GLB. The variant
+      names come from the CMS, so nothing has to be named inside CLO 3D and no
+      IDs are typed here. List the files in the SAME ORDER as that product's
+      colours.
+      e.g. pnpm pipeline merge --from-cms n001 --out output/n001.glb \\
+             raw/navy.glb raw/black.glb raw/crimson.glb
+      Needs CMS_API_KEY (an editor API key). CMS_URL defaults to
+      https://cms.wear-run.help.
+
   pnpm pipeline merge --out <merged.glb> [flags] <file.glb>=<VARIANT-ID> [...]
-      Merge one raw GLB per colourway into a single production GLB with
-      KHR_materials_variants named after CMS variantIds, then compress.
+      The same thing with the names given explicitly. Still supported for
+      scripts and offline use.
       e.g. pnpm pipeline merge --out output/n001.glb \\
              raw/n001-navy.glb=N001-NAVY raw/n001-black.glb=N001-BLACK
 
@@ -60,11 +70,58 @@ function fail(message: string): never {
   process.exit(1)
 }
 
+interface CmsPlan {
+  productCode: string
+  colours: { displayName: string; slug: string; variantId: string }[]
+  variantIds: string[]
+}
+
+/**
+ * Fetch a product's colour plan from the CMS.
+ *
+ * The CMS is the only place that knows what a product's colours are, so it is
+ * what names the variants — rather than the operator retyping IDs at a terminal
+ * and hoping they match, which is precisely how colour buttons used to end up
+ * dead on the live page.
+ */
+async function fetchCmsPlan(productSlug: string): Promise<CmsPlan> {
+  const base = (process.env.CMS_URL ?? 'https://cms.wear-run.help').replace(/\/$/, '')
+  const apiKey = process.env.CMS_API_KEY
+  if (!apiKey) {
+    fail(
+      'CMS_API_KEY is not set, so --from-cms cannot read the colour names.\n' +
+        '  Create an API key on an editor user in the CMS, then:\n' +
+        '    export CMS_API_KEY=...\n' +
+        '  (Set CMS_URL too if you are not pointing at https://cms.wear-run.help.)',
+    )
+  }
+
+  const url = `${base}/api/pipeline/plan/${encodeURIComponent(productSlug)}`
+  const res = await fetch(url, {
+    headers: { Authorization: `users API-Key ${apiKey}`, accept: 'application/json' },
+  }).catch((error: unknown) => {
+    fail(`Could not reach the CMS at ${base}: ${error instanceof Error ? error.message : String(error)}`)
+  })
+
+  if (res.status === 401) fail(`The CMS rejected CMS_API_KEY. Check the key belongs to an admin or editor user.`)
+  if (res.status === 404) fail(`No product at ${base} has the web address word "${productSlug}".`)
+  if (!res.ok) fail(`The CMS returned ${res.status} for ${url}.`)
+
+  const plan = (await res.json()) as CmsPlan
+  if (!plan?.variantIds?.length) {
+    fail(
+      `Product "${productSlug}" has no colours switched on in the CMS, so there is nothing to merge.\n` +
+        '  Add them on the product\'s Colours tab first.',
+    )
+  }
+  return plan
+}
+
 async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2)
 
   if (command === 'merge') {
-    const { inputs, out, options } = ((): ParsedMergeArgs => {
+    const { inputs, out, fromCms, options } = ((): ParsedMergeArgs => {
       try {
         return parseMergeArgs(rest)
       } catch (error) {
@@ -72,6 +129,28 @@ async function main(): Promise<void> {
       }
     })()
     if (!out) fail('Missing --out <merged.glb>')
+
+    if (fromCms) {
+      const plan = await fetchCmsPlan(fromCms)
+      if (plan.variantIds.length !== inputs.length) {
+        const names = plan.colours.map((c) => c.displayName).join(', ')
+        fail(
+          `You gave ${inputs.length} file(s) but "${fromCms}" has ${plan.variantIds.length} colour(s) switched on: ${names}.\n` +
+            '  Give one file per colour, in that order — or switch the extra colours off in the CMS.',
+        )
+      }
+      // Positional: file N is colour N. Any name already given on the command
+      // line wins, so a half-specified command stays predictable.
+      inputs.forEach((input, index) => {
+        if (!input.variantName) input.variantName = plan.variantIds[index]!
+      })
+      console.log(`Naming variants from the CMS (${fromCms}):`)
+      plan.colours.forEach((colour, index) => {
+        console.log(`  ${inputs[index]!.file}  →  ${colour.displayName} (${colour.variantId})`)
+      })
+      console.log('')
+    }
+
     const result = await mergeVariants(inputs, out, options)
     console.log(`Merged ${inputs.length} colourways → ${result.outputFile}`)
     console.log(`  variants:   ${result.variants.join(', ')}`)

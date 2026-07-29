@@ -7,6 +7,53 @@
  */
 
 /**
+ * Every colour this garment comes in. Drag to reorder — the top colour that is switched on is the one people see when they open the page.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ProductColourway".
+ */
+export type ProductColourway =
+  | {
+      /**
+       * What buyers see on the colour button, e.g. Navy.
+       */
+      displayName: string;
+      /**
+       * The word in this colour’s link and QR code: wear-run.help/n001/navy. Lowercase, no spaces. Never change it once QR codes are printed — switch the colour off instead.
+       */
+      slug: string;
+      /**
+       * Upload your CLO file on the “3D file” tab first. Once it has been read, this list fills with the colours found inside it — pick the one that matches.
+       */
+      variantId?: string | null;
+      /**
+       * A picture of the garment in this colour. It appears instantly while the spinning 3D model loads.
+       */
+      posterPreview?: (number | null) | Media;
+      /**
+       * Describe the photo in a sentence, for people who use a screen reader. e.g. “Velocity Performance Tee in Navy”.
+       */
+      altText?: string | null;
+      /**
+       * A colour code like #22314E, only so you can recognise the row at a glance. Buyers never see it.
+       */
+      hexSwatch?: string | null;
+      /**
+       * Only needed because this product is set to “A separate file for each colour”. Leave empty otherwise.
+       */
+      glbAsset?: (number | null) | Media;
+      /**
+       * Untick to retire a colour. Old QR codes still work — they show your first colour instead, with the retired message.
+       */
+      active?: boolean | null;
+      /**
+       * Notes to yourself. Never shown to customers.
+       */
+      note?: string | null;
+      id?: string | null;
+    }[]
+  | null;
+/**
  * Supported timezones in IANA format.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -71,20 +118,22 @@ export interface Config {
     media: Media;
     'raw-uploads': RawUpload;
     products: Product;
-    colourways: Colourway;
     events: Event;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
   };
-  collectionsJoins: {};
+  collectionsJoins: {
+    products: {
+      rawUploads: 'raw-uploads';
+    };
+  };
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     'raw-uploads': RawUploadsSelect<false> | RawUploadsSelect<true>;
     products: ProductsSelect<false> | ProductsSelect<true>;
-    colourways: ColourwaysSelect<false> | ColourwaysSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -163,7 +212,7 @@ export interface User {
   collection: 'users';
 }
 /**
- * Optimised, pipeline-processed GLB models and poster images only. Run every product GLB through the asset pipeline (merge + validate) before uploading — never upload raw CLO exports. Posters: WebP/AVIF preferred. Keep files under 8 MB where possible.
+ * Every picture and finished 3D file used on the website. Shrunk 3D files arrive here on their own once your CLO upload has been processed — you rarely need to add anything by hand.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "media".
@@ -239,46 +288,78 @@ export interface RawUpload {
   focalY?: number | null;
 }
 /**
+ * One page per garment. Fill it top to bottom: the basics, then the colours, then upload your CLO file on the “3D file” tab.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "products".
  */
 export interface Product {
   id: number;
   /**
-   * Unique uppercase code, e.g. N001.
+   * Nothing is public until this says Published.
+   */
+  status: 'draft' | 'published' | 'archived';
+  /**
+   * Lower numbers come first.
+   */
+  sortOrder?: number | null;
+  /**
+   * What buyers see at the top of the page, e.g. Velocity Performance Tee.
+   */
+  productName: string;
+  /**
+   * Your internal code. Capital letters and numbers, e.g. N001.
    */
   productCode: string;
   /**
-   * URL segment: viewer.wear-run.help/<slug>/<colour>.
+   * The word in this product’s link and QR codes: wear-run.help/n001/navy. Never change it once QR codes are printed.
    */
   slug: string;
   /**
-   * Buyer-friendly name, e.g. Velocity Performance Tee.
+   * Pick the closest match. Used for grouping only.
    */
-  productName: string;
   category: 'Sportswear' | 'Teamwear & Uniforms' | 'Casual Wear' | 'Outerwear' | 'Sports Accessories';
-  status: 'draft' | 'published' | 'archived';
   /**
-   * Use "separate GLB per colourway" whenever the merged multi-variant GLB fails, looks wrong, or is not processed yet — publishing must never be blocked.
+   * “Floating garment” suits most items. “Invisible mannequin” holds the shape of structured pieces like jackets.
+   */
+  presentationMode: 'floatingGarment' | 'invisibleMannequin';
+  colourways?: ProductColourway;
+  /**
+   * Upload your raw CLO export here. Watch the Status column: Queued → Processing → Ready to review. Then pick the finished file below.
+   */
+  rawUploads?: {
+    docs?: (number | RawUpload)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * “One file with all colours” is normal. Only switch to a separate file per colour if the combined file looks wrong — publishing must never be blocked.
    */
   variantMode: 'single-glb-variants' | 'separate-glb-per-colour';
   /**
-   * Manually verified that the merged GLB’s availableVariants exactly matches the colourway variantIds (asset pipeline "validate" + scenegraph check). Required to publish.
-   */
-  variantsVerified?: boolean | null;
-  /**
-   * The active colourway shown when a QR link’s colourway is retired or missing.
-   */
-  defaultColourway?: (number | null) | Colourway;
-  presentationMode: 'floatingGarment' | 'invisibleMannequin';
-  /**
-   * The merged production GLB from the asset pipeline (all colourways bound as KHR_materials_variants). Never a raw CLO export.
+   * The shrunk file the robot produced. Pick it from “Your CLO files” above once its Status says Ready to review. Never a raw CLO export.
    */
   glbAsset?: (number | null) | Media;
   /**
-   * Static render shown instantly and used when 3D cannot load.
+   * Shown if the 3D model cannot load on someone’s phone. Optional but recommended.
    */
   posterFallback?: (number | null) | Media;
+  /**
+   * Ticks itself once every colour on show has been matched to a colour inside your file. You do not set this.
+   */
+  variantsVerified?: boolean | null;
+  /**
+   * Set automatically when your CLO file is processed.
+   */
+  fileColours?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   /**
    * e.g. Recycled polyester / elastane.
    */
@@ -288,7 +369,11 @@ export interface Product {
    */
   gsm?: string | null;
   /**
-   * Short technical phrases, e.g. "Moisture management".
+   * e.g. Athletic regular.
+   */
+  garmentFit?: string | null;
+  /**
+   * Short phrases, e.g. “Moisture management”. One per row.
    */
   performanceFeatures?:
     | {
@@ -297,11 +382,7 @@ export interface Product {
       }[]
     | null;
   /**
-   * e.g. Athletic regular.
-   */
-  garmentFit?: string | null;
-  /**
-   * Shown in the customisation section. B2B/OEM language only — no retail wording.
+   * The paragraph above the steps. Business-to-business wording only — this is not a shop.
    */
   customisationIntro?: {
     root: {
@@ -319,7 +400,7 @@ export interface Product {
     [k: string]: unknown;
   } | null;
   /**
-   * The "How we build your product" steps.
+   * Shown in order as the “How we build your product” list.
    */
   customisationSteps?:
     | {
@@ -334,66 +415,14 @@ export interface Product {
   sideCameraOrbit: string;
   cameraTarget: string;
   defaultFieldOfView: string;
-  catalogueUrl: string;
-  sortOrder?: number | null;
   /**
-   * Shown when a scanned QR points at a colourway that is no longer active.
+   * Where the “Catalogue” button sends people.
+   */
+  catalogueUrl: string;
+  /**
+   * Shown when someone scans a QR code for a colour that has been switched off.
    */
   retiredMessage: string;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "colourways".
- */
-export interface Colourway {
-  id: number;
-  product: number | Product;
-  /**
-   * Structured ID, e.g. N001-NAVY. Must exactly match the KHR_materials_variants name inside the merged GLB (single-GLB mode).
-   */
-  variantId: string;
-  /**
-   * e.g. Navy.
-   */
-  displayName: string;
-  /**
-   * URL segment: viewer.wear-run.help/<product>/<slug>. Printed in QR codes — never change it once QRs are in the field; retire the colourway instead.
-   */
-  slug: string;
-  /**
-   * Tab order: 01, 02, 03…
-   */
-  sequence: number;
-  /**
-   * Static CLO front three-quarter render. Shows instantly while 3D loads.
-   */
-  posterPreview: number | Media;
-  /**
-   * This colourway’s own GLB — used only when the parent product’s variant mode is "separate GLB per colourway". Still must be pipeline-validated.
-   */
-  glbAsset?: (number | null) | Media;
-  /**
-   * Inactive colourways disappear from the viewer; QR links to them fall back to the default colourway.
-   */
-  active?: boolean | null;
-  /**
-   * Exactly one active colourway per product. Marking this un-marks the others.
-   */
-  isDefault?: boolean | null;
-  /**
-   * Accessible description, e.g. "Velocity Performance Tee in Navy".
-   */
-  altText: string;
-  /**
-   * Admin recognition only — never the sole visual selector on the viewer.
-   */
-  hexSwatch?: string | null;
-  /**
-   * Internal note (never shown publicly).
-   */
-  note?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -460,10 +489,6 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'products';
         value: number | Product;
-      } | null)
-    | ({
-        relationTo: 'colourways';
-        value: number | Colourway;
       } | null)
     | ({
         relationTo: 'events';
@@ -586,26 +611,29 @@ export interface RawUploadsSelect<T extends boolean = true> {
  * via the `definition` "products_select".
  */
 export interface ProductsSelect<T extends boolean = true> {
+  status?: T;
+  sortOrder?: T;
+  productName?: T;
   productCode?: T;
   slug?: T;
-  productName?: T;
   category?: T;
-  status?: T;
-  variantMode?: T;
-  variantsVerified?: T;
-  defaultColourway?: T;
   presentationMode?: T;
+  colourways?: T | ProductColourwaySelect<T>;
+  rawUploads?: T;
+  variantMode?: T;
   glbAsset?: T;
   posterFallback?: T;
+  variantsVerified?: T;
+  fileColours?: T;
   fabricComposition?: T;
   gsm?: T;
+  garmentFit?: T;
   performanceFeatures?:
     | T
     | {
         feature?: T;
         id?: T;
       };
-  garmentFit?: T;
   customisationIntro?: T;
   customisationSteps?:
     | T
@@ -621,30 +649,25 @@ export interface ProductsSelect<T extends boolean = true> {
   cameraTarget?: T;
   defaultFieldOfView?: T;
   catalogueUrl?: T;
-  sortOrder?: T;
   retiredMessage?: T;
   updatedAt?: T;
   createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "colourways_select".
+ * via the `definition` "ProductColourway_select".
  */
-export interface ColourwaysSelect<T extends boolean = true> {
-  product?: T;
-  variantId?: T;
+export interface ProductColourwaySelect<T extends boolean = true> {
   displayName?: T;
   slug?: T;
-  sequence?: T;
+  variantId?: T;
   posterPreview?: T;
-  glbAsset?: T;
-  active?: T;
-  isDefault?: T;
   altText?: T;
   hexSwatch?: T;
+  glbAsset?: T;
+  active?: T;
   note?: T;
-  updatedAt?: T;
-  createdAt?: T;
+  id?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
