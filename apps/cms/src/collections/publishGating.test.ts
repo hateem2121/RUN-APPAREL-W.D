@@ -180,3 +180,35 @@ describe('assertPublishable', () => {
     expect(() => assertPublishable(input(), [cw()])).not.toThrow()
   })
 })
+
+describe('which writes the gate applies to (Products.beforeChange)', () => {
+  // Mirrors the guard in Products.ts. A save that cannot change the answer must
+  // not be gated: on 2026-07-29 the shrink robot's `fileColours` write was
+  // rejected because N001 was already published without a model — the gate
+  // blocked the one write that populates the colour dropdown, i.e. it prevented
+  // recovery from the state it was objecting to. A human editing that product's
+  // fabric text hit the same wall.
+  const GATED_FIELDS = ['status', 'variantMode', 'glbAsset', 'colourways']
+  const isGated = (data: Record<string, unknown>) =>
+    GATED_FIELDS.some((field) => field in data)
+
+  it('skips the machine-written colour list', () => {
+    expect(isGated({ fileColours: ['Colorway 2'], variantsVerified: false })).toBe(false)
+  })
+
+  it('skips ordinary copy edits', () => {
+    expect(isGated({ fabricComposition: 'Recycled polyester', gsm: '160 GSM' })).toBe(false)
+    expect(isGated({ frontCameraOrbit: '0deg 82deg 105%' })).toBe(false)
+  })
+
+  it('still gates anything that can change publishability', () => {
+    expect(isGated({ status: 'published' })).toBe(true)
+    expect(isGated({ glbAsset: null })).toBe(true)
+    expect(isGated({ colourways: [] })).toBe(true)
+    expect(isGated({ variantMode: 'separate-glb-per-colour' })).toBe(true)
+  })
+
+  it('gates a mixed write that includes a gated field', () => {
+    expect(isGated({ fabricComposition: 'Poly', status: 'published' })).toBe(true)
+  })
+})

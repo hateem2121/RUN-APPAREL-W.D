@@ -50,6 +50,24 @@ export const Products: CollectionConfig = {
         // colour that is actually inside the processed file.
         data.variantsVerified = deriveVariantsVerified(colourways, resolved.fileColours)
 
+        // Only re-run the publish checks when the write could actually change the
+        // answer. A save that touches none of these cannot make a product more or
+        // less publishable, so gating it achieves nothing and costs plenty:
+        //
+        //   - the shrink robot's `fileColours` write is exactly such a save, and
+        //     on 2026-07-29 the gate rejected it, because N001 was already
+        //     published without a model. The gate blocked the one write that
+        //     populates "Which colour in your CLO file is this?" — i.e. it
+        //     prevented recovery from the very state it was complaining about.
+        //   - the same trap applied to a human: with N001 published and model-less,
+        //     editing its fabric text or a camera angle threw the publish error too.
+        //
+        // A product already live in a bad state is a pre-existing condition. It is
+        // fixed by attaching a model or moving to Draft, never by refusing edits.
+        const GATED_FIELDS = ['status', 'variantMode', 'glbAsset', 'colourways']
+        const touchesGated = GATED_FIELDS.some((field) => field in (data ?? {}))
+        if (!touchesGated) return data
+
         // All publish invariants live in a pure, unit-tested function. It needs
         // no database access any more — the colours arrived with the document.
         //

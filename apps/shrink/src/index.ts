@@ -164,16 +164,30 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   //    Best-effort on purpose: the shrink itself succeeded, and the owner can
   //    still attach the result by hand. Failing the job here would re-run several
   //    minutes of container time for a result that is already correct.
+  //    Failure here must not fail the job — the shrink itself succeeded and the
+  //    owner can still attach the result by hand — but it must not vanish either.
+  //    It did on 2026-07-29: the CMS rejected this write and the bare
+  //    `.catch(() => {})` swallowed it, so the colour dropdown stayed empty with
+  //    nothing anywhere saying why. The reason goes in the report the owner reads.
   const fileColours = report.variantsInFileOrder ?? report.variants
+  let fileColoursNote = ''
   if (job.targetProductId != null && fileColours.length > 0) {
-    await patchProduct(env, job.targetProductId, { fileColours }).catch(() => {})
+    try {
+      await patchProduct(env, job.targetProductId, { fileColours })
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      fileColoursNote =
+        `\n\n⚠️ Could not write the colour list onto the product, so the ` +
+        `"Which colour in your CLO file is this?" dropdown will be empty. ` +
+        `The colours found are listed above — tell your developer this:\n${detail}`
+    }
   }
 
   // 5. Mark the raw upload ready for the owner to review + publish.
   await patchRawUpload(env, job.rawUploadId, {
     status: 'ready',
     resultGlb: mediaId,
-    report: report.text,
+    report: report.text + fileColoursNote,
   })
 }
 
