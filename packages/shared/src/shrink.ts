@@ -72,7 +72,21 @@ export function shrinkFlagsFor(detail: ShrinkDetailLevel = DEFAULT_SHRINK_DETAIL
     case 'fidelity':
       return ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.0002', '--uv-weight', '2']
     case 'small':
-      return ['--simplify', '0.02', '--meshopt', '--simplify-error', '0.002', '--uv-weight', '0.5']
+      // RE-CALIBRATED 2026-07-29. This used to be `--simplify-error 0.002
+      // --uv-weight 0.5`, which was the worst of both worlds: it loosened the
+      // error budget only 4x while HALVING the one setting that protects printed
+      // artwork. That combination is why "make it smaller" has historically come
+      // back with damaged logos.
+      //
+      // The two knobs are independent. From the measured table in
+      // simplify-textured.test.ts, at uv weight 1:
+      //     error 0.001 -> 192 triangles
+      //     error 0.01  ->  38 triangles
+      // i.e. a 10x looser budget removes 5x more triangles with artwork
+      // protection completely unchanged. So: raise the budget hard, keep the
+      // protection at the same level "Balanced" uses. Smaller file, same defence
+      // of the graphics.
+      return ['--simplify', '0.02', '--meshopt', '--simplify-error', '0.01', '--uv-weight', '1']
     default:
       return ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.0005', '--uv-weight', '1']
   }

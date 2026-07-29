@@ -36,18 +36,34 @@ describe('shrinkFlagsFor', () => {
     }
   })
 
-  // The two knobs trade directly against each other (measured table in
-  // tools/asset-pipeline/src/simplify-textured.test.ts): a heavier UV weight and
-  // a tighter error budget both keep more geometry. "fidelity" must therefore be
-  // strictly more protective than "balanced", which must beat "small" — if this
-  // ordering ever inverts, the levels would be lying to the operator.
-  it('orders the levels monotonically from most to least protective', () => {
-    const uv = LEVELS.map((l) => flagValue(shrinkFlagsFor(l), '--uv-weight'))
+  // The error budget is THE aggression dial: it must grow strictly as the levels
+  // get smaller, because that is what actually removes triangles.
+  it('loosens the error budget strictly as the levels get smaller', () => {
     const err = LEVELS.map((l) => flagValue(shrinkFlagsFor(l), '--simplify-error'))
-    expect(uv[0]).toBeGreaterThan(uv[1] as number)
-    expect(uv[1]).toBeGreaterThan(uv[2] as number)
     expect(err[0]).toBeLessThan(err[1] as number)
     expect(err[1]).toBeLessThan(err[2] as number)
+  })
+
+  // UV weight is NOT an aggression dial — it is the artwork guard. It may only
+  // ever be relaxed to buy *extra* quality at the top end, never to buy a smaller
+  // file at the bottom.
+  //
+  // This assertion used to require uv weight to fall strictly across all three
+  // levels, which baked in the very bug it was meant to prevent: "small" shipped
+  // at 0.5, half of "balanced", so asking for a smaller file silently halved the
+  // protection on printed logos. The measured table in
+  // tools/asset-pipeline/src/simplify-textured.test.ts shows the two knobs are
+  // independent — at uv weight 1, a 10x looser error budget removes 5x more
+  // triangles with the artwork guard untouched. So: never increasing, and never
+  // below what "balanced" uses.
+  it('never trades away artwork protection to get a smaller file', () => {
+    const uv = LEVELS.map((l) => flagValue(shrinkFlagsFor(l), '--uv-weight') as number)
+    expect(uv[0]).toBeGreaterThanOrEqual(uv[1] as number)
+    expect(uv[1]).toBeGreaterThanOrEqual(uv[2] as number)
+    // The floor: the smallest level must guard artwork at least as hard as the
+    // recommended default does.
+    const balanced = flagValue(shrinkFlagsFor('balanced'), '--uv-weight') as number
+    expect(flagValue(shrinkFlagsFor('small'), '--uv-weight')).toBeGreaterThanOrEqual(balanced)
   })
 
   it('never passes --uv-weight 0, which would disable texture-aware decimation', () => {
