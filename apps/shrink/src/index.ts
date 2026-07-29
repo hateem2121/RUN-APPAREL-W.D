@@ -193,8 +193,18 @@ function streamMultipart(
 ): { body: ReadableStream<Uint8Array>; contentType: string } {
   const boundary = `----runapparel${crypto.randomUUID().replace(/-/g, '')}`
   const encoder = new TextEncoder()
+  // Document fields MUST go in a single `_payload` part holding JSON. Payload
+  // reads nothing else from a multipart body — `addDataAndFileToRequest` only
+  // looks at `fields._payload` and JSON.parses it, so a part named "alt" is
+  // silently dropped.
+  //
+  // This was sending `alt` as its own part. The first real 382 MB upload
+  // (2026-07-29) transferred all 73 chunks, shrank correctly, and then died at
+  // the last step with `ValidationError: Alt — This field is required`, because
+  // `alt` never reached the document. Nothing before that had exercised this
+  // path.
   const preamble = encoder.encode(
-    `--${boundary}\r\nContent-Disposition: form-data; name="alt"\r\n\r\n${fields.alt}\r\n` +
+    `--${boundary}\r\nContent-Disposition: form-data; name="_payload"\r\n\r\n${JSON.stringify({ alt: fields.alt })}\r\n` +
       `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fields.filename}"\r\n` +
       `Content-Type: ${fields.contentType}\r\n\r\n`,
   )

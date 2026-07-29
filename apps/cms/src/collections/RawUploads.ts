@@ -167,9 +167,15 @@ export const RawUploads: CollectionConfig = {
       // On upload (create), enqueue a shrink job. Guarded so it no-ops cleanly
       // when the queue binding is absent (e.g. Phase 1 before the queue exists,
       // or local dev), and so the robot's own status updates don't re-enqueue.
-      async ({ doc, operation, req, context }) => {
+      //
+      // Also on retry: the raw file is already sitting in the ingest bucket, so
+      // re-running the shrink does NOT need it uploaded again. Without this, the
+      // only way to re-run a failed job was to re-send the whole file — 382 MB
+      // and six minutes for the first real garment, every single attempt.
+      async ({ doc, operation, previousDoc, req, context }) => {
         if (context?.skipShrinkEnqueue) return doc
-        if (operation !== 'create') return doc
+        const isRetry = operation === 'update' && doc?.retry === true && !previousDoc?.retry
+        if (operation !== 'create' && !isRetry) return doc
         if (!doc?.filename) return doc
 
         try {
@@ -196,7 +202,21 @@ export const RawUploads: CollectionConfig = {
               DEFAULT_SHRINK_DETAIL) as ShrinkDetailLevel,
             targetProductId,
           })
-          req.payload.logger.info(`Queued raw upload ${doc.id} (${doc.filename}) for shrinking.`)
+          req.payload.logger.info(
+            `Queued raw upload ${doc.id} (${doc.filename}) for shrinking${isRetry ? ' — retry' : ''}.`,
+          )
+
+          // Un-tick the box and put the record back to "Queued" so the owner sees
+          // it move. `skipShrinkEnqueue` stops this write re-entering the hook.
+          if (isRetry) {
+            await req.payload.update({
+              collection: 'raw-uploads',
+              id: doc.id,
+              data: { retry: false, status: 'queued', report: 'Trying again…' },
+              context: { skipShrinkEnqueue: true },
+              req,
+            })
+          }
         } catch (error) {
           req.payload.logger.error(
             `Failed to enqueue raw upload ${doc?.id}: ${error instanceof Error ? error.message : String(error)}`,
@@ -241,6 +261,17 @@ export const RawUploads: CollectionConfig = {
         position: 'sidebar',
         readOnly: true,
         description: 'Set automatically. “Ready to review” means the shrunk GLB is waiting below.',
+      },
+    },
+    {
+      name: 'retry',
+      type: 'checkbox',
+      defaultValue: false,
+      label: 'Try this again',
+      admin: {
+        position: 'sidebar',
+        description:
+          'Tick this and press Save to run the shrinking again. You do NOT need to upload the file a second time — it is still stored. Change the Detail setting first if you want a different result.',
       },
     },
     {

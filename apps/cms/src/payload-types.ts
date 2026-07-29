@@ -264,6 +264,10 @@ export interface RawUpload {
    */
   status?: ('queued' | 'processing' | 'ready' | 'failed') | null;
   /**
+   * Tick this and press Save to run the shrinking again. You do NOT need to upload the file a second time — it is still stored. Change the Detail setting first if you want a different result.
+   */
+  retry?: boolean | null;
+  /**
    * The shrunk, pipeline-processed GLB the robot produced. Attach this to the product.
    */
   resultGlb?: (number | null) | Media;
@@ -591,6 +595,7 @@ export interface RawUploadsSelect<T extends boolean = true> {
   targetProduct?: T;
   detail?: T;
   status?: T;
+  retry?: T;
   resultGlb?: T;
   report?: T;
   variantMapping?: T;
