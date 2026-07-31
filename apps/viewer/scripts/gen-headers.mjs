@@ -15,8 +15,11 @@ import { fileURLToPath } from 'node:url'
  *     API, so the live viewer never breaks when that origin changes.
  *
  * The zone wildcard (https://*.wear-run.help) additionally covers media served
- * from cms/api/media.wear-run.help regardless of the API host; gstatic covers
- * model-viewer's on-demand Draco/KTX2 decoders (used only for compressed GLBs).
+ * from cms/api/media.wear-run.help regardless of the API host.
+ *
+ * gstatic.com used to be allowed here for model-viewer's built-in Draco and KTX2
+ * decoder locations. It is gone: scripts/copy-decoders.mjs now self-hosts all
+ * three decoders, so the policy needs no third-party origin at all.
  */
 const dir = dirname(fileURLToPath(import.meta.url))
 const dist = join(dir, '..', 'dist')
@@ -48,7 +51,6 @@ const apiOrigin = (() => {
 
 const CF_SCRIPT = 'https://static.cloudflareinsights.com'
 const CF_CONNECT = 'https://cloudflareinsights.com https://static.cloudflareinsights.com'
-const GSTATIC = 'https://www.gstatic.com'
 const ZONE = 'https://*.wear-run.help'
 
 // When a Sentry DSN is configured at build time, allow its ingest origin in
@@ -90,7 +92,7 @@ const csp = [
   //
   // Narrow: blob: permits fetches to blobs this page itself created, not to any
   // remote origin. Script execution stays hash-locked by script-src.
-  `connect-src 'self' blob: ${apiOrigin} ${ZONE} ${GSTATIC} ${CF_CONNECT} ${sentryOrigin}`.replace(
+  `connect-src 'self' blob: ${apiOrigin} ${ZONE} ${CF_CONNECT} ${sentryOrigin}`.replace(
     /\s+/g,
     ' ',
   ).trim(),

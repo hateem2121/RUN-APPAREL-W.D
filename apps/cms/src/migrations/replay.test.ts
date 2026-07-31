@@ -86,6 +86,28 @@ describe('migration replay', () => {
     },
   )
 
+  it('runs every migration down, newest first, without a foreign-key error', async () => {
+    // The down paths have never been executed. Two of them were generated with
+    // `PRAGMA foreign_keys=OFF` guarding a table rebuild — a no-op on D1, since
+    // SQLite ignores that pragma inside a transaction and D1 wraps statements in
+    // one — and dropped a table while a live column still referenced it. With
+    // foreign keys genuinely on, as they are here and on D1, that raises.
+    const database = openDatabase()
+    const { args } = makeMigrationArgs(database)
+    for (const migration of migrations) {
+      await (migration.up as unknown as Runner)(args)
+    }
+    seedEveryTable(database)
+
+    for (const migration of [...migrations].reverse()) {
+      await expect(
+        (migration.down as unknown as Runner)(args),
+        `${migration.name}.down() failed`,
+      ).resolves.not.toThrow()
+    }
+    database.close()
+  })
+
   it('reproduces the 2026-07-29 data loss when the staging is removed', async () => {
     // The harness is only worth having if it FAILS on the original bug. This
     // rebuilds `products` the naive way — exactly the shape the shipped

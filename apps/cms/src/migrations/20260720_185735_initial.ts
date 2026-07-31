@@ -238,18 +238,32 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
 }
 
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+  // CHILDREN FIRST. As generated this dropped `users`, `media` and `products`
+  // before the `_rels` tables that reference them. With foreign keys live —
+  // which is how D1 runs — dropping a parent leaves the child holding a FK to a
+  // table that no longer exists, and the next DROP fails with
+  // "no such table: main.users" as SQLite tries to resolve it.
+  //
+  // Latent rather than live: nothing has ever rolled back to zero. It would have
+  // failed the first time anyone tried, which is the worst moment to find out.
+  // Caught by replay.test.ts, which runs the down path with foreign keys on.
+  await db.run(sql`PRAGMA defer_foreign_keys = true;`)
+
+  // Referencing tables.
+  await db.run(sql`DROP TABLE \`payload_locked_documents_rels\`;`)
+  await db.run(sql`DROP TABLE \`payload_preferences_rels\`;`)
   await db.run(sql`DROP TABLE \`users_sessions\`;`)
-  await db.run(sql`DROP TABLE \`users\`;`)
-  await db.run(sql`DROP TABLE \`media\`;`)
   await db.run(sql`DROP TABLE \`products_performance_features\`;`)
   await db.run(sql`DROP TABLE \`products_customisation_steps\`;`)
-  await db.run(sql`DROP TABLE \`products\`;`)
   await db.run(sql`DROP TABLE \`colourways\`;`)
-  await db.run(sql`DROP TABLE \`payload_kv\`;`)
+
+  // Now nothing refers to these.
   await db.run(sql`DROP TABLE \`payload_locked_documents\`;`)
-  await db.run(sql`DROP TABLE \`payload_locked_documents_rels\`;`)
   await db.run(sql`DROP TABLE \`payload_preferences\`;`)
-  await db.run(sql`DROP TABLE \`payload_preferences_rels\`;`)
+  await db.run(sql`DROP TABLE \`users\`;`)
+  await db.run(sql`DROP TABLE \`media\`;`)
+  await db.run(sql`DROP TABLE \`products\`;`)
+  await db.run(sql`DROP TABLE \`payload_kv\`;`)
   await db.run(sql`DROP TABLE \`payload_migrations\`;`)
   await db.run(sql`DROP TABLE \`site_settings\`;`)
 }

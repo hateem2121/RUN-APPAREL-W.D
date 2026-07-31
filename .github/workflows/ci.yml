@@ -157,9 +157,23 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: >-
-          pnpm --filter @run-apparel/viewer exec wrangler pages project create run-apparel-viewer
-          --production-branch main 2>/dev/null || echo "Pages project already exists — continuing."
+        # Tolerate ONLY "already exists". The previous form was
+        #   ... 2>/dev/null || echo "already exists — continuing."
+        # which discarded stderr and swallowed every failure equally: a bad API
+        # token, a wrong account id, a Cloudflare outage all printed "already
+        # exists" and let the deploy proceed to fail later, somewhere less
+        # obvious. Match the message, re-raise anything else.
+        run: |
+          set -o pipefail
+          if ! out=$(pnpm --filter @run-apparel/viewer exec wrangler pages project create run-apparel-viewer \
+                       --production-branch main 2>&1); then
+            if grep -qiE 'already (exists|in use)|8000007' <<<"$out"; then
+              echo "Pages project already exists — continuing."
+            else
+              echo "$out" >&2
+              exit 1
+            fi
+          fi
 
       - name: Deploy viewer (Cloudflare Pages)
         if: vars.VIEWER_DEPLOY_TARGET != 'worker'
