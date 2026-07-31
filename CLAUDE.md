@@ -64,6 +64,11 @@ the answer is "nothing that happens in production", it is not a test.
   it. It has its own CI typecheck step; keep it.
 - **Any Payload CLI task touching production D1 must set `NODE_ENV=production`**,
   or Payload runs a dev-mode schema push against it.
+- **Put nothing but migrations in `apps/cms/src/migrations/`.** Payload's
+  `readMigrationFiles` imports *every* `.ts`/`.js` there except `index.ts` and
+  treats each as a migration. A test file added there on 2026-07-31 was imported
+  during `migrate:remote`, ran `describe()` with no vitest runner, and stopped
+  the production deploy. `src/migrationReplay/migrations.test.ts` now guards it.
 
 ## Before you change the pipeline
 
@@ -85,7 +90,7 @@ what has been ruled in and out.
 
 ## Before you change a migration
 
-Run `apps/cms/src/migrations/replay.test.ts`. It replays every migration against
+Run `apps/cms/src/migrationReplay/replay.test.ts`. It replays every migration against
 real SQLite with foreign keys **on**, seeds every table, and fails if any table
 that had rows ends up empty. It exists because a migration once reported success
 while cascade-deleting two tables nobody was watching.

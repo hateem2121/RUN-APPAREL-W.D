@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { migrations } from './index'
+import { migrations } from '../migrations/index'
 import {
   type MigrationArgs,
   countRows,
@@ -8,11 +8,20 @@ import {
   makeMigrationArgs,
   openDatabase,
   seedEveryTable,
-} from './replayHarness'
+} from './harness'
 
 /**
  * Replay every migration against a real SQLite database with foreign keys ON,
  * and fail if any migration silently empties a table that had rows.
+ *
+ * ⚠️ THIS LIVES OUTSIDE src/migrations/ ON PURPOSE. Payload's
+ * `readMigrationFiles` imports EVERY .ts file in the migration directory except
+ * index.ts and treats each as a migration. Putting this file there broke
+ * `migrate:remote` on the production deploy of 2026-07-31: Payload imported the
+ * test, `describe()` ran with no vitest runner attached, and the deploy stopped
+ * at the migrate step. The gated design meant nothing was deployed and the live
+ * site was untouched — but nothing shipped either. `migrations.test.ts` now
+ * guards the directory's contents.
  *
  * THIS IS THE TEST THE 2026-07-29 INCIDENT NEEDED. `inline_colourways` rebuilt
  * `products`; the implicit DROP cascade-deleted `products_performance_features`
