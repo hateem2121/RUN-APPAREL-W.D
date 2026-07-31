@@ -2,7 +2,7 @@ import { createReadStream } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
 import { createRequire } from 'node:module'
-import { extname, join } from 'node:path'
+import { dirname, extname, join } from 'node:path'
 import { chromium } from '@playwright/test'
 
 /**
@@ -113,7 +113,14 @@ const PAGE_HTML = `<!doctype html>
 ></model-viewer>
 <script type="module">
   import { ModelViewerElement } from '/model-viewer.js'
+  // All three decoders, self-hosted, matching apps/viewer/src/components/Stage.tsx.
+  // Not just meshopt: --draco and --ktx2 are supported pipeline outputs, and a
+  // harness that cannot open them would fail exactly when someone tried to
+  // compare a KTX2 encode against a WebP one — which is the comparison the
+  // texture work exists to make.
   ModelViewerElement.meshoptDecoderLocation = '/meshopt_decoder.js'
+  ModelViewerElement.dracoDecoderLocation = '/draco/'
+  ModelViewerElement.ktx2TranscoderLocation = '/basis/'
   const mv = document.getElementById('mv')
   window.__ready = new Promise((resolve, reject) => {
     mv.addEventListener('load', () => resolve(true), { once: true })
@@ -126,6 +133,19 @@ const PAGE_HTML = `<!doctype html>
 function startServer(glbFile: string): Promise<{ server: Server; port: number }> {
   const modelViewerBundle = require.resolve('@google/model-viewer/dist/model-viewer.min.js')
   const meshoptDecoder = require.resolve('meshoptimizer/decoder.cjs')
+  // three ships the web builds of the Draco and Basis decoders. Resolved through
+  // its `./examples/jsm/*` export, which is the only path its exports map allows.
+  const threeLibs = dirname(
+    dirname(require.resolve('three/examples/jsm/libs/draco/gltf/draco_decoder.js')),
+  )
+  const decoders: Record<string, string> = {
+    '/meshopt_decoder.js': meshoptDecoder,
+    '/draco/draco_decoder.js': join(threeLibs, 'gltf', 'draco_decoder.js'),
+    '/draco/draco_decoder.wasm': join(threeLibs, 'gltf', 'draco_decoder.wasm'),
+    '/draco/draco_wasm_wrapper.js': join(threeLibs, 'gltf', 'draco_wasm_wrapper.js'),
+    '/basis/basis_transcoder.js': join(threeLibs, '..', 'basis', 'basis_transcoder.js'),
+    '/basis/basis_transcoder.wasm': join(threeLibs, '..', 'basis', 'basis_transcoder.wasm'),
+  }
 
   const server = createServer((req, res) => {
     const url = (req.url ?? '/').split('?')[0]!
@@ -137,7 +157,7 @@ function startServer(glbFile: string): Promise<{ server: Server; port: number }>
       res.writeHead(200, { 'content-type': MIME['.html']! })
       res.end(PAGE_HTML)
     } else if (url === '/model-viewer.js') send(modelViewerBundle)
-    else if (url === '/meshopt_decoder.js') send(meshoptDecoder)
+    else if (decoders[url]) send(decoders[url]!)
     else if (url === '/model.glb') send(glbFile)
     else {
       res.writeHead(404)
