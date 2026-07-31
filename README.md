@@ -43,11 +43,17 @@ First-time deployment: follow **`docs/CLOUDFLARE-SETUP.md`** once, top to bottom
 | Back up or restore the database | [`docs/BACKUP-RESTORE.md`](docs/BACKUP-RESTORE.md) |
 | Deploy without the command line | [`docs/DEPLOY-BY-CLICKING.md`](docs/DEPLOY-BY-CLICKING.md) |
 | See how the AI agent tooling is wired | [`docs/AI-TOOLING.md`](docs/AI-TOOLING.md) |
+| Work on this repo (human or AI) — the traps that cost sessions | [`CLAUDE.md`](CLAUDE.md) |
+| Diagnose damaged printed artwork | [`docs/OPEN-ISSUE-ARTWORK.md`](docs/OPEN-ISSUE-ARTWORK.md) |
 
 **Session logs** — narrative records of expensive debugging, kept because
 re-deriving them costs days: [`docs/SESSION-2026-07-27.md`](docs/SESSION-2026-07-27.md)
 (why raw uploads never worked) · [`docs/SESSION-2026-07-28.md`](docs/SESSION-2026-07-28.md)
-(audit of those fixes; texture-aware decimation; CI token scope).
+(audit of those fixes; texture-aware decimation; CI token scope) ·
+[`docs/SESSION-2026-07-29.md`](docs/SESSION-2026-07-29.md) (the first real
+garment; five first-run bugs; a data-loss incident) ·
+[`docs/SESSION-2026-07-31.md`](docs/SESSION-2026-07-31.md) (artwork fixes, and
+why fixtures that cannot fail keep letting bugs through).
 
 ---
 
@@ -104,6 +110,22 @@ pnpm pipeline validate output/t004.glb --expect T004-FOREST,T004-SAND --strict
 For a single GLB that does not need merging (a separate-glb-per-colour export, a
 CLO "all colourways" combined export, or re-compressing one file), use
 `pnpm pipeline optimize <file>.glb --out <out>.glb --simplify 0.05 --meshopt`.
+
+⚠️ **Never run the pipeline on its own output.** Compression quantizes vertex
+attributes, and the decimator drops to a position-only fallback when it sees
+them — so a second pass silently loses the protection that keeps printed artwork
+intact. Always start from the raw CLO export.
+
+**If printed artwork looks wrong**, don't guess at settings — look at it:
+
+```bash
+pnpm pipeline textures raw/garment.glb --out output/textures   # what's in the file
+pnpm pipeline render   output/t004.glb --out output/after      # screenshot it
+pnpm pipeline compare  output/before output/after --out sheet.png
+```
+
+`docs/OPEN-ISSUE-ARTWORK.md` explains how to read the results and runs the whole
+thing in one command.
 
 The names after `=` must exactly match each colourway's **variant ID** in the CMS.
 The CMS also hard-blocks a raw/oversized upload (over 40 MB) and filenames with

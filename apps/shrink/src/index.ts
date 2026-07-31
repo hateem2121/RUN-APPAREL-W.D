@@ -7,6 +7,7 @@ import {
   nextDetailAdvice,
   shrinkFlagsFor,
 } from '@run-apparel/shared'
+import { cmsFetch, isMediaReferenced } from './cms'
 
 /**
  * Shrink service Worker.
@@ -236,7 +237,7 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   // 6. Retire the model this run replaced — but only once `resultGlb` points at
   //    the new one, so a failure here can never leave the upload pointing at a
   //    document that has been deleted.
-  const supersededNote = await retireSupersededResult(env, previousResultGlb, mediaId)
+  const supersededNote = await retireSupersededResult(env, previousResultGlb, mediaId, job.rawUploadId)
   if (supersededNote) {
     await patchRawUpload(env, job.rawUploadId, {
       report: report.text + fileColoursNote + supersededNote,
@@ -260,46 +261,6 @@ async function readResultGlb(env: Env, id: number | string): Promise<number | st
 }
 
 /**
- * Every field in the CMS that can point at a Media document, other than the
- * `raw_uploads.resultGlb` we are about to replace. If a field is added to any of
- * these collections it MUST be added here, or the reaper will consider a live
- * asset unreferenced.
- */
-const MEDIA_REFERENCE_PATHS = [
-  'glbAsset',
-  'posterFallback',
-  'colourways.posterPreview',
-  'colourways.glbAsset',
-] as const
-
-/**
- * Is this Media doc used by any product?
- *
- * Fails SAFE: any error, any unexpected shape, and the answer is "yes, it is
- * referenced". Being wrong in that direction leaves a stale file in a bucket.
- * Being wrong the other way deletes a model off a published product page.
- */
-export async function isMediaReferenced(
-  env: Pick<Env, 'CMS' | 'CMS_ORIGIN' | 'CMS_ROBOT_API_KEY'>,
-  mediaId: number | string,
-): Promise<boolean> {
-  const params = new URLSearchParams({ limit: '1', depth: '0' })
-  MEDIA_REFERENCE_PATHS.forEach((path, index) => {
-    params.set(`where[or][${index}][${path}][equals]`, String(mediaId))
-  })
-
-  try {
-    const res = await cmsFetch(env as Env, `/api/products?${params.toString()}`, { method: 'GET' })
-    if (!res.ok) return true
-    const json = (await res.json()) as { totalDocs?: number }
-    if (typeof json?.totalDocs !== 'number') return true
-    return json.totalDocs > 0
-  } catch {
-    return true
-  }
-}
-
-/**
  * Delete the Media doc a re-run replaced, if nothing else uses it.
  *
  * Returns a note for the owner's report when the old file was left behind, and
@@ -310,14 +271,15 @@ async function retireSupersededResult(
   env: Env,
   previous: number | string | null,
   current: number | string,
+  rawUploadId: number | string,
 ): Promise<string> {
   if (previous == null || String(previous) === String(current)) return ''
 
-  if (await isMediaReferenced(env, previous)) {
+  if (await isMediaReferenced(env, previous, rawUploadId)) {
     return (
-      `\n\nNote: this replaced an earlier processed model (#${previous}), which is still attached to a ` +
-      'product, so it has been left alone. Point that product at the new file, then delete the old one ' +
-      'from Media if you no longer want it.'
+      `\n\nNote: this replaced an earlier processed model (#${previous}), which is still in use ` +
+      'elsewhere, so it has been left alone. Point whatever uses it at the new file, then delete the ' +
+      'old one from Media if you no longer want it.'
     )
   }
 
@@ -459,13 +421,6 @@ async function patchProduct(
     const body = await res.text().catch(() => '')
     throw new Error(`Failed to update product ${id} (${res.status}): ${body.slice(0, 300)}`)
   }
-}
-
-/** Fetch the CMS through the internal service binding with robot API-key auth. */
-function cmsFetch(env: Env, path: string, init: RequestInit): Promise<Response> {
-  const headers = new Headers(init.headers)
-  headers.set('Authorization', `users API-Key ${env.CMS_ROBOT_API_KEY}`)
-  return env.CMS.fetch(new Request(`${env.CMS_ORIGIN}${path}`, { ...init, headers }))
 }
 
 function decodeReport(header: string | null): ShrinkReport | null {

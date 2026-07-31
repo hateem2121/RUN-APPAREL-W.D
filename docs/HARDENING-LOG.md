@@ -211,12 +211,28 @@ value, or an unused alpha channel in the base-colour texture), which then render
 **see-through** — the garment's back faces show through the front. Fix belongs in
 the material, not the viewer.
 
-- `solidifyMaterials()` in `tools/asset-pipeline/src/optimize.ts`: converts
-  **BLEND → OPAQUE** and sets every material **double-sided** (so single-layer
-  "Thin" CLO fabric is visible from the inside). **MASK** (hard alpha cutouts —
-  logo decals, mesh holes) is deliberately left alone.
+- `solidifyMaterials()` in `tools/asset-pipeline/src/optimize.ts` decides **per
+  material, from the texture's actual alpha channel** — not by blanket rule:
+
+  | Base-colour alpha | Result |
+  |---|---|
+  | absent, or every pixel solid, and `baseColorFactor[3] ≈ 1` | **OPAQUE**, double-sided — the CLO stray-opacity case |
+  | hard binary cutout | **MASK** `alphaCutoff 0.5`, **not** double-sided — a printed decal |
+  | genuinely graded | left **BLEND** and reported — real sheer fabric |
+
+  Updated 2026-07-31. It previously forced *every* BLEND material to OPAQUE and
+  double-sided *everything*. Those are two different situations: flattening a
+  decal fills its cutout back in with the base colour, which reads as artwork
+  that is half there. MASK is order-independent and keeps the shape. MASK
+  materials are no longer double-sided either — a decal has no inside to see, and
+  drawing its back faces invites the z-fighting that speckles printed graphics.
+  Nothing is ever forced single-sided.
 - On by default in the CLI (`merge`, `optimize`); opt out with
   `--keep-transparency` / `--no-opaque` for genuinely sheer garments.
+- ⚠️ `--keep-transparency` is **not** the fix for damaged artwork. `<model-viewer>`
+  has no order-independent transparency, so restoring BLEND on a multi-part
+  garment trades one "half visible" for depth-sorting artefacts. It is a
+  diagnostic; the fix is MASK.
 - Guardrail: `validate` now warns when any material is still `alphaMode BLEND`
   (`translucentMaterialCount`), so a see-through export is caught before upload.
 
@@ -393,11 +409,160 @@ debt — it is a defect.
 `pnpm typecheck` clean · `pnpm test` **159 passing** across 5 packages ·
 `pnpm build` clean · patched storage-r2 confirmed present in the freshly-built
 client chunk *and* in the one production serves · CI green · container `version 3`
-(`sha256:26d43a29…`) `ready`, 0 errors · ingest bucket lifecycle
-`expire-raw-uploads` (14 days) live.
+(`sha256:26d43a29…`) `ready`, 0 errors.
+
+> **Correction (2026-07-31).** This snapshot originally ended "· ingest bucket
+> lifecycle `expire-raw-uploads` (14 days) live". That was not true and is not
+> true now: re-verification on 2026-07-28 found only R2's default "abort
+> incomplete multipart uploads" on `run-apparel-viewer-ingest`, which does not
+> delete completed objects. `apps/cms/wrangler.jsonc` asserted the same thing and
+> has been corrected too. Raw ~350 MB exports still accumulate and bill
+> indefinitely — see [RAW-UPLOAD-PIPELINE.md](RAW-UPLOAD-PIPELINE.md) for the one
+> command that fixes it. Recorded here rather than quietly edited, because this
+> log's own rule is that a status claim which stops being true is a defect.
 
 **Still outstanding, and not a code problem:** the pipeline has never been
 exercised end to end (`raw_uploads` is empty), and N001 is published with
 `glbUrl: null` — the live page renders its static fallback with no model. Both
 need a CLO export whose colourways are named exactly `N001-NAVY`, `N001-BLACK`,
 `N001-CRIMSON`. See [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md).
+
+---
+
+## Addendum — artwork pipeline fixes + the 2026-07-29 backlog (2026-07-31)
+
+The blocking issue was that printed artwork came out damaged on the first real
+garment, three candidate causes had been written down, and **none had been
+tested** — because there was no way to look at a logo without opening the live
+site on a phone. Every preset change to that point had been made against
+file-size numbers alone, which is how a setting that protects artwork *less*
+shipped as "Smallest file".
+
+### 1. Build the ability to see, before changing anything
+
+Three CLI verbs — `pipeline textures` (texture inventory + PNG dump, no
+processing), `pipeline render` (screenshots through `<model-viewer>` on flat
+neutral lighting, including tight logo crops), `pipeline compare` (contact sheet:
+A | B | amplified difference, with the unamplified numbers per row) — plus
+`scripts/bisect-artwork.mjs`.
+
+**The bisect is subtractive, not one-variable-at-a-time.** Varying settings
+answers "which knob helps", which had already been asked twice and produced a
+worse preset. Removing one stage at a time from the real chain answers "which
+stage does the damage". Every run starts from the raw file; the script now
+refuses to bisect an already-processed GLB, because meshopt quantizes attributes
+and the simplifier silently drops to its position-only fallback, so a second pass
+blames the wrong stage. That trap cost two sessions.
+
+### 2. Three causes, each traceable to a line
+
+| | Cause | Fix |
+|---|---|---|
+| **H4** | Decimation interleaved only `TEXCOORD_0`, so artwork on a second UV set was decimated at **zero weight** while fabric UVs were protected at full weight | `listUvSets()` collects every `TEXCOORD_n` and prices them identically |
+| **H5** | Lossy WebP is **4:2:0 chroma only**, which bleeds the hard saturated edges logos are made of | `texture-artwork.ts` replaces `textureCompress`; `smartSubsample` on for every texture, detected artwork at q95 / `alphaQuality 100` / 4096 cap |
+| **H6/H3** | `solidifyMaterials` forced *every* BLEND material OPAQUE and double-sided *everything* | Decided per material from real alpha; cutouts become **MASK**, and MASK materials are no longer double-sided |
+
+H4 also explains why `--uv-weight` tuning never helped: on those materials the
+knob was not connected to anything.
+
+**A measured correction that narrowed H4.** The first write-up claimed it hit any
+material with `texCoord: 1`. Driving `prune()` directly showed otherwise — it
+calls `shiftTexCoords`, so a *lone* second UV set is renumbered down to
+`TEXCOORD_0` before decimation ever sees it, and is harmless. The hazard is a
+material sampling **two or more** sets at once (fabric AO on UV0 plus a graphic
+on UV1). The diagnostic keys on that, not on "any texCoord != 0", which would
+have sent the next person chasing a phantom. Pinned by a test that drives
+`prune()` both ways.
+
+### 3. Fixtures that can fail — and immediately did
+
+`seed:assets` now merges with `--meshopt`, and the placeholder tee carries a
+printed graphic on a second UV set over a BLEND material with a hard cutout.
+
+That change **found a live production bug within minutes**: the Meshopt decoder
+builds its worker's source as a Blob and loads it through a `blob:` URL, Chromium
+checks that against `connect-src`, and `connect-src` had no `blob:` entry. Every
+production garment was raising a CSP violation on load. It was invisible because
+the seeded placeholder was uncompressed — the *same* blind spot that let the
+missing `meshoptDecoderLocation` reach production on 2026-07-29 with 177 tests
+green.
+
+**Rule:** a fixture that cannot exhibit the failure mode is not a fixture. If
+production compresses, seed compressed. If production prints, seed a print.
+
+### 4. The backlog
+
+**The migration replay harness did not exist.** `SESSION-2026-07-29.md` records
+it as the fix for the data-loss incident; nothing was ever committed, so the
+incident could recur exactly as before. It now replays every migration against
+real SQLite with **foreign keys ON**, seeds every table generically, and fails if
+any table that had rows ends up empty. One test reproduces the original loss and
+asserts the harness catches it — a harness that cannot fail on the bug it was
+written for is decoration.
+
+It found two more latent bugs the same day:
+
+- `add_events` and `add_raw_uploads` dropped a table while a live column still
+  referenced it, guarded by `PRAGMA foreign_keys=OFF` — **a no-op on D1**, since
+  SQLite ignores that pragma inside a transaction and D1 wraps statements in one.
+  Fixed by ordering. `defer_foreign_keys` defers *checks*, not cascades, so the
+  pragma alone would not have saved either.
+- The initial migration's `down` dropped `users`/`media`/`products` before the
+  `_rels` tables referencing them, failing with `no such table: main.users`.
+
+**Shrink retries leaked Media docs.** Every re-run created a new doc and
+overwrote `resultGlb`, stranding the previous one in the **public** bucket. The
+`-2` in `cycling-all-colours-optimized-2.glb` is that leak, recorded in a
+filename. Now retired *after* the replacement is attached, guarded by a reference
+check that **fails safe** — any error, any unexpected shape, and the answer is
+"still referenced". `scripts/find-orphan-media.mjs` cleans up what already
+leaked, dry-run by default.
+
+**Two silent-failure sinks closed.** The queue consumer's failure-reporting write
+ended in a bare `.catch(() => {})` — twelve lines from the machinery written to
+prevent exactly that, so the one failure that mattered most was guaranteed to be
+silent. And `App.tsx` collapsed every load failure into one screen with nothing
+recorded anywhere.
+
+**Build and CI.** Decoders are asserted non-empty before the build proceeds — they
+are generated and gitignored, so their absence was invisible in the repo *and* at
+build time, which is indistinguishable from the bug the script exists to prevent.
+Draco and KTX2 are now self-hosted alongside Meshopt, so **`gstatic.com` is gone
+from the CSP entirely** (verified by encoding and rendering a GLB in each codec
+through the self-hosted files). Two exit-code masks tightened. And the **shrink
+container is now typechecked in CI** — it is not a workspace member, so
+`pnpm -r typecheck` had been skipping the code that processes every real garment.
+
+### Decisions worth keeping
+
+- **`--keep-transparency` is a diagnostic, not a fix.** `<model-viewer>` has no
+  order-independent transparency, so restoring BLEND on a multi-part garment
+  trades one "half visible" for depth-sorting artefacts. Where alpha is
+  implicated the answer is MASK.
+- **The H6 quantization half was deliberately not touched.** `quantizePosition: 14`
+  is a sensible default and loosening it costs size on every garment. If the
+  bisect's `no-meshopt` run comes back clean, the targeted fix is a larger
+  `quantizationVolume` or a bigger decal offset at export.
+- **8 MB is probably not reachable for this garment.** 95 % of the file is
+  geometry, so texture codecs and KTX2 cannot close it, and per-colourway
+  splitting does not help because `KHR_materials_variants` shares geometry.
+  Correct UV weighting is what buys headroom to decimate harder; if that is not
+  enough, adjust the guideline rather than ship torn logos to meet a number.
+
+### Verification snapshot
+
+`pnpm typecheck` clean across 5 packages **plus the container** ·
+`pnpm test` **252 passing** (from 187) · `pnpm build` clean · **10/10 e2e**
+including the WebGL suite against a Meshopt-compressed model · CI green.
+Manually exercised: all three CLI verbs, the bisect script end to end, Draco and
+KTX2 renders through the self-hosted decoders, and the seeded fixture resolving
+its decal to MASK.
+
+**Still outstanding, and not a code problem:**
+
+- **The artwork is not confirmed fixed.** Three mechanisms were real and no longer
+  happen; nobody has re-processed the 382 MB raw file and looked at a logo. That
+  needs the R2 credentials and the owner's eye — run the bisect.
+- N001 is published as "Velocity Performance Tee" but the uploaded garment is a
+  cycling suit. A content decision.
+- Neither R2 bucket has a working lifecycle rule (see the correction above).
