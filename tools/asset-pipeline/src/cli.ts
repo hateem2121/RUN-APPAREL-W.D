@@ -1,6 +1,10 @@
 #!/usr/bin/env tsx
+import { readFile } from 'node:fs/promises'
+import { compareRenders } from './compare'
 import { mergeVariants, parseMergeArgs, type ParsedMergeArgs } from './merge-variants'
 import { optimizeGlb, parseOptimizeArgs } from './optimize'
+import { DEFAULT_VIEWS, type RenderView, renderViews } from './render'
+import { dumpTextures } from './textures'
 import { checkVariants, inspectGlb } from './validate'
 import { generatePlaceholders } from './placeholders'
 
@@ -33,6 +37,25 @@ USAGE
 
   pnpm pipeline placeholders [--out <dir>]
       Generate placeholder seed assets (per-colour GLBs + posters) for N001.
+
+DIAGNOSTICS — for looking at artwork instead of guessing at it
+  pnpm pipeline textures <file.glb> --out <dir> [--no-images]
+      Dump every texture to PNG with a manifest.json saying which materials and
+      slots use it, WHICH UV SET it samples, and what its alpha channel really
+      contains. Answers "is the artwork on TEXCOORD_1?" and "did the encoder
+      crush it?" without processing the file at all. Start here.
+
+  pnpm pipeline render <file.glb> --out <dir> [flags]
+      Screenshot the GLB through <model-viewer>, from fixed camera angles,
+      including tight crops where printed logos live. Flat neutral lighting and
+      shadows off, so a diff shows the artwork rather than the lighting.
+      --views <file.json>  Camera list: [{ "name", "orbit", "target"?, "fieldOfView"? }]
+      --variant <name>     Select a KHR_materials_variants colourway first
+      --size <px>          Square render size (default 1024)
+
+  pnpm pipeline compare <dirA> <dirB> --out <sheet.png> [--gain <n>]
+      Contact sheet of two render directories: A, B and their amplified
+      difference, per view, with the real numbers in each row's label.
 
 COMPRESSION FLAGS (merge, optimize)
   --no-webp            Keep original texture formats (default: re-encode to WebP)
@@ -173,6 +196,18 @@ async function main(): Promise<void> {
     const simplifyLabel = options.simplify ? `  simplify: keep ${Math.round(options.simplify * 100)}% of triangles` : ''
     console.log(`  textures:   ${result.textureCount} (${result.textureFormats.join(', ') || 'none'})  geometry: ${result.geometry}${simplifyLabel}`)
     console.log(`  materials:  ${result.opaque ? 'forced opaque + double-sided' : 'transparency kept (--keep-transparency)'}`)
+    if (result.simplify) {
+      const { attributeAware, fallback, skipped } = result.simplify
+      console.log(
+        `  decimation: ${attributeAware} primitive(s) with UV error in the budget, ${fallback} fallback, ${skipped} skipped`,
+      )
+      // Without this line a --uv-weight that was never applied is invisible.
+      if (fallback > attributeAware) {
+        console.log(
+          `  WARNING:    most primitives took the position-only fallback, so --uv-weight did NOT protect them.`,
+        )
+      }
+    }
     console.log(
       `  size:       ${(result.bytesBefore / 1024).toFixed(1)} KB → ${(result.bytesAfter / 1024).toFixed(1)} KB  (−${pct}%)`,
     )
@@ -196,6 +231,12 @@ async function main(): Promise<void> {
     console.log(`  meshes:     ${report.meshCount}  primitives: ${report.primitiveCount}`)
     console.log(`  materials:  ${report.materialCount}  textures: ${report.textureCount} (${report.uncompressedTextureCount} raw PNG/JPEG)`)
     console.log(`  translucent: ${report.translucentMaterialCount} material(s) alphaMode BLEND`)
+    console.log(
+      `  alphaModes: ${Object.entries(report.alphaModeCounts).map(([mode, n]) => `${n} ${mode}`).join(', ') || '(none)'}`,
+    )
+    console.log(
+      `  UV sets:    ${report.texCoordsInUse.map((n) => `TEXCOORD_${n}`).join(', ') || '(no textured materials)'}`,
+    )
     console.log(`  variants:   ${report.variants.length ? report.variants.join(', ') : '(none bound)'}`)
     for (const warning of report.warnings) console.log(`  WARNING:    ${warning}`)
 
@@ -215,6 +256,106 @@ async function main(): Promise<void> {
     // --strict turns warnings into a hard failure — for CI gating on publish-readiness.
     if (strict && report.warnings.length > 0) {
       fail(`${report.warnings.length} warning(s) with --strict. This GLB is not publish-ready.`)
+    }
+    return
+  }
+
+  if (command === 'textures') {
+    const positional: string[] = []
+    let outDir: string | null = null
+    let images = true
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i]!
+      if (arg === '--out') outDir = rest[++i] ?? null
+      else if (arg === '--no-images') images = false
+      else if (!arg.startsWith('--')) positional.push(arg)
+    }
+    const file = positional[0]
+    if (!file) fail('Missing <file.glb>')
+    if (!outDir) fail('Missing --out <dir>')
+
+    const inventory = await dumpTextures(file, outDir, { images })
+    console.log(`${file} → ${outDir}`)
+    console.log(`  textures:   ${inventory.textures.length}`)
+    console.log(
+      `  UV sets:    ${inventory.texCoordsInUse.map((n) => `TEXCOORD_${n}`).join(', ') || '(none sampled)'}`,
+    )
+    console.log(
+      `  materials:  ${Object.entries(inventory.alphaModeCounts).map(([mode, n]) => `${n} ${mode}`).join(', ') || '(none)'}`,
+    )
+    console.log('')
+    for (const texture of inventory.textures) {
+      const size = texture.width && texture.height ? `${texture.width}x${texture.height}` : '?'
+      const uv = texture.texCoords.map((n) => `UV${n}`).join('/') || 'UV?'
+      console.log(
+        `  #${String(texture.index).padStart(3)}  ${size.padEnd(11)} ${(texture.mimeType || '?').padEnd(11)} ` +
+          `${(`${(texture.bytes / 1024).toFixed(1)} KB`).padStart(10)}  ${String(texture.bytesPerPixel ?? '?').padStart(7)} bpp  ` +
+          `${uv.padEnd(7)} alpha:${texture.alpha.character.padEnd(7)} ${texture.slots.join(',') || '(unused)'}`,
+      )
+    }
+    if (inventory.warnings.length) console.log('')
+    for (const warning of inventory.warnings) console.log(`  WARNING:    ${warning}`)
+    console.log(`\nWrote ${outDir}/manifest.json`)
+    return
+  }
+
+  if (command === 'render') {
+    const positional: string[] = []
+    let outDir: string | null = null
+    let viewsFile: string | null = null
+    let variant: string | null = null
+    let dimension: number | undefined
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i]!
+      if (arg === '--out') outDir = rest[++i] ?? null
+      else if (arg === '--views') viewsFile = rest[++i] ?? null
+      else if (arg === '--variant') variant = rest[++i] ?? null
+      else if (arg === '--size') dimension = Number(rest[++i])
+      else if (!arg.startsWith('--')) positional.push(arg)
+    }
+    const file = positional[0]
+    if (!file) fail('Missing <file.glb>')
+    if (!outDir) fail('Missing --out <dir>')
+
+    const views = viewsFile ? (JSON.parse(await readFile(viewsFile, 'utf8')) as RenderView[]) : DEFAULT_VIEWS
+    const result = await renderViews(file, outDir, {
+      views,
+      variant,
+      ...(dimension ? { width: dimension, height: dimension } : {}),
+    })
+    console.log(`Rendered ${result.files.length} view(s) of ${file} → ${outDir}`)
+    console.log(`  views:      ${result.files.join(', ')}`)
+    console.log(`  variants:   ${result.availableVariants.join(', ') || '(none bound)'}`)
+    console.log('\nNext: "pnpm pipeline compare <thisDir> <otherDir> --out sheet.png".')
+    return
+  }
+
+  if (command === 'compare') {
+    // Scan once so a flag's value can never be mistaken for a positional — and
+    // nor can a positional be swallowed when an optional flag is absent.
+    const positional: string[] = []
+    let out: string | null = null
+    let gain: number | undefined
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i]!
+      if (arg === '--out') out = rest[++i] ?? null
+      else if (arg === '--gain') gain = Number(rest[++i])
+      else if (!arg.startsWith('--')) positional.push(arg)
+    }
+    const [dirA, dirB] = positional
+    if (!dirA || !dirB) fail('Usage: compare <dirA> <dirB> --out <sheet.png>')
+    if (!out) fail('Missing --out <sheet.png>')
+
+    const result = await compareRenders(dirA, dirB, out, gain ? { gain } : {})
+    console.log(`Contact sheet → ${result.outFile}`)
+    for (const diff of result.diffs) {
+      console.log(
+        `  ${diff.view.padEnd(14)} mean ${String(diff.meanDelta).padStart(6)}  max ${String(diff.maxDelta).padStart(3)}  ` +
+          `changed ${(diff.changedFraction * 100).toFixed(2)}%`,
+      )
+    }
+    if (result.unmatched.length) {
+      console.log(`  WARNING:    only in one directory: ${result.unmatched.join(', ')} — did a render fail partway?`)
     }
     return
   }

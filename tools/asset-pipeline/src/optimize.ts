@@ -6,7 +6,11 @@ import { ktx2 } from 'ktx2-encoder/gltf-transform'
 import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer'
 import sharp from 'sharp'
 import { createIO } from './io'
-import { type AttributeSimplifier, simplifyTextured } from './simplify-textured'
+import {
+  type AttributeSimplifier,
+  type SimplifyTexturedResult,
+  simplifyTextured,
+} from './simplify-textured'
 
 /**
  * Shared optimisation transforms for production GLBs. Both `merge` (multi-
@@ -168,11 +172,30 @@ export function solidifyMaterials(document: Document): SolidifyResult {
 }
 
 /**
+ * What the run actually did, as opposed to what it was asked to do.
+ *
+ * Filled in as the chain executes and reported to the owner. The gap between the
+ * two is where the artwork investigation kept losing time: a `--uv-weight` that
+ * was never applied because every primitive took the fallback path looks
+ * identical, from the outside, to one that was applied and did not help.
+ */
+export interface OptimizeTelemetry {
+  /** Present only when a simplify pass ran. */
+  simplify?: SimplifyTexturedResult
+}
+
+/**
  * Build the ordered transform chain. Always dedups + prunes; conditionally
  * compresses textures and geometry. Async because Meshopt's encoder must be
  * awaited to ready before use.
+ *
+ * `telemetry` is written into as the chain runs, so callers can report what
+ * happened without threading return values back through gltf-transform.
  */
-export async function buildOptimizeTransforms(options: OptimizeOptions): Promise<Transform[]> {
+export async function buildOptimizeTransforms(
+  options: OptimizeOptions,
+  telemetry: OptimizeTelemetry = {},
+): Promise<Transform[]> {
   const transforms: Transform[] = [dedup(), prune({ keepExtras: true })]
 
   // Force fabric solid before texture/geometry passes touch the materials. CLO
@@ -233,6 +256,9 @@ export async function buildOptimizeTransforms(options: OptimizeOptions): Promise
         error: options.simplifyError ?? DEFAULT_SIMPLIFY_ERROR,
         uvWeight: options.simplifyUvWeight ?? DEFAULT_SIMPLIFY_UV_WEIGHT,
         normalWeight: options.simplifyNormalWeight ?? DEFAULT_SIMPLIFY_NORMAL_WEIGHT,
+        onResult: (result) => {
+          telemetry.simplify = result
+        },
       }),
     )
   }
@@ -266,8 +292,12 @@ async function withQuietBasisLogs<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 /** Apply the optimisation chain to an in-memory document (mutates + returns it). */
-export async function optimizeDocument(document: Document, options: OptimizeOptions): Promise<Document> {
-  const transforms = await buildOptimizeTransforms(options)
+export async function optimizeDocument(
+  document: Document,
+  options: OptimizeOptions,
+  telemetry: OptimizeTelemetry = {},
+): Promise<Document> {
+  const transforms = await buildOptimizeTransforms(options, telemetry)
   const run = () => document.transform(...transforms)
   // Only the KTX2 path is chatty; wrap just that so nothing else is filtered.
   if (options.texture === 'ktx2') await withQuietBasisLogs(run)
@@ -285,6 +315,12 @@ export interface OptimizeResult {
   geometry: GeometryCodec
   /** Whether the opaque + double-sided step ran. */
   opaque: boolean
+  /**
+   * Simplify counters, when a simplify pass ran. `fallback` is the one to read:
+   * those primitives were decimated position-only with borders locked, so
+   * `--uv-weight` did nothing for them.
+   */
+  simplify?: SimplifyTexturedResult
 }
 
 /**
@@ -300,7 +336,8 @@ export async function optimizeGlb(
   const io = await createIO()
   const bytesBefore = (await stat(inputFile)).size
   const document = await io.read(inputFile)
-  await optimizeDocument(document, options)
+  const telemetry: OptimizeTelemetry = {}
+  await optimizeDocument(document, options, telemetry)
 
   await mkdir(dirname(outputFile), { recursive: true })
   await io.write(outputFile, document)
@@ -317,6 +354,7 @@ export async function optimizeGlb(
     textureFormats,
     geometry: resolveGeometry(options),
     opaque: options.opaque === true,
+    ...(telemetry.simplify ? { simplify: telemetry.simplify } : {}),
   }
 }
 

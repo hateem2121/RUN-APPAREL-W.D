@@ -2,6 +2,7 @@ import { readFile, stat } from 'node:fs/promises'
 import type { Primitive } from '@gltf-transform/core'
 import type { KHRMaterialsVariants, MappingList } from '@gltf-transform/extensions'
 import { createIO } from './io'
+import { offUv0Warning, summariseUvSets } from './textures'
 
 /** Warn when a production GLB is heavier than this — QR scans are mobile-first. */
 export const SIZE_WARNING_BYTES = 8 * 1024 * 1024
@@ -57,6 +58,14 @@ export interface GlbReport {
   uncompressedTextureCount: number
   /** Count of materials with alphaMode BLEND — translucent, will render see-through (no OIT in model-viewer). */
   translucentMaterialCount: number
+  /**
+   * UV sets the materials actually sample, e.g. [0, 1]. Anything beyond 0 is a
+   * problem today: simplifyTextured weights TEXCOORD_0 and nothing else, so
+   * artwork on another set is decimated with no protection at all.
+   */
+  texCoordsInUse: number[]
+  /** Material counts by alphaMode, e.g. { OPAQUE: 12, MASK: 1 }. */
+  alphaModeCounts: Record<string, number>
   warnings: string[]
 }
 
@@ -113,6 +122,9 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
   // alphaMode BLEND = translucent. <model-viewer> (three.js, no OIT) renders it
   // see-through — the classic CLO "my garment is transparent" symptom.
   const translucentMaterialCount = materials.filter((m) => m.getAlphaMode() === 'BLEND').length
+  // Pixel-free: this walks material/texture metadata only, so reporting it on
+  // every shrink job costs nothing.
+  const { texCoordsInUse, usagesOffUv0, alphaModeCounts } = summariseUvSets(document)
 
   const warnings: string[] = []
   // A raw CLO export must never be published — it has not been merged,
@@ -137,6 +149,11 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
       `${translucentMaterialCount}/${materials.length} materials are alphaMode BLEND (translucent) — <model-viewer> has no order-independent transparency, so the garment renders see-through. Re-run "pnpm pipeline optimize" (the opaque step is on by default), unless this garment is genuinely sheer.`,
     )
   }
+  // Artwork on a UV set the simplifier does not weight — the leading suspect for
+  // the damage on the first real garment. Reported here so it is visible on the
+  // raw file, before any processing has had a chance to hide it.
+  const offUv0 = offUv0Warning(texCoordsInUse, usagesOffUv0)
+  if (offUv0) warnings.push(offUv0)
   if (primitives.length === 0) warnings.push('No mesh primitives found.')
 
   return {
@@ -151,6 +168,8 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
     generator,
     uncompressedTextureCount,
     translucentMaterialCount,
+    texCoordsInUse,
+    alphaModeCounts,
     warnings,
   }
 }

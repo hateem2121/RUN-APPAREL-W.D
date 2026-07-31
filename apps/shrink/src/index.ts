@@ -43,6 +43,13 @@ interface ShrinkReport {
   variantsInFileOrder?: string[]
   warnings: string[]
   translucentMaterialCount: number
+  /** UV sets the materials sample. Absent from containers built before this existed. */
+  texCoordsInUse?: number[]
+  /**
+   * What the decimation pass did. `fallback` primitives got no artwork
+   * protection. Absent when no simplify ran, or from an older container.
+   */
+  simplify?: { attributeAware: number; fallback: number; skipped: number }
   text: string
   error?: string
 }

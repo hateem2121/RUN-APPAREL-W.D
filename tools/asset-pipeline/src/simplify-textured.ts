@@ -90,6 +90,16 @@ export interface SimplifyTexturedOptions {
   uvWeight: number
   /** Same idea for vertex normals, which protects shading rather than artwork. */
   normalWeight: number
+  /**
+   * Called with the counters once the pass has run.
+   *
+   * These used to go only to the document logger at debug level, i.e. nowhere
+   * anybody would see them. That matters more than it sounds: if most primitives
+   * take the `fallback` path then UV-aware decimation never happened at all, and
+   * every hour spent tuning `--uv-weight` was spent on a knob that was not
+   * connected. Surfacing it is a one-line answer to "why did that change nothing".
+   */
+  onResult?: (result: SimplifyTexturedResult) => void
 }
 
 /** Result counters, returned for logging and asserted in tests. */
@@ -218,6 +228,7 @@ export function simplifyTextured(options: SimplifyTexturedOptions): Transform {
     await document.transform(weld({ overwrite: false }))
 
     const result = runSimplifyTextured(document, options)
+    options.onResult?.(result)
     document
       .getLogger()
       .debug(

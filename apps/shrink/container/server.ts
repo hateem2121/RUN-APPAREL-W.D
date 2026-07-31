@@ -112,6 +112,18 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
         ? `Colours found inside your file, in order:\n${found.map((name, i) => `  ${i + 1}. ${name}`).join('\n')}`
         : 'No colours are stored inside this file. That is fine for a single-colour garment — set the product to “A separate file for each colour”.',
       `See-through (BLEND) materials: ${glb.translucentMaterialCount}`,
+      // What the decimation pass actually did. `fallback` primitives were
+      // decimated position-only with borders locked, i.e. the UV weight that is
+      // supposed to protect printed artwork did nothing for them — which is
+      // invisible from file size alone and was costing whole sessions of tuning
+      // a knob that was not connected.
+      opt.simplify
+        ? `Mesh decimation: ${opt.simplify.attributeAware} part(s) with artwork protection, ` +
+          `${opt.simplify.fallback} without, ${opt.simplify.skipped} untouched.` +
+          (opt.simplify.fallback > opt.simplify.attributeAware
+            ? ' ⚠️ Most parts were decimated WITHOUT artwork protection — printed graphics on those are at risk.'
+            : '')
+        : 'Mesh decimation: not run for this job.',
       glb.warnings.length ? `Warnings:\n- ${glb.warnings.join('\n- ')}` : 'No warnings.',
       '',
       found.length
@@ -127,6 +139,8 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
       variantsInFileOrder: found,
       warnings: glb.warnings,
       translucentMaterialCount: glb.translucentMaterialCount,
+      texCoordsInUse: glb.texCoordsInUse,
+      ...(opt.simplify ? { simplify: opt.simplify } : {}),
       text,
     }
     return { bytes, report }
