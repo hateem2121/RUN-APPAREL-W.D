@@ -77,7 +77,20 @@ const csp = [
   `style-src 'self' 'unsafe-inline'`,
   `img-src 'self' data: blob: ${apiOrigin} ${ZONE}`,
   `font-src 'self'`,
-  `connect-src 'self' ${apiOrigin} ${ZONE} ${GSTATIC} ${CF_CONNECT} ${sentryOrigin}`.replace(
+  // blob: — the Meshopt decoder builds its worker's source as a Blob and loads
+  // it through a blob: URL (meshoptimizer/meshopt_decoder.cjs, initWorkers), and
+  // Chromium checks that fetch against connect-src as well as worker-src. EVERY
+  // production GLB is EXT_meshopt_compression, so without this the real garment
+  // trips a CSP violation on every load.
+  //
+  // Nothing caught it until seed:assets started merging with --meshopt: the
+  // seeded placeholder was uncompressed, so the e2e suite exercised a codepath
+  // production never uses. Same blind spot that let the missing decoder location
+  // reach production on 2026-07-29.
+  //
+  // Narrow: blob: permits fetches to blobs this page itself created, not to any
+  // remote origin. Script execution stays hash-locked by script-src.
+  `connect-src 'self' blob: ${apiOrigin} ${ZONE} ${GSTATIC} ${CF_CONNECT} ${sentryOrigin}`.replace(
     /\s+/g,
     ' ',
   ).trim(),
