@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Document, Material, Texture, TextureInfo } from '@gltf-transform/core'
-import { listTextureInfo, listTextureSlots } from '@gltf-transform/functions'
+import { listTextureInfo, listTextureInfoByMaterial, listTextureSlots } from '@gltf-transform/functions'
 import sharp, { type Metadata, type Sharp } from 'sharp'
 import { createIO } from './io'
 
@@ -16,12 +16,16 @@ import { createIO } from './io'
  * cheapest half of fixing that: it answers two questions about a GLB without
  * processing it at all.
  *
- *   1. WHICH UV SET IS THE ARTWORK ON? simplify-textured.ts weights TEXCOORD_0
- *      and nothing else, so any material whose baseColorTexture sits on
- *      TEXCOORD_1 has its UVs decimated at zero weight while the fabric's are
- *      protected. That produces artwork that is damaged on some panels and
- *      clean on others — which is exactly the reported symptom. `texCoords`
- *      below is that answer, and `slotsOffUv0` in the summary is the alarm.
+ *   1. WHICH UV SET IS THE ARTWORK ON? Decimation used to weight TEXCOORD_0 and
+ *      nothing else, so artwork on another set was decimated at zero weight
+ *      while the fabric's UVs were protected — damaged on some panels, clean on
+ *      others, which is exactly the reported symptom. `texCoords` per texture is
+ *      that answer.
+ *
+ *      Read `materialsWithMultipleUvSets`, not "any texCoord != 0", for the
+ *      alarm: `prune()` renumbers a lone second UV set down to TEXCOORD_0 before
+ *      decimation ever sees it, so only materials sampling two or more sets
+ *      actually carry the hazard into the simplifier.
  *
  *   2. DID THE ENCODER CRUSH IT? Lossy WebP is 4:2:0 chroma only, which bleeds
  *      hard saturated edges — the classic wordmark failure. Bytes-per-pixel is
@@ -96,11 +100,10 @@ export interface TextureInventory {
   textures: TextureRecord[]
   /** Every distinct UV set referenced by any material texture. */
   texCoordsInUse: number[]
-  /**
-   * Texture usages that sample a UV set other than 0. simplifyTextured protects
-   * TEXCOORD_0 only, so these are the ones whose artwork is unprotected.
-   */
+  /** Texture usages that sample a UV set other than 0. */
   usagesOffUv0: TextureUsage[]
+  /** Materials sampling two or more UV sets — see UvSummary for why only these matter. */
+  materialsWithMultipleUvSets: string[]
   /** Materials by alphaMode — the input to a per-material solidify decision. */
   alphaModeCounts: Record<string, number>
   warnings: string[]
@@ -212,8 +215,24 @@ function safeStem(index: number, texture: Texture): string {
 export interface UvSummary {
   /** Every distinct UV set referenced by any material texture, including extension slots. */
   texCoordsInUse: number[]
-  /** Core-slot usages sampling a UV set other than 0 — the ones decimation does not protect. */
+  /** Core-slot usages sampling a UV set other than 0. */
   usagesOffUv0: TextureUsage[]
+  /**
+   * Materials sampling TWO OR MORE distinct UV sets — the ones that actually
+   * carry the decimation hazard.
+   *
+   * MEASURED, and it is not what it first looks like. `prune()` runs before
+   * decimation and calls `shiftTexCoords`: when a primitive's material samples
+   * only ONE UV set, the unused sets are dropped and the survivor is renumbered
+   * down to TEXCOORD_0. So a lone `texCoord: 1` in a raw CLO export is
+   * self-correcting and harmless.
+   *
+   * It is when a material samples more than one set — a fabric AO or normal map
+   * on UV0 plus a printed graphic on UV1, which is exactly how CLO exports an
+   * applied graphic onto a mapped fabric — that prune keeps both, `texCoord: 1`
+   * survives into the simplifier, and artwork weighted at zero gets smeared.
+   */
+  materialsWithMultipleUvSets: string[]
   alphaModeCounts: Record<string, number>
   /** Core-slot usages keyed by texture, for callers that need per-texture rows. */
   usagesByTexture: Map<Texture, TextureUsage[]>
@@ -251,24 +270,44 @@ export function summariseUvSets(document: Document): UvSummary {
   ].sort((a, b) => a - b)
   const usagesOffUv0 = [...usagesByTexture.values()].flat().filter((usage) => usage.texCoord !== 0)
 
-  return { texCoordsInUse, usagesOffUv0, alphaModeCounts, usagesByTexture }
+  // Per material, across every slot including extensions.
+  const materialsWithMultipleUvSets = root
+    .listMaterials()
+    .filter((material) => new Set(listTextureInfoByMaterial(material).map((i) => i.getTexCoord())).size > 1)
+    .map((material, index) => material.getName() || `(unnamed material #${index})`)
+
+  return {
+    texCoordsInUse,
+    usagesOffUv0,
+    materialsWithMultipleUvSets,
+    alphaModeCounts,
+    usagesByTexture,
+  }
 }
 
 /**
- * The warning `validate` and `textures` both emit when artwork sits on a UV set
- * the simplifier does not weight. One sentence, one place, so the two commands
- * cannot drift apart on the single most likely cause of the damage.
+ * The warning `validate` and `textures` both emit about multi-UV materials.
+ * One sentence, one place, so the two commands cannot drift apart.
+ *
+ * Deliberately keyed on `materialsWithMultipleUvSets` rather than on "any
+ * texCoord != 0", because the latter over-reports: `prune()` renumbers a lone
+ * second UV set down to TEXCOORD_0 before decimation ever sees it. Warning on
+ * that would send the next person chasing a hazard the pipeline already fixes
+ * for itself.
  */
-export function offUv0Warning(texCoordsInUse: number[], usagesOffUv0: TextureUsage[]): string | null {
-  const offUv0 = texCoordsInUse.filter((n) => n !== 0)
-  if (offUv0.length === 0) return null
+export function offUv0Warning(
+  materialsWithMultipleUvSets: string[],
+  usagesOffUv0: TextureUsage[],
+): string | null {
+  if (materialsWithMultipleUvSets.length === 0) return null
   const detail = usagesOffUv0.length
     ? ` (${[...new Set(usagesOffUv0.map((u) => `${u.slot}@TEXCOORD_${u.texCoord}`))].sort().join(', ')})`
     : ''
   return (
-    `Textures sample ${offUv0.map((n) => `TEXCOORD_${n}`).join(', ')} as well as TEXCOORD_0${detail}. ` +
-    'simplifyTextured weights TEXCOORD_0 only, so decimation does NOT protect the artwork on those UV sets — ' +
-    'expect it damaged on some panels and clean on others. See docs/OPEN-ISSUE-ARTWORK.md (H4).'
+    `${materialsWithMultipleUvSets.length} material(s) sample more than one UV set${detail}: ` +
+    `${materialsWithMultipleUvSets.join(', ')}. Those extra UV sets survive prune() into decimation. ` +
+    'Confirm the simplify pass reports every one of them as weighted — an unweighted set means the ' +
+    'artwork on it is decimated with no protection. See docs/OPEN-ISSUE-ARTWORK.md (H4).'
   )
 }
 
@@ -276,7 +315,8 @@ export function offUv0Warning(texCoordsInUse: number[], usagesOffUv0: TextureUsa
 export async function inventoryTextures(document: Document, file: string): Promise<TextureInventory> {
   const root = document.getRoot()
   const textures = root.listTextures()
-  const { texCoordsInUse, usagesOffUv0, alphaModeCounts, usagesByTexture } = summariseUvSets(document)
+  const { texCoordsInUse, usagesOffUv0, materialsWithMultipleUvSets, alphaModeCounts, usagesByTexture } =
+    summariseUvSets(document)
 
   const records: TextureRecord[] = []
   for (const [index, texture] of textures.entries()) {
@@ -320,7 +360,7 @@ export async function inventoryTextures(document: Document, file: string): Promi
   }
 
   const warnings: string[] = []
-  const offUv0 = offUv0Warning(texCoordsInUse, usagesOffUv0)
+  const offUv0 = offUv0Warning(materialsWithMultipleUvSets, usagesOffUv0)
   if (offUv0) warnings.push(offUv0)
   const crushed = records.filter(
     (record) =>
@@ -345,7 +385,15 @@ export async function inventoryTextures(document: Document, file: string): Promi
     )
   }
 
-  return { file, textures: records, texCoordsInUse, usagesOffUv0, alphaModeCounts, warnings }
+  return {
+    file,
+    textures: records,
+    texCoordsInUse,
+    usagesOffUv0,
+    materialsWithMultipleUvSets,
+    alphaModeCounts,
+    warnings,
+  }
 }
 
 export interface DumpTexturesOptions {

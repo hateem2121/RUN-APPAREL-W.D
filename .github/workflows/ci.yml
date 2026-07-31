@@ -52,6 +52,16 @@ jobs:
   # deterministic byte-weight budgets in lighthouserc.json fail the check on a
   # real regression so it surfaces on the PR. Make it a required check via branch
   # protection if you want it to block merges.
+  #
+  # ⚠️ WHAT THIS DOES NOT COVER. The page it measures serves the SEEDED
+  # PLACEHOLDER GLB — a few tens of KB. A real garment is 8–40 MB, so the
+  # `total-byte-weight` budget says nothing whatsoever about the size of a
+  # production page, and a green run here must never be read as "the live page
+  # is within budget". The budget that does apply to real models is enforced
+  # where they actually pass through: SIZE_WARNING_BYTES in the shrink report the
+  # owner reads, and GLB_HARD_MAX_BYTES in the CMS upload guard. What this job
+  # genuinely protects is the *application* bundle — scripts, CSS, fonts — which
+  # is the same in production as it is here.
   lighthouse:
     runs-on: ubuntu-latest
     steps:

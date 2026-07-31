@@ -21,7 +21,7 @@ import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { AwsClient } from 'aws4fetch'
 import { optimizeGlb, parseOptimizeArgs } from '../../../tools/asset-pipeline/src/optimize'
-import { inspectGlb } from '../../../tools/asset-pipeline/src/validate'
+import { SIZE_WARNING_BYTES, inspectGlb } from '../../../tools/asset-pipeline/src/validate'
 
 const PORT = Number(process.env.PORT ?? 8080)
 
@@ -101,17 +101,42 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
     const beforeMb = (opt.bytesBefore / 1024 / 1024).toFixed(1)
     const afterMb = (opt.bytesAfter / 1024 / 1024).toFixed(1)
 
+    // The mobile guideline, stated plainly. Nothing in CI can check this — the
+    // Lighthouse budget runs against a 10 KB placeholder, so a real 20 MB
+    // garment is invisible to it — and the hard 40 MB ceiling only catches the
+    // extreme case. This line is the only place the owner is told a published
+    // file is heavy for a QR scan on mobile data.
+    const overMobileBudget = opt.bytesAfter > SIZE_WARNING_BYTES
+
     // File order, not alphabetical: the CMS lists these back to the owner so
     // they can say which of their colours is which. Nothing is renamed, so it
     // no longer matters what CLO called them.
     const found = glb.variantsInFileOrder.length ? glb.variantsInFileOrder : glb.variants
     const text = [
       `Shrunk ${beforeMb} MB → ${afterMb} MB.`,
+      overMobileBudget
+        ? `⚠️ Still over the ${SIZE_WARNING_BYTES / 1024 / 1024} MB mobile guideline. It will publish and work, but ` +
+          'it is a slow load over phone data, which is how most people reach this page. ' +
+          'Most of a CLO export is geometry, so the lever is a lower Detail setting or a lighter mesh from CLO.'
+        : `Within the ${SIZE_WARNING_BYTES / 1024 / 1024} MB mobile guideline.`,
       `Suggested filename: ${filename}`,
       found.length
         ? `Colours found inside your file, in order:\n${found.map((name, i) => `  ${i + 1}. ${name}`).join('\n')}`
         : 'No colours are stored inside this file. That is fine for a single-colour garment — set the product to “A separate file for each colour”.',
       `See-through (BLEND) materials: ${glb.translucentMaterialCount}`,
+      // How each translucent material was resolved. "Kept see-through" is the
+      // one to read: those are materials whose alpha is a genuine gradient, so
+      // the pipeline declined to flatten them. If the garment is not actually
+      // sheer, that is a CLO export to fix rather than a setting to change.
+      opt.solidify
+        ? `Transparency: ${opt.solidify.opaqued} made solid, ${opt.solidify.masked} kept as cut-out shapes, ` +
+          `${opt.solidify.keptBlend} kept see-through.`
+        : 'Transparency: left untouched for this job.',
+      opt.textures
+        ? `Textures: ${opt.textures.artwork} treated as printed artwork (encoded at high fidelity), ` +
+          `${opt.textures.standard} as fabric.` +
+          (opt.textures.artworkNames.length ? ` Artwork: ${opt.textures.artworkNames.join(', ')}.` : '')
+        : 'Textures: not re-encoded for this job.',
       // What the decimation pass actually did. `fallback` primitives were
       // decimated position-only with borders locked, i.e. the UV weight that is
       // supposed to protect printed artwork did nothing for them — which is
@@ -141,6 +166,8 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
       translucentMaterialCount: glb.translucentMaterialCount,
       texCoordsInUse: glb.texCoordsInUse,
       ...(opt.simplify ? { simplify: opt.simplify } : {}),
+      ...(opt.textures ? { textures: opt.textures } : {}),
+      ...(opt.solidify ? { solidify: opt.solidify } : {}),
       text,
     }
     return { bytes, report }

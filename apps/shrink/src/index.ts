@@ -49,7 +49,11 @@ interface ShrinkReport {
    * What the decimation pass did. `fallback` primitives got no artwork
    * protection. Absent when no simplify ran, or from an older container.
    */
-  simplify?: { attributeAware: number; fallback: number; skipped: number }
+  simplify?: { attributeAware: number; fallback: number; skipped: number; uvSetsWeighted?: number[] }
+  /** How textures were classified and encoded. Absent from an older container. */
+  textures?: { artwork: number; standard: number; skipped: number; artworkNames: string[] }
+  /** How each translucent material was resolved. Absent from an older container. */
+  solidify?: { opaqued: number; masked: number; keptBlend: number; doubleSided: number }
   text: string
   error?: string
 }

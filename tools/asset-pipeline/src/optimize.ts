@@ -1,16 +1,18 @@
 import { mkdir, stat } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { Document, Transform } from '@gltf-transform/core'
-import { dedup, draco, meshopt, prune, textureCompress } from '@gltf-transform/functions'
+import { dedup, draco, meshopt, prune } from '@gltf-transform/functions'
 import { ktx2 } from 'ktx2-encoder/gltf-transform'
 import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer'
 import sharp from 'sharp'
 import { createIO } from './io'
+import { profileAlpha } from './textures'
 import {
   type AttributeSimplifier,
   type SimplifyTexturedResult,
   simplifyTextured,
 } from './simplify-textured'
+import { type TextureArtworkResult, compressTexturesForArtwork } from './texture-artwork'
 
 /**
  * Shared optimisation transforms for production GLBs. Both `merge` (multi-
@@ -43,6 +45,16 @@ export interface OptimizeOptions {
   maxTextureSize?: number
   /** WebP quality 1–100 / KTX2 ETC1S quality 1–255. Default 82. */
   textureQuality?: number
+  /**
+   * WebP quality for textures carrying printed artwork (logos, wordmarks,
+   * decals), which are detected rather than declared — see texture-artwork.ts.
+   * Higher than `textureQuality` because lossy WebP is 4:2:0 chroma only and
+   * bleeds exactly the hard saturated edges artwork is made of. Default 95.
+   * WebP path only; KTX2 has its own quality model.
+   */
+  artworkTextureQuality?: number
+  /** Resize cap for artwork textures. Higher than `maxTextureSize`: thin lettering is what resampling destroys first. Default 4096. */
+  artworkMaxTextureSize?: number
   /** Geometry codec. Default 'none'. */
   geometry?: GeometryCodec
   /** Legacy alias for `geometry: 'draco'`, kept for the existing merge API/tests. */
@@ -88,6 +100,14 @@ export interface OptimizeOptions {
 export const DEFAULT_MAX_TEXTURE = 2048
 export const DEFAULT_TEXTURE_QUALITY = 82
 /**
+ * Artwork defaults. Textures are ~2 MB of a ~19 MB garment and geometry is the
+ * rest, so buying fidelity here is close to free — the trade this pipeline used
+ * to make (everything at 82, capped at 2048) saved almost nothing and cost the
+ * one thing on the model a customer is looking at.
+ */
+export const DEFAULT_ARTWORK_TEXTURE_QUALITY = 95
+export const DEFAULT_ARTWORK_MAX_TEXTURE = 4096
+/**
  * glTF-Transform's own default (0.01% of mesh radius). We previously hard-coded
  * 0.001 here, which is 10x looser and visibly tore printed logos apart.
  *
@@ -132,43 +152,88 @@ export function resolveGeometry(options: OptimizeOptions): GeometryCodec {
 export interface SolidifyResult {
   /** Materials whose alphaMode was changed BLEND → OPAQUE. */
   opaqued: number
+  /** Materials changed BLEND → MASK: a real cutout, kept rather than filled in. */
+  masked: number
+  /** Materials left on BLEND because their alpha is genuinely graded. */
+  keptBlend: number
   /** Total materials made double-sided. */
   doubleSided: number
 }
 
+/** Below this base-colour alpha a material is doing something deliberate with transparency. */
+const OPAQUE_FACTOR_THRESHOLD = 0.99
+
 /**
- * Force fabric to render solid. CLO exports frequently mark opaque fabric as
- * alphaMode BLEND (from a stray fabric opacity value, or an unused alpha channel
- * left in the base-colour texture). <model-viewer> — three.js underneath, with
- * NO order-independent transparency (OIT) — then draws that fabric see-through,
- * showing the garment's back faces through the front. Converting BLEND → OPAQUE
- * fixes it at the material, which is the only correct place: no viewer-side OIT
- * is needed for a garment that was never meant to be translucent.
+ * Force fabric to render solid — deciding per material from its actual alpha
+ * data rather than by blanket rule.
  *
- * Deliberately NOT touched:
- *   - MASK materials (hard alpha cutouts — a logo decal, a genuine mesh hole).
- *     They are order-independent and intentional; forcing them opaque would
- *     fill the cutouts back in.
- *   - OPAQUE materials (already solid).
+ * THE PROBLEM. CLO exports frequently mark opaque fabric as alphaMode BLEND
+ * (from a stray fabric opacity value, or an unused alpha channel left in the
+ * base-colour texture). <model-viewer> — three.js underneath, with NO
+ * order-independent transparency — then draws that fabric see-through, showing
+ * the garment's back faces through the front.
  *
- * Every material is additionally set double-sided, so single-layer ("Thin") CLO
- * fabric stays visible from the inside (necklines, cuffs, open plackets) instead
- * of vanishing where a back face would be culled.
+ * WHY NOT JUST FORCE EVERYTHING OPAQUE, WHICH IS WHAT THIS USED TO DO. Because
+ * "alphaMode is BLEND" covers two completely different situations. Stray fabric
+ * opacity should become OPAQUE. A printed decal with a real cutout should not —
+ * flattening it to OPAQUE fills the cutout back in with whatever the base colour
+ * is, which reads as artwork that is half there. Both were being treated the
+ * same, and the second case is one of the leading suspects for the damage on the
+ * first real garment.
  *
- * Genuinely sheer garments (mesh, lace, tulle) must skip this — see the
- * `opaque` option / `--keep-transparency`.
+ * WHY MASK RATHER THAN LEAVING IT ON BLEND. `--keep-transparency` looks like the
+ * fix and is not: with no OIT, BLEND on a multi-part garment produces
+ * depth-sorting artefacts, trading one "half visible" for another. MASK with
+ * alphaCutoff 0.5 is order-independent, renders solid, and keeps the cutout.
+ *
+ * So, per material, read the base-colour alpha and decide:
+ *   - no alpha channel, or every pixel solid, and baseColorFactor[3] ≈ 1
+ *       → OPAQUE. The stray-opacity case; the original behaviour, and correct.
+ *   - a hard binary cutout  → MASK, alphaCutoff 0.5. The decal case.
+ *   - genuinely graded      → leave BLEND. Real translucency (mesh, lace, tulle);
+ *                             destroying it is not this function's call.
+ *   - undecodable (KTX2)    → OPAQUE, the previous behaviour, and reported.
+ *
+ * DOUBLE-SIDING. Single-layer ("Thin") CLO fabric must stay visible from the
+ * inside — necklines, cuffs, open plackets — so it is still applied broadly.
+ * But NOT to MASK materials: a decal is a thin surface sitting just off the
+ * fabric, and drawing its back faces is a source of exactly the speckled
+ * z-fighting that damages printed graphics. Materials are never set
+ * single-sided, only left as the source had them.
+ *
+ * Genuinely sheer garments must skip all of this — see `--keep-transparency`.
  */
-export function solidifyMaterials(document: Document): SolidifyResult {
+export async function solidifyMaterials(document: Document): Promise<SolidifyResult> {
   const materials = document.getRoot().listMaterials()
-  let opaqued = 0
+  const result: SolidifyResult = { opaqued: 0, masked: 0, keptBlend: 0, doubleSided: 0 }
+
   for (const material of materials) {
     if (material.getAlphaMode() === 'BLEND') {
-      material.setAlphaMode('OPAQUE')
-      opaqued++
+      const image = material.getBaseColorTexture()?.getImage()
+      const alpha = image ? await profileAlpha(image) : { character: 'none' as const }
+      const factor = material.getBaseColorFactor()[3] ?? 1
+
+      if (alpha.character === 'binary') {
+        // A real cutout. Keep the shape, lose the sorting problem.
+        material.setAlphaMode('MASK').setAlphaCutoff(0.5)
+        result.masked++
+      } else if (alpha.character === 'graded' || factor < OPAQUE_FACTOR_THRESHOLD) {
+        // Deliberate translucency. Leave it and say so — the operator can still
+        // decide this garment is not sheer and re-export it.
+        result.keptBlend++
+      } else {
+        material.setAlphaMode('OPAQUE')
+        result.opaqued++
+      }
     }
-    material.setDoubleSided(true)
+
+    if (material.getAlphaMode() !== 'MASK') {
+      material.setDoubleSided(true)
+      result.doubleSided++
+    }
   }
-  return { opaqued, doubleSided: materials.length }
+
+  return result
 }
 
 /**
@@ -182,6 +247,10 @@ export function solidifyMaterials(document: Document): SolidifyResult {
 export interface OptimizeTelemetry {
   /** Present only when a simplify pass ran. */
   simplify?: SimplifyTexturedResult
+  /** Present only when the WebP texture pass ran. */
+  textures?: TextureArtworkResult
+  /** Present only when the opaque/solidify pass ran. */
+  solidify?: SolidifyResult
 }
 
 /**
@@ -202,19 +271,25 @@ export async function buildOptimizeTransforms(
   // often marks opaque fabric as translucent (alphaMode BLEND); model-viewer has
   // no OIT and would render it see-through. Opt in — the CLI defaults it on.
   if (options.opaque === true) {
-    transforms.push((document: Document) => {
-      solidifyMaterials(document)
+    transforms.push(async (document: Document) => {
+      telemetry.solidify = await solidifyMaterials(document)
     })
   }
 
   const max = options.maxTextureSize ?? DEFAULT_MAX_TEXTURE
   if (options.texture === 'webp') {
+    // Not glTF-Transform's textureCompress: it cannot reach `smartSubsample`,
+    // which is the setting that addresses WebP's 4:2:0 chroma bleed on printed
+    // artwork. See texture-artwork.ts.
     transforms.push(
-      textureCompress({
-        encoder: sharp,
-        targetFormat: 'webp',
-        resize: [max, max],
+      compressTexturesForArtwork({
         quality: options.textureQuality ?? DEFAULT_TEXTURE_QUALITY,
+        maxSize: max,
+        artworkQuality: options.artworkTextureQuality ?? DEFAULT_ARTWORK_TEXTURE_QUALITY,
+        artworkMaxSize: options.artworkMaxTextureSize ?? DEFAULT_ARTWORK_MAX_TEXTURE,
+        onResult: (result) => {
+          telemetry.textures = result
+        },
       }),
     )
   } else if (options.texture === 'ktx2') {
@@ -321,6 +396,10 @@ export interface OptimizeResult {
    * `--uv-weight` did nothing for them.
    */
   simplify?: SimplifyTexturedResult
+  /** How textures were classified and encoded, when the WebP pass ran. */
+  textures?: TextureArtworkResult
+  /** How each translucent material was resolved, when the opaque pass ran. */
+  solidify?: SolidifyResult
 }
 
 /**
@@ -355,6 +434,8 @@ export async function optimizeGlb(
     geometry: resolveGeometry(options),
     opaque: options.opaque === true,
     ...(telemetry.simplify ? { simplify: telemetry.simplify } : {}),
+    ...(telemetry.textures ? { textures: telemetry.textures } : {}),
+    ...(telemetry.solidify ? { solidify: telemetry.solidify } : {}),
   }
 }
 
@@ -376,6 +457,8 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
   let geometry: GeometryCodec = 'none'
   let maxTextureSize = DEFAULT_MAX_TEXTURE
   let textureQuality = DEFAULT_TEXTURE_QUALITY
+  let artworkTextureQuality = DEFAULT_ARTWORK_TEXTURE_QUALITY
+  let artworkMaxTextureSize = DEFAULT_ARTWORK_MAX_TEXTURE
   // Solid fabric is the safe default for apparel; sheer garments opt out.
   let opaque = true
   let simplify: number | undefined
@@ -393,6 +476,10 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
     else if (arg === '--meshopt') geometry = 'meshopt'
     else if (arg === '--max-texture') maxTextureSize = Number(rest[++i] ?? DEFAULT_MAX_TEXTURE)
     else if (arg === '--quality') textureQuality = Number(rest[++i] ?? DEFAULT_TEXTURE_QUALITY)
+    else if (arg === '--artwork-quality')
+      artworkTextureQuality = Number(rest[++i] ?? DEFAULT_ARTWORK_TEXTURE_QUALITY)
+    else if (arg === '--artwork-max-texture')
+      artworkMaxTextureSize = Number(rest[++i] ?? DEFAULT_ARTWORK_MAX_TEXTURE)
     else if (arg === '--simplify') simplify = Number(rest[++i])
     else if (arg === '--simplify-error') simplifyError = Number(rest[++i])
     else if (arg === '--uv-weight') simplifyUvWeight = Number(rest[++i])
@@ -410,6 +497,8 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
       geometry,
       maxTextureSize,
       textureQuality,
+      artworkTextureQuality,
+      artworkMaxTextureSize,
       opaque,
       simplify,
       simplifyError,

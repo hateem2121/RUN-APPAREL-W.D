@@ -1,8 +1,9 @@
 # OPEN ISSUE — printed artwork is damaged on the shrunk model
 
-**Status:** open, not yet diagnosed — but the pipeline can now be *looked at*
-rather than guessed about. Reported by the owner on the live site 2026-07-29,
-after the first real garment rendered successfully.
+**Status:** three suspected causes fixed; **not yet confirmed against the real
+garment**, which needs the raw file and the owner's eye. The pipeline can now be
+*looked at* rather than guessed about. Reported by the owner on the live site
+2026-07-29, after the first real garment rendered successfully.
 
 **Symptom, in the owner's words:** *"the logo, graphics, words, etc are broken /
 half visible, half not."*
@@ -68,22 +69,37 @@ glTF-Transform, libwebp and model-viewer upstream. Three causes were added that
 outrank everything originally listed, and one original candidate turned out to be
 a good test but a bad fix.
 
-### H4 — `simplifyTextured` protects only `TEXCOORD_0` ⭐ leading suspect
+### H4 — decimation protected only `TEXCOORD_0` ⭐ leading suspect — **FIXED**
 
-`simplify-textured.ts:125` returns early unless `TEXCOORD_0` exists, and `:135`
-interleaves only that set into the attribute buffer. CLO's *Apply Graphic* places
-prints on garments that commonly carry a **second UV set**.
-
-Any material whose `baseColorTexture.texCoord === 1` therefore has its UVs
-decimated at **zero weight** while the fabric's are protected at weight 1. Some
-panels smear, others do not. That is "half visible, half not", literally — and it
+`simplify-textured.ts` interleaved only `TEXCOORD_0` into the attribute buffer it
+hands meshoptimizer. CLO's *Apply Graphic* places prints on garments that
+commonly carry a **second UV set**, and artwork on that set was therefore
+decimated at **zero weight** while the fabric's UVs were protected at weight 1.
+Some panels smear, others do not — "half visible, half not", literally. It also
 explains why tuning `--uv-weight` never helped: on those materials the knob was
 not connected to anything.
 
-Compounding it, `prune({ keepExtras: true })` (`optimize.ts:176`) defaults
-`keepAttributes: false`, so glTF-Transform drops unused UV sets *and* renumbers
-the survivors via `shiftTexCoords`. Correct in itself, but it means the index the
-artwork lands on is not stable across inputs.
+`listUvSets` now collects every `TEXCOORD_n` on the primitive and prices them all
+identically. A set it cannot read (quantized) demotes the whole primitive to the
+conservative path rather than protecting some of its UVs and silently not others.
+
+#### ⚠️ The trigger condition is narrower than it first appears — measured
+
+`prune({ keepExtras: true })` runs *before* decimation and calls `shiftTexCoords`.
+Measured directly (pinned in `textures.test.ts`):
+
+| Material samples | After `prune()` | H4 |
+| --- | --- | --- |
+| **one** UV set, on `texCoord: 1` | set renumbered down to `TEXCOORD_0` | **cannot bite** |
+| **two** sets (e.g. AO on UV0, graphic on UV1) | both survive, `texCoord: 1` intact | **bites** |
+
+So a lone `texCoord: 1` in a raw CLO export is self-correcting, and warning about
+it would send the next person chasing a hazard the pipeline already fixes for
+itself. What matters is a material sampling **two or more** UV sets at once —
+which is exactly what a printed graphic applied over mapped fabric produces.
+
+`validate` and `textures` both report `materialsWithMultipleUvSets` and warn only
+on that. The manifest still records each texture's `texCoords` as a fact.
 
 **Cheapest possible check, no processing required:**
 
@@ -91,10 +107,10 @@ artwork lands on is not stable across inputs.
 pnpm pipeline textures <raw.glb> --out output/textures-raw
 ```
 
-If any `texCoords` entry in the manifest is not `[0]`, this is live. `validate`
-now warns about it too.
+Then confirm the `optimize` output's `UV sets:` line lists every set the file
+uses. A set that appears in the manifest but not there is unprotected artwork.
 
-### H5 — lossy WebP has no 4:4:4 mode ⭐
+### H5 — lossy WebP has no 4:4:4 mode ⭐ — **FIXED**
 
 `optimize.ts:188-196` sends **every** texture through `textureCompress` at
 `quality: 82` with no slot filter. libwebp's lossy encoder works exclusively in
@@ -115,7 +131,15 @@ this package (`optimize.ts:7`).
 
 `smartSubsample` costs no file size and exists precisely for this artefact.
 
-### H6 — coplanar print layers z-fight after solidify + quantize
+**Fixed** in `texture-artwork.ts`, which replaced the blanket `textureCompress`
+call. `smartSubsample` is now on for *every* texture — it changes how chroma is
+computed, not how much is stored, so there is no reason to have it off. Textures
+detected as artwork (alpha cutout, aspect ratio ≥ 3:1, or a name like
+`logo`/`print`/`wordmark`) additionally get quality 95, `alphaQuality 100` and a
+4096 cap instead of 2048. Data maps (normal, ORM) are never classified as
+artwork whatever they are called.
+
+### H6 — coplanar print layers z-fight after solidify + quantize — **PARTLY FIXED**
 
 `solidifyMaterials` (`optimize.ts:157-168`) forces every `BLEND` material to
 `OPAQUE` **and** calls `setDoubleSided(true)` on *every* material — including the
@@ -124,6 +148,17 @@ of a millimetre off the fabric. Made opaque, double-sided, decimated, then
 position-quantized (`meshopt({ level: 'high' })` → `quantizePosition: 14`,
 `quantizationVolume: 'mesh'`), the two surfaces interpenetrate. Stippled, patchy
 artwork is the textbook signature.
+
+**The double-siding half is fixed:** `solidifyMaterials` no longer double-sides
+`MASK` materials. A decal has no inside to see, and drawing its back faces is a
+direct source of the speckling. Materials are only ever set double-sided, never
+back, so a source that already double-sided its cutouts keeps that.
+
+**The quantization half is not**, and should not be changed speculatively —
+`quantizePosition: 14` over a mesh-sized volume is a sensible default, and
+loosening it costs size on every garment. If the bisect's `no-meshopt` run is the
+one that comes back clean, the targeted fix is a larger `quantizationVolume` or a
+slightly larger decal offset at export, not a blanket precision increase.
 
 ### H1 — UV distortion from decimation
 
@@ -158,7 +193,7 @@ near-empty textures are a symptom to check against the raw file, not evidence on
 their own. Still true that this is **the cheap lever**: textures are 2.1 MB of
 19 MB, so quality can be raised a long way for very little size.
 
-### H3 — alpha handling ⚠️ good test, bad fix
+### H3 — alpha handling ⚠️ good test, bad fix — **FIXED, correctly**
 
 The original note called `--keep-transparency` "a one-flag test [that] would be a
 complete explanation". It is an excellent *diagnostic* and a **wrong fix**.
@@ -168,12 +203,22 @@ Restoring `BLEND` on a multi-part garment produces depth-sorting artefacts —
 google/model-viewer#1620 — which is the exact bug `solidifyMaterials` was written
 to prevent. Flipping the flag trades one "half visible" for another.
 
-**If alpha turns out to be implicated, the correct fix is `BLEND` → `MASK`,** not
-`BLEND` → `OPAQUE` and not "leave it `BLEND`". `MASK` with `alphaCutoff 0.5` is
-order-independent, renders solid, and preserves the cutout. Decide per material by
-inspecting the actual alpha data — `pnpm pipeline textures` reports whether each
-texture's alpha is absent, uniformly opaque, a hard binary cutout, or genuinely
-graded, which is exactly the input that decision needs.
+**The correct fix is `BLEND` → `MASK`,** not `BLEND` → `OPAQUE` and not "leave it
+`BLEND`". `MASK` with `alphaCutoff 0.5` is order-independent, renders solid, and
+preserves the cutout.
+
+`solidifyMaterials` now decides per material by reading the actual alpha rather
+than by blanket rule:
+
+| Base-colour alpha | Decision | Why |
+| --- | --- | --- |
+| absent, or every pixel solid, and `baseColorFactor[3] ≈ 1` | → `OPAQUE`, double-sided | CLO's stray fabric opacity. The original behaviour, and correct. |
+| hard binary cutout | → `MASK` `alphaCutoff 0.5`, **not** double-sided | A printed decal. `OPAQUE` would fill the cutout back in. |
+| genuinely graded | left `BLEND`, reported | Real translucency. Destroying it is not the pipeline's call. |
+| undecodable (KTX2) | → `OPAQUE` | The previous behaviour, kept as the floor, and reported. |
+
+The seeded placeholders now carry a BLEND decal with a real cutout, and the
+merged fixture asserts it comes out `MASK` — so this cannot silently regress.
 
 ---
 

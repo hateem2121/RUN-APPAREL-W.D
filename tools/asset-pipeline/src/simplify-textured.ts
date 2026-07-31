@@ -110,11 +110,50 @@ export interface SimplifyTexturedResult {
   fallback: number
   /** Primitives left untouched (unsupported draw mode, or no indices). */
   skipped: number
+  /**
+   * Which UV sets were actually weighted, across every primitive. Reported
+   * because it is the difference between artwork being protected and only
+   * appearing to be: before this, a garment whose prints sat on TEXCOORD_1 got
+   * `[0]` here while the logs happily said "decimated with UV error".
+   */
+  uvSetsWeighted: number[]
 }
 
 const TRIANGLES = 4
 const TRIANGLE_STRIP = 5
 const TRIANGLE_FAN = 6
+
+const UV_SEMANTIC = /^TEXCOORD_(\d+)$/
+
+/**
+ * Every UV set the primitive carries, lowest index first.
+ *
+ * WHY ALL OF THEM. This used to read `TEXCOORD_0` and stop. CLO's "Apply
+ * Graphic" routinely places printed artwork on a second UV set, and a material
+ * whose `baseColorTexture.texCoord` is 1 therefore had its UVs decimated at
+ * ZERO weight while the fabric's were protected at full weight — artwork
+ * smeared on some panels, clean on others, which is exactly the damage reported
+ * on the first real garment. Weighting only the first set is not a conservative
+ * default; it is silent, selective non-protection.
+ *
+ * `prune()` runs earlier in the chain and drops UV sets nothing samples, so
+ * anything still present here is in use and worth the budget.
+ */
+function listUvSets(prim: Primitive): { index: number; array: Float32Array }[] {
+  const sets: { index: number; array: Float32Array }[] = []
+  for (const semantic of prim.listSemantics()) {
+    const match = UV_SEMANTIC.exec(semantic)
+    if (!match) continue
+    const accessor = prim.getAttribute(semantic)
+    const array = accessor?.getArray()
+    // A quantized set would need dequantizing first, and the helper for that is
+    // not exported — one non-Float32 set sends the whole primitive to the
+    // conservative path rather than silently protecting only some of its UVs.
+    if (!accessor || !(array instanceof Float32Array)) return []
+    sets.push({ index: Number(match[1]), array })
+  }
+  return sets.sort((a, b) => a.index - b.index)
+}
 
 /**
  * Decimate one primitive using UV (and normal) error. Returns false when this
@@ -124,6 +163,7 @@ function trySimplifyTexturedPrimitive(
   document: Document,
   prim: Primitive,
   options: SimplifyTexturedOptions,
+  weighted: Set<number>,
 ): boolean {
   const mode = prim.getMode()
   if (mode === TRIANGLE_STRIP || mode === TRIANGLE_FAN) convertPrimitiveToTriangles(prim)
@@ -142,19 +182,22 @@ function trySimplifyTexturedPrimitive(
   if (srcIndexCount < srcVertexCount / 2) compactPrimitive(prim)
 
   const position = prim.getAttribute('POSITION')
-  const uv = prim.getAttribute('TEXCOORD_0')
   const normal = prim.getAttribute('NORMAL')
   const srcIndices = prim.getIndices()
-  if (!position || !uv || !srcIndices) return false
+  if (!position || !srcIndices) return false
 
   const positionArray = position.getArray()
-  const uvArray = uv.getArray()
   // Quantized (normalized integer) attributes would need dequantizing first, and
   // the helper for that is not exported. Hand those to the library instead.
-  if (!(positionArray instanceof Float32Array) || !(uvArray instanceof Float32Array)) return false
+  if (!(positionArray instanceof Float32Array)) return false
+
+  const uvSets = listUvSets(prim)
+  if (uvSets.length === 0) return false
 
   const vertexCount = position.getCount()
-  if (uv.getCount() !== vertexCount) return false
+  for (const set of uvSets) {
+    if (prim.getAttribute(`TEXCOORD_${set.index}`)?.getCount() !== vertexCount) return false
+  }
 
   const normalArray = normal?.getArray()
   const useNormal =
@@ -163,23 +206,30 @@ function trySimplifyTexturedPrimitive(
     normal?.getCount() === vertexCount
 
   // meshoptimizer takes one interleaved attribute buffer plus a per-component
-  // weight list: [u, v] or [u, v, nx, ny, nz].
-  const stride = useNormal ? 5 : 2
+  // weight list: [u0, v0, (u1, v1, ...)] then optionally [nx, ny, nz].
+  const stride = uvSets.length * 2 + (useNormal ? 3 : 0)
   const attributes = new Float32Array(vertexCount * stride)
   for (let i = 0; i < vertexCount; i++) {
     const dst = i * stride
-    attributes[dst] = uvArray[i * 2] as number
-    attributes[dst + 1] = uvArray[i * 2 + 1] as number
+    for (const [set, uv] of uvSets.entries()) {
+      attributes[dst + set * 2] = uv.array[i * 2] as number
+      attributes[dst + set * 2 + 1] = uv.array[i * 2 + 1] as number
+    }
     if (useNormal) {
       const src = i * 3
-      attributes[dst + 2] = (normalArray as Float32Array)[src] as number
-      attributes[dst + 3] = (normalArray as Float32Array)[src + 1] as number
-      attributes[dst + 4] = (normalArray as Float32Array)[src + 2] as number
+      const base = dst + uvSets.length * 2
+      attributes[base] = (normalArray as Float32Array)[src] as number
+      attributes[base + 1] = (normalArray as Float32Array)[src + 1] as number
+      attributes[base + 2] = (normalArray as Float32Array)[src + 2] as number
     }
   }
-  const weights = useNormal
-    ? [options.uvWeight, options.uvWeight, options.normalWeight, options.normalWeight, options.normalWeight]
-    : [options.uvWeight, options.uvWeight]
+  // Every UV set is priced the same. A print on TEXCOORD_1 is exactly as
+  // expensive to smear as one on TEXCOORD_0 — which is the whole point.
+  const weights = [
+    ...uvSets.flatMap(() => [options.uvWeight, options.uvWeight]),
+    ...(useNormal ? [options.normalWeight, options.normalWeight, options.normalWeight] : []),
+  ]
+  for (const set of uvSets) weighted.add(set.index)
 
   let indicesArray = srcIndices.getArray()
   if (!indicesArray) return false
@@ -233,7 +283,8 @@ export function simplifyTextured(options: SimplifyTexturedOptions): Transform {
       .getLogger()
       .debug(
         `simplifyTextured: ${result.attributeAware} primitives with UV error, ` +
-          `${result.fallback} fallback, ${result.skipped} skipped.`,
+          `${result.fallback} fallback, ${result.skipped} skipped. ` +
+          `UV sets weighted: ${result.uvSetsWeighted.map((n) => `TEXCOORD_${n}`).join(', ') || 'none'}.`,
       )
   })
 }
@@ -246,7 +297,13 @@ export function runSimplifyTextured(
   document: Document,
   options: SimplifyTexturedOptions,
 ): SimplifyTexturedResult {
-  const result: SimplifyTexturedResult = { attributeAware: 0, fallback: 0, skipped: 0 }
+  const weighted = new Set<number>()
+  const result: SimplifyTexturedResult = {
+    attributeAware: 0,
+    fallback: 0,
+    skipped: 0,
+    uvSetsWeighted: [],
+  }
 
   for (const mesh of document.getRoot().listMeshes()) {
     for (const prim of mesh.listPrimitives()) {
@@ -255,7 +312,7 @@ export function runSimplifyTextured(
         result.skipped++
         continue
       }
-      if (trySimplifyTexturedPrimitive(document, prim, options)) {
+      if (trySimplifyTexturedPrimitive(document, prim, options, weighted)) {
         result.attributeAware++
       } else if (prim.getIndices()) {
         // Position-only, borders locked — the conservative behaviour this
@@ -276,5 +333,6 @@ export function runSimplifyTextured(
     if (mesh.listPrimitives().length === 0) mesh.dispose()
   }
 
+  result.uvSetsWeighted = [...weighted].sort((a, b) => a - b)
   return result
 }

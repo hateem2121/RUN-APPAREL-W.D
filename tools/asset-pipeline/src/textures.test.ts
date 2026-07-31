@@ -1,4 +1,5 @@
 import { Document } from '@gltf-transform/core'
+import { prune } from '@gltf-transform/functions'
 import sharp from 'sharp'
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -143,14 +144,76 @@ describe('summariseUvSets', () => {
 })
 
 describe('offUv0Warning', () => {
-  it('says nothing when everything is on TEXCOORD_0', () => {
-    expect(offUv0Warning([0], [])).toBeNull()
+  it('says nothing when no material samples more than one UV set', () => {
+    expect(offUv0Warning([], [])).toBeNull()
   })
 
-  it('names the UV set and points at the open issue', () => {
-    const warning = offUv0Warning([0, 1], [])
-    expect(warning).toContain('TEXCOORD_1')
+  it('stays silent for a lone second UV set, which prune renumbers away', () => {
+    // MEASURED: when a material samples only ONE UV set, prune() drops the
+    // unused sets and shifts the survivor down to TEXCOORD_0 before decimation
+    // ever sees it. Warning about that would send the next person chasing a
+    // hazard the pipeline already fixes for itself.
+    expect(offUv0Warning([], [{ material: 'M', slot: 'baseColorTexture', texCoord: 1, alphaMode: 'BLEND' }])).toBeNull()
+  })
+
+  it('names the multi-UV materials and points at the open issue', () => {
+    const warning = offUv0Warning(['BODY-WITH-GRAPHIC'], [])
+    expect(warning).toContain('BODY-WITH-GRAPHIC')
     expect(warning).toContain('OPEN-ISSUE-ARTWORK')
+  })
+})
+
+describe('prune() interaction — why only multi-UV materials matter', () => {
+  /**
+   * Pins the finding that narrowed H4. Both cases start identical: a primitive
+   * with TEXCOORD_0 and TEXCOORD_1, and a baseColorTexture on texCoord 1. What
+   * differs is whether anything else samples UV0.
+   */
+  const build = (secondSlotOnUv0: boolean) => {
+    const document = new Document()
+    const buffer = document.createBuffer()
+    const accessor = (count: number, type: 'VEC3' | 'VEC2') =>
+      document.createAccessor().setType(type).setArray(new Float32Array(count)).setBuffer(buffer)
+    const graphic = document.createTexture('graphic').setImage(new Uint8Array([1])).setMimeType('image/png')
+    const material = document.createMaterial('BODY').setBaseColorTexture(graphic)
+    material.getBaseColorTextureInfo()?.setTexCoord(1)
+    if (secondSlotOnUv0) {
+      const ao = document.createTexture('ao').setImage(new Uint8Array([2])).setMimeType('image/png')
+      material.setOcclusionTexture(ao)
+      material.getOcclusionTextureInfo()?.setTexCoord(0)
+    }
+    const prim = document
+      .createPrimitive()
+      .setAttribute('POSITION', accessor(9, 'VEC3'))
+      .setAttribute('TEXCOORD_0', accessor(6, 'VEC2'))
+      .setAttribute('TEXCOORD_1', accessor(6, 'VEC2'))
+      .setMaterial(material)
+    document.createScene('s').addChild(document.createNode('n').setMesh(document.createMesh('m').addPrimitive(prim)))
+    return { document, prim }
+  }
+
+  it('renumbers a lone second UV set down to TEXCOORD_0', async () => {
+    const { document, prim } = build(false)
+    expect(summariseUvSets(document).texCoordsInUse).toEqual([1])
+
+    await document.transform(prune({ keepExtras: true }))
+
+    expect(prim.listSemantics().filter((s) => s.startsWith('TEXCOORD'))).toEqual(['TEXCOORD_0'])
+    expect(summariseUvSets(document).texCoordsInUse).toEqual([0])
+    expect(summariseUvSets(document).materialsWithMultipleUvSets).toEqual([])
+  })
+
+  it('keeps both sets when the material samples both — this is where H4 bites', async () => {
+    const { document, prim } = build(true)
+
+    await document.transform(prune({ keepExtras: true }))
+
+    expect(prim.listSemantics().filter((s) => s.startsWith('TEXCOORD')).sort()).toEqual([
+      'TEXCOORD_0',
+      'TEXCOORD_1',
+    ])
+    expect(summariseUvSets(document).texCoordsInUse).toEqual([0, 1])
+    expect(summariseUvSets(document).materialsWithMultipleUvSets).toEqual(['BODY'])
   })
 })
 
@@ -174,10 +237,13 @@ describe('inventoryTextures', () => {
     expect(texture?.width).toBe(64)
     expect(texture?.aspectRatio).toBe(1)
 
-    // Both of the artwork hazards this fixture carries must be called out: the
-    // unprotected UV set, and a binary cutout about to be forced opaque.
-    expect(inventory.warnings.join('\n')).toContain('TEXCOORD_1')
+    // The cutout hazard is real and reported. The lone TEXCOORD_1 is NOT
+    // warned about: this material samples only one UV set, so prune() renumbers
+    // it to 0 before decimation sees it. The manifest still records `[1]` —
+    // reporting the fact without crying wolf about it.
     expect(inventory.warnings.join('\n')).toContain('MASK')
+    expect(inventory.materialsWithMultipleUvSets).toEqual([])
+    expect(inventory.warnings.join('\n')).not.toContain('more than one UV set')
   })
 
   it('flags a colour map stored far below what a clean encode produces', async () => {

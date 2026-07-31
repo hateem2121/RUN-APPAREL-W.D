@@ -64,6 +64,16 @@ COMPRESSION FLAGS (merge, optimize)
                        target; model-viewer v4.3+ decodes it natively
   --max-texture <px>   Cap texture width/height, aspect preserved (default: 2048)
   --quality <n>        WebP quality 1-100 / KTX2 ETC1S quality 1-255 (default: 82)
+  --artwork-quality <n>      WebP quality for textures carrying printed artwork
+                             (default: 95). Artwork is DETECTED, not declared —
+                             by alpha cutout, extreme aspect ratio, or name.
+                             Lossy WebP is 4:2:0 chroma only, which bleeds the
+                             hard saturated edges logos are made of, so these
+                             get their own setting. Costs almost nothing:
+                             textures are ~2 MB of a ~19 MB garment
+  --artwork-max-texture <px> Cap for artwork textures (default: 4096). Higher
+                             than --max-texture: thin lettering is the first
+                             thing resampling destroys
   --meshopt            Meshopt geometry compression (fast mobile decode)
   --draco              Draco geometry compression (smallest, slower decode)
   --simplify <ratio>   Decimate geometry to this fraction of triangles (0-1),
@@ -81,11 +91,19 @@ COMPRESSION FLAGS (merge, optimize)
   --normal-weight <n>  Same for vertex normals — protects shading (default 0.5)
 
 MATERIAL FLAGS (merge, optimize)
-  (default)            Force fabric solid: alphaMode BLEND -> OPAQUE + double-
-                       sided. Fixes CLO exports that render see-through in
-                       <model-viewer> (which has no order-independent transparency)
-  --keep-transparency  Leave transparency untouched — ONLY for genuinely sheer
-                       garments (mesh, lace, tulle). Alias: --no-opaque
+  (default)            Resolve each translucent material by INSPECTING its alpha,
+                       not by blanket rule:
+                         no/solid alpha  -> OPAQUE + double-sided (CLO's stray
+                                            fabric opacity, the see-through bug)
+                         hard cutout     -> MASK alphaCutoff 0.5, NOT double-
+                                            sided (a printed decal — forcing it
+                                            opaque would fill the cutout in)
+                         graded alpha    -> left BLEND (genuinely sheer fabric)
+  --keep-transparency  Skip the step entirely. Note this is NOT the fix for
+                       damaged artwork: <model-viewer> has no order-independent
+                       transparency, so BLEND on a multi-part garment just trades
+                       one "half visible" for depth-sorting artefacts.
+                       Alias: --no-opaque
 `
 
 function fail(message: string): never {
@@ -195,11 +213,28 @@ async function main(): Promise<void> {
     console.log(`Optimised ${input} → ${result.outputFile}`)
     const simplifyLabel = options.simplify ? `  simplify: keep ${Math.round(options.simplify * 100)}% of triangles` : ''
     console.log(`  textures:   ${result.textureCount} (${result.textureFormats.join(', ') || 'none'})  geometry: ${result.geometry}${simplifyLabel}`)
-    console.log(`  materials:  ${result.opaque ? 'forced opaque + double-sided' : 'transparency kept (--keep-transparency)'}`)
+    if (result.solidify) {
+      const { opaqued, masked, keptBlend, doubleSided } = result.solidify
+      console.log(
+        `  materials:  ${opaqued} → OPAQUE, ${masked} → MASK (cutout kept), ${keptBlend} left BLEND (sheer), ${doubleSided} double-sided`,
+      )
+    } else {
+      console.log('  materials:  transparency kept (--keep-transparency)')
+    }
+    if (result.textures) {
+      const { artwork, standard, skipped } = result.textures
+      console.log(
+        `  encoding:   ${artwork} artwork texture(s) at high fidelity, ${standard} standard, ${skipped} untouched`,
+      )
+      if (artwork > 0) console.log(`              artwork: ${result.textures.artworkNames.join(', ')}`)
+    }
     if (result.simplify) {
-      const { attributeAware, fallback, skipped } = result.simplify
+      const { attributeAware, fallback, skipped, uvSetsWeighted } = result.simplify
       console.log(
         `  decimation: ${attributeAware} primitive(s) with UV error in the budget, ${fallback} fallback, ${skipped} skipped`,
+      )
+      console.log(
+        `  UV sets:    ${uvSetsWeighted.map((n) => `TEXCOORD_${n}`).join(', ') || 'none'} weighted against the error budget`,
       )
       // Without this line a --uv-weight that was never applied is invisible.
       if (fallback > attributeAware) {

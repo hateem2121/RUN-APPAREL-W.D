@@ -158,10 +158,17 @@ no amount of tuning that flag will change the result. The usual causes are a
 missing `TEXCOORD_0` or attributes that were already quantized by an earlier
 meshopt pass (which is why you must never re-run the pipeline on its own output).
 
-⚠️ **Only `TEXCOORD_0` is weighted today.** A material whose `baseColorTexture`
-samples `TEXCOORD_1` gets no protection at all — `pnpm pipeline validate` and
-`pnpm pipeline textures` both warn when that is the case. This is the leading
-suspect for the open artwork issue; see `docs/OPEN-ISSUE-ARTWORK.md` (H4).
+**Every UV set is weighted, not just `TEXCOORD_0`.** Decimation used to weight
+the first set only, so a printed graphic on `TEXCOORD_1` — which is where CLO's
+*Apply Graphic* puts it — was decimated with no protection while the fabric's UVs
+were fully protected. The `UV sets:` line in `optimize`'s output lists what was
+actually weighted; if a set the file uses is missing from it, artwork on that set
+is unprotected.
+
+Note that `prune()` renumbers a *lone* second UV set down to `TEXCOORD_0` before
+decimation sees it, so the hazard is specifically materials sampling **two or
+more** sets at once (fabric AO on UV0 plus a graphic on UV1). `validate` warns on
+exactly those. See `docs/OPEN-ISSUE-ARTWORK.md` (H4).
 
 ### Material flags (`merge`, `optimize`) — opaque + double-sided
 

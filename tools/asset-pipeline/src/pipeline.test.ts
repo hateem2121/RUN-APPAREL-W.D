@@ -13,6 +13,7 @@ import {
   buildPlaceholderTee,
   generatePlaceholders,
 } from './placeholders'
+import { profileAlpha } from './textures'
 import { checkVariants, inspectGlb } from './validate'
 
 /** Build a GLB carrying one large embedded PNG baseColor texture. */
@@ -119,8 +120,9 @@ describe('placeholder generation', () => {
     expect(out.glbFiles).toHaveLength(3)
     expect(out.posterFiles).toHaveLength(6)
     const report = await inspectGlb(out.glbFiles[0]!)
-    expect(report.primitiveCount).toBe(4)
-    expect(report.materialCount).toBe(2)
+    // 4 fabric boxes + the printed chest graphic.
+    expect(report.primitiveCount).toBe(5)
+    expect(report.materialCount).toBe(3)
     expect(report.variants).toEqual([]) // raw exports carry no variants — merging binds them
   })
 })
@@ -138,9 +140,12 @@ describe('mergeVariants', () => {
 
     const report = await inspectGlb(merged)
     expect(report.variants).toEqual(['N001-BLACK', 'N001-CRIMSON', 'N001-NAVY']) // sorted
-    expect(report.primitiveCount).toBe(4)
-    // 2 materials per colourway, colours differ so dedup keeps all 6
-    expect(report.materialCount).toBe(6)
+    expect(report.primitiveCount).toBe(5)
+    // 2 body/trim materials per colourway differ by colour, so dedup keeps all
+    // 6. The printed graphic is identical in every colourway — same texture,
+    // same settings — so it dedups down to one shared material, and all three
+    // variants map the decal primitive to it. 6 + 1 = 7.
+    expect(report.materialCount).toBe(7)
 
     const check = checkVariants(report, PLACEHOLDER_COLOURWAYS.map((c) => c.variantId))
     expect(check).toEqual({ ok: true, missing: [], extra: [] })
@@ -242,19 +247,45 @@ describe('mergeVariants', () => {
 })
 
 describe('placeholder tee document', () => {
-  it('keeps primitive order stable across colourways', () => {
+  it('keeps primitive order stable across colourways', async () => {
     for (const colourway of PLACEHOLDER_COLOURWAYS) {
-      const tee = buildPlaceholderTee(colourway)
+      const tee = await buildPlaceholderTee(colourway)
       const prims = tee.getRoot().listMeshes().flatMap((m) => m.listPrimitives())
-      expect(prims).toHaveLength(4)
+      expect(prims).toHaveLength(5)
       const names = prims.map((p) => p.getMaterial()?.getName())
       expect(names).toEqual([
         `${colourway.variantId}-BODY`,
         `${colourway.variantId}-BODY`,
         `${colourway.variantId}-BODY`,
         `${colourway.variantId}-TRIM`,
+        `${colourway.variantId}-GRAPHIC`,
       ])
     }
+  })
+
+  it('carries a printed graphic on a SECOND UV set, over a hard alpha cutout', async () => {
+    // The fixture exists to be capable of failing. Until it did, the entire
+    // artwork path — UV weighting, texture classification, alpha-mode
+    // resolution — had nothing to act on, and 177 green tests said nothing
+    // about any of it. Each property here is load-bearing for a different bug:
+    //   TEXCOORD_1        H4, decimation protecting only the first UV set
+    //   alpha cutout      H3/H6, BLEND being flattened to OPAQUE
+    //   coplanar offset   H6, z-fighting after quantization
+    const tee = await buildPlaceholderTee(PLACEHOLDER_COLOURWAYS[0]!)
+    const prims = tee.getRoot().listMeshes().flatMap((m) => m.listPrimitives())
+    const decal = prims.at(-1)!
+
+    expect(decal.getAttribute('TEXCOORD_1')).toBeTruthy()
+    const material = decal.getMaterial()!
+    expect(material.getAlphaMode()).toBe('BLEND')
+    expect(material.getBaseColorTextureInfo()?.getTexCoord()).toBe(1)
+
+    const { character } = await profileAlpha(material.getBaseColorTexture()!.getImage()!)
+    expect(character).toBe('binary')
+
+    // Fabric primitives need UVs too, or the simplifier's attribute-aware path
+    // bails on every one of them and --uv-weight is silently inert.
+    expect(prims.every((p) => p.getAttribute('TEXCOORD_0'))).toBe(true)
   })
 })
 
@@ -345,7 +376,7 @@ describe('mergeVariants — Draco', () => {
     // KHR_materials_variants bindings preserved.
     const report = await inspectGlb(out)
     expect(report.variants).toEqual(['N001-BLACK', 'N001-CRIMSON', 'N001-NAVY'])
-    expect(report.primitiveCount).toBe(4)
+    expect(report.primitiveCount).toBe(5)
   })
 })
 
@@ -478,7 +509,7 @@ describe('optimizeGlb — Meshopt geometry', () => {
 
     const report = await inspectGlb(out)
     expect(report.variants).toEqual(['N001-BLACK', 'N001-CRIMSON', 'N001-NAVY'])
-    expect(report.primitiveCount).toBe(4)
+    expect(report.primitiveCount).toBe(5)
 
     const reread = await createIO().then((io) => io.read(out))
     const used = reread.getRoot().listExtensionsUsed().map((e) => e.extensionName)
@@ -576,19 +607,116 @@ describe('parseMergeArgs — compression flags', () => {
 })
 
 describe('solidifyMaterials (opaque + double-sided)', () => {
-  it('converts BLEND → OPAQUE, leaves MASK cutouts, and makes every material double-sided', () => {
+  /** A hard-edged shape on full transparency — a decal's alpha, binary by construction. */
+  async function decalImage(): Promise<Uint8Array> {
+    const png = await sharp({
+      create: { width: 32, height: 32, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+    })
+      .composite([
+        {
+          input: {
+            create: { width: 16, height: 8, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } },
+          },
+          top: 12,
+          left: 8,
+        },
+      ])
+      .png()
+      .toBuffer()
+    return new Uint8Array(png)
+  }
+
+  /** A smooth alpha ramp — genuine translucency, e.g. a mesh panel. */
+  async function sheerImage(): Promise<Uint8Array> {
+    const width = 32
+    const raw = Buffer.alloc(width * 4 * 4)
+    for (let i = 0; i < width * 4; i++) {
+      raw[i * 4] = 200
+      raw[i * 4 + 1] = 200
+      raw[i * 4 + 2] = 200
+      raw[i * 4 + 3] = Math.round((255 * (i % width)) / (width - 1))
+    }
+    const png = await sharp(raw, { raw: { width, height: 4, channels: 4 } }).png().toBuffer()
+    return new Uint8Array(png)
+  }
+
+  it('converts untextured BLEND fabric → OPAQUE and double-sides it', async () => {
+    // The CLO stray-opacity case: BLEND with nothing behind it. This is what the
+    // whole step exists for, and it is unchanged.
     const doc = new Document()
     const blend = doc.createMaterial('blend').setAlphaMode('BLEND').setDoubleSided(false)
-    const mask = doc.createMaterial('mask').setAlphaMode('MASK').setDoubleSided(false)
     const opaque = doc.createMaterial('opaque').setAlphaMode('OPAQUE').setDoubleSided(false)
 
-    const result = solidifyMaterials(doc)
+    const result = await solidifyMaterials(doc)
 
-    expect(blend.getAlphaMode()).toBe('OPAQUE') // the see-through fabric, fixed
-    expect(mask.getAlphaMode()).toBe('MASK') // hard cutout (logo/mesh hole) left intentional
+    expect(blend.getAlphaMode()).toBe('OPAQUE')
     expect(opaque.getAlphaMode()).toBe('OPAQUE')
-    expect([blend, mask, opaque].every((m) => m.getDoubleSided())).toBe(true)
-    expect(result).toEqual({ opaqued: 1, doubleSided: 3 })
+    expect([blend, opaque].every((m) => m.getDoubleSided())).toBe(true)
+    expect(result).toMatchObject({ opaqued: 1, masked: 0, keptBlend: 0, doubleSided: 2 })
+  })
+
+  it('converts a BLEND decal with a real cutout → MASK, not OPAQUE', async () => {
+    // Regression for H3/H6 in docs/OPEN-ISSUE-ARTWORK.md. Forcing this to OPAQUE
+    // fills the cutout back in with the base colour, which reads as artwork that
+    // is half there. MASK keeps the shape AND stays order-independent, which
+    // leaving it on BLEND would not.
+    const doc = new Document()
+    const texture = doc.createTexture('chest-logo').setImage(await decalImage()).setMimeType('image/png')
+    const decal = doc.createMaterial('decal').setAlphaMode('BLEND').setBaseColorTexture(texture)
+
+    const result = await solidifyMaterials(doc)
+
+    expect(decal.getAlphaMode()).toBe('MASK')
+    expect(decal.getAlphaCutoff()).toBe(0.5)
+    expect(result).toMatchObject({ opaqued: 0, masked: 1, keptBlend: 0 })
+  })
+
+  it('leaves genuinely graded alpha on BLEND rather than destroying it', async () => {
+    const doc = new Document()
+    const texture = doc.createTexture('mesh-panel').setImage(await sheerImage()).setMimeType('image/png')
+    const sheer = doc.createMaterial('sheer').setAlphaMode('BLEND').setBaseColorTexture(texture)
+
+    const result = await solidifyMaterials(doc)
+
+    expect(sheer.getAlphaMode()).toBe('BLEND')
+    expect(result).toMatchObject({ opaqued: 0, masked: 0, keptBlend: 1 })
+  })
+
+  it('respects a deliberate baseColorFactor alpha', async () => {
+    const doc = new Document()
+    const half = doc.createMaterial('half').setAlphaMode('BLEND').setBaseColorFactor([1, 1, 1, 0.5])
+
+    const result = await solidifyMaterials(doc)
+
+    expect(half.getAlphaMode()).toBe('BLEND')
+    expect(result).toMatchObject({ keptBlend: 1 })
+  })
+
+  it('does NOT double-side MASK materials', async () => {
+    // A decal is a thin surface sitting a fraction of a millimetre off the
+    // fabric. Drawing its back faces is a source of the speckled z-fighting that
+    // damages printed graphics — and double-siding it buys nothing, because
+    // there is no inside of a decal to see.
+    const doc = new Document()
+    const mask = doc.createMaterial('mask').setAlphaMode('MASK').setDoubleSided(false)
+    const fabric = doc.createMaterial('fabric').setAlphaMode('OPAQUE').setDoubleSided(false)
+
+    const result = await solidifyMaterials(doc)
+
+    expect(mask.getDoubleSided()).toBe(false)
+    expect(fabric.getDoubleSided()).toBe(true)
+    expect(result.doubleSided).toBe(1)
+  })
+
+  it('never forces a material single-sided', async () => {
+    // Materials are only ever set double-sided, never back, so a source that
+    // already double-sided its cutouts keeps that.
+    const doc = new Document()
+    const mask = doc.createMaterial('mask').setAlphaMode('MASK').setDoubleSided(true)
+
+    await solidifyMaterials(doc)
+
+    expect(mask.getDoubleSided()).toBe(true)
   })
 })
 
@@ -631,10 +759,26 @@ describe('mergeVariants — opaque step preserves variants', () => {
     expect(result.variants).toEqual(['N001-NAVY', 'N001-BLACK', 'N001-CRIMSON'])
 
     const reread = await createIO().then((io) => io.read(out))
-    for (const m of reread.getRoot().listMaterials()) {
+    const materials = reread.getRoot().listMaterials()
+
+    // Fabric goes solid and double-sided — the see-through-CLO fix, unchanged.
+    const fabric = materials.filter((m) => !m.getBaseColorTexture())
+    expect(fabric.length).toBeGreaterThan(0)
+    for (const m of fabric) {
       expect(m.getAlphaMode()).toBe('OPAQUE')
       expect(m.getDoubleSided()).toBe(true)
     }
+
+    // The printed graphic does NOT. Its alpha is a real cutout, so flattening it
+    // to OPAQUE would fill the shape back in with the base colour — artwork that
+    // is half there. MASK keeps the shape and is still order-independent, and it
+    // is deliberately not double-sided: a decal sits a fraction of a millimetre
+    // off the fabric, and drawing its back faces invites z-fighting.
+    const graphic = materials.filter((m) => m.getBaseColorTexture())
+    expect(graphic).toHaveLength(1)
+    expect(graphic[0]!.getAlphaMode()).toBe('MASK')
+    expect(graphic[0]!.getAlphaCutoff()).toBe(0.5)
+
     const report = await inspectGlb(out)
     expect(report.variants).toEqual(['N001-BLACK', 'N001-CRIMSON', 'N001-NAVY']) // still bound
   })

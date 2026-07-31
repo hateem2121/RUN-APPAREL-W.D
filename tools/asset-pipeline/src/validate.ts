@@ -4,7 +4,21 @@ import type { KHRMaterialsVariants, MappingList } from '@gltf-transform/extensio
 import { createIO } from './io'
 import { offUv0Warning, summariseUvSets } from './textures'
 
-/** Warn when a production GLB is heavier than this — QR scans are mobile-first. */
+/**
+ * Warn when a production GLB is heavier than this — QR scans are mobile-first.
+ *
+ * DELIBERATELY A SECOND COPY of `SIZE_WARNING_BYTES` in
+ * `packages/shared/src/media.ts`, not an import. This package is installed with
+ * plain `npm install` inside the shrink container's Docker image
+ * (apps/shrink/Dockerfile), where a `workspace:*` dependency cannot resolve — so
+ * depending on @run-apparel/shared here would break the container build.
+ *
+ * The copies are pinned equal by a drift test in validate.test.ts, which is the
+ * same arrangement GLB_HARD_MAX_BYTES already has at
+ * apps/cms/src/collections/mediaRules.test.ts:94. Two unpinned copies of a
+ * number the CMS enforces and the pipeline reports against is how a file passes
+ * `validate` and is then rejected on upload.
+ */
 export const SIZE_WARNING_BYTES = 8 * 1024 * 1024
 
 /** Uncompressed raster formats that should be re-encoded before upload. */
@@ -59,9 +73,10 @@ export interface GlbReport {
   /** Count of materials with alphaMode BLEND — translucent, will render see-through (no OIT in model-viewer). */
   translucentMaterialCount: number
   /**
-   * UV sets the materials actually sample, e.g. [0, 1]. Anything beyond 0 is a
-   * problem today: simplifyTextured weights TEXCOORD_0 and nothing else, so
-   * artwork on another set is decimated with no protection at all.
+   * UV sets the materials actually sample, e.g. [0, 1]. Informational on its
+   * own — `prune()` renumbers a lone second set down to 0 before decimation.
+   * The hazard is materials sampling two or more sets at once; see the warning
+   * that `offUv0Warning` produces.
    */
   texCoordsInUse: number[]
   /** Material counts by alphaMode, e.g. { OPAQUE: 12, MASK: 1 }. */
@@ -124,7 +139,8 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
   const translucentMaterialCount = materials.filter((m) => m.getAlphaMode() === 'BLEND').length
   // Pixel-free: this walks material/texture metadata only, so reporting it on
   // every shrink job costs nothing.
-  const { texCoordsInUse, usagesOffUv0, alphaModeCounts } = summariseUvSets(document)
+  const { texCoordsInUse, usagesOffUv0, materialsWithMultipleUvSets, alphaModeCounts } =
+    summariseUvSets(document)
 
   const warnings: string[] = []
   // A raw CLO export must never be published — it has not been merged,
@@ -152,7 +168,7 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
   // Artwork on a UV set the simplifier does not weight — the leading suspect for
   // the damage on the first real garment. Reported here so it is visible on the
   // raw file, before any processing has had a chance to hide it.
-  const offUv0 = offUv0Warning(texCoordsInUse, usagesOffUv0)
+  const offUv0 = offUv0Warning(materialsWithMultipleUvSets, usagesOffUv0)
   if (offUv0) warnings.push(offUv0)
   if (primitives.length === 0) warnings.push('No mesh primitives found.')
 
