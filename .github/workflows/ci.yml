@@ -22,6 +22,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+
+      # The shrink container is NOT a workspace member (see its package.json), so
+      # `pnpm typecheck` above skips it entirely — and it is the code that
+      # processes every real garment. It went unchecked in CI until 2026-07-31,
+      # when a change to server.ts compiled only because someone thought to run
+      # tsc there by hand. Its deps are tiny and it shares the pipeline source it
+      # imports, so this costs seconds.
+      - name: Typecheck shrink container
+        working-directory: apps/shrink/container
+        run: npm install --no-audit --no-fund && npx tsc --noEmit
+
       - run: pnpm test
       - run: pnpm seed:assets
       - run: pnpm build
