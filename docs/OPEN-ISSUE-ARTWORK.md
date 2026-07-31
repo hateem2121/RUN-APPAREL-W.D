@@ -12,10 +12,12 @@ This is the blocking issue for the whole pipeline. Everything else works — upl
 shrink, colour mapping, publish, render. But for a B2B garment reference the
 printed artwork *is* the product, so "the 3D loads" is not success.
 
-> **Read this first if you are picking the issue up.** The single most important
-> change since it was filed is that guessing is no longer necessary. Run the
-> bisect in [Investigation](#investigation) before forming an opinion — it takes
-> one command and it answers the question the ranking below only speculates about.
+> **Read this first if you are picking the issue up.** Three causes below are
+> fixed, but *fixed* here means "the mechanism was real and the code no longer
+> does it" — not "the reported damage is gone", which nobody has checked. Run the
+> bisect in [Investigation](#investigation) against the raw file before forming
+> an opinion. It takes one command, and it is the only thing that can tell you
+> whether the artwork actually survives now.
 
 ---
 
@@ -63,6 +65,10 @@ several are near-empty in bytes:
 ---
 
 ## Candidate causes, most to least likely
+
+Status per cause is marked in each heading. **FIXED** means the mechanism was
+confirmed by reading the code against upstream and the pipeline no longer does
+it; it does not mean the garment has been re-processed and looked at.
 
 Ranking revised 2026-07-31 after reading the pipeline against meshoptimizer,
 glTF-Transform, libwebp and model-viewer upstream. Three causes were added that
