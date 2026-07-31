@@ -44,8 +44,15 @@
     {
       // PRIVATE ingest bucket for un-processed raw CLO uploads (the RawUploads
       // collection). Deliberately has NO custom domain and NO public access, so
-      // a raw ~350 MB file can never be served to buyers. A lifecycle rule
-      // auto-expires objects after ~14 days (set in the dashboard / via API).
+      // a raw ~350 MB file can never be served to buyers.
+      //
+      // ⚠️ NO LIFECYCLE RULE EXISTS. This comment used to assert a ~14-day
+      // auto-expiry as fact; re-verifying against the live bucket on 2026-07-28
+      // found only R2's default "abort incomplete multipart uploads", which does
+      // not delete completed objects. Raw ~350 MB exports therefore accumulate
+      // and bill indefinitely. The command to add it is in
+      // docs/RAW-UPLOAD-PIPELINE.md; until someone runs it, this stays a
+      // warning rather than a description.
       "binding": "R2_INGEST",
       "bucket_name": "run-apparel-viewer-ingest"
     }

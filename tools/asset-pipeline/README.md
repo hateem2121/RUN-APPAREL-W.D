@@ -34,6 +34,38 @@ pnpm pipeline validate output/n001.glb --expect N001-NAVY,N001-BLACK,N001-CRIMSO
 pnpm pipeline placeholders --out output/placeholders
 ```
 
+### Diagnostics — for looking at artwork instead of guessing at it
+
+```bash
+# Texture inventory: dump every texture to PNG with a manifest saying which
+# materials and slots use it, WHICH UV SET it samples, and what its alpha
+# channel really contains. Processes nothing, so it is the cheapest first step.
+pnpm pipeline textures raw/garment.glb --out output/textures-raw
+
+# Screenshot a GLB through <model-viewer> from fixed angles, including tight
+# crops where printed logos live. Flat neutral lighting, shadows off, so a diff
+# shows the artwork rather than the lighting.
+pnpm pipeline render output/n001.glb --out output/renders/after
+
+# Contact sheet: A | B | amplified difference, per view, with the real numbers.
+pnpm pipeline compare output/renders/before output/renders/after --out sheet.png
+```
+
+`render` needs a Chromium. Where Playwright's own download is absent (CI images,
+dev containers) point `PLAYWRIGHT_CHROMIUM_PATH` at the preinstalled one — the
+same variable `apps/viewer/playwright.config.ts` already reads.
+
+**To find which pipeline stage damages printed artwork**, run all of it at once
+against the raw file:
+
+```bash
+node scripts/bisect-artwork.mjs raw/garment.glb --out output/bisect --detail small
+```
+
+That runs the full production chain five times with one stage removed each time,
+renders every result, and writes a contact sheet per run against the unprocessed
+original. See `docs/OPEN-ISSUE-ARTWORK.md` for how to read the output.
+
 ### Compression flags (`merge`, `optimize`)
 
 | Flag | Default | Effect |
@@ -111,6 +143,32 @@ garment unwraps are non-linear; flat test planes are not, so don't calibrate on 
 For the automatic shrinker, don't set these by hand — pick the **Detail** level on
 the raw upload (Balanced / Highest quality / Smallest file). The mapping lives in
 `packages/shared/src/shrink.ts`.
+
+⚠️ **Check that the protection actually ran.** `optimize` and the shrink report
+both print a decimation line:
+
+```
+decimation: 412 primitive(s) with UV error in the budget, 3 fallback, 0 skipped
+```
+
+Primitives counted as **fallback** were decimated position-only with borders
+locked — `--uv-weight` did nothing for them. If `fallback` exceeds
+`attributeAware`, artwork protection did not happen for most of the garment, and
+no amount of tuning that flag will change the result. The usual causes are a
+missing `TEXCOORD_0` or attributes that were already quantized by an earlier
+meshopt pass (which is why you must never re-run the pipeline on its own output).
+
+**Every UV set is weighted, not just `TEXCOORD_0`.** Decimation used to weight
+the first set only, so a printed graphic on `TEXCOORD_1` — which is where CLO's
+*Apply Graphic* puts it — was decimated with no protection while the fabric's UVs
+were fully protected. The `UV sets:` line in `optimize`'s output lists what was
+actually weighted; if a set the file uses is missing from it, artwork on that set
+is unprotected.
+
+Note that `prune()` renumbers a *lone* second UV set down to `TEXCOORD_0` before
+decimation sees it, so the hazard is specifically materials sampling **two or
+more** sets at once (fabric AO on UV0 plus a graphic on UV1). `validate` warns on
+exactly those. See `docs/OPEN-ISSUE-ARTWORK.md` (H4).
 
 ### Material flags (`merge`, `optimize`) — opaque + double-sided
 

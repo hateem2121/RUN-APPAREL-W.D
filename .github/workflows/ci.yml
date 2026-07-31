@@ -22,6 +22,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+
+      # The shrink container is NOT a workspace member (see its package.json), so
+      # `pnpm typecheck` above skips it entirely — and it is the code that
+      # processes every real garment. It went unchecked in CI until 2026-07-31,
+      # when a change to server.ts compiled only because someone thought to run
+      # tsc there by hand. Its deps are tiny and it shares the pipeline source it
+      # imports, so this costs seconds.
+      - name: Typecheck shrink container
+        working-directory: apps/shrink/container
+        run: npm install --no-audit --no-fund && npx tsc --noEmit
+
       - run: pnpm test
       - run: pnpm seed:assets
       - run: pnpm build
@@ -52,6 +63,16 @@ jobs:
   # deterministic byte-weight budgets in lighthouserc.json fail the check on a
   # real regression so it surfaces on the PR. Make it a required check via branch
   # protection if you want it to block merges.
+  #
+  # ⚠️ WHAT THIS DOES NOT COVER. The page it measures serves the SEEDED
+  # PLACEHOLDER GLB — a few tens of KB. A real garment is 8–40 MB, so the
+  # `total-byte-weight` budget says nothing whatsoever about the size of a
+  # production page, and a green run here must never be read as "the live page
+  # is within budget". The budget that does apply to real models is enforced
+  # where they actually pass through: SIZE_WARNING_BYTES in the shrink report the
+  # owner reads, and GLB_HARD_MAX_BYTES in the CMS upload guard. What this job
+  # genuinely protects is the *application* bundle — scripts, CSS, fonts — which
+  # is the same in production as it is here.
   lighthouse:
     runs-on: ubuntu-latest
     steps:
@@ -147,9 +168,23 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: >-
-          pnpm --filter @run-apparel/viewer exec wrangler pages project create run-apparel-viewer
-          --production-branch main 2>/dev/null || echo "Pages project already exists — continuing."
+        # Tolerate ONLY "already exists". The previous form was
+        #   ... 2>/dev/null || echo "already exists — continuing."
+        # which discarded stderr and swallowed every failure equally: a bad API
+        # token, a wrong account id, a Cloudflare outage all printed "already
+        # exists" and let the deploy proceed to fail later, somewhere less
+        # obvious. Match the message, re-raise anything else.
+        run: |
+          set -o pipefail
+          if ! out=$(pnpm --filter @run-apparel/viewer exec wrangler pages project create run-apparel-viewer \
+                       --production-branch main 2>&1); then
+            if grep -qiE 'already (exists|in use)|8000007' <<<"$out"; then
+              echo "Pages project already exists — continuing."
+            else
+              echo "$out" >&2
+              exit 1
+            fi
+          fi
 
       - name: Deploy viewer (Cloudflare Pages)
         if: vars.VIEWER_DEPLOY_TARGET != 'worker'

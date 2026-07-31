@@ -114,7 +114,22 @@ Full guide: [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md).
 - [ ] Printed graphics, logos and decals render **in colour**, not as solid black patches
 - [ ] **Zoom right in on a printed logo, on a phone.** Decimation trades artwork
       fidelity for file size, so this is the check that has actually failed before —
-      logos tore apart at the settings shipped on 2026-07-27. If they look smeared,
+      logos tore apart at the settings shipped on 2026-07-27, and again on the
+      first real garment on 2026-07-29. If they look smeared,
       re-upload with **Detail: Highest quality**
+- [ ] **Read the "Mesh decimation" line in the upload's report.** If more parts
+      came back *without* artwork protection than with, the setting that protects
+      printed graphics did not apply to this garment and changing the Detail level
+      will not help. Tell your developer; see `docs/OPEN-ISSUE-ARTWORK.md`
+- [ ] Before/after comparison, when artwork is in doubt: a developer can run
+      `node scripts/bisect-artwork.mjs <raw.glb>` on the original CLO export. It
+      renders the garment and produces side-by-side contact sheets, so this stops
+      being a judgement call made from memory on a phone screen
 - [ ] Switching colourway tabs **swaps the model live** with no "temporarily unavailable" notice (variants bound correctly)
-- [ ] Browser console shows **no `[viewer:*]` warnings** (`model-load-error`, `variant-missing`, `render3d-unavailable`)
+- [ ] Browser console shows **no `[viewer:*]` warnings** (`model-load-error`,
+      `variant-missing`, `render3d-unavailable`, and — added 2026-07-31 —
+      `viewer-load-failed`, `viewer-api-error`, `route-unparsed`, which used to
+      fail silently into the "unavailable" screen with nothing logged)
+- [ ] Browser console shows **no Content-Security-Policy violations**. Every
+      production GLB is Meshopt-compressed and its decoder loads through a
+      `blob:` URL; that was blocked until 2026-07-31 and only showed up here

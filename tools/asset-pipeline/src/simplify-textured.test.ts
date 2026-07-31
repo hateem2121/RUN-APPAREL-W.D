@@ -181,6 +181,87 @@ describe('runSimplifyTextured', () => {
     }
   })
 
+  it('weights a SECOND UV set, so artwork on TEXCOORD_1 is protected too', () => {
+    // THE regression for H4 in docs/OPEN-ISSUE-ARTWORK.md. CLO's "Apply Graphic"
+    // routinely puts printed artwork on a second UV set. This module used to read
+    // TEXCOORD_0 and stop, so those materials were decimated at ZERO UV weight
+    // while the fabric's UVs were protected at full weight — artwork damaged on
+    // some panels and clean on others, which is precisely the reported symptom.
+    //
+    // The fixture inverts the usual arrangement to make the claim unambiguous:
+    // TEXCOORD_0 is LINEAR (provably free to decimate — a coarser triangulation
+    // interpolates to the same UVs, so it constrains nothing), and TEXCOORD_1
+    // carries the non-linear map standing in for the artwork. Any protection
+    // that survives here came from weighting the second set.
+    const aggressive = { ratio: 0.01, error: 0.001 }
+
+    const build = (document: Document) => {
+      const prim = buildGrid(document)
+      const n = 33
+      const linear = new Float32Array(n * n * 2)
+      const nonLinear = new Float32Array(n * n * 2)
+      for (let y = 0; y < n; y++) {
+        for (let x = 0; x < n; x++) {
+          const i = y * n + x
+          linear[i * 2] = x / (n - 1)
+          linear[i * 2 + 1] = y / (n - 1)
+          nonLinear[i * 2] = (x / (n - 1)) ** 2
+          nonLinear[i * 2 + 1] = 0.5 * (1 - Math.cos(Math.PI * (y / (n - 1))))
+        }
+      }
+      const buffer = document.getRoot().listBuffers()[0]!
+      prim.setAttribute(
+        'TEXCOORD_0',
+        document.createAccessor().setType('VEC2').setArray(linear).setBuffer(buffer),
+      )
+      prim.setAttribute(
+        'TEXCOORD_1',
+        document.createAccessor().setType('VEC2').setArray(nonLinear).setBuffer(buffer),
+      )
+      return prim
+    }
+
+    const document = new Document()
+    const prim = build(document)
+    const result = runSimplifyTextured(document, options(aggressive))
+
+    expect(result.attributeAware).toBe(1)
+    expect(result.uvSetsWeighted).toEqual([0, 1])
+
+    // The control: the same mesh with the artwork set removed entirely, so only
+    // the free linear set is weighted. If TEXCOORD_1 were being ignored the two
+    // runs would land in the same place.
+    const control = new Document()
+    const controlPrim = build(control)
+    controlPrim.setAttribute('TEXCOORD_1', null)
+    const controlResult = runSimplifyTextured(control, options(aggressive))
+
+    expect(controlResult.uvSetsWeighted).toEqual([0])
+    expect(triangleCount(prim)).toBeGreaterThan(triangleCount(controlPrim) * 3)
+  })
+
+  it('sends the whole primitive to the fallback if any UV set is quantized', () => {
+    // Protecting some of a primitive's UVs and silently not others is the exact
+    // failure this module was rewritten to end, so a set it cannot read must
+    // demote the primitive rather than be skipped over.
+    const document = new Document()
+    const prim = buildGrid(document)
+    const buffer = document.getRoot().listBuffers()[0]!
+    prim.setAttribute(
+      'TEXCOORD_1',
+      document
+        .createAccessor()
+        .setType('VEC2')
+        .setArray(new Uint16Array(33 * 33 * 2))
+        .setBuffer(buffer),
+    )
+
+    const result = runSimplifyTextured(document, options())
+
+    expect(result).toMatchObject({ attributeAware: 0, fallback: 1 })
+    expect(result.uvSetsWeighted).toEqual([])
+  })
+
   it('leaves unsupported draw modes alone rather than corrupting them', () => {
     const document = new Document()
     const prim = buildGrid(document)

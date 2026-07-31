@@ -338,8 +338,16 @@ actually move the output are:
 | Flag | Default | Effect |
 |---|---|---|
 | `--simplify-error <r>` | `0.0001` | Error ceiling as a fraction of mesh radius. Raise it for a smaller file. |
-| `--uv-weight <n>` | `1` | How heavily texture distortion counts against that budget. **This is what keeps printed logos intact.** Lower it for a smaller file; raise it if artwork looks smeared. `0` turns texture-awareness off. |
+| `--uv-weight <n>` | `1` | How heavily texture distortion counts against that budget. **This is what keeps printed logos intact.** Lower it for a smaller file; raise it if artwork looks smeared. `0` turns texture-awareness off. Applies to **every** UV set the mesh carries, not just `TEXCOORD_0`. |
 | `--normal-weight <n>` | `0.5` | Same for shading. |
+| `--artwork-quality <n>` | `95` | WebP quality for textures detected as printed artwork. Separate from `--quality` because lossy WebP is 4:2:0 chroma only and bleeds the hard edges logos are made of. |
+| `--artwork-max-texture <px>` | `4096` | Resize cap for artwork. Higher than `--max-texture`: thin lettering is the first thing resampling destroys. |
+
+⚠️ **Check `--uv-weight` actually applied.** `optimize` and the shrink report both
+print a decimation line. Primitives counted as **fallback** were decimated
+position-only, so the flag did nothing for them — usually because an earlier
+meshopt pass already quantized the attributes. Never re-run the pipeline on its
+own output.
 
 Those two knobs trade directly against each other, and the effect is large — the
 measured table is in `tools/asset-pipeline/src/simplify-textured.test.ts`. Note
@@ -549,7 +557,15 @@ Workers Static Assets. `_headers` is **generated** by
 
 - hashes the inline theme `<script>` so `script-src` needs no `'unsafe-inline'`;
 - bakes the API origin in from `VITE_API_BASE_URL`, and allows `*.wear-run.help`
-  (media) and `www.gstatic.com` (model-viewer's Draco/KTX2 decoders).
+  (media);
+- allows `blob:` in `connect-src` and `worker-src` — the Meshopt decoder builds
+  its worker's source as a Blob, and every production GLB is Meshopt-compressed.
+
+**No third-party origin is allowed for decoders.** `www.gstatic.com` used to be
+in `connect-src` for model-viewer's built-in Draco and KTX2 locations;
+`apps/viewer/scripts/copy-decoders.mjs` now self-hosts all three and `Stage.tsx`
+points at the local copies, so it was removed. Adding a codec means adding its
+decoder to that script, not re-opening the CSP.
 
 To change what the viewer may load, edit the generator (not the output) and
 re-run the build; the webgl e2e spec fails on any CSP violation, so a missing
