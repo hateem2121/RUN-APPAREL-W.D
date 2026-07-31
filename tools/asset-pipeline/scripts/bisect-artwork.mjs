@@ -30,7 +30,7 @@
  * download is not present (CI images and dev containers usually have one).
  */
 import { spawn } from 'node:child_process'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -98,6 +98,24 @@ function dropFlags(flags, drop) {
   return out
 }
 
+/**
+ * Read `asset.generator` straight from the GLB's JSON chunk — the same trick
+ * validate.ts uses, and for the same reason: gltf-transform's reader overwrites
+ * it on import, hiding exactly the raw-CLO string we are looking for.
+ */
+async function readGenerator(file) {
+  try {
+    const buffer = await readFile(file)
+    if (buffer.length < 20 || buffer.readUInt32LE(0) !== 0x46546c67) return ''
+    const jsonLength = buffer.readUInt32LE(12)
+    if (buffer.readUInt32LE(16) !== 0x4e4f534a || 20 + jsonLength > buffer.length) return ''
+    const json = JSON.parse(buffer.toString('utf8', 20, 20 + jsonLength))
+    return typeof json?.asset?.generator === 'string' ? json.asset.generator : ''
+  } catch {
+    return ''
+  }
+}
+
 function run(args, label) {
   return new Promise((resolvePromise, reject) => {
     console.log(`\n$ tsx cli.ts ${args.join(' ')}`)
@@ -128,6 +146,27 @@ async function main() {
   if (!selected.some((r) => r.name === 'raw')) {
     console.error('The "raw" run is the baseline every sheet compares against; it cannot be skipped.')
     process.exit(1)
+  }
+
+  // Refuse to quietly bisect an already-processed file.
+  //
+  // The entire premise here is "always from the raw export", and handing this an
+  // optimised GLB is the easiest mistake to make — the output of a previous run
+  // is sitting right there in the same directory. It is also silently
+  // misleading: meshopt quantizes vertex attributes to integers, simplify-
+  // textured.ts bails to the position-only fallback when it sees them, and every
+  // run then reports artwork damage that the pipeline did not cause. This trap
+  // cost two sessions before anyone noticed.
+  const generator = await readGenerator(raw)
+  if (!/\bCLO\b/i.test(generator)) {
+    console.error(
+      `\nWARNING: "${raw}" reports generator "${generator || '(none)'}", which does not look like a\n` +
+        'raw CLO export. If this is pipeline output, every result below is meaningless:\n' +
+        'its attributes are already quantized, so decimation cannot protect artwork and\n' +
+        'each run will blame the wrong stage.\n' +
+        'Pull the original from the ingest bucket instead. Continuing in 5 seconds...\n',
+    )
+    await new Promise((resolveSleep) => setTimeout(resolveSleep, 5000))
   }
 
   // Texture inventory of the raw file first. It is the cheapest step by a wide
