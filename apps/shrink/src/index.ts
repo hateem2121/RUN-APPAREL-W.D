@@ -128,6 +128,20 @@ export default {
 async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   await patchRawUpload(env, job.rawUploadId, { status: 'processing' })
 
+  // What this upload already points at, read UP FRONT.
+  //
+  // Every run of this job used to create a brand-new Media doc and overwrite
+  // `resultGlb`, stranding the previous doc and its object in the PUBLIC bucket
+  // with nothing referencing it and nothing ever cleaning it up. The `-2` on
+  // `cycling-all-colours-optimized-2.glb` is exactly that: the CMS's filename
+  // dedup, quietly recording a second attempt.
+  //
+  // Read here rather than just before createMedia so this CMS round-trip does
+  // not sit between receiving the container's streamed response and consuming
+  // it — that connection carries the whole model and should not be held open
+  // waiting on an unrelated request.
+  const previousResultGlb = await readResultGlb(env, job.rawUploadId)
+
   const key = job.prefix ? `${job.prefix}/${job.filename}` : job.filename
   const detail = job.detail ?? DEFAULT_SHRINK_DETAIL
 
@@ -179,14 +193,6 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   // 3. Create the guardrailed Media doc from the SHRUNK output. The CMS media
   //    rules still run — safe filename + < 40 MB — so a bad output is rejected
   //    there too rather than published.
-  //
-  //    Note what this upload already points at, BEFORE replacing it. Every run
-  //    of this job used to create a brand-new Media doc and overwrite
-  //    `resultGlb`, stranding the previous doc and its object in the PUBLIC
-  //    bucket with nothing referencing it and nothing ever cleaning it up. The
-  //    `-2` suffix on `cycling-all-colours-optimized-2.glb` is that: the CMS's
-  //    filename dedup, quietly recording a second attempt.
-  const previousResultGlb = await readResultGlb(env, job.rawUploadId)
   const mediaId = await createMedia(env, containerRes, report)
 
   // 4. Tell the product which colours are inside the file.
