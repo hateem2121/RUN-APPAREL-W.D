@@ -1,0 +1,15 @@
+# codebase-memory-mcp — files to keep out of the code-intelligence index.
+# gitignore syntax. Applied after the .gitignore hierarchy, so anything already
+# gitignored (node_modules/, backups/, dist/) never reaches the indexer anyway.
+# See docs/AI-TOOLING.md § "Index tuning".
+
+# Generated D1 schema snapshots from `payload migrate:create`. Each is a ~200-key
+# dump of the entire database schema; together they produced 1,252 of the graph's
+# 2,365 nodes (53%) and 83% of all Variable nodes, with no query value — they are
+# generated output nobody reads or imports.
+#
+# The migration LOGIC stays indexed: it lives in the sibling .ts files, including
+# the hand-written `-- BACKFILL` blocks that are the whole point of several
+# migrations. migrations/index.ts imports only those .ts modules — nothing in the
+# repo imports these .json files, so excluding them loses no edges.
+apps/cms/src/migrations/*.json

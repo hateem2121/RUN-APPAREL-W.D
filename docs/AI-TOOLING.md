@@ -70,18 +70,32 @@ The index is **not** built automatically and is **not** committed — it lives i
 `~/.cache/codebase-memory-mcp` on each machine. Build it once per clone:
 
 ```bash
-npx -y codebase-memory-mcp@0.9.0 cli index_repository \
-  --repo-path "$(pwd)" --mode full
+codebase-memory-mcp cli index_repository --repo-path "$(pwd)" --mode full
 ```
 
-This repository indexes in well under a second (~1.5k nodes / ~2.3k edges). The
-project name derives from the path — `home-user-run-apparel-viewer` in a session
-container, something else on a laptop. Run `cli list_projects` to see the name on
-your machine; every query tool needs it as `--project`.
+Use the installed binary, **not** `npx` — for the same reason `.mcp.json` doesn't
+(see above): `npx` re-materializes ~270 MB on a cold cache.
+
+This repository indexes in ~0.3 s (1,215 nodes / 2,051 edges, measured 2026-08-01).
+The project name derives from the path — `Users-hateemjamshaid-Sites-Model-Viewer-main`
+on the owner's laptop, something else elsewhere. Run `cli list_projects` to see the
+name on your machine; every query tool needs it as `--project`.
 
 Re-run after large refactors. `cli detect_changes` reports drift, and a stale
 index is the main failure mode worth knowing about: it answers confidently from
 the old structure. When in doubt, re-index — it costs a second.
+
+⚠️ **Re-indexing an existing project is incremental**, and does *not* re-apply
+ignore rules to files that haven't changed. If you edit `.cbmignore` (below), a
+plain re-index will appear to succeed and change nothing. You must delete first:
+
+```bash
+codebase-memory-mcp cli delete_project --project <name>
+codebase-memory-mcp cli index_repository --repo-path "$(pwd)" --mode full
+```
+
+⚠️ **`delete_project` also wipes the ADR store** (below). The order is always
+delete → re-index → re-seed the ADR.
 
 ### Useful calls
 
@@ -93,13 +107,66 @@ the old structure. When in doubt, re-index — it costs a second.
 | `trace_path --project P` | Call path between two symbols |
 | `detect_changes --project P` | What drifted since the last index |
 | `index_status --project P` | Freshness and node/edge counts |
+| `manage_adr --project P --mode get` | The recorded architecture decisions |
 
 Note the arguments are `repo_path` / `pattern` / `project` — passing `path` or
 omitting `project` fails with a validation error, not a useful message.
 
+Two caveats about what the graph will and won't answer:
+
+- **`search_graph` can't see config files.** Its BM25 mode filters out
+  File/Folder/Module/Variable labels, and config keys are Variables — so the
+  `wrangler.jsonc` bindings are indexed but not *searchable*. Reach them
+  structurally instead:
+  `query_graph --query "MATCH (v:Variable) WHERE v.file_path CONTAINS 'wrangler' RETURN v.file_path, v.name"`
+- **The `Route` list is not an API inventory.** Of 14 Route nodes, roughly 9 are
+  string literals lifted out of test files (`/a/b/c`, `/media/x.webp`,
+  `https://viewer.wear-run.help`). Only ~4 are real endpoints. This is upstream
+  extraction behaviour and no config fixes it — read `apps/cms/src/endpoints/`
+  for the real list.
+
+### Index tuning
+
+Two committed config files shape what gets indexed. Both were added 2026-08-01
+after measuring what the default index actually contained.
+
+**`.cbmignore`** (gitignore syntax, applied after the `.gitignore` hierarchy)
+excludes `apps/cms/src/migrations/*.json`. Those six `payload migrate:create`
+schema snapshots were generating **1,252 of the graph's 2,365 nodes — 53% of the
+index and 83% of all Variable nodes** — with no query value. Excluding them costs
+nothing: nothing in the repo imports them (`migrations/index.ts` imports only the
+`.ts` modules), and the migration *logic*, including the hand-written `-- BACKFILL`
+blocks, lives in those `.ts` files and stays fully indexed. Removing them also
+fixed a bookkeeping quirk where the `.ts` migrations had no File node of their own.
+
+**Do not delete `.cbmignore` to "index more".** It halves the graph without losing
+a single edge of value.
+
+**`.codebase-memory.json`** maps `.jsonc` → `json`, which is the only reason the
+three `wrangler.jsonc` files and `wrangler.migrate.jsonc` — the D1/R2 bindings,
+routes, custom domains and the `workers_dev` cutover state — are visible at all.
+
+What remains deliberately unindexed: `package.json`, `tsconfig.json`,
+`package-lock.json` and `yarn.lock` are on a **hardcoded** skip list inside the
+binary, so no config can pull them in. `.gitignore`/`.dockerignore`, the binary
+`studio-soft.hdr`, and `apps/viewer/public/_redirects` (extensionless) are also
+absent. None of this is worth working around.
+
+### Architecture decisions (ADR)
+
+The server stores a per-project ADR document, seeded 2026-08-01 and readable with
+`manage_adr --mode get`. It records the decisions that cost real time to reach —
+Meshopt decoder wiring, texture-aware decimation, the `storage-r2` patch guards,
+the D1 migration defects, worker isolation, and the open artwork issue — so a new
+session starts knowing them instead of re-deriving them from `docs/`.
+
+It lives in the index database, **not** in the repo, so it is lost on
+`delete_project` and must be re-seeded after any cold rebuild. `docs/` remains the
+source of truth; the ADR is a summary pointing back at it.
+
 ### Scope note
 
-This is a **small** repository (~8.3k lines across 93 TypeScript files), and an
+This is a **small** repository (~11.2k lines across 106 TypeScript files), and an
 agent can read it directly without help. The graph earns its keep mainly on
 impact analysis ("what touches `buildVariantId`?") rather than on context saving.
 Keep an eye on whether it actually gets used. To remove it: delete `.mcp.json`,
@@ -108,8 +175,8 @@ to reclaim the ~270 MB binary and the index. Nothing else in the repo depends on
 
 ### Verified behaviour
 
-Checked against this repo on 2026-07-27, so the claims here are measured rather
-than quoted from upstream:
+Checked against this repo on 2026-07-27 and re-verified 2026-08-01, so the claims
+here are measured rather than quoted from upstream:
 
 - MCP handshake over stdio succeeds; server reports `codebase-memory-mcp 0.9.0`,
   protocol `2024-11-05`
@@ -122,8 +189,12 @@ than quoted from upstream:
   false` and the list is still 8 on a second `tools/list` after settling, so it
   never expands. Some agent clients wrap the `cli` subcommand and *surface* the
   extra tools anyway — if your client shows ~14, that is the client, not this
-  registration, and the 8 above is still what `.mcp.json` yields
-- Full index of this repo: **~0.7s**, 1,536 nodes / 2,306 edges
+  registration, and the 8 above is still what `.mcp.json` yields.
+  **Re-confirmed 2026-08-01 by a direct stdio handshake: still exactly 8**, while
+  Claude Code's tool list showed 14 — the wrapping described above, as predicted
+- Full index of this repo: **~0.3s**, 1,215 nodes / 2,051 edges (2026-08-01, after
+  the index tuning above; it was 2,365 / 3,326 before excluding the migration
+  snapshots, and 1,536 / 2,306 when first measured on 2026-07-27)
 - Warm query: **~0.07s**
 
 ### Optional hardening
@@ -135,8 +206,16 @@ project.
 
 ### Upgrading
 
-The version is pinned in `.mcp.json` so every machine runs the same build. Bump
-that string deliberately, not automatically — Dependabot does not watch it.
+`0.9.0` is the current upstream release (published 2026-07-08; checked 2026-08-01)
+— there is nothing to upgrade to.
+
+**The version is *not* pinned by `.mcp.json`.** That file invokes the binary by
+bare name (`"args": []`), so whatever is on your `PATH` is what runs. The only pin
+is the `@0.9.0` in the install command above, which is a convention, not an
+enforced constraint — a later `npm install -g codebase-memory-mcp` silently moves
+the whole project to a new build. Bump deliberately, verify with
+`codebase-memory-mcp --version`, and re-index afterwards. Dependabot does not
+watch any of this.
 
 ---
 
