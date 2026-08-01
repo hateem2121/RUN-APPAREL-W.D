@@ -246,6 +246,19 @@ UV error is inside the error budget, so `lockBorder` is not needed and the
 interior is free to collapse. `--uv-weight` and `--simplify-error` trade directly
 against each other; the measured table is in `simplify-textured.test.ts`.
 
+**Every UV set is weighted, not just `TEXCOORD_0`** (fixed 2026-07-31). CLO's
+*Apply Graphic* commonly places prints on a second UV set, and those UVs used to
+be decimated at zero weight while the fabric's were protected at full weight —
+artwork damaged on some panels and clean on others. Note `prune()` renumbers a
+*lone* second set down to `TEXCOORD_0` beforehand, so the case that actually bit
+is a material sampling two or more sets at once.
+
+**Check the protection ran.** `optimize` and the shrink report both print a
+decimation line; primitives counted as **fallback** were decimated position-only,
+so `--uv-weight` did nothing for them. The usual cause is attributes already
+quantized by an earlier pass — which is why the pipeline must never be run on its
+own output.
+
 Corollary, easy to get wrong: **`--simplify` is a target, not a promise.** Once
 the error budget binds, lowering the ratio does nothing at all. Raise the budget
 (or lower the UV weight) to get a smaller file.
@@ -461,6 +474,14 @@ lifecycle-expire).
   quality**. If that is not enough, raise `--uv-weight` for the level in
   `packages/shared/src/shrink.ts` (this one *does* need a container redeploy only
   if you also change the pipeline; a flags-only change ships with the CMS).
+
+  **First, read the report rather than turning knobs.** It now says how many
+  parts were decimated *with* artwork protection and how many without, how many
+  textures were treated as printed artwork, and how transparency was resolved. If
+  most parts came back "without artwork protection", no amount of `--uv-weight`
+  will change anything — see `docs/OPEN-ISSUE-ARTWORK.md`. And to actually look
+  at a logo instead of guessing, run `node scripts/bisect-artwork.mjs` on the raw
+  file; it renders the garment and produces side-by-side contact sheets.
 - **Failed: container 5xx** → check the shrink worker logs and the container logs;
   usually a bad raw file or an out-of-memory on an unusually heavy mesh (raise the
   instance type / choose a smaller Detail level).

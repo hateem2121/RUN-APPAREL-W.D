@@ -7,6 +7,7 @@ import {
   nextDetailAdvice,
   shrinkFlagsFor,
 } from '@run-apparel/shared'
+import { cmsFetch, isMediaReferenced } from './cms'
 
 /**
  * Shrink service Worker.
@@ -43,6 +44,17 @@ interface ShrinkReport {
   variantsInFileOrder?: string[]
   warnings: string[]
   translucentMaterialCount: number
+  /** UV sets the materials sample. Absent from containers built before this existed. */
+  texCoordsInUse?: number[]
+  /**
+   * What the decimation pass did. `fallback` primitives got no artwork
+   * protection. Absent when no simplify ran, or from an older container.
+   */
+  simplify?: { attributeAware: number; fallback: number; skipped: number; uvSetsWeighted?: number[] }
+  /** How textures were classified and encoded. Absent from an older container. */
+  textures?: { artwork: number; standard: number; skipped: number; artworkNames: string[] }
+  /** How each translucent material was resolved. Absent from an older container. */
+  solidify?: { opaqued: number; masked: number; keptBlend: number; doubleSided: number }
   text: string
   error?: string
 }
@@ -78,10 +90,28 @@ export default {
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error)
         // Record the failure on the raw-upload record so the owner sees why.
+        //
+        // This write is the ENTIRE failure-reporting mechanism: if it does not
+        // land, the upload sits on "processing" forever and the owner is told
+        // nothing at all. It used to end in a bare `.catch(() => {})` — twelve
+        // lines from the machinery written to stop exactly that — so the one
+        // failure that matters most was the one guaranteed to be silent.
+        //
+        // It still must not throw (that would lose the original error and
+        // re-run the container), but it must leave a trace. Worker logs are
+        // retained and searchable via `wrangler tail`; that is where this goes.
         await patchRawUpload(env, message.body.rawUploadId, {
           status: 'failed',
           report: `Automatic shrink failed:\n${detail}`,
-        }).catch(() => {})
+        }).catch((reportError: unknown) => {
+          const reportDetail = reportError instanceof Error ? reportError.message : String(reportError)
+          console.error(
+            `[shrink] CRITICAL: could not report failure for raw upload ${message.body.rawUploadId}. ` +
+              `The upload will appear stuck with no explanation.\n` +
+              `  original failure: ${detail}\n` +
+              `  reporting failure: ${reportDetail}`,
+          )
+        })
 
         if (error instanceof PermanentJobError) {
           // The report already tells the owner what to change; a retry would
@@ -98,6 +128,20 @@ export default {
 
 async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   await patchRawUpload(env, job.rawUploadId, { status: 'processing' })
+
+  // What this upload already points at, read UP FRONT.
+  //
+  // Every run of this job used to create a brand-new Media doc and overwrite
+  // `resultGlb`, stranding the previous doc and its object in the PUBLIC bucket
+  // with nothing referencing it and nothing ever cleaning it up. The `-2` on
+  // `cycling-all-colours-optimized-2.glb` is exactly that: the CMS's filename
+  // dedup, quietly recording a second attempt.
+  //
+  // Read here rather than just before createMedia so this CMS round-trip does
+  // not sit between receiving the container's streamed response and consuming
+  // it — that connection carries the whole model and should not be held open
+  // waiting on an unrelated request.
+  const previousResultGlb = await readResultGlb(env, job.rawUploadId)
 
   const key = job.prefix ? `${job.prefix}/${job.filename}` : job.filename
   const detail = job.detail ?? DEFAULT_SHRINK_DETAIL
@@ -189,6 +233,64 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
     resultGlb: mediaId,
     report: report.text + fileColoursNote,
   })
+
+  // 6. Retire the model this run replaced — but only once `resultGlb` points at
+  //    the new one, so a failure here can never leave the upload pointing at a
+  //    document that has been deleted.
+  const supersededNote = await retireSupersededResult(env, previousResultGlb, mediaId, job.rawUploadId)
+  if (supersededNote) {
+    await patchRawUpload(env, job.rawUploadId, {
+      report: report.text + fileColoursNote + supersededNote,
+    }).catch(() => {
+      // The retirement note is the least important write in the job; the model
+      // is already saved and attached. Do not fail a successful shrink for it.
+    })
+  }
+}
+
+/** The Media doc this raw upload currently points at, if any. */
+async function readResultGlb(env: Env, id: number | string): Promise<number | string | null> {
+  const res = await cmsFetch(env, `/api/raw-uploads/${id}?depth=0`, { method: 'GET' })
+  if (!res.ok) return null
+  const doc = (await res.json().catch(() => null)) as { resultGlb?: number | string | null } | null
+  const value = doc?.resultGlb
+  // depth=0 gives a bare id, but a stray populated object should not crash the job.
+  if (value == null) return null
+  if (typeof value === 'object') return (value as { id?: number | string }).id ?? null
+  return value
+}
+
+/**
+ * Delete the Media doc a re-run replaced, if nothing else uses it.
+ *
+ * Returns a note for the owner's report when the old file was left behind, and
+ * an empty string when there was nothing to do or it was cleaned up silently —
+ * a successful tidy-up is not news.
+ */
+async function retireSupersededResult(
+  env: Env,
+  previous: number | string | null,
+  current: number | string,
+  rawUploadId: number | string,
+): Promise<string> {
+  if (previous == null || String(previous) === String(current)) return ''
+
+  if (await isMediaReferenced(env, previous, rawUploadId)) {
+    return (
+      `\n\nNote: this replaced an earlier processed model (#${previous}), which is still in use ` +
+      'elsewhere, so it has been left alone. Point whatever uses it at the new file, then delete the ' +
+      'old one from Media if you no longer want it.'
+    )
+  }
+
+  const res = await cmsFetch(env, `/api/media/${previous}`, { method: 'DELETE' }).catch(() => null)
+  if (!res?.ok) {
+    return (
+      `\n\nNote: this replaced an earlier processed model (#${previous}) that could not be deleted ` +
+      'automatically. It is unused — remove it from Media when convenient.'
+    )
+  }
+  return ''
 }
 
 /**
@@ -319,13 +421,6 @@ async function patchProduct(
     const body = await res.text().catch(() => '')
     throw new Error(`Failed to update product ${id} (${res.status}): ${body.slice(0, 300)}`)
   }
-}
-
-/** Fetch the CMS through the internal service binding with robot API-key auth. */
-function cmsFetch(env: Env, path: string, init: RequestInit): Promise<Response> {
-  const headers = new Headers(init.headers)
-  headers.set('Authorization', `users API-Key ${env.CMS_ROBOT_API_KEY}`)
-  return env.CMS.fetch(new Request(`${env.CMS_ORIGIN}${path}`, { ...init, headers }))
 }
 
 function decodeReport(header: string | null): ShrinkReport | null {

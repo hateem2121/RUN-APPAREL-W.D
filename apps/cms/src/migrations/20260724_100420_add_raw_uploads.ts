@@ -36,8 +36,12 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
 }
 
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
-  await db.run(sql`DROP TABLE \`raw_uploads\`;`)
-  await db.run(sql`PRAGMA foreign_keys=OFF;`)
+  // Same correction as 20260721_084024_add_events — see the note there. The
+  // generated order dropped `raw_uploads` while
+  // `payload_locked_documents_rels.raw_uploads_id` still referenced it, guarded
+  // only by `PRAGMA foreign_keys=OFF`, which is a no-op on D1. Rebuild the
+  // referencing table first; then the drop refers to nothing.
+  await db.run(sql`PRAGMA defer_foreign_keys = true;`)
   await db.run(sql`CREATE TABLE \`__new_payload_locked_documents_rels\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`order\` integer,
@@ -59,7 +63,8 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   await db.run(sql`INSERT INTO \`__new_payload_locked_documents_rels\`("id", "order", "parent_id", "path", "users_id", "media_id", "products_id", "colourways_id", "events_id") SELECT "id", "order", "parent_id", "path", "users_id", "media_id", "products_id", "colourways_id", "events_id" FROM \`payload_locked_documents_rels\`;`)
   await db.run(sql`DROP TABLE \`payload_locked_documents_rels\`;`)
   await db.run(sql`ALTER TABLE \`__new_payload_locked_documents_rels\` RENAME TO \`payload_locked_documents_rels\`;`)
-  await db.run(sql`PRAGMA foreign_keys=ON;`)
+  // Nothing references `raw_uploads` now, so this cannot cascade into anything.
+  await db.run(sql`DROP TABLE \`raw_uploads\`;`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_order_idx\` ON \`payload_locked_documents_rels\` (\`order\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_parent_idx\` ON \`payload_locked_documents_rels\` (\`parent_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_path_idx\` ON \`payload_locked_documents_rels\` (\`path\`);`)

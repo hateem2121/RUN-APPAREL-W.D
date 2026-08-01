@@ -7,7 +7,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit",
-    "test": "echo \"(no unit tests — the shrink flow is exercised end-to-end at go-live)\"",
+    "test": "vitest run",
     "deploy": "wrangler deploy"
   },
   "dependencies": {
@@ -17,6 +17,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260726.1",
     "typescript": "5.9.3",
+    "vitest": "4.1.10",
     "wrangler": "4.114.0"
   }
 }

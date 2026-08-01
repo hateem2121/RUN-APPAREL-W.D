@@ -36,7 +36,16 @@ jobs:
       - name: Open a deduplicated outage issue
         if: steps.check.outputs.ok == 'false'
         run: |
-          gh label create outage --color b60205 --description "Automated uptime alert" 2>/dev/null || true
+          # `|| true` only for the already-exists case: creating a label that is
+          # already there is the normal path and must not fail the alert. Any
+          # other failure (bad token, API down) is reported, because it means the
+          # issue below probably will not be created either — and an uptime
+          # workflow that silently stops alerting is worse than no uptime
+          # workflow.
+          if ! label_out=$(gh label create outage --color b60205 \
+                             --description "Automated uptime alert" 2>&1); then
+            grep -qi 'already exists' <<<"$label_out" || echo "::warning::gh label create failed: $label_out"
+          fi
           open=$(gh issue list --label outage --state open --json number --jq 'length')
           if [ "$open" = "0" ]; then
             gh issue create --label outage \

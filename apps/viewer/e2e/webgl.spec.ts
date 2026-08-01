@@ -14,8 +14,12 @@ test('3D model loads and switching colourway changes the KHR material variant', 
   await page.addInitScript(() => {
     ;(window as unknown as { __csp: string[] }).__csp = []
     document.addEventListener('securitypolicyviolation', (e) => {
+      // Source file and line as well as the directive: a bare "connect-src
+      // blocked blob" says a rule fired but not which code tripped it, which is
+      // the difference between a fix and a guess.
+      const where = e.sourceFile ? ` from ${e.sourceFile}:${e.lineNumber}` : ''
       ;(window as unknown as { __csp: string[] }).__csp.push(
-        `${e.violatedDirective} blocked ${e.blockedURI}`,
+        `${e.violatedDirective} blocked ${e.blockedURI}${where}`,
       )
     })
   })

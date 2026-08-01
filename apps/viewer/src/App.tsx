@@ -12,6 +12,7 @@ import { Stage } from './components/Stage'
 import { RetiredNotice, UnavailableState } from './components/States'
 import { track } from './lib/analytics'
 import { fetchViewerData } from './lib/api'
+import { diagnostic } from './lib/diagnostic'
 import { currentRoute, onRouteChange, setColourwayUrl } from './lib/router'
 
 type AppState =
@@ -29,12 +30,20 @@ export default function App() {
     const route = currentRoute()
     if (!route) {
       setState({ kind: 'unavailable' })
+      diagnostic('route-unparsed', { reason: window.location.pathname })
       return
     }
     try {
       const response = await fetchViewerData(route.productSlug, route.colourSlug)
       if (isViewerApiError(response)) {
         setState({ kind: 'unavailable' })
+        // A real product that will not load and a URL nobody ever published look
+        // identical on screen. They must not look identical in the diagnostics.
+        diagnostic('viewer-api-error', {
+          product: route.productSlug,
+          variant: route.colourSlug ?? '',
+          reason: response.error ?? 'unknown',
+        })
         return
       }
       const retired = response.requestedColourwayUnavailable
@@ -53,8 +62,16 @@ export default function App() {
         loadedFor.current = response.product.slug
         track('viewer_page_loaded', { product: response.product.productCode })
       }
-    } catch {
+    } catch (error) {
       setState({ kind: 'unavailable' })
+      // Network failure, CORS, a 5xx, malformed JSON — all previously swallowed
+      // whole. The visitor still gets the same calm screen; the difference is
+      // that now somebody can find out why they got it.
+      diagnostic('viewer-load-failed', {
+        product: route.productSlug,
+        variant: route.colourSlug ?? '',
+        reason: error instanceof Error ? error.message : String(error),
+      })
     }
   }, [])
 

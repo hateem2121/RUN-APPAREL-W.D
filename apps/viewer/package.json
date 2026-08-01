@@ -5,13 +5,13 @@
   "type": "module",
   "description": "RUN APPAREL public 3D product viewer \u2014 QR deep-linkable, Cloudflare Pages",
   "scripts": {
-    "dev": "node scripts/copy-meshopt-decoder.mjs && vite",
-    "build": "node scripts/copy-meshopt-decoder.mjs && vite build && node scripts/gen-headers.mjs",
+    "dev": "node scripts/copy-decoders.mjs && vite",
+    "build": "node scripts/copy-decoders.mjs && vite build && node scripts/gen-headers.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "meshopt": "node scripts/copy-meshopt-decoder.mjs"
+    "meshopt": "node scripts/copy-decoders.mjs"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "5.3.0",
@@ -33,6 +33,7 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.3",
     "jsdom": "26.1.0",
+    "three": "0.183.2",
     "typescript": "7.0.2",
     "vite": "8.1.5",
     "vitest": "4.1.10",

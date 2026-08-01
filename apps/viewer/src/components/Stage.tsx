@@ -2,6 +2,7 @@ import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { track } from '../lib/analytics'
 import { canRender3D, prefersReducedMotion } from '../lib/capabilities'
+import { diagnostic } from '../lib/diagnostic'
 
 type CameraView = 'front' | 'back' | 'side'
 
@@ -20,8 +21,11 @@ interface StageProps {
   selected: ViewerColourway
 }
 
-/** Copied into public/ by scripts/copy-meshopt-decoder.mjs — see its header. */
+/** All copied into public/ by scripts/copy-decoders.mjs — see its header. */
 const MESHOPT_DECODER_URL = '/meshopt_decoder.js'
+/** Trailing slash required: model-viewer appends the filenames to these. */
+const DRACO_DECODER_URL = '/draco/'
+const KTX2_TRANSCODER_URL = '/basis/'
 
 const VARIANT_NOTICE =
   'The 3D preview for this colourway is temporarily unavailable. The static reference and specifications remain accurate.'
@@ -35,12 +39,6 @@ const LOAD_NOTICE =
 // download stays tiny. Paired with tone-mapping="neutral" (the model-viewer
 // v4 default, tuned for e-commerce colour accuracy) so baseColor stays faithful.
 const ENVIRONMENT_IMAGE = '/env/studio-soft.hdr'
-
-/** Privacy-safe diagnostic seam (no visitor data — just what broke). */
-function diagnostic(kind: string, detail: Record<string, string>): void {
-  document.dispatchEvent(new CustomEvent('run:diagnostic', { detail: { kind, ...detail } }))
-  console.warn(`[viewer:${kind}]`, detail)
-}
 
 export function Stage({ data, selected }: StageProps) {
   const { product } = data
@@ -82,11 +80,22 @@ export function Stage({ data, selected }: StageProps) {
         // invisible.
         //
         // Served from our own origin (copied into public/ at build time by
-        // scripts/copy-meshopt-decoder.mjs), so the strict CSP needs no new host
+        // scripts/copy-decoders.mjs), so the strict CSP needs no new host
         // and the decoder stays locked to the `meshoptimizer` version the
         // pipeline encodes with.
-        ;(ModelViewerElement as unknown as { meshoptDecoderLocation: string }).meshoptDecoderLocation =
-          MESHOPT_DECODER_URL
+        const element = ModelViewerElement as unknown as {
+          meshoptDecoderLocation: string
+          dracoDecoderLocation: string
+          ktx2TranscoderLocation: string
+        }
+        element.meshoptDecoderLocation = MESHOPT_DECODER_URL
+        // Draco and KTX2 default to gstatic. Pointing them at our own copies too
+        // means the "no third-party runtime dependency" claim above is true for
+        // ALL THREE codecs rather than just this one, and lets connect-src drop
+        // gstatic entirely. --ktx2 is the documented production texture target,
+        // so this stops being hypothetical the moment it is switched on.
+        element.dracoDecoderLocation = DRACO_DECODER_URL
+        element.ktx2TranscoderLocation = KTX2_TRANSCODER_URL
         if (!cancelled) setLibReady(true)
       })
       .catch(() => {
