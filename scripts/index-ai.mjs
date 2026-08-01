@@ -2,10 +2,11 @@
 /**
  * Rebuild the codebase-memory-mcp index and re-seed the ADR store from docs/ADR.md.
  *
- * Why this exists: the ADR store lives inside the index database, and EVERY
- * `index_repository` run clears it — not just `delete_project`. Seeding it by hand
- * therefore lasts exactly until the next index. This script makes the pair atomic so
- * the decisions in docs/ADR.md are always what an agent sees.
+ * Why this exists: the ADR store lives inside the index database and is scoped to the
+ * indexed commit. It survives a re-index at the same HEAD, but is lost as soon as HEAD
+ * moves — and re-indexing after committing is exactly the normal case. `delete_project`
+ * clears it too. Seeding by hand therefore lasts only until your next commit. This
+ * script makes the pair atomic so docs/ADR.md is always what an agent actually sees.
  *
  *   pnpm index:ai          incremental re-index, then re-seed
  *   pnpm index:ai --cold   delete first, then full index, then re-seed

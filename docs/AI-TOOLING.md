@@ -98,10 +98,18 @@ ignore rules to files that haven't changed. Edit `.cbmignore` and a plain re-ind
 will report success and change nothing. You must `delete_project` first — that is
 what `--cold` does.
 
-⚠️ **Every re-index wipes the ADR store** — `index_repository` clears it, not just
-`delete_project`. A hand-seeded ADR therefore survives only until the next index.
-`docs/ADR.md` is the durable copy; `pnpm index:ai` re-seeds from it and fails loudly
-if the read-back comes up empty.
+⚠️ **The ADR store is scoped to the indexed commit.** Measured 2026-08-01 in an
+isolated throwaway repo, three trials each:
+
+| What you do | ADR |
+|---|---|
+| Re-index with HEAD unchanged | **survives** |
+| Commit (HEAD moves), then re-index | **wiped** |
+| `delete_project`, then re-index | **wiped** |
+
+Since you normally re-index *because* the code changed, in practice it is gone
+almost every time you would care. `docs/ADR.md` is the durable copy; `pnpm index:ai`
+re-seeds from it and fails loudly if the read-back comes up empty.
 
 Use the installed binary, **not** `npx` — for the same reason `.mcp.json` doesn't
 (see above): `npx` re-materializes ~270 MB on a cold cache.
@@ -128,25 +136,41 @@ Two caveats about what the graph will and won't answer:
   `wrangler.jsonc` bindings are indexed but not *searchable*. Reach them
   structurally instead:
   `query_graph --query "MATCH (v:Variable) WHERE v.file_path CONTAINS 'wrangler' RETURN v.file_path, v.name"`
-- **The `Route` list is not an API inventory.** Of 14 Route nodes, roughly 9 are
-  string literals lifted out of test files (`/a/b/c`, `/media/x.webp`,
-  `https://viewer.wear-run.help`). Only ~4 are real endpoints. This is upstream
-  extraction behaviour and no config fixes it — read `apps/cms/src/endpoints/`
-  for the real list.
+- **The `Route` list is not an API inventory — it contains none of our endpoints.**
+  Traced file-by-file on 2026-08-01. All 14:
+
+  | Origin | Count | Examples |
+  |---|---|---|
+  | Test-file string literals | 8 | `/a/b/c`, `/N001/Navy` (`slugs.test.ts`); `/media/x.webp`, `/media/n001.glb` (`projectViewer.test.ts`) |
+  | A literal in normal source | 1 | `/n001/navy` in `packages/shared/src/slugs.ts` |
+  | **Outbound** calls to the CMS API | 3 | `/api/media`, `/api/products/:id` — made *by* `apps/shrink`, not served here |
+  | Infra URLs in CI YAML | 2 | `.github/workflows/{ci,uptime}.yml` |
+
+  **Zero** of the five endpoints this app actually defines
+  (`apps/cms/src/endpoints/{events,health,pipelinePlan,projectViewer,publicViewer}.ts`)
+  appear. Most Route nodes carry an empty `file_path`, so they cannot even be
+  attributed from the graph. Upstream extraction behaviour; no config fixes it.
+  Read `apps/cms/src/endpoints/` for the real list.
 
 ### Index tuning
 
 Two committed config files shape what gets indexed. Both were added 2026-08-01
 after measuring what the default index actually contained.
 
-**`.cbmignore`** (gitignore syntax, applied after the `.gitignore` hierarchy)
-excludes `apps/cms/src/migrations/*.json`. Those six `payload migrate:create`
-schema snapshots were generating **1,252 of the graph's 2,365 nodes — 53% of the
-index and 83% of all Variable nodes** — with no query value. Excluding them costs
-nothing: nothing in the repo imports them (`migrations/index.ts` imports only the
-`.ts` modules), and the migration *logic*, including the hand-written `-- BACKFILL`
-blocks, lives in those `.ts` files and stays fully indexed. Removing them also
-fixed a bookkeeping quirk where the `.ts` migrations had no File node of their own.
+**`.cbmignore`** (gitignore syntax) excludes `apps/cms/src/migrations/*.json`. Those
+six `payload migrate:create` schema snapshots generate **1,252 nodes** of pure
+generated-schema noise. Measured 2026-08-01 by indexing the same tree twice:
+**2,498 nodes without it, 1,246 with — a 50% reduction**, and 1,253 of the 1,597
+Variable nodes were migration JSON.
+
+Excluding them costs nothing. Verified repo-wide: **no file references any of the six
+`.json` snapshots** (`migrations/index.ts` imports only the `.ts` modules), so not a
+single edge is lost. The migration *logic* lives in those `.ts` files and stays fully
+indexed. Removing the snapshots also fixed a bookkeeping quirk where the `.ts`
+migrations had no File node of their own.
+
+Note `.cbmignore` can only **narrow**, never re-include: a `!negation` for a file
+that `.gitignore` already excludes does **not** bring it back (tested 2026-08-01).
 
 **Do not delete `.cbmignore` to "index more".** It halves the graph without losing
 a single edge of value. If you do change it, re-index with `pnpm index:ai --cold` —
@@ -157,10 +181,12 @@ three `wrangler.jsonc` files and `wrangler.migrate.jsonc` — the D1/R2 bindings
 routes, custom domains and the `workers_dev` cutover state — are visible at all.
 
 What remains deliberately unindexed: `package.json`, `tsconfig.json`,
-`package-lock.json` and `yarn.lock` are on a **hardcoded** skip list inside the
-binary, so no config can pull them in. `.gitignore`/`.dockerignore`, the binary
-`studio-soft.hdr`, and `apps/viewer/public/_redirects` (extensionless) are also
-absent. None of this is worth working around.
+`package-lock.json` and `yarn.lock` are skipped **by name**, so no config can pull
+them in. Proven 2026-08-01 by indexing a throwaway repo containing six
+byte-identical JSON files differing only in filename: `aacontrol.json` and
+`zzcontrol.json` were indexed, the four above were not. `.gitignore`/`.dockerignore`,
+the binary `studio-soft.hdr`, and `apps/viewer/public/_redirects` (extensionless) are
+also absent. None of this is worth working around.
 
 ### Architecture decisions (ADR)
 
@@ -171,9 +197,10 @@ worker isolation, and the open artwork issue — so a new session starts knowing
 instead of re-deriving them from `docs/`.
 
 **`docs/ADR.md` is the source of truth.** Edit there. The copy inside the index is
-disposable: it is cleared by *every* re-index, which is why `scripts/index-ai.mjs`
-re-seeds it as part of the same command and verifies the read-back rather than
-trusting the write. Seeding it by hand works, but lasts only until the next index.
+disposable — it is scoped to the indexed commit and is lost as soon as HEAD moves
+(see the table above), which is why `scripts/index-ai.mjs` re-seeds it as part of the
+same command and verifies the read-back rather than trusting the write. Seeding it by
+hand works, but only until your next commit.
 
 The per-topic documents in `docs/` remain the full account; `docs/ADR.md` is the
 summary that points back at them.
@@ -214,6 +241,33 @@ here are measured rather than quoted from upstream:
   snapshots, and 1,536 / 2,306 when first measured on 2026-07-27)
 - Warm query: **~0.07s**
 
+### Full-suite verification, 2026-08-01
+
+The whole CI `verify` chain was run locally against this change set. **pnpm is not on
+this machine's `PATH`**, but every dependency and Playwright's browsers already are,
+so `npx --yes pnpm@10.33.0 <script>` runs the real commands without installing
+anything. No `pnpm install` was run (deps were already present, and a re-resolve
+could trip `minimumReleaseAge`).
+
+| Gate | Result |
+|---|---|
+| `typecheck` | ✅ 5/5 packages clean |
+| `test` | ⚠️ 187/187 pass **only** with `--no-experimental-webstorage` — see below |
+| `seed:assets` | ✅ variants match expected CMS variantIds |
+| `build` | ✅ viewer + cms (Next 16 / Turbopack) |
+| `test:e2e` | ✅ 10/10 including the WebGL KHR-variant check |
+| `audit-ci` | ✅ passed (2 high advisories, allowlisted in `audit-ci.jsonc`) |
+| `lhci autorun` | ✅ all assertions passed |
+| gitleaks | ✅ no leaks, 81 commits (run via the official Docker image) |
+| `index:ai` / `--cold` | ✅ both, through pnpm |
+
+⚠️ **Local Node is v26.5.1; CI pins Node 24.** On Node 25+ the experimental Web
+Storage API is on by default, so a global `localStorage` exists but evaluates to
+`undefined` without `--localstorage-file`. It shadows the one jsdom provides, and
+`apps/viewer/src/lib/theme.test.ts` fails 6 tests at its `beforeEach`. `engines`
+allows `>=24`, so any contributor on a newer Node hits this while CI stays green.
+Pre-existing and unrelated to the indexing work — logged separately.
+
 ### Optional hardening
 
 `CBM_ALLOWED_ROOT=<absolute path>` restricts what the indexer is allowed to read.
@@ -223,8 +277,11 @@ project.
 
 ### Upgrading
 
-`0.9.0` is the current upstream release (published 2026-07-08; checked 2026-08-01)
-— there is nothing to upgrade to.
+`0.9.0` (published 2026-07-08) is the current **stable** release. Checked 2026-08-01
+against the full release list, not just `latest`: a prerelease **`v0.9.1-rc.1`**
+exists (2026-07-30). Upstream describes it as rearchitecting the backend around a
+coordination daemon — "deeper than a normal point release" — and asks for feedback
+before the final tag. **Stay on 0.9.0**; there is no stable upgrade to take.
 
 **The version is *not* pinned by `.mcp.json`.** That file invokes the binary by
 bare name (`"args": []`), so whatever is on your `PATH` is what runs. The only pin

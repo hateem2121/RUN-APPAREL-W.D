@@ -42,7 +42,8 @@ wrong. Make fixtures match production **in kind**, not just in shape.
 **Why.** Plain `simplify()` sees only vertex positions and smears UVs under printed
 logos. `lockBorder: true` fixes that but freezes *every* mesh border — necklines,
 cuffs, hems, UV islands — taking the real 373 MB export to 6.0 M triangles / 58.3 MB,
-45% over the 40 MB publish ceiling, so nothing could ever be published. With
+45% over the 40 MB publish ceiling, so nothing could ever be published *(measurement
+recorded in `docs/RAW-UPLOAD-PIPELINE.md`; not re-measured since)*. With
 `simplifyWithAttributes`, UV error sits inside the error budget, so the interior is
 free to collapse.
 
@@ -80,12 +81,15 @@ being edited, removed, or silently applying to a file upstream changed.
 
 ## 5. Payload-generated D1 migrations are drafts, not finished migrations
 
-**Decision.** Every migration in `apps/cms/src/migrations/*.ts` is hand-audited, and
-the `-- BACKFILL` blocks are hand-written and load-bearing. Read
+**Decision.** Every migration in `apps/cms/src/migrations/*.ts` is hand-audited.
+Where generated DDL would lose data, hand-written `-- BACKFILL` blocks are added and
+are load-bearing — currently in `20260729_070548_inline_colourways.ts`, which without
+them would create an empty `products_colourways` and drop every existing colour. Read
 `docs/RAW-UPLOAD-PIPELINE.md` **before writing or reviewing one.**
 
 **Three defects in `payload migrate:create` output**, all of which fail or silently
-lose data on D1:
+lose data on D1 *(recorded from the 2026-07-29 audit — history, not a live
+measurement; full account in `docs/RAW-UPLOAD-PIPELINE.md`)*:
 
 1. `PRAGMA foreign_keys=OFF` is a **no-op on D1** — SQLite ignores it inside a
    transaction and D1 wraps statements in one. Get statement ORDER right instead.
@@ -203,12 +207,15 @@ migration **logic** is in the sibling `.ts` files and stays indexed.
 `.codebase-memory.json` maps `.jsonc` → `json` so the `wrangler.jsonc` deploy configs
 are visible.
 
-**Three traps, all verified 2026-08-01:**
+**Three traps, all verified by controlled experiment 2026-08-01:**
 
 1. Re-indexing an existing project is **incremental** and does **not** re-apply
    ignore rules to unchanged files. After editing `.cbmignore` you must
-   `delete_project` first, or the change silently does nothing.
-2. **Every re-index wipes this ADR store** — not just `delete_project`. That is why
-   this file exists in the repo and why `pnpm index:ai` re-seeds it automatically.
+   `delete_project` first (`pnpm index:ai --cold`), or the change silently does nothing.
+2. **This ADR store is scoped to the indexed commit.** It survives a re-index at the
+   same HEAD, but is wiped once HEAD moves, and by `delete_project`. Since you
+   re-index because code changed, in practice it is gone almost every time — which is
+   why this file lives in the repo and `pnpm index:ai` re-seeds it automatically.
 3. `search_graph` cannot see config files (BM25 filters Variable nodes), and the
-   `Route` node list is mostly test-file string literals, not an API inventory.
+   `Route` node list contains **none** of this app's five real endpoints — it is
+   test-file literals, outbound calls and CI URLs. Not an API inventory.
