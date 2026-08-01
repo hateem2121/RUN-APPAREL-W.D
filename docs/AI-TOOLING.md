@@ -252,7 +252,7 @@ could trip `minimumReleaseAge`).
 | Gate | Result |
 |---|---|
 | `typecheck` | ✅ 5/5 packages clean |
-| `test` | ⚠️ 187/187 pass **only** with `--no-experimental-webstorage` — see below |
+| `test` | ✅ 187/187, no flags needed (see the Node note below) |
 | `seed:assets` | ✅ variants match expected CMS variantIds |
 | `build` | ✅ viewer + cms (Next 16 / Turbopack) |
 | `test:e2e` | ✅ 10/10 including the WebGL KHR-variant check |
@@ -261,12 +261,21 @@ could trip `minimumReleaseAge`).
 | gitleaks | ✅ no leaks, 81 commits (run via the official Docker image) |
 | `index:ai` / `--cold` | ✅ both, through pnpm |
 
-⚠️ **Local Node is v26.5.1; CI pins Node 24.** On Node 25+ the experimental Web
-Storage API is on by default, so a global `localStorage` exists but evaluates to
-`undefined` without `--localstorage-file`. It shadows the one jsdom provides, and
-`apps/viewer/src/lib/theme.test.ts` fails 6 tests at its `beforeEach`. `engines`
-allows `>=24`, so any contributor on a newer Node hits this while CI stays green.
-Pre-existing and unrelated to the indexing work — logged separately.
+**Node version note.** Local Node is v26.5.1; CI pins Node 24. From Node 25 the
+experimental Web Storage API is on by default, defining a global `localStorage` that
+evaluates to `undefined` without `--localstorage-file` and suppressing the one jsdom
+would install. That used to fail 6 tests in `apps/viewer/src/lib/theme.test.ts` while
+CI stayed green, because `engines` allows `>=24`.
+
+Fixed by `apps/viewer/vitest.setup.ts`, which installs jsdom's real Storage onto
+`globalThis` unconditionally — so Node 24 and Node 26 run the identical
+implementation and a local pass means what CI's pass means. Verified on both
+v24.18.1 (CI's exact version, via Docker) and v26.5.1. Two neater-looking fixes do
+not work and are documented in that file: Vitest 4.1.10 silently ignores
+`poolOptions.forks.execArgv`, and a `NODE_OPTIONS` in the `test` script would leave a
+bare `vitest run` (and IDE Vitest integrations) still broken.
+
+Still worth doing: **use Node 24 locally**, matching CI and the current Active LTS.
 
 ### Optional hardening
 
