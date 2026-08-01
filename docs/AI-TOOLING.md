@@ -70,32 +70,41 @@ The index is **not** built automatically and is **not** committed — it lives i
 `~/.cache/codebase-memory-mcp` on each machine. Build it once per clone:
 
 ```bash
-codebase-memory-mcp cli index_repository --repo-path "$(pwd)" --mode full
+pnpm index:ai
 ```
 
-Use the installed binary, **not** `npx` — for the same reason `.mcp.json` doesn't
-(see above): `npx` re-materializes ~270 MB on a cold cache.
+That wraps `index_repository` **and** re-seeds the ADR store from `docs/ADR.md`,
+which is the only combination that leaves the index in a correct state — see the
+two traps below. After editing `.cbmignore`, use the cold path instead:
 
-This repository indexes in ~0.3 s (1,215 nodes / 2,051 edges, measured 2026-08-01).
-The project name derives from the path — `Users-hateemjamshaid-Sites-Model-Viewer-main`
-on the owner's laptop, something else elsewhere. Run `cli list_projects` to see the
-name on your machine; every query tool needs it as `--project`.
+```bash
+pnpm index:ai --cold
+```
+
+This repository indexes in ~0.3 s (~1,246 nodes / ~2,090 edges, measured
+2026-08-01). The project name derives from the path —
+`Users-hateemjamshaid-Sites-Model-Viewer-main` on the owner's laptop, something else
+elsewhere; `pnpm index:ai` resolves it automatically, and `cli list_projects` prints
+it. Every query tool needs it as `--project`.
 
 Re-run after large refactors. `cli detect_changes` reports drift, and a stale
 index is the main failure mode worth knowing about: it answers confidently from
 the old structure. When in doubt, re-index — it costs a second.
 
+If you index by hand, know the two traps `pnpm index:ai` exists to absorb:
+
 ⚠️ **Re-indexing an existing project is incremental**, and does *not* re-apply
-ignore rules to files that haven't changed. If you edit `.cbmignore` (below), a
-plain re-index will appear to succeed and change nothing. You must delete first:
+ignore rules to files that haven't changed. Edit `.cbmignore` and a plain re-index
+will report success and change nothing. You must `delete_project` first — that is
+what `--cold` does.
 
-```bash
-codebase-memory-mcp cli delete_project --project <name>
-codebase-memory-mcp cli index_repository --repo-path "$(pwd)" --mode full
-```
+⚠️ **Every re-index wipes the ADR store** — `index_repository` clears it, not just
+`delete_project`. A hand-seeded ADR therefore survives only until the next index.
+`docs/ADR.md` is the durable copy; `pnpm index:ai` re-seeds from it and fails loudly
+if the read-back comes up empty.
 
-⚠️ **`delete_project` also wipes the ADR store** (below). The order is always
-delete → re-index → re-seed the ADR.
+Use the installed binary, **not** `npx` — for the same reason `.mcp.json` doesn't
+(see above): `npx` re-materializes ~270 MB on a cold cache.
 
 ### Useful calls
 
@@ -140,7 +149,8 @@ blocks, lives in those `.ts` files and stays fully indexed. Removing them also
 fixed a bookkeeping quirk where the `.ts` migrations had no File node of their own.
 
 **Do not delete `.cbmignore` to "index more".** It halves the graph without losing
-a single edge of value.
+a single edge of value. If you do change it, re-index with `pnpm index:ai --cold` —
+an incremental run will not re-apply the rules and the edit will appear to do nothing.
 
 **`.codebase-memory.json`** maps `.jsonc` → `json`, which is the only reason the
 three `wrangler.jsonc` files and `wrangler.migrate.jsonc` — the D1/R2 bindings,
@@ -154,15 +164,19 @@ absent. None of this is worth working around.
 
 ### Architecture decisions (ADR)
 
-The server stores a per-project ADR document, seeded 2026-08-01 and readable with
-`manage_adr --mode get`. It records the decisions that cost real time to reach —
-Meshopt decoder wiring, texture-aware decimation, the `storage-r2` patch guards,
-the D1 migration defects, worker isolation, and the open artwork issue — so a new
-session starts knowing them instead of re-deriving them from `docs/`.
+The server stores a per-project ADR document, readable with `manage_adr --mode get`.
+It records the decisions that cost real time to reach — Meshopt decoder wiring,
+texture-aware decimation, the `storage-r2` patch guards, the D1 migration defects,
+worker isolation, and the open artwork issue — so a new session starts knowing them
+instead of re-deriving them from `docs/`.
 
-It lives in the index database, **not** in the repo, so it is lost on
-`delete_project` and must be re-seeded after any cold rebuild. `docs/` remains the
-source of truth; the ADR is a summary pointing back at it.
+**`docs/ADR.md` is the source of truth.** Edit there. The copy inside the index is
+disposable: it is cleared by *every* re-index, which is why `scripts/index-ai.mjs`
+re-seeds it as part of the same command and verifies the read-back rather than
+trusting the write. Seeding it by hand works, but lasts only until the next index.
+
+The per-topic documents in `docs/` remain the full account; `docs/ADR.md` is the
+summary that points back at them.
 
 ### Scope note
 
@@ -170,8 +184,11 @@ This is a **small** repository (~11.2k lines across 106 TypeScript files), and a
 agent can read it directly without help. The graph earns its keep mainly on
 impact analysis ("what touches `buildVariantId`?") rather than on context saving.
 Keep an eye on whether it actually gets used. To remove it: delete `.mcp.json`,
-then `npm uninstall -g codebase-memory-mcp` and `rm -rf ~/.cache/codebase-memory-mcp`
-to reclaim the ~270 MB binary and the index. Nothing else in the repo depends on it.
+`.cbmignore`, `.codebase-memory.json`, `scripts/index-ai.mjs` and the `index:ai`
+script from `package.json`, then `npm uninstall -g codebase-memory-mcp` and
+`rm -rf ~/.cache/codebase-memory-mcp` to reclaim the ~270 MB binary and the index.
+Keep `docs/ADR.md` — it is prose about the project, useful with or without the tool.
+Nothing else in the repo depends on any of it.
 
 ### Verified behaviour
 

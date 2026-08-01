@@ -31,7 +31,8 @@
     "dev:cms": "pnpm --filter @run-apparel/cms dev",
     "pipeline": "pnpm --filter @run-apparel/asset-pipeline start",
     "seed:assets": "pnpm --filter @run-apparel/asset-pipeline start placeholders --out output/placeholders && pnpm --filter @run-apparel/asset-pipeline start merge --out output/n001.glb output/placeholders/n001-navy.glb=N001-NAVY output/placeholders/n001-black.glb=N001-BLACK output/placeholders/n001-crimson.glb=N001-CRIMSON && pnpm --filter @run-apparel/asset-pipeline start validate output/n001.glb --expect N001-NAVY,N001-BLACK,N001-CRIMSON",
-    "seed:cms": "pnpm --filter @run-apparel/cms seed"
+    "seed:cms": "pnpm --filter @run-apparel/cms seed",
+    "index:ai": "node scripts/index-ai.mjs"
   },
   "devDependencies": {
     "@lhci/cli": "0.15.1",
