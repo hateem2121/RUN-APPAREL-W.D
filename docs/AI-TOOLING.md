@@ -81,8 +81,8 @@ two traps below. After editing `.cbmignore`, use the cold path instead:
 pnpm index:ai --cold
 ```
 
-This repository indexes in ~0.3 s (~1,246 nodes / ~2,090 edges, measured
-2026-08-01). The project name derives from the path —
+This repository indexes in ~0.4 s (~1,450 nodes / ~2,550 edges, measured
+2026-08-01 after PRs #14/#15). The project name derives from the path —
 `Users-hateemjamshaid-Sites-Model-Viewer-main` on the owner's laptop, something else
 elsewhere; `pnpm index:ai` resolves it automatically, and `cli list_projects` prints
 it. Every query tool needs it as `--project`.
@@ -137,13 +137,13 @@ Two caveats about what the graph will and won't answer:
   structurally instead:
   `query_graph --query "MATCH (v:Variable) WHERE v.file_path CONTAINS 'wrangler' RETURN v.file_path, v.name"`
 - **The `Route` list is not an API inventory — it contains none of our endpoints.**
-  Traced file-by-file on 2026-08-01. All 14:
+  Traced file-by-file, re-checked 2026-08-01 after PRs #14/#15. All 17:
 
   | Origin | Count | Examples |
   |---|---|---|
   | Test-file string literals | 8 | `/a/b/c`, `/N001/Navy` (`slugs.test.ts`); `/media/x.webp`, `/media/n001.glb` (`projectViewer.test.ts`) |
   | A literal in normal source | 1 | `/n001/navy` in `packages/shared/src/slugs.ts` |
-  | **Outbound** calls to the CMS API | 3 | `/api/media`, `/api/products/:id` — made *by* `apps/shrink`, not served here |
+  | **Outbound** calls to the CMS API | 6 | `/api/media`, `/api/products/:id`, `/api/raw-uploads` — made *by* `apps/shrink`, not served here |
   | Infra URLs in CI YAML | 2 | `.github/workflows/{ci,uptime}.yml` |
 
   **Zero** of the five endpoints this app actually defines
@@ -159,9 +159,10 @@ after measuring what the default index actually contained.
 
 **`.cbmignore`** (gitignore syntax) excludes `apps/cms/src/migrations/*.json`. Those
 six `payload migrate:create` schema snapshots generate **1,252 nodes** of pure
-generated-schema noise. Measured 2026-08-01 by indexing the same tree twice:
-**2,498 nodes without it, 1,246 with — a 50% reduction**, and 1,253 of the 1,597
-Variable nodes were migration JSON.
+generated-schema noise. Re-measured 2026-08-01 on the post-merge tree by indexing it
+twice: **2,698 nodes without it, 1,446 with — a 46% reduction**, and 1,255 of the
+1,633 Variable nodes were migration JSON. (The 1,252-node saving has held constant
+across every measurement; the percentage only moves as the rest of the repo grows.)
 
 Excluding them costs nothing. Verified repo-wide: **no file references any of the six
 `.json` snapshots** (`migrations/index.ts` imports only the `.ts` modules), so not a
@@ -208,7 +209,7 @@ the moment it is written. It was deleted; one maintained file, no second copy.
 
 ### Scope note
 
-This is a **small** repository (~11.2k lines across 106 TypeScript files), and an
+This is a **small** repository (~14.6k lines across 122 TypeScript files), and an
 agent can read it directly without help. The graph earns its keep mainly on
 impact analysis ("what touches `buildVariantId`?") rather than on context saving.
 Keep an eye on whether it actually gets used. To remove it: delete `.mcp.json`,
@@ -236,32 +237,37 @@ here are measured rather than quoted from upstream:
   registration, and the 8 above is still what `.mcp.json` yields.
   **Re-confirmed 2026-08-01 by a direct stdio handshake: still exactly 8**, while
   Claude Code's tool list showed 14 — the wrapping described above, as predicted
-- Full index of this repo: **~0.3s**, 1,215 nodes / 2,051 edges (2026-08-01, after
-  the index tuning above; it was 2,365 / 3,326 before excluding the migration
-  snapshots, and 1,536 / 2,306 when first measured on 2026-07-27)
+- Full index of this repo: **~0.4s**, 1,446 nodes / ~2,550 edges (2026-08-01, after
+  the index tuning above and PRs #14/#15; it was 2,698 / 3,943 without `.cbmignore`,
+  and 1,536 / 2,306 when first measured on 2026-07-27 on a smaller tree)
 - Warm query: **~0.07s**
 
 ### Full-suite verification, 2026-08-01
 
-The whole CI `verify` chain was run locally against this change set. **pnpm is not on
-this machine's `PATH`**, but every dependency and Playwright's browsers already are,
-so `npx --yes pnpm@10.33.0 <script>` runs the real commands without installing
-anything. No `pnpm install` was run (deps were already present, and a re-resolve
-could trip `minimumReleaseAge`).
+The whole CI `verify` chain was run locally, last on the post-merge tree (PRs
+#14/#15) under Node 24.18.1 — the same major CI pins. **pnpm is not on this machine's
+`PATH`**, but every dependency and Playwright's browsers are, so
+`npx --yes pnpm@10.33.0 <script>` runs the real commands without installing anything
+globally.
 
 | Gate | Result |
 |---|---|
 | `typecheck` | ✅ 5/5 packages clean |
-| `test` | ✅ 187/187, no flags needed (see the Node note below) |
+| `test` | ✅ 255/255 (27 shared · 94 pipeline · 26 viewer · 11 shrink · 97 cms) |
 | `seed:assets` | ✅ variants match expected CMS variantIds |
-| `build` | ✅ viewer + cms (Next 16 / Turbopack) |
+| `build` | ✅ viewer + cms (Next 16 / Turbopack) + shrink |
 | `test:e2e` | ✅ 10/10 including the WebGL KHR-variant check |
 | `audit-ci` | ✅ passed (2 high advisories, allowlisted in `audit-ci.jsonc`) |
 | `lhci autorun` | ✅ all assertions passed |
 | gitleaks | ✅ no leaks, 81 commits (run via the official Docker image) |
 | `index:ai` / `--cold` | ✅ both, through pnpm |
 
-**Node version note.** Local Node is v26.5.1; CI pins Node 24. From Node 25 the
+Run `pnpm install --frozen-lockfile` after any merge that moves `pnpm-lock.yaml` —
+otherwise new deps are missing and the failure looks like a code error. It is exempt
+from the `minimumReleaseAge` cooldown, so it is always safe.
+
+**Node version note.** CI pins Node 24, and local development should match it
+(`brew link --overwrite --force node@24`). From Node 25 the
 experimental Web Storage API is on by default, defining a global `localStorage` that
 evaluates to `undefined` without `--localstorage-file` and suppressing the one jsdom
 would install. That used to fail 6 tests in `apps/viewer/src/lib/theme.test.ts` while

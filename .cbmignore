@@ -4,9 +4,10 @@
 # See docs/AI-TOOLING.md § "Index tuning".
 
 # Generated D1 schema snapshots from `payload migrate:create`. Each is a ~200-key
-# dump of the entire database schema; together they produced 1,252 of the graph's
-# 2,365 nodes (53%) and 83% of all Variable nodes, with no query value — they are
-# generated output nobody reads or imports.
+# dump of the entire database schema; together they produce 1,252 nodes — 2,698
+# without this file versus 1,446 with it, and 1,255 of 1,633 Variable nodes
+# (re-measured 2026-08-01) — with no query value. They are generated output that
+# nothing reads or imports.
 #
 # The migration LOGIC stays indexed: it lives in the sibling .ts files, including
 # the hand-written `-- BACKFILL` blocks that are the whole point of several
