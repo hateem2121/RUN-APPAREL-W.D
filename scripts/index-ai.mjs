@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 /**
- * Rebuild the codebase-memory-mcp index and re-seed the ADR store from docs/ADR.md.
+ * Rebuild the codebase-memory-mcp index and re-seed the ADR store from CLAUDE.md.
  *
  * Why this exists: the ADR store lives inside the index database and is scoped to the
  * indexed commit. It survives a re-index at the same HEAD, but is lost as soon as HEAD
  * moves — and re-indexing after committing is exactly the normal case. `delete_project`
  * clears it too. Seeding by hand therefore lasts only until your next commit. This
- * script makes the pair atomic so docs/ADR.md is always what an agent actually sees.
+ * script makes the pair atomic so CLAUDE.md is always what an agent actually sees.
+ *
+ * It seeds from CLAUDE.md rather than a separate summary on purpose. A hand-written
+ * digest of the docs was tried first and contradicted CLAUDE.md within a day — it
+ * still called the artwork issue undiagnosed and recommended `--keep-transparency`,
+ * which CLAUDE.md now warns against. One maintained file, no second copy to drift.
  *
  *   pnpm index:ai          incremental re-index, then re-seed
  *   pnpm index:ai --cold   delete first, then full index, then re-seed
@@ -58,7 +63,7 @@ function resolveProjectName() {
   return projects.find((p) => p.root_path === repoRoot)?.name ?? null;
 }
 
-const adr = readFileSync(join(repoRoot, 'docs/ADR.md'), 'utf8');
+const adr = readFileSync(join(repoRoot, 'CLAUDE.md'), 'utf8');
 
 if (cold) {
   const name = resolveProjectName();
@@ -79,5 +84,5 @@ cli('manage_adr', { project, mode: 'update', content: adr });
 // Re-read rather than trust the write: this is the step that silently regresses.
 const { sections = [] } = cli('manage_adr', { project, mode: 'sections' });
 if (sections.length === 0) throw new Error('ADR re-seed reported success but read back empty');
-console.log(`ADR re-seeded from docs/ADR.md: ${sections.length} sections`);
+console.log(`ADR re-seeded from CLAUDE.md: ${sections.length} sections`);
 console.log(`project: ${project}`);

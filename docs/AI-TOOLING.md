@@ -73,7 +73,7 @@ The index is **not** built automatically and is **not** committed — it lives i
 pnpm index:ai
 ```
 
-That wraps `index_repository` **and** re-seeds the ADR store from `docs/ADR.md`,
+That wraps `index_repository` **and** re-seeds the ADR store from `CLAUDE.md`,
 which is the only combination that leaves the index in a correct state — see the
 two traps below. After editing `.cbmignore`, use the cold path instead:
 
@@ -108,7 +108,7 @@ isolated throwaway repo, three trials each:
 | `delete_project`, then re-index | **wiped** |
 
 Since you normally re-index *because* the code changed, in practice it is gone
-almost every time you would care. `docs/ADR.md` is the durable copy; `pnpm index:ai`
+almost every time you would care. `CLAUDE.md` is the durable copy; `pnpm index:ai`
 re-seeds from it and fails loudly if the read-back comes up empty.
 
 Use the installed binary, **not** `npx` — for the same reason `.mcp.json` doesn't
@@ -191,19 +191,20 @@ also absent. None of this is worth working around.
 ### Architecture decisions (ADR)
 
 The server stores a per-project ADR document, readable with `manage_adr --mode get`.
-It records the decisions that cost real time to reach — Meshopt decoder wiring,
-texture-aware decimation, the `storage-r2` patch guards, the D1 migration defects,
-worker isolation, and the open artwork issue — so a new session starts knowing them
-instead of re-deriving them from `docs/`.
+`pnpm index:ai` seeds it from **`CLAUDE.md`**, so an agent whose client surfaces
+`manage_adr` starts with the same brief a human is told to read first.
 
-**`docs/ADR.md` is the source of truth.** Edit there. The copy inside the index is
+**`CLAUDE.md` is the source of truth.** Edit there. The copy inside the index is
 disposable — it is scoped to the indexed commit and is lost as soon as HEAD moves
 (see the table above), which is why `scripts/index-ai.mjs` re-seeds it as part of the
-same command and verifies the read-back rather than trusting the write. Seeding it by
-hand works, but only until your next commit.
+same command and verifies the read-back rather than trusting the write.
 
-The per-topic documents in `docs/` remain the full account; `docs/ADR.md` is the
-summary that points back at them.
+It seeds from `CLAUDE.md` rather than a purpose-written summary because that was
+tried and failed. A hand-written `docs/ADR.md` digest of `docs/HARDENING-LOG.md` and
+`docs/RAW-UPLOAD-PIPELINE.md` was added on 2026-08-01 and contradicted `CLAUDE.md`
+the same day: it still described the artwork issue as undiagnosed and recommended
+`--keep-transparency`, which `CLAUDE.md` warns against. A derived summary drifts from
+the moment it is written. It was deleted; one maintained file, no second copy.
 
 ### Scope note
 
@@ -214,7 +215,6 @@ Keep an eye on whether it actually gets used. To remove it: delete `.mcp.json`,
 `.cbmignore`, `.codebase-memory.json`, `scripts/index-ai.mjs` and the `index:ai`
 script from `package.json`, then `npm uninstall -g codebase-memory-mcp` and
 `rm -rf ~/.cache/codebase-memory-mcp` to reclaim the ~270 MB binary and the index.
-Keep `docs/ADR.md` — it is prose about the project, useful with or without the tool.
 Nothing else in the repo depends on any of it.
 
 ### Verified behaviour
