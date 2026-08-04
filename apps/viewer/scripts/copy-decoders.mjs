@@ -31,9 +31,9 @@
  *
  * The files are generated, not committed (see .gitignore).
  */
-import { copyFileSync, mkdirSync, statSync } from 'node:fs'
+import { copyFileSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { dirname, join } from 'node:path'
+import { dirname, join, parse } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -48,7 +48,62 @@ const require = createRequire(import.meta.url)
  * files sit next to the js and are not individually exported, so the directory
  * is derived once from a file that is.
  */
-const threeLibs = dirname(dirname(require.resolve('three/examples/jsm/libs/draco/gltf/draco_decoder.js')))
+const dracoEntry = require.resolve('three/examples/jsm/libs/draco/gltf/draco_decoder.js')
+const threeLibs = dirname(dirname(dracoEntry))
+
+/**
+ * Enforce the version coupling the docblock above describes.
+ *
+ * That comment has said "this pin must move with it" since the decoders were
+ * self-hosted, and nothing checked it. A `@google/model-viewer` bump whose
+ * three range moved would keep building, keep passing every test, and ship
+ * Draco/Basis decoders from a different three build than the one model-viewer
+ * has compiled in — a mismatch that surfaces only at runtime, only on a real
+ * compressed garment, and looks exactly like the blank-stage bug of 2026-07-29.
+ * The seeded fixtures use Meshopt, so the e2e suite would not catch it either.
+ *
+ * Compared on major.minor: three's `^0.183.0` is `>=0.183.0 <0.184.0`, and 0.x
+ * minors are where three makes breaking changes.
+ */
+function assertThreeMatchesModelViewer() {
+  // three's exports map does not expose ./package.json (which is why the decoder
+  // path above is resolved through a file that IS exported), so read it off disk.
+  let dir = threeLibs
+  let installed
+  while (dir !== parse(dir).root) {
+    try {
+      const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
+      if (pkg.name === 'three') {
+        installed = pkg.version
+        break
+      }
+    } catch {
+      // keep walking up
+    }
+    dir = dirname(dir)
+  }
+  const mv = require('@google/model-viewer/package.json')
+  const range = mv.peerDependencies?.three ?? mv.dependencies?.three
+  if (!installed || !range) {
+    throw new Error(
+      `[decoders] Could not determine the three version coupling (installed=${installed}, ` +
+        `model-viewer wants=${range}). Refusing to build rather than shipping decoders that ` +
+        'might not match — see the VERSION COUPLING note in this file.',
+    )
+  }
+  const minorOf = (v) => v.replace(/^[^\d]*/, '').split('.').slice(0, 2).join('.')
+  if (minorOf(installed) !== minorOf(range)) {
+    throw new Error(
+      `[decoders] three ${installed} is installed, but @google/model-viewer ${mv.version} wants ` +
+        `${range}. The Draco and Basis decoders copied from three MUST come from the same build ` +
+        'model-viewer embeds; a mismatch fails only at runtime on a real compressed model. ' +
+        "Update `three` in apps/viewer/package.json to match model-viewer's range.",
+    )
+  }
+  console.log(`[decoders] three ${installed} matches model-viewer ${mv.version} (${range})`)
+}
+
+assertThreeMatchesModelViewer()
 
 const copies = [
   // `createRequire` applies the "require" condition, the only one that exposes

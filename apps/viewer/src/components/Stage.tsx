@@ -57,9 +57,27 @@ export function Stage({ data, selected }: StageProps) {
 
   // Attempt 3D only when the device/browser/network can carry it.
   useEffect(() => {
-    if (!glbUrl || !canRender3D()) {
+    // Two very different failures, previously collapsed into one branch whose
+    // diagnostic was guarded by `if (glbUrl)` — so the WORSE of the two reported
+    // nothing at all. A published product with no finished model looks healthy
+    // from every angle: the poster loads, the specs are right, the page scores
+    // green. It is exactly the state N001 was in, and the only signal was a human
+    // noticing the garment never spun.
+    if (!glbUrl) {
       setFallback(true)
-      if (glbUrl) diagnostic('render3d-unavailable', { reason: 'capability-or-save-data' })
+      diagnostic('model-missing', {
+        product: product.productCode,
+        variant: selected.variantId,
+        reason: separateMode ? 'colourway-has-no-glb' : 'product-has-no-glb',
+      })
+      return
+    }
+    if (!canRender3D()) {
+      setFallback(true)
+      diagnostic('render3d-unavailable', {
+        product: product.productCode,
+        reason: 'capability-or-save-data',
+      })
       return
     }
     let cancelled = false
@@ -119,7 +137,22 @@ export function Stage({ data, selected }: StageProps) {
         setModelLoaded(true)
         setSwapping(false)
         setProgress(1)
-        const src = el.getAttribute('src') ?? ''
+        // PROPERTY first, attribute second. React sets `src` on a custom element
+        // as a property and never reflects it to an attribute — confirmed on the
+        // live element, whose attribute list carries camera-orbit, tone-mapping
+        // and a dozen others and no `src` at all. So `getAttribute('src')` was
+        // always null and this dedup key was always the empty string.
+        //
+        // WHAT THIS FIXES, measured: `model_loaded` deduped against a constant,
+        // so it could only ever fire once per page however many models loaded.
+        //
+        // WHAT IT DOES NOT FIX, also measured: the `onError` branch below still
+        // never sees a truthy `loadedSrcRef`, so VARIANT_NOTICE remains
+        // unreachable and a mid-swap failure still tears the stage down to the
+        // poster. An e2e test written to prove otherwise failed. The cause is
+        // NOT the attribute-vs-property read and has not been isolated — do not
+        // assume this line was the whole story.
+        const src = (el as unknown as { src?: string }).src ?? el.getAttribute('src') ?? ''
         if (loadedSrcRef.current !== src) {
           loadedSrcRef.current = src
           track('model_loaded', { product: product.productCode })
@@ -129,20 +162,61 @@ export function Stage({ data, selected }: StageProps) {
         const detail = (event as CustomEvent<{ totalProgress?: number }>).detail
         if (typeof detail?.totalProgress === 'number') setProgress(detail.totalProgress)
       }
-      const onError = () => {
+      const onError = (event: Event) => {
+        // model-viewer routes THREE different failures through one `error` event
+        // and distinguishes them only by `detail.type` (see model-viewer-base.js,
+        // which dispatches `{ type: 'webglcontextlost' }` for a lost context).
+        // Treating them alike meant a lost GPU context — the model had loaded,
+        // so `loadedSrcRef` was set — took the variant-swap branch: a notice
+        // saying "this colourway is temporarily unavailable" over a canvas that
+        // would never paint again. Wrong message, and the garment stayed gone.
+        const type = (event as CustomEvent<{ type?: string }>).detail?.type
+
+        if (type === 'webglcontextlost') {
+          // The most likely way the 3D dies in front of a real buyer. iOS Safari
+          // caps canvas memory at 256 MB and drops the context on the way past
+          // it, and iOS 18.2-18.4 lose contexts in cases 17.x did not — and a QR
+          // code on a garment tag is scanned with a phone camera, which opens
+          // iOS Safari. The live model decodes to ~72 MB of vertex and index
+          // data before textures.
+          //
+          // Fall back to the poster: still a garment, still the specs, still the
+          // contact buttons — rather than a grey rectangle.
+          setFallback(true)
+          setNotice(null)
+          diagnostic('webgl-context-lost', { product: product.productCode })
+          return
+        }
+
         if (!loadedSrcRef.current) {
           setFallback(true)
         } else {
           setSwapping(false)
           setNotice(VARIANT_NOTICE)
         }
-        diagnostic('model-load-error', { product: product.productCode })
+        diagnostic('model-load-error', {
+          product: product.productCode,
+          reason: type ?? 'unknown',
+        })
       }
       const onCameraChange = (event: Event) => {
         const detail = (event as CustomEvent<{ source?: string }>).detail
         if (detail?.source === 'user-interaction') setActiveView(null)
       }
-
+      // The model loaded fine and THEN the GPU took the context away. Distinct
+      // from `error`, which is a load failure, and previously unhandled: the
+      // element stayed mounted over a canvas that would never paint again, so
+      // the buyer got a grey rectangle where the garment had been.
+      //
+      // This is the most likely way the 3D dies in front of a real buyer. iOS
+      // Safari caps canvas memory at 256 MB and drops the context on the way
+      // past it, and iOS 18.2-18.4 lose contexts outright in cases 17.x did not
+      // — and a QR code on a garment tag is scanned with a phone camera, which
+      // opens iOS Safari. The live model decodes to ~72 MB of vertex and index
+      // data before textures.
+      //
+      // Falling back to the poster keeps the page honest: still a garment, still
+      // the specs, still the contact buttons.
       el.addEventListener('load', onLoad)
       el.addEventListener('progress', onProgress)
       el.addEventListener('error', onError)
