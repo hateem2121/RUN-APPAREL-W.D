@@ -15,29 +15,22 @@
   // advisory stays blocking for any path not listed here, so if one of these
   // packages ever reaches runtime code the gate fails again instead of staying
   // silently suppressed. Re-check each entry when its parent package is bumped.
-  "allowlist": [
-    // GHSA-mh99-v99m-4gvg — brace-expansion DoS (unbounded expansion length,
-    // CVSS 7.5). Added 2026-07-27. REVIEW BY 2026-10-27.
-    //
-    // Unfixable, not suppressed by choice: the only patched release is 5.0.8,
-    // and there is no patched 1.x or 2.x. Both paths below resolve to
-    // brace-expansion 1.1.16 / 2.1.2 through legacy glob@7 / glob@9, and v5 is
-    // a breaking API change (v1 exports the function directly, v5 exports
-    // `{ expand }`), so forcing it crashes minimatch@3/@8 and their consumers.
-    // The one path that WAS on 5.x is genuinely fixed — see the
-    // `brace-expansion@5` override in package.json.
-    //
-    // Not exploitable here: both remaining paths are build/CI-time only and are
-    // never bundled into the deployed Worker. The DoS requires attacker-supplied
-    // brace patterns reaching glob(); in both cases the patterns are fixed
-    // internal strings, unreachable by any viewer visitor.
-    //
-    // Clears when @lhci/cli and @opennextjs/cloudflare bump their transitive
-    // glob/rimraf. Drop the matching entry when that happens.
-
-    // Lighthouse CI only (root devDependency; rimraf clearing its own temp dirs).
-    "GHSA-mh99-v99m-4gvg|@lhci/cli>chrome-launcher>rimraf>glob>minimatch>brace-expansion",
-    // Build-time minifier used during `opennextjs-cloudflare build`.
-    "GHSA-mh99-v99m-4gvg|apps__cms>@opennextjs/cloudflare>@opennextjs/aws>@node-minify/core>glob>minimatch>brace-expansion"
-  ]
+  // EMPTY, and worth keeping that way.
+  //
+  // Two GHSA-mh99-v99m-4gvg (brace-expansion DoS) paths lived here from
+  // 2026-07-27, correctly: at the time the only patched release was 5.0.8, there
+  // was no patched 1.x or 2.x, and v5 is a breaking API change that crashes
+  // minimatch@3/@8. Both paths were build/CI-time only and unreachable by any
+  // visitor, so suppressing them was the right call.
+  //
+  // Removed 2026-08-04. Upstream shipped 1.1.18 and 2.1.4, so the entries stopped
+  // being "unfixable" and became "unfixed" — a different thing. They are now
+  // pinned by `brace-expansion@1` / `@2` / `@5` overrides in package.json, and
+  // audit-ci itself flagged the allowlist as redundant ("Consider not
+  // allowlisting paths…"), which is the signal the header below asks for.
+  //
+  // The same pass fixed three more advisories that appeared between 2026-08-01
+  // and 2026-08-04 — undici, fast-uri and ip-address — all by override rather
+  // than suppression, because all three had patched versions available.
+  "allowlist": []
 }
