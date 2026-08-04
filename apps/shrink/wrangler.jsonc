@@ -42,6 +42,20 @@
         "max_concurrency": 1,
         "max_retries": 2,
         "dead_letter_queue": "glb-shrink-dlq"
+      },
+      // The dead-letter queue had no consumer at all until 2026-08-03, so a job
+      // that failed three times simply evaporated: the raw-upload row kept
+      // whatever the last transient error was, and nothing said the system had
+      // given up. The handler does NOT reprocess — it writes a final plain-English
+      // report and acks. See src/deadLetter.ts.
+      //
+      // No dead_letter_queue of its own, deliberately: a DLQ for the DLQ is where
+      // a message could loop.
+      {
+        "queue": "glb-shrink-dlq",
+        "max_batch_size": 10,
+        "max_concurrency": 1,
+        "max_retries": 1
       }
     ]
   },

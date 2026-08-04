@@ -28,8 +28,29 @@ const stamp = stampArg ?? new Date().toISOString().slice(0, 19).replace(/[:T]/g,
 const outDir = join(root, 'backups', 'r2', stamp)
 mkdirSync(outDir, { recursive: true })
 
-const wrangler = (args, opts = {}) =>
-  execFileSync('pnpm', ['exec', 'wrangler', ...args], { cwd: cmsDir, encoding: 'utf8', ...opts })
+/**
+ * Run wrangler however this machine can — see the longer note in backup-d1.mjs.
+ * `pnpm exec` is right in CI; locally pnpm may only exist behind `npx`, and a
+ * backup tool that only works on the robot's machine is not a backup tool.
+ * Falls through on a MISSING RUNNER only, so a wrangler that ran and failed
+ * still surfaces its own error rather than the launcher's.
+ */
+const wrangler = (args, opts = {}) => {
+  const runners = [
+    ['pnpm', ['exec', 'wrangler', ...args]],
+    ['npx', ['--yes', 'wrangler', ...args]],
+  ]
+  let lastError
+  for (const [command, argv] of runners) {
+    try {
+      return execFileSync(command, argv, { cwd: cmsDir, encoding: 'utf8', ...opts })
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error
+      lastError = error
+    }
+  }
+  throw lastError
+}
 
 // 1. Enumerate object keys from the media table.
 const raw = wrangler([

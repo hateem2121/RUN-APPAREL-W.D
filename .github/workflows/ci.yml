@@ -36,8 +36,13 @@ jobs:
       - run: pnpm test
       - run: pnpm seed:assets
       - run: pnpm build
-      - name: Install Playwright Chromium
-        run: pnpm --filter @run-apparel/viewer exec playwright install --with-deps chromium
+      # WebKit is not optional here. A QR code on a garment tag is scanned with a
+      # phone camera, which opens iOS Safari — and until 2026-08-03 this step
+      # installed Chromium only, so the suite ran Chromium twice and the single
+      # most likely browser for this product had never executed a line of it.
+      # Firefox is cheap to add once the matrix exists.
+      - name: Install Playwright browsers
+        run: pnpm --filter @run-apparel/viewer exec playwright install --with-deps chromium webkit firefox
       - name: e2e
         run: pnpm --filter @run-apparel/viewer test:e2e
 
@@ -57,6 +62,29 @@ jobs:
       - name: Vulnerability audit (high/critical)
         run: pnpm exec audit-ci --config audit-ci.jsonc
 
+  # Secret scanning, and it GATES THE DEPLOY.
+  #
+  # This lived in its own security.yml until 2026-08-03, where it could only ever
+  # fail its own run: `needs:` cannot reference a job in another workflow, so a
+  # commit carrying a live key was scanned, flagged red, and deployed anyway.
+  # docs/RUNBOOK.md described it under "CI quality gates" without saying so.
+  # Moving it here is what makes the word "gate" true.
+  secrets:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # gitleaks-action lists the PR's commits to scan them (pull_request events).
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # full history — a secret is usually in an older commit
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
   # Performance budget + a11y snapshot (Lighthouse CI) against the viewer served
   # with the same server-side mock the e2e suite uses. Informational: it does
   # NOT gate the deploy (a Chrome flake must never block a live release), but the
@@ -65,14 +93,18 @@ jobs:
   # protection if you want it to block merges.
   #
   # ⚠️ WHAT THIS DOES NOT COVER. The page it measures serves the SEEDED
-  # PLACEHOLDER GLB — a few tens of KB. A real garment is 8–40 MB, so the
-  # `total-byte-weight` budget says nothing whatsoever about the size of a
-  # production page, and a green run here must never be read as "the live page
-  # is within budget". The budget that does apply to real models is enforced
+  # PLACEHOLDER GLB — about 10 KB. A real garment is 8–40 MB, so nothing here
+  # says anything about the weight of a production page, and a green run must
+  # never be read that way. The budget that does apply to real models is enforced
   # where they actually pass through: SIZE_WARNING_BYTES in the shrink report the
-  # owner reads, and GLB_HARD_MAX_BYTES in the CMS upload guard. What this job
-  # genuinely protects is the *application* bundle — scripts, CSS, fonts — which
-  # is the same in production as it is here.
+  # owner reads, and GLB_HARD_MAX_BYTES in the CMS upload guard.
+  #
+  # What this job genuinely protects is the *application shell* — scripts, CSS,
+  # fonts — which is byte-for-byte the same in production as it is here. The
+  # budgets in lighthouserc.json are scoped to exactly that and are set ~16-46%
+  # above measured, so a stray dependency fails the check. The old
+  # `total-byte-weight` assertion was removed: it summed the shell and the model
+  # together, which made a 2.1 MB ceiling look like a claim about the live page.
   lighthouse:
     runs-on: ubuntu-latest
     steps:
@@ -89,7 +121,7 @@ jobs:
         run: pnpm exec lhci autorun
 
   deploy:
-    needs: [verify, audit]
+    needs: [verify, audit, secrets]
     # Enabled once Cloudflare secrets are configured (Phase 10):
     #   gh variable set DEPLOY_ENABLED --body true
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
@@ -156,15 +188,21 @@ jobs:
           VITE_SENTRY_RELEASE: ${{ github.sha }}
         run: pnpm --filter @run-apparel/viewer build
 
-      # Viewer deploy target is selectable via the VIEWER_DEPLOY_TARGET repo
-      # variable — set to "worker" since the 2026-07-22 cutover (the Worker
-      # run-apparel-viewer-site serves viewer.wear-run.help; the old Pages
-      # project was deleted). The two Pages steps below are KEPT as the rollback
-      # path: setting VIEWER_DEPLOY_TARGET=pages makes them recreate the Pages
-      # project and deploy to it — see docs/RUNBOOK.md → "Viewer: Pages → Worker
-      # cutover".
+      # Viewer deploy target, selectable via the VIEWER_DEPLOY_TARGET repo
+      # variable. The Worker (run-apparel-viewer-site) has served
+      # viewer.wear-run.help since the 2026-07-22 cutover; the Pages project was
+      # deleted then. The Pages steps are KEPT as the rollback path — setting
+      # VIEWER_DEPLOY_TARGET=pages recreates the project and deploys to it. See
+      # docs/RUNBOOK.md → "Viewer: Pages → Worker cutover".
+      #
+      # THE DEFAULT IS THE WORKER, and that is the point of the `== 'pages'`
+      # comparison rather than `!= 'worker'`. Written the other way, an unset or
+      # mistyped variable sent the deploy to Pages: the job goes green, a Pages
+      # project is recreated, and the live custom domain — which points at the
+      # Worker — keeps serving the previous build. A deploy that reports success
+      # and changes nothing is the worst failure mode available here.
       - name: Ensure Pages project exists
-        if: vars.VIEWER_DEPLOY_TARGET != 'worker'
+        if: vars.VIEWER_DEPLOY_TARGET == 'pages'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -187,7 +225,7 @@ jobs:
           fi
 
       - name: Deploy viewer (Cloudflare Pages)
-        if: vars.VIEWER_DEPLOY_TARGET != 'worker'
+        if: vars.VIEWER_DEPLOY_TARGET == 'pages'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -196,7 +234,7 @@ jobs:
           --project-name run-apparel-viewer --branch main
 
       - name: Deploy viewer (Cloudflare Worker, static assets)
-        if: vars.VIEWER_DEPLOY_TARGET == 'worker'
+        if: vars.VIEWER_DEPLOY_TARGET != 'pages'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

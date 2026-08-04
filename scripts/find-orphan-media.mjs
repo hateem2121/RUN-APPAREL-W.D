@@ -19,7 +19,7 @@
  * bug it cleans up is that it was hard to see.
  *
  * The reference list is deliberately the same one the shrink Worker uses
- * (MEDIA_REFERENCE_PATHS in apps/shrink/src/index.ts). If a Media relationship
+ * (MEDIA_REFERENCE_PATHS in apps/shrink/src/cms.ts). If a Media relationship
  * is added to a collection, it must be added in BOTH places, or this will report
  * a live asset as an orphan.
  */

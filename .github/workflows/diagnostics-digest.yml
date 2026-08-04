@@ -1,0 +1,86 @@
+name: Diagnostics digest
+
+# Read the diagnostics the viewer already records, once a week.
+#
+# WHY THIS EXISTS. The Events table has been collecting real failures since
+# 2026-07-21 and nothing has ever read it. As of the 2026-08-03 audit it held
+# 8 × model-load-error, 13 × variant-missing and an uncaught React error from
+# genuine visitor sessions — every one of them a buyer who did not see a
+# garment, and none of them known to anybody.
+#
+# The viewer is careful to report why it broke (see apps/viewer/src/lib/diagnostic.ts,
+# written precisely so failures stop being invisible). That only pays off if
+# somebody looks. This is the looking.
+#
+# Weekly, not daily: these are trends, not outages. uptime.yml covers "is it up".
+
+on:
+  schedule:
+    - cron: '17 8 * * 1' # Mondays, 08:17 UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  digest:
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Diagnostics and errors only. `analytics` rows are the healthy path and
+      # would drown the signal.
+      - name: Read the last 7 days of diagnostics
+        id: read
+        run: |
+          set -euo pipefail
+          pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote \
+            --json --command "SELECT type, event, product, variant, count(*) AS n, max(created_at) AS latest FROM events WHERE type IN ('diagnostic','error') AND created_at > datetime('now','-7 days') GROUP BY type, event, product, variant ORDER BY n DESC LIMIT 50;" \
+            > digest.json
+          # `.[0].results` is wrangler's shape; empty means a clean week.
+          rows=$(node -e "const d=require('./digest.json');console.log((d[0]?.results??[]).length)")
+          echo "rows=$rows" >> "$GITHUB_OUTPUT"
+          {
+            echo 'table<<DIGEST'
+            node -e "
+              const d = require('./digest.json');
+              const rows = d[0]?.results ?? [];
+              if (!rows.length) { console.log('No diagnostics recorded in the last 7 days.'); process.exit(0) }
+              console.log('| count | type | event | product | colour | most recent |');
+              console.log('|---:|---|---|---|---|---|');
+              for (const r of rows) {
+                console.log(\`| \${r.n} | \${r.type} | \${r.event} | \${r.product ?? ''} | \${r.variant ?? ''} | \${r.latest ?? ''} |\`);
+              }
+            "
+            echo 'DIGEST'
+          } >> "$GITHUB_OUTPUT"
+
+      # One rolling issue rather than one per week, so a quiet month does not
+      # bury the tab — same shape as the outage alert in uptime.yml.
+      - name: Open or update the digest issue
+        if: steps.read.outputs.rows != '0'
+        run: |
+          set -euo pipefail
+          body=$(printf '%s\n\n%s\n\n%s\n' \
+            "Viewer diagnostics for the 7 days to $(date -u +%Y-%m-%d)." \
+            "${{ steps.read.outputs.table }}" \
+            "\`model-load-error\` means a buyer opened a product and the 3D file did not load. \`variant-missing\` means a colour button pointed at a colour that is not inside the file. \`variants-unverified-while-published\` means a re-upload renamed the colours under a live product. See docs/RUNBOOK.md.")
+          existing=$(gh issue list --label diagnostics --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --label diagnostics \
+              --title "Viewer diagnostics — weekly digest" \
+              --body "$body"
+          fi

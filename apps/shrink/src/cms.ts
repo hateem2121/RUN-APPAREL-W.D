@@ -30,7 +30,8 @@ export function cmsFetch(env: CmsEnv, path: string, init: RequestInit): Promise<
  *
  * If a Media relationship is added to a collection it MUST be added here AND to
  * scripts/find-orphan-media.mjs, or one of them will treat a live asset as an
- * orphan. index.test.ts asserts the two stay in step.
+ * orphan. apps/cms/src/collections/mediaReferences.test.ts asserts the two stay in
+ * step — there has never been an apps/shrink/src/index.test.ts.
  */
 export const MEDIA_REFERENCE_PATHS = [
   'glbAsset',

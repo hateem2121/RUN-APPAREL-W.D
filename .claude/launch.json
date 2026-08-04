@@ -3,14 +3,14 @@
   "configurations": [
     {
       "name": "viewer",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@run-apparel/viewer", "dev"],
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "pnpm@10.33.0", "--filter", "@run-apparel/viewer", "dev"],
       "port": 5173
     },
     {
       "name": "cms",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@run-apparel/cms", "dev"],
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "pnpm@10.33.0", "--filter", "@run-apparel/cms", "dev"],
       "port": 3000,
       "autoPort": true
     }

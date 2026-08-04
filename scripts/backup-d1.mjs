@@ -30,8 +30,36 @@ mkdirSync(outDir, { recursive: true })
 const out = join(outDir, `${DB}-${stamp}.sql`)
 
 console.log(`[backup-d1] exporting ${DB} (${mode}) → ${out}`)
-execFileSync('pnpm', ['exec', 'wrangler', 'd1', 'export', DB, mode, '--output', out], {
-  cwd: cmsDir,
-  stdio: 'inherit',
-})
-console.log('[backup-d1] done.')
+
+/**
+ * Run wrangler however this machine can.
+ *
+ * `pnpm exec` is right in CI, where pnpm/action-setup puts pnpm on PATH. It is
+ * NOT safe to assume locally: on a machine where pnpm is only ever invoked via
+ * `npx pnpm`, this died with `spawnSync pnpm ENOENT` — and it died in the one
+ * situation the script exists for, a human taking an emergency backup by hand
+ * before touching production. A backup tool that only works on the robot's
+ * machine is not a backup tool.
+ */
+const ATTEMPTS = [
+  ['pnpm', ['exec', 'wrangler', 'd1', 'export', DB, mode, '--output', out]],
+  ['npx', ['--yes', 'wrangler', 'd1', 'export', DB, mode, '--output', out]],
+]
+
+let lastError
+for (const [command, args] of ATTEMPTS) {
+  try {
+    execFileSync(command, args, { cwd: cmsDir, stdio: 'inherit' })
+    console.log('[backup-d1] done.')
+    process.exit(0)
+  } catch (error) {
+    // Only a MISSING RUNNER is worth falling through on. A wrangler that ran and
+    // failed (bad auth, wrong database, network) must surface as itself rather
+    // than being retried under a different launcher and reported as the second
+    // failure — that would hide the real reason behind a confusing one.
+    if (error?.code !== 'ENOENT') throw error
+    lastError = error
+    console.warn(`[backup-d1] ${command} not found, trying the next runner…`)
+  }
+}
+throw lastError

@@ -218,9 +218,42 @@ export const RawUploads: CollectionConfig = {
             })
           }
         } catch (error) {
-          req.payload.logger.error(
-            `Failed to enqueue raw upload ${doc?.id}: ${error instanceof Error ? error.message : String(error)}`,
-          )
+          const detail = error instanceof Error ? error.message : String(error)
+          req.payload.logger.error(`Failed to enqueue raw upload ${doc?.id}: ${detail}`)
+
+          // Say so ON THE RECORD, not only in a log nobody reads.
+          //
+          // This catch used to log and return. The upload had already been
+          // created and the file was really in R2, so the owner saw a healthy
+          // row sitting at "Queued" — forever, because no job existed to move
+          // it. Indistinguishable from "the robot is busy", and the only
+          // evidence was a Worker log line.
+          //
+          // Deliberately not rethrown: the document and its 350 MB upload are
+          // valid and must survive. Marking it failed is what makes the state
+          // visible and the Retry tick-box meaningful.
+          if (doc?.id != null) {
+            await req.payload
+              .update({
+                collection: 'raw-uploads',
+                id: doc.id,
+                data: {
+                  status: 'failed',
+                  report:
+                    'Your file uploaded correctly, but it could not be handed to the shrink robot, ' +
+                    'so nothing is processing it. Tick "Retry" to try again. If it keeps happening, ' +
+                    `tell your developer this:\n${detail}`,
+                },
+                context: { skipShrinkEnqueue: true },
+                req,
+              })
+              .catch((updateError: unknown) => {
+                req.payload.logger.error(
+                  `CRITICAL: raw upload ${doc.id} could not be enqueued AND could not be marked failed: ` +
+                    `${updateError instanceof Error ? updateError.message : String(updateError)}`,
+                )
+              })
+          }
         }
         return doc
       },
@@ -231,9 +264,18 @@ export const RawUploads: CollectionConfig = {
       name: 'targetProduct',
       type: 'relationship',
       relationTo: 'products',
+      // REQUIRED, and the old description ("Helps you find the result
+      // afterwards") badly undersold it. `apps/shrink/src/index.ts` only writes
+      // `fileColours` back when this is set, `deriveVariantsVerified` can never
+      // be true without it (publishGating.ts:130), and so a
+      // `single-glb-variants` product whose upload had no target product CAN
+      // NEVER BE PUBLISHED — with an error message that talks about the Colours
+      // tab, nowhere near the actual cause. Optional here meant "quietly
+      // unpublishable later".
+      required: true,
       admin: {
         description:
-          'Which product this garment is for. Helps you find the result afterwards; you still attach and publish it yourself.',
+          'Which product this garment is for. Required: the robot writes the colours it found inside your file onto this product, and without it the Colours tab stays empty and the product cannot be published.',
       },
     },
     {

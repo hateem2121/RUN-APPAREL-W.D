@@ -42,7 +42,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # GATE. This workflow had no `needs:` at all until 2026-08-03: it triggers on
+  # pushes touching apps/shrink/** or tools/asset-pipeline/**, ran in parallel
+  # with ci.yml, and shipped a new container image whether or not `verify` there
+  # passed. So the one code path every real garment goes through — the pipeline
+  # that decimates meshes and re-encodes printed artwork — was the one code path
+  # nothing gated. A broken simplify setting could reach production while the
+  # main CI run was still going red next to it.
+  #
+  # Deliberately a copy of ci.yml's checks rather than a `workflow_call` into it:
+  # ci.yml's verify also builds the viewer, seeds assets and runs Playwright,
+  # none of which this deploy depends on, and coupling them would mean a viewer
+  # e2e flake blocking a pipeline fix.
+  verify:
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      # Not a workspace member, so `pnpm typecheck` skips it — and it is the
+      # server that drives the pipeline for every upload.
+      - name: Typecheck shrink container
+        working-directory: apps/shrink/container
+        run: npm install --no-audit --no-fund && npx tsc --noEmit
+      - run: pnpm test
+
   deploy:
+    needs: verify
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment:

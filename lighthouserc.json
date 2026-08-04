@@ -1,4 +1,37 @@
 {
+  "_comment": [
+    "WHAT THIS MEASURES, and what it cannot.",
+    "",
+    "The page served here carries the SEEDED PLACEHOLDER GLB — about 10 KB. A real",
+    "garment is 8-40 MB. So this run says nothing whatsoever about how heavy a",
+    "production page is, and a green badge must never be read that way. The budget",
+    "that applies to real models is enforced where they actually pass through:",
+    "SIZE_WARNING_BYTES in the shrink report the owner reads, and GLB_HARD_MAX_BYTES",
+    "in the CMS upload guard.",
+    "",
+    "What this job DOES protect is the application shell — scripts, CSS, fonts —",
+    "which is byte-for-byte the same in production as it is here. So the budgets",
+    "below are scoped to exactly that, and `total-byte-weight` was removed: it",
+    "conflated the shell with the model and made a 2.1 MB ceiling look like a",
+    "statement about the live page.",
+    "",
+    "The category scores stay `warn`. They swung 0.64 / 0.88 / 0.87 across three",
+    "local runs of the identical build on 2026-08-01 — 24 points of noise — so",
+    "gating on them would block releases at random. The byte budgets are",
+    "deterministic and are therefore the parts that fail the build.",
+    "",
+    "MEASURED 2026-08-03 on the committed build, transfer sizes, identical across",
+    "all three runs:",
+    "",
+    "    script      1,420,412 B   budget 1,650,000  (+16%)",
+    "    font          113,987 B   budget   140,000  (+23%)",
+    "    stylesheet     20,583 B   budget    30,000  (+46%)",
+    "",
+    "The headroom is deliberately small. A first draft of these used 400 KB and",
+    "120 KB — 3.5x and 6x the real figures — which would have passed through any",
+    "regression short of a catastrophe and told nobody anything. CSS gets the",
+    "loosest ratio because a genuine design change moves it most."
+  ],
   "ci": {
     "collect": {
       "startServerCommand": "node apps/viewer/e2e/serve.mjs",
@@ -13,8 +46,9 @@
         "categories:accessibility": ["warn", { "minScore": 0.9 }],
         "categories:best-practices": ["warn", { "minScore": 0.9 }],
         "categories:seo": "off",
-        "total-byte-weight": ["error", { "maxNumericValue": 2100000 }],
-        "resource-summary:script:size": ["error", { "maxNumericValue": 1750000 }]
+        "resource-summary:script:size": ["error", { "maxNumericValue": 1650000 }],
+        "resource-summary:stylesheet:size": ["error", { "maxNumericValue": 30000 }],
+        "resource-summary:font:size": ["error", { "maxNumericValue": 140000 }]
       }
     },
     "upload": { "target": "filesystem", "outputDir": ".lighthouseci" }
