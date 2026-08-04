@@ -209,10 +209,10 @@ importers:
         specifier: 1.5.7
         version: 1.5.7
       ktx2-encoder:
-        specifier: ^0.6.0
+        specifier: 0.6.0
         version: 0.6.0
       meshoptimizer:
-        specifier: ^1.2.0
+        specifier: 1.2.0
         version: 1.2.0
       sharp:
         specifier: 0.35.3
