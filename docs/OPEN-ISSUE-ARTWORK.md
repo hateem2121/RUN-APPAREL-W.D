@@ -1,23 +1,55 @@
 # OPEN ISSUE — printed artwork is damaged on the shrunk model
 
-**Status:** three suspected causes fixed; **not yet confirmed against the real
-garment**, which needs the raw file and the owner's eye. The pipeline can now be
-*looked at* rather than guessed about. Reported by the owner on the live site
-2026-07-29, after the first real garment rendered successfully.
+**Status 2026-08-03: the damage is CONFIRMED on the live site — and the file
+serving it predates every fix, so the fixes are still untested.**
+
+The live page was opened in a real browser. The chest wordmark, which should read
+`✳ THE EXTRA MILE`, renders as `⬛HE EXTRA ⬛⬛⬛⬛E`: the mark and the whole word
+MILE destroyed. That settles the "has anyone actually looked" question this
+document has carried since 2026-07-29. Nobody had. Now somebody has.
+
+**It does NOT settle whether the fixes work**, because of the dates:
+
+| | |
+|---|---|
+| Live GLB `cycling-all-colours-optimized-2.glb` built | 2026-07-29 14:34 UTC |
+| The three fixes below landed (commit `7bef9c4`) | 2026-07-31 16:37 UTC |
+
+The file on the site is two days older than the fix. What was photographed is the
+*original* damage. Nothing below has been disproven, and nothing has been proven.
+
+**THE UNBLOCK IS ONE CHECKBOX.** The raw 382 MB export is still in the R2 ingest
+bucket (it has no lifecycle rule), and `RawUploads` supports retry without
+re-uploading. Tick **Retry** on raw upload id 1 in the CMS: that re-runs the fixed
+pipeline on the original file and both tests the fix and replaces what production
+is serving. Until that runs, every statement about whether the artwork survives is
+speculation — including this document's.
 
 **Symptom, in the owner's words:** *"the logo, graphics, words, etc are broken /
 half visible, half not."*
+
+**What now catches this automatically.** Since 2026-08-03 the shrink worker
+refuses to save a model on three structural findings — artwork decimated without
+its UVs in the error budget (`artworkAtRisk`), artwork left on `alphaMode: BLEND`,
+and an artwork `MASK` whose `alphaCutoff` drifted off 0.5. The bytes-per-pixel
+measurement warns rather than blocks. See "Detection" at the end of this file.
 
 This is the blocking issue for the whole pipeline. Everything else works — upload,
 shrink, colour mapping, publish, render. But for a B2B garment reference the
 printed artwork *is* the product, so "the 3D loads" is not success.
 
 > **Read this first if you are picking the issue up.** Three causes below are
-> fixed, but *fixed* here means "the mechanism was real and the code no longer
-> does it" — not "the reported damage is gone", which nobody has checked. Run the
-> bisect in [Investigation](#investigation) against the raw file before forming
-> an opinion. It takes one command, and it is the only thing that can tell you
-> whether the artwork actually survives now.
+> fixed, and *fixed* means "the mechanism was real and the code no longer does
+> it" — **not** "the reported damage is gone".
+>
+> The damage has now been seen (see the status above), but on a file built two
+> days BEFORE the fixes, so it tells you nothing about whether they worked.
+>
+> **Do the Retry tick first.** It re-runs the fixed pipeline on the original raw
+> file and is the only thing that can tell you whether the artwork survives now.
+> Only if it comes back damaged is the bisect in [Investigation](#investigation)
+> worth the hours it costs. Re-running the bisect on the pre-fix file would
+> reproduce a result that is already known.
 
 ---
 
@@ -118,7 +150,7 @@ uses. A set that appears in the manifest but not there is unprotected artwork.
 
 ### H5 — lossy WebP has no 4:4:4 mode ⭐ — **FIXED**
 
-`optimize.ts:188-196` sends **every** texture through `textureCompress` at
+the old `optimize.ts` texture pass sent **every** texture through `textureCompress` at
 `quality: 82` with no slot filter. libwebp's lossy encoder works exclusively in
 8-bit Y'CbCr **4:2:0** — chroma is stored at half resolution in both axes, so
 sharp saturated edges bleed into their neighbours. That is the canonical failure
@@ -147,7 +179,7 @@ artwork whatever they are called.
 
 ### H6 — coplanar print layers z-fight after solidify + quantize — **PARTLY FIXED**
 
-`solidifyMaterials` (`optimize.ts:157-168`) forces every `BLEND` material to
+`solidifyMaterials` (in `optimize.ts`) forces every `BLEND` material to
 `OPAQUE` **and** calls `setDoubleSided(true)` on *every* material — including the
 `MASK` decals it deliberately spared. CLO exports graphics as a surface a fraction
 of a millimetre off the fabric. Made opaque, double-sided, decimated, then
@@ -233,7 +265,7 @@ merged fixture asserts it comes out `MASK` — so this cannot silently regress.
 **One command.** From `tools/asset-pipeline`, against the **raw** file:
 
 ```
-node scripts/bisect-artwork.mjs <raw.glb> --out output/bisect --detail small
+node tools/asset-pipeline/scripts/bisect-artwork.mjs <raw.glb> --out output/bisect --detail small
 ```
 
 It dumps the raw file's texture inventory, then runs the full production chain
@@ -256,7 +288,8 @@ artwork *less* while looking better on the size chart. Removing one stage from t
 real chain answers "which stage does the damage", which is the actual question.
 
 **Every run starts from the raw file, never from another run's output.** Meshopt
-quantizes vertex attributes to integers and `simplify-textured.ts:144` explicitly
+quantizes vertex attributes to integers and `simplify-textured.ts` (the `Float32Array`
+check in `trySimplifyTexturedPrimitive`) explicitly
 bails to the position-only fallback when it sees them, so a second pass silently
 loses artwork protection and blames the wrong stage. This trap wasted time twice.
 
@@ -320,3 +353,44 @@ answer at this size and is out of scope here.
   transparency behind it; use `MASK`.
 - Do not trust `chromaSubsampling` in `textureCompress` to do anything for WebP.
   It is a JPEG/AVIF option and sharp ignores it there.
+
+---
+
+## Detection — what the pipeline now catches on its own
+
+Added 2026-08-03. Until then this document ranked causes and the *only* acceptance
+test was a human looking at a rendered logo — which is how a damaged garment
+published and stayed live for five days.
+
+### Blocking (the job fails, no Media row is created)
+
+| Check | Mechanism it catches | Where |
+|---|---|---|
+| `artworkAtRisk` | **H4** — a primitive carrying printed artwork took the position-only decimation fallback, so its UVs were free to smear | `simplify-textured.ts` |
+| `findArtworkAlphaProblems` → `blend` | **H3** — an artwork material ended translucent; `<model-viewer>` has no OIT so it renders half-visible | `texture-artwork.ts` |
+| `findArtworkAlphaProblems` → `cutoff` | **H3** — an artwork `MASK` whose `alphaCutoff` is not 0.5, which thins or fattens lettering | `texture-artwork.ts` |
+
+These are **structural**: each is a stated fact about the output file with no
+false-positive case. That is precisely why they are safe to block on.
+
+### Advisory (reported, publishes anyway)
+
+| Check | Mechanism | Why it does not block |
+|---|---|---|
+| `findCrushedArtwork` | **H5** — an artwork texture stored below 0.02 bytes/pixel | A legitimately flat single-colour label encodes just as small as a smashed wordmark. Measured on a 1024² fixture: smooth content lands at 0.009–0.015 bpp at *every* quality, noise at 0.167–0.958. The signal cannot separate "flat" from "destroyed". |
+| `artworkResized` | An artwork texture was resampled down to fit the cap | A real trade-off, not an error — but it is stroke detail gone from a wordmark, so it is said out loud. |
+
+The live damaged file trips `findCrushedArtwork` at **0.003 bpp**, 6.6× past the
+threshold. That threshold and a check using it had existed since the original
+investigation, wired only into the manual `pipeline textures` command and never
+into `inspectGlb`, which is what the container actually runs.
+
+### What is still NOT detected
+
+Nothing measures whether a logo is *legible*. Doing so needs a rendered
+comparison, and the honest scoping is in the session notes: a whole-frame SSIM or
+mean-delta would miss a 142 px wordmark band in a 2000 px render — under 1% of the
+pixels — so a per-job render check would cost Chromium in the container and still
+not catch this bug. If it is ever built it must be **crop-targeted** at the
+artwork UV islands. Until then the owner's eye remains the acceptance test for
+legibility, and `pipeline compare` is how to apply it.

@@ -566,3 +566,140 @@ its decal to MASK.
 - N001 is published as "Velocity Performance Tee" but the uploaded garment is a
   cycling suit. A content decision.
 - Neither R2 bucket has a working lifecycle rule (see the correction above).
+
+---
+
+# 2026-08-03 — the audit that started outside the repo
+
+Every previous entry in this log begins by reading code. This one began by
+querying the running system: Cloudflare Workers/D1/R2, the public API, and the
+live site in a real browser. **Almost nothing below was visible from the source.**
+
+## The finding that matters most is a pair of timestamps
+
+| | |
+|---|---|
+| Live GLB `cycling-all-colours-optimized-2.glb` built | 2026-07-29 14:34 UTC |
+| The artwork fixes landed (commit `7bef9c4`) | 2026-07-31 16:37 UTC |
+
+The artwork damage was photographed on the live site — the chest wordmark reading
+`⬛HE EXTRA ⬛⬛⬛⬛E` where it should read `✳ THE EXTRA MILE` — which finally
+answered the question `OPEN-ISSUE-ARTWORK.md` had carried for five days. But the
+file serving it is two days older than the fix, so it answered a *different*
+question than it appeared to. The fix remains untested. One **Retry** tick in the
+CMS re-runs the fixed pipeline on the original raw file, which is still in the
+ingest bucket, and settles it.
+
+**The lesson generalises past this bug:** "we fixed it" and "the fix is running"
+are different claims, and the repo could not distinguish them. The same shape as
+2026-07-27, when a pipeline fix shipped to the CMS while the container ran a
+three-day-old image. Both times the missing step was asking the platform what it
+was actually running.
+
+## Every published colour name was wrong
+
+Read per-variant off the live model: Colorway 2 `#502626` maroon was labelled
+"Navy", Colorway 3 `#E6AEAE` blush was "Black", Colorway 4 `#AEDCE6` powder blue
+was "Crimson". Colorways 5 and 6 were never mapped at all, so two of the five
+colours in the file were invisible to every buyer.
+
+Nothing could have caught it. The names are free text; the mapping is a human
+dropdown choice; and `variantsVerified` only checks that a chosen name *exists* in
+the file, not that it is the right one. There was no fact anywhere in the system
+that the two disagreed.
+
+**So the fact was created.** `variant-colour.ts` reads each variant's dominant
+fabric colour out of the file and `colour-name.ts` names it, and the CMS shows the
+swatch beside the option. A maroon variant under a row called Navy is now visibly
+wrong at the moment of choosing.
+
+Three decisions worth keeping:
+
+- **Area, not material count.** N001 splits 44 active materials per variant into
+  18/14/6/4. Counting works there and breaks on a garment cut into many small
+  panels of one colour, so the dominant fabric is chosen by summed triangle area.
+- **CIEDE2000, not RGB distance.** RGB is perceptually non-uniform exactly in the
+  dark saturated region sportswear occupies — two obviously different dark colours
+  can sit closer than two shades of one hue.
+- **The palette contains none of the observed hexes.** An earlier draft seeded it
+  with the five measured values and every ΔE came out 0, which proves only that a
+  lookup can find a value it was handed. With canonical values the five real
+  colours land at ΔE 1.50–6.32 and still name correctly — that is a result.
+
+## The artwork gate: block on facts, warn on statistics
+
+Three checks now refuse to save a model, and one only warns. The split is the
+whole design:
+
+**Structural → blocking.** A primitive carrying artwork took the position-only
+decimation path; an artwork material ended `BLEND`; an artwork `MASK` has a cutoff
+other than 0.5. Each is a stated fact about the output with no false-positive
+case.
+
+**Statistical → advisory.** Bytes-per-pixel below 0.02. Measured on a 1024²
+fixture: smooth content lands at 0.009–0.015 bpp at *every* quality, noise at
+0.167–0.958. The metric cannot separate "legitimately flat label" from "destroyed
+wordmark", and **a gate the owner learns to override is worse than no gate**.
+
+The bpp check and its threshold had existed since the original investigation,
+correct, and wired only into the manual `pipeline textures` command — never into
+`inspectGlb`, which is what the container runs. The live damaged file trips it at
+0.003 bpp. *The cheapest measurement of the reported damage was already written
+and was connected to nothing.*
+
+## Three traps, all now in CLAUDE.md
+
+1. **`opaque` defaults differently** between `parseOptimizeArgs` (true) and
+   `optimizeGlb` (false), so a hand-built options object skips the step that
+   resolves a BLEND decal to a MASK cut-out. Found because an end-to-end test
+   "failed" and was blaming the pipeline for something only the test had done.
+2. **React sets `src` as a property on a custom element**, never an attribute —
+   `getAttribute('src')` on `<model-viewer>` is always null.
+3. **`webglcontextlost` never reaches a listener on the host**: not composed, so
+   it does not cross the shadow boundary; and model-viewer 4.x renders into a
+   *shared offscreen* canvas, so the one in the shadow root returns a `2d` context
+   and `WEBGL_lose_context` on it does nothing. The real contract is
+   model-viewer's own `error` event with `detail.type === 'webglcontextlost'`.
+
+## Negative controls earned their keep twice
+
+A test written for the context-loss handler passed with the handler disabled — it
+was asserting a poster fallback the *old* code already did. Rewritten to assert
+the distinct diagnostic, it fails without the change. A second test, written to
+prove that fixing the `src` read made `VARIANT_NOTICE` reachable, **failed** — so
+that claim was removed rather than shipped as a comment. `VARIANT_NOTICE` is still
+unreachable for a reason not yet isolated, and `Stage.tsx` says exactly that.
+
+**Both cost time and both were worth it.** A test that cannot fail is the failure
+mode this repo has been burned by four times now; the only defence is to disable
+the fix and watch.
+
+## One plan item was wrong and was not implemented
+
+The audit's own plan said to add `fileColours` to `GATED_FIELDS`. `Products.ts`
+documents in detail why it is deliberately absent: gating it once blocked the
+shrink robot's own write on a published-but-model-less product — it prevented
+recovery from the very state it was complaining about. Implementing the plan would
+have reintroduced a fixed production bug. Reporting was built instead
+(`becameUnverifiedWhilePublished` → an Events row).
+
+**A plan written from an audit is a hypothesis, not an instruction.** The code
+comment was right and the plan was wrong, and the only reason that surfaced is
+that the comment explained *why* rather than *what*.
+
+## Also closed
+
+`glb-shrink-dlq` had been configured since 2026-07-24 with **no consumer**, so a
+job that failed three times evaporated. The Events table had collected real
+failures for six weeks and **nothing had ever read it** — 8 × `model-load-error`,
+13 × `variant-missing`, an uncaught React error. gitleaks lived in its own
+workflow where `needs:` could not reach it, so a commit carrying a live key was
+scanned, went red, and deployed anyway. The e2e suite ran Chromium twice and
+called it a matrix, leaving iOS Safari — the browser a QR code actually opens —
+completely unexercised.
+
+## State
+
+334 unit tests, 66 e2e across Chromium / WebKit / mobile Safari / Firefox /
+SwiftShader. Five workspaces plus the non-workspace container typecheck; all
+builds green.

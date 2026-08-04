@@ -208,10 +208,14 @@ last migration and no more.
 Beyond typecheck/test/build/e2e, CI runs these on every push to `main` and every
 pull request:
 
-- **Secret scanning** — gitleaks (`.github/workflows/security.yml`, config
-  `.gitleaks.toml`). A hit fails the run. Real secrets never belong in git; use
-  `wrangler secret put` / GitHub secrets. Add proven false positives to the
-  allowlist in `.gitleaks.toml`.
+- **Secret scanning** — gitleaks (the `secrets` job in `.github/workflows/ci.yml`,
+  config `.gitleaks.toml`). A hit fails the run and **gates the deploy** (the
+  `deploy` job needs it). It used to live in its own `security.yml`, where it
+  could only fail its own run — `needs:` cannot reach across workflows, so a
+  commit carrying a live key was scanned, went red, and deployed regardless. That
+  is why it is a job here rather than a separate file. Real secrets never belong
+  in git; use `wrangler secret put` / GitHub secrets. Add proven false positives
+  to the allowlist in `.gitleaks.toml`.
 - **Dependency vulnerabilities** — `audit-ci` (config `audit-ci.jsonc`) fails on
   **high/critical** advisories and **gates the deploy** (the `deploy` job needs
   it). To clear one: bump the dependency, add a `pnpm.overrides` pin for a fixed
@@ -219,14 +223,37 @@ pull request:
   unfixable and not exploitable here — add the `GHSA-…` id to `allowlist` in
   `audit-ci.jsonc` with a dated reason.
 - **Performance budget** — Lighthouse CI (`lighthouserc.json`) against the viewer
-  served with the e2e mock. Deterministic byte-weight budgets fail on a real
-  regression; category scores are non-blocking warnings. This job is
-  informational (it does **not** gate the deploy, so a Chrome flake never blocks a
-  release) — make it a required check via branch protection to enforce it.
-- **Accessibility** — an axe-core check in the Playwright suite
-  (`apps/viewer/e2e/a11y.spec.ts`). It fails on serious/critical **structural**
-  violations; colour-contrast is reported as advisory only (a deliberate
-  palette-design decision — see the test's header comment).
+  served with the e2e mock. Deterministic byte budgets fail on a real regression;
+  category scores are non-blocking warnings (they swung 0.64/0.88/0.87 across
+  three runs of an identical build, so gating on them would block releases at
+  random). This job is informational — make it a required check via branch
+  protection to enforce it.
+
+  **Read what it measures.** The page it scores carries the ~10 KB placeholder
+  GLB, so it says nothing about a real 8–40 MB garment; the `total-byte-weight`
+  assertion was removed in 2026-08-03 because it conflated the app shell with the
+  model. What remains is scoped to the shell — script / stylesheet / font — which
+  *is* byte-identical in production, at 16–46% above measured.
+- **Accessibility** — axe-core in the Playwright suite
+  (`apps/viewer/e2e/a11y.spec.ts`), across **five** page states: the product page,
+  the unavailable state, the retired-colourway notice, the poster-only fallback
+  and the expanded customisation accordion. It covered only the healthy product
+  page until 2026-08-03 — i.e. every screen a visitor reaches when something has
+  gone wrong was unscanned, and those are the ones carrying the extra live
+  regions and injected meta tags. Fails on serious/critical **structural**
+  violations; colour-contrast is advisory (a deliberate palette decision).
+- **Browsers** — the e2e suite runs Chromium, **WebKit**, **mobile Safari** and
+  **Firefox**, plus a SwiftShader project for the real-WebGL test. It ran Chromium
+  twice and nothing else until 2026-08-03, which meant iOS Safari — the browser a
+  QR code on a garment tag actually opens — had never executed a line of it.
+
+  The WebGL test **fails** rather than skips when no GL context is available. It
+  used to `test.skip`, so the single most valuable test in the repo passed
+  silently whenever SwiftShader failed to start.
+
+  `retries: 1` in CI: Playwright reports a test that fails then passes as
+  **flaky** in its own section, so flakes stay visible and countable while a real
+  failure still fails both attempts and still stops the deploy.
 
 **Dependency updates**: Dependabot runs in **quiet mode** — routine version-bump
 PRs are off (`open-pull-requests-limit: 0` in `.github/dependabot.yml`) to keep the
@@ -255,6 +282,29 @@ nightly workflow prunes rows older than 180 days on the 1st of each month; to
 prune on demand run `nightly-backup.yml` via *workflow_dispatch*.
 
 Aggregate page views (if enabled) are in Cloudflare **Web Analytics**.
+
+### Somebody has to read them — the weekly digest
+
+`.github/workflows/diagnostics-digest.yml` runs Mondays 08:17 UTC, queries the
+last 7 days of `diagnostic` and `error` rows, and opens (or comments on) a
+`diagnostics`-labelled GitHub issue. One rolling issue, not one per week.
+
+It exists because **nothing read this table for six weeks.** The 2026-08-03 audit
+found it holding 8 × `model-load-error`, 13 × `variant-missing` and an uncaught
+React error from real visitor sessions — every one a buyer who did not see a
+garment, and none of them known to anybody. The viewer is careful to report *why*
+it broke; that only pays off if someone looks.
+
+What the events mean:
+
+| Event | What happened | What to do |
+|---|---|---|
+| `model-load-error` | A buyer opened a product and the 3D file did not load | Check the GLB is reachable and under 40 MB |
+| `model-missing` | A **published** product has no 3D file at all | Attach one, or move it to Draft |
+| `variant-missing` | A colour button pointed at a colour not inside the file | Re-answer "Which colour in your CLO file is this?" |
+| `webgl-context-lost` | The device gave up the GPU context mid-view — usually memory | Expect on older iPhones with heavy models; the lever is triangle count |
+| `variants-unverified-while-published` | A re-upload renamed the colours under a live product | Re-map the colours on the Colours tab |
+| `render3d-unavailable` | The device or Data Saver refused 3D up front | Nothing — the poster fallback is working as intended |
 
 ## Error tracking
 

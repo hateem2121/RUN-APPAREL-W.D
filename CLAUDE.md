@@ -69,6 +69,28 @@ the answer is "nothing that happens in production", it is not a test.
   treats each as a migration. A test file added there on 2026-07-31 was imported
   during `migrate:remote`, ran `describe()` with no vitest runner, and stopped
   the production deploy. `src/migrationReplay/migrations.test.ts` now guards it.
+- **`opaque` defaults DIFFERENTLY in the two ways you can call the pipeline.**
+  `parseOptimizeArgs` defaults it **true**; `optimizeGlb` treats an absent
+  `opaque` as **false**. So a hand-built options object silently skips
+  `solidifyMaterials` and ships decals still on `alphaMode: BLEND`, which
+  `<model-viewer>` renders see-through — the reported symptom exactly. Go through
+  the parser, as `apps/shrink/container/server.ts` does. Pinned by a test in
+  `pipeline.test.ts`.
+- **`fileColours` is deliberately NOT in `GATED_FIELDS`.** Gating it once blocked
+  the shrink robot's own write on a published-but-model-less product, i.e. it
+  prevented recovery from the state the gate was complaining about (2026-07-29).
+  Do not "fix" this. The gap it leaves is covered by reporting instead —
+  `becameUnverifiedWhilePublished` writes an Events row. See `Products.ts`.
+- **React sets `src` on a custom element as a PROPERTY, never an attribute.**
+  `el.getAttribute('src')` on `<model-viewer>` is always `null` — its attribute
+  list carries `camera-orbit`, `tone-mapping` and a dozen others and no `src`.
+  Code that keyed off it silently compared empty strings forever.
+- **`webglcontextlost` never reaches your listener.** It fires on the `<canvas>`
+  inside model-viewer's shadow root and is not a composed event, so no listener
+  on the host sees it, capture phase or not. model-viewer 4.x also renders into a
+  *shared offscreen* canvas — the one in the shadow root returns a `2d` context,
+  so `WEBGL_lose_context` on it is a no-op. The real contract is model-viewer's
+  own `error` event with `detail.type === 'webglcontextlost'`.
 
 ## Before you change the pipeline
 
@@ -79,7 +101,7 @@ protects artwork *less* shipped as "Smallest file". Look at the output:
 pnpm pipeline textures raw/garment.glb --out output/textures   # no processing
 pnpm pipeline render   out.glb --out output/after
 pnpm pipeline compare  output/before output/after --out sheet.png
-node scripts/bisect-artwork.mjs raw/garment.glb --out output/bisect   # all of it
+node tools/asset-pipeline/scripts/bisect-artwork.mjs raw/garment.glb --out output/bisect
 ```
 
 `render` needs a Chromium; set `PLAYWRIGHT_CHROMIUM_PATH` where Playwright's own
@@ -87,6 +109,36 @@ download is absent.
 
 Read `docs/OPEN-ISSUE-ARTWORK.md` first — it ranks the known causes and records
 what has been ruled in and out.
+
+**The pipeline can now REFUSE a job.** Since 2026-08-03 three structural findings
+make the shrink worker throw `PermanentJobError` and save nothing:
+
+| Finding | Where it is decided |
+|---|---|
+| A primitive carrying printed artwork took the position-only decimation fallback | `simplify-textured.ts` → `artworkAtRisk` |
+| An artwork material ended on `alphaMode: BLEND` | `texture-artwork.ts` → `findArtworkAlphaProblems` |
+| An artwork `MASK` has an `alphaCutoff` other than 0.5 | same |
+
+All three are *structural* — a stated fact about the output file, with no
+false-positive case — which is why they block. The bytes-per-pixel measurement
+(`findCrushedArtwork`) only **warns**, because a legitimately flat label encodes
+just as small as a smashed wordmark, and a gate the owner learns to override is
+worse than no gate. Keep that distinction if you add checks.
+
+## Colour names are read from the file, not typed
+
+`tools/asset-pipeline/src/variant-colour.ts` picks each variant's dominant fabric
+by surface area (excluding trim and artwork), converts `baseColorFactor` from
+linear to sRGB, and names it by CIEDE2000 against a palette in `colour-name.ts`.
+This exists because on 2026-08-03 every published colour name on the live site was
+wrong — a maroon garment labelled "Navy", a blush one "Black", a powder blue one
+"Crimson" — and two colourways in the file were never mapped at all.
+
+Two rules it must keep: a **colourway slug is printed on physical QR tags** and
+must never be changed by an automated process, and **row order decides the default
+colourway**, so nothing may reorder rows. Imported rows append, arrive
+`active: false`, and a low-confidence match arrives with an empty name rather than
+a guess. Tested in `apps/cms/src/fields/importColours.test.ts`.
 
 ## Before you change a migration
 

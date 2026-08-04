@@ -53,7 +53,10 @@ re-deriving them costs days: [`docs/SESSION-2026-07-27.md`](docs/SESSION-2026-07
 [`docs/SESSION-2026-07-29.md`](docs/SESSION-2026-07-29.md) (the first real
 garment; five first-run bugs; a data-loss incident) ·
 [`docs/SESSION-2026-07-31.md`](docs/SESSION-2026-07-31.md) (artwork fixes, and
-why fixtures that cannot fail keep letting bugs through).
+why fixtures that cannot fail keep letting bugs through) ·
+[`docs/SESSION-2026-08-03.md`](docs/SESSION-2026-08-03.md) (production audit —
+the live site was serving the wrong garment in wrongly-named colours with a torn
+wordmark; automatic colour naming and a blocking artwork gate).
 
 ---
 
@@ -71,9 +74,15 @@ accounts manage products, colourways and media only.
 2. Fill in: product code (e.g. `T004`), slug (lowercase, e.g. `t004`), buyer-friendly
    name, category, fabric, GSM, fit, performance features, customisation steps.
 3. Leave **status = Draft** until assets are ready.
-4. Create its **Colourways** (next sections), pick a **default colourway**, then set
-   status to **Published**. The CMS blocks publishing until the rules are met
-   (exactly one default active colourway, GLB rules below, posters everywhere).
+4. Add its **Colours** on the Colours tab (next sections), then set status to
+   **Published**. The CMS blocks publishing until the rules are met — every colour
+   on show needs a photo, a photo description and a colour picked from your CLO
+   file, and the product needs a finished 3D file.
+
+   **There is no "default colourway" setting.** The default is simply the topmost
+   colour that is switched on, so you choose it by dragging rows. That replaced a
+   three-way arrangement (a `defaultColourway` relationship, an `isDefault`
+   checkbox and a hook keeping them in step) which could disagree with itself.
 
 ### 3. Preparing 3D files — ALWAYS run the pipeline first
 
@@ -138,9 +147,15 @@ Full details and troubleshooting: `tools/asset-pipeline/README.md`.
 2. Upload each colourway's poster image (WebP preferred, front three-quarter CLO render).
 3. On the **product**: set *GLB asset* to the merged file, *Poster fallback* to the
    default colourway's poster.
-4. Tick **“Variants verified”** only after step 3's `validate` passed and you've
-   looked at every colourway in the viewer. Publishing in single-GLB mode is
-   blocked until this is ticked.
+4. **“Colours checked” is not a box you tick** — it is read-only and worked out
+   for you. It goes green exactly when every colour on show points at a colour
+   that is really inside the processed file. If it is not green, open the Colours
+   tab and answer *“Which colour in your CLO file is this?”* for each colour; the
+   dropdown shows a swatch of what each one actually looks like, so a maroon
+   variant sitting under a row called Navy is visible at a glance.
+
+   It used to be a checkbox the team ticked and hoped about, which is how three
+   wrong colour names reached the live site on 2026-08-03.
 
 Keep files under ~8 MB — the CMS warns you above that. Never upload CLO source
 (`.zprj`) files; use the admin-only *source reference* field to note where they live.
@@ -219,7 +234,7 @@ A red build never deploys. Operational playbooks live in
 
 ```bash
 pnpm install
-pnpm typecheck && pnpm test && pnpm build   # all workspaces (120 unit tests)
+pnpm typecheck && pnpm test && pnpm build   # all workspaces (334 unit tests)
 
 pnpm seed:assets   # placeholder GLBs/posters + merged N001 file
 pnpm dev:cms       # Payload admin on http://localhost:3000 (local D1/R2 emulation)

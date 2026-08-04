@@ -99,6 +99,13 @@ original. See `docs/OPEN-ISSUE-ARTWORK.md` for how to read the output.
 
 ### How printed artwork is protected
 
+> **Since 2026-08-03 the pipeline reports when protection did NOT apply, and the
+> shrink worker refuses to save the file.** `optimizeGlb` returns
+> `simplify.artworkAtRisk` — the materials carrying printed graphics whose
+> primitives took the position-only fallback — and `inspectGlb` returns
+> `artworkAlphaProblems` and `crushedArtwork`. Structural findings block; the
+> bytes-per-pixel measurement warns. See "What the pipeline refuses" below.
+
 Decimation used to tear printed logos apart, because glTF-Transform's `simplify()`
 only ever sees vertex **positions** — it cannot know how far a UV has been dragged,
 and smearing the UVs under a printed graphic tears the image.
@@ -169,6 +176,61 @@ Note that `prune()` renumbers a *lone* second UV set down to `TEXCOORD_0` before
 decimation sees it, so the hazard is specifically materials sampling **two or
 more** sets at once (fabric AO on UV0 plus a graphic on UV1). `validate` warns on
 exactly those. See `docs/OPEN-ISSUE-ARTWORK.md` (H4).
+
+### What the pipeline refuses
+
+Three findings make `optimizeGlb`'s result unpublishable, and the shrink worker
+throws `PermanentJobError` on each — the file is not saved and the owner gets a
+plain-English reason naming the materials involved.
+
+| Field | Finding | Cause it catches |
+|---|---|---|
+| `simplify.artworkAtRisk` | A primitive carrying printed artwork took the position-only fallback | **H4** — UVs outside the error budget, free to smear |
+| `artworkAlphaProblems` (`blend`) | An artwork material ended `alphaMode: BLEND` | **H3** — `<model-viewer>` has no OIT, so it renders half-visible |
+| `artworkAlphaProblems` (`cutoff`) | An artwork `MASK` has `alphaCutoff` ≠ 0.5 | **H3** — thins or fattens lettering |
+
+All three are **structural**: a stated fact about the output file, with no
+false-positive case. That is what makes them safe to block on.
+
+`crushedArtwork` (an artwork texture below `CRUSHED_BYTES_PER_PIXEL` = 0.02) is
+reported as a **warning only**. Measured on a 1024² fixture:
+
+```
+content   q1      q50     q95
+smooth  0.0092  0.0095  0.0152   <- every quality reads "crushed"
+noise   0.1669  0.5290  0.9583   <- no quality does
+```
+
+A legitimately flat single-colour label is indistinguishable from a destroyed
+wordmark by this metric, so blocking on it would reject good garments — and a gate
+the owner learns to override is worse than no gate. `artworkResized` (artwork
+resampled down to fit the cap) is likewise advisory.
+
+If you add a check, put it on the right side of that line.
+
+### Reading colour names out of a file
+
+`readVariantColours(document)` returns one suggested colour per
+`KHR_materials_variants` variant: the dominant fabric by **surface area**
+(excluding trim and artwork by name), its `baseColorFactor` converted from linear
+to sRGB, and a name matched by **CIEDE2000** against the palette in
+`colour-name.ts`.
+
+It exists because on 2026-08-03 the live site had a maroon garment labelled
+"Navy", a blush one labelled "Black" and a powder blue one labelled "Crimson",
+with two further colourways in the file that no CMS row pointed at. Measured
+against those five real colours, using a palette that deliberately contains none
+of their hex values:
+
+```
+#502626 -> Maroon        dE 6.32     #004D24 -> Forest Green  dE 5.07
+#E6AEAE -> Blush         dE 2.29     #5B6666 -> Slate         dE 1.50
+#AEDCE6 -> Powder Blue   dE 2.06
+```
+
+Two things it deliberately does not do: it never renames anything (the output
+travels beside the verbatim variant id), and a match beyond ΔE 10 comes back
+`confidence: 'low'` with no suggested name rather than a confident guess.
 
 ### Material flags (`merge`, `optimize`) — opaque + double-sided
 

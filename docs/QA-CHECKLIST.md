@@ -10,6 +10,8 @@ throttled "Slow 4G" network profile.
 - [ ] The same URL survives a **page refresh**
 - [ ] Scanning the printed QR code opens the right product **and** pre-selects the right colourway
 - [ ] Sloppy URLs normalise (`/N001/Navy` → `/n001/navy`)
+- [ ] **Product-only URL** (`/n001`, no colour) loads the default colour and tidies the address bar to `/n001/navy` — *without* the "no longer active" notice, because nothing was retired
+- [ ] **Clicking the wordmark** goes to the catalogue and does NOT land on "reference unavailable" (it linked to `/`, a dead route, until 2026-08-03)
 - [ ] Unknown product URL shows the branded "reference unavailable" state with Back to Catalogue, Email Us, WhatsApp Us — and a `noindex` meta tag
 
 ## Stale-QR fallback
@@ -95,11 +97,22 @@ Full guide: [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md).
 - [ ] `wrangler tail run-apparel-viewer-shrink` shows **no `Exceeded memory limit`**
 - [ ] Container image is current: `wrangler containers list` → `LAST MODIFIED` is
       at or after the last commit touching `apps/shrink` or `tools/asset-pipeline`
+- [ ] **The colour names came from the file, not from memory.** On the Colours tab
+      each option in "Which colour in your CLO file is this?" shows a swatch and a
+      suggested name. Check the swatch matches the row it sits under — on
+      2026-08-03 the live site had a maroon variant under a row called "Navy", a
+      blush one under "Black" and a powder blue one under "Crimson"
+- [ ] **No colours in the file are unmapped.** If the banner above the list says
+      "we found N colours … not on your website yet", either add them or decide
+      deliberately not to. Two of N001's five were invisible to buyers for weeks
+- [ ] If the job **failed on artwork** ("printed artwork … was damaged", "…came
+      out see-through") that is the gate working, not a crash — re-upload at
+      **Highest quality**. See RAW-UPLOAD-PIPELINE.md → troubleshooting
 
 ## Performance & assets
 
 - [ ] Poster visible well before the model on Slow 4G
-- [ ] GLB used is the **pipeline-processed** one (`pnpm pipeline validate --strict` passed, "Variants verified" ticked)
+- [ ] GLB used is the **pipeline-processed** one (`pnpm pipeline validate --strict` passed, and "Colours checked" shows green — it is derived and read-only, not a box you tick)
 - [ ] GLB is **under the size budget** (well under 8 MB; the CMS hard-blocks over 40 MB) — textures are **WebP or KTX2**, not raw PNG/JPEG
 - [ ] Geometry was **simplified** for raw CLO exports (`--simplify`) — a raw cloth-sim mesh runs to millions of triangles; the mesh, not the textures, is the size cost
 - [ ] Filename is **URL-safe** (letters, numbers, `. _ -` only — no spaces/brackets), or the CMS rejects the upload regardless of size
@@ -122,7 +135,7 @@ Full guide: [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md).
       printed graphics did not apply to this garment and changing the Detail level
       will not help. Tell your developer; see `docs/OPEN-ISSUE-ARTWORK.md`
 - [ ] Before/after comparison, when artwork is in doubt: a developer can run
-      `node scripts/bisect-artwork.mjs <raw.glb>` on the original CLO export. It
+      `node tools/asset-pipeline/scripts/bisect-artwork.mjs <raw.glb>` on the original CLO export. It
       renders the garment and produces side-by-side contact sheets, so this stops
       being a judgement call made from memory on a phone screen
 - [ ] Switching colourway tabs **swaps the model live** with no "temporarily unavailable" notice (variants bound correctly)

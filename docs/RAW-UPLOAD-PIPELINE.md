@@ -183,10 +183,18 @@ recover when something goes wrong. See also
    in plain language, including which Detail setting to try next.
 5. When **Ready**, the shrunk GLB is attached as **Result GLB** and the **Report**
    lists the final size and the colour variants found.
-6. Open the target product, attach that GLB as its production model, check the
-   variant names match your colourway IDs, tick **Variants verified**, choose a
-   default colourway, and **Publish**. (These checks are the existing safety gate —
-   nothing is shown to customers until you publish.)
+6. Open the target product, attach that GLB as its production model, and on the
+   **Colours** tab answer *"Which colour in your CLO file is this?"* for each
+   colour. The dropdown now shows a **swatch and a suggested name** for every
+   colour found in the file, so a maroon variant sitting under a row called Navy
+   is obvious at a glance — that exact mistake was live on the site until
+   2026-08-03. If the banner says some colours in the file have no row yet, add
+   them there too.
+
+   **"Colours checked" is not a box you tick.** It is read-only and goes green by
+   itself once every colour on show points at a colour that is really inside the
+   file. The default colourway is simply the topmost row that is switched on —
+   drag to change it. Then **Publish**; nothing is shown to customers until you do.
 
 **Your raw files are private.** They live in a separate storage area with no public
 web address and are only visible to signed-in staff. Only the small, shrunk file
@@ -480,8 +488,26 @@ lifecycle-expire).
   textures were treated as printed artwork, and how transparency was resolved. If
   most parts came back "without artwork protection", no amount of `--uv-weight`
   will change anything — see `docs/OPEN-ISSUE-ARTWORK.md`. And to actually look
-  at a logo instead of guessing, run `node scripts/bisect-artwork.mjs` on the raw
+  at a logo instead of guessing, run `node tools/asset-pipeline/scripts/bisect-artwork.mjs` on the raw
   file; it renders the garment and produces side-by-side contact sheets.
+- **Failed: "The printed artwork on … was damaged while shrinking this file"** →
+  new on 2026-08-03, and this one is the pipeline refusing to save rather than a
+  crash. One or more parts carrying printed graphics were decimated without their
+  texture coordinates in the error budget, so the artwork on them would be torn.
+  Re-upload with **Detail: Highest quality**. If it happens again the artwork on
+  those parts needs its own UV map in CLO — the named materials are in the message.
+- **Failed: "The printed artwork on … came out see-through"** → also a refusal.
+  The graphic ended on `alphaMode: BLEND`, which `<model-viewer>` renders
+  half-visible (there is no order-independent transparency). Usually means the
+  graphic is painted onto a transparent fabric layer in CLO rather than sitting on
+  the garment; re-export it on its own opaque piece.
+- **Failed: "Automatic shrink has STOPPED TRYING for this file"** → the job failed
+  three times and was dead-lettered. Before 2026-08-03 `glb-shrink-dlq` had no
+  consumer at all, so this state was silent: the row kept whatever the last
+  transient error was and nothing said the system had given up. Tick **Retry** to
+  try once more, or re-upload at a smaller Detail level. The error from the final
+  attempt is in the *previous* report on the same upload — a dead-letter message
+  re-delivers the original job body, not the failure.
 - **Failed: container 5xx** → check the shrink worker logs and the container logs;
   usually a bad raw file or an out-of-memory on an unusually heavy mesh (raise the
   instance type / choose a smaller Detail level).
