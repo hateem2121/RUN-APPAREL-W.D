@@ -2,7 +2,14 @@ import { readFile, stat } from 'node:fs/promises'
 import type { Primitive } from '@gltf-transform/core'
 import type { KHRMaterialsVariants, MappingList } from '@gltf-transform/extensions'
 import { createIO } from './io'
-import { offUv0Warning, summariseUvSets } from './textures'
+import {
+  type ArtworkAlphaProblem,
+  type CrushedArtwork,
+  findArtworkAlphaProblems,
+  findCrushedArtwork,
+} from './texture-artwork'
+import { CRUSHED_BYTES_PER_PIXEL, offUv0Warning, summariseUvSets } from './textures'
+import { type VariantColour, readVariantColours } from './variant-colour'
 
 /**
  * Warn when a production GLB is heavier than this — QR scans are mobile-first.
@@ -81,6 +88,26 @@ export interface GlbReport {
   texCoordsInUse: number[]
   /** Material counts by alphaMode, e.g. { OPAQUE: 12, MASK: 1 }. */
   alphaModeCounts: Record<string, number>
+  /**
+   * Printed-artwork textures stored below CRUSHED_BYTES_PER_PIXEL. Advisory —
+   * a flat label encodes just as small as a smashed wordmark — but it is the
+   * cheapest measurement of the reported damage, and it was sitting unwired in
+   * textures.ts while the automated path published a file that trips it.
+   */
+  crushedArtwork: CrushedArtwork[]
+  /**
+   * Artwork materials left translucent, or whose MASK threshold drifted off 0.5.
+   * Structural rather than statistical, so unlike `crushedArtwork` this one is
+   * safe to block a publish on.
+   */
+  artworkAlphaProblems: ArtworkAlphaProblem[]
+  /**
+   * A suggested colour name per variant, read from the file itself. Purely
+   * advisory: the CMS shows it beside the variant so the owner cannot map
+   * "Navy" onto a maroon garment without seeing the mismatch. Nothing here ever
+   * renames a colourway — see variant-colour.ts.
+   */
+  variantColours: VariantColour[]
   warnings: string[]
 }
 
@@ -170,6 +197,37 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
   // raw file, before any processing has had a chance to hide it.
   const offUv0 = offUv0Warning(materialsWithMultipleUvSets, usagesOffUv0)
   if (offUv0) warnings.push(offUv0)
+  // The measurement that was already defined and never connected. N001's live
+  // file has a 2048x2048 colour map at 0.003 bpp; this is the line that says so
+  // on every job instead of only when somebody runs `pipeline textures` by hand.
+  const crushedArtwork = await findCrushedArtwork(document)
+  if (crushedArtwork.length > 0) {
+    warnings.push(
+      `${crushedArtwork.length} printed-artwork texture(s) are stored below ${CRUSHED_BYTES_PER_PIXEL} bytes/pixel — ` +
+        `${crushedArtwork.map((c) => `${c.name} ${c.width}x${c.height} at ${c.bytesPerPixel}`).join('; ')}. ` +
+        'A clean encode of flat artwork lands around 0.05-0.15, so this is far past it. Render the file and look ' +
+        'at the lettering before publishing; if the garment genuinely has a flat single-colour label this is expected.',
+    )
+  }
+  // Artwork that ended up translucent, or a cut-out whose threshold drifted.
+  // <model-viewer> has no order-independent transparency, so BLEND is the "half
+  // visible, half not" symptom directly — and the solidify step's OUTPUT was
+  // never checked, only its inputs.
+  const artworkAlphaProblems = await findArtworkAlphaProblems(document)
+  const blend = artworkAlphaProblems.filter((p) => p.problem === 'blend').map((p) => p.material)
+  const cutoff = artworkAlphaProblems.filter((p) => p.problem === 'cutoff').map((p) => p.material)
+  if (blend.length > 0) {
+    warnings.push(
+      `Printed artwork left see-through on: ${blend.join(', ')}. <model-viewer> has no order-independent ` +
+        'transparency, so these render half-visible and sort badly against the garment. The opaque step ' +
+        'should have resolved them to a cut-out (MASK, alphaCutoff 0.5).',
+    )
+  }
+  if (cutoff.length > 0) {
+    warnings.push(
+      `Cut-out threshold is not 0.5 on: ${cutoff.join(', ')}. Anything else thins or fattens the lettering.`,
+    )
+  }
   if (primitives.length === 0) warnings.push('No mesh primitives found.')
 
   return {
@@ -186,6 +244,9 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
     translucentMaterialCount,
     texCoordsInUse,
     alphaModeCounts,
+    crushedArtwork,
+    artworkAlphaProblems,
+    variantColours: readVariantColours(document),
     warnings,
   }
 }

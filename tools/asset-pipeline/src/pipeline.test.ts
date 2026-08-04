@@ -13,6 +13,7 @@ import {
   buildPlaceholderTee,
   generatePlaceholders,
 } from './placeholders'
+import { findArtworkAlphaProblems } from './texture-artwork'
 import { profileAlpha } from './textures'
 import { checkVariants, inspectGlb } from './validate'
 
@@ -286,6 +287,88 @@ describe('placeholder tee document', () => {
     // Fabric primitives need UVs too, or the simplifier's attribute-aware path
     // bails on every one of them and --uv-weight is silently inert.
     expect(prims.every((p) => p.getAttribute('TEXCOORD_0'))).toBe(true)
+  })
+})
+
+/**
+ * END TO END, on the real chain rather than a synthetic Document.
+ *
+ * Every artwork guard until now was asserted against in-memory fixtures built
+ * inside its own unit test. That leaves the question the incident actually
+ * turned on unanswered: does the protection ENGAGE when a plausible garment goes
+ * through `optimizeGlb` with production flags? The audit of 2026-08-03 found the
+ * seeded TEXCOORD_1 decal had never once been pushed through the real chain.
+ *
+ * This is deliberately the whole pipeline — solidify, artwork-aware encode,
+ * attribute-aware decimation, Meshopt — at the "Balanced" settings from
+ * @run-apparel/shared, on the fixture built to be capable of failing.
+ */
+describe('optimizeGlb — the artwork guards engage on the real chain', () => {
+  it('weights the decal\'s UV set and reports no artwork at risk', async () => {
+    const tee = await buildPlaceholderTee(PLACEHOLDER_COLOURWAYS[0]!)
+    const src = join(dir, 'artwork-src.glb')
+    const out = join(dir, 'artwork-out.glb')
+    await writeFile(src, await (await createIO()).writeBinary(tee))
+
+    // Through parseOptimizeArgs, exactly as apps/shrink/container/server.ts does,
+    // with the "Balanced" flags from packages/shared/src/shrink.ts.
+    //
+    // NOT by hand-building the options object: `opaque` defaults to true in the
+    // CLI parser and to false in `optimizeGlb` itself, so a hand-built object
+    // silently skips the step that resolves a BLEND decal to a MASK cut-out. The
+    // first draft of this test did exactly that and "failed", blaming the
+    // pipeline for something only the test had done.
+    const { options } = parseOptimizeArgs([
+      src,
+      '--out',
+      out,
+      '--simplify',
+      '0.05',
+      '--meshopt',
+      '--simplify-error',
+      '0.0005',
+      '--uv-weight',
+      '1',
+    ])
+    const result = await optimizeGlb(src, out, options)
+
+    // The guard that matters: nothing carrying printed artwork was decimated
+    // without its texture coordinates in the error budget.
+    expect(result.simplify?.artworkAtRisk).toEqual([])
+    // And the UV weighting was genuinely applied, not merely configured.
+    expect(result.simplify?.attributeAware).toBeGreaterThan(0)
+    expect(result.simplify?.uvSetsWeighted.length).toBeGreaterThan(0)
+
+    // The decal is still a hard-edged cut-out, not see-through and not filled in.
+    const optimized = await (await createIO()).read(out)
+    expect(await findArtworkAlphaProblems(optimized)).toEqual([])
+    const masked = optimized
+      .getRoot()
+      .listMaterials()
+      .filter((m) => m.getAlphaMode() === 'MASK')
+    expect(masked.length).toBeGreaterThan(0)
+    expect(masked.every((m) => m.getAlphaCutoff() === 0.5)).toBe(true)
+  })
+})
+
+/**
+ * A trap found by writing the end-to-end test above.
+ *
+ * `parseOptimizeArgs` defaults `opaque` to TRUE; `optimizeGlb` treats an absent
+ * `opaque` as false. So a caller that hand-builds the options object silently
+ * skips `solidifyMaterials` and ships a decal still on alphaMode BLEND — which
+ * <model-viewer> renders see-through, i.e. exactly the reported symptom.
+ *
+ * apps/shrink/container/server.ts goes through the parser and is therefore safe.
+ * This pins the discrepancy so it is a documented contract rather than a
+ * surprise, and so anyone changing either default has to look at the other.
+ */
+describe('the opaque default differs between the parser and optimizeGlb', () => {
+  it('parseOptimizeArgs turns the opaque step ON unless asked not to', () => {
+    expect(parseOptimizeArgs(['in.glb', '--out', 'out.glb']).options.opaque).toBe(true)
+    expect(
+      parseOptimizeArgs(['in.glb', '--out', 'out.glb', '--keep-transparency']).options.opaque,
+    ).toBe(false)
   })
 })
 

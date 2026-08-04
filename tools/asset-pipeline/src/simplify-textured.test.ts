@@ -274,3 +274,64 @@ describe('runSimplifyTextured', () => {
     expect(triangleCount(prim)).toBe(before)
   })
 })
+
+/**
+ * H4, made reportable.
+ *
+ * The position-only fallback decimates with texture coordinates OUTSIDE the error
+ * metric. On plain fabric that is merely conservative; on a primitive carrying a
+ * printed logo it is the mechanism that tore N001's wordmark apart, and the
+ * pipeline reported it as a bare count with no way to tell which kind it was.
+ *
+ * This is a structural fact, not a heuristic: if the primitive took that path,
+ * its artwork was not protected. There is no false-positive case, which is why
+ * this — and not a bytes-per-pixel guess — is the signal worth blocking on.
+ */
+function attachArtwork(document: Document, prim: ReturnType<typeof buildGrid>, name: string) {
+  const texture = document
+    .createTexture(name)
+    .setMimeType('image/png')
+    .setImage(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))
+  const material = document.createMaterial('N001-CHEST-GRAPHIC').setBaseColorTexture(texture)
+  prim.setMaterial(material)
+  return material
+}
+
+describe('runSimplifyTextured — artwork at risk', () => {
+  it('names the material when an artwork-bearing primitive takes the fallback', () => {
+    const document = new Document()
+    const prim = buildGrid(document, 33, false) // no TEXCOORD_0 → position-only path
+    attachArtwork(document, prim, 'chest-logo')
+
+    const result = runSimplifyTextured(document, options())
+
+    expect(result.fallback).toBe(1)
+    expect(result.artworkAtRisk).toEqual(['N001-CHEST-GRAPHIC'])
+  })
+
+  it('reports nothing when the artwork primitive keeps the UV-aware path', () => {
+    const document = new Document()
+    const prim = buildGrid(document) // has TEXCOORD_0
+    attachArtwork(document, prim, 'chest-logo')
+
+    const result = runSimplifyTextured(document, options())
+
+    expect(result.attributeAware).toBe(1)
+    expect(result.artworkAtRisk).toEqual([])
+  })
+
+  it('does not flag plain fabric that falls back — only artwork is at risk', () => {
+    const document = new Document()
+    const prim = buildGrid(document, 33, false) // falls back, but carries no artwork
+    const texture = document
+      .createTexture('fabric-weave')
+      .setMimeType('image/png')
+      .setImage(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))
+    prim.setMaterial(document.createMaterial('N001-BODY').setBaseColorTexture(texture))
+
+    const result = runSimplifyTextured(document, options())
+
+    expect(result.fallback).toBe(1)
+    expect(result.artworkAtRisk).toEqual([])
+  })
+})

@@ -1,7 +1,7 @@
 import type { Document, Texture, Transform } from '@gltf-transform/core'
 import { createTransform, listTextureSlots } from '@gltf-transform/functions'
 import sharp from 'sharp'
-import { ARTWORK_ASPECT_RATIO, profileAlpha } from './textures'
+import { ARTWORK_ASPECT_RATIO, CRUSHED_BYTES_PER_PIXEL, profileAlpha } from './textures'
 
 /**
  * Texture re-encoding that treats printed artwork differently from fabric.
@@ -62,6 +62,12 @@ export interface TextureArtworkResult {
   skipped: number
   /** Names/URIs classified as artwork, so the choice is auditable rather than magic. */
   artworkNames: string[]
+  /**
+   * Artwork textures that had to be resampled smaller to fit the cap. Reported,
+   * not blocked: it is a real loss of stroke detail on a wordmark, and also a
+   * legitimate trade the owner should get to see rather than discover.
+   */
+  artworkResized: string[]
 }
 
 /** Formats sharp can decode here. KTX2 and other GPU formats are left untouched. */
@@ -74,14 +80,146 @@ const DECODABLE = new Set(['image/png', 'image/jpeg', 'image/webp'])
  * generous: mis-classifying fabric as artwork costs a few hundred KB, while
  * mis-classifying artwork as fabric is the bug this module exists to fix.
  */
-export async function isArtworkTexture(texture: Texture): Promise<boolean> {
+// A normal or ORM map is data. Encoding it at quality 95 wastes bytes and
+// protects nothing, and its name may well contain "print" by coincidence.
+function isDataTexture(texture: Texture): boolean {
   const slots = listTextureSlots(texture)
-  // A normal or ORM map is data. Encoding it at quality 95 wastes bytes and
-  // protects nothing, and its name may well contain "print" by coincidence.
-  if (slots.length > 0 && slots.every((slot) => DATA_SLOT.test(slot))) return false
+  return slots.length > 0 && slots.every((slot) => DATA_SLOT.test(slot))
+}
 
-  const label = `${texture.getName()} ${texture.getURI()}`
-  if (ARTWORK_NAME.test(label)) return true
+/**
+ * The SYNCHRONOUS half of `isArtworkTexture` — name and URI only, no decode.
+ *
+ * Split out for the decimation pass, which walks every primitive synchronously.
+ * A real CLO export here has 200 materials; awaiting a sharp metadata read per
+ * texture inside that loop is not worth it when the name signal alone already
+ * catches what this file's own export contains (`RUN LOGO_3183`,
+ * `Teamwear Logo_3139`).
+ *
+ * Weaker than the async version on purpose: it misses an unnamed wordmark that
+ * only the aspect-ratio or binary-alpha signal would find. Callers that can
+ * afford to await should use `isArtworkTexture`.
+ */
+export function isArtworkTextureByName(texture: Texture): boolean {
+  if (isDataTexture(texture)) return false
+  return ARTWORK_NAME.test(`${texture.getName()} ${texture.getURI()}`)
+}
+
+export interface CrushedArtwork {
+  index: number
+  name: string
+  width: number
+  height: number
+  bytes: number
+  bytesPerPixel: number
+}
+
+/**
+ * Artwork textures stored below `CRUSHED_BYTES_PER_PIXEL`.
+ *
+ * WHY THIS EXISTS AS A SEPARATE FUNCTION. The threshold and a check using it
+ * have been in `textures.ts` since the artwork investigation, but only inside
+ * `inventoryTextures`, which runs from the manual `textures` command. The
+ * automated path — the one that processes every real garment — calls
+ * `inspectGlb`, which never looked at it. So the single cheapest measurement of
+ * the reported damage existed, was correct, and was not connected to anything:
+ * N001's live file has a 2048x2048 colour map at 0.003 bpp, 6.6x past the line.
+ *
+ * Narrower than the `inventoryTextures` version, which flags any baseColor or
+ * emissive map. Fabric is allowed to encode cheaply; a wordmark is not. Scoping
+ * it to artwork is what keeps this usable as a signal instead of noise.
+ *
+ * Still only a WARNING. A genuinely flat artwork texture — a solid-colour label —
+ * also encodes tiny, and a gate the owner learns to override is worse than no
+ * gate. The blocking signal is `artworkAtRisk` in simplify-textured.ts, which is
+ * structural and cannot false-positive.
+ */
+export async function findCrushedArtwork(document: Document): Promise<CrushedArtwork[]> {
+  const crushed: CrushedArtwork[] = []
+  for (const [index, texture] of document.getRoot().listTextures().entries()) {
+    const image = texture.getImage()
+    if (!image) continue
+    let width: number | undefined
+    let height: number | undefined
+    try {
+      // Header only — sharp does not decode pixels for `metadata()`.
+      ;({ width, height } = await sharp(image).metadata())
+    } catch {
+      continue // KTX2 and other GPU formats: not measurable this way, not our call.
+    }
+    if (!width || !height) continue
+    const bytesPerPixel = image.byteLength / (width * height)
+    // CHEAP TEST FIRST. `isArtworkTexture` falls through to `profileAlpha`,
+    // which decodes every pixel; bytes-per-pixel needs only the header. Almost
+    // no texture is below the threshold, so ordering it this way means the
+    // pixel decode runs a handful of times per file rather than once per
+    // texture — same result, and it keeps this affordable on the 22-texture
+    // real garment. Measured on output/n001.glb: 0.21 ms/call for the whole
+    // function, against 0.90 ms for `inspectGlb` end to end.
+    if (bytesPerPixel >= CRUSHED_BYTES_PER_PIXEL) continue
+    if (!(await isArtworkTexture(texture))) continue
+    crushed.push({
+      index,
+      name: texture.getName() || texture.getURI() || `#${index}`,
+      width,
+      height,
+      bytes: image.byteLength,
+      bytesPerPixel: Math.round(bytesPerPixel * 10000) / 10000,
+    })
+  }
+  return crushed
+}
+
+export interface ArtworkAlphaProblem {
+  material: string
+  /** `blend` = renders see-through; `cutoff` = a MASK whose threshold drifted. */
+  problem: 'blend' | 'cutoff'
+}
+
+/** The value `solidifyMaterials` resolves every hard cutout to. */
+const EXPECTED_ALPHA_CUTOFF = 0.5
+
+/**
+ * Artwork materials whose alpha ended up wrong.
+ *
+ * <model-viewer> has no order-independent transparency, so a BLEND material
+ * renders see-through and depth-sorts badly — literally the "half visible, half
+ * not" in the original report. `solidifyMaterials` resolves hard cutouts to MASK
+ * with alphaCutoff 0.5 (H3 in docs/OPEN-ISSUE-ARTWORK.md), but nothing checked
+ * the OUTPUT, so a decal that slipped through as BLEND — or a MASK whose cutoff
+ * drifted — shipped in silence.
+ *
+ * Scoped to artwork deliberately. A sheer mesh panel is *supposed* to be BLEND;
+ * flagging every translucent material would make this noise, and the existing
+ * `translucentMaterialCount` already reports that broader number.
+ */
+export async function findArtworkAlphaProblems(
+  document: Document,
+): Promise<ArtworkAlphaProblem[]> {
+  const problems: ArtworkAlphaProblem[] = []
+  for (const material of document.getRoot().listMaterials()) {
+    let carriesArtwork = false
+    for (const texture of [material.getBaseColorTexture(), material.getEmissiveTexture()]) {
+      if (texture && (await isArtworkTexture(texture))) {
+        carriesArtwork = true
+        break
+      }
+    }
+    if (!carriesArtwork) continue
+    const name = material.getName() || '(unnamed material)'
+    const mode = material.getAlphaMode()
+    if (mode === 'BLEND') {
+      problems.push({ material: name, problem: 'blend' })
+    } else if (mode === 'MASK' && material.getAlphaCutoff() !== EXPECTED_ALPHA_CUTOFF) {
+      problems.push({ material: name, problem: 'cutoff' })
+    }
+  }
+  return problems
+}
+
+export async function isArtworkTexture(texture: Texture): Promise<boolean> {
+  if (isDataTexture(texture)) return false
+  if (isArtworkTextureByName(texture)) return true
 
   const image = texture.getImage()
   if (!image) return false
@@ -109,7 +247,13 @@ export async function isArtworkTexture(texture: Texture): Promise<boolean> {
  */
 export function compressTexturesForArtwork(options: ArtworkTextureOptions): Transform {
   return createTransform('compressTexturesForArtwork', async (document: Document): Promise<void> => {
-    const result: TextureArtworkResult = { artwork: 0, standard: 0, skipped: 0, artworkNames: [] }
+    const result: TextureArtworkResult = {
+      artwork: 0,
+      standard: 0,
+      skipped: 0,
+      artworkNames: [],
+      artworkResized: [],
+    }
 
     for (const texture of document.getRoot().listTextures()) {
       const image = texture.getImage()
@@ -123,7 +267,13 @@ export function compressTexturesForArtwork(options: ArtworkTextureOptions): Tran
       const quality = artwork ? options.artworkQuality : options.quality
 
       try {
-        const encoded = await sharp(image)
+        // Measured only for artwork, and only to report it: a wordmark that had
+        // to be resampled has lost stroke detail, and that should be a sentence
+        // in the owner's report rather than something that just happens. Fabric
+        // resizing is routine and reporting it would be noise.
+        const before = artwork ? await sharp(image).metadata() : null
+
+        const { data: encoded, info } = await sharp(image)
           .resize(maxSize, maxSize, { fit: 'inside', withoutEnlargement: true })
           .webp({
             quality,
@@ -135,7 +285,11 @@ export function compressTexturesForArtwork(options: ArtworkTextureOptions): Tran
             smartSubsample: true,
             effort: 6,
           })
-          .toBuffer()
+          .toBuffer({ resolveWithObject: true })
+
+        if (before?.width && before.height && (info.width < before.width || info.height < before.height)) {
+          result.artworkResized.push(texture.getName() || texture.getURI() || `#${result.artwork + 1}`)
+        }
 
         texture.setImage(new Uint8Array(encoded)).setMimeType('image/webp')
         const uri = texture.getURI()

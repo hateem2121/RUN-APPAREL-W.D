@@ -24,6 +24,14 @@ export interface PublishGateInput {
   variantMode: string | undefined
   glbAsset: unknown
   variantsVerified: unknown
+  /**
+   * What the pipeline concluded about the printed artwork on the attached model.
+   * `'damaged'` blocks; `'ok'` and absent/null do not. Absent is the honest value
+   * for every file uploaded before this check existed.
+   */
+  artworkVerdict?: string | null
+  /** Free text. Any non-blank value lets a `'damaged'` model publish anyway. */
+  artworkOverrideReason?: unknown
 }
 
 /** One colour of the product, flattened to just what the gate cares about. */
@@ -52,6 +60,31 @@ const text = (value: unknown): string => (typeof value === 'string' ? value.trim
  * publishable, so re-running the gate on it achieves nothing.
  */
 export const GATED_FIELDS = ['status', 'variantMode', 'glbAsset', 'colourways'] as const
+
+/**
+ * Did a LIVE product just lose its verified colour mapping?
+ *
+ * `fileColours` is deliberately absent from GATED_FIELDS above: gating it once
+ * blocked the shrink robot's own write on a published-but-model-less product,
+ * which prevented recovery from exactly the state the gate was complaining
+ * about (Products.ts documents the incident in full).
+ *
+ * That is the right call and it leaves a gap. Re-upload a garment whose CLO
+ * colourways are named differently and a published product's stored variantIds
+ * stop matching the file: the colour buttons on the live page quietly select
+ * nothing. Refusing the write would re-create the 2026-07-29 bug; saying nothing
+ * is how the page stays broken. So this reports rather than blocks.
+ *
+ * Only the true → false transition is worth a word. Already-broken is not news,
+ * and a draft is allowed to be half-finished — that is what drafts are for.
+ */
+export function becameUnverifiedWhilePublished(
+  status: unknown,
+  before: unknown,
+  after: unknown,
+): boolean {
+  return status === 'published' && before === true && after === false
+}
 
 /**
  * Reduce a value to something comparable across representations. Uploads and
@@ -191,4 +224,31 @@ export function assertPublishable(input: PublishGateInput, colourways: GateColou
         : 'The colours you picked do not match what is inside the processed file. Re-check “Which colour in your CLO file is this?” on the Colours tab, or upload the file again.',
     )
   }
+
+  assertArtworkAcceptable(input)
+}
+
+/**
+ * For a B2B garment reference the printed artwork IS the product, so a model
+ * with a torn logo is worse than no model: it publishes silently and passes
+ * every other check. N001 shipped exactly that on 2026-07-29 and the system
+ * never noticed — a human saw holes in the wordmark.
+ *
+ * `null`/absent means nobody checked, which is true of every file uploaded
+ * before this existed. Treating unknown as damaged would make the entire
+ * existing catalogue unpublishable the moment this deploys, so unknown passes.
+ *
+ * The override exists because a gate with no way past it gets worked around
+ * instead of used — and the reason is required so the decision is recoverable
+ * six months later rather than a mystery checkbox.
+ */
+function assertArtworkAcceptable(input: PublishGateInput): void {
+  if (input.artworkVerdict !== 'damaged') return
+  if (text(input.artworkOverrideReason) !== '') return
+  throw new Error(
+    'The printed artwork on this model was damaged when the file was shrunk, so publishing it would ' +
+      'show buyers a torn logo. Upload the file again with the Detail setting on “Highest quality — ' +
+      'bigger file”. If this garment genuinely has no printed artwork, write why in “Publish anyway ' +
+      '— reason” on the 3D file, and it will publish.',
+  )
 }

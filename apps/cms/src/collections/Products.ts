@@ -1,9 +1,10 @@
 import { isValidProductCode, isValidSlug } from '@run-apparel/shared'
-import { APIError, type CollectionConfig } from 'payload'
+import { APIError, type CollectionConfig, type PayloadRequest } from 'payload'
 import { isAdmin, isAdminOrEditor, isAuthenticated } from '../access/roles'
 import { cameraFields } from '../fields/camera'
 import { colourwaysField } from '../fields/colourways'
 import {
+  becameUnverifiedWhilePublished,
   GATED_FIELDS,
   assertPublishable,
   changesAnything,
@@ -13,6 +14,41 @@ import {
 
 export const DEFAULT_RETIRED_MESSAGE =
   'The colourway linked by this QR is no longer active. You are viewing the current available reference.'
+
+/**
+ * Read the artwork verdict off the attached model.
+ *
+ * FAILS OPEN. If the media row cannot be read the publish proceeds, because the
+ * alternative is that a transient D1 hiccup makes the whole catalogue
+ * unpublishable with an error about artwork — which would be both wrong and
+ * baffling. The verdict blocks a KNOWN-damaged file; it is not an availability
+ * dependency for publishing at all.
+ */
+async function readArtworkVerdict(
+  req: PayloadRequest,
+  glbAsset: unknown,
+): Promise<{ artworkVerdict?: string | null; artworkOverrideReason?: unknown }> {
+  const id =
+    glbAsset && typeof glbAsset === 'object'
+      ? (glbAsset as { id?: unknown }).id
+      : (glbAsset as string | number | null | undefined)
+  if (id == null || id === '') return {}
+  try {
+    const media = (await req.payload.findByID({
+      collection: 'media',
+      id: id as string | number,
+      depth: 0,
+      req,
+    })) as { artworkVerdict?: string | null; artworkOverrideReason?: unknown } | null
+    if (!media) return {}
+    return {
+      artworkVerdict: media.artworkVerdict ?? null,
+      artworkOverrideReason: media.artworkOverrideReason,
+    }
+  } catch {
+    return {}
+  }
+}
 
 /**
  * Products — one document holds the whole garment, colours included.
@@ -47,7 +83,7 @@ export const Products: CollectionConfig = {
   },
   hooks: {
     beforeChange: [
-      ({ data, originalDoc }) => {
+      async ({ data, originalDoc, req }) => {
         const resolved = { ...originalDoc, ...data }
         const colourways = toGateColourways(resolved.colourways)
 
@@ -55,6 +91,41 @@ export const Products: CollectionConfig = {
         // it is true exactly when every colour on show has been pointed at a
         // colour that is actually inside the processed file.
         data.variantsVerified = deriveVariantsVerified(colourways, resolved.fileColours)
+
+        // A re-upload whose CLO colourways are named differently silently breaks
+        // a LIVE product: the stored variantIds stop matching the file and the
+        // colour buttons select nothing. The gate below deliberately does not run
+        // on that write (see the note under it), so without this the page just
+        // quietly stops working and the first report is a buyer's.
+        //
+        // Recorded, not refused. Best-effort: losing the note must never cost the
+        // robot its colour-list write, which is the thing that repairs the state.
+        if (
+          becameUnverifiedWhilePublished(
+            resolved.status,
+            originalDoc?.variantsVerified,
+            data.variantsVerified,
+          )
+        ) {
+          try {
+            await req.payload.create({
+              collection: 'events',
+              data: {
+                type: 'diagnostic',
+                event: 'variants-unverified-while-published',
+                product: String(resolved.productCode ?? ''),
+                message:
+                  'A newly processed file uses different colour names, so this live product’s colour buttons no longer match it. Open the Colours tab and re-answer “Which colour in your CLO file is this?” for each colour.',
+              },
+              // Events are endpoint-only by access control (`create: () => false`),
+              // so a system write has to say so explicitly — same as endpoints/events.ts.
+              overrideAccess: true,
+              req,
+            })
+          } catch {
+            // Deliberately silent: see above.
+          }
+        }
 
         // Only re-run the publish checks when the write could actually change the
         // answer. A save that touches none of these cannot make a product more or
@@ -86,6 +157,14 @@ export const Products: CollectionConfig = {
         // is surfaced verbatim with the status given. (RawUploads learned the
         // same lesson; see its beforeChange.) assertPublishable stays free of any
         // Payload import so it remains testable without a database.
+        // The artwork verdict lives on the Media document, and `glbAsset` here is
+        // usually a bare id — Payload does not populate uploads for beforeChange.
+        // Read it in the hook and hand the value to the gate, so assertPublishable
+        // stays pure and database-free and can keep being unit-tested without one.
+        // Only on a publish, so ordinary saves cost no extra query.
+        const artwork =
+          resolved.status === 'published' ? await readArtworkVerdict(req, resolved.glbAsset) : {}
+
         try {
           assertPublishable(
             {
@@ -94,6 +173,7 @@ export const Products: CollectionConfig = {
               variantMode: resolved.variantMode,
               glbAsset: resolved.glbAsset,
               variantsVerified: data.variantsVerified,
+              ...artwork,
             },
             colourways,
           )
@@ -221,7 +301,22 @@ export const Products: CollectionConfig = {
           label: 'Colours',
           description:
             'Everything about this garment’s colours lives here. You never have to go anywhere else to manage them.',
-          fields: [colourwaysField],
+          fields: [
+            // Sits ABOVE the list, because its whole job is to tell you about
+            // colours you cannot see. N001 had five colourways in its file and
+            // three rows here; the other two were invisible to every buyer and
+            // nothing in this screen hinted they existed.
+            {
+              name: 'importColours',
+              type: 'ui',
+              admin: {
+                components: {
+                  Field: '/fields/ImportColoursFromFile#ImportColoursFromFile',
+                },
+              },
+            },
+            colourwaysField,
+          ],
         },
 
         // ── 3. The 3D file ─────────────────────────────────────────────────
@@ -301,6 +396,24 @@ export const Products: CollectionConfig = {
                 hidden: true,
                 description: 'Set automatically when your CLO file is processed.',
               },
+            },
+            {
+              name: 'fileColourDetails',
+              type: 'json',
+              label: 'What colour each one actually is',
+              admin: {
+                hidden: true,
+                description: 'Set automatically when your CLO file is processed.',
+              },
+              // ADDITIVE, never a replacement for `fileColours`. The dropdown
+              // falls back to the plain string list whenever this is absent, so
+              // a product last processed by an older container keeps working
+              // with no backfill.
+              //
+              // Each entry: { variantId, hex, name, slug, deltaE, confidence,
+              // sampledMaterial }. The swatch it powers is the whole point — the
+              // live site spent five weeks showing a maroon garment labelled
+              // "Navy" because nothing ever put the colour next to the name.
             },
           ],
         },

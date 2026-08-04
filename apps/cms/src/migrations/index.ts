@@ -4,6 +4,8 @@ import * as migration_20260724_100420_add_raw_uploads from './20260724_100420_ad
 import * as migration_20260728_055135_add_raw_upload_detail from './20260728_055135_add_raw_upload_detail';
 import * as migration_20260729_070548_inline_colourways from './20260729_070548_inline_colourways';
 import * as migration_20260729_120855_add_raw_upload_retry from './20260729_120855_add_raw_upload_retry';
+import * as migration_20260803_090000_add_file_colour_details from './20260803_090000_add_file_colour_details';
+import * as migration_20260803_140000_add_artwork_verdict from './20260803_140000_add_artwork_verdict';
 
 export const migrations = [
   {
@@ -35,5 +37,15 @@ export const migrations = [
     up: migration_20260729_120855_add_raw_upload_retry.up,
     down: migration_20260729_120855_add_raw_upload_retry.down,
     name: '20260729_120855_add_raw_upload_retry'
+  },
+  {
+    up: migration_20260803_090000_add_file_colour_details.up,
+    down: migration_20260803_090000_add_file_colour_details.down,
+    name: '20260803_090000_add_file_colour_details',
+  },
+  {
+    up: migration_20260803_140000_add_artwork_verdict.up,
+    down: migration_20260803_140000_add_artwork_verdict.down,
+    name: '20260803_140000_add_artwork_verdict',
   },
 ];

@@ -8,6 +8,7 @@ import {
   shrinkFlagsFor,
 } from '@run-apparel/shared'
 import { cmsFetch, isMediaReferenced } from './cms'
+import { DEAD_LETTER_QUEUE, deadLetterReport } from './deadLetter'
 
 /**
  * Shrink service Worker.
@@ -47,10 +48,43 @@ interface ShrinkReport {
   /** UV sets the materials sample. Absent from containers built before this existed. */
   texCoordsInUse?: number[]
   /**
+   * One suggested colour per variant, read from the file. Absent from an older
+   * container, which is why every consumer treats it as optional — the colour
+   * dropdown must keep working on a product processed before this shipped.
+   */
+  variantColours?: {
+    variantId: string
+    hex: string
+    name: string
+    slug: string
+    deltaE: number
+    confidence: 'high' | 'low'
+    sampledMaterial: string
+  }[]
+  /**
    * What the decimation pass did. `fallback` primitives got no artwork
    * protection. Absent when no simplify ran, or from an older container.
    */
-  simplify?: { attributeAware: number; fallback: number; skipped: number; uvSetsWeighted?: number[] }
+  simplify?: {
+    attributeAware: number
+    fallback: number
+    skipped: number
+    uvSetsWeighted?: number[]
+    /**
+     * Materials with printed artwork that were decimated WITHOUT their texture
+     * coordinates in the error budget. Absent from a container built before this
+     * existed — which is why the gate below treats absent as "nothing to report"
+     * rather than failing closed: an old image must not start rejecting every job.
+     */
+    artworkAtRisk?: string[]
+  }
+  /**
+   * Artwork materials left translucent, or whose MASK threshold drifted.
+   * Absent from a container built before this existed, which reads as
+   * "nothing to report" rather than failing closed — an old image must not
+   * start rejecting every job.
+   */
+  artworkAlphaProblems?: { material: string; problem: 'blend' | 'cutoff' }[]
   /** How textures were classified and encoded. Absent from an older container. */
   textures?: { artwork: number; standard: number; skipped: number; artworkNames: string[] }
   /** How each translucent material was resolved. Absent from an older container. */
@@ -83,6 +117,31 @@ class PermanentJobError extends Error {
 
 export default {
   async queue(batch: MessageBatch<ShrinkJobMessage>, env: Env): Promise<void> {
+    // The dead-letter queue arrives here too. Jobs on it have already failed
+    // three times, so re-running the container is the one thing not to do —
+    // it would burn several minutes to reproduce the same error. Say so on the
+    // record and stop. Before this, the queue had no consumer at all and a
+    // dead-lettered job simply evaporated.
+    if (batch.queue === DEAD_LETTER_QUEUE) {
+      for (const message of batch.messages) {
+        await patchRawUpload(env, message.body.rawUploadId, {
+          status: 'failed',
+          // No error argument: a dead-letter message re-delivers the original job
+          // body, so the failure detail genuinely is not here. The report says so
+          // and points at where it is, rather than inventing a cause.
+          report: deadLetterReport(undefined),
+        }).catch((error: unknown) => {
+          console.error(
+            `[shrink] CRITICAL: dead-lettered raw upload ${message.body.rawUploadId} could not be ` +
+              `marked failed. It will appear stuck forever with no explanation. ` +
+              `${error instanceof Error ? error.message : String(error)}`,
+          )
+        })
+        message.ack()
+      }
+      return
+    }
+
     for (const message of batch.messages) {
       try {
         await processJob(message.body, env)
@@ -191,6 +250,49 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
     )
   }
 
+  // 2b. Refuse to save a model whose printed artwork lost its protection.
+  //
+  //     For a B2B garment reference the artwork IS the product, so "the 3D
+  //     loads" is not success — a file with a torn logo is worse than no file,
+  //     because it publishes silently and looks fine to every automated check.
+  //     N001 shipped exactly that on 2026-07-29 and nobody found out from the
+  //     system; a human noticed the wordmark had holes in it.
+  //
+  //     Structural, not a guess: these primitives were decimated with texture
+  //     coordinates outside the error metric, so their UVs were free to smear.
+  //     Permanent rather than retryable — the same input gives the same result,
+  //     so a retry would just burn several minutes of container time.
+  const artworkAtRisk = report.simplify?.artworkAtRisk ?? []
+  if (artworkAtRisk.length > 0) {
+    await containerRes.body?.cancel().catch(() => {})
+    throw new PermanentJobError(
+      `The printed artwork on ${artworkAtRisk.join(', ')} was damaged while shrinking this file, so it was not saved. ` +
+        `Re-upload it with the Detail setting on “Highest quality — bigger file”. ` +
+        `If that still fails, the artwork on those parts needs its own UV map in CLO.`,
+    )
+  }
+
+  // 2c. Refuse a model whose printed artwork ended up see-through.
+  //
+  //     <model-viewer> has no order-independent transparency, so a BLEND
+  //     material renders half-visible and sorts badly against the garment behind
+  //     it — that is the reported symptom almost word for word. The opaque step
+  //     resolves hard cut-outs to MASK/0.5; until now nothing checked whether it
+  //     had actually succeeded, only that it had run.
+  const alphaProblems = report.artworkAlphaProblems ?? []
+  if (alphaProblems.length > 0) {
+    await containerRes.body?.cancel().catch(() => {})
+    const blend = alphaProblems.filter((p) => p.problem === 'blend').map((p) => p.material)
+    const cutoff = alphaProblems.filter((p) => p.problem === 'cutoff').map((p) => p.material)
+    throw new PermanentJobError(
+      (blend.length > 0
+        ? `The printed artwork on ${blend.join(', ')} came out see-through, which is how a logo ends up "half there". `
+        : `The cut-out threshold on ${cutoff.join(', ')} is wrong, which thins or fattens the lettering. `) +
+        'The file was not saved. This usually means the graphic is painted onto a transparent fabric ' +
+        'layer in CLO rather than sitting on the garment — re-export it with the artwork on its own opaque piece.',
+    )
+  }
+
   // 3. Create the guardrailed Media doc from the SHRUNK output. The CMS media
   //    rules still run — safe filename + < 40 MB — so a bad output is rejected
   //    there too rather than published.
@@ -217,7 +319,15 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   let fileColoursNote = ''
   if (job.targetProductId != null && fileColours.length > 0) {
     try {
-      await patchProduct(env, job.targetProductId, { fileColours })
+      // `fileColourDetails` is written ALONGSIDE `fileColours`, never instead of
+      // it. The existing dropdown reads the plain string list, so a product
+      // processed by an older container — or by this one, if the container is
+      // rolled back — keeps working with no backfill and no migration ordering
+      // problem. The details are pure enrichment: swatch and suggested name.
+      await patchProduct(env, job.targetProductId, {
+        fileColours,
+        ...(report.variantColours?.length ? { fileColourDetails: report.variantColours } : {}),
+      })
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error)
       fileColoursNote =
@@ -305,7 +415,7 @@ async function retireSupersededResult(
  */
 function streamMultipart(
   source: ReadableStream<Uint8Array>,
-  fields: { alt: string; filename: string; contentType: string },
+  fields: { alt: string; filename: string; contentType: string; artworkVerdict?: string },
 ): { body: ReadableStream<Uint8Array>; contentType: string } {
   const boundary = `----runapparel${crypto.randomUUID().replace(/-/g, '')}`
   const encoder = new TextEncoder()
@@ -320,7 +430,10 @@ function streamMultipart(
   // `alt` never reached the document. Nothing before that had exercised this
   // path.
   const preamble = encoder.encode(
-    `--${boundary}\r\nContent-Disposition: form-data; name="_payload"\r\n\r\n${JSON.stringify({ alt: fields.alt })}\r\n` +
+    `--${boundary}\r\nContent-Disposition: form-data; name="_payload"\r\n\r\n${JSON.stringify({
+      alt: fields.alt,
+      ...(fields.artworkVerdict ? { artworkVerdict: fields.artworkVerdict } : {}),
+    })}\r\n` +
       `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fields.filename}"\r\n` +
       `Content-Type: ${fields.contentType}\r\n\r\n`,
   )
@@ -367,6 +480,11 @@ async function createMedia(
     alt: `Auto-processed 3D model (${report.suggestedFilename})`,
     filename: report.suggestedFilename,
     contentType: 'model/gltf-binary',
+    // Reaching here means the artwork check ran and passed — a file that failed
+    // it never gets this far (see the PermanentJobError above). Recording the
+    // pass is what separates "checked, fine" from "nobody ever looked", which is
+    // the state of every file uploaded before the check existed.
+    artworkVerdict: 'ok',
   })
 
   // Deliberately no Content-Length: Payload accepts a streamed multipart body

@@ -252,9 +252,9 @@ export interface Media {
 export interface RawUpload {
   id: number;
   /**
-   * Which product this garment is for. Helps you find the result afterwards; you still attach and publish it yourself.
+   * Which product this garment is for. Required: the robot writes the colours it found inside your file onto this product, and without it the Colours tab stays empty and the product cannot be published.
    */
-  targetProduct?: (number | null) | Product;
+  targetProduct: number | Product;
   /**
    * How much detail to keep. Start with Balanced. If the printed graphics look soft or broken, re-upload on “Highest quality”. If it is rejected for being too big, re-upload on “Smallest file”.
    */
@@ -356,6 +356,18 @@ export interface Product {
    * Set automatically when your CLO file is processed.
    */
   fileColours?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Set automatically when your CLO file is processed.
+   */
+  fileColourDetails?:
     | {
         [k: string]: unknown;
       }
@@ -630,6 +642,7 @@ export interface ProductsSelect<T extends boolean = true> {
   posterFallback?: T;
   variantsVerified?: T;
   fileColours?: T;
+  fileColourDetails?: T;
   fabricComposition?: T;
   gsm?: T;
   garmentFit?: T;

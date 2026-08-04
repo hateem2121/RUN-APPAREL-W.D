@@ -4,6 +4,7 @@ import {
   type GateColourway,
   type PublishGateInput,
   assertPublishable,
+  becameUnverifiedWhilePublished,
   changesAnything,
   deriveVariantsVerified,
   toGateColourways,
@@ -251,5 +252,94 @@ describe('changesAnything — which writes the gate applies to', () => {
 
   it('fails safe on a create, where there is nothing to compare', () => {
     expect(changesAnything(GATED_FIELDS, doc(), undefined)).toBe(true)
+  })
+})
+
+/**
+ * The gate deliberately does NOT re-run on a `fileColours` write — see the long
+ * comment in Products.ts. Gating it once blocked the robot's own write on a
+ * published-but-model-less product, i.e. it prevented recovery from the state it
+ * was complaining about.
+ *
+ * But that leaves a real gap: a re-upload whose colours are named differently
+ * silently flips a LIVE product's mapping to unverified, its colour buttons stop
+ * matching the file, and nothing anywhere says so. Refusing the write is the
+ * wrong answer. Noticing it is the right one.
+ */
+describe('becameUnverifiedWhilePublished', () => {
+  it('fires when a live product loses its verified colour mapping', () => {
+    expect(becameUnverifiedWhilePublished('published', true, false)).toBe(true)
+  })
+
+  it('stays quiet for a draft, which is allowed to be half-finished', () => {
+    expect(becameUnverifiedWhilePublished('draft', true, false)).toBe(false)
+  })
+
+  it('stays quiet when the mapping was already broken — not news', () => {
+    expect(becameUnverifiedWhilePublished('published', false, false)).toBe(false)
+  })
+
+  it('stays quiet when the mapping is being repaired', () => {
+    expect(becameUnverifiedWhilePublished('published', false, true)).toBe(false)
+  })
+
+  it('stays quiet on a create, where there is no previous state', () => {
+    expect(becameUnverifiedWhilePublished('published', undefined, false)).toBe(false)
+  })
+})
+
+/**
+ * The artwork verdict.
+ *
+ * The shrink worker now refuses to save a model whose printed artwork lost its
+ * UV protection, so the common path never produces a damaged Media row at all.
+ * This clause covers the two cases that bypass the worker entirely: a GLB
+ * uploaded to Media by hand, and a file whose damage was only *suspected*
+ * (the crushed-texture measurement warns, it does not block).
+ *
+ * A verdict of null means "nobody checked", which is the status quo for every
+ * file already in the system. It must not block — turning unknown into a refusal
+ * would make every existing product unpublishable on deploy.
+ */
+describe('assertPublishable — artwork verdict', () => {
+  const ok: GateColourway[] = [
+    { displayName: 'Navy', active: true, variantId: 'Colorway 2', hasPoster: true, hasAltText: true, hasOwnGlb: true },
+  ]
+  const base: PublishGateInput = {
+    id: 1,
+    status: 'published',
+    variantMode: 'single-glb-variants',
+    glbAsset: 'media-1',
+    variantsVerified: true,
+  }
+
+  it('refuses a model whose artwork came back damaged', () => {
+    expect(() => assertPublishable({ ...base, artworkVerdict: 'damaged' }, ok)).toThrow(
+      /printed artwork/i,
+    )
+  })
+
+  it('allows it once someone has written down why it is acceptable', () => {
+    expect(() =>
+      assertPublishable(
+        { ...base, artworkVerdict: 'damaged', artworkOverrideReason: 'Plain garment, no print.' },
+        ok,
+      ),
+    ).not.toThrow()
+  })
+
+  it('ignores whitespace as an override reason', () => {
+    expect(() =>
+      assertPublishable({ ...base, artworkVerdict: 'damaged', artworkOverrideReason: '   ' }, ok),
+    ).toThrow(/printed artwork/i)
+  })
+
+  it('does not block an unchecked file — that is every file that predates the check', () => {
+    expect(() => assertPublishable({ ...base, artworkVerdict: null }, ok)).not.toThrow()
+    expect(() => assertPublishable(base, ok)).not.toThrow()
+  })
+
+  it('does not block a file that passed', () => {
+    expect(() => assertPublishable({ ...base, artworkVerdict: 'ok' }, ok)).not.toThrow()
   })
 })

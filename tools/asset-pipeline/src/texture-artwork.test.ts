@@ -1,7 +1,13 @@
 import { Document } from '@gltf-transform/core'
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
-import { compressTexturesForArtwork, isArtworkTexture } from './texture-artwork'
+import { CRUSHED_BYTES_PER_PIXEL } from './textures'
+import {
+  compressTexturesForArtwork,
+  findArtworkAlphaProblems,
+  findCrushedArtwork,
+  isArtworkTexture,
+} from './texture-artwork'
 
 /**
  * Classification is the whole risk here. Mis-reading fabric as artwork costs a
@@ -162,6 +168,35 @@ describe('compressTexturesForArtwork', () => {
     expect(artworkBytes).toBeGreaterThan(standardBytes)
   })
 
+  it('reports artwork it had to shrink, because that is lost lettering', async () => {
+    // Artwork above the 4096 cap still gets resized. That is the right trade for
+    // file size and it is still information lost from a wordmark, so it must be
+    // said out loud rather than happening quietly. Fabric resizing is routine
+    // and deliberately not reported.
+    const document = new Document()
+    document.createTexture('big-logo').setImage(await png(5000, 900)).setMimeType('image/png')
+    document.createTexture('big-fabric').setImage(await png(5000, 5000)).setMimeType('image/png')
+
+    let result: { artworkResized: string[] } | null = null
+    await document.transform(
+      compressTexturesForArtwork({ ...options, onResult: (r) => (result = r as never) }),
+    )
+
+    expect(result!.artworkResized).toEqual(['big-logo'])
+  })
+
+  it('says nothing when the artwork fitted', async () => {
+    const document = new Document()
+    document.createTexture('logo').setImage(await png(1200, 300)).setMimeType('image/png')
+
+    let result: { artworkResized: string[] } | null = null
+    await document.transform(
+      compressTexturesForArtwork({ ...options, onResult: (r) => (result = r as never) }),
+    )
+
+    expect(result!.artworkResized).toEqual([])
+  })
+
   it('leaves a texture it cannot decode exactly as it was', async () => {
     // A missing logo is worse than an unoptimised one, so KTX2 and friends pass
     // through untouched rather than being dropped.
@@ -175,5 +210,161 @@ describe('compressTexturesForArtwork', () => {
     expect(document.getRoot().listTextures()[0]?.getImage()).toEqual(original)
     expect(document.getRoot().listTextures()[0]?.getMimeType()).toBe('image/ktx2')
     expect(result).toMatchObject({ skipped: 1 })
+  })
+})
+
+/**
+ * The cheapest signal that would have caught the live bug.
+ *
+ * N001's damaged export carried a 2048x2048 colour map stored in 13 KB — 0.003
+ * bytes/pixel, 6.6x below the threshold this repo already defined and never
+ * wired into the automated path. A clean encode of flat artwork lands around
+ * 0.05-0.15.
+ *
+ * This is a WARNING, not a gate: a legitimately flat artwork texture (a solid
+ * colour label) also encodes tiny, so blocking on it would reject good garments.
+ * The blocking signal is `artworkAtRisk` in simplify-textured.ts, which is
+ * structural and has no false-positive case.
+ */
+async function webpFrom(size: number, quality: number, fill: (i: number) => number) {
+  const raw = Buffer.alloc(size * size * 3)
+  let value = 12345
+  for (let i = 0; i < raw.length; i++) raw[i] = fill(i) & 255
+  void value
+  const buffer = await sharp(raw, { raw: { width: size, height: size, channels: 3 } })
+    .webp({ quality })
+    .toBuffer()
+  return new Uint8Array(buffer)
+}
+
+/**
+ * Measured on this fixture at 1024x1024 (threshold is 0.02):
+ *
+ *   content     q1      q50     q95
+ *   smooth   0.0092  0.0095  0.0152   ← every quality lands "crushed"
+ *   noise    0.1669  0.5290  0.9583   ← no quality does
+ *
+ * That is the honest shape of this signal: bytes-per-pixel detects "a large
+ * image storing almost no information", which is what a smashed wordmark looks
+ * like — and equally what a legitimately flat label looks like. Hence a warning.
+ */
+const smoothWebp = (size: number, quality: number) =>
+  webpFrom(size, quality, (i) => (i * 1103515245 + 12345) % 256)
+
+/** Deterministic xorshift noise — genuinely incompressible, so bpp stays high. */
+function noiseWebp(size: number, quality: number) {
+  let s = 12345
+  return webpFrom(size, quality, () => {
+    s ^= s << 13
+    s ^= s >>> 17
+    s ^= s << 5
+    s >>>= 0
+    return s
+  })
+}
+
+describe('findCrushedArtwork', () => {
+  it('flags an artwork texture stored far below a clean encode', async () => {
+    const document = new Document()
+    const texture = document
+      .createTexture('chest-logo')
+      .setMimeType('image/webp')
+      .setImage(await smoothWebp(1024, 1))
+    document.createMaterial("N001-GRAPHIC").setBaseColorTexture(texture)
+
+    const crushed = await findCrushedArtwork(document)
+
+    expect(crushed).toHaveLength(1)
+    expect(crushed[0]!.name).toBe('chest-logo')
+    expect(crushed[0]!.bytesPerPixel).toBeLessThan(CRUSHED_BYTES_PER_PIXEL)
+  })
+
+  it('leaves a healthy artwork encode alone', async () => {
+    const document = new Document()
+    const texture = document
+      .createTexture('chest-logo')
+      .setMimeType('image/webp')
+      .setImage(await noiseWebp(1024, 95))
+    document.createMaterial('N001-GRAPHIC').setBaseColorTexture(texture)
+
+    expect(await findCrushedArtwork(document)).toEqual([])
+  })
+
+  it('ignores fabric maps, which are allowed to be cheap', async () => {
+    const document = new Document()
+    // Square, unremarkably named, no alpha — none of the artwork signals fire.
+    const texture = document
+      .createTexture('fabric-weave')
+      .setMimeType('image/webp')
+      .setImage(await smoothWebp(1024, 1))
+    document.createMaterial('N001-BODY').setBaseColorTexture(texture)
+
+    expect(await findCrushedArtwork(document)).toEqual([])
+  })
+})
+
+/**
+ * Alpha, on artwork specifically.
+ *
+ * <model-viewer> has no order-independent transparency, so a BLEND material
+ * renders see-through and depth-sorts badly — the "half visible, half not"
+ * the owner reported. The pipeline's solidify step is supposed to resolve every
+ * hard cutout to MASK with alphaCutoff 0.5 (docs/OPEN-ISSUE-ARTWORK.md H3), but
+ * nothing asserted the result on the way out, so a decal left as BLEND, or a
+ * MASK whose cutoff drifted, shipped silently.
+ *
+ * Structural like `artworkAtRisk`, not a guess: these are stated facts about the
+ * output file.
+ */
+describe('findArtworkAlphaProblems', () => {
+  const artworkTexture = (document: Document) =>
+    document.createTexture('chest-logo').setMimeType('image/png').setImage(new Uint8Array([0x89, 0x50]))
+
+  it('flags a printed graphic left translucent', async () => {
+    const document = new Document()
+    document
+      .createMaterial('N001-GRAPHIC')
+      .setBaseColorTexture(artworkTexture(document))
+      .setAlphaMode('BLEND')
+
+    expect(await findArtworkAlphaProblems(document)).toEqual([
+      { material: 'N001-GRAPHIC', problem: 'blend' },
+    ])
+  })
+
+  it('flags a cut-out whose threshold drifted off 0.5', async () => {
+    const document = new Document()
+    document
+      .createMaterial('N001-GRAPHIC')
+      .setBaseColorTexture(artworkTexture(document))
+      .setAlphaMode('MASK')
+      .setAlphaCutoff(0.1)
+
+    expect(await findArtworkAlphaProblems(document)).toEqual([
+      { material: 'N001-GRAPHIC', problem: 'cutoff' },
+    ])
+  })
+
+  it('accepts the shape the pipeline is supposed to produce', async () => {
+    const document = new Document()
+    document
+      .createMaterial('N001-GRAPHIC')
+      .setBaseColorTexture(artworkTexture(document))
+      .setAlphaMode('MASK')
+      .setAlphaCutoff(0.5)
+
+    expect(await findArtworkAlphaProblems(document)).toEqual([])
+  })
+
+  it('leaves sheer FABRIC alone — a mesh panel is legitimately translucent', async () => {
+    const document = new Document()
+    document
+      .createMaterial('N001-MESH-PANEL')
+      .setBaseColorTexture(
+        document.createTexture('fabric-mesh').setMimeType('image/png').setImage(new Uint8Array([0x89, 0x50])),
+      )
+      .setAlphaMode('BLEND')
+
+    expect(await findArtworkAlphaProblems(document)).toEqual([])
   })
 })

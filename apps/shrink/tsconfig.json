@@ -13,9 +13,14 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true
   },
-  // Only the Worker is typechecked here. The container app (container/) is a
-  // standalone Node service built inside Docker (it imports the pipeline source
-  // by relative path) and is validated by the image build + a real shrink run
-  // at go-live, not by this tsconfig.
-  "include": ["src/**/*.ts"]
+  // The Worker, plus the container's pure report module, which src/
+  // containerReport.test.ts covers — that ~10 KB of operator-facing text is what
+  // every real garment produces and it had no tests at all.
+  //
+  // The second entry pulls in the pipeline's ambient declarations (draco3dgltf),
+  // exactly as apps/shrink/container/tsconfig.json does. Without it, following
+  // the report module's type imports reaches tools/asset-pipeline/src/io.ts and
+  // fails on an untyped `draco3dgltf`. Declarations only — no pipeline
+  // implementation is compiled into the Worker.
+  "include": ["src/**/*.ts", "container/report.ts", "../../tools/asset-pipeline/src/**/*.d.ts"]
 }

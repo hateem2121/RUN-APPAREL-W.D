@@ -143,5 +143,32 @@ export const Media: CollectionConfig = {
         ],
       },
     },
+    {
+      name: 'artworkVerdict',
+      type: 'select',
+      label: 'Printed artwork',
+      options: [
+        { label: 'Not checked', value: 'unknown' },
+        { label: 'Looks fine', value: 'ok' },
+        { label: 'Damaged — will not publish', value: 'damaged' },
+      ],
+      admin: {
+        readOnly: true,
+        description:
+          'Written by the shrink robot. “Damaged” means printed logos or lettering were torn while the file was made smaller, and the product will refuse to publish until the file is replaced.',
+      },
+    },
+    {
+      name: 'artworkOverrideReason',
+      type: 'textarea',
+      label: 'Publish anyway — reason',
+      admin: {
+        // Only meaningful on a damaged file; hidden otherwise so the normal path
+        // shows one fewer thing to wonder about.
+        condition: (_, siblingData) => siblingData?.artworkVerdict === 'damaged',
+        description:
+          'Write why this file is acceptable despite the warning — e.g. “this garment has no printed artwork”. Any text here lets it publish, and it stays on the record.',
+      },
+    },
   ],
 }

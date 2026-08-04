@@ -1,4 +1,4 @@
-import { Document, type Primitive, type Transform } from '@gltf-transform/core'
+import { Document, type Material, type Primitive, type Transform } from '@gltf-transform/core'
 import {
   VertexCountMethod,
   compactPrimitive,
@@ -8,6 +8,7 @@ import {
   simplifyPrimitive,
   weld,
 } from '@gltf-transform/functions'
+import { isArtworkTextureByName } from './texture-artwork'
 
 /**
  * Texture-aware mesh decimation.
@@ -117,6 +118,19 @@ export interface SimplifyTexturedResult {
    * `[0]` here while the logs happily said "decimated with UV error".
    */
   uvSetsWeighted: number[]
+  /**
+   * Materials carrying printed artwork whose primitives took the position-only
+   * fallback — i.e. were decimated with texture coordinates OUTSIDE the error
+   * metric. This is H4 from docs/OPEN-ISSUE-ARTWORK.md stated as a fact rather
+   * than a count: `fallback` alone cannot distinguish "some plain fabric took the
+   * conservative path" (fine) from "the chest logo was decimated unprotected"
+   * (the bug that tore N001's wordmark apart).
+   *
+   * Structural, not heuristic — if the primitive took that path its artwork was
+   * not protected — so it is safe to block a publish on. Names come from the
+   * material, because that is what an operator can find in CLO.
+   */
+  artworkAtRisk: string[]
 }
 
 const TRIANGLES = 4
@@ -298,11 +312,13 @@ export function runSimplifyTextured(
   options: SimplifyTexturedOptions,
 ): SimplifyTexturedResult {
   const weighted = new Set<number>()
+  const atRisk = new Set<string>()
   const result: SimplifyTexturedResult = {
     attributeAware: 0,
     fallback: 0,
     skipped: 0,
     uvSetsWeighted: [],
+    artworkAtRisk: [],
   }
 
   for (const mesh of document.getRoot().listMeshes()) {
@@ -324,6 +340,10 @@ export function runSimplifyTextured(
           lockBorder: true,
         })
         result.fallback++
+        const material = prim.getMaterial()
+        if (material && materialCarriesArtwork(material)) {
+          atRisk.add(material.getName() || '(unnamed material)')
+        }
       } else {
         result.skipped++
         continue
@@ -334,5 +354,18 @@ export function runSimplifyTextured(
   }
 
   result.uvSetsWeighted = [...weighted].sort((a, b) => a - b)
+  result.artworkAtRisk = [...atRisk].sort()
   return result
+}
+
+/**
+ * Does this material show printed artwork? baseColor and emissive only — those
+ * are the two slots a graphic is ever visible through; a normal or ORM map is
+ * data and `isArtworkTextureByName` rejects it anyway.
+ */
+function materialCarriesArtwork(material: Material): boolean {
+  for (const texture of [material.getBaseColorTexture(), material.getEmissiveTexture()]) {
+    if (texture && isArtworkTextureByName(texture)) return true
+  }
+  return false
 }
