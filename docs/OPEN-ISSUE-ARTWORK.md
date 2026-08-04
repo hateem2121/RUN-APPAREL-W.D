@@ -1,5 +1,74 @@
 # OPEN ISSUE — printed artwork is damaged on the shrunk model
 
+> ## Status 2026-08-04: ROOT CAUSE FOUND AND MEASURED.
+>
+> The Retry was ticked. The pipeline **refused to save** — the gate added the day
+> before caught five artwork materials left on `alphaMode: BLEND`. Chasing that
+> refusal to its source found a single mis-calibrated number, and it explains
+> *both* observed failures.
+>
+> `profileAlpha` (`textures.ts`) called an alpha channel a hard cutout only when
+> fewer than **2%** of pixels sat between the extremes. The damaged wordmark,
+> measured from the live GLB:
+>
+> | | `THE EXTRA MILE (Slogan)`, 1944x121 |
+> |---|---|
+> | transparent (`<=8`) | **66.38%** — background around the letters |
+> | opaque (`>=248`) | **30.04%** — the letters |
+> | mid | **3.58%** — anti-aliasing on the letter edges |
+>
+> **96.42% at the extremes — a cutout by any reading — and it missed by 1.6
+> points.** The band was calibrated on chunky decal fixtures. What puts this
+> texture over it is **high ink coverage**: 30% of the strip is ink, so there is
+> a great deal of edge. (An earlier draft of this note said "thin strokes have a
+> high perimeter-to-area ratio". A reviewer rendered real wordmark type at this
+> size across five faces and measured 1.2–2.3% mid — already binary. Ordinary
+> lettering was never affected; heavy coverage is the distinguishing property.)
+> This is the repo's opening pattern again: *the fixtures could not exhibit the
+> failure.*
+>
+> Classified `graded`, the wordmark took the "sheer fabric" branch of
+> `solidifyMaterials`, and **both** ways of getting that wrong have now shipped:
+>
+> | | what `solidifyMaterials` did | what rendered |
+> |---|---|---|
+> | before `7bef9c4` (the live file) | forced `OPAQUE` | alphaMode OPAQUE ignores alpha, so the 66% background painted its underlying RGB — measured **(240,240,240)**, a near-white box across the garment |
+> | after `7bef9c4` (2026-08-04 rerun) | left on `BLEND` | no OIT in `<model-viewer>` → half-visible; now **blocked** by the gate |
+>
+> The 2026-07-31 fix added the `graded → BLEND` branch to protect genuinely sheer
+> fabric, and artwork fell into it — **it traded one bug for another**, which
+> nobody could see because the live file predated it.
+>
+> **Fix — and note it is NOT simply a wider band.** An adversarial review caught
+> the first attempt before it shipped, and the counterexamples are now tests:
+>
+> - `CUTOUT_MID_FRACTION = 0.05` governs only `solidifyMaterials`' BLEND→MASK
+>   decision. `BINARY_MID_FRACTION` stays **0.02**, because `character` also
+>   feeds `isArtworkTexture` → `findArtworkAlphaProblems`, which *throws* and
+>   saves nothing. Widening a blocking gate to rescue one texture is collateral
+>   for no gain — the wordmark is 16:1 and already artwork by aspect ratio.
+> - `CUTOUT_MIN_TRANSPARENT = 0.05` — **a cutout must actually cut something
+>   out.** Raising the mid ceiling alone would have swept up a uniformly
+>   translucent inset (2–6% of a map measures 1.95–6.06% mid), MASKed it at 0.5,
+>   and since its alpha is ~0.35 *every* fragment fails the test: the region is
+>   not hardened, it is **deleted**, leaving a hole. The real wordmark is 66.38%
+>   fully transparent; those insets are 0.000%. Three orders of magnitude apart.
+> - An explicit `baseColorFactor[3] < 0.99` now beats an inferred cutout. A
+>   material declaring itself sheer at 0.4 can never reach `alphaCutoff 0.5`, so
+>   MASK would render it as *nothing at all* — silently, passing every gate.
+>
+> The real texture now resolves to `MASK` / `alphaCutoff 0.5`, which is what
+> CLAUDE.md has said all along. The margin to genuine translucency is real but
+> **~26x, not "two orders of magnitude"** — the repo's own ramp fixture measures
+> 92.19% mid, not ~100%.
+>
+> Pinned by three tests, each verified to fail when its own constant is reverted.
+>
+> **Still unverified: how it LOOKS.** The mechanism is measured, the render is
+> not. Nobody has yet zoomed in on the re-processed logo. Do that before calling
+> this closed — the whole point of this document is that mechanism and appearance
+> are different claims.
+
 **Status 2026-08-03: the damage is CONFIRMED on the live site — and the file
 serving it predates every fix, so the fixes are still untested.**
 

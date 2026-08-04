@@ -775,6 +775,130 @@ describe('solidifyMaterials (opaque + double-sided)', () => {
     expect(result).toMatchObject({ keptBlend: 1 })
   })
 
+  /**
+   * A mostly-solid fabric map carrying one uniformly translucent region — an
+   * organza inset, a tinted window. ~3% of the map at alpha 90, and crucially
+   * NO fully-transparent pixels at all: it is translucent everywhere, not
+   * cut out anywhere.
+   */
+  async function sheerInsetImage(): Promise<Uint8Array> {
+    const width = 128
+    const height = 128
+    const raw = Buffer.alloc(width * height * 4)
+    for (let i = 0; i < width * height; i++) {
+      raw[i * 4] = 180
+      raw[i * 4 + 1] = 180
+      raw[i * 4 + 2] = 180
+      raw[i * 4 + 3] = 255
+    }
+    // 22x22 ≈ 2.95% of 128x128.
+    for (let y = 10; y < 32; y++) {
+      for (let x = 10; x < 32; x++) raw[(y * width + x) * 4 + 3] = 90
+    }
+    const png = await sharp(raw, { raw: { width, height, channels: 4 } }).png().toBuffer()
+    return new Uint8Array(png)
+  }
+
+  /**
+   * The damaged wordmark's alpha, to the real proportions: high ink coverage
+   * (30% of the strip), a genuinely cut-out background (66%), and anti-aliased
+   * letter edges (3.5%) that push it just past BINARY_MID_FRACTION.
+   */
+  async function wordmarkImage(): Promise<Uint8Array> {
+    const width = 400
+    const height = 50
+    const strokes = 7
+    const strokeWidth = 17
+    const gap = Math.floor((width - strokes * (strokeWidth + 2)) / strokes)
+    const raw = Buffer.alloc(width * height * 4)
+    for (let i = 0; i < width * height; i++) {
+      raw[i * 4] = 20
+      raw[i * 4 + 1] = 20
+      raw[i * 4 + 2] = 20
+      raw[i * 4 + 3] = 0
+    }
+    for (let s = 0; s < strokes; s++) {
+      const left = s * (strokeWidth + 2 + gap)
+      for (let y = 0; y < height; y++) {
+        for (let x = left; x < left + strokeWidth + 2 && x < width; x++) {
+          const edge = x === left || x === left + strokeWidth + 1
+          raw[(y * width + x) * 4 + 3] = edge ? 128 : 255
+        }
+      }
+    }
+    const png = await sharp(raw, { raw: { width, height, channels: 4 } }).png().toBuffer()
+    return new Uint8Array(png)
+  }
+
+  it('converts a high-ink-coverage WORDMARK → MASK, not sheer fabric', async () => {
+    // THE REGRESSION THIS WHOLE PAIR OF CONSTANTS EXISTS FOR, and the one that
+    // reached a paying customer. `THE EXTRA MILE (Slogan)` measured 66.38%
+    // transparent / 30.04% opaque / 3.58% mid — 96.42% at the extremes, plainly
+    // a cutout — but 3.58% > BINARY_MID_FRACTION (0.02), so `character` is
+    // `graded` and it took the "genuine translucency, leave it on BLEND" branch.
+    // <model-viewer> has no OIT, so BLEND artwork renders half-visible; the
+    // structural gate then refuses to save the job at all.
+    //
+    // Before 2026-07-31 the same material was forced OPAQUE instead, which
+    // ignores the alpha channel entirely and painted the 66% transparent
+    // background as its underlying RGB — measured (240,240,240), a near-white
+    // box across the garment. Both shipped. MASK/0.5 is the third answer and
+    // the correct one.
+    const doc = new Document()
+    const texture = doc.createTexture('slogan-strip').setImage(await wordmarkImage()).setMimeType('image/png')
+    const wordmark = doc.createMaterial('THE EXTRA MILE (Slogan)').setAlphaMode('BLEND').setBaseColorTexture(texture)
+
+    const result = await solidifyMaterials(doc)
+
+    expect(wordmark.getAlphaMode()).toBe('MASK')
+    expect(wordmark.getAlphaCutoff()).toBe(0.5)
+    expect(result).toMatchObject({ masked: 1, keptBlend: 0, opaqued: 0 })
+  })
+
+  it('does NOT hard-discard a small uniformly translucent inset', async () => {
+    // The counterexample that nearly shipped. Widening the cutout band to 0.05
+    // to rescue the wordmark also swept up this shape: ~3% of the map at alpha
+    // 90 measures midFraction ≈ 0.029, so it read as "a cutout" and became
+    // MASK/alphaCutoff 0.5. But 90/255 = 0.353 < 0.5, so EVERY fragment fails
+    // the alpha test and the inset is not hardened — it is deleted, leaving a
+    // hole in the garment. Nothing downstream catches it: MASK at 0.5 is
+    // precisely what findArtworkAlphaProblems considers correct.
+    //
+    // What separates it from real artwork is not how much alpha is
+    // intermediate, it is whether anything is CUT OUT: the damaged wordmark is
+    // 66% fully transparent, this is 0%.
+    const doc = new Document()
+    const texture = doc.createTexture('organza-inset').setImage(await sheerInsetImage()).setMimeType('image/png')
+    const inset = doc.createMaterial('inset').setAlphaMode('BLEND').setBaseColorTexture(texture)
+
+    const result = await solidifyMaterials(doc)
+
+    expect(inset.getAlphaMode()).toBe('BLEND')
+    expect(result).toMatchObject({ masked: 0, keptBlend: 1 })
+  })
+
+  it('lets an explicit baseColorFactor alpha beat an inferred cutout', async () => {
+    // glTF effective alpha is factor.a * texel.a, so a material that declares
+    // itself sheer at 0.4 can never reach alphaCutoff 0.5 no matter how binary
+    // its texture looks — MASK would discard every fragment and the material
+    // would render as nothing at all, silently, passing every gate.
+    //
+    // The stated intent on the material wins over the shape inferred from its
+    // pixels. Pre-existing, but widening the cutout band increases its reach.
+    const doc = new Document()
+    const texture = doc.createTexture('logo').setImage(await decalImage()).setMimeType('image/png')
+    const sheerDecal = doc
+      .createMaterial('sheer-decal')
+      .setAlphaMode('BLEND')
+      .setBaseColorFactor([1, 1, 1, 0.4])
+      .setBaseColorTexture(texture)
+
+    const result = await solidifyMaterials(doc)
+
+    expect(sheerDecal.getAlphaMode()).toBe('BLEND')
+    expect(result).toMatchObject({ masked: 0, keptBlend: 1 })
+  })
+
   it('does NOT double-side MASK materials', async () => {
     // A decal is a thin surface sitting a fraction of a millimetre off the
     // fabric. Drawing its back faces is a source of the speckled z-fighting that

@@ -6,7 +6,12 @@ import { ktx2 } from 'ktx2-encoder/gltf-transform'
 import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer'
 import sharp from 'sharp'
 import { createIO } from './io'
-import { profileAlpha } from './textures'
+import {
+  type AlphaProfile,
+  CUTOUT_MID_FRACTION,
+  CUTOUT_MIN_TRANSPARENT,
+  profileAlpha,
+} from './textures'
 import {
   type AttributeSimplifier,
   type SimplifyTexturedResult,
@@ -210,14 +215,34 @@ export async function solidifyMaterials(document: Document): Promise<SolidifyRes
   for (const material of materials) {
     if (material.getAlphaMode() === 'BLEND') {
       const image = material.getBaseColorTexture()?.getImage()
-      const alpha = image ? await profileAlpha(image) : { character: 'none' as const }
+      // An untextured material has no pixels to profile: zero of everything, so
+      // it can never satisfy the cutout test and falls through to OPAQUE, which
+      // is the CLO stray-opacity case this step was built for.
+      const alpha: AlphaProfile = image
+        ? await profileAlpha(image)
+        : { character: 'none', transparentFraction: 0, opaqueFraction: 0, midFraction: 0 }
       const factor = material.getBaseColorFactor()[3] ?? 1
 
-      if (alpha.character === 'binary') {
+      // A cutout is "hardly any partial alpha" AND "actually cut out somewhere".
+      // The second half is not decoration: a uniformly translucent inset has
+      // little partial alpha too, and MASKing it at 0.5 deletes it outright
+      // rather than hardening it. See CUTOUT_MIN_TRANSPARENT.
+      const cutout =
+        alpha.character === 'binary' ||
+        (alpha.midFraction <= CUTOUT_MID_FRACTION && alpha.transparentFraction >= CUTOUT_MIN_TRANSPARENT)
+
+      if (factor < OPAQUE_FACTOR_THRESHOLD) {
+        // An explicit declaration on the material beats anything inferred from
+        // its pixels. glTF effective alpha is factor.a * texel.a, so a material
+        // that declares itself sheer at 0.4 can never reach alphaCutoff 0.5 —
+        // MASK would discard every fragment and render it as nothing at all,
+        // silently, passing every gate.
+        result.keptBlend++
+      } else if (cutout) {
         // A real cutout. Keep the shape, lose the sorting problem.
         material.setAlphaMode('MASK').setAlphaCutoff(0.5)
         result.masked++
-      } else if (alpha.character === 'graded' || factor < OPAQUE_FACTOR_THRESHOLD) {
+      } else if (alpha.character === 'graded') {
         // Deliberate translucency. Leave it and say so — the operator can still
         // decide this garment is not sheer and re-export it.
         result.keptBlend++

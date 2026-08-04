@@ -119,6 +119,68 @@ export const CRUSHED_BYTES_PER_PIXEL = 0.02
 /** Above this long:short ratio a texture is almost certainly a wordmark or printed strip. */
 export const ARTWORK_ASPECT_RATIO = 3
 
+/**
+ * Above this share of part-transparent pixels `character` is `graded` rather
+ * than `binary`.
+ *
+ * DELIBERATELY LEFT AT 0.02 even though it misses the damaged wordmark (see
+ * CUTOUT_MID_FRACTION below). `character` is read by `isArtworkTexture` as its
+ * last-resort signal, and the artwork set feeds `findArtworkAlphaProblems`,
+ * which throws `PermanentJobError` and saves nothing. Widening the shared
+ * classifier to rescue one texture would widen a blocking gate for every other
+ * texture in the file — and buys that rescue nothing anyway, because the
+ * wordmark is 1944x121 = 16:1 and is already artwork by ARTWORK_ASPECT_RATIO.
+ * Keep destructive thresholds separate from advisory ones.
+ */
+export const BINARY_MID_FRACTION = 0.02
+
+/**
+ * The threshold `solidifyMaterials` uses to resolve BLEND → MASK, as opposed to
+ * the stricter `binary` classification above.
+ *
+ * Measured on the wordmark that shipped damaged — `THE EXTRA MILE (Slogan)`,
+ * 1944x121, the texture whose letters a customer photographed as missing:
+ *
+ *     transparent (<=8)   66.38%     the background around the letters
+ *     opaque      (>=248) 30.04%     the letters
+ *     mid                  3.58%     anti-aliasing on the letter edges
+ *
+ * 96.42% of pixels sit at one extreme or the other — a cutout by any reading —
+ * yet 0.02 called it `graded`, i.e. "sheer fabric, leave it on BLEND", missing
+ * by 1.6 points. It is high INK COVERAGE that puts it there: 30% of the strip
+ * is ink, so there is a lot of edge. (Do not restate this as "thin strokes have
+ * a high perimeter-to-area ratio" — rendered wordmarks of ordinary weight at
+ * this size measure 1.2-2.3% mid and were never affected.)
+ *
+ * WHY THIS IS NOT SIMPLY A WIDER BAND. Raising the mid ceiling alone is unsafe,
+ * and a review caught it before it shipped: a uniformly translucent inset
+ * covering 2-6% of a map measures 1.95-6.06% mid and would be swept up. It
+ * would then be MASKed at 0.5, and since its alpha is ~0.35 EVERY fragment
+ * fails the test — the region is not hardened, it is deleted. Pinned by
+ * "does NOT hard-discard a small uniformly translucent inset" in
+ * pipeline.test.ts.
+ *
+ * So a cutout must also actually CUT SOMETHING OUT — see
+ * CUTOUT_MIN_TRANSPARENT. That is the property that distinguishes the two, and
+ * it separates them by a wide margin rather than a fine one.
+ */
+export const CUTOUT_MID_FRACTION = 0.05
+
+/**
+ * A cutout must have real holes in it, not merely soft edges.
+ *
+ * The distinguishing measurement, and the reason the pair above is safe:
+ *
+ *     damaged wordmark (a real cutout)     66.38% fully transparent
+ *     uniformly translucent inset          0.000%
+ *     soft feathered hem                   0.098%
+ *
+ * Three orders of magnitude, not a judgement call. Anything translucent
+ * everywhere and cut out nowhere is sheer material, whatever its mid fraction,
+ * and MASK is never the right answer for it.
+ */
+export const CUTOUT_MIN_TRANSPARENT = 0.05
+
 /** Core PBR texture slots. Extension slots are still counted via `listTextureSlots`. */
 const CORE_SLOTS: {
   slot: string
@@ -192,7 +254,7 @@ export async function profileAlpha(buffer: Uint8Array): Promise<AlphaProfile> {
   if (profile.opaqueFraction >= 0.999) return { character: 'opaque', ...profile }
   // Almost nothing between the extremes: a hard cutout. BLEND -> MASK preserves
   // it and stays order-independent; BLEND -> OPAQUE would fill the cutout in.
-  if (profile.midFraction <= 0.02) return { character: 'binary', ...profile }
+  if (profile.midFraction <= BINARY_MID_FRACTION) return { character: 'binary', ...profile }
   return { character: 'graded', ...profile }
 }
 

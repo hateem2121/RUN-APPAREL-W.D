@@ -4,6 +4,7 @@ import sharp from 'sharp'
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
   CRUSHED_BYTES_PER_PIXEL,
+  CUTOUT_MID_FRACTION,
   inventoryTextures,
   offUv0Warning,
   profileAlpha,
@@ -72,6 +73,81 @@ async function gradedAlphaPng(): Promise<Uint8Array> {
   return new Uint8Array(png)
 }
 
+/**
+ * A wordmark's alpha: thin vertical strokes, each with one anti-aliased column
+ * either side. Proportioned to the real `THE EXTRA MILE (Slogan)` texture rather
+ * than to whatever happens to pass —
+ *
+ *              real (1944x121)      this fixture (400x50)
+ *   transparent      66.38%                66.75%
+ *   opaque           30.04%                29.75%
+ *   mid               3.58%                 3.50%
+ *
+ * The point of the fixture is the 3.5%: chunky decals land under 2% and sheer
+ * ramps near 100%, so this is the only shape that distinguishes a correct
+ * threshold from one calibrated on blocks.
+ */
+async function fineLetteringPng(): Promise<Uint8Array> {
+  const width = 400
+  const height = 50
+  const strokes = 7
+  const strokeWidth = 17
+  const gap = Math.floor((width - strokes * (strokeWidth + 2)) / strokes)
+
+  const raw = Buffer.alloc(width * height * 4)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4
+      raw[i] = 20
+      raw[i + 1] = 20
+      raw[i + 2] = 20
+      raw[i + 3] = 0
+    }
+  }
+  for (let s = 0; s < strokes; s++) {
+    const left = s * (strokeWidth + 2 + gap)
+    for (let y = 0; y < height; y++) {
+      for (let x = left; x < left + strokeWidth + 2 && x < width; x++) {
+        const i = (y * width + x) * 4
+        // The two flanking columns are the anti-aliasing; the rest is solid ink.
+        const edge = x === left || x === left + strokeWidth + 1
+        raw[i + 3] = edge ? 128 : 255
+      }
+    }
+  }
+  const png = await sharp(raw, { raw: { width, height, channels: 4 } }).png().toBuffer()
+  return new Uint8Array(png)
+}
+
+/**
+ * A feathered / soft-glow print: a blob with a wide alpha falloff rather than an
+ * anti-aliased edge. Sits in the 10-25% mid band that nothing else covered, and
+ * is the shape a careless widening of CUTOUT_MID_FRACTION would destroy.
+ */
+async function softGlowPng(): Promise<Uint8Array> {
+  const size = 128
+  const raw = Buffer.alloc(size * size * 4)
+  const cx = size / 2
+  const cy = size / 2
+  const solid = 22
+  const feather = 26
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4
+      raw[i] = 90
+      raw[i + 1] = 30
+      raw[i + 2] = 30
+      const d = Math.hypot(x - cx, y - cy)
+      let a = 0
+      if (d <= solid) a = 255
+      else if (d < solid + feather) a = Math.round(255 * (1 - (d - solid) / feather))
+      raw[i + 3] = a
+    }
+  }
+  const png = await sharp(raw, { raw: { width: size, height: size, channels: 4 } }).png().toBuffer()
+  return new Uint8Array(png)
+}
+
 describe('profileAlpha', () => {
   it('reports no channel when the image has none', async () => {
     expect((await profileAlpha(await fabricPng())).character).toBe('none')
@@ -95,6 +171,56 @@ describe('profileAlpha', () => {
   it('distinguishes a genuine alpha ramp from a cutout', async () => {
     // Sheer fabric. Forcing this opaque destroys real translucency.
     expect((await profileAlpha(await gradedAlphaPng())).character).toBe('graded')
+  })
+
+  it('lands high-ink-coverage lettering in the band between binary and sheer', async () => {
+    // The measurement the CUTOUT_* pair is calibrated to. The wordmark that
+    // shipped damaged twice — 1944x121, `THE EXTRA MILE (Slogan)` — profiled as:
+    //
+    //     transparent 66.38%   opaque 30.04%   mid 3.58%
+    //
+    // 96.42% at the extremes, a cutout by any reading, yet BINARY_MID_FRACTION
+    // (0.02) calls it `graded` — which routes it to "sheer fabric, leave it on
+    // BLEND" in solidifyMaterials, and <model-viewer> has no OIT.
+    //
+    // `character` is deliberately NOT widened to cover it (that constant also
+    // feeds a blocking gate — see textures.ts). What consumes this is
+    // solidifyMaterials, so the pipeline.test.ts case for "converts a
+    // high-coverage wordmark → MASK" is the one that pins the actual behaviour.
+    // This test pins the numbers that case depends on.
+    const profile = await profileAlpha(await fineLetteringPng())
+
+    expect(profile.character).toBe('graded')
+    expect(profile.midFraction).toBeGreaterThan(0.02)
+    expect(profile.midFraction).toBeLessThanOrEqual(0.05)
+    expect(profile.transparentFraction + profile.opaqueFraction).toBeGreaterThan(0.95)
+    // The property that makes it safe to treat as a cutout: it is genuinely cut
+    // out. A uniformly translucent panel measures 0.000% here.
+    expect(profile.transparentFraction).toBeGreaterThan(0.5)
+  })
+
+  it('keeps a real ramp graded, and pins the band from ABOVE as well as below', async () => {
+    // Without this the constant is pinned on one side only: every assertion
+    // above is a lower bound, so the suite stayed green with the threshold set
+    // as high as ~0.92 — at which point every sheer fabric in the catalogue
+    // would be forced to MASK. Measured, not assumed: the repo's own ramp is
+    // 92.19% mid, so the true margin is ~26x, not the "two orders of magnitude"
+    // an earlier draft of this comment claimed.
+    const ramp = await profileAlpha(await gradedAlphaPng())
+    expect(ramp.character).toBe('graded')
+    expect(ramp.midFraction).toBeGreaterThan(0.9)
+    expect(ramp.midFraction).toBeGreaterThan(CUTOUT_MID_FRACTION * 10)
+  })
+
+  it('keeps a soft-glow print graded — the mid-band case neither fixture covered', async () => {
+    // Between "3.5% soft edges" and "92% ramp" there was nothing at all, so a
+    // careless widening of CUTOUT_MID_FRACTION had a clear run. A feathered
+    // print sits in the gap at ~15-25% mid and must stay BLEND.
+    const profile = await profileAlpha(await softGlowPng())
+
+    expect(profile.midFraction).toBeGreaterThan(0.1)
+    expect(profile.character).toBe('graded')
+    expect(profile.midFraction).toBeGreaterThan(CUTOUT_MID_FRACTION)
   })
 
   it('does not throw on bytes it cannot decode', async () => {

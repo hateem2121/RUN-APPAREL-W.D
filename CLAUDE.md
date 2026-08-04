@@ -57,6 +57,23 @@ the answer is "nothing that happens in production", it is not a test.
 - **`--keep-transparency` is not the fix for damaged artwork.** `<model-viewer>`
   has no order-independent transparency; restoring BLEND trades one "half
   visible" for depth-sorting artefacts. Use `MASK` with `alphaCutoff 0.5`.
+- **A cutout is "few mid pixels" AND "actually cut out somewhere" — never the
+  first alone.** `solidifyMaterials` resolves BLEND→MASK on `CUTOUT_MID_FRACTION`
+  (0.05), *deliberately looser* than `BINARY_MID_FRACTION` (0.02), because the
+  N001 wordmark measures 3.58% mid — 96.42% at the extremes, plainly a cutout,
+  and `character` still called it `graded` (i.e. "sheer, leave on BLEND"). But
+  raising that ceiling **alone** deletes fabric: a uniformly translucent inset
+  covering 2–6% of a map also measures ~2–6% mid, and MASKing it at 0.5 when its
+  alpha is ~0.35 discards *every* fragment — a hole, not a hardening, and MASK@0.5
+  is exactly what the gate considers correct so nothing catches it. Hence
+  `CUTOUT_MIN_TRANSPARENT` (0.05): the wordmark is 66.38% fully transparent,
+  those insets are 0.000%. Keep both halves. And keep the two constants separate
+  — `character` feeds `isArtworkTexture` → `findArtworkAlphaProblems`, which
+  **throws and saves nothing**, so widening it widens a blocking gate.
+- **An explicit `baseColorFactor[3]` beats anything inferred from pixels.** glTF
+  effective alpha is `factor.a * texel.a`, so a material declaring itself sheer at
+  0.4 can never reach `alphaCutoff 0.5` — MASK renders it as *nothing at all*,
+  silently, passing every gate. Test `factor < OPAQUE_FACTOR_THRESHOLD` first.
 - **`model-viewer.toDataURL()` returns a blank canvas** —
   `preserveDrawingBuffer: false`. Screenshot the element.
 - **`apps/shrink/container` is not a workspace member.** It installs with plain
