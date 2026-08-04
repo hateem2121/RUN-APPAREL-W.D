@@ -47,9 +47,16 @@ export default function App() {
         return
       }
       const retired = response.requestedColourwayUnavailable
-      if (retired) {
+      // Two different reasons to rewrite the URL, and only one of them is a
+      // retirement. `retired` is "you asked for a colour that is gone"; a null
+      // colourSlug is "/n001", where nothing was asked for and nothing is gone.
+      // Both want the address bar to end up on a real, shareable colour path;
+      // only the first wants the notice or the analytics event.
+      if (retired || route.colourSlug === null) {
         // Silently normalise the URL to the valid default path — no redirect loops.
         setColourwayUrl(response.product.slug, response.selectedColourway.slug, true)
+      }
+      if (retired) {
         track('retired_colourway_fallback', { product: response.product.productCode })
       }
       setState({

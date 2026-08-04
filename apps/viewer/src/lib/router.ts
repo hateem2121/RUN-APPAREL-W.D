@@ -2,7 +2,8 @@ import { buildViewerPath, parseViewerPath } from '@run-apparel/shared'
 
 export interface Route {
   productSlug: string
-  colourSlug: string
+  /** null = "/n001" — the visitor named no colour, so the default is served. */
+  colourSlug: string | null
 }
 
 /** Parse the current location into a viewer route (null = invalid path). */

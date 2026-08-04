@@ -6,11 +6,17 @@ import { buildViewerResponse } from './projectViewer'
 
 /**
  * GET /api/public/viewer/:productSlug/:colourSlug
+ * GET /api/public/viewer/:productSlug            → the default colour
  *
  * The single read-only door between the private CMS and the public viewer.
  * Returns published data only, projected to the shared ViewerApiSuccess
  * shape — never drafts, users, internal notes or source-file references. The
  * projection itself lives in ./projectViewer (pure + unit-tested).
+ *
+ * The colourless form exists because a tag printed with only the product code,
+ * or a buyer trimming the URL, produced the "reference unavailable" page for a
+ * product that was published and working. It resolves to the default colour and
+ * deliberately does NOT set `requestedColourwayUnavailable` — see projectViewer.
  */
 
 const notFound = (message: string): Response => {
@@ -33,15 +39,27 @@ const richTextToHtml = (value: unknown): string => {
   }
 }
 
-export const publicViewerEndpoint: Endpoint = {
-  path: '/public/viewer/:productSlug/:colourSlug',
-  method: 'get',
-  handler: async (req: PayloadRequest) => {
+/**
+ * One handler, two routes. `expectColour` is what separates "the visitor named a
+ * colour and it was mangled" (a broken link → 404) from "the visitor named no
+ * colour at all" (→ the default). Deriving that from `params.colourSlug` being
+ * empty would collapse the two, and a mangled colour would silently serve the
+ * default as though nothing were wrong.
+ */
+const buildHandler =
+  (expectColour: boolean) =>
+  async (req: PayloadRequest): Promise<Response> => {
     const params = (req.routeParams ?? {}) as { productSlug?: string; colourSlug?: string }
     const productSlug = normalizeSlug(String(params.productSlug ?? ''))
-    const colourSlug = normalizeSlug(String(params.colourSlug ?? ''))
-    if (!productSlug || !colourSlug) {
+    if (!productSlug) {
       return notFound('This reference link is not valid.')
+    }
+    let colourSlug: string | null = null
+    if (expectColour) {
+      colourSlug = normalizeSlug(String(params.colourSlug ?? ''))
+      if (!colourSlug) {
+        return notFound('This reference link is not valid.')
+      }
     }
 
     const origin =
@@ -96,5 +114,17 @@ export const publicViewerEndpoint: Endpoint = {
         'Cache-Control': `public, s-maxage=${cacheSeconds}, stale-while-revalidate=${cacheSeconds * 5}`,
       },
     })
-  },
+  }
+
+export const publicViewerEndpoint: Endpoint = {
+  path: '/public/viewer/:productSlug/:colourSlug',
+  method: 'get',
+  handler: buildHandler(true),
+}
+
+/** GET /api/public/viewer/:productSlug — resolves to the product's default colour. */
+export const publicViewerDefaultColourEndpoint: Endpoint = {
+  path: '/public/viewer/:productSlug',
+  method: 'get',
+  handler: buildHandler(false),
 }

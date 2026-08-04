@@ -18,7 +18,18 @@ export function Header({ wordmark, catalogueUrl }: HeaderProps) {
 
   return (
     <header className="header">
-      <a className="header__wordmark" href="/" aria-label={`${wordmark} home`}>
+      {/*
+        The wordmark used to link to "/". This SPA has no route there — the path
+        parses to nothing and renders UnavailableState — so clicking the logo took
+        a buyer from a working product page to "This reference has moved forward."
+        The catalogue is the only real "home" this viewer has.
+      */}
+      <a
+        className="header__wordmark"
+        href={catalogueUrl}
+        aria-label={`${wordmark} — back to catalogue`}
+        onClick={() => track('catalogue_clicked', { placement: 'wordmark' })}
+      >
         {wordmark}
       </a>
       <span className="label header__tag">[ 3D PRODUCT REFERENCE ]</span>

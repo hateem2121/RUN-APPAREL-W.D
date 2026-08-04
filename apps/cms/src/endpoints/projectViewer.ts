@@ -66,7 +66,8 @@ export function buildViewerResponse(
   colourwayDocs: Doc[],
   settings: Doc,
   origin: string,
-  colourSlug: string,
+  /** null = the visitor did not name a colour ("/n001"), not "the colour is gone". */
+  colourSlug: string | null,
   deps: ProjectionDeps,
 ): ViewerApiSuccess | null {
   const separateMode = product.variantMode === 'separate-glb-per-colour'
@@ -93,10 +94,15 @@ export function buildViewerResponse(
   }
   if (colourways.length === 0) return null
 
-  const requested = colourways.find((c) => c.slug === colourSlug) ?? null
+  // `colourSlug === null` is "/n001" — no colour was named at all. That is not a
+  // missing colour, so it must not raise the retired notice: telling a visitor a
+  // colourway has been discontinued when they never asked for one is a lie the
+  // page cannot walk back.
+  const requested =
+    colourSlug === null ? null : (colourways.find((c) => c.slug === colourSlug) ?? null)
   // The first colour on show is the default, by construction above.
   const selectedColourway = requested ?? colourways[0]!
-  const requestedColourwayUnavailable = requested === null
+  const requestedColourwayUnavailable = colourSlug !== null && requested === null
 
   return {
     product: {

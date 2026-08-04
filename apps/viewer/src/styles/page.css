@@ -553,7 +553,14 @@ model-viewer.stage__model {
   display: flex;
   gap: 10px;
   padding: 12px clamp(16px, 4vw, 24px) calc(12px + env(safe-area-inset-bottom, 0px));
-  background: color-mix(in oklab, var(--bg) 92%, transparent);
+  /*
+    Opaque, not 92%. At 92% with no blur, body copy scrolling underneath stayed
+    fully legible through the bar and read as broken layout — the contact
+    paragraph collided with the buttons on a 390px viewport. The header solves
+    the same problem with backdrop-filter, but that is deliberately reserved
+    ("the single allowed blurred sticky header", above), so this one goes solid.
+  */
+  background: var(--bg);
   border-top: 1px solid var(--line);
 }
 
@@ -622,42 +629,6 @@ model-viewer.stage__model {
   flex-wrap: wrap;
   gap: 12px;
   justify-content: center;
-}
-
-/* ── Skeleton while the API loads ──────────────────────────────────── */
-.loading-screen {
-  flex: 1;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 14px;
-  padding: 64px 24px;
-}
-
-.loading-screen__pulse {
-  width: 120px;
-  height: 2px;
-  background: var(--wash);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.loading-screen__pulse::after {
-  content: '';
-  display: block;
-  width: 40%;
-  height: 100%;
-  background: var(--dimension);
-  animation: pulse-slide 1.2s var(--ease) infinite;
-}
-
-@keyframes pulse-slide {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(350%);
-  }
 }
 
 /* ══ Preloader ════════════════════════════════════════════════════════ */

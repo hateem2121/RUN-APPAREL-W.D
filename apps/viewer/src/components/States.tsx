@@ -4,17 +4,9 @@ import { useEffect } from 'react'
 import { track } from '../lib/analytics'
 import { headingWithAccent } from './SerifAccent'
 
-export function LoadingScreen() {
-  return (
-    <div className="loading-screen" role="status" aria-label="Loading product reference">
-      <span className="label">[ 3D PRODUCT REFERENCE ]</span>
-      <div className="loading-screen__pulse" aria-hidden="true" />
-      <p className="mono" style={{ color: 'var(--muted)' }}>
-        PREPARING REFERENCE…
-      </p>
-    </div>
-  )
-}
+// `LoadingScreen` lived here until 2026-08-03 with zero references anywhere in
+// src/ or e2e/ — superseded by Preloader.tsx, which handles the same moment with
+// the branded wipe. Removed with its three .loading-screen rules in page.css.
 
 /** Accessible inline notice for a retired/missing QR colourway. */
 export function RetiredNotice({ message }: { message: string }) {

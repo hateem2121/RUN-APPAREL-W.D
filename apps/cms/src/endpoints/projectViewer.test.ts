@@ -142,6 +142,16 @@ describe('buildViewerResponse', () => {
     expect(body.fallbackMessage).toBeNull()
   })
 
+  // /n001 with no colour segment. The default is served, but this is NOT a
+  // fallback: nothing was retired and the visitor asked for nothing, so raising
+  // the retired notice here would tell them a colour had gone away when none had.
+  it('serves the default without flagging fallback when no colour is requested', () => {
+    const body = buildViewerResponse(product(), [colourway()], {}, origin, null, deps)!
+    expect(body.selectedColourway.slug).toBe('navy')
+    expect(body.requestedColourwayUnavailable).toBe(false)
+    expect(body.fallbackMessage).toBeNull()
+  })
+
   it('falls back to DEFAULT_SITE_SETTINGS when the global is empty', () => {
     const body = buildViewerResponse(product(), [colourway()], {}, origin, 'navy', deps)!
     expect(body.siteSettings).toEqual(DEFAULT_SITE_SETTINGS)

@@ -15,7 +15,7 @@ import { Users } from './collections/Users'
 import { eventsEndpoint } from './endpoints/events'
 import { healthEndpoint } from './endpoints/health'
 import { pipelinePlanEndpoint } from './endpoints/pipelinePlan'
-import { publicViewerEndpoint } from './endpoints/publicViewer'
+import { publicViewerDefaultColourEndpoint, publicViewerEndpoint } from './endpoints/publicViewer'
 import { SiteSettings } from './globals/SiteSettings'
 
 const filename = fileURLToPath(import.meta.url)
@@ -105,7 +105,15 @@ export default buildConfig({
   },
   collections: [Users, Media, RawUploads, Products, Events],
   globals: [SiteSettings],
-  endpoints: [publicViewerEndpoint, healthEndpoint, eventsEndpoint, pipelinePlanEndpoint],
+  // The two-segment route is registered first so it wins over the one-segment
+  // route for /n001/navy, whatever order the router happens to try them in.
+  endpoints: [
+    publicViewerEndpoint,
+    publicViewerDefaultColourEndpoint,
+    healthEndpoint,
+    eventsEndpoint,
+    pipelinePlanEndpoint,
+  ],
   cors: allowedOrigins,
   editor: lexicalEditor(),
   ...(resendApiKey

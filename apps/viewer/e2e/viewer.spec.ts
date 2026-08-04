@@ -38,6 +38,55 @@ test.describe('RUN APPAREL 3D viewer', () => {
     await expect(page.getByText('[ COLOURWAY 01 / NAVY ]')).toBeVisible()
   })
 
+  // A tag printed with only the product code, or a buyer trimming the URL back
+  // to the product, used to land on "reference unavailable" for a product that
+  // was published and working.
+  test('product-only URL resolves to the default colourway, with no retired notice', async ({
+    page,
+  }) => {
+    await page.goto('/n001')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(/Velocity Performance/i)
+    await expect(page.getByText('[ COLOURWAY 01 / NAVY ]')).toBeVisible()
+    // The URL is normalised so the page can be shared and bookmarked.
+    await expect(page).toHaveURL(/\/n001\/navy$/)
+    // Nothing was retired — claiming otherwise tells the buyer a colour has been
+    // discontinued when none has.
+    await expect(page.getByText(/no longer active/i)).toHaveCount(0)
+  })
+
+  // The wordmark pointed at "/", which parses to no route at all and rendered the
+  // unavailable page — so the most natural click on the page broke it.
+  test('header wordmark does not lead to the unavailable state', async ({ page }) => {
+    await page.goto('/n001/navy')
+    const wordmark = page.locator('.header__wordmark')
+    await expect(wordmark).not.toHaveAttribute('href', '/')
+    await wordmark.click()
+    await expect(page.getByText('[ REFERENCE UNAVAILABLE ]')).toHaveCount(0)
+  })
+
+  // A published product with no finished 3D file is the worst state the viewer
+  // can be in — the page looks fine and the garment simply never spins. It was
+  // also the ONLY failure that reported nothing, because Stage.tsx guarded its
+  // diagnostic with `if (glbUrl)`. The fixture product n002 exists purely so this
+  // test can fail: without a GLB-less product it could never exercise the path.
+  test('a product with no 3D file falls back to the poster AND reports it', async ({ page }) => {
+    const diagnostics: string[] = []
+    page.on('console', (msg) => {
+      if (msg.text().includes('[viewer:')) diagnostics.push(msg.text())
+    })
+
+    await page.goto('/n002/navy')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(/Sample Without Model/i)
+    // Poster-first still works, and the page is otherwise whole.
+    await expect(page.locator('.stage img').first()).toBeVisible()
+    await expect(page.getByRole('link', { name: /email us/i })).toBeVisible()
+    // No 3D element at all, and the calm notice instead.
+    await expect(page.locator('model-viewer')).toHaveCount(0)
+    await expect(page.getByText(/interactive 3D view could not load/i)).toBeVisible()
+
+    expect(diagnostics.join('\n')).toContain('[viewer:model-missing]')
+  })
+
   test('unknown product shows branded unavailable state', async ({ page }) => {
     await page.goto('/zzz9/none')
     await expect(page.getByText('[ REFERENCE UNAVAILABLE ]')).toBeVisible()

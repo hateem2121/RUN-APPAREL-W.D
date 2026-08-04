@@ -30,6 +30,24 @@ function loadGlobalHeaders() {
     const idx = raw.indexOf(':')
     if (idx > 0) out[raw.slice(0, idx).trim()] = raw.slice(idx + 1).trim()
   }
+  // `upgrade-insecure-requests` is the one production directive that cannot
+  // survive here: this fixture serves plain HTTP, and the directive rewrites
+  // every asset request to https://localhost:4173, which has no listener.
+  //
+  // Chromium exempts localhost from the upgrade, so this was invisible for as
+  // long as the suite was Chromium-only. WebKit does not — under it the whole
+  // bundle failed to load with "A TLS error caused the secure connection to
+  // fail" and the SPA rendered an empty shell, which looks exactly like the app
+  // being broken in Safari. It is not; production is HTTPS and the directive is
+  // correct there. Everything else in the CSP is replayed verbatim, which is
+  // what catches the real violations (blob:, the decoders, wasm-unsafe-eval).
+  if (out['Content-Security-Policy']) {
+    out['Content-Security-Policy'] = out['Content-Security-Policy']
+      .split(';')
+      .map((directive) => directive.trim())
+      .filter((directive) => directive !== 'upgrade-insecure-requests')
+      .join('; ')
+  }
   return out
 }
 const GLOBAL_HEADERS = loadGlobalHeaders()
@@ -84,21 +102,37 @@ function colourwayPayload(origin, c) {
   }
 }
 
-function viewerPayload(origin, colourSlug) {
+// `colourSlug === null` mirrors GET /api/public/viewer/:productSlug — the
+// visitor named no colour. It must NOT come back flagged as a retired-colourway
+// fallback, or the page tells them a colour was discontinued when none was.
+// Keep this in step with apps/cms/src/endpoints/projectViewer.ts.
+// Products this fixture serves. `n002` has no finished 3D file, which is the
+// state a published-but-modelless product is in. Without it the poster-fallback
+// path and its diagnostic could not be exercised by any test — the same
+// "the fixture cannot exhibit the failure" gap that hid three production bugs.
+const PRODUCTS = {
+  n001: { productCode: 'N001', productName: 'Velocity Performance Tee', hasGlb: true },
+  n002: { productCode: 'N002', productName: 'Sample Without Model', hasGlb: false },
+}
+
+function viewerPayload(origin, colourSlug, productSlug = 'n001') {
+  const meta = PRODUCTS[productSlug]
   const colourways = COLOURWAYS.map((c) => colourwayPayload(origin, c))
-  const requested = colourways.find((c) => c.slug === colourSlug) ?? null
+  const requested =
+    colourSlug === null ? null : (colourways.find((c) => c.slug === colourSlug) ?? null)
+  const unavailable = colourSlug !== null && requested === null
   const fallback = colourways.find((c) => c.isDefault)
   const retiredMessage =
     'The colourway linked by this QR is no longer active. You are viewing the current available reference.'
   return {
     product: {
-      productCode: 'N001',
-      slug: 'n001',
-      productName: 'Velocity Performance Tee',
+      productCode: meta.productCode,
+      slug: productSlug,
+      productName: meta.productName,
       category: 'Sportswear',
       variantMode: 'single-glb-variants',
       presentationMode: 'floatingGarment',
-      glbUrl: `${origin}/fixtures/n001.glb`,
+      glbUrl: meta.hasGlb ? `${origin}/fixtures/n001.glb` : null,
       posterFallback: fallback.poster,
       fabricComposition: 'Recycled polyester / elastane',
       gsm: '160 GSM',
@@ -124,8 +158,8 @@ function viewerPayload(origin, colourSlug) {
     },
     colourways,
     selectedColourway: requested ?? fallback,
-    requestedColourwayUnavailable: requested === null,
-    fallbackMessage: requested === null ? retiredMessage : null,
+    requestedColourwayUnavailable: unavailable,
+    fallbackMessage: unavailable ? retiredMessage : null,
     siteSettings,
   }
 }
@@ -138,16 +172,16 @@ const server = http.createServer((req, res) => {
   // every response.
   for (const [key, value] of Object.entries(GLOBAL_HEADERS)) res.setHeader(key, value)
 
-  // Mock public viewer API
-  const apiMatch = url.pathname.match(/^\/api\/public\/viewer\/([^/]+)\/([^/]+)$/)
+  // Mock public viewer API. Both real routes: with and without a colour segment.
+  const apiMatch = url.pathname.match(/^\/api\/public\/viewer\/([^/]+)(?:\/([^/]+))?$/)
   if (apiMatch) {
     res.setHeader('content-type', 'application/json')
-    if (apiMatch[1] !== 'n001') {
+    if (!(apiMatch[1] in PRODUCTS)) {
       res.statusCode = 404
       res.end(JSON.stringify({ error: 'not_found', message: 'This product reference is not currently available.' }))
       return
     }
-    res.end(JSON.stringify(viewerPayload(origin, apiMatch[2])))
+    res.end(JSON.stringify(viewerPayload(origin, apiMatch[2] ?? null, apiMatch[1])))
     return
   }
 

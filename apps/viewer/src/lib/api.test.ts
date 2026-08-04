@@ -38,4 +38,14 @@ describe('fetchViewerData', () => {
     expect(url).toContain(encodeURIComponent('n 001'))
     expect(url).toContain(encodeURIComponent('na/vy'))
   })
+
+  // "/n001" — no colour named. The request must omit the colour segment entirely
+  // rather than send an empty one: ".../n001/" would 404 as a mangled colour.
+  it('omits the colour segment when no colour is requested', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({}) })
+    vi.stubGlobal('fetch', fetchMock)
+    await fetchViewerData('n001', null)
+    const url = String(fetchMock.mock.calls[0]![0])
+    expect(url).toMatch(/\/api\/public\/viewer\/n001$/)
+  })
 })
