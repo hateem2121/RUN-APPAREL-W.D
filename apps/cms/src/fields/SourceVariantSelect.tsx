@@ -18,9 +18,32 @@ import type { TextFieldClientComponent } from 'payload'
  * chosen string is stored verbatim as `variantId` and handed to <model-viewer>
  * as its `variantName`, so nothing ever has to be renamed.
  *
- * Before a file has been processed there is nothing to choose from, so the input
- * is disabled and says so rather than presenting an empty dropdown.
+ * WHAT THE SWATCH IS FOR. Mapping "Colorway 2" to a colour row was still a blind
+ * guess, and on 2026-08-03 the live site was serving a maroon garment labelled
+ * "Navy", a blush one labelled "Black" and a powder blue one labelled "Crimson" —
+ * every published name wrong, with two colourways in the same file never mapped
+ * at all. The robot now reads the real colour out of each variant, so the option
+ * says what it actually is. You cannot pick "Colorway 2" for a row called Navy
+ * while a maroon dot sits next to it.
+ *
+ * Suggestion only. Nothing here writes a name, a slug or a row — a colourway
+ * slug is printed on physical QR tags and no automated process may touch one.
  */
+
+interface FileColourDetail {
+  variantId: string
+  hex: string
+  name: string
+  confidence: 'high' | 'low'
+}
+
+const isDetail = (value: unknown): value is FileColourDetail =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as FileColourDetail).variantId === 'string' &&
+  typeof (value as FileColourDetail).hex === 'string' &&
+  typeof (value as FileColourDetail).name === 'string'
+
 export const SourceVariantSelect: TextFieldClientComponent = ({ field, path }) => {
   const { setValue, showError, value } = useField<string>({ path })
 
@@ -33,8 +56,17 @@ export const SourceVariantSelect: TextFieldClientComponent = ({ field, path }) =
     return []
   })
 
+  // Enrichment, not a replacement. A product last processed by a container built
+  // before variant colours existed has `fileColours` and no details, and must
+  // keep working exactly as before — so every use below is guarded.
+  const details = useFormFields(([fields]) => {
+    const raw = fields?.fileColourDetails?.value
+    return Array.isArray(raw) ? raw.filter(isDetail) : []
+  })
+
   const label = field?.label
   const description = field?.admin?.description
+  const detailFor = (name: string) => details.find((d) => d.variantId === name)
 
   if (fileColours.length === 0) {
     return (
@@ -58,24 +90,60 @@ export const SourceVariantSelect: TextFieldClientComponent = ({ field, path }) =
   // A value saved earlier that is no longer in the file (the owner re-exported
   // with different colours) must stay visible and selected — otherwise the
   // dropdown would silently blank a stored mapping.
-  const options = fileColours.map((name) => ({ label: name, value: name }))
+  const optionLabel = (name: string) => {
+    const detail = detailFor(name)
+    if (!detail) return name
+    return detail.confidence === 'high'
+      ? `${name} — looks like ${detail.name} (${detail.hex})`
+      : `${name} — closest match ${detail.name} (${detail.hex}), not confident`
+  }
+  const options = fileColours.map((name) => ({ label: optionLabel(name), value: name }))
   if (value && !fileColours.includes(value)) {
     options.push({ label: `${value} — not in the current file`, value })
   }
 
+  const selected = value ? detailFor(value) : undefined
+
   return (
-    <SelectInput
-      description={typeof description === 'string' ? description : undefined}
-      label={label}
-      name="variantId"
-      onChange={(option) => {
-        const next = Array.isArray(option) ? option[0] : option
-        setValue((next as { value?: string } | null)?.value ?? '')
-      }}
-      options={options}
-      path={path}
-      showError={showError}
-      value={value ?? ''}
-    />
+    <div className="field-type">
+      <SelectInput
+        description={typeof description === 'string' ? description : undefined}
+        label={label}
+        name="variantId"
+        onChange={(option) => {
+          const next = Array.isArray(option) ? option[0] : option
+          setValue((next as { value?: string } | null)?.value ?? '')
+        }}
+        options={options}
+        path={path}
+        showError={showError}
+        value={value ?? ''}
+      />
+      {selected && (
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}
+          // The swatch is the whole point of this component, so it is announced
+          // rather than left as decoration for anyone not looking at colour.
+          role="note"
+          aria-label={`Selected file colour is ${selected.name}, ${selected.hex}`}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: 4,
+              background: selected.hex,
+              border: '1px solid rgba(128,128,128,0.5)',
+              flex: '0 0 auto',
+            }}
+          />
+          <small>
+            This is the colour inside your file: <strong>{selected.name}</strong> ({selected.hex}).
+            {selected.confidence === 'low' && ' We are not confident about the name — trust the swatch.'}
+          </small>
+        </div>
+      )}
+    </div>
   )
 }
