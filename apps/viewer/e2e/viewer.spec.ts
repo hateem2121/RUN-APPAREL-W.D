@@ -7,10 +7,18 @@ test.describe('RUN APPAREL 3D viewer', () => {
     await expect(page.getByText('[ COLOURWAY 01 / NAVY ]')).toBeVisible()
     // poster-first: an image for the selected colourway is present immediately
     await expect(page.locator('.stage img').first()).toBeVisible()
-    // camera controls
-    await expect(page.getByRole('button', { name: 'front' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'back' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'side' })).toBeVisible()
+
+    // The camera buttons are asserted in webgl.spec.ts, NOT here.
+    //
+    // They only exist when <model-viewer> is mounted, which Stage.tsx gates on
+    // canRender3D(). Adding Firefox to the matrix on 2026-08-03 failed this test
+    // immediately: headless Firefox has no WebGL context, so the viewer correctly
+    // falls back to the poster and there are no camera controls to find.
+    //
+    // That is the fallback working, not a bug — and this spec runs across four
+    // browsers precisely to check what every visitor sees regardless of 3D
+    // support. Asserting 3D-only chrome here made it a test of the runner's GPU.
+    // Chromium hid that for months by shipping SwiftShader in headless mode.
   })
 
   test('colourway switch updates URL without a reload', async ({ page }) => {

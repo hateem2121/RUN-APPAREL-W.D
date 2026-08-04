@@ -52,6 +52,14 @@ test('3D model loads and switching colourway changes the KHR material variant', 
   const modelViewer = page.locator('model-viewer')
   await expect(modelViewer).toBeVisible()
 
+  // The camera controls live here rather than in viewer.spec.ts, because they
+  // only exist when <model-viewer> is mounted — i.e. they are a property of the
+  // 3D path, not of the page. Asserting them in the DOM suite made that suite
+  // depend on the runner having a GPU, which headless Firefox does not.
+  await expect(page.getByRole('button', { name: 'front' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'back' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'side' })).toBeVisible()
+
   // The model actually finishes loading (not just the poster).
   await page.waitForFunction(
     () => Boolean((document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded),
