@@ -128,6 +128,14 @@ the answer is "nothing that happens in production", it is not a test.
   left it at 623px. `min-height: 0` is the line that actually fixes it. Same trap
   as the familiar `min-width: 0` on flex children.
 
+- **Anything CI fetches from a `wear-run.help` host can 403 from a runner.**
+  Free-plan Bot Fight Mode intermittently blocks datacenter traffic — it forced the
+  `cms.wear-run.help` API cutover to be rolled back within the hour, and it later
+  failed a deploy through a new post-deploy check that treated the 403 as "no
+  model". Treat such a 403 as *inconclusive*, never as a failed assertion. And use
+  `HEAD`: a `GET` on the model is 37.7 MB per run, which the 15-minute uptime job
+  turns into gigabytes of R2 egress against a $5/month cap.
+
 ## Before you change the pipeline
 
 Do not tune presets against file size. That is exactly how a setting that
