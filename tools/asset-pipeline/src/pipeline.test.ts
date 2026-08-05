@@ -9,13 +9,23 @@ import { createIO } from './io'
 import { mergeVariants, parseMergeArgs } from './merge-variants'
 import { DEFAULT_SIMPLIFY_ERROR, optimizeGlb, parseOptimizeArgs, solidifyMaterials } from './optimize'
 import {
+  PLACEHOLDER_ARTWORK,
   PLACEHOLDER_COLOURWAYS,
   buildPlaceholderTee,
   generatePlaceholders,
 } from './placeholders'
 import { findArtworkAlphaProblems } from './texture-artwork'
-import { profileAlpha } from './textures'
+import { CUTOUT_MID_FRACTION, CUTOUT_MIN_TRANSPARENT, profileAlpha } from './textures'
 import { checkVariants, inspectGlb } from './validate'
+
+/**
+ * Primitives on a seeded tee: 3 body boxes + collar trim + the SVG decal, then
+ * one quad per real artwork profile. Derived rather than hard-coded so growing
+ * the fixture does not mean hand-editing five assertions — the count is
+ * incidental; what these tests are about is ORDER, which variant merging
+ * depends on.
+ */
+const PLACEHOLDER_PRIMITIVES = 5 + PLACEHOLDER_ARTWORK.length
 
 /** Build a GLB carrying one large embedded PNG baseColor texture. */
 async function writeTexturedGlb(file: string, sizePx = 512): Promise<void> {
@@ -121,9 +131,10 @@ describe('placeholder generation', () => {
     expect(out.glbFiles).toHaveLength(3)
     expect(out.posterFiles).toHaveLength(6)
     const report = await inspectGlb(out.glbFiles[0]!)
-    // 4 fabric boxes + the printed chest graphic.
-    expect(report.primitiveCount).toBe(5)
-    expect(report.materialCount).toBe(3)
+    // 4 fabric boxes + the printed chest graphic + one quad per real artwork
+    // profile. Materials: BODY, TRIM, the SVG decal, then the five.
+    expect(report.primitiveCount).toBe(PLACEHOLDER_PRIMITIVES)
+    expect(report.materialCount).toBe(3 + PLACEHOLDER_ARTWORK.length)
     expect(report.variants).toEqual([]) // raw exports carry no variants — merging binds them
   })
 })
@@ -141,12 +152,12 @@ describe('mergeVariants', () => {
 
     const report = await inspectGlb(merged)
     expect(report.variants).toEqual(['N001-BLACK', 'N001-CRIMSON', 'N001-NAVY']) // sorted
-    expect(report.primitiveCount).toBe(5)
+    expect(report.primitiveCount).toBe(PLACEHOLDER_PRIMITIVES)
     // 2 body/trim materials per colourway differ by colour, so dedup keeps all
-    // 6. The printed graphic is identical in every colourway — same texture,
-    // same settings — so it dedups down to one shared material, and all three
-    // variants map the decal primitive to it. 6 + 1 = 7.
-    expect(report.materialCount).toBe(7)
+    // 6. Every artwork material is identical in each colourway — same texture,
+    // same settings — so each dedups to one shared material that all three
+    // variants map to. 6 + 1 SVG decal + 5 real profiles = 12.
+    expect(report.materialCount).toBe(7 + PLACEHOLDER_ARTWORK.length)
 
     const check = checkVariants(report, PLACEHOLDER_COLOURWAYS.map((c) => c.variantId))
     expect(check).toEqual({ ok: true, missing: [], extra: [] })
@@ -252,7 +263,7 @@ describe('placeholder tee document', () => {
     for (const colourway of PLACEHOLDER_COLOURWAYS) {
       const tee = await buildPlaceholderTee(colourway)
       const prims = tee.getRoot().listMeshes().flatMap((m) => m.listPrimitives())
-      expect(prims).toHaveLength(5)
+      expect(prims).toHaveLength(PLACEHOLDER_PRIMITIVES)
       const names = prims.map((p) => p.getMaterial()?.getName())
       expect(names).toEqual([
         `${colourway.variantId}-BODY`,
@@ -260,6 +271,7 @@ describe('placeholder tee document', () => {
         `${colourway.variantId}-BODY`,
         `${colourway.variantId}-TRIM`,
         `${colourway.variantId}-GRAPHIC`,
+        ...PLACEHOLDER_ARTWORK.map((a) => `${colourway.variantId}-${a.name}`),
       ])
     }
   })
@@ -346,8 +358,16 @@ describe('optimizeGlb — the artwork guards engage on the real chain', () => {
       .getRoot()
       .listMaterials()
       .filter((m) => m.getAlphaMode() === 'MASK')
-    expect(masked.length).toBeGreaterThan(0)
+    // EVERY artwork material, not "at least one". The production refusal named
+    // FIVE materials left on BLEND, so `toBeGreaterThan(0)` would have passed
+    // with four of them still broken — the fixture carried one, so the weaker
+    // assertion was indistinguishable from the stronger one until now.
+    expect(masked.length).toBe(1 + PLACEHOLDER_ARTWORK.length)
     expect(masked.every((m) => m.getAlphaCutoff() === 0.5)).toBe(true)
+
+    // And nothing was left behind on BLEND — the exact condition that made the
+    // shrink worker throw PermanentJobError on 2026-08-04.
+    expect(optimized.getRoot().listMaterials().filter((m) => m.getAlphaMode() === 'BLEND')).toEqual([])
   })
 })
 
@@ -459,7 +479,7 @@ describe('mergeVariants — Draco', () => {
     // KHR_materials_variants bindings preserved.
     const report = await inspectGlb(out)
     expect(report.variants).toEqual(['N001-BLACK', 'N001-CRIMSON', 'N001-NAVY'])
-    expect(report.primitiveCount).toBe(5)
+    expect(report.primitiveCount).toBe(PLACEHOLDER_PRIMITIVES)
   })
 })
 
@@ -592,7 +612,7 @@ describe('optimizeGlb — Meshopt geometry', () => {
 
     const report = await inspectGlb(out)
     expect(report.variants).toEqual(['N001-BLACK', 'N001-CRIMSON', 'N001-NAVY'])
-    expect(report.primitiveCount).toBe(5)
+    expect(report.primitiveCount).toBe(PLACEHOLDER_PRIMITIVES)
 
     const reread = await createIO().then((io) => io.read(out))
     const used = reread.getRoot().listExtensionsUsed().map((e) => e.extensionName)
@@ -800,35 +820,50 @@ describe('solidifyMaterials (opaque + double-sided)', () => {
   }
 
   /**
-   * The damaged wordmark's alpha, to the real proportions: high ink coverage
-   * (30% of the strip), a genuinely cut-out background (66%), and anti-aliased
-   * letter edges (3.5%) that push it just past BINARY_MID_FRACTION.
+   * The alpha channel of the REAL `THE EXTRA MILE (Slogan)` texture, 1944x121,
+   * lifted straight out of the 364 MB raw CLO export on 2026-08-05.
+   *
+   * This replaced a synthetic approximation — painted stripes at 400x50 tuned to
+   * land near the real proportions — which is the version of this fixture that
+   * let the bug through in the first place. The whole repeating failure in this
+   * repo is fixtures that cannot exhibit the production shape, and "close enough
+   * to 3.58% mid" is exactly that failure in miniature: the margin under
+   * CUTOUT_MID_FRACTION is 28%, so an approximation drifting by a point and a
+   * half changes the answer.
+   *
+   * Extracted alpha-only with RGB flattened to black, which is why a
+   * real-garment texture is 13 KB and committable. It is taken from the RAW
+   * export deliberately: solidifyMaterials (optimize.ts:300) runs BEFORE texture
+   * compression (line 305), so profileAlpha never sees the WebP.
    */
   async function wordmarkImage(): Promise<Uint8Array> {
-    const width = 400
-    const height = 50
-    const strokes = 7
-    const strokeWidth = 17
-    const gap = Math.floor((width - strokes * (strokeWidth + 2)) / strokes)
-    const raw = Buffer.alloc(width * height * 4)
-    for (let i = 0; i < width * height; i++) {
-      raw[i * 4] = 20
-      raw[i * 4 + 1] = 20
-      raw[i * 4 + 2] = 20
-      raw[i * 4 + 3] = 0
-    }
-    for (let s = 0; s < strokes; s++) {
-      const left = s * (strokeWidth + 2 + gap)
-      for (let y = 0; y < height; y++) {
-        for (let x = left; x < left + strokeWidth + 2 && x < width; x++) {
-          const edge = x === left || x === left + strokeWidth + 1
-          raw[(y * width + x) * 4 + 3] = edge ? 128 : 255
-        }
-      }
-    }
-    const png = await sharp(raw, { raw: { width, height, channels: 4 } }).png().toBuffer()
-    return new Uint8Array(png)
+    return new Uint8Array(await readFile(join(import.meta.dirname, '__fixtures__', 'wordmark-alpha.png')))
   }
+
+  it('the real wordmark fixture still measures what the fix was calibrated against', async () => {
+    // Guards the FIXTURE, not the code. Every threshold decision below is
+    // calibrated against these three numbers, measured off the raw CLO export;
+    // if the file is ever re-generated, re-compressed or swapped, the tests that
+    // depend on it would keep passing while silently testing a different image.
+    //
+    // `character` is asserted as 'graded' on purpose: BINARY_MID_FRACTION stays
+    // 0.02 because it also feeds isArtworkTexture → findArtworkAlphaProblems,
+    // which throws and saves nothing. The wordmark is MEANT to still look
+    // 'graded' here — CUTOUT_MID_FRACTION is what rescues it, and only inside
+    // solidifyMaterials.
+    const profile = await profileAlpha(await wordmarkImage())
+
+    expect(profile.transparentFraction).toBeCloseTo(0.6638, 4)
+    expect(profile.opaqueFraction).toBeCloseTo(0.3004, 4)
+    expect(profile.midFraction).toBeCloseTo(0.0358, 4)
+    expect(profile.character).toBe('graded')
+
+    // 3.58% against a 5% ceiling. Stated as an assertion rather than a comment
+    // because "the margin is comfortable" was the assumption that made 0.02 look
+    // safe for months.
+    expect(profile.midFraction).toBeLessThan(CUTOUT_MID_FRACTION)
+    expect(profile.transparentFraction).toBeGreaterThan(CUTOUT_MIN_TRANSPARENT)
+  })
 
   it('converts a high-ink-coverage WORDMARK → MASK, not sheer fabric', async () => {
     // THE REGRESSION THIS WHOLE PAIR OF CONSTANTS EXISTS FOR, and the one that
@@ -925,6 +960,47 @@ describe('solidifyMaterials (opaque + double-sided)', () => {
 
     expect(mask.getDoubleSided()).toBe(true)
   })
+
+  it('preserves source sidedness on a material that BECOMES MASK in this call', async () => {
+    // The gap left open on 2026-08-04 and closed here.
+    //
+    // The two tests above cover materials that arrive ALREADY on MASK. Nothing
+    // covered the conversion: a decal arriving on BLEND, resolved to MASK by the
+    // cutout branch, and then reaching the sidedness step in the same pass — by
+    // which point it is MASK, so the `!== 'MASK'` guard skips it.
+    //
+    // Under the pre-2026-08-04 path these same materials stayed BLEND and were
+    // double-sided unconditionally, so the fix silently changed their sidedness.
+    // That matters because a CLO decal whose normals face inward renders as
+    // NOTHING once single-sided — the failure looks identical to the artwork bug
+    // it was meant to fix. Measured on the real garment the same day: 10 of 26
+    // MASK materials double-sided, each matching its source, so the code is
+    // correct. It was simply unasserted.
+    const doc = new Document()
+    const texture = doc.createTexture('decal').setImage(await wordmarkImage()).setMimeType('image/png')
+
+    const twoSided = doc
+      .createMaterial('decal-two-sided')
+      .setAlphaMode('BLEND')
+      .setDoubleSided(true)
+      .setBaseColorTexture(texture)
+    const oneSided = doc
+      .createMaterial('decal-one-sided')
+      .setAlphaMode('BLEND')
+      .setDoubleSided(false)
+      .setBaseColorTexture(texture)
+
+    const result = await solidifyMaterials(doc)
+
+    // Both converted...
+    expect(twoSided.getAlphaMode()).toBe('MASK')
+    expect(oneSided.getAlphaMode()).toBe('MASK')
+    expect(result.masked).toBe(2)
+
+    // ...and neither had its sidedness rewritten by the conversion.
+    expect(twoSided.getDoubleSided()).toBe(true)
+    expect(oneSided.getDoubleSided()).toBe(false)
+  })
 })
 
 describe('optimizeGlb — opaque + double-sided step', () => {
@@ -982,9 +1058,15 @@ describe('mergeVariants — opaque step preserves variants', () => {
     // is deliberately not double-sided: a decal sits a fraction of a millimetre
     // off the fabric, and drawing its back faces invites z-fighting.
     const graphic = materials.filter((m) => m.getBaseColorTexture())
-    expect(graphic).toHaveLength(1)
-    expect(graphic[0]!.getAlphaMode()).toBe('MASK')
-    expect(graphic[0]!.getAlphaCutoff()).toBe(0.5)
+    // The SVG decal plus the five measured artwork profiles. Asserting EVERY one
+    // rather than the first is the point: the gate that blocked production
+    // refused FIVE materials at once, and a fixture carrying one could never
+    // have shown whether the pipeline resolves all of them or merely the first.
+    expect(graphic).toHaveLength(1 + PLACEHOLDER_ARTWORK.length)
+    for (const m of graphic) {
+      expect(m.getAlphaMode()).toBe('MASK')
+      expect(m.getAlphaCutoff()).toBe(0.5)
+    }
 
     const report = await inspectGlb(out)
     expect(report.variants).toEqual(['N001-BLACK', 'N001-CRIMSON', 'N001-NAVY']) // still bound

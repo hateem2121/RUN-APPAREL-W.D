@@ -69,6 +69,74 @@ function decalSvg(): string {
 </svg>`
 }
 
+/**
+ * The five artwork materials the real N001 export carries, by measured alpha.
+ *
+ * WHY FIVE AND NOT ONE. Until 2026-08-05 each seeded colourway carried exactly
+ * one artwork material: a clean binary cutout. The shape that actually broke
+ * production — `THE EXTRA MILE (Slogan)`, 3.58% mid, classified `graded` and
+ * sent down the "sheer fabric" branch — existed nowhere in the seeded chain, so
+ * the gate that blocks five BLEND materials had never once been exercised
+ * against five of anything. That is the repo's recurring failure: the fixture
+ * could not exhibit the production shape.
+ *
+ * Proportions are the measured ones. Dimensions are scaled down but keep each
+ * texture's ASPECT RATIO, because `isArtworkTexture` uses aspect ≥ 3 as one of
+ * its three signals and the Slogan is 16:1 — reshaping it to a square would
+ * change how it is classified and quietly weaken the fixture.
+ *
+ * Measured 2026-08-05 from `cycling-all-colours-optimized-3.glb`; the source
+ * table is in docs/OPEN-ISSUE-ARTWORK.md.
+ */
+export interface PlaceholderArtwork {
+  name: string
+  width: number
+  height: number
+  /** Fraction of pixels at alpha <= 8. */
+  transparent: number
+  /** Fraction strictly between the extremes — what the thresholds turn on. */
+  mid: number
+}
+
+export const PLACEHOLDER_ARTWORK: PlaceholderArtwork[] = [
+  // The one that broke production. `graded` (3.58% > BINARY_MID_FRACTION 0.02),
+  // rescued only by CUTOUT_MID_FRACTION inside solidifyMaterials. 16:1.
+  { name: 'THE EXTRA MILE (Slogan)', width: 972, height: 61, transparent: 0.6638, mid: 0.0358 },
+  { name: 'RUN LOGO', width: 508, height: 138, transparent: 0.6701, mid: 0.009 },
+  { name: 'Teamwear Logo', width: 456, height: 322, transparent: 0.559, mid: 0.0041 },
+  { name: 'TEAM WEAR FRONT LABEL', width: 512, height: 228, transparent: 0.1877, mid: 0.0053 },
+  // 0.00% transparent: reaches MASK via the `character === 'binary'` branch and
+  // would FAIL the cutout test outright. Keeps a material in the fixture that
+  // CUTOUT_MIN_TRANSPARENT would reject, which is the shape that constant exists
+  // to catch.
+  { name: 'Zipper 3_TapeFabric', width: 137, height: 288, transparent: 0, mid: 0.0067 },
+]
+
+/**
+ * An alpha channel with the given proportions, laid out in horizontal bands.
+ *
+ * `profileAlpha` counts pixels and does not care where they sit, so bands are
+ * the cheapest arrangement that reproduces a measured distribution exactly. RGB
+ * is a flat mid-grey: the alpha is the whole point of this image.
+ */
+async function artworkAlphaImage(spec: PlaceholderArtwork): Promise<Uint8Array> {
+  const { width, height } = spec
+  const total = width * height
+  const transparentPixels = Math.round(total * spec.transparent)
+  const midPixels = Math.round(total * spec.mid)
+
+  const raw = Buffer.alloc(total * 4)
+  for (let i = 0; i < total; i++) {
+    raw[i * 4] = 232
+    raw[i * 4 + 1] = 72
+    raw[i * 4 + 2] = 60
+    // 0 → transparent, 128 → mid (and below alphaCutoff 0.5, so a MASK that
+    // should not have happened deletes it), 255 → opaque.
+    raw[i * 4 + 3] = i < transparentPixels ? 0 : i < transparentPixels + midPixels ? 128 : 255
+  }
+  return new Uint8Array(await sharp(raw, { raw: { width, height, channels: 4 } }).png().toBuffer())
+}
+
 /** UVs for a box: every face gets the full 0–1 square, matching BOX_FACES corner order. */
 const FACE_UV: [number, number][] = [
   [0, 1],
@@ -225,6 +293,26 @@ export async function buildPlaceholderTee(colourway: PlaceholderColourway): Prom
     .setMetallicFactor(0)
   decal.getBaseColorTextureInfo()?.setTexCoord(1)
 
+  // The five real artwork profiles, each on its own quad and its own second UV
+  // set — the combination the gate refuses when any one of them ends on BLEND.
+  // All start on BLEND because that is how CLO exports them; resolving all five
+  // to MASK/0.5 is what the pipeline has to get right.
+  const artworkMaterials: Material[] = []
+  for (const spec of PLACEHOLDER_ARTWORK) {
+    const texture = document
+      .createTexture(spec.name)
+      .setImage(await artworkAlphaImage(spec))
+      .setMimeType('image/png')
+    const material = document
+      .createMaterial(`${colourway.variantId}-${spec.name}`)
+      .setBaseColorTexture(texture)
+      .setAlphaMode('BLEND')
+      .setRoughnessFactor(0.6)
+      .setMetallicFactor(0)
+    material.getBaseColorTextureInfo()?.setTexCoord(1)
+    artworkMaterials.push(material)
+  }
+
   const mesh = document.createMesh('garment')
   addBoxPrimitive(document, mesh, body, { w: 0.52, h: 0.66, d: 0.13, cx: 0, cy: 0, cz: 0 })
   addBoxPrimitive(document, mesh, body, { w: 0.2, h: 0.24, d: 0.12, cx: -0.36, cy: 0.18, cz: 0 })
@@ -232,6 +320,12 @@ export async function buildPlaceholderTee(colourway: PlaceholderColourway): Prom
   addBoxPrimitive(document, mesh, trim, { w: 0.18, h: 0.045, d: 0.135, cx: 0, cy: 0.335, cz: 0 })
   // Just proud of the torso's front face (d/2 = 0.065), as CLO exports one.
   addDecalPrimitive(document, mesh, decal, 0.067)
+  // Each artwork quad a little further out, so they are coplanar-ish with the
+  // torso and with each other — the z-fighting hazard H6 is about — without
+  // being exactly coincident.
+  artworkMaterials.forEach((material, index) => {
+    addDecalPrimitive(document, mesh, material, 0.068 + index * 0.0005)
+  })
 
   const node = document.createNode('garment').setMesh(mesh)
   document.createScene('Scene').addChild(node)
