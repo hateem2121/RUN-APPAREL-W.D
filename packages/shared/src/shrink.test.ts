@@ -8,7 +8,7 @@ import {
   shrinkFlagsFor,
 } from './shrink'
 
-const LEVELS: ShrinkDetailLevel[] = ['fidelity', 'balanced', 'small']
+const LEVELS: ShrinkDetailLevel[] = ['fidelity', 'balanced']
 
 /** Read a numeric flag value out of a CLI argv array. */
 function flagValue(args: string[], flag: string): number {
@@ -37,11 +37,11 @@ describe('shrinkFlagsFor', () => {
   })
 
   // The error budget is THE aggression dial: it must grow strictly as the levels
-  // get smaller, because that is what actually removes triangles.
+  // get smaller, because that is what actually removes triangles. `--simplify`
+  // does not — the simplifier stops early once the budget binds.
   it('loosens the error budget strictly as the levels get smaller', () => {
-    const err = LEVELS.map((l) => flagValue(shrinkFlagsFor(l), '--simplify-error'))
-    expect(err[0]).toBeLessThan(err[1] as number)
-    expect(err[1]).toBeLessThan(err[2] as number)
+    const err = LEVELS.map((l) => flagValue(shrinkFlagsFor(l), '--simplify-error') as number)
+    for (let i = 1; i < err.length; i++) expect(err[i - 1]).toBeLessThan(err[i] as number)
   })
 
   // UV weight is NOT an aggression dial — it is the artwork guard. It may only
@@ -58,12 +58,30 @@ describe('shrinkFlagsFor', () => {
   // below what "balanced" uses.
   it('never trades away artwork protection to get a smaller file', () => {
     const uv = LEVELS.map((l) => flagValue(shrinkFlagsFor(l), '--uv-weight') as number)
-    expect(uv[0]).toBeGreaterThanOrEqual(uv[1] as number)
-    expect(uv[1]).toBeGreaterThanOrEqual(uv[2] as number)
-    // The floor: the smallest level must guard artwork at least as hard as the
+    for (let i = 1; i < uv.length; i++) expect(uv[i - 1]).toBeGreaterThanOrEqual(uv[i] as number)
+    // The floor: no offered level may guard artwork less hard than the
     // recommended default does.
     const balanced = flagValue(shrinkFlagsFor('balanced'), '--uv-weight') as number
-    expect(flagValue(shrinkFlagsFor('small'), '--uv-weight')).toBeGreaterThanOrEqual(balanced)
+    for (const level of LEVELS) {
+      expect(flagValue(shrinkFlagsFor(level), '--uv-weight')).toBeGreaterThanOrEqual(balanced)
+    }
+  })
+
+  it('offers no level looser than balanced — the reason `small` was removed', () => {
+    // 2026-08-05: `small` (--simplify-error 0.002) rendered the chest wordmark
+    // with MILE breaking apart, and passed all three blocking gates while doing
+    // it, because they test alphaMode and decimation does not change alphaMode.
+    // Every offered level must now be at least as tight as balanced.
+    const budget = (l: ShrinkDetailLevel) => flagValue(shrinkFlagsFor(l), '--simplify-error') as number
+    const balanced = budget('balanced')
+    for (const level of LEVELS) expect(budget(level)).toBeLessThanOrEqual(balanced)
+  })
+
+  it('falls back to balanced for a stored level that no longer exists', () => {
+    // RawUploads rows written before 2026-08-05 can still carry `small`. They must
+    // not crash and must not be honoured — balanced is strictly safer than what
+    // they asked for.
+    expect(shrinkFlagsFor('small' as ShrinkDetailLevel)).toEqual(shrinkFlagsFor('balanced'))
   })
 
   it('never passes --uv-weight 0, which would disable texture-aware decimation', () => {
@@ -74,11 +92,13 @@ describe('shrinkFlagsFor', () => {
 })
 
 describe('nextDetailAdvice', () => {
-  it('points at the smaller setting, except when already there', () => {
-    expect(nextDetailAdvice('balanced')).toMatch(/Smallest file/)
-    expect(nextDetailAdvice('fidelity')).toMatch(/Smallest file/)
-    // No point telling someone to try a setting they already used.
-    expect(nextDetailAdvice('small')).toMatch(/re-exported from CLO/)
+  it('sends the owner to the CLO export, never to a smaller Detail level', () => {
+    // There is no longer a smaller level to point at, and inventing one would be
+    // the exact trade `small` made: a smaller file bought with damaged artwork.
+    for (const level of LEVELS) {
+      expect(nextDetailAdvice(level)).toMatch(/re-exported from CLO/)
+      expect(nextDetailAdvice(level)).not.toMatch(/Smallest file — softer detail/)
+    }
   })
 })
 

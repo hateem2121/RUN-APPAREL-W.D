@@ -38,7 +38,7 @@ export function deadLetterReport(detail: string | undefined): string {
     'It was attempted three times and failed every time, so nothing further will happen on its ' +
     'own — you are not waiting for anything.\n\n' +
     'What to do: tick “Retry” to try once more (worth it if the problem was temporary), or upload ' +
-    'the file again with the Detail setting on “Smallest file — softer detail”. If it fails again, ' +
+    'the file again after re-exporting it from CLO at a lower mesh density. If it fails again, ' +
     'the export itself most likely needs a lighter mesh out of CLO.\n\n' +
     `Last error, for your developer:\n${cause}`
   )

@@ -15,7 +15,28 @@
  * garment that came back too heavy or too soft is just re-uploaded at a
  * different level.
  */
-export type ShrinkDetailLevel = 'fidelity' | 'balanced' | 'small'
+/**
+ * `'small'` was REMOVED on 2026-08-05 after being measured, not theorised.
+ *
+ * A six-run sweep from the raw N001 export rendered the chest wordmark at every
+ * level. At `small` (`--simplify-error 0.002`) the word MILE is visibly breaking
+ * apart, and at 0.005 it is destroyed — yet **every run passed all three blocking
+ * gates**, because those gates test `alphaMode`, which decimation does not
+ * change. See docs/OPEN-ISSUE-ARTWORK.md → "the three gates do NOT catch
+ * decimation damage", with the contact sheet at
+ * docs/images/2026-08-05-size-vs-wordmark.png.
+ *
+ * So the option shipped damage to the one thing the product exists to show, with
+ * nothing anywhere able to say so. An option whose only honest instruction is
+ * "pick this and then check by eye whether it wrecked your logo" is not an
+ * option; it is a trap. Removed rather than re-tuned, because a safe value for
+ * it lands within a megabyte of `balanced` and there is then no reason to offer
+ * two.
+ *
+ * Old rows carrying `'small'` still parse: `shrinkFlagsFor` falls through to the
+ * balanced flags, which are strictly safer than what those rows asked for.
+ */
+export type ShrinkDetailLevel = 'fidelity' | 'balanced'
 
 export const SHRINK_DETAIL_LEVELS: readonly {
   value: ShrinkDetailLevel
@@ -23,7 +44,6 @@ export const SHRINK_DETAIL_LEVELS: readonly {
 }[] = [
   { value: 'balanced', label: 'Balanced (recommended)' },
   { value: 'fidelity', label: 'Highest quality — bigger file' },
-  { value: 'small', label: 'Smallest file — softer detail' },
 ]
 
 export const DEFAULT_SHRINK_DETAIL: ShrinkDetailLevel = 'balanced'
@@ -71,33 +91,23 @@ export function shrinkFlagsFor(detail: ShrinkDetailLevel = DEFAULT_SHRINK_DETAIL
   switch (detail) {
     case 'fidelity':
       return ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.0002', '--uv-weight', '2']
-    case 'small':
-      // 2026-07-29: `--uv-weight` raised 0.5 -> 1. It used to be HALF what
-      // "balanced" uses, so asking for a smaller file silently halved the one
-      // setting that protects printed artwork. That is why "make it smaller" has
-      // historically come back with damaged logos, and it was never a defensible
-      // trade — the error budget is the aggression dial, not the artwork guard.
-      //
-      // The budget itself is left at 0.002. It was briefly raised to 0.01 on the
-      // theory that the two knobs are independent, so the budget could be
-      // loosened 20x while "keeping protection at balanced's level". That was
-      // WRONG: UV error lives *inside* the error budget, and `uv-weight` only
-      // prices it within that ceiling — so a looser budget permits more UV
-      // distortion at any weight. The measured table in
-      // simplify-textured.test.ts shows the trade is unavoidable (at weight 1,
-      // error 0.001 -> 192 triangles, error 0.01 -> 38). Reverted pending the
-      // artwork investigation in docs/OPEN-ISSUE-ARTWORK.md; do not raise it
-      // again without comparing rendered crops of a real logo.
-      return ['--simplify', '0.02', '--meshopt', '--simplify-error', '0.002', '--uv-weight', '1']
+    // Also the fall-through for a stored `'small'`, which no longer exists as a
+    // choice. Landing those rows on balanced is deliberate: it is strictly less
+    // aggressive than what they asked for, so a re-run can only improve them.
     default:
       return ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.0005', '--uv-weight', '1']
   }
 }
 
-/** Plain-language advice shown when a shrunk file is still over the Media ceiling. */
-export function nextDetailAdvice(detail: ShrinkDetailLevel = DEFAULT_SHRINK_DETAIL): string {
-  if (detail === 'small') {
-    return 'This garment is unusually heavy even at the smallest setting — it probably needs to be re-exported from CLO at a lower mesh density.'
-  }
-  return 'Re-upload it with the Detail setting on “Smallest file — softer detail”.'
+/**
+ * Plain-language advice shown when a shrunk file is still over the Media ceiling.
+ *
+ * There is deliberately no smaller Detail level to send the owner to any more.
+ * The one that existed reached that size by damaging the printed artwork, which
+ * is the product — so "make it smaller" is not a setting this system can honestly
+ * offer, and the real lever is the export. Saying so plainly beats a suggestion
+ * that trades a visible failure for an invisible one.
+ */
+export function nextDetailAdvice(_detail: ShrinkDetailLevel = DEFAULT_SHRINK_DETAIL): string {
+  return 'This garment is too heavy even at the safest settings. It needs to be re-exported from CLO at a lower mesh density — reducing it further here would damage the printed graphics, which is why the old “Smallest file” option was removed on 2026-08-05.'
 }
