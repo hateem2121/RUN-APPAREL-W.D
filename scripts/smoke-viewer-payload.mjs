@@ -101,20 +101,54 @@ if (!modelUrl) {
   console.log(`  model     ${modelUrl}`)
 
   // --- 3. the model is really there, and is not a stub ---------------------
+  //
+  // HEAD, not GET. This runs after every deploy AND every 15 minutes from
+  // uptime.yml; a GET pulled the whole 37.7 MB model each time — roughly 3.6 GB
+  // of R2 egress a day against a $5/month cap, to learn a number that is in the
+  // headers. The first version of this check did exactly that.
   try {
-    const res = await fetch(modelUrl, { method: 'GET', signal: AbortSignal.timeout(TIMEOUT_MS) })
-    if (!res.ok) {
+    let res = await fetch(modelUrl, { method: 'HEAD', signal: AbortSignal.timeout(TIMEOUT_MS) })
+
+    // Some edges do not answer HEAD for R2 objects. Fall back to a 1-byte range
+    // rather than the whole file: content-range still carries the true size.
+    if (res.status === 405 || res.status === 501) {
+      res = await fetch(modelUrl, {
+        method: 'GET',
+        headers: { range: 'bytes=0-0' },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      })
+    }
+
+    if (res.status === 403) {
+      // NOT a failure, and this is the one exception in this script.
+      //
+      // Free-plan Bot Fight Mode intermittently 403s datacenter traffic to
+      // wear-run.help hosts. It is documented in HARDENING-LOG.md — it already
+      // forced the `cms.wear-run.help` API cutover to be rolled back within the
+      // hour. A GitHub runner is datacenter traffic, so failing here would fail
+      // deploys at random for a reason that has nothing to do with the garment,
+      // and a gate the owner learns to override is worse than no gate.
+      //
+      // The payload assertions above still fail hard — those are what actually
+      // catch a product with no model.
+      console.log(`  model     WARN: HTTP 403 fetching the model (free-plan Bot Fight Mode blocks`)
+      console.log(`            datacenter traffic — see docs/HARDENING-LOG.md). Payload checks passed;`)
+      console.log(`            the model URL itself was NOT verified from here.`)
+    } else if (!res.ok && res.status !== 206) {
       fail(`the model URL returned HTTP ${res.status} — the payload points at a file that is not served`)
     } else {
-      // Trust content-length when present; fall back to reading the body, since
-      // R2 through a custom domain does not always set it on ranged/edge hits.
-      const declared = Number(res.headers.get('content-length') || 0)
-      const bytes = declared || (await res.arrayBuffer()).byteLength
-      const mb = (bytes / 1024 / 1024).toFixed(1)
-      if (bytes < MIN_MODEL_BYTES) {
+      // content-range on a 206 ("bytes 0-0/39555036"), content-length on a HEAD.
+      const range = res.headers.get('content-range')
+      const bytes = range
+        ? Number(range.split('/')[1] || 0)
+        : Number(res.headers.get('content-length') || 0)
+
+      if (!bytes) {
+        console.log('  model     WARN: no content-length or content-range, size not verified')
+      } else if (bytes < MIN_MODEL_BYTES) {
         fail(`the model is only ${bytes} bytes (< ${MIN_MODEL_BYTES}) — that is a stub or an error page, not a garment`)
       } else {
-        console.log(`  size      ${mb} MB`)
+        console.log(`  size      ${(bytes / 1024 / 1024).toFixed(1)} MB`)
       }
     }
   } catch (err) {
