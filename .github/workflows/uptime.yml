@@ -23,6 +23,14 @@ jobs:
       HEALTH_URL: ${{ github.event.inputs.target || format('{0}/api/health', vars.VITE_API_BASE_URL || 'https://cms.wear-run.help') }}
       VIEWER_URL: https://viewer.wear-run.help/n001/navy
     steps:
+      - uses: actions/checkout@v4
+        if: github.event.inputs.target == ''
+
+      - uses: actions/setup-node@v4
+        if: github.event.inputs.target == ''
+        with:
+          node-version: 24
+
       - name: Check CMS health + viewer
         id: check
         run: |
@@ -30,6 +38,13 @@ jobs:
           curl -fsS --max-time 20 "$HEALTH_URL" || ok=false
           if [ "${{ github.event.inputs.target }}" = "" ]; then
             curl -fsS --max-time 20 -o /dev/null "$VIEWER_URL" || ok=false
+            # Both curls above pass against a product serving NO MODEL: the SPA
+            # shell returns 200 and renders its no-model state. This resolves the
+            # model URL the way the viewer does and fetches it, so a garment that
+            # silently lost its GLB pages someone instead of sitting there.
+            # Skipped on a manual `target` override, which is for testing the
+            # alert path with a bogus URL.
+            node scripts/smoke-viewer-payload.mjs || ok=false
           fi
           echo "ok=$ok" >> "$GITHUB_OUTPUT"
 

@@ -252,3 +252,12 @@ jobs:
         run: >-
           curl -fsS --retry 5 --retry-delay 10
           "${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}/api/health"
+
+      # /api/health returns {"ok":true} from a worker with an empty database, so
+      # it proves the process is up and nothing about whether a buyer scanning a
+      # QR tag sees a garment. This fetches the real viewer payload and resolves
+      # the model URL by the same rule Stage.tsx uses, then fetches it. On
+      # 2026-07-29 a broken model shipped and stayed live six days with every
+      # automated check green, because nothing looked at the payload.
+      - name: Post-deploy viewer payload smoke test
+        run: node scripts/smoke-viewer-payload.mjs "${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}"
