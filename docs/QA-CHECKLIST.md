@@ -105,12 +105,15 @@ Full guide: [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md).
 - [ ] **No colours in the file are unmapped.** If the banner above the list says
       "we found N colours … not on your website yet", either add them or decide
       deliberately not to. Two of N001's five were invisible to buyers for weeks
-- [ ] If the job **failed on artwork** that is the gate working, not a crash — but
-      the two verdicts have different remedies. **"…was damaged"** means decimated
-      without artwork protection: re-upload at **Highest quality**. **"…came out
-      see-through"** is an `alphaMode` decision made identically at every Detail
-      level, so re-uploading at Highest quality changes nothing — read the Report
-      and escalate. See RAW-UPLOAD-PIPELINE.md → troubleshooting
+- [ ] If the job **failed on artwork** that is the gate working, not a crash —
+      but the two messages need **different** responses, and this line told you to
+      do the same thing for both until 2026-08-04:
+      - *"printed artwork … was damaged while shrinking"* → decimation tore the
+        UVs. **Re-upload at Highest quality.**
+      - *"…came out see-through"* / *"the cut-out threshold … is wrong"* → an
+        `alphaMode` fault, decided identically at every Detail level. **Detail
+        will not help.** Re-export the graphic on its own opaque piece in CLO, or
+        tell your developer. See RAW-UPLOAD-PIPELINE.md → troubleshooting
 
 ## Performance & assets
 

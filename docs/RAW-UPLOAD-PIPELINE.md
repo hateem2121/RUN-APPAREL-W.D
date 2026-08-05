@@ -173,17 +173,19 @@ recover when something goes wrong. See also
    | Detail | Use it when |
    |---|---|
    | **Balanced** (default) | Always start here. |
-   | **Highest quality — bigger file** | A printed graphic came back **smeared or torn** — ragged edges, warped lettering. |
+   | **Highest quality — bigger file** | The printed graphics came back **smeared or stretched**. |
 
-   **“Smallest file” was removed on 2026-08-05** — removed 2026-08-05: it reached its size by damaging printed artwork and passed every gate while doing it. See
+   **“Smallest file” was removed on 2026-08-05** — it reached its size by
+   damaging printed artwork and passed every gate while doing it. See
    docs/OPEN-ISSUE-ARTWORK.md. An oversized garment needs a lighter CLO export.
 
-   **Detail does not fix a see-through or boxed graphic.** It sets how hard the
-   mesh is simplified, so it addresses tearing and smearing. Whether a graphic is
-   transparent is decided from the texture's own alpha channel in
-   `solidifyMaterials`, identically at every Detail level. Until 2026-08-04 this
-   table said "soft or broken" for both and sent the owner round a loop while the
-   real cause was a mis-calibrated threshold in the pipeline.
+   ⚠️ **Detail cannot fix a see-through, boxed-over or missing graphic.** It only
+   controls how hard the geometry is decimated. The damage that shipped on N001
+   was an `alphaMode` decision — `solidifyMaterials` misreading a 96.42%-binary
+   cutout as sheer fabric — and that decision is identical at every Detail level.
+   This row said "soft **or broken**" until 2026-08-04, which sent the owner at
+   the one knob guaranteed not to move. Smearing is Detail's failure mode;
+   transparency is not.
 
    Changing Detail and uploading again re-runs the whole thing — no developer,
    no deploy. That is the intended way to tune a garment.
@@ -483,10 +485,11 @@ lifecycle-expire).
   The image *is* deployed and healthy (verified 2026-07-28,
   `wrangler containers list`), so this is not the expected state any more — but
   confirm the image is current before assuming the code you are reading is running.
-- **Failed: "The shrunk model is N MB, over the 40.0 MB limit"** → re-upload with
-  **Detail: Smallest file**. No code change or redeploy is needed; that is what the
-  field is for. If it still fails at the smallest setting, the export itself is
-  too heavy — re-export from CLO at a lower mesh density.
+- **Failed: "The shrunk model is N MB, over the 40.0 MB limit"** → **re-export from
+  CLO at a lower mesh density.** There is no smaller Detail level to fall back on
+  since "Smallest file" was removed on 2026-08-05: it bought its size by damaging
+  printed artwork, and passed every gate while doing so. Trading a visible failure
+  for an invisible one is not a remedy this system offers any more.
 - **Printed graphics look smeared or torn** → re-upload with **Detail: Highest
   quality**. If that is not enough, raise `--uv-weight` for the level in
   `packages/shared/src/shrink.ts` (this one *does* need a container redeploy only
