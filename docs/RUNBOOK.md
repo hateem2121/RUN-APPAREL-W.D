@@ -439,6 +439,22 @@ For the automatic shrinker, do **not** edit flags in the container — pick the
 **Detail** level on the raw upload instead (Balanced / Highest quality / Smallest
 file). The levels map to these flags in `packages/shared/src/shrink.ts`.
 
+**Detail only moves decimation, and it is worth being exact about what that
+rules out.** It is the right knob for artwork that comes back *smeared*, warped
+or stretched — that is UV distortion from pushing the triangle budget. It does
+**nothing** for artwork that is see-through, hidden behind a pale box, or absent:
+those come from `alphaMode`, which `solidifyMaterials` decides per material by
+reading the actual alpha, identically at every Detail level. Retrying N001 at
+"Highest quality" on 2026-08-04 would have produced a byte-for-byte equivalent
+failure. Symptom → knob:
+
+| Symptom | Cause | What actually helps |
+|---|---|---|
+| Graphic smeared, warped, letters stretched | UV distortion during decimation | **Detail → Highest quality.** Also check `artworkAtRisk` in the report: if it names a part, that part's UVs were outside the error budget. |
+| Graphic see-through / "half there" | material left on `alphaMode: BLEND`; `<model-viewer>` has no OIT | Nothing the owner can set. The gate now refuses to save it — read the `Report`, which names the materials. |
+| Graphic covered by a pale box | material forced `OPAQUE`, so the transparent background painted its underlying RGB — measured (240,240,240) on N001 | Nothing the owner can set. Fixed in `d8d745f`; a file built before 2026-08-04 still shows it. |
+| Graphic missing entirely | a `MASK` whose effective alpha never reaches `alphaCutoff 0.5`, or a decal drawn from its back face only | Nothing the owner can set. Report it. |
+
 **Deferred (owner request):** remove/raise the 40 MB cap and add an upload
 progress %/status in the admin. Both hinge on switching media uploads to
 `clientUploads: true` (direct browser→R2) so the Worker body/memory limits and the

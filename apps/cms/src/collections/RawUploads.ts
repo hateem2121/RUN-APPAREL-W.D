@@ -285,8 +285,16 @@ export const RawUploads: CollectionConfig = {
       options: SHRINK_DETAIL_LEVELS.map(({ value, label }) => ({ value, label })),
       admin: {
         position: 'sidebar',
+        // "Broken graphics → Highest quality" was the advice here until
+        // 2026-08-04, and it is wrong for the failure that actually shipped.
+        // Detail only sets how hard the geometry is decimated. The damaged N001
+        // wordmark was an alphaMode decision — `solidifyMaterials` misread a
+        // 96.42%-binary cutout as sheer fabric — and that decision is made
+        // identically at every Detail level, so re-uploading on "Highest
+        // quality" would have burned ten minutes and returned the same file.
+        // Say which symptom each level actually addresses instead.
         description:
-          'How much detail to keep. Start with Balanced. If the printed graphics look soft or broken, re-upload on “Highest quality”. If it is rejected for being too big, re-upload on “Smallest file”.',
+          'How much detail to keep. Start with Balanced. If the printed graphics look SMEARED or stretched, re-upload on “Highest quality” — that is the shrinker pushing the geometry too hard. If it is rejected for being too big, re-upload on “Smallest file”. If a graphic looks SEE-THROUGH, or is covered by a pale box, or is missing entirely, Detail will not help: tell your developer, that is a fault in how the file marks transparency.',
       },
     },
     {

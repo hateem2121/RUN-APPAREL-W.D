@@ -173,8 +173,16 @@ recover when something goes wrong. See also
    | Detail | Use it when |
    |---|---|
    | **Balanced** (default) | Always start here. |
-   | **Highest quality — bigger file** | The printed graphics came back soft or broken. |
+   | **Highest quality — bigger file** | The printed graphics came back **smeared or stretched**. |
    | **Smallest file — softer detail** | It was rejected for being too big, or it loads slowly on a phone. |
+
+   ⚠️ **Detail cannot fix a see-through, boxed-over or missing graphic.** It only
+   controls how hard the geometry is decimated. The damage that shipped on N001
+   was an `alphaMode` decision — `solidifyMaterials` misreading a 96.42%-binary
+   cutout as sheer fabric — and that decision is identical at every Detail level.
+   This row said "soft **or broken**" until 2026-08-04, which sent the owner at
+   the one knob guaranteed not to move. Smearing is Detail's failure mode;
+   transparency is not.
 
    Changing Detail and uploading again re-runs the whole thing — no developer,
    no deploy. That is the intended way to tune a garment.

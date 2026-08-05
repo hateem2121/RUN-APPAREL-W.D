@@ -245,10 +245,20 @@ export function assertPublishable(input: PublishGateInput, colourways: GateColou
 function assertArtworkAcceptable(input: PublishGateInput): void {
   if (input.artworkVerdict !== 'damaged') return
   if (text(input.artworkOverrideReason) !== '') return
+  // The remedy is deliberately NOT "re-upload at Highest quality" any more.
+  // `damaged` covers two mechanisms with different fixes, and this message
+  // prescribed the decimation one for both until 2026-08-04: Detail moves the
+  // triangle budget, so it does nothing for a graphic that came out see-through
+  // or boxed over, which is an alphaMode decision made identically at every
+  // level. Sending the owner at the one knob guaranteed not to move is worse
+  // than saying "read the report".
   throw new Error(
     'The printed artwork on this model was damaged when the file was shrunk, so publishing it would ' +
-      'show buyers a torn logo. Upload the file again with the Detail setting on “Highest quality — ' +
-      'bigger file”. If this garment genuinely has no printed artwork, write why in “Publish anyway ' +
-      '— reason” on the 3D file, and it will publish.',
+      'show buyers a torn logo. Read the Report on the raw upload — it names the parts and says which ' +
+      'kind of damage it was. If the logos are SMEARED, upload the file again with the Detail setting ' +
+      'on “Highest quality — bigger file”. If they are SEE-THROUGH, boxed over, or missing, Detail will ' +
+      'not change anything: the graphic needs re-exporting from CLO on its own opaque piece. If this ' +
+      'garment genuinely has no printed artwork, write why in “Publish anyway — reason” on the 3D file, ' +
+      'and it will publish.',
   )
 }

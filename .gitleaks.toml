@@ -1,5 +1,9 @@
 # gitleaks configuration — extends the built-in ruleset.
-# See docs/RUNBOOK.md and .github/workflows/security.yml.
+# See docs/RUNBOOK.md and the `gitleaks` step in .github/workflows/ci.yml.
+# (This pointed at .github/workflows/security.yml until 2026-08-04. That file was
+# deleted when the scan moved into ci.yml, where `needs:` can actually gate the
+# deploy on it — in its own workflow it could only ever fail its own run, so a
+# commit carrying a live key scanned red and deployed anyway.)
 title = "run-apparel-viewer gitleaks config"
 
 [extend]

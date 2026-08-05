@@ -160,7 +160,7 @@ again. No developer, no waiting.
 | Setting | When to use it |
 |---|---|
 | **Balanced** | Always start here. |
-| **Highest quality — bigger file** | The printed graphics came back soft or broken. |
+| **Highest quality — bigger file** | The printed graphics came back **smeared or stretched**. (Not for graphics that are see-through, boxed over, or missing — Detail cannot change those.) |
 | **Smallest file — softer detail** | It was rejected for being too big, or it's slow to load on a phone. |
 
 Changing Detail and uploading the file again re-runs everything. That is the
@@ -176,7 +176,8 @@ in plain language.
 | What it says | What you do |
 |---|---|
 | "over the 40.0 MB limit" | Upload again with **Detail: Smallest file** |
-| Logos look fuzzy or broken | Upload again with **Detail: Highest quality** |
+| Logos look fuzzy or **smeared** | Upload again with **Detail: Highest quality** |
+| Logos look **see-through**, or have a pale box over them, or are gone | Detail will not help — this is a transparency fault, not a detail one. Tell your developer |
 | "did not finish uploading" | Your connection dropped. Try again, keep the tab in front |
 | "cannot store reliably" | Rename the file — remove the odd character |
 | "must be GLB models" | Wrong kind of file. Export a GLB from CLO |

@@ -256,7 +256,7 @@ export interface RawUpload {
    */
   targetProduct: number | Product;
   /**
-   * How much detail to keep. Start with Balanced. If the printed graphics look soft or broken, re-upload on “Highest quality”. If it is rejected for being too big, re-upload on “Smallest file”.
+   * How much detail to keep. Start with Balanced. If the printed graphics look SMEARED or stretched, re-upload on “Highest quality” — that is the shrinker pushing the geometry too hard. If it is rejected for being too big, re-upload on “Smallest file”. If a graphic looks SEE-THROUGH, or is covered by a pale box, or is missing entirely, Detail will not help: tell your developer, that is a fault in how the file marks transparency.
    */
   detail?: ('balanced' | 'fidelity' | 'small') | null;
   /**
