@@ -148,7 +148,7 @@ measured, every weight from 0 to 100 gave an identical result on a flat grid. Re
 garment unwraps are non-linear; flat test planes are not, so don't calibrate on one.
 
 For the automatic shrinker, don't set these by hand — pick the **Detail** level on
-the raw upload (Balanced / Highest quality / Smallest file). The mapping lives in
+the raw upload (Balanced / Highest quality — "Smallest file" was removed 2026-08-05: it reached its size by damaging printed artwork and passed every gate while doing it). The mapping lives in
 `packages/shared/src/shrink.ts`.
 
 ⚠️ **Check that the protection actually ran.** `optimize` and the shrink report

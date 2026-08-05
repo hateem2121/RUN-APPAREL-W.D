@@ -105,9 +105,12 @@ Full guide: [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md).
 - [ ] **No colours in the file are unmapped.** If the banner above the list says
       "we found N colours … not on your website yet", either add them or decide
       deliberately not to. Two of N001's five were invisible to buyers for weeks
-- [ ] If the job **failed on artwork** ("printed artwork … was damaged", "…came
-      out see-through") that is the gate working, not a crash — re-upload at
-      **Highest quality**. See RAW-UPLOAD-PIPELINE.md → troubleshooting
+- [ ] If the job **failed on artwork** that is the gate working, not a crash — but
+      the two verdicts have different remedies. **"…was damaged"** means decimated
+      without artwork protection: re-upload at **Highest quality**. **"…came out
+      see-through"** is an `alphaMode` decision made identically at every Detail
+      level, so re-uploading at Highest quality changes nothing — read the Report
+      and escalate. See RAW-UPLOAD-PIPELINE.md → troubleshooting
 
 ## Performance & assets
 
@@ -130,6 +133,12 @@ Full guide: [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md).
       logos tore apart at the settings shipped on 2026-07-27, and again on the
       first real garment on 2026-07-29. If they look smeared,
       re-upload with **Detail: Highest quality**
+- [ ] **Zoom in again and check the logo is not see-through, and not sitting in a
+      pale box.** This is a different failure with a different cause — the
+      `alphaMode` chosen from the texture's alpha — and **no Detail level changes
+      it**. On 2026-08-03 the live N001 chest wordmark rendered as a near-white box
+      measured at (240,240,240); the mis-calibrated threshold behind it was fixed
+      on 2026-08-04
 - [ ] **Read the "Mesh decimation" line in the upload's report.** If more parts
       came back *without* artwork protection than with, the setting that protects
       printed graphics did not apply to this garment and changing the Detail level

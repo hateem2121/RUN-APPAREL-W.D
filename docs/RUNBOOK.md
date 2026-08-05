@@ -254,6 +254,24 @@ pull request:
   `retries: 1` in CI: Playwright reports a test that fails then passes as
   **flaky** in its own section, so flakes stay visible and countable while a real
   failure still fails both attempts and still stops the deploy.
+- **Post-deploy viewer payload** — `scripts/smoke-viewer-payload.mjs`, run after
+  the deploy in `ci.yml` and every 15 minutes from `uptime.yml`. Until 2026-08-05
+  the only post-deploy check was `curl /api/health`, which returns `{"ok":true}`
+  from a worker with an **empty database** — it proves the process is up and
+  nothing about whether a buyer scanning a QR tag sees a garment. The uptime
+  workflow's viewer curl was no better: the SPA shell returns 200 and renders its
+  no-model state.
+
+  The script fetches `/api/public/viewer/n001/navy` and asserts a product, at
+  least one colourway, and a model URL that really fetches and is over 100 KB.
+
+  **It resolves the model URL by the same rule `Stage.tsx:46` uses** —
+  `separateMode ? selected.glbUrl : product.glbUrl`, with no fallback between the
+  two fields. Writing it as `a || b` would pass on a product whose *unused* field
+  happens to be populated, i.e. green CI while every visitor sees the no-model
+  state. That case is one of five in the negative control the check was built
+  against. It does **not** judge whether the artwork on the model is intact —
+  that is not decidable over HTTP, and is gated at pipeline time instead.
 
 **Dependency updates**: Dependabot runs in **quiet mode** — routine version-bump
 PRs are off (`open-pull-requests-limit: 0` in `.github/dependabot.yml`) to keep the
@@ -262,6 +280,46 @@ a real **security** advisory. Day-to-day, `audit-ci` blocks high/critical
 vulnerabilities on every change. To resume routine updates, raise the limits in
 `.github/dependabot.yml` (grouping/ignore rules are kept ready); the same CI gates
 run on any Dependabot PR before merge.
+
+## The CSP error on every live page load (open, needs a dashboard change)
+
+**Found 2026-08-05 in a real browser on `viewer.wear-run.help`:**
+
+```
+Executing inline script violates the following Content Security Policy directive
+'script-src 'self' 'wasm-unsafe-eval' 'sha256-wT6H9HqZ3CLsrvABGO2hqbdB9G0iJEbrzwBE6ppc9us='
+https://static.cloudflareinsights.com'
+```
+
+**It is not our HTML.** The delivered page carries exactly one inline script — the
+theme bootstrap in `apps/viewer/index.html` — and `scripts/gen-headers.mjs` hashes
+it correctly, which is the `sha256-wT6H9Hq…` the policy already allows. Reading the
+live DOM shows a **third** script the HTML never contained:
+
+| # | script | allowed? |
+|---|---|---|
+| 1 | inline, 426 chars — our theme bootstrap | yes, by hash |
+| 2 | `/assets/index-*.js` | yes, `'self'` |
+| 3 | **inline, 921 chars, `(function(){function c(){var b=a.contentDocument…`** | **NO** |
+| 4 | `static.cloudflareinsights.com/beacon.min.js` | yes, by origin |
+
+Script 3 is injected by **Cloudflare's edge** as the bootstrap for its Web
+Analytics beacon (script 4). Its hash changes whenever Cloudflare updates the
+beacon, so pinning a hash in `gen-headers.mjs` would go stale silently and is the
+wrong fix.
+
+**Impact:** a console error on every page load, and the beacon bootstrap does not
+run, so Web Analytics is likely not recording. No user-facing breakage.
+
+**The fix is a Cloudflare dashboard change, not a code change.** Turn off automatic
+beacon injection for the zone (Analytics → Web Analytics → the site → disable
+*Automatic Setup*). If the analytics are wanted, add the beacon `<script src=…>`
+to `apps/viewer/index.html` afterwards — it is a `src` script from an
+already-allowlisted origin, so it needs no hash and `gen-headers.mjs` will ignore
+it.
+
+**Do not "fix" this by adding `'unsafe-inline'`.** That would re-permit every
+inline script on the page and discard the protection the hash list exists to give.
 
 ## Rotating PAYLOAD_SECRET
 
@@ -439,10 +497,81 @@ For the automatic shrinker, do **not** edit flags in the container — pick the
 **Detail** level on the raw upload instead (Balanced / Highest quality / Smallest
 file). The levels map to these flags in `packages/shared/src/shrink.ts`.
 
+**What Detail can and cannot fix.** Every level maps to a `--simplify` budget, so
+Detail governs *decimation* — smeared lettering, torn UVs, ragged edges. It has
+**no effect on whether a graphic is see-through or boxed**: that is the
+`alphaMode` chosen in `solidifyMaterials` from the texture's own alpha channel,
+and it comes out identical at all three levels. Four documents and the admin field
+itself recommended Detail for both until 2026-08-04, when the real cause turned
+out to be `BINARY_MID_FRACTION` sitting at 0.02 against a wordmark measuring 3.58%
+mid. Do not re-introduce that advice.
+
 **Deferred (owner request):** remove/raise the 40 MB cap and add an upload
 progress %/status in the admin. Both hinge on switching media uploads to
 `clientUploads: true` (direct browser→R2) so the Worker body/memory limits and the
 opaque "just loading" spinner stop applying. Not yet actioned.
+
+## Re-processing a garment (the Retry tick-box)
+
+**When you need this:** the pipeline was fixed and you want the fix applied to a
+garment already uploaded. The raw export is still in the R2 ingest bucket (it has
+no lifecycle rule), so you do **not** re-upload the file.
+
+**This is the only way to start a re-run.** The job is enqueued by an `afterChange`
+hook on the collection (`apps/cms/src/collections/RawUploads.ts`), which fires only
+on `create` or on `retry` flipping `false → true` through a save. Writing to D1
+directly, or calling the REST API to set the column, enqueues **nothing** — the
+row changes and no work happens. There is no developer shortcut for this step.
+
+### Doing it
+
+1. Open `https://cms.wear-run.help/admin/collections/raw-uploads/<id>`
+   (the first real garment is id **1**).
+2. In the right-hand sidebar, **leave Detail as it is** unless you have a reason —
+   see "What Detail can and cannot fix" above. Changing it changes the experiment.
+3. Tick **"Try this again"**.
+4. Press **Save**.
+
+Processing takes roughly ten minutes. Refresh the page rather than waiting on it.
+
+### Reading the outcome
+
+| `Status` | What it means | What to do |
+|---|---|---|
+| **Queued** / **Processing** | Picked up, still working. The tick-box has already reset itself to unticked and `Report` reads "Trying again…". | Wait, refresh. |
+| **Ready to review** | It produced a file. `The shrunk, pipeline-processed GLB` (`resultGlb`) carries today's date, and `Report` lists the final size and the colours found. | Go to visual acceptance below. |
+| **Failed** | The pipeline **refused to save**, which since 2026-08-03 is a designed outcome, not a crash. | Read `Report` — copy it verbatim to whoever is fixing it. |
+
+**The `Report` box is the gate speaking in plain English.** Three structural
+findings make the shrink worker throw `PermanentJobError` and save nothing: printed
+artwork decimated without its UVs in the error budget, an artwork material left on
+`alphaMode: BLEND`, and an artwork `MASK` whose `alphaCutoff` drifted off 0.5. Each
+names the offending materials. Do not treat a Failed status as a bug report until
+you have read it.
+
+**If the row is stuck or unusable**, uploading the file again creates a new
+`RawUploads` row, and `create` enqueues by the same path. That is the fallback, not
+the first move — it costs a 350 MB+ upload.
+
+### Visual acceptance — the sign-off
+
+Processing successfully is **not** the same claim as the garment looking right.
+This repo keeps those separate on purpose, and the 2026-08-04 fix is measured but,
+as of this writing, still unrendered.
+
+- [ ] Open the new `resultGlb` — CMS preview, or attach it to the product in a
+      draft and open the viewer.
+- [ ] **Zoom right in on the chest logo, on a phone.** For N001 the wordmark must
+      read `✳ THE EXTRA MILE` in full.
+- [ ] It is **not** see-through and **not** sitting in a pale box. (The 2026-07-29
+      file rendered a near-white box measured at (240,240,240).)
+- [ ] It is **not missing entirely.** A logo that vanished is a different fault —
+      a decal whose faces point inward and is no longer double-sided.
+- [ ] Edges are clean, not smeared or torn. *That* one is a Detail problem.
+- [ ] Screenshot the chest crop and attach it to `docs/OPEN-ISSUE-ARTWORK.md`.
+
+Until that screenshot exists, the artwork issue stays open regardless of what the
+tests say.
 
 ## API + media domain cutover
 

@@ -245,10 +245,18 @@ export function assertPublishable(input: PublishGateInput, colourways: GateColou
 function assertArtworkAcceptable(input: PublishGateInput): void {
   if (input.artworkVerdict !== 'damaged') return
   if (text(input.artworkOverrideReason) !== '') return
+  // Deliberately does NOT prescribe "Highest quality". This verdict covers both
+  // shapes of artwork damage, and Detail only addresses one of them: it sets the
+  // --simplify budget, so it fixes a smeared or torn logo and does nothing at all
+  // for a see-through one, which solidifyMaterials decides from the texture's
+  // alpha identically at every level. Naming one remedy for both sent the owner
+  // round a loop on 2026-08-04.
   throw new Error(
     'The printed artwork on this model was damaged when the file was shrunk, so publishing it would ' +
-      'show buyers a torn logo. Upload the file again with the Detail setting on “Highest quality — ' +
-      'bigger file”. If this garment genuinely has no printed artwork, write why in “Publish anyway ' +
+      'show buyers a torn logo. Read the Report on the raw upload — it names which graphic and how. ' +
+      'If it came back smeared or torn, re-upload with the Detail setting on “Highest quality — ' +
+      'bigger file”; if it came back see-through or boxed, Detail will not change it and it needs ' +
+      'reporting. If this garment genuinely has no printed artwork, write why in “Publish anyway ' +
       '— reason” on the 3D file, and it will publish.',
   )
 }

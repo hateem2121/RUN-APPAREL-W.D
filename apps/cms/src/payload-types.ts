@@ -231,6 +231,14 @@ export interface Media {
    * Automatically ticked when the file exceeds the 8 MB mobile guideline.
    */
   sizeWarning?: boolean | null;
+  /**
+   * Written by the shrink robot. “Damaged” means printed logos or lettering were torn while the file was made smaller, and the product will refuse to publish until the file is replaced.
+   */
+  artworkVerdict?: ('unknown' | 'ok' | 'damaged') | null;
+  /**
+   * Write why this file is acceptable despite the warning — e.g. “this garment has no printed artwork”. Any text here lets it publish, and it stays on the record.
+   */
+  artworkOverrideReason?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -256,9 +264,9 @@ export interface RawUpload {
    */
   targetProduct: number | Product;
   /**
-   * How much detail to keep. Start with Balanced. If the printed graphics look soft or broken, re-upload on “Highest quality”. If it is rejected for being too big, re-upload on “Smallest file”.
+   * How much detail to keep. Start with Balanced. Re-upload on “Highest quality” only if a printed graphic came back SMEARED or TORN — ragged edges, warped lettering. That is mesh damage, and Detail is the setting that fixes it. If a graphic is SEE-THROUGH, or sits in a pale box, Detail will NOT help: every level makes the same transparency decision. Report that instead. If it is rejected for being too big, the file needs re-exporting from CLO at a lower mesh density — there is no smaller setting here, because the one that existed shrank files by damaging the printed graphics.
    */
-  detail?: ('balanced' | 'fidelity' | 'small') | null;
+  detail?: ('balanced' | 'fidelity') | null;
   /**
    * Set automatically. “Ready to review” means the shrunk GLB is waiting below.
    */
@@ -587,6 +595,8 @@ export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   sourceReference?: T;
   sizeWarning?: T;
+  artworkVerdict?: T;
+  artworkOverrideReason?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;

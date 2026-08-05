@@ -20,6 +20,15 @@ build/
 
 # generated assets (reproducible via the asset pipeline)
 tools/asset-pipeline/output/
+output/
+
+# raw CLO exports pulled from the R2 ingest bucket for local work. The N001
+# export alone is 364 MB — fetch it with
+#   wrangler r2 object get "run-apparel-viewer-ingest/<name>.glb" --file raw/<name>.glb --remote
+# rather than committing it. Test fixtures derived from one belong in
+# tools/asset-pipeline/src/__fixtures__/ and must be small enough to read in a
+# diff (the wordmark alpha is 13 KB).
+raw/
 
 # local backups (D1 exports contain password hashes — never commit)
 backups/

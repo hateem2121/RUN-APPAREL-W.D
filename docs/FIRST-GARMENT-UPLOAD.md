@@ -160,8 +160,18 @@ again. No developer, no waiting.
 | Setting | When to use it |
 |---|---|
 | **Balanced** | Always start here. |
-| **Highest quality — bigger file** | The printed graphics came back soft or broken. |
-| **Smallest file — softer detail** | It was rejected for being too big, or it's slow to load on a phone. |
+| **Highest quality — bigger file** | A printed graphic came back **smeared or torn** — ragged edges, warped letters. |
+
+> **There used to be a third option, “Smallest file”. It was removed on
+> 2026-08-05.** It got files smaller by damaging the printed graphics — the chest
+> wordmark measurably broke apart at that setting — and every automatic check
+> passed it anyway. If a file is too big, it needs re-exporting from CLO with a
+> lighter mesh.
+
+**If a graphic is see-through, or sitting in a pale box, Detail will not fix it.**
+Detail controls how much the shape is simplified. Whether a graphic is
+transparent is worked out from the picture's own transparency, and that decision
+comes out the same on every Detail level. Report it instead of re-uploading.
 
 Changing Detail and uploading the file again re-runs everything. That is the
 intended way to tune a garment.
@@ -175,8 +185,9 @@ in plain language.
 
 | What it says | What you do |
 |---|---|
-| "over the 40.0 MB limit" | Upload again with **Detail: Smallest file** |
-| Logos look fuzzy or broken | Upload again with **Detail: Highest quality** |
+| "over the 40.0 MB limit" | Re-export from CLO at a lower mesh density. There is no smaller Detail level — see the note above |
+| Logos look fuzzy, smeared or torn | Upload again with **Detail: Highest quality** |
+| Logos look see-through, or sit in a pale box | **Detail will not help.** Tell your developer — it is a transparency decision, not a detail one |
 | "did not finish uploading" | Your connection dropped. Try again, keep the tab in front |
 | "cannot store reliably" | Rename the file — remove the odd character |
 | "must be GLB models" | Wrong kind of file. Export a GLB from CLO |

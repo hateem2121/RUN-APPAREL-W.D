@@ -285,8 +285,17 @@ export const RawUploads: CollectionConfig = {
       options: SHRINK_DETAIL_LEVELS.map(({ value, label }) => ({ value, label })),
       admin: {
         position: 'sidebar',
+        // The old text said "if the printed graphics look soft or broken, re-upload
+        // on Highest quality" for BOTH kinds of artwork damage, and for one of them
+        // that is a dead end. Detail picks the --simplify budget in
+        // packages/shared/src/shrink.ts, i.e. decimation. See-through and
+        // white-box logos are decided in solidifyMaterials (optimize.ts), which
+        // reads the texture's alpha and never looks at the simplify budget — so
+        // every Detail level produces the identical alphaMode. On 2026-08-04 the
+        // owner was sent round this loop while the actual cause was a
+        // mis-calibrated CUTOUT_MID_FRACTION.
         description:
-          'How much detail to keep. Start with Balanced. If the printed graphics look soft or broken, re-upload on “Highest quality”. If it is rejected for being too big, re-upload on “Smallest file”.',
+          'How much detail to keep. Start with Balanced. Re-upload on “Highest quality” only if a printed graphic came back SMEARED or TORN — ragged edges, warped lettering. That is mesh damage, and Detail is the setting that fixes it. If a graphic is SEE-THROUGH, or sits in a pale box, Detail will NOT help: every level makes the same transparency decision. Report that instead. If it is rejected for being too big, the file needs re-exporting from CLO at a lower mesh density — there is no smaller setting here, because the one that existed shrank files by damaging the printed graphics.',
       },
     },
     {

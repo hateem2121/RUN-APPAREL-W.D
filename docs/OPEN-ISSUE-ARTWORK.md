@@ -1,5 +1,172 @@
 # OPEN ISSUE — printed artwork is damaged on the shrunk model
 
+> ## Status 2026-08-05 (later): **CLOSED, and locked against regression.**
+>
+> The fix is measured, seen, live, and now pinned by tests that fail when it is
+> undone. Suite: **350** (was 340).
+>
+> **The fixture can now exhibit the failure — for the first time.**
+>
+> - `src/__fixtures__/wordmark-alpha.png` is the **real** `THE EXTRA MILE
+>   (Slogan)` alpha channel, lifted from the 364 MB raw export. 13 KB, because
+>   only the alpha is kept and RGB is flattened. It replaces a synthetic
+>   approximation of painted stripes at 400×50. Round-trip verified **exact**:
+>   0.6638 / 0.3004 / 0.0358, the same numbers the fix was calibrated against.
+>   Taken from the RAW export deliberately — `solidifyMaterials`
+>   (`optimize.ts:300`) runs BEFORE texture compression (line 305), so
+>   `profileAlpha` never sees the WebP.
+> - `placeholders.ts` now seeds **five** artwork materials per colourway carrying
+>   the five measured profiles, not one clean cutout. The `graded` 3.58% shape —
+>   the one that broke production — is in the seeded chain at last.
+> - The end-to-end test asserts **every** artwork material comes out `MASK`/0.5
+>   and that **zero** remain on BLEND. It previously asserted
+>   `masked.length > 0`, which one material made indistinguishable from the
+>   stronger claim; the production refusal named *five*.
+> - A material that *becomes* MASK inside `solidifyMaterials` is now asserted to
+>   keep its incoming sidedness. That was the one gap left open on 2026-08-04.
+>
+> **Negative controls, each run and observed:**
+>
+> | reverted | tests that fail |
+> |---|---|
+> | `CUTOUT_MID_FRACTION` 0.05 → 0.02 | **5**, including the full-chain e2e and the merge test |
+> | `CUTOUT_MIN_TRANSPARENT` 0.05 → 0 | 3 |
+> | `OPAQUE_FACTOR_THRESHOLD` 0.99 → 0 | 2 |
+>
+> Before this work, reverting `CUTOUT_MID_FRACTION` failed 2 isolated unit tests.
+> It now fails through the real compressed, textured, UV-carrying chain.
+>
+> Still open, and tracked as separate work: the placeholder poster images and the
+> colour data. See
+> `docs/superpowers/specs/2026-08-05-n001-production-polish-design.md`.
+
+> ## ⚠ NEW FINDING 2026-08-05: the three gates do NOT catch decimation damage
+>
+> A six-run sweep from the raw export
+> (`tools/asset-pipeline/scripts/sweep-size-vs-artwork.mjs`) varied
+> `--simplify-error` from 0.0002 to 0.005. **Every single run passed all three
+> blocking gates** — including the one deliberately set up to fail.
+>
+> | run | `--simplify-error` | size | `artworkAtRisk` | `findArtworkAlphaProblems` | all 26 MASK/0.5 | **gates** | **wordmark, rendered** |
+> |---|---|---|---|---|---|---|---|
+> | B | 0.0002 (fidelity) | 58.63 MB | 0 | 0 | yes | PASS | — |
+> | A | 0.0005 (**balanced, shipped**) | 37.72 MB | 0 | 0 | yes | PASS | **crisp** |
+> | D | 0.001, uv 2 | 27.49 MB | 0 | 0 | yes | PASS | — |
+> | **C** | **0.001** | **26.96 MB** | 0 | 0 | yes | PASS | **fully legible** |
+> | E | 0.002 (**small, shipped**) | 18.81 MB | 0 | 0 | yes | PASS | **MILE breaking up** |
+> | F | 0.005 | 12.14 MB | 0 | 0 | yes | PASS | **destroyed** |
+>
+> Evidence: `images/2026-08-05-size-vs-wordmark.png`, chest crop at 4×, Colorway 2.
+>
+> **F is illegible and shipped clean through every check.** The gates test
+> `alphaMode`, which is a *settings-independent* property — that is why they
+> caught the 2026-08-04 bug and why they say nothing here. `artworkAtRisk` fires
+> only when a primitive takes the position-only fallback; with `--uv-weight 1` the
+> UVs *are* in the error budget, so it is empty. The budget was simply too loose.
+> Nothing measures whether the letters survived.
+>
+> **This is the same class of hole the whole document is about**, one level up: in
+> 2026-07 the fixture could not exhibit the failure; now the *gate* cannot.
+>
+> ### Two consequences
+>
+> 1. **The shipped `small` preset visibly damages this garment.** Run E is
+>    `smallest file — softer detail` exactly as an owner would select it from the
+>    admin, and `MILE` is already breaking apart. The Detail copy corrected earlier
+>    today says Detail fixes smearing — it can also *cause* it, and the preset
+>    offering that is live now.
+> 2. **`--simplify-error 0.001` is the better default.** Run C is **28% smaller
+>    than what is live** (26.96 MB vs 37.72 MB) with a wordmark still fully
+>    legible, and D shows `uv-weight 2` buys only 0.5 MB — the budget is the dial
+>    that matters, exactly as `shrink.ts` says.
+>
+> Neither change has been made. Both need a rendered-crop review per garment,
+> because "legible" is not a number this pipeline can currently compute — which is
+> the honest reason `findCrushedArtwork` was left advisory.
+
+> ## Status 2026-08-05: **RESOLVED — the fix is measured AND SEEN.**
+>
+> The owner ticked Retry on raw upload #1 at **05:46:02 UTC**. The pipeline
+> **succeeded**: `status: ready`, `resultGlb` = Media #11
+> `cycling-all-colours-optimized-3.glb`, 364.4 MB → **37.7 MB**,
+> `artworkVerdict: ok`.
+>
+> **The render was then checked, which is the claim this document has been
+> waiting on since 2026-07-29.** `pnpm pipeline render` on the new file, two
+> colourways, plus every artwork texture extracted at native resolution:
+>
+> - The chest wordmark reads **`THE EXTRA MILE`** — every letter, clean edges.
+>   It rendered as `⬛HE EXTRA ⬛⬛⬛⬛E` on 2026-08-03.
+>   → `images/2026-08-05-n001-wordmark-zoom.png` (4× nearest-neighbour)
+> - The `RUN` mark — running figure + lettering + ® — is **fully present**. That
+>   is the `✳` that was destroyed.
+> - Nothing is see-through, boxed, or missing.
+>   → `images/2026-08-05-n001-front-cream.png`,
+>     `images/2026-08-05-n001-front-colorway2-maroon.png`
+>
+> ### All five artwork textures, measured (this closes the "only 1 of 5" gap)
+>
+> 26 material instances = 5 distinct textures × 5 colourways. **Every one resolved
+> to `MASK` / `alphaCutoff 0.5`. `findArtworkAlphaProblems` is EMPTY.** Whole-file
+> census: `{ OPAQUE: 174, MASK: 26 }` — **zero BLEND**.
+>
+> | texture | size | transparent | opaque | mid | character | margin under `CUTOUT_MID_FRACTION` |
+> |---|---|---|---|---|---|---|
+> | `Teamwear Logo` | 1823×1288 | 55.90% | 43.69% | **0.41%** | `binary` | 92% |
+> | `TEAM WEAR FRONT LABEL` | 4096×1821 | 18.77% | 80.70% | **0.53%** | `binary` | 89% |
+> | `Zipper 3_TapeFabric` | 274×576 | 0.00% | 99.33% | **0.67%** | `binary` | 87% |
+> | `RUN LOGO` | 2031×550 | 67.01% | 32.10% | **0.90%** | `binary` | 82% |
+> | `THE EXTRA MILE (Slogan)` | 1944×121 | 66.38% | 30.04% | **3.58%** | `graded` | **28%** |
+>
+> **Answering the question this table was built to answer: 0.05 is NOT a near-miss
+> for four more textures.** Four of the five are `binary` at 0.41–0.90% mid — they
+> resolved correctly under the *old* 0.02 threshold too and never needed the fix.
+> The Slogan is the sole outlier at 3.58%, sitting 28% under the new ceiling. The
+> mis-calibration affected exactly one texture, and the new constant is not
+> load-bearing for anything else in this garment.
+>
+> Note `Zipper 3_TapeFabric` at **0.00% transparent**: it reaches MASK via the
+> `character === 'binary'` branch, not the cutout branch, and would fail
+> `CUTOUT_MIN_TRANSPARENT` outright. Harmless here — at 99.33% opaque nothing is
+> discarded — but it is the shape that constant exists to catch, sitting in a real
+> file.
+>
+> ### The bytes-per-pixel advisory fired three times. All three were false alarms.
+>
+> `findCrushedArtwork` flagged #3 (0.0126 bpp), #5 (0.014) and #15 (0.0114). Every
+> one was extracted and inspected at native resolution and is **completely
+> intact** — #15 is legible down to `⚠ CAUTION ⚠ DO NOT BLEECH OR WASH IN HOT
+> WATER` at 4096×1821 (`images/2026-08-05-n001-front-label-native.png`; the typo
+> is in the source artwork).
+>
+> **This is the designed behaviour, now demonstrated on a real garment:** these are
+> flat black-and-white marks, and flat artwork legitimately encodes this small.
+> Had `CRUSHED_BYTES_PER_PIXEL` been a *blocking* gate it would have refused a
+> perfectly good file three times over. Keep it advisory.
+>
+> ### Double-siding on converted materials — resolved, no regression
+>
+> **10 of 26** MASK materials are double-sided (the zipper tapes); the other 16 —
+> every logo — are single-sided. They render correctly, so their normals face
+> outward and `optimize.ts` preserving source sidedness is doing the right thing.
+> The feared "decal facing inward now renders as nothing" did not occur.
+> **Still unpinned:** no test asserts sidedness for a material that *becomes* MASK
+> inside `solidifyMaterials`.
+>
+> ### What this did NOT fix
+>
+> - **Size: 37.7 MB, up from 19.4 MB.** Under `GLB_HARD_MAX_BYTES` (40 MB) by only
+>   2.3 MB and **4.7× over** `SIZE_WARNING_BYTES` (8 MB). This is a QR-scanned,
+>   phone-first product. Treat as the next issue.
+> - **Colour names are wrong, now confirmed visually.** Colorway 2 renders
+>   **maroon** and the CMS calls it "Navy". The file reports Maroon / Blush /
+>   Cream / Lime / Black; the CMS shows Navy / Black / Crimson and does not expose
+>   Colorways 5–6 at all.
+> - **The product is a women's cycling skinsuit published as "Velocity Performance
+>   Tee".**
+> - **Production still serves the old file.** The new GLB is on the upload row, not
+>   attached to the product. That is a separate owner action.
+
 > ## Status 2026-08-04: ROOT CAUSE FOUND AND MEASURED.
 >
 > The Retry was ticked. The pipeline **refused to save** — the gate added the day

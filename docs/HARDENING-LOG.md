@@ -703,3 +703,143 @@ completely unexercised.
 334 unit tests, 66 e2e across Chromium / WebKit / mobile Safari / Firefox /
 SwiftShader. Five workspaces plus the non-workspace container typecheck; all
 builds green.
+
+---
+
+# 2026-08-04 — the root cause, found by ticking Retry
+
+Full detail in [SESSION-2026-08-04.md](SESSION-2026-08-04.md). Ten commits.
+
+The session acted on the one recommendation the 2026-08-03 audit could not carry
+out itself, and the **refusal** that came back was the finding.
+
+## The wordmark was misread as sheer fabric
+
+Ticking Retry produced no file. It produced a `PermanentJobError` — the gate added
+the day before, blocking five artwork materials left on `alphaMode: BLEND`.
+Chasing it found one mis-calibrated number.
+
+Measured on the live `THE EXTRA MILE (Slogan)` texture, 1944×121: **66.38%**
+transparent, **30.04%** opaque, **3.58%** mid. **96.42% at the extremes — a cutout
+by any reading — and `BINARY_MID_FRACTION` (0.02) classified it `graded`**, i.e.
+"leave it on BLEND". It missed by 1.6 points.
+
+The cause is **high ink coverage**, not thin strokes: 30% of the strip is ink, so
+there is a great deal of edge. A reviewer rendered real wordmark type at this size
+across five faces and measured 1.2–2.3% mid — ordinary lettering was never at risk.
+
+Both ways of getting this wrong had already shipped to a paying customer. Before
+`7bef9c4` the branch forced `OPAQUE`, which ignores the alpha channel, so the 66%
+transparent background painted its underlying RGB — **(240,240,240)**, a near-white
+box across the chest, and that is the file live today. After `7bef9c4` the
+`graded → BLEND` branch *added by the artwork fix to protect sheer fabric* caught
+artwork as collateral. **The 2026-07-31 fix traded one bug for another**, invisible
+because the live file predated it. The repo's opening pattern again: the fixtures
+could not exhibit the failure.
+
+The fix is **not** simply a wider band, and an adversarial review caught the first
+attempt that was. `CUTOUT_MID_FRACTION` (0.05) governs only the BLEND→MASK
+decision; `BINARY_MID_FRACTION` stays 0.02 because `character` also feeds a
+*blocking* gate. `CUTOUT_MIN_TRANSPARENT` (0.05) exists because a uniformly
+translucent inset measures 1.95–6.06% mid too, and MASKing it at 0.5 when its alpha
+is ~0.35 **deletes** it — a hole, and MASK@0.5 is what the gate calls correct, so
+nothing would catch it. `OPAQUE_FACTOR_THRESHOLD` (0.99) makes an explicit
+`baseColorFactor[3]` beat anything inferred from pixels. Three tests, each verified
+to fail when its own constant is reverted.
+
+**Still open: the mechanism is measured, the render is not.** The corrected
+pipeline has never produced a file, and only 1 of the 5 blocked materials has been
+profiled.
+
+## Also closed
+
+`gitleaks` moved into `ci.yml` as a job the deploy `needs:`, which is what makes
+the word "gate" true; `security.yml` was deleted (`.gitleaks.toml` kept citing it
+until 2026-08-05). `deploy-shrink.yml` gained a `needs:` — the workflow shipping
+the container that processes every real garment was the one nothing gated.
+
+The container image was **not reproducible**: `npm install` with no lockfile and
+`ktx2-encoder`/`meshoptimizer` floating on `^`. Non-reproducible squeezing looks
+exactly like a random artwork bug. Now `npm ci` against a committed lock.
+
+`glb-shrink-dlq` got its consumer; the Events table got its first reader in six
+weeks (8 × `model-load-error`, 13 × `variant-missing`, an uncaught React error).
+The e2e matrix gained WebKit, mobile Safari and Firefox, and `webgl.spec.ts` stopped
+`test.skip()`-ing itself into a silent pass. Colour names are now read from the file
+by area + CIEDE2000 rather than typed. Four high advisories fixed by override, not
+allowlist — the allowlist is now empty.
+
+## State
+
+340 unit tests (re-measured 2026-08-05 across five workspaces: shared 28, pipeline
+136, shrink 30, viewer 27, cms 119), 66 e2e. All green.
+
+**Blocking item, unchanged and not a code change:** production serves
+`cycling-all-colours-optimized-2.glb`, built 2026-07-29 14:34 UTC, predating every
+fix. One Retry tick on raw upload #1 tests the fix and replaces it. See
+[RUNBOOK.md](RUNBOOK.md) → "Re-processing a garment".
+
+---
+
+# 2026-08-05 — the artwork issue closes, and what it was hiding
+
+Full detail in [SESSION-2026-08-05.md](SESSION-2026-08-05.md).
+
+## Closed, and SEEN
+
+The owner ticked Retry at 05:46:02 UTC; the pipeline succeeded in 87 seconds
+(364.4 MB → 37.7 MB, `artworkVerdict: ok`). The output was then **rendered and
+inspected** — the chest wordmark reads `THE EXTRA MILE` in full, the `RUN` mark is
+intact. All 26 artwork materials resolved to `MASK`/0.5; whole-file census
+`{ OPAQUE: 174, MASK: 26 }`, zero BLEND.
+
+Only the Slogan ever needed the fix: the other four artwork textures measure
+0.41–0.90% mid and were already `binary`. `CUTOUT_MID_FRACTION` is load-bearing
+for exactly one texture, at a 28% margin. The bytes-per-pixel advisory fired three
+times and **all three were false alarms** — vindicating the decision to warn
+rather than block.
+
+Locked with a **real** 13 KB fixture (the Slogan's actual alpha channel, extracted
+from the raw export because `solidifyMaterials` runs before texture compression),
+a five-artwork seeded fixture, and negative controls. Reverting
+`CUTOUT_MID_FRACTION` now fails **5** tests including the full-chain e2e; it used
+to fail 2. Suite 340 → **352**.
+
+## ⚠ The finding that outlives the fix
+
+A six-run sweep from the raw export rendered the wordmark **illegible** at
+`--simplify-error 0.005` — and **every run passed all three blocking gates**. The
+gates test `alphaMode`, which decimation does not change, and `artworkAtRisk`
+cannot fire when `--uv-weight` puts the UVs inside the budget. Nothing in the
+system measures whether the letters survived.
+
+The repo's own pattern, one level up: in July the *fixture* could not exhibit the
+failure; now the *gate* cannot.
+
+Consequence: the `small` Detail level shipped visible damage while passing every
+check, and was **deleted** rather than re-tuned. `--simplify` was also confirmed
+not to be the aggression dial — the budget is.
+
+`--simplify-error 0.001` gives 26.96 MB with a wordmark measurably identical to
+the live 37.72 MB (mean │Δ│ 0.06/255). Verified, not applied — owner decision, and
+now coupled to the `small` removal, which took away the escape hatch under the
+40 MB cap.
+
+## The placeholder data behind it
+
+With the garment finally rendering, everything around it was setup leftovers:
+the product was a "Tee" (it is a skinsuit), three colourways carried seeded
+swatches while the file held five measured ones, and every poster was a hand-drawn
+SVG **t-shirt**. All corrected; two previously invisible colourways are now live.
+
+## Two live bugs found by verifying
+
+The loading poster had been overflowing its stage by **926px** since launch — a
+grid item's `min-height: auto` silently beating `max-height: 100%`, which read as
+the image tiling. And Cloudflare's edge injects an inline beacon bootstrap that
+its own CSP blocks on every page load; the fix is a dashboard toggle, still open.
+
+## State
+
+352 unit tests, 66 e2e. Five workspaces plus the container typecheck; viewer
+builds. D1 backup and before/after payloads captured.

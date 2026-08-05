@@ -108,11 +108,31 @@ the answer is "nothing that happens in production", it is not a test.
   *shared offscreen* canvas — the one in the shadow root returns a `2d` context,
   so `WEBGL_lose_context` on it is a no-op. The real contract is model-viewer's
   own `error` event with `detail.type === 'webglcontextlost'`.
+- **The three blocking gates do NOT catch decimation damage.** They test
+  `alphaMode`, which decimation does not change. A six-run sweep from the raw
+  N001 export (`scripts/sweep-size-vs-artwork.mjs`, 2026-08-05) rendered the chest
+  wordmark illegible at `--simplify-error 0.005` and **every run passed all three
+  gates**, `artworkAtRisk` and `findArtworkAlphaProblems` both empty. With
+  `--uv-weight` set, the UVs *are* in the error budget, so `artworkAtRisk` cannot
+  fire — the budget was merely too loose. **Nothing in this system measures
+  whether the letters survived; only a rendered crop does.** This is why the old
+  `small` preset was deleted rather than re-tuned.
+- **`--simplify` is not the aggression dial — `--simplify-error` is.** The
+  simplifier stops early once the budget binds, so lowering the ratio alone does
+  nothing. A sweep over the ratio produces near-identical files and reads as
+  "nothing helps".
+- **A grid item's `min-height: auto` silently beats `max-height: 100%`.** The
+  loading poster overflowed its stage by 926px for months this way — measured
+  498×1500 inside 546×574 — and looked like the image was *tiling*, because the
+  overflow was clipped by the sections above and below. `max-width` alone still
+  left it at 623px. `min-height: 0` is the line that actually fixes it. Same trap
+  as the familiar `min-width: 0` on flex children.
 
 ## Before you change the pipeline
 
 Do not tune presets against file size. That is exactly how a setting that
-protects artwork *less* shipped as "Smallest file". Look at the output:
+protects artwork *less* shipped as "Smallest file" — **deleted on 2026-08-05**
+once a sweep rendered what it actually did to the wordmark. Look at the output:
 
 ```bash
 pnpm pipeline textures raw/garment.glb --out output/textures   # no processing

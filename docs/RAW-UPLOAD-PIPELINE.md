@@ -173,8 +173,17 @@ recover when something goes wrong. See also
    | Detail | Use it when |
    |---|---|
    | **Balanced** (default) | Always start here. |
-   | **Highest quality — bigger file** | The printed graphics came back soft or broken. |
-   | **Smallest file — softer detail** | It was rejected for being too big, or it loads slowly on a phone. |
+   | **Highest quality — bigger file** | A printed graphic came back **smeared or torn** — ragged edges, warped lettering. |
+
+   **“Smallest file” was removed on 2026-08-05** — removed 2026-08-05: it reached its size by damaging printed artwork and passed every gate while doing it. See
+   docs/OPEN-ISSUE-ARTWORK.md. An oversized garment needs a lighter CLO export.
+
+   **Detail does not fix a see-through or boxed graphic.** It sets how hard the
+   mesh is simplified, so it addresses tearing and smearing. Whether a graphic is
+   transparent is decided from the texture's own alpha channel in
+   `solidifyMaterials`, identically at every Detail level. Until 2026-08-04 this
+   table said "soft or broken" for both and sent the owner round a loop while the
+   real cause was a mis-calibrated threshold in the pipeline.
 
    Changing Detail and uploading again re-runs the whole thing — no developer,
    no deploy. That is the intended way to tune a garment.
