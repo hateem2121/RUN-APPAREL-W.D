@@ -133,8 +133,33 @@ model-viewer.stage__model {
   padding: 24px;
 }
 
+/*
+ * The poster is the FIRST thing a phone visitor sees, and it holds the screen for
+ * as long as a 37.7 MB model takes to arrive — so its box has to be right.
+ *
+ * `max-height: 100%` alone was not. The <img> carries width/height attributes
+ * (1200x1500, kept for the aspect ratio so there is no layout shift), and with no
+ * `max-width` and no `height: auto` the intrinsic height wins: measured on the
+ * live page 2026-08-05, the box resolved to 498x1500 inside a 546x574 stage —
+ * overflowing by 926px. `object-fit: contain` then fits the garment to that
+ * oversized box, so it spilled past the stage and was clipped by the sections
+ * above and below, which reads as the poster being tiled.
+ *
+ * Invisible until now only because every poster was a flat placeholder drawing.
+ *
+ * `min-height: 0` is the load-bearing line. This <img> is a GRID ITEM, so it gets
+ * `min-height: auto` — the automatic minimum size — which floors it at its
+ * intrinsic height and silently beats `max-height: 100%`. Measured on the live
+ * page: max-height alone gave 498x1500; adding max-width gave 498x623, still
+ * overflowing a 498x526 content box; with min-height: 0 it resolves to 421x526
+ * and fits. Removing that one line puts the overflow straight back.
+ */
 .stage__poster-fallback img {
+  max-width: 100%;
   max-height: 100%;
+  width: auto;
+  height: auto;
+  min-height: 0;
   object-fit: contain;
   border-radius: 12px;
 }
@@ -391,6 +416,18 @@ model-viewer.stage__model {
 
 .colourway-tab__num {
   color: var(--muted);
+}
+
+/* The measured fabric colour, read from the GLB by variant-colour.ts. A ring
+   rather than a bare disc so a near-white colourway (Cream, #FDFDC8) still reads
+   as a swatch against the panel instead of vanishing into it. */
+.colourway-tab__swatch {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper) 55%, transparent);
 }
 
 .colourway-tab:hover {

@@ -23,6 +23,11 @@ type AppState =
 export default function App() {
   const [state, setState] = useState<AppState>({ kind: 'loading' })
   const [preloaderGone, setPreloaderGone] = useState(false)
+  // Hovering a colourway tab shows that colour ON the loaded model. Kept here
+  // because <Stage> and <ColourwayTabs> are siblings, and deliberately separate
+  // from `selected`: a preview must never move the URL or the enquiry payload.
+  const [previewedColourway, setPreviewedColourway] = useState<ViewerColourway | null>(null)
+  const [variantSwapReady, setVariantSwapReady] = useState(false)
   const polishStarted = useRef(false)
   const loadedFor = useRef<string | null>(null)
 
@@ -149,6 +154,7 @@ export default function App() {
   }
 
   const onSelectColourway = (colourway: ViewerColourway) => {
+    setPreviewedColourway(null)
     if (colourway.slug === selected.slug) return
     setColourwayUrl(data.product.slug, colourway.slug)
     setState({ kind: 'ready', data, selected: colourway, retiredNotice: null })
@@ -161,11 +167,22 @@ export default function App() {
       <div className="page">
         <Header wordmark={data.siteSettings.temporaryWordmark} catalogueUrl={data.product.catalogueUrl} />
         <main>
-          <Stage data={data} selected={selected} />
+          <Stage
+            data={data}
+            selected={selected}
+            preview={previewedColourway}
+            onModelReadyChange={setVariantSwapReady}
+          />
           {retiredNotice && <RetiredNotice message={retiredNotice} />}
           <div className="content">
             <ProductPanel data={data} selected={selected} selectedIndex={Math.max(selectedIndex, 0)} />
-            <ColourwayTabs colourways={data.colourways} selected={selected} onSelect={onSelectColourway} />
+            <ColourwayTabs
+              colourways={data.colourways}
+              selected={selected}
+              onSelect={onSelectColourway}
+              onPreview={setPreviewedColourway}
+              modelReady={variantSwapReady}
+            />
             <CustomisationSection data={data} />
             <ContactSection settings={data.siteSettings} enquiry={enquiry} />
           </div>

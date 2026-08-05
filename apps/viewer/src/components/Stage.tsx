@@ -2,6 +2,7 @@ import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { track } from '../lib/analytics'
 import { canRender3D, prefersReducedMotion } from '../lib/capabilities'
+import { displayedColourway } from '../lib/colourwayPreview'
 import { diagnostic } from '../lib/diagnostic'
 
 type CameraView = 'front' | 'back' | 'side'
@@ -19,6 +20,18 @@ interface ModelViewerEl extends HTMLElement {
 interface StageProps {
   data: ViewerApiSuccess
   selected: ViewerColourway
+  /**
+   * Colourway being hovered in <ColourwayTabs>, or null. Drives the model's
+   * variant only — the selection, the URL and the enquiry payload stay put, so
+   * a hover never looks like a choice the visitor did not make.
+   */
+  preview?: ViewerColourway | null
+  /**
+   * Fires when the model becomes able to accept a variant swap. <ColourwayTabs>
+   * uses it to decide between previewing on the real garment and falling back to
+   * a thumbnail.
+   */
+  onModelReadyChange?: (ready: boolean) => void
 }
 
 /** All copied into public/ by scripts/copy-decoders.mjs — see its header. */
@@ -40,10 +53,13 @@ const LOAD_NOTICE =
 // v4 default, tuned for e-commerce colour accuracy) so baseColor stays faithful.
 const ENVIRONMENT_IMAGE = '/env/studio-soft.hdr'
 
-export function Stage({ data, selected }: StageProps) {
+export function Stage({ data, selected, preview = null, onModelReadyChange }: StageProps) {
   const { product } = data
   const separateMode = product.variantMode === 'separate-glb-per-colour'
   const glbUrl = separateMode ? selected.glbUrl : product.glbUrl
+
+  // What the model should currently DISPLAY, as opposed to what is selected.
+  const displayed = displayedColourway(separateMode, preview, selected)
 
   const mvRef = useRef<ModelViewerEl | null>(null)
   const [libReady, setLibReady] = useState(false)
@@ -225,25 +241,39 @@ export function Stage({ data, selected }: StageProps) {
     [product.productCode],
   )
 
-  // Apply the selected colourway.
+  // Apply the colourway currently being displayed — the hovered one if there is
+  // one, otherwise the selected one.
   useEffect(() => {
     const mv = mvRef.current
     if (!mv || !modelLoaded) return
     if (separateMode) return // handled via src/poster attributes below
     const available = mv.availableVariants ?? []
-    if (available.includes(selected.variantId)) {
-      mv.variantName = selected.variantId
+    if (available.includes(displayed.variantId)) {
+      mv.variantName = displayed.variantId
       setNotice(null)
     } else {
       // Keep the current model visible; never a blank stage.
       setNotice(VARIANT_NOTICE)
-      diagnostic('variant-missing', {
-        product: product.productCode,
-        variant: selected.variantId,
-        available: available.join(','),
-      })
+      // Only report a variant the visitor actually CHOSE. A hover that finds no
+      // variant is a no-op they never see, and logging it would bury the real
+      // signal — `variant-missing` is one of the two diagnostics that had
+      // collected six weeks of unread rows.
+      if (displayed.slug === selected.slug) {
+        diagnostic('variant-missing', {
+          product: product.productCode,
+          variant: displayed.variantId,
+          available: available.join(','),
+        })
+      }
     }
-  }, [modelLoaded, selected.variantId, separateMode, product.productCode])
+  }, [modelLoaded, displayed.variantId, displayed.slug, selected.slug, separateMode, product.productCode])
+
+  // Tell the parent when a variant swap would actually be visible, so the tabs
+  // can choose between previewing on the garment and showing a thumbnail.
+  const variantSwapReady = modelLoaded && !fallback && !separateMode
+  useEffect(() => {
+    onModelReadyChange?.(variantSwapReady)
+  }, [variantSwapReady, onModelReadyChange])
 
   // In separate-GLB mode a colourway change swaps src — poster-first again.
   const previousGlb = useRef(glbUrl)
