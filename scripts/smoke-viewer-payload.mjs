@@ -24,6 +24,10 @@
  *
  * Env:
  *   SMOKE_MIN_MODEL_BYTES   override the "not a stub" floor (default 102400)
+ *   SMOKE_BROWSER_GET=1     also fetch the model the way a browser does — a bare
+ *                           GET, no HEAD, no Range. Costs one extra request, so
+ *                           it is opt-in and set only on the post-deploy path.
+ *                           See "the cached 404" below.
  */
 
 const [, , apiBaseArg, productArg, colourArg] = process.argv
@@ -43,6 +47,16 @@ const COLOUR = colourArg || 'wine'
 // 19 MB. 100 KB separates "a model" from "an empty container or an error page
 // served with a 200", without pinning CI to any particular garment's size.
 const MIN_MODEL_BYTES = Number(process.env.SMOKE_MIN_MODEL_BYTES || 102400)
+
+/**
+ * Opt-in bare GET. See the block comment at check 4.
+ *
+ * Off by default because uptime.yml runs this script every 15 minutes and the
+ * extra request would be pointless there — a cached 404 is created by a probe
+ * made BEFORE the object existed, so it is a hazard at publish time, not a
+ * standing condition to poll for.
+ */
+const BROWSER_GET = process.env.SMOKE_BROWSER_GET === '1'
 
 const TIMEOUT_MS = 30000
 
@@ -106,6 +120,11 @@ if (!modelUrl) {
   // uptime.yml; a GET pulled the whole 37.7 MB model each time — roughly 3.6 GB
   // of R2 egress a day against a $5/month cap, to learn a number that is in the
   // headers. The first version of this check did exactly that.
+  // Tracked so check 4 can tell "the object is genuinely missing" apart from
+  // "HEAD says yes and GET says no", which is a different fault with a different
+  // fix and is the one that shipped a 404 to the live page.
+  let headVerdict = 'unknown'
+
   try {
     let res = await fetch(modelUrl, { method: 'HEAD', signal: AbortSignal.timeout(TIMEOUT_MS) })
 
@@ -120,6 +139,7 @@ if (!modelUrl) {
     }
 
     if (res.status === 403) {
+      headVerdict = 'blocked'
       // NOT a failure, and this is the one exception in this script.
       //
       // Free-plan Bot Fight Mode intermittently 403s datacenter traffic to
@@ -135,8 +155,10 @@ if (!modelUrl) {
       console.log(`            datacenter traffic — see docs/HARDENING-LOG.md). Payload checks passed;`)
       console.log(`            the model URL itself was NOT verified from here.`)
     } else if (!res.ok && res.status !== 206) {
+      headVerdict = 'bad'
       fail(`the model URL returned HTTP ${res.status} — the payload points at a file that is not served`)
     } else {
+      headVerdict = 'ok'
       // content-range on a 206 ("bytes 0-0/39555036"), content-length on a HEAD.
       const range = res.headers.get('content-range')
       const bytes = range
@@ -153,6 +175,62 @@ if (!modelUrl) {
     }
   } catch (err) {
     fail(`the model URL could not be fetched: ${err.message}`)
+  }
+
+  // --- 4. fetch it the way a browser actually will --------------------------
+  //
+  // A bare GET. No HEAD, no Range header, no cache-buster. This exists because
+  // on 2026-08-06 every check above was GREEN on a model that was unreachable:
+  //
+  //     GET  https://media.wear-run.help/…  ->  404  (a 28 KB Cloudflare error page)
+  //     HEAD https://media.wear-run.help/…  ->  200  with the correct content-length
+  //
+  // The two landed on DIFFERENT edge cache entries. `media.wear-run.help` is an R2
+  // custom domain with a 30-day Cache Rule, so a request for an object that does
+  // not exist YET caches the miss — and the cached 404 was 25 hours old, left by a
+  // probe made before the shrink worker wrote the file. The object was intact in R2
+  // the whole time (`wrangler r2 object get` returned all 28,271,780 bytes), and the
+  // same URL with `?v=1` served 200 immediately.
+  //
+  // So `artworkVerdict: ok`, the filesize, the {OPAQUE, MASK} census AND check 3's
+  // HEAD were all green while a buyer scanning a QR tag would have got nothing.
+  // Check 3 uses HEAD deliberately — a GET on every 15-minute uptime run is ~3.6 GB
+  // of R2 egress a day against a $5/month cap — and that trade is still right. It
+  // just means HEAD alone cannot see this class of fault, by construction.
+  //
+  // WHY THE BODY IS NOT DOWNLOADED. The verdict is in the status line, which arrives
+  // with the headers; the 27 MB body says nothing extra. Cancelling the stream
+  // closes the connection after a few buffered KB, so a real browser-shaped GET
+  // costs about as much as the HEAD it complements. Do NOT "fix" this by adding a
+  // Range header or a cache-buster — a ranged or uniquely-keyed request may land on
+  // a different cache entry, which is the exact bug being tested for.
+  if (BROWSER_GET && modelUrl) {
+    try {
+      const res = await fetch(modelUrl, { signal: AbortSignal.timeout(TIMEOUT_MS) })
+      await res.body?.cancel().catch(() => {})
+
+      if (res.status === 403) {
+        // Same Bot Fight Mode exception as check 3, and for the same reason: a
+        // datacenter 403 is inconclusive, never a failed assertion.
+        console.log('  browser   WARN: HTTP 403 on the bare GET (free-plan Bot Fight Mode). Not verified.')
+      } else if (!res.ok) {
+        if (headVerdict === 'ok') {
+          fail(
+            `HEAD says the model is there but a plain GET returns HTTP ${res.status}.\n` +
+              `        This is the cached-404 signature: the two methods are on different edge cache\n` +
+              `        entries, and a visitor's browser gets the one that says ${res.status}.\n` +
+              `        The file is probably intact in R2 — confirm with \`wrangler r2 object get\`, then fix\n` +
+              `        it with a Cloudflare Custom Purge of THAT ONE URL. Do not re-run the shrink.`,
+          )
+        } else {
+          fail(`a plain GET on the model URL returned HTTP ${res.status} — a visitor would see no garment`)
+        }
+      } else {
+        console.log('  browser   bare GET 200 — reachable the way a QR scan reaches it')
+      }
+    } catch (err) {
+      fail(`the model URL could not be fetched with a plain GET: ${err.message}`)
+    }
   }
 }
 
