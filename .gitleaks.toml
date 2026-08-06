@@ -21,6 +21,20 @@ paths = [
 ]
 # The isolated D1 database UUID is a resource identifier, not a credential, and
 # is already committed in wrangler.jsonc by design.
+#
+# The Cloudflare Web Analytics site token is public BY DESIGN and cannot be kept
+# secret: a manual beacon embed ships it in the HTML of every page, and
+# Cloudflare's own setup snippet shows it inline. It is a write-only site
+# identifier — it cannot read analytics. The one abuse it permits is submitting
+# fake pageviews, which is the accepted cost of embedding manually, and we embed
+# manually because an edge-injected script cannot be covered by our CSP hashes
+# (see CLAUDE.md). Moving it to a CI secret would buy no security and add a
+# silent-failure mode: unset in CI, the tag builds with an empty token and
+# analytics quietly stop.
+#
+# Both entries are pinned to the exact literal on purpose. A pattern like
+# "any 32-char hex" would blind the scanner to real keys.
 regexes = [
   '''41e20361-1a5f-4c87-b5ca-781c57c9b3f4''',
+  '''cfd98c6043ce4fd2a594010af6b80c75''',
 ]
