@@ -348,18 +348,32 @@ existing 40 MB guardrail applies.
    multipart uploads (dashboard → R2 → the bucket → Settings → Object lifecycle).
    **Do not** add a custom domain or public access to this bucket.
 
-   ⚠️ **The ~14-day expiry rule does NOT exist yet — add it.** Re-verified against
-   the live bucket on 2026-07-28: `run-apparel-viewer-ingest` still carries only
-   R2's default "abort incomplete multipart uploads after 7 days", which does
-   **not** delete completed objects, so raw ~350 MB exports accumulate and bill
-   indefinitely. Check, then add:
+   ✅ **The expiry rule now exists.** Re-verified against the live bucket on
+   **2026-08-06**:
+
+   ```
+   expire-raw-uploads             Expire objects after 14 days                 enabled
+   Default Multipart Abort Rule   Abort incomplete multipart uploads after 7 days
+   ```
+
+   Raw ~350 MB exports therefore no longer accumulate and bill indefinitely. This
+   warning has now been wrong in **both** directions — the expiry was asserted as
+   fact before it existed (corrected 2026-07-28), then asserted absent after it was
+   added. **Run the list command rather than trusting this paragraph**; it takes
+   five seconds, and the answer has changed twice.
 
    ```bash
    pnpm --filter @run-apparel/cms exec wrangler r2 bucket lifecycle list run-apparel-viewer-ingest
    ```
    ```bash
+   # only if the list above comes back without it
    pnpm --filter @run-apparel/cms exec wrangler r2 bucket lifecycle add run-apparel-viewer-ingest expire-raw-uploads --expire-days 14
    ```
+
+   ⚠️ **This is a real deletion policy on the only copy of a raw CLO export.** A
+   14-day-old raw file is gone, and `eval:artwork:real` and
+   `sweep-size-vs-artwork.mjs` both need one. Keep a local copy of any garment you
+   still care about, or re-upload before re-running either.
 
 1b. **Optional: the ingest bucket's CORS policy.**
 

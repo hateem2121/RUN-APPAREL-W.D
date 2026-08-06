@@ -120,7 +120,15 @@ jobs:
           if ! pnpm --filter @run-apparel/cms exec wrangler r2 object get \
                  "run-apparel-viewer-ingest/${RAW_KEY}" --file "raw/${local_name}" --remote; then
             echo "::error::Could not fetch 'run-apparel-viewer-ingest/${RAW_KEY}'."
-            echo "::error::Check the key (it has SPACES) and that CLOUDFLARE_API_TOKEN grants R2 read."
+            echo "::error::MOST LIKELY CAUSE: the ingest bucket has an 'expire-raw-uploads'"
+            echo "::error::lifecycle rule that deletes EVERY object after 14 days, all prefixes."
+            echo "::error::This garment was uploaded on/before 2026-08-05, so it expired around"
+            echo "::error::2026-08-19 — before this monthly job ever ran. A raw export is not a"
+            echo "::error::durable artifact here; something has to keep a copy on purpose."
+            echo "::error::Fix: re-upload the export, or hold a canonical copy in a bucket with"
+            echo "::error::no expiry and point RAW_GLB_KEY at it. See docs/RAW-UPLOAD-PIPELINE.md."
+            echo "::error::Other causes: the key has SPACES ('cycling all colours.glb'), or"
+            echo "::error::CLOUDFLARE_API_TOKEN lacks R2 read."
             exit 1
           fi
           ls -l "raw/${local_name}"
