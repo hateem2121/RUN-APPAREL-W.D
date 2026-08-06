@@ -186,6 +186,23 @@ the answer is "nothing that happens in production", it is not a test.
   two `connect-src` entries are not interchangeable. The policy is a pure function
   in `scripts/csp.mjs` with tests; `gen-headers.mjs` is only the I/O around it.
 
+- **A 404 from `media.wear-run.help` can be a CACHED 404 — and `HEAD` will not
+  tell you.** It is an R2 custom domain with a 30-day edge Cache Rule, so a request
+  for an object that does not exist *yet* caches the miss. On 2026-08-06 a model the
+  shrink worker had just written returned `GET 404` (a 28 KB Cloudflare error page)
+  while `HEAD` returned **200 with the correct `content-length`** — the two landed on
+  different cache entries. The cached 404 was **25 hours old**, from a probe made
+  before the file existed. The object was intact in R2 the whole time
+  (`wrangler r2 object get` returned all 28,271,780 bytes) and the same URL with
+  `?v=1` served 200 immediately.
+  **So: after the shrink writes a model, fetch it the way a browser will — bare URL,
+  plain GET — before pointing a product at it.** `artworkVerdict: ok`, the filesize,
+  the `{OPAQUE, MASK}` census and a `HEAD` were *all green* while the file was
+  unreachable; swapping `glbAsset` on those signals would have put a 404 on the live
+  page. Fix is a **Custom Purge of that one URL**. Note `scripts/smoke-viewer-payload.mjs`
+  deliberately uses `HEAD` to keep R2 egress off the $5/month cap, so it would **not**
+  have caught this either.
+
 - **Anything CI fetches from a `wear-run.help` host can 403 from a runner.**
   Free-plan Bot Fight Mode intermittently blocks datacenter traffic — it forced the
   `cms.wear-run.help` API cutover to be rolled back within the hour, and it later
