@@ -185,13 +185,35 @@ jobs:
   # human looked at once. This renders the artwork before and after the real
   # chain and measures how much of it moved.
   #
-  # DELIBERATELY NOT IN `deploy: needs` YET. Its thresholds were calibrated on a
-  # developer Mac, and CI runs a different Chromium on a different rasteriser, so
-  # the absolute numbers will not match on the first run. This repo has already
-  # been bitten by exactly that (8c6e27e — "stop the new smoke test failing
-  # deploys"), so it observes for a few runs first. Promote it into `needs` once
-  # the CI numbers are known and the ceiling reflects them; the negative control
-  # inside the eval is what proves it is still capable of failing.
+  # GATES THE DEPLOY since 2026-08-06. It was introduced observe-only on the
+  # stated worry that "its thresholds were calibrated on a developer Mac, and CI
+  # runs a different Chromium on a different rasteriser, so the absolute numbers
+  # will not match on the first run" — the 8c6e27e lesson applied pre-emptively.
+  #
+  # That worry was MEASURED AND IS FALSE. Four runs, two operating systems, two
+  # GPU stacks, three runner images (ubuntu24 20260720.247 ×2, 20260804.265):
+  #
+  #   fidelity  1.650%   balanced  3.070%   control  9.370%   ceiling  5.000%
+  #
+  # Identical to three decimal places every time — CI runs 92589208571 /
+  # 92591396265 / 92593229399 and a local macOS run on 2026-08-06. Not "close
+  # enough": the same digits.
+  #
+  # The reason is in the eval's own header and is worth restating, because it is
+  # what makes gating safe rather than lucky: there is NO golden image. Every
+  # comparison is between two renders taken by the SAME browser in the SAME run,
+  # so the rasteriser appears on both sides of the subtraction and cancels. The
+  # only surviving variable is the decimation, and meshoptimizer is deterministic.
+  # A Chromium bump moves both renders together and cannot move the diff.
+  #
+  # So the ceiling did NOT need to be re-derived from CI numbers — the CI numbers
+  # are the numbers it was already calibrated against. 5.000% sits 1.63× above the
+  # shipped preset and 1.87× below the negative control.
+  #
+  # The control is what keeps this honest. If someone coarsens the fixture,
+  # shrinks the render, or loosens the metric, `--uv-weight 0` stops registering
+  # as damage and the eval fails ITSELF rather than passing quietly. Do not raise
+  # the ceiling to make this green; read the contact sheet it points at.
   #
   # Chromium only — WebKit and Firefox are not needed, and the render harness
   # already runs software WebGL via swiftshader.
@@ -229,15 +251,29 @@ jobs:
         run: pnpm eval:artwork
 
   deploy:
-    needs: [verify, audit, secrets]
+    # `artwork` joined this list on 2026-08-06 — see the evidence above its job.
+    # It is the only gate here that looks at what the customer actually sees:
+    # the other four test alphaMode, dependencies, secrets and byte budgets, none
+    # of which change when decimation smears a printed logo.
+    needs: [verify, audit, secrets, artwork]
     # Enabled once Cloudflare secrets are configured (Phase 10):
     #   gh variable set DEPLOY_ENABLED --body true
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
-    # Production approval gate. Add required reviewers to the `production`
-    # GitHub Environment (Settings → Environments) to make each deploy pause for
-    # a human approval before it runs. Until reviewers are configured this is
-    # just a label and does not block anything. See docs/RUNBOOK.md → deploy gate.
+    # The `production` environment is a LABEL here, and that is a CLOSED DECISION
+    # rather than an unfinished setup step. Required reviewers need GitHub Pro
+    # (~$4/month) on a private repo; the project's entire budget is $5/month, spent
+    # on Cloudflare Workers Paid because the shrink Containers require it. Declined
+    # by the owner 2026-07-22.
+    #
+    # This comment used to explain how to add reviewers, which read as a to-do and
+    # kept resurfacing in status reviews as "blocked, revisit later". It is not
+    # blocked; it is declined. Do not list it as pending work.
+    #
+    # What gates this deploy is the `needs:` list above — five jobs including the
+    # artwork legibility eval — plus the post-deploy payload smoke test below.
+    # What the environment still earns is the deployment URL on the commit and in
+    # the Deployments tab.
     environment:
       name: production
       url: https://viewer.wear-run.help
@@ -368,4 +404,12 @@ jobs:
       # 2026-07-29 a broken model shipped and stayed live six days with every
       # automated check green, because nothing looked at the payload.
       - name: Post-deploy viewer payload smoke test
+        # SMOKE_BROWSER_GET is set HERE and deliberately NOT in uptime.yml. It adds
+        # a bare GET on the model — the check that would have caught the cached 404
+        # of 2026-08-06, where HEAD returned 200 and a browser's GET returned 404
+        # from a 25-hour-old cached miss. That fault is created at publish time, so
+        # this is where it is worth one extra request; polling for it every 15
+        # minutes would buy nothing. See check 4 in the script.
+        env:
+          SMOKE_BROWSER_GET: '1'
         run: node scripts/smoke-viewer-payload.mjs "${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}"
