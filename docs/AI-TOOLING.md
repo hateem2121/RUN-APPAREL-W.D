@@ -18,7 +18,22 @@ arbitrary. The order below is now the rule.
 | **1** | **`CLAUDE.md`** | **The authority.** Traps that have cost a session, and the reasoning behind them. If anything here conflicts with anything below, this wins. | Humans, deliberately |
 | 2 | `docs/` (`HARDENING-LOG`, `RUNBOOK`, `SESSION-*`, `DESIGN`, this file) | The long form behind `CLAUDE.md`'s one-liners. Never contradicts it. | Humans |
 | 3 | codebase-memory ADR store | A machine-readable **mirror of `CLAUDE.md`**, so graph queries return the same rules. Not a separate opinion — `scripts/index-ai.mjs` re-seeds it verbatim and re-reads to prove it landed. | `pnpm index:ai` |
-| 4 | Session-memory plugins (e.g. `claude-mem`) and the agent's own per-project memory dir | **Search over past sessions. Nothing more.** Useful for "did we try this already?" Never a source of truth about how the system behaves. | Agents, automatically |
+| 4 | The agent's own per-project memory dir, and any session-memory plugin | **Search over past sessions. Nothing more.** Useful for "did we try this already?" Never a source of truth about how the system behaves. | Agents, automatically |
+
+**There is currently no session-memory plugin installed, and that is deliberate.**
+`claude-mem` was tried and removed on 2026-08-06. It had produced **zero
+observations and zero session summaries** in its entire database — not just for this
+project — because it shells out to a `claude` CLI that is not installed on the
+owner's machine (Claude Code runs from the desktop app). Meanwhile it held a queue
+of 354 jobs it could never process, retried every ~35 s, and occupied 444 MB.
+
+It was fixable: a `claude` binary exists inside the app bundle at
+`~/Library/Application Support/Claude-Work/claude-code/<version>/claude.app/Contents/MacOS/claude`,
+and `CLAUDE_CODE_PATH` in `~/.claude-mem/settings.json` would have pointed at it.
+Recorded so the option is known. It was removed anyway because rank 4 is the least
+load-bearing row in this table, and `docs/SESSION-*.md` already do that job by hand
+at rank 2. Full detail and the undo path:
+`~/.claude/backups/RESTORE-2026-08-06-tooling-plan.md`.
 
 **The rule for ranks 3 and 4: they are indexes, not authorities.** Anything an agent
 reads there and intends to act on must be confirmed against `CLAUDE.md` or the code.
@@ -107,8 +122,11 @@ two traps below. After editing `.cbmignore`, use the cold path instead:
 pnpm index:ai --cold
 ```
 
-This repository indexes in ~0.4 s (~1,450 nodes / ~2,550 edges, measured
-2026-08-01 after PRs #14/#15). The project name derives from the path —
+This repository indexes in ~0.4 s. Node/edge counts, each measured on the tree of
+the day: **1,810 / 3,141 (2026-08-06)**, 1,446 / ~2,550 (2026-08-01, after PRs
+#14/#15), 1,536 / 2,306 (2026-07-27, a smaller tree). The graph tracks the repo, so
+treat these as a growth curve rather than a target — what matters is that a re-index
+does not *shrink* it unexpectedly. The project name derives from the path —
 `Users-hateemjamshaid-Sites-Model-Viewer-main` on the owner's laptop, something else
 elsewhere; `pnpm index:ai` resolves it automatically, and `cli list_projects` prints
 it. Every query tool needs it as `--project`.
@@ -335,13 +353,26 @@ exists (2026-07-30). Upstream describes it as rearchitecting the backend around 
 coordination daemon — "deeper than a normal point release" — and asks for feedback
 before the final tag. **Stay on 0.9.0**; there is no stable upgrade to take.
 
-**The version is *not* pinned by `.mcp.json`.** That file invokes the binary by
-bare name (`"args": []`), so whatever is on your `PATH` is what runs. The only pin
-is the `@0.9.0` in the install command above, which is a convention, not an
-enforced constraint — a later `npm install -g codebase-memory-mcp` silently moves
-the whole project to a new build. Bump deliberately, verify with
-`codebase-memory-mcp --version`, and re-index afterwards. Dependabot does not
-watch any of this.
+**`.mcp.json` cannot pin the version.** That file invokes the binary by bare name
+(`"args": []`), so whatever is on your `PATH` is what runs — for the MCP server and
+for `pnpm index:ai` alike. A later `npm install -g codebase-memory-mcp` would
+silently move the whole project to a new build, and the first symptom is a graph
+that answers differently. Dependabot does not watch any of this.
+
+**Since 2026-08-06 the pin is enforced in `scripts/index-ai.mjs`** instead, by a
+`PINNED_VERSION` constant asserted against `codebase-memory-mcp --version` before
+anything is indexed. A mismatch refuses to run and names both directions of the
+fix. It is checked first, and deliberately: the failure it guards against is
+silent, so it has to present as a message rather than as a subtly different answer
+three questions later.
+
+That is a *local* guard, not a global one — it cannot stop the MCP server itself
+from starting on a different build, because nothing in the MCP protocol lets a
+project demand a version. It does mean the mismatch is caught the next time anyone
+re-indexes, which in practice is the same session.
+
+To bump: change `PINNED_VERSION`, run `pnpm index:ai --cold`, and re-measure the
+node/edge counts above in the same commit — they are claims about a specific build.
 
 ---
 
@@ -408,7 +439,7 @@ the cookbook is the reference for how to call it — not a thing to copy wholesa
 | `settings.json` | yes | Permission allowlist for read-only commands, plus the guard hook below. |
 | `settings.local.json` | **no** (gitignored) | `CBM_ALLOWED_ROOT`. Machine-specific; see above. |
 | `hooks/guard-pipeline-input.mjs` | yes | The guard below. |
-| `skills/` | yes | Five vendored third-party skills, pinned to a commit. Provenance, licences, the reason for each, and one stated caveat are in `.claude/skills/README.md`. |
+| `skills/` | yes | Four vendored third-party skills, pinned to a commit. Provenance, licences, the reason for each, why a fifth was dropped, and a review date are in `.claude/skills/README.md`. |
 
 ### The pipeline guard hook
 
