@@ -58,10 +58,21 @@ jobs:
       # the next attempt. GitHub Actions reported no incident. e2e is the real
       # second-biggest cost, and it is legitimate work.
       #
-      # So the cache is kept for RESILIENCE, not speed: the hang happened INSIDE
-      # this download, and a cache hit removes that network call from the critical
-      # path. ~49s saved per run is a bonus, not the case for it. Do not repeat the
-      # "browsers dominate CI" claim — it was measured false.
+      # Both paths have now been measured end to end:
+      #
+      #   cache MISS (31093298223)   install --with-deps            0m 49s
+      #   cache HIT  (31093973459)   restore 0m 07s + install-deps 0m 24s = 0m 31s
+      #
+      # So the cache buys about 18 seconds. It is kept for RESILIENCE, not speed:
+      # the 30-minute hang happened INSIDE the download, and a hit removes that
+      # network call from the critical path. On the numbers alone it would barely
+      # be worth having.
+      #
+      # Two claims about this step have already been made and measured false — that
+      # browsers were 75-85% of CI, then that the cache saved ~49s. Both were
+      # inferred from a total rather than timed directly. If you are about to state
+      # what this step costs, time it first; the answer has been counter-intuitive
+      # every time so far.
       #
       # THE CACHE HOLDS BINARIES ONLY. Playwright's apt system libraries are
       # installed into the runner OS and cannot be cached, so a cache HIT still has
