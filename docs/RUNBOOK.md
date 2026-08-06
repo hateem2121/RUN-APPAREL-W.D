@@ -222,6 +222,34 @@ pull request:
   transitive version (how the `tmp` advisory was resolved), or — only if
   unfixable and not exploitable here — add the `GHSA-…` id to `allowlist` in
   `audit-ci.jsonc` with a dated reason.
+- **Artwork legibility** — `pnpm eval:artwork` (the `artwork` job) renders the real
+  wordmark alpha before and after the real decimation chain and measures how much
+  moved. It **gates the deploy** (since 2026-08-06). This is the only gate that
+  looks at what a buyer sees: the other three test `alphaMode`, dependencies and
+  secrets, none of which change when decimation smears a printed logo.
+
+  It was introduced observe-only on the worry that CI's rasteriser would produce
+  different numbers from a developer Mac. That was measured and is **false** —
+  1.650% / 3.070% / 9.370% on a Mac and on three CI runs across two runner images,
+  identical to three decimal places, because the eval diffs two renders taken by
+  the same browser in the same run and the rasteriser cancels.
+
+  If it goes red, **look at the contact sheet it names** before touching the
+  ceiling. It also asserts a negative control, so it fails itself if it stops being
+  able to detect damage.
+- **Artwork legibility on the real garment** — `pnpm eval:artwork:real`, in its own
+  **monthly** workflow (`.github/workflows/artwork-real.yml`), not in CI. It pulls
+  the 382 MB CLO export from the private R2 ingest bucket and runs the same method
+  on the actual file, which is what the per-PR fixture cannot represent.
+
+  It does **not** gate the deploy — it runs on a clock, so there is no deploy to
+  attach it to. On failure it opens a deduplicated `artwork`-labelled issue, and it
+  uploads the contact sheets as run artifacts for 14 days whether it passes or
+  fails, so a slow drift can be compared month to month.
+
+  Trigger it by hand from the Actions tab (`workflow_dispatch`), optionally with
+  `calibrate` ticked to print the damage curve instead of asserting. To point it at
+  a different garment: `gh variable set RAW_GLB_KEY --body "<name>.glb"`.
 - **Performance budget** — Lighthouse CI (`lighthouserc.json`) against the viewer
   served with the e2e mock. Deterministic byte budgets fail on a real regression;
   category scores are non-blocking warnings (they swung 0.64/0.88/0.87 across

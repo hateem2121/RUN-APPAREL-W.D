@@ -1,4 +1,25 @@
-# OPEN ISSUE — printed artwork is damaged on the shrunk model
+# Printed artwork on the shrunk model — CLOSED 2026-08-05
+
+<!--
+  THE FILENAME IS DELIBERATELY STILL `OPEN-ISSUE-ARTWORK.md`.
+
+  The heading said "OPEN ISSUE" until 2026-08-06, three weeks after the status
+  banner below said CLOSED — a contradiction anyone skimming would have to resolve
+  by reading further. Fixed by retitling.
+
+  The file was NOT renamed, and that is a decision rather than laziness: the name
+  is referenced in 26 places across the repo, including six source comments that
+  cite specific hypotheses (H3, H4, H6) as their reason for existing, and an
+  assertion in `tools/asset-pipeline/src/textures.test.ts` that a runtime warning
+  string contains "OPEN-ISSUE-ARTWORK". Renaming trades a stale word in a title for
+  26 edits and a broken test, and would strand every older SESSION-*.md that cites
+  the old path.
+
+  This remains the case file for artwork damage — how it was diagnosed, what was
+  ruled in and out, and how to read the diagnostic output. That is still worth
+  reading before touching the pipeline. It is just not an open issue.
+-->
+
 
 > ## Status 2026-08-05 (later): **CLOSED, and locked against regression.**
 >

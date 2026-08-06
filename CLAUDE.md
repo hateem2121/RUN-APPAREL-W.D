@@ -122,8 +122,22 @@ the answer is "nothing that happens in production", it is not a test.
   the *presets* are now watched by something other than memory. Read what it does
   NOT cover before relying on it: it runs on a synthetic fixture, not on a
   production garment, so it catches a preset or simplifier regression and would
-  still miss damage specific to a particular CLO export. The sweep remains the
-  authority on a real garment. Two measured findings from building it, both
+  still miss damage specific to a particular CLO export.
+  **Closed for N001 later the same day by `pnpm eval:artwork:real`**, which runs
+  the same method on the actual 382 MB export and is scheduled monthly
+  (`.github/workflows/artwork-real.yml`). Measured on the real file: fidelity
+  **0.980%**, balanced **2.990%**, sweep run F **5.770%**, `--uv-weight 0`
+  **5.810%**, ceiling **4.2%**. Run F is the one that "passed all three gates"
+  above — there is now a number that stops it.
+  ⚠️ **Correction while building that: "the sweep remains the authority on a real
+  garment" — stated here until 2026-08-06 — was wrong.**
+  `sweep-size-vs-artwork.mjs` imports no renderer and renders nothing; it measures
+  file size, `artworkAtRisk`, `findArtworkAlphaProblems` and the alpha census. Its
+  own recorded output (`output/sweep/sweep.json`) reports `wouldShip: true` for all
+  six runs including F. The authority was never the sweep — it was a human opening
+  a contact sheet the sweep did not produce. The sweep is still the right tool for
+  *where the size floor is*; it was never evidence about letters.
+  Two measured findings from building the synthetic eval, both
   counter-intuitive: an **affine** UV mapping cannot smear under decimation at all
   (the first fixture gave an identical 0.150% at every budget from 0.0002 to
   0.02 — useless), and at `--simplify 0.05` on a simple mesh the **ratio binds
@@ -247,25 +261,50 @@ protects artwork *less* shipped as "Smallest file" — **deleted on 2026-08-05**
 once a sweep rendered what it actually did to the wordmark. Look at the output:
 
 ```bash
-pnpm eval:artwork                                              # does the preset still keep letters readable?
+pnpm eval:artwork                                              # synthetic fixture, ~2 min, gates every deploy
+pnpm eval:artwork:real                                         # the REAL N001 export, ~2.5 min, needs raw/
 pnpm pipeline textures raw/garment.glb --out output/textures   # no processing
 pnpm pipeline render   out.glb --out output/after
 pnpm pipeline compare  output/before output/after --out sheet.png
 node tools/asset-pipeline/scripts/bisect-artwork.mjs raw/garment.glb --out output/bisect
 ```
 
-`pnpm eval:artwork` is the fast one — ~2 minutes, no raw export needed, and it runs
-in CI. Add `--calibrate` to print the damage curve across presets, `--keep <dir>`
-to keep the contact sheets. It asserts a **negative control** as well as the
-shipped preset: if switching `--uv-weight` off stops registering as damage, the
-eval says it has gone blind and fails, rather than passing quietly. Do not raise
-its ceiling to make it green.
+`pnpm eval:artwork` is the fast one — no raw export needed, and it **gates the
+deploy** (since 2026-08-06; the CI numbers match a developer Mac to three decimal
+places, because the eval diffs two renders from the same browser in the same run,
+so the rasteriser cancels).
+
+`pnpm eval:artwork:real` is the same method on the actual 382 MB export. It runs
+monthly, not per-PR, and does **not** gate the deploy — it runs on a clock, so
+there is no deploy to attach it to; on failure it opens an issue. It needs
+`raw/cycling-all-colours.glb`, which is gitignored:
+
+```bash
+wrangler r2 object get "run-apparel-viewer-ingest/cycling-all-colours.glb" \
+  --file raw/cycling-all-colours.glb --remote
+```
+
+Both take `--calibrate` to print the damage curve and `--keep <dir>` for the
+contact sheets. Both assert a **negative control**: if switching `--uv-weight` off
+stops registering as damage, the eval says it has gone blind and fails rather than
+passing quietly. **Do not raise either ceiling to make it green.**
+
+⚠️ **`eval:artwork:real` also refuses to run if its camera is not pointed at the
+print**, and that guard exists because the obvious framing was wrong. The first
+version used render.ts's own `crop-chest` view; on N001 that frames the torso and
+hips with the wordmark clipped off the top edge, and `crop-back` shows a zipper.
+Those defaults were framed for a t-shirt. A mis-aimed camera does not error — it
+produces a perfectly plausible damage number for *fabric*. It was caught by opening
+the PNG. Also measured: model-viewer clamps orbit radius, so `fieldOfView` is the
+only zoom control that does anything.
 
 `render` needs a Chromium; set `PLAYWRIGHT_CHROMIUM_PATH` where Playwright's own
 download is absent.
 
 Read `docs/OPEN-ISSUE-ARTWORK.md` first — it ranks the known causes and records
-what has been ruled in and out.
+what has been ruled in and out. Despite the filename it is **closed** (2026-08-05);
+it is kept as the case file because the hypotheses it numbers (H3, H4, H6) are cited
+by name from six source comments and one test. See the note at the top of it.
 
 **The pipeline can now REFUSE a job.** Since 2026-08-03 three structural findings
 make the shrink worker throw `PermanentJobError` and save nothing:

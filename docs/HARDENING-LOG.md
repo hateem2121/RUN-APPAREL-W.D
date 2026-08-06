@@ -843,3 +843,60 @@ its own CSP blocks on every page load; the fix is a dashboard toggle, still open
 
 352 unit tests, 66 e2e. Five workspaces plus the container typecheck; viewer
 builds. D1 backup and before/after payloads captured.
+
+---
+
+# 2026-08-06 — the gates learn to read
+
+An agent-tooling audit that turned into closing the legibility gap. Full detail in
+`docs/SESSION-2026-08-06.md`; this is the retrospective.
+
+## The shape of the day
+
+Four things that were written down as fact turned out to be false, and each had
+been load-bearing:
+
+| Belief | Reality |
+|---|---|
+| "CI's rasteriser will give different numbers from a dev Mac" | Identical to **three decimal places** across 4 runs / 2 OSes / 3 runner images. The eval has no golden image — it diffs two renders from the same browser in the same run, so the rasteriser cancels. This is why the `artwork` job had never been allowed to gate. |
+| "The sweep remains the authority on a real garment" | `sweep-size-vs-artwork.mjs` **renders nothing**. Its own output reports `wouldShip: true` for run F, the run that renders the wordmark illegible. The authority was always a human opening a sheet the sweep did not produce. |
+| "claude-mem is unused" | **Broken.** Zero observations across every project, because it shells out to a `claude` CLI that is not installed. 354 queued jobs retrying every 35 s. |
+| "Cleaning the disabled plugins frees ~476 MB" | ~2 MB. 444 of the 446 MB was claude-mem. |
+
+The pattern is the one this repo keeps paying for, one level up again: in July the
+*fixture* could not exhibit the failure; on 2026-08-05 the *gate* could not; today
+the *belief about the gate* was the thing that had never been checked.
+
+## What shipped
+
+- **`artwork` gates the deploy.** The only one of the five that looks at what a
+  buyer sees; the others test `alphaMode`, dependencies, secrets and byte budgets,
+  none of which move when decimation smears a logo.
+- **`pnpm eval:artwork:real`** — the same method on the real 382 MB export,
+  monthly, in its own workflow. Baseline is the full chain *minus decimation*, so
+  the diff isolates the one stage no gate can see. Ceiling 4.2%, sitting between a
+  shipped 2.990% and a known-illegible 5.770%.
+- **The cached 404 became a control.** A bare browser-shaped GET on the post-deploy
+  path only, with the body cancelled at the status line. Its regression test keeps
+  the *blind spot* as an asserted fact, not just the fix.
+- **A version pin** on `codebase-memory-mcp`, which `.mcp.json` could never provide.
+- **`~/.claude` 476 MB → 30 MB**, and one vendored skill dropped for naming an MCP
+  server this setup does not have.
+
+## The near-miss worth remembering
+
+The real-garment eval was first pointed at render.ts's `crop-chest` view, because
+the name says chest. On N001 that frames the torso and hips **with the wordmark
+clipped off the top edge**. Calibrated there, it would have measured how decimation
+moves fabric, produced a believable number, and gone green forever.
+
+It was caught by opening the PNG — the same act that has caught every artwork
+problem in this log. The eval now refuses to run unless its camera target lands on
+the largest artwork primitive, because a mis-aimed camera does not fail; it
+answers.
+
+## State
+
+369 unit tests (was 366), 5/5 typecheck. The monthly real-garment workflow has
+**never run** — its R2 read permission is the one thing this session could not
+verify. Trigger it by hand once rather than waiting for the 1st.

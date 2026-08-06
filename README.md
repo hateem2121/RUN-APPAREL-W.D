@@ -227,6 +227,18 @@ tests, the build and the Playwright e2e suite, then deploys (once
 A red build never deploys. Operational playbooks live in
 [docs/RUNBOOK.md](docs/RUNBOOK.md).
 
+**Four jobs gate the deploy**: `verify` (typecheck, tests, build, e2e), `audit`
+(dependency advisories), `secrets` (gitleaks) and — since 2026-08-06 — `artwork`,
+which renders the printed wordmark before and after the real decimation chain and
+fails if too much of it moved. That last one is the only gate that looks at what a
+buyer actually sees; the other three cannot detect a smeared logo. Lighthouse runs
+alongside as an informational check.
+
+A fifth check runs **monthly, outside CI**
+(`.github/workflows/artwork-real.yml`): the same artwork measurement on the real
+382 MB CLO export pulled from R2, which the per-commit fixture cannot represent. It
+opens an issue rather than blocking anything.
+
 > ⚠️ **Never run `git` from your home directory or a parent folder.** This
 > project has its own `.git`; keep git commands scoped to this directory.
 
@@ -234,7 +246,7 @@ A red build never deploys. Operational playbooks live in
 
 ```bash
 pnpm install
-pnpm typecheck && pnpm test && pnpm build   # all workspaces (334 unit tests)
+pnpm typecheck && pnpm test && pnpm build   # all workspaces (369 unit tests, 2026-08-06)
 
 pnpm seed:assets   # placeholder GLBs/posters + merged N001 file
 pnpm dev:cms       # Payload admin on http://localhost:3000 (local D1/R2 emulation)
