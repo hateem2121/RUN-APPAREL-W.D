@@ -476,6 +476,18 @@ undecimated control measures 1.3e-6, so the numbers below are signal.
 | **balanced** (uv 1, err 0.0005) | 12,180 | 0.07 MB | 0.00005 | 0.00054 |
 | **small** (uv 0.5, err 0.002) | 4,872 | 0.04 MB | 0.00013 | 0.00161 |
 
+> ⚠️ **The row labels are the presets as they stood on 2026-07-28.** The measurements
+> are still valid for the settings named, but two of the names have since moved:
+> `balanced` is now **err 0.001** (adopted 2026-08-05, taking N001 from 37.7 MB to
+> 27.0 MB), and `small` was **deleted** — at err 0.002 it renders the chest wordmark
+> with MILE breaking apart while passing all three blocking gates. Read the row for
+> `small` as "what err 0.002 costs", which is exactly why it is gone.
+>
+> Note also what this table cannot tell you: every number in it is a *UV error*
+> metric, and the 2026-08-05 sweep showed those metrics stay comfortable while the
+> rendered lettering degrades. `packages/shared/src/shrink.ts` is the source of truth
+> for the current values.
+
 Read it this way:
 - **At equal size**, texture-aware beats position-only: `balanced` and OLD-0.001
   both land on 12,180 triangles, but p99 error is 0.00054 vs 0.00073.

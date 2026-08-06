@@ -46,7 +46,17 @@ const cli = resolve(here, '..', 'src', 'cli.ts')
  */
 const DETAIL_FLAGS = {
   fidelity: ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.0002', '--uv-weight', '2'],
-  balanced: ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.0005', '--uv-weight', '1'],
+  balanced: ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.001', '--uv-weight', '1'],
+
+  // Retired presets, kept ONLY so a job that already ran can be reproduced.
+  // Neither is offered by the CMS any more — do not bisect a new upload with them.
+  //   `balanced-pre-2026-08-05`: what balanced was until run C was adopted (37.7 MB
+  //     on N001, vs 27.0 MB now).
+  //   `small`: removed on 2026-08-05. It renders the chest wordmark with MILE
+  //     breaking apart while passing all three blocking gates.
+  'balanced-pre-2026-08-05': [
+    '--simplify', '0.05', '--meshopt', '--simplify-error', '0.0005', '--uv-weight', '1',
+  ],
   small: ['--simplify', '0.02', '--meshopt', '--simplify-error', '0.002', '--uv-weight', '1'],
 }
 

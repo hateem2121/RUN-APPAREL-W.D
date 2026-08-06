@@ -77,6 +77,29 @@ describe('shrinkFlagsFor', () => {
     for (const level of LEVELS) expect(budget(level)).toBeLessThanOrEqual(balanced)
   })
 
+  // Every other assertion in this file is RELATIVE — fidelity ≤ balanced, uv weight
+  // never below balanced. That is the right shape for an invariant, and it is why
+  // this suite survived `small` being deleted without a rewrite. But a relative
+  // assertion cannot pin a value: 0.001 and 0.005 both satisfy every one of them,
+  // and 0.005 renders the chest wordmark destroyed.
+  //
+  // So this is the one absolute assertion, and it exists because the three blocking
+  // gates CANNOT catch decimation damage — they test alphaMode, which decimation
+  // does not change. A six-run sweep on 2026-08-05 produced an illegible wordmark
+  // that passed all three. Nothing in this system measures whether the lettering
+  // survived; only a rendered crop does.
+  it('pins the balanced error budget to the value that was actually rendered', () => {
+    // 0.001 is not a tuning preference. It is the loosest budget whose OUTPUT was
+    // rendered and compared logo-by-logo against the file it replaced: mean |Δ| of
+    // 0.06/255 on the chest wordmark, 0.11% of pixels differing by more than 8/255,
+    // across two colourways and all three logos.
+    // Evidence: docs/images/2026-08-05-A-vs-C-all-logos.png.
+    //
+    // Changing this number means producing a new rendered crop, not editing this
+    // line. Tuning it against file size is how "Smallest file" shipped.
+    expect(flagValue(shrinkFlagsFor('balanced'), '--simplify-error')).toBe(0.001)
+  })
+
   it('falls back to balanced for a stored level that no longer exists', () => {
     // RawUploads rows written before 2026-08-05 can still carry `small`. They must
     // not crash and must not be honoured — balanced is strictly safer than what

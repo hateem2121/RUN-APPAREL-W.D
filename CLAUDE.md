@@ -117,6 +117,12 @@ the answer is "nothing that happens in production", it is not a test.
   fire — the budget was merely too loose. **Nothing in this system measures
   whether the letters survived; only a rendered crop does.** This is why the old
   `small` preset was deleted rather than re-tuned.
+  Consequently `balanced` (`0.001` since 2026-08-05) is **pinned by an absolute
+  test**. Every other assertion in `shrink.test.ts` is relative — fidelity ≤
+  balanced, uv weight never below balanced — and `0.001` and `0.005` satisfy all of
+  them equally, while one is verified and the other destroys the wordmark. A
+  relative invariant cannot pin a value; changing that number means producing a new
+  rendered crop, not editing the line.
 - **`--simplify` is not the aggression dial — `--simplify-error` is.** The
   simplifier stops early once the budget binds, so lowering the ratio alone does
   nothing. A sweep over the ratio produces near-identical files and reads as
@@ -127,6 +133,20 @@ the answer is "nothing that happens in production", it is not a test.
   overflow was clipped by the sections above and below. `max-width` alone still
   left it at 623px. `min-height: 0` is the line that actually fixes it. Same trap
   as the familiar `min-width: 0` on flex children.
+
+- **A build-time CSP cannot cover an edge-injected script.** `gen-headers.mjs`
+  hashes the inline scripts present in the *built* `dist/index.html`. Cloudflare Web
+  Analytics' "Automatic Setup" injects a ~921-char inline bootstrap at the edge,
+  after those hashes exist — so it is blocked on every page load, and since that
+  bootstrap is what *loads* the beacon, analytics collect nothing while the
+  dashboard reports the site as enabled (diagnosed 2026-08-05: zero requests to
+  `cloudflareinsights.com` on a live load). Fix: disable Automatic Setup, embed the
+  beacon as a `<script src>` — which needs no hash. Never widen to
+  `'unsafe-inline'`; never pin the injected hash, it changes on every Cloudflare
+  update. A manual embed POSTs to `cloudflareinsights.com` while automatic setup
+  posts to your own origin, so those two `connect-src` entries are not
+  interchangeable. The policy is now a pure function in `scripts/csp.mjs` with
+  tests; `gen-headers.mjs` is only the I/O around it.
 
 - **Anything CI fetches from a `wear-run.help` host can 403 from a runner.**
   Free-plan Bot Fight Mode intermittently blocks datacenter traffic — it forced the

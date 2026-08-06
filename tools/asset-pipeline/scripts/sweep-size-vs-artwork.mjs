@@ -41,13 +41,17 @@ if (!raw) {
  * found the edge, and knowing where the cliff is matters more than another
  * passing row.
  */
+// Labels updated 2026-08-05 AFTER this sweep decided two things: run C was adopted
+// as `balanced`, and `small` was deleted outright. Keeping the old labels would have
+// left the contact sheet claiming A is what ships and E is a real option — neither
+// is true, and the next investigation reads this sheet before it reads the code.
 const RUNS = [
-  { id: 'A', label: 'balanced (shipped)', error: '0.0005', uv: '1', ratio: '0.05' },
+  { id: 'A', label: 'err 0.0005 — balanced until 2026-08-05', error: '0.0005', uv: '1', ratio: '0.05' },
   { id: 'B', label: 'fidelity (shipped)', error: '0.0002', uv: '2', ratio: '0.05' },
-  { id: 'C', label: 'budget x2', error: '0.001', uv: '1', ratio: '0.05' },
-  { id: 'D', label: 'budget x2, uv-weight 2', error: '0.001', uv: '2', ratio: '0.05' },
-  { id: 'E', label: 'small (shipped)', error: '0.002', uv: '1', ratio: '0.02' },
-  { id: 'F', label: 'budget x10 — expected to fail', error: '0.005', uv: '1', ratio: '0.05' },
+  { id: 'C', label: 'balanced (shipped)', error: '0.001', uv: '1', ratio: '0.05' },
+  { id: 'D', label: 'balanced budget, uv-weight 2', error: '0.001', uv: '2', ratio: '0.05' },
+  { id: 'E', label: 'err 0.002 — the removed `small`; MILE breaks up', error: '0.002', uv: '1', ratio: '0.02' },
+  { id: 'F', label: 'budget x5 — expected to fail', error: '0.005', uv: '1', ratio: '0.05' },
 ]
 
 await mkdir(outDir, { recursive: true })

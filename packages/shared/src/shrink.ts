@@ -29,9 +29,18 @@
  * So the option shipped damage to the one thing the product exists to show, with
  * nothing anywhere able to say so. An option whose only honest instruction is
  * "pick this and then check by eye whether it wrecked your logo" is not an
- * option; it is a trap. Removed rather than re-tuned, because a safe value for
- * it lands within a megabyte of `balanced` and there is then no reason to offer
- * two.
+ * option; it is a trap. Removed rather than re-tuned.
+ *
+ * Re-tuning would also buy very little now. `balanced` was moved onto the measured
+ * frontier the same day — 0.001, the loosest budget whose rendered output was
+ * checked logo-by-logo — and 0.002 is the very next run in the sweep, the one where
+ * MILE starts breaking apart. Any safe value below `balanced` lands in that narrow
+ * gap, and two options a megabyte or two apart are not two options.
+ *
+ * Note this reasoning is contingent on where `balanced` sits. It was first written
+ * against a `balanced` of 0.0005, where it was simply false: 0.001 is safe and was
+ * 10.7 MB smaller. If `balanced` is ever tightened again, re-measure before
+ * repeating the claim.
  *
  * Old rows carrying `'small'` still parse: `shrinkFlagsFor` falls through to the
  * balanced flags, which are strictly safer than what those rows asked for.
@@ -94,8 +103,17 @@ export function shrinkFlagsFor(detail: ShrinkDetailLevel = DEFAULT_SHRINK_DETAIL
     // Also the fall-through for a stored `'small'`, which no longer exists as a
     // choice. Landing those rows on balanced is deliberate: it is strictly less
     // aggressive than what they asked for, so a re-run can only improve them.
+    //
+    // 0.001 (was 0.0005 until 2026-08-05) is the loosest budget whose OUTPUT was
+    // rendered and compared logo-by-logo against the file it replaced: mean |Δ| of
+    // 0.06/255 on the chest wordmark, 0.11% of pixels differing by more than 8/255.
+    // It took the N001 model from 37.7 MB to 27.0 MB — restoring 13 MB of headroom
+    // under GLB_HARD_MAX_BYTES, which mattered because `small` had been the escape
+    // hatch and is now gone. Pinned by a test in shrink.test.ts; the value's only
+    // evidence is docs/images/2026-08-05-A-vs-C-all-logos.png, because no gate in
+    // this system can see decimation damage.
     default:
-      return ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.0005', '--uv-weight', '1']
+      return ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.001', '--uv-weight', '1']
   }
 }
 
