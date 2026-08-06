@@ -140,6 +140,11 @@ describe('buildHeadersFile — the _headers file', () => {
   // bundles it with Bot Fight Mode — so refusing the transform is the only fix
   // that neither widens the policy to 'unsafe-inline' nor turns off bot protection
   // for the whole zone, CMS login included.
+  //
+  // ⚠️ It only reaches the LITERAL /index.html, not the SPA routes visitors open —
+  // measured after deploying on 2026-08-06. So the violation is NOT yet fixed; see
+  // the comment in csp.mjs. This test pins the directive that is there, it does not
+  // certify that the injection has stopped. Only a live page load can say that.
   it('keeps no-transform on the SPA shell — this is what suppresses the CSP violation', () => {
     const cc = ruleFor(buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API }), '/index.html')
       .find((l) => l.toLowerCase().startsWith('cache-control:'))
@@ -147,10 +152,11 @@ describe('buildHeadersFile — the _headers file', () => {
     expect(cc).toContain('no-transform')
   })
 
-  // The rule above reaches every SPA route because Workers Static Assets resolves
-  // the asset before matching headers (verified live: /n001/wine returns the
-  // /index.html Cache-Control). That is precisely why no-transform must NOT be put
-  // on /*, where it could override the immutable caching of hashed bundles.
+  // no-transform must NOT be moved to /* to widen its reach. Cloudflare joins
+  // duplicate headers from multiple matching rules with a comma instead of picking
+  // a winner, so a Cache-Control on /* would append to this one and ship
+  //   public, max-age=31536000, immutable, public, max-age=0, must-revalidate
+  // on every hashed bundle. This test is the tripwire for that edit.
   it('leaves hashed assets on immutable caching, untouched by the shell rule', () => {
     const cc = ruleFor(buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API }), '/assets/*')
       .find((l) => l.toLowerCase().startsWith('cache-control:'))

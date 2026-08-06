@@ -164,11 +164,27 @@ export function buildHeadersFile(input) {
 # the only fix that neither widens script-src to 'unsafe-inline' nor turns off bot
 # protection for the entire zone, CMS login included.
 #
-# This rule reaches EVERY SPA route, not just a literal /index.html: Workers Static
-# Assets resolves the asset first and then matches headers against it. Verified
-# live — /n001/wine returns exactly this Cache-Control while /assets/* keeps its
-# immutable one. That is why no-transform is not on /*, where it would risk
-# overriding the hashed bundles' caching.
+# ⚠️ THIS ONLY REACHES THE LITERAL /index.html. It does NOT reach the SPA routes
+# visitors actually open, so it does NOT currently stop the injection. Measured
+# 2026-08-06 after deploying:
+#     /index.html  -> public, max-age=0, must-revalidate, no-transform
+#     /            -> public, max-age=0, must-revalidate
+#     /n001/wine   -> public, max-age=0, must-revalidate
+# The last two are Workers Static Assets' own default for SPA-fallback HTML, which
+# happens to be byte-identical to this rule minus no-transform — so an earlier
+# check that compared the two saw a match and wrongly concluded the rule applied.
+#
+# It cannot simply be moved to /*. Cloudflare joins duplicate headers from multiple
+# matching rules WITH A COMMA rather than picking a winner, so a Cache-Control on
+# /* would append to the /assets/* one and produce
+#   public, max-age=31536000, immutable, public, max-age=0, must-revalidate
+# on every hashed bundle. Placeholders do not help either: /:product/:colourway
+# also matches /assets/index-abc.js.
+#
+# Left in place because it is correct and harmless for the one path it covers.
+# Closing the gap needs either Bot Fight Mode off (a dashboard toggle, which also
+# removes the datacenter-403 problem) or a Worker script that sets the header by
+# content-type. See CLAUDE.md.
 #
 # Side effect: no Cloudflare HTML rewriting at all, so Web Analytics auto-injection
 # would not work either. Harmless — the beacon is embedded manually in index.html,

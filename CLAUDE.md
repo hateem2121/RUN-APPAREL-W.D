@@ -153,14 +153,29 @@ the answer is "nothing that happens in production", it is not a test.
      removes the datacenter-403 problem below — Bot Fight Mode has now caused three
      separate incidents here.
   2. **`Cache-Control: no-transform` on the HTML** — documented to stop the
-     injection outright. One line in `scripts/csp.mjs`'s headers block. It also
-     stops *all* Cloudflare HTML transforms, including Web Analytics auto-injection
-     — harmless here only because the beacon is embedded manually.
+     injection, **but it cannot be delivered from `_headers` on this deployment.**
+     Tried and measured on 2026-08-06; see the `_headers` trap below.
   3. **CSP nonces** — Cloudflare parses your CSP response header and adds matching
      nonces to what it injects. Not usable from a static `_headers` file: a nonce
      must be per-request, so it would need the viewer Worker to rewrite the header
      per response. Note nonces set via `<meta>` are explicitly unsupported.
   Never widen to `'unsafe-inline'`.
+
+- **`_headers` rules that both match are COMBINED, not overridden — duplicate
+  headers are joined with a comma.** There is no "most specific wins" here, and
+  assuming otherwise corrupts `Cache-Control`: putting one on `/*` appends it to
+  the `/assets/*` rule and ships
+  `public, max-age=31536000, immutable, public, max-age=0, must-revalidate` on
+  every hashed bundle. Placeholders are no escape — `/:product/:colourway` also
+  matches `/assets/index-abc.js`. Consequence: there is **no `_headers` pattern
+  that reaches the SPA routes without also hitting the assets**, because matching
+  is on the REQUEST path and the SPA fallback keeps the visitor's URL.
+  A rule on `/index.html` reaches *only* a literal `/index.html`. Workers Static
+  Assets serves SPA-fallback HTML with its own default of
+  `public, max-age=0, must-revalidate` — **byte-identical to what that rule sets
+  minus the added directive**, so comparing the two paths shows a match and reads
+  as confirmation that the rule applied. It did not. Verify a header rule by
+  changing it to something the default is not.
 
 - **A build-time CSP cannot cover an edge-injected script — by construction.**
   `scripts/csp.mjs` hashes the inline scripts present in the *built*
