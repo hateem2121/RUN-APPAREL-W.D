@@ -25,6 +25,13 @@
         }
       })()
     </script>
+    <!-- Web Analytics: embedded manually, never via Automatic Setup. Why, and why
+         type=module: scripts/csp.mjs. Token is a public site tag, not a secret. -->
+    <script
+      type="module"
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "cfd98c6043ce4fd2a594010af6b80c75"}'
+    ></script>
   </head>
   <body>
     <div id="root"></div>

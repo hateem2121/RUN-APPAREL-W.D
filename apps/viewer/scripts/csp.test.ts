@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildCsp } from './csp.mjs'
+import { buildCsp, buildHeadersFile } from './csp.mjs'
 
 /**
  * First tests of any kind for the CSP builder, added 2026-08-05.
@@ -114,5 +114,58 @@ describe('buildCsp — the standing rules', () => {
     expect(csp).toContain(`frame-ancestors 'none'`)
     expect(csp).toContain(`base-uri 'self'`)
     expect(csp).toContain(`default-src 'self'`)
+  })
+})
+
+describe('buildHeadersFile — the _headers file', () => {
+  /** The directive lines belonging to a path rule in a `_headers` file. */
+  function ruleFor(out: string, path: string): string[] {
+    const lines = out.split('\n')
+    const start = lines.findIndex((l) => l.trim() === path)
+    expect(start, `no rule for ${path}`).toBeGreaterThan(-1)
+    const body: string[] = []
+    for (let i = start + 1; i < lines.length; i++) {
+      const line = lines[i] as string
+      if (!line.startsWith('  ')) break
+      body.push(line.trim())
+    }
+    return body
+  }
+
+  // NOT a caching tweak, despite sitting on a Cache-Control line. Cloudflare
+  // injects Bot Fight Mode's JavaScript Detections into HTML responses; that
+  // inline script trips the CSP on every page load, and no hash can ever cover it
+  // because it embeds a per-request ray id (three different sha256 values measured
+  // inside a minute, 2026-08-06). JSD cannot be disabled separately — Cloudflare
+  // bundles it with Bot Fight Mode — so refusing the transform is the only fix
+  // that neither widens the policy to 'unsafe-inline' nor turns off bot protection
+  // for the whole zone, CMS login included.
+  it('keeps no-transform on the SPA shell — this is what suppresses the CSP violation', () => {
+    const cc = ruleFor(buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API }), '/index.html')
+      .find((l) => l.toLowerCase().startsWith('cache-control:'))
+    expect(cc).toBeDefined()
+    expect(cc).toContain('no-transform')
+  })
+
+  // The rule above reaches every SPA route because Workers Static Assets resolves
+  // the asset before matching headers (verified live: /n001/wine returns the
+  // /index.html Cache-Control). That is precisely why no-transform must NOT be put
+  // on /*, where it could override the immutable caching of hashed bundles.
+  it('leaves hashed assets on immutable caching, untouched by the shell rule', () => {
+    const cc = ruleFor(buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API }), '/assets/*')
+      .find((l) => l.toLowerCase().startsWith('cache-control:'))
+    expect(cc).toContain('immutable')
+    expect(cc).toContain('max-age=31536000')
+    expect(cc).not.toContain('max-age=0')
+  })
+
+  it('emits the CSP and the other security headers on every path', () => {
+    const rule = ruleFor(buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API }), '/*')
+    const joined = rule.join('\n')
+    expect(joined).toContain('Content-Security-Policy:')
+    expect(joined).toContain('X-Content-Type-Options: nosniff')
+    expect(joined).toContain('Strict-Transport-Security:')
+    // No Cache-Control here: /* would match hashed assets too.
+    expect(joined.toLowerCase()).not.toContain('cache-control:')
   })
 })

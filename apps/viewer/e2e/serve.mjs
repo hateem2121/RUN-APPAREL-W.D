@@ -52,6 +52,36 @@ function loadGlobalHeaders() {
 }
 const GLOBAL_HEADERS = loadGlobalHeaders()
 
+/**
+ * Remove the Cloudflare Web Analytics beacon from the served shell.
+ *
+ * The beacon is a real `<script src>` pointing at static.cloudflareinsights.com.
+ * Left in, every page load in this suite — 66 tests across four browsers — makes a
+ * live cross-origin request to Cloudflare. Two consequences, both unwanted:
+ *
+ *  - `page.goto` waits for the `load` event, so a slow or unreachable third party
+ *    turns into test latency and, intermittently, a failure. The first test in
+ *    viewer.spec.ts already has a documented cold-start flake (see
+ *    playwright.config.ts); a network-shaped second source of the same symptom
+ *    would make that one impossible to tell apart from a real regression.
+ *  - It would fire a pageview per test run. Cloudflare matches the reporting
+ *    hostname by suffix so localhost:4173 ought to be discarded, but beaconing from
+ *    CI at all is noise aimed at analytics whose entire purpose is counting real QR
+ *    scans.
+ *
+ * Stripped here rather than made conditional at build time, so the artefact this
+ * suite exercises stays byte-for-byte what ships apart from this one tag. The
+ * beacon's only risky property — that a `src` script must never contribute a CSP
+ * hash — is covered by scripts/csp.test.ts and re-verified against the live header
+ * after each deploy.
+ */
+function stripBeacon(html) {
+  return html.replace(
+    /<script[^>]*static\.cloudflareinsights\.com[^>]*>\s*<\/script>/gi,
+    '<!-- cf beacon omitted: e2e runs offline -->',
+  )
+}
+
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript',
@@ -202,11 +232,17 @@ const server = http.createServer((req, res) => {
   const candidate = path.join(DIST, url.pathname === '/' ? 'index.html' : url.pathname)
   if (existsSync(candidate) && path.extname(candidate)) {
     res.setHeader('content-type', MIME[path.extname(candidate)] ?? 'application/octet-stream')
+    // `/` resolves to index.html here, so the shell reaches the browser through
+    // THIS branch as well as the SPA fallback below — both need the beacon gone.
+    if (path.extname(candidate) === '.html') {
+      res.end(stripBeacon(readFileSync(candidate, 'utf8')))
+      return
+    }
     createReadStream(candidate).pipe(res)
     return
   }
   res.setHeader('content-type', 'text/html; charset=utf-8')
-  res.end(readFileSync(path.join(DIST, 'index.html')))
+  res.end(stripBeacon(readFileSync(path.join(DIST, 'index.html'), 'utf8')))
 })
 
 server.listen(PORT, () => {

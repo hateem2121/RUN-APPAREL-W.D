@@ -134,19 +134,42 @@ the answer is "nothing that happens in production", it is not a test.
   left it at 623px. `min-height: 0` is the line that actually fixes it. Same trap
   as the familiar `min-width: 0` on flex children.
 
-- **A build-time CSP cannot cover an edge-injected script.** `gen-headers.mjs`
-  hashes the inline scripts present in the *built* `dist/index.html`. Cloudflare Web
-  Analytics' "Automatic Setup" injects a ~921-char inline bootstrap at the edge,
-  after those hashes exist — so it is blocked on every page load, and since that
-  bootstrap is what *loads* the beacon, analytics collect nothing while the
-  dashboard reports the site as enabled (diagnosed 2026-08-05: zero requests to
-  `cloudflareinsights.com` on a live load). Fix: disable Automatic Setup, embed the
-  beacon as a `<script src>` — which needs no hash. Never widen to
-  `'unsafe-inline'`; never pin the injected hash, it changes on every Cloudflare
-  update. A manual embed POSTs to `cloudflareinsights.com` while automatic setup
-  posts to your own origin, so those two `connect-src` entries are not
-  interchangeable. The policy is now a pure function in `scripts/csp.mjs` with
-  tests; `gen-headers.mjs` is only the I/O around it.
+- **The CSP violation on every page load is Bot Fight Mode, NOT Web Analytics.**
+  On 2026-08-05 it was diagnosed as Web Analytics' "Automatic Setup" injecting a
+  beacon bootstrap, and that is **wrong** — corrected 2026-08-06 by reading the
+  injected script instead of inferring it. It is Cloudflare's **JavaScript
+  Detections** (`window.__CF$cv$params`, loading
+  `/cdn-cgi/challenge-platform/scripts/jsd/main.js`), which is bundled with Bot
+  Fight Mode and, per Cloudflare's docs, *"automatically enabled and cannot be
+  disabled"* for Bot Fight Mode customers. Web Analytics was never involved: the
+  delivered HTML had **zero** matches for `cloudflareinsights`, and a live load made
+  **zero** requests to it.
+  **No hash can ever cover it.** The script embeds a per-request ray id and
+  timestamp, so its sha256 differs on every single load — measured three values in
+  under a minute (`YQqe7Ux…`, `jgl9AA6h…`, `eXCOhXoR…`). Anyone "fixing" this by
+  pinning a hash is chasing a value that changed before they pasted it.
+  The three real options, in Cloudflare's own words:
+  1. **Turn Bot Fight Mode off** (Security → Settings → filter *Bot traffic*). Also
+     removes the datacenter-403 problem below — Bot Fight Mode has now caused three
+     separate incidents here.
+  2. **`Cache-Control: no-transform` on the HTML** — documented to stop the
+     injection outright. One line in `scripts/csp.mjs`'s headers block. It also
+     stops *all* Cloudflare HTML transforms, including Web Analytics auto-injection
+     — harmless here only because the beacon is embedded manually.
+  3. **CSP nonces** — Cloudflare parses your CSP response header and adds matching
+     nonces to what it injects. Not usable from a static `_headers` file: a nonce
+     must be per-request, so it would need the viewer Worker to rewrite the header
+     per response. Note nonces set via `<meta>` are explicitly unsupported.
+  Never widen to `'unsafe-inline'`.
+
+- **A build-time CSP cannot cover an edge-injected script — by construction.**
+  `scripts/csp.mjs` hashes the inline scripts present in the *built*
+  `dist/index.html`; anything Cloudflare injects at the edge arrives after those
+  hashes exist. This is why the beacon is embedded as a `<script src>` (no hash
+  needed) rather than left to Automatic Setup. A manual embed POSTs to
+  `cloudflareinsights.com` while automatic setup posts to your own origin, so those
+  two `connect-src` entries are not interchangeable. The policy is a pure function
+  in `scripts/csp.mjs` with tests; `gen-headers.mjs` is only the I/O around it.
 
 - **Anything CI fetches from a `wear-run.help` host can 403 from a runner.**
   Free-plan Bot Fight Mode intermittently blocks datacenter traffic — it forced the
