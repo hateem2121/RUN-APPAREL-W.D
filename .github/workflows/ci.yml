@@ -41,8 +41,37 @@ jobs:
       # installed Chromium only, so the suite ran Chromium twice and the single
       # most likely browser for this product had never executed a line of it.
       # Firefox is cheap to add once the matrix exists.
-      - name: Install Playwright browsers
+      #
+      # CACHED SINCE 2026-08-06, because this one step was the entire cost of CI.
+      # Measured on run 31091024563: checkout, install, typecheck, 366 tests, seed
+      # and build together took 2m05s — and this step ran for 25+ minutes. Across
+      # the previous eight runs (8–13 min each) the browsers were 75–85% of all CI
+      # time. `cache: pnpm` above caches packages; nothing cached the browsers.
+      #
+      # THE CACHE HOLDS BINARIES ONLY. Playwright's apt system libraries are
+      # installed into the runner OS and cannot be cached, so a cache HIT still has
+      # to run `install-deps`. Skipping it would leave WebKit without its libraries
+      # and it would fail to launch — which presents as a flaky e2e, not as a
+      # caching bug, and would be debugged in the wrong place.
+      #
+      # The key tracks the resolved Playwright version rather than a hardcoded one,
+      # so a version bump invalidates the cache instead of pairing new Playwright
+      # with stale browsers.
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "v=$(node -p 'require("./apps/viewer/node_modules/@playwright/test/package.json").version')" >> "$GITHUB_OUTPUT"
+      - name: Restore Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.v }}-chromium-webkit-firefox
+      - name: Install Playwright browsers (cache miss)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @run-apparel/viewer exec playwright install --with-deps chromium webkit firefox
+      - name: Install Playwright system deps (cache hit)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @run-apparel/viewer exec playwright install-deps chromium webkit firefox
       - name: e2e
         run: pnpm --filter @run-apparel/viewer test:e2e
 
@@ -150,8 +179,26 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Install Chromium for the render harness
+      # Chromium only, and cached on the same terms as `verify` above — separate
+      # key because the browser SET differs, so the two caches must not collide.
+      # For reference this job installed Chromium and rendered the fixture three
+      # times in 1m56s total, while `verify` spent 25+ minutes installing three
+      # browsers; that gap is what identified the browser download as the cost.
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "v=$(node -p 'require("./tools/asset-pipeline/node_modules/@playwright/test/package.json").version')" >> "$GITHUB_OUTPUT"
+      - name: Restore Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.v }}-chromium
+      - name: Install Chromium for the render harness (cache miss)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @run-apparel/asset-pipeline exec playwright install --with-deps chromium
+      - name: Install Chromium system deps (cache hit)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @run-apparel/asset-pipeline exec playwright install-deps chromium
       - name: Artwork legibility eval
         run: pnpm eval:artwork
 
