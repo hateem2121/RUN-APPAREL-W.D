@@ -11,7 +11,8 @@
     "start": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build": "tsc --noEmit"
+    "build": "tsc --noEmit",
+    "eval:artwork": "tsx scripts/eval-artwork-legibility.mjs"
   },
   "dependencies": {
     "@gltf-transform/core": "4.4.2",

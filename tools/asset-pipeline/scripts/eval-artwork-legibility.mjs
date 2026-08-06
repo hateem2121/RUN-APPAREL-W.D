@@ -1,0 +1,364 @@
+#!/usr/bin/env node
+/**
+ * ARTWORK LEGIBILITY EVAL — does the shipped preset still leave the letters readable?
+ *
+ * WHY THIS EXISTS. CLAUDE.md states the gap plainly:
+ *
+ *   "The three blocking gates do NOT catch decimation damage. They test
+ *    alphaMode, which decimation does not change. […] Nothing in this system
+ *    measures whether the letters survived; only a rendered crop does."
+ *
+ * That was true, and it is what deleted the `small` preset: a six-run sweep
+ * rendered the chest wordmark illegible at `--simplify-error 0.005` and **every
+ * run passed all three gates**. `balanced` is consequently pinned by an absolute
+ * test whose only evidence is a PNG a human looked at once.
+ *
+ * This is that human, automated. It renders printed artwork before and after the
+ * real decimation chain and measures how much of it moved.
+ *
+ * ─── WHY IT DOES NOT USE THE RAW EXPORT ──────────────────────────────────────
+ * `sweep-size-vs-artwork.mjs` is the authority on the real garment, and must
+ * stay so — but it needs `raw/cycling-all-colours.glb`, which is 382 MB and
+ * gitignored. Nothing that size can run on every pull request. So this builds a
+ * fixture instead, and the fixture is the whole risk: CLAUDE.md's central lesson
+ * is that three production bugs survived because "the test fixtures could not
+ * exhibit the failure".
+ *
+ * Two things make this one able to fail:
+ *   1. The REAL wordmark alpha (src/__fixtures__/wordmark-alpha.png, 1944×121,
+ *      66.38% transparent / 3.58% mid — the exact measurements CLAUDE.md quotes),
+ *      not a synthetic band pattern. Real letterforms, so smearing is visible.
+ *   2. A dense CURVED panel, not a box. Decimating a flat plane with affine UVs
+ *      is free and would prove nothing; on a curved surface the simplifier must
+ *      trade geometric error against UV error, which is the actual mechanism
+ *      `--uv-weight` and `--simplify-error` control.
+ *
+ * ─── WHY THERE IS NO GOLDEN IMAGE ────────────────────────────────────────────
+ * A committed reference PNG would compare renders across machines, GPU drivers
+ * and Chromium versions, and would go red on a browser bump rather than on
+ * damage. Every comparison here is between two renders taken by the SAME browser
+ * in the SAME run, so the only variable is the decimation.
+ *
+ * ─── THE NEGATIVE CONTROL IS THE POINT ───────────────────────────────────────
+ * The eval asserts TWO things:
+ *   • the shipped preset stays under the damage threshold, and
+ *   • a deliberately-too-loose budget goes OVER it.
+ * The second is what stops this becoming another green test that cannot fail.
+ * If someone coarsens the fixture, shrinks the render, or loosens the metric
+ * until nothing can trip it, the control assertion goes red and says so. It
+ * answers CLAUDE.md's question — "what would have to break for it to fail?" —
+ * on every single run, instead of once when it was written.
+ *
+ * Usage:
+ *   node scripts/eval-artwork-legibility.mjs              assert (CI mode)
+ *   node scripts/eval-artwork-legibility.mjs --calibrate  print the damage curve
+ *   node scripts/eval-artwork-legibility.mjs --keep <dir> keep renders for eyeballing
+ */
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { Document, NodeIO } from '@gltf-transform/core'
+import { compareRenders } from '../src/compare.ts'
+import { optimizeGlb, parseOptimizeArgs } from '../src/optimize.ts'
+import { renderViews } from '../src/render.ts'
+
+/**
+ * The shipped preset, as a flag list.
+ *
+ * DELIBERATELY A SECOND COPY of `shrinkFlagsFor('balanced')` in
+ * `packages/shared/src/shrink.ts`, not an import — the same arrangement, and for
+ * the same reason, as `SIZE_WARNING_BYTES` in `src/validate.ts`: this package is
+ * installed with plain `npm ci` inside the shrink container's Docker image,
+ * where a `workspace:*` dependency cannot resolve.
+ *
+ * Pinned equal by `assertPresetMatchesShared()` below, which reads the shared
+ * source at run time. Two unpinned copies of the number that decides whether the
+ * logos survive is precisely the drift this repo keeps paying for.
+ */
+const BALANCED_FLAGS = ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.001', '--uv-weight', '1']
+
+/** `fidelity`, the stricter shipped preset. Must never damage more than `balanced`. */
+const FIDELITY_FLAGS = ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.0002', '--uv-weight', '2']
+
+/**
+ * The negative control: the balanced preset with UV protection switched OFF.
+ *
+ * WHY THIS AXIS AND NOT THE ERROR BUDGET. The obvious control was run F of the
+ * 2026-08-05 sweep (`--simplify-error 0.005`, the one that rendered the real
+ * wordmark illegible). Measured on this fixture it is indistinguishable from
+ * `balanced` — 3.070% for both — because at `--simplify 0.05` on a mesh this
+ * simple the RATIO binds before the budget does, so 0.001, 0.002 and 0.005 all
+ * produce byte-identical geometry. shrink.ts records the same effect from the
+ * other side: "ratio is a target, not a promise". A control that cannot move is
+ * not a control.
+ *
+ * `--uv-weight 0` is the right axis because it disables the actual protective
+ * mechanism — CLAUDE.md: "--uv-weight feeds TEXCOORD_0 into the simplifier's
+ * error metric, which is what protects printed graphics" — and it is a REALISTIC
+ * regression rather than a contrived one: `parseOptimizeArgs` leaves the UV
+ * weight **unset by default**, so any caller that stops passing the flag loses
+ * artwork protection silently. That is the same shape as the `opaque` default
+ * mismatch CLAUDE.md already warns about.
+ *
+ * Measured: 9.370% versus 3.070% — 3× the damage, on the same fixture, same run.
+ */
+const CONTROL_FLAGS = ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.001', '--uv-weight', '0']
+
+/**
+ * Damage ceiling: fraction of pixels in the wordmark view differing by more than
+ * `DIFF_THRESHOLD` (8/255) from the undecimated render.
+ *
+ * CALIBRATED, not chosen. Full grid from `--calibrate` on 2026-08-06, 28,000-triangle
+ * fixture, 900×900 render:
+ *
+ *   | ratio | error  | uv | changed % |
+ *   |-------|--------|----|-----------|
+ *   | 0.05  | 0.0002 | 2  |    1.650% |  ← fidelity (shipped)
+ *   | 0.05  | 0.001  | 1  |    3.070% |  ← balanced (shipped)
+ *   | 0.05  | 0.002  | 1  |    3.070% |
+ *   | 0.05  | 0.005  | 1  |    3.070% |
+ *   | 0.05  | 0.001  | 0  |    9.370% |  ← negative control
+ *   | 0.05  | 0.005  | 0  |    9.370% |
+ *   | 0.005 | 0.02   | 0  |   13.970% |
+ *
+ * 5% sits 1.6× above the shipped preset and 1.9× below the control, so neither a
+ * rendering wobble nor an argument about the threshold decides the outcome.
+ */
+const MAX_CHANGED_FRACTION = 0.05
+
+/** Straight-on view of the panel, framed so the wordmark fills it. */
+const WORDMARK_VIEW = [{ name: 'wordmark', orbit: '0deg 90deg 40%', fieldOfView: '20deg' }]
+
+const RENDER_SIZE = 900
+
+/**
+ * A dense curved panel carrying the real wordmark, MASK at cutoff 0.5 — the
+ * alpha mode the three gates insist on, so this fixture is already in the state
+ * they call correct. Whatever this measures is therefore damage they cannot see.
+ *
+ * ─── WHY THE UVs ARE WARPED ──────────────────────────────────────────────────
+ * The first version of this fixture mapped UV affinely (u,v straight from the
+ * grid parameters) and produced a COMPLETELY FLAT damage curve: 0.150% changed
+ * at every budget from 0.0002 to 0.02, measured. It was useless, and it is worth
+ * recording why, because the reason is not obvious:
+ *
+ *   With an affine UV mapping, linear interpolation across a triangle is EXACT
+ *   no matter how few triangles remain. Decimation cannot smear such a texture.
+ *   The mesh went 28,000 → 1,399 triangles and the wordmark was untouched.
+ *
+ * Real CLO exports are not like that. Their UVs come from a flat 2D pattern
+ * sewn onto a doubly-curved body, so the mapping is non-affine — UV density
+ * varies across the surface — and a coarse triangle interpolating it linearly
+ * mis-samples the texture. THAT is what tears the letters.
+ *
+ * So the warp below is not a trick to make the test fail; it is the property
+ * that makes the fixture a fixture at all, in exactly the sense CLAUDE.md means
+ * by "seed a print if production prints". The negative control is what stops it
+ * from being over-tuned: warp this too hard and the SHIPPED preset breaches the
+ * ceiling too, which fails the eval and says so.
+ *
+ * (Measured second cause, same run: at `--simplify 0.05` the RATIO binds before
+ * the error budget on a mesh this simple, which is why 0.001 and 0.02 produced
+ * byte-identical geometry. shrink.ts records the same effect in the opposite
+ * direction — "ratio is a target, not a promise" — so the fixture has to be
+ * sensitive through UV error, not through triangle count.)
+ */
+async function buildArtworkPanel({ segments = 200, rings = 70 } = {}) {
+  const doc = new Document()
+  const buffer = doc.createBuffer()
+  const positions = []
+  const normals = []
+  const uvs = []
+  const ARC = Math.PI * 0.7 // ~126° of curvature, chest-like
+  const HALF_HEIGHT = 0.16 // panel aspect ≈ the wordmark's 16:1
+  /** Amplitude of the non-affine UV warp. See the note above. */
+  const WARP = 0.05
+  /**
+   * The warp is applied INSIDE an inset base range so every UV stays within
+   * [0,1]. Not cosmetic: a UV outside [0,1] makes glTF-Transform's `quantize`
+   * skip TEXCOORD_0 entirely ("Skipping TEXCOORD_0; out of [0,1] range" —
+   * observed while building this), so the fixture would be exercising a
+   * different code path from the one production takes, which is the whole
+   * failure mode this eval exists to avoid.
+   */
+  const INSET = WARP * 1.5
+
+  for (let j = 0; j <= rings; j++) {
+    const v = j / rings
+    for (let i = 0; i <= segments; i++) {
+      const u = i / segments
+      const angle = (u - 0.5) * ARC
+      positions.push(Math.sin(angle), (0.5 - v) * HALF_HEIGHT * 2, Math.cos(angle))
+      normals.push(Math.sin(angle), 0, Math.cos(angle))
+      // Non-affine: UV density varies along both axes, so linear interpolation
+      // across a decimated triangle no longer lands where the texel does.
+      const uBase = INSET + u * (1 - 2 * INSET)
+      const vBase = INSET + v * (1 - 2 * INSET)
+      uvs.push(
+        uBase + WARP * Math.sin(u * Math.PI * 6) * Math.cos(v * Math.PI * 2),
+        vBase + WARP * 0.5 * Math.sin(u * Math.PI * 4),
+      )
+    }
+  }
+
+  const indices = []
+  const at = (i, j) => j * (segments + 1) + i
+  for (let j = 0; j < rings; j++) {
+    for (let i = 0; i < segments; i++) {
+      indices.push(at(i, j), at(i + 1, j), at(i + 1, j + 1))
+      indices.push(at(i, j), at(i + 1, j + 1), at(i, j + 1))
+    }
+  }
+
+  const png = new Uint8Array(await readFile(join(import.meta.dirname, '..', 'src', '__fixtures__', 'wordmark-alpha.png')))
+  const texture = doc.createTexture('WORDMARK').setImage(png).setMimeType('image/png')
+
+  const material = doc
+    .createMaterial('ARTWORK-WORDMARK')
+    .setBaseColorTexture(texture)
+    .setBaseColorFactor([0.04, 0.05, 0.03, 1])
+    .setAlphaMode('MASK')
+    .setAlphaCutoff(0.5)
+    .setDoubleSided(true)
+
+  const primitive = doc
+    .createPrimitive()
+    .setAttribute('POSITION', doc.createAccessor().setType('VEC3').setArray(new Float32Array(positions)).setBuffer(buffer))
+    .setAttribute('NORMAL', doc.createAccessor().setType('VEC3').setArray(new Float32Array(normals)).setBuffer(buffer))
+    .setAttribute('TEXCOORD_0', doc.createAccessor().setType('VEC2').setArray(new Float32Array(uvs)).setBuffer(buffer))
+    .setIndices(doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(indices)).setBuffer(buffer))
+    .setMaterial(material)
+
+  doc.createScene('scene').addChild(doc.createNode('panel').setMesh(doc.createMesh('panel').addPrimitive(primitive)))
+  return { doc, triangles: indices.length / 3 }
+}
+
+/**
+ * Fail loudly if the copied preset has drifted from `@run-apparel/shared`.
+ * Reads the source text rather than importing it, because importing would create
+ * the dependency this copy exists to avoid.
+ */
+async function assertPresetMatchesShared() {
+  const source = await readFile(join(import.meta.dirname, '..', '..', '..', 'packages', 'shared', 'src', 'shrink.ts'), 'utf8')
+  const expected = BALANCED_FLAGS.map((f) => `'${f}'`).join(', ')
+  if (!source.includes(expected)) {
+    throw new Error(
+      `BALANCED_FLAGS has drifted from packages/shared/src/shrink.ts.\n` +
+        `  this file expects: [${expected}]\n` +
+        `  which no longer appears in shrinkFlagsFor(). Re-calibrate this eval against the new preset\n` +
+        `  (node scripts/eval-artwork-legibility.mjs --calibrate) rather than editing the constant to match.`,
+    )
+  }
+}
+
+/** Optimise the fixture with `flags`, render it, and diff against the baseline. */
+async function damageFor(io, srcGlb, baselineDir, workDir, label, flags) {
+  const out = join(workDir, `${label}.glb`)
+  const { options } = parseOptimizeArgs([srcGlb, '--out', out, ...flags])
+  const result = await optimizeGlb(srcGlb, out, options)
+  const renderDir = join(workDir, `render-${label}`)
+  await renderViews(out, renderDir, { views: WORDMARK_VIEW, width: RENDER_SIZE, height: RENDER_SIZE })
+  const { diffs } = await compareRenders(baselineDir, renderDir, join(workDir, `sheet-${label}.png`))
+  const diff = diffs.find((d) => d.view === 'wordmark')
+  return {
+    label,
+    changedFraction: diff.changedFraction,
+    meanDelta: diff.meanDelta,
+    maxDelta: diff.maxDelta,
+    artworkAtRisk: result.simplify?.artworkAtRisk ?? [],
+    sheet: join(workDir, `sheet-${label}.png`),
+    renderDir,
+  }
+}
+
+async function main() {
+  const calibrate = process.argv.includes('--calibrate')
+  const keepAt = process.argv.indexOf('--keep')
+  const workDir = keepAt !== -1 ? process.argv[keepAt + 1] : await mkdtemp(join(tmpdir(), 'artwork-eval-'))
+  await mkdir(workDir, { recursive: true })
+
+  await assertPresetMatchesShared()
+
+  const io = new NodeIO()
+  const { doc, triangles } = await buildArtworkPanel()
+  const srcGlb = join(workDir, 'fixture.glb')
+  await writeFile(srcGlb, await io.writeBinary(doc))
+  console.log(`fixture: ${triangles.toLocaleString()} triangles, real wordmark alpha, MASK @ 0.5`)
+
+  // Baseline: the undecimated fixture. Everything is measured against this.
+  const baselineDir = join(workDir, 'render-baseline')
+  await renderViews(srcGlb, baselineDir, { views: WORDMARK_VIEW, width: RENDER_SIZE, height: RENDER_SIZE })
+
+  if (calibrate) {
+    const grid = [
+      { ratio: '0.05', error: '0.0002', uv: '2' }, // fidelity (shipped)
+      { ratio: '0.05', error: '0.001', uv: '1' }, // balanced (shipped)
+      { ratio: '0.05', error: '0.002', uv: '1' }, // the deleted `small`
+      { ratio: '0.05', error: '0.005', uv: '1' }, // sweep run F
+      { ratio: '0.05', error: '0.001', uv: '0' }, // UV protection OFF
+      { ratio: '0.05', error: '0.005', uv: '0' },
+      { ratio: '0.005', error: '0.02', uv: '0' }, // brutal
+    ]
+    console.log('\n| ratio | error | uv-weight | mean Δ | max Δ | changed % |')
+    console.log('|---|---|---|---|---|---|')
+    const rows = []
+    for (const g of grid) {
+      const flags = ['--simplify', g.ratio, '--meshopt', '--simplify-error', g.error, '--uv-weight', g.uv]
+      const d = await damageFor(io, srcGlb, baselineDir, workDir, `r${g.ratio}-e${g.error}-uv${g.uv}`, flags)
+      rows.push({ ...g, ...d })
+      console.log(
+        `| ${g.ratio} | ${g.error} | ${g.uv} | ${d.meanDelta} | ${d.maxDelta} | ${(d.changedFraction * 100).toFixed(3)}% |`,
+      )
+    }
+    await writeFile(join(workDir, 'calibration.json'), JSON.stringify(rows, null, 2))
+    console.log(`\nArtifacts in ${workDir}`)
+    return
+  }
+
+  const shipped = await damageFor(io, srcGlb, baselineDir, workDir, 'balanced', BALANCED_FLAGS)
+  const fidelity = await damageFor(io, srcGlb, baselineDir, workDir, 'fidelity', FIDELITY_FLAGS)
+  const control = await damageFor(io, srcGlb, baselineDir, workDir, 'control', CONTROL_FLAGS)
+
+  const pct = (v) => `${(v * 100).toFixed(3)}%`
+  console.log(`\n  fidelity  (err 0.0002, uv 2)     changed ${pct(fidelity.changedFraction)}  mean ${fidelity.meanDelta}`)
+  console.log(`  balanced  (err 0.001,  uv 1)     changed ${pct(shipped.changedFraction)}  mean ${shipped.meanDelta}`)
+  console.log(`  CONTROL   (uv 0 — expect DAMAGE) changed ${pct(control.changedFraction)}  mean ${control.meanDelta}`)
+  console.log(`  ceiling                          ${pct(MAX_CHANGED_FRACTION)}`)
+
+  const failures = []
+  if (shipped.changedFraction > MAX_CHANGED_FRACTION) {
+    failures.push(
+      `The SHIPPED preset damaged the artwork: ${pct(shipped.changedFraction)} of the wordmark moved, ` +
+        `over the ${pct(MAX_CHANGED_FRACTION)} ceiling.\n` +
+        `  Look at ${shipped.sheet} before touching the threshold — the three blocking gates cannot see this,\n` +
+        `  which is the entire reason this eval exists.`,
+    )
+  }
+  if (fidelity.changedFraction > shipped.changedFraction) {
+    failures.push(
+      `fidelity damaged MORE than balanced (${pct(fidelity.changedFraction)} vs ${pct(shipped.changedFraction)}).\n` +
+        `  fidelity is the stricter preset; if it is now the worse one, the presets or the simplifier have\n` +
+        `  regressed and shrink.ts's ordering claim is no longer true.`,
+    )
+  }
+  if (control.changedFraction <= MAX_CHANGED_FRACTION) {
+    failures.push(
+      `The NEGATIVE CONTROL did not register as damage: --uv-weight 0 changed only ` +
+        `${pct(control.changedFraction)}, at or under the ${pct(MAX_CHANGED_FRACTION)} ceiling.\n` +
+        `  Switching UV weighting off REMOVES the mechanism that protects printed graphics, so it must show up.\n` +
+        `  This eval has gone BLIND — the fixture, the render size or the metric no longer exhibits the failure.\n` +
+        `  Fix the eval; do NOT relax the ceiling. A green run means nothing until this control is red again.`,
+    )
+  }
+
+  if (failures.length) {
+    console.error(`\n✗ artwork legibility eval FAILED\n\n${failures.join('\n\n')}\n`)
+    console.error(`Artifacts: ${workDir}`)
+    process.exit(1)
+  }
+
+  const margin = control.changedFraction / Math.max(shipped.changedFraction, 1e-9)
+  console.log(`\n✓ artwork legibility eval passed — the control does ${margin.toFixed(1)}× the shipped preset's damage`)
+}
+
+await main()

@@ -114,9 +114,21 @@ the answer is "nothing that happens in production", it is not a test.
   wordmark illegible at `--simplify-error 0.005` and **every run passed all three
   gates**, `artworkAtRisk` and `findArtworkAlphaProblems` both empty. With
   `--uv-weight` set, the UVs *are* in the error budget, so `artworkAtRisk` cannot
-  fire — the budget was merely too loose. **Nothing in this system measures
-  whether the letters survived; only a rendered crop does.** This is why the old
+  fire — the budget was merely too loose. **Nothing in this system measured
+  whether the letters survived; only a rendered crop did.** This is why the old
   `small` preset was deleted rather than re-tuned.
+  **Partly closed on 2026-08-06 by `pnpm eval:artwork`** — it renders the real
+  wordmark alpha before and after the real chain and measures how much moved, so
+  the *presets* are now watched by something other than memory. Read what it does
+  NOT cover before relying on it: it runs on a synthetic fixture, not on a
+  production garment, so it catches a preset or simplifier regression and would
+  still miss damage specific to a particular CLO export. The sweep remains the
+  authority on a real garment. Two measured findings from building it, both
+  counter-intuitive: an **affine** UV mapping cannot smear under decimation at all
+  (the first fixture gave an identical 0.150% at every budget from 0.0002 to
+  0.02 — useless), and at `--simplify 0.05` on a simple mesh the **ratio binds
+  before the error budget**, so 0.001/0.002/0.005 produce byte-identical geometry.
+  The eval's negative control is therefore `--uv-weight 0`, not a looser budget.
   Consequently `balanced` (`0.001` since 2026-08-05) is **pinned by an absolute
   test**. Every other assertion in `shrink.test.ts` is relative — fidelity ≤
   balanced, uv weight never below balanced — and `0.001` and `0.005` satisfy all of
@@ -235,11 +247,19 @@ protects artwork *less* shipped as "Smallest file" — **deleted on 2026-08-05**
 once a sweep rendered what it actually did to the wordmark. Look at the output:
 
 ```bash
+pnpm eval:artwork                                              # does the preset still keep letters readable?
 pnpm pipeline textures raw/garment.glb --out output/textures   # no processing
 pnpm pipeline render   out.glb --out output/after
 pnpm pipeline compare  output/before output/after --out sheet.png
 node tools/asset-pipeline/scripts/bisect-artwork.mjs raw/garment.glb --out output/bisect
 ```
+
+`pnpm eval:artwork` is the fast one — ~2 minutes, no raw export needed, and it runs
+in CI. Add `--calibrate` to print the damage curve across presets, `--keep <dir>`
+to keep the contact sheets. It asserts a **negative control** as well as the
+shipped preset: if switching `--uv-weight` off stops registering as damage, the
+eval says it has gone blind and fails, rather than passing quietly. Do not raise
+its ceiling to make it green.
 
 `render` needs a Chromium; set `PLAYWRIGHT_CHROMIUM_PATH` where Playwright's own
 download is absent.

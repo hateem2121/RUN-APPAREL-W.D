@@ -120,6 +120,41 @@ jobs:
       - name: Lighthouse CI
         run: pnpm exec lhci autorun
 
+  # Does the shipped decimation preset still leave printed artwork readable?
+  #
+  # This is the gap CLAUDE.md names outright: "the three blocking gates do NOT
+  # catch decimation damage […] Nothing in this system measures whether the
+  # letters survived; only a rendered crop does." A six-run sweep on 2026-08-05
+  # rendered the chest wordmark illegible and every run passed all three gates.
+  # `balanced` has been pinned by an absolute test whose only evidence is a PNG a
+  # human looked at once. This renders the artwork before and after the real
+  # chain and measures how much of it moved.
+  #
+  # DELIBERATELY NOT IN `deploy: needs` YET. Its thresholds were calibrated on a
+  # developer Mac, and CI runs a different Chromium on a different rasteriser, so
+  # the absolute numbers will not match on the first run. This repo has already
+  # been bitten by exactly that (8c6e27e — "stop the new smoke test failing
+  # deploys"), so it observes for a few runs first. Promote it into `needs` once
+  # the CI numbers are known and the ceiling reflects them; the negative control
+  # inside the eval is what proves it is still capable of failing.
+  #
+  # Chromium only — WebKit and Firefox are not needed, and the render harness
+  # already runs software WebGL via swiftshader.
+  artwork:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Chromium for the render harness
+        run: pnpm --filter @run-apparel/asset-pipeline exec playwright install --with-deps chromium
+      - name: Artwork legibility eval
+        run: pnpm eval:artwork
+
   deploy:
     needs: [verify, audit, secrets]
     # Enabled once Cloudflare secrets are configured (Phase 10):
