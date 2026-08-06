@@ -1,8 +1,13 @@
 /**
- * DESIGN.md — "PAPER & INK" (Olive Ink) locked tokens.
+ * "PAPER & INK" (Olive Ink) locked tokens.
  * Light = "The Workshop" · Dark = "The Night Shift".
  * Components read ONLY these semantic custom properties — never raw hex.
  * Default follows prefers-color-scheme; data-theme on <html> overrides.
+ *
+ * THIS FILE IS THE SOURCE OF TRUTH. docs/DESIGN.md is its prose index and is
+ * written FROM these values, never the other way round — a derived document that
+ * gets to define anything drifts, which this repo has already paid for twice
+ * (see scripts/index-ai.mjs). If the two disagree, this file is right.
  */
 
 :root {

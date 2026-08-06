@@ -1,5 +1,6 @@
 // wdth build: carries both weight (100–900) and width (62–125%) axes, so
-// display type can use the DESIGN.md ~122% width.
+// display type can use the 122% width (docs/DESIGN.md § Type). Swapping this for
+// the weight-only build silently flattens every headline back to normal width.
 import '@fontsource-variable/archivo/wdth.css'
 import '@fontsource/instrument-serif/400-italic.css'
 import './styles/tokens.css'
