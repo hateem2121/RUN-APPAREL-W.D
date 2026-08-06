@@ -9,7 +9,22 @@ on:
         description: Override URL to check (use a bogus URL to test the alert path)
         required: false
 
+# A `permissions:` block REPLACES the default token grants — it does not add to
+# them. So listing only `issues: write` silently set `contents` to `none`, and
+# `actions/checkout` on a PRIVATE repo then fails with "Repository not found"
+# (GitHub returns 404, not 403, so it reads as a deleted repo rather than a
+# permissions problem).
+#
+# That is exactly what happened. 0afdbc9 was titled "no checkout present" — the
+# job deliberately had none, so this block was harmless. 8301e60 then added
+# `actions/checkout@v4` on 2026-08-05 10:36 UTC to run the new garment check, and
+# every scheduled run since has died at checkout. Last green run: 08:50 UTC the
+# same day, the run immediately before it.
+#
+# The monitor was not reporting the site as down — it never reached the ping at
+# all, for ~23 hours, while the failures looked like ordinary uptime alerts.
 permissions:
+  contents: read
   issues: write
 
 jobs:
