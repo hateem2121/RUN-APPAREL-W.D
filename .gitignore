@@ -41,6 +41,13 @@ test-results/
 # codebase-memory-mcp index artifact (machine-local, rebuildable — see docs/AI-TOOLING.md)
 .codebase-memory/
 
+# Machine-local agent settings. Holds CBM_ALLOWED_ROOT, which is an ABSOLUTE path
+# and therefore cannot be shared — settings.json does not expand ${CLAUDE_PROJECT_DIR}
+# (or any other variable) inside its `env` block, verified against the Claude Code
+# settings reference on 2026-08-06. The checked-in .claude/settings.json carries
+# everything that IS portable: the permission allowlist and the pipeline guard hook.
+.claude/settings.local.json
+
 # misc
 .DS_Store
 *.log

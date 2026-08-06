@@ -6,6 +6,32 @@ depend on any of it.
 
 ---
 
+## Which memory wins
+
+An audit on 2026-08-06 found **three** systems each behaving as though it were the
+project's memory, with no stated order between them. That is not a tidiness
+complaint: when two of them disagree, an agent picks one, and which one it picks is
+arbitrary. The order below is now the rule.
+
+| Rank | Store | What it is for | Who writes it |
+|---|---|---|---|
+| **1** | **`CLAUDE.md`** | **The authority.** Traps that have cost a session, and the reasoning behind them. If anything here conflicts with anything below, this wins. | Humans, deliberately |
+| 2 | `docs/` (`HARDENING-LOG`, `RUNBOOK`, `SESSION-*`, `DESIGN`, this file) | The long form behind `CLAUDE.md`'s one-liners. Never contradicts it. | Humans |
+| 3 | codebase-memory ADR store | A machine-readable **mirror of `CLAUDE.md`**, so graph queries return the same rules. Not a separate opinion — `scripts/index-ai.mjs` re-seeds it verbatim and re-reads to prove it landed. | `pnpm index:ai` |
+| 4 | Session-memory plugins (e.g. `claude-mem`) and the agent's own per-project memory dir | **Search over past sessions. Nothing more.** Useful for "did we try this already?" Never a source of truth about how the system behaves. | Agents, automatically |
+
+**The rule for ranks 3 and 4: they are indexes, not authorities.** Anything an agent
+reads there and intends to act on must be confirmed against `CLAUDE.md` or the code.
+A recalled note describes what was true when it was written; several things in this
+repo have been diagnosed wrongly and corrected later (the CSP cause on 2026-08-05,
+the `no-transform` claim), and the correction only ever lands in ranks 1–2.
+
+This is the same principle the repo already applies to derived documents: one
+maintained file, no second copy that gets to define anything. See the note in
+`scripts/index-ai.mjs`, and the header of `apps/viewer/src/styles/tokens.css`.
+
+---
+
 ## 1. codebase-memory-mcp (code intelligence)
 
 An MCP server that parses the repository with tree-sitter into a queryable graph
@@ -283,12 +309,23 @@ bare `vitest run` (and IDE Vitest integrations) still broken.
 
 Still worth doing: **use Node 24 locally**, matching CI and the current Active LTS.
 
-### Optional hardening
+### Hardening — where `CBM_ALLOWED_ROOT` lives
 
 `CBM_ALLOWED_ROOT=<absolute path>` restricts what the indexer is allowed to read.
-It is not set in `.mcp.json` because the value is machine-specific, but it is
-worth adding to your local agent config if you want the indexer confined to this
-project.
+It is not in `.mcp.json` because the value is machine-specific.
+
+Since 2026-08-06 it belongs in **`.claude/settings.local.json`**, which is
+gitignored, so each machine sets its own. It cannot go in the shared
+`.claude/settings.json`: an absolute path is not portable, and settings files do
+**not** expand `${CLAUDE_PROJECT_DIR}` — or any variable — inside the `env` block
+(checked against the Claude Code settings reference on 2026-08-06; the expansion
+exists for *hook commands*, which is why the guard hook below can be shared and
+this cannot).
+
+```jsonc
+// .claude/settings.local.json — per machine, not committed
+{ "env": { "CBM_ALLOWED_ROOT": "/absolute/path/to/this/repo" } }
+```
 
 ### Upgrading
 
@@ -360,3 +397,50 @@ description drafting — the relevant starting points are:
 
 At that point the dependency to add is `@anthropic-ai/sdk` in the CMS worker, and
 the cookbook is the reference for how to call it — not a thing to copy wholesale.
+
+---
+
+## 4. Project agent config (`.claude/`)
+
+| File | Committed | What it does |
+|---|---|---|
+| `launch.json` | yes | Dev-server definitions for viewer (5173) and cms (3000). Invokes pnpm via `npx --yes pnpm@10.33.0`, because pnpm is not necessarily on `PATH` — see the note under "Full-suite verification". |
+| `settings.json` | yes | Permission allowlist for read-only commands, plus the guard hook below. |
+| `settings.local.json` | **no** (gitignored) | `CBM_ALLOWED_ROOT`. Machine-specific; see above. |
+| `hooks/guard-pipeline-input.mjs` | yes | The guard below. |
+| `skills/` | yes | Five vendored third-party skills, pinned to a commit. Provenance, licences, the reason for each, and one stated caveat are in `.claude/skills/README.md`. |
+
+### The pipeline guard hook
+
+A `PreToolUse` hook that refuses to run `pipeline optimize` or `pipeline merge`
+on a file under `output/` — trap #1 in `CLAUDE.md`, mechanically enforced:
+
+> Meshopt quantizes vertex attributes; `simplify-textured.ts` bails to a
+> position-only fallback when it sees them, so a second pass *silently* loses
+> artwork protection and blames the wrong stage.
+
+It exists because that failure is **silent and self-concealing**: the run
+succeeds, the file shrinks, and `artworkAtRisk` cannot report the fallback,
+because taking the fallback is the thing that happened. Nothing downstream
+notices. Remembering is not a control; this is.
+
+**What it deliberately does not block.** `render`, `compare`, `textures`,
+`validate` and `placeholders` are always allowed, wherever they read from —
+because `CLAUDE.md`'s own diagnosis workflow reads out of `output/` on purpose:
+
+```bash
+pnpm pipeline compare output/before output/after --out sheet.png
+```
+
+Only the two commands that re-encode geometry are gated, and only on their
+*inputs*; `--out output/…` is the normal case and is never what is complained
+about. A guard that blocked the documented workflow would be switched off within
+a day, and a gate the owner learns to override is worse than no gate — the same
+reasoning that keeps `findCrushedArtwork` a warning rather than a blocker.
+
+Verified 2026-08-06 against 17 commands — 5 that must block (including a
+`&&`-chained one and an `npx --yes pnpm@…` form) and 12 that must not (including
+every documented workflow line and `git commit -m "optimize output/foo"`, to
+prove it does not fire on the word alone). The `VALUE_FLAGS` set in the script is
+enumerated from the real parsers so that `--out`'s value is never mistaken for an
+input; if a new value-taking flag is added to the CLI, add it there too.
