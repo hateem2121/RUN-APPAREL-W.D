@@ -42,11 +42,26 @@ jobs:
       # most likely browser for this product had never executed a line of it.
       # Firefox is cheap to add once the matrix exists.
       #
-      # CACHED SINCE 2026-08-06, because this one step was the entire cost of CI.
-      # Measured on run 31091024563: checkout, install, typecheck, 366 tests, seed
-      # and build together took 2m05s — and this step ran for 25+ minutes. Across
-      # the previous eight runs (8–13 min each) the browsers were 75–85% of all CI
-      # time. `cache: pnpm` above caches packages; nothing cached the browsers.
+      # CACHED SINCE 2026-08-06 — but NOT because the download is slow. The first
+      # version of this comment claimed the browsers were "75–85% of all CI time",
+      # inferred from run 31091024563 where this step ran 30+ minutes before the
+      # run was cancelled. That inference was WRONG, and the correction is the
+      # useful part:
+      #
+      #   Measured on run 31093298223, healthy runner, cache MISS:
+      #     install + typecheck + 366 tests + seed + build   ~2m 25s
+      #     this step (three browsers, --with-deps)           0m 49s
+      #     e2e across the three browsers                     3m 09s
+      #
+      # 49 seconds, not six minutes. The 30-minute run was a hung runner (almost
+      # certainly apt inside --with-deps): same command, same empty cache, 49s on
+      # the next attempt. GitHub Actions reported no incident. e2e is the real
+      # second-biggest cost, and it is legitimate work.
+      #
+      # So the cache is kept for RESILIENCE, not speed: the hang happened INSIDE
+      # this download, and a cache hit removes that network call from the critical
+      # path. ~49s saved per run is a bonus, not the case for it. Do not repeat the
+      # "browsers dominate CI" claim — it was measured false.
       #
       # THE CACHE HOLDS BINARIES ONLY. Playwright's apt system libraries are
       # installed into the runner OS and cannot be cached, so a cache HIT still has
