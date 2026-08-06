@@ -66,6 +66,49 @@ That runs the full production chain five times with one stage removed each time,
 renders every result, and writes a contact sheet per run against the unprocessed
 original. See `docs/OPEN-ISSUE-ARTWORK.md` for how to read the output.
 
+### The two artwork evals — the only automated check on *legibility*
+
+Everything else here (and the three blocking gates in `optimize`) tests structure:
+`alphaMode`, `alphaCutoff`, whether the position-only fallback was taken. **None of
+them changes when decimation smears a logo.** These two render the print and
+measure how much of it moved.
+
+```bash
+pnpm eval:artwork        # synthetic fixture, ~2 min, no raw export — GATES EVERY DEPLOY
+pnpm eval:artwork:real   # the real N001 export, ~2.5 min — runs MONTHLY, opens an issue
+```
+
+Both take `--calibrate` (print the damage curve instead of asserting) and
+`--keep <dir>` (keep the GLBs, renders and contact sheets).
+
+Both assert a **negative control** as well as the shipped preset: `--uv-weight 0`
+removes the mechanism that protects printed graphics, so it *must* register as
+damage. If it stops doing so, the eval fails itself and says it has gone blind.
+That is what stops either becoming a green test that cannot fail. **Never raise a
+ceiling to make one green** — open the contact sheet it names.
+
+Measured on the real garment, 2026-08-06, reproducible to three decimal places
+across three runs:
+
+| preset | changed | |
+|---|---|---|
+| `fidelity` | 0.980% | shipped, strictest |
+| `balanced` | 2.990% | shipped |
+| `--simplify-error 0.005` | 5.770% | sweep run F — renders the wordmark illegible |
+| `--uv-weight 0` | 5.810% | negative control |
+| **ceiling** | **4.200%** | |
+
+⚠️ **`sweep-size-vs-artwork.mjs` renders nothing.** It measures size and the gates,
+and it reported `wouldShip: true` for all six runs of the 2026-08-05 sweep including
+run F above. It is the right tool for *where the size floor is*; it was never
+evidence about letters.
+
+⚠️ **`eval:artwork:real` refuses to run if its camera is not aimed at the print.**
+The default `crop-chest` view frames N001's torso and hips with the wordmark clipped
+off the top edge — those angles were framed for a t-shirt. A mis-aimed camera does
+not error, it just measures fabric. Also: model-viewer clamps orbit radius, so
+`fieldOfView` is the only working zoom control.
+
 ### Compression flags (`merge`, `optimize`)
 
 | Flag | Default | Effect |
