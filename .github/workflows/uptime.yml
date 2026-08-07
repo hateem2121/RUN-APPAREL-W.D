@@ -50,9 +50,15 @@ jobs:
         id: check
         run: |
           ok=true
-          curl -fsS --max-time 20 "$HEALTH_URL" || ok=false
+          # --retry 2: a single 20-second sample on a best-effort cron decides whether
+          # to page the owner, so one transient blip opened an outage issue for a site
+          # that was fine. Retries cost nothing when the site is up and remove most of
+          # that noise; a genuine outage still fails all three attempts. `--retry-all-errors`
+          # is needed because plain --retry only retries transient HTTP codes, not the
+          # connection failures an actual outage produces.
+          curl -fsS --max-time 20 --retry 2 --retry-delay 5 --retry-all-errors "$HEALTH_URL" || ok=false
           if [ "${{ github.event.inputs.target }}" = "" ]; then
-            curl -fsS --max-time 20 -o /dev/null "$VIEWER_URL" || ok=false
+            curl -fsS --max-time 20 --retry 2 --retry-delay 5 --retry-all-errors -o /dev/null "$VIEWER_URL" || ok=false
             # Both curls above pass against a product serving NO MODEL: the SPA
             # shell returns 200 and renders its no-model state. This resolves the
             # model URL the way the viewer does and fetches it, so a garment that

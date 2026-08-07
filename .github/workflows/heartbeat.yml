@@ -1,0 +1,127 @@
+name: Heartbeat
+
+# WHO WATCHES THE MONITORS.
+#
+# On 2026-08-05 the uptime workflow failed at `actions/checkout` for ~23 hours and
+# opened no alert at all. Not because the alerting was broken — because it never
+# reached the step that decides to alert. `uptime.yml` gates its issue on
+# `steps.check.outputs.ok == 'false'`, and a job that dies before setting that
+# output produces silence, which is indistinguishable from a healthy site.
+#
+# That was fixed as a permissions bug (9c8e883). The CLASS of failure was not: any
+# scheduled workflow here can still die before it measures anything, and nothing
+# would say so. This is the thing that says so.
+#
+# It works by asking the Actions API when each watched workflow last SUCCEEDED,
+# rather than by being told. Nothing has to remember to report in, so a workflow
+# that stops running entirely — deleted, disabled, renamed, quietly skipped — is
+# caught by the same check as one that fails.
+#
+# ⚠️ This workflow cannot watch itself. That is the base case and it is accepted:
+# the point is to shrink the blind spot from "every scheduled job" to "one job that
+# does nothing but one API call". If you want to close it completely you need an
+# off-platform monitor, which this project's budget does not run to.
+
+on:
+  schedule:
+    # Every 6 hours. Uptime runs every 15 minutes, so 6 hours is ~24 missed runs —
+    # far past GitHub's ordinary best-effort cron skew, and it caps how long a dead
+    # monitor can stay unnoticed at a quarter of the 23 hours it managed last time.
+    - cron: '43 */6 * * *'
+  workflow_dispatch:
+
+# `contents: read` is here even though NOTHING IS CHECKED OUT and it is not needed
+# today. It is deliberate inoculation: a `permissions:` block REPLACES the default
+# grants, so the moment someone adds `actions/checkout` to this file — exactly what
+# happened to uptime.yml in 8301e60 — it would 404 with "Repository not found" and
+# this monitor would join the list of things that fail silently. The irony would be
+# total. `actions: read` is what `gh run list` actually needs.
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+jobs:
+  check:
+    # Same gate as the workflows it watches. Before go-live they are all skipped on
+    # purpose, and alerting that they have not run would be noise about a deliberate
+    # state rather than a fault.
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Check each scheduled workflow has succeeded recently
+        id: check
+        run: |
+          set -euo pipefail
+
+          # workflow-file:max-age-hours:human-cadence
+          # Each budget is several times the workflow's own interval, so ordinary
+          # GitHub cron skew never trips it and only a real stoppage does.
+          WATCHED="
+          uptime.yml:3:every 15 minutes
+          nightly-backup.yml:36:nightly
+          diagnostics-digest.yml:192:weekly on Mondays
+          "
+
+          stale=""
+          now=$(date -u +%s)
+
+          while IFS=: read -r file hours cadence; do
+            [ -z "$file" ] && continue
+
+            # `--status success` alone is not enough: a run whose only job was
+            # skipped by an `if:` also concludes as success, so a workflow that is
+            # silently not doing its work would look healthy. Ask for the newest
+            # successful run and treat "none at all" as stale rather than as pass.
+            last=$(gh run list --workflow "$file" --status success --limit 1 \
+                     --json createdAt --jq '.[0].createdAt // empty' 2>/dev/null || echo "")
+
+            if [ -z "$last" ]; then
+              stale="${stale}- \`${file}\` — **no successful run on record at all** (expected ${cadence})\n"
+              echo "STALE  $file — no successful run found"
+              continue
+            fi
+
+            last_epoch=$(date -u -d "$last" +%s 2>/dev/null || date -u -jf "%Y-%m-%dT%H:%M:%SZ" "$last" +%s)
+            age_h=$(( (now - last_epoch) / 3600 ))
+
+            if [ "$age_h" -gt "$hours" ]; then
+              stale="${stale}- \`${file}\` — last succeeded **${age_h}h ago**, budget ${hours}h (runs ${cadence})\n"
+              echo "STALE  $file — ${age_h}h old (budget ${hours}h)"
+            else
+              echo "ok     $file — ${age_h}h old (budget ${hours}h)"
+            fi
+          done <<< "$WATCHED"
+
+          if [ -n "$stale" ]; then
+            {
+              echo 'stale<<STALE_EOF'
+              printf '%b' "$stale"
+              echo 'STALE_EOF'
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open a deduplicated issue for a stopped monitor
+        if: steps.check.outputs.stale != ''
+        run: |
+          set -euo pipefail
+          if ! label_out=$(gh label create monitoring --color fbca04 \
+                             --description "A scheduled workflow has stopped running" 2>&1); then
+            grep -qi 'already exists' <<<"$label_out" || echo "::warning::gh label create failed: $label_out"
+          fi
+          open=$(gh issue list --label monitoring --state open --json number --jq 'length')
+          if [ "$open" != "0" ]; then
+            echo "An open monitoring issue already exists — not duplicating."
+            exit 0
+          fi
+          gh issue create --label monitoring \
+            --title "A scheduled check has stopped running" \
+            --body "$(printf '%s\n\n%b\n%s\n' \
+              "One or more scheduled workflows have not succeeded within their expected window:" \
+              "${{ steps.check.outputs.stale }}" \
+              "**This is not necessarily an outage.** It means a CHECK is not running, so the thing it watches is currently unobserved — which is how the uptime monitor sat dead for ~23 hours on 2026-08-05 while looking fine.
+
+          Open the workflow in the Actions tab and read the most recent run. If it is failing at \`actions/checkout\` with \"Repository not found\" on this private repo, the cause is a \`permissions:\` block missing \`contents: read\` — see the note at the top of uptime.yml.")"
