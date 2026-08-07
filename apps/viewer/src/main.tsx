@@ -9,6 +9,7 @@ import './styles/page.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { initAnalytics } from './lib/analytics'
 import { initErrorTracking } from './lib/sentry'
 import { initTelemetry } from './lib/telemetry'
@@ -23,8 +24,15 @@ grain.className = 'grain'
 grain.setAttribute('aria-hidden', 'true')
 document.body.appendChild(grain)
 
+// ErrorBoundary sits INSIDE StrictMode but OUTSIDE App, so a throw anywhere in the
+// tree — including the lazily-imported polish layer and <Stage> — lands on the
+// branded unavailable state rather than an empty <div id="root">. Placing it
+// outside StrictMode would also work; inside keeps the double-invoke checks
+// applying to the fallback too.
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 )
