@@ -75,7 +75,7 @@ measure how much of it moved.
 
 ```bash
 pnpm eval:artwork        # synthetic fixture, ~2 min, no raw export — GATES EVERY DEPLOY
-pnpm eval:artwork:real   # the real N001 export, ~2.5 min — runs MONTHLY, opens an issue
+pnpm eval:artwork:real   # the real N001 export, ~2.5 min — MANUAL + LOCAL, needs raw/
 ```
 
 Both take `--calibrate` (print the damage curve instead of asserting) and
@@ -103,11 +103,34 @@ and it reported `wouldShip: true` for all six runs of the 2026-08-05 sweep inclu
 run F above. It is the right tool for *where the size floor is*; it was never
 evidence about letters.
 
-⚠️ **`eval:artwork:real` refuses to run if its camera is not aimed at the print.**
+⚠️ **`eval:artwork:real` refuses to run on the wrong file, the wrong camera, or a
+camera aimed at the wrong place.** Three guards, all because a bad input here does
+not crash — it produces a plausible number for the wrong thing:
+
+| Guard | Catches |
+|---|---|
+| SHA-256 vs `raw/CANONICAL.json` | a re-export or different upload at the same path |
+| aim: every view's `target` within tolerance of a print | a camera pointed at fabric |
+| `cameraFingerprint` vs the calibration | a changed **zoom** — the aim guard cannot see this |
+
+The zoom is *pinned*, not range-checked, because model-viewer clamps orbit radius
+to its own framing of the bounding sphere (0.445m / 0.300m / 0.180m render
+pixel-identically), so the distance in the orbit string is not the real camera
+distance and any projected-size calculation from it would be fiction. `fieldOfView`
+is the only working zoom control — and widening it keeps the camera aimed at exactly
+the same point while the crop fills with fabric.
+
 The default `crop-chest` view frames N001's torso and hips with the wordmark clipped
-off the top edge — those angles were framed for a t-shirt. A mis-aimed camera does
-not error, it just measures fabric. Also: model-viewer clamps orbit radius, so
-`fieldOfView` is the only working zoom control.
+off the top edge — those angles were framed for a t-shirt.
+
+Per-garment config (views, ceiling, tolerance) lives in `raw/CANONICAL.json`, not in
+the script. There is no environment override for the ceiling; `EVAL_REAL_CEILING`
+was removed on 2026-08-07. Tune with `--calibrate`, **look at the contact sheets**,
+then edit the manifest next to the evidence.
+
+`--all-variants` measures every colourway rather than the default one. Off by
+default because it multiplies the render count; when it is off, the run prints
+exactly which colourways it did **not** measure.
 
 ### Compression flags (`merge`, `optimize`)
 

@@ -237,19 +237,9 @@ pull request:
   If it goes red, **look at the contact sheet it names** before touching the
   ceiling. It also asserts a negative control, so it fails itself if it stops being
   able to detect damage.
-- **Artwork legibility on the real garment** — `pnpm eval:artwork:real`, in its own
-  **monthly** workflow (`.github/workflows/artwork-real.yml`), not in CI. It pulls
-  the 382 MB CLO export from the private R2 ingest bucket and runs the same method
-  on the actual file, which is what the per-PR fixture cannot represent.
-
-  It does **not** gate the deploy — it runs on a clock, so there is no deploy to
-  attach it to. On failure it opens a deduplicated `artwork`-labelled issue, and it
-  uploads the contact sheets as run artifacts for 14 days whether it passes or
-  fails, so a slow drift can be compared month to month.
-
-  Trigger it by hand from the Actions tab (`workflow_dispatch`), optionally with
-  `calibrate` ticked to print the damage curve instead of asserting. To point it at
-  a different garment: `gh variable set RAW_GLB_KEY --body "<name>.glb"`.
+- **Artwork legibility on the real garment** — `pnpm eval:artwork:real`. **MANUAL
+  AND LOCAL**, not in CI and not scheduled. See "The canonical raw garment" below
+  for why, and for how to run it.
 - **Performance budget** — Lighthouse CI (`lighthouserc.json`) against the viewer
   served with the e2e mock. Deterministic byte budgets fail on a real regression;
   category scores are non-blocking warnings (they swung 0.64/0.88/0.87 across
@@ -300,6 +290,119 @@ pull request:
   state. That case is one of five in the negative control the check was built
   against. It does **not** judge whether the artwork on the model is intact —
   that is not decidable over HTTP, and is gated at pipeline time instead.
+
+## The canonical raw garment
+
+**A raw CLO export is not a durable artifact in this system, and nothing in the
+cloud is keeping one for you.**
+
+Two facts, both measured rather than assumed:
+
+- The R2 ingest bucket carries an `expire-raw-uploads` lifecycle rule — **14
+  days, all prefixes** — verified live on 2026-08-06.
+- `scripts/backup-r2.mjs` mirrors the **media** bucket only. It enumerates keys
+  from the CMS `media` table, and raw uploads never enter that table, so the
+  ingest bucket is in **no backup at all**.
+
+So the N001 export uploaded on/before 2026-08-05 expired around **2026-08-19**,
+and the only copy that survives is a local one.
+
+### What replaced the monthly workflow, and why
+
+`.github/workflows/artwork-real.yml` ran `eval:artwork:real` monthly against the
+R2 copy. It was **deleted on 2026-08-07**. It could not have worked: its first
+scheduled run was 2026-09-01, by which point the object it pulls was already
+deleted — and once the canonical copy became a local one, no GitHub runner can
+reach it at all.
+
+It was deleted rather than disabled on purpose. A scheduled job that fails every
+month is worse than no job: it trains you to ignore a red X, and this repo has
+already paid for that once — the uptime monitor was dead for ~23 hours while its
+failures looked like ordinary alerts.
+
+### Running it
+
+```bash
+pnpm eval:artwork:real                        # assert against the shipped ceiling
+pnpm eval:artwork:real -- --calibrate         # print the damage curve instead
+pnpm eval:artwork:real -- --keep output/aw    # keep the renders and contact sheets
+pnpm eval:artwork:real -- --all-variants      # every colourway, not just the default
+```
+
+⚠️ **Run it on a quiet machine, and never record a number taken while a build or
+test suite was running alongside it.**
+
+Measured 2026-08-07 on identical input (checksum verified) with the same Chromium:
+**two runs on a busy machine** reported `0.490 / 2.510 / 5.290 / 5.330`, and **three
+on an idle one** reported `0.980 / 2.990 / — / 5.810` — identical to three decimal
+places across all three, and reproducing the 2026-08-06 calibration exactly. A
+*uniform* ~0.48pp offset, not scatter. `--keep` was ruled out as the variable by
+running with and without it on an idle machine: byte-for-byte the same numbers.
+
+So this does **not** weaken the determinism claim the eval rests on. It sharpens
+it: the numbers are reproducible to three decimals *on an idle machine*, and the
+first hypothesis — a Chromium version difference — was wrong. The tell was that the
+offset was constant rather than scattered.
+
+All cases are diffed against the same baseline render, so a constant shift across
+all of them points at the baseline itself, not at decimation (meshoptimizer is
+deterministic). The plausible mechanism is in `render.ts`: after moving the camera
+it waits on `jumpCameraToGoal()` plus **two chained animation frames**, which is a
+best-effort settle rather than a convergence check — under load a frame can be
+captured slightly less converged.
+
+**The verdict is robust to this** — the separation between presets is preserved,
+and the quiet-machine numbers reproduce the calibration to three decimal places. So
+do not read a small absolute change between runs as a regression. Do re-run on an
+idle machine before believing any number you intend to write down.
+
+**When to run it: before shipping any change to a decimation preset, to
+`simplify-textured.ts`, or to the texture pipeline.** Not on a calendar — it is
+tied to the event that already puts a human in front of it. The per-PR gate in
+`ci.yml` (`pnpm eval:artwork`) still runs on every deploy; that one uses a
+synthetic fixture and needs no raw export.
+
+### The two guards, and what they are for
+
+Both exist because a wrong input here does not crash — it produces a **plausible
+number for the wrong thing**, which is the failure mode this whole area of the
+codebase is organised around.
+
+1. **Checksum.** `raw/CANONICAL.json` records the export's size and SHA-256. The
+   eval verifies it and refuses to run on a mismatch. A re-export from CLO lands
+   at the same path with the same filename and different geometry; without this,
+   every threshold in the eval would silently be applied to a garment nobody
+   calibrated it on.
+2. **Camera framing.** The eval refuses to run if its camera is not pointed at
+   the print. `render.ts`'s own `crop-chest` view was framed for a t-shirt; on
+   this skinsuit it frames the torso and hips with the wordmark clipped off the
+   top edge, and `crop-back` shows a zipper. A mis-aimed camera reports a healthy
+   number for *fabric*.
+
+⚠️ **Do not fix a checksum mismatch by editing the checksum, and do not fix a
+ceiling breach by raising the ceiling.** Both discard the only evidence that the
+numbers mean anything. The evidence is a rendered crop a human looked at — open
+the contact sheet.
+
+### Replacing or adding a garment
+
+1. Put the export at `raw/<name>.glb`.
+2. `shasum -a 256 raw/<name>.glb`
+3. `pnpm eval:artwork:real -- raw/<name>.glb --calibrate --keep output/cal`
+4. **Open the contact sheets in `output/cal/`.** Confirm the known-bad case is
+   visibly damaged and the shipped preset is not. This step is the authority; the
+   numbers only record what you saw.
+5. Add an entry to `raw/CANONICAL.json` with the checksum, byte count and the
+   ceiling you chose — above `balanced`, below both `known-bad` and `control`.
+
+### Keeping the copy safe
+
+The canonical copy lives on the owner's machine. **One copy on one disk is not a
+copy** — keep a second on other hardware (Time Machine or an external drive).
+After 2026-08-19 the R2 original is gone, so a lost local copy means N001's
+artwork calibration cannot be reproduced at all, and the only route back is a
+fresh export from CLO, which would be byte-different and need re-calibrating from
+scratch.
 
 **Dependency updates**: Dependabot runs in **quiet mode** — routine version-bump
 PRs are off (`open-pull-requests-limit: 0` in `.github/dependabot.yml`) to keep the
@@ -395,12 +498,53 @@ What the events mean:
 ## Error tracking
 
 Server-side worker errors are in **Workers Logs** (Observability is enabled in
-`wrangler.jsonc`; `wrangler tail` for live). Client-side errors have two layers:
-the first-party diagnostics that land in **Events** (above), and optional
-**Sentry** (free tier) for aggregated client stack traces. Sentry is off by
-default — set the `VITE_SENTRY_DSN` build variable (Pages/Worker build env) to a
-project DSN to enable it; when unset the SDK is dead-code-eliminated from the
-bundle (zero cost). The CSP auto-allows the DSN's ingest origin at build time.
+`wrangler.jsonc`; `wrangler tail` for live). Client-side errors have three layers.
+
+**1. First-party diagnostics → the Events table.** Already running, no
+configuration. `lib/telemetry.ts` registers `window.onerror` and
+`unhandledrejection` and posts to `POST /api/public/events`; `lib/diagnostic.ts`
+adds the named failures in the table above. **This is what works when everything
+else is off** — but it carries a *message string only*, capped at 5 per session
+and de-duplicated on the first 100 characters. Enough to know something broke,
+not enough to find it. Read weekly by `diagnostics-digest.yml`.
+
+**2. React render errors → `ErrorBoundary`.** A component that throws now shows
+the branded unavailable state instead of a blank page, and reports through the
+same `diagnostic()` seam as `react-render-error`. ⚠️ The reporting is not
+optional decoration: React re-throws an *uncaught* render error to
+`window.onerror`, so a boundary that stayed silent would trade a white screen for
+a white screen nobody hears about. Pinned by `ErrorBoundary.test.tsx`.
+
+**3. Sentry (optional, free tier) → stack traces.** Off by default; set the
+`VITE_SENTRY_DSN` repo variable to enable. When unset the SDK is
+dead-code-eliminated (measured: zero files matching `/sentry/` in `dist/`). The
+CSP auto-allows the DSN's ingest origin at build time.
+
+### Turning Sentry on
+
+1. Create a free Sentry project (platform: `javascript-react`).
+2. **In Sentry project settings, before setting the DSN:** switch
+   **"Prevent Storing of IP Addresses"** ON and leave **Session Replay** OFF.
+   Neither can be done from code — IP capture happens at Sentry's ingestion edge,
+   and Replay records the DOM.
+3. `gh variable set VITE_SENTRY_DSN --body "<dsn>"`
+4. For readable stack traces, also set all three of `SENTRY_ORG` /
+   `SENTRY_PROJECT` (variables) and `SENTRY_AUTH_TOKEN` (**secret**, scoped to
+   `project:releases`). Without all three, no maps are uploaded *and none are
+   generated* — see the coupling note in `vite.config.ts`.
+
+**What the code already guarantees:** `sendDefaultPii: false`; `beforeSend`
+strips `user`, cookies, headers, request bodies, and reduces the URL to origin +
+pathname so query and fragment can never carry anything; `tracesSampleRate: 0`;
+tags limited to release, environment, product slug, colourway slug, WebGL
+availability and pointer type. Pinned by `sentry.test.ts`.
+
+**What it cannot leak, structurally:** there is no login, no cookie and no form.
+The enquiry path is a `mailto:`/`wa.me` link built client-side
+(`components/Contact.tsx`), so nothing a visitor types ever exists in the page.
+
+**Rollback:** unset `VITE_SENTRY_DSN` and redeploy. The SDK leaves the bundle and
+the CSP entry disappears with it — no code revert needed.
 
 ## Uptime alerts
 
@@ -419,6 +563,48 @@ not a hard SLA). On failure it opens a single deduplicated GitHub issue labelled
 
 To prove the alert path works: run `uptime.yml` via *workflow_dispatch* with a
 bogus `target` URL — it should open an `outage` issue.
+
+Each curl retries twice before failing (`--retry 2 --retry-all-errors`). A single
+20-second sample on a best-effort cron was deciding whether to page the owner, so
+one transient blip opened an outage issue for a site that was fine.
+
+## Who watches the monitors (`heartbeat.yml`)
+
+**A monitor that fails before it measures anything opens no alert, and silence is
+what healthy looks like.** `uptime.yml` gates its issue on
+`steps.check.outputs.ok == 'false'`; a job that dies at checkout never sets that
+output. That is exactly how the uptime monitor sat dead for ~23 hours on
+2026-08-05 while its failures looked like ordinary alerts.
+
+`heartbeat.yml` runs every 6 hours and asks the Actions API when each watched
+workflow last **succeeded**:
+
+| Workflow | Runs | Budget before it alerts |
+|---|---|---|
+| `uptime.yml` | every 15 min | 3 hours |
+| `nightly-backup.yml` | nightly | 36 hours |
+| `diagnostics-digest.yml` | Mondays | 192 hours (8 days) |
+
+Each budget is several times the workflow's own interval, so GitHub's best-effort
+cron skew never trips it. On a breach it opens one deduplicated `monitoring`
+issue.
+
+It asks the API rather than requiring workflows to report in, so a workflow that
+stops running *entirely* — disabled, renamed, deleted, or silently skipped — is
+caught by the same check as one that fails. "No successful run on record at all"
+is treated as stale, not as a pass, because a run whose only job is skipped by an
+`if:` also concludes as `success`.
+
+**When a `monitoring` issue appears** it does *not* mean the site is down. It
+means a check is not running, so whatever it watches is currently unobserved.
+Open that workflow in the Actions tab and read its latest run; if it is failing at
+`actions/checkout` with "Repository not found", the cause is a `permissions:`
+block missing `contents: read`.
+
+⚠️ **The heartbeat cannot watch itself.** That is the accepted base case — the
+blind spot shrinks from "every scheduled job" to "one job that makes a single API
+call". Closing it entirely needs an off-platform monitor, which this project's
+budget does not run to.
 
 ## Uploading GLB assets to the CMS (and why an upload fails)
 

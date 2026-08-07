@@ -234,10 +234,25 @@ fails if too much of it moved. That last one is the only gate that looks at what
 buyer actually sees; the other three cannot detect a smeared logo. Lighthouse runs
 alongside as an informational check.
 
-A fifth check runs **monthly, outside CI**
-(`.github/workflows/artwork-real.yml`): the same artwork measurement on the real
-382 MB CLO export pulled from R2, which the per-commit fixture cannot represent. It
-opens an issue rather than blocking anything.
+A fifth check, `pnpm eval:artwork:real`, runs the same artwork measurement on the
+real 382 MB CLO export, which the per-commit fixture cannot represent. It is
+**manual and local** — run it before shipping a pipeline or preset change. It used
+to run monthly from CI; that workflow was deleted on 2026-08-07 because the R2 copy
+it pulled expires after 14 days and the surviving copy is local, where no runner can
+reach it. See `docs/RUNBOOK.md` → "The canonical raw garment".
+
+**Scheduled workflows**, all gated on `DEPLOY_ENABLED`:
+
+| Workflow | Cadence | What it does |
+|---|---|---|
+| `uptime.yml` | every 15 min | health + viewer + real model payload; opens an `outage` issue |
+| `nightly-backup.yml` | nightly | D1 export; R2 media mirror on Mondays |
+| `diagnostics-digest.yml` | Mondays | reads the Events table — the client errors the viewer records |
+| `heartbeat.yml` | every 6 h | checks the three above have actually *run*; opens a `monitoring` issue |
+
+`heartbeat.yml` exists because a monitor that fails **before** it measures anything
+opens no alert at all — which is how the uptime check sat dead for ~23 hours on
+2026-08-05 while looking healthy. Silence is not success.
 
 > ⚠️ **Never run `git` from your home directory or a parent folder.** This
 > project has its own `.git`; keep git commands scoped to this directory.

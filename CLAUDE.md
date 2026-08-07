@@ -124,11 +124,26 @@ the answer is "nothing that happens in production", it is not a test.
   production garment, so it catches a preset or simplifier regression and would
   still miss damage specific to a particular CLO export.
   **Closed for N001 later the same day by `pnpm eval:artwork:real`**, which runs
-  the same method on the actual 382 MB export and is scheduled monthly
-  (`.github/workflows/artwork-real.yml`). Measured on the real file: fidelity
+  the same method on the actual 382 MB export. It is **manual and local** — the
+  monthly workflow that used to run it was deleted on 2026-08-07, because the R2
+  copy it pulled expires after 14 days and the surviving copy is on a laptop no
+  runner can reach (see `docs/RUNBOOK.md` → "The canonical raw garment"). Measured
+  on the real file: fidelity
   **0.980%**, balanced **2.990%**, sweep run F **5.770%**, `--uv-weight 0`
   **5.810%**, ceiling **4.2%**. Run F is the one that "passed all three gates"
   above — there is now a number that stops it.
+  ⚠️ **RUN THIS ON AN IDLE MACHINE.** Measured 2026-08-07, same file (checksum
+  verified), same Chromium: **two runs with a test suite/build alongside** gave
+  `0.490 / 2.510 / 5.290 / 5.330`; **three idle runs** gave `0.980 / 2.990 / — /
+  5.810`, identical to three decimals and reproducing the 2026-08-06 calibration
+  exactly. `--keep` was ruled out (idle, with and without → same numbers). Since
+  every case is diffed against the same baseline, a *uniform* ~0.48pp offset — not
+  scatter — implicates the baseline render, not decimation. Mechanism: `render.ts`
+  settles a camera move on `jumpCameraToGoal()` plus **two chained rAFs**, which is
+  best-effort rather than a convergence check. The verdict and the contact sheets
+  agreed either way. This does not weaken the determinism claim — it qualifies it
+  with "idle". **Do not "fix" a small absolute difference; re-run idle first.** The
+  first hypothesis here was a Chromium version bump, and it was wrong.
   ⚠️ **Correction while building that: "the sweep remains the authority on a real
   garment" — stated here until 2026-08-06 — was wrong.**
   `sweep-size-vs-artwork.mjs` imports no renderer and renders nothing; it measures
@@ -274,15 +289,37 @@ deploy** (since 2026-08-06; the CI numbers match a developer Mac to three decima
 places, because the eval diffs two renders from the same browser in the same run,
 so the rasteriser cancels).
 
-`pnpm eval:artwork:real` is the same method on the actual 382 MB export. It runs
-monthly, not per-PR, and does **not** gate the deploy — it runs on a clock, so
-there is no deploy to attach it to; on failure it opens an issue. It needs
-`raw/cycling-all-colours.glb`, which is gitignored:
+`pnpm eval:artwork:real` is the same method on the actual 382 MB export. **It is a
+MANUAL, LOCAL check** — run it before shipping any preset or pipeline change. It
+does not gate the deploy and is not scheduled; the monthly workflow that used to
+run it was deleted on 2026-08-07, because the file it needs no longer exists
+anywhere a GitHub runner can reach (see below). It needs
+`raw/cycling-all-colours.glb`, which is gitignored.
+
+⚠️ **THE RAW EXPORT IS NOT A DURABLE ARTIFACT AND MAY ALREADY BE GONE.** The
+ingest bucket carries an `expire-raw-uploads` lifecycle rule — 14 days, **all
+prefixes** — so the N001 export (uploaded on/before 2026-08-05) expires around
+**2026-08-19**. `scripts/backup-r2.mjs` mirrors the *media* bucket only, so the
+ingest bucket is in no backup. The canonical copy is therefore a **local** one,
+described by `raw/CANONICAL.json`, which records the byte count and SHA-256 so a
+re-downloaded or re-exported file can be proven to be the file the ceiling was
+calibrated against. `eval:artwork:real` verifies that checksum and refuses to run
+on a mismatch — a different export would otherwise produce a perfectly plausible
+number for the wrong garment.
+
+If the object still exists, this is the command — and note the **spaces**:
 
 ```bash
-wrangler r2 object get "run-apparel-viewer-ingest/cycling-all-colours.glb" \
+wrangler r2 object get "run-apparel-viewer-ingest/cycling all colours.glb" \
   --file raw/cycling-all-colours.glb --remote
 ```
+
+⚠️ **The R2 key contains SPACES.** It is `cycling all colours.glb`, not the
+hyphenated `cycling-all-colours.glb` that everyone types from memory and that this
+very file documented until 2026-08-07. The hyphenated form is the *local*
+filename, deliberately renamed on download so nothing downstream deals with spaces
+in a path; it is not the key. Quote it, or an unquoted expansion splits it into
+three arguments and wrangler reports a confusing bucket error.
 
 Both take `--calibrate` to print the damage curve and `--keep <dir>` for the
 contact sheets. Both assert a **negative control**: if switching `--uv-weight` off
