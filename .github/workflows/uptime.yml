@@ -76,9 +76,36 @@ jobs:
           fi
           echo "ok=$ok" >> "$GITHUB_OUTPUT"
 
-      - name: Open a deduplicated outage issue
+      # ALERT ON EVERY OUTAGE — never go silent because an old issue is open.
+      #
+      # This step used to be "if any open `outage` issue exists, do nothing". That
+      # rule has no sense of TIME, so a single unclosed issue disabled alerting
+      # permanently. It did: issue #2 was opened automatically on 2026-07-21, was
+      # never closed, and for 17 days every subsequent failure would have turned
+      # this workflow red in the Actions tab and notified nobody. Closing #2 fixed
+      # that day; it did nothing about the mechanism, and the next real outage
+      # opens an issue that is just as easy to forget.
+      #
+      # The dedup goal was right — nobody wants 96 identical issues a day. So the
+      # fix is not to drop it but to change what "already alerted" means: comment
+      # on the open issue instead of staying quiet. GitHub notifies on comments,
+      # so a new outage always reaches someone, while a quiet window keeps a
+      # sustained outage to about one notification an hour rather than four.
+      #
+      # The failing branch here is only ever exercised when something is already
+      # broken, which is exactly why it must not be clever. Verify it the way this
+      # workflow was built to be verified — `workflow_dispatch` with a bogus
+      # `target` — rather than by reading it.
+      - name: Alert — create an outage issue, or comment on the open one
         if: steps.check.outputs.ok == 'false'
+        env:
+          # Uptime runs every ~15 min. 60 caps a sustained outage at roughly one
+          # notification per hour while still guaranteeing the FIRST failure after
+          # a long-stale issue speaks up immediately.
+          ALERT_QUIET_MINUTES: '60'
         run: |
+          set -euo pipefail
+
           # `|| true` only for the already-exists case: creating a label that is
           # already there is the normal path and must not fail the alert. Any
           # other failure (bad token, API down) is reported, because it means the
@@ -89,11 +116,47 @@ jobs:
                              --description "Automated uptime alert" 2>&1); then
             grep -qi 'already exists' <<<"$label_out" || echo "::warning::gh label create failed: $label_out"
           fi
-          open=$(gh issue list --label outage --state open --json number --jq 'length')
-          if [ "$open" = "0" ]; then
+
+          # printf, NOT "\n" inside a double-quoted string. Bash does not expand
+          # \n there, so every issue this workflow opened before 2026-08-07 carries
+          # LITERAL backslash-n in its body — see issue #2, which reads
+          # "...2026.\n\nHealth: https://..." on one line.
+          body=$(printf '%s\n\n%s\n%s\n\n%s\n' \
+            "Automated uptime check failed at $(date -u)." \
+            "Health: $HEALTH_URL" \
+            "Viewer: $VIEWER_URL" \
+            "See docs/RUNBOOK.md → uptime response.")
+
+          # Newest open outage issue and when it was last touched. `updatedAt`
+          # moves on comments too, so commenting resets the quiet window.
+          #
+          # `// empty` IS LOAD-BEARING. Without it, `last` on an empty array is
+          # null and the interpolation yields the literal string "null null" —
+          # which is not empty, so the -z test below fails and this would try to
+          # comment on issue #null instead of creating the FIRST issue. That is
+          # the no-issue-yet path, i.e. the one every genuine first outage takes.
+          # Verified against jq directly, not reasoned about.
+          existing=$(gh issue list --label outage --state open \
+                       --json number,updatedAt \
+                       --jq 'sort_by(.updatedAt) | last // empty | "\(.number) \(.updatedAt)"')
+
+          if [ -z "$existing" ]; then
             gh issue create --label outage \
               --title "Outage: health check failing" \
-              --body "Automated uptime check failed at $(date -u).\n\nHealth: $HEALTH_URL\nViewer: $VIEWER_URL\n\nSee docs/RUNBOOK.md → uptime response."
+              --body "$body"
+            exit 0
+          fi
+
+          num=${existing%% *}
+          updated=${existing#* }
+          # GNU date on the runner; the BSD form is the fallback for a local run.
+          updated_epoch=$(date -u -d "$updated" +%s 2>/dev/null \
+                          || date -u -jf "%Y-%m-%dT%H:%M:%SZ" "$updated" +%s)
+          age_min=$(( ( $(date -u +%s) - updated_epoch ) / 60 ))
+
+          if [ "$age_min" -ge "$ALERT_QUIET_MINUTES" ]; then
+            gh issue comment "$num" --body "$body"
+            echo "Commented on #$num — last activity ${age_min}m ago."
           else
-            echo "An open outage issue already exists — not duplicating."
+            echo "#$num was updated ${age_min}m ago, inside the ${ALERT_QUIET_MINUTES}m quiet window — not commenting."
           fi

@@ -557,19 +557,42 @@ the CSP entry disappears with it — no code revert needed.
 
 `.github/workflows/uptime.yml` pings `/api/health` and the viewer every ~15 min
 (GitHub cron is best-effort and can drift several minutes — this is monitoring,
-not a hard SLA). On failure it opens a single deduplicated GitHub issue labelled
-`outage`.
+not a hard SLA). On failure it opens a GitHub issue labelled `outage` — or, if one
+is already open, **comments on it**.
 
-**When an `outage` issue appears:**
+> ### ⚠️ Changed 2026-08-07 — and the old behaviour was a 17-day silent failure
+>
+> This used to be *"if any open `outage` issue exists, do nothing."* That rule has
+> no sense of **time**, so a single unclosed issue disabled alerting completely.
+> It did: issue #2 was opened automatically on 2026-07-21, nobody closed it, and
+> for 17 days every failure would have turned the workflow red in the Actions tab
+> and notified **nobody**.
+>
+> Now a failure comments on the open issue instead of staying silent. GitHub
+> notifies on comments, so a new outage always reaches someone, while a quiet
+> window (60 min for uptime, 12 h for heartbeat) keeps a sustained outage to about
+> one notification an hour rather than four. **You still cannot mute alerting by
+> forgetting to close an issue.**
+>
+> Pinned by `scripts/test-alert-shell.sh`, which runs in CI's `verify` job. It
+> reads the shell back out of the YAML and runs it against a stub `gh` — because
+> this branch only executes when something is already broken, so nothing else
+> would ever catch a typo in it.
+
+**When an `outage` issue appears (or gets a new comment):**
 
 1. `curl -i https://cms.wear-run.help/api/health` — 200 `{"ok":true}` = recovered.
 2. If down: Cloudflare dashboard → Workers & Pages → `run-apparel-viewer-cms` →
    Logs (Workers Observability is enabled), and `wrangler tail` for live logs.
 3. Check the latest CI deploy didn't fail a migration (see above).
-4. Once healthy, **close the `outage` issue** (a new one won't open while it's open).
+4. Once healthy, **close the `outage` issue.** Still worth doing — a closed issue
+   keeps the history readable and makes the next alert a fresh issue rather than a
+   comment on an old one. It is no longer load-bearing for alerting to work.
 
 To prove the alert path works: run `uptime.yml` via *workflow_dispatch* with a
-bogus `target` URL — it should open an `outage` issue.
+bogus `target` URL — it should open an `outage` issue (or comment on the open
+one). Note this path deliberately skips `actions/checkout`, which is why the alert
+shell must stay **inline in the YAML** rather than move to a script file.
 
 Each curl retries twice before failing (`--retry 2 --retry-all-errors`). A single
 20-second sample on a best-effort cron was deciding whether to page the owner, so
@@ -593,8 +616,9 @@ workflow last **succeeded**:
 | `diagnostics-digest.yml` | Mondays | 192 hours (8 days) |
 
 Each budget is several times the workflow's own interval, so GitHub's best-effort
-cron skew never trips it. On a breach it opens one deduplicated `monitoring`
-issue.
+cron skew never trips it. On a breach it opens a `monitoring` issue, or comments
+on the open one — same change, and same reason, as the `outage` path above. A
+watchdog that its own previous bark can mute is not a watchdog.
 
 It asks the API rather than requiring workflows to report in, so a workflow that
 stops running *entirely* — disabled, renamed, deleted, or silently skipped — is

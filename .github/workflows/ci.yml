@@ -34,6 +34,18 @@ jobs:
         run: npm install --no-audit --no-fund && npx tsc --noEmit
 
       - run: pnpm test
+
+      # The alerting branch of uptime.yml / heartbeat.yml is the one piece of this
+      # repo that ONLY runs when something is already broken — so nothing exercises
+      # it on a good day, and a typo in it is invisible until the day it matters.
+      # It was in fact silently disabled for 17 days (an unclosed issue muted every
+      # outage alert, 2026-07-21 → 2026-08-07). This reads the shell back out of the
+      # YAML and runs it against a stub `gh`, including a negative control that
+      # deletes the `// empty` guard and asserts the first-outage path breaks.
+      # No pnpm involvement — bash, awk and jq only, all preinstalled here.
+      - name: Alert-shell checks (uptime + heartbeat)
+        run: bash scripts/test-alert-shell.sh
+
       - run: pnpm seed:assets
       - run: pnpm build
       # WebKit is not optional here. A QR code on a garment tag is scanned with a

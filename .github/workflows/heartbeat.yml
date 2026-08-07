@@ -104,24 +104,68 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Open a deduplicated issue for a stopped monitor
+      # Same "an open issue silences the alarm" defect uptime.yml carried, and the
+      # same fix — see the long note above that step. In short: "if an open
+      # `monitoring` issue exists, do nothing" has no sense of TIME, so one
+      # unclosed issue disables this monitor permanently. That is precisely what a
+      # forgotten `outage` issue did to uptime alerting for 17 days (issue #2,
+      # 2026-07-21 → 2026-08-07). A watchdog that can be muted by its own previous
+      # bark is not a watchdog.
+      #
+      # Commenting keeps the dedup goal (no pile of identical issues) while
+      # guaranteeing a new finding still notifies.
+      - name: Alert — create a monitoring issue, or comment on the open one
         if: steps.check.outputs.stale != ''
+        env:
+          # Passed through the environment rather than interpolated into the shell
+          # with ${{ }}. The value is built by the step above from a fixed list of
+          # filenames so it is not attacker-controlled, but expanding untrusted-ish
+          # text directly into a `run:` block is a habit worth not having.
+          STALE: ${{ steps.check.outputs.stale }}
+          # This job runs every 6h and a stopped monitor is a slow-moving
+          # condition, not an outage — so 12h means at most every other run
+          # comments. Each comment carries the CURRENT full stale list, so a
+          # delayed one is never a stale one.
+          ALERT_QUIET_MINUTES: '720'
         run: |
           set -euo pipefail
           if ! label_out=$(gh label create monitoring --color fbca04 \
                              --description "A scheduled workflow has stopped running" 2>&1); then
             grep -qi 'already exists' <<<"$label_out" || echo "::warning::gh label create failed: $label_out"
           fi
-          open=$(gh issue list --label monitoring --state open --json number --jq 'length')
-          if [ "$open" != "0" ]; then
-            echo "An open monitoring issue already exists — not duplicating."
+
+          # %b (not %s) for $STALE — the step above builds it with literal \n.
+          body=$(printf '%s\n\n%b\n%s\n' \
+            "One or more scheduled workflows have not succeeded within their expected window:" \
+            "$STALE" \
+            "**This is not necessarily an outage.** It means a CHECK is not running, so the thing it watches is currently unobserved — which is how the uptime monitor sat dead for ~23 hours on 2026-08-05 while looking fine.
+
+          Open the workflow in the Actions tab and read the most recent run. If it is failing at \`actions/checkout\` with \"Repository not found\" on this private repo, the cause is a \`permissions:\` block missing \`contents: read\` — see the note at the top of uptime.yml.")
+
+          # `// empty` is load-bearing — see the note on the same line in
+          # uptime.yml. Without it an empty list yields "null null", which is not
+          # empty, so the first-ever alert would try to comment on issue #null
+          # instead of creating one.
+          existing=$(gh issue list --label monitoring --state open \
+                       --json number,updatedAt \
+                       --jq 'sort_by(.updatedAt) | last // empty | "\(.number) \(.updatedAt)"')
+
+          if [ -z "$existing" ]; then
+            gh issue create --label monitoring \
+              --title "A scheduled check has stopped running" \
+              --body "$body"
             exit 0
           fi
-          gh issue create --label monitoring \
-            --title "A scheduled check has stopped running" \
-            --body "$(printf '%s\n\n%b\n%s\n' \
-              "One or more scheduled workflows have not succeeded within their expected window:" \
-              "${{ steps.check.outputs.stale }}" \
-              "**This is not necessarily an outage.** It means a CHECK is not running, so the thing it watches is currently unobserved — which is how the uptime monitor sat dead for ~23 hours on 2026-08-05 while looking fine.
 
-          Open the workflow in the Actions tab and read the most recent run. If it is failing at \`actions/checkout\` with \"Repository not found\" on this private repo, the cause is a \`permissions:\` block missing \`contents: read\` — see the note at the top of uptime.yml.")"
+          num=${existing%% *}
+          updated=${existing#* }
+          updated_epoch=$(date -u -d "$updated" +%s 2>/dev/null \
+                          || date -u -jf "%Y-%m-%dT%H:%M:%SZ" "$updated" +%s)
+          age_min=$(( ( $(date -u +%s) - updated_epoch ) / 60 ))
+
+          if [ "$age_min" -ge "$ALERT_QUIET_MINUTES" ]; then
+            gh issue comment "$num" --body "$body"
+            echo "Commented on #$num — last activity ${age_min}m ago."
+          else
+            echo "#$num was updated ${age_min}m ago, inside the ${ALERT_QUIET_MINUTES}m quiet window — not commenting."
+          fi
