@@ -280,8 +280,15 @@ pull request:
   workflow's viewer curl was no better: the SPA shell returns 200 and renders its
   no-model state.
 
-  The script fetches `/api/public/viewer/n001/navy` and asserts a product, at
+  The script fetches `/api/public/viewer/n001/wine` and asserts a product, at
   least one colourway, and a model URL that really fetches and is over 100 KB.
+
+  **The default colour slug must be a LIVE one.** It was `navy` until 2026-08-05,
+  when that colourway was retired — and the check kept passing, because a retired
+  slug correctly falls back to the default colourway. That fallback is right (a QR
+  tag printed with an old slug must still work) and is exactly why this default
+  cannot be a retired slug: it would test the fallback forever and never the
+  normal path. See the comment at `scripts/smoke-viewer-payload.mjs:37`.
 
   **It resolves the model URL by the same rule `Stage.tsx:46` uses** —
   `separateMode ? selected.glbUrl : product.glbUrl`, with no fallback between the
@@ -747,8 +754,25 @@ opaque "just loading" spinner stop applying. Not yet actioned.
 ## Re-processing a garment (the Retry tick-box)
 
 **When you need this:** the pipeline was fixed and you want the fix applied to a
-garment already uploaded. The raw export is still in the R2 ingest bucket (it has
-no lifecycle rule), so you do **not** re-upload the file.
+garment already uploaded. If the raw export is **still in the R2 ingest bucket**,
+you do not re-upload the file — Retry re-runs the pipeline on the original.
+
+> ⚠️ **Corrected 2026-08-07.** This paragraph said the ingest bucket "has no
+> lifecycle rule", which made Retry sound permanently available. It is not: the
+> bucket carries `expire-raw-uploads` — **14 days, all prefixes** — verified live
+> 2026-08-06 and documented ~450 lines above under "The canonical raw garment".
+> **After 14 days there is nothing to retry**, and `scripts/backup-r2.mjs` mirrors
+> the *media* bucket only, so no backup can restore it either.
+>
+> This claim has now been wrong in **both** directions — asserted as fact before
+> the rule existed (corrected 2026-07-28), then asserted absent after it was added
+> — and this section is the third copy to carry a stale version of it. The
+> standing instruction in `RAW-UPLOAD-PIPELINE.md` applies here too: **run the
+> list command rather than trusting any paragraph**, including this one.
+>
+> ```bash
+> pnpm --filter @run-apparel/cms exec wrangler r2 bucket lifecycle list run-apparel-viewer-ingest
+> ```
 
 **This is the only way to start a re-run.** The job is enqueued by an `afterChange`
 hook on the collection (`apps/cms/src/collections/RawUploads.ts`), which fires only
@@ -837,6 +861,35 @@ tests say.
 >   **Super Bot Fight Mode** + a WAF Skip rule for `http.host eq
 >   "cms.wear-run.help"`, then repeat the repoint below and confirm the CI
 >   health check stays green across several deploys before retiring workers.dev.
+>
+> ### ⚠️ RE-TEST THIS (noted 2026-08-07): the stated blocker may no longer exist
+>
+> The whole rollback above rests on **free Bot Fight Mode being ON**. It was
+> turned **OFF on 2026-08-06** — `fight_mode: false`, set and verified through the
+> zone `bot_management` endpoint — as a side effect of fixing the CSP violation
+> (`docs/SESSION-2026-08-06.md` §11 and CLAUDE.md). Nobody re-tested the cutover
+> afterwards, so "needs Cloudflare Pro (~$20/mo)" is a **conclusion drawn under
+> conditions that have since changed**, not a re-measured fact.
+>
+> One residential `curl` to `cms.wear-run.help/api/health` returned `{"ok":true}`
+> on 2026-08-07. **That is not evidence and must not be treated as any** — this
+> very section says so, and the 2026-07-22 rollback happened *after* residential
+> curl, a browser fetch and one runner check all passed.
+>
+> **How to actually test it**, before touching `VITE_API_BASE_URL`:
+> sample from the runner pool, repeatedly, because the failure was
+> *intermittent*. A temporary `workflow_dispatch` job looping ~30 requests and
+> counting non-200s is enough. `uptime.yml` accepts a `target` override for
+> exactly this kind of probe, but note it only samples **once** per run:
+>
+> ```bash
+> gh workflow run uptime.yml -f target=https://cms.wear-run.help/api/health
+> ```
+>
+> If the 403s are genuinely gone, the cutover is a repo-variable change plus
+> step 4 below — and it retires a customer-facing dependency on a `workers.dev`
+> URL containing a personal account handle. If even one sample 403s, stop: the
+> Pro-plan conclusion stands and this note should be dated and closed.
 
 **Where we are now.** The viewer calls the CMS API via the worker's
 `run-apparel-viewer-cms.<account>.workers.dev` URL (the `VITE_API_BASE_URL` repo
@@ -877,7 +930,7 @@ break mid-flight (each config flip is a one-liner already commented in
    both jobs.
 6. **Verify:** the CSP already allows `*.wear-run.help`, so no viewer change is
    needed. Check `curl` on the API + a `media.wear-run.help/...` URL (long
-   `cache-control`), then load `viewer.wear-run.help/n001/navy`; run the QA
+   `cache-control`), then load `viewer.wear-run.help/n001/wine`; run the QA
    checklist. Roll back by reverting step 4 and re-pointing `VITE_API_BASE_URL`
    at the workers.dev URL if anything regresses.
 

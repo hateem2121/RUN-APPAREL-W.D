@@ -134,7 +134,7 @@ for you to tick.
    robot produced.
 2. Set **Status** to **Published**.
 3. Save.
-4. Open `https://viewer.wear-run.help/n001/navy` **on your phone**.
+4. Open `https://viewer.wear-run.help/n001/wine` **on your phone**.
 5. Zoom right in on a printed logo.
 
 That last step matters. Logos used to tear apart when the file was shrunk. Look

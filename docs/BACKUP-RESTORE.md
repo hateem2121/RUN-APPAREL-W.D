@@ -45,8 +45,14 @@ pnpm exec wrangler d1 time-travel restore run-apparel-viewer-db --timestamp 2026
 ```
 
 Then verify with the row-count query in step 3 below, and re-capture
-`GET /api/public/viewer/n001/navy` — that before/after diff is what caught the last
+`GET /api/public/viewer/n001/wine` — that before/after diff is what caught the last
 data-loss incident when the migration logs said success.
+
+> Use a **live** colour slug. This said `navy`, which was retired on 2026-08-05;
+> a retired slug still answers 200 by falling back to the default colourway, so
+> the capture would have compared two fallback responses and stayed identical
+> even if the real colourway rows had been lost — the exact failure this diff
+> exists to catch. Corrected 2026-08-07.
 
 **The nightly SQL dump is still worth keeping**, for the one thing Time Travel cannot do:
 it is an *off-platform* copy. Time Travel lives inside the same Cloudflare account, so it
@@ -104,5 +110,5 @@ Then reload a product in the viewer to confirm posters + models render.
 ## After any restore
 
 1. `curl -f https://cms.wear-run.help/api/health` → `{"ok":true}`.
-2. Open `https://viewer.wear-run.help/n001/navy` — model loads, colourways switch, contact links work.
+2. Open `https://viewer.wear-run.help/n001/wine` — model loads, colourways switch, contact links work.
 3. Log into `/admin` and spot-check a product + its media.

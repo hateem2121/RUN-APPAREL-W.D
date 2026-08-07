@@ -5,7 +5,7 @@ CMS that feeds it. A buyer scans a QR code on a garment tag (or in the PDF
 catalogue) and lands directly on e.g.:
 
 ```
-https://viewer.wear-run.help/n001/navy
+https://viewer.wear-run.help/n001/wine
 ```
 
 They see an instant static render, the interactive 3D garment loads behind it,
@@ -285,8 +285,10 @@ admin role's label, not a separate permission tier.
 
 Dependencies are pinned to the latest stable releases. Deliberate exceptions:
 
-- The **CMS** uses **TypeScript 5.9** (Next.js 16 rejects the TS7 native
-  compiler); the **viewer** uses TypeScript 7. Dependabot blocks *major* TS bumps
+- The **CMS** uses **TypeScript 6.0.3** (Next.js 16 rejects the TS7 native
+  compiler: *"TypeScript 7.0.2 does not provide the compiler API required by
+  Next.js"*); the **viewer**, `packages/shared` and `tools/asset-pipeline` use
+  TypeScript 7, and `apps/shrink` is on 5.9.3. Dependabot blocks *major* TS bumps
   (`.github/dependabot.yml`) so neither workspace drifts across that line silently.
 - `packageManager` stays pinned to **pnpm 10.33.0**. The `minimumReleaseAge`
   supply-chain policy that gated adopting pnpm 11 is now declared **in-repo**

@@ -36,7 +36,14 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
       HEALTH_URL: ${{ github.event.inputs.target || format('{0}/api/health', vars.VITE_API_BASE_URL || 'https://cms.wear-run.help') }}
-      VIEWER_URL: https://viewer.wear-run.help/n001/navy
+      # Must be a LIVE colour slug. This was `/n001/navy` until 2026-08-07, three
+      # days after `navy` was retired — and it kept returning 200, because a retired
+      # slug correctly falls back to the default colourway. That fallback is the
+      # product behaviour a printed QR tag depends on, which is exactly why a
+      # monitor must not point at one: it would exercise the fallback forever and
+      # never the normal path. `scripts/smoke-viewer-payload.mjs:37` records the
+      # same reasoning for its own default; this file was missed in that pass.
+      VIEWER_URL: https://viewer.wear-run.help/n001/wine
     steps:
       - uses: actions/checkout@v4
         if: github.event.inputs.target == ''

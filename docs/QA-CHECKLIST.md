@@ -9,8 +9,9 @@ throttled "Slow 4G" network profile.
 - [ ] `https://viewer.wear-run.help/<product>/<colour>` loads correctly on **first visit** (no client-routing gap)
 - [ ] The same URL survives a **page refresh**
 - [ ] Scanning the printed QR code opens the right product **and** pre-selects the right colourway
-- [ ] Sloppy URLs normalise (`/N001/Navy` → `/n001/navy`)
-- [ ] **Product-only URL** (`/n001`, no colour) loads the default colour and tidies the address bar to `/n001/navy` — *without* the "no longer active" notice, because nothing was retired
+- [ ] Sloppy URLs normalise (`/N001/Wine` → `/n001/wine`)
+- [ ] **Product-only URL** (`/n001`, no colour) loads the default colour and tidies the address bar to `/n001/wine` — *without* the "no longer active" notice, because nothing was retired
+- [ ] A **retired** slug still works: `/n001/navy` loads Wine *with* the "no longer active" notice (`navy` was retired 2026-08-05 and is the live example of this path)
 - [ ] **Clicking the wordmark** goes to the catalogue and does NOT land on "reference unavailable" (it linked to `/`, a dead route, until 2026-08-03)
 - [ ] Unknown product URL shows the branded "reference unavailable" state with Back to Catalogue, Email Us, WhatsApp Us — and a `noindex` meta tag
 

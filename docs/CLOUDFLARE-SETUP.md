@@ -207,8 +207,8 @@ Dashboard → Analytics & Logs → **Web Analytics** → *Add a site* → `viewe
 
 1. `https://cms.wear-run.help/admin` — log in, confirm collections exist.
 2. `https://cms.wear-run.help/api/health` — `{"ok":true}`.
-3. `https://cms.wear-run.help/api/public/viewer/n001/navy` — JSON with product data.
-4. `https://viewer.wear-run.help/n001/navy` — poster appears instantly, model loads, tabs work.
+3. `https://cms.wear-run.help/api/public/viewer/n001/wine` — JSON with product data.
+4. `https://viewer.wear-run.help/n001/wine` — poster appears instantly, model loads, tabs work.
 5. Run through `docs/QA-CHECKLIST.md`.
 
 ## 10. GitHub Actions auto-deploy (makes `git push` deploy)
@@ -271,7 +271,7 @@ step 10 is done (or via the manual commands above). Endpoints:
 | CMS worker (`run-apparel-viewer-cms`) | `https://cms.wear-run.help` (custom domain) — the viewer *calls* the API via the workers.dev URL instead (Bot Fight Mode, see RUNBOOK) |
 | CMS admin | `https://cms.wear-run.help/admin` |
 | CMS health | `https://cms.wear-run.help/api/health` |
-| Public viewer API | `https://cms.wear-run.help/api/public/viewer/n001/navy` |
+| Public viewer API | `https://cms.wear-run.help/api/public/viewer/n001/wine` |
 | Media (R2 `run-apparel-viewer-media`) | `https://media.wear-run.help/<file>` (30-day edge cache) |
 | Viewer (Worker `run-apparel-viewer-site`) | `https://viewer.wear-run.help` (custom domain; workers.dev/preview URLs disabled) |
 

@@ -270,8 +270,13 @@ jobs:
     # kept resurfacing in status reviews as "blocked, revisit later". It is not
     # blocked; it is declined. Do not list it as pending work.
     #
-    # What gates this deploy is the `needs:` list above — five jobs including the
-    # artwork legibility eval — plus the post-deploy payload smoke test below.
+    # What gates this deploy is the `needs:` list above — FOUR jobs (verify, audit,
+    # secrets, artwork), including the artwork legibility eval — plus the
+    # post-deploy payload smoke test below. `lighthouse` runs alongside and is
+    # deliberately NOT in `needs:`; it is informational (its category scores swung
+    # 0.64/0.88/0.87 across three runs of an identical build). This comment said
+    # "five jobs" until 2026-08-07, which double-counted it.
+    #
     # What the environment still earns is the deployment URL on the commit and in
     # the Deployments tab.
     environment:

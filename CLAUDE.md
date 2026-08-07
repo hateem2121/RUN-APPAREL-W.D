@@ -402,7 +402,7 @@ fails if a new Media relationship is added without updating both.
 ## Deploying
 
 Merging to `main` runs the pre-deploy D1 migrate and deploys CMS + viewer.
-**Take a D1 backup and capture `GET /api/public/viewer/n001/navy` first** — that
+**Take a D1 backup and capture `GET /api/public/viewer/n001/wine` first** — that
 before/after diff is what caught the last data-loss incident when the migration
 logs said success. See `docs/BACKUP-RESTORE.md`.
 

@@ -282,6 +282,19 @@ pipeline on the original file and both tests the fix and replaces what productio
 is serving. Until that runs, every statement about whether the artwork survives is
 speculation — including this document's.
 
+> ⚠️ **"It has no lifecycle rule" was FALSE when written, and is false now
+> (annotated 2026-08-07).** `run-apparel-viewer-ingest` carries
+> `expire-raw-uploads` — **14 days, all prefixes**. The paragraph above is left
+> standing because this file is a case record of what was believed on 2026-07-31,
+> and the belief is part of the record; only this note is new.
+>
+> It matters beyond bookkeeping: **the one-checkbox unblock had a 14-day fuse that
+> nobody had noticed.** The Retry was ticked on 2026-08-05 and worked, so the fuse
+> was never reached — but the same sentence in `docs/RUNBOOK.md` was still telling
+> operators that Retry is always available, and was corrected the same day as this
+> note. The raw export is now held locally and fingerprinted; see
+> `raw/CANONICAL.json`.
+
 **Symptom, in the owner's words:** *"the logo, graphics, words, etc are broken /
 half visible, half not."*
 

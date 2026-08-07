@@ -37,11 +37,28 @@ Cloudflare Container, and a raw file can never reach customers.
 > on the product, and uploads are reached through the product's **3D file** tab
 > (a `join` field) rather than a separate Raw uploads page.
 
-> ## ⚠️ FULLY DEPLOYED, STILL NEVER SMOKE-TESTED (verified against the live account 2026-07-28)
+> ## ✅ FULLY DEPLOYED, AND EXERCISED END TO END (2026-08-05 / 2026-08-06)
 >
-> Every piece is in place and automatic. The **only** thing outstanding is that no
-> file has ever gone through it end to end. Measured directly against the
-> Cloudflare account, not inferred from CI logs:
+> **Corrected 2026-08-07.** This banner read "STILL NEVER SMOKE-TESTED … the only
+> thing outstanding is that no file has ever gone through it end to end" — the
+> first thing any reader saw — for two days after that stopped being true. It has
+> now run on the real N001 export **twice**, from the CMS Retry tick-box:
+>
+> | Run | Result | Evidence |
+> |---|---|---|
+> | 2026-08-05 05:46 UTC | 364.4 MB → **37.7 MB** in 87 s, `artworkVerdict: ok` | Media #11 `cycling-all-colours-optimized-3.glb` |
+> | 2026-08-06 | 364.4 MB → **27.0 MB** at the adopted `balanced` preset | Media #17 `cycling-all-colours-optimized-4.glb`, 28,271,780 bytes — **live** |
+>
+> Both were rendered and inspected before shipping, which is the only evidence
+> this repo accepts about printed artwork. See `docs/SESSION-2026-08-05.md` §1 and
+> §10. The table below is kept as the 2026-07-28 deployment record; only row 8 has
+> changed.
+>
+> ⚠️ **"Exercised" is not "proven at scale."** One garment has been through this,
+> five colourways, twice. Every threshold and camera angle in the artwork checks is
+> calibrated against that one file.
+>
+> Measured directly against the Cloudflare account, not inferred from CI logs:
 >
 > | Step | State | Evidence |
 > |---|---|---|
