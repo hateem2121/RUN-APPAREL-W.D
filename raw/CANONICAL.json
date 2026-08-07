@@ -1,0 +1,142 @@
+{
+  "$comment": [
+    "CANONICAL RAW GARMENT EXPORTS — the manifest, not the files.",
+    "",
+    "WHY THIS EXISTS. A raw CLO export is not a durable artifact in this system. The",
+    "R2 ingest bucket carries an `expire-raw-uploads` lifecycle rule (14 days, ALL",
+    "prefixes, verified live 2026-08-06), and scripts/backup-r2.mjs mirrors the MEDIA",
+    "bucket only — it enumerates keys from the CMS `media` table, which raw uploads",
+    "never enter. So the ingest bucket is in no backup, and the N001 export expired",
+    "around 2026-08-19.",
+    "",
+    "The canonical copy is therefore LOCAL, by owner decision on 2026-08-07 (cost was",
+    "not the deciding factor — R2 includes 10 GB free and this file would have cost",
+    "about $0.07/year; the owner preferred to hold it themselves). The consequence was",
+    "accepted explicitly: a GitHub runner cannot read a local disk, so the monthly",
+    "workflow that used to run `eval:artwork:real` was DELETED rather than left to",
+    "fail every month. See docs/RUNBOOK.md → 'The canonical raw garment'.",
+    "",
+    "WHAT THIS FILE BUYS. Without it, a local-only copy is an assertion. A garment",
+    "re-exported from CLO, or re-downloaded from a different upload, is byte-different",
+    "and would produce a perfectly plausible damage number for a DIFFERENT FILE — the",
+    "same class of silent-wrong-input failure as the `crop-chest` camera mistake",
+    "recorded in eval-artwork-real.mjs. `sha256` is what makes 'this is the file the",
+    "4.2% ceiling was calibrated against' a checkable claim instead of a memory.",
+    "",
+    "`eval:artwork:real` verifies `sha256` and REFUSES to run on a mismatch.",
+    "",
+    "MAINTAINING THIS. Adding a garment means adding a key. Changing a garment's",
+    "`sha256` means the calibration no longer applies to it: re-run with --calibrate,",
+    "LOOK at the contact sheets, and update `ceiling` and `calibratedAt` together.",
+    "Never update the checksum alone to make the guard pass — that is precisely the",
+    "move this file exists to prevent."
+  ],
+  "version": 1,
+  "garments": {
+    "n001": {
+      "productCode": "N001",
+      "description": "Women's cycling skinsuit, 5 CLO colourways (Colorway 2 … Colorway 6). Published as 'Velocity Performance Tee' — a content decision, not a shape.",
+      "localFile": "raw/cycling-all-colours.glb",
+      "r2": {
+        "bucket": "run-apparel-viewer-ingest",
+        "key": "cycling all colours.glb",
+        "$keyComment": "SPACES, not hyphens. The hyphenated name is the LOCAL filename, renamed on download so nothing downstream deals with spaces in a path. Quote the key or an unquoted expansion splits it into three arguments.",
+        "expectedGone": true,
+        "$expectedGoneComment": "expire-raw-uploads deletes every object after 14 days; uploaded on/before 2026-08-05, so gone around 2026-08-19. Do not treat a 404 here as a fault."
+      },
+      "bytes": 382107380,
+      "sha256": "0f2331c42bb4f67203d60695fc38ad7f411d04b1fcdc0897fc293e4fae35b4d7",
+      "$bytesComment": "382,107,380 bytes = 364.4 MiB = 382.1 MB. Both figures appear in this repo's history and are the same number; the unit was never stated. Neither is wrong.",
+      "glb": {
+        "magic": "glTF",
+        "version": 2,
+        "declaredLength": 382107380
+      },
+      "verifiedLocallyAt": "2026-08-07",
+      "downloadedAt": "2026-08-05",
+      "views": [
+        {
+          "name": "wordmark",
+          "orbit": "-0.2deg 90deg 0.445m",
+          "target": "0m 1.314m 0.069m",
+          "fieldOfView": "14deg"
+        }
+      ],
+      "$viewsComment": [
+        "NOT render.ts's DEFAULT_VIEWS. `crop-chest` is framed for a t-shirt; on this",
+        "skinsuit it frames torso and hips with the wordmark clipped off the top edge,",
+        "and `crop-back` shows a zipper. Derived from the artwork primitives' own",
+        "world-space bounds ('THE EXTRA MILE (Slogan)_3161' centres at y=1.314) and then",
+        "CHECKED BY EYE — a mis-aimed camera produces a plausible number for fabric.",
+        "",
+        "`radius` is nearly inert: model-viewer clamps orbit radius to its own framing of",
+        "the bounding sphere, so 0.445m / 0.300m / 0.180m render pixel-identically.",
+        "fieldOfView is the zoom control, which is why it is fingerprinted rather than",
+        "range-checked — there is no reliable way to compute projected size from a",
+        "distance the renderer overrides.",
+        "",
+        "NOT COVERED: 'TEAM WEAR FRONT LABEL' at the hem (0.039 m across — needs its own",
+        "much narrower framing) and the two 'Zipper 3_TapeFabric' strips (not print)."
+      ],
+      "targetToleranceM": 0.05,
+      "calibration": {
+        "commit": "d2e927fbdb0c6eeb912cc0eca349dfb7846b16ba",
+        "calibratedAt": "2026-08-06",
+        "ceiling": 0.042,
+        "cameraFingerprint": "3343ae5a96791175",
+        "$cameraFingerprintComment": "Digest of `views` at the moment `ceiling` was measured. The eval refuses to run if they disagree. Widening fieldOfView keeps the camera aimed at the same point — so the aim guard stays green — while the crop fills with fabric and the number quietly starts describing seams. Change the views and this MUST be re-measured, not re-pasted.",
+        "measured": {
+          "fidelity": 0.0098,
+          "balanced": 0.0299,
+          "knownBad": 0.0577,
+          "control": 0.0581
+        },
+        "$measuredComment": "From `--calibrate`, 145 s. knownBad is sweep run F (--simplify-error 0.005), which CLAUDE.md records as rendering the chest wordmark ILLEGIBLE and which the sweep itself reported as wouldShip:true. The ceiling must sit above `balanced` and below BOTH failure cases."
+      },
+      "remeasurements": [
+        {
+          "at": "2026-08-07",
+          "playwright": "1.62.0",
+          "chromium": "1234",
+          "fidelity": 0.0049,
+          "balanced": 0.0251,
+          "knownBad": 0.0529,
+          "control": 0.0533,
+          "verdict": "pass",
+          "machine": "busy — a vitest run and a tsc pass executed alongside this eval",
+          "$comment": [
+            "⚠️ THESE NUMBERS ARE THE BUSY-MACHINE ONES. Kept deliberately, as the record",
+            "of a measurement artefact that cost real time to chase down.",
+            "",
+            "Every value came in ~0.48 percentage points BELOW the 2026-08-06 calibration",
+            "(-0.490 / -0.480 / -0.480 / -0.480) — a UNIFORM offset, not scatter. Two",
+            "further runs the same day on an IDLE machine, same file and same Chromium,",
+            "reproduced the calibration exactly: 0.980 / 2.990 / 5.810. So this was not",
+            "renderer drift, and not a Chromium version — it was machine load.",
+            "",
+            "MECHANISM. Every case is diffed against the same baseline render, so a constant",
+            "shift across all of them implicates the baseline, not decimation (meshoptimizer",
+            "is deterministic and the input checksum matched). render.ts settles a camera",
+            "move on jumpCameraToGoal() plus TWO CHAINED rAFs — a best-effort wait rather",
+            "than a convergence check — so under load a frame can be captured slightly less",
+            "converged.",
+            "",
+            "THE VERDICT AND THE VISUAL REALITY WERE UNCHANGED EITHER WAY. Confirmed by eye",
+            "on the contact sheets from the busy run, which is the only evidence this project",
+            "accepts: at `balanced` the wordmark is crisp and the diff sits on panel seams,",
+            "exactly as designed; at `known-bad` the word MILE breaks into fragments and the",
+            "RUN arrow collapses, and the diff lights the whole wordmark. Same conclusion the",
+            "2026-08-06 sheet recorded.",
+            "",
+            "The ceiling was NOT adjusted, and must not be adjusted to chase this. Run the",
+            "eval on an idle machine before recording any number."
+          ],
+          "evidence": [
+            "docs/images/2026-08-07-real-eval-balanced.png",
+            "docs/images/2026-08-07-real-eval-known-bad.png"
+          ]
+        }
+      ]
+    }
+  }
+}
