@@ -328,9 +328,37 @@ jobs:
           # until a DSN exists. Without these two lines the DSN could never reach the
           # build, so RUNBOOK's "set the VITE_SENTRY_DSN build variable" was unactionable.
           VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
-          # Tags each Sentry issue with the commit that produced it.
+          # Tags each Sentry issue with the commit that produced it. This value MUST
+          # equal the plugin's `release` below — events arriving under a release with
+          # no uploaded maps stay minified, and that mismatch is the most common cause
+          # of unsymbolicated traces.
           VITE_SENTRY_RELEASE: ${{ github.sha }}
+          # Explicit, because `import.meta.env.MODE` is 'production' for EVERY
+          # `vite build` and so cannot distinguish a real deploy from a local one.
+          VITE_SENTRY_ENVIRONMENT: production
+          # Source-map upload. All three must be present or vite.config.ts omits the
+          # plugin entirely and generates no maps — see the coupling note there.
+          # A token is a SECRET, never a variable: it can write to the Sentry org.
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
         run: pnpm --filter @run-apparel/viewer build
+
+      # dist/ is deployed wholesale (apps/viewer/wrangler.jsonc → assets.directory),
+      # so a stray .map would be served to the public internet — the un-minified
+      # source of the viewer, on a URL nobody would think to check. vite.config.ts
+      # deletes them after upload and emits them 'hidden' so no browser asks for
+      # them; this asserts the outcome rather than trusting either mechanism, because
+      # the failure is silent and would not be noticed until someone looked.
+      - name: Assert no source maps are about to be deployed
+        run: |
+          maps=$(find apps/viewer/dist -name '*.map' | wc -l | tr -d ' ')
+          if [ "$maps" != "0" ]; then
+            echo "::error::$maps source map(s) survived in apps/viewer/dist — refusing to deploy."
+            find apps/viewer/dist -name '*.map'
+            exit 1
+          fi
+          echo "No source maps in dist. Safe to deploy."
 
       # Viewer deploy target, selectable via the VIEWER_DEPLOY_TARGET repo
       # variable. The Worker (run-apparel-viewer-site) has served

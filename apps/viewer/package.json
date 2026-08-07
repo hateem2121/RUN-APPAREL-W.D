@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "RUN APPAREL public 3D product viewer \u2014 QR deep-linkable, Cloudflare Pages",
+  "description": "RUN APPAREL public 3D product viewer — QR deep-linkable, Cloudflare Pages",
   "scripts": {
     "dev": "node scripts/copy-decoders.mjs && vite",
     "build": "node scripts/copy-decoders.mjs && vite build && node scripts/gen-headers.mjs",
@@ -28,6 +28,7 @@
   "devDependencies": {
     "@axe-core/playwright": "4.12.1",
     "@playwright/test": "1.62.0",
+    "@sentry/vite-plugin": "5.4.0",
     "@types/node": "26.1.1",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",

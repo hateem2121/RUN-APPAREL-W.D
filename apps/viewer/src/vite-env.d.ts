@@ -7,8 +7,14 @@ interface ImportMetaEnv {
   readonly VITE_CF_BEACON_TOKEN?: string
   /** Sentry DSN for client error tracking (optional; unset = disabled). */
   readonly VITE_SENTRY_DSN?: string
-  /** Release identifier tagged on Sentry events (optional). */
+  /** Release identifier tagged on Sentry events (optional). CI sets the commit SHA. */
   readonly VITE_SENTRY_RELEASE?: string
+  /**
+   * Sentry environment. Explicit rather than derived from `MODE`, which is
+   * 'production' for every `vite build` and so cannot tell a real deploy from a
+   * local production build. Defaults to 'development' when unset.
+   */
+  readonly VITE_SENTRY_ENVIRONMENT?: string
 }
 
 interface ImportMeta {
