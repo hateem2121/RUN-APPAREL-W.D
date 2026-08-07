@@ -75,8 +75,12 @@ case "$1 $2" in
       while [ $# -gt 0 ]; do [ "$1" = "--jq" ] && { filter="$2"; break; }; shift; done
       [ -z "$filter" ] && { echo "stub: no --jq passed" >&2; exit 2; }
       printf '%s' "$FAKE_ISSUES" | jq -r "$filter" ;;
-  "issue create")  echo "ACTION=create" ;;
-  "issue comment") echo "ACTION=comment num=$3" ;;
+  "issue create")
+      echo "ACTION=create"
+      while [ $# -gt 0 ]; do [ "$1" = "--body" ] && { printf 'BODY:%s\n' "$2"; break; }; shift; done ;;
+  "issue comment")
+      echo "ACTION=comment num=$3"
+      while [ $# -gt 0 ]; do [ "$1" = "--body" ] && { printf 'BODY:%s\n' "$2"; break; }; shift; done ;;
   *) echo "stub: unexpected gh $*" >&2; exit 2 ;;
 esac
 STUBEOF
@@ -107,7 +111,9 @@ STALE_TS=$(iso $((NOW - 86400))) # 24 hours ago
 make_stub
 export HEALTH_URL="https://example.test/api/health"
 export VIEWER_URL="https://example.test/n001/wine"
-export STALE='- `uptime.yml` — no successful run on record at all\n'
+# Backticked filenames on purpose — see the heartbeat body check below. This is
+# the exact shape the check step emits, and the shape that issue #17 lost.
+export STALE='- `diagnostics-digest.yml` — **no successful run on record at all** (expected weekly on Mondays)\n'
 
 for wf in uptime heartbeat; do
   file="$ROOT/.github/workflows/$wf.yml"
@@ -132,6 +138,30 @@ for wf in uptime heartbeat; do
   run_case "several open -> comments on the newest" \
       "[{\"number\":2,\"updatedAt\":\"$STALE_TS\"},{\"number\":5,\"updatedAt\":\"$(iso $((NOW - 43200)))\"}]" \
       "ACTION=comment num=5" "$sh"
+
+  # The stale list is full of `backticked` workflow filenames, and heartbeat's
+  # body must still contain them. It did NOT until 2026-08-07: the value was
+  # interpolated by Actions with ${{ }} straight into a double-quoted shell
+  # string, where backticks are COMMAND SUBSTITUTION — bash ran
+  # `diagnostics-digest.yml` as a command, it failed, and the filename was
+  # replaced with nothing. Issue #17 shows the damage verbatim:
+  #
+  #     -  — **no successful run on record at all** (expected weekly on Mondays)
+  #
+  # i.e. an alert that does not say WHICH check stopped. Passing it through the
+  # environment instead fixes it, because parameter expansion of a value never
+  # re-runs command substitution on its contents.
+  if [ "$wf" = "heartbeat" ]; then
+    export FAKE_ISSUES='[]'
+    body_out=$(bash -c "$sh" 2>/dev/null)
+    if grep -q 'diagnostics-digest\.yml' <<<"$body_out"; then
+      printf '  ok    %-44s %s\n' "stale list keeps its \`filenames\`" "backticks not executed"
+    else
+      printf '  FAIL  %-44s %s\n' "stale list keeps its \`filenames\`" "filename eaten — see issue #17"
+      sed 's/^/          /' <<<"$body_out"
+      FAILED=1
+    fi
+  fi
 
   # NEGATIVE CONTROL. Strip `// empty` and the create path must break. Without
   # this, every assertion above would still pass with the guard deleted, and the
