@@ -19,7 +19,23 @@ on:
     - cron: '17 8 * * 1' # Mondays, 08:17 UTC
   workflow_dispatch:
 
+# `contents: read` is NOT optional here, and leaving it out is the exact bug that
+# took the uptime monitor down for ~23 hours on 2026-08-05 (see uptime.yml and
+# 9c8e883). A `permissions:` block REPLACES the default token grants rather than
+# adding to them, so listing only `issues: write` sets `contents` to `none`, and
+# `actions/checkout` on a PRIVATE repo then fails with "Repository not found" —
+# GitHub answers 404, not 403, so it reads as a deleted repo rather than a
+# permissions problem.
+#
+# This file shipped with that defect in f1a48eb and kept it when uptime.yml was
+# fixed, because the fix was applied to the file that had visibly broken rather
+# than to the pattern. Worth stating plainly: this job is the ONLY thing that
+# reads the Events table, so while it was failing at checkout, every
+# `model-load-error` and `variant-missing` from a real visitor was recorded
+# correctly and read by nobody — which is the precise condition this workflow was
+# written to end.
 permissions:
+  contents: read
   issues: write
 
 jobs:
@@ -72,6 +88,20 @@ jobs:
         if: steps.read.outputs.rows != '0'
         run: |
           set -euo pipefail
+          # The label has to exist before EITHER command below touches it: `gh issue
+          # list --label diagnostics` fails on an unknown label just as `gh issue
+          # create --label` does, so a missing label breaks the read as well as the
+          # write. uptime.yml creates its `outage` label first; this file was the one
+          # that did not, so its very first successful run would have died here
+          # instead of reporting.
+          #
+          # `|| warn` only for the already-exists case, which is the normal path.
+          # Any other failure is surfaced, because it means the issue below probably
+          # will not be created either.
+          if ! label_out=$(gh label create diagnostics --color 1d76db \
+                             --description "Weekly viewer diagnostics digest" 2>&1); then
+            grep -qi 'already exists' <<<"$label_out" || echo "::warning::gh label create failed: $label_out"
+          fi
           body=$(printf '%s\n\n%s\n\n%s\n' \
             "Viewer diagnostics for the 7 days to $(date -u +%Y-%m-%d)." \
             "${{ steps.read.outputs.table }}" \
