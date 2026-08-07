@@ -22,6 +22,14 @@ tools/asset-pipeline   The GLB pipeline (merge / optimize / validate / diagnosti
 packages/shared        Types + constants both sides must agree on
 ```
 
+**`pnpm` is not on `PATH` on the owner's machine — use `npx --yes pnpm@10.33.0`.**
+Every documented `pnpm <script>` in this repo means that. Bare `pnpm` fails with
+exit **127**, and the failure is worth naming because of *where* it surfaces:
+`apps/viewer/e2e/prepare.mjs` shells out to `pnpm build`, so the whole e2e suite
+dies as `Timed out waiting 120000ms from config.webServer` with the real
+`status: 127` buried inside a child process. `.claude/settings.json` and
+`.claude/launch.json` already use the `npx` form; this line is why.
+
 ## The one pattern that keeps causing incidents
 
 **Three production bugs in three consecutive sessions were invisible for the same

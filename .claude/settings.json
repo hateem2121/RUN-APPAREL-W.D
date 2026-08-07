@@ -17,8 +17,30 @@
       "Bash(npx --yes pnpm@10.33.0 build:*)",
       "Bash(npx --yes pnpm@10.33.0 -r test:*)",
       "Bash(npx --yes pnpm@10.33.0 -r typecheck:*)",
+      "Bash(npx --yes pnpm@10.33.0 eval:artwork:*)",
+      "Bash(npx --yes pnpm@10.33.0 index:ai:*)",
+      "Bash(npx --yes pnpm@10.33.0 seed:assets:*)",
       "Bash(node --version)",
       "Bash(codebase-memory-mcp --version)"
+    ],
+    "deny": [
+      "Bash(rm -rf /:*)",
+      "Bash(sudo rm:*)",
+      "Bash(rm -rf raw:*)",
+      "Bash(rm -rf ./raw:*)",
+      "Bash(rm -rf tools/asset-pipeline/raw:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)"
+    ],
+    "ask": [
+      "Bash(wrangler d1 delete:*)",
+      "Bash(wrangler r2 bucket delete:*)",
+      "Bash(wrangler r2 object delete:*)",
+      "Bash(pnpm exec wrangler d1 delete:*)",
+      "Bash(pnpm exec wrangler r2 bucket delete:*)",
+      "Bash(pnpm exec wrangler r2 object delete:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean:*)"
     ]
   },
   "hooks": {

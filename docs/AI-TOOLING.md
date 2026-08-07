@@ -475,3 +475,56 @@ every documented workflow line and `git commit -m "optimize output/foo"`, to
 prove it does not fire on the word alone). The `VALUE_FLAGS` set in the script is
 enumerated from the real parsers so that `--out`'s value is never mistaken for an
 input; if a new value-taking flag is added to the CLI, add it there too.
+
+### `deny` and `ask` (added 2026-08-07)
+
+`permissions` held only an `allow` list until 2026-08-07 — it said what may
+happen without a prompt and never what must not happen at all. `deny` now covers
+`rm -rf /`, `sudo rm`, **`rm -rf raw`** and force-pushes; `ask` covers the
+`wrangler` delete forms and `git reset --hard` / `git clean`.
+
+Two limits, stated because they are easy to over-trust:
+
+- **These are prefix matches on the command string.** `Bash(wrangler d1 delete:*)`
+  does not catch `pnpm exec wrangler d1 delete …`, so both spellings are listed —
+  and a third wrapper would need a third entry. A `PreToolUse` hook that inspects
+  the whole command (like the pipeline guard above) is the robust form; the rules
+  are a cheap first layer, not a boundary.
+- **`wrangler d1 delete` is `ask`, not `deny`, on purpose.** `docs/BACKUP-RESTORE.md`
+  ends its restore rehearsal with
+  `pnpm exec wrangler d1 delete run-apparel-viewer-db-restore-test`. Prefix
+  matching cannot separate that scratch database from the production one — the
+  production name is a prefix of it — so denying the production name would block
+  the only documented restore drill. Same reasoning as `findCrushedArtwork`: a
+  gate that blocks the documented fix gets switched off.
+
+---
+
+## 5. Cloudflare — account-scoped, deliberately not in `.mcp.json`
+
+Claude Code sessions on the owner's account carry a **Cloudflare MCP connector**
+(D1 query, R2 list, Workers read, docs search — and `d1_database_delete`,
+`r2_bucket_delete`, `kv_namespace_delete`, `hyperdrive_config_delete`). It is
+useful and it is already authorised. It is **not** declared here, and that was
+checked rather than assumed on 2026-08-07:
+
+- **Cloudflare's own remote servers connect over OAuth**
+  (`https://bindings.mcp.cloudflare.com/mcp` and siblings — see
+  [Servers for Cloudflare](https://developers.cloudflare.com/agents/model-context-protocol/cloudflare/servers-for-cloudflare/)).
+  OAuth cannot be completed in a headless or non-interactive session.
+- **Declaring one would duplicate the connector**, not replace it: two servers,
+  the same D1/R2/Workers tool surface, no rule for which one an agent picks.
+- **No stable permission rule can name it.** The connector's server id is a
+  per-session UUID that appears only in transcript files, never in any config —
+  so `mcp__<server>__d1_database_delete` has nothing durable to match on. The
+  destructive surface is bounded at the `wrangler`/Bash layer above instead.
+
+The gap this leaves is real and small: an agent in **CI or a headless run** has no
+Cloudflare access. That is acceptable because CI deliberately runs no AI tooling
+at all (see the top of this file). If that ever changes, the answer is a scoped
+API token in the workflow, not an OAuth server in `.mcp.json`.
+
+⚠️ **Correction.** This was first written up as "the most important MCP server is
+missing from the repo." That framing was wrong: the connector follows the
+**account**, not the machine, so a fresh session anywhere the owner is signed in
+already has it. Only headless runs are affected.
