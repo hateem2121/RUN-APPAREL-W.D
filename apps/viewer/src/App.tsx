@@ -1,7 +1,7 @@
 import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
 import { isViewerApiError } from '@run-apparel/shared'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ColourwayTabs } from './components/ColourwayTabs'
+import { COLOURWAY_PANEL_ID, ColourwayTabs, colourwayTabId } from './components/ColourwayTabs'
 import { ContactSection, MobileActionBar, StickyContactRail } from './components/Contact'
 import { CustomisationSection } from './components/CustomisationSection'
 import { Footer } from './components/Footer'
@@ -165,14 +165,34 @@ export default function App() {
     <>
       {preloader}
       <div className="page">
+        {/* First focusable thing on the page: a keyboard user should not have to
+            tab through the header to reach the garment. Visually hidden until
+            focused — see `.skip-link` in the stylesheet. */}
+        <a className="skip-link" href="#main-content">
+          Skip to main content
+        </a>
         <Header wordmark={data.siteSettings.temporaryWordmark} catalogueUrl={data.product.catalogueUrl} />
-        <main>
-          <Stage
-            data={data}
-            selected={selected}
-            preview={previewedColourway}
-            onModelReadyChange={setVariantSwapReady}
-          />
+        {/* `tabIndex={-1}` is what makes the skip link actually skip. <main> is not
+            focusable by default, so following the fragment moves the SCROLL
+            position but leaves focus in the header — the next Tab then walks back
+            through exactly the links the user just asked to skip. */}
+        <main id="main-content" tabIndex={-1}>
+          {/* The panel half of <ColourwayTabs>'s tablist. Labelled by whichever tab
+              is selected, so a screen reader reaching the stage is told which
+              colourway it is showing. */}
+          <div
+            id={COLOURWAY_PANEL_ID}
+            role="tabpanel"
+            aria-labelledby={colourwayTabId(selected.slug)}
+            tabIndex={-1}
+          >
+            <Stage
+              data={data}
+              selected={selected}
+              preview={previewedColourway}
+              onModelReadyChange={setVariantSwapReady}
+            />
+          </div>
           {retiredNotice && <RetiredNotice message={retiredNotice} />}
           <div className="content">
             <ProductPanel data={data} selected={selected} selectedIndex={Math.max(selectedIndex, 0)} />

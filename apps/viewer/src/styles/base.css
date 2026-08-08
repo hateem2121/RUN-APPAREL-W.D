@@ -72,6 +72,39 @@ li {
   border: 0;
 }
 
+/*
+ * Skip link — hidden until focused, then the first thing on the page.
+ *
+ * Deliberately NOT `.visually-hidden` plus a focus override: that pattern keeps
+ * the element 1px and clipped, and a link that is 1px tall while focused is
+ * unreadable to the sighted keyboard user it exists for. This moves it offscreen
+ * instead, so it can render at full size the moment it takes focus.
+ */
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  padding: 0.75rem 1.25rem;
+  background: var(--headline);
+  color: var(--page);
+  font-weight: 700;
+  text-decoration: none;
+  /* Off the top of the viewport, not `display: none` — a hidden element cannot
+     receive focus at all, which would make the link unreachable. */
+  transform: translateY(-150%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skip-link {
+    transition: transform 120ms ease-out;
+  }
+}
+
 /* ── Display type ──────────────────────────────────────────────────── */
 .display {
   font-family: var(--font-display);
