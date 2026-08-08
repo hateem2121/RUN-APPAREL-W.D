@@ -30,6 +30,17 @@ dies as `Timed out waiting 120000ms from config.webServer` with the real
 `status: 127` buried inside a child process. `.claude/settings.json` and
 `.claude/launch.json` already use the `npx` form; this line is why.
 
+**A `PORT` set for another project produces the IDENTICAL error, and did on
+2026-08-08.** `e2e/serve.mjs` reads `process.env.PORT ?? 4173` and inherits your
+shell, so a global `PORT=5002` exported for a different repo binds the e2e server
+to 5002 while Playwright polls 4173 — same two-minute wait, same
+`Timed out waiting 120000ms from config.webServer`, same silence about the cause.
+Two dead-end runs went by before anyone ran `echo $PORT`. **Fixed at the source:**
+`playwright.config.ts` now owns the port and passes it via `webServer.env`, so the
+environment cannot move the server. Verified with `PORT=5002` still set. If you
+ever see that timeout again, the two candidates are these; check both before
+believing the suite is broken.
+
 ## The one pattern that keeps causing incidents
 
 **Three production bugs in three consecutive sessions were invisible for the same

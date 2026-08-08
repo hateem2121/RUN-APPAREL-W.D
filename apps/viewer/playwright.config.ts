@@ -12,6 +12,28 @@ const baseLaunch = chromiumPath ? { executablePath: chromiumPath } : {}
 /** Everything except the real-WebGL spec, which is Chromium-only by necessity. */
 const DOM_SUITE = /webgl\.spec\.ts/
 
+/**
+ * The e2e server's port, in ONE place and passed explicitly to the server.
+ *
+ * ⚠️ `serve.mjs` reads `process.env.PORT ?? 4173`, and it inherits the developer's
+ * environment. A `PORT` exported for some OTHER project — 5002 on the owner's
+ * machine, set globally for a different repo — makes the server bind 5002 while
+ * Playwright polls 4173, and the suite dies as:
+ *
+ *     Error: Timed out waiting 120000ms from config.webServer.
+ *
+ * That is the SAME misleading signature as the `pnpm`-not-on-PATH trap in
+ * CLAUDE.md: a two-minute wait, a build that looks like it worked, and no mention
+ * of the actual cause. It cost two dead-end runs on 2026-08-08 before anyone
+ * thought to check `echo $PORT`.
+ *
+ * Passing it via `webServer.env` rather than reading it here is the point — the
+ * config now DICTATES the port instead of hoping the environment agrees. Nothing
+ * changes on CI, where PORT is unset and 4173 was already the default.
+ */
+const PORT = 4173
+const ORIGIN = `http://localhost:${PORT}`
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 30_000,
@@ -30,7 +52,7 @@ export default defineConfig({
   // and the usual response to a red deploy nobody trusts is to stop reading it.
   retries: process.env.CI ? 1 : 0,
   use: {
-    baseURL: 'http://localhost:4173',
+    baseURL: ORIGIN,
     // Force reduced motion so the Phase 7 motion layer (CSS + JS, which both
     // branch on prefers-reduced-motion) collapses to instant — selectors and
     // timing stay stable regardless of animation.
@@ -84,7 +106,10 @@ export default defineConfig({
     // fixtures, so the suite runs from a cold checkout. It runs before the
     // readiness poll, so dist/ always exists by the time serve.mjs answers.
     command: 'node e2e/prepare.mjs && node e2e/serve.mjs',
-    url: 'http://localhost:4173',
+    url: ORIGIN,
+    // Pinned, not inherited. See PORT above — an unrelated `PORT` in the shell
+    // silently moves the server and the only symptom is the timeout below.
+    env: { PORT: String(PORT) },
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
