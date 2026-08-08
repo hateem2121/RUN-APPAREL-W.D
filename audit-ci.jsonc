@@ -32,5 +32,44 @@
   // The same pass fixed three more advisories that appeared between 2026-08-01
   // and 2026-08-04 — undici, fast-uri and ip-address — all by override rather
   // than suppression, because all three had patched versions available.
-  "allowlist": []
+  //
+  // ── image-size, added 2026-08-08 ────────────────────────────────────────────
+  // Three high advisories were published within five minutes of each other on
+  // 2026-08-07 20:50–20:55 UTC and blocked the first deploy after them. nanoid
+  // (GHSA-2v37-7h3g-55p8) was fixed by override — `nanoid: ^3.3.17` in
+  // package.json — because 3.3.17 exists. The two below could not be:
+  //
+  //   npm audit reports `"patched_versions": "<0.0.0"` for BOTH, which is how it
+  //   says NO FIXED RELEASE EXISTS. `vulnerable_versions` is `<=2.0.2` and 2.0.2
+  //   is the current latest. Upgrading payload cannot help while its dependency
+  //   itself has no patched version. This is "unfixable", not "unfixed" — the
+  //   distinction the brace-expansion note above turns on.
+  //
+  // Why suppressing them is defensible here, measured rather than assumed:
+  //   - Both are DENIAL OF SERVICE via infinite loop (CWE-835). No data exposure.
+  //   - The loops are in the ICNS, JXL and HEIF parsers. Media.ts restricts
+  //     uploads to model/gltf-binary, image/webp, image/avif, image/jpeg and
+  //     image/png — none of the three affected formats. The one loose entry,
+  //     application/octet-stream, is constrained to names ending `.glb` by
+  //     mediaRules.ts (`if (mimeType === 'application/octet-stream' && !lower
+  //     .endsWith('.glb'))` → rejected).
+  //   - Uploading requires authentication: Media.ts has `create: isAdminOrEditor`.
+  //     There is no anonymous path to the parser at all.
+  //   - The CMS runs on Cloudflare Workers, which enforce a CPU limit per
+  //     request. An infinite loop terminates the invocation; it cannot hang a
+  //     long-lived process the way it would on a Node server.
+  //
+  // NOT claimed: that this is unreachable. image-size sniffs magic bytes rather
+  // than trusting the declared MIME type, so a hostile file named `.glb` is not
+  // proven to be rejected before it reaches the parser. The argument above is
+  // authenticated-attacker-only + DoS-only + CPU-capped, not "impossible".
+  //
+  // REVIEW WHEN: payload is bumped, or image-size publishes any release above
+  // 2.0.2. Re-run `pnpm exec audit-ci --config audit-ci.jsonc` with these two
+  // lines removed — if it passes, delete them, exactly as the brace-expansion
+  // entries were deleted on 2026-08-04.
+  "allowlist": [
+    "GHSA-5p2g-fcmc-qvqq|apps__cms>payload>image-size",
+    "GHSA-w3rx-r6r6-pgpr|apps__cms>payload>image-size"
+  ]
 }
