@@ -1,0 +1,187 @@
+import type { ViewerApiSuccess } from '@run-apparel/shared'
+import type { OgCard } from './og-cards'
+
+/**
+ * What a shared link should say, for one garment in one colourway.
+ *
+ * PURE ON PURPOSE. index.ts is the Cloudflare half — a service-binding fetch and
+ * an HTMLRewriter — and neither of those exists under vitest. Everything that
+ * makes a *decision* lives here so it can be tested with plain objects, the same
+ * split as scripts/csp.mjs (pure, tested) vs scripts/gen-headers.mjs (I/O only),
+ * which was made for exactly this reason after the CSP builder caused two
+ * incidents while being untestable.
+ *
+ * Every value here is derived from the CMS payload, so garment #2 needs no code
+ * change to get its own preview — the one thing it needs is a set of preview
+ * cards, and even without those it falls back to its own poster (see pickImage).
+ */
+
+/**
+ * The meta tags index.ts overwrites, by their `property=`/`name=` key.
+ *
+ * Exported because HTMLRewriter treats a selector that matches NOTHING as a
+ * no-op, not an error. Delete `<meta property="og:image">` from index.html and
+ * the Worker keeps running, keeps returning 200, and silently stops setting the
+ * image on every shared link. preview.test.ts asserts each of these still exists
+ * in index.html, which turns that silent regression into a failed build.
+ */
+export const REWRITTEN_META = [
+  'og:title',
+  'og:description',
+  'og:image',
+  'og:image:type',
+  'og:image:width',
+  'og:image:height',
+  'og:image:alt',
+  'twitter:title',
+  'twitter:description',
+  'twitter:image',
+] as const
+
+export interface PreviewImage {
+  url: string
+  /** MIME type, so `og:image:type` describes the bytes rather than index.html's guess. */
+  type: string
+  width: number | null
+  height: number | null
+  alt: string
+}
+
+export interface Preview {
+  /** Also used for <title> — a crawler that ignores og:* falls back to it. */
+  title: string
+  description: string
+  /** Absolute; used for og:url AND <link rel="canonical">. */
+  url: string
+  image: PreviewImage | null
+}
+
+/**
+ * Most platforms truncate somewhere between 150 and 300 characters, and none of
+ * them say where. Cutting at a word boundary here means the visible text always
+ * ends in a whole word rather than mid-"polyeste".
+ */
+export const MAX_DESCRIPTION = 200
+
+function truncate(text: string, limit = MAX_DESCRIPTION): string {
+  if (text.length <= limit) return text
+  const cut = text.slice(0, limit - 1)
+  const lastSpace = cut.lastIndexOf(' ')
+  return `${(lastSpace > limit * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[\s,.·]+$/, '')}…`
+}
+
+/**
+ * "N001 Velocity Performance Skinsuit — Wine".
+ *
+ * The product CODE leads because it is what is printed on the physical tag and
+ * what a buyer quotes back in an email; the colour is last because that is the
+ * part that differs between two links someone has been sent side by side.
+ */
+function buildTitle(payload: ViewerApiSuccess): string {
+  const { productCode, productName } = payload.product
+  const name = [productCode, productName].filter(Boolean).join(' ').trim()
+  const colour = payload.selectedColourway.displayName.trim()
+  return colour ? `${name} — ${colour}` : name
+}
+
+/**
+ * Specs first, then what the link actually does.
+ *
+ * Built from whatever the CMS has rather than a fixed sentence, because the
+ * generic line ("Interactive 3D garment reference for B2B partners…") was
+ * identical on every link and told a lead nothing they could not see from the
+ * title. A garment with none of these fields filled in still gets the tail, so
+ * this can never return an empty description.
+ */
+function buildDescription(payload: ViewerApiSuccess): string {
+  const p = payload.product
+  const fabric = [p.fabricComposition.trim(), p.gsm.trim()].filter(Boolean).join(', ')
+  const specs = [p.category, p.garmentFit.trim(), fabric].filter(Boolean).join(' · ')
+  const count = payload.colourways.length
+  const tail =
+    count > 1
+      ? `Rotate, zoom and compare all ${count} colourways in 3D.`
+      : 'Rotate and zoom this reference in 3D.'
+  return truncate(specs ? `${specs}. ${tail}` : tail)
+}
+
+/**
+ * Preview card, else the colourway's own poster, else nothing.
+ *
+ * THE ORDER IS THE WHOLE POINT and it is a coverage ladder, not a preference:
+ *
+ *   1. A JPEG card shipped in public/og/ — renders on every platform, including
+ *      LinkedIn and iMessage, which do not take WebP.
+ *   2. The CMS poster, whatever format it is — the RIGHT garment in the RIGHT
+ *      colour on the platforms that accept it, which beats a correct-looking
+ *      card of a different garment. This is what a new garment gets before
+ *      anyone runs `pnpm og:cards`.
+ *   3. null — index.ts then REMOVES the image tags rather than leaving
+ *      index.html's N001-wine default in place. A missing picture is a worse
+ *      card; the wrong garment's picture is a lie, and a lie in front of a lead
+ *      is the failure this whole feature exists to avoid.
+ *
+ * Dimensions come from the manifest (read back out of the real JPEG) or from the
+ * CMS (read off the real upload). Neither is a constant in this file, because a
+ * declared size drifting from the actual image is precisely the silent failure
+ * og.test.ts was written for.
+ */
+function pickImage(
+  payload: ViewerApiSuccess,
+  origin: string,
+  cards: Record<string, OgCard>,
+): PreviewImage | null {
+  const selected = payload.selectedColourway
+  const alt =
+    selected.altText.trim() ||
+    `${payload.product.productName} in ${selected.displayName}`.trim() ||
+    payload.product.productName
+
+  // '/' rather than '-' as the separator: a slug can contain hyphens but never a
+  // slash, so 'n001-pro/navy' and 'n001/pro-navy' cannot collide on one key.
+  const key = `${payload.product.slug}/${selected.slug}`
+  const card = cards[key]
+  if (card) {
+    return {
+      url: `${origin}/og/${key}.jpg`,
+      type: 'image/jpeg',
+      width: card.width,
+      height: card.height,
+      alt,
+    }
+  }
+
+  const poster = selected.poster
+  if (poster?.url) {
+    return {
+      url: poster.url,
+      type: poster.mimeType ?? 'image/webp',
+      width: poster.width,
+      height: poster.height,
+      alt: poster.alt.trim() || alt,
+    }
+  }
+
+  return null
+}
+
+export interface PreviewOptions {
+  /** The origin the visitor used, so a preview URL is never hard-coded to one host. */
+  origin: string
+  cards: Record<string, OgCard>
+}
+
+export function buildPreview(payload: ViewerApiSuccess, options: PreviewOptions): Preview {
+  const { origin, cards } = options
+  return {
+    title: buildTitle(payload),
+    description: buildDescription(payload),
+    // selectedColourway, NOT the slug the visitor asked for. A QR tag pointing at
+    // a retired colour resolves to the default one, and the preview has to
+    // describe the page that will actually load — otherwise the canonical URL
+    // advertises a colourway that 404s at the API and the card names a colour the
+    // visitor will never see.
+    url: `${origin}/${payload.product.slug}/${payload.selectedColourway.slug}`,
+    image: pickImage(payload, origin, cards),
+  }
+}

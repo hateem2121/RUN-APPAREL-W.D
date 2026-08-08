@@ -9,7 +9,57 @@ survive being a huge public website."
 
 ---
 
-## Overall: 79 / 100
+## ⚠️ UPDATE — later the same day (2026-08-08)
+
+**Five of the seven "fix first" items below are now done, and one was closed by a
+decision.** The scores and the fix list underneath this block are the *morning*
+reading and have been left exactly as written, so you can see what moved. Read
+this block first; it is the current state.
+
+| Fix | Was | Now |
+|---|---|---|
+| 1. Raw master file on a clock | ⏰ 11 days | **Closed by your decision** — you keep your own external copies and declined an automated backup. `raw/CANONICAL.json`'s checksum is what makes an outside copy *provable*, and that is still in place. |
+| 2. A link you send a lead shows no picture | ❌ | **Half done, other half in progress.** A link now unfurls with a picture and a sentence — but the *same* one for every garment and colour. Per-garment previews are being built now. |
+| 3. No way to undo a bad update | ❌ | **Done.** `docs/RUNBOOK.md` → "Undoing a bad deploy". |
+| 4. Garment guide told you not to show customers | ❌ | **Done.** `docs/FIRST-GARMENT-UPLOAD.md` corrected. |
+| 5. Emergency manual wrong about the browser error | ❌ | **Done.** RUNBOOK now names the real cause and the fix that worked. |
+| 6. Garment #2 gets no real-file artwork check | ❌ | **Substantially done.** The strong artwork check is *not* locked to N001 — it takes any file, recognises which garment it is by fingerprint, and its calibration mode deliberately accepts a file it has never seen. The morning review read the refusal path and missed that one. |
+| 7. A pipeline change can skip the artwork gate | ❌ | **Done.** That path now runs the same four gates as the main one. |
+
+**And one thing was found that nothing in the scorecard predicted.** The 3D viewer
+silently ignored *any* camera zoom closer than 12° — so for months the artwork
+checks had been photographing a wider shot than they asked for, without
+complaint. Proof: four different "zoom in" settings produced four **identical**
+pictures. Two consequences worth knowing:
+
+- The two smallest prints on N001 — the hem label and the neck logo — were listed
+  as "not covered" by the artwork check. That was never a choice. **Any print
+  smaller than roughly a hand was impossible to photograph closely enough to
+  check.** That limit is now removed and those two prints are checkable for the
+  first time.
+- Nothing was actually mis-shipped. N001's own check uses a 14° view, which is
+  above the old floor, and it was verified to produce a **byte-identical**
+  picture before and after the fix. No calibration moved.
+
+It was found by *looking at a contact sheet*, not by reading code — the same way
+the artwork damage was found on 2026-08-05. That is now twice.
+
+**Scores that moved:** *Will it break?* 88 → **90** (the second update path is
+gated, and the automatic checks went from 358 to **411**). *Can you fix it fast?*
+68 → **80** (the rollback procedure exists and is written down). *Can someone
+else pick it up?* 86 → **90** (the three stale pages are corrected). *Can you add
+garment #2 without a developer?* 72 → **82** (the guide is followable end to end —
+before this it dead-ended at its own step 3, and there is now a command that finds
+a new garment's prints and works out the camera angles for you).
+
+**Overall: 79 → 85.** What is left is genuinely the list under "Below the line",
+plus the four housekeeping jobs in the plan: a style checker, a traffic limit on
+the public part of the site, an alarm that does not depend on GitHub, and one
+version number that differs across the project.
+
+---
+
+## Overall: 79 / 100 *(morning reading — see the update above)*
 
 Think of the project as a car.
 
@@ -127,6 +177,10 @@ new garment gets only the simpler synthetic check.
 ---
 
 ## What to fix first
+
+⚠️ **Five of these seven are done and one was closed by your decision — see the
+UPDATE block at the top before acting on anything here.** The list is kept as
+written so the record shows what the morning review found.
 
 Ordered by *what would embarrass you in front of a lead*, not by technical
 severity.

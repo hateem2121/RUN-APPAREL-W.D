@@ -112,8 +112,9 @@ describe('link preview (Open Graph) tags', () => {
     // tell crawlers that /n001/wine is the homepage and invite them to collapse
     // every colourway into a single page. Per-page or absent — never static.
     //
-    // If you are here because you want per-garment previews: that needs the
-    // response rewritten per request, not a value pasted into this file.
+    // Both ARE now set, per request, by apps/viewer/worker/index.ts, which
+    // appends them to <head>. That is the only form in which they are correct.
+    // Adding one here would put two competing canonicals on every crawled page.
     expect(meta('og:url')).toBeNull()
     expect(html).not.toMatch(/<link[^>]+rel="canonical"/i)
   })

@@ -1169,6 +1169,89 @@ How it works / notes learned during the cutover:
 3. Re-add `https://run-apparel-viewer.pages.dev` to `VIEWER_ALLOWED_ORIGINS`
    in `apps/cms/wrangler.jsonc` if the pages.dev URL is used directly.
 
+⚠️ **The Pages rollback path now loses the link previews.** Since 2026-08-08 the
+viewer worker has a script (`apps/viewer/worker/index.ts`) that rewrites the
+preview tags per garment. Pages deploys `dist/` only, so on Pages every link
+reverts to the single generic card in `index.html`. That is a cosmetic
+regression, not a broken site — but do not be surprised by it, and note the CI
+link-preview smoke test is skipped when `VIEWER_DEPLOY_TARGET=pages`.
+
+## Link previews — what a shared link looks like
+
+Paste `https://viewer.wear-run.help/n001/wine` into WhatsApp, email or LinkedIn
+and the recipient sees a card: the garment's own picture, "N001 Velocity
+Performance Skinsuit — Wine", and its fabric and fit. Every colourway gets its
+own card.
+
+**How it works, in one line:** link crawlers do not run JavaScript, so the viewer
+worker rewrites the `<head>` for them before the page is sent.
+
+### Adding a garment — the one command
+
+After a new garment's posters have been rendered to `output/posters/`:
+
+```bash
+pnpm og:cards n002
+```
+
+It converts `output/posters/n002-*-poster.webp` into
+`apps/viewer/public/og/n002/<colour>.jpg` and updates
+`apps/viewer/worker/og-cards.ts`. **Commit both.** The product slug must match
+the CMS slug exactly — that is the key the worker looks the card up by, and a
+mismatch shows up as "the preview is right but the picture is the poster".
+
+**If you skip this step nothing breaks.** The worker falls back to the
+colourway's own poster from the CMS, so the card still shows the right garment in
+the right colour — just as a WebP, which LinkedIn and iMessage do not render.
+Slack, X, Facebook, Discord and Telegram do. So: skipping it costs you the two
+channels you are most likely to send a link on.
+
+### Checking it
+
+```bash
+node scripts/smoke-viewer-preview.mjs https://viewer.wear-run.help n001 wine
+```
+
+CI runs this after every deploy. It asserts the card names the garment, that
+`og:url`/`canonical` are per-colourway, that the picture really fetches, **and**
+— the negative control — that a plain browser request is *not* rewritten.
+
+A **403 or 429 exits 0 as inconclusive**, deliberately: it asks for a page with a
+crawler user-agent from a datacenter IP, which is the most challengeable request
+shape there is, and a bot rule must never read as "the previews are broken".
+
+### Why only crawlers get the rewrite
+
+Measured 2026-08-08, warm connection, five requests each:
+
+| Request | Time to first byte |
+|---|---|
+| `viewer.wear-run.help/n001/wine` (static HTML) | 0.106 – 0.155 s |
+| `cms /api/health` | 0.428 – 0.657 s |
+| `cms /api/public/viewer/n001/wine` | **1.77 – 2.27 s** |
+
+The payload endpoint costs about 1.9 s and is not edge-cached on either host
+(`cf-cache-status` came back empty on `cms.wear-run.help` and on the workers.dev
+URL alike — a Worker's own response does not pass through the edge cache, so its
+`s-maxage=60` buys nothing). Serving that to visitors would turn a QR scan from
+~0.11 s into ~2 s. A crawler is fetching precisely because it wants the head, and
+allows around 10 s, so it waits and the visitor does not.
+
+⚠️ **That ~1.9 s is a real cost the viewer already pays today**, on the browser's
+own fetch of the same endpoint — it is why the loading state is visible on a QR
+scan. Unrelated to previews; recorded here because this is where it was measured.
+
+### Two things that will bite whoever changes this
+
+- **An HTMLRewriter selector that matches nothing is a silent no-op.** Delete a
+  `<meta>` from `apps/viewer/index.html` and the worker keeps returning 200 while
+  quietly ceasing to set that value on every link. `worker/preview.test.ts`
+  asserts every rewritten tag still exists in that file — keep it in step.
+- **Asset requests never reach the worker**, so `/assets/*` keeps its
+  zero-overhead path. Verified by logging every entry to the handler:
+  `/assets/index-*.js`, `/og/n001/wine.jpg` and `/` produced no log line;
+  `/n001/lime` produced one. Setting `run_worker_first` would undo that.
+
 ## Login protection
 
 The admin login locks an account for 10 minutes after 5 failed attempts

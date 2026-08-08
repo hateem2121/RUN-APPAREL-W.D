@@ -14,16 +14,24 @@
          or LinkedIn unfurled as a bare URL with no image — measured, not assumed:
          the head carried only charset, viewport, description and title.
 
-         These are DELIBERATELY GENERIC. A link crawler does not run JavaScript,
-         so App.tsx's document.title never reaches it, and this file is one static
-         document served for every route by the SPA fallback. Per-garment previews
-         need the response rewritten per request — see the note at the bottom of
-         this block.
+         THESE ARE THE FALLBACK, NOT WHAT A CRAWLER USUALLY SEES. Later the same
+         day, apps/viewer/worker/index.ts started overwriting every value below
+         per request, with the garment and colourway the link actually points at.
+         These static tags are what remains when it cannot: the homepage (which
+         matches an asset, so the Worker is never invoked), an unknown product, or
+         a CMS outage. Keep them working — they are the floor.
+
+         ⚠️ EVERY TAG BELOW THAT THE WORKER OVERWRITES MUST STAY PRESENT. An
+         HTMLRewriter selector that matches nothing is a silent no-op, not an
+         error: delete one of these and the Worker keeps returning 200 while
+         quietly ceasing to set it on every link. worker/preview.test.ts asserts
+         each one is still here.
 
          NOT SET, deliberately: `og:url` and <link rel="canonical">. A static value
          for either would declare that /n001/wine IS the homepage, which is worse
          than saying nothing — it invites crawlers to collapse every colourway into
-         one page. Both are per-page values or they are wrong.
+         one page. Both are per-page values or they are wrong, which is why the
+         Worker APPENDS them per request rather than overwriting them here.
 
          og:image is a real render of the shipped garment (N001 wine, the default
          colourway), 1200x1500 with its own "[ N001 / WINE ]" caption baked in.

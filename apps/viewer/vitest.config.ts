@@ -14,7 +14,16 @@ export default defineConfig({
     // never run — vitest reports "no test files found" for the glob it was given and
     // says nothing about the file you wrote. Every component test would have been
     // silently absent.
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'scripts/**/*.test.ts'],
+    // `worker/` holds the link-preview logic. Only the PURE half is testable here
+    // — worker/index.ts needs HTMLRewriter and a service binding, neither of
+    // which exists under vitest — which is exactly why every decision lives in
+    // worker/preview.ts instead.
+    include: [
+      'src/**/*.test.ts',
+      'src/**/*.test.tsx',
+      'scripts/**/*.test.ts',
+      'worker/**/*.test.ts',
+    ],
     // Installs a working localStorage/sessionStorage. Required from Node 25+,
     // where Node's own Web Storage global suppresses jsdom's — see the setup
     // file for the full explanation.

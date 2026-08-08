@@ -18,12 +18,35 @@
   // temporarily if you need a pre-cutover smoke-test URL.)
   "workers_dev": false,
   "preview_urls": false,
-  // Static-assets-only worker (no server code). `single-page-application`
-  // replaces the Pages `_redirects` SPA fallback (CI deletes dist/_redirects for
-  // this target — Workers Static Assets rejects the "/* /index.html 200" rule);
-  // dist/_headers (immutable asset caching + the CSP) is honoured natively.
+  // Worker + static assets. It was assets-ONLY until 2026-08-08; the script does
+  // exactly one thing — rewrite the Open Graph tags per garment so a link shared
+  // with a lead unfurls as that garment in that colourway. See worker/index.ts.
+  //
+  // ⚠️ `run_worker_first` is deliberately absent. Without it, anything matching a
+  // file in dist/ is served by the asset router and the Worker is NEVER invoked,
+  // so /assets/*.js keeps the zero-overhead path it had before this line existed.
+  // Only SPA-fallback routes reach the script, and it returns early for all but
+  // crawler GETs.
+  "main": "./worker/index.ts",
+  // `single-page-application` replaces the Pages `_redirects` SPA fallback (CI
+  // deletes dist/_redirects for this target — Workers Static Assets rejects the
+  // "/* /index.html 200" rule); dist/_headers (immutable asset caching + the CSP)
+  // is honoured natively, and was measured on 2026-08-08 to survive a response
+  // pulled through the ASSETS binding below — the open question that had blocked
+  // adding a Worker here at all.
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
-  }
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS"
+  },
+  // Internal, same-account call to the CMS worker for the published payload. A
+  // service binding rather than a public fetch: no DNS, no TLS, no zone in the
+  // path — so this cannot be challenged by a bot rule the way cms.wear-run.help
+  // has been, and it costs nothing at the edge.
+  "services": [
+    {
+      "binding": "CMS",
+      "service": "run-apparel-viewer-cms"
+    }
+  ]
 }

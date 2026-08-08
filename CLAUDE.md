@@ -299,6 +299,46 @@ the answer is "nothing that happens in production", it is not a test.
   ⚠️ Measured on `wrangler dev` (local), not against the edge. It exercises the
   same asset-serving implementation, but if a production deploy ever adds a Worker
   here, re-check the live response headers once rather than trusting this line.
+  **That Worker now exists** (`apps/viewer/worker/index.ts`, 2026-08-08) and the
+  headers were re-confirmed through it locally — CSP, HSTS, Permissions-Policy,
+  Referrer-Policy and nosniff all present on a rewritten response. Still not
+  re-checked against the live edge; do that once after the first deploy.
+
+- **Per-garment link previews are CRAWLER-ONLY, and the number is why.** Measured
+  2026-08-08, warm connection, five requests each: the viewer's static HTML is
+  **0.106–0.155 s** to first byte, `cms /api/health` is **0.428–0.657 s**, and
+  `cms /api/public/viewer/n001/wine` is **1.77–2.27 s**. The payload endpoint is
+  not edge-cached on either host (`cf-cache-status` empty on `cms.wear-run.help`
+  and the workers.dev URL alike — a Worker's own response does not pass through
+  the edge cache, so its `s-maxage=60` buys nothing). Rewriting for everyone would
+  make every QR scan ~20x slower to first byte to fix something no visitor can
+  see, so `worker/index.ts` returns `env.ASSETS.fetch(request)` untouched unless
+  the user-agent matches a crawler. A crawler that is NOT matched falls through to
+  index.html's generic card, i.e. exactly what shipped the day before — the
+  failure mode of a miss is "no worse than yesterday". `scripts/smoke-viewer-preview.mjs`
+  carries the negative control that a plain browser is *not* rewritten; without it,
+  someone "simplifying" the check would ship the 2 s regression and it would be
+  diagnosed as "the site got slow", somewhere else entirely.
+  Two more measured facts from building it. **Asset requests never reach the
+  Worker** — logged every entry to the handler: `/assets/index-*.js`,
+  `/og/n001/wine.jpg` and `/` produced no line, `/n001/lime` produced one — so
+  `/assets/*` keeps its zero-overhead path as long as `run_worker_first` stays
+  unset. And **an HTMLRewriter selector that matches nothing is a silent no-op,
+  not an error**: delete a `<meta>` from `index.html` and the Worker keeps
+  returning 200 while quietly ceasing to set it on every link, which is why
+  `worker/preview.test.ts` asserts each rewritten tag still exists there.
+
+- **`og:image` must not be the WebP poster, even though every browser reads WebP.**
+  Link crawlers are not browsers: LinkedIn documents JPG/PNG/GIF only, and iMessage
+  and WhatsApp are both unreliable with WebP. All five N001 posters are
+  `image/webp` (checked against the live payload), so pointing `og:image` at
+  `media.wear-run.help` directly shows a picture on Slack and X and *nothing* on
+  the two channels most likely to carry a link to a lead. `pnpm og:cards <slug>`
+  transcodes the rendered posters into `apps/viewer/public/og/<product>/<colour>.jpg`
+  (62–75 KB each at quality 76) and regenerates the manifest the Worker reads.
+  The Worker still falls back to the poster when no card exists — the right
+  garment on some platforms beats a polished card of a different garment on all of
+  them — so skipping the command degrades, it does not break.
 
 - **A build-time CSP cannot cover an edge-injected script — by construction.**
   `scripts/csp.mjs` hashes the inline scripts present in the *built*

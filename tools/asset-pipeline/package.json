@@ -13,7 +13,8 @@
     "test": "vitest run",
     "build": "tsc --noEmit",
     "eval:artwork": "tsx scripts/eval-artwork-legibility.mjs",
-    "eval:artwork:real": "tsx scripts/eval-artwork-real.mjs"
+    "eval:artwork:real": "tsx scripts/eval-artwork-real.mjs",
+    "og:cards": "tsx scripts/og-cards.mjs"
   },
   "dependencies": {
     "@gltf-transform/core": "4.4.2",

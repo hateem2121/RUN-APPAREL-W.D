@@ -6,5 +6,17 @@
     "noEmit": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "vite.config.ts", "e2e"]
+  // worker/index.ts is deliberately NOT here — it needs Cloudflare's lib, which
+  // collides with DOM. It has its own tsconfig, run as a second typecheck pass.
+  // The two pure files below are checked in both places on purpose; see
+  // worker/tsconfig.json.
+  "include": [
+    "src",
+    "vite.config.ts",
+    "e2e",
+    "worker/preview.ts",
+    "worker/preview.test.ts",
+    "worker/og-cards.ts",
+    "worker/og-cards.test.ts"
+  ]
 }

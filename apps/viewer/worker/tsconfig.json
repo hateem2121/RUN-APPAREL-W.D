@@ -1,0 +1,19 @@
+{
+  // Separate from the app's tsconfig because the two cannot share a lib. The app
+  // is a browser bundle (lib DOM, types vite/client); this is a Cloudflare Worker
+  // (HTMLRewriter, Fetcher, ExecutionContext, caches.default), and
+  // @cloudflare/workers-types redeclares enough of DOM that loading both produces
+  // hundreds of duplicate-identifier errors. Same split apps/shrink already uses.
+  //
+  // preview.ts is checked BY BOTH: here, and by the app's tsconfig so that
+  // preview.test.ts can import it under vitest. It is written to need neither
+  // lib — plain objects and string work only — and being compiled twice is what
+  // keeps it that way.
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types"],
+    "noEmit": true
+  },
+  "include": ["index.ts", "preview.ts", "og-cards.ts"]
+}

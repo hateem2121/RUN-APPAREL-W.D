@@ -458,3 +458,15 @@ jobs:
         env:
           SMOKE_BROWSER_GET: '1'
         run: node scripts/smoke-viewer-payload.mjs "${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}"
+
+      # The per-garment link preview is produced by an HTMLRewriter in
+      # apps/viewer/worker/index.ts, and HTMLRewriter does not exist under vitest —
+      # so the unit tests cover every decision and NOTHING covers the rewrite. This
+      # is the only automated check that a shared link actually unfurls as the
+      # garment it points at, and it includes a negative control asserting a plain
+      # browser request is NOT rewritten. A 403/429 exits 0 as inconclusive: this
+      # asks for a page with a crawler user-agent from a datacenter IP, which is
+      # the most challengeable request shape there is.
+      - name: Post-deploy link-preview smoke test
+        if: vars.VIEWER_DEPLOY_TARGET != 'pages'
+        run: node scripts/smoke-viewer-preview.mjs https://viewer.wear-run.help

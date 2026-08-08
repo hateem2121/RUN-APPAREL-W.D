@@ -144,6 +144,33 @@ closely at them before you tell anyone the page is ready.
 
 ---
 
+## Step 6 — Check the link before you send it to anyone
+
+Paste the address into WhatsApp to yourself, or into a draft email. You should see
+a **card**: a picture of the garment, its name and colour, and its fabric. Not a
+bare blue link.
+
+For N001 this already works, in all five colours, and there is nothing to do.
+
+**For a brand-new garment there is one command**, and it is for whoever is running
+the tools, not for you:
+
+```bash
+pnpm og:cards n002
+```
+
+(with the new garment's short code in place of `n002`). It makes the pictures the
+card uses.
+
+**If nobody runs it, nothing breaks.** The card still shows the right garment in
+the right colour — but only on Slack, X, Facebook, Telegram and Discord. On
+**LinkedIn and iMessage the picture goes missing**, because those two will not
+display the picture format the website uses internally. The command converts them.
+
+So: send yourself the link first. If you see the garment, you are fine.
+
+---
+
 ## Which colour do people see first?
 
 The **top** colour that is switched on. Drag the rows on the Colours tab to change

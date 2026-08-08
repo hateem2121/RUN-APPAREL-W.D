@@ -42,7 +42,8 @@
     "seed:cms": "pnpm --filter @run-apparel/cms seed",
     "index:ai": "node scripts/index-ai.mjs",
     "eval:artwork": "pnpm --filter @run-apparel/asset-pipeline eval:artwork",
-    "eval:artwork:real": "pnpm --filter @run-apparel/asset-pipeline eval:artwork:real"
+    "eval:artwork:real": "pnpm --filter @run-apparel/asset-pipeline eval:artwork:real",
+    "og:cards": "pnpm --filter @run-apparel/asset-pipeline og:cards"
   },
   "devDependencies": {
     "@lhci/cli": "0.15.1",
