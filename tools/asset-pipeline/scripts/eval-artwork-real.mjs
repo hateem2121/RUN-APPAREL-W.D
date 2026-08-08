@@ -59,9 +59,13 @@
  *
  * Usage:
  *   node scripts/eval-artwork-real.mjs [raw.glb]                 assert
+ *   node scripts/eval-artwork-real.mjs [raw.glb] --find-views    locate the prints, propose cameras
  *   node scripts/eval-artwork-real.mjs [raw.glb] --calibrate     print the damage curve
  *   node scripts/eval-artwork-real.mjs [raw.glb] --keep <dir>    keep renders + sheets
  *   node scripts/eval-artwork-real.mjs [raw.glb] --all-variants  every colourway, not just the default
+ *
+ * For a garment that has never been calibrated, the order is --find-views, then add
+ * the manifest entry, then --calibrate. See RUNBOOK → "Replacing or adding a garment".
  *
  * Env:
  *   RAW_GLB   path to the raw CLO export (default: <repo>/raw/cycling-all-colours.glb)
@@ -70,7 +74,8 @@ import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { mkdtemp, mkdir, readFile, access } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
+import sharp from 'sharp'
 import { compareRenders } from '../src/compare.ts'
 import { createIO } from '../src/io.ts'
 import { optimizeGlb, parseOptimizeArgs } from '../src/optimize.ts'
@@ -366,7 +371,27 @@ async function identifyGarment(raw, { calibrate }) {
  * is both stricter (all views checked) and correct (no assumption that the biggest
  * print is the interesting one).
  */
-async function assertViewFramesArtwork(glbPath, views, toleranceM) {
+/**
+ * Every artwork primitive in a built GLB, with its world-space bounds.
+ *
+ * ⚠️ THIS IS THE SINGLE DEFINITION OF "WHERE THE PRINTS ARE", used by BOTH the aim
+ * guard below and `--find-views`. Keep it that way. If discovery could disagree
+ * with the guard about which primitives count as artwork, `--find-views` would
+ * cheerfully suggest a camera the guard then rejects, and the operator would be
+ * bounced between two tools that each believe they are right — which is precisely
+ * the dead end `--find-views` was added to remove. The reason it is called on the
+ * BUILT BASELINE rather than the raw export is the same one: `isArtworkTexture`
+ * inspects decoded pixels and aspect ratios, so raw and processed textures can
+ * classify differently, and the guard's answer is the one that has to win.
+ *
+ * Also returns the whole model's bounds, which `--find-views` needs to decide
+ * which SIDE of the garment a print is on. Those come from each accessor's
+ * declared min/max rather than a vertex walk: it is an order of magnitude cheaper
+ * on a 66 MB baseline and only ever feeds a front/back decision, whereas the
+ * artwork bounds below are walked per-vertex because a print's centre is what the
+ * tolerance check is measured against.
+ */
+async function findArtworkPrints(glbPath) {
   const io = await createIO()
   const doc = await io.read(glbPath)
   const root = doc.getRoot()
@@ -389,13 +414,34 @@ async function assertViewFramesArtwork(glbPath, views, toleranceM) {
   ]
 
   const prints = []
+  const modelMin = [Infinity, Infinity, Infinity]
+  const modelMax = [-Infinity, -Infinity, -Infinity]
+
   for (const mesh of root.listMeshes()) {
     const node = nodeForMesh.get(mesh)
     const matrix = node ? node.getWorldMatrix() : [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
     for (const prim of mesh.listPrimitives()) {
-      if (!artworkMats.has(prim.getMaterial())) continue
       const position = prim.getAttribute('POSITION')
       if (!position) continue
+
+      // Whole-garment bounds from the declared accessor AABB, transformed corner by
+      // corner. Every primitive contributes, artwork or not — the front of a garment
+      // is decided by the body, not by the decals stuck to it.
+      const localMin = position.getMin([0, 0, 0])
+      const localMax = position.getMax([0, 0, 0])
+      for (let corner = 0; corner < 8; corner++) {
+        const w = toWorld(matrix, [
+          corner & 1 ? localMax[0] : localMin[0],
+          corner & 2 ? localMax[1] : localMin[1],
+          corner & 4 ? localMax[2] : localMin[2],
+        ])
+        for (let k = 0; k < 3; k++) {
+          if (w[k] < modelMin[k]) modelMin[k] = w[k]
+          if (w[k] > modelMax[k]) modelMax[k] = w[k]
+        }
+      }
+
+      if (!artworkMats.has(prim.getMaterial())) continue
       const min = [Infinity, Infinity, Infinity]
       const max = [-Infinity, -Infinity, -Infinity]
       const element = [0, 0, 0]
@@ -410,6 +456,9 @@ async function assertViewFramesArtwork(glbPath, views, toleranceM) {
       prints.push({
         name: prim.getMaterial()?.getName() ?? '(unnamed)',
         centre: [0, 1, 2].map((k) => (min[k] + max[k]) / 2),
+        min,
+        max,
+        span: [0, 1, 2].map((k) => max[k] - min[k]),
         area: (max[0] - min[0]) * (max[1] - min[1]),
       })
     }
@@ -424,6 +473,11 @@ async function assertViewFramesArtwork(glbPath, views, toleranceM) {
   }
 
   prints.sort((a, b) => b.area - a.area)
+  return { prints, modelMin, modelMax }
+}
+
+async function assertViewFramesArtwork(glbPath, views, toleranceM) {
+  const { prints } = await findArtworkPrints(glbPath)
 
   for (const view of views) {
     if (!view.target) {
@@ -470,6 +524,283 @@ async function assertViewFramesArtwork(glbPath, views, toleranceM) {
   console.log()
 }
 
+/**
+ * The zoom ladder for `--find-views`, as multiples of a size-scaled estimate.
+ *
+ * ⚠️ A LADDER RATHER THAN ONE COMPUTED VALUE, ON PURPOSE. The obvious move is to
+ * solve for the fieldOfView that makes a print fill some fraction of the frame.
+ * It cannot be done from first principles here, and the attempt would be fiction:
+ * model-viewer clamps orbit radius to its own framing of the bounding sphere —
+ * measured 2026-08-06, 0.445m / 0.300m / 0.180m render pixel-identically on N001 —
+ * so the camera distance that calculation needs is neither set nor readable by this
+ * script. The zoom is therefore chosen the way N001's was: render several and LOOK.
+ *
+ * ⚠️ AND IT IS SCALED PER PRINT, WHICH THE FIRST VERSION GOT WRONG. A fixed ladder
+ * of [10, 14, 20, 28]° was tried against the real N001 export on 2026-08-08 and the
+ * contact sheet showed why it fails: the wordmark spans 0.202 m and framed
+ * correctly, while `TEAM WEAR FRONT LABEL` (0.039 m) and `Teamwear Logo` (0.030 m)
+ * were unreadable specks at every rung including the tightest. One garment holds a
+ * 6× range of print sizes, so one ladder cannot serve them — and the failure is the
+ * quiet kind, because a speck in frame still yields a plausible damage number that
+ * is mostly fabric.
+ */
+const FOV_LADDER_MULTIPLIERS = [0.7, 1.0, 1.5, 2.2]
+
+/**
+ * The empirical anchor the ladder scales from: N001's chest wordmark spans 0.202 m
+ * and is correctly framed at 14°.
+ *
+ * This is a MEASUREMENT, not a constant of nature. 14° is the value hand-derived
+ * for N001 and calibrated against contact sheets on 2026-08-06; 0.202 m is that
+ * print's largest world-space dimension as read out of the built baseline on
+ * 2026-08-08. Angular size is roughly linear in object size at a fixed camera
+ * distance, and the distance IS fixed here (model-viewer clamps it), so scaling off
+ * the one known-good pair is better grounded than any formula this script could
+ * derive — and it reproduces [9.8, 14, 21, 30.8]° for the wordmark itself, i.e. the
+ * ladder that was already confirmed by eye.
+ *
+ * It remains an ESTIMATE that positions a ladder. The person still looks.
+ */
+const FOV_ANCHOR = { degrees: 14, spanM: 0.202 }
+
+/** model-viewer gets unstable at extreme fields of view; keep the ladder sane. */
+const FOV_RANGE = { min: 1, max: 45 }
+
+/** The four candidate zooms for one print, tight to loose, scaled to its size. */
+function fovLadderFor(print) {
+  const estimate = FOV_ANCHOR.degrees * (Math.max(...print.span) / FOV_ANCHOR.spanM)
+  return FOV_LADDER_MULTIPLIERS.map((m) =>
+    Number(Math.min(FOV_RANGE.max, Math.max(FOV_RANGE.min, estimate * m)).toFixed(1)),
+  )
+}
+
+/**
+ * How many prints `--find-views` will render a ladder for.
+ *
+ * A garment can carry a dozen artwork primitives (N001 has six) and each costs
+ * FOV_LADDER.length renders under swiftshader. Capped so discovery stays a
+ * few-minute step. The cap is LOGGED rather than silent — this repo's rule, earned
+ * when the eval read `availableVariants`, printed them, and measured one.
+ */
+const FIND_VIEWS_MAX_PRINTS = 4
+
+/**
+ * Propose a camera for a print: aim at its centre, stand off whichever side of the
+ * garment it faces.
+ *
+ * `orbit` is model-viewer's "theta phi radius". Theta 0° looks from +Z, so the
+ * azimuth is the print's bearing from the garment's own centre — that is what makes
+ * a back print orbit round to ~180° instead of being photographed through the
+ * fabric. Phi is held at 90° (level with the target) because `target` re-centres the
+ * orbit on the print itself, which is exactly how N001's view is built.
+ *
+ * Sanity check against the one hand-derived camera in the repo: N001's wordmark
+ * centres at (0, 1.314, 0.069) on a body centred near x=0, z=0, giving
+ * atan2(0, 0.069) = 0.0°. The hand-derived value is -0.2°.
+ *
+ * ⚠️ THE RADIUS IS INERT AND IS EMITTED AS A CONSTANT. See FOV_LADDER: model-viewer
+ * overrides it. It is kept in the string because `orbit` is a three-part format and
+ * because the cameraFingerprint hashes what is written down, not what the renderer
+ * did with it. Do not read it as a measurement.
+ */
+function suggestViewFor(print, modelMin, modelMax, fieldOfView) {
+  const modelCentre = [0, 1, 2].map((k) => (modelMin[k] + modelMax[k]) / 2)
+  const theta = (Math.atan2(print.centre[0] - modelCentre[0], print.centre[2] - modelCentre[2]) * 180) / Math.PI
+  return {
+    name: slugForPrint(print),
+    orbit: `${theta.toFixed(1)}deg 90deg 0.45m`,
+    target: print.centre.map((n) => `${n.toFixed(3)}m`).join(' '),
+    fieldOfView: `${fieldOfView}deg`,
+  }
+}
+
+/** Material names carry spaces, brackets and IDs; view names become filenames. */
+function slugForPrint(print) {
+  const slug = print.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
+  return slug || 'artwork'
+}
+
+/**
+ * Tile the ladder renders into one PNG, labelled, so the choice is made by looking
+ * at them side by side rather than by opening sixteen files in turn.
+ *
+ * Deliberately NOT `compareRenders` — that diffs two directories and its whole
+ * output is a subtraction. Nothing is being compared here; this is a contact sheet
+ * of candidates.
+ */
+async function montage(cells, outFile, columns, cell = 384) {
+  const rows = Math.ceil(cells.length / columns)
+  const label = 22
+  const layers = []
+
+  for (const [i, { file, caption }] of cells.entries()) {
+    const x = (i % columns) * cell
+    const y = Math.floor(i / columns) * (cell + label)
+    const text = caption.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c])
+    layers.push({
+      input: Buffer.from(
+        `<svg width="${cell}" height="${label}"><rect width="${cell}" height="${label}" fill="#111"/>` +
+          `<text x="6" y="15" font-family="monospace" font-size="12" fill="#eee">${text}</text></svg>`,
+      ),
+      top: y,
+      left: x,
+    })
+    layers.push({ input: await sharp(file).resize(cell, cell, { fit: 'contain' }).toBuffer(), top: y + label, left: x })
+  }
+
+  await sharp({
+    create: {
+      width: columns * cell,
+      height: rows * (cell + label),
+      channels: 3,
+      background: { r: 17, g: 17, b: 17 },
+    },
+  })
+    .composite(layers)
+    .png()
+    .toFile(outFile)
+}
+
+/**
+ * `--find-views`: answer "where are this garment's prints, and what camera sees
+ * them?" for a file nobody has calibrated yet.
+ *
+ * ─── WHY THIS EXISTS ────────────────────────────────────────────────────────
+ * Until 2026-08-08 the documented procedure for garment #2 (RUNBOOK → "Replacing
+ * or adding a garment") dead-ended at its own step 3. It said to run `--calibrate`
+ * on the new export — but `views` falls back to N001's, the aim guard correctly
+ * refuses a camera pointed at a different body's chest, and NOTHING told you where
+ * the new garment's prints actually were. N001's own numbers were derived by hand
+ * from primitive world-space bounds and then checked by eye; that derivation was
+ * never a tool, so every garment after the first inherited a research task
+ * disguised as a five-step list.
+ *
+ * The data was already being computed — `assertViewFramesArtwork` has always known
+ * every print's world-space centre. It only ever printed it inside a failure
+ * message, listing the five nearest to a target you do not have yet. This turns
+ * that into the first step instead of the error you hit at the third.
+ *
+ * It does NOT choose the camera for you. It narrows sixteen unknowns to a labelled
+ * contact sheet and a paste-ready block, and the person still looks.
+ */
+async function findViews(raw, workDir) {
+  const baseGlb = join(workDir, 'baseline.glb')
+  console.log('building the baseline (full chain minus decimation) — this is the slow part\n')
+  const { options } = parseOptimizeArgs([raw, '--out', baseGlb, ...BASELINE_FLAGS])
+  await optimizeGlb(raw, baseGlb, options)
+
+  const { prints, modelMin, modelMax } = await findArtworkPrints(baseGlb)
+
+  console.log(`${prints.length} artwork primitive${prints.length === 1 ? '' : 's'}, largest first:\n`)
+  console.log('    #   area m²   centre x, y, z              span w×h m      material')
+  for (const [i, p] of prints.entries()) {
+    console.log(
+      `    ${String(i + 1).padStart(2)}  ${p.area.toFixed(5).padStart(8)}  ` +
+        `${p.centre.map((n) => n.toFixed(3).padStart(7)).join(', ')}  ` +
+        `${p.span[0].toFixed(3)}×${p.span[1].toFixed(3)}   ${p.name}`,
+    )
+  }
+  console.log()
+
+  const chosen = prints.slice(0, FIND_VIEWS_MAX_PRINTS)
+  if (prints.length > chosen.length) {
+    // Say what was dropped. A capped run that reads as a complete one is the
+    // failure mode this file exists to prevent.
+    console.log(
+      `⚠️  rendering the largest ${chosen.length} only. NOT rendered: ` +
+        `${prints.slice(chosen.length).map((p) => `"${p.name}"`).join(', ')}.\n` +
+        `    Their centres are in the table above — a view can be written by hand from one.\n`,
+    )
+  }
+
+  // A "rung" is a column of the contact sheet: the same tightness for every print,
+  // but a DIFFERENT number of degrees for each, because each is scaled to its own
+  // size. So the sheet stays readable left-to-right as tight→loose while a 0.030 m
+  // logo and a 0.202 m wordmark are both actually in frame.
+  const rungs = FOV_LADDER_MULTIPLIERS.map((_, rung) =>
+    chosen.map((print) => {
+      const view = suggestViewFor(print, modelMin, modelMax, fovLadderFor(print)[rung])
+      return { print, view }
+    }),
+  )
+
+  // Render names are DECORATED COPIES, never the config objects themselves. The
+  // first version mutated `view.name` in place to make a unique filename, and the
+  // paste-ready block below then emitted `"name": "p1-the-extra-mile-slogan-3161-r2"`
+  // — a render-directory artifact offered as manifest config. Harmless-looking, and
+  // it would have gone straight into raw/CANONICAL.json.
+  const views = []
+  const cellsFor = new Map()
+  for (const [rung, entries] of rungs.entries()) {
+    for (const [i, { print, view }] of entries.entries()) {
+      const renderName = `p${i + 1}-${view.name}-r${rung + 1}`
+      entries[i].renderName = renderName
+      views.push({ ...view, name: renderName })
+      cellsFor.set(renderName, `#${i + 1} ${view.fieldOfView} — ${print.name}`.slice(0, 58))
+    }
+  }
+
+  console.log(
+    `rendering ${views.length} candidate frames ` +
+      `(${chosen.length} prints × ${FOV_LADDER_MULTIPLIERS.length} zooms, each scaled to its print)…`,
+  )
+  const renderDir = join(workDir, 'find-views')
+  await renderViews(baseGlb, renderDir, { views, width: RENDER_SIZE, height: RENDER_SIZE })
+
+  // One row per print, tight→loose across the row.
+  const cells = []
+  for (let i = 0; i < chosen.length; i++) {
+    for (const entries of rungs) {
+      const { renderName } = entries[i]
+      cells.push({ file: join(renderDir, `${renderName}.png`), caption: cellsFor.get(renderName) })
+    }
+  }
+  const sheet = join(workDir, 'candidate-views.png')
+  await montage(cells, sheet, FOV_LADDER_MULTIPLIERS.length)
+
+  console.log(`\n  contact sheet: ${sheet}`)
+  console.log(`  full-size frames: ${renderDir}\n`)
+
+  // The paste-ready block uses the 1.0× rung — the size-scaled estimate itself —
+  // because something concrete beats a template. The whole point is that the
+  // operator swaps in the zoom they picked off the sheet, so a fingerprint is
+  // printed for every rung rather than only for this one.
+  const anchorRung = FOV_LADDER_MULTIPLIERS.indexOf(1.0)
+  const suggested = rungs[anchorRung].map(({ view }) => view)
+  console.log('Paste into raw/CANONICAL.json → garments.<id>, once you have LOOKED at the sheet:\n')
+  console.log(`  "views": ${JSON.stringify(suggested, null, 2).split('\n').join('\n  ')},`)
+  console.log(`  "targetToleranceM": ${DEFAULT_TARGET_TOLERANCE_M},\n`)
+
+  console.log('  cameraFingerprint per rung — use the one matching the frames you chose:')
+  for (const [rung, entries] of rungs.entries()) {
+    const degrees = entries.map(({ view }) => view.fieldOfView.replace('deg', '')).join('/')
+    console.log(
+      `    rung ${rung + 1} (${`${FOV_LADDER_MULTIPLIERS[rung]}×`.padEnd(5)})  ` +
+        `${degrees.padEnd(26)} ${cameraFingerprint(entries.map((e) => e.view))}`,
+    )
+  }
+  console.log(
+    `\n  ⚠️ Those fingerprints assume you keep ALL ${chosen.length} views. Drop any, and the\n` +
+      `     fingerprint changes — take it from the --calibrate run instead, which sees your\n` +
+      `     final list.`,
+  )
+
+  console.log(
+    `\nNext:\n` +
+      `  1. Open the contact sheet. Pick the zoom that holds the print with a little margin.\n` +
+      `     Too tight and decimation at the edges reads as damage; too wide and the number\n` +
+      `     starts describing fabric and seams instead of letters.\n` +
+      `  2. Keep only the views you actually want guarded, at the zoom you picked.\n` +
+      `  3. Add the entry to raw/CANONICAL.json (checksum, bytes, views, targetToleranceM).\n` +
+      `  4. Run --calibrate to get the damage curve, LOOK at those sheets too, then record\n` +
+      `     ceiling and cameraFingerprint together.\n`,
+  )
+}
+
 /** Optimise the raw export with `flags`, render the artwork crops, diff vs baseline. */
 async function damageFor(raw, baselineDir, workDir, label, flags, views, variant) {
   const out = join(workDir, `${label}.glb`)
@@ -496,6 +827,31 @@ async function damageFor(raw, baselineDir, workDir, label, flags, views, variant
 
 const pct = (v) => `${(v * 100).toFixed(3)}%`
 
+/**
+ * Resolve a positional path against the caller's cwd first, then the repo root.
+ *
+ * ⚠️ THE DOCUMENTED COMMAND DID NOT WORK, and this is why. RUNBOOK → "Replacing or
+ * adding a garment" says `pnpm eval:artwork:real -- raw/<name>.glb --calibrate`,
+ * but the root script delegates through `pnpm --filter`, which runs the child with
+ * cwd set to `tools/asset-pipeline/`. So `raw/<name>.glb` resolved to
+ * `tools/asset-pipeline/raw/<name>.glb`, which does not exist, and step 3 of a
+ * five-step procedure failed for everyone who copied it verbatim. Found 2026-08-08
+ * by running the documented line rather than reading it.
+ *
+ * cwd is tried FIRST so an explicit relative path still means what the shell means
+ * by it — `node scripts/eval-artwork-real.mjs ../../raw/x.glb` from inside the
+ * package keeps working. The repo root is a fallback, not an override.
+ */
+async function resolveRawPath(candidate) {
+  if (isAbsolute(candidate)) return candidate
+  try {
+    await access(candidate)
+    return candidate
+  } catch {
+    return join(REPO_ROOT, candidate)
+  }
+}
+
 async function main() {
   const args = process.argv.slice(2)
   const calibrate = args.includes('--calibrate')
@@ -506,8 +862,13 @@ async function main() {
   // instead. Reporting a pass for a file nobody asked about is the one outcome this
   // eval must never have, so the -1 case is handled explicitly.
   const keepValueIndex = keepAt === -1 ? -1 : keepAt + 1
+  // `--` is skipped by the startsWith('--') test, which is load-bearing rather than
+  // incidental: `pnpm eval:artwork:real -- raw/x.glb` forwards the separator itself
+  // into argv, so argv[0] here is a literal '--'.
   const positional = args.find((a, i) => !a.startsWith('--') && i !== keepValueIndex)
-  const raw = positional ?? process.env.RAW_GLB ?? join(REPO_ROOT, 'raw', 'cycling-all-colours.glb')
+  const raw = positional
+    ? await resolveRawPath(positional)
+    : (process.env.RAW_GLB ?? join(REPO_ROOT, 'raw', 'cycling-all-colours.glb'))
 
   try {
     await access(raw)
@@ -531,10 +892,22 @@ async function main() {
 
   const workDir = keepAt !== -1 ? args[keepAt + 1] : await mkdtemp(join(tmpdir(), 'artwork-real-'))
   await mkdir(workDir, { recursive: true })
-  await assertPresetMatchesShared()
 
   console.log(`raw:      ${raw}`)
   console.log(`work dir: ${workDir}`)
+  console.log()
+
+  // Discovery runs BEFORE identifyGarment, and that ordering is the point: the file
+  // this mode is for is precisely one the manifest does not know yet. It also skips
+  // assertPresetMatchesShared, which guards the decimation flags — this mode does not
+  // decimate, and failing it for an unrelated preset drift would block the one tool
+  // someone reaches for when they are already stuck.
+  if (args.includes('--find-views')) {
+    await findViews(raw, workDir)
+    return
+  }
+
+  await assertPresetMatchesShared()
 
   // Before anything expensive: is this even the garment the numbers below describe?
   // Cheap (0.8 s on 382 MB) and it runs first, so a wrong file costs a second rather
@@ -684,4 +1057,14 @@ async function main() {
   console.log(`\n✓ real-garment artwork eval passed — the control does ${margin.toFixed(1)}× the shipped preset's damage`)
 }
 
-await main()
+/**
+ * Only run when invoked as a command, so the pure helpers above can be imported
+ * and tested. Without this guard, `import` of this file executes a four-minute
+ * render — and the FOV-clamp bug found on 2026-08-08 is exactly the kind that a
+ * unit test should have caught years before a contact sheet did.
+ */
+export { fovLadderFor, suggestViewFor, slugForPrint, resolveRawPath, cameraFingerprint }
+
+if (process.argv[1] && import.meta.filename === process.argv[1]) {
+  await main()
+}

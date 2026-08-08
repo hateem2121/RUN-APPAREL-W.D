@@ -38,7 +38,34 @@ export interface RenderView {
   orbit: string
   /** Defaults to 'auto', i.e. the model's own centre. */
   target?: string
-  /** Defaults to 'auto'. Narrow it to crop in without moving the camera. */
+  /**
+   * Defaults to 'auto'. Narrow it to crop in without moving the camera.
+   *
+   * ⚠️ ANYTHING UNDER 12° WAS SILENTLY IGNORED UNTIL 2026-08-08, because
+   * <model-viewer>'s own `min-field-of-view` defaults to 12deg and this harness
+   * never overrode it. The element now carries `min-field-of-view="1deg"`.
+   *
+   * MEASURED, on the real N001 baseline: rendering one print at 1.4° / 2° / 3.1° /
+   * 4.5° produced four BYTE-IDENTICAL PNGs (sha256 294291db…), as did 1.9° / 2.7° /
+   * 4° / 5.9° on a second print. A third print separated only between 9.2° and
+   * 13.5°, placing the floor exactly at the documented 12° default.
+   *
+   * WHY IT MATTERED, AND WHY NOBODY SAW IT. This is the same trap already recorded
+   * for orbit radius — the renderer overrides what you asked for and returns a
+   * perfectly plausible frame anyway. `raw/CANONICAL.json` says fieldOfView "is the
+   * zoom control, which is why it is fingerprinted rather than range-checked"; that
+   * was true only ABOVE the floor, and N001's single view is 14°, sitting just over
+   * it. So the one calibrated garment in the repo could never have exposed this.
+   * Below the floor a fingerprint records a zoom the renderer never used.
+   *
+   * CONSEQUENCE FOR ARTWORK COVERAGE. CLAUDE.md lists `TEAM WEAR FRONT LABEL`
+   * (0.039 m) and the zip strips as "NOT COVERED", reading as a scoping choice. It
+   * was not: at 12° minimum they could not be framed tightly enough to measure. A
+   * print smaller than roughly a hand was unguardable by construction.
+   *
+   * N001's calibration is unaffected — 14° > 12° clamps to itself either way, and
+   * that was verified byte-for-byte rather than argued.
+   */
   fieldOfView?: string
 }
 
@@ -94,7 +121,8 @@ const MIME: Record<string, string> = {
  * an empty stage. Draco and KTX2 get self-hosted locations for the same reason,
  * so this harness never depends on a CDN being reachable.
  */
-const PAGE_HTML = `<!doctype html>
+/** Exported so `render.test.ts` can assert on the harness without a browser. */
+export const PAGE_HTML = `<!doctype html>
 <meta charset="utf-8">
 <title>asset-pipeline render harness</title>
 <style>
@@ -110,6 +138,7 @@ const PAGE_HTML = `<!doctype html>
   shadow-intensity="0"
   interaction-prompt="none"
   disable-zoom
+  min-field-of-view="1deg"
 ></model-viewer>
 <script type="module">
   import { ModelViewerElement } from '/model-viewer.js'

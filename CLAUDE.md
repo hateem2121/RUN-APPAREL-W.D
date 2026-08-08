@@ -84,6 +84,30 @@ the answer is "nothing that happens in production", it is not a test.
   silently, passing every gate. Test `factor < OPAQUE_FACTOR_THRESHOLD` first.
 - **`model-viewer.toDataURL()` returns a blank canvas** —
   `preserveDrawingBuffer: false`. Screenshot the element.
+- **`fieldOfView` under 12° was silently ignored until 2026-08-08 — the SECOND
+  camera control model-viewer overrides without telling you.** The orbit-radius
+  clamp is already documented above; this is the same trap on the axis that was
+  believed to be the reliable one. `min-field-of-view` defaults to **12deg** and
+  `render.ts` never set it, so a tighter crop returned a plausible frame of the
+  wrong thing. Measured on the real N001 baseline: 1.4° / 2° / 3.1° / 4.5° gave four
+  **byte-identical** PNGs (sha256 `294291db…`), 1.9° / 2.7° / 4° / 5.9° likewise,
+  and a third print separated only between 9.2° and 13.5° — the floor exactly at
+  the documented default. Two consequences worth knowing: `raw/CANONICAL.json`
+  *fingerprints* `fieldOfView` rather than range-checking it, so below the floor it
+  recorded a zoom nothing used; and the prints listed there as "NOT COVERED"
+  (0.039 m hem label, 0.030 m neck logo) were not a scoping choice — **any print
+  smaller than roughly a hand was unguardable by construction.** `render.ts` now
+  sets `min-field-of-view="1deg"`, pinned by `src/render.test.ts`. N001's 14° view
+  is above the old floor and was verified byte-identical across the change, so its
+  calibration is untouched. Found by looking at a contact sheet, not by reading code
+  — the four identical images were the tell.
+- **`pnpm eval:artwork:real -- raw/x.glb` did not resolve that path.** `pnpm`
+  forwards the `--` separator itself into `process.argv`, and the root script
+  delegates via `pnpm --filter`, which runs the child with cwd set to
+  `tools/asset-pipeline/` — so a repo-relative path documented in the RUNBOOK
+  resolved under the package and step 3 of a five-step procedure failed for anyone
+  who copied it verbatim. Relative paths now fall back to the repo root. The lesson
+  is the cheap one: **run the documented command, do not read it.**
 - **`apps/shrink/container` is not a workspace member.** It installs with plain
   `npm` inside Docker, so it cannot use `workspace:*` deps, and `pnpm -r` skips
   it. It has its own CI typecheck step; keep it.
@@ -242,6 +266,28 @@ the answer is "nothing that happens in production", it is not a test.
   minus the added directive**, so comparing the two paths shows a match and reads
   as confirmation that the rule applied. It did not. Verify a header rule by
   changing it to something the default is not.
+
+- **`_headers` DOES survive `env.ASSETS.fetch()` — measured 2026-08-08, so the
+  viewer can grow a Worker without losing its CSP.** This was an open unknown
+  blocking per-garment link previews: `apps/viewer/wrangler.jsonc` is assets-only,
+  injecting per-garment OG tags needs a Worker, and Cloudflare's docs say only that
+  `_headers` is "supported natively" — never what happens to a response the Worker
+  fetched through the binding. If it were applied by the asset router *before* the
+  binding, adding a Worker would silently drop CSP and HSTS on every page, and no
+  test in this repo would catch it.
+  Measured on wrangler 4.114.0, `compatibility_date` 2026-07-01, against a fixture
+  carrying a deliberately non-default `X-Headers-Probe` (per the trap above — a
+  default-shaped value proves nothing). On the SPA-fallback route `/n001/wine`,
+  **all three** of assets-only, `return env.ASSETS.fetch(request)`, and
+  `new Response(response.body, response)` returned identical CSP, HSTS and probe
+  headers. A `/__worker-marker` route returned `X-Worker-Ran: yes` in the same run,
+  so the Worker was genuinely in the path rather than bypassed — without that
+  control the result would have been indistinguishable from the Worker never
+  running. The same run also re-confirmed the combining rule above: a hashed asset
+  came back with `x-headers-probe` **twice**, once per matching rule.
+  ⚠️ Measured on `wrangler dev` (local), not against the edge. It exercises the
+  same asset-serving implementation, but if a production deploy ever adds a Worker
+  here, re-check the live response headers once rather than trusting this line.
 
 - **A build-time CSP cannot cover an edge-injected script — by construction.**
   `scripts/csp.mjs` hashes the inline scripts present in the *built*

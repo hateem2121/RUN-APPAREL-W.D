@@ -479,23 +479,74 @@ the contact sheet.
 
 ### Replacing or adding a garment
 
+> ⚠️ **This procedure dead-ended at its own step 3 until 2026-08-08.** It told you
+> to calibrate the new export, but `views` fall back to N001's, the aim guard
+> correctly refuses a camera pointed at a different body's chest, and nothing told
+> you where the new garment's prints actually were. N001's camera was derived by
+> hand from primitive world-space bounds; that derivation was never a tool. Step 3
+> below is that tool. The old step 3 also did not run as written — see step 0.
+
+0. **The `--` is required and paths are repo-relative.** `pnpm` forwards the
+   separator itself into the script's arguments, and delegates to the package
+   directory, so a bare relative path used to resolve under
+   `tools/asset-pipeline/`. Relative paths are now resolved against the repo root
+   as a fallback, so the commands below work as written.
 1. Put the export at `raw/<name>.glb`.
-2. `shasum -a 256 raw/<name>.glb`
-3. `pnpm eval:artwork:real -- raw/<name>.glb --calibrate --keep output/cal`
-4. **Open the contact sheets in `output/cal/`.** Confirm the known-bad case is
+2. `shasum -a 256 raw/<name>.glb` — you will paste this into the manifest.
+3. **Find the prints and pick a camera:**
+
+   ```bash
+   pnpm eval:artwork:real -- raw/<name>.glb --find-views --keep output/views
+   ```
+
+   It builds the baseline, lists every artwork primitive with its world-space
+   centre and size, then renders each of the largest four at four zoom levels
+   **scaled to that print's own size**, and prints a paste-ready `views` block.
+   **Open `output/views/candidate-views.png`** and pick the frame that holds each
+   print with a little margin — too tight and decimation at the edges reads as
+   damage, too wide and the number starts describing fabric.
+
+   Keep only the prints worth guarding. Detection is deliberately the same
+   `isArtworkTexture` the gates use, so it also surfaces things that are not
+   really print — on N001 it reports both zip tapes.
+4. `pnpm eval:artwork:real -- raw/<name>.glb --calibrate --keep output/cal`
+5. **Open the contact sheets in `output/cal/`.** Confirm the known-bad case is
    visibly damaged and the shipped preset is not. This step is the authority; the
    numbers only record what you saw.
-5. Add an entry to `raw/CANONICAL.json` with the checksum, byte count and the
-   ceiling you chose — above `balanced`, below both `known-bad` and `control`.
+6. Add an entry to `raw/CANONICAL.json` with the checksum, byte count, the views
+   you chose, the `cameraFingerprint` from the calibrate run, and the ceiling —
+   above `balanced`, below both `known-bad` and `control`.
+
+**Zoom below 12° did nothing before 2026-08-08.** `<model-viewer>`'s
+`min-field-of-view` defaults to 12deg and the render harness never overrode it, so
+tighter crops were silently clamped — measured as byte-identical PNGs at 1.4° /
+2° / 3.1° / 4.5°. It is why N001's 0.039 m hem label and 0.030 m neck logo are
+recorded as "NOT COVERED": they could not be framed at all. `render.ts` now sets
+`min-field-of-view="1deg"`. N001's own 14° view is unaffected and was verified
+byte-identical across the change.
 
 ### Keeping the copy safe
 
-The canonical copy lives on the owner's machine. **One copy on one disk is not a
-copy** — keep a second on other hardware (Time Machine or an external drive).
-After 2026-08-19 the R2 original is gone, so a lost local copy means N001's
-artwork calibration cannot be reproduced at all, and the only route back is a
-fresh export from CLO, which would be byte-different and need re-calibrating from
-scratch.
+**The owner keeps their own external copies of the raw exports** — stated
+2026-08-08, when an automated backup into the nightly-mirrored media bucket was
+offered and **declined**, on the grounds that it would duplicate storage they
+already maintain. Do not re-propose one; this is a settled decision, not an
+oversight, and the earlier text here ("one copy on one disk is not a copy",
+written when the copy was believed to be laptop-only) no longer describes the
+arrangement.
+
+What that decision does **not** cover, and what this repo still owes:
+`raw/CANONICAL.json` is the only thing that makes an externally-held copy
+*checkable*. A file handed back months later is an assertion until its SHA-256
+matches; a re-export from CLO lands at the same path with the same filename,
+different geometry, and would produce a perfectly plausible damage number for a
+garment nobody calibrated. Keep the manifest current — it is the half of this
+that external storage cannot replace.
+
+After 2026-08-19 the R2 original is gone, so if an external copy is ever lost the
+only route back is a fresh CLO export, which is byte-different and needs
+re-calibrating from scratch (see "Replacing or adding a garment" above — that is
+now a followable procedure rather than a research task).
 
 **Dependency updates**: Dependabot runs in **quiet mode** — routine version-bump
 PRs are off (`open-pull-requests-limit: 0` in `.github/dependabot.yml`) to keep the
