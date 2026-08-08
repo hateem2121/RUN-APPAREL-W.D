@@ -115,6 +115,92 @@ staging resources (never the live ones): `run-apparel-viewer-db-staging` (D1),
 worker via a `[env.staging]` block in `apps/cms/wrangler.jsonc`, then add a CI job
 that deploys to staging on demand for validation before promoting to production.
 
+## Undoing a bad deploy (rollback)
+
+Until 2026-08-08 this runbook had no rollback section at all — the deploy gates
+were the entire story, and they only stop a build that fails. A build that passes
+every gate and is still wrong had no written way back.
+
+**Decide which of the two you are doing first**, because they are not
+interchangeable:
+
+| | `wrangler rollback` | `git revert` + push |
+|---|---|---|
+| Speed | ~30 seconds | a full CI run |
+| Restores | one Worker, to a previous version | everything, through all gates |
+| Leaves `main` | **lying** — HEAD is not what's live | honest |
+| Use when | the site is broken *right now* | anything less urgent |
+
+`wrangler rollback` is the fire extinguisher. **Always follow it with a
+`git revert`**, or the next push to `main` silently redeploys the bad build on
+top of your rollback.
+
+### The commands
+
+Verified against the pinned wrangler **4.114.0** (`wrangler rollback --help`), not
+recalled:
+
+```bash
+# 1. See what you can go back to (10 most recent):
+npx wrangler@4.114.0 versions list --name run-apparel-viewer-site
+
+# 2. Roll back. Omit the version-id to take the previous one:
+npx wrangler@4.114.0 rollback <version-id> --name run-apparel-viewer-site -m "why"
+```
+
+The three Worker names:
+
+| Worker | What breaks if it is bad |
+|---|---|
+| `run-apparel-viewer-site` | the public viewer — what a lead sees |
+| `run-apparel-viewer-cms` | the admin *and* the API the viewer reads |
+| `run-apparel-viewer-shrink` | garment processing only; the live site is unaffected |
+
+Rolling back the **viewer** is the safe one — it holds no data and reads only the
+public API.
+
+### ⚠️ Rollback does not undo a database migration
+
+`ci.yml` applies pending D1 migrations **before** the Workers deploy, in a
+separate gated step. So rolling the CMS Worker back to yesterday's version leaves
+**today's schema** underneath it.
+
+This is survivable *only* because migrations here are meant to be additive
+(expand/contract), which is stated under "Database migrations" below — an older
+Worker tolerates a newer additive schema. If the migration was **not** additive,
+a Worker rollback alone will not save you and may make things worse. In that case
+go to [BACKUP-RESTORE.md](BACKUP-RESTORE.md) and D1 Time Travel first, and roll
+the schema back with `migrate:remote:down` before the Worker.
+
+**Rolling back the CMS Worker without checking what migrated is the move most
+likely to turn a visible outage into a data problem.** Check first:
+
+```bash
+npx wrangler@4.114.0 d1 migrations list run-apparel-viewer-db --remote
+```
+
+### Not yet verified here
+
+`wrangler rollback` on a **Static Assets** Worker is documented by Cloudflare to
+restore that version's assets along with its script, but **that has never been
+exercised on this account**, and the viewer is assets-only. Treat the viewer
+rollback as very likely to work and confirm with a real page load rather than the
+command's exit code — the same discipline the cached-404 incident forced on
+`media.wear-run.help` (see "Uploading GLB assets").
+
+`git revert` + push has no such uncertainty: it rebuilds and redeploys through
+every gate. **When you have the minutes to spare, prefer it.**
+
+### After any rollback
+
+1. Load `https://viewer.wear-run.help/n001/wine` in a browser and confirm the
+   garment renders — not just that the URL returns 200. This deployment serves
+   `index.html` with **HTTP 200 for every unmatched path**
+   (`not_found_handling: single-page-application`), so a status code proves
+   nothing on its own.
+2. `curl -f https://cms.wear-run.help/api/health`
+3. `git revert` the offending commit so `main` matches what is live.
+
 ## Database migrations
 
 Migrations are applied by an **explicit, gated CI step** — the deployed Worker no
@@ -419,45 +505,75 @@ vulnerabilities on every change. To resume routine updates, raise the limits in
 `.github/dependabot.yml` (grouping/ignore rules are kept ready); the same CI gates
 run on any Dependabot PR before merge.
 
-## The CSP error on every live page load (open, needs a dashboard change)
+## The CSP error on every live page load — RESOLVED 2026-08-06
 
-**Found 2026-08-05 in a real browser on `viewer.wear-run.help`:**
+**Found 2026-08-05** in a real browser on `viewer.wear-run.help`: an inline script
+the delivered HTML never contained was violating `script-src`. Fixed 2026-08-06.
+The page now serves exactly one inline script (our theme bootstrap, allowed by
+hash) and logs no CSP error.
 
-```
-Executing inline script violates the following Content Security Policy directive
-'script-src 'self' 'wasm-unsafe-eval' 'sha256-wT6H9HqZ3CLsrvABGO2hqbdB9G0iJEbrzwBE6ppc9us='
-https://static.cloudflareinsights.com'
-```
+> ⚠️ **This section stated the wrong cause and the wrong fix until 2026-08-08.**
+> It blamed Cloudflare **Web Analytics** "Automatic Setup" and told you to disable
+> it in the dashboard. Both were wrong, and the correction — made on 2026-08-06 in
+> `CLAUDE.md` and `docs/SESSION-2026-08-05.md` — never reached this file. Anyone
+> opening the runbook during an incident was sent to a toggle that does nothing.
+> Recorded rather than quietly deleted, because the wrong diagnosis is the
+> instructive part: it was **inferred from the beacon's presence** instead of read
+> off the injected script.
 
-**It is not our HTML.** The delivered page carries exactly one inline script — the
-theme bootstrap in `apps/viewer/index.html` — and `scripts/gen-headers.mjs` hashes
-it correctly, which is the `sha256-wT6H9Hq…` the policy already allows. Reading the
-live DOM shows a **third** script the HTML never contained:
+**The real cause: Cloudflare's JavaScript Detections**, bundled with **Bot Fight
+Mode**. The script names itself — `window.__CF$cv$params`, loading
+`/cdn-cgi/challenge-platform/scripts/jsd/main.js`.
 
-| # | script | allowed? |
-|---|---|---|
-| 1 | inline, 426 chars — our theme bootstrap | yes, by hash |
-| 2 | `/assets/index-*.js` | yes, `'self'` |
-| 3 | **inline, 921 chars, `(function(){function c(){var b=a.contentDocument…`** | **NO** |
-| 4 | `static.cloudflareinsights.com/beacon.min.js` | yes, by origin |
-
-Script 3 is injected by **Cloudflare's edge** as the bootstrap for its Web
-Analytics beacon (script 4). Its hash changes whenever Cloudflare updates the
-beacon, so pinning a hash in `gen-headers.mjs` would go stale silently and is the
-wrong fix.
-
-**Impact:** a console error on every page load, and the beacon bootstrap does not
-run, so Web Analytics is likely not recording. No user-facing breakage.
-
-**The fix is a Cloudflare dashboard change, not a code change.** Turn off automatic
-beacon injection for the zone (Analytics → Web Analytics → the site → disable
-*Automatic Setup*). If the analytics are wanted, add the beacon `<script src=…>`
-to `apps/viewer/index.html` afterwards — it is a `src` script from an
-already-allowlisted origin, so it needs no hash and `gen-headers.mjs` will ignore
+Web Analytics was never involved. Measured: the delivered HTML had **zero**
+matches for `cloudflareinsights`, and a live page load made **zero** requests to
 it.
 
-**Do not "fix" this by adding `'unsafe-inline'`.** That would re-permit every
-inline script on the page and discard the protection the hash list exists to give.
+**No hash can ever cover it.** The script embeds a per-request ray id and
+timestamp, so its sha256 differs on every single load — three values measured
+inside one minute. Anyone pinning a hash is chasing a number that changed before
+they pasted it.
+
+### The fix, which is not in the dashboard
+
+Turning Bot Fight Mode off is **not sufficient**. `enable_js` is a separate zone
+flag that does not clear with it, and the Free plan renders it as read-only status
+text ("JS Detections: On") with no control. Verified via the API: `fight_mode:
+false` and `enable_js: true` at the same time.
+
+From an authenticated dashboard session:
+
+```js
+// GET first; PUT REPLACES the config, so echo every field back.
+// PATCH returns 405 — this endpoint is PUT-only.
+const cur = (await (await fetch(`/api/v4/zones/${ZONE}/bot_management`,
+  {credentials:'include'})).json()).result
+const body = {...cur, enable_js: false}; delete body.using_latest_model
+await fetch(`/api/v4/zones/${ZONE}/bot_management`,
+  {method:'PUT', credentials:'include',
+   headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)})
+```
+
+Zone `wear-run.help` = `805d8ae5fa0dea40c960a2561f66d141`. Injection stopped
+immediately.
+
+**Knock-on effect worth knowing:** this turned Bot Fight Mode **off**, which was
+the stated blocker for the API domain cutover. See the "RE-TEST THIS" note under
+"API + media domain cutover" below — that conclusion was drawn under conditions
+that have since changed.
+
+Two rejected alternatives, for the record:
+
+- **`Cache-Control: no-transform` on the HTML** — documented to stop the
+  injection, but it cannot be delivered to the SPA routes from `_headers` on this
+  deployment. Tried and measured; see `apps/viewer/scripts/csp.mjs`.
+- **CSP nonces** — Cloudflare adds matching nonces to what it injects by parsing
+  your CSP response header, but a nonce must be per-request, so it would need the
+  viewer Worker to rewrite the header per response. Nonces set via `<meta>` are
+  explicitly unsupported.
+
+**Never widen to `'unsafe-inline'`.** That would re-permit every inline script on
+the page and discard the protection the hash list exists to give.
 
 ## Rotating PAYLOAD_SECRET
 

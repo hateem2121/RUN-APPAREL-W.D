@@ -7,17 +7,19 @@ read [RAW-UPLOAD-PIPELINE.md](RAW-UPLOAD-PIPELINE.md) instead.
 
 ## Where things stand
 
-Think of it like a bakery:
+**This has been done for real, all the way through.** N001 — *Velocity Performance
+Skinsuit* — is live with a 27.0 MB model in five colourways (wine, blush, butter,
+lime, black). Scan its QR code and the garment spins, with the printed artwork
+intact and checked by eye.
 
-- The **oven** is fixed and switched on ✅
-- The **recipe** is written and tested ✅
-- There is **no dough** ❌
+So this guide is no longer "how to do the scary first one". It is **how to do the
+next one**, and the route below is the one that actually worked.
 
-Everything on the computer side works. What's missing is a garment file.
-
-**Right now, N001 "Velocity Performance Tee" has no 3D model attached.** If someone
-scans its QR code today, the page loads and all the text is correct, but the space
-where the garment should spin is empty. Attaching a model is what fixes that.
+> **Corrected 2026-08-08.** Until today this section said N001 had *no 3D model
+> attached* and described the project as an oven with no dough. That was true when
+> it was written and stopped being true on **2026-08-05**; nobody updated it. If
+> you are reading a claim in this file that feels stale, check the date on it —
+> `docs/HARDENING-LOG.md` and `raw/CANONICAL.json` are kept current.
 
 ---
 
@@ -196,18 +198,31 @@ do. A bare "Something went wrong." means one slipped through the net.
 
 ---
 
-## Where this actually stands (2026-07-29)
+## Where this actually stands (2026-08-08)
 
-**A real garment has now been all the way through.** A 382 MB CLO export was
-uploaded, shrunk to 19 MB, its colours mapped, published, and it renders on the
-live viewer. Five separate bugs were found and fixed getting there — every one of
-them invisible until a real file went through.
+**Ready to show a customer.** A 382 MB CLO export goes in, a 27 MB model comes
+out, its colours are named from the file itself, and it renders on the live
+viewer with the chest wordmark legible.
 
-**One problem is still open: the printed artwork.** Logos, graphics and wording
-come back broken — half visible, half not. This is being investigated; see
-[OPEN-ISSUE-ARTWORK.md](OPEN-ISSUE-ARTWORK.md). Until it is fixed, treat the
-pipeline as working mechanically but **not yet ready for a garment you would show
-a customer**.
+**The artwork problem is fixed.** Logos and wording used to come back
+half-visible; that was resolved on **2026-08-05** and is now held in place by an
+automatic check that renders the artwork before and after processing and measures
+how much moved. It runs on every deploy and blocks a bad one.
+
+> **Corrected 2026-08-08.** This section previously carried the 2026-07-29 status
+> — artwork "still open", and an instruction to treat the pipeline as **"not yet
+> ready for a garment you would show a customer"**. Both were superseded on
+> 2026-08-05 and the correction never reached this file, so for three days the
+> owner's own guide advised against the thing the system had just been fixed to
+> do. See [OPEN-ISSUE-ARTWORK.md](OPEN-ISSUE-ARTWORK.md) — status **CLOSED**,
+> kept under that filename because six source comments cite its hypotheses by
+> number.
+
+**One thing to know before garment #2.** The strongest artwork check —
+`pnpm eval:artwork:real` — is calibrated to N001's exact file and refuses to run
+on anything else. A new garment is covered by the automatic check on every deploy,
+but not yet by that one. Adding it means calibrating a ceiling for the new
+garment: `docs/RUNBOOK.md` → "Replacing or adding a garment".
 
 If something goes wrong, the manual route still works: see
 [README.md](../README.md) § 3, "Preparing 3D files".
