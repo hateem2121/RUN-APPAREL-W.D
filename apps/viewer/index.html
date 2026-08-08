@@ -8,6 +8,54 @@
       content="RUN APPAREL — interactive 3D product reference for B2B partners. Rotate, zoom and explore colourways of this development reference."
     />
     <title>RUN APPAREL — 3D Product Reference</title>
+
+    <!-- Link previews (Open Graph / Twitter cards).
+         Added 2026-08-08. Before this, a viewer link pasted into WhatsApp, email
+         or LinkedIn unfurled as a bare URL with no image — measured, not assumed:
+         the head carried only charset, viewport, description and title.
+
+         These are DELIBERATELY GENERIC. A link crawler does not run JavaScript,
+         so App.tsx's document.title never reaches it, and this file is one static
+         document served for every route by the SPA fallback. Per-garment previews
+         need the response rewritten per request — see the note at the bottom of
+         this block.
+
+         NOT SET, deliberately: `og:url` and <link rel="canonical">. A static value
+         for either would declare that /n001/wine IS the homepage, which is worse
+         than saying nothing — it invites crawlers to collapse every colourway into
+         one page. Both are per-page values or they are wrong.
+
+         og:image is a real render of the shipped garment (N001 wine, the default
+         colourway), 1200x1500 with its own "[ N001 / WINE ]" caption baked in.
+         Portrait rather than the 1.91:1 card ratio: platforms that letterbox
+         (WhatsApp, iMessage, Slack) keep the caption, and platforms that
+         centre-crop land on the chest wordmark, which is the detail worth showing.
+         Regenerate with: sips -s format jpeg output/posters/n001-wine-poster.webp
+           --out apps/viewer/public/og-default.jpg -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="RUN APPAREL" />
+    <meta property="og:title" content="RUN APPAREL — 3D Product Reference" />
+    <meta
+      property="og:description"
+      content="Interactive 3D garment reference for B2B partners. Rotate, zoom and switch colourways."
+    />
+    <meta property="og:image" content="https://viewer.wear-run.help/og-default.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="1500" />
+    <meta
+      property="og:image:alt"
+      content="The RUN APPAREL N001 performance skinsuit in wine, shown front-on."
+    />
+    <meta property="og:locale" content="en_GB" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="RUN APPAREL — 3D Product Reference" />
+    <meta
+      name="twitter:description"
+      content="Interactive 3D garment reference for B2B partners. Rotate, zoom and switch colourways."
+    />
+    <meta name="twitter:image" content="https://viewer.wear-run.help/og-default.jpg" />
+
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23CDF345'/%3E%3Ctext x='16' y='23' font-family='Archivo,system-ui,sans-serif' font-size='20' font-weight='900' text-anchor='middle' fill='%231D1F1A'%3ER%3C/text%3E%3C/svg%3E"
