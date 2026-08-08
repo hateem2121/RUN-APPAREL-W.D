@@ -1063,7 +1063,7 @@ async function main() {
  * render — and the FOV-clamp bug found on 2026-08-08 is exactly the kind that a
  * unit test should have caught years before a contact sheet did.
  */
-export { fovLadderFor, suggestViewFor, slugForPrint, resolveRawPath, cameraFingerprint }
+export { fovLadderFor, suggestViewFor, slugForPrint, resolveRawPath, cameraFingerprint, REPO_ROOT }
 
 if (process.argv[1] && import.meta.filename === process.argv[1]) {
   await main()

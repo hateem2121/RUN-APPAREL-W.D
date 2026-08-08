@@ -1,8 +1,15 @@
 import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { cameraFingerprint, fovLadderFor, resolveRawPath, slugForPrint, suggestViewFor } from './eval-artwork-real.mjs'
+import {
+  cameraFingerprint,
+  fovLadderFor,
+  REPO_ROOT,
+  resolveRawPath,
+  slugForPrint,
+  suggestViewFor,
+} from './eval-artwork-real.mjs'
 
 /**
  * Unit tests for `--find-views`, the discovery step that makes garment #2's
@@ -153,9 +160,17 @@ describe('resolveRawPath', () => {
    * failed for anyone who copied it verbatim. Found by running the documented
    * line rather than reading it.
    */
+  /**
+   * ⚠️ Compared against REPO_ROOT, never against a literal directory name. The
+   * first version asserted the result matched `/Model-Viewer-main\/raw\/…/` — the
+   * author's own checkout — and went green locally and red on CI, where the same
+   * repo lives at `/home/runner/work/run-apparel-viewer/run-apparel-viewer`. The
+   * behaviour was right; only the assertion was machine-specific.
+   */
   it('falls back to the repo root for a relative path that is not under cwd', async () => {
     const resolved = await resolveRawPath('raw/cycling-all-colours.glb')
-    expect(resolved).toMatch(/Model-Viewer-main\/raw\/cycling-all-colours\.glb$/)
+    expect(resolved).toBe(join(REPO_ROOT, 'raw/cycling-all-colours.glb'))
+    expect(isAbsolute(resolved)).toBe(true)
   })
 
   it('prefers a path that really exists relative to cwd', async () => {
