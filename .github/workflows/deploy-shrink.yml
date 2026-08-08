@@ -73,8 +73,97 @@ jobs:
         run: npm install --no-audit --no-fund && npx tsc --noEmit
       - run: pnpm test
 
+  # THE ARTWORK GATE, ON THE PATH THAT DECIMATES ARTWORK.
+  #
+  # Added 2026-08-08. Until then this workflow ran typecheck + unit tests ONLY,
+  # while ci.yml gated its deploy on four jobs including `pnpm eval:artwork`. The
+  # asymmetry was exactly backwards: ci.yml's paths do not touch decimation, and
+  # THIS one does — it is the only workflow that fires on `tools/asset-pipeline/**`
+  # and it ships the container that runs the pipeline over every real garment.
+  #
+  # The gap mattered because of the finding at the top of CLAUDE.md: the three
+  # blocking gates test `alphaMode`, which decimation does not change, so a preset
+  # that smears a printed wordmark passes typecheck, passes `pnpm test`, passes all
+  # three structural gates, and ships. The 2026-08-05 sweep proved it — run F
+  # rendered the chest wordmark illegible and reported `wouldShip: true`. This eval
+  # is the only automated thing in the repo that looks at the letters, and it was
+  # not running on the one path that can damage them.
+  #
+  # Deliberately a copy of ci.yml's job rather than a `workflow_call`, for the same
+  # reason the `verify` job above is a copy — see the note there.
+  artwork:
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Chromium only; the render harness runs software WebGL via swiftshader.
+      # Cache key matches ci.yml's artwork job on purpose — same browser set, same
+      # Playwright version, so the two workflows share one cache entry.
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "v=$(node -p 'require("./tools/asset-pipeline/node_modules/@playwright/test/package.json").version')" >> "$GITHUB_OUTPUT"
+      - name: Restore Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.v }}-chromium
+      - name: Install Chromium for the render harness (cache miss)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @run-apparel/asset-pipeline exec playwright install --with-deps chromium
+      - name: Install Chromium system deps (cache hit)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @run-apparel/asset-pipeline exec playwright install-deps chromium
+      - name: Artwork legibility eval
+        run: pnpm eval:artwork
+
+  # Dependency vulnerability gate, mirroring ci.yml. This workflow ships a Docker
+  # image built from the repo's own dependency tree, so "ci.yml already audits it"
+  # was never true for the container.
+  audit:
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Vulnerability audit (high/critical)
+        run: pnpm exec audit-ci --config audit-ci.jsonc
+
+  # Secret scanning, mirroring ci.yml — and note the lesson recorded there: a scan
+  # that cannot be named in a `needs:` list is not a gate. This job exists so the
+  # shrink deploy has one, rather than relying on ci.yml's, which runs in a
+  # different workflow and therefore cannot block this deploy.
+  secrets:
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # full history — a secret is usually in an older commit
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
   deploy:
-    needs: verify
+    # FOUR gates, matching ci.yml. `artwork`, `audit` and `secrets` joined on
+    # 2026-08-08; before that this deploy was gated on `verify` alone.
+    needs: [verify, artwork, audit, secrets]
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment:
