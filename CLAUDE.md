@@ -30,20 +30,29 @@ dies as `Timed out waiting 120000ms from config.webServer` with the real
 `status: 127` buried inside a child process. `.claude/settings.json` and
 `.claude/launch.json` already use the `npx` form; this line is why.
 
-**`NODE_ENV=development` is also exported globally on this machine, and it broke
-`next build` in a way that named nothing.** Found 2026-08-09. The CMS build died
-with `Error occurred prerendering page "/_global-error"` and
+**`NODE_ENV=development` in the environment broke `next build` in a way that
+named nothing.** Found 2026-08-09. The CMS build died with
+`Error occurred prerendering page "/_global-error"` and
 `TypeError: Cannot read properties of null (reading 'useContext')` — which reads
 as a React-version or duplicate-copy problem, and was first blamed on an unused
-`import React` that a linter had just removed. It was neither: `NODE_ENV` was
-`development`, Next prints only a mild "non-standard NODE_ENV" warning twenty
-lines earlier, and the same tree built cleanly the moment `NODE_ENV=production`
-was set. **Fixed at the source, exactly as `PORT` was:** `apps/cms`'s build
-script is now `NODE_ENV=production next build`, so the environment cannot reach
-it. Verified with `NODE_ENV=development` still exported. This is the second
-global env var from an unrelated project to cost a session here — if a build
-fails in a way that makes no sense, run `env | grep -E 'NODE_ENV|PORT'` before
-reading any code.
+`import React` that a linter had just removed. It was neither: Next prints only a
+mild "non-standard NODE_ENV" warning twenty lines earlier, and the same tree
+built cleanly the moment `NODE_ENV=production` was set. **Fixed at the source,
+exactly as `PORT` was:** `apps/cms`'s build script is now
+`NODE_ENV=production next build`, so the environment cannot reach it. Verified
+with `NODE_ENV=development` still exported.
+
+⚠️ **Where these variables come from is NOT settled, and the distinction matters
+before anyone goes hunting.** Measured 2026-08-09: neither `NODE_ENV` nor `PORT`
+appears in `~/.zshrc`, `~/.zshenv`, `~/.zprofile`, `~/.bash_profile` or
+`~/.profile`, yet both are set in the environment these sessions run in
+(`NODE_ENV=development`, `PORT=5002`). So they are probably supplied by the
+harness rather than by the owner's shell — which means the owner running the same
+command in their own terminal may never see either failure, and "it works for me"
+proves nothing about the other. Both are now fixed at the source anyway, which is
+why it does not matter day to day. **If a build or a test server fails in a way
+that makes no sense, run `env | grep -E 'NODE_ENV|PORT'` before reading any
+code** — that is twice now.
 
 **A `PORT` set for another project produces the IDENTICAL error, and did on
 2026-08-08.** `e2e/serve.mjs` reads `process.env.PORT ?? 4173` and inherits your
