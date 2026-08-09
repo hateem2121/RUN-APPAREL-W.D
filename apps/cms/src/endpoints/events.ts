@@ -1,5 +1,6 @@
 import { VIEWER_ANALYTICS_EVENTS } from '@run-apparel/shared'
 import type { Endpoint, PayloadRequest } from 'payload'
+import { type RateLimitState, checkRateLimit, createRateLimitState } from './eventsRateLimit'
 
 /**
  * POST /api/public/events
@@ -78,6 +79,13 @@ export function sanitizeEvents(rawItems: unknown, userAgent: string): EventRecor
   return out
 }
 
+/**
+ * Isolate-lifetime rate-limit counters. Module scope on purpose: one table per
+ * Worker isolate, shared by every request it serves. See ./eventsRateLimit for
+ * what this does and — more importantly — what it does not.
+ */
+let rateLimitState: RateLimitState | null = null
+
 export const eventsEndpoint: Endpoint = {
   path: '/public/events',
   method: 'post',
@@ -95,7 +103,30 @@ export const eventsEndpoint: Endpoint = {
       return new Response(null, { status: 204, headers }) // never 4xx a beacon
     }
 
-    for (const data of sanitizeEvents(parsed, ua)) {
+    const events = sanitizeEvents(parsed, ua)
+
+    // Rate limit AFTER sanitising, so the budget is spent on rows that would
+    // really be written rather than on whatever junk was posted.
+    const now = Date.now()
+    rateLimitState ??= createRateLimitState(now)
+    const limit = checkRateLimit(
+      rateLimitState,
+      req.headers?.get?.('cf-connecting-ip') ?? '',
+      events.length,
+      now,
+    )
+
+    if (limit.dropped > 0) {
+      // The ONLY signal that this happened. The response is 204 either way — a
+      // beacon must never see a 4xx — so without this line a flood is invisible
+      // until someone looks at the database. Goes to Workers Logs, which is
+      // enabled for this worker (observability in wrangler.jsonc).
+      req.payload.logger.warn(
+        `events: dropped ${limit.dropped} event(s) — rate limit (${limit.reason}).`,
+      )
+    }
+
+    for (const data of events.slice(0, limit.allowed)) {
       try {
         await req.payload.create({ collection: 'events', data, overrideAccess: true, req })
       } catch {

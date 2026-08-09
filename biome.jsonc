@@ -30,6 +30,10 @@
       // unreviewed diff can delete data.
       "!apps/cms/src/migrations",
       "!apps/cms/src/payload-types.ts",
+      // Next REWRITES this on every build, in its own style and with a different
+      // import path for `next dev` vs `next build`. Formatting it means `pnpm
+      // lint` fails after every single build.
+      "!apps/cms/next-env.d.ts",
       "!pnpm-lock.yaml"
     ]
   },

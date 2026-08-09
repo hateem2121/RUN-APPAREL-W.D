@@ -6,7 +6,7 @@
   "description": "RUN APPAREL private content administration (Payload CMS on Cloudflare Workers, D1 + R2)",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "NODE_ENV=production next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -42,7 +42,7 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "drizzle-orm": "0.45.2",
-    "typescript": "7.0.2",
+    "typescript": "6.0.3",
     "vitest": "4.1.10",
     "wrangler": "4.114.0"
   }
