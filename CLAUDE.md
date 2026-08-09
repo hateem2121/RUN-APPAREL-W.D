@@ -127,6 +127,28 @@ the answer is "nothing that happens in production", it is not a test.
   is above the old floor and was verified byte-identical across the change, so its
   calibration is untouched. Found by looking at a contact sheet, not by reading code
   — the four identical images were the tell.
+- **N001 guards THREE prints since 2026-08-09** — chest wordmark (14°), hem label
+  (2.7°), neck logo (3.1°) — and its ceiling went **4.2% → 6.5%** with them. That
+  is not a loosened gate: the hem label sits on a curved hem, decimates harder
+  than the flat chest print, and is now the worst case in all four rows (balanced
+  3.970%, control 10.520%, known-bad 12.330%). A harder view was added; no
+  measurement drifted. Three things from that session will save the next one:
+  **`--find-views` proposes the zoom that frames the PRIMITIVE**, which on the
+  neck logo sliced "RUN" off the bottom edge — the print is two elements and the
+  primitive covers one — so the shipped view is one rung wider than proposed, and
+  that is visible only in the PNG, never in the number. The camera-fingerprint
+  guard **used to refuse `--calibrate` itself**, blocking the one command its own
+  error message prescribed and leaving "hand-edit the fingerprint to a value you
+  have not measured" as the only way out; it is now exempt there, with a loud
+  notice. And `--keep` resolves against the CWD, which `pnpm` sets to
+  `tools/asset-pipeline/`, so artifact paths are now printed **absolute** — the
+  RUNBOOK's repo-relative one did not exist.
+  ⚠️ That calibration was measured on a **busy** machine (the wordmark column came
+  back 0.490/2.510/5.290/5.330, an exact match to the busy set recorded above).
+  Busy runs read ~0.48pp LOW, so the ceiling is tighter than intended rather than
+  looser, and the offset was added back explicitly when choosing 6.5%. Re-run idle
+  and append a remeasurement when convenient; **do not lower the ceiling to match
+  an idle run's higher `balanced`.**
 - **`pnpm eval:artwork:real -- raw/x.glb` did not resolve that path.** `pnpm`
   forwards the `--` separator itself into `process.argv`, and the root script
   delegates via `pnpm --filter`, which runs the child with cwd set to

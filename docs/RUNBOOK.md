@@ -502,20 +502,46 @@ the contact sheet.
    It builds the baseline, lists every artwork primitive with its world-space
    centre and size, then renders each of the largest four at four zoom levels
    **scaled to that print's own size**, and prints a paste-ready `views` block.
-   **Open `output/views/candidate-views.png`** and pick the frame that holds each
-   print with a little margin — too tight and decimation at the edges reads as
-   damage, too wide and the number starts describing fabric.
+   **Open the contact sheet it names** and pick the frame that holds each print
+   with a little margin — too tight and decimation at the edges reads as damage,
+   too wide and the number starts describing fabric.
+
+   ⚠️ It prints an ABSOLUTE path, and this line used to say
+   `output/views/candidate-views.png`, which does not exist at the repo root:
+   `--keep` resolves against the CWD and `pnpm` runs the script from
+   `tools/asset-pipeline/`. Corrected 2026-08-09, after following this very step
+   and getting "No such file". Same package-vs-repo-root confusion as the `--`
+   separator in step 0.
+
+   ⚠️ **The proposed zoom is a starting point, not an answer.** It frames the
+   PRIMITIVE's bounds. On N001's neck logo that clipped the "RUN" wordmark off
+   the bottom edge, because the print is two elements and the primitive only
+   covers one — so the shipped view is one rung wider than the tool proposed.
+   You cannot see that in the numbers, only in the picture.
 
    Keep only the prints worth guarding. Detection is deliberately the same
    `isArtworkTexture` the gates use, so it also surfaces things that are not
    really print — on N001 it reports both zip tapes.
 4. `pnpm eval:artwork:real -- raw/<name>.glb --calibrate --keep output/cal`
+
+   The camera-fingerprint guard is exempt under `--calibrate`; it prints a loud
+   notice instead of refusing. Until 2026-08-09 it was not, so adding a view to a
+   garment the manifest already knew made this step throw — the guard blocked the
+   exact command its own error message told you to run, and the only way past it
+   was to hand-edit the fingerprint to a value nobody had measured yet.
 5. **Open the contact sheets in `output/cal/`.** Confirm the known-bad case is
    visibly damaged and the shipped preset is not. This step is the authority; the
    numbers only record what you saw.
 6. Add an entry to `raw/CANONICAL.json` with the checksum, byte count, the views
    you chose, the `cameraFingerprint` from the calibrate run, and the ceiling —
    above `balanced`, below both `known-bad` and `control`.
+
+**N001 now guards three prints, not one** (chest wordmark, hem label, neck logo)
+— see `raw/CANONICAL.json`. Its ceiling rose from 4.2% to 6.5% when they were
+added, and that is not a ceiling being loosened to make something pass: the hem
+label sits on a curved hem, decimates harder than the flat chest print, and is
+now the worst case in every row. The shipped preset still measures 3.97% against
+it and is indistinguishable from the baseline by eye.
 
 **Zoom below 12° did nothing before 2026-08-08.** `<model-viewer>`'s
 `min-field-of-view` defaults to 12deg and the render harness never overrode it, so

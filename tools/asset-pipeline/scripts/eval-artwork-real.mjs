@@ -74,7 +74,7 @@ import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { mkdtemp, mkdir, readFile, access } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { isAbsolute, join } from 'node:path'
+import { isAbsolute, join, resolve } from 'node:path'
 import sharp from 'sharp'
 import { compareRenders } from '../src/compare.ts'
 import { createIO } from '../src/io.ts'
@@ -334,18 +334,40 @@ async function identifyGarment(raw, { calibrate }) {
 
     // The camera that produced `ceiling` must be the camera about to be used. See
     // cameraFingerprint() for why the zoom is pinned rather than measured.
+    //
+    // ⚠️ EXEMPT UNDER --calibrate, for the same reason an unknown checksum is, and
+    // this was NOT exempt until 2026-08-09. The guard refused the very command its
+    // own error message told you to run: adding a view to a KNOWN garment changed
+    // the fingerprint, so `--calibrate` — the command whose entire purpose is to
+    // produce a new fingerprint — threw before rendering anything. Following
+    // docs/RUNBOOK.md → "Replacing or adding a garment" step 4 hit it head-on. The
+    // only way out was to hand-edit the recorded fingerprint to a value you had
+    // not measured yet, which is exactly the move this guard exists to prevent.
     const recorded = garment.calibration?.cameraFingerprint
-    const actual = cameraFingerprint(views)
-    if (recorded && recorded !== actual) {
-      throw new Error(
-        `The camera for ${garment.productCode} has changed since its ceiling was calibrated.\n\n` +
-          `    calibrated with : ${recorded}\n` +
-          `    configured now  : ${actual}\n\n` +
-          `  The aim guard cannot catch this. Widening fieldOfView keeps the camera pointed at\n` +
-          `  exactly the same spot while the crop fills with fabric, so the damage number stays\n` +
-          `  plausible and starts describing seams instead of letters.\n\n` +
-          `  Re-calibrate: --calibrate, LOOK at the contact sheets, then update ceiling AND\n` +
-          `  cameraFingerprint in raw/CANONICAL.json together.`,
+    const configured = cameraFingerprint(views)
+    if (recorded && recorded !== configured) {
+      if (!calibrate) {
+        throw new Error(
+          `The camera for ${garment.productCode} has changed since its ceiling was calibrated.\n\n` +
+            `    calibrated with : ${recorded}\n` +
+            `    configured now  : ${configured}\n\n` +
+            `  The aim guard cannot catch this. Widening fieldOfView keeps the camera pointed at\n` +
+            `  exactly the same spot while the crop fills with fabric, so the damage number stays\n` +
+            `  plausible and starts describing seams instead of letters.\n\n` +
+            `  Re-calibrate: --calibrate, LOOK at the contact sheets, then update ceiling AND\n` +
+            `  cameraFingerprint in raw/CANONICAL.json together.`,
+        )
+      }
+      // Loud rather than silent: the run that follows measures a DIFFERENT camera
+      // from the one the recorded ceiling describes, so that ceiling means nothing
+      // until both values are replaced together.
+      console.log(
+        `\n⚠️  camera CHANGED since the last calibration\n` +
+          `      calibrated with : ${recorded}\n` +
+          `      configured now  : ${configured}\n` +
+          `    Expected here — calibrating is how a new camera becomes recorded. The\n` +
+          `    recorded ceiling does NOT describe this camera: LOOK at the sheets, then\n` +
+          `    update ceiling AND cameraFingerprint together.\n`,
       )
     }
 
@@ -816,8 +838,15 @@ async function findViews(raw, workDir) {
   const sheet = join(workDir, 'candidate-views.png')
   await montage(cells, sheet, FOV_LADDER_MULTIPLIERS.length)
 
-  console.log(`\n  contact sheet: ${sheet}`)
-  console.log(`  full-size frames: ${renderDir}\n`)
+  // ABSOLUTE, not the relative string that was passed in. `--keep output/views`
+  // is resolved against the CWD, and `pnpm` runs this with the CWD set to
+  // tools/asset-pipeline — so printing it back verbatim told the reader to open
+  // `output/views/candidate-views.png` at the repo root, where there is nothing.
+  // docs/RUNBOOK.md step 3 said exactly that, and it is the third time this
+  // package-vs-repo-root confusion has cost someone time (see CLAUDE.md on the
+  // `--` separator). An absolute path cannot be read the wrong way.
+  console.log(`\n  contact sheet: ${resolve(sheet)}`)
+  console.log(`  full-size frames: ${resolve(renderDir)}\n`)
 
   // The paste-ready block uses the 1.0× rung — the size-scaled estimate itself —
   // because something concrete beats a template. The whole point is that the
@@ -1077,7 +1106,7 @@ async function main() {
 
   if (calibrate) {
     console.log(`\nceiling currently ${pct(ceiling)}`)
-    console.log(`Artifacts in ${workDir}`)
+    console.log(`Artifacts in ${resolve(workDir)}`)
     console.log(
       '\nPick a ceiling ABOVE `balanced` and BELOW both `known-bad` and `control`.\n' +
         'If those do not separate, this metric cannot tell damage from decimation and must not gate.',

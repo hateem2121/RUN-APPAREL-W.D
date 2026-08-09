@@ -60,53 +60,36 @@
           "orbit": "-0.2deg 90deg 0.445m",
           "target": "0m 1.314m 0.069m",
           "fieldOfView": "14deg"
+        },
+        {
+          "name": "team-wear-front-label-3117",
+          "orbit": "-30.1deg 90deg 0.45m",
+          "target": "-0.050m 0.782m 0.060m",
+          "fieldOfView": "2.7deg"
+        },
+        {
+          "name": "teamwear-logo-3139",
+          "orbit": "-1.9deg 90deg 0.45m",
+          "target": "-0.001m 1.399m 0.030m",
+          "fieldOfView": "3.1deg"
         }
       ],
-      "$viewsComment": [
-        "NOT render.ts's DEFAULT_VIEWS. `crop-chest` is framed for a t-shirt; on this",
-        "skinsuit it frames torso and hips with the wordmark clipped off the top edge,",
-        "and `crop-back` shows a zipper. Derived from the artwork primitives' own",
-        "world-space bounds ('THE EXTRA MILE (Slogan)_3161' centres at y=1.314) and then",
-        "CHECKED BY EYE — a mis-aimed camera produces a plausible number for fabric.",
-        "",
-        "`radius` is nearly inert: model-viewer clamps orbit radius to its own framing of",
-        "the bounding sphere, so 0.445m / 0.300m / 0.180m render pixel-identically.",
-        "fieldOfView is the zoom control, which is why it is fingerprinted rather than",
-        "range-checked — there is no reliable way to compute projected size from a",
-        "distance the renderer overrides.",
-        "",
-        "⚠️ CORRECTION 2026-08-08: 'fieldOfView is the zoom control' was true only ABOVE",
-        "12deg. model-viewer's `min-field-of-view` defaults to 12deg and render.ts never",
-        "overrode it, so every tighter value was silently clamped — measured as four",
-        "BYTE-IDENTICAL renders at 1.4/2/3.1/4.5deg. Below the floor this manifest was",
-        "fingerprinting a zoom the renderer never used. render.ts now sets",
-        "`min-field-of-view=\"1deg\"`; the 14deg view here is unaffected and was verified",
-        "byte-identical across that change. Pinned by src/render.test.ts.",
-        "",
-        "NOT COVERED — and this was a LIMITATION, not a scoping decision, which is why it",
-        "is worth re-reading now that it is liftable. 'TEAM WEAR FRONT LABEL' at the hem",
-        "(0.039 m across) and 'Teamwear Logo' at the neck (0.030 m) could not be framed at",
-        "all under the 12deg floor: any print smaller than roughly a hand was unguardable",
-        "by construction. With the floor removed, `--find-views` frames both legibly (2.7deg",
-        "and 2.0deg respectively, contact sheet 2026-08-08). Adding them means adding views,",
-        "which changes `cameraFingerprint` and requires a fresh --calibrate plus a fresh look",
-        "at the sheets — NOT a paste. The two 'Zipper 3_TapeFabric' strips remain excluded on",
-        "merit: they are not print, though isArtworkTexture matches them on aspect ratio."
-      ],
+      "$viewsComment": "NOT render.ts's DEFAULT_VIEWS. `crop-chest` is framed for a t-shirt; on this\nskinsuit it frames torso and hips with the wordmark clipped off the top edge,\nand `crop-back` shows a zipper. Derived from the artwork primitives' own\nworld-space bounds ('THE EXTRA MILE (Slogan)_3161' centres at y=1.314) and then\nCHECKED BY EYE — a mis-aimed camera produces a plausible number for fabric.\n\n`radius` is nearly inert: model-viewer clamps orbit radius to its own framing of\nthe bounding sphere, so 0.445m / 0.300m / 0.180m render pixel-identically.\nfieldOfView is the zoom control, which is why it is fingerprinted rather than\nrange-checked — there is no reliable way to compute projected size from a\ndistance the renderer overrides.\n\n⚠️ CORRECTION 2026-08-08: 'fieldOfView is the zoom control' was true only ABOVE\n12deg. model-viewer's `min-field-of-view` defaults to 12deg and render.ts never\noverrode it, so every tighter value was silently clamped — measured as four\nBYTE-IDENTICAL renders at 1.4/2/3.1/4.5deg. Below the floor this manifest was\nfingerprinting a zoom the renderer never used. render.ts now sets\n`min-field-of-view=\"1deg\"`; the 14deg view here is unaffected and was verified\nbyte-identical across that change. Pinned by src/render.test.ts.\n\nCOVERED SINCE 2026-08-09, and the history is worth keeping because it explains\nwhy the ceiling moved. 'TEAM WEAR FRONT LABEL' at the hem (0.039 m across) and\n'Teamwear Logo' at the neck (0.030 m) were previously recorded here as NOT\nCOVERED — a LIMITATION, not a scoping decision: under model-viewer's 12deg\nmin-field-of-view floor, any print smaller than roughly a hand could not be\nframed at all. With the floor removed both are now guarded.\n\n⚠️ THE NECK LOGO IS AT 3.1deg, NOT the 2.0deg --find-views proposed. At 2deg the\nrunner mark is held but the 'RUN' wordmark below it is sliced off the bottom\nedge — the tool frames the PRIMITIVE's bounds, and this print is two elements.\nRung 3 holds the mark, the ® and 'RUN' with margin and no seam in frame. That\ndifference is only visible by opening the PNG, which is the whole reason step 1\nof the RUNBOOK procedure says to.\n\nThe hem label is at 2.7deg and is now the WORST CASE in every row of the\ncalibration — it sits on a curved hem, so decimation moves its geometry more\nthan the flat chest wordmark does. That is why the ceiling rose from 4.2% to\n6.5%: a harder view was added, not a measurement drifted. At the shipped preset\nthe label is indistinguishable from the baseline by eye.\n\nThe two 'Zipper 3_TapeFabric' strips remain excluded on merit: they are not\nprint, though isArtworkTexture matches them on aspect ratio.",
       "targetToleranceM": 0.05,
       "calibration": {
-        "commit": "d2e927fbdb0c6eeb912cc0eca349dfb7846b16ba",
-        "calibratedAt": "2026-08-06",
-        "ceiling": 0.042,
-        "cameraFingerprint": "3343ae5a96791175",
+        "commit": "365458aebdde990f9826727547ffbfcaf7aa4285",
+        "calibratedAt": "2026-08-09",
+        "ceiling": 0.065,
+        "cameraFingerprint": "35b4a539be86f1b5",
         "$cameraFingerprintComment": "Digest of `views` at the moment `ceiling` was measured. The eval refuses to run if they disagree. Widening fieldOfView keeps the camera aimed at the same point — so the aim guard stays green — while the crop fills with fabric and the number quietly starts describing seams. Change the views and this MUST be re-measured, not re-pasted.",
         "measured": {
-          "fidelity": 0.0098,
-          "balanced": 0.0299,
-          "knownBad": 0.0577,
-          "control": 0.0581
+          "fidelity": 0.0061,
+          "balanced": 0.0397,
+          "knownBad": 0.1233,
+          "control": 0.1052
         },
-        "$measuredComment": "From `--calibrate`, 145 s. knownBad is sweep run F (--simplify-error 0.005), which CLAUDE.md records as rendering the chest wordmark ILLEGIBLE and which the sweep itself reported as wouldShip:true. The ceiling must sit above `balanced` and below BOTH failure cases."
+        "$measuredComment": "WORST-OF-THREE-VIEWS, from --calibrate. The hem label is the worst case in every row and is what these numbers report; per view — fidelity 0.490/0.610/0.000, balanced 2.510/3.970/0.070, knownBad 5.290/12.330/4.420, control 5.330/10.520/9.460 (wordmark / hem label / neck logo, %). knownBad is sweep run F (--simplify-error 0.005), which CLAUDE.md records as rendering the chest wordmark ILLEGIBLE and which the sweep itself reported as wouldShip:true. The ceiling must sit above `balanced` and below BOTH failure cases.",
+        "$ceilingComment": "0.065, raised from 0.042 when the hem label and neck logo were added on 2026-08-09 — NOT to make anything green. The number went up because a HARDER VIEW was added, not because a measurement drifted: the hem label sits on a curved hem, so decimation moves its geometry more than the flat chest wordmark, and it is the worst case in all four rows. Chosen to clear `balanced` in BOTH machine regimes (3.970% measured busy here, ~4.45% projected idle using the +0.48pp offset CLAUDE.md records) while staying ~4pp under `control` and ~5.8pp under `knownBad`. The ratio to `balanced` is 1.5x, close to the 1.4x the 0.042 ceiling had. THE AUTHORITY WAS THE CONTACT SHEETS, not this arithmetic: at `balanced` the label is indistinguishable from the baseline — 'M', the runner mark, 'THE EXTRA MILE / TEAMWEARS' and the care line all read identically — and at knownBad the hem seam is visibly faceted and the label edges are warped."
       },
       "remeasurements": [
         {
@@ -149,6 +132,34 @@
           "evidence": [
             "docs/images/2026-08-07-real-eval-balanced.png",
             "docs/images/2026-08-07-real-eval-known-bad.png"
+          ]
+        },
+        {
+          "at": "2026-08-09",
+          "playwright": "1.62.0",
+          "fidelity": 0.0061,
+          "balanced": 0.0397,
+          "knownBad": 0.1233,
+          "control": 0.1052,
+          "verdict": "calibration",
+          "machine": "busy — the wordmark column came back 0.490/2.510/5.290/5.330, an EXACT three-decimal match to the busy set already recorded above, so this run is in the same regime",
+          "$comment": [
+            "THIS IS THE RUN THAT SET ceiling 0.065 AND cameraFingerprint 35b4a539be86f1b5.",
+            "",
+            "⚠️ IT WAS NOT AN IDLE RUN, and that is stated rather than hidden. CLAUDE.md says",
+            "to calibrate idle; the machine could not be quieted here because the desktop app",
+            "driving the session was itself the load (load average 3.7, no stray build",
+            "processes). The evidence that it is the busy regime is the wordmark column",
+            "matching the recorded busy numbers to three decimals.",
+            "",
+            "Why the ceiling is still safe: busy numbers run ~0.48pp LOW, so calibrating on",
+            "them yields a ceiling that is TIGHTER than intended, not looser. The offset was",
+            "added back explicitly when choosing 0.065 (see $ceilingComment), and there is",
+            "still ~4pp of gap to the nearest damage case either way.",
+            "",
+            "Reproducible: two consecutive --calibrate runs produced identical numbers to",
+            "three decimals. Re-run idle when convenient and append a remeasurement; do NOT",
+            "lower the ceiling to match an idle run's higher `balanced`."
           ]
         }
       ]
