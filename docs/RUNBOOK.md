@@ -1220,6 +1220,14 @@ A **403 or 429 exits 0 as inconclusive**, deliberately: it asks for a page with 
 crawler user-agent from a datacenter IP, which is the most challengeable request
 shape there is, and a bot rule must never read as "the previews are broken".
 
+⚠️ **It retries, and the reason is worth knowing.** `wrangler deploy` returns when
+Cloudflare has accepted the upload, not when every colo is serving the new
+version. The very first CI run of this check ran about a second after the deploy
+step, read the *previous* version, and reported all five assertions failing in
+convincing detail — while the same URL checked by hand minutes later passed every
+one. Six attempts, ten seconds apart. If you add another post-deploy check
+against the viewer, give it the same treatment.
+
 ### Why only crawlers get the rewrite
 
 Measured 2026-08-08, warm connection, five requests each:
