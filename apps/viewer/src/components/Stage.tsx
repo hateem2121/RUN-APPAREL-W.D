@@ -72,6 +72,13 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   const loadedSrcRef = useRef<string | null>(null)
 
   // Attempt 3D only when the device/browser/network can carry it.
+  //
+  // `product.productCode`, `selected.variantId` and `separateMode` appear in this
+  // effect only inside diagnostic() payloads — they label a report, they never
+  // decide anything. The effect's actual input is `glbUrl`, which already changes
+  // whenever any of the three could. Adding them would re-run the model set-up on
+  // identity changes that mean nothing, in the most delicate component here.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: report labels only, never inputs — see above
   useEffect(() => {
     // Two very different failures, previously collapsed into one branch whose
     // diagnostic was guarded by `if (glbUrl)` — so the WORSE of the two reported
@@ -266,7 +273,14 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
         })
       }
     }
-  }, [modelLoaded, displayed.variantId, displayed.slug, selected.slug, separateMode, product.productCode])
+  }, [
+    modelLoaded,
+    displayed.variantId,
+    displayed.slug,
+    selected.slug,
+    separateMode,
+    product.productCode,
+  ])
 
   // Tell the parent when a variant swap would actually be visible, so the tabs
   // can choose between previewing on the garment and showing a thumbnail.
@@ -311,7 +325,12 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
     <section className="stage" aria-label="Interactive 3D product reference">
       <div className="stage__inner">
         <div className="stage__canvas" data-lenis-prevent>
-          <svg className="stage__contours" aria-hidden="true" viewBox="0 0 1200 640" preserveAspectRatio="xMidYMid slice">
+          <svg
+            className="stage__contours"
+            aria-hidden="true"
+            viewBox="0 0 1200 640"
+            preserveAspectRatio="xMidYMid slice"
+          >
             <g fill="none" stroke="currentColor" strokeWidth="1">
               <path d="M-40 520 C 220 430, 420 610, 700 520 S 1120 430, 1260 500" />
               <path d="M-40 560 C 240 480, 460 640, 740 560 S 1140 470, 1260 540" />

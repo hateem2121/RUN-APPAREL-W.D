@@ -135,7 +135,9 @@ export async function seed(payload: Payload, assetsDir: string): Promise<void> {
   for (const colourway of COLOURWAYS) {
     const poster = await payload.create({
       collection: 'media',
-      data: { alt: `Velocity Performance Tee in ${colourway.displayName}, front three-quarter view` },
+      data: {
+        alt: `Velocity Performance Tee in ${colourway.displayName}, front three-quarter view`,
+      },
       filePath: path.join(placeholderDir, `n001-${colourway.slug}-poster.webp`),
     })
     posterIds[colourway.slug] = poster.id
@@ -176,7 +178,7 @@ export async function seed(payload: Payload, assetsDir: string): Promise<void> {
         altText: `Velocity Performance Tee in ${colourway.displayName}`,
         hexSwatch: colourway.hexSwatch,
       })),
-      posterFallback: posterIds['navy'],
+      posterFallback: posterIds.navy,
       fabricComposition: 'Recycled polyester / elastane',
       gsm: '160 GSM',
       performanceFeatures: [

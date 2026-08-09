@@ -34,6 +34,9 @@
   "scripts": {
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
+    "lint": "biome check .",
+    "lint:fix": "biome check . --write",
+    "format": "biome format . --write",
     "test": "pnpm -r test",
     "dev:viewer": "pnpm --filter @run-apparel/viewer dev",
     "dev:cms": "pnpm --filter @run-apparel/cms dev",
@@ -46,6 +49,7 @@
     "og:cards": "pnpm --filter @run-apparel/asset-pipeline og:cards"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.4.2",
     "@lhci/cli": "0.15.1",
     "audit-ci": "7.1.0"
   }

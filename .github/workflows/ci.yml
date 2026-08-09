@@ -21,6 +21,18 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+
+      # Style + lint (Biome). Runs BEFORE typecheck because it is the cheapest
+      # check in the job — tens of milliseconds across 192 files — so a formatting
+      # slip fails in seconds rather than after the whole suite.
+      #
+      # It earned its place on the first run: `noUnusedVariables` found that
+      # REFERENCE_PATHS in scripts/find-orphan-media.mjs was declared and never
+      # read, while mediaReferences.test.ts instructs the next person to update it
+      # when adding a Media relationship. Following that instruction would have
+      # left the orphan finder blind to the new field — and it can delete files.
+      - run: pnpm lint
+
       - run: pnpm typecheck
 
       # The shrink container is NOT a workspace member (see its package.json), so

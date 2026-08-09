@@ -102,8 +102,24 @@ const BASELINE_FLAGS = ['--meshopt']
  * Docker image, where `workspace:*` cannot resolve. Pinned by
  * `assertPresetMatchesShared()` below.
  */
-const BALANCED_FLAGS = ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.001', '--uv-weight', '1']
-const FIDELITY_FLAGS = ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.0002', '--uv-weight', '2']
+const BALANCED_FLAGS = [
+  '--simplify',
+  '0.05',
+  '--meshopt',
+  '--simplify-error',
+  '0.001',
+  '--uv-weight',
+  '1',
+]
+const FIDELITY_FLAGS = [
+  '--simplify',
+  '0.05',
+  '--meshopt',
+  '--simplify-error',
+  '0.0002',
+  '--uv-weight',
+  '2',
+]
 
 /**
  * The negative control: the shipped preset with UV protection switched off.
@@ -112,10 +128,26 @@ const FIDELITY_FLAGS = ['--simplify', '0.05', '--meshopt', '--simplify-error', '
  * leaves the UV weight unset by default, so a caller that stops passing the flag
  * loses artwork protection silently. A realistic regression, not a contrived one.
  */
-const CONTROL_FLAGS = ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.001', '--uv-weight', '0']
+const CONTROL_FLAGS = [
+  '--simplify',
+  '0.05',
+  '--meshopt',
+  '--simplify-error',
+  '0.001',
+  '--uv-weight',
+  '0',
+]
 
 /** Run F from the 2026-08-05 sweep: known to render the wordmark illegible. */
-const KNOWN_BAD_FLAGS = ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.005', '--uv-weight', '1']
+const KNOWN_BAD_FLAGS = [
+  '--simplify',
+  '0.05',
+  '--meshopt',
+  '--simplify-error',
+  '0.005',
+  '--uv-weight',
+  '1',
+]
 
 /**
  * Damage ceiling: fraction of pixels in the wordmark crop differing from the
@@ -189,7 +221,12 @@ const DEFAULT_CEILING = 0.042
  * carries a `cameraFingerprint` that must match the calibration.
  */
 const DEFAULT_ARTWORK_VIEWS = [
-  { name: 'wordmark', orbit: '-0.2deg 90deg 0.445m', target: '0m 1.314m 0.069m', fieldOfView: '14deg' },
+  {
+    name: 'wordmark',
+    orbit: '-0.2deg 90deg 0.445m',
+    target: '0m 1.314m 0.069m',
+    fieldOfView: '14deg',
+  },
 ]
 
 /**
@@ -210,7 +247,9 @@ const DEFAULT_ARTWORK_VIEWS = [
  */
 function cameraFingerprint(views) {
   return createHash('sha256')
-    .update(JSON.stringify(views.map((v) => [v.name, v.orbit, v.target ?? '', v.fieldOfView ?? ''])))
+    .update(
+      JSON.stringify(views.map((v) => [v.name, v.orbit, v.target ?? '', v.fieldOfView ?? ''])),
+    )
     .digest('hex')
     .slice(0, 16)
 }
@@ -311,7 +350,9 @@ async function identifyGarment(raw, { calibrate }) {
     }
 
     console.log(`garment:  ${garment.productCode} (${id}) — checksum matches the manifest`)
-    console.log(`views:    ${views.map((v) => v.name).join(', ')}   ceiling ${(ceiling * 100).toFixed(3)}%`)
+    console.log(
+      `views:    ${views.map((v) => v.name).join(', ')}   ceiling ${(ceiling * 100).toFixed(3)}%`,
+    )
     return { id, garment, views, ceiling, tolerance }
   }
 
@@ -501,7 +542,10 @@ async function assertViewFramesArtwork(glbPath, views, toleranceM) {
         .map((p) => ({ p, d: Math.hypot(...[0, 1, 2].map((k) => target[k] - p.centre[k])) }))
         .sort((a, b) => a.d - b.d)
         .slice(0, 5)
-        .map(({ p, d }) => `      ${d.toFixed(3)} m  "${p.name}" at ${p.centre.map((n) => n.toFixed(3)).join(', ')}`)
+        .map(
+          ({ p, d }) =>
+            `      ${d.toFixed(3)} m  "${p.name}" at ${p.centre.map((n) => n.toFixed(3)).join(', ')}`,
+        )
         .join('\n')
 
       throw new Error(
@@ -605,7 +649,8 @@ const FIND_VIEWS_MAX_PRINTS = 4
  */
 function suggestViewFor(print, modelMin, modelMax, fieldOfView) {
   const modelCentre = [0, 1, 2].map((k) => (modelMin[k] + modelMax[k]) / 2)
-  const theta = (Math.atan2(print.centre[0] - modelCentre[0], print.centre[2] - modelCentre[2]) * 180) / Math.PI
+  const theta =
+    (Math.atan2(print.centre[0] - modelCentre[0], print.centre[2] - modelCentre[2]) * 180) / Math.PI
   return {
     name: slugForPrint(print),
     orbit: `${theta.toFixed(1)}deg 90deg 0.45m`,
@@ -649,7 +694,11 @@ async function montage(cells, outFile, columns, cell = 384) {
       top: y,
       left: x,
     })
-    layers.push({ input: await sharp(file).resize(cell, cell, { fit: 'contain' }).toBuffer(), top: y + label, left: x })
+    layers.push({
+      input: await sharp(file).resize(cell, cell, { fit: 'contain' }).toBuffer(),
+      top: y + label,
+      left: x,
+    })
   }
 
   await sharp({
@@ -695,7 +744,9 @@ async function findViews(raw, workDir) {
 
   const { prints, modelMin, modelMax } = await findArtworkPrints(baseGlb)
 
-  console.log(`${prints.length} artwork primitive${prints.length === 1 ? '' : 's'}, largest first:\n`)
+  console.log(
+    `${prints.length} artwork primitive${prints.length === 1 ? '' : 's'}, largest first:\n`,
+  )
   console.log('    #   area m²   centre x, y, z              span w×h m      material')
   for (const [i, p] of prints.entries()) {
     console.log(
@@ -712,7 +763,10 @@ async function findViews(raw, workDir) {
     // failure mode this file exists to prevent.
     console.log(
       `⚠️  rendering the largest ${chosen.length} only. NOT rendered: ` +
-        `${prints.slice(chosen.length).map((p) => `"${p.name}"`).join(', ')}.\n` +
+        `${prints
+          .slice(chosen.length)
+          .map((p) => `"${p.name}"`)
+          .join(', ')}.\n` +
         `    Their centres are in the table above — a view can be written by hand from one.\n`,
     )
   }
@@ -810,7 +864,11 @@ async function damageFor(raw, baselineDir, workDir, label, flags, views, variant
   const renderDir = join(workDir, `render-${label}`)
   await renderViews(out, renderDir, { views, width: RENDER_SIZE, height: RENDER_SIZE, variant })
 
-  const { diffs } = await compareRenders(baselineDir, renderDir, join(workDir, `sheet-${label}.png`))
+  const { diffs } = await compareRenders(
+    baselineDir,
+    renderDir,
+    join(workDir, `sheet-${label}.png`),
+  )
   const perView = {}
   for (const view of views) {
     perView[view.name] = diffs.find((d) => d.view === view.name)?.changedFraction ?? 0
@@ -992,11 +1050,21 @@ async function main() {
     let worstOverall = null
     for (const variant of measured) {
       const suffix = variant === null ? '' : `-${variant.replace(/[^a-z0-9]+/gi, '-')}`
-      const r = await damageFor(raw, baselineFor.get(variant), workDir, `${slug}${suffix}`, flags, views, variant)
+      const r = await damageFor(
+        raw,
+        baselineFor.get(variant),
+        workDir,
+        `${slug}${suffix}`,
+        flags,
+        views,
+        variant,
+      )
       r.variant = variant
       if (!worstOverall || r.worst > worstOverall.worst) worstOverall = r
       if (measured.length > 1) {
-        console.log(`    ${(variant ?? 'default').padEnd(32)} worst ${pct(r.worst).padStart(8)} (${r.worstView})`)
+        console.log(
+          `    ${(variant ?? 'default').padEnd(32)} worst ${pct(r.worst).padStart(8)} (${r.worstView})`,
+        )
       }
     }
     results[label] = worstOverall
@@ -1017,9 +1085,9 @@ async function main() {
     return
   }
 
-  const shipped = results['balanced']
-  const fidelity = results['fidelity']
-  const control = results['control']
+  const shipped = results.balanced
+  const fidelity = results.fidelity
+  const control = results.control
 
   console.log(`\n  ceiling ${pct(ceiling)}`)
 
@@ -1054,7 +1122,9 @@ async function main() {
   }
 
   const margin = control.worst / Math.max(shipped.worst, 1e-9)
-  console.log(`\n✓ real-garment artwork eval passed — the control does ${margin.toFixed(1)}× the shipped preset's damage`)
+  console.log(
+    `\n✓ real-garment artwork eval passed — the control does ${margin.toFixed(1)}× the shipped preset's damage`,
+  )
 }
 
 /**

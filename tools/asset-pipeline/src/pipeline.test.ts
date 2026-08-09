@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Document } from '@gltf-transform/core'
@@ -7,7 +7,12 @@ import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createIO } from './io'
 import { mergeVariants, parseMergeArgs } from './merge-variants'
-import { DEFAULT_SIMPLIFY_ERROR, optimizeGlb, parseOptimizeArgs, solidifyMaterials } from './optimize'
+import {
+  DEFAULT_SIMPLIFY_ERROR,
+  optimizeGlb,
+  parseOptimizeArgs,
+  solidifyMaterials,
+} from './optimize'
 import {
   PLACEHOLDER_ARTWORK,
   PLACEHOLDER_COLOURWAYS,
@@ -32,7 +37,7 @@ async function writeTexturedGlb(file: string, sizePx = 512): Promise<void> {
   const io = await createIO()
   // A noisy PNG so it is genuinely heavy (compresses well to WebP, unlike a flat fill).
   const raw = Buffer.alloc(sizePx * sizePx * 3)
-  for (let i = 0; i < raw.length; i++) raw[i] = (Math.sin(i * 12.9898) * 43758.5453 % 1) * 255
+  for (let i = 0; i < raw.length; i++) raw[i] = ((Math.sin(i * 12.9898) * 43758.5453) % 1) * 255
   const png = await sharp(raw, { raw: { width: sizePx, height: sizePx, channels: 3 } })
     .png({ compressionLevel: 0 })
     .toBuffer()
@@ -95,10 +100,25 @@ async function writeGridGlb(file: string, n: number): Promise<void> {
   const at = (x: number, y: number) => y * (n + 1) + x
   for (let y = 0; y < n; y++)
     for (let x = 0; x < n; x++)
-      indices.push(at(x, y), at(x + 1, y), at(x, y + 1), at(x + 1, y), at(x + 1, y + 1), at(x, y + 1))
+      indices.push(
+        at(x, y),
+        at(x + 1, y),
+        at(x, y + 1),
+        at(x + 1, y),
+        at(x + 1, y + 1),
+        at(x, y + 1),
+      )
   const buf = doc.getRoot().listBuffers()[0]!
-  const pos = doc.createAccessor().setType('VEC3').setArray(new Float32Array(positions)).setBuffer(buf)
-  const idx = doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(indices)).setBuffer(buf)
+  const pos = doc
+    .createAccessor()
+    .setType('VEC3')
+    .setArray(new Float32Array(positions))
+    .setBuffer(buf)
+  const idx = doc
+    .createAccessor()
+    .setType('SCALAR')
+    .setArray(new Uint32Array(indices))
+    .setBuffer(buf)
   const mat = doc.createMaterial('m').setBaseColorFactor([0.5, 0.5, 0.5, 1])
   const prim = doc.createPrimitive().setAttribute('POSITION', pos).setIndices(idx).setMaterial(mat)
   doc.createScene('s').addChild(doc.createNode('n').setMesh(doc.createMesh('m').addPrimitive(prim)))
@@ -159,7 +179,10 @@ describe('mergeVariants', () => {
     // variants map to. 6 + 1 SVG decal + 5 real profiles = 12.
     expect(report.materialCount).toBe(7 + PLACEHOLDER_ARTWORK.length)
 
-    const check = checkVariants(report, PLACEHOLDER_COLOURWAYS.map((c) => c.variantId))
+    const check = checkVariants(
+      report,
+      PLACEHOLDER_COLOURWAYS.map((c) => c.variantId),
+    )
     expect(check).toEqual({ ok: true, missing: [], extra: [] })
   })
 
@@ -208,7 +231,9 @@ describe('mergeVariants', () => {
       .setArray(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]))
       .setBuffer(box.getRoot().listBuffers()[0]!)
     const prim = box.createPrimitive().setAttribute('POSITION', position).setMaterial(material)
-    box.createScene('s').addChild(box.createNode('n').setMesh(box.createMesh('m').addPrimitive(prim)))
+    box
+      .createScene('s')
+      .addChild(box.createNode('n').setMesh(box.createMesh('m').addPrimitive(prim)))
     const boxFile = join(dir, 'box.glb')
     await io.write(boxFile, box)
 
@@ -225,9 +250,9 @@ describe('mergeVariants', () => {
 
   it('rejects fewer than two inputs and duplicate variant names', async () => {
     const navy = join(dir, 'placeholders', 'n001-navy.glb')
-    await expect(mergeVariants([{ file: navy, variantName: 'N001-NAVY' }], join(dir, 'x.glb'))).rejects.toThrow(
-      /at least two/,
-    )
+    await expect(
+      mergeVariants([{ file: navy, variantName: 'N001-NAVY' }], join(dir, 'x.glb')),
+    ).rejects.toThrow(/at least two/)
     await expect(
       mergeVariants(
         [
@@ -262,7 +287,10 @@ describe('placeholder tee document', () => {
   it('keeps primitive order stable across colourways', async () => {
     for (const colourway of PLACEHOLDER_COLOURWAYS) {
       const tee = await buildPlaceholderTee(colourway)
-      const prims = tee.getRoot().listMeshes().flatMap((m) => m.listPrimitives())
+      const prims = tee
+        .getRoot()
+        .listMeshes()
+        .flatMap((m) => m.listPrimitives())
       expect(prims).toHaveLength(PLACEHOLDER_PRIMITIVES)
       const names = prims.map((p) => p.getMaterial()?.getName())
       expect(names).toEqual([
@@ -285,7 +313,10 @@ describe('placeholder tee document', () => {
     //   alpha cutout      H3/H6, BLEND being flattened to OPAQUE
     //   coplanar offset   H6, z-fighting after quantization
     const tee = await buildPlaceholderTee(PLACEHOLDER_COLOURWAYS[0]!)
-    const prims = tee.getRoot().listMeshes().flatMap((m) => m.listPrimitives())
+    const prims = tee
+      .getRoot()
+      .listMeshes()
+      .flatMap((m) => m.listPrimitives())
     const decal = prims.at(-1)!
 
     expect(decal.getAttribute('TEXCOORD_1')).toBeTruthy()
@@ -316,7 +347,7 @@ describe('placeholder tee document', () => {
  * @run-apparel/shared, on the fixture built to be capable of failing.
  */
 describe('optimizeGlb — the artwork guards engage on the real chain', () => {
-  it('weights the decal\'s UV set and reports no artwork at risk', async () => {
+  it("weights the decal's UV set and reports no artwork at risk", async () => {
     const tee = await buildPlaceholderTee(PLACEHOLDER_COLOURWAYS[0]!)
     const src = join(dir, 'artwork-src.glb')
     const out = join(dir, 'artwork-out.glb')
@@ -367,7 +398,12 @@ describe('optimizeGlb — the artwork guards engage on the real chain', () => {
 
     // And nothing was left behind on BLEND — the exact condition that made the
     // shrink worker throw PermanentJobError on 2026-08-04.
-    expect(optimized.getRoot().listMaterials().filter((m) => m.getAlphaMode() === 'BLEND')).toEqual([])
+    expect(
+      optimized
+        .getRoot()
+        .listMaterials()
+        .filter((m) => m.getAlphaMode() === 'BLEND'),
+    ).toEqual([])
   })
 })
 
@@ -558,12 +594,17 @@ describe('optimizeGlb — KTX2 / Basis Universal textures', () => {
     // Small (64px) textures keep Basis encoding fast in the test.
     const raw = Buffer.alloc(64 * 64 * 3)
     for (let i = 0; i < raw.length; i++) raw[i] = (Math.sin(i * 0.7) * 128 + 128) & 255
-    const png = await sharp(raw, { raw: { width: 64, height: 64, channels: 3 } }).png().toBuffer()
+    const png = await sharp(raw, { raw: { width: 64, height: 64, channels: 3 } })
+      .png()
+      .toBuffer()
 
     const doc = new Document()
     doc.createBuffer()
     const base = doc.createTexture('base').setImage(new Uint8Array(png)).setMimeType('image/png')
-    const normal = doc.createTexture('normal').setImage(new Uint8Array(png)).setMimeType('image/png')
+    const normal = doc
+      .createTexture('normal')
+      .setImage(new Uint8Array(png))
+      .setMimeType('image/png')
     const m = doc.createMaterial('m').setBaseColorTexture(base).setNormalTexture(normal)
     const pos = doc
       .createAccessor()
@@ -582,7 +623,9 @@ describe('optimizeGlb — KTX2 / Basis Universal textures', () => {
       .setMaterial(m)
     m.getBaseColorTextureInfo()?.setTexCoord(0)
     m.getNormalTextureInfo()?.setTexCoord(0)
-    doc.createScene('s').addChild(doc.createNode('n').setMesh(doc.createMesh('mm').addPrimitive(prim)))
+    doc
+      .createScene('s')
+      .addChild(doc.createNode('n').setMesh(doc.createMesh('mm').addPrimitive(prim)))
 
     const src = join(dir, 'ktx-src.glb')
     await io.write(src, doc)
@@ -593,12 +636,17 @@ describe('optimizeGlb — KTX2 / Basis Universal textures', () => {
 
     // A fresh reader sees KTX2 textures under KHR_texture_basisu.
     const reread = await createIO().then((io2) => io2.read(out))
-    const used = reread.getRoot().listExtensionsUsed().map((e) => e.extensionName)
+    const used = reread
+      .getRoot()
+      .listExtensionsUsed()
+      .map((e) => e.extensionName)
     expect(used).toContain('KHR_texture_basisu')
     for (const t of reread.getRoot().listTextures()) {
       expect(t.getMimeType()).toBe('image/ktx2')
       // Valid KTX2 identifier: 0xAB 'KTX 20' 0xBB \r \n \x1A \n
-      expect(Buffer.from(t.getImage()!.slice(0, 12)).toString('hex')).toBe('ab4b5458203230bb0d0a1a0a')
+      expect(Buffer.from(t.getImage()!.slice(0, 12)).toString('hex')).toBe(
+        'ab4b5458203230bb0d0a1a0a',
+      )
     }
   }, 60_000)
 })
@@ -615,7 +663,10 @@ describe('optimizeGlb — Meshopt geometry', () => {
     expect(report.primitiveCount).toBe(PLACEHOLDER_PRIMITIVES)
 
     const reread = await createIO().then((io) => io.read(out))
-    const used = reread.getRoot().listExtensionsUsed().map((e) => e.extensionName)
+    const used = reread
+      .getRoot()
+      .listExtensionsUsed()
+      .map((e) => e.extensionName)
     expect(used).toContain('EXT_meshopt_compression')
   })
 })
@@ -625,24 +676,45 @@ describe('parseOptimizeArgs (CLI contract)', () => {
     const parsed = parseOptimizeArgs(['in.glb', '--out', 'out.glb'])
     expect(parsed.input).toBe('in.glb')
     expect(parsed.out).toBe('out.glb')
-    expect(parsed.options).toMatchObject({ texture: 'webp', geometry: 'none', maxTextureSize: 2048 })
+    expect(parsed.options).toMatchObject({
+      texture: 'webp',
+      geometry: 'none',
+      maxTextureSize: 2048,
+    })
   })
   it('honours --no-webp, --meshopt, --max-texture and --quality', () => {
     const parsed = parseOptimizeArgs([
-      'in.glb', '--out', 'o.glb', '--no-webp', '--meshopt', '--max-texture', '1024', '--quality', '90',
+      'in.glb',
+      '--out',
+      'o.glb',
+      '--no-webp',
+      '--meshopt',
+      '--max-texture',
+      '1024',
+      '--quality',
+      '90',
     ])
     expect(parsed.options).toMatchObject({
-      texture: 'none', geometry: 'meshopt', maxTextureSize: 1024, textureQuality: 90,
+      texture: 'none',
+      geometry: 'meshopt',
+      maxTextureSize: 1024,
+      textureQuality: 90,
     })
   })
   it('defaults opaque on and honours --keep-transparency / --no-opaque', () => {
     expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb']).options.opaque).toBe(true)
-    expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb', '--keep-transparency']).options.opaque).toBe(false)
-    expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb', '--no-opaque']).options.opaque).toBe(false)
+    expect(
+      parseOptimizeArgs(['in.glb', '--out', 'o.glb', '--keep-transparency']).options.opaque,
+    ).toBe(false)
+    expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb', '--no-opaque']).options.opaque).toBe(
+      false,
+    )
   })
   it('parses --simplify <ratio> (off by default)', () => {
     expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb']).options.simplify).toBeUndefined()
-    expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb', '--simplify', '0.05']).options.simplify).toBe(0.05)
+    expect(
+      parseOptimizeArgs(['in.glb', '--out', 'o.glb', '--simplify', '0.05']).options.simplify,
+    ).toBe(0.05)
     expect(parseMergeArgs(['--simplify', '0.1', 'a.glb=N001-A']).options.simplify).toBe(0.1)
   })
 
@@ -671,7 +743,13 @@ describe('parseOptimizeArgs (CLI contract)', () => {
     expect(bare.simplifyNormalWeight).toBeUndefined()
 
     const weighted = parseOptimizeArgs([
-      'in.glb', '--out', 'o.glb', '--uv-weight', '2', '--normal-weight', '0.25',
+      'in.glb',
+      '--out',
+      'o.glb',
+      '--uv-weight',
+      '2',
+      '--normal-weight',
+      '0.25',
     ]).options
     expect(weighted.simplifyUvWeight).toBe(2)
     expect(weighted.simplifyNormalWeight).toBe(0.25)
@@ -679,7 +757,13 @@ describe('parseOptimizeArgs (CLI contract)', () => {
 
   it('exposes the same decimation flags on merge, so the two commands cannot drift', () => {
     const parsed = parseMergeArgs([
-      '--simplify', '0.05', '--simplify-error', '0.0005', '--uv-weight', '2', 'a.glb=N001-A',
+      '--simplify',
+      '0.05',
+      '--simplify-error',
+      '0.0005',
+      '--uv-weight',
+      '2',
+      'a.glb=N001-A',
     ]).options
     expect(parsed).toMatchObject({
       simplify: 0.05,
@@ -718,7 +802,12 @@ describe('solidifyMaterials (opaque + double-sided)', () => {
       .composite([
         {
           input: {
-            create: { width: 16, height: 8, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } },
+            create: {
+              width: 16,
+              height: 8,
+              channels: 4,
+              background: { r: 255, g: 255, b: 255, alpha: 1 },
+            },
           },
           top: 12,
           left: 8,
@@ -739,7 +828,9 @@ describe('solidifyMaterials (opaque + double-sided)', () => {
       raw[i * 4 + 2] = 200
       raw[i * 4 + 3] = Math.round((255 * (i % width)) / (width - 1))
     }
-    const png = await sharp(raw, { raw: { width, height: 4, channels: 4 } }).png().toBuffer()
+    const png = await sharp(raw, { raw: { width, height: 4, channels: 4 } })
+      .png()
+      .toBuffer()
     return new Uint8Array(png)
   }
 
@@ -764,7 +855,10 @@ describe('solidifyMaterials (opaque + double-sided)', () => {
     // is half there. MASK keeps the shape AND stays order-independent, which
     // leaving it on BLEND would not.
     const doc = new Document()
-    const texture = doc.createTexture('chest-logo').setImage(await decalImage()).setMimeType('image/png')
+    const texture = doc
+      .createTexture('chest-logo')
+      .setImage(await decalImage())
+      .setMimeType('image/png')
     const decal = doc.createMaterial('decal').setAlphaMode('BLEND').setBaseColorTexture(texture)
 
     const result = await solidifyMaterials(doc)
@@ -776,7 +870,10 @@ describe('solidifyMaterials (opaque + double-sided)', () => {
 
   it('leaves genuinely graded alpha on BLEND rather than destroying it', async () => {
     const doc = new Document()
-    const texture = doc.createTexture('mesh-panel').setImage(await sheerImage()).setMimeType('image/png')
+    const texture = doc
+      .createTexture('mesh-panel')
+      .setImage(await sheerImage())
+      .setMimeType('image/png')
     const sheer = doc.createMaterial('sheer').setAlphaMode('BLEND').setBaseColorTexture(texture)
 
     const result = await solidifyMaterials(doc)
@@ -815,7 +912,9 @@ describe('solidifyMaterials (opaque + double-sided)', () => {
     for (let y = 10; y < 32; y++) {
       for (let x = 10; x < 32; x++) raw[(y * width + x) * 4 + 3] = 90
     }
-    const png = await sharp(raw, { raw: { width, height, channels: 4 } }).png().toBuffer()
+    const png = await sharp(raw, { raw: { width, height, channels: 4 } })
+      .png()
+      .toBuffer()
     return new Uint8Array(png)
   }
 
@@ -837,7 +936,9 @@ describe('solidifyMaterials (opaque + double-sided)', () => {
    * compression (line 305), so profileAlpha never sees the WebP.
    */
   async function wordmarkImage(): Promise<Uint8Array> {
-    return new Uint8Array(await readFile(join(import.meta.dirname, '__fixtures__', 'wordmark-alpha.png')))
+    return new Uint8Array(
+      await readFile(join(import.meta.dirname, '__fixtures__', 'wordmark-alpha.png')),
+    )
   }
 
   it('the real wordmark fixture still measures what the fix was calibrated against', async () => {
@@ -880,8 +981,14 @@ describe('solidifyMaterials (opaque + double-sided)', () => {
     // box across the garment. Both shipped. MASK/0.5 is the third answer and
     // the correct one.
     const doc = new Document()
-    const texture = doc.createTexture('slogan-strip').setImage(await wordmarkImage()).setMimeType('image/png')
-    const wordmark = doc.createMaterial('THE EXTRA MILE (Slogan)').setAlphaMode('BLEND').setBaseColorTexture(texture)
+    const texture = doc
+      .createTexture('slogan-strip')
+      .setImage(await wordmarkImage())
+      .setMimeType('image/png')
+    const wordmark = doc
+      .createMaterial('THE EXTRA MILE (Slogan)')
+      .setAlphaMode('BLEND')
+      .setBaseColorTexture(texture)
 
     const result = await solidifyMaterials(doc)
 
@@ -903,7 +1010,10 @@ describe('solidifyMaterials (opaque + double-sided)', () => {
     // intermediate, it is whether anything is CUT OUT: the damaged wordmark is
     // 66% fully transparent, this is 0%.
     const doc = new Document()
-    const texture = doc.createTexture('organza-inset').setImage(await sheerInsetImage()).setMimeType('image/png')
+    const texture = doc
+      .createTexture('organza-inset')
+      .setImage(await sheerInsetImage())
+      .setMimeType('image/png')
     const inset = doc.createMaterial('inset').setAlphaMode('BLEND').setBaseColorTexture(texture)
 
     const result = await solidifyMaterials(doc)
@@ -921,7 +1031,10 @@ describe('solidifyMaterials (opaque + double-sided)', () => {
     // The stated intent on the material wins over the shape inferred from its
     // pixels. Pre-existing, but widening the cutout band increases its reach.
     const doc = new Document()
-    const texture = doc.createTexture('logo').setImage(await decalImage()).setMimeType('image/png')
+    const texture = doc
+      .createTexture('logo')
+      .setImage(await decalImage())
+      .setMimeType('image/png')
     const sheerDecal = doc
       .createMaterial('sheer-decal')
       .setAlphaMode('BLEND')
@@ -977,7 +1090,10 @@ describe('solidifyMaterials (opaque + double-sided)', () => {
     // MASK materials double-sided, each matching its source, so the code is
     // correct. It was simply unasserted.
     const doc = new Document()
-    const texture = doc.createTexture('decal').setImage(await wordmarkImage()).setMimeType('image/png')
+    const texture = doc
+      .createTexture('decal')
+      .setImage(await wordmarkImage())
+      .setMimeType('image/png')
 
     const twoSided = doc
       .createMaterial('decal-two-sided')
@@ -1157,7 +1273,10 @@ describe('mergeVariants — primitive with no material', () => {
     expect(report.variants).toEqual(['N001-BASE', 'N001-NOMAT'])
     // …and no mapping was written with a null material (which would be spec-invalid).
     const reread = await io.read(out)
-    for (const prim of reread.getRoot().listMeshes().flatMap((m) => m.listPrimitives())) {
+    for (const prim of reread
+      .getRoot()
+      .listMeshes()
+      .flatMap((m) => m.listPrimitives())) {
       const ml = prim.getExtension<MappingList>('KHR_materials_variants')
       if (!ml) continue
       for (const mapping of ml.listMappings()) {

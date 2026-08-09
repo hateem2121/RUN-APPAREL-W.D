@@ -1,0 +1,14 @@
+# Revisions to skip when running `git blame`.
+#
+# Enable locally (once):
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# This repo leans on `git blame` more than most: several of the traps in
+# CLAUDE.md are only discoverable from the comment beside the code, and finding
+# the incident that motivated one means finding the commit that added it. A
+# whole-repo reformat would bury all of that under one line, so every
+# formatting-only commit belongs here.
+
+# Adopt Biome — formatter applied across the workspace. Formatting only; the
+# behaviour changes from that session are in separate commits.
+619ba9ef819a9da9dfa7d18950f71138b4dbb8ef

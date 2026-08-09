@@ -496,6 +496,15 @@ passed.
 deletes, the other only reports. `apps/cms/src/collections/mediaReferences.test.ts`
 fails if a new Media relationship is added without updating both.
 
+⚠️ **Until 2026-08-08 updating one of those two lists did nothing.**
+`REFERENCE_PATHS` in `find-orphan-media.mjs` was declared and never read — the
+four paths were hardcoded again 60 lines below it — while the guard test's own
+failure message instructs you to add new relationships *to that constant*.
+Following the instruction would have gone green and left the orphan finder blind
+to the new field, and that script deletes files a published product may be using.
+It is now the thing the script actually iterates. Found by the linter, as an
+unused variable, on the day it was added.
+
 ## Deploying
 
 Merging to `main` runs the pre-deploy D1 migrate and deploys CMS + viewer.

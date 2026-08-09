@@ -75,10 +75,26 @@ import { renderViews } from '../src/render.ts'
  * source at run time. Two unpinned copies of the number that decides whether the
  * logos survive is precisely the drift this repo keeps paying for.
  */
-const BALANCED_FLAGS = ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.001', '--uv-weight', '1']
+const BALANCED_FLAGS = [
+  '--simplify',
+  '0.05',
+  '--meshopt',
+  '--simplify-error',
+  '0.001',
+  '--uv-weight',
+  '1',
+]
 
 /** `fidelity`, the stricter shipped preset. Must never damage more than `balanced`. */
-const FIDELITY_FLAGS = ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.0002', '--uv-weight', '2']
+const FIDELITY_FLAGS = [
+  '--simplify',
+  '0.05',
+  '--meshopt',
+  '--simplify-error',
+  '0.0002',
+  '--uv-weight',
+  '2',
+]
 
 /**
  * The negative control: the balanced preset with UV protection switched OFF.
@@ -102,7 +118,15 @@ const FIDELITY_FLAGS = ['--simplify', '0.05', '--meshopt', '--simplify-error', '
  *
  * Measured: 9.370% versus 3.070% — 3× the damage, on the same fixture, same run.
  */
-const CONTROL_FLAGS = ['--simplify', '0.05', '--meshopt', '--simplify-error', '0.001', '--uv-weight', '0']
+const CONTROL_FLAGS = [
+  '--simplify',
+  '0.05',
+  '--meshopt',
+  '--simplify-error',
+  '0.001',
+  '--uv-weight',
+  '0',
+]
 
 /**
  * Damage ceiling: fraction of pixels in the wordmark view differing by more than
@@ -210,7 +234,9 @@ async function buildArtworkPanel({ segments = 200, rings = 70 } = {}) {
     }
   }
 
-  const png = new Uint8Array(await readFile(join(import.meta.dirname, '..', 'src', '__fixtures__', 'wordmark-alpha.png')))
+  const png = new Uint8Array(
+    await readFile(join(import.meta.dirname, '..', 'src', '__fixtures__', 'wordmark-alpha.png')),
+  )
   const texture = doc.createTexture('WORDMARK').setImage(png).setMimeType('image/png')
 
   const material = doc
@@ -223,13 +249,26 @@ async function buildArtworkPanel({ segments = 200, rings = 70 } = {}) {
 
   const primitive = doc
     .createPrimitive()
-    .setAttribute('POSITION', doc.createAccessor().setType('VEC3').setArray(new Float32Array(positions)).setBuffer(buffer))
-    .setAttribute('NORMAL', doc.createAccessor().setType('VEC3').setArray(new Float32Array(normals)).setBuffer(buffer))
-    .setAttribute('TEXCOORD_0', doc.createAccessor().setType('VEC2').setArray(new Float32Array(uvs)).setBuffer(buffer))
-    .setIndices(doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(indices)).setBuffer(buffer))
+    .setAttribute(
+      'POSITION',
+      doc.createAccessor().setType('VEC3').setArray(new Float32Array(positions)).setBuffer(buffer),
+    )
+    .setAttribute(
+      'NORMAL',
+      doc.createAccessor().setType('VEC3').setArray(new Float32Array(normals)).setBuffer(buffer),
+    )
+    .setAttribute(
+      'TEXCOORD_0',
+      doc.createAccessor().setType('VEC2').setArray(new Float32Array(uvs)).setBuffer(buffer),
+    )
+    .setIndices(
+      doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(indices)).setBuffer(buffer),
+    )
     .setMaterial(material)
 
-  doc.createScene('scene').addChild(doc.createNode('panel').setMesh(doc.createMesh('panel').addPrimitive(primitive)))
+  doc
+    .createScene('scene')
+    .addChild(doc.createNode('panel').setMesh(doc.createMesh('panel').addPrimitive(primitive)))
   return { doc, triangles: indices.length / 3 }
 }
 
@@ -239,7 +278,10 @@ async function buildArtworkPanel({ segments = 200, rings = 70 } = {}) {
  * the dependency this copy exists to avoid.
  */
 async function assertPresetMatchesShared() {
-  const source = await readFile(join(import.meta.dirname, '..', '..', '..', 'packages', 'shared', 'src', 'shrink.ts'), 'utf8')
+  const source = await readFile(
+    join(import.meta.dirname, '..', '..', '..', 'packages', 'shared', 'src', 'shrink.ts'),
+    'utf8',
+  )
   const expected = BALANCED_FLAGS.map((f) => `'${f}'`).join(', ')
   if (!source.includes(expected)) {
     throw new Error(
@@ -252,13 +294,23 @@ async function assertPresetMatchesShared() {
 }
 
 /** Optimise the fixture with `flags`, render it, and diff against the baseline. */
-async function damageFor(io, srcGlb, baselineDir, workDir, label, flags) {
+// `io` used to be threaded in here and was never read — removed 2026-08-08 when
+// the linter flagged it. It is still built in main() for the baseline render.
+async function damageFor(srcGlb, baselineDir, workDir, label, flags) {
   const out = join(workDir, `${label}.glb`)
   const { options } = parseOptimizeArgs([srcGlb, '--out', out, ...flags])
   const result = await optimizeGlb(srcGlb, out, options)
   const renderDir = join(workDir, `render-${label}`)
-  await renderViews(out, renderDir, { views: WORDMARK_VIEW, width: RENDER_SIZE, height: RENDER_SIZE })
-  const { diffs } = await compareRenders(baselineDir, renderDir, join(workDir, `sheet-${label}.png`))
+  await renderViews(out, renderDir, {
+    views: WORDMARK_VIEW,
+    width: RENDER_SIZE,
+    height: RENDER_SIZE,
+  })
+  const { diffs } = await compareRenders(
+    baselineDir,
+    renderDir,
+    join(workDir, `sheet-${label}.png`),
+  )
   const diff = diffs.find((d) => d.view === 'wordmark')
   return {
     label,
@@ -274,7 +326,8 @@ async function damageFor(io, srcGlb, baselineDir, workDir, label, flags) {
 async function main() {
   const calibrate = process.argv.includes('--calibrate')
   const keepAt = process.argv.indexOf('--keep')
-  const workDir = keepAt !== -1 ? process.argv[keepAt + 1] : await mkdtemp(join(tmpdir(), 'artwork-eval-'))
+  const workDir =
+    keepAt !== -1 ? process.argv[keepAt + 1] : await mkdtemp(join(tmpdir(), 'artwork-eval-'))
   await mkdir(workDir, { recursive: true })
 
   await assertPresetMatchesShared()
@@ -287,7 +340,11 @@ async function main() {
 
   // Baseline: the undecimated fixture. Everything is measured against this.
   const baselineDir = join(workDir, 'render-baseline')
-  await renderViews(srcGlb, baselineDir, { views: WORDMARK_VIEW, width: RENDER_SIZE, height: RENDER_SIZE })
+  await renderViews(srcGlb, baselineDir, {
+    views: WORDMARK_VIEW,
+    width: RENDER_SIZE,
+    height: RENDER_SIZE,
+  })
 
   if (calibrate) {
     const grid = [
@@ -303,8 +360,22 @@ async function main() {
     console.log('|---|---|---|---|---|---|')
     const rows = []
     for (const g of grid) {
-      const flags = ['--simplify', g.ratio, '--meshopt', '--simplify-error', g.error, '--uv-weight', g.uv]
-      const d = await damageFor(io, srcGlb, baselineDir, workDir, `r${g.ratio}-e${g.error}-uv${g.uv}`, flags)
+      const flags = [
+        '--simplify',
+        g.ratio,
+        '--meshopt',
+        '--simplify-error',
+        g.error,
+        '--uv-weight',
+        g.uv,
+      ]
+      const d = await damageFor(
+        srcGlb,
+        baselineDir,
+        workDir,
+        `r${g.ratio}-e${g.error}-uv${g.uv}`,
+        flags,
+      )
       rows.push({ ...g, ...d })
       console.log(
         `| ${g.ratio} | ${g.error} | ${g.uv} | ${d.meanDelta} | ${d.maxDelta} | ${(d.changedFraction * 100).toFixed(3)}% |`,
@@ -315,14 +386,20 @@ async function main() {
     return
   }
 
-  const shipped = await damageFor(io, srcGlb, baselineDir, workDir, 'balanced', BALANCED_FLAGS)
-  const fidelity = await damageFor(io, srcGlb, baselineDir, workDir, 'fidelity', FIDELITY_FLAGS)
-  const control = await damageFor(io, srcGlb, baselineDir, workDir, 'control', CONTROL_FLAGS)
+  const shipped = await damageFor(srcGlb, baselineDir, workDir, 'balanced', BALANCED_FLAGS)
+  const fidelity = await damageFor(srcGlb, baselineDir, workDir, 'fidelity', FIDELITY_FLAGS)
+  const control = await damageFor(srcGlb, baselineDir, workDir, 'control', CONTROL_FLAGS)
 
   const pct = (v) => `${(v * 100).toFixed(3)}%`
-  console.log(`\n  fidelity  (err 0.0002, uv 2)     changed ${pct(fidelity.changedFraction)}  mean ${fidelity.meanDelta}`)
-  console.log(`  balanced  (err 0.001,  uv 1)     changed ${pct(shipped.changedFraction)}  mean ${shipped.meanDelta}`)
-  console.log(`  CONTROL   (uv 0 — expect DAMAGE) changed ${pct(control.changedFraction)}  mean ${control.meanDelta}`)
+  console.log(
+    `\n  fidelity  (err 0.0002, uv 2)     changed ${pct(fidelity.changedFraction)}  mean ${fidelity.meanDelta}`,
+  )
+  console.log(
+    `  balanced  (err 0.001,  uv 1)     changed ${pct(shipped.changedFraction)}  mean ${shipped.meanDelta}`,
+  )
+  console.log(
+    `  CONTROL   (uv 0 — expect DAMAGE) changed ${pct(control.changedFraction)}  mean ${control.meanDelta}`,
+  )
   console.log(`  ceiling                          ${pct(MAX_CHANGED_FRACTION)}`)
 
   const failures = []
@@ -358,7 +435,9 @@ async function main() {
   }
 
   const margin = control.changedFraction / Math.max(shipped.changedFraction, 1e-9)
-  console.log(`\n✓ artwork legibility eval passed — the control does ${margin.toFixed(1)}× the shipped preset's damage`)
+  console.log(
+    `\n✓ artwork legibility eval passed — the control does ${margin.toFixed(1)}× the shipped preset's damage`,
+  )
 }
 
 await main()

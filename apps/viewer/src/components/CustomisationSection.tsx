@@ -13,9 +13,15 @@ export function CustomisationSection({ data }: { data: ViewerApiSuccess }) {
         FROM IDEA TO <span className="serif-accent">production</span>.
       </h2>
       {product.customisationIntroHtml ? (
+        // The only writer is an authenticated CMS editor, and the HTML is produced
+        // server-side by convertLexicalToHTML from a lexical document — never a raw
+        // string a user typed. The realistic alternative, a lexical renderer in the
+        // viewer bundle, would ship a parser to every QR scan to re-derive markup the
+        // CMS already computed. The CSP is hash-locked (scripts/csp.mjs), so an
+        // injected <script> here would not execute either.
         <div
           className="customise__intro"
-          // CMS-authored rich text, serialised server-side by our own endpoint.
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: CMS-authored, serialised server-side — see above
           dangerouslySetInnerHTML={{ __html: product.customisationIntroHtml }}
         />
       ) : (

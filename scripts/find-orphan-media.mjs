@@ -25,10 +25,32 @@
  */
 import { createInterface } from 'node:readline/promises'
 
-const REFERENCE_PATHS = ['glbAsset', 'posterFallback', 'colourways.posterPreview', 'colourways.glbAsset']
+/**
+ * The Product fields that can point at a Media document. `a.b` means "for every
+ * row in the array field `a`, the field `b`".
+ *
+ * ⚠️ THIS LIST IS NOW LOAD-BEARING. Until 2026-08-08 it was declared here and
+ * never read — the four paths were hardcoded again further down — so the
+ * instruction in mediaReferences.test.ts ("add it to REFERENCE_PATHS in
+ * scripts/find-orphan-media.mjs") pointed at a constant that changed nothing.
+ * Someone following it would have added a fifth relationship, watched the guard
+ * test go green, and left this script blind to it: with `--delete`, that means
+ * deleting a file a published product is using. Found by the linter, which
+ * flagged it as an unused variable.
+ */
+const REFERENCE_PATHS = [
+  'glbAsset',
+  'posterFallback',
+  'colourways.posterPreview',
+  'colourways.glbAsset',
+]
 
 function parseArgs(argv) {
-  const options = { delete: false, yes: false, url: process.env.CMS_URL ?? 'https://cms.wear-run.help' }
+  const options = {
+    delete: false,
+    yes: false,
+    url: process.env.CMS_URL ?? 'https://cms.wear-run.help',
+  }
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--delete') options.delete = true
     else if (argv[i] === '--yes') options.yes = true
@@ -80,15 +102,20 @@ async function main() {
     referenced.add(String(typeof value === 'object' ? (value.id ?? '') : value))
   }
 
+  // Driven by REFERENCE_PATHS rather than four hardcoded field names, so adding a
+  // path to that list actually changes what this script considers referenced —
+  // see the warning on the constant.
+  const noteByPath = (doc, path) => {
+    const [head, tail] = path.split('.')
+    const value = doc?.[head]
+    if (!tail) return noteReference(value)
+    for (const row of Array.isArray(value) ? value : []) noteReference(row?.[tail])
+  }
+
   for (let page = 1; ; page++) {
     const json = await request(`/api/products?limit=100&depth=0&page=${page}`)
     for (const product of json.docs ?? []) {
-      noteReference(product.glbAsset)
-      noteReference(product.posterFallback)
-      for (const colourway of product.colourways ?? []) {
-        noteReference(colourway.posterPreview)
-        noteReference(colourway.glbAsset)
-      }
+      for (const path of REFERENCE_PATHS) noteByPath(product, path)
     }
     if (!json.hasNextPage) break
   }
@@ -111,13 +138,17 @@ async function main() {
   for (const doc of orphans) {
     bytes += doc.filesize ?? 0
     const size = doc.filesize ? `${(doc.filesize / 1024 / 1024).toFixed(1)} MB` : '?'
-    console.log(`  #${String(doc.id).padStart(4)}  ${size.padStart(9)}  ${doc.filename ?? '(no filename)'}`)
+    console.log(
+      `  #${String(doc.id).padStart(4)}  ${size.padStart(9)}  ${doc.filename ?? '(no filename)'}`,
+    )
   }
   console.log(`\n  total: ${(bytes / 1024 / 1024).toFixed(1)} MB`)
 
   if (!options.delete) {
     console.log('\nDry run — nothing was deleted. Re-run with --delete to remove these.')
-    console.log('Check the list first: anything an editor uploaded by hand and has not attached yet')
+    console.log(
+      'Check the list first: anything an editor uploaded by hand and has not attached yet',
+    )
     console.log('will also appear here, and deleting it is not recoverable.')
     return
   }

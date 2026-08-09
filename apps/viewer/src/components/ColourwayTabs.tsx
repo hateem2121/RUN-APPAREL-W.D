@@ -74,6 +74,13 @@ export function ColourwayTabs({
 
   // A tab can unmount mid-hover (colourway list refetch); without this the
   // model would keep the previewed variant and disagree with the selection.
+  //
+  // Adding `clearPending` here would be an actual bug, not a tidy-up. It is
+  // redefined every render, so it would re-run this effect every render — and the
+  // effect IS the cleanup, so `onPreview(null)` would fire on every render and
+  // cancel any hover preview the moment it started. `clearPending` only touches a
+  // ref, so its identity change carries no information worth reacting to.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: adding clearPending would cancel every hover — see above
   useEffect(
     () => () => {
       clearPending()

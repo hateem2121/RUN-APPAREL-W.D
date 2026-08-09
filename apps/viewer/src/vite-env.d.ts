@@ -17,6 +17,7 @@ interface ImportMetaEnv {
   readonly VITE_SENTRY_ENVIRONMENT?: string
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: global augmentation, used by every import.meta.env read
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }

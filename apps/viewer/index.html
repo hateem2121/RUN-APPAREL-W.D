@@ -70,13 +70,13 @@
     />
     <script>
       // Apply the persisted theme before first paint (no flash of wrong mode).
-      ;(function () {
+      ;(() => {
         try {
-          var stored = localStorage.getItem('run-theme')
+          const stored = localStorage.getItem('run-theme')
           if (stored === 'light' || stored === 'dark') {
             document.documentElement.setAttribute('data-theme', stored)
           }
-        } catch (e) {
+        } catch {
           /* storage unavailable — system preference applies */
         }
       })()

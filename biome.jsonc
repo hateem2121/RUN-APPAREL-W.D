@@ -1,0 +1,94 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  // Formatter + linter for the whole repo. One tool rather than ESLint + Prettier
+  // plus a plugin per framework: this is a five-package workspace maintained by
+  // one person, and the failure mode of a linter setup here is that it rots and
+  // gets switched off, not that it lacks a rule.
+  //
+  // THE FORMATTER SETTINGS ARE MEASURED FROM THE EXISTING CODE, not chosen.
+  // Sampled across viewer, cms, pipeline, shrink and shared: no semicolons,
+  // single-quoted imports, two-space indent. Matching what is already there keeps
+  // the reformat commit small, which matters more than usual here — several of the
+  // traps in CLAUDE.md are only discoverable from the comments beside the code, and
+  // `git blame` is how you find the incident that motivated one. See
+  // .git-blame-ignore-revs.
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/.open-next",
+      "!**/node_modules",
+      "!**/output",
+      "!**/test-results",
+      "!**/playwright-report",
+      "!**/*.min.js",
+      // Self-hosted decoder binaries and the preview cards — vendored, not ours.
+      "!apps/viewer/public",
+      // Payload GENERATES both of these. Reformatting them guarantees a diff on
+      // every regeneration, and migrations are the one place in this repo where an
+      // unreviewed diff can delete data.
+      "!apps/cms/src/migrations",
+      "!apps/cms/src/payload-types.ts",
+      "!pnpm-lock.yaml"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": {
+      "semicolons": "asNeeded",
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "trailingCommas": "all",
+      "arrowParentheses": "always",
+      "bracketSpacing": true
+    }
+  },
+  "json": {
+    "formatter": { "enabled": true, "trailingCommas": "none" },
+    "parser": { "allowComments": true }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "style": {
+        // `noUncheckedIndexedAccess` is on in tsconfig.base.json, so `arr[0]!` is
+        // the idiom this codebase already uses to say "checked above". Banning it
+        // would push people to `as` casts, which silence more.
+        "noNonNullAssertion": "off"
+      },
+      "complexity": {
+        "noForEach": "off",
+        // Every occurrence is inside the `prefers-reduced-motion` block or the
+        // Lenis override in base.css, and BOTH need `!important` to do their job:
+        // the reduced-motion recipe has to beat animation and inline styles, and
+        // Lenis sets `scroll-behavior` on <html> itself. Turning these into
+        // ordinary declarations would silently re-enable motion for people who
+        // asked their operating system to switch it off.
+        "noImportantStyles": "off"
+      },
+      "a11y": {
+        // OFF AFTER READING ALL FIVE, not because a11y is unimportant here — it is
+        // covered by axe-core across five e2e scenarios including failure states,
+        // which is stronger evidence than this rule.
+        //
+        // The rule proposes `<output>` for `role="status"` and `<fieldset>` for
+        // `role="group"`. Both are wrong in context: the four `role="status"` uses
+        // are live regions announcing load and error state, not form output, and
+        // the `role="group"` is the camera-position button row, not a form field
+        // group. Taking the advice would attach form semantics to things that are
+        // not forms — a downgrade a screen reader would actually notice.
+        "useSemanticElements": "off"
+      }
+    }
+  },
+  // Import order is left alone deliberately: reordering imports across ~200 files
+  // buys nothing and destroys blame on the first line of every one of them.
+  "assist": { "actions": { "source": { "organizeImports": "off" } } }
+}
