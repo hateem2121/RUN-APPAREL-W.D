@@ -6,8 +6,6 @@
 
 export type VariantMode = 'single-glb-variants' | 'separate-glb-per-colour'
 
-export type PresentationMode = 'floatingGarment' | 'invisibleMannequin'
-
 export type ProductCategory =
   | 'Sportswear'
   | 'Teamwear & Uniforms'
@@ -65,7 +63,6 @@ export interface ViewerProduct {
   productName: string
   category: ProductCategory
   variantMode: VariantMode
-  presentationMode: PresentationMode
   /** Production merged GLB — populated only when variantMode is "single-glb-variants". */
   glbUrl: string | null
   posterFallback: ViewerMediaAsset | null

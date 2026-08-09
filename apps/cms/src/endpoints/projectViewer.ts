@@ -111,10 +111,6 @@ export function buildViewerResponse(
       productName: String(product.productName),
       category: product.category as ViewerApiSuccess['product']['category'],
       variantMode: separateMode ? 'separate-glb-per-colour' : 'single-glb-variants',
-      presentationMode:
-        product.presentationMode === 'invisibleMannequin'
-          ? 'invisibleMannequin'
-          : 'floatingGarment',
       glbUrl: separateMode ? null : (toMediaAsset(product.glbAsset, origin)?.url ?? null),
       posterFallback: toMediaAsset(product.posterFallback, origin),
       fabricComposition: String(product.fabricComposition ?? ''),

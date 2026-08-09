@@ -62,7 +62,6 @@ function payload(overrides: {
       productName: 'Velocity Performance Skinsuit',
       category: 'Sportswear',
       variantMode: 'single-glb-variants',
-      presentationMode: 'floatingGarment',
       glbUrl: 'https://media.wear-run.help/cycling-all-colours-optimized-4.glb',
       posterFallback: null,
       fabricComposition: '80% recycled polyester / 20% elastane',

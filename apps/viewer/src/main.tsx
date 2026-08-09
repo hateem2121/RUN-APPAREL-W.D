@@ -10,12 +10,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { initAnalytics } from './lib/analytics'
 import { initErrorTracking } from './lib/sentry'
 import { initTelemetry } from './lib/telemetry'
 
 initErrorTracking()
-initAnalytics()
 initTelemetry()
 
 // Dark-mode grain overlay (hidden in light mode via CSS).

@@ -3,8 +3,6 @@
 interface ImportMetaEnv {
   /** Base URL of the CMS worker, e.g. https://cms.wear-run.help */
   readonly VITE_API_BASE_URL?: string
-  /** Cloudflare Web Analytics beacon token (optional). */
-  readonly VITE_CF_BEACON_TOKEN?: string
   /** Sentry DSN for client error tracking (optional; unset = disabled). */
   readonly VITE_SENTRY_DSN?: string
   /** Release identifier tagged on Sentry events (optional). CI sets the commit SHA. */

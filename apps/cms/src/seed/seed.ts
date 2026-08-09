@@ -164,7 +164,6 @@ export async function seed(payload: Payload, assetsDir: string): Promise<void> {
       category: 'Sportswear',
       status: 'published',
       variantMode: 'single-glb-variants',
-      presentationMode: 'floatingGarment',
       glbAsset: mergedGlbMedia.id,
       // What the merged GLB really contains — see the note at the top.
       fileColours: COLOURWAYS.map((c) => c.variantId),

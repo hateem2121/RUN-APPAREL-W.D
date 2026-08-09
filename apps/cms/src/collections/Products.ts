@@ -278,21 +278,21 @@ export const Products: CollectionConfig = {
               ],
               admin: { description: 'Pick the closest match. Used for grouping only.' },
             },
-            {
-              name: 'presentationMode',
-              type: 'select',
-              required: true,
-              defaultValue: 'floatingGarment',
-              label: 'How the garment is shown',
-              options: [
-                { label: 'Floating garment', value: 'floatingGarment' },
-                { label: 'Invisible mannequin', value: 'invisibleMannequin' },
-              ],
-              admin: {
-                description:
-                  '“Floating garment” suits most items. “Invisible mannequin” holds the shape of structured pieces like jackets.',
-              },
-            },
+            // `presentationMode` was here until 2026-08-09. It offered a choice
+            // between "floating garment" and "invisible mannequin" that NOTHING
+            // ever acted on: it was stored, projected through the public API, and
+            // read by no line of apps/viewer/src. A setting that looks like it
+            // does something and does not is worse than no setting — the owner
+            // would reasonably have expected the page to change.
+            //
+            // ⚠️ THE COLUMN IS STILL THERE, ON PURPOSE. `presentation_mode text
+            // DEFAULT 'floatingGarment' NOT NULL` stays in D1 and in every
+            // migration that created it. Dropping it would mean a table rebuild,
+            // and on D1 that is the single most hazardous operation in this repo:
+            // `PRAGMA foreign_keys=OFF` is a no-op there, `defer_foreign_keys`
+            // defers checks but not CASCADES, and a DROP runs an implicit DELETE
+            // that cascades. An unused column with a default costs nothing and
+            // breaks no insert. See CLAUDE.md and docs/RUNBOOK.md.
           ],
         },
 

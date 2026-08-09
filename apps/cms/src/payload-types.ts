@@ -331,10 +331,6 @@ export interface Product {
    * Pick the closest match. Used for grouping only.
    */
   category: 'Sportswear' | 'Teamwear & Uniforms' | 'Casual Wear' | 'Outerwear' | 'Sports Accessories';
-  /**
-   * “Floating garment” suits most items. “Invisible mannequin” holds the shape of structured pieces like jackets.
-   */
-  presentationMode: 'floatingGarment' | 'invisibleMannequin';
   colourways?: ProductColourway;
   /**
    * Upload your raw CLO export here. Watch the Status column: Queued → Processing → Ready to review. Then pick the finished file below.
@@ -644,7 +640,6 @@ export interface ProductsSelect<T extends boolean = true> {
   productCode?: T;
   slug?: T;
   category?: T;
-  presentationMode?: T;
   colourways?: T | ProductColourwaySelect<T>;
   rawUploads?: T;
   variantMode?: T;

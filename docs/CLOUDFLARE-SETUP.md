@@ -177,7 +177,6 @@ Dashboard → Workers & Pages → **Create → Pages → Connect to Git** → se
 | Build command | `pnpm install --frozen-lockfile && pnpm --filter @run-apparel/viewer build` |
 | Build output directory | `apps/viewer/dist` |
 | Environment variable | `VITE_API_BASE_URL=https://cms.wear-run.help` |
-| Environment variable (optional) | `VITE_CF_BEACON_TOKEN=<from step 8>` |
 
 The committed `apps/viewer/public/_redirects` (`/* /index.html 200`) makes direct
 deep links like `/n001/navy` resolve on Pages; `_headers` sets immutable caching
@@ -199,9 +198,24 @@ the bucket policy.
 
 ## 8. Cloudflare Web Analytics (only analytics allowed)
 
-Dashboard → Analytics & Logs → **Web Analytics** → *Add a site* → `viewer.wear-run.help`
-→ copy the **beacon token** → set it as `VITE_CF_BEACON_TOKEN` in the Pages build env
-(and optionally in CMS Site Settings for reference). No cookies, no third-party trackers.
+**Already done — nothing to configure.** The beacon is embedded directly in
+`apps/viewer/index.html` as a `<script src>` with the zone's token, which is a
+public site tag and not a secret. No cookies, no third-party trackers.
+
+It is a hard-coded tag on purpose, and there are two separate reasons:
+
+- **Automatic Setup cannot be used here.** It injects an inline bootstrap at the
+  edge, *after* the build has computed its Content-Security-Policy hashes, so the
+  policy blocks it on every page load and the beacon never runs. The hash cannot
+  be pinned either — it embeds a per-request ray id. See `apps/viewer/scripts/csp.mjs`.
+- **The build-variable route was removed on 2026-08-09.** `VITE_CF_BEACON_TOKEN`
+  fed an `initAnalytics()` that had never once run: the variable was never set, so
+  every build baked in an empty string, and even with a token the function's own
+  guard would have found the `index.html` tag and returned. Do not re-add it —
+  injecting from JavaScript would put a second beacon on the page.
+
+To point the viewer at a *dedicated* Web Analytics site rather than the zone one,
+replace the token in `apps/viewer/index.html` and rebuild.
 
 ## 9. Smoke test
 
@@ -228,8 +242,6 @@ So every push to `main` deploys automatically (after tests pass):
    gh secret set PAYLOAD_SECRET --body "<same long random string as the worker secret>"
    gh variable set DEPLOY_ENABLED --body true      # turns on the deploy/backup/uptime jobs
    ```
-
-3. (Optional) `gh variable set VITE_CF_BEACON_TOKEN --body "<beacon>"` from step 8.
 
 Until `DEPLOY_ENABLED` is `true`, CI only runs tests — it never deploys. See
 [RUNBOOK.md](RUNBOOK.md) for the deploy/migration/uptime playbooks.
@@ -293,8 +305,8 @@ Notes for future maintenance:
   (`getPlatformProxy` proxies the marked bindings to the live resources). Revert
   the `"remote"` flags afterwards. N001 (“Velocity Performance Tee”, 3
   colourways) is seeded and its GLB/posters live in `run-apparel-viewer-media`.
-- **Web Analytics:** the viewer build bakes in the `wear-run.help` zone Web
-  Analytics beacon token via `VITE_CF_BEACON_TOKEN` (SPA route changes tracked).
-  Creating a *dedicated* viewer-only Web Analytics site needs an API token with
-  Account Analytics **edit** permission (or the dashboard); swap
-  `VITE_CF_BEACON_TOKEN` and rebuild if you create one.
+- **Web Analytics:** the `wear-run.help` zone beacon is embedded directly in
+  `apps/viewer/index.html` (SPA route changes tracked). Creating a *dedicated*
+  viewer-only site needs an API token with Account Analytics **edit** permission
+  (or the dashboard); swap the token in that file and rebuild if you create one.
+  See step 8 for why it is not a build variable.

@@ -182,7 +182,6 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
       productName: meta.productName,
       category: 'Sportswear',
       variantMode: 'single-glb-variants',
-      presentationMode: 'floatingGarment',
       glbUrl: meta.hasGlb ? `${origin}/fixtures/n001.glb` : null,
       posterFallback: fallback.poster,
       fabricComposition: 'Recycled polyester / elastane',
