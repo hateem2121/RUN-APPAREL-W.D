@@ -801,8 +801,52 @@ block missing `contents: read`.
 
 ⚠️ **The heartbeat cannot watch itself.** That is the accepted base case — the
 blind spot shrinks from "every scheduled job" to "one job that makes a single API
-call". Closing it entirely needs an off-platform monitor, which this project's
-budget does not run to.
+call". Closing it entirely needs a monitor that is not GitHub. See the next
+section; this page used to say that was outside the budget, and it is not — the
+tier that covers this costs nothing.
+
+## The watchman that is not us (external uptime monitor)
+
+**Every alarm in this project ends in the same place: a GitHub issue, in one
+person's notifications.** If GitHub Actions is degraded, if the schedule silently
+stops, or if you simply are not looking at GitHub, nothing tells you the site is
+down. `uptime.yml` and `heartbeat.yml` both live inside the system they watch.
+
+**This one action is yours to take — it needs an account, so nobody can do it for
+you.** About five minutes, and it costs nothing.
+
+1. Go to **uptimerobot.com** and make a free account. The free tier gives 50
+   checks every 5 minutes with email alerts, which is far more than this needs.
+2. Add **two monitors**, both of type **Keyword** (not "HTTP(s)" — see why below):
+
+   | | URL | Keyword it must find |
+   |---|---|---|
+   | The page a customer sees | `https://viewer.wear-run.help/n001/wine` | `RUN APPAREL` |
+   | The data behind it | `https://cms.wear-run.help/api/public/viewer/n001/wine` | `"productCode":"N001"` |
+
+3. Set alerts to your **email**, and add your phone if you want a push. Do not
+   route them back into GitHub — the whole point is that this path is separate.
+
+**Why "keyword" and not a plain up/down check.** A plain check passes on any 200.
+The CMS answers `/api/health` with `{"ok":true}` from a worker with an *empty
+database* — that is written down here already, and it is why
+`scripts/smoke-viewer-payload.mjs` exists. A keyword check fails when the page
+still loads but the garment has gone, which is the outage a lead would actually
+notice. Both keywords verified live on 2026-08-09: `RUN APPAREL` appears 6 times
+in the viewer HTML, `"productCode":"N001"` once in the payload.
+
+**Why those two URLs and not the 3D model.** Neither fetches the GLB. A model
+fetch is 27 MB, and at 5-minute intervals that is roughly 230 GB a month of R2
+egress against a $5 budget. These two together are **9.3 KB per round — about 79
+MB a month**, which is nothing. Never point an external monitor at
+`media.wear-run.help`.
+
+⚠️ **If it starts flapping, suspect a bot rule before you suspect the site.**
+UptimeRobot polls from datacenters, and free-plan Bot Fight Mode on this zone has
+blocked datacenter traffic before — it forced the `cms.wear-run.help` cutover to
+be rolled back within the hour. A 403 in the monitor's log means "we were
+challenged", not "the site is down". Bot Fight Mode is currently OFF (verified
+2026-08-06, and both URLs above answered 200 from a plain client on 2026-08-09).
 
 ## Uploading GLB assets to the CMS (and why an upload fails)
 

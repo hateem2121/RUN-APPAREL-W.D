@@ -59,6 +59,47 @@ version number that differs across the project.
 
 ---
 
+## ⚠️ SECOND UPDATE — 2026-08-09
+
+**Fix 2 is now fully done, and the four housekeeping jobs are closed.**
+
+- **A link you send a lead now shows THAT garment.** Paste any viewer link into
+  WhatsApp, email or LinkedIn and the card shows that colourway's own picture, its
+  name — "N001 Velocity Performance Skinsuit — Wine" — and its fabric and fit. All
+  five colours verified live. Adding a garment needs one command, and skipping it
+  degrades rather than breaks.
+- **A style checker now runs on every update**, and it earned its place within
+  minutes: it found that the list telling the media-cleanup tool which files are
+  "in use" was being ignored by that tool. The tool can *delete* files. Anyone
+  following the project's own written instructions would have added a new file
+  type to that list, seen everything go green, and left the cleaner blind to it.
+- **The public feedback channel now has a traffic limit.** Anyone on the internet
+  could post to it, it always answered "thanks" by design, and a flood would have
+  filled the database in silence. It now drops the excess and writes a line in the
+  log — the only way that would ever have been visible.
+- **Two settings that never did anything are gone** — a "how the garment is shown"
+  choice nothing acted on, and an analytics switch that could never have worked.
+  The database column stays where it is: unused it costs nothing, and removing it
+  is the single riskiest operation in this project.
+- **Version numbers unified** across five of six parts. The sixth cannot move —
+  Next.js refuses the newer version outright — and that is now written down so
+  nobody spends an afternoon rediscovering it.
+- **Alarms that do not depend on GitHub:** this is the one job that needs *you*,
+  because it needs an account. Five minutes, free, and the exact two checks to
+  create are in `docs/RUNBOOK.md` → "The watchman that is not us". Until you do
+  it, every alarm still ends in one person's GitHub notifications.
+
+**Scores that moved again:** *Will it break?* 90 → **92** (a style checker, and
+**460** automatic checks — up from 358 — plus 66 browser runs across five
+browsers). *Is it safe?* 83 → **88** (the open door now has a limit).
+*Can you add garment #2 without a developer?* 82 → **85**.
+
+**Overall: 85 → 88.** The remaining gaps are the ones under "Below the line" —
+QR codes generated outside the site, no AR, and images served at one size — plus
+the five-minute alarm job above.
+
+---
+
 ## Overall: 79 / 100 *(morning reading — see the update above)*
 
 Think of the project as a car.
