@@ -35,7 +35,8 @@ const SECURITY_HEADERS = [
   // dependency cannot quietly ask for them.
   {
     key: 'Permissions-Policy',
-    value: 'accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()',
+    value:
+      'accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()',
   },
 ]
 

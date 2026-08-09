@@ -72,7 +72,11 @@ async function resolveCloudflareEnv(): Promise<CloudflareEnv | null> {
 
 const env = await resolveCloudflareEnv()
 
-const mediaBaseUrl = (env?.PUBLIC_MEDIA_BASE_URL ?? process.env.PUBLIC_MEDIA_BASE_URL ?? '').replace(/\/$/, '')
+const mediaBaseUrl = (
+  env?.PUBLIC_MEDIA_BASE_URL ??
+  process.env.PUBLIC_MEDIA_BASE_URL ??
+  ''
+).replace(/\/$/, '')
 
 const allowedOrigins = (
   env?.VIEWER_ALLOWED_ORIGINS ??

@@ -1,6 +1,9 @@
 import type { ViewerApiResponse } from '@run-apparel/shared'
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'https://cms.wear-run.help').replace(/\/$/, '')
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'https://cms.wear-run.help').replace(
+  /\/$/,
+  '',
+)
 
 /**
  * Fetch the published viewer payload.

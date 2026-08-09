@@ -37,7 +37,12 @@ async function decalPng(): Promise<Uint8Array> {
     .composite([
       {
         input: {
-          create: { width: 40, height: 12, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } },
+          create: {
+            width: 40,
+            height: 12,
+            channels: 4,
+            background: { r: 255, g: 255, b: 255, alpha: 1 },
+          },
         },
         top: 26,
         left: 12,
@@ -69,7 +74,9 @@ async function gradedAlphaPng(): Promise<Uint8Array> {
     raw[i * 4 + 2] = 200
     raw[i * 4 + 3] = Math.round((255 * (i % width)) / (width - 1))
   }
-  const png = await sharp(raw, { raw: { width, height, channels: 4 } }).png().toBuffer()
+  const png = await sharp(raw, { raw: { width, height, channels: 4 } })
+    .png()
+    .toBuffer()
   return new Uint8Array(png)
 }
 
@@ -115,7 +122,9 @@ async function fineLetteringPng(): Promise<Uint8Array> {
       }
     }
   }
-  const png = await sharp(raw, { raw: { width, height, channels: 4 } }).png().toBuffer()
+  const png = await sharp(raw, { raw: { width, height, channels: 4 } })
+    .png()
+    .toBuffer()
   return new Uint8Array(png)
 }
 
@@ -144,7 +153,9 @@ async function softGlowPng(): Promise<Uint8Array> {
       raw[i + 3] = a
     }
   }
-  const png = await sharp(raw, { raw: { width: size, height: size, channels: 4 } }).png().toBuffer()
+  const png = await sharp(raw, { raw: { width: size, height: size, channels: 4 } })
+    .png()
+    .toBuffer()
   return new Uint8Array(png)
 }
 
@@ -243,7 +254,10 @@ describe('summariseUvSets', () => {
       .setMimeType('image/png')
 
     document.createMaterial('FABRIC').setBaseColorTexture(fabricTexture).setAlphaMode('OPAQUE')
-    const decal = document.createMaterial('CHEST-DECAL').setBaseColorTexture(decalTexture).setAlphaMode('BLEND')
+    const decal = document
+      .createMaterial('CHEST-DECAL')
+      .setBaseColorTexture(decalTexture)
+      .setAlphaMode('BLEND')
     // The whole point of the fixture: CLO's "Apply Graphic" lands the print on a
     // second UV set, which simplify-textured.ts does not weight.
     decal.getBaseColorTextureInfo()?.setTexCoord(1)
@@ -279,7 +293,12 @@ describe('offUv0Warning', () => {
     // unused sets and shifts the survivor down to TEXCOORD_0 before decimation
     // ever sees it. Warning about that would send the next person chasing a
     // hazard the pipeline already fixes for itself.
-    expect(offUv0Warning([], [{ material: 'M', slot: 'baseColorTexture', texCoord: 1, alphaMode: 'BLEND' }])).toBeNull()
+    expect(
+      offUv0Warning(
+        [],
+        [{ material: 'M', slot: 'baseColorTexture', texCoord: 1, alphaMode: 'BLEND' }],
+      ),
+    ).toBeNull()
   })
 
   it('names the multi-UV materials and points at the open issue', () => {
@@ -300,11 +319,17 @@ describe('prune() interaction — why only multi-UV materials matter', () => {
     const buffer = document.createBuffer()
     const accessor = (count: number, type: 'VEC3' | 'VEC2') =>
       document.createAccessor().setType(type).setArray(new Float32Array(count)).setBuffer(buffer)
-    const graphic = document.createTexture('graphic').setImage(new Uint8Array([1])).setMimeType('image/png')
+    const graphic = document
+      .createTexture('graphic')
+      .setImage(new Uint8Array([1]))
+      .setMimeType('image/png')
     const material = document.createMaterial('BODY').setBaseColorTexture(graphic)
     material.getBaseColorTextureInfo()?.setTexCoord(1)
     if (secondSlotOnUv0) {
-      const ao = document.createTexture('ao').setImage(new Uint8Array([2])).setMimeType('image/png')
+      const ao = document
+        .createTexture('ao')
+        .setImage(new Uint8Array([2]))
+        .setMimeType('image/png')
       material.setOcclusionTexture(ao)
       material.getOcclusionTextureInfo()?.setTexCoord(0)
     }
@@ -314,7 +339,9 @@ describe('prune() interaction — why only multi-UV materials matter', () => {
       .setAttribute('TEXCOORD_0', accessor(6, 'VEC2'))
       .setAttribute('TEXCOORD_1', accessor(6, 'VEC2'))
       .setMaterial(material)
-    document.createScene('s').addChild(document.createNode('n').setMesh(document.createMesh('m').addPrimitive(prim)))
+    document
+      .createScene('s')
+      .addChild(document.createNode('n').setMesh(document.createMesh('m').addPrimitive(prim)))
     return { document, prim }
   }
 
@@ -334,10 +361,12 @@ describe('prune() interaction — why only multi-UV materials matter', () => {
 
     await document.transform(prune({ keepExtras: true }))
 
-    expect(prim.listSemantics().filter((s) => s.startsWith('TEXCOORD')).sort()).toEqual([
-      'TEXCOORD_0',
-      'TEXCOORD_1',
-    ])
+    expect(
+      prim
+        .listSemantics()
+        .filter((s) => s.startsWith('TEXCOORD'))
+        .sort(),
+    ).toEqual(['TEXCOORD_0', 'TEXCOORD_1'])
     expect(summariseUvSets(document).texCoordsInUse).toEqual([0, 1])
     expect(summariseUvSets(document).materialsWithMultipleUvSets).toEqual(['BODY'])
   })
@@ -350,7 +379,10 @@ describe('inventoryTextures', () => {
       .createTexture('chest-logo')
       .setImage(await decalPng())
       .setMimeType('image/png')
-    const decal = document.createMaterial('CHEST-DECAL').setBaseColorTexture(decalTexture).setAlphaMode('BLEND')
+    const decal = document
+      .createMaterial('CHEST-DECAL')
+      .setBaseColorTexture(decalTexture)
+      .setAlphaMode('BLEND')
     decal.getBaseColorTextureInfo()?.setTexCoord(1)
 
     const inventory = await inventoryTextures(document, 'fixture.glb')
@@ -379,7 +411,11 @@ describe('inventoryTextures', () => {
     const texture = document
       .createTexture('crushed')
       // Bytes are what matter here; the pixel count comes from the real header.
-      .setImage(await sharp({ create: { width: 512, height: 512, channels: 3, background: '#808080' } }).webp({ quality: 1 }).toBuffer())
+      .setImage(
+        await sharp({ create: { width: 512, height: 512, channels: 3, background: '#808080' } })
+          .webp({ quality: 1 })
+          .toBuffer(),
+      )
       .setMimeType('image/webp')
     document.createMaterial('BODY').setBaseColorTexture(texture)
 

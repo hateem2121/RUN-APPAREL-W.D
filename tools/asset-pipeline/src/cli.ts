@@ -141,10 +141,13 @@ async function fetchCmsPlan(productSlug: string): Promise<CmsPlan> {
   const res = await fetch(url, {
     headers: { Authorization: `users API-Key ${apiKey}`, accept: 'application/json' },
   }).catch((error: unknown) => {
-    fail(`Could not reach the CMS at ${base}: ${error instanceof Error ? error.message : String(error)}`)
+    fail(
+      `Could not reach the CMS at ${base}: ${error instanceof Error ? error.message : String(error)}`,
+    )
   })
 
-  if (res.status === 401) fail(`The CMS rejected CMS_API_KEY. Check the key belongs to an admin or editor user.`)
+  if (res.status === 401)
+    fail(`The CMS rejected CMS_API_KEY. Check the key belongs to an admin or editor user.`)
   if (res.status === 404) fail(`No product at ${base} has the web address word "${productSlug}".`)
   if (!res.ok) fail(`The CMS returned ${res.status} for ${url}.`)
 
@@ -152,7 +155,7 @@ async function fetchCmsPlan(productSlug: string): Promise<CmsPlan> {
   if (!plan?.variantIds?.length) {
     fail(
       `Product "${productSlug}" has no colours switched on in the CMS, so there is nothing to merge.\n` +
-        '  Add them on the product\'s Colours tab first.',
+        "  Add them on the product's Colours tab first.",
     )
   }
   return plan
@@ -196,9 +199,12 @@ async function main(): Promise<void> {
     console.log(`Merged ${inputs.length} colourways → ${result.outputFile}`)
     console.log(`  variants:   ${result.variants.join(', ')}`)
     console.log(`  primitives: ${result.primitiveCount}  materials: ${result.materialCount}`)
-    const textureLabel = options.texture === 'webp' ? 'WebP' : options.texture === 'ktx2' ? 'KTX2' : 'unchanged'
+    const textureLabel =
+      options.texture === 'webp' ? 'WebP' : options.texture === 'ktx2' ? 'KTX2' : 'unchanged'
     console.log(`  textures:   ${textureLabel}  geometry: ${options.geometry}`)
-    console.log(`  materials:  ${options.opaque === false ? 'transparency kept (--keep-transparency)' : 'forced opaque + double-sided'}`)
+    console.log(
+      `  materials:  ${options.opaque === false ? 'transparency kept (--keep-transparency)' : 'forced opaque + double-sided'}`,
+    )
     console.log(`  size:       ${(result.bytes / 1024).toFixed(1)} KB`)
     console.log('\nNext: run "pnpm pipeline validate" with --expect before uploading to the CMS.')
     return
@@ -209,10 +215,15 @@ async function main(): Promise<void> {
     if (!input) fail('Missing <file.glb>')
     if (!out) fail('Missing --out <out.glb>')
     const result = await optimizeGlb(input, out, options)
-    const pct = result.bytesBefore > 0 ? (100 * (1 - result.bytesAfter / result.bytesBefore)).toFixed(1) : '0'
+    const pct =
+      result.bytesBefore > 0 ? (100 * (1 - result.bytesAfter / result.bytesBefore)).toFixed(1) : '0'
     console.log(`Optimised ${input} → ${result.outputFile}`)
-    const simplifyLabel = options.simplify ? `  simplify: keep ${Math.round(options.simplify * 100)}% of triangles` : ''
-    console.log(`  textures:   ${result.textureCount} (${result.textureFormats.join(', ') || 'none'})  geometry: ${result.geometry}${simplifyLabel}`)
+    const simplifyLabel = options.simplify
+      ? `  simplify: keep ${Math.round(options.simplify * 100)}% of triangles`
+      : ''
+    console.log(
+      `  textures:   ${result.textureCount} (${result.textureFormats.join(', ') || 'none'})  geometry: ${result.geometry}${simplifyLabel}`,
+    )
     if (result.solidify) {
       const { opaqued, masked, keptBlend, doubleSided } = result.solidify
       console.log(
@@ -226,7 +237,8 @@ async function main(): Promise<void> {
       console.log(
         `  encoding:   ${artwork} artwork texture(s) at high fidelity, ${standard} standard, ${skipped} untouched`,
       )
-      if (artwork > 0) console.log(`              artwork: ${result.textures.artworkNames.join(', ')}`)
+      if (artwork > 0)
+        console.log(`              artwork: ${result.textures.artworkNames.join(', ')}`)
     }
     if (result.simplify) {
       const { attributeAware, fallback, skipped, uvSetsWeighted } = result.simplify
@@ -255,7 +267,12 @@ async function main(): Promise<void> {
     if (!file) fail('Missing <file.glb>')
     const expectIdx = rest.indexOf('--expect')
     const expected =
-      expectIdx === -1 ? null : (rest[expectIdx + 1] ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+      expectIdx === -1
+        ? null
+        : (rest[expectIdx + 1] ?? '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
 
     const strict = rest.includes('--strict')
 
@@ -264,15 +281,23 @@ async function main(): Promise<void> {
     console.log(`  size:       ${(report.bytes / 1024).toFixed(1)} KB`)
     console.log(`  generator:  ${report.generator || '(none)'}`)
     console.log(`  meshes:     ${report.meshCount}  primitives: ${report.primitiveCount}`)
-    console.log(`  materials:  ${report.materialCount}  textures: ${report.textureCount} (${report.uncompressedTextureCount} raw PNG/JPEG)`)
+    console.log(
+      `  materials:  ${report.materialCount}  textures: ${report.textureCount} (${report.uncompressedTextureCount} raw PNG/JPEG)`,
+    )
     console.log(`  translucent: ${report.translucentMaterialCount} material(s) alphaMode BLEND`)
     console.log(
-      `  alphaModes: ${Object.entries(report.alphaModeCounts).map(([mode, n]) => `${n} ${mode}`).join(', ') || '(none)'}`,
+      `  alphaModes: ${
+        Object.entries(report.alphaModeCounts)
+          .map(([mode, n]) => `${n} ${mode}`)
+          .join(', ') || '(none)'
+      }`,
     )
     console.log(
       `  UV sets:    ${report.texCoordsInUse.map((n) => `TEXCOORD_${n}`).join(', ') || '(no textured materials)'}`,
     )
-    console.log(`  variants:   ${report.variants.length ? report.variants.join(', ') : '(none bound)'}`)
+    console.log(
+      `  variants:   ${report.variants.length ? report.variants.join(', ') : '(none bound)'}`,
+    )
     for (const warning of report.warnings) console.log(`  WARNING:    ${warning}`)
 
     if (expected) {
@@ -316,7 +341,11 @@ async function main(): Promise<void> {
       `  UV sets:    ${inventory.texCoordsInUse.map((n) => `TEXCOORD_${n}`).join(', ') || '(none sampled)'}`,
     )
     console.log(
-      `  materials:  ${Object.entries(inventory.alphaModeCounts).map(([mode, n]) => `${n} ${mode}`).join(', ') || '(none)'}`,
+      `  materials:  ${
+        Object.entries(inventory.alphaModeCounts)
+          .map(([mode, n]) => `${n} ${mode}`)
+          .join(', ') || '(none)'
+      }`,
     )
     console.log('')
     for (const texture of inventory.textures) {
@@ -352,7 +381,9 @@ async function main(): Promise<void> {
     if (!file) fail('Missing <file.glb>')
     if (!outDir) fail('Missing --out <dir>')
 
-    const views = viewsFile ? (JSON.parse(await readFile(viewsFile, 'utf8')) as RenderView[]) : DEFAULT_VIEWS
+    const views = viewsFile
+      ? (JSON.parse(await readFile(viewsFile, 'utf8')) as RenderView[])
+      : DEFAULT_VIEWS
     const result = await renderViews(file, outDir, {
       views,
       variant,
@@ -390,16 +421,21 @@ async function main(): Promise<void> {
       )
     }
     if (result.unmatched.length) {
-      console.log(`  WARNING:    only in one directory: ${result.unmatched.join(', ')} — did a render fail partway?`)
+      console.log(
+        `  WARNING:    only in one directory: ${result.unmatched.join(', ')} — did a render fail partway?`,
+      )
     }
     return
   }
 
   if (command === 'placeholders') {
     const outIdx = rest.indexOf('--out')
-    const outDir = outIdx === -1 ? 'output/placeholders' : (rest[outIdx + 1] ?? 'output/placeholders')
+    const outDir =
+      outIdx === -1 ? 'output/placeholders' : (rest[outIdx + 1] ?? 'output/placeholders')
     const result = await generatePlaceholders(outDir)
-    console.log(`Generated ${result.glbFiles.length} GLBs and ${result.posterFiles.length} posters in ${outDir}`)
+    console.log(
+      `Generated ${result.glbFiles.length} GLBs and ${result.posterFiles.length} posters in ${outDir}`,
+    )
     return
   }
 

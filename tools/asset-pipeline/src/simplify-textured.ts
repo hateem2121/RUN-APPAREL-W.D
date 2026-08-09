@@ -1,4 +1,4 @@
-import { Document, type Material, type Primitive, type Transform } from '@gltf-transform/core'
+import type { Document, Material, Primitive, Transform } from '@gltf-transform/core'
 import {
   VertexCountMethod,
   compactPrimitive,

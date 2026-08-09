@@ -112,7 +112,9 @@ export function buildViewerResponse(
       category: product.category as ViewerApiSuccess['product']['category'],
       variantMode: separateMode ? 'separate-glb-per-colour' : 'single-glb-variants',
       presentationMode:
-        product.presentationMode === 'invisibleMannequin' ? 'invisibleMannequin' : 'floatingGarment',
+        product.presentationMode === 'invisibleMannequin'
+          ? 'invisibleMannequin'
+          : 'floatingGarment',
       glbUrl: separateMode ? null : (toMediaAsset(product.glbAsset, origin)?.url ?? null),
       posterFallback: toMediaAsset(product.posterFallback, origin),
       fabricComposition: String(product.fabricComposition ?? ''),
@@ -155,7 +157,9 @@ export function buildViewerResponse(
       email: String(settings.email ?? DEFAULT_SITE_SETTINGS.email),
       whatsappNumber: String(settings.whatsappNumber ?? DEFAULT_SITE_SETTINGS.whatsappNumber),
       catalogueUrl: String(settings.catalogueUrl ?? DEFAULT_SITE_SETTINGS.catalogueUrl),
-      temporaryWordmark: String(settings.temporaryWordmark ?? DEFAULT_SITE_SETTINGS.temporaryWordmark),
+      temporaryWordmark: String(
+        settings.temporaryWordmark ?? DEFAULT_SITE_SETTINGS.temporaryWordmark,
+      ),
       footerLine: String(settings.footerLine ?? DEFAULT_SITE_SETTINGS.footerLine),
       legalLine: String(settings.legalLine ?? DEFAULT_SITE_SETTINGS.legalLine),
     },

@@ -12,7 +12,11 @@ interface ContactProps {
   enquiry: EnquiryContext
 }
 
-function ContactButtons({ settings, enquiry, compact = false }: ContactProps & { compact?: boolean }) {
+function ContactButtons({
+  settings,
+  enquiry,
+  compact = false,
+}: ContactProps & { compact?: boolean }) {
   return (
     <>
       <a

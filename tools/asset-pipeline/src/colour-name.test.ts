@@ -42,7 +42,7 @@ describe('sRGB ↔ linear', () => {
   it('maps linear 0.2140 to sRGB mid-grey, not to a dark grey', () => {
     // If this drops to ~0.46 the transfer function was applied backwards, which
     // would make every garment read one shade darker than it is.
-    expect(linearToSrgb(0.2140)).toBeCloseTo(0.5, 2)
+    expect(linearToSrgb(0.214)).toBeCloseTo(0.5, 2)
   })
 
   it('is near-linear in the toe, where the two curves nearly agree', () => {

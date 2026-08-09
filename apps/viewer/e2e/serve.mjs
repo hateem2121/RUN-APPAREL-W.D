@@ -97,9 +97,30 @@ const MIME = {
 }
 
 const COLOURWAYS = [
-  { slug: 'navy', displayName: 'Navy', variantId: 'N001-NAVY', hexSwatch: '#22314E', sequence: 1, isDefault: true },
-  { slug: 'black', displayName: 'Black', variantId: 'N001-BLACK', hexSwatch: '#17181A', sequence: 2, isDefault: false },
-  { slug: 'crimson', displayName: 'Crimson', variantId: 'N001-CRIMSON', hexSwatch: '#8C1F2F', sequence: 3, isDefault: false },
+  {
+    slug: 'navy',
+    displayName: 'Navy',
+    variantId: 'N001-NAVY',
+    hexSwatch: '#22314E',
+    sequence: 1,
+    isDefault: true,
+  },
+  {
+    slug: 'black',
+    displayName: 'Black',
+    variantId: 'N001-BLACK',
+    hexSwatch: '#17181A',
+    sequence: 2,
+    isDefault: false,
+  },
+  {
+    slug: 'crimson',
+    displayName: 'Crimson',
+    variantId: 'N001-CRIMSON',
+    hexSwatch: '#8C1F2F',
+    sequence: 3,
+    isDefault: false,
+  },
 ]
 
 const siteSettings = {
@@ -171,8 +192,16 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
       customisationIntroHtml:
         '<p>Send us a finished design, a tech pack, artwork, a reference image — or simply an idea.</p>',
       customisationSteps: [
-        { number: 1, title: 'SHARE YOUR STARTING POINT', body: 'A design, tech pack, artwork or idea.' },
-        { number: 2, title: 'DEFINE THE PRODUCT', body: 'Fabric, colour, fit, trims, performance.' },
+        {
+          number: 1,
+          title: 'SHARE YOUR STARTING POINT',
+          body: 'A design, tech pack, artwork or idea.',
+        },
+        {
+          number: 2,
+          title: 'DEFINE THE PRODUCT',
+          body: 'Fabric, colour, fit, trims, performance.',
+        },
         { number: 3, title: 'ADD YOUR BRAND', body: 'Logos, labels, prints, embroidery.' },
         { number: 4, title: 'SAMPLE, REFINE AND PRODUCE', body: 'Approve, refine, produce.' },
       ],
@@ -208,7 +237,12 @@ const server = http.createServer((req, res) => {
     res.setHeader('content-type', 'application/json')
     if (!(apiMatch[1] in PRODUCTS)) {
       res.statusCode = 404
-      res.end(JSON.stringify({ error: 'not_found', message: 'This product reference is not currently available.' }))
+      res.end(
+        JSON.stringify({
+          error: 'not_found',
+          message: 'This product reference is not currently available.',
+        }),
+      )
       return
     }
     res.end(JSON.stringify(viewerPayload(origin, apiMatch[2] ?? null, apiMatch[1])))

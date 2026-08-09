@@ -48,7 +48,9 @@ describe('readVariantColours', () => {
 
     const body = addQuad(document, 10) // large — this is the garment colour
     const navyBody = document.createMaterial('FABRIC 5_navy').setBaseColorFactor(linear(27, 42, 74))
-    const greenBody = document.createMaterial('FABRIC 5_green').setBaseColorFactor(linear(0, 77, 36))
+    const greenBody = document
+      .createMaterial('FABRIC 5_green')
+      .setBaseColorFactor(linear(0, 77, 36))
     body.setExtension(
       'KHR_materials_variants',
       ext
@@ -101,17 +103,31 @@ describe('readVariantColours', () => {
     const ext = document.createExtension(KHRMaterialsVariants)
     const variant = ext.createVariant('Colorway 2')
 
-    const map = (prim: ReturnType<typeof addQuad>, material: ReturnType<Document['createMaterial']>) =>
+    const map = (
+      prim: ReturnType<typeof addQuad>,
+      material: ReturnType<Document['createMaterial']>,
+    ) =>
       prim.setExtension(
         'KHR_materials_variants',
-        ext.createMappingList().addMapping(ext.createMapping().setMaterial(material).addVariant(variant)),
+        ext
+          .createMappingList()
+          .addMapping(ext.createMapping().setMaterial(material).addVariant(variant)),
       )
 
     // The trim and the artwork cover MORE area than the fabric, so only an
     // explicit exclusion can get this right.
-    map(addQuad(document, 4), document.createMaterial('FABRIC 3_body').setBaseColorFactor(linear(27, 42, 74)))
-    map(addQuad(document, 30), document.createMaterial('Zipper 2_Slider').setBaseColorFactor(linear(0, 0, 0)))
-    map(addQuad(document, 30), document.createMaterial('Zipper 2_TapeFabric').setBaseColorFactor(linear(0, 0, 0)))
+    map(
+      addQuad(document, 4),
+      document.createMaterial('FABRIC 3_body').setBaseColorFactor(linear(27, 42, 74)),
+    )
+    map(
+      addQuad(document, 30),
+      document.createMaterial('Zipper 2_Slider').setBaseColorFactor(linear(0, 0, 0)),
+    )
+    map(
+      addQuad(document, 30),
+      document.createMaterial('Zipper 2_TapeFabric').setBaseColorFactor(linear(0, 0, 0)),
+    )
     const logoTexture = document
       .createTexture('RUN LOGO')
       .setMimeType('image/png')
@@ -143,7 +159,9 @@ describe('readVariantColours', () => {
       ext.createMappingList().addMapping(
         ext
           .createMapping()
-          .setMaterial(document.createMaterial('FABRIC 5_3068').setBaseColorFactor(linear(27, 42, 74)))
+          .setMaterial(
+            document.createMaterial('FABRIC 5_3068').setBaseColorFactor(linear(27, 42, 74)),
+          )
           .addVariant(variant),
       ),
     )

@@ -33,8 +33,12 @@ const rowsOf = (data: unknown): ColourRow[] => {
 
 /** How many rows already use this value for `key` (trimmed, case-insensitive). */
 const countUsing = (data: unknown, key: keyof ColourRow, value: string): number =>
-  rowsOf(data).filter((row) => String(row[key] ?? '').trim().toLowerCase() === value.toLowerCase())
-    .length
+  rowsOf(data).filter(
+    (row) =>
+      String(row[key] ?? '')
+        .trim()
+        .toLowerCase() === value.toLowerCase(),
+  ).length
 
 export const colourwaysField: ArrayField = {
   name: 'colourways',
@@ -74,7 +78,12 @@ export const colourwaysField: ArrayField = {
         }
         const slug = value.trim()
         if (!isValidSlug(slug)) {
-          return `“${slug}” can’t be used in a web address. Use lowercase letters, numbers and hyphens only — e.g. ${slug.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'navy'}.`
+          return `“${slug}” can’t be used in a web address. Use lowercase letters, numbers and hyphens only — e.g. ${
+            slug
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/^-|-$/g, '') || 'navy'
+          }.`
         }
         if (countUsing(data, 'slug', slug) > 1) {
           return `Two colours both use the web address word “${slug}”. Change one of them — for example “${slug}-marl”.`

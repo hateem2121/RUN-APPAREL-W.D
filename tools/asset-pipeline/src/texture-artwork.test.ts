@@ -110,13 +110,31 @@ describe('compressTexturesForArtwork', () => {
 
   it('re-encodes to WebP and reports how each texture was classified', async () => {
     const document = new Document()
-    document.createTexture('body-fabric').setImage(await png(256, 256)).setMimeType('image/png')
-    document.createTexture('chest-logo').setImage(await cutoutPng()).setMimeType('image/png')
+    document
+      .createTexture('body-fabric')
+      .setImage(await png(256, 256))
+      .setMimeType('image/png')
+    document
+      .createTexture('chest-logo')
+      .setImage(await cutoutPng())
+      .setMimeType('image/png')
 
-    let result: { artwork: number; standard: number; skipped: number; artworkNames: string[] } | null = null
-    await document.transform(compressTexturesForArtwork({ ...options, onResult: (r) => (result = r) }))
+    let result: {
+      artwork: number
+      standard: number
+      skipped: number
+      artworkNames: string[]
+    } | null = null
+    await document.transform(
+      compressTexturesForArtwork({ ...options, onResult: (r) => (result = r) }),
+    )
 
-    expect(document.getRoot().listTextures().every((t) => t.getMimeType() === 'image/webp')).toBe(true)
+    expect(
+      document
+        .getRoot()
+        .listTextures()
+        .every((t) => t.getMimeType() === 'image/webp'),
+    ).toBe(true)
     expect(result).toMatchObject({ artwork: 1, standard: 1, skipped: 0 })
     expect(result!.artworkNames).toEqual(['chest-logo'])
   })
@@ -125,7 +143,10 @@ describe('compressTexturesForArtwork', () => {
     // The 2048 cap is what resamples thin lettering into mush. Artwork gets the
     // higher cap, so a 3000px graphic survives intact.
     const document = new Document()
-    document.createTexture('logo').setImage(await png(3000, 600)).setMimeType('image/png')
+    document
+      .createTexture('logo')
+      .setImage(await png(3000, 600))
+      .setMimeType('image/png')
 
     await document.transform(compressTexturesForArtwork(options))
 
@@ -136,7 +157,10 @@ describe('compressTexturesForArtwork', () => {
 
   it('still caps ordinary fabric maps', async () => {
     const document = new Document()
-    document.createTexture('fabric').setImage(await png(3000, 3000)).setMimeType('image/png')
+    document
+      .createTexture('fabric')
+      .setImage(await png(3000, 3000))
+      .setMimeType('image/png')
 
     await document.transform(compressTexturesForArtwork(options))
 
@@ -174,8 +198,14 @@ describe('compressTexturesForArtwork', () => {
     // said out loud rather than happening quietly. Fabric resizing is routine
     // and deliberately not reported.
     const document = new Document()
-    document.createTexture('big-logo').setImage(await png(5000, 900)).setMimeType('image/png')
-    document.createTexture('big-fabric').setImage(await png(5000, 5000)).setMimeType('image/png')
+    document
+      .createTexture('big-logo')
+      .setImage(await png(5000, 900))
+      .setMimeType('image/png')
+    document
+      .createTexture('big-fabric')
+      .setImage(await png(5000, 5000))
+      .setMimeType('image/png')
 
     let result: { artworkResized: string[] } | null = null
     await document.transform(
@@ -187,7 +217,10 @@ describe('compressTexturesForArtwork', () => {
 
   it('says nothing when the artwork fitted', async () => {
     const document = new Document()
-    document.createTexture('logo').setImage(await png(1200, 300)).setMimeType('image/png')
+    document
+      .createTexture('logo')
+      .setImage(await png(1200, 300))
+      .setMimeType('image/png')
 
     let result: { artworkResized: string[] } | null = null
     await document.transform(
@@ -205,7 +238,9 @@ describe('compressTexturesForArtwork', () => {
     document.createTexture('gpu').setImage(original).setMimeType('image/ktx2')
 
     let result: { skipped: number } | null = null
-    await document.transform(compressTexturesForArtwork({ ...options, onResult: (r) => (result = r) }))
+    await document.transform(
+      compressTexturesForArtwork({ ...options, onResult: (r) => (result = r) }),
+    )
 
     expect(document.getRoot().listTextures()[0]?.getImage()).toEqual(original)
     expect(document.getRoot().listTextures()[0]?.getMimeType()).toBe('image/ktx2')
@@ -228,7 +263,7 @@ describe('compressTexturesForArtwork', () => {
  */
 async function webpFrom(size: number, quality: number, fill: (i: number) => number) {
   const raw = Buffer.alloc(size * size * 3)
-  let value = 12345
+  const value = 12345
   for (let i = 0; i < raw.length; i++) raw[i] = fill(i) & 255
   void value
   const buffer = await sharp(raw, { raw: { width: size, height: size, channels: 3 } })
@@ -270,7 +305,7 @@ describe('findCrushedArtwork', () => {
       .createTexture('chest-logo')
       .setMimeType('image/webp')
       .setImage(await smoothWebp(1024, 1))
-    document.createMaterial("N001-GRAPHIC").setBaseColorTexture(texture)
+    document.createMaterial('N001-GRAPHIC').setBaseColorTexture(texture)
 
     const crushed = await findCrushedArtwork(document)
 
@@ -318,7 +353,10 @@ describe('findCrushedArtwork', () => {
  */
 describe('findArtworkAlphaProblems', () => {
   const artworkTexture = (document: Document) =>
-    document.createTexture('chest-logo').setMimeType('image/png').setImage(new Uint8Array([0x89, 0x50]))
+    document
+      .createTexture('chest-logo')
+      .setMimeType('image/png')
+      .setImage(new Uint8Array([0x89, 0x50]))
 
   it('flags a printed graphic left translucent', async () => {
     const document = new Document()
@@ -361,7 +399,10 @@ describe('findArtworkAlphaProblems', () => {
     document
       .createMaterial('N001-MESH-PANEL')
       .setBaseColorTexture(
-        document.createTexture('fabric-mesh').setMimeType('image/png').setImage(new Uint8Array([0x89, 0x50])),
+        document
+          .createTexture('fabric-mesh')
+          .setMimeType('image/png')
+          .setImage(new Uint8Array([0x89, 0x50])),
       )
       .setAlphaMode('BLEND')
 

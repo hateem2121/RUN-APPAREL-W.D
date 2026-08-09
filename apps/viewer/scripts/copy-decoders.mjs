@@ -91,7 +91,12 @@ function assertThreeMatchesModelViewer() {
         'might not match — see the VERSION COUPLING note in this file.',
     )
   }
-  const minorOf = (v) => v.replace(/^[^\d]*/, '').split('.').slice(0, 2).join('.')
+  const minorOf = (v) =>
+    v
+      .replace(/^[^\d]*/, '')
+      .split('.')
+      .slice(0, 2)
+      .join('.')
   if (minorOf(installed) !== minorOf(range)) {
     throw new Error(
       `[decoders] three ${installed} is installed, but @google/model-viewer ${mv.version} wants ` +

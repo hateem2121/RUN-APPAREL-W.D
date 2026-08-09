@@ -331,7 +331,8 @@ export const RawUploads: CollectionConfig = {
       relationTo: 'media',
       admin: {
         readOnly: true,
-        description: 'The shrunk, pipeline-processed GLB the robot produced. Attach this to the product.',
+        description:
+          'The shrunk, pipeline-processed GLB the robot produced. Attach this to the product.',
       },
     },
     {

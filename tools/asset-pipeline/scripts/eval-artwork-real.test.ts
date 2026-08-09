@@ -23,9 +23,21 @@ import {
  */
 
 /** N001's real prints, measured off the built baseline on 2026-08-08. */
-const WORDMARK = { name: 'THE EXTRA MILE (Slogan)_3161', centre: [-0.0, 1.314, 0.069], span: [0.202, 0.014, 0.02] }
-const HEM_LABEL = { name: 'TEAM WEAR FRONT LABEL_3117', centre: [-0.05, 0.782, 0.06], span: [0.039, 0.023, 0.01] }
-const BACK_PRINT = { name: 'Zipper 3_TapeFabric_3556', centre: [-0.003, 1.022, -0.107], span: [0.089, 0.005, 0.01] }
+const WORDMARK = {
+  name: 'THE EXTRA MILE (Slogan)_3161',
+  centre: [-0.0, 1.314, 0.069],
+  span: [0.202, 0.014, 0.02],
+}
+const HEM_LABEL = {
+  name: 'TEAM WEAR FRONT LABEL_3117',
+  centre: [-0.05, 0.782, 0.06],
+  span: [0.039, 0.023, 0.01],
+}
+const BACK_PRINT = {
+  name: 'Zipper 3_TapeFabric_3556',
+  centre: [-0.003, 1.022, -0.107],
+  span: [0.089, 0.005, 0.01],
+}
 
 const MODEL_MIN = [-0.35, 0.0, -0.15]
 const MODEL_MAX = [0.35, 1.7, 0.15]
@@ -67,7 +79,10 @@ describe('fovLadderFor', () => {
    * refuse or silently clamp. See render.test.ts for what clamping costs.
    */
   it('clamps a pathological print into a renderable range', () => {
-    for (const span of [[1e-6, 1e-6, 1e-6], [50, 50, 50]]) {
+    for (const span of [
+      [1e-6, 1e-6, 1e-6],
+      [50, 50, 50],
+    ]) {
       for (const fov of fovLadderFor({ name: 'x', centre: [0, 0, 0], span })) {
         expect(fov).toBeGreaterThanOrEqual(1)
         expect(fov).toBeLessThanOrEqual(45)
@@ -108,7 +123,9 @@ describe('suggestViewFor', () => {
 
   it('always emits a target, which the aim guard requires', () => {
     for (const print of [WORDMARK, HEM_LABEL, BACK_PRINT]) {
-      expect(suggestViewFor(print, MODEL_MIN, MODEL_MAX, 12).target).toMatch(/^-?[\d.]+m -?[\d.]+m -?[\d.]+m$/)
+      expect(suggestViewFor(print, MODEL_MIN, MODEL_MAX, 12).target).toMatch(
+        /^-?[\d.]+m -?[\d.]+m -?[\d.]+m$/,
+      )
     }
   })
 })
@@ -133,7 +150,8 @@ describe('cameraFingerprint', () => {
    * raw/CANONICAL.json → $cameraFingerprintComment.
    */
   it('changes when only the zoom changes', () => {
-    const at = (fov: number) => cameraFingerprint([suggestViewFor(WORDMARK, MODEL_MIN, MODEL_MAX, fov)])
+    const at = (fov: number) =>
+      cameraFingerprint([suggestViewFor(WORDMARK, MODEL_MIN, MODEL_MAX, fov)])
     expect(at(14)).not.toBe(at(20))
   })
 

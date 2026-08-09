@@ -37,8 +37,8 @@ export const ImportColoursFromFile: UIFieldClientComponent = () => {
   if (missing.length === 0) {
     return added > 0 ? (
       <div className="field-description">
-        Added {added} colour{added === 1 ? '' : 's'}. They are switched off until you tick “Show this
-        colour on the website”, so nothing has changed for buyers yet.
+        Added {added} colour{added === 1 ? '' : 's'}. They are switched off until you tick “Show
+        this colour on the website”, so nothing has changed for buyers yet.
       </div>
     ) : null
   }
@@ -50,7 +50,9 @@ export const ImportColoursFromFile: UIFieldClientComponent = () => {
     // cannot claim the same slug.
     const next = [...existing] as Record<string, unknown>[]
     for (const colour of chosen) {
-      next.push(buildImportedRow(colour, next as ExistingRow[]) as unknown as Record<string, unknown>)
+      next.push(
+        buildImportedRow(colour, next as ExistingRow[]) as unknown as Record<string, unknown>,
+      )
     }
     setRows(next)
     setAdded(chosen.length)
@@ -69,7 +71,10 @@ export const ImportColoursFromFile: UIFieldClientComponent = () => {
       </p>
       <ul style={{ listStyle: 'none', padding: 0, margin: '10px 0' }}>
         {missing.map((colour) => (
-          <li key={colour.variantId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+          <li
+            key={colour.variantId}
+            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}
+          >
             <input
               type="checkbox"
               id={`import-${colour.variantId}`}

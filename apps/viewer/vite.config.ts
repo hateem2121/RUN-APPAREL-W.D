@@ -18,7 +18,9 @@ import { defineConfig } from 'vite'
  * Belt and braces, because the failure is silent and permanent.
  */
 const SENTRY_AUTH_TOKEN = process.env.SENTRY_AUTH_TOKEN
-const uploadSourceMaps = Boolean(SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT)
+const uploadSourceMaps = Boolean(
+  SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT,
+)
 
 export default defineConfig({
   plugins: [

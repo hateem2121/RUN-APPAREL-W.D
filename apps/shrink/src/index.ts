@@ -163,7 +163,8 @@ export default {
           status: 'failed',
           report: `Automatic shrink failed:\n${detail}`,
         }).catch((reportError: unknown) => {
-          const reportDetail = reportError instanceof Error ? reportError.message : String(reportError)
+          const reportDetail =
+            reportError instanceof Error ? reportError.message : String(reportError)
           console.error(
             `[shrink] CRITICAL: could not report failure for raw upload ${message.body.rawUploadId}. ` +
               `The upload will appear stuck with no explanation.\n` +
@@ -347,7 +348,12 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   // 6. Retire the model this run replaced — but only once `resultGlb` points at
   //    the new one, so a failure here can never leave the upload pointing at a
   //    document that has been deleted.
-  const supersededNote = await retireSupersededResult(env, previousResultGlb, mediaId, job.rawUploadId)
+  const supersededNote = await retireSupersededResult(
+    env,
+    previousResultGlb,
+    mediaId,
+    job.rawUploadId,
+  )
   if (supersededNote) {
     await patchRawUpload(env, job.rawUploadId, {
       report: report.text + fileColoursNote + supersededNote,

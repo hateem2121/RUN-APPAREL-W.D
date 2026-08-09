@@ -236,12 +236,12 @@ li {
   mix-blend-mode: overlay;
 }
 
-:root[data-theme='light'] .grain {
+:root[data-theme="light"] .grain {
   display: none;
 }
 
 @media (prefers-color-scheme: light) {
-  :root:not([data-theme='dark']) .grain {
+  :root:not([data-theme="dark"]) .grain {
     display: none;
   }
 }
@@ -307,7 +307,7 @@ html.lenis body {
 .has-custom-cursor,
 .has-custom-cursor a,
 .has-custom-cursor button,
-.has-custom-cursor [role='tab'],
+.has-custom-cursor [role="tab"],
 .has-custom-cursor .theme-toggle {
   cursor: none;
 }
@@ -335,13 +335,13 @@ html.lenis body {
   height: 34px;
   border: 1px solid var(--serif-accent);
 }
-.cursor-ring[data-pointer='true'] {
+.cursor-ring[data-pointer="true"] {
   width: 52px;
   height: 52px;
   background: color-mix(in srgb, var(--volt) 14%, transparent);
 }
-.cursor-dot[data-hidden='true'],
-.cursor-ring[data-hidden='true'] {
+.cursor-dot[data-hidden="true"],
+.cursor-ring[data-hidden="true"] {
   opacity: 0;
 }
 @media (pointer: coarse) {

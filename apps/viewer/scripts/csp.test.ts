@@ -74,7 +74,10 @@ describe('buildCsp — origins the live viewer cannot work without', () => {
   })
 
   it('lets the app reach whichever API origin it was built against', () => {
-    const csp = buildCsp({ html: THEME_BOOTSTRAP, apiBaseUrl: 'https://staging-cms.example.com/api' })
+    const csp = buildCsp({
+      html: THEME_BOOTSTRAP,
+      apiBaseUrl: 'https://staging-cms.example.com/api',
+    })
     expect(directive(csp, 'connect-src')).toContain('https://staging-cms.example.com')
     expect(directive(csp, 'img-src')).toContain('https://staging-cms.example.com')
   })
@@ -146,8 +149,10 @@ describe('buildHeadersFile — the _headers file', () => {
   // the comment in csp.mjs. This test pins the directive that is there, it does not
   // certify that the injection has stopped. Only a live page load can say that.
   it('keeps no-transform on the SPA shell — this is what suppresses the CSP violation', () => {
-    const cc = ruleFor(buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API }), '/index.html')
-      .find((l) => l.toLowerCase().startsWith('cache-control:'))
+    const cc = ruleFor(
+      buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API }),
+      '/index.html',
+    ).find((l) => l.toLowerCase().startsWith('cache-control:'))
     expect(cc).toBeDefined()
     expect(cc).toContain('no-transform')
   })
@@ -158,8 +163,10 @@ describe('buildHeadersFile — the _headers file', () => {
   //   public, max-age=31536000, immutable, public, max-age=0, must-revalidate
   // on every hashed bundle. This test is the tripwire for that edit.
   it('leaves hashed assets on immutable caching, untouched by the shell rule', () => {
-    const cc = ruleFor(buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API }), '/assets/*')
-      .find((l) => l.toLowerCase().startsWith('cache-control:'))
+    const cc = ruleFor(
+      buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API }),
+      '/assets/*',
+    ).find((l) => l.toLowerCase().startsWith('cache-control:'))
     expect(cc).toContain('immutable')
     expect(cc).toContain('max-age=31536000')
     expect(cc).not.toContain('max-age=0')

@@ -69,7 +69,10 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
     if (!getRes.ok || !getRes.body) {
       throw new Error(`Could not read raw object "${body.key}" from ingest (${getRes.status}).`)
     }
-    await pipeline(Readable.fromWeb(getRes.body as import('node:stream/web').ReadableStream), createWriteStream(rawPath))
+    await pipeline(
+      Readable.fromWeb(getRes.body as import('node:stream/web').ReadableStream),
+      createWriteStream(rawPath),
+    )
 
     // 2. Run the SAME pipeline the CLI uses. parseOptimizeArgs applies the exact
     //    defaults (WebP textures, opaque + double-sided fabric) plus our flags.
@@ -138,9 +141,9 @@ const server = createServer((req, res) => {
         const message = error instanceof Error ? error.message : String(error)
         res.writeHead(500, {
           'content-type': 'text/plain',
-          'x-shrink-report': Buffer.from(
-            JSON.stringify({ ok: false, error: message }),
-          ).toString('base64'),
+          'x-shrink-report': Buffer.from(JSON.stringify({ ok: false, error: message })).toString(
+            'base64',
+          ),
         })
         res.end(message)
       }

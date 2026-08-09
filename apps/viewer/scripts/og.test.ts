@@ -32,10 +32,7 @@ const html = rawHtml.replace(/<!--[\s\S]*?-->/g, '')
 
 /** Pull a meta tag's content by its `property=` or `name=` key. */
 function meta(key: string): string | null {
-  const pattern = new RegExp(
-    `<meta\\s+(?:property|name)="${key}"\\s+content="([^"]*)"`,
-    'i',
-  )
+  const pattern = new RegExp(`<meta\\s+(?:property|name)="${key}"\\s+content="([^"]*)"`, 'i')
   const inline = html.match(pattern)
   if (inline) return inline[1] ?? null
 

@@ -87,7 +87,8 @@ export function parseMergeArgs(rest: string[]): ParsedMergeArgs {
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]!
     if (arg === '--out') out = rest[++i] ?? null
-    else if (arg === '--from-cms') i++ // value already read above
+    else if (arg === '--from-cms')
+      i++ // value already read above
     else if (arg === '--draco') geometry = 'draco'
     else if (arg === '--meshopt') geometry = 'meshopt'
     else if (arg === '--no-webp' || arg === '--no-textures') texture = 'none'

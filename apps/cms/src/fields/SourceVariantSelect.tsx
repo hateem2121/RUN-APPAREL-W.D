@@ -140,7 +140,8 @@ export const SourceVariantSelect: TextFieldClientComponent = ({ field, path }) =
           />
           <small>
             This is the colour inside your file: <strong>{selected.name}</strong> ({selected.hex}).
-            {selected.confidence === 'low' && ' We are not confident about the name — trust the swatch.'}
+            {selected.confidence === 'low' &&
+              ' We are not confident about the name — trust the swatch.'}
           </small>
         </div>
       )}

@@ -189,7 +189,7 @@ model-viewer.stage__model {
 }
 
 .callout::before {
-  content: '';
+  content: "";
   display: block;
   width: 56px;
   border-top: 1px dashed var(--dimension);
@@ -242,7 +242,7 @@ model-viewer.stage__model {
 }
 
 .camera-btn:hover,
-.camera-btn[aria-pressed='true'] {
+.camera-btn[aria-pressed="true"] {
   background: var(--btn-primary-bg);
   color: var(--btn-primary-text);
 }
@@ -434,19 +434,19 @@ model-viewer.stage__model {
   border-color: var(--dimension);
 }
 
-.colourway-tab[aria-selected='true'] {
+.colourway-tab[aria-selected="true"] {
   background: var(--btn-primary-bg);
   color: var(--btn-primary-text);
   border-color: var(--btn-primary-bg);
 }
 
-.colourway-tab[aria-selected='true'] .colourway-tab__num {
+.colourway-tab[aria-selected="true"] .colourway-tab__num {
   color: inherit;
 }
 
 /* selected state is never colour-only */
-.colourway-tab[aria-selected='true']::after {
-  content: '●';
+.colourway-tab[aria-selected="true"]::after {
+  content: "●";
   font-size: 8px;
 }
 
@@ -615,7 +615,8 @@ model-viewer.stage__model {
 .footer {
   margin-top: auto;
   border-top: 1px solid var(--line);
-  padding: clamp(24px, 4vw, 40px) clamp(16px, 4vw, 48px) calc(24px + env(safe-area-inset-bottom, 0px));
+  padding: clamp(24px, 4vw, 40px) clamp(16px, 4vw, 48px)
+    calc(24px + env(safe-area-inset-bottom, 0px));
 }
 
 .footer__inner {

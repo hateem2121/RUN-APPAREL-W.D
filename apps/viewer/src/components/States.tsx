@@ -40,7 +40,9 @@ export function UnavailableState({ settings }: { settings?: ViewerSiteSettings }
   return (
     <main className="unavailable blueprint">
       <span className="label">[ REFERENCE UNAVAILABLE ]</span>
-      <h1 className="display display--hero">{headingWithAccent('This reference has moved forward')}</h1>
+      <h1 className="display display--hero">
+        {headingWithAccent('This reference has moved forward')}
+      </h1>
       <p style={{ color: 'var(--muted)' }}>
         The product linked by this QR code is not currently available as a live reference. Our range
         develops continuously — the current catalogue has the latest references, and our team can

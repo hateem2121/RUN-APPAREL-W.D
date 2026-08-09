@@ -28,7 +28,9 @@ describe('checkMediaUpload', () => {
   })
 
   it('rejects other URL-unsafe characters', () => {
-    expect(() => checkMediaUpload(facts({ filename: 'n001(navy).glb' }))).toThrow(/unsafe characters/)
+    expect(() => checkMediaUpload(facts({ filename: 'n001(navy).glb' }))).toThrow(
+      /unsafe characters/,
+    )
   })
 
   it('rejects a GLB over the hard ceiling (raw CLO export)', () => {
@@ -58,11 +60,13 @@ describe('checkMediaUpload', () => {
   it('does not apply the GLB ceiling to large images', () => {
     // An image over the GLB ceiling is not blocked (only warned) — the ceiling is model-specific.
     expect(
-      checkMediaUpload(facts({
-        filename: 'huge-poster.webp',
-        mimeType: 'image/webp',
-        filesize: GLB_HARD_MAX_BYTES + 1,
-      })),
+      checkMediaUpload(
+        facts({
+          filename: 'huge-poster.webp',
+          mimeType: 'image/webp',
+          filesize: GLB_HARD_MAX_BYTES + 1,
+        }),
+      ),
     ).toEqual({ sizeWarning: true })
   })
 

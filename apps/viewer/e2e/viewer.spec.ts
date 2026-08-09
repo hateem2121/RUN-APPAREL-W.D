@@ -39,7 +39,9 @@ test.describe('RUN APPAREL 3D viewer', () => {
     await expect(page.getByText('[ COLOURWAY 01 / NAVY ]')).toBeVisible()
   })
 
-  test('retired colourway falls back to default with notice and silent URL fix', async ({ page }) => {
+  test('retired colourway falls back to default with notice and silent URL fix', async ({
+    page,
+  }) => {
     await page.goto('/n001/lime')
     await expect(page.getByText(/no longer active/i)).toBeVisible()
     await expect(page).toHaveURL(/\/n001\/navy$/)
@@ -110,8 +112,12 @@ test.describe('RUN APPAREL 3D viewer', () => {
     const email = page.locator('.contact a', { hasText: 'Email Us' })
     const mailto = await email.getAttribute('href')
     expect(mailto).toContain('mailto:partner@wear-run.com')
-    expect(mailto).toContain(encodeURIComponent('Product Enquiry — Velocity Performance Tee / Navy'))
-    expect(mailto).toContain(encodeURIComponent('I am interested in Velocity Performance Tee (N001) in Navy.'))
+    expect(mailto).toContain(
+      encodeURIComponent('Product Enquiry — Velocity Performance Tee / Navy'),
+    )
+    expect(mailto).toContain(
+      encodeURIComponent('I am interested in Velocity Performance Tee (N001) in Navy.'),
+    )
 
     const whatsapp = page.locator('.contact a', { hasText: 'WhatsApp Us' })
     const wa = await whatsapp.getAttribute('href')

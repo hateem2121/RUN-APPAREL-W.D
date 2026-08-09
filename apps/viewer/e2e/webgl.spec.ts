@@ -87,9 +87,7 @@ test('3D model loads and switching colourway changes the KHR material variant', 
   )
 
   // The whole real-3D flow ran under the production CSP with no violations.
-  const cspViolations = await page.evaluate(
-    () => (window as unknown as { __csp: string[] }).__csp,
-  )
+  const cspViolations = await page.evaluate(() => (window as unknown as { __csp: string[] }).__csp)
   expect(cspViolations, cspViolations.join('\n')).toEqual([])
 })
 
@@ -163,7 +161,9 @@ test('a lost WebGL context is reported as such, not as a failed colour swap', as
   })
 
   // The garment is still represented — poster, not an empty stage.
-  await expect(page.getByText(/interactive 3D view could not load/i)).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByText(/interactive 3D view could not load/i)).toBeVisible({
+    timeout: 10_000,
+  })
   await expect(page.locator('.stage img').first()).toBeVisible()
 
   // The part that only this change provides.

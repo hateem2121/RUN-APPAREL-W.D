@@ -31,7 +31,11 @@ describe('unmappedFileColours', () => {
       colour({ variantId: 'Colorway 5' }),
       colour({ variantId: 'Colorway 6' }),
     ]
-    const rows = [{ variantId: 'Colorway 2' }, { variantId: 'Colorway 3' }, { variantId: 'Colorway 4' }]
+    const rows = [
+      { variantId: 'Colorway 2' },
+      { variantId: 'Colorway 3' },
+      { variantId: 'Colorway 4' },
+    ]
 
     expect(unmappedFileColours(file, rows).map((c) => c.variantId)).toEqual([
       'Colorway 5',
@@ -41,7 +45,9 @@ describe('unmappedFileColours', () => {
 
   it('ignores blank and whitespace mappings', () => {
     const file = [colour({ variantId: 'Colorway 2' })]
-    expect(unmappedFileColours(file, [{ variantId: '  ' }, { variantId: undefined }])).toHaveLength(1)
+    expect(unmappedFileColours(file, [{ variantId: '  ' }, { variantId: undefined }])).toHaveLength(
+      1,
+    )
   })
 
   it('is empty when everything is already mapped', () => {

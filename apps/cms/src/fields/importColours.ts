@@ -50,10 +50,7 @@ export interface ImportedRow {
 const trimmed = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
 
 /** Colours inside the file that no colour row points at yet. */
-export function unmappedFileColours(
-  fileColours: FileColour[],
-  rows: ExistingRow[],
-): FileColour[] {
+export function unmappedFileColours(fileColours: FileColour[], rows: ExistingRow[]): FileColour[] {
   const claimed = new Set(rows.map((row) => trimmed(row.variantId)).filter((id) => id !== ''))
   return fileColours.filter((colour) => !claimed.has(colour.variantId))
 }

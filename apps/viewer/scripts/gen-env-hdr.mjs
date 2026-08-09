@@ -117,7 +117,13 @@ for (let y = 0; y < H; y++) {
 }
 const buf = Buffer.from(bytes)
 
-const target = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'env', 'studio-soft.hdr')
+const target = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  'public',
+  'env',
+  'studio-soft.hdr',
+)
 mkdirSync(dirname(target), { recursive: true })
 writeFileSync(target, buf)
 
@@ -131,7 +137,8 @@ function decode(b) {
   let p = text.indexOf(res[0]) + res[0].length
   const out = new Uint8Array(w * h * 4)
   for (let y = 0; y < h; y++) {
-    if (b[p] !== 2 || b[p + 1] !== 2 || ((b[p + 2] << 8) | b[p + 3]) !== w) throw new Error(`scanline ${y}`)
+    if (b[p] !== 2 || b[p + 1] !== 2 || ((b[p + 2] << 8) | b[p + 3]) !== w)
+      throw new Error(`scanline ${y}`)
     p += 4
     for (let c = 0; c < 4; c++) {
       let x = 0
@@ -152,7 +159,11 @@ const dec = decode(buf)
 let mismatches = 0
 for (let i = 0; i < planes.length; i++) if (dec.out[i] !== planes[i]) mismatches++
 if (mismatches !== 0 || dec.consumed !== buf.length) {
-  console.error(`gen-env-hdr: VERIFY FAILED (mismatches ${mismatches}, consumed ${dec.consumed}/${buf.length})`)
+  console.error(
+    `gen-env-hdr: VERIFY FAILED (mismatches ${mismatches}, consumed ${dec.consumed}/${buf.length})`,
+  )
   process.exit(1)
 }
-console.log(`gen-env-hdr: wrote ${target} (${(buf.length / 1024).toFixed(1)} KB, ${W}x${H}) — round-trip OK`)
+console.log(
+  `gen-env-hdr: wrote ${target} (${(buf.length / 1024).toFixed(1)} KB, ${W}x${H}) — round-trip OK`,
+)

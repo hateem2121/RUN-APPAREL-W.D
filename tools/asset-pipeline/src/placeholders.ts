@@ -23,8 +23,20 @@ export const PLACEHOLDER_PRODUCT_CODE = 'N001'
 
 export const PLACEHOLDER_COLOURWAYS: PlaceholderColourway[] = [
   { slug: 'navy', displayName: 'Navy', variantId: 'N001-NAVY', body: '#22314E', trim: '#18233A' },
-  { slug: 'black', displayName: 'Black', variantId: 'N001-BLACK', body: '#17181A', trim: '#2A2B2F' },
-  { slug: 'crimson', displayName: 'Crimson', variantId: 'N001-CRIMSON', body: '#8C1F2F', trim: '#5E1520' },
+  {
+    slug: 'black',
+    displayName: 'Black',
+    variantId: 'N001-BLACK',
+    body: '#17181A',
+    trim: '#2A2B2F',
+  },
+  {
+    slug: 'crimson',
+    displayName: 'Crimson',
+    variantId: 'N001-CRIMSON',
+    body: '#8C1F2F',
+    trim: '#5E1520',
+  },
 ]
 
 function srgbToLinear(channel: number): number {
@@ -134,7 +146,11 @@ async function artworkAlphaImage(spec: PlaceholderArtwork): Promise<Uint8Array> 
     // should not have happened deletes it), 255 → opaque.
     raw[i * 4 + 3] = i < transparentPixels ? 0 : i < transparentPixels + midPixels ? 128 : 255
   }
-  return new Uint8Array(await sharp(raw, { raw: { width, height, channels: 4 } }).png().toBuffer())
+  return new Uint8Array(
+    await sharp(raw, { raw: { width, height, channels: 4 } })
+      .png()
+      .toBuffer(),
+  )
 }
 
 /** UVs for a box: every face gets the full 0–1 square, matching BOX_FACES corner order. */
@@ -146,12 +162,60 @@ const FACE_UV: [number, number][] = [
 ]
 
 const BOX_FACES: { n: [number, number, number]; corners: [number, number, number][] }[] = [
-  { n: [0, 0, 1], corners: [[-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]] },
-  { n: [0, 0, -1], corners: [[1, -1, -1], [-1, -1, -1], [-1, 1, -1], [1, 1, -1]] },
-  { n: [1, 0, 0], corners: [[1, -1, 1], [1, -1, -1], [1, 1, -1], [1, 1, 1]] },
-  { n: [-1, 0, 0], corners: [[-1, -1, -1], [-1, -1, 1], [-1, 1, 1], [-1, 1, -1]] },
-  { n: [0, 1, 0], corners: [[-1, 1, 1], [1, 1, 1], [1, 1, -1], [-1, 1, -1]] },
-  { n: [0, -1, 0], corners: [[-1, -1, -1], [1, -1, -1], [1, -1, 1], [-1, -1, 1]] },
+  {
+    n: [0, 0, 1],
+    corners: [
+      [-1, -1, 1],
+      [1, -1, 1],
+      [1, 1, 1],
+      [-1, 1, 1],
+    ],
+  },
+  {
+    n: [0, 0, -1],
+    corners: [
+      [1, -1, -1],
+      [-1, -1, -1],
+      [-1, 1, -1],
+      [1, 1, -1],
+    ],
+  },
+  {
+    n: [1, 0, 0],
+    corners: [
+      [1, -1, 1],
+      [1, -1, -1],
+      [1, 1, -1],
+      [1, 1, 1],
+    ],
+  },
+  {
+    n: [-1, 0, 0],
+    corners: [
+      [-1, -1, -1],
+      [-1, -1, 1],
+      [-1, 1, 1],
+      [-1, 1, -1],
+    ],
+  },
+  {
+    n: [0, 1, 0],
+    corners: [
+      [-1, 1, 1],
+      [1, 1, 1],
+      [1, 1, -1],
+      [-1, 1, -1],
+    ],
+  },
+  {
+    n: [0, -1, 0],
+    corners: [
+      [-1, -1, -1],
+      [1, -1, -1],
+      [1, -1, 1],
+      [-1, -1, 1],
+    ],
+  },
 ]
 
 function addBoxPrimitive(document: Document, mesh: Mesh, material: Material, spec: BoxSpec): void {
@@ -225,10 +289,18 @@ function addDecalPrimitive(document: Document, mesh: Mesh, material: Material, z
   const h = 0.13
   const y = 0.06
   const positions = new Float32Array([
-    -w / 2, y - h / 2, z,
-    w / 2, y - h / 2, z,
-    w / 2, y + h / 2, z,
-    -w / 2, y + h / 2, z,
+    -w / 2,
+    y - h / 2,
+    z,
+    w / 2,
+    y - h / 2,
+    z,
+    w / 2,
+    y + h / 2,
+    z,
+    -w / 2,
+    y + h / 2,
+    z,
   ])
   const normals = new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1])
   const uv = () => new Float32Array([0, 1, 1, 1, 1, 0, 0, 0])
@@ -248,7 +320,11 @@ function addDecalPrimitive(document: Document, mesh: Mesh, material: Material, z
       .setAttribute('TEXCOORD_0', accessor('VEC2', uv()))
       .setAttribute('TEXCOORD_1', accessor('VEC2', uv()))
       .setIndices(
-        document.createAccessor().setType('SCALAR').setArray(new Uint16Array([0, 1, 2, 0, 2, 3])).setBuffer(buffer),
+        document
+          .createAccessor()
+          .setType('SCALAR')
+          .setArray(new Uint16Array([0, 1, 2, 0, 2, 3]))
+          .setBuffer(buffer),
       )
       .setMaterial(material),
   )

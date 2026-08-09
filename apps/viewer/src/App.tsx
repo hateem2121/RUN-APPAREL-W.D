@@ -18,7 +18,12 @@ import { currentRoute, onRouteChange, setColourwayUrl } from './lib/router'
 type AppState =
   | { kind: 'loading' }
   | { kind: 'unavailable' }
-  | { kind: 'ready'; data: ViewerApiSuccess; selected: ViewerColourway; retiredNotice: string | null }
+  | {
+      kind: 'ready'
+      data: ViewerApiSuccess
+      selected: ViewerColourway
+      retiredNotice: string | null
+    }
 
 export default function App() {
   const [state, setState] = useState<AppState>({ kind: 'loading' })
@@ -68,7 +73,9 @@ export default function App() {
         kind: 'ready',
         data: response,
         selected: response.selectedColourway,
-        retiredNotice: retired ? (response.fallbackMessage ?? response.product.retiredMessage) : null,
+        retiredNotice: retired
+          ? (response.fallbackMessage ?? response.product.retiredMessage)
+          : null,
       })
       if (loadedFor.current !== response.product.slug) {
         loadedFor.current = response.product.slug
@@ -171,7 +178,10 @@ export default function App() {
         <a className="skip-link" href="#main-content">
           Skip to main content
         </a>
-        <Header wordmark={data.siteSettings.temporaryWordmark} catalogueUrl={data.product.catalogueUrl} />
+        <Header
+          wordmark={data.siteSettings.temporaryWordmark}
+          catalogueUrl={data.product.catalogueUrl}
+        />
         {/* `tabIndex={-1}` is what makes the skip link actually skip. <main> is not
             focusable by default, so following the fragment moves the SCROLL
             position but leaves focus in the header — the next Tab then walks back
@@ -195,7 +205,11 @@ export default function App() {
           </div>
           {retiredNotice && <RetiredNotice message={retiredNotice} />}
           <div className="content">
-            <ProductPanel data={data} selected={selected} selectedIndex={Math.max(selectedIndex, 0)} />
+            <ProductPanel
+              data={data}
+              selected={selected}
+              selectedIndex={Math.max(selectedIndex, 0)}
+            />
             <ColourwayTabs
               colourways={data.colourways}
               selected={selected}

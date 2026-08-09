@@ -30,7 +30,10 @@ export const pipelinePlanEndpoint: Endpoint = {
     const params = (req.routeParams ?? {}) as { productSlug?: string }
     const productSlug = normalizeSlug(String(params.productSlug ?? ''))
     if (!productSlug) {
-      return Response.json({ error: 'not_found', message: 'Not a valid product address.' }, { status: 404, headers })
+      return Response.json(
+        { error: 'not_found', message: 'Not a valid product address.' },
+        { status: 404, headers },
+      )
     }
 
     const found = await req.payload.find({

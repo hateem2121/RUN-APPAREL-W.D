@@ -17,7 +17,8 @@ export function ProductPanel({ data, selected, selectedIndex }: ProductPanelProp
         </span>
         {/* Re-keyed so switching colourway cross-fades the label. */}
         <span className="label product-info__colour" key={selected.slug}>
-          [ COLOURWAY {String(selectedIndex + 1).padStart(2, '0')} / {selected.displayName.toUpperCase()} ]
+          [ COLOURWAY {String(selectedIndex + 1).padStart(2, '0')} /{' '}
+          {selected.displayName.toUpperCase()} ]
         </span>
       </div>
       <h1 id="product-heading" className="display display--hero">

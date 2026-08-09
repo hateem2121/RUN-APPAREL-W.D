@@ -228,7 +228,10 @@ export function toColourSlug(name: string): string {
 }
 
 /** Nearest entry in a list, by CIEDE2000. */
-function nearest(lab: Lab, entries: { name: string; hex: string }[]): { name: string; deltaE: number } {
+function nearest(
+  lab: Lab,
+  entries: { name: string; hex: string }[],
+): { name: string; deltaE: number } {
   let best = { name: entries[0]!.name, deltaE: Number.POSITIVE_INFINITY }
   for (const entry of entries) {
     const deltaE = ciede2000(lab, srgbToLab(entry.hex))

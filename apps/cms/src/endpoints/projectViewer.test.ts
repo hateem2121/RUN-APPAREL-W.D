@@ -4,7 +4,13 @@ import { absolutize, buildViewerResponse, toMediaAsset } from './projectViewer'
 
 const deps = { richTextToHtml: () => '<p>intro</p>' }
 const origin = 'https://cms.example'
-const media = (url: string) => ({ url, alt: 'a', width: 1200, height: 1500, mimeType: 'image/webp' })
+const media = (url: string) => ({
+  url,
+  alt: 'a',
+  width: 1200,
+  height: 1500,
+  mimeType: 'image/webp',
+})
 
 const product = (o: Record<string, unknown> = {}) => ({
   productCode: 'N001',
@@ -106,7 +112,14 @@ describe('buildViewerResponse', () => {
 
   it('skips colourways without a poster and returns null when none are usable', () => {
     expect(
-      buildViewerResponse(product(), [colourway({ posterPreview: null })], {}, origin, 'navy', deps),
+      buildViewerResponse(
+        product(),
+        [colourway({ posterPreview: null })],
+        {},
+        origin,
+        'navy',
+        deps,
+      ),
     ).toBeNull()
   })
 

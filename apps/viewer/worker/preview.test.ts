@@ -148,9 +148,9 @@ describe('buildPreview — description', () => {
 
   it('says "this reference" rather than "all 1 colourways"', () => {
     const one = colourway()
-    expect(
-      build(payload({ colourways: [one], selectedColourway: one })).description,
-    ).toContain('Rotate and zoom this reference in 3D.')
+    expect(build(payload({ colourways: [one], selectedColourway: one })).description).toContain(
+      'Rotate and zoom this reference in 3D.',
+    )
   })
 
   it('truncates on a word boundary rather than mid-word', () => {

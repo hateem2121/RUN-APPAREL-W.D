@@ -193,9 +193,7 @@ const EXPECTED_ALPHA_CUTOFF = 0.5
  * flagging every translucent material would make this noise, and the existing
  * `translucentMaterialCount` already reports that broader number.
  */
-export async function findArtworkAlphaProblems(
-  document: Document,
-): Promise<ArtworkAlphaProblem[]> {
+export async function findArtworkAlphaProblems(document: Document): Promise<ArtworkAlphaProblem[]> {
   const problems: ArtworkAlphaProblem[] = []
   for (const material of document.getRoot().listMaterials()) {
     let carriesArtwork = false
@@ -228,7 +226,11 @@ export async function isArtworkTexture(texture: Texture): Promise<boolean> {
     const { width, height } = await sharp(image).metadata()
     // Wordmarks and printed bands are long thin strips; fabric maps are square.
     // The real file had 853x142 and 1944x121 textures — 6:1 and 16:1.
-    if (width && height && Math.max(width, height) / Math.min(width, height) >= ARTWORK_ASPECT_RATIO) {
+    if (
+      width &&
+      height &&
+      Math.max(width, height) / Math.min(width, height) >= ARTWORK_ASPECT_RATIO
+    ) {
       return true
     }
   } catch {
@@ -246,73 +248,82 @@ export async function isArtworkTexture(texture: Texture): Promise<boolean> {
  * Runs before decimation, matching where `textureCompress` sat in the chain.
  */
 export function compressTexturesForArtwork(options: ArtworkTextureOptions): Transform {
-  return createTransform('compressTexturesForArtwork', async (document: Document): Promise<void> => {
-    const result: TextureArtworkResult = {
-      artwork: 0,
-      standard: 0,
-      skipped: 0,
-      artworkNames: [],
-      artworkResized: [],
-    }
-
-    for (const texture of document.getRoot().listTextures()) {
-      const image = texture.getImage()
-      if (!image || !DECODABLE.has(texture.getMimeType())) {
-        result.skipped++
-        continue
+  return createTransform(
+    'compressTexturesForArtwork',
+    async (document: Document): Promise<void> => {
+      const result: TextureArtworkResult = {
+        artwork: 0,
+        standard: 0,
+        skipped: 0,
+        artworkNames: [],
+        artworkResized: [],
       }
 
-      const artwork = await isArtworkTexture(texture)
-      const maxSize = artwork ? options.artworkMaxSize : options.maxSize
-      const quality = artwork ? options.artworkQuality : options.quality
-
-      try {
-        // Measured only for artwork, and only to report it: a wordmark that had
-        // to be resampled has lost stroke detail, and that should be a sentence
-        // in the owner's report rather than something that just happens. Fabric
-        // resizing is routine and reporting it would be noise.
-        const before = artwork ? await sharp(image).metadata() : null
-
-        const { data: encoded, info } = await sharp(image)
-          .resize(maxSize, maxSize, { fit: 'inside', withoutEnlargement: true })
-          .webp({
-            quality,
-            // Alpha is the decal's shape. Compressing it is what turns a crisp
-            // cutout into a fringed one, and it is cheap to keep.
-            alphaQuality: artwork ? 100 : 90,
-            // libwebp's "Sharp YUV". Costs no size and directly targets the
-            // 4:2:0 chroma bleed that damages saturated edges.
-            smartSubsample: true,
-            effort: 6,
-          })
-          .toBuffer({ resolveWithObject: true })
-
-        if (before?.width && before.height && (info.width < before.width || info.height < before.height)) {
-          result.artworkResized.push(texture.getName() || texture.getURI() || `#${result.artwork + 1}`)
+      for (const texture of document.getRoot().listTextures()) {
+        const image = texture.getImage()
+        if (!image || !DECODABLE.has(texture.getMimeType())) {
+          result.skipped++
+          continue
         }
 
-        texture.setImage(new Uint8Array(encoded)).setMimeType('image/webp')
-        const uri = texture.getURI()
-        if (uri) texture.setURI(uri.replace(/\.[a-z0-9]+$/i, '.webp'))
+        const artwork = await isArtworkTexture(texture)
+        const maxSize = artwork ? options.artworkMaxSize : options.maxSize
+        const quality = artwork ? options.artworkQuality : options.quality
 
-        if (artwork) {
-          result.artwork++
-          result.artworkNames.push(texture.getName() || texture.getURI() || `#${result.artwork}`)
-        } else {
-          result.standard++
+        try {
+          // Measured only for artwork, and only to report it: a wordmark that had
+          // to be resampled has lost stroke detail, and that should be a sentence
+          // in the owner's report rather than something that just happens. Fabric
+          // resizing is routine and reporting it would be noise.
+          const before = artwork ? await sharp(image).metadata() : null
+
+          const { data: encoded, info } = await sharp(image)
+            .resize(maxSize, maxSize, { fit: 'inside', withoutEnlargement: true })
+            .webp({
+              quality,
+              // Alpha is the decal's shape. Compressing it is what turns a crisp
+              // cutout into a fringed one, and it is cheap to keep.
+              alphaQuality: artwork ? 100 : 90,
+              // libwebp's "Sharp YUV". Costs no size and directly targets the
+              // 4:2:0 chroma bleed that damages saturated edges.
+              smartSubsample: true,
+              effort: 6,
+            })
+            .toBuffer({ resolveWithObject: true })
+
+          if (
+            before?.width &&
+            before.height &&
+            (info.width < before.width || info.height < before.height)
+          ) {
+            result.artworkResized.push(
+              texture.getName() || texture.getURI() || `#${result.artwork + 1}`,
+            )
+          }
+
+          texture.setImage(new Uint8Array(encoded)).setMimeType('image/webp')
+          const uri = texture.getURI()
+          if (uri) texture.setURI(uri.replace(/\.[a-z0-9]+$/i, '.webp'))
+
+          if (artwork) {
+            result.artwork++
+            result.artworkNames.push(texture.getName() || texture.getURI() || `#${result.artwork}`)
+          } else {
+            result.standard++
+          }
+        } catch {
+          // A texture that will not decode is left exactly as it was, rather than
+          // dropped — a missing logo is worse than an unoptimised one.
+          result.skipped++
         }
-      } catch {
-        // A texture that will not decode is left exactly as it was, rather than
-        // dropped — a missing logo is worse than an unoptimised one.
-        result.skipped++
       }
-    }
 
-    options.onResult?.(result)
-    document
-      .getLogger()
-      .debug(
-        `compressTexturesForArtwork: ${result.artwork} artwork, ${result.standard} standard, ${result.skipped} skipped.`,
-      )
-  })
+      options.onResult?.(result)
+      document
+        .getLogger()
+        .debug(
+          `compressTexturesForArtwork: ${result.artwork} artwork, ${result.standard} standard, ${result.skipped} skipped.`,
+        )
+    },
+  )
 }

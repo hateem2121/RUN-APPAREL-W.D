@@ -1,7 +1,11 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Document, Material, Texture, TextureInfo } from '@gltf-transform/core'
-import { listTextureInfo, listTextureInfoByMaterial, listTextureSlots } from '@gltf-transform/functions'
+import {
+  listTextureInfo,
+  listTextureInfoByMaterial,
+  listTextureSlots,
+} from '@gltf-transform/functions'
 import sharp, { type Metadata, type Sharp } from 'sharp'
 import { createIO } from './io'
 
@@ -197,13 +201,21 @@ const CORE_SLOTS: {
     texture: (m) => m.getMetallicRoughnessTexture(),
     info: (m) => m.getMetallicRoughnessTextureInfo(),
   },
-  { slot: 'normalTexture', texture: (m) => m.getNormalTexture(), info: (m) => m.getNormalTextureInfo() },
+  {
+    slot: 'normalTexture',
+    texture: (m) => m.getNormalTexture(),
+    info: (m) => m.getNormalTextureInfo(),
+  },
   {
     slot: 'occlusionTexture',
     texture: (m) => m.getOcclusionTexture(),
     info: (m) => m.getOcclusionTextureInfo(),
   },
-  { slot: 'emissiveTexture', texture: (m) => m.getEmissiveTexture(), info: (m) => m.getEmissiveTextureInfo() },
+  {
+    slot: 'emissiveTexture',
+    texture: (m) => m.getEmissiveTexture(),
+    info: (m) => m.getEmissiveTextureInfo(),
+  },
 ]
 
 /**
@@ -322,20 +334,30 @@ export function summariseUvSets(document: Document): UvSummary {
       const texture = get(material)
       if (!texture) continue
       const usages = usagesByTexture.get(texture) ?? []
-      usages.push({ material: name, slot, texCoord: getInfo(material)?.getTexCoord() ?? 0, alphaMode })
+      usages.push({
+        material: name,
+        slot,
+        texCoord: getInfo(material)?.getTexCoord() ?? 0,
+        alphaMode,
+      })
       usagesByTexture.set(texture, usages)
     }
   })
 
   const texCoordsInUse = [
-    ...new Set(root.listTextures().flatMap((t) => listTextureInfo(t).map((info) => info.getTexCoord()))),
+    ...new Set(
+      root.listTextures().flatMap((t) => listTextureInfo(t).map((info) => info.getTexCoord())),
+    ),
   ].sort((a, b) => a - b)
   const usagesOffUv0 = [...usagesByTexture.values()].flat().filter((usage) => usage.texCoord !== 0)
 
   // Per material, across every slot including extensions.
   const materialsWithMultipleUvSets = root
     .listMaterials()
-    .filter((material) => new Set(listTextureInfoByMaterial(material).map((i) => i.getTexCoord())).size > 1)
+    .filter(
+      (material) =>
+        new Set(listTextureInfoByMaterial(material).map((i) => i.getTexCoord())).size > 1,
+    )
     .map((material, index) => material.getName() || `(unnamed material #${index})`)
 
   return {
@@ -374,11 +396,19 @@ export function offUv0Warning(
 }
 
 /** Build the inventory for an already-loaded document. Exported for tests. */
-export async function inventoryTextures(document: Document, file: string): Promise<TextureInventory> {
+export async function inventoryTextures(
+  document: Document,
+  file: string,
+): Promise<TextureInventory> {
   const root = document.getRoot()
   const textures = root.listTextures()
-  const { texCoordsInUse, usagesOffUv0, materialsWithMultipleUvSets, alphaModeCounts, usagesByTexture } =
-    summariseUvSets(document)
+  const {
+    texCoordsInUse,
+    usagesOffUv0,
+    materialsWithMultipleUvSets,
+    alphaModeCounts,
+    usagesByTexture,
+  } = summariseUvSets(document)
 
   const records: TextureRecord[] = []
   for (const [index, texture] of textures.entries()) {
@@ -407,7 +437,9 @@ export async function inventoryTextures(document: Document, file: string): Promi
       width,
       height,
       aspectRatio:
-        width && height ? Math.round((Math.max(width, height) / Math.min(width, height)) * 100) / 100 : null,
+        width && height
+          ? Math.round((Math.max(width, height) / Math.min(width, height)) * 100) / 100
+          : null,
       bytesPerPixel: pixels ? Math.round((bytes / pixels) * 10000) / 10000 : null,
       // `listTextureSlots` sees extension slots too, so it stays the authority on
       // "what is this texture for"; CORE_SLOTS only drives the per-material rows.
@@ -416,7 +448,9 @@ export async function inventoryTextures(document: Document, file: string): Promi
         (a, b) => a - b,
       ),
       usages: usagesByTexture.get(texture) ?? [],
-      alpha: image ? await profileAlpha(image) : { character: 'unknown', transparentFraction: 0, opaqueFraction: 0, midFraction: 0 },
+      alpha: image
+        ? await profileAlpha(image)
+        : { character: 'unknown', transparentFraction: 0, opaqueFraction: 0, midFraction: 0 },
       file: null,
     })
   }
@@ -438,7 +472,8 @@ export async function inventoryTextures(document: Document, file: string): Promi
     )
   }
   const gradedUnderBlend = records.filter(
-    (record) => record.alpha.character === 'binary' && record.usages.some((u) => u.alphaMode === 'BLEND'),
+    (record) =>
+      record.alpha.character === 'binary' && record.usages.some((u) => u.alphaMode === 'BLEND'),
   )
   if (gradedUnderBlend.length > 0) {
     warnings.push(

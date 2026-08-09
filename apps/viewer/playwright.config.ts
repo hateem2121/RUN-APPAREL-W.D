@@ -96,7 +96,11 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         launchOptions: {
           ...baseLaunch,
-          args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader', '--ignore-gpu-blocklist'],
+          args: [
+            '--enable-unsafe-swiftshader',
+            '--use-angle=swiftshader',
+            '--ignore-gpu-blocklist',
+          ],
         },
       },
     },

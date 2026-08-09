@@ -69,7 +69,11 @@ async function decode(file: string, width: number, height: number): Promise<Deco
  * Build the amplified difference image and its statistics in one pass over the
  * pixels. Returns raw RGB, ready to composite.
  */
-function diffPixels(a: Decoded, b: Decoded, gain: number): { data: Buffer; stats: Omit<ViewDiff, 'view'> } {
+function diffPixels(
+  a: Decoded,
+  b: Decoded,
+  gain: number,
+): { data: Buffer; stats: Omit<ViewDiff, 'view'> } {
   const out = Buffer.allocUnsafe(a.data.length)
   let total = 0
   let max = 0
@@ -108,7 +112,13 @@ function escapeXml(value: string): string {
  * column headings positioned over their cells, and the diff numbers on the
  * right. Rendered as SVG because that is the only text sharp can draw.
  */
-function labelStrip(view: string, stats: Omit<ViewDiff, 'view'>, cell: number, labelA: string, labelB: string): Buffer {
+function labelStrip(
+  view: string,
+  stats: Omit<ViewDiff, 'view'>,
+  cell: number,
+  labelA: string,
+  labelB: string,
+): Buffer {
   const width = cell * 3
   const numbers = `mean ${stats.meanDelta}  max ${stats.maxDelta}  changed ${(stats.changedFraction * 100).toFixed(2)}%`
   return Buffer.from(
@@ -125,7 +135,10 @@ function labelStrip(view: string, stats: Omit<ViewDiff, 'view'>, cell: number, l
 /** PNG basenames (without extension) in a render directory. */
 async function viewNames(dir: string): Promise<string[]> {
   const entries = await readdir(dir)
-  return entries.filter((entry) => entry.endsWith('.png')).map((entry) => basename(entry, '.png')).sort()
+  return entries
+    .filter((entry) => entry.endsWith('.png'))
+    .map((entry) => basename(entry, '.png'))
+    .sort()
 }
 
 export interface CompareOptions {

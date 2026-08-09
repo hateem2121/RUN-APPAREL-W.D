@@ -55,7 +55,11 @@ describe('initTelemetry', () => {
     expect(url).toBe(ENDPOINT)
     const arr = await batchOf(beacon.mock.calls[0]!)
     expect(arr).toHaveLength(10)
-    expect(arr[0]).toMatchObject({ type: 'analytics', event: 'colourway_selected', product: 'N001' })
+    expect(arr[0]).toMatchObject({
+      type: 'analytics',
+      event: 'colourway_selected',
+      product: 'N001',
+    })
   })
 
   it('drops analytics under Do-Not-Track but still sends errors', async () => {

@@ -11,7 +11,10 @@
  * - Client errors are capped and de-duplicated per session.
  */
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'https://cms.wear-run.help').replace(/\/$/, '')
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'https://cms.wear-run.help').replace(
+  /\/$/,
+  '',
+)
 const ENDPOINT = `${API_BASE}/api/public/events`
 
 const MAX_ERRORS = 5
@@ -106,9 +109,16 @@ export function initTelemetry(): () => void {
     const detail = (event as CustomEvent<Record<string, string>>).detail ?? {}
     const { kind, product, variant, reason, module, available } = detail
     // Operational, not tracking — sent regardless of Do-Not-Track.
-    enqueue({ type: 'diagnostic', event: kind ?? 'diagnostic', product, variant, message: reason ?? module ?? available })
+    enqueue({
+      type: 'diagnostic',
+      event: kind ?? 'diagnostic',
+      product,
+      variant,
+      message: reason ?? module ?? available,
+    })
   }
-  const onError = (event: ErrorEvent) => recordError(event.message || String(event.error ?? 'error'))
+  const onError = (event: ErrorEvent) =>
+    recordError(event.message || String(event.error ?? 'error'))
   const onRejection = (event: PromiseRejectionEvent) =>
     recordError(String(event.reason ?? 'unhandledrejection'))
   const onVisibility = () => {

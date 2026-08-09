@@ -88,7 +88,9 @@ export function buildReportText(opt: OptimizeResult, glb: GlbReport, filename: s
     opt.textures
       ? `Textures: ${opt.textures.artwork} treated as printed artwork (encoded at high fidelity), ` +
         `${opt.textures.standard} as fabric.` +
-        (opt.textures.artworkNames.length ? ` Artwork: ${opt.textures.artworkNames.join(', ')}.` : '') +
+        (opt.textures.artworkNames.length
+          ? ` Artwork: ${opt.textures.artworkNames.join(', ')}.`
+          : '') +
         // Resizing artwork is a legitimate trade AND real stroke detail gone from
         // a wordmark. The owner should watch it happen rather than discover it by
         // squinting at the finished garment.

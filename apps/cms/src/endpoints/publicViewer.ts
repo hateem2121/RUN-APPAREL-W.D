@@ -33,7 +33,9 @@ const notFound = (message: string): Response => {
 const richTextToHtml = (value: unknown): string => {
   if (!value || typeof value !== 'object') return ''
   try {
-    return convertLexicalToHTML({ data: value as Parameters<typeof convertLexicalToHTML>[0]['data'] })
+    return convertLexicalToHTML({
+      data: value as Parameters<typeof convertLexicalToHTML>[0]['data'],
+    })
   } catch {
     return ''
   }

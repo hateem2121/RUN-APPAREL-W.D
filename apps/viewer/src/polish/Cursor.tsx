@@ -75,7 +75,12 @@ export function Cursor() {
 
   return (
     <>
-      <motion.span className="cursor-dot" aria-hidden="true" data-hidden={hidden} style={{ x, y }} />
+      <motion.span
+        className="cursor-dot"
+        aria-hidden="true"
+        data-hidden={hidden}
+        style={{ x, y }}
+      />
       <motion.span
         className="cursor-ring"
         aria-hidden="true"

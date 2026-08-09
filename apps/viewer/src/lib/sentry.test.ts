@@ -44,7 +44,9 @@ describe('scrub', () => {
 
   it('keeps the product and colourway path, which are public QR-tag identifiers', () => {
     const event = scrub({ request: { url: 'https://viewer.wear-run.help/n001/wine' } })
-    expect((event.request as Record<string, unknown>).url).toBe('https://viewer.wear-run.help/n001/wine')
+    expect((event.request as Record<string, unknown>).url).toBe(
+      'https://viewer.wear-run.help/n001/wine',
+    )
   })
 
   it('drops a URL it cannot parse rather than passing it through unexamined', () => {

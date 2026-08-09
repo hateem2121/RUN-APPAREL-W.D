@@ -99,7 +99,8 @@ async function runChecks() {
   }
   for (const key of ['og:title', 'twitter:title']) {
     const value = meta(html, key) ?? ''
-    if (!value.toUpperCase().includes(expectCode)) fail(`${key} is "${value}", expected ${expectCode}.`)
+    if (!value.toUpperCase().includes(expectCode))
+      fail(`${key} is "${value}", expected ${expectCode}.`)
   }
 
   // 3. The canonical URL is per-colourway and points back here. A static value would

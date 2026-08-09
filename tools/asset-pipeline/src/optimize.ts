@@ -138,7 +138,9 @@ export const DEFAULT_SIMPLIFY_NORMAL_WEIGHT = 0.5
  * encoder. Aspect ratio is preserved and images are never enlarged.
  */
 function makeImageDecoder(maxSize: number) {
-  return async (buffer: Uint8Array): Promise<{ data: Uint8Array; width: number; height: number }> => {
+  return async (
+    buffer: Uint8Array,
+  ): Promise<{ data: Uint8Array; width: number; height: number }> => {
     const { data, info } = await sharp(buffer)
       .resize(maxSize, maxSize, { fit: 'inside', withoutEnlargement: true })
       .ensureAlpha()
@@ -229,7 +231,8 @@ export async function solidifyMaterials(document: Document): Promise<SolidifyRes
       // rather than hardening it. See CUTOUT_MIN_TRANSPARENT.
       const cutout =
         alpha.character === 'binary' ||
-        (alpha.midFraction <= CUTOUT_MID_FRACTION && alpha.transparentFraction >= CUTOUT_MIN_TRANSPARENT)
+        (alpha.midFraction <= CUTOUT_MID_FRACTION &&
+          alpha.transparentFraction >= CUTOUT_MIN_TRANSPARENT)
 
       if (factor < OPAQUE_FACTOR_THRESHOLD) {
         // An explicit declaration on the material beats anything inferred from

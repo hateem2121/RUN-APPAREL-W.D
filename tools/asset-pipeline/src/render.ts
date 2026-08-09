@@ -237,7 +237,9 @@ export async function renderViews(
   const { server, port } = await startServer(glbFile)
 
   const browser = await chromium.launch({
-    ...(process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : {}),
+    ...(process.env.PLAYWRIGHT_CHROMIUM_PATH
+      ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH }
+      : {}),
     // Software WebGL — the same flags the viewer's own webgl e2e project uses,
     // so this runs on a CI box with no GPU.
     args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader', '--ignore-gpu-blocklist'],
@@ -255,7 +257,9 @@ export async function renderViews(
       await page.waitForFunction('window.__ready !== undefined', null, { timeout: 30_000 })
       await page.evaluate('window.__ready', { timeout } as never)
     } catch (error) {
-      const detail = consoleErrors.length ? `\n  Browser console:\n    ${consoleErrors.join('\n    ')}` : ''
+      const detail = consoleErrors.length
+        ? `\n  Browser console:\n    ${consoleErrors.join('\n    ')}`
+        : ''
       throw new Error(
         `The model never finished loading in <model-viewer>: ` +
           `${error instanceof Error ? error.message : String(error)}${detail}`,
@@ -271,7 +275,9 @@ export async function renderViews(
           `This GLB has no variant "${options.variant}". It offers: ${availableVariants.join(', ') || '(none)'}`,
         )
       }
-      await page.evaluate(`document.getElementById('mv').variantName = ${JSON.stringify(options.variant)}`)
+      await page.evaluate(
+        `document.getElementById('mv').variantName = ${JSON.stringify(options.variant)}`,
+      )
     }
 
     const element = page.locator('#mv')

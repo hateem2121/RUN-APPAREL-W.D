@@ -60,40 +60,39 @@ describe('migration replay', () => {
     database.close()
   })
 
-  it.each(migrations.map((m, index) => [m.name, index] as const))(
-    'migration %s preserves every table that had rows',
-    async (_name, index) => {
-      const database = openDatabase()
-      const { args } = makeMigrationArgs(database)
+  it.each(
+    migrations.map((m, index) => [m.name, index] as const),
+  )('migration %s preserves every table that had rows', async (_name, index) => {
+    const database = openDatabase()
+    const { args } = makeMigrationArgs(database)
 
-      // Everything up to, but not including, the migration under test.
-      for (const migration of migrations.slice(0, index)) {
-        await (migration.up as unknown as Runner)(args)
-      }
-      if (index === 0) {
-        // Nothing exists yet, so there is no data for the first migration to
-        // lose. It still has to run clean, which the previous test covers.
-        database.close()
-        return
-      }
-
-      const { seeded } = seedEveryTable(database)
-      expect(seeded.size).toBeGreaterThan(0)
-      const before = countRows(database)
-
-      await (migrations[index]!.up as unknown as Runner)(args)
-
-      const lost = emptiedTables(before, countRows(database))
-      expect(
-        lost,
-        `${migrations[index]!.name} emptied ${lost.join(', ')}. A table that still exists but lost every ` +
-          'row is data loss, not a schema change — stage its rows outside the foreign-key graph before ' +
-          'rebuilding the parent, as inline_colourways does.',
-      ).toEqual([])
-
+    // Everything up to, but not including, the migration under test.
+    for (const migration of migrations.slice(0, index)) {
+      await (migration.up as unknown as Runner)(args)
+    }
+    if (index === 0) {
+      // Nothing exists yet, so there is no data for the first migration to
+      // lose. It still has to run clean, which the previous test covers.
       database.close()
-    },
-  )
+      return
+    }
+
+    const { seeded } = seedEveryTable(database)
+    expect(seeded.size).toBeGreaterThan(0)
+    const before = countRows(database)
+
+    await (migrations[index]!.up as unknown as Runner)(args)
+
+    const lost = emptiedTables(before, countRows(database))
+    expect(
+      lost,
+      `${migrations[index]!.name} emptied ${lost.join(', ')}. A table that still exists but lost every ` +
+        'row is data loss, not a schema change — stage its rows outside the foreign-key graph before ' +
+        'rebuilding the parent, as inline_colourways does.',
+    ).toEqual([])
+
+    database.close()
+  })
 
   it('runs every migration down, newest first, without a foreign-key error', async () => {
     // The down paths have never been executed. Two of them were generated with

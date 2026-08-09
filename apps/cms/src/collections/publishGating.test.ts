@@ -130,7 +130,10 @@ describe('assertPublishable', () => {
 
   it('ignores switched-off colours when checking photos', () => {
     expect(() =>
-      assertPublishable(input(), [cw(), cw({ displayName: 'Crimson', hasPoster: false, active: false })]),
+      assertPublishable(input(), [
+        cw(),
+        cw({ displayName: 'Crimson', hasPoster: false, active: false }),
+      ]),
     ).not.toThrow()
   })
 
@@ -234,19 +237,27 @@ describe('changesAnything — which writes the gate applies to', () => {
 
   it('catches a colour being switched off or removed', () => {
     expect(
-      changed(doc({ colourways: [{ id: 'row1', slug: 'navy', variantId: 'Colorway 2', active: false }] })),
+      changed(
+        doc({ colourways: [{ id: 'row1', slug: 'navy', variantId: 'Colorway 2', active: false }] }),
+      ),
     ).toBe(true)
     expect(changed(doc({ colourways: [] }))).toBe(true)
   })
 
   it('treats a populated upload and a bare id as the same value', () => {
     // Depth differences must not read as a change, or every write would be gated.
-    expect(changed(doc({ glbAsset: { id: 10, url: '/media/x.glb', filename: 'x.glb' } }))).toBe(false)
+    expect(changed(doc({ glbAsset: { id: 10, url: '/media/x.glb', filename: 'x.glb' } }))).toBe(
+      false,
+    )
   })
 
   it('ignores array-row ids, which Payload regenerates freely', () => {
     expect(
-      changed(doc({ colourways: [{ id: 'DIFFERENT', slug: 'navy', variantId: 'Colorway 2', active: true }] })),
+      changed(
+        doc({
+          colourways: [{ id: 'DIFFERENT', slug: 'navy', variantId: 'Colorway 2', active: true }],
+        }),
+      ),
     ).toBe(false)
   })
 
@@ -303,7 +314,14 @@ describe('becameUnverifiedWhilePublished', () => {
  */
 describe('assertPublishable — artwork verdict', () => {
   const ok: GateColourway[] = [
-    { displayName: 'Navy', active: true, variantId: 'Colorway 2', hasPoster: true, hasAltText: true, hasOwnGlb: true },
+    {
+      displayName: 'Navy',
+      active: true,
+      variantId: 'Colorway 2',
+      hasPoster: true,
+      hasAltText: true,
+      hasOwnGlb: true,
+    },
   ]
   const base: PublishGateInput = {
     id: 1,

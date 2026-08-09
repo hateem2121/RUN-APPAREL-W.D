@@ -21,12 +21,12 @@
  *
  * See docs/AI-TOOLING.md.
  */
-import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 
-const BIN = 'codebase-memory-mcp';
+const BIN = 'codebase-memory-mcp'
 
 /**
  * The version this repo's measurements were taken against, asserted below.
@@ -47,35 +47,39 @@ const BIN = 'codebase-memory-mcp';
  * is a deliberate act: change this constant, re-run `pnpm index:ai --cold`, and
  * re-measure the numbers in docs/AI-TOOLING.md in the same commit.
  */
-const PINNED_VERSION = '0.9.0';
+const PINNED_VERSION = '0.9.0'
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const cold = process.argv.includes('--cold');
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
+const cold = process.argv.includes('--cold')
 
 /** Run a cli tool and return its parsed JSON result (the last JSON line of stdout). */
 function cli(tool, args) {
-  const flags = Object.entries(args).flatMap(([k, v]) => [`--${k}`, v]);
-  let out;
+  const flags = Object.entries(args).flatMap(([k, v]) => [`--${k}`, v])
+  let out
   try {
     out = execFileSync(BIN, ['cli', tool, ...flags], {
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
       stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    })
   } catch (err) {
     if (err.code === 'ENOENT') {
       throw new Error(
         `${BIN} is not on your PATH. Install it once per machine:\n` +
           `  npm install -g codebase-memory-mcp@0.9.0\n` +
           `See docs/AI-TOOLING.md.`,
-      );
+      )
     }
-    throw new Error(`${tool} failed: ${err.stderr?.toString().trim() || err.message}`);
+    throw new Error(`${tool} failed: ${err.stderr?.toString().trim() || err.message}`)
   }
   // The binary interleaves `level=…` log lines with the JSON result.
-  const line = out.trim().split('\n').filter((l) => l.startsWith('{')).pop();
-  if (!line) throw new Error(`${tool} returned no JSON result`);
-  return JSON.parse(line);
+  const line = out
+    .trim()
+    .split('\n')
+    .filter((l) => l.startsWith('{'))
+    .pop()
+  if (!line) throw new Error(`${tool} returned no JSON result`)
+  return JSON.parse(line)
 }
 
 /**
@@ -87,23 +91,28 @@ function cli(tool, args) {
  * different answer three questions later.
  */
 function assertPinnedVersion() {
-  let reported;
+  let reported
   try {
-    reported = execFileSync(BIN, ['--version'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+    reported = execFileSync(BIN, ['--version'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim()
   } catch (err) {
     if (err.code === 'ENOENT') {
       throw new Error(
         `${BIN} is not on your PATH. Install it once per machine:\n` +
           `  npm install -g codebase-memory-mcp@${PINNED_VERSION}\n` +
           `See docs/AI-TOOLING.md.`,
-      );
+      )
     }
-    throw new Error(`could not read ${BIN} --version: ${err.stderr?.toString().trim() || err.message}`);
+    throw new Error(
+      `could not read ${BIN} --version: ${err.stderr?.toString().trim() || err.message}`,
+    )
   }
 
   // Reported as "codebase-memory-mcp 0.9.0" — match the version token, not the
   // whole string, so a change to the banner does not read as a version drift.
-  const found = reported.match(/\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?/)?.[0];
+  const found = reported.match(/\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?/)?.[0]
   if (found !== PINNED_VERSION) {
     throw new Error(
       `${BIN} on PATH is ${found ?? `unparseable ("${reported}")`}, but this repo is pinned to ${PINNED_VERSION}.\n` +
@@ -115,39 +124,39 @@ function assertPinnedVersion() {
         `  To bump:      change PINNED_VERSION in this file, run \`pnpm index:ai --cold\`, and re-measure\n` +
         `                the node/edge counts and the startup tool list in docs/AI-TOOLING.md — in the\n` +
         `                same commit. The numbers there are claims about a specific build.`,
-    );
+    )
   }
 }
 
 // The project name is derived from the absolute path, so it differs per machine.
 // Resolve it by matching root_path rather than hard-coding it.
 function resolveProjectName() {
-  const { projects = [] } = cli('list_projects', {});
-  return projects.find((p) => p.root_path === repoRoot)?.name ?? null;
+  const { projects = [] } = cli('list_projects', {})
+  return projects.find((p) => p.root_path === repoRoot)?.name ?? null
 }
 
-assertPinnedVersion();
+assertPinnedVersion()
 
-const adr = readFileSync(join(repoRoot, 'CLAUDE.md'), 'utf8');
+const adr = readFileSync(join(repoRoot, 'CLAUDE.md'), 'utf8')
 
 if (cold) {
-  const name = resolveProjectName();
+  const name = resolveProjectName()
   if (name) {
-    cli('delete_project', { project: name });
-    console.log(`deleted existing index (${name})`);
+    cli('delete_project', { project: name })
+    console.log(`deleted existing index (${name})`)
   }
 }
 
-const result = cli('index_repository', { 'repo-path': repoRoot, mode: 'full' });
-console.log(`indexed: ${result.nodes} nodes / ${result.edges} edges`);
+const result = cli('index_repository', { 'repo-path': repoRoot, mode: 'full' })
+console.log(`indexed: ${result.nodes} nodes / ${result.edges} edges`)
 
-const project = resolveProjectName();
-if (!project) throw new Error(`indexed, but no project matches ${repoRoot}`);
+const project = resolveProjectName()
+if (!project) throw new Error(`indexed, but no project matches ${repoRoot}`)
 
-cli('manage_adr', { project, mode: 'update', content: adr });
+cli('manage_adr', { project, mode: 'update', content: adr })
 
 // Re-read rather than trust the write: this is the step that silently regresses.
-const { sections = [] } = cli('manage_adr', { project, mode: 'sections' });
-if (sections.length === 0) throw new Error('ADR re-seed reported success but read back empty');
-console.log(`ADR re-seeded from CLAUDE.md: ${sections.length} sections`);
-console.log(`project: ${project}`);
+const { sections = [] } = cli('manage_adr', { project, mode: 'sections' })
+if (sections.length === 0) throw new Error('ADR re-seed reported success but read back empty')
+console.log(`ADR re-seeded from CLAUDE.md: ${sections.length} sections`)
+console.log(`project: ${project}`)

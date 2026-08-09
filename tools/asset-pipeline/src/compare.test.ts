@@ -36,7 +36,12 @@ describe('compareRenders', () => {
 
     const result = await compareRenders(a, b, join(root, 'same.png'))
     expect(result.diffs).toHaveLength(1)
-    expect(result.diffs[0]).toMatchObject({ view: 'front', meanDelta: 0, maxDelta: 0, changedFraction: 0 })
+    expect(result.diffs[0]).toMatchObject({
+      view: 'front',
+      meanDelta: 0,
+      maxDelta: 0,
+      changedFraction: 0,
+    })
   })
 
   it('measures the difference when the renders disagree', async () => {

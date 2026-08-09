@@ -9,7 +9,10 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
         <p className="footer__line">{settings.footerLine}</p>
         <div className="footer__meta">
           <span>{settings.legalLine}</span>
-          <a href={settings.catalogueUrl} onClick={() => track('catalogue_clicked', { placement: 'footer' })}>
+          <a
+            href={settings.catalogueUrl}
+            onClick={() => track('catalogue_clicked', { placement: 'footer' })}
+          >
             Back to Catalogue
           </a>
         </div>

@@ -32,7 +32,11 @@
 
 const [, , apiBaseArg, productArg, colourArg] = process.argv
 
-const API_BASE = (apiBaseArg || process.env.VITE_API_BASE_URL || 'https://cms.wear-run.help').replace(/\/+$/, '')
+const API_BASE = (
+  apiBaseArg ||
+  process.env.VITE_API_BASE_URL ||
+  'https://cms.wear-run.help'
+).replace(/\/+$/, '')
 const PRODUCT = productArg || 'n001'
 // Must be a slug that EXISTS. `navy` was the default until 2026-08-05, when the
 // colourways were renamed from the placeholder names to the ones measured in the
@@ -152,11 +156,15 @@ if (!modelUrl) {
       // The payload assertions above still fail hard — those are what actually
       // catch a product with no model.
       console.log(`  model     WARN: HTTP 403 fetching the model (free-plan Bot Fight Mode blocks`)
-      console.log(`            datacenter traffic — see docs/HARDENING-LOG.md). Payload checks passed;`)
+      console.log(
+        `            datacenter traffic — see docs/HARDENING-LOG.md). Payload checks passed;`,
+      )
       console.log(`            the model URL itself was NOT verified from here.`)
     } else if (!res.ok && res.status !== 206) {
       headVerdict = 'bad'
-      fail(`the model URL returned HTTP ${res.status} — the payload points at a file that is not served`)
+      fail(
+        `the model URL returned HTTP ${res.status} — the payload points at a file that is not served`,
+      )
     } else {
       headVerdict = 'ok'
       // content-range on a 206 ("bytes 0-0/39555036"), content-length on a HEAD.
@@ -168,7 +176,9 @@ if (!modelUrl) {
       if (!bytes) {
         console.log('  model     WARN: no content-length or content-range, size not verified')
       } else if (bytes < MIN_MODEL_BYTES) {
-        fail(`the model is only ${bytes} bytes (< ${MIN_MODEL_BYTES}) — that is a stub or an error page, not a garment`)
+        fail(
+          `the model is only ${bytes} bytes (< ${MIN_MODEL_BYTES}) — that is a stub or an error page, not a garment`,
+        )
       } else {
         console.log(`  size      ${(bytes / 1024 / 1024).toFixed(1)} MB`)
       }
@@ -212,7 +222,9 @@ if (!modelUrl) {
       if (res.status === 403) {
         // Same Bot Fight Mode exception as check 3, and for the same reason: a
         // datacenter 403 is inconclusive, never a failed assertion.
-        console.log('  browser   WARN: HTTP 403 on the bare GET (free-plan Bot Fight Mode). Not verified.')
+        console.log(
+          '  browser   WARN: HTTP 403 on the bare GET (free-plan Bot Fight Mode). Not verified.',
+        )
       } else if (!res.ok) {
         if (headVerdict === 'ok') {
           fail(
@@ -223,7 +235,9 @@ if (!modelUrl) {
               `        it with a Cloudflare Custom Purge of THAT ONE URL. Do not re-run the shrink.`,
           )
         } else {
-          fail(`a plain GET on the model URL returned HTTP ${res.status} — a visitor would see no garment`)
+          fail(
+            `a plain GET on the model URL returned HTTP ${res.status} — a visitor would see no garment`,
+          )
         }
       } else {
         console.log('  browser   bare GET 200 — reachable the way a QR scan reaches it')

@@ -36,7 +36,15 @@ import { afterEach, describe, expect, it } from 'vitest'
  * drops the bare GET turns scenario A green-to-red instead of going unnoticed.
  */
 
-const SMOKE_SCRIPT = join(import.meta.dirname, '..', '..', '..', '..', 'scripts', 'smoke-viewer-payload.mjs')
+const SMOKE_SCRIPT = join(
+  import.meta.dirname,
+  '..',
+  '..',
+  '..',
+  '..',
+  'scripts',
+  'smoke-viewer-payload.mjs',
+)
 
 let server: Server | undefined
 
@@ -96,9 +104,13 @@ async function startOrigin({ getStatus }: { getStatus: number }): Promise<number
 }
 
 async function runSmoke(port: number, { browserGet }: { browserGet: boolean }) {
-  const child = spawn(process.execPath, [SMOKE_SCRIPT, `http://127.0.0.1:${port}`, 'n001', 'wine'], {
-    env: { ...process.env, SMOKE_BROWSER_GET: browserGet ? '1' : '' },
-  })
+  const child = spawn(
+    process.execPath,
+    [SMOKE_SCRIPT, `http://127.0.0.1:${port}`, 'n001', 'wine'],
+    {
+      env: { ...process.env, SMOKE_BROWSER_GET: browserGet ? '1' : '' },
+    },
+  )
   let output = ''
   child.stdout.on('data', (chunk) => (output += chunk))
   child.stderr.on('data', (chunk) => (output += chunk))

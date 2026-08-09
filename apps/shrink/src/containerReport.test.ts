@@ -108,7 +108,9 @@ describe('buildReportText — the artwork block', () => {
       glb(),
       'x.glb',
     )
-    expect(text).toContain('PRINTED ARTWORK WAS NOT PROTECTED on: Teamwear Logo_3139, RUN LOGO_3183')
+    expect(text).toContain(
+      'PRINTED ARTWORK WAS NOT PROTECTED on: Teamwear Logo_3139, RUN LOGO_3183',
+    )
     expect(text).toContain('has NOT been saved')
     expect(text).toContain('Highest quality')
   })
@@ -116,7 +118,13 @@ describe('buildReportText — the artwork block', () => {
   it('stays silent about artwork when none was at risk', () => {
     const text = buildReportText(
       opt({
-        simplify: { attributeAware: 44, fallback: 0, skipped: 0, uvSetsWeighted: [0], artworkAtRisk: [] },
+        simplify: {
+          attributeAware: 44,
+          fallback: 0,
+          skipped: 0,
+          uvSetsWeighted: [0],
+          artworkAtRisk: [],
+        },
       }),
       glb(),
       'x.glb',
@@ -204,7 +212,11 @@ describe('buildReportText — warnings pass through', () => {
   it('surfaces every validator warning, including crushed artwork', () => {
     const text = buildReportText(
       opt(),
-      glb({ warnings: ['1 printed-artwork texture(s) are stored below 0.02 bytes/pixel — logo 2048x2048 at 0.003'] }),
+      glb({
+        warnings: [
+          '1 printed-artwork texture(s) are stored below 0.02 bytes/pixel — logo 2048x2048 at 0.003',
+        ],
+      }),
       'x.glb',
     )
     expect(text).toContain('Warnings:')

@@ -270,7 +270,11 @@ export default {
     // Not a garment link, not a GET, or not a crawler → byte-for-byte what this
     // project served before the Worker existed. The overwhelming majority of
     // requests take this branch and pay one URL parse and one regex for it.
-    if (!route || request.method !== 'GET' || !CRAWLER.test(request.headers.get('user-agent') ?? '')) {
+    if (
+      !route ||
+      request.method !== 'GET' ||
+      !CRAWLER.test(request.headers.get('user-agent') ?? '')
+    ) {
       return env.ASSETS.fetch(request)
     }
 
@@ -282,7 +286,10 @@ export default {
     if (!payload) return response
     if (!(response.headers.get('content-type') ?? '').includes('text/html')) return response
 
-    const transformed = applyPreview(response, buildPreview(payload, { origin: url.origin, cards: OG_CARDS }))
+    const transformed = applyPreview(
+      response,
+      buildPreview(payload, { origin: url.origin, cards: OG_CARDS }),
+    )
     // The response body now depends on the User-Agent. Google documents Vary as
     // the correct signal for user-agent-dependent serving, and it stops any cache
     // in front of this handing a crawler's copy to a visitor.

@@ -72,7 +72,8 @@ describe('shrinkFlagsFor', () => {
     // with MILE breaking apart, and passed all three blocking gates while doing
     // it, because they test alphaMode and decimation does not change alphaMode.
     // Every offered level must now be at least as tight as balanced.
-    const budget = (l: ShrinkDetailLevel) => flagValue(shrinkFlagsFor(l), '--simplify-error') as number
+    const budget = (l: ShrinkDetailLevel) =>
+      flagValue(shrinkFlagsFor(l), '--simplify-error') as number
     const balanced = budget('balanced')
     for (const level of LEVELS) expect(budget(level)).toBeLessThanOrEqual(balanced)
   })

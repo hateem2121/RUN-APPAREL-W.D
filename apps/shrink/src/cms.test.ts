@@ -95,7 +95,12 @@ describe('isMediaReferenced', () => {
     const { env, calls } = envWith(() => nothingFound)
     await isMediaReferenced(env, 7)
     const productsCall = decodeURIComponent(calls.find((c) => c.startsWith('/api/products'))!)
-    for (const path of ['glbAsset', 'posterFallback', 'colourways.posterPreview', 'colourways.glbAsset']) {
+    for (const path of [
+      'glbAsset',
+      'posterFallback',
+      'colourways.posterPreview',
+      'colourways.glbAsset',
+    ]) {
       expect(productsCall).toContain(path)
     }
   })

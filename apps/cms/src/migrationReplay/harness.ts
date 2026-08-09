@@ -36,7 +36,9 @@ export interface FakeDb {
 
 export interface MigrationArgs {
   db: FakeDb
-  payload: { logger: { warn: (m: string) => void; info: (m: string) => void; error: (m: string) => void } }
+  payload: {
+    logger: { warn: (m: string) => void; info: (m: string) => void; error: (m: string) => void }
+  }
   req: Record<string, unknown>
 }
 
@@ -88,7 +90,10 @@ export interface CapturedLogs {
   error: string[]
 }
 
-export function makeMigrationArgs(database: DatabaseSync): { args: MigrationArgs; logs: CapturedLogs } {
+export function makeMigrationArgs(database: DatabaseSync): {
+  args: MigrationArgs
+  logs: CapturedLogs
+} {
   const logs: CapturedLogs = { warn: [], info: [], error: [] }
   return {
     args: {
@@ -141,8 +146,13 @@ interface ForeignKeyInfo {
 function topologicalOrder(database: DatabaseSync, tables: string[]): string[] {
   const dependencies = new Map<string, Set<string>>()
   for (const table of tables) {
-    const keys = database.prepare(`PRAGMA foreign_key_list(\`${table}\`)`).all() as unknown as ForeignKeyInfo[]
-    dependencies.set(table, new Set(keys.map((k) => k.table).filter((t) => t !== table && tables.includes(t))))
+    const keys = database
+      .prepare(`PRAGMA foreign_key_list(\`${table}\`)`)
+      .all() as unknown as ForeignKeyInfo[]
+    dependencies.set(
+      table,
+      new Set(keys.map((k) => k.table).filter((t) => t !== table && tables.includes(t))),
+    )
   }
 
   const ordered: string[] = []
@@ -168,7 +178,12 @@ function topologicalOrder(database: DatabaseSync, tables: string[]): string[] {
 function valueFor(column: ColumnInfo, index: number): string | number {
   const type = column.type.toUpperCase()
   if (type.includes('INT')) return index + 1
-  if (type.includes('REAL') || type.includes('FLOA') || type.includes('DOUB') || type.includes('NUMERIC')) {
+  if (
+    type.includes('REAL') ||
+    type.includes('FLOA') ||
+    type.includes('DOUB') ||
+    type.includes('NUMERIC')
+  ) {
     return index + 1
   }
   // Payload stores array-row ids and enums as text; a short unique string suits both.
@@ -195,7 +210,9 @@ export function seedEveryTable(database: DatabaseSync): SeedResult {
   const skipped: string[] = []
 
   for (const [index, table] of tables.entries()) {
-    const columns = database.prepare(`PRAGMA table_info(\`${table}\`)`).all() as unknown as ColumnInfo[]
+    const columns = database
+      .prepare(`PRAGMA table_info(\`${table}\`)`)
+      .all() as unknown as ColumnInfo[]
     const foreignKeys = database
       .prepare(`PRAGMA foreign_key_list(\`${table}\`)`)
       .all() as unknown as ForeignKeyInfo[]
@@ -240,7 +257,10 @@ export function seedEveryTable(database: DatabaseSync): SeedResult {
         ? `INSERT INTO \`${table}\` (${columnList}) VALUES (${placeholders})`
         : `INSERT INTO \`${table}\` DEFAULT VALUES`
       database.prepare(statement).run(...(values as never[]))
-      const row = database.prepare(`SELECT * FROM \`${table}\` LIMIT 1`).get() as Record<string, unknown>
+      const row = database.prepare(`SELECT * FROM \`${table}\` LIMIT 1`).get() as Record<
+        string,
+        unknown
+      >
       const idColumn = columns.find((c) => c.pk === 1)?.name ?? 'id'
       seeded.set(table, (row?.[idColumn] as string | number) ?? 1)
     } catch {

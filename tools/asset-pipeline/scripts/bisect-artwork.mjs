@@ -55,7 +55,13 @@ const DETAIL_FLAGS = {
   //   `small`: removed on 2026-08-05. It renders the chest wordmark with MILE
   //     breaking apart while passing all three blocking gates.
   'balanced-pre-2026-08-05': [
-    '--simplify', '0.05', '--meshopt', '--simplify-error', '0.0005', '--uv-weight', '1',
+    '--simplify',
+    '0.05',
+    '--meshopt',
+    '--simplify-error',
+    '0.0005',
+    '--uv-weight',
+    '1',
   ],
   small: ['--simplify', '0.02', '--meshopt', '--simplify-error', '0.002', '--uv-weight', '1'],
 }
@@ -73,10 +79,25 @@ const DETAIL_FLAGS = {
 const RUNS = [
   { name: 'raw', skipOptimize: true, isolates: 'ground truth — no processing at all' },
   { name: 'full', drop: [], add: [], isolates: 'the reported failure, reproduced' },
-  { name: 'no-textures', drop: [], add: ['--no-webp'], isolates: 'H5 — lossy WebP is 4:2:0 chroma only' },
-  { name: 'no-simplify', drop: ['--simplify', '--simplify-error', '--uv-weight'], add: [], isolates: 'H1/H4 — decimation and UV weighting' },
+  {
+    name: 'no-textures',
+    drop: [],
+    add: ['--no-webp'],
+    isolates: 'H5 — lossy WebP is 4:2:0 chroma only',
+  },
+  {
+    name: 'no-simplify',
+    drop: ['--simplify', '--simplify-error', '--uv-weight'],
+    add: [],
+    isolates: 'H1/H4 — decimation and UV weighting',
+  },
   { name: 'no-meshopt', drop: ['--meshopt'], add: [], isolates: 'H6 — position quantization' },
-  { name: 'no-solidify', drop: [], add: ['--keep-transparency'], isolates: 'H3/H6 — alpha handling (diagnostic only)' },
+  {
+    name: 'no-solidify',
+    drop: [],
+    add: ['--keep-transparency'],
+    isolates: 'H3/H6 — alpha handling (diagnostic only)',
+  },
 ]
 
 function parseArgs(argv) {
@@ -129,7 +150,10 @@ async function readGenerator(file) {
 function run(args, label) {
   return new Promise((resolvePromise, reject) => {
     console.log(`\n$ tsx cli.ts ${args.join(' ')}`)
-    const child = spawn('npx', ['tsx', cli, ...args], { stdio: 'inherit', cwd: resolve(here, '..') })
+    const child = spawn('npx', ['tsx', cli, ...args], {
+      stdio: 'inherit',
+      cwd: resolve(here, '..'),
+    })
     child.on('error', reject)
     child.on('exit', (code) => {
       if (code === 0) resolvePromise()
@@ -141,12 +165,16 @@ function run(args, label) {
 async function main() {
   const { raw, options } = parseArgs(process.argv.slice(2))
   if (!raw) {
-    console.error('Usage: node scripts/bisect-artwork.mjs <raw.glb> [--out <dir>] [--detail small|balanced|fidelity]')
+    console.error(
+      'Usage: node scripts/bisect-artwork.mjs <raw.glb> [--out <dir>] [--detail small|balanced|fidelity]',
+    )
     process.exit(1)
   }
   const preset = DETAIL_FLAGS[options.detail]
   if (!preset) {
-    console.error(`Unknown --detail "${options.detail}". Use one of: ${Object.keys(DETAIL_FLAGS).join(', ')}`)
+    console.error(
+      `Unknown --detail "${options.detail}". Use one of: ${Object.keys(DETAIL_FLAGS).join(', ')}`,
+    )
     process.exit(1)
   }
 
@@ -154,7 +182,9 @@ async function main() {
   await mkdir(outDir, { recursive: true })
   const selected = RUNS.filter((r) => !options.only || options.only.includes(r.name))
   if (!selected.some((r) => r.name === 'raw')) {
-    console.error('The "raw" run is the baseline every sheet compares against; it cannot be skipped.')
+    console.error(
+      'The "raw" run is the baseline every sheet compares against; it cannot be skipped.',
+    )
     process.exit(1)
   }
 
@@ -195,9 +225,15 @@ async function main() {
     const glb = spec.skipOptimize ? raw : join(outDir, `${spec.name}.glb`)
     if (!spec.skipOptimize) {
       // ALWAYS from `raw`. Never from another run's output — see the header.
-      await run(['optimize', raw, '--out', glb, ...dropFlags(preset, spec.drop), ...spec.add], spec.name)
+      await run(
+        ['optimize', raw, '--out', glb, ...dropFlags(preset, spec.drop), ...spec.add],
+        spec.name,
+      )
     }
-    await run(['render', glb, '--out', join(outDir, spec.name), ...renderFlags], `render ${spec.name}`)
+    await run(
+      ['render', glb, '--out', join(outDir, spec.name), ...renderFlags],
+      `render ${spec.name}`,
+    )
     done.push(spec)
   }
 
@@ -205,7 +241,13 @@ async function main() {
   for (const spec of done) {
     if (spec.name === 'raw') continue
     await run(
-      ['compare', join(outDir, 'raw'), join(outDir, spec.name), '--out', join(outDir, `sheet-${spec.name}.png`)],
+      [
+        'compare',
+        join(outDir, 'raw'),
+        join(outDir, spec.name),
+        '--out',
+        join(outDir, `sheet-${spec.name}.png`),
+      ],
       `compare ${spec.name}`,
     )
   }

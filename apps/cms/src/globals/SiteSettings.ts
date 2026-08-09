@@ -24,9 +24,16 @@ export const SiteSettings: GlobalConfig = {
       type: 'text',
       required: true,
       defaultValue: '+923361777313',
-      admin: { description: 'International format; the viewer builds wa.me links from the digits.' },
+      admin: {
+        description: 'International format; the viewer builds wa.me links from the digits.',
+      },
     },
-    { name: 'catalogueUrl', type: 'text', required: true, defaultValue: 'https://wear-run.help/catalogue' },
+    {
+      name: 'catalogueUrl',
+      type: 'text',
+      required: true,
+      defaultValue: 'https://wear-run.help/catalogue',
+    },
     { name: 'temporaryWordmark', type: 'text', required: true, defaultValue: 'RUN APPAREL' },
     { name: 'footerLine', type: 'text', required: true, defaultValue: 'RUN THE EXTRA MILE.' },
     { name: 'legalLine', type: 'text', required: true, defaultValue: '© RUN APPAREL (PVT) LTD' },
@@ -46,7 +53,8 @@ export const SiteSettings: GlobalConfig = {
         {
           name: 'bodyIntro',
           type: 'textarea',
-          defaultValue: 'Hello RUN Team,\n\nI am interested in [Product Name] ([Product Code]) in [Colour].',
+          defaultValue:
+            'Hello RUN Team,\n\nI am interested in [Product Name] ([Product Code]) in [Colour].',
         },
         {
           name: 'microcopy',
@@ -59,12 +67,16 @@ export const SiteSettings: GlobalConfig = {
     {
       name: 'analytics',
       type: 'group',
-      admin: { description: 'Cloudflare Web Analytics only — cookieless, no third-party trackers.' },
+      admin: {
+        description: 'Cloudflare Web Analytics only — cookieless, no third-party trackers.',
+      },
       fields: [
         {
           name: 'cfBeaconToken',
           type: 'text',
-          admin: { description: 'Cloudflare Web Analytics beacon token for the viewer site (optional).' },
+          admin: {
+            description: 'Cloudflare Web Analytics beacon token for the viewer site (optional).',
+          },
         },
       ],
     },

@@ -47,7 +47,15 @@ export const Events: CollectionConfig = {
     { name: 'product', type: 'text' },
     { name: 'variant', type: 'text' },
     { name: 'placement', type: 'text' },
-    { name: 'message', type: 'text', admin: { description: 'Client error message (errors only).' } },
-    { name: 'ua', type: 'text', admin: { description: 'Coarse, truncated user-agent. No IP is stored.' } },
+    {
+      name: 'message',
+      type: 'text',
+      admin: { description: 'Client error message (errors only).' },
+    },
+    {
+      name: 'ua',
+      type: 'text',
+      admin: { description: 'Coarse, truncated user-agent. No IP is stored.' },
+    },
   ],
 }

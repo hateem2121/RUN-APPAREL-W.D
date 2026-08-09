@@ -125,7 +125,9 @@ export function changesAnything(
   return fields.some((field) => {
     if (!(field in data)) return false
     try {
-      return JSON.stringify(fingerprint(data[field])) !== JSON.stringify(fingerprint(originalDoc[field]))
+      return (
+        JSON.stringify(fingerprint(data[field])) !== JSON.stringify(fingerprint(originalDoc[field]))
+      )
     } catch {
       return true
     }

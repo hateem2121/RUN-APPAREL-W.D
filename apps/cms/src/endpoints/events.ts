@@ -15,7 +15,14 @@ import type { Endpoint, PayloadRequest } from 'payload'
 
 export const MAX_EVENT_BATCH = 20
 
-const LIMITS = { event: 64, product: 32, variant: 48, placement: 32, message: 500, ua: 256 } as const
+const LIMITS = {
+  event: 64,
+  product: 32,
+  variant: 48,
+  placement: 32,
+  message: 500,
+  ua: 256,
+} as const
 const VALID_TYPES = new Set(['analytics', 'diagnostic', 'error'])
 const KNOWN_ANALYTICS = new Set<string>(VIEWER_ANALYTICS_EVENTS)
 const BOT_UA = /bot|crawler|spider|headless|preview|scan|lighthouse|monitor/i

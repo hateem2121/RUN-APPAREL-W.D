@@ -46,11 +46,23 @@ if (!raw) {
 // left the contact sheet claiming A is what ships and E is a real option — neither
 // is true, and the next investigation reads this sheet before it reads the code.
 const RUNS = [
-  { id: 'A', label: 'err 0.0005 — balanced until 2026-08-05', error: '0.0005', uv: '1', ratio: '0.05' },
+  {
+    id: 'A',
+    label: 'err 0.0005 — balanced until 2026-08-05',
+    error: '0.0005',
+    uv: '1',
+    ratio: '0.05',
+  },
   { id: 'B', label: 'fidelity (shipped)', error: '0.0002', uv: '2', ratio: '0.05' },
   { id: 'C', label: 'balanced (shipped)', error: '0.001', uv: '1', ratio: '0.05' },
   { id: 'D', label: 'balanced budget, uv-weight 2', error: '0.001', uv: '2', ratio: '0.05' },
-  { id: 'E', label: 'err 0.002 — the removed `small`; MILE breaks up', error: '0.002', uv: '1', ratio: '0.02' },
+  {
+    id: 'E',
+    label: 'err 0.002 — the removed `small`; MILE breaks up',
+    error: '0.002',
+    uv: '1',
+    ratio: '0.02',
+  },
   { id: 'F', label: 'budget x5 — expected to fail', error: '0.005', uv: '1', ratio: '0.05' },
 ]
 
@@ -70,11 +82,16 @@ for (const run of RUNS) {
     // options object would silently skip solidifyMaterials and make every run
     // look like it failed the alpha gate.
     const { options } = parseOptimizeArgs([
-      raw, '--out', out,
-      '--simplify', run.ratio,
+      raw,
+      '--out',
+      out,
+      '--simplify',
+      run.ratio,
       '--meshopt',
-      '--simplify-error', run.error,
-      '--uv-weight', run.uv,
+      '--simplify-error',
+      run.error,
+      '--uv-weight',
+      run.uv,
     ])
     const result = await optimizeGlb(raw, out, options)
     const bytes = (await stat(out)).size
@@ -103,7 +120,8 @@ for (const run of RUNS) {
       artworkAtRisk: result.simplify?.artworkAtRisk ?? [],
       alphaProblems,
       artworkCount: artwork.length,
-      allMasked: artwork.length > 0 && artwork.every((a) => a.alphaMode === 'MASK' && a.cutoff === 0.5),
+      allMasked:
+        artwork.length > 0 && artwork.every((a) => a.alphaMode === 'MASK' && a.cutoff === 0.5),
       artwork,
       // The three blocking gates, as the shrink worker applies them.
       wouldShip: (result.simplify?.artworkAtRisk ?? []).length === 0 && alphaProblems.length === 0,
