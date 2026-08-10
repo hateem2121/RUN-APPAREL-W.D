@@ -6,6 +6,7 @@ import {
   assertPublishable,
   becameUnverifiedWhilePublished,
   changesAnything,
+  collectPublishProblems,
   deriveVariantsVerified,
   toGateColourways,
 } from './publishGating'
@@ -184,6 +185,59 @@ describe('assertPublishable', () => {
 
   it('accepts a valid single-file product', () => {
     expect(() => assertPublishable(input(), [cw()])).not.toThrow()
+  })
+})
+
+describe('collectPublishProblems', () => {
+  const published = {
+    id: 1,
+    status: 'published',
+    variantMode: 'single-glb-variants',
+    glbAsset: null,
+    variantsVerified: false,
+  }
+  const row = (over = {}) => ({
+    displayName: 'Wine',
+    active: true,
+    variantId: '',
+    hasPoster: false,
+    hasAltText: false,
+    hasOwnGlb: false,
+    ...over,
+  })
+
+  it('returns every problem, not just the first', () => {
+    const problems = collectPublishProblems(published, [row()])
+    expect(problems).toHaveLength(4) // no photo, no description, no model, no colour picked
+    expect(problems.join(' ')).toContain('Wine')
+  })
+
+  it('is empty for a publishable product', () => {
+    expect(
+      collectPublishProblems({ ...published, glbAsset: 5, variantsVerified: true }, [
+        row({ variantId: 'Colorway 1', hasPoster: true, hasAltText: true }),
+      ]),
+    ).toEqual([])
+  })
+
+  it('is empty for a draft', () => {
+    expect(collectPublishProblems({ ...published, status: 'draft' }, [])).toEqual([])
+  })
+
+  it('reports only the no-colours problem when there are none', () => {
+    expect(collectPublishProblems(published, [])).toHaveLength(1)
+  })
+
+  it('assertPublishable throws one message unchanged when there is one problem', () => {
+    expect(() =>
+      assertPublishable({ ...published, glbAsset: 5, variantsVerified: true }, [
+        row({ variantId: 'C1', hasPoster: true, hasAltText: false }),
+      ]),
+    ).toThrow(/photo description/)
+  })
+
+  it('assertPublishable numbers them when there are several', () => {
+    expect(() => assertPublishable(published, [row()])).toThrow(/4 things need fixing/)
   })
 })
 

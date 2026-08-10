@@ -171,32 +171,45 @@ export function deriveVariantsVerified(colourways: GateColourway[], fileColours:
 const list = (names: string[]): string => names.map((n) => `“${n}”`).join(', ')
 
 /**
- * Throw a plain-English Error if the product may NOT be published. A no-op for
- * non-published saves. Every message names the colour at fault, because "invalid"
- * costs the owner a round-trip to work out which of five rows it meant.
+ * Every reason `input`/`colourways` may NOT be published, in the order the owner
+ * would fix them. Empty means publishable. A no-op (returns `[]`) for
+ * non-published saves — a draft is allowed to be half-finished.
+ *
+ * Pure decision, no throwing: `assertPublishable` below is a thin wrapper that
+ * turns this into the single-Error shape the Payload hook needs, and a future
+ * admin-UI readiness panel (client component, so no Payload import here) can
+ * call this directly to show every outstanding item at once instead of the one
+ * the owner would otherwise discover only after fixing the first.
  */
-export function assertPublishable(input: PublishGateInput, colourways: GateColourway[]): void {
-  if (input.status !== 'published') return
+export function collectPublishProblems(
+  input: PublishGateInput,
+  colourways: GateColourway[],
+): string[] {
+  if (input.status !== 'published') return []
 
   const active = colourways.filter((c) => c.active)
   if (active.length === 0) {
-    throw new Error(
+    // Nothing below this can be judged without a colour on show, so this is the
+    // only problem reported — nothing else here should be true for the owner
+    return [
       colourways.length === 0
         ? 'This product has no colours yet. Add at least one on the Colours tab before publishing.'
         : 'Every colour is switched off, so there would be nothing to show. Tick “Show this colour on the website” for at least one.',
-    )
+    ]
   }
+
+  const problems: string[] = []
 
   const noPoster = active.filter((c) => !c.hasPoster).map((c) => c.displayName)
   if (noPoster.length > 0) {
-    throw new Error(
+    problems.push(
       `${list(noPoster)} ${noPoster.length === 1 ? 'has' : 'have'} no photo. Add “Photo of this colour” on the Colours tab, or switch the colour off.`,
     )
   }
 
   const noAlt = active.filter((c) => !c.hasAltText).map((c) => c.displayName)
   if (noAlt.length > 0) {
-    throw new Error(
+    problems.push(
       `${list(noAlt)} ${noAlt.length === 1 ? 'needs' : 'need'} a photo description, so people using a screen reader know what the picture shows. Add it on the Colours tab.`,
     )
   }
@@ -204,30 +217,58 @@ export function assertPublishable(input: PublishGateInput, colourways: GateColou
   if (input.variantMode === 'separate-glb-per-colour') {
     const missing = active.filter((c) => !c.hasOwnGlb).map((c) => c.displayName)
     if (missing.length > 0) {
-      throw new Error(
+      problems.push(
         `This product is set to “A separate file for each colour”, so every colour needs its own 3D file. ${list(missing)} ${missing.length === 1 ? 'is' : 'are'} missing one.`,
       )
     }
-    return
+    // This mode has no product-level glbAsset to report on — return before that
+    // check, exactly as today, or a correctly-filled separate-file product would
+    // additionally be told it is missing a file nothing here ever asks it for.
+    return problems
   }
 
   // ── "One file with all colours" ────────────────────────────────────────────
   if (!isSet(input.glbAsset)) {
-    throw new Error(
+    problems.push(
       'There is no finished 3D file yet, so the page would show an empty space where the garment should spin. Upload your CLO file on the “3D file” tab and pick the finished file once it says Ready to review.',
     )
   }
 
   if (!input.variantsVerified) {
     const unmatched = active.filter((c) => c.variantId === '').map((c) => c.displayName)
-    throw new Error(
+    problems.push(
       unmatched.length > 0
         ? `${list(unmatched)} ${unmatched.length === 1 ? 'has' : 'have'} no colour picked from your CLO file. Open the Colours tab and answer “Which colour in your CLO file is this?” for each — the colour buttons will not work otherwise.`
         : 'The colours you picked do not match what is inside the processed file. Re-check “Which colour in your CLO file is this?” on the Colours tab, or upload the file again.',
     )
   }
 
-  assertArtworkAcceptable(input)
+  const artworkProblem = assertArtworkAcceptable(input)
+  if (artworkProblem) problems.push(artworkProblem)
+
+  return problems
+}
+
+/**
+ * Throw a plain-English Error if the product may NOT be published. A no-op for
+ * non-published saves. Every message names the colour at fault, because "invalid"
+ * costs the owner a round-trip to work out which of five rows it meant.
+ *
+ * A single problem throws that message alone, unchanged from before this was
+ * split out — every pre-existing single-problem test asserts against it. Several
+ * problems throw one combined, numbered message instead of only the first, so a
+ * product missing a photo, a description and a colour mapping is not three
+ * separate round-trips.
+ */
+export function assertPublishable(input: PublishGateInput, colourways: GateColourway[]): void {
+  const problems = collectPublishProblems(input, colourways)
+  if (problems.length === 0) return
+  if (problems.length === 1) throw new Error(problems[0])
+
+  throw new Error(
+    `This product is not ready to publish yet. ${problems.length} things need fixing:\n\n` +
+      problems.map((p, i) => `${i + 1}. ${p}`).join('\n\n'),
+  )
 }
 
 /**
@@ -244,9 +285,9 @@ export function assertPublishable(input: PublishGateInput, colourways: GateColou
  * instead of used — and the reason is required so the decision is recoverable
  * six months later rather than a mystery checkbox.
  */
-function assertArtworkAcceptable(input: PublishGateInput): void {
-  if (input.artworkVerdict !== 'damaged') return
-  if (text(input.artworkOverrideReason) !== '') return
+function assertArtworkAcceptable(input: PublishGateInput): string | null {
+  if (input.artworkVerdict !== 'damaged') return null
+  if (text(input.artworkOverrideReason) !== '') return null
   // The remedy is deliberately NOT "re-upload at Highest quality" any more.
   // `damaged` covers two mechanisms with different fixes, and this message
   // prescribed the decimation one for both until 2026-08-04: Detail moves the
@@ -254,13 +295,13 @@ function assertArtworkAcceptable(input: PublishGateInput): void {
   // or boxed over, which is an alphaMode decision made identically at every
   // level. Sending the owner at the one knob guaranteed not to move is worse
   // than saying "read the report".
-  throw new Error(
+  return (
     'The printed artwork on this model was damaged when the file was shrunk, so publishing it would ' +
-      'show buyers a torn logo. Read the Report on the raw upload — it names the parts and says which ' +
-      'kind of damage it was. If the logos are SMEARED, upload the file again with the Detail setting ' +
-      'on “Highest quality — bigger file”. If they are SEE-THROUGH, boxed over, or missing, Detail will ' +
-      'not change anything: the graphic needs re-exporting from CLO on its own opaque piece. If this ' +
-      'garment genuinely has no printed artwork, write why in “Publish anyway — reason” on the 3D file, ' +
-      'and it will publish.',
+    'show buyers a torn logo. Read the Report on the raw upload — it names the parts and says which ' +
+    'kind of damage it was. If the logos are SMEARED, upload the file again with the Detail setting ' +
+    'on “Highest quality — bigger file”. If they are SEE-THROUGH, boxed over, or missing, Detail will ' +
+    'not change anything: the graphic needs re-exporting from CLO on its own opaque piece. If this ' +
+    'garment genuinely has no printed artwork, write why in “Publish anyway — reason” on the 3D file, ' +
+    'and it will publish.'
   )
 }
