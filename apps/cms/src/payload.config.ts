@@ -106,6 +106,20 @@ export default buildConfig({
     meta: {
       titleSuffix: ' — RUN APPAREL CMS',
     },
+    components: {
+      // Replaces the built-in "here are your collections" landing page with
+      // "what needs doing" — see views/Dashboard.tsx for why, and for what was
+      // verified against the installed Payload 3.86.0 typings/runtime before
+      // relying on this key (it is read one layer deeper than it looks: by
+      // @payloadcms/next's own DashboardView, not by the top-level router).
+      // No `path` on this entry — see Dashboard.tsx's access-control note for
+      // why that specifically matters here.
+      views: {
+        dashboard: {
+          Component: '/views/Dashboard#Dashboard',
+        },
+      },
+    },
   },
   collections: [Users, Media, RawUploads, Products, Events],
   globals: [SiteSettings],
