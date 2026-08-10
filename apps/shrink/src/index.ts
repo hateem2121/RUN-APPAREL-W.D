@@ -7,6 +7,7 @@ import {
   nextDetailAdvice,
   shrinkFlagsFor,
 } from '@run-apparel/shared'
+import { type ProductState, describeModel, planModelAttach } from './attach'
 import { cmsFetch, isMediaReferenced } from './cms'
 import { DEAD_LETTER_QUEUE, deadLetterReport } from './deadLetter'
 
@@ -203,6 +204,12 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   // waiting on an unrelated request.
   const previousResultGlb = await readResultGlb(env, job.rawUploadId)
 
+  // The target product's code, status and current model — read up front for the
+  // same reason as above, and used for two things: naming the Media doc so the
+  // library does not fill with identical-looking models, and deciding whether
+  // this run may attach itself (see step 4b).
+  const target = await readProductState(env, job.targetProductId)
+
   const key = job.prefix ? `${job.prefix}/${job.filename}` : job.filename
   const detail = job.detail ?? DEFAULT_SHRINK_DETAIL
 
@@ -297,7 +304,10 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   // 3. Create the guardrailed Media doc from the SHRUNK output. The CMS media
   //    rules still run — safe filename + < 40 MB — so a bad output is rejected
   //    there too rather than published.
-  const mediaId = await createMedia(env, containerRes, report)
+  const mediaId = await createMedia(env, containerRes, report, {
+    productCode: target?.productCode ?? null,
+    detail,
+  })
 
   // 4. Tell the product which colours are inside the file.
   //
@@ -338,11 +348,59 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
     }
   }
 
+  // 4b. Attach the model to the product itself — but ONLY to a draft that has
+  //     none yet.
+  //
+  //     The owner used to do this by hand from a picker that listed every model
+  //     the library had ever held, all created by this function and all carrying
+  //     byte-identical `alt` text. On 2026-08-09 that was five GLBs differing
+  //     only by a trailing number, four of them superseded and one of them a
+  //     pre-2026-08-05 build with the old artwork damage — and picking the wrong
+  //     one published cleanly, because the gate only tests that *something* is
+  //     attached. The robot already knows exactly which document it just made and
+  //     which product asked for it, so the safest thing it can do is say so.
+  //
+  //     THE TWO CONDITIONS ARE THE WHOLE SAFETY ARGUMENT, not caution:
+  //
+  //     - `status !== 'published'`. `glbAsset` is in GATED_FIELDS, so writing it
+  //       re-runs the publish gate. On a draft `assertPublishable` returns on its
+  //       first line, so the write cannot throw. On a LIVE product it can — and a
+  //       gate rejecting the robot's own write is precisely the 2026-07-29 bug
+  //       that GATED_FIELDS exists to prevent. Never write to a published one.
+  //     - no model attached yet. Silently swapping the model under a garment the
+  //       owner has already set up is not a convenience, it is a surprise. A
+  //       deliberate re-run is what the Retry box and the picker are for.
+  //
+  //     A SEPARATE PATCH from the colour list above, deliberately. Bundled into
+  //     one call, any failure here would also lose `fileColours` — the write that
+  //     fills the colour dropdown and the one thing that repairs a half-set-up
+  //     product. Two round trips is a cheap price for keeping those failure modes
+  //     apart. Like that write, this one reports rather than throws: the shrink
+  //     succeeded and the owner can always attach by hand.
+  const plan = planModelAttach(job.targetProductId, target)
+  let attachNote = plan.attach ? '' : plan.note
+  if (plan.attach && job.targetProductId != null) {
+    try {
+      await patchProduct(env, job.targetProductId, { glbAsset: mediaId })
+      attachNote =
+        '\n\nAttached to the product as its finished 3D file. ' +
+        'Nothing is public until you set Status to Published.'
+    } catch (error) {
+      // Named `reason` rather than `detail`: `detail` is the Detail LEVEL in
+      // this function's scope, and shadowing it here reads as the wrong thing.
+      const reason = error instanceof Error ? error.message : String(error)
+      attachNote =
+        '\n\n⚠️ Could not attach the model to the product automatically. It is saved and ' +
+        'unharmed — open the product’s “3D file” tab and pick it by hand. ' +
+        `Tell your developer this:\n${reason}`
+    }
+  }
+
   // 5. Mark the raw upload ready for the owner to review + publish.
   await patchRawUpload(env, job.rawUploadId, {
     status: 'ready',
     resultGlb: mediaId,
-    report: report.text + fileColoursNote,
+    report: report.text + fileColoursNote + attachNote,
   })
 
   // 6. Retire the model this run replaced — but only once `resultGlb` points at
@@ -356,11 +414,43 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   )
   if (supersededNote) {
     await patchRawUpload(env, job.rawUploadId, {
-      report: report.text + fileColoursNote + supersededNote,
+      report: report.text + fileColoursNote + attachNote + supersededNote,
     }).catch(() => {
       // The retirement note is the least important write in the job; the model
       // is already saved and attached. Do not fail a successful shrink for it.
     })
+  }
+}
+
+/**
+ * Read the target product's code, status and whether it already has a model.
+ *
+ * Returns null on ANY failure, and every caller treats null as "do nothing
+ * special": the Media doc falls back to its filename-based description and the
+ * auto-attach is skipped. Failing closed is the right direction here — not
+ * attaching leaves the owner exactly where they were before this existed, while
+ * attaching on a guess could swap the model under a live garment.
+ */
+async function readProductState(
+  env: Env,
+  id: number | string | null | undefined,
+): Promise<ProductState | null> {
+  if (id == null) return null
+  const res = await cmsFetch(env, `/api/products/${id}?depth=0`, { method: 'GET' }).catch(
+    () => null,
+  )
+  if (!res?.ok) return null
+  const doc = (await res.json().catch(() => null)) as {
+    productCode?: unknown
+    status?: unknown
+    glbAsset?: unknown
+  } | null
+  if (!doc) return null
+  return {
+    productCode: typeof doc.productCode === 'string' ? doc.productCode : null,
+    status: typeof doc.status === 'string' ? doc.status : null,
+    // depth=0 gives a bare id, but a stray populated object must not read as empty.
+    hasGlbAsset: doc.glbAsset != null && doc.glbAsset !== '',
   }
 }
 
@@ -479,11 +569,18 @@ async function createMedia(
   env: Env,
   containerRes: Response,
   report: ShrinkReport,
+  label: { productCode: string | null; detail: string },
 ): Promise<number | string> {
   if (!containerRes.body) throw new Error('Container returned no model data.')
 
   const { body, contentType } = streamMultipart(containerRes.body, {
-    alt: `Auto-processed 3D model (${report.suggestedFilename})`,
+    alt: describeModel({
+      productCode: label.productCode,
+      detail: label.detail,
+      sizeBytes: report.sizeBytes,
+      suggestedFilename: report.suggestedFilename,
+      now: new Date(),
+    }),
     filename: report.suggestedFilename,
     contentType: 'model/gltf-binary',
     // Reaching here means the artwork check ran and passed — a file that failed
