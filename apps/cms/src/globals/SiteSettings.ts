@@ -64,22 +64,17 @@ export const SiteSettings: GlobalConfig = {
         },
       ],
     },
-    {
-      name: 'analytics',
-      type: 'group',
-      admin: {
-        description: 'Cloudflare Web Analytics only — cookieless, no third-party trackers.',
-      },
-      fields: [
-        {
-          name: 'cfBeaconToken',
-          type: 'text',
-          admin: {
-            description: 'Cloudflare Web Analytics beacon token for the viewer site (optional).',
-          },
-        },
-      ],
-    },
+    // The `analytics` group and its `cfBeaconToken` were here until 2026-08-09.
+    // It was the last survivor of the analytics removal earlier the same day:
+    // `initAnalytics()` and `VITE_CF_BEACON_TOKEN` went because both were dead
+    // twice over, and this box was left behind — referenced by no line of any
+    // app, so typing a token into it did precisely nothing. A setting that looks
+    // like it does something and does not is worse than no setting, which is the
+    // same argument that removed `presentationMode` from Products.
+    //
+    // ⚠️ THE COLUMN IS STILL THERE, ON PURPOSE — `analytics_cf_beacon_token text`
+    // (nullable) in 20260720_185735_initial. See the Products note; a D1 table
+    // rebuild is not worth an unused nullable column.
     {
       name: 'viewerApi',
       type: 'group',

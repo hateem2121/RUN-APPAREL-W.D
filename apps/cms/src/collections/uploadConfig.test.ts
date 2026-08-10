@@ -1,6 +1,10 @@
+import type { Field } from 'payload'
 import { describe, expect, it } from 'vitest'
+import { colourwaysField } from '../fields/colourways'
 import { Media } from './Media'
+import { Products } from './Products'
 import { RawUploads } from './RawUploads'
+import { IMAGE_MIME_TYPES, MODEL_MIME_TYPES } from './mediaRules'
 
 /**
  * Config-level regression guards for the upload defect fixed on 2026-07-27.
@@ -46,5 +50,104 @@ describe('Media upload config', () => {
     expect(types).toContain('model/gltf-binary')
     expect(types).toContain('image/webp')
     expect(types).not.toContain('application/pdf')
+  })
+
+  it('accepts exactly what the pickers offer, so upload and select cannot drift', () => {
+    // Both lists are built from MODEL_MIME_TYPES + IMAGE_MIME_TYPES. Before
+    // 2026-08-09 they were separate literals: a type could have been uploadable
+    // and then invisible in every picker, with nothing to catch it.
+    const types = uploadOf(Media).mimeTypes as string[]
+    for (const type of [...MODEL_MIME_TYPES, ...IMAGE_MIME_TYPES]) {
+      expect(types).toContain(type)
+    }
+  })
+})
+
+/** Walk tabs/rows/collapsibles to find a named field wherever it is nested. */
+const findField = (fields: Field[], name: string): Record<string, unknown> | undefined => {
+  for (const field of fields) {
+    if ('name' in field && field.name === name) return field as unknown as Record<string, unknown>
+    if ('tabs' in field) {
+      for (const tab of field.tabs) {
+        const hit = findField(tab.fields, name)
+        if (hit) return hit
+      }
+    }
+    if ('fields' in field && Array.isArray(field.fields)) {
+      const hit = findField(field.fields, name)
+      if (hit) return hit
+    }
+  }
+  return undefined
+}
+
+/**
+ * Which media each picker may offer — a config-level guard, like the two above,
+ * because the defect lived entirely in config.
+ *
+ * Until 2026-08-09 none of these fields had `filterOptions`, so the "Finished 3D
+ * file" picker listed every poster alongside every model and the publish gate
+ * only tests that *something* is attached — a JPEG here published a page with an
+ * empty 3D stage and nothing objected. Payload enforces filterOptions
+ * server-side too (validateFilterOptions in payload/dist/fields/validations.js),
+ * so these are gates, not conveniences.
+ */
+describe('media picker filters', () => {
+  const mimeIn = (field: Record<string, unknown> | undefined): string[] => {
+    const where = field?.filterOptions as { mimeType?: { in?: string[] } } | undefined
+    return where?.mimeType?.in ?? []
+  }
+
+  it('the finished 3D file offers models and NOT pictures', () => {
+    const types = mimeIn(findField(Products.fields, 'glbAsset'))
+    expect(types).toEqual([...MODEL_MIME_TYPES])
+    expect(types).not.toContain('image/webp')
+  })
+
+  it('the backup picture offers pictures and NOT models', () => {
+    const types = mimeIn(findField(Products.fields, 'posterFallback'))
+    expect(types).toEqual([...IMAGE_MIME_TYPES])
+    expect(types).not.toContain('model/gltf-binary')
+  })
+
+  it("a colour's photo offers pictures and NOT models", () => {
+    const types = mimeIn(findField(colourwaysField.fields, 'posterPreview'))
+    expect(types).toEqual([...IMAGE_MIME_TYPES])
+  })
+
+  it("a colour's own 3D file offers models and NOT pictures", () => {
+    const types = mimeIn(findField(colourwaysField.fields, 'glbAsset'))
+    expect(types).toEqual([...MODEL_MIME_TYPES])
+  })
+
+  it('keeps application/octet-stream selectable as a model', () => {
+    // Browsers commonly report a hand-picked .glb that way, and checkMediaUpload
+    // rejects an octet-stream whose name does not end in .glb — so anything
+    // stored under it is a GLB. Dropping it would make a hand-uploaded model
+    // invisible in the picker with no explanation.
+    expect(MODEL_MIME_TYPES).toContain('application/octet-stream')
+  })
+})
+
+/**
+ * The colours array must stay saveable while empty.
+ *
+ * `minRows: 1` was here until 2026-08-09 and fired at the one moment the answer
+ * cannot be known: a new product could not be SAVED until the owner had typed a
+ * colour name and a slug, but the join field on the "3D file" tab does not even
+ * render an upload button until the document has an id — so the CLO file that
+ * knows the real colours could not have been uploaded yet.
+ */
+describe('colours array', () => {
+  it('does NOT require a row (the publish gate does that instead)', () => {
+    expect(colourwaysField.minRows).toBeUndefined()
+  })
+
+  it('still requires a name and a slug on any row that IS added', () => {
+    // Removing minRows must not weaken the rows themselves — a colour with no
+    // name would reach the colour buttons blank.
+    for (const name of ['displayName', 'slug']) {
+      expect(findField(colourwaysField.fields, name)?.required).toBe(true)
+    }
   })
 })

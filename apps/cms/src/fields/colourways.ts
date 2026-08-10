@@ -1,5 +1,6 @@
 import { isValidSlug } from '@run-apparel/shared'
 import type { ArrayField } from 'payload'
+import { IMAGE_MIME_TYPES, MODEL_MIME_TYPES } from '../collections/mediaRules'
 
 /**
  * Colours, inline on the Product.
@@ -45,7 +46,23 @@ export const colourwaysField: ArrayField = {
   type: 'array',
   label: 'Colours',
   labels: { singular: 'Colour', plural: 'Colours' },
-  minRows: 1,
+  // ⚠️ DELIBERATELY NO `minRows: 1`. It was here until 2026-08-09 and it fired at
+  // the one moment the answer cannot be known: a brand-new product could not be
+  // SAVED until the owner had typed a colour name and a `slug` — the same slug
+  // this file's own help text calls "never change it once QR codes are printed".
+  // But the CLO file has not been uploaded yet at that point (the "3D file" tab's
+  // join field does not even render an upload button until the document has an
+  // id), so the owner invents a colour, the file is processed, and
+  // ImportColoursFromFile then offers the REAL colours out of the file — leaving
+  // a guessed row to delete. The whole design says the file tells you the
+  // colours; that rule said tell me first.
+  //
+  // Nothing is unguarded by removing it. `assertPublishable` already refuses a
+  // published product with no colours, and says so better: "This product has no
+  // colours yet. Add at least one on the Colours tab before publishing."
+  // (../collections/publishGating.ts). Same reason `posterPreview` and
+  // `variantId` are not `required` — the gate insists at publish time, so a
+  // half-finished draft can still be saved.
   // Shared TypeScript interface name, so the generated type is `ProductColourway`
   // rather than an inline shape. Also keeps Payload v4 — which auto-generates a
   // top-level interface per block — from being a reason to reach for `blocks`.
@@ -126,6 +143,10 @@ export const colourwaysField: ArrayField = {
       type: 'upload',
       relationTo: 'media',
       label: 'Photo of this colour',
+      // Pictures only — see the note on Products.glbAsset. Enforced server-side
+      // too, and checked against the live data before shipping: every stored
+      // poster is `image/webp`, so no published colour fails the new rule.
+      filterOptions: { mimeType: { in: [...IMAGE_MIME_TYPES] } },
       admin: {
         description:
           'A picture of the garment in this colour. It appears instantly while the spinning 3D model loads.',
@@ -159,6 +180,7 @@ export const colourwaysField: ArrayField = {
       type: 'upload',
       relationTo: 'media',
       label: '3D file for this colour only',
+      filterOptions: { mimeType: { in: [...MODEL_MIME_TYPES] } },
       admin: {
         // Only meaningful in separate-file mode; hidden otherwise so the normal
         // path shows one fewer thing to wonder about. `siblingData` here is the

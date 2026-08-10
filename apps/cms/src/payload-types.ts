@@ -283,10 +283,6 @@ export interface RawUpload {
    * The pipeline report: final size, the colour variants found in the file, and any warnings. Read this before publishing.
    */
   report?: string | null;
-  /**
-   * Optional note to yourself, e.g. which CLO “Colorway” maps to which colourway ID (Colorway 2 = N001-NAVY). The viewer switches colours by the variant names inside the GLB.
-   */
-  variantMapping?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -616,7 +612,6 @@ export interface RawUploadsSelect<T extends boolean = true> {
   retry?: T;
   resultGlb?: T;
   report?: T;
-  variantMapping?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -772,15 +767,6 @@ export interface SiteSetting {
     microcopy?: string | null;
   };
   /**
-   * Cloudflare Web Analytics only — cookieless, no third-party trackers.
-   */
-  analytics?: {
-    /**
-     * Cloudflare Web Analytics beacon token for the viewer site (optional).
-     */
-    cfBeaconToken?: string | null;
-  };
-  /**
    * Public viewer API behaviour.
    */
   viewerApi?: {
@@ -810,11 +796,6 @@ export interface SiteSettingsSelect<T extends boolean = true> {
         subject?: T;
         bodyIntro?: T;
         microcopy?: T;
-      };
-  analytics?:
-    | T
-    | {
-        cfBeaconToken?: T;
       };
   viewerApi?:
     | T

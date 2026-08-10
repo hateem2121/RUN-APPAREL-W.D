@@ -3,6 +3,7 @@ import { APIError, type CollectionConfig, type PayloadRequest } from 'payload'
 import { isAdmin, isAdminOrEditor, isAuthenticated } from '../access/roles'
 import { cameraFields } from '../fields/camera'
 import { colourwaysField } from '../fields/colourways'
+import { IMAGE_MIME_TYPES, MODEL_MIME_TYPES } from './mediaRules'
 import {
   becameUnverifiedWhilePublished,
   GATED_FIELDS,
@@ -358,6 +359,15 @@ export const Products: CollectionConfig = {
               type: 'upload',
               relationTo: 'media',
               label: 'Finished 3D file',
+              // Models only. Unfiltered until 2026-08-09, which meant the picker
+              // offered every poster too — and the publish gate only tests that
+              // *something* is attached, so a JPEG here published a page with an
+              // empty 3D stage and nothing anywhere objected. Payload enforces
+              // filterOptions server-side as well as in the UI, so this is a gate
+              // rather than a convenience. Verified against the live library
+              // before shipping: every stored model is `model/gltf-binary`, so no
+              // existing product fails the new check.
+              filterOptions: { mimeType: { in: [...MODEL_MIME_TYPES] } },
               admin: {
                 condition: (data) => data?.variantMode === 'single-glb-variants',
                 description:
@@ -369,6 +379,7 @@ export const Products: CollectionConfig = {
               type: 'upload',
               relationTo: 'media',
               label: 'Backup picture',
+              filterOptions: { mimeType: { in: [...IMAGE_MIME_TYPES] } },
               admin: {
                 description:
                   'Shown if the 3D model cannot load on someone’s phone. Optional but recommended.',

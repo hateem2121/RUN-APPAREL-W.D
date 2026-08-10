@@ -1,16 +1,21 @@
 import { APIError, type CollectionConfig } from 'payload'
 import { isAdmin, isAdminFieldLevel, isAdminOrEditor } from '../access/roles'
-import { SIZE_WARNING_BYTES, checkMediaUpload } from './mediaRules'
+import {
+  IMAGE_MIME_TYPES,
+  MODEL_MIME_TYPES,
+  SIZE_WARNING_BYTES,
+  checkMediaUpload,
+} from './mediaRules'
 
+// Built from the same two lists the media pickers filter on (mediaRules.ts), so
+// a type that can be uploaded is always a type that can then be selected. They
+// were separate literals until 2026-08-09 and nothing would have caught a drift.
+// `MODEL_MIME_TYPES` already carries 'application/octet-stream' — browsers
+// frequently upload .glb as a generic binary stream, and the hook below verifies
+// the extension for those.
 const ALLOWED_MIME_TYPES = [
-  'model/gltf-binary',
-  'image/webp',
-  'image/avif',
-  'image/jpeg',
-  'image/png',
-  // Browsers frequently upload .glb as a generic binary stream; a hook below
-  // verifies the extension for these.
-  'application/octet-stream',
+  ...MODEL_MIME_TYPES,
+  ...IMAGE_MIME_TYPES,
   // Extension, not a MIME type — deliberate. @payloadcms/ui builds the file
   // input's `accept` attribute by joining this array verbatim, and macOS has no
   // UTI for model/gltf-binary, so without a literal '.glb' the picker greys out

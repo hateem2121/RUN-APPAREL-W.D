@@ -20,6 +20,34 @@ import { APIError } from 'payload'
 
 export { GLB_HARD_MAX_BYTES, SIZE_WARNING_BYTES }
 
+/**
+ * What may be offered as a 3D model, and what may be offered as a picture.
+ *
+ * These exist so the `filterOptions` on every media picker and the Media
+ * collection's own upload allow-list cannot drift apart. Both are used as a D1
+ * `where … in (…)` clause, which Payload enforces **server-side** as well as in
+ * the UI (`validateFilterOptions` in payload/dist/fields/validations.js), so a
+ * type listed here is genuinely selectable and one that is not genuinely cannot
+ * be saved.
+ *
+ * WHY THEY ARE NEEDED. Until 2026-08-09 `glbAsset` was an unfiltered upload
+ * field, so the "Finished 3D file" picker offered every photo as well as every
+ * model — a JPEG could be attached and published, because the publish gate only
+ * tests that *something* is attached. At the same time the live library held
+ * five GLBs whose `alt` text was byte-identical, four of them superseded, one of
+ * them a pre-2026-08-05 build with the old artwork damage.
+ *
+ * `application/octet-stream` is in the model list on purpose: browsers commonly
+ * report a hand-picked `.glb` that way, and `checkMediaUpload` below rejects an
+ * octet-stream whose name does not end in `.glb` — so anything stored under that
+ * type is already known to be a GLB. Leaving it out would make a hand-uploaded
+ * model invisible in the picker with no explanation.
+ */
+export const MODEL_MIME_TYPES = ['model/gltf-binary', 'application/octet-stream'] as const
+
+/** Poster and photo types. Mirrors what the asset pipeline writes. */
+export const IMAGE_MIME_TYPES = ['image/webp', 'image/avif', 'image/jpeg', 'image/png'] as const
+
 export interface MediaFileFacts {
   filename: string
   mimeType: string

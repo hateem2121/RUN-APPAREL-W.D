@@ -38,6 +38,25 @@ export const RawUploads: CollectionConfig = {
     // join field, so uploading happens on the product page and the editor never
     // has to know this is a separate thing. Admins keep the standalone list for
     // debugging a stuck job.
+    //
+    // ⚠️ `hidden: true` FOR EVERYONE WAS TRIED ON 2026-08-09 AND REVERTED, and the
+    // reason is not obvious from the docs: **`admin.hidden` gates the admin
+    // ROUTES, not just the nav entry.** Measured on payload 3.86.0 —
+    // `/admin/collections/raw-uploads` rendered the "Nothing found" page under
+    // `hidden: true` and the normal list under this function, same URL, same
+    // admin user, nothing else changed. `docs/RUNBOOK.md` → "Re-processing a
+    // garment" links straight to `/admin/collections/raw-uploads/<id>` and calls
+    // it "the only way to start a re-run", so hiding it would have removed the
+    // documented recovery path while looking like a tidy-up. (The REST API is
+    // unaffected either way — `/api/raw-uploads` still returned 200 — so the
+    // shrink robot was never at risk. Only the human route breaks.)
+    //
+    // The complaint that prompted it is real and is being fixed at its actual
+    // cause instead: opened from the standalone list, Payload has no parent
+    // document to infer from, so `targetProduct` genuinely must be answered by
+    // hand; opened from the product, `getInitialDrawerData` (@payloadcms/ui)
+    // pre-fills it. Only one of the two routes asks a question the system
+    // already knows the answer to, and it is the route nobody should be on.
     hidden: ({ user }) => (user as { role?: string } | null | undefined)?.role !== 'admin',
     description:
       'Upload your raw CLO export here — big files and messy names are fine (give it a name ending in “.glb” so the records stay readable). It is shrunk automatically. When Status shows “ready”, open the linked product to review the colours and Publish. These files are private and never shown to customers.',
@@ -344,13 +363,17 @@ export const RawUploads: CollectionConfig = {
           'The pipeline report: final size, the colour variants found in the file, and any warnings. Read this before publishing.',
       },
     },
-    {
-      name: 'variantMapping',
-      type: 'textarea',
-      admin: {
-        description:
-          'Optional note to yourself, e.g. which CLO “Colorway” maps to which colourway ID (Colorway 2 = N001-NAVY). The viewer switches colours by the variant names inside the GLB.',
-      },
-    },
+    // `variantMapping` was here until 2026-08-09 — a free-text "note to yourself,
+    // e.g. Colorway 2 = N001-NAVY". It described the manual mapping that
+    // SourceVariantSelect replaced: the CMS now lists the colours found inside
+    // the file and the owner picks one from a dropdown with the real colour
+    // shown next to it, so there is nothing left to write down. It was rendering
+    // in the upload drawer as one more empty box to wonder about at the exact
+    // moment the owner has the least context.
+    //
+    // ⚠️ THE COLUMN IS STILL THERE, ON PURPOSE — `variant_mapping text` (nullable)
+    // in 20260724_100420_add_raw_uploads. Dropping it would mean a table rebuild,
+    // which on D1 is the single most hazardous operation in this repo. Same
+    // decision, and the same reasoning, as `presentation_mode` on Products.
   ],
 }

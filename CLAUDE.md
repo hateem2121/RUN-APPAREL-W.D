@@ -65,6 +65,27 @@ environment cannot move the server. Verified with `PORT=5002` still set. If you
 ever see that timeout again, the two candidates are these; check both before
 believing the suite is broken.
 
+**Running the CMS dev server DIRTIES the working tree and then `pnpm lint` fails.**
+Found 2026-08-09. `next dev` rewrites two committed generated files —
+`apps/cms/src/app/(payload)/admin/importMap.js` (Payload regenerates it, in its
+own formatting, not Biome's) and `apps/cms/next-env.d.ts` (`./.next/types/…` →
+`./.next/dev/types/…`). The import map's *content* is unchanged — same 27 keys,
+verified — but the quote style and line wrapping are not, so `biome check .`
+fails on formatting alone and the diff looks alarming. **Stop the dev server
+first, then `git checkout --` both files**; restoring while it is still running
+just loses the race, which is how this cost a cycle. Do not "fix" it by
+reformatting the generated file into the repo.
+
+**`admin.hidden` on a collection gates the admin ROUTES, not just the sidebar
+entry.** Measured 2026-08-09 on payload 3.86.0: with `hidden: true`,
+`/admin/collections/raw-uploads` renders the "Nothing found" page; with the
+admin-only function it renders the normal list — same URL, same user. The REST
+API is unaffected (`/api/raw-uploads` → 200), so a robot is never at risk, but
+`docs/RUNBOOK.md` → "Re-processing a garment" links straight to
+`/admin/collections/raw-uploads/<id>` and calls it *"the only way to start a
+re-run"*. Hiding that collection removes the documented recovery path while
+reading as a tidy-up. See the comment in `RawUploads.ts`.
+
 ## The one pattern that keeps causing incidents
 
 **Three production bugs in three consecutive sessions were invisible for the same
