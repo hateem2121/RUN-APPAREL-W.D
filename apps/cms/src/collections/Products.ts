@@ -3,6 +3,7 @@ import { APIError, type CollectionConfig, type PayloadRequest } from 'payload'
 import { isAdmin, isAdminOrEditor, isAuthenticated } from '../access/roles'
 import { cameraFields } from '../fields/camera'
 import { colourwaysField } from '../fields/colourways'
+import { deriveSlug } from '../fields/deriveSlug'
 import { IMAGE_MIME_TYPES, MODEL_MIME_TYPES } from './mediaRules'
 import {
   becameUnverifiedWhilePublished,
@@ -277,6 +278,20 @@ export const Products: CollectionConfig = {
               admin: {
                 description:
                   'The word in this product’s link and QR codes: wear-run.help/n001/navy. Never change it once QR codes are printed.',
+              },
+              hooks: {
+                beforeValidate: [
+                  ({ operation, siblingData, value }) => {
+                    // Create only, blank only. See deriveSlug: this slug is on a printed QR
+                    // tag, so this may suggest and may never correct. The `operation` guard is
+                    // belt and braces on top of the blank check — an update that somehow
+                    // arrived with an empty slug must still not be filled in silently, because
+                    // by then a tag may exist.
+                    if (operation !== 'create') return value
+                    if (typeof value === 'string' && value.trim() !== '') return value
+                    return deriveSlug(siblingData?.productName) || value
+                  },
+                ],
               },
             },
             {
