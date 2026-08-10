@@ -47,9 +47,24 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v5
+      # Aligned to the versions every other workflow here already proves in
+      # production: ci.yml, deploy-shrink.yml and nightly-backup.yml all run green
+      # on checkout@v7 + setup-node@v7. This file had drifted to v5/v6.
+      #
+      # ⚠️ READ THIS IF THE FIRST RUN FAILS. This bump landed on 2026-08-10 while
+      # the workflow still had NO successful run on record — its first scheduled
+      # slot (08:17 UTC that Monday) had not yet been delivered, GitHub having
+      # throttled this repo's schedules to ~27% of their configured rate. The
+      # ordering was deliberately the other way round (verify green, then bump) and
+      # was overridden knowingly. So if the first run fails there are TWO
+      # candidates, not one: this version bump, and whatever pre-existing fault the
+      # workflow may still carry from never having executed end to end. Check the
+      # pre-existing one first — the D1 read step and the CLOUDFLARE_API_TOKEN's
+      # permission to run `wrangler d1 execute --remote` have never been exercised.
+      # Reverting these two lines to v5/v6 is the cheap way to separate them.
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -73,10 +88,21 @@ jobs:
               const d = require('./digest.json');
               const rows = d[0]?.results ?? [];
               if (!rows.length) { console.log('No diagnostics recorded in the last 7 days.'); process.exit(0) }
+              // THESE VALUES ARE ATTACKER-CONTROLLED. apps/cms/src/endpoints/events.ts
+              // allowlists event names ONLY for type 'analytics'; 'diagnostic' and
+              // 'error' are free-form by design and this query selects exactly those
+              // two. Anyone on the internet can POST to /api/public/events, so a
+              // row's event/product/variant is untrusted text that ends up in a
+              // \$GITHUB_OUTPUT heredoc and then in a shell command below.
+              // An ALLOWLIST, not an escape list: anything outside this set becomes
+              // '?'. That kills newlines (which could close the <<DIGEST heredoc
+              // early and forge step outputs), pipes (which break the markdown
+              // table) and every shell metacharacter in one rule.
+              const s = (v) => String(v ?? '').replace(/[^A-Za-z0-9 ._:-]/g, '?').slice(0, 80);
               console.log('| count | type | event | product | colour | most recent |');
               console.log('|---:|---|---|---|---|---|');
               for (const r of rows) {
-                console.log(\`| \${r.n} | \${r.type} | \${r.event} | \${r.product ?? ''} | \${r.variant ?? ''} | \${r.latest ?? ''} |\`);
+                console.log(\`| \${Number(r.n)} | \${s(r.type)} | \${s(r.event)} | \${s(r.product)} | \${s(r.variant)} | \${s(r.latest)} |\`);
               }
             "
             echo 'DIGEST'
@@ -86,6 +112,20 @@ jobs:
       # bury the tab — same shape as the outage alert in uptime.yml.
       - name: Open or update the digest issue
         if: steps.read.outputs.rows != '0'
+        env:
+          # Passed through the environment rather than interpolated with ${{ }},
+          # for exactly the reason heartbeat.yml gives for its own STALE variable.
+          # The difference is that heartbeat's list is built from hardcoded
+          # filenames, whereas THIS table is built from rows a stranger can write
+          # (see the allowlist note in the step above). Until 2026-08-10 this was
+          # `"${{ steps.read.outputs.table }}"` inside a `run:` block: GitHub
+          # expands that into the script BEFORE bash sees it, so a crafted event
+          # name closed the quote and ran arbitrary commands with this job's
+          # CLOUDFLARE_API_TOKEN — which can edit Workers, D1 and R2 — plus GH_TOKEN.
+          # Never exploited: the workflow had not yet had a single run. Two
+          # independent fixes now stand between the database and the shell; keep
+          # both, since either alone would be enough only until someone edits it.
+          DIGEST_TABLE: ${{ steps.read.outputs.table }}
         run: |
           set -euo pipefail
           # The label has to exist before EITHER command below touches it: `gh issue
@@ -104,7 +144,7 @@ jobs:
           fi
           body=$(printf '%s\n\n%s\n\n%s\n' \
             "Viewer diagnostics for the 7 days to $(date -u +%Y-%m-%d)." \
-            "${{ steps.read.outputs.table }}" \
+            "$DIGEST_TABLE" \
             "\`model-load-error\` means a buyer opened a product and the 3D file did not load. \`variant-missing\` means a colour button pointed at a colour that is not inside the file. \`variants-unverified-while-published\` means a re-upload renamed the colours under a live product. See docs/RUNBOOK.md.")
           existing=$(gh issue list --label diagnostics --state open --json number --jq '.[0].number // empty')
           if [ -n "$existing" ]; then
