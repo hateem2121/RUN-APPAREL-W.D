@@ -219,6 +219,20 @@ export const Products: CollectionConfig = {
           label: 'Product',
           description: 'The basics. Start here.',
           fields: [
+            // "What is still stopping this from going live?" — calls the same
+            // pure collectPublishProblems that assertPublishable (used by the
+            // beforeChange hook above) is built on, so this can never say
+            // "ready" when the real gate would refuse the save. First field in
+            // the tab: the owner should see it before touching anything else.
+            // See ReadinessPanel.tsx for the one thing it deliberately cannot
+            // check (the artwork verdict).
+            {
+              name: 'readiness',
+              type: 'ui',
+              admin: {
+                components: { Field: '/fields/ReadinessPanel#ReadinessPanel' },
+              },
+            },
             {
               name: 'productName',
               type: 'text',

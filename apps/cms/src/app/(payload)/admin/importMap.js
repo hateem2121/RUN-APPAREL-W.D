@@ -1,3 +1,4 @@
+import { ReadinessPanel as ReadinessPanel_7b203020bdbc7b37ab6956fc44b2a368 } from '../../../fields/ReadinessPanel'
 import { ImportColoursFromFile as ImportColoursFromFile_42b0f990f811dbd337c54c78b0093b88 } from '../../../fields/ImportColoursFromFile'
 import { SourceVariantSelect as SourceVariantSelect_1ec94a7e3db73578fd244eb976d92e16 } from '../../../fields/SourceVariantSelect'
 import { ColourRowLabel as ColourRowLabel_73764905223f0a3f59a839dd6ba129a3 } from '../../../fields/ColourRowLabel'
@@ -29,6 +30,7 @@ import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } f
 
 /** @type import('payload').ImportMap */
 export const importMap = {
+  '/fields/ReadinessPanel#ReadinessPanel': ReadinessPanel_7b203020bdbc7b37ab6956fc44b2a368,
   '/fields/ImportColoursFromFile#ImportColoursFromFile':
     ImportColoursFromFile_42b0f990f811dbd337c54c78b0093b88,
   '/fields/SourceVariantSelect#SourceVariantSelect':
