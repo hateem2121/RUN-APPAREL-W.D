@@ -331,6 +331,16 @@ export const RawUploads: CollectionConfig = {
         position: 'sidebar',
         readOnly: true,
         description: 'Set automatically. “Ready to review” means the shrunk GLB is waiting below.',
+        // Polls while queued/processing instead of the owner refreshing the page
+        // by hand — see RawUploadStatusCell.tsx. Verified against the installed
+        // Payload 3.86.0 typings that `cellData`/`rowData` are the real prop
+        // names (DefaultCellComponentProps, payload/dist/admin/elements/Cell.d.ts)
+        // and that a join field's table (the product's "3D file" tab embeds this
+        // collection that way) renders through the SAME buildColumnState/renderCell
+        // pipeline as the standalone list — @payloadcms/ui's RelationshipTable
+        // calls the identical `table-state` server function, so a custom Cell here
+        // is honoured in both places, not just the standalone list.
+        components: { Cell: '/collections/RawUploadStatusCell#RawUploadStatusCell' },
       },
     },
     {
