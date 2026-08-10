@@ -273,8 +273,16 @@ export const Products: CollectionConfig = {
                 // duplicateDocument/index.js: it runs beforeDuplicate hooks over the
                 // source doc BEFORE handing it to create, so this suffix is already in
                 // place by the time the unique check runs.
+                //
+                // NO HYPHEN. `-COPY` reads better but fails this field's own validate
+                // two lines up — isValidProductCode is /^[A-Z][A-Z0-9]*$/, letters and
+                // digits only — and beforeChange/index.js throws a ValidationError the
+                // instant any field's validate returns a string, which would abort the
+                // whole duplicate. Measured: `isValidProductCode('N001-COPY')` is
+                // `false`, and duplicating would trade the unique-constraint error this
+                // hook exists to fix for a different, equally blocking one.
                 beforeDuplicate: [
-                  ({ value }) => (typeof value === 'string' ? `${value}-COPY` : value),
+                  ({ value }) => (typeof value === 'string' ? `${value}COPY` : value),
                 ],
               },
             },

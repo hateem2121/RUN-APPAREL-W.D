@@ -9,6 +9,11 @@ interface NamedField {
     beforeValidate?: ((args: never) => unknown)[]
     beforeDuplicate?: ((args: never) => unknown)[]
   }
+  // The field's own `validate` (e.g. isValidProductCode / isValidSlug). Used
+  // below to prove a *duplicated* value survives the same check a *typed* one
+  // would have to — see the productCode round-trip test for why that is not
+  // free.
+  validate?: (value: unknown, ctx?: unknown) => unknown
   fields?: unknown[]
   tabs?: { fields?: unknown[] }[]
 }
@@ -64,10 +69,24 @@ describe('Products beforeDuplicate hooks', () => {
   // duplicateDocument/index.js and fields/hooks/beforeDuplicate/promise.js, and
   // the CREATE UNIQUE INDEX statements in migrations/20260729_070548_inline_colourways.ts.
   it('suffixes the product code so the unique index cannot collide', () => {
-    expect(runDuplicate('productCode', { value: 'N001' })).toBe('N001-COPY')
+    expect(runDuplicate('productCode', { value: 'N001' })).toBe('N001COPY')
   })
   it('leaves a non-string product code alone', () => {
     expect(runDuplicate('productCode', { value: null })).toBe(null)
+  })
+  // productCode's own validate requires /^[A-Z][A-Z0-9]*$/ — capital letters and
+  // digits, no hyphen (see Products.ts's "Use capital letters and numbers,
+  // starting with a letter" message). A `-COPY` suffix reads better but FAILS
+  // that regex: confirmed empirically (`/^[A-Z][A-Z0-9]*$/.test('N001-COPY')` is
+  // `false`), and beforeChange/index.js throws a ValidationError the instant any
+  // field's validate returns a string — which would make the whole duplicate
+  // save fail with a *different* blocking error instead of no error at all. This
+  // exercises the actual validate function from the field below, not a
+  // reimplementation of the regex, so a future change to either the suffix or
+  // the pattern that breaks the pairing fails here.
+  it('the duplicated product code still passes its own validation', () => {
+    const duplicated = runDuplicate('productCode', { value: 'N001' })
+    expect(fieldNamed('productCode').validate?.(duplicated, {})).toBe(true)
   })
 
   it('suffixes the slug so the unique index cannot collide', () => {
@@ -77,6 +96,13 @@ describe('Products beforeDuplicate hooks', () => {
     // A number, not `undefined` — a field with no hook at all also returns
     // `undefined` here, which would make this pass without the hook existing.
     expect(runDuplicate('slug', { value: 123 })).toBe(123)
+  })
+  // Unlike productCode, isValidSlug's pattern allows internal hyphens, so
+  // `-copy` is fine — but pin it the same way, against the field's own real
+  // validate function, so the two suffixes cannot silently drift apart again.
+  it('the duplicated slug still passes its own validation', () => {
+    const duplicated = runDuplicate('slug', { value: 'n001' })
+    expect(fieldNamed('slug').validate?.(duplicated)).toBe(true)
   })
   // Part A put a `beforeValidate` hook on this same field. The brief is explicit
   // that this hook merges into that SAME hooks object rather than replacing it —
