@@ -24,9 +24,16 @@ name: Heartbeat
 
 on:
   schedule:
-    # Every 6 hours. Uptime runs every 15 minutes, so 6 hours is ~24 missed runs —
-    # far past GitHub's ordinary best-effort cron skew, and it caps how long a dead
+    # Every 6 hours. This comment used to say "Uptime runs every 15 minutes, so 6
+    # hours is ~24 missed runs". Uptime is SCHEDULED every 15 minutes but measured
+    # 2026-08-10 GitHub delivers a median gap of ~45 min, so 6 hours is nearer ~8
+    # missed runs. Still far past ordinary skew, and it still caps how long a dead
     # monitor can stay unnoticed at a quarter of the 23 hours it managed last time.
+    #
+    # ⚠️ The same measurement puts the worst observed uptime gap at 6.1 h, which is
+    # TWICE the 3 h budget in WATCHED below — so the premise "each budget is
+    # several times the workflow's own interval" no longer holds for uptime.yml.
+    # Deliberately not changed here; see docs/RUNBOOK.md → "Uptime alerts".
     - cron: '43 */6 * * *'
   workflow_dispatch:
 
@@ -58,10 +65,22 @@ jobs:
           set -euo pipefail
 
           # workflow-file:max-age-hours:human-cadence
-          # Each budget is several times the workflow's own interval, so ordinary
-          # GitHub cron skew never trips it and only a real stoppage does.
+          # Each budget was chosen to be several times the workflow's own interval,
+          # so that ordinary GitHub cron skew would never trip it and only a real
+          # stoppage would.
+          #
+          # ⚠️ Measured 2026-08-10, that is NO LONGER TRUE for uptime.yml. GitHub
+          # delivers a median gap of ~45 min against a scheduled 15, and the worst
+          # observed gap over 94 h was 6.1 h — TWICE the 3 h budget below. No false
+          # `monitoring` issue has fired yet, but only because no run of this job
+          # happened to sample inside that window; that is luck, not headroom.
+          # Raising the budget is a BEHAVIOUR change and was deliberately not made
+          # when this was found — read docs/RUNBOOK.md → "Uptime alerts" first.
+          #
+          # NOTE the field separator is `:`, so a cadence label must never contain
+          # one — it would be parsed as an extra field and silently truncate.
           WATCHED="
-          uptime.yml:3:every 15 minutes
+          uptime.yml:3:scheduled every 15 min, delivered ~45 min median
           nightly-backup.yml:36:nightly
           diagnostics-digest.yml:192:weekly on Mondays
           "

@@ -2,7 +2,12 @@ name: Uptime
 
 on:
   schedule:
-    - cron: '*/15 * * * *' # every ~15 min (GitHub cron is best-effort — see docs/RUNBOOK.md)
+    # REQUESTED every 15 min — and that is a request, not a guarantee. Measured
+    # 2026-08-10 over the 100 most recent runs (94.3 h): GitHub delivered 27% of
+    # this rate, median gap 44.7 min, p90 102 min, worst 6.1 h. Every run that
+    # fires still succeeds, which is why it went unnoticed. Do not read "15" here
+    # as the detection time. See docs/RUNBOOK.md → "Uptime alerts".
+    - cron: '*/15 * * * *'
   workflow_dispatch:
     inputs:
       target:
@@ -99,9 +104,13 @@ jobs:
       - name: Alert — create an outage issue, or comment on the open one
         if: steps.check.outputs.ok == 'false'
         env:
-          # Uptime runs every ~15 min. 60 caps a sustained outage at roughly one
-          # notification per hour while still guaranteeing the FIRST failure after
-          # a long-stale issue speaks up immediately.
+          # This said "Uptime runs every ~15 min … roughly one notification per
+          # hour". Measured 2026-08-10 the delivered median gap is ~45 min, so a
+          # 60-minute quiet period actually yields one notification per ~90 min:
+          # the run at ~45 min falls inside the window and stays quiet, the run at
+          # ~90 min speaks. That is the safe direction (fewer, not more), and the
+          # FIRST failure after a long-stale issue still speaks up immediately.
+          # See docs/RUNBOOK.md → "Uptime alerts".
           ALERT_QUIET_MINUTES: '60'
         run: |
           set -euo pipefail

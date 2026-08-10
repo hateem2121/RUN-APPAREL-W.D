@@ -100,6 +100,43 @@ the five-minute alarm job above.
 
 ---
 
+## ⚠️ THIRD UPDATE — 2026-08-10
+
+**The five-minute alarm job is done, and a claim this scorecard made three times
+turned out to be false.**
+
+- **The outside alarms exist.** Two UptimeRobot keyword checks are live and
+  verified: the customer page (`RUN APPAREL`) and the product data
+  (`"productCode":"N001"`), both alerting when the words **disappear**, both every
+  5 minutes, both emailing you rather than GitHub. The single-point-of-failure in
+  alerting — every warning landing in one person's GitHub notifications, inside the
+  system being watched — is closed.
+- **It found something within minutes of being switched on.** Your bare domain,
+  `https://wear-run.help/`, returns a **522** — Cloudflare is answering but nothing
+  is running behind it. Customers are unaffected: QR tags go to
+  `viewer.wear-run.help`, and the "Back to Catalogue" button works (it redirects to
+  your Google Drive catalogue). Only someone *typing the domain* — from a card or a
+  signature — gets a 20-second hang and an error page. Fix is a Cloudflare redirect
+  rule to `viewer.wear-run.help`. Worth knowing **nothing inside this repo watches
+  the apex**; every internal check targets the `viewer.`, `cms.` and `media.`
+  subdomains, which is exactly the blind spot an outside monitor exists to cover.
+- **⚠️ "The site is pinged every 15 minutes" was not true.** Measured across the
+  100 most recent runs (94.3 h): GitHub delivered **27% of the requested rate** —
+  median gap **44.7 min**, p90 **102 min**, worst **6.1 h**. Nothing is broken;
+  every run that fires still succeeds, which is why nobody noticed. The system was
+  healthy every time it looked at itself, and wrong about how often it was looking.
+  Full numbers and the consequence for `heartbeat.yml`'s 3-hour budget are in
+  `docs/RUNBOOK.md` → "Uptime alerts".
+
+**Score that moved:** *If it breaks, will you know?* 84 → **90**. It goes up rather
+than down: the ~45-minute reality was always the case and merely unmeasured, while
+the 5-minute outside alarm is genuinely new and now carries most of the real
+watching.
+
+**Overall: 88 → 89.**
+
+---
+
 ## Overall: 79 / 100 *(morning reading — see the update above)*
 
 Think of the project as a car.
@@ -140,6 +177,9 @@ What's missing: no automatic style checker, and nobody measures *how much* of th
 code the tests actually cover.
 
 ### 3. If it breaks, will you know? — 84/100
+
+⚠️ **The "every 15 minutes" below is WRONG — corrected 2026-08-10, see the third
+update at the top of this file. GitHub actually delivers a median of ~45 minutes.**
 
 Yes. The site is pinged **every 15 minutes**. Every 6 hours, a second watchman
 checks *the first watchman is still alive* — because twice already an alarm broke

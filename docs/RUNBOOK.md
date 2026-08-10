@@ -359,7 +359,8 @@ pull request:
   **flaky** in its own section, so flakes stay visible and countable while a real
   failure still fails both attempts and still stops the deploy.
 - **Post-deploy viewer payload** — `scripts/smoke-viewer-payload.mjs`, run after
-  the deploy in `ci.yml` and every 15 minutes from `uptime.yml`. Until 2026-08-05
+  the deploy in `ci.yml` and on every `uptime.yml` run (requested every 15 min;
+  GitHub delivers a median of ~45 min — see "Uptime alerts"). Until 2026-08-05
   the only post-deploy check was `curl /api/health`, which returns `{"ok":true}`
   from a worker with an **empty database** — it proves the process is up and
   nothing about whether a buyer scanning a QR tag sees a garment. The uptime
@@ -748,10 +749,48 @@ the CSP entry disappears with it — no code revert needed.
 
 ## Uptime alerts
 
-`.github/workflows/uptime.yml` pings `/api/health` and the viewer every ~15 min
-(GitHub cron is best-effort and can drift several minutes — this is monitoring,
-not a hard SLA). On failure it opens a GitHub issue labelled `outage` — or, if one
+`.github/workflows/uptime.yml` **asks** GitHub to ping `/api/health` and the viewer
+every 15 minutes. On failure it opens a GitHub issue labelled `outage` — or, if one
 is already open, **comments on it**.
+
+> ### ⚠️ Measured 2026-08-10 — GitHub delivers about a QUARTER of that cadence
+>
+> `cron: '*/15 * * * *'` is a **request, not a guarantee**, and on this repo the gap
+> between request and delivery is wide enough to change what the monitoring means.
+> This page said "every ~15 min … can drift several minutes" until 2026-08-10. The
+> drift is not several minutes. Measured over the 100 most recent runs — 94.3 h,
+> 2026-08-06 10:38Z → 2026-08-10 08:55Z:
+>
+> | | |
+> |---|---|
+> | Runs delivered | **100 of ~377 expected — 27% of the configured rate** |
+> | Median gap | **44.7 min** |
+> | Mean gap | 57.1 min |
+> | 90th percentile | **102.1 min** |
+> | Worst gap | **363.6 min (6.1 h)** |
+> | Gaps over 60 min | 28 of 99 |
+>
+> So the honest statement of worst-case detection time *through GitHub* is **around
+> an hour and a half at p90, and hours in the tail** — not fifteen minutes. Nothing
+> is broken: every run that fires still succeeds, which is exactly why this was
+> invisible. Every dashboard was green and the heartbeat correctly stayed silent;
+> the fault is in *how often the system looks at itself*, a property almost no
+> monitoring measures about itself. GitHub schedules are best-effort and are
+> deprioritised under load — this is a private repo on the free Actions tier.
+>
+> **This is the strongest argument for the external monitor** (see "The watchman
+> that is not us" below): it polls every 5 minutes from outside GitHub and does not
+> compete for a shared runner queue. That is roughly **18× faster detection** than
+> what GitHub actually delivers here.
+>
+> ⚠️ **It also breaks a stated premise of `heartbeat.yml`.** That file budgets
+> **3 hours** for `uptime.yml`, reasoning that each budget is "several times the
+> workflow's own interval, so ordinary GitHub cron skew never trips it". The
+> observed maximum gap is **6.1 h — twice that budget**. It has not yet produced a
+> false `monitoring` issue, but only because no heartbeat run happened to sample
+> inside that window; that is luck, not headroom. Raising the budget is a
+> *behaviour* change and is deliberately NOT made here — it is recorded so the next
+> person decides with the number in front of them rather than the assumption.
 
 > ### ⚠️ Changed 2026-08-07 — and the old behaviour was a 17-day silent failure
 >
@@ -802,14 +841,16 @@ output. That is exactly how the uptime monitor sat dead for ~23 hours on
 `heartbeat.yml` runs every 6 hours and asks the Actions API when each watched
 workflow last **succeeded**:
 
-| Workflow | Runs | Budget before it alerts |
-|---|---|---|
-| `uptime.yml` | every 15 min | 3 hours |
-| `nightly-backup.yml` | nightly | 36 hours |
-| `diagnostics-digest.yml` | Mondays | 192 hours (8 days) |
+| Workflow | Scheduled | Actually delivered | Budget before it alerts |
+|---|---|---|---|
+| `uptime.yml` | every 15 min | **median 44.7 min, worst 6.1 h** (measured 2026-08-10) | 3 hours |
+| `nightly-backup.yml` | nightly | nightly | 36 hours |
+| `diagnostics-digest.yml` | Mondays | first run due 2026-08-10 | 192 hours (8 days) |
 
-Each budget is several times the workflow's own interval, so GitHub's best-effort
-cron skew never trips it. On a breach it opens a `monitoring` issue, or comments
+Each budget was chosen to be several times the workflow's own interval, so that
+GitHub's best-effort cron skew would never trip it. ⚠️ **For `uptime.yml` that is
+no longer true**: the worst observed gap (6.1 h) is twice its 3 h budget. Read the
+measured block under "Uptime alerts" above before changing this number. On a breach it opens a `monitoring` issue, or comments
 on the open one — same change, and same reason, as the `outage` path above. A
 watchdog that its own previous bark can mute is not a watchdog.
 

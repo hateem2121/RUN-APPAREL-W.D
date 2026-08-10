@@ -245,7 +245,7 @@ reach it. See `docs/RUNBOOK.md` → "The canonical raw garment".
 
 | Workflow | Cadence | What it does |
 |---|---|---|
-| `uptime.yml` | every 15 min | health + viewer + real model payload; opens an `outage` issue |
+| `uptime.yml` | every 15 min *(requested — GitHub delivers ~45 min median, see RUNBOOK)* | health + viewer + real model payload; opens an `outage` issue |
 | `nightly-backup.yml` | nightly | D1 export; R2 media mirror on Mondays |
 | `diagnostics-digest.yml` | Mondays | reads the Events table — the client errors the viewer records |
 | `heartbeat.yml` | every 6 h | checks the three above have actually *run*; opens a `monitoring` issue |
