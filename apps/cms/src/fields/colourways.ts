@@ -1,6 +1,7 @@
 import { isValidSlug } from '@run-apparel/shared'
 import type { ArrayField } from 'payload'
 import { IMAGE_MIME_TYPES, MODEL_MIME_TYPES } from '../collections/mediaRules'
+import { deriveSlug } from './deriveSlug'
 
 /**
  * Colours, inline on the Product.
@@ -111,6 +112,18 @@ export const colourwaysField: ArrayField = {
         description:
           'The word in this colour’s link and QR code: wear-run.help/n001/navy. Lowercase, no spaces. Never change it once QR codes are printed — switch the colour off instead.',
       },
+      hooks: {
+        beforeValidate: [
+          ({ siblingData, value }) => {
+            // Blank only — never a correction. Same rule as the product slug: this
+            // one is on a printed QR tag too. Note there is deliberately NO
+            // `operation` guard here: array rows carry no per-row operation, so
+            // emptiness IS the guard — and it is the stronger of the two anyway.
+            if (typeof value === 'string' && value.trim() !== '') return value
+            return deriveSlug(siblingData?.displayName) || value
+          },
+        ],
+      },
     },
     {
       name: 'variantId',
@@ -159,6 +172,22 @@ export const colourwaysField: ArrayField = {
       admin: {
         description:
           'Describe the photo in a sentence, for people who use a screen reader. e.g. “Velocity Performance Tee in Navy”.',
+      },
+      hooks: {
+        beforeValidate: [
+          ({ data, siblingData, value }) => {
+            // The publish gate refuses any colour on show without a photo
+            // description, and at 100+ garments with up to 10 colours each that is up
+            // to 1,000 near-identical sentences typed by hand. The template is what a
+            // person writes anyway. Blank only, and fully editable afterwards.
+            if (typeof value === 'string' && value.trim() !== '') return value
+            const product = typeof data?.productName === 'string' ? data.productName.trim() : ''
+            const colour =
+              typeof siblingData?.displayName === 'string' ? siblingData.displayName.trim() : ''
+            if (product === '' || colour === '') return value
+            return `${product} in ${colour}`
+          },
+        ],
       },
     },
     {
