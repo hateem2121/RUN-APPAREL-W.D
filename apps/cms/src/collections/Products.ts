@@ -107,6 +107,38 @@ export const Products: CollectionConfig = {
     group: 'Content',
     description:
       'One page per garment. Fill it top to bottom: the basics, then the colours, then upload your CLO file on the “3D file” tab.',
+    /**
+     * The real customer page, beside the form.
+     *
+     * Until 2026-08-11 the only way to see what you had built was to save, open
+     * a second tab and reload. At 100+ garments that is the loop you spend the
+     * most time in.
+     *
+     * ⚠️ A DRAFT WILL NOT PREVIEW, and that is correct rather than a gap. The
+     * public viewer endpoint serves published products only
+     * (endpoints/publicViewer.ts filters `status: published` before anything
+     * else), so a draft's URL 404s. Do NOT "fix" that by exposing drafts
+     * publicly — the whole point of Draft is that nothing is reachable. A real
+     * draft preview needs a signed preview route, which is its own piece of work.
+     *
+     * Returning null hides the panel entirely, which is a clearer answer than an
+     * iframe showing an error page.
+     */
+    livePreview: {
+      url: ({ data }) => {
+        const slug = typeof data?.slug === 'string' ? data.slug.trim() : ''
+        if (slug === '' || data?.status !== 'published') return null
+        // The topmost switched-on colour is the default colourway — the same
+        // rule the viewer itself applies to a bare /<product> link, so the panel
+        // opens on what a customer scanning the QR code would see.
+        const rows = Array.isArray(data?.colourways) ? data.colourways : []
+        const first = rows.find((row) => row?.active !== false) ?? rows[0]
+        const colour = typeof first?.slug === 'string' ? first.slug.trim() : ''
+        return colour === ''
+          ? `https://viewer.wear-run.help/${slug}`
+          : `https://viewer.wear-run.help/${slug}/${colour}`
+      },
+    },
   },
   access: {
     // Anonymous visitors read only through the dedicated public viewer endpoint.

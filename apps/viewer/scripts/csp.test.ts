@@ -114,7 +114,12 @@ describe('buildCsp — the standing rules', () => {
   it('keeps the lockdown directives that have no reason to change', () => {
     const csp = buildCsp({ html: THEME_BOOTSTRAP, apiBaseUrl: API })
     expect(csp).toContain(`object-src 'none'`)
-    expect(csp).toContain(`frame-ancestors 'none'`)
+    // NOT `'none'` since 2026-08-11. The CMS shows the live customer page beside
+    // the edit form, which is an iframe, so exactly two origins may embed the
+    // viewer and everything else is still refused. Pinned here because widening
+    // this list is the one change to this directive that would matter, and it
+    // must never happen by accident.
+    expect(csp).toContain(`frame-ancestors 'self' https://cms.wear-run.help`)
     expect(csp).toContain(`base-uri 'self'`)
     expect(csp).toContain(`default-src 'self'`)
   })
