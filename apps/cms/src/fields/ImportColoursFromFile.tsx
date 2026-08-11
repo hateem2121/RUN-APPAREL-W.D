@@ -9,7 +9,7 @@ import {
   buildImportedRow,
   toFileColours,
   unmappedFileColours,
-} from './importColours'
+} from '@run-apparel/shared'
 
 /**
  * "We found colours in your file that are not on your website yet."
