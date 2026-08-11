@@ -56,6 +56,104 @@ test('render route signals ready and shows only the model', async ({ page }) => 
     () => (document.querySelector('model-viewer') as { variantName?: string } | null)?.variantName,
   )
   expect(variantName).toBe('N001-NAVY')
+
+  /**
+   * ⚠️ THE INCIDENT THIS PINS (2026-08-08, task 13 review finding 3).
+   * <model-viewer>'s `min-field-of-view` defaults to **12deg**, and it
+   * SILENTLY ignores anything tighter — no error, just a wider frame than
+   * asked for. Measured on the real N001 baseline: four renders at
+   * 1.4°/2°/3.1°/4.5° came back BYTE-IDENTICAL, which meant any print
+   * smaller than roughly a hand was unphotographable and nothing said so
+   * (full detail: tools/asset-pipeline/src/render.test.ts, which pins the
+   * SAME fact for the offline harness). RenderPage.tsx sets the attribute
+   * (`min-field-of-view="1deg"`), but until now nothing here checked it —
+   * a future refactor could drop it, the suite would stay green, and every
+   * poster this route takes for a print smaller than a hand would silently
+   * go back to being unusable, exactly like the original incident.
+   */
+  const minFieldOfView = await page.evaluate(() =>
+    document.querySelector('model-viewer')?.getAttribute('min-field-of-view'),
+  )
+  expect(minFieldOfView).toBe('1deg')
+})
+
+test('task 14 review finding 1: an in-page variant swap re-renders without a fresh navigation', async ({
+  page,
+}) => {
+  // capturePosters (apps/shrink/src/index.ts) navigates ONCE per garment and
+  // calls window.__renderSetVariant once per remaining colour, instead of a
+  // fresh page.goto() per colour — Cloudflare Browser Rendering bills on
+  // session-seconds, and a navigation reruns the Meshopt decode/GPU
+  // upload/scene build (the dominant cost) on every colour instead of once.
+  // This proves the swap actually re-renders, not just that a flag flips:
+  // __RENDER_READY must be OBSERVED false, not just eventually true again
+  // (a stale "already true" would let a screenshot loop race ahead and
+  // capture the PREVIOUS colour under the new one's filename), and the
+  // element's own variantName must end up on the NEW colour.
+  //
+  // The false→true transition is caught with a property interceptor
+  // installed on `window`, not by polling for it — the two chained
+  // requestAnimationFrames in RenderPage.tsx settle in roughly two frames
+  // (~33ms), which a poll could step over and report a false pass for the
+  // wrong reason (the exact failure shape CLAUDE.md warns about elsewhere
+  // in this repo: a test that cannot actually witness the thing it claims
+  // to test).
+  const params = new URLSearchParams({
+    model: '/fixtures/n001.glb',
+    variant: 'N001-NAVY',
+    orbit: '0deg 82deg 105%',
+    fov: '30deg',
+  })
+  await page.goto(`/render?${params.toString()}`)
+  await page.waitForFunction(
+    () => (window as unknown as { __RENDER_READY?: boolean }).__RENDER_READY === true,
+    null,
+    { timeout: 60_000 },
+  )
+
+  await page.evaluate(() => {
+    const w = window as unknown as { __RENDER_READY?: boolean; __readyLog?: unknown[] }
+    w.__readyLog = []
+    let value = w.__RENDER_READY
+    Object.defineProperty(window, '__RENDER_READY', {
+      configurable: true,
+      get: () => value,
+      set: (v) => {
+        value = v
+        w.__readyLog?.push(v)
+      },
+    })
+  })
+
+  await page.evaluate(() => {
+    ;(
+      window as unknown as {
+        __renderSetVariant?: (t: { variant: string; orbit: string; fov: string }) => void
+      }
+    ).__renderSetVariant?.({ variant: 'N001-BLACK', orbit: '0deg 82deg 105%', fov: '30deg' })
+  })
+  await page.waitForFunction(
+    () => (window as unknown as { __RENDER_READY?: boolean }).__RENDER_READY === true,
+    null,
+    { timeout: 60_000 },
+  )
+
+  const log = await page.evaluate(
+    () => (window as unknown as { __readyLog?: unknown[] }).__readyLog,
+  )
+  expect(log).toEqual([false, true])
+
+  const variantName = await page.evaluate(
+    () => (document.querySelector('model-viewer') as { variantName?: string } | null)?.variantName,
+  )
+  expect(variantName).toBe('N001-BLACK')
+
+  // Still exactly one <model-viewer> and still no chrome — a swap that
+  // accidentally remounted the element, or that a bug made fall through to
+  // the query-string path again, would still pass the assertions above by
+  // coincidence; this rules that out.
+  await expect(page.locator('model-viewer')).toHaveCount(1)
+  await expect(page.locator('header, nav, footer')).toHaveCount(0)
 })
 
 test('refuses a model from anywhere but our own media host', async ({ page }) => {

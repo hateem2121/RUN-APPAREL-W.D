@@ -69,15 +69,23 @@
   // viewer's own /render route (task 13) for every colour that has no photo
   // yet — see src/posters.ts and capturePosters() in src/index.ts.
   //
-  // ⚠️ COST MODEL, not a style preference. Workers Paid includes 10
-  // browser-hours/month, then $0.09/hour. src/index.ts opens exactly ONE
-  // session per job (`puppeteer.launch`) and navigates it once per colour —
-  // never one session per colour, which would pay a fresh Cloudflare browser
-  // cold-start on top of every single navigation instead of just once per
-  // garment. Puppeteer cannot reach this over the CMS's `services` binding
-  // above — a headless browser makes its OWN real HTTP requests to
-  // viewer.wear-run.help, not `fetch()` calls this Worker's JS makes — so it
-  // is a Browser Rendering binding, unrelated to `services`.
+  // ⚠️ COST MODEL, not a style preference. Browser Rendering bills on TOTAL
+  // SESSION TIME, launch to close, summed across a day and rounded to the
+  // nearest hour (confirmed against Cloudflare's own pricing docs, not
+  // assumed — see the task 13/14 report's fix log) — Workers Paid includes
+  // 10 of those hours/month, then $0.09/hour. That means the thing worth
+  // amortising is NOT the number of `puppeteer.launch()` calls (capturePosters
+  // already only ever makes one per job) — it is the number of full page
+  // NAVIGATIONS, because each one reruns the Meshopt decode, GPU upload and
+  // scene build from scratch, and that is what keeps the session open. A
+  // session-per-colour design pays that on every colour AND a fresh browser
+  // cold-start on top; a single-navigation design (what capturePosters does:
+  // ONE page.goto() for the first colour, then window.__renderSetVariant via
+  // page.evaluate() for every colour after that — see RenderPage.tsx) pays it
+  // once per garment. Puppeteer cannot reach viewer.wear-run.help over the
+  // CMS's `services` binding above either way — a headless browser makes its
+  // OWN real HTTP requests, not `fetch()` calls this Worker's JS makes — so
+  // it is a separate Browser Rendering binding, unrelated to `services`.
   "browser": { "binding": "BROWSER" },
 
   "vars": {

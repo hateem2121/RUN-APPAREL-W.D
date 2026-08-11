@@ -24,8 +24,18 @@ import { isAllowedRenderModel } from '../worker/renderGuard'
  *   1. reject a `model` not on our own host          → isAllowedRenderModel
  *   2. `min-field-of-view="1deg"`                     → the JSX below
  *   3. `src`/`variantName` set as PROPERTIES, in JS    → attachRef
- *   4. `window.__RENDER_READY` after load + settle     → onLoad below
+ *   4. `window.__RENDER_READY` after load + settle     → applyTarget
  *   5. webglcontextlost never reaching a host listener → the `error` handler
+ *
+ * `window.__renderSetVariant` (task 14 review, finding 1) is a SECOND entry
+ * point alongside the query-string one above — additive, not a replacement.
+ * The query-string path still does exactly what it did before and is what
+ * every task 13 test still exercises. It exists because Cloudflare Browser
+ * Rendering bills on total session-seconds, and a fresh `page.goto()` per
+ * colour destroys the previous page's JS/WASM heap — the Meshopt decode, GPU
+ * upload and scene build (the dominant cost) then rerun on every colour
+ * instead of once per garment. `capturePosters` (apps/shrink/src/index.ts)
+ * now navigates ONCE per garment and calls this once per REMAINING colour.
  */
 
 /** Subset of the ModelViewerElement API this page uses. Mirrors Stage.tsx's. */
@@ -37,6 +47,12 @@ interface ModelViewerEl extends HTMLElement {
   cameraTarget: string
   fieldOfView: string
   jumpCameraToGoal?: () => void
+}
+
+/** What this route sets on `window`, and what task 14's capture loop reads/calls. */
+interface RenderWindow {
+  __RENDER_READY?: boolean
+  __renderSetVariant?: (target: { variant: string; orbit?: string; fov?: string }) => void
 }
 
 /** All copied into public/ by scripts/copy-decoders.mjs — matches Stage.tsx. */
@@ -53,14 +69,19 @@ const KTX2_TRANSCODER_URL = '/basis/'
  */
 const ENVIRONMENT_IMAGE = '/env/studio-soft.hdr'
 
-function markRenderReady(): void {
+function setRenderReady(ready: boolean): void {
   // Read by Part B's Puppeteer session via page.waitForFunction (task 14
   // brief) and by this route's own e2e spec via page.waitForFunction — both
   // documented in task-13-brief.md's test snippet. Not a React state flag: it
   // has to exist as soon as it is true, before React has any reason to
   // re-render, and a page.evaluate-based screenshot loop is the reader, not
   // this component.
-  ;(window as unknown as { __RENDER_READY?: boolean }).__RENDER_READY = true
+  //
+  // Also set back to `false` at the START of an in-page variant swap
+  // (`window.__renderSetVariant`, task 14 review finding 1) — a caller that
+  // already observed `true` for the PREVIOUS colour must not read stale
+  // readiness for the new one while the swap is still settling.
+  ;(window as unknown as RenderWindow).__RENDER_READY = ready
 }
 
 export default function RenderPage() {
@@ -131,9 +152,6 @@ export default function RenderPage() {
     const mv = el as ModelViewerEl
     const params = paramsRef.current
     const model = params.get('model')
-    const variant = params.get('variant')
-    const orbit = params.get('orbit') || 'auto auto auto'
-    const fov = params.get('fov') || 'auto'
     if (!model) return
 
     // Requirement 3: PROPERTY, not attribute. Setting `src` in JSX/HTML
@@ -143,7 +161,12 @@ export default function RenderPage() {
     // this element is assigned, rather than split across JSX and a ref.
     mv.src = model
 
-    const onLoad = () => {
+    // Requirement 4's whole sequence, and the entry point for an in-page
+    // colour swap (task 14 review, finding 1) — shared by the initial
+    // `load` handler below and `window.__renderSetVariant`, so "apply this
+    // colour and camera, then signal ready" can never drift between the
+    // first colour of a garment and every colour after it.
+    const applyTarget = (variant: string | null, orbit: string, fov: string) => {
       if (variant) {
         const available = mv.availableVariants ?? []
         if (!available.includes(variant)) {
@@ -151,9 +174,9 @@ export default function RenderPage() {
           // reference the printed artwork IS the product (CLAUDE.md) — a
           // photograph of the default variant silently mislabelled as
           // `variant` is worse than no photograph at all. Part B's own
-          // navigation times out waiting for __RENDER_READY and reports the
-          // miss (posters.ts / capturePosters) rather than uploading a photo
-          // of the wrong colour under the right name.
+          // navigation/evaluate times out waiting for __RENDER_READY and
+          // reports the miss (posters.ts / capturePosters) rather than
+          // uploading a photo of the wrong colour under the right name.
           console.error(
             `[render] requested variant "${variant}" is not in this file. Available: ` +
               `${available.join(', ') || '(none)'}`,
@@ -166,22 +189,33 @@ export default function RenderPage() {
         mv.variantName = variant
       }
 
-      // Requirement 4, and the established settle in this repo: copied from
+      // The established settle in this repo: copied from
       // tools/asset-pipeline/src/render.ts rather than reinvented.
       // jumpCameraToGoal skips the interpolation so the frame captured is the
       // one asked for, not wherever the easing happened to be; the two
       // chained rAFs then let model-viewer actually draw that frame before
       // __RENDER_READY fires — the first resolves on the frame the camera
       // change is applied, the second after that frame has been painted.
+      // Same sequence whether this is the FIRST colour (from `load`) or a
+      // later one (from `window.__renderSetVariant`) — a swap is exactly a
+      // "settle again", nothing about it is special-cased.
       mv.cameraOrbit = orbit
       mv.cameraTarget = 'auto'
       mv.fieldOfView = fov
       mv.jumpCameraToGoal?.()
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          markRenderReady()
+          setRenderReady(true)
         })
       })
+    }
+
+    const onLoad = () => {
+      applyTarget(
+        params.get('variant'),
+        params.get('orbit') || 'auto auto auto',
+        params.get('fov') || 'auto',
+      )
     }
 
     const onError = (event: Event) => {
@@ -205,6 +239,24 @@ export default function RenderPage() {
 
     el.addEventListener('load', onLoad, { once: true })
     el.addEventListener('error', onError)
+
+    // Task 14 review, finding 1: the in-page swap entry point. Only defined
+    // once the model itself is loading (i.e. only reachable after a
+    // successful, allowed navigation) — capturePosters() in
+    // apps/shrink/src/index.ts only ever calls this AFTER its first
+    // page.goto() has already produced a `true` __RENDER_READY, by which
+    // point this has always run, so there is no meaningful window where
+    // Puppeteer could call it before it exists.
+    ;(window as unknown as RenderWindow).__renderSetVariant = (target) => {
+      // Reset FIRST, synchronously, before touching the model — a caller
+      // polling __RENDER_READY must see it go false for the new colour
+      // before it can see it go true again. If `target.variant` turns out
+      // not to exist in the file, applyTarget returns without ever setting
+      // it back to true, so this state is also how a bad swap request is
+      // reported: a timeout, not a stale "ready" for the WRONG colour.
+      setRenderReady(false)
+      applyTarget(target.variant, target.orbit ?? 'auto auto auto', target.fov ?? 'auto')
+    }
   }, [])
 
   // Refused (bad host) or not ready yet: render nothing rather than a

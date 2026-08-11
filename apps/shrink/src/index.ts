@@ -486,10 +486,14 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
         toPosterColourways(latest?.colourways ?? []),
       )
       if (posterPlan.length > 0 && media.url) {
+        // capturePosters re-reads the product's colourways itself, fresh,
+        // immediately before each PATCH (task 14 review, finding 2) — it
+        // does not take `latest.colourways` here, deliberately, so there is
+        // only one place in this file that ever writes a poster onto a
+        // snapshot older than "just read".
         posterNote = await capturePosters(
           env,
           job.targetProductId,
-          latest?.colourways ?? [],
           posterPlan,
           {
             modelUrl: absolutizeMediaUrl(media.url, env.CMS_ORIGIN),
@@ -735,10 +739,23 @@ const POSTER_SIZE = 1200
 const RENDER_READY_TIMEOUT_MS = 60_000
 
 /**
- * Photograph every target in ONE browser session, uploading and linking each
- * poster as it succeeds. Returns a note for the owner's report; NEVER throws
- * — the shrink itself already succeeded by the time this runs, and a failed
- * photograph must not turn that into a failed job (task 14 brief, B3).
+ * Photograph every target in ONE browser session and ONE page load,
+ * uploading and linking each poster as it succeeds. Returns a note for the
+ * owner's report; NEVER throws — the shrink itself already succeeded by the
+ * time this runs, and a failed photograph must not turn that into a failed
+ * job (task 14 brief, B3).
+ *
+ * ONE NAVIGATION FOR THE WHOLE GARMENT (task 14 review, finding 1) — not one
+ * per colour. Cloudflare Browser Rendering bills on total session-seconds,
+ * not per `puppeteer.launch()`, so the thing worth amortising is the
+ * navigation itself: a fresh `page.goto()` destroys the previous page's
+ * JS/WASM heap, and the Meshopt decode + GPU upload + scene build — the
+ * dominant cost — reruns on every single colour. The FIRST target is
+ * reached by navigating to `/render`'s query-string entry point, exactly as
+ * before; every target after that calls `window.__renderSetVariant` via
+ * `page.evaluate` instead — an in-page swap RenderPage.tsx exposes
+ * specifically for this loop (see its own header comment). Projected cost at
+ * this shape: see the task report.
  *
  * UNTESTABLE HERE, and this is the whole point of the split with
  * planPosters.ts: there is no way to run Cloudflare Browser Rendering from
@@ -752,18 +769,10 @@ const RENDER_READY_TIMEOUT_MS = 60_000
 async function capturePosters(
   env: Env,
   targetProductId: number | string,
-  rawColourways: Record<string, unknown>[],
   plan: PosterTarget[],
   render: { modelUrl: string; orbit: string; fov: string },
   productCode: string | null,
 ): Promise<string> {
-  // Mutable working copy, PATCHed back WHOLE after every success. Payload's
-  // array field replaces the entire array on write — there is no per-row
-  // PATCH — so sending back anything less than every row (unpainted, plus the
-  // one just captured) would silently delete every other colour's name,
-  // slug, and poster. This is the same shape rawColourways was read in, so
-  // every field this job never touches round-trips unchanged.
-  const rows = rawColourways.map((row) => ({ ...row }))
   let captured = 0
   const failures: string[] = []
 
@@ -776,15 +785,33 @@ async function capturePosters(
     const page = await browser.newPage()
     await page.setViewport({ width: POSTER_SIZE, height: POSTER_SIZE, deviceScaleFactor: 1 })
 
-    for (const target of plan) {
+    for (let i = 0; i < plan.length; i++) {
+      const target = plan[i]!
       try {
-        const url = new URL('/render', env.VIEWER_ORIGIN)
-        url.searchParams.set('model', render.modelUrl)
-        url.searchParams.set('variant', target.variantId)
-        url.searchParams.set('orbit', render.orbit)
-        url.searchParams.set('fov', render.fov)
+        if (i === 0) {
+          // ONE navigation for the whole garment (see this function's own
+          // header) — every later target reuses this same page load.
+          const url = new URL('/render', env.VIEWER_ORIGIN)
+          url.searchParams.set('model', render.modelUrl)
+          url.searchParams.set('variant', target.variantId)
+          url.searchParams.set('orbit', render.orbit)
+          url.searchParams.set('fov', render.fov)
+          await page.goto(url.toString(), { waitUntil: 'domcontentloaded' })
+        } else {
+          // In-page swap (task 14 review, finding 1) — string form, like the
+          // waitForFunction call below and tools/asset-pipeline/src/render.ts's
+          // own page.evaluate calls, so nothing here depends on this Worker's
+          // own DOM-free tsconfig (apps/shrink/tsconfig.json has no "dom" lib)
+          // matching whatever globals the BROWSER page happens to have.
+          await page.evaluate(
+            `window.__renderSetVariant(${JSON.stringify({
+              variant: target.variantId,
+              orbit: render.orbit,
+              fov: render.fov,
+            })})`,
+          )
+        }
 
-        await page.goto(url.toString(), { waitUntil: 'domcontentloaded' })
         await page.waitForFunction('window.__RENDER_READY === true', {
           timeout: RENDER_READY_TIMEOUT_MS,
         })
@@ -817,8 +844,33 @@ async function capturePosters(
           posterAlt(productCode, target),
         )
 
-        const row = rows.find((r) => r.slug === target.slug)
-        if (row) row.posterPreview = mediaId
+        // Re-read the CURRENT colourways immediately before writing, rather
+        // than reusing one snapshot taken before this loop started (task 14
+        // review, finding 2). Payload replaces the WHOLE array on write, and
+        // this loop can run for minutes across many colours — long enough
+        // for the owner to rename a slug or edit another row on the Colours
+        // tab in between (colourImport.ts's own note invites exactly that,
+        // right after an import). A stale snapshot resent on every capture
+        // would silently revert any such edit; re-reading here narrows that
+        // window from "the whole multi-minute loop" to "one round trip",
+        // matching the level of protection every other PATCH in this file
+        // already has (none of them have optimistic-concurrency control
+        // either).
+        const fresh = await readProductState(env, targetProductId)
+        const freshRows = fresh?.colourways ?? []
+        const row = freshRows.find((r) => r.slug === target.slug)
+        if (!row) {
+          // The row this target was planned against is gone from the CURRENT
+          // read — renamed or removed while this session was running. The
+          // PNG is already uploaded (orphaned in Media rather than lost —
+          // same "leave it, don't guess" choice retireSupersededResult makes
+          // elsewhere in this file), but this must NOT count as captured:
+          // the report would claim a photo exists for a colour the publish
+          // gate will still find has none, with nothing explaining why.
+          failures.push(`${target.slug} (its colour row was renamed or removed while this ran)`)
+          continue
+        }
+        row.posterPreview = mediaId
         // One PATCH per successful capture, not one batched at the end — a
         // crash partway through a ten-colour garment then keeps whatever
         // already succeeded instead of losing it. Re-runs the publish gate
@@ -826,15 +878,15 @@ async function capturePosters(
         // attach PATCHes above, and is exactly as safe: planPosters already
         // refused a published product entirely, so assertPublishable returns
         // on its first line every time this executes.
-        await patchProduct(env, targetProductId, { colourways: rows })
+        await patchProduct(env, targetProductId, { colourways: freshRows })
         captured += 1
       } catch (error) {
-        // Per-target: a stuck variant or one bad navigation must not lose the
-        // colours already captured, or stop the ones still to come. This is
-        // also the branch a mismatched `variant` (RenderPage.tsx never sets
-        // __RENDER_READY for one) and a lost-context render both land in —
-        // both time out here rather than uploading a photo of the wrong
-        // colour under the right name.
+        // Per-target: a stuck variant or one bad navigation/evaluate must not
+        // lose the colours already captured, or stop the ones still to come.
+        // This is also the branch a mismatched `variant` (RenderPage.tsx
+        // never sets __RENDER_READY for one) and a lost-context render both
+        // land in — both time out here rather than uploading a photo of the
+        // wrong colour under the right name.
         const detail = error instanceof Error ? error.message : String(error)
         failures.push(`${target.slug} (${detail})`)
       }
