@@ -4,7 +4,7 @@ import { colourwaysField } from './colourways'
 const fieldNamed = (name: string) =>
   colourwaysField.fields.find((f) => 'name' in f && f.name === name) as {
     hooks?: { beforeValidate?: ((args: never) => unknown)[] }
-    validate?: (value: unknown, args: { data?: unknown }) => unknown
+    validate?: (value: unknown, args: { data?: unknown; siblingData?: unknown }) => unknown
     required?: boolean
   }
 
@@ -13,6 +13,9 @@ const run = (name: string, args: unknown) =>
 
 const validate = (name: string, value: unknown, data: unknown = {}) =>
   fieldNamed(name).validate?.(value, { data })
+
+const validateSibling = (name: string, value: unknown, siblingData: unknown = {}) =>
+  fieldNamed(name).validate?.(value, { siblingData })
 
 describe('colour row auto-fill', () => {
   it('suggests a slug into a blank field', () => {
@@ -80,5 +83,55 @@ describe('displayName and slug are not required — the publish gate enforces th
   it('slug still refuses to collide with another row on the same product', () => {
     const data = { colourways: [{ slug: 'navy' }, { slug: 'navy' }] }
     expect(validate('slug', 'navy', data)).not.toBe(true)
+  })
+})
+
+/**
+ * Found in review of the change above: displayName/slug being saveable blank
+ * made "switched ON and blank" reachable on a DRAFT for the first time — the
+ * publish gate never runs there (collectPublishProblems no-ops for any
+ * non-published status), so nothing stopped a human ticking "Show this colour
+ * on the website" on an unnamed imported row. apps/cms/src/endpoints/
+ * pipelinePlan.ts (the offline `pipeline merge --from-cms` tool's data source)
+ * queries with no status filter and keeps any row with `active !== false`, so
+ * it would have picked up exactly that state and fed a blank slug into
+ * buildVariantId, producing "N001-" with nothing to catch it.
+ *
+ * Guarded at the row itself — active's own `validate` — rather than in every
+ * reader, so the next reader gets this for free instead of re-deriving it.
+ * `planColourImport` always writes `active: false`, so the robot's own write
+ * is provably unaffected by this: only a human-driven switch-on is checked.
+ */
+describe('a colour cannot be switched on while it has no name or no slug', () => {
+  it('allows switching OFF regardless of name/slug — retiring a row is always safe', () => {
+    expect(validateSibling('active', false, { displayName: '', slug: '' })).toBe(true)
+  })
+
+  it('allows switching ON a fully named colour', () => {
+    expect(validateSibling('active', true, { displayName: 'Navy', slug: 'navy' })).toBe(true)
+  })
+
+  it('refuses to switch ON a swatch-only row with neither name nor slug', () => {
+    // Exactly buildImportedRow's low-confidence shape.
+    const result = validateSibling('active', true, { displayName: '', slug: '' })
+    expect(result).not.toBe(true)
+    expect(result).toMatch(/no name or web address word/)
+  })
+
+  it('refuses to switch ON a row with a name but no slug', () => {
+    const result = validateSibling('active', true, { displayName: 'Navy', slug: '' })
+    expect(result).not.toBe(true)
+    expect(result).toMatch(/no web address word/)
+  })
+
+  it('refuses to switch ON a row with a slug but no name', () => {
+    const result = validateSibling('active', true, { displayName: '', slug: 'navy' })
+    expect(result).not.toBe(true)
+    expect(result).toMatch(/no name/)
+  })
+
+  it('treats whitespace-only as blank, same as everywhere else in this file', () => {
+    const result = validateSibling('active', true, { displayName: '   ', slug: '   ' })
+    expect(result).not.toBe(true)
   })
 })

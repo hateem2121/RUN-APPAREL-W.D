@@ -243,6 +243,45 @@ export const colourwaysField: ArrayField = {
       type: 'checkbox',
       defaultValue: true,
       label: 'Show this colour on the website',
+      validate: (value: unknown, { siblingData }: { siblingData?: ColourRow }) => {
+        // Refuse to switch a colour ON while it has no name or no web address
+        // word — the row-level mirror of collectPublishProblems's noName/noSlug
+        // checks (../collections/publishGating.ts). Needed because those two
+        // fields stopped being `required` on 2026-08-11 (displayName and slug
+        // above) so a swatch-only imported row could be SAVED blank. That made
+        // "blank AND active" reachable on a DRAFT for the first time, and the
+        // publish gate never sees it there: collectPublishProblems no-ops for
+        // any non-published status, so a human could tick this box on an
+        // unnamed row and save, with nothing objecting.
+        //
+        // Found by code review, not by incident: apps/cms/src/endpoints/
+        // pipelinePlan.ts — used by the offline `pipeline merge --from-cms`
+        // tool — queries products with no `status` filter at all and keeps any
+        // row with `active !== false`, so it would pick up exactly this draft
+        // state. It feeds a blank slug straight into buildVariantId, which
+        // produces "N001-" (a trailing hyphen; isValidVariantId would reject
+        // it, but nothing in production code calls that function), baked
+        // silently into a merged GLB's KHR_materials_variants name. Guarded
+        // here, at the row itself, rather than in every reader that touches an
+        // active colourway — pipelinePlan.ts today, and whatever reads this
+        // next.
+        //
+        // planColourImport (apps/shrink/src/colourImport.ts) always writes
+        // `active: false` on every row it adds, so this never affects the
+        // robot's own write. The only thing this newly refuses is a human
+        // switching a colour on before naming it, which is the correct answer.
+        if (value !== true) return true
+        const hasName =
+          typeof siblingData?.displayName === 'string' && siblingData.displayName.trim() !== ''
+        const hasSlug = typeof siblingData?.slug === 'string' && siblingData.slug.trim() !== ''
+        if (hasName && hasSlug) return true
+        if (!hasName && !hasSlug) {
+          return 'This colour has no name or web address word yet, so it can’t be switched on. Add “Colour name” and “Web address word”, or leave it switched off.'
+        }
+        return hasName
+          ? 'This colour has no web address word yet, so it can’t be switched on. Add “Web address word”, or leave it switched off.'
+          : 'This colour has no name yet, so it can’t be switched on. Add “Colour name”, or leave it switched off.'
+      },
       admin: {
         description:
           'Untick to retire a colour. Old QR codes still work — they show your first colour instead, with the retired message.',
