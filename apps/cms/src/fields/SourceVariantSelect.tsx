@@ -2,6 +2,8 @@
 
 import { FieldLabel, SelectInput, useField, useFormFields } from '@payloadcms/ui'
 import type { TextFieldClientComponent } from 'payload'
+import { useEffect } from 'react'
+import { type FileColourDetail, siblingPath, suggestVariantId } from './suggestVariantId'
 
 /**
  * "Which colour in your CLO file is this?"
@@ -28,14 +30,13 @@ import type { TextFieldClientComponent } from 'payload'
  *
  * Suggestion only. Nothing here writes a name, a slug or a row — a colourway
  * slug is printed on physical QR tags and no automated process may touch one.
+ *
+ * PRE-SELECTING THE OBVIOUS MATCH. When a row's own name and a `high`-confidence
+ * measured name agree, picking it from this dropdown is not a decision — it is
+ * typing. That rule (and why a `low`-confidence match never auto-applies — the
+ * SAME 2026-08-03 incident above) lives in suggestVariantId.ts, pure and
+ * unit-tested apart from this file for the same reason importColours.ts is.
  */
-
-interface FileColourDetail {
-  variantId: string
-  hex: string
-  name: string
-  confidence: 'high' | 'low'
-}
 
 const isDetail = (value: unknown): value is FileColourDetail =>
   typeof value === 'object' &&
@@ -63,6 +64,24 @@ export const SourceVariantSelect: TextFieldClientComponent = ({ field, path }) =
     const raw = fields?.fileColourDetails?.value
     return Array.isArray(raw) ? raw.filter(isDetail) : []
   })
+
+  // The row's own name lives at a SIBLING path, not this one: this field's path
+  // is `colourways.<row index>.variantId`, so the name is at
+  // `colourways.<row index>.displayName`. Derived via siblingPath rather than a
+  // hardcoded index — see suggestVariantId.ts for what was verified and why.
+  const rowName = useFormFields(([fields]) => {
+    const raw = fields?.[siblingPath(path, 'displayName')]?.value
+    return typeof raw === 'string' ? raw : ''
+  })
+
+  // Every hook above this line must STAY above this component's early return
+  // below — React hooks cannot run conditionally, and this component returns
+  // early for any product whose file has not been processed yet. A hook added
+  // after that return is a runtime crash, not a type error.
+  useEffect(() => {
+    const suggestion = suggestVariantId(rowName, details, value)
+    if (suggestion) setValue(suggestion)
+  }, [rowName, details, value, setValue])
 
   const label = field?.label
   const description = field?.admin?.description
