@@ -9,8 +9,14 @@ import { defineConfig, devices } from '@playwright/test'
 const chromiumPath = process.env.PLAYWRIGHT_CHROMIUM_PATH
 const baseLaunch = chromiumPath ? { executablePath: chromiumPath } : {}
 
-/** Everything except the real-WebGL spec, which is Chromium-only by necessity. */
-const DOM_SUITE = /webgl\.spec\.ts/
+/**
+ * Everything except the specs that need a real WebGL context, which are
+ * Chromium-only by necessity: webgl.spec.ts, and render.spec.ts (task 13/14)
+ * since it waits on `window.__RENDER_READY`, which only fires after
+ * <model-viewer>'s `load` event — undetectable without actually decoding a
+ * Meshopt-compressed model.
+ */
+const DOM_SUITE = /(webgl|render)\.spec\.ts/
 
 /**
  * The e2e server's port, in ONE place and passed explicitly to the server.

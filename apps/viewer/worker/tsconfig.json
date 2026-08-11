@@ -15,5 +15,5 @@
     "types": ["@cloudflare/workers-types"],
     "noEmit": true
   },
-  "include": ["index.ts", "preview.ts", "og-cards.ts"]
+  "include": ["index.ts", "preview.ts", "og-cards.ts", "renderGuard.ts"]
 }
