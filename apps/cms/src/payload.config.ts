@@ -16,6 +16,7 @@ import { eventsEndpoint } from './endpoints/events'
 import { healthEndpoint } from './endpoints/health'
 import { pipelinePlanEndpoint } from './endpoints/pipelinePlan'
 import { publicViewerDefaultColourEndpoint, publicViewerEndpoint } from './endpoints/publicViewer'
+import { CatalogueDefaults } from './globals/CatalogueDefaults'
 import { SiteSettings } from './globals/SiteSettings'
 
 const filename = fileURLToPath(import.meta.url)
@@ -122,7 +123,7 @@ export default buildConfig({
     },
   },
   collections: [Users, Media, RawUploads, Products, Events],
-  globals: [SiteSettings],
+  globals: [SiteSettings, CatalogueDefaults],
   // The two-segment route is registered first so it wins over the one-segment
   // route for /n001/navy, whatever order the router happens to try them in.
   endpoints: [

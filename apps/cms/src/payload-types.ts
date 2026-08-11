@@ -146,9 +146,11 @@ export interface Config {
   fallbackLocale: null;
   globals: {
     'site-settings': SiteSetting;
+    'catalogue-defaults': CatalogueDefault;
   };
   globalsSelect: {
     'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
+    'catalogue-defaults': CatalogueDefaultsSelect<false> | CatalogueDefaultsSelect<true>;
   };
   locale: null;
   widgets: {
@@ -779,6 +781,54 @@ export interface SiteSetting {
   createdAt?: string | null;
 }
 /**
+ * The copy every new garment starts with. Changing something here changes what the NEXT product you create begins with — it does NOT rewrite any product you have already made, even one made a minute ago. To fix wording on an existing product, open that product and edit it directly.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "catalogue-defaults".
+ */
+export interface CatalogueDefault {
+  id: number;
+  /**
+   * The paragraph above the steps, on every NEW product from now on. Business-to-business wording only — this is not a shop.
+   */
+  customisationIntro?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  /**
+   * Shown in order as the “How we build your product” list on every NEW product from now on.
+   */
+  customisationSteps?:
+    | {
+        number: number;
+        title: string;
+        body: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Where a NEW product’s “Catalogue” button sends people.
+   */
+  catalogueUrl: string;
+  /**
+   * Shown on a NEW product when someone scans a QR code for a colour that has been switched off.
+   */
+  retiredMessage: string;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "site-settings_select".
  */
@@ -802,6 +852,26 @@ export interface SiteSettingsSelect<T extends boolean = true> {
     | {
         cacheSeconds?: T;
       };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "catalogue-defaults_select".
+ */
+export interface CatalogueDefaultsSelect<T extends boolean = true> {
+  customisationIntro?: T;
+  customisationSteps?:
+    | T
+    | {
+        number?: T;
+        title?: T;
+        body?: T;
+        id?: T;
+      };
+  catalogueUrl?: T;
+  retiredMessage?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

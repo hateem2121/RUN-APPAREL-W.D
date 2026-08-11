@@ -6,6 +6,7 @@ import * as migration_20260729_070548_inline_colourways from './20260729_070548_
 import * as migration_20260729_120855_add_raw_upload_retry from './20260729_120855_add_raw_upload_retry';
 import * as migration_20260803_090000_add_file_colour_details from './20260803_090000_add_file_colour_details';
 import * as migration_20260803_140000_add_artwork_verdict from './20260803_140000_add_artwork_verdict';
+import * as migration_20260811_163415_catalogue_defaults from './20260811_163415_catalogue_defaults';
 
 export const migrations = [
   {
@@ -47,5 +48,10 @@ export const migrations = [
     up: migration_20260803_140000_add_artwork_verdict.up,
     down: migration_20260803_140000_add_artwork_verdict.down,
     name: '20260803_140000_add_artwork_verdict',
+  },
+  {
+    up: migration_20260811_163415_catalogue_defaults.up,
+    down: migration_20260811_163415_catalogue_defaults.down,
+    name: '20260811_163415_catalogue_defaults',
   },
 ];

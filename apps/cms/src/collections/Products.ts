@@ -1,9 +1,11 @@
 import { isValidProductCode, isValidSlug } from '@run-apparel/shared'
+import { defaultRichTextValue } from '@payloadcms/richtext-lexical'
 import { APIError, type CollectionConfig, type PayloadRequest } from 'payload'
 import { isAdmin, isAdminOrEditor, isAuthenticated } from '../access/roles'
 import { cameraFields } from '../fields/camera'
 import { colourwaysField } from '../fields/colourways'
 import { deriveSlug } from '../fields/deriveSlug'
+import type { CatalogueDefault } from '../payload-types'
 import { IMAGE_MIME_TYPES, MODEL_MIME_TYPES } from './mediaRules'
 import {
   becameUnverifiedWhilePublished,
@@ -49,6 +51,36 @@ async function readArtworkVerdict(
     }
   } catch {
     return {}
+  }
+}
+
+/**
+ * Read the shared "how we build your product" copy off the CatalogueDefaults
+ * global (globals/CatalogueDefaults.ts), for the defaultValue functions below.
+ *
+ * FAILS OPEN, same reasoning as readArtworkVerdict immediately above: on
+ * create, a D1 hiccup reading the global must not make the whole product
+ * uncreatable over default paragraph text — that would be an error about
+ * catalogue copy blocking someone who is just trying to start a new garment.
+ *
+ * Returns null on any error, AND on a global that has never been saved:
+ * Payload's findOne operation returns `{}` rather than the field-level
+ * defaults when no row exists yet for a global (verified against Payload
+ * 3.86.0's globals/operations/findOne.js — see task-9-report.md), which is
+ * exactly the state this global is in immediately after this migration
+ * deploys and before anyone opens Settings → Catalogue defaults and saves it.
+ * Both cases fall back the same way: each field below applies the literal
+ * default this file used before this global existed.
+ */
+async function readCatalogueDefaults(req: PayloadRequest): Promise<CatalogueDefault | null> {
+  try {
+    return await req.payload.findGlobal({
+      slug: 'catalogue-defaults',
+      depth: 0,
+      req,
+    })
+  } catch {
+    return null
   }
 }
 
@@ -551,6 +583,18 @@ export const Products: CollectionConfig = {
               name: 'customisationIntro',
               type: 'richText',
               label: 'Opening paragraph',
+              // A new product starts with the shared paragraph from Settings →
+              // Catalogue defaults. Payload only calls a field's defaultValue
+              // function for a genuinely new document — verified against Payload
+              // 3.86.0 rather than assumed, see task-9-report.md — so editing the
+              // global never rewrites a product that already exists. Falls back to
+              // Lexical's own empty document (the same "blank" this field has
+              // always had) rather than undefined/null: this function's return type
+              // is Payload's SerializableValue, which excludes both.
+              defaultValue: async ({ req }: { req: PayloadRequest }) => {
+                const defaults = await readCatalogueDefaults(req)
+                return defaults?.customisationIntro ?? defaultRichTextValue
+              },
               admin: {
                 description:
                   'The paragraph above the steps. Business-to-business wording only — this is not a shop.',
@@ -561,6 +605,12 @@ export const Products: CollectionConfig = {
               type: 'array',
               label: 'The steps',
               labels: { singular: 'Step', plural: 'Steps' },
+              // Same inheritance and the same create-only timing as
+              // customisationIntro immediately above.
+              defaultValue: async ({ req }: { req: PayloadRequest }) => {
+                const defaults = await readCatalogueDefaults(req)
+                return defaults?.customisationSteps ?? []
+              },
               admin: { description: 'Shown in order as the “How we build your product” list.' },
               fields: [
                 { name: 'number', type: 'number', required: true, label: 'Step number' },
@@ -581,7 +631,18 @@ export const Products: CollectionConfig = {
               name: 'catalogueUrl',
               type: 'text',
               required: true,
-              defaultValue: 'https://wear-run.help/catalogue',
+              // Same inheritance as customisationIntro above. The `||` (not `??`)
+              // is deliberate: an empty string read back from the global must also
+              // fall through, not just null/undefined, since this field requires
+              // non-empty text and readCatalogueDefaults cannot itself tell "global
+              // unreadable" apart from "global exists but nobody has filled it in
+              // yet" — see readCatalogueDefaults's comment for why both land here.
+              // The literal is the same one this field always defaulted to, and
+              // the one SiteSettings.ts's own catalogueUrl still carries.
+              defaultValue: async ({ req }: { req: PayloadRequest }) => {
+                const defaults = await readCatalogueDefaults(req)
+                return defaults?.catalogueUrl || 'https://wear-run.help/catalogue'
+              },
               label: 'Catalogue link',
               validate: (value: unknown) => {
                 if (typeof value !== 'string' || value.trim() === '') {
@@ -600,7 +661,11 @@ export const Products: CollectionConfig = {
               name: 'retiredMessage',
               type: 'text',
               required: true,
-              defaultValue: DEFAULT_RETIRED_MESSAGE,
+              // Same inheritance and the same `||` reasoning as catalogueUrl above.
+              defaultValue: async ({ req }: { req: PayloadRequest }) => {
+                const defaults = await readCatalogueDefaults(req)
+                return defaults?.retiredMessage || DEFAULT_RETIRED_MESSAGE
+              },
               label: 'Message for retired colours',
               admin: {
                 description:
