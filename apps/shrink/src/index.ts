@@ -6,9 +6,11 @@ import {
   formatMb,
   nextDetailAdvice,
   shrinkFlagsFor,
+  toFileColours,
 } from '@run-apparel/shared'
 import { type ProductState, describeModel, planModelAttach } from './attach'
 import { cmsFetch, isMediaReferenced } from './cms'
+import { planColourImport } from './colourImport'
 import { DEAD_LETTER_QUEUE, deadLetterReport } from './deadLetter'
 
 /**
@@ -204,10 +206,11 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   // waiting on an unrelated request.
   const previousResultGlb = await readResultGlb(env, job.rawUploadId)
 
-  // The target product's code, status and current model — read up front for the
-  // same reason as above, and used for two things: naming the Media doc so the
-  // library does not fill with identical-looking models, and deciding whether
-  // this run may attach itself (see step 4b).
+  // The target product's code, status, current model and colour-row count —
+  // read up front for the same reason as above, and used for three things:
+  // naming the Media doc so the library does not fill with identical-looking
+  // models, deciding whether this run may import the file's colours (step 4b),
+  // and deciding whether it may attach itself (step 4c).
   const target = await readProductState(env, job.targetProductId)
 
   const key = job.prefix ? `${job.prefix}/${job.filename}` : job.filename
@@ -348,7 +351,50 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
     }
   }
 
-  // 4b. Attach the model to the product itself — but ONLY to a draft that has
+  // 4b. Add the file's own colours to the product — but ONLY to a draft that
+  //     has none yet.
+  //
+  //     The owner used to have to open the Colours tab and press "Add the
+  //     ticked colours" by hand for every garment this robot finished — a
+  //     button they had to know to look for. On 2026-08-03 N001's file held
+  //     five colourways and the CMS had three rows; the other two were
+  //     invisible to every buyer, and the only way to discover them was to
+  //     open the GLB.
+  //
+  //     THE TWO CONDITIONS ARE THE WHOLE SAFETY ARGUMENT, not caution — the
+  //     full reasoning lives on planColourImport itself (./colourImport.ts),
+  //     which this only calls:
+  //
+  //     - `status !== 'published'`. `colourways` is in GATED_FIELDS, exactly
+  //       like `glbAsset` below, so the same 2026-07-29 argument applies:
+  //       never write to a published product.
+  //     - no colour rows yet. Appending to a product the owner has already set
+  //       up is a surprise, not a convenience — "Add the ticked colours" stays
+  //       for that case and must keep working unchanged.
+  //
+  //     A SEPARATE PATCH from both the colour-list write above and the model
+  //     attach below, for the same reason those two are already kept apart:
+  //     bundled into either, a failure here would risk losing a write that
+  //     matters more (fileColours fills the colour dropdown; the model attach
+  //     is what makes the product showable at all). Reports rather than
+  //     throws, like both its neighbours: the shrink succeeded, and the owner
+  //     can always press the button by hand.
+  const colourPlan = planColourImport(target, toFileColours(report.variantColours))
+  let colourImportNote = colourPlan.rows === null ? colourPlan.note : ''
+  if (colourPlan.rows && colourPlan.rows.length > 0 && job.targetProductId != null) {
+    try {
+      await patchProduct(env, job.targetProductId, { colourways: colourPlan.rows })
+      colourImportNote = colourPlan.note ?? ''
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      colourImportNote =
+        '\n\n⚠️ Could not add the file’s colours to the product automatically. They are listed above ' +
+        '— open the Colours tab and press “Add the ticked colours” by hand. ' +
+        `Tell your developer this:\n${reason}`
+    }
+  }
+
+  // 4c. Attach the model to the product itself — but ONLY to a draft that has
   //     none yet.
   //
   //     The owner used to do this by hand from a picker that listed every model
@@ -371,12 +417,13 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   //       owner has already set up is not a convenience, it is a surprise. A
   //       deliberate re-run is what the Retry box and the picker are for.
   //
-  //     A SEPARATE PATCH from the colour list above, deliberately. Bundled into
-  //     one call, any failure here would also lose `fileColours` — the write that
-  //     fills the colour dropdown and the one thing that repairs a half-set-up
-  //     product. Two round trips is a cheap price for keeping those failure modes
-  //     apart. Like that write, this one reports rather than throws: the shrink
-  //     succeeded and the owner can always attach by hand.
+  //     A SEPARATE PATCH from the colour-list write and the colour import above,
+  //     deliberately. Bundled into one call, any failure here would also lose
+  //     `fileColours` — the write that fills the colour dropdown and the one
+  //     thing that repairs a half-set-up product. Extra round trips are a cheap
+  //     price for keeping those failure modes apart. Like both writes above,
+  //     this one reports rather than throws: the shrink succeeded and the owner
+  //     can always attach by hand.
   const plan = planModelAttach(job.targetProductId, target)
   let attachNote = plan.attach ? '' : plan.note
   if (plan.attach && job.targetProductId != null) {
@@ -400,7 +447,7 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   await patchRawUpload(env, job.rawUploadId, {
     status: 'ready',
     resultGlb: mediaId,
-    report: report.text + fileColoursNote + attachNote,
+    report: report.text + fileColoursNote + colourImportNote + attachNote,
   })
 
   // 6. Retire the model this run replaced — but only once `resultGlb` points at
@@ -414,7 +461,7 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   )
   if (supersededNote) {
     await patchRawUpload(env, job.rawUploadId, {
-      report: report.text + fileColoursNote + attachNote + supersededNote,
+      report: report.text + fileColoursNote + colourImportNote + attachNote + supersededNote,
     }).catch(() => {
       // The retirement note is the least important write in the job; the model
       // is already saved and attached. Do not fail a successful shrink for it.
@@ -423,18 +470,23 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
 }
 
 /**
- * Read the target product's code, status and whether it already has a model.
+ * Read the target product's code, status, whether it already has a model, and
+ * how many colour rows it already has.
  *
  * Returns null on ANY failure, and every caller treats null as "do nothing
- * special": the Media doc falls back to its filename-based description and the
- * auto-attach is skipped. Failing closed is the right direction here — not
- * attaching leaves the owner exactly where they were before this existed, while
- * attaching on a guess could swap the model under a live garment.
+ * special": the Media doc falls back to its filename-based description, and
+ * both the auto-attach and the colour import are skipped. Failing closed is the
+ * right direction here — not acting leaves the owner exactly where they were
+ * before this existed, while acting on a guess could change a live garment.
+ *
+ * One read serves both `planModelAttach` and `planColourImport` — they are
+ * separate decisions on separate fields, but nothing here changes between the
+ * two, so a second round trip would buy nothing.
  */
 async function readProductState(
   env: Env,
   id: number | string | null | undefined,
-): Promise<ProductState | null> {
+): Promise<(ProductState & { colourwayCount: number }) | null> {
   if (id == null) return null
   const res = await cmsFetch(env, `/api/products/${id}?depth=0`, { method: 'GET' }).catch(
     () => null,
@@ -444,6 +496,7 @@ async function readProductState(
     productCode?: unknown
     status?: unknown
     glbAsset?: unknown
+    colourways?: unknown
   } | null
   if (!doc) return null
   return {
@@ -451,6 +504,9 @@ async function readProductState(
     status: typeof doc.status === 'string' ? doc.status : null,
     // depth=0 gives a bare id, but a stray populated object must not read as empty.
     hasGlbAsset: doc.glbAsset != null && doc.glbAsset !== '',
+    // depth has no bearing on an array field's own rows, only on relationships
+    // nested inside them, so this is accurate at depth=0.
+    colourwayCount: Array.isArray(doc.colourways) ? doc.colourways.length : 0,
   }
 }
 
