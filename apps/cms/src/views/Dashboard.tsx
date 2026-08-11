@@ -1,7 +1,7 @@
 import { Gutter } from '@payloadcms/ui'
 import type { AdminViewServerProps, Payload, PayloadRequest } from 'payload'
 import { collectPublishProblems, toGateColourways } from '../collections/publishGating'
-import { LABELS as RAW_UPLOAD_STATUS_LABELS } from '../collections/RawUploadStatusCell'
+import { LABELS as RAW_UPLOAD_STATUS_LABELS } from '../collections/rawUploadStatusLabels'
 import type { Product, RawUpload } from '../payload-types'
 
 /**
@@ -44,15 +44,15 @@ import type { Product, RawUpload } from '../payload-types'
  */
 
 // Bounds the "being processed" query. Generous on purpose — a job takes 1-2
-// minutes, so this list is realistically tiny — but per CLAUDE.md's documented
-// incident about a silently truncated list reading as "nothing else is wrong",
-// any cap on a query must say how many it left out. See `notShown` below.
+// minutes, so this list is realistically tiny — but a cap that hides how many
+// rows it left out reads as "that's everything" when it might not be, which is
+// worse than no cap at all. So: cap the query, but always report `notShown`.
 const PROCESSING_DISPLAY_LIMIT = 50
 
 // Bounds RENDERING only. The ready/not-ready split further down is computed
 // over every draft (`pagination: false`), never a page of them — a `limit` on
-// THAT query would make "N ready to publish" a guess at 100+ garments, exactly
-// the shape of incident this file's CLAUDE.md entry warns about.
+// THAT query would make "N ready to publish" a guess at 100+ garments rather
+// than a fact, and the guess would look exactly like the real count.
 const MISSING_DISPLAY_LIMIT = 100
 
 type ProcessingResult = { error: true } | { error: false; docs: RawUpload[]; notShown: number }

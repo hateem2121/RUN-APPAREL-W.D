@@ -2,16 +2,7 @@
 
 import type { DefaultCellComponentProps } from 'payload'
 import { useEffect, useState } from 'react'
-
-// Exported (not just used locally) so views/Dashboard.tsx can label the same
-// four statuses the same way instead of typing "Queued" / "Processing…" a
-// second time somewhere a future edit here would not reach.
-export const LABELS: Record<string, string> = {
-  queued: 'Queued',
-  processing: 'Processing…',
-  ready: 'Ready to review',
-  failed: 'Failed',
-}
+import { LABELS } from './rawUploadStatusLabels'
 
 /**
  * The status column, polling while there is something to watch.
