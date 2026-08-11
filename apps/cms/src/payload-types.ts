@@ -17,11 +17,11 @@ export type ProductColourway =
       /**
        * What buyers see on the colour button, e.g. Navy.
        */
-      displayName: string;
+      displayName?: string | null;
       /**
        * The word in this colour’s link and QR code: wear-run.help/n001/navy. Lowercase, no spaces. Never change it once QR codes are printed — switch the colour off instead.
        */
-      slug: string;
+      slug?: string | null;
       /**
        * Upload your CLO file on the “3D file” tab first. Once it has been read, this list fills with the colours found inside it — pick the one that matches.
        */

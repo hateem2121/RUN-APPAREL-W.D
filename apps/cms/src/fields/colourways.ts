@@ -81,19 +81,38 @@ export const colourwaysField: ArrayField = {
     {
       name: 'displayName',
       type: 'text',
-      required: true,
+      // Deliberately NOT required — same reasoning as posterPreview and variantId
+      // below, extended here on 2026-08-11. A swatch-only row from a low-confidence
+      // colour import (buildImportedRow in packages/shared/src/importColours.ts)
+      // arrives with an empty name ON PURPOSE, for a human to fill in later — see
+      // the note text in apps/shrink/src/colourImport.ts ("name any that need
+      // one"). `required: true` here made that state impossible to SAVE, which
+      // blocked not just the owner's own "Add the ticked colours" button but the
+      // shrink robot's automated write: Payload rejects the whole `colourways`
+      // array if any one row fails validation, so the entire import silently
+      // failed the moment a single colour matched with low confidence — the exact
+      // input `planColourImport`'s own tests require it to handle. Verified against
+      // a real local Payload+D1 instance: PATCHing a row with `displayName: ''`
+      // threw `ValidationError` ("This field is required.") before this change.
+      // The publish gate is the enforcement point instead — see
+      // collectPublishProblems's `noName` check in publishGating.ts — exactly like
+      // the two fields below.
       label: 'Colour name',
       admin: { description: 'What buyers see on the colour button, e.g. Navy.' },
     },
     {
       name: 'slug',
       type: 'text',
-      required: true,
       label: 'Web address word',
       validate: (value: unknown, { data }: { data?: unknown }) => {
-        if (typeof value !== 'string' || value.trim() === '') {
-          return 'Every colour needs a web address word, e.g. navy.'
-        }
+        // Blank is allowed here for the same reason displayName above is not
+        // `required` — a swatch-only imported row must be SAVEABLE with no slug
+        // yet. This used to be an unconditional required-style error regardless of
+        // the `required` flag (a custom `validate` replaces Payload's default
+        // check entirely, so removing `required: true` alone would not have been
+        // enough). The publish gate's `noSlug` check in publishGating.ts is what
+        // stops a blank slug reaching a live, switched-on colour.
+        if (typeof value !== 'string' || value.trim() === '') return true
         const slug = value.trim()
         if (!isValidSlug(slug)) {
           return `“${slug}” can’t be used in a web address. Use lowercase letters, numbers and hyphens only — e.g. ${

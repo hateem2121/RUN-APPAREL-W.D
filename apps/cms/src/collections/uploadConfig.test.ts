@@ -143,11 +143,25 @@ describe('colours array', () => {
     expect(colourwaysField.minRows).toBeUndefined()
   })
 
-  it('still requires a name and a slug on any row that IS added', () => {
-    // Removing minRows must not weaken the rows themselves — a colour with no
-    // name would reach the colour buttons blank.
+  // UPDATED 2026-08-11. Until then this asserted `required: true` on both
+  // fields, reasoned "a colour with no name would reach the colour buttons
+  // blank" — correct for its time, but task 8 needs a row that IS saveable
+  // blank: the shrink robot's automated colour import (planColourImport in
+  // apps/shrink/src/colourImport.ts) writes a swatch-only row — displayName
+  // and slug both '' — for any colour it could not match with high confidence,
+  // reusing buildImportedRow rather than inventing a name. `required: true`
+  // made that write fail outright: Payload rejects the WHOLE colourways array
+  // if one row fails validation, so the entire import silently failed the
+  // moment any file colour matched with low confidence (verified against a
+  // real local Payload+D1 instance before this changed). The risk this test
+  // originally guarded against — a nameless colour reaching a live page — is
+  // now closed one level up: the publish gate refuses to publish a switched-on
+  // colour with no name or no slug (`noName`/`noSlug` in
+  // publishGating.ts's collectPublishProblems, pinned in publishGating.test.ts),
+  // exactly the same pattern this file already used for posterPreview/variantId.
+  it('does NOT require a name or a slug on a row (the publish gate does that instead)', () => {
     for (const name of ['displayName', 'slug']) {
-      expect(findField(colourwaysField.fields, name)?.required).toBe(true)
+      expect(findField(colourwaysField.fields, name)?.required).not.toBe(true)
     }
   })
 })

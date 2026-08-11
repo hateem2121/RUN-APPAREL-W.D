@@ -43,6 +43,14 @@ export interface GateColourway {
   hasPoster: boolean
   hasAltText: boolean
   hasOwnGlb: boolean
+  /**
+   * Was the RAW `displayName` non-blank? Not the same question as `displayName`
+   * above, which already falls back to "Untitled colour" for display — this is
+   * what tells `noName` below apart from a colour that genuinely has that name.
+   */
+  hasDisplayName: boolean
+  /** Was the RAW `slug` non-blank? See hasDisplayName; same reason. */
+  hasSlug: boolean
 }
 
 /** An upload/relationship value is an id, a populated doc, or nothing. */
@@ -147,6 +155,8 @@ export function toGateColourways(rows: unknown): GateColourway[] {
       hasPoster: isSet(row.posterPreview),
       hasAltText: text(row.altText).length > 0,
       hasOwnGlb: isSet(row.glbAsset),
+      hasDisplayName: text(row.displayName).length > 0,
+      hasSlug: text(row.slug).length > 0,
     }
   })
 }
@@ -199,6 +209,28 @@ export function collectPublishProblems(
   }
 
   const problems: string[] = []
+
+  // Checked first: a colour with no name or no web address word is the least
+  // finished a row can be, and — since 2026-08-11 — the state a robot-imported
+  // colour or a fresh "Add the ticked colours" row can genuinely be SAVED in.
+  // `displayName` and `slug` stopped being `required` at the field level (see
+  // colourways.ts) specifically so a swatch-only import could be persisted with
+  // both blank, for a human to fill in later; this is what stops one being
+  // switched on and published while still blank. Never reachable before that
+  // change, because Payload itself refused to save the row.
+  const noName = active.filter((c) => !c.hasDisplayName).map((c) => c.displayName)
+  if (noName.length > 0) {
+    problems.push(
+      `${list(noName)} ${noName.length === 1 ? 'has' : 'have'} no colour name. Add “Colour name” on the Colours tab, or switch the colour off.`,
+    )
+  }
+
+  const noSlug = active.filter((c) => !c.hasSlug).map((c) => c.displayName)
+  if (noSlug.length > 0) {
+    problems.push(
+      `${list(noSlug)} ${noSlug.length === 1 ? 'has' : 'have'} no web address word. Add “Web address word” on the Colours tab, or switch the colour off.`,
+    )
+  }
 
   const noPoster = active.filter((c) => !c.hasPoster).map((c) => c.displayName)
   if (noPoster.length > 0) {

@@ -80,8 +80,16 @@ export function buildViewerResponse(
     if (!poster) continue // never expose a colourway without its required poster
     colourways.push({
       variantId: String(doc.variantId ?? ''),
-      displayName: String(doc.displayName),
-      slug: String(doc.slug),
+      // `?? ''`, not a bare String(doc.displayName): both fields stopped being
+      // `required` in the CMS on 2026-08-11 (colourways.ts) so a swatch-only
+      // imported row can be saved blank — without the fallback, a colour that
+      // somehow reached here still blank would render the literal text "null" or
+      // "undefined" on a live button instead of an empty string. The publish gate
+      // (publishGating.ts) already refuses to publish one in that state, and
+      // `!poster` above already drops an imported row before this line — this is
+      // the same defence altText already has three lines down, extended here.
+      displayName: String(doc.displayName ?? ''),
+      slug: String(doc.slug ?? ''),
       // Numbered by what a visitor actually sees, so a retired or poster-less
       // colour never leaves a gap in the tab order.
       sequence: colourways.length + 1,

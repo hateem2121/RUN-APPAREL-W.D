@@ -108,6 +108,24 @@ describe('buildViewerResponse', () => {
     )
   })
 
+  it('never renders the literal text "null"/"undefined" for a blank name or slug', () => {
+    // displayName/slug stopped being `required` in the CMS on 2026-08-11, so a
+    // swatch-only imported row (buildImportedRow) can reach here with either
+    // missing. It would be filtered out by `!poster` above and by the publish
+    // gate before a real request ever sees it, but this is the projection's own
+    // defence — matching altText's existing `?? ''` three lines below it.
+    const body = buildViewerResponse(
+      product(),
+      [colourway({ displayName: null, slug: undefined })],
+      {},
+      origin,
+      null,
+      deps,
+    )!
+    expect(body.colourways[0]!.displayName).toBe('')
+    expect(body.colourways[0]!.slug).toBe('')
+  })
+
   it('skips colourways without a poster and returns null when none are usable', () => {
     expect(
       buildViewerResponse(

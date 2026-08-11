@@ -37,6 +37,8 @@ const cw = (o: Partial<GateColourway> = {}): GateColourway => ({
   hasPoster: true,
   hasAltText: true,
   hasOwnGlb: false,
+  hasDisplayName: true,
+  hasSlug: true,
   ...o,
 })
 
@@ -66,6 +68,22 @@ describe('toGateColourways', () => {
   it('falls back to a readable name so error messages are never blank', () => {
     expect(toGateColourways([{ slug: 'navy' }])[0]!.displayName).toBe('navy')
     expect(toGateColourways([{}])[0]!.displayName).toBe('Untitled colour')
+  })
+
+  it('reports the RAW displayName/slug presence, not the coalesced display label', () => {
+    // A row with a slug but no name still falls back to a readable `displayName`
+    // above ("navy") — that must not be mistaken for actually having a name.
+    const [slugOnly] = toGateColourways([{ slug: 'navy' }])
+    expect(slugOnly!.hasDisplayName).toBe(false)
+    expect(slugOnly!.hasSlug).toBe(true)
+
+    const [neither] = toGateColourways([{}])
+    expect(neither!.hasDisplayName).toBe(false)
+    expect(neither!.hasSlug).toBe(false)
+
+    const [both] = toGateColourways([{ displayName: 'Navy', slug: 'navy' }])
+    expect(both!.hasDisplayName).toBe(true)
+    expect(both!.hasSlug).toBe(true)
   })
 })
 
@@ -121,6 +139,45 @@ describe('assertPublishable', () => {
     expect(() => assertPublishable(input(), [cw({ active: false })])).toThrow(
       /Every colour is switched off/,
     )
+  })
+
+  it('refuses to publish a switched-on colour with no name', () => {
+    // Reachable since 2026-08-11: displayName stopped being `required` at the
+    // field level so a swatch-only imported row (buildImportedRow) can be
+    // SAVED blank — this is what stops one reaching a live page still blank.
+    // `displayName` here is the raw form value, still 'Crimson' even though
+    // hasDisplayName says the ROW should be treated as nameless — cw() builds a
+    // GateColourway directly rather than through toGateColourways's own
+    // coalescing fallback, which is covered separately above.
+    expect(() =>
+      assertPublishable(input(), [cw(), cw({ displayName: 'Crimson', hasDisplayName: false })]),
+    ).toThrow(/“Crimson” has no colour name/)
+  })
+
+  it('ignores switched-off colours when checking for a name', () => {
+    expect(() =>
+      assertPublishable(input(), [
+        cw(),
+        cw({ displayName: 'Crimson', hasDisplayName: false, active: false }),
+      ]),
+    ).not.toThrow()
+  })
+
+  it('refuses to publish a switched-on colour with no web address word', () => {
+    // slug's own custom `validate` allows blank now for the same reason; this is
+    // the other half of the same fix.
+    expect(() =>
+      assertPublishable(input(), [cw(), cw({ displayName: 'Crimson', hasSlug: false })]),
+    ).toThrow(/“Crimson” has no web address word/)
+  })
+
+  it('ignores switched-off colours when checking for a web address word', () => {
+    expect(() =>
+      assertPublishable(input(), [
+        cw(),
+        cw({ displayName: 'Crimson', hasSlug: false, active: false }),
+      ]),
+    ).not.toThrow()
   })
 
   it('names the colours missing a photo', () => {
@@ -203,6 +260,11 @@ describe('collectPublishProblems', () => {
     hasPoster: false,
     hasAltText: false,
     hasOwnGlb: false,
+    // This row already "has" a name and a slug (just missing everything else) —
+    // the dedicated hasDisplayName/hasSlug tests above override these instead of
+    // this default, so the counts below stay about the problems they were before.
+    hasDisplayName: true,
+    hasSlug: true,
     ...over,
   })
 
@@ -210,6 +272,13 @@ describe('collectPublishProblems', () => {
     const problems = collectPublishProblems(published, [row()])
     expect(problems).toHaveLength(4) // no photo, no description, no model, no colour picked
     expect(problems.join(' ')).toContain('Wine')
+  })
+
+  it('also counts a missing name and a missing slug among the problems', () => {
+    const problems = collectPublishProblems(published, [
+      row({ hasDisplayName: false, hasSlug: false }),
+    ])
+    expect(problems).toHaveLength(6) // + no colour name, no web address word
   })
 
   it('is empty for a publishable product', () => {
@@ -375,6 +444,8 @@ describe('assertPublishable — artwork verdict', () => {
       hasPoster: true,
       hasAltText: true,
       hasOwnGlb: true,
+      hasDisplayName: true,
+      hasSlug: true,
     },
   ]
   const base: PublishGateInput = {
