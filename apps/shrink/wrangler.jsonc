@@ -65,6 +65,21 @@
   // cms.wear-run.help Bot Fight Mode challenge) entirely.
   "services": [{ "binding": "CMS", "service": "run-apparel-viewer-cms" }],
 
+  // Task 14: one headless-browser session per garment, used to screenshot the
+  // viewer's own /render route (task 13) for every colour that has no photo
+  // yet — see src/posters.ts and capturePosters() in src/index.ts.
+  //
+  // ⚠️ COST MODEL, not a style preference. Workers Paid includes 10
+  // browser-hours/month, then $0.09/hour. src/index.ts opens exactly ONE
+  // session per job (`puppeteer.launch`) and navigates it once per colour —
+  // never one session per colour, which would pay a fresh Cloudflare browser
+  // cold-start on top of every single navigation instead of just once per
+  // garment. Puppeteer cannot reach this over the CMS's `services` binding
+  // above — a headless browser makes its OWN real HTTP requests to
+  // viewer.wear-run.help, not `fetch()` calls this Worker's JS makes — so it
+  // is a Browser Rendering binding, unrelated to `services`.
+  "browser": { "binding": "BROWSER" },
+
   "vars": {
     // R2 S3 endpoint + bucket for the private ingest bucket. The account-id host
     // is filled in at go-live. The read-only access key/secret are SECRETS:
@@ -75,6 +90,10 @@
     "R2_INGEST_BUCKET": "run-apparel-viewer-ingest",
     // Host used when building the request URL routed through the CMS service
     // binding (the binding, not DNS, decides where it goes).
-    "CMS_ORIGIN": "https://cms.wear-run.help"
+    "CMS_ORIGIN": "https://cms.wear-run.help",
+    // Task 14: where the browser session in capturePosters() navigates to.
+    // Unlike CMS_ORIGIN above this cannot be a service binding (see the
+    // "browser" comment above), so it has to be the real public host.
+    "VIEWER_ORIGIN": "https://viewer.wear-run.help"
   }
 }

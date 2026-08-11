@@ -71,3 +71,52 @@ test('refuses a request with no model at all', async ({ page }) => {
   const response = await page.goto('/render')
   expect(response?.status()).toBe(400)
 })
+
+test('requirement 5: a webglcontextlost-shaped error is handled via model-viewer’s own event, not the real DOM one', async ({
+  page,
+}) => {
+  // apps/viewer/CLAUDE.md: the REAL `webglcontextlost` DOM event never
+  // reaches a listener added the ordinary way on <model-viewer> — it fires on
+  // the shadow-root <canvas> and is not composed. The library's own contract
+  // is its `error` event with `detail.type === 'webglcontextlost'` instead.
+  // Real context loss cannot be triggered deterministically, so this
+  // dispatches the synthetic event AFTER a real load — same technique
+  // webgl.spec.ts's own context-loss test uses — and asserts on the console
+  // line RenderPage.tsx's handler logs, not just "nothing crashed": a
+  // missing or misnamed listener would ALSO leave the page looking fine,
+  // which is exactly the kind of test this repo has a documented pattern of
+  // writing by accident.
+  const consoleErrors: string[] = []
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') consoleErrors.push(msg.text())
+  })
+
+  const params = new URLSearchParams({
+    model: '/fixtures/n001.glb',
+    variant: 'N001-NAVY',
+    orbit: '0deg 82deg 105%',
+    fov: '30deg',
+  })
+  await page.goto(`/render?${params.toString()}`)
+  await page.waitForFunction(
+    () => (window as unknown as { __RENDER_READY?: boolean }).__RENDER_READY === true,
+    null,
+    { timeout: 60_000 },
+  )
+
+  await page.evaluate(() => {
+    document
+      .querySelector('model-viewer')!
+      .dispatchEvent(
+        new CustomEvent('error', { detail: { type: 'webglcontextlost', sourceError: null } }),
+      )
+  })
+
+  expect(consoleErrors.some((line) => line.includes('webglcontextlost'))).toBe(true)
+  // The handler only logs — it must never retroactively clear a readiness
+  // flag Part B's screenshot loop may already have acted on.
+  const stillReady = await page.evaluate(
+    () => (window as unknown as { __RENDER_READY?: boolean }).__RENDER_READY,
+  )
+  expect(stillReady).toBe(true)
+})
