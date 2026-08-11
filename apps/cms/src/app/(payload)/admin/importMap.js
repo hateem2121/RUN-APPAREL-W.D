@@ -1,3 +1,5 @@
+import { FolderTableCell as FolderTableCell_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
+import { FolderField as FolderField_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 import { RawUploadStatusCell as RawUploadStatusCell_720ef47cb384dab60583c42dbe2cd1d0 } from '../../../collections/RawUploadStatusCell'
 import { ReadinessPanel as ReadinessPanel_7b203020bdbc7b37ab6956fc44b2a368 } from '../../../fields/ReadinessPanel'
 import { ImportColoursFromFile as ImportColoursFromFile_42b0f990f811dbd337c54c78b0093b88 } from '../../../fields/ImportColoursFromFile'
@@ -26,12 +28,15 @@ import { StrikethroughFeatureClient as StrikethroughFeatureClient_e70f5e05f09f93
 import { UnderlineFeatureClient as UnderlineFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { BoldFeatureClient as BoldFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { ItalicFeatureClient as ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
+import { FolderTypeField as FolderTypeField_2b8867833a34864a02ddf429b0728a40 } from '@payloadcms/next/client'
 import { R2ClientUploadHandler as R2ClientUploadHandler_85cc02ed84006fcc91d3aff39dda669d } from '@payloadcms/storage-r2/client'
 import { Dashboard as Dashboard_883c31e5a2819bb83d4b37435313e9bf } from '../../../views/Dashboard'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
 /** @type import('payload').ImportMap */
 export const importMap = {
+  '@payloadcms/next/rsc#FolderTableCell': FolderTableCell_f9c02e79a4aed9a3924487c0cd4cafb1,
+  '@payloadcms/next/rsc#FolderField': FolderField_f9c02e79a4aed9a3924487c0cd4cafb1,
   '/collections/RawUploadStatusCell#RawUploadStatusCell':
     RawUploadStatusCell_720ef47cb384dab60583c42dbe2cd1d0,
   '/fields/ReadinessPanel#ReadinessPanel': ReadinessPanel_7b203020bdbc7b37ab6956fc44b2a368,
@@ -86,6 +91,7 @@ export const importMap = {
     BoldFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   '@payloadcms/richtext-lexical/client#ItalicFeatureClient':
     ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
+  '@payloadcms/next/client#FolderTypeField': FolderTypeField_2b8867833a34864a02ddf429b0728a40,
   '@payloadcms/storage-r2/client#R2ClientUploadHandler':
     R2ClientUploadHandler_85cc02ed84006fcc91d3aff39dda669d,
   '/views/Dashboard#Dashboard': Dashboard_883c31e5a2819bb83d4b37435313e9bf,

@@ -29,6 +29,18 @@ export const Media: CollectionConfig = {
   slug: 'media',
   // See Products.ts — pinned against Payload v4 flipping the default to ON.
   versions: false,
+  // BETA, accepted deliberately on 2026-08-10 against installed Payload 3.86.0:
+  // the type's own doc comment on `Config.folders` reads "This feature may
+  // change in minor versions until it is fully stable." At 100+ garments the
+  // media library is ~1,000 files in one flat list — unusable — so the owner
+  // took the beta risk. NOTE the property is top-level `folders`, not
+  // `admin.folders`: verified against payload@3.86.0's own
+  // `CollectionConfig`/`SanitizedCollectionConfig` types
+  // (dist/collections/config/types.d.ts), which declare `folders` as a
+  // sibling of `admin`, and against `sanitize.js`, which reads
+  // `config.collections[i].folders` (not `.admin.folders`) to decide whether
+  // to attach the hidden folder-relationship field.
+  folders: true,
   labels: { singular: 'Photo or 3D file', plural: 'Photos & 3D files' },
   admin: {
     group: 'Content',

@@ -37,6 +37,12 @@ import { createInterface } from 'node:readline/promises'
  * test go green, and left this script blind to it: with `--delete`, that means
  * deleting a file a published product is using. Found by the linter, which
  * flagged it as an unused variable.
+ *
+ * NOT here: `media.folder` (Payload's Folders feature, enabled 2026-08-11).
+ * See the matching note on MEDIA_REFERENCE_PATHS in apps/shrink/src/cms.ts for
+ * why — short version, it is a field ON media pointing OUT at a folder, not a
+ * field on `products` pointing IN at media, so it is not this kind of path and
+ * says nothing about whether a file is still in use.
  */
 const REFERENCE_PATHS = [
   'glbAsset',

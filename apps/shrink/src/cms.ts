@@ -32,6 +32,18 @@ export function cmsFetch(env: CmsEnv, path: string, init: RequestInit): Promise<
  * scripts/find-orphan-media.mjs, or one of them will treat a live asset as an
  * orphan. apps/cms/src/collections/mediaReferences.test.ts asserts the two stay in
  * step — there has never been an apps/shrink/src/index.test.ts.
+ *
+ * NOT here: `media.folder` (Payload's Folders feature, enabled 2026-08-11 —
+ * see Media.ts's `folders: true`). Deliberate, not an oversight. These paths
+ * find documents in OTHER collections that point AT a media id, to answer "is
+ * this file still in use" — each is queried as `where[or][n][path][equals]` on
+ * `/api/products`. `folder` is the opposite direction: a field ON media
+ * itself, pointing OUT at a `payload-folders` document. Which folder a file is
+ * organised under says nothing about whether a product is using it, and the
+ * path shape does not fit this query (`/api/products` has no `folder` field to
+ * match against). mediaReferences.test.ts would not catch a miss here either
+ * way — it only scans for `relationTo: 'media'`, and `folder`'s is
+ * `relationTo: 'payload-folders'`.
  */
 export const MEDIA_REFERENCE_PATHS = [
   'glbAsset',
