@@ -45,6 +45,8 @@ First-time deployment: follow **`docs/CLOUDFLARE-SETUP.md`** once, top to bottom
 | See how the AI agent tooling is wired | [`docs/AI-TOOLING.md`](docs/AI-TOOLING.md) |
 | Work on this repo (human or AI) — the traps that cost sessions | [`CLAUDE.md`](CLAUDE.md) |
 | Diagnose damaged printed artwork | [`docs/OPEN-ISSUE-ARTWORK.md`](docs/OPEN-ISSUE-ARTWORK.md) |
+| Contribute a change — the full gate list, and the rules that are not style | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| Report a security problem (**do not open an issue**) | [`SECURITY.md`](SECURITY.md) |
 
 **Session logs** — narrative records of expensive debugging, kept because
 re-deriving them costs days: [`docs/SESSION-2026-07-27.md`](docs/SESSION-2026-07-27.md)
@@ -261,7 +263,16 @@ opens no alert at all — which is how the uptime check sat dead for ~23 hours o
 
 ```bash
 pnpm install
-pnpm lint && pnpm typecheck && pnpm test && pnpm build   # all workspaces (623 unit tests, 2026-08-12)
+pnpm lint && pnpm typecheck && pnpm test && pnpm build   # all workspaces (629 unit tests, 2026-08-12)
+
+# THREE GATES CI RUNS THAT THE LINE ABOVE DOES NOT. Each is invisible from the
+# workspace root, and "it passed locally" has failed here because of exactly that:
+# `pnpm -r` skips the shrink container (not a workspace member), and the artwork
+# eval and the alert-shell checks are separate CI steps.
+bash scripts/test-alert-shell.sh                  # the alert branch nothing else exercises
+node scripts/check-bundle-budget.mjs              # deterministic shell-weight gate (needs a build)
+pnpm eval:artwork                                 # artwork legibility — gates the deploy
+cd apps/shrink/container && npm install --no-audit --no-fund && npx tsc --noEmit
 
 pnpm seed:assets   # placeholder GLBs/posters + merged N001 file
 pnpm dev:cms       # Payload admin on http://localhost:3000 (local D1/R2 emulation)

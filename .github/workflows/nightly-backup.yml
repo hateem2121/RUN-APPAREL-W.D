@@ -5,6 +5,24 @@ on:
     - cron: '17 2 * * *' # 02:17 UTC nightly (GitHub cron may drift ~minutes)
   workflow_dispatch:
 
+# `contents: read` is all this needs, and stating it is the point: the job holds
+# CLOUDFLARE_API_TOKEN and exports a database containing password hashes, so the
+# GITHUB_TOKEN beside it should be able to do as little as possible.
+#
+# ⚠️ A `permissions:` block REPLACES the default grants (see the note at the top
+# of uptime.yml, where omitting `contents: read` broke `actions/checkout` with a
+# 404). `actions/upload-artifact` is unaffected by this block — it authenticates
+# with the runtime artifact token, not GITHUB_TOKEN.
+permissions:
+  contents: read
+
+# A backup run overlapping the next one would have two exports writing the same
+# stamped paths. Queue instead of cancel: a half-finished backup is worse than a
+# late one.
+concurrency:
+  group: nightly-backup
+  cancel-in-progress: false
+
 jobs:
   backup:
     # Only after go-live (remote D1/R2 exist + secrets set): Phase 10.
@@ -14,9 +32,11 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: pnpm
@@ -24,7 +44,7 @@ jobs:
 
       - name: Export D1
         run: node scripts/backup-d1.mjs --stamp="$(date -u +%Y-%m-%d)"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: d1-backup-${{ github.run_id }}
           path: backups/d1/*.sql
@@ -41,7 +61,7 @@ jobs:
           else
             echo "Not Monday — skipping weekly R2 mirror."
           fi
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ hashFiles('backups/r2/**') != '' }}
         with:
           name: r2-backup-${{ github.run_id }}

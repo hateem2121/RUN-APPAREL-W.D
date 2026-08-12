@@ -1,0 +1,34 @@
+# Code owners for hateem2121/run-apparel-viewer
+#
+# Single-maintainer repository, so the catch-all below is the operative line.
+# The explicit entries under it are not redundant: they are the list of paths
+# where a change has previously reached production and caused an incident, and
+# naming them means a review request never silently lands on nobody when
+# collaborators are added later.
+#
+# CODEOWNERS only takes effect on pull requests. It does not enforce review by
+# itself — that requires "Require review from Code Owners" in branch protection.
+# See docs/RUNBOOK.md -> "Deploy safety gate".
+
+*                                   @hateem2121
+
+# Deploys, migrations and the alert branches. A mistake here is invisible until
+# the day it matters: the alerting shell was silently disabled for 17 days.
+/.github/workflows/                 @hateem2121
+/apps/cms/src/migrations/           @hateem2121
+
+# Data-loss surface. `isMediaReferenced` deletes files; the orphan finder only
+# reports. They must agree on what "referenced" means.
+/apps/shrink/src/cms.ts             @hateem2121
+/scripts/find-orphan-media.mjs      @hateem2121
+
+# The artwork path. Every number in here is justified by a rendered image, not
+# by a passing test.
+/tools/asset-pipeline/              @hateem2121
+
+# Security posture and the policies that gate the deploy.
+/SECURITY.md                        @hateem2121
+/audit-ci.jsonc                     @hateem2121
+/.gitleaks.toml                     @hateem2121
+/pnpm-workspace.yaml                @hateem2121
+/patches/                           @hateem2121

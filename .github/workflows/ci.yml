@@ -10,13 +10,29 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege for every job in this file, stated explicitly rather than
+# inherited. Third-party code runs here — `pnpm install`, the build, the test
+# suites — and until this block existed it ran with whatever the repository
+# default happened to be.
+#
+# ⚠️ A `permissions:` block REPLACES the default grants; it does not add to them.
+# That is not a general caution, it is this repository's own scar: 8301e60 added
+# `actions/checkout` to uptime.yml, whose block listed only `issues: write`, and
+# checkout then failed with "Repository not found" — GitHub answers 404, not 403,
+# on a private repo, so it read as a deleted repository rather than a permissions
+# problem. Every job below that needs more than `contents: read` says so itself.
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: pnpm
@@ -60,6 +76,22 @@ jobs:
 
       - run: pnpm seed:assets
       - run: pnpm build
+
+      # Deterministic weight budget for the viewer shell. This is inside `verify`,
+      # which IS in the deploy's `needs:` list — unlike the `lighthouse` job, which
+      # measures the same thing better but needs Chrome and is therefore
+      # deliberately non-gating ("a Chrome flake must never block a live release").
+      # The result until now was that no automated statement about page weight could
+      # fail a deploy. This one can, because there is nothing in it to flake: it
+      # reads built files off disk and gzips them. Same input, same number, every
+      # machine.
+      #
+      # Measured on this build: script 87%, wasm 91%, font 87%, stylesheet 72% of
+      # budget. Both directions were verified when it was added — it passes at those
+      # numbers and exits 1 with the category named when a budget is undercut.
+      - name: Bundle weight budget (deterministic, no browser)
+        run: node scripts/check-bundle-budget.mjs
+
       # WebKit is not optional here. A QR code on a garment tag is scanned with a
       # phone camera, which opens iOS Safari — and until 2026-08-03 this step
       # installed Chromium only, so the suite ran Chromium twice and the single
@@ -112,7 +144,7 @@ jobs:
         run: echo "v=$(node -p 'require("./apps/viewer/node_modules/@playwright/test/package.json").version')" >> "$GITHUB_OUTPUT"
       - name: Restore Playwright browsers
         id: pw-cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.pw.outputs.v }}-chromium-webkit-firefox
@@ -131,9 +163,11 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: pnpm
@@ -155,11 +189,12 @@ jobs:
       # gitleaks-action lists the PR's commits to scan them (pull_request events).
       pull-requests: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0 # full history — a secret is usually in an older commit
       - name: gitleaks
-        uses: gitleaks/gitleaks-action@v3
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
@@ -187,9 +222,11 @@ jobs:
   lighthouse:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: pnpm
@@ -244,9 +281,11 @@ jobs:
   artwork:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: pnpm
@@ -261,7 +300,7 @@ jobs:
         run: echo "v=$(node -p 'require("./tools/asset-pipeline/node_modules/@playwright/test/package.json").version')" >> "$GITHUB_OUTPUT"
       - name: Restore Playwright browsers
         id: pw-cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.pw.outputs.v }}-chromium
@@ -310,9 +349,11 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: pnpm

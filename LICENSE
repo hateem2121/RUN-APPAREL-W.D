@@ -1,0 +1,41 @@
+Copyright (c) 2026 RUN APPAREL. All rights reserved.
+
+PROPRIETARY AND CONFIDENTIAL
+
+This software and its accompanying documentation, 3D assets, product imagery and
+data (together, "the Software") are the proprietary and confidential property of
+RUN APPAREL.
+
+No licence, express or implied, is granted by the publication of this repository
+or by access to it. Without the prior written permission of RUN APPAREL you may
+not:
+
+  1. copy, reproduce, publish or redistribute the Software, in whole or in part;
+  2. modify the Software or create derivative works from it;
+  3. sell, sublicense, rent, lease or otherwise transfer any interest in it;
+  4. reverse engineer, decompile or disassemble any part of it, except to the
+     extent that this restriction is prohibited by applicable law;
+  5. remove or obscure any copyright, trademark or other proprietary notice.
+
+Access granted to a partner, contractor or evaluator is a limited, revocable,
+non-transferable permission to use the Software for the purpose agreed in
+writing with RUN APPAREL, and for no other purpose.
+
+THIRD-PARTY COMPONENTS. The Software depends on open-source packages that are
+licensed separately by their own authors, under their own terms. Those terms
+govern those components and are not altered by this notice; a full inventory is
+resolvable from `pnpm-lock.yaml`. This notice applies to the original work in
+this repository only.
+
+GARMENT DATA. Product designs, colourway names, printed artwork, photography and
+the CLO 3D source exports referenced by this repository are separately protected
+works of RUN APPAREL and are not licensed by any grant relating to the software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Enquiries: partner@wear-run.com

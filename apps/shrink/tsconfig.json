@@ -1,17 +1,22 @@
 {
+  // EXTENDS THE BASE since 2026-08-12. It did not until then, and the drift was
+  // invisible: this file restated most of the base's options by hand, so it looked
+  // equivalent while quietly missing `noUncheckedIndexedAccess`,
+  // `noImplicitOverride`, `noFallthroughCasesInSwitch` and `noImplicitReturns`.
+  // Every other workspace had them. This is the Worker that drives the container
+  // that processes every real garment — the least appropriate place in the
+  // repository to be the one package checked less strictly than the rest.
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "lib": ["ES2022"],
-    "types": ["@cloudflare/workers-types"],
-    "strict": true,
-    "skipLibCheck": true,
     "noEmit": true,
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "verbatimModuleSyntax": true
+    // The ONE deliberate divergence, and it must stay. Setting `types` to
+    // workers-types with no node types is what keeps node globals out of code the
+    // Worker runs. It is also why `@cloudflare/workers-types` is version-held: this
+    // is the only package that resolves `readFile`'s Buffer against workers-types'
+    // own definitions, so releases from 5.20260808.1 on fail here and nowhere else
+    // (root CLAUDE.md). tools/asset-pipeline typechecks the same file and passes,
+    // because it sets `types: ["node"]`.
+    "types": ["@cloudflare/workers-types"]
   },
   // The Worker, plus the container's pure report module, which src/
   // containerReport.test.ts covers — that ~10 KB of operator-facing text is what

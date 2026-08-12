@@ -9,6 +9,18 @@
     "lib": ["ES2022"],
     "types": ["node"],
     "strict": true,
+    // Kept IN SYNC WITH tsconfig.base.json by hand, deliberately rather than by
+    // `extends`. This package is copied into the Docker image without the
+    // repository root (apps/shrink/Dockerfile COPYs only `tools/asset-pipeline` and
+    // `apps/shrink/container`), so `extends: "../../../tsconfig.base.json"` would
+    // resolve in CI and break the moment anyone ran a typecheck inside the image.
+    // Restating them is the lesser evil; if you add a strictness flag to the base,
+    // add it here too.
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,

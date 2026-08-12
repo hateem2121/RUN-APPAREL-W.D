@@ -79,8 +79,21 @@ export interface OptimizeOptions {
    * from the cloth simulation); the mesh, not the textures, is what makes them
    * huge. Off (undefined) by default. The mesh is welded first so the simplifier
    * can collapse shared edges; run before geometry compression.
+   *
+   * ⚠️ The `| undefined` on this and the three `simplify*` options below is
+   * REQUIRED, not noise, and removing it breaks the build under
+   * `exactOptionalPropertyTypes` (this package's tsconfig.json). Plain `?: number` means
+   * "the key may be absent"; it does NOT permit an explicit `simplify: undefined`.
+   * Both callers build their options object from parsed CLI args and pass the key
+   * through unconditionally — `parseOptimizeArgs` → `optimizeGlb`, and
+   * `merge-variants.ts` — so the value really is `number | undefined` at runtime.
+   * Writing `?: number` here was a claim the code did not honour, which is exactly
+   * the absent-vs-present-and-empty confusion that already bites this interface
+   * once: see the `opaque` default mismatch in the root CLAUDE.md, where the two
+   * call paths disagree about what an absent key means and decals shipped
+   * see-through.
    */
-  simplify?: number
+  simplify?: number | undefined
 
   /**
    * Error budget for `--simplify`, as a fraction of mesh radius. The simplifier
@@ -91,15 +104,15 @@ export interface OptimizeOptions {
    * so once the budget binds, lowering `--simplify` further changes nothing.
    * Raise the budget — or lower `simplifyUvWeight` — to get a smaller file.
    */
-  simplifyError?: number
+  simplifyError?: number | undefined
   /**
    * How heavily UV distortion counts against the error budget (0 disables the
    * attribute-aware path). This is what protects printed graphics; see
    * simplify-textured.ts for why it replaced `lockBorder`.
    */
-  simplifyUvWeight?: number
+  simplifyUvWeight?: number | undefined
   /** Same for vertex normals — protects shading rather than artwork. */
-  simplifyNormalWeight?: number
+  simplifyNormalWeight?: number | undefined
 }
 
 export const DEFAULT_MAX_TEXTURE = 2048

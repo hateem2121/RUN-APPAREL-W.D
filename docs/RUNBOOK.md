@@ -747,6 +747,61 @@ The enquiry path is a `mailto:`/`wa.me` link built client-side
 **Rollback:** unset `VITE_SENTRY_DSN` and redeploy. The SDK leaves the bundle and
 the CSP entry disappears with it — no code revert needed.
 
+## What "working" means — service objectives
+
+Written down because "is the site OK?" was previously answered by opinion, and
+because an alert threshold is only meaningful next to a target it defends.
+
+**This is a B2B reference viewer, not a shop.** Nobody loses a transaction when it
+is down; a buyer who scanned a QR tag sees an error and forms a view of the brand.
+That sets the bar high enough to matter and low enough to be honest about a
+$5/month budget and one part-time maintainer.
+
+| Objective | Target | Measured by | Why this number |
+|---|---|---|---|
+| Viewer page loads | **99.5%/month** (≈3.6 h down) | UptimeRobot keyword check, 5 min | Cloudflare Workers' own availability is the floor; we cannot beat our platform |
+| Product API answers | **99.5%/month** | UptimeRobot keyword `"productCode":"N001"` | Same |
+| A published garment actually renders | **100%** — any failure is an incident | `scripts/smoke-viewer-payload.mjs` in uptime.yml | A 200 that renders nothing is the failure this project has actually shipped, twice |
+| Time to notice an outage | **≤10 min** | UptimeRobot, 5 min interval | GitHub's cron cannot do this — see below |
+| Time to roll back a bad deploy | **≤15 min** | "Undoing a bad deploy" above | Procedure is written and drilled |
+| Printed artwork legible on every deploy | **100%** | `pnpm eval:artwork` gates CI | Not availability, but it is the product |
+
+**The detection target is why the external monitor is not optional.**
+`uptime.yml` asks for every 15 minutes and GitHub delivers about 27% of that —
+median gap 44.7 min, p90 102 min, worst 6.1 h, measured over 100 runs on
+2026-08-10. On GitHub's cron alone the honest detection target would be "about an
+hour, sometimes six". UptimeRobot's 5-minute check is what makes ≤10 min true.
+Treat `uptime.yml` as the *deep* check (it verifies a garment renders) and
+UptimeRobot as the *fast* one.
+
+### Who gets told, and in what order
+
+1. **UptimeRobot → email to the owner.** Fastest, and outside the system being
+   watched. This is the one that matters.
+2. **`uptime.yml` → a GitHub issue**, or a comment on the open one. Deeper check,
+   slower and less reliable delivery.
+3. **`heartbeat.yml`, every 6 h → an issue if the monitors themselves stopped
+   running.** This exists because the alerting branch was silently disabled for 17
+   days and nothing noticed.
+4. **Sentry → email** on a client-side exception. Not an availability signal; a
+   quality one.
+5. **`diagnostics-digest.yml`, Mondays** — the weekly read, not an alert.
+
+⚠️ **Layers 2–5 all terminate in one person's GitHub notifications, inside the
+system being watched.** That single point of failure is the reason layer 1 exists
+and is the reason it must not be switched off to reduce noise. If you ever find
+yourself muting UptimeRobot, add a second destination instead.
+
+### What is deliberately NOT covered
+
+- **No paging, no on-call, no 24/7.** One maintainer in one timezone. An outage
+  that starts at 02:00 is found at breakfast, and that is accepted.
+- **No error budget policy.** Recorded as a decision, not an oversight: with a
+  single maintainer there is no release train to halt, so a budget would be a
+  number nobody could act on.
+- **The bare apex `wear-run.help` is not monitored and returns 522 by design.**
+  Owner-confirmed 2026-08-12. Do not add a check for it.
+
 ## Uptime alerts
 
 `.github/workflows/uptime.yml` **asks** GitHub to ping `/api/health` and the viewer

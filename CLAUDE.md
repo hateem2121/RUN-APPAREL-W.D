@@ -41,15 +41,22 @@ pnpm install --frozen-lockfile   # after every merge; the lockfile moves often h
 pnpm lint                        # biome check .
 pnpm typecheck                   # 5 workspaces
 pnpm test
+bash scripts/test-alert-shell.sh # the alert branch nothing else exercises
 pnpm seed:assets && pnpm build   # build is the one that catches dependency breaks
+node scripts/check-bundle-budget.mjs  # deterministic shell weight; needs the build above
 pnpm eval:artwork                # separate CI job — gates the deploy
 ```
 
-Two of these are invisible from the workspace, and that is why "it passed locally"
-has failed twice: `apps/shrink/container` is not a pnpm member and gets its own
-`npm install --no-audit --no-fund && npx tsc --noEmit` step in CI, and
-`eval:artwork` runs in a job of its own. README's list under "Local development"
-omits `lint` and both of these.
+Three of these are invisible from the workspace, and that is why "it passed
+locally" has failed twice: `apps/shrink/container` is not a pnpm member and gets
+its own `npm install --no-audit --no-fund && npx tsc --noEmit` step in CI,
+`eval:artwork` runs in a job of its own, and `check-bundle-budget` reads
+`apps/viewer/dist` so it exits 1 unless `pnpm build` has already run.
+⚠️ This paragraph claimed until 2026-08-13 that README's "Local development" list
+"omits `lint` and both of these". README had listed `lint` for some time, so that
+was already wrong when read; it now lists every gate above. Corrected by running
+the commands rather than re-reading the sentence — the same lesson as
+`eval:artwork:real -- raw/x.glb` below.
 
 **`pnpm` is not on `PATH` on the owner's machine — use `npx --yes pnpm@10.33.0`.**
 Every documented `pnpm <script>` in this repo means that. Bare `pnpm` fails with
@@ -71,14 +78,18 @@ exactly as `PORT` was:** `apps/cms`'s build script is now
 `NODE_ENV=production next build`, so the environment cannot reach it. Verified
 with `NODE_ENV=development` still exported.
 
-⚠️ **Where these variables come from is NOT settled, and the distinction matters
-before anyone goes hunting.** Measured 2026-08-09: neither `NODE_ENV` nor `PORT`
+⚠️ **Where these variables come from is NOT settled, and it has now measured BOTH
+ways — do not assume either state.** 2026-08-09: neither `NODE_ENV` nor `PORT`
 appears in `~/.zshrc`, `~/.zshenv`, `~/.zprofile`, `~/.bash_profile` or
-`~/.profile`, yet both are set in the environment these sessions run in
-(`NODE_ENV=development`, `PORT=5002`). So they are probably supplied by the
-harness rather than by the owner's shell — which means the owner running the same
-command in their own terminal may never see either failure, and "it works for me"
-proves nothing about the other. Both are now fixed at the source anyway, which is
+`~/.profile`, yet both *were* set in the session environment
+(`NODE_ENV=development`, `PORT=5002`). **2026-08-13, same machine:
+`env | grep -E '^(NODE_ENV|PORT)='` returned nothing** — neither was set, and a
+full lint / typecheck / 629 tests / build / e2e-free gate run passed with no
+workaround. So the harness supplies them *sometimes*, not always. This paragraph
+used to say they are set, flatly; that is what changed. The consequence is
+unchanged and is the point: the owner in their own terminal, and two sessions
+four days apart, can each see a different environment, so **"it works for me"
+proves nothing about the other.** Both are fixed at the source anyway, which is
 why it does not matter day to day. **If a build or a test server fails in a way
 that makes no sense, run `env | grep -E 'NODE_ENV|PORT'` before reading any
 code** — that is twice now.
@@ -224,6 +235,28 @@ the answer is "nothing that happens in production", it is not a test.
   `package.json` in the workspace desynchronises it and the image build dies on
   `npm ci` **after** every local gate has passed. Cost a deploy on 2026-08-12; full
   procedure in `tools/asset-pipeline/CLAUDE.md`.
+- **Editing a workflow? `apps/cms/src/workflowHardening.test.ts` gates it.** Since
+  2026-08-13 every workflow must declare a top-level `permissions:` block that
+  includes `contents`; every `uses:` must be a 40-hex SHA with a `# vX.Y.Z`
+  comment (Dependabot maintains both); every `actions/checkout` must set
+  `persist-credentials: false`; no `run:` block may interpolate
+  `${{ github.event.* }}` or `${{ github.head_ref }}` — carry it in `env:` and
+  test `"$VAR"`; and every `pnpm <script>` a workflow invokes must exist. All five
+  assertions have verified negative controls, so a failure names the file and
+  line. ⚠️ A `permissions:` block **REPLACES** the defaults rather than adding to
+  them — omitting `contents: read` breaks `actions/checkout` with a **404** on
+  this private repo, which is how uptime.yml died silently for 23 hours. The
+  injection rule was not theoretical: `uptime.yml` was pasting a dispatch input
+  into shell in a job holding `GH_TOKEN`, found 2026-08-12.
+- **The shrink container runs as uid 1000, not root, since 2026-08-13 — it can
+  write ONLY under `/tmp`.** `/app` is root-owned and read-only to it, so any new
+  scratch path must go through `mkdtemp(join(tmpdir(), …))` as `container/server.ts`
+  already does. A write to `/app` will pass every local gate and fail at runtime
+  inside the Container, where the error surfaces as a failed shrink job rather
+  than as a permissions problem. Verified by running the image: writes `/tmp`,
+  refused `/app`, service starts and answers. The base image is **digest-pinned**
+  for build reproducibility (sharp links against system libs); Dependabot's
+  `docker` ecosystem updates it — do not unpin it to make an update easier.
 - **`apps/cms` was pinned to TypeScript 6 until 2026-08-12 — RESOLVED by Next
   16.3.0, and the lesson it taught outlives the pin.** Next.js 16.2.12 refused TS 7
   outright: *"TypeScript 7.0.2 does not provide the compiler API required by
