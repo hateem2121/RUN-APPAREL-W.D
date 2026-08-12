@@ -137,6 +137,30 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   returning 200 while quietly ceasing to set it on every link, which is why
   `worker/preview.test.ts` asserts each rewritten tag still exists there.
 
+- **`_headers` does NOT reach a response the Worker builds itself — measured on
+  the live edge 2026-08-12.** The trap above establishes that `_headers` survives
+  `env.ASSETS.fetch()`, which is true and is not the whole story: `_headers` is
+  applied by the STATIC ASSET HANDLER, so a `new Response(...)` that never goes
+  through the binding carries none of it. Same route, two outcomes:
+  ```
+  GET /render?model=https://media.wear-run.help/x.glb → 200 asset-served:
+      csp, hsts, permissions-policy, referrer-policy, nosniff   ALL PRESENT
+  GET /render?model=https://evil.com/x.glb            → 400 Worker-built:
+      ALL FIVE ABSENT
+  ```
+  Nothing was exploitable — the body is a fixed string with no caller input — but
+  the next Worker-built response that carries HTML would ship with no CSP.
+  `worker/securityHeaders.ts` now supplies them; `scripts/csp.test.ts` pins its
+  values against `buildHeadersFile()`'s own `/*` rule so the two copies cannot
+  drift, and fails if a SIXTH header is added to `_headers` and not to it.
+  ⚠️ **The e2e fixture could never have caught this, because the fixture was too
+  GOOD:** `e2e/serve.mjs` sets its `GLOBAL_HEADERS` on every response *before* the
+  `/render` check, so its 400 was always correct while production's was not. An
+  assertion that "the refusal carries a CSP" passes locally and was false live.
+  That is the root `CLAUDE.md`'s fixtures-cannot-exhibit-the-failure pattern
+  inverted — worth remembering, because the usual instinct is to make the fixture
+  more faithful, and here the fixture was already ahead of production.
+
 - **`og:image` must not be the WebP poster, even though every browser reads WebP.**
   Link crawlers are not browsers: LinkedIn documents JPG/PNG/GIF only, and iMessage
   and WhatsApp are both unreliable with WebP. All five N001 posters are

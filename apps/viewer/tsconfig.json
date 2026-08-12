@@ -19,6 +19,8 @@
     "worker/og-cards.ts",
     "worker/og-cards.test.ts",
     "worker/renderGuard.ts",
-    "worker/renderGuard.test.ts"
+    "worker/renderGuard.test.ts",
+    "worker/securityHeaders.ts",
+    "worker/securityHeaders.test.ts"
   ]
 }

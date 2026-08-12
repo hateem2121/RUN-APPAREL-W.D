@@ -340,7 +340,9 @@ Two rules it must keep: a **colourway slug is printed on physical QR tags** and
 must never be changed by an automated process, and **row order decides the default
 colourway**, so nothing may reorder rows. Imported rows append, arrive
 `active: false`, and a low-confidence match arrives with an empty name rather than
-a guess. Tested in `apps/cms/src/fields/importColours.test.ts`.
+a guess. Tested in `packages/shared/src/importColours.test.ts` — it lived at
+`apps/cms/src/fields/importColours.test.ts` until 2026-08-11 (`16b548a`), and this
+line still said so until a post-merge review followed it and found nothing.
 
 ## Before you change a migration
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { SHARED_SECURITY_HEADERS } from '../worker/securityHeaders'
 import { buildCsp, buildHeadersFile } from './csp.mjs'
 
 /**
@@ -125,21 +126,27 @@ describe('buildCsp — the standing rules', () => {
   })
 })
 
-describe('buildHeadersFile — the _headers file', () => {
-  /** The directive lines belonging to a path rule in a `_headers` file. */
-  function ruleFor(out: string, path: string): string[] {
-    const lines = out.split('\n')
-    const start = lines.findIndex((l) => l.trim() === path)
-    expect(start, `no rule for ${path}`).toBeGreaterThan(-1)
-    const body: string[] = []
-    for (let i = start + 1; i < lines.length; i++) {
-      const line = lines[i] as string
-      if (!line.startsWith('  ')) break
-      body.push(line.trim())
-    }
-    return body
+/**
+ * The directive lines belonging to a path rule in a `_headers` file.
+ *
+ * Module scope rather than inside the describe below: the Worker-drift block at
+ * the bottom of this file reads the same `/*` rule, and two copies of the parser
+ * would be one more thing able to disagree.
+ */
+function ruleFor(out: string, path: string): string[] {
+  const lines = out.split('\n')
+  const start = lines.findIndex((l) => l.trim() === path)
+  expect(start, `no rule for ${path}`).toBeGreaterThan(-1)
+  const body: string[] = []
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i] as string
+    if (!line.startsWith('  ')) break
+    body.push(line.trim())
   }
+  return body
+}
 
+describe('buildHeadersFile — the _headers file', () => {
   // NOT a caching tweak, despite sitting on a Cache-Control line. Cloudflare
   // injects Bot Fight Mode's JavaScript Detections into HTML responses; that
   // inline script trips the CSP on every page load, and no hash can ever cover it
@@ -185,5 +192,44 @@ describe('buildHeadersFile — the _headers file', () => {
     expect(joined).toContain('Strict-Transport-Security:')
     // No Cache-Control here: /* would match hashed assets too.
     expect(joined.toLowerCase()).not.toContain('cache-control:')
+  })
+})
+
+/**
+ * `_headers` is applied by the STATIC ASSET HANDLER, so a response the Worker
+ * builds itself (`new Response(...)`) carries none of it. Measured on the live
+ * edge 2026-08-12: `/render`'s asset-served 200 carried all five security
+ * headers and its Worker-built 400 carried none — see worker/securityHeaders.ts.
+ *
+ * That fix necessarily restates four header values in Worker code. This is the
+ * test that stops the two copies drifting: it reads the `/*` rule out of the
+ * builder that actually WRITES `_headers` and compares it to what the Worker
+ * sends. Editing one HSTS max-age and not the other now fails here rather than
+ * in production, where only a header dump would ever have shown it.
+ *
+ * The CSP is deliberately NOT compared — the Worker's is tighter on purpose
+ * (`default-src 'none'`, no framing) because those responses are plain text.
+ * That difference is pinned in worker/securityHeaders.test.ts.
+ */
+describe('Worker-built responses do not drift from _headers', () => {
+  it('sends byte-identical values for every header the /* rule also sets', () => {
+    const rule = ruleFor(buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API }), '/*')
+
+    for (const [name, value] of Object.entries(SHARED_SECURITY_HEADERS)) {
+      const shipped = rule.find((line) => line.toLowerCase().startsWith(`${name.toLowerCase()}:`))
+      expect(shipped, `${name} is not in the /* rule of _headers`).toBeDefined()
+      expect(shipped?.slice(name.length + 1).trim()).toBe(value)
+    }
+  })
+
+  it('covers every non-CSP header the /* rule sets, so a new one cannot be missed', () => {
+    // The failure this guards is additive: someone adds a sixth security header
+    // to _headers, every existing assertion still passes, and Worker-built
+    // responses quietly lack it. Compare the SETS, not just the values.
+    const shipped = ruleFor(buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API }), '/*')
+      .map((line) => line.split(':')[0]?.trim())
+      .filter((name): name is string => Boolean(name) && name !== 'Content-Security-Policy')
+
+    expect(shipped.slice().sort()).toEqual(Object.keys(SHARED_SECURITY_HEADERS).slice().sort())
   })
 })
