@@ -3,6 +3,10 @@
     "codebase-memory": {
       "command": "codebase-memory-mcp",
       "args": []
+    },
+    "cloudflare": {
+      "type": "http",
+      "url": "https://bindings.mcp.cloudflare.com/mcp"
     }
   }
 }

@@ -1,4 +1,11 @@
-# Vendored agent skills
+# Agent skills
+
+**`deploy-preflight/` is ours** — written here, not vendored, so nothing below
+about SHAs or the review date applies to it. Everything else in this directory is
+third-party and pinned; keep first-party skills clearly separated from vendored
+ones so the review below stays a review of *other people's* instructions.
+
+## Vendored agent skills
 
 Third-party skills, **copied in and pinned to a commit** rather than installed.
 
