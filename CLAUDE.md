@@ -409,6 +409,15 @@ the answer is "nothing that happens in production", it is not a test.
   page. Fix is a **Custom Purge of that one URL**. Note `scripts/smoke-viewer-payload.mjs`
   deliberately uses `HEAD` to keep R2 egress off the $5/month cap, so it would **not**
   have caught this either.
+  ✅ **Re-confirmed 2026-08-13, in the opposite direction, and it nearly produced a
+  false alarm.** Same URL, same minute: **`GET` → `cf-cache-status: HIT`,
+  `age: 49431`** (~13.7 h, `cache-control: max-age=14400`), **`HEAD` → `DYNAMIC`**.
+  So the divergence is not specific to a cached 404 — HEAD does not share the GET's
+  cache entry at all. A session measuring cache behaviour with `curl -I` reads
+  `DYNAMIC` and concludes the 27 MB model is uncached on every request, which is
+  wrong and is a plausible-looking performance "finding". **Read `cf-cache-status`
+  off the GET's own headers (`curl -o /dev/null -D -`), never off a HEAD.**
+  Live reference numbers now live in `docs/QA-CHECKLIST.md` → "Performance & assets".
 
 - **Anything CI fetches from a `wear-run.help` host can 403 from a runner.**
   Free-plan Bot Fight Mode intermittently blocks datacenter traffic — it forced the

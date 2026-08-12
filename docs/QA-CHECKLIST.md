@@ -118,6 +118,31 @@ Full guide: [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md).
 
 ## Performance & assets
 
+### The reference numbers (so "is it fast?" stops being an opinion)
+
+Measured against **live production**, N001 wine, warm connection, 2026-08-13.
+These are what the automated checks cannot tell you: `lighthouserc.json` and
+`scripts/check-bundle-budget.mjs` both measure the application *shell*, and the
+shell is ~5% of what a buyer actually downloads.
+
+| Thing | Measured | Treat as a problem if |
+|---|---|---|
+| Viewer HTML, time to first byte | **0.47 – 0.92 s** | consistently > 1.5 s |
+| Product API (`/api/public/viewer/n001/wine`) | **2.1 – 3.7 s** | > 5 s |
+| The garment itself (27 MB GLB) | **~19 s at ~1.45 MB/s** | the *rate* drops, not the time — time scales with the tester's line |
+| Model edge cache | **`cf-cache-status: HIT`**, age ~13.7 h | `MISS` on repeat requests |
+
+⚠️ **Read `cf-cache-status` from the GET, never from a `curl -I`.** Measured the
+same minute: the GET said `HIT`, a HEAD on the identical URL said `DYNAMIC`. HEAD
+does not share the GET's cache entry — the same divergence behind the cached-404
+incident of 2026-08-06 (root `CLAUDE.md`). A HEAD reading here produces a
+convincing but false "the model is never cached" conclusion.
+
+⚠️ **The API is the slow one, and that is known and deliberate.** A Worker's own
+response does not pass through the edge cache, so its `s-maxage` buys nothing.
+This is why per-garment link previews are crawler-only — rewriting for every
+visitor would put ~2 s in front of every QR scan. See `apps/viewer/CLAUDE.md`.
+
 - [ ] Poster visible well before the model on Slow 4G
 - [ ] GLB used is the **pipeline-processed** one (`pnpm pipeline validate --strict` passed, and "Colours checked" shows green — it is derived and read-only, not a box you tick)
 - [ ] GLB is **under the size budget** (well under 8 MB; the CMS hard-blocks over 40 MB) — textures are **WebP or KTX2**, not raw PNG/JPEG
