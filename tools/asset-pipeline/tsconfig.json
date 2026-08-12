@@ -2,7 +2,15 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    // Stricter than the base — see the note there for why it is per-package.
+    // It paid for itself on the first run: `OptimizeOptions.simplify` and its three
+    // `simplify*` siblings were declared `?: number` while both callers pass
+    // `number | undefined` through unconditionally. That is the same
+    // absent-vs-present-and-undefined confusion that already shipped decals on
+    // `alphaMode: BLEND` once, via the `opaque` default mismatch between
+    // `parseOptimizeArgs` and `optimizeGlb` (root CLAUDE.md).
+    "exactOptionalPropertyTypes": true
   },
   "include": ["src"]
 }

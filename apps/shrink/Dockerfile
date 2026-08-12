@@ -8,7 +8,16 @@
 #
 # Must run on linux/amd64. Build in CI (amd64 runners) or, on an arm64 Mac, with
 # `--platform linux/amd64`.
-FROM node:24-slim
+#
+# PINNED BY DIGEST for the same reason `npm ci` replaced `npm install` below: two
+# builds of the same commit must produce the same pipeline. `node:24-slim` is a
+# moving tag — it picks up Node patch releases and rebuilt system libraries, and
+# sharp links against those. A change in the WebP encoder shows up as printed
+# artwork looking different for no reason anyone can trace to a commit, which is
+# the single hardest class of bug in this repository to attribute.
+# Dependabot's `docker` ecosystem updates this digest; do not unpin it to make an
+# update easier.
+FROM node:24-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03
 
 WORKDIR /app
 
@@ -42,4 +51,28 @@ COPY apps/shrink/container apps/shrink/container
 
 WORKDIR /app/apps/shrink/container
 EXPOSE 8080
+
+# --- Drop root ----------------------------------------------------------------
+# This service accepts a job over HTTP, pulls an arbitrary customer-supplied GLB
+# from R2, and hands it to sharp, draco3dgltf, meshoptimizer and ktx2-encoder —
+# four native decoders parsing untrusted binary input. That is the whole reason
+# not to run it as uid 0: a memory-safety bug in any of them should not start
+# from root.
+#
+# Safe without chowning anything, and both halves of that were checked rather
+# than assumed:
+#   * the pipeline writes ONLY to a per-job `mkdtemp(join(tmpdir(), 'shrink-'))`
+#     (container/server.ts:60) — /tmp is 1777, so uid 1000 can write it;
+#   * everything under /app is root-owned but world-readable (COPY's default
+#     0644/0755), which is all `tsx server.ts` needs to read and execute it.
+#
+# The installs above deliberately stay as root. `chown -R node:node /app` would
+# duplicate the entire node_modules layer — sharp, draco and ktx2-encoder are
+# most of the image — to grant write access that nothing at runtime uses.
+#
+# `node` (uid 1000) ships with the official image; it is not created here.
+ENV NPM_CONFIG_CACHE=/tmp/.npm \
+    XDG_CACHE_HOME=/tmp/.cache
+USER node
+
 CMD ["npm", "run", "start"]

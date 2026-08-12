@@ -1,7 +1,18 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    // Stricter than the base, and enabled HERE rather than there because
+    // apps/cms and apps/viewer cannot pass it — Payload's and @sentry/vite-plugin's
+    // own types declare `?: T` while accepting an explicit undefined. See the note
+    // in tsconfig.base.json.
+    //
+    // This package is the right place for the strictest setting in the repo: it is
+    // the contract three Workers and the pipeline all agree on, it has no runtime
+    // dependencies, and "the key is absent" vs "the key is present and undefined"
+    // is a distinction its consumers act on — a missing poster falls back to the
+    // generic link-preview card, a present-but-empty one does not.
+    "exactOptionalPropertyTypes": true
   },
   "include": ["src"]
 }

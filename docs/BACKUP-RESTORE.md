@@ -9,6 +9,48 @@ Everything the viewer depends on lives in two Cloudflare resources:
 
 Backups are **gitignored** (a D1 export contains password hashes — never commit it).
 
+## How much can we lose, and how fast can we be back?
+
+Two numbers, in plain terms:
+
+- **RPO — Recovery Point Objective.** How much recent work a restore would throw
+  away. "RPO 24h" means you could lose up to a day of edits.
+- **RTO — Recovery Time Objective.** How long the site stays broken while you fix it.
+
+| What broke | Tool | RPO (work lost) | RTO (time down) | Confidence |
+|---|---|---|---|---|
+| Bad migration / bad edit, D1 | Time Travel | **~1 minute** | **~10 min** | Drilled 2026-07-29 — this is the failure that actually happened |
+| D1 gone, or damage older than 30 days | nightly SQL dump | **up to 24h** | **~1h** | Drilled 2026-08-05; the drill is what found the restore instructions were wrong |
+| Cloudflare account lost | nightly SQL dump (GitHub artifact) | **up to 24h** | **~1 day** | Estimate — never drilled, and it needs a new account, new domain binding and new secrets |
+| Media (GLB/posters) deleted from R2 | weekly R2 mirror | **up to 7 days** | **~1h** | Estimate — mirror verified, restore never drilled end to end |
+| Bad deploy (code, not data) | rollback | **0** | **~5 min** | See RUNBOOK → "Undoing a bad deploy" |
+| Raw CLO export lost | **none — owner's own copies** | n/a | n/a | Deliberate: automated backup declined 2026-08-08. `raw/CANONICAL.json` records the checksum so an outside copy is *provable*, but nothing in this repo holds the file |
+
+**The weakest row is the R2 one**, and it is weak in an uninteresting way: the
+mirror runs weekly rather than nightly because a full media mirror costs egress
+against a $5/month cap, and models change rarely. If a garment is re-shrunk on a
+Tuesday and R2 is lost on a Friday, that model is regenerable from the raw export
+— which is the row below it, and the one with no backup at all. Those two rows
+are linked; do not read either alone.
+
+**RTO here excludes noticing.** Detection is a separate number and it is the
+larger one: see RUNBOOK → "Uptime alerts", where the *delivered* median gap
+between scheduled checks was measured at ~45 minutes, not the 15 the cron
+requests. External UptimeRobot checks run every 5 minutes and are the faster
+signal.
+
+### Restore drill log
+
+A backup nobody has restored is a hypothesis. Add a row each time one is run.
+
+| Date | What was drilled | Result |
+|---|---|---|
+| 2026-07-29 | D1 Time Travel, after the migration that emptied two tables | Worked; became the documented first resort |
+| 2026-08-05 | D1 restore from a nightly SQL dump | Worked, **and found the written instructions were wrong** — they were corrected as a result |
+
+**Next drill due: 2026-11-05** (quarterly). The one worth doing next is the R2
+media restore, because it is the only row above whose RTO is a guess.
+
 ## Taking a backup
 
 ```bash

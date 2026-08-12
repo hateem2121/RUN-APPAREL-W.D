@@ -8,6 +8,27 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
+    // Not included by `strict`. Catches a branch that falls off the end of a
+    // function returning `T | undefined` by accident rather than by decision — the
+    // artwork gates are full of functions whose "returned nothing" path means "no
+    // problem found", which is exactly where an accidental fallthrough reads as a
+    // pass. It earned its place immediately: enabling it found a test helper in
+    // apps/cms/src/endpoints/publicViewerSmoke.test.ts with a non-returning path.
+    "noImplicitReturns": true,
+    // ⚠️ `exactOptionalPropertyTypes` is deliberately NOT here — it is enabled per
+    // package, in packages/shared and tools/asset-pipeline only. Measured
+    // 2026-08-12 with it on repo-wide: `packages/shared` and
+    // `tools/asset-pipeline` pass (after one genuine under-declaration was fixed
+    // in optimize.ts — see the note on `simplify`), while `apps/cms` and
+    // `apps/viewer` produce errors that are mostly NOT ours. Payload's
+    // `SelectInputProps`, `GenericLabelProps` and `DraftDataFromCollectionSlug`,
+    // and @sentry/vite-plugin's options, all declare `?: T` while accepting an
+    // explicit undefined. Satisfying them means conditional-spreading every call
+    // site in the admin components and the seed data — a large refactor of the
+    // one area of this repo that has already caused a data-loss incident, to
+    // work around other people's type declarations. Enable it per package as
+    // those upstream types improve; do not turn it on here and paper over the
+    // difference with casts, which would silence more than it fixes.
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
     "skipLibCheck": true,

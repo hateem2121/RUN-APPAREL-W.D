@@ -120,10 +120,17 @@ interface ShrinkReport {
  * DO handles lifecycle, the image runs the Node shrink server on port 8080.
  */
 export class ShrinkContainer extends Container<Env> {
-  defaultPort = 8080
+  // `override` is required by `noImplicitOverride`, which this package only
+  // started inheriting on 2026-08-12 when it began extending tsconfig.base.json.
+  // It is not ceremony here: both of these are configuration the BASE class reads,
+  // so if @cloudflare/containers ever renames one, an unmarked property would
+  // silently stop overriding anything and quietly revert to the library default —
+  // a container that listens on the wrong port, or never sleeps and bills for it.
+  // Marked, that same rename is a compile error.
+  override defaultPort = 8080
   // A shrink is a few minutes at most; let the instance sleep soon after so we
   // only pay for active time.
-  sleepAfter = '3m'
+  override sleepAfter = '3m'
 }
 
 /**

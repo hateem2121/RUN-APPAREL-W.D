@@ -95,7 +95,10 @@ async function startOrigin({ getStatus }: { getStatus: number }): Promise<number
       return res.end('<html>cloudflare error page</html>')
     }
 
-    res.writeHead(404).end()
+    // `return` here, like the three branches above, so every path returns a
+    // value. Without it `noImplicitReturns` (tsconfig.base.json) flags the handler
+    // — correctly: a fall-through that looks like a fourth branch but is not one.
+    return res.writeHead(404).end()
   })
 
   server.listen(0, '127.0.0.1')
