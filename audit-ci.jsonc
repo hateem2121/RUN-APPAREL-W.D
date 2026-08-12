@@ -64,12 +64,26 @@
   // proven to be rejected before it reaches the parser. The argument above is
   // authenticated-attacker-only + DoS-only + CPU-capped, not "impossible".
   //
-  // REVIEW WHEN: payload is bumped, or image-size publishes any release above
-  // 2.0.2. Re-run `pnpm exec audit-ci --config audit-ci.jsonc` with these two
-  // lines removed — if it passes, delete them, exactly as the brace-expansion
-  // entries were deleted on 2026-08-04.
-  "allowlist": [
-    "GHSA-5p2g-fcmc-qvqq|apps__cms>payload>image-size",
-    "GHSA-w3rx-r6r6-pgpr|apps__cms>payload>image-size"
-  ]
+  // RESOLVED 2026-08-12 by the review this note asked for. payload was bumped
+  // 3.86.0 → 3.88.0, and 3.88.0 REPLACES the dependency outright rather than
+  // patching it: `image-size@2.0.2` is removed and `image-dimensions@2.5.1`
+  // (sindresorhus, zero runtime deps, no install hooks) takes its place —
+  // Payload cites the same two advisories at dist/uploads/probeImageSize.js.
+  // `image-size` no longer appears anywhere in pnpm-lock.yaml; before this bump
+  // it did.
+  //
+  // So the "unfixable" reading was correct at the time and stopped being true
+  // upstream, exactly like brace-expansion on 2026-08-04. Both lines deleted
+  // after re-running the gate without them: `high: 0, critical: 0`, passed.
+  // audit-ci had already emitted its own "Consider not allowlisting paths…"
+  // hint, which is the signal the header above asks you to act on.
+  //
+  // Worth recording because the old note was honest about its own limit: it
+  // explicitly did NOT claim unreachability, since image-size sniffs magic bytes
+  // rather than trusting the declared MIME type, so a hostile file named `.glb`
+  // was never proven to be rejected before reaching the parser. That residual
+  // path is now gone rather than argued down.
+  //
+  // EMPTY, and worth keeping that way.
+  "allowlist": []
 }
