@@ -29,6 +29,17 @@ const cases = [
   ['ALLOW', 'cat <<EOF\npnpm build\nEOF'],
   // ...but a real command AFTER a heredoc must still be caught:
   ['DENY', "cat <<'EOF'\nharmless text\nEOF\npnpm build"],
+  // Segmentation must respect QUOTES, not just heredocs. Found 2026-08-12 when
+  // this guard denied an ordinary grep: `segments()` split on the `\|` inside the
+  // search pattern, manufacturing a phantom segment whose first token was `pnpm`.
+  // Quoted text is data for the same reason heredoc text is.
+  ['ALLOW', String.raw`grep -n 'pnpm build\|pnpm test' CLAUDE.md`],
+  ['ALLOW', 'git commit -m "run pnpm build; then pnpm test"'],
+  ['ALLOW', 'echo "pnpm build && pnpm test"'],
+  // ...and a real command after a quoted argument must still be caught, so the
+  // quote handling cannot simply swallow the rest of the line:
+  ['DENY', 'echo "harmless text" && pnpm build'],
+  ['DENY', "grep -n 'some pattern' file.md; pnpm build"],
 ]
 let bad = 0
 for (const [want, cmd] of cases) {

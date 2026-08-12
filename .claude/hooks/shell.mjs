@@ -50,9 +50,60 @@ export function stripHeredocs(command) {
   }
 }
 
-/** Split a shell command into separately-executed segments, heredoc bodies removed. */
+/**
+ * Split a shell command into separately-executed segments, heredoc bodies removed.
+ *
+ * Operators inside QUOTES do not separate anything — they are data, for exactly the
+ * reason heredoc bodies are. This was a plain `.split(/&&|\|\||;|\n|\|/)` until
+ * 2026-08-12, when guard-bare-pnpm.mjs denied an ordinary
+ * `grep -n 'pnpm a\|pnpm b' CLAUDE.md`: the regex split on the `\|` *inside the
+ * search pattern* and manufactured a segment whose first token was `pnpm`. Note the
+ * direction of that failure — a guard that DENIES turns a parsing slip into a
+ * blocked legitimate command, and the message blames the user's tooling.
+ *
+ * An unterminated quote deliberately swallows the remainder. That matches the shell
+ * (the text really is inside the string and never executes) and so cannot hide a
+ * command that would have run.
+ */
 export function segments(command) {
-  return stripHeredocs(command).split(/&&|\|\||;|\n|(?<!\|)\|(?!\|)/g)
+  const source = stripHeredocs(command)
+  const found = []
+  let current = ''
+  let quote = null
+  for (let i = 0; i < source.length; i++) {
+    const char = source[i]
+    if (quote) {
+      current += char
+      if (char === quote) quote = null
+      continue
+    }
+    if (char === '\\') {
+      // Consume the escaped character so `\|` outside quotes is not a separator.
+      current += char + (source[i + 1] ?? '')
+      i++
+      continue
+    }
+    if (char === "'" || char === '"') {
+      quote = char
+      current += char
+      continue
+    }
+    const twoChar = char + (source[i + 1] ?? '')
+    if (twoChar === '&&' || twoChar === '||') {
+      found.push(current)
+      current = ''
+      i++
+      continue
+    }
+    if (char === ';' || char === '\n' || char === '|') {
+      found.push(current)
+      current = ''
+      continue
+    }
+    current += char
+  }
+  found.push(current)
+  return found
 }
 
 /** Naive but sufficient tokenizer: keeps quoted runs whole, then strips the quotes. */
