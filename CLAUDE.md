@@ -204,8 +204,9 @@ the answer is "nothing that happens in production", it is not a test.
   `pnpm build` failed.** Run `pnpm build`, not just typecheck and tests, before
   pushing a dependency change — that is the gap the original went through, and the
   cheap check will keep lying to you about the next one.
-- **`@cloudflare/workers-types` is HELD at `5.20260726.1`.** Measured 2026-08-12:
-  `5.20260811.1` fails `apps/shrink` typecheck with
+- **`@cloudflare/workers-types` is HELD at `5.20260804.1` — the break begins at
+  `5.20260808.1`.** Bisected 2026-08-12 across 0804/0808/0809/0810: 0804.1 passes,
+  every release from 0808.1 on fails `apps/shrink` typecheck with
   `Property 'readUInt32LE' does not exist on type 'NonSharedBuffer'` ×3 plus one
   arity error, all in `tools/asset-pipeline/src/validate.ts`. Note **where it does
   not surface**: `tools/asset-pipeline` typechecks that same file and passes,
@@ -216,6 +217,10 @@ the answer is "nothing that happens in production", it is not a test.
   reverted first, the failure persisted, and 26.2.0 was restored once
   workers-types was isolated. **Bisect; do not revert the plausible one.** Retry
   the bump when the Buffer typings settle.
+  `5.20260804.1` is not an arbitrary floor: it is also exactly the peer minimum
+  `wrangler` 4.120.1 asks for (`^5.20260804.1`), so holding any lower — 0726.1 was
+  the first guess — trades a typecheck failure for a permanent unmet-peer warning.
+  The safe version and the required version happen to be the same one.
 - **Any Payload CLI task touching production D1 must set `NODE_ENV=production`**,
   or Payload runs a dev-mode schema push against it.
 - **Put nothing but migrations in `apps/cms/src/migrations/`.** Payload's
