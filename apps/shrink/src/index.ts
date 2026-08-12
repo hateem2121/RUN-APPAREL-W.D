@@ -14,7 +14,13 @@ import { type ProductState, describeModel, planModelAttach } from './attach'
 import { cmsFetch, isMediaReferenced } from './cms'
 import { planColourImport } from './colourImport'
 import { DEAD_LETTER_QUEUE, deadLetterReport } from './deadLetter'
-import { type PosterTarget, planPosters } from './posters'
+import {
+  type CapturedFrame,
+  checkCapturedFrame,
+  frameDigest,
+  type PosterTarget,
+  planPosters,
+} from './posters'
 
 /**
  * Shrink service Worker.
@@ -619,7 +625,7 @@ async function readProductState(
 /** Raw colourway rows, reduced to what `planPosters` needs to decide. */
 function toPosterColourways(
   rows: Record<string, unknown>[],
-): { slug: string; variantId: string; hasPoster: boolean }[] {
+): { slug: string; variantId: string; hasPoster: boolean; hexSwatch: string | null }[] {
   return rows.map((row) => ({
     slug: typeof row.slug === 'string' ? row.slug : '',
     variantId: typeof row.variantId === 'string' ? row.variantId : '',
@@ -627,6 +633,9 @@ function toPosterColourways(
     // same rule apps/cms/src/collections/publishGating.ts's `isSet` uses. A
     // depth=0 read only ever gives the first or third of those.
     hasPoster: row.posterPreview != null && row.posterPreview !== '',
+    // Takes no part in planning — carried so checkCapturedFrame can qualify a
+    // duplicate frame. Null for any row the owner built by hand.
+    hexSwatch: typeof row.hexSwatch === 'string' ? row.hexSwatch : null,
   }))
 }
 
@@ -775,6 +784,12 @@ async function capturePosters(
 ): Promise<string> {
   let captured = 0
   const failures: string[] = []
+  // Every frame taken in THIS session, so a colour photographed to a picture
+  // identical to an earlier colour's can be reported. Warning only — see
+  // checkCapturedFrame (./posters.ts) for what it catches and why it is
+  // identity rather than colour distance.
+  const frames: CapturedFrame[] = []
+  const warnings: string[] = []
 
   let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined
   try {
@@ -870,6 +885,26 @@ async function capturePosters(
           failures.push(`${target.slug} (its colour row was renamed or removed while this ran)`)
           continue
         }
+        // Did this colour photograph to the SAME picture as an earlier one?
+        // Checked here rather than straight after the screenshot because the
+        // fresh row is where `hexSwatch` lives, and the swatch is what tells a
+        // genuine fault ("the file says these are different colours") apart
+        // from two colourways that may truly look alike. Never blocks: the
+        // poster is uploaded and linked either way, because only a human
+        // looking at the picture can settle it (review of 8927062, finding
+        // 3.4).
+        const frame: CapturedFrame = {
+          slug: target.slug,
+          hexSwatch: typeof row.hexSwatch === 'string' ? row.hexSwatch : null,
+          digest: frameDigest(png),
+        }
+        const duplicate = checkCapturedFrame(frames, frame)
+        if (duplicate) {
+          warnings.push(duplicate)
+          console.warn(`[shrink] ${duplicate}`)
+        }
+        frames.push(frame)
+
         row.posterPreview = mediaId
         // One PATCH per successful capture, not one batched at the end — a
         // crash partway through a ten-colour garment then keeps whatever
@@ -917,10 +952,15 @@ async function capturePosters(
     )
   }
   const note = `\n\nPhotographed ${captured} colour${captured === 1 ? '' : 's'} automatically.`
-  return failures.length === 0
-    ? note
-    : `${note} ${failures.length} could not be captured (${failures.join('; ')}) — add ` +
+  const withFailures =
+    failures.length === 0
+      ? note
+      : `${note} ${failures.length} could not be captured (${failures.join('; ')}) — add ` +
         `${failures.length === 1 ? 'it' : 'them'} by hand on the Colours tab.`
+  // Appended rather than folded into `failures`: these captures SUCCEEDED and
+  // are linked. Reporting them as failures would tell the owner to redo work
+  // that may well be correct, and the owner is the only one who can tell.
+  return warnings.length === 0 ? withFailures : `${withFailures}\n\n⚠️ ${warnings.join(' ')}`
 }
 
 /**
