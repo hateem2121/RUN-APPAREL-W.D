@@ -3,6 +3,7 @@
 import { useFormFields } from '@payloadcms/ui'
 import type { UIFieldClientComponent } from 'payload'
 import { collectPublishProblems, toGateColourways } from '../collections/publishGating'
+import { rowsFromFormState } from './formStateRows'
 
 /**
  * "What is still stopping this from going live?"
@@ -20,6 +21,14 @@ import { collectPublishProblems, toGateColourways } from '../collections/publish
  * ONE THING IT CANNOT SEE: the artwork verdict lives on the Media document, not
  * in this form, so a damaged model is not listed here. The real gate still
  * catches it on save. The panel says so rather than implying it checked.
+ *
+ * ⚠️ THE COLOURS COME FROM `rowsFromFormState`, NOT from `f.colourways.value`.
+ * Payload flattens an array field into one entry per row field and exposes no
+ * key for the array itself, so the obvious read is silently `undefined` — which
+ * made this panel report "This product has no colours yet" on a live product
+ * with three complete colours, while every test, the typecheck and the build
+ * stayed green. Measured in the running admin on 2026-08-11; see
+ * ./formStateRows.ts for the probe output.
  */
 export const ReadinessPanel: UIFieldClientComponent = () => {
   const fields = useFormFields(([f]) => ({
@@ -27,7 +36,7 @@ export const ReadinessPanel: UIFieldClientComponent = () => {
     variantMode: f?.variantMode?.value,
     glbAsset: f?.glbAsset?.value,
     variantsVerified: f?.variantsVerified?.value,
-    colourways: f?.colourways?.value,
+    colourways: rowsFromFormState(f as Record<string, { value?: unknown }>, 'colourways'),
   }))
 
   // Always evaluated as though the owner were publishing, whatever Status says —
