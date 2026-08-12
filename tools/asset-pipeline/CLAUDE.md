@@ -19,8 +19,8 @@ Read both before changing anything here.
 `package-lock.json` by hand, or the container deploy fails on `main`.**
 
 `pnpm-lock.yaml` is the workspace's. `package-lock.json` here is **npm's**, is
-consumed only by `apps/shrink/Dockerfile`, and **no pnpm command ever touches
-it** — so a dependency bump made through pnpm desynchronises it silently.
+consumed only by `apps/shrink/Dockerfile`, and **no workspace tooling ever touches
+it** — so a dependency bump made in the workspace desynchronises it silently.
 
 Measured 2026-08-12 on the dependency refresh merged as `9c22a2a`: five packages
 drifted (`@playwright/test` 1.62.0→1.62.1, `@types/node` 26.1.1→26.2.0, `tsx`

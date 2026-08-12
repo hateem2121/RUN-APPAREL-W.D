@@ -189,6 +189,12 @@ the answer is "nothing that happens in production", it is not a test.
 - **`apps/shrink/container` is not a workspace member.** It installs with plain
   `npm` inside Docker, so it cannot use `workspace:*` deps, and `pnpm -r` skips
   it. It has its own CI typecheck step; keep it.
+  **The typecheck step was never the gap — `npm ci` is.** `tools/asset-pipeline`
+  carries a SECOND lockfile (`package-lock.json`, npm's, read only by
+  `apps/shrink/Dockerfile`) that no workspace tooling maintains, so bumping that
+  `package.json` in the workspace desynchronises it and the image build dies on
+  `npm ci` **after** every local gate has passed. Cost a deploy on 2026-08-12; full
+  procedure in `tools/asset-pipeline/CLAUDE.md`.
 - **`apps/cms` was pinned to TypeScript 6 until 2026-08-12 — RESOLVED by Next
   16.3.0, and the lesson it taught outlives the pin.** Next.js 16.2.12 refused TS 7
   outright: *"TypeScript 7.0.2 does not provide the compiler API required by
@@ -217,10 +223,34 @@ the answer is "nothing that happens in production", it is not a test.
   reverted first, the failure persisted, and 26.2.0 was restored once
   workers-types was isolated. **Bisect; do not revert the plausible one.** Retry
   the bump when the Buffer typings settle.
-  `5.20260804.1` is not an arbitrary floor: it is also exactly the peer minimum
-  `wrangler` 4.120.1 asks for (`^5.20260804.1`), so holding any lower — 0726.1 was
-  the first guess — trades a typecheck failure for a permanent unmet-peer warning.
-  The safe version and the required version happen to be the same one.
+  `5.20260804.1` was not an arbitrary floor: it was also exactly the peer minimum
+  `wrangler` asked for, so holding any lower — 0726.1 was the first guess — traded
+  a typecheck failure for a permanent unmet-peer warning.
+  ⚠️ **That convenient coincidence ENDED on 2026-08-12 and this paragraph used to
+  say the two versions "happen to be the same one".** Measured: 4.120.1 and 4.121.0
+  both ask `^5.20260804.1`; **4.122.0 asks `^5.20260811.1`**, which the hold cannot
+  satisfy. The repo took 4.122.0 anyway, by owner decision, so it now carries that
+  unmet-peer warning permanently and on purpose. It is **cosmetic** — verified with
+  4.122.0 installed against 5.20260804.1: lint, typecheck 5/5, 621 tests, build and
+  the container typecheck all exit 0. **Do not "fix" the warning by raising
+  workers-types** — that trades a cosmetic warning for the real `readUInt32LE`
+  break above, i.e. the same bad trade in the opposite direction.
+- **The 24h cooldown blocks a bump SILENTLY, and `--latest` is the wrong tool.**
+  `pnpm-workspace.yaml` sets `minimumReleaseAge: 1440`. A too-fresh version is not
+  an error — `pnpm update -r <pkg> --latest` **exits 0 and leaves the old version
+  in place**, which reads as "the bump did nothing". Measured 2026-08-12: asked for
+  wrangler `--latest`, got 4.120.1 back, no warning.
+  To release one deliberately: **one-off `--config.minimumReleaseAge=0` on the
+  command line, and pin the exact version** — never add an application dep to
+  `minimumReleaseAgeExclude`, which is for build-toolchain binaries (lightningcss,
+  esbuild) only. **Pin, because `--latest` reaches past what you audited:** with the
+  cooldown off it jumped to wrangler 4.122.0 — published 1.1h earlier, unaudited,
+  and raising the workers-types peer floor (above).
+  **Run a supply-chain audit in place of the wait**, as b90ba70 did for Payload: npm
+  bulk advisory API, publisher is GitHub Actions OIDC rather than a personal token,
+  **signed provenance attestation present**, **no install script**, and an unchanged
+  dependency list. Provenance + no-install-script is the actual threat the cooldown
+  absorbs, so that substitution is real rather than a formality.
 - **Any Payload CLI task touching production D1 must set `NODE_ENV=production`**,
   or Payload runs a dev-mode schema push against it.
 - **Put nothing but migrations in `apps/cms/src/migrations/`.** Payload's
@@ -398,7 +428,24 @@ unused variable, on the day it was added.
 Merging to `main` runs the pre-deploy D1 migrate and deploys CMS + viewer.
 **Take a D1 backup and capture `GET /api/public/viewer/n001/wine` first** — that
 before/after diff is what caught the last data-loss incident when the migration
-logs said success. See `docs/BACKUP-RESTORE.md`.
+logs said success. See `docs/BACKUP-RESTORE.md`. `.claude/skills/deploy-preflight/`
+walks the whole sequence and is `disable-model-invocation: true` on purpose.
+
+**Do not push twice in a row, and read `conclusion` not the exit code.** `ci.yml`
+sets `concurrency: cancel-in-progress: true` on `ci-${{ github.ref }}`, so a second
+push to `main` kills the first run mid-flight — and `gh run watch --exit-status`
+returns **1 for a `cancelled` run exactly as it does for a `failure`**. On
+2026-08-12 that sent a session debugging a perfectly healthy `verify` job whose
+only error line was `##[error]The operation was canceled`. Check
+`gh run view <id> --json conclusion -q .conclusion` before believing anything
+failed. Wait for the run, then push again.
+
+**`https://wear-run.help/` returns 522 BY DESIGN — the site is
+`https://viewer.wear-run.help/`.** Owner-confirmed 2026-08-12. Nothing is bound to
+the bare apex; every QR deep link uses `viewer.`, and the one apex path the app
+does use (`siteSettings.catalogueUrl` → `/catalogue`) is answered by an edge
+Redirect Rule with a 301 to a Drive PDF. So a 522 there is not an outage and not a
+regression — verify `viewer.wear-run.help` instead.
 
 ## Style
 
