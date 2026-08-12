@@ -26,7 +26,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@axe-core/playwright": "4.12.1",
+    "@axe-core/playwright": "4.13.0",
     "@cloudflare/workers-types": "5.20260804.1",
     "@playwright/test": "1.62.1",
     "@sentry/vite-plugin": "5.4.0",
@@ -39,6 +39,6 @@
     "typescript": "7.0.2",
     "vite": "8.2.1",
     "vitest": "4.1.10",
-    "wrangler": "4.120.1"
+    "wrangler": "4.122.0"
   }
 }
