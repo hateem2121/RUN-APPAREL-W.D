@@ -13,6 +13,42 @@ vs `--simplify`, the `opaque` default mismatch, the three blocking gates) are
 still there, because they are cited from source comments and cross subsystems.
 Read both before changing anything here.
 
+## This directory has TWO lockfiles, and only one of them pnpm maintains
+
+**If you change `tools/asset-pipeline/package.json`, you must regenerate
+`package-lock.json` by hand, or the container deploy fails on `main`.**
+
+`pnpm-lock.yaml` is the workspace's. `package-lock.json` here is **npm's**, is
+consumed only by `apps/shrink/Dockerfile`, and **no pnpm command ever touches
+it** — so a dependency bump made through pnpm desynchronises it silently.
+
+Measured 2026-08-12 on the dependency refresh merged as `9c22a2a`: five packages
+drifted (`@playwright/test` 1.62.0→1.62.1, `@types/node` 26.1.1→26.2.0, `tsx`
+4.23.1→4.23.12, `playwright` and `playwright-core` 1.62.0→1.62.1) and the Docker
+build died on `npm ci` with *"can only install packages when your package.json
+and package-lock.json are in sync"*.
+
+**Note where it does not surface — this is the whole trap.** `lint`, `typecheck`
+5/5, 621 tests, `build`, and the container's own `tsc --noEmit` were *all green*,
+because **none of them run `npm ci`**. The only thing that executes this path is
+the Docker build triggered by a push to `main`. The root `CLAUDE.md` already says
+`apps/shrink/container` "is not a workspace member… it has its own CI typecheck
+step"; the typecheck step was never the gap. `npm ci` is, and it lives one
+directory away, here.
+
+Regenerate **in a temp dir, never in the workspace** — pnpm's symlinked
+`node_modules` makes npm write `file:` paths that do not exist inside the image
+(the reason is also stated in the Dockerfile above the failing line):
+
+```bash
+cd $(mktemp -d) && cp ~/Sites/Model-Viewer-main/tools/asset-pipeline/package.json . \
+  && npm install --package-lock-only
+```
+
+Then copy `package-lock.json` back and check three things before committing:
+every version matches `package.json`, `npm ci --omit=dev --no-audit --no-fund`
+exits 0, and `grep -c '"resolved": "file:' package-lock.json` returns 0.
+
 ## Before you change the pipeline
 
 Do not tune presets against file size. That is exactly how a setting that
