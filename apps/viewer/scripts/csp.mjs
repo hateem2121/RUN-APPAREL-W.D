@@ -92,7 +92,14 @@ export function buildCsp({ html, apiBaseUrl, sentryDsn }) {
     `default-src 'self'`,
     `base-uri 'self'`,
     `object-src 'none'`,
-    `frame-ancestors 'none'`,
+    // Was `'none'` until 2026-08-11. The CMS now shows the real customer page in
+    // a panel beside the edit form (Products.admin.livePreview), and Payload's
+    // live preview is an iframe — under `'none'` it renders a blank frame with
+    // no console error, which is the confusing failure this comment exists to
+    // pre-empt. This is the narrowest form that works: any other site embedding
+    // the viewer is still refused, which is what the directive is for.
+    // Pinned by csp.test.ts.
+    `frame-ancestors 'self' https://cms.wear-run.help`,
     `form-action 'none'`,
     // 'wasm-unsafe-eval' — model-viewer's Draco/KTX2 wasm decoders; no eval.
     `script-src 'self' 'wasm-unsafe-eval' ${inlineHashes.join(' ')} ${CF_SCRIPT}`

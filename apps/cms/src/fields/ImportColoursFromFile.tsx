@@ -9,7 +9,7 @@ import {
   buildImportedRow,
   toFileColours,
   unmappedFileColours,
-} from './importColours'
+} from '@run-apparel/shared'
 
 /**
  * "We found colours in your file that are not on your website yet."
@@ -18,10 +18,12 @@ import {
  * invisible to every buyer, with nothing in the admin hinting they existed. The
  * only way to find out was to open the GLB.
  *
- * All the rules live in ./importColours.ts, which is pure and unit-tested — most
- * importantly that this never rewrites an existing slug (printed on QR tags),
- * never reorders rows (the first switched-on row is the default colourway), and
- * never switches anything on. This file is the shell around it.
+ * All the rules live in packages/shared/src/importColours.ts (moved there
+ * 2026-08-10 so apps/shrink/src/colourImport.ts can reuse them without
+ * duplicating them), which is pure and unit-tested — most importantly that this
+ * never rewrites an existing slug (printed on QR tags), never reorders rows (the
+ * first switched-on row is the default colourway), and never switches anything
+ * on. This file is the shell around it.
  */
 export const ImportColoursFromFile: UIFieldClientComponent = () => {
   const { value: rows, setValue: setRows } = useField<Record<string, unknown>[]>({

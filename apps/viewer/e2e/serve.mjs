@@ -222,6 +222,29 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
   }
 }
 
+/**
+ * Mirrors apps/viewer/worker/renderGuard.ts's isAllowedRenderModel — by hand,
+ * not by import, for the same reason every other production behaviour in
+ * this file is mirrored rather than run for real: this server serves the
+ * built dist/ directly and never runs the Cloudflare Worker (see the file
+ * header above), so worker/index.ts's own `/render` guard is never exercised
+ * by this suite either way. Kept in sync deliberately; renderGuard.ts is pure
+ * and unit-tested on its own (renderGuard.test.ts), so a drift here would
+ * only ever make the e2e fixture MORE permissive or MORE strict than
+ * production, never silently wrong about what production actually does.
+ */
+function isAllowedRenderModel(rawModel, pageOrigin) {
+  if (!rawModel) return false
+  let url
+  try {
+    url = new URL(rawModel, pageOrigin)
+  } catch {
+    return false
+  }
+  if (url.origin === pageOrigin) return true
+  return url.protocol === 'https:' && /(^|\.)wear-run\.help$/.test(url.hostname)
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`)
   const origin = `http://localhost:${PORT}`
@@ -229,6 +252,20 @@ const server = http.createServer((req, res) => {
   // Mirror Cloudflare applying the "/*" headers (CSP + security headers) to
   // every response.
   for (const [key, value] of Object.entries(GLOBAL_HEADERS)) res.setHeader(key, value)
+
+  // Task 13/14's screenshot route — mirrors worker/index.ts's own guard (see
+  // isAllowedRenderModel's comment above for why this is a mirror, not a
+  // shared import). Checked before anything else, same as production.
+  if (req.method === 'GET' && url.pathname === '/render') {
+    if (!isAllowedRenderModel(url.searchParams.get('model'), origin)) {
+      res.statusCode = 400
+      res.setHeader('content-type', 'text/plain; charset=utf-8')
+      res.end('The "model" parameter must be a path or URL on our own host.')
+      return
+    }
+    // Falls through to the SPA-fallback branch at the bottom, same as
+    // production falling through to env.ASSETS.fetch(request).
+  }
 
   // Mock public viewer API. Both real routes: with and without a colour segment.
   const apiMatch = url.pathname.match(/^\/api\/public\/viewer\/([^/]+)(?:\/([^/]+))?$/)

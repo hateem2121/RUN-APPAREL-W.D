@@ -91,7 +91,12 @@ const PALETTE: { name: string; hex: string }[] = [
   { name: 'Crimson', hex: '#B3222F' },
   { name: 'Red', hex: '#C62828' },
   { name: 'Rust', hex: '#A8452A' },
-  { name: 'Coral', hex: '#E2725B' },
+  // Coral was #E2725B until 2026-08-10, which is in fact the canonical
+  // Terracotta value (see below) — the two would have tied on any hex
+  // equidistant from both, with the winner decided by array order, exactly
+  // the silent arbitrariness this module exists to remove. Corrected to
+  // Coral's own canonical #FF7F50.
+  { name: 'Coral', hex: '#FF7F50' },
   { name: 'Blush', hex: '#E8B4B8' },
   { name: 'Pink', hex: '#E75480' },
   { name: 'Purple', hex: '#5B3B8C' },
@@ -104,6 +109,35 @@ const PALETTE: { name: string; hex: string }[] = [
   { name: 'Tan', hex: '#B58A5F' },
   { name: 'Brown', hex: '#4E342E' },
   { name: 'Cream', hex: '#F3E9D2' },
+  // Added 2026-08-10. Two of N001's own five live colourways — Wine and
+  // Butter — had no entry: their canonical hexes matched nearest to Maroon and
+  // Sand respectively (measured against the palette below, before this
+  // change). Confirmed N001 ships exactly wine, blush, butter, lime, black —
+  // no coral — three ways: docs/FIRST-GARMENT-UPLOAD.md (corrected
+  // 2026-08-08), docs/SESSION-2026-08-05.md, and a live fetch of
+  // `GET /api/public/viewer/n001/wine`, which all agree. At a 100+ garment
+  // catalogue an unmapped colour is the common case, not the edge. These are
+  // canonical published values, per the note on GREY_RAMP above — not hexes
+  // measured off any garment this repo has processed.
+  { name: 'Wine', hex: '#722F37' },
+  { name: 'Butter', hex: '#F3E5AB' },
+  { name: 'Mint', hex: '#3EB489' },
+  { name: 'Turquoise', hex: '#40E0D0' },
+  { name: 'Khaki', hex: '#C3B091' },
+  { name: 'Beige', hex: '#F5F5DC' },
+  { name: 'Ivory', hex: '#FFFFF0' },
+  { name: 'Plum', hex: '#8E4585' },
+  { name: 'Magenta', hex: '#C2185B' },
+  { name: 'Emerald', hex: '#046307' },
+  { name: 'Cobalt', hex: '#0047AB' },
+  { name: 'Indigo', hex: '#4B0082' },
+  // Terracotta takes the hex Coral used to hold before the correction above.
+  { name: 'Terracotta', hex: '#E2725B' },
+  { name: 'Mauve', hex: '#C8A2C8' },
+  { name: 'Camel', hex: '#C19A6B' },
+  { name: 'Mocha', hex: '#3B2F2F' },
+  { name: 'Bottle Green', hex: '#006A4E' },
+  { name: 'Denim', hex: '#3D5A80' },
 ]
 
 /** sRGB electro-optical transfer function, channel in 0..1. */

@@ -16,6 +16,7 @@ import { eventsEndpoint } from './endpoints/events'
 import { healthEndpoint } from './endpoints/health'
 import { pipelinePlanEndpoint } from './endpoints/pipelinePlan'
 import { publicViewerDefaultColourEndpoint, publicViewerEndpoint } from './endpoints/publicViewer'
+import { CatalogueDefaults } from './globals/CatalogueDefaults'
 import { SiteSettings } from './globals/SiteSettings'
 
 const filename = fileURLToPath(import.meta.url)
@@ -106,9 +107,23 @@ export default buildConfig({
     meta: {
       titleSuffix: ' — RUN APPAREL CMS',
     },
+    components: {
+      // Replaces the built-in "here are your collections" landing page with
+      // "what needs doing" — see views/Dashboard.tsx for why, and for what was
+      // verified against the installed Payload 3.86.0 typings/runtime before
+      // relying on this key (it is read one layer deeper than it looks: by
+      // @payloadcms/next's own DashboardView, not by the top-level router).
+      // No `path` on this entry — see Dashboard.tsx's access-control note for
+      // why that specifically matters here.
+      views: {
+        dashboard: {
+          Component: '/views/Dashboard#Dashboard',
+        },
+      },
+    },
   },
   collections: [Users, Media, RawUploads, Products, Events],
-  globals: [SiteSettings],
+  globals: [SiteSettings, CatalogueDefaults],
   // The two-segment route is registered first so it wins over the one-segment
   // route for /n001/navy, whatever order the router happens to try them in.
   endpoints: [

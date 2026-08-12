@@ -2,10 +2,15 @@ import { parseViewerPath } from '@run-apparel/shared'
 import type { ViewerApiSuccess } from '@run-apparel/shared'
 import { OG_CARDS } from './og-cards'
 import { buildPreview, type Preview } from './preview'
+import { isAllowedRenderModel } from './renderGuard'
 
 /**
- * The viewer's Worker. Its ONLY job is to give a shared link a preview card that
- * names the actual garment and colourway.
+ * The viewer's Worker. Its main job is to give a shared link a preview card
+ * that names the actual garment and colourway; since 2026-08-11 it also
+ * refuses a bad `model=` host on `/render` (task 13/14) — see the guard at the
+ * top of fetch() and renderGuard.ts. Both exist for the same underlying
+ * reason: a plain SPA fallback cannot change per request, and per-request is
+ * exactly what a real HTTP status code or a per-garment OG tag needs to be.
  *
  * Until 2026-08-08 this project was static-assets-only. index.html carries one
  * set of Open Graph tags, and the SPA fallback serves that one document for every
@@ -265,6 +270,26 @@ function applyPreview(response: Response, preview: Preview): Response {
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
+
+    // Task 13/14's screenshot route. Checked FIRST and unconditionally (before
+    // the crawler short-circuit below, and before parseViewerPath, which would
+    // otherwise happily read "render" as a product slug — see router.test.ts /
+    // slugs.ts: a one-segment path is a valid route shape). A route that will
+    // load an arbitrary remote `model=` URL inside our own browser is a
+    // hazard, not a feature (task 13 brief) — refuse it with a real 400
+    // before the SPA shell (and the shrink robot's headless browser sitting
+    // in front of it) ever sees the value. The e2e fixture server mirrors
+    // this same check for apps/viewer/e2e/render.spec.ts — see its header for
+    // why that is a mirror rather than an import.
+    if (request.method === 'GET' && url.pathname === '/render') {
+      if (!isAllowedRenderModel(url.searchParams.get('model'), url.origin)) {
+        return new Response('The "model" parameter must be a path or URL on our own host.', {
+          status: 400,
+        })
+      }
+      return env.ASSETS.fetch(request)
+    }
+
     const route = parseViewerPath(url.pathname)
 
     // Not a garment link, not a GET, or not a crawler → byte-for-byte what this

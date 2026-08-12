@@ -1,6 +1,7 @@
 import { isValidSlug } from '@run-apparel/shared'
 import type { ArrayField } from 'payload'
 import { IMAGE_MIME_TYPES, MODEL_MIME_TYPES } from '../collections/mediaRules'
+import { deriveSlug } from './deriveSlug'
 
 /**
  * Colours, inline on the Product.
@@ -80,19 +81,38 @@ export const colourwaysField: ArrayField = {
     {
       name: 'displayName',
       type: 'text',
-      required: true,
+      // Deliberately NOT required — same reasoning as posterPreview and variantId
+      // below, extended here on 2026-08-11. A swatch-only row from a low-confidence
+      // colour import (buildImportedRow in packages/shared/src/importColours.ts)
+      // arrives with an empty name ON PURPOSE, for a human to fill in later — see
+      // the note text in apps/shrink/src/colourImport.ts ("name any that need
+      // one"). `required: true` here made that state impossible to SAVE, which
+      // blocked not just the owner's own "Add the ticked colours" button but the
+      // shrink robot's automated write: Payload rejects the whole `colourways`
+      // array if any one row fails validation, so the entire import silently
+      // failed the moment a single colour matched with low confidence — the exact
+      // input `planColourImport`'s own tests require it to handle. Verified against
+      // a real local Payload+D1 instance: PATCHing a row with `displayName: ''`
+      // threw `ValidationError` ("This field is required.") before this change.
+      // The publish gate is the enforcement point instead — see
+      // collectPublishProblems's `noName` check in publishGating.ts — exactly like
+      // the two fields below.
       label: 'Colour name',
       admin: { description: 'What buyers see on the colour button, e.g. Navy.' },
     },
     {
       name: 'slug',
       type: 'text',
-      required: true,
       label: 'Web address word',
       validate: (value: unknown, { data }: { data?: unknown }) => {
-        if (typeof value !== 'string' || value.trim() === '') {
-          return 'Every colour needs a web address word, e.g. navy.'
-        }
+        // Blank is allowed here for the same reason displayName above is not
+        // `required` — a swatch-only imported row must be SAVEABLE with no slug
+        // yet. This used to be an unconditional required-style error regardless of
+        // the `required` flag (a custom `validate` replaces Payload's default
+        // check entirely, so removing `required: true` alone would not have been
+        // enough). The publish gate's `noSlug` check in publishGating.ts is what
+        // stops a blank slug reaching a live, switched-on colour.
+        if (typeof value !== 'string' || value.trim() === '') return true
         const slug = value.trim()
         if (!isValidSlug(slug)) {
           return `“${slug}” can’t be used in a web address. Use lowercase letters, numbers and hyphens only — e.g. ${
@@ -110,6 +130,18 @@ export const colourwaysField: ArrayField = {
       admin: {
         description:
           'The word in this colour’s link and QR code: wear-run.help/n001/navy. Lowercase, no spaces. Never change it once QR codes are printed — switch the colour off instead.',
+      },
+      hooks: {
+        beforeValidate: [
+          ({ siblingData, value }) => {
+            // Blank only — never a correction. Same rule as the product slug: this
+            // one is on a printed QR tag too. Note there is deliberately NO
+            // `operation` guard here: array rows carry no per-row operation, so
+            // emptiness IS the guard — and it is the stronger of the two anyway.
+            if (typeof value === 'string' && value.trim() !== '') return value
+            return deriveSlug(siblingData?.displayName) || value
+          },
+        ],
       },
     },
     {
@@ -160,6 +192,22 @@ export const colourwaysField: ArrayField = {
         description:
           'Describe the photo in a sentence, for people who use a screen reader. e.g. “Velocity Performance Tee in Navy”.',
       },
+      hooks: {
+        beforeValidate: [
+          ({ data, siblingData, value }) => {
+            // The publish gate refuses any colour on show without a photo
+            // description, and at 100+ garments with up to 10 colours each that is up
+            // to 1,000 near-identical sentences typed by hand. The template is what a
+            // person writes anyway. Blank only, and fully editable afterwards.
+            if (typeof value === 'string' && value.trim() !== '') return value
+            const product = typeof data?.productName === 'string' ? data.productName.trim() : ''
+            const colour =
+              typeof siblingData?.displayName === 'string' ? siblingData.displayName.trim() : ''
+            if (product === '' || colour === '') return value
+            return `${product} in ${colour}`
+          },
+        ],
+      },
     },
     {
       name: 'hexSwatch',
@@ -195,6 +243,45 @@ export const colourwaysField: ArrayField = {
       type: 'checkbox',
       defaultValue: true,
       label: 'Show this colour on the website',
+      validate: (value: unknown, { siblingData }: { siblingData?: ColourRow }) => {
+        // Refuse to switch a colour ON while it has no name or no web address
+        // word — the row-level mirror of collectPublishProblems's noName/noSlug
+        // checks (../collections/publishGating.ts). Needed because those two
+        // fields stopped being `required` on 2026-08-11 (displayName and slug
+        // above) so a swatch-only imported row could be SAVED blank. That made
+        // "blank AND active" reachable on a DRAFT for the first time, and the
+        // publish gate never sees it there: collectPublishProblems no-ops for
+        // any non-published status, so a human could tick this box on an
+        // unnamed row and save, with nothing objecting.
+        //
+        // Found by code review, not by incident: apps/cms/src/endpoints/
+        // pipelinePlan.ts — used by the offline `pipeline merge --from-cms`
+        // tool — queries products with no `status` filter at all and keeps any
+        // row with `active !== false`, so it would pick up exactly this draft
+        // state. It feeds a blank slug straight into buildVariantId, which
+        // produces "N001-" (a trailing hyphen; isValidVariantId would reject
+        // it, but nothing in production code calls that function), baked
+        // silently into a merged GLB's KHR_materials_variants name. Guarded
+        // here, at the row itself, rather than in every reader that touches an
+        // active colourway — pipelinePlan.ts today, and whatever reads this
+        // next.
+        //
+        // planColourImport (apps/shrink/src/colourImport.ts) always writes
+        // `active: false` on every row it adds, so this never affects the
+        // robot's own write. The only thing this newly refuses is a human
+        // switching a colour on before naming it, which is the correct answer.
+        if (value !== true) return true
+        const hasName =
+          typeof siblingData?.displayName === 'string' && siblingData.displayName.trim() !== ''
+        const hasSlug = typeof siblingData?.slug === 'string' && siblingData.slug.trim() !== ''
+        if (hasName && hasSlug) return true
+        if (!hasName && !hasSlug) {
+          return 'This colour has no name or web address word yet, so it can’t be switched on. Add “Colour name” and “Web address word”, or leave it switched off.'
+        }
+        return hasName
+          ? 'This colour has no web address word yet, so it can’t be switched on. Add “Web address word”, or leave it switched off.'
+          : 'This colour has no name yet, so it can’t be switched on. Add “Colour name”, or leave it switched off.'
+      },
       admin: {
         description:
           'Untick to retire a colour. Old QR codes still work — they show your first colour instead, with the retired message.',

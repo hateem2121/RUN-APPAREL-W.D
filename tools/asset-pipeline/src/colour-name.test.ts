@@ -130,3 +130,30 @@ describe('nameColour — neutrals and confidence', () => {
     expect(() => nameColour('#12345')).toThrow()
   })
 })
+
+describe('palette coverage for real garment colours', () => {
+  // Every one of these is a colour a real CLO export has produced or plainly
+  // will. `low` confidence here means the owner types the name by hand.
+  const cases: [string, string][] = [
+    ['#722F37', 'Wine'],
+    ['#F3E5AB', 'Butter'],
+    ['#3EB489', 'Mint'],
+    ['#40E0D0', 'Turquoise'],
+    ['#C3B091', 'Khaki'],
+    ['#F5F5DC', 'Beige'],
+    ['#8E4585', 'Plum'],
+    ['#046307', 'Emerald'],
+    ['#0047AB', 'Cobalt'],
+    ['#4B0082', 'Indigo'],
+    ['#E2725B', 'Terracotta'],
+    ['#C8A2C8', 'Mauve'],
+    ['#FF7F50', 'Coral'],
+  ]
+  for (const [hex, expected] of cases) {
+    it(`names ${hex} as ${expected} with confidence`, () => {
+      const result = nameColour(hex)
+      expect(result.confidence).toBe('high')
+      expect(result.name).toBe(expected)
+    })
+  }
+})

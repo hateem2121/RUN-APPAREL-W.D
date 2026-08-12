@@ -5,7 +5,10 @@ import { type FileColour, buildImportedRow, unmappedFileColours } from './import
  * The rules here are not style preferences. A colourway `slug` is printed on a
  * physical QR tag and cannot be recalled, and the FIRST switched-on row decides
  * what a bare /n001 link resolves to. An automated action that touched either
- * would silently repoint printed tags at the wrong garment.
+ * would silently repoint printed tags at the wrong garment — whether that
+ * action is the owner's own "Add the ticked colours" button or the shrink
+ * robot's `planColourImport` (apps/shrink/src/colourImport.ts), which reuses
+ * `buildImportedRow` rather than re-implementing it for exactly this reason.
  *
  * So: append only, never rewrite, never reorder, and everything arrives switched
  * off until a human turns it on.

@@ -1,5 +1,5 @@
 /**
- * Turning the colours found inside a CLO file into colour rows on the product.
+ * Turning the colours found inside a CLO file into colour rows on a product.
  *
  * WHY. On 2026-08-03 N001's file contained five colourways and the CMS mapped
  * three. The other two were invisible to every buyer, and nothing anywhere said
@@ -14,16 +14,32 @@
  *      reorder changes what a bare /n001 link resolves to — i.e. it repoints
  *      printed tags at a different garment.
  *   3. Switch anything on. Every imported row arrives `active: false`, so a
- *      human decides what reaches the live page.
+ *      human (or the robot's own once-only import — see below) never puts a
+ *      colour in front of a buyer unattended.
  *   4. Guess. A low-confidence colour match arrives with an empty name for the
  *      owner to fill, because a confident wrong name is exactly how "Navy" came
  *      to be printed on a maroon garment.
  *
- * Pure and Payload-free so it can be unit-tested without a database or a browser;
- * ImportColoursFromFile.tsx is the thin React shell over it.
+ * Pure and framework-free so it can be unit-tested without a database or a
+ * browser. Lived at apps/cms/src/fields/importColours.ts until 2026-08-10, when
+ * the shrink robot needed the same rules to import a draft's colours on its own;
+ * moved here rather than duplicated so both callers can never disagree about
+ * what "safe to import" means:
+ *
+ *   - apps/cms/src/fields/ImportColoursFromFile.tsx — the owner presses "Add
+ *     the ticked colours" by hand.
+ *   - apps/shrink/src/colourImport.ts — the robot does the same thing
+ *     automatically, but ONLY for a draft that has no colours yet; see that
+ *     file for the two refusals that make it safe.
+ *
+ * Both apps/shrink and apps/cms already depend on @run-apparel/shared as a
+ * workspace package. apps/shrink/container — the Docker-only piece that
+ * installs with plain npm and cannot resolve workspace:* — never imports this
+ * module, which is why it is fine for it to live here rather than staying
+ * CMS-only.
  */
 
-/** One entry of the product's `fileColourDetails`, written by the shrink robot. */
+/** One entry of a product's `fileColourDetails`, written by the shrink robot. */
 export interface FileColour {
   variantId: string
   hex: string
@@ -92,7 +108,7 @@ export function buildImportedRow(colour: FileColour, rows: ExistingRow[]): Impor
   }
 }
 
-/** Parse the product's `fileColourDetails` json defensively. */
+/** Parse a product's `fileColourDetails` json defensively. */
 export function toFileColours(value: unknown): FileColour[] {
   if (!Array.isArray(value)) return []
   return value.flatMap((entry) => {

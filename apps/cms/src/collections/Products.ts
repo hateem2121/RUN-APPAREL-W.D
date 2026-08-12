@@ -1,8 +1,11 @@
 import { isValidProductCode, isValidSlug } from '@run-apparel/shared'
+import { defaultRichTextValue } from '@payloadcms/richtext-lexical'
 import { APIError, type CollectionConfig, type PayloadRequest } from 'payload'
 import { isAdmin, isAdminOrEditor, isAuthenticated } from '../access/roles'
 import { cameraFields } from '../fields/camera'
 import { colourwaysField } from '../fields/colourways'
+import { deriveSlug } from '../fields/deriveSlug'
+import type { CatalogueDefault } from '../payload-types'
 import { IMAGE_MIME_TYPES, MODEL_MIME_TYPES } from './mediaRules'
 import {
   becameUnverifiedWhilePublished,
@@ -52,6 +55,36 @@ async function readArtworkVerdict(
 }
 
 /**
+ * Read the shared "how we build your product" copy off the CatalogueDefaults
+ * global (globals/CatalogueDefaults.ts), for the defaultValue functions below.
+ *
+ * FAILS OPEN, same reasoning as readArtworkVerdict immediately above: on
+ * create, a D1 hiccup reading the global must not make the whole product
+ * uncreatable over default paragraph text — that would be an error about
+ * catalogue copy blocking someone who is just trying to start a new garment.
+ *
+ * Returns null on any error, AND on a global that has never been saved:
+ * Payload's findOne operation returns `{}` rather than the field-level
+ * defaults when no row exists yet for a global (verified against Payload
+ * 3.86.0's globals/operations/findOne.js — see task-9-report.md), which is
+ * exactly the state this global is in immediately after this migration
+ * deploys and before anyone opens Settings → Catalogue defaults and saves it.
+ * Both cases fall back the same way: each field below applies the literal
+ * default this file used before this global existed.
+ */
+async function readCatalogueDefaults(req: PayloadRequest): Promise<CatalogueDefault | null> {
+  try {
+    return await req.payload.findGlobal({
+      slug: 'catalogue-defaults',
+      depth: 0,
+      req,
+    })
+  } catch {
+    return null
+  }
+}
+
+/**
  * Products — one document holds the whole garment, colours included.
  *
  * Colours used to be a separate `colourways` collection joined by a
@@ -74,6 +107,38 @@ export const Products: CollectionConfig = {
     group: 'Content',
     description:
       'One page per garment. Fill it top to bottom: the basics, then the colours, then upload your CLO file on the “3D file” tab.',
+    /**
+     * The real customer page, beside the form.
+     *
+     * Until 2026-08-11 the only way to see what you had built was to save, open
+     * a second tab and reload. At 100+ garments that is the loop you spend the
+     * most time in.
+     *
+     * ⚠️ A DRAFT WILL NOT PREVIEW, and that is correct rather than a gap. The
+     * public viewer endpoint serves published products only
+     * (endpoints/publicViewer.ts filters `status: published` before anything
+     * else), so a draft's URL 404s. Do NOT "fix" that by exposing drafts
+     * publicly — the whole point of Draft is that nothing is reachable. A real
+     * draft preview needs a signed preview route, which is its own piece of work.
+     *
+     * Returning null hides the panel entirely, which is a clearer answer than an
+     * iframe showing an error page.
+     */
+    livePreview: {
+      url: ({ data }) => {
+        const slug = typeof data?.slug === 'string' ? data.slug.trim() : ''
+        if (slug === '' || data?.status !== 'published') return null
+        // The topmost switched-on colour is the default colourway — the same
+        // rule the viewer itself applies to a bare /<product> link, so the panel
+        // opens on what a customer scanning the QR code would see.
+        const rows = Array.isArray(data?.colourways) ? data.colourways : []
+        const first = rows.find((row) => row?.active !== false) ?? rows[0]
+        const colour = typeof first?.slug === 'string' ? first.slug.trim() : ''
+        return colour === ''
+          ? `https://viewer.wear-run.help/${slug}`
+          : `https://viewer.wear-run.help/${slug}/${colour}`
+      },
+    },
   },
   access: {
     // Anonymous visitors read only through the dedicated public viewer endpoint.
@@ -202,6 +267,12 @@ export const Products: CollectionConfig = {
         position: 'sidebar',
         description: 'Nothing is public until this says Published.',
       },
+      hooks: {
+        // A copy must never arrive published: it has no model attached (see
+        // glbAsset's beforeDuplicate below) and no verified colours, so a published
+        // duplicate would be an instantly-broken live page.
+        beforeDuplicate: [() => 'draft'],
+      },
     },
     {
       name: 'sortOrder',
@@ -219,6 +290,20 @@ export const Products: CollectionConfig = {
           label: 'Product',
           description: 'The basics. Start here.',
           fields: [
+            // "What is still stopping this from going live?" — calls the same
+            // pure collectPublishProblems that assertPublishable (used by the
+            // beforeChange hook above) is built on, so this can never say
+            // "ready" when the real gate would refuse the save. First field in
+            // the tab: the owner should see it before touching anything else.
+            // See ReadinessPanel.tsx for the one thing it deliberately cannot
+            // check (the artwork verdict).
+            {
+              name: 'readiness',
+              type: 'ui',
+              admin: {
+                components: { Field: '/fields/ReadinessPanel#ReadinessPanel' },
+              },
+            },
             {
               name: 'productName',
               type: 'text',
@@ -244,6 +329,26 @@ export const Products: CollectionConfig = {
                   : `“${value}” can’t be used as a product code. Use capital letters and numbers, starting with a letter — e.g. N001.`
               },
               admin: { description: 'Your internal code. Capital letters and numbers, e.g. N001.' },
+              hooks: {
+                // Unique, and Payload copies a field's value verbatim into a duplicate
+                // unless told otherwise — so without this, saving a freshly duplicated
+                // product hits the same `products_product_code_idx` UNIQUE index the
+                // original row already occupies. Confirmed by reading Payload 3.86.0's
+                // duplicateDocument/index.js: it runs beforeDuplicate hooks over the
+                // source doc BEFORE handing it to create, so this suffix is already in
+                // place by the time the unique check runs.
+                //
+                // NO HYPHEN. `-COPY` reads better but fails this field's own validate
+                // two lines up — isValidProductCode is /^[A-Z][A-Z0-9]*$/, letters and
+                // digits only — and beforeChange/index.js throws a ValidationError the
+                // instant any field's validate returns a string, which would abort the
+                // whole duplicate. Measured: `isValidProductCode('N001-COPY')` is
+                // `false`, and duplicating would trade the unique-constraint error this
+                // hook exists to fix for a different, equally blocking one.
+                beforeDuplicate: [
+                  ({ value }) => (typeof value === 'string' ? `${value}COPY` : value),
+                ],
+              },
             },
             {
               name: 'slug',
@@ -263,6 +368,28 @@ export const Products: CollectionConfig = {
               admin: {
                 description:
                   'The word in this product’s link and QR codes: wear-run.help/n001/navy. Never change it once QR codes are printed.',
+              },
+              hooks: {
+                beforeValidate: [
+                  ({ operation, siblingData, value }) => {
+                    // Create only, blank only. See deriveSlug: this slug is on a printed QR
+                    // tag, so this may suggest and may never correct. The `operation` guard is
+                    // belt and braces on top of the blank check — an update that somehow
+                    // arrived with an empty slug must still not be filled in silently, because
+                    // by then a tag may exist.
+                    if (operation !== 'create') return value
+                    if (typeof value === 'string' && value.trim() !== '') return value
+                    return deriveSlug(siblingData?.productName) || value
+                  },
+                ],
+                // Same reasoning as productCode's beforeDuplicate, same unique index
+                // (`products_slug_idx`). This runs before beforeValidate ever sees the
+                // duplicate (see duplicateDocument/index.js), so by the time the
+                // beforeValidate hook above checks "is this blank?" the answer is
+                // already "no" — the two compose without a double-suffix or a collision.
+                beforeDuplicate: [
+                  ({ value }) => (typeof value === 'string' ? `${value}-copy` : value),
+                ],
               },
             },
             {
@@ -373,6 +500,15 @@ export const Products: CollectionConfig = {
                 description:
                   'The shrunk file the robot produced. Pick it from “Your CLO files” above once its Status says Ready to review. Never a raw CLO export.',
               },
+              hooks: {
+                // A duplicate must not inherit the original's model: this file, and the
+                // fileColours/fileColourDetails below that were read out of it, describe
+                // one specific CLO export. Carrying them into a copy would show the
+                // wrong garment under a new product until someone noticed and cleared
+                // it by hand — worse than an empty stage, which the readiness panel and
+                // the publish gate both already say something about.
+                beforeDuplicate: [() => null],
+              },
             },
             {
               name: 'posterFallback',
@@ -407,6 +543,12 @@ export const Products: CollectionConfig = {
                 hidden: true,
                 description: 'Set automatically when your CLO file is processed.',
               },
+              hooks: {
+                // Same reasoning as glbAsset's beforeDuplicate: this is a reading of
+                // THAT file, not of the product, so it must not survive into a copy
+                // that has not had a file uploaded yet.
+                beforeDuplicate: [() => null],
+              },
             },
             {
               name: 'fileColourDetails',
@@ -425,6 +567,11 @@ export const Products: CollectionConfig = {
               // sampledMaterial }. The swatch it powers is the whole point — the
               // live site spent five weeks showing a maroon garment labelled
               // "Navy" because nothing ever put the colour next to the name.
+              hooks: {
+                // Same reasoning as fileColours immediately above — read out of the
+                // original CLO file, so it must not follow a duplicate that has none.
+                beforeDuplicate: [() => null],
+              },
             },
           ],
         },
@@ -468,6 +615,18 @@ export const Products: CollectionConfig = {
               name: 'customisationIntro',
               type: 'richText',
               label: 'Opening paragraph',
+              // A new product starts with the shared paragraph from Settings →
+              // Catalogue defaults. Payload only calls a field's defaultValue
+              // function for a genuinely new document — verified against Payload
+              // 3.86.0 rather than assumed, see task-9-report.md — so editing the
+              // global never rewrites a product that already exists. Falls back to
+              // Lexical's own empty document (the same "blank" this field has
+              // always had) rather than undefined/null: this function's return type
+              // is Payload's SerializableValue, which excludes both.
+              defaultValue: async ({ req }: { req: PayloadRequest }) => {
+                const defaults = await readCatalogueDefaults(req)
+                return defaults?.customisationIntro ?? defaultRichTextValue
+              },
               admin: {
                 description:
                   'The paragraph above the steps. Business-to-business wording only — this is not a shop.',
@@ -478,6 +637,12 @@ export const Products: CollectionConfig = {
               type: 'array',
               label: 'The steps',
               labels: { singular: 'Step', plural: 'Steps' },
+              // Same inheritance and the same create-only timing as
+              // customisationIntro immediately above.
+              defaultValue: async ({ req }: { req: PayloadRequest }) => {
+                const defaults = await readCatalogueDefaults(req)
+                return defaults?.customisationSteps ?? []
+              },
               admin: { description: 'Shown in order as the “How we build your product” list.' },
               fields: [
                 { name: 'number', type: 'number', required: true, label: 'Step number' },
@@ -498,7 +663,18 @@ export const Products: CollectionConfig = {
               name: 'catalogueUrl',
               type: 'text',
               required: true,
-              defaultValue: 'https://wear-run.help/catalogue',
+              // Same inheritance as customisationIntro above. The `||` (not `??`)
+              // is deliberate: an empty string read back from the global must also
+              // fall through, not just null/undefined, since this field requires
+              // non-empty text and readCatalogueDefaults cannot itself tell "global
+              // unreadable" apart from "global exists but nobody has filled it in
+              // yet" — see readCatalogueDefaults's comment for why both land here.
+              // The literal is the same one this field always defaulted to, and
+              // the one SiteSettings.ts's own catalogueUrl still carries.
+              defaultValue: async ({ req }: { req: PayloadRequest }) => {
+                const defaults = await readCatalogueDefaults(req)
+                return defaults?.catalogueUrl || 'https://wear-run.help/catalogue'
+              },
               label: 'Catalogue link',
               validate: (value: unknown) => {
                 if (typeof value !== 'string' || value.trim() === '') {
@@ -517,7 +693,11 @@ export const Products: CollectionConfig = {
               name: 'retiredMessage',
               type: 'text',
               required: true,
-              defaultValue: DEFAULT_RETIRED_MESSAGE,
+              // Same inheritance and the same `||` reasoning as catalogueUrl above.
+              defaultValue: async ({ req }: { req: PayloadRequest }) => {
+                const defaults = await readCatalogueDefaults(req)
+                return defaults?.retiredMessage || DEFAULT_RETIRED_MESSAGE
+              },
               label: 'Message for retired colours',
               admin: {
                 description:
