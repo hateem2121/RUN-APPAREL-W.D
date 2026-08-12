@@ -44,6 +44,6 @@
     "drizzle-orm": "0.45.2",
     "typescript": "7.0.2",
     "vitest": "4.1.10",
-    "wrangler": "4.120.1"
+    "wrangler": "4.122.0"
   }
 }
