@@ -3,6 +3,7 @@ import type { ViewerApiSuccess } from '@run-apparel/shared'
 import { OG_CARDS } from './og-cards'
 import { buildPreview, type Preview } from './preview'
 import { isAllowedRenderModel } from './renderGuard'
+import { workerResponseHeaders } from './securityHeaders'
 
 /**
  * The viewer's Worker. Its main job is to give a shared link a preview card
@@ -283,8 +284,13 @@ export default {
     // why that is a mirror rather than an import.
     if (request.method === 'GET' && url.pathname === '/render') {
       if (!isAllowedRenderModel(url.searchParams.get('model'), url.origin)) {
+        // Headers set explicitly: this response is built here, so it never
+        // passes through the static asset handler that applies `dist/_headers`
+        // and would otherwise ship bare. Measured live 2026-08-12 — see
+        // securityHeaders.ts. Do not drop them back to a plain `new Response`.
         return new Response('The "model" parameter must be a path or URL on our own host.', {
           status: 400,
+          headers: workerResponseHeaders(),
         })
       }
       return env.ASSETS.fetch(request)
