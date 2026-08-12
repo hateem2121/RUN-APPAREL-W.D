@@ -112,6 +112,11 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   headers were re-confirmed through it locally — CSP, HSTS, Permissions-Policy,
   Referrer-Policy and nosniff all present on a rewritten response. Still not
   re-checked against the live edge; do that once after the first deploy.
+  ✅ **DONE 2026-08-12** — discharged by the `/render` measurement two traps below:
+  on the live edge, through the deployed Worker, an asset-served `/render` 200
+  carried all five headers. `_headers` survives the binding in production, not just
+  under `wrangler dev`. (The same run found the Worker-*built* 400 carried none —
+  that is the separate trap, not a failure of this one.)
 
 - **Per-garment link previews are CRAWLER-ONLY, and the number is why.** Measured
   2026-08-08, warm connection, five requests each: the viewer's static HTML is
@@ -150,7 +155,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   ```
   Nothing was exploitable — the body is a fixed string with no caller input — but
   the next Worker-built response that carries HTML would ship with no CSP.
-  `worker/securityHeaders.ts` now supplies them; `scripts/csp.test.ts` pins its
+  `worker/securityHeaders.ts` now supplies them; `apps/viewer/scripts/csp.test.ts` pins its
   values against `buildHeadersFile()`'s own `/*` rule so the two copies cannot
   drift, and fails if a SIXTH header is added to `_headers` and not to it.
   ⚠️ **The e2e fixture could never have caught this, because the fixture was too
@@ -174,11 +179,20 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   them — so skipping the command degrades, it does not break.
 
 - **A build-time CSP cannot cover an edge-injected script — by construction.**
-  `scripts/csp.mjs` hashes the inline scripts present in the *built*
+  `apps/viewer/scripts/csp.mjs` hashes the inline scripts present in the *built*
   `dist/index.html`; anything Cloudflare injects at the edge arrives after those
   hashes exist. This is why the beacon is embedded as a `<script src>` (no hash
   needed) rather than left to Automatic Setup. A manual embed POSTs to
   `cloudflareinsights.com` while automatic setup posts to your own origin, so those
   two `connect-src` entries are not interchangeable. The policy is a pure function
-  in `scripts/csp.mjs` with tests; `gen-headers.mjs` is only the I/O around it.
+  in `apps/viewer/scripts/csp.mjs` with tests; `apps/viewer/scripts/gen-headers.mjs`
+  is only the I/O around it.
+
+  ⚠️ Those three were written without their `apps/viewer/` prefix until 2026-08-12,
+  and a repo-root `scripts/` **also exists** — so each cited path resolved to a real
+  directory that does not contain them, which is why eyeballing it never caught it.
+  Same shape as the `--keep`-resolves-against-CWD and `eval:artwork:real -- raw/x.glb`
+  traps in the root file: a relative path is only unambiguous next to a statement of
+  what it is relative to. Qualify package paths; `apps/cms/src/claudeMd.test.ts`
+  now fails on a citation that resolves to nothing.
 

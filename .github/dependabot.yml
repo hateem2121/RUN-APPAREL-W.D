@@ -21,7 +21,9 @@ updates:
         update-types:
           - minor
           - patch
-    # TypeScript: block MAJOR bumps (CMS stays 5.x for Next 16; viewer stays 7.x).
+    # TypeScript: block MAJOR bumps. All five workspaces are on 7.0.2 since
+    # 2026-08-12 (the CMS's Next-16 pin to TS 6 was resolved by Next 16.3.0);
+    # this rule now exists so nothing crosses to TS 8 without a deliberate build.
     ignore:
       - dependency-name: typescript
         update-types:

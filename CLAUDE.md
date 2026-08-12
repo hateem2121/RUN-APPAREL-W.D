@@ -15,12 +15,41 @@ garment reference the printed artwork IS the product** — "the 3D loads" is not
 success.
 
 ```
-apps/viewer   Public 3D viewer (React + <model-viewer>, Cloudflare Pages/Worker)
+apps/viewer   Public 3D viewer (React + <model-viewer>, Cloudflare Worker + Static
+              Assets; the Pages project was DELETED 2026-07-22 and survives only
+              as the VIEWER_DEPLOY_TARGET=pages rollback)
 apps/cms      Payload CMS on Cloudflare Workers + D1 + R2
 apps/shrink   Queue-consumer Worker driving a Container that runs the pipeline
 tools/asset-pipeline   The GLB pipeline (merge / optimize / validate / diagnostics)
 packages/shared        Types + constants both sides must agree on
 ```
+
+**The path a garment takes**, because no single directory shows it: CLO export →
+CMS `RawUploads` → R2 **ingest** bucket → queue → `apps/shrink` → Container runs
+`tools/asset-pipeline` → GLB + posters to R2 **media** (`media.wear-run.help`) →
+written back onto the product → the viewer reads
+`GET /api/public/viewer/:product/:colourway` from `cms.wear-run.help` and renders at
+`viewer.wear-run.help`. The two buckets are not interchangeable: **ingest** carries a
+14-day expiry rule and is in no backup, **media** is the one `scripts/backup-r2.mjs`
+mirrors. That asymmetry is why the raw CLO export is a local artifact — see
+`tools/asset-pipeline/CLAUDE.md`.
+
+**The gates, in CI's order** — `pnpm` below means `npx --yes pnpm@10.33.0`:
+
+```bash
+pnpm install --frozen-lockfile   # after every merge; the lockfile moves often here
+pnpm lint                        # biome check .
+pnpm typecheck                   # 5 workspaces
+pnpm test
+pnpm seed:assets && pnpm build   # build is the one that catches dependency breaks
+pnpm eval:artwork                # separate CI job — gates the deploy
+```
+
+Two of these are invisible from the workspace, and that is why "it passed locally"
+has failed twice: `apps/shrink/container` is not a pnpm member and gets its own
+`npm install --no-audit --no-fund && npx tsc --noEmit` step in CI, and
+`eval:artwork` runs in a job of its own. README's list under "Local development"
+omits `lint` and both of these.
 
 **`pnpm` is not on `PATH` on the owner's machine — use `npx --yes pnpm@10.33.0`.**
 Every documented `pnpm <script>` in this repo means that. Bare `pnpm` fails with
@@ -272,7 +301,8 @@ the answer is "nothing that happens in production", it is not a test.
   `becameUnverifiedWhilePublished` writes an Events row. See `Products.ts`.
 - **The three blocking gates do NOT catch decimation damage.** They test
   `alphaMode`, which decimation does not change. A six-run sweep from the raw
-  N001 export (`scripts/sweep-size-vs-artwork.mjs`, 2026-08-05) rendered the chest
+  N001 export (`tools/asset-pipeline/scripts/sweep-size-vs-artwork.mjs`,
+  2026-08-05) rendered the chest
   wordmark illegible at `--simplify-error 0.005` and **every run passed all three
   gates**, `artworkAtRisk` and `findArtworkAlphaProblems` both empty. With
   `--uv-weight` set, the UVs *are* in the error budget, so `artworkAtRisk` cannot
@@ -355,11 +385,15 @@ the answer is "nothing that happens in production", it is not a test.
   `HEAD`: a `GET` on the model is 37.7 MB per run, which the 15-minute uptime job
   turns into gigabytes of R2 egress against a $5/month cap.
 
-- **Seven more traps live in `apps/viewer/CLAUDE.md`** — CSP and Bot Fight Mode,
-  `_headers` combining, `_headers` surviving `env.ASSETS.fetch()`, crawler-only link
-  previews, `og:image` format, the grid `min-height: auto` overflow, and the two
-  `<model-viewer>` DOM traps (`src` is a property; `webglcontextlost` never reaches
-  your listener). Moved there 2026-08-10 because this file had come within 326 chars
+- **Ten more traps live in `apps/viewer/CLAUDE.md`** — CSP and Bot Fight Mode, why a
+  build-time CSP cannot cover an edge-injected script, `_headers` combining,
+  `_headers` surviving `env.ASSETS.fetch()` **but NOT reaching a response the Worker
+  builds itself** (that pair is one trap in two halves — the second shipped the
+  `/render` refusal with no CSP at all, live, until 2026-08-12; do not read the first
+  without the second), crawler-only link previews, `og:image` format, the grid
+  `min-height: auto` overflow, and the two `<model-viewer>` DOM traps (`src` is a
+  property; `webglcontextlost` never reaches your listener).
+  Moved there 2026-08-10 because this file had come within 326 chars
   of the size at which Claude Code warns a memory file is too large; they load
   automatically the moment you touch `apps/viewer/`. Read them before changing the
   viewer, its Worker, or its headers.

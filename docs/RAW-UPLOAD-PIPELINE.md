@@ -307,11 +307,12 @@ container's response stream so the bytes are only ever in flight.
 
 ### Payload v4 — what will break here (audited 2026-07-29)
 
-v4 exists only as `4.0.0-canary.18`; `latest` is still 3.86.0, which is what this
-repo pins. Four things in this document's blast radius change on upgrade:
+v4 exists only as `4.0.0-canary.18` and `latest` was 3.86.0 **as at that audit
+date**; the repo has since moved to **3.88.0** (2026-08-12). Four things in this
+document's blast radius change on upgrade:
 
 - **Storage adapters move out of `plugins` into a new top-level `storage` key.**
-  3.86 has no such key, so the move cannot be made early. Both `r2Storage()` calls
+  3.88 has no such key, so the move cannot be made early. Both `r2Storage()` calls
   are kept adjacent in `payload.config.ts` so the edit is a three-line diff.
 - **Direct uploads switch to a shared `POST /api/upload-instructions` endpoint.**
   That is the code path the patch below lives on — re-test it, do not assume it
@@ -319,21 +320,25 @@ repo pins. Four things in this document's blast radius change on upgrade:
 - **`versions` defaults to ON for every collection and global**, which would add
   six `_versions` tables to D1 and roughly double row-writes per save. Every
   collection and global now states `versions: false` explicitly; that is a no-op
-  on 3.86 and pins the behaviour through the upgrade.
+  on 3.88 and pins the behaviour through the upgrade.
 - **API keys created before v3.46.0 stop authenticating** (the sha1 HMAC fallback
   is removed). **`robot@wear-run.help`'s key must be re-saved or regenerated
   before upgrading**, or the entire auto-shrink flow dies silently.
 
-Also: v4 requires TypeScript ≥ 6.0.3. `apps/cms` is on 6.0.3 — deliberately not
-7.x, which Next.js 16 rejects ("TypeScript 7.0.2 does not provide the compiler API
-required by Next.js").
+Also: v4 requires TypeScript ≥ 6.0.3. `apps/cms` is on **7.0.2** — it was pinned to
+6.0.3 because Next.js 16.2.12 rejected the TS7 native compiler ("TypeScript 7.0.2
+does not provide the compiler API required by Next.js"), and **Next 16.3.0 resolved
+that on 2026-08-12**, so all five workspaces are now on one TypeScript. See
+`CLAUDE.md`.
 
 ### The `@payloadcms/storage-r2` patch — when it can go
 
-`patches/@payloadcms__storage-r2@3.86.0.patch` fixes the frozen-endpoint bug that
-meant this inbox never worked (see the ⚠️ banner). Upstream has since fixed it
+`patches/@payloadcms__storage-r2@3.88.0.patch` fixes the frozen-endpoint bug that
+meant this inbox never worked (see the ⚠️ banner). The patch is **re-keyed to the
+installed version on every Payload bump** — it was `@3.86.0.patch` until 2026-08-12
+— which is what `ERR_PNPM_UNUSED_PATCH` below enforces. Upstream has since fixed it
 themselves in **`@payloadcms/storage-r2@4.0.0-canary.17`** (`const getEndpoint =
-() => …`), but `latest` is still 3.86.0 and the 4.0 handler signature changed
+() => …`), but `latest` is still on the 3.x line and the 4.0 handler signature changed
 (`extra`→`props`, `serverHandlerPath`→`endpointPath`, new `name` field) — so
 dropping the patch is a **Payload 4.0 migration, not a version bump**.
 

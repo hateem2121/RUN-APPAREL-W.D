@@ -175,7 +175,7 @@ What shipped (both merged to `main`, deploying):
 
 | PR | Area | Change |
 |---|---|---|
-| #10 | Viewer lighting | `environment-image` (a generated, round-trip-verified studio HDR in `apps/viewer/public/env/` + `scripts/gen-env-hdr.mjs`), `tone-mapping="neutral"` (model-viewer v4 default), `exposure`, `shadow-softness` |
+| #10 | Viewer lighting | `environment-image` (a generated, round-trip-verified studio HDR in `apps/viewer/public/env/` + `apps/viewer/scripts/gen-env-hdr.mjs`), `tone-mapping="neutral"` (model-viewer v4 default), `exposure`, `shadow-softness` |
 | #10 | Pipeline | Shared optimizer (`tools/asset-pipeline/src/optimize.ts`): **WebP** textures + 2048px cap (via `sharp`), **Meshopt/Draco** geometry, a single-file **`optimize`** command |
 | #10 | Guardrails | `validate` flags raw-CLO/oversize/uncompressed textures (`--strict` = CI gate); CMS `mediaRules.ts` rejects unsafe filenames + GLBs > 40 MB |
 | #11 | Pipeline | **KTX2 / Basis** (`--ktx2`, `KHR_texture_basisu`) via WASM `ktx2-encoder` — ETC1S colour + UASTC normals; `next` 16.2.10 → 16.2.11 (clears four fresh advisories) |
@@ -444,7 +444,7 @@ Three CLI verbs — `pipeline textures` (texture inventory + PNG dump, no
 processing), `pipeline render` (screenshots through `<model-viewer>` on flat
 neutral lighting, including tight logo crops), `pipeline compare` (contact sheet:
 A | B | amplified difference, with the unamplified numbers per row) — plus
-`scripts/bisect-artwork.mjs`.
+`tools/asset-pipeline/scripts/bisect-artwork.mjs`.
 
 **The bisect is subtractive, not one-variable-at-a-time.** Varying settings
 answers "which knob helps", which had already been asked twice and produced a

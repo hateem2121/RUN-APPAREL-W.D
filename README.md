@@ -261,7 +261,7 @@ opens no alert at all — which is how the uptime check sat dead for ~23 hours o
 
 ```bash
 pnpm install
-pnpm typecheck && pnpm test && pnpm build   # all workspaces (369 unit tests, 2026-08-06)
+pnpm lint && pnpm typecheck && pnpm test && pnpm build   # all workspaces (623 unit tests, 2026-08-12)
 
 pnpm seed:assets   # placeholder GLBs/posters + merged N001 file
 pnpm dev:cms       # Payload admin on http://localhost:3000 (local D1/R2 emulation)
@@ -285,11 +285,19 @@ admin role's label, not a separate permission tier.
 
 Dependencies are pinned to the latest stable releases. Deliberate exceptions:
 
-- The **CMS** uses **TypeScript 6.0.3** (Next.js 16 rejects the TS7 native
-  compiler: *"TypeScript 7.0.2 does not provide the compiler API required by
-  Next.js"*); the **viewer**, `packages/shared` and `tools/asset-pipeline` use
-  TypeScript 7, and `apps/shrink` is on 5.9.3. Dependabot blocks *major* TS bumps
-  (`.github/dependabot.yml`) so neither workspace drifts across that line silently.
+- **TypeScript is 7.0.2 in all five workspaces** as of 2026-08-12. The CMS was
+  pinned to TypeScript 6 because Next.js 16.2.12 rejected the TS7 native compiler
+  (*"TypeScript 7.0.2 does not provide the compiler API required by Next.js"*);
+  **Next 16.3.0 resolved it** and the pin is gone — measured, `apps/cms` builds
+  clean with no compiler-API error and no fallback warning. Dependabot still blocks
+  *major* TS bumps (`.github/dependabot.yml`) so no workspace crosses that line
+  silently. The lesson that outlived the pin is in `CLAUDE.md`: `tsc --noEmit`
+  passed the whole time it was broken, so only `pnpm build` caught it.
+- `@cloudflare/workers-types` is **held at `5.20260804.1`** — every release from
+  `5.20260808.1` on breaks the `apps/shrink` typecheck. wrangler 4.122.0 asks for
+  a newer one, so the repo carries a **permanent unmet-peer warning on purpose**.
+  It is cosmetic and verified so. Do not "fix" it by raising workers-types; see
+  `CLAUDE.md` for the bisect.
 - `packageManager` stays pinned to **pnpm 10.33.0**. The `minimumReleaseAge`
   supply-chain policy that gated adopting pnpm 11 is now declared **in-repo**
   (`pnpm-workspace.yaml` → `minimumReleaseAge: 1440`, i.e. 24h, with the trusted
