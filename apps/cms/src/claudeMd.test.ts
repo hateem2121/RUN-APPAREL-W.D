@@ -75,6 +75,10 @@ const ALLOWED_ABSENT = new Map([
     'apps/cms/src/fields/importColours.test.ts',
     'cited deliberately in the past tense — the root file records that the test lived here until 2026-08-11 (16b548a) and says so in the same sentence.',
   ],
+  [
+    'apps/viewer/dist',
+    'gitignored BUILD OUTPUT, absent in a clean checkout by design — the root file cites it to say check-bundle-budget reads it and exits 1 unless `pnpm build` ran first, which is exactly why it is not committed. Added 2026-08-13 after this guard caught the citation in CI while a local `pnpm test` passed: dist existed on the machine that wrote the line. That asymmetry is the point — a citation to build output is only ever valid on a dirty tree, so it must be exempted here rather than "fixed" by building before the test.',
+  ],
 ])
 
 async function findClaudeMdFiles(dir: string, found: string[] = []): Promise<string[]> {
