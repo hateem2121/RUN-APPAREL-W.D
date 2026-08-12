@@ -31,7 +31,7 @@
     "@payloadcms/ui": "3.86.0",
     "@run-apparel/shared": "workspace:*",
     "graphql": "16.14.2",
-    "next": "16.2.12",
+    "next": "16.3.0",
     "payload": "3.86.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
@@ -42,7 +42,7 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "drizzle-orm": "0.45.2",
-    "typescript": "6.0.3",
+    "typescript": "7.0.2",
     "vitest": "4.1.10",
     "wrangler": "4.120.1"
   }
