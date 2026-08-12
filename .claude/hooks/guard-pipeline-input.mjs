@@ -62,16 +62,12 @@ const VALUE_FLAGS = new Set([
 /** Anything that looks like an invocation of this repo's pipeline CLI. */
 const PIPELINE_ENTRYPOINT = /(^|[/\s])(pipeline|run-asset-pipeline)$|cli\.ts$|asset-pipeline/
 
-/** Split a shell command into separately-executed segments. */
-function segments(command) {
-  return command.split(/&&|\|\||;|\n|(?<!\|)\|(?!\|)/g)
-}
-
-/** Naive but sufficient tokenizer: strips matched quotes, splits on whitespace. */
-function tokenize(segment) {
-  const tokens = segment.match(/"[^"]*"|'[^']*'|\S+/g) ?? []
-  return tokens.map((token) => token.replace(/^["']|["']$/g, ''))
-}
+// Segmentation and tokenizing moved to ./shell.mjs on 2026-08-12, when this guard
+// blocked a commit whose MESSAGE contained the words `pipeline optimize output/…`.
+// Heredoc bodies were never stripped here, so prose describing the guard parsed as
+// the command it describes. The sibling guard had just hit the identical bug; one
+// shared parser is what stops the two answers drifting apart.
+import { segments, tokenize } from './shell.mjs'
 
 /**
  * True if `value` points inside a generated-output directory.
