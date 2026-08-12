@@ -31,9 +31,15 @@ name: Deploy shrink service
 on:
   push:
     branches: [main]
+    # Markdown under tools/asset-pipeline/ must not redeploy the container:
+    # that glob is directory-wide and the directory holds README.md and
+    # CLAUDE.md, so c0a6728 (2026-08-12) built and pushed a Docker image for a
+    # docs-only commit. Order matters — a later `!` excludes an earlier match.
+    # `**.md` not `**/*.md`: '**.js' is GitHub's documented extension idiom.
     paths:
       - 'apps/shrink/**'
       - 'tools/asset-pipeline/**'
+      - '!tools/asset-pipeline/**.md'
       - '.github/workflows/deploy-shrink.yml'
   workflow_dispatch:
 
