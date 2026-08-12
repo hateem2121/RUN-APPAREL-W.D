@@ -60,7 +60,9 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      // `"recommended": true` until Biome 2.5.8 deprecated it for `preset`, which
+      // is the same rule set under a name that also accepts "all" / "none".
+      "preset": "recommended",
       "style": {
         // `noUncheckedIndexedAccess` is on in tsconfig.base.json, so `arr[0]!` is
         // the idiom this codebase already uses to say "checked above". Banning it

@@ -8,10 +8,6 @@
       "Bash(git show:*)",
       "Bash(git branch:*)",
       "Bash(git remote:*)",
-      "Bash(pnpm typecheck:*)",
-      "Bash(pnpm test:*)",
-      "Bash(pnpm build:*)",
-      "Bash(pnpm list:*)",
       "Bash(npx --yes pnpm@10.33.0 typecheck:*)",
       "Bash(npx --yes pnpm@10.33.0 test:*)",
       "Bash(npx --yes pnpm@10.33.0 build:*)",
@@ -51,6 +47,10 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-pipeline-input.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-bare-pnpm.mjs\""
           }
         ]
       }

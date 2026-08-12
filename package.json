@@ -28,7 +28,7 @@
       "nanoid": "^3.3.17"
     },
     "patchedDependencies": {
-      "@payloadcms/storage-r2@3.86.0": "patches/@payloadcms__storage-r2@3.86.0.patch"
+      "@payloadcms/storage-r2@3.88.0": "patches/@payloadcms__storage-r2@3.88.0.patch"
     }
   },
   "scripts": {
@@ -49,7 +49,7 @@
     "og:cards": "pnpm --filter @run-apparel/asset-pipeline og:cards"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.2",
+    "@biomejs/biome": "2.5.8",
     "@lhci/cli": "0.15.1",
     "audit-ci": "7.1.0"
   }

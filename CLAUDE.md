@@ -189,16 +189,38 @@ the answer is "nothing that happens in production", it is not a test.
 - **`apps/shrink/container` is not a workspace member.** It installs with plain
   `npm` inside Docker, so it cannot use `workspace:*` deps, and `pnpm -r` skips
   it. It has its own CI typecheck step; keep it.
-- **`apps/cms` CANNOT go to TypeScript 7, and this is not tidiness debt.** Every
-  other package is on 7.0.2; the CMS is pinned at 6.0.3 because Next.js 16.2.12
-  refuses it outright: *"TypeScript 7.0.2 does not provide the compiler API
-  required by Next.js. Enable experimental.useTypeScriptCli … or install
-  TypeScript 6 instead."* Note where that surfaces — `tsc --noEmit` passes fine
-  on 7, so `pnpm typecheck` is green and only `pnpm build` fails. The offered
-  escape is an **experimental** Next flag on the worker that serves the live
-  admin and the public API, which is not worth uniformity. Revisit when Next
-  supports TS 7. **Run `pnpm build`, not just typecheck and tests, before pushing
-  a dependency change** — that is the gap this went through.
+- **`apps/cms` was pinned to TypeScript 6 until 2026-08-12 — RESOLVED by Next
+  16.3.0, and the lesson it taught outlives the pin.** Next.js 16.2.12 refused TS 7
+  outright: *"TypeScript 7.0.2 does not provide the compiler API required by
+  Next.js. Enable experimental.useTypeScriptCli … or install TypeScript 6
+  instead."* The only escape offered was an **experimental** flag on the worker
+  that serves the live admin and the public API, which was not worth uniformity.
+  Measured on 16.3.0 the day it was tried: `apps/cms` builds clean on TypeScript
+  7.0.2 (exit 0, `Finished TypeScript in 394ms`, **no** compiler-API error and no
+  fallback warning; `apps/cms/node_modules/typescript` resolves to 7.0.2). The
+  whole repo is now on one TypeScript version.
+  **Keep the lesson, which is not about TypeScript:** `tsc --noEmit` passed fine on
+  7 the entire time it was broken, so `pnpm typecheck` was green and **only
+  `pnpm build` failed.** Run `pnpm build`, not just typecheck and tests, before
+  pushing a dependency change — that is the gap the original went through, and the
+  cheap check will keep lying to you about the next one.
+- **`@cloudflare/workers-types` is HELD at `5.20260804.1` — the break begins at
+  `5.20260808.1`.** Bisected 2026-08-12 across 0804/0808/0809/0810: 0804.1 passes,
+  every release from 0808.1 on fails `apps/shrink` typecheck with
+  `Property 'readUInt32LE' does not exist on type 'NonSharedBuffer'` ×3 plus one
+  arity error, all in `tools/asset-pipeline/src/validate.ts`. Note **where it does
+  not surface**: `tools/asset-pipeline` typechecks that same file and passes,
+  because it sets `"types": ["node"]` while `apps/shrink/tsconfig.json` sets
+  `"types": ["@cloudflare/workers-types"]` and no node types — so the Worker
+  resolves `readFile`'s Buffer against workers-types' own definitions, and only the
+  Worker sees the change. `@types/node` looks like the culprit and is not: it was
+  reverted first, the failure persisted, and 26.2.0 was restored once
+  workers-types was isolated. **Bisect; do not revert the plausible one.** Retry
+  the bump when the Buffer typings settle.
+  `5.20260804.1` is not an arbitrary floor: it is also exactly the peer minimum
+  `wrangler` 4.120.1 asks for (`^5.20260804.1`), so holding any lower — 0726.1 was
+  the first guess — trades a typecheck failure for a permanent unmet-peer warning.
+  The safe version and the required version happen to be the same one.
 - **Any Payload CLI task touching production D1 must set `NODE_ENV=production`**,
   or Payload runs a dev-mode schema push against it.
 - **Put nothing but migrations in `apps/cms/src/migrations/`.** Payload's

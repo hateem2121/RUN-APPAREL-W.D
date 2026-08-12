@@ -93,17 +93,12 @@ describe('checkRawUpload', () => {
   // and trailing dots/spaces. A name containing one is stored under two
   // different keys, so the beforeChange HEAD guard rejects a good upload with
   // "your file did not finish uploading". Catch it here, where we can say why.
-  it.each([
-    'jacket?.glb',
-    'jack*et.glb',
-    'a<b.glb',
-    'a>b.glb',
-    'a:b.glb',
-    'a|b.glb',
-    'a"b.glb',
-  ])('rejects %s, whose two sanitisers disagree', (filename) => {
-    expect(() => checkRawUpload(facts({ filename }))).toThrow(/cannot store reliably/)
-  })
+  it.each(['jacket?.glb', 'jack*et.glb', 'a<b.glb', 'a>b.glb', 'a:b.glb', 'a|b.glb', 'a"b.glb'])(
+    'rejects %s, whose two sanitisers disagree',
+    (filename) => {
+      expect(() => checkRawUpload(facts({ filename }))).toThrow(/cannot store reliably/)
+    },
+  )
 
   it('rejects a trailing dot or space, which sanitize-filename silently trims', () => {
     expect(() => checkRawUpload(facts({ filename: 'cycling all colours.glb ' }))).toThrow(

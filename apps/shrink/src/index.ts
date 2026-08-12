@@ -263,7 +263,7 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   }
 
   const report = decodeReport(containerRes.headers.get('x-shrink-report'))
-  if (!report || !report.ok) {
+  if (!report?.ok) {
     // Drain so the container connection is not left hanging.
     await containerRes.body?.cancel().catch(() => {})
     throw new Error(report?.error ?? 'Container did not report a successful shrink.')
