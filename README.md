@@ -252,6 +252,7 @@ reach it. See `docs/RUNBOOK.md` → "The canonical raw garment".
 | `nightly-backup.yml` | nightly | D1 export; R2 media mirror on Mondays |
 | `diagnostics-digest.yml` | Mondays | reads the Events table — the client errors the viewer records |
 | `heartbeat.yml` | every 6 h | checks the three above have actually *run*; opens a `monitoring` issue |
+| `perf-watch.yml` | weekly (Mon) | live response times vs the thresholds in `docs/QA-CHECKLIST.md`; a 403 is inconclusive, never a failure |
 
 `heartbeat.yml` exists because a monitor that fails **before** it measures anything
 opens no alert at all — which is how the uptime check sat dead for ~23 hours on
