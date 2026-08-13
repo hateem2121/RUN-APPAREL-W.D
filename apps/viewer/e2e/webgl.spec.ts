@@ -24,7 +24,7 @@ test('3D model loads and switching colourway changes the KHR material variant', 
     })
   })
 
-  await page.goto('/n001/navy')
+  await page.goto('/n001/wine')
 
   const hasWebGL = await page.evaluate(() => {
     try {
@@ -129,7 +129,7 @@ test('a lost WebGL context is reported as such, not as a failed colour swap', as
     if (msg.text().includes('[viewer:')) diagnostics.push(msg.text())
   })
 
-  await page.goto('/n001/navy')
+  await page.goto('/n001/wine')
   await page.waitForFunction(
     () => Boolean((document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded),
     undefined,

@@ -96,29 +96,72 @@ const MIME = {
   '.json': 'application/json',
 }
 
+/**
+ * The colourways N001 actually ships, read from
+ * `GET https://cms.wear-run.help/api/public/viewer/n001/wine` on 2026-08-13.
+ *
+ * WHY THEY WERE CHANGED. This fixture carried navy / black / crimson, and only
+ * `black` had ever existed in production — the live garment is wine / blush /
+ * butter / lime / black. So the axe scan and the Lighthouse run both audited
+ * `/n001/navy`, a colourway the site answers with the stale-QR fallback. The
+ * DOM shape happened to be close enough that nothing failed, which is exactly
+ * the shape of this repo's most expensive recurring bug: "the test fixtures
+ * could not exhibit the failure" (root CLAUDE.md). Fixtures that drift from
+ * production are a gate that has quietly stopped describing production.
+ *
+ * `butter` is worth keeping for a second reason. At #FDFDC8 it is the
+ * near-white swatch that `.colourway-tab__swatch` draws its inset ring for —
+ * the ring that was missing in production until 2026-08-13 because `page.css`
+ * read an undefined `var(--paper)`. Without a near-white colourway here, no
+ * test can ever exhibit that class of bug either.
+ *
+ * ⚠️ `lime` is DELIBERATELY ABSENT and must stay absent. `a11y.spec.ts` visits
+ * `/n001/lime` to reach the retired-colourway notice; adding it here silently
+ * turns that test into a second scan of a healthy page.
+ *
+ * ⚠️ `variantId` IS NOT the production value and must not be "corrected" to it.
+ * Production reports `Colorway 2`/`3`/`6`; these name variants inside the SEEDED
+ * PLACEHOLDER GLB, which `pnpm seed:assets` builds from
+ * `tools/asset-pipeline/src/placeholders.ts` as N001-NAVY / N001-BLACK /
+ * N001-CRIMSON. `webgl.spec.ts` asserts `model-viewer.variantName` equals one of
+ * them — it is the check that proves the real KHR_materials_variants swap
+ * happened — so this field must match the asset on disk, not the live CMS.
+ * Renaming the placeholders to match production is a pipeline change (see
+ * tools/asset-pipeline/CLAUDE.md) and was deliberately not bundled into the
+ * 2026-08-13 fixture fix; the slug is what the audited URLs use, and the slug is
+ * what was wrong.
+ */
 const COLOURWAYS = [
   {
-    slug: 'navy',
-    displayName: 'Navy',
+    slug: 'wine',
+    displayName: 'Wine',
     variantId: 'N001-NAVY',
-    hexSwatch: '#22314E',
+    hexSwatch: '#825353',
     sequence: 1,
     isDefault: true,
+  },
+  {
+    slug: 'blush',
+    displayName: 'Blush',
+    variantId: 'N001-CRIMSON',
+    hexSwatch: '#F7CDCD',
+    sequence: 2,
+    isDefault: false,
+  },
+  {
+    slug: 'butter',
+    displayName: 'Butter',
+    variantId: 'N001-CRIMSON',
+    hexSwatch: '#FDFDC8',
+    sequence: 3,
+    isDefault: false,
   },
   {
     slug: 'black',
     displayName: 'Black',
     variantId: 'N001-BLACK',
-    hexSwatch: '#17181A',
-    sequence: 2,
-    isDefault: false,
-  },
-  {
-    slug: 'crimson',
-    displayName: 'Crimson',
-    variantId: 'N001-CRIMSON',
-    hexSwatch: '#8C1F2F',
-    sequence: 3,
+    hexSwatch: '#262727',
+    sequence: 5,
     isDefault: false,
   },
 ]

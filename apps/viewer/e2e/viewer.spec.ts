@@ -2,9 +2,9 @@ import { expect, test } from '@playwright/test'
 
 test.describe('RUN APPAREL 3D viewer', () => {
   test('direct QR URL loads product with pre-selected colourway', async ({ page }) => {
-    await page.goto('/n001/navy')
+    await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toContainText(/Velocity Performance/i)
-    await expect(page.getByText('[ COLOURWAY 01 / NAVY ]')).toBeVisible()
+    await expect(page.getByText('[ COLOURWAY 01 / WINE ]')).toBeVisible()
     // poster-first: an image for the selected colourway is present immediately
     await expect(page.locator('.stage img').first()).toBeVisible()
 
@@ -22,21 +22,29 @@ test.describe('RUN APPAREL 3D viewer', () => {
   })
 
   test('colourway switch updates URL without a reload', async ({ page }) => {
-    await page.goto('/n001/navy')
+    await page.goto('/n001/wine')
     await page.evaluate(() => {
       ;(window as unknown as { __noReload: boolean }).__noReload = true
     })
-    await page.getByRole('tab', { name: /02\s*Black/i }).click()
+    // 04, and the number is POSITIONAL rather than the `sequence` field:
+    // `ColourwayTabs.tsx:195` renders `String(index + 1).padStart(2, '0')`. Black
+    // carries sequence 5 in this fixture (production's numbering, with Lime at 4
+    // deliberately absent so `/n001/lime` reaches the retired-colourway notice),
+    // but it is the 4th entry in the array, so it displays as 04. The UI never
+    // shows a gap — worth knowing before "fixing" either number to match the
+    // other. It was 02 until 2026-08-13, when the fixture stopped using
+    // colourways that had never existed in production.
+    await page.getByRole('tab', { name: /04\s*Black/i }).click()
     await expect(page).toHaveURL(/\/n001\/black$/)
-    await expect(page.getByText('[ COLOURWAY 02 / BLACK ]')).toBeVisible()
+    await expect(page.getByText('[ COLOURWAY 04 / BLACK ]')).toBeVisible()
     const preserved = await page.evaluate(
       () => (window as unknown as { __noReload?: boolean }).__noReload,
     )
     expect(preserved).toBe(true) // a full reload would have wiped this flag
-    // back button returns to navy client-side
+    // back button returns to wine client-side
     await page.goBack()
-    await expect(page).toHaveURL(/\/n001\/navy$/)
-    await expect(page.getByText('[ COLOURWAY 01 / NAVY ]')).toBeVisible()
+    await expect(page).toHaveURL(/\/n001\/wine$/)
+    await expect(page.getByText('[ COLOURWAY 01 / WINE ]')).toBeVisible()
   })
 
   test('retired colourway falls back to default with notice and silent URL fix', async ({
@@ -44,8 +52,8 @@ test.describe('RUN APPAREL 3D viewer', () => {
   }) => {
     await page.goto('/n001/lime')
     await expect(page.getByText(/no longer active/i)).toBeVisible()
-    await expect(page).toHaveURL(/\/n001\/navy$/)
-    await expect(page.getByText('[ COLOURWAY 01 / NAVY ]')).toBeVisible()
+    await expect(page).toHaveURL(/\/n001\/wine$/)
+    await expect(page.getByText('[ COLOURWAY 01 / WINE ]')).toBeVisible()
   })
 
   // A tag printed with only the product code, or a buyer trimming the URL back
@@ -56,9 +64,9 @@ test.describe('RUN APPAREL 3D viewer', () => {
   }) => {
     await page.goto('/n001')
     await expect(page.getByRole('heading', { level: 1 })).toContainText(/Velocity Performance/i)
-    await expect(page.getByText('[ COLOURWAY 01 / NAVY ]')).toBeVisible()
+    await expect(page.getByText('[ COLOURWAY 01 / WINE ]')).toBeVisible()
     // The URL is normalised so the page can be shared and bookmarked.
-    await expect(page).toHaveURL(/\/n001\/navy$/)
+    await expect(page).toHaveURL(/\/n001\/wine$/)
     // Nothing was retired — claiming otherwise tells the buyer a colour has been
     // discontinued when none has.
     await expect(page.getByText(/no longer active/i)).toHaveCount(0)
@@ -67,7 +75,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
   // The wordmark pointed at "/", which parses to no route at all and rendered the
   // unavailable page — so the most natural click on the page broke it.
   test('header wordmark does not lead to the unavailable state', async ({ page }) => {
-    await page.goto('/n001/navy')
+    await page.goto('/n001/wine')
     const wordmark = page.locator('.header__wordmark')
     await expect(wordmark).not.toHaveAttribute('href', '/')
     await wordmark.click()
@@ -85,7 +93,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
       if (msg.text().includes('[viewer:')) diagnostics.push(msg.text())
     })
 
-    await page.goto('/n002/navy')
+    await page.goto('/n002/wine')
     await expect(page.getByRole('heading', { level: 1 })).toContainText(/Sample Without Model/i)
     // Poster-first still works, and the page is otherwise whole.
     await expect(page.locator('.stage img').first()).toBeVisible()
@@ -108,15 +116,15 @@ test.describe('RUN APPAREL 3D viewer', () => {
   })
 
   test('email and WhatsApp links carry the locked enquiry template', async ({ page }) => {
-    await page.goto('/n001/navy')
+    await page.goto('/n001/wine')
     const email = page.locator('.contact a', { hasText: 'Email Us' })
     const mailto = await email.getAttribute('href')
     expect(mailto).toContain('mailto:partner@wear-run.com')
     expect(mailto).toContain(
-      encodeURIComponent('Product Enquiry — Velocity Performance Tee / Navy'),
+      encodeURIComponent('Product Enquiry — Velocity Performance Tee / Wine'),
     )
     expect(mailto).toContain(
-      encodeURIComponent('I am interested in Velocity Performance Tee (N001) in Navy.'),
+      encodeURIComponent('I am interested in Velocity Performance Tee (N001) in Wine.'),
     )
 
     const whatsapp = page.locator('.contact a', { hasText: 'WhatsApp Us' })
@@ -127,7 +135,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
 
   test('theme toggle persists an explicit manual choice', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' })
-    await page.goto('/n001/navy')
+    await page.goto('/n001/wine')
     await page.getByRole('button', { name: /switch to dark mode/i }).click()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
     const stored = await page.evaluate(() => localStorage.getItem('run-theme'))
@@ -137,7 +145,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
   })
 
   test('customisation section expands the four build steps', async ({ page }) => {
-    await page.goto('/n001/navy')
+    await page.goto('/n001/wine')
     const toggle = page.getByRole('button', { name: /how we build your product/i })
     await toggle.click()
     await expect(page.getByText('SHARE YOUR STARTING POINT')).toBeVisible()
@@ -145,7 +153,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
   })
 
   test('page carries no retail/e-commerce language', async ({ page }) => {
-    await page.goto('/n001/navy')
+    await page.goto('/n001/wine')
     const body = (await page.locator('body').innerText()).toLowerCase()
     for (const banned of ['add to cart', 'buy now', 'checkout', 'price', 'in stock', 'sale']) {
       expect(body).not.toContain(banned)
