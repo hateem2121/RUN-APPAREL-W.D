@@ -7,6 +7,10 @@
     "cloudflare": {
       "type": "http",
       "url": "https://bindings.mcp.cloudflare.com/mcp"
+    },
+    "Motion": {
+      "type": "http",
+      "url": "https://mcp.motion.dev"
     }
   }
 }
