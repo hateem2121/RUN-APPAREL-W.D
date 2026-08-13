@@ -61,7 +61,21 @@ jobs:
         working-directory: apps/shrink/container
         run: npm install --no-audit --no-fund && npx tsc --noEmit
 
-      - run: pnpm test
+      # `test:coverage` rather than `test`: it runs the identical suites once, with
+      # v8 coverage on, and each package's vitest.config.ts fails its own run on a
+      # shortfall against a threshold MEASURED on 2026-08-13 (not chosen).
+      #
+      # `scripts/check-coverage.mjs` then runs the repo-wide gate. It exists for the
+      # one failure per-package thresholds structurally cannot catch: a package
+      # dropping OUT of the measurement. Verified in both directions when it was
+      # added — with apps/viewer's report removed, the repo figure ROSE from 71.4% to
+      # 83.75% (its uncovered lines left the denominator) and the gate still exited 1.
+      # That is the whole reason it asserts presence before percentages.
+      #
+      # --max-age-minutes guards the local case where a stale coverage/ from an
+      # earlier run would satisfy the presence check while measuring nothing. On a
+      # clean CI checkout it is belt-and-braces.
+      - run: pnpm test:coverage
 
       # The alerting branch of uptime.yml / heartbeat.yml is the one piece of this
       # repo that ONLY runs when something is already broken — so nothing exercises

@@ -1,3 +1,4 @@
+import { coverage } from '../../vitest.coverage.mjs'
 import { defineConfig } from 'vitest/config'
 
 // jsdom-environment unit tests for the viewer's browser logic
@@ -28,5 +29,46 @@ export default defineConfig({
     // where Node's own Web Storage global suppresses jsdom's — see the setup
     // file for the full explanation.
     setupFiles: ['./vitest.setup.ts'],
+    coverage: coverage({
+      include: ['src/**/*.ts', 'src/**/*.tsx', 'worker/**/*.ts', 'scripts/*.mjs'],
+      exclude: [
+        // Bootstrap: mounts React and nothing else. Exercised end to end by the
+        // Playwright suite, which is where a broken mount actually shows.
+        'src/main.tsx',
+        'src/vite-env.d.ts',
+        'src/styles/**',
+        // Needs HTMLRewriter and a service binding, neither of which exists under
+        // vitest — which is WHY every decision it makes lives in worker/preview.ts
+        // instead. Covering it here is impossible; the post-deploy
+        // smoke-viewer-preview.mjs check is what exercises it, against the edge.
+        'worker/index.ts',
+        // I/O shells around tested pure functions. `csp.mjs` is the pure policy
+        // builder and IS counted; `gen-headers.mjs` only writes its output to disk.
+        'scripts/gen-headers.mjs',
+        'scripts/gen-env-hdr.mjs',
+        'scripts/copy-decoders.mjs',
+      ],
+      /**
+       * Measured 2026-08-13, and DELIBERATELY the lowest number in the repo.
+       *
+       * ⚠️ Do not "fix" this by excluding App.tsx, Stage.tsx and RenderPage.tsx —
+       * 239 of the ~380 uncovered lines are in those three, and dropping them from
+       * the denominator would report ~75% while testing exactly as much code. That
+       * is the failure mode this whole measurement was added to prevent, and it
+       * would be indistinguishable from real progress.
+       *
+       * They are counted and they are honestly uncovered HERE, because what
+       * actually exercises them is `apps/viewer/e2e/` — 4 Playwright specs across
+       * five browsers including WebKit, with a real WebGL context and an axe scan.
+       * `<model-viewer>` cannot be meaningfully driven under jsdom (CLAUDE.md: `src`
+       * is a property not an attribute, and `webglcontextlost` never reaches a host
+       * listener), so a jsdom test of Stage.tsx would assert against a stub and pass
+       * whatever production did. That is worse than an honest 42%.
+       *
+       * The right way to raise this number is to move logic OUT of those components
+       * into `src/lib/` — which is where every 100%-covered module here came from.
+       */
+      thresholds: { lines: 42, functions: 42, branches: 32, statements: 41 },
+    }),
   },
 })
