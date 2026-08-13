@@ -187,20 +187,43 @@ export default function App() {
             position but leaves focus in the header — the next Tab then walks back
             through exactly the links the user just asked to skip. */}
         <main id="main-content" tabIndex={-1}>
-          {/* The panel half of <ColourwayTabs>'s tablist. Labelled by whichever tab
-              is selected, so a screen reader reaching the stage is told which
-              colourway it is showing. */}
-          <div
-            id={COLOURWAY_PANEL_ID}
-            role="tabpanel"
-            aria-labelledby={colourwayTabId(selected.slug)}
-            tabIndex={-1}
-          >
-            <Stage
-              data={data}
+          {/*
+            The garment and the control that recolours it, in one band.
+
+            Until 2026-08-13 the tablist lived in `.content` BELOW <ProductPanel>,
+            which is 613px tall on a phone — so the swatches sat 686px under the
+            canvas and, measured on the live site, scrolling them into view left
+            ZERO pixels of the garment on screen. Every colour change was made
+            blind, then undone by a scroll back up.
+
+            The tablist and its panel were always declared to belong together
+            (`aria-controls` → COLOURWAY_PANEL_ID); only the layout disagreed.
+            They are siblings here so the DOM order finally matches the ARIA, and
+            `.stage-block` is what draws the band's bottom edge — see page.css.
+          */}
+          <div className="stage-block">
+            {/* The panel half of <ColourwayTabs>'s tablist. Labelled by whichever
+                tab is selected, so a screen reader reaching the stage is told
+                which colourway it is showing. */}
+            <div
+              id={COLOURWAY_PANEL_ID}
+              role="tabpanel"
+              aria-labelledby={colourwayTabId(selected.slug)}
+              tabIndex={-1}
+            >
+              <Stage
+                data={data}
+                selected={selected}
+                preview={previewedColourway}
+                onModelReadyChange={setVariantSwapReady}
+              />
+            </div>
+            <ColourwayTabs
+              colourways={data.colourways}
               selected={selected}
-              preview={previewedColourway}
-              onModelReadyChange={setVariantSwapReady}
+              onSelect={onSelectColourway}
+              onPreview={setPreviewedColourway}
+              modelReady={variantSwapReady}
             />
           </div>
           {retiredNotice && <RetiredNotice message={retiredNotice} />}
@@ -209,13 +232,6 @@ export default function App() {
               data={data}
               selected={selected}
               selectedIndex={Math.max(selectedIndex, 0)}
-            />
-            <ColourwayTabs
-              colourways={data.colourways}
-              selected={selected}
-              onSelect={onSelectColourway}
-              onPreview={setPreviewedColourway}
-              modelReady={variantSwapReady}
             />
             <CustomisationSection data={data} />
             <ContactSection settings={data.siteSettings} enquiry={enquiry} />

@@ -82,23 +82,57 @@
 }
 
 /* ── 3D stage ──────────────────────────────────────────────────────── */
+
+/*
+ * The garment and its colourway rail are ONE band, and this element is what
+ * makes them look like one: it owns the shared background and the bottom edge
+ * that used to sit on `.stage` itself. Moving that border down is the whole
+ * visual difference — without it the rail reads as the first row of the content
+ * below rather than as furniture belonging to the stage.
+ *
+ * `--stage-gutter` is declared here so the canvas and the rail cannot drift
+ * apart horizontally. Both consumers are always inside `.stage-block`, so the
+ * inherited value always resolves — no bare `var()` reaching for a token that
+ * does not exist (see the 2026-08-13 fix in tokens.css).
+ */
+.stage-block {
+  --stage-gutter: clamp(8px, 3vw, 40px);
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
 .stage {
   position: relative;
   isolation: isolate;
   background: var(--bg);
-  border-bottom: 1px solid var(--line);
 }
 
 .stage__inner {
   position: relative;
   max-width: 1200px;
   margin: 0 auto;
-  padding: clamp(8px, 2vw, 24px) clamp(8px, 3vw, 40px);
+  padding: clamp(8px, 2vw, 24px) var(--stage-gutter);
 }
 
+/*
+ * The canvas takes what is LEFT, not a fixed fraction of the screen.
+ *
+ * Since the colourway rail moved directly beneath it, the garment no longer owns
+ * the first screen alone — it shares it with the rail, and below 900px with the
+ * fixed `.action-bar` painted over the bottom 72px. `72vh` alone overshot: at
+ * 375x812 it resolved to 584.6px and pushed the rail's bottom edge to 745.6,
+ * six pixels under a viewport that usably ends at 740. Six pixels is enough to
+ * put the control back out of reach, which is the entire bug.
+ *
+ * The third term is the budget, and it is subtraction rather than taste:
+ * 93 header + 24 + 24 stage padding + 12 gap + 52 rail ≈ 205, rounded to 208.
+ * It binds only on short windows — at 1280x800 and 768x1024 it resolves above
+ * the other two terms, so every measurement on this file's larger viewports is
+ * byte-identical to before the rail moved.
+ */
 .stage__canvas {
   position: relative;
-  height: min(72vh, 640px);
+  height: min(72vh, 640px, calc(100dvh - 208px));
   min-height: 380px;
   border-radius: var(--radius-panel);
   overflow: hidden;
@@ -110,6 +144,24 @@
     100% 100%,
     26px 26px,
     26px 26px;
+}
+
+/*
+ * Below 900px the budget has to absorb two more things: the 72px `.action-bar`
+ * fixed over the bottom of the viewport (it is `display: none` from 900px up),
+ * and the rail's caption line, which must not end up underneath it. Same
+ * arithmetic, larger subtrahend — 81 header + 8 + 8 stage padding + 12 gap +
+ * 52 rail + 12 gap + 25 caption + 12 band padding + 72 bar ≈ 282, rounded to 280.
+ *
+ * The floor drops with it. 380px assumed the garment had the screen to itself;
+ * on a 600px-tall phone that floor plus the rail exceeds the viewport, and a
+ * min-height that reintroduces the scroll defeats the rule above it.
+ */
+@media (max-width: 899px) {
+  .stage__canvas {
+    height: min(72vh, 640px, calc(100dvh - 280px));
+    min-height: 280px;
+  }
 }
 
 .stage__contours {
@@ -396,6 +448,22 @@ model-viewer.stage__model {
 .colourways {
   display: grid;
   gap: 12px;
+}
+
+/*
+ * The rail lives in the stage band, not the content column, so it takes the
+ * stage's own measure and gutter instead of `.content`'s. Aligning to
+ * `--stage-gutter` rather than `.content`'s wider inset is deliberate: the
+ * swatches line up with the canvas edge they belong to, and a visitor reads the
+ * two as one object.
+ *
+ * No top padding — `.stage__inner` has already paid it, and doubling it is the
+ * gap that put the rail out of reach to begin with.
+ */
+.stage-block .colourways {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--stage-gutter) clamp(12px, 2vw, 20px);
 }
 
 .colourways__list {

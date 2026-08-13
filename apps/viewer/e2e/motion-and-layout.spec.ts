@@ -114,6 +114,76 @@ test.describe('layout invariants', () => {
     })
   }
 
+  test('the garment and its colourway picker fit one phone screen, unscrolled', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    /**
+     * Measured on the live site 2026-08-13, before this test existed: the canvas
+     * ended at y=674 and the colourway rail began at y=1360 — 686px of product
+     * copy in between, because <ColourwayTabs> was rendered inside `.content`
+     * AFTER the 613px-tall product panel. Scrolling the rail into view put the
+     * canvas 306px above the top of the viewport, so **zero pixels** of the
+     * garment were on screen at the moment a visitor chose its colour. Pick a
+     * colour blind, scroll back up, discover what you picked.
+     *
+     * The invariant is deliberately "unscrolled", not "eventually both visible".
+     * A weaker assertion — that some scroll position shows both — is satisfied by
+     * a layout where the two are 400px apart on a 812px screen, which is the same
+     * bug wearing a smaller number. What the visitor is owed is that the garment
+     * is already on screen when they reach for the swatches.
+     *
+     * The fixed action bar is subtracted rather than ignored: it is 72px of
+     * EMAIL / WHATSAPP painted over the bottom of the viewport, so a rail that
+     * "fits" underneath it does not fit at all.
+     */
+    const fit = await page.evaluate(() => {
+      const box = (selector: string) => {
+        const el = document.querySelector(selector)
+        if (!el) return null
+        const r = el.getBoundingClientRect()
+        return { top: Math.round(r.top), bottom: Math.round(r.bottom) }
+      }
+      const bar = document.querySelector('.action-bar')
+      return {
+        scrollY: Math.round(window.scrollY),
+        usableBottom: bar ? Math.round(bar.getBoundingClientRect().top) : window.innerHeight,
+        canvas: box('.stage__canvas'),
+        rail: box('[role="tablist"]'),
+      }
+    })
+
+    expect(fit.canvas, 'no .stage__canvas on the page').not.toBeNull()
+    expect(fit.rail, 'no colourway tablist on the page').not.toBeNull()
+    const { canvas, rail, usableBottom } = fit as {
+      canvas: { top: number; bottom: number }
+      rail: { top: number; bottom: number }
+      usableBottom: number
+    }
+
+    expect(
+      canvas.bottom,
+      `the garment is cut off: canvas ends at ${canvas.bottom}, ` +
+        `usable viewport ends at ${usableBottom}`,
+    ).toBeLessThanOrEqual(usableBottom)
+
+    expect(
+      rail.bottom,
+      `the colourway rail is off screen at rest: it ends at ${rail.bottom}, ` +
+        `usable viewport ends at ${usableBottom} — a visitor must scroll the ` +
+        `garment away to change its colour`,
+    ).toBeLessThanOrEqual(usableBottom)
+
+    expect(
+      rail.top,
+      `the colourway rail sits above the garment (rail top ${rail.top}, ` +
+        `canvas bottom ${canvas.bottom})`,
+    ).toBeGreaterThanOrEqual(canvas.bottom)
+  })
+
   test('every interactive control meets the WCAG 2.5.8 target size', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await page.goto('/n001/wine')
