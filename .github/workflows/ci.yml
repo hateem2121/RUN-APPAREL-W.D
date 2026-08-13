@@ -191,6 +191,31 @@ jobs:
       - name: Vulnerability audit (high/critical)
         run: pnpm exec audit-ci --config audit-ci.jsonc
 
+      # SBOM + licence gate. `audit-ci` above answers "is anything known-vulnerable
+      # TODAY"; this answers the question that only matters LATER — "were we running
+      # the compromised version on the day it was published?" — which the lockfile's
+      # git history answers far less conveniently, and only while that history is
+      # still around.
+      #
+      # It also enforces the licence policy. This is a private commercial product, so
+      # a strong-copyleft transitive (AGPL/SSPL/GPL) is a legal problem rather than a
+      # style one, and it arrives the way every supply-chain problem arrives: as a
+      # dependency nobody chose. Measured across 1,067 components on 2026-08-13 — zero
+      # denied, so the gate starts clean.
+      #
+      # No new dependency: it reads `pnpm licenses list --json`, which pnpm already
+      # computes from the lockfile it already resolved. Adding an SBOM tool to close a
+      # supply-chain gap would mean trusting one more package to audit the packages.
+      - name: SBOM + licence policy
+        run: node scripts/sbom.mjs sbom.cdx.json
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: sbom-${{ github.sha }}
+          path: sbom.cdx.json
+          retention-days: 90
+
   # Secret scanning, and it GATES THE DEPLOY.
   #
   # This lived in its own security.yml until 2026-08-03, where it could only ever
