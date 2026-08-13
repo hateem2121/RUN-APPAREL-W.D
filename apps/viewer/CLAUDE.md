@@ -196,3 +196,25 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   what it is relative to. Qualify package paths; `apps/cms/src/claudeMd.test.ts`
   now fails on a citation that resolves to nothing.
 
+## Whose animation advice wins
+
+Three vendored skills opine on motion here — `review-animations` and
+`emil-design-eng` (Emil Kowalski, taste) and `motion` (Motion's own kit, render
+cost). **`docs/DESIGN.md` outranks all three.** It calls itself the viewer's
+*locked* design system, and `apps/viewer/src/styles/tokens.css:2`,
+`apps/viewer/src/main.tsx:2` and `apps/viewer/src/components/SerifAccent.tsx:5`
+already cite it as their authority.
+
+This is not a precaution, it is arithmetic. `review-animations` standard 4 is
+*"sub-300ms on UI, or it is a finding"*; `docs/DESIGN.md` §5 locks `--settle` at
+**500ms** and `--slow` at **800ms**. An agent applying that skill literally files
+two findings against the locked system. On mechanics the three agree — prefer
+`transform` over Motion's `x`/`y`/`scale` shorthands, springs that retarget when
+interruptible, GPU-composited properties only — so **duration and easing are where
+to expect the collision**, not technique.
+
+Added 2026-08-13, when `motion` became the third advisor. The full rulings — these
+plus the ones for React and for prose — are in `.claude/skills/README.md`, which is
+policy for a human reading a diff and is never loaded into a session. That is why
+this paragraph is here and not only there.
+

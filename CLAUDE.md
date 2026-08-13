@@ -40,7 +40,7 @@ mirrors. That asymmetry is why the raw CLO export is a local artifact — see
 pnpm install --frozen-lockfile   # after every merge; the lockfile moves often here
 pnpm lint                        # biome check .
 pnpm typecheck                   # 5 workspaces
-pnpm test:coverage               # 846 tests + the coverage floors (see below)
+pnpm test:coverage               # 848 tests + the coverage floors (see below)
 bash scripts/test-alert-shell.sh # the alert branch nothing else exercises
 pnpm seed:assets && pnpm build   # build is the one that catches dependency breaks
 node scripts/check-bundle-budget.mjs  # deterministic shell weight; needs the build above
