@@ -147,20 +147,28 @@
 }
 
 /*
- * Below 900px the budget has to absorb two more things: the 72px `.action-bar`
- * fixed over the bottom of the viewport (it is `display: none` from 900px up),
- * and the rail's caption line, which must not end up underneath it. Same
- * arithmetic, larger subtrahend — 81 header + 8 + 8 stage padding + 12 gap +
- * 52 rail + 12 gap + 25 caption + 12 band padding + 72 bar ≈ 282, rounded to 280.
+ * Below 900px the canvas deliberately does NOT fill the first screen.
  *
- * The floor drops with it. 380px assumed the garment had the screen to itself;
- * on a 600px-tall phone that floor plus the rail exceeds the viewport, and a
- * min-height that reintroduces the scroll defeats the rule above it.
+ * The subtrahend was 280 — 81 header + 8 + 8 stage padding + 12 gap + 52 rail +
+ * 12 gap + 25 caption + 12 band padding + 72 bar — which made the stage band end
+ * exactly at the action bar. Everything fitted and nothing breathed: the garment
+ * took 532 of 812px, the controls were pressed against the fold, and the product
+ * facts began 1029px down with no hint they existed. Measured, and reported by
+ * the owner as "everything feels too congested and tight".
+ *
+ * The extra ~100px is spent on purpose, and buys two things at once. It gives the
+ * rail and caption room, and it lets the top of the product panel PEEK above the
+ * fold — which is the only honest scroll affordance on a page whose first screen
+ * is otherwise a full-bleed canvas. A visitor cannot decide to scroll for content
+ * they have no reason to believe is there.
+ *
+ * The floor rises with it rather than falling: 300px is the smallest a garment
+ * can be and still read as a garment on a 600px-tall phone.
  */
 @media (max-width: 899px) {
   .stage__canvas {
-    height: min(72vh, 640px, calc(100dvh - 280px));
-    min-height: 280px;
+    height: min(62vh, 640px, calc(100dvh - 380px));
+    min-height: 300px;
   }
 }
 
@@ -954,20 +962,32 @@ model-viewer.stage__model {
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
-    gap: 6px;
+    gap: 8px;
     overflow-x: visible;
+  }
+
+  /* A swatch is the only thing on this control that carries meaning at a glance,
+     so it gets the space rather than the label. */
+  .colourway-tab__swatch {
+    width: 18px;
+    height: 18px;
   }
 
   .colourway-tab {
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     min-width: 0;
     /* Stays above the WCAG 2.5.8 floor: 8 + 14 swatch + 6 + ~12 text + 8 = 48px
        tall, and at 320px — the narrowest phone in the e2e matrix — 56px wide.
        The target-size test guards this independently. */
-    min-height: 48px;
-    padding: 8px 4px;
-    font-size: 9px;
+    /* 9px was measured on the shipped build and is below the size at which a
+       mono label reads at arm's length; the tabs also sat 4px apart with 8px of
+       padding, which is what made the rail feel like a strip rather than a set
+       of controls. 10px on an 18px swatch with 10px of padding clears the WCAG
+       2.5.8 floor by a wide margin (56px tall, ~63px wide at 320px). */
+    min-height: 56px;
+    padding: 10px 6px;
+    font-size: 10px;
     letter-spacing: 0.06em;
     text-align: center;
   }

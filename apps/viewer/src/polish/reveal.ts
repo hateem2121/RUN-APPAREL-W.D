@@ -24,7 +24,21 @@ export function startReveals(): () => void {
         }
       }
     },
-    { threshold: 0.12, rootMargin: '0px 0px -8% 0px' },
+    /**
+     * A SLIVER counts, and the bottom margin is what stages the effect.
+     *
+     * The threshold was 0.12, which is a fraction of the ELEMENT, not of the
+     * screen — so the taller the section, the further you had to scroll before
+     * it stopped being invisible. `.product-info` is 528px on a 375x812 phone,
+     * making 12% equal to 63px. When the mobile layout was rebuilt to let that
+     * panel peek above the fold as a scroll affordance, the peek measured 32px —
+     * 6.1% — so the space opened up specifically to signal "there is more below"
+     * rendered blank. The affordance and the reveal were fighting each other.
+     *
+     * `rootMargin`'s -8% is what still holds content back until it genuinely
+     * reaches the fold, so lowering the threshold does not flatten the effect.
+     */
+    { threshold: 0.01, rootMargin: '0px 0px -8% 0px' },
   )
   for (const el of els) observer.observe(el)
   return () => observer.disconnect()
