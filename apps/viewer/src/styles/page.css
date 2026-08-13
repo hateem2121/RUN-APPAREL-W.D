@@ -513,6 +513,10 @@ model-viewer.stage__model {
   scrollbar-width: thin;
 }
 
+.colourway-tab__num {
+  margin-right: 6px;
+}
+
 .colourway-tab {
   flex: 0 0 auto;
   display: inline-flex;
@@ -924,5 +928,101 @@ model-viewer.stage__model {
 @media (hover: hover) and (pointer: fine) {
   .theme-toggle:hover svg {
     transform: rotate(18deg);
+  }
+}
+
+/*
+ * On a phone the rail becomes EQUAL COLUMNS, one row, no scrolling.
+ *
+ * Measured 2026-08-13 at 375x812: the flex row above needed 637px inside 361px,
+ * so 276px — three of the five colourways — sat off the right edge with nothing
+ * to suggest they existed, and "03 BUTTE" was clipped mid-word at the boundary.
+ * `overflow-x: auto` was absorbing a width problem silently, which is the worst
+ * kind: it looks deliberate in review.
+ *
+ * `grid-auto-flow: column` + `grid-auto-columns: 1fr` divides the row by however
+ * many colourways there are rather than assuming five, so a sixth shrinks the
+ * columns instead of reintroducing the scroll. `min-width: 0` on the tab is what
+ * lets a grid item actually shrink below its content width — the same automatic
+ * minimum size documented for the poster overflow above.
+ *
+ * Desktop keeps the pills: at 1123px the flex row fits with room to spare, and
+ * five columns across that width reads as spaced-out rather than deliberate.
+ */
+@media (max-width: 899px) {
+  .colourways__list {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 6px;
+    overflow-x: visible;
+  }
+
+  .colourway-tab {
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    /* Stays above the WCAG 2.5.8 floor: 8 + 14 swatch + 6 + ~12 text + 8 = 48px
+       tall, and at 320px — the narrowest phone in the e2e matrix — 56px wide.
+       The target-size test guards this independently. */
+    min-height: 48px;
+    padding: 8px 4px;
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    text-align: center;
+  }
+
+  .colourway-tab__label {
+    white-space: nowrap;
+  }
+
+  .colourway-tab__num {
+    margin-right: 4px;
+  }
+
+  /* The non-colour cue for the selected tab. It belongs on the label rather than
+     the button here: as a child of a column flex it would become a third row. */
+  .colourway-tab[aria-selected="true"]::after {
+    content: none;
+  }
+
+  .colourway-tab[aria-selected="true"] .colourway-tab__label::after {
+    content: " ●";
+    font-size: 7px;
+  }
+}
+
+/*
+ * The spec facts as ANNOTATIONS on a phone, not a list.
+ *
+ * `.stage__callouts` is switched off below 1000px, and correctly so: those are
+ * absolutely positioned at left/right 3% and would sit on top of the garment on
+ * a narrow screen. But the four facts they show are real content that still
+ * exists here in `.spec-list` — and styled as a stacked list with a solid rule,
+ * a phone visitor read the product as a paragraph while a desktop visitor read
+ * it as a technical drawing.
+ *
+ * These rules give the phone the callout's own language: paired columns and the
+ * dashed dimension rule from `.callout::before`, at the exact breakpoint where
+ * the floating version switches off, so one treatment always applies and never
+ * both. The markup is untouched — it is still one <dl>, announced once.
+ */
+@media (max-width: 999px) {
+  .spec-list {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px 16px;
+  }
+
+  .spec-list div {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .spec-list div::before {
+    content: "";
+    display: block;
+    width: 40px;
+    border-top: 1px dashed var(--dimension);
+    margin-bottom: 8px;
   }
 }

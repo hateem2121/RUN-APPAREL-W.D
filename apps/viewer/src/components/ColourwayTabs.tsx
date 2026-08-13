@@ -192,8 +192,14 @@ export function ColourwayTabs({
                 aria-hidden="true"
               />
             )}
-            <span className="colourway-tab__num">{String(index + 1).padStart(2, '0')}</span>
-            {colourway.displayName}
+            {/* The number and the name are wrapped so they stay ONE line when the
+                tab stacks vertically on a phone. Unwrapped, a column layout makes
+                each of them — and the selected-state dot — its own row. The
+                accessible name is unchanged: it is still the text content. */}
+            <span className="colourway-tab__label">
+              <span className="colourway-tab__num">{String(index + 1).padStart(2, '0')}</span>
+              {colourway.displayName}
+            </span>
           </button>
         ))}
       </div>

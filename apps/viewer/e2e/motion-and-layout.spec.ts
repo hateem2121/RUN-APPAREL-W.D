@@ -265,3 +265,61 @@ test.describe('layout invariants', () => {
     }
   })
 })
+
+test.describe('the colourway rail fits the screen', () => {
+  for (const width of [320, 375, 414]) {
+    test(`every colourway is reachable without sliding at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 812 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      /**
+       * Measured on the live site 2026-08-13, before this test existed: the rail
+       * needed 637px inside 361px of room at 375px wide, so 276px — THREE of the
+       * five colourways — sat off the right edge with no visual cue they existed.
+       * "03 BUTTE" was clipped mid-word at the boundary.
+       *
+       * For a B2B garment reference the colourways ARE the product, so a picker
+       * that hides 60% of the range by default is not a styling detail.
+       *
+       * The assertion is deliberately "no horizontal scrolling exists", not "the
+       * swatches are wide enough" — a rail that fits by shrinking targets below
+       * the WCAG 2.5.8 minimum trades one defect for another, and the target-size
+       * test above still guards that independently.
+       */
+      const fit = await page.evaluate(() => {
+        const list = document.querySelector('.colourways__list')
+        if (!list) return null
+        const listRect = list.getBoundingClientRect()
+        const tabs = [...list.querySelectorAll('[role="tab"]')]
+        return {
+          overflowPx: Math.round(list.scrollWidth - list.clientWidth),
+          offEdge: tabs
+            .filter((t) => {
+              const r = t.getBoundingClientRect()
+              return r.right > listRect.right + 1 || r.left < listRect.left - 1
+            })
+            .map((t) => t.textContent?.trim() ?? '?'),
+          count: tabs.length,
+        }
+      })
+
+      expect(fit, 'no colourway tablist on the page').not.toBeNull()
+      const { overflowPx, offEdge, count } = fit as {
+        overflowPx: number
+        offEdge: string[]
+        count: number
+      }
+      expect(count).toBeGreaterThan(0)
+      expect(
+        overflowPx,
+        `the rail scrolls horizontally by ${overflowPx}px — the colours past the ` +
+          'edge can only be found by guessing they are there',
+      ).toBeLessThanOrEqual(0)
+      expect(
+        offEdge,
+        `these colourways are outside the visible rail: ${offEdge.join(', ')}`,
+      ).toEqual([])
+    })
+  }
+})
