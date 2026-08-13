@@ -28,6 +28,7 @@ jobs:
     # Only after go-live (remote D1/R2 exist + secrets set): Phase 10.
     if: vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -44,7 +45,36 @@ jobs:
 
       - name: Export D1
         run: node scripts/backup-d1.mjs --stamp="$(date -u +%Y-%m-%d)"
+
+      # RESTORE THE BACKUP, every night, before trusting it.
+      #
+      # Until this step existed the only evidence a backup was usable was that
+      # `wrangler d1 export` exited 0 — and a truncated upload, a dump cut off
+      # mid-INSERT, and a perfect dump of an empty database all exit 0 too. Every one
+      # of those is otherwise discovered during a real restore, after the data is gone.
+      #
+      # This replays the .sql into a throwaway in-memory SQLite (node:sqlite, built
+      # into the Node 24 this repo already pins — no new dependency) with FOREIGN KEYS
+      # ON, then checks that every table the dump claims to populate ends up with the
+      # rows it claims, and that products/users/site_settings/media are non-empty.
+      # Foreign keys are on deliberately: root CLAUDE.md records a migration that
+      # "reported success while cascade-deleting two tables nobody was watching", and
+      # a dump that only restores with the checks disabled has that problem already.
+      #
+      # docs/BACKUP-RESTORE.md records that a HUMAN restore drill once found the
+      # restore instructions were broken. That was the right instinct, done once. This
+      # is the same drill on a schedule.
+      - name: Verify the backup actually restores
+        run: |
+          for dump in backups/d1/*.sql; do
+            node scripts/verify-backup.mjs "$dump"
+          done
+
+      # `if: always()` so a backup that FAILED verification is still kept. The job goes
+      # red either way, and a corrupt dump is evidence worth having when working out
+      # what went wrong upstream.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
         with:
           name: d1-backup-${{ github.run_id }}
           path: backups/d1/*.sql

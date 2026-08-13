@@ -1,0 +1,128 @@
+import { DEFAULT_SITE_SETTINGS, type ViewerSiteSettings } from '@run-apparel/shared'
+import { act } from 'react'
+import { type Root, createRoot } from 'react-dom/client'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { RetiredNotice, UnavailableState } from './States'
+;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+
+/**
+ * The two states a visitor sees when something has gone wrong — which is exactly
+ * when the viewer is least forgiving, because the person looking at it scanned a
+ * printed tag and cannot "try a different link".
+ *
+ * WHY THE noindex EFFECT IS THE POINT OF THIS FILE. `UnavailableState` appends a
+ * `<meta name="robots" content="noindex">` on mount and removes it on unmount. Both
+ * halves matter and both fail silently:
+ *
+ *   - Without the ADD, a retired product code gets indexed as "This reference has
+ *     moved forward" and that page outlives the garment in search results. QR URLs
+ *     are printed on tags and do get crawled.
+ *   - Without the REMOVE, the tag survives client-side navigation to a product that
+ *     IS available, and a live garment is silently deindexed. Nothing on the page
+ *     looks different in either case, and no test elsewhere in this repo — including
+ *     the axe scan and the Lighthouse run, which measure a single static state —
+ *     could observe the difference.
+ */
+
+let host: HTMLDivElement
+let root: Root
+
+beforeEach(() => {
+  host = document.createElement('div')
+  document.body.appendChild(host)
+  root = createRoot(host)
+})
+
+afterEach(() => {
+  act(() => root.unmount())
+  host.remove()
+  for (const meta of document.head.querySelectorAll('meta[name="robots"]')) meta.remove()
+})
+
+const render = (node: React.ReactNode) => {
+  act(() => root.render(node))
+}
+
+const robotsMetas = () => [...document.head.querySelectorAll('meta[name="robots"]')]
+
+describe('RetiredNotice', () => {
+  it('announces the message as a live status region', () => {
+    render(<RetiredNotice message="This colourway is no longer active." />)
+
+    const notice = host.querySelector('.notice')
+    // role="status" is what makes a screen reader announce the substitution. Without
+    // it the visitor is shown a different garment than their tag pointed at, with no
+    // spoken indication that anything was swapped.
+    expect(notice?.getAttribute('role')).toBe('status')
+    expect(notice?.textContent).toContain('This colourway is no longer active.')
+  })
+
+  it('renders whatever message the CMS supplied, per-product', () => {
+    render(<RetiredNotice message="Ask us about the replacement." />)
+    expect(host.textContent).toContain('Ask us about the replacement.')
+  })
+})
+
+describe('UnavailableState', () => {
+  it('adds a robots noindex tag while it is on screen', () => {
+    expect(robotsMetas()).toHaveLength(0)
+    render(<UnavailableState />)
+
+    expect(robotsMetas()).toHaveLength(1)
+    expect(robotsMetas()[0]?.getAttribute('content')).toBe('noindex')
+  })
+
+  it('removes the noindex tag on unmount, so a later live product is not deindexed', () => {
+    render(<UnavailableState />)
+    expect(robotsMetas()).toHaveLength(1)
+
+    act(() => root.render(<div />))
+
+    expect(robotsMetas(), 'the meta must not survive the component').toHaveLength(0)
+  })
+
+  it('falls back to the shared default settings when none are supplied', () => {
+    render(<UnavailableState />)
+
+    const catalogue = host.querySelector<HTMLAnchorElement>('a.btn--primary')
+    expect(catalogue?.href).toContain(DEFAULT_SITE_SETTINGS.catalogueUrl)
+  })
+
+  it('offers all three escape routes — catalogue, email and WhatsApp', () => {
+    const settings: ViewerSiteSettings = {
+      ...DEFAULT_SITE_SETTINGS,
+      email: 'sales@example.com',
+      whatsappNumber: '+441234567890',
+      catalogueUrl: 'https://example.com/catalogue',
+    }
+    render(<UnavailableState settings={settings} />)
+
+    const hrefs = [...host.querySelectorAll<HTMLAnchorElement>('a')].map(
+      (a) => a.getAttribute('href') ?? '',
+    )
+
+    // This page is a dead end unless these work: the visitor arrived from a printed
+    // tag for a product that no longer exists, and these three links are the only
+    // path from "your QR is dead" to "talk to us".
+    expect(hrefs.some((h) => h === 'https://example.com/catalogue')).toBe(true)
+    expect(hrefs.some((h) => h.startsWith('mailto:sales@example.com'))).toBe(true)
+    expect(hrefs.some((h) => h.includes('441234567890'))).toBe(true)
+  })
+
+  it('opens WhatsApp in a new tab without leaking the referrer', () => {
+    render(<UnavailableState />)
+    const wa = [...host.querySelectorAll<HTMLAnchorElement>('a')].find((a) =>
+      (a.getAttribute('href') ?? '').includes('wa.me'),
+    )
+
+    expect(wa?.getAttribute('target')).toBe('_blank')
+    // `noopener` is the security half (the opened page cannot reach back through
+    // window.opener); dropping it is invisible until it is exploited.
+    expect(wa?.getAttribute('rel')).toContain('noopener')
+  })
+
+  it('marks itself as the page main landmark', () => {
+    render(<UnavailableState />)
+    expect(host.querySelector('main')).not.toBeNull()
+  })
+})

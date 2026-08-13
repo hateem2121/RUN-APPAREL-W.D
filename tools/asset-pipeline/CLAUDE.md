@@ -28,13 +28,22 @@ drifted (`@playwright/test` 1.62.0→1.62.1, `@types/node` 26.1.1→26.2.0, `tsx
 build died on `npm ci` with *"can only install packages when your package.json
 and package-lock.json are in sync"*.
 
-**Note where it does not surface — this is the whole trap.** `lint`, `typecheck`
+**Note where it did not surface — this was the whole trap.** `lint`, `typecheck`
 5/5, 621 tests, `build`, and the container's own `tsc --noEmit` were *all green*,
-because **none of them run `npm ci`**. The only thing that executes this path is
-the Docker build triggered by a push to `main`. The root `CLAUDE.md` already says
+because **none of them run `npm ci`**. The root `CLAUDE.md` already says
 `apps/shrink/container` "is not a workspace member… it has its own CI typecheck
 step"; the typecheck step was never the gap. `npm ci` is, and it lives one
 directory away, here.
+
+✅ **CAUGHT LOCALLY SINCE 2026-08-13 — this paragraph said until then that "the
+only thing that executes this path is the Docker build triggered by a push to
+`main`", and that is no longer true.** `scripts/check-lockfile-sync.mjs`
+reproduces `npm ci`'s own sync rule with no npm, no network and no install, and
+runs inside `pnpm test` via `apps/cms/src/lockfileSync.test.ts`. It also fails on
+the `"resolved": "file:"` paths that appear when the lockfile is regenerated
+inside the pnpm workspace — the other half of the procedure below. **Still
+regenerate by hand when you change `package.json`;** what changed is that
+forgetting now costs seconds instead of a deploy.
 
 Regenerate **in a temp dir, never in the workspace** — pnpm's symlinked
 `node_modules` makes npm write `file:` paths that do not exist inside the image

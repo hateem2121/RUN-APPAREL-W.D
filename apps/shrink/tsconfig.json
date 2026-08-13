@@ -16,7 +16,22 @@
     // own definitions, so releases from 5.20260808.1 on fail here and nowhere else
     // (root CLAUDE.md). tools/asset-pipeline typechecks the same file and passes,
     // because it sets `types: ["node"]`.
-    "types": ["@cloudflare/workers-types"]
+    "types": ["@cloudflare/workers-types"],
+    // Stricter than the base, enabled here 2026-08-13 — measured, it passes with
+    // ZERO changes to source. See tsconfig.base.json for why it is per-package:
+    // apps/cms and apps/viewer cannot pass it because Payload's and
+    // @sentry/vite-plugin's own declarations write `?: T` while accepting an
+    // explicit undefined.
+    //
+    // This package earns it for the same reason packages/shared does. It is the
+    // Worker that decides whether a shrunk garment is written back onto a LIVE
+    // product, and "the key is absent" vs "the key is present and undefined" is a
+    // distinction it acts on — root CLAUDE.md records exactly that confusion
+    // shipping decals on `alphaMode: BLEND`, via the `opaque` default mismatch
+    // between `parseOptimizeArgs` (true) and `optimizeGlb` (absent → false).
+    // Three of five workspaces are now on it; the two that are not are blocked
+    // upstream, not by choice.
+    "exactOptionalPropertyTypes": true
   },
   // The Worker, plus the container's pure report module, which src/
   // containerReport.test.ts covers — that ~10 KB of operator-facing text is what

@@ -1,0 +1,64 @@
+name: Performance watch
+
+on:
+  schedule:
+    # Weekly. Deliberately NOT frequent: this measures a trend, not liveness —
+    # liveness is uptime.yml's job (every 15 min requested, ~45 min delivered) plus
+    # the two external UptimeRobot checks every 5 minutes. A performance probe on a
+    # tight schedule would mostly measure GitHub's runner variance.
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+# A `permissions:` block REPLACES the defaults rather than adding to them. `contents:
+# read` is required or actions/checkout fails with a 404 on this private repo — the
+# failure that killed uptime.yml silently for ~23 hours. No other scope is needed:
+# this job reports by failing, and does not write issues (see below).
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      # No install step: the probe uses `fetch` and nothing else. Keeping it
+      # dependency-free means this workflow cannot break because of the lockfile.
+      #
+      # WHAT IT DOES NOT DO, and why, because both are counter-intuitive:
+      #
+      #   * It never GETs the model. 27 MB against a $5/month R2 egress cap, and a
+      #     weekly GET is affordable only until someone tightens the schedule.
+      #   * It therefore cannot report the model's cache status, because
+      #     `cf-cache-status` is only trustworthy when read from a GET's own headers.
+      #     Measured on 2026-08-13, same URL, same minute: GET said HIT (age 49431),
+      #     HEAD said DYNAMIC. A probe using `curl -I` here would conclude the model
+      #     is never cached — a convincing and completely false finding.
+      #
+      # A 403/429/503 is reported as INCONCLUSIVE and the run stays green. Free-plan
+      # Bot Fight Mode intermittently blocks datacenter traffic; it already forced an
+      # API cutover to be rolled back and later failed a deploy through a check that
+      # read a 403 as "no model". An alert that fires on Cloudflare's mood gets muted,
+      # and a muted alert is how the outage path stayed silent for 17 days.
+      - name: Probe live response times
+        run: node scripts/perf-probe.mjs
+
+      # DELIBERATELY NO `gh issue create` STEP.
+      #
+      # uptime.yml and heartbeat.yml open issues, and the shell that does it is the
+      # one piece of this repo that only runs when something is already broken — which
+      # is why scripts/test-alert-shell.sh exists to execute it against a stub `gh`,
+      # negative control and all. Adding a third, untested copy of that logic here
+      # would reproduce the exact shape of the failure those two already had.
+      #
+      # A failed scheduled run notifies the repository owner through GitHub's own
+      # workflow-failure notifications, which is proportionate for a weekly trend
+      # check. If this ever needs to open issues, add it to test-alert-shell.sh in the
+      # same commit — not afterwards.

@@ -45,6 +45,43 @@ function read(name: string): string {
 }
 
 /**
+ * Job keys (two-space indent under `jobs:`) that declare no `timeout-minutes`.
+ *
+ * Exported shape kept simple — takes a source string, returns job names — so the
+ * negative controls below can run it against a synthetic workflow rather than
+ * against the repo, which is the only way to prove it can fail.
+ */
+function jobsWithoutTimeout(source: string): string[] {
+  const lines = source.split('\n')
+  const jobsAt = lines.findIndex((l) => /^jobs:\s*$/.test(l))
+  if (jobsAt === -1) return []
+
+  const offenders: string[] = []
+  let current: string | null = null
+  let hasTimeout = false
+
+  const close = () => {
+    if (current && !hasTimeout) offenders.push(current)
+  }
+
+  for (let i = jobsAt + 1; i < lines.length; i++) {
+    const line = lines[i]!
+    const header = line.match(/^ {2}([A-Za-z_][\w-]*):\s*$/)
+    if (header) {
+      close()
+      current = header[1]!
+      hasTimeout = false
+      continue
+    }
+    // A non-indented line ends the jobs block entirely.
+    if (line.trim() !== '' && !/^\s/.test(line)) break
+    if (current && /^ {4}timeout-minutes:\s*\d+/.test(line)) hasTimeout = true
+  }
+  close()
+  return offenders
+}
+
+/**
  * Lines belonging to a `run:` block — i.e. shell. Everything else in a workflow is
  * expression context, where `${{ }}` is evaluated by Actions rather than pasted into
  * a shell, and is therefore not an injection site.
@@ -306,5 +343,136 @@ describe('workflow hardening', () => {
     }
 
     expect(offenders, offenders.join('\n')).toEqual([])
+  })
+
+  /**
+   * Every job must cap its own runtime.
+   *
+   * NOT A HYPOTHETICAL HERE. ci.yml's own comment records run 31091024563, where the
+   * Playwright browser install — a step measured at 49 seconds on a healthy runner —
+   * ran for 30+ MINUTES before the run was cancelled by hand. GitHub Actions reported
+   * no incident. Without `timeout-minutes` a hung job runs to the platform default of
+   * SIX HOURS, and on a private repo those are billed minutes.
+   *
+   * The second reason is the one that matters more: `concurrency.cancel-in-progress`
+   * means a hung run on `main` holds the slot, so the deploy of the fix queues behind
+   * the hang. A capped job fails, and a failure is visible; a hang is not.
+   */
+  it('caps every job with timeout-minutes', async () => {
+    const offenders: string[] = []
+
+    for (const file of await workflowFiles()) {
+      for (const job of jobsWithoutTimeout(read(file))) {
+        offenders.push(`${file}: job "${job}" has no timeout-minutes`)
+      }
+    }
+
+    expect(
+      offenders,
+      'A job with no timeout-minutes runs to the 6-hour platform default when it hangs.\n' +
+        `${offenders.join('\n')}`,
+    ).toEqual([])
+  })
+
+  it('the timeout check can actually fail (negative control)', () => {
+    const missing = `
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hi
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - run: echo hi
+`
+    // Proves the parser distinguishes the two rather than returning [] for everything —
+    // the failure mode that would make the assertion above decorative. `build` lacks a
+    // timeout and is reported; `test` has one and is not.
+    expect(jobsWithoutTimeout(missing)).toEqual(['build'])
+
+    const fixed = missing.replace(
+      '  build:\n    runs-on: ubuntu-latest\n',
+      '  build:\n    runs-on: ubuntu-latest\n    timeout-minutes: 5\n',
+    )
+    expect(fixed, 'the replacement must actually have changed the source').not.toBe(missing)
+    expect(jobsWithoutTimeout(fixed)).toEqual([])
+  })
+
+  /**
+   * `pull_request_target` runs with the BASE repository's token and secrets while
+   * checking out a fork's code. It is the single most exploited GitHub Actions
+   * misconfiguration, and its danger is entirely invisible in the diff that adds it —
+   * the workflow simply starts working for fork PRs, which is usually why someone
+   * reached for it.
+   *
+   * There is no legitimate use for it here: this repo takes no fork contributions and
+   * `ci.yml` already handles `pull_request` correctly.
+   */
+  it('uses no pull_request_target trigger', async () => {
+    const offenders: string[] = []
+
+    for (const file of await workflowFiles()) {
+      read(file)
+        .split('\n')
+        .forEach((line, i) => {
+          if (/^\s*pull_request_target:/.test(line)) offenders.push(`${file}:${i + 1}`)
+        })
+    }
+
+    expect(
+      offenders,
+      'pull_request_target runs untrusted fork code with write-scoped secrets. Use ' +
+        `pull_request.\n${offenders.join('\n')}`,
+    ).toEqual([])
+  })
+
+  /**
+   * A secret interpolated into a `run:` block is pasted into the shell before the
+   * shell sees it, so it lands in `set -x` output, in an error message that echoes the
+   * command, and in any process listing. Passing it via `env:` and referencing `"$VAR"`
+   * keeps it out of the command line entirely — which is what every deploy step in
+   * this repo already does. This pins that rather than relying on it continuing.
+   *
+   * Same mechanism as the `github.event.*` rule above; different blast radius.
+   */
+  it('never interpolates a secret inside a run: block', async () => {
+    const offenders: string[] = []
+
+    for (const file of await workflowFiles()) {
+      for (const { line, number } of shellLines(read(file))) {
+        if (line.trim().startsWith('#')) continue
+        if (/\$\{\{\s*secrets\./.test(line)) offenders.push(`${file}:${number} -> ${line.trim()}`)
+      }
+    }
+
+    expect(
+      offenders,
+      'Secrets must reach a run: block through env:, never by interpolation — an ' +
+        `interpolated secret appears in the command line.\n${offenders.join('\n')}`,
+    ).toEqual([])
+  })
+
+  it('the secret-interpolation check can actually fail (negative control)', () => {
+    const bad = `
+jobs:
+  deploy:
+    steps:
+      - run: curl -H "Authorization: \${{ secrets.TOKEN }}" https://example.com
+`
+    const hits = shellLines(bad).filter((l) => /\$\{\{\s*secrets\./.test(l.line))
+    expect(hits).toHaveLength(1)
+
+    const good = `
+jobs:
+  deploy:
+    steps:
+      - env:
+          TOKEN: \${{ secrets.TOKEN }}
+        run: curl -H "Authorization: $TOKEN" https://example.com
+`
+    // The safe form must NOT trip it, or the rule would be unfollowable.
+    expect(shellLines(good).filter((l) => /\$\{\{\s*secrets\./.test(l.line))).toEqual([])
   })
 })

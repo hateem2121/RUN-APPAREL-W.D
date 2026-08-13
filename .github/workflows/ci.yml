@@ -27,6 +27,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -61,7 +62,21 @@ jobs:
         working-directory: apps/shrink/container
         run: npm install --no-audit --no-fund && npx tsc --noEmit
 
-      - run: pnpm test
+      # `test:coverage` rather than `test`: it runs the identical suites once, with
+      # v8 coverage on, and each package's vitest.config.ts fails its own run on a
+      # shortfall against a threshold MEASURED on 2026-08-13 (not chosen).
+      #
+      # `scripts/check-coverage.mjs` then runs the repo-wide gate. It exists for the
+      # one failure per-package thresholds structurally cannot catch: a package
+      # dropping OUT of the measurement. Verified in both directions when it was
+      # added — with apps/viewer's report removed, the repo figure ROSE from 71.4% to
+      # 83.75% (its uncovered lines left the denominator) and the gate still exited 1.
+      # That is the whole reason it asserts presence before percentages.
+      #
+      # --max-age-minutes guards the local case where a stale coverage/ from an
+      # earlier run would satisfy the presence check while measuring nothing. On a
+      # clean CI checkout it is belt-and-braces.
+      - run: pnpm test:coverage
 
       # The alerting branch of uptime.yml / heartbeat.yml is the one piece of this
       # repo that ONLY runs when something is already broken — so nothing exercises
@@ -162,6 +177,7 @@ jobs:
   # explicitly allowlisted (with justification) in audit-ci.jsonc.
   audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -175,6 +191,31 @@ jobs:
       - name: Vulnerability audit (high/critical)
         run: pnpm exec audit-ci --config audit-ci.jsonc
 
+      # SBOM + licence gate. `audit-ci` above answers "is anything known-vulnerable
+      # TODAY"; this answers the question that only matters LATER — "were we running
+      # the compromised version on the day it was published?" — which the lockfile's
+      # git history answers far less conveniently, and only while that history is
+      # still around.
+      #
+      # It also enforces the licence policy. This is a private commercial product, so
+      # a strong-copyleft transitive (AGPL/SSPL/GPL) is a legal problem rather than a
+      # style one, and it arrives the way every supply-chain problem arrives: as a
+      # dependency nobody chose. Measured across 1,067 components on 2026-08-13 — zero
+      # denied, so the gate starts clean.
+      #
+      # No new dependency: it reads `pnpm licenses list --json`, which pnpm already
+      # computes from the lockfile it already resolved. Adding an SBOM tool to close a
+      # supply-chain gap would mean trusting one more package to audit the packages.
+      - name: SBOM + licence policy
+        run: node scripts/sbom.mjs sbom.cdx.json
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: sbom-${{ github.sha }}
+          path: sbom.cdx.json
+          retention-days: 90
+
   # Secret scanning, and it GATES THE DEPLOY.
   #
   # This lived in its own security.yml until 2026-08-03, where it could only ever
@@ -184,6 +225,7 @@ jobs:
   # Moving it here is what makes the word "gate" true.
   secrets:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       # gitleaks-action lists the PR's commits to scan them (pull_request events).
@@ -221,6 +263,7 @@ jobs:
   # together, which made a 2.1 MB ceiling look like a claim about the live page.
   lighthouse:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -280,6 +323,7 @@ jobs:
   # already runs software WebGL via swiftshader.
   artwork:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -323,6 +367,7 @@ jobs:
     #   gh variable set DEPLOY_ENABLED --body true
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # The `production` environment is a LABEL here, and that is a CLOSED DECISION
     # rather than an unfinished setup step. Required reviewers need GitHub Pro
     # (~$4/month) on a private repo; the project's entire budget is $5/month, spent
@@ -522,3 +567,40 @@ jobs:
       - name: Post-deploy link-preview smoke test
         if: vars.VIEWER_DEPLOY_TARGET != 'pages'
         run: node scripts/smoke-viewer-preview.mjs https://viewer.wear-run.help
+
+      # Put the rollback command where someone will actually be looking.
+      #
+      # docs/RUNBOOK.md → "Undoing a bad deploy" is the authority and is more complete
+      # (in particular the ⚠️ about migrations already having been applied, which is
+      # the part a hurried person gets wrong). But during an incident nobody opens a
+      # 1,493-line runbook — they open the run that shipped the change. `if: always()`
+      # so it is present on a FAILED deploy too, which is exactly when it is needed and
+      # exactly when a summary written only on success would be absent.
+      #
+      # Runs unconditionally rather than only on failure so the SHA is recorded on
+      # every deploy: rolling back needs to know what the previous good one was.
+      - name: Deploy summary and rollback instructions
+        if: always()
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          {
+            echo "### Deployed \`${SHA}\`"
+            echo
+            echo "If this deploy is wrong, roll back the affected Worker:"
+            echo
+            echo '```bash'
+            echo "npx wrangler@4.122.0 versions list --name run-apparel-viewer-site"
+            echo "npx wrangler@4.122.0 rollback --name run-apparel-viewer-site -m 'why'"
+            echo '```'
+            echo
+            echo "Workers: \`run-apparel-viewer-site\` (public viewer) · \`run-apparel-viewer-cms\` (admin + API) · \`run-apparel-viewer-shrink\` (processing only)"
+            echo
+            echo "⚠️ **D1 migrations already ran**, before the Workers deployed. A Worker"
+            echo "rollback leaves today's schema underneath yesterday's code. That is safe"
+            echo "only for additive (expand/contract) migrations — see"
+            echo "\`docs/RUNBOOK.md\` → \"Undoing a bad deploy\" before rolling back the CMS."
+            echo
+            echo "Always follow a rollback with a \`git revert\`, or the next push to"
+            echo "\`main\` silently redeploys this build on top of it."
+          } >> "$GITHUB_STEP_SUMMARY"

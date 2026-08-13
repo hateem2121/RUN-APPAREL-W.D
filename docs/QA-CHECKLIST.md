@@ -121,9 +121,18 @@ Full guide: [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md).
 ### The reference numbers (so "is it fast?" stops being an opinion)
 
 Measured against **live production**, N001 wine, warm connection, 2026-08-13.
-These are what the automated checks cannot tell you: `lighthouserc.json` and
+These are what the shell checks cannot tell you: `lighthouserc.json` and
 `scripts/check-bundle-budget.mjs` both measure the application *shell*, and the
 shell is ~5% of what a buyer actually downloads.
+
+✅ **The first three rows are now watched automatically** — `perf-watch.yml` runs
+`scripts/perf-probe.mjs` weekly against these thresholds and fails the run on a
+regression. Re-measured through it on 2026-08-13: viewer HTML **0.77 s**, product
+API **3.11 s**, health **0.38 s**, all inside the table below. Two things it
+deliberately does **not** do, both for reasons that are easy to get wrong: it never
+GETs the model (27 MB against a $5/month R2 egress cap), and it therefore cannot
+report the model's cache status — see the ⚠️ below. A 403 from a runner is reported
+as *inconclusive* and keeps the run green.
 
 | Thing | Measured | Treat as a problem if |
 |---|---|---|
