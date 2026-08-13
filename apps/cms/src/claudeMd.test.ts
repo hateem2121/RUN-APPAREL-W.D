@@ -1,7 +1,7 @@
-import { existsSync } from 'node:fs'
 import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { citedPaths, resolves } from '../../../scripts/doc-citations.mjs'
 
 /**
  * Guard the repo's CLAUDE.md files against the two ways they have actually rotted.
@@ -44,24 +44,6 @@ import { describe, expect, it } from 'vitest'
 const REPO_ROOT = join(import.meta.dirname, '..', '..', '..')
 
 /**
- * Top-level directories a citation may start with. Anchoring on these is what keeps
- * the extractor free of false positives: it means `alphaMode: BLEND`, `TEXCOORD_0`,
- * `/api/public/viewer/n001/wine` and `media.wear-run.help` are never mistaken for
- * paths. `output/` is deliberately absent — it is gitignored build output.
- */
-const ANCHORS = new Set([
-  'apps',
-  'packages',
-  'tools',
-  'scripts',
-  'docs',
-  'raw',
-  '.claude',
-  '.github',
-  'patches',
-])
-
-/**
  * Citations that are correct despite not existing. Keep this list tiny and always
  * give the reason — an exemption without one is indistinguishable from a bug someone
  * silenced.
@@ -74,6 +56,18 @@ const ALLOWED_ABSENT = new Map([
   [
     'apps/cms/src/fields/importColours.test.ts',
     'cited deliberately in the past tense — the root file records that the test lived here until 2026-08-11 (16b548a) and says so in the same sentence.',
+  ],
+  [
+    'docs/ADR.md',
+    'cited in the PAST TENSE by docs/AI-TOOLING.md, which records that a hand-written ADR digest was added on 2026-08-01 and contradicted CLAUDE.md the same day — that is why the ADR store seeds from CLAUDE.md instead. The file was removed; the account of why is the point.',
+  ],
+  [
+    '.github/workflows/artwork-real.yml',
+    'cited in the past tense by docs/RUNBOOK.md and docs/SESSION-2026-08-06.md, both of which say it was DELETED on 2026-08-07 because the R2 copy it pulled expires after 14 days and the surviving copy is on a laptop no runner can reach.',
+  ],
+  [
+    'patches/@payloadcms__storage-r2@3.86.0.patch',
+    'the version the patch carried when docs/SESSION-2026-07-27.md was written. It moved to 3.88.0 with Payload; the session log is a record of that day, not an index.',
   ],
   [
     'apps/viewer/dist',
@@ -94,25 +88,23 @@ async function findClaudeMdFiles(dir: string, found: string[] = []): Promise<str
   return found
 }
 
-/** Inline-backtick spans, with fenced code blocks removed first so command examples are not scanned. */
-function citedPaths(markdown: string): string[] {
-  const prose = markdown.replace(/```[\s\S]*?```/g, '')
-  const paths = new Set<string>()
-  for (const match of prose.matchAll(/`([^`\n]+)`/g)) {
-    const token = match[1]
-    if (!token) continue
-    // A citation contains a separator, no whitespace, and none of the characters
-    // that mark it as prose, a glob, a placeholder or a URL.
-    if (!token.includes('/')) continue
-    if (/[\s*<>()?=,]/.test(token)) continue
-    if (token.startsWith('/') || token.startsWith('~') || token.startsWith('#')) continue
-    if (token.includes('node_modules')) continue
-    const clean = token.replace(/\/+$/, '')
-    const [anchor] = clean.split('/')
-    if (!anchor || !ANCHORS.has(anchor)) continue
-    paths.add(clean)
-  }
-  return [...paths]
+/**
+ * Every Markdown file a human or an agent is expected to FOLLOW.
+ *
+ * The CLAUDE.md files are found by walk; these are named, because the set is small
+ * and a glob over `docs/` would quietly start covering a file added for a different
+ * purpose. Session logs are included deliberately — see the note on the assertion.
+ */
+async function proseFiles(): Promise<string[]> {
+  const docs = (await readdir(join(REPO_ROOT, 'docs')))
+    .filter((name) => name.endsWith('.md'))
+    .map((name) => join(REPO_ROOT, 'docs', name))
+  return [
+    join(REPO_ROOT, 'README.md'),
+    join(REPO_ROOT, 'CONTRIBUTING.md'),
+    join(REPO_ROOT, 'SECURITY.md'),
+    ...docs,
+  ]
 }
 
 /** Bullets under the `## Traps` heading — the thing the root file's index claims a count of. */
@@ -149,7 +141,7 @@ describe('CLAUDE.md', () => {
     for (const file of files) {
       for (const cited of citedPaths(await readFile(file, 'utf8'))) {
         if (ALLOWED_ABSENT.has(cited)) continue
-        if (existsSync(join(REPO_ROOT, cited))) continue
+        if (resolves(REPO_ROOT, cited)) continue
         broken.push(`${file.slice(REPO_ROOT.length + 1)} cites "${cited}"`)
       }
     }
@@ -159,6 +151,47 @@ describe('CLAUDE.md', () => {
       'A CLAUDE.md cites a path that does not exist. Fix the citation (a bare "scripts/x" is\n' +
         'almost always a package path needing its prefix — apps/viewer/scripts/, tools/asset-pipeline/scripts/).\n' +
         'If the path is absent on purpose, add it to ALLOWED_ABSENT in this file WITH the reason.',
+    ).toEqual([])
+  })
+
+  /**
+   * The same check, widened to every document a person is expected to FOLLOW.
+   *
+   * WHY IT IS WORTH MORE THAN THE CLAUDE.md ONE. README's index is the first thing a
+   * new developer reads and `docs/RUNBOOK.md` is what someone opens during an outage;
+   * a citation that resolves to nothing wastes the time of a person who has none. It
+   * found four broken citations on its first run — three of them the exact
+   * bare-`scripts/` shape the root CLAUDE.md already records twice
+   * (`scripts/csp.mjs` → `apps/viewer/scripts/csp.mjs`, `scripts/bisect-artwork.mjs`
+   * and `scripts/sweep-size-vs-artwork.mjs` → `tools/asset-pipeline/scripts/…`), each
+   * pointing at a real repo-root `scripts/` directory that does not contain them.
+   * That is why eyeballing never caught them.
+   *
+   * SESSION LOGS ARE INCLUDED, not exempted. They are historical, but "historical"
+   * excuses a stale VERSION, not a path that was always wrong — the three above were
+   * in session logs and were simply incorrect. Genuine past-tense citations go in
+   * ALLOWED_ABSENT with the reason, which keeps the distinction explicit instead of
+   * granting a whole directory an amnesty.
+   */
+  it('no document a human follows cites a path that does not exist', async () => {
+    const files = await proseFiles()
+    expect(files.length, 'expected to find the prose documents').toBeGreaterThan(10)
+
+    const broken: string[] = []
+    for (const file of files) {
+      for (const cited of citedPaths(await readFile(file, 'utf8'))) {
+        if (ALLOWED_ABSENT.has(cited)) continue
+        if (resolves(REPO_ROOT, cited)) continue
+        broken.push(`${file.slice(REPO_ROOT.length + 1)} cites "${cited}"`)
+      }
+    }
+
+    expect(
+      broken,
+      'A document cites a path that does not exist. A bare "scripts/x" is almost always a\n' +
+        'package path missing its prefix (apps/viewer/scripts/, tools/asset-pipeline/scripts/).\n' +
+        'If the path is genuinely gone and the mention is past tense, add it to\n' +
+        'ALLOWED_ABSENT above WITH the reason.',
     ).toEqual([])
   })
 
@@ -176,7 +209,7 @@ describe('CLAUDE.md', () => {
         claimsChecked++
         const claimed = NUMBER_WORDS.get(claimedWord.toLowerCase()) ?? Number(claimedWord)
         const targetPath = join(REPO_ROOT, target)
-        if (!existsSync(targetPath)) {
+        if (!resolves(REPO_ROOT, target)) {
           wrong.push(`${target} does not exist`)
           continue
         }

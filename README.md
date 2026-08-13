@@ -33,6 +33,7 @@ First-time deployment: follow **`docs/CLOUDFLARE-SETUP.md`** once, top to bottom
 
 | I want to… | Read |
 |---|---|
+| Get this running on my machine for the first time | [`docs/ONBOARDING.md`](docs/ONBOARDING.md) — a timed 30-minute path |
 | Upload a garment and get it on the site | [`docs/FIRST-GARMENT-UPLOAD.md`](docs/FIRST-GARMENT-UPLOAD.md) — plain English, no code |
 | Set the project up on Cloudflare for the first time | [`docs/CLOUDFLARE-SETUP.md`](docs/CLOUDFLARE-SETUP.md) |
 | Deploy, migrate, rotate a secret, or fix something live | [`docs/RUNBOOK.md`](docs/RUNBOOK.md) |
