@@ -1,0 +1,196 @@
+#!/usr/bin/env node
+/**
+ * Prove a D1 backup actually restores, by restoring it.
+ *
+ * WHY. `nightly-backup.yml` exported a .sql file and uploaded it as an artifact, and
+ * that was the whole of it — the only evidence the backup was usable was that
+ * `wrangler d1 export` exited 0. A truncated upload, a dump cut off mid-INSERT, or a
+ * schema the file cannot rebuild all exit 0 too, and every one of them is discovered
+ * at the worst possible moment: during a restore, after the data is already gone.
+ *
+ * docs/BACKUP-RESTORE.md records that a human restore drill in 2026-07 found the
+ * restore INSTRUCTIONS were broken. That was the right instinct and it happened once.
+ * This is the same drill, every night, automatically.
+ *
+ * WHAT IT ASSERTS, strongest first:
+ *
+ *   1. The dump replays into a real SQLite database with FOREIGN KEYS ON. Not a
+ *      parse — an execution. This is where a truncated file, an unbalanced quote or a
+ *      row referencing a deleted parent actually fails.
+ *   2. Every table the dump claims to populate ends up with the row count the dump
+ *      contains. A cascade during replay, or a statement silently skipped, shows up
+ *      here as a shortfall. `PRAGMA foreign_keys` is deliberately ON because the root
+ *      CLAUDE.md records that a DROP TABLE runs an implicit DELETE and that cascades —
+ *      the exact mechanism behind the migration that "reported success" while emptying
+ *      two tables nobody was watching.
+ *   3. A named set of tables is non-empty. A syntactically perfect dump of an empty
+ *      database is the failure that looks most like success.
+ *
+ * No new dependency: `node:sqlite` ships with Node 24, which this repo already pins.
+ */
+
+import { DatabaseSync } from 'node:sqlite'
+import { readFileSync } from 'node:fs'
+
+/**
+ * Tables that must contain at least one row for the backup to be worth keeping.
+ *
+ * Kept SHORT on purpose. `events` is excluded — it is telemetry and is legitimately
+ * empty on a quiet week, so requiring it would train someone to ignore this.
+ * `raw_uploads` is excluded for the same reason: the ingest bucket expires after 14
+ * days, so an empty table there is normal rather than alarming.
+ *
+ * These four cannot be empty on a live site: no products means no garment, no users
+ * means nobody can log in to fix it, `site_settings` carries the catalogue and contact
+ * details every "reference unavailable" page falls back to, and no `media` means the
+ * product has no GLB and no posters — a backup that restores a catalogue with nothing
+ * to look at.
+ *
+ * Names are the real D1 tables (verified against apps/cms/src/migrations); the test
+ * beside this asserts they still exist in the schema, so this list cannot drift into
+ * checking tables that were renamed away.
+ */
+export const MUST_NOT_BE_EMPTY = ['products', 'users', 'site_settings', 'media']
+
+/**
+ * Count the INSERT statements per table in a dump, i.e. what the file CLAIMS it will
+ * restore. Deliberately textual and deliberately conservative: it counts statements,
+ * not tuples, so a multi-row `INSERT INTO t VALUES (…),(…)` counts as one. That
+ * under-counts, which is the safe direction — the check is "at least what the file
+ * claims", and under-counting can only make it more lenient, never falsely fail.
+ *
+ * @param {string} sql
+ * @returns {Map<string, number>}
+ */
+export function claimedInserts(sql) {
+  const counts = new Map()
+  for (const match of sql.matchAll(/^\s*INSERT\s+(?:OR\s+\w+\s+)?INTO\s+["`[]?(\w+)/gim)) {
+    const table = match[1]
+    counts.set(table, (counts.get(table) ?? 0) + 1)
+  }
+  return counts
+}
+
+/**
+ * Replay a dump into a fresh in-memory database and report what is actually there.
+ *
+ * @param {string} sql
+ * @returns {{ tables: Map<string, number>, error: string | null }}
+ */
+export function replay(sql) {
+  const db = new DatabaseSync(':memory:')
+  try {
+    // ON, not off. The point is to restore under the same constraints production
+    // enforces — a dump that only restores with the checks disabled is a dump whose
+    // referential integrity is already broken.
+    db.exec('PRAGMA foreign_keys = ON')
+    db.exec(sql)
+  } catch (error) {
+    return { tables: new Map(), error: error instanceof Error ? error.message : String(error) }
+  }
+
+  const tables = new Map()
+  const names = db
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+    .all()
+  for (const row of names) {
+    const name = String(row.name)
+    const { c } = db.prepare(`SELECT count(*) AS c FROM "${name}"`).get()
+    tables.set(name, Number(c))
+  }
+  db.close()
+  return { tables, error: null }
+}
+
+/**
+ * The whole verdict. Pure — takes SQL text, returns problems — so every failure mode
+ * below can be tested with a string instead of a 40 MB production dump.
+ *
+ * @param {string} sql
+ * @param {{ mustNotBeEmpty?: string[] }} [options]
+ * @returns {{ ok: boolean, problems: string[], tables: Map<string, number> }}
+ */
+export function verify(sql, { mustNotBeEmpty = MUST_NOT_BE_EMPTY } = {}) {
+  const problems = []
+
+  if (!sql.trim()) {
+    return { ok: false, problems: ['The dump is empty (0 bytes of SQL).'], tables: new Map() }
+  }
+
+  const { tables, error } = replay(sql)
+  if (error) {
+    return {
+      ok: false,
+      problems: [
+        `The dump does NOT restore. SQLite refused it with: ${error}\n` +
+          '  This is what a truncated upload or a mid-statement cut looks like. The ' +
+          'artifact from this run should not be trusted as a recovery point.',
+      ],
+      tables,
+    }
+  }
+
+  if (tables.size === 0) {
+    problems.push('The dump replayed but created no tables at all.')
+  }
+
+  for (const [table, claimed] of claimedInserts(sql)) {
+    const actual = tables.get(table)
+    if (actual === undefined) {
+      problems.push(`${table}: the dump inserts into it, but it does not exist after replay.`)
+    } else if (actual < claimed) {
+      problems.push(
+        `${table}: the dump contains ${claimed} INSERT statement(s) but only ${actual} row(s) ` +
+          'survived the replay — something deleted rows during restore (a cascade, most likely).',
+      )
+    }
+  }
+
+  for (const table of mustNotBeEmpty) {
+    const actual = tables.get(table)
+    if (actual === undefined) {
+      problems.push(`${table}: missing entirely — this table must exist in any usable backup.`)
+    } else if (actual === 0) {
+      problems.push(
+        `${table}: restored with 0 rows. A syntactically perfect dump of an empty database ` +
+          'is the failure that looks most like success.',
+      )
+    }
+  }
+
+  return { ok: problems.length === 0, problems, tables }
+}
+
+function main() {
+  const path = process.argv[2]
+  if (!path) {
+    console.error('usage: node scripts/verify-backup.mjs <dump.sql>')
+    process.exit(2)
+  }
+
+  let sql
+  try {
+    sql = readFileSync(path, 'utf8')
+  } catch (error) {
+    console.error(`::error::Cannot read ${path}: ${error.message}`)
+    process.exit(1)
+  }
+
+  console.log(`[verify-backup] replaying ${path} (${(sql.length / 1024).toFixed(0)} KB)`)
+  const { ok, problems, tables } = verify(sql)
+
+  const rows = [...tables.entries()].sort(([a], [b]) => a.localeCompare(b))
+  for (const [table, count] of rows) {
+    console.log(`  ${table.padEnd(32)} ${String(count).padStart(7)} rows`)
+  }
+
+  if (!ok) {
+    for (const problem of problems) console.error(`::error::${problem}`)
+    process.exit(1)
+  }
+  console.log(`[verify-backup] restored cleanly: ${rows.length} tables, foreign keys ON.`)
+}
+
+if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+  main()
+}
