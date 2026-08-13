@@ -230,11 +230,12 @@ tests, the build and the Playwright e2e suite, then deploys (once
 A red build never deploys. Operational playbooks live in
 [docs/RUNBOOK.md](docs/RUNBOOK.md).
 
-**Four jobs gate the deploy**: `verify` (typecheck, tests, build, e2e), `audit`
-(dependency advisories), `secrets` (gitleaks) and — since 2026-08-06 — `artwork`,
-which renders the printed wordmark before and after the real decimation chain and
-fails if too much of it moved. That last one is the only gate that looks at what a
-buyer actually sees; the other three cannot detect a smeared logo. Lighthouse runs
+**Four jobs gate the deploy**: `verify` (lint, typecheck, tests **+ coverage**,
+build, bundle weight, e2e), `audit` (dependency advisories **+ SBOM and licence
+policy**), `secrets` (gitleaks) and — since 2026-08-06 — `artwork`, which renders
+the printed wordmark before and after the real decimation chain and fails if too
+much of it moved. That last one is the only gate that looks at what a buyer
+actually sees; the other three cannot detect a smeared logo. Lighthouse runs
 alongside as an informational check.
 
 A fifth check, `pnpm eval:artwork:real`, runs the same artwork measurement on the
@@ -263,9 +264,19 @@ opens no alert at all — which is how the uptime check sat dead for ~23 hours o
 
 ### Local development
 
+**New here?** [`docs/ONBOARDING.md`](docs/ONBOARDING.md) is a timed 30-minute path
+from a clean checkout to a running viewer. The summary:
+
 ```bash
 pnpm install
-pnpm lint && pnpm typecheck && pnpm test && pnpm build   # all workspaces (629 unit tests, 2026-08-12)
+pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build   # 846 unit tests, 2026-08-13
+
+# `test:coverage` rather than `test`: same suites, once, with v8 coverage on. Each
+# package fails its own run against a threshold MEASURED on 2026-08-13, and
+# scripts/check-coverage.mjs then applies the repo-wide floor — which exists for the
+# one failure per-package thresholds cannot catch, a package dropping OUT of the
+# measurement. (Verified: removing one package's report made the repo figure RISE
+# from 71.4% to 83.75%, and the gate still failed.)
 
 # THREE GATES CI RUNS THAT THE LINE ABOVE DOES NOT. Each is invisible from the
 # workspace root, and "it passed locally" has failed here because of exactly that:
