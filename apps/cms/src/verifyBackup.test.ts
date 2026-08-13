@@ -97,27 +97,39 @@ INSERT INTO media VALUES (1);
   })
 
   /**
-   * THE CASCADE CASE — the one this repo has actually been burned by. Root CLAUDE.md:
-   * "A DROP TABLE runs an implicit DELETE, and that cascades", and a migration once
-   * "reported success while cascade-deleting two tables nobody was watching".
+   * THE ORPHANED-ROWS CASE — the one this repo has actually been burned by. Root
+   * CLAUDE.md: "A DROP TABLE runs an implicit DELETE, and that cascades", and a
+   * migration once "reported success while cascade-deleting two tables nobody was
+   * watching".
    *
-   * Here the dump inserts two colourways and then deletes their parent product. Every
-   * statement succeeds; the file restores; and the colourways are gone. Only comparing
-   * claimed rows against surviving rows catches it.
+   * ⚠️ THE MECHANISM THAT CATCHES THIS CHANGED ON 2026-08-13, and the change is worth
+   * knowing. It used to be detected by comparing claimed INSERTs against surviving
+   * rows — the cascade fired during the replay and the colourways vanished. Now the
+   * replay runs with foreign keys OFF (a real wrangler dump inserts into a child
+   * before creating the parent, so it must), the cascade does NOT fire, and the rows
+   * survive as ORPHANS instead. `PRAGMA foreign_key_check` catches them on the
+   * finished database.
+   *
+   * That is strictly better: it names the exact rows rather than reporting a count
+   * shortfall, and it catches an orphan however it was created — including one that
+   * was already orphaned in production before the dump was taken, which the old
+   * count-based check could never have seen.
    */
-  it('rejects a dump whose rows do not survive their own replay', () => {
+  it('rejects a dump that restores rows whose parents are missing', () => {
     const cascading = `${GOOD_DUMP}\nDELETE FROM products WHERE id = 1;`
     const result = verify(cascading)
 
     expect(result.ok).toBe(false)
     const message = result.problems.join(' ')
     expect(message).toContain('colourways')
-    expect(message).toContain('survived the replay')
+    expect(message).toContain('foreign-key violation')
+    // The advice must match the fault: this file is complete, so telling someone to
+    // suspect a truncated upload sends them looking in the wrong place.
+    expect(message).toContain('the problem is in the data')
+    expect(message).not.toContain('truncated upload')
   })
 
-  it('restores with foreign keys ON, so a dangling reference is rejected', () => {
-    // A dump that only restores with the checks disabled is a dump whose referential
-    // integrity is already broken.
+  it('rejects a dangling reference via foreign_key_check on the restored database', () => {
     const dangling = `${SCHEMA}
 INSERT INTO users VALUES (1, 'o@e.com');
 INSERT INTO products VALUES (1, 'n001');
@@ -125,7 +137,65 @@ INSERT INTO site_settings VALUES (1, 'x');
 INSERT INTO media VALUES (1, 'n001.glb');
 INSERT INTO colourways VALUES (1, 999, 'orphan');
 `
-    expect(verify(dangling).ok).toBe(false)
+    const result = verify(dangling)
+    expect(result.ok).toBe(false)
+    expect(result.problems.join(' ')).toContain('missing parent in products')
+  })
+})
+
+/**
+ * THE SHAPE `wrangler d1 export` ACTUALLY EMITS.
+ *
+ * Every other fixture in this file is hand-written in dependency order — parents
+ * before children — and that is exactly why they all passed while the verifier was
+ * broken. A real dump interleaves: it creates `users_sessions` (which carries a
+ * foreign key to `users`), INSERTs into it, and only then creates `users`. It gets
+ * away with that because it opens with `PRAGMA defer_foreign_keys=TRUE`.
+ *
+ * Verified against a real production export on 2026-08-13. Before the fix the
+ * verifier rejected it with `no such table: main.users`, which would have failed the
+ * nightly backup job every single night — an alarm that is always on, which is the
+ * failure mode this file's own comments warn about.
+ */
+const WRANGLER_SHAPED_DUMP = `PRAGMA defer_foreign_keys=TRUE;
+CREATE TABLE \`users_sessions\` (
+  \`id\` text PRIMARY KEY NOT NULL,
+  \`_parent_id\` integer NOT NULL,
+  FOREIGN KEY (\`_parent_id\`) REFERENCES \`users\`(\`id\`) ON DELETE cascade
+);
+INSERT INTO "users_sessions" ("id","_parent_id") VALUES('a8b0',1);
+CREATE TABLE \`users\` (\`id\` integer PRIMARY KEY NOT NULL, \`email\` text NOT NULL);
+INSERT INTO "users" ("id","email") VALUES(1,'owner@example.com');
+CREATE TABLE \`products\` (\`id\` integer PRIMARY KEY NOT NULL);
+INSERT INTO "products" ("id") VALUES(1);
+CREATE TABLE \`site_settings\` (\`id\` integer PRIMARY KEY NOT NULL);
+INSERT INTO "site_settings" ("id") VALUES(1);
+CREATE TABLE \`media\` (\`id\` integer PRIMARY KEY NOT NULL);
+INSERT INTO "media" ("id") VALUES(1);
+CREATE INDEX \`users_email_idx\` ON \`users\` (\`email\`);
+`
+
+describe('a real wrangler d1 export', () => {
+  it('restores, even though it inserts into a child table before the parent exists', () => {
+    const result = verify(WRANGLER_SHAPED_DUMP)
+
+    expect(result.problems, 'this is the exact ordering a production dump has').toEqual([])
+    expect(result.ok).toBe(true)
+    expect(result.tables.get('users_sessions')).toBe(1)
+    expect(result.tables.get('users')).toBe(1)
+  })
+
+  it('still rejects a genuinely dangling reference in that same shape', () => {
+    // The negative control for the fix. Loading with foreign keys OFF must not become
+    // skipping the check — the parent row simply never arrives here, and
+    // PRAGMA foreign_key_check on the finished database is what has to surface it.
+    // Without this, "load with FKs off" would be indistinguishable from "no check".
+    const orphaned = WRANGLER_SHAPED_DUMP.replace(
+      `INSERT INTO "users" ("id","email") VALUES(1,'owner@example.com');`,
+      `INSERT INTO "users" ("id","email") VALUES(99,'someone@example.com');`,
+    )
+    expect(orphaned).not.toBe(WRANGLER_SHAPED_DUMP)
+    expect(verify(orphaned).ok).toBe(false)
   })
 })
 

@@ -14,15 +14,19 @@
  *
  * WHAT IT ASSERTS, strongest first:
  *
- *   1. The dump replays into a real SQLite database with FOREIGN KEYS ON. Not a
- *      parse — an execution. This is where a truncated file, an unbalanced quote or a
- *      row referencing a deleted parent actually fails.
+ *   1. The dump replays into a real SQLite database, and the RESTORED database then
+ *      passes `PRAGMA foreign_key_check`. Not a parse — an execution. This is where a
+ *      truncated file, an unbalanced quote or a row whose parent is missing actually
+ *      fails. See `replay()` for why the check runs on the finished database rather
+ *      than during the load — the short version is that a real `wrangler d1 export`
+ *      inserts into a child table before it creates the parent, so loading with
+ *      foreign keys ON rejects a perfectly good backup.
  *   2. Every table the dump claims to populate ends up with the row count the dump
  *      contains. A cascade during replay, or a statement silently skipped, shows up
- *      here as a shortfall. `PRAGMA foreign_keys` is deliberately ON because the root
- *      CLAUDE.md records that a DROP TABLE runs an implicit DELETE and that cascades —
- *      the exact mechanism behind the migration that "reported success" while emptying
- *      two tables nobody was watching.
+ *      here as a shortfall. This matters because the root CLAUDE.md records that a
+ *      DROP TABLE runs an implicit DELETE and that cascades — the exact mechanism
+ *      behind the migration that "reported success" while emptying two tables nobody
+ *      was watching.
  *   3. A named set of tables is non-empty. A syntactically perfect dump of an empty
  *      database is the failure that looks most like success.
  *
@@ -80,13 +84,61 @@ export function claimedInserts(sql) {
 export function replay(sql) {
   const db = new DatabaseSync(':memory:')
   try {
-    // ON, not off. The point is to restore under the same constraints production
-    // enforces — a dump that only restores with the checks disabled is a dump whose
-    // referential integrity is already broken.
-    db.exec('PRAGMA foreign_keys = ON')
+    /**
+     * ⚠️ RESTORE WITH FOREIGN KEYS OFF, THEN CHECK THE RESULT. Both halves matter and
+     * the first one is counter-intuitive — this was written the other way round and
+     * was wrong.
+     *
+     * `wrangler d1 export` INTERLEAVES its output: it emits `CREATE TABLE
+     * users_sessions` (which carries a foreign key to `users`), INSERTs rows into it,
+     * and only afterwards emits `CREATE TABLE users`. With `foreign_keys = ON` that
+     * INSERT dies on `no such table: main.users`, because SQLite must resolve the
+     * parent table at DML time even when the CHECK is deferred. The dump's own
+     * opening `PRAGMA defer_foreign_keys=TRUE` does not save it, and neither does
+     * wrapping the replay in one transaction — both were tried against a real
+     * production dump on 2026-08-13.
+     *
+     * That is the same family as the trap root CLAUDE.md already records — "PRAGMA
+     * foreign_keys=OFF is a no-op on D1 … `defer_foreign_keys` defers *checks*, not
+     * *cascades*" — one more instance of a deferral pragma meaning less than it
+     * looks like it means.
+     *
+     * So enforcement moves to where it is strictly stronger: `PRAGMA
+     * foreign_key_check` runs over the FINISHED database and reports every row whose
+     * parent is missing, regardless of what order anything was inserted in. Checking
+     * the restored RESULT is what actually matters; checking the insertion sequence
+     * was only ever a proxy for it.
+     *
+     * HOW THIS WAS FOUND, because it is the point: every unit test passed while this
+     * was broken. The fixtures were hand-written parents-first, so none of them could
+     * exhibit the failure — precisely the pattern CLAUDE.md names as the cause of
+     * three consecutive production bugs. It surfaced the first time the script was
+     * pointed at a real export.
+     */
+    db.exec('PRAGMA foreign_keys = OFF')
     db.exec(sql)
+
+    const violations = db.prepare('PRAGMA foreign_key_check').all()
+    if (violations.length > 0) {
+      const sample = violations
+        .slice(0, 5)
+        .map((v) => `${v.table} row ${v.rowid} -> missing parent in ${v.parent}`)
+        .join('; ')
+      db.close()
+      return {
+        tables: new Map(),
+        kind: 'integrity',
+        error:
+          `${violations.length} foreign-key violation(s) in the RESTORED database: ${sample}. ` +
+          'The dump loads, but rows in it point at parents that are not there.',
+      }
+    }
   } catch (error) {
-    return { tables: new Map(), error: error instanceof Error ? error.message : String(error) }
+    return {
+      tables: new Map(),
+      kind: 'unreadable',
+      error: error instanceof Error ? error.message : String(error),
+    }
   }
 
   const tables = new Map()
@@ -117,15 +169,23 @@ export function verify(sql, { mustNotBeEmpty = MUST_NOT_BE_EMPTY } = {}) {
     return { ok: false, problems: ['The dump is empty (0 bytes of SQL).'], tables: new Map() }
   }
 
-  const { tables, error } = replay(sql)
+  const { tables, error, kind } = replay(sql)
   if (error) {
+    // The two failures need different advice, and giving the wrong one sends whoever
+    // reads this alert looking in the wrong place. A truncation is an upload problem;
+    // an integrity violation means the dump is complete and the DATA is wrong, which
+    // is a far more interesting thing to be told at 3 a.m.
+    const guidance =
+      kind === 'integrity'
+        ? '  The file is complete and loadable — the problem is in the data. Something ' +
+          'deleted parent rows without their children, most likely a migration or a ' +
+          'manual DELETE. This backup restores, but restores something already broken.'
+        : '  This is what a truncated upload or a mid-statement cut looks like. The ' +
+          'artifact from this run should not be trusted as a recovery point.'
+
     return {
       ok: false,
-      problems: [
-        `The dump does NOT restore. SQLite refused it with: ${error}\n` +
-          '  This is what a truncated upload or a mid-statement cut looks like. The ' +
-          'artifact from this run should not be trusted as a recovery point.',
-      ],
+      problems: [`The dump does NOT restore cleanly: ${error}\n${guidance}`],
       tables,
     }
   }
@@ -188,7 +248,7 @@ function main() {
     for (const problem of problems) console.error(`::error::${problem}`)
     process.exit(1)
   }
-  console.log(`[verify-backup] restored cleanly: ${rows.length} tables, foreign keys ON.`)
+  console.log(`[verify-backup] restored cleanly: ${rows.length} tables, 0 foreign-key violations.`)
 }
 
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
