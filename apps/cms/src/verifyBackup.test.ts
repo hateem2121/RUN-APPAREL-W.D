@@ -167,11 +167,12 @@ describe('the required-table list matches the real schema', () => {
         .filter((f) => f.endsWith('.ts') && f !== 'index.ts')
         .map((f) => readFile(join(dir, f), 'utf8')),
     )
+    // Spread before mapping: `lib` is ES2022 here, where matchAll returns a plain
+    // iterator without the ES2025 iterator helpers.
     const created = new Set(
-      sources
-        .join('\n')
-        .matchAll(/CREATE TABLE (?:IF NOT EXISTS )?\\?`([a-z_0-9]+)\\?`/gi)
-        .map((m) => m[1]),
+      [
+        ...sources.join('\n').matchAll(/CREATE TABLE (?:IF NOT EXISTS )?\\?`([a-z_0-9]+)\\?`/gi),
+      ].map((m) => m[1]),
     )
 
     expect(

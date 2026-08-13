@@ -96,5 +96,99 @@
   },
   // Import order is left alone deliberately: reordering imports across ~200 files
   // buys nothing and destroys blame on the first line of every one of them.
-  "assist": { "actions": { "source": { "organizeImports": "off" } } }
+  "assist": { "actions": { "source": { "organizeImports": "off" } } },
+
+  // ── MODULE BOUNDARIES ───────────────────────────────────────────────────────
+  //
+  // Every rule below states a property this repo ALREADY has — verified 2026-08-13,
+  // all three are clean with no source changes — and the point is that nothing was
+  // keeping them true. Each is a boundary whose violation typechecks, lints, tests
+  // green, and fails at RUNTIME in a place far from the import.
+  //
+  // Test files are excluded throughout. They run in Node by definition, so
+  // `node:fs` in a `.test.ts` is correct — apps/viewer/worker/preview.test.ts reads
+  // index.html off disk to assert the rewritten tags still exist. The rule is about
+  // SHIPPED code.
+  "overrides": [
+    {
+      // packages/shared is imported by three Workers and the pipeline. Its
+      // tsconfig deliberately declares NEITHER @types/node NOR a `types` field, so
+      // node globals cannot leak into Worker code — a property workflowHardening
+      // .test.ts and claudeMd.test.ts both cite as the reason they live in apps/cms
+      // instead. That protection is a type-level one: it stops you USING `process`,
+      // but `import { readFile } from 'node:fs'` in a package with no node types is
+      // an unresolved-module error only if the module is genuinely unresolvable,
+      // and bundlers happily resolve it. This makes the intent enforceable.
+      "includes": ["packages/shared/src/**", "!**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["node:*", "fs", "path", "crypto", "os", "child_process"]
+                  },
+                  {
+                    // The contract must not depend on its consumers. A cycle here
+                    // would be invisible until a Worker bundle failed to build.
+                    "group": ["@run-apparel/cms", "@run-apparel/viewer", "@run-apparel/shrink"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      // apps/shrink is a Cloudflare Worker. Node builtins do not exist in workerd:
+      // an import that a bundler resolves at build time throws at runtime, inside a
+      // queue consumer, where the symptom is a failed shrink job rather than a
+      // module error. The container (apps/shrink/container/) is plain Node and is
+      // deliberately NOT covered.
+      "includes": ["apps/shrink/src/**", "!**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [{ "group": ["node:*", "fs", "path", "crypto", "os", "child_process"] }]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      // apps/viewer/src is browser code and apps/viewer/worker is a Worker. Neither
+      // has Node. A `node:` import here survives `vite build` (Vite polyfills or
+      // externalises depending on config) and breaks on a real phone — the device
+      // this product is actually used on, via a QR scan, where nobody is watching a
+      // console.
+      "includes": [
+        "apps/viewer/src/**",
+        "apps/viewer/worker/**",
+        "!**/*.test.ts",
+        "!**/*.test.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  { "group": ["node:*", "fs", "path", "crypto", "os", "child_process"] },
+                  { "group": ["@run-apparel/cms", "@run-apparel/shrink"] }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }
