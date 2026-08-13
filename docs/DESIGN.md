@@ -217,7 +217,33 @@ systems do not fight.
 
 ---
 
-## 6. Accessibility
+## 6. Spacing
+
+Twelve steps, in pixels:
+
+| | | | | | | | | | | | |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 4 | 6 | 8 | 10 | 12 | 14 | 16 | 18 | 20 | 22 | 24 | 64 |
+
+Plus `0`, `auto`, negative hairlines (`-1px`), and the one fluid gutter
+(`clamp(32px, 5vw, 64px)`). `padding: 0.75rem 1.25rem` on `.skip-link` is the
+sole rem-based holdout.
+
+**This section was written on 2026-08-13 and it documents what was already
+there — it did not change a pixel.** An audit found spacing was the one
+dimension of this system with no tokens, no documentation and no gate: 22
+distinct values chosen ad hoc, and nothing to stop a 23rd. The list above is
+enforced by `apps/viewer/src/styles/tokens.test.ts`, so adding a step is now a
+decision someone makes here rather than a value that slips in.
+
+**It is a 2px grid, not a 4px one, and that is worth knowing before you tidy it.**
+Snapping 6, 10, 14, 18 and 22 onto 4/8/16/24 would move real layout by up to 2px
+per edge. That may well be the right call — this file is the place to make it —
+but it is a design change to a locked system, so it belongs to the owner and not
+to a passing refactor. Tightening the list is one edit here and one in the test,
+and the CSS it then rejects is exactly the work involved.
+
+## 7. Accessibility
 
 - `:focus-visible` — `2px solid var(--focus-ring)`, `2px` offset, `4px` radius,
   applied globally. `--focus-ring` is volt-deep in light and volt in dark, so it
@@ -230,7 +256,7 @@ systems do not fight.
 
 ---
 
-## 7. Changing this system
+## 8. Changing this system
 
 1. Change `tokens.css` first. It is the source of truth.
 2. Update this file in the same commit.

@@ -74,9 +74,11 @@
     color var(--fast) var(--ease);
 }
 
-.theme-toggle:hover {
-  background: var(--text);
-  color: var(--bg);
+@media (hover: hover) and (pointer: fine) {
+  .theme-toggle:hover {
+    background: var(--text);
+    color: var(--bg);
+  }
 }
 
 /* ── 3D stage ──────────────────────────────────────────────────────── */
@@ -241,10 +243,21 @@ model-viewer.stage__model {
     color var(--fast) var(--ease);
 }
 
-.camera-btn:hover,
+/* SPLIT DELIBERATELY, and this is the one that mattered most. Hover and the
+   pressed state shared a selector, so on a phone a tapped-but-not-selected
+   camera button was styled identically to the selected one — the visitor could
+   not tell which view they were actually looking at. The pressed state is real
+   state and stays unconditional; only the hover half is gated. */
 .camera-btn[aria-pressed="true"] {
   background: var(--btn-primary-bg);
   color: var(--btn-primary-text);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .camera-btn:hover {
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+  }
 }
 
 .stage__hint {
@@ -430,8 +443,12 @@ model-viewer.stage__model {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper) 55%, transparent);
 }
 
-.colourway-tab:hover {
-  border-color: var(--dimension);
+/* Same shape as `.camera-btn` above: `[aria-selected="true"]` below is real
+   state and stays unconditional; the hover hint is pointer-only. */
+@media (hover: hover) and (pointer: fine) {
+  .colourway-tab:hover {
+    border-color: var(--dimension);
+  }
 }
 
 .colourway-tab[aria-selected="true"] {
@@ -765,6 +782,8 @@ model-viewer.stage__model {
 .theme-toggle svg {
   transition: transform var(--fast) var(--ease);
 }
-.theme-toggle:hover svg {
-  transform: rotate(18deg);
+@media (hover: hover) and (pointer: fine) {
+  .theme-toggle:hover svg {
+    transform: rotate(18deg);
+  }
 }

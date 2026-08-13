@@ -87,7 +87,13 @@ li {
   z-index: 100;
   padding: 0.75rem 1.25rem;
   background: var(--headline);
-  color: var(--page);
+  /* `--bg`, not `--page`. `--page` was never a token, so this declaration was
+     dropped and `color` inherited the surrounding ink — rendering the link
+     dark-on-dark at 1.00:1 in light mode and 1.06:1 in dark, i.e. invisible,
+     which is precisely what the comment above says this element must not be.
+     Found on the live site 2026-08-13; `--bg` is the exact inverse of
+     `--headline` in both themes. */
+  color: var(--bg);
   font-weight: 700;
   text-decoration: none;
   /* Off the top of the viewport, not `display: none` — a hidden element cannot
@@ -191,8 +197,16 @@ li {
   border: 1.4px solid var(--btn-primary-bg);
 }
 
-.btn--primary:hover {
-  transform: translateY(-2px);
+/* Hover is gated on a real pointer throughout this file and page.css. A touch
+   device has no hover, but it still MATCHES :hover on tap and holds that state
+   until you tap elsewhere — so an ungated rule reads as "stuck". This product is
+   reached by scanning a QR code, i.e. overwhelmingly from a phone. Added
+   2026-08-13; `isCoarsePointer()` already gated the JS behaviours (Cursor.tsx,
+   ColourwayTabs.tsx) and only the CSS appearance was missed. */
+@media (hover: hover) and (pointer: fine) {
+  .btn--primary:hover {
+    transform: translateY(-2px);
+  }
 }
 
 .btn--ghost {
@@ -202,10 +216,12 @@ li {
 }
 
 /* Ghost hover inverts text/bg. */
-.btn--ghost:hover {
-  background: var(--text);
-  color: var(--bg);
-  border-color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+  .btn--ghost:hover {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
 }
 
 /* ── Blueprint grid + contour motifs ───────────────────────────────── */

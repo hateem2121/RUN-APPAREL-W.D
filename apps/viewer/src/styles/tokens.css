@@ -17,6 +17,15 @@
   --volt: #cdf345;
   --volt-deep: #5f7414;
   --ink: #1d1f1a;
+  /* The light half of "PAPER & INK". Raw and theme-independent exactly as
+     `--ink` is, because its one use pairs the two as a two-tone bezel that must
+     read the same in both modes (`.colourway-tab__swatch`). Added 2026-08-13:
+     `page.css` had referenced `var(--paper)` since the swatch was written and the
+     token never existed, so the inset ring it draws was dropped at
+     computed-value time — verified `box-shadow: none` on the live site. The
+     comment beside that rule states exactly what the missing ring costs: a
+     near-white colourway "vanishing into" the panel. */
+  --paper: #f1efea;
 
   /* ── Core surfaces & text (light ⇄ dark, both first-class) ──────── */
   --bg: light-dark(#f1efea, #1c1f18);
