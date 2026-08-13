@@ -15,7 +15,8 @@
   // advisory stays blocking for any path not listed here, so if one of these
   // packages ever reaches runtime code the gate fails again instead of staying
   // silently suppressed. Re-check each entry when its parent package is bumped.
-  // EMPTY, and worth keeping that way.
+  // ONE ENTRY since 2026-08-13 (extract-zip, at the bottom); it was empty from
+  // 2026-08-12 until then, and getting back to empty is still the goal.
   //
   // Two GHSA-mh99-v99m-4gvg (brace-expansion DoS) paths lived here from
   // 2026-07-27, correctly: at the time the only patched release was 5.0.8, there
@@ -84,6 +85,44 @@
   // was never proven to be rejected before reaching the parser. That residual
   // path is now gone rather than argued down.
   //
-  // EMPTY, and worth keeping that way.
-  "allowlist": []
+  // ── extract-zip, added 2026-08-13 ──────────────────────────────────────────
+  // GHSA-jmr9-qjv8-65gv, "unvalidated symlink path traversal", CWE-22, CVSS 8.1
+  // (AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N). Advisory published 2026-06-26, but
+  // the gate passed on every run up to 2026-08-12 19:40 (bfaf84b) and failed on
+  // the next one, 2026-08-13 07:18 (6f55166). NOTHING IN THIS REPO CHANGED to
+  // cause it: `extract-zip` appears 4 times in pnpm-lock.yaml at BOTH commits,
+  // and the only dependency edit between them was adding @vitest/coverage-v8.
+  // What moved was npm's advisory data. Worth knowing before hunting a commit.
+  //
+  // UNFIXABLE, not unfixed — the distinction the brace-expansion and image-size
+  // notes above both turn on. `extract-zip` latest IS 2.0.1, the advisory range
+  // is `<=2.0.1`, and npm reports `"patched_versions": "<0.0.0"`. No override
+  // can help, because there is nothing to override to.
+  //
+  // WHY THIS PATH IS SAFE TO SUPPRESS. @lhci/cli is a root devDependency — the
+  // Lighthouse CI gate. It never ships to a visitor. The only archive
+  // @puppeteer/browsers extracts is the Chrome build it downloads from Google's
+  // CDN, so the hostile zip the advisory needs is not attacker-supplied here;
+  // the CVSS vector agrees, requiring UI:R.
+  //
+  // ⚠️ THE SECOND PATH IS DELIBERATELY NOT LISTED. `pnpm why extract-zip -r`
+  // shows a runtime route too — @run-apparel/shrink (dependencies) →
+  // @cloudflare/puppeteer@1.3.0 → @puppeteer/browsers@2.2.4 → extract-zip —
+  // and audit-ci did NOT report it. Leaving it out is the point of path
+  // scoping: if it is ever reported, this gate fails again instead of staying
+  // silently suppressed. Do not "tidy up" by adding it.
+  //
+  // Measured rather than assumed, because the runtime route above looks alarming
+  // on paper: `wrangler deploy --dry-run --outdir` on apps/shrink produces a
+  // 792,166-byte bundle containing ZERO occurrences of `extract-zip` or
+  // `@puppeteer/browsers`. On Workers `puppeteer.launch(env.BROWSER)`
+  // (apps/shrink/src/index.ts:806) binds to the Browser Rendering service — it
+  // does not download or unpack a browser, and there is no filesystem to unpack
+  // one onto. Re-run that dry-run before trusting this paragraph again.
+  //
+  // RE-CHECK: whenever @lhci/cli, @cloudflare/puppeteer or puppeteer-core is
+  // bumped, and delete this the day extract-zip ships a patched release.
+  "allowlist": [
+    "GHSA-jmr9-qjv8-65gv|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip"
+  ]
 }
