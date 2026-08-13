@@ -40,7 +40,7 @@ mirrors. That asymmetry is why the raw CLO export is a local artifact — see
 pnpm install --frozen-lockfile   # after every merge; the lockfile moves often here
 pnpm lint                        # biome check .
 pnpm typecheck                   # 5 workspaces
-pnpm test
+pnpm test:coverage               # 846 tests + the coverage floors (see below)
 bash scripts/test-alert-shell.sh # the alert branch nothing else exercises
 pnpm seed:assets && pnpm build   # build is the one that catches dependency breaks
 node scripts/check-bundle-budget.mjs  # deterministic shell weight; needs the build above
@@ -125,6 +125,36 @@ API is unaffected (`/api/raw-uploads` → 200), so a robot is never at risk, but
 `/admin/collections/raw-uploads/<id>` and calls it *"the only way to start a
 re-run"*. Hiding that collection removes the documented recovery path while
 reading as a tidy-up. See the comment in `RawUploads.ts`.
+
+**Four gates were added 2026-08-13 and each will stop you before CI does.**
+
+- **Coverage floors are MEASURED, not chosen** (`vitest.coverage.mjs`, a
+  `thresholds:` block per package, `scripts/check-coverage.mjs` for the repo).
+  **Never lower one to go green.** `apps/viewer` is deliberately the lowest at 42%
+  — do NOT "fix" it by excluding `App/Stage/RenderPage.tsx`; 239 of its ~380
+  uncovered lines are in those three, so dropping them reports ~75% while testing
+  identically. They are covered by `apps/viewer/e2e/` in a real browser, because
+  `<model-viewer>` under jsdom asserts against a stub. Every `include` is explicit
+  on purpose: v8 without one omits untested files entirely, so coverage *rises*
+  when you add untested code.
+- **Module boundaries are lint-enforced** (`biome.jsonc` → `overrides` →
+  `noRestrictedImports`): no node builtins in `packages/shared/src`,
+  `apps/shrink/src`, `apps/viewer/src` or `apps/viewer/worker`, and no cross-app
+  imports. Test files are exempt. `apps/shrink/container/` is plain Node and is
+  not covered.
+- **Every document is citation-checked, not just CLAUDE.md** — README, CONTRIBUTING,
+  SECURITY and all of `docs/`, via `scripts/doc-citations.mjs`. A genuinely-gone
+  path goes in `ALLOWED_ABSENT` **with the reason**; `file.ts:42` and
+  extension-less citations resolve fine.
+- **`pnpm test` now also checks** the npm lockfile sync (above), the SBOM licence
+  policy, that no two workspaces declare different versions of a shared dependency,
+  and that `docs/RUNBOOK.md`'s rollback commands name the real Workers and the
+  installed wrangler. That last one found the runbook pinned `wrangler@4.114.0`
+  while the repo ran 4.122.0.
+
+⚠️ **`node:sqlite` is built into the pinned Node 24** — `scripts/verify-backup.mjs`
+uses it to replay a D1 dump with foreign keys ON. Reach for it before adding a
+SQLite dependency.
 
 ## The one pattern that keeps causing incidents
 
@@ -241,9 +271,12 @@ the answer is "nothing that happens in production", it is not a test.
   comment (Dependabot maintains both); every `actions/checkout` must set
   `persist-credentials: false`; no `run:` block may interpolate
   `${{ github.event.* }}` or `${{ github.head_ref }}` — carry it in `env:` and
-  test `"$VAR"`; and every `pnpm <script>` a workflow invokes must exist. All five
-  assertions have verified negative controls, so a failure names the file and
-  line. ⚠️ A `permissions:` block **REPLACES** the defaults rather than adding to
+  test `"$VAR"`; and every `pnpm <script>` a workflow invokes must exist. **Three
+  more since 2026-08-13:** every job declares `timeout-minutes` (all 12 had none,
+  so a hang ran to the 6-hour default — ci.yml records a step measured at 49s that
+  ran 30+ minutes), no `pull_request_target`, and no `${{ secrets.* }}` inside a
+  `run:` block. All eight have verified negative controls, so a failure names the
+  file and line. ⚠️ A `permissions:` block **REPLACES** the defaults rather than adding to
   them — omitting `contents: read` breaks `actions/checkout` with a **404** on
   this private repo, which is how uptime.yml died silently for 23 hours. The
   injection rule was not theoretical: `uptime.yml` was pasting a dispatch input
