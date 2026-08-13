@@ -27,6 +27,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -176,6 +177,7 @@ jobs:
   # explicitly allowlisted (with justification) in audit-ci.jsonc.
   audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -198,6 +200,7 @@ jobs:
   # Moving it here is what makes the word "gate" true.
   secrets:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       # gitleaks-action lists the PR's commits to scan them (pull_request events).
@@ -235,6 +238,7 @@ jobs:
   # together, which made a 2.1 MB ceiling look like a claim about the live page.
   lighthouse:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -294,6 +298,7 @@ jobs:
   # already runs software WebGL via swiftshader.
   artwork:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -337,6 +342,7 @@ jobs:
     #   gh variable set DEPLOY_ENABLED --body true
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # The `production` environment is a LABEL here, and that is a CLOSED DECISION
     # rather than an unfinished setup step. Required reviewers need GitHub Pro
     # (~$4/month) on a private repo; the project's entire budget is $5/month, spent
@@ -536,3 +542,40 @@ jobs:
       - name: Post-deploy link-preview smoke test
         if: vars.VIEWER_DEPLOY_TARGET != 'pages'
         run: node scripts/smoke-viewer-preview.mjs https://viewer.wear-run.help
+
+      # Put the rollback command where someone will actually be looking.
+      #
+      # docs/RUNBOOK.md → "Undoing a bad deploy" is the authority and is more complete
+      # (in particular the ⚠️ about migrations already having been applied, which is
+      # the part a hurried person gets wrong). But during an incident nobody opens a
+      # 1,493-line runbook — they open the run that shipped the change. `if: always()`
+      # so it is present on a FAILED deploy too, which is exactly when it is needed and
+      # exactly when a summary written only on success would be absent.
+      #
+      # Runs unconditionally rather than only on failure so the SHA is recorded on
+      # every deploy: rolling back needs to know what the previous good one was.
+      - name: Deploy summary and rollback instructions
+        if: always()
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          {
+            echo "### Deployed \`${SHA}\`"
+            echo
+            echo "If this deploy is wrong, roll back the affected Worker:"
+            echo
+            echo '```bash'
+            echo "npx wrangler@4.122.0 versions list --name run-apparel-viewer-site"
+            echo "npx wrangler@4.122.0 rollback --name run-apparel-viewer-site -m 'why'"
+            echo '```'
+            echo
+            echo "Workers: \`run-apparel-viewer-site\` (public viewer) · \`run-apparel-viewer-cms\` (admin + API) · \`run-apparel-viewer-shrink\` (processing only)"
+            echo
+            echo "⚠️ **D1 migrations already ran**, before the Workers deployed. A Worker"
+            echo "rollback leaves today's schema underneath yesterday's code. That is safe"
+            echo "only for additive (expand/contract) migrations — see"
+            echo "\`docs/RUNBOOK.md\` → \"Undoing a bad deploy\" before rolling back the CMS."
+            echo
+            echo "Always follow a rollback with a \`git revert\`, or the next push to"
+            echo "\`main\` silently redeploys this build on top of it."
+          } >> "$GITHUB_STEP_SUMMARY"

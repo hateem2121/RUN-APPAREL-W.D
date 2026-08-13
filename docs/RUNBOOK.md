@@ -137,15 +137,15 @@ top of your rollback.
 
 ### The commands
 
-Verified against the pinned wrangler **4.114.0** (`wrangler rollback --help`), not
+Verified against the pinned wrangler **4.122.0** (`wrangler rollback --help`), not
 recalled:
 
 ```bash
 # 1. See what you can go back to (10 most recent):
-npx wrangler@4.114.0 versions list --name run-apparel-viewer-site
+npx wrangler@4.122.0 versions list --name run-apparel-viewer-site
 
 # 2. Roll back. Omit the version-id to take the previous one:
-npx wrangler@4.114.0 rollback <version-id> --name run-apparel-viewer-site -m "why"
+npx wrangler@4.122.0 rollback <version-id> --name run-apparel-viewer-site -m "why"
 ```
 
 The three Worker names:
@@ -176,7 +176,7 @@ the schema back with `migrate:remote:down` before the Worker.
 likely to turn a visible outage into a data problem.** Check first:
 
 ```bash
-npx wrangler@4.114.0 d1 migrations list run-apparel-viewer-db --remote
+npx wrangler@4.122.0 d1 migrations list run-apparel-viewer-db --remote
 ```
 
 ### Not yet verified here
