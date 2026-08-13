@@ -9,38 +9,37 @@ interface PreloaderProps {
 }
 
 /**
- * Branded, on-brand loading overlay: blueprint grid, a mono N°-counter climbing
- * while data loads, a volt rule that draws across on completion, then a
- * clip-path wipe up to reveal the stage. Under reduced motion or automation it
- * renders nothing and signals exit immediately — so it never overlays e2e or
- * disturbs motion-sensitive visitors.
+ * The branded entrance, covering the CMS data fetch only — measured at
+ * 1.77–2.27 s.
+ *
+ * ⚠️ IT DELIBERATELY SHOWS NO NUMBER. Until 2026-08-13 it displayed a large
+ * `N°XXX` counter driven by `p + (90 - p) * 0.05` per animation frame: a curve
+ * unrelated to any real work, which reached 90 and stopped while the 27 MB
+ * garment had not begun to arrive. It was the most prominent thing on screen and
+ * it was fiction. The real figures are counted byte by byte and shown by
+ * `<Stage>`, which is still mounted for the ~23 s that actually matter.
+ *
+ * ⚠️ AND IT RENDERS UNDER REDUCED MOTION. It used to `return null` there, and
+ * `App` pairs it with `<div className="page" aria-hidden="true" />` during
+ * loading — so a visitor who asked for less motion got one empty div hidden from
+ * assistive technology, i.e. a blank page and total silence. `docs/DESIGN.md` §5
+ * says the preference removes the MOTION, not the CONTENT; that rule was written
+ * about CSS and this inversion was in JS. What reduced motion removes here is the
+ * sweep and the wipe, not the words.
  */
 export function Preloader({ done, onExited }: PreloaderProps) {
   const reduce = typeof window !== 'undefined' && (prefersReducedMotion() || navigator.webdriver)
-  const [progress, setProgress] = useState(0)
   const [exiting, setExiting] = useState(false)
   const startRef = useRef(typeof performance !== 'undefined' ? performance.now() : 0)
 
-  // Climb toward ~90% while loading.
-  useEffect(() => {
-    if (reduce || done) return
-    let raf = 0
-    const tick = () => {
-      setProgress((p) => (p < 90 ? p + (90 - p) * 0.05 : p))
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [reduce, done])
-
-  // On completion: finish the counter, draw the rule, wipe out.
   useEffect(() => {
     if (!done) return
     if (reduce) {
+      // No wipe to wait for. Hand back immediately so the page is never held
+      // behind an animation that is not going to play.
       onExited()
       return
     }
-    setProgress(100)
     const wait = Math.max(0, 400 - (performance.now() - startRef.current))
     const toExit = window.setTimeout(() => setExiting(true), wait)
     const toDone = window.setTimeout(onExited, wait + 760)
@@ -49,8 +48,6 @@ export function Preloader({ done, onExited }: PreloaderProps) {
       clearTimeout(toDone)
     }
   }, [done, reduce, onExited])
-
-  if (reduce) return null
 
   return (
     <div
@@ -61,12 +58,17 @@ export function Preloader({ done, onExited }: PreloaderProps) {
       <div className="preloader__grid blueprint" aria-hidden="true" />
       <div className="preloader__inner">
         <span className="label">[ 3D PRODUCT REFERENCE ]</span>
-        <span className="preloader__count mono">
-          N°{String(Math.round(progress)).padStart(3, '0')}
-        </span>
-        <span className="preloader__rule" aria-hidden="true">
-          <span style={{ transform: `scaleX(${progress / 100})` }} />
-        </span>
+        {/*
+          Indeterminate, not a percentage: a sweep says "working" without claiming
+          an amount nobody has measured. Omitted entirely under reduced motion —
+          a sweep that cannot sweep is a bar frozen at one width, which reads as
+          a stalled download. The sentence below carries the meaning either way.
+        */}
+        {!reduce && (
+          <span className="preloader__rule preloader__rule--indeterminate" aria-hidden="true">
+            <span />
+          </span>
+        )}
         <span className="mono preloader__status">PREPARING REFERENCE…</span>
       </div>
     </div>

@@ -44,7 +44,7 @@ describe('shouldShowThumbnail', () => {
   })
 
   it('hides it once the model is up — the garment itself is the preview', () => {
-    // Not cosmetic: the model is 37.7 MB and fills the viewport, so a 132px copy
+    // Not cosmetic: the model is 27 MB and fills the viewport, so a 132px copy
     // of the same colour in the corner is noise competing with the real thing.
     expect(shouldShowThumbnail(true, true, blush, maroon)).toBe(false)
   })

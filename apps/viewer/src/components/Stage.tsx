@@ -4,6 +4,8 @@ import { track } from '../lib/analytics'
 import { canRender3D, prefersReducedMotion } from '../lib/capabilities'
 import { displayedColourway } from '../lib/colourwayPreview'
 import { diagnostic } from '../lib/diagnostic'
+import { fetchWithProgress } from '../lib/fetchWithProgress'
+import { describeLoad, smoothRate } from '../lib/loadProgress'
 
 type CameraView = 'front' | 'back' | 'side'
 
@@ -66,10 +68,23 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   const [fallback, setFallback] = useState(false)
   const [modelLoaded, setModelLoaded] = useState(false)
   const [swapping, setSwapping] = useState(false)
-  const [progress, setProgress] = useState(0)
   const [notice, setNotice] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<CameraView | null>('front')
   const loadedSrcRef = useRef<string | null>(null)
+
+  // Real bytes, counted by us. See `fetchWithProgress` for why model-viewer's own
+  // `progress` event cannot supply them.
+  const [bytesLoaded, setBytesLoaded] = useState(0)
+  const [bytesTotal, setBytesTotal] = useState(0)
+  const [rate, setRate] = useState<number | null>(null)
+  /**
+   * What <model-viewer> is actually given: a `blob:` URL once we have fetched the
+   * file ourselves, or the plain URL if that failed.
+   *
+   * The element is not rendered until this is set, which is load-bearing — with
+   * both the element and our fetch active at once the 27 MB file downloads twice.
+   */
+  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null)
 
   // Attempt 3D only when the device/browser/network can carry it.
   //
@@ -159,7 +174,6 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       const onLoad = () => {
         setModelLoaded(true)
         setSwapping(false)
-        setProgress(1)
         // PROPERTY first, attribute second. React sets `src` on a custom element
         // as a property and never reflects it to an attribute — confirmed on the
         // live element, whose attribute list carries camera-orbit, tone-mapping
@@ -180,10 +194,6 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
           loadedSrcRef.current = src
           track('model_loaded', { product: product.productCode })
         }
-      }
-      const onProgress = (event: Event) => {
-        const detail = (event as CustomEvent<{ totalProgress?: number }>).detail
-        if (typeof detail?.totalProgress === 'number') setProgress(detail.totalProgress)
       }
       const onError = (event: Event) => {
         // model-viewer routes THREE different failures through one `error` event
@@ -241,7 +251,6 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       // Falling back to the poster keeps the page honest: still a garment, still
       // the specs, still the contact buttons.
       el.addEventListener('load', onLoad)
-      el.addEventListener('progress', onProgress)
       el.addEventListener('error', onError)
       el.addEventListener('camera-change', onCameraChange)
     },
@@ -295,10 +304,79 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
     if (separateMode && previousGlb.current !== glbUrl) {
       previousGlb.current = glbUrl
       setSwapping(true)
-      setProgress(0)
       setNotice(null)
     }
   }, [glbUrl, separateMode])
+
+  /**
+   * Fetch the GLB ourselves so the readout can show real megabytes and a real
+   * time remaining.
+   *
+   * ⚠️ EVERY failure here falls back to handing <model-viewer> the plain URL,
+   * which is precisely the behaviour that shipped before this existed. Offline,
+   * CORS, a 5xx, an aborted navigation — none of them may produce an error
+   * screen, because none of them stops the element from loading the file itself.
+   * That fallback is what makes counting bytes a safe thing to do at all.
+   */
+  useEffect(() => {
+    if (!glbUrl || fallback || !libReady) return
+    let cancelled = false
+    let objectUrl: string | null = null
+    const controller = new AbortController()
+
+    setBytesLoaded(0)
+    setBytesTotal(0)
+    setRate(null)
+    setResolvedSrc(null)
+
+    // Instantaneous rate between samples, exponentially smoothed. The running
+    // average would also be smooth but reacts too slowly to a network that drops
+    // mid-download, leaving the countdown confidently wrong for many seconds.
+    let smoothed: number | null = null
+    let lastAt = performance.now()
+    let lastLoaded = 0
+
+    fetchWithProgress(
+      glbUrl,
+      ({ loaded, total }) => {
+        if (cancelled) return
+        setBytesLoaded(loaded)
+        setBytesTotal(total)
+        const now = performance.now()
+        const seconds = (now - lastAt) / 1000
+        // Sample no faster than ~10 Hz: below that the deltas are dominated by
+        // chunk boundaries rather than throughput.
+        if (seconds >= 0.1) {
+          smoothed = smoothRate(smoothed, (loaded - lastLoaded) / seconds)
+          setRate(smoothed)
+          lastAt = now
+          lastLoaded = loaded
+        }
+      },
+      controller.signal,
+    )
+      .then((blob) => {
+        if (cancelled) return
+        objectUrl = URL.createObjectURL(blob)
+        setResolvedSrc(objectUrl)
+      })
+      .catch(() => {
+        if (cancelled) return
+        diagnostic('model-prefetch-failed', {
+          product: product.productCode,
+          reason: 'falling back to direct model-viewer fetch',
+        })
+        setResolvedSrc(glbUrl)
+      })
+
+    return () => {
+      cancelled = true
+      controller.abort()
+      // Releases the ~27 MB the blob is holding. Without this a visitor moving
+      // between colourways in separate-GLB mode accumulates a copy per swap.
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [glbUrl, fallback, libReady, product.productCode])
 
   const applyView = (view: CameraView) => {
     const mv = mvRef.current
@@ -317,9 +395,43 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
     track(`camera_${view}_selected`)
   }
 
-  const showPosterOverlay = fallback || !libReady || !modelLoaded || swapping
-  const loading = !fallback && libReady && (!modelLoaded || swapping) && progress < 1
-  const performance = product.performanceFeatures.join(' / ')
+  /**
+   * The poster now appears ONLY when 3D cannot run at all.
+   *
+   * It used to cover the stage for the whole download, and it could not fit:
+   * every poster is an opaque WebP with its background baked in at #f0efeb. On
+   * the light `--bg` (#f1efea) that nearly matches but still hides the blueprint
+   * grid, leaving a visible rectangle; on the dark `--bg` (#1c1f18) it is a
+   * near-white slab on near-black. A fixed background cannot follow a themed
+   * stage, so during loading the stage shows its own ground instead — which is
+   * drawn from tokens and therefore correct in both modes by construction.
+   *
+   * As the 3D-unavailable fallback the poster is still exactly right: there, it
+   * is the only garment the visitor can be shown.
+   */
+  const showPosterOverlay = fallback
+  const load = describeLoad({
+    bytesLoaded,
+    bytesTotal,
+    modelLoaded: modelLoaded && !swapping,
+    bytesPerSecond: rate,
+  })
+  const loading = !fallback && libReady && load.phase !== 'ready'
+  // NOT `performance`: that name shadows the global for the whole component, and
+  // the byte-counting effect above calls `performance.now()`. As a shadowed
+  // string it would throw "performance.now is not a function" at runtime, with
+  // every unit test still green — the pure helpers never touch the clock.
+  // Caught by the linter's exhaustive-deps rule, of all things.
+  const performanceSummary = product.performanceFeatures.join(' / ')
+
+  /**
+   * Coarse progress for assistive technology, at 25% steps.
+   *
+   * The visible readout changes several times a second. Announcing that verbatim
+   * is what made the old preloader read out ~90 times in under two seconds; the
+   * live region below therefore takes this value, which changes four times.
+   */
+  const announcedPercent = load.percent === null ? null : Math.floor(load.percent / 25) * 25
 
   return (
     <section className="stage" aria-label="Interactive 3D product reference">
@@ -339,11 +451,11 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
             </g>
           </svg>
 
-          {libReady && glbUrl && !fallback && (
+          {libReady && resolvedSrc && !fallback && (
             <model-viewer
               ref={attachRef}
               className="stage__model"
-              src={glbUrl}
+              src={resolvedSrc}
               poster={selected.poster.url}
               alt={selected.altText}
               camera-controls=""
@@ -405,26 +517,50 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
                 <div className="callout__value">{product.garmentFit}</div>
               </div>
             )}
-            {performance && (
+            {performanceSummary && (
               <div className="callout callout--right" style={{ bottom: '18%', right: '3%' }}>
                 <span className="label">[ PERFORMANCE ]</span>
-                <div className="callout__value">{performance}</div>
+                <div className="callout__value">{performanceSummary}</div>
               </div>
             )}
           </div>
 
-          {!fallback && (
+          {/* Only once there is something to drag. It used to show throughout the
+              download, inviting the visitor to rotate a garment that had not
+              arrived — on a 4G phone that is 22.6 s of instructions for an empty
+              stage. */}
+          {!fallback && modelLoaded && !swapping && (
             <p className="stage__hint" aria-hidden="true">
               DRAG TO ROTATE · SCROLL TO ZOOM
             </p>
           )}
 
+          {/*
+            The honest readout, centred where the garment will appear rather than
+            tucked at the top edge. `aria-hidden` because it changes several times
+            a second; the coarse live region at the end of the section is what
+            assistive technology hears.
+          */}
           {loading && (
-            <div className="stage__loading">
-              <span>LOADING 3D</span>
-              <span className="stage__loading-bar" aria-hidden="true">
-                <span style={{ width: `${Math.round(progress * 100)}%` }} />
+            <div className="stage__loading" aria-hidden="true">
+              <span className="stage__loading-title">
+                {load.phase === 'preparing' ? 'PREPARING REFERENCE…' : 'LOADING REFERENCE'}
+                {load.percent !== null && ` · ${load.percent}%`}
               </span>
+              <span
+                className={`stage__loading-bar${
+                  load.phase === 'preparing' ? ' stage__loading-bar--indeterminate' : ''
+                }`}
+              >
+                <span
+                  style={
+                    load.phase === 'downloading' && load.percent !== null
+                      ? { width: `${load.percent}%` }
+                      : undefined
+                  }
+                />
+              </span>
+              {load.detail && <span className="stage__loading-detail">{load.detail}</span>}
             </div>
           )}
 
@@ -451,9 +587,16 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
           )}
         </div>
 
+        {/* Coarse on purpose — see `announcedPercent`. This string changes at most
+            four times during a download, where the visible readout changes
+            several times a second. */}
         <p className="visually-hidden" role="status">
           {loading
-            ? 'Loading the interactive 3D model.'
+            ? load.phase === 'preparing'
+              ? 'Download complete. Preparing the interactive 3D model.'
+              : announcedPercent === null
+                ? 'Loading the interactive 3D model.'
+                : `Loading the interactive 3D model, ${announcedPercent} percent.`
             : modelLoaded
               ? `Showing ${product.productName} in ${selected.displayName}. Drag to rotate, use scroll or pinch to zoom.`
               : ''}

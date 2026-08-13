@@ -20,6 +20,20 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   so `WEBGL_lose_context` on it is a no-op. The real contract is model-viewer's
   own `error` event with `detail.type === 'webglcontextlost'`.
 
+- **`Stage.tsx` shadows the global `performance`, and `performance.now()` inside it
+  would throw at runtime with every unit test green.** Found 2026-08-13 while adding
+  byte-accurate load progress. The component declared
+  `const performance = product.performanceFeatures.join(' / ')`, which shadows the
+  global for the WHOLE function body — including effects declared above it, because
+  they close over the same scope. `performance.now()` there calls `.now()` on a
+  string: `TypeError`, at runtime, in the browser only. Nothing in the unit suite
+  touches the clock, so it stayed green; it was caught by biome's
+  `useExhaustiveDependencies` reporting a missing dependency on `performance.now`,
+  which is a lint rule finding a runtime bug by accident. The local is now
+  `performanceSummary`. **If you need a timestamp in a component, check what names
+  the component already binds** — `performance`, `history`, `location`, `name`,
+  `status` and `screen` are all globals that read naturally as local variable names.
+
 - **A grid item's `min-height: auto` silently beats `max-height: 100%`.** The
   loading poster overflowed its stage by 926px for months this way — measured
   498×1500 inside 546×574 — and looked like the image was *tiling*, because the

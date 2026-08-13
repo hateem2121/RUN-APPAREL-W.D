@@ -27,7 +27,7 @@ interface ColourwayTabsProps {
   /**
    * Whether the 3D model is on screen and ready to accept a variant swap. When
    * it is, hovering shows the real garment and the thumbnail is redundant; when
-   * it is not — still downloading 37.7 MB, or WebGL unavailable — the thumbnail
+   * it is not — still downloading 27 MB, or WebGL unavailable — the thumbnail
    * is the only preview a visitor can get.
    */
   modelReady: boolean

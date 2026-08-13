@@ -5,8 +5,26 @@ test.describe('RUN APPAREL 3D viewer', () => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toContainText(/Velocity Performance/i)
     await expect(page.getByText('[ COLOURWAY 01 / WINE ]')).toBeVisible()
-    // poster-first: an image for the selected colourway is present immediately
-    await expect(page.locator('.stage img').first()).toBeVisible()
+    // NOT "poster-first" any more — changed deliberately on 2026-08-13.
+    //
+    // The poster used to cover the stage for the whole download. It could never
+    // fit: every poster is an opaque WebP with its background baked in at
+    // #f0efeb, which on the dark `--bg` (#1c1f18) is a near-white slab. During
+    // loading the stage now shows its own blueprint ground plus a readout of real
+    // bytes, which is drawn from tokens and therefore correct in both themes.
+    //
+    // The PROMISE underneath the old assertion is unchanged, and is what this
+    // checks: the stage is never blank while the visitor waits. Which of the three
+    // is showing depends on the browser — headless Firefox has no WebGL, so it
+    // takes the poster fallback, while Chromium loads the model — and asserting
+    // any single one of them makes this a test of the runner's GPU. That mistake
+    // is already documented below.
+    //
+    // It also removes a real flake: the old locator raced the model load, and was
+    // measured failing on pristine `main` roughly one run in two.
+    await expect(
+      page.locator('.stage__loading, .stage__poster-fallback img, model-viewer').first(),
+    ).toBeVisible()
 
     // The camera buttons are asserted in webgl.spec.ts, NOT here.
     //

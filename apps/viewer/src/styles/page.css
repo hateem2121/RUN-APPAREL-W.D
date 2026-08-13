@@ -189,7 +189,7 @@ model-viewer.stage__model {
 
 /*
  * The poster is the FIRST thing a phone visitor sees, and it holds the screen for
- * as long as a 37.7 MB model takes to arrive — so its box has to be right.
+ * as long as a 27 MB model takes to arrive — so its box has to be right.
  *
  * `max-height: 100%` alone was not. The <img> carries width/height attributes
  * (1200x1500, kept for the aspect ratio so there is no layout shift), and with no
@@ -325,30 +325,54 @@ model-viewer.stage__model {
   white-space: nowrap;
 }
 
+/*
+ * The loading readout.
+ *
+ * Moved to the CENTRE of the stage and given room. It was a 64x2px bar with 10px
+ * text pinned at `top: 44px` — roughly 128 square pixels to report a download
+ * measured at 22.6 s on average 4G — sitting directly beneath a hint telling the
+ * visitor to drag a garment that had not arrived. Meanwhile the largest thing on
+ * screen was the preloader's invented counter. The two were the wrong way round.
+ */
 .stage__loading {
   position: absolute;
-  top: 44px;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
-  display: inline-flex;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  width: min(320px, 78%);
   font-family: var(--font-mono);
-  font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--muted);
+  text-align: center;
+  color: var(--text);
   background: color-mix(in oklab, var(--surface) 85%, transparent);
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  padding: 6px 12px;
+  border-radius: var(--radius-panel);
+  padding: 18px 20px;
+}
+
+.stage__loading-title {
+  font-size: 12px;
+  /* The percentage climbs while the line is centred; without tabular digits the
+     whole readout shifts sideways on every tick. */
+  font-variant-numeric: tabular-nums;
+}
+
+.stage__loading-detail {
+  font-size: 10px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .stage__loading-bar {
-  width: 64px;
-  height: 2px;
+  width: 100%;
+  height: 3px;
   background: var(--wash);
-  border-radius: 2px;
+  border-radius: 3px;
   overflow: hidden;
 }
 
@@ -356,7 +380,21 @@ model-viewer.stage__model {
   display: block;
   height: 100%;
   background: var(--dimension);
+  /* `--fast` (200ms) and nothing slower. `--settle`/`--slow` are for entrances
+     and wipes; a fill retargeted several times a second over 500ms visibly
+     trails the number beside it, which is complaint A restated as a bug. */
   transition: width var(--fast) var(--ease);
+}
+
+/*
+ * Stage two — decode and shader compile, where no byte-level signal exists at
+ * all. An indeterminate sweep rather than a percentage: inventing one here is
+ * exactly the habit this change removes.
+ */
+.stage__loading-bar--indeterminate span {
+  width: 40%;
+  transition: none;
+  animation: preloader-sweep calc(var(--slow) * 2) var(--ease) infinite;
 }
 
 .stage__error {
@@ -797,10 +835,43 @@ model-viewer.stage__model {
 .preloader__rule > span {
   display: block;
   height: 100%;
-  background: var(--volt);
+  /* `--dimension`, not `--volt`. Measured 2026-08-13: raw volt on the light `--bg`
+     is 1.11:1 — the fill was invisible in the default theme while the counter
+     above it animated convincingly, which was one of the five reasons the loading
+     status read as absent. `--dimension` is 4.57:1 in light and resolves to volt
+     in dark, so nothing changes there. DESIGN.md: volt is illegible on
+     paper-white, and a progress fill is a dimension line. */
+  background: var(--dimension);
   transform-origin: left center;
   transition: transform var(--fast) linear;
 }
+
+/*
+ * Indeterminate sweep — says "working", claims no amount.
+ *
+ * It replaced a fill driven by a fake percentage. The duration is derived from
+ * the locked `--slow` rather than picked, so it cannot drift away from the
+ * motion system; 2x reads as calm at this width. `base.css` already collapses
+ * every animation to 0.01ms under reduced motion, and <Preloader> does not
+ * render this element there at all — a sweep that cannot sweep is a bar frozen
+ * at one width, which reads as a stalled download.
+ */
+.preloader__rule--indeterminate > span {
+  width: 40%;
+  transform-origin: left center;
+  transition: none;
+  animation: preloader-sweep calc(var(--slow) * 2) var(--ease) infinite;
+}
+
+@keyframes preloader-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
 .preloader__status {
   color: var(--muted);
   font-size: 12px;

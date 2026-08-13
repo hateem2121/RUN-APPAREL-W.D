@@ -457,10 +457,12 @@ the answer is "nothing that happens in production", it is not a test.
   `cms.wear-run.help` API cutover to be rolled back within the hour, and it later
   failed a deploy through a new post-deploy check that treated the 403 as "no
   model". Treat such a 403 as *inconclusive*, never as a failed assertion. And use
-  `HEAD`: a `GET` on the model is 37.7 MB per run, which the 15-minute uptime job
+  `HEAD`: a `GET` on the model is 27 MB per run, which the 15-minute uptime job
   turns into gigabytes of R2 egress against a $5/month cap.
 
-- **Ten more traps live in `apps/viewer/CLAUDE.md`** — CSP and Bot Fight Mode, why a
+- **Eleven more traps live in `apps/viewer/CLAUDE.md`** — the `performance` global
+  shadowed by a local in `Stage.tsx` (a runtime `TypeError` that every unit test
+  stays green through), CSP and Bot Fight Mode, why a
   build-time CSP cannot cover an edge-injected script, `_headers` combining,
   `_headers` surviving `env.ASSETS.fetch()` **but NOT reaching a response the Worker
   builds itself** (that pair is one trap in two halves — the second shipped the

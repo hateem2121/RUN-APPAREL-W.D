@@ -284,3 +284,122 @@ describe('pointer-only styling', () => {
     ).toEqual([])
   })
 })
+
+/**
+ * The progress indicators must be VISIBLE, in both themes.
+ *
+ * WHY THIS EXISTS. On 2026-08-13 the preloader's progress rule was measured at
+ * **1.11:1** against the light background: `.preloader__rule > span` filled with
+ * raw `var(--volt)` (#cdf345) on `--bg` (#f1efea). Light mode is the default, so
+ * most visitors had never seen that bar at all — while a large counter above it
+ * animated convincingly. The owner's report was "it does not show the loading
+ * status"; this was one of the five causes.
+ *
+ * It is the same failure class as the 1.00:1 skip link above, and it evaded the
+ * same gates for a different reason: the token was not mistyped, so the dangling-
+ * token test could not see it, and axe scores only TEXT, so a 2px graphical fill
+ * is invisible to the a11y gate too.
+ *
+ * DESIGN.md is unambiguous about the rule being broken: `--volt-deep` exists
+ * because "volt is illegible on paper-white", and the mode-flip table assigns
+ * dimension lines to volt-deep in light and volt in dark — which is exactly the
+ * `--dimension` token. A progress fill is a dimension line.
+ */
+const PROGRESS_FILLS = [
+  { file: 'page.css', selector: '.preloader__rule > span' },
+  { file: 'page.css', selector: '.stage__loading-bar span' },
+]
+
+/** sRGB relative luminance, per WCAG. */
+function luminance(hex: string): number {
+  const channels = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255)
+  const linear = channels.map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+  return 0.2126 * (linear[0] ?? 0) + 0.7152 * (linear[1] ?? 0) + 0.0722 * (linear[2] ?? 0)
+}
+
+function contrast(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+  return ((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05)
+}
+
+/** The raw declared value of a token, before any nested var() is expanded. */
+function rawValue(tokensSource: string, token: string): string | null {
+  const declaration = new RegExp(`${token}\\s*:\\s*([^;]+);`).exec(tokensSource)
+  return declaration?.[1]?.trim() ?? null
+}
+
+/**
+ * Resolve a token to its light and dark hex values, unwrapping `light-dark()`
+ * AND any nested token references.
+ *
+ * The nesting is not hypothetical: the token this test exists to check is
+ * `--dimension: light-dark(var(--volt-deep), var(--volt))`, so a resolver that
+ * only understood literal hex would report "does not resolve" for precisely the
+ * value it was written to verify — and an unverifiable token must fail loudly
+ * rather than pass by default.
+ */
+function resolveToken(tokensSource: string, token: string): { light: string; dark: string } | null {
+  let value = rawValue(tokensSource, token)
+  if (value === null) return null
+  for (let depth = 0; depth < 4 && value.includes('var('); depth++) {
+    value = value.replace(
+      /var\(\s*(--[a-z0-9-]+)\s*\)/gi,
+      (whole, nested: string) => rawValue(tokensSource, nested) ?? whole,
+    )
+  }
+  const pair = /light-dark\(\s*(#[0-9a-f]{6})\s*,\s*(#[0-9a-f]{6})\s*\)/i.exec(value)
+  if (pair?.[1] && pair[2]) return { light: pair[1], dark: pair[2] }
+  const flat = /^(#[0-9a-f]{6})$/i.exec(value)
+  if (flat?.[1]) return { light: flat[1], dark: flat[1] }
+  return null
+}
+
+describe('progress indicators', () => {
+  it('every progress fill clears 3:1 against the background it sits on, in BOTH themes', () => {
+    const tokensSource = readFileSync(join(STYLES_DIR, 'tokens.css'), 'utf8')
+    const bg = resolveToken(tokensSource, '--bg')
+    expect(bg, '--bg must resolve for this test to mean anything').not.toBeNull()
+
+    const failures: string[] = []
+    for (const { file, selector } of PROGRESS_FILLS) {
+      const source = stripComments(readFileSync(join(STYLES_DIR, file), 'utf8'))
+      // Find the rule block for this selector and read its `background`.
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const block = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(source)
+      if (!block?.[1]) {
+        failures.push(`${file}: no rule found for \`${selector}\` — did it get renamed?`)
+        continue
+      }
+      const background = /background(?:-color)?\s*:\s*var\(\s*(--[a-z0-9-]+)\s*\)/i.exec(block[1])
+      if (!background?.[1]) {
+        failures.push(
+          `${file} ${selector}: background is not a bare var(--token); cannot verify it`,
+        )
+        continue
+      }
+      const fill = resolveToken(tokensSource, background[1])
+      if (!fill) {
+        failures.push(`${file} ${selector}: ${background[1]} does not resolve to a hex pair`)
+        continue
+      }
+      for (const mode of ['light', 'dark'] as const) {
+        const ratio = contrast(fill[mode], bg?.[mode] ?? '#ffffff')
+        if (ratio < 3) {
+          failures.push(
+            `${file} ${selector} fills with ${background[1]} (${fill[mode]}) on ${bg?.[mode]} ` +
+              `in ${mode} mode — ${ratio.toFixed(2)}:1, below the 3:1 floor for a graphical object`,
+          )
+        }
+      }
+    }
+
+    expect(
+      failures,
+      'A progress indicator is not visible against its own background. axe cannot\n' +
+        'catch this (it scores text, not a 2px fill) and the dangling-token test\n' +
+        'cannot either (the token exists). Use --dimension for a dimension line:\n' +
+        'DESIGN.md says volt is illegible on paper-white, which is why --volt-deep\n' +
+        'exists and why --dimension resolves to it in light mode.',
+    ).toEqual([])
+  })
+})
