@@ -41,12 +41,11 @@ export function UnavailableState({ settings }: { settings?: ViewerSiteSettings }
     <main className="unavailable blueprint">
       <span className="label">[ REFERENCE UNAVAILABLE ]</span>
       <h1 className="display display--hero">
-        {headingWithAccent('This reference has moved forward')}
+        {headingWithAccent('This reference is no longer live')}
       </h1>
       <p style={{ color: 'var(--muted)' }}>
-        The product linked by this QR code is not currently available as a live reference. Our range
-        develops continuously — the current catalogue has the latest references, and our team can
-        advise on this product directly.
+        The QR code you scanned points to a garment we no longer show here. Our catalogue has every
+        current reference, and our team can send you the details for this one.
       </p>
       <div className="unavailable__actions">
         <a

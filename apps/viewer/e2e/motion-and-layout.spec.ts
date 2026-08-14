@@ -27,7 +27,21 @@ import { expect, test } from '@playwright/test'
  * anti-aliasing difference.
  */
 
+/**
+ * ⚠️ 320 was ADDED 2026-08-14 and it is the width that mattered.
+ *
+ * This matrix started at 375 and the page failed at 320: measured live,
+ * `clientWidth` 320 against `scrollWidth` 352 — 32px of sideways scrolling, a
+ * WCAG 1.4.10 Reflow failure. The gate existed, passed, and was blind to it,
+ * because 375 is where the header's contents happen to still fit.
+ *
+ * 320 is not an arbitrary extra rung. It is the criterion's own threshold, and
+ * it is also what a 1280px desktop shows at the 400% zoom the same criterion
+ * requires — so this row covers a low-vision desktop visitor as much as a small
+ * phone. The rail test below already used 320; the document never did.
+ */
 const VIEWPORTS = [
+  { name: 'small mobile', width: 320, height: 640 },
   { name: 'mobile', width: 375, height: 812 },
   { name: 'tablet', width: 768, height: 1024 },
   { name: 'desktop', width: 1280, height: 800 },
@@ -88,6 +102,158 @@ test.describe('motion layer', () => {
         },
       )
       .toBe(0)
+  })
+
+  test('a finished reveal releases its compositor layer', async ({ page }) => {
+    /**
+     * `will-change: opacity, transform` was declared on `[data-reveal]` and never
+     * withdrawn — `.is-inview` sets `opacity: 1; transform: none` and inherits the
+     * hint from the rule above it. Five elements carry `[data-reveal]`, so after
+     * the visitor's first scroll the page holds five compositor layers forever,
+     * for animations that have finished and cannot run again: `startReveals()`
+     * calls `observer.unobserve()` on each element as it arrives.
+     *
+     * `will-change` is a hint with a real memory cost, and the spec is explicit
+     * that it should be removed once the animation is done. This is exactly the
+     * device that is already carrying a 27 MB model on a phone GPU.
+     *
+     * Must run under `no-preference`: the whole reveal layer — and therefore the
+     * hint — lives inside that media block, so under the suite's default `reduce`
+     * this assertion would pass vacuously.
+     */
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    await page.evaluate(() => {
+      for (let y = 0; y <= document.body.scrollHeight; y += 400) window.scrollTo(0, y)
+      window.scrollTo(0, 0)
+    })
+
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(() =>
+            [...document.querySelectorAll('[data-reveal].is-inview')]
+              .filter((el) => getComputedStyle(el).willChange !== 'auto')
+              .map((el) => el.className),
+          ),
+        {
+          message:
+            'a finished reveal is still holding a compositor layer — will-change is a ' +
+            'hint with a memory cost and must be released once the animation is done',
+          timeout: 10_000,
+        },
+      )
+      .toEqual([])
+  })
+})
+
+test.describe('interaction feedback', () => {
+  test('every control answers a press, on a phone as well as a pointer', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    /**
+     * There was not one `:active` rule in `apps/viewer/src` — verified by grep
+     * across every CSS and TSX file on 2026-08-14.
+     *
+     * That is not an oversight in isolation; it is the shadow of a correct
+     * decision. Every interaction cue in this viewer sits inside
+     * `@media (hover: hover) and (pointer: fine)`, deliberately, because an
+     * ungated `:hover` sticks after a tap (see the touch test below and the
+     * `pointer-only styling` suite in tokens.test.ts). The consequence nobody
+     * followed through on: the phone — the device a QR code is scanned with —
+     * was then left with NO feedback on any control at all.
+     *
+     * `:active` is the correct answer and is deliberately NOT gated: unlike
+     * `:hover` it is a real press on both pointer types and it releases itself.
+     */
+    const missing = await page.evaluate(() => {
+      const css = [...document.styleSheets]
+        .flatMap((sheet) => {
+          try {
+            return [...sheet.cssRules]
+          } catch {
+            return []
+          }
+        })
+        .map((rule) => rule.cssText)
+        .join('\n')
+      return [
+        '.btn:active',
+        '.camera-btn:active',
+        '.colourway-tab:active',
+        '.theme-toggle:active',
+      ].filter((selector) => !css.includes(selector))
+    })
+
+    expect(
+      missing,
+      'these controls give a phone no press feedback — every other cue in this ' +
+        'stylesheet is correctly hidden behind (hover: hover), which leaves touch with nothing',
+    ).toEqual([])
+  })
+})
+
+test.describe('the header survives a phone', () => {
+  for (const width of [320, 360, 375, 390, 414]) {
+    test(`controls keep their size and the nav stays on one line at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 720 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      /**
+       * `.header` had no flex-wrap and no shrink protection, so a declared width
+       * on a child acted as a MAXIMUM. Measured live 2026-08-14, before the fix:
+       * the theme toggle rendered 2.0px at 320, 21.1px at 360, 27.1px at 375,
+       * 30.7px at 390 and 36.6px at 414 — every one of those under the 44px this
+       * system states twice, and the first two under WCAG 2.5.8's 24x24 floor.
+       *
+       * 360px is called out because it is the commonest Android CSS width, and
+       * because the existing target-size test runs at 375 where the control is
+       * 27px — big enough to clear 24x24 and therefore invisible to that gate.
+       */
+      const toggle = await page.$eval('.theme-toggle', (el) => el.getBoundingClientRect().width)
+      expect(
+        Math.round(toggle),
+        `the theme toggle is ${toggle}px wide at ${width}px — docs/DESIGN.md §4 states 44`,
+      ).toBeGreaterThanOrEqual(44)
+
+      // Measure the VISIBLE label only. The button carries two spans — the long
+      // form is moved offscreen rather than unmounted so the accessible name
+      // survives (see Header.tsx) — so a Range over the whole button counts the
+      // hidden one too and reports four rects for a single-line button.
+      const label = await page.$eval('.header .btn', (el) => {
+        const shown =
+          [...el.children].find((child) => getComputedStyle(child).position !== 'absolute') ?? el
+        const range = document.createRange()
+        range.selectNodeContents(shown)
+        return { lines: range.getClientRects().length, height: el.getBoundingClientRect().height }
+      })
+      expect(
+        label.lines,
+        `the nav label wraps to ${label.lines} lines at ${width}px — it is the only ` +
+          'navigation on the page and it sits above the garment',
+      ).toBeLessThanOrEqual(1)
+      // The user-visible consequence, asserted independently of the markup: two
+      // lines measured 56.1px against the 40px declared, and that 16px is what
+      // inflated the whole header from 69px to 81px on a phone.
+      expect(
+        Math.round(label.height),
+        `the header button is ${label.height}px tall at ${width}px — 40px is one line`,
+      ).toBeLessThanOrEqual(48)
+    })
+  }
+
+  test('shortening the label below 700px does not change its accessible name', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 720 })
+    await page.goto('/n001/wine')
+    // The long form moves offscreen rather than unmounting, and the short form is
+    // aria-hidden — so this must read the same at every width.
+    await expect(page.locator('.header .btn')).toHaveAccessibleName('Back to Catalogue')
   })
 })
 

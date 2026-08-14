@@ -2,6 +2,7 @@ import type { ViewerColourway } from '@run-apparel/shared'
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { isCoarsePointer } from '../lib/capabilities'
 import { shouldShowThumbnail } from '../lib/colourwayPreview'
+import { HOVER_INTENT_MS } from '../lib/motion'
 
 /**
  * The tablist's panel is the 3D stage, which lives in App.tsx as a sibling.
@@ -50,6 +51,21 @@ export function ColourwayTabs({
   modelReady,
 }: ColourwayTabsProps) {
   const [previewed, setPreviewed] = useState<ViewerColourway | null>(null)
+  /**
+   * Which tab currently OWNS the single tab stop.
+   *
+   * The roving tabindex tracked SELECTION, not FOCUS: `tabIndex` was
+   * `slug === selected.slug ? 0 : -1`. Because activation here is MANUAL — arrows
+   * move focus, Enter/Space selects, deliberately, since selecting rebinds every
+   * material on a 27 MB model — arrowing away from the selected tab left focus on
+   * a tab whose tabIndex was -1. Tabbing out and back then returned the browser
+   * to the SELECTED tab rather than the one the user had arrowed to, silently
+   * discarding their navigation.
+   *
+   * `null` means "nothing has been arrowed to yet", so the selected tab holds the
+   * stop — which is the correct resting state and what `onBlur` restores.
+   */
+  const [focusedSlug, setFocusedSlug] = useState<string | null>(null)
   // Touch has no hover: the first tap would fire mouseenter AND click, so a
   // preview state there is both invisible and misleading.
   const canPreview = !isCoarsePointer()
@@ -69,7 +85,7 @@ export function ColourwayTabs({
     if (!canPreview) return
     setPreviewed(colourway)
     clearPending()
-    pending.current = setTimeout(() => onPreview(colourway), colourway ? 90 : 0)
+    pending.current = setTimeout(() => onPreview(colourway), colourway ? HOVER_INTENT_MS : 0)
   }
 
   // A tab can unmount mid-hover (colourway list refetch); without this the
@@ -133,6 +149,7 @@ export function ColourwayTabs({
     // Only once a key is handled — otherwise this would swallow Tab and trap focus
     // in the tablist, which is worse than the bug being fixed.
     event.preventDefault()
+    setFocusedSlug(colourways[next]?.slug ?? null)
     tabRefs.current[next]?.focus()
   }
 
@@ -166,7 +183,7 @@ export function ColourwayTabs({
              * five-colourway garment a keyboard user hit four extra stops between
              * the product details and the enquiry form.
              */
-            tabIndex={colourway.slug === selected.slug ? 0 : -1}
+            tabIndex={(focusedSlug ?? selected.slug) === colourway.slug ? 0 : -1}
             ref={(node) => {
               tabRefs.current[index] = node
             }}
@@ -181,7 +198,15 @@ export function ColourwayTabs({
             onMouseEnter={() => preview(colourway)}
             onMouseLeave={() => preview(null)}
             onFocus={() => preview(colourway)}
-            onBlur={() => preview(null)}
+            onBlur={() => {
+              preview(null)
+              // Return the tab stop to the selected tab when focus leaves the
+              // list. onBlur already restores the preview, so the reset has a
+              // natural home here — and it means Tab re-entry lands on the
+              // colourway actually being shown rather than wherever the user
+              // last arrowed to and abandoned.
+              setFocusedSlug(null)
+            }}
           >
             {/* Decorative: the name beside it already carries the meaning, so a
                 swatch that failed to load must not leave the button unreadable. */}
@@ -194,16 +219,36 @@ export function ColourwayTabs({
             )}
             {/* The number and the name are wrapped so they stay ONE line when the
                 tab stacks vertically on a phone. Unwrapped, a column layout makes
-                each of them — and the selected-state dot — its own row. The
-                accessible name is unchanged: it is still the text content. */}
+                each of them — and the selected-state dot — its own row.
+
+                ⚠️ BOTH DECORATIONS ARE aria-hidden SINCE 2026-08-14, and the
+                accessible name is now just the colour.
+
+                The ordinal is POSITIONAL information a screen reader already
+                supplies far better: it announces "tab, 1 of 5". Leaving it in the
+                name made every tab read "01 Wine, tab, 1 of 5". The selected dot
+                was worse — it was `::after { content: "●" }`, and generated
+                content IS included in the accessible name, so the chosen tab
+                announced as "01 Wine ●" while `aria-selected` already carried
+                that state. It is a real element now so the visual cue survives
+                while the name does not carry it. */}
             <span className="colourway-tab__label">
-              <span className="colourway-tab__num">{String(index + 1).padStart(2, '0')}</span>
+              <span className="colourway-tab__num" aria-hidden="true">
+                {String(index + 1).padStart(2, '0')}
+              </span>
               {colourway.displayName}
+              {colourway.slug === selected.slug && (
+                <span className="colourway-tab__dot" aria-hidden="true">
+                  {' ●'}
+                </span>
+              )}
             </span>
           </button>
         ))}
       </div>
-      <p className="colourways__hint">YOUR COLOURWAY IS ALWAYS DEVELOPED AROUND YOUR BRIEF.</p>
+      <p className="colourways__hint">
+        THESE COLOURWAYS ARE EXAMPLES. WE MATCH YOUR OWN COLOURS TO YOUR REQUIREMENTS.
+      </p>
     </section>
   )
 }

@@ -166,8 +166,13 @@ test('the retired-colourway notice is usable with a screen reader', async ({ pag
 test('the poster-only fallback is usable with a screen reader', async ({ page }) => {
   // A published product with no 3D file: no <model-viewer>, no camera buttons,
   // and a notice in their place — a materially different DOM.
+  //
+  // The expected copy changed 2026-08-14. "The interactive 3D view could not
+  // load here" was false in the commonest case that reaches this string — a lost
+  // WebGL context, where the model DID load and was then taken away by the GPU —
+  // and "here" and "reference" were both ambiguous for a non-native reader.
   await page.goto('/n002/wine')
-  await expect(page.getByText(/interactive 3D view could not load/i)).toBeVisible()
+  await expect(page.getByText(/showing a photograph of the garment/i)).toBeVisible()
   await scan(page, 'poster-only fallback')
 })
 
@@ -178,4 +183,56 @@ test('the expanded customisation accordion is usable with a screen reader', asyn
   await page.getByRole('button', { name: /how we build your product/i }).click()
   await expect(page.getByText('SHARE YOUR STARTING POINT')).toBeVisible()
   await scan(page, 'customisation accordion expanded')
+})
+
+test('the notice live region exists before it has anything to say', async ({ page }) => {
+  /**
+   * A live region must be present in the DOM BEFORE its contents change, or the
+   * announcement is unreliable. `<p className="stage__error" role="status">` was
+   * conditionally mounted, so the element and its text entered in the same
+   * commit — the classic silent case, and iOS VoiceOver is the least forgiving
+   * about it. iOS Safari is what a QR scan opens.
+   *
+   * These are the only two sentences in the product that tell a visitor the
+   * thing on screen is not the interactive reference they were promised, so the
+   * visitor who most needs them is the one who was not told.
+   */
+  await page.goto('/n001/wine')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  expect(
+    await page.locator('.stage__error[role="status"]').count(),
+    'the status region is mounted only when it already has text, which is silent',
+  ).toBe(1)
+})
+
+test('after a lost GPU context nothing offers to rotate a photograph', async ({ page }) => {
+  /**
+   * The `webglcontextlost` branch called `setFallback(true)` and never reset
+   * `modelLoaded`, so `loading` evaluated false and the persistent live region
+   * fell through to its "Showing … Drag to rotate, use scroll or pinch to zoom"
+   * branch — over a static poster.
+   *
+   * apps/viewer/CLAUDE.md and Stage.tsx both name this as the most likely way
+   * the 3D dies in front of a real buyer: iOS Safari caps canvas memory at
+   * 256 MB and the live model decodes to ~72 MB before textures. The sighted
+   * visitor sees a photograph; the screen-reader user was invited to interact
+   * with it.
+   */
+  await page.goto('/n001/wine')
+  await page.waitForFunction(
+    () => (document.querySelector('model-viewer.stage__model') as { loaded?: boolean })?.loaded,
+    undefined,
+    { timeout: 60_000 },
+  )
+  await page.evaluate(() => {
+    document
+      .querySelector('model-viewer.stage__model')
+      ?.dispatchEvent(new CustomEvent('error', { detail: { type: 'webglcontextlost' } }))
+  })
+  await expect(page.locator('.stage__poster-fallback')).toBeVisible()
+  const announced = await page.locator('.stage [role="status"]').allInnerTexts()
+  expect(
+    announced.join(' ').toLowerCase(),
+    'the live region still invites the visitor to rotate a model that is gone',
+  ).not.toContain('drag to rotate')
 })

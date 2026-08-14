@@ -62,20 +62,66 @@
   --focus-ring: light-dark(var(--volt-deep), var(--volt));
 
   /* ── Motion ─────────────────────────────────────────────────────── */
+  /* SPLIT, not lowered — owner decision 2026-08-14. Every duration here was
+     tuned for an ENTRANCE, so a button press also took 500ms. The vendored
+     animation skills argue for sub-300ms everywhere and apps/viewer/CLAUDE.md
+     rules that DESIGN.md wins; splitting the scale closes that argument without
+     moving a single entrance. Editorial motion keeps --settle/--slow. Anything
+     a finger is waiting on takes --ui. Focus and press take --instant. */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --instant: 120ms; /* focus responses and press feedback; below --fast on purpose */
   --fast: 200ms;
-  --settle: 500ms;
-  --slow: 800ms;
+  --ui: 220ms; /* controls: hover, press, state a finger is waiting on */
+  --settle: 500ms; /* entrances */
+  --slow: 800ms; /* wipes and reveals */
   --stagger: 60ms;
   --reveal-y: 24px;
 
+  /* ── Targets ────────────────────────────────────────────────────── */
+  /* docs/DESIGN.md §4 and §7 both state a 44px floor and the CSS never encoded
+     it. That is how `.theme-toggle` shipped 2.0px wide at 320px and 21.1px at
+     360px — below WCAG 2.5.8's 24x24 minimum on the commonest Android width:
+     `width: 44px` on a flex child with the default `flex-shrink: 1` is a
+     MAXIMUM. Cite this token AND set flex-shrink: 0; the token alone is not
+     enough. Measured on the live page 2026-08-14. */
+  --target-min: 44px;
+
+  /* ── Elevation ──────────────────────────────────────────────────── */
+  /* The system defined no shadow token at all, and its one drop shadow was a
+     raw `rgba(0, 0, 0, 0.12)` — forbidden by tokens.css:4, and invisible over
+     the dark --bg (#1c1f18), so the floating colourway preview lost its only
+     separation from the rail behind it. Pure black is wrong in both halves of
+     this system: --ink is deliberately "#1d1f1a … Never #000". */
+  --shadow-raised: light-dark(0 8px 24px rgba(29, 31, 26, 0.14), 0 8px 24px rgba(0, 0, 0, 0.5));
+
   /* ── Radii ──────────────────────────────────────────────────────── */
+  /* --radius-card and --radius-chip were MEASURED from the eight raw values
+     that shipped, not invented: 12px appeared three separate times (loading
+     poster, stage error, colourway preview) and 6px/8px formed a chip scale. */
   --radius-panel: 18px;
+  --radius-card: 12px;
   --radius-button: 10px;
+  --radius-chip: 6px;
   --radius-pill: 999px;
 
+  /* ── Layout constants ───────────────────────────────────────────── */
+  /* The mobile action bar's height was re-derived by hand in three places that
+     disagreed, which is what made the deliberate "peek above the fold" measure
+     103px while the bar covered 72 of them. */
+  --action-bar-h: 72px;
+
   /* ── Type ───────────────────────────────────────────────────────── */
+  /* Sizes were added 2026-08-14 and DOCUMENT what already shipped — the same
+     move §6 made for spacing, and it changes no pixel. Until then this block
+     declared four font FAMILIES and zero SIZES, so every size in the viewer was
+     a raw literal: 17, 18, 16, 15, 14, 13, 12, 11, 10. */
+  --text-body: 17px;
+  --text-sm: 15px;
+  --text-xs: 13px;
+  --text-mono: 11px; /* .mono — content labels */
+  --text-mono-sm: 10px; /* .label, .section-number — chips */
+
   --font-display: "Archivo Variable", "Archivo", system-ui, sans-serif;
   --font-body: "Archivo Variable", "Archivo", system-ui, sans-serif;
   --font-serif: "Instrument Serif", Georgia, serif;

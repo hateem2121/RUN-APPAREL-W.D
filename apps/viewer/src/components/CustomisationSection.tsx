@@ -8,7 +8,7 @@ export function CustomisationSection({ data }: { data: ViewerApiSuccess }) {
 
   return (
     <section className="customise" aria-labelledby="customise-heading" data-reveal>
-      <p className="section-number">N°002 — CUSTOMISATION — N°002</p>
+      <p className="section-number">N&#8470;002 — CUSTOMISATION — N&#8470;002</p>
       <h2 id="customise-heading" className="display display--section">
         FROM IDEA TO <span className="serif-accent">production</span>.
       </h2>
@@ -39,7 +39,7 @@ export function CustomisationSection({ data }: { data: ViewerApiSuccess }) {
             aria-controls={panelId}
             onClick={() => setOpen((value) => !value)}
           >
-            How we build your product {open ? '−' : '+'}
+            How we build your product <span aria-hidden="true">{open ? '−' : '+'}</span>
           </button>
           <div
             id={panelId}

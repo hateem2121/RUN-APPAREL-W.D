@@ -25,6 +25,23 @@ type AppState =
       retiredNotice: string | null
     }
 
+/**
+ * Never let a retired colourway swap the garment silently.
+ *
+ * `retiredNotice` was `response.fallbackMessage ?? response.product.retiredMessage`,
+ * and `??` only falls through on null/undefined — so an EMPTY STRING from the CMS
+ * (the likeliest way a message goes missing: a field cleared rather than unset)
+ * produced a falsy notice, `{retiredNotice && …}` rendered nothing, and the URL
+ * was rewritten and a different colour shown with no explanation at all.
+ *
+ * The visitor scanned a QR code printed on a physical garment tag. Showing them a
+ * different colourway without a word is the one outcome this whole fallback path
+ * exists to prevent.
+ */
+const RETIRED_FALLBACK =
+  'The colourway printed on your tag is no longer in production. This page is showing the ' +
+  'current default colourway for this garment.'
+
 export default function App() {
   const [state, setState] = useState<AppState>({ kind: 'loading' })
   const [preloaderGone, setPreloaderGone] = useState(false)
@@ -73,8 +90,10 @@ export default function App() {
         kind: 'ready',
         data: response,
         selected: response.selectedColourway,
+        // `||`, not `??`, and deliberately — an empty string is the exact case
+        // being fixed here. See RETIRED_FALLBACK above.
         retiredNotice: retired
-          ? (response.fallbackMessage ?? response.product.retiredMessage)
+          ? response.fallbackMessage || response.product.retiredMessage || RETIRED_FALLBACK
           : null,
       })
       if (loadedFor.current !== response.product.slug) {
@@ -131,6 +150,36 @@ export default function App() {
     }
   }, [state.kind])
 
+  /**
+   * Hand focus to <main> when the preloader leaves.
+   *
+   * EVERY visit to this viewer is a fresh QR scan, so this transition happens on
+   * essentially 100% of sessions rather than on an occasional in-app route
+   * change. For the 1.77–2.27s the CMS fetch takes, the entire document is
+   * `aria-hidden="true"` (see the loading branch below) except the preloader
+   * overlay. When the data arrives, the overlay unmounts and a full page appears
+   * — with focus still on <body> and nothing announced. A screen-reader user's
+   * virtual cursor is left pointing at what was, a moment ago, a hidden document.
+   *
+   * `<main id="main-content" tabIndex={-1}>` already exists and is already
+   * focusable for exactly this purpose; it was reachable only via the skip link.
+   * Nothing new is built here.
+   *
+   * Guarded on `preloaderGone` rather than on `state.kind` alone so focus moves
+   * when the overlay has actually left, not while it still covers the page.
+   */
+  const focusHandedOff = useRef(false)
+  useEffect(() => {
+    if (state.kind !== 'ready' || !preloaderGone || focusHandedOff.current) return
+    focusHandedOff.current = true
+    document.getElementById('main-content')?.focus()
+  }, [state.kind, preloaderGone])
+
+  // Stable identity: this is in <Preloader>'s effect dependency array, and a new
+  // arrow function per App render re-ran that effect — clearing and rescheduling
+  // both of its timeouts every time, on the component whose whole job is timing.
+  const onPreloaderExited = useCallback(() => setPreloaderGone(true), [])
+
   if (state.kind === 'unavailable') {
     return (
       <div className="page">
@@ -140,7 +189,7 @@ export default function App() {
   }
 
   const preloader = preloaderGone ? null : (
-    <Preloader done={state.kind === 'ready'} onExited={() => setPreloaderGone(true)} />
+    <Preloader done={state.kind === 'ready'} onExited={onPreloaderExited} />
   )
 
   if (state.kind === 'loading') {

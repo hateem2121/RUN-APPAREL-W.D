@@ -1,5 +1,6 @@
 import Lenis from 'lenis'
 import { prefersReducedMotion } from '../lib/capabilities'
+import { SCROLL_DURATION_S } from '../lib/motion'
 
 /**
  * Buttery editorial smooth-scroll. Disabled entirely under reduced-motion and
@@ -14,7 +15,7 @@ export function startSmoothScroll(): () => void {
 
   const lenis = new Lenis({
     autoRaf: true,
-    duration: 1.1,
+    duration: SCROLL_DURATION_S,
     // Gentle ease-out — calm, not springy.
     easing: (t: number) => 1 - (1 - t) ** 3,
   })

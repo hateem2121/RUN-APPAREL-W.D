@@ -1,11 +1,13 @@
 import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { track } from '../lib/analytics'
-import { canRender3D, prefersReducedMotion } from '../lib/capabilities'
+import { canRender3D, isCoarsePointer, prefersReducedMotion } from '../lib/capabilities'
 import { displayedColourway } from '../lib/colourwayPreview'
 import { diagnostic } from '../lib/diagnostic'
 import { fetchWithProgress } from '../lib/fetchWithProgress'
 import { describeLoad, smoothRate } from '../lib/loadProgress'
+import { CAMERA_DECAY_MS } from '../lib/motion'
+import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
 
 type CameraView = 'front' | 'back' | 'side'
 
@@ -42,10 +44,33 @@ const MESHOPT_DECODER_URL = '/meshopt_decoder.js'
 const DRACO_DECODER_URL = '/draco/'
 const KTX2_TRANSCODER_URL = '/basis/'
 
+/**
+ * Both strings were rewritten 2026-08-14 because they said things that were not
+ * true, in a product where the words are the only thing telling a buyer that
+ * what they are looking at is not what they were promised.
+ *
+ * VARIANT_NOTICE said "temporarily unavailable". It fires when the selected
+ * colourway's variant is missing from the GLB — a pipeline state that persists
+ * until somebody re-runs the shrink job. Nothing the visitor does, and nothing
+ * this page does, will change it. It also described a screen the visitor is not
+ * looking at ("the static reference"), when what they are actually seeing is the
+ * PREVIOUS colourway still on the model.
+ *
+ * LOAD_NOTICE said "could not load". That is false in the commonest of the four
+ * causes that reach it — a lost WebGL context, where the model DID load and was
+ * then taken away by the GPU. It is the failure apps/viewer/CLAUDE.md names as
+ * the most likely one a real buyer meets.
+ *
+ * Both are now written for a non-native English reader: short sentences, no
+ * idiom, and each states what is wrong, what the visitor is actually seeing, and
+ * which part of the page they can still trust.
+ */
 const VARIANT_NOTICE =
-  'The 3D preview for this colourway is temporarily unavailable. The static reference and specifications remain accurate.'
+  'The 3D model cannot show this colourway, so it is still showing the previous one. ' +
+  'The colour name, fabric and specifications on this page are for the colourway you selected.'
 const LOAD_NOTICE =
-  'The interactive 3D view could not load here, so you are seeing the static reference instead. All product details remain accurate.'
+  'The 3D view is not available, so this page is showing a photograph of the garment. ' +
+  'The colours, fabric and specifications are correct, and you can still send an enquiry below.'
 
 // Image-based lighting for PBR materials. Without an explicit environment,
 // <model-viewer>'s built-in neutral scene renders technical fabrics flat and
@@ -65,9 +90,18 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
 
   const mvRef = useRef<ModelViewerEl | null>(null)
   const [libReady, setLibReady] = useState(false)
-  const [fallback, setFallback] = useState(false)
-  const [modelLoaded, setModelLoaded] = useState(false)
-  const [swapping, setSwapping] = useState(false)
+  /**
+   * ONE value, not three booleans. `fallback`, `modelLoaded` and `swapping` were
+   * eight combinations of which one is actively wrong — `fallback &&
+   * modelLoaded`, "showing a photograph AND an interactive model is loaded" —
+   * and that state SHIPPED, as the live region offering to rotate a poster after
+   * a lost GPU context. See stagePhase.ts. The three derived booleans below keep
+   * every read site reading the way it did.
+   */
+  const [phase, dispatchPhase] = useReducer(stagePhase, { kind: 'loading' } as StagePhase)
+  const fallback = isPoster(phase)
+  const modelLoaded = isLive(phase)
+  const swapping = isSwapping(phase)
   const [notice, setNotice] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<CameraView | null>('front')
   const loadedSrcRef = useRef<string | null>(null)
@@ -102,7 +136,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
     // green. It is exactly the state N001 was in, and the only signal was a human
     // noticing the garment never spun.
     if (!glbUrl) {
-      setFallback(true)
+      dispatchPhase({ type: 'load-failed', reason: 'no-model' })
       diagnostic('model-missing', {
         product: product.productCode,
         variant: selected.variantId,
@@ -111,7 +145,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       return
     }
     if (!canRender3D()) {
-      setFallback(true)
+      dispatchPhase({ type: 'load-failed', reason: 'no-webgl' })
       diagnostic('render3d-unavailable', {
         product: product.productCode,
         reason: 'capability-or-save-data',
@@ -156,7 +190,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       })
       .catch(() => {
         if (!cancelled) {
-          setFallback(true)
+          dispatchPhase({ type: 'load-failed', reason: 'module-failed' })
           diagnostic('module-load-failed', { module: 'model-viewer' })
         }
       })
@@ -172,8 +206,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       if (!el) return
 
       const onLoad = () => {
-        setModelLoaded(true)
-        setSwapping(false)
+        dispatchPhase({ type: 'loaded' })
         // PROPERTY first, attribute second. React sets `src` on a custom element
         // as a property and never reflects it to an attribute — confirmed on the
         // live element, whose attribute list carries camera-orbit, tone-mapping
@@ -184,11 +217,23 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
         // so it could only ever fire once per page however many models loaded.
         //
         // WHAT IT DOES NOT FIX, also measured: the `onError` branch below still
-        // never sees a truthy `loadedSrcRef`, so VARIANT_NOTICE remains
-        // unreachable and a mid-swap failure still tears the stage down to the
-        // poster. An e2e test written to prove otherwise failed. The cause is
-        // NOT the attribute-vs-property read and has not been isolated — do not
-        // assume this line was the whole story.
+        // never sees a truthy `loadedSrcRef`, so VARIANT_NOTICE is unreachable
+        // FROM THERE and a mid-swap failure tears the stage down to the poster.
+        //
+        // ⚠️ ANSWERED 2026-08-14 — nothing is broken, and the question above was
+        // asking about a path the visitor does not take. VARIANT_NOTICE has two
+        // producers, and only one of them is this branch. The one that actually
+        // fires is the variant effect below, which sets it when the requested
+        // variantId is absent from `availableVariants` — that is the real
+        // "colourway missing from the GLB" case, it works, and it is the path an
+        // e2e test exercises. The `onError` limb is for a mid-swap LOAD failure,
+        // which only separate-GLB mode can reach; N001 is single-GLB with KHR
+        // material variants, where a colour change rebinds materials and issues
+        // no new request, so no error can arrive mid-swap to observe.
+        //
+        // Keep the branch: it is correct for the mode that can reach it. The
+        // earlier e2e test failed because it was written against single-GLB mode,
+        // where the state it asserts is unreachable by construction.
         const src = (el as unknown as { src?: string }).src ?? el.getAttribute('src') ?? ''
         if (loadedSrcRef.current !== src) {
           loadedSrcRef.current = src
@@ -215,16 +260,24 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
           //
           // Fall back to the poster: still a garment, still the specs, still the
           // contact buttons — rather than a grey rectangle.
-          setFallback(true)
+          // Reset modelLoaded too. Without this, `loading` (below) evaluates
+          // false — it reads `!fallback && …` — so the persistent live region
+          // fell through to its `modelLoaded ?` branch and announced "Showing …
+          // Drag to rotate, use scroll or pinch to zoom" over a static poster.
+          // The sighted visitor sees a photograph; the screen-reader user was
+          // invited to interact with a model that no longer exists. Found
+          // 2026-08-14. The model is genuinely gone here, so the flag saying it
+          // is loaded was simply wrong.
+          dispatchPhase({ type: 'context-lost' })
           setNotice(null)
           diagnostic('webgl-context-lost', { product: product.productCode })
           return
         }
 
         if (!loadedSrcRef.current) {
-          setFallback(true)
+          dispatchPhase({ type: 'load-failed', reason: 'load-failed' })
         } else {
-          setSwapping(false)
+          dispatchPhase({ type: 'loaded' })
           setNotice(VARIANT_NOTICE)
         }
         diagnostic('model-load-error', {
@@ -253,6 +306,21 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       el.addEventListener('load', onLoad)
       el.addEventListener('error', onError)
       el.addEventListener('camera-change', onCameraChange)
+
+      // React 19 supports returning a cleanup from a ref callback, and this is
+      // the only removal path there is: the `if (!el) return` above is exactly
+      // the null call React makes on detach, so nothing was ever unbound.
+      //
+      // Verified 2026-08-14 that it is LATENT rather than live — `productCode`
+      // cannot change while <Stage> stays mounted, because the only history
+      // entries this document pushes are same-product colourway changes and
+      // every catalogue link is external. One line removes the need for that
+      // four-step argument to keep being true.
+      return () => {
+        el.removeEventListener('load', onLoad)
+        el.removeEventListener('error', onError)
+        el.removeEventListener('camera-change', onCameraChange)
+      }
     },
     [product.productCode],
   )
@@ -303,7 +371,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   useEffect(() => {
     if (separateMode && previousGlb.current !== glbUrl) {
       previousGlb.current = glbUrl
-      setSwapping(true)
+      dispatchPhase({ type: 'swap-started' })
       setNotice(null)
     }
   }, [glbUrl, separateMode])
@@ -319,7 +387,20 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
    * That fallback is what makes counting bytes a safe thing to do at all.
    */
   useEffect(() => {
-    if (!glbUrl || fallback || !libReady) return
+    // `canRender3D()`, NOT `libReady`. The 27 MB download used to wait for the
+    // model-viewer module to finish downloading and parsing first, serialising
+    // two independent transfers on the connection that matters least — a phone
+    // on 4G, where the model is already ~23s.
+    //
+    // ⚠️ TWO TRAPS HERE, BOTH OF WHICH SHIP GREEN.
+    // (1) `libReady` was silently doing double duty as the Save-Data / no-WebGL
+    //     guard: the effect above returns early WITHOUT importing the module in
+    //     those cases, so libReady never became true and this effect never ran.
+    //     Removing it without calling canRender3D() would start a 27 MB download
+    //     on a connection that explicitly asked us not to.
+    // (2) `libReady` must leave the dependency array in the SAME edit. Left in,
+    //     the effect re-runs when it flips and the file downloads twice.
+    if (!glbUrl || fallback || !canRender3D()) return
     let cancelled = false
     let objectUrl: string | null = null
     const controller = new AbortController()
@@ -376,7 +457,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       // between colourways in separate-GLB mode accumulates a copy per swap.
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [glbUrl, fallback, libReady, product.productCode])
+  }, [glbUrl, fallback, product.productCode])
 
   const applyView = (view: CameraView) => {
     const mv = mvRef.current
@@ -416,7 +497,13 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
     modelLoaded: modelLoaded && !swapping,
     bytesPerSecond: rate,
   })
-  const loading = !fallback && libReady && load.phase !== 'ready'
+  // No longer gated on `libReady`: the download now starts immediately rather
+  // than after the model-viewer module lands, so gating the readout on the
+  // module would leave the stage blank for the first seconds of a 27 MB
+  // transfer — the exact dead time the byte-accurate readout exists to remove.
+  // `!fallback` already covers Save-Data and no-WebGL, which is what libReady
+  // was standing in for here.
+  const loading = !fallback && load.phase !== 'ready'
   // NOT `performance`: that name shadows the global for the whole component, and
   // the byte-counting effect above calls `performance.now()`. As a shadowed
   // string it would throw "performance.now is not a function" at runtime, with
@@ -434,7 +521,13 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   const announcedPercent = load.percent === null ? null : Math.floor(load.percent / 25) * 25
 
   return (
-    <section className="stage" aria-label="Interactive 3D product reference">
+    // The name claimed "Interactive" in every fallback state — no GLB, no WebGL,
+    // Save-Data, module load failure, lost context — where the section contains
+    // a photograph and nothing interactive at all.
+    <section
+      className="stage"
+      aria-label={fallback ? 'Product reference photograph' : 'Interactive 3D product reference'}
+    >
       <div className="stage__inner">
         <div className="stage__canvas" data-lenis-prevent>
           <svg
@@ -465,7 +558,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               min-camera-orbit="auto 20deg auto"
               max-camera-orbit="auto 160deg 200%"
               interaction-prompt="none"
-              interpolation-decay={prefersReducedMotion() ? 1 : 120}
+              interpolation-decay={prefersReducedMotion() ? 1 : CAMERA_DECAY_MS}
               touch-action="pan-y"
               shadow-intensity="0.6"
               shadow-softness="0.8"
@@ -529,9 +622,19 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               download, inviting the visitor to rotate a garment that had not
               arrived — on a 4G phone that is 22.6 s of instructions for an empty
               stage. */}
+          {/* Pointer-conditional, because on touch NEITHER half was true.
+              model-viewer is mounted `touch-action="pan-y"`, so a vertical swipe
+              is deliberately handed to the document and only a horizontal drag
+              orbits; zoom is pinch. For a B2B reference the printed artwork IS
+              the product, so zooming into the chest print is the visitor's main
+              task — and the page told them to do it with a gesture that scrolls
+              the garment off screen. isCoarsePointer() already gates the same
+              class of decision in ColourwayTabs.tsx. */}
           {!fallback && modelLoaded && !swapping && (
             <p className="stage__hint" aria-hidden="true">
-              DRAG TO ROTATE · SCROLL TO ZOOM
+              {isCoarsePointer()
+                ? 'DRAG TO ROTATE · PINCH TO ZOOM'
+                : 'DRAG TO ROTATE · SCROLL TO ZOOM'}
             </p>
           )}
 
@@ -544,7 +647,12 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
           {loading && (
             <div className="stage__loading" aria-hidden="true">
               <span className="stage__loading-title">
-                {load.phase === 'preparing' ? 'PREPARING REFERENCE…' : 'LOADING REFERENCE'}
+                {/* "3D MODEL", not "REFERENCE". The live region below already
+                    said "the interactive 3D model" while this line said
+                    "REFERENCE", so the sighted and the screen-reader visitor
+                    were given different names for the same 23-second event —
+                    and "reference" is also what the whole page calls itself. */}
+                {load.phase === 'preparing' ? 'PREPARING 3D MODEL…' : 'LOADING 3D MODEL'}
                 {load.percent !== null && ` · ${load.percent}%`}
               </span>
               <span
@@ -552,10 +660,16 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
                   load.phase === 'preparing' ? ' stage__loading-bar--indeterminate' : ''
                 }`}
               >
+                {/* scaleX, not width. `width` is a layout property and this is
+                    retargeted at ~10 Hz for the ~23s a 27 MB model takes on
+                    average 4G — roughly 230 layout passes during the single
+                    heaviest thing the page does, on the phone that is also
+                    decoding the model. The fill is width:100% and scaled; see
+                    `.stage__loading-bar span` in page.css. */}
                 <span
                   style={
                     load.phase === 'downloading' && load.percent !== null
-                      ? { width: `${load.percent}%` }
+                      ? { transform: `scaleX(${load.percent / 100})` }
                       : undefined
                   }
                 />
@@ -564,11 +678,19 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
             </div>
           )}
 
-          {(notice ?? (fallback ? LOAD_NOTICE : null)) && (
-            <p className="stage__error" role="status">
-              {notice ?? LOAD_NOTICE}
-            </p>
-          )}
+          {/* Mounted UNCONDITIONALLY, with only its text driven. A live region
+              has to exist before its contents change for the announcement to be
+              reliable; inserting an already-populated role="status" is the
+              classic silent case, and iOS VoiceOver — the browser a QR scan
+              opens — is the least forgiving about it. `hidden` keeps it out of
+              the layout and off screen while empty, without unmounting it. */}
+          <p
+            className="stage__error"
+            role="status"
+            hidden={!(notice ?? (fallback ? LOAD_NOTICE : null))}
+          >
+            {notice ?? (fallback ? LOAD_NOTICE : '')}
+          </p>
 
           {!fallback && (
             <div className="stage__controls" role="group" aria-label="Camera positions">
@@ -598,10 +720,23 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
                 ? 'Loading the interactive 3D model.'
                 : `Loading the interactive 3D model, ${announcedPercent} percent.`
             : modelLoaded
-              ? `Showing ${product.productName} in ${selected.displayName}. Drag to rotate, use scroll or pinch to zoom.`
+              ? `Showing ${product.productName} in ${selected.displayName}.`
               : ''}
         </p>
-        <p className="visually-hidden">Drag to rotate. Use scroll or pinch to zoom.</p>
+        {/* ONE instruction, and it names the keyboard.
+            Three overlapping strings described this object — this one, the
+            sentence that used to be appended to the live region above, and the
+            visible hint — and both authored here described only pointer
+            gestures. The model IS keyboard-operable: model-viewer orbits with
+            the arrow keys and zooms with Page Up / Page Down. A keyboard-only
+            visitor was told to drag. Gated on the same condition as the visible
+            hint, so it is absent when there is nothing to operate. */}
+        {!fallback && modelLoaded && (
+          <p className="visually-hidden">
+            Drag or press the arrow keys to rotate. Scroll, pinch, or press Page Up and Page Down to
+            zoom.
+          </p>
+        )}
       </div>
     </section>
   )
