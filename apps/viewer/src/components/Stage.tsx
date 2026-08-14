@@ -6,6 +6,7 @@ import { displayedColourway } from '../lib/colourwayPreview'
 import { diagnostic } from '../lib/diagnostic'
 import { fetchWithProgress } from '../lib/fetchWithProgress'
 import { describeLoad, smoothRate } from '../lib/loadProgress'
+import { CAMERA_DECAY_MS } from '../lib/motion'
 import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
 
 type CameraView = 'front' | 'back' | 'side'
@@ -557,7 +558,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               min-camera-orbit="auto 20deg auto"
               max-camera-orbit="auto 160deg 200%"
               interaction-prompt="none"
-              interpolation-decay={prefersReducedMotion() ? 1 : 120}
+              interpolation-decay={prefersReducedMotion() ? 1 : CAMERA_DECAY_MS}
               touch-action="pan-y"
               shadow-intensity="0.6"
               shadow-softness="0.8"

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { prefersReducedMotion } from '../lib/capabilities'
+import { PRELOADER_MIN_DWELL_MS, PRELOADER_WIPE_MS } from '../lib/motion'
 
 interface PreloaderProps {
   /** Data is ready — begin the exit. */
@@ -40,9 +41,12 @@ export function Preloader({ done, onExited }: PreloaderProps) {
       onExited()
       return
     }
-    const wait = Math.max(0, 400 - (performance.now() - startRef.current))
+    const wait = Math.max(0, PRELOADER_MIN_DWELL_MS - (performance.now() - startRef.current))
     const toExit = window.setTimeout(() => setExiting(true), wait)
-    const toDone = window.setTimeout(onExited, wait + 760)
+    // 760 until 2026-08-14, against a wipe CSS runs for --slow (800ms) — the
+    // hand-off fired 40ms before the animation it was waiting for finished.
+    // Derived now, so the two cannot disagree again.
+    const toDone = window.setTimeout(onExited, wait + PRELOADER_WIPE_MS)
     return () => {
       clearTimeout(toExit)
       clearTimeout(toDone)

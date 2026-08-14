@@ -2,6 +2,7 @@ import type { ViewerColourway } from '@run-apparel/shared'
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { isCoarsePointer } from '../lib/capabilities'
 import { shouldShowThumbnail } from '../lib/colourwayPreview'
+import { HOVER_INTENT_MS } from '../lib/motion'
 
 /**
  * The tablist's panel is the 3D stage, which lives in App.tsx as a sibling.
@@ -69,7 +70,7 @@ export function ColourwayTabs({
     if (!canPreview) return
     setPreviewed(colourway)
     clearPending()
-    pending.current = setTimeout(() => onPreview(colourway), colourway ? 90 : 0)
+    pending.current = setTimeout(() => onPreview(colourway), colourway ? HOVER_INTENT_MS : 0)
   }
 
   // A tab can unmount mid-hover (colourway list refetch); without this the
