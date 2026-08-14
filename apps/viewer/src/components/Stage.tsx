@@ -1,11 +1,12 @@
 import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { track } from '../lib/analytics'
 import { canRender3D, isCoarsePointer, prefersReducedMotion } from '../lib/capabilities'
 import { displayedColourway } from '../lib/colourwayPreview'
 import { diagnostic } from '../lib/diagnostic'
 import { fetchWithProgress } from '../lib/fetchWithProgress'
 import { describeLoad, smoothRate } from '../lib/loadProgress'
+import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
 
 type CameraView = 'front' | 'back' | 'side'
 
@@ -88,9 +89,18 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
 
   const mvRef = useRef<ModelViewerEl | null>(null)
   const [libReady, setLibReady] = useState(false)
-  const [fallback, setFallback] = useState(false)
-  const [modelLoaded, setModelLoaded] = useState(false)
-  const [swapping, setSwapping] = useState(false)
+  /**
+   * ONE value, not three booleans. `fallback`, `modelLoaded` and `swapping` were
+   * eight combinations of which one is actively wrong — `fallback &&
+   * modelLoaded`, "showing a photograph AND an interactive model is loaded" —
+   * and that state SHIPPED, as the live region offering to rotate a poster after
+   * a lost GPU context. See stagePhase.ts. The three derived booleans below keep
+   * every read site reading the way it did.
+   */
+  const [phase, dispatchPhase] = useReducer(stagePhase, { kind: 'loading' } as StagePhase)
+  const fallback = isPoster(phase)
+  const modelLoaded = isLive(phase)
+  const swapping = isSwapping(phase)
   const [notice, setNotice] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<CameraView | null>('front')
   const loadedSrcRef = useRef<string | null>(null)
@@ -125,7 +135,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
     // green. It is exactly the state N001 was in, and the only signal was a human
     // noticing the garment never spun.
     if (!glbUrl) {
-      setFallback(true)
+      dispatchPhase({ type: 'load-failed', reason: 'no-model' })
       diagnostic('model-missing', {
         product: product.productCode,
         variant: selected.variantId,
@@ -134,7 +144,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       return
     }
     if (!canRender3D()) {
-      setFallback(true)
+      dispatchPhase({ type: 'load-failed', reason: 'no-webgl' })
       diagnostic('render3d-unavailable', {
         product: product.productCode,
         reason: 'capability-or-save-data',
@@ -179,7 +189,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       })
       .catch(() => {
         if (!cancelled) {
-          setFallback(true)
+          dispatchPhase({ type: 'load-failed', reason: 'module-failed' })
           diagnostic('module-load-failed', { module: 'model-viewer' })
         }
       })
@@ -195,8 +205,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       if (!el) return
 
       const onLoad = () => {
-        setModelLoaded(true)
-        setSwapping(false)
+        dispatchPhase({ type: 'loaded' })
         // PROPERTY first, attribute second. React sets `src` on a custom element
         // as a property and never reflects it to an attribute — confirmed on the
         // live element, whose attribute list carries camera-orbit, tone-mapping
@@ -250,7 +259,6 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
           //
           // Fall back to the poster: still a garment, still the specs, still the
           // contact buttons — rather than a grey rectangle.
-          setFallback(true)
           // Reset modelLoaded too. Without this, `loading` (below) evaluates
           // false — it reads `!fallback && …` — so the persistent live region
           // fell through to its `modelLoaded ?` branch and announced "Showing …
@@ -259,16 +267,16 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
           // invited to interact with a model that no longer exists. Found
           // 2026-08-14. The model is genuinely gone here, so the flag saying it
           // is loaded was simply wrong.
-          setModelLoaded(false)
+          dispatchPhase({ type: 'context-lost' })
           setNotice(null)
           diagnostic('webgl-context-lost', { product: product.productCode })
           return
         }
 
         if (!loadedSrcRef.current) {
-          setFallback(true)
+          dispatchPhase({ type: 'load-failed', reason: 'load-failed' })
         } else {
-          setSwapping(false)
+          dispatchPhase({ type: 'loaded' })
           setNotice(VARIANT_NOTICE)
         }
         diagnostic('model-load-error', {
@@ -362,7 +370,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   useEffect(() => {
     if (separateMode && previousGlb.current !== glbUrl) {
       previousGlb.current = glbUrl
-      setSwapping(true)
+      dispatchPhase({ type: 'swap-started' })
       setNotice(null)
     }
   }, [glbUrl, separateMode])
