@@ -182,6 +182,75 @@ describe('design tokens', () => {
   })
 })
 
+/**
+ * Tokens added by the 2026-08-14 audit.
+ *
+ * WHY THESE EXIST. The audit found the system was missing values it had already
+ * decided on and was re-deriving by hand. `docs/DESIGN.md` states a 44px touch
+ * floor twice and the CSS never encoded it — which is how `.theme-toggle` shipped
+ * **2.0px wide** on a 320px phone: `width: 44px` on a flex child with the default
+ * `flex-shrink: 1` is a MAXIMUM, not a floor. The only shadow in the codebase was
+ * a raw `rgba(0,0,0,.12)`, invisible on the dark `--bg`. Eight radii were raw px
+ * against three radius tokens. The Type block declared four font FAMILIES and
+ * zero SIZES.
+ *
+ * `--instant` and `--ui` are the owner's motion decision of 2026-08-14: the lock
+ * is not lowered, it is SPLIT. Editorial motion keeps `--settle`/`--slow`;
+ * anything a finger is waiting on gets `--ui`; focus and press get `--instant`.
+ * The vendored animation skills argue every duration should be sub-300ms, and
+ * `apps/viewer/CLAUDE.md` rules that DESIGN.md wins — this split is what closes
+ * that argument without moving an entrance.
+ *
+ * Every size and radius below was MEASURED from what already shipped, exactly as
+ * the spacing list in §6 was. Adding them changes no pixel; it makes the next
+ * value a decision instead of an accident.
+ */
+describe('tokens added by the 2026-08-14 audit', () => {
+  const tokens = () => readFileSync(join(STYLES_DIR, 'tokens.css'), 'utf8')
+
+  it('splits interactive motion from editorial motion', () => {
+    const source = tokens()
+    expect(source, '--instant: focus and press, deliberately below --fast').toContain(
+      '--instant: 120ms',
+    )
+    expect(source, '--ui: controls a finger is waiting on').toContain('--ui: 220ms')
+    // The split is only meaningful if the editorial durations SURVIVE it.
+    expect(source, '--settle must not be lowered by the split').toContain('--settle: 500ms')
+    expect(source, '--slow must not be lowered by the split').toContain('--slow: 800ms')
+  })
+
+  it('encodes the touch-target floor DESIGN.md states twice and the CSS never did', () => {
+    expect(tokens()).toContain('--target-min: 44px')
+  })
+
+  it('declares one elevation token, because the only shadow shipped was raw rgba', () => {
+    expect(tokens()).toMatch(/--shadow-raised:\s*light-dark\(/)
+  })
+
+  it('declares the two radii measured from the eight raw values that shipped', () => {
+    const source = tokens()
+    expect(source).toContain('--radius-card: 12px')
+    expect(source).toContain('--radius-chip: 6px')
+  })
+
+  it('declares the action-bar height that three places re-derived by hand', () => {
+    expect(tokens()).toContain('--action-bar-h: 72px')
+  })
+
+  it('declares a type scale written FROM the shipped sizes', () => {
+    const source = tokens()
+    for (const token of [
+      '--text-body: 17px',
+      '--text-sm: 15px',
+      '--text-xs: 13px',
+      '--text-mono: 11px',
+      '--text-mono-sm: 10px',
+    ]) {
+      expect(source, `${token} is one of the eleven raw sizes the audit counted`).toContain(token)
+    }
+  })
+})
+
 describe('spacing', () => {
   /**
    * The steps this design actually uses, measured on 2026-08-13.

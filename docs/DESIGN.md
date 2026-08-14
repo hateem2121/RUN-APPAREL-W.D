@@ -150,6 +150,32 @@ device stops reading as an accent and starts reading as a second typeface.
 `17px / 1.55`. **Paragraphs and list items are capped at `60ch`** — a measure limit,
 enforced globally in `base.css`, not per-component.
 
+### The size scale
+
+| Token | Value |
+|---|---|
+| `--text-body` | 17px |
+| `--text-sm` | 15px |
+| `--text-xs` | 13px |
+| `--text-mono` | 11px |
+| `--text-mono-sm` | 10px |
+
+**Added 2026-08-14, documenting what already shipped — it did not move a pixel.**
+This is the same move §6 made for spacing, and it was made for the same reason: an
+audit found this block declared four font **families** and zero font **sizes**, so
+every size in the viewer was a raw literal — 17, 18, 16, 15, 14, 13, 12, 11, 10 —
+with nothing to stop a tenth.
+
+The two mono sizes are not interchangeable and the distinction is load-bearing:
+`--text-mono` (11px) is for **content labels** — the `.mono` register, a spec's
+name. `--text-mono-sm` (10px) is for **chips** — `.label`, `.section-number`. An
+audit finding (VIS-10) is that the spec list's `<dt>` uses the chip size for
+content, which is why the garment's own facts read one step quieter than the
+decorative section numbering above them.
+
+Display sizes stay as `clamp()` expressions rather than tokens, because they are
+ranges rather than values; see `.display--hero` and `.display--section` above.
+
 ---
 
 ## 4. Components
@@ -181,7 +207,39 @@ code with a phone, so it is the common case rather than the edge case.
 
 ### Radii
 
-`--radius-panel` 18px · `--radius-button` 10px · `--radius-pill` 999px.
+`--radius-panel` 18px · `--radius-card` 12px · `--radius-button` 10px ·
+`--radius-chip` 6px · `--radius-pill` 999px.
+
+**`--radius-card` and `--radius-chip` were added 2026-08-14 and were MEASURED, not
+chosen.** An audit found eight raw `border-radius` values against three tokens:
+`12px` appeared three separate times (the loading poster, the stage error notice,
+the colourway preview) and `6px`/`8px` formed an unnamed chip scale. Naming them
+moved no pixel. The rule they now satisfy is §8's third: never a raw value in a
+component.
+
+### Targets
+
+`--target-min` **44px**. A touch target, and this product is opened by scanning a
+QR code with a phone, so it is the common case rather than the edge case.
+
+⚠️ **The token is necessary and not sufficient.** This file stated the 44px floor
+in two places and the CSS encoded it nowhere, which is how `.theme-toggle` shipped
+at **2.0px wide on a 320px viewport** and 21.1px at 360px — under WCAG 2.5.8's
+24×24 minimum on the commonest Android width. The cause is that `width: 44px` on a
+flex child with the browser-default `flex-shrink: 1` is a **maximum**. Cite the
+token *and* set `flex-shrink: 0`. Measured on the live page 2026-08-14.
+
+### Elevation
+
+`--shadow-raised` — one token, because this system has exactly one elevated
+surface (the floating colourway preview).
+
+Declared with `light-dark()` like every other surface value. Added 2026-08-14: the
+system had **no shadow token at all**, and its one drop shadow was a raw
+`rgba(0, 0, 0, 0.12)` — forbidden by the rule above, and invisible over the dark
+`--bg` (#1c1f18), so the preview lost its only separation from the rail behind it.
+Pure black is wrong in both halves of this system for the same reason `--ink` is
+`#1d1f1a` and never `#000`.
 
 ---
 
@@ -191,7 +249,9 @@ code with a phone, so it is the common case rather than the edge case.
 |---|---|
 | `--ease` | `cubic-bezier(0.22, 1, 0.36, 1)` |
 | `--ease-out-expo` | `cubic-bezier(0.16, 1, 0.3, 1)` |
+| `--instant` | 120ms |
 | `--fast` | 200ms |
+| `--ui` | 220ms |
 | `--settle` | 500ms |
 | `--slow` | 800ms |
 | `--stagger` | 60ms |
@@ -199,6 +259,32 @@ code with a phone, so it is the common case rather than the edge case.
 
 Both curves are **ease-out**: fast departure, slow arrival. Enter animations use
 them as-is; nothing in this system uses an ease-in for an entrance.
+
+### The scale is SPLIT, not lowered — owner decision 2026-08-14
+
+`--instant` and `--ui` were added because every duration in this system had been
+tuned for an **entrance**, and the same tokens were then reused for controls — so
+pressing a button also took 500ms.
+
+This is the resolution of a standing argument. `apps/viewer/CLAUDE.md` records that
+three vendored animation skills demand "sub-300ms on UI, or it is a finding", which
+would file findings against `--settle` and `--slow` on sight, and that **this file
+outranks them**. Both positions were right about different things: entrances here
+are deliberately unhurried, and a control a finger is waiting on is not an entrance.
+
+So the lock holds and the scale grows:
+
+| Use | Token |
+|---|---|
+| Focus response, press feedback | `--instant` |
+| Controls — hover, press, a state change the user is waiting on | `--ui` |
+| Entrances, cross-fades, accordions | `--settle` |
+| Wipes, scroll reveals | `--slow` |
+| Retargeted progress fills | `--fast` (see `page.css`'s note — a fill retargeted several times a second visibly trails the number beside it at anything slower) |
+
+**Do not "simplify" this by collapsing `--fast` and `--ui`.** They are 20ms apart
+and mean different things: `--fast` is for a value that keeps changing, `--ui` is
+for a state that changed once.
 
 ### Reduced motion is a hard stop, not a slowdown
 
