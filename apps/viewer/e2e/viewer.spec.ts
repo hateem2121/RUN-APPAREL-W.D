@@ -117,8 +117,14 @@ test.describe('RUN APPAREL 3D viewer', () => {
     await expect(page.locator('.stage img').first()).toBeVisible()
     await expect(page.getByRole('link', { name: /email us/i })).toBeVisible()
     // No 3D element at all, and the calm notice instead.
+    //
+    // The expected copy changed 2026-08-14. "The interactive 3D view could not
+    // load here" was false in the commonest case that reaches this string — a
+    // lost WebGL context, where the model DID load and was then taken away — and
+    // it named "the static reference", which is not a thing the visitor can see.
+    // The replacement names what IS on screen and what can still be trusted.
     await expect(page.locator('model-viewer')).toHaveCount(0)
-    await expect(page.getByText(/interactive 3D view could not load/i)).toBeVisible()
+    await expect(page.getByText(/showing a photograph of the garment/i)).toBeVisible()
 
     expect(diagnostics.join('\n')).toContain('[viewer:model-missing]')
   })

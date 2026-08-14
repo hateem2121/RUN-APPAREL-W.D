@@ -1,7 +1,7 @@
 import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { track } from '../lib/analytics'
-import { canRender3D, prefersReducedMotion } from '../lib/capabilities'
+import { canRender3D, isCoarsePointer, prefersReducedMotion } from '../lib/capabilities'
 import { displayedColourway } from '../lib/colourwayPreview'
 import { diagnostic } from '../lib/diagnostic'
 import { fetchWithProgress } from '../lib/fetchWithProgress'
@@ -42,10 +42,33 @@ const MESHOPT_DECODER_URL = '/meshopt_decoder.js'
 const DRACO_DECODER_URL = '/draco/'
 const KTX2_TRANSCODER_URL = '/basis/'
 
+/**
+ * Both strings were rewritten 2026-08-14 because they said things that were not
+ * true, in a product where the words are the only thing telling a buyer that
+ * what they are looking at is not what they were promised.
+ *
+ * VARIANT_NOTICE said "temporarily unavailable". It fires when the selected
+ * colourway's variant is missing from the GLB — a pipeline state that persists
+ * until somebody re-runs the shrink job. Nothing the visitor does, and nothing
+ * this page does, will change it. It also described a screen the visitor is not
+ * looking at ("the static reference"), when what they are actually seeing is the
+ * PREVIOUS colourway still on the model.
+ *
+ * LOAD_NOTICE said "could not load". That is false in the commonest of the four
+ * causes that reach it — a lost WebGL context, where the model DID load and was
+ * then taken away by the GPU. It is the failure apps/viewer/CLAUDE.md names as
+ * the most likely one a real buyer meets.
+ *
+ * Both are now written for a non-native English reader: short sentences, no
+ * idiom, and each states what is wrong, what the visitor is actually seeing, and
+ * which part of the page they can still trust.
+ */
 const VARIANT_NOTICE =
-  'The 3D preview for this colourway is temporarily unavailable. The static reference and specifications remain accurate.'
+  'The 3D model cannot show this colourway, so it is still showing the previous one. ' +
+  'The colour name, fabric and specifications on this page are for the colourway you selected.'
 const LOAD_NOTICE =
-  'The interactive 3D view could not load here, so you are seeing the static reference instead. All product details remain accurate.'
+  'The 3D view is not available, so this page is showing a photograph of the garment. ' +
+  'The colours, fabric and specifications are correct, and you can still send an enquiry below.'
 
 // Image-based lighting for PBR materials. Without an explicit environment,
 // <model-viewer>'s built-in neutral scene renders technical fabrics flat and
@@ -216,6 +239,15 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
           // Fall back to the poster: still a garment, still the specs, still the
           // contact buttons — rather than a grey rectangle.
           setFallback(true)
+          // Reset modelLoaded too. Without this, `loading` (below) evaluates
+          // false — it reads `!fallback && …` — so the persistent live region
+          // fell through to its `modelLoaded ?` branch and announced "Showing …
+          // Drag to rotate, use scroll or pinch to zoom" over a static poster.
+          // The sighted visitor sees a photograph; the screen-reader user was
+          // invited to interact with a model that no longer exists. Found
+          // 2026-08-14. The model is genuinely gone here, so the flag saying it
+          // is loaded was simply wrong.
+          setModelLoaded(false)
           setNotice(null)
           diagnostic('webgl-context-lost', { product: product.productCode })
           return
@@ -253,6 +285,21 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       el.addEventListener('load', onLoad)
       el.addEventListener('error', onError)
       el.addEventListener('camera-change', onCameraChange)
+
+      // React 19 supports returning a cleanup from a ref callback, and this is
+      // the only removal path there is: the `if (!el) return` above is exactly
+      // the null call React makes on detach, so nothing was ever unbound.
+      //
+      // Verified 2026-08-14 that it is LATENT rather than live — `productCode`
+      // cannot change while <Stage> stays mounted, because the only history
+      // entries this document pushes are same-product colourway changes and
+      // every catalogue link is external. One line removes the need for that
+      // four-step argument to keep being true.
+      return () => {
+        el.removeEventListener('load', onLoad)
+        el.removeEventListener('error', onError)
+        el.removeEventListener('camera-change', onCameraChange)
+      }
     },
     [product.productCode],
   )
@@ -434,7 +481,13 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   const announcedPercent = load.percent === null ? null : Math.floor(load.percent / 25) * 25
 
   return (
-    <section className="stage" aria-label="Interactive 3D product reference">
+    // The name claimed "Interactive" in every fallback state — no GLB, no WebGL,
+    // Save-Data, module load failure, lost context — where the section contains
+    // a photograph and nothing interactive at all.
+    <section
+      className="stage"
+      aria-label={fallback ? 'Product reference photograph' : 'Interactive 3D product reference'}
+    >
       <div className="stage__inner">
         <div className="stage__canvas" data-lenis-prevent>
           <svg
@@ -529,9 +582,19 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               download, inviting the visitor to rotate a garment that had not
               arrived — on a 4G phone that is 22.6 s of instructions for an empty
               stage. */}
+          {/* Pointer-conditional, because on touch NEITHER half was true.
+              model-viewer is mounted `touch-action="pan-y"`, so a vertical swipe
+              is deliberately handed to the document and only a horizontal drag
+              orbits; zoom is pinch. For a B2B reference the printed artwork IS
+              the product, so zooming into the chest print is the visitor's main
+              task — and the page told them to do it with a gesture that scrolls
+              the garment off screen. isCoarsePointer() already gates the same
+              class of decision in ColourwayTabs.tsx. */}
           {!fallback && modelLoaded && !swapping && (
             <p className="stage__hint" aria-hidden="true">
-              DRAG TO ROTATE · SCROLL TO ZOOM
+              {isCoarsePointer()
+                ? 'DRAG TO ROTATE · PINCH TO ZOOM'
+                : 'DRAG TO ROTATE · SCROLL TO ZOOM'}
             </p>
           )}
 
@@ -544,7 +607,12 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
           {loading && (
             <div className="stage__loading" aria-hidden="true">
               <span className="stage__loading-title">
-                {load.phase === 'preparing' ? 'PREPARING REFERENCE…' : 'LOADING REFERENCE'}
+                {/* "3D MODEL", not "REFERENCE". The live region below already
+                    said "the interactive 3D model" while this line said
+                    "REFERENCE", so the sighted and the screen-reader visitor
+                    were given different names for the same 23-second event —
+                    and "reference" is also what the whole page calls itself. */}
+                {load.phase === 'preparing' ? 'PREPARING 3D MODEL…' : 'LOADING 3D MODEL'}
                 {load.percent !== null && ` · ${load.percent}%`}
               </span>
               <span
@@ -570,11 +638,19 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
             </div>
           )}
 
-          {(notice ?? (fallback ? LOAD_NOTICE : null)) && (
-            <p className="stage__error" role="status">
-              {notice ?? LOAD_NOTICE}
-            </p>
-          )}
+          {/* Mounted UNCONDITIONALLY, with only its text driven. A live region
+              has to exist before its contents change for the announcement to be
+              reliable; inserting an already-populated role="status" is the
+              classic silent case, and iOS VoiceOver — the browser a QR scan
+              opens — is the least forgiving about it. `hidden` keeps it out of
+              the layout and off screen while empty, without unmounting it. */}
+          <p
+            className="stage__error"
+            role="status"
+            hidden={!(notice ?? (fallback ? LOAD_NOTICE : null))}
+          >
+            {notice ?? (fallback ? LOAD_NOTICE : '')}
+          </p>
 
           {!fallback && (
             <div className="stage__controls" role="group" aria-label="Camera positions">
@@ -604,10 +680,23 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
                 ? 'Loading the interactive 3D model.'
                 : `Loading the interactive 3D model, ${announcedPercent} percent.`
             : modelLoaded
-              ? `Showing ${product.productName} in ${selected.displayName}. Drag to rotate, use scroll or pinch to zoom.`
+              ? `Showing ${product.productName} in ${selected.displayName}.`
               : ''}
         </p>
-        <p className="visually-hidden">Drag to rotate. Use scroll or pinch to zoom.</p>
+        {/* ONE instruction, and it names the keyboard.
+            Three overlapping strings described this object — this one, the
+            sentence that used to be appended to the live region above, and the
+            visible hint — and both authored here described only pointer
+            gestures. The model IS keyboard-operable: model-viewer orbits with
+            the arrow keys and zooms with Page Up / Page Down. A keyboard-only
+            visitor was told to drag. Gated on the same condition as the visible
+            hint, so it is absent when there is nothing to operate. */}
+        {!fallback && modelLoaded && (
+          <p className="visually-hidden">
+            Drag or press the arrow keys to rotate. Scroll, pinch, or press Page Up and Page Down to
+            zoom.
+          </p>
+        )}
       </div>
     </section>
   )
