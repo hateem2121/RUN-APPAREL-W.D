@@ -125,7 +125,11 @@ test.describe('RUN APPAREL 3D viewer', () => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText(/Sample Without Model/i)
     // Poster-first still works, and the page is otherwise whole.
     await expect(page.locator('.stage img').first()).toBeVisible()
-    await expect(page.getByRole('link', { name: /email us/i })).toBeVisible()
+    // Scoped to the in-page section. Since 2026-08-14 the mobile action bar also
+    // says "Email Us" — it had dropped the verb only on the device the product is
+    // actually opened with, which was the wrong surface to abbreviate — so an
+    // unscoped role query matches two links on a phone viewport.
+    await expect(page.locator('.contact').getByRole('link', { name: /email us/i })).toBeVisible()
     // No 3D element at all, and the calm notice instead.
     //
     // The expected copy changed 2026-08-14. "The interactive 3D view could not
@@ -143,6 +147,8 @@ test.describe('RUN APPAREL 3D viewer', () => {
     await page.goto('/zzz9/none')
     await expect(page.getByText('[ REFERENCE UNAVAILABLE ]')).toBeVisible()
     await expect(page.getByRole('link', { name: /back to catalogue/i })).toBeVisible()
+    // Unscoped is correct HERE: the unavailable state renders no action bar, so
+    // there is only ever one "Email Us" on this page.
     await expect(page.getByRole('link', { name: /email us/i })).toBeVisible()
     await expect(page.getByRole('link', { name: /whatsapp us/i })).toBeVisible()
     const robots = page.locator('meta[name="robots"]')

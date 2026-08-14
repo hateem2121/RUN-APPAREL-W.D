@@ -660,8 +660,16 @@ model-viewer.stage__model:focus-within {
     color var(--ui) var(--ease);
 }
 
+/* Decoration, confirmed by the owner 2026-08-14: the number is not used in the
+   printed catalogue, on tags or on order forms. It is `index + 1`, so removing a
+   colourway silently renumbers every one after it — it cannot be a reference.
+   It is already aria-hidden; this makes the colour NAME lead visually too, which
+   is what a buyer actually asks for. Kept rather than deleted because it still
+   gives the rail a countable rhythm. */
 .colourway-tab__num {
   color: var(--muted);
+  font-size: 0.85em;
+  opacity: 0.7;
 }
 
 /* The measured fabric colour, read from the GLB by variant-colour.ts. A ring
@@ -888,6 +896,30 @@ model-viewer.stage__model:focus-within {
 }
 
 /*
+ * Give a zoomed-in visitor their screen back.
+ *
+ * At the zoom WCAG 1.4.4 requires (200%, and 400% for 1.4.10), the two
+ * persistent bars own most of the viewport: measured at 320x256 — which is what
+ * a 1280x1024 desktop shows at 400% — the sticky header and this fixed bar
+ * together left a narrow strip of actual page between them.
+ *
+ * The bar is already breakpoint-driven, so this is the same mechanism on the
+ * other axis. Nothing is lost: <ContactSection> carries the same two links in
+ * the page body, and the header keeps the catalogue link. 500px is chosen as
+ * the height at which the bar costs more than it gives — below it, the bar is a
+ * larger share of the screen than the garment.
+ */
+@media (max-height: 500px) {
+  .action-bar {
+    display: none;
+  }
+
+  .page {
+    padding-bottom: 0;
+  }
+}
+
+/*
  * The third user preference this viewer answers.
  *
  * It answered `prefers-color-scheme` and `prefers-reduced-motion` and no other —
@@ -1007,8 +1039,15 @@ model-viewer.stage__model:focus-within {
 .preloader__rule {
   display: block;
   width: min(240px, 60vw);
-  height: 2px;
-  background: var(--line);
+  /* Matches `.stage__loading-bar` exactly — same height, same track token, same
+     radius. A visitor sees these two bars about a second apart and they are two
+     frames of ONE continuous event: the preloader covers the CMS fetch, then
+     hands over to the stage readout for the model download. They were 2px on
+     --line here and 3px on --wash there, so the handover read as one thing
+     stopping and a different thing starting. Unified 2026-08-14. */
+  height: 3px;
+  background: var(--wash);
+  border-radius: var(--radius-chip);
   overflow: hidden;
 }
 .preloader__rule > span {
