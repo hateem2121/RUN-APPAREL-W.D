@@ -126,7 +126,7 @@ li {
   font-weight: 860;
   font-stretch: 122%;
   text-transform: uppercase;
-  letter-spacing: -0.02em;
+  /* Tracking is set per size below, not here — see .display--hero. */
   line-height: 0.92;
   color: var(--headline);
   /*
@@ -150,12 +150,36 @@ li {
   overflow-wrap: anywhere;
 }
 
+/*
+ * Tracking FOLLOWS the optical size, which a single -0.02em could not do.
+ *
+ * These sizes clamp across a 2x range (34→72px) and carried one fixed value, so
+ * the same tracking was doing two different jobs: at 34px on a phone the letters
+ * read slightly cramped, and at 72px on a desktop slightly loose. Large display
+ * type wants TIGHTER tracking and small type wants looser — that relationship is
+ * the whole reason optical sizing exists, and it matters more here than usual
+ * because Archivo is pushed to font-stretch 122%, which narrows the counters.
+ *
+ * Expressed in px against vw so it tracks the same viewport the font-size does.
+ * Measured at the ends: 320px viewport → -0.015em; 1440px → -0.030em. The old
+ * flat value was -0.020em, so this is looser where it was tight and tighter
+ * where it was loose, and lands on the old value in the middle.
+ */
 .display--hero {
   font-size: clamp(34px, 5.4vw, 72px);
+  letter-spacing: var(--tracking-display-lg);
 }
 
 .display--section {
   font-size: clamp(26px, 4vw, 46px);
+  letter-spacing: var(--tracking-display-sm);
+}
+
+/* The wordmark is display type at a FIXED size, so it takes a fixed value —
+   the two wordmarks (header and footer) must agree, which is VIS-14. */
+.header__wordmark,
+.footer__brand {
+  letter-spacing: -0.02em;
 }
 
 /* Instrument Serif italic accent word — 1–2 per headline, lowercase. */

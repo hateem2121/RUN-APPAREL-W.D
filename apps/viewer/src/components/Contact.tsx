@@ -88,11 +88,23 @@ export function StickyContactRail(props: ContactProps & { stageSelector?: string
   )
 }
 
-/** Mobile persistent bottom action bar (safe-area aware). */
+/**
+ * Mobile persistent bottom action bar (safe-area aware).
+ *
+ * ⚠️ NOT `compact` — the verb is restored here, 2026-08-14 by owner decision.
+ * This is the ONE surface where the verb is the point: it is the persistent
+ * call to action on the device the product is opened with, and "Email" alone
+ * reads as a label for a field rather than an invitation to do something.
+ * `compact` is kept for <StickyContactRail>, where the rail is narrow, desktop
+ * only, and sits beside a page that has already said it in full.
+ *
+ * Measured at 320px before shipping — the audit had recorded the layout
+ * overflowing there, which is fixed, and both full labels fit on one line.
+ */
 export function MobileActionBar(props: ContactProps) {
   return (
     <div className="action-bar">
-      <ContactButtons {...props} compact />
+      <ContactButtons {...props} />
     </div>
   )
 }

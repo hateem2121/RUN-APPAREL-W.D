@@ -119,15 +119,45 @@ do — swapping the import silently flattens every headline back to normal width
 
 ```
 .display          Archivo · weight 860 · font-stretch 122% · UPPERCASE
-                  letter-spacing -0.02em · line-height 0.92 · colour --headline
-.display--hero    clamp(34px, 5.4vw, 72px)
-.display--section clamp(26px, 4vw, 46px)
+                  line-height 0.92 · colour --headline
+.display--hero    clamp(34px, 5.4vw, 72px) · --tracking-display-lg
+.display--section clamp(26px, 4vw, 46px)  · --tracking-display-sm
 ```
+
+**Tracking follows the optical size — changed 2026-08-15 by owner decision.**
+
+It was a flat `-0.02em` at every size, so one value did two jobs across a 2x
+clamp: cramped at 34px on a phone, loose at 72px on a desktop. Large display type
+wants tighter tracking and small type wants looser; that relationship is what
+optical sizing IS, and it matters more here than usual because Archivo is pushed
+to `font-stretch: 122%`, which narrows the counters.
+
+Measured at the ends after the change: **320px viewport → -0.015em**,
+**1440px → -0.030em**. The old flat value sat in the middle, so this is looser
+where it was tight and tighter where it was loose.
+
+The wordmark (`.header__wordmark`, `.footer__brand`) keeps a fixed `-0.02em`: it
+is display type at a FIXED size, so it has no optical range to follow — and the
+two must agree with each other, which they did not until 2026-08-14.
 
 ### The serif accent
 
 One Instrument Serif italic word per headline, set by `headingWithAccent()` in
-`SerifAccent.tsx`, which takes the **last** word of a dynamic heading.
+`SerifAccent.tsx`.
+
+**WHICH word is the caller's choice — changed 2026-08-15 by owner decision.** It
+took the **last** word unconditionally, and that is still the default and still
+right for a sentence, where the last word is the one the line lands on: *"This
+reference is no longer **live**"*, *"Develop this garment with **us**"*.
+
+It is wrong for a PRODUCT NAME. Every product in this catalogue ends in its
+garment type, so the accent landed on *skinsuit*, *jacket*, *tee* — every time,
+on the least distinctive word available — while the model name sat in plain
+uppercase beside it. `<ProductPanel>` therefore passes `'first'`, which puts the
+accent on the model name.
+
+Neither position is correct everywhere, which is why it is a parameter and not a
+replacement rule.
 
 ```
 .serif-accent   Instrument Serif · italic · 400 · lowercase

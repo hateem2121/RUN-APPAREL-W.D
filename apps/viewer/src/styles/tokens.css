@@ -122,6 +122,17 @@
   --text-mono: 11px; /* .mono — content labels */
   --text-mono-sm: 10px; /* .label, .section-number — chips */
 
+  /* Display tracking follows the OPTICAL SIZE rather than sitting at one value.
+     Added 2026-08-14 by owner decision. Both sizes clamp across roughly a 2x
+     range and carried a flat -0.02em, so the same tracking did two jobs: tight
+     at 34px on a phone, loose at 72px on a desktop. Large display type wants
+     tighter, small wants looser — and it matters more here than usual because
+     Archivo is pushed to font-stretch 122%, which narrows the counters.
+     In px against vw so it tracks the same viewport the font-size does.
+     Measured: 320px viewport → -0.015em; 1440px → -0.030em. */
+  --tracking-display-lg: clamp(-2.16px, -0.16vw, -0.4px);
+  --tracking-display-sm: clamp(-1.38px, -0.1vw, -0.26px);
+
   --font-display: "Archivo Variable", "Archivo", system-ui, sans-serif;
   --font-body: "Archivo Variable", "Archivo", system-ui, sans-serif;
   --font-serif: "Instrument Serif", Georgia, serif;

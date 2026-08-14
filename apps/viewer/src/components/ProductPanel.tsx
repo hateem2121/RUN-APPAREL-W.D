@@ -22,7 +22,11 @@ export function ProductPanel({ data, selected, selectedIndex }: ProductPanelProp
         </span>
       </div>
       <h1 id="product-heading" className="display display--hero">
-        {headingWithAccent(product.productName)}
+        {/* 'first', not the default 'last'. Every product in this catalogue ends
+            in its garment type, so the accent landed on "skinsuit" every time —
+            the least distinctive word on the page — while the model name sat in
+            plain uppercase beside it. Owner decision 2026-08-14. */}
+        {headingWithAccent(product.productName, 'first')}
       </h1>
       <p className="product-info__statement">
         This is a development reference, not a finished stock product. We can change the fabric,

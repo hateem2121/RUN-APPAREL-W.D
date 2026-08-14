@@ -106,8 +106,28 @@ describe('contact buttons (shared by all three surfaces)', () => {
     expect(wa?.getAttribute('rel')).toContain('noreferrer')
   })
 
-  it('uses compact labels in the bar and full labels in the section', () => {
+  it('keeps the verb on the mobile action bar, and only the desktop rail is compact', () => {
+    /**
+     * ⚠️ REVERSED 2026-08-14 BY OWNER DECISION. This asserted the opposite.
+     *
+     * The action bar is the persistent call to action on the device this product
+     * is actually opened with — someone scans a QR code on a garment tag with a
+     * phone — and "Email" alone reads as the label of a field rather than as an
+     * invitation to do something. It is the one surface where the verb is the
+     * point, so it is the one surface that should not have dropped it.
+     *
+     * Measured at 320px before shipping: both full labels fit on one line. The
+     * audit had recorded the layout overflowing at that width, which is why the
+     * check was necessary and why it had to come after the header fix.
+     *
+     * `compact` is kept for <StickyContactRail> — narrow, desktop-only, and
+     * beside a page that has already made the offer in full.
+     */
     render(<MobileActionBar settings={SETTINGS} enquiry={ENQUIRY} />)
+    expect(host.textContent).toContain('Email Us')
+    expect(host.textContent).toContain('WhatsApp Us')
+
+    render(<StickyContactRail settings={SETTINGS} enquiry={ENQUIRY} />)
     expect(host.textContent).toContain('Email')
     expect(host.textContent).not.toContain('Email Us')
 
