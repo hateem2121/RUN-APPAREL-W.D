@@ -40,6 +40,22 @@
   // (GHSA-2v37-7h3g-55p8) was fixed by override — `nanoid: ^3.3.17` in
   // package.json — because 3.3.17 exists. The two below could not be:
   //
+  // ⚠️ AND THAT NANOID FIX CAME UNDONE ON 2026-08-14, WITHOUT ANYONE TOUCHING A
+  // DEPENDENCY. The advisory was UPDATED at 2026-08-13T15:43Z to widen its
+  // vulnerable range from `<3.3.17` to `<3.3.18`, so the pin that resolved it
+  // six days earlier became the vulnerable version. CI had passed on 9c155cf at
+  // 10:54 that morning and failed on the very next push with no dependency
+  // change in the diff — the `deploy` job is gated on `audit`, so a viewer-only
+  // CSS change was blocked by a re-scoped advisory in `apps/cms > vitest > vite
+  // > postcss > nanoid`.
+  //
+  // Two things worth carrying forward. **An advisory is not a fixed target**:
+  // "we already fixed that one" is not a reason to skip reading the range. And
+  // **`^3.3.17` already permitted 3.3.18** — the range was never the blocker,
+  // the LOCKFILE was, because a frozen install has no reason to re-resolve. The
+  // fix was `install --no-frozen-lockfile` after raising the floor to ^3.3.18,
+  // which is 157h old and clears the 24h `minimumReleaseAge` cooldown.
+  //
   //   npm audit reports `"patched_versions": "<0.0.0"` for BOTH, which is how it
   //   says NO FIXED RELEASE EXISTS. `vulnerable_versions` is `<=2.0.2` and 2.0.2
   //   is the current latest. Upgrading payload cannot help while its dependency
