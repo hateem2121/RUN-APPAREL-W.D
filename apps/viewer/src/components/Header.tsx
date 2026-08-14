@@ -62,12 +62,28 @@ export function Header({ wordmark, catalogueUrl }: HeaderProps) {
           </svg>
         )}
       </button>
+      {/*
+        Two spans, one visible at a time — see `.header__cta-*` in page.css.
+        This label wrapped to TWO LINES at every phone width (measured 2026-08-14
+        with a Range over the text node: line-boxes at y=25 and y=42, box 56.1px
+        against the 40px declared), and still overflowed the document to 325px on
+        a 320px viewport. It is the only navigation on the page and it sits above
+        the garment, so a buyer met a broken-looking header before they met the
+        product.
+
+        The accessible name is deliberately unchanged at every width: the long
+        form moves offscreen rather than unmounting, and the short form is
+        aria-hidden. A screen reader always hears "Back to Catalogue".
+      */}
       <a
         className="btn btn--ghost"
         href={catalogueUrl}
         onClick={() => track('catalogue_clicked', { placement: 'header' })}
       >
-        Back to Catalogue
+        <span className="header__cta-long">Back to Catalogue</span>
+        <span className="header__cta-short" aria-hidden="true">
+          Catalogue
+        </span>
       </a>
     </header>
   )

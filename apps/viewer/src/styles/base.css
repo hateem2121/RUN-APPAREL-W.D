@@ -15,7 +15,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
-  font-size: 17px;
+  font-size: var(--text-body);
   line-height: 1.55;
   min-height: 100dvh;
 }
@@ -57,7 +57,10 @@ li {
 :focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
-  border-radius: 4px;
+  /* 4px → --radius-chip (6px), 2026-08-14. The only visual change in this file's
+     token sweep, and it is 2px on an outline corner at 2px offset. Left raw, it
+     would have been the last raw radius in the codebase. */
+  border-radius: var(--radius-chip);
 }
 
 .visually-hidden {
@@ -107,7 +110,13 @@ li {
 
 @media (prefers-reduced-motion: no-preference) {
   .skip-link {
-    transition: transform 120ms ease-out;
+    /* Was `120ms ease-out` — the single raw duration-plus-easing in the whole
+       codebase. The VALUE was right and that was the problem: 120ms is
+       deliberately faster than --fast, and the reason lived only here. It is now
+       --instant, in tokens.css, with its reason in docs/DESIGN.md §5.
+       `ease-out` → `var(--ease)` is NOT a no-op: --ease is a far stronger
+       ease-out curve. Deliberate — a focus response should arrive hard. */
+    transition: transform var(--instant) var(--ease);
   }
 }
 
@@ -120,6 +129,25 @@ li {
   letter-spacing: -0.02em;
   line-height: 0.92;
   color: var(--headline);
+  /*
+   * The display face must be allowed to break, or the page scrolls sideways.
+   *
+   * Measured live 2026-08-14 at 320 CSS px: clientWidth 320, scrollWidth 352 —
+   * 32px of two-dimensional scrolling, a WCAG 1.4.10 Reflow (AA) failure. A
+   * headline at `clamp(34px, 5.4vw, 72px)` in Archivo at weight 860 and
+   * font-stretch 122% sets a min-content floor its container cannot go below,
+   * and nothing in the cascade offered a break opportunity.
+   *
+   * 320px is the criterion's own threshold AND what a 1280px desktop shows at
+   * the 400% zoom the same criterion requires, so this is a low-vision desktop
+   * visitor as much as a small phone.
+   *
+   * `anywhere` rather than `break-word`: it also lets the min-content width
+   * shrink, which is the half that actually fixes the overflow. The e2e matrix
+   * in motion-and-layout.spec.ts gained a 320px row on the same day — it had
+   * started at 375, which is where the header's contents happen to still fit.
+   */
+  overflow-wrap: anywhere;
 }
 
 .display--hero {
@@ -142,9 +170,11 @@ li {
 }
 
 /* ── Mono labels: [ BRACKETED ], N°00X, specs, buttons ─────────────── */
+/* --text-mono is the CONTENT label size; --text-mono-sm is the CHIP size. The
+   distinction is load-bearing — see docs/DESIGN.md §3. */
 .mono {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-mono);
   text-transform: uppercase;
   letter-spacing: 0.11em;
 }
@@ -152,18 +182,18 @@ li {
 .label {
   display: inline-block;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-mono-sm);
   text-transform: uppercase;
   letter-spacing: 0.12em;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-chip);
   background: var(--label-bg);
   color: var(--label-text);
 }
 
 .section-number {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-mono-sm);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
@@ -175,20 +205,23 @@ li {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
+  min-height: var(--target-min);
   padding: 14px 22px;
   border-radius: var(--radius-button);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-mono);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   text-decoration: none;
   cursor: pointer;
+  /* --ui, not --fast: a control is a state that changed once, not a value that
+     keeps changing. See docs/DESIGN.md §5 — the two are 20ms apart and mean
+     different things; do not collapse them. */
   transition:
-    transform var(--fast) var(--ease),
-    background-color var(--fast) var(--ease),
-    color var(--fast) var(--ease),
-    border-color var(--fast) var(--ease);
+    transform var(--ui) var(--ease),
+    background-color var(--ui) var(--ease),
+    color var(--ui) var(--ease),
+    border-color var(--ui) var(--ease);
 }
 
 .btn--primary {
@@ -222,6 +255,31 @@ li {
     color: var(--bg);
     border-color: var(--text);
   }
+}
+
+/*
+ * Press feedback — and note where it is NOT.
+ *
+ * There was not one `:active` rule in apps/viewer/src until 2026-08-14, verified
+ * by grep across every CSS and TSX file. That is the shadow of a correct
+ * decision: every interaction cue in this viewer sits inside
+ * `@media (hover: hover) and (pointer: fine)`, deliberately, because an ungated
+ * `:hover` STICKS after a tap and makes a merely-tapped control look selected
+ * (see the comment above `.btn--primary:hover`). Nobody followed that through to
+ * its consequence — the phone, which is the device a QR tag is scanned with, was
+ * then left with no feedback on any control at all.
+ *
+ * `:active` is deliberately UNGATED, unlike `:hover`. It is a real press on both
+ * pointer types and it releases itself, so it cannot stick. `scale` is the
+ * standalone property rather than `transform: scale()`, because Cursor.tsx's
+ * magnet owns `translate` and `transform` on these same elements — three
+ * independent properties compose; one shared `transform` would not.
+ */
+.btn:active,
+.camera-btn:active,
+.colourway-tab:active,
+.theme-toggle:active {
+  scale: 0.97;
 }
 
 /* ── Blueprint grid + contour motifs ───────────────────────────────── */
@@ -271,6 +329,15 @@ li {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
+    /* DURATIONS were collapsed here and DELAYS were not, so a staggered element
+       still waited its turn and then appeared instantly — the wait is the part a
+       motion-sensitive visitor experiences as the page not responding. The
+       negative animation-delay is the conventional value and is deliberate: it
+       starts an animation already past its own end, so the element lands in its
+       final state rather than playing a 0.01ms flicker. Added 2026-08-14; it
+       matters more now that --stagger has a documented use. */
+    transition-delay: 0s !important;
+    animation-delay: -0.01ms !important;
   }
   /* The universal rule above does not reach View Transition pseudos. */
   ::view-transition-old(root),
@@ -310,6 +377,14 @@ html.lenis body {
   [data-reveal].is-inview {
     opacity: 1;
     transform: none;
+    /* RELEASE the hint. It was declared on [data-reveal] above and inherited
+       here forever: five elements carry the attribute, so after the visitor's
+       first scroll the page held five compositor layers for animations that had
+       finished and cannot run again — `startReveals()` calls
+       `observer.unobserve()` on each element as it arrives (polish/reveal.ts).
+       will-change is a hint with a real memory cost, on a device already
+       carrying a 27 MB model on a phone GPU. Found 2026-08-14. */
+    will-change: auto;
   }
 }
 
@@ -327,6 +402,15 @@ html.lenis body {
 .has-custom-cursor .theme-toggle {
   cursor: none;
 }
+/* `width`/`height` were transitioned here, which is layout + paint + composite on
+   an element that follows the pointer — the worst possible property on the
+   busiest possible element. The box is now fixed and `scale` carries the change.
+   ⚠️ `scale` and `translate` are STANDALONE properties, not `transform`
+   functions, and that is load-bearing: Cursor.tsx writes `translate` for
+   positioning and the magnet, `.btn--primary:hover` writes `transform`, and this
+   writes `scale`. Three independent properties compose; one shared `transform`
+   would have them overwrite each other, which is exactly the bug fixed in
+   Cursor.tsx on the same day. */
 .cursor-dot,
 .cursor-ring {
   position: fixed;
@@ -338,8 +422,7 @@ html.lenis body {
   translate: -50% -50%;
   transition:
     opacity var(--fast) var(--ease),
-    width var(--fast) var(--ease),
-    height var(--fast) var(--ease);
+    scale var(--fast) var(--ease);
 }
 .cursor-dot {
   width: 6px;
@@ -349,11 +432,12 @@ html.lenis body {
 .cursor-ring {
   width: 34px;
   height: 34px;
+  scale: 1;
   border: 1px solid var(--serif-accent);
 }
 .cursor-ring[data-pointer="true"] {
-  width: 52px;
-  height: 52px;
+  /* 52 / 34 — the same visual size the width/height pair produced. */
+  scale: 1.53;
   background: color-mix(in srgb, var(--volt) 14%, transparent);
 }
 .cursor-dot[data-hidden="true"],

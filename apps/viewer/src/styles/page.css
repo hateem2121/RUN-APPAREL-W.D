@@ -15,13 +15,33 @@
 }
 
 /* ── Header ────────────────────────────────────────────────────────── */
+/*
+ * ⚠️ THE SHRINK PROTECTION BELOW IS LOAD-BEARING. Measured live 2026-08-14.
+ *
+ * This row had no `flex-wrap` and no shrink protection on any child, so below
+ * roughly 430px every child took the browser-default `flex-shrink: 1` and was
+ * crushed. Three separate auditors reported this as three separate defects:
+ *
+ *   .theme-toggle  44px declared → rendered 2.0px at 320px, 21.1px at 360px
+ *                  (under WCAG 2.5.8's 24x24 floor on the commonest Android width)
+ *   .header .btn   wrapped to two line-boxes at 320/360/375/390/414, which is
+ *                  what inflated the header from 69px to 81px on a phone
+ *   the document   scrollWidth 352 vs clientWidth 320 — WCAG 1.4.10 Reflow (AA)
+ *
+ * It is ONE cause. A declared `width` on a shrinkable flex child is a MAXIMUM,
+ * not a floor. Removing `flex-shrink: 0` from either child below puts all three
+ * back, and only the 320px row of the e2e matrix will notice — 375 is where the
+ * contents happen to still fit, which is why the gate was green for months.
+ */
 .header {
   position: sticky;
   top: 0;
   z-index: 40;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 14px;
+  row-gap: 8px;
   padding: 12px clamp(16px, 4vw, 48px);
   background: color-mix(in oklab, var(--bg) 88%, transparent);
   backdrop-filter: blur(8px); /* the single allowed blurred sticky header */
@@ -49,13 +69,48 @@
 }
 
 .header .btn {
+  flex-shrink: 0; /* see the block comment on .header */
+  white-space: nowrap;
   min-height: 40px;
   padding: 10px 16px;
+}
+
+/*
+ * The nav label shortens below 700px rather than wrapping.
+ *
+ * The precedent is `.header__tag` directly above, hidden at the same breakpoint
+ * for the same reason. The ACCESSIBLE NAME is unchanged at every width: the long
+ * form is moved offscreen rather than removed, and the short form is
+ * aria-hidden, so a screen reader always hears "Back to Catalogue".
+ */
+.header__cta-short {
+  display: inline;
+}
+
+.header__cta-long {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 @media (min-width: 700px) {
   .header__tag {
     display: inline-block;
+  }
+
+  .header__cta-short {
+    display: none;
+  }
+
+  .header__cta-long {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
   }
 }
 
@@ -64,8 +119,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  /* flex-shrink: 0 is what makes --target-min a FLOOR. Without it this rendered
+     2.0px wide at 320px — see the block comment on .header. */
+  flex-shrink: 0;
+  width: var(--target-min);
+  height: var(--target-min);
   border-radius: var(--radius-pill);
   border: 1.4px solid var(--line);
   color: var(--text);
