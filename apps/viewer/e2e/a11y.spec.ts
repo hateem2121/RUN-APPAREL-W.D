@@ -205,34 +205,17 @@ test('the notice live region exists before it has anything to say', async ({ pag
   ).toBe(1)
 })
 
-test('after a lost GPU context nothing offers to rotate a photograph', async ({ page }) => {
-  /**
-   * The `webglcontextlost` branch called `setFallback(true)` and never reset
-   * `modelLoaded`, so `loading` evaluated false and the persistent live region
-   * fell through to its "Showing … Drag to rotate, use scroll or pinch to zoom"
-   * branch — over a static poster.
-   *
-   * apps/viewer/CLAUDE.md and Stage.tsx both name this as the most likely way
-   * the 3D dies in front of a real buyer: iOS Safari caps canvas memory at
-   * 256 MB and the live model decodes to ~72 MB before textures. The sighted
-   * visitor sees a photograph; the screen-reader user was invited to interact
-   * with it.
-   */
-  await page.goto('/n001/wine')
-  await page.waitForFunction(
-    () => (document.querySelector('model-viewer.stage__model') as { loaded?: boolean })?.loaded,
-    undefined,
-    { timeout: 60_000 },
-  )
-  await page.evaluate(() => {
-    document
-      .querySelector('model-viewer.stage__model')
-      ?.dispatchEvent(new CustomEvent('error', { detail: { type: 'webglcontextlost' } }))
-  })
-  await expect(page.locator('.stage__poster-fallback')).toBeVisible()
-  const announced = await page.locator('.stage [role="status"]').allInnerTexts()
-  expect(
-    announced.join(' ').toLowerCase(),
-    'the live region still invites the visitor to rotate a model that is gone',
-  ).not.toContain('drag to rotate')
-})
+/*
+ * ⚠️ THE LOST-GPU-CONTEXT ASSERTION LIVES IN e2e/webgl.spec.ts, NOT HERE.
+ *
+ * A draft of it sat in this file on 2026-08-14 and failed on CI's Firefox runner
+ * — correctly. It waited for `model-viewer.stage__model` to report `loaded`, and
+ * a headless runner with no GPU has no WebGL, so `canRender3D()` returns false,
+ * the viewer falls back to the poster exactly as designed, and the element it
+ * waited for never exists. The test needed real WebGL and this project does not
+ * guarantee it; the `webgl` project does, and runs with the flags for it.
+ *
+ * `webgl.spec.ts` → "a lost WebGL context is reported as such, not as a failed
+ * colour swap" now carries the assertion that the live region must not still
+ * offer to rotate a model that is gone.
+ */
