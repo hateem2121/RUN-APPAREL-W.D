@@ -207,11 +207,23 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
         // so it could only ever fire once per page however many models loaded.
         //
         // WHAT IT DOES NOT FIX, also measured: the `onError` branch below still
-        // never sees a truthy `loadedSrcRef`, so VARIANT_NOTICE remains
-        // unreachable and a mid-swap failure still tears the stage down to the
-        // poster. An e2e test written to prove otherwise failed. The cause is
-        // NOT the attribute-vs-property read and has not been isolated — do not
-        // assume this line was the whole story.
+        // never sees a truthy `loadedSrcRef`, so VARIANT_NOTICE is unreachable
+        // FROM THERE and a mid-swap failure tears the stage down to the poster.
+        //
+        // ⚠️ ANSWERED 2026-08-14 — nothing is broken, and the question above was
+        // asking about a path the visitor does not take. VARIANT_NOTICE has two
+        // producers, and only one of them is this branch. The one that actually
+        // fires is the variant effect below, which sets it when the requested
+        // variantId is absent from `availableVariants` — that is the real
+        // "colourway missing from the GLB" case, it works, and it is the path an
+        // e2e test exercises. The `onError` limb is for a mid-swap LOAD failure,
+        // which only separate-GLB mode can reach; N001 is single-GLB with KHR
+        // material variants, where a colour change rebinds materials and issues
+        // no new request, so no error can arrive mid-swap to observe.
+        //
+        // Keep the branch: it is correct for the mode that can reach it. The
+        // earlier e2e test failed because it was written against single-GLB mode,
+        // where the state it asserts is unreachable by construction.
         const src = (el as unknown as { src?: string }).src ?? el.getAttribute('src') ?? ''
         if (loadedSrcRef.current !== src) {
           loadedSrcRef.current = src
@@ -366,7 +378,20 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
    * That fallback is what makes counting bytes a safe thing to do at all.
    */
   useEffect(() => {
-    if (!glbUrl || fallback || !libReady) return
+    // `canRender3D()`, NOT `libReady`. The 27 MB download used to wait for the
+    // model-viewer module to finish downloading and parsing first, serialising
+    // two independent transfers on the connection that matters least — a phone
+    // on 4G, where the model is already ~23s.
+    //
+    // ⚠️ TWO TRAPS HERE, BOTH OF WHICH SHIP GREEN.
+    // (1) `libReady` was silently doing double duty as the Save-Data / no-WebGL
+    //     guard: the effect above returns early WITHOUT importing the module in
+    //     those cases, so libReady never became true and this effect never ran.
+    //     Removing it without calling canRender3D() would start a 27 MB download
+    //     on a connection that explicitly asked us not to.
+    // (2) `libReady` must leave the dependency array in the SAME edit. Left in,
+    //     the effect re-runs when it flips and the file downloads twice.
+    if (!glbUrl || fallback || !canRender3D()) return
     let cancelled = false
     let objectUrl: string | null = null
     const controller = new AbortController()
@@ -423,7 +448,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       // between colourways in separate-GLB mode accumulates a copy per swap.
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [glbUrl, fallback, libReady, product.productCode])
+  }, [glbUrl, fallback, product.productCode])
 
   const applyView = (view: CameraView) => {
     const mv = mvRef.current
@@ -463,7 +488,13 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
     modelLoaded: modelLoaded && !swapping,
     bytesPerSecond: rate,
   })
-  const loading = !fallback && libReady && load.phase !== 'ready'
+  // No longer gated on `libReady`: the download now starts immediately rather
+  // than after the model-viewer module lands, so gating the readout on the
+  // module would leave the stage blank for the first seconds of a 27 MB
+  // transfer — the exact dead time the byte-accurate readout exists to remove.
+  // `!fallback` already covers Save-Data and no-WebGL, which is what libReady
+  // was standing in for here.
+  const loading = !fallback && load.phase !== 'ready'
   // NOT `performance`: that name shadows the global for the whole component, and
   // the byte-counting effect above calls `performance.now()`. As a shadowed
   // string it would throw "performance.now is not a function" at runtime, with

@@ -161,10 +161,22 @@ test('a lost WebGL context is reported as such, not as a failed colour swap', as
   })
 
   // The garment is still represented — poster, not an empty stage.
-  await expect(page.getByText(/interactive 3D view could not load/i)).toBeVisible({
+  //
+  // The expected copy changed 2026-08-14, and THIS TEST is the reason it had to.
+  // The old string said "the interactive 3D view could not load", which is false
+  // in precisely the case this test simulates: the model loaded, and the GPU
+  // then took the context away. The replacement describes what is on screen.
+  await expect(page.getByText(/showing a photograph of the garment/i)).toBeVisible({
     timeout: 10_000,
   })
   await expect(page.locator('.stage img').first()).toBeVisible()
+
+  // Added 2026-08-14: the live region must not still be offering to rotate a
+  // model that is gone. The webglcontextlost branch sets fallback and now also
+  // clears modelLoaded — without the second half, `loading` stays false and the
+  // region falls through to "Drag to rotate, use scroll or pinch to zoom".
+  const announced = (await page.locator('.stage [role="status"]').allInnerTexts()).join(' ')
+  expect(announced.toLowerCase()).not.toContain('drag to rotate')
 
   // The part that only this change provides.
   expect(diagnostics.join('\n')).toContain('[viewer:webgl-context-lost]')
