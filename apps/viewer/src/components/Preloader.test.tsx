@@ -59,13 +59,38 @@ describe('Preloader under reduced motion', () => {
     // The regression: this was `null`, so the app rendered a single empty
     // aria-hidden div for the whole data fetch.
     expect(container.textContent?.trim()).not.toBe('')
-    expect(container.querySelector('[role="status"]')).not.toBeNull()
+
+    /**
+     * ⚠️ THE MECHANISM CHANGED ON 2026-08-14; THE REQUIREMENT DID NOT.
+     *
+     * This used to assert `[role="status"]`, which the overlay carried along with
+     * `aria-label="Loading product reference"`. Neither did what it read like. A
+     * live region announces its CONTENTS when they CHANGE, and nothing inside
+     * this overlay ever changes — so the region had nothing to say. `aria-label`
+     * NAMES a region; it is not an announcement, and it was never spoken.
+     *
+     * Meanwhile App renders the whole document `aria-hidden` behind this overlay,
+     * so the net result was silence for the 1.77–2.27s the CMS fetch takes.
+     *
+     * A plain, visually-hidden sentence in the normal reading order is what
+     * actually reaches a screen-reader user. Asserting THAT is asserting the
+     * requirement rather than the implementation that failed to meet it.
+     */
+    const spoken = container.querySelector('.visually-hidden')
+    expect(spoken, 'nothing in the overlay is perceivable to a screen reader').not.toBeNull()
+    expect(spoken?.textContent).toMatch(/loading the product reference/i)
   })
 
   it('names what is happening rather than showing a bare number', () => {
     reduced.value = true
     render({ done: false, onExited: () => {} })
-    expect(container.textContent).toMatch(/preparing reference/i)
+    // "PREPARING…" since 2026-08-14. It said "PREPARING REFERENCE…" while
+    // <Stage> said "LOADING REFERENCE" for a different and much longer event, so
+    // one noun stood for two operations seconds apart. Stage now names the 3D
+    // model; this covers the data fetch and names nothing, which is the honest
+    // option. The assertion that matters is that it says SOMETHING, not a number.
+    expect(container.textContent).toMatch(/preparing/i)
+    expect(container.textContent).not.toMatch(/\d+%/)
   })
 
   it('still hands control to the app once loading finishes', () => {

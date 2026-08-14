@@ -54,14 +54,27 @@ export function Preloader({ done, onExited }: PreloaderProps) {
   }, [done, reduce, onExited])
 
   return (
-    <div
-      className={`preloader${exiting ? ' preloader--exit' : ''}`}
-      role="status"
-      aria-label="Loading product reference"
-    >
+    /*
+     * NO `role="status"` HERE, and that is a fix rather than an omission.
+     *
+     * It carried `role="status"` plus `aria-label="Loading product reference"`,
+     * which does not do what it reads like. `aria-label` NAMES a region; it is
+     * not an announcement. And a live region announces its CONTENTS when they
+     * CHANGE — nothing inside this overlay ever changes, so the region had
+     * nothing to say and the label was never spoken. Meanwhile the whole
+     * document behind it is `aria-hidden` (App.tsx), so a screen-reader user got
+     * silence for the 1.77–2.27s the CMS fetch takes.
+     *
+     * One real sentence, in the normal reading order, is what actually reaches
+     * them. The live region belongs to <Stage>, where the text genuinely mutates.
+     */
+    <div className={`preloader${exiting ? ' preloader--exit' : ''}`}>
       <div className="preloader__grid blueprint" aria-hidden="true" />
       <div className="preloader__inner">
-        <span className="label">[ 3D PRODUCT REFERENCE ]</span>
+        <span className="visually-hidden">Loading the product reference.</span>
+        <span className="label" aria-hidden="true">
+          [ 3D PRODUCT REFERENCE ]
+        </span>
         {/*
           Indeterminate, not a percentage: a sweep says "working" without claiming
           an amount nobody has measured. Omitted entirely under reduced motion —
@@ -73,7 +86,14 @@ export function Preloader({ done, onExited }: PreloaderProps) {
             <span />
           </span>
         )}
-        <span className="mono preloader__status">PREPARING REFERENCE…</span>
+        {/* "PREPARING…" — this covers the CMS data fetch, and naming nothing is
+            the honest option. It said "PREPARING REFERENCE…" while <Stage> said
+            "LOADING REFERENCE" for a different, longer event, so one noun stood
+            for two operations seconds apart. Stage now says "3D MODEL"; this
+            names the only thing it can truthfully name, which is nothing. */}
+        <span className="mono preloader__status" aria-hidden="true">
+          PREPARING…
+        </span>
       </div>
     </div>
   )
