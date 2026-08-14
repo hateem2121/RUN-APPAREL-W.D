@@ -694,9 +694,11 @@ model-viewer.stage__model:focus-within {
   color: inherit;
 }
 
-/* selected state is never colour-only */
-.colourway-tab[aria-selected="true"]::after {
-  content: "●";
+/* Selected state is never colour-only. The dot is a REAL element now
+   (ColourwayTabs.tsx), not ::after content: generated content is included in the
+   accessible name, so the chosen tab announced as "01 Wine ●" while
+   aria-selected already carried that state. Found 2026-08-14. */
+.colourway-tab__dot {
   font-size: 8px;
 }
 
@@ -1179,14 +1181,10 @@ model-viewer.stage__model:focus-within {
     margin-right: 4px;
   }
 
-  /* The non-colour cue for the selected tab. It belongs on the label rather than
-     the button here: as a child of a column flex it would become a third row. */
-  .colourway-tab[aria-selected="true"]::after {
-    content: none;
-  }
-
-  .colourway-tab[aria-selected="true"] .colourway-tab__label::after {
-    content: " ●";
+  /* The non-colour cue for the selected tab. It already lives inside the label
+     element rather than the button, which is what keeps it off a third row in
+     this column layout — it only needs to be smaller here. */
+  .colourway-tab__dot {
     font-size: 7px;
   }
 }

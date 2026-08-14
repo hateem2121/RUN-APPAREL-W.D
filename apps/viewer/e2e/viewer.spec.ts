@@ -44,15 +44,25 @@ test.describe('RUN APPAREL 3D viewer', () => {
     await page.evaluate(() => {
       ;(window as unknown as { __noReload: boolean }).__noReload = true
     })
-    // 04, and the number is POSITIONAL rather than the `sequence` field:
-    // `ColourwayTabs.tsx:195` renders `String(index + 1).padStart(2, '0')`. Black
-    // carries sequence 5 in this fixture (production's numbering, with Lime at 4
-    // deliberately absent so `/n001/lime` reaches the retired-colourway notice),
-    // but it is the 4th entry in the array, so it displays as 04. The UI never
-    // shows a gap — worth knowing before "fixing" either number to match the
-    // other. It was 02 until 2026-08-13, when the fixture stopped using
-    // colourways that had never existed in production.
-    await page.getByRole('tab', { name: /04\s*Black/i }).click()
+    /**
+     * ⚠️ THE ACCESSIBLE NAME IS NOW JUST THE COLOUR — changed 2026-08-14.
+     *
+     * This used to match `/04\s*Black/i`, because the tab's ordinal was part of
+     * its name. It is `aria-hidden` now: the ordinal is POSITIONAL information a
+     * screen reader already supplies far better, announcing "tab, 4 of 5", so
+     * including it made every tab read "04 Black, tab, 4 of 5". The selected
+     * tab was worse — the state dot was `::after { content: "●" }`, and
+     * generated content IS included in the accessible name, so it announced as
+     * "04 Black ●" on top of `aria-selected`.
+     *
+     * The number is still VISIBLE, and it is still positional rather than the
+     * `sequence` field: Black carries sequence 5 in this fixture (production's
+     * numbering, with Lime at 4 deliberately absent so `/n001/lime` reaches the
+     * retired-colourway notice) but is the 4th array entry, so it displays 04.
+     * The UI never shows a gap — worth knowing before "fixing" either number to
+     * match the other. The visible label below still asserts it.
+     */
+    await page.getByRole('tab', { name: /^black$/i }).click()
     await expect(page).toHaveURL(/\/n001\/black$/)
     await expect(page.getByText('[ COLOURWAY 04 / BLACK ]')).toBeVisible()
     const preserved = await page.evaluate(

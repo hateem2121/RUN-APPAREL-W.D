@@ -90,9 +90,18 @@ export function formatEta(seconds: number | null): string | null {
   if (total < 60) return `~${total}S LEFT`
   // The measured wait is 45.2 s on weak 4G and 150.8 s on 3G. "~151S LEFT" is a
   // number nobody converts in their head.
-  const minutes = Math.floor(total / 60)
-  const rest = total % 60
-  return `~${minutes}M ${rest}S LEFT`
+  //
+  // ⚠️ "MIN", not "M". The line this renders into reads
+  // "16.7 / 27.0 MB · ~2M 31S LEFT", so M meant megabytes and minutes eight
+  // characters apart, in a mono font, at 10px, on a phone. Spelling the unit
+  // costs two characters and removes the collision.
+  //
+  // Rounded UP here, unlike the seconds branch above: at this scale a ceiling is
+  // the honest direction, because the file's own rule (see the comment on this
+  // function) is that the countdown must never claim to be closer to done than
+  // it is — and dropping the seconds would otherwise round 119s down to "~1 MIN".
+  const minutes = Math.ceil(total / 60)
+  return `~${minutes} MIN LEFT`
 }
 
 export type LoadPhase = 'downloading' | 'preparing' | 'ready'

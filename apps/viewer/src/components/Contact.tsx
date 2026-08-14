@@ -42,7 +42,7 @@ function ContactButtons({
 export function ContactSection(props: ContactProps) {
   return (
     <section className="contact" aria-labelledby="contact-heading" data-reveal>
-      <p className="section-number">N°003 — START THE CONVERSATION — N°003</p>
+      <p className="section-number">N&#8470;003 — START THE CONVERSATION — N&#8470;003</p>
       <h2 id="contact-heading" className="display display--section">
         Develop this with <span className="serif-accent">us</span>.
       </h2>
@@ -50,9 +50,8 @@ export function ContactSection(props: ContactProps) {
         <ContactButtons {...props} />
       </div>
       <p className="contact__micro">
-        Share your company, target market, estimated quantity and product requirements so our team
-        can advise accurately. The message template is pre-filled — complete the open fields before
-        sending.
+        We have already filled in this garment&rsquo;s code and colourway. Please add your company,
+        your market and the quantity you need, then send.
       </p>
     </section>
   )

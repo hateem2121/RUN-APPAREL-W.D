@@ -25,9 +25,8 @@ export function ProductPanel({ data, selected, selectedIndex }: ProductPanelProp
         {headingWithAccent(product.productName)}
       </h1>
       <p className="product-info__statement">
-        This is a development reference, not a fixed off-the-shelf product. We can customise the
-        fabric, colour, fit, trims, branding and performance details around your brand&rsquo;s
-        requirements.
+        This is a development reference, not a finished stock product. We can change the fabric,
+        colour, fit, trims, branding and performance details to suit your brand.
       </p>
       <dl className="spec-list">
         {product.fabricComposition && (

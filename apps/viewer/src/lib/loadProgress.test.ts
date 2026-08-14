@@ -90,10 +90,21 @@ describe('formatEta', () => {
     expect(formatEta(8.4)).toBe('~8S LEFT')
   })
 
-  it('switches to minutes once the wait is long', () => {
+  it('switches to minutes once the wait is long, and spells the unit', () => {
     // Not hypothetical: the measured wait is 45.2 s on weak 4G and 150.8 s on 3G,
     // and "~151S LEFT" is a number nobody converts in their head.
-    expect(formatEta(150.8)).toBe('~2M 31S LEFT')
+    //
+    // ⚠️ "MIN", not "M", since 2026-08-14. This renders into a line that reads
+    // "16.7 / 27.0 MB · ~2M 31S LEFT", so M meant megabytes and minutes eight
+    // characters apart — in a mono font, at 10px, on a phone.
+    //
+    // Rounded UP, unlike the seconds branch: this file's rule is that the
+    // countdown must never claim to be closer to done than it is, and dropping
+    // the seconds would otherwise round 150.8s down to "~2 MIN".
+    expect(formatEta(150.8)).toBe('~3 MIN LEFT')
+    expect(formatEta(60)).toBe('~1 MIN LEFT')
+    // Never reads "~0 MIN LEFT" at the boundary.
+    expect(formatEta(61)).toBe('~2 MIN LEFT')
   })
 
   it('says nothing at all when there is no estimate', () => {
