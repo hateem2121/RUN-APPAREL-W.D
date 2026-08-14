@@ -128,8 +128,8 @@
   border: 1.4px solid var(--line);
   color: var(--text);
   transition:
-    background-color var(--fast) var(--ease),
-    color var(--fast) var(--ease);
+    background-color var(--ui) var(--ease),
+    color var(--ui) var(--ease);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -194,7 +194,22 @@
   min-height: 380px;
   border-radius: var(--radius-panel);
   overflow: hidden;
-  background:
+  /*
+   * `--surface`, not transparent. The canvas had no surface of its own: `.stage`
+   * and `.stage-block` both paint `--bg` and this element painted only gradients
+   * over transparency, so the garment rendered directly against the page.
+   * Screenshotted 2026-08-14 at 390x844 in dark mode on the Black colourway, the
+   * sleeves and sides had no edge at all — and a buyer who cannot see the cut,
+   * the sleeve length or the leg opening cannot judge the garment, which is the
+   * entire job of this page.
+   *
+   * Every other container in this system already does this: .stage__loading,
+   * .notice and .step take --surface; .colourway-preview takes --raised. The
+   * canvas was the only surface that did not, and it is the one holding the
+   * product.
+   */
+  background-color: var(--surface);
+  background-image:
     radial-gradient(60% 50% at 50% 42%, var(--glow) 0%, transparent 70%),
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
@@ -245,6 +260,21 @@ model-viewer.stage__model {
   --progress-mask: transparent;
 }
 
+/*
+ * The largest control on the page was the only one without the brand focus ring.
+ *
+ * `:focus-visible` in base.css cannot reach it: model-viewer takes focus on its
+ * own inner canvas inside a shadow root, so the host never matches. A keyboard
+ * visitor tabbing to the garment — which IS operable by keyboard, with arrows to
+ * orbit — got no indication they had arrived. `:focus-within` on the host is what
+ * sees a descendant's focus across the boundary. Same token as everywhere else,
+ * so no new colour is introduced.
+ */
+model-viewer.stage__model:focus-within {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .stage__poster-fallback {
   position: absolute;
   inset: 0;
@@ -281,7 +311,7 @@ model-viewer.stage__model {
   height: auto;
   min-height: 0;
   object-fit: contain;
-  border-radius: 12px;
+  border-radius: var(--radius-card);
 }
 
 /* Technical callouts around the garment */
@@ -340,7 +370,12 @@ model-viewer.stage__model {
   transform: translateX(-50%);
   display: flex;
   gap: 8px;
-  background: color-mix(in oklab, var(--surface) 85%, transparent);
+  /* Opaque, not 85%. This control sits over a MOVING 3D scene with no
+     backdrop-filter behind it, so the garment showed through the labels that
+     name the view being looked at. `.action-bar` was made solid for exactly this
+     reason and records it: backdrop-filter is reserved for the header alone
+     ("the single allowed blurred sticky header"), so this one goes solid too. */
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   padding: 6px;
@@ -357,8 +392,8 @@ model-viewer.stage__model {
   text-transform: uppercase;
   color: var(--text);
   transition:
-    background-color var(--fast) var(--ease),
-    color var(--fast) var(--ease);
+    background-color var(--ui) var(--ease),
+    color var(--ui) var(--ease);
 }
 
 /* SPLIT DELIBERATELY, and this is the one that mattered most. Hover and the
@@ -438,18 +473,29 @@ model-viewer.stage__model {
   width: 100%;
   height: 3px;
   background: var(--wash);
-  border-radius: 3px;
+  border-radius: var(--radius-chip);
   overflow: hidden;
 }
 
 .stage__loading-bar span {
   display: block;
+  /* Full width, scaled — NOT a width transition. `width` is a layout property,
+     so every retarget cost layout + paint + composite, and Stage.tsx samples at
+     ~10 Hz for the ~23s a 27 MB model takes on average 4G. That is roughly 230
+     layout passes during the single heaviest thing the page does, on the phone
+     that is also decoding the model. `scaleX` is composited: same picture, no
+     layout. Fixed 2026-08-14. */
+  width: 100%;
   height: 100%;
+  transform-origin: left center;
   background: var(--dimension);
   /* `--fast` (200ms) and nothing slower. `--settle`/`--slow` are for entrances
      and wipes; a fill retargeted several times a second over 500ms visibly
-     trails the number beside it, which is complaint A restated as a bug. */
-  transition: width var(--fast) var(--ease);
+     trails the number beside it, which is complaint A restated as a bug.
+     `linear`, not `--ease`: an ease-out curve on a value that is retargeted
+     before it arrives never reaches its own end, so the fill perpetually lags
+     the percentage printed beside it. */
+  transition: transform var(--fast) linear;
 }
 
 /*
@@ -459,8 +505,14 @@ model-viewer.stage__model {
  */
 .stage__loading-bar--indeterminate span {
   width: 40%;
+  transform-origin: left center;
   transition: none;
-  animation: preloader-sweep calc(var(--slow) * 2) var(--ease) infinite;
+  /* `linear`, not `--ease`. An ease-out curve on a LOOPING sweep decelerates
+     into its own restart, so the bar visibly stalls at the right edge and jumps
+     — the discontinuity reads as a stutter rather than as motion. An
+     indeterminate sweep is the one place in this system that wants no easing at
+     all. Same change on the preloader's sweep below. */
+  animation: preloader-sweep calc(var(--slow) * 2) linear infinite;
 }
 
 .stage__error {
@@ -474,7 +526,7 @@ model-viewer.stage__model {
   color: var(--muted);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   padding: 10px 16px;
 }
 
@@ -488,7 +540,7 @@ model-viewer.stage__model {
   padding: 12px 16px;
   border: 1px solid var(--dimension);
   border-left-width: 4px;
-  border-radius: 10px;
+  border-radius: var(--radius-button);
   background: var(--surface);
   font-size: 14px;
   color: var(--text);
@@ -534,9 +586,14 @@ model-viewer.stage__model {
   padding-top: 10px;
 }
 
+/* --text-mono (11px), not --text-mono-sm (10px). These <dt>s name the garment's
+   real facts — fabric, weight, fit, performance — so they are CONTENT labels,
+   not chips. At the chip size they read one step quieter than the decorative
+   section numbering above them, which inverts the page's own hierarchy. See
+   docs/DESIGN.md §3: .mono is for content, .label is for chips. */
 .spec-list dt {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-mono);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
@@ -545,7 +602,7 @@ model-viewer.stage__model {
 
 .spec-list dd {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-sm);
 }
 
 /* ── Colourway tabs ────────────────────────────────────────────────── */
@@ -593,14 +650,14 @@ model-viewer.stage__model {
   border: 1.4px solid var(--line);
   border-radius: var(--radius-button);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-mono);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text);
   transition:
-    border-color var(--fast) var(--ease),
-    background-color var(--fast) var(--ease),
-    color var(--fast) var(--ease);
+    border-color var(--ui) var(--ease),
+    background-color var(--ui) var(--ease),
+    color var(--ui) var(--ease);
 }
 
 .colourway-tab__num {
@@ -656,6 +713,17 @@ model-viewer.stage__model {
   height: 0;
 }
 
+/*
+ * The only elevated surface in this system, and until 2026-08-14 the only raw
+ * colour in it: `rgba(0, 0, 0, 0.12)`, which is invisible over the dark `--bg`
+ * (#1c1f18). This panel is what a desktop buyer sees while hovering a colourway
+ * during the 22.6s the 27 MB model takes on average 4G — in dark mode it was a
+ * flat rectangle abutting the rail, with no separation at all.
+ *
+ * It also appeared and disappeared instantly. `@starting-style` gives it an
+ * entry without a mount-effect class, which matters because React renders it
+ * conditionally — there is no frame in which to add one.
+ */
 .colourway-preview {
   position: absolute;
   bottom: 8px;
@@ -665,12 +733,25 @@ model-viewer.stage__model {
   padding: 6px;
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-raised);
+  opacity: 1;
+  scale: 1;
+  transform-origin: bottom left;
+  transition:
+    opacity var(--ui) var(--ease),
+    scale var(--ui) var(--ease);
+}
+
+@starting-style {
+  .colourway-preview {
+    opacity: 0;
+    scale: 0.96;
+  }
 }
 
 .colourway-preview img {
-  border-radius: 8px;
+  border-radius: var(--radius-chip);
 }
 
 /* ── Customisation section ─────────────────────────────────────────── */
@@ -762,8 +843,8 @@ model-viewer.stage__model {
     transform: translateY(8px);
     pointer-events: none;
     transition:
-      opacity var(--fast) var(--ease),
-      transform var(--fast) var(--ease);
+      opacity var(--ui) var(--ease),
+      transform var(--ui) var(--ease);
   }
 
   .contact-rail--visible {
@@ -804,6 +885,27 @@ model-viewer.stage__model {
   }
 }
 
+/*
+ * The third user preference this viewer answers.
+ *
+ * It answered `prefers-color-scheme` and `prefers-reduced-motion` and no other —
+ * verified by grep 2026-08-14. Transparency is a real accessibility need
+ * (vestibular and low-vision), and this page has three translucent surfaces. The
+ * camera controls went fully opaque on their own account above; the header is
+ * deliberately translucent and blurred ("the single allowed blurred sticky
+ * header"), so it needs this block to opt out.
+ */
+@media (prefers-reduced-transparency: reduce) {
+  .header {
+    background: var(--bg);
+    backdrop-filter: none;
+  }
+
+  .stage__loading {
+    background: var(--surface);
+  }
+}
+
 /* ── Footer ────────────────────────────────────────────────────────── */
 .footer {
   margin-top: auto;
@@ -825,6 +927,10 @@ model-viewer.stage__model {
   font-stretch: 122%;
   text-transform: uppercase;
   font-size: 16px;
+  /* Matches `.header__wordmark`. The same wordmark was set two different ways on
+     one page: -0.02em in the header and 0 here, so the brand read as two
+     slightly different logotypes between the top and bottom of a single scroll. */
+  letter-spacing: -0.02em;
 }
 
 .footer__line {
@@ -889,12 +995,13 @@ model-viewer.stage__model {
   text-align: center;
   padding: 24px;
 }
-.preloader__count {
-  font-size: clamp(40px, 11vw, 104px);
-  color: var(--headline);
-  line-height: 1;
-  letter-spacing: -0.01em;
-}
+/* `.preloader__count` was deleted 2026-08-14. It styled a clamp(40px, 11vw,
+   104px) counter that no component renders: <Preloader> stopped rendering the
+   number in 06f0951 ("count the real bytes — the loading status was invented"),
+   because the figure was driven by `p + (90 - p) * 0.05` per frame and reached
+   90 while the 27 MB garment had not begun to arrive. The rule outlived it by a
+   day. Recorded rather than silently removed so the next reader knows the
+   counter went on purpose rather than went missing. */
 .preloader__rule {
   display: block;
   width: min(240px, 60vw);
@@ -912,8 +1019,11 @@ model-viewer.stage__model {
      in dark, so nothing changes there. DESIGN.md: volt is illegible on
      paper-white, and a progress fill is a dimension line. */
   background: var(--dimension);
-  transform-origin: left center;
-  transition: transform var(--fast) linear;
+  /* The `transform-origin` and `transition` that used to sit here were dead:
+     <Preloader> renders ONLY the indeterminate variant below, which overrides
+     both. They were the remains of the determinate fill that 06f0951 removed.
+     The composited-fill pattern they described now lives on `.stage__loading-bar
+     span`, which is the bar that actually runs — for ~23s on a phone. */
 }
 
 /*
@@ -930,7 +1040,8 @@ model-viewer.stage__model {
   width: 40%;
   transform-origin: left center;
   transition: none;
-  animation: preloader-sweep calc(var(--slow) * 2) var(--ease) infinite;
+  /* `linear`, not `--ease` — see .stage__loading-bar--indeterminate. */
+  animation: preloader-sweep calc(var(--slow) * 2) linear infinite;
 }
 
 @keyframes preloader-sweep {
@@ -949,6 +1060,11 @@ model-viewer.stage__model {
 }
 
 /* ══ Customisation accordion (grid-rows collapse) ═════════════════════ */
+/* `grid-template-rows` is a layout animation and is kept deliberately — it is the
+   only technique that animates to intrinsic height, and this runs once on an
+   explicit click rather than continuously. Pairing it with an opacity fade makes
+   the panel read as ARRIVING rather than as being extruded, which is what hides
+   the reflow the row animation necessarily costs. */
 .steps-collapse {
   display: grid;
   grid-template-rows: 0fr;
@@ -959,6 +1075,11 @@ model-viewer.stage__model {
 }
 .steps-collapse > .steps {
   min-height: 0;
+  opacity: 0;
+  transition: opacity var(--ui) var(--ease);
+}
+.steps-collapse--open > .steps {
+  opacity: 1;
 }
 
 /* ══ Colourway cross-fade + micro-states ═════════════════════════════ */
@@ -989,7 +1110,7 @@ model-viewer.stage__model {
   }
 }
 .theme-toggle svg {
-  transition: transform var(--fast) var(--ease);
+  transition: transform var(--ui) var(--ease);
 }
 @media (hover: hover) and (pointer: fine) {
   .theme-toggle:hover svg {

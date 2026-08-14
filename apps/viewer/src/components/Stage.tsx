@@ -552,10 +552,16 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
                   load.phase === 'preparing' ? ' stage__loading-bar--indeterminate' : ''
                 }`}
               >
+                {/* scaleX, not width. `width` is a layout property and this is
+                    retargeted at ~10 Hz for the ~23s a 27 MB model takes on
+                    average 4G — roughly 230 layout passes during the single
+                    heaviest thing the page does, on the phone that is also
+                    decoding the model. The fill is width:100% and scaled; see
+                    `.stage__loading-bar span` in page.css. */}
                 <span
                   style={
                     load.phase === 'downloading' && load.percent !== null
-                      ? { width: `${load.percent}%` }
+                      ? { transform: `scaleX(${load.percent / 100})` }
                       : undefined
                   }
                 />

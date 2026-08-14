@@ -298,6 +298,83 @@ describe('spacing', () => {
   })
 })
 
+/**
+ * No raw radius, shadow or duration in a component stylesheet.
+ *
+ * `tokens.css:4` states the rule in its own words — "Components read ONLY these
+ * semantic custom properties — never raw hex" — and `docs/DESIGN.md` §8 repeats
+ * it as rule 3. Until 2026-08-14 nothing enforced it, and an audit found eight
+ * raw `border-radius` values against three radius tokens (`12px` alone appeared
+ * three separate times), one raw `rgba(0, 0, 0, 0.12)` drop shadow in a system
+ * that defined no shadow token at all, and one raw `120ms ease-out`.
+ *
+ * The shadow is the one worth naming: 12% black is invisible over the dark `--bg`
+ * (#1c1f18), so the floating colourway preview lost its only separation from the
+ * rail behind it — in the theme a large share of phones default to.
+ *
+ * `tokens.css` is exempt: it is where the literals are SUPPOSED to live.
+ */
+describe('raw values in component stylesheets', () => {
+  const components = () => cssFiles().filter(({ name }) => name !== 'tokens.css')
+
+  it('every border-radius cites a token', () => {
+    const offenders: string[] = []
+    for (const { name, source } of components()) {
+      // `50%` and `999px` are shapes, not scale steps — a circle is a circle.
+      for (const match of source.matchAll(/border-radius:\s*(\d+)px/g)) {
+        const line = source.slice(0, match.index).split('\n').length
+        offenders.push(`${name}:${line} uses border-radius: ${match[1]}px`)
+      }
+    }
+    expect(
+      offenders,
+      'Use --radius-panel / --radius-card / --radius-button / --radius-chip / --radius-pill.\n' +
+        'If none fits, add the step to tokens.css and to docs/DESIGN.md §4 — the two\n' +
+        'that exist were measured from shipped values rather than invented.',
+    ).toEqual([])
+  })
+
+  it('every shadow cites a token, and none of them is pure black', () => {
+    const offenders: string[] = []
+    for (const { name, source } of components()) {
+      for (const match of source.matchAll(/box-shadow:\s*([^;]+);/g)) {
+        const value = match[1] ?? ''
+        // An inset ring drawn with color-mix from a token is fine; a literal
+        // rgba(0,0,0,…) is not, and is invisible in dark mode besides.
+        if (!/rgba?\(\s*0\s*,\s*0\s*,\s*0/.test(value)) continue
+        const line = source.slice(0, match.index).split('\n').length
+        offenders.push(`${name}:${line} — ${value.trim().slice(0, 60)}`)
+      }
+    }
+    expect(
+      offenders,
+      'Use --shadow-raised. Pure black is wrong in BOTH halves of this system:\n' +
+        '--ink is deliberately "#1d1f1a … Never #000", and 12% black over the dark\n' +
+        '--bg is invisible, which is the bug this token was added to fix.',
+    ).toEqual([])
+  })
+
+  it('every transition and animation duration cites a token', () => {
+    const offenders: string[] = []
+    for (const { name, source } of components()) {
+      // Shorthand only. `transition-duration: 0.01ms !important` in the
+      // reduced-motion block is a longhand override and is deliberately exempt —
+      // it is the mechanism that disables motion, not a duration choice.
+      for (const match of source.matchAll(/^\s*(transition|animation):\s*([^;]+);/gm)) {
+        const value = match[2] ?? ''
+        if (!/\b\d+(?:\.\d+)?m?s\b/.test(value)) continue
+        const line = source.slice(0, match.index).split('\n').length
+        offenders.push(`${name}:${line} — ${match[1]}: ${value.trim().slice(0, 60)}`)
+      }
+    }
+    expect(
+      offenders,
+      'Use --instant / --fast / --ui / --settle / --slow. docs/DESIGN.md §5 says which\n' +
+        'is which; they are 20ms apart in places and mean different things.',
+    ).toEqual([])
+  })
+})
+
 describe('pointer-only styling', () => {
   it('every :hover rule sits inside a (hover: hover) block', () => {
     // A touch device has no hover, but it DOES match :hover on tap and holds it
