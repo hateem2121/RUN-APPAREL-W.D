@@ -40,7 +40,7 @@ mirrors. That asymmetry is why the raw CLO export is a local artifact — see
 pnpm install --frozen-lockfile   # after every merge; the lockfile moves often here
 pnpm lint                        # biome check .
 pnpm typecheck                   # 5 workspaces
-pnpm test:coverage               # 848 tests + the coverage floors (see below)
+pnpm test:coverage               # 909 tests + the coverage floors (see below)
 bash scripts/test-alert-shell.sh # the alert branch nothing else exercises
 pnpm seed:assets && pnpm build   # build is the one that catches dependency breaks
 node scripts/check-bundle-budget.mjs  # deterministic shell weight; needs the build above
@@ -346,13 +346,6 @@ the answer is "nothing that happens in production", it is not a test.
   **signed provenance attestation present**, **no install script**, and an unchanged
   dependency list. Provenance + no-install-script is the actual threat the cooldown
   absorbs, so that substitution is real rather than a formality.
-- **Any Payload CLI task touching production D1 must set `NODE_ENV=production`**,
-  or Payload runs a dev-mode schema push against it.
-- **Put nothing but migrations in `apps/cms/src/migrations/`.** Payload's
-  `readMigrationFiles` imports *every* `.ts`/`.js` there except `index.ts` and
-  treats each as a migration. A test file added there on 2026-07-31 was imported
-  during `migrate:remote`, ran `describe()` with no vitest runner, and stopped
-  the production deploy. `src/migrationReplay/migrations.test.ts` now guards it.
 - **`opaque` defaults DIFFERENTLY in the two ways you can call the pipeline.**
   `parseOptimizeArgs` defaults it **true**; `optimizeGlb` treats an absent
   `opaque` as **false**. So a hand-built options object silently skips
@@ -475,6 +468,23 @@ the answer is "nothing that happens in production", it is not a test.
   automatically the moment you touch `apps/viewer/`. Read them before changing the
   viewer, its Worker, or its headers.
 
+- **Two more live in `apps/cms/CLAUDE.md`**, moved there 2026-08-15 — the
+  `NODE_ENV=production` requirement for any Payload CLI task against production D1,
+  and why `apps/cms/src/migrations/` must hold nothing but migrations — plus
+  "Before you change a migration". **"Before you delete anything in the CMS" below
+  deliberately did NOT move**: it governs `apps/shrink/src/cms.ts` and
+  `scripts/find-orphan-media.mjs` too, and under `apps/cms/` it would stop loading
+  for exactly the half that deletes files.
+
+- **A settled decision can be INVISIBLE, and one was on 2026-08-15.** Eight skills
+  live in `.agents/skills/` with `.claude/skills/` holding symlinks to them (commit
+  `fc16d6e`, `npx skills add`'s universal layout), and four are
+  `disable-model-invocation: true` — so they neither load nor appear in the skill
+  listing. A `/doctor` session researched "should we adopt Tailwind?" from scratch
+  while `.agents/skills/pick-ui-library/SKILL.md` had already picked `base-ui`.
+  **Before concluding something was never decided, grep `.agents/` too, not just
+  `.claude/`.** Settled UI decisions now live in `docs/DECISION-UI-LIBRARIES.md`.
+
 ## Before you change the pipeline
 
 **Read `tools/asset-pipeline/CLAUDE.md` before touching the pipeline.** It holds
@@ -506,17 +516,6 @@ colourway**, so nothing may reorder rows. Imported rows append, arrive
 a guess. Tested in `packages/shared/src/importColours.test.ts` — it lived at
 `apps/cms/src/fields/importColours.test.ts` until 2026-08-11 (`16b548a`), and this
 line still said so until a post-merge review followed it and found nothing.
-
-## Before you change a migration
-
-Run `apps/cms/src/migrationReplay/replay.test.ts`. It replays every migration against
-real SQLite with foreign keys **on**, seeds every table, and fails if any table
-that had rows ends up empty. It exists because a migration once reported success
-while cascade-deleting two tables nobody was watching.
-
-The assertion is deliberately **generic**. The ad-hoc check run at the time
-looked only at the table the migration was about, which is precisely why it
-passed.
 
 ## Before you delete anything in the CMS
 
