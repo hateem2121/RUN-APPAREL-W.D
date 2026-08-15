@@ -204,9 +204,9 @@
    * entire job of this page.
    *
    * Every other container in this system already does this: .stage__loading,
-   * .notice and .step take --surface; .colourway-preview takes --raised. The
-   * canvas was the only surface that did not, and it is the one holding the
-   * product.
+   * .notice and .step take --surface. (`.colourway-preview` was the `--raised`
+   * example here until it was deleted on 2026-08-15.) The canvas was the only
+   * surface that did not, and it is the one holding the product.
    */
   background-color: var(--surface);
   background-image:
@@ -627,13 +627,24 @@ model-viewer.stage__model:focus-within {
   padding: 0 var(--stage-gutter) clamp(12px, 2vw, 20px);
 }
 
+/*
+ * ⚠️ WRAPS, never scrolls. `overflow-x: auto` here until 2026-08-15 was the thing
+ * that hid three of five colourways at 375px (see the phone rule below) — and the
+ * same valve was still open on desktop for any garment with enough colourways to
+ * exceed the measure. A rail that scrolls with no affordance hides product.
+ *
+ * Measured 2026-08-15 on N001: the five pills are 606.6px intrinsic against 854px
+ * of room at a 900px viewport, so wrapping never triggers today. That is the point
+ * — the sixth colourway now starts a second line instead of disappearing.
+ *
+ * `padding: 4px; margin: -4px` is the focus-ring bleed allowance, not spacing.
+ */
 .colourways__list {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  overflow-x: auto;
   padding: 4px;
   margin: -4px;
-  scrollbar-width: thin;
 }
 
 .colourway-tab__num {
@@ -718,51 +729,12 @@ model-viewer.stage__model:focus-within {
   color: var(--muted);
 }
 
-.colourways__preview {
-  position: relative;
-  height: 0;
-}
-
 /*
- * The only elevated surface in this system, and until 2026-08-14 the only raw
- * colour in it: `rgba(0, 0, 0, 0.12)`, which is invisible over the dark `--bg`
- * (#1c1f18). This panel is what a desktop buyer sees while hovering a colourway
- * during the 22.6s the 27 MB model takes on average 4G — in dark mode it was a
- * flat rectangle abutting the rail, with no separation at all.
- *
- * It also appeared and disappeared instantly. `@starting-style` gives it an
- * entry without a mount-effect class, which matters because React renders it
- * conditionally — there is no frame in which to add one.
+ * `.colourways__preview` and `.colourway-preview` were deleted 2026-08-15 with the
+ * hover thumbnail they positioned — owner decision, see `components/ColourwayTabs.tsx`.
+ * `--raised` and `--shadow-raised` are now unused by this file; they are tokens, so
+ * they stay in `tokens.css` for the next elevated surface.
  */
-.colourway-preview {
-  position: absolute;
-  bottom: 8px;
-  left: 0;
-  z-index: 20;
-  width: 132px;
-  padding: 6px;
-  background: var(--raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-raised);
-  opacity: 1;
-  scale: 1;
-  transform-origin: bottom left;
-  transition:
-    opacity var(--ui) var(--ease),
-    scale var(--ui) var(--ease);
-}
-
-@starting-style {
-  .colourway-preview {
-    opacity: 0;
-    scale: 0.96;
-  }
-}
-
-.colourway-preview img {
-  border-radius: var(--radius-chip);
-}
 
 /* ── Customisation section ─────────────────────────────────────────── */
 .customise {
@@ -1160,60 +1132,92 @@ model-viewer.stage__model:focus-within {
 }
 
 /*
- * On a phone the rail becomes EQUAL COLUMNS, one row, no scrolling.
+ * On a phone the rail becomes a WRAPPING GRID — roughly three across, two rows.
  *
- * Measured 2026-08-13 at 375x812: the flex row above needed 637px inside 361px,
- * so 276px — three of the five colourways — sat off the right edge with nothing
- * to suggest they existed, and "03 BUTTE" was clipped mid-word at the boundary.
- * `overflow-x: auto` was absorbing a width problem silently, which is the worst
- * kind: it looks deliberate in review.
+ * ⚠️ THIS REPLACED "five equal columns, one row" ON 2026-08-15, and the rule it
+ * replaced was itself the 2026-08-13 fix for a horizontal scroll. Read both, because
+ * the second bug was created by the first fix and looked nothing like it.
  *
- * `grid-auto-flow: column` + `grid-auto-columns: 1fr` divides the row by however
- * many colourways there are rather than assuming five, so a sixth shrinks the
- * columns instead of reintroducing the scroll. `min-width: 0` on the tab is what
- * lets a grid item actually shrink below its content width — the same automatic
- * minimum size documented for the poster overflow above.
+ * 2026-08-13, at 375px: the flex row needed 637px inside 361px, so three of the five
+ * colourways sat off the right edge with nothing to suggest they existed. The fix was
+ * `grid-auto-flow: column` + `1fr` — five equal columns, guaranteed to fit.
  *
- * Desktop keeps the pills: at 1123px the flex row fits with room to spare, and
- * five columns across that width reads as spaced-out rather than deliberate.
+ * They fit. THE LABELS DID NOT. Measured 2026-08-15 at 320px: each button is 53.8px
+ * wide and "03 BUTTER"'s label is 55.2px — the text is wider than the box it lives in,
+ * starting at x=132.4 in a button starting at x=133.1, and with only 8px between
+ * buttons it very nearly touches its neighbour's border. At 375px it still overhangs
+ * by 3.1px.
+ *
+ * Why nothing caught it: `min-width: 0` lets the grid column shrink below its content,
+ * `white-space: nowrap` forbids the text from wrapping, and the button has no
+ * `overflow` — so the label had nowhere to go but outside the border. Each of those
+ * three is defensible alone. And `motion-and-layout.spec.ts` → "every colourway is
+ * reachable without sliding" measures the BUTTON boxes against the list, which fit
+ * perfectly. The test asserted the boxes and the defect was in the text inside them.
+ * That test now also asserts the label fits its own button.
+ *
+ * `auto-fit` + `minmax(92px, 1fr)` gives 3 columns at 320–430px (97.6px each at 320px,
+ * ~81% wider than the 53.8px it replaces) and more as the viewport allows, without
+ * hard-coding five. `justify-items: stretch` is the default and is wanted: the last row
+ * of a 3+2 grid stretches rather than leaving a ragged gap.
+ *
+ * The labels may now WRAP. That is deliberate and not cosmetic: the palette in
+ * `tools/asset-pipeline/src/colour-name.ts` contains 12-character two-word names
+ * ("Forest Green", "Bottle Green", "Powder Blue"), which at ~6.9px/char need ~100px on
+ * one line — more than any 3-across column at 320px. `nowrap` would reintroduce the
+ * exact overflow this rule exists to fix, on a garment nobody has photographed yet.
+ *
+ * ⚠️ THE BUDGET BELOW THE RAIL IS 95px AND A SECOND ROW SPENDS MOST OF IT. Measured at
+ * 375x812 before this change: rail ends at y=645, the fixed action bar starts at y=740.
+ * `motion-and-layout.spec.ts` → "the garment and its colourway picker fit one phone
+ * screen, unscrolled" asserts the rail clears that bar. Hence the tightened padding,
+ * gap and swatch below — they are not styling preference, they are what keeps this rule
+ * inside the invariant. Re-measure that test's numbers before adding height here.
+ *
+ * The breakpoint moved 899px → 767px in the same change. The desktop pills need only
+ * 606.6px of the 854px available at a 900px viewport, so every screen from ~768px up
+ * was being given the cramped treatment while the roomy one fitted with 248px to spare.
  */
-@media (max-width: 899px) {
+@media (max-width: 767px) {
   .colourways__list {
     display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
     gap: 8px;
-    overflow-x: visible;
   }
 
   /* A swatch is the only thing on this control that carries meaning at a glance,
-     so it gets the space rather than the label. */
+     so it gets the space rather than the label. 16px, not the 18px used while this
+     was a five-across row: two rows now pay for it twice against the 95px budget. */
   .colourway-tab__swatch {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
   }
 
   .colourway-tab {
     flex-direction: column;
-    gap: 8px;
+    justify-content: center;
+    gap: 6px;
     min-width: 0;
-    /* Stays above the WCAG 2.5.8 floor: 8 + 14 swatch + 6 + ~12 text + 8 = 48px
-       tall, and at 320px — the narrowest phone in the e2e matrix — 56px wide.
-       The target-size test guards this independently. */
-    /* 9px was measured on the shipped build and is below the size at which a
-       mono label reads at arm's length; the tabs also sat 4px apart with 8px of
-       padding, which is what made the rail feel like a strip rather than a set
-       of controls. 10px on an 18px swatch with 10px of padding clears the WCAG
-       2.5.8 floor by a wide margin (56px tall, ~63px wide at 320px). */
-    min-height: 56px;
-    padding: 10px 6px;
+    /* 8 + 16 swatch + 6 + ~13 text + 8 = 51px, and measured 52.5px tall by 97.6px
+       wide at 320px — the narrowest phone in the e2e matrix. Both axes clear the
+       WCAG 2.5.8 24px floor by more than double; the target-size test guards it
+       independently rather than trusting this sum.
+       ⚠️ The comment here recorded "56px tall, ~63px wide at 320px" until
+       2026-08-15. Measured that day: 63.5px tall, 53.8px wide — the two numbers
+       had been transposed, and the width was 9px optimistic. Nothing was broken by
+       it, but it is the kind of recorded number the next session trusts. */
+    min-height: 48px;
+    padding: 8px 6px;
     font-size: 10px;
     letter-spacing: 0.06em;
     text-align: center;
   }
 
+  /* Wraps — see the palette note above. `balance` keeps a two-word name from
+     leaving one orphaned word on the second line. */
   .colourway-tab__label {
-    white-space: nowrap;
+    text-wrap: balance;
+    line-height: 1.25;
   }
 
   .colourway-tab__num {
@@ -1221,7 +1225,7 @@ model-viewer.stage__model:focus-within {
   }
 
   /* The non-colour cue for the selected tab. It already lives inside the label
-     element rather than the button, which is what keeps it off a third row in
+     element rather than the button, which is what keeps it off a row of its own in
      this column layout — it only needs to be smaller here. */
   .colourway-tab__dot {
     font-size: 7px;

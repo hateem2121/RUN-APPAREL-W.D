@@ -48,7 +48,6 @@ function render(selectedSlug = 'wine') {
         selected={selected}
         onSelect={onSelect}
         onPreview={() => {}}
-        modelReady
       />,
     )
   })

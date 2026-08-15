@@ -28,7 +28,11 @@
 const [, , baseArg, productArg, colourArg] = process.argv
 
 const BASE = (baseArg || 'https://viewer.wear-run.help').replace(/\/+$/, '')
-const PRODUCT = productArg || 'n001'
+// ⚠️ `n001` until 2026-08-15, by which time that product 404'd in production — see
+// the block in smoke-viewer-payload.mjs. Against the dead slug this reported "the
+// per-garment rewrite did not run", which reads as a broken Worker and was a
+// missing garment.
+const PRODUCT = productArg || 'rxps'
 // Must be a slug that EXISTS, for the same reason smoke-viewer-payload.mjs says
 // so: a retired slug falls back to the default colourway and still produces a
 // complete, correct-looking preview, so the check would pass forever while only

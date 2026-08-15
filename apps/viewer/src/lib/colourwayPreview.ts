@@ -1,11 +1,15 @@
 import type { ViewerColourway } from '@run-apparel/shared'
 
 /**
- * The two decisions behind "hover a colourway, see that colourway".
+ * The decision behind "hover a colourway, see that colourway".
  *
- * Extracted rather than inlined because both have a wrong answer that renders
- * perfectly and is invisible in review — a preview that quietly does nothing, or
- * one that fires on a device with no hover at all.
+ * Extracted rather than inlined because the wrong answer renders perfectly and is
+ * invisible in review — a preview that quietly does nothing.
+ *
+ * This module held a second decision, `shouldShowThumbnail`, until 2026-08-15.
+ * It gated a 132px poster that popped above the rail while the model downloaded;
+ * the owner asked for the popup gone. See the header of `ColourwayTabs.tsx` for
+ * what restoring it would take.
  */
 
 /**
@@ -25,24 +29,4 @@ export function displayedColourway(
 ): ViewerColourway {
   if (separateMode) return selected
   return preview ?? selected
-}
-
-/**
- * Whether to show the small static thumbnail.
- *
- * Only when a variant swap would NOT be visible. Once the model is up, hovering
- * changes the garment in the viewport at full size, and a 132px thumbnail of the
- * same thing in the corner is noise. Before then — still downloading, or WebGL
- * unavailable — the thumbnail is the only preview obtainable.
- */
-export function shouldShowThumbnail(
-  canPreview: boolean,
-  modelReady: boolean,
-  previewed: ViewerColourway | null,
-  selected: ViewerColourway,
-): boolean {
-  if (!canPreview) return false
-  if (modelReady) return false
-  if (!previewed) return false
-  return previewed.slug !== selected.slug
 }

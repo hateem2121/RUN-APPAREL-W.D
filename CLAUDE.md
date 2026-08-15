@@ -40,7 +40,7 @@ mirrors. That asymmetry is why the raw CLO export is a local artifact — see
 pnpm install --frozen-lockfile   # after every merge; the lockfile moves often here
 pnpm lint                        # biome check .
 pnpm typecheck                   # 5 workspaces
-pnpm test:coverage               # 909 tests + the coverage floors (see below)
+pnpm test:coverage               # 904 tests + the coverage floors (see below)
 bash scripts/test-alert-shell.sh # the alert branch nothing else exercises
 pnpm seed:assets && pnpm build   # build is the one that catches dependency breaks
 node scripts/check-bundle-budget.mjs  # deterministic shell weight; needs the build above
@@ -453,9 +453,11 @@ the answer is "nothing that happens in production", it is not a test.
   `HEAD`: a `GET` on the model is 27 MB per run, which the 15-minute uptime job
   turns into gigabytes of R2 egress against a $5/month cap.
 
-- **Eleven more traps live in `apps/viewer/CLAUDE.md`** — the `performance` global
+- **Twelve more traps live in `apps/viewer/CLAUDE.md`** — the `performance` global
   shadowed by a local in `Stage.tsx` (a runtime `TypeError` that every unit test
-  stays green through), CSP and Bot Fight Mode, why a
+  stays green through), the FIXED ORDER in which `translate`/`scale`/`transform`
+  compose (which threw the custom cursor 1.53× away from the pointer over every
+  button for as long as it went unnoticed), CSP and Bot Fight Mode, why a
   build-time CSP cannot cover an edge-injected script, `_headers` combining,
   `_headers` surviving `env.ASSETS.fetch()` **but NOT reaching a response the Worker
   builds itself** (that pair is one trap in two halves — the second shipped the
@@ -536,10 +538,26 @@ unused variable, on the day it was added.
 ## Deploying
 
 Merging to `main` runs the pre-deploy D1 migrate and deploys CMS + viewer.
-**Take a D1 backup and capture `GET /api/public/viewer/n001/wine` first** — that
+**Take a D1 backup and capture `GET /api/public/viewer/rxps/wine` first** — that
 before/after diff is what caught the last data-loss incident when the migration
 logs said success. See `docs/BACKUP-RESTORE.md`. `.claude/skills/deploy-preflight/`
 walks the whole sequence and is `disable-model-invocation: true` on purpose.
+
+⚠️ **The live product is `rxps`, and this line said `n001` until 2026-08-15.**
+Measured that day: `GET /api/public/viewer/n001/wine` → **404 not_found**;
+`rxps/wine` → the real 5-colourway payload and a 27.0 MB model. The rename had
+already broken **both post-deploy gates** in `ci.yml` —
+`smoke-viewer-payload.mjs` and `smoke-viewer-preview.mjs` each defaulted to
+`n001` and each exited 1 against production — so any merge to `main` would have
+deployed and then gone red at verification. Fixed in the same change.
+**`uptime.yml` stayed GREEN through all of it**, six consecutive successes in the
+two hours before it was found, because it probes
+`viewer.wear-run.help/n001/wine` and the viewer is an **SPA**: any path returns
+200 HTML and renders "REFERENCE UNAVAILABLE" on the client. A status check there
+proves a web server answered, nothing more. `docs/RUNBOOK.md` still cites `n001`
+in ~8 places and `apps/viewer/e2e/serve.mjs` still fixtures it — the e2e ones are
+harmless (that server is the fixture, and it defines the slug it serves), the
+RUNBOOK ones are stale and will send a human to a 404.
 
 **Do not push twice in a row, and read `conclusion` not the exit code.** `ci.yml`
 sets `concurrency: cancel-in-progress: true` on `ci-${{ github.ref }}`, so a second

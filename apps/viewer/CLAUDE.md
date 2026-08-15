@@ -34,6 +34,35 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   the component already binds** — `performance`, `history`, `location`, `name`,
   `status` and `screen` are all globals that read naturally as local variable names.
 
+- **`translate` / `scale` / `transform` compose in a FIXED ORDER, and that half of
+  the lesson cost a second bug.** `base.css` has warned since 2026-08-14 that the
+  three are independent properties which cannot overwrite each other — true, and
+  the fix for the magnet silently killing `.btn--primary:hover`'s lift. What it did
+  not say is that the browser always applies them **translate → rotate → scale →
+  transform**, and you do not get to choose. `transform` is applied INNERMOST, so
+  anything scaling above it scales that transform's translation too.
+  `.cursor-ring[data-pointer="true"]` set `scale: 1.53` while Motion wrote the
+  ring's POSITION into `transform`. Measured 2026-08-15 with the pointer at
+  (800, 400): the ring's centre landed at **(1224, 612)** — 1.53× the coordinates.
+  So the custom cursor flew off-target the instant it crossed any button, link or
+  colourway tab (`data-pointer` is exactly the over-a-control state) and sprang
+  back on leaving. **The error is proportional to position**, so it is nearly
+  invisible near the top-left of the screen and extreme near the bottom-right,
+  which is why it was reported as intermittent rather than as a constant offset.
+  Introduced by `c133949`, which replaced the original `width`/`height` inflation
+  with `scale` — a sound instinct (animating width/height on the most
+  frequently-updated element on the page is layout + paint + composite) that
+  changed the *matrix* while only meaning to change the *size*. Fixed by passing
+  `scale` through Motion so it lands in the SAME transform string as `x`/`y`:
+  Motion's `transformPropOrder` lists x and y before scale, emitting
+  `translateX(…) translateY(…) scale(…)`, which scales about the element's own
+  centre and then moves it. **A paint-only change on that element is safe in CSS; a
+  transform change is not.** Reverting to `width`/`height` also measures correct if
+  the perf cost is ever preferred. Nothing caught it: no test renders the cursor,
+  and `Cursor.tsx` refuses to mount under automation by design, so a browser agent
+  sees a normal pointer. Verify this one by mounting the component with
+  `navigator.webdriver` spoofed and reading the computed matrix.
+
 - **A grid item's `min-height: auto` silently beats `max-height: 100%`.** The
   loading poster overflowed its stage by 926px for months this way — measured
   498×1500 inside 546×574 — and looked like the image was *tiling*, because the

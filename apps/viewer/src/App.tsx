@@ -49,7 +49,9 @@ export default function App() {
   // because <Stage> and <ColourwayTabs> are siblings, and deliberately separate
   // from `selected`: a preview must never move the URL or the enquiry payload.
   const [previewedColourway, setPreviewedColourway] = useState<ViewerColourway | null>(null)
-  const [variantSwapReady, setVariantSwapReady] = useState(false)
+  // `variantSwapReady` lived here until 2026-08-15. Its only consumer was the hover
+  // thumbnail in <ColourwayTabs>, removed by owner decision; <Stage> still exposes
+  // `onModelReadyChange` (optional) for the next thing that needs to know.
   const polishStarted = useRef(false)
   const loadedFor = useRef<string | null>(null)
 
@@ -260,19 +262,13 @@ export default function App() {
               aria-labelledby={colourwayTabId(selected.slug)}
               tabIndex={-1}
             >
-              <Stage
-                data={data}
-                selected={selected}
-                preview={previewedColourway}
-                onModelReadyChange={setVariantSwapReady}
-              />
+              <Stage data={data} selected={selected} preview={previewedColourway} />
             </div>
             <ColourwayTabs
               colourways={data.colourways}
               selected={selected}
               onSelect={onSelectColourway}
               onPreview={setPreviewedColourway}
-              modelReady={variantSwapReady}
             />
           </div>
           {retiredNotice && <RetiredNotice message={retiredNotice} />}
