@@ -210,6 +210,12 @@ ranges rather than values; see `.display--hero` and `.display--section` above.
 
 ## 4. Components
 
+Components here are hand-written against the tokens below — there is no component
+library and no Tailwind, decided 2026-08-15 in
+[`DECISION-UI-LIBRARIES.md`](DECISION-UI-LIBRARIES.md). Behaviour-heavy primitives
+(dialog, popover, select) come from `base-ui` when a screen ever needs them, because
+it ships no CSS and leaves this system intact.
+
 ### Buttons
 
 44px minimum height — a touch target, and this product is opened by scanning a QR

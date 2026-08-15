@@ -232,3 +232,20 @@ plus the ones for React and for prose — are in `.claude/skills/README.md`, whi
 policy for a human reading a diff and is never loaded into a session. That is why
 this paragraph is here and not only there.
 
+## No Tailwind here, and the skills will suggest it anyway
+
+**This viewer has no Tailwind, no shadcn/ui and no component library. Do not add
+one.** Appearance is hand-written in `apps/viewer/src/styles/tokens.css`; behaviour,
+*when a new screen ever needs it*, comes from `base-ui`, which ships no CSS. The
+reasoning and the reject list are in `docs/DECISION-UI-LIBRARIES.md`.
+
+This is the animation collision above, one level up. Several vendored design skills
+default to a Tailwind/shadcn idiom and will emit `className="flex gap-2 …"` for a
+component here — that is not a bug in them, it is the house style of the ecosystem
+they came from. Measured 2026-08-15: this repo has **zero** matches for `tailwindcss`,
+`@tailwind`, `components.json` or `@radix-ui` in any workspace, so such a suggestion
+compiles to nothing and silently ships an unstyled element.
+
+The tell is a `className` with utility strings in it. The fix is a semantic token in
+`tokens.css`, per `docs/DESIGN.md` §8.
+

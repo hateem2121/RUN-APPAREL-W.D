@@ -41,6 +41,7 @@ First-time deployment: follow **`docs/CLOUDFLARE-SETUP.md`** once, top to bottom
 | Check the site before announcing anything | [`docs/QA-CHECKLIST.md`](docs/QA-CHECKLIST.md) |
 | Process a GLB by hand | [`tools/asset-pipeline/README.md`](tools/asset-pipeline/README.md) |
 | Know *why* something is built the way it is | [`docs/HARDENING-LOG.md`](docs/HARDENING-LOG.md) |
+| Add UI — which library, and why we are not on Tailwind | [`docs/DECISION-UI-LIBRARIES.md`](docs/DECISION-UI-LIBRARIES.md) |
 | Back up or restore the database | [`docs/BACKUP-RESTORE.md`](docs/BACKUP-RESTORE.md) |
 | Deploy without the command line | [`docs/DEPLOY-BY-CLICKING.md`](docs/DEPLOY-BY-CLICKING.md) |
 | See how the AI agent tooling is wired | [`docs/AI-TOOLING.md`](docs/AI-TOOLING.md) |
