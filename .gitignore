@@ -53,6 +53,9 @@ backups/
 # test artifacts
 playwright-report/
 test-results/
+# Playwright MCP scratch output (console logs, page snapshots). Same class as
+# test-results/ above: regenerated on every run, never read by a gate.
+.playwright-mcp/
 .lighthouseci/
 
 # codebase-memory-mcp index artifact (machine-local, rebuildable — see docs/AI-TOOLING.md)
