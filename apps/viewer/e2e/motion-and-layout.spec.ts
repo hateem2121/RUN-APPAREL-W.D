@@ -215,7 +215,14 @@ test.describe('interaction feedback', () => {
    * the two halves meet. What is NOT synthetic is the cascade, which is where the
    * defect lived.
    */
-  test('the custom cursor ring stays on the pointer when it is over a button', async ({ page }) => {
+  test('the custom cursor ring stays on the pointer when it is over a button', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(
+      isMobile,
+      'custom cursor is hidden on touch/mobile devices via @media (pointer: coarse)',
+    )
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
