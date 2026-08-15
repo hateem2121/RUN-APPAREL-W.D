@@ -35,11 +35,19 @@
  * a 27 MB GET. It reports reachability only, and says so.
  */
 
-/** Thresholds, from the live measurements recorded in docs/QA-CHECKLIST.md. */
+/**
+ * Thresholds, from the live measurements recorded in docs/QA-CHECKLIST.md.
+ *
+ * ⚠️ Both paths said `n001` until 2026-08-15, when that product was found to 404 in
+ * production (see smoke-viewer-payload.mjs). The viewer row would have kept passing
+ * regardless — the viewer is an SPA, so ANY path returns 200 HTML and the timing is
+ * of the shell, not of a garment. The API row was measuring a 404. Neither number
+ * meant what its name claimed.
+ */
 export const TARGETS = [
   {
     name: 'viewer HTML',
-    path: '/n001/wine',
+    path: '/rxps/wine',
     host: 'https://viewer.wear-run.help',
     method: 'GET',
     // Measured 0.47–0.92 s. The checklist says treat > 1.5 s as a problem; 2.5 s is
@@ -49,7 +57,7 @@ export const TARGETS = [
   },
   {
     name: 'product API',
-    path: '/api/public/viewer/n001/wine',
+    path: '/api/public/viewer/rxps/wine',
     host: 'https://cms.wear-run.help',
     method: 'GET',
     // Measured 2.1–3.7 s and KNOWN SLOW BY DESIGN: a Worker's own response does not

@@ -1,7 +1,6 @@
 import type { ViewerColourway } from '@run-apparel/shared'
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { isCoarsePointer } from '../lib/capabilities'
-import { shouldShowThumbnail } from '../lib/colourwayPreview'
 import { HOVER_INTENT_MS } from '../lib/motion'
 
 /**
@@ -25,13 +24,6 @@ interface ColourwayTabsProps {
    * variant. Null means "back to the selected one".
    */
   onPreview: (colourway: ViewerColourway | null) => void
-  /**
-   * Whether the 3D model is on screen and ready to accept a variant swap. When
-   * it is, hovering shows the real garment and the thumbnail is redundant; when
-   * it is not — still downloading 27 MB, or WebGL unavailable — the thumbnail
-   * is the only preview a visitor can get.
-   */
-  modelReady: boolean
 }
 
 /**
@@ -42,15 +34,22 @@ interface ColourwayTabsProps {
  * the way from the CMS through `projectViewer.ts` and `ViewerColourway` into the
  * live API response — was never read by anything. The buttons showed a number
  * and a name, so a colour picker communicated no colour.
+ *
+ * ⚠️ THE THUMBNAIL IS GONE SINCE 2026-08-15, by owner decision, and the `modelReady`
+ * prop went with it — it fed nothing else.
+ *
+ * What it did: while the 27 MB model was still downloading, hovering a colourway
+ * popped a 132px poster above the rail. `shouldShowThumbnail` suppressed it the
+ * moment the model was ready, so it only ever appeared during the load window —
+ * which is why it reads as an intermittent popup rather than a feature.
+ *
+ * The cost of removing it is real and was accepted knowingly: for the ~22s a 27 MB
+ * model takes on 4G, hovering a colourway now does nothing at all. Restoring it
+ * means restoring `shouldShowThumbnail` (deleted from `lib/colourwayPreview.ts`),
+ * the `.colourways__preview` slot, and the `modelReady` wiring in `App.tsx` —
+ * not just an element.
  */
-export function ColourwayTabs({
-  colourways,
-  selected,
-  onSelect,
-  onPreview,
-  modelReady,
-}: ColourwayTabsProps) {
-  const [previewed, setPreviewed] = useState<ViewerColourway | null>(null)
+export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: ColourwayTabsProps) {
   /**
    * Which tab currently OWNS the single tab stop.
    *
@@ -69,7 +68,6 @@ export function ColourwayTabs({
   // Touch has no hover: the first tap would fire mouseenter AND click, so a
   // preview state there is both invisible and misleading.
   const canPreview = !isCoarsePointer()
-  const showThumbnail = shouldShowThumbnail(canPreview, modelReady, previewed, selected)
 
   // Pointer travel across five buttons fires five enters. Rebinding a variant
   // swaps every material on the model, so coalesce to where the pointer settled.
@@ -83,7 +81,6 @@ export function ColourwayTabs({
 
   const preview = (colourway: ViewerColourway | null) => {
     if (!canPreview) return
-    setPreviewed(colourway)
     clearPending()
     pending.current = setTimeout(() => onPreview(colourway), colourway ? HOVER_INTENT_MS : 0)
   }
@@ -155,20 +152,6 @@ export function ColourwayTabs({
 
   return (
     <section className="colourways" aria-label="Colourways" data-reveal>
-      <div className="colourways__preview" aria-hidden="true">
-        {showThumbnail && previewed && (
-          <div className="colourway-preview">
-            <img
-              src={previewed.poster.url}
-              alt=""
-              width={previewed.poster.width ?? undefined}
-              height={previewed.poster.height ?? undefined}
-              loading="lazy"
-              decoding="async"
-            />
-          </div>
-        )}
-      </div>
       <div className="colourways__list" role="tablist" aria-label="Select colourway">
         {colourways.map((colourway, index) => (
           <button

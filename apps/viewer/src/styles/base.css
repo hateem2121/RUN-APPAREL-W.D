@@ -428,13 +428,22 @@ html.lenis body {
 }
 /* `width`/`height` were transitioned here, which is layout + paint + composite on
    an element that follows the pointer — the worst possible property on the
-   busiest possible element. The box is now fixed and `scale` carries the change.
+   busiest possible element. The box is fixed and the inflation is a scale.
    ⚠️ `scale` and `translate` are STANDALONE properties, not `transform`
-   functions, and that is load-bearing: Cursor.tsx writes `translate` for
-   positioning and the magnet, `.btn--primary:hover` writes `transform`, and this
-   writes `scale`. Three independent properties compose; one shared `transform`
-   would have them overwrite each other, which is exactly the bug fixed in
-   Cursor.tsx on the same day. */
+   functions, and that is load-bearing: the magnet writes `translate`, and
+   `.btn--primary:hover` writes `transform`. Three independent properties compose;
+   one shared `transform` would have them overwrite each other, which is exactly
+   the bug fixed in Cursor.tsx on 2026-08-14.
+
+   ⚠️ THE OTHER HALF OF THAT LESSON, LEARNED 2026-08-15 AND MISSING ABOVE UNTIL
+   THEN: composing has a FIXED ORDER — translate, rotate, scale, transform — and
+   you do not control it. Independence buys non-overwriting and costs ordering.
+   This block used to set `scale: 1.53` on `[data-pointer="true"]` below while
+   Motion wrote the ring's POSITION into `transform`, which is applied innermost,
+   so the scale multiplied the position: pointer at (800, 400) put the ring's
+   centre at (1224, 612). The ring flew off-target over every button and link for
+   as long as that rule existed. The inflation now lives in the same transform
+   string as the position, in Cursor.tsx — do not move it back here. */
 .cursor-dot,
 .cursor-ring {
   position: fixed;
@@ -446,7 +455,7 @@ html.lenis body {
   translate: -50% -50%;
   transition:
     opacity var(--fast) var(--ease),
-    scale var(--fast) var(--ease);
+    background-color var(--fast) var(--ease);
 }
 .cursor-dot {
   width: 6px;
@@ -456,12 +465,12 @@ html.lenis body {
 .cursor-ring {
   width: 34px;
   height: 34px;
-  scale: 1;
   border: 1px solid var(--serif-accent);
 }
+/* Fill only. The 52/34 = 1.53 inflation this rule used to carry is owned by
+   Cursor.tsx now — see the ⚠️ above and the long comment at the element. A paint
+   change is safe here; a transform change was not. */
 .cursor-ring[data-pointer="true"] {
-  /* 52 / 34 — the same visual size the width/height pair produced. */
-  scale: 1.53;
   background: color-mix(in srgb, var(--volt) 14%, transparent);
 }
 .cursor-dot[data-hidden="true"],

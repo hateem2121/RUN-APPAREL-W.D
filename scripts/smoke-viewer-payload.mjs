@@ -37,7 +37,18 @@ const API_BASE = (
   process.env.VITE_API_BASE_URL ||
   'https://cms.wear-run.help'
 ).replace(/\/+$/, '')
-const PRODUCT = productArg || 'n001'
+/**
+ * ⚠️ `n001` UNTIL 2026-08-15, AND IT HAD STOPPED EXISTING. Measured that day:
+ * `GET /api/public/viewer/n001/wine` → **404 not_found**, while `rxps/wine` returns
+ * the live 5-colourway payload and a 27.0 MB model. So this script — the
+ * post-deploy gate in `ci.yml` whose entire job is to prove a buyer scanning a QR
+ * tag sees a garment — exited 1 against production.
+ *
+ * The comment below already said the default "must be a slug that EXISTS" and gave
+ * the right reason. It was written about the COLOUR, and the same drift then
+ * happened one level up to the PRODUCT. Check both when a slug is renamed.
+ */
+const PRODUCT = productArg || 'rxps'
 // Must be a slug that EXISTS. `navy` was the default until 2026-08-05, when the
 // colourways were renamed from the placeholder names to the ones measured in the
 // file — and the check kept passing, because a retired slug falls back to the

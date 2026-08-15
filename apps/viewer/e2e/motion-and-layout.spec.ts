@@ -194,6 +194,89 @@ test.describe('interaction feedback', () => {
         'stylesheet is correctly hidden behind (hover: hover), which leaves touch with nothing',
     ).toEqual([])
   })
+
+  /**
+   * ⚠️ THE CUSTOM CURSOR IS THE ONE THING ON THIS PAGE NO TEST CAN DRIVE DIRECTLY,
+   * and that is by design: `Cursor.tsx` refuses to mount when `navigator.webdriver`
+   * is set, so Playwright — and every browser agent — sees an ordinary pointer. It
+   * had four simultaneous defects on 2026-08-15 with every gate green.
+   *
+   * The worst was pure CSS composition, so a real engine is the only place it can be
+   * measured; jsdom computes no matrices. `.cursor-ring[data-pointer="true"]` carried
+   * `scale: 1.53` while Motion wrote the ring's POSITION into `transform`. CSS
+   * applies translate → rotate → scale → transform, with `transform` innermost, so
+   * the scale multiplied the translation: the ring's centre landed at 1.53× the
+   * pointer's coordinates and flew off-target over every button, link and tab.
+   *
+   * This builds the real element — real class, real stylesheet, real engine — and
+   * writes the transform Motion emits, then reads the computed matrix. The element is
+   * synthetic and the inline transform is copied from Motion's `transformPropOrder`;
+   * `src/polish/Cursor.test.tsx` pins that Motion really does emit that string, so
+   * the two halves meet. What is NOT synthetic is the cascade, which is where the
+   * defect lived.
+   */
+  test('the custom cursor ring stays on the pointer when it is over a button', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const measured = await page.evaluate(() => {
+      const POINTER = { x: 800, y: 400 }
+      const read = (pointerState: 'true' | 'false') => {
+        const el = document.createElement('span')
+        el.className = 'cursor-ring'
+        el.dataset.pointer = pointerState
+        // Exactly what Motion writes: x and y precede scale in transformPropOrder.
+        el.style.transform =
+          `translateX(${POINTER.x}px) translateY(${POINTER.y}px)` +
+          (pointerState === 'true' ? ' scale(1.53)' : '')
+        document.body.append(el)
+        const style = getComputedStyle(el)
+        const box = el.getBoundingClientRect()
+        /**
+         * ⚠️ MEASURE THE RENDERED BOX, NOT `style.transform`. Reading the matrix out
+         * of the computed `transform` was this test's first draft and it silently
+         * missed the entire defect: `transform` reports only its OWN property, so a
+         * standalone `scale` on `.cursor-ring` — the actual bug — never appears in
+         * it. The negative control caught the size but passed the position, which is
+         * the assertion that matters. `getBoundingClientRect()` is the composed
+         * result, so it is the only honest reading here.
+         */
+        const out = {
+          centre: [Math.round(box.left + box.width / 2), Math.round(box.top + box.height / 2)],
+          size: Math.round(box.width),
+          standaloneScale: style.scale,
+        }
+        el.remove()
+        return out
+      }
+      return { POINTER, resting: read('false'), overButton: read('true') }
+    })
+
+    const { POINTER, resting, overButton } = measured
+
+    expect(
+      resting.centre,
+      `the ring is off the pointer at rest: ${resting.centre} vs ${[POINTER.x, POINTER.y]}`,
+    ).toEqual([POINTER.x, POINTER.y])
+
+    expect(
+      overButton.centre,
+      `the ring flies off the pointer over a button — its centre lands at ` +
+        `${overButton.centre} instead of ${[POINTER.x, POINTER.y]}. Something in ` +
+        'the cascade is scaling the POSITION: a standalone translate/scale/rotate on ' +
+        '.cursor-ring composes ahead of the transform Motion writes. Put the ' +
+        'inflation inside that transform (Cursor.tsx), never in base.css.',
+    ).toEqual([POINTER.x, POINTER.y])
+
+    // The inflation must still actually happen — a ring that never grows would
+    // satisfy the assertions above while losing the whole affordance.
+    expect(overButton.size, 'the inflated ring is not the expected 52px').toBe(52)
+    expect(
+      overButton.standaloneScale,
+      'base.css set the standalone `scale` property again — that is the exact ' +
+        'regression this test exists for',
+    ).toBe('none')
+  })
 })
 
 test.describe('the header survives a phone', () => {
@@ -466,14 +549,57 @@ test.describe('the colourway rail fits the screen', () => {
               return r.right > listRect.right + 1 || r.left < listRect.left - 1
             })
             .map((t) => t.textContent?.trim() ?? '?'),
+          /**
+           * ⚠️ THE ASSERTION ABOVE PASSED WHILE THE RAIL WAS VISIBLY BROKEN, and
+           * this is the one that catches it. Added 2026-08-15.
+           *
+           * `offEdge` measures the BUTTON boxes against the list. Under the
+           * five-equal-columns rule those fit perfectly by construction — `1fr`
+           * cannot overflow its own grid. The defect was one level in: at 320px the
+           * button was 53.8px wide and "03 BUTTER"'s LABEL was 55.2px, so the text
+           * rendered outside its own border and nearly touched the neighbouring
+           * button. Nothing clipped it, because the tab sets no `overflow`.
+           *
+           * A layout test that measures only the boxes it lays out will keep
+           * agreeing with itself. Measure the text against the box that holds it.
+           *
+           * ⚠️ THIS ASSERTION CANNOT CURRENTLY FAIL, AND THAT IS A FIXTURE GAP, NOT
+           * A REASON TO DELETE IT. Verified 2026-08-15 by rebuilding with the old
+           * five-column rule restored: the suite stayed green.
+           *
+           * `serve.mjs` serves FOUR colourways; production ships five. Lime is
+           * deliberately absent so `/n001/lime` reaches the retired-colourway notice
+           * in `a11y.spec.ts` and `viewer.spec.ts`. Under equal columns at 320px that
+           * is 71.2px per button against production's 55.4px — and "03 Butter"'s
+           * label is 55.2px, so it fits in the fixture and overflows in production.
+           * The gate could not see the defect it exists to catch.
+           *
+           * Closing it means adding `lime` here, re-pointing the retired-colourway
+           * URL at a slug that is genuinely absent (`navy` — it never existed in
+           * production), and renumbering Black from 04 to 05 in `viewer.spec.ts`.
+           * Deliberately not bundled into the 2026-08-15 layout fix; the fix itself
+           * was verified by direct measurement in a real browser against the live
+           * five-colourway payload, at 320px and 375px, including the longest names
+           * in `colour-name.ts` ("Forest Green", 12 chars, wraps to two lines).
+           */
+          spillingLabels: tabs
+            .filter((t) => {
+              const label = t.querySelector('.colourway-tab__label')
+              if (!label) return false
+              const b = t.getBoundingClientRect()
+              const l = label.getBoundingClientRect()
+              return l.left < b.left - 0.5 || l.right > b.right + 0.5
+            })
+            .map((t) => t.textContent?.trim() ?? '?'),
           count: tabs.length,
         }
       })
 
       expect(fit, 'no colourway tablist on the page').not.toBeNull()
-      const { overflowPx, offEdge, count } = fit as {
+      const { overflowPx, offEdge, spillingLabels, count } = fit as {
         overflowPx: number
         offEdge: string[]
+        spillingLabels: string[]
         count: number
       }
       expect(count).toBeGreaterThan(0)
@@ -485,6 +611,11 @@ test.describe('the colourway rail fits the screen', () => {
       expect(
         offEdge,
         `these colourways are outside the visible rail: ${offEdge.join(', ')}`,
+      ).toEqual([])
+      expect(
+        spillingLabels,
+        `these colourway labels render outside their own button, so the text runs ` +
+          `into the neighbouring swatch: ${spillingLabels.join(', ')}`,
       ).toEqual([])
     })
   }

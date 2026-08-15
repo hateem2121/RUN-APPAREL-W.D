@@ -1,6 +1,6 @@
 import type { ViewerColourway } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
-import { displayedColourway, shouldShowThumbnail } from './colourwayPreview'
+import { displayedColourway } from './colourwayPreview'
 
 const colourway = (slug: string): ViewerColourway =>
   ({
@@ -38,28 +38,11 @@ describe('displayedColourway', () => {
   })
 })
 
-describe('shouldShowThumbnail', () => {
-  it('shows it while the model cannot yet accept a variant swap', () => {
-    expect(shouldShowThumbnail(true, false, blush, maroon)).toBe(true)
-  })
-
-  it('hides it once the model is up — the garment itself is the preview', () => {
-    // Not cosmetic: the model is 27 MB and fills the viewport, so a 132px copy
-    // of the same colour in the corner is noise competing with the real thing.
-    expect(shouldShowThumbnail(true, true, blush, maroon)).toBe(false)
-  })
-
-  it('never shows it on a coarse pointer', () => {
-    // Touch has no hover. The first tap fires mouseenter AND click, so a preview
-    // state is invisible and, if it lingered, would contradict the selection.
-    expect(shouldShowThumbnail(false, false, blush, maroon)).toBe(false)
-  })
-
-  it('does not show it for the already-selected colourway', () => {
-    expect(shouldShowThumbnail(true, false, maroon, maroon)).toBe(false)
-  })
-
-  it('does not show it when nothing is hovered', () => {
-    expect(shouldShowThumbnail(true, false, null, maroon)).toBe(false)
-  })
-})
+/*
+ * `shouldShowThumbnail`'s five cases lived here until 2026-08-15 and were deleted
+ * with the function, not skipped. The hover thumbnail is gone by owner decision;
+ * see the header of `components/ColourwayTabs.tsx`.
+ *
+ * `blush` is still constructed above and used by the suite that remains — do not
+ * "tidy" it away on the assumption it belonged to the deleted block.
+ */

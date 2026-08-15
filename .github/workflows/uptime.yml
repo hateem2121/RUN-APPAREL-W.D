@@ -42,14 +42,24 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
       HEALTH_URL: ${{ github.event.inputs.target || format('{0}/api/health', vars.VITE_API_BASE_URL || 'https://cms.wear-run.help') }}
-      # Must be a LIVE colour slug. This was `/n001/navy` until 2026-08-07, three
-      # days after `navy` was retired — and it kept returning 200, because a retired
-      # slug correctly falls back to the default colourway. That fallback is the
-      # product behaviour a printed QR tag depends on, which is exactly why a
-      # monitor must not point at one: it would exercise the fallback forever and
-      # never the normal path. `scripts/smoke-viewer-payload.mjs:37` records the
-      # same reasoning for its own default; this file was missed in that pass.
-      VIEWER_URL: https://viewer.wear-run.help/n001/wine
+      # Must be a LIVE product AND colour slug. This was `/n001/navy` until
+      # 2026-08-07, three days after `navy` was retired — and it kept returning 200,
+      # because a retired slug correctly falls back to the default colourway. That
+      # fallback is the product behaviour a printed QR tag depends on, which is
+      # exactly why a monitor must not point at one: it would exercise the fallback
+      # forever and never the normal path. `scripts/smoke-viewer-payload.mjs`
+      # records the same reasoning for its own default; this file was missed in that
+      # pass.
+      #
+      # ⚠️ THEN THE PRODUCT DRIFTED TOO, and this URL alone could never have shown
+      # it. `n001` → `rxps` on 2026-08-15, by which time `/api/public/viewer/n001/wine`
+      # had been returning 404. This job stayed GREEN throughout — six consecutive
+      # successes in the two hours before it was found — because the viewer is an
+      # SPA: `viewer.wear-run.help/<anything>` returns 200 HTML and then renders
+      # "REFERENCE UNAVAILABLE" on the client. A status check on this URL proves a
+      # web server answered, not that a garment exists. The real assertion in this
+      # job is the `smoke-viewer-payload.mjs` step below, which reads the API.
+      VIEWER_URL: https://viewer.wear-run.help/rxps/wine
       # The raw dispatch input, carried as an environment variable so the shell
       # below can test it WITHOUT interpolating it. `if [ "${{ ... }}" = "" ]`
       # pastes the operator's string straight into the script, so a `target` of
