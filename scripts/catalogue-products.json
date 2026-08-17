@@ -1,0 +1,1283 @@
+{
+  "$comment": [
+    "The 67-product printed catalogue, as CMS product rows.",
+    "",
+    "SOURCE: https://wear-run.help/catalogue -> Google Drive file 1l4ZbvZDMU-7yVWMhTGtdcjMRY5ixGqc-,",
+    "a 68-page PDF. Page 1 is the index; pages 2-68 are one product spread each.",
+    "`sourcePage` on every row is the PDF page it came from, so any value here can be",
+    "checked against the artwork rather than trusted.",
+    "",
+    "PRODUCT CODES ARE NOT THE CATALOGUE'S. The printed codes are unusable: 67 products",
+    "share only 26 of them, and R-XPB alone is printed on 26 different garments. Codes",
+    "here are generated as R- plus the initial of each significant word, lengthened on",
+    "collision. Verified: 67 codes, zero collisions. `slug` is the code lowercased.",
+    "",
+    "R-XPS IS THE ONE EXCEPTION. It already exists in the CMS as product id 1 with the",
+    "code RXPS and the slug `rxps`. The slug is printed on physical QR tags and must",
+    "NEVER change; only its code and description are updated. See the import script.",
+    "",
+    "NO COLOURWAYS, DELIBERATELY. Each spread shows 5, but the printed colour labels are",
+    "multi-word per colourway ('GREY GREEN WHITE BLACK' is one Glitch-Core colourway) and",
+    "a colour slug goes on a printed QR tag. apps/cms/src/fields/colourways.ts records why:",
+    "the CLO file tells you the colours, and ImportColoursFromFile reads the real names and",
+    "hex swatches out of it. Guessing 335 tag URLs here would be unrecoverable.",
+    "",
+    "Descriptions are rewritten from each spread's own paragraph: sentence case, and the",
+    "PDF text layer's dropped `ti` ligature repaired by hand against the page ('Athle c',",
+    "'Mo on', 'func onality'). Facts are the catalogue's; the shouting is not."
+  ],
+  "products": [
+    {
+      "sourcePage": 2,
+      "sortOrder": 1,
+      "productCode": "R-XMP",
+      "slug": "r-xmp",
+      "productName": "X-MILO PRO BIB",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "90% Polyester / 10% Spandex",
+      "gsm": "180-220 GSM",
+      "garmentFit": "Aero race fit",
+      "shortDescription": "Men’s performance cycling bib shorts, built for long days on road, gravel and MTB. Pro compression spandex carries a multi-density chamois pad and breathable mesh bib straps, and the whole garment takes a full sublimation print. Silicone leg grippers, flatlock stitching and an ergonomic panel design keep everything where it should be over endurance mileage.",
+      "performanceFeatures": [
+        "Multi-density chamois pad",
+        "Breathable mesh bib straps",
+        "Silicone leg grippers",
+        "Full sublimation print",
+        "Flatlock stitching",
+        "Moisture-wicking fabric"
+      ]
+    },
+    {
+      "sourcePage": 3,
+      "sortOrder": 2,
+      "productCode": "R-XPS",
+      "slug": "rxps",
+      "existingProductId": 1,
+      "productName": "X-MILO PRO SKIN-SUIT",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "88% Nylon / 12% Spandex",
+      "gsm": "160-220 GSM",
+      "garmentFit": "Aero race fit",
+      "shortDescription": "Women’s performance cycling skinsuit in a four-way stretch nylon knit. Pro compression spandex, a multi-density chamois pad and breathable mesh bib straps sit under a full digital print. Silicone leg grippers, flatlock stitching and ergonomic panelling hold an aero race position comfortably over long distances.",
+      "performanceFeatures": [
+        "4-way stretch knit",
+        "Multi-density chamois pad",
+        "Silicone leg grippers",
+        "Full digital print",
+        "Flatlock stitching",
+        "Moisture-wicking fabric"
+      ]
+    },
+    {
+      "sourcePage": 4,
+      "sortOrder": 3,
+      "productCode": "R-WSA",
+      "slug": "r-wsa",
+      "productName": "WOMEN’S ATHLETIC TENNIS DRESS",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "90% Nylon / 10% Spandex",
+      "gsm": "160-240 GSM",
+      "garmentFit": "",
+      "shortDescription": "A tennis dress drawn from the Great Pyramid of Egypt. The digital sublimation across the bra echoes the texture of the moon, the skirt takes the pyramid’s conical shape, and the compression belt is textured after the stone blocks themselves. Built in interlock spandex with cotton and neoprene detailing for court movement.",
+      "performanceFeatures": [
+        "Interlock spandex",
+        "Digital sublimation print",
+        "Textured compression belt",
+        "Conical skirt construction"
+      ]
+    },
+    {
+      "sourcePage": 5,
+      "sortOrder": 4,
+      "productCode": "R-MM",
+      "slug": "r-mm",
+      "productName": "MINECUT MOTION",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "90% Polyester / 10% Spandex",
+      "gsm": "160-250 GSM",
+      "garmentFit": "",
+      "shortDescription": "A performance tennis dress built directly from the geometry of the old mine cut diamond. It is constructed from 22 cut fabric panels, each mapped to echo a single facet, so the angular panelling creates a sense of movement and refraction across the body as the player moves.",
+      "performanceFeatures": [
+        "22-panel faceted construction",
+        "Poly stretch knit",
+        "Digital sublimation print"
+      ]
+    },
+    {
+      "sourcePage": 6,
+      "sortOrder": 5,
+      "productCode": "R-BCD",
+      "slug": "r-bcd",
+      "productName": "BEEFLEX COURT DRESS",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "88% Polyester / 12% Spandex",
+      "gsm": "160-220 GSM",
+      "garmentFit": "",
+      "shortDescription": "A tennis bra and skirt set designed for court and training performance, taking its structure from the natural geometry of bee hives. The materials are chosen for flexibility and a relaxed bond between skin and garment, so the player can attempt more flexible and more outstanding shots.",
+      "performanceFeatures": [
+        "Poly-stretch interlock",
+        "Bra and skirt set",
+        "DTF print",
+        "High-flexibility construction"
+      ]
+    },
+    {
+      "sourcePage": 7,
+      "sortOrder": 6,
+      "productCode": "R-GTD",
+      "slug": "r-gtd",
+      "productName": "GEOVENT TENNIS DRESS",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "85% Recycled Polyester / 15% Spandex",
+      "gsm": "180-220 GSM",
+      "garmentFit": "",
+      "shortDescription": "A well-engineered piece of athletic wear built to meet the demands of tennis performance while keeping a stylish look. Every seam and panel is thoughtfully placed, supporting athletic movement and a flattering silhouette at the same time. It blends high-tech function with contemporary design for competitive play and active lifestyles alike.",
+      "performanceFeatures": [
+        "Eco poly stretch",
+        "Engineered seam placement",
+        "Digital sublimation print",
+        "Flex jersey panels"
+      ]
+    },
+    {
+      "sourcePage": 8,
+      "sortOrder": 7,
+      "productCode": "R-TTP",
+      "slug": "r-ttp",
+      "productName": "TIGER TAIL PROFLEX",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "100% Recycled Polyester",
+      "gsm": "170-240 GSM",
+      "garmentFit": "",
+      "shortDescription": "A tennis dress inspired by the tiger tail butterfly, a species known for both its beauty and its flexibility. Built in a recycled interlock knit with digital sublimation across the body, it carries that reference into a garment made for movement on court.",
+      "performanceFeatures": [
+        "100% recycled polyester",
+        "Recycled interlock knit",
+        "Digital sublimation print"
+      ]
+    },
+    {
+      "sourcePage": 9,
+      "sortOrder": 8,
+      "productCode": "R-SF",
+      "slug": "r-sf",
+      "productName": "SCORPION-FLEX",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "65% Recycled Polyester / 30% Cotton / 5% Spandex",
+      "gsm": "140-210 GSM",
+      "garmentFit": "",
+      "shortDescription": "This tennis dress draws on the fierce form of a scorpion, with sharp, armoured contours that echo the creature’s powerful stance. Its bold angular patterns create a striking, predatory look, while a performance-focused construction keeps agility, comfort and confidence intact on court.",
+      "performanceFeatures": [
+        "Poly cotton stretch interlock",
+        "Armoured contour panelling",
+        "Digital sublimation print"
+      ]
+    },
+    {
+      "sourcePage": 10,
+      "sortOrder": 9,
+      "productCode": "R-MRP",
+      "slug": "r-mrp",
+      "productName": "MANTRA RAY PROFLEX",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "100% Recycled Polyester",
+      "gsm": "170-240 GSM",
+      "garmentFit": "",
+      "shortDescription": "A tennis and pickleball court shirt built around the giant oceanic manta ray. The upper pattern is designed after the fish floating in open ocean, and the sleeves stand in for the eye area. Made in a single jersey recycled polyester with screen printing.",
+      "performanceFeatures": [
+        "100% recycled polyester",
+        "Single jersey knit",
+        "Screen printing",
+        "Suitable for tennis and pickleball"
+      ]
+    },
+    {
+      "sourcePage": 11,
+      "sortOrder": 10,
+      "productCode": "R-AJ",
+      "slug": "r-aj",
+      "productName": "THE AGGRESSOR JERSEY",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "88% Polyester / 12% Spandex",
+      "gsm": "220-260 GSM",
+      "garmentFit": "Contoured, female-specific cut",
+      "shortDescription": "A highly stylised, fitted women’s American football jersey defined by its contoured, female-specific cut. The body carries an aggressive distressed brushstroke graphic, and the design incorporates a V-neck with contrasting ribbed trim. Built in a double interlock poly-stretch with both digital sublimation and silicone printing.",
+      "performanceFeatures": [
+        "Double interlock knit",
+        "Digital sublimation print",
+        "Silicone printing",
+        "Contrasting ribbed V-neck trim"
+      ]
+    },
+    {
+      "sourcePage": 12,
+      "sortOrder": 11,
+      "productCode": "R-AU",
+      "slug": "r-au",
+      "productName": "THE AGGRESSOR UNIFORM",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "95% Polyester / 5% Spandex",
+      "gsm": "220-260 GSM",
+      "garmentFit": "Contoured, masculine-specific cut",
+      "shortDescription": "The men’s counterpart to the Aggressor jersey, defined by a contoured, masculine-specific cut and the same aggressive distressed brushstroke graphic across the body. A V-neck with contrasting ribbed trim completes it. Built in a double mesh interlock with silicone printing and EVA foam padding.",
+      "performanceFeatures": [
+        "Double mesh interlock",
+        "EVA foam pad",
+        "Silicone printing",
+        "Contrasting ribbed V-neck trim"
+      ]
+    },
+    {
+      "sourcePage": 13,
+      "sortOrder": 12,
+      "productCode": "R-SRS",
+      "slug": "r-srs",
+      "productName": "SHORT RAGNAL SLEEVE",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "100% Polyester",
+      "gsm": "140-180 GSM",
+      "garmentFit": "",
+      "shortDescription": "A soccer tee built from six panels in total: two matching side panels, a front and a back panel, and two matching arm gussets with sleeves. Cylindrical piping in the same fabric runs along the sleeves to move air around the neck, a V-shaped collar is attached, and folded hems finish the sleeve and waist.",
+      "performanceFeatures": [
+        "6-panel construction",
+        "Cylindrical sleeve piping for airflow",
+        "V-shape collar",
+        "Folded sleeve and waist hems",
+        "Eco velocity jersey interlock"
+      ]
+    },
+    {
+      "sourcePage": 14,
+      "sortOrder": 13,
+      "productCode": "R-TT",
+      "slug": "r-tt",
+      "productName": "TRAINING TROUSER",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "90% Polyester / 10% Spandex",
+      "gsm": "170-260 GSM",
+      "garmentFit": "Slim athletic tapered fit",
+      "shortDescription": "A premium stretch poly-cotton performance trouser in a slim athletic tapered fit, with bold geometric panel graphics and a custom “Never Look Back” leg print. A secure elastic waistband with drawstring and comfortable ribbed ankle cuffs keep the trouser in place through intense soccer training.",
+      "performanceFeatures": [
+        "Elastic waistband with drawstring",
+        "Ribbed ankle cuffs",
+        "Geometric panel graphics",
+        "Digital sublimation print",
+        "Interlock knit"
+      ]
+    },
+    {
+      "sourcePage": 15,
+      "sortOrder": 14,
+      "productCode": "R-CVN",
+      "slug": "r-cvn",
+      "productName": "CHEVRON V-NECK SOCCER JERSEY",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "90% Nylon / 10% Spandex",
+      "gsm": "160-240 GSM",
+      "garmentFit": "Ergonomic athletic fit",
+      "shortDescription": "A soccer jersey that stands out for a sleek pattern, a sharp white chevron and contrast white sleeves. Lightweight quick-dry polyester and breathable moisture-wicking fabric keep airflow up, and an ergonomic athletic fit allows unrestricted movement through intense matches and training.",
+      "performanceFeatures": [
+        "Quick-dry lightweight fabric",
+        "Moisture-wicking",
+        "Contrast sleeve panels",
+        "Flex jersey knit",
+        "DTF print"
+      ]
+    },
+    {
+      "sourcePage": 16,
+      "sortOrder": 15,
+      "productCode": "R-FFT",
+      "slug": "r-fft",
+      "productName": "FLEX FITTED TRAINING VEST",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "100% Polyester",
+      "gsm": "80-100 GSM",
+      "garmentFit": "Tailored, secure fit",
+      "shortDescription": "Designed for high-level training sessions, scrimmages and drills, where teams need quick, temporary differentiation between players for tactical reasons. The aero liner mesh keeps players from overheating, and adjustable sides give a more tailored and secure fit than a traditional loose-fitting bib.",
+      "performanceFeatures": [
+        "Aero liner mesh",
+        "Adjustable sides",
+        "Screen printing",
+        "Lightweight 80-100 GSM build"
+      ]
+    },
+    {
+      "sourcePage": 17,
+      "sortOrder": 16,
+      "productCode": "R-CSS",
+      "slug": "r-css",
+      "productName": "CLASSIC SOCCER SHIRT",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "50% Polyester / 50% Cotton",
+      "gsm": "160-220 GSM",
+      "garmentFit": "",
+      "shortDescription": "A soccer jersey with a distinctive tonal, abstract geometric pattern across the body and sleeves, creating a subtle but dynamic visual texture. It carries a classic fold-over polo collar and a simple V-neck opening, pairing a traditional silhouette with contemporary construction. Diagonal solid-coloured panels across the chest and shoulders mark out functional zones within the athletic cut.",
+      "performanceFeatures": [
+        "Cotton-poly balance fabric",
+        "Fold-over polo collar",
+        "Diagonal chest and shoulder panels",
+        "Digital sublimation print"
+      ]
+    },
+    {
+      "sourcePage": 18,
+      "sortOrder": 17,
+      "productCode": "R-AVN",
+      "slug": "r-avn",
+      "productName": "ATHLETIC V-NECK JERSEY",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "88% Polyester / 12% Spandex",
+      "gsm": "140-180 GSM",
+      "garmentFit": "Modern athletic fit",
+      "shortDescription": "A soccer jersey with a tonal abstract geometric pattern across the main body, creating a subtle but dynamic hexagon sublimated texture. A clean V-neck opening reinforces the traditional silhouette while contemporary construction delivers a modern athletic fit. Diagonal solid-coloured panels across the chest and shoulders add bold visual accents and mark out functional zones.",
+      "performanceFeatures": [
+        "Hexagon sublimated texture",
+        "Interlock knit",
+        "Diagonal chest and shoulder panels",
+        "Digital sublimation print"
+      ]
+    },
+    {
+      "sourcePage": 19,
+      "sortOrder": 18,
+      "productCode": "R-VPJ",
+      "slug": "r-vpj",
+      "productName": "VELOCITY PERFORMANCE JERSEY",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "90% Polyester / 10% Spandex",
+      "gsm": "150-180 GSM",
+      "garmentFit": "Modern athletic fit",
+      "shortDescription": "A soccer jersey carrying a tonal abstract geometric sublimation across the main body for a dynamic visual texture. A clean V-neck opening keeps the traditional silhouette while contemporary construction delivers a modern athletic fit. Diagonal solid-coloured panels across the chest and shoulders define functional zones and leave room for sponsor placement.",
+      "performanceFeatures": [
+        "Interlock knit",
+        "Sublimation printing",
+        "Sponsor logo zones",
+        "Diagonal chest and shoulder panels"
+      ]
+    },
+    {
+      "sourcePage": 20,
+      "sortOrder": 19,
+      "productCode": "R-UMJ",
+      "slug": "r-umj",
+      "productName": "UPWARD MOMENTUM JERSEY",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "88% Polyester / 12% Spandex",
+      "gsm": "180-220 GSM",
+      "garmentFit": "Optimized athletic fit",
+      "shortDescription": "A soccer jersey with a tonal abstract geometric sublimation across the main body, creating a lightweight visual texture without added bulk. A clean V-neck keeps a traditional silhouette while supporting mobility, and modern construction delivers an optimised athletic fit. Diagonal solid-colour panels across the chest and shoulders define functional zones and add high-contrast structure.",
+      "performanceFeatures": [
+        "Double interlock knit",
+        "Lightweight, no added bulk",
+        "Sublimation printing",
+        "Sponsor logo zone"
+      ]
+    },
+    {
+      "sourcePage": 21,
+      "sortOrder": 20,
+      "productCode": "R-SLJ",
+      "slug": "r-slj",
+      "productName": "SHADOW LATTICE JERSEY",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "90% Polyester / 10% Spandex",
+      "gsm": "140-170 GSM",
+      "garmentFit": "Optimized athletic fit",
+      "shortDescription": "A soccer jersey with a tonal abstract geometric sublimation across the main body, creating a lightweight neon texture without added bulk. A clean V-neck keeps a traditional silhouette while supporting mobility, and modern construction delivers an optimised athletic fit. Diagonal solid-colour panels across the chest and shoulders define functional zones and add high-contrast structure.",
+      "performanceFeatures": [
+        "Neon sublimated lattice texture",
+        "Interlock knit",
+        "Lightweight 140-170 GSM build",
+        "Sponsor logo zone"
+      ]
+    },
+    {
+      "sourcePage": 22,
+      "sortOrder": 21,
+      "productCode": "R-GCJ",
+      "slug": "r-gcj",
+      "productName": "GLITCH-CORE JERSEY",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "88% Polyester / 12% Spandex",
+      "gsm": "160-210 GSM",
+      "garmentFit": "Aero athletic fit",
+      "shortDescription": "A versatile soccer jersey in a high-performance breathable fabric with advanced moisture-wicking, carrying a full sublimation print with a bold glitch design. Lightweight quick-dry construction and strategically placed ventilation panels raise airflow, while soft stretch material and flatlock stitching reduce chafing over a full match.",
+      "performanceFeatures": [
+        "Full sublimation glitch print",
+        "Strategic ventilation panels",
+        "Eye-bird interlock knit",
+        "Quick-dry construction",
+        "Flatlock stitching"
+      ]
+    },
+    {
+      "sourcePage": 23,
+      "sortOrder": 22,
+      "productCode": "R-MXT",
+      "slug": "r-mxt",
+      "productName": "MOTION-X TRAINING ZIPPER",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "88% Polyester / 12% Spandex",
+      "gsm": "220-260 GSM",
+      "garmentFit": "Athletic fit with ergonomic panel design",
+      "shortDescription": "A men’s training top in performance stretch fabric, with a full-length front zipper for easy on-off and ventilation. Moisture-wicking quick-dry material and breathable construction keep it comfortable all day, and flatlock stitching reduces chafing. Lightweight but durable, it suits gym work, running, warm-ups and general active wear.",
+      "performanceFeatures": [
+        "Full-length front zipper",
+        "Invisible side zip panels",
+        "Moisture-wicking quick-dry fabric",
+        "Flatlock stitching",
+        "DTF print and embroidery"
+      ]
+    },
+    {
+      "sourcePage": 24,
+      "sortOrder": 23,
+      "productCode": "R-XMT",
+      "slug": "r-xmt",
+      "productName": "X-MILO TRAINING VEST",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "90% Polyester / 10% Spandex",
+      "gsm": "180-220 GSM",
+      "garmentFit": "Flexible compression fit",
+      "shortDescription": "A men’s hybrid training vest in a lightweight performance fabric with breathable mesh panels and quick-dry, moisture-wicking material. The sleeveless athletic design uses ergonomic panel construction and a full sublimation print, with flatlock stitching for chafe-free comfort. Built as a multi-sport vest for gym, running, CrossFit, cycling and outdoor training.",
+      "performanceFeatures": [
+        "Breathable mesh panels",
+        "Sleeveless athletic design",
+        "Full sublimation print",
+        "Temperature-regulating performance",
+        "Flatlock stitching"
+      ]
+    },
+    {
+      "sourcePage": 25,
+      "sortOrder": 24,
+      "productCode": "R-SNP",
+      "slug": "r-snp",
+      "productName": "SCUBA-NECK PERFORMANCE",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "88% Polychloroprene / 12% Nylon",
+      "gsm": "1400-1600 GSM",
+      "garmentFit": "Anatomical, low-bulk fit",
+      "shortDescription": "A scuba suit combining high-stretch laminated neoprene with a tonal geometric design for a streamlined, low-bulk profile. The ergonomic neckline supports unrestricted movement, while anatomically engineered panels improve fit, hydrodynamics and thermal efficiency. Reinforced chest and shoulder zones raise abrasion resistance, and flatlock and bonded seams give long-lasting durability underwater.",
+      "performanceFeatures": [
+        "Laminated high-stretch neoprene",
+        "Ergonomic neckline",
+        "Anatomically engineered panels",
+        "Reinforced chest and shoulder zones",
+        "Flatlock and bonded seams"
+      ]
+    },
+    {
+      "sourcePage": 26,
+      "sortOrder": 25,
+      "productCode": "R-PSS",
+      "slug": "r-pss",
+      "productName": "PURETIDE SCUBA SUIT",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "90% Polychloroprene / 10% Nylon",
+      "gsm": "1200-1500 GSM",
+      "garmentFit": "Anatomically mapped fit",
+      "shortDescription": "Made from closed-cell neoprene laminated with high-stretch nylon, with a tonal geometric pattern for a sleek, low-bulk finish. The ergonomic neckline allows full range of motion while maintaining a water seal, and anatomically mapped panels optimise fit, hydrodynamics and thermal retention. Reinforced chest and shoulder panels add abrasion resistance, while flatlock and bonded seams reduce chafing over repeated dives.",
+      "performanceFeatures": [
+        "Closed-cell neoprene",
+        "Water-sealing ergonomic neckline",
+        "Anatomically mapped panels",
+        "Thermal retention",
+        "Flatlock and bonded seams"
+      ]
+    },
+    {
+      "sourcePage": 27,
+      "sortOrder": 26,
+      "productCode": "R-SSS",
+      "slug": "r-sss",
+      "productName": "SCUBA / SKI SUIT",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "80% Polychloroprene / 20% Nylon",
+      "gsm": "1000-1500 GSM",
+      "garmentFit": "Optimized anatomical fit",
+      "shortDescription": "A scuba suit with a tonal geometric design across the main body, giving a sleek, modern look without added bulk. An ergonomic neckline supports natural movement, while advanced panel construction ensures an optimised, anatomical fit. Solid-colour panels at the chest and shoulders reinforce key zones, adding durability and visual structure for performance-focused diving.",
+      "performanceFeatures": [
+        "Neoprene+ construction",
+        "Ergonomic neckline",
+        "Reinforced chest and shoulder panels",
+        "Digital printing"
+      ]
+    },
+    {
+      "sourcePage": 28,
+      "sortOrder": 27,
+      "productCode": "R-ES",
+      "slug": "r-es",
+      "productName": "EXPOSURE SUIT",
+      "category": "Teamwear & Uniforms",
+      "fabricComposition": "84% Polychloroprene / 16% Nylon",
+      "gsm": "1200-1500 GSM",
+      "garmentFit": "Anatomically mapped fit",
+      "shortDescription": "A scuba suit with a tonal geometric surface treatment on the main body, engineered to keep a low-profile finish without adding bulk. An ergonomically shaped neckline supports unrestricted range of motion and sealing efficiency, while anatomically mapped panel construction optimises fit, flexibility and hydrodynamic performance. High-density solid-colour panels at the chest and shoulders reinforce high-wear zones for long-term durability in demanding dive conditions.",
+      "performanceFeatures": [
+        "Low-profile surface treatment",
+        "Sealing ergonomic neckline",
+        "High-density reinforcement panels",
+        "Anatomically mapped construction"
+      ]
+    },
+    {
+      "sourcePage": 29,
+      "sortOrder": 28,
+      "productCode": "R-KSS",
+      "slug": "r-kss",
+      "productName": "KINETIC SPLATTER SPORTS BRA",
+      "category": "Sportswear",
+      "fabricComposition": "88% Polyester / 12% Spandex",
+      "gsm": "220-260 GSM",
+      "garmentFit": "High-impact support",
+      "shortDescription": "A women’s sports bra that fuses high-impact support with an energetic, artistic look. Premium moisture-wicking power knit offers breathable flexibility, keeping you cool while the dynamic print carries the momentum. Equally at home in a HIIT session or styled for a day out.",
+      "performanceFeatures": [
+        "High-impact support",
+        "Power knit fabric",
+        "Moisture-wicking",
+        "Custom sublimation",
+        "Elastane strap"
+      ]
+    },
+    {
+      "sourcePage": 30,
+      "sortOrder": 29,
+      "productCode": "R-HFS",
+      "slug": "r-hfs",
+      "productName": "HEXA-FLEX SPORTS BRA",
+      "category": "Sportswear",
+      "fabricComposition": "95% Polyester / 5% Spandex",
+      "gsm": "220-260 GSM",
+      "garmentFit": "",
+      "shortDescription": "A sports bra combining high-performance fabrics with a signature hexagonal flex-zone construction for adaptability and security. Whether the session is HIIT intervals or a yoga flow, it delivers breathability and flexibility without giving up support. Built in a poly stretch tricot that carries from the gym into casual wear.",
+      "performanceFeatures": [
+        "Hexagonal flex-zone construction",
+        "Poly stretch tricot",
+        "Breathable and flexible",
+        "Digital sublimation print"
+      ]
+    },
+    {
+      "sourcePage": 31,
+      "sortOrder": 30,
+      "productCode": "R-ASB",
+      "slug": "r-asb",
+      "productName": "ARISAN SPORTS BRA",
+      "category": "Sportswear",
+      "fabricComposition": "95% Nylon / 5% Spandex",
+      "gsm": "200-240 GSM",
+      "garmentFit": "High-support compression",
+      "shortDescription": "Engineered with high-support compression and breathable, moisture-wicking spacer knit, this bra minimises bounce while maximising comfort. The sleek strappy design holds through HIIT sessions and yoga flows alike, giving support without restriction.",
+      "performanceFeatures": [
+        "High-support compression",
+        "Spacer knit fabric",
+        "Moisture-wicking",
+        "Strappy back design",
+        "Screen printing"
+      ]
+    },
+    {
+      "sourcePage": 32,
+      "sortOrder": 31,
+      "productCode": "R-WZU",
+      "slug": "r-wzu",
+      "productName": "WOMEN ZIP-UP VEST",
+      "category": "Sportswear",
+      "fabricComposition": "85% Recycled Polyester / 15% Spandex",
+      "gsm": "150-220 GSM",
+      "garmentFit": "",
+      "shortDescription": "A women’s bra zip-up vest combining the security of a high-performance sports bra with the coverage of a crop vest. Breathable, flexible eco-power mesh keeps you cool through a workout or a day out, and a reversible zip adds a second way to wear it.",
+      "performanceFeatures": [
+        "Eco-power mesh",
+        "Reversible zip",
+        "Mesh panel construction",
+        "Elastane strap",
+        "DTF print"
+      ]
+    },
+    {
+      "sourcePage": 33,
+      "sortOrder": 32,
+      "productCode": "R-ECT",
+      "slug": "r-ect",
+      "productName": "ENDURA CROP TOP",
+      "category": "Sportswear",
+      "fabricComposition": "90% Polyester / 10% Spandex",
+      "gsm": "140-190 GSM",
+      "garmentFit": "Cropped cut",
+      "shortDescription": "A women’s workout cropped full-sleeve top combining a fashion-forward cropped cut with high-performance function. The premium ultra-soft single jersey offers breathable coverage that contours to the body, making it a natural layering piece for studio sessions or the walk home afterwards. Thumb holes keep the sleeves in place through a full session.",
+      "performanceFeatures": [
+        "Single jersey knit",
+        "Thumb holes",
+        "Breathable contoured coverage",
+        "Screen printing"
+      ]
+    },
+    {
+      "sourcePage": 34,
+      "sortOrder": 33,
+      "productCode": "R-WCT",
+      "slug": "r-wct",
+      "productName": "WORKOUT CROPPED TOP",
+      "category": "Sportswear",
+      "fabricComposition": "75% Nylon / 25% Spandex",
+      "gsm": "180-260 GSM",
+      "garmentFit": "Cropped cut",
+      "shortDescription": "Engineered for high-output training, the cropped cut provides ventilation to keep you cool as the workout heats up. A compression interlock in a moisture-wicking athletic spandex delivers a lightweight, flexible feel that moves with the body rather than against it. Built for everything from lifting heavy to yoga flows.",
+      "performanceFeatures": [
+        "Compression interlock",
+        "Athletic spandex",
+        "Moisture-wicking blend",
+        "Ventilated cropped cut",
+        "DTF print"
+      ]
+    },
+    {
+      "sourcePage": 35,
+      "sortOrder": 34,
+      "productCode": "R-ECTE",
+      "slug": "r-ecte",
+      "productName": "ELEVATE CROP TEE",
+      "category": "Sportswear",
+      "fabricComposition": "95% Cotton / 5% Spandex",
+      "gsm": "140-190 GSM",
+      "garmentFit": "Cropped cut with over-sleeves",
+      "shortDescription": "A women’s cropped quarter-sleeve top offering a strategic advantage: shoulder coverage that protects against barbell friction, paired with a ventilated cropped cut that keeps the core cool. High-performance sweat-wicking cotton stretch manages moisture instantly, so it stays dry through the most intense intervals.",
+      "performanceFeatures": [
+        "Shoulder coverage against barbell friction",
+        "Single jersey cotton stretch",
+        "Sweat-wicking fabric",
+        "Premium neck print",
+        "Screen printing"
+      ]
+    },
+    {
+      "sourcePage": 36,
+      "sortOrder": 35,
+      "productCode": "R-AFP",
+      "slug": "r-afp",
+      "productName": "APEX FLEX PULLOVER",
+      "category": "Sportswear",
+      "fabricComposition": "88% Polyester / 12% Spandex",
+      "gsm": "160-210 GSM",
+      "garmentFit": "Sleek athletic cut",
+      "shortDescription": "A men’s full-sleeve half pullover designed to move from the squat rack to the city street. A sleek athletic cut highlights the physique without restricting it, and the eco-poly stretch waffle knit gives both drape and a premium hand-feel. The versatile collar stands sharp for a polished look or unzips for something more relaxed.",
+      "performanceFeatures": [
+        "Waffle knit",
+        "Invisible zip",
+        "Convertible stand collar",
+        "Eco-poly stretch",
+        "DTF print"
+      ]
+    },
+    {
+      "sourcePage": 37,
+      "sortOrder": 36,
+      "productCode": "R-HFJ",
+      "slug": "r-hfj",
+      "productName": "HYDRA-FIT JERSEY",
+      "category": "Sportswear",
+      "fabricComposition": "95% Polyester / 5% Spandex",
+      "gsm": "160-210 GSM",
+      "garmentFit": "Sleek athletic cut",
+      "shortDescription": "A men’s full-sleeve training jersey built for someone who moves straight from the gym to the street. A sleek athletic cut highlights the physique without restricting it, and the power knit and waffle knit panels give the piece its drape and premium hand-feel. Made to be the hardest-working layer in the wardrobe.",
+      "performanceFeatures": [
+        "Power knit and waffle knit panels",
+        "Poly stretch fabric",
+        "Upper stitch detailing",
+        "DTF print"
+      ]
+    },
+    {
+      "sourcePage": 38,
+      "sortOrder": 37,
+      "productCode": "R-IFS",
+      "slug": "r-ifs",
+      "productName": "INDIGO FLOW SWEATSHIRT",
+      "category": "Sportswear",
+      "fabricComposition": "90% Nylon / 10% Spandex",
+      "gsm": "160-240 GSM",
+      "garmentFit": "Relaxed, refined fit",
+      "shortDescription": "A premium comfort sweatshirt in a soft, durable flex jersey with a smooth, breathable feel for all-day wear. The relaxed but refined fit allows unrestricted movement, making it equally suited to training warm-ups, travel and everyday use. A clean crew neckline and precision-finished cuffs and hem hold their shape, and the rich indigo-toned fabric is fade-resistant.",
+      "performanceFeatures": [
+        "Flex jersey knit",
+        "Clean crew neckline",
+        "Precision-finished cuffs and hem",
+        "Fade-resistant colour",
+        "Digital printing"
+      ]
+    },
+    {
+      "sourcePage": 39,
+      "sortOrder": 38,
+      "productCode": "R-PRS",
+      "slug": "r-prs",
+      "productName": "PACEZIP RUNNING SHIRT",
+      "category": "Sportswear",
+      "fabricComposition": "100% Recycled Polyester",
+      "gsm": "180-220 GSM",
+      "garmentFit": "",
+      "shortDescription": "A running shirt built for versatility, with advanced moisture-wicking and a quarter-zip design for instant airflow regulation, so it adapts to body heat as intensity rises. Lightweight, high-stretch mesh and piqué knit fabric allows unrestricted movement, making it as suitable for intense training as for casual wear.",
+      "performanceFeatures": [
+        "Quarter-zip airflow regulation",
+        "Mesh knit and piqué knit panels",
+        "100% recycled polyester",
+        "Side pocket",
+        "Metal zip"
+      ]
+    },
+    {
+      "sourcePage": 40,
+      "sortOrder": 39,
+      "productCode": "R-WRS",
+      "slug": "r-wrs",
+      "productName": "WOMEN RUNNING SHORTS",
+      "category": "Sportswear",
+      "fabricComposition": "88% Polyester / 12% Spandex",
+      "gsm": "160-210 GSM",
+      "garmentFit": "Streamlined cut",
+      "shortDescription": "Women’s performance running shorts combining high-velocity breathability with a precision fit. Advanced moisture-wicking eco-poly stretch actively pulls sweat away from the body, keeping you cool and dry through intense intervals or marathon training. A built-in liner adds support and a streamlined cut prevents bunching.",
+      "performanceFeatures": [
+        "Built-in support liner",
+        "Compression interlock",
+        "Moisture-wicking eco-poly stretch",
+        "Elastane strap waist",
+        "DTF print"
+      ]
+    },
+    {
+      "sourcePage": 41,
+      "sortOrder": 40,
+      "productCode": "R-DET",
+      "slug": "r-det",
+      "productName": "DYNAMIC-EDGE TROUSER",
+      "category": "Sportswear",
+      "fabricComposition": "98% Recycled Polyester / 2% Spandex",
+      "gsm": "140-180 GSM",
+      "garmentFit": "Modern tapered silhouette",
+      "shortDescription": "A men’s trouser in a modern tapered silhouette, built in a micro poly stretch that delivers breathability and unrestricted flexibility. Precision-stretch fabric supports every stride, making it as suitable for high-intensity training as for urban street wear. Zip pockets and a zip hem finish it.",
+      "performanceFeatures": [
+        "Micro stretch fabric",
+        "Zip pockets",
+        "Zip hem",
+        "Elastane waist strap",
+        "DTF print"
+      ]
+    },
+    {
+      "sourcePage": 42,
+      "sortOrder": 41,
+      "productCode": "R-MTT",
+      "slug": "r-mtt",
+      "productName": "MOMENTUM TRAINING TROUSER",
+      "category": "Sportswear",
+      "fabricComposition": "90% Polyester / 10% Cotton",
+      "gsm": "160-200 GSM",
+      "garmentFit": "Precision-tapered fit",
+      "shortDescription": "A men’s training pant combining high-performance durability with a sleek, modern look. Breathable mesh knit and kinetic jersey panels actively regulate temperature, while the precision-tapered fit removes distraction whether the day is leg day or a walk across the city. Zip pockets and a fashion mesh panel finish it.",
+      "performanceFeatures": [
+        "Mesh knit and kinetic jersey panels",
+        "Temperature regulating",
+        "Zip pockets",
+        "Elastane waist strap",
+        "Screen printing"
+      ]
+    },
+    {
+      "sourcePage": 43,
+      "sortOrder": 42,
+      "productCode": "R-CAT",
+      "slug": "r-cat",
+      "productName": "CORE ALIGN TIGHTS",
+      "category": "Sportswear",
+      "fabricComposition": "90% Nylon / 10% Spandex",
+      "gsm": "160-240 GSM",
+      "garmentFit": "Skinny fit",
+      "shortDescription": "Women’s yoga tights built on a compression architecture that gives targeted muscle support to reduce fatigue during prolonged holds, with a high-rise ergonomic waistband for zero-distraction coverage. Hydrophobic fibre technology creates a moisture-transport system that expels sweat rather than absorbing it, and the puri knit fabric retains its shape and opacity through hot yoga or high-impact conditioning.",
+      "performanceFeatures": [
+        "Compression architecture",
+        "High-rise ergonomic waistband",
+        "Hydrophobic fibre technology",
+        "Puri knit fabric",
+        "Shape and opacity retention"
+      ]
+    },
+    {
+      "sourcePage": 44,
+      "sortOrder": 43,
+      "productCode": "R-ZT",
+      "slug": "r-zt",
+      "productName": "ZENMOVE TIGHTS",
+      "category": "Sportswear",
+      "fabricComposition": "90% Polyester / 10% Spandex",
+      "gsm": "160-250 GSM",
+      "garmentFit": "Skinny fit",
+      "shortDescription": "Women’s yoga tights fusing high-performance utility with modern aesthetics. Squat-proof opacity gives total confidence during deep stretches, while the sleek contouring silhouette carries from the yoga mat to the city street. Reinforced with sustainable colour-lock dyeing, the poly stretch knit resists fading and pilling, so they look as strong on day 100 as on day one.",
+      "performanceFeatures": [
+        "Squat-proof opacity",
+        "Colour-lock dyeing",
+        "Poly stretch knit",
+        "EVA padding",
+        "Fade and pill resistant"
+      ]
+    },
+    {
+      "sourcePage": 45,
+      "sortOrder": 44,
+      "productCode": "R-FFF",
+      "slug": "r-fff",
+      "productName": "FEMME FLEX FLARE SUIT",
+      "category": "Sportswear",
+      "fabricComposition": "65% Recycled Polyester / 30% Cotton / 5% Spandex",
+      "gsm": "220-270 GSM",
+      "garmentFit": "",
+      "shortDescription": "A women’s yoga belt bottom with an engineered waistband designed to provide core support and a stay-put fit, so there is nothing to adjust mid-flow. A high-quality breathable poly cotton stretch jersey gives a second-skin feel that handles intense hot yoga sessions and casual outings with equal ease.",
+      "performanceFeatures": [
+        "Engineered support waistband",
+        "Poly cotton stretch jersey",
+        "Cut and sew panelling",
+        "Trouser flap detail",
+        "DTF print"
+      ]
+    },
+    {
+      "sourcePage": 46,
+      "sortOrder": 45,
+      "productCode": "R-CATT",
+      "slug": "r-catt",
+      "productName": "CORE ALIGN TERRY TIGHTS",
+      "category": "Sportswear",
+      "fabricComposition": "100% Recycled Polyester",
+      "gsm": "220-300 GSM",
+      "garmentFit": "",
+      "shortDescription": "The heavyweight terry knit version of the Core Align tight, built on the same compression architecture for targeted muscle support during prolonged holds. A high-rise ergonomic waistband gives zero-distraction coverage, and hydrophobic fibre technology expels sweat rather than absorbing it. At 220-300 GSM in 100% recycled polyester, it holds shape and opacity through the hardest conditioning.",
+      "performanceFeatures": [
+        "Terry knit",
+        "Compression architecture",
+        "High-rise ergonomic waistband",
+        "Hydrophobic fibre technology",
+        "100% recycled polyester"
+      ]
+    },
+    {
+      "sourcePage": 47,
+      "sortOrder": 46,
+      "productCode": "R-CSO",
+      "slug": "r-cso",
+      "productName": "CORE SLOGAN OVERSIZE",
+      "category": "Casual Wear",
+      "fabricComposition": "95% Cotton / 5% Spandex",
+      "gsm": "140-190 GSM",
+      "garmentFit": "Modern streetwear fit",
+      "shortDescription": "A heavyweight structured cotton jersey tee in a boxy drop-shoulder silhouette, carrying vertical statement typography. A reinforced crew neck collar, side-seam panelling and double-needle hemming give it durability, while pre-shrunk fabric holds the fit. A statement essential for brand loyalists, urban lifestyle and casual layering.",
+      "performanceFeatures": [
+        "Boxy drop-shoulder silhouette",
+        "Reinforced crew neck collar",
+        "Side-seam panelling",
+        "Pre-shrunk fabric",
+        "Double-needle hemming"
+      ]
+    },
+    {
+      "sourcePage": 48,
+      "sortOrder": 47,
+      "productCode": "R-XMC",
+      "slug": "r-xmc",
+      "productName": "X-MILO CORE OVERSIZE",
+      "category": "Casual Wear",
+      "fabricComposition": "90% Polyester / 10% Cotton",
+      "gsm": "160-200 GSM",
+      "garmentFit": "Contemporary street fit",
+      "shortDescription": "An ultra-heavyweight tee with architectural vertical seaming and high-density X-Milo branding. Relaxed drop-shoulder construction, a ribbed mock neck and a structured boxy drape give it presence, finished with a soft-touch enzyme wash and a side-split hem. A premium statement piece for lifestyle collections and brand campaigns.",
+      "performanceFeatures": [
+        "Architectural vertical seaming",
+        "Ribbed mock neck",
+        "Soft-touch enzyme wash",
+        "Side-split hem",
+        "High-density branding"
+      ]
+    },
+    {
+      "sourcePage": 49,
+      "sortOrder": 48,
+      "productCode": "R-TAZ",
+      "slug": "r-taz",
+      "productName": "TERRA ACTIVE ZIP",
+      "category": "Casual Wear",
+      "fabricComposition": "90% Nylon / 10% Spandex",
+      "gsm": "140-180 GSM",
+      "garmentFit": "Athletic tapered fit",
+      "shortDescription": "A men’s performance half-zip polo in a premium tech-piqué power knit, with a modern blade collar and a semi-auto lock zipper placket. Split-hem construction and reinforced shoulder seams sit alongside odour-resistant moisture wicking and four-way stretch mobility. Ready for custom sublimation or embroidery, it works for golf, team travel and the casual office alike.",
+      "performanceFeatures": [
+        "Modern blade collar",
+        "Semi-auto lock zipper placket",
+        "Split-hem construction",
+        "Odour-resistant moisture wicking",
+        "4-way stretch mobility"
+      ]
+    },
+    {
+      "sourcePage": 50,
+      "sortOrder": 49,
+      "productCode": "R-RLP",
+      "slug": "r-rlp",
+      "productName": "RUN LEGACY POLO",
+      "category": "Casual Wear",
+      "fabricComposition": "100% Cotton",
+      "gsm": "140-180 GSM",
+      "garmentFit": "",
+      "shortDescription": "A polo where timeless sophistication meets modern endurance. Meticulously crafted from a pure cotton jacquard knit, it offers superior breathability and flexibility, making it a natural choice for anything from business smart-casual to weekend leisure.",
+      "performanceFeatures": [
+        "Pure cotton jacquard knit",
+        "Breathable and flexible",
+        "Fashion colour detailing",
+        "Screen printing"
+      ]
+    },
+    {
+      "sourcePage": 51,
+      "sortOrder": 50,
+      "productCode": "R-SSJ",
+      "slug": "r-ssj",
+      "productName": "STAMINA SURGE JERSEY",
+      "category": "Casual Wear",
+      "fabricComposition": "88% Polyester / 12% Spandex",
+      "gsm": "140-180 GSM",
+      "garmentFit": "",
+      "shortDescription": "A men’s trail and road full-sleeve jersey in a high-tenacity wicking interlock with snag-resistant construction. Raglan sleeves give freedom of movement, an extended drop tail adds coverage, and optimised airflow panels keep temperature down. Unlimited colour sublimation with premium fade-proof ink makes it as suitable for mountain biking and downhill as for cool-weather riding.",
+      "performanceFeatures": [
+        "Snag-resistant construction",
+        "Raglan sleeve freedom of movement",
+        "Extended drop tail coverage",
+        "Optimised airflow panels",
+        "Fade-proof ink"
+      ]
+    },
+    {
+      "sourcePage": 52,
+      "sortOrder": 51,
+      "productCode": "R-CSP",
+      "slug": "r-csp",
+      "productName": "CRIMSON STRIDE PULLOVER",
+      "category": "Casual Wear",
+      "fabricComposition": "95% Cotton / 5% Spandex",
+      "gsm": "210-260 GSM",
+      "garmentFit": "Relaxed athletic fit",
+      "shortDescription": "A men’s half-zip midlayer with a brushed thermal fleece interior and a stand-up mock neck. A premium half-zip gives ventilation control, and ribbed cuffs and hem hold the shape. Moisture-wicking warmth and durable double-stitch construction make it an essential warm-up pullover for team training, sideline recovery and travel.",
+      "performanceFeatures": [
+        "Brushed thermal fleece interior",
+        "Stand-up mock neck",
+        "Half-zip ventilation",
+        "Ribbed cuffs and hem",
+        "Double-stitch construction"
+      ]
+    },
+    {
+      "sourcePage": 53,
+      "sortOrder": 52,
+      "productCode": "R-CCH",
+      "slug": "r-cch",
+      "productName": "CAPSULE CORE HOODIE",
+      "category": "Casual Wear",
+      "fabricComposition": "98% Recycled Polyester / 2% Spandex",
+      "gsm": "140-180 GSM",
+      "garmentFit": "Relaxed flow fit",
+      "shortDescription": "A women’s crop hoodie in soft-touch tech fleece with structured raglan panelling and a modern cropped silhouette. Wide bell sleeves and an oversized hood give it shape, and a ribbed hemline finishes it. Breathable warmth and high-density logo printing make it a premium lifestyle layer for the yoga studio, recovery and urban streetwear.",
+      "performanceFeatures": [
+        "Soft-touch tech fleece",
+        "Structured raglan panelling",
+        "Wide bell sleeves",
+        "Oversized hood construction",
+        "Ribbed hemline"
+      ]
+    },
+    {
+      "sourcePage": 54,
+      "sortOrder": 53,
+      "productCode": "R-ETH",
+      "slug": "r-eth",
+      "productName": "EVERYDAY TECH HOODIE",
+      "category": "Casual Wear",
+      "fabricComposition": "100% Recycled Polyester",
+      "gsm": "220-300 GSM",
+      "garmentFit": "Athletic relaxed fit",
+      "shortDescription": "A men’s hoodie in a premium mid-weight terry knit tech fleece with a soft-brushed interior and minimalist centred branding. A spacious kangaroo pocket, wide ribbed cuffs and hem and crossover hood construction give it everyday utility. Pill-resistant fabric, moisture-wicking comfort and twin-needle stitching make it a durable pullover for daily commutes, team loungewear and casual layering.",
+      "performanceFeatures": [
+        "Soft-brushed terry knit interior",
+        "Spacious kangaroo pocket",
+        "Crossover hood construction",
+        "Pill-resistant fabric",
+        "Twin-needle stitching"
+      ]
+    },
+    {
+      "sourcePage": 55,
+      "sortOrder": 54,
+      "productCode": "R-RPT",
+      "slug": "r-rpt",
+      "productName": "ROSE PACE TRACKSUIT",
+      "category": "Casual Wear",
+      "fabricComposition": "100% Organic Cotton",
+      "gsm": "280-350 GSM",
+      "garmentFit": "Relaxed wide-leg silhouette",
+      "shortDescription": "A women’s tracksuit in a soft-touch thermal terry fleece, pairing a retro quarter-zip polo collar with a relaxed wide-leg pant. A tonal oversized logo graphic, comfort elastic waistband and deep side pockets give it everyday use, while premium drape and stretch with ribbed cuff details keep it a luxury athleisure set for travel, recovery and loungewear.",
+      "performanceFeatures": [
+        "Retro quarter-zip polo collar",
+        "Relaxed wide-leg pant",
+        "Comfort elastic waistband",
+        "Deep side pockets",
+        "Ribbed cuff details"
+      ]
+    },
+    {
+      "sourcePage": 56,
+      "sortOrder": 55,
+      "productCode": "R-ET",
+      "slug": "r-et",
+      "productName": "ENDURANCE TRACKSUIT",
+      "category": "Casual Wear",
+      "fabricComposition": "100% Organic Cotton",
+      "gsm": "280-350 GSM",
+      "garmentFit": "Tapered pant silhouette",
+      "shortDescription": "A men’s tech tracksuit with a full-zip jacket and stand collar over a tapered pant. Contrast side panelling, zippered hand pockets, an elasticated waist with drawcord and ankle zips make it practical to move in and out of. Quick-dry moisture management and wrinkle-resistant fabric make it a complete training set for team travel, warm-ups and athletic lifestyle.",
+      "performanceFeatures": [
+        "Full-zip jacket with stand collar",
+        "Contrast side panelling",
+        "Zippered hand pockets",
+        "Ankle zips",
+        "Wrinkle-resistant fabric"
+      ]
+    },
+    {
+      "sourcePage": 57,
+      "sortOrder": 56,
+      "productCode": "R-SPS",
+      "slug": "r-sps",
+      "productName": "STRUCTURE POLO SET",
+      "category": "Casual Wear",
+      "fabricComposition": "65% Cotton / 30% Polyester / 5% Spandex",
+      "gsm": "220-270 GSM",
+      "garmentFit": "Tailored lounge fit",
+      "shortDescription": "A women’s co-ord in a heavyweight waffle-knit cotton blend, pairing a structured quarter-zip polo collar and boxy cropped silhouette with wide-leg flow trousers. Tonal high-density branding, an elasticated high-rise waist and premium ribbed trim give it a tailored lounge fit with textured thermal warmth. Built for remote work, casual travel and elevated off-duty style.",
+      "performanceFeatures": [
+        "Micro rib fleece",
+        "Structured quarter-zip polo collar",
+        "Wide-leg flow trousers",
+        "Elasticated high-rise waist",
+        "Premium ribbed trim"
+      ]
+    },
+    {
+      "sourcePage": 58,
+      "sortOrder": 57,
+      "productCode": "R-ATW",
+      "slug": "r-atw",
+      "productName": "AERO-TECH WINDBREAKER",
+      "category": "Outerwear",
+      "fabricComposition": "100% Nylon (Polyamide)",
+      "gsm": "40-70 GSM",
+      "garmentFit": "Streamlined aero fit",
+      "shortDescription": "An ultralight wind-resistant nylon taffeta shell with a ventilated back yoke and breathable mesh lining, taking a full sublimation print. Elasticated cuffs and a drop-tail hem hold the streamlined aero fit, and a DWR finish adds water repellency. Reinforced articulated seams and an ergonomic sleeve design make it packable all-weather protection for road cycling, gravel and outdoor endurance training.",
+      "performanceFeatures": [
+        "Ultralight wind-resistant shell",
+        "Ventilated back yoke",
+        "Breathable mesh lining",
+        "DWR water-repellent finish",
+        "Packable construction"
+      ]
+    },
+    {
+      "sourcePage": 59,
+      "sortOrder": 58,
+      "productCode": "R-PPS",
+      "slug": "r-pps",
+      "productName": "PRO-PILE SHERPA JACKET",
+      "category": "Outerwear",
+      "fabricComposition": "80% Cotton / 20% Polyester",
+      "gsm": "320-440 GSM",
+      "garmentFit": "Relaxed athletic fit",
+      "shortDescription": "A men’s sherpa jacket in a high-loft thermal fleece with bonded mesh lining and durable ripstop overlays. A secure zippered chest pocket, elasticated cuffs and hem and a relaxed athletic fit make it easy to live in, while double-needle reinforced stitching and an articulated sleeve design hold up outdoors. Superior heat retention for outdoor adventure, urban commuting and après-ski layering.",
+      "performanceFeatures": [
+        "High-loft sherpa fleece",
+        "Bonded mesh lining",
+        "Durable ripstop overlays",
+        "Zippered chest pocket",
+        "Double-needle reinforced stitching"
+      ]
+    },
+    {
+      "sourcePage": 60,
+      "sortOrder": 59,
+      "productCode": "R-CMJ",
+      "slug": "r-cmj",
+      "productName": "CRYSTAL MATRIX JACKET",
+      "category": "Outerwear",
+      "fabricComposition": "100% Recycled Polyester",
+      "gsm": "70-150 GSM",
+      "garmentFit": "Ergonomic articulated fit",
+      "shortDescription": "A men’s tech jacket in a weather-resistant bonded softshell with geometric utility chest panels and a high-neck scuba hood. Water-repellent reverse-coil zippers, adjustable velcro cuffs and a thermal regulation lining make it genuinely all-season, and reinforced bar-tack stitching holds the stress points. Built for urban commuting, athletic training and outdoor lifestyle.",
+      "performanceFeatures": [
+        "Weather-resistant bonded softshell",
+        "High-neck scuba hood",
+        "Water-repellent reverse-coil zippers",
+        "Adjustable velcro cuffs",
+        "Reinforced bar-tack stitching"
+      ]
+    },
+    {
+      "sourcePage": 61,
+      "sortOrder": 60,
+      "productCode": "R-VCJ",
+      "slug": "r-vcj",
+      "productName": "VANTA CORE JACKET",
+      "category": "Outerwear",
+      "fabricComposition": "100% Polyester",
+      "gsm": "220-260 GSM",
+      "garmentFit": "Articulated athletic fit",
+      "shortDescription": "A men’s tech jacket in a high-density bonded softshell with an adjustable scuba hood system and a weather-resistant DWR finish. Tactical chest zippers, dual-layer storm cuffs and a thermal regulation lining handle changing conditions, and reinforced bar-tack stitching with 3D engineered panelling holds the shape. Multi-functional performance outerwear for urban training, warm-ups and outdoor exploration.",
+      "performanceFeatures": [
+        "Adjustable scuba hood system",
+        "DWR weather-resistant finish",
+        "Tactical chest zippers",
+        "Dual-layer storm cuffs",
+        "3D engineered panelling"
+      ]
+    },
+    {
+      "sourcePage": 62,
+      "sortOrder": 61,
+      "productCode": "R-MPJ",
+      "slug": "r-mpj",
+      "productName": "MATRIX-PUFF JACKET",
+      "category": "Outerwear",
+      "fabricComposition": "100% Polyester",
+      "gsm": "70-110 GSM",
+      "garmentFit": "Windproof athletic fit",
+      "shortDescription": "A women’s thermal jacket built on an engineered matrix-ripstop shell with a high-loft eco-synthetic fill. An insulated storm hood with toggles, a weather-resistant DWR finish and elasticised bound cuffs seal out the weather, while a heat-retention lining and reinforced quilted baffles hold warmth in. Articulated sleeve panels keep movement free in extreme conditions.",
+      "performanceFeatures": [
+        "Matrix-ripstop shell",
+        "High-loft eco-synthetic fill",
+        "Insulated storm hood with toggles",
+        "Reinforced quilted baffles",
+        "Articulated sleeve panels"
+      ]
+    },
+    {
+      "sourcePage": 63,
+      "sortOrder": 62,
+      "productCode": "R-ALJ",
+      "slug": "r-alj",
+      "productName": "AURORA LONGLINE JACKET",
+      "category": "Outerwear",
+      "fabricComposition": "100% Nylon",
+      "gsm": "40-90 GSM",
+      "garmentFit": "Extended modern commuter fit",
+      "shortDescription": "A men’s longline jacket in a weather-resistant bonded softshell with a high-neck scuba hood and toggles. Dual-entry utility pockets and adjustable storm cuffs sit under a matte memory-shine finish, and the extended commuter cut adds coverage. Thermal regulating fabric, reinforced bar-tack stitching and articulated sleeve construction make it versatile for urban exploration and cold-weather training.",
+      "performanceFeatures": [
+        "High-neck scuba hood with toggles",
+        "Dual-entry utility pockets",
+        "Adjustable storm cuffs",
+        "Matte memory-shine finish",
+        "Thermal regulating fabric"
+      ]
+    },
+    {
+      "sourcePage": 64,
+      "sortOrder": 63,
+      "productCode": "R-RUC",
+      "slug": "r-ruc",
+      "productName": "RUNLINE URBAN COAT",
+      "category": "Outerwear",
+      "fabricComposition": "95% Polyester / 5% Spandex",
+      "gsm": "250-300 GSM",
+      "garmentFit": "Articulated commuter fit",
+      "shortDescription": "A men’s urban tech coat in a premium membrane-lined bonded softshell with a brushed thermal interior and a high-neck storm hood. A water-resistant DWR finish, secure utility zip pockets and adjustable toggle cuffs handle the weather, while a moisture-managing membrane and reinforced bar-tack stitching hold performance. Engineered 3D panel construction makes it all-weather outerwear for city, travel and street.",
+      "performanceFeatures": [
+        "Membrane-lined softshell",
+        "Brushed thermal interior",
+        "High-neck storm hood",
+        "Secure utility zip pockets",
+        "Engineered 3D panel construction"
+      ]
+    },
+    {
+      "sourcePage": 65,
+      "sortOrder": 64,
+      "productCode": "R-MSS",
+      "slug": "r-mss",
+      "productName": "METRO-SHIELD SUIT",
+      "category": "Outerwear",
+      "fabricComposition": "Shell: 100% Polyester Taslon / Lining: 100% Polyester Taffeta",
+      "gsm": "40-60 GSM insulation",
+      "garmentFit": "Tapered urban fit",
+      "shortDescription": "A men’s commuter suit in a weather-resistant ripstop softshell with a thermal-regulating tech fleece lining and a high-neck scuba hood. Utility zipper pockets, reinforced knee panels and adjustable toggle hem and cuffs make it practical, while moisture-wicking fibres, a windproof membrane and taped waterproof seams keep the weather out. Heavy-duty hardware throughout for city commuting, travel and outdoor lifestyle.",
+      "performanceFeatures": [
+        "Ripstop softshell outer shell",
+        "Thermal-regulating fleece lining",
+        "Reinforced knee panels",
+        "Taped waterproof seams",
+        "Windproof membrane"
+      ]
+    },
+    {
+      "sourcePage": 66,
+      "sortOrder": 65,
+      "productCode": "R-ATJ",
+      "slug": "r-atj",
+      "productName": "ARMOR-TECH JACKET",
+      "category": "Outerwear",
+      "fabricComposition": "100% Genuine Leather (cowhide)",
+      "gsm": "1.2 mm thickness",
+      "garmentFit": "Tactical engineered fit",
+      "shortDescription": "A men’s utility jacket in 1.2 mm cowhide leather with a thermal-regulating inner lining and a multi-point adjustable storm hood. Secure waterproof utility zippers and adjustable velcro cuffs seal it up, while hydrophobic moisture management and reinforced double-needle stitching hold performance. 3D articulated shoulder panels give a durable all-season outer shield for urban commuting, outdoor training and transitional weather.",
+      "performanceFeatures": [
+        "1.2 mm cowhide leather",
+        "Multi-point adjustable storm hood",
+        "Waterproof utility zippers",
+        "Adjustable velcro cuffs",
+        "3D articulated shoulder panels"
+      ]
+    },
+    {
+      "sourcePage": 67,
+      "sortOrder": 66,
+      "productCode": "R-RMJ",
+      "slug": "r-rmj",
+      "productName": "REBEL MOTO JACKET",
+      "category": "Outerwear",
+      "fabricComposition": "100% Polyurethane (vegan synthetic leather)",
+      "gsm": "0.8 mm thickness",
+      "garmentFit": "",
+      "shortDescription": "A riding jacket with removable CE-Level 2 armour at the shoulders, elbows and back, a zip-out thermal liner and a mesh air-flow ventilation system. A distressed vintage finish, YKK brass zippers and adjustable waist tabs give it the look, while pre-curved articulated sleeves and accordion stretch panels keep mobility. Triple-reinforced safety stitching and a hydrophobic weather-resistant coating make it an all-season street, cruiser and cafe racer jacket.",
+      "performanceFeatures": [
+        "Removable CE-Level 2 armour",
+        "Zip-out thermal liner",
+        "Mesh air-flow ventilation",
+        "Pre-curved articulated sleeves",
+        "Triple-reinforced safety stitching"
+      ]
+    },
+    {
+      "sourcePage": 68,
+      "sortOrder": 67,
+      "productCode": "R-KMJ",
+      "slug": "r-kmj",
+      "productName": "THE KINETIC MATRIX JACKET",
+      "category": "Outerwear",
+      "fabricComposition": "82% Recycled Polyester / 18% Spandex",
+      "gsm": "250 GSM",
+      "garmentFit": "Kinetic athletic fit",
+      "shortDescription": "A men’s technical jacket in an advanced hydro-repellent softshell with a structural scuba hood and integrated visor. A breathable core ventilation system, matte finish waterproof zippers and adjustable velcro cuffs with a shock-cord hem give full control over the weather. A moisture-wicking thermal lining, reinforced bonded seams and 3D articulated sleeves make it high-performance outerwear for training, urban commuting and element protection.",
+      "performanceFeatures": [
+        "Hydro-repellent softshell",
+        "Structural scuba hood with visor",
+        "Core ventilation system",
+        "Shock-cord hem",
+        "Reinforced bonded seams"
+      ]
+    }
+  ]
+}
