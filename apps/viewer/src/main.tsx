@@ -17,6 +17,29 @@ import RenderPage from './RenderPage'
 initErrorTracking()
 initTelemetry()
 
+/**
+ * Never restore a previous scroll position here.
+ *
+ * The browser default is `'auto'`: on a reload, or on a back-navigation into
+ * this document, it puts the visitor back where they were. That is right for a
+ * long article and wrong for this page — every arrival is a fresh QR scan of a
+ * physical garment tag, and the first thing the visitor must see is the garment.
+ * Restoring a scroll drops them into the middle of specifications for a product
+ * they have not looked at yet.
+ *
+ * Paired with the `preventScroll` fix in App.tsx (see its comment): that one
+ * removed the scroll this app CAUSED, this one removes the scroll the browser
+ * causes. Both were needed — fixing only the first still leaves a reload
+ * part-way down.
+ *
+ * Feature-detected because `scrollRestoration` is not in every engine's History
+ * implementation, and a throw here would take the whole bundle down before
+ * React mounts.
+ */
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'manual'
+}
+
 const root = createRoot(document.getElementById('root')!)
 
 // `/render` (task 13/14) is a separate, bare page for the shrink robot's

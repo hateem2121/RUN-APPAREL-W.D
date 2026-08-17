@@ -169,12 +169,34 @@ export default function App() {
    *
    * Guarded on `preloaderGone` rather than on `state.kind` alone so focus moves
    * when the overlay has actually left, not while it still covers the page.
+   *
+   * ⚠️ `preventScroll: true` IS LOAD-BEARING, and without it this accessibility
+   * fix was a layout bug on every single visit. Measured 2026-08-17 on the live
+   * site at four viewports: the page arrived at `scrollY: 69` on desktop and
+   * `scrollY: 117` where the header wraps — **the header's own height, to the
+   * pixel, every time.**
+   *
+   * `focus()` scrolls its element into view. <main> starts directly under the
+   * sticky header and is taller than the viewport, so the browser scrolls the
+   * minimum that makes it fill the viewport, which is precisely the header's
+   * height. There is no `scrollTo` anywhere in this app; this one call was the
+   * whole cause.
+   *
+   * It was not cosmetic. At 390x844 the sticky header then covered the top
+   * **29px of the garment** and the control pill covered 38px at the bottom, so
+   * a QR visitor met a product cropped at both ends — reported as "the model
+   * gets cut off", and initially diagnosed as a stage-height problem.
+   *
+   * The hand-off itself is unchanged and still required; only the scroll side
+   * effect goes. `e2e/motion-and-layout.spec.ts` → "the page opens at the very
+   * top" pins it, and waits for this hand-off before measuring — asserting
+   * straight after the <h1> appears is flaky in the direction that PASSES.
    */
   const focusHandedOff = useRef(false)
   useEffect(() => {
     if (state.kind !== 'ready' || !preloaderGone || focusHandedOff.current) return
     focusHandedOff.current = true
-    document.getElementById('main-content')?.focus()
+    document.getElementById('main-content')?.focus({ preventScroll: true })
   }, [state.kind, preloaderGone])
 
   // Stable identity: this is in <Preloader>'s effect dependency array, and a new

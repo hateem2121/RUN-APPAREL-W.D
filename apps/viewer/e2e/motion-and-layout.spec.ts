@@ -368,6 +368,72 @@ test.describe('layout invariants', () => {
           `(${overflow.scrollWidth} > ${overflow.clientWidth})`,
       ).toBeLessThanOrEqual(overflow.clientWidth + 1)
     })
+
+    test(`the page opens at the very top at ${viewport.name} (${viewport.width}px)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      /**
+       * Measured on the live site 2026-08-17, before this test existed: every
+       * viewport arrived at `scrollY: 69` — the header's height, to the pixel.
+       *
+       * The cause is not a scroll call; there is none anywhere in the viewer.
+       * `App.tsx` hands focus to `<main>` when the preloader leaves, and
+       * `focus()` scrolls its element into view. `<main>` starts directly below
+       * the sticky header and is taller than the viewport, so the browser
+       * scrolls the minimum that makes it fill the viewport — which is exactly
+       * the header's height.
+       *
+       * It is not cosmetic. Measured at 390x844 the sticky header then covered
+       * the top **29px of the garment**, so the first thing a QR visitor saw was
+       * a product with its shoulders cut off — reported as "the model gets cut
+       * off", and diagnosed for a while as a stage-height problem.
+       *
+       * The assertion is on scroll POSITION rather than on the focus call,
+       * because `preventScroll` is one of two things that can regress this: a
+       * later `scrollIntoView`, an anchor, or restored scroll would all put it
+       * back with the focus option still correct.
+       */
+      /**
+       * ⚠️ WAIT FOR THE HAND-OFF, do not assert straight after `toBeVisible`.
+       *
+       * The first draft of this test read `scrollY` as soon as the <h1> appeared
+       * and was FLAKY IN THE DIRECTION THAT PASSES: the focus effect had usually
+       * not committed yet, so it measured `scrollY: 0` and went green against the
+       * unfixed code. Two runs of the identical test disagreed.
+       *
+       * Waiting on the hand-off is also the only honest synchronisation point —
+       * it is the thing that used to move the page, so "it has happened and the
+       * page is still at the top" is exactly the claim being made.
+       */
+      await page.waitForFunction(() => document.activeElement?.id === 'main-content')
+
+      const top = await page.evaluate(() => ({
+        scrollY: Math.round(window.scrollY),
+        headerBottom: Math.round(
+          document.querySelector('.header')?.getBoundingClientRect().bottom ?? 0,
+        ),
+        stageTop: Math.round(
+          document.querySelector('.stage__canvas')?.getBoundingClientRect().top ?? 0,
+        ),
+      }))
+
+      expect(
+        top.scrollY,
+        `the page arrives ${top.scrollY}px down instead of at the top ` +
+          `(the header is ${top.headerBottom}px tall — if those two match, ` +
+          `something is scrolling <main> into view again)`,
+      ).toBe(0)
+
+      // The whole point of the fix: the sticky header must not sit on the stage.
+      expect(
+        top.stageTop,
+        `the sticky header covers the top ${top.headerBottom - top.stageTop}px of the garment`,
+      ).toBeGreaterThanOrEqual(top.headerBottom)
+    })
   }
 
   test('the garment and its colourway picker fit one phone screen, unscrolled', async ({
