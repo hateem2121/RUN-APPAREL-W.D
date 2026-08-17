@@ -179,7 +179,7 @@ Dashboard → Workers & Pages → **Create → Pages → Connect to Git** → se
 | Environment variable | `VITE_API_BASE_URL=https://cms.wear-run.help` |
 
 The committed `apps/viewer/public/_redirects` (`/* /index.html 200`) makes direct
-deep links like `/n001/navy` resolve on Pages; `_headers` sets immutable caching
+deep links like `/rxps/blush` resolve on Pages; `_headers` sets immutable caching
 for hashed assets.
 
 ### Custom domain
@@ -221,8 +221,8 @@ replace the token in `apps/viewer/index.html` and rebuild.
 
 1. `https://cms.wear-run.help/admin` — log in, confirm collections exist.
 2. `https://cms.wear-run.help/api/health` — `{"ok":true}`.
-3. `https://cms.wear-run.help/api/public/viewer/n001/wine` — JSON with product data.
-4. `https://viewer.wear-run.help/n001/wine` — poster appears instantly, model loads, tabs work.
+3. `https://cms.wear-run.help/api/public/viewer/rxps/wine` — JSON with product data.
+4. `https://viewer.wear-run.help/rxps/wine` — model loads, tabs work.
 5. Run through `docs/QA-CHECKLIST.md`.
 
 ## 10. GitHub Actions auto-deploy (makes `git push` deploy)
@@ -283,7 +283,7 @@ step 10 is done (or via the manual commands above). Endpoints:
 | CMS worker (`run-apparel-viewer-cms`) | `https://cms.wear-run.help` (custom domain) — the viewer *calls* the API via the workers.dev URL instead (Bot Fight Mode, see RUNBOOK) |
 | CMS admin | `https://cms.wear-run.help/admin` |
 | CMS health | `https://cms.wear-run.help/api/health` |
-| Public viewer API | `https://cms.wear-run.help/api/public/viewer/n001/wine` |
+| Public viewer API | `https://cms.wear-run.help/api/public/viewer/rxps/wine` |
 | Media (R2 `run-apparel-viewer-media`) | `https://media.wear-run.help/<file>` (30-day edge cache) |
 | Viewer (Worker `run-apparel-viewer-site`) | `https://viewer.wear-run.help` (custom domain; workers.dev/preview URLs disabled) |
 

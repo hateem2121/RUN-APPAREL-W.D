@@ -87,7 +87,7 @@ pnpm exec wrangler d1 time-travel restore run-apparel-viewer-db --timestamp 2026
 ```
 
 Then verify with the row-count query in step 3 below, and re-capture
-`GET /api/public/viewer/n001/wine` — that before/after diff is what caught the last
+`GET /api/public/viewer/rxps/wine` — that before/after diff is what caught the last
 data-loss incident when the migration logs said success.
 
 > Use a **live** colour slug. This said `navy`, which was retired on 2026-08-05;
@@ -152,5 +152,5 @@ Then reload a product in the viewer to confirm posters + models render.
 ## After any restore
 
 1. `curl -f https://cms.wear-run.help/api/health` → `{"ok":true}`.
-2. Open `https://viewer.wear-run.help/n001/wine` — model loads, colourways switch, contact links work.
+2. Open `https://viewer.wear-run.help/rxps/wine` — model loads, colourways switch, contact links work.
 3. Log into `/admin` and spot-check a product + its media.
