@@ -1,12 +1,13 @@
 import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { track } from '../lib/analytics'
-import { canRender3D, isCoarsePointer, prefersReducedMotion } from '../lib/capabilities'
+import { canRender3D, prefersReducedMotion } from '../lib/capabilities'
 import { displayedColourway } from '../lib/colourwayPreview'
 import { diagnostic } from '../lib/diagnostic'
 import { fetchWithProgress } from '../lib/fetchWithProgress'
 import { describeLoad, smoothRate } from '../lib/loadProgress'
 import { CAMERA_DECAY_MS } from '../lib/motion'
+import { useCoarsePointer } from '../lib/useCoarsePointer'
 import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
 import { type CameraView, StageControls } from './StageControls'
 
@@ -152,6 +153,8 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   const swapping = isSwapping(phase)
   const [notice, setNotice] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<CameraView | null>('front')
+  // Re-reads when a keyboard is attached or detached — see lib/useCoarsePointer.ts.
+  const coarsePointer = useCoarsePointer()
   const loadedSrcRef = useRef<string | null>(null)
 
   // Real bytes, counted by us. See `fetchWithProgress` for why model-viewer's own
@@ -687,8 +690,12 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               stage. */}
           {/* Pointer-conditional: the two devices need different words, because
               scroll-to-zoom and pinch-to-zoom are not the same gesture.
-              isCoarsePointer() already gates the same class of decision in
-              ColourwayTabs.tsx.
+              `useCoarsePointer()` gates the same class of decision in
+              ColourwayTabs.tsx, and is a HOOK rather than the plain
+              `isCoarsePointer()` for the reason recorded there: the function is
+              read during render and never re-checked, so detaching an iPad's
+              keyboard mid-visit left this line saying "PINCH TO ZOOM" on a
+              device that now had a mouse.
 
               ⚠️ THIS COMMENT USED TO EXPLAIN THAT A VERTICAL SWIPE WAS HANDED TO
               THE DOCUMENT, which was true under `touch-action="pan-y"` and is
@@ -697,9 +704,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               direction, and the page is scrolled from outside the canvas. */}
           {!fallback && modelLoaded && !swapping && (
             <p className="stage__hint" aria-hidden="true">
-              {isCoarsePointer()
-                ? 'DRAG TO ROTATE · PINCH TO ZOOM'
-                : 'DRAG TO ROTATE · SCROLL TO ZOOM'}
+              {coarsePointer ? 'DRAG TO ROTATE · PINCH TO ZOOM' : 'DRAG TO ROTATE · SCROLL TO ZOOM'}
             </p>
           )}
 
