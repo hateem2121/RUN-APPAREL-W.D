@@ -69,8 +69,29 @@ export function buildViewerResponse(
   /** null = the visitor did not name a colour ("/n001"), not "the colour is gone". */
   colourSlug: string | null,
   deps: ProjectionDeps,
+  /**
+   * The `build-process` global — ONE "How we build your product" text for the
+   * whole catalogue, since 2026-08-17 (owner decision).
+   *
+   * ⚠️ OPTIONAL, AND `null`/`{}` MEANS "FALL BACK TO THE PRODUCT'S OWN COPY".
+   * That is not defensiveness: Payload's findOne returns `{}` rather than field
+   * defaults for a global with no row yet (see readCatalogueDefaults in
+   * collections/Products.ts), which is precisely the state this global is in from
+   * the moment its migration deploys until somebody opens the screen and saves.
+   * Without the fallback every live page would lose its build steps in that
+   * window. Once saved, an EMPTY step list is a real answer and wins — otherwise
+   * "delete them all" would silently mean "revert to whatever each product had".
+   */
+  buildProcess?: Doc | null,
 ): ViewerApiSuccess | null {
   const separateMode = product.variantMode === 'separate-glb-per-colour'
+
+  // The universal build-process copy, or the product's own as the deploy-window
+  // fallback — see the `buildProcess` parameter's comment for why `{}` counts as
+  // "never saved" while `[]` counts as a deliberate answer.
+  const buildSteps = Array.isArray(buildProcess?.customisationSteps)
+    ? buildProcess.customisationSteps
+    : product.customisationSteps
 
   const colourways: ViewerColourway[] = []
   for (const doc of colourwayDocs) {
@@ -129,9 +150,12 @@ export function buildViewerResponse(
             .filter(Boolean)
         : [],
       garmentFit: String(product.garmentFit ?? ''),
-      customisationIntroHtml: deps.richTextToHtml(product.customisationIntro),
-      customisationSteps: Array.isArray(product.customisationSteps)
-        ? product.customisationSteps.map((step) => {
+      shortDescription: String(product.shortDescription ?? ''),
+      customisationIntroHtml: deps.richTextToHtml(
+        buildProcess?.customisationIntro ?? product.customisationIntro,
+      ),
+      customisationSteps: Array.isArray(buildSteps)
+        ? buildSteps.map((step) => {
             const s = step as { number?: unknown; title?: unknown; body?: unknown }
             return {
               number: Number(s.number ?? 0),

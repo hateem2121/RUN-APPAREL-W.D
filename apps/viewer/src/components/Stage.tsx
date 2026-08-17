@@ -98,6 +98,36 @@ const ENVIRONMENT_IMAGE = '/env/studio-soft.hdr'
  */
 const MIN_FIELD_OF_VIEW = '1deg'
 
+/**
+ * Who gets a one-finger drag on a phone: the model, or the page.
+ *
+ * ⚠️ THIS WAS `pan-y` UNTIL 2026-08-17 AND THE OWNER REPORTED THE CONSEQUENCE:
+ * "sometimes when scrolling in the 3D block, checking the 3D model, the screen
+ * scrolls down while I am trying to scroll the 3D model."
+ *
+ * `pan-y` hands every gesture with a vertical component to the browser before
+ * model-viewer sees a single event. It is not a heuristic and there is no
+ * threshold — the browser claims the touch on the first move. So on a phone,
+ * where a garment is inspected by dragging it around, ANY drag that is not
+ * almost perfectly horizontal scrolled the page instead of turning the product.
+ * A visitor trying to look at the back of a skinsuit got the specifications.
+ *
+ * `none` gives the whole gesture to the model. THE COST IS REAL AND IS WHY
+ * `pan-y` was chosen originally: a visitor can no longer scroll the page by
+ * swiping ON the garment, so a canvas that filled the screen would trap them.
+ * This one does not, and that is what makes the trade safe here rather than
+ * merely preferable — measured at 390x844 on 2026-08-17, the canvas is 464 of
+ * 844px and the stage band ends well above the fold, so the header, the caption
+ * row, the colourway rail, the fixed action bar and the page below the band are
+ * all swipeable. There is more non-canvas height on screen than canvas.
+ *
+ * ⚠️ IF THE CANVAS IS EVER MADE TALL ENOUGH TO FILL A PHONE SCREEN, this must go
+ * back to `pan-y`. The invariant that keeps it safe is the phone-fit e2e test in
+ * motion-and-layout.spec.ts, which already asserts the band ends above the
+ * action bar.
+ */
+const TOUCH_ACTION = 'none'
+
 export function Stage({ data, selected, preview = null, onModelReadyChange }: StageProps) {
   const { product } = data
   const separateMode = product.variantMode === 'separate-glb-per-colour'
@@ -592,7 +622,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               min-field-of-view={MIN_FIELD_OF_VIEW}
               interaction-prompt="none"
               interpolation-decay={prefersReducedMotion() ? 1 : CAMERA_DECAY_MS}
-              touch-action="pan-y"
+              touch-action={TOUCH_ACTION}
               shadow-intensity="0.6"
               shadow-softness="0.8"
               environment-image={ENVIRONMENT_IMAGE}
@@ -655,14 +685,16 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               download, inviting the visitor to rotate a garment that had not
               arrived — on a 4G phone that is 22.6 s of instructions for an empty
               stage. */}
-          {/* Pointer-conditional, because on touch NEITHER half was true.
-              model-viewer is mounted `touch-action="pan-y"`, so a vertical swipe
-              is deliberately handed to the document and only a horizontal drag
-              orbits; zoom is pinch. For a B2B reference the printed artwork IS
-              the product, so zooming into the chest print is the visitor's main
-              task — and the page told them to do it with a gesture that scrolls
-              the garment off screen. isCoarsePointer() already gates the same
-              class of decision in ColourwayTabs.tsx. */}
+          {/* Pointer-conditional: the two devices need different words, because
+              scroll-to-zoom and pinch-to-zoom are not the same gesture.
+              isCoarsePointer() already gates the same class of decision in
+              ColourwayTabs.tsx.
+
+              ⚠️ THIS COMMENT USED TO EXPLAIN THAT A VERTICAL SWIPE WAS HANDED TO
+              THE DOCUMENT, which was true under `touch-action="pan-y"` and is
+              the exact behaviour the owner reported as a bug on 2026-08-17. See
+              TOUCH_ACTION above: a one-finger drag now turns the garment, in any
+              direction, and the page is scrolled from outside the canvas. */}
           {!fallback && modelLoaded && !swapping && (
             <p className="stage__hint" aria-hidden="true">
               {isCoarsePointer()
@@ -726,18 +758,53 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
           </p>
         </div>
 
-        {/* OUTSIDE `.stage__canvas`, and that is the whole fix — see
-            StageControls.tsx for the measurement. `!fallback` because the poster
-            branch has no camera to point; `disabled` rather than unmounted while
-            the model downloads, so the row cannot shove the page around 23
-            seconds late. */}
-        {!fallback && (
-          <StageControls
-            activeView={activeView}
-            onSelect={applyView}
-            disabled={!modelLoaded || swapping}
-          />
-        )}
+        {/*
+          The plinth label: the garment's name, directly under the garment.
+
+          `aria-hidden` is load-bearing. The real, single <h1> for this page lives
+          in <ProductPanel>; a second copy of the product name in the
+          accessibility tree would announce the garment twice and give a screen
+          reader two candidate titles for one page. This is decoration that
+          repeats something already said properly, which is exactly what
+          aria-hidden is for.
+
+          Desktop and tablet only (`.stage__caption` is display:none below 900px).
+          On a phone the stage band's height budget is what the whole 2026-08-17
+          layout change is fighting for — see `.stage__canvas` in page.css — and
+          25px of caption would come straight back out of the garment.
+
+          Flat, per docs/DESIGN.md: no text-shadow, no perspective, no gradient.
+          Fake depth on type next to a real 3D render reads as cheap, and the
+          design system is deliberately a flat editorial one.
+        */}
+        {/*
+          ONE ROW under the garment, carrying the label and the camera controls.
+
+          They were two stacked rows for about an hour and it cost 37px of
+          garment on a 900px-tall window — measured, and that band has no 37px to
+          give (see `.stage__canvas`'s budget). Sharing a row costs NOTHING: the
+          caption is absolutely positioned at the left, so the controls stay
+          centred on the garment at every width and the caption's presence or
+          absence cannot move them.
+
+          OUTSIDE `.stage__canvas`, which is the fix for the owner's "the buttons
+          are on top of the 3D product" — see StageControls.tsx for the numbers.
+        */}
+        <div className="stage__plinth">
+          <p className="stage__caption" aria-hidden="true">
+            {product.productName}
+          </p>
+          {/* `!fallback` because the poster branch has no camera to point;
+              `disabled` rather than unmounted while the model downloads, so the
+              row cannot shove the page around 23 seconds late. */}
+          {!fallback && (
+            <StageControls
+              activeView={activeView}
+              onSelect={applyView}
+              disabled={!modelLoaded || swapping}
+            />
+          )}
+        </div>
 
         {/* Coarse on purpose — see `announcedPercent`. This string changes at most
             four times during a download, where the visible readout changes

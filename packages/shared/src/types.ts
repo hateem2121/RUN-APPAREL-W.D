@@ -70,7 +70,20 @@ export interface ViewerProduct {
   gsm: string
   performanceFeatures: string[]
   garmentFit: string
-  /** Rich text serialised to sanitised HTML by the CMS endpoint. */
+  /**
+   * A few sentences about this garment, shown under its name. Empty string when
+   * the owner has not written one — every product created before 2026-08-17 is
+   * in that state, so the viewer keeps a generic paragraph as its fallback.
+   */
+  shortDescription: string
+  /**
+   * Rich text serialised to sanitised HTML by the CMS endpoint.
+   *
+   * ⚠️ SOURCED FROM THE `build-process` GLOBAL SINCE 2026-08-17, not from the
+   * product. The name and shape are unchanged on purpose — the viewer consumes
+   * these exactly as it did, and the switch is entirely inside
+   * apps/cms/src/endpoints/projectViewer.ts.
+   */
   customisationIntroHtml: string
   customisationSteps: ViewerCustomisationStep[]
   camera: ViewerCameraConfig

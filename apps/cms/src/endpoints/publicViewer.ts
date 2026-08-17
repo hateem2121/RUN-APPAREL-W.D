@@ -90,7 +90,17 @@ const buildHandler =
     // derived from the array itself inside buildViewerResponse.
     const colourwayDocs = Array.isArray(product.colourways) ? product.colourways : []
 
-    const settings = await req.payload.findGlobal({ slug: 'site-settings', depth: 0, req })
+    // Two globals, one round trip each, in parallel with each other. `build-process`
+    // is the universal "How we build your product" copy — read on EVERY request
+    // rather than seeded at create time, which is the whole point of it (see
+    // globals/BuildProcess.ts). `.catch(() => null)` because a global that cannot
+    // be read must degrade to the product's own stored copy, not 500 a garment
+    // page: buildViewerResponse treats null exactly as it treats a never-saved
+    // global.
+    const [settings, buildProcess] = await Promise.all([
+      req.payload.findGlobal({ slug: 'site-settings', depth: 0, req }),
+      req.payload.findGlobal({ slug: 'build-process', depth: 0, req }).catch(() => null),
+    ])
 
     // The public projection (only whitelisted fields cross this boundary) lives
     // in a pure, unit-tested function. Null → no usable colourway → 404.
@@ -101,6 +111,7 @@ const buildHandler =
       origin,
       colourSlug,
       { richTextToHtml },
+      buildProcess as Record<string, unknown> | null,
     )
     if (!body) {
       return notFound('This product reference is not currently available.')

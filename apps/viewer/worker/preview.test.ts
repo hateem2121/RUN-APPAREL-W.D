@@ -60,6 +60,7 @@ function payload(overrides: {
       productCode: 'N001',
       slug: 'n001',
       productName: 'Velocity Performance Skinsuit',
+      shortDescription: '',
       category: 'Sportswear',
       variantMode: 'single-glb-variants',
       glbUrl: 'https://media.wear-run.help/cycling-all-colours-optimized-4.glb',

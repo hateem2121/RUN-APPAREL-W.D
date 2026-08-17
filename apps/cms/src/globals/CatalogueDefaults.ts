@@ -5,12 +5,11 @@ import { DEFAULT_RETIRED_MESSAGE } from '../collections/Products'
 /**
  * Catalogue defaults — the copy every garment starts with.
  *
- * "How we build your product" (the opening paragraph and its numbered steps),
- * the catalogue link, and the retired-colour message read identically on every
+ * The catalogue link and the retired-colour message read identically on every
  * garment today. At 100+ products, typing them into each one is 100 chances to
- * leave a stale paragraph live on one page and the current one on another,
- * with nothing marking a product's copy as "same as everyone else's" or
- * "deliberately different" — so this puts the text in one place instead.
+ * leave a stale value live on one page and the current one on another, with
+ * nothing marking a product's copy as "same as everyone else's" or
+ * "deliberately different" — so this puts them in one place instead.
  *
  * THIS IS A SOURCE FOR NEW DOCUMENTS, NOT A LIVE LINK. Products.ts reads these
  * fields into a new product's own fields at the moment it is created (see
@@ -32,7 +31,7 @@ export const CatalogueDefaults: GlobalConfig = {
   admin: {
     group: 'Content',
     description:
-      'The copy every new garment starts with. Changing something here changes what the NEXT product you create begins with — it does NOT rewrite any product you have already made, even one made a minute ago. To fix wording on an existing product, open that product and edit it directly.',
+      'The settings every NEW garment starts with. Changing something here changes what the NEXT product you create begins with — it does NOT rewrite any product you have already made, even one made a minute ago. To fix one existing product, open it and edit it directly. (“How we build your product” does not work this way and is not here — it is one text for every product, in its own screen under Content.)',
   },
   access: {
     // Anonymous visitors never see this — it never reaches the public viewer
@@ -42,30 +41,22 @@ export const CatalogueDefaults: GlobalConfig = {
     update: isAdminOrEditor,
   },
   fields: [
-    {
-      name: 'customisationIntro',
-      type: 'richText',
-      label: 'Opening paragraph',
-      admin: {
-        description:
-          'The paragraph above the steps, on every NEW product from now on. Business-to-business wording only — this is not a shop.',
-      },
-    },
-    {
-      name: 'customisationSteps',
-      type: 'array',
-      label: 'The steps',
-      labels: { singular: 'Step', plural: 'Steps' },
-      admin: {
-        description:
-          'Shown in order as the “How we build your product” list on every NEW product from now on.',
-      },
-      fields: [
-        { name: 'number', type: 'number', required: true, label: 'Step number' },
-        { name: 'title', type: 'text', required: true, label: 'Step title' },
-        { name: 'body', type: 'textarea', required: true, label: 'Step text' },
-      ],
-    },
+    /**
+     * ⚠️ `customisationIntro` AND `customisationSteps` LEFT THIS GLOBAL ON
+     * 2026-08-17. They are not gone — they moved to `globals/BuildProcess.ts`
+     * and changed KIND while they moved.
+     *
+     * Here they were a SEED: copied onto each new product at create time and
+     * never read again, so editing them changed only what the next garment
+     * started with. There they are LIVE: read on every public request and
+     * projected onto every product page, including ones made months ago. The
+     * owner asked for the second behaviour, which is also the one this file's
+     * own admin.description has to warn people it does not have.
+     *
+     * The remaining two fields are genuinely per-product — a garment can have
+     * its own catalogue link and its own retired-colour wording — so they stay
+     * seeds and this global keeps its name.
+     */
     {
       name: 'catalogueUrl',
       type: 'text',

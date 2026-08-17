@@ -1,5 +1,4 @@
 import { isValidProductCode, isValidSlug } from '@run-apparel/shared'
-import { defaultRichTextValue } from '@payloadcms/richtext-lexical'
 import { APIError, type CollectionConfig, type PayloadRequest } from 'payload'
 import { isAdmin, isAdminOrEditor, isAuthenticated } from '../access/roles'
 import { cameraFields } from '../fields/camera'
@@ -313,6 +312,20 @@ export const Products: CollectionConfig = {
                 description:
                   'What buyers see at the top of the page, e.g. Velocity Performance Tee.',
               },
+            },
+            {
+              name: 'shortDescription',
+              type: 'textarea',
+              maxLength: 400,
+              label: 'Short description',
+              admin: {
+                description:
+                  'Two or three sentences about this garment, shown under its name on the public page. Plain text — no links or formatting. Leave it blank and the page uses the standard development-reference wording instead.',
+              },
+              // Deliberately NOT required. Every product that existed before
+              // 2026-08-17 has none, and making it required would make all of them
+              // unsaveable — including the shrink robot's own writes, which go
+              // through the same validation.
             },
             {
               name: 'productCode',
@@ -646,42 +659,56 @@ export const Products: CollectionConfig = {
             },
           ],
         },
+        /**
+         * ⚠️ THIS TAB IS GONE FROM THE ADMIN UI, and its two fields are HIDDEN
+         * rather than deleted. 2026-08-17, owner decision.
+         *
+         * "How we build your product" is now ONE text for the whole catalogue,
+         * living in the `build-process` global and read on every public request
+         * (globals/BuildProcess.ts). Editing it changes every page immediately,
+         * including products made months ago — which is what an editor
+         * reasonably expects and what the old seed-at-create design could not do.
+         *
+         * WHY THE FIELDS STAY. Two reasons, and either alone would be enough:
+         *
+         *   1. Removing a field means dropping its D1 columns, and on D1 a table
+         *      rebuild is the single most hazardous operation in this repo — a
+         *      DROP runs an implicit DELETE and that cascades, while
+         *      `PRAGMA foreign_keys=OFF` is a no-op there. Same precedent as
+         *      `presentation_mode`, retired in place on 2026-08-09 and still sat
+         *      in the schema harmlessly.
+         *   2. `buildViewerResponse` still FALLS BACK to these columns while the
+         *      new global has no saved row — the window between this deploying
+         *      and someone first opening the screen. Delete the data and every
+         *      live page loses its build steps for that window.
+         *
+         * `hidden: true` on a FIELD hides it from the form only; it is not the
+         * `admin.hidden` on a COLLECTION that also gates the admin ROUTES (see
+         * RawUploads.ts for that trap). The REST API still exposes these, which
+         * is what the fallback above needs.
+         *
+         * The `defaultValue` functions that seeded them from Catalogue defaults
+         * are gone with the tab: seeding a hidden field nobody reads would write
+         * a copy of the shared copy onto every new product, which is exactly the
+         * drift this change removes.
+         */
         {
-          label: 'How we build your product',
+          label: 'Superseded',
+          description:
+            'Nothing to do here. “How we build your product” now lives in one place for every product — find it in the sidebar under Content.',
           fields: [
             {
               name: 'customisationIntro',
               type: 'richText',
-              label: 'Opening paragraph',
-              // A new product starts with the shared paragraph from Settings →
-              // Catalogue defaults. Payload only calls a field's defaultValue
-              // function for a genuinely new document — verified against Payload
-              // 3.86.0 rather than assumed, see task-9-report.md — so editing the
-              // global never rewrites a product that already exists. Falls back to
-              // Lexical's own empty document (the same "blank" this field has
-              // always had) rather than undefined/null: this function's return type
-              // is Payload's SerializableValue, which excludes both.
-              defaultValue: async ({ req }: { req: PayloadRequest }) => {
-                const defaults = await readCatalogueDefaults(req)
-                return defaults?.customisationIntro ?? defaultRichTextValue
-              },
-              admin: {
-                description:
-                  'The paragraph above the steps. Business-to-business wording only — this is not a shop.',
-              },
+              label: 'Opening paragraph (no longer used)',
+              admin: { hidden: true },
             },
             {
               name: 'customisationSteps',
               type: 'array',
-              label: 'The steps',
+              label: 'The steps (no longer used)',
               labels: { singular: 'Step', plural: 'Steps' },
-              // Same inheritance and the same create-only timing as
-              // customisationIntro immediately above.
-              defaultValue: async ({ req }: { req: PayloadRequest }) => {
-                const defaults = await readCatalogueDefaults(req)
-                return defaults?.customisationSteps ?? []
-              },
-              admin: { description: 'Shown in order as the “How we build your product” list.' },
+              admin: { hidden: true },
               fields: [
                 { name: 'number', type: 'number', required: true, label: 'Step number' },
                 { name: 'title', type: 'text', required: true, label: 'Step title' },

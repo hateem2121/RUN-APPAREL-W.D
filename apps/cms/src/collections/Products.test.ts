@@ -1,4 +1,3 @@
-import { defaultRichTextValue } from '@payloadcms/richtext-lexical'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_RETIRED_MESSAGE, Products } from './Products'
 
@@ -142,42 +141,42 @@ describe('Products defaultValue — inherits from CatalogueDefaults on create on
     )
   })
 
-  it('customisationIntro reads the global', async () => {
-    const value = { root: { type: 'root', children: [], version: 1 } }
-    await expect(
-      runDefaultValue('customisationIntro', reqWithGlobal({ customisationIntro: value })),
-    ).resolves.toBe(value)
-  })
-  // No prior default existed for this field on Products — it was simply
-  // absent, and that has to remain the effective behaviour when the global is
-  // unreadable. The fallback cannot literally be undefined/null though:
-  // Payload's own DefaultValue function type returns SerializableValue
-  // (boolean | number | object | string), which excludes both, so a function
-  // returning either would fail `pnpm typecheck`. defaultRichTextValue is
-  // richtext-lexical's own exported empty document for exactly this situation
-  // — not a hand-rolled guess at Lexical's internal shape.
-  it('customisationIntro fails open to an empty Lexical document if the global cannot be read', async () => {
-    const result = await runDefaultValue('customisationIntro', reqWhereGlobalReadFails())
-    expect(result).toEqual(defaultRichTextValue)
-  })
-  it('customisationIntro fails open to an empty Lexical document if the global has never been saved', async () => {
-    const result = await runDefaultValue('customisationIntro', reqWithGlobal({}))
-    expect(result).toEqual(defaultRichTextValue)
+  /**
+   * ⚠️ SIX TESTS WERE DELETED HERE ON 2026-08-17, and they were correct when
+   * they were written. They asserted that `customisationIntro` and
+   * `customisationSteps` SEEDED themselves from Catalogue defaults at create
+   * time, failing open to an empty Lexical document / an empty array.
+   *
+   * That behaviour is gone by owner decision, not by accident. "How we build
+   * your product" is now ONE text for the whole catalogue, read live on every
+   * public request from the `build-process` global — so seeding a per-product
+   * copy would write a snapshot of the shared copy onto each new garment and
+   * reintroduce exactly the drift the change removes. The projection tests in
+   * endpoints/projectViewer.test.ts are where that behaviour is asserted now.
+   *
+   * What is asserted here instead is the pair of things that must stay true for
+   * the OLD data: the fields still exist (so the deploy-window fallback in
+   * projectViewer.ts has something to read, and so no D1 column is dropped —
+   * see the migration's header), and they no longer seed anything.
+   */
+  it('no longer seeds a per-product copy of the shared build-process text', () => {
+    expect(fieldNamed('customisationIntro').defaultValue).toBeUndefined()
+    expect(fieldNamed('customisationSteps').defaultValue).toBeUndefined()
   })
 
-  it('customisationSteps reads the global', async () => {
-    const steps = [{ number: 1, title: 'Step one', body: 'Body' }]
-    await expect(
-      runDefaultValue('customisationSteps', reqWithGlobal({ customisationSteps: steps })),
-    ).resolves.toBe(steps)
-  })
-  it('customisationSteps fails open to an empty array if the global cannot be read', async () => {
-    await expect(runDefaultValue('customisationSteps', reqWhereGlobalReadFails())).resolves.toEqual(
-      [],
-    )
-  })
-  it('customisationSteps fails open to an empty array if the global has never been saved', async () => {
-    await expect(runDefaultValue('customisationSteps', reqWithGlobal({}))).resolves.toEqual([])
+  it('keeps both fields on the collection, hidden rather than removed', () => {
+    // Removing them would mean dropping D1 columns, and on D1 a table rebuild
+    // runs an implicit DELETE that cascades — `products` is the parent of every
+    // colourway, media reference and raw upload. Same precedent as
+    // `presentation_mode`, retired in place on 2026-08-09.
+    for (const name of ['customisationIntro', 'customisationSteps']) {
+      const field = fieldNamed(name)
+      expect(field, `${name} was removed from the collection`).toBeDefined()
+      expect(
+        (field as { admin?: { hidden?: boolean } }).admin?.hidden,
+        `${name} is still shown in the admin form`,
+      ).toBe(true)
+    }
   })
 })
 
