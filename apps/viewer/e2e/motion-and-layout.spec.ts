@@ -561,6 +561,57 @@ test.describe('layout invariants', () => {
     ).toBeGreaterThanOrEqual(canvas.bottom)
   })
 
+  /**
+   * ⚠️ 950 IS THE WIDTH THAT WAS BROKEN, and it is why this loop is not just
+   * [phone, desktop].
+   *
+   * `.action-bar` is hidden from `min-width: 900px`; `.contact-rail` only existed
+   * from `min-width: 1100px`. Between those two numbers the page carried **no
+   * persistent contact control at all** — and this is the only conversion path in
+   * the product, so a visitor at 950px who did not scroll to the contact section
+   * simply could not make contact. Nothing reported it because nothing was ever
+   * measured at that width: the e2e matrix runs 320/375/768/1280, and 768 and
+   * 1280 both sit on working sides of the gap.
+   *
+   * The second half of the assertion is the one that matters for the owner's
+   * report: the controls must be reachable WITHOUT SCROLLING. The desktop rail
+   * used to appear only once the garment had scrolled out of view.
+   */
+  for (const width of [950, 1280, 1440]) {
+    test(`contact is reachable without scrolling at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const reachable = await page.evaluate(() => {
+        const inView = (el: Element) => {
+          const r = el.getBoundingClientRect()
+          return r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight
+        }
+        // Anything fixed to the viewport: the desktop rail or the mobile bar.
+        const persistent = [...document.querySelectorAll('.contact-rail a, .action-bar a')]
+        return {
+          scrollY: Math.round(window.scrollY),
+          email: persistent.filter(
+            (a) => a.getAttribute('href')?.startsWith('mailto:') && inView(a),
+          ).length,
+          whatsapp: persistent.filter((a) => a.getAttribute('href')?.includes('wa.me') && inView(a))
+            .length,
+        }
+      })
+
+      expect(reachable.scrollY, 'the page should not have scrolled to reach this').toBe(0)
+      expect(
+        reachable.email,
+        `no email control is on screen unscrolled at ${width}px — between 900 and ` +
+          `1099px the action bar is hidden and the rail used to start at 1100px`,
+      ).toBeGreaterThan(0)
+      expect(reachable.whatsapp, `no WhatsApp control is on screen at ${width}px`).toBeGreaterThan(
+        0,
+      )
+    })
+  }
+
   test('every interactive control meets the WCAG 2.5.8 target size', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await page.goto('/n001/wine')

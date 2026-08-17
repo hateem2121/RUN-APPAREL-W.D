@@ -4,7 +4,6 @@ import {
   type EnquiryContext,
   type ViewerSiteSettings,
 } from '@run-apparel/shared'
-import { useEffect, useState } from 'react'
 import { track } from '../lib/analytics'
 
 interface ContactProps {
@@ -57,32 +56,30 @@ export function ContactSection(props: ContactProps) {
   )
 }
 
-/** Desktop-only rail that appears after the visitor scrolls past the 3D stage. */
-export function StickyContactRail(props: ContactProps & { stageSelector?: string }) {
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    const stage = document.querySelector(props.stageSelector ?? '.stage')
-    if (!stage) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        setVisible(entries.every((entry) => !entry.isIntersecting))
-      },
-      { threshold: 0.05 },
-    )
-    observer.observe(stage)
-    return () => observer.disconnect()
-  }, [props.stageSelector])
-
+/**
+ * Desktop rail — always there, from the first paint.
+ *
+ * ⚠️ IT USED TO APPEAR ONLY AFTER THE GARMENT SCROLLED OUT OF VIEW, gated on an
+ * IntersectionObserver watching `.stage`. Removed 2026-08-17 by owner decision,
+ * and the reason is worth keeping: this is the only conversion path in the whole
+ * product. There is no cart and no form — a buyer either taps one of these or
+ * leaves. On a desktop machine the entire first screen, which for a visitor who
+ * does not scroll is the entire page, offered no way to make contact.
+ *
+ * The observer took `aria-hidden`, `inert`, the `visible` state and the
+ * `stageSelector` prop with it. Those existed to keep a HIDDEN rail out of both
+ * the tab order and the accessibility tree at the same time (axe rule
+ * `aria-hidden-focus`); with nothing ever hidden there is nothing to keep in
+ * step, so removing them is the fix rather than a regression of it.
+ *
+ * The rail is still desktop-only, and still by CSS alone: `.contact-rail` is
+ * `display: none` until 900px, which is the exact width where `.action-bar`
+ * takes over on the other side. Those two breakpoints must stay equal — they
+ * were 1100 and 900, which left 900-1099px with neither.
+ */
+export function StickyContactRail(props: ContactProps) {
   return (
-    // `inert` while hidden removes the rail's links from BOTH the tab order and
-    // the accessibility tree, so keyboard users can't tab into content that
-    // aria-hidden conceals from screen readers (axe rule: aria-hidden-focus).
-    <div
-      className={`contact-rail${visible ? ' contact-rail--visible' : ''}`}
-      aria-hidden={!visible}
-      inert={!visible}
-    >
+    <div className="contact-rail">
       <ContactButtons {...props} compact />
     </div>
   )

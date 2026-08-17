@@ -149,82 +149,46 @@ describe('ContactSection', () => {
   })
 })
 
+/**
+ * ⚠️ THIS BLOCK USED TO ASSERT THE OPPOSITE, and it was replaced 2026-08-17 by
+ * owner decision rather than because the old assertions were wrong.
+ *
+ * The rail was gated on an IntersectionObserver watching `.stage`: it appeared
+ * only once the garment had scrolled out of view. So on a desktop machine, for
+ * the whole first screen — which is the entire page for a visitor who does not
+ * scroll — there was no way to make contact at all. This is the only conversion
+ * path in the product: there is no cart and no form, a buyer either taps one of
+ * these or leaves.
+ *
+ * The observer, the `visible` state, `aria-hidden`, `inert` and the
+ * `stageSelector` prop all went together. Their tests went with them: an
+ * always-visible rail cannot have the two attributes drift apart, because it no
+ * longer sets either.
+ */
 describe('StickyContactRail', () => {
-  const renderRail = () => {
-    const stage = document.createElement('div')
-    stage.className = 'stage'
-    document.body.appendChild(stage)
+  it('is visible and interactive from first paint', () => {
     render(<StickyContactRail settings={SETTINGS} enquiry={ENQUIRY} />)
-    return stage
-  }
-
-  it('starts hidden, and hidden means BOTH aria-hidden and inert', () => {
-    const stage = renderRail()
     const rail = host.querySelector('.contact-rail')
 
-    expect(rail?.getAttribute('aria-hidden')).toBe('true')
-    expect(rail?.hasAttribute('inert'), 'inert is what keeps it out of the tab order').toBe(true)
-    stage.remove()
-  })
-
-  it('becomes visible, and interactive, once the stage scrolls out of view', () => {
-    const stage = renderRail()
-    act(() => observers[0]?.trigger(false))
-
-    const rail = host.querySelector('.contact-rail')
-    expect(rail?.className).toContain('contact-rail--visible')
-    expect(rail?.getAttribute('aria-hidden')).toBe('false')
-    expect(rail?.hasAttribute('inert')).toBe(false)
-    stage.remove()
-  })
-
-  /**
-   * The invariant, stated once so it cannot drift: these two attributes are set from
-   * the SAME boolean and must never disagree. A rail that is aria-hidden but
-   * focusable is the axe `aria-hidden-focus` violation the source comment cites, and
-   * it is unreachable by the static scan.
-   */
-  it.each([false, true])(
-    'keeps aria-hidden and inert in agreement (stage intersecting: %s)',
-    (isIntersecting) => {
-      const stage = renderRail()
-      act(() => observers[0]?.trigger(isIntersecting))
-
-      const rail = host.querySelector('.contact-rail')
-      const ariaHidden = rail?.getAttribute('aria-hidden') === 'true'
-      expect(rail?.hasAttribute('inert')).toBe(ariaHidden)
-      stage.remove()
-    },
-  )
-
-  it('does nothing at all when the stage element is absent', () => {
-    // A product page rendered without a 3D stage (the separate-GLB error path) must
-    // not crash the rail's effect.
-    expect(() => render(<StickyContactRail settings={SETTINGS} enquiry={ENQUIRY} />)).not.toThrow()
-    expect(observers, 'no stage means no observer to leak').toHaveLength(0)
-  })
-
-  it('accepts a custom stage selector', () => {
-    const stage = document.createElement('div')
-    stage.id = 'custom-stage'
-    document.body.appendChild(stage)
-
-    render(
-      <StickyContactRail settings={SETTINGS} enquiry={ENQUIRY} stageSelector="#custom-stage" />,
-    )
-    expect(observers).toHaveLength(1)
-    stage.remove()
-  })
-
-  it('disconnects its observer on unmount', () => {
-    const stage = renderRail()
-    act(() => root.unmount())
-
+    expect(rail, 'no rail rendered at all').not.toBeNull()
     expect(
-      observers[0]?.disconnected,
-      'an undisconnected observer leaks on every route change',
-    ).toBe(true)
-    stage.remove()
-    root = createRoot(host) // afterEach unmounts again; give it a live root
+      rail?.hasAttribute('inert'),
+      'inert keeps the links out of the tab order — the rail is always reachable now',
+    ).toBe(false)
+    expect(
+      rail?.getAttribute('aria-hidden'),
+      'aria-hidden would conceal the only conversion path from a screen reader',
+    ).toBeNull()
+  })
+
+  it('needs no stage element, and observes nothing', () => {
+    // The rail used to require `.stage` to exist before it would ever appear, so
+    // the separate-GLB error path (no stage) silently had no contact rail.
+    expect(() => render(<StickyContactRail settings={SETTINGS} enquiry={ENQUIRY} />)).not.toThrow()
+    expect(
+      observers,
+      'the rail still constructs an IntersectionObserver — it should not scroll-gate at all',
+    ).toHaveLength(0)
+    expect(host.querySelectorAll('a')).toHaveLength(2)
   })
 })

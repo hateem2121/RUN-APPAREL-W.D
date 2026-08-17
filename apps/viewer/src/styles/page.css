@@ -931,12 +931,29 @@ model-viewer.stage__model:focus-within {
   color: var(--muted);
 }
 
-/* Desktop sticky rail — appears after scrolling past the stage */
+/*
+ * Desktop contact rail — present from the first paint.
+ *
+ * ⚠️ TWO CHANGES HERE ON 2026-08-17, and the breakpoint one fixed a gap nobody
+ * had reported because it is invisible unless you happen to be at that width.
+ *
+ * 1. `1100px` -> `900px`. `.action-bar` is hidden from `min-width: 900px`, and
+ *    this rail only existed from `min-width: 1100px` — so **between 900px and
+ *    1099px the page had no persistent contact control at all**. That band is
+ *    a small laptop and a tablet in landscape. The two breakpoints are now the
+ *    same number and must stay that way: one hands over to the other, and any
+ *    daylight between them is a dead zone on the only conversion path there is.
+ *
+ * 2. The `opacity: 0` / `translateY` / `pointer-events: none` resting state and
+ *    the `--visible` modifier are GONE, with the IntersectionObserver that drove
+ *    them (see Contact.tsx). Keeping a transition whose start state nothing can
+ *    ever apply would be dead CSS — the same tidy-up `.preloader__count` got.
+ */
 .contact-rail {
   display: none;
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 900px) {
   .contact-rail {
     position: fixed;
     right: 20px;
@@ -945,18 +962,6 @@ model-viewer.stage__model:focus-within {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    opacity: 0;
-    transform: translateY(8px);
-    pointer-events: none;
-    transition:
-      opacity var(--ui) var(--ease),
-      transform var(--ui) var(--ease);
-  }
-
-  .contact-rail--visible {
-    opacity: 1;
-    transform: none;
-    pointer-events: auto;
   }
 }
 
