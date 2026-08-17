@@ -530,7 +530,12 @@ model-viewer.stage__model:focus-within {
     font-stretch: 122%;
     letter-spacing: -0.02em;
     text-transform: uppercase;
-    font-size: 15px;
+    /* `--text-sm`, not a raw `15px`. They are the same number today, and the
+       token is the point: DESIGN.md's size scale exists because an audit found
+       every font size in this viewer was a raw literal "with nothing to stop a
+       tenth", and a new raw 15px is exactly that tenth. The spacing gate in
+       tokens.test.ts does not check font-size, so this one is on the author. */
+    font-size: var(--text-sm);
     color: var(--muted);
   }
 }
@@ -637,17 +642,26 @@ model-viewer.stage__model:focus-within {
  * and 32px on a phone, the hint ended at 27px), which is why it survived this
  * long: it was a composition problem, not a collision.
  *
- * Top-LEFT, aligned to the canvas's own inset. It reads as a caption on the
+ * Top-LEFT, on the SAME 3% inset as `.callout`. It reads as a caption on the
  * canvas, it is clear of the garment horizontally on desktop (the model occupies
  * only the middle 39% of the canvas width), and on a phone it sits above the
- * garment's top edge exactly as it did before. It also lines up with the FABRIC
- * callout at `top: 14%; left: 3%`, so the two form one left-hand column instead
- * of two unrelated labels.
+ * garment's top edge exactly as it did before.
+ *
+ * ⚠️ `3%`, NOT `14px`, and the difference is the whole point of the alignment.
+ * This shipped as `left: 14px` for about an hour under a comment claiming it
+ * "lines up with the FABRIC callout" — measured at 1440x900, the callout sits
+ * 34px from the canvas edge and the hint sat at 14px, so they were **20px
+ * apart** and the claim was simply false. `.callout` positions in PERCENTAGES so
+ * it scales with the canvas; a pixel value cannot track that at any other width
+ * either. Same unit, same number, one left-hand column.
+ *
+ * At 375px this resolves to ~11px, which clears the canvas's 18px corner radius
+ * comfortably: at y=12 the rounded edge has already come in to x≈1px.
  */
 .stage__hint {
   position: absolute;
   top: 12px;
-  left: 14px;
+  left: 3%;
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.12em;

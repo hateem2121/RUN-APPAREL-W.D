@@ -268,7 +268,22 @@ token *and* set `flex-shrink: 0`. Measured on the live page 2026-08-14.
 ### Elevation
 
 `--shadow-raised` — one token, because this system has exactly one elevated
-surface (the floating colourway preview).
+surface: **the desktop contact rail** (`.contact-rail`), the floating
+EMAIL / WHATSAPP pill in the bottom-right corner.
+
+⚠️ **It named the floating colourway preview until 2026-08-17, and that element
+had been DELETED on 2026-08-15** — so for two days this section documented an
+elevation token whose only stated consumer did not exist, and the token was
+genuinely unused. That is the drift this file's own header warns about ("if the
+two disagree, the CSS is right and this file is stale"); it is recorded rather
+than quietly corrected because a *reader* had no way to tell. The token itself
+was never the problem — `tokens.css` kept it deliberately "for the next elevated
+surface", and this is that surface.
+
+The rule it encodes is unchanged: a surface that floats OVER scrolling content
+needs to read as above it, and there is exactly one such surface at a time. If a
+second one ever appears, that is the moment to ask whether it should exist rather
+than to add a second shadow.
 
 Declared with `light-dark()` like every other surface value. Added 2026-08-14: the
 system had **no shadow token at all**, and its one drop shadow was a raw
