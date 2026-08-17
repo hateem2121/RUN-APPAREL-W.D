@@ -52,11 +52,10 @@ locally" has failed twice: `apps/shrink/container` is not a pnpm member and gets
 its own `npm install --no-audit --no-fund && npx tsc --noEmit` step in CI,
 `eval:artwork` runs in a job of its own, and `check-bundle-budget` reads
 `apps/viewer/dist` so it exits 1 unless `pnpm build` has already run.
-⚠️ This paragraph claimed until 2026-08-13 that README's "Local development" list
-"omits `lint` and both of these". README had listed `lint` for some time, so that
-was already wrong when read; it now lists every gate above. Corrected by running
-the commands rather than re-reading the sentence — the same lesson as
-`eval:artwork:real -- raw/x.glb` below.
+⚠️ Until 2026-08-13 this paragraph claimed README's "Local development" list omits
+some of these. It does not, and had not for some time — caught by running the
+commands rather than re-reading the sentence (same lesson as
+`eval:artwork:real -- raw/x.glb` below).
 
 **`pnpm` is not on `PATH` on the owner's machine — use `npx --yes pnpm@10.33.0`.**
 Every documented `pnpm <script>` in this repo means that. Bare `pnpm` fails with
@@ -78,21 +77,17 @@ exactly as `PORT` was:** `apps/cms`'s build script is now
 `NODE_ENV=production next build`, so the environment cannot reach it. Verified
 with `NODE_ENV=development` still exported.
 
-⚠️ **Where these variables come from is NOT settled, and it has now measured BOTH
-ways — do not assume either state.** 2026-08-09: neither `NODE_ENV` nor `PORT`
-appears in `~/.zshrc`, `~/.zshenv`, `~/.zprofile`, `~/.bash_profile` or
-`~/.profile`, yet both *were* set in the session environment
-(`NODE_ENV=development`, `PORT=5002`). **2026-08-13, same machine:
-`env | grep -E '^(NODE_ENV|PORT)='` returned nothing** — neither was set, and a
-full lint / typecheck / 629 tests / build / e2e-free gate run passed with no
-workaround. So the harness supplies them *sometimes*, not always. This paragraph
-used to say they are set, flatly; that is what changed. The consequence is
-unchanged and is the point: the owner in their own terminal, and two sessions
-four days apart, can each see a different environment, so **"it works for me"
-proves nothing about the other.** Both are fixed at the source anyway, which is
-why it does not matter day to day. **If a build or a test server fails in a way
-that makes no sense, run `env | grep -E 'NODE_ENV|PORT'` before reading any
-code** — that is twice now.
+⚠️ **Where these variables come from is NOT settled — it has measured BOTH ways,
+so assume neither.** 2026-08-09 both *were* set in the session environment
+(`NODE_ENV=development`, `PORT=5002`) while appearing in none of `~/.zshrc`,
+`~/.zshenv`, `~/.zprofile`, `~/.bash_profile` or `~/.profile`. 2026-08-13 and
+again 2026-08-17, same machine, `env | grep -E '^(NODE_ENV|PORT)='` returned
+nothing and a full gate run passed with no workaround. So the harness supplies
+them *sometimes*. The consequence is the point: the owner's own terminal and any
+two sessions can each see a different environment, so **"it works for me" proves
+nothing about the other.** Both are fixed at the source anyway. **If a build or a
+test server fails in a way that makes no sense, run
+`env | grep -E 'NODE_ENV|PORT'` before reading any code** — three times now.
 
 **A `PORT` set for another project produces the IDENTICAL error, and did on
 2026-08-08.** `e2e/serve.mjs` reads `process.env.PORT ?? 4173` and inherits your
@@ -457,40 +452,27 @@ the answer is "nothing that happens in production", it is not a test.
   `HEAD`: a `GET` on the model is 27 MB per run, which the 15-minute uptime job
   turns into gigabytes of R2 egress against a $5/month cap.
 
-- **Eighteen more traps live in `apps/viewer/CLAUDE.md`** — the `performance` global
-  shadowed by a local in `Stage.tsx` (a runtime `TypeError` that every unit test
-  stays green through), the FIXED ORDER in which `translate`/`scale`/`transform`
-  compose (which threw the custom cursor 1.53× away from the pointer over every
-  button for as long as it went unnoticed), CSP and Bot Fight Mode, why a
-  build-time CSP cannot cover an edge-injected script, `_headers` combining,
-  `_headers` surviving `env.ASSETS.fetch()` **but NOT reaching a response the Worker
-  builds itself** (that pair is one trap in two halves — the second shipped the
-  `/render` refusal with no CSP at all, live, until 2026-08-12; do not read the first
-  without the second. ⚠️ `/render` itself was **deleted 2026-08-17** with the
-  automatic poster capture it served, so the Worker now builds NO response of its
-  own — `worker/securityHeaders.ts` is kept, uncalled, for the next one),
-  crawler-only link previews, `og:image` format, the grid
-  `min-height: auto` overflow, and the two `<model-viewer>` DOM traps (`src` is a
-  property; `webglcontextlost` never reaches your listener).
-  **Six were added 2026-08-17**, all from one round of owner-reported layout bugs
-  and all of the same shape — something that fails without saying anything: the
-  stage-height budget being wrong three times by arithmetic rather than
-  measurement, `focus()` silently scrolling the page by the header's height,
-  model-viewer 4.x having DELETED the two custom properties that were suppressing
-  the loading poster, `touch-action="pan-y"` handing the browser every gesture
-  with a vertical component, `flex-shrink: 0` causing rather than preventing a
-  flex child wrapping to a new row, and `.contact-rail`/`.action-bar` breakpoints
-  leaving 900–1099px with no contact control at all.
-  Moved there 2026-08-10 because this file had come within 326 chars
-  of the size at which Claude Code warns a memory file is too large; they load
-  automatically the moment you touch `apps/viewer/`. Read them before changing the
-  viewer, its Worker, or its headers.
+- **Eighteen more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
+  restated here — they load automatically the moment you touch `apps/viewer/`,
+  so a copy in this file is pure weight. Enough of a hook to make you open it: a
+  `performance` global shadowed by a local (a runtime `TypeError` every unit test
+  stays green through); the FIXED order `translate → rotate → scale → transform`,
+  which threw the custom cursor 1.53× away from the pointer over every button;
+  `_headers` surviving `env.ASSETS.fetch()` **but NOT a response the Worker builds
+  itself**; and a stage-height budget that has been wrong three times by
+  arithmetic instead of measurement. Read them before changing the viewer, its
+  Worker, or its headers.
+  Moved there 2026-08-10 when this file came within 326 chars of the size at which
+  Claude Code warns a memory file is too large — **a threshold it later crossed
+  anyway, so put new viewer, pipeline or CMS detail in the sub-file, not here.**
 
-- **Two more live in `apps/cms/CLAUDE.md`**, moved there 2026-08-15 — the
-  `NODE_ENV=production` requirement for any Payload CLI task against production D1,
-  and why `apps/cms/src/migrations/` must hold nothing but migrations — plus
-  "Before you change a migration". **"Before you delete anything in the CMS" below
-  deliberately did NOT move**: it governs `apps/shrink/src/cms.ts` and
+- **Two more traps live in `apps/cms/CLAUDE.md`** (loads on touching `apps/cms/`) —
+  `NODE_ENV=production` for any Payload CLI task against production D1, and why
+  `src/migrations/` must hold only migrations; it also carries "Before you change
+  a migration" and how to write products from a script. ⚠️ This said "Two more
+  **live** in" until 2026-08-17 — without the word "traps",
+  `claudeMd.test.ts`'s counter silently skipped it. **"Before you delete anything in the
+  CMS" below deliberately did NOT move**: it governs `apps/shrink/src/cms.ts` and
   `scripts/find-orphan-media.mjs` too, and under `apps/cms/` it would stop loading
   for exactly the half that deletes files.
 
@@ -570,10 +552,21 @@ deployed and then gone red at verification. Fixed in the same change.
 two hours before it was found, because it probes
 `viewer.wear-run.help/n001/wine` and the viewer is an **SPA**: any path returns
 200 HTML and renders "REFERENCE UNAVAILABLE" on the client. A status check there
-proves a web server answered, nothing more. `docs/RUNBOOK.md` still cites `n001`
-in ~8 places and `apps/viewer/e2e/serve.mjs` still fixtures it — the e2e ones are
-harmless (that server is the fixture, and it defines the slug it serves), the
-RUNBOOK ones are stale and will send a human to a 404.
+proves a web server answered, nothing more. `apps/viewer/e2e/serve.mjs` still
+fixtures `n001`, correctly — that server *is* the fixture. RUNBOOK's four
+remaining mentions are annotated pre-rename measurements (re-checked 2026-08-17),
+not live paths.
+
+⚠️ **A RENAME BROKE A POST-DEPLOY GATE A SECOND TIME — 2026-08-17, different
+field.** `productCode` went `RXPS` → `R-XPS` (slug correctly untouched; that one
+is on printed tags) and `main` went red at `smoke-viewer-preview.mjs`, which
+derived the expected code as `PRODUCT.toUpperCase()` where `PRODUCT` is the
+**slug** — so it demanded `RXPS` while the page truthfully said `R-XPS`, and a
+working rewrite failed its own gate. What re-armed it: 2026-08-15 was repaired by
+editing a hardcoded default, which restores green without removing the fragility.
+Both sides now compare with non-alphanumerics stripped. **Before changing any
+product identity field, grep `scripts/smoke-*.mjs` and `ci.yml` for it** — `slug`
+and `productCode` are different fields whose values merely coincided.
 
 **Do not push twice in a row, and read `conclusion` not the exit code.** `ci.yml`
 sets `concurrency: cancel-in-progress: true` on `ci-${{ github.ref }}`, so a second
