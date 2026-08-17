@@ -94,17 +94,39 @@ async function runChecks() {
   }
 
   // 2. The rewrite ran, and named THIS garment. Matching on the product code rather
-  //    than the whole title keeps the check working when the product is renamed in
-  //    the CMS — the code is what is printed on the tag and does not change.
-  const expectCode = PRODUCT.toUpperCase()
+  //    than the whole title keeps the check working when the product is RENAMED in
+  //    the CMS.
+  //
+  //    ⚠️ THIS COMPARISON IS NORMALISED, AND IT WENT RED ON MAIN WITHOUT IT.
+  //    2026-08-17: the live product's code changed `RXPS` → `R-XPS` (catalogue
+  //    house style) while its slug correctly stayed `rxps`. The check derived the
+  //    expected CODE by uppercasing the SLUG, so it wanted `RXPS`, the page
+  //    correctly said `R-XPS`, and the deploy job failed on a rewrite that was
+  //    working perfectly.
+  //
+  //    The comment here used to justify that with "the code is what is printed on
+  //    the tag and does not change". That conflated two different fields: the
+  //    SLUG is on the tag and may never change (Products.ts and colourways.ts
+  //    both enforce it), while the product CODE is on the page and in the enquiry
+  //    email, is not in any URL, and is therefore safe to change — as it just was.
+  //    Uppercasing a slug is not a way to learn a product code.
+  //
+  //    Stripping non-alphanumerics from both sides compares the two the only way
+  //    that is stable: `rxps` and `R-XPS` both reduce to RXPS, and every imported
+  //    garment matches its own code the same way (`r-gcj` ↔ `R-GCJ` → RGCJ). This
+  //    is the same rename-shaped breakage that took out BOTH post-deploy gates on
+  //    2026-08-15 when `n001` became `rxps`; that one was fixed by editing a
+  //    default, which left the next rename free to do it again.
+  const squash = (s) => s.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  const expectCode = squash(PRODUCT)
   const title = html.match(/<title>([^<]*)<\/title>/i)?.[1] ?? ''
-  if (!title.toUpperCase().includes(expectCode)) {
+  if (!squash(title).includes(expectCode)) {
     fail(`<title> is "${title}" — the per-garment rewrite did not run.`)
   }
   for (const key of ['og:title', 'twitter:title']) {
     const value = meta(html, key) ?? ''
-    if (!value.toUpperCase().includes(expectCode))
-      fail(`${key} is "${value}", expected ${expectCode}.`)
+    if (!squash(value).includes(expectCode))
+      fail(`${key} is "${value}", expected it to contain the product code ${expectCode}.`)
   }
 
   // 3. The canonical URL is per-colourway and points back here. A static value would
