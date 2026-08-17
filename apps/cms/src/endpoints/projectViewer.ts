@@ -73,25 +73,39 @@ export function buildViewerResponse(
    * The `build-process` global — ONE "How we build your product" text for the
    * whole catalogue, since 2026-08-17 (owner decision).
    *
-   * ⚠️ OPTIONAL, AND `null`/`{}` MEANS "FALL BACK TO THE PRODUCT'S OWN COPY".
-   * That is not defensiveness: Payload's findOne returns `{}` rather than field
-   * defaults for a global with no row yet (see readCatalogueDefaults in
-   * collections/Products.ts), which is precisely the state this global is in from
-   * the moment its migration deploys until somebody opens the screen and saves.
-   * Without the fallback every live page would lose its build steps in that
-   * window. Once saved, an EMPTY step list is a real answer and wins — otherwise
-   * "delete them all" would silently mean "revert to whatever each product had".
+   * ⚠️ AN UNSAVED GLOBAL DOES NOT ARRIVE AS `{}`. This was written believing it
+   * did — Products.ts's readCatalogueDefaults says so, and that is true for a
+   * global whose fields are all scalars — and it was WRONG here, because this one
+   * has an array field. Probed against a real local D1 on 2026-08-17:
+   *
+   *   never saved   {"customisationSteps":[]}                     <- no id
+   *   saved         {id:1, customisationSteps:[…], updatedAt, createdAt, globalType}
+   *   saved+cleared {id:1, customisationSteps:[],  updatedAt, …}
+   *
+   * So the unsaved case and the deliberately-cleared case carry the SAME empty
+   * array, and only `id` tells them apart. Deciding on the array alone — which is
+   * what shipped first — meant an unsaved global won, discarding every product's
+   * own steps on every page at once, for the entire window between this migration
+   * deploying and somebody first opening the new screen. That is precisely the
+   * failure this fallback exists to prevent, and its own test could not see it
+   * because the test asserted a shape Payload never returns.
+   *
+   * Once SAVED, an empty step list is a real answer and wins — otherwise "delete
+   * them all" would silently mean "revert to whatever each product had".
    */
   buildProcess?: Doc | null,
 ): ViewerApiSuccess | null {
   const separateMode = product.variantMode === 'separate-glb-per-colour'
 
-  // The universal build-process copy, or the product's own as the deploy-window
-  // fallback — see the `buildProcess` parameter's comment for why `{}` counts as
-  // "never saved" while `[]` counts as a deliberate answer.
-  const buildSteps = Array.isArray(buildProcess?.customisationSteps)
-    ? buildProcess.customisationSteps
-    : product.customisationSteps
+  // `id` is the discriminator, NOT the array — see the `buildProcess` parameter's
+  // comment. It is the only field present in every saved shape and absent from
+  // the unsaved one, so it is what separates "nobody has opened this screen yet"
+  // from "somebody deliberately cleared it".
+  const buildProcessSaved = buildProcess != null && buildProcess.id != null
+  const buildSteps =
+    buildProcessSaved && Array.isArray(buildProcess.customisationSteps)
+      ? buildProcess.customisationSteps
+      : product.customisationSteps
 
   const colourways: ViewerColourway[] = []
   for (const doc of colourwayDocs) {
@@ -151,8 +165,11 @@ export function buildViewerResponse(
         : [],
       garmentFit: String(product.garmentFit ?? ''),
       shortDescription: String(product.shortDescription ?? ''),
+      // Same gate as the steps: an unsaved global must not blank the paragraph
+      // either. `??` on top of it, so a SAVED global with no paragraph written
+      // yet still shows the product's rather than nothing.
       customisationIntroHtml: deps.richTextToHtml(
-        buildProcess?.customisationIntro ?? product.customisationIntro,
+        (buildProcessSaved ? buildProcess.customisationIntro : null) ?? product.customisationIntro,
       ),
       customisationSteps: Array.isArray(buildSteps)
         ? buildSteps.map((step) => {

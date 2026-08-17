@@ -90,7 +90,7 @@ describe('the universal build-process copy', () => {
       origin,
       'navy',
       deps,
-      buildProcess,
+      { id: 1, ...buildProcess },
     )!
     expect(body.product.customisationSteps).toEqual([
       { number: 1, title: 'NEW STEP', body: 'new body' },
@@ -99,17 +99,38 @@ describe('the universal build-process copy', () => {
   })
 
   /**
-   * ⚠️ THE FALLBACK IS NOT DEFENSIVENESS — it covers a real window.
+   * ⚠️ THE FALLBACK IS NOT DEFENSIVENESS — it covers a real window, and the shape
+   * it has to survive was MEASURED rather than assumed.
    *
-   * Payload's findOne returns `{}` rather than field defaults for a global with
-   * no row yet (documented in Products.ts's readCatalogueDefaults comment), which
-   * is exactly the state this global is in from the moment the migration deploys
-   * until somebody opens the new screen and saves. Without the fallback, every
-   * live product page would lose its build steps in that window.
+   * This test used `{}`, `null` and `undefined` until 2026-08-17 and passed —
+   * against code that was broken. Payload does not return `{}` for a never-saved
+   * global with an array field. Probed against a real local D1:
+   *
+   *   never saved   {"customisationSteps":[]}                    <- no id
+   *   saved         {id:1, customisationSteps:[...], updatedAt, createdAt, globalType}
+   *   saved+cleared {id:1, customisationSteps:[],    updatedAt,  …}
+   *
+   * So an unsaved global arrives as an EMPTY ARRAY, `Array.isArray` said true,
+   * and the projection used it — discarding the product's own four steps on
+   * every page at once, for the whole window between the migration deploying and
+   * somebody first opening the new screen. Exactly the failure the fallback
+   * exists to prevent, caused by the fallback's own test asserting a shape that
+   * never occurs.
+   *
+   * `id` is the discriminator, because it is the only field present in the saved
+   * shapes and absent from the unsaved one.
    */
   it('falls back to the product’s own copy when the global has never been saved', () => {
     const own = [{ number: 4, title: 'OWN STEP', body: 'own body' }]
-    for (const unsaved of [{}, null, undefined]) {
+    const unsavedShapes = [
+      // What Payload ACTUALLY returns — measured, and the case that was broken.
+      { customisationSteps: [] },
+      // Belt and braces: a read that failed, and a global with no fields at all.
+      null,
+      undefined,
+      {},
+    ]
+    for (const unsaved of unsavedShapes) {
       const body = buildViewerResponse(
         product({ customisationSteps: own }),
         [colourway()],
@@ -125,9 +146,13 @@ describe('the universal build-process copy', () => {
     }
   })
 
-  it('an empty step list on a saved global is a real answer, not a missing one', () => {
+  it('an empty step list on a SAVED global is a real answer, not a missing one', () => {
     // Deleting every step must actually remove the accordion from every page —
     // otherwise "clear it" silently means "revert to whatever each product had".
+    //
+    // `id: 1` is what makes this a saved document rather than the unsaved shape
+    // above. Both carry `customisationSteps: []`; only the id tells them apart,
+    // which is why the projection cannot decide on the array alone.
     const body = buildViewerResponse(
       product({ customisationSteps: [{ number: 4, title: 'OWN STEP', body: 'b' }] }),
       [colourway()],
@@ -135,7 +160,7 @@ describe('the universal build-process copy', () => {
       origin,
       'navy',
       deps,
-      { customisationIntro: { root: {} }, customisationSteps: [] },
+      { id: 1, customisationIntro: null, customisationSteps: [], updatedAt: '2026-08-17' },
     )!
     expect(body.product.customisationSteps).toEqual([])
   })
