@@ -326,10 +326,34 @@ export const Products: CollectionConfig = {
                 }
                 return isValidProductCode(value.trim())
                   ? true
-                  : `“${value}” can’t be used as a product code. Use capital letters and numbers, starting with a letter — e.g. N001.`
+                  : `“${value}” can’t be used as a product code. Use letters, numbers and hyphens, starting with a letter — e.g. N001 or RX-PS.`
               },
-              admin: { description: 'Your internal code. Capital letters and numbers, e.g. N001.' },
+              admin: {
+                description:
+                  'Your internal code. Letters, numbers and hyphens, e.g. N001 or RX-PS. Lowercase is fine — it is saved in capitals.',
+              },
               hooks: {
+                /**
+                 * Accept what the owner types; store what the system needs.
+                 *
+                 * ⚠️ THIS IS A NORMALISATION OF INPUT, NOT A CORRECTION OF STORED DATA,
+                 * and the distinction is the one the slug field below is built around.
+                 * A colourway slug is printed on physical QR tags, so nothing automated
+                 * may ever rewrite one. A product code is not on a tag and not in a URL
+                 * — it appears in the enquiry email and on the page — so trimming and
+                 * uppercasing what someone typed is a courtesy, not a hazard. That is
+                 * why this runs on update as well as create, where the slug's own hook
+                 * deliberately does not.
+                 *
+                 * It exists because `isValidProductCode` rejects lowercase (see its own
+                 * comment: mixed case would let two codes collide on the unique index
+                 * while looking different to a person). Without this hook that rejection
+                 * reaches the owner as an error about capital letters, for something the
+                 * machine can obviously do itself.
+                 */
+                beforeValidate: [
+                  ({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value),
+                ],
                 // Unique, and Payload copies a field's value verbatim into a duplicate
                 // unless told otherwise — so without this, saving a freshly duplicated
                 // product hits the same `products_product_code_idx` UNIQUE index the
@@ -338,15 +362,14 @@ export const Products: CollectionConfig = {
                 // source doc BEFORE handing it to create, so this suffix is already in
                 // place by the time the unique check runs.
                 //
-                // NO HYPHEN. `-COPY` reads better but fails this field's own validate
-                // two lines up — isValidProductCode is /^[A-Z][A-Z0-9]*$/, letters and
-                // digits only — and beforeChange/index.js throws a ValidationError the
-                // instant any field's validate returns a string, which would abort the
-                // whole duplicate. Measured: `isValidProductCode('N001-COPY')` is
-                // `false`, and duplicating would trade the unique-constraint error this
-                // hook exists to fix for a different, equally blocking one.
+                // ⚠️ THIS WAS `${value}COPY` UNTIL 2026-08-17, under a comment titled
+                // "NO HYPHEN" explaining that `-COPY` failed this field's own validate.
+                // That was true and is not any more: `isValidProductCode` accepts a
+                // hyphen between groups since the same date, so `N001-COPY` validates.
+                // The comment is replaced rather than left, because a stale reason
+                // reads as a live constraint.
                 beforeDuplicate: [
-                  ({ value }) => (typeof value === 'string' ? `${value}COPY` : value),
+                  ({ value }) => (typeof value === 'string' ? `${value}-COPY` : value),
                 ],
               },
             },
@@ -361,9 +384,24 @@ export const Products: CollectionConfig = {
                 if (typeof value !== 'string' || value.trim() === '') {
                   return 'Every product needs a web address word, e.g. n001.'
                 }
-                return isValidSlug(value.trim())
-                  ? true
-                  : `“${value}” can’t be used in a web address. Use lowercase letters, numbers and hyphens only — e.g. n001.`
+                /**
+                 * ⚠️ THIS ONE STAYS STRICT, deliberately, while `productCode` above
+                 * relaxed on the same day.
+                 *
+                 * A product's web address word goes into the URL a QR code on a
+                 * physical garment tag points at. It cannot hold a space, an accent or
+                 * a symbol without being percent-encoded into something nobody can read
+                 * back off a tag, and it can never be changed once tags are printed. So
+                 * the rule is unchanged — what changed is that the error now does the
+                 * work instead of only naming the rule.
+                 */
+                if (isValidSlug(value.trim())) return true
+                const suggestion = deriveSlug(value)
+                return (
+                  `“${value}” can’t be used in a web address. Use lowercase letters, numbers ` +
+                  `and hyphens only — e.g. n001.` +
+                  (suggestion ? ` Did you mean “${suggestion}”?` : '')
+                )
               },
               admin: {
                 description:

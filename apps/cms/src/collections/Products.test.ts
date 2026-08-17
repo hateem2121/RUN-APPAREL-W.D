@@ -190,21 +190,66 @@ describe('Products beforeDuplicate hooks', () => {
   // duplicateDocument/index.js and fields/hooks/beforeDuplicate/promise.js, and
   // the CREATE UNIQUE INDEX statements in migrations/20260729_070548_inline_colourways.ts.
   it('suffixes the product code so the unique index cannot collide', () => {
-    expect(runDuplicate('productCode', { value: 'N001' })).toBe('N001COPY')
+    expect(runDuplicate('productCode', { value: 'N001' })).toBe('N001-COPY')
   })
   it('leaves a non-string product code alone', () => {
     expect(runDuplicate('productCode', { value: null })).toBe(null)
   })
-  // productCode's own validate requires /^[A-Z][A-Z0-9]*$/ — capital letters and
-  // digits, no hyphen (see Products.ts's "Use capital letters and numbers,
-  // starting with a letter" message). A `-COPY` suffix reads better but FAILS
-  // that regex: confirmed empirically (`/^[A-Z][A-Z0-9]*$/.test('N001-COPY')` is
-  // `false`), and beforeChange/index.js throws a ValidationError the instant any
-  // field's validate returns a string — which would make the whole duplicate
-  // save fail with a *different* blocking error instead of no error at all. This
-  // exercises the actual validate function from the field below, not a
-  // reimplementation of the regex, so a future change to either the suffix or
-  // the pattern that breaks the pairing fails here.
+
+  /**
+   * Typing `rx-ps` must not be met with an error about capital letters.
+   *
+   * `isValidProductCode` rejects lowercase on purpose — mixed case would let two
+   * codes collide on the unique index while looking different to a person — so
+   * without this hook the machine refuses something it could obviously fix
+   * itself. The owner reported exactly that.
+   *
+   * ⚠️ Deliberately NOT the same rule as the slug field's hook two blocks down.
+   * That one is create-only and fills a BLANK, never corrects a value, because a
+   * colourway slug is printed on physical QR tags. A product code is on neither
+   * a tag nor a URL, so normalising it on every write is safe.
+   */
+  const runProductCodeBeforeValidate = (value: unknown) =>
+    fieldNamed('productCode').hooks?.beforeValidate?.[0]?.({ value } as never)
+
+  it('accepts a lowercase product code and stores it in capitals', () => {
+    expect(runProductCodeBeforeValidate('rx-ps')).toBe('RX-PS')
+    expect(runProductCodeBeforeValidate('  n001  ')).toBe('N001')
+    // And what it produced must satisfy the field's OWN validate — the pairing,
+    // not the transformation, is what actually has to hold.
+    expect(fieldNamed('productCode').validate?.(runProductCodeBeforeValidate('rx-ps'), {})).toBe(
+      true,
+    )
+  })
+  it('leaves a non-string product code alone before validation', () => {
+    expect(runProductCodeBeforeValidate(null)).toBe(null)
+  })
+
+  it('accepts a hyphenated product code', () => {
+    expect(fieldNamed('productCode').validate?.('RX-PS', {})).toBe(true)
+  })
+
+  /**
+   * The slug field stays strict — it is in the URL a printed QR code points at —
+   * so its error does the work instead of only naming the rule.
+   */
+  it('suggests a usable web address word instead of only refusing one', () => {
+    const message = fieldNamed('slug').validate?.('X Milo Pro')
+    expect(message).toContain('x-milo-pro')
+  })
+  // ⚠️ THE SUFFIX WAS `COPY` WITH NO HYPHEN UNTIL 2026-08-17, and the comment
+  // here explained at length that `-COPY` failed productCode's own validate:
+  // the pattern was /^[A-Z][A-Z0-9]*$/, and beforeChange/index.js throws a
+  // ValidationError the instant any field's validate returns a string, so a
+  // hyphenated suffix would have traded the unique-constraint error this hook
+  // exists to fix for a different, equally blocking one.
+  //
+  // The pattern now accepts a hyphen between groups (the owner asked for codes
+  // like RX-PS), so that reasoning expired and the suffix is readable again.
+  // The PAIRING is the thing worth keeping, and it is what the test below
+  // asserts: it runs the field's REAL validate against the REAL suffix, so a
+  // future change to either one that breaks the other fails here rather than on
+  // the first duplicate someone tries to save.
   it('the duplicated product code still passes its own validation', () => {
     const duplicated = runDuplicate('productCode', { value: 'N001' })
     expect(fieldNamed('productCode').validate?.(duplicated, {})).toBe(true)
