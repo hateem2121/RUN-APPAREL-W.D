@@ -37,7 +37,7 @@
       "fabricComposition": "90% Polyester / 10% Spandex",
       "gsm": "180-220 GSM",
       "garmentFit": "Aero race fit",
-      "shortDescription": "Men’s performance cycling bib shorts, built for long days on road, gravel and MTB. Pro compression spandex carries a multi-density chamois pad and breathable mesh bib straps, and the whole garment takes a full sublimation print. Silicone leg grippers, flatlock stitching and an ergonomic panel design keep everything where it should be over endurance mileage.",
+      "shortDescription": "Men’s performance cycling bib shorts for road, MTB and endurance riding. Pro compression spandex carries a multi-density chamois pad and breathable mesh bib straps, and the whole garment takes a full sublimation print. Silicone leg grippers, flatlock stitching and an ergonomic panel design keep everything where it should be over long distances.",
       "performanceFeatures": [
         "Multi-density chamois pad",
         "Breathable mesh bib straps",
@@ -1023,13 +1023,14 @@
       "fabricComposition": "100% Organic Cotton",
       "gsm": "280-350 GSM",
       "garmentFit": "Relaxed wide-leg silhouette",
-      "shortDescription": "A women’s tracksuit in a soft-touch thermal terry fleece, pairing a retro quarter-zip polo collar with a relaxed wide-leg pant. A tonal oversized logo graphic, comfort elastic waistband and deep side pockets give it everyday use, while premium drape and stretch with ribbed cuff details keep it a luxury athleisure set for travel, recovery and loungewear.",
+      "shortDescription": "A women’s tracksuit in a soft-touch thermal waffle knit, pairing a retro quarter-zip polo collar with a relaxed wide-leg pant. A tonal oversized logo graphic, comfort elastic waistband and deep side pockets give it everyday use, while premium drape and stretch with ribbed cuff details keep it a luxury athleisure set for travel, recovery and loungewear.",
       "performanceFeatures": [
         "Retro quarter-zip polo collar",
         "Relaxed wide-leg pant",
         "Comfort elastic waistband",
         "Deep side pockets",
-        "Ribbed cuff details"
+        "Ribbed cuff details",
+        "Terry fleece"
       ]
     },
     {
