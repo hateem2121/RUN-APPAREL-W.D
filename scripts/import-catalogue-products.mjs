@@ -205,11 +205,25 @@ async function main() {
         tally.failed++
         continue
       }
-      // Code and description only. `slug` is deliberately absent: `rxps` is on
-      // printed QR tags and nothing automated may rewrite one.
+      // Code, description and list position. `slug` is deliberately absent:
+      // `rxps` is on printed QR tags and nothing automated may rewrite one.
+      //
+      // `sortOrder` was NOT sent here until 2026-08-17, and its absence left a
+      // real collision: the pre-existing product kept its own `sortOrder: 1`
+      // while the import gave page 2's garment the same 1, so the order of those
+      // two in every list was undefined. Safe to write — it is a display field,
+      // in no URL and on no tag — and sending it is what makes a re-run of this
+      // script actually converge on the dataset rather than leave that drift.
+      //
+      // `fabricComposition` and `gsm` stay ABSENT on purpose. The live row's
+      // values are owner-approved (and recorded as category-typical rather than
+      // measured), so the dataset's own guesses must not overwrite them. That is
+      // why the read-back diff still reports gsm differing for this one row, and
+      // why that difference is correct.
       const res = await api('PATCH', `/api/products/${p.existingProductId}`, {
         productCode: p.productCode,
         shortDescription: p.shortDescription,
+        sortOrder: p.sortOrder,
       })
       if (res.ok) {
         console.log(`${label} UPDATED (slug "${found.json.slug}" untouched)`)
