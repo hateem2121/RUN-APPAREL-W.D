@@ -8,8 +8,7 @@ import { fetchWithProgress } from '../lib/fetchWithProgress'
 import { describeLoad, smoothRate } from '../lib/loadProgress'
 import { CAMERA_DECAY_MS } from '../lib/motion'
 import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
-
-type CameraView = 'front' | 'back' | 'side'
+import { type CameraView, StageControls } from './StageControls'
 
 /** Subset of the ModelViewerElement API the stage uses. */
 interface ModelViewerEl extends HTMLElement {
@@ -79,6 +78,24 @@ const LOAD_NOTICE =
 // download stays tiny. Paired with tone-mapping="neutral" (the model-viewer
 // v4 default, tuned for e-commerce colour accuracy) so baseColor stays faithful.
 const ENVIRONMENT_IMAGE = '/env/studio-soft.hdr'
+
+/**
+ * How far in a buyer may zoom.
+ *
+ * ⚠️ THIS ELEMENT NEVER SET IT UNTIL 2026-08-17, so the floor was model-viewer's
+ * own default of **12deg** — and for this product that capped the visitor's main
+ * task. "For a B2B garment reference the printed artwork IS the product"
+ * (CLAUDE.md), so reading a chest print is what the page is for, and the page
+ * quietly refused to let anyone closer than 12deg.
+ *
+ * `RenderPage.tsx` has set 1deg since 2026-08-08 for exactly this reason, and
+ * apps/viewer/CLAUDE.md records how the trap hides: below the floor,
+ * `fieldOfView` is silently ignored rather than clamped-with-a-warning, and four
+ * zoom levels tighter than 12deg produced four BYTE-IDENTICAL PNGs. It returns a
+ * plausible frame of the wrong thing. Found there by looking at a contact sheet;
+ * found here by noticing the two files disagreed.
+ */
+const MIN_FIELD_OF_VIEW = '1deg'
 
 export function Stage({ data, selected, preview = null, onModelReadyChange }: StageProps) {
   const { product } = data
@@ -557,6 +574,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               field-of-view={product.camera.defaultFieldOfView}
               min-camera-orbit="auto 20deg auto"
               max-camera-orbit="auto 160deg 200%"
+              min-field-of-view={MIN_FIELD_OF_VIEW}
               interaction-prompt="none"
               interpolation-decay={prefersReducedMotion() ? 1 : CAMERA_DECAY_MS}
               touch-action="pan-y"
@@ -691,23 +709,20 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
           >
             {notice ?? (fallback ? LOAD_NOTICE : '')}
           </p>
-
-          {!fallback && (
-            <div className="stage__controls" role="group" aria-label="Camera positions">
-              {(['front', 'back', 'side'] as const).map((view) => (
-                <button
-                  key={view}
-                  type="button"
-                  className="camera-btn"
-                  aria-pressed={activeView === view}
-                  onClick={() => applyView(view)}
-                >
-                  {view}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
+
+        {/* OUTSIDE `.stage__canvas`, and that is the whole fix — see
+            StageControls.tsx for the measurement. `!fallback` because the poster
+            branch has no camera to point; `disabled` rather than unmounted while
+            the model downloads, so the row cannot shove the page around 23
+            seconds late. */}
+        {!fallback && (
+          <StageControls
+            activeView={activeView}
+            onSelect={applyView}
+            disabled={!modelLoaded || swapping}
+          />
+        )}
 
         {/* Coarse on purpose — see `announcedPercent`. This string changes at most
             four times during a download, where the visible readout changes

@@ -434,6 +434,61 @@ test.describe('layout invariants', () => {
         `the sticky header covers the top ${top.headerBottom - top.stageTop}px of the garment`,
       ).toBeGreaterThanOrEqual(top.headerBottom)
     })
+
+    test(`the camera controls sit off the garment at ${viewport.name} (${viewport.width}px)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      /**
+       * FRONT / BACK / SIDE were `position: absolute; bottom: 16px` INSIDE
+       * `.stage__canvas` until 2026-08-17, so they were painted on the product.
+       *
+       * The numbers, measured live before the change: the garment fills 86.3% of
+       * the canvas height at every viewport (camera radius and field of view are
+       * fixed, so canvas height alone sets the garment's size), which put
+       * **26px of garment under the pill at 1440x900 and 38px at 390x844**.
+       *
+       * The assertion is on the two BOXES, not on the garment's pixels, and
+       * deliberately so: the pixels depend on the model, and this must fail for
+       * any garment. A control that is outside the canvas cannot be on top of
+       * whatever is inside it.
+       *
+       * ⚠️ It must also never regress by the controls simply vanishing — they are
+       * rendered-and-disabled during the download precisely so the row cannot
+       * appear late and shove the page around, so their existence is asserted
+       * first.
+       */
+      const boxes = await page.evaluate(() => {
+        const rect = (selector: string) => {
+          const el = document.querySelector(selector)
+          if (!el) return null
+          const r = el.getBoundingClientRect()
+          return { top: Math.round(r.top), bottom: Math.round(r.bottom) }
+        }
+        return { canvas: rect('.stage__canvas'), controls: rect('.stage__controls') }
+      })
+
+      expect(boxes.canvas, 'no .stage__canvas on the page').not.toBeNull()
+      expect(
+        boxes.controls,
+        'no camera controls on the page — they are reserved-and-disabled during ' +
+          'the download, never unmounted, so this means they were removed',
+      ).not.toBeNull()
+
+      const { canvas, controls } = boxes as {
+        canvas: { top: number; bottom: number }
+        controls: { top: number; bottom: number }
+      }
+
+      expect(
+        controls.top,
+        `the camera controls overlap the garment by ${canvas.bottom - controls.top}px ` +
+          `(canvas ends at ${canvas.bottom}, controls start at ${controls.top})`,
+      ).toBeGreaterThanOrEqual(canvas.bottom)
+    })
   }
 
   test('the garment and its colourway picker fit one phone screen, unscrolled', async ({
