@@ -1,9 +1,7 @@
 import { Container, getContainer } from '@cloudflare/containers'
-import puppeteer, { type BrowserWorker } from '@cloudflare/puppeteer'
 import {
   DEFAULT_SHRINK_DETAIL,
   GLB_HARD_MAX_BYTES,
-  SIZE_WARNING_BYTES,
   type ShrinkJobMessage,
   formatMb,
   nextDetailAdvice,
@@ -14,13 +12,6 @@ import { type ProductState, describeModel, planModelAttach } from './attach'
 import { cmsFetch, isMediaReferenced } from './cms'
 import { planColourImport } from './colourImport'
 import { DEAD_LETTER_QUEUE, deadLetterReport } from './deadLetter'
-import {
-  type CapturedFrame,
-  checkCapturedFrame,
-  frameDigest,
-  type PosterTarget,
-  planPosters,
-} from './posters'
 
 /**
  * Shrink service Worker.
@@ -29,18 +20,26 @@ import {
  * the ShrinkContainer (Node + the asset pipeline) to shrink it → the small,
  * validated GLB is POSTed back to the CMS as a guardrailed Media doc, and the
  * raw-upload record is updated to "ready". The owner then reviews and publishes.
- * It then photographs every colour the product doesn't already have a picture
- * for (task 14) by driving a headless browser over the viewer's own /render
- * route (task 13) — see capturePosters below.
+ *
+ * ⚠️ IT ALSO PHOTOGRAPHED EVERY COLOUR AUTOMATICALLY UNTIL 2026-08-17, by
+ * driving a headless browser over the viewer's own `/render` route. Removed by
+ * owner decision: Cloudflare Browser Rendering bills on session-seconds, the
+ * owner would rather upload the colour photos by hand, and the whole apparatus
+ * — a Puppeteer session, a public `/render` route, a `BROWSER` binding, a
+ * `VIEWER_ORIGIN`, and `posters.ts`'s planning layer — existed only to serve it.
+ *
+ * Nothing downstream depended on the capture. The publish gate already refuses
+ * any switched-on colour with no photo and already says "Add 'Photo of this
+ * colour' on the Colours tab" (apps/cms/src/collections/publishGating.ts), so
+ * that message is now the only path rather than the fallback path. Link
+ * previews are unaffected: `apps/viewer/worker/preview.ts` reads whatever photo
+ * the colourway carries, and `og:cards` reads the pipeline's local
+ * `output/posters/` — neither ever touched Browser Rendering.
  *
  * The Container is stateless: the read-only R2 (S3) credentials and the object
  * key are passed per-request in the body, so no long-lived secrets live in the
  * image. CMS writes go through an internal service binding (no public internet,
- * so the cms.wear-run.help Bot Fight Mode challenge never applies). The browser
- * session cannot use that same binding — Puppeteer's page.goto() is a REAL
- * request the headless browser itself makes, not a fetch() this Worker's own
- * JS makes — so it navigates to VIEWER_ORIGIN, a real public host, over the
- * separate Browser Rendering binding.
+ * so the cms.wear-run.help Bot Fight Mode challenge never applies).
  */
 
 interface Env {
@@ -52,9 +51,6 @@ interface Env {
   R2_INGEST_BUCKET: string
   R2_INGEST_ACCESS_KEY_ID: string
   R2_INGEST_SECRET_ACCESS_KEY: string
-  /** Where capturePosters() points the headless browser — see its own comment. */
-  VIEWER_ORIGIN: string
-  BROWSER: BrowserWorker
 }
 
 /** JSON the container returns in the `x-shrink-report` header (base64). */
@@ -470,65 +466,11 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
     }
   }
 
-  // 4d. Photograph every colour that has no picture yet (task 14) — but only
-  //     what planPosters (./posters.ts) says is safe to. Read that file's
-  //     header first; this only wires its decision to a browser session.
-  //
-  //     A FRESH read, not `target` from the top of this function: 4b above
-  //     may just have IMPORTED the very colour rows this step needs to
-  //     photograph, and `target` was read before that write landed, so it
-  //     would not see them.
-  //
-  //     Runs whether or not 4b/4c did anything — this is a separate decision
-  //     on a separate field (posterPreview) from both, not a continuation of
-  //     either, exactly like 4b and 4c are separate from each other.
-  //
-  //     Best-effort, like 4b/4c and for the same reason: the shrink itself
-  //     already succeeded, and the owner can always add a photo by hand from
-  //     the Colours tab. capturePosters() itself already never throws (see
-  //     its own header) — this try/catch is belt-and-braces around the
-  //     surrounding wiring, which SHOULD be unable to throw (readProductState
-  //     fails closed to null; planPosters is pure) but is not worth
-  //     re-running a multi-minute container job over if it somehow does.
-  let posterNote = ''
-  if (job.targetProductId != null) {
-    try {
-      const latest = await readProductState(env, job.targetProductId)
-      const posterPlan = planPosters(
-        { code: latest?.productCode ?? null, status: latest?.status ?? null },
-        toPosterColourways(latest?.colourways ?? []),
-      )
-      if (posterPlan.length > 0 && media.url) {
-        // capturePosters re-reads the product's colourways itself, fresh,
-        // immediately before each PATCH (task 14 review, finding 2) — it
-        // does not take `latest.colourways` here, deliberately, so there is
-        // only one place in this file that ever writes a poster onto a
-        // snapshot older than "just read".
-        posterNote = await capturePosters(
-          env,
-          job.targetProductId,
-          posterPlan,
-          {
-            modelUrl: absolutizeMediaUrl(media.url, env.CMS_ORIGIN),
-            orbit: latest?.frontCameraOrbit ?? DEFAULT_FRONT_CAMERA_ORBIT,
-            fov: latest?.defaultFieldOfView ?? DEFAULT_FIELD_OF_VIEW,
-          },
-          latest?.productCode ?? null,
-        )
-      }
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error)
-      posterNote =
-        '\n\n⚠️ Could not photograph this garment’s colours automatically. Add photos by ' +
-        `hand on the Colours tab. Tell your developer this:\n${detail}`
-    }
-  }
-
   // 5. Mark the raw upload ready for the owner to review + publish.
   await patchRawUpload(env, job.rawUploadId, {
     status: 'ready',
     resultGlb: mediaId,
-    report: report.text + fileColoursNote + colourImportNote + attachNote + posterNote,
+    report: report.text + fileColoursNote + colourImportNote + attachNote,
   })
 
   // 6. Retire the model this run replaced — but only once `resultGlb` points at
@@ -542,8 +484,7 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   )
   if (supersededNote) {
     await patchRawUpload(env, job.rawUploadId, {
-      report:
-        report.text + fileColoursNote + colourImportNote + attachNote + posterNote + supersededNote,
+      report: report.text + fileColoursNote + colourImportNote + attachNote + supersededNote,
     }).catch(() => {
       // The retirement note is the least important write in the job; the model
       // is already saved and attached. Do not fail a successful shrink for it.
@@ -552,31 +493,19 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
 }
 
 /**
- * Products.ts's own schema defaults for these two fields (fields/camera.ts) —
- * both are `required: true` with a `defaultValue`, so every real document
- * carries a real value. These only cover a read that came back malformed
- * (e.g. the field renamed under us), never a legitimate product state.
- */
-const DEFAULT_FRONT_CAMERA_ORBIT = '0deg 82deg 105%'
-const DEFAULT_FIELD_OF_VIEW = '30deg'
-
-/**
  * Read the target product's code, status, whether it already has a model, how
- * many colour rows it already has, the RAW colour rows themselves, and the
- * front-camera values task 14's poster capture points /render at.
+ * many colour rows it already has, and the RAW colour rows themselves.
+ *
+ * ⚠️ IT ALSO READ `frontCameraOrbit` AND `defaultFieldOfView` UNTIL 2026-08-17,
+ * with their own schema-default constants. Those existed solely to aim the
+ * automatic poster capture's headless browser; nothing else has ever read a
+ * camera value in this Worker, so they went with it.
  *
  * Returns null on ANY failure, and every caller treats null as "do nothing
- * special": the Media doc falls back to its filename-based description, and
- * the auto-attach, the colour import and the poster capture are all skipped.
- * Failing closed is the right direction here — not acting leaves the owner
- * exactly where they were before this existed, while acting on a guess could
- * change a live garment.
- *
- * Called TWICE in processJob: once up front for `planModelAttach` and
- * `planColourImport`, and once more after 4b's colour-import PATCH for
- * `planPosters` — 4b may have just CREATED the very colour rows task 14 needs
- * to photograph, so the first call's `colourways` can be stale for that one
- * purpose. One function, two reads, rather than a second bespoke query.
+ * special": the Media doc falls back to its filename-based description, and the
+ * auto-attach and the colour import are both skipped. Failing closed is the
+ * right direction here — not acting leaves the owner exactly where they were
+ * before this existed, while acting on a guess could change a live garment.
  */
 async function readProductState(
   env: Env,
@@ -585,8 +514,6 @@ async function readProductState(
   | (ProductState & {
       colourwayCount: number
       colourways: Record<string, unknown>[]
-      frontCameraOrbit: string
-      defaultFieldOfView: string
     })
   | null
 > {
@@ -600,14 +527,12 @@ async function readProductState(
     status?: unknown
     glbAsset?: unknown
     colourways?: unknown
-    frontCameraOrbit?: unknown
-    defaultFieldOfView?: unknown
   } | null
   if (!doc) return null
   // depth has no bearing on an array field's own rows, only on relationships
   // nested inside them, so this is accurate at depth=0 — each row's OWN
-  // posterPreview/glbAsset still come back as bare ids, exactly what
-  // toPosterColourways and the poster-linking PATCH below both need.
+  // posterPreview/glbAsset still come back as bare ids, which is what
+  // planColourImport needs to decide.
   const colourways = Array.isArray(doc.colourways)
     ? (doc.colourways as Record<string, unknown>[])
     : []
@@ -618,32 +543,7 @@ async function readProductState(
     hasGlbAsset: doc.glbAsset != null && doc.glbAsset !== '',
     colourwayCount: colourways.length,
     colourways,
-    frontCameraOrbit:
-      typeof doc.frontCameraOrbit === 'string' && doc.frontCameraOrbit.trim() !== ''
-        ? doc.frontCameraOrbit
-        : DEFAULT_FRONT_CAMERA_ORBIT,
-    defaultFieldOfView:
-      typeof doc.defaultFieldOfView === 'string' && doc.defaultFieldOfView.trim() !== ''
-        ? doc.defaultFieldOfView
-        : DEFAULT_FIELD_OF_VIEW,
   }
-}
-
-/** Raw colourway rows, reduced to what `planPosters` needs to decide. */
-function toPosterColourways(
-  rows: Record<string, unknown>[],
-): { slug: string; variantId: string; hasPoster: boolean; hexSwatch: string | null }[] {
-  return rows.map((row) => ({
-    slug: typeof row.slug === 'string' ? row.slug : '',
-    variantId: typeof row.variantId === 'string' ? row.variantId : '',
-    // An upload/relationship value is an id, a populated doc, or nothing —
-    // same rule apps/cms/src/collections/publishGating.ts's `isSet` uses. A
-    // depth=0 read only ever gives the first or third of those.
-    hasPoster: row.posterPreview != null && row.posterPreview !== '',
-    // Takes no part in planning — carried so checkCapturedFrame can qualify a
-    // duplicate frame. Null for any row the owner built by hand.
-    hexSwatch: typeof row.hexSwatch === 'string' ? row.hexSwatch : null,
-  }))
 }
 
 /** The Media doc this raw upload currently points at, if any. */
@@ -689,285 +589,6 @@ async function retireSupersededResult(
     )
   }
   return ''
-}
-
-/**
- * A Media doc's `url` is relative only in the local-dev fallback — no
- * PUBLIC_MEDIA_BASE_URL configured, so media streams through the CMS itself
- * (apps/cms/src/payload.config.ts). In production it is already absolute.
- * Mirrors apps/cms/src/endpoints/projectViewer.ts's own `absolutize`, which
- * this Worker cannot import (separate deployable, no shared dependency on
- * CMS internals) — small enough that duplicating it beats depending on it.
- */
-function absolutizeMediaUrl(url: string, origin: string): string {
-  if (/^https?:\/\//.test(url)) return url
-  return `${origin}${url.startsWith('/') ? '' : '/'}${url}`
-}
-
-/** Media-library label for an auto-captured poster — findable in the picker,
- * same purpose describeModel() serves for GLBs. Never shown to a buyer: the
- * customer-facing text is the colourway row's OWN `altText` field, untouched
- * here. */
-function posterAlt(productCode: string | null, target: PosterTarget): string {
-  return `${productCode ? `${productCode} ` : ''}${target.slug} — auto-captured poster`
-}
-
-/** POST a captured poster PNG to the CMS Media collection; returns the new media id. */
-async function uploadPoster(
-  env: Env,
-  png: Uint8Array,
-  filename: string,
-  alt: string,
-): Promise<number | string> {
-  // A plain in-memory FormData, unlike streamMultipart above — that streaming
-  // approach exists specifically to avoid buffering a 30-170 MB GLB inside a
-  // 128 MB Worker isolate. A 1200² poster is orders of magnitude smaller
-  // (12.5 KB measured on the seeded fixture — see the task report), so the
-  // simpler, standard Web FormData API is the right tool here, not the same
-  // one reused out of habit.
-  const form = new FormData()
-  // Same `_payload` contract streamMultipart's own comment documents:
-  // Payload's addDataAndFileToRequest reads ONLY a part literally named
-  // `_payload` and JSON.parses it — a field sent any other way is silently
-  // dropped, which is exactly how the very first production GLB upload lost
-  // its `alt` and failed validation with no useful error.
-  form.set('_payload', JSON.stringify({ alt }))
-  form.set('file', new File([png], filename, { type: 'image/png' }))
-  const res = await cmsFetch(env, '/api/media', { method: 'POST', body: form })
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '')
-    throw new Error(`CMS rejected the poster upload (${res.status}): ${detail.slice(0, 300)}`)
-  }
-  const created = (await res.json()) as { doc?: { id?: number | string } }
-  const id = created?.doc?.id
-  if (id == null) throw new Error('CMS media create returned no id for the poster.')
-  return id
-}
-
-/** 1200×1200 — the size the task 14 brief's own size-warning claim was measured against. */
-const POSTER_SIZE = 1200
-/**
- * How long to wait for `window.__RENDER_READY`. The model here is already the
- * SHRUNK output (at most GLB_HARD_MAX_BYTES, not a raw CLO export), so this
- * should be generous rather than tight — 60s is the same number
- * task-13-brief.md's own e2e test uses for the identical wait.
- */
-const RENDER_READY_TIMEOUT_MS = 60_000
-
-/**
- * Photograph every target in ONE browser session and ONE page load,
- * uploading and linking each poster as it succeeds. Returns a note for the
- * owner's report; NEVER throws — the shrink itself already succeeded by the
- * time this runs, and a failed photograph must not turn that into a failed
- * job (task 14 brief, B3).
- *
- * ONE NAVIGATION FOR THE WHOLE GARMENT (task 14 review, finding 1) — not one
- * per colour. Cloudflare Browser Rendering bills on total session-seconds,
- * not per `puppeteer.launch()`, so the thing worth amortising is the
- * navigation itself: a fresh `page.goto()` destroys the previous page's
- * JS/WASM heap, and the Meshopt decode + GPU upload + scene build — the
- * dominant cost — reruns on every single colour. The FIRST target is
- * reached by navigating to `/render`'s query-string entry point, exactly as
- * before; every target after that calls `window.__renderSetVariant` via
- * `page.evaluate` instead — an in-page swap RenderPage.tsx exposes
- * specifically for this loop (see its own header comment). Projected cost at
- * this shape: see the task report.
- *
- * UNTESTABLE HERE, and this is the whole point of the split with
- * planPosters.ts: there is no way to run Cloudflare Browser Rendering from
- * this repo's test suite (task 14 brief, B4). Every DECISION this job makes —
- * which colours need a photo, what the file is called — already happened in
- * planPosters, which IS unit-tested. What is left here is the thin, impure
- * shell that drives Puppeteer and uploads the result; it is covered only by
- * reading, not by a test. See the task report for exactly what that leaves
- * unverified.
- */
-async function capturePosters(
-  env: Env,
-  targetProductId: number | string,
-  plan: PosterTarget[],
-  render: { modelUrl: string; orbit: string; fov: string },
-  productCode: string | null,
-): Promise<string> {
-  let captured = 0
-  const failures: string[] = []
-  // Every frame taken in THIS session, so a colour photographed to a picture
-  // identical to an earlier colour's can be reported. Warning only — see
-  // checkCapturedFrame (./posters.ts) for what it catches and why it is
-  // identity rather than colour distance.
-  const frames: CapturedFrame[] = []
-  const warnings: string[] = []
-
-  let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined
-  try {
-    // ⚠️ ONE session for the whole garment — see wrangler.jsonc's "browser"
-    // comment for the cost model this protects. Never call `puppeteer.launch`
-    // inside the loop below.
-    browser = await puppeteer.launch(env.BROWSER)
-    const page = await browser.newPage()
-    await page.setViewport({ width: POSTER_SIZE, height: POSTER_SIZE, deviceScaleFactor: 1 })
-
-    for (let i = 0; i < plan.length; i++) {
-      const target = plan[i]!
-      try {
-        if (i === 0) {
-          // ONE navigation for the whole garment (see this function's own
-          // header) — every later target reuses this same page load.
-          const url = new URL('/render', env.VIEWER_ORIGIN)
-          url.searchParams.set('model', render.modelUrl)
-          url.searchParams.set('variant', target.variantId)
-          url.searchParams.set('orbit', render.orbit)
-          url.searchParams.set('fov', render.fov)
-          await page.goto(url.toString(), { waitUntil: 'domcontentloaded' })
-        } else {
-          // In-page swap (task 14 review, finding 1) — string form, like the
-          // waitForFunction call below and tools/asset-pipeline/src/render.ts's
-          // own page.evaluate calls, so nothing here depends on this Worker's
-          // own DOM-free tsconfig (apps/shrink/tsconfig.json has no "dom" lib)
-          // matching whatever globals the BROWSER page happens to have.
-          await page.evaluate(
-            `window.__renderSetVariant(${JSON.stringify({
-              variant: target.variantId,
-              orbit: render.orbit,
-              fov: render.fov,
-            })})`,
-          )
-        }
-
-        await page.waitForFunction('window.__RENDER_READY === true', {
-          timeout: RENDER_READY_TIMEOUT_MS,
-        })
-
-        // PNG with transparency, never JPEG (task 14 brief) — the poster sits
-        // behind the model while it loads, in BOTH light and dark mode, so a
-        // baked-in background would be wrong in one of them. Workers cannot
-        // run sharp, so there is no convert-to-WebP step available here, the
-        // way the asset pipeline's own posters get one.
-        const png = await page.screenshot({ type: 'png', omitBackground: true })
-
-        // Verify the 8 MB claim on a REAL render rather than assume it (task
-        // 14 brief) — logged, not enforced: SIZE_WARNING_BYTES is a soft
-        // mobile guideline the CMS itself only warns on, never blocks. A
-        // synthetic fixture at this exact size and these exact screenshot
-        // options measured 12.5 KB; a real garment with photographic
-        // textures will be larger, which is exactly why this still checks
-        // rather than assuming the fixture number generalises.
-        if (png.length > SIZE_WARNING_BYTES) {
-          console.warn(
-            `[shrink] poster ${target.filename} is ${formatMb(png.length)}, over the ` +
-              `${formatMb(SIZE_WARNING_BYTES)} mobile guideline.`,
-          )
-        }
-
-        const mediaId = await uploadPoster(
-          env,
-          png,
-          target.filename,
-          posterAlt(productCode, target),
-        )
-
-        // Re-read the CURRENT colourways immediately before writing, rather
-        // than reusing one snapshot taken before this loop started (task 14
-        // review, finding 2). Payload replaces the WHOLE array on write, and
-        // this loop can run for minutes across many colours — long enough
-        // for the owner to rename a slug or edit another row on the Colours
-        // tab in between (colourImport.ts's own note invites exactly that,
-        // right after an import). A stale snapshot resent on every capture
-        // would silently revert any such edit; re-reading here narrows that
-        // window from "the whole multi-minute loop" to "one round trip",
-        // matching the level of protection every other PATCH in this file
-        // already has (none of them have optimistic-concurrency control
-        // either).
-        const fresh = await readProductState(env, targetProductId)
-        const freshRows = fresh?.colourways ?? []
-        const row = freshRows.find((r) => r.slug === target.slug)
-        if (!row) {
-          // The row this target was planned against is gone from the CURRENT
-          // read — renamed or removed while this session was running. The
-          // PNG is already uploaded (orphaned in Media rather than lost —
-          // same "leave it, don't guess" choice retireSupersededResult makes
-          // elsewhere in this file), but this must NOT count as captured:
-          // the report would claim a photo exists for a colour the publish
-          // gate will still find has none, with nothing explaining why.
-          failures.push(`${target.slug} (its colour row was renamed or removed while this ran)`)
-          continue
-        }
-        // Did this colour photograph to the SAME picture as an earlier one?
-        // Checked here rather than straight after the screenshot because the
-        // fresh row is where `hexSwatch` lives, and the swatch is what tells a
-        // genuine fault ("the file says these are different colours") apart
-        // from two colourways that may truly look alike. Never blocks: the
-        // poster is uploaded and linked either way, because only a human
-        // looking at the picture can settle it (review of 8927062, finding
-        // 3.4).
-        const frame: CapturedFrame = {
-          slug: target.slug,
-          hexSwatch: typeof row.hexSwatch === 'string' ? row.hexSwatch : null,
-          digest: frameDigest(png),
-        }
-        const duplicate = checkCapturedFrame(frames, frame)
-        if (duplicate) {
-          warnings.push(duplicate)
-          console.warn(`[shrink] ${duplicate}`)
-        }
-        frames.push(frame)
-
-        row.posterPreview = mediaId
-        // One PATCH per successful capture, not one batched at the end — a
-        // crash partway through a ten-colour garment then keeps whatever
-        // already succeeded instead of losing it. Re-runs the publish gate
-        // (colourways is in GATED_FIELDS) exactly like the colourImport and
-        // attach PATCHes above, and is exactly as safe: planPosters already
-        // refused a published product entirely, so assertPublishable returns
-        // on its first line every time this executes.
-        await patchProduct(env, targetProductId, { colourways: freshRows })
-        captured += 1
-      } catch (error) {
-        // Per-target: a stuck variant or one bad navigation/evaluate must not
-        // lose the colours already captured, or stop the ones still to come.
-        // This is also the branch a mismatched `variant` (RenderPage.tsx
-        // never sets __RENDER_READY for one) and a lost-context render both
-        // land in — both time out here rather than uploading a photo of the
-        // wrong colour under the right name.
-        const detail = error instanceof Error ? error.message : String(error)
-        failures.push(`${target.slug} (${detail})`)
-      }
-    }
-  } catch (error) {
-    // The browser itself never launched, or something outside the per-target
-    // try/catch above threw. Still never propagates — see this function's
-    // own header.
-    const detail = error instanceof Error ? error.message : String(error)
-    return (
-      `\n\n⚠️ Could not photograph this garment's colours automatically: ${detail} ` +
-      'Add photos by hand on the Colours tab.'
-    )
-  } finally {
-    // A leaked session burns the monthly browser-hour budget with nothing to
-    // show for it (task 14 brief), and the failure is invisible until the
-    // bill — so this runs whether the loop above finished, threw, or the
-    // launch itself failed (in which case `browser` is still undefined and
-    // this is a no-op).
-    await browser?.close().catch(() => {})
-  }
-
-  if (captured === 0 && failures.length === 0) return ''
-  if (captured === 0) {
-    return (
-      `\n\n⚠️ Could not photograph any colours automatically (${failures.join('; ')}). ` +
-      'Add photos by hand on the Colours tab.'
-    )
-  }
-  const note = `\n\nPhotographed ${captured} colour${captured === 1 ? '' : 's'} automatically.`
-  const withFailures =
-    failures.length === 0
-      ? note
-      : `${note} ${failures.length} could not be captured (${failures.join('; ')}) — add ` +
-        `${failures.length === 1 ? 'it' : 'them'} by hand on the Colours tab.`
-  // Appended rather than folded into `failures`: these captures SUCCEEDED and
-  // are linked. Reporting them as failures would tell the owner to redo work
-  // that may well be correct, and the owner is the only one who can tell.
-  return warnings.length === 0 ? withFailures : `${withFailures}\n\n⚠️ ${warnings.join(' ')}`
 }
 
 /**
@@ -1037,11 +658,13 @@ function streamMultipart(
 
 /**
  * POST the shrunk GLB to the CMS Media collection; returns the new media doc's
- * id AND its public url. The url is read straight off THIS response — a
- * second GET is unneeded, because Payload's upload plugin already computes
- * and returns it on create (apps/cms/src/payload.config.ts's r2Storage
- * `generateFileURL`) — so capturePosters() below can point the browser at it
- * without another round trip.
+ * id AND its public url. The url is read straight off THIS response rather than
+ * fetched again, because Payload's upload plugin already computes and returns it
+ * on create (apps/cms/src/payload.config.ts's r2Storage `generateFileURL`).
+ *
+ * The url's only consumer was the poster capture, removed 2026-08-17. It is kept
+ * because it costs nothing — it is already in the response body — and because
+ * `planModelAttach`'s report text is the obvious next thing to want it.
  */
 async function createMedia(
   env: Env,

@@ -131,9 +131,13 @@ reading as a tidy-up. See the comment in `RawUploads.ts`.
 - **Coverage floors are MEASURED, not chosen** (`vitest.coverage.mjs`, a
   `thresholds:` block per package, `scripts/check-coverage.mjs` for the repo).
   **Never lower one to go green.** `apps/viewer` is deliberately the lowest at 42%
-  — do NOT "fix" it by excluding `App/Stage/RenderPage.tsx`; 239 of its ~380
-  uncovered lines are in those three, so dropping them reports ~75% while testing
-  identically. They are covered by `apps/viewer/e2e/` in a real browser, because
+  — do NOT "fix" it by excluding `App.tsx`/`Stage.tsx`; most of its uncovered
+  lines are in those two, so dropping them reports a far higher number while
+  testing identically. (`RenderPage.tsx` was the third until it was deleted on
+  2026-08-17 with the poster-capture job; the floor was deliberately NOT raised
+  to match — a threshold is a measurement, and a number a deletion happened to
+  produce is one nobody measured.) They are covered by `apps/viewer/e2e/` in a
+  real browser, because
   `<model-viewer>` under jsdom asserts against a stub. Every `include` is explicit
   on purpose: v8 without one omits untested files entirely, so coverage *rises*
   when you add untested code.
@@ -462,7 +466,10 @@ the answer is "nothing that happens in production", it is not a test.
   `_headers` surviving `env.ASSETS.fetch()` **but NOT reaching a response the Worker
   builds itself** (that pair is one trap in two halves — the second shipped the
   `/render` refusal with no CSP at all, live, until 2026-08-12; do not read the first
-  without the second), crawler-only link previews, `og:image` format, the grid
+  without the second. ⚠️ `/render` itself was **deleted 2026-08-17** with the
+  automatic poster capture it served, so the Worker now builds NO response of its
+  own — `worker/securityHeaders.ts` is kept, uncalled, for the next one),
+  crawler-only link previews, `og:image` format, the grid
   `min-height: auto` overflow, and the two `<model-viewer>` DOM traps (`src` is a
   property; `webglcontextlost` never reaches your listener).
   Moved there 2026-08-10 because this file had come within 326 chars

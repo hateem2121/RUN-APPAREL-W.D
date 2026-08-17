@@ -51,14 +51,20 @@ export default defineConfig({
       /**
        * Measured 2026-08-13, and DELIBERATELY the lowest number in the repo.
        *
-       * ⚠️ Do not "fix" this by excluding App.tsx, Stage.tsx and RenderPage.tsx —
-       * 239 of the ~380 uncovered lines are in those three, and dropping them from
-       * the denominator would report ~75% while testing exactly as much code. That
+       * ⚠️ Do not "fix" this by excluding App.tsx and Stage.tsx — the bulk of the
+       * uncovered lines are in those two, and dropping them from the denominator
+       * would report a far higher number while testing exactly as much code. That
        * is the failure mode this whole measurement was added to prevent, and it
        * would be indistinguishable from real progress.
        *
+       * ⚠️ The floor was NOT raised when RenderPage.tsx was deleted on 2026-08-17,
+       * even though removing ~293 uncovered lines pushes the measured number up.
+       * A threshold is a measurement, and raising it to whatever a deletion
+       * happened to produce means the next change fails against a number nobody
+       * measured. Re-measure deliberately or leave it.
+       *
        * They are counted and they are honestly uncovered HERE, because what
-       * actually exercises them is `apps/viewer/e2e/` — 4 Playwright specs across
+       * actually exercises them is `apps/viewer/e2e/` — Playwright specs across
        * five browsers including WebKit, with a real WebGL context and an axe scan.
        * `<model-viewer>` cannot be meaningfully driven under jsdom (CLAUDE.md: `src`
        * is a property not an attribute, and `webglcontextlost` never reaches a host

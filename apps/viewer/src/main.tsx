@@ -12,7 +12,6 @@ import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { initErrorTracking } from './lib/sentry'
 import { initTelemetry } from './lib/telemetry'
-import RenderPage from './RenderPage'
 
 initErrorTracking()
 initTelemetry()
@@ -42,38 +41,34 @@ if ('scrollRestoration' in history) {
 
 const root = createRoot(document.getElementById('root')!)
 
-// `/render` (task 13/14) is a separate, bare page for the shrink robot's
-// screenshot session — no header, no nav, no colour buttons, no footer, and
-// deliberately mounted BEFORE any of App's own chrome exists rather than as a
-// conditional inside it. See RenderPage.tsx's header for the routing subtlety
-// this avoids: parseViewerPath would otherwise read "render" as a product
-// slug.
-if (window.location.pathname === '/render') {
-  root.render(
-    <StrictMode>
-      <RenderPage />
-    </StrictMode>,
-  )
-} else {
-  // Dark-mode grain overlay (hidden in light mode via CSS). Skipped on
-  // /render: it is a full-viewport, always-present texture layer, which is
-  // exactly the "no UI at all" this route promises NOT to show, and on a dark
-  // background it would show up in every captured poster (task 14 brief).
-  const grain = document.createElement('div')
-  grain.className = 'grain'
-  grain.setAttribute('aria-hidden', 'true')
-  document.body.appendChild(grain)
+/**
+ * ⚠️ `/render` LIVED HERE UNTIL 2026-08-17 — a bare, chrome-less page mounted
+ * instead of <App/> so the shrink robot's headless browser had something to
+ * photograph. It went with the automatic photography job it existed for (owner
+ * decision; Browser Rendering is billed per session-second). Nothing else ever
+ * navigated to it.
+ *
+ * Removing it also takes ~293 lines and their imports out of the bundle EVERY QR
+ * SCAN downloads: the route was chosen by a runtime `pathname` check, so
+ * `RenderPage` was a static import and shipped in the entry chunk for every
+ * visitor, to serve a path only a robot ever requested.
+ */
 
-  // ErrorBoundary sits INSIDE StrictMode but OUTSIDE App, so a throw anywhere in the
-  // tree — including the lazily-imported polish layer and <Stage> — lands on the
-  // branded unavailable state rather than an empty <div id="root">. Placing it
-  // outside StrictMode would also work; inside keeps the double-invoke checks
-  // applying to the fallback too.
-  root.render(
-    <StrictMode>
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>
-    </StrictMode>,
-  )
-}
+// Dark-mode grain overlay (hidden in light mode via CSS).
+const grain = document.createElement('div')
+grain.className = 'grain'
+grain.setAttribute('aria-hidden', 'true')
+document.body.appendChild(grain)
+
+// ErrorBoundary sits INSIDE StrictMode but OUTSIDE App, so a throw anywhere in the
+// tree — including the lazily-imported polish layer and <Stage> — lands on the
+// branded unavailable state rather than an empty <div id="root">. Placing it
+// outside StrictMode would also work; inside keeps the double-invoke checks
+// applying to the fallback too.
+root.render(
+  <StrictMode>
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  </StrictMode>,
+)

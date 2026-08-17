@@ -186,7 +186,14 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   `worker/preview.test.ts` asserts each rewritten tag still exists there.
 
 - **`_headers` does NOT reach a response the Worker builds itself — measured on
-  the live edge 2026-08-12.** The trap above establishes that `_headers` survives
+  the live edge 2026-08-12.**
+  ⚠️ **THE ROUTE THIS WAS MEASURED ON IS GONE.** `/render` was deleted 2026-08-17
+  with the automatic poster capture it existed for (owner decision — Browser
+  Rendering is billed per session-second). The measurement below still stands and
+  is the whole reason `worker/securityHeaders.ts` is KEPT despite having no caller
+  left: the Worker currently builds no response of its own, and the next one added
+  must not re-learn this on the live edge. `RenderPage.tsx`, `renderGuard.ts` and
+  `e2e/render.spec.ts` went with it. The trap above establishes that `_headers` survives
   `env.ASSETS.fetch()`, which is true and is not the whole story: `_headers` is
   applied by the STATIC ASSET HANDLER, so a `new Response(...)` that never goes
   through the binding carries none of it. Same route, two outcomes:

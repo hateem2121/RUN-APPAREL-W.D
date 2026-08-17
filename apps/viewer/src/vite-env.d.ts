@@ -31,10 +31,10 @@ interface ModelViewerAttributes {
   'field-of-view'?: string
   /**
    * Floors how tight `field-of-view` can go — model-viewer's own default is
-   * 12deg and it SILENTLY ignores anything tighter (see RenderPage.tsx and
-   * apps/viewer/CLAUDE.md; tools/asset-pipeline/src/render.ts hit this on
-   * 2026-08-08 and lost the ability to photograph any print smaller than
-   * roughly a hand). '/render' sets this to 1deg for exactly that reason.
+   * 12deg and it SILENTLY ignores anything tighter (see apps/viewer/CLAUDE.md;
+   * tools/asset-pipeline/src/render.ts hit this on 2026-08-08 and lost the
+   * ability to photograph any print smaller than roughly a hand). Stage.tsx
+   * sets 1deg for exactly that reason — see MIN_FIELD_OF_VIEW there.
    */
   'min-field-of-view'?: string
   'min-camera-orbit'?: string

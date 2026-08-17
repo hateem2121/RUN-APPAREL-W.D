@@ -1,12 +1,24 @@
 /**
  * Security headers for responses this Worker BUILDS ITSELF.
  *
- * PURE, and deliberately dependency-free — same reason as preview.ts and
- * renderGuard.ts (see their headers): plain objects and strings only, so it
- * type-checks under the Worker's `lib: ["ES2022"]` and under vitest's jsdom
- * without either lib. worker/index.ts is not testable here (it needs
- * HTMLRewriter and a service binding), so the decision lives out here where a
- * test can reach it.
+ * ⚠️ NOTHING CALLS THIS RIGHT NOW, and it is kept deliberately. Its only caller
+ * was the `/render` refusal, removed 2026-08-17 along with the poster-capture
+ * job it guarded — so this Worker currently builds no response of its own and
+ * has nothing to apply these to.
+ *
+ * It stays for the reason `tokens.css` kept `--raised` when the hover thumbnail
+ * was deleted: the next `new Response(...)` in worker/index.ts will need it, and
+ * the MEASUREMENT below is the expensive part, not the code. Deleting it means
+ * re-learning on the live edge that `_headers` does not reach a Worker-built
+ * response. `apps/viewer/scripts/csp.test.ts` still pins these values against
+ * `buildHeadersFile()`'s own `/*` rule, so the two copies cannot drift while it
+ * waits.
+ *
+ * PURE, and deliberately dependency-free — same reason as preview.ts: plain
+ * objects and strings only, so it type-checks under the Worker's
+ * `lib: ["ES2022"]` and under vitest's jsdom without either lib.
+ * worker/index.ts is not testable here (it needs HTMLRewriter and a service
+ * binding), so the decision lives out here where a test can reach it.
  *
  * WHY THIS EXISTS. `dist/_headers` is applied by Cloudflare's STATIC ASSET
  * HANDLER, not by the Worker. A response returned from `env.ASSETS.fetch()`

@@ -88,12 +88,13 @@ const ENVIRONMENT_IMAGE = '/env/studio-soft.hdr'
  * (CLAUDE.md), so reading a chest print is what the page is for, and the page
  * quietly refused to let anyone closer than 12deg.
  *
- * `RenderPage.tsx` has set 1deg since 2026-08-08 for exactly this reason, and
- * apps/viewer/CLAUDE.md records how the trap hides: below the floor,
+ * The `/render` route set 1deg from 2026-08-08 until it was removed on
+ * 2026-08-17, so the two files disagreed for nine days and the one a BUYER uses
+ * was the wrong one. apps/viewer/CLAUDE.md records how the trap hides: below the floor,
  * `fieldOfView` is silently ignored rather than clamped-with-a-warning, and four
  * zoom levels tighter than 12deg produced four BYTE-IDENTICAL PNGs. It returns a
  * plausible frame of the wrong thing. Found there by looking at a contact sheet;
- * found here by noticing the two files disagreed.
+ * found here by noticing that only the robot's page had the floor lifted.
  */
 const MIN_FIELD_OF_VIEW = '1deg'
 
