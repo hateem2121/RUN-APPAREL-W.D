@@ -457,7 +457,7 @@ the answer is "nothing that happens in production", it is not a test.
   `HEAD`: a `GET` on the model is 27 MB per run, which the 15-minute uptime job
   turns into gigabytes of R2 egress against a $5/month cap.
 
-- **Twelve more traps live in `apps/viewer/CLAUDE.md`** — the `performance` global
+- **Eighteen more traps live in `apps/viewer/CLAUDE.md`** — the `performance` global
   shadowed by a local in `Stage.tsx` (a runtime `TypeError` that every unit test
   stays green through), the FIXED ORDER in which `translate`/`scale`/`transform`
   compose (which threw the custom cursor 1.53× away from the pointer over every
@@ -472,6 +472,15 @@ the answer is "nothing that happens in production", it is not a test.
   crawler-only link previews, `og:image` format, the grid
   `min-height: auto` overflow, and the two `<model-viewer>` DOM traps (`src` is a
   property; `webglcontextlost` never reaches your listener).
+  **Six were added 2026-08-17**, all from one round of owner-reported layout bugs
+  and all of the same shape — something that fails without saying anything: the
+  stage-height budget being wrong three times by arithmetic rather than
+  measurement, `focus()` silently scrolling the page by the header's height,
+  model-viewer 4.x having DELETED the two custom properties that were suppressing
+  the loading poster, `touch-action="pan-y"` handing the browser every gesture
+  with a vertical component, `flex-shrink: 0` causing rather than preventing a
+  flex child wrapping to a new row, and `.contact-rail`/`.action-bar` breakpoints
+  leaving 900–1099px with no contact control at all.
   Moved there 2026-08-10 because this file had come within 326 chars
   of the size at which Claude Code warns a memory file is too large; they load
   automatically the moment you touch `apps/viewer/`. Read them before changing the

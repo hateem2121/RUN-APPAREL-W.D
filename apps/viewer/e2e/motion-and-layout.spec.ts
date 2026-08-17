@@ -612,6 +612,34 @@ test.describe('layout invariants', () => {
     })
   }
 
+  /**
+   * The plinth label is desktop-only, and both halves of that matter.
+   *
+   * On a phone the stage band's height budget is what the whole 2026-08-17
+   * layout change is fighting for, so ~23px of caption would come straight out
+   * of the garment — the exact complaint being fixed. On desktop it must
+   * actually be there, and must not be a SECOND page heading: the real <h1>
+   * lives in the product panel, and a duplicate in the accessibility tree gives
+   * a screen reader two candidate titles for one page.
+   */
+  test('the garment label is desktop-only and never a second heading', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    await page.setViewportSize({ width: 375, height: 812 })
+    await expect(page.locator('.stage__caption')).toBeHidden()
+
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await expect(page.locator('.stage__caption')).toBeVisible()
+
+    // Exactly one <h1>, and the caption is not it.
+    expect(await page.getByRole('heading', { level: 1 }).count()).toBe(1)
+    expect(
+      await page.locator('.stage__caption').getAttribute('aria-hidden'),
+      'the label repeats the product name — it must stay out of the accessibility tree',
+    ).toBe('true')
+  })
+
   test('every interactive control meets the WCAG 2.5.8 target size', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await page.goto('/n001/wine')
