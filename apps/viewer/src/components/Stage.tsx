@@ -494,7 +494,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   }
 
   /**
-   * The poster now appears ONLY when 3D cannot run at all.
+   * The photo appears ONLY when 3D cannot run at all.
    *
    * It used to cover the stage for the whole download, and it could not fit:
    * every poster is an opaque WebP with its background baked in at #f0efeb. On
@@ -504,8 +504,23 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
    * stage, so during loading the stage shows its own ground instead — which is
    * drawn from tokens and therefore correct in both modes by construction.
    *
-   * As the 3D-unavailable fallback the poster is still exactly right: there, it
-   * is the only garment the visitor can be shown.
+   * ⚠️ THAT WAS ONLY HALF TRUE UNTIL 2026-08-17, and the owner reported the other
+   * half: "remove the snapshot shown while it's loading — I still see it
+   * working". This overlay had indeed been gated to `fallback` since 2026-08-05,
+   * but `<model-viewer>` was still being handed the same image via its own
+   * `poster` attribute, which it paints as `#default-poster`'s background until
+   * the model reveals. `page.css` tried to suppress that with `--poster-color`
+   * and `--progress-mask`; **both were removed in model-viewer 4.x** (verified
+   * against the installed 4.3.1), so the suppression had done nothing for an
+   * entire major version while looking like it did. The attribute is gone now;
+   * `e2e/webgl.spec.ts` asserts the PROPERTY is null, because React never
+   * reflects it to an attribute and the attribute check would pass vacuously.
+   *
+   * As the 3D-unavailable fallback the photo is still exactly right, and it is
+   * KEPT deliberately: what the owner asked to remove is the automatic capture
+   * job (it is billed) and the loading snapshot. Here the image is the only
+   * garment a visitor whose device cannot run WebGL will ever see, and it now
+   * comes from a photo the owner uploaded by hand, so it costs nothing to show.
    */
   const showPosterOverlay = fallback
   const load = describeLoad({
@@ -566,7 +581,6 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               ref={attachRef}
               className="stage__model"
               src={resolvedSrc}
-              poster={selected.poster.url}
               alt={selected.altText}
               camera-controls=""
               camera-orbit={product.camera.frontCameraOrbit}

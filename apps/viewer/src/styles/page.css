@@ -334,12 +334,29 @@
   color: var(--contour);
 }
 
+/*
+ * ⚠️ TWO OF THESE THREE CUSTOM PROPERTIES WERE DEAD, and they were the ones
+ * doing the important job. Removed 2026-08-17.
+ *
+ * `--poster-color` and `--progress-mask` were how model-viewer 3.x let you
+ * suppress its built-in poster and loading scrim. **Neither exists in
+ * model-viewer 4.x** — verified against the installed 4.3.1, where a grep of
+ * `lib/template.js` finds only `--progress-bar-color`, and `#default-poster`
+ * carries a hardcoded `background-color: #fff0` with the `poster` attribute
+ * painted straight into its `background-image`.
+ *
+ * So this rule LOOKED like it turned the loading snapshot off and had not done
+ * so since the 4.x upgrade. The owner reported the snapshot as still working;
+ * it was, and this is where it hid. The real fix is in Stage.tsx — the `poster`
+ * attribute is no longer handed over at all.
+ *
+ * `--progress-bar-color` is kept and IS live: it hides model-viewer's own
+ * progress bar, which would otherwise sit under our byte-accurate readout.
+ */
 model-viewer.stage__model {
   width: 100%;
   height: 100%;
-  --poster-color: transparent;
   --progress-bar-color: transparent;
-  --progress-mask: transparent;
 }
 
 /*

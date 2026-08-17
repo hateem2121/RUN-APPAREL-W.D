@@ -60,6 +60,35 @@ test('3D model loads and switching colourway changes the KHR material variant', 
   await expect(page.getByRole('button', { name: 'back' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'side' })).toBeVisible()
 
+  /**
+   * No snapshot of the garment behind the loading bar — the owner asked for that
+   * feature gone and it was still running.
+   *
+   * ⚠️ IT LOOKED REMOVED AND WAS NOT, and the way it hid is the point.
+   * `Stage.tsx` stopped showing its own `.stage__poster-fallback` during loading
+   * on 2026-08-05, and `page.css` set `--poster-color: transparent` and
+   * `--progress-mask: transparent` on the element to suppress model-viewer's
+   * built-in one. Both of those custom properties were REMOVED IN
+   * model-viewer 4.x — verified against the installed 4.3.1, where the only
+   * survivor is `--progress-bar-color` and `#default-poster` carries a hardcoded
+   * `background-color: #fff0`. So the suppression had silently done nothing for
+   * an entire major version, and the `poster` attribute was still being handed
+   * over and still painted as `#default-poster`'s background-image.
+   *
+   * Asserting the PROPERTY, not the attribute: React sets `src`-like values on a
+   * custom element as properties and never reflects them (apps/viewer/CLAUDE.md),
+   * so `getAttribute('poster')` is null either way and would pass vacuously.
+   */
+  const posterHandedOver = await page.evaluate(() => {
+    const mv = document.querySelector('model-viewer') as { poster?: string | null } | null
+    return mv?.poster ?? null
+  })
+  expect(
+    posterHandedOver,
+    'the garment snapshot is still being given to <model-viewer>, which paints it ' +
+      'behind the loading bar — check that no `poster` prop is set in Stage.tsx',
+  ).toBeNull()
+
   // The model actually finishes loading (not just the poster).
   await page.waitForFunction(
     () => Boolean((document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded),
