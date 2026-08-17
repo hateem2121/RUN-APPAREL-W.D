@@ -61,6 +61,23 @@ test('3D model loads and switching colourway changes the KHR material variant', 
   await expect(page.getByRole('button', { name: 'side' })).toBeVisible()
 
   /**
+   * ⚠️ RESERVED-AND-DISABLED, NEVER UNMOUNTED — and this is the only project that
+   * can assert it. The row is rendered from first paint so it cannot appear ~23
+   * seconds late and shove the colourway rail down mid-read; while the model is
+   * still arriving the buttons are `disabled` rather than absent.
+   *
+   * `motion-and-layout.spec.ts` used to carry this check and it failed all four
+   * viewports in CI on 2026-08-17 while passing on every local run: that suite's
+   * projects have no guaranteed WebGL (headless Firefox on Linux has none, and
+   * playwright.config.ts says the same of WebKit), so <Stage> correctly renders
+   * the poster branch with no camera controls at all. macOS headless Firefox DOES
+   * have WebGL, which is exactly why the machine could not see it. The existence
+   * claim belongs where a context is guaranteed; the overlap claim stayed there.
+   */
+  const controlsExist = await page.locator('.stage__controls').count()
+  expect(controlsExist, 'the camera control row must be rendered, not unmounted').toBe(1)
+
+  /**
    * No snapshot of the garment behind the loading bar — the owner asked for that
    * feature gone and it was still running.
    *

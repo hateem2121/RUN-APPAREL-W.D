@@ -456,10 +456,20 @@ test.describe('layout invariants', () => {
        * any garment. A control that is outside the canvas cannot be on top of
        * whatever is inside it.
        *
-       * ⚠️ It must also never regress by the controls simply vanishing — they are
-       * rendered-and-disabled during the download precisely so the row cannot
-       * appear late and shove the page around, so their existence is asserted
-       * first.
+       * ⚠️ THE POSTER FALLBACK HAS NO CONTROLS, AND ASSERTING THEIR EXISTENCE HERE
+       * FAILED CI WHILE PASSING ON EVERY LOCAL RUN. This suite runs on projects
+       * with no guaranteed WebGL — `playwright.config.ts` says so explicitly of
+       * WebKit, and it is true of headless Firefox on Linux too. There
+       * `canRender3D()` is false, <Stage> goes to its poster branch, and
+       * `{!fallback && <StageControls …>}` correctly renders nothing: there is no
+       * camera to point. macOS headless Firefox DOES have WebGL, so the original
+       * assertion passed on this machine and failed on all four viewports in CI.
+       *
+       * So the existence check moved to `webgl.spec.ts`, which is the only project
+       * that guarantees a context. What belongs HERE is the overlap invariant, and
+       * it is stated so that a missing control cannot make it vacuous by accident:
+       * absence is accepted ONLY when the stage is genuinely in its poster
+       * fallback, which the DOM says outright.
        */
       const boxes = await page.evaluate(() => {
         const rect = (selector: string) => {
@@ -468,15 +478,26 @@ test.describe('layout invariants', () => {
           const r = el.getBoundingClientRect()
           return { top: Math.round(r.top), bottom: Math.round(r.bottom) }
         }
-        return { canvas: rect('.stage__canvas'), controls: rect('.stage__controls') }
+        return {
+          canvas: rect('.stage__canvas'),
+          controls: rect('.stage__controls'),
+          // <Stage> renders this only when `isPoster(phase)` — no WebGL, no GLB,
+          // Save-Data, a module failure, or a lost context.
+          posterFallback: document.querySelector('.stage__poster-fallback') !== null,
+        }
       })
 
       expect(boxes.canvas, 'no .stage__canvas on the page').not.toBeNull()
-      expect(
-        boxes.controls,
-        'no camera controls on the page — they are reserved-and-disabled during ' +
-          'the download, never unmounted, so this means they were removed',
-      ).not.toBeNull()
+
+      if (boxes.controls === null) {
+        expect(
+          boxes.posterFallback,
+          'the camera controls are missing and the stage is NOT in its poster ' +
+            'fallback — they are reserved-and-disabled during the download, never ' +
+            'unmounted, so this means they were removed',
+        ).toBe(true)
+        return
+      }
 
       const { canvas, controls } = boxes as {
         canvas: { top: number; bottom: number }
