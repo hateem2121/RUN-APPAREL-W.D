@@ -44,15 +44,28 @@ incident.
 
 ### 2. Capture the live payload BEFORE
 
+⚠️ **THE SLUG IS `rxps`. THIS FILE SAID `n001` UNTIL 2026-08-17 AND THAT MADE THIS
+WHOLE STEP A NO-OP.** Measured that day: `n001/wine` returns **404, 84 bytes,
+`{"error":"not_found"}`**; `rxps/wine` returns the real 5-colourway payload at
+4,264 bytes. Two 404s diff to nothing, so step 5's "empty diff is the pass
+condition" was satisfied *by construction* — the single check that caught the last
+data-loss incident would have passed no matter what the migration did to the
+database. The rename happened on 2026-08-15 and the scripts and `uptime.yml` were
+fixed the same day; this file was missed.
+
 ```bash
-curl -s https://cms.wear-run.help/api/public/viewer/n001/wine > /tmp/n001-wine-before.json
+curl -s https://cms.wear-run.help/api/public/viewer/rxps/wine > /tmp/rxps-wine-before.json
 ```
 
-Sanity-check it is real data, not an error page:
+Sanity-check it is real data, not an error page — and do it every time, because
+that is exactly the check that would have caught the stale slug above:
 
 ```bash
-node -e "const d=require('/tmp/n001-wine-before.json'); console.log(Object.keys(d), JSON.stringify(d).length + ' bytes')"
+node -e "const d=require('/tmp/rxps-wine-before.json'); if (d.error) { console.error('REFUSED: got an error payload, not the product:', d); process.exit(1) } console.log(d.product.productCode, d.colourways.length + ' colourways,', JSON.stringify(d).length + ' bytes')"
 ```
+
+Expect `RXPS 5 colourways, ~4264 bytes`. Anything shorter, or a non-zero exit, is a
+stop.
 
 ⚠️ A **403 from a `wear-run.help` host is inconclusive, not a failure** — free-plan
 Bot Fight Mode intermittently blocks datacenter traffic. From a laptop it should be
@@ -91,9 +104,9 @@ gh run watch
 ### 5. Capture AFTER, and diff
 
 ```bash
-curl -s https://cms.wear-run.help/api/public/viewer/n001/wine > /tmp/n001-wine-after.json
-diff <(node -e "console.log(JSON.stringify(require('/tmp/n001-wine-before.json'),null,1))") \
-     <(node -e "console.log(JSON.stringify(require('/tmp/n001-wine-after.json'),null,1))")
+curl -s https://cms.wear-run.help/api/public/viewer/rxps/wine > /tmp/rxps-wine-after.json
+diff <(node -e "console.log(JSON.stringify(require('/tmp/rxps-wine-before.json'),null,1))") \
+     <(node -e "console.log(JSON.stringify(require('/tmp/rxps-wine-after.json'),null,1))")
 ```
 
 **Empty diff is the pass condition.** Any disappearance of colourways, an emptied

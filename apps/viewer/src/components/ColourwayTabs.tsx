@@ -1,6 +1,6 @@
 import type { ViewerColourway } from '@run-apparel/shared'
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
-import { isCoarsePointer } from '../lib/capabilities'
+import { useCoarsePointer } from '../lib/useCoarsePointer'
 import { HOVER_INTENT_MS } from '../lib/motion'
 
 /**
@@ -67,7 +67,12 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
   const [focusedSlug, setFocusedSlug] = useState<string | null>(null)
   // Touch has no hover: the first tap would fire mouseenter AND click, so a
   // preview state there is both invisible and misleading.
-  const canPreview = !isCoarsePointer()
+  //
+  // ⚠️ THE HOOK, NOT `isCoarsePointer()`. The plain function is read during render
+  // and never re-checked, so an iPad that has its Magic Keyboard detached mid-visit
+  // kept hover-preview switched ON for a touch screen — precisely the state the two
+  // lines above call misleading. See lib/useCoarsePointer.ts.
+  const canPreview = !useCoarsePointer()
 
   // Pointer travel across five buttons fires five enters. Rebinding a variant
   // swaps every material on the model, so coalesce to where the pointer settled.

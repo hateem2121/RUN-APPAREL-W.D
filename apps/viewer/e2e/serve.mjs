@@ -204,8 +204,23 @@ function colourwayPayload(origin, c) {
 // state a published-but-modelless product is in. Without it the poster-fallback
 // path and its diagnostic could not be exercised by any test — the same
 // "the fixture cannot exhibit the failure" gap that hid three production bugs.
+//
+// ⚠️ `shortDescription` IS SET ON n001 AND DELIBERATELY ABSENT ON n002, added
+// 2026-08-17. Both branches are real production states and BOTH must be
+// renderable here: every product that existed before the field was added has no
+// description, so <ProductPanel>'s fallback paragraph is what the live catalogue
+// shows today — and a fixture with no description anywhere can only ever exercise
+// the fallback, which is how a broken description path would ship green. Same
+// gap, same shape, as the three production bugs CLAUDE.md opens with.
 const PRODUCTS = {
-  n001: { productCode: 'N001', productName: 'Velocity Performance Tee', hasGlb: true },
+  n001: {
+    productCode: 'N001',
+    productName: 'Velocity Performance Tee',
+    hasGlb: true,
+    shortDescription:
+      'A race-fit training tee built for long summer mileage. Recycled face yarn, ' +
+      'bonded shoulder seams and a dropped back hem that stays put at speed.',
+  },
   n002: { productCode: 'N002', productName: 'Sample Without Model', hasGlb: false },
 }
 
@@ -223,6 +238,9 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
       productCode: meta.productCode,
       slug: productSlug,
       productName: meta.productName,
+      // `?? ''` mirrors projectViewer.ts exactly: the API always emits a string,
+      // so the viewer's `||` fallback is the only thing that decides.
+      shortDescription: meta.shortDescription ?? '',
       category: 'Sportswear',
       variantMode: 'single-glb-variants',
       glbUrl: meta.hasGlb ? `${origin}/fixtures/n001.glb` : null,
@@ -265,29 +283,6 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
   }
 }
 
-/**
- * Mirrors apps/viewer/worker/renderGuard.ts's isAllowedRenderModel — by hand,
- * not by import, for the same reason every other production behaviour in
- * this file is mirrored rather than run for real: this server serves the
- * built dist/ directly and never runs the Cloudflare Worker (see the file
- * header above), so worker/index.ts's own `/render` guard is never exercised
- * by this suite either way. Kept in sync deliberately; renderGuard.ts is pure
- * and unit-tested on its own (renderGuard.test.ts), so a drift here would
- * only ever make the e2e fixture MORE permissive or MORE strict than
- * production, never silently wrong about what production actually does.
- */
-function isAllowedRenderModel(rawModel, pageOrigin) {
-  if (!rawModel) return false
-  let url
-  try {
-    url = new URL(rawModel, pageOrigin)
-  } catch {
-    return false
-  }
-  if (url.origin === pageOrigin) return true
-  return url.protocol === 'https:' && /(^|\.)wear-run\.help$/.test(url.hostname)
-}
-
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`)
   const origin = `http://localhost:${PORT}`
@@ -296,19 +291,9 @@ const server = http.createServer((req, res) => {
   // every response.
   for (const [key, value] of Object.entries(GLOBAL_HEADERS)) res.setHeader(key, value)
 
-  // Task 13/14's screenshot route — mirrors worker/index.ts's own guard (see
-  // isAllowedRenderModel's comment above for why this is a mirror, not a
-  // shared import). Checked before anything else, same as production.
-  if (req.method === 'GET' && url.pathname === '/render') {
-    if (!isAllowedRenderModel(url.searchParams.get('model'), origin)) {
-      res.statusCode = 400
-      res.setHeader('content-type', 'text/plain; charset=utf-8')
-      res.end('The "model" parameter must be a path or URL on our own host.')
-      return
-    }
-    // Falls through to the SPA-fallback branch at the bottom, same as
-    // production falling through to env.ASSETS.fetch(request).
-  }
+  // The `/render` screenshot route was mirrored here until 2026-08-17, along
+  // with a hand-copy of renderGuard.ts's host check. Both went with the
+  // automatic poster capture they served.
 
   // Mock public viewer API. Both real routes: with and without a colour segment.
   const apiMatch = url.pathname.match(/^\/api\/public\/viewer\/([^/]+)(?:\/([^/]+))?$/)

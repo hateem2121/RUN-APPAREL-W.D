@@ -9,6 +9,66 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
 
 ## Traps — each of these has already cost a session
 
+- **The stage band's height budget has been wrong THREE TIMES, always by
+  reasoning instead of measuring.** `.stage__canvas`'s third term
+  (`calc(100dvh - Npx)`) is the chrome around the garment. On 2026-08-17 it went
+  208 → 280 (adding up: 225px measured chrome + a 54px control row) → **overflowed
+  by 36px** the moment a caption row existed, because a 15px display-face line is
+  37px of layout, not the 25px it looks like → 316 → **wasted 35px** once the
+  caption and the controls shared one row → 282, which is what
+  `getBoundingClientRect()` reports. Read the number off the live band; every
+  estimate in that comment's history has been wrong.
+
+- **A `focus()` call is a scroll call.** `App.tsx` hands focus to `<main>` when
+  the preloader leaves — correct, and it silently scrolled every visit down by
+  exactly the header's height (measured `scrollY: 69` on desktop, `117` where the
+  header wraps). `<main>` starts under the sticky header and is taller than the
+  viewport, so the browser scrolls the minimum that makes it fill the viewport.
+  At 390x844 the header then covered the top **29px of the garment**, which was
+  reported as "the model gets cut off" and diagnosed as a stage-height problem.
+  `focus({ preventScroll: true })`. There is no `scrollTo` anywhere in this app;
+  if the page is not at the top, this is the first thing to check.
+  ⚠️ **An e2e test for it is flaky in the direction that PASSES** unless it waits
+  for the hand-off — assert straight after the `<h1>` appears and the focus effect
+  has usually not committed yet, so it measures `scrollY: 0` against unfixed code.
+
+- **model-viewer 4.x DELETED `--poster-color` and `--progress-mask`, and CSS says
+  nothing when you set a property nobody reads.** `page.css` used both to
+  suppress the built-in loading poster; verified against the installed 4.3.1,
+  `lib/template.js` contains only `--progress-bar-color` and `#default-poster`
+  hardcodes `background-color: #fff0` with the `poster` attribute painted into its
+  `background-image`. So the snapshot went on showing for an entire major version
+  while the source read as though it were off. The fix is to stop passing
+  `poster` at all. Assert the PROPERTY in a test, never the attribute — React
+  sets these as properties and never reflects them, so `getAttribute('poster')`
+  is null either way and passes vacuously.
+
+- **`touch-action="pan-y"` gives the browser every gesture with a vertical
+  component, before model-viewer sees one event.** No threshold, no heuristic —
+  the browser claims the touch on the first move. On a phone that means any drag
+  meant to turn the garment scrolls the page instead, which is what the owner
+  reported on 2026-08-17. It is `none` since then, and that is only safe because
+  the canvas is 464 of 844px and the stage band ends above the fold, so there is
+  more non-canvas height on screen than canvas. **If the canvas is ever made tall
+  enough to fill a phone screen, put `pan-y` back** — otherwise the visitor is
+  trapped on the model with no way to scroll past it.
+
+- **`flex-shrink: 0` does not stop a flex CHILD wrapping to a new ROW — it is
+  what causes it.** The header was 117px tall on a 375px phone (14% of the
+  viewport, above the garment) because its children needed 351px of 343px and
+  therefore wrapped, while `page.css`'s own comment recorded the height as
+  "69px to 81px". That comment was about a different bug: the label wrapping to
+  two LINE-BOXES inside the button, which `flex-shrink: 0` did fix. Two bugs, one
+  symptom, one stale number. 10px of column-gap and a 16px wordmark bought 30px
+  and took it back to 69px at 360 and 375.
+
+- **`.contact-rail` and `.action-bar` breakpoints must stay EQUAL.** They were
+  1100px and 900px, so between 900 and 1099px the page carried no persistent
+  contact control at all — on the only conversion path in the product. Nothing
+  reported it because the e2e matrix runs 320/375/768/1280 and both 768 and 1280
+  sit on working sides of the gap. Verified in a browser at 950px: zero controls
+  with the old rule, two with the new one. There is now a test at 950.
+
 - **React sets `src` on a custom element as a PROPERTY, never an attribute.**
   `el.getAttribute('src')` on `<model-viewer>` is always `null` — its attribute
   list carries `camera-orbit`, `tone-mapping` and a dozen others and no `src`.
@@ -186,7 +246,14 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   `worker/preview.test.ts` asserts each rewritten tag still exists there.
 
 - **`_headers` does NOT reach a response the Worker builds itself — measured on
-  the live edge 2026-08-12.** The trap above establishes that `_headers` survives
+  the live edge 2026-08-12.**
+  ⚠️ **THE ROUTE THIS WAS MEASURED ON IS GONE.** `/render` was deleted 2026-08-17
+  with the automatic poster capture it existed for (owner decision — Browser
+  Rendering is billed per session-second). The measurement below still stands and
+  is the whole reason `worker/securityHeaders.ts` is KEPT despite having no caller
+  left: the Worker currently builds no response of its own, and the next one added
+  must not re-learn this on the live edge. `RenderPage.tsx`, `renderGuard.ts` and
+  `e2e/render.spec.ts` went with it. The trap above establishes that `_headers` survives
   `env.ASSETS.fetch()`, which is true and is not the whole story: `_headers` is
   applied by the STATIC ASSET HANDLER, so a `new Response(...)` that never goes
   through the binding carries none of it. Same route, two outcomes:

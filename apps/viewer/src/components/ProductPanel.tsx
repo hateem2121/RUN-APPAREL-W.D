@@ -28,9 +28,23 @@ export function ProductPanel({ data, selected, selectedIndex }: ProductPanelProp
             plain uppercase beside it. Owner decision 2026-08-14. */}
         {headingWithAccent(product.productName, 'first')}
       </h1>
+      {/*
+        The garment's own description when the owner has written one, and the
+        standard development-reference wording when they have not.
+
+        ⚠️ THE FALLBACK IS NOT DEAD CODE. `shortDescription` was added on
+        2026-08-17 and EVERY product that existed before then has none, so on the
+        day this ships the fallback is what every page renders. Deleting it would
+        silently strip the paragraph from the whole live catalogue.
+
+        `||` rather than `??`, and deliberately — the CMS field is a textarea, so
+        the likeliest way it goes missing is a human clearing it to an empty
+        string rather than it being unset. Same reasoning as RETIRED_FALLBACK in
+        App.tsx, which was written after exactly that bug.
+      */}
       <p className="product-info__statement">
-        This is a development reference, not a finished stock product. We can change the fabric,
-        colour, fit, trims, branding and performance details to suit your brand.
+        {product.shortDescription ||
+          'This is a development reference, not a finished stock product. We can change the fabric, colour, fit, trims, branding and performance details to suit your brand.'}
       </p>
       <dl className="spec-list">
         {product.fabricComposition && (

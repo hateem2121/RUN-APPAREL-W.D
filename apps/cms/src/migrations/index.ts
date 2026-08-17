@@ -8,6 +8,7 @@ import * as migration_20260803_090000_add_file_colour_details from './20260803_0
 import * as migration_20260803_140000_add_artwork_verdict from './20260803_140000_add_artwork_verdict';
 import * as migration_20260811_163415_catalogue_defaults from './20260811_163415_catalogue_defaults';
 import * as migration_20260811_190000_folders_on_media from './20260811_190000_folders_on_media';
+import * as migration_20260817_120000_build_process_and_description from './20260817_120000_build_process_and_description';
 
 export const migrations = [
   {
@@ -59,5 +60,10 @@ export const migrations = [
     up: migration_20260811_190000_folders_on_media.up,
     down: migration_20260811_190000_folders_on_media.down,
     name: '20260811_190000_folders_on_media',
+  },
+  {
+    up: migration_20260817_120000_build_process_and_description.up,
+    down: migration_20260817_120000_build_process_and_description.down,
+    name: '20260817_120000_build_process_and_description',
   },
 ];

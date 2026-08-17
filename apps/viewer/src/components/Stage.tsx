@@ -1,15 +1,15 @@
 import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { track } from '../lib/analytics'
-import { canRender3D, isCoarsePointer, prefersReducedMotion } from '../lib/capabilities'
+import { canRender3D, prefersReducedMotion } from '../lib/capabilities'
 import { displayedColourway } from '../lib/colourwayPreview'
 import { diagnostic } from '../lib/diagnostic'
 import { fetchWithProgress } from '../lib/fetchWithProgress'
 import { describeLoad, smoothRate } from '../lib/loadProgress'
 import { CAMERA_DECAY_MS } from '../lib/motion'
+import { useCoarsePointer } from '../lib/useCoarsePointer'
 import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
-
-type CameraView = 'front' | 'back' | 'side'
+import { type CameraView, StageControls } from './StageControls'
 
 /** Subset of the ModelViewerElement API the stage uses. */
 interface ModelViewerEl extends HTMLElement {
@@ -80,6 +80,55 @@ const LOAD_NOTICE =
 // v4 default, tuned for e-commerce colour accuracy) so baseColor stays faithful.
 const ENVIRONMENT_IMAGE = '/env/studio-soft.hdr'
 
+/**
+ * How far in a buyer may zoom.
+ *
+ * ⚠️ THIS ELEMENT NEVER SET IT UNTIL 2026-08-17, so the floor was model-viewer's
+ * own default of **12deg** — and for this product that capped the visitor's main
+ * task. "For a B2B garment reference the printed artwork IS the product"
+ * (CLAUDE.md), so reading a chest print is what the page is for, and the page
+ * quietly refused to let anyone closer than 12deg.
+ *
+ * The `/render` route set 1deg from 2026-08-08 until it was removed on
+ * 2026-08-17, so the two files disagreed for nine days and the one a BUYER uses
+ * was the wrong one. apps/viewer/CLAUDE.md records how the trap hides: below the floor,
+ * `fieldOfView` is silently ignored rather than clamped-with-a-warning, and four
+ * zoom levels tighter than 12deg produced four BYTE-IDENTICAL PNGs. It returns a
+ * plausible frame of the wrong thing. Found there by looking at a contact sheet;
+ * found here by noticing that only the robot's page had the floor lifted.
+ */
+const MIN_FIELD_OF_VIEW = '1deg'
+
+/**
+ * Who gets a one-finger drag on a phone: the model, or the page.
+ *
+ * ⚠️ THIS WAS `pan-y` UNTIL 2026-08-17 AND THE OWNER REPORTED THE CONSEQUENCE:
+ * "sometimes when scrolling in the 3D block, checking the 3D model, the screen
+ * scrolls down while I am trying to scroll the 3D model."
+ *
+ * `pan-y` hands every gesture with a vertical component to the browser before
+ * model-viewer sees a single event. It is not a heuristic and there is no
+ * threshold — the browser claims the touch on the first move. So on a phone,
+ * where a garment is inspected by dragging it around, ANY drag that is not
+ * almost perfectly horizontal scrolled the page instead of turning the product.
+ * A visitor trying to look at the back of a skinsuit got the specifications.
+ *
+ * `none` gives the whole gesture to the model. THE COST IS REAL AND IS WHY
+ * `pan-y` was chosen originally: a visitor can no longer scroll the page by
+ * swiping ON the garment, so a canvas that filled the screen would trap them.
+ * This one does not, and that is what makes the trade safe here rather than
+ * merely preferable — measured at 390x844 on 2026-08-17, the canvas is 464 of
+ * 844px and the stage band ends well above the fold, so the header, the caption
+ * row, the colourway rail, the fixed action bar and the page below the band are
+ * all swipeable. There is more non-canvas height on screen than canvas.
+ *
+ * ⚠️ IF THE CANVAS IS EVER MADE TALL ENOUGH TO FILL A PHONE SCREEN, this must go
+ * back to `pan-y`. The invariant that keeps it safe is the phone-fit e2e test in
+ * motion-and-layout.spec.ts, which already asserts the band ends above the
+ * action bar.
+ */
+const TOUCH_ACTION = 'none'
+
 export function Stage({ data, selected, preview = null, onModelReadyChange }: StageProps) {
   const { product } = data
   const separateMode = product.variantMode === 'separate-glb-per-colour'
@@ -104,6 +153,8 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   const swapping = isSwapping(phase)
   const [notice, setNotice] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<CameraView | null>('front')
+  // Re-reads when a keyboard is attached or detached — see lib/useCoarsePointer.ts.
+  const coarsePointer = useCoarsePointer()
   const loadedSrcRef = useRef<string | null>(null)
 
   // Real bytes, counted by us. See `fetchWithProgress` for why model-viewer's own
@@ -477,7 +528,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   }
 
   /**
-   * The poster now appears ONLY when 3D cannot run at all.
+   * The photo appears ONLY when 3D cannot run at all.
    *
    * It used to cover the stage for the whole download, and it could not fit:
    * every poster is an opaque WebP with its background baked in at #f0efeb. On
@@ -487,8 +538,23 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
    * stage, so during loading the stage shows its own ground instead — which is
    * drawn from tokens and therefore correct in both modes by construction.
    *
-   * As the 3D-unavailable fallback the poster is still exactly right: there, it
-   * is the only garment the visitor can be shown.
+   * ⚠️ THAT WAS ONLY HALF TRUE UNTIL 2026-08-17, and the owner reported the other
+   * half: "remove the snapshot shown while it's loading — I still see it
+   * working". This overlay had indeed been gated to `fallback` since 2026-08-05,
+   * but `<model-viewer>` was still being handed the same image via its own
+   * `poster` attribute, which it paints as `#default-poster`'s background until
+   * the model reveals. `page.css` tried to suppress that with `--poster-color`
+   * and `--progress-mask`; **both were removed in model-viewer 4.x** (verified
+   * against the installed 4.3.1), so the suppression had done nothing for an
+   * entire major version while looking like it did. The attribute is gone now;
+   * `e2e/webgl.spec.ts` asserts the PROPERTY is null, because React never
+   * reflects it to an attribute and the attribute check would pass vacuously.
+   *
+   * As the 3D-unavailable fallback the photo is still exactly right, and it is
+   * KEPT deliberately: what the owner asked to remove is the automatic capture
+   * job (it is billed) and the loading snapshot. Here the image is the only
+   * garment a visitor whose device cannot run WebGL will ever see, and it now
+   * comes from a photo the owner uploaded by hand, so it costs nothing to show.
    */
   const showPosterOverlay = fallback
   const load = describeLoad({
@@ -549,7 +615,6 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               ref={attachRef}
               className="stage__model"
               src={resolvedSrc}
-              poster={selected.poster.url}
               alt={selected.altText}
               camera-controls=""
               camera-orbit={product.camera.frontCameraOrbit}
@@ -557,9 +622,10 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               field-of-view={product.camera.defaultFieldOfView}
               min-camera-orbit="auto 20deg auto"
               max-camera-orbit="auto 160deg 200%"
+              min-field-of-view={MIN_FIELD_OF_VIEW}
               interaction-prompt="none"
               interpolation-decay={prefersReducedMotion() ? 1 : CAMERA_DECAY_MS}
-              touch-action="pan-y"
+              touch-action={TOUCH_ACTION}
               shadow-intensity="0.6"
               shadow-softness="0.8"
               environment-image={ENVIRONMENT_IMAGE}
@@ -622,19 +688,23 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               download, inviting the visitor to rotate a garment that had not
               arrived — on a 4G phone that is 22.6 s of instructions for an empty
               stage. */}
-          {/* Pointer-conditional, because on touch NEITHER half was true.
-              model-viewer is mounted `touch-action="pan-y"`, so a vertical swipe
-              is deliberately handed to the document and only a horizontal drag
-              orbits; zoom is pinch. For a B2B reference the printed artwork IS
-              the product, so zooming into the chest print is the visitor's main
-              task — and the page told them to do it with a gesture that scrolls
-              the garment off screen. isCoarsePointer() already gates the same
-              class of decision in ColourwayTabs.tsx. */}
+          {/* Pointer-conditional: the two devices need different words, because
+              scroll-to-zoom and pinch-to-zoom are not the same gesture.
+              `useCoarsePointer()` gates the same class of decision in
+              ColourwayTabs.tsx, and is a HOOK rather than the plain
+              `isCoarsePointer()` for the reason recorded there: the function is
+              read during render and never re-checked, so detaching an iPad's
+              keyboard mid-visit left this line saying "PINCH TO ZOOM" on a
+              device that now had a mouse.
+
+              ⚠️ THIS COMMENT USED TO EXPLAIN THAT A VERTICAL SWIPE WAS HANDED TO
+              THE DOCUMENT, which was true under `touch-action="pan-y"` and is
+              the exact behaviour the owner reported as a bug on 2026-08-17. See
+              TOUCH_ACTION above: a one-finger drag now turns the garment, in any
+              direction, and the page is scrolled from outside the canvas. */}
           {!fallback && modelLoaded && !swapping && (
             <p className="stage__hint" aria-hidden="true">
-              {isCoarsePointer()
-                ? 'DRAG TO ROTATE · PINCH TO ZOOM'
-                : 'DRAG TO ROTATE · SCROLL TO ZOOM'}
+              {coarsePointer ? 'DRAG TO ROTATE · PINCH TO ZOOM' : 'DRAG TO ROTATE · SCROLL TO ZOOM'}
             </p>
           )}
 
@@ -691,21 +761,53 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
           >
             {notice ?? (fallback ? LOAD_NOTICE : '')}
           </p>
+        </div>
 
+        {/*
+          The plinth label: the garment's name, directly under the garment.
+
+          `aria-hidden` is load-bearing. The real, single <h1> for this page lives
+          in <ProductPanel>; a second copy of the product name in the
+          accessibility tree would announce the garment twice and give a screen
+          reader two candidate titles for one page. This is decoration that
+          repeats something already said properly, which is exactly what
+          aria-hidden is for.
+
+          Desktop and tablet only (`.stage__caption` is display:none below 900px).
+          On a phone the stage band's height budget is what the whole 2026-08-17
+          layout change is fighting for — see `.stage__canvas` in page.css — and
+          25px of caption would come straight back out of the garment.
+
+          Flat, per docs/DESIGN.md: no text-shadow, no perspective, no gradient.
+          Fake depth on type next to a real 3D render reads as cheap, and the
+          design system is deliberately a flat editorial one.
+        */}
+        {/*
+          ONE ROW under the garment, carrying the label and the camera controls.
+
+          They were two stacked rows for about an hour and it cost 37px of
+          garment on a 900px-tall window — measured, and that band has no 37px to
+          give (see `.stage__canvas`'s budget). Sharing a row costs NOTHING: the
+          caption is absolutely positioned at the left, so the controls stay
+          centred on the garment at every width and the caption's presence or
+          absence cannot move them.
+
+          OUTSIDE `.stage__canvas`, which is the fix for the owner's "the buttons
+          are on top of the 3D product" — see StageControls.tsx for the numbers.
+        */}
+        <div className="stage__plinth">
+          <p className="stage__caption" aria-hidden="true">
+            {product.productName}
+          </p>
+          {/* `!fallback` because the poster branch has no camera to point;
+              `disabled` rather than unmounted while the model downloads, so the
+              row cannot shove the page around 23 seconds late. */}
           {!fallback && (
-            <div className="stage__controls" role="group" aria-label="Camera positions">
-              {(['front', 'back', 'side'] as const).map((view) => (
-                <button
-                  key={view}
-                  type="button"
-                  className="camera-btn"
-                  aria-pressed={activeView === view}
-                  onClick={() => applyView(view)}
-                >
-                  {view}
-                </button>
-              ))}
-            </div>
+            <StageControls
+              activeView={activeView}
+              onSelect={applyView}
+              disabled={!modelLoaded || swapping}
+            />
           )}
         </div>
 

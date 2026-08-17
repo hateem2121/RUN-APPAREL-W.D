@@ -193,7 +193,7 @@ every gate. **When you have the minutes to spare, prefer it.**
 
 ### After any rollback
 
-1. Load `https://viewer.wear-run.help/n001/wine` in a browser and confirm the
+1. Load `https://viewer.wear-run.help/rxps/wine` in a browser and confirm the
    garment renders — not just that the URL returns 200. This deployment serves
    `index.html` with **HTTP 200 for every unmatched path**
    (`not_found_handling: single-page-application`), so a status code proves
@@ -367,7 +367,7 @@ pull request:
   workflow's viewer curl was no better: the SPA shell returns 200 and renders its
   no-model state.
 
-  The script fetches `/api/public/viewer/n001/wine` and asserts a product, at
+  The script fetches `/api/public/viewer/rxps/wine` and asserts a product, at
   least one colourway, and a model URL that really fetches and is over 100 KB.
 
   **The default colour slug must be a LIVE one.** It was `navy` until 2026-08-05,
@@ -943,8 +943,8 @@ you.** About five minutes, and it costs nothing.
 
    | | URL | Keyword it must find |
    |---|---|---|
-   | The page a customer sees | `https://viewer.wear-run.help/n001/wine` | `RUN APPAREL` |
-   | The data behind it | `https://cms.wear-run.help/api/public/viewer/n001/wine` | `"productCode":"N001"` |
+   | The page a customer sees | `https://viewer.wear-run.help/rxps/wine` | `RUN APPAREL` |
+   | The data behind it | `https://cms.wear-run.help/api/public/viewer/rxps/wine` | `"productCode":"RXPS"` |
 
 3. Set alerts to your **email**, and add your phone if you want a push. Do not
    route them back into GitHub — the whole point is that this path is separate.
@@ -1287,7 +1287,7 @@ break mid-flight (each config flip is a one-liner already commented in
    both jobs.
 6. **Verify:** the CSP already allows `*.wear-run.help`, so no viewer change is
    needed. Check `curl` on the API + a `media.wear-run.help/...` URL (long
-   `cache-control`), then load `viewer.wear-run.help/n001/wine`; run the QA
+   `cache-control`), then load `viewer.wear-run.help/rxps/wine`; run the QA
    checklist. Roll back by reverting step 4 and re-pointing `VITE_API_BASE_URL`
    at the workers.dev URL if anything regresses.
 
@@ -1344,7 +1344,7 @@ link-preview smoke test is skipped when `VIEWER_DEPLOY_TARGET=pages`.
 
 ## Link previews — what a shared link looks like
 
-Paste `https://viewer.wear-run.help/n001/wine` into WhatsApp, email or LinkedIn
+Paste `https://viewer.wear-run.help/rxps/wine` into WhatsApp, email or LinkedIn
 and the recipient sees a card: the garment's own picture, "N001 Velocity
 Performance Skinsuit — Wine", and its fabric and fit. Every colourway gets its
 own card.
@@ -1375,7 +1375,7 @@ channels you are most likely to send a link on.
 ### Checking it
 
 ```bash
-node scripts/smoke-viewer-preview.mjs https://viewer.wear-run.help n001 wine
+node scripts/smoke-viewer-preview.mjs https://viewer.wear-run.help rxps wine
 ```
 
 CI runs this after every deploy. It asserts the card names the garment, that
@@ -1400,9 +1400,9 @@ Measured 2026-08-08, warm connection, five requests each:
 
 | Request | Time to first byte |
 |---|---|
-| `viewer.wear-run.help/n001/wine` (static HTML) | 0.106 – 0.155 s |
+| `viewer.wear-run.help/n001/wine` (static HTML) — measured pre-rename; the path is `rxps` now | 0.106 – 0.155 s |
 | `cms /api/health` | 0.428 – 0.657 s |
-| `cms /api/public/viewer/n001/wine` | **1.77 – 2.27 s** |
+| `cms /api/public/viewer/n001/wine` — measured pre-rename; the path is `rxps` now | **1.77 – 2.27 s** |
 
 The payload endpoint costs about 1.9 s and is not edge-cached on either host
 (`cf-cache-status` came back empty on `cms.wear-run.help` and on the workers.dev

@@ -1,5 +1,4 @@
 import { isValidProductCode, isValidSlug } from '@run-apparel/shared'
-import { defaultRichTextValue } from '@payloadcms/richtext-lexical'
 import { APIError, type CollectionConfig, type PayloadRequest } from 'payload'
 import { isAdmin, isAdminOrEditor, isAuthenticated } from '../access/roles'
 import { cameraFields } from '../fields/camera'
@@ -315,6 +314,20 @@ export const Products: CollectionConfig = {
               },
             },
             {
+              name: 'shortDescription',
+              type: 'textarea',
+              maxLength: 400,
+              label: 'Short description',
+              admin: {
+                description:
+                  'Two or three sentences about this garment, shown under its name on the public page. Plain text — no links or formatting. Leave it blank and the page uses the standard development-reference wording instead.',
+              },
+              // Deliberately NOT required. Every product that existed before
+              // 2026-08-17 has none, and making it required would make all of them
+              // unsaveable — including the shrink robot's own writes, which go
+              // through the same validation.
+            },
+            {
               name: 'productCode',
               type: 'text',
               required: true,
@@ -326,10 +339,34 @@ export const Products: CollectionConfig = {
                 }
                 return isValidProductCode(value.trim())
                   ? true
-                  : `“${value}” can’t be used as a product code. Use capital letters and numbers, starting with a letter — e.g. N001.`
+                  : `“${value}” can’t be used as a product code. Use letters, numbers and hyphens, starting with a letter — e.g. N001 or RX-PS.`
               },
-              admin: { description: 'Your internal code. Capital letters and numbers, e.g. N001.' },
+              admin: {
+                description:
+                  'Your internal code. Letters, numbers and hyphens, e.g. N001 or RX-PS. Lowercase is fine — it is saved in capitals.',
+              },
               hooks: {
+                /**
+                 * Accept what the owner types; store what the system needs.
+                 *
+                 * ⚠️ THIS IS A NORMALISATION OF INPUT, NOT A CORRECTION OF STORED DATA,
+                 * and the distinction is the one the slug field below is built around.
+                 * A colourway slug is printed on physical QR tags, so nothing automated
+                 * may ever rewrite one. A product code is not on a tag and not in a URL
+                 * — it appears in the enquiry email and on the page — so trimming and
+                 * uppercasing what someone typed is a courtesy, not a hazard. That is
+                 * why this runs on update as well as create, where the slug's own hook
+                 * deliberately does not.
+                 *
+                 * It exists because `isValidProductCode` rejects lowercase (see its own
+                 * comment: mixed case would let two codes collide on the unique index
+                 * while looking different to a person). Without this hook that rejection
+                 * reaches the owner as an error about capital letters, for something the
+                 * machine can obviously do itself.
+                 */
+                beforeValidate: [
+                  ({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value),
+                ],
                 // Unique, and Payload copies a field's value verbatim into a duplicate
                 // unless told otherwise — so without this, saving a freshly duplicated
                 // product hits the same `products_product_code_idx` UNIQUE index the
@@ -338,15 +375,14 @@ export const Products: CollectionConfig = {
                 // source doc BEFORE handing it to create, so this suffix is already in
                 // place by the time the unique check runs.
                 //
-                // NO HYPHEN. `-COPY` reads better but fails this field's own validate
-                // two lines up — isValidProductCode is /^[A-Z][A-Z0-9]*$/, letters and
-                // digits only — and beforeChange/index.js throws a ValidationError the
-                // instant any field's validate returns a string, which would abort the
-                // whole duplicate. Measured: `isValidProductCode('N001-COPY')` is
-                // `false`, and duplicating would trade the unique-constraint error this
-                // hook exists to fix for a different, equally blocking one.
+                // ⚠️ THIS WAS `${value}COPY` UNTIL 2026-08-17, under a comment titled
+                // "NO HYPHEN" explaining that `-COPY` failed this field's own validate.
+                // That was true and is not any more: `isValidProductCode` accepts a
+                // hyphen between groups since the same date, so `N001-COPY` validates.
+                // The comment is replaced rather than left, because a stale reason
+                // reads as a live constraint.
                 beforeDuplicate: [
-                  ({ value }) => (typeof value === 'string' ? `${value}COPY` : value),
+                  ({ value }) => (typeof value === 'string' ? `${value}-COPY` : value),
                 ],
               },
             },
@@ -361,9 +397,24 @@ export const Products: CollectionConfig = {
                 if (typeof value !== 'string' || value.trim() === '') {
                   return 'Every product needs a web address word, e.g. n001.'
                 }
-                return isValidSlug(value.trim())
-                  ? true
-                  : `“${value}” can’t be used in a web address. Use lowercase letters, numbers and hyphens only — e.g. n001.`
+                /**
+                 * ⚠️ THIS ONE STAYS STRICT, deliberately, while `productCode` above
+                 * relaxed on the same day.
+                 *
+                 * A product's web address word goes into the URL a QR code on a
+                 * physical garment tag points at. It cannot hold a space, an accent or
+                 * a symbol without being percent-encoded into something nobody can read
+                 * back off a tag, and it can never be changed once tags are printed. So
+                 * the rule is unchanged — what changed is that the error now does the
+                 * work instead of only naming the rule.
+                 */
+                if (isValidSlug(value.trim())) return true
+                const suggestion = deriveSlug(value)
+                return (
+                  `“${value}” can’t be used in a web address. Use lowercase letters, numbers ` +
+                  `and hyphens only — e.g. n001.` +
+                  (suggestion ? ` Did you mean “${suggestion}”?` : '')
+                )
               },
               admin: {
                 description:
@@ -608,42 +659,56 @@ export const Products: CollectionConfig = {
             },
           ],
         },
+        /**
+         * ⚠️ THIS TAB IS GONE FROM THE ADMIN UI, and its two fields are HIDDEN
+         * rather than deleted. 2026-08-17, owner decision.
+         *
+         * "How we build your product" is now ONE text for the whole catalogue,
+         * living in the `build-process` global and read on every public request
+         * (globals/BuildProcess.ts). Editing it changes every page immediately,
+         * including products made months ago — which is what an editor
+         * reasonably expects and what the old seed-at-create design could not do.
+         *
+         * WHY THE FIELDS STAY. Two reasons, and either alone would be enough:
+         *
+         *   1. Removing a field means dropping its D1 columns, and on D1 a table
+         *      rebuild is the single most hazardous operation in this repo — a
+         *      DROP runs an implicit DELETE and that cascades, while
+         *      `PRAGMA foreign_keys=OFF` is a no-op there. Same precedent as
+         *      `presentation_mode`, retired in place on 2026-08-09 and still sat
+         *      in the schema harmlessly.
+         *   2. `buildViewerResponse` still FALLS BACK to these columns while the
+         *      new global has no saved row — the window between this deploying
+         *      and someone first opening the screen. Delete the data and every
+         *      live page loses its build steps for that window.
+         *
+         * `hidden: true` on a FIELD hides it from the form only; it is not the
+         * `admin.hidden` on a COLLECTION that also gates the admin ROUTES (see
+         * RawUploads.ts for that trap). The REST API still exposes these, which
+         * is what the fallback above needs.
+         *
+         * The `defaultValue` functions that seeded them from Catalogue defaults
+         * are gone with the tab: seeding a hidden field nobody reads would write
+         * a copy of the shared copy onto every new product, which is exactly the
+         * drift this change removes.
+         */
         {
-          label: 'How we build your product',
+          label: 'Superseded',
+          description:
+            'Nothing to do here. “How we build your product” now lives in one place for every product — find it in the sidebar under Content.',
           fields: [
             {
               name: 'customisationIntro',
               type: 'richText',
-              label: 'Opening paragraph',
-              // A new product starts with the shared paragraph from Settings →
-              // Catalogue defaults. Payload only calls a field's defaultValue
-              // function for a genuinely new document — verified against Payload
-              // 3.86.0 rather than assumed, see task-9-report.md — so editing the
-              // global never rewrites a product that already exists. Falls back to
-              // Lexical's own empty document (the same "blank" this field has
-              // always had) rather than undefined/null: this function's return type
-              // is Payload's SerializableValue, which excludes both.
-              defaultValue: async ({ req }: { req: PayloadRequest }) => {
-                const defaults = await readCatalogueDefaults(req)
-                return defaults?.customisationIntro ?? defaultRichTextValue
-              },
-              admin: {
-                description:
-                  'The paragraph above the steps. Business-to-business wording only — this is not a shop.',
-              },
+              label: 'Opening paragraph (no longer used)',
+              admin: { hidden: true },
             },
             {
               name: 'customisationSteps',
               type: 'array',
-              label: 'The steps',
+              label: 'The steps (no longer used)',
               labels: { singular: 'Step', plural: 'Steps' },
-              // Same inheritance and the same create-only timing as
-              // customisationIntro immediately above.
-              defaultValue: async ({ req }: { req: PayloadRequest }) => {
-                const defaults = await readCatalogueDefaults(req)
-                return defaults?.customisationSteps ?? []
-              },
-              admin: { description: 'Shown in order as the “How we build your product” list.' },
+              admin: { hidden: true },
               fields: [
                 { name: 'number', type: 'number', required: true, label: 'Step number' },
                 { name: 'title', type: 'text', required: true, label: 'Step title' },

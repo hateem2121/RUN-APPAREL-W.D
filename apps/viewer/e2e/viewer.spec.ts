@@ -192,6 +192,39 @@ test.describe('RUN APPAREL 3D viewer', () => {
     await expect(page.getByText('SAMPLE, REFINE AND PRODUCE')).toBeVisible()
   })
 
+  /**
+   * The garment's own description, and the fallback for a garment without one.
+   *
+   * ⚠️ BOTH BRANCHES, because only one of them was reachable until 2026-08-17.
+   * `shortDescription` was added to the CMS, the shared type, the projection and
+   * <ProductPanel> that day — and NOTHING in this fixture set one, so every e2e
+   * run, and every look at the live site (where no product has been given a
+   * description yet), rendered the standard development-reference paragraph. The
+   * feature could have been completely broken and the whole suite would have
+   * stayed green. That is the "fixture cannot exhibit the failure" pattern
+   * CLAUDE.md opens with, reached from the other direction: not a missing failure
+   * mode, a missing SUCCESS mode.
+   *
+   * The fallback half is not padding. Every product that existed before the field
+   * was added has none, so it is what the live catalogue shows today — deleting
+   * it would silently strip the paragraph from every page.
+   */
+  test('a product with a description shows it, and one without shows the standard wording', async ({
+    page,
+  }) => {
+    await page.goto('/n001/wine')
+    const statement = page.locator('.product-info__statement')
+    await expect(statement).toHaveText(/race-fit training tee built for long summer mileage/i)
+    // The generic paragraph must be GONE, not merely joined — a description that
+    // appends rather than replaces reads as two contradictory openings.
+    await expect(statement).not.toHaveText(/development reference, not a finished stock product/i)
+
+    await page.goto('/n002/wine')
+    await expect(page.locator('.product-info__statement')).toHaveText(
+      /development reference, not a finished stock product/i,
+    )
+  })
+
   test('page carries no retail/e-commerce language', async ({ page }) => {
     await page.goto('/n001/wine')
     const body = (await page.locator('body').innerText()).toLowerCase()

@@ -152,10 +152,12 @@ export interface Config {
   globals: {
     'site-settings': SiteSetting;
     'catalogue-defaults': CatalogueDefault;
+    'build-process': BuildProcess;
   };
   globalsSelect: {
     'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
     'catalogue-defaults': CatalogueDefaultsSelect<false> | CatalogueDefaultsSelect<true>;
+    'build-process': BuildProcessSelect<false> | BuildProcessSelect<true>;
   };
   locale: null;
   widgets: {
@@ -350,7 +352,11 @@ export interface Product {
    */
   productName: string;
   /**
-   * Your internal code. Capital letters and numbers, e.g. N001.
+   * Two or three sentences about this garment, shown under its name on the public page. Plain text — no links or formatting. Leave it blank and the page uses the standard development-reference wording instead.
+   */
+  shortDescription?: string | null;
+  /**
+   * Your internal code. Letters, numbers and hyphens, e.g. N001 or RX-PS. Lowercase is fine — it is saved in capitals.
    */
   productCode: string;
   /**
@@ -431,9 +437,6 @@ export interface Product {
         id?: string | null;
       }[]
     | null;
-  /**
-   * The paragraph above the steps. Business-to-business wording only — this is not a shop.
-   */
   customisationIntro?: {
     root: {
       type: string;
@@ -449,9 +452,6 @@ export interface Product {
     };
     [k: string]: unknown;
   } | null;
-  /**
-   * Shown in order as the “How we build your product” list.
-   */
   customisationSteps?:
     | {
         number: number;
@@ -671,6 +671,7 @@ export interface ProductsSelect<T extends boolean = true> {
   status?: T;
   sortOrder?: T;
   productName?: T;
+  shortDescription?: T;
   productCode?: T;
   slug?: T;
   category?: T;
@@ -830,7 +831,7 @@ export interface SiteSetting {
   createdAt?: string | null;
 }
 /**
- * The copy every new garment starts with. Changing something here changes what the NEXT product you create begins with — it does NOT rewrite any product you have already made, even one made a minute ago. To fix wording on an existing product, open that product and edit it directly.
+ * The settings every NEW garment starts with. Changing something here changes what the NEXT product you create begins with — it does NOT rewrite any product you have already made, even one made a minute ago. To fix one existing product, open it and edit it directly. (“How we build your product” does not work this way and is not here — it is one text for every product, in its own screen under Content.)
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "catalogue-defaults".
@@ -838,7 +839,26 @@ export interface SiteSetting {
 export interface CatalogueDefault {
   id: number;
   /**
-   * The paragraph above the steps, on every NEW product from now on. Business-to-business wording only — this is not a shop.
+   * Where a NEW product’s “Catalogue” button sends people.
+   */
+  catalogueUrl: string;
+  /**
+   * Shown on a NEW product when someone scans a QR code for a colour that has been switched off.
+   */
+  retiredMessage: string;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This text appears on EVERY product page, including ones you have already made. Change it here and it changes everywhere as soon as you save — you never have to edit it product by product.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "build-process".
+ */
+export interface BuildProcess {
+  id: number;
+  /**
+   * The paragraph above the steps, on every product page. Business-to-business wording only — this is not a shop.
    */
   customisationIntro?: {
     root: {
@@ -856,7 +876,7 @@ export interface CatalogueDefault {
     [k: string]: unknown;
   } | null;
   /**
-   * Shown in order as the “How we build your product” list on every NEW product from now on.
+   * Shown in order as the “How we build your product” list on every product page. Deleting every step removes the list from every page.
    */
   customisationSteps?:
     | {
@@ -866,14 +886,6 @@ export interface CatalogueDefault {
         id?: string | null;
       }[]
     | null;
-  /**
-   * Where a NEW product’s “Catalogue” button sends people.
-   */
-  catalogueUrl: string;
-  /**
-   * Shown on a NEW product when someone scans a QR code for a colour that has been switched off.
-   */
-  retiredMessage: string;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -910,6 +922,17 @@ export interface SiteSettingsSelect<T extends boolean = true> {
  * via the `definition` "catalogue-defaults_select".
  */
 export interface CatalogueDefaultsSelect<T extends boolean = true> {
+  catalogueUrl?: T;
+  retiredMessage?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "build-process_select".
+ */
+export interface BuildProcessSelect<T extends boolean = true> {
   customisationIntro?: T;
   customisationSteps?:
     | T
@@ -919,8 +942,6 @@ export interface CatalogueDefaultsSelect<T extends boolean = true> {
         body?: T;
         id?: T;
       };
-  catalogueUrl?: T;
-  retiredMessage?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

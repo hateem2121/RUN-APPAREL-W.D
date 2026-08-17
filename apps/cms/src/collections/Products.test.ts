@@ -1,4 +1,3 @@
-import { defaultRichTextValue } from '@payloadcms/richtext-lexical'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_RETIRED_MESSAGE, Products } from './Products'
 
@@ -142,42 +141,42 @@ describe('Products defaultValue — inherits from CatalogueDefaults on create on
     )
   })
 
-  it('customisationIntro reads the global', async () => {
-    const value = { root: { type: 'root', children: [], version: 1 } }
-    await expect(
-      runDefaultValue('customisationIntro', reqWithGlobal({ customisationIntro: value })),
-    ).resolves.toBe(value)
-  })
-  // No prior default existed for this field on Products — it was simply
-  // absent, and that has to remain the effective behaviour when the global is
-  // unreadable. The fallback cannot literally be undefined/null though:
-  // Payload's own DefaultValue function type returns SerializableValue
-  // (boolean | number | object | string), which excludes both, so a function
-  // returning either would fail `pnpm typecheck`. defaultRichTextValue is
-  // richtext-lexical's own exported empty document for exactly this situation
-  // — not a hand-rolled guess at Lexical's internal shape.
-  it('customisationIntro fails open to an empty Lexical document if the global cannot be read', async () => {
-    const result = await runDefaultValue('customisationIntro', reqWhereGlobalReadFails())
-    expect(result).toEqual(defaultRichTextValue)
-  })
-  it('customisationIntro fails open to an empty Lexical document if the global has never been saved', async () => {
-    const result = await runDefaultValue('customisationIntro', reqWithGlobal({}))
-    expect(result).toEqual(defaultRichTextValue)
+  /**
+   * ⚠️ SIX TESTS WERE DELETED HERE ON 2026-08-17, and they were correct when
+   * they were written. They asserted that `customisationIntro` and
+   * `customisationSteps` SEEDED themselves from Catalogue defaults at create
+   * time, failing open to an empty Lexical document / an empty array.
+   *
+   * That behaviour is gone by owner decision, not by accident. "How we build
+   * your product" is now ONE text for the whole catalogue, read live on every
+   * public request from the `build-process` global — so seeding a per-product
+   * copy would write a snapshot of the shared copy onto each new garment and
+   * reintroduce exactly the drift the change removes. The projection tests in
+   * endpoints/projectViewer.test.ts are where that behaviour is asserted now.
+   *
+   * What is asserted here instead is the pair of things that must stay true for
+   * the OLD data: the fields still exist (so the deploy-window fallback in
+   * projectViewer.ts has something to read, and so no D1 column is dropped —
+   * see the migration's header), and they no longer seed anything.
+   */
+  it('no longer seeds a per-product copy of the shared build-process text', () => {
+    expect(fieldNamed('customisationIntro').defaultValue).toBeUndefined()
+    expect(fieldNamed('customisationSteps').defaultValue).toBeUndefined()
   })
 
-  it('customisationSteps reads the global', async () => {
-    const steps = [{ number: 1, title: 'Step one', body: 'Body' }]
-    await expect(
-      runDefaultValue('customisationSteps', reqWithGlobal({ customisationSteps: steps })),
-    ).resolves.toBe(steps)
-  })
-  it('customisationSteps fails open to an empty array if the global cannot be read', async () => {
-    await expect(runDefaultValue('customisationSteps', reqWhereGlobalReadFails())).resolves.toEqual(
-      [],
-    )
-  })
-  it('customisationSteps fails open to an empty array if the global has never been saved', async () => {
-    await expect(runDefaultValue('customisationSteps', reqWithGlobal({}))).resolves.toEqual([])
+  it('keeps both fields on the collection, hidden rather than removed', () => {
+    // Removing them would mean dropping D1 columns, and on D1 a table rebuild
+    // runs an implicit DELETE that cascades — `products` is the parent of every
+    // colourway, media reference and raw upload. Same precedent as
+    // `presentation_mode`, retired in place on 2026-08-09.
+    for (const name of ['customisationIntro', 'customisationSteps']) {
+      const field = fieldNamed(name)
+      expect(field, `${name} was removed from the collection`).toBeDefined()
+      expect(
+        (field as { admin?: { hidden?: boolean } }).admin?.hidden,
+        `${name} is still shown in the admin form`,
+      ).toBe(true)
+    }
   })
 })
 
@@ -190,21 +189,66 @@ describe('Products beforeDuplicate hooks', () => {
   // duplicateDocument/index.js and fields/hooks/beforeDuplicate/promise.js, and
   // the CREATE UNIQUE INDEX statements in migrations/20260729_070548_inline_colourways.ts.
   it('suffixes the product code so the unique index cannot collide', () => {
-    expect(runDuplicate('productCode', { value: 'N001' })).toBe('N001COPY')
+    expect(runDuplicate('productCode', { value: 'N001' })).toBe('N001-COPY')
   })
   it('leaves a non-string product code alone', () => {
     expect(runDuplicate('productCode', { value: null })).toBe(null)
   })
-  // productCode's own validate requires /^[A-Z][A-Z0-9]*$/ — capital letters and
-  // digits, no hyphen (see Products.ts's "Use capital letters and numbers,
-  // starting with a letter" message). A `-COPY` suffix reads better but FAILS
-  // that regex: confirmed empirically (`/^[A-Z][A-Z0-9]*$/.test('N001-COPY')` is
-  // `false`), and beforeChange/index.js throws a ValidationError the instant any
-  // field's validate returns a string — which would make the whole duplicate
-  // save fail with a *different* blocking error instead of no error at all. This
-  // exercises the actual validate function from the field below, not a
-  // reimplementation of the regex, so a future change to either the suffix or
-  // the pattern that breaks the pairing fails here.
+
+  /**
+   * Typing `rx-ps` must not be met with an error about capital letters.
+   *
+   * `isValidProductCode` rejects lowercase on purpose — mixed case would let two
+   * codes collide on the unique index while looking different to a person — so
+   * without this hook the machine refuses something it could obviously fix
+   * itself. The owner reported exactly that.
+   *
+   * ⚠️ Deliberately NOT the same rule as the slug field's hook two blocks down.
+   * That one is create-only and fills a BLANK, never corrects a value, because a
+   * colourway slug is printed on physical QR tags. A product code is on neither
+   * a tag nor a URL, so normalising it on every write is safe.
+   */
+  const runProductCodeBeforeValidate = (value: unknown) =>
+    fieldNamed('productCode').hooks?.beforeValidate?.[0]?.({ value } as never)
+
+  it('accepts a lowercase product code and stores it in capitals', () => {
+    expect(runProductCodeBeforeValidate('rx-ps')).toBe('RX-PS')
+    expect(runProductCodeBeforeValidate('  n001  ')).toBe('N001')
+    // And what it produced must satisfy the field's OWN validate — the pairing,
+    // not the transformation, is what actually has to hold.
+    expect(fieldNamed('productCode').validate?.(runProductCodeBeforeValidate('rx-ps'), {})).toBe(
+      true,
+    )
+  })
+  it('leaves a non-string product code alone before validation', () => {
+    expect(runProductCodeBeforeValidate(null)).toBe(null)
+  })
+
+  it('accepts a hyphenated product code', () => {
+    expect(fieldNamed('productCode').validate?.('RX-PS', {})).toBe(true)
+  })
+
+  /**
+   * The slug field stays strict — it is in the URL a printed QR code points at —
+   * so its error does the work instead of only naming the rule.
+   */
+  it('suggests a usable web address word instead of only refusing one', () => {
+    const message = fieldNamed('slug').validate?.('X Milo Pro')
+    expect(message).toContain('x-milo-pro')
+  })
+  // ⚠️ THE SUFFIX WAS `COPY` WITH NO HYPHEN UNTIL 2026-08-17, and the comment
+  // here explained at length that `-COPY` failed productCode's own validate:
+  // the pattern was /^[A-Z][A-Z0-9]*$/, and beforeChange/index.js throws a
+  // ValidationError the instant any field's validate returns a string, so a
+  // hyphenated suffix would have traded the unique-constraint error this hook
+  // exists to fix for a different, equally blocking one.
+  //
+  // The pattern now accepts a hyphen between groups (the owner asked for codes
+  // like RX-PS), so that reasoning expired and the suffix is readable again.
+  // The PAIRING is the thing worth keeping, and it is what the test below
+  // asserts: it runs the field's REAL validate against the REAL suffix, so a
+  // future change to either one that breaks the other fails here rather than on
+  // the first duplicate someone tries to save.
   it('the duplicated product code still passes its own validation', () => {
     const duplicated = runDuplicate('productCode', { value: 'N001' })
     expect(fieldNamed('productCode').validate?.(duplicated, {})).toBe(true)

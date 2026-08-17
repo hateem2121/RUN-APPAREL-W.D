@@ -368,6 +368,127 @@ test.describe('layout invariants', () => {
           `(${overflow.scrollWidth} > ${overflow.clientWidth})`,
       ).toBeLessThanOrEqual(overflow.clientWidth + 1)
     })
+
+    test(`the page opens at the very top at ${viewport.name} (${viewport.width}px)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      /**
+       * Measured on the live site 2026-08-17, before this test existed: every
+       * viewport arrived at `scrollY: 69` — the header's height, to the pixel.
+       *
+       * The cause is not a scroll call; there is none anywhere in the viewer.
+       * `App.tsx` hands focus to `<main>` when the preloader leaves, and
+       * `focus()` scrolls its element into view. `<main>` starts directly below
+       * the sticky header and is taller than the viewport, so the browser
+       * scrolls the minimum that makes it fill the viewport — which is exactly
+       * the header's height.
+       *
+       * It is not cosmetic. Measured at 390x844 the sticky header then covered
+       * the top **29px of the garment**, so the first thing a QR visitor saw was
+       * a product with its shoulders cut off — reported as "the model gets cut
+       * off", and diagnosed for a while as a stage-height problem.
+       *
+       * The assertion is on scroll POSITION rather than on the focus call,
+       * because `preventScroll` is one of two things that can regress this: a
+       * later `scrollIntoView`, an anchor, or restored scroll would all put it
+       * back with the focus option still correct.
+       */
+      /**
+       * ⚠️ WAIT FOR THE HAND-OFF, do not assert straight after `toBeVisible`.
+       *
+       * The first draft of this test read `scrollY` as soon as the <h1> appeared
+       * and was FLAKY IN THE DIRECTION THAT PASSES: the focus effect had usually
+       * not committed yet, so it measured `scrollY: 0` and went green against the
+       * unfixed code. Two runs of the identical test disagreed.
+       *
+       * Waiting on the hand-off is also the only honest synchronisation point —
+       * it is the thing that used to move the page, so "it has happened and the
+       * page is still at the top" is exactly the claim being made.
+       */
+      await page.waitForFunction(() => document.activeElement?.id === 'main-content')
+
+      const top = await page.evaluate(() => ({
+        scrollY: Math.round(window.scrollY),
+        headerBottom: Math.round(
+          document.querySelector('.header')?.getBoundingClientRect().bottom ?? 0,
+        ),
+        stageTop: Math.round(
+          document.querySelector('.stage__canvas')?.getBoundingClientRect().top ?? 0,
+        ),
+      }))
+
+      expect(
+        top.scrollY,
+        `the page arrives ${top.scrollY}px down instead of at the top ` +
+          `(the header is ${top.headerBottom}px tall — if those two match, ` +
+          `something is scrolling <main> into view again)`,
+      ).toBe(0)
+
+      // The whole point of the fix: the sticky header must not sit on the stage.
+      expect(
+        top.stageTop,
+        `the sticky header covers the top ${top.headerBottom - top.stageTop}px of the garment`,
+      ).toBeGreaterThanOrEqual(top.headerBottom)
+    })
+
+    test(`the camera controls sit off the garment at ${viewport.name} (${viewport.width}px)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      /**
+       * FRONT / BACK / SIDE were `position: absolute; bottom: 16px` INSIDE
+       * `.stage__canvas` until 2026-08-17, so they were painted on the product.
+       *
+       * The numbers, measured live before the change: the garment fills 86.3% of
+       * the canvas height at every viewport (camera radius and field of view are
+       * fixed, so canvas height alone sets the garment's size), which put
+       * **26px of garment under the pill at 1440x900 and 38px at 390x844**.
+       *
+       * The assertion is on the two BOXES, not on the garment's pixels, and
+       * deliberately so: the pixels depend on the model, and this must fail for
+       * any garment. A control that is outside the canvas cannot be on top of
+       * whatever is inside it.
+       *
+       * ⚠️ It must also never regress by the controls simply vanishing — they are
+       * rendered-and-disabled during the download precisely so the row cannot
+       * appear late and shove the page around, so their existence is asserted
+       * first.
+       */
+      const boxes = await page.evaluate(() => {
+        const rect = (selector: string) => {
+          const el = document.querySelector(selector)
+          if (!el) return null
+          const r = el.getBoundingClientRect()
+          return { top: Math.round(r.top), bottom: Math.round(r.bottom) }
+        }
+        return { canvas: rect('.stage__canvas'), controls: rect('.stage__controls') }
+      })
+
+      expect(boxes.canvas, 'no .stage__canvas on the page').not.toBeNull()
+      expect(
+        boxes.controls,
+        'no camera controls on the page — they are reserved-and-disabled during ' +
+          'the download, never unmounted, so this means they were removed',
+      ).not.toBeNull()
+
+      const { canvas, controls } = boxes as {
+        canvas: { top: number; bottom: number }
+        controls: { top: number; bottom: number }
+      }
+
+      expect(
+        controls.top,
+        `the camera controls overlap the garment by ${canvas.bottom - controls.top}px ` +
+          `(canvas ends at ${canvas.bottom}, controls start at ${controls.top})`,
+      ).toBeGreaterThanOrEqual(canvas.bottom)
+    })
   }
 
   test('the garment and its colourway picker fit one phone screen, unscrolled', async ({
@@ -438,6 +559,85 @@ test.describe('layout invariants', () => {
       `the colourway rail sits above the garment (rail top ${rail.top}, ` +
         `canvas bottom ${canvas.bottom})`,
     ).toBeGreaterThanOrEqual(canvas.bottom)
+  })
+
+  /**
+   * ⚠️ 950 IS THE WIDTH THAT WAS BROKEN, and it is why this loop is not just
+   * [phone, desktop].
+   *
+   * `.action-bar` is hidden from `min-width: 900px`; `.contact-rail` only existed
+   * from `min-width: 1100px`. Between those two numbers the page carried **no
+   * persistent contact control at all** — and this is the only conversion path in
+   * the product, so a visitor at 950px who did not scroll to the contact section
+   * simply could not make contact. Nothing reported it because nothing was ever
+   * measured at that width: the e2e matrix runs 320/375/768/1280, and 768 and
+   * 1280 both sit on working sides of the gap.
+   *
+   * The second half of the assertion is the one that matters for the owner's
+   * report: the controls must be reachable WITHOUT SCROLLING. The desktop rail
+   * used to appear only once the garment had scrolled out of view.
+   */
+  for (const width of [950, 1280, 1440]) {
+    test(`contact is reachable without scrolling at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const reachable = await page.evaluate(() => {
+        const inView = (el: Element) => {
+          const r = el.getBoundingClientRect()
+          return r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight
+        }
+        // Anything fixed to the viewport: the desktop rail or the mobile bar.
+        const persistent = [...document.querySelectorAll('.contact-rail a, .action-bar a')]
+        return {
+          scrollY: Math.round(window.scrollY),
+          email: persistent.filter(
+            (a) => a.getAttribute('href')?.startsWith('mailto:') && inView(a),
+          ).length,
+          whatsapp: persistent.filter((a) => a.getAttribute('href')?.includes('wa.me') && inView(a))
+            .length,
+        }
+      })
+
+      expect(reachable.scrollY, 'the page should not have scrolled to reach this').toBe(0)
+      expect(
+        reachable.email,
+        `no email control is on screen unscrolled at ${width}px — between 900 and ` +
+          `1099px the action bar is hidden and the rail used to start at 1100px`,
+      ).toBeGreaterThan(0)
+      expect(reachable.whatsapp, `no WhatsApp control is on screen at ${width}px`).toBeGreaterThan(
+        0,
+      )
+    })
+  }
+
+  /**
+   * The plinth label is desktop-only, and both halves of that matter.
+   *
+   * On a phone the stage band's height budget is what the whole 2026-08-17
+   * layout change is fighting for, so ~23px of caption would come straight out
+   * of the garment — the exact complaint being fixed. On desktop it must
+   * actually be there, and must not be a SECOND page heading: the real <h1>
+   * lives in the product panel, and a duplicate in the accessibility tree gives
+   * a screen reader two candidate titles for one page.
+   */
+  test('the garment label is desktop-only and never a second heading', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    await page.setViewportSize({ width: 375, height: 812 })
+    await expect(page.locator('.stage__caption')).toBeHidden()
+
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await expect(page.locator('.stage__caption')).toBeVisible()
+
+    // Exactly one <h1>, and the caption is not it.
+    expect(await page.getByRole('heading', { level: 1 }).count()).toBe(1)
+    expect(
+      await page.locator('.stage__caption').getAttribute('aria-hidden'),
+      'the label repeats the product name — it must stay out of the accessibility tree',
+    ).toBe('true')
   })
 
   test('every interactive control meets the WCAG 2.5.8 target size', async ({ page }) => {

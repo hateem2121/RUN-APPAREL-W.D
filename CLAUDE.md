@@ -131,9 +131,13 @@ reading as a tidy-up. See the comment in `RawUploads.ts`.
 - **Coverage floors are MEASURED, not chosen** (`vitest.coverage.mjs`, a
   `thresholds:` block per package, `scripts/check-coverage.mjs` for the repo).
   **Never lower one to go green.** `apps/viewer` is deliberately the lowest at 42%
-  — do NOT "fix" it by excluding `App/Stage/RenderPage.tsx`; 239 of its ~380
-  uncovered lines are in those three, so dropping them reports ~75% while testing
-  identically. They are covered by `apps/viewer/e2e/` in a real browser, because
+  — do NOT "fix" it by excluding `App.tsx`/`Stage.tsx`; most of its uncovered
+  lines are in those two, so dropping them reports a far higher number while
+  testing identically. (`RenderPage.tsx` was the third until it was deleted on
+  2026-08-17 with the poster-capture job; the floor was deliberately NOT raised
+  to match — a threshold is a measurement, and a number a deletion happened to
+  produce is one nobody measured.) They are covered by `apps/viewer/e2e/` in a
+  real browser, because
   `<model-viewer>` under jsdom asserts against a stub. Every `include` is explicit
   on purpose: v8 without one omits untested files entirely, so coverage *rises*
   when you add untested code.
@@ -453,7 +457,7 @@ the answer is "nothing that happens in production", it is not a test.
   `HEAD`: a `GET` on the model is 27 MB per run, which the 15-minute uptime job
   turns into gigabytes of R2 egress against a $5/month cap.
 
-- **Twelve more traps live in `apps/viewer/CLAUDE.md`** — the `performance` global
+- **Eighteen more traps live in `apps/viewer/CLAUDE.md`** — the `performance` global
   shadowed by a local in `Stage.tsx` (a runtime `TypeError` that every unit test
   stays green through), the FIXED ORDER in which `translate`/`scale`/`transform`
   compose (which threw the custom cursor 1.53× away from the pointer over every
@@ -462,9 +466,21 @@ the answer is "nothing that happens in production", it is not a test.
   `_headers` surviving `env.ASSETS.fetch()` **but NOT reaching a response the Worker
   builds itself** (that pair is one trap in two halves — the second shipped the
   `/render` refusal with no CSP at all, live, until 2026-08-12; do not read the first
-  without the second), crawler-only link previews, `og:image` format, the grid
+  without the second. ⚠️ `/render` itself was **deleted 2026-08-17** with the
+  automatic poster capture it served, so the Worker now builds NO response of its
+  own — `worker/securityHeaders.ts` is kept, uncalled, for the next one),
+  crawler-only link previews, `og:image` format, the grid
   `min-height: auto` overflow, and the two `<model-viewer>` DOM traps (`src` is a
   property; `webglcontextlost` never reaches your listener).
+  **Six were added 2026-08-17**, all from one round of owner-reported layout bugs
+  and all of the same shape — something that fails without saying anything: the
+  stage-height budget being wrong three times by arithmetic rather than
+  measurement, `focus()` silently scrolling the page by the header's height,
+  model-viewer 4.x having DELETED the two custom properties that were suppressing
+  the loading poster, `touch-action="pan-y"` handing the browser every gesture
+  with a vertical component, `flex-shrink: 0` causing rather than preventing a
+  flex child wrapping to a new row, and `.contact-rail`/`.action-bar` breakpoints
+  leaving 900–1099px with no contact control at all.
   Moved there 2026-08-10 because this file had come within 326 chars
   of the size at which Claude Code warns a memory file is too large; they load
   automatically the moment you touch `apps/viewer/`. Read them before changing the

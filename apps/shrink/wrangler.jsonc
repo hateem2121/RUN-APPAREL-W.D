@@ -65,28 +65,18 @@
   // cms.wear-run.help Bot Fight Mode challenge) entirely.
   "services": [{ "binding": "CMS", "service": "run-apparel-viewer-cms" }],
 
-  // Task 14: one headless-browser session per garment, used to screenshot the
-  // viewer's own /render route (task 13) for every colour that has no photo
-  // yet — see src/posters.ts and capturePosters() in src/index.ts.
+  // ⚠️ THE `browser` BINDING WAS HERE UNTIL 2026-08-17, driving a headless
+  // session that screenshotted the viewer's /render route for every colour with
+  // no photo. Removed by owner decision: Browser Rendering bills on TOTAL
+  // SESSION TIME (launch to close, summed per day, rounded to the hour — Workers
+  // Paid includes 10 hours/month then $0.09/hour), and the owner would rather
+  // upload the colour photos by hand than carry a per-garment browser bill.
   //
-  // ⚠️ COST MODEL, not a style preference. Browser Rendering bills on TOTAL
-  // SESSION TIME, launch to close, summed across a day and rounded to the
-  // nearest hour (confirmed against Cloudflare's own pricing docs, not
-  // assumed — see the task 13/14 report's fix log) — Workers Paid includes
-  // 10 of those hours/month, then $0.09/hour. That means the thing worth
-  // amortising is NOT the number of `puppeteer.launch()` calls (capturePosters
-  // already only ever makes one per job) — it is the number of full page
-  // NAVIGATIONS, because each one reruns the Meshopt decode, GPU upload and
-  // scene build from scratch, and that is what keeps the session open. A
-  // session-per-colour design pays that on every colour AND a fresh browser
-  // cold-start on top; a single-navigation design (what capturePosters does:
-  // ONE page.goto() for the first colour, then window.__renderSetVariant via
-  // page.evaluate() for every colour after that — see RenderPage.tsx) pays it
-  // once per garment. Puppeteer cannot reach viewer.wear-run.help over the
-  // CMS's `services` binding above either way — a headless browser makes its
-  // OWN real HTTP requests, not `fetch()` calls this Worker's JS makes — so
-  // it is a separate Browser Rendering binding, unrelated to `services`.
-  "browser": { "binding": "BROWSER" },
+  // Recorded rather than silently deleted because the cost model above is the
+  // thing to re-read before anyone adds Browser Rendering back: what mattered was
+  // never the number of `puppeteer.launch()` calls, it was the number of full
+  // page NAVIGATIONS — each one reruns the Meshopt decode, GPU upload and scene
+  // build, and that is what keeps the session open and billing.
 
   "vars": {
     // R2 S3 endpoint + bucket for the private ingest bucket. The account-id host
@@ -98,10 +88,8 @@
     "R2_INGEST_BUCKET": "run-apparel-viewer-ingest",
     // Host used when building the request URL routed through the CMS service
     // binding (the binding, not DNS, decides where it goes).
-    "CMS_ORIGIN": "https://cms.wear-run.help",
-    // Task 14: where the browser session in capturePosters() navigates to.
-    // Unlike CMS_ORIGIN above this cannot be a service binding (see the
-    // "browser" comment above), so it has to be the real public host.
-    "VIEWER_ORIGIN": "https://viewer.wear-run.help"
+    // `VIEWER_ORIGIN` sat here until 2026-08-17; it existed only so the removed
+    // browser session had a real public host to navigate to.
+    "CMS_ORIGIN": "https://cms.wear-run.help"
   }
 }

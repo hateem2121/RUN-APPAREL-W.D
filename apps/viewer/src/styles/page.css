@@ -96,6 +96,43 @@
   white-space: nowrap;
 }
 
+/*
+ * ⚠️ THE HEADER WAS 117px TALL ON A 375px PHONE — 14% of the viewport, above the
+ * garment, on the device this product is opened with. Measured 2026-08-17.
+ *
+ * The block comment on `.header` above records a 2026-08-14 fix for the same
+ * area and states the result as "69px to 81px". Both numbers were stale, and the
+ * two bugs are NOT the same one: that fix stopped the label wrapping to two
+ * LINE-BOXES inside the button. This is the button itself wrapping to a second
+ * FLEX ROW, which `flex-shrink: 0` cannot prevent — it is what makes the items
+ * refuse to shrink, so when they do not fit they wrap instead.
+ *
+ * The arithmetic, at 375px: 343px of content box against
+ * 161 (wordmark) + 44 (toggle) + 104 (catalogue) + 3x14 gaps = 351. **Eight
+ * pixels short.** Two changes buy 30 of them and neither is visible as a
+ * compromise:
+ *
+ *   column-gap 14 -> 10   (row-gap is left at 8; `gap` shorthand would reset it)
+ *   wordmark 18px -> 16px (measured 161px -> 143px wide)
+ *
+ * Result, measured: 117px -> **69px at both 360px and 375px**, the two commonest
+ * phone widths. Those 48px go straight to the garment.
+ *
+ * ⚠️ It still wraps at 320px (measured 119px), and that is accepted rather than
+ * missed. Fitting one row there needs the wordmark under ~124px — a 13.9px
+ * logotype — which is not a trade worth making for a width no current phone
+ * ships. `.stage__canvas`'s budget has an explicit rule for that case; see it.
+ */
+@media (max-width: 699px) {
+  .header {
+    column-gap: 10px;
+  }
+
+  .header__wordmark {
+    font-size: 16px;
+  }
+}
+
 @media (min-width: 700px) {
   .header__tag {
     display: inline-block;
@@ -182,15 +219,35 @@
  * six pixels under a viewport that usably ends at 740. Six pixels is enough to
  * put the control back out of reach, which is the entire bug.
  *
- * The third term is the budget, and it is subtraction rather than taste:
- * 93 header + 24 + 24 stage padding + 12 gap + 52 rail ≈ 205, rounded to 208.
- * It binds only on short windows — at 1280x800 and 768x1024 it resolves above
- * the other two terms, so every measurement on this file's larger viewports is
- * byte-identical to before the rail moved.
+ * The third term is the budget, and it is subtraction rather than taste. It was
+ * 208 until 2026-08-17 and is now 282, paying for `.stage__plinth` — the 44px
+ * row that carries the camera controls and the garment's name, both of which
+ * used to be free because both used to be painted ON the garment.
+ *
+ * ⚠️ MEASURED THREE TIMES, AND ADDING UP WAS WRONG TWICE. 225px of chrome + a
+ * 54px control row gave 279, rounded to 280 — then the caption arrived as its
+ * own row and the band measured 69->936 against a 900px viewport, **36px over**,
+ * because a caption whose font metrics nobody had rendered yet is not the 25px
+ * it looks like, it is 37. Raising the budget to 316 fixed the overflow and cost
+ * the garment 56px. Putting the caption and the controls on ONE row gave 35 of
+ * those back, and the band measured 69->865 — now 35px UNDER, i.e. wasted.
+ * 282 is the number the band actually needs, read off getBoundingClientRect().
+ *
+ * If you add anything else to this band, measure it here rather than reasoning
+ * about it. Every estimate in this comment's history has been wrong.
+ *
+ * ⚠️ THE SECOND TERM WENT 640px -> 760px IN THE SAME CHANGE, and it is the one
+ * that matters on a good monitor. The cap binds whenever the window is tall, and
+ * because the garment always fills 86.3% of the canvas height (the camera radius
+ * and field of view are fixed), the cap WAS the reason a 1440x1200 screen showed
+ * the same small garment as a laptop. Measured effect there: 640 -> 760, a 120px
+ * taller garment. At 1440x900 the `72vh` and `dvh` terms still bind, so nothing
+ * changes; at 1280x800 the canvas gives up 56px to the control row and takes
+ * back 26px that the pill used to cover.
  */
 .stage__canvas {
   position: relative;
-  height: min(72vh, 640px, calc(100dvh - 208px));
+  height: min(72vh, 760px, calc(100dvh - 282px));
   min-height: 380px;
   border-radius: var(--radius-panel);
   overflow: hidden;
@@ -240,8 +297,43 @@
  */
 @media (max-width: 899px) {
   .stage__canvas {
-    height: min(62vh, 640px, calc(100dvh - 380px));
+    /*
+     * 380 -> 386, and the small size of that bump is the interesting part.
+     *
+     * The control row costs 54px here as it does on desktop, so the naive
+     * subtrahend would be 434 and the phone's garment would LOSE 54px — the
+     * opposite of what this change is for. It does not, because the header fix
+     * two rules up gives back 48 of them: 117px -> 69px at 360 and 375. The row
+     * is paid for out of the header, not out of the garment.
+     *
+     * The remaining 6px come from the ~85px of slack this rule was already
+     * carrying between the colourway rail and the fixed action bar (documented
+     * below as the "peek"). A peek survives; it is just smaller.
+     *
+     * Net for a 375x812 phone, measured: the garment loses 5px of canvas and
+     * stops being obscured by 38px of control pill and 29px of sticky header.
+     */
+    height: min(62vh, 640px, calc(100dvh - 386px));
     min-height: 300px;
+  }
+}
+
+/*
+ * The 320px budget is 50px larger, because the header genuinely is.
+ *
+ * At 320px the catalogue button still wraps to a second flex row (measured
+ * 119px against 69px at 360px) — see the header rule above for why that is
+ * accepted rather than fixed. A budget that ignores it puts the colourway rail
+ * under the fixed action bar, which is the exact 2026-08-13 defect the phone-fit
+ * e2e test exists to catch.
+ *
+ * `min-height: 300px` is the floor and it binds here, so this rule changes
+ * nothing at 320x812; it is what keeps the arithmetic honest on a short 320px
+ * window and it documents WHY the two budgets differ.
+ */
+@media (max-width: 359px) {
+  .stage__canvas {
+    height: min(62vh, 640px, calc(100dvh - 436px));
   }
 }
 
@@ -252,12 +344,29 @@
   color: var(--contour);
 }
 
+/*
+ * ⚠️ TWO OF THESE THREE CUSTOM PROPERTIES WERE DEAD, and they were the ones
+ * doing the important job. Removed 2026-08-17.
+ *
+ * `--poster-color` and `--progress-mask` were how model-viewer 3.x let you
+ * suppress its built-in poster and loading scrim. **Neither exists in
+ * model-viewer 4.x** — verified against the installed 4.3.1, where a grep of
+ * `lib/template.js` finds only `--progress-bar-color`, and `#default-poster`
+ * carries a hardcoded `background-color: #fff0` with the `poster` attribute
+ * painted straight into its `background-image`.
+ *
+ * So this rule LOOKED like it turned the loading snapshot off and had not done
+ * so since the 4.x upgrade. The owner reported the snapshot as still working;
+ * it was, and this is where it hid. The real fix is in Stage.tsx — the `poster`
+ * attribute is no longer handed over at all.
+ *
+ * `--progress-bar-color` is kept and IS live: it hides model-viewer's own
+ * progress bar, which would otherwise sit under our byte-accurate readout.
+ */
 model-viewer.stage__model {
   width: 100%;
   height: 100%;
-  --poster-color: transparent;
   --progress-bar-color: transparent;
-  --progress-mask: transparent;
 }
 
 /*
@@ -362,23 +471,131 @@ model-viewer.stage__model:focus-within {
   color: var(--text);
 }
 
-/* Camera controls + guidance */
-.stage__controls {
-  position: absolute;
-  left: 50%;
-  bottom: 16px;
-  transform: translateX(-50%);
+/*
+ * The plinth row — the garment's label and its camera controls, on ONE line.
+ *
+ * ⚠️ THEY WERE TWO STACKED ROWS FOR ABOUT AN HOUR ON 2026-08-17 AND IT COST 37px
+ * OF GARMENT. Measured at 1440x900: the stage band ran to 936 against a 900px
+ * viewport. This band has no 37px to give — see `.stage__canvas`'s budget, which
+ * is the whole reason the controls left the canvas in the first place.
+ *
+ * The caption is ABSOLUTELY POSITIONED rather than a flex sibling, and that is
+ * load-bearing: the controls must sit centred on the GARMENT, not centred on
+ * "whatever else is in this row". A flex layout would shift them sideways by
+ * half the caption's width, and shift them again on mobile where the caption is
+ * hidden — so the buttons would move when the viewport crossed 900px, for no
+ * reason a visitor could see.
+ */
+.stage__plinth {
+  position: relative;
   display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target-min);
+  margin-top: 12px;
+}
+
+/*
+ * The plinth label.
+ *
+ * Set from the wordmark's own recipe (`--font-display`, weight 900, 122% width,
+ * -0.02em) rather than a new one, so the page carries ONE display face. That
+ * matching is not decoration: `.footer__brand` was corrected on the same grounds
+ * after the wordmark was set two different ways on one page.
+ *
+ * ⚠️ ≥900px ONLY, and this is the one deliberate omission in the change that
+ * introduced it. On a phone the stage band's height budget is the thing the
+ * whole 2026-08-17 layout work is fighting for (see `.stage__canvas`), and the
+ * row it shares is already at its floor. Do not "complete" this by showing it on
+ * mobile without re-measuring that budget and re-running the phone-fit e2e test.
+ *
+ * `--muted`, not `--text`: it repeats a name the <h1> below already gives in
+ * full, so it must not compete with the garment it labels.
+ */
+.stage__caption {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .stage__caption {
+    position: absolute;
+    left: 0;
+    display: block;
+    max-width: 40%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-stretch: 122%;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    /* `--text-sm`, not a raw `15px`. They are the same number today, and the
+       token is the point: DESIGN.md's size scale exists because an audit found
+       every font size in this viewer was a raw literal "with nothing to stop a
+       tenth", and a new raw 15px is exactly that tenth. The spacing gate in
+       tokens.test.ts does not check font-size, so this one is on the author. */
+    font-size: var(--text-sm);
+    color: var(--muted);
+  }
+}
+
+/*
+ * Camera controls — a row UNDER the canvas, not a pill on top of the garment.
+ *
+ * ⚠️ THIS WAS `position: absolute; bottom: 16px` INSIDE `.stage__canvas` UNTIL
+ * 2026-08-17, and it is the direct cause of two separate owner reports: "the
+ * buttons are on top of the 3D product" and "the model gets cut off".
+ *
+ * They are one defect. Measured live at four viewports, the garment fills
+ * **86.3% of the canvas height at every size** — the camera radius and field of
+ * view are fixed, so the canvas height alone decides how big the garment is and
+ * it always fills the same fraction of it. So an overlay pinned near the bottom
+ * edge is always ON the product:
+ *
+ *     1440x900   garment 137-689, pill 663-717   → 26px of garment underneath
+ *      390x844   garment 109-509, pill 471-525   → 38px of garment underneath
+ *
+ * The garment is never CLIPPED. That is why "make the block taller" — the
+ * obvious reading of the report — would not have fixed it on its own.
+ *
+ * The old "opaque, not 85%" note is GONE WITH ITS REASON: it argued that the
+ * pill needed a solid fill because a moving 3D scene showed through the labels
+ * behind it. Nothing renders behind this row now. The surface, border and radius
+ * are kept because they still read as one object with the stage, not because of
+ * that argument.
+ *
+ * No container padding, unlike the old pill. The row is 40px tall (the buttons'
+ * own `min-height`), and every one of those pixels is charged to the stage-band
+ * budget below — 6px of decorative padding here cost 12px of garment there.
+ */
+.stage__controls {
+  display: flex;
+  justify-content: center;
   gap: 8px;
-  /* Opaque, not 85%. This control sits over a MOVING 3D scene with no
-     backdrop-filter behind it, so the garment showed through the labels that
-     name the view being looked at. `.action-bar` was made solid for exactly this
-     reason and records it: backdrop-filter is reserved for the header alone
-     ("the single allowed blurred sticky header"), so this one goes solid too. */
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
-  padding: 6px;
+  /* Hugs its buttons rather than spanning the measure — it is a control cluster,
+     not a bar. `margin-inline: auto` is what centres it once it is `width: fit`. */
+  width: fit-content;
+  margin-inline: auto;
+}
+
+/*
+ * A disabled camera button is the honest state for the ~23s a 27 MB model takes,
+ * and it used to be missing: the buttons were live from first paint with 'front'
+ * already showing as pressed, over a stage with no model in it. `applyView`
+ * returned silently when the element did not exist, so a visitor who tapped BACK
+ * during the download got no camera move and no explanation.
+ *
+ * They are rendered-and-disabled rather than unmounted so the row cannot appear
+ * 23 seconds late and shove the colourway rail down mid-read. See
+ * StageControls.tsx.
+ */
+.camera-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .camera-btn {
@@ -407,17 +624,44 @@ model-viewer.stage__model:focus-within {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .camera-btn:hover {
+  /* `:not(:disabled)` — a hover that paints a button as selected while it cannot
+     be pressed says the opposite of what `:disabled` says, on the same element. */
+  .camera-btn:not(:disabled):hover {
     background: var(--btn-primary-bg);
     color: var(--btn-primary-text);
   }
 }
 
+/*
+ * The gesture hint, in the CORNER rather than centred over the garment.
+ *
+ * Owner request, 2026-08-17. It was `top: 14px; left: 50%` — directly above the
+ * neckline, on the centre line the garment itself occupies, so it read as
+ * belonging to the product rather than to the canvas. Measured, it did not
+ * literally overlap the model (the garment's top edge sits 42px down on desktop
+ * and 32px on a phone, the hint ended at 27px), which is why it survived this
+ * long: it was a composition problem, not a collision.
+ *
+ * Top-LEFT, on the SAME 3% inset as `.callout`. It reads as a caption on the
+ * canvas, it is clear of the garment horizontally on desktop (the model occupies
+ * only the middle 39% of the canvas width), and on a phone it sits above the
+ * garment's top edge exactly as it did before.
+ *
+ * ⚠️ `3%`, NOT `14px`, and the difference is the whole point of the alignment.
+ * This shipped as `left: 14px` for about an hour under a comment claiming it
+ * "lines up with the FABRIC callout" — measured at 1440x900, the callout sits
+ * 34px from the canvas edge and the hint sat at 14px, so they were **20px
+ * apart** and the claim was simply false. `.callout` positions in PERCENTAGES so
+ * it scales with the canvas; a pixel value cannot track that at any other width
+ * either. Same unit, same number, one left-hand column.
+ *
+ * At 375px this resolves to ~11px, which clears the canvas's 18px corner radius
+ * comfortably: at y=12 the rounded edge has already come in to x≈1px.
+ */
 .stage__hint {
   position: absolute;
-  top: 14px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 12px;
+  left: 3%;
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.12em;
@@ -807,32 +1051,87 @@ model-viewer.stage__model:focus-within {
   color: var(--muted);
 }
 
-/* Desktop sticky rail — appears after scrolling past the stage */
+/*
+ * Desktop contact rail — present from the first paint.
+ *
+ * ⚠️ TWO CHANGES HERE ON 2026-08-17, and the breakpoint one fixed a gap nobody
+ * had reported because it is invisible unless you happen to be at that width.
+ *
+ * 1. `1100px` -> `900px`. `.action-bar` is hidden from `min-width: 900px`, and
+ *    this rail only existed from `min-width: 1100px` — so **between 900px and
+ *    1099px the page had no persistent contact control at all**. That band is
+ *    a small laptop and a tablet in landscape. The two breakpoints are now the
+ *    same number and must stay that way: one hands over to the other, and any
+ *    daylight between them is a dead zone on the only conversion path there is.
+ *
+ * 2. The `opacity: 0` / `translateY` / `pointer-events: none` resting state and
+ *    the `--visible` modifier are GONE, with the IntersectionObserver that drove
+ *    them (see Contact.tsx). Keeping a transition whose start state nothing can
+ *    ever apply would be dead CSS — the same tidy-up `.preloader__count` got.
+ */
 .contact-rail {
   display: none;
 }
 
-@media (min-width: 1100px) {
+/*
+ * ⚠️ IT WAS A VERTICAL STACK OF TWO LOOSE BUTTONS UNTIL 2026-08-17, and the
+ * owner asked for it to be refined — "I don't like the way you stacked them".
+ *
+ * They were right, and the reason is that the page had since grown a house style
+ * for a floating control cluster and this predated it. `.stage__controls` is a
+ * SINGLE pill — `--surface` fill, one `--line` hairline, `--radius-pill`, its
+ * buttons sharing that container — and once that pattern exists on the same
+ * screen, two separate stacked buttons read as leftovers rather than as a set.
+ *
+ * So this now uses the same recipe: one horizontal pill, two controls inside it,
+ * bottom-right. It is the same object the camera controls are, doing a different
+ * job, which is what makes a system feel designed rather than assembled.
+ *
+ * Horizontal rather than stacked is also the honest shape for the content: these
+ * are two PEERS (email or WhatsApp — pick one), and a vertical stack implies a
+ * ranking that does not exist.
+ */
+@media (min-width: 900px) {
   .contact-rail {
     position: fixed;
     right: 20px;
     bottom: 20px;
     z-index: 50;
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-    opacity: 0;
-    transform: translateY(8px);
-    pointer-events: none;
-    transition:
-      opacity var(--ui) var(--ease),
-      transform var(--ui) var(--ease);
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 6px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    /* The one shadow on this surface, and it is doing a real job: this pill
+       floats over scrolling content rather than sitting in the page, so it needs
+       to read as being ABOVE it. `--shadow-raised` is the token that already
+       exists for an elevated surface — see tokens.css, where it was kept after
+       the hover thumbnail was deleted "for the next elevated surface". This is
+       that surface. */
+    box-shadow: var(--shadow-raised);
   }
 
-  .contact-rail--visible {
-    opacity: 1;
-    transform: none;
-    pointer-events: auto;
+  /* Inside the pill the buttons are the cluster's members, not standalone
+     controls — so they lose their own outlines and take the pill's radius, the
+     same relationship `.camera-btn` has with `.stage__controls`. */
+  .contact-rail .btn {
+    border-radius: var(--radius-pill);
+    min-height: 40px;
+    padding: 10px 18px;
+    white-space: nowrap;
+  }
+
+  .contact-rail .btn--ghost {
+    border-color: transparent;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .contact-rail .btn--ghost:hover {
+      border-color: var(--line);
+    }
   }
 }
 

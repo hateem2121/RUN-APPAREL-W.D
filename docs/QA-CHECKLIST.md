@@ -9,9 +9,9 @@ throttled "Slow 4G" network profile.
 - [ ] `https://viewer.wear-run.help/<product>/<colour>` loads correctly on **first visit** (no client-routing gap)
 - [ ] The same URL survives a **page refresh**
 - [ ] Scanning the printed QR code opens the right product **and** pre-selects the right colourway
-- [ ] Sloppy URLs normalise (`/N001/Wine` → `/n001/wine`)
-- [ ] **Product-only URL** (`/n001`, no colour) loads the default colour and tidies the address bar to `/n001/wine` — *without* the "no longer active" notice, because nothing was retired
-- [ ] A **retired** slug still works: `/n001/navy` loads Wine *with* the "no longer active" notice (`navy` was retired 2026-08-05 and is the live example of this path)
+- [ ] Sloppy URLs normalise (`/RXPS/Wine` → `/rxps/wine`) — verified live 2026-08-17
+- [ ] **Product-only URL** (`/rxps`, no colour) loads the default colour and tidies the address bar to `/rxps/wine` — *without* the "no longer active" notice, because nothing was retired. Verified live 2026-08-17: `requestedColourwayUnavailable: false`
+- [ ] A **retired** slug still works: `/rxps/navy` loads Wine *with* the "no longer active" notice. `navy` is still the live example of this path after the 2026-08-15 rename — verified 2026-08-17: HTTP 200, `selectedColourway: wine`, `requestedColourwayUnavailable: true`. The five live colours are wine, blush, butter, lime, black
 - [ ] **Clicking the wordmark** goes to the catalogue and does NOT land on "reference unavailable" (it linked to `/`, a dead route, until 2026-08-03)
 - [ ] Unknown product URL shows the branded "reference unavailable" state with Back to Catalogue, Email Us, WhatsApp Us — and a `noindex` meta tag
 
@@ -137,7 +137,7 @@ as *inconclusive* and keeps the run green.
 | Thing | Measured | Treat as a problem if |
 |---|---|---|
 | Viewer HTML, time to first byte | **0.47 – 0.92 s** | consistently > 1.5 s |
-| Product API (`/api/public/viewer/n001/wine`) | **2.1 – 3.7 s** | > 5 s |
+| Product API (`/api/public/viewer/rxps/wine`) | **2.1 – 3.7 s** | > 5 s |
 | The garment itself (27 MB GLB) | **~19 s at ~1.45 MB/s** | the *rate* drops, not the time — time scales with the tester's line |
 | Model edge cache | **`cf-cache-status: HIT`**, age ~13.7 h | `MISS` on repeat requests |
 

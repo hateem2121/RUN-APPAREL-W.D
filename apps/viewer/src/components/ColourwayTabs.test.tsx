@@ -4,9 +4,17 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { COLOURWAY_PANEL_ID, ColourwayTabs, colourwayTabId } from './ColourwayTabs'
 
-// `isCoarsePointer` reads matchMedia; the preview path is not what these tests are
-// about, and a fine pointer is the case where keyboard focus also previews.
-vi.mock('../lib/capabilities', () => ({ isCoarsePointer: () => false }))
+// The preview path is not what these tests are about, and a fine pointer is the
+// case where keyboard focus also previews.
+//
+// ⚠️ MOCKS THE HOOK, not `../lib/capabilities`. It mocked the module until
+// 2026-08-17, when the component moved to `useCoarsePointer()` — which subscribes
+// to `window.matchMedia`, a function **jsdom does not implement at all**. Every
+// test in this file died with "window.matchMedia is not a function" the moment the
+// real hook ran. Mocking at this level keeps the stated intent (the pointer is not
+// under test here) and leaves the hook's own subscribe/unsubscribe behaviour to
+// lib/useCoarsePointer.test.tsx, where it is the subject.
+vi.mock('../lib/useCoarsePointer', () => ({ useCoarsePointer: () => false }))
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 /**
