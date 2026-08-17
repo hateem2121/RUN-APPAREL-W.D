@@ -14,6 +14,9 @@ interface NamedField {
   // would have to — see the productCode round-trip test for why that is not
   // free.
   validate?: (value: unknown, ctx?: unknown) => unknown
+  // `shortDescription` only. Present so the test below can assert its ABSENCE —
+  // see "the product description carries no length limit".
+  maxLength?: number
   // catalogueUrl / retiredMessage / customisationIntro / customisationSteps —
   // each reads the CatalogueDefaults global. Untyped `req` here on purpose:
   // this file has no Payload bootstrap (see vitest.config.ts), so the tests
@@ -177,6 +180,40 @@ describe('Products defaultValue — inherits from CatalogueDefaults on create on
         `${name} is still shown in the admin form`,
       ).toBe(true)
     }
+  })
+})
+
+describe('the product description carries no length limit', () => {
+  /**
+   * `maxLength: 400` was removed from `shortDescription` on 2026-08-17, by owner
+   * decision, so the 67-product printed catalogue could be imported with its own
+   * paragraphs intact — several run past 700 characters.
+   *
+   * ⚠️ THIS IS THE ONLY PLACE THAT CAN GUARD IT, and the obvious alternative is
+   * a test that cannot fail. The first attempt asserted that a >400-character
+   * description survives `buildViewerResponse` in endpoints/projectViewer.test.ts
+   * — but that projection is `String(product.shortDescription ?? '')` and has
+   * never truncated anything, so the assertion passed identically with the limit
+   * in place. It would have read as protection while guarding nothing, which is
+   * the fixtures-cannot-exhibit-the-failure pattern in CLAUDE.md.
+   *
+   * The limit lived on the FIELD, so the field is where it has to be watched.
+   * Re-adding one is a silent data change: Payload validates on every write, so
+   * the first casualty would be the shrink robot's own updates to any product
+   * whose description is already longer than the new ceiling.
+   */
+  it('has no maxLength, so long catalogue copy saves whole', () => {
+    expect(fieldNamed('shortDescription').maxLength).toBeUndefined()
+  })
+
+  it('is still a plain textarea, and still optional', () => {
+    // Optional is load-bearing and predates the limit's removal: every product
+    // created before 2026-08-17 has no description, and `required: true` would
+    // make all of them unsaveable — including the shrink robot's writes, which
+    // go through the same validation.
+    const field = fieldNamed('shortDescription') as NamedField & { required?: boolean }
+    expect(field.type).toBe('textarea')
+    expect(field.required).toBeUndefined()
   })
 })
 

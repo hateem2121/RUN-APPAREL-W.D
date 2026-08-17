@@ -316,11 +316,33 @@ export const Products: CollectionConfig = {
             {
               name: 'shortDescription',
               type: 'textarea',
-              maxLength: 400,
+              /**
+               * ⚠️ `maxLength: 400` was here until 2026-08-17. Removed by owner
+               * decision while importing the 67-product printed catalogue, whose
+               * own paragraphs run past 700 characters — the limit would have
+               * silently truncated the source copy for most of the range on the
+               * way in, and the truncation would have looked like an editing
+               * choice rather than a validation.
+               *
+               * NOTHING HAD TO CHANGE IN D1. Payload's `maxLength` is a
+               * validation only; `short_description` is plain unbounded `text`.
+               * So this needed no migration, and none of the table-rebuild
+               * hazards that come with one on D1 (see CLAUDE.md — a DROP runs an
+               * implicit DELETE and that cascades).
+               *
+               * Unbounded is safe on the page for a specific, measured reason:
+               * `.product-info__statement` is `max-width: 60ch` with no clamp and
+               * sits BELOW the stage band, so a long paragraph only lengthens the
+               * page. It cannot disturb the stage-height budget that
+               * apps/viewer/CLAUDE.md records getting wrong three times.
+               * Pinned by a >400-character case in endpoints/projectViewer.test.ts,
+               * so re-adding a limit fails a test rather than silently clipping
+               * every description that is already live.
+               */
               label: 'Short description',
               admin: {
                 description:
-                  'Two or three sentences about this garment, shown under its name on the public page. Plain text — no links or formatting. Leave it blank and the page uses the standard development-reference wording instead.',
+                  'A few sentences about this garment, shown under its name on the public page. Plain text — no links or formatting. There is no length limit, though the page reads best at three or four sentences. Leave it blank and the page uses the standard development-reference wording instead.',
               },
               // Deliberately NOT required. Every product that existed before
               // 2026-08-17 has none, and making it required would make all of them
