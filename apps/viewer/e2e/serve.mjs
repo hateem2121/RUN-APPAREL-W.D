@@ -204,8 +204,23 @@ function colourwayPayload(origin, c) {
 // state a published-but-modelless product is in. Without it the poster-fallback
 // path and its diagnostic could not be exercised by any test — the same
 // "the fixture cannot exhibit the failure" gap that hid three production bugs.
+//
+// ⚠️ `shortDescription` IS SET ON n001 AND DELIBERATELY ABSENT ON n002, added
+// 2026-08-17. Both branches are real production states and BOTH must be
+// renderable here: every product that existed before the field was added has no
+// description, so <ProductPanel>'s fallback paragraph is what the live catalogue
+// shows today — and a fixture with no description anywhere can only ever exercise
+// the fallback, which is how a broken description path would ship green. Same
+// gap, same shape, as the three production bugs CLAUDE.md opens with.
 const PRODUCTS = {
-  n001: { productCode: 'N001', productName: 'Velocity Performance Tee', hasGlb: true },
+  n001: {
+    productCode: 'N001',
+    productName: 'Velocity Performance Tee',
+    hasGlb: true,
+    shortDescription:
+      'A race-fit training tee built for long summer mileage. Recycled face yarn, ' +
+      'bonded shoulder seams and a dropped back hem that stays put at speed.',
+  },
   n002: { productCode: 'N002', productName: 'Sample Without Model', hasGlb: false },
 }
 
@@ -223,6 +238,9 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
       productCode: meta.productCode,
       slug: productSlug,
       productName: meta.productName,
+      // `?? ''` mirrors projectViewer.ts exactly: the API always emits a string,
+      // so the viewer's `||` fallback is the only thing that decides.
+      shortDescription: meta.shortDescription ?? '',
       category: 'Sportswear',
       variantMode: 'single-glb-variants',
       glbUrl: meta.hasGlb ? `${origin}/fixtures/n001.glb` : null,

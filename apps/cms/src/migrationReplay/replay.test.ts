@@ -60,6 +60,89 @@ describe('migration replay', () => {
     database.close()
   })
 
+  /**
+   * The two schema changes of 2026-08-17, asserted against real SQLite rather
+   * than inferred from the DDL string.
+   *
+   * ⚠️ WHY THIS IS NOT PARANOIA. Payload derives a column name from a field name
+   * by snake_casing it, and the migration writes that name by hand — two
+   * independent spellings of the same thing, in two files, with nothing joining
+   * them. A mismatch does not fail a build, a typecheck or a lint: Payload would
+   * simply write to a column D1 does not have, and the owner would type a
+   * description, press save, and watch it vanish. The projection tests cannot see
+   * this because they never touch a database, and the replay test above cannot
+   * see it because it only asks whether tables kept their ROWS.
+   *
+   * The round trip is the assertion. `products` already has a NOT NULL column or
+   * two, so the insert names only what it needs and lets the rest default.
+   */
+  it('stores and returns a product short description, and builds the build-process tables', async () => {
+    const database = openDatabase()
+    const { args } = makeMigrationArgs(database)
+    for (const migration of migrations) {
+      await (migration.up as unknown as Runner)(args)
+    }
+
+    const columns = database
+      .prepare('PRAGMA table_info(products)')
+      .all()
+      .map((row) => (row as { name: string }).name)
+    expect(
+      columns,
+      'Payload snake_cases `shortDescription` to `short_description`; the migration ' +
+        'must spell it the same way or a saved description silently goes nowhere',
+    ).toContain('short_description')
+
+    /**
+     * Required columns are DERIVED, not listed. `products` carries several NOT
+     * NULL columns with no default (product_name, product_code, slug, …) and the
+     * set moves with the schema — a hard-coded list turns the next required
+     * column into a puzzling failure in a test about descriptions.
+     */
+    const required = database
+      .prepare('PRAGMA table_info(products)')
+      .all()
+      .map((row) => row as { name: string; notnull: number; dflt_value: unknown })
+      .filter((c) => c.notnull === 1 && c.dflt_value === null && c.name !== 'id')
+      .map((c) => c.name)
+
+    const insert = (id: number, description: string | null) => {
+      const names = ['id', ...required, ...(description === null ? [] : ['short_description'])]
+      const values = [
+        id,
+        ...required.map((name) => `${name}-${id}`),
+        ...(description === null ? [] : [description]),
+      ]
+      database
+        .prepare(
+          `INSERT INTO products (${names.join(', ')}) VALUES (${names.map(() => '?').join(', ')})`,
+        )
+        .run(...values)
+    }
+
+    const written = 'A race-fit training tee built for long summer mileage.'
+    insert(9001, written)
+    const readBack = database
+      .prepare('SELECT short_description FROM products WHERE id = ?')
+      .get(9001) as { short_description: string | null }
+    expect(readBack.short_description).toBe(written)
+
+    // Nullable with no default: every product created before this migration has
+    // no description, and `projectViewer.ts` turns null into '' on the way out so
+    // the viewer's fallback paragraph is the only thing that decides.
+    insert(9002, null)
+    const empty = database
+      .prepare('SELECT short_description FROM products WHERE id = ?')
+      .get(9002) as { short_description: string | null }
+    expect(empty.short_description).toBeNull()
+
+    const tables = listTables(database)
+    expect(tables).toContain('build_process')
+    expect(tables).toContain('build_process_customisation_steps')
+
+    database.close()
+  })
+
   it.each(migrations.map((m, index) => [m.name, index] as const))(
     'migration %s preserves every table that had rows',
     async (_name, index) => {
