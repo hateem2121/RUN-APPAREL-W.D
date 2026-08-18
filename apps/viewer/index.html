@@ -3,6 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- N6, 2026-08-18. The mobile browser chrome — the strip around the clock and
+         battery — ignored the light/dark toggle and stayed a default grey, while
+         this page ships a toggle and sets `color-scheme` in six places.
+
+         Values are `--bg` from src/styles/tokens.css, which is the SOURCE OF
+         TRUTH; docs/DESIGN.md is written from it and loses if the two disagree.
+         Duplicated here because <meta> cannot read a custom property, and pinned
+         by an e2e assertion so the duplicate cannot drift silently.
+
+         `media` follows the OPERATING SYSTEM preference and cannot see
+         `data-theme`, which is what the in-page toggle sets. The inline script
+         below keeps these in step when the visitor has made an explicit choice. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f1efea" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1c1f18" />
     <meta
       name="description"
       content="RUN APPAREL — interactive 3D product reference for B2B partners. Rotate, zoom and explore colourways of this development reference."
@@ -92,6 +107,18 @@
           const stored = localStorage.getItem('run-theme')
           if (stored === 'light' || stored === 'dark') {
             document.documentElement.setAttribute('data-theme', stored)
+            // N6: the theme-color tags above are scoped by prefers-color-scheme,
+            // so they follow the OS and cannot see this explicit choice. Point
+            // them at it. Extended here rather than added as a second inline
+            // block, because the CSP is hash-based with no unsafe-inline for
+            // scripts and a new block is a new hash for gen-headers to carry.
+            // (Written without the tag literal on purpose: themeColor.test.ts
+            // counts them, and a comment naming one is a false positive.)
+            const chosen = stored === 'light' ? '#f1efea' : '#1c1f18'
+            for (const tag of document.querySelectorAll('meta[name="theme-color"]')) {
+              tag.setAttribute('content', chosen)
+              tag.removeAttribute('media')
+            }
           }
         } catch {
           /* storage unavailable — system preference applies */

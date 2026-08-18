@@ -8,6 +8,13 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+
+  /* N7, 2026-08-18. CHOSEN rather than inherited. The platform default is an
+     opaque grey flash on every tap, on a product whose primary device is a phone
+     reached by scanning a QR tag. Transparent because :active and :focus-visible
+     already provide the feedback, and two overlapping affordances read as a bug
+     rather than as emphasis. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
