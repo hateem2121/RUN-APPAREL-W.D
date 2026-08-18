@@ -168,7 +168,7 @@ jobs:
   # shrink deploy has one, rather than relying on ci.yml's, which runs in a
   # different workflow and therefore cannot block this deploy.
   secrets:
-    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
