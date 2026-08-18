@@ -146,3 +146,22 @@ false-positive case — which is why they block. The bytes-per-pixel measurement
 (`findCrushedArtwork`) only **warns**, because a legitimately flat label encodes
 just as small as a smashed wordmark, and a gate the owner learns to override is
 worse than no gate. Keep that distinction if you add checks.
+
+## A mistyped numeric flag becomes `NaN`, and the defaults do not catch it
+
+`Number(rest[++i])` in `parseOptimizeArgs` yields `NaN` for a missing or non-numeric
+value, and the default applied downstream **cannot catch it** — `??` tests
+null/undefined, not `NaN`, so `NaN ?? DEFAULT_SIMPLIFY_ERROR` is `NaN`. Measured by
+calling the parser: `--simplify-error` with no value, and `--simplify-error 0.OO1`
+(letter O), both reach the simplifier as `NaN`. There are no `isNaN`/`isFinite` guards
+anywhere in this package and no test covers a malformed numeric flag.
+
+Note which dials these are. `--simplify-error` is the real aggression control, and
+`--uv-weight 0` is the artwork eval's own negative control for destroyed artwork — so a
+`NaN` weight is an undefined value on the axis that decides whether printed letters
+survive. The three blocking gates test `alphaMode`, not decimation, so nothing
+downstream objects.
+
+Production is unaffected: the container's flags come from `shrinkFlagsFor`
+(`packages/shared/src/shrink.ts`), which returns hardcoded literals from a two-value
+enum. This bites manual CLI runs — calibration, sweeps, one-off optimises.

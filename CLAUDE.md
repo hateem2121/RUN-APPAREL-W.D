@@ -142,9 +142,17 @@ reading as a tidy-up. See the comment in `RawUploads.ts`.
   imports. Test files are exempt. `apps/shrink/container/` is plain Node and is
   not covered.
 - **Every document is citation-checked, not just CLAUDE.md** — README, CONTRIBUTING,
-  SECURITY and all of `docs/`, via `scripts/doc-citations.mjs`. A genuinely-gone
-  path goes in `ALLOWED_ABSENT` **with the reason**; `file.ts:42` and
-  extension-less citations resolve fine.
+  SECURITY and all of `docs/`. A genuinely-gone path goes in `ALLOWED_ABSENT`
+  **with the reason**; `file.ts:42` and extension-less citations resolve fine.
+  ⚠️ **`scripts/doc-citations.mjs` is a MODULE, not a command.** It exports
+  `citedPaths`/`resolves` and has no `main`, so `node scripts/doc-citations.mjs`
+  prints nothing and exits **0 having checked nothing**. The gate is
+  `apps/cms/src/claudeMd.test.ts` — **verify a doc with
+  `pnpm --filter @run-apparel/cms test`**. Trusting the bare command shipped a doc
+  with seven broken citations twice on 2026-08-17.
+  ⚠️ **Line RANGES never resolve.** The extractor strips a trailing `:42` or `:42:7`,
+  but the hyphen in `file.ts:53-80` defeats that regex and the range stays part of the
+  filename. Cite one line, never a span.
 - **`pnpm test` now also checks** the npm lockfile sync (above), the SBOM licence
   policy, that no two workspaces declare different versions of a shared dependency,
   and that `docs/RUNBOOK.md`'s rollback commands name the real Workers and the
