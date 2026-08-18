@@ -712,7 +712,38 @@ test.describe('layout invariants', () => {
     // `[aria-pressed]` / `[aria-selected]`. On a phone that makes a
     // merely-tapped control look selected. `hasTouch` is what flips the media
     // query, so the assertion has to run in a touch context to mean anything.
-    test.skip(browserName !== 'chromium', 'needs a touch-emulating context')
+    //
+    // ENGINE COVERAGE FIXED 2026-08-18 (audit M3). The condition was
+    // `browserName !== 'chromium'`, so the assertion skipped on webkit,
+    // mobile-safari AND firefox — 3 of the suite's 4 skips. The product's entry
+    // point is a QR tag scanned with a phone, and on iOS every browser is WebKit,
+    // so the engine this assertion targets was not the engine it ran in.
+    //
+    // The redundancy that hid it: viewer-mobile-safari already runs
+    // devices['iPhone 13'] (playwright.config.ts), and every iPhone descriptor
+    // sets isMobile, hasTouch and defaultBrowserType 'webkit'. The page handed to
+    // this test IS a touch context there, so building a second one was never
+    // necessary — only Firefox genuinely cannot, because Playwright does not
+    // support isMobile on it.
+    //
+    // ⚠️ Playwright's WebKit is the DESKTOP WebKit build in a small viewport, not
+    // iOS Safari. This covers the engine family that ships on iPhone. It is not
+    // proof that iOS Safari behaves identically and must not be quoted as such.
+    test.skip(browserName === 'firefox', 'Playwright does not support isMobile on Firefox')
+
+    // This file has no beforeEach — every test navigates itself — and the original
+    // version of this one navigated only the context it built, so `page` was still
+    // blank here.
+    await page.goto('/n001/wine')
+
+    if (await page.evaluate(() => matchMedia('(pointer: coarse)').matches)) {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      expect(
+        await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches),
+        'a touch context still reports a fine pointer — the guard cannot work here',
+      ).toBe(false)
+      return
+    }
 
     const context = await page
       .context()
