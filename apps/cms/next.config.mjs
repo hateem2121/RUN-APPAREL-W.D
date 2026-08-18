@@ -1,5 +1,6 @@
 import { withPayload } from '@payloadcms/next/withPayload'
 import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare'
+import { withPublicViewerVary } from './publicViewerHeaders.mjs'
 
 // Makes wrangler.jsonc bindings (local D1/R2 emulation) available during `next dev`.
 initOpenNextCloudflareForDev()
@@ -54,4 +55,10 @@ const nextConfig = {
   },
 }
 
-export default withPayload(nextConfig)
+// ⚠️ withPublicViewerVary MUST wrap the withPayload result, not nextConfig.
+// withPayload appends its own blanket `/:path*` rule — including
+// `Vary: Sec-CH-Prefers-Color-Scheme` — AFTER whatever nextConfig.headers()
+// returns, and Next lets the last matching rule win. That is why L1's first fix
+// shipped green and inert: the handler set the right header and this rule
+// overrode it in production. publicViewerHeaders.mjs has the full account.
+export default withPublicViewerVary(withPayload(nextConfig))
