@@ -166,9 +166,32 @@ jobs:
       - name: Install Playwright browsers (cache miss)
         if: steps.pw-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @run-apparel/viewer exec playwright install --with-deps chromium webkit firefox
+      # BOUNDED AND NON-FATAL SINCE 2026-08-18, deliberately. Normally 24 seconds
+      # (measured, above). That day Azure's Ubuntu mirror was degraded — the log
+      # repeats `Ign: http://azure.archive.ubuntu.com/ubuntu noble InRelease`
+      # before falling back to the far slower https://archive.ubuntu.com — and
+      # this step consumed ENTIRE job budgets three times in a row with nothing
+      # in the repository changed: artwork cancelled at 20m20s twice, then verify
+      # at 30m21s. A cancelled job reads as a failed gate and is not one, and
+      # raising ceilings just moves which job dies.
+      #
+      # This step is PREPARATION, not a gate. `e2e` below is the gate. So a broken
+      # mirror now costs 8 minutes instead of the whole job.
+      #
+      # The block above correctly warns that skipping this leaves WebKit without
+      # its libraries and "presents as a flaky e2e ... debugged in the wrong
+      # place". That objection is about SILENT skipping, which is why the next
+      # step exists: if apt did not finish, the annotation says so by name.
       - name: Install Playwright system deps (cache hit)
+        id: pw-deps
         if: steps.pw-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 8
+        continue-on-error: true
         run: pnpm --filter @run-apparel/viewer exec playwright install-deps chromium webkit firefox
+      - name: Say so if the system deps did not install
+        if: steps.pw-deps.outcome == 'failure'
+        run: |
+          echo "::warning title=Playwright system deps incomplete::apt did not finish within 8 minutes (degraded Ubuntu mirror?). Browsers may be missing shared libraries. If e2e now fails to LAUNCH a browser — especially WebKit — this is the cause, not a flaky test."
       - name: e2e
         run: pnpm --filter @run-apparel/viewer test:e2e
 
@@ -405,9 +428,20 @@ jobs:
       - name: Install Chromium for the render harness (cache miss)
         if: steps.pw-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @run-apparel/asset-pipeline exec playwright install --with-deps chromium
+      # Bounded and non-fatal for the same measured reason as the identical step in
+      # `verify` — see the long note there. This job was cancelled at 20m20s twice
+      # in a row inside this step while the artwork eval never ran once.
+      # `Artwork legibility eval` below is the gate; this is preparation.
       - name: Install Chromium system deps (cache hit)
+        id: pw-deps
         if: steps.pw-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 8
+        continue-on-error: true
         run: pnpm --filter @run-apparel/asset-pipeline exec playwright install-deps chromium
+      - name: Say so if the system deps did not install
+        if: steps.pw-deps.outcome == 'failure'
+        run: |
+          echo "::warning title=Chromium system deps incomplete::apt did not finish within 8 minutes (degraded Ubuntu mirror?). If the eval now fails to launch Chromium, this is the cause, not an artwork regression."
       - name: Artwork legibility eval
         run: pnpm eval:artwork
 
