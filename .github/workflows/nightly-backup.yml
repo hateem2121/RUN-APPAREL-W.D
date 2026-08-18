@@ -98,11 +98,24 @@ jobs:
           path: backups/r2/**
           retention-days: 90
 
+      # RETENTION SHORTENED 180 -> 90 DAYS on 2026-08-18 (audit H1, owner
+      # decision). Ninety days covers investigating a bug reported weeks ago and
+      # comparing against last quarter; at the measured rate (~4,300 writes/month,
+      # 754 rows in the table's first 28 days) that is roughly 2,000 rows, against
+      # 5 GB of included D1 storage.
+      #
+      # ⚠️ H1 claimed this collection had NO automated retention and that pruning
+      # was "a manual action". This step has run monthly since before that audit.
+      # The finding was wrong about the mechanism and RIGHT about the gap, which
+      # was that nothing MEASURED growth — a flood of well-formed `analytics` rows
+      # would be pruned 90 days later having never been reported. That gap is
+      # closed in diagnostics-digest.yml, not here: this workflow holds only
+      # `contents: read` and cannot open an issue.
       - name: Prune old events (monthly, 1st)
         run: |
           if [ "$(date -u +%d)" = "01" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote \
-              --command "DELETE FROM events WHERE created_at < datetime('now','-180 days')"
+              --command "DELETE FROM events WHERE created_at < datetime('now','-90 days')"
           else
             echo "Not the 1st — skipping events prune."
           fi

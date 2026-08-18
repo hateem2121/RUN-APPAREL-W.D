@@ -9,6 +9,7 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "@sentry/cli",
       "esbuild",
       "sharp",
       "workerd"

@@ -653,6 +653,24 @@ Two rejected alternatives, for the record:
 **Never widen to `'unsafe-inline'`.** That would re-permit every inline script on
 the page and discard the protection the hash list exists to give.
 
+## Poster filenames keep the `n001-` prefix, deliberately
+
+Every poster for the product now slugged `rxps` is still named `n001-*.webp`
+(`n001-wine-poster.webp`, `n001-black-poster-1.webp`, …). All URLs resolve, and no
+customer ever sees a filename.
+
+**This is a decision, not an oversight — do not "discover" it again.** Recorded
+2026-08-18 (audit finding N3). Renaming means re-uploading to R2 and re-pointing
+the live product record, with a window in which a link can break, on the only live
+product, for zero customer benefit. The names will correct themselves the next time
+the pipeline regenerates posters for this product; there is no reason to force it
+sooner.
+
+The same rename left two things that were NOT harmless and were fixed: the six text
+alternatives naming the wrong garment (audit M2), and `og:image:alt` in
+`apps/viewer/index.html`. A filename is invisible; a description read aloud to a
+screen-reader user is not. That is the line between this decision and those fixes.
+
 ## Rotating PAYLOAD_SECRET
 
 Rotating logs everyone out of `/admin` (sessions are signed with it). Passwords

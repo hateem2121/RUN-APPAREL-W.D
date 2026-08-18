@@ -60,6 +60,12 @@ jobs:
       # web server answered, not that a garment exists. The real assertion in this
       # job is the `smoke-viewer-payload.mjs` step below, which reads the API.
       VIEWER_URL: https://viewer.wear-run.help/rxps/wine
+      # L5, 2026-08-18. The catalogue button was the ONLY user-facing link in the
+      # product that no test or uptime check covered. It 301s at the edge to a
+      # Google Drive preview URL whose sharing state, file ID and continued
+      # existence cannot be verified from this repository and sit outside
+      # Cloudflare entirely — so it could break and nothing here would notice.
+      CATALOGUE_URL: https://wear-run.help/catalogue
       # The raw dispatch input, carried as an environment variable so the shell
       # below can test it WITHOUT interpolating it. `if [ "${{ ... }}" = "" ]`
       # pastes the operator's string straight into the script, so a `target` of
@@ -100,6 +106,38 @@ jobs:
             # Skipped on a manual `target` override, which is for testing the
             # alert path with a bogus URL.
             node scripts/smoke-viewer-payload.mjs || ok=false
+
+            # L5: assert the REDIRECT, not merely that something answered. A bare
+            # status check is exactly what kept this job green for 23 hours while
+            # both post-deploy gates were broken — the viewer is an SPA and returns
+            # 200 on any path. Here the whole point is WHERE it sends people.
+            #
+            # HEAD, not GET: this runs every 15 minutes, and the repo's egress is
+            # capped at $5/month.
+            cat_code=$(curl -s -o /dev/null -w '%{http_code}' -I --max-time 20 \
+              --retry 2 --retry-delay 5 --retry-all-errors "$CATALOGUE_URL" || echo 000)
+            cat_loc=$(curl -s -o /dev/null -w '%{redirect_url}' -I --max-time 20 "$CATALOGUE_URL" || echo '')
+            echo "catalogue: $cat_code -> ${cat_loc:-(none)}"
+            case "$cat_code" in
+              403)
+                # Free-plan Bot Fight Mode intermittently blocks datacenter
+                # traffic. A 403 from a wear-run.help host is INCONCLUSIVE, never a
+                # failed assertion — it has already forced a rollback and failed a
+                # deploy on this repo. Paging the owner for it would train them to
+                # ignore this alarm.
+                echo "::warning::403 from the edge — inconclusive (Bot Fight Mode), not treated as an outage"
+                ;;
+              301|302|307|308)
+                if [ -z "$cat_loc" ]; then
+                  echo "::error::catalogue redirected to nothing"
+                  ok=false
+                fi
+                ;;
+              *)
+                echo "::error::catalogue returned $cat_code, expected a redirect"
+                ok=false
+                ;;
+            esac
           fi
           echo "ok=$ok" >> "$GITHUB_OUTPUT"
 

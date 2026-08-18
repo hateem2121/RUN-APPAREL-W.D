@@ -118,8 +118,19 @@ describe('GET /api/public/viewer/:productSlug/:colourSlug', () => {
     }
     expect(body.colourways.map((c) => c.slug)).toEqual(['navy', 'wine'])
     expect(body.selectedColourway.slug).toBe('wine')
-    expect(res.headers.get('Cache-Control')).toContain('s-maxage=60')
-    expect(res.headers.get('Cache-Control')).toContain('stale-while-revalidate=300')
+    // L1 + L2, 2026-08-18. These two used to prove a CONFIGURABLE value reached
+    // the header. The value is now a constant, because all three configuration
+    // layers controlled something with no observable effect — perfProbe.test.ts
+    // records that a Worker's own response never reaches the edge cache. The
+    // directives themselves are unchanged on purpose: the finding was the inert
+    // knob, not the header.
+    expect(res.headers.get('Cache-Control')).toBe('public, s-maxage=60, stale-while-revalidate=300')
+    // ACAO on this response varies by request Origin (Payload's cors allowlist,
+    // verified live against a hostile origin). Without Origin in Vary a shared
+    // cache can serve the no-ACAO variant to the viewer's cross-origin fetch and
+    // the browser blocks it — "REFERENCE UNAVAILABLE", intermittently.
+    expect(res.headers.get('Vary')).toContain('Origin')
+    expect(res.headers.get('Vary')).toContain('Sec-CH-Prefers-Color-Scheme')
   })
 
   it('only ever queries for PUBLISHED products', async () => {
@@ -175,17 +186,25 @@ describe('GET /api/public/viewer/:productSlug/:colourSlug', () => {
 
     expect(res.headers.get('X-Robots-Tag')).toBe('noindex')
     expect(res.headers.get('Cache-Control')).toBe('public, s-maxage=30')
+    // A 404 is the cheapest thing a shared cache would keep, and its ACAO varies
+    // by Origin exactly as the 200's does.
+    expect(res.headers.get('Vary')).toContain('Origin')
   })
 
-  it('honours a cache lifetime configured in site settings', async () => {
+  it('IGNORES a cache lifetime left in site settings — the knob is gone', async () => {
+    // L2, 2026-08-18. This test used to assert the opposite: that a settings value
+    // reached the header. It is INVERTED rather than deleted, because the removal
+    // is the behaviour worth pinning. A stale `cacheSeconds` may still sit in the
+    // D1 row — the column was deliberately left in place rather than rebuilding
+    // the table — and it must not come back to life.
     const { req } = makeReq(
       { productSlug: 'n001', colourSlug: 'navy' },
       { settings: { viewerApi: { cacheSeconds: 120 } } },
     )
     const res = await withColour(req)
 
-    expect(res.headers.get('Cache-Control')).toContain('s-maxage=120')
-    expect(res.headers.get('Cache-Control')).toContain('stale-while-revalidate=600')
+    expect(res.headers.get('Cache-Control')).toBe('public, s-maxage=60, stale-while-revalidate=300')
+    expect(res.headers.get('Cache-Control')).not.toContain('120')
   })
 })
 

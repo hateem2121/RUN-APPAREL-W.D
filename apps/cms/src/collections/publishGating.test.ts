@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   GATED_FIELDS,
   type GateColourway,
+  altTextNamesProduct,
   type PublishGateInput,
   assertPublishable,
   becameUnverifiedWhilePublished,
@@ -36,6 +37,9 @@ const cw = (o: Partial<GateColourway> = {}): GateColourway => ({
   variantId: 'Colorway 1',
   hasPoster: true,
   hasAltText: true,
+  // M2: the default is a CORRECT label, so every pre-existing case keeps its
+  // meaning and only the tests that opt in exercise the mismatch.
+  altTextNamesProduct: true,
   hasOwnGlb: false,
   hasDisplayName: true,
   hasSlug: true,
@@ -259,6 +263,10 @@ describe('collectPublishProblems', () => {
     variantId: '',
     hasPoster: false,
     hasAltText: false,
+    // M2: true means "no mismatch to report". These rows have no label at all,
+    // which the hasAltText check already covers — a row cannot be both missing a
+    // description and naming the wrong product.
+    altTextNamesProduct: true,
     hasOwnGlb: false,
     // This row already "has" a name and a slug (just missing everything else) —
     // the dedicated hasDisplayName/hasSlug tests above override these instead of
@@ -443,6 +451,7 @@ describe('assertPublishable — artwork verdict', () => {
       variantId: 'Colorway 2',
       hasPoster: true,
       hasAltText: true,
+      altTextNamesProduct: true,
       hasOwnGlb: true,
       hasDisplayName: true,
       hasSlug: true,
@@ -484,5 +493,61 @@ describe('assertPublishable — artwork verdict', () => {
 
   it('does not block a file that passed', () => {
     expect(() => assertPublishable({ ...base, artworkVerdict: 'ok' }, ok)).not.toThrow()
+  })
+})
+
+describe('a colourway label must name the garment it belongs to', () => {
+  // M2, 2026-08-18. Measured on the live API: product X-MILO PRO SKIN-SUIT
+  // (productCode R-XPS, slug rxps) served SIX text alternatives all reading
+  // "Velocity Performance Skinsuit" — five colourway labels and the product
+  // poster. Every screen-reader user, and everyone whose model failed to load and
+  // saw the poster, was told the wrong garment. WCAG 1.1.1.
+  it('accepts a label that names the product', () => {
+    expect(altTextNamesProduct('X-MILO PRO SKIN-SUIT in Wine', 'X-MILO PRO SKIN-SUIT')).toBe(true)
+  })
+
+  it('REPRODUCES THE LIVE BUG: rejects a label naming a different garment', () => {
+    expect(
+      altTextNamesProduct('Velocity Performance Skinsuit in Wine', 'X-MILO PRO SKIN-SUIT'),
+    ).toBe(false)
+  })
+
+  it('normalises punctuation — RXPS vs R-XPS cost a post-deploy gate on 2026-08-17', () => {
+    expect(altTextNamesProduct('XMILO PRO SKINSUIT in Wine', 'X-MILO PRO SKIN-SUIT')).toBe(true)
+  })
+
+  it('is case-insensitive', () => {
+    expect(altTextNamesProduct('x-milo pro skin-suit in wine', 'X-MILO PRO SKIN-SUIT')).toBe(true)
+  })
+
+  it('treats an empty product name as unverifiable, not failed', () => {
+    // 66 of the 67 products in the CMS are drafts. A check about naming must not
+    // block a product that has no name yet.
+    expect(altTextNamesProduct('anything at all', '')).toBe(true)
+  })
+
+  it('reports the mismatch as a publish problem, naming the colour', () => {
+    const problems = collectPublishProblems(input(), [
+      cw({ displayName: 'Wine', hasAltText: true, altTextNamesProduct: false }),
+    ])
+    expect(problems.join(' ')).toMatch(/Wine/)
+    expect(problems.join(' ')).toMatch(/different product/)
+  })
+
+  it('does not double-report a colour that has no description at all', () => {
+    // A row cannot be both missing a description and naming the wrong product;
+    // hasAltText already covers the first, and reporting both would be noise.
+    const problems = collectPublishProblems(input(), [
+      cw({ displayName: 'Wine', hasAltText: false, altTextNamesProduct: true }),
+    ])
+    expect(problems.filter((p) => /different product/.test(p))).toEqual([])
+  })
+
+  it('toGateColourways derives it from the row and the product name', () => {
+    const rows = [{ displayName: 'Wine', altText: 'Velocity Performance Skinsuit in Wine' }]
+    expect(toGateColourways(rows, 'X-MILO PRO SKIN-SUIT')[0]?.altTextNamesProduct).toBe(false)
+    expect(toGateColourways(rows, 'Velocity Performance Skinsuit')[0]?.altTextNamesProduct).toBe(
+      true,
+    )
   })
 })

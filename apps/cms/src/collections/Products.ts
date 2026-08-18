@@ -150,7 +150,10 @@ export const Products: CollectionConfig = {
     beforeChange: [
       async ({ data, originalDoc, req }) => {
         const resolved = { ...originalDoc, ...data }
-        const colourways = toGateColourways(resolved.colourways)
+        // M2: the product name is passed so a colourway description naming a
+        // DIFFERENT garment is caught here, where publishing is decided, rather
+        // than by a customer's screen reader.
+        const colourways = toGateColourways(resolved.colourways, String(resolved.productName ?? ''))
 
         // "Colours checked" is no longer a box the owner ticks and hopes about:
         // it is true exactly when every colour on show has been pointed at a

@@ -174,6 +174,10 @@ export async function seed(payload: Payload, assetsDir: string): Promise<void> {
         posterPreview: posterIds[colourway.slug]!,
         glbAsset: colourGlbIds[colourway.slug]!,
         active: true,
+        // Deliberately CONSISTENT with productName above — and that consistency
+        // is why this fixture could never have exhibited M2, where the live
+        // product served six labels naming the garment it used to be called.
+        // The failing case lives in publishGating.test.ts, with the real strings.
         altText: `Velocity Performance Tee in ${colourway.displayName}`,
         hexSwatch: colourway.hexSwatch,
       })),

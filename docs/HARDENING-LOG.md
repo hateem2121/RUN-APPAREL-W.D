@@ -900,3 +900,80 @@ answers.
 369 unit tests (was 366), 5/5 typecheck. The monthly real-garment workflow has
 **never run** — its R2 read permission is the one thing this session could not
 verify. Trigger it by hand once rather than waiting for the 1st.
+
+---
+
+# 2026-08-18 — all 24 findings of the 2026-08-17 whole-monorepo audit
+
+Design: `docs/superpowers/specs/2026-08-18-audit-remediation-design.md`.
+Plan: `docs/superpowers/plans/2026-08-18-audit-remediation.md`.
+
+## The gate that could not fail, and the two it hid
+
+`node scripts/doc-citations.mjs` was a pure module with no entry point: **0 bytes of
+output, exit 0, no document read**, while `CLAUDE.md` named it as the mechanism by
+which every document is citation-checked. The audit ran it twice as its own
+verification, declared itself clean, and `pnpm test` then failed that same document
+with seven broken citations (M4).
+
+Fixing it surfaced two more defects nobody had found:
+
+- **`citedPaths` could not strip a line RANGE.** The expression had no branch for the
+  hyphen, so `file.ts:53-80` kept the range as part of the filename and could never
+  resolve. All seven of those failures were ranges.
+- **`docs/` was walked ONE LEVEL DEEP.** `docs/reviews/` and `docs/superpowers/` had
+  never been read by anything. Widening it surfaced **eight** unresolvable citations
+  across three documents at once. `git log --diff-filter=A` split them cleanly: three
+  files really existed and were deleted by `a57b66d`; four **never existed** —
+  filenames a plan proposed that the implementation did not use. That divergence
+  between intent and what shipped was invisible to this repository until today.
+
+The lesson generalises past this gate: **running a gate is not the same as checking
+that the gate reads the thing you care about.** The audit made that mistake with the
+bare command; this session made it one step removed, claiming a passing 406-test
+suite had verified two documents the suite never opened.
+
+## Corrections to the audit itself
+
+- **H1 said the events table has no automated retention. It has had a monthly prune
+  all along.** The gap was real but different: nothing MEASURED growth. Retention
+  went 180 → 90 days and a 5,000-rows-per-24h alarm was built on the existing
+  scheduled workflow — no new service, no new secret.
+- **M3 omitted that `viewer-mobile-safari` already runs `devices['iPhone 13']`**, so
+  the page handed to the skipped test was already a touch context. The fix was
+  smaller than the finding implied, and its **measured outcome was that no defect
+  exists** — the `(hover: hover)` guards are correct on WebKit.
+- **N1 was already fixed** by `4bd23f2`, and fixed the better way: the stale "904
+  tests" became "the full suite", a description that cannot rot.
+
+## Two findings that shrank, one that grew
+
+M6 and L8 were both scoped Low by one upstream fact — `shrinkFlagsFor` returns
+hardcoded literals, so no operator text reaches the parser. Both were fixed anyway,
+because the comment in the container described a control that did not exist, and a
+future operator-editable flags field would have read it as confirmation.
+
+M2 grew. It began as "six wrong strings" and became a publish-time gate, a
+normalised comparison (RXPS vs R-XPS broke a post-deploy gate on 2026-08-17), and a
+correction to `og:image:alt` in the viewer's static head that the audit never found.
+
+## What was deliberately NOT done
+
+- **No migration for the removed `cacheSeconds` field.** The nullable column stays,
+  following the precedent recorded three lines above it for
+  `analytics_cf_beacon_token`: a D1 table rebuild is not worth an unused column, and
+  a `DROP` runs an implicit `DELETE` that cascades.
+- **The `Cache-Control` VALUE is unchanged.** The plan had specified tightening it;
+  that would have been an unrequested behaviour change to every repeat view. The
+  finding was the inert knob, not the directives.
+- **Poster filenames keep their `n001-` prefix** (N3). Invisible to customers,
+  risky to rename live, zero benefit. Recorded in `docs/RUNBOOK.md` so it is not
+  rediscovered as a finding.
+
+## State
+
+934 unit tests (was 899), lint clean across 271 files, typecheck 5/5, container
+typecheck separate and green, `eval:artwork` unmoved at 1.650 / 3.070 / 9.370
+against a 5.000 ceiling, bundle budget green with a new 90% warning naming `wasm` at
+91%. Every new guard carries a negative control, and each was demonstrated failing
+by hand rather than assumed from a green run.

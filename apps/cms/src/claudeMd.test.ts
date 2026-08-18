@@ -1,7 +1,13 @@
-import { readFile, readdir } from 'node:fs/promises'
+import { spawnSync } from 'node:child_process'
+import { readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { citedPaths, resolves } from '../../../scripts/doc-citations.mjs'
+import {
+  ALLOWED_ABSENT,
+  citedPaths,
+  documentsToCheck,
+  resolves,
+} from '../../../scripts/doc-citations.mjs'
 
 /**
  * Guard the repo's CLAUDE.md files against the two ways they have actually rotted.
@@ -43,46 +49,6 @@ import { citedPaths, resolves } from '../../../scripts/doc-citations.mjs'
 
 const REPO_ROOT = join(import.meta.dirname, '..', '..', '..')
 
-/**
- * Citations that are correct despite not existing. Keep this list tiny and always
- * give the reason — an exemption without one is indistinguishable from a bug someone
- * silenced.
- */
-const ALLOWED_ABSENT = new Map([
-  [
-    'raw/cycling-all-colours.glb',
-    'the canonical raw N001 export: gitignored, and the R2 copy expires on a 14-day lifecycle rule. tools/asset-pipeline/CLAUDE.md documents that it may already be gone.',
-  ],
-  [
-    'apps/cms/src/fields/importColours.test.ts',
-    'cited deliberately in the past tense — the root file records that the test lived here until 2026-08-11 (16b548a) and says so in the same sentence.',
-  ],
-  [
-    'docs/ADR.md',
-    'cited in the PAST TENSE by docs/AI-TOOLING.md, which records that a hand-written ADR digest was added on 2026-08-01 and contradicted CLAUDE.md the same day — that is why the ADR store seeds from CLAUDE.md instead. The file was removed; the account of why is the point.',
-  ],
-  [
-    '.github/workflows/artwork-real.yml',
-    'cited in the past tense by docs/RUNBOOK.md and docs/SESSION-2026-08-06.md, both of which say it was DELETED on 2026-08-07 because the R2 copy it pulled expires after 14 days and the surviving copy is on a laptop no runner can reach.',
-  ],
-  [
-    'patches/@payloadcms__storage-r2@3.86.0.patch',
-    'the version the patch carried when docs/SESSION-2026-07-27.md was written. It moved to 3.88.0 with Payload; the session log is a record of that day, not an index.',
-  ],
-  [
-    'apps/viewer/dist',
-    'gitignored BUILD OUTPUT, absent in a clean checkout by design — the root file cites it to say check-bundle-budget reads it and exits 1 unless `pnpm build` ran first, which is exactly why it is not committed. Added 2026-08-13 after this guard caught the citation in CI while a local `pnpm test` passed: dist existed on the machine that wrote the line. That asymmetry is the point — a citation to build output is only ever valid on a dirty tree, so it must be exempted here rather than "fixed" by building before the test.',
-  ],
-  [
-    'apps/cms/.env',
-    'gitignored local secret (.gitignore:13), and README.md:299 does not merely mention it — it tells you to CREATE it ("For local CMS runs, put a `PAYLOAD_SECRET` in `apps/cms/.env`"). A citation to a file the prose instructs the reader to write is correct on every machine and absent on every clean checkout, so it can only ever be exempted here. Same widening as apps/viewer/dist: 1723c3c taught this guard to read README and docs/, and it caught three gitignored citations at once.',
-  ],
-  [
-    '.claude/settings.local.json',
-    'gitignored per-machine agent config (.gitignore:66). docs/AI-TOOLING.md:335 says permissions "belong in" it and labels it "per machine, not committed" in the very code block beneath — the document states the reason for its own absence. Third of the three from 1723c3c. It outlived apps/viewer/dist by a few hours only because the machine that ran `pnpm test` had the file, which is the same asymmetry that entry records and the reason CI is the authority on this guard, not a local run.',
-  ],
-])
-
 async function findClaudeMdFiles(dir: string, found: string[] = []): Promise<string[]> {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     if (entry.name === 'node_modules' || entry.name === '.git') continue
@@ -97,22 +63,22 @@ async function findClaudeMdFiles(dir: string, found: string[] = []): Promise<str
 }
 
 /**
- * Every Markdown file a human or an agent is expected to FOLLOW.
+ * Every document a human or an agent is expected to FOLLOW.
  *
- * The CLAUDE.md files are found by walk; these are named, because the set is small
- * and a glob over `docs/` would quietly start covering a file added for a different
- * purpose. Session logs are included deliberately — see the note on the assertion.
+ * DELEGATES to documentsToCheck() in the shared module as of 2026-08-18, so this
+ * test and `node scripts/doc-citations.mjs` can never disagree about what is
+ * covered. They previously could, and did.
+ *
+ * This function used to read `docs/` ONE LEVEL DEEP, with the stated reason that a
+ * glob "would quietly start covering a file added for a different purpose". That
+ * was a fair call when written and became wrong the day docs/superpowers/ and
+ * docs/reviews/ appeared: three documents holding EIGHT unresolvable citations sat
+ * in those directories, unread by anything, until the walk was widened. The
+ * trade-off the old comment worried about is real, and the answer to it is
+ * ALLOWED_ABSENT with a reason — not a narrower walk.
  */
 async function proseFiles(): Promise<string[]> {
-  const docs = (await readdir(join(REPO_ROOT, 'docs')))
-    .filter((name) => name.endsWith('.md'))
-    .map((name) => join(REPO_ROOT, 'docs', name))
-  return [
-    join(REPO_ROOT, 'README.md'),
-    join(REPO_ROOT, 'CONTRIBUTING.md'),
-    join(REPO_ROOT, 'SECURITY.md'),
-    ...docs,
-  ]
+  return documentsToCheck(REPO_ROOT)
 }
 
 /** Bullets under the `## Traps` heading — the thing the root file's index claims a count of. */
@@ -244,5 +210,65 @@ describe('CLAUDE.md', () => {
       "A CLAUDE.md's trap count is out of date. Update the number AND the list of topics beside\n" +
         'it — the count going stale means a trap was added that the root file never advertised.',
     ).toEqual([])
+  })
+})
+
+describe('the citation extractor', () => {
+  it('strips a single line reference', () => {
+    expect(citedPaths('see `apps/cms/src/endpoints/events.ts:53`')).toEqual([
+      'apps/cms/src/endpoints/events.ts',
+    ])
+  })
+
+  it('strips a line:column reference', () => {
+    expect(citedPaths('see `apps/cms/src/endpoints/events.ts:53:7`')).toEqual([
+      'apps/cms/src/endpoints/events.ts',
+    ])
+  })
+
+  it('strips a line RANGE — the seven failures of 2026-08-17 were all ranges', () => {
+    // The original expression had no branch for the hyphen, so the range stayed
+    // part of the filename and could never resolve. The audit that found this had
+    // already declared the offending document clean, using the command below.
+    expect(citedPaths('see `apps/cms/src/endpoints/events.ts:53-80`')).toEqual([
+      'apps/cms/src/endpoints/events.ts',
+    ])
+  })
+})
+
+describe('the doc-citations command', () => {
+  const script = join(REPO_ROOT, 'scripts', 'doc-citations.mjs')
+
+  it('reads documents and says how many, rather than passing in silence', () => {
+    // Until 2026-08-18 this produced 0 bytes of output and exit 0, having read
+    // nothing, while CLAUDE.md named it as the citation gate. Silence WAS the bug.
+    const run = spawnSync(process.execPath, [script], { cwd: REPO_ROOT, encoding: 'utf8' })
+    expect(run.status).toBe(0)
+    expect(run.stdout).toMatch(/\d+ citations checked across \d+ documents/)
+  })
+
+  it('covers docs/ recursively — three subdirectory documents were never read', async () => {
+    const covered = await documentsToCheck(REPO_ROOT)
+    expect(
+      covered.some((path) => path.includes(`${join('docs', 'superpowers')}`)),
+      'docs/ was walked one level deep until 2026-08-18, so plans and reviews were invisible',
+    ).toBe(true)
+    expect(covered.some((path) => path.endsWith('audit-ci.jsonc'))).toBe(true)
+  })
+
+  it('NEGATIVE CONTROL: exits 1 and names both the citation and the file', async () => {
+    // A gate that has never been observed to fail is indistinguishable from the
+    // no-op this replaced.
+    const decoy = join(REPO_ROOT, 'docs', 'DOC-CITATIONS-NEGATIVE-CONTROL.md')
+    await writeFile(decoy, 'A citation to `apps/cms/src/does-not-exist.ts` here.\n')
+    try {
+      const run = spawnSync(process.execPath, [script], { cwd: REPO_ROOT, encoding: 'utf8' })
+      const output = run.stdout + run.stderr
+      expect(run.status).toBe(1)
+      expect(output).toContain('apps/cms/src/does-not-exist.ts')
+      expect(output).toContain('DOC-CITATIONS-NEGATIVE-CONTROL.md')
+    } finally {
+      await rm(decoy, { force: true })
+    }
   })
 })

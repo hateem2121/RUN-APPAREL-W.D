@@ -148,7 +148,20 @@ console.log(
   `  ${'-'.repeat(12)} ${'-'.repeat(5)} ${'-'.repeat(11)} ${'-'.repeat(11)}   ${'-'.repeat(20)}`,
 )
 
+/**
+ * N4, 2026-08-18. wasm measured 300.5 KB against a 331.1 KB budget — 91%, with
+ * 30.6 KB of gzip headroom, the Meshopt and DRACO decoders dominating. This script
+ * failed at 100% and was silent at 99%, so the first signal of a weight problem
+ * was a red deploy.
+ *
+ * A slope, not a second cliff: it NEVER changes the exit code. The failure path
+ * was re-verified by temporarily lowering a budget below the measured size and
+ * confirming exit 1 before restoring it.
+ */
+const WARN_AT = 0.9
+
 const failures = []
+const warnings = []
 
 for (const category of [...Object.keys(BUDGETS), UNGATED]) {
   const t = totals[category] ?? { raw: 0, gz: 0, count: 0 }
@@ -161,6 +174,9 @@ for (const category of [...Object.keys(BUDGETS), UNGATED]) {
     if (t.gz > budget) {
       verdict = `${fmt(budget)}  OVER by ${fmt(t.gz - budget)}`
       failures.push({ category, actual: t.gz, budget })
+    } else if (t.gz >= budget * WARN_AT) {
+      verdict = `${fmt(budget)}  (${pct}% used — ${fmt(budget - t.gz)} left)`
+      warnings.push({ category, actual: t.gz, budget })
     }
   }
 
@@ -201,6 +217,15 @@ if (failures.length) {
       `  "It went over" is not a justification; neither is "it is only a bit more".`,
   )
   process.exit(1)
+}
+
+if (warnings.length) {
+  console.warn(
+    `\n⚠ ${warnings.length} category at or above ${Math.round(WARN_AT * 100)}% of budget:\n` +
+      warnings.map((w) => `    ${w.category}: ${fmt(w.actual)} of ${fmt(w.budget)}`).join('\n') +
+      `\n\n  Not a failure, and not a licence to raise the budget. Raise one ONLY with\n` +
+      `  the measurement that justifies the new weight.\n`,
+  )
 }
 
 console.log('\n✓ every gated category within budget.\n')

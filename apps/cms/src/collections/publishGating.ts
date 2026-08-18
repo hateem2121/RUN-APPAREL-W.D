@@ -42,6 +42,8 @@ export interface GateColourway {
   variantId: string
   hasPoster: boolean
   hasAltText: boolean
+  /** M2: the label names THIS product, not one it used to be called. */
+  altTextNamesProduct: boolean
   hasOwnGlb: boolean
   /**
    * Was the RAW `displayName` non-blank? Not the same question as `displayName`
@@ -143,7 +145,33 @@ export function changesAnything(
 }
 
 /** Normalise raw array rows from the document into the gate's flat shape. */
-export function toGateColourways(rows: unknown): GateColourway[] {
+/**
+ * Does this text alternative name the product it belongs to?
+ *
+ * M2, 2026-08-18. The live product X-MILO PRO SKIN-SUIT (R-XPS, slug rxps) served
+ * SIX text alternatives all reading "Velocity Performance Skinsuit" — the name it
+ * carried before a rename. `hasAltText` below checked that a label EXISTS.
+ * Existing is not the property that matters: on a B2B garment reference reached by
+ * scanning a QR tag on a physical sample, the identity of the garment IS the
+ * payload of the page, and a confidently wrong name is worse than a missing one.
+ * WCAG 1.1.1 — the alternative did not serve the equivalent purpose.
+ *
+ * NORMALISED, because RXPS vs R-XPS broke a post-deploy gate on 2026-08-17: the
+ * page truthfully said R-XPS and the gate demanded RXPS. Punctuation is not
+ * identity.
+ *
+ * An empty product title returns TRUE — unverifiable, not failed. A draft with no
+ * name yet must not be blocked by a check about naming, and 66 of the 67 products
+ * in the CMS are drafts.
+ */
+export function altTextNamesProduct(altText: string, productTitle: string): boolean {
+  const normalise = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const title = normalise(productTitle)
+  if (title.length === 0) return true
+  return normalise(altText).includes(title)
+}
+
+export function toGateColourways(rows: unknown, productTitle = ''): GateColourway[] {
   if (!Array.isArray(rows)) return []
   return rows.map((raw) => {
     const row = (raw ?? {}) as Record<string, unknown>
@@ -154,6 +182,8 @@ export function toGateColourways(rows: unknown): GateColourway[] {
       variantId: text(row.variantId),
       hasPoster: isSet(row.posterPreview),
       hasAltText: text(row.altText).length > 0,
+      // M2: present is not the same as correct. See altTextNamesProduct.
+      altTextNamesProduct: altTextNamesProduct(text(row.altText), productTitle),
       hasOwnGlb: isSet(row.glbAsset),
       hasDisplayName: text(row.displayName).length > 0,
       hasSlug: text(row.slug).length > 0,
@@ -243,6 +273,18 @@ export function collectPublishProblems(
   if (noAlt.length > 0) {
     problems.push(
       `${list(noAlt)} ${noAlt.length === 1 ? 'needs' : 'need'} a photo description, so people using a screen reader know what the picture shows. Add it on the Colours tab.`,
+    )
+  }
+
+  // M2, 2026-08-18. A description that names a DIFFERENT garment is worse than a
+  // missing one: a screen-reader user is told, confidently, the wrong product.
+  // This shipped live and survived a rename because nothing compared the two.
+  const wrongAlt = active
+    .filter((c) => c.hasAltText && !c.altTextNamesProduct)
+    .map((c) => c.displayName)
+  if (wrongAlt.length > 0) {
+    problems.push(
+      `${list(wrongAlt)} ${wrongAlt.length === 1 ? 'has a photo description that names' : 'have photo descriptions that name'} a different product. Update ${wrongAlt.length === 1 ? 'it' : 'them'} on the Colours tab so the description matches this product's name.`,
     )
   }
 

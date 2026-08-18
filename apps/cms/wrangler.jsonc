@@ -89,8 +89,6 @@
     // (run-apparel-viewer.pages.dev removed 2026-07-22 — the Pages project was
     // deleted after the viewer moved to the run-apparel-viewer-site Worker.)
     "VIEWER_ALLOWED_ORIGINS": "https://viewer.wear-run.help,http://localhost:5173",
-    // Edge cache lifetime (seconds) for public viewer API responses.
-    "VIEWER_API_CACHE_SECONDS": "60",
     // Transactional email "From" identity (password resets / notifications). The
     // address's domain must be verified in Resend. The API key itself is a
     // secret: `wrangler secret put RESEND_API_KEY` — email is off until it is set.

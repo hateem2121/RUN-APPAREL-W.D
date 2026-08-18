@@ -191,12 +191,54 @@ describe('migration replay', () => {
     }
     seedEveryTable(database)
 
+    // ROW COUNTS ADDED 2026-08-18 (audit M5). Errors were the only thing checked
+    // here, and an error is not the failure mode this harness exists for. The
+    // 2026-07-29 incident "reported success while cascade-deleting two tables
+    // nobody was watching" — nothing threw. `.resolves.not.toThrow()` cannot see
+    // that; row counts can.
+    //
+    // The asymmetry mattered because of WHICH path was unguarded: up() had
+    // countRows, emptiedTables and a negative control from the day it was written,
+    // while down() is what `migrate:remote:down` runs — the emergency rollback for
+    // a failed production migration, i.e. the moment silent loss is least
+    // recoverable and least likely to be noticed.
     for (const migration of [...migrations].reverse()) {
+      const before = countRows(database)
       await expect(
         (migration.down as unknown as Runner)(args),
         `${migration.name}.down() failed`,
       ).resolves.not.toThrow()
+      expect(
+        emptiedTables(before, countRows(database)),
+        `${migration.name}.down() emptied a table that had rows — a silent cascade, ` +
+          'which is the 2026-07-29 signature and raises no foreign-key error',
+      ).toEqual([])
     }
+    database.close()
+  })
+
+  it('NEGATIVE CONTROL: the down() guard can see a cascade at all', async () => {
+    // Without this, the assertion added above is indistinguishable from a
+    // decorative one — which is the defect M4 describes, in a different file. It
+    // proves the TOOLS (countRows, emptiedTables) detect a cascade; every down()
+    // in the tree is correctly ordered today, so the real test passing is the
+    // expected result and cannot on its own prove the check works.
+    const database = openDatabase()
+    const { args } = makeMigrationArgs(database)
+    for (const migration of migrations) {
+      await (migration.up as unknown as Runner)(args)
+    }
+    seedEveryTable(database)
+
+    const before = countRows(database)
+    // A DROP TABLE runs an implicit DELETE, and that cascades. SQLite performs it
+    // silently — no foreign-key error — exactly as on 2026-07-29.
+    database.exec('DROP TABLE IF EXISTS products')
+
+    expect(
+      emptiedTables(before, countRows(database)),
+      'the harness must SEE a cascade; if this is empty the guard above is decorative',
+    ).not.toEqual([])
     database.close()
   })
 
