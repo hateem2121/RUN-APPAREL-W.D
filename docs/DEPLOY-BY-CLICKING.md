@@ -2,7 +2,7 @@
 
 **You almost never need this file.** Once the one-time setup is done, deploying
 is automatic: **push to `main` and GitHub Actions builds, tests, and deploys.**
-Watch the **Actions** tab of the `hateem2121/run-apparel-viewer` repo.
+Watch the **Actions** tab of the `RUN-APPAREL/run-apparel-viewer` repo.
 
 This page covers the **one-time setup** that makes that automation work, plus a
 dashboard-only fallback if you ever want to deploy without the command line.
@@ -53,7 +53,7 @@ Only if you cannot use CI **and** cannot use the command line.
 **CMS worker**
 
 1. https://dash.cloudflare.com → **Workers & Pages** → **Create** →
-   **Import a repository** → pick `hateem2121/run-apparel-viewer`.
+   **Import a repository** → pick `RUN-APPAREL/run-apparel-viewer`.
 2. Project/Worker name `run-apparel-viewer-cms`, production branch `main`,
    **Root directory** `apps/cms`, **Deploy command** `pnpm --filter @run-apparel/cms run deploy`.
 3. Add the secret `PAYLOAD_SECRET` (the long code Claude generates). Save & Deploy.
