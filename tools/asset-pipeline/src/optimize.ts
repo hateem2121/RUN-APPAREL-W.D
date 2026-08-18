@@ -491,6 +491,78 @@ export interface ParsedOptimizeArgs {
  * Defaults reflect best practice: WebP textures capped at 2048 px. Geometry
  * compression stays opt-in (`--draco` / `--meshopt`).
  */
+/**
+ * Read a numeric flag value, or fail naming the flag.
+ *
+ * L8, 2026-08-18. Eight numeric flags were read as `Number(rest[++i])`. Four had
+ * no fallback at all; the other four had a `??` fallback that could never help,
+ * because `??` tests for null and undefined and NOT for NaN — `NaN ?? 0.0001`
+ * evaluates to NaN, verified in node. There were no isNaN or Number.isFinite
+ * guards anywhere in this package and no test for a malformed numeric argument.
+ *
+ * `--simplify-error` is the documented aggression control and `--uv-weight 0` is
+ * the NEGATIVE CONTROL the artwork eval uses to represent destroyed artwork. A NaN
+ * there is an undefined value on the axis that decides whether printed letters
+ * survive decimation — and the three blocking gates test alphaMode, which
+ * decimation does not change, so nothing downstream would have objected.
+ *
+ * Zero is valid and must pass; `eval:artwork` runs `--uv-weight 0` and would fail
+ * loudly if this rejected it.
+ */
+export function finiteNumber(raw: string | undefined, flagName: string): number {
+  const value = Number(raw)
+  if (raw === undefined || raw === '' || !Number.isFinite(value)) {
+    throw new Error(
+      `${flagName} needs a number, received ${raw === undefined ? '(nothing)' : `"${raw}"`}. ` +
+        'A NaN here would silently become the decimation budget.',
+    )
+  }
+  return value
+}
+
+/** Flags that consume the token after them. Anything else must start with `--`. */
+const VALUE_TAKING_FLAGS = new Set([
+  '--out',
+  '--max-texture',
+  '--quality',
+  '--artwork-quality',
+  '--artwork-max-texture',
+  '--simplify',
+  '--simplify-error',
+  '--uv-weight',
+  '--normal-weight',
+])
+
+/**
+ * Reject anything in a flags array that is neither a `--` flag nor the value of one.
+ *
+ * M6, 2026-08-18. `apps/shrink/container/server.ts` commented that it accepted
+ * only `--`-prefixed flags and their values, "so a malformed request can never
+ * smuggle in a second input path". It did not: it filtered on
+ * `typeof flag === 'string'`, and parseOptimizeArgs ends its loop by treating any
+ * non-`--` token as the INPUT PATH. Measured — appending '/etc/passwd' to
+ * ['in.glb', '--out', 'o.glb'] changed the input to /etc/passwd.
+ *
+ * Never reachable in production: shrinkFlagsFor returns hardcoded literals chosen
+ * by a two-value enum, and THAT upstream fact is what made the container safe, not
+ * the filter the comment pointed at — which is exactly why the comment was
+ * dangerous. This makes the container safe on its own terms, for the day someone
+ * adds an operator-editable flags field.
+ */
+export function assertFlagsOnly(flags: string[]): void {
+  for (let i = 0; i < flags.length; i++) {
+    const token = flags[i]!
+    if (token.startsWith('--')) {
+      if (VALUE_TAKING_FLAGS.has(token)) i++ // its value is consumed, whatever it is
+      continue
+    }
+    throw new Error(
+      `Refusing flag list: "${token}" is not a --flag and does not follow one. ` +
+        'A bare token here would be parsed as the input path.',
+    )
+  }
+}
+
 export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
   let input: string | null = null
   let out: string | null = null
@@ -515,16 +587,17 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
     else if (arg === '--ktx2') texture = 'ktx2'
     else if (arg === '--draco') geometry = 'draco'
     else if (arg === '--meshopt') geometry = 'meshopt'
-    else if (arg === '--max-texture') maxTextureSize = Number(rest[++i] ?? DEFAULT_MAX_TEXTURE)
-    else if (arg === '--quality') textureQuality = Number(rest[++i] ?? DEFAULT_TEXTURE_QUALITY)
+    else if (arg === '--max-texture') maxTextureSize = finiteNumber(rest[++i], '--max-texture')
+    else if (arg === '--quality') textureQuality = finiteNumber(rest[++i], '--quality')
     else if (arg === '--artwork-quality')
-      artworkTextureQuality = Number(rest[++i] ?? DEFAULT_ARTWORK_TEXTURE_QUALITY)
+      artworkTextureQuality = finiteNumber(rest[++i], '--artwork-quality')
     else if (arg === '--artwork-max-texture')
-      artworkMaxTextureSize = Number(rest[++i] ?? DEFAULT_ARTWORK_MAX_TEXTURE)
-    else if (arg === '--simplify') simplify = Number(rest[++i])
-    else if (arg === '--simplify-error') simplifyError = Number(rest[++i])
-    else if (arg === '--uv-weight') simplifyUvWeight = Number(rest[++i])
-    else if (arg === '--normal-weight') simplifyNormalWeight = Number(rest[++i])
+      artworkMaxTextureSize = finiteNumber(rest[++i], '--artwork-max-texture')
+    else if (arg === '--simplify') simplify = finiteNumber(rest[++i], '--simplify')
+    else if (arg === '--simplify-error') simplifyError = finiteNumber(rest[++i], '--simplify-error')
+    else if (arg === '--uv-weight') simplifyUvWeight = finiteNumber(rest[++i], '--uv-weight')
+    else if (arg === '--normal-weight')
+      simplifyNormalWeight = finiteNumber(rest[++i], '--normal-weight')
     else if (arg === '--opaque') opaque = true
     else if (arg === '--no-opaque' || arg === '--keep-transparency') opaque = false
     else if (!arg.startsWith('--')) input = arg

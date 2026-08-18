@@ -9,6 +9,7 @@ import { createIO } from './io'
 import { mergeVariants, parseMergeArgs } from './merge-variants'
 import {
   DEFAULT_SIMPLIFY_ERROR,
+  assertFlagsOnly,
   optimizeGlb,
   parseOptimizeArgs,
   solidifyMaterials,
@@ -1283,5 +1284,68 @@ describe('mergeVariants — primitive with no material', () => {
         expect(mapping.getMaterial()).not.toBeNull()
       }
     }
+  })
+})
+
+describe('malformed numeric flags fail loudly instead of becoming NaN', () => {
+  // L8, 2026-08-18. `??` tests for null/undefined, not NaN — `NaN ?? 0.0001` is
+  // NaN — so the downstream defaults could never catch a mistyped value. The four
+  // dials that matter most are the ones with no fallback at all.
+  it('parses well-formed values unchanged', () => {
+    const { options } = parseOptimizeArgs([
+      'in.glb',
+      '--simplify-error',
+      '0.001',
+      '--uv-weight',
+      '1',
+    ])
+    expect(options.simplifyError).toBe(0.001)
+    expect(options.simplifyUvWeight).toBe(1)
+  })
+
+  it('accepts ZERO — --uv-weight 0 is the artwork eval negative control', () => {
+    // Rejecting 0 as falsy would break the one case that represents destroyed
+    // artwork, which is how this guard could quietly make the eval useless.
+    const { options } = parseOptimizeArgs(['in.glb', '--uv-weight', '0'])
+    expect(options.simplifyUvWeight).toBe(0)
+  })
+
+  it('rejects a missing value and names the flag', () => {
+    expect(() => parseOptimizeArgs(['in.glb', '--simplify-error'])).toThrow(/--simplify-error/)
+  })
+
+  it('rejects a letter-O typed for a zero', () => {
+    expect(() => parseOptimizeArgs(['in.glb', '--simplify-error', '0.OO1'])).toThrow(
+      /--simplify-error/,
+    )
+  })
+
+  it('rejects a letter-l on the axis that decides whether artwork survives', () => {
+    expect(() => parseOptimizeArgs(['in.glb', '--uv-weight', 'l'])).toThrow(/--uv-weight/)
+  })
+})
+
+describe('the container rejects a bare path in its flags array', () => {
+  // M6, 2026-08-18. server.ts commented that only `--`-prefixed flags and their
+  // values are accepted. It filtered on typeof === 'string' only, and
+  // parseOptimizeArgs ends its loop with `else if (!arg.startsWith('--')) input =
+  // arg` — so a bare string in the flags array silently became the INPUT PATH.
+  it('documents the parser behaviour that made this reachable', () => {
+    expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb']).input).toBe('in.glb')
+    expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb', '/etc/passwd']).input).toBe('/etc/passwd')
+  })
+
+  it('accepts a well-formed flag list', () => {
+    expect(() => assertFlagsOnly(['--opaque', '--simplify-error', '0.001'])).not.toThrow()
+  })
+
+  it('accepts a value that would look like a bare token on its own', () => {
+    // '0.001' does not start with `--`; it is legal because it FOLLOWS a
+    // value-taking flag. Getting this wrong would reject every real invocation.
+    expect(() => assertFlagsOnly(['--simplify-error', '0.001'])).not.toThrow()
+  })
+
+  it('rejects a bare path and names it', () => {
+    expect(() => assertFlagsOnly(['--opaque', '/etc/passwd'])).toThrow(/etc\/passwd/)
   })
 })
