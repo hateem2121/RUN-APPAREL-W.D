@@ -345,3 +345,17 @@ compiles to nothing and silently ships an unstyled element.
 The tell is a `className` with utility strings in it. The fix is a semantic token in
 `tokens.css`, per `docs/DESIGN.md` §8.
 
+
+## Running what these traps describe
+
+```bash
+npx --yes pnpm@10.33.0 --filter @run-apparel/viewer test:e2e
+```
+
+The e2e suite is the only thing that exercises `<model-viewer>` for real — under jsdom
+it asserts against a stub, which is why this package's coverage floor is the repo's
+lowest at 42% and why the floor must not be "fixed" by excluding `App.tsx`/`Stage.tsx`.
+If it dies with `Timed out waiting 120000ms from config.webServer`, run
+`env | grep -E 'NODE_ENV|PORT'` and confirm `pnpm` resolved (bare `pnpm` exits 127
+inside the child process) **before reading any code** — both have caused that exact
+timeout here.

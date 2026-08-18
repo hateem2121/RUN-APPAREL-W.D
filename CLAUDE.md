@@ -40,7 +40,7 @@ mirrors. That asymmetry is why the raw CLO export is a local artifact — see
 pnpm install --frozen-lockfile   # after every merge; the lockfile moves often here
 pnpm lint                        # biome check .
 pnpm typecheck                   # 5 workspaces
-pnpm test:coverage               # 904 tests + the coverage floors (see below)
+pnpm test:coverage               # the full suite + the coverage floors (see below)
 bash scripts/test-alert-shell.sh # the alert branch nothing else exercises
 pnpm seed:assets && pnpm build   # build is the one that catches dependency breaks
 node scripts/check-bundle-budget.mjs  # deterministic shell weight; needs the build above
@@ -473,6 +473,21 @@ the answer is "nothing that happens in production", it is not a test.
   Moved there 2026-08-10 when this file came within 326 chars of the size at which
   Claude Code warns a memory file is too large — **a threshold it later crossed
   anyway, so put new viewer, pipeline or CMS detail in the sub-file, not here.**
+
+  **The mechanics, measured against the docs on 2026-08-18, because two plausible
+  fixes do not work.** The warning fires at **40,000 characters** and the documented
+  target is **under 200 lines** — this file is over both. ⚠️ **`@path` imports do NOT
+  help**: the docs are explicit that imported files "load at launch", so an import
+  moves bytes between files and saves no context. What *does* work is on-demand
+  loading: the sub-file split above, and path-scoped rules (a `paths:` frontmatter
+  block in a rules file under .claude/), which load only when Claude reads a matching
+  file. ⚠️ **Both carry a caveat worth
+  knowing**: only the project-root CLAUDE.md is re-injected after `/compact` — nested
+  files and path-scoped rules reload only when a matching file is next read, so a
+  trap that moved out of this file can be absent from a compacted session until
+  something touches its directory. Free win nobody here uses yet: block-level
+  `<!-- HTML comments -->` are stripped before injection, so pure provenance can stay
+  legible to humans at zero context cost.
 
 - **Two more traps live in `apps/cms/CLAUDE.md`** (loads on touching `apps/cms/`) —
   `NODE_ENV=production` for any Payload CLI task against production D1, and why
