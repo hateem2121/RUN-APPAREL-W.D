@@ -42,6 +42,12 @@ const SECURITY_HEADERS = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // L3, 2026-08-18. Next sets `x-powered-by: Next.js` by default and Payload
+  // appends itself; measured live as `x-powered-by: Next.js, Payload` on
+  // cms.wear-run.help, and absent on viewer.wear-run.help. Nothing consumes it,
+  // and it narrows an attacker's search space for version-specific advisories
+  // against the side of this system that holds the password.
+  poweredByHeader: false,
   transpilePackages: ['@run-apparel/shared'],
   async headers() {
     return [{ source: '/:path*', headers: SECURITY_HEADERS }]
