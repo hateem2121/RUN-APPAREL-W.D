@@ -20,7 +20,11 @@ import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { AwsClient } from 'aws4fetch'
-import { optimizeGlb, parseOptimizeArgs } from '../../../tools/asset-pipeline/src/optimize'
+import {
+  assertFlagsOnly,
+  optimizeGlb,
+  parseOptimizeArgs,
+} from '../../../tools/asset-pipeline/src/optimize'
 import { inspectGlb } from '../../../tools/asset-pipeline/src/validate'
 import { buildReportText, objectUrl, suggestedFilename } from './report'
 
@@ -76,10 +80,21 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
 
     // 2. Run the SAME pipeline the CLI uses. parseOptimizeArgs applies the exact
     //    defaults (WebP textures, opaque + double-sided fabric) plus our flags.
-    //    Only `--`-prefixed flags and their values are accepted, so a malformed
-    //    request can never smuggle in a second input path.
+    //    Only `--`-prefixed flags and their values are accepted — assertFlagsOnly
+    //    enforces that and throws naming the offending token.
+    //
+    //    ⚠️ Until 2026-08-18 this comment described a control that did not exist.
+    //    The filter below checks only that a member is a string, and
+    //    parseOptimizeArgs ends its loop with
+    //    `else if (!arg.startsWith('--')) input = arg` — so ANY bare string here
+    //    became the input path. Measured: appending '/etc/passwd' to
+    //    ['in.glb', '--out', 'o.glb'] changed the input to /etc/passwd. What
+    //    actually kept this safe was upstream — shrinkFlagsFor returns hardcoded
+    //    literals chosen by a two-value enum — not the line the comment pointed
+    //    at, which is precisely what made the comment dangerous.
     const requested = Array.isArray(body.flags) && body.flags.length ? body.flags : DEFAULT_FLAGS
     const flags = requested.filter((flag): flag is string => typeof flag === 'string')
+    assertFlagsOnly(flags)
     const { options } = parseOptimizeArgs([rawPath, '--out', outPath, ...flags])
     const opt = await optimizeGlb(rawPath, outPath, options)
 
