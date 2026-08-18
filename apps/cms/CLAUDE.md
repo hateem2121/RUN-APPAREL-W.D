@@ -23,6 +23,18 @@ root file first.
   treats each as a migration. A test file added there on 2026-07-31 was imported
   during `migrate:remote`, ran `describe()` with no vitest runner, and stopped
   the production deploy. `src/migrationReplay/migrations.test.ts` now guards it.
+- **`withPayload` appends its OWN `headers()` rule after yours, and Next lets the
+  LAST matching rule win** — so a header set on a route handler's `Response`, or
+  added to `SECURITY_HEADERS`, can be silently overridden. Measured 2026-08-18: L1
+  set `Vary: Origin, Sec-CH-Prefers-Color-Scheme` in `src/endpoints/publicViewer.ts`,
+  its test asserted the returned `Response` carried it and passed, the change merged
+  and deployed — and production answered `vary: Sec-CH-Prefers-Color-Scheme` the
+  whole time it was believed fixed. Ordering inside `nextConfig.headers()` cannot win
+  either; that array is spread first by construction. The rule must be appended to
+  the config `withPayload` **returns** — `publicViewerHeaders.mjs`, pinned by
+  `src/publicViewerHeaders.test.ts`, which asserts which rule WINS and carries a
+  negative control reproducing the inert state. **Verify a header change in
+  `.next/routes-manifest.json`, never in a handler.**
 
 ## Writing products from a script
 

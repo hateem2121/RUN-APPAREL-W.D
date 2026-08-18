@@ -500,9 +500,10 @@ the answer is "nothing that happens in production", it is not a test.
   `<!-- HTML comments -->` are stripped before injection, so pure provenance can stay
   legible to humans at zero context cost.
 
-- **Two more traps live in `apps/cms/CLAUDE.md`** (loads on touching `apps/cms/`) —
-  `NODE_ENV=production` for any Payload CLI task against production D1, and why
-  `src/migrations/` must hold only migrations; it also carries "Before you change
+- **Three more traps live in `apps/cms/CLAUDE.md`** (loads on touching `apps/cms/`) —
+  `NODE_ENV=production` for any Payload CLI task against production D1, why
+  `src/migrations/` must hold only migrations, and why `withPayload` silently
+  overrides any header you set in a handler; it also carries "Before you change
   a migration" and how to write products from a script. ⚠️ This said "Two more
   **live** in" until 2026-08-17 — without the word "traps",
   `claudeMd.test.ts`'s counter silently skipped it. **"Before you delete anything in the
