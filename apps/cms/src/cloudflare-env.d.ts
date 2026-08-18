@@ -14,7 +14,6 @@ declare global {
     CMS_PUBLIC_URL?: string
     PUBLIC_MEDIA_BASE_URL?: string
     VIEWER_ALLOWED_ORIGINS?: string
-    VIEWER_API_CACHE_SECONDS?: string
     EMAIL_FROM_ADDRESS?: string
     EMAIL_FROM_NAME?: string
     PAYLOAD_SECRET?: string

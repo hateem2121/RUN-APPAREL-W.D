@@ -19,6 +19,41 @@ import { buildViewerResponse } from './projectViewer'
  * deliberately does NOT set `requestedColourwayUnavailable` — see projectViewer.
  */
 
+/**
+ * L2, 2026-08-18. This value used to be built from a three-layer cascade — a
+ * `viewerApi.cacheSeconds` field in the CMS, then `VIEWER_API_CACHE_SECONDS`, then
+ * a default of 60 — and four tests pinned it.
+ *
+ * All three layers controlled something with no observable effect here.
+ * `perfProbe.test.ts` already recorded the measurement: "a Worker's own response
+ * does not pass through the edge cache, so s-maxage buys nothing", and live probes
+ * on 2026-08-17 found NO `cf-cache-status` header on these responses at all. A
+ * settings field the owner can edit, expecting a performance change and getting
+ * none, is worse than no field.
+ *
+ * ⚠️ THE VALUE IS DELIBERATELY UNCHANGED. The finding is that the knob was inert,
+ * not that the directives were wrong — they are correct for the day a shared cache
+ * sits in front of this, and changing them here would be an unrequested behaviour
+ * change to every repeat view. Hardcoding removes the misleading control, nothing
+ * else.
+ */
+const PUBLIC_CACHE_CONTROL = 'public, s-maxage=60, stale-while-revalidate=300'
+
+/**
+ * L1, 2026-08-18. `Vary` named only `Sec-CH-Prefers-Color-Scheme`, and this
+ * response's `access-control-allow-origin` VARIES by request Origin — Payload's
+ * `cors: allowedOrigins` is an allowlist, verified live: viewer.wear-run.help gets
+ * an ACAO header and a hostile origin gets none.
+ *
+ * A shared cache keyed without Origin can therefore store the no-ACAO variant and
+ * serve it to the viewer's cross-origin fetch, which the browser blocks — the page
+ * renders "REFERENCE UNAVAILABLE" intermittently, inside the 60s/300s window.
+ *
+ * Inert today, because nothing caches these (above). Correct now so it stays
+ * correct if anything ever does.
+ */
+const ORIGIN_VARY = 'Origin, Sec-CH-Prefers-Color-Scheme'
+
 const notFound = (message: string): Response => {
   const body: ViewerApiError = { error: 'not_found', message }
   return Response.json(body, {
@@ -26,6 +61,10 @@ const notFound = (message: string): Response => {
     headers: {
       'Cache-Control': 'public, s-maxage=30',
       'X-Robots-Tag': 'noindex',
+      // Same reasoning as ORIGIN_VARY below — this response's ACAO varies by
+      // request Origin too, and a 404 is exactly the kind of cheap response a
+      // shared cache would be most willing to keep.
+      Vary: ORIGIN_VARY,
     },
   })
 }
@@ -117,14 +156,10 @@ const buildHandler =
       return notFound('This product reference is not currently available.')
     }
 
-    const cacheSeconds = Number(
-      (settings.viewerApi as { cacheSeconds?: number } | undefined)?.cacheSeconds ??
-        process.env.VIEWER_API_CACHE_SECONDS ??
-        60,
-    )
     return Response.json(body, {
       headers: {
-        'Cache-Control': `public, s-maxage=${cacheSeconds}, stale-while-revalidate=${cacheSeconds * 5}`,
+        'Cache-Control': PUBLIC_CACHE_CONTROL,
+        Vary: ORIGIN_VARY,
       },
     })
   }

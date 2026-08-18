@@ -75,18 +75,17 @@ export const SiteSettings: GlobalConfig = {
     // ⚠️ THE COLUMN IS STILL THERE, ON PURPOSE — `analytics_cf_beacon_token text`
     // (nullable) in 20260720_185735_initial. See the Products note; a D1 table
     // rebuild is not worth an unused nullable column.
-    {
-      name: 'viewerApi',
-      type: 'group',
-      admin: { description: 'Public viewer API behaviour.' },
-      fields: [
-        {
-          name: 'cacheSeconds',
-          type: 'number',
-          defaultValue: 60,
-          admin: { description: 'Edge cache lifetime for public viewer responses.' },
-        },
-      ],
-    },
+    // `viewerApi.cacheSeconds` was REMOVED 2026-08-18 (audit L2). It fed
+    // publicViewer.ts's Cache-Control, and that header has no observable effect on
+    // this deployment — perfProbe.test.ts records "a Worker's own response does not
+    // pass through the edge cache, so s-maxage buys nothing", and live probes found
+    // no cf-cache-status on those responses at all. An owner-editable knob that
+    // changes nothing is worse than no knob.
+    //
+    // ⚠️ THE COLUMN IS STILL THERE, ON PURPOSE — same call as
+    // `analytics_cf_beacon_token` above: a nullable column left behind costs
+    // nothing, and a D1 table rebuild to drop it is the operation this repo's
+    // migration notes warn about most (a DROP runs an implicit DELETE, and that
+    // cascades). No migration accompanies this removal, deliberately.
   ],
 }

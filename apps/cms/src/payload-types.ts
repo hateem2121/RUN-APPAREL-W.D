@@ -352,7 +352,7 @@ export interface Product {
    */
   productName: string;
   /**
-   * Two or three sentences about this garment, shown under its name on the public page. Plain text — no links or formatting. Leave it blank and the page uses the standard development-reference wording instead.
+   * A few sentences about this garment, shown under its name on the public page. Plain text — no links or formatting. There is no length limit, though the page reads best at three or four sentences. Leave it blank and the page uses the standard development-reference wording instead.
    */
   shortDescription?: string | null;
   /**
@@ -818,15 +818,6 @@ export interface SiteSetting {
     bodyIntro?: string | null;
     microcopy?: string | null;
   };
-  /**
-   * Public viewer API behaviour.
-   */
-  viewerApi?: {
-    /**
-     * Edge cache lifetime for public viewer responses.
-     */
-    cacheSeconds?: number | null;
-  };
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -907,11 +898,6 @@ export interface SiteSettingsSelect<T extends boolean = true> {
         subject?: T;
         bodyIntro?: T;
         microcopy?: T;
-      };
-  viewerApi?:
-    | T
-    | {
-        cacheSeconds?: T;
       };
   updatedAt?: T;
   createdAt?: T;

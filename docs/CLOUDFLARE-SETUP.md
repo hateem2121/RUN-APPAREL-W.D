@@ -68,8 +68,13 @@ npx wrangler secret put PAYLOAD_SECRET     # paste a long random string (openssl
 ```
 
 Review `wrangler.jsonc` vars: `CMS_PUBLIC_URL`, `PUBLIC_MEDIA_BASE_URL`,
-`VIEWER_ALLOWED_ORIGINS`, `VIEWER_API_CACHE_SECONDS`, `EMAIL_FROM_ADDRESS`,
-`EMAIL_FROM_NAME`.
+`VIEWER_ALLOWED_ORIGINS`, `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME`.
+
+`VIEWER_API_CACHE_SECONDS` was removed on 2026-08-18 (audit L2). It fed the
+public viewer API's `Cache-Control`, and that header has no observable effect
+here — a Worker's own response does not pass through the edge cache, and live
+probes found no `cf-cache-status` on those responses at all. If the var is still
+set in `wrangler.jsonc`, nothing reads it.
 
 **Transactional email (Resend) — ✅ done (2026-07-22).** `wear-run.help` is
 verified in Resend (records live on the `send.` subdomain +
