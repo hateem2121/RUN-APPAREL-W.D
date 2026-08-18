@@ -51,6 +51,15 @@ const PUBLIC_CACHE_CONTROL = 'public, s-maxage=60, stale-while-revalidate=300'
  *
  * Inert today, because nothing caches these (above). Correct now so it stays
  * correct if anything ever does.
+ *
+ * ⚠️ THIS HEADER IS NOT WHAT SHIPS, AND SETTING IT HERE WAS NOT ENOUGH. `withPayload`
+ * appends a blanket `/:path*` rule carrying `Vary: Sec-CH-Prefers-Color-Scheme`
+ * AFTER the app's own `headers()`, and Next lets the last matching rule win — so
+ * from the merge of L1 until 2026-08-18 production answered without `Origin` while
+ * this constant, and the test asserting it, were both green. What actually puts
+ * `Origin` on the wire is the rule appended in `apps/cms/publicViewerHeaders.mjs`,
+ * which is pinned by `src/publicViewerHeaders.test.ts` with a negative control.
+ * Keep this value in step with `PUBLIC_VIEWER_VARY` there.
  */
 const ORIGIN_VARY = 'Origin, Sec-CH-Prefers-Color-Scheme'
 

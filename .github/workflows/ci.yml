@@ -166,9 +166,32 @@ jobs:
       - name: Install Playwright browsers (cache miss)
         if: steps.pw-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @run-apparel/viewer exec playwright install --with-deps chromium webkit firefox
+      # BOUNDED AND NON-FATAL SINCE 2026-08-18, deliberately. Normally 24 seconds
+      # (measured, above). That day Azure's Ubuntu mirror was degraded — the log
+      # repeats `Ign: http://azure.archive.ubuntu.com/ubuntu noble InRelease`
+      # before falling back to the far slower https://archive.ubuntu.com — and
+      # this step consumed ENTIRE job budgets three times in a row with nothing
+      # in the repository changed: artwork cancelled at 20m20s twice, then verify
+      # at 30m21s. A cancelled job reads as a failed gate and is not one, and
+      # raising ceilings just moves which job dies.
+      #
+      # This step is PREPARATION, not a gate. `e2e` below is the gate. So a broken
+      # mirror now costs 8 minutes instead of the whole job.
+      #
+      # The block above correctly warns that skipping this leaves WebKit without
+      # its libraries and "presents as a flaky e2e ... debugged in the wrong
+      # place". That objection is about SILENT skipping, which is why the next
+      # step exists: if apt did not finish, the annotation says so by name.
       - name: Install Playwright system deps (cache hit)
+        id: pw-deps
         if: steps.pw-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 8
+        continue-on-error: true
         run: pnpm --filter @run-apparel/viewer exec playwright install-deps chromium webkit firefox
+      - name: Say so if the system deps did not install
+        if: steps.pw-deps.outcome == 'failure'
+        run: |
+          echo "::warning title=Playwright system deps incomplete::apt did not finish within 8 minutes (degraded Ubuntu mirror?). Browsers may be missing shared libraries. If e2e now fails to LAUNCH a browser — especially WebKit — this is the cause, not a flaky test."
       - name: e2e
         run: pnpm --filter @run-apparel/viewer test:e2e
 
@@ -229,19 +252,52 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      # gitleaks-action lists the PR's commits to scan them (pull_request events).
-      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0 # full history — a secret is usually in an older commit
+
+      # ⚠️ RUNS THE GITLEAKS BINARY, NOT gitleaks/gitleaks-action — a licence
+      # decision AND a coverage one. Both were measured on 2026-08-18.
+      #
+      # LICENCE. The moment this repo moved into the RUN-APPAREL organisation the
+      # Action began printing "[RUN-APPAREL] is an organization. License key is
+      # required." gitleaks-action is free for personal accounts and PAID for
+      # organisations. The gitleaks SCANNER is MIT and free; only the wrapper is
+      # commercial. This project's entire budget is $5/month and is already spent
+      # on Cloudflare Workers Paid, so a licence is not available to it.
+      #
+      # COVERAGE, which matters more. On run 32140573361 the Action invoked
+      #   gitleaks detect ... --log-opts=-1
+      # and reported "1 commits scanned. scanned ~60 bytes ... no leaks found".
+      # Sixty bytes, while the checkout above deliberately fetches FULL history
+      # because "a secret is usually in an older commit". The gate was green and
+      # nearly empty — the same defect class as the citation command that exited 0
+      # having checked nothing (audit M4). No --log-opts here, so the whole
+      # history is scanned on every run, which is what the checkout was for.
+      #
+      # Consequences of dropping the wrapper, both deliberate:
+      #   * `pull-requests: read` is gone — only the Action needed it, to list a
+      #     PR's commits. Least privilege, so it goes.
+      #   * No GITHUB_TOKEN is passed. Nothing here talks to the API.
+      #
+      # --redact so a hit never prints the secret into the log.
       - name: gitleaks
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
-          GITLEAKS_CONFIG: .gitleaks.toml
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          set -euo pipefail
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /tmp gitleaks
+          /tmp/gitleaks version
+          /tmp/gitleaks detect \
+            --source . \
+            --config .gitleaks.toml \
+            --redact \
+            --verbose \
+            --exit-code 1
 
   # Performance budget + a11y snapshot (Lighthouse CI) against the viewer served
   # with the same server-side mock the e2e suite uses. Informational: it does
@@ -325,7 +381,26 @@ jobs:
   # already runs software WebGL via swiftshader.
   artwork:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 20 -> 30 on 2026-08-18, to match `verify`, after this job was CANCELLED twice
+    # in a row at exactly 20m20s — which reads as a failed gate and was not one.
+    #
+    # Both runs died in `playwright install-deps chromium`, an apt-get, with the
+    # log repeating `Ign: http://azure.archive.ubuntu.com/ubuntu noble InRelease`
+    # before falling back to the much slower https://archive.ubuntu.com. The Azure
+    # Ubuntu mirror was degraded; nothing in this repository changed. The eval
+    # itself never ran on either attempt.
+    #
+    # `verify` sat through the SAME apt slowdown in the same run and passed, taking
+    # 25m29s against its 30-minute ceiling. That is the whole difference: identical
+    # external cause, different headroom. For reference this job takes ~2m08s when
+    # the mirror is healthy (run 32140573361, 13:08 UTC the same day), so 30 minutes
+    # is not a loosened budget — it is ~14x the normal runtime, sized to absorb a
+    # third-party outage rather than report one as a code failure.
+    #
+    # This does NOT weaken the gate: the artwork eval and its --uv-weight 0 negative
+    # control still have to pass. Do not raise the eval's CEILING; that is a
+    # different number and it is measured. See the block above this job.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -353,9 +428,20 @@ jobs:
       - name: Install Chromium for the render harness (cache miss)
         if: steps.pw-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @run-apparel/asset-pipeline exec playwright install --with-deps chromium
+      # Bounded and non-fatal for the same measured reason as the identical step in
+      # `verify` — see the long note there. This job was cancelled at 20m20s twice
+      # in a row inside this step while the artwork eval never ran once.
+      # `Artwork legibility eval` below is the gate; this is preparation.
       - name: Install Chromium system deps (cache hit)
+        id: pw-deps
         if: steps.pw-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 8
+        continue-on-error: true
         run: pnpm --filter @run-apparel/asset-pipeline exec playwright install-deps chromium
+      - name: Say so if the system deps did not install
+        if: steps.pw-deps.outcome == 'failure'
+        run: |
+          echo "::warning title=Chromium system deps incomplete::apt did not finish within 8 minutes (degraded Ubuntu mirror?). If the eval now fails to launch Chromium, this is the cause, not an artwork regression."
       - name: Artwork legibility eval
         run: pnpm eval:artwork
 
