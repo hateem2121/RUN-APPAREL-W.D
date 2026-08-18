@@ -121,23 +121,57 @@
   // CDN, so the hostile zip the advisory needs is not attacker-supplied here;
   // the CVSS vector agrees, requiring UI:R.
   //
-  // ⚠️ THE SECOND PATH IS DELIBERATELY NOT LISTED. `pnpm why extract-zip -r`
-  // shows a runtime route too — @run-apparel/shrink (dependencies) →
-  // @cloudflare/puppeteer@1.3.0 → @puppeteer/browsers@2.2.4 → extract-zip —
-  // and audit-ci did NOT report it. Leaving it out is the point of path
-  // scoping: if it is ever reported, this gate fails again instead of staying
-  // silently suppressed. Do not "tidy up" by adding it.
+  // ⚠️ THE SECOND PATH IS DELIBERATELY NOT LISTED — and as of 2026-08-18 there
+  // is no second path at all. It used to read: a runtime route
+  // @run-apparel/shrink (dependencies) → @cloudflare/puppeteer@1.3.0 →
+  // @puppeteer/browsers@2.2.4 → extract-zip, which audit-ci did not report.
+  // Leaving it unlisted was the point of path scoping — if it were ever
+  // reported this gate would fail again rather than stay silently suppressed —
+  // and that reasoning still stands for any future path. Do not "tidy up" by
+  // adding one.
   //
-  // Measured rather than assumed, because the runtime route above looks alarming
-  // on paper: `wrangler deploy --dry-run --outdir` on apps/shrink produces a
-  // 792,166-byte bundle containing ZERO occurrences of `extract-zip` or
-  // `@puppeteer/browsers`. On Workers `puppeteer.launch(env.BROWSER)`
-  // (apps/shrink/src/index.ts:806) binds to the Browser Rendering service — it
-  // does not download or unpack a browser, and there is no filesystem to unpack
-  // one onto. Re-run that dry-run before trusting this paragraph again.
+  // ── RE-MEASURED 2026-08-18 (audit M1) ──────────────────────────────────────
+  // Four factual claims in this note had gone stale, all at once, when the
+  // `browser` binding was removed on 2026-08-17 with the poster capture (Browser
+  // Rendering is billed per session-second). Measured, not inferred:
+  //
+  //   claim                                    | measured 2026-08-18
+  //   -----------------------------------------|---------------------------
+  //   bundle is 792,166 bytes                  | 77,955 (index.js);
+  //                                            | 181,493 whole outdir
+  //   puppeteer.launch(env.BROWSER) at         | that file is 755 lines;
+  //   apps/shrink/src/index.ts:806             | no such call exists
+  //   a runtime route to extract-zip exists    | `pnpm why extract-zip -r`
+  //                                            | shows ONLY the @lhci/cli
+  //                                            | devDependency route
+  //   @cloudflare/puppeteer is a shrink dep    | absent from
+  //                                            | apps/shrink/package.json
+  //
+  // THE CONCLUSION DID NOT WEAKEN — IT STRENGTHENED. The runtime path is GONE,
+  // not merely unbundled. Re-verified by measurement: the dry-run bundle
+  // contains ZERO occurrences of `extract-zip` or `@puppeteer/browsers`.
+  //
+  // Why this mattered enough to record rather than quietly correct: an engineer
+  // following the RE-CHECK instruction below would have opened
+  // apps/shrink/src/index.ts:806, found a 755-line file, and been unable to tell
+  // whether the justification was wrong, the file was truncated, or the
+  // suppression is unsafe. The correct conclusion — that the risk DECREASED —
+  // is the one the stale evidence no longer supported on its face.
   //
   // RE-CHECK: whenever @lhci/cli, @cloudflare/puppeteer or puppeteer-core is
-  // bumped, and delete this the day extract-zip ships a patched release.
+  // bumped, AND whenever a BINDING is added to or removed from
+  // apps/shrink/wrangler.jsonc. That second trigger was added 2026-08-18 because
+  // a binding removal is what actually invalidated every number above, and no
+  // trigger here named it — the list said "dependency bumps" and the event was
+  // not a dependency bump.
+  //
+  // DELETE THIS ENTRY WHEN: `pnpm why extract-zip -r` no longer reports it — ie
+  // when @lhci/cli stops depending on it. Changed 2026-08-18 from "the day
+  // extract-zip ships a patched release" (audit N5), which is a condition that
+  // may never occur: extract-zip's latest is 2.0.1, published 2020-06-10, the
+  // most recent of 24 versions, and CVE-2026-56876 reports patched_versions
+  // "<0.0.0". The UNFIXABLE-not-unfixed reasoning above is confirmed still
+  // correct; only the condition it waited on was unreachable.
   "allowlist": [
     "GHSA-jmr9-qjv8-65gv|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip"
   ]
