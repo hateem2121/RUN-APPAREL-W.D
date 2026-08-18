@@ -182,6 +182,85 @@ for wf in uptime heartbeat; do
   echo
 done
 
+
+# ---------------------------------------------------------------------------
+# H1, 2026-08-18 — the events GROWTH alarm in diagnostics-digest.yml.
+#
+# This harness covered uptime.yml and heartbeat.yml only. The growth alarm is a
+# third alerting branch, and it has the same property that made the other two
+# worth testing: it ONLY EVER RUNS WHEN SOMETHING IS ALREADY WRONG, which is the
+# worst possible moment to discover a typo in it.
+#
+# It is extracted and executed against fabricated D1 responses rather than read.
+# The measured production baseline (143 rows/24h) MUST NOT fire, a flood MUST,
+# and a malformed response must degrade to zero rather than crash the step or —
+# worse — compare a string and fire at random.
+# ---------------------------------------------------------------------------
+extract_growth_shell() { # $1 = workflow file
+  awk '
+    /^      - name: / { instep = ($0 ~ /^      - name: Measure events growth/); capturing = 0; next }
+    instep && /^        run: \|/ { capturing = 1; next }
+    capturing {
+      if ($0 ~ /^[[:space:]]*$/) { print ""; next }
+      if ($0 !~ /^          /)   { capturing = 0; instep = 0; next }
+      sub(/^          /, "")
+      print
+    }
+  ' "$1"
+}
+
+echo "diagnostics-digest.yml — events growth alarm"
+growth=$(extract_growth_shell "$ROOT/.github/workflows/diagnostics-digest.yml")
+
+if [ -z "$growth" ]; then
+  echo "  FAIL  could not extract the 'Measure events growth' run: block"
+  FAILED=1
+else
+  # Drop the two lines that need the network and the repo: the wrangler query
+  # (which writes growth.json) and `set -euo pipefail`'s exit-on-error, so a
+  # fabricated growth.json can stand in for the live database.
+  growth_body=$(grep -v 'wrangler d1 execute' <<<"$growth" | grep -v '^ *--json --command' | grep -v '^ *> growth.json')
+
+  WORK=$(mktemp -d)
+  run_growth() { # $1 = growth.json contents
+    printf '%s' "$1" > "$WORK/growth.json"
+    ( cd "$WORK" && GITHUB_OUTPUT="$WORK/out.txt" bash -c "$growth_body" >/dev/null 2>&1 )
+    grep -E '^alert=' "$WORK/out.txt" | tail -1
+  }
+
+  # 1. The real production baseline must stay quiet.
+  got=$(run_growth '[{"results":[{"day":143,"week":599,"total":754}],"success":true}]')
+  if [ "$got" = "alert=false" ]; then
+    printf '  ok    %-44s %s\n' "measured baseline stays quiet" "143 rows/24h -> $got"
+  else
+    echo "  FAIL  baseline traffic fired the alarm ($got) — the threshold is too low"
+    FAILED=1
+  fi
+
+  # 2. NEGATIVE CONTROL: a flood must fire. Without this the check above passes
+  #    just as well when the alarm can never fire at all.
+  got=$(run_growth '[{"results":[{"day":91234,"week":300000,"total":900000}],"success":true}]')
+  if [ "$got" = "alert=true" ]; then
+    printf '  ok    %-44s %s\n' "negative control: a flood DOES fire" "91234 rows/24h -> $got"
+  else
+    echo "  FAIL  negative control: a 91,234-row day did not fire ($got)"
+    FAILED=1
+  fi
+
+  # 3. A malformed or empty response must read as 0, not crash and not compare a
+  #    string. `[ "" -gt 5000 ]` is a bash error, not false.
+  got=$(run_growth '[{"results":[]}]')
+  if [ "$got" = "alert=false" ]; then
+    printf '  ok    %-44s %s\n' "an empty D1 response degrades to zero" "no crash -> $got"
+  else
+    echo "  FAIL  an empty D1 response produced '$got' instead of alert=false"
+    FAILED=1
+  fi
+
+  rm -rf "$WORK"
+fi
+echo
+
 rm -rf "$STUB"
 if [ "$FAILED" = "0" ]; then
   echo "alert-shell: all checks passed"

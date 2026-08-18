@@ -111,10 +111,69 @@ jobs:
             echo 'DIGEST'
           } >> "$GITHUB_OUTPUT"
 
+      # ── H1, 2026-08-18: the only thing that measures write VOLUME ─────────────
+      # Nothing in this repository checked D1 row count, storage or write volume.
+      # `scripts/verify-backup.mjs` counts rows, but only while verifying a backup,
+      # and raises no alert. The step above filters to type IN
+      # ('diagnostic','error') — so a flood of well-formed ANALYTICS rows, which is
+      # exactly the abuse shape (POST /api/public/events is unauthenticated,
+      # sanitised, rate-limited per-colo, and always answers 204), appears in
+      # NOTHING. The first signal would have been the Cloudflare bill.
+      #
+      # Threshold 5,000 rows/24h. Measured baseline: 754 rows in 28 days, 599 in
+      # the last 7 days, 143 in the last 24 hours — and that last figure is
+      # inflated by the audit's own live probes. So 5,000 is ~35x the busiest real
+      # day and still four orders of magnitude below D1's included 50,000,000
+      # writes/month. Ordinary traffic cannot reach it; a genuine flood cannot miss
+      # it.
+      #
+      # A COUNT rather than the D1 GraphQL Analytics API, deliberately. GraphQL
+      # measures the metered quantity itself and so cannot diverge from the bill,
+      # which is the stronger signal — but it needs a new API token, a new repo
+      # secret and a new failure mode, in a job that already holds working D1
+      # credentials and already queries this table. If the metered figure is ever
+      # wanted, that is the upgrade path and this is where to start.
+      - name: Measure events growth
+        id: growth
+        run: |
+          set -euo pipefail
+          pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote \
+            --json --command "SELECT (SELECT count(*) FROM events WHERE created_at > datetime('now','-1 day')) AS day, (SELECT count(*) FROM events WHERE created_at > datetime('now','-7 days')) AS week, (SELECT count(*) FROM events) AS total;" \
+            > growth.json
+          # Integers straight out of count(*) — not attacker-controlled text, unlike
+          # the digest table above. Number() regardless, so a malformed response
+          # arrives as 0 rather than as a string the comparison would mis-handle.
+          #
+          # Three plain substitutions rather than one `eval` of generated text. The
+          # eval version was written first and removed: evaluating a string this job
+          # itself built is the shape the 2026-08-10 injection fix in the step below
+          # exists to prevent, and "but this input is trusted" was the argument that
+          # was wrong that time too.
+          read_count() {
+            node -e "const r=(require('./growth.json')[0]?.results??[{}])[0]??{};console.log(Number(r[process.argv[1]])||0)" "$1"
+          }
+          DAY=$(read_count day)
+          WEEK=$(read_count week)
+          TOTAL=$(read_count total)
+          THRESHOLD=5000
+          echo "events rows — 24h: $DAY · 7d: $WEEK · all time: $TOTAL (threshold ${THRESHOLD}/24h)"
+          if [ "$DAY" -gt "$THRESHOLD" ]; then
+            echo "alert=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::events wrote $DAY rows in 24h, above the $THRESHOLD threshold"
+            printf 'summary=%s\n' "⚠️ **Events growth above threshold** — $DAY rows in 24h (threshold $THRESHOLD). 7d: $WEEK. All time: $TOTAL. D1 meters rows written at \$1.00/million over 50M included; see docs/RUNBOOK.md." >> "$GITHUB_OUTPUT"
+          else
+            echo "alert=false" >> "$GITHUB_OUTPUT"
+            printf 'summary=%s\n' "Events growth normal — $DAY rows in 24h, $WEEK in 7d, $TOTAL all time (threshold $THRESHOLD/24h)." >> "$GITHUB_OUTPUT"
+          fi
+
       # One rolling issue rather than one per week, so a quiet month does not
       # bury the tab — same shape as the outage alert in uptime.yml.
+      #
+      # ⚠️ THE GROWTH CONDITION IS NOT OPTIONAL. `rows` counts diagnostic and error
+      # rows only, so an analytics flood leaves it at 0 and this step would never
+      # run — which is precisely the gap H1 describes.
       - name: Open or update the digest issue
-        if: steps.read.outputs.rows != '0'
+        if: steps.read.outputs.rows != '0' || steps.growth.outputs.alert == 'true'
         env:
           # Passed through the environment rather than interpolated with ${{ }},
           # for exactly the reason heartbeat.yml gives for its own STALE variable.
@@ -129,6 +188,7 @@ jobs:
           # independent fixes now stand between the database and the shell; keep
           # both, since either alone would be enough only until someone edits it.
           DIGEST_TABLE: ${{ steps.read.outputs.table }}
+          GROWTH_SUMMARY: ${{ steps.growth.outputs.summary }}
         run: |
           set -euo pipefail
           # The label has to exist before EITHER command below touches it: `gh issue
@@ -145,9 +205,10 @@ jobs:
                              --description "Weekly viewer diagnostics digest" 2>&1); then
             grep -qi 'already exists' <<<"$label_out" || echo "::warning::gh label create failed: $label_out"
           fi
-          body=$(printf '%s\n\n%s\n\n%s\n' \
+          body=$(printf '%s\n\n%s\n\n%s\n\n%s\n' \
             "Viewer diagnostics for the 7 days to $(date -u +%Y-%m-%d)." \
             "$DIGEST_TABLE" \
+            "$GROWTH_SUMMARY" \
             "\`model-load-error\` means a buyer opened a product and the 3D file did not load. \`variant-missing\` means a colour button pointed at a colour that is not inside the file. \`variants-unverified-while-published\` means a re-upload renamed the colours under a live product. See docs/RUNBOOK.md.")
           existing=$(gh issue list --label diagnostics --state open --json number --jq '.[0].number // empty')
           if [ -n "$existing" ]; then
