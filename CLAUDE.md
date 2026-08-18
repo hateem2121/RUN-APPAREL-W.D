@@ -612,6 +612,12 @@ only error line was `##[error]The operation was canceled`. Check
 `gh run view <id> --json conclusion -q .conclusion` before believing anything
 failed. Wait for the run, then push again.
 
+**A `cancelled` conclusion also comes from a job hitting its OWN `timeout-minutes`,
+not only from a second push.** On 2026-08-18 a degraded Ubuntu mirror made
+`playwright install-deps` (normally 24s) eat whole job budgets — `artwork` at 20m20s
+twice, then `verify` at 30m21s — with nothing in the repository changed. Raising a
+ceiling only moved which job died. See `.github/CLAUDE.md`.
+
 **`https://wear-run.help/` returns 522 BY DESIGN — the site is
 `https://viewer.wear-run.help/`.** Owner-confirmed 2026-08-12. Nothing is bound to
 the bare apex; every QR deep link uses `viewer.`, and the one apex path the app
