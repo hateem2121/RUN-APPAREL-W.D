@@ -358,7 +358,26 @@ jobs:
   # already runs software WebGL via swiftshader.
   artwork:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 20 -> 30 on 2026-08-18, to match `verify`, after this job was CANCELLED twice
+    # in a row at exactly 20m20s — which reads as a failed gate and was not one.
+    #
+    # Both runs died in `playwright install-deps chromium`, an apt-get, with the
+    # log repeating `Ign: http://azure.archive.ubuntu.com/ubuntu noble InRelease`
+    # before falling back to the much slower https://archive.ubuntu.com. The Azure
+    # Ubuntu mirror was degraded; nothing in this repository changed. The eval
+    # itself never ran on either attempt.
+    #
+    # `verify` sat through the SAME apt slowdown in the same run and passed, taking
+    # 25m29s against its 30-minute ceiling. That is the whole difference: identical
+    # external cause, different headroom. For reference this job takes ~2m08s when
+    # the mirror is healthy (run 32140573361, 13:08 UTC the same day), so 30 minutes
+    # is not a loosened budget — it is ~14x the normal runtime, sized to absorb a
+    # third-party outage rather than report one as a code failure.
+    #
+    # This does NOT weaken the gate: the artwork eval and its --uv-weight 0 negative
+    # control still have to pass. Do not raise the eval's CEILING; that is a
+    # different number and it is measured. See the block above this job.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
