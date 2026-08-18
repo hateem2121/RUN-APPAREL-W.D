@@ -224,6 +224,7 @@ jobs:
   # docs/RUNBOOK.md described it under "CI quality gates" without saying so.
   # Moving it here is what makes the word "gate" true.
   secrets:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
