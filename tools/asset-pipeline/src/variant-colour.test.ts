@@ -169,3 +169,73 @@ describe('readVariantColours', () => {
     expect(readVariantColours(document)[0]!.sampledMaterial).toBe('FABRIC 5_3068')
   })
 })
+
+describe('a white factor over a texture is not a confident "White"', () => {
+  /** One variant whose dominant fabric is pure white, optionally textured. */
+  function whiteGarment(textured: boolean) {
+    const document = new Document()
+    const ext = document.createExtension(KHRMaterialsVariants)
+    const variant = ext.createVariant('Colorway 1')
+
+    const body = addQuad(document, 10)
+    const material = document
+      .createMaterial('FABRIC 5_white')
+      .setBaseColorFactor(linear(255, 255, 255))
+    if (textured) {
+      material.setBaseColorTexture(
+        document
+          .createTexture('print')
+          .setImage(new Uint8Array([1, 2, 3, 4]))
+          .setMimeType('image/png'),
+      )
+    }
+    body.setExtension(
+      'KHR_materials_variants',
+      ext
+        .createMappingList()
+        .addMapping(ext.createMapping().setMaterial(material).addVariant(variant)),
+    )
+    return document
+  }
+
+  it('a WHITE FACTOR WITH a base-colour texture returns low confidence', () => {
+    // L9. #FFFFFF matches GREY_RAMP's White at deltaE ~ 0, so this used to return
+    // confidence 'high' — confidently wrong rather than uncertain, which is
+    // precisely what the blanking in importColours.ts cannot catch.
+    const colours = readVariantColours(whiteGarment(true))
+    expect(colours[0]).toMatchObject({ confidence: 'low' })
+  })
+
+  it('a WHITE FACTOR WITHOUT a texture keeps high confidence', () => {
+    // A genuinely white garment must keep its name. Widening the rule to every
+    // white factor would blank real colourways — a worse bug than the one fixed.
+    const colours = readVariantColours(whiteGarment(false))
+    expect(colours[0]).toMatchObject({ confidence: 'high' })
+  })
+
+  it('a NON-white factor with a texture is unaffected', () => {
+    // Every printed garment has a base-colour texture. Only the white-factor case
+    // is ambiguous; navy with a print is still navy.
+    const document = new Document()
+    const ext = document.createExtension(KHRMaterialsVariants)
+    const variant = ext.createVariant('Colorway 1')
+    const body = addQuad(document, 10)
+    const material = document
+      .createMaterial('FABRIC 5_navy')
+      .setBaseColorFactor(linear(27, 42, 74))
+      .setBaseColorTexture(
+        document
+          .createTexture('print')
+          .setImage(new Uint8Array([1, 2, 3, 4]))
+          .setMimeType('image/png'),
+      )
+    body.setExtension(
+      'KHR_materials_variants',
+      ext
+        .createMappingList()
+        .addMapping(ext.createMapping().setMaterial(material).addVariant(variant)),
+    )
+
+    expect(readVariantColours(document)[0]).toMatchObject({ name: 'Navy', confidence: 'high' })
+  })
+})

@@ -99,6 +99,15 @@ function variantBindings(prim: Primitive): { variant: string; material: Material
 }
 
 /**
+ * How close to 1.0 every linear baseColorFactor channel must be to count as "white
+ * enough that the real colour is probably in the texture".
+ *
+ * Not an exact 1.0 comparison: CLO writes values a hair under, and an exact test
+ * would miss every real case it is meant to catch.
+ */
+const WHITE_FACTOR_MIN = 0.99
+
+/**
  * The effective base colour of a material, in LINEAR light.
  *
  * `baseColorFactor` is linear by the glTF spec. The base-colour *texture* is
@@ -156,12 +165,33 @@ export function readVariantColours(document: Document): VariantColour[] {
     const dominant = candidates.sort((a, b) => b[1] - a[1])[0]
     if (!dominant) continue
     const [material] = dominant
-    const hex = linearRgbToHex(baseColourLinear(material))
+    const linear = baseColourLinear(material)
+    const hex = linearRgbToHex(linear)
+    const named = nameColour(hex)
+
+    // L9, 2026-08-18. The comment on baseColourLinear has always recorded that a
+    // garment shipping colour purely in the TEXTURE with a white factor "returns
+    // white and `confidence` will not save us". It cannot save us because #FFFFFF
+    // matches GREY_RAMP's White at deltaE ~ 0 — so the verdict is confidently
+    // WRONG rather than uncertain, and the blanking at importColours.ts, which
+    // exists to stop a guessed name reaching a colour button, only fires on
+    // uncertainty. That is the 2026-08-03 incident shape reached by another route.
+    //
+    // Narrow deliberately: a white factor AND a base-colour texture present. A
+    // genuinely white garment with no texture keeps its name; widening this to
+    // every white factor would blank real colourways.
+    //
+    // Closed now rather than when it fires: the CMS holds 66 model-less drafts
+    // awaiting CLO files whose authoring conventions nobody has seen yet.
+    const factorIsWhite = linear.every((channel) => channel >= WHITE_FACTOR_MIN)
+    const colourMayLiveInTexture = factorIsWhite && material.getBaseColorTexture() !== null
+
     colours.push({
       variantId,
       hex,
       sampledMaterial: material.getName() || '(unnamed material)',
-      ...nameColour(hex),
+      ...named,
+      ...(colourMayLiveInTexture ? { confidence: 'low' as const } : {}),
     })
   }
   return colours
