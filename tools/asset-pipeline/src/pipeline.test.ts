@@ -1349,3 +1349,49 @@ describe('the container rejects a bare path in its flags array', () => {
     expect(() => assertFlagsOnly(['--opaque', '/etc/passwd'])).toThrow(/etc\/passwd/)
   })
 })
+
+describe('an alpha profile that could not be measured does not become OPAQUE', () => {
+  // N8, 2026-08-18. profileAlpha returns character 'unknown' with every fraction 0
+  // when sharp cannot decode an image. Through solidifyMaterials that meant:
+  // cutout false (0 >= CUTOUT_MIN_TRANSPARENT fails), character not 'graded', so
+  // a BLEND material fell through to OPAQUE — a cutout rendered as a solid
+  // rectangle. Reachable only on a SECOND pass with --ktx2.
+  async function documentWithBlendMaterial(imageBytes: Uint8Array) {
+    const document = new Document()
+    const texture = document
+      .createTexture('undecodable')
+      .setImage(imageBytes)
+      .setMimeType('image/png')
+    document
+      .createMaterial('decal')
+      .setAlphaMode('BLEND')
+      .setBaseColorFactor([1, 1, 1, 1])
+      .setBaseColorTexture(texture)
+    return document
+  }
+
+  it('leaves alphaMode untouched when the image cannot be decoded', async () => {
+    // Bytes sharp cannot read at all — the exact condition behind 'unknown'.
+    const document = await documentWithBlendMaterial(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]))
+    const material = document.getRoot().listMaterials()[0]!
+    const profile = await profileAlpha(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]))
+    expect(profile.character, 'fixture must actually produce the unknown case').toBe('unknown')
+
+    await solidifyMaterials(document)
+    expect(material.getAlphaMode()).toBe('BLEND')
+  })
+
+  it('still opaques an UNTEXTURED blend material — the CLO stray-opacity case', async () => {
+    // 'none' is not 'unknown'. An untextured material has genuinely no pixels and
+    // must keep falling through to OPAQUE; that is what this step was built for,
+    // and the new branch must not swallow it.
+    const document = new Document()
+    const material = document
+      .createMaterial('stray')
+      .setAlphaMode('BLEND')
+      .setBaseColorFactor([1, 1, 1, 1])
+
+    await solidifyMaterials(document)
+    expect(material.getAlphaMode()).toBe('OPAQUE')
+  })
+})

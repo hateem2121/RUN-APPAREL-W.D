@@ -247,7 +247,25 @@ export async function solidifyMaterials(document: Document): Promise<SolidifyRes
         (alpha.midFraction <= CUTOUT_MID_FRACTION &&
           alpha.transparentFraction >= CUTOUT_MIN_TRANSPARENT)
 
-      if (factor < OPAQUE_FACTOR_THRESHOLD) {
+      if (alpha.character === 'unknown') {
+        // N8, 2026-08-18. 'unknown' means sharp could not DECODE the image
+        // (textures.ts) and every fraction is 0. Zeroes from a failed decode are
+        // absence of evidence, not evidence of opacity — but the chain below read
+        // them as opacity: cutout is false because 0 >= CUTOUT_MIN_TRANSPARENT
+        // fails, character is not 'graded', so a BLEND material fell through to
+        // OPAQUE and a cutout became a solid rectangle.
+        //
+        // Note this is NOT the 'none' case above, which is an untextured material
+        // with genuinely no pixels to profile and must keep falling through to
+        // OPAQUE — that is the CLO stray-opacity case this whole step was built
+        // for.
+        //
+        // Not reachable on a first pass: solidifyMaterials runs BEFORE texture
+        // compression, and WebP (the default) decodes fine. This closes the
+        // --ktx2 second-pass case, a narrower consequence of the documented
+        // "never run the pipeline on its own output" trap.
+        result.keptBlend++
+      } else if (factor < OPAQUE_FACTOR_THRESHOLD) {
         // An explicit declaration on the material beats anything inferred from
         // its pixels. glTF effective alpha is factor.a * texel.a, so a material
         // that declares itself sheer at 0.4 can never reach alphaCutoff 0.5 —
