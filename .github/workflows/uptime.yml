@@ -2,12 +2,28 @@ name: Uptime
 
 on:
   schedule:
-    # REQUESTED every 15 min — and that is a request, not a guarantee. Measured
-    # 2026-08-10 over the 100 most recent runs (94.3 h): GitHub delivered 27% of
-    # this rate, median gap 44.7 min, p90 102 min, worst 6.1 h. Every run that
-    # fires still succeeds, which is why it went unnoticed. Do not read "15" here
-    # as the detection time. See docs/RUNBOOK.md → "Uptime alerts".
-    - cron: '*/15 * * * *'
+    # ⚠️ THIS IS NO LONGER A LIVENESS MONITOR — it is a DEEP daily check.
+    #
+    # Was `*/15 * * * *` until 2026-08-18. Measured that day, that cadence was
+    # billing roughly 1,200 Actions minutes a month — about 60% of the entire
+    # 2,000-minute Free allowance — because GitHub rounds EVERY job up to a whole
+    # minute, so a 12-second check costs a full one, 40 times a day. It exhausted
+    # the quota and GitHub then refused to start ANY job, which stopped a deploy.
+    #
+    # Liveness moved to the external uptime service, which already polls every
+    # 5 minutes (3x more often) and costs no Actions minutes. What stayed here is
+    # the part that service CANNOT do: smoke-viewer-payload.mjs resolves the
+    # model URL out of the live API payload and fetches it, so a garment that
+    # silently lost its GLB is caught; and the catalogue probe asserts the
+    # redirect still lands on the PDF. Neither is expressible as an HTTP or
+    # keyword check.
+    #
+    # The old comment's warning still applies to whatever cadence is set here:
+    # measured 2026-08-10 over 100 runs, GitHub delivered 27% of the requested
+    # rate, median gap 44.7 min, worst 6.1 h. A cron here is a request, not a
+    # guarantee — never read it as the detection time.
+    # See docs/RUNBOOK.md → "Uptime alerts".
+    - cron: '23 7 * * *'
   workflow_dispatch:
     inputs:
       target:

@@ -359,7 +359,7 @@ pull request:
   **flaky** in its own section, so flakes stay visible and countable while a real
   failure still fails both attempts and still stops the deploy.
 - **Post-deploy viewer payload** — `scripts/smoke-viewer-payload.mjs`, run after
-  the deploy in `ci.yml` and on every `uptime.yml` run (requested every 15 min;
+  the deploy in `ci.yml` and on every `uptime.yml` run (daily since 2026-08-18;
   GitHub delivers a median of ~45 min — see "Uptime alerts"). Until 2026-08-05
   the only post-deploy check was `curl /api/health`, which returns `{"ok":true}`
   from a worker with an **empty database** — it proves the process is up and
@@ -785,7 +785,7 @@ $5/month budget and one part-time maintainer.
 | Printed artwork legible on every deploy | **100%** | `pnpm eval:artwork` gates CI | Not availability, but it is the product |
 
 **The detection target is why the external monitor is not optional.**
-`uptime.yml` asks for every 15 minutes and GitHub delivers about 27% of that —
+`uptime.yml` asked for every 15 minutes until 2026-08-18 and GitHub delivered about 27% of that —
 median gap 44.7 min, p90 102 min, worst 6.1 h, measured over 100 runs on
 2026-08-10. On GitHub's cron alone the honest detection target would be "about an
 hour, sometimes six". UptimeRobot's 5-minute check is what makes ≤10 min true.
@@ -822,8 +822,27 @@ yourself muting UptimeRobot, add a second destination instead.
 
 ## Uptime alerts
 
+> ⚠️ **`uptime.yml` STOPPED BEING A LIVENESS MONITOR ON 2026-08-18.** At
+> `*/15 * * * *` it billed roughly **1,200 GitHub Actions minutes a month** — about
+> 60% of the entire 2,000-minute Free allowance — because GitHub rounds **every job**
+> up to a whole minute, so a 12-second check costs a full one, 40 times a day. The
+> quota ran out, GitHub refused to start any job, and that stopped a production
+> deploy. Cadence is now **daily**.
+>
+> **Liveness lives on the external uptime service**, which polls every 5 minutes —
+> three times more often — and costs no Actions minutes. What stayed in this
+> workflow is what that service cannot express: `smoke-viewer-payload.mjs` resolves
+> the model URL out of the live API payload and fetches it, catching a garment that
+> silently lost its GLB, and the catalogue probe asserts the redirect still reaches
+> the PDF.
+>
+> **If you ever raise the cadence here, do the arithmetic first**: runs/day × jobs ×
+> 1 minute, against 2,000/month.
+
+
+
 `.github/workflows/uptime.yml` **asks** GitHub to ping `/api/health` and the viewer
-every 15 minutes. On failure it opens a GitHub issue labelled `outage` — or, if one
+once a day (see the cadence note below). On failure it opens a GitHub issue labelled `outage` — or, if one
 is already open, **comments on it**.
 
 > ### ⚠️ Measured 2026-08-10 — GitHub delivers about a QUARTER of that cadence
@@ -916,7 +935,7 @@ workflow last **succeeded**:
 
 | Workflow | Scheduled | Actually delivered | Budget before it alerts |
 |---|---|---|---|
-| `uptime.yml` | every 15 min | **median 44.7 min, worst 6.1 h** (measured 2026-08-10) | 3 hours |
+| `uptime.yml` | **daily** (was every 15 min until 2026-08-18) | n/a — liveness moved off-platform | 3 hours |
 | `nightly-backup.yml` | nightly | nightly | 36 hours |
 | `diagnostics-digest.yml` | Mondays | first run due 2026-08-10 | 192 hours (8 days) |
 
