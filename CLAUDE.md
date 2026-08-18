@@ -323,8 +323,19 @@ the answer is "nothing that happens in production", it is not a test.
   resolves `readFile`'s Buffer against workers-types' own definitions, and only the
   Worker sees the change. `@types/node` looks like the culprit and is not: it was
   reverted first, the failure persisted, and 26.2.0 was restored once
-  workers-types was isolated. **Bisect; do not revert the plausible one.** Retry
-  the bump when the Buffer typings settle.
+  workers-types was isolated. **Bisect; do not revert the plausible one.**
+  ⚠️ **RE-MEASURED 2026-08-18: THE BREAK PERSISTS. The hold stands.** Tested
+  `5.20260817.1` (the newest release the 24h cooldown allows; `5.20260818.1` was
+  8h old and would have been refused SILENTLY): `apps/shrink` typecheck exits **1**
+  with the documented signature exactly — `readUInt32LE does not exist on type
+  'NonSharedBuffer'` ×3 plus one `Expected 0 arguments, but got 3`, all in
+  `tools/asset-pipeline/src/validate.ts`. **The negative control passed first**:
+  the same worktree at the held `5.20260804.1` exits **0**. That step is not
+  optional — the 2026-08-17 audit's attempt at this used an isolated synthetic
+  harness, could not reproduce the passing baseline, and correctly discarded its
+  own result as untrustworthy. Use a real `git worktree`, so `apps/shrink`'s own
+  `tsconfig.json` is what resolves the types. Next candidate: whatever is newest
+  and older than 24h; re-run the same two steps and replace this measurement.
   `5.20260804.1` was not an arbitrary floor: it was also exactly the peer minimum
   `wrangler` asked for, so holding any lower — 0726.1 was the first guess — traded
   a typecheck failure for a permanent unmet-peer warning.
