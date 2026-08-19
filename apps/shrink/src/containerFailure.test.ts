@@ -42,4 +42,16 @@ describe('readContainerFailure', () => {
       500,
     )
   })
+
+  it('returns empty rather than throwing when the body itself cannot be read', async () => {
+    // The `.catch(() => '')` on res.text(). A container that dies mid-response leaves
+    // a stream that errors on read, and this function is called from an error path —
+    // throwing here would replace the real failure with an unrelated one.
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.error(new Error('connection reset'))
+      },
+    })
+    await expect(readContainerFailure(new Response(stream, { status: 500 }))).resolves.toBe('')
+  })
 })
