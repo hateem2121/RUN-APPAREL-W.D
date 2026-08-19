@@ -160,7 +160,12 @@ const server = createServer((req, res) => {
             'base64',
           ),
         })
-        res.end(message)
+        // Generic on purpose. `message` can carry mkdtemp paths and stack text
+        // (CodeQL js/stack-trace-exposure). The full detail is already in the
+        // `x-shrink-report` header set above, which the Worker now reads via
+        // readContainerFailure() in apps/shrink/src/containerFailure.ts.
+        // Do not put it back in the body.
+        res.end('Shrink failed.')
       }
     })()
   })
