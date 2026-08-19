@@ -188,10 +188,42 @@ jobs:
         timeout-minutes: 8
         continue-on-error: true
         run: pnpm --filter @run-apparel/viewer exec playwright install-deps chromium webkit firefox
-      - name: Say so if the system deps did not install
+      # SECOND ATTEMPT, added 2026-08-19. The bound above did its job — it stopped a
+      # degraded mirror eating the whole job — but the block above assumed a killed
+      # install is merely INCOMPLETE preparation. It is worse than that: apt is killed
+      # mid-run, so a package can be downloaded and never unpacked, and WebKit then
+      # fails to LAUNCH rather than merely running degraded. Measured on run
+      # 32248711203 (main, b5621aa, 2026-08-19): the step was killed at 8m13s while
+      # fetching package 118 of 200+, `libevent-2.1-7t64` was downloaded at 11:49:43
+      # and never configured, and all 23 viewer-webkit tests then died on
+      # `libevent-2.1.so.7: cannot open shared object file`. main was red for ~7 hours.
+      #
+      # This is NOT "raise the ceiling", which that block correctly warns only moves
+      # which job dies. apt downloads to /var/cache/apt/archives and the kill does not
+      # clear it, so the retry RESUMES: the packages already fetched are not fetched
+      # again. `dpkg --configure -a` first, because a kill mid-unpack leaves the dpkg
+      # database needing it and every later install fails until it is run.
+      #
+      # BUDGET, because this job's own timeout-minutes is the next thing that bites:
+      # setup through the cache restore measured 2m40s, so the worst case is now
+      # 2m40 + 8 (attempt) + 8 (retry) + ~4 (e2e) + ~0m30 (post) = ~23m10s against the
+      # job's 30. That fits, but it is the number to recompute before adding a third
+      # attempt — a job that hits its OWN ceiling reports `cancelled`, which reads as
+      # a failed gate and is not one.
+      - name: Finish the system deps (the .debs are already downloaded)
+        id: pw-deps-retry
         if: steps.pw-deps.outcome == 'failure'
+        timeout-minutes: 8
+        continue-on-error: true
         run: |
-          echo "::warning title=Playwright system deps incomplete::apt did not finish within 8 minutes (degraded Ubuntu mirror?). Browsers may be missing shared libraries. If e2e now fails to LAUNCH a browser — especially WebKit — this is the cause, not a flaky test."
+          sudo dpkg --configure -a || true
+          pnpm --filter @run-apparel/viewer exec playwright install-deps chromium webkit firefox
+      # Only warn if BOTH attempts failed. A first-attempt failure that the retry
+      # rescued is not something to annotate a green run about.
+      - name: Say so if the system deps did not install
+        if: steps.pw-deps.outcome == 'failure' && steps.pw-deps-retry.outcome == 'failure'
+        run: |
+          echo "::warning title=Playwright system deps incomplete::apt did not finish within 8 minutes, twice (degraded Ubuntu mirror?). Browsers may be missing shared libraries. If e2e now fails to LAUNCH a browser — especially WebKit — this is the cause, not a flaky test."
       - name: e2e
         run: pnpm --filter @run-apparel/viewer test:e2e
 
