@@ -39,9 +39,14 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   `.github/workflows/ci.yml`.** That file declines required reviewers on the
   `production` environment because they "need GitHub Pro (~$4/month)" against a
   $5/month budget, and instructs the reader "Do not list it as pending work". The
-  cost premise is now false. Measured 2026-08-18 (`plan.name = "enterprise"`):
-  `main` has **no branch protection and no rulesets**, and `production` has **no
-  protection rules and no deployment branch policy**. Enterprise includes both.
+  cost premise is now false. **APPLIED 2026-08-19**: ruleset `21016174` on `main`
+  (blocks deletion and force-push, requires a PR, and requires `verify`, `audit`,
+  `secrets`, `artwork` — the same four the deploy already needs), `production`
+  restricted to protected branches, and `sha_pinning_required: true`, which the repo
+  already satisfied so it cost nothing.
   ⚠️ At one filled seat, any rule requiring an approving review would deadlock every
-  merge — nobody can approve their own PR. Use `required_approving_review_count: 0`
-  with the status checks as the gate, and an `OrganizationAdmin` bypass actor.
+  merge — nobody can approve their own PR. Hence
+  `required_approving_review_count: 0`, with the status checks as the gate and an
+  `OrganizationAdmin` bypass actor, verified by a direct push to `main`.
+  ⚠️ ORDER MATTERS: setting `production` to protected-branches-only *before* `main`
+  is protected blocks every deploy. Create the ruleset first.

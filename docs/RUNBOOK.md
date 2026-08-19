@@ -817,8 +817,10 @@ yourself muting UptimeRobot, add a second destination instead.
 - **No error budget policy.** Recorded as a decision, not an oversight: with a
   single maintainer there is no release train to halt, so a budget would be a
   number nobody could act on.
-- **The bare apex `wear-run.help` is not monitored and returns 522 by design.**
-  Owner-confirmed 2026-08-12. Do not add a check for it.
+- **The bare apex `wear-run.help` returns 404 in ~0.7 s since 2026-08-19** (audit
+  L6; previously 522 after 20.2 s — by design, but a twenty-second hang for any typo
+  or crawler). Answered by `infra/apex-404/index.js`. Still not monitored directly:
+  `uptime.yml` probes `/catalogue`, which is the apex path the product actually uses.
 
 ## Uptime alerts
 
