@@ -160,6 +160,42 @@ export function buildHeadersFile(input) {
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
+# The RUNTIME assets are not hashed, and until 2026-08-19 they revalidated on
+# every single visit.
+#
+# The /assets/* rule covers what the bundler emits. It does not cover anything
+# copied from public/, so these four fell through to Workers Static Assets'
+# default -- measured on the live edge that day:
+#     GET /env/studio-soft.hdr -> cache-control: public, max-age=0, must-revalidate
+# Every one of them is on the path to the FIRST rendered frame: model-viewer will
+# not decode a production GLB without the Meshopt decoder (see Stage.tsx), and it
+# cannot light the garment without the environment map. So a phone that already
+# has the bytes still paid a round trip for each before any 3D could start --
+# on the connection also carrying a 27 MB model.
+#
+# SEPARATE RULES, NEVER /*. Cloudflare JOINS duplicate headers from every
+# matching rule with a comma rather than picking a winner, so a Cache-Control on
+# /* would append to the /assets/* rule above and ship
+#   public, max-age=31536000, immutable, public, max-age=0, must-revalidate
+# on every hashed bundle. The paths below cannot collide with /assets/*.
+#
+# immutable is honest here for a different reason than it is above: these are
+# not content-hashed, so they are pinned by VERSION instead. copy-decoders.mjs
+# copies the decoder matching the meshoptimizer the pipeline encodes with, and a
+# bump changes the bytes at the same URL -- so a decoder or environment change
+# needs a cache purge, exactly as a _headers change does.
+/env/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/draco/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/basis/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/meshopt_decoder.js
+  Cache-Control: public, max-age=31536000, immutable
+
 # The SPA shell must always revalidate so new deploys go live immediately.
 #
 # no-transform is NOT a caching decision. It stops Cloudflare injecting Bot Fight

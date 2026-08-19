@@ -247,7 +247,11 @@
  */
 .stage__canvas {
   position: relative;
-  height: min(72vh, 760px, calc(100dvh - 282px));
+  /* Desktop has no collapsing browser chrome, so `vh` and `svh` are the same
+     number here and the subtrahend carries over unchanged. The `@supports`
+     override sits after this block; see the comment on the phone rule for what
+     this fallback prevents. */
+  height: min(72vh, 760px, calc(100vh - 282px));
   min-height: 380px;
   border-radius: var(--radius-panel);
   overflow: hidden;
@@ -274,6 +278,12 @@
     100% 100%,
     26px 26px,
     26px 26px;
+}
+
+@supports (height: 1svh) {
+  .stage__canvas {
+    height: min(72vh, 760px, calc(100svh - 282px));
+  }
 }
 
 /*
@@ -313,8 +323,141 @@
      * Net for a 375x812 phone, measured: the garment loses 5px of canvas and
      * stops being obscured by 38px of control pill and 29px of sticky header.
      */
-    height: min(62vh, 640px, calc(100dvh - 386px));
+    /*
+     * ⚠️ `svh`, NOT `dvh`, AND THAT IS THE LAG FIX — not a tidy-up.
+     *
+     * MEASURED 2026-08-19 on the iOS 26.5 simulator, iPhone 17, real Safari
+     * (a probe page served over localhost; Chromium device emulation CANNOT
+     * show this, because it has no URL bar):
+     *
+     *     100svh  714.0   stable
+     *     100lvh  754.0
+     *     100dvh  714.0 <-> 754.0    a 40px swing
+     *     ONE SWIPE produced 14 separate dvh changes
+     *
+     * `dvh` tracks the CURRENT viewport, so it shrinks by the height of Safari's
+     * URL bar and grows back as the bar collapses. Every one of those 14 changes
+     * resized this element, and a resize of this element makes model-viewer run
+     * `updateRendererSize()` -> `threeRenderer.setSize()` — a WebGL drawing-buffer
+     * reallocation — mid-scroll, on the phone already holding a 27 MB model.
+     * That is what the owner reported as "the mobile version feels laggy".
+     * `svh` is the small viewport and never moves, so the canvas never resizes.
+     *
+     * ⚠️ IT ALSO MEANS THE OLD NUMBER WAS MEASURED ON THE WRONG MACHINE. With
+     * `dvh - 386` this canvas was **328px** on a real iPhone 17 — not the 426px a
+     * desktop browser at 375x812 reports, because the desktop browser has no URL
+     * bar to subtract. The owner's "the block feels small" was right and every
+     * measurement taken here before 2026-08-19 was flattering.
+     *
+     * ⚠️ 354 WAS FOUND BY SWEEPING THE LIVE PAGE, AND THE ARITHMETIC WAS WRONG
+     * AGAIN — the fourth time, exactly as the note above warns.
+     *
+     * The first attempt at this change reasoned its way to 342 and it BROKE the
+     * invariant `motion-and-layout.spec.ts` exists to protect: measured at
+     * 402x714, the colourway rail ended at 654 against an action bar starting at
+     * 642, i.e. **12px of the picker underneath the fixed bar** — the 2026-08-13
+     * defect, reintroduced. Two things the arithmetic missed: `.stage__plinth` is
+     * 44px, not the 42px its buttons measure, because it also carries the garment
+     * name; and there are 28px between the plinth and the rail, not the 5px a
+     * reading of the rules suggests.
+     *
+     * ⚠️ AND THE SWEEP THAT REPLACED THE ARITHMETIC WAS ALSO WRONG. Recorded
+     * because the mistake is subtle and cost three attempts.
+     *
+     * Sweeping the LIVE page by injecting candidate heights and reading back the
+     * rail's bottom edge looks like the right method and is not: `.colourways`
+     * carries `[data-reveal]`, so until its reveal has run it sits under a
+     * `transform: translateY(24px)`. Every reading taken that way is 24px out,
+     * in a direction that changes with how long the page has been open. Measured
+     * on the live page: `matrix(1, 0, 0, 1, 0, 24)` on an element whose computed
+     * `margin-top` is 0 — which is exactly what a 24px gap "from nowhere" between
+     * `.stage__inner` and `.colourways` turned out to be.
+     *
+     * 364 was tuned against `pnpm --filter @run-apparel/viewer test:e2e` instead,
+     * which is the honest instrument here: Playwright's config sets
+     * `reducedMotion: 'reduce'`, `base.css` gates the reveal on
+     * `prefers-reduced-motion: no-preference`, so there is no transform to
+     * pollute the number — and it measures the real built app across Chromium,
+     * WebKit and mobile Safari at once. 356 passed a live sweep and FAILED there
+     * with 4-6px of clearance on all three engines.
+     *
+     * Net effect on the device this product is opened with, verified in the iOS
+     * 26.5 simulator: **328px -> 350px**, and it no longer moves while the
+     * visitor scrolls. That is +6.7%, NOT the +18% a first estimate promised —
+     * the chrome below the canvas is denser than it looks, and the owner was
+     * given the measured number rather than the estimate.
+     *
+     * The 10px of clearance is deliberate and is the nearest thing to the scroll
+     * affordance the neighbouring comment has claimed since 2026-08-17 and never
+     * delivered (measured -44px: the product panel started BELOW the action bar's
+     * top edge, so the first screen looked complete). The colourway caption now
+     * sits just under the fold on purpose — it is the cheapest 31px on the first
+     * screen and the only element there not needed to choose a colour.
+     *
+     * SWEEP THE LIVE BAND before changing this number. Do not add it up.
+     */
+    /*
+   * ⚠️ FALLBACK FIRST, AND IT IS NOT COSMETIC — WITHOUT IT THE GARMENT VANISHES.
+   *
+   * `svh`/`dvh`/`lvh` need Safari 15.4+ / Chrome 108+. On anything older the whole
+   * `min()` is invalid, so the `height` declaration is DROPPED — and the failure is
+   * not the graceful one it looks like. Measured 2026-08-19 by reproducing the
+   * dropped declaration on the live page: `.stage__canvas` survives at its
+   * `min-height` (300px, and the colourway rail still clears the action bar), but
+   * `model-viewer.stage__model` is `height: 100%` of a now-`auto` parent, which
+   * resolves to **0**. Measured box: **378 x 0**. The visitor gets the blueprint
+   * grid and no garment.
+   *
+   * ⚠️ THIS IS NOT A REGRESSION FROM THE `dvh` -> `svh` SWAP. `dvh` has exactly the
+   * same support floor, so this has been live for as long as the third term has
+   * existed. It is fixed here because it was found here.
+   *
+   * WHY 44vh AND NOT THE SAME SUBTRAHEND. On a pre-`svh` browser `vh` IS the large
+   * viewport — the one with the URL bar hidden — so reusing the modern arithmetic
+   * would size the canvas against ~40px more height than the visitor can see and
+   * push the colourway rail under the fixed action bar, i.e. trade a vanished
+   * garment for the 2026-08-13 defect. A plain `vh` fraction avoids that, and 44
+   * is the largest step that stays AT OR BELOW the modern result at every common
+   * phone size, so the fallback can never be the taller of the two:
+   *
+   *     phone                lvh    modern    44vh
+   *     iPhone SE 2/3        667      303      300   (min-height floor)
+   *     iPhone 12/13 mini    669      300      300   (min-height floor)
+   *     iPhone 11 / XR       796      392      350
+   *     iPhone 14/15/16      774      370      341
+   *     iPhone 17           754      350      332
+   *
+   * UNVERIFIED ON A REAL OLD BROWSER, and that is a deliberate, owner-approved
+   * gap: Xcode 26.6's oldest downloadable runtime is **iOS 16.4**, whose Safari
+   * already supports `svh`, so no simulator available here can exercise this path
+   * at all. The numbers above are arithmetic over published viewport sizes. If a
+   * real pre-15.4 device is ever to hand, this is the rule to check.
+   */
+    height: min(44vh, 640px);
     min-height: 300px;
+  }
+
+  @supports (height: 1svh) {
+    .stage__canvas {
+      height: min(62vh, 640px, calc(100svh - 364px));
+    }
+  }
+
+  /*
+   * Both of these are charged to the canvas, and both are mobile-only.
+   *
+   * Together they are worth 8px of garment, measured. Both land on documented
+   * spacing steps: `tokens.test.ts` enforces the set in docs/DESIGN.md, and it
+   * rejected a first attempt that used 2px here — correctly, since a one-off
+   * value is how a scale stops being a decision. `.stage__inner`'s padding is
+   * not reduced on desktop, where nothing is competing for the height.
+   */
+  .stage__plinth {
+    margin-top: 8px;
+  }
+
+  .stage__inner {
+    padding-bottom: 4px;
   }
 }
 
@@ -333,7 +476,15 @@
  */
 @media (max-width: 359px) {
   .stage__canvas {
-    height: min(62vh, 640px, calc(100dvh - 436px));
+    /* Same fallback reasoning as the 899px rule; 44vh is already below what the
+       320px budget yields, so no separate number is needed. */
+    height: min(44vh, 640px);
+  }
+
+  @supports (height: 1svh) {
+    .stage__canvas {
+      height: min(62vh, 640px, calc(100svh - 414px));
+    }
   }
 }
 

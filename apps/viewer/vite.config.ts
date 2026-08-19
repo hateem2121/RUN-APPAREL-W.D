@@ -80,73 +80,120 @@ export default defineConfig({
     // page shell (poster-first render) stays small.
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          /**
-           * ⚠️ EVERY RULE BELOW IS SCOPED TO node_modules, and it has to be.
-           *
-           * The vendor matchers are substring tests on the module id, and this
-           * repo has `src/lib/motion.ts` — the JS-side motion constants. Without
-           * the guard, `/motion/` matched OUR file too, so it was bundled into
-           * the vendor chunk and `smooth-scroll.ts` (which imports one constant
-           * from it) ended up with a STATIC import of the Motion chunk. Every
-           * visitor then downloaded Motion to read the number 1.1, which is the
-           * exact opposite of what this splitting exists to do — and it looked
-           * correct in the config while doing it.
-           */
-          /**
-           * React is matched FIRST and WITHOUT the node_modules guard below.
-           *
-           * Rolldown gives CommonJS modules a synthetic id that does not always
-           * contain `node_modules`, and React ships CJS. Guarded, those synthetic
-           * ids fell through to automatic chunking and were grouped with whatever
-           * imported them — which put a React interop shim in the MOTION chunk,
-           * so the entry statically imported Motion to get `createElement`.
-           */
-          if (/(^|[/\\])react(-dom)?([/\\@.]|$)/.test(id) || id.includes('scheduler')) {
-            return 'react'
-          }
-          if (!id.includes('node_modules')) return undefined
-          /**
-           * React gets its OWN chunk, and this is not tidiness.
-           *
-           * Without it, rolldown groups shared dependencies with whichever named
-           * chunk already needs them — and `react-dom/client` (pulled in by
-           * polish/index.ts for the cursor root) was merged into the "motion"
-           * chunk. The polish layer then STATICALLY imported that chunk to get
-           * `createRoot`, so every visitor downloaded Motion regardless of the
-           * pointer gate. The config read correctly and the output did the
-           * opposite; the only way to see it was to read the built chunk's own
-           * import statements.
-           */
-          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) {
-            return 'react'
-          }
-          if (id.includes('@google/model-viewer') || id.includes('/three/')) {
-            return 'model-viewer'
-          }
-          /**
-           * ⚠️ MOTION AND LENIS ARE SEPARATE CHUNKS, and that is the point.
-           *
-           * They shared one "motion" chunk until 2026-08-14, and the sharing
-           * silently undid the scoping work around it. Lenis (smooth scroll) is
-           * used by every visitor, including on touch. Motion is imported by
-           * exactly one module — polish/Cursor — which renders null on touch,
-           * under reduced motion and under automation.
-           *
-           * In one chunk, the unconditional dependency dragged the conditional
-           * one in with it: a phone fetched Motion's spring physics for a
-           * crosshair cursor it can never display, and lazy-loading Cursor
-           * changed nothing because Lenis pulled the same file anyway. Splitting
-           * them is what makes the gate in polish/index.ts actually save bytes.
-           * `e2e/motion-and-layout.spec.ts` pins it from a touch context.
-           */
-          if (id.includes('/motion/') || id.includes('/framer-motion/')) {
-            return 'motion'
-          }
-          if (id.includes('/lenis/')) {
-            return 'lenis'
-          }
-          return undefined
+        /**
+         * ROLLDOWN'S NATIVE CHUNKER, NOT `manualChunks` — and the swap is the fix
+         * for a defect that survived three previous repairs of this same block.
+         *
+         * WHAT KEPT BREAKING. Motion is imported by exactly one module,
+         * `polish/Cursor`, which renders null on touch, under reduced motion and
+         * under automation, and which `polish/index.ts` dynamically imports only
+         * after a pointer check. Despite that, the ENTRY chunk carried a static
+         * `import{a as t,i as n}from"./motion-*.js"`, so every phone fetched
+         * 130,808 bytes (48,273 gzip) of spring physics before first paint for a
+         * crosshair it can never show. Verified on the deployed bundle and on a
+         * live mobile load where `isCoarsePointer()` was true and `Cursor-*.js`
+         * was correctly never requested — the runtime gate worked, it was simply
+         * gating the wrong 2 KB, because a static import is resolved long before
+         * any gate can have an opinion.
+         *
+         * WHY `manualChunks` COULD NOT FIX IT. It was instrumented on 2026-08-19:
+         * it returns 'react' for `react/jsx-runtime.js` and
+         * `react/cjs/react-jsx-runtime.production.js` exactly as intended.
+         * Rolldown then DUPLICATED those CommonJS modules into the motion chunk
+         * regardless — `react.transitional.element` greps in both the react chunk
+         * and the motion chunk of one build — and the entry bound to the copy.
+         * The rollup-compatibility layer simply does not govern the synthetic CJS
+         * wrapper modules; `advancedChunks` does. Measured after the swap: the
+         * react chunk grew 181,753 -> 189,589 (it now owns the copy that was being
+         * duplicated), motion shrank 130,808 -> 122,987, total bytes unchanged,
+         * and the entry's import of motion is GONE.
+         *
+         * FOUR EARLIER ATTEMPTS, recorded so they are not retried blind:
+         *   - own chunk for `src/lib/motion.ts` — created it (25 B), no effect;
+         *     our own constants were never the cause despite an old comment here
+         *     warning that they had been once.
+         *   - own chunk for jsx-runtime — shared it (435 B), cut the entry's motion
+         *     imports 2 -> 1, still fetched.
+         *   - splitting react / react-dom — React core just moved into the
+         *     react-dom chunk; entry still bound to motion.
+         *   - deleting the motion rule so Cursor's dynamic chunk owned Motion —
+         *     WORSE: rolldown folded Motion into the react chunk (181 -> 310 KB),
+         *     making it unconditional rather than merely eager.
+         *
+         * THE INVARIANTS THIS BLOCK EXISTS TO HOLD, each learned from a defect:
+         *   - React needs its own group, or `react-dom/client` (pulled in to host
+         *     the cursor) lands in the motion chunk and drags Motion into the
+         *     entry to get `createRoot`.
+         *   - Motion and Lenis must NOT share a chunk. Lenis is used by every
+         *     visitor including on touch; Motion is not. Shared, the unconditional
+         *     one drags in the conditional one and lazy-loading Cursor buys
+         *     nothing.
+         *   - model-viewer bundles three.js and stays in its own lazy chunk so the
+         *     poster-first shell stays small.
+         *
+         * Pinned by `e2e/motion-and-layout.spec.ts` -> "a touch device does not
+         * download the Motion chunk", which is a real assertion now. An older
+         * comment here claimed that test already existed when it never had, which
+         * is the direct reason the same failure recurred four times.
+         */
+        advancedChunks: {
+          groups: [
+            /**
+             * ⚠️ VITE'S OWN PRELOAD HELPER, IN A CHUNK OF ITS OWN — AND IT IS THE
+             * SINGLE HEAVIEST THING IN THIS FILE. 286,496 bytes gzip.
+             *
+             * `__vitePreload` is the ~700-byte runtime function that loads a
+             * dynamically-imported chunk. Rolldown places it in whichever chunk
+             * it likes, and it had landed in the **model-viewer** chunk. Both the
+             * entry and the polish layer import that one function from there —
+             * and a static ES import of ANY symbol forces the browser to fetch
+             * and evaluate the ENTIRE chunk. So the entry could not run until
+             * 1,024,060 bytes (286,496 gzip) of three.js had arrived.
+             *
+             * Measured on the live waterfall 2026-08-19: `model-viewer-*.js` was
+             * requested in the same burst as `index-*.js`, not after it.
+             *
+             * WHAT THAT DEFEATED. `Stage.tsx` imports model-viewer with a genuine
+             * `await import()`, and `canRender3D()` in lib/capabilities.ts refuses
+             * 3D outright when `navigator.connection.saveData` is set. Neither
+             * could help: the bytes were already committed before any of that code
+             * ran. The `modulePreload` filter above is a separate, real fix for a
+             * separate problem — it removes the `<link rel=modulepreload>` HINT —
+             * but a hint is not what was fetching this. A static import is.
+             *
+             * The comment on that filter says a phone "downloaded a 3D engine it
+             * was about to decline". That was still true after the filter landed,
+             * for this reason, and this is what actually stops it.
+             *
+             * AFTER: the entry's only static imports are this helper (703 B gzip),
+             * react, and the rolldown runtime; model-viewer is reached through
+             * `await import(\`./model-viewer-*.js\`)`. Total bytes on disk are
+             * unchanged — 287 KB simply stopped being on the critical path.
+             * Verified on the iOS 26.5 simulator that the garment still renders,
+             * and by the full e2e suite, which loads a real model in a real
+             * browser on three engines.
+             *
+             * `priority: 200` so it outranks every vendor group below; the helper
+             * must never be absorbed into a big chunk again.
+             */
+            { name: 'preload-helper', priority: 200, test: /preload-helper/ },
+            {
+              name: 'react',
+              priority: 100,
+              test: /[/\\]node_modules[/\\](react|react-dom|scheduler)[/\\]/,
+            },
+            {
+              name: 'model-viewer',
+              priority: 90,
+              test: /[/\\]node_modules[/\\](@google[/\\]model-viewer|three)[/\\]/,
+            },
+            {
+              name: 'motion',
+              priority: 80,
+              test: /[/\\]node_modules[/\\](motion|framer-motion|motion-dom|motion-utils)[/\\]/,
+            },
+            { name: 'lenis', priority: 70, test: /[/\\]node_modules[/\\]lenis[/\\]/ },
+          ],
         },
       },
     },

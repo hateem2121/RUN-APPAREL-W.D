@@ -106,6 +106,44 @@ test('3D model loads and switching colourway changes the KHR material variant', 
       'behind the loading bar — check that no `poster` prop is set in Stage.tsx',
   ).toBeNull()
 
+  /**
+   * The two gesture settings that make a phone predictable, both measured on the
+   * iOS 26.5 simulator with real touch input on 2026-08-19. Neither had any test
+   * at all before this, and both are single attributes that a refactor could drop
+   * without a visible symptom on desktop, where nobody pinches.
+   *
+   * `disableTap` — model-viewer treats a sub-300ms, sub-2px touch as a command:
+   * on the model it re-targets the camera, and on a MISS it runs
+   * `userAdjustOrbit(0, 0, 1)`, which its own source comments as "Zoom all the
+   * way out." The garment is a narrow skinsuit on a full-width canvas, so most of
+   * what a thumb can land on is empty grid.
+   *
+   * `panSensitivity` — a pinch is also a pan, so an asymmetric one slides the
+   * garment sideways. Measured: 1.0 pushed it off the screen edge, 0.3 keeps it
+   * centred while a two-finger stroke still moves the view 17.5% of the frame at
+   * a 4.82deg zoom. See PAN_SENSITIVITY in Stage.tsx for the full table and for
+   * why 0 is not an option.
+   *
+   * ⚠️ PROPERTIES, not attributes — same reason as the poster check above.
+   */
+  const gestureConfig = await page.evaluate(() => {
+    const mv = document.querySelector('model-viewer') as {
+      disableTap?: boolean
+      panSensitivity?: number
+    } | null
+    return { disableTap: mv?.disableTap ?? null, panSensitivity: mv?.panSensitivity ?? null }
+  })
+  expect(
+    gestureConfig.disableTap,
+    'tap-to-recenter is live again — a tap on the empty canvas around the garment ' +
+      'will zoom it all the way out. Check `disable-tap` in Stage.tsx.',
+  ).toBe(true)
+  expect(
+    gestureConfig.panSensitivity,
+    'pan sensitivity is back to model-viewer default, so a pinch will drag the ' +
+      'garment off-centre. Check `pan-sensitivity` in Stage.tsx.',
+  ).toBeLessThanOrEqual(0.3)
+
   // The model actually finishes loading (not just the poster).
   await page.waitForFunction(
     () => Boolean((document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded),

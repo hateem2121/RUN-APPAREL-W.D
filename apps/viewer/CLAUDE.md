@@ -9,6 +9,64 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
 
 ## Traps — each of these has already cost a session
 
+- **A STATIC IMPORT OF ONE 700-BYTE HELPER DRAGGED 287 KB OF THREE.JS ONTO THE
+  CRITICAL PATH, and every deferral mechanism in the repo was powerless against
+  it.** Found 2026-08-19. `__vitePreload` — Vite's own runtime function for
+  loading a dynamic chunk — had been placed by rolldown *inside* the
+  **model-viewer** chunk. The entry and the polish layer each imported that one
+  function from there, and a static ES import of ANY symbol forces the browser to
+  fetch and evaluate the WHOLE chunk. So the entry could not execute until
+  1,024,060 bytes (**286,496 gzip**) had arrived, and the live waterfall showed
+  `model-viewer-*.js` requested in the same burst as `index-*.js`.
+  This defeated three separate deliberate mechanisms at once: `Stage.tsx`'s
+  `await import('@google/model-viewer')`, `canRender3D()`'s refusal to run 3D
+  under `saveData`, and the `modulePreload` filter in `vite.config.ts` — the last
+  of which removes a `<link rel=modulepreload>` HINT and was never what fetched
+  this. Fixed with a `preload-helper` group at `priority: 200` in
+  `advancedChunks`. **Total bytes on disk did not change**, so
+  `check-bundle-budget.mjs` cannot see this either way; the only signal is the
+  entry chunk's own import statements. Pinned, with a verified negative control,
+  by `e2e/motion-and-layout.spec.ts` -> "the 3D renderer is not a static
+  dependency of the entry chunk".
+
+- **`manualChunks` does not govern rolldown's CommonJS wrapper modules; use
+  `advancedChunks`.** Instrumented 2026-08-19, `manualChunks` returned `'react'`
+  for `react/jsx-runtime.js` and `react/cjs/react-jsx-runtime.production.js`
+  correctly — and rolldown duplicated them into the motion chunk anyway
+  (`react.transitional.element` greps in BOTH chunks of one build), so the entry
+  bound to the copy and every phone fetched 48 KB gzip of Motion for a cursor
+  that never mounts on touch. Four `manualChunks` repairs failed, one made it
+  worse (Motion folded into the react chunk, 181 -> 310 KB). Swapping the whole
+  block to rolldown's native `advancedChunks` fixed it outright. Details and all
+  four dead ends are in `vite.config.ts`.
+
+- **A desktop browser at a phone's width MEASURES THE STAGE WRONG, because it has
+  no URL bar.** `.stage__canvas`'s binding term was `calc(100dvh - Npx)`, and `dvh`
+  excludes the browser chrome that is currently showing. Measured 2026-08-19 in the
+  iOS 26.5 simulator on a real iPhone 17: `100svh` **714**, `100lvh` **754**,
+  `100dvh` **714 ↔ 754** — and **one swipe produced 14 separate dvh changes**. So the
+  canvas was **328px** on the device, not the 426px a desktop browser at 375x812
+  reports, and it resized up to 14 times per swipe. Each resize makes model-viewer
+  run `threeRenderer.setSize()` — a WebGL drawing-buffer reallocation — mid-scroll,
+  on the phone already holding a 27 MB model. That is what the owner reported as
+  "the mobile version feels laggy". It is `svh` since then. **Measure phone layout
+  in the simulator, or accept that your number is the best case.**
+
+- **`[data-reveal]` makes every live-page layout measurement 24px wrong until the
+  reveal has run.** `.colourways` sits under `transform: translateY(24px)` while
+  un-revealed, with a computed `margin-top` of **0** — so the offset presents as a
+  24px gap "from nowhere" between two elements that have no margin between them.
+  Sweeping candidate stage heights on the live site this way produced a subtrahend
+  that then FAILED e2e on all three engines with 4-6px of clearance. **Tune layout
+  against `test:e2e`, not against an injected style on the live page**: Playwright
+  sets `reducedMotion: 'reduce'`, `base.css` gates the reveal on
+  `prefers-reduced-motion: no-preference`, so there is no transform to pollute it —
+  and it measures Chromium, WebKit and mobile Safari at once.
+
+- **model-viewer treats a 2px tap as a COMMAND, and the miss branch zooms right
+  out.** `disable-tap` is set since 2026-08-19; the reasoning, including why
+  `disable-pan` is deliberately NOT used, is on `DISABLE_TAP` in `Stage.tsx`.
+
 - **The stage band's height budget has been wrong THREE TIMES, always by
   reasoning instead of measuring.** `.stage__canvas`'s third term
   (`calc(100dvh - Npx)`) is the chrome around the garment. On 2026-08-17 it went
@@ -359,3 +417,34 @@ If it dies with `Timed out waiting 120000ms from config.webServer`, run
 `env | grep -E 'NODE_ENV|PORT'` and confirm `pnpm` resolved (bare `pnpm` exits 127
 inside the child process) **before reading any code** — both have caused that exact
 timeout here.
+
+**A THIRD cause of that same timeout: a stray fixture server.** `e2e/serve.mjs`
+started by hand to drive the simulator holds 4173, so Playwright's own `webServer`
+cannot bind and the suite reads as a code failure. `pkill -f e2e/serve.mjs` first.
+
+**Driving the built app by hand needs `VITE_API_BASE_URL=''`.** A plain
+`pnpm build` bakes in the production API, so `localhost:4173/n001/wine` renders
+"REFERENCE UNAVAILABLE" — `n001` 404s in production (the live slug is `rxps`).
+`e2e/prepare.mjs` sets it; anything driven by hand must too.
+
+## Measuring on a phone: what each tool cannot see
+
+- **The Browser pane cannot measure anything time-based.** It reports
+  `document.visibilityState === "hidden"`, so rAF is throttled and CSS transitions
+  freeze part-way — a paused `[data-reveal]` fade was reported as a stuck-opacity
+  bug on 2026-08-19 before the check. `getBoundingClientRect()` is unaffected, so
+  layout numbers from it are sound; frame rates are not obtainable at all.
+- **Synthetic `PointerEvent`s do nothing to model-viewer.** A scripted pinch on the
+  live page produced **0** `camera-change` events and moved neither camera nor FOV,
+  and the resulting "0 m drift" was meaningless. Assert the control *responded*
+  before believing any gesture measurement. Real touch comes only from the iOS
+  simulator — `tap` / `swipe` / `touch_path` / `touch2_path`.
+- **iOS 26.5 is the only runtime installed, and it is the floor of what is
+  testable.** Probed 2026-08-19 on Xcode 26.6: iOS 15.5 is not downloadable, 16.4
+  is (6.18 GB) — and 16.4's Safari already supports `svh`, so **no pre-15.4 browser
+  is reachable on this machine.** `page.css`'s `@supports` fallback is unverifiable
+  here by construction; say so rather than implying it was tested.
+- **Biome rejects the duplicate-property CSS fallback idiom**
+  (`lint/suspicious/noDuplicateProperties`). That is why `page.css` uses
+  `@supports (height: 1svh)` blocks instead of two `height:` declarations — do not
+  "simplify" them back.

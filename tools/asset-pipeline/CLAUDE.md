@@ -58,6 +58,44 @@ Then copy `package-lock.json` back and check three things before committing:
 every version matches `package.json`, `npm ci --omit=dev --no-audit --no-fund`
 exits 0, and `grep -c '"resolved": "file:' package-lock.json` returns 0.
 
+## `output/` is scratch — never judge a garment from it
+
+**Measured 2026-08-19, after the owner caught a plan that was about to do exactly
+this.** A session needed the real garment to measure a gesture and reached for the
+convenient local copy:
+
+```
+output/cycling-all-colours-optimized.glb     14,879,000 B   gitignored, no git history
+media.wear-run.help/…-optimized-4.glb        28,271,780 B   what the product serves
+```
+
+The two filenames differ by **one character** — the missing `-4` — and the local
+one is **47% the size**: a superseded, over-compressed pass whose printed artwork
+is degraded. The owner's words: *"it did not properly show the graphics, logos,
+etc and we did not use it."* That is this repo's signature failure, the one the
+root `CLAUDE.md` records at length — a sweep rendered the chest wordmark illegible
+while **passing all three blocking gates** — and `seed:assets` still prints it as
+`5 printed-artwork texture(s) are stored below 0.02 bytes/pixel … RUN LOGO 508x138
+at 0.004`.
+
+Why it would have voided the whole measurement rather than merely skewing it: the
+acceptance test was *"can a buyer still bring the chest print to centre and READ
+it"*, which is unanswerable on a file whose lettering is already gone.
+
+`output/` is gitignored and no current tooling maintains it — `pnpm seed:assets`
+writes only `output/n001.glb` and `output/placeholders/`. Everything else in there
+is whatever some earlier run happened to leave behind.
+
+**Resolve the real file from the API, every time:**
+
+```bash
+curl -s https://cms.wear-run.help/api/public/viewer/rxps/wine \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['product']['glbUrl'])"
+```
+
+Cache it locally for repeated use — one 27 MB GET is nothing, but the 15-minute
+uptime job is what the root file's R2-egress warning is actually about.
+
 ## Before you change the pipeline
 
 Do not tune presets against file size. That is exactly how a setting that

@@ -6,7 +6,7 @@
   "description": "RUN APPAREL public 3D product viewer — QR deep-linkable, Cloudflare Pages",
   "scripts": {
     "dev": "node scripts/copy-decoders.mjs && vite",
-    "build": "node scripts/copy-decoders.mjs && vite build && node scripts/gen-headers.mjs",
+    "build": "node scripts/copy-decoders.mjs && NODE_ENV=production vite build && node scripts/gen-headers.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit && tsc --noEmit -p worker/tsconfig.json",
     "test": "vitest run",

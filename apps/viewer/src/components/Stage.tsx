@@ -117,17 +117,102 @@ const MIN_FIELD_OF_VIEW = '1deg'
  * `pan-y` was chosen originally: a visitor can no longer scroll the page by
  * swiping ON the garment, so a canvas that filled the screen would trap them.
  * This one does not, and that is what makes the trade safe here rather than
- * merely preferable — measured at 390x844 on 2026-08-17, the canvas is 464 of
- * 844px and the stage band ends well above the fold, so the header, the caption
- * row, the colourway rail, the fixed action bar and the page below the band are
- * all swipeable. There is more non-canvas height on screen than canvas.
+ * merely preferable — the header, the caption row, the colourway rail, the fixed
+ * action bar and the page below the band are all swipeable.
  *
- * ⚠️ IF THE CANVAS IS EVER MADE TALL ENOUGH TO FILL A PHONE SCREEN, this must go
- * back to `pan-y`. The invariant that keeps it safe is the phone-fit e2e test in
- * motion-and-layout.spec.ts, which already asserts the band ends above the
- * action bar.
+ * ⚠️ THE OLD JUSTIFICATION HERE WAS A RULE OF THUMB AND IT NEARLY EXPIRED. It read
+ * "there is more non-canvas height on screen than canvas", measured at 390x844 in
+ * a desktop browser. On a real iPhone 17 the canvas is now 350 of 714 usable
+ * points and the non-canvas remainder is 364 — still more, by fourteen pixels.
+ * A rule of thumb that survives by 14px is not an invariant, and it was never the
+ * thing that actually mattered: what a visitor needs is a CONTIGUOUS strip their
+ * thumb can reach, not a majority of the screen.
+ *
+ * That is now asserted directly — `motion-and-layout.spec.ts` -> "a thumb can
+ * always scroll the page", which requires >=140 contiguous CSS px below the
+ * canvas at 320/375/402/414 and measured 277px. If the canvas is ever grown
+ * enough to fail it, the choice is to shrink the canvas or return to `pan-y`;
+ * do not lower the threshold.
  */
 const TOUCH_ACTION = 'none'
+
+/**
+ * A quick tap on the canvas is a COMMAND in model-viewer, and on this page it
+ * was the wrong one.
+ *
+ * Measured against the installed 4.3.1 on 2026-08-19. `SmoothControls.js` runs
+ * `recenter()` on pointer-up whenever the touch lasted under `TAP_MS` (300) and
+ * moved under `TAP_DISTANCE` (**2px**) — thresholds a finger meeting a phone
+ * clears constantly, including on a drag that simply had not started moving yet.
+ * Then it branches on whether the ray hit the model:
+ *
+ *   hit  -> re-targets the camera at that surface point; the garment slides
+ *           off-centre with no announcement.
+ *   miss -> `userAdjustOrbit(0, 0, 1)`, which model-viewer's own source comments
+ *           as "Zoom all the way out."
+ *
+ * The miss branch is the common one HERE and that is a property of the product,
+ * not of the library: the garment is a narrow skinsuit and the canvas is the
+ * full column width, so most of what a thumb can land on is empty blueprint
+ * grid. The owner reported this as the gestures not working properly, and
+ * nothing in this repo had ever configured it — it is model-viewer's default.
+ *
+ * ⚠️ `disable-pan` would ALSO kill this, because `recenter` is gated on
+ * `enablePan && enableTap` — and that is exactly why it is NOT used. Two-finger
+ * pan is how a buyer reaches a chest or hem print once zoomed in at
+ * MIN_FIELD_OF_VIEW, and "the printed artwork IS the product" (CLAUDE.md). Turn
+ * off the misfiring gesture, keep the one the page exists for.
+ *
+ * The cost, stated plainly: tap-to-focus is model-viewer's intended way to pick
+ * a spot before zooming. Two-finger pan still reaches any detail, and every
+ * <StageControls> button is a full reset (see `applyView`).
+ */
+const DISABLE_TAP = true
+
+/**
+ * How far a two-finger gesture is allowed to slide the garment sideways.
+ *
+ * ⚠️ A PINCH IN model-viewer IS ALSO A PAN, BY DESIGN. `touchModeZoom` runs the
+ * zoom and then `movePan(dx, dy)` in the same gesture, and `onPointerMove` feeds
+ * it `(event.clientX - pointer.clientX) / numTouches` per finger. A *symmetric*
+ * pinch nets ~zero pan. A real one is never symmetric — the thumb anchors while
+ * the index finger travels — so the centroid moves and the garment slides. That
+ * is the owner's 2026-08-19 report that pinch "does not work perfectly".
+ *
+ * MEASURED on the iOS 26.5 simulator with real two-finger input (`touch2_path`),
+ * against the PRODUCTION 28,271,780-byte GLB, framed exactly as the stage frames
+ * it. One asymmetric pinch — thumb held at x=141, index 261 -> 341:
+ *
+ *     pan-sensitivity   target x after   garment
+ *          1.0            -0.0979        shoved right, edge clipped off screen
+ *          0.3            -0.0290        stays centred
+ *          0              +0.0007        no movement at all — and no pan either
+ *
+ * -0.0290 / -0.0979 = 0.296, i.e. exactly linear, as the source predicts.
+ *
+ * WHY NOT 0 (or `disable-pan`). Pan is the ONLY way left to reach an off-centre
+ * print: `disable-tap` above removed tap-to-focus, and `cameraTarget` is fixed at
+ * the model centre, so at `min-field-of-view: 1deg` a buyer could otherwise only
+ * ever zoom into the middle of the garment. "The printed artwork IS the product"
+ * (CLAUDE.md). The reach was measured too, and 0.3 keeps it: zoomed to fov 4.82
+ * (a 0.123 m tall frame), one two-finger stroke still moved the view 0.0216 m —
+ * **17.5% of the frame per stroke**.
+ *
+ * ⚠️ TWO THINGS THAT WILL MISLEAD THE NEXT MEASUREMENT.
+ *
+ * 1. **Do not use a symmetric pinch as the control.** A symmetric pinch has no x
+ *    component, so every `pan-sensitivity` value produces a byte-identical
+ *    result — 0.0967 m at both 1.0 and 0.3 here — which reads as "this attribute
+ *    does nothing". It reads that way because the test cannot see the axis the
+ *    attribute controls.
+ * 2. **Target displacement is NOT visible displacement.** A pinch also triggers
+ *    `resetRadius()` on pointer-up (gated on pan being enabled, NOT on whether
+ *    the user panned), which snaps the target onto the surface at screen centre
+ *    and moves the radius to match "so that the camera itself does not move".
+ *    That is the whole y/z component of the number above and it is invisible.
+ *    Only the **x** component is what a person actually sees slide.
+ */
+const PAN_SENSITIVITY = 0.3
 
 export function Stage({ data, selected, preview = null, onModelReadyChange }: StageProps) {
   const { product } = data
@@ -228,8 +313,33 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
           meshoptDecoderLocation: string
           dracoDecoderLocation: string
           ktx2TranscoderLocation: string
+          minimumRenderScale: number
         }
         element.meshoptDecoderLocation = MESHOPT_DECODER_URL
+
+        /**
+         * Let a struggling phone degrade PAST model-viewer's own floor.
+         *
+         * `Renderer.js` defaults `lastStep` to 3, i.e. `SCALE_STEPS[3]` = 0.5x —
+         * so a device that cannot hold frame rate at half resolution has nowhere
+         * left to go and simply stays janky. That is not hypothetical here: the
+         * live model is 28,271,780 bytes, it decodes to ~72 MB of vertex and
+         * index data before textures, and the owner confirmed on 2026-08-19 that
+         * the audience includes iPhone 11-13 class hardware. Measured on the iOS
+         * 26.5 simulator the same day: `devicePixelRatio` is **3**, so a
+         * 402x328 canvas is already 1.19 megapixels per frame at scale 1.
+         *
+         * 0.25 is the lowest model-viewer accepts (it warns and clamps below
+         * that). It is a FLOOR, not a target — the renderer still starts at 1
+         * and only walks down while frames are slow, then walks back up. Nothing
+         * here makes a fast phone render worse.
+         *
+         * ⚠️ There is no matching CEILING knob: `this.dpr = window.devicePixelRatio`
+         * is unconditional, so full-DPR is always the first thing tried and the
+         * first second of a heavy visit is degraded-after-the-fact by design.
+         * The `render-scale` listener below is what makes that visible.
+         */
+        element.minimumRenderScale = 0.25
         // Draco and KTX2 default to gstatic. Pointing them at our own copies too
         // means the "no third-party runtime dependency" claim above is true for
         // ALL THREE codecs rather than just this one, and lets connect-src drop
@@ -354,9 +464,49 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       //
       // Falling back to the poster keeps the page honest: still a garment, still
       // the specs, still the contact buttons.
+      /**
+       * The only honest way to know this page is struggling on a phone.
+       *
+       * model-viewer degrades its own render resolution under load, but it does
+       * so REACTIVELY and silently: `Renderer.js` walks `SCALE_STEPS`
+       * ([1, .79, .62, .5, .4, .31, .25]) whenever `avgFrameDuration` crosses a
+       * threshold, stopping at `DEFAULT_LAST_STEP` (3) = 0.5x unless
+       * `minimumRenderScale` says otherwise. So a janky visit and a smooth one
+       * produce the same logs, and "the mobile version feels laggy" — reported
+       * by the owner 2026-08-19 — had no number attached to it anywhere.
+       *
+       * `render-scale` carries model-viewer's own verdict, including a `reason`
+       * string it sets to 'GPU throttling' when the step moved because frames
+       * were slow. Report only when it is NOT 1: a full-resolution render is
+       * the expected case and logging it every resize would bury the signal,
+       * which is the mistake `variant-missing` already made once.
+       */
+      const onRenderScale = (event: Event) => {
+        const d = (
+          event as CustomEvent<{
+            renderedDpr?: number
+            reportedDpr?: number
+            minimumDpr?: number
+            reason?: string
+          }>
+        ).detail
+        if (!d || d.reason === '') return
+        // `diagnostic` takes Record<string, string> — telemetry.ts reads the
+        // detail as strings, so the numbers are formatted here rather than
+        // widening that contract for one caller.
+        diagnostic('render-scale-degraded', {
+          product: product.productCode,
+          renderedDpr: String(d.renderedDpr ?? ''),
+          reportedDpr: String(d.reportedDpr ?? ''),
+          minimumDpr: String(d.minimumDpr ?? ''),
+          reason: d.reason ?? 'unknown',
+        })
+      }
+
       el.addEventListener('load', onLoad)
       el.addEventListener('error', onError)
       el.addEventListener('camera-change', onCameraChange)
+      el.addEventListener('render-scale', onRenderScale)
 
       // React 19 supports returning a cleanup from a ref callback, and this is
       // the only removal path there is: the `if (!el) return` above is exactly
@@ -371,6 +521,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
         el.removeEventListener('load', onLoad)
         el.removeEventListener('error', onError)
         el.removeEventListener('camera-change', onCameraChange)
+        el.removeEventListener('render-scale', onRenderScale)
       }
     },
     [product.productCode],
@@ -626,6 +777,8 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               interaction-prompt="none"
               interpolation-decay={prefersReducedMotion() ? 1 : CAMERA_DECAY_MS}
               touch-action={TOUCH_ACTION}
+              disable-tap={DISABLE_TAP}
+              pan-sensitivity={PAN_SENSITIVITY}
               shadow-intensity="0.6"
               shadow-softness="0.8"
               environment-image={ENVIRONMENT_IMAGE}

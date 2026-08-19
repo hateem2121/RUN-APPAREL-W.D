@@ -583,6 +583,107 @@ test.describe('layout invariants', () => {
   })
 
   /**
+   * The rail must clear the action bar by a MARGIN, not by zero.
+   *
+   * The test above asserts `rail.bottom <= usableBottom`, which is the right
+   * invariant and is satisfied by a layout with nothing to spare. On 2026-08-19
+   * the stage budget was retuned to give the garment more height and a first
+   * attempt landed at `rail.bottom === 644` against an action bar starting at
+   * 642 — caught by that test, correctly. A second attempt landed at 640: two
+   * pixels of clearance, passing, and one font-metric change away from failing
+   * in production instead of here.
+   *
+   * So the clearance is asserted directly. 8px is below the 10 the budget was
+   * measured to give (see `.stage__canvas` in page.css) and above the 0-2 that
+   * two arithmetic errors produced, which is exactly the band this should catch.
+   *
+   * ⚠️ If this fails, the fix is to RAISE the subtrahend in page.css, never to
+   * lower this number. The whole point is that the garment cannot be grown by
+   * quietly pushing the colour picker under the bar.
+   */
+  test('the colourway rail clears the action bar by a real margin', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const measured = await page.evaluate(() => {
+      const bar = document.querySelector('.action-bar')
+      const rail = document.querySelector('[role="tablist"]')
+      if (!bar || !rail) return null
+      return {
+        barTop: Math.round(bar.getBoundingClientRect().top),
+        railBottom: Math.round(rail.getBoundingClientRect().bottom),
+      }
+    })
+
+    expect(measured, 'no .action-bar or colourway tablist on the page').not.toBeNull()
+    const { barTop, railBottom } = measured as { barTop: number; railBottom: number }
+
+    expect(
+      barTop - railBottom,
+      `the colourway rail has ${barTop - railBottom}px of clearance under the ` +
+        `fixed action bar (rail ends ${railBottom}, bar starts ${barTop}). ` +
+        `Raise the subtrahend in .stage__canvas — do not lower this threshold.`,
+    ).toBeGreaterThanOrEqual(8)
+  })
+
+  /**
+   * A visitor must always have somewhere to swipe.
+   *
+   * `Stage.tsx` sets `touch-action: none` on the model, so a one-finger drag
+   * anywhere on the canvas turns the garment and NEVER scrolls the page. That is
+   * the behaviour the owner asked for, and it is only safe while enough of the
+   * screen is not canvas. The justification recorded in `Stage.tsx` was "there is
+   * more non-canvas height on screen than canvas" — a fair rule of thumb that
+   * stops being true the moment the canvas is grown, while the page stays
+   * perfectly scrollable. A rule of thumb is not an invariant; this is.
+   *
+   * What is measured is the CONTIGUOUS strip below the canvas, because that is
+   * the one a thumb actually reaches: the header above the canvas is scrollable
+   * too, but nobody reaches the top of a phone to scroll. The fixed action bar
+   * counts — it takes touches and the page scrolls under it.
+   *
+   * 140px is roughly a thumb's comfortable swipe and is far below what the
+   * layout gives (measured 277px at both 375x812 and 402x714 on 2026-08-19), so
+   * it fails on a real regression rather than on a few pixels of drift.
+   */
+  for (const { name, width, height } of [
+    { name: 'small mobile', width: 320, height: 640 },
+    { name: 'mobile', width: 375, height: 812 },
+    { name: 'iphone 17', width: 402, height: 714 },
+    { name: 'large mobile', width: 414, height: 896 },
+  ]) {
+    test(`a thumb can always scroll the page at ${name} (${width}x${height})`, async ({ page }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const strip = await page.evaluate(() => {
+        const canvas = document.querySelector('.stage__canvas')
+        if (!canvas) return null
+        return {
+          canvasBottom: Math.round(canvas.getBoundingClientRect().bottom),
+          viewportHeight: window.innerHeight,
+        }
+      })
+
+      expect(strip, 'no .stage__canvas on the page').not.toBeNull()
+      const { canvasBottom, viewportHeight } = strip as {
+        canvasBottom: number
+        viewportHeight: number
+      }
+
+      expect(
+        viewportHeight - canvasBottom,
+        `only ${viewportHeight - canvasBottom}px of the screen below the garment ` +
+          `is swipeable (canvas ends ${canvasBottom}, viewport ${viewportHeight}). ` +
+          `With touch-action: none on the model, a visitor here can scroll the ` +
+          `page only from a strip too small to find.`,
+      ).toBeGreaterThanOrEqual(140)
+    })
+  }
+
+  /**
    * ⚠️ 950 IS THE WIDTH THAT WAS BROKEN, and it is why this loop is not just
    * [phone, desktop].
    *
@@ -878,4 +979,75 @@ test.describe('the colourway rail fits the screen', () => {
       ).toEqual([])
     })
   }
+})
+
+/**
+ * The Motion chunk must not reach a phone.
+ *
+ * WHY THIS EXISTS AS A TEST AND NOT A COMMENT. `vite.config.ts` claimed for
+ * months that this file already pinned this, and it never did — which is the
+ * direct reason the same chunking failure was fixed and reintroduced four times.
+ * The assertion is cheap and the defect is invisible without it: every chunk
+ * keeps its exact byte count when this regresses, so `check-bundle-budget.mjs`
+ * reports nothing and the only symptom is a phone quietly fetching 48 KB gzip it
+ * cannot use.
+ *
+ * WHAT IT CAUGHT, 2026-08-19: the entry chunk carried a static
+ * `import{a as t,i as n}from"./motion-*.js"`, so the pointer gate in
+ * `polish/index.ts` — which correctly kept `Cursor-*.js` from ever being
+ * requested on touch — was gating 2 KB while 130,808 bytes came down anyway.
+ * Fixed by moving to rolldown's `advancedChunks`; the full diagnosis is in
+ * `vite.config.ts`.
+ *
+ * ⚠️ IF THIS FAILS, DO NOT RELAX IT. It means Motion has become reachable from
+ * the entry graph again, and the byte cost lands on the phone a QR tag is
+ * scanned with — the one device in this product that cannot afford it.
+ */
+test.describe('bundle weight on a phone', () => {
+  /**
+   * The 3D renderer must not be on the critical path either — same defect class
+   * as the Motion one below, six times the weight.
+   *
+   * `__vitePreload` (a ~700-byte helper) had been placed inside the model-viewer
+   * chunk, and the entry imported it from there. A static import of one symbol
+   * pulls the whole chunk, so 286,496 bytes gzip of three.js blocked the entry
+   * before `canRender3D()` — which declines 3D entirely under Save-Data — could
+   * run. Fixed 2026-08-19 by giving the helper its own group; see vite.config.ts.
+   *
+   * This asserts the SHAPE that matters: model-viewer may be fetched (this page
+   * is a 3D viewer), but never as a static dependency of the entry chunk.
+   */
+  test('the 3D renderer is not a static dependency of the entry chunk', async () => {
+    const { readdirSync, readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const assets = join(process.cwd(), 'dist', 'assets')
+    const entry = readdirSync(assets).find((f) => /^index-.*\.js$/.test(f))
+    expect(entry, 'no built entry chunk in dist/assets — run pnpm build').toBeTruthy()
+    const source = readFileSync(join(assets, entry as string), 'utf8')
+    const staticImports = source.match(/from"\.\/model-viewer-[^"]*"/g) ?? []
+    expect(
+      staticImports,
+      'the entry chunk statically imports the model-viewer chunk, so every ' +
+        'visitor downloads ~287 KB gzip of three.js before the app can start. ' +
+        'Check that the preload-helper group in vite.config.ts still wins.',
+    ).toEqual([])
+  })
+
+  test('a touch device does not download the Motion chunk', async ({ page }) => {
+    const requested: string[] = []
+    page.on('request', (request) => {
+      const file = request.url().split('/').pop() ?? ''
+      if (/^motion-.*\.js$/.test(file)) requested.push(file)
+    })
+
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    expect(
+      requested,
+      `a phone downloaded the Motion chunk (${requested.join(', ')}). It exists ` +
+        `only for the desktop cursor, which never mounts here.`,
+    ).toEqual([])
+  })
 })

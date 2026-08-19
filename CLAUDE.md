@@ -478,16 +478,20 @@ the answer is "nothing that happens in production", it is not a test.
   `HEAD`: a `GET` on the model is 27 MB per run, which the 15-minute uptime job
   turns into gigabytes of R2 egress against a $5/month cap.
 
-- **Eighteen more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
+- **Twenty-three more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
   restated here — they load automatically the moment you touch `apps/viewer/`,
   so a copy in this file is pure weight. Enough of a hook to make you open it: a
   `performance` global shadowed by a local (a runtime `TypeError` every unit test
   stays green through); the FIXED order `translate → rotate → scale → transform`,
   which threw the custom cursor 1.53× away from the pointer over every button;
   `_headers` surviving `env.ASSETS.fetch()` **but NOT a response the Worker builds
-  itself**; and a stage-height budget that has been wrong three times by
-  arithmetic instead of measurement. Read them before changing the viewer, its
-  Worker, or its headers.
+  itself**; a stage-height budget that has been wrong three times by
+  arithmetic instead of measurement, and a FOURTH time by a sweep that a
+  `[data-reveal]` transform silently offset by 24px; and `dvh` making a phone's
+  3D stage resize **14 times in a single swipe**; and a static import of ONE
+  700-byte helper putting **287 KB gzip of three.js on the critical path**, where
+  it defeated the dynamic import, the Save-Data guard and the preload filter all
+  at once. Read them before changing the viewer, its Worker, or its headers.
   Moved there 2026-08-10 when this file came within 326 chars of the size at which
   Claude Code warns a memory file is too large — **a threshold it later crossed
   anyway, so put new viewer, pipeline or CMS detail in the sub-file, not here.**

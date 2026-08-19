@@ -42,6 +42,17 @@ interface ModelViewerAttributes {
   'interaction-prompt'?: string
   'interpolation-decay'?: string | number
   'touch-action'?: string
+  /**
+   * Turns off model-viewer's tap-to-recenter. Defaults to OFF (i.e. tap IS
+   * live) — see DISABLE_TAP in Stage.tsx for why this page sets it.
+   */
+  'disable-tap'?: boolean | ''
+  'disable-pan'?: boolean | ''
+  /**
+   * Scales two-finger pan. Defaults to 1; see PAN_SENSITIVITY in Stage.tsx for
+   * the measured reason this page lowers it rather than disabling pan.
+   */
+  'pan-sensitivity'?: string | number
   'shadow-intensity'?: string | number
   'shadow-softness'?: string | number
   'environment-image'?: string
