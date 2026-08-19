@@ -72,16 +72,30 @@ jobs:
           #
           # ⚠️ Measured 2026-08-10, that is NO LONGER TRUE for uptime.yml. GitHub
           # delivers a median gap of ~45 min against a scheduled 15, and the worst
-          # observed gap over 94 h was 6.1 h — TWICE the 3 h budget below. No false
-          # `monitoring` issue has fired yet, but only because no run of this job
-          # happened to sample inside that window; that is luck, not headroom.
-          # Raising the budget is a BEHAVIOUR change and was deliberately not made
-          # when this was found — read docs/RUNBOOK.md → "Uptime alerts" first.
+          # observed gap over 94 h was 6.1 h.
           #
-          # NOTE the field separator is `:`, so a cadence label must never contain
-          # one — it would be parsed as an extra field and silently truncate.
+          # ⚠️ uptime.yml is DAILY since 2026-08-18 (cron '23 7 * * *'). At */15 it
+          # billed ~1,200 of the 2,000 free Actions minutes a month and the exhausted
+          # quota stopped a deploy; liveness moved to the external monitor, which polls
+          # every 5 min for no Actions minutes. See docs/RUNBOOK.md → "Uptime alerts".
+          #
+          # This budget was left at 3 h when that landed, so a DAILY job breached a
+          # THREE-HOUR budget every single day — issue #31, which would have re-opened
+          # forever. A monitor that cries wolf daily is one nobody reads, which is the
+          # exact failure the header of this file was written to prevent.
+          #
+          # 36 h, not 24 h: worst measured delivery gap is 6.1 h, so the worst
+          # inter-run gap for a daily cron is ~30.1 h, and the test below is `-gt`,
+          # firing at 31 h. 30 h would sit one hour from a false alarm.
+          #
+          # NOTE the field separator is `:`. This used to warn that a cadence label
+          # must never contain one or it would "silently truncate". ⚠️ MEASURED
+          # 2026-08-19 and that is WRONG: `read` assigns the unconsumed remainder,
+          # delimiters included, to the LAST variable, so `daily at 07:23 UTC` arrives
+          # whole. Verified against this exact loop shape. A colon in `hours` WOULD
+          # break — that field is not last — but a cadence label is safe.
           WATCHED="
-          uptime.yml:3:scheduled every 15 min, delivered ~45 min median
+          uptime.yml:36:daily at 07:23 UTC
           nightly-backup.yml:36:nightly
           diagnostics-digest.yml:192:weekly on Mondays
           "

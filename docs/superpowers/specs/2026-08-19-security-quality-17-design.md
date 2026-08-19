@@ -232,9 +232,20 @@ until the budget is corrected**, and a monitor that cries wolf daily is a monito
 reads — the precise failure mode `heartbeat.yml`'s own header comment was written to
 prevent.
 
-**Change:** raise the budget to **30 hours** — the 24-hour cadence plus the 6.1-hour worst
-delivery gap this repo measured on 2026-08-10 — and rewrite the cadence note to describe
-the daily schedule. Then close #31.
+**Change:** raise the budget to **36 hours** and rewrite the cadence note to describe the
+daily schedule. Then close #31.
+
+⚠️ **This document said 30 hours until the plan was written.** The arithmetic is 24 h
+cadence plus the 6.1 h worst delivery gap measured 2026-08-10 = ~30.1 h worst inter-run
+gap — and the comparison is `[ "$age_h" -gt "$hours" ]`, which fires at 31 h. A 30 h budget
+therefore sits **one hour** from the false alarm this change exists to remove. 36 h leaves
+~6 h of headroom and still catches a dead workflow inside a day and a half, sampled by a
+job that runs every 6 h.
+
+⚠️ **The cadence label must contain no colon.** `heartbeat.yml` parses `WATCHED` with
+`while IFS=: read -r file hours cadence`, and its own comment warns that a colon is read as
+an extra field and silently truncates. `daily at 07:23 UTC` would break the watchdog while
+looking correct; the label is written `daily at 0723 UTC`.
 
 `apps/cms/src/workflowHardening.test.ts` gates every workflow edit: the top-level
 `permissions:` block must survive (it must keep `contents`, whose absence 404s checkout on
@@ -293,9 +304,11 @@ unless `pnpm build` ran first.
 **Coverage floors are measured, not chosen.** No threshold in `vitest.coverage.mjs` is
 lowered to accommodate any change here.
 
-**This document is citation-checked.** Every path cited above is verified to exist, and
-line citations are single lines — a range like `file.ts:53-80` never resolves, because the
-hyphen defeats the extractor's regex. The gate is `apps/cms/src/claudeMd.test.ts`, run as
+**This document is citation-checked.** Every path cited above is verified to exist.
+⚠️ CLAUDE.md says a line RANGE never resolves; that became stale on 2026-08-18, when
+`scripts/doc-citations.mjs:151` gained a range branch — its regex is now
+`/:\d+(?:[:-]\d+)?$/`, which strips `:42`, `:42:7` and `:42-80` alike. Verified by reading
+the regex rather than the note. The gate is `apps/cms/src/claudeMd.test.ts`, run as
 `pnpm --filter @run-apparel/cms test`; `node scripts/doc-citations.mjs` is a **module with
 no main** and exits 0 having checked nothing.
 
