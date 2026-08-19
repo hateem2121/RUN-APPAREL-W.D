@@ -59,7 +59,13 @@ describe('theme-color', () => {
     // a second hash for gen-headers to carry.
     // A bare `<script>` is an inline block; every other script tag here carries
     // attributes (`type="module" src=...`), so counting the literal is exact.
-    const inlineScripts = [...html.matchAll(/<script>/g)]
+    // `<script` + optional whitespace + `>` — an inline block carries no attributes,
+    // so the attributed tags (type="module" src=...) still do not match. Case-
+    // insensitive and whitespace-tolerant because `<SCRIPT>` and `<script >` are the
+    // same tag to a browser and were invisible to the old literal, which means a
+    // second inline block could have been added without this count moving
+    // (CodeQL js/bad-tag-filter).
+    const inlineScripts = [...html.matchAll(/<script\s*>/gi)]
     expect(inlineScripts, 'a second inline script would add a second CSP hash').toHaveLength(1)
     expect(html).toContain('meta[name="theme-color"]')
   })

@@ -12,6 +12,7 @@ import { type ProductState, describeModel, planModelAttach } from './attach'
 import { cmsFetch, isMediaReferenced } from './cms'
 import { planColourImport } from './colourImport'
 import { DEAD_LETTER_QUEUE, deadLetterReport } from './deadLetter'
+import { readContainerFailure } from './containerFailure'
 
 /**
  * Shrink service Worker.
@@ -261,8 +262,12 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   )
 
   if (!containerRes.ok) {
-    const body = await containerRes.text().catch(() => '')
-    throw new Error(`Container returned ${containerRes.status}: ${body.slice(0, 500)}`)
+    // Reads `x-shrink-report` first, then the body. The container's body is generic
+    // since 2026-08-19 (CodeQL js/stack-trace-exposure); this branch used to read the
+    // body ONLY, so genericising it without this change would have reduced every
+    // container failure to "Container returned 500: " with nothing to say so.
+    const detail = await readContainerFailure(containerRes)
+    throw new Error(`Container returned ${containerRes.status}: ${detail}`)
   }
 
   const report = decodeReport(containerRes.headers.get('x-shrink-report'))

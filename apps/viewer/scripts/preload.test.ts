@@ -24,6 +24,21 @@ import { describe, expect, it } from 'vitest'
  */
 const DIST = join(import.meta.dirname, '..', 'dist')
 const INDEX = join(DIST, 'index.html')
+/**
+ * Escapes every regex metacharacter, not just `.`. The old
+ * `host.replace(/\./g, '\\.')` was correct for today's two literal hostnames and
+ * wrong for anything else (CodeQL js/incomplete-sanitization).
+ *
+ * RegExp.escape() would be the modern form and DOES exist in Node 24.18.1 —
+ * verified by running it, against published articles claiming Node lacks it. It is
+ * not used because every workspace pins `lib: ES2022` and tsc rejects it there with
+ * TS2550, verified by compiling a probe at the repo's own target. ES2022 is a
+ * shipped-browser floor; it is not raised to satisfy one test file.
+ */
+function escapeRegex(literal: string): string {
+  return literal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 const SOURCE_INDEX = join(import.meta.dirname, '..', 'index.html')
 
 const LAZY_CHUNKS = ['model-viewer', 'motion'] as const
@@ -64,7 +79,7 @@ describe('the head', () => {
      */
     const html = readFileSync(SOURCE_INDEX, 'utf8')
     for (const host of ['cms.wear-run.help', 'media.wear-run.help']) {
-      const tag = new RegExp(`<link[^>]*rel="preconnect"[^>]*${host.replace(/\./g, '\\.')}[^>]*>`)
+      const tag = new RegExp(`<link[^>]*rel="preconnect"[^>]*${escapeRegex(host)}[^>]*>`)
       const match = html.match(tag)
       expect(match, `no preconnect for ${host}`).not.toBeNull()
       expect(

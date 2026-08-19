@@ -49,9 +49,18 @@ export function buildVariantId(productCode: string, colourSlug: string): string 
   // Collapse runs of non-alphanumerics to a single hyphen, then strip any
   // leading/trailing hyphens so a sloppy slug (" navy!", "--forest--") still
   // yields a valid variant ID rather than one isValidVariantId would reject.
+  //
+  // Split-and-rejoin rather than collapse-then-trim. CodeQL flags the old
+  // `.replace(/^-+|-+$/g, '')` as js/polynomial-redos, and the pattern IS O(n^2) in
+  // the abstract. Measured 2026-08-19, it was unreachable here twice over: V8 runs
+  // that regex over 200,000 hyphens in 0.1 ms, and the collapse above guarantees no
+  // two adjacent hyphens ever reach it — every pure-separator input arrives as a
+  // single '-'. So this change removes a flagged pattern; it does not close a live
+  // hole, and no timing test could ever have failed to prove otherwise.
   const colour = colourSlug
     .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+    .split(/[^A-Z0-9]+/)
+    .filter(Boolean)
+    .join('-')
   return `${productCode}-${colour}`
 }

@@ -144,15 +144,22 @@ reading as a tidy-up. See the comment in `RawUploads.ts`.
 - **Every document is citation-checked, not just CLAUDE.md** — README, CONTRIBUTING,
   SECURITY and all of `docs/`. A genuinely-gone path goes in `ALLOWED_ABSENT`
   **with the reason**; `file.ts:42` and extension-less citations resolve fine.
-  ⚠️ **`scripts/doc-citations.mjs` is a MODULE, not a command.** It exports
-  `citedPaths`/`resolves` and has no `main`, so `node scripts/doc-citations.mjs`
-  prints nothing and exits **0 having checked nothing**. The gate is
-  `apps/cms/src/claudeMd.test.ts` — **verify a doc with
-  `pnpm --filter @run-apparel/cms test`**. Trusting the bare command shipped a doc
-  with seven broken citations twice on 2026-08-17.
-  ⚠️ **Line RANGES never resolve.** The extractor strips a trailing `:42` or `:42:7`,
-  but the hyphen in `file.ts:53-80` defeats that regex and the range stays part of the
-  filename. Cite one line, never a span.
+  ⚠️ **`scripts/doc-citations.mjs` WAS a module with no `main` — that was fixed, and
+  this paragraph said otherwise until 2026-08-19.** It told you the bare command
+  "prints nothing and exits 0 having checked nothing", which cost a session that
+  believed it. Measured 2026-08-19: `node scripts/doc-citations.mjs` prints a line per
+  unresolved citation, then `570 citations checked across 43 documents`, and exits **1**
+  when any fails. It is a usable command now. `apps/cms/src/claudeMd.test.ts` is still
+  the CI gate, and `pnpm --filter @run-apparel/cms test` still the authority, because
+  only the test enforces the recursive walk and the negative control — but the bare
+  command is the fast local check, not a trap. Trusting the OLD claim is now the
+  failure mode: it talks you out of a check that works.
+  ⚠️ **Line RANGES resolve too, since 2026-08-18 — this said the opposite.** The
+  extractor's regex is `/:\d+(?:[:-]\d+)?$/` (`scripts/doc-citations.mjs:151`), which
+  strips `:42`, `:42:7` and `:42-80` alike; the hyphen branch was added the same day the
+  seven-broken-citation failure was fixed. Verified 2026-08-19 by reading the regex.
+  Single-line citations are still the better habit — they are what the harness renders
+  as a clickable link — but a range is no longer a silent failure.
 - **`pnpm test` now also checks** the npm lockfile sync (above), the SBOM licence
   policy, that no two workspaces declare different versions of a shared dependency,
   and that `docs/RUNBOOK.md`'s rollback commands name the real Workers and the

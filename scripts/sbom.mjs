@@ -87,7 +87,12 @@ export function toCycloneDx(report, meta) {
           name: pkg.name,
           version,
           // Package URL — the identifier vulnerability scanners match on.
-          purl: `pkg:npm/${pkg.name.replace('@', '%40')}@${version}`,
+          // purl spec: only the LEADING `@` of a scope is percent-encoded, and the
+          // `/` separating scope from name is not. `.replace('@', …)` took a string,
+          // so it substituted the first occurrence only — correct today by accident,
+          // in the one file whose entire output is what scanners match on
+          // (CodeQL js/incomplete-sanitization).
+          purl: `pkg:npm/${pkg.name.startsWith('@') ? `%40${pkg.name.slice(1)}` : pkg.name}@${version}`,
           licenses: [{ license: { name: licence } }],
           ...(pkg.description ? { description: pkg.description } : {}),
           ...(pkg.homepage ? { externalReferences: [{ type: 'website', url: pkg.homepage }] } : {}),

@@ -23,6 +23,8 @@
       "brace-expansion@2": "^2.1.4",
       "brace-expansion@5": "^5.0.9",
       "undici": "^7.29.0",
+      "@esbuild-kit/core-utils>esbuild": "^0.25.0",
+      "@lhci/cli>uuid": "^11.1.1",
       "fast-uri": "^3.1.5",
       "ip-address": "^10.3.1",
       "js-yaml@3": "^3.15.1",

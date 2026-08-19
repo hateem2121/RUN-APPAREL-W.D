@@ -58,6 +58,16 @@ const DATA = path.join(HERE, 'catalogue-products.json')
 const API_BASE = (process.env.CMS_API_BASE || 'https://cms.wear-run.help').replace(/\/+$/, '')
 const API_KEY = process.env.CMS_API_KEY || ''
 
+// Rows from catalogue-products.json AND the API key above both travel in every
+// request below. `CMS_API_BASE` is operator-supplied, so an http:// value would put
+// the catalogue and the credential on the wire in cleartext with nothing to say so
+// (CodeQL js/file-access-to-http, two instances). No localhost exemption: docs/RUNBOOK.md
+// documents only https origins for this variable, so one would be speculative.
+if (!API_BASE.startsWith('https://')) {
+  console.error(`CMS_API_BASE must be https:// — got "${API_BASE}"`)
+  process.exit(2)
+}
+
 const args = process.argv.slice(2)
 const APPLY = args.includes('--apply')
 const limitAt = args.indexOf('--limit')
