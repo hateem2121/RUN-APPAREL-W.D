@@ -140,6 +140,19 @@ as *inconclusive* and keeps the run green.
 | Product API (`/api/public/viewer/rxps/wine`) | **2.1 – 3.7 s** | > 5 s |
 | The garment itself (27 MB GLB) | **~19 s at ~1.45 MB/s** | the *rate* drops, not the time — time scales with the tester's line |
 | Model edge cache | **`cf-cache-status: HIT`**, age ~13.7 h | `MISS` on repeat requests |
+| Bare apex (`https://wear-run.help/`) | **404 in 0.89 s** (2026-08-19) | a 5xx, or > 2 s |
+| Catalogue redirect (`/catalogue`) | **301 in 0.50 s** to the Drive PDF | anything but a 301 to that URL |
+
+⚠️ **The apex figure replaced a 20.2 s one on 2026-08-19 (audit L6).** It used to
+return **522 after 20.214 s** — Cloudflare timing out against an origin that was
+never there. The 522 was BY DESIGN and owner-confirmed; the *duration* was the
+finding, because a typo, an accidental link or a crawler hung for twenty seconds.
+`infra/apex-404/index.js` now answers at the edge instead. **`/catalogue` is
+unaffected and is in the table above so it stays that way**: it is a Single
+Redirect, Cloudflare runs those FIRST and Redirect is a *terminating* action, so
+evaluation stops before any Worker is reached. Verified both ways in the same
+minute. **Do not "simplify" this by deleting the apex DNS record** — it must stay
+proxied or the redirect never fires and the catalogue button breaks.
 
 ⚠️ **Read `cf-cache-status` from the GET, never from a `curl -I`.** Measured the
 same minute: the GET said `HIT`, a HEAD on the identical URL said `DYNAMIC`. HEAD
