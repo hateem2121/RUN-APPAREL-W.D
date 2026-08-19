@@ -50,3 +50,27 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   `OrganizationAdmin` bypass actor, verified by a direct push to `main`.
   ⚠️ ORDER MATTERS: setting `production` to protected-branches-only *before* `main`
   is protected blocks every deploy. Create the ruleset first.
+- **Editing a workflow? `apps/cms/src/workflowHardening.test.ts` gates it.** Since
+  2026-08-13 every workflow must declare a top-level `permissions:` block that
+  includes `contents`; every `uses:` must be a 40-hex SHA with a `# vX.Y.Z`
+  comment (Dependabot maintains both); every `actions/checkout` must set
+  `persist-credentials: false`; no `run:` block may interpolate
+  `${{ github.event.* }}` or `${{ github.head_ref }}` — carry it in `env:` and
+  test `"$VAR"`; and every `pnpm <script>` a workflow invokes must exist. **Three
+  more since 2026-08-13:** every job declares `timeout-minutes` (all 12 had none,
+  so a hang ran to the 6-hour default — ci.yml records a step measured at 49s that
+  ran 30+ minutes), no `pull_request_target`, and no `${{ secrets.* }}` inside a
+  `run:` block. All eight have verified negative controls, so a failure names the
+  file and line. ⚠️ A `permissions:` block **REPLACES** the defaults rather than adding to
+  them — omitting `contents: read` breaks `actions/checkout` with a **404** on
+  this private repo, which is how uptime.yml died silently for 23 hours. The
+  injection rule was not theoretical: `uptime.yml` was pasting a dispatch input
+  into shell in a job holding `GH_TOKEN`, found 2026-08-12.
+- **Anything CI fetches from a `wear-run.help` host can 403 from a runner.**
+  Free-plan Bot Fight Mode intermittently blocks datacenter traffic — it forced the
+  `cms.wear-run.help` API cutover to be rolled back within the hour, and it later
+  failed a deploy through a new post-deploy check that treated the 403 as "no
+  model". Treat such a 403 as *inconclusive*, never as a failed assertion. And use
+  `HEAD`: a `GET` on the model is 27 MB per run, which the 15-minute uptime job
+  turns into gigabytes of R2 egress against a $5/month cap.
+

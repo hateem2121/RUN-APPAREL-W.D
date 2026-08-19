@@ -42,6 +42,14 @@ export const ANCHORS = new Set([
  */
 export const ALLOWED_ABSENT = new Map([
   [
+    '.claude/rules',
+    'the upstream path-scoped-rules directory, cited by CLAUDE.md and docs/RUNBOOK.md as a mechanism this repo deliberately does NOT use: as of 2026-08-19 a rule fires only when Claude READS a matching file, so creating a file never triggers it (anthropics/claude-code#63142), and the documented paths: key is reported to fail where an undocumented globs: works (#17204). Both documents say in the same sentence that the directory is absent. Delete this entry if the repo ever adopts one.',
+  ],
+  [
+    '.claude/instructions-loaded.log',
+    'written by .claude/hooks/log-instructions-loaded.mjs on its first run and gitignored — a per-machine measurement of which memory files loaded, not shared state. docs/RUNBOOK.md cites it as the file to read, which is correct before it exists.',
+  ],
+  [
     'raw/cycling-all-colours.glb',
     'the canonical raw N001 export: gitignored, and the R2 copy expires on a 14-day lifecycle rule. tools/asset-pipeline/CLAUDE.md documents that it may already be gone.',
   ],

@@ -114,6 +114,42 @@ const NUMBER_WORDS = new Map([
   ['twenty', 20],
 ])
 
+/**
+ * Number words, including the hyphenated compounds ("twenty-three").
+ *
+ * The compound half is why this exists. Until 2026-08-19 the claim regex captured
+ * `(\w+)` and `\w` excludes `-`, so "**Twenty-three more traps live in
+ * `apps/viewer/CLAUDE.md`**" matched NOTHING and the viewer's count went unchecked —
+ * while `claimsChecked > 0` still passed on the cms claim beside it, so the gap
+ * reported as green. The count was right by luck (23 = 23) the day it was found.
+ * That is the SECOND time this counter has silently skipped a claim: on 2026-08-17 it
+ * was a missing word ("Two more live in", without "traps"). Both failures share a
+ * shape — the guard did not fail, it stopped looking — which is why the negative
+ * control below asserts the parser matches the real claims, not merely that it runs.
+ */
+function parseNumberWord(word: string): number {
+  const direct = NUMBER_WORDS.get(word.toLowerCase())
+  if (direct !== undefined) return direct
+  const [tens, units] = word.toLowerCase().split('-')
+  const tensValue = tens ? NUMBER_WORDS.get(tens) : undefined
+  const unitsValue = units ? NUMBER_WORDS.get(units) : undefined
+  if (tensValue !== undefined && unitsValue !== undefined && tensValue % 10 === 0)
+    return tensValue + unitsValue
+  return Number(word)
+}
+
+/** The shape of a cross-reference claim. `[\w-]+` so hyphenated compounds are seen. */
+const TRAP_CLAIM = /\*\*([\w-]+) more traps live in `([^`]+)`\*\*/g
+
+/**
+ * Deliberately looser than TRAP_CLAIM: any sentence claiming a trap count in a named
+ * file, however it is punctuated. The strict regex must find exactly as many claims as
+ * this one does — that equality is the negative control. Both silent skips this counter
+ * has had were cases where the strict shape stopped matching while the prose still made
+ * the claim, so counting the CLAIMS separately from the MATCHES is what catches it.
+ */
+const TRAP_CLAIM_LOOSE = /more traps live in `([^`]+)`/g
+
 describe('CLAUDE.md', () => {
   it('cites no path that does not exist', async () => {
     const files = await findClaudeMdFiles(REPO_ROOT)
@@ -181,15 +217,17 @@ describe('CLAUDE.md', () => {
     const files = await findClaudeMdFiles(REPO_ROOT)
     const wrong: string[] = []
     let claimsChecked = 0
+    let claimsPresent = 0
 
     for (const file of files) {
       const source = await readFile(file, 'utf8')
-      for (const match of source.matchAll(/\*\*(\w+) more traps live in `([^`]+)`\*\*/g)) {
+      claimsPresent += [...source.matchAll(TRAP_CLAIM_LOOSE)].length
+      for (const match of source.matchAll(TRAP_CLAIM)) {
         const claimedWord = match[1]
         const target = match[2]
         if (!claimedWord || !target) continue
         claimsChecked++
-        const claimed = NUMBER_WORDS.get(claimedWord.toLowerCase()) ?? Number(claimedWord)
+        const claimed = parseNumberWord(claimedWord)
         const targetPath = join(REPO_ROOT, target)
         if (!resolves(REPO_ROOT, target)) {
           wrong.push(`${target} does not exist`)
@@ -205,6 +243,12 @@ describe('CLAUDE.md', () => {
       claimsChecked,
       'the root file indexes the subdirectory files; that claim should be found here',
     ).toBeGreaterThan(0)
+    expect(
+      claimsChecked,
+      'A cross-reference states a trap count that the strict regex did not match, so its\n' +
+        'number was never checked. Do not "fix" this by rewording the prose until it\n' +
+        'matches — widen TRAP_CLAIM. A guard that stops looking reports green.',
+    ).toBe(claimsPresent)
     expect(
       wrong,
       "A CLAUDE.md's trap count is out of date. Update the number AND the list of topics beside\n" +

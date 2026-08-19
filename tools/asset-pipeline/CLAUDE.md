@@ -7,11 +7,13 @@ needed by a session that is actually touching the pipeline. It loads
 automatically the moment you touch `tools/asset-pipeline/`. Paths below are
 repo-root-relative, as they were before the move.
 
-The root `CLAUDE.md` remains the authority on everything else — in particular the
-pipeline **traps** (never run the pipeline on its own output, `--simplify-error`
-vs `--simplify`, the `opaque` default mismatch, the three blocking gates) are
-still there, because they are cited from source comments and cross subsystems.
-Read both before changing anything here.
+The pipeline **traps** moved here on 2026-08-19 and are now at the bottom of this file:
+`--simplify-error` vs `--simplify`, the `opaque` default mismatch, the three blocking
+gates and what they do not catch, the `fieldOfView` floor, N001's three calibrated
+prints. The root `CLAUDE.md` keeps a one-line hook for each — enough to warn a session
+that arrives from a source comment — plus the one trap that must fire before you get
+here at all (**never run the pipeline on its own output**). Read both; this file is the
+authority on the detail.
 
 ## This directory has TWO lockfiles, and only one of them pnpm maintains
 
@@ -72,9 +74,9 @@ media.wear-run.help/…-optimized-4.glb        28,271,780 B   what the product s
 The two filenames differ by **one character** — the missing `-4` — and the local
 one is **47% the size**: a superseded, over-compressed pass whose printed artwork
 is degraded. The owner's words: *"it did not properly show the graphics, logos,
-etc and we did not use it."* That is this repo's signature failure, the one the
-root `CLAUDE.md` records at length — a sweep rendered the chest wordmark illegible
-while **passing all three blocking gates** — and `seed:assets` still prints it as
+etc and we did not use it."* That is this repo's signature failure, recorded at length
+in **the three-blocking-gates trap at the bottom of this file** — a sweep rendered the
+chest wordmark illegible while **passing all three blocking gates** — and `seed:assets` still prints it as
 `5 printed-artwork texture(s) are stored below 0.02 bytes/pixel … RUN LOGO 508x138
 at 0.004`.
 
@@ -203,3 +205,167 @@ downstream objects.
 Production is unaffected: the container's flags come from `shrinkFlagsFor`
 (`packages/shared/src/shrink.ts`), which returns hardcoded literals from a two-value
 enum. This bites manual CLI runs — calibration, sweeps, one-off optimises.
+
+## Traps — each of these has already cost a session
+
+Moved out of the repo-root `CLAUDE.md` on 2026-08-19, when that file measured 44,993
+characters against Claude Code's 40,000-character warning — the threshold at which it
+prints `Large CLAUDE.md will impact performance` and, per Anthropic's own guidance,
+adherence to *every* rule in the file starts dropping. These twelve are the ones only a
+session touching `tools/asset-pipeline/` needs, so paying for them in every session was
+buying worse compliance with the rest.
+
+The intro above used to say these traps stayed in the root file "because they are cited
+from source comments and cross subsystems". That reason is preserved rather than
+discarded: each one still has a **one-line hook in the root file** naming the danger and
+pointing here, so a session that arrives from a source comment is still warned. What
+moved is the detail, not the warning.
+
+⚠️ One consequence to know, because it is the cost of this split: after `/compact`, only
+the project-root `CLAUDE.md` is re-read from disk and re-injected. This file reloads the
+next time Claude reads a file under `tools/asset-pipeline/` — which is exactly when you
+need it, but it does mean a compacted session that has not yet opened this directory has
+only the root's one-liners. Open this file before changing anything here.
+
+- **`prune()` renumbers texCoords** via `shiftTexCoords`, so a lone second UV set
+  becomes `TEXCOORD_0` before decimation. The real hazard is a material sampling
+  two or more UV sets at once.
+- **`chromaSubsampling` does nothing for WebP** in glTF-Transform's
+  `textureCompress` — it is a JPEG/AVIF option sharp ignores. Use `smartSubsample`
+  via a direct sharp call.
+- **`--keep-transparency` is not the fix for damaged artwork.** `<model-viewer>`
+  has no order-independent transparency; restoring BLEND trades one "half
+  visible" for depth-sorting artefacts. Use `MASK` with `alphaCutoff 0.5`.
+- **A cutout is "few mid pixels" AND "actually cut out somewhere" — never the
+  first alone.** `solidifyMaterials` resolves BLEND→MASK on `CUTOUT_MID_FRACTION`
+  (0.05), *deliberately looser* than `BINARY_MID_FRACTION` (0.02), because the
+  N001 wordmark measures 3.58% mid — 96.42% at the extremes, plainly a cutout,
+  and `character` still called it `graded` (i.e. "sheer, leave on BLEND"). But
+  raising that ceiling **alone** deletes fabric: a uniformly translucent inset
+  covering 2–6% of a map also measures ~2–6% mid, and MASKing it at 0.5 when its
+  alpha is ~0.35 discards *every* fragment — a hole, not a hardening, and MASK@0.5
+  is exactly what the gate considers correct so nothing catches it. Hence
+  `CUTOUT_MIN_TRANSPARENT` (0.05): the wordmark is 66.38% fully transparent,
+  those insets are 0.000%. Keep both halves. And keep the two constants separate
+  — `character` feeds `isArtworkTexture` → `findArtworkAlphaProblems`, which
+  **throws and saves nothing**, so widening it widens a blocking gate.
+- **An explicit `baseColorFactor[3]` beats anything inferred from pixels.** glTF
+  effective alpha is `factor.a * texel.a`, so a material declaring itself sheer at
+  0.4 can never reach `alphaCutoff 0.5` — MASK renders it as *nothing at all*,
+  silently, passing every gate. Test `factor < OPAQUE_FACTOR_THRESHOLD` first.
+- **`model-viewer.toDataURL()` returns a blank canvas** —
+  `preserveDrawingBuffer: false`. Screenshot the element.
+- **`fieldOfView` under 12° was silently ignored until 2026-08-08 — the SECOND
+  camera control model-viewer overrides without telling you.** The orbit-radius
+  clamp is already documented above; this is the same trap on the axis that was
+  believed to be the reliable one. `min-field-of-view` defaults to **12deg** and
+  `render.ts` never set it, so a tighter crop returned a plausible frame of the
+  wrong thing. Measured on the real N001 baseline: 1.4° / 2° / 3.1° / 4.5° gave four
+  **byte-identical** PNGs (sha256 `294291db…`), 1.9° / 2.7° / 4° / 5.9° likewise,
+  and a third print separated only between 9.2° and 13.5° — the floor exactly at
+  the documented default. Two consequences worth knowing: `raw/CANONICAL.json`
+  *fingerprints* `fieldOfView` rather than range-checking it, so below the floor it
+  recorded a zoom nothing used; and the prints listed there as "NOT COVERED"
+  (0.039 m hem label, 0.030 m neck logo) were not a scoping choice — **any print
+  smaller than roughly a hand was unguardable by construction.** `render.ts` now
+  sets `min-field-of-view="1deg"`, pinned by `src/render.test.ts`. N001's 14° view
+  is above the old floor and was verified byte-identical across the change, so its
+  calibration is untouched. Found by looking at a contact sheet, not by reading code
+  — the four identical images were the tell.
+- **N001 guards THREE prints since 2026-08-09** — chest wordmark (14°), hem label
+  (2.7°), neck logo (3.1°) — and its ceiling went **4.2% → 6.5%** with them. That
+  is not a loosened gate: the hem label sits on a curved hem, decimates harder
+  than the flat chest print, and is now the worst case in all four rows (balanced
+  3.970%, control 10.520%, known-bad 12.330%). A harder view was added; no
+  measurement drifted. Three things from that session will save the next one:
+  **`--find-views` proposes the zoom that frames the PRIMITIVE**, which on the
+  neck logo sliced "RUN" off the bottom edge — the print is two elements and the
+  primitive covers one — so the shipped view is one rung wider than proposed, and
+  that is visible only in the PNG, never in the number. The camera-fingerprint
+  guard **used to refuse `--calibrate` itself**, blocking the one command its own
+  error message prescribed and leaving "hand-edit the fingerprint to a value you
+  have not measured" as the only way out; it is now exempt there, with a loud
+  notice. And `--keep` resolves against the CWD, which `pnpm` sets to
+  `tools/asset-pipeline/`, so artifact paths are now printed **absolute** — the
+  RUNBOOK's repo-relative one did not exist.
+  ⚠️ That calibration was measured on a **busy** machine (the wordmark column came
+  back 0.490/2.510/5.290/5.330, an exact match to the busy set recorded above).
+  Busy runs read ~0.48pp LOW, so the ceiling is tighter than intended rather than
+  looser, and the offset was added back explicitly when choosing 6.5%. Re-run idle
+  and append a remeasurement when convenient; **do not lower the ceiling to match
+  an idle run's higher `balanced`.**
+- **`pnpm eval:artwork:real -- raw/x.glb` did not resolve that path.** `pnpm`
+  forwards the `--` separator itself into `process.argv`, and the root script
+  delegates via `pnpm --filter`, which runs the child with cwd set to
+  `tools/asset-pipeline/` — so a repo-relative path documented in the RUNBOOK
+  resolved under the package and step 3 of a five-step procedure failed for anyone
+  who copied it verbatim. Relative paths now fall back to the repo root. The lesson
+  is the cheap one: **run the documented command, do not read it.**
+- **`opaque` defaults DIFFERENTLY in the two ways you can call the pipeline.**
+  `parseOptimizeArgs` defaults it **true**; `optimizeGlb` treats an absent
+  `opaque` as **false**. So a hand-built options object silently skips
+  `solidifyMaterials` and ships decals still on `alphaMode: BLEND`, which
+  `<model-viewer>` renders see-through — the reported symptom exactly. Go through
+  the parser, as `apps/shrink/container/server.ts` does. Pinned by a test in
+  `pipeline.test.ts`.
+- **The three blocking gates do NOT catch decimation damage.** They test
+  `alphaMode`, which decimation does not change. A six-run sweep from the raw
+  N001 export (`tools/asset-pipeline/scripts/sweep-size-vs-artwork.mjs`,
+  2026-08-05) rendered the chest
+  wordmark illegible at `--simplify-error 0.005` and **every run passed all three
+  gates**, `artworkAtRisk` and `findArtworkAlphaProblems` both empty. With
+  `--uv-weight` set, the UVs *are* in the error budget, so `artworkAtRisk` cannot
+  fire — the budget was merely too loose. **Nothing in this system measured
+  whether the letters survived; only a rendered crop did.** This is why the old
+  `small` preset was deleted rather than re-tuned.
+  **Partly closed on 2026-08-06 by `pnpm eval:artwork`** — it renders the real
+  wordmark alpha before and after the real chain and measures how much moved, so
+  the *presets* are now watched by something other than memory. Read what it does
+  NOT cover before relying on it: it runs on a synthetic fixture, not on a
+  production garment, so it catches a preset or simplifier regression and would
+  still miss damage specific to a particular CLO export.
+  **Closed for N001 later the same day by `pnpm eval:artwork:real`**, which runs
+  the same method on the actual 382 MB export. It is **manual and local** — the
+  monthly workflow that used to run it was deleted on 2026-08-07, because the R2
+  copy it pulled expires after 14 days and the surviving copy is on a laptop no
+  runner can reach (see `docs/RUNBOOK.md` → "The canonical raw garment"). Measured
+  on the real file: fidelity
+  **0.980%**, balanced **2.990%**, sweep run F **5.770%**, `--uv-weight 0`
+  **5.810%**, ceiling **4.2%**. Run F is the one that "passed all three gates"
+  above — there is now a number that stops it.
+  ⚠️ **RUN THIS ON AN IDLE MACHINE.** Measured 2026-08-07, same file (checksum
+  verified), same Chromium: **two runs with a test suite/build alongside** gave
+  `0.490 / 2.510 / 5.290 / 5.330`; **three idle runs** gave `0.980 / 2.990 / — /
+  5.810`, identical to three decimals and reproducing the 2026-08-06 calibration
+  exactly. `--keep` was ruled out (idle, with and without → same numbers). Since
+  every case is diffed against the same baseline, a *uniform* ~0.48pp offset — not
+  scatter — implicates the baseline render, not decimation. Mechanism: `render.ts`
+  settles a camera move on `jumpCameraToGoal()` plus **two chained rAFs**, which is
+  best-effort rather than a convergence check. The verdict and the contact sheets
+  agreed either way. This does not weaken the determinism claim — it qualifies it
+  with "idle". **Do not "fix" a small absolute difference; re-run idle first.** The
+  first hypothesis here was a Chromium version bump, and it was wrong.
+  ⚠️ **Correction while building that: "the sweep remains the authority on a real
+  garment" — stated here until 2026-08-06 — was wrong.**
+  `sweep-size-vs-artwork.mjs` imports no renderer and renders nothing; it measures
+  file size, `artworkAtRisk`, `findArtworkAlphaProblems` and the alpha census. Its
+  own recorded output (`output/sweep/sweep.json`) reports `wouldShip: true` for all
+  six runs including F. The authority was never the sweep — it was a human opening
+  a contact sheet the sweep did not produce. The sweep is still the right tool for
+  *where the size floor is*; it was never evidence about letters.
+  Two measured findings from building the synthetic eval, both
+  counter-intuitive: an **affine** UV mapping cannot smear under decimation at all
+  (the first fixture gave an identical 0.150% at every budget from 0.0002 to
+  0.02 — useless), and at `--simplify 0.05` on a simple mesh the **ratio binds
+  before the error budget**, so 0.001/0.002/0.005 produce byte-identical geometry.
+  The eval's negative control is therefore `--uv-weight 0`, not a looser budget.
+  Consequently `balanced` (`0.001` since 2026-08-05) is **pinned by an absolute
+  test**. Every other assertion in `shrink.test.ts` is relative — fidelity ≤
+  balanced, uv weight never below balanced — and `0.001` and `0.005` satisfy all of
+  them equally, while one is verified and the other destroys the wordmark. A
+  relative invariant cannot pin a value; changing that number means producing a new
+  rendered crop, not editing the line.
+- **`--simplify` is not the aggression dial — `--simplify-error` is.** The
+  simplifier stops early once the budget binds, so lowering the ratio alone does
+  nothing. A sweep over the ratio produces near-identical files and reads as
+  "nothing helps".

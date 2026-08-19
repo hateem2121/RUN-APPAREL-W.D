@@ -1530,3 +1530,50 @@ relevant directive there. The CSP is validated against the real 3D-model load in
 `~` (the home directory) is itself a git repo on the original author's machine.
 This project has its **own** `.git`, so commands run from inside it are safe —
 but never run `git` from `~` or a parent directory, and never `git add -A` there.
+
+## Proving which CLAUDE.md files actually loaded
+
+Added 2026-08-19. The root `CLAUDE.md` states three things about its own loading —
+the root file loads at session start and is re-injected after `/compact`, a nested
+`CLAUDE.md` loads only when Claude reads a file in its directory, and a trap moved
+out of the root can therefore be missing from a compacted session until something
+touches that directory. That third one is the price the 2026-08-19 pipeline split
+paid, so it is worth being able to check rather than believe.
+
+`.claude/hooks/log-instructions-loaded.mjs` records every load. It is wired to the
+`InstructionsLoaded` event in `.claude/settings.json` and writes a tab-separated line
+per load to `.claude/instructions-loaded.log` (gitignored — it is a per-machine
+measurement, not shared state):
+
+```bash
+cat .claude/instructions-loaded.log
+```
+
+Each line is `timestamp · load_reason · path · size`. The `load_reason` is the
+useful column, and it distinguishes exactly the cases the claims are about:
+
+| `load_reason`      | What it means                                              |
+| ------------------ | ---------------------------------------------------------- |
+| `session_start`    | loaded at launch — the root file, and user-scope files      |
+| `nested_traversal` | a subdirectory `CLAUDE.md`, loaded because a file was read  |
+| `path_glob_match`  | a `.claude/rules/` file whose `paths:` glob matched         |
+| `include`          | pulled in by an `@path` import                              |
+| `compact`          | re-injected after `/compact`                                |
+
+**What to look for.** After a session that has compacted, every path appearing with
+`compact` is what actually survived. If a nested file shows up there, this repo's
+compaction paragraph in `CLAUDE.md` is wrong and should be corrected — that is the
+reason to log it rather than to re-read the docs. If `tools/asset-pipeline/CLAUDE.md`
+appears only with `nested_traversal` and never with `compact`, the paragraph is right
+and the one-line hooks left in the root file are doing the work they were left to do.
+
+The hook never blocks and never fails a session: the `InstructionsLoaded` exit code is
+ignored by design, so it exits 0 on every path, including malformed input. Its cases
+are in `.claude/hooks/log-instructions-loaded.test.mjs`, run directly — `.claude/` is
+not a workspace package, so `pnpm test` never sees it:
+
+```bash
+node .claude/hooks/log-instructions-loaded.test.mjs
+```
+
+To stop logging, delete the `InstructionsLoaded` block from `.claude/settings.json`.
