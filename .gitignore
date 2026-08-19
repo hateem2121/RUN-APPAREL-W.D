@@ -91,6 +91,10 @@ test-results/
 # everything that IS portable: the permission allowlist and the pipeline guard hook.
 .claude/settings.local.json
 
+# Written by .claude/hooks/log-instructions-loaded.mjs — a per-machine measurement of
+# which memory files loaded and why. Diagnostic, not shared state.
+.claude/instructions-loaded.log
+
 # misc
 .DS_Store
 *.log

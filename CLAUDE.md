@@ -196,80 +196,6 @@ the answer is "nothing that happens in production", it is not a test.
   not **cascades** — so neither pragma makes a table rebuild safe. **Ordering
   does**: stage or drop referencing tables first. A `DROP TABLE` runs an implicit
   `DELETE`, and that cascades.
-- **`prune()` renumbers texCoords** via `shiftTexCoords`, so a lone second UV set
-  becomes `TEXCOORD_0` before decimation. The real hazard is a material sampling
-  two or more UV sets at once.
-- **`chromaSubsampling` does nothing for WebP** in glTF-Transform's
-  `textureCompress` — it is a JPEG/AVIF option sharp ignores. Use `smartSubsample`
-  via a direct sharp call.
-- **`--keep-transparency` is not the fix for damaged artwork.** `<model-viewer>`
-  has no order-independent transparency; restoring BLEND trades one "half
-  visible" for depth-sorting artefacts. Use `MASK` with `alphaCutoff 0.5`.
-- **A cutout is "few mid pixels" AND "actually cut out somewhere" — never the
-  first alone.** `solidifyMaterials` resolves BLEND→MASK on `CUTOUT_MID_FRACTION`
-  (0.05), *deliberately looser* than `BINARY_MID_FRACTION` (0.02), because the
-  N001 wordmark measures 3.58% mid — 96.42% at the extremes, plainly a cutout,
-  and `character` still called it `graded` (i.e. "sheer, leave on BLEND"). But
-  raising that ceiling **alone** deletes fabric: a uniformly translucent inset
-  covering 2–6% of a map also measures ~2–6% mid, and MASKing it at 0.5 when its
-  alpha is ~0.35 discards *every* fragment — a hole, not a hardening, and MASK@0.5
-  is exactly what the gate considers correct so nothing catches it. Hence
-  `CUTOUT_MIN_TRANSPARENT` (0.05): the wordmark is 66.38% fully transparent,
-  those insets are 0.000%. Keep both halves. And keep the two constants separate
-  — `character` feeds `isArtworkTexture` → `findArtworkAlphaProblems`, which
-  **throws and saves nothing**, so widening it widens a blocking gate.
-- **An explicit `baseColorFactor[3]` beats anything inferred from pixels.** glTF
-  effective alpha is `factor.a * texel.a`, so a material declaring itself sheer at
-  0.4 can never reach `alphaCutoff 0.5` — MASK renders it as *nothing at all*,
-  silently, passing every gate. Test `factor < OPAQUE_FACTOR_THRESHOLD` first.
-- **`model-viewer.toDataURL()` returns a blank canvas** —
-  `preserveDrawingBuffer: false`. Screenshot the element.
-- **`fieldOfView` under 12° was silently ignored until 2026-08-08 — the SECOND
-  camera control model-viewer overrides without telling you.** The orbit-radius
-  clamp is already documented above; this is the same trap on the axis that was
-  believed to be the reliable one. `min-field-of-view` defaults to **12deg** and
-  `render.ts` never set it, so a tighter crop returned a plausible frame of the
-  wrong thing. Measured on the real N001 baseline: 1.4° / 2° / 3.1° / 4.5° gave four
-  **byte-identical** PNGs (sha256 `294291db…`), 1.9° / 2.7° / 4° / 5.9° likewise,
-  and a third print separated only between 9.2° and 13.5° — the floor exactly at
-  the documented default. Two consequences worth knowing: `raw/CANONICAL.json`
-  *fingerprints* `fieldOfView` rather than range-checking it, so below the floor it
-  recorded a zoom nothing used; and the prints listed there as "NOT COVERED"
-  (0.039 m hem label, 0.030 m neck logo) were not a scoping choice — **any print
-  smaller than roughly a hand was unguardable by construction.** `render.ts` now
-  sets `min-field-of-view="1deg"`, pinned by `src/render.test.ts`. N001's 14° view
-  is above the old floor and was verified byte-identical across the change, so its
-  calibration is untouched. Found by looking at a contact sheet, not by reading code
-  — the four identical images were the tell.
-- **N001 guards THREE prints since 2026-08-09** — chest wordmark (14°), hem label
-  (2.7°), neck logo (3.1°) — and its ceiling went **4.2% → 6.5%** with them. That
-  is not a loosened gate: the hem label sits on a curved hem, decimates harder
-  than the flat chest print, and is now the worst case in all four rows (balanced
-  3.970%, control 10.520%, known-bad 12.330%). A harder view was added; no
-  measurement drifted. Three things from that session will save the next one:
-  **`--find-views` proposes the zoom that frames the PRIMITIVE**, which on the
-  neck logo sliced "RUN" off the bottom edge — the print is two elements and the
-  primitive covers one — so the shipped view is one rung wider than proposed, and
-  that is visible only in the PNG, never in the number. The camera-fingerprint
-  guard **used to refuse `--calibrate` itself**, blocking the one command its own
-  error message prescribed and leaving "hand-edit the fingerprint to a value you
-  have not measured" as the only way out; it is now exempt there, with a loud
-  notice. And `--keep` resolves against the CWD, which `pnpm` sets to
-  `tools/asset-pipeline/`, so artifact paths are now printed **absolute** — the
-  RUNBOOK's repo-relative one did not exist.
-  ⚠️ That calibration was measured on a **busy** machine (the wordmark column came
-  back 0.490/2.510/5.290/5.330, an exact match to the busy set recorded above).
-  Busy runs read ~0.48pp LOW, so the ceiling is tighter than intended rather than
-  looser, and the offset was added back explicitly when choosing 6.5%. Re-run idle
-  and append a remeasurement when convenient; **do not lower the ceiling to match
-  an idle run's higher `balanced`.**
-- **`pnpm eval:artwork:real -- raw/x.glb` did not resolve that path.** `pnpm`
-  forwards the `--` separator itself into `process.argv`, and the root script
-  delegates via `pnpm --filter`, which runs the child with cwd set to
-  `tools/asset-pipeline/` — so a repo-relative path documented in the RUNBOOK
-  resolved under the package and step 3 of a five-step procedure failed for anyone
-  who copied it verbatim. Relative paths now fall back to the repo root. The lesson
-  is the cheap one: **run the documented command, do not read it.**
 - **`apps/shrink/container` is not a workspace member.** It installs with plain
   `npm` inside Docker, so it cannot use `workspace:*` deps, and `pnpm -r` skips
   it. It has its own CI typecheck step; keep it.
@@ -279,22 +205,6 @@ the answer is "nothing that happens in production", it is not a test.
   `package.json` in the workspace desynchronises it and the image build dies on
   `npm ci` **after** every local gate has passed. Cost a deploy on 2026-08-12; full
   procedure in `tools/asset-pipeline/CLAUDE.md`.
-- **Editing a workflow? `apps/cms/src/workflowHardening.test.ts` gates it.** Since
-  2026-08-13 every workflow must declare a top-level `permissions:` block that
-  includes `contents`; every `uses:` must be a 40-hex SHA with a `# vX.Y.Z`
-  comment (Dependabot maintains both); every `actions/checkout` must set
-  `persist-credentials: false`; no `run:` block may interpolate
-  `${{ github.event.* }}` or `${{ github.head_ref }}` — carry it in `env:` and
-  test `"$VAR"`; and every `pnpm <script>` a workflow invokes must exist. **Three
-  more since 2026-08-13:** every job declares `timeout-minutes` (all 12 had none,
-  so a hang ran to the 6-hour default — ci.yml records a step measured at 49s that
-  ran 30+ minutes), no `pull_request_target`, and no `${{ secrets.* }}` inside a
-  `run:` block. All eight have verified negative controls, so a failure names the
-  file and line. ⚠️ A `permissions:` block **REPLACES** the defaults rather than adding to
-  them — omitting `contents: read` breaks `actions/checkout` with a **404** on
-  this private repo, which is how uptime.yml died silently for 23 hours. The
-  injection rule was not theoretical: `uptime.yml` was pasting a dispatch input
-  into shell in a job holding `GH_TOKEN`, found 2026-08-12.
 - **The shrink container runs as uid 1000, not root, since 2026-08-13 — it can
   write ONLY under `/tmp`.** `/app` is root-owned and read-only to it, so any new
   scratch path must go through `mkdtemp(join(tmpdir(), …))` as `container/server.ts`
@@ -371,79 +281,11 @@ the answer is "nothing that happens in production", it is not a test.
   **signed provenance attestation present**, **no install script**, and an unchanged
   dependency list. Provenance + no-install-script is the actual threat the cooldown
   absorbs, so that substitution is real rather than a formality.
-- **`opaque` defaults DIFFERENTLY in the two ways you can call the pipeline.**
-  `parseOptimizeArgs` defaults it **true**; `optimizeGlb` treats an absent
-  `opaque` as **false**. So a hand-built options object silently skips
-  `solidifyMaterials` and ships decals still on `alphaMode: BLEND`, which
-  `<model-viewer>` renders see-through — the reported symptom exactly. Go through
-  the parser, as `apps/shrink/container/server.ts` does. Pinned by a test in
-  `pipeline.test.ts`.
 - **`fileColours` is deliberately NOT in `GATED_FIELDS`.** Gating it once blocked
   the shrink robot's own write on a published-but-model-less product, i.e. it
   prevented recovery from the state the gate was complaining about (2026-07-29).
   Do not "fix" this. The gap it leaves is covered by reporting instead —
   `becameUnverifiedWhilePublished` writes an Events row. See `Products.ts`.
-- **The three blocking gates do NOT catch decimation damage.** They test
-  `alphaMode`, which decimation does not change. A six-run sweep from the raw
-  N001 export (`tools/asset-pipeline/scripts/sweep-size-vs-artwork.mjs`,
-  2026-08-05) rendered the chest
-  wordmark illegible at `--simplify-error 0.005` and **every run passed all three
-  gates**, `artworkAtRisk` and `findArtworkAlphaProblems` both empty. With
-  `--uv-weight` set, the UVs *are* in the error budget, so `artworkAtRisk` cannot
-  fire — the budget was merely too loose. **Nothing in this system measured
-  whether the letters survived; only a rendered crop did.** This is why the old
-  `small` preset was deleted rather than re-tuned.
-  **Partly closed on 2026-08-06 by `pnpm eval:artwork`** — it renders the real
-  wordmark alpha before and after the real chain and measures how much moved, so
-  the *presets* are now watched by something other than memory. Read what it does
-  NOT cover before relying on it: it runs on a synthetic fixture, not on a
-  production garment, so it catches a preset or simplifier regression and would
-  still miss damage specific to a particular CLO export.
-  **Closed for N001 later the same day by `pnpm eval:artwork:real`**, which runs
-  the same method on the actual 382 MB export. It is **manual and local** — the
-  monthly workflow that used to run it was deleted on 2026-08-07, because the R2
-  copy it pulled expires after 14 days and the surviving copy is on a laptop no
-  runner can reach (see `docs/RUNBOOK.md` → "The canonical raw garment"). Measured
-  on the real file: fidelity
-  **0.980%**, balanced **2.990%**, sweep run F **5.770%**, `--uv-weight 0`
-  **5.810%**, ceiling **4.2%**. Run F is the one that "passed all three gates"
-  above — there is now a number that stops it.
-  ⚠️ **RUN THIS ON AN IDLE MACHINE.** Measured 2026-08-07, same file (checksum
-  verified), same Chromium: **two runs with a test suite/build alongside** gave
-  `0.490 / 2.510 / 5.290 / 5.330`; **three idle runs** gave `0.980 / 2.990 / — /
-  5.810`, identical to three decimals and reproducing the 2026-08-06 calibration
-  exactly. `--keep` was ruled out (idle, with and without → same numbers). Since
-  every case is diffed against the same baseline, a *uniform* ~0.48pp offset — not
-  scatter — implicates the baseline render, not decimation. Mechanism: `render.ts`
-  settles a camera move on `jumpCameraToGoal()` plus **two chained rAFs**, which is
-  best-effort rather than a convergence check. The verdict and the contact sheets
-  agreed either way. This does not weaken the determinism claim — it qualifies it
-  with "idle". **Do not "fix" a small absolute difference; re-run idle first.** The
-  first hypothesis here was a Chromium version bump, and it was wrong.
-  ⚠️ **Correction while building that: "the sweep remains the authority on a real
-  garment" — stated here until 2026-08-06 — was wrong.**
-  `sweep-size-vs-artwork.mjs` imports no renderer and renders nothing; it measures
-  file size, `artworkAtRisk`, `findArtworkAlphaProblems` and the alpha census. Its
-  own recorded output (`output/sweep/sweep.json`) reports `wouldShip: true` for all
-  six runs including F. The authority was never the sweep — it was a human opening
-  a contact sheet the sweep did not produce. The sweep is still the right tool for
-  *where the size floor is*; it was never evidence about letters.
-  Two measured findings from building the synthetic eval, both
-  counter-intuitive: an **affine** UV mapping cannot smear under decimation at all
-  (the first fixture gave an identical 0.150% at every budget from 0.0002 to
-  0.02 — useless), and at `--simplify 0.05` on a simple mesh the **ratio binds
-  before the error budget**, so 0.001/0.002/0.005 produce byte-identical geometry.
-  The eval's negative control is therefore `--uv-weight 0`, not a looser budget.
-  Consequently `balanced` (`0.001` since 2026-08-05) is **pinned by an absolute
-  test**. Every other assertion in `shrink.test.ts` is relative — fidelity ≤
-  balanced, uv weight never below balanced — and `0.001` and `0.005` satisfy all of
-  them equally, while one is verified and the other destroys the wordmark. A
-  relative invariant cannot pin a value; changing that number means producing a new
-  rendered crop, not editing the line.
-- **`--simplify` is not the aggression dial — `--simplify-error` is.** The
-  simplifier stops early once the budget binds, so lowering the ratio alone does
-  nothing. A sweep over the ratio produces near-identical files and reads as
-  "nothing helps".
 - **A 404 from `media.wear-run.help` can be a CACHED 404 — and `HEAD` will not
   tell you.** It is an R2 custom domain with a 30-day edge Cache Rule, so a request
   for an object that does not exist *yet* caches the miss. On 2026-08-06 a model the
@@ -470,13 +312,37 @@ the answer is "nothing that happens in production", it is not a test.
   off the GET's own headers (`curl -o /dev/null -D -`), never off a HEAD.**
   Live reference numbers now live in `docs/QA-CHECKLIST.md` → "Performance & assets".
 
-- **Anything CI fetches from a `wear-run.help` host can 403 from a runner.**
-  Free-plan Bot Fight Mode intermittently blocks datacenter traffic — it forced the
-  `cms.wear-run.help` API cutover to be rolled back within the hour, and it later
-  failed a deploy through a new post-deploy check that treated the 403 as "no
-  model". Treat such a 403 as *inconclusive*, never as a failed assertion. And use
-  `HEAD`: a `GET` on the model is 27 MB per run, which the 15-minute uptime job
-  turns into gigabytes of R2 egress against a $5/month cap.
+- **Five more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
+  of them moved there 2026-08-19 because they bite only while you are editing a
+  workflow, which is exactly when that file loads. Enough to stop you: every workflow
+  is gated by `apps/cms/src/workflowHardening.test.ts` on eight rules with verified
+  negative controls, and a `permissions:` block **REPLACES** the defaults rather than
+  adding to them — omitting `contents: read` killed uptime.yml for 23 hours with a 404.
+  A CI fetch from a `wear-run.help` host can 403 from a runner (Bot Fight Mode); treat
+  it as *inconclusive*, never as a failed assertion, and use `HEAD`.
+
+- **Twelve more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
+  2026-08-19, when this file measured 44,993 characters against Claude Code's
+  40,000-character warning, the point at which Anthropic's own guidance says adherence
+  to *every* rule in a file starts dropping. They load the moment you touch
+  `tools/asset-pipeline/`, so a copy here is pure weight; what stays is enough of each
+  to stop you. `prune()` renumbers texCoords, so a lone second UV set moves under the
+  decimator; `chromaSubsampling` is a no-op for WebP (`smartSubsample` is the flag);
+  `--keep-transparency` is the WRONG fix for damaged artwork, MASK at `alphaCutoff 0.5`
+  is the right one; a cutout is "few mid pixels" AND "actually cut out somewhere", never
+  the first alone; an explicit `baseColorFactor[3]` beats anything inferred from pixels,
+  so MASK can render a sheer material as *nothing*; `model-viewer.toDataURL()` returns a
+  blank canvas; a `min-field-of-view` floor silently ignored every `fieldOfView` under
+  12° until 2026-08-08, leaving any print smaller than a hand unguardable; N001 guards
+  THREE prints against a calibrated ceiling; `eval:artwork:real -- raw/x.glb` does not
+  resolve that path; `opaque` defaults TRUE in `parseOptimizeArgs` and FALSE in
+  `optimizeGlb`, so a hand-built options object ships decals still on BLEND; **the three
+  blocking gates do NOT catch decimation damage — only a rendered crop does**, which is
+  the most expensive lesson in this repo; and `--simplify` is not the aggression dial,
+  `--simplify-error` is.
+  ⚠️ These are hooks, not the traps. After `/compact` only THIS file is re-injected, so a
+  compacted session that has not yet opened `tools/asset-pipeline/` has only these
+  one-liners. Open that file before changing anything there.
 
 - **Twenty-three more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
   restated here — they load automatically the moment you touch `apps/viewer/`,
@@ -496,20 +362,40 @@ the answer is "nothing that happens in production", it is not a test.
   Claude Code warns a memory file is too large — **a threshold it later crossed
   anyway, so put new viewer, pipeline or CMS detail in the sub-file, not here.**
 
-  **The mechanics, measured against the docs on 2026-08-18, because two plausible
+  **The mechanics, re-measured against the docs on 2026-08-19, because two plausible
   fixes do not work.** The warning fires at **40,000 characters** and the documented
-  target is **under 200 lines** — this file is over both. ⚠️ **`@path` imports do NOT
-  help**: the docs are explicit that imported files "load at launch", so an import
-  moves bytes between files and saves no context. What *does* work is on-demand
-  loading: the sub-file split above, and path-scoped rules (a `paths:` frontmatter
-  block in a rules file under .claude/), which load only when Claude reads a matching
-  file. ⚠️ **Both carry a caveat worth
-  knowing**: only the project-root CLAUDE.md is re-injected after `/compact` — nested
-  files and path-scoped rules reload only when a matching file is next read, so a
-  trap that moved out of this file can be absent from a compacted session until
-  something touches its directory. Free win nobody here uses yet: block-level
-  `<!-- HTML comments -->` are stripped before injection, so pure provenance can stay
-  legible to humans at zero context cost.
+  target is **under 200 lines**. This file was over both on 2026-08-19 at 44,993
+  characters; moving the pipeline traps out brought it to ~36,000, so it is now under
+  the warning and still over the line target — treat 40,000 as the hard gate and the
+  line count as the direction of travel. Size is not cosmetic: the docs state CLAUDE.md
+  is delivered as a user message after the system prompt with no guarantee of strict
+  compliance, and that longer files "reduce adherence" — so an oversized file makes its
+  own traps *less* likely to be followed. ⚠️ **`@path` imports do NOT help**: the docs
+  are explicit that imported files "load at launch", so an import moves bytes between
+  files and saves no context. What *does* work is on-demand loading: the sub-file split
+  above, and path-scoped rules (a `paths:` frontmatter block in a rules file under
+  `.claude/rules/`), which load only when Claude reads a matching file.
+  ⚠️ **Path-scoped rules are NOT yet trustworthy for anything load-bearing, checked
+  2026-08-19.** They have open upstream bugs: a rule fires when Claude *reads* a
+  matching file, so **creating** a new file never triggers it (anthropics/claude-code
+  #63142), and there are reports that the documented `paths:` key fails where an
+  undocumented `globs:` works (#17204). That is why this repo still has no
+  `.claude/rules/` and splits into nested CLAUDE.md files instead — the `.github/` and
+  `tools/asset-pipeline/` pattern, which is proven here. Measure before adopting.
+  ⚠️ **All on-demand loading carries one caveat**: only the project-root CLAUDE.md is
+  re-injected after `/compact` — nested files and path-scoped rules reload only when a
+  matching file is next read, so a trap that moved out of this file can be absent from a
+  compacted session until something touches its directory. That is the price paid for
+  the pipeline split above, and why each moved trap kept a one-line hook here.
+  **Two tools worth knowing, both newer than this section's first draft:**
+  `/doctor` now proposes trims for a checked-in CLAUDE.md (v2.1.206+) — it cuts what
+  Claude can re-derive from the codebase, directory layouts and dependency lists, and
+  *keeps* pitfalls and rationale, which is this file's entire content model. And the
+  **`InstructionsLoaded` hook** logs which instruction files loaded, when, and why —
+  the way to verify the on-demand claims above instead of asserting them. This repo
+  wires one at `.claude/hooks/log-instructions-loaded.mjs`; see `docs/RUNBOOK.md`.
+  Free win nobody here uses yet: block-level `<!-- HTML comments -->` are stripped
+  before injection, so pure provenance can stay legible to humans at zero context cost.
 
 - **Three more traps live in `apps/cms/CLAUDE.md`** (loads on touching `apps/cms/`) —
   `NODE_ENV=production` for any Payload CLI task against production D1, why
