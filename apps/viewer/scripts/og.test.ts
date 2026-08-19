@@ -28,7 +28,23 @@ const rawHtml = readFileSync(join(viewerRoot, 'index.html'), 'utf8')
  * test below matched its own explanatory comment and failed. Asserting against
  * raw file text means prose can break the build.
  */
-const html = rawHtml.replace(/<!--[\s\S]*?-->/g, '')
+/**
+ * Repeat until stable. One pass is not enough: removing a comment can splice a
+ * fresh `<!--` out of the text either side of it, and the survivor could then
+ * satisfy the very assertion this strip exists to protect — a false PASS, not a
+ * false failure. (CodeQL js/incomplete-multi-character-sanitization.)
+ */
+function stripComments(source: string): string {
+  let previous: string
+  let current = source
+  do {
+    previous = current
+    current = current.replace(/<!--[\s\S]*?-->/g, '')
+  } while (current !== previous)
+  return current
+}
+
+const html = stripComments(rawHtml)
 
 /** Pull a meta tag's content by its `property=` or `name=` key. */
 function meta(key: string): string | null {

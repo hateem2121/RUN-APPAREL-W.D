@@ -16,6 +16,22 @@ import { MAX_DESCRIPTION, REWRITTEN_META, buildPreview } from './preview'
  * poster and artwork bugs in CLAUDE.md, and the reason scripts/og.test.ts exists.
  */
 
+/**
+ * Repeat until stable. One pass is not enough: removing a comment can splice a
+ * fresh `<!--` out of the text either side of it, and the survivor could then
+ * satisfy the very assertion this strip exists to protect — a false PASS, not a
+ * false failure. (CodeQL js/incomplete-multi-character-sanitization.)
+ */
+function stripComments(source: string): string {
+  let previous: string
+  let current = source
+  do {
+    previous = current
+    current = current.replace(/<!--[\s\S]*?-->/g, '')
+  } while (current !== previous)
+  return current
+}
+
 const ORIGIN = 'https://viewer.wear-run.help'
 
 const CARDS: Record<string, OgCard> = {
@@ -258,10 +274,9 @@ describe('the tags index.ts rewrites still exist in index.html', () => {
    * keeps returning 200 while silently ceasing to set that value on every link it
    * touches — no exception, no log, no failing test anywhere else in this repo.
    */
-  const html = readFileSync(
-    join(dirname(fileURLToPath(import.meta.url)), '..', 'index.html'),
-    'utf8',
-  ).replace(/<!--[\s\S]*?-->/g, '')
+  const html = stripComments(
+    readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8'),
+  )
 
   it.each(REWRITTEN_META)('index.html declares %s', (key) => {
     expect(html).toMatch(new RegExp(`<meta\\s+(?:property|name)="${key}"`, 'i'))
