@@ -699,6 +699,69 @@ test.describe('layout invariants', () => {
   }
 
   /**
+   * The colourway rail never strands a single swatch on its own row.
+   *
+   * ⚠️ THE FAILURE THIS CATCHES IS COSMETIC AND THEREFORE INVISIBLE TO EVERY
+   * OTHER GUARD IN THIS FILE. Lowering the grid's `minmax` floor to fit five
+   * swatches on one row at 402px makes a 375px phone lay out **4 + 1** — one tab
+   * alone against three empty cells. Nothing overflows, nothing is covered,
+   * every clearance assertion passes, and the control looks broken.
+   *
+   * So the rule is stated directly: the last row is either full, or it is not
+   * alone. A single swatch is only acceptable when the whole rail is one tab.
+   *
+   * Five is the count that matters — the live product has five colourways and
+   * the e2e fixture has four, so a fixture-only check cannot see this. The test
+   * appends a fifth before measuring, which is the same "the fixture cannot
+   * exhibit the failure" pattern the root CLAUDE.md is built around.
+   */
+  for (const width of [320, 360, 375, 390, 393, 402, 414, 430]) {
+    test(`the colourway rail never strands a single swatch at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 812 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const layout = await page.evaluate(() => {
+        const list = document.querySelector('.colourways__list')
+        if (!list) return null
+        // The fixture ships four colourways; production ships five. Measure the
+        // production shape, not the fixture's.
+        const clone = list.children[0]?.cloneNode(true) as HTMLElement | undefined
+        if (clone) {
+          clone.setAttribute('aria-selected', 'false')
+          clone.id = 'colourway-tab-probe'
+          const label = clone.querySelector('.colourway-tab__label')
+          if (label) label.textContent = 'Slate'
+          list.appendChild(clone)
+        }
+        const tabs = [...list.querySelectorAll('.colourway-tab')].map((t) =>
+          Math.round(t.getBoundingClientRect().top),
+        )
+        const rows = [...new Set(tabs)].sort((a, b) => a - b)
+        const counts = rows.map((top) => tabs.filter((t) => t === top).length)
+        clone?.remove()
+        return { total: tabs.length, rows: rows.length, counts }
+      })
+
+      expect(layout, 'no .colourways__list on the page').not.toBeNull()
+      const { total, rows, counts } = layout as {
+        total: number
+        rows: number
+        counts: number[]
+      }
+
+      const last = counts[counts.length - 1] ?? 0
+      expect(
+        rows > 1 && last === 1,
+        `${total} swatches laid out as ${counts.join(' + ')} at ${width}px — the ` +
+          `last row holds one tab against ${(counts[0] ?? 1) - 1} empty cells. ` +
+          `Adjust the minmax floor or the container threshold in page.css; do ` +
+          `not delete this test.`,
+      ).toBe(false)
+    })
+  }
+
+  /**
    * The colourway rail spans the stage band, whatever is inside it.
    *
    * ⚠️ THIS GUARDS A LANDMINE, NOT A VISIBLE BUG. When `.stage-block` became a

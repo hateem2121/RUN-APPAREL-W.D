@@ -1963,6 +1963,53 @@ model-viewer.stage__model:focus-within {
 }
 
 /*
+ * ONE ROW OF SWATCHES WHERE THEY GENUINELY FIT — and the second branch is the
+ * whole point: this could not be done with a single `minmax`.
+ *
+ * `auto-fit` packs as many columns as the floor allows, and the floor is one
+ * number for every width. Measured 2026-08-20 with five colourways:
+ *
+ *     minmax floor   402px phone        375px phone
+ *     92px (base)    3 + 2              3 + 2
+ *     68px           ONE ROW of five    4 + 1
+ *
+ * So lowering the floor buys a single row on a modern iPhone and costs a
+ * 375px one a lonely tab against three empty cells. Neither value is right at
+ * both widths, which is exactly the trade the spec recorded and left open.
+ *
+ * The way out is to stop asking `auto-fit` to serve both cases. Five tabs need
+ * 5 x 67.2px of label-plus-padding and 4 x 8px of gap = **368px**. Above that
+ * the tighter floor produces one clean row; below it the base floor produces a
+ * balanced 3 + 2. The query asks the container for exactly that number.
+ *
+ * ⚠️ 370, MEASURED ON ALL FOUR ENGINES and identical on every one — the
+ * container's width is layout arithmetic (viewport minus gutters), not font
+ * metrics, so this does not drift between browsers:
+ *
+ *     viewport   360    375    390    393    402    414    430
+ *     container  338.4  352.5  366.6  369.4  377.9  389.2  404.2
+ *     result     3+2    3+2    3+2    3+2    1x5    1x5    1x5
+ *
+ * 393 (iPhone 15/16 Pro) sits at 369.4 and is deliberately excluded: five tabs
+ * would fit it by **1.4px**, which is not a margin. 402 has 9.9px spare.
+ *
+ * ⚠️ 368 ENCODES THIS GARMENT'S LABEL WIDTHS — "03 Butter" is the widest of
+ * Wine / Blush / Butter / Lime / Black. A product with longer names does not
+ * break: measured with "Forest Green" the label wraps to two lines and the tab
+ * grows 53px -> 65px, costing the garment 12px and leaving 31px of clearance.
+ * That is a degradation, not a failure. If most products end up with two-word
+ * names, re-measure the 368 and raise this threshold rather than removing it.
+ *
+ * Pinned by `motion-and-layout.spec.ts` -> "the colourway rail never strands a
+ * single swatch on its own row".
+ */
+@container colourrail (min-width: 370px) and (max-width: 500px) {
+  .colourways__list {
+    grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
+  }
+}
+
+/*
  * The spec facts as ANNOTATIONS on a phone, not a list.
  *
  * `.stage__callouts` is switched off below 1000px, and correctly so: those are
