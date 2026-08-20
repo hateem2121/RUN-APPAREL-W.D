@@ -699,6 +699,72 @@ test.describe('layout invariants', () => {
   }
 
   /**
+   * The colourway rail spans the stage band, whatever is inside it.
+   *
+   * ⚠️ THIS GUARDS A LANDMINE, NOT A VISIBLE BUG. When `.stage-block` became a
+   * flex column on 2026-08-20, `.colourways` became a flex item — and its
+   * long-standing `margin: 0 auto` (there to centre it inside a 1200px measure)
+   * SUPPRESSED the default stretch, because auto margins in the cross axis do
+   * that. The element stopped filling the band and began shrink-wrapping its
+   * widest child.
+   *
+   * It still looked right, because that widest child was the disclaimer sentence
+   * underneath the swatches. Measured at 402x714: hiding `.colourways__hint` took
+   * the element from 385px wide to 116px and the grid from three columns to one,
+   * turning two rows of swatches into four. So the number of colourways per row
+   * was being decided by the length of a sentence — and moving that sentence out
+   * is already scheduled work.
+   *
+   * The test therefore removes the sentence and asserts the rail does not care.
+   * Asserting the width alone would pass against the broken layout.
+   */
+  for (const { name, width, height } of STAGE_BAND_VIEWPORTS) {
+    test(`the colourway rail spans the stage band at ${name} (${width}x${height})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const measure = () =>
+        page.evaluate(() => {
+          const rail = document.querySelector('.colourways')
+          const band = document.querySelector('.stage-block')
+          if (!rail || !band) return null
+          return {
+            rail: Math.round(rail.getBoundingClientRect().width),
+            band: Math.round(band.getBoundingClientRect().width),
+          }
+        })
+
+      const before = await measure()
+      expect(before, 'no .colourways or .stage-block on the page').not.toBeNull()
+
+      // Take away the widest thing inside the rail. A rail that is laid out by
+      // its container does not move; one that shrink-wraps collapses.
+      await page.addStyleTag({ content: '.colourways__hint { display: none !important }' })
+      const after = await measure()
+
+      const { rail: railBefore, band } = before as { rail: number; band: number }
+      const { rail: railAfter } = after as { rail: number }
+
+      expect(
+        railBefore - railAfter,
+        `removing the disclaimer changed the colourway rail's width by ` +
+          `${railBefore - railAfter}px (${railBefore} -> ${railAfter}). The rail is ` +
+          `sizing itself from its contents instead of from the band. Add ` +
+          `width: 100% to .stage-block .colourways — auto margins on a flex item ` +
+          `suppress the cross-axis stretch.`,
+      ).toBe(0)
+
+      expect(
+        band - railBefore,
+        `the colourway rail is ${railBefore}px inside a ${band}px band`,
+      ).toBeLessThanOrEqual(Math.max(0, band - 1200))
+    })
+  }
+
+  /**
    * The token must equal the thing it describes.
    *
    * `--header-h` is subtracted from the stage band's height. If the header

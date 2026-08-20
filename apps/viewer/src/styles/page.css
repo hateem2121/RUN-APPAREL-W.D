@@ -1051,6 +1051,32 @@ model-viewer.stage__model:focus-within {
 .stage-block .colourways {
   max-width: 1200px;
   margin: 0 auto;
+  /*
+   * ⚠️ `width: 100%` IS LOAD-BEARING, and without it the number of colourways per
+   * row is decided by the length of the disclaimer sentence below them.
+   *
+   * `.colourways` became a flex ITEM when `.stage-block` became a flex column on
+   * 2026-08-20. A flex item normally stretches to the container's cross size —
+   * but AUTO MARGINS IN THE CROSS AXIS SUPPRESS THAT, and this rule has carried
+   * `margin: 0 auto` since it was written, to centre itself inside its 1200px
+   * measure. So the box stopped stretching and started shrink-wrapping its
+   * widest child.
+   *
+   * Measured at 402x714 the day it was introduced: hiding `.colourways__hint`
+   * took this element from **385px wide to 116px**, its left margin from 8px to
+   * 143px, and `grid-template-columns` from three columns to one — turning a
+   * two-row swatch grid into a four-row column. The rail rendered correctly only
+   * because that sentence happened to be the widest thing inside it.
+   *
+   * That made it a landmine rather than a bug: the layout was right, and moving
+   * the disclaimer out — which is already scheduled work — would have collapsed
+   * the colour picker with nothing on screen to explain why. `.stage__inner`
+   * above needed the same line for the same reason.
+   *
+   * Pinned by `motion-and-layout.spec.ts` -> "the colourway rail spans the stage
+   * band", which removes the sentence and asserts the width does not move.
+   */
+  width: 100%;
   padding: 0 var(--stage-gutter) clamp(12px, 2vw, 20px);
 }
 
