@@ -423,7 +423,42 @@
 @media (min-width: 900px) {
   .stage__canvas {
     min-height: 380px;
-    max-height: 760px;
+    /*
+     * ⚠️ 760 -> 980, AND THE NUMBER IS DERIVED, NOT PREFERRED. Owner decision
+     * 2026-08-20 to raise the cap; this is where raising it stops paying.
+     *
+     * The camera radius and field of view are fixed, so the garment's own shape
+     * is constant: measured at 1440x900 it renders 437 wide by 533 tall, an
+     * aspect of **0.82**. A shape that fixed is limited by whichever canvas axis
+     * runs out first:
+     *
+     *   canvas aspect > 0.82  ->  HEIGHT-limited. Raising the cap grows it.
+     *   canvas aspect < 0.82  ->  WIDTH-limited. Raising the cap buys nothing
+     *                             but empty space above and below the garment,
+     *                             and more pixels for the GPU to draw.
+     *
+     * The canvas is 800px wide in the two-column layout (the 1200px measure
+     * minus the aside and the gutter), so the crossover is 800 / 0.82 = **976**.
+     * At 980 the canvas measures 800x980 — aspect 0.82, the garment's own — and
+     * both axes run out together, which is the most garment the layout can hold.
+     *
+     * ⚠️ MEASURED, and the first two guesses were both wrong. Removing the cap
+     * entirely gives an 800x1266 canvas: the garment does NOT grow, because it
+     * became width-limited 290px earlier, and the drawing buffer goes from 2.4 to
+     * 4.1 megapixels at DPR 2 for no visible change. Widening the 1200px measure
+     * instead is equally useless on its own — at measures of 1200/1600/2000/2400
+     * the canvas stays height-limited at every one, because the cap never moves.
+     * The two levers only work together, and the cap is the one that binds.
+     *
+     * ⚠️ 980 IS TIED TO THE 800px CANVAS WIDTH. If the 1200px measure or the
+     * aside's `flex-basis` changes, re-derive it as `canvas width / 0.82` — a
+     * larger value is wasted GPU, a smaller one is wasted garment.
+     *
+     * The cost is bounded to machines that can pay it: this rule needs 900px of
+     * width, and below that the band's own height binds long before 980 (measured
+     * 726px at 1440x900), so no phone ever allocates it.
+     */
+    max-height: 980px;
   }
 }
 
