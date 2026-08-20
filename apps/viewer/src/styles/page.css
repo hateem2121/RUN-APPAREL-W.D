@@ -311,38 +311,26 @@
 /*
  * The canvas takes what is LEFT, not a fixed fraction of the screen.
  *
- * Since the colourway rail moved directly beneath it, the garment no longer owns
- * the first screen alone — it shares it with the rail, and below 900px with the
- * fixed `.action-bar` painted over the bottom 72px. `72vh` alone overshot: at
- * 375x812 it resolved to 584.6px and pushed the rail's bottom edge to 745.6,
- * six pixels under a viewport that usably ends at 740. Six pixels is enough to
- * put the control back out of reach, which is the entire bug.
+ * ⚠️ THIS COMMENT USED TO BE THIRTY LINES DEFENDING A NUMBER, and the number is
+ * gone as of 2026-08-20. It tracked a third `min()` term through 208 -> 280 ->
+ * 316 -> 282, recording at each step which part of the chrome had been measured
+ * wrong, and it closed with "every estimate in this comment's history has been
+ * wrong". That was true, and it was never going to stop being true, because the
+ * value had to agree with six independent things and nothing made them agree.
+ * `.stage-block` is a flex column now and the browser derives it. The full
+ * history is in this file's git log, where a superseded argument belongs.
  *
- * The third term is the budget, and it is subtraction rather than taste. It was
- * 208 until 2026-08-17 and is now 282, paying for `.stage__plinth` — the 44px
- * row that carries the camera controls and the garment's name, both of which
- * used to be free because both used to be painted ON the garment.
+ * TWO FACTS FROM IT SURVIVE, because they are about the product rather than the
+ * arithmetic:
  *
- * ⚠️ MEASURED THREE TIMES, AND ADDING UP WAS WRONG TWICE. 225px of chrome + a
- * 54px control row gave 279, rounded to 280 — then the caption arrived as its
- * own row and the band measured 69->936 against a 900px viewport, **36px over**,
- * because a caption whose font metrics nobody had rendered yet is not the 25px
- * it looks like, it is 37. Raising the budget to 316 fixed the overflow and cost
- * the garment 56px. Putting the caption and the controls on ONE row gave 35 of
- * those back, and the band measured 69->865 — now 35px UNDER, i.e. wasted.
- * 282 is the number the band actually needs, read off getBoundingClientRect().
+ *   - The garment always fills **86.3%** of this canvas's height. The camera
+ *     radius and field of view are fixed, so canvas height alone decides how big
+ *     the garment looks. That is why `max-height` below is a visual decision and
+ *     not a layout one.
  *
- * If you add anything else to this band, measure it here rather than reasoning
- * about it. Every estimate in this comment's history has been wrong.
- *
- * ⚠️ THE SECOND TERM WENT 640px -> 760px IN THE SAME CHANGE, and it is the one
- * that matters on a good monitor. The cap binds whenever the window is tall, and
- * because the garment always fills 86.3% of the canvas height (the camera radius
- * and field of view are fixed), the cap WAS the reason a 1440x1200 screen showed
- * the same small garment as a laptop. Measured effect there: 640 -> 760, a 120px
- * taller garment. At 1440x900 the `72vh` and `dvh` terms still bind, so nothing
- * changes; at 1280x800 the canvas gives up 56px to the control row and takes
- * back 26px that the pill used to cover.
+ *   - Anything added to this band comes out of the garment. It is no longer YOUR
+ *     job to re-derive a number when that happens — flex does it — but it is
+ *     still your job to check what the garment was left with.
  */
 .stage__canvas {
   position: relative;
