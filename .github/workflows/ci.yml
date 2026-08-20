@@ -163,10 +163,10 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-          cache: pnpm
+      # No `actions/setup-node` here either, for the reason measured beside `artwork`
+      # above: the image ships the pinned Node 24, and the pnpm store cache costs more
+      # to save than it saves on install — every feature branch pays the miss, because
+      # Actions caches are branch-scoped.
       - run: pnpm install --frozen-lockfile
       # ONE SECOND OF DIAGNOSTIC, for the same reason the deleted `ldd` check existed:
       # a browser that cannot LAUNCH must not be debugged as a flaky test. GitHub does
@@ -456,25 +456,36 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-      # KEPT FOR NOW, though the image already ships Node v24.18.1 — verified by running
-      # it. ⚠️ THE CASE FOR KEEPING IT GOT WEAKER ONCE MEASURED IN THE CONTAINER, and
-      # this comment said the net was simply "unmeasured" until the numbers arrived:
+      # NO `actions/setup-node` IN THIS JOB — the image already ships Node v24.18.1,
+      # which is the version this repo pins, verified by running the image.
       #
-      #   on the host runner (32336966625)   setup-node 13s + install 15s = 28s
-      #   in the container, warm (32347453525)  setup-node 20s + install 13s = 33s
-      #   in the container, cold (32347073451)  setup-node  2s + install 25s = 27s
-      #                                          + a 59s pnpm-store cache SAVE
+      # It was kept at first "because `cache: pnpm` makes install faster", and that
+      # reasoning did not survive measurement. Six container runs of this job, and the
+      # totals are BIMODAL rather than noisy:
       #
-      # Restoring the store cache INTO the container costs 20s to save 2s on install,
-      # so dropping this step and letting `pnpm install` fetch (~25s, the cold number)
-      # looks like it would SAVE ~8s. That is a hypothesis from one cold run, not a
-      # measurement of the no-setup-node case, which has never been run. Trim it as its
-      # own change with a before/after — do not fold it into an unrelated PR, which is
-      # how the two Playwright-cost claims this file records as false got made.
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-          cache: pnpm
+      #   cache HIT   142s, 142s, 146s   setup-node 20-25s   install 13-16s
+      #   cache MISS  182s, 183s, 184s   setup-node 55-61s   install 25-26s
+      #
+      # The 40s is the store cache being SAVED, and which mode you get is not luck:
+      # Actions caches are BRANCH-SCOPED, so a cache written on one PR branch cannot be
+      # read from another. Only `main`'s caches are readable everywhere. Every feature
+      # branch therefore pays the miss — i.e. the slow mode is the normal one exactly
+      # where fast feedback matters.
+      #
+      # So this step cost 20-25s to save ~10s on install in the best case, and 55-61s
+      # in the common one. Dropping it makes `pnpm install` fetch every time (~25s) and
+      # removes both.
+      #
+      # MEASURED AFTER, run 32353281315 — a fresh branch, so a cache-MISS run by
+      # construction and therefore comparable to the 182/183/184s mode:
+      #
+      #   artwork  183s -> 122s   (-61s against MISS, -20s against the 142s HIT)
+      #   e2e      417s -> 384s   (-33s; its 309s of tests dominate either way)
+      #
+      # It wins in BOTH modes, but the number is not the best part: with no cache to
+      # hit or miss, the job is now FLAT at ~122s instead of swinging 40s depending on
+      # which branch it ran from. A predictable job is worth more than a fast one that
+      # is fast only when you are lucky about branch scoping.
       - run: pnpm install --frozen-lockfile
       # The Playwright cache, the two install steps and the missing-deps warning that
       # used to sit here were DELETED 2026-08-20. The image above already carries
