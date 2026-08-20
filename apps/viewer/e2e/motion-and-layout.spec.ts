@@ -960,19 +960,48 @@ test.describe('layout invariants', () => {
    * report: the controls must be reachable WITHOUT SCROLLING. The desktop rail
    * used to appear only once the garment had scrolled out of view.
    */
-  for (const width of [950, 1280, 1440]) {
-    test(`contact is reachable without scrolling at ${width}px`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 800 })
+  /**
+   * ⚠️ EXTENDED 2026-08-20, AND A SECOND HOLE OF THE SAME SHAPE WAS ALREADY OPEN.
+   *
+   * The 950px gap above was found by asking "which widths carry neither
+   * control". Nobody asked it of HEIGHTS. `.action-bar` hides itself below 500px
+   * tall — deliberately, to give a zoomed-in visitor their screen back — and
+   * `.contact-rail` needs 900px of width. A phone in landscape at 844x390
+   * satisfies neither, so it carried **no persistent contact control at all**,
+   * exactly as 950px once did, and for four days longer than anyone knew.
+   *
+   * The matrix is now heights as well as widths, and the selector is by
+   * DESTINATION rather than by container: whichever element carries the mailto:
+   * and wa.me links counts. That is what the invariant actually says, and it
+   * stops this test from having to be edited every time the controls move —
+   * which they are about to be, into the two-column layout.
+   */
+  for (const { name, width, height } of [
+    { name: 'phone landscape', width: 844, height: 390 },
+    { name: 'the 950 seam', width: 950, height: 800 },
+    { name: 'desktop', width: 1280, height: 800 },
+    { name: 'wide desktop', width: 1440, height: 900 },
+  ] as const) {
+    test(`contact is reachable without scrolling at ${name} (${width}x${height})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
       const reachable = await page.evaluate(() => {
         const inView = (el: Element) => {
           const r = el.getBoundingClientRect()
+          const cs = getComputedStyle(el)
+          if (cs.display === 'none' || cs.visibility === 'hidden') return false
           return r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight
         }
-        // Anything fixed to the viewport: the desktop rail or the mobile bar.
-        const persistent = [...document.querySelectorAll('.contact-rail a, .action-bar a')]
+        // By DESTINATION, not by container — see the note above. The in-page
+        // <ContactSection> is deliberately excluded: it is far down the document
+        // and is not a persistent control, which is the whole point here.
+        const persistent = [
+          ...document.querySelectorAll('.contact-rail a, .action-bar a, .stage__contact a'),
+        ]
         return {
           scrollY: Math.round(window.scrollY),
           email: persistent.filter(
@@ -986,12 +1015,15 @@ test.describe('layout invariants', () => {
       expect(reachable.scrollY, 'the page should not have scrolled to reach this').toBe(0)
       expect(
         reachable.email,
-        `no email control is on screen unscrolled at ${width}px — between 900 and ` +
-          `1099px the action bar is hidden and the rail used to start at 1100px`,
+        `no email control is on screen unscrolled at ${width}x${height}. This is ` +
+          `the only conversion path in the product: the visitor taps one of these ` +
+          `or leaves. Check that .action-bar, .contact-rail and .stage__contact ` +
+          `between them cover every viewport.`,
       ).toBeGreaterThan(0)
-      expect(reachable.whatsapp, `no WhatsApp control is on screen at ${width}px`).toBeGreaterThan(
-        0,
-      )
+      expect(
+        reachable.whatsapp,
+        `no WhatsApp control is on screen at ${width}x${height}`,
+      ).toBeGreaterThan(0)
     })
   }
 
