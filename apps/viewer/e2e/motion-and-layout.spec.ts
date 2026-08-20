@@ -699,6 +699,58 @@ test.describe('layout invariants', () => {
   }
 
   /**
+   * The token must equal the thing it describes.
+   *
+   * `--header-h` is subtracted from the stage band's height. If the header
+   * changes and the token does not, the band is wrong by exactly the difference
+   * and the colourway rail slides under the action bar — which is the 2026-08-20
+   * defect this work exists to fix, arriving again by a new route.
+   *
+   * ⚠️ THIS GUARD IS THE WHOLE JUSTIFICATION FOR THE TOKEN. The six-part
+   * subtrahend it helps replace was re-derived by hand four times and was wrong
+   * every time, and the failure was never the arithmetic — it was that nothing
+   * ever compared the result against the page. A number nobody checks drifts, no
+   * matter how carefully it was worked out the first time.
+   *
+   * 1px of tolerance for sub-pixel rounding across four engines, and no more.
+   */
+  for (const { name, width, height } of STAGE_BAND_VIEWPORTS) {
+    test(`the header token matches the real header at ${name} (${width}x${height})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const measured = await page.evaluate(() => {
+        const header = document.querySelector('.header')
+        if (!header) return null
+        const token = getComputedStyle(document.documentElement).getPropertyValue('--header-h')
+        return {
+          real: Math.round(header.getBoundingClientRect().height),
+          token: Math.round(Number.parseFloat(token)),
+        }
+      })
+
+      expect(measured, 'no .header on the page').not.toBeNull()
+      const { real, token } = measured as { real: number; token: number }
+
+      expect(
+        Number.isFinite(token),
+        '--header-h did not resolve to a number. It is declared in tokens.css ' +
+          'with a 320px override in page.css; check both.',
+      ).toBe(true)
+
+      expect(
+        Math.abs(real - token),
+        `--header-h is ${token}px but the header renders ${real}px at ` +
+          `${width}x${height}. Re-measure and update the token in tokens.css, or ` +
+          `its max-width:359px override in page.css. Do not widen this tolerance.`,
+      ).toBeLessThanOrEqual(1)
+    })
+  }
+
+  /**
    * ⚠️ THE CANVAS HAVING A HEIGHT DOES NOT MEAN THE GARMENT HAS ONE.
    *
    * `apps/viewer/CLAUDE.md` records a measured **378 x 0** box: `.stage__canvas`

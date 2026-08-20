@@ -111,6 +111,24 @@
      103px while the bar covered 72 of them. */
   --action-bar-h: 72px;
 
+  /* The sticky header's own height, which the stage band below it subtracts.
+     TWO values, because below 360px the catalogue button deliberately wraps to a
+     second flex row — see the block comment above `@media (max-width: 699px)` in
+     page.css, where that wrap is an accepted trade rather than a bug (fitting one
+     row at 320px needs a 13.9px wordmark, which is not worth it for a width no
+     current phone ships). The 320px value lives in page.css beside that rule.
+
+     ⚠️ MEASURED 2026-08-20 against the BUILT app at ten widths, not reasoned:
+     69px at 360, 375, 402, 414, 844, 768, 1280, 1440 and 2560; 117px at 320.
+
+     ⚠️ THE GUARD IS THE POINT, not the number. `motion-and-layout.spec.ts` ->
+     "the header token matches the real header" fails if either value drifts from
+     what the header actually renders. The six-part subtrahend this token helps
+     replace was re-derived by hand four times and was wrong every time, and the
+     reason was never the arithmetic — it was that nothing ever checked the result
+     against reality. */
+  --header-h: 69px;
+
   /* ── Type ───────────────────────────────────────────────────────── */
   /* Sizes were added 2026-08-14 and DOCUMENT what already shipped — the same
      move §6 made for spacing, and it changes no pixel. Until then this block
