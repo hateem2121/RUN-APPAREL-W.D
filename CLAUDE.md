@@ -212,8 +212,16 @@ the answer is "nothing that happens in production", it is not a test.
   inside the Container, where the error surfaces as a failed shrink job rather
   than as a permissions problem. Verified by running the image: writes `/tmp`,
   refused `/app`, service starts and answers. The base image is **digest-pinned**
-  for build reproducibility (sharp links against system libs); Dependabot's
-  `docker` ecosystem updates it — do not unpin it to make an update easier.
+  for build reproducibility (sharp links against system libs).
+  ⚠️ **NOTHING AUTOMATED REFRESHES THAT PIN — this line claimed "Dependabot's `docker`
+  ecosystem updates it" until 2026-08-20, and that was never true.**
+  `.github/dependabot.yml` declares no `docker` ecosystem at all, and the two it does
+  declare (npm, github-actions) both sit at `open-pull-requests-limit: 0` by deliberate
+  quiet-mode decision, so only security advisories open a PR. Bump the digest by hand.
+  Do not unpin it to make an update easier, and do not "fix" this by adding a third
+  ecosystem — it would either sit at 0 and change nothing, or break the quiet mode on
+  purpose. The same absence is why the Playwright container in `.github/workflows/ci.yml`
+  is pinned by TAG rather than digest, with a test enforcing the tag instead.
 - **`apps/cms` was pinned to TypeScript 6 until 2026-08-12 — RESOLVED by Next
   16.3.0, and the lesson it taught outlives the pin.** Next.js 16.2.12 refused TS 7
   outright: *"TypeScript 7.0.2 does not provide the compiler API required by
