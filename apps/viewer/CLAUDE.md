@@ -385,6 +385,27 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   what it is relative to. Qualify package paths; `apps/cms/src/claudeMd.test.ts`
   now fails on a citation that resolves to nothing.
 
+- **The e2e fixture serves FOUR colourways; production serves FIVE**, and one tab
+  is the difference between a clean row and a stranded remainder. Measured
+  2026-08-20: a 68px grid floor gave one row of four against the fixture and
+  **4 + 1** against the real five — a lone tab beside three empty cells, which
+  overflows nothing, covers nothing, passes every clearance assertion and looks
+  broken. Append a fifth before measuring, as `apps/viewer/e2e/motion-and-layout.spec.ts`
+  -> "never strands a single swatch on its own row" does. This is the root file's
+  fixtures-cannot-exhibit-the-failure rule in the one place it is cheapest to
+  forget: the fixture renders a plausible rail either way.
+
+- **The compact colourway styling is a `@container` query, not a media query — do
+  not convert it back.** It asked `max-width: 767px` until 2026-08-20, which
+  predicted the rail's own width only while the rail spanned the page. The moment
+  it moved into the two-column layout's 260px aside, an 844px-wide screen took the
+  DESKTOP pill treatment — pills needing 606px — inside a 217px box and stacked
+  into FOUR rows: the aside grew to 396px inside a 321px band and pushed the
+  contact buttons to y=448 on a 390px screen. `.colourways` carries
+  `container-type: inline-size` — **never `size`**, which would make the block axis
+  a containment root too, and this element is a flex item inside a band whose whole
+  job is dividing height.
+
 ## Whose animation advice wins
 
 Three vendored skills opine on motion here — `review-animations` and
@@ -442,6 +463,17 @@ timeout here.
 **A THIRD cause of that same timeout: a stray fixture server.** `e2e/serve.mjs`
 started by hand to drive the simulator holds 4173, so Playwright's own `webServer`
 cannot bind and the suite reads as a code failure. `pkill -f e2e/serve.mjs` first.
+
+**`--grep` does NOT survive the pnpm passthrough.**
+`pnpm --filter @run-apparel/viewer test:e2e -- --grep "x"` runs the WHOLE suite and
+silently ignores the filter — measured 2026-08-20, 252 tests where 20 were asked for.
+Run `npx playwright test --grep "x"` from `apps/viewer/` instead: ~2s against ~40s,
+which is the difference between iterating on one assertion and not bothering.
+
+**Driving `e2e/serve.mjs` by hand needs `PORT=4173` explicitly.** `playwright.config.ts`
+owns the port for the suite, and that fix does not reach a server you start yourself —
+it still reads `process.env.PORT`. In a session with `PORT=5002` set it binds there and
+`localhost:4173` returns nothing, with no error anywhere to explain it.
 
 **Driving the built app by hand needs `VITE_API_BASE_URL=''`.** A plain
 `pnpm build` bakes in the production API, so `localhost:4173/n001/wine` renders
