@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
-import { readFile, readdir, rm, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   ALLOWED_ABSENT,
@@ -298,6 +298,30 @@ describe('the doc-citations command', () => {
       'docs/ was walked one level deep until 2026-08-18, so plans and reviews were invisible',
     ).toBe(true)
     expect(covered.some((path) => path.endsWith('audit-ci.jsonc'))).toBe(true)
+  })
+
+  it('covers .claude/rules/ — a rule file holds trap prose no other guard reads', async () => {
+    // Path-scoped rules became load-bearing on 2026-08-20, when the viewer's seven
+    // headers/CSP/edge traps moved into one because they span apps/viewer/worker/ AND
+    // apps/viewer/scripts/ and a nested CLAUDE.md keys on ONE directory. That move
+    // carried 176 lines of citation-dense prose out from under this guard, which is
+    // exactly the "the copy is the part that decays" failure the header describes.
+    //
+    // Scoped to rules/ and NOT to all of .claude/: that directory also holds
+    // .claude/skills/README.md and .claude/agents/docs-drift.md, plus symlinks into
+    // .agents/skills/, whose citations point at their own upstream repositories.
+    // Widening to the whole directory would demand a wave of exemptions to go green.
+    const decoy = join(REPO_ROOT, '.claude', 'rules', 'CITATION-COVERAGE-CONTROL.md')
+    await mkdir(dirname(decoy), { recursive: true })
+    await writeFile(decoy, 'A citation to `apps/cms/src/does-not-exist.ts` here.\n')
+    try {
+      const run = spawnSync(process.execPath, [script], { cwd: REPO_ROOT, encoding: 'utf8' })
+      const output = run.stdout + run.stderr
+      expect(run.status, 'a broken citation inside .claude/rules/ must fail the gate').toBe(1)
+      expect(output).toContain('CITATION-COVERAGE-CONTROL.md')
+    } finally {
+      await rm(decoy, { force: true })
+    }
   })
 
   it('NEGATIVE CONTROL: exits 1 and names both the citation and the file', async () => {

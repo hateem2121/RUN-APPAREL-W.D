@@ -454,47 +454,87 @@ jobs:
     # control still have to pass. Do not raise the eval's CEILING; that is a
     # different number and it is measured. See the block above this job.
     timeout-minutes: 30
+    # NO APT SINCE 2026-08-20. This job was CANCELLED twice at exactly 20m20s inside
+    # `playwright install-deps chromium` — an apt-get — while Azure's Ubuntu mirror was
+    # degraded and nothing in this repository had changed. Raising the ceiling 20 -> 30
+    # only moved which job died. The image below already carries Chromium and its
+    # system libraries, so the Ubuntu mirror is off this job's critical path entirely;
+    # it pulls ~905 MB from MCR instead, which is a different provider and a different
+    # outage. Playwright's own answer to this problem (microsoft/playwright#23388,
+    # closed) is this image.
+    #
+    # THE PULL IS PAID EVERY RUN and cannot be cached: a hosted runner is ephemeral and
+    # the job container is pulled BEFORE the first step executes, so actions/cache is
+    # not even running yet. Blog posts claiming layer caching helps here are describing
+    # self-hosted runners.
+    #
+    # WHAT IT ACTUALLY COSTS, measured over two runs rather than predicted — the
+    # prediction was 115s and was wrong by 27s, which is why this block states numbers:
+    #
+    #   apt baseline   32336966625            107s   (setup-node 13 + install 15
+    #                                                 + cache 4 + apt 14 + eval 54)
+    #   container cold 32347073451            183s   (pull 38 + install 25 + eval 50
+    #                                                 + 59s pnpm-store cache SAVE)
+    #   container warm 32347453525            142s   (pull 38 + setup-node 20
+    #                                                 + install 13 + eval 56)
+    #
+    # So steady state is 142s against 107s: **+35s per run, every run**. `Initialize
+    # containers` was 38s in BOTH runs, so the pull is the stable part and the cold-run
+    # spread was the pnpm store cache being written for the new key.
+    #
+    # That 35s is the price of the trade, and it is worth naming honestly: it buys the
+    # removal of a failure mode that cost this job 20m20s twice in cancelled runs and
+    # took `verify` red at 30m21s. A third of a minute per run against a third-party
+    # outage that blocks a deploy.
+    #
+    # ROOT ON PURPOSE — do NOT add `options: --user 1001`, which upstream's own example
+    # uses. That is what triggers Firefox's `Can't find profile directory`
+    # (microsoft/playwright#31685). This job is Chromium-only so it would not bite here,
+    # but establishing root is what makes containerising the e2e job safe later. Running
+    # as root disables the Chromium sandbox; the render harness already runs software
+    # WebGL through swiftshader, so it costs nothing.
+    #
+    # THE TAG IS NOT DECORATIVE. It must equal the `@playwright/test` version: the image
+    # SHIPS the browsers, the package drives them, and a mismatch fails at RUNTIME with
+    # `browser not found at /ms-playwright/...` on whichever PR happens to bump the
+    # package. `apps/cms/src/workflowHardening.test.ts` fails if they drift. A TAG and
+    # not a digest because `.github/dependabot.yml` declares no docker ecosystem, so a
+    # digest would go stale in silence with nothing to notice.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      # KEPT FOR NOW, though the image already ships Node v24.18.1 — verified by running
+      # it. ⚠️ THE CASE FOR KEEPING IT GOT WEAKER ONCE MEASURED IN THE CONTAINER, and
+      # this comment said the net was simply "unmeasured" until the numbers arrived:
+      #
+      #   on the host runner (32336966625)   setup-node 13s + install 15s = 28s
+      #   in the container, warm (32347453525)  setup-node 20s + install 13s = 33s
+      #   in the container, cold (32347073451)  setup-node  2s + install 25s = 27s
+      #                                          + a 59s pnpm-store cache SAVE
+      #
+      # Restoring the store cache INTO the container costs 20s to save 2s on install,
+      # so dropping this step and letting `pnpm install` fetch (~25s, the cold number)
+      # looks like it would SAVE ~8s. That is a hypothesis from one cold run, not a
+      # measurement of the no-setup-node case, which has never been run. Trim it as its
+      # own change with a before/after — do not fold it into an unrelated PR, which is
+      # how the two Playwright-cost claims this file records as false got made.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Chromium only, and cached on the same terms as `verify` above — separate
-      # key because the browser SET differs, so the two caches must not collide.
-      # For reference this job installed Chromium and rendered the fixture three
-      # times in 1m56s total, while `verify` spent 25+ minutes installing three
-      # browsers; that gap is what identified the browser download as the cost.
-      - name: Resolve Playwright version
-        id: pw
-        run: echo "v=$(node -p 'require("./tools/asset-pipeline/node_modules/@playwright/test/package.json").version')" >> "$GITHUB_OUTPUT"
-      - name: Restore Playwright browsers
-        id: pw-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.v }}-chromium
-      - name: Install Chromium for the render harness (cache miss)
-        if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter @run-apparel/asset-pipeline exec playwright install --with-deps chromium
-      # Bounded and non-fatal for the same measured reason as the identical step in
-      # `verify` — see the long note there. This job was cancelled at 20m20s twice
-      # in a row inside this step while the artwork eval never ran once.
-      # `Artwork legibility eval` below is the gate; this is preparation.
-      - name: Install Chromium system deps (cache hit)
-        id: pw-deps
-        if: steps.pw-cache.outputs.cache-hit == 'true'
-        timeout-minutes: 8
-        continue-on-error: true
-        run: pnpm --filter @run-apparel/asset-pipeline exec playwright install-deps chromium
-      - name: Say so if the system deps did not install
-        if: steps.pw-deps.outcome == 'failure'
-        run: |
-          echo "::warning title=Chromium system deps incomplete::apt did not finish within 8 minutes (degraded Ubuntu mirror?). If the eval now fails to launch Chromium, this is the cause, not an artwork regression."
+      # The Playwright cache, the two install steps and the missing-deps warning that
+      # used to sit here were DELETED 2026-08-20. The image above already carries
+      # Chromium and its system libraries, so there is nothing left to fetch or
+      # install: `Artwork legibility eval` runs directly against /ms-playwright.
+      # Measured before deleting them, run 32336966625, healthy runner:
+      #     setup-node 13s + pnpm install 15s + cache restore 4s + apt 14s + eval 54s
+      #     = 107s total.
+      # Compare `Initialize containers` in this run against that 14s and that 107s.
       - name: Artwork legibility eval
         run: pnpm eval:artwork
 

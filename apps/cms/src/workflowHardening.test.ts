@@ -45,6 +45,19 @@ function read(name: string): string {
 }
 
 /**
+ * Versions in a `container:` `image: .../playwright:vX.Y.Z-suffix` line.
+ *
+ * Kept as a pure function on a source string, like jobsWithoutTimeout above, so the
+ * negative control can prove it distinguishes a match from a mismatch instead of
+ * returning [] for everything.
+ */
+function playwrightImageVersions(source: string): string[] {
+  return [...source.matchAll(/image:\s*\S*playwright:v(\d+\.\d+\.\d+)\b/g)]
+    .map((m) => m[1])
+    .filter((v): v is string => v !== undefined)
+}
+
+/**
  * Job keys (two-space indent under `jobs:`) that declare no `timeout-minutes`.
  *
  * Exported shape kept simple — takes a source string, returns job names — so the
@@ -474,5 +487,71 @@ jobs:
 `
     // The safe form must NOT trip it, or the rule would be unfollowable.
     expect(shellLines(good).filter((l) => /\$\{\{\s*secrets\./.test(l.line))).toEqual([])
+  })
+
+  /**
+   * NINTH RULE, added 2026-08-20 with the first container job.
+   *
+   * `artwork` stopped installing Chromium through apt and now runs inside
+   * `mcr.microsoft.com/playwright:v1.62.1-noble`, which SHIPS the browsers. The image
+   * supplies them; `@playwright/test` drives them. If the two drift, nothing fails at
+   * lint or typecheck — it fails at RUNTIME, on whichever unrelated PR happens to bump
+   * the package, with `browser not found at /ms-playwright/...`. That is an expensive
+   * place to learn about a version bump, and it is exactly the shape of the
+   * `apps/shrink/container` lockfile trap: two files that must agree, with no tooling
+   * that makes them.
+   *
+   * A TAG and not a digest, deliberately: `.github/dependabot.yml` declares no docker
+   * ecosystem, so a digest pin would go stale in silence with nothing to notice. The
+   * tag is legible and this test is what keeps it honest.
+   */
+  it('pins every Playwright container image to the declared @playwright/test version', async () => {
+    const declared = new Set<string>()
+    for (const pkg of ['apps/viewer/package.json', 'tools/asset-pipeline/package.json']) {
+      const json = JSON.parse(readFileSync(join(REPO_ROOT, pkg), 'utf8'))
+      const version =
+        json.devDependencies?.['@playwright/test'] ?? json.dependencies?.['@playwright/test']
+      if (version) declared.add(String(version).replace(/^[^\d]*/, ''))
+    }
+
+    // dependencyPolicy.test.ts already forbids two workspaces declaring different
+    // versions of a shared dependency, so this is a set of one. Assert it rather than
+    // assume it: if that ever changes, "the declared version" stops meaning anything
+    // and this gate must be rewritten, not silently pick whichever came first.
+    expect([...declared], 'workspaces disagree on @playwright/test').toHaveLength(1)
+    const expected = [...declared][0]
+
+    const offenders: string[] = []
+    for (const file of await workflowFiles()) {
+      for (const found of playwrightImageVersions(read(file))) {
+        if (found !== expected)
+          offenders.push(`${file}: container image v${found} != @playwright/test ${expected}`)
+      }
+    }
+
+    expect(
+      offenders,
+      'A container image and @playwright/test have drifted. The image SHIPS the browsers;\n' +
+        'a mismatch fails at runtime with "browser not found at /ms-playwright/...".\n' +
+        'Bump the image tag in the workflow and the package together.\n' +
+        `${offenders.join('\n')}`,
+    ).toEqual([])
+  })
+
+  it('the Playwright image check can actually fail (negative control)', () => {
+    // Without this the assertion above passes for a repo with no container at all,
+    // which is indistinguishable from a parser that returns [] for everything — the
+    // failure mode the timeout rule's control was written to catch.
+    const drifted = `
+jobs:
+  artwork:
+    container:
+      image: mcr.microsoft.com/playwright:v1.60.0-noble
+  other:
+    runs-on: ubuntu-latest
+`
+    expect(playwrightImageVersions(drifted)).toEqual(['1.60.0'])
+    expect(playwrightImageVersions(drifted.replace('v1.60.0', 'v1.62.1'))).toEqual(['1.62.1'])
+    expect(playwrightImageVersions('jobs:\n  a:\n    runs-on: ubuntu-latest\n')).toEqual([])
   })
 })

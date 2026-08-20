@@ -212,8 +212,16 @@ the answer is "nothing that happens in production", it is not a test.
   inside the Container, where the error surfaces as a failed shrink job rather
   than as a permissions problem. Verified by running the image: writes `/tmp`,
   refused `/app`, service starts and answers. The base image is **digest-pinned**
-  for build reproducibility (sharp links against system libs); Dependabot's
-  `docker` ecosystem updates it — do not unpin it to make an update easier.
+  for build reproducibility (sharp links against system libs).
+  ⚠️ **NOTHING AUTOMATED REFRESHES THAT PIN — this line claimed "Dependabot's `docker`
+  ecosystem updates it" until 2026-08-20, and that was never true.**
+  `.github/dependabot.yml` declares no `docker` ecosystem at all, and the two it does
+  declare (npm, github-actions) both sit at `open-pull-requests-limit: 0` by deliberate
+  quiet-mode decision, so only security advisories open a PR. Bump the digest by hand.
+  Do not unpin it to make an update easier, and do not "fix" this by adding a third
+  ecosystem — it would either sit at 0 and change nothing, or break the quiet mode on
+  purpose. The same absence is why the Playwright container in `.github/workflows/ci.yml`
+  is pinned by TAG rather than digest, with a test enforcing the tag instead.
 - **`apps/cms` was pinned to TypeScript 6 until 2026-08-12 — RESOLVED by Next
   16.3.0, and the lesson it taught outlives the pin.** Next.js 16.2.12 refused TS 7
   outright: *"TypeScript 7.0.2 does not provide the compiler API required by
@@ -312,14 +320,18 @@ the answer is "nothing that happens in production", it is not a test.
   off the GET's own headers (`curl -o /dev/null -D -`), never off a HEAD.**
   Live reference numbers now live in `docs/QA-CHECKLIST.md` → "Performance & assets".
 
-- **Five more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
+- **Six more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
   of them moved there 2026-08-19 because they bite only while you are editing a
   workflow, which is exactly when that file loads. Enough to stop you: every workflow
-  is gated by `apps/cms/src/workflowHardening.test.ts` on eight rules with verified
+  is gated by `apps/cms/src/workflowHardening.test.ts` on nine rules with verified
   negative controls, and a `permissions:` block **REPLACES** the defaults rather than
   adding to them — omitting `contents: read` killed uptime.yml for 23 hours with a 404.
   A CI fetch from a `wear-run.help` host can 403 from a runner (Bot Fight Mode); treat
   it as *inconclusive*, never as a failed assertion, and use `HEAD`.
+  And **`timeout-minutes` kills the step's SHELL, not the `apt-get` it started** — the
+  orphan keeps the dpkg lock, so retrying races it and exits 100 in five seconds while
+  waiting longer only spends the job's headroom. `artwork` stopped depending on apt on
+  2026-08-20; `verify` and `deploy-shrink.yml` have not.
 
 - **Twelve more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
   2026-08-19, when this file measured 44,993 characters against Claude Code's
@@ -375,13 +387,22 @@ the answer is "nothing that happens in production", it is not a test.
   files and saves no context. What *does* work is on-demand loading: the sub-file split
   above, and path-scoped rules (a `paths:` frontmatter block in a rules file under
   `.claude/rules/`), which load only when Claude reads a matching file.
-  ⚠️ **Path-scoped rules are NOT yet trustworthy for anything load-bearing, checked
-  2026-08-19.** They have open upstream bugs: a rule fires when Claude *reads* a
-  matching file, so **creating** a new file never triggers it (anthropics/claude-code
-  #63142), and there are reports that the documented `paths:` key fails where an
-  undocumented `globs:` works (#17204). That is why this repo still has no
-  `.claude/rules/` and splits into nested CLAUDE.md files instead — the `.github/` and
-  `tools/asset-pipeline/` pattern, which is proven here. Measure before adopting.
+  ⚠️ **Path-scoped rules are NOT yet trustworthy for anything load-bearing — measured
+  again 2026-08-20 and STILL not adopted.** A rule fires when Claude *reads* a matching
+  file, so **creating** a new file never triggers it (anthropics/claude-code#63142).
+  Four upstream fixes have since shipped (symlink matching v2.1.198, an invalid pattern
+  no longer breaking Read v2.1.207, `--setting-sources` respected v2.1.211, the
+  brace-expansion startup crash v2.1.217) and the documented key **is** `paths:` — the
+  2026-08-19 note's worry about an undocumented `globs:` (#17204) is not what the docs
+  say. So the mechanism was tried: `.claude/rules/` now holds ONE rule, deliberately
+  **empty of traps**, as the artifact under test. Creating it mid-session and then
+  reading two files matching its globs produced `nested_traversal` for
+  `apps/viewer/CLAUDE.md` and **no `path_glob_match` at all**. That negative is
+  AMBIGUOUS — it shows a rule created mid-session does not fire in that session, not
+  that a rule present at session start fails — which is exactly why no prose moved.
+  **The ten-second check and both branches are written at the top of that rule file.
+  Run it before adding anything there.** Until it passes, the nested CLAUDE.md pattern
+  (`.github/`, `tools/asset-pipeline/`, `apps/cms/`) is the only proven one here.
   ⚠️ **All on-demand loading carries one caveat**: only the project-root CLAUDE.md is
   re-injected after `/compact` — nested files and path-scoped rules reload only when a
   matching file is next read, so a trap that moved out of this file can be absent from a
