@@ -699,6 +699,85 @@ test.describe('layout invariants', () => {
   }
 
   /**
+   * ⚠️ THE CANVAS HAVING A HEIGHT DOES NOT MEAN THE GARMENT HAS ONE.
+   *
+   * `apps/viewer/CLAUDE.md` records a measured **378 x 0** box: `.stage__canvas`
+   * survived at its `min-height` while `model-viewer.stage__model` — which is
+   * `height: 100%` of a parent that had become `auto` — resolved to zero. The
+   * visitor got the blueprint grid and no product, and every height assertion in
+   * this file passed the whole time, because they all measure the CONTAINER.
+   *
+   * The 2026-08-20 flex conversion can reach that same state two ways: a missing
+   * `min-height: 0` on one of the elements forwarding the growth, or `height:
+   * 100%` failing to resolve against a flex-sized parent. So assert the MODEL's
+   * own box, in both axes, at every viewport.
+   *
+   * ⚠️ THIS PASSES BEFORE THE CHANGE IT GUARDS, DELIBERATELY. A guard first seen
+   * failing tells you nothing about whether it can pass; this one was run green
+   * against the old layout first, so a later failure is a real regression rather
+   * than a test that never worked.
+   */
+  for (const { name, width, height } of STAGE_BAND_VIEWPORTS) {
+    test(`the garment element has a real box at ${name} (${width}x${height})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      // ⚠️ DO NOT WAIT FOR `model-viewer` ALONE — that makes this a test of the
+      // runner's GPU, a mistake `viewer.spec.ts` already documents. Headless
+      // Firefox has no WebGL context, so `canRender3D()` correctly refuses and
+      // <Stage> renders `.stage__poster-fallback` instead. Both are "the surface
+      // showing the garment", both are height:100% of the same parent, and both
+      // therefore carry the 378x0 risk this test exists for.
+      //
+      // ⚠️ AND DO NOT COPY `viewer.spec.ts`'s LOCATOR, which also lists
+      // `.stage__loading`. That one asks "did the stage do anything at all", and
+      // it resolves on the loading readout — which is painted OVER a
+      // model-viewer that has not mounted yet. Waiting on it and then measuring
+      // the garment surface is a race, and it failed a scattered 3-of-5
+      // viewports per engine on 2026-08-20 before this comment existed.
+      //
+      // `attached`, not `visible`: during the download the surface is mounted and
+      // deliberately not yet painted.
+      await page
+        .locator('model-viewer, .stage__poster-fallback img')
+        .first()
+        .waitFor({ state: 'attached' })
+
+      const box = await page.evaluate(() => {
+        const model = document.querySelector('model-viewer.stage__model')
+        const poster = document.querySelector('.stage__poster-fallback img')
+        const el = model ?? poster
+        if (!el) return null
+        const r = el.getBoundingClientRect()
+        return {
+          kind: model ? 'model-viewer' : 'poster fallback',
+          w: Math.round(r.width),
+          h: Math.round(r.height),
+        }
+      })
+
+      expect(
+        box,
+        'neither model-viewer nor the poster fallback is on the page — the stage ' +
+          'is showing no garment surface at all',
+      ).not.toBeNull()
+      const { kind, w, h } = box as { kind: string; w: number; h: number }
+
+      expect(w, `the ${kind} is ${w}px wide`).toBeGreaterThan(100)
+      expect(
+        h,
+        `the ${kind} is ${h}px tall against a width of ${w}px. A zero or tiny ` +
+          `height with a healthy width is the 378x0 failure recorded in ` +
+          `apps/viewer/CLAUDE.md: the garment surface is height:100% of a parent ` +
+          `that resolved to auto. Check min-height: 0 on the flex chain.`,
+      ).toBeGreaterThan(100)
+    })
+  }
+
+  /**
    * A visitor must always have somewhere to swipe.
    *
    * `Stage.tsx` sets `touch-action: none` on the model, so a one-finger drag
