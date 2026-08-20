@@ -1,9 +1,36 @@
 import type { ViewerApiSuccess } from '@run-apparel/shared'
 import { useId, useState } from 'react'
 
+/**
+ * Open on a roomy screen, closed on a phone.
+ *
+ * ⚠️ IT WAS CLOSED EVERYWHERE UNTIL 2026-08-20, and what it hid is the clearest
+ * explanation of the business on the page: the four steps from "share your
+ * starting point" to "sample, refine and produce". For a buyer who has never
+ * heard of this company that IS the pitch, and it sat behind a tap most visitors
+ * never take, below the fold, at the end of a page they reached by scanning a
+ * tag on a garment.
+ *
+ * Still collapsed on a phone. The four steps are ~550px of copy there, which
+ * pushes the contact section — the only conversion path — that much further from
+ * a thumb, and a phone visitor who wants the detail can ask for it. The trade
+ * only pays where the height is free.
+ *
+ * ⚠️ READ ONCE, NOT SUBSCRIBED. This is the initial value of a `useState`, so a
+ * visitor who opens or closes it keeps their choice, and one who rotates a tablet
+ * mid-visit is not overridden mid-read. That is deliberate: a control that
+ * reopens itself because the viewport changed is a control fighting its user.
+ * `matchMedia` rather than `innerWidth` so it agrees with the 900px seam in
+ * page.css by asking the same question the stylesheet does.
+ */
+function opensByDefault(): boolean {
+  if (typeof window === 'undefined' || !window.matchMedia) return false
+  return window.matchMedia('(min-width: 900px)').matches
+}
+
 export function CustomisationSection({ data }: { data: ViewerApiSuccess }) {
   const { product } = data
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(opensByDefault)
   const panelId = useId()
 
   return (

@@ -1679,10 +1679,32 @@ model-viewer.stage__model:focus-within {
 .footer__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  /* Row gap drops to 4px because the link below now carries 6px of vertical
+     padding of its own; 16px on both axes would double-space a wrapped row. */
+  gap: 4px 16px;
   align-items: center;
   font-size: 13px;
   color: var(--muted);
+}
+
+/*
+ * The smallest target on the page was a link to the same place as a 40px button.
+ *
+ * Measured 2026-08-20: 105 x 20.1px — the only interactive element in the viewer
+ * under WCAG 2.5.8's 24px floor. It PASSES the criterion, on the spacing
+ * exception: it is the only target in this row, so no other target's 24px circle
+ * can intersect its own. That exemption is also why the automated audit reported
+ * zero violations and this had to be found by measuring every control.
+ *
+ * Passing on an exemption is not the same as being comfortable to hit, and the
+ * exemption evaporates the moment a second link is added to this row. 6px of
+ * vertical padding takes it to 32px and costs the footer nothing.
+ */
+.footer__meta a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding-block: 6px;
 }
 
 /* ── Unavailable state ─────────────────────────────────────────────── */
