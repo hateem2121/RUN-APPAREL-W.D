@@ -375,13 +375,22 @@ the answer is "nothing that happens in production", it is not a test.
   files and saves no context. What *does* work is on-demand loading: the sub-file split
   above, and path-scoped rules (a `paths:` frontmatter block in a rules file under
   `.claude/rules/`), which load only when Claude reads a matching file.
-  ⚠️ **Path-scoped rules are NOT yet trustworthy for anything load-bearing, checked
-  2026-08-19.** They have open upstream bugs: a rule fires when Claude *reads* a
-  matching file, so **creating** a new file never triggers it (anthropics/claude-code
-  #63142), and there are reports that the documented `paths:` key fails where an
-  undocumented `globs:` works (#17204). That is why this repo still has no
-  `.claude/rules/` and splits into nested CLAUDE.md files instead — the `.github/` and
-  `tools/asset-pipeline/` pattern, which is proven here. Measure before adopting.
+  ⚠️ **Path-scoped rules are NOT yet trustworthy for anything load-bearing — measured
+  again 2026-08-20 and STILL not adopted.** A rule fires when Claude *reads* a matching
+  file, so **creating** a new file never triggers it (anthropics/claude-code#63142).
+  Four upstream fixes have since shipped (symlink matching v2.1.198, an invalid pattern
+  no longer breaking Read v2.1.207, `--setting-sources` respected v2.1.211, the
+  brace-expansion startup crash v2.1.217) and the documented key **is** `paths:` — the
+  2026-08-19 note's worry about an undocumented `globs:` (#17204) is not what the docs
+  say. So the mechanism was tried: `.claude/rules/` now holds ONE rule, deliberately
+  **empty of traps**, as the artifact under test. Creating it mid-session and then
+  reading two files matching its globs produced `nested_traversal` for
+  `apps/viewer/CLAUDE.md` and **no `path_glob_match` at all**. That negative is
+  AMBIGUOUS — it shows a rule created mid-session does not fire in that session, not
+  that a rule present at session start fails — which is exactly why no prose moved.
+  **The ten-second check and both branches are written at the top of that rule file.
+  Run it before adding anything there.** Until it passes, the nested CLAUDE.md pattern
+  (`.github/`, `tools/asset-pipeline/`, `apps/cms/`) is the only proven one here.
   ⚠️ **All on-demand loading carries one caveat**: only the project-root CLAUDE.md is
   re-injected after `/compact` — nested files and path-scoped rules reload only when a
   matching file is next read, so a trap that moved out of this file can be absent from a

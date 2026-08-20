@@ -42,10 +42,6 @@ export const ANCHORS = new Set([
  */
 export const ALLOWED_ABSENT = new Map([
   [
-    '.claude/rules',
-    'the upstream path-scoped-rules directory, cited by CLAUDE.md and docs/RUNBOOK.md as a mechanism this repo deliberately does NOT use: as of 2026-08-19 a rule fires only when Claude READS a matching file, so creating a file never triggers it (anthropics/claude-code#63142), and the documented paths: key is reported to fail where an undocumented globs: works (#17204). Both documents say in the same sentence that the directory is absent. Delete this entry if the repo ever adopts one.',
-  ],
-  [
     '.claude/instructions-loaded.log',
     'written by .claude/hooks/log-instructions-loaded.mjs on its first run and gitignored — a per-machine measurement of which memory files loaded, not shared state. docs/RUNBOOK.md cites it as the file to read, which is correct before it exists.',
   ],
@@ -227,10 +223,23 @@ export async function walkDocuments(dir, found = []) {
 export async function documentsToCheck(root) {
   const all = await walkDocuments(root)
   const docsDir = join(root, 'docs')
+  // A path-scoped rule carries the same trap prose as a CLAUDE.md and must be read on
+  // the same terms — added 2026-08-20, when the viewer's seven headers/CSP/edge traps
+  // moved into one and took 176 lines of citation-dense prose with them. Without this
+  // line that prose left the guard entirely, which is the failure the header above
+  // describes: splitting a memory file creates a second copy of the truth, and the copy
+  // is the part that decays.
+  //
+  // Scoped to rules/ and NOT to all of .claude/ deliberately. That directory also holds
+  // .claude/skills/README.md and .claude/agents/docs-drift.md, plus symlinks into
+  // .agents/skills/, whose citations point at their own upstream repositories — so a
+  // wider walk would demand a wave of exemptions for documents this repo does not own.
+  const rulesDir = join(root, '.claude', 'rules')
   return all.filter((path) => {
     const name = path.slice(root.length + 1)
     if (path.endsWith('CLAUDE.md') || path.endsWith('audit-ci.jsonc')) return true
     if (path.startsWith(`${docsDir}/`)) return true
+    if (path.startsWith(`${rulesDir}/`)) return true
     return ['README.md', 'CONTRIBUTING.md', 'SECURITY.md'].includes(name)
   })
 }
