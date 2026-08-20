@@ -729,11 +729,21 @@ test.describe('layout invariants', () => {
       const measure = () =>
         page.evaluate(() => {
           const rail = document.querySelector('.colourways')
-          const band = document.querySelector('.stage-block')
-          if (!rail || !band) return null
+          if (!rail?.parentElement) return null
+          // ⚠️ THE PARENT, NOT `.stage-block` — updated 2026-08-20 when the
+          // two-column layout landed. The invariant is "the rail is sized by its
+          // container", and in two columns that container is a 260px aside, not
+          // the full-width band. Comparing against the band asserted a
+          // ONE-COLUMN layout, which is a different claim and not this one.
+          const parent = rail.parentElement
+          const cs = getComputedStyle(parent)
+          const inner =
+            parent.getBoundingClientRect().width -
+            Number.parseFloat(cs.paddingLeft) -
+            Number.parseFloat(cs.paddingRight)
           return {
             rail: Math.round(rail.getBoundingClientRect().width),
-            band: Math.round(band.getBoundingClientRect().width),
+            container: Math.round(inner),
           }
         })
 
@@ -745,22 +755,24 @@ test.describe('layout invariants', () => {
       await page.addStyleTag({ content: '.colourways__hint { display: none !important }' })
       const after = await measure()
 
-      const { rail: railBefore, band } = before as { rail: number; band: number }
+      const { rail: railBefore, container } = before as { rail: number; container: number }
       const { rail: railAfter } = after as { rail: number }
 
       expect(
         railBefore - railAfter,
         `removing the disclaimer changed the colourway rail's width by ` +
           `${railBefore - railAfter}px (${railBefore} -> ${railAfter}). The rail is ` +
-          `sizing itself from its contents instead of from the band. Add ` +
+          `sizing itself from its contents instead of from its container. Add ` +
           `width: 100% to .stage-block .colourways — auto margins on a flex item ` +
           `suppress the cross-axis stretch.`,
       ).toBe(0)
 
+      // Fills its container, whatever that container currently is: the full-width
+      // band in one column, the aside in two. Capped at the 1200px measure.
       expect(
-        band - railBefore,
-        `the colourway rail is ${railBefore}px inside a ${band}px band`,
-      ).toBeLessThanOrEqual(Math.max(0, band - 1200))
+        Math.min(container, 1200) - railBefore,
+        `the colourway rail is ${railBefore}px inside a ${container}px container`,
+      ).toBeLessThanOrEqual(1)
     })
   }
 
@@ -922,24 +934,37 @@ test.describe('layout invariants', () => {
       const strip = await page.evaluate(() => {
         const canvas = document.querySelector('.stage__canvas')
         if (!canvas) return null
+        const c = canvas.getBoundingClientRect()
         return {
-          canvasBottom: Math.round(canvas.getBoundingClientRect().bottom),
+          below: Math.round(window.innerHeight - c.bottom),
+          // ⚠️ BESIDE, ADDED 2026-08-20 WITH THE TWO-COLUMN LAYOUT. The strip
+          // below the canvas was the only place to swipe for as long as the
+          // canvas spanned the page. Beside it there is now a whole column that
+          // is not the model — and a thumb reaches a 260px-wide column at least
+          // as easily as a 140px-tall strip. Measuring only "below" asserted a
+          // ONE-COLUMN layout rather than the invariant, which is: somewhere
+          // big enough to find that is not the garment.
+          beside: Math.round(Math.max(c.left, window.innerWidth - c.right)),
           viewportHeight: window.innerHeight,
+          canvasBottom: Math.round(c.bottom),
         }
       })
 
       expect(strip, 'no .stage__canvas on the page').not.toBeNull()
-      const { canvasBottom, viewportHeight } = strip as {
+      const { below, beside, canvasBottom, viewportHeight } = strip as {
+        below: number
+        beside: number
         canvasBottom: number
         viewportHeight: number
       }
 
       expect(
-        viewportHeight - canvasBottom,
-        `only ${viewportHeight - canvasBottom}px of the screen below the garment ` +
-          `is swipeable (canvas ends ${canvasBottom}, viewport ${viewportHeight}). ` +
-          `With touch-action: none on the model, a visitor here can scroll the ` +
-          `page only from a strip too small to find.`,
+        Math.max(below, beside),
+        `only ${below}px below the garment and ${beside}px beside it is swipeable ` +
+          `(canvas ends ${canvasBottom}, viewport ${viewportHeight}). With ` +
+          `touch-action: none on the model, a visitor here can scroll the page ` +
+          `only from a region too small to find. Shrink the canvas or give the ` +
+          `layout a second column — do not lower this threshold.`,
       ).toBeGreaterThanOrEqual(140)
     })
   }

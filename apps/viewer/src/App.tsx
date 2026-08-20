@@ -2,7 +2,12 @@ import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
 import { isViewerApiError } from '@run-apparel/shared'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { COLOURWAY_PANEL_ID, ColourwayTabs, colourwayTabId } from './components/ColourwayTabs'
-import { ContactSection, MobileActionBar, StickyContactRail } from './components/Contact'
+import {
+  ContactSection,
+  MobileActionBar,
+  StageContact,
+  StickyContactRail,
+} from './components/Contact'
 import { CustomisationSection } from './components/CustomisationSection'
 import { Footer } from './components/Footer'
 import { Header } from './components/Header'
@@ -286,12 +291,26 @@ export default function App() {
             >
               <Stage data={data} selected={selected} preview={previewedColourway} />
             </div>
-            <ColourwayTabs
-              colourways={data.colourways}
-              selected={selected}
-              onSelect={onSelectColourway}
-              onPreview={setPreviewedColourway}
-            />
+            {/*
+              The aside is a WRAPPER, not a relocation. `.stage__aside` is a
+              plain block in one column and the second column when the screen is
+              wide or short-and-wide — see the two-column rules in page.css.
+
+              ⚠️ The tablist still directly follows its own tabpanel in reading
+              order, which is the property the 2026-08-13 fix was for: they are
+              declared to belong together via `aria-controls` → COLOURWAY_PANEL_ID
+              and the layout used to disagree. Wrapping them keeps them adjacent;
+              do not move <ColourwayTabs> away from this position.
+            */}
+            <div className="stage__aside">
+              <ColourwayTabs
+                colourways={data.colourways}
+                selected={selected}
+                onSelect={onSelectColourway}
+                onPreview={setPreviewedColourway}
+              />
+              <StageContact settings={data.siteSettings} enquiry={enquiry} />
+            </div>
           </div>
           {retiredNotice && <RetiredNotice message={retiredNotice} />}
           <div className="content">

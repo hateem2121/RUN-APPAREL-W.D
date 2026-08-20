@@ -86,6 +86,35 @@ export function StickyContactRail(props: ContactProps) {
 }
 
 /**
+ * The contact pair INSIDE the stage band, for screens laid out in two columns.
+ *
+ * ⚠️ IT EXISTS BECAUSE THE FLOATING PILL WAS THE QUIETEST THING ON THE PAGE.
+ * Measured 2026-08-20 at 2560x1440: `.contact-rail` is 196x54px and never
+ * scales, which is **0.29% of the screen**, sitting 1,064px right of centre in a
+ * 399px band of empty background. The four spec callouts occupied 31,790px2
+ * against its 10,606 — the facts were 3.0x louder than the only control that
+ * starts a conversation, on a page with no cart and no form.
+ *
+ * In the column it sits on the reading path instead of in a corner, and
+ * `.contact-rail` is switched off at exactly the widths this appears — see the
+ * two-column block in page.css. The two are never both painted, so this is not
+ * a second tab stop; `display: none` keeps the hidden one out of the tab order
+ * and the accessibility tree together.
+ *
+ * ⚠️ NOT `compact`. The rail shortened its labels to "Email" / "WhatsApp"
+ * because it was a narrow pill in a corner. A column is not narrow, and the verb
+ * is the point on the only conversion path in the product — the same reasoning
+ * that restored it for <MobileActionBar> on 2026-08-14.
+ */
+export function StageContact(props: ContactProps) {
+  return (
+    <div className="stage__contact">
+      <ContactButtons {...props} />
+    </div>
+  )
+}
+
+/**
  * Mobile persistent bottom action bar (safe-area aware).
  *
  * ⚠️ NOT `compact` — the verb is restored here, 2026-08-14 by owner decision.

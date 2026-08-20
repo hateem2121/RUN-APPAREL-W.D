@@ -493,6 +493,108 @@
   }
 }
 
+/* ── Two columns when the screen has width to spare ────────────────── */
+
+/*
+ * ⚠️ THE BASE STATE MUST BE DECLARED BEFORE THE MEDIA QUERY, not after it.
+ * `.stage__contact` and the two-column rule have the SAME specificity, so a
+ * media query does not beat a later plain rule — source order decides. Written
+ * the other way round on 2026-08-20, this element stayed `display: none` at
+ * every width and the two-column layout shipped with no contact control in it,
+ * which the reachability guard caught at 844x390.
+ */
+.stage__contact {
+  display: none;
+}
+
+/*
+ * TRIGGERED BY SHAPE, NOT BY DEVICE — which is why this is one rule and not two.
+ *
+ * Measured 2026-08-20 at 2560x1440: **720px of unused space on EACH side** of
+ * the canvas, a **399px** band of empty background below the stage (27.7% of the
+ * screen), and the garment at roughly **7.8%** of the screen against 18% on a
+ * 1440x900 laptop. The floating contact pill sat alone in that emptiness at
+ * 196x54px — 0.29% of the screen, 1,064px right of centre, never scaling — while
+ * the four spec callouts occupied 3.0x its area. The loudest things on the page
+ * were facts; the quietest was the only way to start a conversation.
+ *
+ * The second condition is a phone in LANDSCAPE. 844x390 is an aspect ratio of
+ * 2.16 — wide and short, and therefore far closer to a desktop than to a
+ * portrait phone. It had the same disease (nothing beside the garment, no
+ * persistent contact control, and until 2026-08-20 a 4px scroll strip) and it
+ * takes the same cure, so it shares the rule rather than getting its own.
+ *
+ * ⚠️ 900px IS THE EXISTING SEAM, deliberately reused. It is where `.contact-rail`
+ * appears and `.action-bar` disappears, and apps/viewer/CLAUDE.md records what
+ * happened when those two numbers were allowed to differ: 900-1099px carried no
+ * persistent contact control at all. A fourth breakpoint here would be a fourth
+ * thing to keep in step.
+ *
+ * Verified against the audit matrix: 1440x900 (1.60) and 2560x1440 (1.78) match
+ * on width; 844x390 (2.16) matches on shape; 768x1024 (0.75), 402x714 (0.56) and
+ * 320x256 (1.25, but only 320px wide) correctly do NOT.
+ *
+ * ⚠️ WHAT DELIBERATELY DOES NOT MOVE INTO THE COLUMN:
+ *
+ *   `.stage__plinth` — the camera buttons control the garment, so they stay
+ *   under it. Putting a garment's own controls in a different column than the
+ *   garment is the kind of tidiness that reads as a filing decision.
+ *
+ *   `.stage__callouts` — the spec facts are absolutely positioned over the
+ *   canvas at left/right 3% ON PURPOSE, so a desktop visitor reads the product
+ *   as a technical drawing rather than as a paragraph. That treatment is
+ *   documented further down this file and is the reason `.spec-list` exists as a
+ *   separate phone rendering. Moving them here would delete it.
+ */
+@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
+  .stage-block {
+    flex-direction: row;
+    align-items: stretch;
+    gap: var(--stage-gutter);
+    /*
+     * Centres a 1200px content area WITHOUT constraining the element, so the
+     * band keeps its full-bleed background and bottom rule. `.stage__inner`'s
+     * own max-width is released below — two constrainers would compound.
+     */
+    padding-inline: max(var(--stage-gutter), calc((100% - 1200px) / 2));
+  }
+
+  /* The garment column. `min-width: 0` for the same reason `min-height: 0` is on
+     the column chain: a flex item defaults to its content's minimum and would
+     refuse to narrow. */
+  .stage-block > [role="tabpanel"] {
+    flex: 1 1 62%;
+    min-width: 0;
+  }
+
+  .stage__inner {
+    max-width: none;
+    padding-inline: 0;
+  }
+
+  /* The controls column. `clamp` rather than a percentage alone so it stays
+     legible on a 2560px screen and does not crush at 900px. */
+  .stage__aside {
+    flex: 0 1 clamp(260px, 30%, 400px);
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 24px;
+    padding-block: clamp(8px, 2vw, 24px);
+  }
+
+  .stage__contact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .stage__contact .btn {
+    flex: 1 1 auto;
+  }
+}
+
 .stage__contours {
   position: absolute;
   inset: 0;
@@ -1036,6 +1138,19 @@ model-viewer.stage__model:focus-within {
 .colourways {
   display: grid;
   gap: 12px;
+  /*
+   * The rail sizes its swatches from ITS OWN width, not the screen's — see the
+   * `@container colourrail` block further down for why that distinction became
+   * load-bearing the moment this element could sit in a 260px column.
+   *
+   * ⚠️ `inline-size`, never `size`. `container-type: size` would make the BLOCK
+   * axis a containment root too, which means this element stops taking its
+   * height from its contents — and it is a flex item inside a band whose whole
+   * job is dividing height. Naming it means the query cannot accidentally match
+   * some future ancestor that also becomes a container.
+   */
+  container-type: inline-size;
+  container-name: colourrail;
 }
 
 /*
@@ -1078,6 +1193,27 @@ model-viewer.stage__model:focus-within {
    */
   width: 100%;
   padding: 0 var(--stage-gutter) clamp(12px, 2vw, 20px);
+}
+
+/*
+ * ⚠️ THIS MUST SIT AFTER THE RULE ABOVE, and it did not until 2026-08-20.
+ *
+ * Both selectors are `.stage-block .colourways` — identical specificity — so a
+ * media query does not win, SOURCE ORDER does. Placed up in the two-column block
+ * where it logically belonged, this was silently dead: the base rule's
+ * `padding: 0 var(--stage-gutter)` kept applying and ate 43px of a 260px column.
+ * Biome's `noDescendingSpecificity` is what found it; the layout looked correct
+ * either way, which is exactly why nothing else would have.
+ *
+ * In the column the rail needs no measure and no gutter — the aside supplies
+ * both.
+ */
+@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
+  .stage-block .colourways {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 /*
@@ -1341,6 +1477,29 @@ model-viewer.stage__model:focus-within {
     .contact-rail .btn--ghost:hover {
       border-color: var(--line);
     }
+  }
+}
+
+/*
+ * ⚠️ THE FLOATING PILL IS SUPERSEDED BY THE TWO-COLUMN LAYOUT, AND THIS RULE
+ * MUST STAY BELOW THE BLOCK ABOVE — same specificity, so source order decides.
+ *
+ * The rail is painted from `min-width: 900px`. The two-column layout starts at
+ * exactly the same 900px (plus landscape), so every width that would show the
+ * pill now shows the column instead, and `<StageContact>` carries the same two
+ * links on the reading path rather than 464px right of it.
+ *
+ * ⚠️ THAT MAKES `<StickyContactRail>` DEAD IN PRACTICE, and dead code that still
+ * renders is exactly the failure this repo keeps paying for — `--poster-color`
+ * shipped for a whole major version while the source read as though it worked,
+ * and `REFERENCE_PATHS` was declared and never read while a test told people to
+ * add to it. Removing the component, its `compact` prop (nothing else uses it),
+ * its three unit tests and the CSS above is a mechanical change, deliberately
+ * NOT bundled with a layout change. Do it next, and delete this comment with it.
+ */
+@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
+  .contact-rail {
+    display: none;
   }
 }
 
@@ -1686,7 +1845,35 @@ model-viewer.stage__model:focus-within {
  * 606.6px of the 854px available at a 900px viewport, so every screen from ~768px up
  * was being given the cramped treatment while the roomy one fitted with 248px to spare.
  */
-@media (max-width: 767px) {
+/*
+ * ⚠️ A CONTAINER QUERY, NOT A VIEWPORT ONE — changed 2026-08-20, and the change
+ * is what makes the two-column layout possible.
+ *
+ * This was `@media (max-width: 767px)`, which asks how wide the SCREEN is. That
+ * was the right question for as long as this rail always spanned the page. The
+ * moment it moved into a 260px column beside the garment, the screen stopped
+ * predicting anything: at 844x390 the viewport is 844px wide, so the rail took
+ * the desktop pill treatment — pills that need 606px — inside a 217px box, and
+ * stacked into FOUR rows. Measured that day: the aside grew to 396px inside a
+ * 321px band, pushing the contact buttons to y=448 on a 390px screen.
+ *
+ * The rail's real question was always "how much room do I have", not "how big is
+ * the phone". `@container` asks that one. It also removes a breakpoint rather
+ * than adding one: phones and the narrow column now take the same branch for the
+ * same reason, instead of two rules that have to be kept in step.
+ *
+ * 500px, not 767: the threshold is now measured against the RAIL's width rather
+ * than the viewport's, and the rail is inset from the viewport by the stage
+ * gutter. At 767px of viewport the rail is ~740px, and the desktop pills need
+ * 606.6px — so the old breakpoint's own reasoning ("every screen from ~768px up
+ * was being given the cramped treatment while the roomy one fitted") lands
+ * around 620px of rail. 500 sits below that with room, and above the ~400px a
+ * phone ever gives.
+ *
+ * Support floor is Safari 16 / Chrome 105, comfortably below this repo's
+ * existing `svh` floor of Safari 15.4 and the iOS 16.4 oldest testable runtime.
+ */
+@container colourrail (max-width: 500px) {
   .colourways__list {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
