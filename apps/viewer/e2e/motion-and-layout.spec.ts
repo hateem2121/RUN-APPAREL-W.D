@@ -47,6 +47,38 @@ const VIEWPORTS = [
   { name: 'desktop', width: 1280, height: 800 },
 ] as const
 
+/**
+ * ⚠️ ONE MATRIX FOR BOTH STAGE-BAND GUARDS — and their being SPLIT is why two
+ * defects shipped.
+ *
+ * Until 2026-08-20 the clearance guard below ran at 375x812 and nothing else,
+ * while the thumb guard ran at four portrait sizes that did NOT include 375's
+ * partner. Every size was visited and every rule was written, but no size
+ * received BOTH checks — and the gap between which screen each one visited is
+ * exactly where two live defects sat. Measured on the live site that day:
+ *
+ *     320x640   colourway rail ends y=598, action bar starts y=568
+ *               -> 04 Lime and 05 Black **57% covered**
+ *     844x390   **4px** of scrollable strip below the canvas,
+ *               against this suite's own 140px floor
+ *
+ * WHY THIS IS NOT `VIEWPORTS` ABOVE. That matrix exists for document-level
+ * checks (reflow, header) and carries tablet and desktop, where `.action-bar` is
+ * `display: none` and there is nothing for these two guards to measure against.
+ * This one is the phone-shaped screens where the bar is real.
+ *
+ * ⚠️ LANDSCAPE IS IN THE LIST because a phone turned sideways is an ordinary way
+ * to look at a garment and nothing in this file had ever visited one. 844x390 is
+ * an iPhone 14/15 Pro Max on its side.
+ */
+const STAGE_BAND_VIEWPORTS = [
+  { name: 'small mobile', width: 320, height: 640 },
+  { name: 'mobile', width: 375, height: 812 },
+  { name: 'iphone 17', width: 402, height: 714 },
+  { name: 'large mobile', width: 414, height: 896 },
+  { name: 'phone landscape', width: 844, height: 390 },
+] as const
+
 test.describe('motion layer', () => {
   test('reduced motion never leaves revealed content invisible', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -601,31 +633,70 @@ test.describe('layout invariants', () => {
    * lower this number. The whole point is that the garment cannot be grown by
    * quietly pushing the colour picker under the bar.
    */
-  test('the colourway rail clears the action bar by a real margin', async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 812 })
-    await page.goto('/n001/wine')
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  /**
+   * ⚠️ PARAMETERISED 2026-08-20. It ran at 375x812 alone, and 320x640 — a size
+   * this file already visited for the OTHER guard — was burying two colourways
+   * under the bar the whole time. See `STAGE_BAND_VIEWPORTS`.
+   */
+  for (const { name, width, height } of STAGE_BAND_VIEWPORTS) {
+    test(`the colourway rail clears the action bar at ${name} (${width}x${height})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    const measured = await page.evaluate(() => {
-      const bar = document.querySelector('.action-bar')
-      const rail = document.querySelector('[role="tablist"]')
-      if (!bar || !rail) return null
-      return {
-        barTop: Math.round(bar.getBoundingClientRect().top),
-        railBottom: Math.round(rail.getBoundingClientRect().bottom),
+      const measured = await page.evaluate(() => {
+        const bar = document.querySelector('.action-bar')
+        const rail = document.querySelector('[role="tablist"]')
+        if (!rail) return null
+        // `.action-bar` is `display: none` above 900px AND on any screen under
+        // 500px tall (the max-height rule that gives a zoomed-in visitor their
+        // screen back). Report its presence rather than substituting a number.
+        const barShown = Boolean(bar) && getComputedStyle(bar as Element).display !== 'none'
+        return {
+          barShown,
+          barTop: barShown ? Math.round((bar as Element).getBoundingClientRect().top) : 0,
+          railBottom: Math.round(rail.getBoundingClientRect().bottom),
+        }
+      })
+
+      expect(measured, 'no colourway tablist on the page').not.toBeNull()
+      const { barShown, barTop, railBottom } = measured as {
+        barShown: boolean
+        barTop: number
+        railBottom: number
       }
+
+      /**
+       * ⚠️ THE INVARIANT IS "NOT COVERED", NOT "ABOVE THE FOLD" — and conflating
+       * the two made this test wrong on its first run, 2026-08-20.
+       *
+       * Substituting the viewport's bottom edge for an absent bar failed at
+       * 844x390 with -104px, because the rail there is simply BELOW THE FOLD.
+       * That is not this test's defect to catch: a rail below the fold is
+       * scrollable and fully tappable, and `.stage-block`'s own comment names it
+       * as the ACCEPTABLE degradation when a screen is too short. A rail under a
+       * fixed bar is neither. Only the second is a defect.
+       *
+       * So when no bar is painted there is nothing that can cover the rail, and
+       * this skips with a reason rather than passing vacuously against a number
+       * that means nothing.
+       */
+      test.skip(
+        !barShown,
+        `no fixed action bar is painted at ${width}x${height}, so nothing can ` +
+          `cover the colourway rail here`,
+      )
+
+      expect(
+        barTop - railBottom,
+        `the colourway rail has ${barTop - railBottom}px of clearance under the ` +
+          `fixed action bar (rail ends ${railBottom}, bar starts ${barTop}). ` +
+          `Raise the subtrahend in .stage__canvas — do not lower this threshold.`,
+      ).toBeGreaterThanOrEqual(8)
     })
-
-    expect(measured, 'no .action-bar or colourway tablist on the page').not.toBeNull()
-    const { barTop, railBottom } = measured as { barTop: number; railBottom: number }
-
-    expect(
-      barTop - railBottom,
-      `the colourway rail has ${barTop - railBottom}px of clearance under the ` +
-        `fixed action bar (rail ends ${railBottom}, bar starts ${barTop}). ` +
-        `Raise the subtrahend in .stage__canvas — do not lower this threshold.`,
-    ).toBeGreaterThanOrEqual(8)
-  })
+  }
 
   /**
    * A visitor must always have somewhere to swipe.
@@ -647,12 +718,7 @@ test.describe('layout invariants', () => {
    * layout gives (measured 277px at both 375x812 and 402x714 on 2026-08-19), so
    * it fails on a real regression rather than on a few pixels of drift.
    */
-  for (const { name, width, height } of [
-    { name: 'small mobile', width: 320, height: 640 },
-    { name: 'mobile', width: 375, height: 812 },
-    { name: 'iphone 17', width: 402, height: 714 },
-    { name: 'large mobile', width: 414, height: 896 },
-  ]) {
+  for (const { name, width, height } of STAGE_BAND_VIEWPORTS) {
     test(`a thumb can always scroll the page at ${name} (${width}x${height})`, async ({ page }) => {
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
