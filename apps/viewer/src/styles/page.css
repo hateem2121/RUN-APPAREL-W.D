@@ -251,6 +251,13 @@
   --stage-gutter: clamp(8px, 3vw, 40px);
   display: flex;
   flex-direction: column;
+  /* The containing block for `.stage__more`, which is taken out of flow so it
+     can sit in this band's own reserved bottom padding without costing the
+     garment any height. Safe to add: every other absolutely positioned thing in
+     the band (`.stage__contours`, `.stage__callouts`, `.stage__loading`) is
+     inside `.stage__canvas`, which is `position: relative` itself and therefore
+     a nearer containing block. */
+  position: relative;
   min-height: calc(100svh - var(--header-h));
   /*
    * ⚠️ THE BAR'S HEIGHT PLUS A REAL MARGIN, not the bar's height alone.
@@ -655,6 +662,68 @@
 
   .stage__contact .btn {
     flex: 1 1 auto;
+  }
+}
+
+/*
+ * The scroll cue — and where it lives is the whole reason it is affordable.
+ *
+ * `.stage-block` reserves `--action-bar-h + 16px` at its bottom so the colourway
+ * rail can never slide under the fixed bar. The bar covers 72 of those 88px, so
+ * roughly 16px of that reserve is visible and empty on every phone. This sits in
+ * it: `margin-top: auto` pushes it to the end of the flex column, where it takes
+ * space that was already spent.
+ *
+ * ⚠️ MEASURED ALTERNATIVES, both rejected on cost rather than taste:
+ *
+ *   a peek of the next section   110px of garment before ONE pixel of ink shows
+ *                                (72px hidden by the bar + 24px of `.content`
+ *                                padding + the chip's own height). At 375x812
+ *                                that takes the garment 520 -> 410, below where
+ *                                it started before any of this work.
+ *   a fade at the band's edge    0px, and invisible: the region it would fade is
+ *                                empty reserved space, so there is nothing to
+ *                                fade out.
+ *
+ * ⚠️ NOT ANIMATED, deliberately. A bouncing chevron is the reflex here and
+ * `docs/DESIGN.md` outranks the vendored animation skills on exactly this: it is
+ * a QR-scanned product page, not a landing page, and a moving arrow beside a
+ * still garment pulls the eye away from the product. It also cannot respect
+ * `prefers-reduced-motion` without a second rule for a decoration this small.
+ *
+ * Hidden in two columns: that layout has no fold to signal past — the aside
+ * already ends well above the viewport bottom.
+ */
+/*
+ * ⚠️ ABSOLUTE, NOT A FLEX CHILD — and the first attempt was the flex child.
+ *
+ * As `flex: 0 0 auto; margin-top: auto` it sat in exactly the right place and
+ * still consumed 14px of the column, because `margin-top: auto` moves an item
+ * without exempting it from the layout. Measured: the garment went 520 -> 506 at
+ * 375x812 and 421 -> 407 at 402x714. Small, but this rule's whole justification
+ * is that it costs the garment NOTHING, and a comment claiming zero above a rule
+ * costing fourteen is how the numbers in this file went wrong four times.
+ *
+ * Taken out of flow it occupies the band's own reserved padding — the 16px strip
+ * between the bar's top edge and the end of the reserve — which was already paid
+ * for and already empty. Verified: garment heights return to 296 / 520 / 421 /
+ * 603 and the rail's clearance returns to 25px.
+ */
+.stage__more {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--action-bar-h) + 2px);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
+  .stage__more {
+    display: none;
   }
 }
 

@@ -311,6 +311,38 @@ export default function App() {
               />
               <StageContact settings={data.siteSettings} enquiry={enquiry} />
             </div>
+            {/*
+              The only thing on the first screen that says the page continues.
+
+              ⚠️ IT IS ORNAMENT, AND ORNAMENT WAS THE LAST RESORT — chosen because
+              measurement removed the other two. Letting the next section peek is
+              the honest cue (it shows WHAT is below, not merely that something
+              is), and it costs 110px of garment: the fixed action bar hides the
+              bottom 72px of every phone screen and `.content` adds 24px of
+              padding before its first ink, so nothing appears until more has
+              been spent than Parts A, C1 and C5 gained between them. A fade at
+              the band's edge fails for the same reason — the region it would
+              fade is empty reserved space, so it would fade nothing.
+
+              This sits INSIDE the ~88px the band already reserves for the bar
+              and nobody can see, so it costs the garment zero pixels.
+
+              `aria-hidden`: a screen-reader user is not looking for a visual
+              affordance and already has the document outline. It is not
+              animated — see the CSS.
+            */}
+            <div className="stage__more" aria-hidden="true">
+              <svg viewBox="0 0 16 10" width="16" height="10" focusable="false">
+                <title>More below</title>
+                <path
+                  d="M1 1l7 7 7-7"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="square"
+                />
+              </svg>
+            </div>
           </div>
           {retiredNotice && <RetiredNotice message={retiredNotice} />}
           <div className="content">
