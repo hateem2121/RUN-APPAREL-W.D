@@ -45,6 +45,34 @@ function read(name: string): string {
 }
 
 /**
+ * Jobs declared in ci.yml, and the job list in `deploy.needs`.
+ *
+ * Pure functions on a source string, like jobsWithoutTimeout above, so the negative
+ * control can run them against a synthetic workflow instead of against the repo.
+ */
+function declaredJobs(source: string): string[] {
+  const lines = source.split('\n')
+  const jobsAt = lines.findIndex((l) => /^jobs:\s*$/.test(l))
+  if (jobsAt === -1) return []
+  const out: string[] = []
+  for (const line of lines.slice(jobsAt + 1)) {
+    if (/^\S/.test(line)) break
+    const match = /^ {2}([A-Za-z0-9_-]+):\s*$/.exec(line)
+    if (match?.[1]) out.push(match[1])
+  }
+  return out
+}
+
+function deployNeeds(source: string): string[] {
+  const match = /^\s*needs:\s*\[([^\]]*)\]/m.exec(source)
+  if (!match?.[1]) return []
+  return match[1]
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
+/**
  * Versions in a `container:` `image: .../playwright:vX.Y.Z-suffix` line.
  *
  * Kept as a pure function on a source string, like jobsWithoutTimeout above, so the
@@ -553,5 +581,62 @@ jobs:
     expect(playwrightImageVersions(drifted)).toEqual(['1.60.0'])
     expect(playwrightImageVersions(drifted.replace('v1.60.0', 'v1.62.1'))).toEqual(['1.62.1'])
     expect(playwrightImageVersions('jobs:\n  a:\n    runs-on: ubuntu-latest\n')).toEqual([])
+  })
+  /**
+   * TENTH RULE, added 2026-08-20 when `e2e` was split out of `verify`.
+   *
+   * A gate that stops gating is this repo's most repeated CI failure: a rename broke a
+   * post-deploy gate on 2026-08-15, and again on 2026-08-17. Splitting a job is the
+   * same hazard with a different cause — `e2e` was gating because it lived INSIDE
+   * `verify`, and the moment it became its own job that stopped being true unless
+   * someone remembered `deploy.needs`.
+   *
+   * So the invariant is stated positively: every job must gate the deploy unless it is
+   * on the allow-list below. Adding a job now fails this test until you decide, in
+   * writing, which it is.
+   *
+   * ⚠️ THIS COVERS ONLY HALF THE PROBLEM. The `main` ruleset's required-status-checks
+   * list is the other place a gate must be named, and it is org configuration this
+   * test cannot read. `needs:` stops the DEPLOY; the ruleset stops the MERGE.
+   */
+  it('gates the deploy on every job except the declared non-gating ones', async () => {
+    // `lighthouse` is deliberately non-gating and ci.yml says why: its category scores
+    // swung 0.64/0.88/0.87 across three runs of an identical build, and "a Chrome flake
+    // must never block a live release". Anything else added here needs the same kind of
+    // written reason beside the job.
+    const NON_GATING = new Set(['deploy', 'lighthouse'])
+
+    const source = read('ci.yml')
+    const needs = new Set(deployNeeds(source))
+    const ungated = declaredJobs(source).filter((job) => !NON_GATING.has(job) && !needs.has(job))
+
+    expect(
+      ungated,
+      'A ci.yml job does not gate the deploy. Add it to `deploy.needs` — AND to the\n' +
+        "`main` ruleset's required status checks, which this test cannot see — or add it\n" +
+        'to NON_GATING here with the reason written beside the job.\n' +
+        `${ungated.join('\n')}`,
+    ).toEqual([])
+  })
+
+  it('the deploy-gating check can actually fail (negative control)', () => {
+    const source = `
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+  e2e:
+    runs-on: ubuntu-latest
+  lighthouse:
+    runs-on: ubuntu-latest
+  deploy:
+    needs: [verify]
+    runs-on: ubuntu-latest
+`
+    expect(declaredJobs(source)).toEqual(['verify', 'e2e', 'lighthouse', 'deploy'])
+    expect(deployNeeds(source)).toEqual(['verify'])
+    // e2e is ungated and must be reported; lighthouse and deploy are allow-listed.
+    const NON_GATING = new Set(['deploy', 'lighthouse'])
+    const needs = new Set(deployNeeds(source))
+    expect(declaredJobs(source).filter((j) => !NON_GATING.has(j) && !needs.has(j))).toEqual(['e2e'])
   })
 })

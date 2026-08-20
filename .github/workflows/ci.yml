@@ -107,144 +107,65 @@ jobs:
       - name: Bundle weight budget (deterministic, no browser)
         run: node scripts/check-bundle-budget.mjs
 
-      # WebKit is not optional here. A QR code on a garment tag is scanned with a
-      # phone camera, which opens iOS Safari — and until 2026-08-03 this step
-      # installed Chromium only, so the suite ran Chromium twice and the single
-      # most likely browser for this product had never executed a line of it.
-      # Firefox is cheap to add once the matrix exists.
-      #
-      # CACHED SINCE 2026-08-06 — but NOT because the download is slow. The first
-      # version of this comment claimed the browsers were "75–85% of all CI time",
-      # inferred from run 31091024563 where this step ran 30+ minutes before the
-      # run was cancelled. That inference was WRONG, and the correction is the
-      # useful part:
-      #
-      #   Measured on run 31093298223, healthy runner, cache MISS:
-      #     install + typecheck + 366 tests + seed + build   ~2m 25s
-      #     this step (three browsers, --with-deps)           0m 49s
-      #     e2e across the three browsers                     3m 09s
-      #
-      # 49 seconds, not six minutes. The 30-minute run was a hung runner (almost
-      # certainly apt inside --with-deps): same command, same empty cache, 49s on
-      # the next attempt. GitHub Actions reported no incident. e2e is the real
-      # second-biggest cost, and it is legitimate work.
-      #
-      # Both paths have now been measured end to end:
-      #
-      #   cache MISS (31093298223)   install --with-deps            0m 49s
-      #   cache HIT  (31093973459)   restore 0m 07s + install-deps 0m 24s = 0m 31s
-      #
-      # So the cache buys about 18 seconds. It is kept for RESILIENCE, not speed:
-      # the 30-minute hang happened INSIDE the download, and a hit removes that
-      # network call from the critical path. On the numbers alone it would barely
-      # be worth having.
-      #
-      # Two claims about this step have already been made and measured false — that
-      # browsers were 75-85% of CI, then that the cache saved ~49s. Both were
-      # inferred from a total rather than timed directly. If you are about to state
-      # what this step costs, time it first; the answer has been counter-intuitive
-      # every time so far.
-      #
-      # THE CACHE HOLDS BINARIES ONLY. Playwright's apt system libraries are
-      # installed into the runner OS and cannot be cached, so a cache HIT still has
-      # to run `install-deps`. Skipping it would leave WebKit without its libraries
-      # and it would fail to launch — which presents as a flaky e2e, not as a
-      # caching bug, and would be debugged in the wrong place.
-      #
-      # The key tracks the resolved Playwright version rather than a hardcoded one,
-      # so a version bump invalidates the cache instead of pairing new Playwright
-      # with stale browsers.
-      - name: Resolve Playwright version
-        id: pw
-        run: echo "v=$(node -p 'require("./apps/viewer/node_modules/@playwright/test/package.json").version')" >> "$GITHUB_OUTPUT"
-      - name: Restore Playwright browsers
-        id: pw-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+
+  # E2E IN A REAL BROWSER. Split out of `verify` on 2026-08-20 and containerised for
+  # the same measured reason `artwork` was: `playwright install-deps` is an apt-get,
+  # and a degraded Azure Ubuntu mirror twice consumed whole job budgets with nothing
+  # in this repository changed. The image below carries the browsers AND their system
+  # libraries, so no apt runs here at all.
+  #
+  # WHY THIS IS ITS OWN JOB rather than `verify` gaining a `container:`. That job runs
+  # `scripts/test-alert-shell.sh`, which needs `jq` — and this image does not have it
+  # (checked by running the image, not by reading about it). The script cannot be
+  # ported to node either: it evaluates the REAL `--jq` filter strings lifted out of
+  # uptime.yml and heartbeat.yml, so it needs something that parses jq syntax. That
+  # single missing binary is the whole reason for the split — and the split is a
+  # genuine seam anyway, since the static gates and the browser gates need different
+  # machines.
+  #
+  # ⚠️ IT IS IN `deploy.needs` AND IN THE `main` RULESET. Both. `needs:` stops the
+  # deploy; the ruleset stops the merge, and it is org config that no test in this
+  # repo can see. `apps/cms/src/workflowHardening.test.ts` enforces the `needs:` half
+  # — see the tenth rule there. Splitting a gate into a new job and forgetting either
+  # one is how a gate silently stops gating, which has happened here twice already
+  # (2026-08-15 and 2026-08-17, both renames).
+  #
+  # WebKit is not optional. A QR code on a garment tag is scanned with a phone camera,
+  # which opens iOS Safari — and until 2026-08-03 CI installed Chromium only, so the
+  # suite ran Chromium twice and the single most likely browser for this product had
+  # never executed a line of it. Firefox is cheap once the matrix exists.
+  #
+  # ROOT ON PURPOSE — do NOT add `options: --user 1001`, which upstream's own example
+  # uses. Firefox fails as a non-root user in this image with `Can't find profile
+  # directory` (microsoft/playwright#31685). Unlike `artwork`, which is Chromium-only,
+  # THIS job runs Firefox, so that is a live failure and not a precaution.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.v }}-chromium-webkit-firefox
-      - name: Install Playwright browsers (cache miss)
-        if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter @run-apparel/viewer exec playwright install --with-deps chromium webkit firefox
-      # BOUNDED AND NON-FATAL SINCE 2026-08-18, deliberately. Normally 24 seconds
-      # (measured, above). That day Azure's Ubuntu mirror was degraded — the log
-      # repeats `Ign: http://azure.archive.ubuntu.com/ubuntu noble InRelease`
-      # before falling back to the far slower https://archive.ubuntu.com — and
-      # this step consumed ENTIRE job budgets three times in a row with nothing
-      # in the repository changed: artwork cancelled at 20m20s twice, then verify
-      # at 30m21s. A cancelled job reads as a failed gate and is not one, and
-      # raising ceilings just moves which job dies.
-      #
-      # This step is PREPARATION, not a gate. `e2e` below is the gate. So a broken
-      # mirror now costs 8 minutes instead of the whole job.
-      #
-      # The block above correctly warns that skipping this leaves WebKit without
-      # its libraries and "presents as a flaky e2e ... debugged in the wrong
-      # place". That objection is about SILENT skipping, which is why the next
-      # step exists: if apt did not finish, the annotation says so by name.
-      - name: Install Playwright system deps (cache hit)
-        id: pw-deps
-        if: steps.pw-cache.outputs.cache-hit == 'true'
-        timeout-minutes: 8
-        continue-on-error: true
-        run: pnpm --filter @run-apparel/viewer exec playwright install-deps chromium webkit firefox
-      # WAIT FOR THE ORPHAN, added 2026-08-19, corrected the same day.
-      #
-      # `timeout-minutes` kills the STEP'S SHELL, not the `sudo apt-get` that step
-      # started. That process survives as an orphan, KEEPS INSTALLING, and keeps
-      # holding /var/lib/dpkg/lock-frontend. So the bound above does not stop apt —
-      # it only stops WAITING for apt, and `e2e` then starts against a half-unpacked
-      # system. That is the whole bug: on run 32248711203 (main, b5621aa)
-      # `libevent-2.1-7t64` had been downloaded and not yet unpacked when e2e began,
-      # and all 23 viewer-webkit tests died on `libevent-2.1.so.7: cannot open shared
-      # object file` while all 119 chromium/firefox tests passed.
-      #
-      # HOW LONG TO WAIT, measured rather than guessed. On run 32294473409 the wait
-      # was 10 minutes and apt STILL had not finished — 18+ minutes total across both
-      # steps — and the `ldd` check below then reported THIRTY-THREE missing libraries,
-      # i.e. essentially the whole WebKit stack, not one straggler. So waiting does not
-      # rescue a mirror this degraded, and a long wait only costs the job its headroom:
-      # that run took verify to ~26 minutes against its 30, close enough to risk a
-      # `cancelled` conclusion, which reads as a failed gate and is not one.
-      #
-      # The wait is therefore SHORT and deliberately not a fix: it rescues the case
-      # where apt is nearly done, and gets out of the way otherwise. Budget: 2m40
-      # setup + 8 (bounded attempt) + 4 (this) + ~5 (e2e) + ~0m30 (post) = ~20m10s
-      # against 30. ⚠️ The loop budget must stay STRICTLY BELOW this step's
-      # timeout-minutes — 18x10s = 3m inside a 4m step — or the step is killed before
-      # `dpkg --configure -a` and the final install-deps can run, which is what
-      # happened on 32294473409 (60x10s = 10m inside a 10m step) and is why that run
-      # ended on a lock error instead of finishing the job.
-      #
-      # ⚠️ RETRYING IS THE WRONG FIX AND WAS TRIED FIRST, on run 32290202909: a second
-      # `install-deps` RACES the orphan, loses the lock immediately and exits 100 in
-      # five seconds — `dpkg frontend lock was locked by another process with pid
-      # 4625`. Five seconds reads like "nothing left to do" and is the opposite.
-      # Wait for the orphan to finish; it is the thing doing the real work.
-      - name: Wait for the interrupted apt to finish
-        id: pw-deps-wait
-        if: steps.pw-deps.outcome == 'failure'
-        timeout-minutes: 4
-        continue-on-error: true
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # ONE SECOND OF DIAGNOSTIC, for the same reason the deleted `ldd` check existed:
+      # a browser that cannot LAUNCH must not be debugged as a flaky test. GitHub does
+      # not document what HOME is inside a job container, and Firefox's known container
+      # failure is precisely a HOME/profile-directory problem — so print it rather than
+      # infer it. If e2e ever dies in `browserType.launch`, read this step first.
+      - name: Container facts (user, HOME, browsers)
         run: |
-          for i in $(seq 1 18); do
-            pgrep -x apt-get >/dev/null 2>&1 || pgrep -x dpkg >/dev/null 2>&1 || break
-            echo "apt/dpkg still running, waiting ($((i * 10))s)"
-            sleep 10
-          done
-          sudo dpkg --configure -a || true
-          pnpm --filter @run-apparel/viewer exec playwright install-deps chromium webkit firefox
-      # Prove the libraries are actually there. WebKit is the one that breaks, and
-      # `ldd` naming a "not found" line is a one-second check against a four-minute
-      # e2e run that reports the same thing as 23 assertion-shaped failures.
-      - name: Say so if WebKit still cannot load its libraries
-        if: steps.pw-deps.outcome == 'failure'
-        continue-on-error: true
-        run: |
-          WK="$(find "$HOME/.cache/ms-playwright" -name MiniBrowser -type f 2>/dev/null | head -1)"
-          if [ -n "$WK" ] && ldd "$WK" 2>/dev/null | grep -q 'not found'; then
-            echo "::warning title=WebKit libraries still missing::apt did not finish even after waiting. Missing: $(ldd "$WK" | grep 'not found' | awk '{print $1}' | paste -sd, -). If e2e now fails to LAUNCH WebKit, this is the cause, not a flaky test."
-          fi
+          echo "whoami=$(whoami)  uid=$(id -u)  HOME=$HOME"
+          echo "PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-unset}"
+          ls "${PLAYWRIGHT_BROWSERS_PATH:-/ms-playwright}" || true
+      # `prepare.mjs` runs `pnpm seed:assets` and `pnpm build` itself, through
+      # Playwright's `webServer` command, so this one step is the whole suite.
       - name: e2e
         run: pnpm --filter @run-apparel/viewer test:e2e
 
@@ -541,9 +462,16 @@ jobs:
   deploy:
     # `artwork` joined this list on 2026-08-06 — see the evidence above its job.
     # It is the only gate here that looks at what the customer actually sees:
-    # the other four test alphaMode, dependencies, secrets and byte budgets, none
-    # of which change when decimation smears a printed logo.
-    needs: [verify, audit, secrets, artwork]
+    # the others test alphaMode, dependencies, secrets and byte budgets, none of
+    # which change when decimation smears a printed logo.
+    #
+    # `e2e` joined on 2026-08-20, when it was split out of `verify`. It was never
+    # ungated — it was INSIDE `verify`, which is on this list — and adding it here is
+    # what keeps that true. ⚠️ The `main` ruleset's required-status-checks list is a
+    # SECOND place that has to name it, and it is org config no test here can read.
+    # `apps/cms/src/workflowHardening.test.ts` enforces this half; the other half is
+    # manual, and forgetting it means a red e2e no longer blocks a merge.
+    needs: [verify, e2e, audit, secrets, artwork]
     # Enabled once Cloudflare secrets are configured (Phase 10):
     #   gh variable set DEPLOY_ENABLED --body true
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
@@ -559,8 +487,8 @@ jobs:
     # kept resurfacing in status reviews as "blocked, revisit later". It is not
     # blocked; it is declined. Do not list it as pending work.
     #
-    # What gates this deploy is the `needs:` list above — FOUR jobs (verify, audit,
-    # secrets, artwork), including the artwork legibility eval — plus the
+    # What gates this deploy is the `needs:` list above — FIVE jobs (verify, e2e,
+    # audit, secrets, artwork), including the artwork legibility eval — plus the
     # post-deploy payload smoke test below. `lighthouse` runs alongside and is
     # deliberately NOT in `needs:`; it is informational (its category scores swung
     # 0.64/0.88/0.87 across three runs of an identical build). This comment said
