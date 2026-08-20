@@ -70,6 +70,10 @@ export const ALLOWED_ABSENT = new Map([
     'gitignored BUILD OUTPUT, absent in a clean checkout by design — the root file cites it to say check-bundle-budget reads it and exits 1 unless `pnpm build` ran first, which is exactly why it is not committed. Added 2026-08-13 after this guard caught the citation in CI while a local `pnpm test` passed: dist existed on the machine that wrote the line. That asymmetry is the point — a citation to build output is only ever valid on a dirty tree, so it must be exempted here rather than "fixed" by building before the test.',
   ],
   [
+    'apps/viewer/dist/_headers',
+    'the GENERATED header file itself, written into that same gitignored dist/ (.gitignore:28) by apps/viewer/scripts/gen-headers.mjs during `pnpm build`. Cited by .claude/rules/viewer-headers.md and the 2026-08-20 design spec, both of which cite it precisely to say it is generated and therefore does not cleave to one source directory — which is the whole argument for that rule existing. ⚠️ EXEMPTING THE DIRECTORY DID NOT EXEMPT THIS: `apps/viewer/dist` above is a different key, so the entry two lines up did not cover it. Added 2026-08-20 after run 32347073451 failed `verify` on exactly the asymmetry that entry describes — `pnpm test:coverage` runs BEFORE `pnpm build`, so CI never has dist, while the machine that wrote the line did and every local gate passed. Add the FULL path, not the directory.',
+  ],
+  [
     'apps/cms/.env',
     'gitignored local secret (.gitignore:13), and README.md:299 does not merely mention it — it tells you to CREATE it ("For local CMS runs, put a `PAYLOAD_SECRET` in `apps/cms/.env`"). A citation to a file the prose instructs the reader to write is correct on every machine and absent on every clean checkout, so it can only ever be exempted here. Same widening as apps/viewer/dist: 1723c3c taught this guard to read README and docs/, and it caught three gitignored citations at once.',
   ],
