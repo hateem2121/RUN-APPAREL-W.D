@@ -135,10 +135,24 @@ jobs:
   # suite ran Chromium twice and the single most likely browser for this product had
   # never executed a line of it. Firefox is cheap once the matrix exists.
   #
-  # ROOT ON PURPOSE — do NOT add `options: --user 1001`, which upstream's own example
-  # uses. Firefox fails as a non-root user in this image with `Can't find profile
-  # directory` (microsoft/playwright#31685). Unlike `artwork`, which is Chromium-only,
-  # THIS job runs Firefox, so that is a live failure and not a precaution.
+  # ⚠️ FIREFOX NEEDS `HOME=/root`, AND NEITHER USER CHOICE FIXES IT ALONE. Measured on
+  # run 32349283297: 176 tests passed, 57 failed, every one of them `viewer-firefox`,
+  # all on `browserType.launch: Failed to launch the browser process`:
+  #
+  #     Running Nightly as root in a regular user's session is not supported.
+  #     ($HOME is /github/home which is owned by pwuser.)
+  #
+  # The cause is NOT the user. GitHub forces `HOME=/github/home` into every container
+  # job — visible in the `docker create` line as `-e "HOME=/github/home"` — and that
+  # path is mounted from the host, while inside this image it is owned by `pwuser`
+  # (the image's own uid 1000). Firefox refuses when the process owner and $HOME's
+  # owner differ, so running as root breaks it AND `--user 1001` breaks it differently
+  # (`Can't find profile directory`, microsoft/playwright#31685). Chromium and WebKit
+  # do not check; only Firefox does, which is why `artwork` never saw this.
+  #
+  # `HOME: /root` on the e2e step is Playwright's own printed workaround. It is scoped
+  # to the STEP, not the job, so `actions/checkout` and the pnpm store cache keep the
+  # HOME the runner expects. Do not add `options: --user 1001` on top of it.
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -167,6 +181,8 @@ jobs:
       # `prepare.mjs` runs `pnpm seed:assets` and `pnpm build` itself, through
       # Playwright's `webServer` command, so this one step is the whole suite.
       - name: e2e
+        env:
+          HOME: /root
         run: pnpm --filter @run-apparel/viewer test:e2e
 
   # Dependency vulnerability gate. Runs in parallel with verify and gates the
