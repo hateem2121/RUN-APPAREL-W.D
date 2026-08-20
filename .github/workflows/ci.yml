@@ -468,6 +468,25 @@ jobs:
     # not even running yet. Blog posts claiming layer caching helps here are describing
     # self-hosted runners.
     #
+    # WHAT IT ACTUALLY COSTS, measured over two runs rather than predicted — the
+    # prediction was 115s and was wrong by 27s, which is why this block states numbers:
+    #
+    #   apt baseline   32336966625            107s   (setup-node 13 + install 15
+    #                                                 + cache 4 + apt 14 + eval 54)
+    #   container cold 32347073451            183s   (pull 38 + install 25 + eval 50
+    #                                                 + 59s pnpm-store cache SAVE)
+    #   container warm 32347453525            142s   (pull 38 + setup-node 20
+    #                                                 + install 13 + eval 56)
+    #
+    # So steady state is 142s against 107s: **+35s per run, every run**. `Initialize
+    # containers` was 38s in BOTH runs, so the pull is the stable part and the cold-run
+    # spread was the pnpm store cache being written for the new key.
+    #
+    # That 35s is the price of the trade, and it is worth naming honestly: it buys the
+    # removal of a failure mode that cost this job 20m20s twice in cancelled runs and
+    # took `verify` red at 30m21s. A third of a minute per run against a third-party
+    # outage that blocks a deploy.
+    #
     # ROOT ON PURPOSE — do NOT add `options: --user 1001`, which upstream's own example
     # uses. That is what triggers Firefox's `Can't find profile directory`
     # (microsoft/playwright#31685). This job is Chromium-only so it would not bite here,
@@ -488,13 +507,21 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-      # KEPT DELIBERATELY, though the image already ships Node v24.18.1 — verified by
-      # running it. Measured on run 32336966625 this step is 13s of a 107s job, but it
-      # also carries `cache: pnpm`, which is part of why `pnpm install` below is 15s.
-      # The NET of removing it is unmeasured, so removing it now would be tuning
-      # against a guess — the same mistake as the two Playwright-cost claims this file
-      # already records as measured false. Trim it as its own change, with a
-      # before/after, or leave it.
+      # KEPT FOR NOW, though the image already ships Node v24.18.1 — verified by running
+      # it. ⚠️ THE CASE FOR KEEPING IT GOT WEAKER ONCE MEASURED IN THE CONTAINER, and
+      # this comment said the net was simply "unmeasured" until the numbers arrived:
+      #
+      #   on the host runner (32336966625)   setup-node 13s + install 15s = 28s
+      #   in the container, warm (32347453525)  setup-node 20s + install 13s = 33s
+      #   in the container, cold (32347073451)  setup-node  2s + install 25s = 27s
+      #                                          + a 59s pnpm-store cache SAVE
+      #
+      # Restoring the store cache INTO the container costs 20s to save 2s on install,
+      # so dropping this step and letting `pnpm install` fetch (~25s, the cold number)
+      # looks like it would SAVE ~8s. That is a hypothesis from one cold run, not a
+      # measurement of the no-setup-node case, which has never been run. Trim it as its
+      # own change with a before/after — do not fold it into an unrelated PR, which is
+      # how the two Playwright-cost claims this file records as false got made.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
