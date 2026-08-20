@@ -770,9 +770,7 @@ test.describe('layout invariants', () => {
    * than a test that never worked.
    */
   for (const { name, width, height } of STAGE_BAND_VIEWPORTS) {
-    test(`the garment element has a real box at ${name} (${width}x${height})`, async ({
-      page,
-    }) => {
+    test(`the garment element has a real box at ${name} (${width}x${height})`, async ({ page }) => {
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
