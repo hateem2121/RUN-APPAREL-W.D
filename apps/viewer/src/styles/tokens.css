@@ -84,7 +84,21 @@
      360px — below WCAG 2.5.8's 24x24 minimum on the commonest Android width:
      `width: 44px` on a flex child with the default `flex-shrink: 1` is a
      MAXIMUM. Cite this token AND set flex-shrink: 0; the token alone is not
-     enough. Measured on the live page 2026-08-14. */
+     enough. Measured on the live page 2026-08-14.
+
+     ⚠️ IT WAS DECLARED HERE AND THEN OVERRIDDEN TO 40px BY THREE RULES in
+     page.css — the header button, the camera buttons and the contact rail —
+     until 2026-08-20. Nothing was broken by that: 40px clears WCAG 2.5.8's 24px
+     AA floor comfortably, and 44 is the AAA figure. But a floor overridden
+     everywhere it is inconvenient is not a floor, and the next person reading
+     this comment would have believed the number.
+
+     The three were measured before being changed rather than argued about, and
+     the cost was almost nothing: the header stays 69px (the theme toggle was
+     already 44 and sets that row's height) and the camera plinth goes 44 -> 46,
+     so the garment gives up 2px. If a future control genuinely cannot afford
+     44px, take the exception HERE with its measurement — do not re-open a silent
+     one in a stylesheet. */
   --target-min: 44px;
 
   /* ── Elevation ──────────────────────────────────────────────────── */
@@ -119,7 +133,9 @@
      current phone ships). The 320px value lives in page.css beside that rule.
 
      ⚠️ MEASURED 2026-08-20 against the BUILT app at ten widths, not reasoned:
-     69px at 360, 375, 402, 414, 844, 768, 1280, 1440 and 2560; 117px at 320.
+     69px at 360, 375, 402, 414, 844, 768, 1280, 1440 and 2560; 121px at 320
+     (117px until the 44px target floor was honoured on 2026-08-20 — the wrapped
+     row grew by 4px and only the drift guard noticed).
 
      ⚠️ THE GUARD IS THE POINT, not the number. `motion-and-layout.spec.ts` ->
      "the header token matches the real header" fails if either value drifts from

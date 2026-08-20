@@ -88,7 +88,12 @@
 .header .btn {
   flex-shrink: 0; /* see the block comment on .header */
   white-space: nowrap;
-  min-height: 40px;
+  /* ⚠️ 40px -> the token, 2026-08-20. `--target-min` is declared 44px under a
+     comment about a control that once shipped 2px wide, and was then overridden
+     to 40 by THREE rules — a floor overridden everywhere it is inconvenient is
+     not a floor. Measured before changing it: this costs the header 0px, because
+     the theme toggle is already 44 and sets the row's height. It was free. */
+  min-height: var(--target-min);
   padding: 10px 16px;
 }
 
@@ -534,12 +539,20 @@
  */
 @media (max-width: 359px) {
   /* The header wraps to a second flex row here — deliberately; see the header
-     rule above. 117px measured against the built app 2026-08-20. `tokens.css`
-     holds the 69px default and the reasoning; this is the one exception, and it
-     lives beside the rule that causes it rather than in the token file, where it
-     would read as a second global default. */
+     rule above. `tokens.css` holds the 69px default and the reasoning; this is
+     the one exception, and it lives beside the rule that causes it rather than
+     in the token file, where it would read as a second global default.
+
+     ⚠️ 117 -> 121 ON 2026-08-20, and the guard is why anyone noticed. Raising
+     `.header .btn` to the 44px `--target-min` declares added 4px to the WRAPPED
+     row only — the unwrapped header stayed 69px, because the theme toggle sets
+     that row's height. Nothing on any other screen moved, so this would have
+     drifted silently and re-broken the 320px layout the flex band just fixed.
+     "the header token matches the real header" failed on all four engines with
+     the exact number to write here. That test is the whole reason this token
+     exists rather than a hardcoded subtrahend. */
   :root {
-    --header-h: 117px;
+    --header-h: 121px;
   }
 }
 
@@ -935,7 +948,11 @@ model-viewer.stage__model:focus-within {
 
 .camera-btn {
   min-width: 64px;
-  min-height: 40px;
+  /* The token, not 40px — see `.header .btn` above. Measured cost: the plinth
+     goes 44px -> 46px (the pill's own 1px hairline top and bottom), so the
+     garment gives up 2px. Against a garment this work has already grown by ~30%
+     on the same screens, that is worth an honest floor. */
+  min-height: var(--target-min);
   padding: 8px 16px;
   border-radius: var(--radius-pill);
   font-family: var(--font-mono);
@@ -1526,7 +1543,10 @@ model-viewer.stage__model:focus-within {
      same relationship `.camera-btn` has with `.stage__controls`. */
   .contact-rail .btn {
     border-radius: var(--radius-pill);
-    min-height: 40px;
+    /* Kept in step with the other two even though this rail is superseded by the
+       two-column layout and never paints — so that deleting the component later
+       removes a consistent rule rather than the last 40px exception. */
+    min-height: var(--target-min);
     padding: 10px 18px;
     white-space: nowrap;
   }
