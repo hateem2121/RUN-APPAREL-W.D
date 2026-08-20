@@ -9,6 +9,54 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
 
 ## Traps — each of these has already cost a session
 
+- **THE LAYOUT QUERY AND THE CONTENT QUERY ARE NOT THE SAME QUERY, and building
+  them as one broke a landscape phone.** Found 2026-08-21, before shipping, by
+  measurement rather than by review. `<ProductIdentity>` moves the product's name
+  and description into `.stage__aside` on wide screens; keyed off
+  `TWO_COLUMN_QUERY` alone, at **844x390 the band grew to 726px in a 390px
+  viewport** — garment cut off at the fold, colourway rail and both enquiry buttons
+  underneath it. The two-column query deliberately includes a landscape phone, so
+  that the CONTROLS can sit beside the garment in a ~320px band; a 312-character
+  paragraph is a different question and needs its own, narrower query.
+  ⚠️ **The second attempt was worse, because it looked measured and was not.** A
+  `min-height: 700px` floor extrapolated from ONE sample at 1024x768 broke 900x700
+  (band 729px). The requirement is not width-independent: below a ~300px column the
+  colourway rail's container query wraps five swatches onto two rows, costing 60px
+  at exactly the width where the narrower column is already making the paragraph
+  taller. Measured needs — 900px wide: 797px tall · 1024: 758 · 1100: **677** ·
+  1280+: **664**. The floor is `(min-width: 1100px) and (min-height: 720px)`, and
+  1024x768 is excluded on purpose: it fits by 10px, and a ten-pixel margin on a
+  layout whose inputs are a CMS textarea and a font is a coincidence, not an
+  invariant. `useIdentityInAside.ts` carries the table; `useIdentityInAside.test.tsx`
+  pins the identity query as a strict subset of the CSS one, because outside that
+  block `.product-info--aside` has no styles at all — a 69px viewport-sized heading
+  in a 260px column.
+
+- **`data-reveal` ON A COMPONENT THAT CHANGES PARENTS IS A PERMANENTLY INVISIBLE
+  COMPONENT.** `startReveals()` (`polish/reveal.ts`) queries `[data-reveal]` ONCE,
+  at startup, and observes what it finds; it has no MutationObserver. An element
+  that React re-parents on a resize — which is exactly what `<ProductIdentity>`
+  does when the viewport crosses `IDENTITY_IN_ASIDE_QUERY` — is a NEW element
+  created after that scan, so it is never observed, never gets `.is-inview`, and
+  stays at `opacity: 0` for the rest of the session. The page would simply lose its
+  own product name and description after one window resize, with no error anywhere.
+  The product panel therefore carries NO `data-reveal` in either position; the fix
+  is removing the attribute, not making the observer smarter, because reveal is the
+  wrong effect for the page's primary content anyway. `.customise` and `.contact`
+  keep theirs — neither moves.
+
+- **THE SOFT SHADOW COSTS NOTHING PER FRAME — do not "optimise" it.** Measured
+  2026-08-21 at 1440x900, DPR 2, 4x CPU throttle, over 2.5s of continuous orbiting:
+  `shadow-intensity 0.6 / softness 0.8` (shipped) **33.4ms** median frame,
+  `shadow-intensity 0` **33.3ms**, `softness 0` **33.4ms**. Identical, zero long
+  tasks in all three. `shadow-softness` reads like an obvious per-frame blur cost
+  and is not one — model-viewer regenerates the shadow map when the light or model
+  moves, not when the camera does. The 33.4ms floor is the GEOMETRY: 2,419,902
+  triangles, of which **98.9% is decorative topstitch** (`Cloth_mesh` is 10,234).
+  Turning the shadow off buys nothing and loses the grounding. The same run measured
+  a colourway swap blocking the main thread for **121-131ms** on three of five
+  swaps — one rebinding of 200 materials, not addressable from the viewer.
+
 - **A STATIC IMPORT OF ONE 700-BYTE HELPER DRAGGED 287 KB OF THREE.JS ONTO THE
   CRITICAL PATH, and every deferral mechanism in the repo was powerless against
   it.** Found 2026-08-19. `__vitePreload` — Vite's own runtime function for

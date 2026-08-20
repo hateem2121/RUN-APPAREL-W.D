@@ -1158,31 +1158,148 @@ test.describe('layout invariants', () => {
   }
 
   /**
-   * The plinth label is desktop-only, and both halves of that matter.
+   * The product's name moves between columns, and there is only ever one of it.
    *
-   * On a phone the stage band's height budget is what the whole 2026-08-17
-   * layout change is fighting for, so ~23px of caption would come straight out
-   * of the garment — the exact complaint being fixed. On desktop it must
-   * actually be there, and must not be a SECOND page heading: the real <h1>
-   * lives in the product panel, and a duplicate in the accessibility tree gives
-   * a screen reader two candidate titles for one page.
+   * ⚠️ THIS TEST USED TO PIN `.stage__caption`, an aria-hidden echo of the <h1>
+   * shown only at ≥900px. That element was removed on 2026-08-21, when
+   * <ProductIdentity> moved the real <h1> into `.stage__aside` — beside the
+   * garment, on exactly the screens where the caption rendered, which made it a
+   * third printing of the same name on one screen.
+   *
+   * What the old test was really protecting survives and is asserted below: ONE
+   * <h1> per page. The new layout can break that in a way the old one could not,
+   * because the heading is now rendered by one of two mutually exclusive branches
+   * in App.tsx (`{twoColumn && <ProductIdentity/>}` and
+   * `<ProductPanel showIdentity={!twoColumn}/>`). Invert one and you get two <h1>
+   * elements sharing one id; invert the other and you get none. Both render
+   * without erroring, and neither is invalid enough for axe to flag.
+   *
+   * The viewport is changed on a LIVE page rather than reloaded at each size,
+   * because that is the case the hook exists for: `useTwoColumnLayout` subscribes
+   * to the query, so rotating a tablet must move the heading without a reload. A
+   * reload between sizes would pass against a mount-time-only implementation.
    */
-  test('the garment label is desktop-only and never a second heading', async ({ page }) => {
+  test('the product heading moves between columns and never doubles', async ({ page }) => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    await page.setViewportSize({ width: 375, height: 812 })
-    await expect(page.locator('.stage__caption')).toBeHidden()
+    const h1 = page.getByRole('heading', { level: 1 })
+    const asideH1 = page.locator('.stage__aside h1')
+    const contentH1 = page.locator('.content h1')
 
     await page.setViewportSize({ width: 1280, height: 800 })
-    await expect(page.locator('.stage__caption')).toBeVisible()
+    await expect(h1).toBeVisible()
+    await expect(h1).toHaveCount(1)
+    await expect(asideH1, 'in two columns the heading belongs beside the garment').toHaveCount(1)
+    await expect(contentH1).toHaveCount(0)
 
-    // Exactly one <h1>, and the caption is not it.
-    expect(await page.getByRole('heading', { level: 1 }).count()).toBe(1)
+    await page.setViewportSize({ width: 375, height: 812 })
+    await expect(h1).toBeVisible()
+    await expect(h1).toHaveCount(1)
+    await expect(contentH1, 'in one column the heading belongs below the garment').toHaveCount(1)
+    await expect(asideH1).toHaveCount(0)
+
+    // And back, on the same page — the subscription, not the first render.
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await expect(h1).toHaveCount(1)
+    await expect(asideH1).toHaveCount(1)
+
+    // The element it replaced is gone for good.
+    await expect(page.locator('.stage__caption')).toHaveCount(0)
+  })
+
+  /**
+   * A landscape phone is two columns and is still the wrong home for a paragraph.
+   *
+   * ⚠️ THIS IS A REGRESSION TEST FOR A BUG THAT WAS BUILT AND MEASURED BEFORE IT
+   * SHIPPED, on 2026-08-21. The first version of <ProductIdentity> keyed off the
+   * two-column layout query alone. That query deliberately includes 844x390, so
+   * that the colourway rail and the two buttons can sit beside the garment on a
+   * short wide screen — a band about 320px tall, which those controls fit into.
+   *
+   * A 312-character description does not. Rendered there, the aside became the
+   * tallest column and the band grew to **726px in a 390px viewport**: the garment
+   * was cut off at the fold and both controls went below it. Every unit test
+   * passed, every assertion about "exactly one <h1>" passed, and the page was
+   * unusable on the device most likely to be holding it sideways.
+   *
+   * So this test asserts the SHAPE OF THE BAND, not the presence of an element.
+   * `toHaveCount(0)` on the aside heading would pass for the wrong reason if the
+   * identity were merely hidden with CSS while still driving the column's height.
+   */
+  test('a landscape phone keeps the garment and its controls on one screen', async ({ page }) => {
+    await page.setViewportSize({ width: 844, height: 390 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    // Two columns, as designed — the controls belong beside the garment here.
+    await expect(page.locator('.stage__aside')).toBeVisible()
+    const asideBox = await page.locator('.stage__aside').boundingBox()
+    expect(asideBox, 'the aside must exist at this size').not.toBeNull()
+
+    const band = await page.locator('.stage-block').boundingBox()
     expect(
-      await page.locator('.stage__caption').getAttribute('aria-hidden'),
-      'the label repeats the product name — it must stay out of the accessibility tree',
-    ).toBe('true')
+      band?.height,
+      'the stage band must not outgrow the viewport here — at 726px the garment ' +
+        'is cut off at the fold and the colourway rail goes under it',
+    ).toBeLessThanOrEqual(390)
+
+    // The heading stayed below the fold, where there is room for prose.
+    await expect(page.locator('.stage__aside h1')).toHaveCount(0)
+    await expect(page.locator('.content h1')).toHaveCount(1)
+
+    // What the two-column layout is FOR at this size is still on the first screen.
+    for (const control of ['.colourways__list', '.stage__contact']) {
+      const box = await page.locator(control).boundingBox()
+      expect(box, `${control} must be laid out`).not.toBeNull()
+      expect(
+        (box?.y ?? 0) + (box?.height ?? 0),
+        `${control} must be fully above the fold on a landscape phone`,
+      ).toBeLessThanOrEqual(390)
+    }
+  })
+
+  /**
+   * The four spec facts are on screen exactly once, at every width.
+   *
+   * `specDuplication.test.ts` proves the two breakpoints are the same NUMBER by
+   * reading the stylesheet. This proves the number is the right one by counting
+   * what a visitor can actually see — the two checks fail for different reasons
+   * and neither replaces the other.
+   *
+   * 1024px and 960px straddle the 1000px seam deliberately: between 900 and 1000
+   * the two-column layout is on but the callouts are NOT, so `.spec-list` is the
+   * only rendering there and must stay visible. That band is the easiest thing to
+   * delete by accident while "tidying up the duplication".
+   */
+  test('the spec facts render once at every width', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const shown = async () => {
+      const callouts = await page.locator('.stage__callouts .callout').count()
+      const listVisible = await page.locator('.spec-list').isVisible()
+      const calloutsVisible = await page.locator('.stage__callouts').isVisible()
+      return { callouts, listVisible, calloutsVisible }
+    }
+
+    await page.setViewportSize({ width: 1280, height: 800 })
+    expect(await shown(), 'above 1000px the callouts say it and the list must not').toMatchObject({
+      calloutsVisible: true,
+      listVisible: false,
+    })
+
+    await page.setViewportSize({ width: 960, height: 800 })
+    expect(
+      await shown(),
+      'between 900 and 1000 the callouts are off, so the list is the ONLY copy',
+    ).toMatchObject({ calloutsVisible: false, listVisible: true })
+
+    await page.setViewportSize({ width: 375, height: 812 })
+    expect(await shown(), 'on a phone the list is the only copy').toMatchObject({
+      calloutsVisible: false,
+      listVisible: true,
+    })
   })
 
   test('every interactive control meets the WCAG 2.5.8 target size', async ({ page }) => {

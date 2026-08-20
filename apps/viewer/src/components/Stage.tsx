@@ -917,41 +917,28 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
         </div>
 
         {/*
-          The plinth label: the garment's name, directly under the garment.
+          The camera controls, in a row under the garment.
 
-          `aria-hidden` is load-bearing. The real, single <h1> for this page lives
-          in <ProductPanel>; a second copy of the product name in the
-          accessibility tree would announce the garment twice and give a screen
-          reader two candidate titles for one page. This is decoration that
-          repeats something already said properly, which is exactly what
-          aria-hidden is for.
+          ⚠️ `.stage__caption` — the garment's name repeated directly under the
+          garment — WAS REMOVED FROM THIS ROW ON 2026-08-21, owner decision. Do
+          not put it back without reading why it existed.
 
-          Desktop and tablet only (`.stage__caption` is display:none below 900px).
-          On a phone the stage band's height budget is what the whole 2026-08-17
-          layout change is fighting for — see `.stage__canvas` in page.css — and
-          25px of caption would come straight back out of the garment.
+          It was a desktop-only, `aria-hidden` echo of the page's <h1>, which sat
+          below the fold in `.content`. Once <ProductIdentity> moved that <h1>
+          into `.stage__aside` — beside the garment, on exactly the screens where
+          this caption rendered — the caption became a third printing of the same
+          name on one screen. It was decoration justified entirely by the distance
+          to the real heading, and that distance is gone.
 
-          Flat, per docs/DESIGN.md: no text-shadow, no perspective, no gradient.
-          Fake depth on type next to a real 3D render reads as cheap, and the
-          design system is deliberately a flat editorial one.
-        */}
-        {/*
-          ONE ROW under the garment, carrying the label and the camera controls.
-
-          They were two stacked rows for about an hour and it cost 37px of
+          What survives is the ROW, and the reason it is one row: the caption and
+          the controls were two stacked rows for about an hour and it cost 37px of
           garment on a 900px-tall window — measured, and that band has no 37px to
-          give (see `.stage__canvas`'s budget). Sharing a row costs NOTHING: the
-          caption is absolutely positioned at the left, so the controls stay
-          centred on the garment at every width and the caption's presence or
-          absence cannot move them.
+          give (see `.stage__canvas`'s budget).
 
           OUTSIDE `.stage__canvas`, which is the fix for the owner's "the buttons
           are on top of the 3D product" — see StageControls.tsx for the numbers.
         */}
         <div className="stage__plinth">
-          <p className="stage__caption" aria-hidden="true">
-            {product.productName}
-          </p>
           {/* `!fallback` because the poster branch has no camera to point;
               `disabled` rather than unmounted while the model downloads, so the
               row cannot shove the page around 23 seconds late. */}

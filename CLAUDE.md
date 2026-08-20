@@ -357,7 +357,7 @@ the answer is "nothing that happens in production", it is not a test.
   compacted session that has not yet opened `tools/asset-pipeline/` has only these
   one-liners. Open that file before changing anything there.
 
-- **Twenty-five more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
+- **Twenty-eight more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
   restated here — they load automatically the moment you touch `apps/viewer/`,
   so a copy in this file is pure weight. Enough of a hook to make you open it: a
   `performance` global shadowed by a local (a runtime `TypeError` every unit test

@@ -205,21 +205,22 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
                 aria-hidden="true"
               />
             )}
-            {/* The number and the name are wrapped so they stay ONE line when the
-                tab stacks vertically on a phone. Unwrapped, a column layout makes
-                each of them — and the selected-state dot — its own row.
+            {/*
+              ⚠️ THE ONE RULE THAT OUTLIVED BOTH DECORATIONS: NEVER PUT A CUE ON
+              THIS BUTTON WITH `::after { content: … }`.
 
-                ⚠️ BOTH DECORATIONS ARE aria-hidden SINCE 2026-08-14, and the
-                accessible name is now just the colour.
+              Generated content IS included in the accessible name. The selected
+              dot was written that way originally, so the chosen tab announced as
+              "01 Wine ●" while `aria-selected` already carried the state. Making
+              it a real `aria-hidden` element fixed the announcement on
+              2026-08-14; the element itself then went on 2026-08-21 (below), and
+              the ordinal that shared this span on 2026-08-20. What must not come
+              back is the pseudo-element.
 
-                The ordinal is POSITIONAL information a screen reader already
-                supplies far better: it announces "tab, 1 of 5". Leaving it in the
-                name made every tab read "01 Wine, tab, 1 of 5". The selected dot
-                was worse — it was `::after { content: "●" }`, and generated
-                content IS included in the accessible name, so the chosen tab
-                announced as "01 Wine ●" while `aria-selected` already carried
-                that state. It is a real element now so the visual cue survives
-                while the name does not carry it. */}
+              The span itself stays. It is the flex sibling of the swatch, and the
+              two must not become separate rows when a tab stacks on a narrow
+              container.
+            */}
             {/*
               ⚠️ THE "01 / 02 / 03" PREFIX WAS REMOVED HERE ON 2026-08-20 —
               owner decision. Do not reinstate it without re-reading this.
@@ -239,14 +240,28 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
               removing it also deleted a container-query branch rather than
               adding one, and why the garment grew on every width at once.
             */}
-            <span className="colourway-tab__label">
-              {colourway.displayName}
-              {colourway.slug === selected.slug && (
-                <span className="colourway-tab__dot" aria-hidden="true">
-                  {' ●'}
-                </span>
-              )}
-            </span>
+            {/*
+              ⚠️ THE SELECTED-STATE DOT WAS REMOVED HERE ON 2026-08-21 — owner
+              decision. Do not reinstate it as an accessibility fix; it was not
+              one.
+
+              The argument for it was "selected state is never colour-only". It
+              never was colour-only. `[aria-selected="true"]` INVERTS THE FILL:
+              measured in both themes, the tab's background goes from the page
+              surface to `--btn-primary-bg` at 14.47:1 in light and 13.11:1 in
+              dark, and greyscale luminance flips 0.864 -> 0.013 (light) and
+              0.013 -> 0.775 (dark). A fill inversion of that size is not a hue
+              distinction, so WCAG 1.4.1 is satisfied without it — and
+              `aria-selected` already carries the state for assistive technology,
+              which is why the dot had to be `aria-hidden` in the first place.
+
+              It was also the third cue for one piece of state, on the tightest
+              control on the page: the "01 / 02" ordinal went on 2026-08-20 for
+              the 15.5px of width it cost, and this ` ●` was inside the same
+              `.colourway-tab__label` span that existed to keep the pair on one
+              line.
+            */}
+            <span className="colourway-tab__label">{colourway.displayName}</span>
           </button>
         ))}
       </div>

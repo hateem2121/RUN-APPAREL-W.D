@@ -12,6 +12,7 @@ import { CustomisationSection } from './components/CustomisationSection'
 import { Footer } from './components/Footer'
 import { Header } from './components/Header'
 import { Preloader } from './components/Preloader'
+import { ProductIdentity } from './components/ProductIdentity'
 import { ProductPanel } from './components/ProductPanel'
 import { Stage } from './components/Stage'
 import { RetiredNotice, UnavailableState } from './components/States'
@@ -19,6 +20,7 @@ import { track } from './lib/analytics'
 import { fetchViewerData } from './lib/api'
 import { diagnostic } from './lib/diagnostic'
 import { currentRoute, onRouteChange, setColourwayUrl } from './lib/router'
+import { useIdentityInAside } from './lib/useIdentityInAside'
 
 type AppState =
   | { kind: 'loading' }
@@ -59,6 +61,18 @@ export default function App() {
   // `onModelReadyChange` (optional) for the next thing that needs to know.
   const polishStarted = useRef(false)
   const loadedFor = useRef<string | null>(null)
+  /**
+   * Which column the product's name and description belong to.
+   *
+   * Called here, above every early return, because hooks must be. The value is
+   * used far below in the ready branch, where the `.stage__aside` and `.content`
+   * placements are two lines apart and the exclusivity between them is visible.
+   *
+   * ⚠️ NOT "is the layout two columns". A landscape phone IS two columns and is
+   * still the wrong home for a paragraph — see `useIdentityInAside.ts` for the
+   * 726px-band measurement that put the height clause in that query.
+   */
+  const identityInAside = useIdentityInAside()
 
   const load = useCallback(async () => {
     const route = currentRoute()
@@ -303,6 +317,25 @@ export default function App() {
               do not move <ColourwayTabs> away from this position.
             */}
             <div className="stage__aside">
+              {/*
+                The product's own name and description, in the column that used
+                to be 81-93% empty — measured 526px of 650 at 1280x720, 910 of
+                1010 at 1920x1080 and 1270 of 1370 at 2560x1440, because the
+                column stretches with the band and its two controls do not.
+
+                ⚠️ THE SAME FIELDS RENDER IN `.content` WHEN THIS IS FALSE, never
+                as well as. `<ProductPanel showIdentity={!identityInAside}>` below is
+                the other half of that switch and the two must stay opposite:
+                both true is two <h1> elements sharing one id, both false loses
+                the product's name from the page entirely.
+              */}
+              {identityInAside && (
+                <ProductIdentity
+                  product={data.product}
+                  selected={selected}
+                  selectedIndex={Math.max(selectedIndex, 0)}
+                />
+              )}
               <ColourwayTabs
                 colourways={data.colourways}
                 selected={selected}
@@ -350,6 +383,7 @@ export default function App() {
               data={data}
               selected={selected}
               selectedIndex={Math.max(selectedIndex, 0)}
+              showIdentity={!identityInAside}
             />
             <CustomisationSection data={data} />
             <ContactSection settings={data.siteSettings} enquiry={enquiry} />

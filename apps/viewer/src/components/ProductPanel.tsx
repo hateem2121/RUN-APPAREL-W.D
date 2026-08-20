@@ -1,92 +1,83 @@
 import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
-import { headingWithAccent } from './SerifAccent'
+import { ProductIdentityFields } from './ProductIdentity'
 
 interface ProductPanelProps {
   data: ViewerApiSuccess
   selected: ViewerColourway
   selectedIndex: number
+  /**
+   * False in the two-column layout, where <ProductIdentity> renders the same
+   * fields in the stage aside instead. Never render both — see the warning on
+   * <ProductIdentity>.
+   */
+  showIdentity: boolean
 }
 
-export function ProductPanel({ data, selected, selectedIndex }: ProductPanelProps) {
+/**
+ * What lives in `.content` under the stage band.
+ *
+ * ⚠️ THIS COMPONENT RETURNS TWO DIFFERENT SHAPES, and the difference is not
+ * cosmetic tidiness.
+ *
+ * In one column it is the section it has always been: identity fields and the
+ * spec list sharing one `.product-info` and its 16px gap.
+ *
+ * In two columns the identity has moved to the aside, and what is left is the
+ * spec list ALONE. It is returned bare rather than inside an empty
+ * `.product-info` section, because that section is `aria-labelledby` the <h1> —
+ * and above 1000px `.spec-list` is `display: none` as well (the callouts render
+ * the same four facts over the canvas), so the wrapper would be a named landmark
+ * region containing nothing at all. A screen-reader user would find "X-MILO PRO
+ * SKIN-SUIT, region" and be handed an empty box.
+ */
+export function ProductPanel({ data, selected, selectedIndex, showIdentity }: ProductPanelProps) {
   const { product } = data
+
+  /*
+   * ⚠️ HIDDEN ABOVE 1000px BY `.spec-list`'s OWN RULE, NOT BY THIS COMPONENT, and
+   * the breakpoint is `.stage__callouts`'s to the pixel.
+   *
+   * Between 900 and 1000px the two-column layout is on but the callouts are not —
+   * the canvas column is only ~559px there, and two 240px callouts would sit on
+   * the garment. So in that band this list is the ONLY rendering of the four
+   * facts and must stay. Deciding it in CSS keeps one breakpoint governing both
+   * elements; deciding it here would need the same query a third time.
+   */
+  const specs = (
+    <dl className="spec-list">
+      {product.fabricComposition && (
+        <div>
+          <dt>[ Fabric ]</dt>
+          <dd>{product.fabricComposition}</dd>
+        </div>
+      )}
+      {product.gsm && (
+        <div>
+          <dt>[ Weight ]</dt>
+          <dd>{product.gsm}</dd>
+        </div>
+      )}
+      {product.garmentFit && (
+        <div>
+          <dt>[ Fit ]</dt>
+          <dd>{product.garmentFit}</dd>
+        </div>
+      )}
+      {product.performanceFeatures.length > 0 && (
+        <div>
+          <dt>[ Performance ]</dt>
+          <dd>{product.performanceFeatures.join(' / ')}</dd>
+        </div>
+      )}
+    </dl>
+  )
+
+  if (!showIdentity) return specs
+
   return (
-    <section className="product-info" aria-labelledby="product-heading" data-reveal>
-      <div className="product-info__labels">
-        <span className="label">
-          [ {product.category.toUpperCase()} / {product.productCode} ]
-        </span>
-        {/* Re-keyed so switching colourway cross-fades the label. */}
-        <span className="label product-info__colour" key={selected.slug}>
-          [ COLOURWAY {String(selectedIndex + 1).padStart(2, '0')} /{' '}
-          {selected.displayName.toUpperCase()} ]
-        </span>
-      </div>
-      <h1 id="product-heading" className="display display--hero">
-        {/* 'first', not the default 'last'. Every product in this catalogue ends
-            in its garment type, so the accent landed on "skinsuit" every time —
-            the least distinctive word on the page — while the model name sat in
-            plain uppercase beside it. Owner decision 2026-08-14. */}
-        {headingWithAccent(product.productName, 'first')}
-      </h1>
-      {/*
-        The garment's own description when the owner has written one, and the
-        standard development-reference wording when they have not.
-
-        ⚠️ THE FALLBACK IS NOT DEAD CODE. `shortDescription` was added on
-        2026-08-17 and EVERY product that existed before then has none, so on the
-        day this ships the fallback is what every page renders. Deleting it would
-        silently strip the paragraph from the whole live catalogue.
-
-        `||` rather than `??`, and deliberately — the CMS field is a textarea, so
-        the likeliest way it goes missing is a human clearing it to an empty
-        string rather than it being unset. Same reasoning as RETIRED_FALLBACK in
-        App.tsx, which was written after exactly that bug.
-      */}
-      <p className="product-info__statement">
-        {product.shortDescription ||
-          'This is a development reference, not a finished stock product. We can change the fabric, colour, fit, trims, branding and performance details to suit your brand.'}
-      </p>
-      {/*
-        Moved here from <ColourwayTabs> on 2026-08-20. It sat directly under the
-        swatch rail, where it was the only element on the first screen a visitor
-        does not need in order to choose a colour — and where its last pixel row
-        rendered underneath the fixed action bar (measured y=710-741 against a
-        bar starting at 740). Under the flex stage band those 31px plus a 12px
-        gap go to the garment instead, measured at +43px on three phone sizes.
-
-        It belongs to the product description rather than to the control: the
-        colourway it qualifies is named two elements above, in
-        `.product-info__colour`.
-      */}
-      <p className="product-info__colour-note">
-        These colourways are examples. We match your own colours to your requirements.
-      </p>
-      <dl className="spec-list">
-        {product.fabricComposition && (
-          <div>
-            <dt>[ Fabric ]</dt>
-            <dd>{product.fabricComposition}</dd>
-          </div>
-        )}
-        {product.gsm && (
-          <div>
-            <dt>[ Weight ]</dt>
-            <dd>{product.gsm}</dd>
-          </div>
-        )}
-        {product.garmentFit && (
-          <div>
-            <dt>[ Fit ]</dt>
-            <dd>{product.garmentFit}</dd>
-          </div>
-        )}
-        {product.performanceFeatures.length > 0 && (
-          <div>
-            <dt>[ Performance ]</dt>
-            <dd>{product.performanceFeatures.join(' / ')}</dd>
-          </div>
-        )}
-      </dl>
+    <section className="product-info" aria-labelledby="product-heading">
+      <ProductIdentityFields product={product} selected={selected} selectedIndex={selectedIndex} />
+      {specs}
     </section>
   )
 }

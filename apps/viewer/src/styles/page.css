@@ -642,16 +642,96 @@
     padding-inline: 0;
   }
 
-  /* The controls column. `clamp` rather than a percentage alone so it stays
-     legible on a 2560px screen and does not crush at 900px. */
+  /* The product column. `clamp` rather than a percentage alone so it stays
+     legible on a 2560px screen and does not crush at 900px.
+
+     ⚠️ DO NOT WIDEN THIS WITHOUT RE-DERIVING `.stage__canvas`'s `max-height`.
+     That 980px is `canvas width / 0.82`, and the canvas width is the 1200px
+     measure minus this basis and the gutter. A wider column narrows the canvas,
+     which makes the garment WIDTH-limited, at which point the cap is buying
+     nothing but empty space and GPU. The full derivation is on that rule.
+
+     360px at a 1440px viewport also happens to be a good reading measure — the
+     statement lands at roughly 38 characters a line — which is why the text that
+     moved here on 2026-08-21 did not need it any wider. */
   .stage__aside {
     flex: 0 1 clamp(260px, 30%, 400px);
     min-width: 0;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    /*
+     * ⚠️ `safe center`, NOT `center`. Once <ProductIdentity> moved into this
+     * column the stack can genuinely exceed the band on a short window — a long
+     * product description at 900x600, say — and plain `center` overflows in BOTH
+     * directions, putting the first lines above the top edge where they cannot be
+     * scrolled to. `safe` falls back to `flex-start` at exactly that point, so
+     * the overflow goes downward and stays reachable. Same class of bug as the
+     * `min-height: 0` chain above: a flex default that only misbehaves once the
+     * content grows.
+     */
+    justify-content: safe center;
     gap: 24px;
     padding-block: clamp(8px, 2vw, 24px);
+    /*
+     * The container the heading sizes itself against.
+     *
+     * ⚠️ `inline-size`, never `size` — the same rule `.colourways` records. This
+     * element's height comes from the flex band; making it a block-axis
+     * containment root too would cut it off from that.
+     */
+    container-type: inline-size;
+    container-name: stageaside;
+  }
+
+  /*
+   * The product identity, in the column instead of below the fold.
+   *
+   * Placement is JavaScript's, not this rule's: `useTwoColumnLayout()` matches
+   * this exact media query and renders <ProductIdentity> here or <ProductPanel>'s
+   * section in `.content`, never both. The guard against those two queries
+   * drifting apart is `useTwoColumnLayout.test.ts`, which reads this file.
+   */
+  .product-info--aside {
+    gap: 12px;
+  }
+
+  /*
+   * ⚠️ SIZED IN `cqi`, NOT `vw`, AND THAT IS THE WHOLE POINT.
+   *
+   * `.display--hero` is `clamp(34px, 5.4vw, 72px)` — 69px at a 1280px viewport.
+   * That is right across a 1104px measure and absurd in a 360px column, where it
+   * takes the product name to four lines. The heading is not in the viewport; it
+   * is in this container, so it is sized against this container. 9.5cqi is ~34px
+   * at the 360px the column measures on a 1440px screen and ~25px at its 260px
+   * floor, where the clamp catches it.
+   *
+   * Tracking in `em`, not the `--tracking-display-lg` token: that token is
+   * `clamp(-2.16px, -0.16vw, -0.4px)`, a VIEWPORT-derived value that resolves to
+   * its tightest -2.16px on any desktop — tracking drawn for a 69px headline,
+   * applied to a 34px one. Size-specific tracking is the rule (docs/DESIGN.md §3,
+   * and Apple's own type guidance); `-0.02em` is the wordmark's own value and
+   * rescales with the heading automatically instead of needing a third token.
+   */
+  .product-info--aside .display--hero {
+    font-size: clamp(25px, 9.5cqi, 40px);
+    letter-spacing: -0.02em;
+    /*
+     * ⚠️ WITHOUT THIS, "X-MILO PRO SKIN-SUIT" SET AS "X-MILO PRO SKIN-" / "SUIT".
+     *
+     * A hyphen is a normal break opportunity, so the browser took it and left one
+     * line of 16 characters above a line of 4. That is not `overflow-wrap:
+     * anywhere` on `.display` misfiring — it is ordinary line breaking choosing
+     * the last opportunity that fits, which is what it does in the absence of any
+     * instruction to do better. It only became visible here because the measure
+     * dropped from 1104px to 360px; the same heading has one line to break at full
+     * page width and never showed it.
+     *
+     * `balance` optimises the line lengths rather than filling greedily, giving
+     * "X-MILO PRO" / "SKIN-SUIT". Product names in this catalogue are two to four
+     * words and hyphenated compounds are the house style, so this is the common
+     * case, not a one-product fix.
+     */
+    text-wrap: balance;
   }
 
   .stage__contact {
@@ -913,49 +993,20 @@ model-viewer.stage__model:focus-within {
 }
 
 /*
- * The plinth label.
+ * ⚠️ `.stage__caption` LIVED HERE UNTIL 2026-08-21 — the garment's name, set in
+ * the wordmark's own display recipe, absolutely positioned at the left of the
+ * plinth row and shown only at ≥900px. It is GONE, with its element; see
+ * `Stage.tsx` for the owner decision.
  *
- * Set from the wordmark's own recipe (`--font-display`, weight 900, 122% width,
- * -0.02em) rather than a new one, so the page carries ONE display face. That
- * matching is not decoration: `.footer__brand` was corrected on the same grounds
- * after the wordmark was set two different ways on one page.
- *
- * ⚠️ ≥900px ONLY, and this is the one deliberate omission in the change that
- * introduced it. On a phone the stage band's height budget is the thing the
- * whole 2026-08-17 layout work is fighting for (see `.stage__canvas`), and the
- * row it shares is already at its floor. Do not "complete" this by showing it on
- * mobile without re-measuring that budget and re-running the phone-fit e2e test.
- *
- * `--muted`, not `--text`: it repeats a name the <h1> below already gives in
- * full, so it must not compete with the garment it labels.
+ * ONE THING IT PROVED IS STILL LOAD-BEARING and is now invisible without it:
+ * `.stage__plinth` above is `position: relative` and centres its children, and
+ * the caption was `position: absolute` precisely so the camera buttons stayed
+ * centred on the GARMENT rather than on "whatever else is in this row". That is
+ * why the buttons do not move now that the caption is gone — and why anything
+ * added to that row in future must be taken out of flow the same way, or the
+ * controls will shift sideways by half its width and shift again at the
+ * breakpoint where it hides.
  */
-.stage__caption {
-  display: none;
-}
-
-@media (min-width: 900px) {
-  .stage__caption {
-    position: absolute;
-    left: 0;
-    display: block;
-    max-width: 40%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-family: var(--font-display);
-    font-weight: 900;
-    font-stretch: 122%;
-    letter-spacing: -0.02em;
-    text-transform: uppercase;
-    /* `--text-sm`, not a raw `15px`. They are the same number today, and the
-       token is the point: DESIGN.md's size scale exists because an audit found
-       every font size in this viewer was a raw literal "with nothing to stop a
-       tenth", and a new raw 15px is exactly that tenth. The spacing gate in
-       tokens.test.ts does not check font-size, so this one is on the author. */
-    font-size: var(--text-sm);
-    color: var(--muted);
-  }
-}
 
 /*
  * Camera controls — a row UNDER the canvas, not a pill on top of the garment.
@@ -1263,6 +1314,30 @@ model-viewer.stage__model:focus-within {
   padding: 0;
 }
 
+/*
+ * The four facts render ONCE at every width, and 1000px is not a number chosen
+ * here — it is `.stage__callouts`'s.
+ *
+ * Above 1000px the callouts draw [ FABRIC ] [ WEIGHT ] [ FIT ] [ PERFORMANCE ]
+ * over the canvas from the same fields this list reads, so both were on screen
+ * together, word for word, until 2026-08-21. Below 1000px the callouts are off —
+ * the canvas column is only ~559px at 900px wide and two 240px callouts would sit
+ * on the garment — so between 900 and 1000px this list is the ONLY rendering of
+ * those facts and must stay. That band is why the rule is `min-width: 1000px` and
+ * not the two-column query.
+ *
+ * ⚠️ THE TWO BREAKPOINTS MUST MOVE TOGETHER. Lowering the callouts' without
+ * lowering this one prints the facts twice again; raising this one without the
+ * callouts' deletes them from the page entirely between the two values. Pinned by
+ * `specDuplication.test.ts`, which reads both rules out of this file and fails if
+ * the numbers differ.
+ */
+@media (min-width: 1000px) {
+  .spec-list {
+    display: none;
+  }
+}
+
 .spec-list div {
   border-top: 1px solid var(--line);
   padding-top: 10px;
@@ -1435,13 +1510,24 @@ model-viewer.stage__model:focus-within {
   border-color: var(--btn-primary-bg);
 }
 
-/* Selected state is never colour-only. The dot is a REAL element now
-   (ColourwayTabs.tsx), not ::after content: generated content is included in the
-   accessible name, so the chosen tab announced as "01 Wine ●" while
-   aria-selected already carried that state. Found 2026-08-14. */
-.colourway-tab__dot {
-  font-size: 8px;
-}
+/*
+ * ⚠️ `.colourway-tab__dot` LIVED HERE UNTIL 2026-08-21, above a comment claiming
+ * "selected state is never colour-only". THAT CLAIM WAS WRONG ABOUT ITS OWN RULE
+ * and would talk the next reader into restoring a third cue for one piece of
+ * state, so it goes with the element.
+ *
+ * The rule directly above this one is the non-colour cue: `[aria-selected="true"]`
+ * replaces the tab's fill. Measured in both themes on 2026-08-21 — background
+ * contrast 14.47:1 in light and 13.11:1 in dark, greyscale luminance flipping
+ * 0.864 -> 0.013 and 0.013 -> 0.775. An inversion that size is a FILL change, not
+ * a hue change, so it survives greyscale and every colour-vision deficiency;
+ * WCAG 1.4.1 never depended on the dot. `aria-selected` carries the state for
+ * assistive technology, which is why the dot had to be `aria-hidden` at all.
+ *
+ * The half worth keeping is in `ColourwayTabs.tsx`: never re-add a cue here as
+ * `::after { content: … }`, because generated content lands in the accessible
+ * name.
+ */
 
 /* `.colourways__hint` was here until 2026-08-20. The element moved into
    <ProductPanel> as `.product-info__colour-note`; see the note there. */
@@ -2093,13 +2179,6 @@ model-viewer.stage__model:focus-within {
   .colourway-tab__label {
     text-wrap: balance;
     line-height: 1.25;
-  }
-
-  /* The non-colour cue for the selected tab. It already lives inside the label
-     element rather than the button, which is what keeps it off a row of its own in
-     this column layout — it only needs to be smaller here. */
-  .colourway-tab__dot {
-    font-size: 7px;
   }
 }
 
