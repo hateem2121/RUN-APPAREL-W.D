@@ -234,9 +234,23 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
           </button>
         ))}
       </div>
-      <p className="colourways__hint">
-        THESE COLOURWAYS ARE EXAMPLES. WE MATCH YOUR OWN COLOURS TO YOUR REQUIREMENTS.
-      </p>
+      {/*
+        ⚠️ THE "THESE COLOURWAYS ARE EXAMPLES" NOTE LIVED HERE UNTIL 2026-08-20
+        AND HAS MOVED TO <ProductPanel>. Do not put it back.
+
+        Measured on the live site before the move: it rendered at y=710-741
+        against an action bar starting at y=740, so its last pixel row sat under
+        the bar — a sentence nobody could finish reading, on the most valuable
+        screen in the product. It is also the one thing in this band a visitor
+        does not need before choosing a colour.
+
+        Under the flex stage band its 31px plus the 12px grid gap go straight to
+        the garment: measured +43px at 375x812, 402x714 and 414x896 alike. That
+        was NOT true of the old fixed-subtrahend layout, where the canvas height
+        was set by a number and anything below the rail was free — which is why
+        an earlier audit correctly said moving it would buy nothing, and why that
+        stopped being correct the moment the band started sizing itself.
+      */}
     </section>
   )
 }

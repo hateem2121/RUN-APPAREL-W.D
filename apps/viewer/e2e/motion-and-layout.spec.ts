@@ -40,6 +40,35 @@ import { expect, test } from '@playwright/test'
  * requires — so this row covers a low-vision desktop visitor as much as a small
  * phone. The rail test below already used 320; the document never did.
  */
+/**
+ * ⚠️ `reducedMotion: 'reduce'` IN playwright.config.ts DOES NOT REACH THE PAGE,
+ * and every layout number in this file was measured through a live animation
+ * until 2026-08-20.
+ *
+ * `apps/viewer/CLAUDE.md` states as settled fact that "Playwright sets
+ * `reducedMotion: 'reduce'`, `base.css` gates the reveal on
+ * `prefers-reduced-motion: no-preference`, so there is no transform to pollute
+ * it" — and that is the stated reason to tune layout against this suite rather
+ * than against the live page. Measured on Playwright 1.62.1, all four engines:
+ *
+ *     info.project.use.reducedMotion       "reduce"     <- config resolved it
+ *     matchMedia('...reduce').matches      false        <- page never saw it
+ *     after page.emulateMedia() explicitly true         <- the API works fine
+ *
+ * So the option was configured, resolved, and silently ineffective. Every
+ * `.colourways` measurement carried `matrix(1, 0, 0, 1, 0, 24)` — the reveal's
+ * own translate — and worse, the value depends on WHEN the assertion ran inside
+ * an 800ms transition: caught mid-flight, Firefox reported 6.03px where WebKit
+ * reported 24px in the same run. Layout assertions were racing an animation.
+ *
+ * This makes it explicit, per test, using the API that demonstrably works. The
+ * two motion tests below call `emulateMedia` themselves afterwards and still
+ * get the branch they ask for.
+ */
+test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+})
+
 const VIEWPORTS = [
   { name: 'small mobile', width: 320, height: 640 },
   { name: 'mobile', width: 375, height: 812 },
@@ -775,11 +804,13 @@ test.describe('layout invariants', () => {
    * underneath the swatches. Measured at 402x714: hiding `.colourways__hint` took
    * the element from 385px wide to 116px and the grid from three columns to one,
    * turning two rows of swatches into four. So the number of colourways per row
-   * was being decided by the length of a sentence — and moving that sentence out
-   * is already scheduled work.
+   * was being decided by the length of a sentence — and that sentence has since
+   * moved into <ProductPanel>, which is precisely why the probe below hides
+   * SWATCHES rather than the sentence: a probe aimed at an element that has left
+   * passes vacuously.
    *
-   * The test therefore removes the sentence and asserts the rail does not care.
-   * Asserting the width alone would pass against the broken layout.
+   * The test removes contents and asserts the rail does not care. Asserting the
+   * width alone would pass against the broken layout.
    */
   for (const { name, width, height } of STAGE_BAND_VIEWPORTS) {
     test(`the colourway rail spans the stage band at ${name} (${width}x${height})`, async ({
@@ -813,9 +844,20 @@ test.describe('layout invariants', () => {
       const before = await measure()
       expect(before, 'no .colourways or .stage-block on the page').not.toBeNull()
 
-      // Take away the widest thing inside the rail. A rail that is laid out by
-      // its container does not move; one that shrink-wraps collapses.
-      await page.addStyleTag({ content: '.colourways__hint { display: none !important }' })
+      // Take away most of what is inside the rail. A rail laid out by its
+      // container does not move; one that shrink-wraps collapses onto whatever
+      // is left.
+      //
+      // ⚠️ THIS USED TO HIDE `.colourways__hint`, which was the widest child and
+      // therefore the perfect probe — until that element moved into
+      // <ProductPanel> on 2026-08-20. Hiding a selector that matches nothing
+      // changes nothing and the assertion below would have passed VACUOUSLY,
+      // guarding an element that had left the building. Hiding tabs keeps the
+      // probe attached to something the rail will always contain.
+      await page.evaluate(() => {
+        const tabs = [...document.querySelectorAll('.colourway-tab')]
+        for (const tab of tabs.slice(1)) (tab as HTMLElement).style.display = 'none'
+      })
       const after = await measure()
 
       const { rail: railBefore, container } = before as { rail: number; container: number }
@@ -823,7 +865,7 @@ test.describe('layout invariants', () => {
 
       expect(
         railBefore - railAfter,
-        `removing the disclaimer changed the colourway rail's width by ` +
+        `removing swatches changed the colourway rail's width by ` +
           `${railBefore - railAfter}px (${railBefore} -> ${railAfter}). The rail is ` +
           `sizing itself from its contents instead of from its container. Add ` +
           `width: 100% to .stage-block .colourways — auto margins on a flex item ` +

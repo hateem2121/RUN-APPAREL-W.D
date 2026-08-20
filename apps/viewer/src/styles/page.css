@@ -247,7 +247,22 @@
   display: flex;
   flex-direction: column;
   min-height: calc(100svh - var(--header-h));
-  padding-bottom: var(--action-bar-h);
+  /*
+   * ⚠️ THE BAR'S HEIGHT PLUS A REAL MARGIN, not the bar's height alone.
+   *
+   * Reserving exactly `--action-bar-h` is arithmetically correct and leaves the
+   * colourway rail 9px clear of the bar — measured at 320x640, 375x812, 402x714
+   * and 414x896, all four identical, because the only thing between them is this
+   * padding. The guard in motion-and-layout.spec.ts asks for 8. Passing a
+   * threshold by ONE PIXEL is the state this file already records reaching once:
+   * "a second attempt landed at 640: two pixels of clearance, passing, and one
+   * font-metric change away from failing in production".
+   *
+   * 16px buys 25px of clearance for 16px of garment, on a garment that Part A
+   * and C1 between them grew by 30% on the same screens. That is a good trade
+   * and it is the difference between an invariant and a coincidence.
+   */
+  padding-bottom: calc(var(--action-bar-h) + 16px);
   background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
@@ -1137,6 +1152,23 @@ model-viewer.stage__model:focus-within {
   max-width: 60ch;
 }
 
+/*
+ * The colourway qualifier, moved out of the swatch rail on 2026-08-20.
+ *
+ * ⚠️ IT IS NO LONGER SET IN MONO UPPERCASE. As `.colourways__hint` it was 10px
+ * mono, letter-spaced and uppercased — the house treatment for a LABEL, which is
+ * what it looked like sitting under a row of controls. It is not a label; it is
+ * a sentence of commercial copy, and it is the answer to the question a buyer
+ * asks first ("can I have my own colours?"). Set as prose it can actually be
+ * read, and it stops competing with the `[ COLOURWAY 01 / WINE ]` chip above it,
+ * which IS a label and keeps that treatment.
+ */
+.product-info__colour-note {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  max-width: 60ch;
+}
+
 .spec-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1345,13 +1377,8 @@ model-viewer.stage__model:focus-within {
   font-size: 8px;
 }
 
-.colourways__hint {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
+/* `.colourways__hint` was here until 2026-08-20. The element moved into
+   <ProductPanel> as `.product-info__colour-note`; see the note there. */
 
 /*
  * `.colourways__preview` and `.colourway-preview` were deleted 2026-08-15 with the

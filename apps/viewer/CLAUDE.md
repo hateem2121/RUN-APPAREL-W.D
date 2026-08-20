@@ -58,10 +58,31 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   24px gap "from nowhere" between two elements that have no margin between them.
   Sweeping candidate stage heights on the live site this way produced a subtrahend
   that then FAILED e2e on all three engines with 4-6px of clearance. **Tune layout
-  against `test:e2e`, not against an injected style on the live page**: Playwright
-  sets `reducedMotion: 'reduce'`, `base.css` gates the reveal on
-  `prefers-reduced-motion: no-preference`, so there is no transform to pollute it —
-  and it measures Chromium, WebKit and mobile Safari at once.
+  against `test:e2e`, not against an injected style on the live page** — it measures
+  Chromium, WebKit, Firefox and mobile Safari at once.
+
+  ⚠️ **THE SECOND HALF OF THIS PARAGRAPH WAS FALSE UNTIL 2026-08-20, AND IT IS THE
+  REASON THE SUITE WAS TRUSTED.** It said Playwright "sets `reducedMotion: 'reduce'`
+  … so there is no transform to pollute it". `playwright.config.ts` does set it, and
+  it never reached the page. Measured on Playwright 1.62.1, all four engines:
+
+  ```
+  info.project.use.reducedMotion        "reduce"   <- the config resolved it
+  matchMedia('…reduce').matches         false      <- the page never saw it
+  after page.emulateMedia() explicitly  true       <- the API itself works
+  ```
+
+  So every `.colourways` measurement this suite ever took carried the reveal's own
+  `matrix(1, 0, 0, 1, 0, 24)`, and the number depended on WHEN the assertion ran
+  inside an 800ms transition — caught mid-flight in one run, Firefox reported
+  6.03px of translate where WebKit reported 24px. **Layout assertions were racing an
+  animation**, which is the same defect the live-page sweep above was condemned for,
+  in the tool recommended as the cure.
+
+  `motion-and-layout.spec.ts` now calls `page.emulateMedia({ reducedMotion: 'reduce' })`
+  in a `beforeEach`, which demonstrably works. If you add a layout spec elsewhere, do
+  the same — **do not assume the config option applies.** Verify with
+  `matchMedia('(prefers-reduced-motion: reduce)').matches` before trusting a number.
 
 - **model-viewer treats a 2px tap as a COMMAND, and the miss branch zooms right
   out.** `disable-tap` is set since 2026-08-19; the reasoning, including why
