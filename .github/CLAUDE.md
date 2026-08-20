@@ -1,7 +1,7 @@
 # CLAUDE.md — .github
 
 Loads when you touch `.github/`. Every workflow change is gated by
-`apps/cms/src/workflowHardening.test.ts` — nine assertions, each with a verified
+`apps/cms/src/workflowHardening.test.ts` — ten assertions, each with a verified
 negative control, so a failure names the file and line. Run it before pushing a
 workflow edit:
 
@@ -23,11 +23,12 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   the citation command that exited 0 having checked nothing. There is no
   `--log-opts` now, so the full history is scanned every run against `.gitleaks.toml`.
 - **`playwright install-deps` is bounded at 8 minutes and NON-FATAL on purpose — it
-  is preparation, not a gate.** ⚠️ This now describes `verify` and
-  `.github/workflows/deploy-shrink.yml` ONLY: `artwork` stopped shelling out to apt on
-  2026-08-20 and runs in `mcr.microsoft.com/playwright:v1.62.1-noble`, which ships the
-  browsers and their libraries. Measured normal cost 24 seconds, recorded in
-  `.github/workflows/ci.yml` beside the step. On 2026-08-18 a degraded Azure Ubuntu
+  is preparation, not a gate.** ⚠️ **`ci.yml` NO LONGER CONTAINS THIS STEP AT ALL.**
+  `artwork` and `e2e` both run in `mcr.microsoft.com/playwright:v1.62.1-noble` as of
+  2026-08-20, which ships the browsers and their system libraries, so the only apt path
+  left in this repo is `.github/workflows/deploy-shrink.yml`. Everything below is that
+  file's remaining risk, and the history that produced the container decision.
+  Measured normal cost 24 seconds. On 2026-08-18 a degraded Azure Ubuntu
   mirror — the log repeats `Ign: http://azure.archive.ubuntu.com/ubuntu noble
   InRelease` before falling back to the far slower `archive.ubuntu.com` — made it
   consume entire job budgets three times with nothing in the repo changed: `artwork`
@@ -43,10 +44,19 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   `production` environment because they "need GitHub Pro (~$4/month)" against a
   $5/month budget, and instructs the reader "Do not list it as pending work". The
   cost premise is now false. **APPLIED 2026-08-19**: ruleset `21016174` on `main`
-  (blocks deletion and force-push, requires a PR, and requires `verify`, `audit`,
-  `secrets`, `artwork` — the same four the deploy already needs), `production`
-  restricted to protected branches, and `sha_pinning_required: true`, which the repo
-  already satisfied so it cost nothing.
+  (blocks deletion and force-push, requires a PR, and requires the same status checks
+  the deploy needs), `production` restricted to protected branches, and
+  `sha_pinning_required: true`, which the repo already satisfied so it cost nothing.
+  ⚠️ **THE REQUIRED-CHECKS LIST IS A SECOND COPY OF `deploy.needs`, AND IT IS ORG
+  CONFIG NO TEST HERE CAN READ.** It was four checks until 2026-08-20 and is five now
+  (`verify`, `e2e`, `audit`, `secrets`, `artwork`) — `e2e` was added when it was split
+  out of `verify`, where it had been gating by living inside a job that gates. `needs:`
+  stops the DEPLOY; this list stops the MERGE. Split or rename a gating job and you
+  must edit BOTH, or a red gate silently stops blocking. The tenth rule in
+  `apps/cms/src/workflowHardening.test.ts` covers the `needs:` half only.
+  ⚠️ ORDER MATTERS HERE TOO, the same way it does for `production` below: add a check
+  to this list only AFTER a workflow exists on `main` that produces it, or every PR
+  blocks forever waiting on a check that never runs.
   ⚠️ At one filled seat, any rule requiring an approving review would deadlock every
   merge — nobody can approve their own PR. Hence
   `required_approving_review_count: 0`, with the status checks as the gate and an
@@ -63,8 +73,10 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   more since 2026-08-13:** every job declares `timeout-minutes` (all 12 had none,
   so a hang ran to the 6-hour default — ci.yml records a step measured at 49s that
   ran 30+ minutes), no `pull_request_target`, and no `${{ secrets.* }}` inside a
-  `run:` block. All eight have verified negative controls, so a failure names the
-  file and line. ⚠️ A `permissions:` block **REPLACES** the defaults rather than adding to
+  `run:` block. **Two more on 2026-08-20**, with the first container job: a Playwright
+  `container: image:` tag must equal the declared `@playwright/test` version, and every
+  job must appear in `deploy.needs` unless it is on a written non-gating allow-list.
+  All ten have verified negative controls, so a failure names the file and line. ⚠️ A `permissions:` block **REPLACES** the defaults rather than adding to
   them — omitting `contents: read` breaks `actions/checkout` with a **404** on
   this private repo, which is how uptime.yml died silently for 23 hours. The
   injection rule was not theoretical: `uptime.yml` was pasting a dispatch input
@@ -98,8 +110,10 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   stay STRICTLY BELOW the step's own `timeout-minutes` (18×10s = 3m inside a 4m step),
   or the step is killed before `dpkg --configure -a` and the final install can run —
   which is why 32294473409 ended on a lock error instead of finishing.
-  ✅ **`ci.yml`'s `artwork` job stopped depending on apt entirely on 2026-08-20** by
-  running in `mcr.microsoft.com/playwright:v1.62.1-noble`, which already carries the
-  browsers and their system libraries. `verify` and
-  `.github/workflows/deploy-shrink.yml` still shell out to `apt`, so everything above
-  is live for both.
+  ✅ **ALL OF `ci.yml` stopped depending on apt on 2026-08-20** — `artwork` first, then
+  `e2e` when it was split out of `verify`, both running in
+  `mcr.microsoft.com/playwright:v1.62.1-noble`. Measured: `artwork` 142s against a
+  107s baseline (+35s per run), and `e2e` 417s while `verify` fell 470s -> 159s by
+  shedding it, so the RUN's long pole went 470s -> 417s — billed minutes up,
+  wall-clock down. The image pull is 36-40s with a 60s tail (seven pulls). ⚠️ `.github/workflows/deploy-shrink.yml` STILL shells out to `apt`, so
+  everything above is live for that file and this trap must not be deleted.
