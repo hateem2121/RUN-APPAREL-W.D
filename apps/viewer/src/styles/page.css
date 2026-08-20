@@ -1320,10 +1320,6 @@ model-viewer.stage__model:focus-within {
   margin: -4px;
 }
 
-.colourway-tab__num {
-  margin-right: 6px;
-}
-
 .colourway-tab {
   flex: 0 0 auto;
   display: inline-flex;
@@ -1342,18 +1338,6 @@ model-viewer.stage__model:focus-within {
     border-color var(--ui) var(--ease),
     background-color var(--ui) var(--ease),
     color var(--ui) var(--ease);
-}
-
-/* Decoration, confirmed by the owner 2026-08-14: the number is not used in the
-   printed catalogue, on tags or on order forms. It is `index + 1`, so removing a
-   colourway silently renumbers every one after it — it cannot be a reference.
-   It is already aria-hidden; this makes the colour NAME lead visually too, which
-   is what a buyer actually asks for. Kept rather than deleted because it still
-   gives the rail a countable rhythm. */
-.colourway-tab__num {
-  color: var(--muted);
-  font-size: 0.85em;
-  opacity: 0.7;
 }
 
 /* The measured fabric colour, read from the GLB by variant-colour.ts. A ring
@@ -1380,10 +1364,6 @@ model-viewer.stage__model:focus-within {
   background: var(--btn-primary-bg);
   color: var(--btn-primary-text);
   border-color: var(--btn-primary-bg);
-}
-
-.colourway-tab[aria-selected="true"] .colourway-tab__num {
-  color: inherit;
 }
 
 /* Selected state is never colour-only. The dot is a REAL element now
@@ -1980,7 +1960,34 @@ model-viewer.stage__model:focus-within {
 @container colourrail (max-width: 500px) {
   .colourways__list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+    /*
+     * ⚠️ 92px -> 52px, AND IT IS THE REMOVED "01/02/03" PREFIX THAT PAID FOR IT.
+     *
+     * Measured at 402x714: the widest tab needed 67.2px with the number and
+     * 51.7px without. Five tabs plus four 8px gaps therefore went from 368px of
+     * required width to 290.5px — and the narrowest container this rail ever
+     * gets, a 320px phone, offers 300.8px. So five swatches now fit ONE ROW at
+     * every phone width instead of only at 402px and above.
+     *
+     * That is why this is one rule again. A second `@container` branch existed
+     * here for a day, switching floors at 370px because no single value served
+     * both 375 and 402; deleting the number deleted the need for it.
+     *
+     * 52, not less: it is the LARGEST floor that still fits five at 320px, so
+     * the tabs stay as wide as they can be. 48px measures identically at every
+     * width, which is the sign that 52 is the stopping point, not a guess.
+     *
+     * Garment height, measured, floor 92 -> 52 with five colourways:
+     *     320: 235 -> 296   360: 427 -> 488   375: 459 -> 520
+     *     402: 361 -> 421   414: 543 -> 603
+     *
+     * ⚠️ TUNED FOR FIVE, WHICH IS WHAT SHIPS. `auto-fit` fits five columns at
+     * 320px, so a product with SIX colourways lays out 5 + 1 there — one tab
+     * alone. The guard in motion-and-layout.spec.ts appends a fifth swatch
+     * because the fixture has four; if a six-colourway product is ever
+     * published, extend that guard first and re-tune this floor against it.
+     */
+    grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
     gap: 8px;
   }
 
@@ -2019,62 +2026,11 @@ model-viewer.stage__model:focus-within {
     line-height: 1.25;
   }
 
-  .colourway-tab__num {
-    margin-right: 4px;
-  }
-
   /* The non-colour cue for the selected tab. It already lives inside the label
      element rather than the button, which is what keeps it off a row of its own in
      this column layout — it only needs to be smaller here. */
   .colourway-tab__dot {
     font-size: 7px;
-  }
-}
-
-/*
- * ONE ROW OF SWATCHES WHERE THEY GENUINELY FIT — and the second branch is the
- * whole point: this could not be done with a single `minmax`.
- *
- * `auto-fit` packs as many columns as the floor allows, and the floor is one
- * number for every width. Measured 2026-08-20 with five colourways:
- *
- *     minmax floor   402px phone        375px phone
- *     92px (base)    3 + 2              3 + 2
- *     68px           ONE ROW of five    4 + 1
- *
- * So lowering the floor buys a single row on a modern iPhone and costs a
- * 375px one a lonely tab against three empty cells. Neither value is right at
- * both widths, which is exactly the trade the spec recorded and left open.
- *
- * The way out is to stop asking `auto-fit` to serve both cases. Five tabs need
- * 5 x 67.2px of label-plus-padding and 4 x 8px of gap = **368px**. Above that
- * the tighter floor produces one clean row; below it the base floor produces a
- * balanced 3 + 2. The query asks the container for exactly that number.
- *
- * ⚠️ 370, MEASURED ON ALL FOUR ENGINES and identical on every one — the
- * container's width is layout arithmetic (viewport minus gutters), not font
- * metrics, so this does not drift between browsers:
- *
- *     viewport   360    375    390    393    402    414    430
- *     container  338.4  352.5  366.6  369.4  377.9  389.2  404.2
- *     result     3+2    3+2    3+2    3+2    1x5    1x5    1x5
- *
- * 393 (iPhone 15/16 Pro) sits at 369.4 and is deliberately excluded: five tabs
- * would fit it by **1.4px**, which is not a margin. 402 has 9.9px spare.
- *
- * ⚠️ 368 ENCODES THIS GARMENT'S LABEL WIDTHS — "03 Butter" is the widest of
- * Wine / Blush / Butter / Lime / Black. A product with longer names does not
- * break: measured with "Forest Green" the label wraps to two lines and the tab
- * grows 53px -> 65px, costing the garment 12px and leaving 31px of clearance.
- * That is a degradation, not a failure. If most products end up with two-word
- * names, re-measure the 368 and raise this threshold rather than removing it.
- *
- * Pinned by `motion-and-layout.spec.ts` -> "the colourway rail never strands a
- * single swatch on its own row".
- */
-@container colourrail (min-width: 370px) and (max-width: 500px) {
-  .colourways__list {
-    grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
   }
 }
 
