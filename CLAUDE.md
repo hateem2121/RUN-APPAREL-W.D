@@ -320,14 +320,18 @@ the answer is "nothing that happens in production", it is not a test.
   off the GET's own headers (`curl -o /dev/null -D -`), never off a HEAD.**
   Live reference numbers now live in `docs/QA-CHECKLIST.md` → "Performance & assets".
 
-- **Five more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
+- **Six more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
   of them moved there 2026-08-19 because they bite only while you are editing a
   workflow, which is exactly when that file loads. Enough to stop you: every workflow
-  is gated by `apps/cms/src/workflowHardening.test.ts` on eight rules with verified
+  is gated by `apps/cms/src/workflowHardening.test.ts` on nine rules with verified
   negative controls, and a `permissions:` block **REPLACES** the defaults rather than
   adding to them — omitting `contents: read` killed uptime.yml for 23 hours with a 404.
   A CI fetch from a `wear-run.help` host can 403 from a runner (Bot Fight Mode); treat
   it as *inconclusive*, never as a failed assertion, and use `HEAD`.
+  And **`timeout-minutes` kills the step's SHELL, not the `apt-get` it started** — the
+  orphan keeps the dpkg lock, so retrying races it and exits 100 in five seconds while
+  waiting longer only spends the job's headroom. `artwork` stopped depending on apt on
+  2026-08-20; `verify` and `deploy-shrink.yml` have not.
 
 - **Twelve more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
   2026-08-19, when this file measured 44,993 characters against Claude Code's

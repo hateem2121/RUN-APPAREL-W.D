@@ -1,7 +1,7 @@
 # CLAUDE.md — .github
 
 Loads when you touch `.github/`. Every workflow change is gated by
-`apps/cms/src/workflowHardening.test.ts` — eight assertions, each with a verified
+`apps/cms/src/workflowHardening.test.ts` — nine assertions, each with a verified
 negative control, so a failure names the file and line. Run it before pushing a
 workflow edit:
 
@@ -23,7 +23,10 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   the citation command that exited 0 having checked nothing. There is no
   `--log-opts` now, so the full history is scanned every run against `.gitleaks.toml`.
 - **`playwright install-deps` is bounded at 8 minutes and NON-FATAL on purpose — it
-  is preparation, not a gate.** Measured normal cost 24 seconds, recorded in
+  is preparation, not a gate.** ⚠️ This now describes `verify` and
+  `.github/workflows/deploy-shrink.yml` ONLY: `artwork` stopped shelling out to apt on
+  2026-08-20 and runs in `mcr.microsoft.com/playwright:v1.62.1-noble`, which ships the
+  browsers and their libraries. Measured normal cost 24 seconds, recorded in
   `.github/workflows/ci.yml` beside the step. On 2026-08-18 a degraded Azure Ubuntu
   mirror — the log repeats `Ign: http://azure.archive.ubuntu.com/ubuntu noble
   InRelease` before falling back to the far slower `archive.ubuntu.com` — made it
@@ -73,4 +76,30 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   model". Treat such a 403 as *inconclusive*, never as a failed assertion. And use
   `HEAD`: a `GET` on the model is 27 MB per run, which the 15-minute uptime job
   turns into gigabytes of R2 egress against a $5/month cap.
-
+- **`timeout-minutes` kills the STEP'S SHELL, not the `apt-get` that step started.**
+  The child survives as an ORPHAN, keeps installing, and keeps holding
+  `/var/lib/dpkg/lock-frontend` — so the bound does not stop apt, it only stops
+  WAITING for apt, and the next step then runs against a half-unpacked system. On run
+  32248711203 (`main`, b5621aa) `libevent-2.1-7t64` had been downloaded and not yet
+  unpacked when e2e began: all 23 viewer-webkit tests died on
+  `libevent-2.1.so.7: cannot open shared object file` while all 119 chromium/firefox
+  tests passed. That reads as a WebKit regression and is not one.
+  ⚠️ **RETRYING IS THE WRONG FIX AND WAS TRIED FIRST** (run 32290202909): a second
+  `install-deps` RACES the orphan, loses the lock immediately and exits 100 in five
+  seconds — `dpkg frontend lock was locked by another process with pid 4625`. Five
+  seconds reads like "nothing left to do" and is the opposite. Wait for the orphan; it
+  is the thing doing the real work.
+  ⚠️ **WAITING LONGER IS ALSO WRONG** (run 32294473409): at a 10-minute wait apt STILL
+  had not finished — 18+ minutes across both steps — and the `ldd` check then named
+  THIRTY-THREE missing libraries, i.e. essentially the whole WebKit stack rather than
+  one straggler. Waiting does not rescue a mirror that degraded; it only costs the job
+  its headroom, taking `verify` to ~26 minutes against 30 and close to a `cancelled`
+  conclusion, which reads as a failed gate and is not one. The wait loop's budget must
+  stay STRICTLY BELOW the step's own `timeout-minutes` (18×10s = 3m inside a 4m step),
+  or the step is killed before `dpkg --configure -a` and the final install can run —
+  which is why 32294473409 ended on a lock error instead of finishing.
+  ✅ **`ci.yml`'s `artwork` job stopped depending on apt entirely on 2026-08-20** by
+  running in `mcr.microsoft.com/playwright:v1.62.1-noble`, which already carries the
+  browsers and their system libraries. `verify` and
+  `.github/workflows/deploy-shrink.yml` still shell out to `apt`, so everything above
+  is live for both.
