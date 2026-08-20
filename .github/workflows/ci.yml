@@ -180,6 +180,13 @@ jobs:
           ls "${PLAYWRIGHT_BROWSERS_PATH:-/ms-playwright}" || true
       # `prepare.mjs` runs `pnpm seed:assets` and `pnpm build` itself, through
       # Playwright's `webServer` command, so this one step is the whole suite.
+      #
+      # MEASURED, run 32350036354, all three browsers green: this job 417s total —
+      # pull 60s + setup 42s + the suite itself 310s. Against it, `verify` fell from
+      # 470s to 159s by shedding this work, and the two now run in PARALLEL, so the
+      # RUN's long pole went 470s -> 417s. Billed minutes rise (159 + 417 against 470)
+      # while wall-clock falls. The apt path that cost 23 webkit tests on run
+      # 32248711203 is gone from this file entirely.
       - name: e2e
         env:
           HOME: /root
@@ -415,9 +422,14 @@ jobs:
     #   container warm 32347453525            142s   (pull 38 + setup-node 20
     #                                                 + install 13 + eval 56)
     #
-    # So steady state is 142s against 107s: **+35s per run, every run**. `Initialize
-    # containers` was 38s in BOTH runs, so the pull is the stable part and the cold-run
-    # spread was the pnpm store cache being written for the new key.
+    # So steady state is 142s against 107s: **+35s per run, every run**. The cold-run
+    # spread was the pnpm store cache being written for the new key, not the pull.
+    #
+    # ⚠️ THE PULL IS MOSTLY STABLE, NOT ALWAYS. Across seven pulls of this image (both
+    # container jobs, five runs): 36, 38, 38, 38, 39, 40 and one **60s**. Median 38s.
+    # Budget for ~40s and know the tail exists — an earlier version of this comment
+    # said "38s in every run", which was true of the first three and stopped being
+    # true. If you are about to state what this step costs, state the spread.
     #
     # That 35s is the price of the trade, and it is worth naming honestly: it buys the
     # removal of a failure mode that cost this job 20m20s twice in cancelled runs and

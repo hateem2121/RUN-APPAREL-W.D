@@ -112,7 +112,8 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   which is why 32294473409 ended on a lock error instead of finishing.
   ✅ **ALL OF `ci.yml` stopped depending on apt on 2026-08-20** — `artwork` first, then
   `e2e` when it was split out of `verify`, both running in
-  `mcr.microsoft.com/playwright:v1.62.1-noble`. The container costs +35s per run,
-  measured (142s against a 107s baseline on `artwork`; `Initialize containers` was 38s
-  in both runs). ⚠️ `.github/workflows/deploy-shrink.yml` STILL shells out to `apt`, so
+  `mcr.microsoft.com/playwright:v1.62.1-noble`. Measured: `artwork` 142s against a
+  107s baseline (+35s per run), and `e2e` 417s while `verify` fell 470s -> 159s by
+  shedding it, so the RUN's long pole went 470s -> 417s — billed minutes up,
+  wall-clock down. The image pull is 36-40s with a 60s tail (seven pulls). ⚠️ `.github/workflows/deploy-shrink.yml` STILL shells out to `apt`, so
   everything above is live for that file and this trap must not be deleted.
