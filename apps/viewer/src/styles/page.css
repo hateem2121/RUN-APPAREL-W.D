@@ -1,11 +1,28 @@
 /* Page layout — desktop 1440 reference, mobile 390 portrait-first. */
 
 .page {
-  min-height: 100dvh;
+  /*
+   * ⚠️ `svh`, NOT `dvh` — changed 2026-08-20, and for the reason `.stage__canvas`
+   * was changed on 2026-08-19. `dvh` tracks the CURRENT viewport, so it grows and
+   * shrinks by the height of Safari's URL bar: measured on an iPhone 17, one
+   * swipe produced 14 separate dvh changes across a 40px range. Every one of them
+   * re-resolved this element's minimum height mid-scroll. It was never as
+   * expensive here as it was on the canvas, where each change reallocated a WebGL
+   * drawing buffer, but it is the same defect and there is no reason to keep it.
+   */
+  min-height: 100svh;
   display: flex;
   flex-direction: column;
-  /* room for the mobile bottom action bar */
-  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  /*
+   * Room for the mobile bottom action bar — THE TOKEN, not a raw number.
+   *
+   * ⚠️ THIS WAS A RAW `76px` AGAINST A BAR THAT MEASURES 72. `tokens.css` says
+   * that height "was re-derived by hand in three places that disagreed", which is
+   * precisely why `--action-bar-h` exists; this was a fourth place, still
+   * disagreeing, inside the fix. Owner decision 2026-08-20: make them match.
+   * Nothing on screen moves — the 4px was never doing a job anyone recorded.
+   */
+  padding-bottom: calc(var(--action-bar-h) + env(safe-area-inset-bottom, 0px));
 }
 
 @media (min-width: 900px) {
@@ -71,7 +88,12 @@
 .header .btn {
   flex-shrink: 0; /* see the block comment on .header */
   white-space: nowrap;
-  min-height: 40px;
+  /* ⚠️ 40px -> the token, 2026-08-20. `--target-min` is declared 44px under a
+     comment about a control that once shipped 2px wide, and was then overridden
+     to 40 by THREE rules — a floor overridden everywhere it is inconvenient is
+     not a floor. Measured before changing it: this costs the header 0px, because
+     the theme toggle is already 44 and sets the row's height. It was free. */
+  min-height: var(--target-min);
   padding: 10px 16px;
 }
 
@@ -118,10 +140,17 @@
  * Result, measured: 117px -> **69px at both 360px and 375px**, the two commonest
  * phone widths. Those 48px go straight to the garment.
  *
- * ⚠️ It still wraps at 320px (measured 119px), and that is accepted rather than
- * missed. Fitting one row there needs the wordmark under ~124px — a 13.9px
- * logotype — which is not a trade worth making for a width no current phone
- * ships. `.stage__canvas`'s budget has an explicit rule for that case; see it.
+ * ⚠️ It still wraps at 320px, and that is accepted rather than missed. Fitting
+ * one row there needs the wordmark under ~124px — a 13.9px logotype — which is
+ * not a trade worth making for a width no current phone ships. `--header-h` in
+ * tokens.css carries the resulting height, and the stage band subtracts it.
+ *
+ * ⚠️ THE WRAPPED HEIGHT IS 117px, AND THIS LINE SAID 119px until 2026-08-20.
+ * Measured that day against the BUILT app at ten widths: 117.0 at 320, and 69.0
+ * at every one of 360, 375, 402, 414, 844, 768, 1280, 1440 and 2560. Two pixels
+ * is nothing on its own; it matters because the 320px `--header-h` override
+ * below is derived from it, and because a recorded number nobody re-measures is
+ * how this file's stage budget went wrong four times.
  */
 @media (max-width: 699px) {
   .header {
@@ -190,10 +219,103 @@
  * inherited value always resolves — no bare `var()` reaching for a token that
  * does not exist (see the 2026-08-13 fix in tokens.css).
  */
+/*
+ * ⚠️ THE GARMENT'S HEIGHT IS NO LONGER A NUMBER SOMEBODY ADDED UP.
+ *
+ * `.stage__canvas` used to be `min(62vh, 640px, calc(100svh - 364px))`, where
+ * 364 was the sum of the header, two paddings, a gap, the plinth, the colourway
+ * rail and the action bar. That sum was re-derived by hand and was WRONG FOUR
+ * TIMES — 208 -> 280 -> 316 -> 282 on desktop, and a fourth failure on the phone
+ * rule where a live-page sweep was polluted by a `[data-reveal]` transform.
+ *
+ * The FIFTH failure was measured 2026-08-20 and had a new shape: the sum was
+ * right, and a `min-height: 300px` floor overrode it. At 320x640 that buried
+ * colourways 04 Lime and 05 Black 57% under the action bar. A number that six
+ * independent values must agree with is a computation, not a constant.
+ *
+ * The browser does it now. This band is one screen minus the header; the plinth
+ * and the rail take what they need; the canvas takes the rest.
+ *
+ * ⚠️ `padding-bottom`, NOT a subtracted term. The action bar is `position:
+ * fixed` and used to float over the bottom of this band. Reserving its height as
+ * real space is what makes covering IMPOSSIBLE rather than merely unlikely, and
+ * it is the same shape as `.page`'s own rule at the top of this file.
+ *
+ * WHAT HAPPENS WHEN IT STILL DOES NOT FIT — the property that actually fixes the
+ * 320x640 defect: the canvas stops at its `min-height` and this band grows past
+ * one screen, so the rail lands BELOW THE FOLD, scrollable and fully tappable,
+ * instead of UNDERNEATH A FIXED BAR. Overflow degrades into scrolling rather
+ * than into hidden product. That is the whole design.
+ */
 .stage-block {
   --stage-gutter: clamp(8px, 3vw, 40px);
+  display: flex;
+  flex-direction: column;
+  /* The containing block for `.stage__more`, which is taken out of flow so it
+     can sit in this band's own reserved bottom padding without costing the
+     garment any height. Safe to add: every other absolutely positioned thing in
+     the band (`.stage__contours`, `.stage__callouts`, `.stage__loading`) is
+     inside `.stage__canvas`, which is `position: relative` itself and therefore
+     a nearer containing block. */
+  position: relative;
+  min-height: calc(100svh - var(--header-h));
+  /*
+   * ⚠️ THE BAR'S HEIGHT PLUS A REAL MARGIN, not the bar's height alone.
+   *
+   * Reserving exactly `--action-bar-h` is arithmetically correct and leaves the
+   * colourway rail 9px clear of the bar — measured at 320x640, 375x812, 402x714
+   * and 414x896, all four identical, because the only thing between them is this
+   * padding. The guard in motion-and-layout.spec.ts asks for 8. Passing a
+   * threshold by ONE PIXEL is the state this file already records reaching once:
+   * "a second attempt landed at 640: two pixels of clearance, passing, and one
+   * font-metric change away from failing in production".
+   *
+   * 16px buys 25px of clearance for 16px of garment, on a garment that Part A
+   * and C1 between them grew by 30% on the same screens. That is a good trade
+   * and it is the difference between an invariant and a coincidence.
+   */
+  padding-bottom: calc(var(--action-bar-h) + 16px);
   background: var(--bg);
   border-bottom: 1px solid var(--line);
+}
+
+/* No action bar above 900px — same seam and same shape as `.page`'s rule. */
+@media (min-width: 900px) {
+  .stage-block {
+    padding-bottom: 0;
+  }
+}
+
+/* The bar also removes itself on short screens; see the `max-height: 500px`
+   rule further down, which this must stay in step with. */
+@media (max-height: 500px) {
+  .stage-block {
+    padding-bottom: 0;
+  }
+}
+
+/*
+ * Flex sizing does not cross a non-flex ancestor. These three sit between
+ * `.stage-block` and `.stage__canvas` and exist for other reasons — ARIA
+ * (the tabpanel), a stacking context, and the measure plus gutter — so each
+ * simply forwards the growth.
+ *
+ * ⚠️ `min-height: 0` IS LOAD-BEARING ON EVERY ONE OF THEM. A flex item defaults
+ * to `min-height: auto`, which refuses to shrink below its content — the same
+ * trap this file already records for grid items, where a loading poster
+ * overflowed its stage by 926px because `min-height: auto` beat
+ * `max-height: 100%`. Remove any one of these and the canvas stops shrinking.
+ *
+ * The tabpanel div is selected by role because App.tsx gives it an id and no
+ * class; adding one purely for this would be markup serving a stylesheet.
+ */
+.stage-block > [role="tabpanel"],
+.stage,
+.stage__inner {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .stage {
@@ -207,52 +329,87 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: clamp(8px, 2vw, 24px) var(--stage-gutter);
+  /* `max-width` centres this, and `margin: 0 auto` cannot do that for a flex
+     item in a column — it is already stretched to the full width. Kept because
+     the block is still width-constrained; the auto margins are what centre it. */
+  width: 100%;
 }
 
 /*
  * The canvas takes what is LEFT, not a fixed fraction of the screen.
  *
- * Since the colourway rail moved directly beneath it, the garment no longer owns
- * the first screen alone — it shares it with the rail, and below 900px with the
- * fixed `.action-bar` painted over the bottom 72px. `72vh` alone overshot: at
- * 375x812 it resolved to 584.6px and pushed the rail's bottom edge to 745.6,
- * six pixels under a viewport that usably ends at 740. Six pixels is enough to
- * put the control back out of reach, which is the entire bug.
+ * ⚠️ THIS COMMENT USED TO BE THIRTY LINES DEFENDING A NUMBER, and the number is
+ * gone as of 2026-08-20. It tracked a third `min()` term through 208 -> 280 ->
+ * 316 -> 282, recording at each step which part of the chrome had been measured
+ * wrong, and it closed with "every estimate in this comment's history has been
+ * wrong". That was true, and it was never going to stop being true, because the
+ * value had to agree with six independent things and nothing made them agree.
+ * `.stage-block` is a flex column now and the browser derives it. The full
+ * history is in this file's git log, where a superseded argument belongs.
  *
- * The third term is the budget, and it is subtraction rather than taste. It was
- * 208 until 2026-08-17 and is now 282, paying for `.stage__plinth` — the 44px
- * row that carries the camera controls and the garment's name, both of which
- * used to be free because both used to be painted ON the garment.
+ * TWO FACTS FROM IT SURVIVE, because they are about the product rather than the
+ * arithmetic:
  *
- * ⚠️ MEASURED THREE TIMES, AND ADDING UP WAS WRONG TWICE. 225px of chrome + a
- * 54px control row gave 279, rounded to 280 — then the caption arrived as its
- * own row and the band measured 69->936 against a 900px viewport, **36px over**,
- * because a caption whose font metrics nobody had rendered yet is not the 25px
- * it looks like, it is 37. Raising the budget to 316 fixed the overflow and cost
- * the garment 56px. Putting the caption and the controls on ONE row gave 35 of
- * those back, and the band measured 69->865 — now 35px UNDER, i.e. wasted.
- * 282 is the number the band actually needs, read off getBoundingClientRect().
+ *   - The garment always fills **86.3%** of this canvas's height. The camera
+ *     radius and field of view are fixed, so canvas height alone decides how big
+ *     the garment looks. That is why `max-height` below is a visual decision and
+ *     not a layout one.
  *
- * If you add anything else to this band, measure it here rather than reasoning
- * about it. Every estimate in this comment's history has been wrong.
- *
- * ⚠️ THE SECOND TERM WENT 640px -> 760px IN THE SAME CHANGE, and it is the one
- * that matters on a good monitor. The cap binds whenever the window is tall, and
- * because the garment always fills 86.3% of the canvas height (the camera radius
- * and field of view are fixed), the cap WAS the reason a 1440x1200 screen showed
- * the same small garment as a laptop. Measured effect there: 640 -> 760, a 120px
- * taller garment. At 1440x900 the `72vh` and `dvh` terms still bind, so nothing
- * changes; at 1280x800 the canvas gives up 56px to the control row and takes
- * back 26px that the pill used to cover.
+ *   - Anything added to this band comes out of the garment. It is no longer YOUR
+ *     job to re-derive a number when that happens — flex does it — but it is
+ *     still your job to check what the garment was left with.
  */
 .stage__canvas {
   position: relative;
-  /* Desktop has no collapsing browser chrome, so `vh` and `svh` are the same
-     number here and the subtrahend carries over unchanged. The `@supports`
-     override sits after this block; see the comment on the phone rule for what
-     this fallback prevents. */
-  height: min(72vh, 760px, calc(100vh - 282px));
-  min-height: 380px;
+  /* Takes what the plinth and the colourway rail did not. See the block comment
+     on `.stage-block` for why this is no longer a `min()` of three terms. */
+  flex: 1 1 auto;
+  /*
+   * The floor — and it BENDS on a short screen, which is the part that took a
+   * measurement to get right.
+   *
+   * 300px was "the smallest a garment can be and still read as a garment on a
+   * 600px-tall phone", and as a flat value it is what broke 320x640: the band had
+   * 640 - 117 header - 72 bar = 451px to work with, while a 300px floor plus a
+   * 52px camera row plus a 121px two-row swatch grid needs 473px. A floor that
+   * cannot bend on the one screen too small for it is not a floor, it is an
+   * overflow.
+   *
+   * ⚠️ EXPLICIT, not `auto` — a flex item defaults to `min-height: auto` and
+   * would refuse to shrink at all, which is a different way to reach the same
+   * overflow.
+   *
+   * A PROPORTION, not a third hand-tuned breakpoint. `min(300px, Nsvh)` keeps the
+   * flat 300px everywhere it fits and bends only where it cannot — and because
+   * the cap binds first on every tall screen, 375x812, 402x714 and 414x896 are
+   * untouched at EVERY value of N. Verified in the sweep below: their canvases
+   * stay 434 / 336 / 518 throughout.
+   *
+   * ⚠️ 34, AND THE SWEEP IS WHY — not arithmetic. Measured 2026-08-20 against the
+   * built app, reading the rail's clearance under the action bar at 320x640 and
+   * the scrollable strip below the canvas in landscape:
+   *
+   *     N     320x640 clearance   844x390 strip   garment at 320x640
+   *     34    +24  ok             165  ok         218px
+   *     36    +13  ok             164  ok         230px
+   *     38     -1  FAILS          156  ok         243px
+   *     40    -14  FAILS          148  ok         256px
+   *     42    -25  FAILS          140  at floor   269px
+   *
+   * 36 passes and 34 is chosen anyway. The guards need >= 8px and >= 140px, and
+   * 36 clears the first by five pixels — this file already records an attempt
+   * that "landed at 640: two pixels of clearance, passing, and one font-metric
+   * change away from failing in production". Those metrics differ per engine
+   * TODAY: the same measurement before this change read -58px on Chromium and
+   * WebKit and -43px on Firefox. 34 buys 24px of margin for 12px of garment on
+   * the one screen size nobody browses on by choice.
+   *
+   * ⚠️ IT ALSO GIVES LANDSCAPE A SCROLLABLE STRIP (165px against a 140px floor),
+   * which is a side effect rather than the fix. A 139px garment on an 844px-wide
+   * screen is not a good answer; the two-column layout is, and it is why Parts A
+   * and B ship as one release by owner decision 2026-08-20.
+   */
+  min-height: min(300px, 34svh);
   border-radius: var(--radius-panel);
   overflow: hidden;
   /*
@@ -280,169 +437,77 @@
     26px 26px;
 }
 
-@supports (height: 1svh) {
+/*
+ * Desktop keeps a taller floor and the 760px cap.
+ *
+ * ⚠️ THE CAP IS NOT REMOVED HERE, and that is deliberate. The camera radius and
+ * field of view are fixed, so the garment always fills 86.3% of the canvas
+ * height — the cap alone decides how big the garment LOOKS on a large monitor
+ * (measured 2026-08-20: roughly 7.8% of a 2560x1440 screen against 18% of a
+ * 1440x900 one). Changing it is a visual decision that needs rendered
+ * before/after comparisons, so it belongs to its own change, not to this one.
+ */
+@media (min-width: 900px) {
   .stage__canvas {
-    height: min(72vh, 760px, calc(100svh - 282px));
+    min-height: 380px;
+    /*
+     * ⚠️ 760 -> 980, AND THE NUMBER IS DERIVED, NOT PREFERRED. Owner decision
+     * 2026-08-20 to raise the cap; this is where raising it stops paying.
+     *
+     * The camera radius and field of view are fixed, so the garment's own shape
+     * is constant: measured at 1440x900 it renders 437 wide by 533 tall, an
+     * aspect of **0.82**. A shape that fixed is limited by whichever canvas axis
+     * runs out first:
+     *
+     *   canvas aspect > 0.82  ->  HEIGHT-limited. Raising the cap grows it.
+     *   canvas aspect < 0.82  ->  WIDTH-limited. Raising the cap buys nothing
+     *                             but empty space above and below the garment,
+     *                             and more pixels for the GPU to draw.
+     *
+     * The canvas is 800px wide in the two-column layout (the 1200px measure
+     * minus the aside and the gutter), so the crossover is 800 / 0.82 = **976**.
+     * At 980 the canvas measures 800x980 — aspect 0.82, the garment's own — and
+     * both axes run out together, which is the most garment the layout can hold.
+     *
+     * ⚠️ MEASURED, and the first two guesses were both wrong. Removing the cap
+     * entirely gives an 800x1266 canvas: the garment does NOT grow, because it
+     * became width-limited 290px earlier, and the drawing buffer goes from 2.4 to
+     * 4.1 megapixels at DPR 2 for no visible change. Widening the 1200px measure
+     * instead is equally useless on its own — at measures of 1200/1600/2000/2400
+     * the canvas stays height-limited at every one, because the cap never moves.
+     * The two levers only work together, and the cap is the one that binds.
+     *
+     * ⚠️ 980 IS TIED TO THE 800px CANVAS WIDTH. If the 1200px measure or the
+     * aside's `flex-basis` changes, re-derive it as `canvas width / 0.82` — a
+     * larger value is wasted GPU, a smaller one is wasted garment.
+     *
+     * The cost is bounded to machines that can pay it: this rule needs 900px of
+     * width, and below that the band's own height binds long before 980 (measured
+     * 726px at 1440x900), so no phone ever allocates it.
+     */
+    max-height: 980px;
   }
 }
 
 /*
- * Below 900px the canvas deliberately does NOT fill the first screen.
+ * ⚠️ THIS BLOCK USED TO CARRY THE PHONE'S HEIGHT BUDGET, and its comment argued
+ * at length for a subtrahend of 364 — 81 header + 8 + 8 stage padding + 12 gap +
+ * 52 rail + 12 gap + 25 caption + 12 band padding + 72 bar. All of that is gone
+ * as of 2026-08-20; `.stage-block` is a flex column and the canvas takes what is
+ * left. The argument is preserved in this file's history, not here, because a
+ * comment defending a number that no longer exists is worse than no comment.
  *
- * The subtrahend was 280 — 81 header + 8 + 8 stage padding + 12 gap + 52 rail +
- * 12 gap + 25 caption + 12 band padding + 72 bar — which made the stage band end
- * exactly at the action bar. Everything fitted and nothing breathed: the garment
- * took 532 of 812px, the controls were pressed against the fold, and the product
- * facts began 1029px down with no hint they existed. Measured, and reported by
- * the owner as "everything feels too congested and tight".
+ * ONE CLAIM FROM IT IS WORTH CARRYING FORWARD, and it is now a known gap rather
+ * than a feature: that budget said the extra height "lets the top of the product
+ * panel PEEK above the fold — the only honest scroll affordance on a page whose
+ * first screen is otherwise a full-bleed canvas". Measured on the live site
+ * 2026-08-20 at 402x714, it never did: `.content` began at y=656 while the fixed
+ * bar covered from y=642, so nothing peeked at all. The peek is a real need and
+ * is scheduled separately; do not assume this layout provides it.
  *
- * The extra ~100px is spent on purpose, and buys two things at once. It gives the
- * rail and caption room, and it lets the top of the product panel PEEK above the
- * fold — which is the only honest scroll affordance on a page whose first screen
- * is otherwise a full-bleed canvas. A visitor cannot decide to scroll for content
- * they have no reason to believe is there.
- *
- * The floor rises with it rather than falling: 300px is the smallest a garment
- * can be and still read as a garment on a 600px-tall phone.
+ * What remains here is the two mobile-only spacing tweaks, which are still real.
  */
 @media (max-width: 899px) {
-  .stage__canvas {
-    /*
-     * 380 -> 386, and the small size of that bump is the interesting part.
-     *
-     * The control row costs 54px here as it does on desktop, so the naive
-     * subtrahend would be 434 and the phone's garment would LOSE 54px — the
-     * opposite of what this change is for. It does not, because the header fix
-     * two rules up gives back 48 of them: 117px -> 69px at 360 and 375. The row
-     * is paid for out of the header, not out of the garment.
-     *
-     * The remaining 6px come from the ~85px of slack this rule was already
-     * carrying between the colourway rail and the fixed action bar (documented
-     * below as the "peek"). A peek survives; it is just smaller.
-     *
-     * Net for a 375x812 phone, measured: the garment loses 5px of canvas and
-     * stops being obscured by 38px of control pill and 29px of sticky header.
-     */
-    /*
-     * ⚠️ `svh`, NOT `dvh`, AND THAT IS THE LAG FIX — not a tidy-up.
-     *
-     * MEASURED 2026-08-19 on the iOS 26.5 simulator, iPhone 17, real Safari
-     * (a probe page served over localhost; Chromium device emulation CANNOT
-     * show this, because it has no URL bar):
-     *
-     *     100svh  714.0   stable
-     *     100lvh  754.0
-     *     100dvh  714.0 <-> 754.0    a 40px swing
-     *     ONE SWIPE produced 14 separate dvh changes
-     *
-     * `dvh` tracks the CURRENT viewport, so it shrinks by the height of Safari's
-     * URL bar and grows back as the bar collapses. Every one of those 14 changes
-     * resized this element, and a resize of this element makes model-viewer run
-     * `updateRendererSize()` -> `threeRenderer.setSize()` — a WebGL drawing-buffer
-     * reallocation — mid-scroll, on the phone already holding a 27 MB model.
-     * That is what the owner reported as "the mobile version feels laggy".
-     * `svh` is the small viewport and never moves, so the canvas never resizes.
-     *
-     * ⚠️ IT ALSO MEANS THE OLD NUMBER WAS MEASURED ON THE WRONG MACHINE. With
-     * `dvh - 386` this canvas was **328px** on a real iPhone 17 — not the 426px a
-     * desktop browser at 375x812 reports, because the desktop browser has no URL
-     * bar to subtract. The owner's "the block feels small" was right and every
-     * measurement taken here before 2026-08-19 was flattering.
-     *
-     * ⚠️ 354 WAS FOUND BY SWEEPING THE LIVE PAGE, AND THE ARITHMETIC WAS WRONG
-     * AGAIN — the fourth time, exactly as the note above warns.
-     *
-     * The first attempt at this change reasoned its way to 342 and it BROKE the
-     * invariant `motion-and-layout.spec.ts` exists to protect: measured at
-     * 402x714, the colourway rail ended at 654 against an action bar starting at
-     * 642, i.e. **12px of the picker underneath the fixed bar** — the 2026-08-13
-     * defect, reintroduced. Two things the arithmetic missed: `.stage__plinth` is
-     * 44px, not the 42px its buttons measure, because it also carries the garment
-     * name; and there are 28px between the plinth and the rail, not the 5px a
-     * reading of the rules suggests.
-     *
-     * ⚠️ AND THE SWEEP THAT REPLACED THE ARITHMETIC WAS ALSO WRONG. Recorded
-     * because the mistake is subtle and cost three attempts.
-     *
-     * Sweeping the LIVE page by injecting candidate heights and reading back the
-     * rail's bottom edge looks like the right method and is not: `.colourways`
-     * carries `[data-reveal]`, so until its reveal has run it sits under a
-     * `transform: translateY(24px)`. Every reading taken that way is 24px out,
-     * in a direction that changes with how long the page has been open. Measured
-     * on the live page: `matrix(1, 0, 0, 1, 0, 24)` on an element whose computed
-     * `margin-top` is 0 — which is exactly what a 24px gap "from nowhere" between
-     * `.stage__inner` and `.colourways` turned out to be.
-     *
-     * 364 was tuned against `pnpm --filter @run-apparel/viewer test:e2e` instead,
-     * which is the honest instrument here: Playwright's config sets
-     * `reducedMotion: 'reduce'`, `base.css` gates the reveal on
-     * `prefers-reduced-motion: no-preference`, so there is no transform to
-     * pollute the number — and it measures the real built app across Chromium,
-     * WebKit and mobile Safari at once. 356 passed a live sweep and FAILED there
-     * with 4-6px of clearance on all three engines.
-     *
-     * Net effect on the device this product is opened with, verified in the iOS
-     * 26.5 simulator: **328px -> 350px**, and it no longer moves while the
-     * visitor scrolls. That is +6.7%, NOT the +18% a first estimate promised —
-     * the chrome below the canvas is denser than it looks, and the owner was
-     * given the measured number rather than the estimate.
-     *
-     * The 10px of clearance is deliberate and is the nearest thing to the scroll
-     * affordance the neighbouring comment has claimed since 2026-08-17 and never
-     * delivered (measured -44px: the product panel started BELOW the action bar's
-     * top edge, so the first screen looked complete). The colourway caption now
-     * sits just under the fold on purpose — it is the cheapest 31px on the first
-     * screen and the only element there not needed to choose a colour.
-     *
-     * SWEEP THE LIVE BAND before changing this number. Do not add it up.
-     */
-    /*
-   * ⚠️ FALLBACK FIRST, AND IT IS NOT COSMETIC — WITHOUT IT THE GARMENT VANISHES.
-   *
-   * `svh`/`dvh`/`lvh` need Safari 15.4+ / Chrome 108+. On anything older the whole
-   * `min()` is invalid, so the `height` declaration is DROPPED — and the failure is
-   * not the graceful one it looks like. Measured 2026-08-19 by reproducing the
-   * dropped declaration on the live page: `.stage__canvas` survives at its
-   * `min-height` (300px, and the colourway rail still clears the action bar), but
-   * `model-viewer.stage__model` is `height: 100%` of a now-`auto` parent, which
-   * resolves to **0**. Measured box: **378 x 0**. The visitor gets the blueprint
-   * grid and no garment.
-   *
-   * ⚠️ THIS IS NOT A REGRESSION FROM THE `dvh` -> `svh` SWAP. `dvh` has exactly the
-   * same support floor, so this has been live for as long as the third term has
-   * existed. It is fixed here because it was found here.
-   *
-   * WHY 44vh AND NOT THE SAME SUBTRAHEND. On a pre-`svh` browser `vh` IS the large
-   * viewport — the one with the URL bar hidden — so reusing the modern arithmetic
-   * would size the canvas against ~40px more height than the visitor can see and
-   * push the colourway rail under the fixed action bar, i.e. trade a vanished
-   * garment for the 2026-08-13 defect. A plain `vh` fraction avoids that, and 44
-   * is the largest step that stays AT OR BELOW the modern result at every common
-   * phone size, so the fallback can never be the taller of the two:
-   *
-   *     phone                lvh    modern    44vh
-   *     iPhone SE 2/3        667      303      300   (min-height floor)
-   *     iPhone 12/13 mini    669      300      300   (min-height floor)
-   *     iPhone 11 / XR       796      392      350
-   *     iPhone 14/15/16      774      370      341
-   *     iPhone 17           754      350      332
-   *
-   * UNVERIFIED ON A REAL OLD BROWSER, and that is a deliberate, owner-approved
-   * gap: Xcode 26.6's oldest downloadable runtime is **iOS 16.4**, whose Safari
-   * already supports `svh`, so no simulator available here can exercise this path
-   * at all. The numbers above are arithmetic over published viewport sizes. If a
-   * real pre-15.4 device is ever to hand, this is the rule to check.
-   */
-    height: min(44vh, 640px);
-    min-height: 300px;
-  }
-
-  @supports (height: 1svh) {
-    .stage__canvas {
-      height: min(62vh, 640px, calc(100svh - 364px));
-    }
-  }
-
   /*
    * Both of these are charged to the canvas, and both are mobile-only.
    *
@@ -462,29 +527,203 @@
 }
 
 /*
- * The 320px budget is 50px larger, because the header genuinely is.
+ * ⚠️ THIS BLOCK USED TO CARRY A SECOND, 50px-LARGER HEIGHT BUDGET, and it is the
+ * rule that failed on 2026-08-20.
  *
- * At 320px the catalogue button still wraps to a second flex row (measured
- * 119px against 69px at 360px) — see the header rule above for why that is
- * accepted rather than fixed. A budget that ignores it puts the colourway rail
- * under the fixed action bar, which is the exact 2026-08-13 defect the phone-fit
- * e2e test exists to catch.
+ * Its reasoning was sound and its arithmetic was right: at 320px the catalogue
+ * button wraps to a second flex row, so the header is 117px rather than 69px,
+ * and the budget compensated. What nobody checked was a SHORT 320px screen. At
+ * 320x640 the budget wanted a 226px canvas, `min-height: 300px` overrode it, and
+ * the 74px difference pushed colourways 04 Lime and 05 Black **57% underneath
+ * the action bar** — the exact 2026-08-13 defect, arriving through the floor
+ * rather than through the subtrahend. The old comment reasoned explicitly about
+ * 320x812, where it is harmless, and never about 320x640.
  *
- * `min-height: 300px` is the floor and it binds here, so this rule changes
- * nothing at 320x812; it is what keeps the arithmetic honest on a short 320px
- * window and it documents WHY the two budgets differ.
+ * That is the whole case for the flex band: the floor and the budget could
+ * disagree, and nothing made them talk to each other.
+ *
+ * All that survives here is the header override, because the wrap is real.
  */
 @media (max-width: 359px) {
-  .stage__canvas {
-    /* Same fallback reasoning as the 899px rule; 44vh is already below what the
-       320px budget yields, so no separate number is needed. */
-    height: min(44vh, 640px);
+  /* The header wraps to a second flex row here — deliberately; see the header
+     rule above. `tokens.css` holds the 69px default and the reasoning; this is
+     the one exception, and it lives beside the rule that causes it rather than
+     in the token file, where it would read as a second global default.
+
+     ⚠️ 117 -> 121 ON 2026-08-20, and the guard is why anyone noticed. Raising
+     `.header .btn` to the 44px `--target-min` declares added 4px to the WRAPPED
+     row only — the unwrapped header stayed 69px, because the theme toggle sets
+     that row's height. Nothing on any other screen moved, so this would have
+     drifted silently and re-broken the 320px layout the flex band just fixed.
+     "the header token matches the real header" failed on all four engines with
+     the exact number to write here. That test is the whole reason this token
+     exists rather than a hardcoded subtrahend. */
+  :root {
+    --header-h: 121px;
+  }
+}
+
+/* ── Two columns when the screen has width to spare ────────────────── */
+
+/*
+ * ⚠️ THE BASE STATE MUST BE DECLARED BEFORE THE MEDIA QUERY, not after it.
+ * `.stage__contact` and the two-column rule have the SAME specificity, so a
+ * media query does not beat a later plain rule — source order decides. Written
+ * the other way round on 2026-08-20, this element stayed `display: none` at
+ * every width and the two-column layout shipped with no contact control in it,
+ * which the reachability guard caught at 844x390.
+ */
+.stage__contact {
+  display: none;
+}
+
+/*
+ * TRIGGERED BY SHAPE, NOT BY DEVICE — which is why this is one rule and not two.
+ *
+ * Measured 2026-08-20 at 2560x1440: **720px of unused space on EACH side** of
+ * the canvas, a **399px** band of empty background below the stage (27.7% of the
+ * screen), and the garment at roughly **7.8%** of the screen against 18% on a
+ * 1440x900 laptop. The floating contact pill sat alone in that emptiness at
+ * 196x54px — 0.29% of the screen, 1,064px right of centre, never scaling — while
+ * the four spec callouts occupied 3.0x its area. The loudest things on the page
+ * were facts; the quietest was the only way to start a conversation.
+ *
+ * The second condition is a phone in LANDSCAPE. 844x390 is an aspect ratio of
+ * 2.16 — wide and short, and therefore far closer to a desktop than to a
+ * portrait phone. It had the same disease (nothing beside the garment, no
+ * persistent contact control, and until 2026-08-20 a 4px scroll strip) and it
+ * takes the same cure, so it shares the rule rather than getting its own.
+ *
+ * ⚠️ 900px IS THE EXISTING SEAM, deliberately reused. It is where `.contact-rail`
+ * appears and `.action-bar` disappears, and apps/viewer/CLAUDE.md records what
+ * happened when those two numbers were allowed to differ: 900-1099px carried no
+ * persistent contact control at all. A fourth breakpoint here would be a fourth
+ * thing to keep in step.
+ *
+ * Verified against the audit matrix: 1440x900 (1.60) and 2560x1440 (1.78) match
+ * on width; 844x390 (2.16) matches on shape; 768x1024 (0.75), 402x714 (0.56) and
+ * 320x256 (1.25, but only 320px wide) correctly do NOT.
+ *
+ * ⚠️ WHAT DELIBERATELY DOES NOT MOVE INTO THE COLUMN:
+ *
+ *   `.stage__plinth` — the camera buttons control the garment, so they stay
+ *   under it. Putting a garment's own controls in a different column than the
+ *   garment is the kind of tidiness that reads as a filing decision.
+ *
+ *   `.stage__callouts` — the spec facts are absolutely positioned over the
+ *   canvas at left/right 3% ON PURPOSE, so a desktop visitor reads the product
+ *   as a technical drawing rather than as a paragraph. That treatment is
+ *   documented further down this file and is the reason `.spec-list` exists as a
+ *   separate phone rendering. Moving them here would delete it.
+ */
+@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
+  .stage-block {
+    flex-direction: row;
+    align-items: stretch;
+    gap: var(--stage-gutter);
+    /*
+     * Centres a 1200px content area WITHOUT constraining the element, so the
+     * band keeps its full-bleed background and bottom rule. `.stage__inner`'s
+     * own max-width is released below — two constrainers would compound.
+     */
+    padding-inline: max(var(--stage-gutter), calc((100% - 1200px) / 2));
   }
 
-  @supports (height: 1svh) {
-    .stage__canvas {
-      height: min(62vh, 640px, calc(100svh - 414px));
-    }
+  /* The garment column. `min-width: 0` for the same reason `min-height: 0` is on
+     the column chain: a flex item defaults to its content's minimum and would
+     refuse to narrow. */
+  .stage-block > [role="tabpanel"] {
+    flex: 1 1 62%;
+    min-width: 0;
+  }
+
+  .stage__inner {
+    max-width: none;
+    padding-inline: 0;
+  }
+
+  /* The controls column. `clamp` rather than a percentage alone so it stays
+     legible on a 2560px screen and does not crush at 900px. */
+  .stage__aside {
+    flex: 0 1 clamp(260px, 30%, 400px);
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 24px;
+    padding-block: clamp(8px, 2vw, 24px);
+  }
+
+  .stage__contact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .stage__contact .btn {
+    flex: 1 1 auto;
+  }
+}
+
+/*
+ * The scroll cue — and where it lives is the whole reason it is affordable.
+ *
+ * `.stage-block` reserves `--action-bar-h + 16px` at its bottom so the colourway
+ * rail can never slide under the fixed bar. The bar covers 72 of those 88px, so
+ * roughly 16px of that reserve is visible and empty on every phone. This sits in
+ * it: `margin-top: auto` pushes it to the end of the flex column, where it takes
+ * space that was already spent.
+ *
+ * ⚠️ MEASURED ALTERNATIVES, both rejected on cost rather than taste:
+ *
+ *   a peek of the next section   110px of garment before ONE pixel of ink shows
+ *                                (72px hidden by the bar + 24px of `.content`
+ *                                padding + the chip's own height). At 375x812
+ *                                that takes the garment 520 -> 410, below where
+ *                                it started before any of this work.
+ *   a fade at the band's edge    0px, and invisible: the region it would fade is
+ *                                empty reserved space, so there is nothing to
+ *                                fade out.
+ *
+ * ⚠️ NOT ANIMATED, deliberately. A bouncing chevron is the reflex here and
+ * `docs/DESIGN.md` outranks the vendored animation skills on exactly this: it is
+ * a QR-scanned product page, not a landing page, and a moving arrow beside a
+ * still garment pulls the eye away from the product. It also cannot respect
+ * `prefers-reduced-motion` without a second rule for a decoration this small.
+ *
+ * Hidden in two columns: that layout has no fold to signal past — the aside
+ * already ends well above the viewport bottom.
+ */
+/*
+ * ⚠️ ABSOLUTE, NOT A FLEX CHILD — and the first attempt was the flex child.
+ *
+ * As `flex: 0 0 auto; margin-top: auto` it sat in exactly the right place and
+ * still consumed 14px of the column, because `margin-top: auto` moves an item
+ * without exempting it from the layout. Measured: the garment went 520 -> 506 at
+ * 375x812 and 421 -> 407 at 402x714. Small, but this rule's whole justification
+ * is that it costs the garment NOTHING, and a comment claiming zero above a rule
+ * costing fourteen is how the numbers in this file went wrong four times.
+ *
+ * Taken out of flow it occupies the band's own reserved padding — the 16px strip
+ * between the bar's top edge and the end of the reserve — which was already paid
+ * for and already empty. Verified: garment heights return to 296 / 520 / 421 /
+ * 603 and the rail's clearance returns to 25px.
+ */
+.stage__more {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--action-bar-h) + 2px);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
+  .stage__more {
+    display: none;
   }
 }
 
@@ -514,7 +753,34 @@
  * `--progress-bar-color` is kept and IS live: it hides model-viewer's own
  * progress bar, which would otherwise sit under our byte-accurate readout.
  */
+/*
+ * ⚠️ `position: absolute; inset: 0`, NOT `height: 100%` — and this rule is the
+ * 378x0 bug, reproduced and fixed on 2026-08-20.
+ *
+ * This was `width: 100%; height: 100%` in normal flow. That worked only while
+ * `.stage__canvas` had an explicit `height`. The moment the canvas became a flex
+ * item sized by `flex: 1 1 auto`, its height stopped being a DEFINITE value that
+ * a percentage could resolve against, so `height: 100%` computed to `auto`, and
+ * `auto` on an empty custom element is zero. Measured across all four engines:
+ *
+ *     301 x 0    353 x 0    378 x 0    389 x 0    793 x 0
+ *
+ * — including literally 378 x 0, the box `apps/viewer/CLAUDE.md` recorded the
+ * first time this happened. The visitor gets the blueprint grid and no garment,
+ * and every container-height assertion stays green, which is exactly why
+ * `motion-and-layout.spec.ts` -> "the garment element has a real box" measures
+ * this element rather than its parent.
+ *
+ * Absolute positioning resolves the height against the positioned ancestor's
+ * padding box, which IS definite after flex layout. `.stage__canvas` is already
+ * `position: relative; overflow: hidden`, and `.stage__poster-fallback` directly
+ * above has used exactly this pattern all along — the model was the odd one out.
+ *
+ * Do not "simplify" this back to `height: 100%`.
+ */
 model-viewer.stage__model {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   --progress-bar-color: transparent;
@@ -751,7 +1017,11 @@ model-viewer.stage__model:focus-within {
 
 .camera-btn {
   min-width: 64px;
-  min-height: 40px;
+  /* The token, not 40px — see `.header .btn` above. Measured cost: the plinth
+     goes 44px -> 46px (the pill's own 1px hairline top and bottom), so the
+     garment gives up 2px. Against a garment this work has already grown by ~30%
+     on the same screens, that is worth an honest floor. */
+  min-height: var(--target-min);
   padding: 8px 16px;
   border-radius: var(--radius-pill);
   font-family: var(--font-mono);
@@ -968,6 +1238,23 @@ model-viewer.stage__model:focus-within {
   max-width: 60ch;
 }
 
+/*
+ * The colourway qualifier, moved out of the swatch rail on 2026-08-20.
+ *
+ * ⚠️ IT IS NO LONGER SET IN MONO UPPERCASE. As `.colourways__hint` it was 10px
+ * mono, letter-spaced and uppercased — the house treatment for a LABEL, which is
+ * what it looked like sitting under a row of controls. It is not a label; it is
+ * a sentence of commercial copy, and it is the answer to the question a buyer
+ * asks first ("can I have my own colours?"). Set as prose it can actually be
+ * read, and it stops competing with the `[ COLOURWAY 01 / WINE ]` chip above it,
+ * which IS a label and keeps that treatment.
+ */
+.product-info__colour-note {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  max-width: 60ch;
+}
+
 .spec-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1004,6 +1291,19 @@ model-viewer.stage__model:focus-within {
 .colourways {
   display: grid;
   gap: 12px;
+  /*
+   * The rail sizes its swatches from ITS OWN width, not the screen's — see the
+   * `@container colourrail` block further down for why that distinction became
+   * load-bearing the moment this element could sit in a 260px column.
+   *
+   * ⚠️ `inline-size`, never `size`. `container-type: size` would make the BLOCK
+   * axis a containment root too, which means this element stops taking its
+   * height from its contents — and it is a flex item inside a band whose whole
+   * job is dividing height. Naming it means the query cannot accidentally match
+   * some future ancestor that also becomes a container.
+   */
+  container-type: inline-size;
+  container-name: colourrail;
 }
 
 /*
@@ -1019,7 +1319,54 @@ model-viewer.stage__model:focus-within {
 .stage-block .colourways {
   max-width: 1200px;
   margin: 0 auto;
+  /*
+   * ⚠️ `width: 100%` IS LOAD-BEARING, and without it the number of colourways per
+   * row is decided by the length of the disclaimer sentence below them.
+   *
+   * `.colourways` became a flex ITEM when `.stage-block` became a flex column on
+   * 2026-08-20. A flex item normally stretches to the container's cross size —
+   * but AUTO MARGINS IN THE CROSS AXIS SUPPRESS THAT, and this rule has carried
+   * `margin: 0 auto` since it was written, to centre itself inside its 1200px
+   * measure. So the box stopped stretching and started shrink-wrapping its
+   * widest child.
+   *
+   * Measured at 402x714 the day it was introduced: hiding `.colourways__hint`
+   * took this element from **385px wide to 116px**, its left margin from 8px to
+   * 143px, and `grid-template-columns` from three columns to one — turning a
+   * two-row swatch grid into a four-row column. The rail rendered correctly only
+   * because that sentence happened to be the widest thing inside it.
+   *
+   * That made it a landmine rather than a bug: the layout was right, and moving
+   * the disclaimer out — which is already scheduled work — would have collapsed
+   * the colour picker with nothing on screen to explain why. `.stage__inner`
+   * above needed the same line for the same reason.
+   *
+   * Pinned by `motion-and-layout.spec.ts` -> "the colourway rail spans the stage
+   * band", which removes the sentence and asserts the width does not move.
+   */
+  width: 100%;
   padding: 0 var(--stage-gutter) clamp(12px, 2vw, 20px);
+}
+
+/*
+ * ⚠️ THIS MUST SIT AFTER THE RULE ABOVE, and it did not until 2026-08-20.
+ *
+ * Both selectors are `.stage-block .colourways` — identical specificity — so a
+ * media query does not win, SOURCE ORDER does. Placed up in the two-column block
+ * where it logically belonged, this was silently dead: the base rule's
+ * `padding: 0 var(--stage-gutter)` kept applying and ate 43px of a 260px column.
+ * Biome's `noDescendingSpecificity` is what found it; the layout looked correct
+ * either way, which is exactly why nothing else would have.
+ *
+ * In the column the rail needs no measure and no gutter — the aside supplies
+ * both.
+ */
+@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
+  .stage-block .colourways {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 /*
@@ -1042,10 +1389,6 @@ model-viewer.stage__model:focus-within {
   margin: -4px;
 }
 
-.colourway-tab__num {
-  margin-right: 6px;
-}
-
 .colourway-tab {
   flex: 0 0 auto;
   display: inline-flex;
@@ -1064,18 +1407,6 @@ model-viewer.stage__model:focus-within {
     border-color var(--ui) var(--ease),
     background-color var(--ui) var(--ease),
     color var(--ui) var(--ease);
-}
-
-/* Decoration, confirmed by the owner 2026-08-14: the number is not used in the
-   printed catalogue, on tags or on order forms. It is `index + 1`, so removing a
-   colourway silently renumbers every one after it — it cannot be a reference.
-   It is already aria-hidden; this makes the colour NAME lead visually too, which
-   is what a buyer actually asks for. Kept rather than deleted because it still
-   gives the rail a countable rhythm. */
-.colourway-tab__num {
-  color: var(--muted);
-  font-size: 0.85em;
-  opacity: 0.7;
 }
 
 /* The measured fabric colour, read from the GLB by variant-colour.ts. A ring
@@ -1104,10 +1435,6 @@ model-viewer.stage__model:focus-within {
   border-color: var(--btn-primary-bg);
 }
 
-.colourway-tab[aria-selected="true"] .colourway-tab__num {
-  color: inherit;
-}
-
 /* Selected state is never colour-only. The dot is a REAL element now
    (ColourwayTabs.tsx), not ::after content: generated content is included in the
    accessible name, so the chosen tab announced as "01 Wine ●" while
@@ -1116,13 +1443,8 @@ model-viewer.stage__model:focus-within {
   font-size: 8px;
 }
 
-.colourways__hint {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
+/* `.colourways__hint` was here until 2026-08-20. The element moved into
+   <ProductPanel> as `.product-info__colour-note`; see the note there. */
 
 /*
  * `.colourways__preview` and `.colourway-preview` were deleted 2026-08-15 with the
@@ -1270,7 +1592,10 @@ model-viewer.stage__model:focus-within {
      same relationship `.camera-btn` has with `.stage__controls`. */
   .contact-rail .btn {
     border-radius: var(--radius-pill);
-    min-height: 40px;
+    /* Kept in step with the other two even though this rail is superseded by the
+       two-column layout and never paints — so that deleting the component later
+       removes a consistent rule rather than the last 40px exception. */
+    min-height: var(--target-min);
     padding: 10px 18px;
     white-space: nowrap;
   }
@@ -1283,6 +1608,29 @@ model-viewer.stage__model:focus-within {
     .contact-rail .btn--ghost:hover {
       border-color: var(--line);
     }
+  }
+}
+
+/*
+ * ⚠️ THE FLOATING PILL IS SUPERSEDED BY THE TWO-COLUMN LAYOUT, AND THIS RULE
+ * MUST STAY BELOW THE BLOCK ABOVE — same specificity, so source order decides.
+ *
+ * The rail is painted from `min-width: 900px`. The two-column layout starts at
+ * exactly the same 900px (plus landscape), so every width that would show the
+ * pill now shows the column instead, and `<StageContact>` carries the same two
+ * links on the reading path rather than 464px right of it.
+ *
+ * ⚠️ THAT MAKES `<StickyContactRail>` DEAD IN PRACTICE, and dead code that still
+ * renders is exactly the failure this repo keeps paying for — `--poster-color`
+ * shipped for a whole major version while the source read as though it worked,
+ * and `REFERENCE_PATHS` was declared and never read while a test told people to
+ * add to it. Removing the component, its `compact` prop (nothing else uses it),
+ * its three unit tests and the CSS above is a mechanical change, deliberately
+ * NOT bundled with a layout change. Do it next, and delete this comment with it.
+ */
+@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
+  .contact-rail {
+    display: none;
   }
 }
 
@@ -1400,10 +1748,32 @@ model-viewer.stage__model:focus-within {
 .footer__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  /* Row gap drops to 4px because the link below now carries 6px of vertical
+     padding of its own; 16px on both axes would double-space a wrapped row. */
+  gap: 4px 16px;
   align-items: center;
   font-size: 13px;
   color: var(--muted);
+}
+
+/*
+ * The smallest target on the page was a link to the same place as a 40px button.
+ *
+ * Measured 2026-08-20: 105 x 20.1px — the only interactive element in the viewer
+ * under WCAG 2.5.8's 24px floor. It PASSES the criterion, on the spacing
+ * exception: it is the only target in this row, so no other target's 24px circle
+ * can intersect its own. That exemption is also why the automated audit reported
+ * zero violations and this had to be found by measuring every control.
+ *
+ * Passing on an exemption is not the same as being comfortable to hit, and the
+ * exemption evaporates the moment a second link is added to this row. 6px of
+ * vertical padding takes it to 32px and costs the footer nothing.
+ */
+.footer__meta a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding-block: 6px;
 }
 
 /* ── Unavailable state ─────────────────────────────────────────────── */
@@ -1628,10 +1998,65 @@ model-viewer.stage__model:focus-within {
  * 606.6px of the 854px available at a 900px viewport, so every screen from ~768px up
  * was being given the cramped treatment while the roomy one fitted with 248px to spare.
  */
-@media (max-width: 767px) {
+/*
+ * ⚠️ A CONTAINER QUERY, NOT A VIEWPORT ONE — changed 2026-08-20, and the change
+ * is what makes the two-column layout possible.
+ *
+ * This was `@media (max-width: 767px)`, which asks how wide the SCREEN is. That
+ * was the right question for as long as this rail always spanned the page. The
+ * moment it moved into a 260px column beside the garment, the screen stopped
+ * predicting anything: at 844x390 the viewport is 844px wide, so the rail took
+ * the desktop pill treatment — pills that need 606px — inside a 217px box, and
+ * stacked into FOUR rows. Measured that day: the aside grew to 396px inside a
+ * 321px band, pushing the contact buttons to y=448 on a 390px screen.
+ *
+ * The rail's real question was always "how much room do I have", not "how big is
+ * the phone". `@container` asks that one. It also removes a breakpoint rather
+ * than adding one: phones and the narrow column now take the same branch for the
+ * same reason, instead of two rules that have to be kept in step.
+ *
+ * 500px, not 767: the threshold is now measured against the RAIL's width rather
+ * than the viewport's, and the rail is inset from the viewport by the stage
+ * gutter. At 767px of viewport the rail is ~740px, and the desktop pills need
+ * 606.6px — so the old breakpoint's own reasoning ("every screen from ~768px up
+ * was being given the cramped treatment while the roomy one fitted") lands
+ * around 620px of rail. 500 sits below that with room, and above the ~400px a
+ * phone ever gives.
+ *
+ * Support floor is Safari 16 / Chrome 105, comfortably below this repo's
+ * existing `svh` floor of Safari 15.4 and the iOS 16.4 oldest testable runtime.
+ */
+@container colourrail (max-width: 500px) {
   .colourways__list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+    /*
+     * ⚠️ 92px -> 52px, AND IT IS THE REMOVED "01/02/03" PREFIX THAT PAID FOR IT.
+     *
+     * Measured at 402x714: the widest tab needed 67.2px with the number and
+     * 51.7px without. Five tabs plus four 8px gaps therefore went from 368px of
+     * required width to 290.5px — and the narrowest container this rail ever
+     * gets, a 320px phone, offers 300.8px. So five swatches now fit ONE ROW at
+     * every phone width instead of only at 402px and above.
+     *
+     * That is why this is one rule again. A second `@container` branch existed
+     * here for a day, switching floors at 370px because no single value served
+     * both 375 and 402; deleting the number deleted the need for it.
+     *
+     * 52, not less: it is the LARGEST floor that still fits five at 320px, so
+     * the tabs stay as wide as they can be. 48px measures identically at every
+     * width, which is the sign that 52 is the stopping point, not a guess.
+     *
+     * Garment height, measured, floor 92 -> 52 with five colourways:
+     *     320: 235 -> 296   360: 427 -> 488   375: 459 -> 520
+     *     402: 361 -> 421   414: 543 -> 603
+     *
+     * ⚠️ TUNED FOR FIVE, WHICH IS WHAT SHIPS. `auto-fit` fits five columns at
+     * 320px, so a product with SIX colourways lays out 5 + 1 there — one tab
+     * alone. The guard in motion-and-layout.spec.ts appends a fifth swatch
+     * because the fixture has four; if a six-colourway product is ever
+     * published, extend that guard first and re-tune this floor against it.
+     */
+    grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
     gap: 8px;
   }
 
@@ -1668,10 +2093,6 @@ model-viewer.stage__model:focus-within {
   .colourway-tab__label {
     text-wrap: balance;
     line-height: 1.25;
-  }
-
-  .colourway-tab__num {
-    margin-right: 4px;
   }
 
   /* The non-colour cue for the selected tab. It already lives inside the label

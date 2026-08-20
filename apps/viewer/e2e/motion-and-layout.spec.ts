@@ -40,11 +40,72 @@ import { expect, test } from '@playwright/test'
  * requires — so this row covers a low-vision desktop visitor as much as a small
  * phone. The rail test below already used 320; the document never did.
  */
+/**
+ * ⚠️ `reducedMotion: 'reduce'` IN playwright.config.ts DOES NOT REACH THE PAGE,
+ * and every layout number in this file was measured through a live animation
+ * until 2026-08-20.
+ *
+ * `apps/viewer/CLAUDE.md` states as settled fact that "Playwright sets
+ * `reducedMotion: 'reduce'`, `base.css` gates the reveal on
+ * `prefers-reduced-motion: no-preference`, so there is no transform to pollute
+ * it" — and that is the stated reason to tune layout against this suite rather
+ * than against the live page. Measured on Playwright 1.62.1, all four engines:
+ *
+ *     info.project.use.reducedMotion       "reduce"     <- config resolved it
+ *     matchMedia('...reduce').matches      false        <- page never saw it
+ *     after page.emulateMedia() explicitly true         <- the API works fine
+ *
+ * So the option was configured, resolved, and silently ineffective. Every
+ * `.colourways` measurement carried `matrix(1, 0, 0, 1, 0, 24)` — the reveal's
+ * own translate — and worse, the value depends on WHEN the assertion ran inside
+ * an 800ms transition: caught mid-flight, Firefox reported 6.03px where WebKit
+ * reported 24px in the same run. Layout assertions were racing an animation.
+ *
+ * This makes it explicit, per test, using the API that demonstrably works. The
+ * two motion tests below call `emulateMedia` themselves afterwards and still
+ * get the branch they ask for.
+ */
+test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+})
+
 const VIEWPORTS = [
   { name: 'small mobile', width: 320, height: 640 },
   { name: 'mobile', width: 375, height: 812 },
   { name: 'tablet', width: 768, height: 1024 },
   { name: 'desktop', width: 1280, height: 800 },
+] as const
+
+/**
+ * ⚠️ ONE MATRIX FOR BOTH STAGE-BAND GUARDS — and their being SPLIT is why two
+ * defects shipped.
+ *
+ * Until 2026-08-20 the clearance guard below ran at 375x812 and nothing else,
+ * while the thumb guard ran at four portrait sizes that did NOT include 375's
+ * partner. Every size was visited and every rule was written, but no size
+ * received BOTH checks — and the gap between which screen each one visited is
+ * exactly where two live defects sat. Measured on the live site that day:
+ *
+ *     320x640   colourway rail ends y=598, action bar starts y=568
+ *               -> 04 Lime and 05 Black **57% covered**
+ *     844x390   **4px** of scrollable strip below the canvas,
+ *               against this suite's own 140px floor
+ *
+ * WHY THIS IS NOT `VIEWPORTS` ABOVE. That matrix exists for document-level
+ * checks (reflow, header) and carries tablet and desktop, where `.action-bar` is
+ * `display: none` and there is nothing for these two guards to measure against.
+ * This one is the phone-shaped screens where the bar is real.
+ *
+ * ⚠️ LANDSCAPE IS IN THE LIST because a phone turned sideways is an ordinary way
+ * to look at a garment and nothing in this file had ever visited one. 844x390 is
+ * an iPhone 14/15 Pro Max on its side.
+ */
+const STAGE_BAND_VIEWPORTS = [
+  { name: 'small mobile', width: 320, height: 640 },
+  { name: 'mobile', width: 375, height: 812 },
+  { name: 'iphone 17', width: 402, height: 714 },
+  { name: 'large mobile', width: 414, height: 896 },
+  { name: 'phone landscape', width: 844, height: 390 },
 ] as const
 
 test.describe('motion layer', () => {
@@ -601,31 +662,353 @@ test.describe('layout invariants', () => {
    * lower this number. The whole point is that the garment cannot be grown by
    * quietly pushing the colour picker under the bar.
    */
-  test('the colourway rail clears the action bar by a real margin', async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 812 })
-    await page.goto('/n001/wine')
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  /**
+   * ⚠️ PARAMETERISED 2026-08-20. It ran at 375x812 alone, and 320x640 — a size
+   * this file already visited for the OTHER guard — was burying two colourways
+   * under the bar the whole time. See `STAGE_BAND_VIEWPORTS`.
+   */
+  for (const { name, width, height } of STAGE_BAND_VIEWPORTS) {
+    test(`the colourway rail clears the action bar at ${name} (${width}x${height})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    const measured = await page.evaluate(() => {
-      const bar = document.querySelector('.action-bar')
-      const rail = document.querySelector('[role="tablist"]')
-      if (!bar || !rail) return null
-      return {
-        barTop: Math.round(bar.getBoundingClientRect().top),
-        railBottom: Math.round(rail.getBoundingClientRect().bottom),
+      const measured = await page.evaluate(() => {
+        const bar = document.querySelector('.action-bar')
+        const rail = document.querySelector('[role="tablist"]')
+        if (!rail) return null
+        // `.action-bar` is `display: none` above 900px AND on any screen under
+        // 500px tall (the max-height rule that gives a zoomed-in visitor their
+        // screen back). Report its presence rather than substituting a number.
+        const barShown = Boolean(bar) && getComputedStyle(bar as Element).display !== 'none'
+        return {
+          barShown,
+          barTop: barShown ? Math.round((bar as Element).getBoundingClientRect().top) : 0,
+          railBottom: Math.round(rail.getBoundingClientRect().bottom),
+        }
+      })
+
+      expect(measured, 'no colourway tablist on the page').not.toBeNull()
+      const { barShown, barTop, railBottom } = measured as {
+        barShown: boolean
+        barTop: number
+        railBottom: number
       }
+
+      /**
+       * ⚠️ THE INVARIANT IS "NOT COVERED", NOT "ABOVE THE FOLD" — and conflating
+       * the two made this test wrong on its first run, 2026-08-20.
+       *
+       * Substituting the viewport's bottom edge for an absent bar failed at
+       * 844x390 with -104px, because the rail there is simply BELOW THE FOLD.
+       * That is not this test's defect to catch: a rail below the fold is
+       * scrollable and fully tappable, and `.stage-block`'s own comment names it
+       * as the ACCEPTABLE degradation when a screen is too short. A rail under a
+       * fixed bar is neither. Only the second is a defect.
+       *
+       * So when no bar is painted there is nothing that can cover the rail, and
+       * this skips with a reason rather than passing vacuously against a number
+       * that means nothing.
+       */
+      test.skip(
+        !barShown,
+        `no fixed action bar is painted at ${width}x${height}, so nothing can ` +
+          `cover the colourway rail here`,
+      )
+
+      expect(
+        barTop - railBottom,
+        `the colourway rail has ${barTop - railBottom}px of clearance under the ` +
+          `fixed action bar (rail ends ${railBottom}, bar starts ${barTop}). ` +
+          `Raise the subtrahend in .stage__canvas — do not lower this threshold.`,
+      ).toBeGreaterThanOrEqual(8)
     })
+  }
 
-    expect(measured, 'no .action-bar or colourway tablist on the page').not.toBeNull()
-    const { barTop, railBottom } = measured as { barTop: number; railBottom: number }
+  /**
+   * The colourway rail never strands a single swatch on its own row.
+   *
+   * ⚠️ THE FAILURE THIS CATCHES IS COSMETIC AND THEREFORE INVISIBLE TO EVERY
+   * OTHER GUARD IN THIS FILE. Lowering the grid's `minmax` floor to fit five
+   * swatches on one row at 402px makes a 375px phone lay out **4 + 1** — one tab
+   * alone against three empty cells. Nothing overflows, nothing is covered,
+   * every clearance assertion passes, and the control looks broken.
+   *
+   * So the rule is stated directly: the last row is either full, or it is not
+   * alone. A single swatch is only acceptable when the whole rail is one tab.
+   *
+   * Five is the count that matters — the live product has five colourways and
+   * the e2e fixture has four, so a fixture-only check cannot see this. The test
+   * appends a fifth before measuring, which is the same "the fixture cannot
+   * exhibit the failure" pattern the root CLAUDE.md is built around.
+   */
+  for (const width of [320, 360, 375, 390, 393, 402, 414, 430]) {
+    test(`the colourway rail never strands a single swatch at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 812 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    expect(
-      barTop - railBottom,
-      `the colourway rail has ${barTop - railBottom}px of clearance under the ` +
-        `fixed action bar (rail ends ${railBottom}, bar starts ${barTop}). ` +
-        `Raise the subtrahend in .stage__canvas — do not lower this threshold.`,
-    ).toBeGreaterThanOrEqual(8)
-  })
+      const layout = await page.evaluate(() => {
+        const list = document.querySelector('.colourways__list')
+        if (!list) return null
+        // The fixture ships four colourways; production ships five. Measure the
+        // production shape, not the fixture's.
+        const clone = list.children[0]?.cloneNode(true) as HTMLElement | undefined
+        if (clone) {
+          clone.setAttribute('aria-selected', 'false')
+          clone.id = 'colourway-tab-probe'
+          const label = clone.querySelector('.colourway-tab__label')
+          if (label) label.textContent = 'Slate'
+          list.appendChild(clone)
+        }
+        const tabs = [...list.querySelectorAll('.colourway-tab')].map((t) =>
+          Math.round(t.getBoundingClientRect().top),
+        )
+        const rows = [...new Set(tabs)].sort((a, b) => a - b)
+        const counts = rows.map((top) => tabs.filter((t) => t === top).length)
+        clone?.remove()
+        return { total: tabs.length, rows: rows.length, counts }
+      })
+
+      expect(layout, 'no .colourways__list on the page').not.toBeNull()
+      const { total, rows, counts } = layout as {
+        total: number
+        rows: number
+        counts: number[]
+      }
+
+      const last = counts[counts.length - 1] ?? 0
+      expect(
+        rows > 1 && last === 1,
+        `${total} swatches laid out as ${counts.join(' + ')} at ${width}px — the ` +
+          `last row holds one tab against ${(counts[0] ?? 1) - 1} empty cells. ` +
+          `Adjust the minmax floor or the container threshold in page.css; do ` +
+          `not delete this test.`,
+      ).toBe(false)
+    })
+  }
+
+  /**
+   * The colourway rail spans the stage band, whatever is inside it.
+   *
+   * ⚠️ THIS GUARDS A LANDMINE, NOT A VISIBLE BUG. When `.stage-block` became a
+   * flex column on 2026-08-20, `.colourways` became a flex item — and its
+   * long-standing `margin: 0 auto` (there to centre it inside a 1200px measure)
+   * SUPPRESSED the default stretch, because auto margins in the cross axis do
+   * that. The element stopped filling the band and began shrink-wrapping its
+   * widest child.
+   *
+   * It still looked right, because that widest child was the disclaimer sentence
+   * underneath the swatches. Measured at 402x714: hiding `.colourways__hint` took
+   * the element from 385px wide to 116px and the grid from three columns to one,
+   * turning two rows of swatches into four. So the number of colourways per row
+   * was being decided by the length of a sentence — and that sentence has since
+   * moved into <ProductPanel>, which is precisely why the probe below hides
+   * SWATCHES rather than the sentence: a probe aimed at an element that has left
+   * passes vacuously.
+   *
+   * The test removes contents and asserts the rail does not care. Asserting the
+   * width alone would pass against the broken layout.
+   */
+  for (const { name, width, height } of STAGE_BAND_VIEWPORTS) {
+    test(`the colourway rail spans the stage band at ${name} (${width}x${height})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const measure = () =>
+        page.evaluate(() => {
+          const rail = document.querySelector('.colourways')
+          if (!rail?.parentElement) return null
+          // ⚠️ THE PARENT, NOT `.stage-block` — updated 2026-08-20 when the
+          // two-column layout landed. The invariant is "the rail is sized by its
+          // container", and in two columns that container is a 260px aside, not
+          // the full-width band. Comparing against the band asserted a
+          // ONE-COLUMN layout, which is a different claim and not this one.
+          const parent = rail.parentElement
+          const cs = getComputedStyle(parent)
+          const inner =
+            parent.getBoundingClientRect().width -
+            Number.parseFloat(cs.paddingLeft) -
+            Number.parseFloat(cs.paddingRight)
+          return {
+            rail: Math.round(rail.getBoundingClientRect().width),
+            container: Math.round(inner),
+          }
+        })
+
+      const before = await measure()
+      expect(before, 'no .colourways or .stage-block on the page').not.toBeNull()
+
+      // Take away most of what is inside the rail. A rail laid out by its
+      // container does not move; one that shrink-wraps collapses onto whatever
+      // is left.
+      //
+      // ⚠️ THIS USED TO HIDE `.colourways__hint`, which was the widest child and
+      // therefore the perfect probe — until that element moved into
+      // <ProductPanel> on 2026-08-20. Hiding a selector that matches nothing
+      // changes nothing and the assertion below would have passed VACUOUSLY,
+      // guarding an element that had left the building. Hiding tabs keeps the
+      // probe attached to something the rail will always contain.
+      await page.evaluate(() => {
+        const tabs = [...document.querySelectorAll('.colourway-tab')]
+        for (const tab of tabs.slice(1)) (tab as HTMLElement).style.display = 'none'
+      })
+      const after = await measure()
+
+      const { rail: railBefore, container } = before as { rail: number; container: number }
+      const { rail: railAfter } = after as { rail: number }
+
+      expect(
+        railBefore - railAfter,
+        `removing swatches changed the colourway rail's width by ` +
+          `${railBefore - railAfter}px (${railBefore} -> ${railAfter}). The rail is ` +
+          `sizing itself from its contents instead of from its container. Add ` +
+          `width: 100% to .stage-block .colourways — auto margins on a flex item ` +
+          `suppress the cross-axis stretch.`,
+      ).toBe(0)
+
+      // Fills its container, whatever that container currently is: the full-width
+      // band in one column, the aside in two. Capped at the 1200px measure.
+      expect(
+        Math.min(container, 1200) - railBefore,
+        `the colourway rail is ${railBefore}px inside a ${container}px container`,
+      ).toBeLessThanOrEqual(1)
+    })
+  }
+
+  /**
+   * The token must equal the thing it describes.
+   *
+   * `--header-h` is subtracted from the stage band's height. If the header
+   * changes and the token does not, the band is wrong by exactly the difference
+   * and the colourway rail slides under the action bar — which is the 2026-08-20
+   * defect this work exists to fix, arriving again by a new route.
+   *
+   * ⚠️ THIS GUARD IS THE WHOLE JUSTIFICATION FOR THE TOKEN. The six-part
+   * subtrahend it helps replace was re-derived by hand four times and was wrong
+   * every time, and the failure was never the arithmetic — it was that nothing
+   * ever compared the result against the page. A number nobody checks drifts, no
+   * matter how carefully it was worked out the first time.
+   *
+   * 1px of tolerance for sub-pixel rounding across four engines, and no more.
+   */
+  for (const { name, width, height } of STAGE_BAND_VIEWPORTS) {
+    test(`the header token matches the real header at ${name} (${width}x${height})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const measured = await page.evaluate(() => {
+        const header = document.querySelector('.header')
+        if (!header) return null
+        const token = getComputedStyle(document.documentElement).getPropertyValue('--header-h')
+        return {
+          real: Math.round(header.getBoundingClientRect().height),
+          token: Math.round(Number.parseFloat(token)),
+        }
+      })
+
+      expect(measured, 'no .header on the page').not.toBeNull()
+      const { real, token } = measured as { real: number; token: number }
+
+      expect(
+        Number.isFinite(token),
+        '--header-h did not resolve to a number. It is declared in tokens.css ' +
+          'with a 320px override in page.css; check both.',
+      ).toBe(true)
+
+      expect(
+        Math.abs(real - token),
+        `--header-h is ${token}px but the header renders ${real}px at ` +
+          `${width}x${height}. Re-measure and update the token in tokens.css, or ` +
+          `its max-width:359px override in page.css. Do not widen this tolerance.`,
+      ).toBeLessThanOrEqual(1)
+    })
+  }
+
+  /**
+   * ⚠️ THE CANVAS HAVING A HEIGHT DOES NOT MEAN THE GARMENT HAS ONE.
+   *
+   * `apps/viewer/CLAUDE.md` records a measured **378 x 0** box: `.stage__canvas`
+   * survived at its `min-height` while `model-viewer.stage__model` — which is
+   * `height: 100%` of a parent that had become `auto` — resolved to zero. The
+   * visitor got the blueprint grid and no product, and every height assertion in
+   * this file passed the whole time, because they all measure the CONTAINER.
+   *
+   * The 2026-08-20 flex conversion can reach that same state two ways: a missing
+   * `min-height: 0` on one of the elements forwarding the growth, or `height:
+   * 100%` failing to resolve against a flex-sized parent. So assert the MODEL's
+   * own box, in both axes, at every viewport.
+   *
+   * ⚠️ THIS PASSES BEFORE THE CHANGE IT GUARDS, DELIBERATELY. A guard first seen
+   * failing tells you nothing about whether it can pass; this one was run green
+   * against the old layout first, so a later failure is a real regression rather
+   * than a test that never worked.
+   */
+  for (const { name, width, height } of STAGE_BAND_VIEWPORTS) {
+    test(`the garment element has a real box at ${name} (${width}x${height})`, async ({ page }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      // ⚠️ DO NOT WAIT FOR `model-viewer` ALONE — that makes this a test of the
+      // runner's GPU, a mistake `viewer.spec.ts` already documents. Headless
+      // Firefox has no WebGL context, so `canRender3D()` correctly refuses and
+      // <Stage> renders `.stage__poster-fallback` instead. Both are "the surface
+      // showing the garment", both are height:100% of the same parent, and both
+      // therefore carry the 378x0 risk this test exists for.
+      //
+      // ⚠️ AND DO NOT COPY `viewer.spec.ts`'s LOCATOR, which also lists
+      // `.stage__loading`. That one asks "did the stage do anything at all", and
+      // it resolves on the loading readout — which is painted OVER a
+      // model-viewer that has not mounted yet. Waiting on it and then measuring
+      // the garment surface is a race, and it failed a scattered 3-of-5
+      // viewports per engine on 2026-08-20 before this comment existed.
+      //
+      // `attached`, not `visible`: during the download the surface is mounted and
+      // deliberately not yet painted.
+      await page
+        .locator('model-viewer, .stage__poster-fallback img')
+        .first()
+        .waitFor({ state: 'attached' })
+
+      const box = await page.evaluate(() => {
+        const model = document.querySelector('model-viewer.stage__model')
+        const poster = document.querySelector('.stage__poster-fallback img')
+        const el = model ?? poster
+        if (!el) return null
+        const r = el.getBoundingClientRect()
+        return {
+          kind: model ? 'model-viewer' : 'poster fallback',
+          w: Math.round(r.width),
+          h: Math.round(r.height),
+        }
+      })
+
+      expect(
+        box,
+        'neither model-viewer nor the poster fallback is on the page — the stage ' +
+          'is showing no garment surface at all',
+      ).not.toBeNull()
+      const { kind, w, h } = box as { kind: string; w: number; h: number }
+
+      expect(w, `the ${kind} is ${w}px wide`).toBeGreaterThan(100)
+      expect(
+        h,
+        `the ${kind} is ${h}px tall against a width of ${w}px. A zero or tiny ` +
+          `height with a healthy width is the 378x0 failure recorded in ` +
+          `apps/viewer/CLAUDE.md: the garment surface is height:100% of a parent ` +
+          `that resolved to auto. Check min-height: 0 on the flex chain.`,
+      ).toBeGreaterThan(100)
+    })
+  }
 
   /**
    * A visitor must always have somewhere to swipe.
@@ -647,12 +1030,7 @@ test.describe('layout invariants', () => {
    * layout gives (measured 277px at both 375x812 and 402x714 on 2026-08-19), so
    * it fails on a real regression rather than on a few pixels of drift.
    */
-  for (const { name, width, height } of [
-    { name: 'small mobile', width: 320, height: 640 },
-    { name: 'mobile', width: 375, height: 812 },
-    { name: 'iphone 17', width: 402, height: 714 },
-    { name: 'large mobile', width: 414, height: 896 },
-  ]) {
+  for (const { name, width, height } of STAGE_BAND_VIEWPORTS) {
     test(`a thumb can always scroll the page at ${name} (${width}x${height})`, async ({ page }) => {
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
@@ -661,24 +1039,37 @@ test.describe('layout invariants', () => {
       const strip = await page.evaluate(() => {
         const canvas = document.querySelector('.stage__canvas')
         if (!canvas) return null
+        const c = canvas.getBoundingClientRect()
         return {
-          canvasBottom: Math.round(canvas.getBoundingClientRect().bottom),
+          below: Math.round(window.innerHeight - c.bottom),
+          // ⚠️ BESIDE, ADDED 2026-08-20 WITH THE TWO-COLUMN LAYOUT. The strip
+          // below the canvas was the only place to swipe for as long as the
+          // canvas spanned the page. Beside it there is now a whole column that
+          // is not the model — and a thumb reaches a 260px-wide column at least
+          // as easily as a 140px-tall strip. Measuring only "below" asserted a
+          // ONE-COLUMN layout rather than the invariant, which is: somewhere
+          // big enough to find that is not the garment.
+          beside: Math.round(Math.max(c.left, window.innerWidth - c.right)),
           viewportHeight: window.innerHeight,
+          canvasBottom: Math.round(c.bottom),
         }
       })
 
       expect(strip, 'no .stage__canvas on the page').not.toBeNull()
-      const { canvasBottom, viewportHeight } = strip as {
+      const { below, beside, canvasBottom, viewportHeight } = strip as {
+        below: number
+        beside: number
         canvasBottom: number
         viewportHeight: number
       }
 
       expect(
-        viewportHeight - canvasBottom,
-        `only ${viewportHeight - canvasBottom}px of the screen below the garment ` +
-          `is swipeable (canvas ends ${canvasBottom}, viewport ${viewportHeight}). ` +
-          `With touch-action: none on the model, a visitor here can scroll the ` +
-          `page only from a strip too small to find.`,
+        Math.max(below, beside),
+        `only ${below}px below the garment and ${beside}px beside it is swipeable ` +
+          `(canvas ends ${canvasBottom}, viewport ${viewportHeight}). With ` +
+          `touch-action: none on the model, a visitor here can scroll the page ` +
+          `only from a region too small to find. Shrink the canvas or give the ` +
+          `layout a second column — do not lower this threshold.`,
       ).toBeGreaterThanOrEqual(140)
     })
   }
@@ -699,19 +1090,48 @@ test.describe('layout invariants', () => {
    * report: the controls must be reachable WITHOUT SCROLLING. The desktop rail
    * used to appear only once the garment had scrolled out of view.
    */
-  for (const width of [950, 1280, 1440]) {
-    test(`contact is reachable without scrolling at ${width}px`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 800 })
+  /**
+   * ⚠️ EXTENDED 2026-08-20, AND A SECOND HOLE OF THE SAME SHAPE WAS ALREADY OPEN.
+   *
+   * The 950px gap above was found by asking "which widths carry neither
+   * control". Nobody asked it of HEIGHTS. `.action-bar` hides itself below 500px
+   * tall — deliberately, to give a zoomed-in visitor their screen back — and
+   * `.contact-rail` needs 900px of width. A phone in landscape at 844x390
+   * satisfies neither, so it carried **no persistent contact control at all**,
+   * exactly as 950px once did, and for four days longer than anyone knew.
+   *
+   * The matrix is now heights as well as widths, and the selector is by
+   * DESTINATION rather than by container: whichever element carries the mailto:
+   * and wa.me links counts. That is what the invariant actually says, and it
+   * stops this test from having to be edited every time the controls move —
+   * which they are about to be, into the two-column layout.
+   */
+  for (const { name, width, height } of [
+    { name: 'phone landscape', width: 844, height: 390 },
+    { name: 'the 950 seam', width: 950, height: 800 },
+    { name: 'desktop', width: 1280, height: 800 },
+    { name: 'wide desktop', width: 1440, height: 900 },
+  ] as const) {
+    test(`contact is reachable without scrolling at ${name} (${width}x${height})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
       const reachable = await page.evaluate(() => {
         const inView = (el: Element) => {
           const r = el.getBoundingClientRect()
+          const cs = getComputedStyle(el)
+          if (cs.display === 'none' || cs.visibility === 'hidden') return false
           return r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight
         }
-        // Anything fixed to the viewport: the desktop rail or the mobile bar.
-        const persistent = [...document.querySelectorAll('.contact-rail a, .action-bar a')]
+        // By DESTINATION, not by container — see the note above. The in-page
+        // <ContactSection> is deliberately excluded: it is far down the document
+        // and is not a persistent control, which is the whole point here.
+        const persistent = [
+          ...document.querySelectorAll('.contact-rail a, .action-bar a, .stage__contact a'),
+        ]
         return {
           scrollY: Math.round(window.scrollY),
           email: persistent.filter(
@@ -725,12 +1145,15 @@ test.describe('layout invariants', () => {
       expect(reachable.scrollY, 'the page should not have scrolled to reach this').toBe(0)
       expect(
         reachable.email,
-        `no email control is on screen unscrolled at ${width}px — between 900 and ` +
-          `1099px the action bar is hidden and the rail used to start at 1100px`,
+        `no email control is on screen unscrolled at ${width}x${height}. This is ` +
+          `the only conversion path in the product: the visitor taps one of these ` +
+          `or leaves. Check that .action-bar, .contact-rail and .stage__contact ` +
+          `between them cover every viewport.`,
       ).toBeGreaterThan(0)
-      expect(reachable.whatsapp, `no WhatsApp control is on screen at ${width}px`).toBeGreaterThan(
-        0,
-      )
+      expect(
+        reachable.whatsapp,
+        `no WhatsApp control is on screen at ${width}x${height}`,
+      ).toBeGreaterThan(0)
     })
   }
 

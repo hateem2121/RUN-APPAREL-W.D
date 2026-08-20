@@ -46,6 +46,21 @@ export function ProductPanel({ data, selected, selectedIndex }: ProductPanelProp
         {product.shortDescription ||
           'This is a development reference, not a finished stock product. We can change the fabric, colour, fit, trims, branding and performance details to suit your brand.'}
       </p>
+      {/*
+        Moved here from <ColourwayTabs> on 2026-08-20. It sat directly under the
+        swatch rail, where it was the only element on the first screen a visitor
+        does not need in order to choose a colour — and where its last pixel row
+        rendered underneath the fixed action bar (measured y=710-741 against a
+        bar starting at 740). Under the flex stage band those 31px plus a 12px
+        gap go to the garment instead, measured at +43px on three phone sizes.
+
+        It belongs to the product description rather than to the control: the
+        colourway it qualifies is named two elements above, in
+        `.product-info__colour`.
+      */}
+      <p className="product-info__colour-note">
+        These colourways are examples. We match your own colours to your requirements.
+      </p>
       <dl className="spec-list">
         {product.fabricComposition && (
           <div>

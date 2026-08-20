@@ -220,10 +220,26 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
                 announced as "01 Wine ●" while `aria-selected` already carried
                 that state. It is a real element now so the visual cue survives
                 while the name does not carry it. */}
+            {/*
+              ⚠️ THE "01 / 02 / 03" PREFIX WAS REMOVED HERE ON 2026-08-20 —
+              owner decision. Do not reinstate it without re-reading this.
+
+              It rendered at 8.5px (0.85em of a 10px label), the smallest text in
+              the viewer, and it was already `aria-hidden` decoration: the owner
+              confirmed on 2026-08-14 that the number appears on no tag, no
+              printed catalogue and no order form. It is `index + 1`, so removing
+              a colourway silently renumbers every one after it — it could never
+              have been a reference.
+
+              What it cost was width, on the tightest control on the page.
+              Measured at 402x714: the widest tab needed **67.2px** with the
+              number and **51.7px** without. That 15.5px is the difference
+              between five swatches fitting one row only on a 402px phone and
+              fitting one row on EVERY phone, 320px included — which is why
+              removing it also deleted a container-query branch rather than
+              adding one, and why the garment grew on every width at once.
+            */}
             <span className="colourway-tab__label">
-              <span className="colourway-tab__num" aria-hidden="true">
-                {String(index + 1).padStart(2, '0')}
-              </span>
               {colourway.displayName}
               {colourway.slug === selected.slug && (
                 <span className="colourway-tab__dot" aria-hidden="true">
@@ -234,9 +250,23 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
           </button>
         ))}
       </div>
-      <p className="colourways__hint">
-        THESE COLOURWAYS ARE EXAMPLES. WE MATCH YOUR OWN COLOURS TO YOUR REQUIREMENTS.
-      </p>
+      {/*
+        ⚠️ THE "THESE COLOURWAYS ARE EXAMPLES" NOTE LIVED HERE UNTIL 2026-08-20
+        AND HAS MOVED TO <ProductPanel>. Do not put it back.
+
+        Measured on the live site before the move: it rendered at y=710-741
+        against an action bar starting at y=740, so its last pixel row sat under
+        the bar — a sentence nobody could finish reading, on the most valuable
+        screen in the product. It is also the one thing in this band a visitor
+        does not need before choosing a colour.
+
+        Under the flex stage band its 31px plus the 12px grid gap go straight to
+        the garment: measured +43px at 375x812, 402x714 and 414x896 alike. That
+        was NOT true of the old fixed-subtrahend layout, where the canvas height
+        was set by a number and anything below the rail was free — which is why
+        an earlier audit correctly said moving it would buy nothing, and why that
+        stopped being correct the moment the band started sizing itself.
+      */}
     </section>
   )
 }

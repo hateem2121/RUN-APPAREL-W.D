@@ -24,7 +24,14 @@ body {
   font-family: var(--font-body);
   font-size: var(--text-body);
   line-height: 1.55;
-  min-height: 100dvh;
+  /* `svh`, not `dvh` — the last one in the viewer, changed 2026-08-20 with
+     `.page`'s. `dvh` tracks the CURRENT viewport, so it re-resolves every time
+     Safari's URL bar collapses: one swipe on an iPhone 17 produced 14 separate
+     changes across a 40px range. Harmless on <body> in a way it was not on the
+     canvas, where each change reallocated a WebGL drawing buffer — but there is
+     no reason to leave the page's own minimum height moving while someone
+     scrolls it. */
+  min-height: 100svh;
 }
 
 img,

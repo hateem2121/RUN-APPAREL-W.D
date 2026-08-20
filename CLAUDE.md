@@ -357,7 +357,7 @@ the answer is "nothing that happens in production", it is not a test.
   compacted session that has not yet opened `tools/asset-pipeline/` has only these
   one-liners. Open that file before changing anything there.
 
-- **Twenty-three more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
+- **Twenty-five more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
   restated here — they load automatically the moment you touch `apps/viewer/`,
   so a copy in this file is pure weight. Enough of a hook to make you open it: a
   `performance` global shadowed by a local (a runtime `TypeError` every unit test
@@ -370,7 +370,9 @@ the answer is "nothing that happens in production", it is not a test.
   3D stage resize **14 times in a single swipe**; and a static import of ONE
   700-byte helper putting **287 KB gzip of three.js on the critical path**, where
   it defeated the dynamic import, the Save-Data guard and the preload filter all
-  at once. Read them before changing the viewer, its Worker, or its headers.
+  at once; and an e2e fixture that serves **four** colourways where production serves
+  five, which is the difference between a clean rail and a stranded tab.
+  Read them before changing the viewer, its Worker, or its headers.
   Moved there 2026-08-10 when this file came within 326 chars of the size at which
   Claude Code warns a memory file is too large — **a threshold it later crossed
   anyway, so put new viewer, pipeline or CMS detail in the sub-file, not here.**
