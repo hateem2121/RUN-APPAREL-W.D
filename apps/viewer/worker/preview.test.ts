@@ -1,4 +1,4 @@
-import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
+import type { ViewerApiSuccess, ViewerColourway, ViewerMediaAsset } from '@run-apparel/shared'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -40,19 +40,29 @@ const CARDS: Record<string, OgCard> = {
 }
 
 /** Shaped from the real live payload for n001/wine, captured 2026-08-08. */
+/**
+ * Hoisted out of the factory 2026-08-21, when `ViewerColourway.poster` became
+ * nullable. Several tests below build a variant by spreading the default poster
+ * and changing one field; spreading `colourway().poster` now spreads a
+ * `ViewerMediaAsset | null`, which TypeScript widens into all-optional properties
+ * and rejects. A named non-null constant says what those tests mean — "the normal
+ * poster, but with X different" — without scattering `!` assertions.
+ */
+const BASE_POSTER: ViewerMediaAsset = {
+  url: 'https://media.wear-run.help/n001-wine-poster.webp',
+  alt: 'Velocity Performance Skinsuit in Wine',
+  width: 1200,
+  height: 1500,
+  mimeType: 'image/webp',
+}
+
 function colourway(overrides: Partial<ViewerColourway> = {}): ViewerColourway {
   return {
     variantId: 'N001-WINE',
     displayName: 'Wine',
     slug: 'wine',
     sequence: 1,
-    poster: {
-      url: 'https://media.wear-run.help/n001-wine-poster.webp',
-      alt: 'Velocity Performance Skinsuit in Wine',
-      width: 1200,
-      height: 1500,
-      mimeType: 'image/webp',
-    },
+    poster: { ...BASE_POSTER },
     glbUrl: null,
     isDefault: true,
     altText: 'Velocity Performance Skinsuit in Wine',
@@ -230,7 +240,7 @@ describe('buildPreview — image', () => {
     // bytes are a JPEG — which some of them act on.
     const only = colourway({
       slug: 'butter',
-      poster: { ...colourway().poster, mimeType: 'image/png' },
+      poster: { ...BASE_POSTER, mimeType: 'image/png' },
     })
     expect(build(payload({ colourways: [only], selectedColourway: only })).image!.type).toBe(
       'image/png',
@@ -242,9 +252,26 @@ describe('buildPreview — image', () => {
     // looking; a card showing N001 for a different garment is false.
     const only = colourway({
       slug: 'butter',
-      poster: { ...colourway().poster, url: '' },
+      poster: { ...BASE_POSTER, url: '' },
     })
     expect(build(payload({ colourways: [only], selectedColourway: only })).image).toBeNull()
+  })
+
+  it('returns no image, and does not throw, for a colourway with NO poster at all', () => {
+    /**
+     * ⚠️ REGRESSION TEST FOR A LIVE 404 ON 2026-08-21. `poster` was non-nullable
+     * until that day, and projectViewer.ts enforced it by DROPPING any colourway
+     * without one — so detaching a garment's five posters left zero colourways and
+     * the public endpoint 404'd a published product. Making it nullable is only
+     * half the fix; this pins the other half, which is that everything downstream
+     * copes. A poster-less colourway must yield a card with no picture, never a
+     * crash and never a different garment's photograph.
+     */
+    const only = colourway({ slug: 'butter', displayName: 'Butter', poster: null })
+    const built = build(payload({ colourways: [only], selectedColourway: only }))
+    expect(built.image).toBeNull()
+    // The rest of the card still works — the visitor keeps title and description.
+    expect(built.title).toBeTruthy()
   })
 
   it('keys cards by product AND colour so two garments cannot collide', () => {
@@ -259,7 +286,7 @@ describe('buildPreview — image', () => {
       altText: '',
       displayName: 'Butter',
       slug: 'butter',
-      poster: { ...colourway().poster, alt: '' },
+      poster: { ...BASE_POSTER, alt: '' },
     })
     expect(build(payload({ colourways: [only], selectedColourway: only })).image!.alt).toBe(
       'Velocity Performance Skinsuit in Butter',

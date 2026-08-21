@@ -233,35 +233,63 @@ describe('buildViewerResponse', () => {
     )
   })
 
-  it('never renders the literal text "null"/"undefined" for a blank name or slug', () => {
-    // displayName/slug stopped being `required` in the CMS on 2026-08-11, so a
-    // swatch-only imported row (buildImportedRow) can reach here with either
-    // missing. It would be filtered out by `!poster` above and by the publish
-    // gate before a real request ever sees it, but this is the projection's own
-    // defence — matching altText's existing `?? ''` three lines below it.
+  it('never renders the literal text "null"/"undefined" for a blank name', () => {
+    // displayName stopped being `required` in the CMS on 2026-08-11, so a
+    // swatch-only imported row (buildImportedRow) can reach here without one. The
+    // publish gate refuses to publish it and the empty-slug guard drops it before a
+    // real request ever sees it, but this is the projection's own defence —
+    // matching altText's existing `?? ''` a few lines below it.
+    //
+    // SPLIT from a combined name+slug test on 2026-08-21: a blank SLUG is no longer
+    // rendered as '', it is dropped outright (next test), so the two halves now
+    // assert opposite things and cannot share a case.
     const body = buildViewerResponse(
       product(),
-      [colourway({ displayName: null, slug: undefined })],
+      [colourway({ displayName: null })],
       {},
       origin,
       null,
       deps,
     )!
     expect(body.colourways[0]!.displayName).toBe('')
-    expect(body.colourways[0]!.slug).toBe('')
   })
 
-  it('skips colourways without a poster and returns null when none are usable', () => {
+  it('drops a colourway with no slug — it can be neither linked nor scanned', () => {
+    // The addressability guard that REPLACED `if (!poster) continue`. A row with no
+    // slug has no URL segment and nothing to print on a tag, so it must not reach
+    // the rail; when it is the only row there is nothing to serve.
     expect(
-      buildViewerResponse(
-        product(),
-        [colourway({ posterPreview: null })],
-        {},
-        origin,
-        'navy',
-        deps,
-      ),
+      buildViewerResponse(product(), [colourway({ slug: undefined })], {}, origin, null, deps),
     ).toBeNull()
+  })
+
+  it('SERVES a colourway that has no poster', () => {
+    /**
+     * ⚠️ THIS TEST ASSERTED THE OPPOSITE UNTIL 2026-08-21, and the behaviour it
+     * pinned took the live site down. It read "skips colourways without a poster
+     * and returns null when none are usable" — so when the poster stopped being
+     * required to publish and stopped being painted by the stage, detaching a
+     * published garment's five posters dropped all five colourways here and the
+     * endpoint 404'd it. Every gate was green; the test agreed with the bug because
+     * the bug was the specification.
+     *
+     * A poster is no longer part of what makes a colourway usable. Being
+     * ADDRESSABLE is, which the test above pins.
+     */
+    const body = buildViewerResponse(
+      product(),
+      [colourway({ posterPreview: null })],
+      {},
+      origin,
+      'navy',
+      deps,
+    )
+    expect(body, 'a poster-less colourway must still be served').not.toBeNull()
+    expect(body!.colourways).toHaveLength(1)
+    expect(body!.colourways[0]!.slug).toBe('navy')
+    expect(body!.colourways[0]!.poster).toBeNull()
+    // The rest of the payload is unaffected — this is the whole point.
+    expect(body!.colourways[0]!.hexSwatch).toBe('#123456')
   })
 
   it('single-glb: product.glbUrl set, colourway.glbUrl null', () => {

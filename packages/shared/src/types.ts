@@ -49,7 +49,13 @@ export interface ViewerColourway {
   /** URL segment, e.g. "navy" */
   slug: string
   sequence: number
-  poster: ViewerMediaAsset
+  /**
+   * NULLABLE since 2026-08-21, when the stage stopped painting a photograph and the
+   * publish gate stopped demanding one. A published colourway may legitimately have
+   * no poster now; its only remaining consumer is the link-preview card built in
+   * apps/viewer/worker/preview.ts, which already falls back when it is absent.
+   */
+  poster: ViewerMediaAsset | null
   /** Dedicated GLB — populated only when the parent product uses "separate-glb-per-colour". */
   glbUrl: string | null
   isDefault: boolean

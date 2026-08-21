@@ -12,9 +12,9 @@ export interface OgCard {
 }
 
 export const OG_CARDS: Record<string, OgCard> = {
-  'n001/black': { width: 1200, height: 1500 },
-  'n001/blush': { width: 1200, height: 1500 },
-  'n001/butter': { width: 1200, height: 1500 },
-  'n001/lime': { width: 1200, height: 1500 },
-  'n001/wine': { width: 1200, height: 1500 },
+  'rxps/black': { width: 1200, height: 1500 },
+  'rxps/blush': { width: 1200, height: 1500 },
+  'rxps/butter': { width: 1200, height: 1500 },
+  'rxps/lime': { width: 1200, height: 1500 },
+  'rxps/wine': { width: 1200, height: 1500 },
 }

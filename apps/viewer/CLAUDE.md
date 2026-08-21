@@ -400,7 +400,9 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   Worker** — logged every entry to the handler: `/assets/index-*.js`,
   `/og/n001/wine.jpg` and `/` produced no line, `/n001/lime` produced one — so
   `/assets/*` keeps its zero-overhead path as long as `run_worker_first` stays
-  unset. And **an HTMLRewriter selector that matches nothing is a silent no-op,
+  unset. (Both `n001` URLs are pre-rename records; the cards moved to `/og/rxps/…`
+  on 2026-08-21. Note the doc-citation gate cannot see either — it skips anything
+  starting with `/`, so a URL-shaped example rots unwatched.) And **an HTMLRewriter selector that matches nothing is a silent no-op,
   not an error**: delete a `<meta>` from `index.html` and the Worker keeps
   returning 200 while quietly ceasing to set it on every link, which is why
   `worker/preview.test.ts` asserts each rewritten tag still exists there.

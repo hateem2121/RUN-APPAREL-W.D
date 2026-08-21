@@ -111,8 +111,23 @@ export function buildViewerResponse(
   for (const doc of colourwayDocs) {
     // `active` defaults to true, so only an explicit false retires a colour.
     if (doc.active === false) continue
+    /**
+     * ⚠️ THIS GUARD USED TO BE `if (!poster) continue`, AND REMOVING IT NAIVELY
+     * WOULD REGRESS SOMETHING ELSE. Measured live 2026-08-21: with the poster no
+     * longer required to publish and no longer painted by the stage, detaching all
+     * five of a product's posters dropped every colourway here, `colourways.length`
+     * hit 0, and the endpoint 404'd a PUBLISHED garment with QR tags in the field.
+     * The publish gate and the viewer were both relaxed that day; this projection
+     * was not, so the CMS would happily save a product it then refused to serve.
+     *
+     * The old line was ALSO the filter that kept a blank imported catalogue row out
+     * of the rail — the comment below still relies on something doing that job. A
+     * poster is the wrong proxy for it. What actually makes a colourway usable is
+     * being ADDRESSABLE: the slug is the URL segment and the string printed on the
+     * physical tag, so a row without one can be neither linked nor scanned.
+     */
+    if (!String(doc.slug ?? '').trim()) continue
     const poster = toMediaAsset(doc.posterPreview, origin)
-    if (!poster) continue // never expose a colourway without its required poster
     colourways.push({
       variantId: String(doc.variantId ?? ''),
       // `?? ''`, not a bare String(doc.displayName): both fields stopped being
@@ -120,15 +135,16 @@ export function buildViewerResponse(
       // imported row can be saved blank — without the fallback, a colour that
       // somehow reached here still blank would render the literal text "null" or
       // "undefined" on a live button instead of an empty string. The publish gate
-      // (publishGating.ts) already refuses to publish one in that state, and
-      // `!poster` above already drops an imported row before this line — this is
-      // the same defence altText already has three lines down, extended here.
+      // (publishGating.ts) already refuses to publish one in that state, and the
+      // empty-slug guard above already drops an imported row before this line —
+      // this is the same defence altText already has three lines down, extended
+      // here.
       displayName: String(doc.displayName ?? ''),
       slug: String(doc.slug ?? ''),
-      // Numbered by what a visitor actually sees, so a retired or poster-less
+      // Numbered by what a visitor actually sees, so a retired or unaddressable
       // colour never leaves a gap in the tab order.
       sequence: colourways.length + 1,
-      poster,
+      poster: poster ?? null,
       glbUrl: separateMode ? (toMediaAsset(doc.glbAsset, origin)?.url ?? null) : null,
       isDefault: colourways.length === 0,
       altText: String(doc.altText ?? ''),
