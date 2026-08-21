@@ -1464,6 +1464,8 @@ scan. Unrelated to previews; recorded here because this is where it was measured
   zero-overhead path. Verified by logging every entry to the handler:
   `/assets/index-*.js`, `/og/n001/wine.jpg` and `/` produced no log line;
   `/n001/lime` produced one. Setting `run_worker_first` would undo that.
+  (Both `n001` paths are pre-rename; the cards moved to `/og/rxps/…` on
+  2026-08-21. The finding is unchanged — only the example URLs are historical.)
 
 ## Login protection
 
