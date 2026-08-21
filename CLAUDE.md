@@ -334,7 +334,7 @@ the answer is "nothing that happens in production", it is not a test.
   apt on 2026-08-20 (`artwork`, then `e2e` when it was split out of `verify`); only
   `deploy-shrink.yml` still does.
 
-- **Twelve more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
+- **Seventeen more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
   2026-08-19, when this file measured 44,993 characters against Claude Code's
   40,000-character warning, the point at which Anthropic's own guidance says adherence
   to *every* rule in a file starts dropping. They load the moment you touch
@@ -352,7 +352,14 @@ the answer is "nothing that happens in production", it is not a test.
   `optimizeGlb`, so a hand-built options object ships decals still on BLEND; **the three
   blocking gates do NOT catch decimation damage — only a rendered crop does**, which is
   the most expensive lesson in this repo; and `--simplify` is not the aggression dial,
-  `--simplify-error` is.
+  `--simplify-error` is. **Five added 2026-08-21, all from one 1.31 GB export:** a CLO
+  file is **99.97% topstitch and 0.03% garment**, so thread needs its own `--stitch`
+  budget and a *wide crop cannot see* a frayed cord (judge at 4–7°, not the default
+  18°); **draco is smaller AND faster than meshopt** here, inverting the CLI's own
+  help text; normal/ORM maps outweighed the artwork at colour-map resolution
+  (`--data-max-texture`); an all-over print on `BLEND` is read as sheer fabric and
+  silently squashed to 29%; and **KTX2 came out smaller yet still had to be refused**
+  because ETC1S mottles white fabric.
   ⚠️ These are hooks, not the traps. After `/compact` only THIS file is re-injected, so a
   compacted session that has not yet opened `tools/asset-pipeline/` has only these
   one-liners. Open that file before changing anything there.

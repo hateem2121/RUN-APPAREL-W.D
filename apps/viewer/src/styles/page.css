@@ -881,6 +881,17 @@ model-viewer.stage__model:focus-within {
   outline-offset: 2px;
 }
 
+/*
+ * ⚠️ DORMANT since 2026-08-21 — nothing renders these classes any more.
+ *
+ * `Stage.tsx` stopped painting a poster image (owner decision: the stage never
+ * shows a photograph of the garment, as placeholder or fallback), and the publish
+ * gate stopped requiring one. The rules are KEPT rather than deleted because the
+ * `min-height: 0` note below is a real, expensive finding — a grid item's
+ * `min-height: auto` silently beats `max-height: 100%`, which overflowed this
+ * poster by 926px for months — and that lesson applies to whatever fills this slot
+ * next. Delete them only when you are sure no image will live here again.
+ */
 .stage__poster-fallback {
   position: absolute;
   inset: 0;

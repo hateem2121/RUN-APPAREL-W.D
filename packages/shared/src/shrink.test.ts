@@ -27,12 +27,48 @@ describe('shrinkFlagsFor', () => {
     expect(shrinkFlagsFor(undefined)).toEqual(shrinkFlagsFor(DEFAULT_SHRINK_DETAIL))
   })
 
+  // Was `--meshopt` until 2026-08-21. Draco replaced it on measurement, not
+  // preference: matched builds differing only in codec, CPU-throttled in
+  // model-viewer, gave draco 20.6 MB / 908 ms against meshopt 31.0 MB / 1168 ms at
+  // 4x throttle -- smaller AND faster, inverting the older "draco decodes slower"
+  // assumption this repo's CLI help still repeats.
+  // ⛔ Back to `--meshopt` on 2026-08-21 after a draco model FAILED TO LOAD in
+  // production: the live viewer resolves the draco decoder to www.gstatic.com and
+  // the CSP blocks it, so the garment rendered nothing. Draco is smaller and
+  // measurably faster and is worth reclaiming — but only once the live page proves
+  // `ModelViewerElement.dracoDecoderLocation === '/draco/'` after a cold load.
   it('always asks for meshopt geometry and some decimation', () => {
     for (const level of LEVELS) {
       const args = shrinkFlagsFor(level)
       expect(args).toContain('--meshopt')
+      expect(args).not.toContain('--draco')
       expect(flagValue(args, '--simplify')).toBeGreaterThan(0)
       expect(flagValue(args, '--simplify')).toBeLessThan(1)
+    }
+  })
+
+  // The topstitch pass is what makes a 1.3 GB export shippable at all: on the
+  // measured file 99.97% of the triangles were `Topstitch_*` and 0.03% was the
+  // garment. Losing these flags silently returns every garment to the 57 MB floor.
+  it('always reduces topstitch on its own tight budget', () => {
+    for (const level of LEVELS) {
+      const args = shrinkFlagsFor(level)
+      expect(flagValue(args, '--stitch')).toBeGreaterThan(0)
+      expect(flagValue(args, '--stitch')).toBeLessThan(1)
+      // Tight. A 20x looser 0.01 is what frayed the cord into spikes.
+      expect(flagValue(args, '--stitch-error')).toBeLessThanOrEqual(0.001)
+    }
+  })
+
+  // Shading maps carry no artwork and measured 9.63 MB against the artwork's
+  // 7.03 MB purely from running at colour-map resolution. Half, never a quarter --
+  // quartering visibly flattens the fabric weave.
+  it('caps shading maps at half the colour cap', () => {
+    for (const level of LEVELS) {
+      const args = shrinkFlagsFor(level)
+      const colour = flagValue(args, '--max-texture') as number
+      const data = flagValue(args, '--data-max-texture') as number
+      expect(data).toBe(colour / 2)
     }
   })
 

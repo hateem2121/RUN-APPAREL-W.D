@@ -262,14 +262,21 @@ export function collectPublishProblems(
     )
   }
 
-  const noPoster = active.filter((c) => !c.hasPoster).map((c) => c.displayName)
-  if (noPoster.length > 0) {
-    problems.push(
-      `${list(noPoster)} ${noPoster.length === 1 ? 'has' : 'have'} no photo. Add “Photo of this colour” on the Colours tab, or switch the colour off.`,
-    )
-  }
-
-  const noAlt = active.filter((c) => !c.hasAltText).map((c) => c.displayName)
+  // ⚠️ THE POSTER REQUIREMENT WAS REMOVED 2026-08-21 by owner decision — a colour
+  // no longer needs a photo to publish. It used to read:
+  //
+  //     const noPoster = active.filter((c) => !c.hasPoster)…
+  //     "… has no photo. Add “Photo of this colour” on the Colours tab…"
+  //
+  // Restore it if photos ever become part of the product again; the field itself is
+  // still on the colourway, still optional, and still served when present.
+  //
+  // A photo description is now only demanded of a colour that HAS a photo. Demanding
+  // alt text for an image that does not exist would block publishing on an
+  // accessibility requirement with nothing to describe — and silently push someone
+  // toward typing a sentence about a missing picture, which is worse for a screen
+  // reader than no sentence at all.
+  const noAlt = active.filter((c) => c.hasPoster && !c.hasAltText).map((c) => c.displayName)
   if (noAlt.length > 0) {
     problems.push(
       `${list(noAlt)} ${noAlt.length === 1 ? 'needs' : 'need'} a photo description, so people using a screen reader know what the picture shows. Add it on the Colours tab.`,
@@ -280,7 +287,7 @@ export function collectPublishProblems(
   // missing one: a screen-reader user is told, confidently, the wrong product.
   // This shipped live and survived a rename because nothing compared the two.
   const wrongAlt = active
-    .filter((c) => c.hasAltText && !c.altTextNamesProduct)
+    .filter((c) => c.hasPoster && c.hasAltText && !c.altTextNamesProduct)
     .map((c) => c.displayName)
   if (wrongAlt.length > 0) {
     problems.push(

@@ -289,6 +289,45 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       return
     }
     let cancelled = false
+    /**
+     * Draco and KTX2 must be configured on the GLOBAL, BEFORE the module loads.
+     *
+     * ⚠️ Setting them on `ModelViewerElement` after the import — which is what the
+     * three lines below the import used to do, and which WORKS for meshopt — does
+     * NOT work for these two, and the asymmetry is in model-viewer itself.
+     * `lib/features/loading.js` bakes them at MODULE-EVALUATION time:
+     *
+     *     const ModelViewerElement = self.ModelViewerElement || {}
+     *     const dracoDecoderLocation =
+     *       ModelViewerElement.dracoDecoderLocation || DEFAULT_DRACO_DECODER_LOCATION
+     *     CachingGLTFLoader.setDRACODecoderLocation(dracoDecoderLocation)
+     *
+     * There is NO such line for meshopt (it has no default at all), which is
+     * exactly why meshopt has always worked here and draco never did.
+     *
+     * Measured in production 2026-08-21: on a cold load of viewer.wear-run.help,
+     * `ModelViewerElement.dracoDecoderLocation` read
+     * `https://www.gstatic.com/draco/versioned/decoders/1.5.6/` while
+     * `meshoptDecoderLocation` correctly read `/meshopt_decoder.js`. A draco-encoded
+     * garment therefore rendered NOTHING — model-viewer fetched the decoder from
+     * gstatic and the CSP (correctly) refused it. The product fell back to its
+     * poster with "The 3D view is not available".
+     *
+     * ⚠️ VERIFY THIS ON A LIVE COLD LOAD BEFORE SHIPPING A DRACO MODEL. The
+     * production shrink flags are deliberately still `--meshopt`
+     * (packages/shared/src/shrink.ts) and must not be switched back to `--draco`
+     * until `customElements.get('model-viewer').dracoDecoderLocation` reads
+     * `/draco/` on the deployed site. Checking that the code is committed proves
+     * nothing — the previous version was committed, deployed, threw no error, and
+     * was inert.
+     */
+    const globalConfig = self as unknown as {
+      ModelViewerElement?: { dracoDecoderLocation?: string; ktx2TranscoderLocation?: string }
+    }
+    globalConfig.ModelViewerElement = globalConfig.ModelViewerElement ?? {}
+    globalConfig.ModelViewerElement.dracoDecoderLocation = DRACO_DECODER_URL
+    globalConfig.ModelViewerElement.ktx2TranscoderLocation = KTX2_TRANSCODER_URL
+
     import('@google/model-viewer')
       .then(({ ModelViewerElement }) => {
         // Tell model-viewer where the Meshopt decoder lives, BEFORE any model
@@ -345,6 +384,9 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
         // ALL THREE codecs rather than just this one, and lets connect-src drop
         // gstatic entirely. --ktx2 is the documented production texture target,
         // so this stops being hypothetical the moment it is switched on.
+        // Kept as a belt-and-braces second write. Harmless, and it is what makes
+        // the value correct if a future model-viewer drops the module-eval baking.
+        // It is NOT sufficient on its own — see the block above the import.
         element.dracoDecoderLocation = DRACO_DECODER_URL
         element.ktx2TranscoderLocation = KTX2_TRANSCODER_URL
         if (!cancelled) setLibReady(true)
@@ -707,7 +749,6 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
    * garment a visitor whose device cannot run WebGL will ever see, and it now
    * comes from a photo the owner uploaded by hand, so it costs nothing to show.
    */
-  const showPosterOverlay = fallback
   const load = describeLoad({
     bytesLoaded,
     bytesTotal,
@@ -789,26 +830,22 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
             />
           )}
 
-          {showPosterOverlay && (
-            <div className="stage__poster-fallback" aria-hidden={!fallback}>
-              <img
-                key={selected.slug}
-                className="stage__poster-img"
-                src={selected.poster.url}
-                alt={selected.poster.alt || selected.altText}
-                width={selected.poster.width ?? undefined}
-                height={selected.poster.height ?? undefined}
-                loading="eager"
-                decoding="async"
-                onError={(event) => {
-                  // Fall back to the product-level poster if a colourway poster
-                  // 404s, so the stage is never blank while 3D is unavailable.
-                  const fb = product.posterFallback?.url
-                  if (fb && event.currentTarget.src !== fb) event.currentTarget.src = fb
-                }}
-              />
-            </div>
-          )}
+          {/*
+           * THE POSTER IMAGE WAS REMOVED 2026-08-21 by owner decision — the stage
+           * never shows a photograph of the garment now, either as a pre-3D
+           * placeholder or as a failure fallback.
+           *
+           * The explanatory MESSAGE is deliberately KEPT (see `FALLBACK_NOTE`
+           * above): when 3D genuinely cannot run, the visitor is still told why and
+           * still gets the colour, fabric, specs and the enquiry buttons. What they
+           * no longer get is a still image standing in for the model.
+           *
+           * The CMS side matches: `publishGating.ts` no longer demands a photo per
+           * colour, and its photo-DESCRIPTION rule now applies only where a photo
+           * actually exists. `colourways.posterPreview` still exists and is still
+           * served by the API when set, so nothing breaks for a product that has
+           * one — it is simply never painted here.
+           */}
 
           <div className="stage__callouts" aria-hidden="true">
             {product.fabricComposition && (

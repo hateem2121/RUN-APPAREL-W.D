@@ -899,6 +899,46 @@ describe('solidifyMaterials (opaque + double-sided)', () => {
    * NO fully-transparent pixels at all: it is translucent everywhere, not
    * cut out anywhere.
    */
+  /**
+   * A halftone print: dots of solid ink on a fully transparent ground, with the
+   * dot edges antialiased. Thousands of small dots means far more edge per unit
+   * area than a wordmark, which is exactly why this shape sat just outside the
+   * old cutout band. Measured on the real Cycling-Bib print: 73.33% fully
+   * transparent, 19.73% opaque, 6.94% mid.
+   */
+  async function halftoneImage(): Promise<Uint8Array> {
+    const width = 128
+    const height = 128
+    const raw = Buffer.alloc(width * height * 4)
+    for (let i = 0; i < width * height; i++) {
+      raw[i * 4] = 20
+      raw[i * 4 + 1] = 20
+      raw[i * 4 + 2] = 20
+      raw[i * 4 + 3] = 0 // transparent ground -- this is what CUTS OUT
+    }
+    // Dots on an 8px grid: solid core, one antialiased ring.
+    for (let cy = 4; cy < height; cy += 8) {
+      for (let cx = 4; cx < width; cx += 8) {
+        for (let y = cy - 3; y <= cy + 3; y++) {
+          for (let x = cx - 3; x <= cx + 3; x++) {
+            if (x < 0 || y < 0 || x >= width || y >= height) continue
+            const d = Math.hypot(x - cx, y - cy)
+            // Radii chosen by MEASURING the resulting alpha profile against the
+            // real print (73.33/19.73/6.94), not by eye: this gives 79.69%
+            // transparent, 14.06% opaque, 6.25% mid -- inside the same band, and
+            // above the old 0.05 ceiling so the test genuinely exercises the change.
+            const a = d <= 1.8 ? 255 : d <= 2.1 ? 128 : 0
+            if (a) raw[(y * width + x) * 4 + 3] = a
+          }
+        }
+      }
+    }
+    const png = await sharp(raw, { raw: { width, height, channels: 4 } })
+      .png()
+      .toBuffer()
+    return new Uint8Array(png)
+  }
+
   async function sheerInsetImage(): Promise<Uint8Array> {
     const width = 128
     const height = 128
@@ -1021,6 +1061,95 @@ describe('solidifyMaterials (opaque + double-sided)', () => {
 
     expect(inset.getAlphaMode()).toBe('BLEND')
     expect(result).toMatchObject({ masked: 0, keptBlend: 1 })
+  })
+
+  it('MASKs a halftone print, whose many soft dot edges sit past the old ceiling', async () => {
+    // Found 2026-08-21 by the owner looking at the garment, not by any gate. The
+    // Cycling-Bib halftone measures 6.94% mid -- just past the old 0.05 ceiling --
+    // so it stayed BLEND, and with no order-independent transparency in
+    // <model-viewer> it sorted badly against the geometry behind it. The reported
+    // symptom was "sometimes it feels like the stitches are see through".
+    const doc = new Document()
+    const texture = doc
+      .createTexture('halftone')
+      .setImage(await halftoneImage())
+      .setMimeType('image/png')
+    const print = doc
+      .createMaterial('Material_Graphic')
+      .setAlphaMode('BLEND')
+      .setBaseColorTexture(texture)
+
+    const result = await solidifyMaterials(doc)
+
+    expect(print.getAlphaMode()).toBe('MASK')
+    expect(print.getAlphaCutoff()).toBe(0.5)
+    expect(result).toMatchObject({ masked: 1, keptBlend: 0 })
+  })
+
+  it('does NOT double-side a material named as printed artwork', async () => {
+    // A care label is authored on the INSIDE and single-sided, so backface culling
+    // hides it from outside. Forcing it double-sided rendered its back face through
+    // the fabric -- MIRRORED, text reversed, on the outside of the garment.
+    //
+    // Matched on the MATERIAL name because a CLO export leaves every texture
+    // anonymous: 0 of 24 textures in the measured file had a name or URI, which is
+    // why a texture-name-only check was silently inert.
+    const doc = new Document()
+    const texture = doc
+      .createTexture()
+      .setImage(await sheerImage())
+      .setMimeType('image/png')
+    const label = doc
+      .createMaterial('White Black Bold Minimalist Clothing Label_9946645')
+      .setAlphaMode('BLEND')
+      .setBaseColorTexture(texture)
+      .setDoubleSided(false)
+
+    await solidifyMaterials(doc)
+
+    expect(label.getDoubleSided()).toBe(false)
+  })
+
+  it('NEGATIVE CONTROL: an identically-shaped FABRIC material is still double-sided', async () => {
+    // Without this, the test above would pass even if double-siding had been
+    // switched off altogether -- which would reintroduce the see-through fabric
+    // the whole solidify step exists to fix.
+    const doc = new Document()
+    const texture = doc
+      .createTexture()
+      .setImage(await sheerImage())
+      .setMimeType('image/png')
+    const fabric = doc
+      .createMaterial('SUPPLIER_DOBBY_A_8132292')
+      .setAlphaMode('BLEND')
+      .setBaseColorTexture(texture)
+      .setDoubleSided(false)
+
+    await solidifyMaterials(doc)
+
+    expect(fabric.getDoubleSided()).toBe(true)
+  })
+
+  it('NEGATIVE CONTROL: a FABRIC whose name merely contains "text" is still double-sided', async () => {
+    // The artwork word list contains `text` and `type`, which is fine for TEXTURE
+    // names but not for MATERIAL names: CLO writes `Textile_Cotton`,
+    // `Texture_Map_01`, `Polyester_Textured`. Matching those as artwork would
+    // exempt real fabric from double-siding and silently reinstate the
+    // see-through-garment bug. Hence the tighter, token-boundary pattern.
+    const doc = new Document()
+    const texture = doc
+      .createTexture()
+      .setImage(await sheerImage())
+      .setMimeType('image/png')
+    const fabric = doc
+      .createMaterial('Textile_Cotton_190gsm')
+      .setAlphaMode('BLEND')
+      .setBaseColorTexture(texture)
+      .setDoubleSided(false)
+
+    await solidifyMaterials(doc)
+
+    expect(fabric.getDoubleSided()).toBe(true)
   })
 
   it('lets an explicit baseColorFactor alpha beat an inferred cutout', async () => {

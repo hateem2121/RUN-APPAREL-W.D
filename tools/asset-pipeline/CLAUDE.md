@@ -369,3 +369,49 @@ only the root's one-liners. Open this file before changing anything here.
   simplifier stops early once the budget binds, so lowering the ratio alone does
   nothing. A sweep over the ratio produces near-identical files and reads as
   "nothing helps".
+- **A CLO export is mostly THREAD, and the two need different budgets.** Measured
+  2026-08-21 on a 1,313,979,936-byte Cycling-Bib export: of 33,964,432 triangles,
+  **`Cloth_mesh` — the entire visible garment, carrying all 116 artwork materials —
+  is 11,128 (0.03%)**, and 21 `Topstitch_*` meshes hold **99.97%**. `--simplify`
+  alone cannot express that and bottoms out at 57.4 MB; `--stitch` (topstitch.ts)
+  gives thread its own budget and reaches **20.6 MB** with the prints untouched.
+  The stitch meshes carry a flat `baseColor` and **no artwork** — verified by
+  walking mesh → primitive → material *including* the `KHR_materials_variants`
+  mappings, which is why the looser budget is safe.
+  ⚠️ **TWO STACKED MISTAKES make this look broken, and neither is the triangle
+  count.** The first attempt frayed the cord into spikes and was rejected on sight:
+  it gave thread `error 0.01` (**20x looser** than the garment's 0.001) *and* let
+  `--simplify` decimate it a second time (777k → 445k). With a tight budget and a
+  single pass, 1.36M triangles is indistinguishable from the 3.98M original. Do not
+  read a small output as proof that thread cannot be small. `simplifyTextured` now
+  takes `skipMeshes` and `optimize.ts` sets it whenever the stitch pass ran, so
+  passing both flags is safe.
+  ⚠️ **A WIDE CROP CANNOT SEE THIS — the same lesson as the wordmark, on a new
+  feature.** At the default `crop-chest` (18°) the ruined cord looked *identical*
+  to the original and was reported as such. At **4°** it is obviously spiky. Judge
+  thread with `render --views` at 4–7°.
+- **Draco is SMALLER *and* FASTER than meshopt here — the CLI help above still says
+  "slower decode" and that is wrong for this asset.** Matched builds differing only
+  in codec, model-viewer over localhost, CPU-throttled via CDP, median of 3:
+  4× throttle **meshopt 31.0 MB / 1168 ms vs draco 20.6 MB / 908 ms**; 6× throttle
+  1672 ms vs 1259 ms. The extra ~10 MB costs more to fetch and upload than meshopt's
+  decode advantage saves. The viewer already self-hosts the decoder
+  (`apps/viewer/public/draco/`, `Stage.tsx` sets `dracoDecoderLocation`) and CSP
+  already allows `wasm-unsafe-eval`, so this needed no viewer change. Caveat kept
+  honest: throttled desktop Chromium with software WebGL, not a real handset.
+- **Normal/ORM maps ran at COLOUR-map resolution and outweighed the artwork.** They
+  were **9.63 MB against the artwork's 7.03 MB** of a 16.65 MB texture budget.
+  `--data-max-texture` (half `--max-texture`) is invisible and saves 5.5 MB.
+  **Quartering was tried and REFUSED**: 1.67% of pixels moved by >8/255 and it
+  visibly flattens the white fabric's weave, for one more megabyte.
+- **An all-over print on `BLEND` is classified as sheer FABRIC and takes the 2048
+  cap.** The Cycling-Bib halftone is 4952×7014 and got squashed to 1446×2048 (0.29×),
+  turning round dots into blocky squares. **`--max-texture 4096` is the safe lever.**
+  Do NOT instead widen `isArtworkTexture` — `character` feeds it into
+  `findArtworkAlphaProblems`, which **throws and saves nothing**, so widening it
+  widens a *blocking* gate.
+- **KTX2 came out SMALLER here (20.3 MB vs 22.2 MB) and must still be REFUSED.**
+  ETC1S turned the clean white bib panel **grey and blotchy**; the letters survived,
+  the fabric did not. Caught only by cropping the same region from both renders.
+  Note this inverts the older "KTX2 is larger on disk" reasoning — that argument
+  would have led the wrong way on this file. Judge it on the fabric, not the size.
