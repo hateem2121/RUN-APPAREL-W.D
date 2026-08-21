@@ -396,7 +396,8 @@ only the root's one-liners. Open this file before changing anything here.
   4× throttle **meshopt 31.0 MB / 1168 ms vs draco 20.6 MB / 908 ms**; 6× throttle
   1672 ms vs 1259 ms. The extra ~10 MB costs more to fetch and upload than meshopt's
   decode advantage saves. The viewer already self-hosts the decoder
-  (`apps/viewer/public/draco/`, `Stage.tsx` sets `dracoDecoderLocation`) and CSP
+  (copied into `public/` at build time by `apps/viewer/scripts/copy-decoders.mjs`;
+  `Stage.tsx` sets `dracoDecoderLocation`) and CSP
   already allows `wasm-unsafe-eval`, so this needed no viewer change. Caveat kept
   honest: throttled desktop Chromium with software WebGL, not a real handset.
 - **Normal/ORM maps ran at COLOUR-map resolution and outweighed the artwork.** They
