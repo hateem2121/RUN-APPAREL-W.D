@@ -6,6 +6,7 @@ import { ktx2 } from 'ktx2-encoder/gltf-transform'
 import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer'
 import sharp from 'sharp'
 import { createIO } from './io'
+import { DEFAULT_STITCH_PATTERN, type TopstitchResult, reduceTopstitch } from './topstitch'
 import {
   type AlphaProfile,
   CUTOUT_MID_FRACTION,
@@ -17,7 +18,12 @@ import {
   type SimplifyTexturedResult,
   simplifyTextured,
 } from './simplify-textured'
-import { type TextureArtworkResult, compressTexturesForArtwork } from './texture-artwork'
+import {
+  type TextureArtworkResult,
+  compressTexturesForArtwork,
+  isArtworkMaterialByName,
+  isArtworkTextureByName,
+} from './texture-artwork'
 
 /**
  * Shared optimisation transforms for production GLBs. Both `merge` (multi-
@@ -113,6 +119,32 @@ export interface OptimizeOptions {
   simplifyUvWeight?: number | undefined
   /** Same for vertex normals — protects shading rather than artwork. */
   simplifyNormalWeight?: number | undefined
+
+  /**
+   * Decimate ONLY decorative topstitch meshes to this fraction, 0–1. Off by
+   * default. See topstitch.ts for the measurement that motivates it: a real CLO
+   * export was 99.97% stitch geometry and 0.03% garment, so the two need
+   * different budgets and `--simplify` cannot express that.
+   *
+   * Use INSTEAD OF `--simplify` on such a garment, not alongside it: running both
+   * decimates the thread twice, which is what produced the frayed output the owner
+   * rejected on 2026-08-21.
+   */
+  stitch?: number | undefined
+  /**
+   * Error budget for `--stitch`. The real aggression dial, exactly as
+   * `simplifyError` is for `--simplify`. Keep it tight — a loose budget, not a low
+   * ratio, is what turns a stitch cord into spikes.
+   */
+  stitchError?: number | undefined
+  /**
+   * Resize cap for textures used ONLY as normal/metallicRoughness/occlusion.
+   * Falls back to `maxTextureSize`, so leaving it unset changes nothing.
+   * Worth setting to half: these maps measured 9.63 MB against the artwork's
+   * 7.03 MB purely because they ran at colour-map resolution. See
+   * texture-artwork.ts.
+   */
+  dataMaxTextureSize?: number | undefined
 }
 
 export const DEFAULT_MAX_TEXTURE = 2048
@@ -135,6 +167,18 @@ export const DEFAULT_ARTWORK_MAX_TEXTURE = 4096
  * rather than get a looser budget by accident.
  */
 export const DEFAULT_SIMPLIFY_ERROR = 0.0001
+/**
+ * Error budget for `--stitch`. Measured 2026-08-21 on the Cycling-Bib export by
+ * rendering a 4° macro crop of a seam at each setting — the only view that can see
+ * this damage; at the default 18° crop a ruined cord looks identical to an intact
+ * one.
+ *
+ * 0.0005 asked to keep 3% of the thread and kept 3.99%, stopping early rather than
+ * damaging the cord. That self-limiting behaviour is the point: the budget cannot
+ * be pushed into fraying the stitching by asking for a lower ratio. A 20x looser
+ * 0.01 is what produced the frayed, spiky output that was rejected on sight.
+ */
+export const DEFAULT_STITCH_ERROR = 0.0005
 /**
  * Default UV weight for attribute-aware simplification. meshoptimizer's guidance
  * is that "a weight around 1.0 is usually appropriate" for normalized attributes,
@@ -286,7 +330,35 @@ export async function solidifyMaterials(document: Document): Promise<SolidifyRes
       }
     }
 
-    if (material.getAlphaMode() !== 'MASK') {
+    // Double-siding exists to fix FABRIC: CLO exports panels single-sided, so from
+    // behind they vanish and the garment looks hollow. It must not be applied to
+    // printed artwork, which has a front and a back on purpose.
+    //
+    // ⚠️ THIS EXEMPTION USED TO BE `!== 'MASK'` ALONE, AND THAT SHIPPED A VISIBLE
+    // BUG. Found 2026-08-21 by the owner looking at the rendered garment: the
+    // Cycling-Bib care label ("A SUBSIDIARY OF … MADE IN PAKISTAN") is authored on
+    // the INSIDE and single-sided, so backface culling correctly hides it from
+    // outside. Forcing it double-sided rendered its back face through the fabric —
+    // **mirrored**, with the text reversed, on the outside of the garment.
+    //
+    // The old condition was not wrong about MASK, it was too narrow: it exempted
+    // decals only when they had reached MASK, and this label stays BLEND (graded
+    // alpha), so it missed the exemption it plainly deserved. Judging it on what
+    // the texture IS, rather than on which alphaMode it happened to land in, is
+    // the same rule the MASK branch was already reaching for.
+    //
+    // Name-only classification on purpose (`isArtworkTextureByName`, not the async
+    // `isArtworkTexture`): this decides SIDEDNESS, nothing else. It must not widen
+    // `isArtworkTexture` -> `findArtworkAlphaProblems`, which throws and saves
+    // nothing — widening a blocking gate to fix a rendering bug would be a bad
+    // trade. Pinned by a test with a negative control in optimize.test.ts.
+    // BOTH signals, because a CLO export names the MATERIAL and leaves every
+    // texture anonymous — 0 of 24 textures had a name or URI on the file this was
+    // measured against, so the texture-only check was completely inert.
+    const baseColour = material.getBaseColorTexture()
+    const isPrintedArtwork =
+      isArtworkMaterialByName(material) || (baseColour ? isArtworkTextureByName(baseColour) : false)
+    if (material.getAlphaMode() !== 'MASK' && !isPrintedArtwork) {
       material.setDoubleSided(true)
       result.doubleSided++
     }
@@ -310,6 +382,8 @@ export interface OptimizeTelemetry {
   textures?: TextureArtworkResult
   /** Present only when the opaque/solidify pass ran. */
   solidify?: SolidifyResult
+  /** Present only when the topstitch pass ran. */
+  stitch?: TopstitchResult
 }
 
 /**
@@ -346,6 +420,10 @@ export async function buildOptimizeTransforms(
         maxSize: max,
         artworkQuality: options.artworkTextureQuality ?? DEFAULT_ARTWORK_TEXTURE_QUALITY,
         artworkMaxSize: options.artworkMaxTextureSize ?? DEFAULT_ARTWORK_MAX_TEXTURE,
+        // Absent → falls back to `maxSize` inside the encoder, i.e. old behaviour.
+        ...(options.dataMaxTextureSize === undefined
+          ? {}
+          : { dataMaxSize: options.dataMaxTextureSize }),
         onResult: (result) => {
           telemetry.textures = result
         },
@@ -379,6 +457,31 @@ export async function buildOptimizeTransforms(
   // inside the budget, so printed artwork survives without freezing every mesh
   // border. See simplify-textured.ts for why `lockBorder` was the wrong tool —
   // it protected the logos but produced 58.3 MB, over the 40 MB publish ceiling.
+  // Topstitch runs BEFORE the general decimator, and on a garment shaped like the
+  // Cycling-Bib export it runs INSTEAD of it — `Cloth_mesh` at 11,128 triangles
+  // needs no decimation, so `--simplify` would only be a second pass over thread
+  // that has already been reduced. Doing both is what frayed the cord. See
+  // topstitch.ts.
+  // Captured as a value, not a boolean: a separate `stitchRan` flag does not
+  // narrow `options.stitch` for TypeScript, and `exactOptionalPropertyTypes` makes
+  // that a hard error rather than an implicit `undefined` reaching the simplifier.
+  const stitchRatio =
+    typeof options.stitch === 'number' && options.stitch > 0 && options.stitch < 1
+      ? options.stitch
+      : null
+  if (stitchRatio !== null) {
+    transforms.push(
+      reduceTopstitch({
+        simplifier: MeshoptSimplifier as unknown as AttributeSimplifier,
+        ratio: stitchRatio,
+        error: options.stitchError ?? DEFAULT_STITCH_ERROR,
+        onResult: (result) => {
+          telemetry.stitch = result
+        },
+      }),
+    )
+  }
+
   if (typeof options.simplify === 'number' && options.simplify > 0 && options.simplify < 1) {
     transforms.push(
       simplifyTextured({
@@ -390,6 +493,10 @@ export async function buildOptimizeTransforms(
         error: options.simplifyError ?? DEFAULT_SIMPLIFY_ERROR,
         uvWeight: options.simplifyUvWeight ?? DEFAULT_SIMPLIFY_UV_WEIGHT,
         normalWeight: options.simplifyNormalWeight ?? DEFAULT_SIMPLIFY_NORMAL_WEIGHT,
+        // If the stitch pass ran, it OWNS those meshes — decimating them again
+        // here is what frayed the cord on 2026-08-21. Passing both flags is
+        // therefore safe: thread takes the stitch budget, garment takes this one.
+        ...(stitchRatio !== null ? { skipMeshes: DEFAULT_STITCH_PATTERN } : {}),
         onResult: (result) => {
           telemetry.simplify = result
         },
@@ -459,6 +566,8 @@ export interface OptimizeResult {
   textures?: TextureArtworkResult
   /** How each translucent material was resolved, when the opaque pass ran. */
   solidify?: SolidifyResult
+  /** Stitch vs garment triangle split, when the topstitch pass ran. */
+  stitch?: TopstitchResult
 }
 
 /**
@@ -495,6 +604,7 @@ export async function optimizeGlb(
     ...(telemetry.simplify ? { simplify: telemetry.simplify } : {}),
     ...(telemetry.textures ? { textures: telemetry.textures } : {}),
     ...(telemetry.solidify ? { solidify: telemetry.solidify } : {}),
+    ...(telemetry.stitch ? { stitch: telemetry.stitch } : {}),
   }
 }
 
@@ -549,6 +659,9 @@ const VALUE_TAKING_FLAGS = new Set([
   '--simplify-error',
   '--uv-weight',
   '--normal-weight',
+  '--stitch',
+  '--stitch-error',
+  '--data-max-texture',
 ])
 
 /**
@@ -596,6 +709,9 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
   let simplifyError: number | undefined
   let simplifyUvWeight: number | undefined
   let simplifyNormalWeight: number | undefined
+  let stitch: number | undefined
+  let stitchError: number | undefined
+  let dataMaxTextureSize: number | undefined
 
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]!
@@ -616,6 +732,10 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
     else if (arg === '--uv-weight') simplifyUvWeight = finiteNumber(rest[++i], '--uv-weight')
     else if (arg === '--normal-weight')
       simplifyNormalWeight = finiteNumber(rest[++i], '--normal-weight')
+    else if (arg === '--stitch') stitch = finiteNumber(rest[++i], '--stitch')
+    else if (arg === '--stitch-error') stitchError = finiteNumber(rest[++i], '--stitch-error')
+    else if (arg === '--data-max-texture')
+      dataMaxTextureSize = finiteNumber(rest[++i], '--data-max-texture')
     else if (arg === '--opaque') opaque = true
     else if (arg === '--no-opaque' || arg === '--keep-transparency') opaque = false
     else if (!arg.startsWith('--')) input = arg
@@ -636,6 +756,9 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
       simplifyError,
       simplifyUvWeight,
       simplifyNormalWeight,
+      stitch,
+      stitchError,
+      dataMaxTextureSize,
     },
   }
 }

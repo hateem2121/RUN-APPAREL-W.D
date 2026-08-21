@@ -115,9 +115,12 @@ describe('the panel reads a real form state correctly', () => {
   })
 
   it('still names the colour at fault when one is genuinely incomplete', () => {
+    // A MISSING PHOTO no longer makes a colour incomplete (owner decision
+    // 2026-08-21), so the incompleteness under test is now a missing web-address
+    // word — which is still required, and is printed on physical QR tags.
     const missingPhoto = {
       ...rowState(0),
-      ...rowState(1, { displayName: 'Black', slug: 'black', posterPreview: undefined }),
+      ...rowState(1, { displayName: 'Black', slug: undefined, posterPreview: undefined }),
     }
     const problems = collectPublishProblems(
       {
@@ -130,6 +133,9 @@ describe('the panel reads a real form state correctly', () => {
       toGateColourways(rowsFromFormState(missingPhoto, 'colourways')),
     )
     expect(problems.join(' ')).toContain('Black')
-    expect(problems.join(' ')).toContain('no photo')
+    // Was 'no photo' until 2026-08-21. The panel's job is to NAME the colour at
+    // fault, and that is what this asserts; the specific missing field changed when
+    // photos stopped being required.
+    expect(problems.join(' ')).toContain('web address word')
   })
 })

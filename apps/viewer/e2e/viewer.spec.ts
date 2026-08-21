@@ -16,14 +16,25 @@ test.describe('RUN APPAREL 3D viewer', () => {
     // The PROMISE underneath the old assertion is unchanged, and is what this
     // checks: the stage is never blank while the visitor waits. Which of the three
     // is showing depends on the browser — headless Firefox has no WebGL, so it
-    // takes the poster fallback, while Chromium loads the model — and asserting
-    // any single one of them makes this a test of the runner's GPU. That mistake
-    // is already documented below.
+    // takes the fallback, while Chromium loads the model — and asserting any
+    // single one of them makes this a test of the runner's GPU. That mistake is
+    // already documented below.
     //
     // It also removes a real flake: the old locator raced the model load, and was
     // measured failing on pristine `main` roughly one run in two.
+    //
+    // ⚠️ The fallback arm was `.stage__poster-fallback img` until 2026-08-21, when
+    // the poster image was removed from the stage — so on Firefox, the only
+    // browser that actually takes that arm here, the locator matched nothing and
+    // this test failed. The fallback's visible artefact is now the notice, so that
+    // is what the third arm names. Prefer a signal the VISITOR gets over one the
+    // implementation happens to render: the notice survives changes of medium.
+    // `:not([hidden])` matters: .stage__error is mounted UNCONDITIONALLY (a live
+    // region has to exist before its text changes to be announced), so a bare
+    // class selector matches a hidden element and would make this assertion depend
+    // on DOM order rather than on what is on screen.
     await expect(
-      page.locator('.stage__loading, .stage__poster-fallback img, model-viewer').first(),
+      page.locator('.stage__loading, .stage__error:not([hidden]), model-viewer').first(),
     ).toBeVisible()
 
     // The camera buttons are asserted in webgl.spec.ts, NOT here.
@@ -115,7 +126,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
   // also the ONLY failure that reported nothing, because Stage.tsx guarded its
   // diagnostic with `if (glbUrl)`. The fixture product n002 exists purely so this
   // test can fail: without a GLB-less product it could never exercise the path.
-  test('a product with no 3D file falls back to the poster AND reports it', async ({ page }) => {
+  test('a product with no 3D file explains itself AND reports it', async ({ page }) => {
     const diagnostics: string[] = []
     page.on('console', (msg) => {
       if (msg.text().includes('[viewer:')) diagnostics.push(msg.text())
@@ -123,8 +134,15 @@ test.describe('RUN APPAREL 3D viewer', () => {
 
     await page.goto('/n002/wine')
     await expect(page.getByRole('heading', { level: 1 })).toContainText(/Sample Without Model/i)
-    // Poster-first still works, and the page is otherwise whole.
-    await expect(page.locator('.stage img').first()).toBeVisible()
+    // The page is otherwise whole.
+    //
+    // This ASSERTED A POSTER IMAGE until 2026-08-21 (`.stage img` visible), which
+    // is why the whole test died on that line the moment the poster was removed —
+    // and, worse, why the copy assertion at the bottom was never reached while the
+    // copy was wrong. The stage no longer paints a photograph in any state, so
+    // there is nothing image-shaped left to check here; what the visitor actually
+    // gets is the notice, and that is what the bottom of this test now proves.
+    await expect(page.locator('.stage img')).toHaveCount(0)
     // Scoped to the in-page section. Since 2026-08-14 the mobile action bar also
     // says "Email Us" — it had dropped the verb only on the device the product is
     // actually opened with, which was the wrong surface to abbreviate — so an
@@ -137,8 +155,19 @@ test.describe('RUN APPAREL 3D viewer', () => {
     // lost WebGL context, where the model DID load and was then taken away — and
     // it named "the static reference", which is not a thing the visitor can see.
     // The replacement names what IS on screen and what can still be trusted.
+    //
+    // It changed AGAIN 2026-08-21, for the same reason a second time: it ended
+    // "…showing a photograph of the garment", and the photograph was removed that
+    // day. Matching the FIRST clause alone would let that recur silently, so this
+    // asserts the whole sentence and a negative on the word that went stale.
     await expect(page.locator('model-viewer')).toHaveCount(0)
-    await expect(page.getByText(/showing a photograph of the garment/i)).toBeVisible()
+    const notice = page.locator('.stage__error')
+    await expect(notice).toBeVisible()
+    await expect(notice).toHaveText(
+      'The 3D view is not available. The colours, fabric and specifications on this page are correct, and you can still send an enquiry below.',
+    )
+    // Scoped to the stage: unrelated product copy is free to use the word.
+    await expect(page.locator('.stage').getByText(/photograph/i)).toHaveCount(0)
 
     expect(diagnostics.join('\n')).toContain('[viewer:model-missing]')
   })

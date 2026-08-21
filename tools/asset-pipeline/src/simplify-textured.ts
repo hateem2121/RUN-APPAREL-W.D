@@ -92,6 +92,18 @@ export interface SimplifyTexturedOptions {
   /** Same idea for vertex normals, which protects shading rather than artwork. */
   normalWeight: number
   /**
+   * Meshes whose name matches this are left ALONE by this pass.
+   *
+   * Exists so `--stitch` and `--simplify` can both run on one garment without
+   * decimating the thread twice. Measured 2026-08-21: a stitch pass took the
+   * thread to 777k triangles and this pass then took it to 445k, which frayed the
+   * cord into spikes and was rejected on sight. Whichever pass owns a mesh should
+   * be the only one to touch it.
+   *
+   * `optimize.ts` sets this to the topstitch pattern whenever the stitch pass ran.
+   */
+  skipMeshes?: RegExp | undefined
+  /**
    * Called with the counters once the pass has run.
    *
    * These used to go only to the document logger at debug level, i.e. nowhere
@@ -111,6 +123,13 @@ export interface SimplifyTexturedResult {
   fallback: number
   /** Primitives left untouched (unsupported draw mode, or no indices). */
   skipped: number
+  /**
+   * Primitives deliberately left to an earlier, differently-budgeted pass — see
+   * `skipMeshes`. Counted separately from `skipped` on purpose: that field means
+   * "this pass could not handle it", and reading a topstitch count there would
+   * suggest unsupported draw modes that are not present.
+   */
+  ownedElsewhere: number
   /**
    * Which UV sets were actually weighted, across every primitive. Reported
    * because it is the difference between artwork being protected and only
@@ -297,7 +316,8 @@ export function simplifyTextured(options: SimplifyTexturedOptions): Transform {
       .getLogger()
       .debug(
         `simplifyTextured: ${result.attributeAware} primitives with UV error, ` +
-          `${result.fallback} fallback, ${result.skipped} skipped. ` +
+          `${result.fallback} fallback, ${result.skipped} skipped, ` +
+          `${result.ownedElsewhere} owned by the stitch pass. ` +
           `UV sets weighted: ${result.uvSetsWeighted.map((n) => `TEXCOORD_${n}`).join(', ') || 'none'}.`,
       )
   })
@@ -317,11 +337,17 @@ export function runSimplifyTextured(
     attributeAware: 0,
     fallback: 0,
     skipped: 0,
+    ownedElsewhere: 0,
     uvSetsWeighted: [],
     artworkAtRisk: [],
   }
 
   for (const mesh of document.getRoot().listMeshes()) {
+    // Owned by an earlier, differently-budgeted pass (see `skipMeshes`).
+    if (options.skipMeshes?.test(mesh.getName() || '')) {
+      result.ownedElsewhere += mesh.listPrimitives().length
+      continue
+    }
     for (const prim of mesh.listPrimitives()) {
       const mode = prim.getMode()
       if (mode !== TRIANGLES && mode !== TRIANGLE_STRIP && mode !== TRIANGLE_FAN) {

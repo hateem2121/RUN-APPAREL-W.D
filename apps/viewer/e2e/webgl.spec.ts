@@ -244,16 +244,27 @@ test('a lost WebGL context is reported as such, not as a failed colour swap', as
       )
   })
 
-  // The garment is still represented — poster, not an empty stage.
+  // The visitor is told what happened — an explanation, not an empty stage.
   //
   // The expected copy changed 2026-08-14, and THIS TEST is the reason it had to.
   // The old string said "the interactive 3D view could not load", which is false
   // in precisely the case this test simulates: the model loaded, and the GPU
   // then took the context away. The replacement describes what is on screen.
-  await expect(page.getByText(/showing a photograph of the garment/i)).toBeVisible({
-    timeout: 10_000,
-  })
-  await expect(page.locator('.stage img').first()).toBeVisible()
+  //
+  // ⚠️ It changed AGAIN 2026-08-21 and this test is the reason a second time. The
+  // 2026-08-14 wording ended "…so this page is showing a photograph of the
+  // garment", which was true only while the stage painted a poster; the poster was
+  // removed that day and the sentence was not, so this test's own subject — the
+  // commonest failure a real buyer meets — would have told them to look at a
+  // picture that is not there. What is asserted now is the notice's full text,
+  // because matching a fragment is exactly how the stale half survived.
+  const notice = page.locator('.stage__error')
+  await expect(notice).toBeVisible({ timeout: 10_000 })
+  await expect(notice).toHaveText(
+    'The 3D view is not available. The colours, fabric and specifications on this page are correct, and you can still send an enquiry below.',
+  )
+  // No image stands in for the model any more, in any state.
+  await expect(page.locator('.stage img')).toHaveCount(0)
 
   // Added 2026-08-14: the live region must not still be offering to rotate a
   // model that is gone. The webglcontextlost branch sets fallback and now also

@@ -33,10 +33,26 @@ import { APIError } from 'payload'
 /**
  * Absolute ceiling for a raw ingest upload. Above this a file is almost
  * certainly not a single garment export (e.g. an entire CLO project), so reject
- * it rather than spend container CPU/RAM on something that can't publish. Sized
- * well above a real CLO combined export (~350–400 MB observed for 5 colourways).
+ * it rather than spend container CPU/RAM on something that can't publish.
+ *
+ * ⚠️ RAISED 600 MB → 2 GB on 2026-08-21, and the old value was NOT wrong when it
+ * was chosen — it was sized "well above a real CLO combined export (~350–400 MB
+ * observed for 5 colourways)", which held until a 1,313,979,936-byte Cycling-Bib
+ * export arrived and was rejected before anything could look at it. The premise
+ * changed, not the arithmetic: that file is **99.97% decorative topstitch and
+ * 0.03% garment**, so its size says nothing about whether it can publish. It
+ * shrinks to ~20.6 MB.
+ *
+ * Sized against the CONTAINER, which is the real constraint, not a guess:
+ *   - Memory: `standard-4` gives 12 GiB. Measured peak RSS processing the 1.31 GB
+ *     file end to end was **5.27 GB** in 32.5 s, so 2 GB of input has headroom.
+ *     Do not raise this further without re-measuring peak RSS — an OOM inside the
+ *     Container surfaces as a failed shrink job, not as a memory error.
+ *   - Disk: `standard-4` gives 20 GB; input + scratch + output fits easily.
+ *   - Upload: `clientUploads` sends 5 MB parts, so 2 GB is ~410 parts against
+ *     R2's 10,000-part multipart limit.
  */
-export const RAW_HARD_MAX_BYTES = 600 * 1024 * 1024
+export const RAW_HARD_MAX_BYTES = 2 * 1024 * 1024 * 1024
 
 /**
  * Characters that Payload sanitises INCONSISTENTLY across a client upload, so a

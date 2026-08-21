@@ -167,8 +167,32 @@ export const BINARY_MID_FRACTION = 0.02
  * So a cutout must also actually CUT SOMETHING OUT — see
  * CUTOUT_MIN_TRANSPARENT. That is the property that distinguishes the two, and
  * it separates them by a wide margin rather than a fine one.
+ *
+ * ⚠️ RAISED 0.05 → 0.08 on 2026-08-21, and the owner found the reason by looking at
+ * the garment, not by any gate firing: the Cycling-Bib's all-over HALFTONE print
+ * measures **6.94% mid**, just past the old ceiling, so it stayed BLEND. With no
+ * order-independent transparency in <model-viewer> that print then sorted badly
+ * against the geometry behind it, and the reported symptom was
+ * *"sometimes it feels like the stitches are see through"* — a strap reading as
+ * semi-transparent from some angles. Flipping it to MASK@0.5 fixed it, verified by
+ * A/B screenshots at the same camera.
+ *
+ * A halftone is thousands of small dots, so it has far more edge per unit area
+ * than the wordmark this ceiling was last calibrated against (3.58%). 0.08 is the
+ * measured 6.94% plus a modest margin — not a round number chosen for comfort.
+ *
+ * The three measured neighbours, and why this is still safe:
+ *
+ *     halftone print (a real cutout)   73.33% transparent,  6.94% mid  -> MASK
+ *     dobby fabric (genuinely sheer)    0.00% transparent, 21.19% mid  -> BLEND
+ *     care label                       77.30% transparent,  8.43% mid  -> BLEND
+ *
+ * Note the dobby is rejected by CUTOUT_MIN_TRANSPARENT, not by this number — the
+ * translucent-inset hazard above is guarded by the OTHER half of the pair, exactly
+ * as that paragraph says. This ceiling only decides how much soft edge a genuine
+ * cutout may carry.
  */
-export const CUTOUT_MID_FRACTION = 0.05
+export const CUTOUT_MID_FRACTION = 0.08
 
 /**
  * A cutout must have real holes in it, not merely soft edges.

@@ -529,8 +529,16 @@ test.describe('layout invariants', () => {
        * So the existence check moved to `webgl.spec.ts`, which is the only project
        * that guarantees a context. What belongs HERE is the overlap invariant, and
        * it is stated so that a missing control cannot make it vacuous by accident:
-       * absence is accepted ONLY when the stage is genuinely in its poster
-       * fallback, which the DOM says outright.
+       * absence is accepted ONLY when the stage is genuinely in its fallback,
+       * which the DOM says outright.
+       *
+       * ⚠️ THAT DOM SIGNAL CHANGED 2026-08-21 and took nine of this file's tests
+       * down with it. It used to be `.stage__poster-fallback`; the poster image
+       * was removed from the stage that day, so the element stopped existing, the
+       * escape hatch below stopped opening, and every Firefox run — the one engine
+       * that actually takes this branch, having no WebGL — failed. The signal is
+       * now the visible notice, which is what the visitor gets and is therefore
+       * the thing worth keying on.
        */
       const boxes = await page.evaluate(() => {
         const rect = (selector: string) => {
@@ -542,9 +550,14 @@ test.describe('layout invariants', () => {
         return {
           canvas: rect('.stage__canvas'),
           controls: rect('.stage__controls'),
-          // <Stage> renders this only when `isPoster(phase)` — no WebGL, no GLB,
-          // Save-Data, a module failure, or a lost context.
-          posterFallback: document.querySelector('.stage__poster-fallback') !== null,
+          // <Stage> SHOWS this only when `isPoster(phase)` — no WebGL, no GLB,
+          // Save-Data, a module failure, or a lost context. The element itself is
+          // mounted unconditionally so the live region can announce, so presence
+          // proves nothing and the `hidden` attribute is the actual signal.
+          inFallback: (() => {
+            const notice = document.querySelector('.stage__error')
+            return notice !== null && !notice.hasAttribute('hidden')
+          })(),
         }
       })
 
@@ -552,9 +565,9 @@ test.describe('layout invariants', () => {
 
       if (boxes.controls === null) {
         expect(
-          boxes.posterFallback,
-          'the camera controls are missing and the stage is NOT in its poster ' +
-            'fallback — they are reserved-and-disabled during the download, never ' +
+          boxes.inFallback,
+          'the camera controls are missing and the stage is NOT in its fallback ' +
+            '— they are reserved-and-disabled during the download, never ' +
             'unmounted, so this means they were removed',
         ).toBe(true)
         return
@@ -960,10 +973,18 @@ test.describe('layout invariants', () => {
 
       // ⚠️ DO NOT WAIT FOR `model-viewer` ALONE — that makes this a test of the
       // runner's GPU, a mistake `viewer.spec.ts` already documents. Headless
-      // Firefox has no WebGL context, so `canRender3D()` correctly refuses and
-      // <Stage> renders `.stage__poster-fallback` instead. Both are "the surface
-      // showing the garment", both are height:100% of the same parent, and both
-      // therefore carry the 378x0 risk this test exists for.
+      // Firefox has no WebGL context, so `canRender3D()` correctly refuses.
+      //
+      // ⚠️ THE SECOND ARM USED TO BE `.stage__poster-fallback img`, and this test
+      // measured THAT box when the model was absent — both were height:100% of the
+      // same parent, so both carried the 378x0 risk. The poster image was removed
+      // from the stage on 2026-08-21, which means a browser without WebGL now
+      // shows NO garment surface at all: there is nothing left to measure, and the
+      // invariant this test guards simply does not apply there. So the wait
+      // accepts the notice, and the measurement is skipped in that case rather
+      // than asserted against a surface that no longer exists. Skipping silently
+      // would be the trap, so the fallback branch still asserts the stage reached
+      // its fallback deliberately instead of going blank.
       //
       // ⚠️ AND DO NOT COPY `viewer.spec.ts`'s LOCATOR, which also lists
       // `.stage__loading`. That one asks "did the stage do anything at all", and
@@ -975,28 +996,37 @@ test.describe('layout invariants', () => {
       // `attached`, not `visible`: during the download the surface is mounted and
       // deliberately not yet painted.
       await page
-        .locator('model-viewer, .stage__poster-fallback img')
+        .locator('model-viewer, .stage__error:not([hidden])')
         .first()
         .waitFor({ state: 'attached' })
 
       const box = await page.evaluate(() => {
         const model = document.querySelector('model-viewer.stage__model')
-        const poster = document.querySelector('.stage__poster-fallback img')
-        const el = model ?? poster
-        if (!el) return null
-        const r = el.getBoundingClientRect()
+        if (!model) {
+          const notice = document.querySelector('.stage__error')
+          return {
+            kind: 'fallback' as const,
+            inFallback: notice !== null && !notice.hasAttribute('hidden'),
+          }
+        }
+        const r = model.getBoundingClientRect()
         return {
-          kind: model ? 'model-viewer' : 'poster fallback',
+          kind: 'model-viewer' as const,
           w: Math.round(r.width),
           h: Math.round(r.height),
         }
       })
 
-      expect(
-        box,
-        'neither model-viewer nor the poster fallback is on the page — the stage ' +
-          'is showing no garment surface at all',
-      ).not.toBeNull()
+      if (box.kind === 'fallback') {
+        expect(
+          box.inFallback,
+          'there is no model-viewer AND the stage is not in its fallback — it is ' +
+            'showing no garment surface and no explanation either, which is the ' +
+            'blank stage this whole file exists to prevent',
+        ).toBe(true)
+        return
+      }
+
       const { kind, w, h } = box as { kind: string; w: number; h: number }
 
       expect(w, `the ${kind} is ${w}px wide`).toBeGreaterThan(100)

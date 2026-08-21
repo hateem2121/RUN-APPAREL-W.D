@@ -89,6 +89,25 @@ COMPRESSION FLAGS (merge, optimize)
                        intact; lower it for a smaller file, raise it if artwork
                        looks smeared. 0 disables texture-aware decimation
   --normal-weight <n>  Same for vertex normals — protects shading (default 0.5)
+  --stitch <ratio>     Decimate ONLY decorative Topstitch_* meshes to this
+                       fraction, leaving the garment and its artwork untouched.
+                       Use INSTEAD OF --simplify on a CLO export whose garment
+                       mesh is already small: running both decimates the thread
+                       twice, which frays it into spikes. Measured on a real
+                       export: 99.97% of its 34.0M triangles was stitching and
+                       0.03% was the garment
+  --stitch-error <r>   Error budget for --stitch (default 0.0005). The real
+                       aggression dial — keep it TIGHT. It self-limits: asked for
+                       3% it kept 3.99% rather than damage the cord. A 20x looser
+                       0.01 is what produced a rejected, frayed result.
+                       ⚠️ Judge stitching on a 4-7deg crop (render --views); at
+                       the default 18deg crop a ruined cord looks perfect
+  --data-max-texture <px>  Cap for textures used ONLY as normal/metallicRoughness/
+                       occlusion. Defaults to --max-texture (no change). Worth
+                       setting to half: these carry shading, not pictures, and
+                       measured 9.63 MB against the artwork's 7.03 MB purely from
+                       running at colour-map resolution. Halving is invisible;
+                       quartering visibly flattens fabric weave
 
 MATERIAL FLAGS (merge, optimize)
   (default)            Resolve each translucent material by INSPECTING its alpha,

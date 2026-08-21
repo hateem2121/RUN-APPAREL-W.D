@@ -41,6 +41,30 @@ export interface VariantColour extends ColourName {
 const TRIM_NAME =
   /(zip|zipper|slider|puller|tape|button|snap|eyelet|elastic|binding|trim|piping|drawcord|cord|velcro|thread|stitch|seam|label|tag)/i
 
+/**
+ * Printed graphics sitting ON the fabric. Not its colour either.
+ *
+ * ⚠️ ADDED 2026-08-21 after a real regression. `isGarmentFabric` excluded artwork
+ * only by TEXTURE name, and a CLO export leaves textures anonymous — **0 of 24 had
+ * a name or URI** on the Cycling-Bib file — so nothing was ever excluded. It went
+ * unnoticed only because the fabric happened to win on surface area. When the
+ * all-over halftone print moved from BLEND to MASK, the area ranking flipped and
+ * every colourway was named from the PRINT's dark ink instead of the cloth:
+ *
+ *     fabric-sampled (right)   Wine  Slate  Lilac  White  Turquoise
+ *     print-sampled  (wrong)   Brown Sage   Denim  Navy   Teal
+ *
+ * This is the same failure mode as 2026-08-03, when every published colour name on
+ * the live site was wrong. Excluding by MATERIAL name closes it whatever the
+ * alphaMode does next.
+ *
+ * Deliberately this module's OWN list, not an import from texture-artwork.ts — see
+ * the note on TRIM_NAME above. These answer different questions and merging them
+ * would let a change to one silently alter the other. Token-boundary matched, so
+ * `Material_Graphic` matches while a fabric called `Textured_Knit` does not.
+ */
+const GRAPHIC_NAME = /(^|[^a-z])(graphic|print|logo|artwork|decal|wordmark|slogan)([^a-z]|$)/i
+
 /** Object-space surface area of a primitive's triangles. */
 function primitiveArea(prim: Primitive): number {
   const position = prim.getAttribute('POSITION')
@@ -75,7 +99,9 @@ function primitiveArea(prim: Primitive): number {
  * to the next-largest one, while including a zip names the whole colourway black.
  */
 function isGarmentFabric(material: Material): boolean {
-  if (TRIM_NAME.test(material.getName())) return false
+  const name = material.getName()
+  if (TRIM_NAME.test(name)) return false
+  if (GRAPHIC_NAME.test(name)) return false
   for (const texture of [material.getBaseColorTexture(), material.getEmissiveTexture()]) {
     if (texture && isArtworkTextureByName(texture)) return false
   }

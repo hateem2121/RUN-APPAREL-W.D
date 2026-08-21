@@ -9,6 +9,39 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
 
 ## Traps — each of these has already cost a session
 
+- **model-viewer BAKES the draco and ktx2 decoder locations at MODULE-EVALUATION
+  time, and there is NO equivalent line for meshopt — which is exactly why meshopt
+  has always worked here and draco never has.** `lib/features/loading.js` runs, at
+  import:
+
+  ```js
+  const ModelViewerElement = self.ModelViewerElement || {}
+  const dracoDecoderLocation =
+    ModelViewerElement.dracoDecoderLocation || DEFAULT_DRACO_DECODER_LOCATION
+  CachingGLTFLoader.setDRACODecoderLocation(dracoDecoderLocation)
+  ```
+
+  So it reads a GLOBAL that must exist **before** the import; meshopt has no default
+  and is set only by the post-import setter. `Stage.tsx` set all four the same way
+  after the import, and the two that look identical behaved oppositely. Measured on
+  a cold load of the live site 2026-08-21: `dracoDecoderLocation` =
+  `https://www.gstatic.com/draco/versioned/decoders/1.5.6/`, `meshoptDecoderLocation`
+  = `/meshopt_decoder.js`. **A draco garment therefore rendered nothing in
+  production** — the CSP correctly refused gstatic — and fell back to its poster.
+  `Stage.tsx` now seeds `self.ModelViewerElement` before the dynamic import, per
+  model-viewer's own docs. ⚠️ **UNVERIFIED**: it could not be reproduced locally
+  because a harness using the `dist` build registers its own global and behaves
+  differently from the ESM `lib/` the app bundles (`dist` reads `undefined`, live
+  reads gstatic). Production stays on `--meshopt`
+  (`packages/shared/src/shrink.ts`); **before re-enabling `--draco`, load the
+  deployed site cold and check
+  `customElements.get('model-viewer').dracoDecoderLocation === '/draco/'`.**
+  ⚠️ Three wrong diagnoses preceded the right one, all plausible, all disproved by
+  measurement: "it is set on the instance not the class" (it is the class — the local
+  is just named `element`), "model-viewer is duplicated across chunks" (only one
+  chunk contains it), "the setter throws" (none of them do). **`git log` proves
+  nothing here** — the old line was committed, deployed, error-free and inert.
+
 - **THE LAYOUT QUERY AND THE CONTENT QUERY ARE NOT THE SAME QUERY, and building
   them as one broke a landscape phone.** Found 2026-08-21, before shipping, by
   measurement rather than by review. `<ProductIdentity>` moves the product's name
@@ -453,6 +486,31 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   `container-type: inline-size` — **never `size`**, which would make the block axis
   a containment root too, and this element is a flex item inside a band whose whole
   job is dividing height.
+
+- **Deleting UI does not delete the words describing it, and NOTHING here checks
+  that pairing.** The stage stopped painting a poster image on 2026-08-21 (owner
+  decision). `LOAD_NOTICE` still ended "…so this page is showing a photograph of
+  the garment" and the section's `aria-label` was still `Product reference
+  photograph`, so a visitor whose GPU had just dropped the context was told to look
+  at a picture that no longer existed — and a screen-reader user was told the empty
+  region held one. Both shipped through lint, typecheck, 245 viewer unit tests and
+  a full `pnpm test:coverage`. **The e2e test that asserts this exact sentence
+  could not catch it**: `viewer.spec.ts` checked `.stage img` on the line ABOVE and
+  died there, so the copy assertion was never reached — a stale locator masked a
+  stale sentence, in the same test. `a11y.spec.ts` asserted the same sentence and
+  went green, because at that moment the copy still matched the code. Grep the copy
+  constants whenever an element leaves the DOM; put the negative assertion
+  (`.stage img` → `toHaveCount(0)`) BEFORE the copy assertion, never after.
+- **The suite used two DELETED elements as its "is the stage in fallback?" signal,
+  and 15 tests failed at once.** `.stage__poster-fallback` and `.stage img` were
+  how `viewer.spec.ts`, `motion-and-layout.spec.ts` and `webgl.spec.ts` all knew
+  the stage had given up on 3D. Removing the poster removed the signal, so every
+  Firefox run failed — Firefox being the only engine here with no WebGL, i.e. the
+  only one that takes the branch. The signal is now `.stage__error:not([hidden])`,
+  and the `:not([hidden])` is load-bearing: that `<p>` is mounted UNCONDITIONALLY
+  so its live region can announce, so presence proves nothing. Prefer a signal the
+  VISITOR receives over one the implementation happens to render — the notice
+  survives a change of medium, an `<img>` does not.
 
 ## Whose animation advice wins
 

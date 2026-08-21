@@ -64,13 +64,23 @@ const KTX2_TRANSCODER_URL = '/basis/'
  * Both are now written for a non-native English reader: short sentences, no
  * idiom, and each states what is wrong, what the visitor is actually seeing, and
  * which part of the page they can still trust.
+ *
+ * ⚠️ LOAD_NOTICE LOST A SECOND FALSE CLAUSE 2026-08-21, and the way it survived is
+ * the lesson. It ended "…so this page is showing a photograph of the garment",
+ * which stopped being true the moment the poster image was removed from the stage
+ * in this same change — the words describing the picture were not deleted with the
+ * picture. Every gate stayed green: the one e2e test that asserts this copy checks
+ * `.stage img` on the line ABOVE and died there, so the assertion on the sentence
+ * itself was never reached. Copy that describes the UI has to be re-read whenever
+ * the UI it describes is deleted; nothing here can check that for you.
  */
 const VARIANT_NOTICE =
   'The 3D model cannot show this colourway, so it is still showing the previous one. ' +
   'The colour name, fabric and specifications on this page are for the colourway you selected.'
 const LOAD_NOTICE =
-  'The 3D view is not available, so this page is showing a photograph of the garment. ' +
-  'The colours, fabric and specifications are correct, and you can still send an enquiry below.'
+  'The 3D view is not available. ' +
+  'The colours, fabric and specifications on this page are correct, ' +
+  'and you can still send an enquiry below.'
 
 // Image-based lighting for PBR materials. Without an explicit environment,
 // <model-viewer>'s built-in neutral scene renders technical fabrics flat and
@@ -289,6 +299,45 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       return
     }
     let cancelled = false
+    /**
+     * Draco and KTX2 must be configured on the GLOBAL, BEFORE the module loads.
+     *
+     * ⚠️ Setting them on `ModelViewerElement` after the import — which is what the
+     * three lines below the import used to do, and which WORKS for meshopt — does
+     * NOT work for these two, and the asymmetry is in model-viewer itself.
+     * `lib/features/loading.js` bakes them at MODULE-EVALUATION time:
+     *
+     *     const ModelViewerElement = self.ModelViewerElement || {}
+     *     const dracoDecoderLocation =
+     *       ModelViewerElement.dracoDecoderLocation || DEFAULT_DRACO_DECODER_LOCATION
+     *     CachingGLTFLoader.setDRACODecoderLocation(dracoDecoderLocation)
+     *
+     * There is NO such line for meshopt (it has no default at all), which is
+     * exactly why meshopt has always worked here and draco never did.
+     *
+     * Measured in production 2026-08-21: on a cold load of viewer.wear-run.help,
+     * `ModelViewerElement.dracoDecoderLocation` read
+     * `https://www.gstatic.com/draco/versioned/decoders/1.5.6/` while
+     * `meshoptDecoderLocation` correctly read `/meshopt_decoder.js`. A draco-encoded
+     * garment therefore rendered NOTHING — model-viewer fetched the decoder from
+     * gstatic and the CSP (correctly) refused it. The product fell back to its
+     * poster with "The 3D view is not available".
+     *
+     * ⚠️ VERIFY THIS ON A LIVE COLD LOAD BEFORE SHIPPING A DRACO MODEL. The
+     * production shrink flags are deliberately still `--meshopt`
+     * (packages/shared/src/shrink.ts) and must not be switched back to `--draco`
+     * until `customElements.get('model-viewer').dracoDecoderLocation` reads
+     * `/draco/` on the deployed site. Checking that the code is committed proves
+     * nothing — the previous version was committed, deployed, threw no error, and
+     * was inert.
+     */
+    const globalConfig = self as unknown as {
+      ModelViewerElement?: { dracoDecoderLocation?: string; ktx2TranscoderLocation?: string }
+    }
+    globalConfig.ModelViewerElement = globalConfig.ModelViewerElement ?? {}
+    globalConfig.ModelViewerElement.dracoDecoderLocation = DRACO_DECODER_URL
+    globalConfig.ModelViewerElement.ktx2TranscoderLocation = KTX2_TRANSCODER_URL
+
     import('@google/model-viewer')
       .then(({ ModelViewerElement }) => {
         // Tell model-viewer where the Meshopt decoder lives, BEFORE any model
@@ -345,6 +394,9 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
         // ALL THREE codecs rather than just this one, and lets connect-src drop
         // gstatic entirely. --ktx2 is the documented production texture target,
         // so this stops being hypothetical the moment it is switched on.
+        // Kept as a belt-and-braces second write. Harmless, and it is what makes
+        // the value correct if a future model-viewer drops the module-eval baking.
+        // It is NOT sufficient on its own — see the block above the import.
         element.dracoDecoderLocation = DRACO_DECODER_URL
         element.ktx2TranscoderLocation = KTX2_TRANSCODER_URL
         if (!cancelled) setLibReady(true)
@@ -707,7 +759,6 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
    * garment a visitor whose device cannot run WebGL will ever see, and it now
    * comes from a photo the owner uploaded by hand, so it costs nothing to show.
    */
-  const showPosterOverlay = fallback
   const load = describeLoad({
     bytesLoaded,
     bytesTotal,
@@ -739,11 +790,18 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
 
   return (
     // The name claimed "Interactive" in every fallback state — no GLB, no WebGL,
-    // Save-Data, module load failure, lost context — where the section contains
-    // a photograph and nothing interactive at all.
+    // Save-Data, module load failure, lost context — where nothing in the section
+    // can be interacted with.
+    //
+    // ⚠️ It then claimed "photograph" until 2026-08-21, which outlived the picture:
+    // the poster image was removed from the stage in that change and this name was
+    // not, so a screen-reader user was told the region held a photograph of the
+    // garment while a sighted user saw an empty stage. The accessible name is copy
+    // like any other and goes stale the same way — see the LOAD_NOTICE note above,
+    // which lost the identical clause in the identical way on the same day.
     <section
       className="stage"
-      aria-label={fallback ? 'Product reference photograph' : 'Interactive 3D product reference'}
+      aria-label={fallback ? 'Product reference' : 'Interactive 3D product reference'}
     >
       <div className="stage__inner">
         <div className="stage__canvas" data-lenis-prevent>
@@ -789,26 +847,22 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
             />
           )}
 
-          {showPosterOverlay && (
-            <div className="stage__poster-fallback" aria-hidden={!fallback}>
-              <img
-                key={selected.slug}
-                className="stage__poster-img"
-                src={selected.poster.url}
-                alt={selected.poster.alt || selected.altText}
-                width={selected.poster.width ?? undefined}
-                height={selected.poster.height ?? undefined}
-                loading="eager"
-                decoding="async"
-                onError={(event) => {
-                  // Fall back to the product-level poster if a colourway poster
-                  // 404s, so the stage is never blank while 3D is unavailable.
-                  const fb = product.posterFallback?.url
-                  if (fb && event.currentTarget.src !== fb) event.currentTarget.src = fb
-                }}
-              />
-            </div>
-          )}
+          {/*
+           * THE POSTER IMAGE WAS REMOVED 2026-08-21 by owner decision — the stage
+           * never shows a photograph of the garment now, either as a pre-3D
+           * placeholder or as a failure fallback.
+           *
+           * The explanatory MESSAGE is deliberately KEPT (see `LOAD_NOTICE`
+           * above): when 3D genuinely cannot run, the visitor is still told why and
+           * still gets the colour, fabric, specs and the enquiry buttons. What they
+           * no longer get is a still image standing in for the model.
+           *
+           * The CMS side matches: `publishGating.ts` no longer demands a photo per
+           * colour, and its photo-DESCRIPTION rule now applies only where a photo
+           * actually exists. `colourways.posterPreview` still exists and is still
+           * served by the API when set, so nothing breaks for a product that has
+           * one — it is simply never painted here.
+           */}
 
           <div className="stage__callouts" aria-hidden="true">
             {product.fabricComposition && (

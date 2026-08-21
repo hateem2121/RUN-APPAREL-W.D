@@ -184,19 +184,32 @@ describe('assertPublishable', () => {
     ).not.toThrow()
   })
 
-  it('names the colours missing a photo', () => {
+  // Owner decision 2026-08-21: a colour no longer needs a photo to publish. This
+  // used to assert `/“Crimson” has no photo/` was thrown.
+  it('PUBLISHES a colour with no photo at all', () => {
     expect(() =>
       assertPublishable(input(), [cw(), cw({ displayName: 'Crimson', hasPoster: false })]),
-    ).toThrow(/“Crimson” has no photo/)
+    ).not.toThrow()
   })
 
-  it('ignores switched-off colours when checking photos', () => {
+  it('does not demand a photo DESCRIPTION for a colour that has no photo', () => {
+    // Demanding alt text for an image that does not exist would block publishing on
+    // an accessibility rule with nothing to describe, and invites a sentence about a
+    // missing picture — worse for a screen reader than no sentence at all.
     expect(() =>
       assertPublishable(input(), [
-        cw(),
-        cw({ displayName: 'Crimson', hasPoster: false, active: false }),
+        cw({ displayName: 'Crimson', hasPoster: false, hasAltText: false }),
       ]),
     ).not.toThrow()
+  })
+
+  it('STILL demands a description when a colour DOES have a photo', () => {
+    // The accessibility requirement is unchanged wherever it still applies.
+    expect(() =>
+      assertPublishable(input(), [
+        cw({ displayName: 'Crimson', hasPoster: true, hasAltText: false }),
+      ]),
+    ).toThrow(/photo description/)
   })
 
   it('names the colours missing a photo description', () => {
@@ -278,7 +291,8 @@ describe('collectPublishProblems', () => {
 
   it('returns every problem, not just the first', () => {
     const problems = collectPublishProblems(published, [row()])
-    expect(problems).toHaveLength(4) // no photo, no description, no model, no colour picked
+    // Was 4 until 2026-08-21 — a photo and its description are no longer required.
+    expect(problems).toHaveLength(2) // no model, no colour picked
     expect(problems.join(' ')).toContain('Wine')
   })
 
@@ -286,7 +300,7 @@ describe('collectPublishProblems', () => {
     const problems = collectPublishProblems(published, [
       row({ hasDisplayName: false, hasSlug: false }),
     ])
-    expect(problems).toHaveLength(6) // + no colour name, no web address word
+    expect(problems).toHaveLength(4) // + no colour name, no web address word
   })
 
   it('is empty for a publishable product', () => {
@@ -314,7 +328,7 @@ describe('collectPublishProblems', () => {
   })
 
   it('assertPublishable numbers them when there are several', () => {
-    expect(() => assertPublishable(published, [row()])).toThrow(/4 things need fixing/)
+    expect(() => assertPublishable(published, [row()])).toThrow(/2 things need fixing/)
   })
 })
 

@@ -143,6 +143,55 @@ describe('readVariantColours', () => {
     expect(readVariantColours(document)[0]).toMatchObject({ name: 'Navy' })
   })
 
+  it('excludes an all-over PRINT whose texture is ANONYMOUS, as CLO exports them', () => {
+    // ⚠️ THE TEST ABOVE CANNOT CATCH THIS, and that is the point. It names its
+    // texture 'RUN LOGO', so the texture-name check fires. A real CLO export names
+    // the MATERIAL and leaves every texture anonymous -- measured on the
+    // Cycling-Bib file, **0 of 24 textures had a name or URI** -- so in production
+    // nothing was ever excluded, and the fabric only won by surface area.
+    //
+    // When the halftone print moved BLEND -> MASK the area ranking flipped and all
+    // five colourways were named from the print's dark ink: Wine/Slate/Lilac became
+    // Brown/Sage/Denim. Same class of failure as 2026-08-03, when every published
+    // colour name on the live site was wrong.
+    //
+    // So the print here is given MORE area than the fabric and a nameless texture:
+    // only the MATERIAL-name exclusion can get this right.
+    const document = new Document()
+    const ext = document.createExtension(KHRMaterialsVariants)
+    const variant = ext.createVariant('Colorway 1')
+    const map = (
+      prim: ReturnType<typeof addQuad>,
+      material: ReturnType<Document['createMaterial']>,
+    ) =>
+      prim.setExtension(
+        'KHR_materials_variants',
+        ext
+          .createMappingList()
+          .addMapping(ext.createMapping().setMaterial(material).addVariant(variant)),
+      )
+
+    map(
+      addQuad(document, 4),
+      document.createMaterial('SUPPLIER_MFX_B').setBaseColorFactor(linear(136, 36, 51)),
+    )
+    const anonymous = document
+      .createTexture() // NO name, NO uri -- exactly what CLO writes
+      .setMimeType('image/png')
+      .setImage(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))
+    map(
+      addQuad(document, 40),
+      document
+        .createMaterial('Material_Graphic')
+        .setBaseColorFactor(linear(39, 0, 0))
+        .setBaseColorTexture(anonymous),
+    )
+
+    const [colour] = readVariantColours(document)
+    expect(colour?.sampledMaterial).toBe('SUPPLIER_MFX_B')
+    expect(colour?.name).toBe('Wine')
+  })
+
   it('returns nothing for a file with no variants rather than inventing one', () => {
     const document = new Document()
     addQuad(document, 5)

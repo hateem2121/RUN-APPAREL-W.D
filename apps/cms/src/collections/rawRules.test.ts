@@ -41,8 +41,13 @@ describe('checkRawUpload', () => {
   })
 
   it('rejects a file over the absolute raw ceiling', () => {
+    // Derived from the constant, not hardcoded. This assertion said "600 MB" and
+    // broke when the ceiling was raised to 2 GB on 2026-08-21 — a real catch, but
+    // one that only ever restates the source. Deriving it keeps the test about the
+    // BEHAVIOUR (the message names the actual limit) rather than about the number.
+    const mb = RAW_HARD_MAX_BYTES / 1024 / 1024
     expect(() => checkRawUpload(facts({ filesize: RAW_HARD_MAX_BYTES + 1 }))).toThrow(
-      /over the 600 MB raw ceiling/,
+      new RegExp(`over the ${mb} MB raw ceiling`),
     )
   })
 

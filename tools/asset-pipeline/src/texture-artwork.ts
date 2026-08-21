@@ -37,6 +37,13 @@ import { ARTWORK_ASPECT_RATIO, CRUSHED_BYTES_PER_PIXEL, profileAlpha } from './t
 /** Names CLO and its users give artwork textures. Matched case-insensitively against name and URI. */
 const ARTWORK_NAME = /(logo|print|graphic|artwork|label|decal|badge|emblem|wordmark|text|type)/i
 
+/**
+ * Artwork words safe to match against a MATERIAL name. See
+ * `isArtworkMaterialByName` for why this is not `ARTWORK_NAME`.
+ */
+const ARTWORK_MATERIAL_NAME =
+  /(^|[^a-z])(logo|print|graphic|artwork|label|decal|badge|emblem|wordmark)([^a-z]|$)/i
+
 /** Slots that are data, not pictures. Never treated as artwork whatever they are called. */
 const DATA_SLOT = /(normal|metallicRoughness|occlusion)Texture/i
 
@@ -50,6 +57,20 @@ export interface ArtworkTextureOptions {
   artworkQuality: number
   /** Resize cap for artwork. Higher, because thin lettering is what resampling destroys first. */
   artworkMaxSize: number
+  /**
+   * Resize cap for textures used ONLY in data slots (normal / metallicRoughness /
+   * occlusion). Optional; falls back to `maxSize`, so leaving it unset keeps the
+   * old behaviour exactly.
+   *
+   * Worth setting to half `maxSize`. Measured 2026-08-21 on the Cycling-Bib
+   * export: these maps were 9.63 MB of a 16.65 MB texture budget — MORE than the
+   * artwork (7.03 MB) — because they were running at colour-map resolution. They
+   * carry shading, not pictures, and the eye cannot resolve them there. Halving
+   * them took the finished model 38.1 MB → 32.6 MB with no visible change.
+   * Quartering them was also tried and REFUSED: 1.67% of pixels moved by >8/255
+   * and it visibly flattened the white fabric's weave, for one more megabyte.
+   */
+  dataMaxSize?: number
   onResult?: (result: TextureArtworkResult) => void
 }
 
@@ -85,6 +106,38 @@ const DECODABLE = new Set(['image/png', 'image/jpeg', 'image/webp'])
 function isDataTexture(texture: Texture): boolean {
   const slots = listTextureSlots(texture)
   return slots.length > 0 && slots.every((slot) => DATA_SLOT.test(slot))
+}
+
+/**
+ * Does this MATERIAL's own name say it carries printed artwork?
+ *
+ * Needed because a CLO export names the MATERIAL and leaves every texture
+ * anonymous. Measured 2026-08-21 on the Cycling-Bib export: **0 of 24 textures had
+ * a name or URI**, while the materials were called things like
+ * "White Black Bold Minimalist Clothing Label_9946645". Any name-based check that
+ * only reads the texture is therefore silently inert on real CLO files — which is
+ * exactly how a first attempt at the double-siding fix below did nothing at all.
+ *
+ * Deliberately NOT wired into `isArtworkTexture`. That feeds
+ * `findArtworkAlphaProblems`, which throws and saves nothing, and widening a
+ * blocking gate to fix a rendering bug is the wrong trade.
+ *
+ * ⚠️ USES ITS OWN, TIGHTER PATTERN — do not "simplify" this back to `ARTWORK_NAME`.
+ * That regex is unanchored and includes `text` and `type`, which is fine for
+ * TEXTURE names but dangerous for MATERIAL names, where CLO writes things like
+ * `Textile_Cotton`, `Texture_Map_01` or `Polyester_Textured`. All three contain
+ * "text" and would be classified as artwork, exempting real FABRIC from
+ * double-siding — i.e. silently reinstating the see-through-garment bug this
+ * pipeline exists to fix. Caught by auditing the regex against plausible names,
+ * not by any failing test.
+ *
+ * So: the two ambiguous tokens are dropped, and the rest must sit on a token
+ * boundary. `\b` is not usable here — `_` is a word character, so `\bgraphic`
+ * would not match `Material_Graphic`, which is the single most important real
+ * name this has to catch.
+ */
+export function isArtworkMaterialByName(material: { getName(): string }): boolean {
+  return ARTWORK_MATERIAL_NAME.test(material.getName() || '')
 }
 
 /**
@@ -267,7 +320,16 @@ export function compressTexturesForArtwork(options: ArtworkTextureOptions): Tran
         }
 
         const artwork = await isArtworkTexture(texture)
-        const maxSize = artwork ? options.artworkMaxSize : options.maxSize
+        // A texture used ONLY as normal/ORM/occlusion gets its own, smaller cap.
+        // `isDataTexture` requires EVERY slot to be a data slot, so a map that is
+        // also somebody's baseColor keeps the full colour cap and is never
+        // silently downsampled underneath the artwork that shares it.
+        const data = !artwork && isDataTexture(texture)
+        const maxSize = artwork
+          ? options.artworkMaxSize
+          : data
+            ? (options.dataMaxSize ?? options.maxSize)
+            : options.maxSize
         const quality = artwork ? options.artworkQuality : options.quality
 
         try {

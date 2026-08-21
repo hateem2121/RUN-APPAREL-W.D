@@ -163,7 +163,7 @@ test('the retired-colourway notice is usable with a screen reader', async ({ pag
   await scan(page, 'retired colourway notice')
 })
 
-test('the poster-only fallback is usable with a screen reader', async ({ page }) => {
+test('the notice-only fallback is usable with a screen reader', async ({ page }) => {
   // A published product with no 3D file: no <model-viewer>, no camera buttons,
   // and a notice in their place — a materially different DOM.
   //
@@ -171,9 +171,23 @@ test('the poster-only fallback is usable with a screen reader', async ({ page })
   // load here" was false in the commonest case that reaches this string — a lost
   // WebGL context, where the model DID load and was then taken away by the GPU —
   // and "here" and "reference" were both ambiguous for a non-native reader.
+  //
+  // ⚠️ It changed again 2026-08-21, when the poster image was removed from the
+  // stage and the sentence describing it was not. This assertion is why that
+  // mattered HERE in particular: the axe scan below runs on whatever DOM this
+  // line waits for, so a screen-reader test was standing on a sentence that told
+  // its user they were looking at a photograph of the garment while the region
+  // was empty. The section's accessible name carried the same false noun and is
+  // now 'Product reference'.
   await page.goto('/n002/wine')
-  await expect(page.getByText(/showing a photograph of the garment/i)).toBeVisible()
-  await scan(page, 'poster-only fallback')
+  await expect(page.locator('.stage__error')).toHaveText(
+    'The 3D view is not available. The colours, fabric and specifications on this page are correct, and you can still send an enquiry below.',
+  )
+  // `exact` is load-bearing: Playwright's name matcher is a case-insensitive
+  // SUBSTRING by default, so without it this also matches the interactive name
+  // 'Interactive 3D product reference' and proves nothing about the fallback.
+  await expect(page.getByRole('region', { name: 'Product reference', exact: true })).toBeVisible()
+  await scan(page, 'notice-only fallback')
 })
 
 test('the expanded customisation accordion is usable with a screen reader', async ({ page }) => {

@@ -76,24 +76,44 @@ import { renderViews } from '../src/render.ts'
  * logos survive is precisely the drift this repo keeps paying for.
  */
 const BALANCED_FLAGS = [
+  '--stitch',
+  '0.03',
+  '--stitch-error',
+  '0.0005',
   '--simplify',
   '0.05',
-  '--meshopt',
   '--simplify-error',
   '0.001',
   '--uv-weight',
   '1',
+  '--meshopt',
+  '--max-texture',
+  '4096',
+  '--data-max-texture',
+  '2048',
+  '--quality',
+  '75',
 ]
 
 /** `fidelity`, the stricter shipped preset. Must never damage more than `balanced`. */
 const FIDELITY_FLAGS = [
+  '--stitch',
+  '0.03',
+  '--stitch-error',
+  '0.0005',
   '--simplify',
   '0.05',
-  '--meshopt',
   '--simplify-error',
   '0.0002',
   '--uv-weight',
   '2',
+  '--meshopt',
+  '--max-texture',
+  '4096',
+  '--data-max-texture',
+  '2048',
+  '--quality',
+  '75',
 ]
 
 /**
@@ -282,8 +302,13 @@ async function assertPresetMatchesShared() {
     join(import.meta.dirname, '..', '..', '..', 'packages', 'shared', 'src', 'shrink.ts'),
     'utf8',
   )
-  const expected = BALANCED_FLAGS.map((f) => `'${f}'`).join(', ')
-  if (!source.includes(expected)) {
+  // Compare the flag SEQUENCE, not the source layout. This used to match the
+  // literal `'a', 'b'` text, which meant Biome deciding to wrap the array across
+  // lines broke the pin for reasons that had nothing to do with the preset. The
+  // pin is about which flags ship, so normalise whitespace away on both sides.
+  const normalise = (text) => text.replace(/\s+/g, '')
+  const expected = normalise(BALANCED_FLAGS.map((f) => `'${f}'`).join(','))
+  if (!normalise(source).includes(expected)) {
     throw new Error(
       `BALANCED_FLAGS has drifted from packages/shared/src/shrink.ts.\n` +
         `  this file expects: [${expected}]\n` +
