@@ -9,6 +9,39 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
 
 ## Traps — each of these has already cost a session
 
+- **model-viewer BAKES the draco and ktx2 decoder locations at MODULE-EVALUATION
+  time, and there is NO equivalent line for meshopt — which is exactly why meshopt
+  has always worked here and draco never has.** `lib/features/loading.js` runs, at
+  import:
+
+  ```js
+  const ModelViewerElement = self.ModelViewerElement || {}
+  const dracoDecoderLocation =
+    ModelViewerElement.dracoDecoderLocation || DEFAULT_DRACO_DECODER_LOCATION
+  CachingGLTFLoader.setDRACODecoderLocation(dracoDecoderLocation)
+  ```
+
+  So it reads a GLOBAL that must exist **before** the import; meshopt has no default
+  and is set only by the post-import setter. `Stage.tsx` set all four the same way
+  after the import, and the two that look identical behaved oppositely. Measured on
+  a cold load of the live site 2026-08-21: `dracoDecoderLocation` =
+  `https://www.gstatic.com/draco/versioned/decoders/1.5.6/`, `meshoptDecoderLocation`
+  = `/meshopt_decoder.js`. **A draco garment therefore rendered nothing in
+  production** — the CSP correctly refused gstatic — and fell back to its poster.
+  `Stage.tsx` now seeds `self.ModelViewerElement` before the dynamic import, per
+  model-viewer's own docs. ⚠️ **UNVERIFIED**: it could not be reproduced locally
+  because a harness using the `dist` build registers its own global and behaves
+  differently from the ESM `lib/` the app bundles (`dist` reads `undefined`, live
+  reads gstatic). Production stays on `--meshopt`
+  (`packages/shared/src/shrink.ts`); **before re-enabling `--draco`, load the
+  deployed site cold and check
+  `customElements.get('model-viewer').dracoDecoderLocation === '/draco/'`.**
+  ⚠️ Three wrong diagnoses preceded the right one, all plausible, all disproved by
+  measurement: "it is set on the instance not the class" (it is the class — the local
+  is just named `element`), "model-viewer is duplicated across chunks" (only one
+  chunk contains it), "the setter throws" (none of them do). **`git log` proves
+  nothing here** — the old line was committed, deployed, error-free and inert.
+
 - **THE LAYOUT QUERY AND THE CONTENT QUERY ARE NOT THE SAME QUERY, and building
   them as one broke a landscape phone.** Found 2026-08-21, before shipping, by
   measurement rather than by review. `<ProductIdentity>` moves the product's name

@@ -144,6 +144,10 @@ reading as a tidy-up. See the comment in `RawUploads.ts`.
 - **Every document is citation-checked, not just CLAUDE.md** — README, CONTRIBUTING,
   SECURITY and all of `docs/`. A genuinely-gone path goes in `ALLOWED_ABSENT`
   **with the reason**; `file.ts:42` and extension-less citations resolve fine.
+  ⚠️ **Never cite a gitignored GENERATED directory.** `apps/viewer/public/draco/` is
+  written at build time, so it exists locally from an earlier build and the check
+  passes for you while CI fails on a clean checkout — cite the generator
+  (`apps/viewer/scripts/copy-decoders.mjs`) instead.
   ⚠️ **`scripts/doc-citations.mjs` WAS a module with no `main` — that was fixed, and
   this paragraph said otherwise until 2026-08-19.** It told you the bare command
   "prints nothing and exits 0 having checked nothing", which cost a session that
@@ -334,7 +338,7 @@ the answer is "nothing that happens in production", it is not a test.
   apt on 2026-08-20 (`artwork`, then `e2e` when it was split out of `verify`); only
   `deploy-shrink.yml` still does.
 
-- **Seventeen more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
+- **Nineteen more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
   2026-08-19, when this file measured 44,993 characters against Claude Code's
   40,000-character warning, the point at which Anthropic's own guidance says adherence
   to *every* rule in a file starts dropping. They load the moment you touch
@@ -355,16 +359,18 @@ the answer is "nothing that happens in production", it is not a test.
   `--simplify-error` is. **Five added 2026-08-21, all from one 1.31 GB export:** a CLO
   file is **99.97% topstitch and 0.03% garment**, so thread needs its own `--stitch`
   budget and a *wide crop cannot see* a frayed cord (judge at 4–7°, not the default
-  18°); **draco is smaller AND faster than meshopt** here, inverting the CLI's own
-  help text; normal/ORM maps outweighed the artwork at colour-map resolution
+  18°); ⛔ **draco DOES NOT LOAD on the deployed viewer** — production stays on
+  `--meshopt`; normal/ORM maps outweighed the artwork at colour-map resolution
   (`--data-max-texture`); an all-over print on `BLEND` is read as sheer fabric and
-  silently squashed to 29%; and **KTX2 came out smaller yet still had to be refused**
-  because ETC1S mottles white fabric.
+  silently squashed to 29%; **KTX2 came out smaller yet still had to be refused**
+  because ETC1S mottles white fabric; **a CLO export leaves every TEXTURE anonymous**
+  so a name-based artwork check must read the MATERIAL name or it is silently inert;
+  and forced double-siding put a **mirrored care label on the outside**.
   ⚠️ These are hooks, not the traps. After `/compact` only THIS file is re-injected, so a
   compacted session that has not yet opened `tools/asset-pipeline/` has only these
   one-liners. Open that file before changing anything there.
 
-- **Twenty-eight more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
+- **Twenty-nine more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
   restated here — they load automatically the moment you touch `apps/viewer/`,
   so a copy in this file is pure weight. Enough of a hook to make you open it: a
   `performance` global shadowed by a local (a runtime `TypeError` every unit test

@@ -390,16 +390,48 @@ only the root's one-liners. Open this file before changing anything here.
   feature.** At the default `crop-chest` (18°) the ruined cord looked *identical*
   to the original and was reported as such. At **4°** it is obviously spiky. Judge
   thread with `render --views` at 4–7°.
-- **Draco is SMALLER *and* FASTER than meshopt here — the CLI help above still says
-  "slower decode" and that is wrong for this asset.** Matched builds differing only
-  in codec, model-viewer over localhost, CPU-throttled via CDP, median of 3:
-  4× throttle **meshopt 31.0 MB / 1168 ms vs draco 20.6 MB / 908 ms**; 6× throttle
-  1672 ms vs 1259 ms. The extra ~10 MB costs more to fetch and upload than meshopt's
-  decode advantage saves. The viewer already self-hosts the decoder
-  (copied into `public/` at build time by `apps/viewer/scripts/copy-decoders.mjs`;
-  `Stage.tsx` sets `dracoDecoderLocation`) and CSP
-  already allows `wasm-unsafe-eval`, so this needed no viewer change. Caveat kept
-  honest: throttled desktop Chromium with software WebGL, not a real handset.
+- **⛔ DRACO DOES NOT LOAD ON THE DEPLOYED VIEWER. Production is `--meshopt`, and
+  `--draco` must not be re-enabled until a live cold load proves otherwise.** Shipped
+  a draco garment on 2026-08-21: it rendered NOTHING and fell back to its poster,
+  with the console showing model-viewer fetching the decoder from `www.gstatic.com`,
+  which the CSP correctly blocks. On a cold live page
+  `ModelViewerElement.dracoDecoderLocation` reads the gstatic default while
+  `meshoptDecoderLocation` correctly reads `/meshopt_decoder.js`. Cause is in
+  model-viewer itself and is documented in `apps/viewer/CLAUDE.md`; the fix attempt
+  lives in `Stage.tsx` and is **unverified**.
+  ⚠️ **This bullet said the exact opposite until the same day** — "smaller AND faster
+  … so this needed no viewer change" — which would have shipped an unloadable model.
+  The SPEED measurement was real and is worth reclaiming once the viewer is fixed:
+  matched builds, CPU-throttled via CDP, median of 3 — 4× throttle **meshopt
+  31.0 MB / 1168 ms vs draco 20.6 MB / 908 ms**; 6× 1672 vs 1259. A model nobody can
+  load is worth nothing, so the number is parked, not acted on. **Checking that code
+  is committed and deployed is NOT checking that it works** — the decoder line was
+  both, and was inert.
+- **A CLO export names the MATERIAL and leaves EVERY TEXTURE ANONYMOUS.** Measured
+  2026-08-21: **0 of 24 textures had a name or URI**, while materials were called
+  `White Black Bold Minimalist Clothing Label_9946645`, `Material_Graphic`,
+  `RUN LOGO`. **Any name-based artwork check that reads only the texture is silently
+  inert on a real file** — it does not fail, it just never matches. This bit twice in
+  one session: a first fix for the mirrored label below did nothing at all, and
+  `variant-colour.ts`'s `isGarmentFabric` (texture-name only) let the halftone print
+  win on surface area and named every colourway from its dark ink —
+  Wine/Slate/Lilac became Brown/Sage/Denim, the same failure as 2026-08-03. Both now
+  read the material name too. ⚠️ `variant-colour.ts` keeps its OWN word list on
+  purpose; do not merge it with `texture-artwork.ts`'s. And use a token-boundary
+  pattern, not the texture regex — that one contains `text`/`type`, so `Textile_Cotton`
+  and `Polyester_Textured` classify as artwork and would exempt real FABRIC from
+  double-siding.
+- **`solidifyMaterials` forced EVERY non-`MASK` material double-sided, and that put a
+  MIRRORED care label on the OUTSIDE of the garment.** The label is authored INSIDE
+  and single-sided, so backface culling correctly hid it; double-siding rendered its
+  reverse face through the fabric with the text reversed. The `MASK` exemption existed
+  because "a printed decal" should keep its front — this label is a printed decal that
+  landed on `BLEND` and so missed it. Judge on what the texture IS, not which
+  alphaMode it reached. ⚠️ **Found by the OWNER looking at the rendered garment**; no
+  gate saw it, and it had been latent since long before. It only fires on a garment
+  whose artwork carries enough soft edge to miss the cutout test — N001's live model
+  has 0 BLEND materials and is unaffected, so do not assume a past model needs
+  re-running without measuring it.
 - **Normal/ORM maps ran at COLOUR-map resolution and outweighed the artwork.** They
   were **9.63 MB against the artwork's 7.03 MB** of a 16.65 MB texture budget.
   `--data-max-texture` (half `--max-texture`) is invisible and saves 5.5 MB.
