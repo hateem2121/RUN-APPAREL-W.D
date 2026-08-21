@@ -144,10 +144,10 @@ reading as a tidy-up. See the comment in `RawUploads.ts`.
 - **Every document is citation-checked, not just CLAUDE.md** — README, CONTRIBUTING,
   SECURITY and all of `docs/`. A genuinely-gone path goes in `ALLOWED_ABSENT`
   **with the reason**; `file.ts:42` and extension-less citations resolve fine.
-  ⚠️ **Never cite a gitignored GENERATED directory.** `apps/viewer/public/draco/` is
-  written at build time, so it exists locally from an earlier build and the check
-  passes for you while CI fails on a clean checkout — cite the generator
-  (`apps/viewer/scripts/copy-decoders.mjs`) instead.
+  ⚠️ **Never cite a gitignored GENERATED directory — this warning did, and broke CI.**
+  `public/draco/` is written at build time by `apps/viewer/scripts/copy-decoders.mjs`,
+  so it exists locally from an earlier build and passes for you while a clean checkout
+  fails. Cite the generator.
   ⚠️ **`scripts/doc-citations.mjs` WAS a module with no `main` — that was fixed, and
   this paragraph said otherwise until 2026-08-19.** It told you the bare command
   "prints nothing and exits 0 having checked nothing", which cost a session that
