@@ -64,13 +64,23 @@ const KTX2_TRANSCODER_URL = '/basis/'
  * Both are now written for a non-native English reader: short sentences, no
  * idiom, and each states what is wrong, what the visitor is actually seeing, and
  * which part of the page they can still trust.
+ *
+ * ⚠️ LOAD_NOTICE LOST A SECOND FALSE CLAUSE 2026-08-21, and the way it survived is
+ * the lesson. It ended "…so this page is showing a photograph of the garment",
+ * which stopped being true the moment the poster image was removed from the stage
+ * in this same change — the words describing the picture were not deleted with the
+ * picture. Every gate stayed green: the one e2e test that asserts this copy checks
+ * `.stage img` on the line ABOVE and died there, so the assertion on the sentence
+ * itself was never reached. Copy that describes the UI has to be re-read whenever
+ * the UI it describes is deleted; nothing here can check that for you.
  */
 const VARIANT_NOTICE =
   'The 3D model cannot show this colourway, so it is still showing the previous one. ' +
   'The colour name, fabric and specifications on this page are for the colourway you selected.'
 const LOAD_NOTICE =
-  'The 3D view is not available, so this page is showing a photograph of the garment. ' +
-  'The colours, fabric and specifications are correct, and you can still send an enquiry below.'
+  'The 3D view is not available. ' +
+  'The colours, fabric and specifications on this page are correct, ' +
+  'and you can still send an enquiry below.'
 
 // Image-based lighting for PBR materials. Without an explicit environment,
 // <model-viewer>'s built-in neutral scene renders technical fabrics flat and
@@ -780,11 +790,18 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
 
   return (
     // The name claimed "Interactive" in every fallback state — no GLB, no WebGL,
-    // Save-Data, module load failure, lost context — where the section contains
-    // a photograph and nothing interactive at all.
+    // Save-Data, module load failure, lost context — where nothing in the section
+    // can be interacted with.
+    //
+    // ⚠️ It then claimed "photograph" until 2026-08-21, which outlived the picture:
+    // the poster image was removed from the stage in that change and this name was
+    // not, so a screen-reader user was told the region held a photograph of the
+    // garment while a sighted user saw an empty stage. The accessible name is copy
+    // like any other and goes stale the same way — see the LOAD_NOTICE note above,
+    // which lost the identical clause in the identical way on the same day.
     <section
       className="stage"
-      aria-label={fallback ? 'Product reference photograph' : 'Interactive 3D product reference'}
+      aria-label={fallback ? 'Product reference' : 'Interactive 3D product reference'}
     >
       <div className="stage__inner">
         <div className="stage__canvas" data-lenis-prevent>
@@ -835,7 +852,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
            * never shows a photograph of the garment now, either as a pre-3D
            * placeholder or as a failure fallback.
            *
-           * The explanatory MESSAGE is deliberately KEPT (see `FALLBACK_NOTE`
+           * The explanatory MESSAGE is deliberately KEPT (see `LOAD_NOTICE`
            * above): when 3D genuinely cannot run, the visitor is still told why and
            * still gets the colour, fabric, specs and the enquiry buttons. What they
            * no longer get is a still image standing in for the model.

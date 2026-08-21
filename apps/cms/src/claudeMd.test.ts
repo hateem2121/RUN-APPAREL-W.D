@@ -112,6 +112,19 @@ const NUMBER_WORDS = new Map([
   ['eighteen', 18],
   ['nineteen', 19],
   ['twenty', 20],
+  // The TENS, added 2026-08-21 — the day apps/viewer/CLAUDE.md crossed 29 traps and
+  // the root file's "Thirty-one more traps live in …" parsed as NaN. parseNumberWord
+  // already handled compounds ("twenty-three") correctly; it simply had no value for
+  // any tens word above twenty, so the FIRST count to reach thirty was guaranteed to
+  // fail no matter who wrote it. It failed loudly, which is the good outcome — but it
+  // failed on a correct sentence, so the fix belongs here and not in the prose.
+  ['thirty', 30],
+  ['forty', 40],
+  ['fifty', 50],
+  ['sixty', 60],
+  ['seventy', 70],
+  ['eighty', 80],
+  ['ninety', 90],
 ])
 
 /**
