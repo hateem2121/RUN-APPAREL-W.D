@@ -400,9 +400,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   Worker** — logged every entry to the handler: `/assets/index-*.js`,
   `/og/n001/wine.jpg` and `/` produced no line, `/n001/lime` produced one — so
   `/assets/*` keeps its zero-overhead path as long as `run_worker_first` stays
-  unset. (Both `n001` URLs are pre-rename records; the cards moved to `/og/rxps/…`
-  on 2026-08-21. Note the doc-citation gate cannot see either — it skips anything
-  starting with `/`, so a URL-shaped example rots unwatched.) And **an HTMLRewriter selector that matches nothing is a silent no-op,
+  unset. And **an HTMLRewriter selector that matches nothing is a silent no-op,
   not an error**: delete a `<meta>` from `index.html` and the Worker keeps
   returning 200 while quietly ceasing to set it on every link, which is why
   `worker/preview.test.ts` asserts each rewritten tag still exists there.
@@ -489,30 +487,15 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   a containment root too, and this element is a flex item inside a band whose whole
   job is dividing height.
 
-- **Deleting UI does not delete the words describing it, and NOTHING here checks
-  that pairing.** The stage stopped painting a poster image on 2026-08-21 (owner
-  decision). `LOAD_NOTICE` still ended "…so this page is showing a photograph of
-  the garment" and the section's `aria-label` was still `Product reference
-  photograph`, so a visitor whose GPU had just dropped the context was told to look
-  at a picture that no longer existed — and a screen-reader user was told the empty
-  region held one. Both shipped through lint, typecheck, 245 viewer unit tests and
-  a full `pnpm test:coverage`. **The e2e test that asserts this exact sentence
-  could not catch it**: `viewer.spec.ts` checked `.stage img` on the line ABOVE and
-  died there, so the copy assertion was never reached — a stale locator masked a
-  stale sentence, in the same test. `a11y.spec.ts` asserted the same sentence and
-  went green, because at that moment the copy still matched the code. Grep the copy
-  constants whenever an element leaves the DOM; put the negative assertion
-  (`.stage img` → `toHaveCount(0)`) BEFORE the copy assertion, never after.
-- **The suite used two DELETED elements as its "is the stage in fallback?" signal,
-  and 15 tests failed at once.** `.stage__poster-fallback` and `.stage img` were
-  how `viewer.spec.ts`, `motion-and-layout.spec.ts` and `webgl.spec.ts` all knew
-  the stage had given up on 3D. Removing the poster removed the signal, so every
-  Firefox run failed — Firefox being the only engine here with no WebGL, i.e. the
-  only one that takes the branch. The signal is now `.stage__error:not([hidden])`,
-  and the `:not([hidden])` is load-bearing: that `<p>` is mounted UNCONDITIONALLY
-  so its live region can announce, so presence proves nothing. Prefer a signal the
-  VISITOR receives over one the implementation happens to render — the notice
-  survives a change of medium, an `<img>` does not.
+- **Removing an element breaks the WORDS describing it and the TESTS keyed on it.**
+  The stage stopped painting a poster 2026-08-21. `LOAD_NOTICE` and `aria-label` both
+  still claimed a photograph — through every gate, because the e2e asserting that
+  sentence checked `.stage img` one line ABOVE and died there. **Negative assertion
+  before the copy assertion.** Separately 15 tests keyed "stage in fallback?" on
+  `.stage__poster-fallback` / `.stage img`; 9 were Firefox, the only engine here
+  without WebGL and so the only one taking that branch. Now
+  `.stage__error:not([hidden])` — `:not` is load-bearing, that `<p>` is always
+  mounted so its live region can announce. **Key a test on what the VISITOR gets.**
 
 ## Whose animation advice wins
 

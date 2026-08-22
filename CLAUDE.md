@@ -45,7 +45,12 @@ bash scripts/test-alert-shell.sh # the alert branch nothing else exercises
 pnpm seed:assets && pnpm build   # build is the one that catches dependency breaks
 node scripts/check-bundle-budget.mjs  # deterministic shell weight; needs the build above
 pnpm eval:artwork                # separate CI job — gates the deploy
+pnpm --filter @run-apparel/viewer test:e2e  # separate CI job — ALSO gates the deploy
 ```
+
+⚠️ **`e2e` is in `deploy.needs` and was absent from this list until 2026-08-21.**
+Slowest gate in CI (7m45s), fastest locally (**45s**, 352 tests, four engines) — run
+it before pushing a viewer change. Two CI round trips were spent learning that.
 
 Three of these are invisible from the workspace, and that is why "it passed
 locally" has failed twice: `apps/shrink/container` is not a pnpm member and gets
@@ -57,7 +62,9 @@ some of these. It does not, and had not for some time — caught by running the
 commands rather than re-reading the sentence (same lesson as
 `eval:artwork:real -- raw/x.glb` below).
 
-**`pnpm` is not on `PATH` on the owner's machine — use `npx --yes pnpm@10.33.0`.**
+**`pnpm` may not be on `PATH` — MEASURED BOTH WAYS; use `npx --yes pnpm@10.33.0`.**
+Absent in earlier sessions; 2026-08-21 it WAS there (`/opt/homebrew/bin/pnpm`, exactly
+10.33.0). Assume neither, and never let a script shell out to bare `pnpm`.
 Every documented `pnpm <script>` in this repo means that. Bare `pnpm` fails with
 exit **127**, and the failure is worth naming because of *where* it surfaces:
 `apps/viewer/e2e/prepare.mjs` shells out to `pnpm build`, so the whole e2e suite
@@ -148,6 +155,10 @@ reading as a tidy-up. See the comment in `RawUploads.ts`.
   `public/draco/` is written at build time by `apps/viewer/scripts/copy-decoders.mjs`,
   so it exists locally from an earlier build and passes for you while a clean checkout
   fails. Cite the generator.
+  ⚠️ To reproduce CI's checkout, move `public/draco/` aside for the run — a local
+  pass with it present proves nothing, and that is what failed here twice. Note the
+  gate is blind to URL-shaped references: it skips anything starting with `/`, so
+  `/og/n001/wine.jpg` in RUNBOOK rotted unwatched through a slug rename.
   ⚠️ **`scripts/doc-citations.mjs` WAS a module with no `main` — that was fixed, and
   this paragraph said otherwise until 2026-08-19.** It told you the bare command
   "prints nothing and exits 0 having checked nothing", which cost a session that
@@ -226,21 +237,11 @@ the answer is "nothing that happens in production", it is not a test.
   ecosystem — it would either sit at 0 and change nothing, or break the quiet mode on
   purpose. The same absence is why the Playwright container in `.github/workflows/ci.yml`
   is pinned by TAG rather than digest, with a test enforcing the tag instead.
-- **`apps/cms` was pinned to TypeScript 6 until 2026-08-12 — RESOLVED by Next
-  16.3.0, and the lesson it taught outlives the pin.** Next.js 16.2.12 refused TS 7
-  outright: *"TypeScript 7.0.2 does not provide the compiler API required by
-  Next.js. Enable experimental.useTypeScriptCli … or install TypeScript 6
-  instead."* The only escape offered was an **experimental** flag on the worker
-  that serves the live admin and the public API, which was not worth uniformity.
-  Measured on 16.3.0 the day it was tried: `apps/cms` builds clean on TypeScript
-  7.0.2 (exit 0, `Finished TypeScript in 394ms`, **no** compiler-API error and no
-  fallback warning; `apps/cms/node_modules/typescript` resolves to 7.0.2). The
-  whole repo is now on one TypeScript version.
-  **Keep the lesson, which is not about TypeScript:** `tsc --noEmit` passed fine on
-  7 the entire time it was broken, so `pnpm typecheck` was green and **only
-  `pnpm build` failed.** Run `pnpm build`, not just typecheck and tests, before
-  pushing a dependency change — that is the gap the original went through, and the
-  cheap check will keep lying to you about the next one.
+- **Run `pnpm build`, not just typecheck and tests, before pushing a dependency
+  change.** `apps/cms` was pinned to TypeScript 6 until 2026-08-12 — Next.js 16.2.12
+  refused TS 7 outright; RESOLVED by 16.3.0. The lesson is not about TypeScript:
+  `tsc --noEmit` passed on 7 the whole time it was broken, so `pnpm typecheck` was
+  green and **only `pnpm build` failed.**
 - **`@cloudflare/workers-types` is HELD at `5.20260804.1` — the break begins at
   `5.20260808.1`.** Bisected 2026-08-12 across 0804/0808/0809/0810: 0804.1 passes,
   every release from 0808.1 on fails `apps/shrink` typecheck with
@@ -370,7 +371,7 @@ the answer is "nothing that happens in production", it is not a test.
   compacted session that has not yet opened `tools/asset-pipeline/` has only these
   one-liners. Open that file before changing anything there.
 
-- **Thirty-one more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
+- **Thirty more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
   restated here — they load automatically the moment you touch `apps/viewer/`,
   so a copy in this file is pure weight. Enough of a hook to make you open it: a
   `performance` global shadowed by a local (a runtime `TypeError` every unit test
@@ -434,7 +435,7 @@ the answer is "nothing that happens in production", it is not a test.
   Free win nobody here uses yet: block-level `<!-- HTML comments -->` are stripped
   before injection, so pure provenance can stay legible to humans at zero context cost.
 
-- **Three more traps live in `apps/cms/CLAUDE.md`** (loads on touching `apps/cms/`) —
+- **Four more traps live in `apps/cms/CLAUDE.md`** (loads on touching `apps/cms/`) —
   `NODE_ENV=production` for any Payload CLI task against production D1, why
   `src/migrations/` must hold only migrations, and why `withPayload` silently
   overrides any header you set in a handler; it also carries "Before you change
@@ -545,6 +546,10 @@ returns **1 for a `cancelled` run exactly as it does for a `failure`**. On
 only error line was `##[error]The operation was canceled`. Check
 `gh run view <id> --json conclusion -q .conclusion` before believing anything
 failed. Wait for the run, then push again.
+**`gh run view --log-failed` REFUSES while a run is in progress** — exactly when you
+want it. For a finished job inside a running one:
+`gh api /repos/<o>/<r>/actions/jobs/<id>/logs --allow-escape-sequences` (the flag is
+required, or gh withholds the body).
 
 **A `cancelled` conclusion also comes from a job hitting its OWN `timeout-minutes`,
 not only from a second push.** On 2026-08-18 a degraded Ubuntu mirror made

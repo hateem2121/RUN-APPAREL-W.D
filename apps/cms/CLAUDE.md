@@ -36,6 +36,16 @@ root file first.
   negative control reproducing the inert state. **Verify a header change in
   `.next/routes-manifest.json`, never in a handler.**
 
+- **The publish gate and the public API are DIFFERENT gates, and relaxing one
+  without the other saved a product the API then refused to serve.** A poster
+  requirement lived in three places — `publishGating.ts` (may I save it?),
+  `Stage.tsx` (do I draw it?), `projectViewer.ts` (may I serve it?). PR #39 relaxed
+  the first two; the third still dropped poster-less colourways, so detaching a
+  published garment's five posters left zero colourways and the endpoint **404'd it
+  live** (2026-08-21, fixed in PR #40). Before relaxing any per-colourway
+  requirement, grep all three. ⚠️ `uptime.yml` cannot catch this — it probes an SPA
+  that returns 200 HTML for any path, so it stayed green throughout.
+
 ## Writing products from a script
 
 **Go through the REST API, never D1.** `Authorization: users API-Key <key>` — the
