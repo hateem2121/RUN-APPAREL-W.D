@@ -64,8 +64,14 @@ that is exactly the check that would have caught the stale slug above:
 node -e "const d=require('/tmp/rxps-wine-before.json'); if (d.error) { console.error('REFUSED: got an error payload, not the product:', d); process.exit(1) } console.log(d.product.productCode, d.colourways.length + ' colourways,', JSON.stringify(d).length + ' bytes')"
 ```
 
-Expect `RXPS 5 colourways, ~4264 bytes`. Anything shorter, or a non-zero exit, is a
-stop.
+Expect `R-XPS 5 colourways, ~4477 bytes` — MEASURED 2026-08-25.
+
+⚠️ This line said `RXPS ... ~4264 bytes` until then. `productCode` went
+`RXPS` -> `R-XPS` on 2026-08-17 while the SLUG stayed `rxps`, so that rename has
+now rotted this file TWICE (see the `n001` warning above). A stale expected value
+makes the one check that caught the last data-loss incident ambiguous: the reader
+cannot tell a real regression from a documentation lag. Re-measure this line
+whenever either field changes. Anything shorter, or a non-zero exit, is a stop.
 
 ⚠️ A **403 from a `wear-run.help` host is inconclusive, not a failure** — free-plan
 Bot Fight Mode intermittently blocks datacenter traffic. From a laptop it should be

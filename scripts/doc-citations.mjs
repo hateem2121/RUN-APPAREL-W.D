@@ -42,6 +42,10 @@ export const ANCHORS = new Set([
  */
 export const ALLOWED_ABSENT = new Map([
   [
+    'apps/viewer/.env.local',
+    'gitignored LOCAL DEV POINTER, absent in a clean checkout by design — apps/viewer/CLAUDE.md cites it to warn that its VITE_API_BASE_URL override makes telemetry.test.ts fail locally while CI stays green. Added 2026-08-25 after this guard caught the citation in CI while a local `pnpm --filter @run-apparel/cms test` passed, because the file existed on the machine that wrote the line — the same asymmetry recorded for apps/viewer/dist below, and the same lesson: a citation to a machine-local file is only ever valid on the machine that has it. Exempt it here rather than "fix" it by creating the file.',
+  ],
+  [
     '.claude/instructions-loaded.log',
     'written by .claude/hooks/log-instructions-loaded.mjs on its first run and gitignored — a per-machine measurement of which memory files loaded, not shared state. docs/RUNBOOK.md cites it as the file to read, which is correct before it exists.',
   ],

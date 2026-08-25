@@ -592,3 +592,13 @@ it still reads `process.env.PORT`. In a session with `PORT=5002` set it binds th
   (`lint/suspicious/noDuplicateProperties`). That is why `page.css` uses
   `@supports (height: 1svh)` blocks instead of two `height:` declarations — do not
   "simplify" them back.
+
+- **A gitignored `apps/viewer/.env.local` fails the suite LOCALLY while CI stays
+  green.** Found 2026-08-25: it sets `VITE_API_BASE_URL=http://localhost:3000`, and
+  Vite loads `.env.local` in test mode too, so `src/lib/telemetry.test.ts` asserts
+  the production endpoint and receives localhost. CI has no such file, so this is
+  invisible there. The third instance of the environment-shadowing class the root
+  file documents for `NODE_ENV` and `PORT` — and it cost a stash-to-baseline bisect
+  to rule out as a code fault. Move it aside to test what CI tests; do not delete
+  it, it is the local dev pointer.
+

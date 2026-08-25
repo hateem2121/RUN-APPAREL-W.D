@@ -505,6 +505,26 @@ unused variable, on the day it was added.
 
 ## Deploying
 
+⚠️ **`git user.email` is UNSET on this machine, and that DEADLOCKS the merge.**
+Found 2026-08-25, mid-deploy. With neither a local nor a global value git falls back
+to `user@hostname`, which matches no GitHub account, so `main`'s ruleset rule
+`require_extra_approval_for_unattributed_changes` demands an approving review — and
+at one filled seat the author cannot approve their own PR. Every status check green,
+`mergeable: MERGEABLE`, `mergeStateStatus: BLOCKED`, and `gh pr merge` answers only
+"the base branch policy prohibits the merge". Set it before the first commit of a
+session; all 372 commits here use the same address:
+
+```bash
+git config --local user.email hateemjamshaid@gmail.com
+git config --local user.name "Hateem Jamshaid"
+```
+
+To repair commits already made — content is preserved, only authorship changes:
+`git rebase origin/main --exec 'git commit --amend --no-edit --reset-author'`.
+Do NOT reach for `gh pr merge --admin`: the rule is doing its job, the identity is
+what is wrong.
+
+
 Merging to `main` runs the pre-deploy D1 migrate and deploys CMS + viewer.
 **Take a D1 backup and capture `GET /api/public/viewer/rxps/wine` first** — that
 before/after diff is what caught the last data-loss incident when the migration
