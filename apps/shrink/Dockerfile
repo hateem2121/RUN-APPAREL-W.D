@@ -15,8 +15,13 @@
 # sharp links against those. A change in the WebP encoder shows up as printed
 # artwork looking different for no reason anyone can trace to a commit, which is
 # the single hardest class of bug in this repository to attribute.
-# Dependabot's `docker` ecosystem updates this digest; do not unpin it to make an
-# update easier.
+# WARNING: NOTHING AUTOMATED REFRESHES THIS DIGEST. This comment claimed Dependabot's
+# `docker` ecosystem did until 2026-08-25, and that was never true:
+# .github/dependabot.yml declares only `npm` and `github-actions`, and both sit at
+# `open-pull-requests-limit: 0` by a deliberate quiet-mode decision. Bump it by
+# hand. Do not unpin it to make an update easier, and do not "fix" this by adding
+# a `docker` ecosystem — it would either sit at 0 and change nothing, or break
+# the quiet mode on purpose. See the same correction in the root CLAUDE.md.
 FROM node:24-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03
 
 WORKDIR /app

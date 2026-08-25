@@ -163,6 +163,80 @@ jobs:
       - name: Vulnerability audit (high/critical)
         run: pnpm exec audit-ci --config audit-ci.jsonc
 
+      # ── Base-image CVEs ──────────────────────────────────────────────────
+      # audit-ci above answers "is any npm dependency known-vulnerable". Nothing
+      # answered the same question about the OPERATING SYSTEM the container runs
+      # on, and that image is digest-pinned (apps/shrink/Dockerfile) with nothing
+      # refreshing it — deliberately, because sharp links against its system libs
+      # and a moving tag changes printed artwork. The pin is correct; being
+      # unable to SEE it age is not. This is the missing half.
+      #
+      # It scans the pinned digest directly rather than a built image: it is the
+      # digest that never moves, it needs no build, and npm deps inside the image
+      # are already covered by audit-ci and the SBOM licence gate.
+      #
+      # ⚠️ THE GATE IS SCOPED TO `vuln-type: os`, AND THAT IS THE WHOLE DESIGN.
+      # MEASURED 2026-08-25 against the pinned digest before this shipped:
+      #   * debian 12.15 layer  — 0 vulnerabilities, clean
+      #   * node-pkg layer      — 1 CRITICAL, CVE-2026-59873, tar 7.5.16 -> 7.5.19
+      # That tar lives in npm's OWN bundled node_modules inside the base image. It
+      # is marked "fixed" upstream, so --ignore-unfixed does NOT filter it, and it
+      # is not fixable from this repository: the only remedy is a Node image that
+      # bundles a newer npm. An unscoped gate therefore blocks EVERY shrink deploy
+      # on a CVE nobody here can close, which is precisely how a gate gets switched
+      # off and stops protecting anything.
+      #
+      # The OS layer is also the honest scope: it is what the digest pin exists to
+      # freeze (sharp links against these system libs) and what a digest bump can
+      # actually change. This repo's own npm dependencies are already gated by
+      # audit-ci above and by the SBOM licence check — so nothing is unwatched.
+      #
+      # The informational step above keeps the DEFAULT scope (os,library), so the
+      # tar finding still prints on every run. Visible, but not blocking.
+      #
+      # ⚠️ The input is `vuln-type`, NOT `pkg-types`. The action's own action.yaml
+      # carries "# TODO: rename to pkg-types" — the Trivy CLI renamed the flag and
+      # the wrapper has not. An unknown input is IGNORED SILENTLY by Actions, which
+      # would restore the unscoped scan and fail the deploy while looking correct.
+      # Read the digest FROM the Dockerfile rather than repeating it here. A
+      # second copy of a pinned value is the same defect as the `main` ruleset's
+      # required-checks list being a second copy of `deploy.needs`: bump one, and
+      # the other keeps testing something that is no longer shipped, while
+      # staying green. The `-z` guard matters as much as the grep — an empty ref
+      # would make Trivy scan nothing and pass, which is the exact failure this
+      # whole job was added to stop.
+      - name: Read the pinned base image from the Dockerfile
+        id: baseimage
+        run: |
+          set -euo pipefail
+          ref=$(grep -oE '^FROM +[^ ]+' apps/shrink/Dockerfile | head -1 | awk '{print $2}')
+          if [ -z "$ref" ] || [ "${ref#*@sha256:}" = "$ref" ]; then
+            echo "::error::Could not read a digest-pinned FROM from apps/shrink/Dockerfile (got '$ref')."
+            exit 1
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "Scanning $ref"
+
+      - name: Base image report (informational)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ steps.baseimage.outputs.ref }}
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+
+      - name: Fail on a fixable CRITICAL in the base OS layer
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ steps.baseimage.outputs.ref }}
+          format: table
+          vuln-type: os
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
   # Secret scanning, mirroring ci.yml — and note the lesson recorded there: a scan
   # that cannot be named in a `needs:` list is not a gate. This job exists so the
   # shrink deploy has one, rather than relying on ci.yml's, which runs in a
@@ -173,18 +247,51 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0 # full history — a secret is usually in an older commit
+
+      # RUNS THE GITLEAKS BINARY, NOT gitleaks/gitleaks-action. ci.yml made this
+      # change on 2026-08-18 and this file was missed, so for three months the
+      # gate that blocks THIS deploy was inert. Measured on run 32506101672
+      # (2026-08-21), which reported success:
+      #
+      #     [RUN-APPAREL] is an organization. License key is required.
+      #     INF 0 commits scanned.
+      #     INF no leaks found
+      #
+      # ZERO commits scanned, "no leaks found", exit 0 — while `fetch-depth: 0`
+      # above pulled the entire history precisely so it could be searched. Worse
+      # than the ci.yml case that prompted the original fix, which at least
+      # managed 1 commit and ~60 bytes. The Action is free for personal accounts
+      # and PAID for organisations; unlicensed it silently degrades to a range
+      # that resolves to nothing rather than failing loudly.
+      #
+      # The gitleaks SCANNER is MIT and free. Only the wrapper is commercial.
+      #
+      # Consequences of dropping the wrapper, both deliberate and both mirroring
+      # ci.yml: `pull-requests: read` is gone from this job's permissions (only
+      # the Action needed it, to list a PR's commits), and no GITHUB_TOKEN is
+      # passed, because nothing here talks to the API.
+      #
+      # --redact so a hit never prints the secret into the log.
       - name: gitleaks
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
-          GITLEAKS_CONFIG: .gitleaks.toml
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          set -euo pipefail
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /tmp gitleaks
+          /tmp/gitleaks version
+          /tmp/gitleaks detect \
+            --source . \
+            --config .gitleaks.toml \
+            --redact \
+            --verbose \
+            --exit-code 1
 
   deploy:
     # FOUR gates, matching ci.yml. `artwork`, `audit` and `secrets` joined on

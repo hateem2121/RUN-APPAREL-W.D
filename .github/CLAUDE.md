@@ -22,6 +22,18 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   older commit". A green gate that scanned almost nothing, the same defect class as
   the citation command that exited 0 having checked nothing. There is no
   `--log-opts` now, so the full history is scanned every run against `.gitleaks.toml`.
+  ⚠️ **THE FIX WAS APPLIED TO `ci.yml` ONLY, AND `deploy-shrink.yml` KEPT THE
+  ACTION FOR THREE MONTHS.** Found 2026-08-25. That file has its own `secrets` job
+  — correctly, since a scan in another workflow cannot appear in this deploy's
+  `needs:` — and it still called the wrapper. Run 32506101672 (2026-08-21) reported
+  **success** while logging `[RUN-APPAREL] is an organization. License key is
+  required.` then `0 commits scanned.` and `no leaks found`. **Zero**, under the same
+  `fetch-depth: 0` checkout — worse than the ci.yml case that prompted the original
+  fix, which at least managed 1 commit and ~60 bytes. Unlicensed, the Action degrades
+  to a commit range resolving to nothing rather than failing loudly, so the gate
+  blocking the shrink deploy was inert and green. Both files now run the binary.
+  **Generalises past gitleaks: this repo has TWO workflows that deliberately
+  duplicate the same gates, so a fix to one is only half a fix. Grep the other.**
 - **`playwright install-deps` is bounded at 8 minutes and NON-FATAL on purpose — it
   is preparation, not a gate.** ⚠️ **`ci.yml` NO LONGER CONTAINS THIS STEP AT ALL.**
   `artwork` and `e2e` both run in `mcr.microsoft.com/playwright:v1.62.1-noble` as of
@@ -47,6 +59,21 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   (blocks deletion and force-push, requires a PR, and requires the same status checks
   the deploy needs), `production` restricted to protected branches, and
   `sha_pinning_required: true`, which the repo already satisfied so it cost nothing.
+  ⚠️ **A 40-hex SHA CAN STILL BE THE WRONG OBJECT, and the hardening test cannot
+  see it.** Found 2026-08-25 while pinning `aquasecurity/trivy-action`. For an
+  ANNOTATED tag, `gh api /repos/O/R/git/ref/tags/vX` returns the **tag object's**
+  SHA (`"type": "tag"`), not the commit's. Actions resolves `uses: repo@<sha>` only
+  against a COMMIT, so the tag-object SHA fails at runtime with the action simply
+  not found. `apps/cms/src/workflowHardening.test.ts` passed the whole time: it
+  asserts the 40-hex FORMAT and a version comment, both of which a tag object
+  satisfies. It cannot assert more without a network call, and a unit test that
+  reaches the network is a worse trade — so this is a doc rule, deliberately.
+  Dereference before pinning, and verify:
+  ```bash
+  gh api /repos/OWNER/REPO/commits/vX.Y.Z --jq .sha        # always the commit
+  gh api /repos/OWNER/REPO/git/commits/<sha> --jq .sha      # 404 => not a commit
+  ```
+  All six pins in this repo were re-verified as commits on 2026-08-25.
   ⚠️ **THE REQUIRED-CHECKS LIST IS A SECOND COPY OF `deploy.needs`, AND IT IS ORG
   CONFIG NO TEST HERE CAN READ.** It was four checks until 2026-08-20 and is five now
   (`verify`, `e2e`, `audit`, `secrets`, `artwork`) — `e2e` was added when it was split

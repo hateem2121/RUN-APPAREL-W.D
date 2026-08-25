@@ -68,6 +68,66 @@ export function scrub(event: Record<string, unknown>): Record<string, unknown> {
   return event
 }
 
+/**
+ * Errors that are provably not this application's, dropped before they are sent.
+ *
+ * MEASURED 2026-08-25, under four hours after the DSN first went live: 225
+ * events, **0 users impacted**, and not one of them a fault in this app. 148 of
+ * them — 66% — were `Object Not Found Matching Id:N, MethodName:update,
+ * ParamCount:4`, emitted by CefSharp, the embedded-Chromium host that Microsoft
+ * Outlook's SafeLinks scanner runs when it pre-fetches a link in an email. It
+ * arrives with no stack trace because no script of ours is ever on the stack. A
+ * QR-tag product page is exactly the kind of URL that gets mailed around, so
+ * this crawler keeps finding us and will not stop.
+ *
+ * This is a correctness fix, not tidying. The free Developer plan allows 5,000
+ * errors a month; the measured rate was ~1,410/day, which exhausts the quota in
+ * 3.5 days — after which Sentry drops EVERYTHING, including the first real
+ * error. Filtering the noise is what keeps the signal affordable.
+ *
+ * Sentry matches these against the exception value AND the message, so a plain
+ * substring is enough; regexes are used only where the id digit varies.
+ */
+export const IGNORED_ERRORS: (string | RegExp)[] = [
+  /Object Not Found Matching Id:\d+/,
+  // Injected by browser extensions, never by our bundle.
+  /^ResizeObserver loop/,
+  'chrome-extension://',
+  'moz-extension://',
+  'safari-extension://',
+]
+
+/**
+ * True when the event is a network failure rather than a code fault.
+ *
+ * `TypeError: Failed to fetch` was the other 34% of that measurement (77 events,
+ * 0 users). It is ambiguous BY CONSTRUCTION: a browser reports a request the
+ * user abandoned and a dead CDN with the same string. That ambiguity is exactly
+ * why it is NOT in IGNORED_ERRORS above — a blanket filter would have hidden the
+ * 2026-08-06 cached-404 incident, where a model the shrink worker had just
+ * written was unreachable from the public URL while `artworkVerdict`, the
+ * filesize, the texture census and a HEAD request were all green.
+ *
+ * So `initErrorTracking` discriminates on CAUSE instead of message: see
+ * `pageIsUnloading` below.
+ */
+export function isNetworkError(event: Record<string, unknown>): boolean {
+  const exception = event.exception as { values?: { value?: string }[] } | undefined
+  const value = exception?.values?.[0]?.value ?? (event.message as string | undefined) ?? ''
+  return /failed to fetch|networkerror|load failed|network request failed/i.test(value)
+}
+
+/**
+ * Set once the page has started going away. A fetch that fails AFTER this is the
+ * visitor navigating off mid-download, which on a 27 MB model is ordinary
+ * behaviour rather than an incident. One that fails while the page is still live
+ * still reports, which is the half that matters.
+ *
+ * `pagehide` rather than `beforeunload`: mobile Safari fires `beforeunload`
+ * unreliably, and this app's traffic is QR scans from phones.
+ */
+let pageIsUnloading = false
+
 export function initErrorTracking(): void {
   const dsn = import.meta.env.VITE_SENTRY_DSN
   if (!dsn) return
@@ -90,7 +150,20 @@ export function initErrorTracking(): void {
       tracesSampleRate: 0,
       sendDefaultPii: false,
       maxBreadcrumbs: MAX_BREADCRUMBS,
-      beforeSend: (event) => scrub(event as unknown as Record<string, unknown>) as never,
+      // Crawler and extension noise, dropped by the SDK before it costs quota.
+      ignoreErrors: IGNORED_ERRORS,
+      beforeSend: (event) => {
+        // Returning null discards the event. See isNetworkError() for why this
+        // is a cause test and not a message filter.
+        if (pageIsUnloading && isNetworkError(event as unknown as Record<string, unknown>)) {
+          return null
+        }
+        return scrub(event as unknown as Record<string, unknown>) as never
+      },
+    })
+
+    window.addEventListener('pagehide', () => {
+      pageIsUnloading = true
     })
 
     // Non-personal context, set once. Product and colourway are read at SEND time
