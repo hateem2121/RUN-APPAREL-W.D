@@ -22,6 +22,18 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   older commit". A green gate that scanned almost nothing, the same defect class as
   the citation command that exited 0 having checked nothing. There is no
   `--log-opts` now, so the full history is scanned every run against `.gitleaks.toml`.
+  ⚠️ **THE FIX WAS APPLIED TO `ci.yml` ONLY, AND `deploy-shrink.yml` KEPT THE
+  ACTION FOR THREE MONTHS.** Found 2026-08-25. That file has its own `secrets` job
+  — correctly, since a scan in another workflow cannot appear in this deploy's
+  `needs:` — and it still called the wrapper. Run 32506101672 (2026-08-21) reported
+  **success** while logging `[RUN-APPAREL] is an organization. License key is
+  required.` then `0 commits scanned.` and `no leaks found`. **Zero**, under the same
+  `fetch-depth: 0` checkout — worse than the ci.yml case that prompted the original
+  fix, which at least managed 1 commit and ~60 bytes. Unlicensed, the Action degrades
+  to a commit range resolving to nothing rather than failing loudly, so the gate
+  blocking the shrink deploy was inert and green. Both files now run the binary.
+  **Generalises past gitleaks: this repo has TWO workflows that deliberately
+  duplicate the same gates, so a fix to one is only half a fix. Grep the other.**
 - **`playwright install-deps` is bounded at 8 minutes and NON-FATAL on purpose — it
   is preparation, not a gate.** ⚠️ **`ci.yml` NO LONGER CONTAINS THIS STEP AT ALL.**
   `artwork` and `e2e` both run in `mcr.microsoft.com/playwright:v1.62.1-noble` as of

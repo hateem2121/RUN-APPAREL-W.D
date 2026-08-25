@@ -203,3 +203,34 @@ jobs:
           else
             echo "#$num was updated ${age_min}m ago, inside the ${ALERT_QUIET_MINUTES}m quiet window — not commenting."
           fi
+
+      # ─── The base case, closed 2026-08-25 ─────────────────────────────────
+      # The header of this file states that this workflow cannot watch itself,
+      # and that closing the gap "needs an off-platform monitor, which this
+      # project's budget does not run to". That premise expired: the Sentry
+      # Developer plan this repo ALREADY uses for the viewer includes one cron
+      # monitor at no extra cost. This is that monitor, and it costs $0.
+      #
+      # It runs only when every step above succeeded, which is the whole point.
+      # A workflow that dies before it measures anything — the exact failure that
+      # let uptime.yml sit broken for 23 hours in 8301e60 — sends NO check-in,
+      # and Sentry alerts on the missing ping. Nothing has to notice its own
+      # death and report it, which is the thing a dead process cannot do.
+      #
+      # An unset variable skips the step, matching how VITE_SENTRY_DSN behaves in
+      # ci.yml: the monitor is optional infrastructure, never a gate on the
+      # watcher. Set it with:
+      #   gh variable set SENTRY_CRON_URL --body '<check-in URL from Sentry>'
+      # The URL is not a secret — it is the public ingest key, the same one
+      # already shipped to every browser inside VITE_SENTRY_DSN.
+      - name: Check in to the Sentry cron monitor
+        if: success() && vars.SENTRY_CRON_URL != ''
+        env:
+          SENTRY_CRON_URL: ${{ vars.SENTRY_CRON_URL }}
+        run: |
+          set -euo pipefail
+          # Read from the environment, never interpolated into this script — the
+          # rule apps/cms/src/workflowHardening.test.ts enforces on every file here.
+          curl -fsS --max-time 15 --retry 2 --retry-delay 3 --retry-all-errors \
+            -o /dev/null "${SENTRY_CRON_URL}?status=ok"
+          echo "Checked in: the heartbeat is alive."
