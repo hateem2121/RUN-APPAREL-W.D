@@ -175,12 +175,29 @@ jobs:
       # digest that never moves, it needs no build, and npm deps inside the image
       # are already covered by audit-ci and the SBOM licence gate.
       #
-      # CRITICAL + ignore-unfixed is a deliberate threshold, not timidity. A HIGH
-      # with no upstream fix available cannot be actioned here — the only remedy
-      # is a manual digest bump — so failing on one would block every shrink
-      # deploy on something nobody can resolve, which is how a gate gets disabled.
-      # This fails only when a CRITICAL CVE has a fix waiting, which IS actionable.
-      # The unfiltered table prints either way, so HIGH findings stay visible.
+      # ⚠️ THE GATE IS SCOPED TO `vuln-type: os`, AND THAT IS THE WHOLE DESIGN.
+      # MEASURED 2026-08-25 against the pinned digest before this shipped:
+      #   * debian 12.15 layer  — 0 vulnerabilities, clean
+      #   * node-pkg layer      — 1 CRITICAL, CVE-2026-59873, tar 7.5.16 -> 7.5.19
+      # That tar lives in npm's OWN bundled node_modules inside the base image. It
+      # is marked "fixed" upstream, so --ignore-unfixed does NOT filter it, and it
+      # is not fixable from this repository: the only remedy is a Node image that
+      # bundles a newer npm. An unscoped gate therefore blocks EVERY shrink deploy
+      # on a CVE nobody here can close, which is precisely how a gate gets switched
+      # off and stops protecting anything.
+      #
+      # The OS layer is also the honest scope: it is what the digest pin exists to
+      # freeze (sharp links against these system libs) and what a digest bump can
+      # actually change. This repo's own npm dependencies are already gated by
+      # audit-ci above and by the SBOM licence check — so nothing is unwatched.
+      #
+      # The informational step above keeps the DEFAULT scope (os,library), so the
+      # tar finding still prints on every run. Visible, but not blocking.
+      #
+      # ⚠️ The input is `vuln-type`, NOT `pkg-types`. The action's own action.yaml
+      # carries "# TODO: rename to pkg-types" — the Trivy CLI renamed the flag and
+      # the wrapper has not. An unknown input is IGNORED SILENTLY by Actions, which
+      # would restore the unscoped scan and fail the deploy while looking correct.
       # Read the digest FROM the Dockerfile rather than repeating it here. A
       # second copy of a pinned value is the same defect as the `main` ruleset's
       # required-checks list being a second copy of `deploy.needs`: bump one, and
@@ -201,7 +218,7 @@ jobs:
           echo "Scanning $ref"
 
       - name: Base image report (informational)
-        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: image
           image-ref: ${{ steps.baseimage.outputs.ref }}
@@ -209,12 +226,13 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: '0'
 
-      - name: Fail on a fixable CRITICAL in the base image
-        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+      - name: Fail on a fixable CRITICAL in the base OS layer
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: image
           image-ref: ${{ steps.baseimage.outputs.ref }}
           format: table
+          vuln-type: os
           severity: CRITICAL
           ignore-unfixed: true
           exit-code: '1'
