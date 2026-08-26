@@ -98,23 +98,53 @@ export const IGNORED_ERRORS: (string | RegExp)[] = [
 ]
 
 /**
- * True when the event is a network failure rather than a code fault.
+ * True when the event is a TRANSPORT failure — no HTTP response ever arrived, so
+ * there is no status code to reason about.
  *
  * `TypeError: Failed to fetch` was the other 34% of that measurement (77 events,
- * 0 users). It is ambiguous BY CONSTRUCTION: a browser reports a request the
- * user abandoned and a dead CDN with the same string. That ambiguity is exactly
- * why it is NOT in IGNORED_ERRORS above — a blanket filter would have hidden the
- * 2026-08-06 cached-404 incident, where a model the shrink worker had just
- * written was unreachable from the public URL while `artworkVerdict`, the
- * filesize, the texture census and a HEAD request were all green.
+ * 0 users), and it kept arriving after `ignoreErrors` landed: 26 events in the 12
+ * hours to 2026-08-26T07:00Z, every one of them from DE/NL/IE/US/CH — datacentre
+ * countries, zero from any geography a QR tag is scanned in — while
+ * `GET https://viewer.wear-run.help/env/studio-soft.hdr` returned 200, 135,171
+ * bytes, `cf-cache-status: HIT`. Link-preview scanners open the page, start the
+ * 27 MB model, and are killed seconds later.
  *
- * So `initErrorTracking` discriminates on CAUSE instead of message: see
- * `pageIsUnloading` below.
+ * ⚠️ **This block used to say a cached 404 "surfaces as a fetch failure", and that
+ * is FALSE — it is why the string was left unfiltered.** three.js never lets a
+ * non-200 reach this predicate; it throws `HttpError` instead. Read at
+ * three@0.183.2 `build/three.core.js:44022`:
+ *
+ *     throw new HttpError( `fetch for "${response.url}" responded with
+ *       ${response.status}: ${response.statusText}`, response );
+ *
+ * So the 2026-08-06 incident — a freshly-written model unreachable from the public
+ * URL while `artworkVerdict`, the filesize, the texture census and a HEAD request
+ * were all green — would have arrived as `HttpError`, which `isHttpError` below
+ * matches and `beforeSend` never rate-limits. Filtering this predicate cannot hide
+ * it. Verify with the negative control in `sentry.test.ts` before widening either.
  */
 export function isNetworkError(event: Record<string, unknown>): boolean {
   const exception = event.exception as { values?: { value?: string }[] } | undefined
   const value = exception?.values?.[0]?.value ?? (event.message as string | undefined) ?? ''
   return /failed to fetch|networkerror|load failed|network request failed/i.test(value)
+}
+
+/**
+ * True when an HTTP response WAS received and was an error — 404, 403, 5xx.
+ *
+ * The actionable half, and the one that is never budgeted: a status code means a
+ * server answered, so the failure is reproducible from a terminal and belongs to
+ * this project rather than to whatever tore a scanner's browser down. This is the
+ * shape the 2026-08-06 cached-404 arrives in.
+ *
+ * Matched on the exception TYPE first, because that is what three.js sets, and on
+ * the message only as a fallback for a loader that formats its own string.
+ */
+export function isHttpError(event: Record<string, unknown>): boolean {
+  const exception = event.exception as { values?: { type?: string; value?: string }[] } | undefined
+  const first = exception?.values?.[0]
+  const value = first?.value ?? (event.message as string | undefined) ?? ''
+  return first?.type === 'HttpError' || /\bresponded with \d{3}\b/.test(value)
 }
 
 /**
@@ -127,6 +157,24 @@ export function isNetworkError(event: Record<string, unknown>): boolean {
  * unreliably, and this app's traffic is QR scans from phones.
  */
 let pageIsUnloading = false
+
+/**
+ * How many TRANSPORT failures one page-load may report before the rest are dropped.
+ *
+ * `pagehide` alone was not enough, and the measurement says why: a scanner whose
+ * browser is destroyed outright never fires `pagehide`, so the flag above never
+ * arms and every abandoned download reported in full. Worse, one torn-down context
+ * aborts several requests at once — the HDR, the model, the poster — which is why
+ * Sentry shows two and three identical events sharing a single second
+ * (2026-08-26T07:02:14Z ×3, 06:04:09Z ×3).
+ *
+ * One per page-load keeps detection and removes the duplication: a genuine CDN
+ * outage still reports once per visitor, so it arrives as a spike proportional to
+ * real traffic, which is what an outage looks like anyway. A scanner storm cannot
+ * multiply itself. NOT a substitute for isHttpError — that half is never counted.
+ */
+export const TRANSPORT_ERRORS_PER_PAGELOAD = 1
+let transportErrorsSent = 0
 
 export function initErrorTracking(): void {
   const dsn = import.meta.env.VITE_SENTRY_DSN
@@ -153,12 +201,17 @@ export function initErrorTracking(): void {
       // Crawler and extension noise, dropped by the SDK before it costs quota.
       ignoreErrors: IGNORED_ERRORS,
       beforeSend: (event) => {
-        // Returning null discards the event. See isNetworkError() for why this
-        // is a cause test and not a message filter.
-        if (pageIsUnloading && isNetworkError(event as unknown as Record<string, unknown>)) {
-          return null
+        const candidate = event as unknown as Record<string, unknown>
+        // Returning null discards the event. The `!isHttpError` guard is what keeps
+        // this a CAUSE test: anything carrying a status code is reproducible from a
+        // terminal, so it passes through untouched however many arrive.
+        if (isNetworkError(candidate) && !isHttpError(candidate)) {
+          // Hidden covers the backgrounded tab a `pagehide` never follows.
+          if (pageIsUnloading || document.visibilityState === 'hidden') return null
+          if (transportErrorsSent >= TRANSPORT_ERRORS_PER_PAGELOAD) return null
+          transportErrorsSent += 1
         }
-        return scrub(event as unknown as Record<string, unknown>) as never
+        return scrub(candidate) as never
       },
     })
 

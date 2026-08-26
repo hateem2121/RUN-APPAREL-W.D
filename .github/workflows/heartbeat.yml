@@ -231,6 +231,27 @@ jobs:
           set -euo pipefail
           # Read from the environment, never interpolated into this script — the
           # rule apps/cms/src/workflowHardening.test.ts enforces on every file here.
+          #
+          # The check-in CARRIES the monitor config, so the schedule and the grace
+          # period live in this file beside the `cron:` they have to agree with,
+          # rather than in a dashboard nobody can diff. Sentry upserts it on every
+          # ping, so a hand-edit in the UI is corrected within six hours instead of
+          # drifting unseen. `apps/cms/src/heartbeatMonitor.test.ts` fails if the value below
+          # and the `cron:` above ever disagree.
+          #
+          # checkin_margin is 120 MINUTES and that is a measurement, not padding.
+          # GitHub's scheduled runs are queued, not punctual. Measured 2026-08-26
+          # across the last 11 scheduled runs of THIS workflow, every one started
+          # late: 19, 33, 34, 36, 46, 50, 53, 60, 84, 88 and 90 minutes. The monitor
+          # was created with Sentry's default margin of ONE minute, so it logged
+          # `missed` at :44 on every cycle and the genuine check-in landed up to 90
+          # minutes afterwards — 00:44 missed → 02:13 ok, 06:44 missed → ok. The
+          # heartbeat was healthy throughout; only the alarm was wrong, which is the
+          # worse failure: a watchdog that cries wolf every cycle teaches you to
+          # ignore it. Re-measure before narrowing it:
+          #   gh run list --workflow=heartbeat.yml --json createdAt,event
+          payload='{"status":"ok","monitor_config":{"schedule":{"type":"crontab","value":"43 */6 * * *"},"checkin_margin":120,"max_runtime":30,"timezone":"UTC","failure_issue_threshold":1,"recovery_threshold":1}}'
           curl -fsS --max-time 15 --retry 2 --retry-delay 3 --retry-all-errors \
-            -o /dev/null "${SENTRY_CRON_URL}?status=ok"
+            -o /dev/null -X POST "${SENTRY_CRON_URL}" \
+            -H 'Content-Type: application/json' -d "${payload}"
           echo "Checked in: the heartbeat is alive."

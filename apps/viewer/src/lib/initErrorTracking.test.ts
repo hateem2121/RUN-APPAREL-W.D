@@ -150,3 +150,71 @@ describe('initErrorTracking', () => {
     expect(processor({}).tags).toMatchObject({ product: 'n001', colourway: 'wine' })
   })
 })
+
+/**
+ * The send policy, asserted as BEHAVIOUR through the real `beforeSend`.
+ *
+ * `sentry.test.ts` proves the two predicates classify correctly; nothing there can
+ * prove they are wired to the right branch. Getting that backwards is silent and
+ * expensive in both directions: budget the HTTP half and a repeat of the
+ * 2026-08-06 cached-404 disappears, budget neither and the free plan's 5,000
+ * errors/month goes to scanners — which is the state these tests were written in.
+ */
+describe('beforeSend network policy', () => {
+  const DSN = 'https://key@example.ingest.sentry.io/1'
+  const transport = () => ({ exception: { values: [{ value: 'TypeError: Failed to fetch' }] } })
+  const http = () => ({
+    exception: {
+      values: [
+        {
+          type: 'HttpError',
+          value:
+            'fetch for "https://media.wear-run.help/rxps/wine.glb" responded with 404: Not Found',
+        },
+      ],
+    },
+  })
+  const policy = async () => {
+    await loadWithDsn(DSN)
+    return init.mock.calls[0]?.[0]?.beforeSend as (e: unknown) => unknown
+  }
+
+  it('never budgets an HTTP error, however many arrive', async () => {
+    const beforeSend = await policy()
+    // Ten in a row: a genuinely unreachable asset must not be rate-limited into
+    // looking like a one-off. This is the branch that catches an incident.
+    for (let i = 0; i < 10; i += 1) expect(beforeSend(http()), `call ${i}`).not.toBeNull()
+  })
+
+  it('reports the first transport failure of a page-load and drops the rest', async () => {
+    const beforeSend = await policy()
+    expect(beforeSend(transport()), 'first is the signal').not.toBeNull()
+    expect(beforeSend(transport()), 'second is duplication').toBeNull()
+    expect(beforeSend(transport()), 'third is duplication').toBeNull()
+  })
+
+  it('drops a transport failure raised once the page is going away', async () => {
+    const beforeSend = await policy()
+    window.dispatchEvent(new Event('pagehide'))
+    expect(beforeSend(transport())).toBeNull()
+  })
+
+  it('drops a transport failure raised while the tab is hidden', async () => {
+    const beforeSend = await policy()
+    // The case `pagehide` cannot cover: a backgrounded or headless context that is
+    // destroyed without ever unloading, which is what the datacentre traffic is.
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+    try {
+      expect(beforeSend(transport())).toBeNull()
+    } finally {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    }
+  })
+
+  it('never budgets a code fault (negative control)', async () => {
+    const beforeSend = await policy()
+    const fault = () => ({ exception: { values: [{ value: 'TypeError: x is not a function' }] } })
+    // A real bug looping in a render frame must keep reporting every time.
+    for (let i = 0; i < 5; i += 1) expect(beforeSend(fault()), `call ${i}`).not.toBeNull()
+  })
+})
