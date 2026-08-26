@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PreToolUse guard — refuse a bare `pnpm`, which is not on PATH here.
+ * PreToolUse guard — a bare `pnpm` is not on PATH here, so rewrite it (or refuse).
  *
  * WHY THIS EXISTS. It is the first trap in CLAUDE.md, and the reason it is worth
  * a mechanical guard rather than a paragraph is *where the failure surfaces*:
@@ -22,19 +22,50 @@
  * a human might have noticed, and ran straight into 127. Those three entries were
  * removed in the same commit that added this file; do not re-add them.
  *
- * WHAT IT DOES NOT BLOCK — this half is load-bearing, for the reason
+ * WHAT IT DOES NOT TOUCH — this half is load-bearing, for the reason
  * guard-pipeline-input.mjs states: a gate the owner learns to override is worse
- * than no gate. Only a segment whose COMMAND is exactly `pnpm` is refused:
+ * than no gate. Only a segment whose COMMAND is exactly `pnpm` is acted on:
  *
- *   pnpm build                      -> denied
- *   FOO=1 pnpm -r test              -> denied (env assignments are skipped)
- *   npx --yes pnpm@10.33.0 build    -> allowed (the token is `pnpm@10.33.0`)
- *   cat pnpm-lock.yaml              -> allowed (different token, not in command position)
- *   grep pnpm docs/RUNBOOK.md       -> allowed (`pnpm` is an argument, not the command)
- *   git commit -m "use pnpm"        -> allowed (quoted, and not in command position)
+ *   pnpm build                      -> rewritten
+ *   FOO=1 pnpm -r test              -> rewritten (env assignments are skipped)
+ *   npx --yes pnpm@10.33.0 build    -> untouched (the token is `pnpm@10.33.0`)
+ *   cat pnpm-lock.yaml              -> untouched (different token, not in command position)
+ *   grep pnpm docs/RUNBOOK.md       -> untouched (`pnpm` is an argument, not the command)
+ *   git commit -m "use pnpm"        -> untouched (quoted, and not in command position)
+ *
+ * WHAT CHANGED 2026-08-26: IT REWRITES RATHER THAN REFUSES, WHERE IT SAFELY CAN.
+ * PreToolUse supports `updatedInput` under `hookSpecificOutput`, which "replaces a
+ * tool's arguments before it runs" — so `pnpm test` simply becomes
+ * `npx --yes pnpm@10.33.0 test` instead of costing a turn to retype. The protection
+ * is identical; only the friction is gone, and a gate with no friction is a gate
+ * nobody learns to route around.
+ *
+ * THREE THINGS THAT KEEP THE REWRITE HONEST:
+ *
+ *   1. It rewrites only a command with NO quotes and NO heredoc. Quotes are the only
+ *      thing that makes a separator ambiguous, and this guard has already been bitten
+ *      by exactly that: a `grep -n 'pnpm a\|pnpm b'` split on the `\|` INSIDE the
+ *      search pattern and manufactured a segment beginning `pnpm`. Anything quoted
+ *      falls back to the proven deny. A wrong REWRITE runs a command nobody typed,
+ *      which is worse than a wrong deny, so the ambiguous half keeps the old answer.
+ *   2. `updatedInput` replaces the ENTIRE input object, per the docs, so the whole
+ *      original `tool_input` is echoed back with only `command` changed. Sending
+ *      `{ command }` alone would silently drop `description`, `timeout` and
+ *      `run_in_background`.
+ *   3. It auto-approves nothing the owner has not already approved. The allow-list is
+ *      READ FROM .claude/settings.json at runtime rather than copied here: two lists
+ *      that must agree is the shape this repo has a rule about (isMediaReferenced vs
+ *      find-orphan-media.mjs, where the copy went blind — and the blind one was the
+ *      script that DELETES files). A rewrite matching an existing allow rule is
+ *      allowed; anything else is `ask`, which shows the rewritten command first.
  */
 
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { segments, tokenize } from './shell.mjs'
+
+/** The one form that works here. A constant so the uses below cannot drift apart. */
+const PNPM = 'npx --yes pnpm@10.33.0'
 
 /**
  * The token actually being executed in this segment, or undefined.
@@ -85,7 +116,68 @@ function usesBarePnpm(command) {
   return false
 }
 
+/**
+ * Rewrite every command-position `pnpm` to the npx form, or null when unsafe.
+ *
+ * `segments()` deliberately discards its separators, so this re-splits with a
+ * capturing group to keep them: even indices are segments, odd indices are the
+ * `&&` / `||` / `;` / `|` / newline that joined them. That is only sound because a
+ * quoted command has already been rejected above — otherwise a separator could be
+ * hiding inside a string, which is the bug this guard has already shipped once.
+ */
+function rewrite(command) {
+  if (command.includes("'") || command.includes('"')) return null
+  if (/<<-?\s*[A-Za-z_]/.test(command)) return null
+
+  const parts = command.split(/(\s*(?:&&|\|\||;|\||\n)\s*)/)
+  let changed = false
+  for (let i = 0; i < parts.length; i += 2) {
+    if (commandToken(tokenize(parts[i])) !== 'pnpm') continue
+    const before = parts[i]
+    // Replace the first standalone `pnpm` token only; a later one is an argument.
+    parts[i] = before.replace(/(^|\s)pnpm(\s|$)/, `$1${PNPM}$2`)
+    if (parts[i] === before) return null // could not place it: do not guess
+    changed = true
+  }
+  return changed ? parts.join('') : null
+}
+
+/**
+ * The repo's own pre-approved Bash rules, read from settings rather than duplicated.
+ * `Bash(npx --yes pnpm@10.33.0 test:*)` becomes the prefix `npx --yes pnpm@10.33.0 test`.
+ */
+function approvedBashPrefixes(root) {
+  try {
+    const settings = JSON.parse(readFileSync(join(root, '.claude/settings.json'), 'utf8'))
+    const rules = settings?.permissions?.allow
+    if (!Array.isArray(rules)) return []
+    return rules
+      .filter((rule) => typeof rule === 'string' && rule.startsWith('Bash(') && rule.endsWith(')'))
+      .map((rule) => rule.slice('Bash('.length, -1))
+      .map((rule) => (rule.endsWith(':*') ? rule.slice(0, -2) : rule))
+  } catch {
+    // No settings, unreadable settings, or a shape that is not the one expected:
+    // approve nothing. The caller falls back to `ask`, which is the safe direction.
+    return []
+  }
+}
+
 function allow() {
+  process.exit(0)
+}
+
+/** Replace the tool's input, keeping every field the caller sent. */
+function rewriteTo(command, toolInput, decision, reason) {
+  process.stdout.write(
+    JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: decision,
+        permissionDecisionReason: reason,
+        updatedInput: { ...toolInput, command },
+      },
+    }),
+  )
   process.exit(0)
 }
 
@@ -116,9 +208,22 @@ process.stdin.on('end', () => {
   }
 
   if (payload.tool_name !== 'Bash') allow()
-  const command = payload.tool_input?.command
+  const toolInput = payload.tool_input ?? {}
+  const command = toolInput.command
   if (typeof command !== 'string') allow()
   if (!usesBarePnpm(command)) allow()
+
+  const fixed = rewrite(command)
+  if (fixed !== null) {
+    const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd()
+    const preApproved = approvedBashPrefixes(root).some((prefix) => fixed.startsWith(prefix))
+    rewriteTo(
+      fixed,
+      toolInput,
+      preApproved ? 'allow' : 'ask',
+      `\`pnpm\` is not on PATH here (exit 127). Rewritten to:\n  ${fixed}`,
+    )
+  }
 
   deny(
     'Blocked: `pnpm` is not on PATH on this machine, so this exits 127.\n\n' +
@@ -127,6 +232,9 @@ process.stdin.on('end', () => {
       'This is guarded rather than remembered because of where the failure shows up:\n' +
       'e2e/prepare.mjs shells out to `pnpm build`, so a bare pnpm kills the whole e2e\n' +
       'suite as "Timed out waiting 120000ms from config.webServer" with the real\n' +
-      'status: 127 buried in a child process. See CLAUDE.md, first trap.',
+      'status: 127 buried in a child process. See CLAUDE.md, first trap.\n\n' +
+      'This one was DENIED rather than rewritten because the command contains a quote\n' +
+      'or a heredoc, where a separator can hide inside a string — rewriting there could\n' +
+      'run a command nobody typed. Retype it with the npx form.',
   )
 })

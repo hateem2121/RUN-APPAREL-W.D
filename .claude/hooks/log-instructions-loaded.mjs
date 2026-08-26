@@ -28,11 +28,22 @@
  * WHAT IT DELIBERATELY DOES NOT DO. It never blocks and never throws: the docs are
  * explicit that the exit code for this event is ignored and the hook cannot modify
  * or prevent a load, so a crash here would be pure noise in the transcript for zero
- * effect. Every failure path exits 0 silently. It also does not log `file_content`,
- * which is the whole memory file — the log would be larger than the files it
- * describes, and the size is already recorded as a number.
+ * effect. Every failure path exits 0 silently. It also does not log the file's
+ * CONTENT — the log would be larger than the files it describes, and the size is
+ * enough to see a file cross the 40,000-character warning line.
+ *
+ * ⚠️ THE SIZE COLUMN MEASURED NOTHING FOR ITS FIRST 167 ENTRIES, and that is the
+ * reason to distrust an instrument that looks healthy. It read `event.file_content`,
+ * a field this event does not carry, so `chars` took its `: 0` fallback on every
+ * single load and the log recorded a confident `0c` beside a 38,036-byte file. All
+ * 167 rows written before 2026-08-26 say `0c`; none of them are evidence of
+ * anything. Nothing failed, nothing warned — the exact shape of `REFERENCE_PATHS`
+ * being declared and never read, and of `Vary: Origin` shipping green and inert
+ * twice. It now stats the file on disk, which is the thing the column claims to be.
+ * The old rows are left in place rather than rewritten: a measurement nobody took is
+ * not improved by inventing it afterwards.
  */
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 const LOG = '.claude/instructions-loaded.log'
@@ -56,8 +67,15 @@ try {
   // Repo-relative where possible; an absolute path outside the repo stays absolute,
   // because `~/.claude/CLAUDE.md` loading is itself worth seeing in this log.
   const rel = abs.startsWith(root) ? relative(root, abs) : abs
-  const chars = typeof event.file_content === 'string' ? event.file_content.length : 0
-  const line = [new Date().toISOString(), event.load_reason ?? '(no reason)', rel, `${chars}c`]
+  // Stat the file rather than trusting a payload field — see the header. `0` here
+  // now means "the path did not resolve", which is itself worth seeing in the log.
+  let bytes = 0
+  try {
+    bytes = statSync(abs).size
+  } catch {
+    bytes = 0
+  }
+  const line = [new Date().toISOString(), event.load_reason ?? '(no reason)', rel, `${bytes}b`]
   appendFileSync(join(root, LOG), `${line.join('\t')}\n`)
 } catch {
   // Malformed or empty payload: nothing useful to record, and nothing to fail.

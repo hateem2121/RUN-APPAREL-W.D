@@ -94,6 +94,12 @@ test-results/
 # Written by .claude/hooks/log-instructions-loaded.mjs — a per-machine measurement of
 # which memory files loaded and why. Diagnostic, not shared state.
 .claude/instructions-loaded.log
+# Written by .claude/hooks/note-compaction.mjs and deleted by its partner
+# recall-nested-instructions.mjs — a one-shot marker saying a compaction just
+# happened, so the next prompt can name the nested CLAUDE.md files that did NOT
+# survive it. Per-session state, never shared.
+.claude/.compact-pending
+
 
 # misc
 .DS_Store
