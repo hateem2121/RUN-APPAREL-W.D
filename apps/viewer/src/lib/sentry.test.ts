@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { IGNORED_ERRORS, isNetworkError, scrub } from './sentry'
+import { IGNORED_ERRORS, isHttpError, isNetworkError, scrub } from './sentry'
 
 /**
  * These assert a PRIVACY guarantee, not a formatting preference.
@@ -112,10 +112,55 @@ describe('isNetworkError', () => {
   })
 
   it('does NOT classify a code fault as a network error (negative control)', () => {
-    // This is the half that must keep reporting: a cached 404 on media.wear-run.help
-    // surfaces as a fetch failure while the page is still live, and that is an
-    // incident, not a visitor leaving.
+    // The other half must keep reporting, but NOT for the reason this comment gave
+    // until 2026-08-26: it claimed a cached 404 on media.wear-run.help "surfaces as a
+    // fetch failure". It does not. three.js throws HttpError for any non-200 (see
+    // isHttpError below), so a 404 never reaches this predicate at all.
     expect(isNetworkError({ exception: { values: [{ value: 'ReferenceError: x' }] } })).toBe(false)
     expect(isNetworkError({})).toBe(false)
+  })
+})
+
+describe('isHttpError', () => {
+  // The exact template three.js formats, read from
+  // node_modules/.pnpm/three@0.183.2/.../three.core.js:44022 rather than imagined:
+  //   `fetch for "${response.url}" responded with ${response.status}: ${response.statusText}`
+  const loaderError = (status: number, text: string) => ({
+    exception: {
+      values: [
+        {
+          type: 'HttpError',
+          value: `fetch for "https://media.wear-run.help/rxps/wine.glb" responded with ${status}: ${text}`,
+        },
+      ],
+    },
+  })
+
+  it('recognises the error a cached 404 actually produces', () => {
+    expect(isHttpError(loaderError(404, 'Not Found'))).toBe(true)
+  })
+
+  it('recognises a 403 and a 5xx, which is the rest of an unreachable asset', () => {
+    expect(isHttpError(loaderError(403, 'Forbidden'))).toBe(true)
+    expect(isHttpError(loaderError(503, 'Service Unavailable'))).toBe(true)
+  })
+
+  it('does NOT match a transport failure (negative control)', () => {
+    // The whole point of the split: this one never got an HTTP response at all, so
+    // there is no status code to reason about and nothing an operator can action.
+    expect(isHttpError({ exception: { values: [{ value: 'TypeError: Failed to fetch' }] } })).toBe(
+      false,
+    )
+    expect(isHttpError({})).toBe(false)
+  })
+
+  it('is disjoint from isNetworkError on the strings both engines really emit', () => {
+    // If these ever overlap, the beforeSend budget would start rate-limiting the
+    // actionable half — the exact failure this split exists to prevent.
+    const httpish = loaderError(404, 'Not Found')
+    const transportish = { exception: { values: [{ value: 'Failed to fetch' }] } }
+
+    expect([isHttpError(httpish), isNetworkError(httpish)]).toEqual([true, false])
+    expect([isHttpError(transportish), isNetworkError(transportish)]).toEqual([false, true])
   })
 })
