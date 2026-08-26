@@ -89,8 +89,10 @@ so assume neither.** 2026-08-09 both *were* set in the session environment
 (`NODE_ENV=development`, `PORT=5002`) while appearing in none of `~/.zshrc`,
 `~/.zshenv`, `~/.zprofile`, `~/.bash_profile` or `~/.profile`. 2026-08-13 and
 again 2026-08-17, same machine, `env | grep -E '^(NODE_ENV|PORT)='` returned
-nothing and a full gate run passed with no workaround. So the harness supplies
-them *sometimes*. The consequence is the point: the owner's own terminal and any
+nothing and a full gate run passed with no workaround — **then on 2026-08-26 both
+were BACK** (`NODE_ENV=development`, `PORT=5002`). Do not read the run of two clean
+measurements as the harness having stopped: it has now flipped twice. So the harness
+supplies them *sometimes*. The consequence is the point: the owner's own terminal and any
 two sessions can each see a different environment, so **"it works for me" proves
 nothing about the other.** Both are fixed at the source anyway. **If a build or a
 test server fails in a way that makes no sense, run
@@ -325,7 +327,7 @@ the answer is "nothing that happens in production", it is not a test.
   off the GET's own headers (`curl -o /dev/null -D -`), never off a HEAD.**
   Live reference numbers now live in `docs/QA-CHECKLIST.md` → "Performance & assets".
 
-- **Six more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
+- **Eight more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
   of them moved there 2026-08-19 because they bite only while you are editing a
   workflow, which is exactly when that file loads. Enough to stop you: every workflow
   is gated by `apps/cms/src/workflowHardening.test.ts` on ten rules with verified
@@ -338,6 +340,9 @@ the answer is "nothing that happens in production", it is not a test.
   waiting longer only spends the job's headroom. All of `ci.yml` stopped depending on
   apt on 2026-08-20 (`artwork`, then `e2e` when it was split out of `verify`); only
   `deploy-shrink.yml` still does.
+  And **GitHub's scheduled runs are 19–90 minutes LATE — measured n=11, every one** —
+  so a `cron:` is a queue position, not a deadline; a watchdog built on one being
+  punctual is wrong on every cycle, which is worse than no watchdog.
 
 - **Nineteen more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
   2026-08-19, when this file measured 44,993 characters against Claude Code's
@@ -387,53 +392,11 @@ the answer is "nothing that happens in production", it is not a test.
   at once; and an e2e fixture that serves **four** colourways where production serves
   five, which is the difference between a clean rail and a stranded tab.
   Read them before changing the viewer, its Worker, or its headers.
-  Moved there 2026-08-10 when this file came within 326 chars of the size at which
-  Claude Code warns a memory file is too large — **a threshold it later crossed
-  anyway, so put new viewer, pipeline or CMS detail in the sub-file, not here.**
-
-  **The mechanics, re-measured against the docs on 2026-08-19, because two plausible
-  fixes do not work.** The warning fires at **40,000 characters** and the documented
-  target is **under 200 lines**. This file was over both on 2026-08-19 at 44,993
-  characters; moving the pipeline traps out brought it to ~36,000, so it is now under
-  the warning and still over the line target — treat 40,000 as the hard gate and the
-  line count as the direction of travel. Size is not cosmetic: the docs state CLAUDE.md
-  is delivered as a user message after the system prompt with no guarantee of strict
-  compliance, and that longer files "reduce adherence" — so an oversized file makes its
-  own traps *less* likely to be followed. ⚠️ **`@path` imports do NOT help**: the docs
-  are explicit that imported files "load at launch", so an import moves bytes between
-  files and saves no context. What *does* work is on-demand loading: the sub-file split
-  above, and path-scoped rules (a `paths:` frontmatter block in a rules file under
-  `.claude/rules/`), which load only when Claude reads a matching file.
-  ⚠️ **Path-scoped rules are NOT yet trustworthy for anything load-bearing — measured
-  again 2026-08-20 and STILL not adopted.** A rule fires when Claude *reads* a matching
-  file, so **creating** a new file never triggers it (anthropics/claude-code#63142).
-  Four upstream fixes have since shipped (symlink matching v2.1.198, an invalid pattern
-  no longer breaking Read v2.1.207, `--setting-sources` respected v2.1.211, the
-  brace-expansion startup crash v2.1.217) and the documented key **is** `paths:` — the
-  2026-08-19 note's worry about an undocumented `globs:` (#17204) is not what the docs
-  say. So the mechanism was tried: `.claude/rules/` now holds ONE rule, deliberately
-  **empty of traps**, as the artifact under test. Creating it mid-session and then
-  reading two files matching its globs produced `nested_traversal` for
-  `apps/viewer/CLAUDE.md` and **no `path_glob_match` at all**. That negative is
-  AMBIGUOUS — it shows a rule created mid-session does not fire in that session, not
-  that a rule present at session start fails — which is exactly why no prose moved.
-  **The ten-second check and both branches are written at the top of that rule file.
-  Run it before adding anything there.** Until it passes, the nested CLAUDE.md pattern
-  (`.github/`, `tools/asset-pipeline/`, `apps/cms/`) is the only proven one here.
-  ⚠️ **All on-demand loading carries one caveat**: only the project-root CLAUDE.md is
-  re-injected after `/compact` — nested files and path-scoped rules reload only when a
-  matching file is next read, so a trap that moved out of this file can be absent from a
-  compacted session until something touches its directory. That is the price paid for
-  the pipeline split above, and why each moved trap kept a one-line hook here.
-  **Two tools worth knowing, both newer than this section's first draft:**
-  `/doctor` now proposes trims for a checked-in CLAUDE.md (v2.1.206+) — it cuts what
-  Claude can re-derive from the codebase, directory layouts and dependency lists, and
-  *keeps* pitfalls and rationale, which is this file's entire content model. And the
-  **`InstructionsLoaded` hook** logs which instruction files loaded, when, and why —
-  the way to verify the on-demand claims above instead of asserting them. This repo
-  wires one at `.claude/hooks/log-instructions-loaded.mjs`; see `docs/RUNBOOK.md`.
-  Free win nobody here uses yet: block-level `<!-- HTML comments -->` are stripped
-  before injection, so pure provenance can stay legible to humans at zero context cost.
+  **Maintaining these files is its own topic** — the 40,000-character warning and the
+  200-line target, why `@path` imports do NOT save context, why path-scoped rules are
+  still unadopted, `/doctor`'s trim pass, and the `InstructionsLoaded` hook that
+  verifies the loading claims above instead of asserting them, all live in
+  `docs/CLAUDE-MD-MAINTENANCE.md`. Read it before moving prose between CLAUDE.md files.
 
 - **Four more traps live in `apps/cms/CLAUDE.md`** (loads on touching `apps/cms/`) —
   `NODE_ENV=production` for any Payload CLI task against production D1, why

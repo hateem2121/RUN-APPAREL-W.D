@@ -144,3 +144,25 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   shedding it, so the RUN's long pole went 470s -> 417s — billed minutes up,
   wall-clock down. The image pull is 36-40s with a 60s tail (seven pulls). ⚠️ `.github/workflows/deploy-shrink.yml` STILL shells out to `apt`, so
   everything above is live for that file and this trap must not be deleted.
+
+- **GitHub's scheduled runs are 19–90 minutes LATE — measured, n=11, EVERY ONE.**
+  2026-08-26 across `heartbeat.yml`'s last 11 `schedule` runs: 19, 33, 34, 36, 46, 50,
+  53, 60, 84, 88 and 90 minutes after the `cron:`. Never on time, never early. So a
+  `cron:` here is a queue position, not a deadline, and anything that treats it as one
+  manufactures false alarms: the Sentry cron monitor was created with the default
+  1-minute `checkin_margin` and logged `missed` on EVERY cycle from that day forward
+  while the workflow itself was healthy throughout — `00:44 missed` then `02:13 ok`,
+  `06:44 missed` then ok. A watchdog that is wrong every cycle is worse than no
+  watchdog: it is the state `uptime.yml` sat in for 23 hours in 8301e60, and it trains
+  you to ignore the one alert that matters. Re-measure before assuming it improved:
+  `gh run list --workflow=<file>.yml --json createdAt,event`
+
+- **The Sentry cron monitor's config lives in `heartbeat.yml`, NOT in the dashboard.**
+  The check-in POSTs a `monitor_config` body and Sentry upserts it, so the schedule and
+  the margin sit beside the `cron:` they have to agree with, and a hand-edit in Sentry's
+  UI is corrected on the next ping instead of silently outliving the repo.
+  `apps/cms/src/heartbeatMonitor.test.ts` fails if the two ever disagree, with a
+  negative control proving it can. The check-in URL is `vars.SENTRY_CRON_URL` and is
+  NOT a secret — it is the same public ingest key already shipped to every browser in
+  `VITE_SENTRY_DSN`.
+
