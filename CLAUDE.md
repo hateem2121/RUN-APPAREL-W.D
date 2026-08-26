@@ -71,6 +71,9 @@ exit **127**, and the failure is worth naming because of *where* it surfaces:
 dies as `Timed out waiting 120000ms from config.webServer` with the real
 `status: 127` buried inside a child process. `.claude/settings.json` and
 `.claude/launch.json` already use the `npx` form; this line is why.
+Since 2026-08-26 the PreToolUse guard **rewrites** a bare `pnpm` you type rather
+than refusing it — but it sees only the Bash tool's own command, never what a
+script shells out to, which is the case that actually cost the sessions above.
 
 **`NODE_ENV=development` in the environment broke `next build` in a way that
 named nothing.** Found 2026-08-09. The CMS build died with
