@@ -24,6 +24,26 @@ import { describe, expect, it } from 'vitest'
  */
 const DIST = join(import.meta.dirname, '..', 'dist')
 const INDEX = join(DIST, 'index.html')
+
+/**
+ * ⚠️ THIS GUARD RAN NOWHERE THAT MATTERED UNTIL 2026-08-29.
+ *
+ * The three checks below were `skipIf(!existsSync(INDEX))`, and `dist/` is
+ * gitignored. CI runs `pnpm test:coverage` (ci.yml) BEFORE `pnpm build`, so on a
+ * clean checkout the build did not exist yet and all three skipped — every run.
+ * Measured both ways on a byte-identical tree: with a stale local build 4 pass; in a
+ * clean checkout 1 passes and 3 skip. So the only thing standing between the shell and
+ * a re-shipped 294 kB of 3D renderer ran ONLY on a developer machine carrying an old
+ * build. That is the `public/draco/` trap exactly inverted — passing locally because
+ * of an artifact a clean checkout does not have.
+ *
+ * The fix is not to reorder CI (that would run `seed:assets` before the suite and
+ * change what the tests see). It is a dedicated CI step AFTER `pnpm build` that sets
+ * this variable, which turns the skip into a hard failure. Locally, a missing build
+ * still skips, so `pnpm test` stays fast and honest.
+ */
+const REQUIRE_BUILD = process.env.REQUIRE_BUILD_ARTIFACTS === '1'
+const HAS_BUILD = existsSync(INDEX)
 /**
  * Escapes every regex metacharacter, not just `.`. The old
  * `host.replace(/\./g, '\\.')` was correct for today's two literal hostnames and
@@ -44,7 +64,17 @@ const SOURCE_INDEX = join(import.meta.dirname, '..', 'index.html')
 const LAZY_CHUNKS = ['model-viewer', 'motion'] as const
 
 describe('build output', () => {
-  it.skipIf(!existsSync(INDEX))(
+  it('has a build to inspect whenever one is REQUIRED (the CI post-build step)', () => {
+    /*
+     * The whole point of REQUIRE_BUILD_ARTIFACTS. Without this, a CI step that forgot to
+     * build would let the three guards below skip and report green — the exact failure
+     * this file exists to stop, one level up. Locally REQUIRE_BUILD is unset and this
+     * passes trivially, which is intended.
+     */
+    expect(REQUIRE_BUILD && !HAS_BUILD).toBe(false)
+  })
+
+  it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)(
     'does not modulepreload the chunks that are meant to stay lazy',
     () => {
       const html = readFileSync(INDEX, 'utf8')
@@ -119,7 +149,7 @@ describe('the lazy chunks stay lazy', () => {
    * against a touch context to assert "never fetched" therefore cannot pass, and
    * was removed rather than left red or weakened into meaninglessness.
    */
-  it.skipIf(!existsSync(INDEX))('splits motion and lenis into separate chunks', () => {
+  it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)('splits motion and lenis into separate chunks', () => {
     const assets = join(DIST, 'assets')
     const files = existsSync(assets) ? readdirSync(assets) : []
     expect(
@@ -133,7 +163,7 @@ describe('the lazy chunks stay lazy', () => {
     ).toHaveLength(1)
   })
 
-  it.skipIf(!existsSync(INDEX))('keeps the motion chunk out of the polish chunk', () => {
+  it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)('keeps the motion chunk out of the polish chunk', () => {
     const assets = join(DIST, 'assets')
     const polish = readdirSync(assets).find((f) => /^polish-.*\.js$/.test(f))
     expect(polish, 'no polish chunk emitted').toBeTruthy()

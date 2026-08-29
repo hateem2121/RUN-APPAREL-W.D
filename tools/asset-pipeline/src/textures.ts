@@ -7,7 +7,7 @@ import {
   listTextureSlots,
 } from '@gltf-transform/functions'
 import sharp, { type Metadata, type Sharp } from 'sharp'
-import { createIO } from './io'
+import { readGlb } from './io'
 
 /**
  * Texture inventory — dump every texture in a GLB to PNG, with a manifest saying
@@ -64,6 +64,18 @@ export interface AlphaProfile {
   opaqueFraction: number
   /** Fraction in between. This is what separates a cutout from real translucency. */
   midFraction: number
+  /**
+   * Fraction of pixels that are MORE THAN HALF see-through (alpha 9-127).
+   *
+   * `midFraction` counts how MANY pixels are partial; this counts how DEEP that
+   * partiality goes, and only the second can tell anti-aliasing from real
+   * translucency. Measured 2026-08-27: the X-MILO fabric atlas is 6.67% partial but
+   * only **0.015%** of it is below alpha 128 — a thin ramp at 192-247 around panel
+   * edges, visually solid. The organza-inset fixture is 2.95% partial and **all of
+   * it** is at alpha 90, which is genuinely sheer. A 200x separation where
+   * `midFraction` alone gives 6.67% vs 2.95% — the wrong way round.
+   */
+  sheerFraction: number
 }
 
 /** One place a texture is used: which material, which slot, which UV set. */
@@ -252,7 +264,7 @@ const CORE_SLOTS: {
  * few thousand pixels around an outline — do not read as "graded".
  */
 export async function profileAlpha(buffer: Uint8Array): Promise<AlphaProfile> {
-  const empty = { transparentFraction: 0, opaqueFraction: 0, midFraction: 0 }
+  const empty = { transparentFraction: 0, opaqueFraction: 0, midFraction: 0, sheerFraction: 0 }
   let image: Sharp
   let metadata: Metadata
   try {
@@ -273,9 +285,13 @@ export async function profileAlpha(buffer: Uint8Array): Promise<AlphaProfile> {
 
   let transparent = 0
   let opaque = 0
+  // More than half see-through. See `sheerFraction` — this is the measurement that
+  // separates an anti-aliased edge from a genuinely translucent panel.
+  let sheer = 0
   for (const value of alpha) {
     if (value <= 8) transparent++
     else if (value >= 248) opaque++
+    else if (value < 128) sheer++
   }
   const total = alpha.length
   const mid = total - transparent - opaque
@@ -283,6 +299,7 @@ export async function profileAlpha(buffer: Uint8Array): Promise<AlphaProfile> {
     transparentFraction: transparent / total,
     opaqueFraction: opaque / total,
     midFraction: mid / total,
+    sheerFraction: sheer / total,
   }
 
   // Everything solid: the channel exists but carries nothing. This is the CLO
@@ -474,7 +491,13 @@ export async function inventoryTextures(
       usages: usagesByTexture.get(texture) ?? [],
       alpha: image
         ? await profileAlpha(image)
-        : { character: 'unknown', transparentFraction: 0, opaqueFraction: 0, midFraction: 0 },
+        : {
+            character: 'unknown',
+            transparentFraction: 0,
+            opaqueFraction: 0,
+            midFraction: 0,
+            sheerFraction: 0,
+          },
       file: null,
     })
   }
@@ -533,8 +556,7 @@ export async function dumpTextures(
   outDir: string,
   options: DumpTexturesOptions = {},
 ): Promise<TextureInventory> {
-  const io = await createIO()
-  const document = await io.read(file)
+  const { document } = await readGlb(file)
   const inventory = await inventoryTextures(document, file)
 
   await mkdir(join(outDir, 'textures'), { recursive: true })

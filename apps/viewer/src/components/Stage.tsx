@@ -1,5 +1,7 @@
 import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { boundingRadius, installAdaptiveNearPlane, internalCamera } from '../lib/camera-near-plane'
+import { applyDecalDepthBias, backingThreeMaterial } from '../lib/decal-depth-bias'
 import { track } from '../lib/analytics'
 import { canRender3D, prefersReducedMotion } from '../lib/capabilities'
 import { displayedColourway } from '../lib/colourwayPreview'
@@ -19,6 +21,16 @@ interface ModelViewerEl extends HTMLElement {
   cameraTarget: string
   fieldOfView: string
   jumpCameraToGoal?: () => void
+  /**
+   * model-viewer's scene-graph handle. Only `materials` is used, and only to reach
+   * each material's backing three.js material for a depth bias — see
+   * src/lib/decal-depth-bias.ts for why that is necessary and what guards it.
+   */
+  model?: { materials?: readonly { name?: string; isLoaded?: boolean }[] }
+  /** Model extents in metres. Feeds the adaptive near plane — see camera-near-plane.ts. */
+  getDimensions?: () => { x: number; y: number; z: number }
+  /** Current orbit. `radius` is the camera distance the near plane has to follow. */
+  getCameraOrbit?: () => { radius: number }
 }
 
 interface StageProps {
@@ -418,8 +430,73 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       mvRef.current = el as ModelViewerEl | null
       if (!el) return
 
+      /**
+       * Pull printed cut-outs toward the camera so they win the depth test.
+       *
+       * A decal authored flush with the cloth gives the GPU two surfaces at
+       * near-identical depth; the winner changes per pixel and per frame, and the
+       * artwork shatters. Measured 2026-08-27 on `p001`, whose decals sit
+       * **0.001 mm** off the cloth: without this the chevrons break into fragments
+       * and "NEVER LOOK BACK" fills with holes. On `n001`, at **0.169 mm**, it
+       * changes nothing — the control that makes that measurement mean something.
+       * glTF 2.0 cannot express a polygon offset, and the only file-side lever is
+       * moving decal geometry, which tore multi-panel prints open along their seams.
+       *
+       * ⚠️ CALLED ON EVERY COLOURWAY, NOT ONLY ON LOAD — the load-time-only version
+       * shipped on 2026-08-27 and reached 6 of 26 decals on the live garment.
+       * model-viewer builds only the arriving variant's materials; everything
+       * reachable solely through `KHR_materials_variants` is a lazy stub whose
+       * backing three.js material does not exist yet, so four of five colourways
+       * kept flickering. Verified in a browser, not reasoned about: 11/11 biased on
+       * load, then 16/16, 21/21, 26/26 as each colourway was visited.
+       */
+      const biasDecals = () => {
+        const materials = (el as ModelViewerEl).model?.materials
+        if (!materials) return
+        const result = applyDecalDepthBias(materials, (m) => backingThreeMaterial(m))
+        // `pending` is the normal case — those materials belong to colourways the
+        // visitor has not opened, and the next `variant-applied` catches them. Only
+        // a LOADED material with no backing means the internal symbol has gone, and
+        // that failure is otherwise completely silent. Reported, never `pending`,
+        // because `variant-missing` already proved what burying signal costs.
+        if (result.unreachable > 0) {
+          diagnostic('decal-bias-unreachable', {
+            product: product.productCode,
+            unreachable: String(result.unreachable),
+            biased: String(result.biased.length),
+          })
+        }
+      }
+
+      /**
+       * Give the depth buffer enough precision at the garment that CLO's 0.100 mm
+       * graphic offset survives being zoomed out. model-viewer pins `near` at
+       * 0.00436 m, which leaves a 1.5x margin at full zoom-out and 5.1x zoomed in —
+       * and the owner's report was exactly that asymmetry: "spots blink on and off,
+       * but only zoomed out; zoomed in it seems perfect". See camera-near-plane.ts.
+       *
+       * Once per load, not per colourway: the override reads the orbit radius on
+       * every access, so it follows the camera without being reinstalled.
+       */
+      const clampNearPlane = () => {
+        const mv = el as ModelViewerEl
+        const dims = mv.getDimensions?.()
+        if (!dims) return
+        const ok = installAdaptiveNearPlane(
+          internalCamera(mv),
+          () => mv.getCameraOrbit?.().radius ?? 0,
+          boundingRadius(dims),
+        )
+        // Silence here would mean the flicker quietly returning on a model-viewer
+        // upgrade, which is the failure shape this repo keeps paying for.
+        if (!ok) diagnostic('near-plane-unavailable', { product: product.productCode })
+      }
+
       const onLoad = () => {
         dispatchPhase({ type: 'loaded' })
+
+        clampNearPlane()
+        biasDecals()
         // PROPERTY first, attribute second. React sets `src` on a custom element
         // as a property and never reflects it to an attribute — confirmed on the
         // live element, whose attribute list carries camera-orbit, tone-mapping
@@ -556,6 +633,9 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       }
 
       el.addEventListener('load', onLoad)
+      // Fires AFTER `await model[$switchVariant](name)` resolves — i.e. after the
+      // newly-active colourway's materials exist and can finally be biased.
+      el.addEventListener('variant-applied', biasDecals)
       el.addEventListener('error', onError)
       el.addEventListener('camera-change', onCameraChange)
       el.addEventListener('render-scale', onRenderScale)
@@ -571,6 +651,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       // four-step argument to keep being true.
       return () => {
         el.removeEventListener('load', onLoad)
+        el.removeEventListener('variant-applied', biasDecals)
         el.removeEventListener('error', onError)
         el.removeEventListener('camera-change', onCameraChange)
         el.removeEventListener('render-scale', onRenderScale)

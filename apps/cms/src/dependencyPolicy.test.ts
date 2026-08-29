@@ -58,9 +58,27 @@ const HOLDS = [
   {
     dep: '@cloudflare/workers-types',
     version: '5.20260804.1',
-    why: 'every release from 5.20260808.1 on fails the apps/shrink typecheck with "Property \'readUInt32LE\' does not exist on type \'NonSharedBuffer\'" (bisected 2026-08-12 across 0804/0808/0809/0810). It surfaces ONLY there, because apps/shrink sets types:["@cloudflare/workers-types"] and no node types.',
+    /**
+     * NARROWED 2026-08-29 from every workspace to apps/shrink alone.
+     *
+     * The break is real but it is not general: all four errors are in ONE 15-line
+     * function, readGlbGenerator (tools/asset-pipeline/src/validate.ts:44-52). It
+     * surfaces only in apps/shrink because that package sets
+     * types: ["@cloudflare/workers-types"] with no node types, and its tsconfig pulls
+     * validate.ts in transitively - container/report.ts imports SIZE_WARNING_BYTES
+     * from it as a VALUE. tools/asset-pipeline typechecks the same file and passes,
+     * because it sets types: ["node"].
+     *
+     * So holding three packages froze 24 days of updates across apps/cms and
+     * apps/viewer for a fault neither of them has. Both now run 5.20260827.1, and all
+     * five workspaces plus the container typecheck clean - measured, not assumed.
+     */
+    scope: ['apps/shrink'],
+    /** What the unaffected workspaces run, asserted so the narrowing cannot un-narrow. */
+    elsewhere: '5.20260827.1',
+    why: 'every release from 5.20260808.1 on fails the apps/shrink typecheck with "Property readUInt32LE does not exist on type NonSharedBuffer" x3 plus one arity error, ALL in readGlbGenerator (validate.ts:44-52). Bisected 2026-08-12 across 0804/0808/0809/0810; re-measured 2026-08-18 on 5.20260817.1 and again 2026-08-29 on 5.20260827.1, still broken. It surfaces ONLY in apps/shrink, which sets types:["@cloudflare/workers-types"] with no node types.',
     releaseWhen:
-      'the Buffer typings settle upstream — retry the bump and run apps/shrink typecheck specifically, not `pnpm typecheck` alone.',
+      'either the Buffer typings settle upstream, or readGlbGenerator stops being reachable from the apps/shrink program. container/report.ts imports SIZE_WARNING_BYTES from validate.ts as a VALUE, so moving that constant and the GlbReport type into a node-free module would release the hold without waiting on Cloudflare. Retry with the apps/shrink typecheck specifically, never pnpm typecheck alone.',
   },
 ] as const
 
@@ -91,8 +109,17 @@ describe('shared dependency versions', () => {
       divergent.push(`${dep}: ${detail}`)
     }
 
+    /*
+     * A split a HOLD explains is not drift. `@cloudflare/workers-types` is deliberately
+     * on two versions since 2026-08-29 — held in apps/shrink, current everywhere else —
+     * and the two tests below pin BOTH ends of that, so removing this exemption without
+     * removing the hold makes those fail rather than letting anything slide.
+     */
+    const explained = new Set<string>(HOLDS.map((hold) => hold.dep))
+    const unexplained = divergent.filter((line) => !explained.has(line.split(':')[0] as string))
+
     expect(
-      divergent,
+      unexplained,
       'Two workspaces declare different versions of the same dependency. apps/cms sat on\n' +
         'TypeScript 6 while everything else was on 7, and `tsc --noEmit` passed the whole\n' +
         'time — only `pnpm build` failed. If a split is deliberate, it belongs in HOLDS\n' +
@@ -113,19 +140,44 @@ describe('shared dependency versions', () => {
 })
 
 describe('deliberate version holds', () => {
-  it.each(HOLDS)('$dep is held at $version everywhere it appears', ({ dep, version }) => {
+  it.each(HOLDS)('$dep is held at $version in $scope', ({ dep, version, scope }) => {
     const wrong: string[] = []
-    for (const workspace of WORKSPACES) {
+    for (const workspace of scope) {
       const declared = allDeps(workspace)[dep]
-      if (declared && declared !== version) wrong.push(`${workspace} declares ${declared}`)
+      if (declared !== version) wrong.push(`${workspace} declares ${declared ?? 'nothing'}`)
     }
 
     expect(
       wrong,
-      `${dep} is HELD at ${version}. Raising it is not a routine bump — read the reason ` +
-        'in HOLDS in this file first.',
+      `${dep} is HELD at ${version} in ${scope.join(', ')}. Raising it there is not a ` +
+        'routine bump — read the reason in HOLDS in this file first.',
     ).toEqual([])
   })
+
+  it.each(HOLDS)(
+    '$dep is NOT held outside $scope — the hold stays as narrow as it should be',
+    ({ dep, scope, elsewhere }) => {
+      /*
+       * The half that stops a narrow hold quietly widening again. Until 2026-08-29 this
+       * one was applied to all three workspaces that declare it, freezing 24 days of
+       * updates across apps/cms and apps/viewer for a fault neither of them has. A hold
+       * with no upper bound looks identical to a version nobody dares touch.
+       */
+      const stuck: string[] = []
+      for (const workspace of WORKSPACES) {
+        if ((scope as readonly string[]).includes(workspace)) continue
+        const declared = allDeps(workspace)[dep]
+        if (declared !== undefined && declared !== elsewhere)
+          stuck.push(`${workspace} declares ${declared}, expected ${elsewhere}`)
+      }
+
+      expect(
+        stuck,
+        `${dep} is held only in ${scope.join(', ')}. Everywhere else should be on ` +
+          `${elsewhere}. If the break has spread, widen \`scope\` and say why.`,
+      ).toEqual([])
+    },
+  )
 
   it('every hold states why it exists and what would release it', () => {
     for (const hold of HOLDS) {

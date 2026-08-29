@@ -45,6 +45,22 @@ const glb = (over: Partial<GlbReport> = {}): GlbReport => ({
   crushedArtwork: [],
   artworkAlphaProblems: [],
   variantColours: [],
+  // A clean spec verdict is the DEFAULT here on purpose: every test below is about
+  // what the owner is told for some OTHER reason, and a fixture that quietly
+  // carried spec errors would change which message they get.
+  //
+  // ⚠️ THAT SENTENCE WAS FALSE WHEN IT WAS WRITTEN, and is true only since
+  // 2026-08-29. `buildReportText` did not read `glb.spec` at all — the container
+  // computed the Khronos verdict on every garment and dropped it, so a fixture full of
+  // spec errors changed nothing about any message. It is now read, reported, and
+  // refused in the Worker; the tests at the bottom of this file are what hold that.
+  spec: {
+    validatorVersion: '2.0.0-dev.3.10',
+    errors: [],
+    warnings: [],
+    counts: { errors: 0, warnings: 0, infos: 0, hints: 0 },
+    truncated: false,
+  },
   warnings: [],
   ...over,
 })
@@ -227,5 +243,140 @@ describe('buildReportText — warnings pass through', () => {
 
   it('says so plainly when there are none', () => {
     expect(buildReportText(opt(), glb(), 'x.glb')).toContain('No warnings.')
+  })
+})
+
+describe('the glTF specification verdict', () => {
+  /*
+   * ⚠️ NONE OF THIS WAS REACHABLE BEFORE 2026-08-29. `inspectGlb` ran the official
+   * Khronos validator on every garment and the container's report object kept SEVEN
+   * neighbouring fields from that same result while dropping the verdict. `report.ts`
+   * never read it, and `ShrinkReport` in the Worker had no such field, so it could not
+   * have crossed the boundary even if it had been sent.
+   *
+   * The measured cost: both live garments are invalid glTF — 44 errors on the cycling
+   * suit, all IMAGE_NON_ENABLED_MIME_TYPE / TEXTURE_INVALID_IMAGE_MIME_TYPE from a WebP
+   * pass that wrote the mime type without declaring EXT_texture_webp. Browsers sniff the
+   * bytes and render anyway, which is exactly why every gate stayed green for weeks.
+   */
+  const withErrors = (count: number) =>
+    glb({
+      spec: {
+        validatorVersion: '2.0.0-dev.3.10',
+        errors: Array.from({ length: count }, (_, i) => ({
+          code: 'IMAGE_NON_ENABLED_MIME_TYPE',
+          message: "'image/webp' MIME type requires an extension.",
+          severity: 0,
+          pointer: `/images/${i}`,
+        })),
+        warnings: [],
+        counts: { errors: count, warnings: 0, infos: 0, hints: 0 },
+        truncated: false,
+      },
+    } as unknown as Partial<GlbReport>)
+
+  it('says plainly that an invalid file was NOT saved', () => {
+    const text = buildReportText(opt(), withErrors(44), 'out.glb')
+
+    expect(text).toContain('NOT A VALID 3D FILE')
+    expect(text).toContain('44 error(s)')
+    expect(text).toContain('has NOT been saved')
+    // The honest nuance, or the owner will think the garment is fine because it renders.
+    expect(text).toContain('other 3D software is entitled to refuse it')
+  })
+
+  it('names the actual problems rather than only a count', () => {
+    // A number the owner cannot act on is the failure mode this whole file exists for.
+    const text = buildReportText(opt(), withErrors(44), 'out.glb')
+    expect(text).toContain('IMAGE_NON_ENABLED_MIME_TYPE')
+  })
+
+  it('caps the listed problems, because a broken file can carry hundreds', () => {
+    const text = buildReportText(opt(), withErrors(300), 'out.glb')
+    expect(text).toContain('300 error(s)')
+    expect(text.match(/IMAGE_NON_ENABLED_MIME_TYPE/g)?.length ?? 0).toBeLessThanOrEqual(5)
+  })
+
+  it('confirms a clean file IS valid, rather than staying silent about it', () => {
+    /*
+     * Silence is what let this run undetected. A green report that says nothing about
+     * validity is indistinguishable from one where the check never ran — which was
+     * literally the case here for as long as the WebP pass existed.
+     */
+    const text = buildReportText(opt(), glb(), 'out.glb')
+
+    expect(text).toContain('Valid 3D file')
+    expect(text).toContain('2.0.0-dev.3.10')
+    expect(text).not.toContain('NOT A VALID 3D FILE')
+  })
+
+  it('reports non-blocking warnings without calling the file invalid', () => {
+    const text = buildReportText(
+      opt(),
+      glb({
+        spec: {
+          validatorVersion: '2.0.0-dev.3.10',
+          errors: [],
+          warnings: [{ code: 'UNUSED_OBJECT', message: 'unused', severity: 1, pointer: '/x' }],
+          counts: { errors: 0, warnings: 1, infos: 0, hints: 0 },
+          truncated: false,
+        },
+      } as unknown as Partial<GlbReport>),
+      'out.glb',
+    )
+
+    expect(text).toContain('Valid 3D file')
+    expect(text).toContain('1 non-blocking warning(s)')
+    expect(text).not.toContain('NOT A VALID 3D FILE')
+  })
+})
+
+describe('the composition block reaches the owner', () => {
+  /*
+   * ⚠️ ADDED 2026-08-29 AFTER AN INDEPENDENT CHECK CAUGHT A HALF-CHANGE IN THIS VERY
+   * REMEDIATION.
+   *
+   * `attributeBytes` was written, tested with mutation-proof controls, and then wired
+   * into `cli.ts` ONLY. Nothing in CI runs `pipeline optimize` (seed:assets runs
+   * placeholders/merge/validate; both evals import optimizeGlb directly), cli.ts is
+   * excluded from coverage, and the production path — container/server.ts calling
+   * optimizeGlb — never touched it. So the instrument built to stop a size figure hiding
+   * the truth was itself invisible to every garment and every gate.
+   *
+   * That is the exact "built, tested, never connected" shape this whole plan exists to
+   * close, committed by the session closing it. These tests are the wire.
+   */
+  it('prints what the garment is made of', () => {
+    const text = buildReportText(opt(), glb(), 'out.glb', [
+      'Made of: 24.23 MB geometry, 1.71 MB images.',
+      '  TEXCOORD        11.20 MB   46.2% of geometry',
+    ])
+
+    expect(text).toContain('Made of:')
+    expect(text).toContain('TEXCOORD')
+    expect(text).toContain('46.2%')
+  })
+
+  it('still produces a valid report when the composition could not be computed', () => {
+    /*
+     * The container wraps the computation, because a reporting failure must never fail a
+     * job that otherwise succeeded. This pins that the absent case degrades rather than
+     * throws or prints "undefined".
+     */
+    const text = buildReportText(opt(), glb(), 'out.glb')
+
+    expect(text).toContain('Suggested filename')
+    expect(text).not.toContain('undefined')
+    expect(text).not.toContain('Made of:')
+  })
+
+  it('keeps the composition and the validity verdict in the same report', () => {
+    // Both were added this session and both are about "is this file actually good?".
+    // A future edit that drops one should be visible here.
+    const text = buildReportText(opt(), glb(), 'out.glb', [
+      'Made of: 1.00 MB geometry, 2.00 MB images.',
+    ])
+    expect(text).toContain('Made of:')
+    expect(text).toContain('Valid 3D file')
   })
 })

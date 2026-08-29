@@ -6,6 +6,8 @@ import {
   type ShrinkDetailLevel,
   nextDetailAdvice,
   shrinkFlagsFor,
+  AUTO_FIDELITY_MAX_RAW_BYTES,
+  autoDetailFor,
 } from './shrink'
 
 const LEVELS: ShrinkDetailLevel[] = ['fidelity', 'balanced']
@@ -166,5 +168,65 @@ describe('media constants', () => {
   it('formats sizes the way both the CMS and the shrink worker report them', () => {
     expect(formatMb(GLB_HARD_MAX_BYTES)).toBe('40.0 MB')
     expect(formatMb(58.3 * 1024 * 1024)).toBe('58.3 MB')
+  })
+})
+
+describe('autoDetailFor — small garments get the best setting automatically', () => {
+  const MB = 1024 * 1024
+
+  it('upgrades a small garment to the highest quality', () => {
+    /*
+     * Measured 2026-08-29: AERO-TECH WINDBREAKER is 16.19 MB raw and comes out at
+     * 3.39 MB on fidelity versus 3.11 MB on balanced — 33,000 more triangles kept for
+     * 280 KB. On a garment this size the decimation barely fires anyway (the quality
+     * budget stops it, not the size target), so the aggressive setting buys almost
+     * nothing and costs real geometry.
+     */
+    expect(autoDetailFor('balanced', 16 * MB)).toBe('fidelity')
+    expect(autoDetailFor(undefined, 16 * MB)).toBe('fidelity')
+  })
+
+  it('leaves a large garment on whatever it was given', () => {
+    /*
+     * The old-settings exports are the risk: 373 MB and 1.25 GB raw, landing at 67% and
+     * 83% of the 40 MB ceiling on the LOWER setting. Raising quality there could breach
+     * it, and a refused garment is worse than a slightly coarser one.
+     */
+    expect(autoDetailFor('balanced', 400 * MB)).toBe('balanced')
+    expect(autoDetailFor(undefined, 1200 * MB)).toBe('balanced')
+  })
+
+  it('⚠️ ONLY EVER UPGRADES — it can never lower what the owner picked', () => {
+    /*
+     * THE PROPERTY THAT MAKES THIS SAFE TO APPLY ON TOP OF A STORED CHOICE. The CMS field
+     * has defaultValue: DEFAULT_SHRINK_DETAIL, so a stored 'balanced' is indistinguishable
+     * from "never touched". Honouring an explicit Balanced would mean refusing to help
+     * everyone who left the default. Upgrading resolves that safely: nobody picks a lower
+     * setting HOPING for worse artwork.
+     */
+    expect(autoDetailFor('fidelity', 16 * MB)).toBe('fidelity')
+    expect(autoDetailFor('fidelity', 1200 * MB)).toBe('fidelity')
+  })
+
+  it('⚠️ treats an unknown size as too big, rather than guessing', () => {
+    /*
+     * Fails safe. A missing filesize must not silently opt a 1.25 GB export into the
+     * higher setting and push it through the ceiling.
+     */
+    expect(autoDetailFor('balanced', undefined)).toBe('balanced')
+    expect(autoDetailFor('balanced', 0)).toBe('balanced')
+    expect(autoDetailFor('balanced', Number.NaN)).toBe('balanced')
+    expect(autoDetailFor('balanced', -1)).toBe('balanced')
+  })
+
+  it('is measured against a real garment at the boundary', () => {
+    /*
+     * Minecut Motion: 45.59 MB raw -> 5.76 MB at fidelity, a SEVENTH of the 40 MB
+     * ceiling. That is the largest garment the threshold admits, and the margin it
+     * leaves is why 50 MB is the number.
+     */
+    expect(autoDetailFor('balanced', 45.59 * MB)).toBe('fidelity')
+    expect(autoDetailFor('balanced', AUTO_FIDELITY_MAX_RAW_BYTES)).toBe('fidelity')
+    expect(autoDetailFor('balanced', AUTO_FIDELITY_MAX_RAW_BYTES + 1)).toBe('balanced')
   })
 })

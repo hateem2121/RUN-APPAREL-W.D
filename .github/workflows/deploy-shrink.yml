@@ -282,9 +282,17 @@ jobs:
           GITLEAKS_VERSION: 8.30.1
         run: |
           set -euo pipefail
-          curl -sSfL \
-            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
-            | tar -xz -C /tmp gitleaks
+          # Kept identical to ci.yml's secrets job — see the note there. A CDN 504
+          # on run 33264929752 failed that gate on a PR containing no secret,
+          # because the SCANNER never downloaded. This file carries a duplicate of
+          # that job on purpose (a scan in another workflow cannot appear in this
+          # deploy's needs:), and the gitleaks history above records what happens
+          # when only one of the two copies gets a fix: the wrapper survived here
+          # for three months, scanning ZERO commits, green.
+          curl -sSfL --retry 5 --retry-delay 3 --retry-all-errors \
+            -o /tmp/gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
           /tmp/gitleaks version
           /tmp/gitleaks detect \
             --source . \

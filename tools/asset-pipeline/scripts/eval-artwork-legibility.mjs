@@ -60,6 +60,7 @@ import { join } from 'node:path'
 import { Document, NodeIO } from '@gltf-transform/core'
 import { compareRenders } from '../src/compare.ts'
 import { optimizeGlb, parseOptimizeArgs } from '../src/optimize.ts'
+import { normalizePbr } from '../src/pbr-normalize.ts'
 import { renderViews } from '../src/render.ts'
 
 /**
@@ -359,11 +360,38 @@ async function main() {
 
   const io = new NodeIO()
   const { doc, triangles } = await buildArtworkPanel()
+
+  /*
+   * ⚠️ THE BASELINE MUST CARRY EVERY NON-DECIMATION STEP THE OPTIMIZED RUNS DO, AND
+   * THIS EVAL WENT RED FOR A WHOLE BRANCH BECAUSE IT DID NOT.
+   *
+   * The header above promises "the only variable is the decimation". `normalizePbr`
+   * joined `optimizeGlb` on 2026-08-28 — the metalness fix, correcting materials that
+   * are metallic 1.0 with nothing to override them — and it runs on the optimized side
+   * ONLY. So every row measured "decimation damage PLUS a legitimate shading
+   * correction" and all three jumped together:
+   *
+   *     fidelity 1.650 -> 15.290    balanced 3.070 -> 16.070    CONTROL 9.370 -> 18.760
+   *
+   * That reads as catastrophic artwork damage and is not: rendered and looked at
+   * 2026-08-28, the letterforms are INTACT — same strokes, no holes, no smearing —
+   * and merely lighter, because a wrongly-metallic surface renders dark and a
+   * corrected one does not. The `control` sheet from the same run shows what real
+   * damage looks like: letters torn into shards.
+   *
+   * ⚠️ It is the `opaque`-default trap one module along. `normalizePbr` defaults ON
+   * inside `optimizeGlb` and there is no equivalent default on a hand-built baseline,
+   * so the two sides drifted silently. Any FUTURE non-decimation pass added to
+   * `optimizeGlb` must be added here too, or this eval will report it as damage.
+   */
+  await doc.transform(normalizePbr())
+
   const srcGlb = join(workDir, 'fixture.glb')
   await writeFile(srcGlb, await io.writeBinary(doc))
   console.log(`fixture: ${triangles.toLocaleString()} triangles, real wordmark alpha, MASK @ 0.5`)
 
-  // Baseline: the undecimated fixture. Everything is measured against this.
+  // Baseline: the undecimated fixture, PBR-normalised exactly as the optimized runs
+  // are. Everything is measured against this.
   const baselineDir = join(workDir, 'render-baseline')
   await renderViews(srcGlb, baselineDir, {
     views: WORDMARK_VIEW,

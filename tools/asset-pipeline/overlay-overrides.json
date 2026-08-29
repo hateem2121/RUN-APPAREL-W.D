@@ -1,0 +1,20 @@
+{
+  "$comment": [
+    "Manual overrides for the printed-overlay depth bias. Read by 'pnpm pipeline overlays'.",
+    "",
+    "The DETECTOR is geometric and is not name-based, on purpose - see overlay-depth.ts.",
+    "This file is the escape hatch for a garment a HUMAN has looked at and disagrees with,",
+    "so a material name is the right key here: a person has to be able to read it.",
+    "",
+    "  garment  - the .glb basename, without the extension. Empty matches any garment.",
+    "  material - the material name, matched exactly.",
+    "  force    - 'bias' to flag it anyway, 'skip' to leave it alone.",
+    "  factor   - optional. MUST be between -8 and -64; anything else is REFUSED, because",
+    "             the viewer would silently ignore it and the file would claim a repair",
+    "             that never happened.",
+    "  note     - why. Required. It ends up in the asset as the reason.",
+    "",
+    "An entry that matches no material in the file is REPORTED as stale, never ignored."
+  ],
+  "overrides": []
+}

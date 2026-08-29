@@ -42,6 +42,28 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   chunk contains it), "the setter throws" (none of them do). **`git log` proves
   nothing here** — the old line was committed, deployed, error-free and inert.
 
+- **model-viewer BUILDS ONLY THE ARRIVING COLOURWAY'S MATERIALS, so anything done
+  to `model.materials` on `load` reaches a fraction of them.** Measured on the live
+  garment 2026-08-27: **200 materials, 44 built, 156 lazy**; of 26 printed cut-outs,
+  **6 biased and 20 never**. Variant-only materials are constructed with an empty
+  `Set` plus a `LazyLoader` (`lib/features/scene-graph/model.js`), and the backing
+  getter returns `this[$correlatedObjects].values().next().value` — `undefined`. So
+  the decal depth bias shipped, was committed, was deployed, and left four of five
+  colourways flickering. **`variant-applied` fires after `await
+  model[$switchVariant]()` resolves**, which is when the rest become reachable;
+  `Stage.tsx` re-applies there. Verified in a browser: 11/11 biased on load, then
+  16/16, 21/21, 26/26 as each colourway was visited.
+  ⚠️ **`isLoaded` is PUBLIC and is what separates the two silences** — "this
+  colourway is not open yet" (normal, quiet) from "the internal symbol is gone"
+  (report it). The first version collapsed both into one counter that nothing read,
+  which is how 156 misses stayed invisible.
+  ⚠️ **The seeded fixture could not exhibit this** — its colourways built identical
+  artwork materials, so `dedup()` merged them into one always-eager material: 6 MASK,
+  6 eager, **0 lazy** against production's 26/6/20. `PlaceholderColourway.ink` now
+  tints each colourway's print as a real CLO export does. A test here must assert the
+  swap loaded NEW cut-outs before asserting they are biased, or an inadequate fixture
+  passes it silently.
+
 - **THE LAYOUT QUERY AND THE CONTENT QUERY ARE NOT THE SAME QUERY, and building
   them as one broke a landscape phone.** Found 2026-08-21, before shipping, by
   measurement rather than by review. `<ProductIdentity>` moves the product's name
@@ -229,6 +251,15 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   sit on working sides of the gap. Verified in a browser at 950px: zero controls
   with the old rule, two with the new one. There is now a test at 950.
 
+- **model-viewer's CAMERA reads the ATTRIBUTE, and setting the property silently did
+  nothing.** Measured 2026-08-27 while framing a decal: `mv.cameraOrbit = '68deg 90deg
+  auto'` followed by `jumpCameraToGoal()` left `getCameraOrbit()` at the old value, so
+  a "grazing angle" comparison was really two head-on frames. It is a lit element —
+  `setAttribute('camera-orbit', …)`, then **`await mv.updateComplete`**, then
+  `jumpCameraToGoal()`. The reverse of the `src` trap below, which is why both are
+  here: **verify a camera move by reading `getCameraOrbit()` back** before trusting
+  any frame it produced.
+
 - **React sets `src` on a custom element as a PROPERTY, never an attribute.**
   `el.getAttribute('src')` on `<model-viewer>` is always `null` — its attribute
   list carries `camera-orbit`, `tone-mapping` and a dozen others and no `src`.
@@ -290,49 +321,20 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   left it at 623px. `min-height: 0` is the line that actually fixes it. Same trap
   as the familiar `min-width: 0` on flex children.
 
-- **The CSP violation on every page load is Bot Fight Mode, NOT Web Analytics.**
-  On 2026-08-05 it was diagnosed as Web Analytics' "Automatic Setup" injecting a
-  beacon bootstrap, and that is **wrong** — corrected 2026-08-06 by reading the
-  injected script instead of inferring it. It is Cloudflare's **JavaScript
-  Detections** (`window.__CF$cv$params`, loading
-  `/cdn-cgi/challenge-platform/scripts/jsd/main.js`), which is bundled with Bot
-  Fight Mode and, per Cloudflare's docs, *"automatically enabled and cannot be
-  disabled"* for Bot Fight Mode customers. Web Analytics was never involved: the
-  delivered HTML had **zero** matches for `cloudflareinsights`, and a live load made
-  **zero** requests to it.
-  **No hash can ever cover it.** The script embeds a per-request ray id and
-  timestamp, so its sha256 differs on every single load — measured three values in
-  under a minute (`YQqe7Ux…`, `jgl9AA6h…`, `eXCOhXoR…`). Anyone "fixing" this by
+- **The CSP violation on every page load was Bot Fight Mode, NOT Web Analytics —
+  RESOLVED 2026-08-06.** It was Cloudflare's **JavaScript Detections**
+  (`window.__CF$cv$params`), bundled with Bot Fight Mode. It was first diagnosed as Web
+  Analytics and that was **wrong** — corrected by reading the injected script instead of
+  inferring it.
+  **No hash can ever cover it**: the script embeds a per-request ray id, so its sha256
+  differs on every load — three values measured inside a minute. Anyone "fixing" this by
   pinning a hash is chasing a value that changed before they pasted it.
-  **RESOLVED 2026-08-06 — and the fix is not in the dashboard.** Turning Bot Fight
-  Mode off is NOT sufficient: `enable_js` is a **separate zone flag that does not
-  clear with it**, and the Free plan renders it as read-only status text
-  ("JS Detections: On", tooltip "enabled by default when you turn on Bot fight
-  mode") with no control. Verified via the API — `fight_mode: false` and
-  `enable_js: true` at the same time.
-  Fix, from an authenticated dashboard session:
-  ```js
-  // GET first; PUT REPLACES the config, so echo every field back.
-  // PATCH returns 405 — this endpoint is PUT-only.
-  const cur = (await (await fetch(`/api/v4/zones/${ZONE}/bot_management`,
-    {credentials:'include'})).json()).result
-  const body = {...cur, enable_js: false}; delete body.using_latest_model
-  await fetch(`/api/v4/zones/${ZONE}/bot_management`,
-    {method:'PUT', credentials:'include',
-     headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)})
-  ```
-  Zone `wear-run.help` = `805d8ae5fa0dea40c960a2561f66d141`. Injection stopped
-  immediately; the page now serves ONE inline script (our theme bootstrap) and logs
-  no CSP error.
-  Two rejected alternatives, for the record:
-  - **`Cache-Control: no-transform` on the HTML** — documented to stop the
-    injection, but it cannot be delivered to the SPA routes from `_headers` on this
-    deployment. Tried and measured; see the `_headers` trap below.
-  - **CSP nonces** — Cloudflare adds matching nonces to what it injects, by parsing
-    your CSP response header. Not usable from a static `_headers` file: a nonce must
-    be per-request, so it would need the viewer Worker to rewrite the header per
-    response. Nonces set via `<meta>` are explicitly unsupported.
-  Never widen to `'unsafe-inline'`.
+  **Turning Bot Fight Mode off is NOT sufficient** — `enable_js` is a separate zone flag
+  that does not clear with it, and the Free plan shows it as read-only text. It must be
+  cleared over the API (PUT, not PATCH; PUT REPLACES the config so echo every field back).
+  **Never widen to `'unsafe-inline'`.** Nonces are not usable from a static `_headers`
+  file. Full diagnosis, the exact API call, the zone id and the two rejected alternatives:
+  `docs/VIEWER-CSP-BOT-FIGHT-MODE.md`.
 
 - **`_headers` rules that both match are COMBINED, not overridden — duplicate
   headers are joined with a comma.** There is no "most specific wins" here, and
@@ -349,37 +351,6 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   minus the added directive**, so comparing the two paths shows a match and reads
   as confirmation that the rule applied. It did not. Verify a header rule by
   changing it to something the default is not.
-
-- **`_headers` DOES survive `env.ASSETS.fetch()` — measured 2026-08-08, so the
-  viewer can grow a Worker without losing its CSP.** This was an open unknown
-  blocking per-garment link previews: `apps/viewer/wrangler.jsonc` is assets-only,
-  injecting per-garment OG tags needs a Worker, and Cloudflare's docs say only that
-  `_headers` is "supported natively" — never what happens to a response the Worker
-  fetched through the binding. If it were applied by the asset router *before* the
-  binding, adding a Worker would silently drop CSP and HSTS on every page, and no
-  test in this repo would catch it.
-  Measured on wrangler 4.114.0, `compatibility_date` 2026-07-01, against a fixture
-  carrying a deliberately non-default `X-Headers-Probe` (per the trap above — a
-  default-shaped value proves nothing). On the SPA-fallback route `/n001/wine`,
-  **all three** of assets-only, `return env.ASSETS.fetch(request)`, and
-  `new Response(response.body, response)` returned identical CSP, HSTS and probe
-  headers. A `/__worker-marker` route returned `X-Worker-Ran: yes` in the same run,
-  so the Worker was genuinely in the path rather than bypassed — without that
-  control the result would have been indistinguishable from the Worker never
-  running. The same run also re-confirmed the combining rule above: a hashed asset
-  came back with `x-headers-probe` **twice**, once per matching rule.
-  ⚠️ Measured on `wrangler dev` (local), not against the edge. It exercises the
-  same asset-serving implementation, but if a production deploy ever adds a Worker
-  here, re-check the live response headers once rather than trusting this line.
-  **That Worker now exists** (`apps/viewer/worker/index.ts`, 2026-08-08) and the
-  headers were re-confirmed through it locally — CSP, HSTS, Permissions-Policy,
-  Referrer-Policy and nosniff all present on a rewritten response. Still not
-  re-checked against the live edge; do that once after the first deploy.
-  ✅ **DONE 2026-08-12** — discharged by the `/render` measurement two traps below:
-  on the live edge, through the deployed Worker, an asset-served `/render` 200
-  carried all five headers. `_headers` survives the binding in production, not just
-  under `wrangler dev`. (The same run found the Worker-*built* 400 carried none —
-  that is the separate trap, not a failure of this one.)
 
 - **Per-garment link previews are CRAWLER-ONLY, and the number is why.** Measured
   2026-08-08, warm connection, five requests each: the viewer's static HTML is
@@ -405,36 +376,29 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   returning 200 while quietly ceasing to set it on every link, which is why
   `worker/preview.test.ts` asserts each rewritten tag still exists there.
 
-- **`_headers` does NOT reach a response the Worker builds itself — measured on
-  the live edge 2026-08-12.**
-  ⚠️ **THE ROUTE THIS WAS MEASURED ON IS GONE.** `/render` was deleted 2026-08-17
-  with the automatic poster capture it existed for (owner decision — Browser
-  Rendering is billed per session-second). The measurement below still stands and
-  is the whole reason `worker/securityHeaders.ts` is KEPT despite having no caller
-  left: the Worker currently builds no response of its own, and the next one added
-  must not re-learn this on the live edge. `RenderPage.tsx`, `renderGuard.ts` and
-  `e2e/render.spec.ts` went with it. The trap above establishes that `_headers` survives
-  `env.ASSETS.fetch()`, which is true and is not the whole story: `_headers` is
-  applied by the STATIC ASSET HANDLER, so a `new Response(...)` that never goes
-  through the binding carries none of it. Same route, two outcomes:
+- **`_headers` is applied by the STATIC ASSET HANDLER, so it survives
+  `env.ASSETS.fetch()` and NEVER reaches a response the Worker builds itself.** Both
+  halves measured on the live edge 2026-08-12, same route:
   ```
-  GET /render?model=https://media.wear-run.help/x.glb → 200 asset-served:
-      csp, hsts, permissions-policy, referrer-policy, nosniff   ALL PRESENT
-  GET /render?model=https://evil.com/x.glb            → 400 Worker-built:
-      ALL FIVE ABSENT
+  200 asset-served:  csp, hsts, permissions-policy, referrer-policy, nosniff  ALL PRESENT
+  400 Worker-built:  ALL FIVE ABSENT
   ```
-  Nothing was exploitable — the body is a fixed string with no caller input — but
-  the next Worker-built response that carries HTML would ship with no CSP.
-  `worker/securityHeaders.ts` now supplies them; `apps/viewer/scripts/csp.test.ts` pins its
-  values against `buildHeadersFile()`'s own `/*` rule so the two copies cannot
-  drift, and fails if a SIXTH header is added to `_headers` and not to it.
-  ⚠️ **The e2e fixture could never have caught this, because the fixture was too
-  GOOD:** `e2e/serve.mjs` sets its `GLOBAL_HEADERS` on every response *before* the
-  `/render` check, so its 400 was always correct while production's was not. An
-  assertion that "the refusal carries a CSP" passes locally and was false live.
-  That is the root `CLAUDE.md`'s fixtures-cannot-exhibit-the-failure pattern
-  inverted — worth remembering, because the usual instinct is to make the fixture
-  more faithful, and here the fixture was already ahead of production.
+  That is why `worker/securityHeaders.ts` is KEPT with no caller left — the Worker
+  currently builds no response of its own, and the next one that carries HTML must
+  not re-learn this in production. `apps/viewer/scripts/csp.test.ts` pins its values
+  against `buildHeadersFile()`'s `/*` rule so the two copies cannot drift, and fails
+  if a SIXTH header is added to `_headers` and not to it.
+  ⚠️ **Two things made that measurement trustworthy, and both are easy to omit.** The
+  probe header carried a deliberately NON-DEFAULT value (a default-shaped one proves
+  nothing — see the `_headers` combining trap above), and a `/__worker-marker` route
+  returning `X-Worker-Ran: yes` proved the Worker was in the path at all; without it
+  the result is indistinguishable from the Worker never running.
+  ⚠️ **The e2e fixture could never have caught the Worker-built half, because the
+  fixture was too GOOD:** `e2e/serve.mjs` sets `GLOBAL_HEADERS` on every response, so
+  its 400 was always correct while production's was not. That is the root
+  `CLAUDE.md`'s fixtures-cannot-exhibit-the-failure pattern INVERTED — the usual
+  instinct is to make a fixture more faithful, and here it was already ahead of
+  production.
 
 - **`og:image` must not be the WebP poster, even though every browser reads WebP.**
   Link crawlers are not browsers: LinkedIn documents JPG/PNG/GIF only, and iMessage
@@ -497,45 +461,44 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   `.stage__error:not([hidden])` — `:not` is load-bearing, that `<p>` is always
   mounted so its live region can announce. **Key a test on what the VISITOR gets.**
 
+## Found 2026-08-28 — two defects in one lever, four lying instruments
+
+**The decal bias shipped EIGHT TIMES TOO WEAK and every test stayed green.** `-1/-1`
+left p001's print eaten through WITH the bias on; `-8/-8` closes it. n001 — tightest
+cloth, and LIVE — is **0.000%** changed at `-8` and `-64`.
+
+⚠️ **AND IT DID NOT FIX THE OWNER'S DEFECT — the NEAR PLANE did, 2026-08-29.**
+model-viewer pins `camera.near` at 0.00436 m and the depth step grows with **z²**, so
+zooming OUT cut the margin over CLO's 0.100 mm print offset to **1.5×** (5.1× in —
+"perfect zoomed in, blinks out"). `camera-near-plane.ts` fixes it, as a property
+OVERRIDE since model-viewer rewrites `near` every camera change. KEEP the pipeline
+`depthBias` path: p001 at 0.001 mm still lands ~4×. Logos never fought — BLEND never
+writes depth.
+
 ## Whose animation advice wins
 
-Three vendored skills opine on motion here — `review-animations` and
-`emil-design-eng` (Emil Kowalski, taste) and `motion` (Motion's own kit, render
-cost). **`docs/DESIGN.md` outranks all three.** It calls itself the viewer's
-*locked* design system, and `apps/viewer/src/styles/tokens.css:2`,
-`apps/viewer/src/main.tsx:2` and `apps/viewer/src/components/SerifAccent.tsx:5`
-already cite it as their authority.
+**`docs/DESIGN.md` outranks the three vendored motion skills** (`review-animations`,
+`emil-design-eng`, `motion`). It is the viewer's *locked* design system, and
+`apps/viewer/src/styles/tokens.css:2` cites it as their authority.
 
-This is not a precaution, it is arithmetic. `review-animations` standard 4 is
-*"sub-300ms on UI, or it is a finding"*; `docs/DESIGN.md` §5 locks `--settle` at
-**500ms** and `--slow` at **800ms**. An agent applying that skill literally files
-two findings against the locked system. On mechanics the three agree — prefer
-`transform` over Motion's `x`/`y`/`scale` shorthands, springs that retarget when
-interruptible, GPU-composited properties only — so **duration and easing are where
-to expect the collision**, not technique.
-
-Added 2026-08-13, when `motion` became the third advisor. The full rulings — these
-plus the ones for React and for prose — are in `.claude/skills/README.md`, which is
-policy for a human reading a diff and is never loaded into a session. That is why
-this paragraph is here and not only there.
+Not a precaution, arithmetic: `review-animations` standard 4 is *"sub-300ms on UI, or
+it is a finding"* while `docs/DESIGN.md` §5 locks `--settle` at **500ms** and `--slow`
+at **800ms**, so an agent applying that skill files two findings against the locked
+system. The three agree on mechanics — **expect the collision on duration and easing,
+not technique.** Full rulings in `.claude/skills/README.md`.
 
 ## No Tailwind here, and the skills will suggest it anyway
 
-**This viewer has no Tailwind, no shadcn/ui and no component library. Do not add
-one.** Appearance is hand-written in `apps/viewer/src/styles/tokens.css`; behaviour,
-*when a new screen ever needs it*, comes from `base-ui`, which ships no CSS. The
-reasoning and the reject list are in `docs/DECISION-UI-LIBRARIES.md`.
+**No Tailwind, no shadcn/ui, no component library. Do not add one.** Appearance is
+hand-written in `apps/viewer/src/styles/tokens.css`; behaviour, when a screen ever
+needs it, comes from `base-ui`, which ships no CSS. Reasoning and reject list:
+`docs/DECISION-UI-LIBRARIES.md`.
 
-This is the animation collision above, one level up. Several vendored design skills
-default to a Tailwind/shadcn idiom and will emit `className="flex gap-2 …"` for a
-component here — that is not a bug in them, it is the house style of the ecosystem
-they came from. Measured 2026-08-15: this repo has **zero** matches for `tailwindcss`,
-`@tailwind`, `components.json` or `@radix-ui` in any workspace, so such a suggestion
-compiles to nothing and silently ships an unstyled element.
-
-The tell is a `className` with utility strings in it. The fix is a semantic token in
-`tokens.css`, per `docs/DESIGN.md` §8.
-
+Several vendored design skills default to a Tailwind/shadcn idiom. Measured
+2026-08-15: this repo has **zero** matches for `tailwindcss`, `@tailwind`,
+`components.json` or `@radix-ui`, so such a suggestion compiles to nothing and
+silently ships an unstyled element. **The tell is a `className` carrying utility
+strings**; the fix is a semantic token, per `docs/DESIGN.md` §8.
 
 ## Running what these traps describe
 

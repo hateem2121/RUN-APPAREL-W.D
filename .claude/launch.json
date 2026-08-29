@@ -13,6 +13,20 @@
       "runtimeArgs": ["--yes", "pnpm@10.33.0", "--filter", "@run-apparel/cms", "dev"],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "review",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "pnpm@10.33.0",
+        "pipeline",
+        "review",
+        "output/review",
+        "--port",
+        "4180"
+      ],
+      "port": 4180
     }
   ]
 }

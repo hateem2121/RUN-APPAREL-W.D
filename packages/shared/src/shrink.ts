@@ -169,6 +169,54 @@ export interface ShrinkJobMessage {
  * Net on that export: 1,253 MB -> 20.6 MB, with logos, slogan, halftone, thread
  * cord and all five colourways verified against the uncompressed original.
  */
+/**
+ * Below this raw-export size, a garment is processed at the HIGHEST quality automatically.
+ *
+ * MEASURED, not chosen. The risk of raising quality is the output breaching
+ * GLB_HARD_MAX_BYTES (40 MB), so the threshold is set where that is comfortably
+ * impossible. Both figures are from real garments on 2026-08-29:
+ *
+ *   AERO-TECH WINDBREAKER   16.19 MB raw  ->  3.39 MB at fidelity   (8.5% of the ceiling)
+ *   Minecut Motion          45.59 MB raw  ->  5.76 MB at fidelity  (14.4% of the ceiling)
+ *
+ * So a 45 MB export lands at a SEVENTH of the limit. 50 MB keeps a large margin over the
+ * biggest garment measured, while excluding the old-settings exports that are the actual
+ * risk — those run 90 MB to 1.25 GB and land at 67-83% of the ceiling even on the lower
+ * setting.
+ *
+ * ⚠️ RAW SIZE IS A PROXY, and the thing it proxies is topstitch. A new-settings export
+ * carries none (0% of triangles) and comes out small; an old one is ~92% topstitch. If
+ * the catalogue ever contains a small export that is nonetheless geometry-heavy, this
+ * threshold is the number to re-measure — do not raise it on reasoning alone.
+ */
+export const AUTO_FIDELITY_MAX_RAW_BYTES = 50 * 1024 * 1024
+
+/**
+ * Pick the detail level for an upload, given what the owner selected and how big the raw
+ * export is.
+ *
+ * ⚠️ THIS ONLY EVER UPGRADES. That is what makes it safe to apply on top of a stored
+ * choice. The CMS field carries `defaultValue: DEFAULT_SHRINK_DETAIL`, so a stored
+ * 'balanced' is indistinguishable from "the owner never touched it" — there is no way to
+ * honour an explicit Balanced without also refusing to help everyone who left the
+ * default. Upgrading resolves that safely: nobody selects a lower setting HOPING for
+ * worse artwork, and on a garment this small the cost is a few hundred kilobytes.
+ * Anything already at 'fidelity' is returned unchanged, and a garment over the threshold
+ * keeps exactly what it was given.
+ *
+ * Returns the level to use. `rawBytes` of 0 or undefined means "size unknown", which is
+ * treated as too big to upgrade — failing safe rather than guessing.
+ */
+export function autoDetailFor(
+  selected: ShrinkDetailLevel | undefined,
+  rawBytes: number | undefined,
+): ShrinkDetailLevel {
+  const level = selected ?? DEFAULT_SHRINK_DETAIL
+  if (level === 'fidelity') return level
+  if (!rawBytes || !Number.isFinite(rawBytes) || rawBytes <= 0) return level
+  return rawBytes <= AUTO_FIDELITY_MAX_RAW_BYTES ? 'fidelity' : level
+}
+
 export function shrinkFlagsFor(detail: ShrinkDetailLevel = DEFAULT_SHRINK_DETAIL): string[] {
   switch (detail) {
     case 'fidelity':

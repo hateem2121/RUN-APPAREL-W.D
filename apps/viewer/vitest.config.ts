@@ -25,6 +25,27 @@ export default defineConfig({
       'scripts/**/*.test.ts',
       'worker/**/*.test.ts',
     ],
+    /**
+     * PINNED, NOT INHERITED — the same fix playwright.config.ts applies to PORT.
+     *
+     * `src/lib/telemetry.ts` reads `import.meta.env.VITE_API_BASE_URL` at module
+     * scope and falls back to the production host. `telemetry.test.ts` asserted
+     * against that fallback with the comment "with none set in tests it falls back
+     * to the production default, so the endpoint is deterministic".
+     *
+     * It is not. Vite loads `apps/viewer/.env.local` automatically, and that file
+     * is gitignored (.gitignore:37) — so CI, which never has one, passed forever
+     * while any machine that had ever run the CMS locally failed forever, on a test
+     * whose own comment said the opposite. Measured 2026-08-26: moving `.env.local`
+     * aside made the suite pass 4/4 and restoring it brought the failure straight
+     * back.
+     *
+     * That is the same shape as the PORT and NODE_ENV traps in the root CLAUDE.md,
+     * and it has the same fix: the config owns the value, so the environment cannot
+     * reach it. Do NOT "fix" this by deleting .env.local — it is a legitimate local
+     * override for running the viewer against a local CMS.
+     */
+    env: { VITE_API_BASE_URL: 'https://cms.wear-run.help' },
     // Installs a working localStorage/sessionStorage. Required from Node 25+,
     // where Node's own Web Storage global suppresses jsdom's — see the setup
     // file for the full explanation.

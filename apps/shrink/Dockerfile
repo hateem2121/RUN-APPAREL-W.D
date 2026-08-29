@@ -22,7 +22,14 @@
 # hand. Do not unpin it to make an update easier, and do not "fix" this by adding
 # a `docker` ecosystem — it would either sit at 0 and change nothing, or break
 # the quiet mode on purpose. See the same correction in the root CLAUDE.md.
-FROM node:24-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03
+#
+# PINNED-ON: 2026-08-29
+# ⚠️ That line is READ BY A TEST (apps/cms/src/baseImageAge.test.ts), which fails once
+# the pin is older than the refresh window. Base images are rebuilt mainly to pick up
+# operating-system security fixes, so pinning is correct and never refreshing is not —
+# and until 2026-08-29 nothing anywhere measured the age. Update the date in the SAME
+# commit as the digest, or the gate is measuring a lie.
+FROM node:24-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e
 
 WORKDIR /app
 
@@ -50,8 +57,23 @@ COPY tools/asset-pipeline tools/asset-pipeline
 # --- Container service --------------------------------------------------------
 # Installs its own deps (aws4fetch) plus tsx, used to run the TypeScript server
 # and pipeline source directly.
-COPY apps/shrink/container/package.json apps/shrink/container/
-RUN cd apps/shrink/container && npm install --no-audit --no-fund
+#
+# ⚠️ THIS WAS `npm install` WITH NO LOCKFILE UNTIL 2026-08-29 — six lines below the
+# comment above explaining, at length, why that was dangerous and had to be replaced.
+# The reasoning was acted on for the first install and not the second. Two builds of
+# the same commit could ship different versions of `tsx`, which is what actually RUNS
+# the pipeline.
+#
+# The lockfile was already committed, already in sync and being maintained; nothing
+# read it, because the Dockerfile never copied it in. A maintained file that nothing
+# consumes is worse than no file: it makes the situation look handled.
+#
+# ⚠️ NO `--omit=dev` HERE, unlike the install above, and this is not an oversight.
+# `tsx` and `typescript` are devDependencies AND the runtime — `server.ts` is executed
+# as TypeScript. Adding `--omit=dev` to "match" the line above produces an image that
+# builds cleanly and cannot start.
+COPY apps/shrink/container/package.json apps/shrink/container/package-lock.json apps/shrink/container/
+RUN cd apps/shrink/container && npm ci --no-audit --no-fund
 COPY apps/shrink/container apps/shrink/container
 
 WORKDIR /app/apps/shrink/container

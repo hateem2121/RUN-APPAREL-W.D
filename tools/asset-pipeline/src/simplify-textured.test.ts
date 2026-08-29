@@ -287,9 +287,22 @@ describe('runSimplifyTextured', () => {
  * its artwork was not protected. There is no false-positive case, which is why
  * this — and not a bytes-per-pixel guess — is the signal worth blocking on.
  */
-function attachArtwork(document: Document, prim: ReturnType<typeof buildGrid>, name: string) {
+/**
+ * ⚠️ THE TEXTURE IS DELIBERATELY UNNAMED. A real CLO export names the MATERIAL and
+ * leaves every texture anonymous — measured across all ten raw exports on this machine,
+ * 2,398 images, not one with a name or URI.
+ *
+ * Until 2026-08-29 this fixture named BOTH, and that is precisely why nobody noticed the
+ * gate was dead: with a texture called "chest-logo" the old texture-name implementation
+ * passed every test while being incapable of firing on a real garment. A fixture that
+ * has the one property real files lack proves nothing about production.
+ *
+ * With the texture nameless, the old implementation FAILS these tests and the material
+ * one passes — which is the whole point of writing it this way.
+ */
+function attachArtwork(document: Document, prim: ReturnType<typeof buildGrid>) {
   const texture = document
-    .createTexture(name)
+    .createTexture()
     .setMimeType('image/png')
     .setImage(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))
   const material = document.createMaterial('N001-CHEST-GRAPHIC').setBaseColorTexture(texture)
@@ -301,7 +314,7 @@ describe('runSimplifyTextured — artwork at risk', () => {
   it('names the material when an artwork-bearing primitive takes the fallback', () => {
     const document = new Document()
     const prim = buildGrid(document, 33, false) // no TEXCOORD_0 → position-only path
-    attachArtwork(document, prim, 'chest-logo')
+    attachArtwork(document, prim)
 
     const result = runSimplifyTextured(document, options())
 
@@ -312,7 +325,7 @@ describe('runSimplifyTextured — artwork at risk', () => {
   it('reports nothing when the artwork primitive keeps the UV-aware path', () => {
     const document = new Document()
     const prim = buildGrid(document) // has TEXCOORD_0
-    attachArtwork(document, prim, 'chest-logo')
+    attachArtwork(document, prim)
 
     const result = runSimplifyTextured(document, options())
 
@@ -333,5 +346,67 @@ describe('runSimplifyTextured — artwork at risk', () => {
 
     expect(result.fallback).toBe(1)
     expect(result.artworkAtRisk).toEqual([])
+  })
+})
+
+describe('runSimplifyTextured — the gate reads the MATERIAL name, not the texture', () => {
+  /*
+   * These pin the 2026-08-29 change and the trap beside it.
+   *
+   * The gate could never fire on a real garment because it asked the TEXTURE's name and
+   * CLO writes none. The obvious repair — read the glTF `textures[].name`, which IS
+   * populated — is worse: on a real export every value is the literal string "Texture",
+   * and ARTWORK_NAME contains the alternative `text`. Measured on the re-exported
+   * Minecut Motion, that predicate matches 50 of 50 textures, so the gate would flip
+   * from never firing to refusing every garment.
+   */
+  const fallbackPrim = (document: Document) => buildGrid(document, 33, false)
+
+  const withNames = (document: Document, materialName: string, textureName?: string) => {
+    const prim = fallbackPrim(document)
+    const texture = (textureName ? document.createTexture(textureName) : document.createTexture())
+      .setMimeType('image/png')
+      .setImage(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))
+    prim.setMaterial(document.createMaterial(materialName).setBaseColorTexture(texture))
+    return prim
+  }
+
+  it('flags a real CLO shape: named material, anonymous texture', () => {
+    const document = new Document()
+    withNames(document, 'Material_Graphic_3488354')
+
+    expect(runSimplifyTextured(document, options()).artworkAtRisk).toEqual([
+      'Material_Graphic_3488354',
+    ])
+  })
+
+  it('⚠️ does NOT flag plain fabric whose texture is called "Texture"', () => {
+    /*
+     * THE TRAP, PINNED. Every texture in a CLO export is literally named "Texture", and
+     * `text` is one of ARTWORK_NAME's alternatives. Any future change that points this
+     * gate back at the texture name fails here rather than in production, where it would
+     * refuse the entire catalogue.
+     */
+    const document = new Document()
+    withNames(document, 'Cotton_Canvas_2961', 'Texture')
+
+    expect(runSimplifyTextured(document, options()).artworkAtRisk).toEqual([])
+  })
+
+  it('does not flag a material named as artwork that shows no texture at all', () => {
+    // Trim and hardware can carry an artwork-ish name without displaying a graphic.
+    const document = new Document()
+    const prim = fallbackPrim(document)
+    prim.setMaterial(document.createMaterial('LOGO Plate Metal'))
+
+    expect(runSimplifyTextured(document, options()).artworkAtRisk).toEqual([])
+  })
+
+  it('catches the other real names this catalogue actually uses', () => {
+    for (const name of ['RUN LOGO_3488411', 'LOGO Team wear Embridory gold gold_3488372']) {
+      const document = new Document()
+      withNames(document, name)
+      expect(runSimplifyTextured(document, options()).artworkAtRisk).toEqual([name])
+    }
   })
 })

@@ -163,6 +163,79 @@ const TRAP_CLAIM = /\*\*([\w-]+) more traps live in `([^`]+)`\*\*/g
  */
 const TRAP_CLAIM_LOOSE = /more traps live in `([^`]+)`/g
 
+/**
+ * The instruction files have a hard ceiling, and until 2026-08-29 nothing in this repo
+ * measured it.
+ *
+ * Past 40,000 characters, adherence to EVERY rule in a CLAUDE.md starts dropping — not
+ * only the newest one. So the ceiling is not cosmetic: crossing it quietly degrades the
+ * traps that stop production incidents, and it degrades them invisibly. Every other
+ * budget here is gated in CI — bundle bytes, coverage floors, licences, doc citations.
+ * The one budget governing whether an AI follows the safety rules at all was enforced by
+ * nobody.
+ *
+ * Measured 2026-08-29 before the trim: 39,884 / 39,993 / 39,836 characters, with 116, 7
+ * and 164 of headroom, growing 1,184-2,127 characters PER DAY. At that rate the headroom
+ * was hours. The session that corrected a false claim that day had to delete text to make
+ * room, which was becoming the permanent mechanism.
+ *
+ * ⚠️ CHARACTERS, NOT BYTES. `wc -c` and `wc -m` both return bytes, and these files carry
+ * enough multi-byte characters (⚠️, —, ▶) to overstate by 286-381. A byte-based gate would
+ * have failed all three while they were still legal.
+ *
+ * ⚠️ THE LIMIT IS 39,000, NOT 40,000, ON PURPOSE. A gate that fires at the ceiling fires
+ * after the harm. This leaves roughly half a day of writing room at the growth rate above
+ * — enough to notice, not enough to drift.
+ *
+ * When this fails, DEMOTE a section to docs/ rather than raising the limit. Three
+ * examples of the move are docs/SESSION-2026-08-27.md, docs/DEPENDENCY-HOLDS.md and
+ * docs/VIEWER-CSP-BOT-FIGHT-MODE.md — each keeps the live rule in CLAUDE.md and moves
+ * only the evidence.
+ */
+const CLAUDE_MD_LIMIT = 39_000
+
+describe('the CLAUDE.md character ceiling', () => {
+  it('keeps every CLAUDE.md under the limit that governs whether its rules are followed', async () => {
+    const files = await findClaudeMdFiles(REPO_ROOT)
+    expect(files.length, 'expected to find the CLAUDE.md files at all').toBeGreaterThan(0)
+
+    const oversized: { file: string; characters: number }[] = []
+    for (const file of files) {
+      const characters = [...(await readFile(file, 'utf8'))].length
+      if (characters > CLAUDE_MD_LIMIT) oversized.push({ file, characters })
+    }
+
+    expect(
+      oversized,
+      `over ${CLAUDE_MD_LIMIT} characters — demote a section to docs/ before adding more:\n` +
+        oversized.map((o) => `  ${o.file}: ${o.characters}`).join('\n'),
+    ).toEqual([])
+  })
+
+  it('NEGATIVE CONTROL: the limit counts characters, not bytes', () => {
+    /*
+     * A string of 10 warning signs is 10 characters and 30 bytes. A byte-based check
+     * reports it as three times its real size — which is exactly the mistake that makes
+     * `wc` unusable here, and would have failed all three files while they were legal.
+     */
+    const multiByte = '⚠️'.repeat(10)
+    expect([...multiByte].length).toBeLessThan(Buffer.byteLength(multiByte, 'utf8'))
+  })
+
+  it('NEGATIVE CONTROL: the gate can actually fail', async () => {
+    /*
+     * Proves the check is wired to real content rather than passing on an empty list.
+     * Same file discovery, a limit nothing can satisfy.
+     */
+    const files = await findClaudeMdFiles(REPO_ROOT)
+    const oversized: string[] = []
+    for (const file of files) {
+      if ([...(await readFile(file, 'utf8'))].length > 100) oversized.push(file)
+    }
+    expect(oversized.length).toBeGreaterThan(0)
+  })
+})
+
 describe('CLAUDE.md', () => {
   it('cites no path that does not exist', async () => {
     const files = await findClaudeMdFiles(REPO_ROOT)

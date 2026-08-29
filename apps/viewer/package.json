@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p worker/tsconfig.json",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:preload": "REQUIRE_BUILD_ARTIFACTS=1 vitest run scripts/preload.test.ts",
     "test:e2e": "playwright test",
     "meshopt": "node scripts/copy-decoders.mjs"
   },
@@ -28,7 +29,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
-    "@cloudflare/workers-types": "5.20260804.1",
+    "@cloudflare/workers-types": "5.20260827.1",
     "@playwright/test": "1.62.1",
     "@sentry/vite-plugin": "5.4.0",
     "@types/node": "26.2.0",

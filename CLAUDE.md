@@ -62,9 +62,22 @@ some of these. It does not, and had not for some time — caught by running the
 commands rather than re-reading the sentence (same lesson as
 `eval:artwork:real -- raw/x.glb` below).
 
+**Playwright's browsers are NOT installed here, and a missing one fails at 0ms.**
+Found 2026-08-27: `test:e2e` reported four engines failing with `(0ms)`, which reads
+as broken code and is a browser that never launched. Install once —
+`npx --yes pnpm@10.33.0 --filter @run-apparel/viewer exec playwright install chromium webkit firefox`.
+`tools/asset-pipeline`'s render harness needs chromium too. With all four present:
+**352 passed, 6 skipped, 44.9s** — the 45s quoted above.
+
 **`pnpm` may not be on `PATH` — MEASURED BOTH WAYS; use `npx --yes pnpm@10.33.0`.**
 Absent in earlier sessions; 2026-08-21 it WAS there (`/opt/homebrew/bin/pnpm`, exactly
 10.33.0). Assume neither, and never let a script shell out to bare `pnpm`.
+⚠️ **A THIRD STATE, 2026-08-27: the path EXISTS and does not run.**
+`/opt/homebrew/bin/pnpm` symlinks into a `node@24` Cellar that Node 26.7.0 replaced.
+`ls` succeeds; running it says `no such file or directory` naming the SYMLINK, not the
+missing target — so `command -v pnpm` finds it and still fails. When a child process
+needs a real one (`e2e/prepare.mjs` shells out to `pnpm build`), put a shim on `PATH`
+that execs `npx --yes pnpm@10.33.0 "$@"`.
 Every documented `pnpm <script>` in this repo means that. Bare `pnpm` fails with
 exit **127**, and the failure is worth naming because of *where* it surfaces:
 `apps/viewer/e2e/prepare.mjs` shells out to `pnpm build`, so the whole e2e suite
@@ -164,22 +177,15 @@ reading as a tidy-up. See the comment in `RawUploads.ts`.
   pass with it present proves nothing, and that is what failed here twice. Note the
   gate is blind to URL-shaped references: it skips anything starting with `/`, so
   `/og/n001/wine.jpg` in RUNBOOK rotted unwatched through a slug rename.
-  ⚠️ **`scripts/doc-citations.mjs` WAS a module with no `main` — that was fixed, and
-  this paragraph said otherwise until 2026-08-19.** It told you the bare command
-  "prints nothing and exits 0 having checked nothing", which cost a session that
-  believed it. Measured 2026-08-19: `node scripts/doc-citations.mjs` prints a line per
-  unresolved citation, then `570 citations checked across 43 documents`, and exits **1**
-  when any fails. It is a usable command now. `apps/cms/src/claudeMd.test.ts` is still
-  the CI gate, and `pnpm --filter @run-apparel/cms test` still the authority, because
-  only the test enforces the recursive walk and the negative control — but the bare
-  command is the fast local check, not a trap. Trusting the OLD claim is now the
-  failure mode: it talks you out of a check that works.
-  ⚠️ **Line RANGES resolve too, since 2026-08-18 — this said the opposite.** The
-  extractor's regex is `/:\d+(?:[:-]\d+)?$/` (`scripts/doc-citations.mjs:151`), which
-  strips `:42`, `:42:7` and `:42-80` alike; the hyphen branch was added the same day the
-  seven-broken-citation failure was fixed. Verified 2026-08-19 by reading the regex.
-  Single-line citations are still the better habit — they are what the harness renders
-  as a clickable link — but a range is no longer a silent failure.
+  ⚠️ **`node scripts/doc-citations.mjs` WORKS — this file claimed otherwise until
+  2026-08-19 and cost a session.** It prints each unresolved citation and exits **1**.
+  Use it as the fast local check; `apps/cms/src/claudeMd.test.ts` is still the CI gate
+  and the authority, because only the test enforces the recursive walk and the
+  negative control.
+  ⚠️ **Line RANGES resolve too, since 2026-08-18 — this said the opposite.** The regex
+  (`scripts/doc-citations.mjs:151`) strips `:42`, `:42:7` and `:42-80` alike. Prefer a
+  single line — the harness renders it as a clickable link — but a range is not a
+  silent failure.
 - **`pnpm test` now also checks** the npm lockfile sync (above), the SBOM licence
   policy, that no two workspaces declare different versions of a shared dependency,
   and that `docs/RUNBOOK.md`'s rollback commands name the real Workers and the
@@ -202,7 +208,14 @@ reason: the test fixtures could not exhibit the failure.**
   untested.
 
 **If production compresses, seed compressed. If production prints, seed a
-print.** Before adding a test, ask what would have to break for it to fail. If
+print.**
+
+⚠️ **A NEGATIVE CONTROL MUST RUN BOTH WAYS.** 2026-08-29: three GPU harnesses each
+reported clean while measuring nothing — a WebGL buffer read after compositing (needs
+`preserveDrawingBuffer`), a sample box on the wrong part of the garment, and
+`drawImage` on model-viewer's non-preserved canvas returning a stale frame (tell:
+identical counts across five colourways). Prove the harness sees a defect you
+INTRODUCE, not just that it passes a good case. Before adding a test, ask what would have to break for it to fail. If
 the answer is "nothing that happens in production", it is not a test.
 
 ## Traps — each of these has already cost a session
@@ -247,42 +260,28 @@ the answer is "nothing that happens in production", it is not a test.
   refused TS 7 outright; RESOLVED by 16.3.0. The lesson is not about TypeScript:
   `tsc --noEmit` passed on 7 the whole time it was broken, so `pnpm typecheck` was
   green and **only `pnpm build` failed.**
-- **`@cloudflare/workers-types` is HELD at `5.20260804.1` — the break begins at
-  `5.20260808.1`.** Bisected 2026-08-12 across 0804/0808/0809/0810: 0804.1 passes,
-  every release from 0808.1 on fails `apps/shrink` typecheck with
-  `Property 'readUInt32LE' does not exist on type 'NonSharedBuffer'` ×3 plus one
-  arity error, all in `tools/asset-pipeline/src/validate.ts`. Note **where it does
-  not surface**: `tools/asset-pipeline` typechecks that same file and passes,
-  because it sets `"types": ["node"]` while `apps/shrink/tsconfig.json` sets
-  `"types": ["@cloudflare/workers-types"]` and no node types — so the Worker
-  resolves `readFile`'s Buffer against workers-types' own definitions, and only the
-  Worker sees the change. `@types/node` looks like the culprit and is not: it was
-  reverted first, the failure persisted, and 26.2.0 was restored once
-  workers-types was isolated. **Bisect; do not revert the plausible one.**
-  ⚠️ **RE-MEASURED 2026-08-18: THE BREAK PERSISTS. The hold stands.** Tested
-  `5.20260817.1` (the newest release the 24h cooldown allows; `5.20260818.1` was
-  8h old and would have been refused SILENTLY): `apps/shrink` typecheck exits **1**
-  with the documented signature exactly — `readUInt32LE does not exist on type
-  'NonSharedBuffer'` ×3 plus one `Expected 0 arguments, but got 3`, all in
-  `tools/asset-pipeline/src/validate.ts`. **The negative control passed first**:
-  the same worktree at the held `5.20260804.1` exits **0**. That step is not
-  optional — the 2026-08-17 audit's attempt at this used an isolated synthetic
-  harness, could not reproduce the passing baseline, and correctly discarded its
-  own result as untrustworthy. Use a real `git worktree`, so `apps/shrink`'s own
-  `tsconfig.json` is what resolves the types. Next candidate: whatever is newest
-  and older than 24h; re-run the same two steps and replace this measurement.
-  `5.20260804.1` was not an arbitrary floor: it was also exactly the peer minimum
-  `wrangler` asked for, so holding any lower — 0726.1 was the first guess — traded
-  a typecheck failure for a permanent unmet-peer warning.
-  ⚠️ **That convenient coincidence ENDED on 2026-08-12 and this paragraph used to
-  say the two versions "happen to be the same one".** Measured: 4.120.1 and 4.121.0
-  both ask `^5.20260804.1`; **4.122.0 asks `^5.20260811.1`**, which the hold cannot
-  satisfy. The repo took 4.122.0 anyway, by owner decision, so it now carries that
-  unmet-peer warning permanently and on purpose. It is **cosmetic** — verified with
-  4.122.0 installed against 5.20260804.1: lint, typecheck 5/5, 621 tests, build and
-  the container typecheck all exit 0. **Do not "fix" the warning by raising
-  workers-types** — that trades a cosmetic warning for the real `readUInt32LE`
-  break above, i.e. the same bad trade in the opposite direction.
+- **`@cloudflare/workers-types` is HELD at `5.20260804.1` — for `apps/shrink` ONLY,
+  since 2026-08-29.** Every release from `5.20260808.1` on fails that package's typecheck
+  with `Property 'readUInt32LE' does not exist on type 'NonSharedBuffer'` x3 plus one
+  arity error — **all four in one 15-line function**, `readGlbGenerator`
+  (`tools/asset-pipeline/src/validate.ts:44`). Re-measured on `5.20260827.1`: still
+  broken, so the hold stands where it applies.
+  **It applies nowhere else.** `apps/cms` and `apps/viewer` run `5.20260827.1` and
+  typecheck clean; the hold had frozen 24 days of updates across both for a fault
+  neither has. It surfaces only in `apps/shrink` because that package sets
+  `"types": ["@cloudflare/workers-types"]` with no node types, and its tsconfig reaches
+  `validate.ts` transitively — `container/report.ts` imports `SIZE_WARNING_BYTES` from it
+  as a **value**. `tools/asset-pipeline` checks the same file and passes, because it sets
+  `"types": ["node"]`. `@types/node` looks like the culprit and is not.
+  **Bisect; do not revert the plausible one.** The split is deliberate and pinned by
+  `dependencyPolicy.test.ts`, which asserts the hold in `apps/shrink` AND asserts it has
+  not widened again. wrangler 4.122.0 wants `^5.20260811.1`, so `apps/shrink` still
+  carries an unmet-peer warning on purpose — cosmetic, and **do not "fix" it by raising
+  workers-types**, which trades it for the real break.
+  Releasing it does not need Cloudflare: move `SIZE_WARNING_BYTES` and `GlbReport` into a
+  node-free module and `readGlbGenerator` stops being reachable. History and the re-test:
+  `docs/DEPENDENCY-HOLDS.md`.
+
 - **The 24h cooldown blocks a bump SILENTLY, and `--latest` is the wrong tool.**
   `pnpm-workspace.yaml` sets `minimumReleaseAge: 1440`. A too-fresh version is not
   an error — `pnpm update -r <pkg> --latest` **exits 0 and leaves the old version
@@ -375,11 +374,22 @@ the answer is "nothing that happens in production", it is not a test.
   because ETC1S mottles white fabric; **a CLO export leaves every TEXTURE anonymous**
   so a name-based artwork check must read the MATERIAL name or it is silently inert;
   and forced double-siding put a **mirrored care label on the outside**.
+  **Five more findings are recorded there under 2026-08-27**, outside that bulleted
+  list: the six unreadable exports carry a texture that is
+  **referenced, not orphaned** — safe to strip only because it is always
+  `metallicRoughnessTexture` on materials already at `metallicFactor: 0`; the
+  **Khronos validator does NOT catch that defect** (`texture.source` is optional, so
+  the file is valid glTF); it *did* catch that **every processed garment was invalid
+  glTF** for want of an `EXT_texture_webp` declaration, which `<model-viewer>` renders
+  anyway; **`prune()` renumbers UV sets and updates only the DEFAULT material**,
+  leaving colourway-only ones pointing at an attribute that no longer exists; and
+  **`pnpm eval:artwork` fails on macOS while CI is green** — deterministic to three
+  decimals across three commits, so do NOT raise the ceiling.
   ⚠️ These are hooks, not the traps. After `/compact` only THIS file is re-injected, so a
   compacted session that has not yet opened `tools/asset-pipeline/` has only these
   one-liners. Open that file before changing anything there.
 
-- **Thirty more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
+- **Thirty-one more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
   restated here — they load automatically the moment you touch `apps/viewer/`,
   so a copy in this file is pure weight. Enough of a hook to make you open it: a
   `performance` global shadowed by a local (a runtime `TypeError` every unit test
@@ -393,7 +403,12 @@ the answer is "nothing that happens in production", it is not a test.
   700-byte helper putting **287 KB gzip of three.js on the critical path**, where
   it defeated the dynamic import, the Save-Data guard and the preload filter all
   at once; and an e2e fixture that serves **four** colourways where production serves
-  five, which is the difference between a clean rail and a stranded tab.
+  five, which is the difference between a clean rail and a stranded tab; and
+  **model-viewer builds only the ARRIVING colourway's materials**, so anything done to
+  `model.materials` on `load` reached 6 of 26 printed decals on the live garment and
+  left four of five colourways flickering — and when that was fixed the bias was still
+  **eight times too weak to work**, which no test caught because none asserted it was
+  strong ENOUGH.
   Read them before changing the viewer, its Worker, or its headers.
   **Maintaining these files is its own topic** — the 40,000-character warning and the
   200-line target, why `@path` imports do NOT save context, why path-scoped rules are

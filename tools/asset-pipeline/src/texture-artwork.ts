@@ -1,6 +1,9 @@
 import type { Document, Texture, Transform } from '@gltf-transform/core'
+import { alphaBoostForCoverage, applyAlphaBoost } from './alpha-coverage'
+import { findArtworkTexturesByGeometry } from './artwork-geometry'
+import { EXTTextureWebP } from '@gltf-transform/extensions'
 import { createTransform, listTextureSlots } from '@gltf-transform/functions'
-import sharp from 'sharp'
+import sharp, { type OutputInfo } from 'sharp'
 import { ARTWORK_ASPECT_RATIO, CRUSHED_BYTES_PER_PIXEL, profileAlpha } from './textures'
 
 /**
@@ -83,6 +86,8 @@ export interface TextureArtworkResult {
   skipped: number
   /** Names/URIs classified as artwork, so the choice is auditable rather than magic. */
   artworkNames: string[]
+  /** Artwork whose alpha was rescaled to keep its ink through alphaCutoff 0.5. */
+  alphaBoosted: string[]
   /**
    * Artwork textures that had to be resampled smaller to fit the cap. Reported,
    * not blocked: it is a real loss of stroke detail on a wordmark, and also a
@@ -304,11 +309,31 @@ export function compressTexturesForArtwork(options: ArtworkTextureOptions): Tran
   return createTransform(
     'compressTexturesForArtwork',
     async (document: Document): Promise<void> => {
+      // ⚠️ THE SIGNAL THAT RESCUES 8 GARMENTS. Computed once per document, from UV
+      // spans alone — no decode, no names. Measured across all 28 raw exports:
+      // 8 garments have ZERO materials matching the artwork word list, because
+      // their artwork is called `ZZ00000ZZZZ0`, `76197`, `01`, `Untitled-1` or
+      // `ルン ろご。`, and their printed graphics were taking the FABRIC budget.
+      // See artwork-geometry.ts for the measurement and for why this must never
+      // reach `findArtworkAlphaProblems`, which is a blocking gate.
+      const artworkByGeometry = findArtworkTexturesByGeometry(document)
+
+      // Textures whose material solidifyMaterials has already resolved to MASK.
+      // Those are the ones alphaCutoff 0.5 will cut, and the only ones worth
+      // rescaling — see alpha-coverage.ts.
+      const cutoutTextures = new Set<Texture>()
+      for (const material of document.getRoot().listMaterials()) {
+        if (material.getAlphaMode() !== 'MASK') continue
+        const base = material.getBaseColorTexture()
+        if (base) cutoutTextures.add(base)
+      }
+
       const result: TextureArtworkResult = {
         artwork: 0,
         standard: 0,
         skipped: 0,
         artworkNames: [],
+        alphaBoosted: [],
         artworkResized: [],
       }
 
@@ -319,7 +344,11 @@ export function compressTexturesForArtwork(options: ArtworkTextureOptions): Tran
           continue
         }
 
-        const artwork = await isArtworkTexture(texture)
+        // Either signal is enough. The name check is narrow and precise; the
+        // geometric one is language-independent and catches what no word list can.
+        // Their failure directions are the same and safe: a false positive gives
+        // fabric a higher quality budget, which costs bytes and damages nothing.
+        const artwork = artworkByGeometry.has(texture) || (await isArtworkTexture(texture))
         // A texture used ONLY as normal/ORM/occlusion gets its own, smaller cap.
         // `isDataTexture` requires EVERY slot to be a data slot, so a map that is
         // also somebody's baseColor keeps the full colour cap and is never
@@ -339,19 +368,57 @@ export function compressTexturesForArtwork(options: ArtworkTextureOptions): Tran
           // resizing is routine and reporting it would be noise.
           const before = artwork ? await sharp(image).metadata() : null
 
-          const { data: encoded, info } = await sharp(image)
-            .resize(maxSize, maxSize, { fit: 'inside', withoutEnlargement: true })
-            .webp({
-              quality,
-              // Alpha is the decal's shape. Compressing it is what turns a crisp
-              // cutout into a fringed one, and it is cheap to keep.
-              alphaQuality: artwork ? 100 : 90,
-              // libwebp's "Sharp YUV". Costs no size and directly targets the
-              // 4:2:0 chroma bleed that damages saturated edges.
-              smartSubsample: true,
-              effort: 6,
+          const webpOptions = {
+            quality,
+            // Alpha is the decal's shape. Compressing it is what turns a crisp
+            // cutout into a fringed one, and it is cheap to keep.
+            alphaQuality: artwork ? 100 : 90,
+            // libwebp's "Sharp YUV". Costs no size and directly targets the
+            // 4:2:0 chroma bleed that damages saturated edges.
+            smartSubsample: true,
+            effort: 6,
+          }
+          const resized = sharp(image).resize(maxSize, maxSize, {
+            fit: 'inside',
+            withoutEnlargement: true,
+          })
+
+          // ⚠️ AFTER THE RESIZE, BEFORE THE ENCODE. Downsampling lowers the peak
+          // alpha of a thin stroke, so the coverage has to be measured on the
+          // pixels that will actually ship — measuring the original and rescaling
+          // the resized one would preserve the wrong number.
+          let encoded: Buffer
+          let info: OutputInfo
+          if (artwork && cutoutTextures.has(texture)) {
+            const raw = await resized.ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+            const channels = raw.info.channels
+            const pixels = raw.info.width * raw.info.height
+            const alpha = new Uint8Array(pixels)
+            for (let i = 0, j = channels - 1; i < pixels; i++, j += channels) {
+              alpha[i] = raw.data[j] ?? 0
+            }
+            const boost = alphaBoostForCoverage(alpha, EXPECTED_ALPHA_CUTOFF)
+            if (boost > 1) {
+              applyAlphaBoost(alpha, boost)
+              for (let i = 0, j = channels - 1; i < pixels; i++, j += channels) {
+                raw.data[j] = alpha[i] ?? 0
+              }
+              result.alphaBoosted.push(
+                texture.getName() || texture.getURI() || `#${result.artwork + 1}`,
+              )
+            }
+            const out = await sharp(raw.data, {
+              raw: { width: raw.info.width, height: raw.info.height, channels },
             })
-            .toBuffer({ resolveWithObject: true })
+              .webp(webpOptions)
+              .toBuffer({ resolveWithObject: true })
+            encoded = out.data
+            info = out.info
+          } else {
+            const out = await resized.webp(webpOptions).toBuffer({ resolveWithObject: true })
+            encoded = out.data
+            info = out.info
+          }
 
           if (
             before?.width &&
@@ -378,6 +445,29 @@ export function compressTexturesForArtwork(options: ArtworkTextureOptions): Tran
           // dropped — a missing logo is worse than an unoptimised one.
           result.skipped++
         }
+      }
+
+      // ⚠️ DECLARE EXT_texture_webp, OR EVERY OUTPUT IS INVALID glTF. Writing
+      // `image/webp` into a texture is not enough: the spec requires the file to
+      // list the extension in `extensionsUsed`, and a texture whose mime-type is
+      // not a core one (PNG/JPEG) is otherwise illegal. Found 2026-08-27 the first
+      // time the Khronos validator ran on our own output — every processed garment
+      // failed, and had for as long as the WebP pass has existed:
+      //
+      //   p001    44 errors   arisan  38 errors   n001  42 errors   geovent 45
+      //   IMAGE_NON_ENABLED_MIME_TYPE + TEXTURE_INVALID_IMAGE_MIME_TYPE, in pairs
+      //
+      // Nothing caught it because <model-viewer> sniffs the bytes and renders
+      // anyway. A stricter runtime — Quick Look for AR, another engine — is
+      // entitled to refuse the texture, and every gate in this repo was green.
+      // NOT setRequired: a reader that cannot do WebP should still load the
+      // geometry rather than reject the whole file.
+      if (result.artwork + result.standard > 0) {
+        const existing = document
+          .getRoot()
+          .listExtensionsUsed()
+          .some((e) => e.extensionName === EXTTextureWebP.EXTENSION_NAME)
+        if (!existing) document.createExtension(EXTTextureWebP).setRequired(false)
       }
 
       options.onResult?.(result)

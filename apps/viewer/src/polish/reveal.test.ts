@@ -20,12 +20,27 @@ const stubMatchMedia = (matches: boolean) => {
   )
 }
 
+type ObserverCallback = (entries: { isIntersecting: boolean; target: Element }[]) => void
+
 let captured: ObserverOptions | null = null
 let observed: Element[] = []
+/**
+ * ⚠️ THE CALLBACK WAS THROWN AWAY UNTIL 2026-08-29, and that is what made this file
+ * unable to fail. The stub kept only the constructor OPTIONS, so every assertion was
+ * about configuration. Replace the callback body in `reveal.ts` with nothing and all
+ * four tests stayed green — while in production four page sections would sit at
+ * `opacity: 0` forever. The e2e suite cannot cover it either: Playwright sets
+ * `navigator.webdriver`, so `startReveals` takes the reveal-everything branch and the
+ * observer is never constructed. This is the only level where the callback is reachable.
+ */
+let capturedCb: ObserverCallback | null = null
+let unobserved: Element[] = []
 
 beforeEach(() => {
   captured = null
   observed = []
+  capturedCb = null
+  unobserved = []
   // Reduced motion must be FALSE here or `startReveals` takes the
   // reveal-everything branch and never constructs the observer these tests
   // are about.
@@ -33,13 +48,16 @@ beforeEach(() => {
   vi.stubGlobal(
     'IntersectionObserver',
     class {
-      constructor(_cb: unknown, options?: ObserverOptions) {
+      constructor(cb: ObserverCallback, options?: ObserverOptions) {
         captured = options ?? {}
+        capturedCb = cb
       }
       observe(el: Element) {
         observed.push(el)
       }
-      unobserve() {}
+      unobserve(el: Element) {
+        unobserved.push(el)
+      }
       disconnect() {}
     },
   )
@@ -102,5 +120,67 @@ describe('startReveals', () => {
     startReveals()
     const revealed = document.querySelectorAll('[data-reveal].is-inview')
     expect(revealed).toHaveLength(2)
+  })
+})
+
+describe('the observer callback — what actually reveals the content', () => {
+  /*
+   * ⚠️ EVERY TEST IN THIS BLOCK IS NEW ON 2026-08-29, and none of the tests above could
+   * have caught what they cover. The suite asserted the observer's SETTINGS — threshold,
+   * rootMargin, which elements were observed — and never once ran its callback. Stubbing
+   * the callback body to nothing left the whole file green.
+   *
+   * What that would look like in production: `[data-reveal]` sections have
+   * `will-change: opacity, transform` and are held at opacity 0 by `base.css` until
+   * `.is-inview` arrives. No `.is-inview` means four sections of the page are invisible,
+   * permanently, with no error anywhere.
+   */
+  const fire = (entries: { isIntersecting: boolean; target: Element }[]) => {
+    if (!capturedCb) throw new Error('observer callback was never captured')
+    capturedCb(entries)
+  }
+
+  it('reveals a section once it intersects', () => {
+    startReveals()
+    const [first] = Array.from(document.querySelectorAll('[data-reveal]'))
+    expect(first?.classList.contains('is-inview')).toBe(false)
+
+    fire([{ isIntersecting: true, target: first as Element }])
+
+    expect(first?.classList.contains('is-inview')).toBe(true)
+  })
+
+  it('leaves a section alone while it is still below the fold', () => {
+    /*
+     * The negative half. Without this, a callback that unconditionally revealed
+     * everything would pass the test above and silently destroy the staged effect —
+     * every section visible from the first frame.
+     */
+    startReveals()
+    const [first] = Array.from(document.querySelectorAll('[data-reveal]'))
+
+    fire([{ isIntersecting: false, target: first as Element }])
+
+    expect(first?.classList.contains('is-inview')).toBe(false)
+  })
+
+  it('stops watching a section once revealed, so it never animates twice', () => {
+    startReveals()
+    const [first, second] = Array.from(document.querySelectorAll('[data-reveal]'))
+
+    fire([{ isIntersecting: true, target: first as Element }])
+
+    expect(unobserved).toEqual([first])
+    expect(second?.classList.contains('is-inview')).toBe(false)
+  })
+
+  it('reveals only the sections in the batch, not every observed element', () => {
+    startReveals()
+    const [first, second] = Array.from(document.querySelectorAll('[data-reveal]'))
+
+    fire([{ isIntersecting: true, target: second as Element }])
+
+    expect(second?.classList.contains('is-inview')).toBe(true)
+    expect(first?.classList.contains('is-inview')).toBe(false)
   })
 })

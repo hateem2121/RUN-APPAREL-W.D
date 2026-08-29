@@ -98,6 +98,18 @@ curl -s https://cms.wear-run.help/api/public/viewer/rxps/wine \
 Cache it locally for repeated use — one 27 MB GET is nothing, but the 15-minute
 uptime job is what the root file's R2-egress warning is actually about.
 
+**For a material/alphaMode census you do NOT need the file — RANGE-FETCH the header.**
+A GLB's JSON chunk is at the front and is length-prefixed, so two range requests read
+every material, texture and variant mapping in it. Measured 2026-08-27 on the live
+model: **445,064 bytes instead of 28,271,780** — 1.6% of the egress, and R2 answers
+`206` with `cf-cache-status: HIT`.
+
+```bash
+URL=https://media.wear-run.help/cycling-all-colours-optimized-4.glb
+curl -s -r 0-19 "$URL" | xxd -s 12 -l 4 -e -g4      # JSON chunk length, little-endian
+curl -s -r 20-445083 "$URL" | python3 -m json.tool | head
+```
+
 ## Before you change the pipeline
 
 Do not tune presets against file size. That is exactly how a setting that
@@ -187,6 +199,25 @@ false-positive case — which is why they block. The bytes-per-pixel measurement
 just as small as a smashed wordmark, and a gate the owner learns to override is
 worse than no gate. Keep that distinction if you add checks.
 
+## A scratch script cannot import this package's dependencies
+
+ESM resolves a bare specifier from the **importing file's** location, so a one-off
+script in `/tmp` cannot `import { NodeIO } from '@gltf-transform/core'` however the
+workspace is installed — and `NODE_PATH` does not apply to ESM. Cost several rounds
+on 2026-08-27. Two things that do work:
+
+```bash
+# cwd IS the resolution base for -e, so run it from the package directory
+cd tools/asset-pipeline && node --input-type=module -e "import {NodeIO} from '@gltf-transform/core'; …"
+
+# or import by absolute path, resolved once
+node -e "console.log(require('./package.json') && require.resolve('@gltf-transform/core'))"
+```
+
+⚠️ The `.pnpm` path is **`dist/index.cjs` for `require.resolve`** but ESM needs
+`dist/index.js`; and `meshoptimizer` has no `index.module.js`, only `index.js`.
+Prefer the `cd` form — it needs no path surgery and cannot drift.
+
 ## A mistyped numeric flag becomes `NaN`, and the defaults do not catch it
 
 `Number(rest[++i])` in `parseOptimizeArgs` yields `NaN` for a missing or non-numeric
@@ -255,6 +286,18 @@ only the root's one-liners. Open this file before changing anything here.
   silently, passing every gate. Test `factor < OPAQUE_FACTOR_THRESHOLD` first.
 - **`model-viewer.toDataURL()` returns a blank canvas** —
   `preserveDrawingBuffer: false`. Screenshot the element.
+  ⚠️ **`toBlob()` IS DIFFERENT AND IS ALSO NOT A MEASURING TOOL.** Measured
+  2026-08-27: `toBlob` returns REAL pixels where `toDataURL` is blank —
+  1894x1440, 2,724,397 non-blank — so the `preserveDrawingBuffer` reasoning above
+  does not apply to it. **But it does not reflect live scene-graph mutations.**
+  Painting a decal bright red and diffing two `toBlob` captures reported **0
+  changed pixels** while the visible canvas was plainly red. A "0 pixels changed"
+  from `toBlob` therefore proves nothing at all — screenshot the element, and
+  prove the instrument can see a change you deliberately introduce before
+  believing a zero. Separately: **writing a three.js property does not schedule a
+  frame.** A no-op write through model-viewer's own
+  `setAlphaCutoff(getAlphaCutoff())` does, and unlike nudging the camera it cannot
+  move the view being judged.
 - **`fieldOfView` under 12° was silently ignored until 2026-08-08 — the SECOND
   camera control model-viewer overrides without telling you.** The orbit-radius
   clamp is already documented above; this is the same trap on the axis that was
@@ -448,3 +491,87 @@ only the root's one-liners. Open this file before changing anything here.
   the fabric did not. Caught only by cropping the same region from both renders.
   Note this inverts the older "KTX2 is larger on disk" reasoning — that argument
   would have led the wrong way on this file. Judge it on the fabric, not the size.
+
+## What one session found on 2026-08-27 — the rules that survived it
+
+*The full record, with every measurement, is `docs/SESSION-2026-08-27.md`. What is here
+is only what still tells you what to DO.*
+
+**COMPARE THE ARTIFACTS, NOT A PICTURE OF THE DIFFERENCE.** A rendered diff shows what
+CHANGED, never whether it got WORSE. A macro crop "proved" reduced texture settings had
+damaged a slogan; `pipeline textures` settled it in one line — the artwork was
+byte-identical at both settings and only the fabric atlas had shrunk. The letterforms
+showed up because the CLOTH around each stroke changed and outlined them. Two wrong
+conclusions and an hour.
+
+**Artwork is separated from fabric by UV SPAN, not by name** (`artwork-geometry.ts`).
+Measured over every textured primitive in 28 exports: fabric median **294.81**, topstitch
+0.83, artwork **1.00**. Names cannot do it — real artwork materials are called
+`ZZ00000ZZZZ0`, `ZZZ00000`, `76197`, `01`, `Untitled-1` and `ルン ろご。`, and 8 garments
+match none of the nine English words.
+
+**⛔ THE KHRONOS VALIDATOR DOES NOT CATCH A SOURCE-LESS TEXTURE.** `texture.source` is
+OPTIONAL per the spec, so it is valid glTF (ARISAN: 0 errors, 0 warnings) and
+gltf-transform is merely stricter. Anyone adding the validator to name that failure will
+find it silent.
+
+**A WebP image without `EXT_texture_webp` declared is INVALID glTF, and
+`<model-viewer>` renders it anyway** — which is why every gate stayed green while every
+processed garment was invalid (p001 44 errors, n001 42). Declared in
+`texture-artwork.ts`, pinned by a negative-control test that strips it back out.
+
+**`prune()` RENUMBERS UV SETS AND UPDATES ONLY THE DEFAULT MATERIAL.** Anything reachable
+solely through `KHR_materials_variants` keeps sampling a `TEXCOORD_n` that no longer
+exists. `variant-texcoord.ts` repoints them immediately after prune. **LATENT** — no real
+garment samples a texCoord other than 0; it surfaces only because `placeholders.ts`
+deliberately puts artwork on a second UV set. **Keep that fixture detail**, it is the only
+thing exercising the path.
+⚠️ **When a pass touches materials, ask what it does with the ones behind a variant.**
+That was missed twice in one day — here, and in the viewer's decal depth bias at 6 of 26
+decals.
+
+**`repair-dead-textures.ts` removes the REFERENCES, never the entries.** Deleting
+`textures[5]` renumbers every later index and a material pointing at 6 silently acquires
+the picture from 7. It also pads the JSON chunk back to its original byte length so the
+BIN chunk cannot move.
+
+**The spec check is a PRODUCTION dependency and must NOT go inside `describeGlb`.** The
+container installs `npm ci --omit=dev`, so a devDependency resolves locally and is missing
+in the Container — green everywhere, failing at runtime. And it costs **~3.4x the file
+size** in RSS (573 MB → 1,955 MB), while `describeGlb` reads only the JSON chunk, so the
+1.25 GB Cycling Bib costs what a 5 MB one costs. `SPEC_MAX_BYTES` is 768 MB and the two
+exports over it are **skipped by name** — a skip must never read as a pass.
+
+⚠️ **`pnpm eval:artwork` PASSES ON macOS — this said the opposite until 2026-08-29.**
+The old wording: *"FAILS ON macOS AND PASSES IN CI. Local 15.290 / 16.070 / 18.760
+against a 5.000% ceiling."* **Re-run 2026-08-29 on this machine: 1.680 / 3.100 / 9.390
+with the control at 3.0x the shipped preset — a clean pass**, matching what the
+2026-08-28 audit independently measured. A commit between those dates fixed the
+baseline (`c405537`, "give eval:artwork the same baseline its optimized runs get").
+**So do NOT dismiss a local failure as a platform artefact** — that is what this note
+told you to do, and it would now hide a real regression. If it fails locally, treat it
+as a failure. CI runs it inside `mcr.microsoft.com/playwright:v1.62.1-noble`, and
+**do not raise the ceiling to make anything green** — that part always held.
+
+⚠️ **`review-server.ts` and `apps/viewer` are DIFFERENT PAGES.** A fix in one is not in the
+other; the review viewer kept flickering after the product was fixed, which read as "the
+fix did not work". Both carry the bias at `-8/-8`, pinned by `review-server.test.ts`.
+⚠️ **A `git add -A` swept this file's constant into a viewer commit**, so reverting that
+commit silently reverted the pipeline too. Stage per package when two copies must agree.
+
+**`createTransform` is exported from `@gltf-transform/functions`, NOT `@gltf-transform/core`.**
+
+## The print takes the CLOTH'S colour — OPEN, and NOT the flicker
+
+Found 2026-08-28. glTF renders base-colour TEXTURE x FACTOR; these artwork textures are
+near-white stencils, so the FACTOR is the ink — and CLO writes the colourway's
+**fabric** colour into it. Minecut's slogan: rgb(246) x 0.13 = rgb(33). **13 of 16
+garments**, `n001` included. **It is in the RAW export** — CLO's, not ours. **The depth
+bias cannot touch it** (0 vs `-8` moves 0.000%).
+⚠️ **Two fixes were tried and BOTH are wrong**, so do not re-apply either: whitening
+every cut-out turns d001's dark olive graphic white, and whitening only prints matching
+a cloth colour was **reverted (`447d15f`)** after it painted Minecut's correctly-dark
+slogan white-on-white. Judge a print against the cloth **it sits on** — model-viewer
+has no adjacency, this package does. ⚠️ **Read variants off the PRIMITIVES**:
+`root.getExtension(...)` returns nothing and reads as "no colourways", false for all
+16. All of it, incl. two non-causes: `docs/SESSION-2026-08-28.md`.

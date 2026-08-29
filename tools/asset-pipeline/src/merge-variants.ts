@@ -3,11 +3,14 @@ import { dirname } from 'node:path'
 import type { Document, Material, Primitive } from '@gltf-transform/core'
 import { KHRMaterialsVariants } from '@gltf-transform/extensions'
 import { copyToDocument } from '@gltf-transform/functions'
-import { createIO } from './io'
+import { createIO, readGlb } from './io'
 import {
+  DEFAULT_ARTWORK_MAX_TEXTURE,
+  DEFAULT_ARTWORK_TEXTURE_QUALITY,
   DEFAULT_MAX_TEXTURE,
   DEFAULT_TEXTURE_QUALITY,
   type OptimizeOptions,
+  finiteNumber,
   optimizeDocument,
 } from './optimize'
 
@@ -77,12 +80,28 @@ export function parseMergeArgs(rest: string[]): ParsedMergeArgs {
   let textureQuality = DEFAULT_TEXTURE_QUALITY
   // Solid fabric is the safe default for apparel; sheer garments opt out.
   let opaque = true
+  let artworkTextureQuality = DEFAULT_ARTWORK_TEXTURE_QUALITY
+  let artworkMaxTextureSize = DEFAULT_ARTWORK_MAX_TEXTURE
+  let normalizePbrOption: boolean | undefined
   let simplify: number | undefined
-  // Kept in step with parseOptimizeArgs: the two commands share one compression
-  // policy, so a decimation flag that works on `optimize` must work here too.
+  // Must stay in step with parseOptimizeArgs: the two commands share one
+  // compression policy, so a flag that works on `optimize` has to work here too.
+  //
+  // This comment made exactly that claim until 2026-08-29 while SIX flags were
+  // missing — --artwork-quality, --artwork-max-texture, --stitch, --stitch-error,
+  // --data-max-texture and --no-pbr-normalize. The failure is silent-looking and
+  // confusing: an unrecognised token falls through to the positional branch below
+  // and is reported as a malformed <file>=<VARIANT-ID>, so the error names the
+  // wrong thing entirely. Three of the six are in shrinkFlagsFor('fidelity'), so
+  // the flag list every production shrink job uses could not be passed to `merge`.
+  // Pinned now by a per-flag table in pipeline.test.ts with parseOptimizeArgs as
+  // its positive control.
   let simplifyError: number | undefined
   let simplifyUvWeight: number | undefined
   let simplifyNormalWeight: number | undefined
+  let stitch: number | undefined
+  let stitchError: number | undefined
+  let dataMaxTextureSize: number | undefined
 
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]!
@@ -94,14 +113,29 @@ export function parseMergeArgs(rest: string[]): ParsedMergeArgs {
     else if (arg === '--no-webp' || arg === '--no-textures') texture = 'none'
     else if (arg === '--webp') texture = 'webp'
     else if (arg === '--ktx2') texture = 'ktx2'
-    else if (arg === '--max-texture') maxTextureSize = Number(rest[++i] ?? DEFAULT_MAX_TEXTURE)
-    else if (arg === '--quality') textureQuality = Number(rest[++i] ?? DEFAULT_TEXTURE_QUALITY)
-    else if (arg === '--simplify') simplify = Number(rest[++i])
-    else if (arg === '--simplify-error') simplifyError = Number(rest[++i])
-    else if (arg === '--uv-weight') simplifyUvWeight = Number(rest[++i])
-    else if (arg === '--normal-weight') simplifyNormalWeight = Number(rest[++i])
+    // finiteNumber, not Number(): 390ff27 fixed exactly this in parseOptimizeArgs
+    // and left merge behind, so `--quality garbage` became NaN and was used as a
+    // real value. The old `?? DEFAULT_MAX_TEXTURE` spelling looked like a guard
+    // and was not — it only caught a MISSING token, never a malformed one, and it
+    // silently turned a typo into a default nobody asked for.
+    else if (arg === '--max-texture') maxTextureSize = finiteNumber(rest[++i], '--max-texture')
+    else if (arg === '--quality') textureQuality = finiteNumber(rest[++i], '--quality')
+    else if (arg === '--artwork-quality')
+      artworkTextureQuality = finiteNumber(rest[++i], '--artwork-quality')
+    else if (arg === '--artwork-max-texture')
+      artworkMaxTextureSize = finiteNumber(rest[++i], '--artwork-max-texture')
+    else if (arg === '--simplify') simplify = finiteNumber(rest[++i], '--simplify')
+    else if (arg === '--simplify-error') simplifyError = finiteNumber(rest[++i], '--simplify-error')
+    else if (arg === '--uv-weight') simplifyUvWeight = finiteNumber(rest[++i], '--uv-weight')
+    else if (arg === '--normal-weight')
+      simplifyNormalWeight = finiteNumber(rest[++i], '--normal-weight')
+    else if (arg === '--stitch') stitch = finiteNumber(rest[++i], '--stitch')
+    else if (arg === '--stitch-error') stitchError = finiteNumber(rest[++i], '--stitch-error')
+    else if (arg === '--data-max-texture')
+      dataMaxTextureSize = finiteNumber(rest[++i], '--data-max-texture')
     else if (arg === '--opaque') opaque = true
     else if (arg === '--no-opaque' || arg === '--keep-transparency') opaque = false
+    else if (arg === '--no-pbr-normalize') normalizePbrOption = false
     else {
       const eq = arg.lastIndexOf('=')
       if (eq === -1) {
@@ -130,11 +164,17 @@ export function parseMergeArgs(rest: string[]): ParsedMergeArgs {
       geometry,
       maxTextureSize,
       textureQuality,
+      artworkTextureQuality,
+      artworkMaxTextureSize,
       opaque,
+      normalizePbr: normalizePbrOption,
       simplify,
       simplifyError,
       simplifyUvWeight,
       simplifyNormalWeight,
+      stitch,
+      stitchError,
+      dataMaxTextureSize,
     },
   }
 }
@@ -221,7 +261,7 @@ export async function mergeVariants(
 
   const io = await createIO()
   const first = inputs[0]!
-  const base = await io.read(first.file)
+  const { document: base } = await readGlb(first.file)
   const baseFp = fingerprint(base)
   const basePrims = listRenderPrimitives(base)
   if (basePrims.length === 0) {
@@ -252,7 +292,7 @@ export async function mergeVariants(
 
   // Each further file contributes materials only.
   for (const input of inputs.slice(1)) {
-    const source = await io.read(input.file)
+    const { document: source } = await readGlb(input.file)
     assertSameTopology(first.file, baseFp, input.file, fingerprint(source))
     const sourcePrims = listRenderPrimitives(source)
 

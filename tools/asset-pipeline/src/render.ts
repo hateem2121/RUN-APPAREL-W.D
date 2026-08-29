@@ -106,11 +106,48 @@ export const DEFAULT_RENDER_SIZE = 1024
 /** Raw CLO exports run to hundreds of megabytes and parse slowly under swiftshader. */
 export const DEFAULT_RENDER_TIMEOUT_MS = 300_000
 
-const MIME: Record<string, string> = {
+export const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript',
   '.glb': 'model/gltf-binary',
   '.gltf': 'model/gltf+json',
+  // The production environment map the review server serves so its default light
+  // matches apps/viewer. Radiance HDR has no registered type; this is the de-facto one.
+  '.hdr': 'image/vnd.radiance',
+}
+
+/**
+ * Every static asset a local `<model-viewer>` page needs, mapped URL -> disk path.
+ *
+ * EXTRACTED 2026-08-26 so the headless render harness and the interactive review
+ * server (review-server.ts) cannot drift apart. They MUST serve the same
+ * model-viewer build and the same decoders: the reason this project renders through
+ * `<model-viewer>` rather than a bespoke three.js scene is that the failure is
+ * defined as "what the customer sees", and a different decoder is a different
+ * renderer. `@google/model-viewer` is pinned to the same version in
+ * `apps/viewer/package.json` and `tools/asset-pipeline/package.json`.
+ *
+ * All three decoder families, not just meshopt: `--draco` and `--ktx2` are supported
+ * pipeline outputs. ⚠️ Note `--draco` DOES NOT LOAD on the DEPLOYED viewer and
+ * production stays on `--meshopt` (root CLAUDE.md) — but a local file may still
+ * carry it, and failing to load one here looks exactly like a broken garment, which
+ * is the worst possible thing for a viewer whose whole job is judging garments.
+ */
+export function viewerAssetMap(): Record<string, string> {
+  // three ships the web builds of the Draco and Basis decoders. Resolved through
+  // its `./examples/jsm/*` export, which is the only path its exports map allows.
+  const threeLibs = dirname(
+    dirname(require.resolve('three/examples/jsm/libs/draco/gltf/draco_decoder.js')),
+  )
+  return {
+    '/model-viewer.js': require.resolve('@google/model-viewer/dist/model-viewer.min.js'),
+    '/meshopt_decoder.js': require.resolve('meshoptimizer/decoder.cjs'),
+    '/draco/draco_decoder.js': join(threeLibs, 'gltf', 'draco_decoder.js'),
+    '/draco/draco_decoder.wasm': join(threeLibs, 'gltf', 'draco_decoder.wasm'),
+    '/draco/draco_wasm_wrapper.js': join(threeLibs, 'gltf', 'draco_wasm_wrapper.js'),
+    '/basis/basis_transcoder.js': join(threeLibs, '..', 'basis', 'basis_transcoder.js'),
+    '/basis/basis_transcoder.wasm': join(threeLibs, '..', 'basis', 'basis_transcoder.wasm'),
+  }
 }
 
 /**
@@ -160,21 +197,9 @@ export const PAGE_HTML = `<!doctype html>
 
 /** Serve the page, the model-viewer bundle, the Meshopt decoder and the model. */
 function startServer(glbFile: string): Promise<{ server: Server; port: number }> {
-  const modelViewerBundle = require.resolve('@google/model-viewer/dist/model-viewer.min.js')
-  const meshoptDecoder = require.resolve('meshoptimizer/decoder.cjs')
-  // three ships the web builds of the Draco and Basis decoders. Resolved through
-  // its `./examples/jsm/*` export, which is the only path its exports map allows.
-  const threeLibs = dirname(
-    dirname(require.resolve('three/examples/jsm/libs/draco/gltf/draco_decoder.js')),
-  )
-  const decoders: Record<string, string> = {
-    '/meshopt_decoder.js': meshoptDecoder,
-    '/draco/draco_decoder.js': join(threeLibs, 'gltf', 'draco_decoder.js'),
-    '/draco/draco_decoder.wasm': join(threeLibs, 'gltf', 'draco_decoder.wasm'),
-    '/draco/draco_wasm_wrapper.js': join(threeLibs, 'gltf', 'draco_wasm_wrapper.js'),
-    '/basis/basis_transcoder.js': join(threeLibs, '..', 'basis', 'basis_transcoder.js'),
-    '/basis/basis_transcoder.wasm': join(threeLibs, '..', 'basis', 'basis_transcoder.wasm'),
-  }
+  // Shared with review-server.ts — see viewerAssetMap. `/model-viewer.js` is served
+  // from the same map as the decoders now; it used to be a separate branch below.
+  const assets = viewerAssetMap()
 
   const server = createServer((req, res) => {
     const url = (req.url ?? '/').split('?')[0]!
@@ -185,8 +210,7 @@ function startServer(glbFile: string): Promise<{ server: Server; port: number }>
     if (url === '/' || url === '/index.html') {
       res.writeHead(200, { 'content-type': MIME['.html']! })
       res.end(PAGE_HTML)
-    } else if (url === '/model-viewer.js') send(modelViewerBundle)
-    else if (decoders[url]) send(decoders[url]!)
+    } else if (assets[url]) send(assets[url]!)
     else if (url === '/model.glb') send(glbFile)
     else {
       res.writeHead(404)

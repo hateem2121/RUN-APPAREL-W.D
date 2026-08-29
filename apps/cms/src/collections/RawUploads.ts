@@ -4,6 +4,7 @@ import {
   SHRINK_DETAIL_LEVELS,
   type ShrinkDetailLevel,
   type ShrinkJobMessage,
+  autoDetailFor,
 } from '@run-apparel/shared'
 import { APIError, type CollectionConfig } from 'payload'
 import { isAdmin, isAdminOrEditor } from '../access/roles'
@@ -217,8 +218,26 @@ export const RawUploads: CollectionConfig = {
             rawUploadId: doc.id,
             filename: doc.filename as string,
             prefix: (doc.prefix as string | undefined) ?? null,
-            detail: ((doc.detail as ShrinkDetailLevel | undefined) ??
-              DEFAULT_SHRINK_DETAIL) as ShrinkDetailLevel,
+            /*
+             * A small garment is processed at the HIGHEST quality automatically.
+             *
+             * Measured 2026-08-29: on a 16 MB export the aggressive setting removes 17%
+             * of the triangles and saves 280 KB, because the quality budget stops the
+             * decimation long before the size target does. So the lower setting buys
+             * almost nothing on a small file and costs real geometry. A 45 MB export
+             * still lands at a SEVENTH of the 40 MB ceiling on the higher setting.
+             *
+             * ⚠️ `autoDetailFor` only ever UPGRADES. It has to: this field carries
+             * `defaultValue: DEFAULT_SHRINK_DETAIL`, so a stored 'balanced' cannot be
+             * told apart from "the owner never touched it". Honouring an explicit
+             * Balanced would mean refusing to help everyone who left the default.
+             * An explicit 'fidelity', and every garment over the threshold, pass through
+             * untouched — see packages/shared/src/shrink.ts for the measurements.
+             */
+            detail: autoDetailFor(
+              doc.detail as ShrinkDetailLevel | undefined,
+              doc.filesize as number | undefined,
+            ),
             targetProductId,
           })
           req.payload.logger.info(
@@ -314,7 +333,7 @@ export const RawUploads: CollectionConfig = {
         // owner was sent round this loop while the actual cause was a
         // mis-calibrated CUTOUT_MID_FRACTION.
         description:
-          'How much detail to keep. Start with Balanced. Re-upload on “Highest quality” only if a printed graphic came back SMEARED or TORN — ragged edges, warped lettering. That is mesh damage, and Detail is the setting that fixes it. If a graphic is SEE-THROUGH, or sits in a pale box, Detail will NOT help: every level makes the same transparency decision. Report that instead. If it is rejected for being too big, the file needs re-exporting from CLO at a lower mesh density — there is no smaller setting here, because the one that existed shrank files by damaging the printed graphics.',
+          'How much detail to keep. Start with Balanced — and note that a small file (under 50 MB from CLO) is put on Highest quality automatically, because on a file that size the extra quality costs only a few hundred kilobytes. You do not need to do anything for that to happen. Re-upload on “Highest quality” only if a printed graphic came back SMEARED or TORN — ragged edges, warped lettering. That is mesh damage, and Detail is the setting that fixes it. If a graphic is SEE-THROUGH, or sits in a pale box, Detail will NOT help: every level makes the same transparency decision. Report that instead. If it is rejected for being too big, the file needs re-exporting from CLO at a lower mesh density — there is no smaller setting here, because the one that existed shrank files by damaging the printed graphics.',
       },
     },
     {

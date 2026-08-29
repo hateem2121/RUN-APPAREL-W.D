@@ -160,6 +160,71 @@ test('3D model loads and switching colourway changes the KHR material variant', 
     { timeout: 20_000 },
   )
 
+  /**
+   * ⚠️ THE DEPTH BIAS MUST SURVIVE A COLOURWAY CHANGE, AND FOR ONE DAY IT DID NOT.
+   *
+   * Printed cut-outs are pulled toward the camera so they win the depth test
+   * against the cloth (src/lib/decal-depth-bias.ts). The first version applied it
+   * once, on `load`. model-viewer builds only the ARRIVING variant's materials;
+   * everything reachable solely through KHR_materials_variants is a lazy stub
+   * whose backing three.js material does not exist yet — so on the live garment
+   * the bias reached **6 of 26 decals** and four of five colourways went on
+   * shattering the artwork. Nothing failed, because nothing looked.
+   *
+   * ⚠️ AND THE FIXTURE COULD NOT HAVE CAUGHT IT UNTIL 2026-08-27 EITHER. Its
+   * colourways built byte-identical artwork materials, so `dedup()` merged them
+   * into one shared, always-eager material: 6 MASK decals, 6 eager, **0 lazy**.
+   * `ink` on PlaceholderColourway now tints each colourway's print as a real CLO
+   * export does, giving 18 MASK, 6 eager, 12 lazy — production's shape.
+   *
+   * ⚠️ Both halves were verified by BREAKING them, not by reasoning. Removing the
+   * `variant-applied` listener fails this on "a colourway swap left printed decals
+   * un-biased"; reverting the fixture to its pre-`ink` form fails it EARLIER, on
+   * "the colourway swap loaded no new cut-outs, so this assertion proves nothing".
+   * That second guard is the load-bearing one — without it an inadequate fixture
+   * would make this test pass while the bug shipped, which is precisely how the
+   * original made it to production.
+   *
+   * Counted in the browser rather than asserted structurally: under jsdom
+   * <model-viewer> is a stub, so this is the only place the real scene graph exists.
+   */
+  const countBias = () =>
+    page.evaluate(() => {
+      const backingOf = (
+        material: object,
+      ): { alphaTest: number; polygonOffset: boolean } | null => {
+        for (const source of [material, Object.getPrototypeOf(material)]) {
+          if (!source) continue
+          for (const symbol of Object.getOwnPropertySymbols(source)) {
+            if (symbol.description !== 'backingThreeMaterial') continue
+            const value = (material as Record<symbol, unknown>)[symbol]
+            if (value && typeof value === 'object')
+              return value as { alphaTest: number; polygonOffset: boolean }
+          }
+        }
+        return null
+      }
+      const mv = document.querySelector('model-viewer') as {
+        model?: { materials?: readonly object[] }
+      } | null
+      let reachable = 0
+      let biased = 0
+      for (const material of mv?.model?.materials ?? []) {
+        const backing = backingOf(material)
+        if (!backing || !(backing.alphaTest > 0)) continue
+        reachable++
+        if (backing.polygonOffset) biased++
+      }
+      return { reachable, biased }
+    })
+
+  const onArrival = await countBias()
+  expect(onArrival.reachable, 'the fixture must carry printed cut-outs to bias').toBeGreaterThan(0)
+  expect(
+    onArrival.biased,
+    'every cut-out reachable on arrival must be biased — see decal-depth-bias.ts',
+  ).toBe(onArrival.reachable)
+
   // Switching to Black updates the bound variant — the real 3D swap.
   await page.getByRole('tab', { name: /black/i }).click()
   await page.waitForFunction(
@@ -169,6 +234,22 @@ test('3D model loads and switching colourway changes the KHR material variant', 
     undefined,
     { timeout: 20_000 },
   )
+
+  // Black's own decal materials now exist. Two claims, and the first is what makes
+  // the second mean anything: the swap must actually have brought NEW cut-outs
+  // into reach, and every one of them must have been biased by the
+  // `variant-applied` listener rather than left behind.
+  const afterSwap = await countBias()
+  expect(
+    afterSwap.reachable,
+    'the colourway swap loaded no new cut-outs, so this assertion proves nothing — ' +
+      'check that the fixture tints its ink per colourway (PlaceholderColourway.ink)',
+  ).toBeGreaterThan(onArrival.reachable)
+  expect(
+    afterSwap.biased,
+    'a colourway swap left printed decals un-biased: they will z-fight with the ' +
+      'cloth and the artwork shatters. Stage.tsx must re-apply on `variant-applied`.',
+  ).toBe(afterSwap.reachable)
 
   // The whole real-3D flow ran under the production CSP with no violations.
   const cspViolations = await page.evaluate(() => (window as unknown as { __csp: string[] }).__csp)

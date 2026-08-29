@@ -1,3 +1,12 @@
+import { PermanentJobError } from './permanentJobError'
+import {
+  criticalDeadLetterFailure,
+  criticalReportFailure,
+  detailOf,
+  failureReport,
+  outcomeFor,
+} from './queueDecisions'
+import { specRefusal } from './specGate'
 import { Container, getContainer } from '@cloudflare/containers'
 import {
   DEFAULT_SHRINK_DETAIL,
@@ -12,6 +21,7 @@ import { type ProductState, describeModel, planModelAttach } from './attach'
 import { cmsFetch, isMediaReferenced } from './cms'
 import { planColourImport } from './colourImport'
 import { DEAD_LETTER_QUEUE, deadLetterReport } from './deadLetter'
+import { type ShrinkFailure, reportFailure } from './sentry'
 import { readContainerFailure } from './containerFailure'
 
 /**
@@ -52,6 +62,11 @@ interface Env {
   R2_INGEST_BUCKET: string
   R2_INGEST_ACCESS_KEY_ID: string
   R2_INGEST_SECRET_ACCESS_KEY: string
+  /**
+   * Optional. Absent means no alerting, which is the state everything ran in until
+   * 2026-08-29 — so a missing secret must degrade to that rather than break a job.
+   */
+  SENTRY_DSN?: string
 }
 
 /** JSON the container returns in the `x-shrink-report` header (base64). */
@@ -104,6 +119,24 @@ interface ShrinkReport {
    * start rejecting every job.
    */
   artworkAlphaProblems?: { material: string; problem: 'blend' | 'cutoff' }[]
+  /**
+   * Khronos glTF-Validator's verdict on the SHRUNK output.
+   *
+   * Absent from a container built before 2026-08-29, which reads as "nothing to
+   * report" rather than failing closed — the same choice the artwork gates make, and
+   * for the same reason: an old image must not start refusing every job. The cost is
+   * that an old container silently skips this gate, which is the correct trade while
+   * images roll forward.
+   *
+   * `errors` is the count AFTER the noise filter in gltf-spec.ts. `issues` is at most
+   * ten one-line summaries — the raw arrays are deliberately not sent.
+   */
+  spec?: {
+    validatorVersion: string
+    errors: number
+    warnings: number
+    issues: string[]
+  }
   /** How textures were classified and encoded. Absent from an older container. */
   textures?: { artwork: number; standard: number; skipped: number; artworkNames: string[] }
   /** How each translucent material was resolved. Absent from an older container. */
@@ -131,14 +164,17 @@ export class ShrinkContainer extends Container<Env> {
 }
 
 /**
- * A failure that retrying cannot fix — the output was too big, the raw file is
- * not usable, the CMS refused the document. Retrying these costs several minutes
- * of `standard-4` container time each, three times over, for a guaranteed
- * identical result; on a $5/month budget that matters. Transient failures
- * (container 5xx, a dropped CMS call) still retry as before.
+ * Fire-and-forget alert. Awaited rather than dangling, because a Worker may be
+ * torn down the instant the queue handler returns and an un-awaited fetch would
+ * simply not happen — but it cannot throw, so awaiting costs only latency.
  */
-class PermanentJobError extends Error {
-  readonly permanent = true
+async function alert(env: Env, failure: ShrinkFailure): Promise<void> {
+  await reportFailure(
+    env.SENTRY_DSN,
+    failure,
+    crypto.randomUUID().replace(/-/g, ''),
+    new Date().toISOString(),
+  )
 }
 
 export default {
@@ -157,11 +193,15 @@ export default {
           // and points at where it is, rather than inventing a cause.
           report: deadLetterReport(undefined),
         }).catch((error: unknown) => {
-          console.error(
-            `[shrink] CRITICAL: dead-lettered raw upload ${message.body.rawUploadId} could not be ` +
-              `marked failed. It will appear stuck forever with no explanation. ` +
-              `${error instanceof Error ? error.message : String(error)}`,
-          )
+          console.error(criticalDeadLetterFailure(message.body.rawUploadId, detailOf(error)))
+        })
+        await alert(env, {
+          outcome: 'dead-letter',
+          message:
+            'A garment failed three times and was given up on. The cause is not carried on a ' +
+            'dead-letter message — open the raw upload record to see the last error.',
+          rawUploadId: message.body.rawUploadId,
+          filename: message.body.filename,
         })
         message.ack()
       }
@@ -173,7 +213,7 @@ export default {
         await processJob(message.body, env)
         message.ack()
       } catch (error) {
-        const detail = error instanceof Error ? error.message : String(error)
+        const detail = detailOf(error)
         // Record the failure on the raw-upload record so the owner sees why.
         //
         // This write is the ENTIRE failure-reporting mechanism: if it does not
@@ -187,26 +227,26 @@ export default {
         // retained and searchable via `wrangler tail`; that is where this goes.
         await patchRawUpload(env, message.body.rawUploadId, {
           status: 'failed',
-          report: `Automatic shrink failed:\n${detail}`,
+          report: failureReport(detail),
         }).catch((reportError: unknown) => {
-          const reportDetail =
-            reportError instanceof Error ? reportError.message : String(reportError)
           console.error(
-            `[shrink] CRITICAL: could not report failure for raw upload ${message.body.rawUploadId}. ` +
-              `The upload will appear stuck with no explanation.\n` +
-              `  original failure: ${detail}\n` +
-              `  reporting failure: ${reportDetail}`,
+            criticalReportFailure(message.body.rawUploadId, detail, detailOf(reportError)),
           )
         })
 
-        if (error instanceof PermanentJobError) {
-          // The report already tells the owner what to change; a retry would
-          // only reproduce it. Ack so the job stops here instead of running the
-          // container twice more and then dead-lettering.
-          message.ack()
-        } else {
-          message.retry()
-        }
+        // Somebody is now TOLD, rather than having to open the record and look.
+        // Awaited before ack/retry so the Worker is still alive to send it.
+        await alert(env, {
+          outcome: error instanceof PermanentJobError ? 'refused' : 'retrying',
+          message: detail,
+          rawUploadId: message.body.rawUploadId,
+          filename: message.body.filename,
+        })
+
+        // The report already tells the owner what to change; a retry would only
+        // reproduce it. See queueDecisions.outcomeFor.
+        if (outcomeFor(error) === 'ack') message.ack()
+        else message.retry()
       }
     }
   },
@@ -329,6 +369,31 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
         'The file was not saved. This usually means the graphic is painted onto a transparent fabric ' +
         'layer in CLO rather than sitting on the garment — re-export it with the artwork on its own opaque piece.',
     )
+  }
+
+  // 2d. Refuse a model the official Khronos validator calls invalid.
+  //
+  //     The validator has run on every garment since the spec check was added; its
+  //     answer was computed and dropped on the floor (container server.ts). Both live
+  //     garments are invalid glTF as a result — 44 errors on the cycling suit, all
+  //     `IMAGE_NON_ENABLED_MIME_TYPE` / `TEXTURE_INVALID_IMAGE_MIME_TYPE` from a WebP
+  //     pass that wrote the mime type without declaring EXT_texture_webp.
+  //
+  //     Browsers sniff the bytes and render anyway, which is precisely why nothing
+  //     noticed. Other software is not obliged to: a factory system, a marketplace or a
+  //     customer's own 3D tool may simply refuse the file.
+  //
+  //     Structural, so Permanent rather than retryable: `spec.errors` is severity 0
+  //     with no false-positive case — the same bar the artwork gates meet — and the
+  //     same input would produce the same verdict on a retry.
+  //
+  //     ⚠️ FAILS OPEN on an old container, deliberately. `spec` is absent from images
+  //     built before 2026-08-29, and `specRefusal` reads an absent verdict as "nothing
+  //     to report" rather than refusing every job while images roll forward.
+  const specProblem = specRefusal(report.spec)
+  if (specProblem) {
+    await containerRes.body?.cancel().catch(() => {})
+    throw new PermanentJobError(specProblem)
   }
 
   // 3. Create the guardrailed Media doc from the SHRUNK output. The CMS media

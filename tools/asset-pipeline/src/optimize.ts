@@ -5,8 +5,10 @@ import { dedup, draco, meshopt, prune } from '@gltf-transform/functions'
 import { ktx2 } from 'ktx2-encoder/gltf-transform'
 import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer'
 import sharp from 'sharp'
-import { createIO } from './io'
+import { createIO, readGlb } from './io'
+import { alignVariantTexCoords } from './variant-texcoord'
 import { DEFAULT_STITCH_PATTERN, type TopstitchResult, reduceTopstitch } from './topstitch'
+import { type PbrNormalizeResult, normalizePbr } from './pbr-normalize'
 import {
   type AlphaProfile,
   CUTOUT_MID_FRACTION,
@@ -80,6 +82,21 @@ export interface OptimizeOptions {
    */
   opaque?: boolean
   /**
+   * Force fabric and artwork materials off metal. ON unless set to false.
+   *
+   * glTF defaults an absent `metallicFactor` to 1.0 and CLO omits it on some fabric,
+   * which renders a garment as glossy patent leather — proven by A/B on the real
+   * MATRIX-PUFF JACKET export, where the affected materials cover 76.6% of its
+   * triangles. Measured across the 28 raw exports: 55 genuine offenders on 4
+   * garments, against 440 legitimate hardware materials that must stay metal and
+   * 3,593 that carry a metallicRoughnessTexture and are already correct per pixel.
+   * See pbr-normalize.ts.
+   *
+   * Opt out (`--no-pbr-normalize`) for a garment with genuinely metallic fabric —
+   * lamé, foil print. Nothing in the catalogue needed that as of 2026-08-27.
+   */
+  normalizePbr?: boolean | undefined
+  /**
    * Simplify (decimate) geometry to this fraction of triangles, 0–1 — e.g. 0.05
    * keeps ~5%. CLO exports are wildly over-tessellated (millions of triangles
    * from the cloth simulation); the mesh, not the textures, is what makes them
@@ -126,9 +143,19 @@ export interface OptimizeOptions {
    * export was 99.97% stitch geometry and 0.03% garment, so the two need
    * different budgets and `--simplify` cannot express that.
    *
-   * Use INSTEAD OF `--simplify` on such a garment, not alongside it: running both
-   * decimates the thread twice, which is what produced the frayed output the owner
-   * rejected on 2026-08-21.
+   * ⚠️ SAFE TO PASS ALONGSIDE `--simplify`, AND `shrinkFlagsFor` DOES — this said
+   * the opposite until 2026-08-26, describing the code as it was BEFORE the guard
+   * that fixed it. Decimating thread twice is what produced the frayed output the
+   * owner rejected on 2026-08-21; `skipMeshes` is what stops it. When the stitch
+   * pass runs it OWNS those meshes, and `buildOptimizeTransforms` hands
+   * `skipMeshes: DEFAULT_STITCH_PATTERN` to the general simplifier (optimize.ts:499),
+   * which honours it at simplify-textured.ts:347. So thread takes the stitch
+   * budget and the garment takes the other one.
+   *
+   * This mattered because the advice was unfollowable: every production run goes
+   * through `shrinkFlagsFor`, which returns BOTH flags for both detail levels, so
+   * a reader who believed this comment would conclude the shipping configuration
+   * was the broken one.
    */
   stitch?: number | undefined
   /**
@@ -228,6 +255,58 @@ export interface SolidifyResult {
 const OPAQUE_FACTOR_THRESHOLD = 0.99
 
 /**
+ * An alpha channel that is only ANTI-ALIASING, not translucency.
+ *
+ * ⚠️ THIS PAIR IS THE FIX FOR "IT GOES SEE-THROUGH WHEN YOU ROTATE IT", 2026-08-27.
+ * Both halves are required and neither is arbitrary.
+ *
+ * WHAT WAS HAPPENING. CLO packs garment panels into one texture atlas and
+ * anti-aliases their edges in the alpha channel. Measured on the raw X-MILO CORE
+ * OVERSIZE export, over all 36,437,385 pixels of its 6835x5331 fabric texture:
+ * **0.000% fully clear — not one pixel** — 93.33% fully solid, 6.67% in a soft
+ * border band. `profileAlpha` calls a texture 'opaque' only at >= 99.9% solid and
+ * 'binary' only at <= 2% partial, so this fell through to 'graded' and was kept on
+ * BLEND as "deliberate translucency". <model-viewer> has no order-independent
+ * transparency, so BLEND materials depth-sort per object and the sort flips as the
+ * camera moves: 99 BLEND went in, 50 came out, and the garment turned see-through
+ * on rotation. A texture with no clear pixels cannot be seen through.
+ *
+ * WHY BOTH HALVES. A uniformly sheer fabric — chiffon at alpha 0.5 — ALSO has no
+ * fully-clear pixels, and forcing it opaque would destroy it. It has almost no
+ * fully-SOLID pixels either, so the second half excludes it.
+ *
+ * ⚠️ THREE CONDITIONS, BECAUSE TWO WERE NOT ENOUGH AND THE SUITE CAUGHT IT. The
+ * first version tested only "no clear pixels" and "mostly solid", and it broke the
+ * organza-inset test — a 22x22 patch at alpha 90 on an otherwise solid map, which
+ * is 0% clear and 97% solid and IS genuinely translucent. Counting partial pixels
+ * cannot separate the two: the defect is 6.67% partial and the organza only 2.95%,
+ * the wrong way round. What separates them is how DEEP the partiality goes.
+ *
+ * WHERE THE NUMBERS COME FROM, all measured:
+ *   - clear < 1%   : every genuinely translucent or cut-out baseColor texture across
+ *                    X-MILO, PRO-PILE and MATRIX-PUFF carries at least 9.29% fully
+ *                    clear pixels; the defect carries 0.00%.
+ *   - sheer < 0.5% : X-MILO's fabric is 0.015% below alpha 128 — its partial pixels
+ *                    sit at 192-247, a visually solid edge ramp. The organza inset
+ *                    is 2.95% at alpha 90. A ~200x separation.
+ *   - solid >= 75% : well under the measured 93.33%, and far above the ~0% a
+ *                    uniformly sheer chiffon would show, so an anti-aliasing band
+ *                    may cover a quarter of the atlas before this stops firing.
+ *
+ * A large panel at alpha ~200 that is cut out nowhere WILL be forced opaque by this.
+ * That is accepted: at 78% opacity the change is barely visible, and CLO's soft edge
+ * is a likelier explanation than a design intent nothing else in the file records.
+ *
+ * ⚠️ Do NOT "simplify" this to a looser `opaqueFraction` threshold inside
+ * `profileAlpha`. That character is also read by `isArtworkTexture`, which feeds a
+ * BLOCKING gate, and widening a blocking gate to fix a rendering bug is the wrong
+ * trade — the same reasoning that keeps `isArtworkMaterialByName` out of it.
+ */
+const DECORATIVE_ALPHA_MAX_TRANSPARENT = 0.01
+const DECORATIVE_ALPHA_MAX_SHEER = 0.005
+const DECORATIVE_ALPHA_MIN_OPAQUE = 0.75
+
+/**
  * Force fabric to render solid — deciding per material from its actual alpha
  * data rather than by blanket rule.
  *
@@ -279,7 +358,13 @@ export async function solidifyMaterials(document: Document): Promise<SolidifyRes
       // is the CLO stray-opacity case this step was built for.
       const alpha: AlphaProfile = image
         ? await profileAlpha(image)
-        : { character: 'none', transparentFraction: 0, opaqueFraction: 0, midFraction: 0 }
+        : {
+            character: 'none',
+            transparentFraction: 0,
+            opaqueFraction: 0,
+            midFraction: 0,
+            sheerFraction: 0,
+          }
       const factor = material.getBaseColorFactor()[3] ?? 1
 
       // A cutout is "hardly any partial alpha" AND "actually cut out somewhere".
@@ -320,6 +405,16 @@ export async function solidifyMaterials(document: Document): Promise<SolidifyRes
         // A real cutout. Keep the shape, lose the sorting problem.
         material.setAlphaMode('MASK').setAlphaCutoff(0.5)
         result.masked++
+      } else if (
+        alpha.transparentFraction < DECORATIVE_ALPHA_MAX_TRANSPARENT &&
+        alpha.sheerFraction < DECORATIVE_ALPHA_MAX_SHEER &&
+        alpha.opaqueFraction >= DECORATIVE_ALPHA_MIN_OPAQUE
+      ) {
+        // Anti-aliasing, not translucency — see the constants above. Mutually
+        // exclusive with `cutout`, which needs >= CUTOUT_MIN_TRANSPARENT clear
+        // pixels, so the order of these two branches cannot change the outcome.
+        material.setAlphaMode('OPAQUE')
+        result.opaqued++
       } else if (alpha.character === 'graded') {
         // Deliberate translucency. Leave it and say so — the operator can still
         // decide this garment is not sheer and re-export it.
@@ -351,7 +446,8 @@ export async function solidifyMaterials(document: Document): Promise<SolidifyRes
     // `isArtworkTexture`): this decides SIDEDNESS, nothing else. It must not widen
     // `isArtworkTexture` -> `findArtworkAlphaProblems`, which throws and saves
     // nothing — widening a blocking gate to fix a rendering bug would be a bad
-    // trade. Pinned by a test with a negative control in optimize.test.ts.
+    // trade. Pinned by a test with a negative control in pipeline.test.ts —
+    // there is no optimize.test.ts, and this comment named one until 2026-08-29.
     // BOTH signals, because a CLO export names the MATERIAL and leaves every
     // texture anonymous — 0 of 24 textures had a name or URI on the file this was
     // measured against, so the texture-only check was completely inert.
@@ -376,8 +472,12 @@ export async function solidifyMaterials(document: Document): Promise<SolidifyRes
  * identical, from the outside, to one that was applied and did not help.
  */
 export interface OptimizeTelemetry {
+  /** What normalizePbr changed, left alone, and could not classify. */
+  pbr?: PbrNormalizeResult
   /** Present only when a simplify pass ran. */
   simplify?: SimplifyTexturedResult
+  /** Texture bindings repointed because prune renumbered a UV set out from under a colourway. */
+  variantTexCoords?: string[]
   /** Present only when the WebP texture pass ran. */
   textures?: TextureArtworkResult
   /** Present only when the opaque/solidify pass ran. */
@@ -398,7 +498,51 @@ export async function buildOptimizeTransforms(
   options: OptimizeOptions,
   telemetry: OptimizeTelemetry = {},
 ): Promise<Transform[]> {
-  const transforms: Transform[] = [dedup(), prune({ keepExtras: true })]
+  const transforms: Transform[] = [
+    dedup(),
+    prune({ keepExtras: true }),
+    // Immediately after prune, because prune is what renumbers UV sets — and it
+    // updates only the material bound as each primitive's DEFAULT, leaving every
+    // colourway-only material pointing at an attribute that no longer exists. See
+    // variant-texcoord.ts. The spec gate in `validate` is the backstop if a later
+    // pass ever renumbers again.
+    alignVariantTexCoords({
+      onResult: (fixed) => {
+        telemetry.variantTexCoords = fixed
+      },
+    }),
+  ]
+
+  // Metalness first: a pure material edit that nothing downstream reads. Running it
+  // before solidifyMaterials keeps the two decisions independent — that one reads
+  // alpha, this one reads metalness, and neither should see the other's output.
+  // Default ON; `--no-pbr-normalize` is the opt-out.
+  if (options.normalizePbr !== false) {
+    transforms.push(
+      /*
+       * ⚠️ EVERY NON-DECIMATION PASS ADDED HERE MUST ALSO BE ADDED TO THE BASELINE IN
+       * scripts/eval-artwork-legibility.mjs, OR THAT GATE GOES RED FOR THE WRONG REASON.
+       *
+       * The eval renders the raw fixture as its baseline and compares the optimized
+       * render against it, promising in its own header that "the only variable is the
+       * decimation". `normalizePbr` broke that promise the day it was added: it runs on
+       * the optimized side only, so the eval measured decimation damage PLUS a
+       * legitimate shading correction and every row jumped together —
+       * fidelity 1.650 -> 15.290, balanced 3.070 -> 16.070, CONTROL 9.370 -> 18.760,
+       * against a 5.000% ceiling. That reads as catastrophic artwork damage and was
+       * not: rendered and looked at, the letterforms were intact and merely lighter,
+       * because a wrongly-metallic surface renders dark and a corrected one does not.
+       *
+       * It cost a branch. All three rows moving TOGETHER, control included, is the
+       * signature of a constant offset rather than damage — check for that first.
+       */
+      normalizePbr({
+        onResult: (result) => {
+          telemetry.pbr = result
+        },
+      }),
+    )
+  }
 
   // Force fabric solid before texture/geometry passes touch the materials. CLO
   // often marks opaque fabric as translucent (alphaMode BLEND); model-viewer has
@@ -564,6 +708,8 @@ export interface OptimizeResult {
   simplify?: SimplifyTexturedResult
   /** How textures were classified and encoded, when the WebP pass ran. */
   textures?: TextureArtworkResult
+  /** What the metalness pass changed, left alone, and could not classify. */
+  pbr?: PbrNormalizeResult
   /** How each translucent material was resolved, when the opaque pass ran. */
   solidify?: SolidifyResult
   /** Stitch vs garment triangle split, when the topstitch pass ran. */
@@ -582,7 +728,20 @@ export async function optimizeGlb(
 ): Promise<OptimizeResult> {
   const io = await createIO()
   const bytesBefore = (await stat(inputFile)).size
-  const document = await io.read(inputFile)
+  // readGlb, not io.read: six of the 28 raw exports declare a texture pointing at
+  // no image, and the READER dies on them before any transform runs. See
+  // repair-dead-textures.ts. A healthy export takes the identical path.
+  const { document, repair } = await readGlb(inputFile)
+  if (repair.referencesRemoved) {
+    // Reported, never silent — this is a defect in the CLO export, and the owner
+    // decides what to do about it. Same treatment as STRUCTURE POLO SET's unbound
+    // colourways, which `describe` refuses to hide.
+    console.warn(
+      `[optimize] REPAIRED ${repair.deadTextures.length} texture(s) with no image: ` +
+        `removed ${repair.referencesRemoved} ${repair.slots.join('/')} reference(s). ` +
+        'Without this the file cannot be read at all. Re-export from CLO to fix it properly.',
+    )
+  }
   const telemetry: OptimizeTelemetry = {}
   await optimizeDocument(document, options, telemetry)
 
@@ -603,6 +762,7 @@ export async function optimizeGlb(
     opaque: options.opaque === true,
     ...(telemetry.simplify ? { simplify: telemetry.simplify } : {}),
     ...(telemetry.textures ? { textures: telemetry.textures } : {}),
+    ...(telemetry.pbr ? { pbr: telemetry.pbr } : {}),
     ...(telemetry.solidify ? { solidify: telemetry.solidify } : {}),
     ...(telemetry.stitch ? { stitch: telemetry.stitch } : {}),
   }
@@ -642,7 +802,7 @@ export function finiteNumber(raw: string | undefined, flagName: string): number 
   if (raw === undefined || raw === '' || !Number.isFinite(value)) {
     throw new Error(
       `${flagName} needs a number, received ${raw === undefined ? '(nothing)' : `"${raw}"`}. ` +
-        'A NaN here would silently become the decimation budget.',
+        'A NaN here would be accepted silently and used as if it were a real value.',
     )
   }
   return value
@@ -662,6 +822,9 @@ const VALUE_TAKING_FLAGS = new Set([
   '--stitch',
   '--stitch-error',
   '--data-max-texture',
+  // `pnpm pipeline review --port 4180`. Listed here so assertFlagsOnly does not
+  // read the port NUMBER as a bare positional and reject the command.
+  '--port',
 ])
 
 /**
@@ -705,6 +868,10 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
   let artworkMaxTextureSize = DEFAULT_ARTWORK_MAX_TEXTURE
   // Solid fabric is the safe default for apparel; sheer garments opt out.
   let opaque = true
+  // `boolean | undefined`, not `boolean`: exactOptionalPropertyTypes is on and this
+  // object is built from parsed args then passed through unconditionally — the same
+  // shape that made the four simplify* fields need it.
+  let normalizePbrOption: boolean | undefined
   let simplify: number | undefined
   let simplifyError: number | undefined
   let simplifyUvWeight: number | undefined
@@ -738,6 +905,7 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
       dataMaxTextureSize = finiteNumber(rest[++i], '--data-max-texture')
     else if (arg === '--opaque') opaque = true
     else if (arg === '--no-opaque' || arg === '--keep-transparency') opaque = false
+    else if (arg === '--no-pbr-normalize') normalizePbrOption = false
     else if (!arg.startsWith('--')) input = arg
   }
 
@@ -752,6 +920,7 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
       artworkTextureQuality,
       artworkMaxTextureSize,
       opaque,
+      normalizePbr: normalizePbrOption,
       simplify,
       simplifyError,
       simplifyUvWeight,

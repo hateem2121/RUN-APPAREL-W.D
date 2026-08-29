@@ -1,10 +1,18 @@
 #!/usr/bin/env tsx
-import { readFile } from 'node:fs/promises'
+import { attributeBytes, formatAttributeBytes, formatVram, summariseVram } from './attribute-bytes'
+import { mkdir, readFile, writeFile, stat } from 'node:fs/promises'
+import { basename, join } from 'node:path'
 import { compareRenders } from './compare'
+import { type GlbDescription, describeGlb, readGltfJson } from './describe'
 import { mergeVariants, parseMergeArgs, type ParsedMergeArgs } from './merge-variants'
-import { optimizeGlb, parseOptimizeArgs } from './optimize'
+import { finiteNumber, optimizeGlb, parseOptimizeArgs } from './optimize'
 import { DEFAULT_VIEWS, type RenderView, renderViews } from './render'
+import { type SpecFileCheck, checkGltfSpecFileGuarded, describeSpecIssues } from './gltf-spec'
+import { annotateGlbOverlays, type OverlayOverride } from './overlay-annotate'
+import { measureOverlays } from './overlay-depth'
+import { startReviewServer } from './review-server'
 import { dumpTextures } from './textures'
+import { createIO } from './io'
 import { checkVariants, inspectGlb } from './validate'
 import { generatePlaceholders } from './placeholders'
 
@@ -39,6 +47,27 @@ USAGE
       Generate placeholder seed assets (per-colour GLBs + posters) for N001.
 
 DIAGNOSTICS — for looking at artwork instead of guessing at it
+  pnpm pipeline describe <file.glb> [...] [--json]
+      Read a raw export's SHAPE without processing it — family (geometry- or
+      texture-heavy), triangle and topstitch counts, the material census,
+      colourways, and any fabric material that is metallic with nothing to
+      override it. Reads the JSON chunk only, so a 1.2 GB export is as fast as a
+      5 MB one. Run this BEFORE spending a pipeline run.
+
+  pnpm pipeline overlays <file.glb> [...] [--out <dir>] [--json]
+      Find printed layers stacked on the cloth beneath them — the cause of the
+      white specks that appear and vanish as a garment turns — and record a
+      depth bias in the asset for the viewer to obey. GEOMETRIC, not name-based.
+      Report-only unless --out is given; the BIN chunk is copied byte for byte,
+      so geometry, textures and compression are untouched.
+      Overrides live in tools/asset-pipeline/overlay-overrides.json.
+
+  pnpm pipeline review <dir> [<dir2>] [--port 4180]
+      Serve every GLB in a directory in a live <model-viewer> — the same renderer
+      and the same decoders the deployed site uses. Turn the garment, switch
+      colourways, toggle diagnostic vs studio lighting. This is where artwork and
+      metalness are judged: no automated gate in this system can see either.
+
   pnpm pipeline textures <file.glb> --out <dir> [--no-images]
       Dump every texture to PNG with a manifest.json saying which materials and
       slots use it, WHICH UV SET it samples, and what its alpha channel really
@@ -243,6 +272,21 @@ async function main(): Promise<void> {
     console.log(
       `  textures:   ${result.textureCount} (${result.textureFormats.join(', ') || 'none'})  geometry: ${result.geometry}${simplifyLabel}`,
     )
+    if (result.pbr) {
+      const { fixed, unclassified, hardware, skippedWithMrTexture } = result.pbr
+      console.log(
+        `  metalness:  ${fixed.length} fabric forced to 0, ${hardware} hardware kept metal, ` +
+          `${skippedWithMrTexture} already per-pixel`,
+      )
+      if (unclassified.length) {
+        // Owner decision 2026-08-26: an unclassifiable metallic material is reported
+        // on every run and never rewritten. Printing it is the whole of that
+        // decision — silence here would be indistinguishable from having fixed it.
+        console.log(
+          `  UNCLASSIFIED (reported, never changed): ${[...new Set(unclassified)].join(', ')}`,
+        )
+      }
+    }
     if (result.solidify) {
       const { opaqued, masked, keptBlend, doubleSided } = result.solidify
       console.log(
@@ -258,6 +302,15 @@ async function main(): Promise<void> {
       )
       if (artwork > 0)
         console.log(`              artwork: ${result.textures.artworkNames.join(', ')}`)
+      if (result.textures.alphaBoosted.length) {
+        // MASK at alphaCutoff 0.5 discards every pixel below alpha 128, which on a
+        // letterform is its anti-aliased edge — reported by the owner as "missing
+        // bits and pieces". These textures had their alpha rescaled so the ink that
+        // survives the cutoff matches the ink that was visible. See alpha-coverage.ts.
+        console.log(
+          `  ink kept:   ${result.textures.alphaBoosted.length} artwork texture(s) rescaled so the 0.5 cutoff does not eat their edges`,
+        )
+      }
     }
     if (result.simplify) {
       const { attributeAware, fallback, skipped, uvSetsWeighted } = result.simplify
@@ -277,7 +330,263 @@ async function main(): Promise<void> {
     console.log(
       `  size:       ${(result.bytesBefore / 1024).toFixed(1)} KB → ${(result.bytesAfter / 1024).toFixed(1)} KB  (−${pct}%)`,
     )
+
+    /*
+     * What the file is MADE OF, which nothing reported until 2026-08-29.
+     *
+     * Every other size figure here is a total, and a total hid the largest cheap win in
+     * the catalogue for weeks: texture coordinates are the biggest thing in a garment
+     * (46.8% of n001's geometry, 51.6% of v001's) and the only attribute left
+     * uncompressed, because CLO writes UVs far outside 0..1 and the quantizer correctly
+     * refuses them. glTF-Transform says so on every run — "Skipping TEXCOORD_0; out of
+     * [0,1] range" — into a stream nobody reads.
+     *
+     * Graphics memory is the other half of Finding 7 and is NOT here: it needs each
+     * image's pixel dimensions, which `inventoryTextures` already decodes. Reporting it
+     * here would decode every texture a second time, so it belongs with that inventory.
+     * `textureVramBytes` in attribute-bytes.ts is the tested arithmetic for it.
+     */
+    try {
+      const gltf = await readGltfJson(result.outputFile)
+      const composition = attributeBytes(gltf, result.bytesAfter)
+      for (const line of formatAttributeBytes(composition)) console.log(line)
+    } catch {
+      // Reporting must never fail a build that otherwise succeeded.
+    }
+
     console.log('\nNext: run "pnpm pipeline validate" with --expect before uploading to the CMS.')
+    return
+  }
+
+  if (command === 'overlays') {
+    /*
+     * Find printed layers stacked on cloth, and record the depth bias in the asset.
+     *
+     * REPORT-ONLY WITHOUT --out. Writing is opt-in because the thing being written is a
+     * rendering decision, and the root CLAUDE.md's rule for this pipeline is to look at
+     * the output rather than trust a number. Run it bare first, read the table, then
+     * write.
+     */
+    const files: string[] = []
+    let outDir: string | undefined
+    let asJson = false
+    let all = false
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i]
+      if (arg === undefined) continue
+      if (arg === '--out') outDir = rest[++i]
+      else if (arg === '--json') asJson = true
+      else if (arg === '--all-alpha-modes') all = true
+      else if (!arg.startsWith('--')) files.push(arg)
+    }
+    if (!files.length) fail('Missing <file.glb> — one or more GLBs to inspect')
+    if (outDir === undefined && rest.includes('--out')) fail('--out needs a directory')
+
+    let overrides: OverlayOverride[] = []
+    const overridePath = new URL('../overlay-overrides.json', import.meta.url)
+    try {
+      overrides = JSON.parse(await readFile(overridePath, 'utf8')).overrides ?? []
+    } catch {
+      // Absent is fine — the file is a convenience, not a requirement.
+    }
+
+    const io = await createIO()
+    let wrote = 0
+    for (const file of files) {
+      const name = basename(file, '.glb')
+      const readings = measureOverlays(await io.read(file))
+      const { bytes, result } = annotateGlbOverlays(
+        new Uint8Array(await readFile(file)),
+        readings,
+        {
+          garment: name,
+          overrides,
+          ...(all ? { alphaModes: ['OPAQUE', 'MASK', 'BLEND'] } : {}),
+        },
+      )
+      if (asJson) {
+        console.log(JSON.stringify({ garment: name, ...result, readings }, null, 2))
+      } else {
+        console.log(`\n${name}`)
+        console.log(
+          `  ${result.overlayPrimitives} overlay primitive(s) → ${result.flagged.length} material(s) flagged` +
+            `${result.clones ? `, ${result.clones} cloned` : ''}`,
+        )
+        for (const f of result.flagged)
+          console.log(
+            `    #${f.index} ${f.name}${f.clonedFrom === undefined ? '' : ` (clone of #${f.clonedFrom})`}`,
+          )
+        for (const r of result.review)
+          console.log(
+            `    REVIEW (not biased) ${r.material} — confidence ${r.confidence.toFixed(2)}, ${r.reason}`,
+          )
+        for (const stale of result.staleOverrides)
+          console.log(`    ⚠️ STALE OVERRIDE matched nothing: "${stale.material}" — ${stale.note}`)
+      }
+      if (outDir !== undefined) {
+        // ⚠️ Refuse to write a file whose BIN chunk did not survive. The whole reason
+        // this patches JSON rather than re-serialising is that geometry must not move.
+        if (!result.binIdentical) fail(`${name}: the binary chunk changed — refusing to write`)
+        await mkdir(outDir, { recursive: true })
+        await writeFile(join(outDir, `${name}.glb`), bytes)
+        wrote++
+      }
+    }
+    if (outDir !== undefined) {
+      console.log(
+        `\nWrote ${wrote} file(s) to ${outDir}. Geometry and textures are byte-identical.`,
+      )
+      console.log('Next: pnpm pipeline review <that dir> — and LOOK at the garment.')
+    } else if (!asJson) {
+      console.log('\nReport only. Pass --out <dir> to write the annotated GLBs.')
+    }
+    return
+  }
+
+  if (command === 'review') {
+    // ⚠️ Walk the arguments; do NOT filter on `!startsWith('--')`. That was the
+    // first version and it read the PORT NUMBER as a second directory —
+    // `review <dir> --port 4180` reported "2 directories" and quietly tried to
+    // readdir("4180"). Harmless only because the failure is caught, and exactly the
+    // shape recorded in apps/shrink/container/server.ts where a bare argument
+    // became the input path. Found by running the command, not by reading it.
+    const dirs: string[] = []
+    let port = 4180
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i]
+      if (arg === undefined) continue
+      if (arg === '--port') {
+        port = finiteNumber(rest[++i], '--port')
+      } else if (!arg.startsWith('--')) {
+        dirs.push(arg)
+      }
+    }
+    if (!dirs.length) fail('Missing <dir> — a directory of .glb files to review')
+
+    const handle = await startReviewServer(dirs, port)
+    const count = (await (await fetch(`${handle.url}api/garments`)).json()) as unknown[]
+    console.log(`Review viewer: ${handle.url}`)
+    console.log(`  ${count.length} garment(s) from ${dirs.length} director(y/ies).`)
+    console.log('  Turn each garment. Switch colourways. Toggle the lighting.')
+    console.log('  A blank model is a DECODER problem, not a verdict — the page says so.')
+    console.log('  Ctrl-C to stop.')
+    // Deliberately does not return: the server is the command.
+    return
+  }
+
+  if (command === 'describe') {
+    const files = rest.filter((a) => !a.startsWith('--'))
+    if (!files.length) fail('Missing <file.glb>')
+    const asJson = rest.includes('--json')
+
+    const results: GlbDescription[] = []
+    for (const file of files) results.push(await describeGlb(file))
+
+    // Khronos glTF-Validator on the RAW exports. REPORTED, NEVER BLOCKING — these
+    // files are the customer's, not ours, and refusing to describe one would stop
+    // work on a defect nobody here can re-export away. (Our own OUTPUT is a
+    // different matter and `validate` does refuse it.)
+    //
+    // ⚠️ Opt-in via --spec, and NOT part of describeGlb. This reads the whole file:
+    // ~3.4x its size in memory, measured. `describeGlb` is called by the shrink
+    // container on the raw upload and reads only the JSON chunk; putting this
+    // inside it would turn a 1.25 GB export into an OOM in production.
+    const withSpec = rest.includes('--spec')
+    const specResults: SpecFileCheck[] = []
+    if (withSpec) {
+      for (const d of results) {
+        specResults.push(await checkGltfSpecFileGuarded(d.file, d.bytes))
+      }
+    }
+
+    if (asJson) {
+      console.log(
+        JSON.stringify(withSpec ? { garments: results, spec: specResults } : results, null, 2),
+      )
+      return
+    }
+
+    // One line per garment, so a 28-file run is scannable.
+    console.log(
+      'FAMILY    %TEX   TEXmb    GEOmb    TRIS          STITCH%  MATS  BLEND  FIX  ?  CW  FILE',
+    )
+    const mb = (bytes: number) => (bytes / 1048576).toFixed(1)
+    for (const d of results) {
+      if (d.error) {
+        console.log(`ERROR     ${d.error}  —  ${d.file.split('/').pop()}`)
+        continue
+      }
+      console.log(
+        `${d.family.padEnd(9)}${(d.textureFraction * 100).toFixed(0).padStart(4)}%` +
+          `${mb(d.textureBytes).padStart(8)}${mb(d.geometryBytes).padStart(9)}` +
+          `${d.triangles.toLocaleString().padStart(14)}` +
+          `${(d.stitchFraction * 100).toFixed(1).padStart(8)}%` +
+          `${String(d.materials.total).padStart(6)}${String(d.materials.blend).padStart(7)}` +
+          `${String(d.pbrSuspects.length).padStart(5)}` +
+          `${String(d.unclassifiedMetallic.length).padStart(3)}` +
+          `${String(d.colourways.count).padStart(4)}  ${d.file.split('/').pop()}`,
+      )
+    }
+
+    const ok = results.filter((d) => !d.error)
+    const named = ok.reduce((n, d) => n + d.images.named, 0)
+    const totalImages = ok.reduce((n, d) => n + d.images.total, 0)
+    console.log('')
+    console.log(`  files:        ${results.length} (${results.length - ok.length} unreadable)`)
+    console.log(
+      `  families:     ${ok.filter((d) => d.family === 'texture').length} texture, ` +
+        `${ok.filter((d) => d.family === 'geometry').length} geometry, ` +
+        `${ok.filter((d) => d.family === 'mixed').length} mixed`,
+    )
+    console.log(
+      `  metalness:    ${ok.reduce((n, d) => n + d.pbrSuspects.length, 0)} fabric to fix, ` +
+        `${ok.reduce((n, d) => n + d.unclassifiedMetallic.length, 0)} unclassified (reported only)`,
+    )
+    console.log(`  images:       ${totalImages}, of which ${named} carry a name or URI`)
+    if (named > 0) {
+      // A CLO version that starts naming images would silently re-enable a
+      // texture-name classifier this pipeline deliberately does not have.
+      console.log('  NOTE:         CLO exports have always had 0 named images. Something changed.')
+    }
+
+    // ⚠️ LOUD ON PURPOSE — owner decision 2026-08-26. STRUCTURE POLO SET declares
+    // five colourways and binds NONE of them (0 of 320 primitives carry a
+    // KHR_materials_variants mapping), so a published switcher would show five
+    // buttons that do nothing. It is a defect in the garment, not in the pipeline,
+    // and re-exporting from CLO is not available — so it is REPORTED every run
+    // rather than quietly patched to look fine.
+    if (withSpec) {
+      const checked = specResults.filter((r) => r.spec)
+      const failing = checked.filter((r) => (r.spec?.counts.errors ?? 0) > 0)
+      const skipped = specResults.filter((r) => r.skipped)
+      console.log('')
+      console.log(
+        `  glTF spec:    ${checked.length} checked, ${failing.length} with error(s)` +
+          `${skipped.length ? `, ${skipped.length} skipped` : ''}`,
+      )
+      for (const r of failing) {
+        console.log(`      ${r.file.split('/').pop()} — ${r.spec?.counts.errors} error(s)`)
+        for (const line of describeSpecIssues(r.spec?.errors ?? [], 3))
+          console.log(`        ${line}`)
+      }
+      // Named, never silent: a file nobody could check must not read as a file
+      // that passed.
+      for (const r of skipped)
+        console.log(`      SKIPPED ${r.file.split('/').pop()} — ${r.skipped}`)
+    }
+
+    const unbound = ok.filter((d) => d.colourways.count > 0 && !d.colourways.fullyMapped)
+    if (unbound.length) {
+      console.log('')
+      console.log('  ⚠️  DO NOT PUBLISH — COLOURWAYS DECLARED BUT NOT BOUND:')
+      for (const d of unbound) {
+        console.log(
+          `      ${d.file.split('/').pop()} — ${d.colourways.count} colourways declared, ` +
+            'no primitive is variant-mapped. Every colour renders identically and the ' +
+            'switcher on the live site would do nothing.',
+        )
+      }
+    }
     return
   }
 
@@ -319,6 +628,26 @@ async function main(): Promise<void> {
     )
     for (const warning of report.warnings) console.log(`  WARNING:    ${warning}`)
 
+    // Khronos glTF-Validator. `validate` runs on what THIS PIPELINE PRODUCED, so
+    // an error here is our bug, not the customer's — see gltf-spec.ts. Printed
+    // whatever the verdict, because "checked, clean" and "nobody looked" must not
+    // look the same; that distinction is why `artworkVerdict: 'ok'` is recorded
+    // rather than merely implied.
+    const spec = report.spec
+    console.log(
+      `  glTF spec:  ${spec.counts.errors} error(s), ${spec.counts.warnings} warning(s)` +
+        `, ${spec.counts.infos} info(s) — validator ${spec.validatorVersion}`,
+    )
+    for (const line of describeSpecIssues(spec.warnings)) console.log(`  spec warn:  ${line}`)
+    if (spec.counts.errors > 0) {
+      for (const line of describeSpecIssues(spec.errors, 10)) console.error(`  SPEC ERROR: ${line}`)
+      fail(
+        `${spec.counts.errors} glTF specification error(s). This file is not valid glTF, so a ` +
+          'renderer may reject or mis-draw it. This is a defect in what the pipeline produced, ' +
+          'not in the CLO export — do not publish it.',
+      )
+    }
+
     if (expected) {
       const check = checkVariants(report, expected)
       if (!check.ok) {
@@ -356,6 +685,23 @@ async function main(): Promise<void> {
     const inventory = await dumpTextures(file, outDir, { images })
     console.log(`${file} → ${outDir}`)
     console.log(`  textures:   ${inventory.textures.length}`)
+    /*
+     * Graphics memory — Finding 7. Reported HERE because `inventoryTextures` has already
+     * decoded every image's dimensions; doing it in the optimize summary would decode
+     * them all a second time.
+     *
+     * Why it matters: every size limit in this project measures the FILE. What runs a
+     * phone out of memory is how big the pictures become once unpacked onto the graphics
+     * chip, and the two differ by around 100x (measured: 0.4 MB of texture data becoming
+     * 38.1 MB of graphics memory). A garment can sit comfortably under the 40 MB ceiling
+     * and still be far too heavy for an older phone, with nothing in the file sizes to
+     * show it — which is exactly what makes that crash hard to diagnose.
+     */
+    const inventoryFileBytes = await stat(file)
+      .then((s) => s.size)
+      .catch(() => 0)
+    for (const line of formatVram(summariseVram(inventory.textures), inventoryFileBytes))
+      console.log(line)
     console.log(
       `  UV sets:    ${inventory.texCoordsInUse.map((n) => `TEXCOORD_${n}`).join(', ') || '(none sampled)'}`,
     )
@@ -393,7 +739,7 @@ async function main(): Promise<void> {
       if (arg === '--out') outDir = rest[++i] ?? null
       else if (arg === '--views') viewsFile = rest[++i] ?? null
       else if (arg === '--variant') variant = rest[++i] ?? null
-      else if (arg === '--size') dimension = Number(rest[++i])
+      else if (arg === '--size') dimension = finiteNumber(rest[++i], '--size')
       else if (!arg.startsWith('--')) positional.push(arg)
     }
     const file = positional[0]
@@ -406,7 +752,15 @@ async function main(): Promise<void> {
     const result = await renderViews(file, outDir, {
       views,
       variant,
-      ...(dimension ? { width: dimension, height: dimension } : {}),
+      /*
+       * `!== undefined`, NOT a truthiness check. `--size 0` parsed to 0, which is
+       * FALSY, so the flag was silently dropped and the default used — while
+       * `--size abc` parsed to NaN, which is TRUTHY, so garbage was silently
+       * accepted. `finiteNumber` now rejects the second; this line fixes the first.
+       * Exactly the bug `finiteNumber` was written for, in the argument reader the
+       * original fix did not reach.
+       */
+      ...(dimension !== undefined ? { width: dimension, height: dimension } : {}),
     })
     console.log(`Rendered ${result.files.length} view(s) of ${file} → ${outDir}`)
     console.log(`  views:      ${result.files.join(', ')}`)
@@ -424,14 +778,16 @@ async function main(): Promise<void> {
     for (let i = 0; i < rest.length; i++) {
       const arg = rest[i]!
       if (arg === '--out') out = rest[++i] ?? null
-      else if (arg === '--gain') gain = Number(rest[++i])
+      else if (arg === '--gain') gain = finiteNumber(rest[++i], '--gain')
       else if (!arg.startsWith('--')) positional.push(arg)
     }
     const [dirA, dirB] = positional
     if (!dirA || !dirB) fail('Usage: compare <dirA> <dirB> --out <sheet.png>')
     if (!out) fail('Missing --out <sheet.png>')
 
-    const result = await compareRenders(dirA, dirB, out, gain ? { gain } : {})
+    // `!== undefined` for the same reason as --size above: `--gain 0` is a
+    // legitimate request for no amplification and was being read as "not supplied".
+    const result = await compareRenders(dirA, dirB, out, gain !== undefined ? { gain } : {})
     console.log(`Contact sheet → ${result.outFile}`)
     for (const diff of result.diffs) {
       console.log(

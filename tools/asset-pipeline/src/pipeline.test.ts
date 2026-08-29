@@ -33,7 +33,20 @@ import { checkVariants, inspectGlb } from './validate'
  */
 const PLACEHOLDER_PRIMITIVES = 5 + PLACEHOLDER_ARTWORK.length
 
-/** Build a GLB carrying one large embedded PNG baseColor texture. */
+/**
+ * Build a GLB carrying one large embedded PNG baseColor texture, shaped like FABRIC.
+ *
+ * ⚠️ THE UV SPAN AND THE MATERIAL NAME ARE BOTH LOAD-BEARING, since 2026-08-27.
+ * This helper used to build a unit-square quad on a material called `m`, which is
+ * the shape of a DECAL, not of cloth — so once artwork was detected geometrically
+ * every texture it produced took the artwork budget and the maxTextureSize tests
+ * stopped measuring what they claimed to.
+ *
+ * A real CLO fabric panel is mapped across a large atlas: measured over all 28 raw
+ * exports, fabric primitives have a median UV span of 294.81 against artwork's 1.00.
+ * The span of 120 below sits squarely in the fabric population. Same rule as the
+ * rest of this file — if production looks like that, seed that.
+ */
 async function writeTexturedGlb(file: string, sizePx = 512): Promise<void> {
   const io = await createIO()
   // A noisy PNG so it is genuinely heavy (compresses well to WebP, unlike a flat fill).
@@ -46,7 +59,7 @@ async function writeTexturedGlb(file: string, sizePx = 512): Promise<void> {
   const doc = new Document()
   doc.createBuffer()
   const texture = doc.createTexture('tex').setImage(new Uint8Array(png)).setMimeType('image/png')
-  const material = doc.createMaterial('m').setBaseColorTexture(texture)
+  const material = doc.createMaterial('Cotton_Jersey_m').setBaseColorTexture(texture)
   const position = doc
     .createAccessor()
     .setType('VEC3')
@@ -55,7 +68,7 @@ async function writeTexturedGlb(file: string, sizePx = 512): Promise<void> {
   const uv = doc
     .createAccessor()
     .setType('VEC2')
-    .setArray(new Float32Array([0, 0, 1, 0, 0, 1]))
+    .setArray(new Float32Array([0, 0, 120, 0, 0, 120]))
     .setBuffer(doc.getRoot().listBuffers()[0]!)
   const prim = doc
     .createPrimitive()
@@ -174,11 +187,18 @@ describe('mergeVariants', () => {
     const report = await inspectGlb(merged)
     expect(report.variants).toEqual(['N001-BLACK', 'N001-CRIMSON', 'N001-NAVY']) // sorted
     expect(report.primitiveCount).toBe(PLACEHOLDER_PRIMITIVES)
-    // 2 body/trim materials per colourway differ by colour, so dedup keeps all
-    // 6. Every artwork material is identical in each colourway — same texture,
-    // same settings — so each dedups to one shared material that all three
-    // variants map to. 6 + 1 SVG decal + 5 real profiles = 12.
-    expect(report.materialCount).toBe(7 + PLACEHOLDER_ARTWORK.length)
+    // ⚠️ THIS WAS 12 UNTIL 2026-08-27, AND THE DIFFERENCE IS THE WHOLE POINT.
+    // Every colourway used to build byte-identical artwork materials, so `dedup()`
+    // merged each into ONE shared material bound as the primitive default — always
+    // eager, always reachable. Real CLO exports tint the ink per colourway, so
+    // nothing merges and every colourway but the first sits behind
+    // KHR_materials_variants, where model-viewer loads it LAZILY. A fixture
+    // without that could not exhibit the bug where a viewer-side material fix
+    // reached 6 of 26 decals; see `ink` on PlaceholderColourway.
+    // Per colourway: body + trim + 1 SVG decal + 5 real profiles = 8, x 3 = 24.
+    expect(report.materialCount).toBe(
+      PLACEHOLDER_COLOURWAYS.length * (3 + PLACEHOLDER_ARTWORK.length),
+    )
 
     const check = checkVariants(
       report,
@@ -426,6 +446,64 @@ describe('the opaque default differs between the parser and optimizeGlb', () => 
     expect(
       parseOptimizeArgs(['in.glb', '--out', 'out.glb', '--keep-transparency']).options.opaque,
     ).toBe(false)
+  })
+})
+
+/**
+ * ⚠️ THE SAME SHAPE, A SECOND TIME, AND NOBODY HAD WRITTEN IT DOWN.
+ *
+ * `texture` behaves exactly like `opaque` above: `parseOptimizeArgs` defaults it to
+ * 'webp', while `optimizeGlb` only re-encodes when `options.texture === 'webp'` is
+ * explicitly true. So a hand-built options object skips the image-compression step
+ * ENTIRELY — every texture ships as the raw PNG or JPEG CLO exported.
+ *
+ * That is a bigger miss than the opaque one it mirrors: on the live cycling suit the
+ * WebP pass is the difference between 1.71 MB of images and tens of megabytes, and
+ * nothing downstream would object. The size gate measures the total and would simply
+ * report a fatter file; no gate tests the texture format.
+ *
+ * Found by the 2026-08-28 audit, pinned here 2026-08-29. Untested until now, which is
+ * why it was undocumented: the opaque mismatch was found the same way and written up,
+ * and this one sat beside it unnoticed.
+ */
+describe('the texture default differs the same way — the undocumented sibling', () => {
+  it('parseOptimizeArgs turns WebP re-encoding ON unless asked not to', () => {
+    expect(parseOptimizeArgs(['in.glb', '--out', 'out.glb']).options.texture).toBe('webp')
+  })
+
+  it('⚠️ optimizeGlb SKIPS image compression entirely when texture is absent', async () => {
+    /*
+     * ⚠️ THIS TEST WAS A TAUTOLOGY UNTIL 2026-08-29, and an independent check caught it.
+     * It asserted `handBuilt.texture === undefined` on a local object literal it had just
+     * declared, and never called optimizeGlb — so it passed regardless of what the
+     * production code did, and would still pass if optimize.ts:557 were rewritten to
+     * `options.texture !== 'none'`. It pinned nothing.
+     *
+     * This calls the real function with NO texture codec and asserts the observable
+     * consequence: the images come out in the format CLO wrote them, un-re-encoded. That
+     * is the actual hazard — a hand-built options object ships every texture as the raw
+     * PNG or JPEG, and on the live cycling suit the WebP pass is the difference between
+     * 1.71 MB of images and tens of megabytes. No gate tests the texture FORMAT; the size
+     * gate would simply report a fatter file.
+     */
+    const tee = await buildPlaceholderTee(PLACEHOLDER_COLOURWAYS[0]!)
+    const src = join(dir, 'texture-default-src.glb')
+    const out = join(dir, 'texture-default-out.glb')
+    await writeFile(src, await (await createIO()).writeBinary(tee))
+
+    const result = await optimizeGlb(src, out, {})
+
+    // Whatever the fixture ships as, it must come back UNCHANGED — no WebP anywhere.
+    expect(result.textureFormats).not.toContain('image/webp')
+
+    // ...and the parser's default really would have re-encoded them, which is the
+    // half that makes the mismatch a mismatch rather than just a default.
+    const { options } = parseOptimizeArgs([src, '--out', out])
+    expect(options.texture).toBe('webp')
+  })
+
+  it('still honours an explicit codec choice', () => {
+    expect(parseOptimizeArgs(['in.glb', '--out', 'out.glb', '--ktx2']).options.texture).toBe('ktx2')
   })
 })
 
@@ -791,6 +869,96 @@ describe('parseMergeArgs — compression flags', () => {
     expect(parseMergeArgs(['a.glb=N001-A']).options.opaque).toBe(true)
     expect(parseMergeArgs(['--keep-transparency', 'a.glb=N001-A']).options.opaque).toBe(false)
     expect(parseMergeArgs(['--no-opaque', 'a.glb=N001-A']).options.opaque).toBe(false)
+  })
+
+  // 2026-08-29. merge-variants.ts claimed, above its flag loop, that it was
+  // "kept in step with parseOptimizeArgs: the two commands share one compression
+  // policy, so a decimation flag that works on `optimize` must work here too."
+  // It was not, and the claim is what made the gap invisible: six flags that
+  // `optimize` accepts made `merge` exit 1, because an unrecognised token falls
+  // through to the positional branch and is read as <file>=<VARIANT-ID>.
+  //
+  // Found by trying to merge a five-colourway CLO export with the flag list
+  // production actually uses. `shrinkFlagsFor('fidelity')` contains --stitch,
+  // --stitch-error and --data-max-texture, so the exact arguments every shrink
+  // job runs could not be passed to `merge` at all.
+  const OPTIMIZE_VALUE_FLAGS: readonly (readonly [string, string])[] = [
+    ['--max-texture', '4096'],
+    ['--quality', '75'],
+    ['--artwork-quality', '95'],
+    ['--artwork-max-texture', '4096'],
+    ['--simplify', '0.05'],
+    ['--simplify-error', '0.0002'],
+    ['--uv-weight', '2'],
+    ['--normal-weight', '1'],
+    ['--stitch', '0.03'],
+    ['--stitch-error', '0.0005'],
+    ['--data-max-texture', '2048'],
+  ]
+
+  it.each(OPTIMIZE_VALUE_FLAGS)('accepts %s, exactly as optimize does', (flag, value) => {
+    // parseOptimizeArgs is the positive control: if IT rejects the flag the
+    // table is wrong, not the parser under test.
+    expect(() => parseOptimizeArgs(['in.glb', flag, value])).not.toThrow()
+    const parsed = parseMergeArgs([flag, value, 'a.glb=N001-A'])
+    expect(parsed.inputs).toHaveLength(1)
+    expect(parsed.inputs[0]).toEqual({ file: 'a.glb', variantName: 'N001-A' })
+  })
+
+  it('accepts the production flag list verbatim', () => {
+    // Mirrors shrinkFlagsFor('fidelity') in packages/shared/src/shrink.ts. Copied
+    // rather than imported: this package installs with plain npm inside
+    // apps/shrink/Dockerfile, so it cannot depend on @run-apparel/shared. If the
+    // two drift, the per-flag table above still catches the class.
+    const fidelity = [
+      '--stitch',
+      '0.03',
+      '--stitch-error',
+      '0.0005',
+      '--simplify',
+      '0.05',
+      '--simplify-error',
+      '0.0002',
+      '--uv-weight',
+      '2',
+      '--meshopt',
+      '--max-texture',
+      '4096',
+      '--data-max-texture',
+      '2048',
+      '--quality',
+      '75',
+    ]
+    const parsed = parseMergeArgs([...fidelity, 'a.glb=N001-A', 'b.glb=N001-B'])
+    expect(parsed.inputs).toHaveLength(2)
+    expect(parsed.options).toMatchObject({
+      geometry: 'meshopt',
+      maxTextureSize: 4096,
+      textureQuality: 75,
+      dataMaxTextureSize: 2048,
+      simplify: 0.05,
+      simplifyError: 0.0002,
+      simplifyUvWeight: 2,
+      stitch: 0.03,
+      stitchError: 0.0005,
+    })
+  })
+
+  // The defect 390ff27 fixed in parseOptimizeArgs, still live here on 2026-08-29:
+  // merge used bare Number(), so "--quality garbage" became NaN and was used as a
+  // real value. The `?? DEFAULT` spellings made it worse by looking deliberate —
+  // they only catch a MISSING token, never a malformed one.
+  it.each(['--max-texture', '--quality', '--simplify', '--stitch', '--data-max-texture'])(
+    'refuses garbage after %s instead of silently using NaN',
+    (flag) => {
+      expect(() => parseMergeArgs([flag, 'garbage', 'a.glb=N001-A'])).toThrow(/needs a number/)
+      expect(() => parseMergeArgs(['a.glb=N001-A', flag])).toThrow(/needs a number/)
+    },
+  )
+
+  it('still accepts 0 for a flag whose 0 is meaningful', () => {
+    // The other half of 390ff27: a falsy-but-valid 0 must survive.
+    expect(parseMergeArgs(['--simplify', '0', 'a.glb=N001-A']).options.simplify).toBe(0)
   })
 })
 
@@ -1304,11 +1472,14 @@ describe('mergeVariants — opaque step preserves variants', () => {
     // is deliberately not double-sided: a decal sits a fraction of a millimetre
     // off the fabric, and drawing its back faces invites z-fighting.
     const graphic = materials.filter((m) => m.getBaseColorTexture())
-    // The SVG decal plus the five measured artwork profiles. Asserting EVERY one
-    // rather than the first is the point: the gate that blocked production
-    // refused FIVE materials at once, and a fixture carrying one could never
-    // have shown whether the pipeline resolves all of them or merely the first.
-    expect(graphic).toHaveLength(1 + PLACEHOLDER_ARTWORK.length)
+    // The SVG decal plus the five measured artwork profiles, ONCE PER COLOURWAY —
+    // they no longer dedup, because each carries its colourway's ink. Asserting
+    // EVERY one rather than the first is the point: the gate that blocked
+    // production refused FIVE materials at once, and a fixture carrying one could
+    // never have shown whether the pipeline resolves all of them or merely the
+    // first. Now it also proves the pipeline resolves them in every colourway,
+    // not just the one bound as the default.
+    expect(graphic).toHaveLength(PLACEHOLDER_COLOURWAYS.length * (1 + PLACEHOLDER_ARTWORK.length))
     for (const m of graphic) {
       expect(m.getAlphaMode()).toBe('MASK')
       expect(m.getAlphaCutoff()).toBe(0.5)
@@ -1522,5 +1693,154 @@ describe('an alpha profile that could not be measured does not become OPAQUE', (
 
     await solidifyMaterials(document)
     expect(material.getAlphaMode()).toBe('OPAQUE')
+  })
+})
+
+/**
+ * THE SEE-THROUGH-ON-ROTATION DEFECT, 2026-08-27.
+ *
+ * Reported as "upon rotating the product, it becomes see-through", and previously
+ * believed fixed. It was fixed — on the garment it was verified against. The live
+ * product (`cycling-all-colours-optimized-4.glb`, 200 materials) ships with ZERO
+ * BLEND materials and is unaffected, which is why the fix looked complete.
+ *
+ * MEASURED 2026-08-26/27 on the raw X-MILO CORE OVERSIZE export. Its main fabric
+ * texture is 6835x5331 and its alpha channel contains, across all 36,437,385
+ * pixels:
+ *
+ *     fully clear (0)      0.000%   <- NOT ONE PIXEL
+ *     1-191                0.699%
+ *     192-247              5.971%
+ *     248-255 (solid)     93.330%
+ *
+ * The alpha channel is anti-aliasing the garment panel edges inside a texture
+ * atlas. It is not translucency: a texture with no clear pixels cannot be seen
+ * through. But `profileAlpha` calls a texture 'opaque' only at >= 99.9% solid, and
+ * 'binary' only at <= 2% partial, so 93.33%/6.67% falls through to 'graded' and
+ * solidifyMaterials deliberately keeps it BLEND. <model-viewer> has no
+ * order-independent transparency, so those materials depth-sort per object and the
+ * garment turns see-through as it rotates. 99 BLEND in, 50 BLEND out.
+ *
+ * The discriminator is the pair, not either half. Measured across three garments,
+ * every genuinely translucent or cut-out texture carries at least 9.29% fully-clear
+ * pixels; this one carries 0.00%. And a uniformly sheer fabric — chiffon — also has
+ * no clear pixels but almost no SOLID ones either, so requiring both halves leaves
+ * it alone.
+ */
+describe('fabric whose alpha is only anti-aliasing must not stay see-through', () => {
+  /**
+   * A texture shaped exactly like X-MILO's fabric: no fully-clear pixel anywhere,
+   * a large solid interior, and a soft band around the border.
+   */
+  async function antiAliasedFabric(size = 128, band = 3): Promise<Uint8Array> {
+    const raw = Buffer.alloc(size * size * 4)
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const i = (y * size + x) * 4
+        raw[i] = 120
+        raw[i + 1] = 130
+        raw[i + 2] = 150
+        const edge = Math.min(x, y, size - 1 - x, size - 1 - y)
+        // 200..250 in the band — visibly solid, but under the 248 "fully solid" line.
+        raw[i + 3] = edge < band ? 200 + edge * 16 : 255
+      }
+    }
+    return new Uint8Array(
+      await sharp(raw, { raw: { width: size, height: size, channels: 4 } })
+        .png()
+        .toBuffer(),
+    )
+  }
+
+  /** Uniformly half-transparent: real sheer fabric. No clear pixels AND no solid ones. */
+  async function uniformlySheer(size = 64): Promise<Uint8Array> {
+    const raw = Buffer.alloc(size * size * 4)
+    for (let i = 0; i < raw.length; i += 4) {
+      raw[i] = 200
+      raw[i + 1] = 200
+      raw[i + 2] = 200
+      raw[i + 3] = 128
+    }
+    return new Uint8Array(
+      await sharp(raw, { raw: { width: size, height: size, channels: 4 } })
+        .png()
+        .toBuffer(),
+    )
+  }
+
+  function blendMaterialWith(document: Document, image: Uint8Array, name: string) {
+    const texture = document.createTexture(name).setImage(image).setMimeType('image/png')
+    return document.createMaterial(name).setAlphaMode('BLEND').setBaseColorTexture(texture)
+  }
+
+  it('seeds a fixture with the SHAPE measured on the real export', async () => {
+    // Guards the fixture itself. If this drifts, the test below stops reproducing
+    // the defect and would pass for the wrong reason.
+    const profile = await profileAlpha(await antiAliasedFabric())
+    expect(profile.transparentFraction).toBe(0)
+    expect(profile.opaqueFraction).toBeGreaterThan(0.8)
+    expect(profile.midFraction).toBeGreaterThan(CUTOUT_MID_FRACTION)
+    expect(profile.character).toBe('graded')
+  })
+
+  it('forces anti-aliased fabric OPAQUE instead of leaving it see-through', async () => {
+    const document = new Document()
+    document.createBuffer()
+    const fabric = blendMaterialWith(document, await antiAliasedFabric(), 'Cloth_mesh_1')
+    const result = await solidifyMaterials(document)
+    expect(fabric.getAlphaMode()).toBe('OPAQUE')
+    expect(result.opaqued).toBe(1)
+    expect(result.keptBlend).toBe(0)
+  })
+
+  it('LEAVES uniformly sheer fabric alone — the negative control', async () => {
+    // Without this the fix is indistinguishable from "force everything opaque",
+    // which is the blanket rule solidifyMaterials was written to replace.
+    const document = new Document()
+    document.createBuffer()
+    const sheer = blendMaterialWith(document, await uniformlySheer(), 'Mesh_Panel_1')
+    const result = await solidifyMaterials(document)
+    expect(sheer.getAlphaMode()).toBe('BLEND')
+    expect(result.keptBlend).toBe(1)
+  })
+
+  it('still resolves a real cut-out to MASK, not OPAQUE', async () => {
+    // A cutout has plenty of fully-clear pixels, so the new rule must not reach it.
+    const size = 64
+    const raw = Buffer.alloc(size * size * 4)
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const i = (y * size + x) * 4
+        raw[i] = 250
+        raw[i + 1] = 250
+        raw[i + 2] = 250
+        raw[i + 3] = x < size / 2 ? 255 : 0
+      }
+    }
+    const png = new Uint8Array(
+      await sharp(raw, { raw: { width: size, height: size, channels: 4 } })
+        .png()
+        .toBuffer(),
+    )
+    const document = new Document()
+    document.createBuffer()
+    const decal = blendMaterialWith(document, png, 'RUN LOGO_1')
+    const result = await solidifyMaterials(document)
+    expect(decal.getAlphaMode()).toBe('MASK')
+    expect(decal.getAlphaCutoff()).toBe(0.5)
+    expect(result.masked).toBe(1)
+  })
+
+  it('still respects an explicit sheer baseColorFactor over the pixels', async () => {
+    // women athlatic dress has exactly 3 materials at baseColorFactor.a = 0.4, and
+    // exactly 3 survive as BLEND today. An explicit declaration must keep winning:
+    // MASK at 0.5 would discard every fragment and render it as nothing.
+    const document = new Document()
+    document.createBuffer()
+    const sheer = blendMaterialWith(document, await antiAliasedFabric(), 'Cotton_Voile_1')
+    sheer.setBaseColorFactor([1, 1, 1, 0.4])
+    const result = await solidifyMaterials(document)
+    expect(sheer.getAlphaMode()).toBe('BLEND')
+    expect(result.keptBlend).toBe(1)
   })
 })

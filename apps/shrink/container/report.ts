@@ -1,3 +1,4 @@
+import { describeSpecIssues } from '../../../tools/asset-pipeline/src/gltf-spec'
 import type { GlbReport } from '../../../tools/asset-pipeline/src/validate'
 import { SIZE_WARNING_BYTES } from '../../../tools/asset-pipeline/src/validate'
 import type { OptimizeResult } from '../../../tools/asset-pipeline/src/optimize'
@@ -36,7 +37,22 @@ export function objectUrl(endpoint: string, bucket: string, key: string): string
 
 const mb = (bytes: number) => (bytes / 1024 / 1024).toFixed(1)
 
-export function buildReportText(opt: OptimizeResult, glb: GlbReport, filename: string): string {
+export function buildReportText(
+  opt: OptimizeResult,
+  glb: GlbReport,
+  filename: string,
+  /**
+   * What the finished file is made of, from `attributeBytes`.
+   *
+   * ⚠️ OPTIONAL BECAUSE IT ARRIVED LATE, NOT BECAUSE IT IS DECORATIVE. Added 2026-08-29
+   * after an independent check found the composition report had been wired into the CLI
+   * only — a command nothing in CI runs and no customer garment passes through. The
+   * instrument was well tested and reached nobody, which is precisely the "built, tested,
+   * never connected" shape the whole remediation exists to close. It is optional so an
+   * older caller still compiles; every production caller passes it.
+   */
+  composition?: string[],
+): string {
   // The mobile guideline, stated plainly. Nothing in CI can check this — the
   // Lighthouse budget runs against a 10 KB placeholder, so a real 20 MB garment
   // is invisible to it — and the hard 40 MB ceiling only catches the extreme
@@ -122,6 +138,31 @@ export function buildReportText(opt: OptimizeResult, glb: GlbReport, filename: s
         'Re-upload with the Detail setting on “Highest quality”, and if it happens again the artwork ' +
         'needs its own UV map in CLO.'
       : '',
+    // The official Khronos verdict on what this pipeline just wrote.
+    //
+    // ⚠️ THIS LINE DID NOT EXIST UNTIL 2026-08-29, and `glb.spec` was read by nothing
+    // at all — the container computed the verdict on every garment and dropped it. The
+    // measured cost: both live garments are invalid glTF (44 errors on the cycling
+    // suit) from a WebP pass that omitted the EXT_texture_webp declaration, and no
+    // report ever said so because no report looked.
+    //
+    // Errors also REFUSE the job in the Worker (gate 2d). This line exists so the
+    // owner is told what happened in words, rather than only seeing a job fail.
+    // What the file is MADE OF. Every other size figure in this report is a total, and a
+    // total hid the largest cheap win in the catalogue for weeks: texture coordinates are
+    // the biggest thing in a garment and the only attribute left uncompressed.
+    ...(composition ?? []),
+    glb.spec.counts.errors > 0
+      ? `\n🛑 NOT A VALID 3D FILE — ${glb.spec.counts.errors} error(s) from the official glTF ` +
+        `validator (${glb.spec.validatorVersion}). This file has NOT been saved. A web browser ` +
+        `would probably still show it, but other 3D software is entitled to refuse it.\n` +
+        describeSpecIssues(glb.spec.errors, 5)
+          .map((i) => `  • ${i}`)
+          .join('\n')
+      : `Valid 3D file: checked against the official glTF specification (${glb.spec.validatorVersion})` +
+        (glb.spec.counts.warnings > 0
+          ? `, with ${glb.spec.counts.warnings} non-blocking warning(s).`
+          : ', no problems found.'),
     glb.warnings.length ? `Warnings:\n- ${glb.warnings.join('\n- ')}` : 'No warnings.',
     '',
     found.length

@@ -17,18 +17,49 @@ export interface PlaceholderColourway {
   body: string
   /** Collar/trim colour (sRGB hex). */
   trim: string
+  /**
+   * Printed-ink tint for this colourway (sRGB hex).
+   *
+   * ⚠️ WITHOUT THIS THE FIXTURE COULD NOT EXHIBIT THE COLOURWAY BUG, AND DID NOT.
+   * Every colourway used to build byte-identical decal materials, so `dedup()`
+   * (the first transform in `buildTransformChain`) merged them into ONE shared
+   * material bound as each primitive's default — eager, always reachable.
+   * Measured 2026-08-27: fixture **6 MASK decals, 6 eager, 0 lazy**; the live
+   * garment **26 MASK, 6 eager, 20 lazy**. A viewer fix that reached only the
+   * arriving colourway therefore passed every test while four of five colourways
+   * flickered in production.
+   *
+   * Real CLO exports tint each colourway's ink — the live garment's `Teamwear
+   * Logo` carries `[0.42, 0.71, 0.79]` on one colourway and `[0.08, 0.02, 0.02]`
+   * on another — which is exactly what keeps `dedup()` from merging them and puts
+   * them behind `KHR_materials_variants`, where model-viewer loads them lazily.
+   *
+   * Alpha is deliberately left at 1: glTF effective alpha is
+   * `factor.a * texel.a`, so a factor below 1 would move every artwork alpha
+   * measurement in `PLACEHOLDER_ARTWORK` and can make MASK discard a whole
+   * material.
+   */
+  ink: string
 }
 
 export const PLACEHOLDER_PRODUCT_CODE = 'N001'
 
 export const PLACEHOLDER_COLOURWAYS: PlaceholderColourway[] = [
-  { slug: 'navy', displayName: 'Navy', variantId: 'N001-NAVY', body: '#22314E', trim: '#18233A' },
+  {
+    slug: 'navy',
+    displayName: 'Navy',
+    variantId: 'N001-NAVY',
+    body: '#22314E',
+    trim: '#18233A',
+    ink: '#F2F4FA',
+  },
   {
     slug: 'black',
     displayName: 'Black',
     variantId: 'N001-BLACK',
     body: '#17181A',
     trim: '#2A2B2F',
+    ink: '#D8DADF',
   },
   {
     slug: 'crimson',
@@ -36,6 +67,7 @@ export const PLACEHOLDER_COLOURWAYS: PlaceholderColourway[] = [
     variantId: 'N001-CRIMSON',
     body: '#8C1F2F',
     trim: '#5E1520',
+    ink: '#FBE7EA',
   },
 ]
 
@@ -364,6 +396,9 @@ export async function buildPlaceholderTee(colourway: PlaceholderColourway): Prom
   const decal = document
     .createMaterial(`${colourway.variantId}-GRAPHIC`)
     .setBaseColorTexture(decalTexture)
+    // Per-colourway ink, so dedup cannot merge this with the other colourways'
+    // copies — see `ink` on PlaceholderColourway for why that matters.
+    .setBaseColorFactor(hexToLinearFactor(colourway.ink))
     .setAlphaMode('BLEND')
     .setRoughnessFactor(0.6)
     .setMetallicFactor(0)
@@ -382,6 +417,7 @@ export async function buildPlaceholderTee(colourway: PlaceholderColourway): Prom
     const material = document
       .createMaterial(`${colourway.variantId}-${spec.name}`)
       .setBaseColorTexture(texture)
+      .setBaseColorFactor(hexToLinearFactor(colourway.ink))
       .setAlphaMode('BLEND')
       .setRoughnessFactor(0.6)
       .setMetallicFactor(0)

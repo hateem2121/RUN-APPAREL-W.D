@@ -8,7 +8,7 @@ import {
   simplifyPrimitive,
   weld,
 } from '@gltf-transform/functions'
-import { isArtworkTextureByName } from './texture-artwork'
+import { isArtworkMaterialByName } from './texture-artwork'
 
 /**
  * Texture-aware mesh decimation.
@@ -385,13 +385,39 @@ export function runSimplifyTextured(
 }
 
 /**
- * Does this material show printed artwork? baseColor and emissive only — those
- * are the two slots a graphic is ever visible through; a normal or ORM map is
- * data and `isArtworkTextureByName` rejects it anyway.
+ * Does this material show printed artwork?
+ *
+ * ⚠️ READS THE MATERIAL NAME. IT READ THE TEXTURE NAME UNTIL 2026-08-29, AND THAT MADE
+ * THE GATE INCAPABLE OF EVER FIRING ON A REAL GARMENT.
+ *
+ * `artworkAtRisk` is one of three checks that refuse a damaged garment, and it is the
+ * one that catches a logo torn by decimation. It asked `isArtworkTextureByName`, and a
+ * CLO export names the MATERIAL and leaves every texture anonymous — measured across all
+ * ten raw exports on this machine, 2,398 images, not one with a name or URI. So the gate
+ * was decoration: it could not refuse anything.
+ *
+ * The tests never noticed because `placeholders.ts` names all six of its textures. The
+ * practice garment has the one property real files lack, so the check looked healthy in
+ * every run.
+ *
+ * ⚠️ AND THE OBVIOUS FIX IS A TRAP. Reading the glTF `textures[].name` instead looks
+ * right — the field IS populated — but on a real CLO export every value is the literal
+ * string "Texture", and `ARTWORK_NAME` contains the alternative `text`, which "Texture"
+ * contains. Measured on the re-exported Minecut Motion: that predicate matches 50 of 50
+ * textures. The gate would flip from never firing to always firing, refusing every
+ * garment. `ARTWORK_MATERIAL_NAME` deliberately omits `text` and `type` for exactly
+ * this reason.
+ *
+ * Measured with the material predicate on the same export: 48 of 114 materials, and they
+ * are the right ones — `Material_Graphic_*`, `RUN LOGO_*`,
+ * `LOGO Team wear Embridory gold gold_*` across six colourways. Controls: the three
+ * plain fabric names match 0, a known artwork name matches 1, and 48 < 114.
+ *
+ * The material is still checked for a visible texture slot first. A material with no
+ * baseColor or emissive texture shows no printed graphic whatever it is called, so a
+ * name-only test would flag trim and hardware that carry no artwork at all.
  */
 function materialCarriesArtwork(material: Material): boolean {
-  for (const texture of [material.getBaseColorTexture(), material.getEmissiveTexture()]) {
-    if (texture && isArtworkTextureByName(texture)) return true
-  }
-  return false
+  const showsATexture = Boolean(material.getBaseColorTexture() ?? material.getEmissiveTexture())
+  return showsATexture && isArtworkMaterialByName(material)
 }

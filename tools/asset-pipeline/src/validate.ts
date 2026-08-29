@@ -1,7 +1,8 @@
 import { readFile, stat } from 'node:fs/promises'
 import type { Primitive } from '@gltf-transform/core'
 import type { KHRMaterialsVariants, MappingList } from '@gltf-transform/extensions'
-import { createIO } from './io'
+import { type SpecCheck, checkGltfSpecFile } from './gltf-spec'
+import { readGlb } from './io'
 import {
   type ArtworkAlphaProblem,
   type CrushedArtwork,
@@ -108,6 +109,19 @@ export interface GlbReport {
    * renames a colourway — see variant-colour.ts.
    */
   variantColours: VariantColour[]
+  /**
+   * Khronos glTF-Validator's verdict on this file.
+   *
+   * ⚠️ THIS JUDGES OUR OUTPUT, NOT THE CUSTOMER'S EXPORT. All 28 raw CLO exports
+   * are spec-valid; what is not guaranteed valid is what this pipeline writes —
+   * quantised geometry, re-encoded textures, thousands of rewritten alphaModes,
+   * and a JSON chunk patched byte-wise by `repair-dead-textures.ts`. Nothing else
+   * in this repo checks that. `spec.errors` is structural with no false-positive
+   * case, which is the same bar the other blocking gates meet; warnings and infos
+   * are reported and never block. See gltf-spec.ts for what it deliberately does
+   * NOT catch.
+   */
+  spec: SpecCheck
   warnings: string[]
 }
 
@@ -123,8 +137,9 @@ export interface VariantCheck {
  * so unbound variants can never pass QA.
  */
 export async function inspectGlb(file: string): Promise<GlbReport> {
-  const io = await createIO()
-  const document = await io.read(file)
+  // A garment that cannot be READ cannot be validated, and six of the 28 raw
+  // exports cannot — see repair-dead-textures.ts.
+  const { document } = await readGlb(file)
   const root = document.getRoot()
 
   const variants = new Set<string>()
@@ -247,6 +262,7 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
     crushedArtwork,
     artworkAlphaProblems,
     variantColours: readVariantColours(document),
+    spec: await checkGltfSpecFile(file),
     warnings,
   }
 }

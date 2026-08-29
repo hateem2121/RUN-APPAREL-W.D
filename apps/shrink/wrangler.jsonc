@@ -84,6 +84,19 @@
     //   wrangler secret put R2_INGEST_ACCESS_KEY_ID
     //   wrangler secret put R2_INGEST_SECRET_ACCESS_KEY
     //   wrangler secret put CMS_ROBOT_API_KEY   (the Payload robot user's API key)
+    //
+    // ⚠️ OPTIONAL, AND ALERTING IS OFF UNTIL IT IS SET:
+    //   wrangler secret put SENTRY_DSN
+    //
+    // Until 2026-08-29 a failed garment was reported by writing a field onto the
+    // RawUpload record and nothing else — no email, no Sentry, no Events row. Somebody
+    // had to open the record and look. That is survivable with two live products and
+    // not with a catalogue re-export arriving over days.
+    //
+    // The Worker no-ops without this, deliberately, so the code deploys safely before
+    // the secret exists. A malformed value also no-ops rather than failing a job — see
+    // src/sentry.ts. A Sentry DSN is not a credential (the browser bundle ships one),
+    // so a plain var would work too; `secret put` is used only to keep it out of git.
     "R2_INGEST_S3_ENDPOINT": "https://d357a1779c40da5f8c44931f12390cc8.r2.cloudflarestorage.com",
     "R2_INGEST_BUCKET": "run-apparel-viewer-ingest",
     // Host used when building the request URL routed through the CMS service

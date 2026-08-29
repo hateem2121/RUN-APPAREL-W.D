@@ -1,8 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { initTelemetry } from './telemetry'
 
-// telemetry reads VITE_API_BASE_URL at import time; with none set in tests it
-// falls back to the production default, so the endpoint is deterministic.
+// telemetry reads VITE_API_BASE_URL at import time. This used to say the endpoint
+// was deterministic "with none set in tests", which was FALSE on any machine
+// carrying apps/viewer/.env.local — a gitignored file Vite loads automatically. CI
+// never has one and passed forever; a machine that had run the CMS locally failed
+// forever. vitest.config.ts now PINS the value, the same way playwright.config.ts
+// pins PORT, so the environment cannot move it. Found 2026-08-26.
 const ENDPOINT = 'https://cms.wear-run.help/api/public/events'
 
 let stop: () => void = () => {}

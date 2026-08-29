@@ -40,6 +40,16 @@ export const NPM_LOCKED = [
     lockfile: 'tools/asset-pipeline/package-lock.json',
     consumer: 'apps/shrink/Dockerfile (npm ci)',
   },
+  {
+    // Added 2026-08-29, the day its lockfile started being READ. Until then the
+    // Dockerfile ran a bare `npm install` here and never copied the lockfile in, so
+    // this entry would have guarded a file nothing consumed. It is load-bearing now:
+    // `tsx` is in this manifest and `tsx` is what RUNS the pipeline inside the image.
+    name: 'apps/shrink/container',
+    packageJson: 'apps/shrink/container/package.json',
+    lockfile: 'apps/shrink/container/package-lock.json',
+    consumer: 'apps/shrink/Dockerfile (npm ci)',
+  },
 ]
 
 /**
@@ -129,12 +139,22 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   const problems = check()
   if (problems.length > 0) {
     for (const problem of problems) console.error(`::error::${problem}`)
+    // Name the package that actually drifted. This message hardcoded
+    // tools/asset-pipeline until 2026-08-29, when a second package joined the list —
+    // at which point it would have told you to regenerate the wrong lockfile.
+    const offenders = [...new Set(problems.map((p) => p.split(':')[0]))]
     console.error(
       '\nThe npm lockfile no longer matches its package.json. Nothing else in this repo\n' +
         'runs `npm ci`, so this would next surface as a FAILED CONTAINER BUILD on main.\n' +
-        'Regenerate (temp dir, never in the workspace):\n\n' +
-        '  cd $(mktemp -d) && cp <repo>/tools/asset-pipeline/package.json . \\\n' +
-        '    && npm install --package-lock-only\n',
+        'Regenerate (temp dir, never in the workspace — the workspace node_modules makes\n' +
+        'npm write symlink paths that do not exist inside the image):\n\n' +
+        offenders
+          .map(
+            (name) =>
+              `  cd $(mktemp -d) && cp <repo>/${name}/package.json . \\\n` +
+              '    && npm install --package-lock-only\n',
+          )
+          .join('\n'),
     )
     process.exit(1)
   }
