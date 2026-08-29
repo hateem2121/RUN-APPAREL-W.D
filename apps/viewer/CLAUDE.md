@@ -461,6 +461,13 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   `.stage__error:not([hidden])` — `:not` is load-bearing, that `<p>` is always
   mounted so its live region can announce. **Key a test on what the VISITOR gets.**
 
+- **A rendering fix here must be ported to `tools/asset-pipeline/src/review-server.ts`,
+  or the owner judges a good garment as broken.** Three times now: the decal bias
+  (2026-08-27, cost a day), then the adaptive near plane AND production lighting (both
+  2026-08-29, reported as "sparkle" and "metallic/shiny feel" on files measured to have
+  `metallicFactor` 0 on every material). Drift tests pin the shared CONSTANTS; they
+  cannot see a whole new mechanism, which is exactly how the near plane slipped.
+
 ## Found 2026-08-28 — two defects in one lever, four lying instruments
 
 **The decal bias shipped EIGHT TIMES TOO WEAK and every test stayed green.** `-1/-1`

@@ -492,6 +492,20 @@ only the root's one-liners. Open this file before changing anything here.
   Note this inverts the older "KTX2 is larger on disk" reasoning — that argument
   would have led the wrong way on this file. Judge it on the fabric, not the size.
 
+- **A backtick inside `review-server.ts`'s page script ENDS the template literal, and
+  the error names something else entirely.** Comments containing a backticked `near`
+  and `.camera` produced `TypeError: escapeHtml(...)garment.dirIndex...MIN_NEAR.camera
+  is not a function` — the whole template stringified, then a property read on it. Cost
+  two cycles on 2026-08-29. The page script must contain **zero** backticks.
+- **`pipeline review <dir>` resolves `<dir>` against the PACKAGE dir and indexes ONCE
+  at startup.** A relative `<dir>` is read from `tools/asset-pipeline/`, not the repo
+  root, and files added after the server has started report "0 garment(s)" — restart
+  it. Same resolution trap as `--out`.
+- **A CLO 7.0.242 export is ONE GLB PER COLOURWAY; its "Combine to One File" silently
+  emits a single colourway.** Measured 2026-08-29. `pipeline merge` is the fix (5 files
+  → 5.59 MB, valid, all five render), but ⚠️ **`apps/shrink` never calls `merge`**, so
+  such a garment cannot go through the robot unaided.
+
 ## What one session found on 2026-08-27 — the rules that survived it
 
 *The full record, with every measurement, is `docs/SESSION-2026-08-27.md`. What is here

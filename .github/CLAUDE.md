@@ -115,6 +115,15 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   model". Treat such a 403 as *inconclusive*, never as a failed assertion. And use
   `HEAD`: a `GET` on the model is 27 MB per run, which the 15-minute uptime job
   turns into gigabytes of R2 egress against a $5/month cap.
+- **A red `secrets` job can mean gitleaks never DOWNLOADED.** Run 33264929752,
+  2026-08-29: the release CDN answered **504**, `curl | tar` died on the truncated
+  stream, and the PR showed `secrets: fail` on a branch with no secret in it. A failed
+  FETCH and a failed SCAN must never look the same — same class as the 403 note above.
+  Both copies now `--retry 5 --retry-delay 3 --retry-all-errors` and download to a FILE
+  before extracting: a retry resuming mid-stream would splice two responses into `tar`.
+  ⚠️ **Read the count, not the colour.** A healthy run says `435 commits scanned.
+  scanned ~6684770 bytes`; the two documented green-but-empty failures said "1 commits
+  scanned ... ~60 bytes" and "0 commits scanned".
 - **`timeout-minutes` kills the STEP'S SHELL, not the `apt-get` that step started.**
   The child survives as an ORPHAN, keeps installing, and keeps holding
   `/var/lib/dpkg/lock-frontend` — so the bound does not stop apt, it only stops

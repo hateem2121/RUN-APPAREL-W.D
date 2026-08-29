@@ -329,7 +329,7 @@ the answer is "nothing that happens in production", it is not a test.
   off the GET's own headers (`curl -o /dev/null -D -`), never off a HEAD.**
   Live reference numbers now live in `docs/QA-CHECKLIST.md` → "Performance & assets".
 
-- **Eight more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
+- **Nine more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
   of them moved there 2026-08-19 because they bite only while you are editing a
   workflow, which is exactly when that file loads. Enough to stop you: every workflow
   is gated by `apps/cms/src/workflowHardening.test.ts` on ten rules with verified
@@ -346,7 +346,9 @@ the answer is "nothing that happens in production", it is not a test.
   so a `cron:` is a queue position, not a deadline; a watchdog built on one being
   punctual is wrong on every cycle, which is worse than no watchdog.
 
-- **Nineteen more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
+- **A CLO 7.0 export arrives as one GLB PER COLOURWAY** (`_0.._N`); `pipeline merge`
+  joins them, and **`apps/shrink` never calls it**. See `tools/asset-pipeline/CLAUDE.md`.
+- **Twenty-two more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
   2026-08-19, when this file measured 44,993 characters against Claude Code's
   40,000-character warning, the point at which Anthropic's own guidance says adherence
   to *every* rule in a file starts dropping. They load the moment you touch
@@ -389,7 +391,7 @@ the answer is "nothing that happens in production", it is not a test.
   compacted session that has not yet opened `tools/asset-pipeline/` has only these
   one-liners. Open that file before changing anything there.
 
-- **Thirty-one more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
+- **Thirty-two more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
   restated here — they load automatically the moment you touch `apps/viewer/`,
   so a copy in this file is pure weight. Enough of a hook to make you open it: a
   `performance` global shadowed by a local (a runtime `TypeError` every unit test
