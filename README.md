@@ -52,6 +52,7 @@ First-time deployment: follow **`docs/CLOUDFLARE-SETUP.md`** once, top to bottom
 | Diagnose damaged printed artwork | [`docs/OPEN-ISSUE-ARTWORK.md`](docs/OPEN-ISSUE-ARTWORK.md) |
 | Contribute a change — the full gate list, and the rules that are not style | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Report a security problem (**do not open an issue**) | [`SECURITY.md`](SECURITY.md) |
+| **See every document in `docs/`, including the ones not listed above** | [`docs/README.md`](docs/README.md) |
 
 **Session logs** — narrative records of expensive debugging, kept because
 re-deriving them costs days: [`docs/SESSION-2026-07-27.md`](docs/SESSION-2026-07-27.md)
@@ -263,7 +264,7 @@ reach it. See `docs/RUNBOOK.md` → "The canonical raw garment".
 
 | Workflow | Cadence | What it does |
 |---|---|---|
-| `uptime.yml` | every 15 min *(requested — GitHub delivers ~45 min median, see RUNBOOK)* | health + viewer + real model payload; opens an `outage` issue |
+| `uptime.yml` | daily *(requested — GitHub delivers 19–90 min late, measured n=11)* | health + viewer + **every** live product's model payload + both apex PDFs; opens an `outage` issue |
 | `nightly-backup.yml` | nightly | D1 export; R2 media mirror on Mondays |
 | `diagnostics-digest.yml` | Mondays | reads the Events table — the client errors the viewer records |
 | `heartbeat.yml` | every 6 h | checks the three above have actually *run*; opens a `monitoring` issue |

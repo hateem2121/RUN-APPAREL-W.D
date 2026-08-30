@@ -158,7 +158,9 @@ test('the unavailable state is usable with a screen reader', async ({ page }) =>
 
 test('the retired-colourway notice is usable with a screen reader', async ({ page }) => {
   // Adds a role="status" live region above the fold and rewrites the URL.
-  await page.goto('/n001/lime')
+  // `navy` never existed in production; `lime` became a REAL fixture
+  // colourway on 2026-08-30, so it no longer reaches this notice.
+  await page.goto('/n001/navy')
   await expect(page.getByText(/no longer active/i)).toBeVisible()
   await scan(page, 'retired colourway notice')
 })

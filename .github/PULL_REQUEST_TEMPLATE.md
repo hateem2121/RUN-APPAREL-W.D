@@ -15,8 +15,11 @@
 - [ ] `pnpm install --frozen-lockfile`
 - [ ] `pnpm lint`
 - [ ] `pnpm typecheck`
-- [ ] `pnpm test`
+- [ ] `pnpm test:coverage` ← NOT `pnpm test`: vitest only evaluates the coverage
+      floors when coverage is on, so the bare runner enforces none of them
 - [ ] `bash scripts/test-alert-shell.sh`
+- [ ] `pnpm --filter @run-apparel/viewer test:e2e` ← its OWN required check since
+      2026-08-20, and the slowest gate in CI (~7 min there, ~45 s locally)
 - [ ] `pnpm seed:assets && pnpm build` ← the one that catches dependency breaks
 - [ ] `node scripts/check-bundle-budget.mjs`
 - [ ] `pnpm eval:artwork`

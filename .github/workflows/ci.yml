@@ -212,6 +212,12 @@ jobs:
   # deploy: a HIGH/CRITICAL advisory blocks production until it is fixed or
   # explicitly allowlisted (with justification) in audit-ci.jsonc.
   audit:
+    # `pull-requests: read` is what dependency-review needs to diff a PR's manifests.
+    # Restating `contents: read` is not optional — a job-level block REPLACES the
+    # workflow default, and omitting it 404s `actions/checkout` on this private repo.
+    permissions:
+      contents: read
+      pull-requests: read
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -242,6 +248,25 @@ jobs:
       # No new dependency: it reads `pnpm licenses list --json`, which pnpm already
       # computes from the lockfile it already resolved. Adding an SBOM tool to close a
       # supply-chain gap would mean trusting one more package to audit the packages.
+      # DEPENDENCY REVIEW — the only control that sees a dependency change BEFORE it
+      # merges, and the only one that covers the two npm lockfiles the pnpm-based
+      # gates cannot reach: apps/shrink/container/package-lock.json and
+      # tools/asset-pipeline/package-lock.json, which build the container that
+      # processes every garment. `pnpm-workspace.yaml`'s 24-hour cooldown does not
+      # apply to either, and `pnpm audit` does not resolve them.
+      #
+      # Fails on a HIGH or worse advisory in the diff, and on a denied licence.
+      # PR-only by construction — there is no base to diff against on a push — so it
+      # is a STEP in this gating job rather than a job of its own, which would either
+      # trip the deploy-gating rule or block every deploy waiting on a check that
+      # cannot run.
+      - name: Dependency review (pull requests only)
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
+
       - name: SBOM + licence policy
         run: node scripts/sbom.mjs sbom.cdx.json
 

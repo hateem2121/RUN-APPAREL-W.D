@@ -42,8 +42,9 @@ that.
 npx --yes pnpm@10.33.0 install --frozen-lockfile   # the lockfile moves often
 npx --yes pnpm@10.33.0 lint                        # biome check .
 npx --yes pnpm@10.33.0 typecheck                   # 5 workspaces
-npx --yes pnpm@10.33.0 test
+npx --yes pnpm@10.33.0 test:coverage                # NOT `test` — see below
 bash scripts/test-alert-shell.sh                   # the alert branch nothing else exercises
+npx --yes pnpm@10.33.0 --filter @run-apparel/viewer test:e2e   # its OWN required check
 npx --yes pnpm@10.33.0 seed:assets
 npx --yes pnpm@10.33.0 build                       # catches dependency breaks typecheck misses
 node scripts/check-bundle-budget.mjs               # deterministic shell-weight gate
@@ -52,6 +53,18 @@ npx --yes pnpm@10.33.0 eval:artwork                # separate CI job — gates t
 # NOT a workspace member — pnpm -r skips it entirely, CI runs it separately:
 cd apps/shrink/container && npm install --no-audit --no-fund && npx tsc --noEmit
 ```
+
+⚠️ **`pnpm test` IS NOT THE GATE, AND THIS SAID IT WAS UNTIL 2026-08-30.** Vitest
+evaluates a `thresholds:` block only when coverage is on, and only `test:coverage`
+passes `--coverage` — so the bare runner enforces **none** of the measured coverage
+floors, and it also skips `scripts/check-coverage.mjs`, the repo-wide gate that
+catches a package dropping out of the measurement entirely. The same slip was live
+in `.github/workflows/deploy-shrink.yml` until that date.
+
+⚠️ **`e2e` IS ITS OWN REQUIRED CHECK**, split out of `verify` on 2026-08-20, and it
+was missing from this list. It is the slowest gate in CI (~7 m 45 s) and among the
+fastest locally (~45 s, 352 tests, four engines) — so run it here, not there. Two CI
+round trips were spent learning that.
 
 `pnpm build` is the one that matters most on a dependency change. `tsc --noEmit`
 passed cleanly for the entire time the CMS was broken on TypeScript 7 — only the

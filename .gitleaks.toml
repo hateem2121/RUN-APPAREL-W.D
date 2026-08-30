@@ -15,6 +15,27 @@ description = "Non-secret placeholders and generated/lockfiles"
 # generate-a-long-random-string); the pnpm lockfile carries integrity hashes
 # that resemble high-entropy secrets but are not. Real secrets never live in
 # either — they are set with `wrangler secret put` / GitHub secrets.
+#
+# ⚠️ THE `pnpm-lock.yaml` ENTRY IS REDUNDANT, AND DELETING IT WOULD NOT SCAN THE
+# LOCKFILE. Measured 2026-08-30 with gitleaks 8.30.1 — the version CI runs —
+# against a bait of `PAYLOAD_SECRET=<44 hex>`, which the generic-api-key rule does
+# detect:
+#
+#     bait.txt          NO custom config  ->  leaks found: 1
+#     some.yaml         NO custom config  ->  leaks found: 1
+#     pnpm-lock.yaml    NO custom config  ->  no leaks found
+#     package-lock.json NO custom config  ->  no leaks found
+#
+# `useDefault = true` pulls in gitleaks' OWN allowlist, and that already excludes
+# lockfiles. So an audit finding that "the allowlist hides credentials in the
+# lockfile" is TRUE about the outcome and WRONG about the cause — removing the line
+# below achieves nothing, which was verified rather than assumed. It stays because
+# it documents the intent locally.
+#
+# Closing it for real means overriding a default, not editing this list, and would
+# reintroduce the integrity-hash noise this entry describes. The compensating
+# control is upstream: a credential reaches a lockfile through a registry URL
+# carrying auth, and `.npmrc`/registry auth is not committed here.
 paths = [
   '''\.env\.example$''',
   '''pnpm-lock\.yaml$''',
