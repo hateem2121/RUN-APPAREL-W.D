@@ -1,0 +1,33 @@
+# Deliberately NOT a set of issue forms.
+#
+# An audit on 2026-08-30 flagged the absence of issue templates. Its own challenger
+# REFUTED the premise — the claim was that SECURITY.md's "do not open an issue"
+# instruction was undiscoverable without a template, and GitHub already surfaces a
+# repository's security policy on the new-issue screen. So the gap was smaller than
+# reported.
+#
+# What was genuinely missing is signposting: this repo answers most questions in
+# docs/, and the two issues that actually get opened here are created by robots
+# (`outage` from uptime.yml, `monitoring` from heartbeat.yml) which use
+# `gh issue create` and bypass templates entirely. Forms would add ceremony to a
+# private repo with one member and catch nothing.
+#
+# Blank issues stay enabled for that reason.
+blank_issues_enabled: true
+
+contact_links:
+  - name: Security vulnerability — do NOT open an issue
+    url: https://github.com/RUN-APPAREL/run-apparel-viewer/security/policy
+    about: Report privately. SECURITY.md explains the process and the response times.
+
+  - name: Something is broken on the live site
+    url: https://github.com/RUN-APPAREL/run-apparel-viewer/blob/main/docs/RUNBOOK.md
+    about: "Rollback, migrations, secrets and the cached-404 trap. Run `node scripts/apex-probe.mjs` and `node scripts/smoke-live-products.mjs` first — they say what is actually failing."
+
+  - name: A garment looks wrong (artwork, colour, missing model)
+    url: https://github.com/RUN-APPAREL/run-apparel-viewer/blob/main/docs/OPEN-ISSUE-ARTWORK.md
+    about: "Printed artwork, colour naming and the pipeline settings that damage them. Include the product slug and colourway — both are printed on physical QR tags."
+
+  - name: How do I upload a garment?
+    url: https://github.com/RUN-APPAREL/run-apparel-viewer/blob/main/docs/FIRST-GARMENT-UPLOAD.md
+    about: Plain-English walkthrough, no command line.

@@ -13,6 +13,12 @@
   // "Viewer: Pages → Worker cutover".
   "name": "run-apparel-viewer-site",
   "compatibility_date": "2026-07-01",
+  // ⚠️ MISSING UNTIL 2026-08-30, ON THE ONLY PUBLIC-FACING WORKER. `apps/cms`,
+  // `apps/shrink` and `infra/apex-404` all declared this; the viewer — the one a
+  // customer's QR scan actually lands on — did not, so its `console.warn`s and any
+  // uncaught exception went nowhere queryable. Free tier, and the sampling defaults
+  // are right for this volume; do not add head_sampling_rate without a measurement.
+  "observability": { "enabled": true },
   // The internal workers.dev URL and per-version preview URLs are disabled:
   // visitors only ever use viewer.wear-run.help. (Re-enable workers_dev
   // temporarily if you need a pre-cutover smoke-test URL.)
