@@ -15,7 +15,11 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   Do not "restore" the Action.** Two reasons, both measured 2026-08-18. LICENCE: it
   is free for personal accounts and **paid for organisations**, and this repo moved
   into the RUN-APPAREL org that day — `[RUN-APPAREL] is an organization. License key
-  is required.` No `GITLEAKS_LICENSE` secret exists on the repo. COVERAGE, which
+  is required.` No `GITLEAKS_LICENSE` secret exists on the REPO — but one was created
+  at the ORG level on 2026-08-18, visible to all three repositories including the two
+  PUBLIC ones, and no workflow in any of them references it. It is a leftover from the
+  Action this trap replaced. Verified 2026-08-30 by code search across all three repos:
+  the only hit is this sentence. COVERAGE, which
   matters more: run 32140573361 invoked it with `--log-opts=-1` and reported *"1
   commits scanned. scanned ~60 bytes ... no leaks found"* — sixty bytes, under a
   checkout that sets `fetch-depth: 0` precisely because "a secret is usually in an
