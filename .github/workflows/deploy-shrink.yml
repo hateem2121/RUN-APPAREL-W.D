@@ -137,9 +137,9 @@ jobs:
     # while waiting longer only spends the job's headroom. Raising a ceiling just
     # moves which job dies.
     #
-    # This is the LAST apt dependency in the repo. .github/CLAUDE.md's trap says so
-    # explicitly — "everything above is live for that file and this trap must not be
-    # deleted" — and it is now false, which is the point.
+    # This was the LAST apt dependency in the repo, and removing it means NO workflow
+    # here runs apt any more. .github/CLAUDE.md's trap is updated to say so — and
+    # kept, because its reasoning is what stops the next one being added.
     #
     # ⚠️ THE TAG IS NOT DECORATIVE. It must equal the declared `@playwright/test`
     # version; the image SHIPS the browsers, so a mismatch fails at runtime with
@@ -339,6 +339,13 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Captured BEFORE the deploy, because the drift assertion at the end of this
+      # job compares the image's LAST MODIFIED against it. Recording it afterwards
+      # would make the image always look older than the run and fail every deploy.
+      - name: Record time before deploy
+        id: t0
+        run: echo "epoch=$(date -u +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Deploy shrink worker + container image
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -382,10 +389,40 @@ jobs:
       # three-day-old image, because this job had already failed and nothing
       # said so at a glance. `wrangler containers list` prints LAST MODIFIED;
       # compare it against this run's timestamp before believing a deploy.
-      - name: Show container image state (drift check)
+      # ⚠️ THIS ASSERTED NOTHING UNTIL 2026-08-30. It printed a timestamp and a
+      # table and exited 0 whatever they said — so the whole check was "a human
+      # will compare two numbers in a log", which is the same as no check. Its own
+      # comment above describes the incident it was meant to prevent (a pipeline fix
+      # shipping while the container kept running a three-day-old image), so the
+      # intent was right and only the enforcement was missing.
+      #
+      # It now compares against the timestamp captured BEFORE `wrangler deploy` and
+      # fails if the image did not move. A stale image means the Worker script
+      # updated and the code that actually processes garments did not.
+      - name: Assert the container image actually moved (drift check)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BEFORE: ${{ steps.t0.outputs.epoch }}
         run: |
-          echo "This run: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          pnpm --filter @run-apparel/shrink exec wrangler containers list
+          set -euo pipefail
+          echo "This run started: $(date -u -d "@$BEFORE" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -r "$BEFORE" +%Y-%m-%dT%H:%M:%SZ)"
+          out=$(pnpm --filter @run-apparel/shrink exec wrangler containers list 2>&1)
+          echo "$out"
+
+          # `containers list` prints a LAST MODIFIED column as an ISO-8601 stamp.
+          # Take the newest one it shows; if the format ever changes, `modified` is
+          # empty and the check WARNS rather than failing a good deploy on a parse.
+          modified=$(printf '%s\n' "$out" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]+' | sort -r | head -1 || true)
+          if [ -z "$modified" ]; then
+            echo "::warning::could not parse a LAST MODIFIED timestamp from \`wrangler containers list\` — drift NOT verified. Check the table above by hand and fix this parser."
+            exit 0
+          fi
+
+          modified_epoch=$(date -u -d "$modified" +%s 2>/dev/null || date -u -jf "%Y-%m-%dT%H:%M:%S" "$modified" +%s)
+          echo "Image last modified: $modified"
+          if [ "$modified_epoch" -lt "$BEFORE" ]; then
+            echo "::error::The container image did NOT move. The Worker script deployed but the image that actually processes garments is older than this run — a pipeline fix has shipped to nothing. See docs/RUNBOOK.md."
+            exit 1
+          fi
+          echo "Image is newer than the start of this run — the deploy moved it."
