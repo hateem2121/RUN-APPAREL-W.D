@@ -172,6 +172,23 @@ jobs:
             # 200 with a coerced content-type. It resolves the URL from the live CMS
             # payload rather than keeping a second copy of a value the CMS owns.
             node scripts/apex-probe.mjs || ok=false
+
+            # The zone's SECURITY posture, which lives in Cloudflare's control plane
+            # and in no file here.
+            #
+            # ⚠️ THIS REPO'S HEADLINE INCIDENT WAS EXACTLY THIS SHAPE: the apex Worker
+            # was hand-edited in the dashboard on 2026-08-28 and nothing in the
+            # repository could see it. The 2026-08-30 remediation then applied six
+            # more control-plane changes of the same kind — min TLS 1.2, SSL strict,
+            # HSTS, CAA, an R2 custom-domain TLS floor and queue retention. Prose in
+            # docs/audit-2026-08-30/CLOUDFLARE-LIVE-CHANGES.md records them; only this
+            # notices them being undone.
+            #
+            # It is cheap (twelve TLS handshakes and four 1-byte ranged GETs) and it
+            # keeps this file's 403 discipline: a blocked runner is inconclusive, and
+            # a run that reached NO host emits a ::warning:: rather than a silent green
+            # tick, because "everything blocked" must not read as "everything secure".
+            node scripts/zone-security-probe.mjs || ok=false
           fi
           echo "ok=$ok" >> "$GITHUB_OUTPUT"
 
