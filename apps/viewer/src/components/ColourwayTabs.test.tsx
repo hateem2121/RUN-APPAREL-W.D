@@ -30,7 +30,12 @@ vi.mock('../lib/useCoarsePointer', () => ({ useCoarsePointer: () => false }))
  */
 
 const COLOURWAYS: ViewerColourway[] = ['wine', 'navy', 'black'].map((slug, i) => ({
-  variantId: `N001-${slug.toUpperCase()}`,
+  // ⚠️ CLO-SHAPED ON PURPOSE, AND IT USED TO BE `N001-${slug.toUpperCase()}`.
+  // That derived id made `variantId` look like a meaningful, slug-like value, so
+  // sending it to analytics read as reasonable — and App.tsx did, until 2026-08-30.
+  // What CLO actually writes is an opaque counter with no relation to the colour or
+  // even to the position, so a fixture derived from the slug cannot exhibit the bug.
+  variantId: `Colorway ${slug.length}`,
   displayName: slug,
   slug,
   sequence: i,
