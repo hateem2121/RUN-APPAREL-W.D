@@ -1,9 +1,17 @@
 #!/usr/bin/env node
 /**
- * R2 media backup — mirrors every uploaded media object (GLBs + posters) to a
- * timestamped folder under backups/r2/. Object keys are enumerated from the
- * CMS `media` table (each media doc maps to one R2 object), so no S3 SDK and
- * no extra dependency is required — only the wrangler already in apps/cms.
+ * R2 backup — mirrors every uploaded media object (GLBs + posters) AND the two
+ * customer-facing PDFs to a timestamped folder under backups/r2/. Media keys are
+ * enumerated from the CMS `media` table (each media doc maps to one R2 object), so
+ * no S3 SDK and no extra dependency is required — only the wrangler already in
+ * apps/cms.
+ *
+ * ⚠️ THE PDFs WERE BACKED UP BY NOTHING UNTIL 2026-08-30. This script mirrored ONE
+ * bucket, and the catalogue and company profile had just moved out of Google Drive
+ * into a DIFFERENT one (`run-assets`) — so the site's two most public documents,
+ * 71 MB of them, existed in exactly one place with no copy anywhere. They are also
+ * invisible to the media-table enumeration above by construction: they are not CMS
+ * media docs, they are objects the apex Worker reads directly.
  *
  * Usage:
  *   node scripts/backup-r2.mjs           # --remote (production R2)
@@ -20,6 +28,20 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const cmsDir = join(root, 'apps', 'cms')
 const DB = 'run-apparel-viewer-db'
 const BUCKET = 'run-apparel-viewer-media'
+
+/**
+ * The apex PDFs, in the bucket the separate `run-apparel` site also uses.
+ *
+ * Keys are listed explicitly rather than enumerated, for two reasons: `wrangler r2`
+ * has no object-list command, and `run-assets` is SHARED — enumerating it, if that
+ * were possible, would drag in the other application's objects. These two are what
+ * infra/apex-404/index.js serves.
+ *
+ * ⚠️ "RUN PRODUCT CATALOUGE.pdf" is spelled as the object really is, typo included.
+ * Correcting it here silently backs up nothing.
+ */
+const APEX_BUCKET = 'run-assets'
+const APEX_KEYS = ['RUN PRODUCT CATALOUGE.pdf', 'Company Profile.pdf']
 
 const mode = process.argv.includes('--local') ? '--local' : '--remote'
 const stampArg = process.argv.find((a) => a.startsWith('--stamp='))?.split('=')[1]
@@ -71,16 +93,24 @@ console.log(`[backup-r2] ${filenames.length} media objects to back up (${mode}) 
 
 let ok = 0
 let fail = 0
-for (const name of filenames) {
+
+/** Copy one object into `outDir`, keeping a per-bucket subfolder so keys cannot collide. */
+const save = (bucket, key, subdir) => {
+  const dest = join(outDir, subdir, key)
+  mkdirSync(dirname(dest), { recursive: true })
   try {
-    wrangler(['r2', 'object', 'get', `${BUCKET}/${name}`, '--file', join(outDir, name), mode], {
-      stdio: 'pipe',
-    })
+    wrangler(['r2', 'object', 'get', `${bucket}/${key}`, '--file', dest, mode], { stdio: 'pipe' })
     ok += 1
   } catch {
     fail += 1
-    console.warn(`[backup-r2]  ! failed to fetch: ${name}`)
+    console.warn(`[backup-r2]  ! failed to fetch: ${bucket}/${key}`)
   }
 }
+
+for (const name of filenames) save(BUCKET, name, 'media')
+
+console.log(`[backup-r2] ${APEX_KEYS.length} apex PDFs to back up from ${APEX_BUCKET}`)
+for (const key of APEX_KEYS) save(APEX_BUCKET, key, 'apex')
+
 console.log(`[backup-r2] done: ${ok} saved, ${fail} failed.`)
 if (fail > 0) process.exitCode = 1

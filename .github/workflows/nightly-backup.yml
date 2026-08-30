@@ -29,9 +29,6 @@ jobs:
     if: vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -44,6 +41,16 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Export D1
+      # ⚠️ SCOPED TO THE STEPS THAT NEED IT, 2026-08-30. These two variables sat in
+      # a JOB-level `env:` block, which put a token able to edit Workers, D1 and R2
+      # into the environment of EVERY step — including `pnpm install
+      # --frozen-lockfile`, where a malicious postinstall script in any transitive
+      # dependency could simply read it. `minimumReleaseAge: 1440` in
+      # pnpm-workspace.yaml narrows that window; it does not close it, and there is
+      # no reason for the installer to see a production credential at all.
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: node scripts/backup-d1.mjs --stamp="$(date -u +%Y-%m-%d)"
 
       # RESTORE THE BACKUP, every night, before trusting it.
@@ -65,6 +72,9 @@ jobs:
       # restore instructions were broken. That was the right instinct, done once. This
       # is the same drill on a schedule.
       - name: Verify the backup actually restores
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           for dump in backups/d1/*.sql; do
             node scripts/verify-backup.mjs "$dump"
@@ -81,9 +91,15 @@ jobs:
           retention-days: 90
 
       - name: Mirror R2 (weekly, Mondays)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         if: ${{ github.event_name == 'workflow_dispatch' }}
         run: node scripts/backup-r2.mjs --stamp="$(date -u +%Y-%m-%d)"
       - name: Mirror R2 on schedule (Mondays only)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         if: ${{ github.event_name == 'schedule' }}
         run: |
           if [ "$(date -u +%u)" = "1" ]; then
@@ -112,6 +128,9 @@ jobs:
       # closed in diagnostics-digest.yml, not here: this workflow holds only
       # `contents: read` and cannot open an issue.
       - name: Prune old events (monthly, 1st)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ "$(date -u +%d)" = "01" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote \

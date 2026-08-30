@@ -46,7 +46,7 @@ Tick only what applies. Each line is here because it has already gone wrong.
 ## Deploy impact
 
 - [ ] This merges to `main` and therefore **deploys to production**. I have taken
-      a D1 backup and captured `GET /api/public/viewer/n001/wine`.
+      a D1 backup and captured `GET /api/public/viewer/rxps/wine`.
       See `.claude/skills/deploy-preflight/`.
 - [ ] No deploy impact (docs, tests, or tooling only).
 
