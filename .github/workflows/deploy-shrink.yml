@@ -123,7 +123,30 @@ jobs:
   artwork:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 30, matching ci.yml. It was 20 here while ci.yml had already been raised —
+    # and the raise was itself recorded there as the WRONG fix, which is why the
+    # container below is the actual one.
+    timeout-minutes: 30
+    # NO MORE apt. This job ran `playwright install --with-deps` on a cache miss and
+    # `install-deps` on a hit — apt on BOTH paths — long after ci.yml stopped.
+    #
+    # Why that matters, from ci.yml's own record: on 2026-08-18 a degraded Azure
+    # Ubuntu mirror made `install-deps` (normally 24 s) eat whole job budgets, and
+    # `timeout-minutes` kills the step's SHELL, not the apt-get it started. The
+    # orphan keeps the dpkg lock, so a retry races it and exits 100 in five seconds
+    # while waiting longer only spends the job's headroom. Raising a ceiling just
+    # moves which job dies.
+    #
+    # This is the LAST apt dependency in the repo. .github/CLAUDE.md's trap says so
+    # explicitly — "everything above is live for that file and this trap must not be
+    # deleted" — and it is now false, which is the point.
+    #
+    # ⚠️ THE TAG IS NOT DECORATIVE. It must equal the declared `@playwright/test`
+    # version; the image SHIPS the browsers, so a mismatch fails at runtime with
+    # `browser not found at /ms-playwright/...`. apps/cms/src/workflowHardening.test.ts
+    # asserts the two agree, which is why this can be pinned by tag rather than digest.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -134,24 +157,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Chromium only; the render harness runs software WebGL via swiftshader.
-      # Cache key matches ci.yml's artwork job on purpose — same browser set, same
-      # Playwright version, so the two workflows share one cache entry.
-      - name: Resolve Playwright version
-        id: pw
-        run: echo "v=$(node -p 'require("./tools/asset-pipeline/node_modules/@playwright/test/package.json").version')" >> "$GITHUB_OUTPUT"
-      - name: Restore Playwright browsers
-        id: pw-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.v }}-chromium
-      - name: Install Chromium for the render harness (cache miss)
-        if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter @run-apparel/asset-pipeline exec playwright install --with-deps chromium
-      - name: Install Chromium system deps (cache hit)
-        if: steps.pw-cache.outputs.cache-hit == 'true'
-        run: pnpm --filter @run-apparel/asset-pipeline exec playwright install-deps chromium
+      # No browser install step at all: the image ships Chromium at /ms-playwright,
+      # and the render harness runs software WebGL via swiftshader against it.
       - name: Artwork legibility eval
         run: pnpm eval:artwork
 

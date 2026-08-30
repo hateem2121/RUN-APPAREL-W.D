@@ -551,6 +551,18 @@ jobs:
     # SECOND place that has to name it, and it is org config no test here can read.
     # `apps/cms/src/workflowHardening.test.ts` enforces this half; the other half is
     # manual, and forgetting it means a red e2e no longer blocks a merge.
+    # A job-level `permissions:` block REPLACES the workflow default, it does not
+    # add to it — so `contents: read` MUST be restated here or `actions/checkout`
+    # fails with a 404 on this private repo. That is the exact bug that killed
+    # uptime.yml for 23 hours; see the note at the top of that file.
+    #
+    # `issues: write` is new on 2026-08-30, for the failure alert at the end of this
+    # job. Until then the post-deploy smoke tests could DETECT a bad release and
+    # tell nobody: the workflow ran with `contents: read` only, so nothing could
+    # open an issue, and a failed deploy was a red tick in a tab nobody was watching.
+    permissions:
+      contents: read
+      issues: write
     needs: [verify, e2e, audit, secrets, artwork]
     # Enabled once Cloudflare secrets are configured (Phase 10):
     #   gh variable set DEPLOY_ENABLED --body true
@@ -871,3 +883,47 @@ jobs:
             echo "Always follow a rollback with a \`git revert\`, or the next push to"
             echo "\`main\` silently redeploys this build on top of it."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # ALERT ON A FAILED DEPLOY. Detection without notification is not a gate.
+      #
+      # The post-deploy checks above — health, payload smoke over every live
+      # product, link preview, apex PDFs — could all fail and the only trace was a
+      # red tick in the Actions tab. This repo has already paid for that shape once:
+      # uptime.yml's alerting sat silently disabled for 17 days because nothing
+      # exercised the path that only runs when things are broken.
+      #
+      # ⚠️ DELIBERATELY NOT AN AUTO-ROLLBACK. A payload-smoke failure is usually a
+      # CMS or data fault, and rolling the VIEWER Worker back would not fix it —
+      # while a CMS rollback after the migration above is the move `docs/RUNBOOK.md`
+      # warns is most likely to turn a visible outage into a data problem. The
+      # machine reports; the human decides. The summary step above already prints
+      # the exact rollback commands.
+      - name: Alert — a deploy step failed
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh label create deploy-failure --color b60205 \
+            --description "A production deploy step failed" 2>/dev/null || true
+          body=$(printf '%s\n' \
+            "A step in the production deploy job failed for \`${SHA}\`." \
+            "" \
+            "**Read the run first — the failing step names what broke:**" \
+            "${RUN_URL}" \
+            "" \
+            "If a POST-DEPLOY check failed, the artefacts are already live and the" \
+            "rollback commands are in that run's summary. Do not roll the CMS back" \
+            "without reading docs/RUNBOOK.md → \"Rollback does not undo a database" \
+            "migration\" — migrations ran BEFORE the Workers deployed." \
+            "" \
+            "Reproduce the checks locally:" \
+            "\`\`\`bash" \
+            "node scripts/apex-probe.mjs" \
+            "node scripts/smoke-live-products.mjs" \
+            "\`\`\`")
+          gh issue create --label deploy-failure \
+            --title "Deploy failed: ${SHA}" --body "$body"
