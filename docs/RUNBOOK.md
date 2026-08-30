@@ -148,13 +148,14 @@ npx wrangler@4.122.0 versions list --name run-apparel-viewer-site
 npx wrangler@4.122.0 rollback <version-id> --name run-apparel-viewer-site -m "why"
 ```
 
-The three Worker names:
+The four Worker names:
 
 | Worker | What breaks if it is bad |
 |---|---|
 | `run-apparel-viewer-site` | the public viewer — what a lead sees |
 | `run-apparel-viewer-cms` | the admin *and* the API the viewer reads |
 | `run-apparel-viewer-shrink` | garment processing only; the live site is unaffected |
+| `run-apparel-apex-404` | the catalogue and company-profile PDFs on the apex |
 
 Rolling back the **viewer** is the safe one — it holds no data and reads only the
 public API.
@@ -190,6 +191,14 @@ command's exit code — the same discipline the cached-404 incident forced on
 
 `git revert` + push has no such uncertainty: it rebuilds and redeploys through
 every gate. **When you have the minutes to spare, prefer it.**
+
+> ⚠️ **ONE EXCEPTION, AND IT IS NEW.** `git revert` across the apex reconciliation
+> commit (2026-08-30) redeploys the old `infra/apex-404/index.js`, which returns 404
+> for **every** path and declares no R2 binding — taking `/catalogue` and `/profile`
+> offline while reporting a successful deploy. That is the exact failure the
+> reconciliation fixed, reached through the documented safe path. Before reverting
+> anything that touches `infra/apex-404/`, run `node scripts/apex-probe.mjs`
+> afterwards and confirm both PDFs still serve.
 
 ### After any rollback
 
@@ -778,7 +787,23 @@ $5/month budget and one part-time maintainer.
 | Objective | Target | Measured by | Why this number |
 |---|---|---|---|
 | Viewer page loads | **99.5%/month** (≈3.6 h down) | UptimeRobot keyword check, 5 min | Cloudflare Workers' own availability is the floor; we cannot beat our platform |
-| Product API answers | **99.5%/month** | UptimeRobot keyword `"productCode":"N001"` | Same |
+| Product API answers | **99.5%/month** | UptimeRobot keyword `"productCode":"R-XPS"` ⚠️ see below | Same |
+
+> ⚠️ **CHECK THE EXTERNAL MONITOR'S KEYWORD BY HAND — this table was wrong about it
+> until 2026-08-30, and this repo cannot verify it.** The row said the keyword was
+> `"productCode":"N001"`. Measured 2026-08-30, the live payload contains
+> `"productCode":"R-XPS"`, and `GET /api/public/viewer/n001/wine` returns **404** —
+> the slug was renamed on 2026-08-15 and the code gained a hyphen on 2026-08-17.
+>
+> So if UptimeRobot really is watching for `N001`, that monitor has been wrong ever
+> since: alerting continuously if it fires on absence, or silently never firing if it
+> fires on presence. Both are worse than no monitor. **The configuration lives in
+> UptimeRobot, not in this repository, so nothing here can catch it** — open the
+> monitor and confirm the keyword reads `"productCode":"R-XPS"`.
+>
+> The same rename broke both in-repo post-deploy gates on 2026-08-15 and again on
+> 2026-08-17. Before changing any product identity field, grep `scripts/smoke-*.mjs`,
+> `.github/workflows/` **and** re-read this box.
 | A published garment actually renders | **100%** — any failure is an incident | `scripts/smoke-viewer-payload.mjs` in uptime.yml | A 200 that renders nothing is the failure this project has actually shipped, twice |
 | Time to notice an outage | **≤10 min** | UptimeRobot, 5 min interval | GitHub's cron cannot do this — see below |
 | Time to roll back a bad deploy | **≤15 min** | "Undoing a bad deploy" above | Procedure is written and drilled |
@@ -819,8 +844,9 @@ yourself muting UptimeRobot, add a second destination instead.
   number nobody could act on.
 - **The bare apex `wear-run.help` returns 404 in ~0.7 s since 2026-08-19** (audit
   L6; previously 522 after 20.2 s — by design, but a twenty-second hang for any typo
-  or crawler). Answered by `infra/apex-404/index.js`. Still not monitored directly:
-  `uptime.yml` probes `/catalogue`, which is the apex path the product actually uses.
+  or crawler). Answered by `infra/apex-404/index.js`, which since 2026-08-28 ALSO
+  serves `/catalogue` and `/profile` from the shared `run-assets` R2 bucket. All
+  three paths are asserted by `scripts/apex-probe.mjs`, run from `uptime.yml`.
 
 ## Uptime alerts
 
@@ -833,10 +859,16 @@ yourself muting UptimeRobot, add a second destination instead.
 >
 > **Liveness lives on the external uptime service**, which polls every 5 minutes —
 > three times more often — and costs no Actions minutes. What stayed in this
-> workflow is what that service cannot express: `smoke-viewer-payload.mjs` resolves
-> the model URL out of the live API payload and fetches it, catching a garment that
-> silently lost its GLB, and the catalogue probe asserts the redirect still reaches
-> the PDF.
+> workflow is what that service cannot express: `smoke-live-products.mjs` resolves
+> each live garment's model URL out of the API payload and fetches it, catching a
+> garment that silently lost its GLB, and `scripts/apex-probe.mjs` asserts both apex
+> PDFs actually serve.
+>
+> ⚠️ **This said "the catalogue probe asserts the redirect still reaches the PDF"
+> until 2026-08-30. It never did.** The old check tested only that a 3xx carried a
+> non-empty `Location`, never where it pointed — and after the PDFs moved into R2 on
+> 2026-08-28 there was no redirect at all, so it errored on every run while the run
+> still concluded `success`. Outage issue #47 was that false alarm.
 >
 > **If you ever raise the cadence here, do the arithmetic first**: runs/day × jobs ×
 > 1 minute, against 2,000/month.
@@ -983,7 +1015,7 @@ you.** About five minutes, and it costs nothing.
    | | URL | Keyword it must find |
    |---|---|---|
    | The page a customer sees | `https://viewer.wear-run.help/rxps/wine` | `RUN APPAREL` |
-   | The data behind it | `https://cms.wear-run.help/api/public/viewer/rxps/wine` | `"productCode":"RXPS"` |
+   | The data behind it | `https://cms.wear-run.help/api/public/viewer/rxps/wine` | `"productCode":"R-XPS"` |
 
 3. Set alerts to your **email**, and add your phone if you want a push. Do not
    route them back into GitHub — the whole point is that this path is separate.
@@ -994,7 +1026,7 @@ database* — that is written down here already, and it is why
 `scripts/smoke-viewer-payload.mjs` exists. A keyword check fails when the page
 still loads but the garment has gone, which is the outage a lead would actually
 notice. Both keywords verified live on 2026-08-09: `RUN APPAREL` appears 6 times
-in the viewer HTML, `"productCode":"N001"` once in the payload.
+in the viewer HTML, `"productCode":"R-XPS"` once in the payload.
 
 **Why those two URLs and not the 3D model.** Neither fetches the GLB. A model
 fetch is 27 MB, and at 5-minute intervals that is roughly 230 GB a month of R2

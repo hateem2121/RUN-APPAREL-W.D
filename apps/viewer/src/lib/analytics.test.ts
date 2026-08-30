@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { VIEWER_ANALYTICS_EVENTS } from '@run-apparel/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { track } from './analytics'
@@ -62,5 +64,54 @@ describe('track', () => {
 
   it('does not throw when nothing is listening', () => {
     expect(() => track('viewer_page_loaded')).not.toThrow()
+  })
+})
+
+/**
+ * A SOURCE-LEVEL GUARD, and deliberately so.
+ *
+ * `onSelectColourway` lives in `App.tsx`, which mounts `<model-viewer>` — and under
+ * jsdom that asserts against a stub, which is why this repo's viewer coverage floor
+ * is 42% and the real behaviour is covered by `apps/viewer/e2e/` in a browser
+ * instead. Telemetry is switched off under automation, so e2e cannot see it either.
+ * That leaves this one line covered by nothing, and it was wrong in production for
+ * an unknown length of time.
+ *
+ * ⚠️ WHY THE UNIT TESTS ABOVE COULD NOT CATCH IT. They call `track()` with a literal
+ * (`variant: 'N001-WINE'`), so they exercise the transport, never the CHOICE of what
+ * to send. And `ColourwayTabs.test.tsx` used to build `variantId` as
+ * `N001-${slug.toUpperCase()}` — a value derived from the slug, which made
+ * `variantId` look like a perfectly good thing to report. Production CLO writes
+ * `"Colorway 5"`. Both fixtures were consistent with the bug.
+ *
+ * Reading the source is a weak instrument and this comment is the honest label on
+ * it. It is strictly better than the nothing that was here before.
+ */
+describe('what a colourway selection reports (source guard)', () => {
+  const APP = readFileSync(join(import.meta.dirname, '..', 'App.tsx'), 'utf8')
+  const trackCall = () => /track\(\s*'colourway_selected',\s*\{([^}]*)\}/.exec(APP)?.[1]
+
+  it('finds the call at all, so the assertions below are not vacuous', () => {
+    expect(trackCall(), 'no colourway_selected track() call found in App.tsx').toBeDefined()
+  })
+
+  it('reports the slug — the value printed on the QR tag and never renamed', () => {
+    expect(trackCall()).toContain('colourway.slug')
+  })
+
+  it("does NOT report CLO's internal variantId", () => {
+    // Measured live on 2026-08-30: the beacon carried `variant: "Colorway 5"`, and a
+    // five-colourway garment emitted "Colorway 6", so the label does not even encode
+    // position. Analytics could not answer "which colour do people look at".
+    expect(trackCall()).not.toContain('variantId')
+  })
+
+  it('the guard can fail (negative control)', () => {
+    // Prove the regex actually discriminates, rather than returning undefined and
+    // letting `.not.toContain` pass on nothing.
+    const regressed = APP.replace('variant: colourway.slug', 'variant: colourway.variantId')
+    const call = /track\(\s*'colourway_selected',\s*\{([^}]*)\}/.exec(regressed)?.[1]
+    expect(call).toContain('variantId')
+    expect(call).not.toContain('colourway.slug')
   })
 })

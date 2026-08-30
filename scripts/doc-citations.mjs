@@ -24,6 +24,10 @@ export const ANCHORS = new Set([
   'tools',
   'scripts',
   'docs',
+  // Added 2026-08-30. Until then every citation of `infra/apex-404/index.js` — in
+  // CLAUDE.md, QA-CHECKLIST, RUNBOOK and the audit — was skipped entirely, so the
+  // gate could not have caught a rename there. All four resolve today.
+  'infra',
   'raw',
   '.claude',
   '.github',
@@ -248,7 +252,14 @@ export async function documentsToCheck(root) {
     if (path.endsWith('CLAUDE.md') || path.endsWith('audit-ci.jsonc')) return true
     if (path.startsWith(`${docsDir}/`)) return true
     if (path.startsWith(`${rulesDir}/`)) return true
-    return ['README.md', 'CONTRIBUTING.md', 'SECURITY.md'].includes(name)
+    // PULL_REQUEST_TEMPLATE.md added 2026-08-30. It sat outside the walked set while
+    // instructing every reviewer to run a list of commands and capture a URL — so its
+    // citations could rot silently, and one had: it named the dead `n001` slug months
+    // after that product started 404ing. A document that tells people what to run is
+    // exactly the kind whose paths must resolve.
+    return ['README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'PULL_REQUEST_TEMPLATE.md'].includes(
+      name,
+    )
   })
 }
 

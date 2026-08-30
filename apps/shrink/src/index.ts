@@ -25,6 +25,27 @@ import { type ShrinkFailure, reportFailure } from './sentry'
 import { readContainerFailure } from './containerFailure'
 
 /**
+ * One container instance, shared by every job.
+ *
+ * `wrangler.jsonc` sets `max_instances: 1`, and the queue consumer sets
+ * `max_concurrency: 1`, so jobs are serialised and a shared instance is never asked
+ * to run two at once. Using the job id here instead — as this did until 2026-08-30 —
+ * meant a second garment arriving while the first instance was still warm could not
+ * get an instance at all, and dead-lettered without ever being attempted.
+ */
+const SHRINK_CONTAINER_ID = 'shrink'
+
+/**
+ * Ceiling on one container run, comfortably under the queue's own 15-minute
+ * invocation limit so the abort lands in this Worker's catch rather than being
+ * killed by the platform with nothing reported.
+ *
+ * The measured worst case is far below it: a 1.31 GB CLO export took 32.5 s through
+ * the whole pipeline. This is a hang detector, not a budget.
+ */
+const CONTAINER_TIMEOUT_MS = 600_000
+
+/**
  * Shrink service Worker.
  *
  * Flow: the CMS enqueues a job when a raw GLB is uploaded → this consumer drives
@@ -283,7 +304,18 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   //    the pipeline with the flags for this job's detail level, and returns the
   //    small GLB + a report. The flags are passed per job rather than baked into
   //    the image, so re-tuning a garment does not need a container rebuild.
-  const container = getContainer(env.SHRINK, String(job.rawUploadId))
+  // ⚠️ A STABLE ID, NOT `job.rawUploadId`. It was per-job until 2026-08-30, and that
+  // combination could dead-letter a garment that was never even attempted:
+  // `apps/shrink/wrangler.jsonc` sets `max_instances: 1`, so while the first job's
+  // instance is still alive — containers idle for about three minutes before
+  // sleeping — a second job asking for a DIFFERENT instance id cannot get one. It
+  // fails, retries twice against the same wall, and lands in the DLQ.
+  //
+  // Safe because the consumer sets `max_concurrency: 1`, so jobs are already
+  // serialised; a shared instance is never asked to do two at once. The DLQ consumer
+  // does not touch the container at all — it patches status and alerts. Reusing one
+  // warm instance also removes a per-job cold start.
+  const container = getContainer(env.SHRINK, SHRINK_CONTAINER_ID)
   const containerRes = await container.fetch(
     new Request('http://shrink-container/shrink', {
       method: 'POST',
@@ -298,6 +330,13 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
           secretAccessKey: env.R2_INGEST_SECRET_ACCESS_KEY,
         },
       }),
+      // ⚠️ NO TIMEOUT UNTIL 2026-08-30. A container that hung produced no error and
+      // no report: the fetch simply waited until the queue's own 15-minute ceiling
+      // killed the invocation, at which point the message retried into the same hang.
+      // The owner saw nothing — not a failure, not an alert, just a garment that
+      // never appeared. Ten minutes sits comfortably under that ceiling, so the
+      // abort throws into the catch below and the failure is REPORTED instead.
+      signal: AbortSignal.timeout(CONTAINER_TIMEOUT_MS),
     }),
   )
 

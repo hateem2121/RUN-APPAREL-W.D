@@ -75,7 +75,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
      */
     await page.getByRole('tab', { name: /^black$/i }).click()
     await expect(page).toHaveURL(/\/n001\/black$/)
-    await expect(page.getByText('[ COLOURWAY 04 / BLACK ]')).toBeVisible()
+    await expect(page.getByText('[ COLOURWAY 05 / BLACK ]')).toBeVisible()
     const preserved = await page.evaluate(
       () => (window as unknown as { __noReload?: boolean }).__noReload,
     )
@@ -89,7 +89,9 @@ test.describe('RUN APPAREL 3D viewer', () => {
   test('retired colourway falls back to default with notice and silent URL fix', async ({
     page,
   }) => {
-    await page.goto('/n001/lime')
+    // `navy` never existed in production; `lime` became a REAL fixture
+    // colourway on 2026-08-30, so it no longer reaches this notice.
+    await page.goto('/n001/navy')
     await expect(page.getByText(/no longer active/i)).toBeVisible()
     await expect(page).toHaveURL(/\/n001\/wine$/)
     await expect(page.getByText('[ COLOURWAY 01 / WINE ]')).toBeVisible()

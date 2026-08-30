@@ -157,6 +157,22 @@ const COLOURWAYS = [
     isDefault: false,
   },
   {
+    // ⚠️ ADDED 2026-08-30 TO CLOSE A FIXTURE GAP, and it changes what the layout
+    // assertions can see. serve.mjs served FOUR colourways while production ships
+    // FIVE, so `motion-and-layout.spec.ts`'s label-overflow gate could not fail:
+    // under equal columns at 320px, four buttons give 71.2px each against
+    // production's 55.4px, and "03 Butter" is 55.2px wide — it fitted in the fixture
+    // and overflowed in production. The gate could not see the defect it exists for.
+    //
+    // The retired-colourway URL moved to `navy` in the same change (see below).
+    slug: 'lime',
+    displayName: 'Lime',
+    variantId: 'N001-CRIMSON',
+    hexSwatch: '#D6F26B',
+    sequence: 4,
+    isDefault: false,
+  },
+  {
     slug: 'black',
     displayName: 'Black',
     variantId: 'N001-BLACK',

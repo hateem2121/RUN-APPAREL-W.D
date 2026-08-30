@@ -82,13 +82,25 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # ⚠️ `pnpm lint` WAS MISSING HERE UNTIL 2026-08-30, and `pnpm test` was the
+      # bare runner. Both matter, and the second is the subtle one: vitest evaluates
+      # a `thresholds:` block ONLY when coverage is on, and only `test:coverage`
+      # passes `--coverage`. So this workflow — the one that ships the container
+      # decimating every garment's printed artwork — enforced NO coverage floors and
+      # NO lint, while ci.yml enforced both.
+      #
+      # This is the generalised trap already recorded in .github/CLAUDE.md: two
+      # workflows deliberately duplicate the same gates, so a fix applied to one is
+      # only half a fix. It was true of gitleaks for three months, and it was true
+      # of these two lines for as long.
+      - run: pnpm lint
       - run: pnpm typecheck
       # Not a workspace member, so `pnpm typecheck` skips it — and it is the
       # server that drives the pipeline for every upload.
       - name: Typecheck shrink container
         working-directory: apps/shrink/container
         run: npm install --no-audit --no-fund && npx tsc --noEmit
-      - run: pnpm test
+      - run: pnpm test:coverage
 
   # THE ARTWORK GATE, ON THE PATH THAT DECIMATES ARTWORK.
   #
@@ -111,7 +123,30 @@ jobs:
   artwork:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 30, matching ci.yml. It was 20 here while ci.yml had already been raised —
+    # and the raise was itself recorded there as the WRONG fix, which is why the
+    # container below is the actual one.
+    timeout-minutes: 30
+    # NO MORE apt. This job ran `playwright install --with-deps` on a cache miss and
+    # `install-deps` on a hit — apt on BOTH paths — long after ci.yml stopped.
+    #
+    # Why that matters, from ci.yml's own record: on 2026-08-18 a degraded Azure
+    # Ubuntu mirror made `install-deps` (normally 24 s) eat whole job budgets, and
+    # `timeout-minutes` kills the step's SHELL, not the apt-get it started. The
+    # orphan keeps the dpkg lock, so a retry races it and exits 100 in five seconds
+    # while waiting longer only spends the job's headroom. Raising a ceiling just
+    # moves which job dies.
+    #
+    # This was the LAST apt dependency in the repo, and removing it means NO workflow
+    # here runs apt any more. .github/CLAUDE.md's trap is updated to say so — and
+    # kept, because its reasoning is what stops the next one being added.
+    #
+    # ⚠️ THE TAG IS NOT DECORATIVE. It must equal the declared `@playwright/test`
+    # version; the image SHIPS the browsers, so a mismatch fails at runtime with
+    # `browser not found at /ms-playwright/...`. apps/cms/src/workflowHardening.test.ts
+    # asserts the two agree, which is why this can be pinned by tag rather than digest.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -122,24 +157,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Chromium only; the render harness runs software WebGL via swiftshader.
-      # Cache key matches ci.yml's artwork job on purpose — same browser set, same
-      # Playwright version, so the two workflows share one cache entry.
-      - name: Resolve Playwright version
-        id: pw
-        run: echo "v=$(node -p 'require("./tools/asset-pipeline/node_modules/@playwright/test/package.json").version')" >> "$GITHUB_OUTPUT"
-      - name: Restore Playwright browsers
-        id: pw-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.v }}-chromium
-      - name: Install Chromium for the render harness (cache miss)
-        if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter @run-apparel/asset-pipeline exec playwright install --with-deps chromium
-      - name: Install Chromium system deps (cache hit)
-        if: steps.pw-cache.outputs.cache-hit == 'true'
-        run: pnpm --filter @run-apparel/asset-pipeline exec playwright install-deps chromium
+      # No browser install step at all: the image ships Chromium at /ms-playwright,
+      # and the render harness runs software WebGL via swiftshader against it.
       - name: Artwork legibility eval
         run: pnpm eval:artwork
 
@@ -320,6 +339,13 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Captured BEFORE the deploy, because the drift assertion at the end of this
+      # job compares the image's LAST MODIFIED against it. Recording it afterwards
+      # would make the image always look older than the run and fail every deploy.
+      - name: Record time before deploy
+        id: t0
+        run: echo "epoch=$(date -u +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Deploy shrink worker + container image
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -328,15 +354,75 @@ jobs:
         # on ubuntu-latest) and pushes it to Cloudflare's registry, then deploys.
         run: pnpm --filter @run-apparel/shrink exec wrangler deploy
 
+      # ALERTING ONLY EXISTS IF THIS RUNS.
+      #
+      # Found 2026-08-30: the shrink Worker's failure alerting was built on
+      # 2026-08-29 and its one required secret was never set. `wrangler secret list
+      # --name run-apparel-viewer-shrink` returned exactly CMS_ROBOT_API_KEY,
+      # R2_INGEST_ACCESS_KEY_ID and R2_INGEST_SECRET_ACCESS_KEY. `apps/shrink/src/
+      # sentry.ts` is a deliberate no-op without a DSN — "safe to deploy before the
+      # DSN exists" — so a failed garment told nobody, quietly, and the code looked
+      # correct the whole time.
+      #
+      # A one-off `wrangler secret put` from a laptop would fix it once and leave the
+      # value existing only inside Cloudflare: recreate the Worker and the alerting
+      # goes inert again, silently, which is the same failure. Mirrors ci.yml's
+      # PAYLOAD_SECRET step so the value is under version-controlled process.
+      #
+      # Gated inside the shell rather than by `if:` on purpose — a job-level `env:`
+      # would put the DSN in the environment of `pnpm install` too, which is the
+      # exposure this repo is separately closing.
+      - name: Apply worker secret (SENTRY_DSN)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          if [ -z "$SENTRY_DSN" ]; then
+            echo "::warning::SENTRY_DSN secret is not set — the shrink robot's failure alerting is INERT. Set it with: gh secret set SENTRY_DSN"
+            exit 0
+          fi
+          printf '%s' "$SENTRY_DSN" | pnpm --filter @run-apparel/shrink exec wrangler secret put SENTRY_DSN
+
       # Proof the IMAGE moved, not just the Worker script. On 2026-07-27 a
       # pipeline fix shipped to the CMS while the container kept running a
       # three-day-old image, because this job had already failed and nothing
       # said so at a glance. `wrangler containers list` prints LAST MODIFIED;
       # compare it against this run's timestamp before believing a deploy.
-      - name: Show container image state (drift check)
+      # ⚠️ THIS ASSERTED NOTHING UNTIL 2026-08-30. It printed a timestamp and a
+      # table and exited 0 whatever they said — so the whole check was "a human
+      # will compare two numbers in a log", which is the same as no check. Its own
+      # comment above describes the incident it was meant to prevent (a pipeline fix
+      # shipping while the container kept running a three-day-old image), so the
+      # intent was right and only the enforcement was missing.
+      #
+      # It now compares against the timestamp captured BEFORE `wrangler deploy` and
+      # fails if the image did not move. A stale image means the Worker script
+      # updated and the code that actually processes garments did not.
+      - name: Assert the container image actually moved (drift check)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BEFORE: ${{ steps.t0.outputs.epoch }}
         run: |
-          echo "This run: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          pnpm --filter @run-apparel/shrink exec wrangler containers list
+          set -euo pipefail
+          echo "This run started: $(date -u -d "@$BEFORE" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -r "$BEFORE" +%Y-%m-%dT%H:%M:%SZ)"
+          out=$(pnpm --filter @run-apparel/shrink exec wrangler containers list 2>&1)
+          echo "$out"
+
+          # `containers list` prints a LAST MODIFIED column as an ISO-8601 stamp.
+          # Take the newest one it shows; if the format ever changes, `modified` is
+          # empty and the check WARNS rather than failing a good deploy on a parse.
+          modified=$(printf '%s\n' "$out" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]+' | sort -r | head -1 || true)
+          if [ -z "$modified" ]; then
+            echo "::warning::could not parse a LAST MODIFIED timestamp from \`wrangler containers list\` — drift NOT verified. Check the table above by hand and fix this parser."
+            exit 0
+          fi
+
+          modified_epoch=$(date -u -d "$modified" +%s 2>/dev/null || date -u -jf "%Y-%m-%dT%H:%M:%S" "$modified" +%s)
+          echo "Image last modified: $modified"
+          if [ "$modified_epoch" -lt "$BEFORE" ]; then
+            echo "::error::The container image did NOT move. The Worker script deployed but the image that actually processes garments is older than this run — a pipeline fix has shipped to nothing. See docs/RUNBOOK.md."
+            exit 1
+          fi
+          echo "Image is newer than the start of this run — the deploy moved it."

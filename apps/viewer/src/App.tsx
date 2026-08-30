@@ -257,7 +257,14 @@ export default function App() {
     if (colourway.slug === selected.slug) return
     setColourwayUrl(data.product.slug, colourway.slug)
     setState({ kind: 'ready', data, selected: colourway, retiredNotice: null })
-    track('colourway_selected', { variant: colourway.variantId })
+    // The SLUG, not `variantId`. Measured live 2026-08-30: the beacon was reporting
+    // `variant: "Colorway 5"` — CLO's internal export label — so the analytics could
+    // not say which colour anyone looked at, and the labels do not even map to
+    // position (a five-colourway garment emits "Colorway 6"). The slug is the better
+    // identifier on both counts: it is what the customer scanned off the QR tag, and
+    // `Products.ts` forbids ever renaming it, whereas `variantId` is re-minted by
+    // whatever CLO writes on the next export.
+    track('colourway_selected', { variant: colourway.slug })
   }
 
   return (

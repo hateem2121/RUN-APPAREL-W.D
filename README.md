@@ -5,7 +5,7 @@ CMS that feeds it. A buyer scans a QR code on a garment tag (or in the PDF
 catalogue) and lands directly on e.g.:
 
 ```
-https://viewer.wear-run.help/n001/wine
+https://viewer.wear-run.help/rxps/wine
 ```
 
 They see an instant static render, the interactive 3D garment loads behind it,
@@ -42,6 +42,9 @@ First-time deployment: follow **`docs/CLOUDFLARE-SETUP.md`** once, top to bottom
 | Process a GLB by hand | [`tools/asset-pipeline/README.md`](tools/asset-pipeline/README.md) |
 | Know *why* something is built the way it is | [`docs/HARDENING-LOG.md`](docs/HARDENING-LOG.md) |
 | Add UI — which library, and why we are not on Tailwind | [`docs/DECISION-UI-LIBRARIES.md`](docs/DECISION-UI-LIBRARIES.md) |
+| Know whether to buy Zaraz or Log Explorer (we are not) | [`docs/DECISION-ZARAZ-AND-LOG-EXPLORER.md`](docs/DECISION-ZARAZ-AND-LOG-EXPLORER.md) |
+| Know why the 90-day backup artifact stays that long | [`docs/DECISION-BACKUP-RETENTION.md`](docs/DECISION-BACKUP-RETENTION.md) |
+| See the 2026-08-30 Cloudflare + GitHub audit, all 211 findings | [`docs/AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md`](docs/AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md) |
 | Back up or restore the database | [`docs/BACKUP-RESTORE.md`](docs/BACKUP-RESTORE.md) |
 | Deploy without the command line | [`docs/DEPLOY-BY-CLICKING.md`](docs/DEPLOY-BY-CLICKING.md) |
 | See how the AI agent tooling is wired | [`docs/AI-TOOLING.md`](docs/AI-TOOLING.md) |
@@ -49,6 +52,7 @@ First-time deployment: follow **`docs/CLOUDFLARE-SETUP.md`** once, top to bottom
 | Diagnose damaged printed artwork | [`docs/OPEN-ISSUE-ARTWORK.md`](docs/OPEN-ISSUE-ARTWORK.md) |
 | Contribute a change — the full gate list, and the rules that are not style | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Report a security problem (**do not open an issue**) | [`SECURITY.md`](SECURITY.md) |
+| **See every document in `docs/`, including the ones not listed above** | [`docs/README.md`](docs/README.md) |
 
 **Session logs** — narrative records of expensive debugging, kept because
 re-deriving them costs days: [`docs/SESSION-2026-07-27.md`](docs/SESSION-2026-07-27.md)
@@ -222,22 +226,32 @@ dark mode.
 
 ## For developers
 
-### How work ships (single branch)
+### How work ships (pull requests into `main`)
 
-This repo uses **one branch, `main`, and no pull requests.** Commit to `main`
-and push — GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, all unit
-tests, the build and the Playwright e2e suite, then deploys (once
-`DEPLOY_ENABLED` is set — see [docs/CLOUDFLARE-SETUP.md](docs/CLOUDFLARE-SETUP.md)).
-A red build never deploys. Operational playbooks live in
-[docs/RUNBOOK.md](docs/RUNBOOK.md).
+Branch off `main` and open a pull request — see
+[CONTRIBUTING.md](CONTRIBUTING.md). GitHub Actions
+(`.github/workflows/ci.yml`) runs lint, typecheck, all unit tests, the build and
+the Playwright e2e suite, then deploys on merge (once `DEPLOY_ENABLED` is set —
+see [docs/CLOUDFLARE-SETUP.md](docs/CLOUDFLARE-SETUP.md)). A red build never
+deploys. Operational playbooks live in [docs/RUNBOOK.md](docs/RUNBOOK.md).
 
-**Four jobs gate the deploy**: `verify` (lint, typecheck, tests **+ coverage**,
-build, bundle weight, e2e), `audit` (dependency advisories **+ SBOM and licence
-policy**), `secrets` (gitleaks) and — since 2026-08-06 — `artwork`, which renders
-the printed wordmark before and after the real decimation chain and fails if too
-much of it moved. That last one is the only gate that looks at what a buyer
-actually sees; the other three cannot detect a smeared logo. Lighthouse runs
-alongside as an informational check.
+> ⚠️ This section said **"one branch, `main`, and no pull requests. Commit to
+> `main` and push"** until 2026-08-30. That stopped being true on 2026-08-19,
+> when ruleset `21016174` began requiring a pull request on `main` and blocking
+> direct pushes — so following this paragraph produced a rejected push, and it
+> contradicted [CONTRIBUTING.md](CONTRIBUTING.md), which has said *"Branch off
+> `main`; never commit directly to it"* the whole time.
+
+**Five jobs gate the deploy**: `verify` (lint, typecheck, tests **+ coverage**,
+build, bundle weight), `e2e` (Playwright, four engines — split out of `verify`
+on 2026-08-20 and a separate required check ever since), `audit` (dependency
+advisories **+ SBOM and licence policy**), `secrets` (gitleaks over the full
+history) and — since 2026-08-06 — `artwork`, which renders the printed wordmark
+before and after the real decimation chain and fails if too much of it moved.
+That last one is the only gate that looks at what a buyer actually sees; the
+others cannot detect a smeared logo. Lighthouse runs alongside as an
+informational check and deliberately does **not** gate: its category scores swung
+0.64 / 0.88 / 0.87 across three runs of an identical build.
 
 A fifth check, `pnpm eval:artwork:real`, runs the same artwork measurement on the
 real 382 MB CLO export, which the per-commit fixture cannot represent. It is
@@ -250,7 +264,7 @@ reach it. See `docs/RUNBOOK.md` → "The canonical raw garment".
 
 | Workflow | Cadence | What it does |
 |---|---|---|
-| `uptime.yml` | every 15 min *(requested — GitHub delivers ~45 min median, see RUNBOOK)* | health + viewer + real model payload; opens an `outage` issue |
+| `uptime.yml` | daily *(requested — GitHub delivers 19–90 min late, measured n=11)* | health + viewer + **every** live product's model payload + both apex PDFs; opens an `outage` issue |
 | `nightly-backup.yml` | nightly | D1 export; R2 media mirror on Mondays |
 | `diagnostics-digest.yml` | Mondays | reads the Events table — the client errors the viewer records |
 | `heartbeat.yml` | every 6 h | checks the three above have actually *run*; opens a `monitoring` issue |

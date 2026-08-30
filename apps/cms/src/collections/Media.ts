@@ -1,5 +1,10 @@
 import { APIError, type CollectionConfig } from 'payload'
-import { isAdmin, isAdminFieldLevel, isAdminOrEditor } from '../access/roles'
+import {
+  isAdmin,
+  isAdminFieldLevel,
+  isAdminOrEditor,
+  isAuthenticatedFieldLevel,
+} from '../access/roles'
 import {
   IMAGE_MIME_TYPES,
   MODEL_MIME_TYPES,
@@ -49,8 +54,15 @@ export const Media: CollectionConfig = {
   },
   access: {
     // Poster and model files are public by nature (they render on the public
-    // viewer); document data contains nothing sensitive except the
-    // admin-only source reference field below.
+    // viewer), so the COLLECTION stays readable without auth.
+    //
+    // ⚠️ THIS SAID "document data contains nothing sensitive" UNTIL 2026-08-30, AND
+    // THAT WAS WRONG. Measured: an unauthenticated `GET /api/media` returned all 21
+    // documents with `artworkVerdict`, `artworkOverrideReason` and `sizeWarning` —
+    // the internal QA verdict on a garment's printed artwork, the reason someone
+    // published a damaged one anyway, and an internal size flag. A public collection
+    // is not the same as public fields; those three now carry their own
+    // `access.read`. Add field-level access to anything new that is for reviewers.
     read: () => true,
     create: isAdminOrEditor,
     update: isAdminOrEditor,
@@ -149,6 +161,7 @@ export const Media: CollectionConfig = {
     },
     {
       name: 'sizeWarning',
+      access: { read: isAuthenticatedFieldLevel },
       type: 'checkbox',
       admin: {
         readOnly: true,
@@ -162,6 +175,7 @@ export const Media: CollectionConfig = {
     },
     {
       name: 'artworkVerdict',
+      access: { read: isAuthenticatedFieldLevel },
       type: 'select',
       label: 'Printed artwork',
       options: [
@@ -177,6 +191,7 @@ export const Media: CollectionConfig = {
     },
     {
       name: 'artworkOverrideReason',
+      access: { read: isAuthenticatedFieldLevel },
       type: 'textarea',
       label: 'Publish anyway — reason',
       admin: {

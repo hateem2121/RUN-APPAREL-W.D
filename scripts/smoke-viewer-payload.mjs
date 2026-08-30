@@ -30,6 +30,8 @@
  *                           See "the cached 404" below.
  */
 
+import { DEFAULT_PRODUCT } from './live-products.mjs'
+
 const [, , apiBaseArg, productArg, colourArg] = process.argv
 
 const API_BASE = (
@@ -48,7 +50,7 @@ const API_BASE = (
  * the right reason. It was written about the COLOUR, and the same drift then
  * happened one level up to the PRODUCT. Check both when a slug is renamed.
  */
-const PRODUCT = productArg || 'rxps'
+const PRODUCT = productArg || DEFAULT_PRODUCT.slug
 // Must be a slug that EXISTS. `navy` was the default until 2026-08-05, when the
 // colourways were renamed from the placeholder names to the ones measured in the
 // file — and the check kept passing, because a retired slug falls back to the
@@ -56,7 +58,7 @@ const PRODUCT = productArg || 'rxps'
 // correct behaviour (a QR tag printed with an old slug must still work) and it is
 // exactly why this default has to be a live slug: otherwise the check silently
 // exercises the fallback path forever and never the normal one.
-const COLOUR = colourArg || 'wine'
+const COLOUR = colourArg || DEFAULT_PRODUCT.colourway
 
 // A GLB with a header and no meshes is ~a few hundred bytes; the real N001 is
 // 19 MB. 100 KB separates "a model" from "an empty container or an error page
@@ -78,8 +80,28 @@ const TIMEOUT_MS = 30000
 const failures = []
 const fail = (msg) => failures.push(msg)
 
+/**
+ * Statuses that mean "ask again later", not "the API is broken".
+ *
+ * ⚠️ ADDED 2026-08-30, AND IT IS A PRE-REQUISITE FOR THE workers.dev CUTOVER.
+ * This script had 403 branches for the MODEL fetch and the browser GET, but not for
+ * the API call itself — `getJson` threw on any non-ok and the caller exited 1. That
+ * was survivable only because `VITE_API_BASE_URL` pointed at a `*.workers.dev` host,
+ * which sits OUTSIDE the wear-run.help zone where Bot Fight Mode operates. The moment
+ * the API moves onto `cms.wear-run.help`, one intermittent 403 from a datacenter IP
+ * hard-fails the post-deploy gate — the exact incident that forced the first cutover
+ * to be rolled back within the hour. Root CLAUDE.md: such a 403 is *inconclusive,
+ * never a failed assertion*.
+ */
+const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
+
 async function getJson(url) {
   const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) })
+  if (INCONCLUSIVE_STATUSES.has(res.status)) {
+    const err = new Error(`HTTP ${res.status} ${res.statusText}`)
+    err.inconclusive = true
+    throw err
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
   return res.json()
 }
@@ -91,6 +113,15 @@ let payload
 try {
   payload = await getJson(endpoint)
 } catch (err) {
+  if (err.inconclusive) {
+    // Exit 0. An alarm that fires on Cloudflare's mood gets muted, and a muted
+    // alarm is how the uptime check sat dead for 17 days.
+    console.log(
+      `SKIP  ${err.message} from a datacenter IP — Bot Fight Mode blocks these ` +
+        'intermittently. Inconclusive, not a failure.',
+    )
+    process.exit(0)
+  }
   console.error(`FAIL  the viewer endpoint did not return JSON: ${err.message}`)
   process.exit(1)
 }

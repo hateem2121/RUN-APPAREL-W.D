@@ -752,10 +752,19 @@ test.describe('layout invariants', () => {
    * So the rule is stated directly: the last row is either full, or it is not
    * alone. A single swatch is only acceptable when the whole rail is one tab.
    *
-   * Five is the count that matters — the live product has five colourways and
-   * the e2e fixture has four, so a fixture-only check cannot see this. The test
-   * appends a fifth before measuring, which is the same "the fixture cannot
-   * exhibit the failure" pattern the root CLAUDE.md is built around.
+   * Five is the count that matters — it is what the live product ships.
+   *
+   * ⚠️ THIS TEST USED TO APPEND A FIFTH SWATCH ITSELF, because `serve.mjs` served
+   * only four. `serve.mjs` serves five as of 2026-08-30, so the append is gone: it
+   * would now synthesise a SIXTH, and `page.css` documents that six legitimately
+   * lays out 5 + 1 at 320px — the `auto-fit` floor is tuned for five, which is what
+   * ships. Leaving the append in place turned a correct layout into a failure, and
+   * for a few minutes it looked like a real production defect.
+   *
+   * The lesson is the fixture one, inverted: a fixture that could not exhibit the
+   * failure was compensated for IN THE TEST, and the compensation outlived the gap
+   * it existed for. Fix the fixture, then delete the workaround — in that order,
+   * and never leave both.
    */
   for (const width of [320, 360, 375, 390, 393, 402, 414, 430]) {
     test(`the colourway rail never strands a single swatch at ${width}px`, async ({ page }) => {
@@ -766,22 +775,12 @@ test.describe('layout invariants', () => {
       const layout = await page.evaluate(() => {
         const list = document.querySelector('.colourways__list')
         if (!list) return null
-        // The fixture ships four colourways; production ships five. Measure the
-        // production shape, not the fixture's.
-        const clone = list.children[0]?.cloneNode(true) as HTMLElement | undefined
-        if (clone) {
-          clone.setAttribute('aria-selected', 'false')
-          clone.id = 'colourway-tab-probe'
-          const label = clone.querySelector('.colourway-tab__label')
-          if (label) label.textContent = 'Slate'
-          list.appendChild(clone)
-        }
+        // No synthesised swatch: the fixture ships the production count (five).
         const tabs = [...list.querySelectorAll('.colourway-tab')].map((t) =>
           Math.round(t.getBoundingClientRect().top),
         )
         const rows = [...new Set(tabs)].sort((a, b) => a - b)
         const counts = rows.map((top) => tabs.filter((t) => t === top).length)
-        clone?.remove()
         return { total: tabs.length, rows: rows.length, counts }
       })
 

@@ -15,7 +15,11 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   Do not "restore" the Action.** Two reasons, both measured 2026-08-18. LICENCE: it
   is free for personal accounts and **paid for organisations**, and this repo moved
   into the RUN-APPAREL org that day — `[RUN-APPAREL] is an organization. License key
-  is required.` No `GITLEAKS_LICENSE` secret exists on the repo. COVERAGE, which
+  is required.` No `GITLEAKS_LICENSE` secret exists on the REPO — but one was created
+  at the ORG level on 2026-08-18, visible to all three repositories including the two
+  PUBLIC ones, and no workflow in any of them references it. It is a leftover from the
+  Action this trap replaced. Verified 2026-08-30 by code search across all three repos:
+  the only hit is this sentence. COVERAGE, which
   matters more: run 32140573361 invoked it with `--log-opts=-1` and reported *"1
   commits scanned. scanned ~60 bytes ... no leaks found"* — sixty bytes, under a
   checkout that sets `fetch-depth: 0` precisely because "a secret is usually in an
@@ -151,8 +155,21 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   `mcr.microsoft.com/playwright:v1.62.1-noble`. Measured: `artwork` 142s against a
   107s baseline (+35s per run), and `e2e` 417s while `verify` fell 470s -> 159s by
   shedding it, so the RUN's long pole went 470s -> 417s — billed minutes up,
-  wall-clock down. The image pull is 36-40s with a 60s tail (seven pulls). ⚠️ `.github/workflows/deploy-shrink.yml` STILL shells out to `apt`, so
-  everything above is live for that file and this trap must not be deleted.
+  wall-clock down. The image pull is 36-40s with a 60s tail (seven pulls).
+  ✅ **AND `deploy-shrink.yml` FOLLOWED ON 2026-08-30 — NO WORKFLOW IN THIS REPO
+  RUNS `apt` ANY MORE.** It was the last one, and it had kept BOTH apt paths
+  (`playwright install --with-deps` on a cache miss, `install-deps` on a hit) at a
+  **20-minute** ceiling while ci.yml had already been raised to 30 *and* then moved
+  to the container — so the file most exposed to the mirror outage was the one with
+  the least headroom. It now uses the same `mcr.microsoft.com/playwright:v1.62.1-noble`
+  image and installs no browser at all.
+  ⚠️ **KEEP THIS TRAP ANYWAY.** Everything above is the reasoning, not the residue:
+  it is why raising a ceiling is the wrong fix, why a retry races an orphan holding
+  the dpkg lock, and why the wait loop's budget must stay strictly below the step's
+  own `timeout-minutes`. The next person tempted to add an `apt-get` to a workflow
+  needs all of it. **This is also the second half of the "two workflows duplicate the
+  same gates" rule at the top of this file** — the container fix sat in ci.yml for ten
+  days before anyone checked the other copy, exactly as gitleaks did for three months.
 
 - **GitHub's scheduled runs are 19–90 minutes LATE — measured, n=11, EVERY ONE.**
   2026-08-26 across `heartbeat.yml`'s last 11 `schedule` runs: 19, 33, 34, 36, 46, 50,

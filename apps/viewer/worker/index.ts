@@ -150,11 +150,26 @@ async function loadPayload(
       headers: { accept: 'application/json' },
       signal: AbortSignal.timeout(CMS_TIMEOUT_MS),
     })
-    if (!res.ok) return null
+    // ⚠️ EVERY ONE OF THESE RETURNED null SILENTLY UNTIL 2026-08-30. The caller
+    // then serves the generic card, which is the correct DEGRADATION — but it is
+    // indistinguishable from "this crawler was never matched", so link previews
+    // could stop working for every garment and nothing anywhere would say so.
+    // One line each, naming the path and the reason: enough to tell a CMS outage
+    // from a renamed slug from a malformed payload, without logging the payload.
+    if (!res.ok) {
+      console.warn('og-payload-failed', { path, reason: 'cms-status', status: res.status })
+      return null
+    }
     const body = await res.text()
     const payload = JSON.parse(body) as ViewerApiSuccess | { error: string }
-    if ('error' in payload) return null
-    if (!payload.product?.slug || !payload.selectedColourway?.slug) return null
+    if ('error' in payload) {
+      console.warn('og-payload-failed', { path, reason: 'cms-error' })
+      return null
+    }
+    if (!payload.product?.slug || !payload.selectedColourway?.slug) {
+      console.warn('og-payload-failed', { path, reason: 'incomplete-payload' })
+      return null
+    }
 
     ctx.waitUntil(
       cache
@@ -167,10 +182,21 @@ async function loadPayload(
             },
           }),
         )
+        // Deliberately silent: a failed cache WRITE costs one extra CMS fetch on
+        // the next crawler and nothing else. It is not a fault worth a log line,
+        // and this runs in waitUntil where nobody reads the outcome anyway.
         .catch(() => {}),
     )
     return payload
-  } catch {
+  } catch (error) {
+    // A timeout (CMS_TIMEOUT_MS) or a JSON parse failure. Named separately from the
+    // branches above because the remedy differs: this one usually means the CMS is
+    // slow or down, not that the garment is wrong.
+    console.warn('og-payload-failed', {
+      path,
+      reason: 'fetch-threw',
+      message: error instanceof Error ? error.message : String(error),
+    })
     return null
   }
 }
