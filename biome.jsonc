@@ -34,6 +34,12 @@
       // import path for `next dev` vs `next build`. Formatting it means `pnpm
       // lint` fails after every single build.
       "!apps/cms/next-env.d.ts",
+      // GENERATED AUDIT EVIDENCE — ~1.6 MB of JSON emitted by
+      // docs/audit-2026-08-30/extract-workflow-results.mjs, committed as the record
+      // behind docs/AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md. Reformatting it would
+      // rewrite every line on each regeneration for no reader's benefit, and it is
+      // machine output, not source. Same reasoning as the Payload files above.
+      "!docs/audit-2026-08-30",
       "!pnpm-lock.yaml"
     ]
   },
