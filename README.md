@@ -5,7 +5,7 @@ CMS that feeds it. A buyer scans a QR code on a garment tag (or in the PDF
 catalogue) and lands directly on e.g.:
 
 ```
-https://viewer.wear-run.help/n001/wine
+https://viewer.wear-run.help/rxps/wine
 ```
 
 They see an instant static render, the interactive 3D garment loads behind it,
@@ -42,6 +42,9 @@ First-time deployment: follow **`docs/CLOUDFLARE-SETUP.md`** once, top to bottom
 | Process a GLB by hand | [`tools/asset-pipeline/README.md`](tools/asset-pipeline/README.md) |
 | Know *why* something is built the way it is | [`docs/HARDENING-LOG.md`](docs/HARDENING-LOG.md) |
 | Add UI — which library, and why we are not on Tailwind | [`docs/DECISION-UI-LIBRARIES.md`](docs/DECISION-UI-LIBRARIES.md) |
+| Know whether to buy Zaraz or Log Explorer (we are not) | [`docs/DECISION-ZARAZ-AND-LOG-EXPLORER.md`](docs/DECISION-ZARAZ-AND-LOG-EXPLORER.md) |
+| Know why the 90-day backup artifact stays that long | [`docs/DECISION-BACKUP-RETENTION.md`](docs/DECISION-BACKUP-RETENTION.md) |
+| See the 2026-08-30 Cloudflare + GitHub audit, all 211 findings | [`docs/AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md`](docs/AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md) |
 | Back up or restore the database | [`docs/BACKUP-RESTORE.md`](docs/BACKUP-RESTORE.md) |
 | Deploy without the command line | [`docs/DEPLOY-BY-CLICKING.md`](docs/DEPLOY-BY-CLICKING.md) |
 | See how the AI agent tooling is wired | [`docs/AI-TOOLING.md`](docs/AI-TOOLING.md) |

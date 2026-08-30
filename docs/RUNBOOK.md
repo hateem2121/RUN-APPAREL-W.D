@@ -787,7 +787,23 @@ $5/month budget and one part-time maintainer.
 | Objective | Target | Measured by | Why this number |
 |---|---|---|---|
 | Viewer page loads | **99.5%/month** (≈3.6 h down) | UptimeRobot keyword check, 5 min | Cloudflare Workers' own availability is the floor; we cannot beat our platform |
-| Product API answers | **99.5%/month** | UptimeRobot keyword `"productCode":"N001"` | Same |
+| Product API answers | **99.5%/month** | UptimeRobot keyword `"productCode":"R-XPS"` ⚠️ see below | Same |
+
+> ⚠️ **CHECK THE EXTERNAL MONITOR'S KEYWORD BY HAND — this table was wrong about it
+> until 2026-08-30, and this repo cannot verify it.** The row said the keyword was
+> `"productCode":"N001"`. Measured 2026-08-30, the live payload contains
+> `"productCode":"R-XPS"`, and `GET /api/public/viewer/n001/wine` returns **404** —
+> the slug was renamed on 2026-08-15 and the code gained a hyphen on 2026-08-17.
+>
+> So if UptimeRobot really is watching for `N001`, that monitor has been wrong ever
+> since: alerting continuously if it fires on absence, or silently never firing if it
+> fires on presence. Both are worse than no monitor. **The configuration lives in
+> UptimeRobot, not in this repository, so nothing here can catch it** — open the
+> monitor and confirm the keyword reads `"productCode":"R-XPS"`.
+>
+> The same rename broke both in-repo post-deploy gates on 2026-08-15 and again on
+> 2026-08-17. Before changing any product identity field, grep `scripts/smoke-*.mjs`,
+> `.github/workflows/` **and** re-read this box.
 | A published garment actually renders | **100%** — any failure is an incident | `scripts/smoke-viewer-payload.mjs` in uptime.yml | A 200 that renders nothing is the failure this project has actually shipped, twice |
 | Time to notice an outage | **≤10 min** | UptimeRobot, 5 min interval | GitHub's cron cannot do this — see below |
 | Time to roll back a bad deploy | **≤15 min** | "Undoing a bad deploy" above | Procedure is written and drilled |
@@ -999,7 +1015,7 @@ you.** About five minutes, and it costs nothing.
    | | URL | Keyword it must find |
    |---|---|---|
    | The page a customer sees | `https://viewer.wear-run.help/rxps/wine` | `RUN APPAREL` |
-   | The data behind it | `https://cms.wear-run.help/api/public/viewer/rxps/wine` | `"productCode":"RXPS"` |
+   | The data behind it | `https://cms.wear-run.help/api/public/viewer/rxps/wine` | `"productCode":"R-XPS"` |
 
 3. Set alerts to your **email**, and add your phone if you want a push. Do not
    route them back into GitHub — the whole point is that this path is separate.
@@ -1010,7 +1026,7 @@ database* — that is written down here already, and it is why
 `scripts/smoke-viewer-payload.mjs` exists. A keyword check fails when the page
 still loads but the garment has gone, which is the outage a lead would actually
 notice. Both keywords verified live on 2026-08-09: `RUN APPAREL` appears 6 times
-in the viewer HTML, `"productCode":"N001"` once in the payload.
+in the viewer HTML, `"productCode":"R-XPS"` once in the payload.
 
 **Why those two URLs and not the 3D model.** Neither fetches the GLB. A model
 fetch is 27 MB, and at 5-minute intervals that is roughly 230 GB a month of R2

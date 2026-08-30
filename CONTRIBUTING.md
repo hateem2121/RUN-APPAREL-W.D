@@ -95,7 +95,7 @@ beats "slightly off".
 
 Merging to `main` runs the pre-deploy D1 migration and deploys the CMS and the
 viewer to production. **Take a D1 backup and capture
-`GET /api/public/viewer/n001/wine` first** — that before/after diff is what caught
+`GET /api/public/viewer/rxps/wine` first** — that before/after diff is what caught
 the last data-loss incident when the migration logs said success.
 [`.claude/skills/deploy-preflight/`](.claude/skills/deploy-preflight/) walks the
 whole sequence.
