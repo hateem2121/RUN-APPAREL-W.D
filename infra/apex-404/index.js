@@ -94,12 +94,17 @@ export async function handle(request, env) {
     return new Response('Method not allowed', { status: 405, headers: { allow: 'GET, HEAD' } })
   }
 
-  // Range requests matter here: the catalogue is 54 MB, and a browser's PDF viewer
-  // asks for the first pages rather than the whole file.
-  const rangeHeader = request.headers.get('range')
-  const object = rangeHeader
-    ? await env.ASSETS.get(file.key, { range: request.headers })
-    : await env.ASSETS.get(file.key)
+  // ⚠️ NO RANGE HANDLING, AND THAT IS THE POINT. This Worker answered Range
+  // requests itself with a 206 until 2026-08-30, which made every response
+  // UNCACHEABLE — Cloudflare's own docs: "206 Partial Content returned by your
+  // Worker is not stored ... Return a full 200 instead." That is why a 54 MB PDF
+  // was re-read from R2 on every single request and never showed a cf-cache-status.
+  //
+  // Workers Caching (enabled in wrangler.jsonc) handles Range itself: it fetches the
+  // full body from this Worker ONCE, caches the 200, and slices every subsequent
+  // range out of that entry without invoking the Worker at all. So visitors still get
+  // their 206 — it just comes from the edge instead of from here.
+  const object = await env.ASSETS.get(file.key)
 
   if (!object) {
     return new Response('That document is temporarily unavailable.', { status: 404, headers: TEXT })
@@ -115,20 +120,10 @@ export async function handle(request, env) {
   headers.set('accept-ranges', 'bytes')
   headers.set('x-content-type-options', 'nosniff')
 
-  let status = 200
-  if (rangeHeader && object.range) {
-    const size = object.size
-    const offset = typeof object.range.offset === 'number' ? object.range.offset : 0
-    const length = typeof object.range.length === 'number' ? object.range.length : size - offset
-    // A range covering the whole object is a 200, not a 206 — R2 reports a range even
-    // when the request asked for everything.
-    if (offset !== 0 || length !== size) {
-      headers.set('content-range', `bytes ${offset}-${offset + length - 1}/${size}`)
-      status = 206
-    }
-  }
-
-  return new Response(request.method === 'HEAD' ? null : object.body, { status, headers })
+  // Always 200 with the whole body. `accept-ranges` stays because the EDGE still
+  // serves ranges from the cached entry — the capability is unchanged, only who
+  // performs the slicing.
+  return new Response(request.method === 'HEAD' ? null : object.body, { status: 200, headers })
 }
 
 export default { fetch: handle }

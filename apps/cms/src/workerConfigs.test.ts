@@ -67,3 +67,45 @@ describe('wrangler config invariants', () => {
     expect(settings(read(config))).toMatch(/"preview_urls":\s*false/)
   })
 })
+
+/**
+ * The apex PDF caching fix spans a config file and a source file, and neither half
+ * works alone. Nothing else connects them.
+ *
+ *   wrangler.jsonc  must enable Workers Caching, at a compatibility_date >= 2026-07-06
+ *   index.js        must return a full 200, never its own 206
+ *
+ * Cloudflare does not store a 206 produced by a Worker, so leaving the range handling
+ * in place makes `cache.enabled` do nothing at all — silently, with no error and no
+ * header. That is precisely the state the two PDFs were in until 2026-08-30: served
+ * with no `cf-cache-status` whatsoever, ~1.0-1.8 s to first byte, never improving.
+ */
+describe('apex Workers Caching', () => {
+  const config = read('infra/apex-404/wrangler.jsonc')
+  const source = read('infra/apex-404/index.js')
+
+  it('enables Workers Caching', () => {
+    expect(settings(config)).toMatch(/"cache":\s*\{\s*"enabled":\s*true/)
+  })
+
+  it('sits at or above the compatibility_date the feature requires', () => {
+    const date = settings(config).match(/"compatibility_date":\s*"(\d{4}-\d{2}-\d{2})"/)?.[1]
+    expect(date, 'no compatibility_date found').toBeDefined()
+    // Workers Caching requires >= 2026-07-06. String compare is safe on ISO dates.
+    expect(String(date) >= '2026-07-06').toBe(true)
+  })
+
+  it('does NOT return its own 206 — that would make the cache inert', () => {
+    expect(
+      source,
+      'The apex Worker builds a 206 again. Cloudflare will not store it, so ' +
+        '`cache.enabled` becomes a no-op and both PDFs go back to being re-read from ' +
+        'R2 on every request — with no error anywhere to say so.',
+    ).not.toMatch(/status:\s*206|status\s*=\s*206/)
+    expect(source).not.toContain('content-range')
+  })
+
+  it('does not forward the client Range to R2 — the edge slices', () => {
+    expect(source).not.toMatch(/range:\s*request\.headers/)
+  })
+})

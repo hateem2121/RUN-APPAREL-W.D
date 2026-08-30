@@ -150,24 +150,35 @@ describe('apex worker methods and ranges', () => {
     expect(res.headers.get('content-type')).toBe('application/pdf')
   })
 
-  it('answers a range request with 206 and a content-range', async () => {
-    const { res, calls } = await get('/catalogue', { headers: { range: 'bytes=0-1023' } })
-    expect(res.status).toBe(206)
-    expect(res.headers.get('content-range')).toBe(`bytes 0-1023/${SIZE}`)
-    expect(calls[0]?.ranged).toBe(true)
-  })
-
-  it('a range covering the WHOLE object stays 200, not 206', async () => {
-    // R2 reports a range even when the request asked for everything; emitting 206
-    // there would be wrong, and Cloudflare does not edge-cache a 206 from a Worker.
-    const { res } = await get('/catalogue', { headers: { range: 'whole' } })
+  /**
+   * ⚠️ THE WORKER MUST NOT ANSWER RANGES ITSELF. It did until 2026-08-30, returning
+   * its own 206 — and Cloudflare does not store a 206 produced by a Worker
+   * (developers.cloudflare.com/workers/cache/debugging/: "Return a full 200
+   * instead"). That single behaviour is why a 54 MB PDF showed no cf-cache-status
+   * at all and was re-read from R2 on every request.
+   *
+   * Workers Caching, enabled in wrangler.jsonc, fetches the full body ONCE, caches
+   * the 200, and slices every subsequent range out of that entry without invoking
+   * this Worker. Visitors still receive a 206; it comes from the edge.
+   *
+   * So these two assertions ARE the performance fix. A future refactor that
+   * "restores" range handling would silently make both PDFs uncacheable again, and
+   * nothing else in the repo would notice.
+   */
+  it('answers a range request with a FULL 200 — never its own 206', async () => {
+    const { res } = await get('/catalogue', { headers: { range: 'bytes=0-1023' } })
     expect(res.status).toBe(200)
     expect(res.headers.get('content-range')).toBeNull()
   })
 
-  it('does not send a range to R2 when the client did not ask for one', async () => {
-    const { calls } = await get('/catalogue')
+  it('never forwards a Range to R2 — the edge slices, not this Worker', async () => {
+    const { calls } = await get('/catalogue', { headers: { range: 'bytes=0-1023' } })
     expect(calls[0]?.ranged).toBe(false)
+  })
+
+  it('still advertises accept-ranges, because the EDGE serves them', async () => {
+    const { res } = await get('/catalogue')
+    expect(res.headers.get('accept-ranges')).toBe('bytes')
   })
 })
 
