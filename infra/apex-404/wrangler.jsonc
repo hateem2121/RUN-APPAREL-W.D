@@ -1,4 +1,9 @@
 {
+  // ⛔ DO NOT `wrangler deploy` FROM HERE — see the banner in index.js.
+  // This config declares NO bindings, but the DEPLOYED Worker binds `run-assets`
+  // as `ASSETS` and serves /catalogue and /profile from it. Deploying this config
+  // strips that binding and 404s both PDFs, while reporting success.
+  // Reconcile before deploying. Measured 2026-08-30, audit finding A1.1.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "run-apparel-apex-404",
   "main": "index.js",
