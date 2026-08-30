@@ -40,11 +40,15 @@
 const API = 'https://cms.wear-run.help/api/public/viewer'
 const VIEWER = 'https://viewer.wear-run.help'
 
-/** The live products. Slugs are printed on physical QR tags — never guess one. */
-const PRODUCTS = [
-  { slug: 'rxps', colourway: 'wine' },
-  { slug: 'r-xmp', colourway: 'wine' },
-]
+/**
+ * The live products. Slugs are printed on physical QR tags — never guess one.
+ *
+ * Shared with scripts/ since 2026-08-30. This file held the ONLY list that
+ * iterated both products, and no workflow runs it — so `r-xmp` was covered by
+ * nothing. One list means a rename fails everything at once, loudly, instead of
+ * one gate going quietly green.
+ */
+import { LIVE_PRODUCTS as PRODUCTS } from '../../../scripts/live-products.mjs'
 
 const full = process.argv.includes('--full')
 let problems = 0
