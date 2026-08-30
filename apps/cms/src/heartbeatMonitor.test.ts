@@ -46,23 +46,92 @@ describe('heartbeat Sentry cron monitor', () => {
     expect(yaml).toContain('"schedule":{"type":"crontab"')
   })
 
-  it('tells Sentry the same schedule GitHub actually fires on', () => {
-    expect(monitorConfig(yaml)?.schedule.value).toBe(workflowCron(yaml))
+  // Hours between firings, for the crontab forms this repo uses. A bare `*` in the
+  // hour field is hourly, a `*/N` step is every N hours, a single number is daily.
+  //
+  // ⚠️ Deliberately a LINE comment: a `*/N` step written inside a /** */ block closes
+  // the comment at the slash, and the parse error then surfaces twenty lines later on
+  // a line that is perfectly fine.
+  const intervalHours = (cron?: string): number | undefined => {
+    const hour = cron?.split(/\s+/)[1]
+    if (!hour) return undefined
+    if (hour === '*') return 1
+    const step = /^\*\/(\d+)$/.exec(hour)
+    if (step) return Number(step[1])
+    return /^\d+$/.test(hour) ? 24 : undefined
+  }
+
+  /**
+   * ⚠️ THIS USED TO DEMAND THE TWO SCHEDULES BE IDENTICAL, AND THAT RULE HAD TO GO.
+   *
+   * Identical is the wrong invariant. What makes Sentry false-alarm is expecting a
+   * check-in SOONER than one can arrive; being told to expect one less often is
+   * harmless, because a healthy run simply pings more than once per window. Since
+   * 2026-08-30 the workflow deliberately runs every 6 hours while telling Sentry to
+   * expect every 12 — see the long comment in heartbeat.yml for the measurement.
+   *
+   * So the rule is one-directional, and it still catches the drift the equality
+   * check was built for: slow the `cron:` down past what Sentry expects and this
+   * fails, which is the case that manufactures alarms nobody can act on.
+   */
+  it('never expects a check-in sooner than the cron can deliver one', () => {
+    const cron = intervalHours(workflowCron(yaml))
+    const sentry = intervalHours(monitorConfig(yaml)?.schedule.value)
+    expect(cron, 'could not parse the workflow cron').toBeDefined()
+    expect(sentry, 'could not parse the monitor_config schedule').toBeDefined()
+    expect(sentry).toBeGreaterThanOrEqual(cron as number)
   })
 
-  it('the schedule check can actually fail (negative control)', () => {
-    const drifted = yaml.replace('"value":"43 */6 * * *"', '"value":"0 * * * *"')
-    expect(monitorConfig(drifted)?.schedule.value).not.toBe(workflowCron(drifted))
+  it('fails when Sentry is told to expect pings FASTER than the cron (negative control)', () => {
+    // The direction that actually hurts: Sentry expecting hourly against a 6-hourly
+    // job would mark five of every six windows missed, forever.
+    const drifted = yaml.replace('"value":"43 */12 * * *"', '"value":"43 * * * *"')
+    const cron = intervalHours(workflowCron(drifted)) as number
+    expect(intervalHours(monitorConfig(drifted)?.schedule.value)).toBeLessThan(cron)
   })
 
-  it("allows more grace than GitHub's measured scheduling delay", () => {
-    // MEASURED 2026-08-26 across the last 11 scheduled runs of this workflow:
-    // 19, 33, 34, 36, 46, 50, 53, 60, 84, 88 and 90 minutes late. Every one late.
-    // The floor is the worst observed delay; the shipped value carries headroom
-    // above it. Re-measure before lowering either:
-    //   gh run list --workflow=heartbeat.yml --json createdAt,event
-    const WORST_OBSERVED_DELAY_MINUTES = 90
-    expect(monitorConfig(yaml)?.checkin_margin).toBeGreaterThanOrEqual(WORST_OBSERVED_DELAY_MINUTES)
+  it('the parser is not vacuous (negative control)', () => {
+    // If intervalHours returned undefined for everything, the assertion above would
+    // pass on nonsense. Pin the three forms it must actually decode.
+    expect(intervalHours('43 */6 * * *')).toBe(6)
+    expect(intervalHours('43 */12 * * *')).toBe(12)
+    expect(intervalHours('43 * * * *')).toBe(1)
+    expect(intervalHours('43 7 * * *')).toBe(24)
+  })
+
+  it('tolerates the worst GAP between check-ins, not merely the worst delay', () => {
+    // ⚠️ THE DELAY IS THE WRONG NUMBER, AND USING IT IS WHY THIS ALARM WAS WRONG.
+    //
+    // A margin sized against "how late is a run" assumes every run happens. GitHub
+    // also DROPS scheduled runs: measured 2026-08-30 over 39 scheduled runs of this
+    // workflow (2026-08-19 to 08-30), three were skipped outright, and the worst gap
+    // between consecutive check-ins was 818 minutes against a 6-hour cron — far past
+    // the worst single delay of 331. Median gap 364, i.e. usually fine.
+    //
+    // So the quantity that must exceed the worst gap is the FULL window Sentry
+    // allows: its expected interval plus the margin.
+    //   6h + 120 (the setting that alarmed from 2026-08-26) =  480 -> too small
+    //   6h + 355 (the most a 6h schedule can carry)         =  715 -> still too small
+    //  12h + 360 (shipped)                                  = 1080 -> 262 min headroom
+    //
+    // Re-measure the GAP before lowering either number:
+    //   gh run list --workflow=heartbeat.yml --limit 40 --json createdAt,event
+    const WORST_OBSERVED_GAP_MINUTES = 818
+    const config = monitorConfig(yaml)
+    const window =
+      (intervalHours(config?.schedule.value) as number) * 60 + (config?.checkin_margin ?? 0)
+    expect(window).toBeGreaterThan(WORST_OBSERVED_GAP_MINUTES)
+  })
+
+  it('the tolerance check can fail (negative control)', () => {
+    // Reproduce the state this repo was actually in on 2026-08-30: 6h + 120.
+    const previous = yaml
+      .replace('"value":"43 */12 * * *"', '"value":"43 */6 * * *"')
+      .replace('"checkin_margin":360', '"checkin_margin":120')
+    const config = monitorConfig(previous)
+    const window =
+      (intervalHours(config?.schedule.value) as number) * 60 + (config?.checkin_margin ?? 0)
+    expect(window).toBeLessThan(818)
   })
 })
 
@@ -145,9 +214,7 @@ describe('heartbeat WATCHED list', () => {
 
   it('uses a valid mode on every entry', () => {
     for (const entry of entries) {
-      expect(['success', 'completed'], `${entry.file} has mode "${entry.mode}"`).toContain(
-        entry.mode,
-      )
+      expect(['success', 'completed'], `$entry.filehas mode "${entry.mode}"`).toContain(entry.mode)
     }
   })
 
@@ -161,7 +228,7 @@ describe('heartbeat WATCHED list', () => {
 
   it('gives every entry a budget above its own cadence', () => {
     for (const entry of entries) {
-      expect(Number.isFinite(entry.hours), `${entry.file} has no numeric budget`).toBe(true)
+      expect(Number.isFinite(entry.hours), `$entry.filehas no numeric budget`).toBe(true)
       // GitHub delivers schedules 19-90 minutes late (measured, n=11), so a budget
       // equal to the cadence is a false alarm waiting to happen.
       expect(entry.hours).toBeGreaterThanOrEqual(24)

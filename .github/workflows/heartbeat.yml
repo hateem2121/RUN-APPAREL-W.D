@@ -284,18 +284,35 @@ jobs:
           # drifting unseen. `apps/cms/src/heartbeatMonitor.test.ts` fails if the value below
           # and the `cron:` above ever disagree.
           #
-          # checkin_margin is 120 MINUTES and that is a measurement, not padding.
-          # GitHub's scheduled runs are queued, not punctual. Measured 2026-08-26
-          # across the last 11 scheduled runs of THIS workflow, every one started
-          # late: 19, 33, 34, 36, 46, 50, 53, 60, 84, 88 and 90 minutes. The monitor
-          # was created with Sentry's default margin of ONE minute, so it logged
-          # `missed` at :44 on every cycle and the genuine check-in landed up to 90
-          # minutes afterwards — 00:44 missed → 02:13 ok, 06:44 missed → ok. The
-          # heartbeat was healthy throughout; only the alarm was wrong, which is the
-          # worse failure: a watchdog that cries wolf every cycle teaches you to
-          # ignore it. Re-measure before narrowing it:
-          #   gh run list --workflow=heartbeat.yml --json createdAt,event
-          payload='{"status":"ok","monitor_config":{"schedule":{"type":"crontab","value":"43 */6 * * *"},"checkin_margin":120,"max_runtime":30,"timezone":"UTC","failure_issue_threshold":1,"recovery_threshold":1}}'
+          # ⚠️ THE SCHEDULE BELOW IS DELIBERATELY LOOSER THAN THE `cron:` ABOVE, AND
+          # THAT IS THE WHOLE FIX. The job still runs every 6 hours; Sentry is told to
+          # expect a check-in every 12. So a healthy heartbeat pings roughly twice per
+          # window and one dropped or badly-queued run cannot raise an alarm.
+          #
+          # WHY, MEASURED 2026-08-30 over 39 scheduled runs (2026-08-19 to 08-30).
+          # The number that matters is NOT the lateness of a run, it is the GAP
+          # between consecutive check-ins — because GitHub does not merely queue a
+          # scheduled run, it sometimes DROPS one entirely. Three were dropped in that
+          # sample. Worst observed gap: **818 minutes (13.6 h)** on a 6-hour cron,
+          # median 364.
+          #
+          # A monitor false-alarms unless (expected interval + margin) exceeds the
+          # worst gap. 12h + 360 = 1080 minutes, against 818 observed — 4.4 hours of
+          # headroom. The tempting smaller fix does NOT work and was measured:
+          #   6h + 120 (previous) =  480 min -> alarms, and did, from 2026-08-26
+          #   6h + 355 (the most  =  715 min -> STILL alarms
+          #          a 6h schedule can carry)
+          #
+          # This replaced a 2026-08-26 setting of 120 minutes, itself chosen from a
+          # then-correct measurement of 19-90 minutes. GitHub's delivery degraded
+          # sharply after that date, so the alarm was wrong on most cycles and issue
+          # VIEWER-4 accumulated 17 occurrences while the workflow was healthy
+          # throughout. A watchdog that cries wolf every cycle teaches you to ignore
+          # it, which is worse than no watchdog.
+          #
+          # Re-measure both numbers before tightening either — the gap, not the delay:
+          #   gh run list --workflow=heartbeat.yml --limit 40 --json createdAt,event
+          payload='{"status":"ok","monitor_config":{"schedule":{"type":"crontab","value":"43 */12 * * *"},"checkin_margin":360,"max_runtime":30,"timezone":"UTC","failure_issue_threshold":1,"recovery_threshold":1}}'
           curl -fsS --max-time 15 --retry 2 --retry-delay 3 --retry-all-errors \
             -o /dev/null -X POST "${SENTRY_CRON_URL}" \
             -H 'Content-Type: application/json' -d "${payload}"
