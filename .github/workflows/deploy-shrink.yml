@@ -82,13 +82,25 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # ⚠️ `pnpm lint` WAS MISSING HERE UNTIL 2026-08-30, and `pnpm test` was the
+      # bare runner. Both matter, and the second is the subtle one: vitest evaluates
+      # a `thresholds:` block ONLY when coverage is on, and only `test:coverage`
+      # passes `--coverage`. So this workflow — the one that ships the container
+      # decimating every garment's printed artwork — enforced NO coverage floors and
+      # NO lint, while ci.yml enforced both.
+      #
+      # This is the generalised trap already recorded in .github/CLAUDE.md: two
+      # workflows deliberately duplicate the same gates, so a fix applied to one is
+      # only half a fix. It was true of gitleaks for three months, and it was true
+      # of these two lines for as long.
+      - run: pnpm lint
       - run: pnpm typecheck
       # Not a workspace member, so `pnpm typecheck` skips it — and it is the
       # server that drives the pipeline for every upload.
       - name: Typecheck shrink container
         working-directory: apps/shrink/container
         run: npm install --no-audit --no-fund && npx tsc --noEmit
-      - run: pnpm test
+      - run: pnpm test:coverage
 
   # THE ARTWORK GATE, ON THE PATH THAT DECIMATES ARTWORK.
   #

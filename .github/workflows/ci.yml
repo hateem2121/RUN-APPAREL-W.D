@@ -340,11 +340,23 @@ jobs:
   # owner reads, and GLB_HARD_MAX_BYTES in the CMS upload guard.
   #
   # What this job genuinely protects is the *application shell* — scripts, CSS,
-  # fonts — which is byte-for-byte the same in production as it is here. The
-  # budgets in lighthouserc.json are scoped to exactly that and are set ~16-46%
-  # above measured, so a stray dependency fails the check. The old
+  # fonts. The budgets in lighthouserc.json are scoped to exactly that and are set
+  # ~16-46% above measured, so a stray dependency fails the check. The old
   # `total-byte-weight` assertion was removed: it summed the shell and the model
   # together, which made a 2.1 MB ceiling look like a claim about the live page.
+  #
+  # ⚠️ THIS SAID THE SHELL IS "byte-for-byte the same in production as it is here"
+  # UNTIL 2026-08-30. IT IS NOT. This job builds with no `VITE_SENTRY_DSN`, and
+  # apps/viewer/src/lib/sentry.ts only `import()`s the SDK when a DSN is present —
+  # so the Sentry chunk exists in production and in NO build this gate ever weighs.
+  # Measured that day on the live site: the entry chunk dynamically imports
+  # `prod-GTOH4Bob.js`, which serves 200 with `content-length: 85013` (~28.5 KB
+  # gzip), while `ls apps/viewer/dist/assets/prod-*` matches nothing locally.
+  #
+  # The gate is still worth having — a stray dependency in the shell still fails it
+  # — but it measures a build a customer never receives, and the deploy job's build
+  # (which DOES carry the DSN) is weighed by nothing. Do not read a green run as a
+  # statement about the live page's script weight.
   lighthouse:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -589,6 +601,35 @@ jobs:
       # traffic keeps hitting the last-good version against the last-good schema.
       # Migrations should be additive (expand/contract) so the currently-running
       # Worker tolerates the new schema during the brief window before deploy.
+      # BACK UP BEFORE MIGRATING, NOT NIGHTLY-AND-HOPE.
+      #
+      # Added 2026-08-30. `docs/BACKUP-RESTORE.md` and CLAUDE.md both instruct a
+      # human to take a D1 backup before merging to main — and nothing enforced it,
+      # so the only snapshot behind an automated production migration was whenever
+      # nightly-backup.yml last happened to run.
+      #
+      # ⚠️ "Nightly" is a request, not a schedule. Measured 2026-08-30 across ten
+      # runs of a nominal `17 2 * * *` cron, GitHub delivered them at 03:07, 03:09,
+      # 03:12, 03:15, 03:16, 03:18, 08:18, 09:03, 12:47 and 14:21 UTC — worst case
+      # more than TWELVE HOURS late. A late-day merge could therefore migrate
+      # production against a snapshot 16+ hours old, which is the gap between "we
+      # have backups" and "we have a backup of the thing we are about to change".
+      #
+      # `if: always()` on the upload so the artifact survives a FAILED migration —
+      # which is precisely when it is needed.
+      - name: Back up production D1 before migrating
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/backup-d1.mjs --stamp="pre-deploy-${{ github.sha }}"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: d1-pre-deploy-${{ github.sha }}
+          path: backups/d1/*.sql
+          retention-days: 90
+
       - name: Apply pending D1 migrations (gated, pre-deploy)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
