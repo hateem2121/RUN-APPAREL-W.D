@@ -328,6 +328,36 @@ jobs:
         # on ubuntu-latest) and pushes it to Cloudflare's registry, then deploys.
         run: pnpm --filter @run-apparel/shrink exec wrangler deploy
 
+      # ALERTING ONLY EXISTS IF THIS RUNS.
+      #
+      # Found 2026-08-30: the shrink Worker's failure alerting was built on
+      # 2026-08-29 and its one required secret was never set. `wrangler secret list
+      # --name run-apparel-viewer-shrink` returned exactly CMS_ROBOT_API_KEY,
+      # R2_INGEST_ACCESS_KEY_ID and R2_INGEST_SECRET_ACCESS_KEY. `apps/shrink/src/
+      # sentry.ts` is a deliberate no-op without a DSN — "safe to deploy before the
+      # DSN exists" — so a failed garment told nobody, quietly, and the code looked
+      # correct the whole time.
+      #
+      # A one-off `wrangler secret put` from a laptop would fix it once and leave the
+      # value existing only inside Cloudflare: recreate the Worker and the alerting
+      # goes inert again, silently, which is the same failure. Mirrors ci.yml's
+      # PAYLOAD_SECRET step so the value is under version-controlled process.
+      #
+      # Gated inside the shell rather than by `if:` on purpose — a job-level `env:`
+      # would put the DSN in the environment of `pnpm install` too, which is the
+      # exposure this repo is separately closing.
+      - name: Apply worker secret (SENTRY_DSN)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          if [ -z "$SENTRY_DSN" ]; then
+            echo "::warning::SENTRY_DSN secret is not set — the shrink robot's failure alerting is INERT. Set it with: gh secret set SENTRY_DSN"
+            exit 0
+          fi
+          printf '%s' "$SENTRY_DSN" | pnpm --filter @run-apparel/shrink exec wrangler secret put SENTRY_DSN
+
       # Proof the IMAGE moved, not just the Worker script. On 2026-07-27 a
       # pipeline fix shipped to the CMS while the container kept running a
       # three-day-old image, because this job had already failed and nothing

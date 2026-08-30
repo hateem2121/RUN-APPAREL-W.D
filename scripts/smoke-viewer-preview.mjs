@@ -25,6 +25,8 @@
  * reported as "the previews are broken".
  */
 
+import { DEFAULT_PRODUCT, squashCode } from './live-products.mjs'
+
 const [, , baseArg, productArg, colourArg] = process.argv
 
 const BASE = (baseArg || 'https://viewer.wear-run.help').replace(/\/+$/, '')
@@ -32,12 +34,12 @@ const BASE = (baseArg || 'https://viewer.wear-run.help').replace(/\/+$/, '')
 // the block in smoke-viewer-payload.mjs. Against the dead slug this reported "the
 // per-garment rewrite did not run", which reads as a broken Worker and was a
 // missing garment.
-const PRODUCT = productArg || 'rxps'
+const PRODUCT = productArg || DEFAULT_PRODUCT.slug
 // Must be a slug that EXISTS, for the same reason smoke-viewer-payload.mjs says
 // so: a retired slug falls back to the default colourway and still produces a
 // complete, correct-looking preview, so the check would pass forever while only
 // ever exercising the fallback.
-const COLOUR = colourArg || 'wine'
+const COLOUR = colourArg || DEFAULT_PRODUCT.colourway
 
 const CRAWLER_UA = 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
 const BROWSER_UA =
@@ -117,7 +119,9 @@ async function runChecks() {
   //    is the same rename-shaped breakage that took out BOTH post-deploy gates on
   //    2026-08-15 when `n001` became `rxps`; that one was fixed by editing a
   //    default, which left the next rename free to do it again.
-  const squash = (s) => s.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  // Shared with live-products.mjs so the rule cannot drift between the two
+  // places that squash a product code.
+  const squash = squashCode
   const expectCode = squash(PRODUCT)
   const title = html.match(/<title>([^<]*)<\/title>/i)?.[1] ?? ''
   if (!squash(title).includes(expectCode)) {

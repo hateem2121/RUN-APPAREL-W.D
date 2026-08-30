@@ -14,9 +14,14 @@ on:
     # 5 minutes (3x more often) and costs no Actions minutes. What stayed here is
     # the part that service CANNOT do: smoke-viewer-payload.mjs resolves the
     # model URL out of the live API payload and fetches it, so a garment that
-    # silently lost its GLB is caught; and the catalogue probe asserts the
-    # redirect still lands on the PDF. Neither is expressible as an HTTP or
+    # silently lost its GLB is caught; and apex-probe.mjs asserts the catalogue
+    # and profile PDFs actually serve. Neither is expressible as an HTTP or
     # keyword check.
+    #
+    # ⚠️ This said "the catalogue probe asserts the redirect still lands on the
+    # PDF" until 2026-08-30. It never did — the old check tested only that a 3xx
+    # carried a non-empty Location, never where it pointed — and by then there was
+    # no redirect at all. See scripts/apex-probe.mjs for what is asserted now.
     #
     # The old comment's warning still applies to whatever cadence is set here:
     # measured 2026-08-10 over 100 runs, GitHub delivered 27% of the requested
@@ -76,12 +81,11 @@ jobs:
       # web server answered, not that a garment exists. The real assertion in this
       # job is the `smoke-viewer-payload.mjs` step below, which reads the API.
       VIEWER_URL: https://viewer.wear-run.help/rxps/wine
-      # L5, 2026-08-18. The catalogue button was the ONLY user-facing link in the
-      # product that no test or uptime check covered. It 301s at the edge to a
-      # Google Drive preview URL whose sharing state, file ID and continued
-      # existence cannot be verified from this repository and sit outside
-      # Cloudflare entirely — so it could break and nothing here would notice.
-      CATALOGUE_URL: https://wear-run.help/catalogue
+      # CATALOGUE_URL was here until 2026-08-30. It is gone deliberately: it was a
+      # second copy of `siteSettings.catalogueUrl`, which the CMS owns and which is
+      # overridable per product. scripts/apex-probe.mjs reads it from the live
+      # payload instead. A hard-coded duplicate of a CMS value is the exact shape of
+      # the n001 -> rxps drift that broke two post-deploy gates on 2026-08-15.
       # The raw dispatch input, carried as an environment variable so the shell
       # below can test it WITHOUT interpolating it. `if [ "${{ ... }}" = "" ]`
       # pastes the operator's string straight into the script, so a `target` of
@@ -112,48 +116,62 @@ jobs:
           # that noise; a genuine outage still fails all three attempts. `--retry-all-errors`
           # is needed because plain --retry only retries transient HTTP codes, not the
           # connection failures an actual outage produces.
-          curl -fsS --max-time 20 --retry 2 --retry-delay 5 --retry-all-errors "$HEALTH_URL" || ok=false
+          #
+          # ⚠️ 403/429/503 ARE INCONCLUSIVE, NEVER FAILURES. Free-plan Bot Fight Mode
+          # blocks datacenter IPs intermittently; it has already forced a rollback and
+          # failed a deploy on this repo. These two curls used `-f`, which makes a 403
+          # a hard failure and opens an outage issue on Cloudflare's mood — training
+          # the owner to ignore the alarm, which is how this check sat dead for 17
+          # days. The catalogue branch below always had this rule; health and viewer
+          # did not. Added 2026-08-30, before the API moves onto the zone host where
+          # Bot Fight Mode can actually see it.
+          probe_url() {
+            label="$1"
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+              --retry 2 --retry-delay 5 --retry-all-errors "$2" || echo 000)
+            case "$code" in
+              2*) echo "$label: $code" ;;
+              403|429|503)
+                echo "::warning::$label returned $code — inconclusive (Bot Fight Mode), not an outage"
+                ;;
+              *)
+                echo "::error::$label returned $code"
+                ok=false
+                ;;
+            esac
+          }
+
+          probe_url health "$HEALTH_URL"
           if [ -z "$TARGET_OVERRIDE" ]; then
-            curl -fsS --max-time 20 --retry 2 --retry-delay 5 --retry-all-errors -o /dev/null "$VIEWER_URL" || ok=false
+            probe_url viewer "$VIEWER_URL"
             # Both curls above pass against a product serving NO MODEL: the SPA
             # shell returns 200 and renders its no-model state. This resolves the
             # model URL the way the viewer does and fetches it, so a garment that
             # silently lost its GLB pages someone instead of sitting there.
             # Skipped on a manual `target` override, which is for testing the
             # alert path with a bogus URL.
-            node scripts/smoke-viewer-payload.mjs || ok=false
+            # Every live product since 2026-08-30, not just the first: `r-xmp` was
+            # covered by nothing.
+            node scripts/smoke-live-products.mjs || ok=false
 
-            # L5: assert the REDIRECT, not merely that something answered. A bare
-            # status check is exactly what kept this job green for 23 hours while
-            # both post-deploy gates were broken — the viewer is an SPA and returns
-            # 200 on any path. Here the whole point is WHERE it sends people.
+            # The apex PDFs — the catalogue button is the only user-facing link in
+            # the product that no test covers.
             #
-            # HEAD, not GET: this runs every 15 minutes, and the repo's egress is
-            # capped at $5/month.
-            cat_code=$(curl -s -o /dev/null -w '%{http_code}' -I --max-time 20 \
-              --retry 2 --retry-delay 5 --retry-all-errors "$CATALOGUE_URL" || echo 000)
-            cat_loc=$(curl -s -o /dev/null -w '%{redirect_url}' -I --max-time 20 "$CATALOGUE_URL" || echo '')
-            echo "catalogue: $cat_code -> ${cat_loc:-(none)}"
-            case "$cat_code" in
-              403)
-                # Free-plan Bot Fight Mode intermittently blocks datacenter
-                # traffic. A 403 from a wear-run.help host is INCONCLUSIVE, never a
-                # failed assertion — it has already forced a rollback and failed a
-                # deploy on this repo. Paging the owner for it would train them to
-                # ignore this alarm.
-                echo "::warning::403 from the edge — inconclusive (Bot Fight Mode), not treated as an outage"
-                ;;
-              301|302|307|308)
-                if [ -z "$cat_loc" ]; then
-                  echo "::error::catalogue redirected to nothing"
-                  ok=false
-                fi
-                ;;
-              *)
-                echo "::error::catalogue returned $cat_code, expected a redirect"
-                ok=false
-                ;;
-            esac
+            # ⚠️ THIS USED TO ASSERT A 301 TO GOOGLE DRIVE, and it was wrong twice
+            # over. On 2026-08-28 the PDFs moved into R2 and the apex Worker began
+            # answering them with a 200, so the check errored on every run and opened
+            # outage issue #47 against a healthy site — while the run still concluded
+            # `success`, because `ok=false` was only a shell variable. And even
+            # before that it never asserted what it claimed: the 3xx branch tested
+            # only that `Location` was non-empty, never where it pointed.
+            #
+            # scripts/apex-probe.mjs replaces it with something stronger: a RANGED
+            # GET (1 KB, and unlike HEAD it reads the entry a browser would read, so
+            # a cached 404 is visible), asserting 200/206 + application/pdf + a size
+            # floor + the `%PDF-` magic number — because an error page can be served
+            # 200 with a coerced content-type. It resolves the URL from the live CMS
+            # payload rather than keeping a second copy of a value the CMS owns.
+            node scripts/apex-probe.mjs || ok=false
           fi
           echo "ok=$ok" >> "$GITHUB_OUTPUT"
 
@@ -245,3 +263,29 @@ jobs:
           else
             echo "#$num was updated ${age_min}m ago, inside the ${ALERT_QUIET_MINUTES}m quiet window — not commenting."
           fi
+
+      # FAIL THE RUN — and do it HERE, after the alert, not inside `check`.
+      #
+      # ⚠️ THIS STEP'S POSITION IS LOAD-BEARING. The Alert step above is guarded by
+      # `if: steps.check.outputs.ok == 'false'`. GitHub inserts an implicit
+      # `success() &&` in front of any `if:` that contains no status-check function,
+      # so the moment the `check` step exits non-zero, `success()` is false and the
+      # ALERT IS SKIPPED — no issue is created, no comment is posted. Failing inside
+      # `check` therefore trades a lying green tick for a dead alarm, which is
+      # strictly worse: today's broken state at least still opened issue #47.
+      #
+      # Why the run must fail at all: until 2026-08-30 `ok=false` was only a shell
+      # variable and `echo "ok=$ok" >> "$GITHUB_OUTPUT"` was the last command, so it
+      # succeeded and the run concluded `success`. The Actions tab showed a tick
+      # while the log showed `##[error]`. heartbeat.yml watches this workflow for
+      # SUCCESSFUL runs, so the false green blinded the watchdog too.
+      #
+      # Do NOT "simplify" this by making the Alert step `if: always() && ...`
+      # instead. That also works, but scripts/test-alert-shell.sh extracts the Alert
+      # step by name and indentation, and editing that block is how the alert path
+      # silently stopped being exercised the last time.
+      - name: Fail the run when a check failed
+        if: steps.check.outputs.ok == 'false'
+        run: |
+          echo "::error::Uptime assertions failed — see the 'Check CMS health + viewer' step log."
+          exit 1

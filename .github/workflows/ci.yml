@@ -711,10 +711,29 @@ jobs:
           rm -f apps/viewer/dist/_redirects
           pnpm --filter @run-apparel/viewer exec wrangler deploy
 
+      # ⚠️ 403/429/503 ARE INCONCLUSIVE, NEVER FAILURES — and this step did not know
+      # that until 2026-08-30. `curl -fsS` makes any non-2xx a hard failure, which is
+      # survivable only while VITE_API_BASE_URL points at a `*.workers.dev` host,
+      # OUTSIDE the wear-run.help zone where free-plan Bot Fight Mode operates. The
+      # moment the API moves onto cms.wear-run.help, one intermittent 403 from a
+      # datacenter IP fails a deploy that succeeded — which is exactly the incident
+      # that forced the first cutover to be rolled back within the hour.
       - name: Post-deploy health check
-        run: >-
-          curl -fsS --retry 5 --retry-delay 10
-          "${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}/api/health"
+        env:
+          HEALTH_URL: ${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}/api/health
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+            --retry 5 --retry-delay 10 --retry-all-errors "$HEALTH_URL" || echo 000)
+          case "$code" in
+            2*) echo "health: $code" ;;
+            403|429|503)
+              echo "::warning::health returned $code — inconclusive (Bot Fight Mode), not a failed deploy"
+              ;;
+            *)
+              echo "::error::health returned $code"
+              exit 1
+              ;;
+          esac
 
       # /api/health returns {"ok":true} from a worker with an empty database, so
       # it proves the process is up and nothing about whether a buyer scanning a
@@ -731,7 +750,9 @@ jobs:
         # minutes would buy nothing. See check 4 in the script.
         env:
           SMOKE_BROWSER_GET: '1'
-        run: node scripts/smoke-viewer-payload.mjs "${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}"
+        # Loops EVERY live product since 2026-08-30. It ran only `rxps` before, so
+        # the second live garment (`r-xmp`, X-MILO PRO BIB) was verified by nothing.
+        run: node scripts/smoke-live-products.mjs "${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}"
 
       # The per-garment link preview is produced by an HTMLRewriter in
       # apps/viewer/worker/index.ts, and HTMLRewriter does not exist under vitest —

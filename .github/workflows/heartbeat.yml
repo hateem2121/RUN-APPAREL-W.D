@@ -94,28 +94,73 @@ jobs:
           # delimiters included, to the LAST variable, so `daily at 07:23 UTC` arrives
           # whole. Verified against this exact loop shape. A colon in `hours` WOULD
           # break — that field is not last — but a cadence label is safe.
+          # FIELDS: file:hours:mode:cadence  — `cadence` stays LAST so `read` can
+          # absorb its colons (see the note above).
+          #
+          # `mode` decides WHICH QUESTION is asked, and it was added 2026-08-30
+          # because the two are not the same question:
+          #
+          #   success   — "did it run AND pass?"  Right for a workflow whose whole
+          #               job is to succeed quietly (a backup, a digest).
+          #   completed — "did it RUN at all?"    Right for uptime.yml, because
+          #               uptime.yml now legitimately FAILS when the site is broken.
+          #
+          # ⚠️ WITHOUT THIS, FIXING uptime.yml BREAKS heartbeat.yml. Until 2026-08-30
+          # uptime.yml always concluded `success` even while its own assertions were
+          # failing, so `--status success` was satisfied every day and this loop never
+          # fired. Now that it can go red, a genuine outage lasting past the budget
+          # would make heartbeat open a SECOND issue saying the workflow has "no
+          # successful run on record at all" and "a CHECK is not running" — which is
+          # false: the check is running and correctly reporting the outage. A watchdog
+          # that says the wrong thing during a real incident is this repo's
+          # most-repeated recorded failure. uptime.yml owns "is the site up"; heartbeat
+          # owns "is the watcher still watching".
           WATCHED="
-          uptime.yml:36:daily at 07:23 UTC
-          nightly-backup.yml:36:nightly
-          diagnostics-digest.yml:192:weekly on Mondays
+          uptime.yml:36:completed:daily at 07:23 UTC
+          nightly-backup.yml:36:success:nightly
+          diagnostics-digest.yml:192:success:weekly on Mondays
+          perf-watch.yml:192:success:weekly on Mondays
           "
+
+          # perf-watch.yml was NOT watched until 2026-08-30 — it could have stopped
+          # running for weeks in silence, because nothing enumerated the workflows.
+          #
+          # The guard that every watched file still EXISTS lives in
+          # `apps/cms/src/heartbeatMonitor.test.ts`, not here, and deliberately so:
+          # this job checks nothing out (see the `permissions:` note above, which
+          # warns against adding `actions/checkout`), so it cannot read
+          # `.github/workflows/` at all. A rename would otherwise make this loop
+          # report "no successful run on record at all" forever — indistinguishable
+          # from a genuinely dead check.
 
           stale=""
           now=$(date -u +%s)
 
-          while IFS=: read -r file hours cadence; do
+          while IFS=: read -r file hours mode cadence; do
             [ -z "$file" ] && continue
 
             # `--status success` alone is not enough: a run whose only job was
             # skipped by an `if:` also concludes as success, so a workflow that is
             # silently not doing its work would look healthy. Ask for the newest
             # successful run and treat "none at all" as stale rather than as pass.
-            last=$(gh run list --workflow "$file" --status success --limit 1 \
+            #
+            # `mode: completed` asks the OTHER question — "did it run at all?" — for
+            # a workflow that is allowed to fail on purpose. See the WATCHED comment.
+            last=$(gh run list --workflow "$file" --status "$mode" --limit 1 \
                      --json createdAt --jq '.[0].createdAt // empty' 2>/dev/null || echo "")
 
+            # The wording has to match the question, or the alert misleads whoever
+            # reads it at 3am. "no successful run" on a workflow watched for
+            # completion would be simply false while it is correctly reporting an
+            # outage.
+            case "$mode" in
+              completed) verb="ran" ;;
+              *) verb="succeeded" ;;
+            esac
+
             if [ -z "$last" ]; then
-              stale="${stale}- \`${file}\` — **no successful run on record at all** (expected ${cadence})\n"
-              echo "STALE  $file — no successful run found"
+              stale="${stale}- \`${file}\` — **has not ${verb} at all** on record (expected ${cadence})\n"
+              echo "STALE  $file — no run matching '$mode' found"
               continue
             fi
 
@@ -123,7 +168,7 @@ jobs:
             age_h=$(( (now - last_epoch) / 3600 ))
 
             if [ "$age_h" -gt "$hours" ]; then
-              stale="${stale}- \`${file}\` — last succeeded **${age_h}h ago**, budget ${hours}h (runs ${cadence})\n"
+              stale="${stale}- \`${file}\` — last ${verb} **${age_h}h ago**, budget ${hours}h (runs ${cadence})\n"
               echo "STALE  $file — ${age_h}h old (budget ${hours}h)"
             else
               echo "ok     $file — ${age_h}h old (budget ${hours}h)"
