@@ -548,9 +548,18 @@ jobs:
     # `e2e` joined on 2026-08-20, when it was split out of `verify`. It was never
     # ungated — it was INSIDE `verify`, which is on this list — and adding it here is
     # what keeps that true. ⚠️ The `main` ruleset's required-status-checks list is a
-    # SECOND place that has to name it, and it is org config no test here can read.
-    # `apps/cms/src/workflowHardening.test.ts` enforces this half; the other half is
-    # manual, and forgetting it means a red e2e no longer blocks a merge.
+    # SECOND place that has to name it, and forgetting it means a red e2e no longer
+    # blocks a merge. `apps/cms/src/workflowHardening.test.ts` enforces this half.
+    #
+    # ⚠️ THIS SAID THE RULESET IS "org config no test here can read" UNTIL 2026-08-30.
+    # It is not org config — `gh api repos/RUN-APPAREL/run-apparel-viewer/rulesets/21016174`
+    # returns `"source_type": "Repository"` and its five contexts under the ordinary
+    # `repo` scope. Run that when changing a gating job; it is one command, and the
+    # belief that it was unreadable is why nobody did.
+    #   gh api repos/RUN-APPAREL/run-apparel-viewer/rulesets/21016174 \
+    #     --jq '[.rules[]|select(.type=="required_status_checks").parameters.required_status_checks[].context]'
+    # It still cannot be a CI GATE: GITHUB_TOKEN has no `administration` permission,
+    # so a workflow cannot read it. Unreadable BY CI is not the same as unreadable.
     # A job-level `permissions:` block REPLACES the workflow default, it does not
     # add to it — so `contents: read` MUST be restated here or `actions/checkout`
     # fails with a 404 on this private repo. That is the exact bug that killed

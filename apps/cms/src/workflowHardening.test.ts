@@ -596,8 +596,21 @@ jobs:
    * writing, which it is.
    *
    * ⚠️ THIS COVERS ONLY HALF THE PROBLEM. The `main` ruleset's required-status-checks
-   * list is the other place a gate must be named, and it is org configuration this
-   * test cannot read. `needs:` stops the DEPLOY; the ruleset stops the MERGE.
+   * list is the other place a gate must be named. `needs:` stops the DEPLOY; the
+   * ruleset stops the MERGE.
+   *
+   * ⚠️ THIS SAID THE RULESET WAS "org configuration this test cannot read" UNTIL
+   * 2026-08-30, AND THAT WAS WRONG IN A WAY THAT MATTERED. It is a REPOSITORY
+   * ruleset — `gh api repos/RUN-APPAREL/run-apparel-viewer/rulesets/21016174` returns
+   * `"source_type": "Repository"` and its five contexts under the ordinary `repo`
+   * scope. So the manual check is one command, not an impossibility, and believing
+   * otherwise is why it was never made part of the routine.
+   *
+   * It still cannot be automated HERE: the endpoint needs Administration:read, and
+   * `GITHUB_TOKEN` has no `administration` permission, so a workflow cannot read it
+   * either. A test that reached the network would also be the wrong trade. The
+   * correct conclusion is "check it by hand, here is the command" — not "it cannot
+   * be checked".
    */
   it('gates the deploy on every job except the declared non-gating ones', async () => {
     // `lighthouse` is deliberately non-gating and ci.yml says why: its category scores
