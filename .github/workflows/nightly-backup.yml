@@ -29,6 +29,18 @@ jobs:
     if: vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # ⚠️ STEP ONE OF TWO, AND THE ORDER IS LOAD-BEARING. This job reads
+    # CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, which are still REPO-level
+    # secrets, so declaring the environment changes nothing today. Once every job
+    # that uses them declares it, the secrets move into the environment. Done the
+    # other way round, the secret resolves to an EMPTY STRING here and this job
+    # fails at the first wrangler call — silently, on a schedule, at night.
+    #
+    # ⚠️ AND IT WAS HALF-DONE UNTIL 2026-08-30: ci.yml's and deploy-shrink.yml's
+    # `deploy` jobs already declared it, but this one and the other scheduled job
+    # did not — so moving the secrets would have taken out the backup and the
+    # weekly digest while the deploys carried on looking fine.
+    environment: production
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
