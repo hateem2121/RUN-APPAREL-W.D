@@ -652,4 +652,119 @@ jobs:
     const needs = new Set(deployNeeds(source))
     expect(declaredJobs(source).filter((j) => !NON_GATING.has(j) && !needs.has(j))).toEqual(['e2e'])
   })
+
+  /**
+   * ELEVENTH RULE, ADDED 2026-08-30 AFTER THIS SUITE PASSED ON A BROKEN WORKFLOW.
+   *
+   * Moving two secrets out of a job-level `env:` block deleted the `env:` key and left
+   * `GH_TOKEN:` orphaned one level deeper than `timeout-minutes: 10`. That is invalid
+   * YAML — a key cannot be nested under a scalar — so GitHub could not parse the file
+   * and created a run named after the PATH with no jobs and `conclusion: failure`.
+   *
+   * ⚠️ NOTHING CAUGHT IT. The other ten rules are line-and-regex based and never parse
+   * the document, `biome` does not lint YAML, and the PR's own checks were all green —
+   * because a workflow that fails to parse produces its own separate run rather than a
+   * check on the pull request. The failure was visible only in the Actions tab, on a
+   * workflow nobody was watching, and `diagnostics-digest` is the ONLY thing that reads
+   * the Events table. It had already been silently broken once before for the same
+   * class of reason (a `permissions:` block missing `contents: read`).
+   *
+   * A real YAML parser would be the strong fix, but neither `yaml` nor `js-yaml` is a
+   * dependency here and adding one for a single test trips the shared-dependency-version
+   * gate and the 24h cooldown. This checks the one rule that was actually violated:
+   * a key may not be indented deeper than a preceding key that already has a value.
+   * Verified against all seven workflows with zero false positives, and against a
+   * synthetic orphan which it catches.
+   */
+  const orphanedKeys = (source: string) => {
+    const lines = source.split('\n')
+    const bad: { line: number; text: string; after: string }[] = []
+    let blockIndent: number | null = null
+    let prev: { indent: string; key: string; hasScalar: boolean } | null = null
+
+    lines.forEach((line, i) => {
+      // Inside a `run: |` block scalar every deeper line is free text, not YAML.
+      if (blockIndent !== null) {
+        const ind = line.search(/\S/)
+        if (line.trim() === '' || ind > blockIndent) return
+        blockIndent = null
+      }
+      if (line.trim() === '' || /^\s*#/.test(line)) return
+
+      const m = /^(\s*)([\w.<>@$-]+):(\s*)(.*)$/.exec(line)
+      if (!m) {
+        prev = null
+        return
+      }
+      // Read the groups individually: under `strict`, destructured regex groups are
+      // `string | undefined`, and this regex always matches all four when it matches.
+      const indent = m[1] ?? ''
+      const key = m[2] ?? ''
+      const rest = m[4] ?? ''
+      if (prev && indent.length > prev.indent.length && prev.hasScalar) {
+        bad.push({ line: i + 1, text: line.trim(), after: prev.key })
+      }
+      const value = rest.trim()
+      if (/^[|>]/.test(value)) {
+        blockIndent = indent.length
+        prev = null
+        return
+      }
+      prev = { indent, key, hasScalar: value !== '' && !value.startsWith('#') }
+    })
+    return bad
+  }
+
+  it('never nests a key under one that already has a value (parse guard)', async () => {
+    const files = await workflowFiles()
+    const problems: string[] = []
+    for (const file of files) {
+      for (const b of orphanedKeys(read(file))) {
+        problems.push(
+          `${file}:${b.line} "${b.text}" is indented under "${b.after}:", which already has a value`,
+        )
+      }
+    }
+    expect(
+      problems,
+      'This is invalid YAML. GitHub cannot parse the file, so it produces a run named\n' +
+        'after the path with no jobs — and NOT a failed check on the pull request, so CI\n' +
+        'goes green. Usually caused by deleting a parent key and leaving its children.\n' +
+        `${problems.join('\n')}`,
+    ).toEqual([])
+  })
+
+  it('the parse guard can actually fail (negative control)', () => {
+    // The exact shape shipped in this PR: `env:` removed, GH_TOKEN left behind.
+    const broken = [
+      'jobs:',
+      '  digest:',
+      '    runs-on: ubuntu-latest',
+      '    timeout-minutes: 10',
+      // The VALUE is irrelevant to the rule and is written plainly here on purpose:
+      // a literal `${{ … }}` in a TS string trips biome's noTemplateCurlyInString.
+      "      GH_TOKEN: <the workflow's own token>",
+      '    steps:',
+      '      - run: echo hi',
+    ].join('\n')
+    expect(orphanedKeys(broken)).toHaveLength(1)
+    expect(orphanedKeys(broken)[0]?.text).toContain('GH_TOKEN')
+
+    // And legitimate nesting must NOT trip it, or the rule above is unusable.
+    const fine = [
+      'jobs:',
+      '  build:',
+      '    runs-on: ubuntu-latest',
+      '    env:',
+      '      TOKEN: abc',
+      '    steps:',
+      '      - name: x',
+      '        run: |',
+      '          deeper: this is shell, not yaml',
+      '      - name: y',
+      '        env:',
+      '          A: b',
+    ].join('\n')
+    expect(orphanedKeys(fine)).toEqual([])
+  })
 })

@@ -43,6 +43,22 @@ jobs:
     if: vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # ⚠️ STEP ONE OF TWO, AND THE ORDER IS LOAD-BEARING. This job reads
+    # CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, which are still REPO-level
+    # secrets, so declaring the environment changes nothing today. Once every job
+    # that uses them declares it, the secrets move into the environment. Done the
+    # other way round, the secret resolves to an EMPTY STRING here and this job
+    # fails at the first wrangler call — silently, on a schedule, at night.
+    #
+    # ⚠️ AND IT WAS HALF-DONE UNTIL 2026-08-30: ci.yml's and deploy-shrink.yml's
+    # `deploy` jobs already declared it, but this one and the other scheduled job
+    # did not — so moving the secrets would have taken out the backup and the
+    # weekly digest while the deploys carried on looking fine.
+    environment: production
+    env:
+      # Stays at job level: it is the workflow's OWN scoped token, not a production
+      # credential, and several steps use it. The two Cloudflare secrets that used to
+      # sit here are now scoped to the two steps that need them — see below.
       GH_TOKEN: ${{ github.token }}
     steps:
       # Aligned to the versions every other workflow here already proves in
@@ -72,7 +88,6 @@ jobs:
 
       # Diagnostics and errors only. `analytics` rows are the healthy path and
       # would drown the signal.
-      - name: Read the last 7 days of diagnostics
       # ⚠️ SCOPED TO THE STEPS THAT NEED IT, 2026-08-30. These two variables sat in
       # a JOB-level `env:` block, which put a token able to edit Workers, D1 and R2
       # into the environment of EVERY step — including `pnpm install
@@ -80,6 +95,7 @@ jobs:
       # dependency could simply read it. `minimumReleaseAge: 1440` in
       # pnpm-workspace.yaml narrows that window; it does not close it, and there is
       # no reason for the installer to see a production credential at all.
+      - name: Read the last 7 days of diagnostics
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
