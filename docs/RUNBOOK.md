@@ -148,13 +148,14 @@ npx wrangler@4.122.0 versions list --name run-apparel-viewer-site
 npx wrangler@4.122.0 rollback <version-id> --name run-apparel-viewer-site -m "why"
 ```
 
-The three Worker names:
+The four Worker names:
 
 | Worker | What breaks if it is bad |
 |---|---|
 | `run-apparel-viewer-site` | the public viewer — what a lead sees |
 | `run-apparel-viewer-cms` | the admin *and* the API the viewer reads |
 | `run-apparel-viewer-shrink` | garment processing only; the live site is unaffected |
+| `run-apparel-apex-404` | the catalogue and company-profile PDFs on the apex |
 
 Rolling back the **viewer** is the safe one — it holds no data and reads only the
 public API.
@@ -190,6 +191,14 @@ command's exit code — the same discipline the cached-404 incident forced on
 
 `git revert` + push has no such uncertainty: it rebuilds and redeploys through
 every gate. **When you have the minutes to spare, prefer it.**
+
+> ⚠️ **ONE EXCEPTION, AND IT IS NEW.** `git revert` across the apex reconciliation
+> commit (2026-08-30) redeploys the old `infra/apex-404/index.js`, which returns 404
+> for **every** path and declares no R2 binding — taking `/catalogue` and `/profile`
+> offline while reporting a successful deploy. That is the exact failure the
+> reconciliation fixed, reached through the documented safe path. Before reverting
+> anything that touches `infra/apex-404/`, run `node scripts/apex-probe.mjs`
+> afterwards and confirm both PDFs still serve.
 
 ### After any rollback
 

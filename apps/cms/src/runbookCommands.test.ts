@@ -29,7 +29,7 @@ const read = (rel: string) => readFileSync(join(REPO_ROOT, rel), 'utf8')
 
 /** Worker names, taken from the wrangler configs rather than restated here. */
 const workerNames = (): string[] =>
-  ['apps/viewer', 'apps/cms', 'apps/shrink']
+  ['apps/viewer', 'apps/cms', 'apps/shrink', 'infra/apex-404']
     .map((app) => read(`${app}/wrangler.jsonc`))
     // The first top-level "name" in each config is the Worker's own; later ones are
     // binding names (e.g. the container binding in apps/shrink).
@@ -46,9 +46,9 @@ const installedWrangler = (): string => {
 describe('RUNBOOK emergency commands', () => {
   const runbook = read('docs/RUNBOOK.md')
 
-  it('names all three Workers exactly as their wrangler configs do', () => {
+  it('names all four Workers exactly as their wrangler configs do', () => {
     const names = workerNames()
-    expect(names, 'expected to read three Worker names from the configs').toHaveLength(3)
+    expect(names, 'expected to read four Worker names from the configs').toHaveLength(4)
 
     const missing = names.filter((name) => !runbook.includes(name))
     expect(
