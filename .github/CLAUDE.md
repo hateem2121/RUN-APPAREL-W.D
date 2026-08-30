@@ -171,6 +171,21 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   same gates" rule at the top of this file** — the container fix sat in ci.yml for ten
   days before anyone checked the other copy, exactly as gitleaks did for three months.
 
+- **AN UNPARSEABLE WORKFLOW IS NOT A FAILED CHECK — CI GOES GREEN.** Found 2026-08-30
+  in PR #50. Scoping two secrets out of a job-level `env:` deleted the `env:` key and
+  left `GH_TOKEN` orphaned under `timeout-minutes: 10`. A key cannot nest under a
+  scalar, so GitHub could not parse the file and produced a run named after the **file
+  path** with **no jobs** and `conclusion: failure` — which is NOT a pull-request check.
+  All twelve checks passed. It was visible only in the Actions tab, on
+  `diagnostics-digest.yml`, the one workflow that reads the Events table, which had
+  already been silently dead once before for a comparable reason (a `permissions:`
+  block missing `contents: read`).
+  The eleventh rule in `apps/cms/src/workflowHardening.test.ts` now catches it: a key
+  may not be indented deeper than a preceding key that already has a value. The other
+  ten never parse the document, and biome does not lint YAML.
+  ⚠️ After ANY workflow edit, look for a run named after the path:
+  `gh run list --limit 5 --json name,conclusion`
+
 - **GitHub's scheduled runs are 19–90 minutes LATE — measured, n=11, EVERY ONE.**
   2026-08-26 across `heartbeat.yml`'s last 11 `schedule` runs: 19, 33, 34, 36, 46, 50,
   53, 60, 84, 88 and 90 minutes after the `cron:`. Never on time, never early. So a
@@ -182,6 +197,16 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   watchdog: it is the state `uptime.yml` sat in for 23 hours in 8301e60, and it trains
   you to ignore the one alert that matters. Re-measure before assuming it improved:
   `gh run list --workflow=<file>.yml --json createdAt,event`
+  ⚠️ **RE-MEASURED 2026-08-30 AND IT IS WORSE — AND THE DELAY IS THE WRONG NUMBER.**
+  Over 39 scheduled runs (08-19 → 08-30): worst single delay **331 min**, and **three
+  runs were DROPPED ENTIRELY**. A margin sized on lateness assumes every run happens.
+  The quantity that matters is the **GAP between consecutive check-ins** — worst
+  observed **818 min (13.6 h)** against a 6-hour cron, median 364.
+  So `heartbeat.yml` now tells Sentry to expect a check-in every **12** hours while the
+  `cron:` stays at 6, and `apps/cms/src/heartbeatMonitor.test.ts` asserts Sentry is
+  never told to expect one SOONER than the cron can deliver — it used to demand the two
+  be identical, which is the wrong invariant. Re-measure the GAP, not the delay:
+  `gh run list --workflow=heartbeat.yml --limit 40 --json createdAt,event`
 
 - **The Sentry cron monitor's config lives in `heartbeat.yml`, NOT in the dashboard.**
   The check-in POSTs a `monitor_config` body and Sentry upserts it, so the schedule and

@@ -86,6 +86,26 @@ diffs that text against real copy must normalise, or it reports dozens of
 phantom differences. No `pdftotext`/`mutool` on this machine; `pip install
 --target ./pylibs pypdf` works.
 
+## Uploading media and writing array fields
+
+`POST /api/media` is **multipart**, not JSON: `-F "file=@x.webp;type=image/webp"` plus
+`-F '_payload={"alt":"…"}'` for the other fields. The filename becomes the R2 key, so
+name it the way the existing objects are named (`<product>-<colour>-poster.webp`).
+`altText` on a colourway auto-fills from `productName` + `displayName` via a
+`beforeValidate` hook, so leave it out rather than retyping it.
+
+⚠️ **A PATCH to an array field REPLACES THE WHOLE ARRAY.** Fetch the product first,
+change only the field you mean to, and send **every row back with its `id`** — or
+Payload drops the rows you omitted. Row order decides the default colourway and each
+`slug` is printed on a physical QR tag, so a partial send is silent data loss. Print
+the before/after per row and assert the order is unchanged *before* sending.
+
+⚠️ **zsh globs `[` in a URL.** `where[slug][equals]=x` dies with
+`curl: (3) bad range in URL`. Percent-encode (`where%5Bslug%5D%5Bequals%5D=`) or quote it.
+
+After an upload, fetch the object with a **plain GET, never HEAD** — see the cached-404
+trap in the root file. A fresh upload answers `200` with `cf-cache-status: MISS`.
+
 ## Before you change a migration
 
 Run `apps/cms/src/migrationReplay/replay.test.ts`. It replays every migration against
