@@ -819,8 +819,9 @@ yourself muting UptimeRobot, add a second destination instead.
   number nobody could act on.
 - **The bare apex `wear-run.help` returns 404 in ~0.7 s since 2026-08-19** (audit
   L6; previously 522 after 20.2 s — by design, but a twenty-second hang for any typo
-  or crawler). Answered by `infra/apex-404/index.js`. Still not monitored directly:
-  `uptime.yml` probes `/catalogue`, which is the apex path the product actually uses.
+  or crawler). Answered by `infra/apex-404/index.js`, which since 2026-08-28 ALSO
+  serves `/catalogue` and `/profile` from the shared `run-assets` R2 bucket. All
+  three paths are asserted by `scripts/apex-probe.mjs`, run from `uptime.yml`.
 
 ## Uptime alerts
 
@@ -833,10 +834,16 @@ yourself muting UptimeRobot, add a second destination instead.
 >
 > **Liveness lives on the external uptime service**, which polls every 5 minutes —
 > three times more often — and costs no Actions minutes. What stayed in this
-> workflow is what that service cannot express: `smoke-viewer-payload.mjs` resolves
-> the model URL out of the live API payload and fetches it, catching a garment that
-> silently lost its GLB, and the catalogue probe asserts the redirect still reaches
-> the PDF.
+> workflow is what that service cannot express: `smoke-live-products.mjs` resolves
+> each live garment's model URL out of the API payload and fetches it, catching a
+> garment that silently lost its GLB, and `scripts/apex-probe.mjs` asserts both apex
+> PDFs actually serve.
+>
+> ⚠️ **This said "the catalogue probe asserts the redirect still reaches the PDF"
+> until 2026-08-30. It never did.** The old check tested only that a 3xx carried a
+> non-empty `Location`, never where it pointed — and after the PDFs moved into R2 on
+> 2026-08-28 there was no redirect at all, so it errored on every run while the run
+> still concluded `success`. Outage issue #47 was that false alarm.
 >
 > **If you ever raise the cadence here, do the arithmetic first**: runs/day × jobs ×
 > 1 minute, against 2,000/month.

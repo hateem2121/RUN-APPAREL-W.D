@@ -141,18 +141,25 @@ as *inconclusive* and keeps the run green.
 | The garment itself (27 MB GLB) | **~19 s at ~1.45 MB/s** | the *rate* drops, not the time — time scales with the tester's line |
 | Model edge cache | **`cf-cache-status: HIT`**, age ~13.7 h | `MISS` on repeat requests |
 | Bare apex (`https://wear-run.help/`) | **404 in 0.89 s** (2026-08-19) | a 5xx, or > 2 s |
-| Catalogue redirect (`/catalogue`) | **301 in 0.50 s** to the Drive PDF | anything but a 301 to that URL |
+| Catalogue PDF (`/catalogue`) | **200, `application/pdf`, 54,336,461 B**, TTFB 0.9–1.8 s | anything but a 200 PDF; or a body not starting `%PDF-` |
+| Company profile PDF (`/profile`) | **200, `application/pdf`, 16,891,515 B** | anything but a 200 PDF |
 
 ⚠️ **The apex figure replaced a 20.2 s one on 2026-08-19 (audit L6).** It used to
 return **522 after 20.214 s** — Cloudflare timing out against an origin that was
 never there. The 522 was BY DESIGN and owner-confirmed; the *duration* was the
 finding, because a typo, an accidental link or a crawler hung for twenty seconds.
-`infra/apex-404/index.js` now answers at the edge instead. **`/catalogue` is
-unaffected and is in the table above so it stays that way**: it is a Single
-Redirect, Cloudflare runs those FIRST and Redirect is a *terminating* action, so
-evaluation stops before any Worker is reached. Verified both ways in the same
-minute. **Do not "simplify" this by deleting the apex DNS record** — it must stay
-proxied or the redirect never fires and the catalogue button breaks.
+`infra/apex-404/index.js` now answers at the edge instead.
+
+⚠️ **`/catalogue` IS NO LONGER A REDIRECT, and this paragraph said it was until
+2026-08-30.** The claim was that a Single Redirect answered it first, so the Worker
+was never reached. Both halves are now false: the PDFs moved from Google Drive into
+the `run-assets` R2 bucket on 2026-08-28, and the apex Worker serves them itself —
+a plain GET returns **200 with no `Location` at all**. `.github/workflows/uptime.yml`
+had been asserting the redirect and erroring on every run since, while still
+concluding `success`; `scripts/apex-probe.mjs` replaced that check.
+
+**Do not "simplify" this by deleting the apex DNS record** — it must stay proxied or
+the Worker is never reached and both PDFs stop resolving.
 
 ⚠️ **Read `cf-cache-status` from the GET, never from a `curl -I`.** Measured the
 same minute: the GET said `HIT`, a HEAD on the identical URL said `DYNAMIC`. HEAD

@@ -24,6 +24,10 @@ export const ANCHORS = new Set([
   'tools',
   'scripts',
   'docs',
+  // Added 2026-08-30. Until then every citation of `infra/apex-404/index.js` — in
+  // CLAUDE.md, QA-CHECKLIST, RUNBOOK and the audit — was skipped entirely, so the
+  // gate could not have caught a rename there. All four resolve today.
+  'infra',
   'raw',
   '.claude',
   '.github',

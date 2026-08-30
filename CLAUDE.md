@@ -560,15 +560,16 @@ not only from a second push.** On 2026-08-18 a degraded Ubuntu mirror made
 twice, then `verify` at 30m21s — with nothing in the repository changed. Raising a
 ceiling only moved which job died. See `.github/CLAUDE.md`.
 
-**`https://wear-run.help/` returns 404 in ~0.7 s — it returned 522 after 20.2 s
-until 2026-08-19.** The site is `https://viewer.wear-run.help/`. Nothing is bound to
-the bare apex; every QR deep link uses `viewer.`, and the one apex path the app does
-use (`siteSettings.catalogueUrl` → `/catalogue`) is a Single Redirect with a 301 to a
-Drive PDF. The 522 was owner-confirmed and never an outage — its twenty-second
-DURATION was the finding (audit L6). `infra/apex-404/index.js` answers it at the edge
-now. `/catalogue` cannot be affected: Single Redirects run first AND Redirect is a
-*terminating* action, so that Worker is never reached for it. **Do not delete the
-apex DNS record** — it must stay proxied or the redirect stops firing.
+**The apex serves TWO PDFs and 404s everything else — `infra/apex-404/index.js`.**
+`/catalogue` (54.3 MB) and `/profile` (16.9 MB) come from the **shared** `run-assets`
+bucket, which the separate `run-apparel` site also binds. `https://wear-run.help/`
+404s in ~0.7 s; it returned 522 after 20.2 s until 2026-08-19 (audit L6 — the
+DURATION was the finding, not the 522). **Do not delete the apex DNS record**: it
+must stay proxied or both PDFs stop resolving.
+⚠️ **This said `/catalogue` was a Single Redirect to a Drive PDF until 2026-08-30.**
+False in both halves — the PDFs moved into R2 on 2026-08-28 and this Worker answers
+them, 200, no `Location`. The deployed script had DRIFTED from the repo for two days
+and `wrangler deploy` from that folder would have 404'd both, reporting success.
 
 ## Style
 
