@@ -8,7 +8,21 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # ⚠️ NEVER `true` ON MAIN. This job MIGRATES D1 AND THEN DEPLOYS. Cancelling it
+  # mid-flight can leave the database upgraded and the site on the old code, and
+  # the failure alert does not fire on a cancellation — so the worst outcome is
+  # also the quietest one. Two merges ten minutes apart were enough.
+  #
+  # A second scar rides along: `gh run watch --exit-status` returns 1 for a
+  # CANCELLED run exactly as it does for a FAILURE, which sent a session
+  # debugging a perfectly healthy job whose only error line was
+  # "The operation was canceled". Read `conclusion`, not the exit code.
+  #
+  # Pull requests still cancel — that is where the CI-minute saving is, and
+  # nothing there deploys. GitHub allows an expression here and permits only the
+  # `github`, `inputs` and `vars` contexts; `github.ref` is one of them, so do not
+  # reach for `secrets` or `env`. Audit 2026-08-30 PM, finding L14-01.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 # Least privilege for every job in this file, stated explicitly rather than
 # inherited. Third-party code runs here — `pnpm install`, the build, the test
@@ -674,7 +688,18 @@ jobs:
         with:
           name: d1-pre-deploy-${{ github.sha }}
           path: backups/d1/*.sql
-          retention-days: 90
+          # ⚠️ 7, NOT 90, AND NOT BECAUSE DISK IS SCARCE. This artifact is an
+          # UNREDACTED production D1 dump: it carries user password hashes AND
+          # encrypted API keys, and any account that can read this repository can
+          # download it. It exists to answer "what did the database look like
+          # immediately before this migration" — a question nobody asks three
+          # months later. The nightly backup in nightly-backup.yml is the actual
+          # disaster-recovery copy and DELIBERATELY stays at 90 days; do not
+          # "consistently" lower that one. Audit 2026-08-30 PM, finding L14-08.
+          #
+          # `if: always()` above stays: a FAILED migration is exactly when this
+          # snapshot is needed.
+          retention-days: 7
 
       - name: Apply pending D1 migrations (gated, pre-deploy)
         env:

@@ -55,6 +55,18 @@ concurrency:
 permissions:
   contents: read
 
+# ⚠️ EVERY JOB HERE IS PREFIXED `shrink-`, AND THAT PREFIX IS LOAD-BEARING.
+# Until 2026-08-31 these were called verify / artwork / audit / secrets / deploy —
+# the same names as ci.yml's jobs, and four of them are contexts the `main` ruleset
+# requires. Required status checks match by NAME, and a job skipped by a job-level
+# `if:` still publishes a check run with conclusion `skipped`, which GitHub counts
+# as SATISFIED.
+#
+# Today that is latent, not live: this workflow has no `pull_request` trigger, so
+# its checks never appear on a PR. The landmine is that adding one trigger line
+# would let a merge gate be satisfied by four jobs that executed nothing. Renaming
+# removes the collision permanently instead of relying on the trigger list staying
+# as it is. Audit 2026-08-30 PM, finding L14-06.
 jobs:
   # GATE. This workflow had no `needs:` at all until 2026-08-03: it triggers on
   # pushes touching apps/shrink/** or tools/asset-pipeline/**, ran in parallel
@@ -68,7 +80,7 @@ jobs:
   # ci.yml's verify also builds the viewer, seeds assets and runs Playwright,
   # none of which this deploy depends on, and coupling them would mean a viewer
   # e2e flake blocking a pipeline fix.
-  verify:
+  shrink-verify:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -120,7 +132,7 @@ jobs:
   #
   # Deliberately a copy of ci.yml's job rather than a `workflow_call`, for the same
   # reason the `verify` job above is a copy — see the note there.
-  artwork:
+  shrink-artwork:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     # 30, matching ci.yml. It was 20 here while ci.yml had already been raised —
@@ -165,7 +177,7 @@ jobs:
   # Dependency vulnerability gate, mirroring ci.yml. This workflow ships a Docker
   # image built from the repo's own dependency tree, so "ci.yml already audits it"
   # was never true for the container.
-  audit:
+  shrink-audit:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -260,7 +272,7 @@ jobs:
   # that cannot be named in a `needs:` list is not a gate. This job exists so the
   # shrink deploy has one, rather than relying on ci.yml's, which runs in a
   # different workflow and therefore cannot block this deploy.
-  secrets:
+  shrink-secrets:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -320,10 +332,10 @@ jobs:
             --verbose \
             --exit-code 1
 
-  deploy:
+  shrink-deploy:
     # FOUR gates, matching ci.yml. `artwork`, `audit` and `secrets` joined on
     # 2026-08-08; before that this deploy was gated on `verify` alone.
-    needs: [verify, artwork, audit, secrets]
+    needs: [shrink-verify, shrink-artwork, shrink-audit, shrink-secrets]
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
