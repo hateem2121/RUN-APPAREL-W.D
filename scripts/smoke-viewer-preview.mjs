@@ -163,6 +163,36 @@ async function runChecks() {
     }
   }
 
+  // 4b. A MISSING card must be a 404, not a page.
+  //
+  //     Until 2026-08-31 `/og/<anything>/<anything>.jpg` returned **200 with
+  //     `content-type: text/html`** and 8,017 bytes of SPA shell, byte-identical to a
+  //     bogus page URL — `not_found_handling: single-page-application` is right for
+  //     HTML routes and actively wrong for images. A crawler asked for a picture, got
+  //     a document with a success code, and had no reason to retry or fall back.
+  //
+  //     Asserted HERE rather than in a unit test because worker/index.ts is not
+  //     testable in isolation (HTMLRewriter, a service binding), and because the e2e
+  //     fixture server cannot exhibit this: serve.mjs never had the SPA-fallback
+  //     behaviour that causes it. That is the "fixture too GOOD" trap recorded in
+  //     worker/securityHeaders.ts, and it is why this lives in the post-deploy smoke.
+  {
+    const bogus = new URL('/og/zzz-not-a-product/zzz-not-a-colourway.jpg', url).toString()
+    const res = await fetch(bogus, { headers: { 'user-agent': CRAWLER_UA } })
+    const type = res.headers.get('content-type') ?? ''
+    if (res.status !== 404) {
+      fail(
+        `${bogus} responded ${res.status} (${type}), expected 404.\n` +
+          '   A missing preview card must not be served as the SPA shell: a crawler\n' +
+          '   handed 200 text/html for an image has nothing to fall back to.',
+      )
+    } else if (type.includes('text/html')) {
+      fail(`${bogus} 404'd but with ${type} — it must not be the SPA document.`)
+    } else {
+      console.log(`   missing og card → ${res.status} ${type.split(';')[0]}`)
+    }
+  }
+
   // 5. NEGATIVE CONTROL. A normal browser must get the page UNCHANGED. Without this
   //    the check above passes just as happily if the Worker started rewriting for
   //    everyone — which would put the ~1.9 s CMS call in front of every QR scan and
