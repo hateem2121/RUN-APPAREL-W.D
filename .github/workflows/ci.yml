@@ -712,7 +712,16 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm --filter @run-apparel/cms run deploy
+        # ⚠️ LABEL THE VERSION. Of 85 deployed versions across all five Workers,
+        # exactly ONE carried a message — and it was the hand-edit in the dashboard
+        # that caused the 2026-08-28 apex drift. So `wrangler versions list` was a
+        # column of UUIDs, and the only readable entry was the accident.
+        # `--message` is a documented `wrangler deploy` flag (verified against
+        # `wrangler@4.122.0 deploy --help`), and opennextjs-cloudflare forwards its
+        # positional args straight through (`...args.wranglerArgs` in
+        # dist/cli/commands/deploy.js). Changes no behaviour; makes a rollback
+        # readable under pressure. Audit 2026-08-30 PM, finding L1-03.
+        run: pnpm --filter @run-apparel/cms run deploy -- --message "${GITHUB_SHA:0:7} ${GITHUB_REF_NAME}"
 
       - name: Apply worker secret (PAYLOAD_SECRET)
         env:
@@ -821,7 +830,9 @@ jobs:
         # Only runs when target=worker, so the Pages deploy path is unaffected.
         run: |
           rm -f apps/viewer/dist/_redirects
-          pnpm --filter @run-apparel/viewer exec wrangler deploy
+          # See the version-labelling note on the CMS deploy step above.
+          pnpm --filter @run-apparel/viewer exec wrangler deploy \
+            --message "${GITHUB_SHA:0:7} ${GITHUB_REF_NAME}"
 
       # ⚠️ 403/429/503 ARE INCONCLUSIVE, NEVER FAILURES — and this step did not know
       # that until 2026-08-30. `curl -fsS` makes any non-2xx a hard failure, which is
@@ -901,7 +912,9 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm deploy:apex
+        # See the version-labelling note on the CMS deploy step above. The apex is
+        # the Worker this matters most for: its drift is what motivated the finding.
+        run: pnpm deploy:apex -- --message "${GITHUB_SHA:0:7} ${GITHUB_REF_NAME}"
 
       - name: Post-deploy apex assertion (both PDFs, ranged GET)
         run: node scripts/apex-probe.mjs

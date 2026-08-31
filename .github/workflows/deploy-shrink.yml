@@ -364,7 +364,15 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         # `wrangler deploy` builds the Dockerfile locally (Docker is preinstalled
         # on ubuntu-latest) and pushes it to Cloudflare's registry, then deploys.
-        run: pnpm --filter @run-apparel/shrink exec wrangler deploy
+        # See the version-labelling note in ci.yml's CMS deploy step.
+        # ⚠️ `run: |`, NOT a plain scalar. A plain YAML scalar folds its newlines into
+        # SPACES, so a trailing `\` survives into the shell as a literal backslash and
+        # bash reads `\ ` as an escaped space — the command silently loses its flag
+        # boundary. Written the wrong way first, on 2026-08-31, and caught by folding
+        # the scalar by hand rather than by reading it.
+        run: |
+          pnpm --filter @run-apparel/shrink exec wrangler deploy \
+            --message "${GITHUB_SHA:0:7} ${GITHUB_REF_NAME}"
 
       # ALERTING ONLY EXISTS IF THIS RUNS.
       #
