@@ -12,6 +12,32 @@
   // viewer.wear-run.help to it in the dashboard — see docs/RUNBOOK.md →
   // "Viewer: Pages → Worker cutover".
   "name": "run-apparel-viewer-site",
+
+  /**
+   * ⚠️ THIS WORKER SERVES viewer.wear-run.help, AND THAT BINDING IS NOT DECLARED HERE.
+   *
+   * `apps/cms` and `infra/apex-404` both carry a `routes` block naming their hostname;
+   * this one — the address printed on physical QR tags — is attached out-of-band, so a
+   * rebuild from a blank account would deploy a Worker that answers on nothing.
+   * Audit 2026-08-30 PM, finding L5-09.
+   *
+   * ⚠️ DO NOT ADD A `routes` BLOCK WITHOUT READING THE LIVE ONE FIRST. wrangler
+   * RECONCILES routes to this file — the warning `infra/apex-404/wrangler.jsonc:9`
+   * already carries — so a block that does not match what is live DETACHES the Worker
+   * from the hostname, and every QR tag already sewn into a garment stops resolving.
+   *
+   * It was deliberately not added on 2026-08-31 because the live configuration could
+   * not be READ: `GET /zones/<id>/workers/routes` answers `Authentication error` with
+   * the zone token available here, `wrangler` has no `domains list` command, and
+   * custom domains are an account-scoped resource. Guessing the shape of a binding
+   * whose failure mode is "every printed tag goes dark" is not a trade worth taking
+   * for a tidier config file.
+   *
+   * To finish it: read the live route in the Cloudflare dashboard
+   * (Workers → run-apparel-viewer-site → Settings → Domains & Routes), write the
+   * matching block here, deploy, and confirm https://viewer.wear-run.help/rxps/wine
+   * still answers 200 with the garment payload — a plain GET, never a HEAD.
+   */
   "compatibility_date": "2026-07-01",
   // ⚠️ MISSING UNTIL 2026-08-30, ON THE ONLY PUBLIC-FACING WORKER. `apps/cms`,
   // `apps/shrink` and `infra/apex-404` all declared this; the viewer — the one a
