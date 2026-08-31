@@ -738,6 +738,35 @@ jobs:
           # snapshot is needed.
           retention-days: 7
 
+      # ⚠️ THE ONE BACKUP NOBODY CHECKED, TAKEN AT THE ONE MOMENT IT MATTERS MOST.
+      #
+      # The step above snapshots production D1 immediately before a migration, and
+      # until 2026-08-31 the only evidence it was usable was that `wrangler d1 export`
+      # exited 0. A truncated dump, a file cut off mid-INSERT, or a schema that cannot
+      # be rebuilt all exit 0 too — and every one of them is discovered during a
+      # restore, after the data is already gone.
+      #
+      # nightly-backup.yml has verified its dumps by REPLAYING them since 2026-08-18.
+      # This snapshot — the one taken seconds before the database is altered — did not
+      # get the same treatment.
+      #
+      # Placed BEFORE the migration deliberately: an unusable snapshot must stop the
+      # deploy while the database is still untouched, which is the entire reason for
+      # taking it here rather than relying on last night's. Audit 2026-08-30 PM,
+      # finding L20-09.
+      - name: Verify the pre-deploy backup actually restores
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          dumps=(backups/d1/*.sql)
+          if [ ${#dumps[@]} -eq 0 ]; then
+            echo "::error::the pre-deploy backup step produced no .sql file"
+            exit 1
+          fi
+          for dump in "${dumps[@]}"; do
+            node scripts/verify-backup.mjs "$dump"
+          done
+
       - name: Apply pending D1 migrations (gated, pre-deploy)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
