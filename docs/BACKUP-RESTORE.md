@@ -64,7 +64,8 @@ media restore, because it is the only row above whose RTO is a guess.
 ```bash
 # production (needs Cloudflare auth: wrangler login, or CLOUDFLARE_API_TOKEN)
 node scripts/backup-d1.mjs            # → backups/d1/run-apparel-viewer-db-<timestamp>.sql
-node scripts/backup-r2.mjs            # → backups/r2/<timestamp>/<every media file>
+node scripts/backup-r2.mjs            # → backups/r2/<timestamp>/{media,apex}/
+node scripts/backup-r2.mjs --apex-only # → just the two customer PDFs (71 MB)
 
 # against the local dev database/bucket instead
 node scripts/backup-d1.mjs --local

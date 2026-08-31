@@ -403,9 +403,11 @@ Two facts, both measured rather than assumed:
 
 - The R2 ingest bucket carries an `expire-raw-uploads` lifecycle rule — **14
   days, all prefixes** — verified live on 2026-08-06.
-- `scripts/backup-r2.mjs` mirrors the **media** bucket only. It enumerates keys
-  from the CMS `media` table, and raw uploads never enter that table, so the
-  ingest bucket is in **no backup at all**.
+- `scripts/backup-r2.mjs` mirrors the **media** bucket and, since 2026-08-28, the
+  two apex PDFs in `run-assets`. It enumerates media keys from the CMS `media`
+  table, and raw uploads never enter that table, so the ingest bucket is in **no
+  backup at all** — that conclusion is unchanged; only the "media only" premise
+  was stale.
 
 So the N001 export uploaded on/before 2026-08-05 expired around **2026-08-19**,
 and the only copy that survives is a local one.
@@ -1190,7 +1192,8 @@ you do not re-upload the file — Retry re-runs the pipeline on the original.
 > bucket carries `expire-raw-uploads` — **14 days, all prefixes** — verified live
 > 2026-08-06 and documented ~450 lines above under "The canonical raw garment".
 > **After 14 days there is nothing to retry**, and `scripts/backup-r2.mjs` mirrors
-> the *media* bucket only, so no backup can restore it either.
+> the *media* bucket and the apex PDFs — never *ingest* — so no backup can restore
+> it either.
 >
 > This claim has now been wrong in **both** directions — asserted as fact before
 > the rule existed (corrected 2026-07-28), then asserted absent after it was added

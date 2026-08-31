@@ -140,8 +140,8 @@ anywhere a GitHub runner can reach (see below). It needs
 ⚠️ **THE RAW EXPORT IS NOT A DURABLE ARTIFACT AND MAY ALREADY BE GONE.** The
 ingest bucket carries an `expire-raw-uploads` lifecycle rule — 14 days, **all
 prefixes** — so the N001 export (uploaded on/before 2026-08-05) expires around
-**2026-08-19**. `scripts/backup-r2.mjs` mirrors the *media* bucket only, so the
-ingest bucket is in no backup. The canonical copy is therefore a **local** one,
+**2026-08-19**. `scripts/backup-r2.mjs` mirrors the *media* bucket and the two
+apex PDFs, never *ingest*, so the ingest bucket is in no backup. The canonical copy is therefore a **local** one,
 described by `raw/CANONICAL.json`, which records the byte count and SHA-256 so a
 re-downloaded or re-exported file can be proven to be the file the ceiling was
 calibrated against. `eval:artwork:real` verifies that checksum and refuses to run

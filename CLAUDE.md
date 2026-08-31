@@ -30,8 +30,8 @@ CMS `RawUploads` → R2 **ingest** bucket → queue → `apps/shrink` → Contai
 written back onto the product → the viewer reads
 `GET /api/public/viewer/:product/:colourway` from `cms.wear-run.help` and renders at
 `viewer.wear-run.help`. The two buckets are not interchangeable: **ingest** carries a
-14-day expiry rule and is in no backup, **media** is the one `scripts/backup-r2.mjs`
-mirrors. That asymmetry is why the raw CLO export is a local artifact — see
+14-day expiry rule and is in no backup, **media** is mirrored by `scripts/backup-r2.mjs`,
+which since 2026-08-28 also copies the two apex PDFs from `run-assets`. That asymmetry is why the raw CLO export is a local artifact — see
 `tools/asset-pipeline/CLAUDE.md`.
 
 **The gates, in CI's order** — `pnpm` below means `npx --yes pnpm@10.33.0`:
