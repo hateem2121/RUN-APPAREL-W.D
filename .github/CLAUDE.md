@@ -78,8 +78,16 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   gh api /repos/OWNER/REPO/git/commits/<sha> --jq .sha      # 404 => not a commit
   ```
   All six pins in this repo were re-verified as commits on 2026-08-25.
-  ⚠️ **THE REQUIRED-CHECKS LIST IS A SECOND COPY OF `deploy.needs`, AND IT IS ORG
-  CONFIG NO TEST HERE CAN READ.** It was four checks until 2026-08-20, five until
+  ⚠️ **THE REQUIRED-CHECKS LIST IS A SECOND COPY OF `deploy.needs`. IT IS NOT
+  UNREADABLE — that claim was false and cost a session (L8-07).** It is repository
+  config under the ordinary `repo` scope, and one command prints it:
+  ```bash
+  gh api repos/RUN-APPAREL/run-apparel-viewer/rulesets/21016174 \
+    --jq '[.rules[]|select(.type=="required_status_checks").parameters.required_status_checks[].context]'
+  ```
+  It still cannot be a CI GATE — `GITHUB_TOKEN` has no `administration` permission —
+  but "no test can read it" and "no test can read it FROM CI" are different claims,
+  and the first one talked people out of running the command at all. It was four checks until 2026-08-20, five until
   2026-08-31, and is **six** now — the five Actions jobs (`verify`, `e2e`, `audit`,
   `secrets`, `artwork`, all bound to integration 15368) plus
   **`Socket Security: Pull Request Alerts`** bound to integration **156372**, added

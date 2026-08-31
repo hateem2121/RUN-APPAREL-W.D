@@ -185,7 +185,13 @@ jobs:
             node scripts/backup-r2.mjs --apex-only --stamp="$(date -u +%Y-%m-%d)"
           fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: ${{ hashFiles('backups/r2/**') != '' }}
+        # L2-12, 2026-08-31: always(), matching the D1 upload above and for the same
+        # reason written there. A PARTLY-failed mirror is the run whose output is most
+        # worth keeping — it says which objects made it and which did not. Discarding
+        # it leaves only "the job went red" and nothing to diagnose from.
+        # hashFiles() still guards the empty case, so a run that mirrored nothing does
+        # not upload an empty artifact.
+        if: ${{ always() && hashFiles('backups/r2/**') != '' }}
         with:
           name: r2-backup-${{ github.run_id }}
           path: backups/r2/**
