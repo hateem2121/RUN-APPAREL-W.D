@@ -1,8 +1,20 @@
 # Garment Pipeline Defects Implementation Plan
 
-> **STATUS: IN PROGRESS — last updated 2026-08-31.** A plan, not a record. Being
-> implemented on the unmerged `feat/garment-pipeline-defects` branch; where this and
-> the code disagree, the code is right. **Delete this file when that branch merges.**
+> **STATUS: PARTLY IMPLEMENTED — last updated 2026-09-01.** A plan, not a record;
+> where this and the code disagree, the code is right.
+>
+> ⚠️ **THE CODE IS ALREADY ON `main`. THE PLAN IS NOT FINISHED.** An earlier version
+> of this header said the work sat on an unmerged `feat/garment-pipeline-defects`
+> branch and told you to delete this file when that branch merged. Both halves were
+> wrong: the work landed on `main` through PR #48, that branch was a stale copy
+> holding no file `main` lacks, and it has been deleted. **110 steps here are still
+> unticked** — keep this file until they are done or deliberately dropped.
+>
+> ⚠️ Measuring this cost a wrong alarm. `git diff main...branch` (three dots) reports
+> what the BRANCH changed since it diverged — 98 files, 16,513 lines — and reads like
+> unmerged work even when every line is already merged. `git diff main..branch` (two
+> dots) compares the tips and told the truth. Use two dots to ask "what would I lose".
+>
 > Listed in [`README.md`](README.md) because L13-09 found it reachable from no index,
 > which is how a stale plan gets read as a current one.
 

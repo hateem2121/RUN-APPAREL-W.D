@@ -60,7 +60,7 @@ is how a stale plan gets read as a current one:
 
 | Root file | What it is | Status |
 |---|---|---|
-| [`PLAN-IN-PROGRESS.md`](PLAN-IN-PROGRESS.md) | The garment-pipeline defects implementation plan — five units landing in `tools/asset-pipeline/src/` | **IN PROGRESS.** Being implemented on the unmerged `feat/garment-pipeline-defects` branch. Delete it when that branch merges. |
+| [`PLAN-IN-PROGRESS.md`](PLAN-IN-PROGRESS.md) | The garment-pipeline defects implementation plan — five units in `tools/asset-pipeline/src/` | **PARTLY IMPLEMENTED.** The code is on `main` (PR #48); 110 steps remain unticked. Keep it until they are done or dropped. |
 | [`NEXT-SESSION-PROMPT.md`](NEXT-SESSION-PROMPT.md) | A hand-off prompt for the next AI session | **WORKING NOTE.** Rewritten per session; never a record of what is true now. |
 
 They stay at the root rather than moving into a working subdirectory for one measured
