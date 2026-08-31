@@ -118,7 +118,7 @@ describe('RUNBOOK emergency commands', () => {
       const backupScript = read('scripts/backup-r2.mjs')
       const buckets = [...backupScript.matchAll(/'(run-[a-z0-9-]+)'/g)]
         .map((m) => m[1])
-        .filter((name) => name.includes('run-'))
+        .filter((name): name is string => Boolean(name))
 
       const missing = [...new Set(buckets)].filter((bucket) => !guide.includes(bucket))
       expect(

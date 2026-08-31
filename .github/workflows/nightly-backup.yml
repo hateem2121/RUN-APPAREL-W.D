@@ -108,7 +108,20 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         if: ${{ github.event_name == 'workflow_dispatch' }}
         run: node scripts/backup-r2.mjs --stamp="$(date -u +%Y-%m-%d)"
-      - name: Mirror R2 on schedule (Mondays only)
+      # FULL MIRROR MONDAYS, APEX PDFs EVERY NIGHT.
+      #
+      # Until 2026-08-31 the else-branch here printed "Not Monday — skipping" and did
+      # nothing, so the two customer-facing PDFs had a backup window of up to SIX DAYS.
+      # They live in `run-assets`, a bucket the separate `run-apparel` site can also
+      # write to and delete from — a deletion there is somebody else's ordinary Tuesday,
+      # not an incident anyone here would notice.
+      #
+      # Only the apex half moved to nightly. The media half is ~156 MB of models that
+      # change rarely; the PDFs are 71 MB. Measured before choosing: live artifact
+      # storage is 0.67 GB, nightly PDFs at 90-day retention add ~6.4 GB, and GitHub
+      # Enterprise Cloud includes 50 GB — so this is free, not merely cheap. Doing the
+      # same to the media half would add ~14 GB for files that do not change.
+      - name: Mirror R2 on schedule (full mirror Mondays, apex PDFs nightly)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -117,7 +130,7 @@ jobs:
           if [ "$(date -u +%u)" = "1" ]; then
             node scripts/backup-r2.mjs --stamp="$(date -u +%Y-%m-%d)"
           else
-            echo "Not Monday — skipping weekly R2 mirror."
+            node scripts/backup-r2.mjs --apex-only --stamp="$(date -u +%Y-%m-%d)"
           fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ hashFiles('backups/r2/**') != '' }}

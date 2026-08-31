@@ -44,6 +44,21 @@ const APEX_BUCKET = 'run-assets'
 const APEX_KEYS = ['RUN PRODUCT CATALOUGE.pdf', 'Company Profile.pdf']
 
 const mode = process.argv.includes('--local') ? '--local' : '--remote'
+
+/**
+ * `--apex-only` copies the two customer PDFs and nothing else.
+ *
+ * WHY THIS EXISTS. The full mirror runs weekly because the media half is ~156 MB
+ * and the models change rarely. The PDFs sit in `run-assets`, a bucket the separate
+ * `run-apparel` site can also write to and delete from, so their exposure is not the
+ * same as the media bucket's — a deletion there is somebody else's ordinary Tuesday.
+ * At 71 MB they are cheap enough to take nightly, and this flag is what lets the
+ * schedule treat the two halves differently instead of choosing one cadence for both.
+ *
+ * It deliberately also skips the D1 query below: enumerating the media table is the
+ * slow part and it has nothing to say about the apex bucket.
+ */
+const APEX_ONLY = process.argv.includes('--apex-only')
 const stampArg = process.argv.find((a) => a.startsWith('--stamp='))?.split('=')[1]
 const stamp = stampArg ?? new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
 
@@ -74,22 +89,30 @@ const wrangler = (args, opts = {}) => {
   throw lastError
 }
 
-// 1. Enumerate object keys from the media table.
-const raw = wrangler([
-  'd1',
-  'execute',
-  DB,
-  mode,
-  '--json',
-  '--command',
-  'SELECT filename FROM media WHERE filename IS NOT NULL',
-])
-const jsonStart = raw.search(/[[{]/)
-const parsed = JSON.parse(jsonStart >= 0 ? raw.slice(jsonStart) : raw)
-const results = Array.isArray(parsed) ? (parsed[0]?.results ?? []) : (parsed.results ?? [])
-const filenames = results.map((r) => r.filename).filter(Boolean)
+// 1. Enumerate object keys from the media table. Skipped entirely under --apex-only.
+const filenames = APEX_ONLY
+  ? []
+  : (() => {
+      const raw = wrangler([
+        'd1',
+        'execute',
+        DB,
+        mode,
+        '--json',
+        '--command',
+        'SELECT filename FROM media WHERE filename IS NOT NULL',
+      ])
+      const jsonStart = raw.search(/[[{]/)
+      const parsed = JSON.parse(jsonStart >= 0 ? raw.slice(jsonStart) : raw)
+      const results = Array.isArray(parsed) ? (parsed[0]?.results ?? []) : (parsed.results ?? [])
+      return results.map((r) => r.filename).filter(Boolean)
+    })()
 
-console.log(`[backup-r2] ${filenames.length} media objects to back up (${mode}) → ${outDir}`)
+console.log(
+  APEX_ONLY
+    ? `[backup-r2] apex-only run (${mode}) → ${outDir}`
+    : `[backup-r2] ${filenames.length} media objects to back up (${mode}) → ${outDir}`,
+)
 
 let ok = 0
 let fail = 0
