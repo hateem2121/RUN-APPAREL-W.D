@@ -288,7 +288,7 @@ describe('the required-table list matches the real schema', () => {
  */
 describe('volume floors', () => {
   /** Enough rows to clear every floor: 50 products, 15 media, 5 colourways. */
-  const bulk = (table, n, row) =>
+  const bulk = (table: string, n: number, row: (i: number) => string) =>
     Array.from({ length: n }, (_, i) => `INSERT INTO ${table} VALUES ${row(i + 1)};`).join('\n')
 
   const FULL_DUMP = [

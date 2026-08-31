@@ -192,7 +192,7 @@ export function replay(sql) {
  * below can be tested with a string instead of a 40 MB production dump.
  *
  * @param {string} sql
- * @param {{ mustNotBeEmpty?: string[] }} [options]
+ * @param {{ mustNotBeEmpty?: string[], minimumRows?: Record<string, number>, exactRows?: Record<string, number> }} [options]
  * @returns {{ ok: boolean, problems: string[], tables: Map<string, number> }}
  */
 export function verify(
