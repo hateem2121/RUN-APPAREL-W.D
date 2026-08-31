@@ -68,6 +68,12 @@ describe('RUNBOOK emergency commands', () => {
   it.each([
     ['docs/RUNBOOK.md', 'docs/RUNBOOK.md'],
     ['ci.yml deploy summary', '.github/workflows/ci.yml'],
+    // THE SECOND EMERGENCY DOCUMENT, ADDED 2026-08-31. This guard covered the
+    // runbook and not docs/BACKUP-RESTORE.md, so the restore guide rotted
+    // unwatched: all nine of its commands began `pnpm exec wrangler`, and bare
+    // `pnpm` exits 127 on the maintainer's machine. Every command in the one
+    // document you open on your worst day started with a tool that does not run.
+    ['docs/BACKUP-RESTORE.md', 'docs/BACKUP-RESTORE.md'],
   ])('pins every `npx wrangler@…` command in %s to the installed version', (_label, file) => {
     const installed = installedWrangler()
     const cited = [...read(file).matchAll(/npx wrangler@([0-9]+\.[0-9]+\.[0-9]+)/g)].map(
@@ -89,6 +95,58 @@ describe('RUNBOOK emergency commands', () => {
 
     expect(claim, 'the rollback section should say what it was verified against').toBeDefined()
     expect(claim).toBe(installedWrangler())
+  })
+
+  /**
+   * The restore guide's own failure mode, which the version pin cannot see.
+   *
+   * `scripts/backup-r2.mjs` writes TWO folders — `media/` and `apex/` — into
+   * `backups/r2/<stamp>/`, and they restore to TWO DIFFERENT BUCKETS. The guide
+   * looped over `<stamp>/*` until 2026-08-31, which after that layout change
+   * yields two DIRECTORIES, and `r2 object put --file <a directory>` restores
+   * nothing. It reported success while putting back zero files.
+   *
+   * A path check could not see this and neither could the version pin: every path
+   * cited was real and every version correct. Only the bucket names and the shape
+   * of the loop were wrong.
+   */
+  describe('docs/BACKUP-RESTORE.md', () => {
+    const guide = read('docs/BACKUP-RESTORE.md')
+
+    it('names both destination buckets, not just the media one', () => {
+      // Taken from the code that writes the backup, so a rename moves both together.
+      const backupScript = read('scripts/backup-r2.mjs')
+      const buckets = [...backupScript.matchAll(/'(run-[a-z0-9-]+)'/g)]
+        .map((m) => m[1])
+        .filter((name) => name.includes('run-'))
+
+      const missing = [...new Set(buckets)].filter((bucket) => !guide.includes(bucket))
+      expect(
+        missing,
+        'scripts/backup-r2.mjs saves objects to a bucket the restore guide never ' +
+          'names, so there is no written way to put those objects back. The apex ' +
+          'PDFs live in a DIFFERENT bucket from the media objects.',
+      ).toEqual([])
+    })
+
+    it('restores from the media/ and apex/ subfolders the backup actually writes', () => {
+      expect(
+        guide,
+        'The restore loop must walk the media/ and apex/ subfolders. Globbing ' +
+          '<stamp>/* yields directories, and `r2 object put --file <dir>` restores ' +
+          'nothing while exiting 0.',
+      ).toMatch(/\$BASE\/media/)
+      expect(guide).toMatch(/\$BASE\/apex/)
+    })
+
+    it('does not tell you to start an emergency command with a tool that is not on PATH', () => {
+      // `pnpm` is not reliably on PATH on the maintainer's machine and exits 127.
+      expect(
+        guide.includes('pnpm exec wrangler'),
+        'docs/BACKUP-RESTORE.md tells you to run `pnpm exec wrangler`. Bare pnpm ' +
+          'exits 127 here. Use the `npx wrangler@<version>` form the runbook uses.',
+      ).toBe(false)
+    })
   })
 
   it('still documents the rollback procedure at all', () => {
