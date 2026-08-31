@@ -40,6 +40,12 @@
       // rewrite every line on each regeneration for no reader's benefit, and it is
       // machine output, not source. Same reasoning as the Payload files above.
       "!docs/audit-2026-08-30",
+      // Same again for the 2026-08-30 PM audit: ~2 MB of finding records plus 50
+      // per-lane checkpoints. These are EVIDENCE. Reformatting them would rewrite
+      // every line of a document whose value is that it has not been touched since
+      // it was measured, and CONSOLIDATED.json is over Biome's 1 MiB scan ceiling
+      // anyway, so it could only ever be half-checked.
+      "!docs/audit-2026-08-30-pm",
       "!pnpm-lock.yaml"
     ]
   },

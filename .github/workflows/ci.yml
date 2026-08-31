@@ -8,7 +8,21 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # ⚠️ NEVER `true` ON MAIN. This job MIGRATES D1 AND THEN DEPLOYS. Cancelling it
+  # mid-flight can leave the database upgraded and the site on the old code, and
+  # the failure alert does not fire on a cancellation — so the worst outcome is
+  # also the quietest one. Two merges ten minutes apart were enough.
+  #
+  # A second scar rides along: `gh run watch --exit-status` returns 1 for a
+  # CANCELLED run exactly as it does for a FAILURE, which sent a session
+  # debugging a perfectly healthy job whose only error line was
+  # "The operation was canceled". Read `conclusion`, not the exit code.
+  #
+  # Pull requests still cancel — that is where the CI-minute saving is, and
+  # nothing there deploys. GitHub allows an expression here and permits only the
+  # `github`, `inputs` and `vars` contexts; `github.ref` is one of them, so do not
+  # reach for `secrets` or `env`. Audit 2026-08-30 PM, finding L14-01.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 # Least privilege for every job in this file, stated explicitly rather than
 # inherited. Third-party code runs here — `pnpm install`, the build, the test
@@ -49,6 +63,43 @@ jobs:
       # when adding a Media relationship. Following that instruction would have
       # left the orphan finder blind to the new field — and it can delete files.
       - run: pnpm lint
+
+      # ⚠️ A REAL YAML PARSER, BECAUSE THE HAND-WRITTEN RULE CATCHES ONE SHAPE IN FOUR.
+      #
+      # `workflowHardening.test.ts` is line-and-regex based. It caught the 2026-08-30
+      # defect — a key nested under a scalar, which GitHub could not parse, so it
+      # produced a run named after the FILE PATH with zero jobs while twelve green
+      # ticks sat on the same commit — and it catches nothing else of that family.
+      # Measured on 2026-08-31 against four deliberately-broken workflows:
+      #
+      #   key nested under a scalar   regex: caught   actionlint: caught
+      #   needs: a job that does not exist   regex: MISSED   actionlint: caught
+      #   an unknown runner label            regex: MISSED   actionlint: caught
+      #   an undefined expression field      regex: MISSED   actionlint: caught
+      #   a healthy workflow                 both clean (the control that makes the
+      #                                      four above mean something)
+      #
+      # Against THIS repo's workflows it currently reports zero, so it is added as a
+      # blocking step rather than a warning.
+      #
+      # A single Go binary, so it does not touch pnpm-workspace.yaml's 24-hour
+      # cooldown or dependencyPolicy.test.ts. Installed the way gitleaks is — pinned
+      # release, downloaded TO A FILE and not piped, version printed before use — for
+      # the reasons written at length on that step: a 504 from the release CDN must
+      # fail as "the linter never downloaded", never as "the workflows are broken".
+      - name: actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+        run: |
+          set -euo pipefail
+          curl -sSfL --retry 5 --retry-delay 3 --retry-all-errors \
+            -o /tmp/actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
+          # Proves the binary is real before the lint, so a corrupt archive fails here
+          # with a clear message rather than as an ambiguous clean run.
+          /tmp/actionlint --version
+          /tmp/actionlint
 
       - run: pnpm typecheck
 
@@ -674,7 +725,47 @@ jobs:
         with:
           name: d1-pre-deploy-${{ github.sha }}
           path: backups/d1/*.sql
-          retention-days: 90
+          # ⚠️ 7, NOT 90, AND NOT BECAUSE DISK IS SCARCE. This artifact is an
+          # UNREDACTED production D1 dump: it carries user password hashes AND
+          # encrypted API keys, and any account that can read this repository can
+          # download it. It exists to answer "what did the database look like
+          # immediately before this migration" — a question nobody asks three
+          # months later. The nightly backup in nightly-backup.yml is the actual
+          # disaster-recovery copy and DELIBERATELY stays at 90 days; do not
+          # "consistently" lower that one. Audit 2026-08-30 PM, finding L14-08.
+          #
+          # `if: always()` above stays: a FAILED migration is exactly when this
+          # snapshot is needed.
+          retention-days: 7
+
+      # ⚠️ THE ONE BACKUP NOBODY CHECKED, TAKEN AT THE ONE MOMENT IT MATTERS MOST.
+      #
+      # The step above snapshots production D1 immediately before a migration, and
+      # until 2026-08-31 the only evidence it was usable was that `wrangler d1 export`
+      # exited 0. A truncated dump, a file cut off mid-INSERT, or a schema that cannot
+      # be rebuilt all exit 0 too — and every one of them is discovered during a
+      # restore, after the data is already gone.
+      #
+      # nightly-backup.yml has verified its dumps by REPLAYING them since 2026-08-18.
+      # This snapshot — the one taken seconds before the database is altered — did not
+      # get the same treatment.
+      #
+      # Placed BEFORE the migration deliberately: an unusable snapshot must stop the
+      # deploy while the database is still untouched, which is the entire reason for
+      # taking it here rather than relying on last night's. Audit 2026-08-30 PM,
+      # finding L20-09.
+      - name: Verify the pre-deploy backup actually restores
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          dumps=(backups/d1/*.sql)
+          if [ ${#dumps[@]} -eq 0 ]; then
+            echo "::error::the pre-deploy backup step produced no .sql file"
+            exit 1
+          fi
+          for dump in "${dumps[@]}"; do
+            node scripts/verify-backup.mjs "$dump"
+          done
 
       - name: Apply pending D1 migrations (gated, pre-deploy)
         env:
@@ -687,6 +778,22 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEPLOY_MESSAGE: ${{ github.sha }} ${{ github.ref_name }}
+        # ⚠️ LABEL THE VERSION. Of 85 deployed versions across all five Workers,
+        # exactly ONE carried a message — and it was the hand-edit in the dashboard
+        # that caused the 2026-08-28 apex drift. So `wrangler versions list` was a
+        # column of UUIDs, and the only readable entry was the accident.
+        # `--message` is a documented `wrangler deploy` flag (verified against
+        # `wrangler@4.122.0 deploy --help`), and opennextjs-cloudflare forwards its
+        # positional args straight through (`...args.wranglerArgs` in
+        # dist/cli/commands/deploy.js). Changes no behaviour; makes a rollback
+        # readable under pressure. Audit 2026-08-30 PM, finding L1-03.
+        #
+        # ⚠️ PASSED AS AN ENV VAR, NOT AS `pnpm run deploy -- --message …`. MEASURED
+        # 2026-08-31 with a throwaway package: pnpm does NOT strip the separator — the
+        # script received `["--", "--message", "abc def"]`, so wrangler would have been
+        # handed a bare `--` as its first argument. The env-var form also keeps ONE
+        # copy of the deploy command, in package.json, instead of a second copy here.
         run: pnpm --filter @run-apparel/cms run deploy
 
       - name: Apply worker secret (PAYLOAD_SECRET)
@@ -796,7 +903,9 @@ jobs:
         # Only runs when target=worker, so the Pages deploy path is unaffected.
         run: |
           rm -f apps/viewer/dist/_redirects
-          pnpm --filter @run-apparel/viewer exec wrangler deploy
+          # See the version-labelling note on the CMS deploy step above.
+          pnpm --filter @run-apparel/viewer exec wrangler deploy \
+            --message "${GITHUB_SHA:0:7} ${GITHUB_REF_NAME}"
 
       # ⚠️ 403/429/503 ARE INCONCLUSIVE, NEVER FAILURES — and this step did not know
       # that until 2026-08-30. `curl -fsS` makes any non-2xx a hard failure, which is
@@ -876,6 +985,9 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEPLOY_MESSAGE: ${{ github.sha }} ${{ github.ref_name }}
+        # See the version-labelling note on the CMS deploy step above. The apex is
+        # the Worker this matters most for: its drift is what motivated the finding.
         run: pnpm deploy:apex
 
       - name: Post-deploy apex assertion (both PDFs, ranged GET)

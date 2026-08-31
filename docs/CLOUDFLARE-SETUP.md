@@ -315,3 +315,114 @@ Notes for future maintenance:
   viewer-only site needs an API token with Account Analytics **edit** permission
   (or the dashboard); swap the token in that file and rebuild if you create one.
   See step 8 for why it is not a build variable.
+
+---
+
+## 11. The seven pieces this document never mentioned
+
+⚠️ **Added 2026-08-31 (audit finding L20-08).** A ten-term probe over the 319 lines
+above returned: `ingest 0 · queue 0 · container 0 · apex 0 · DNSSEC 0 · lifecycle 0
+· Sentry 0`, against `media.wear-run 8 · custom domain 9 · Cache Rule 1`. Every one
+of those seven zeroes is a **live production dependency**, so this file described a
+system that could not serve a garment or a PDF.
+
+That matters because `docs/BACKUP-RESTORE.md` grades "Cloudflare account lost" at
+RTO ~1 day and calls it *"Estimate — never drilled"*. An estimate against an
+incomplete parts list is not an estimate.
+
+### 11.1 R2 ingest bucket + its lifecycle rule
+
+```bash
+npx wrangler@4.122.0 r2 bucket create run-apparel-viewer-ingest
+```
+
+Raw CLO uploads land here on their way to the shrink pipeline. It carries an
+`expire-raw-uploads` lifecycle rule — **14 days, all prefixes** — and is in **no
+backup**, deliberately: it is working space, not storage. A raw export older than
+14 days is gone, which is why the canonical copy is local (`raw/CANONICAL.json`).
+
+### 11.2 Queues
+
+```bash
+npx wrangler@4.122.0 queues create glb-shrink
+npx wrangler@4.122.0 queues create glb-shrink-dlq
+```
+
+`glb-shrink` carries the upload jobs; `glb-shrink-dlq` is the dead-letter queue
+where a thrice-failed garment leaves its only trace. **Both** are set to
+**14 days** (`message_retention_period` 1209600 s, Cloudflare's documented maximum
+on Workers Paid; the default is 345600 s and the FREE-tier maximum is 24 h, so
+copying this number onto a free account will fail).
+
+```bash
+npx wrangler@4.122.0 queues update glb-shrink     --message-retention-period-secs 1209600
+npx wrangler@4.122.0 queues update glb-shrink-dlq --message-retention-period-secs 1209600
+```
+
+⚠️ **This paragraph said the DLQ was "still at the 4-day default" when it was first
+written on 2026-08-31, and that was WRONG.** It came from a stale project note
+rather than a measurement. Both queues were independently re-read at 1209600 s by
+two agents hours apart during the 2026-08-30 audit (finding L7-10), and
+`modified_on` for the DLQ is 2026-08-30T14:07:33Z. The correction is left visible
+because the mistake is the point: the audit's own conclusion is that this setting
+lives ONLY in Cloudflare's control plane — a repo-wide grep for `1209600` or
+`message_retention` finds nothing in shipping code — so there is nothing here to
+check a claim against, and prose drifts (finding L7-01, still open).
+
+### 11.3 The shrink Worker and its Container
+
+`apps/shrink` is a queue consumer that drives a Container running
+`tools/asset-pipeline`. `wrangler deploy` from that package builds the Dockerfile
+locally and pushes the image to Cloudflare's registry, which a plain
+"Edit Cloudflare Workers" token **cannot** do — see the token-scope note at the top
+of `.github/workflows/deploy-shrink.yml`. The container runs as **uid 1000** and can
+write only under `/tmp`.
+
+### 11.4 The apex Worker (both customer PDFs)
+
+`infra/apex-404/` is a deployed Worker (`run-apparel-apex-404`) that serves exactly
+two paths from the **shared** `run-assets` bucket — `/catalogue` and `/profile` —
+and 404s everything else. It is a deliberate allow-list.
+
+⚠️ **The apex DNS record must stay proxied.** Deleting it takes both PDFs offline.
+
+### 11.5 DNSSEC
+
+Active since 2026-08-30. ⚠️ **DNS is Cloudflare; REGISTRATION is Hostinger.** The DS
+record must be filed with the `.help` registry, which only the registrar can do, and
+Hostinger's API has no DNSSEC surface at all — so this is permanently a manual hPanel
+step. Values: key tag **2371**, algorithm **13**, digest type **2**.
+
+⚠️ Do **not** change nameservers while DNSSEC is on without disabling it at the
+registrar first, or the domain goes dark for validating resolvers.
+
+Verify with **both** controls, because an `ad` flag alone proves nothing:
+
+```bash
+dig +dnssec A dnssec-failed.org @8.8.8.8              # must be SERVFAIL
+dig +dnssec A sigfail.verteiltesysteme.net @8.8.8.8   # must be SERVFAIL
+dig +dnssec A wear-run.help @8.8.8.8                  # must be NOERROR + ad
+```
+
+### 11.6 Sentry
+
+Error reporting for the viewer. `VITE_SENTRY_DSN` at build time puts the origin into
+the CSP `connect-src` **and** derives the `report-uri` (see
+`apps/viewer/scripts/csp.mjs`). `SENTRY_DSN` is also set on the shrink Worker;
+without it `sentry.ts` silently no-ops.
+
+⚠️ The CMS Worker reports to **nothing** — audit finding L6-03, still open.
+
+### 11.7 Zone settings that live in no file
+
+Applied 2026-08-30 and guarded daily by `scripts/zone-security-probe.mjs`: minimum
+TLS **1.2**, SSL mode **strict**, HSTS (2 years, subdomains, `preload` deliberately
+**off** as a one-way door), CAA records naming all four partner CAs, and
+`model/gltf-binary` added to the compression list (**−7.6 MB per garment**, measured
+on the wire).
+
+⚠️ `security_level: essentially_off` is **deliberate** and must not be "fixed":
+Cloudflare's bot challenge has broken this viewer before.
+
+Cache and firewall rules are recorded with their rollback JSON in
+`docs/audit-2026-08-30-pm/CLOUDFLARE-LIVE-CHANGES.md`.

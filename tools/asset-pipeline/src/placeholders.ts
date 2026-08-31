@@ -44,30 +44,78 @@ export interface PlaceholderColourway {
 
 export const PLACEHOLDER_PRODUCT_CODE = 'N001'
 
+/**
+ * FIVE colourways, with production's slugs — changed 2026-08-31, and the count is
+ * the point.
+ *
+ * ⚠️ THIS FIXTURE COULD NOT EXHIBIT A FIVE-COLOURWAY BUG, AND THE LIVE GARMENT HAS
+ * FIVE. It carried navy / black / crimson while production ships
+ * wine / blush / butter / lime / black, so:
+ *
+ *   - `apps/viewer/e2e/serve.mjs` mapped five slugs onto THREE variant ids
+ *     (blush, butter and lime all resolved to N001-CRIMSON). A swap that reached
+ *     the 4th or 5th variant was untestable, which is exactly the shape of the
+ *     2026-08-27 production bug where model-viewer built only the ARRIVING
+ *     colourway's materials and four of five colourways flickered.
+ *   - FOUR OF THE FIVE POSTER URLS 404'd. serve.mjs builds
+ *     `n001-<slug>-poster.webp` from ITS slugs; only `black` existed on disk. The
+ *     retired-colourway fallback pointed at `wine`'s poster, so that path served a
+ *     404 too. Nothing failed, because nothing asserted the poster loaded.
+ *
+ * ⚠️ `navy` IS DELIBERATELY GONE and must stay gone. `a11y.spec.ts:163` visits
+ * `/n001/navy` precisely because it is NOT a real colourway — that is how it reaches
+ * the retired-colourway notice. Re-adding it silently turns that test into a second
+ * scan of a healthy page.
+ *
+ * ⚠️ `butter` at #FDFDC8 is the near-white body that `.colourway-tab__swatch` draws
+ * its inset ring for. Without a near-white colourway no test can exhibit that class
+ * of bug, which shipped once already.
+ *
+ * ⚠️ EVERY `ink` MUST STAY DISTINCT. Identical ink lets `dedup()` merge the decal
+ * materials into one shared, eagerly-loaded material, and the lazy
+ * `KHR_materials_variants` path — the one production actually uses — stops being
+ * exercised at all. See the `ink` field docs above.
+ */
 export const PLACEHOLDER_COLOURWAYS: PlaceholderColourway[] = [
   {
-    slug: 'navy',
-    displayName: 'Navy',
-    variantId: 'N001-NAVY',
-    body: '#22314E',
-    trim: '#18233A',
-    ink: '#F2F4FA',
+    slug: 'wine',
+    displayName: 'Wine',
+    variantId: 'N001-WINE',
+    body: '#825353',
+    trim: '#5E3A3A',
+    ink: '#FBE7EA',
+  },
+  {
+    slug: 'blush',
+    displayName: 'Blush',
+    variantId: 'N001-BLUSH',
+    body: '#F7CDCD',
+    trim: '#D9A5A5',
+    ink: '#4A2530',
+  },
+  {
+    slug: 'butter',
+    displayName: 'Butter',
+    variantId: 'N001-BUTTER',
+    body: '#FDFDC8',
+    trim: '#D8D89A',
+    ink: '#3A3A18',
+  },
+  {
+    slug: 'lime',
+    displayName: 'Lime',
+    variantId: 'N001-LIME',
+    body: '#D6F26B',
+    trim: '#A6C24A',
+    ink: '#23300C',
   },
   {
     slug: 'black',
     displayName: 'Black',
     variantId: 'N001-BLACK',
-    body: '#17181A',
-    trim: '#2A2B2F',
+    body: '#262727',
+    trim: '#3A3B3F',
     ink: '#D8DADF',
-  },
-  {
-    slug: 'crimson',
-    displayName: 'Crimson',
-    variantId: 'N001-CRIMSON',
-    body: '#8C1F2F',
-    trim: '#5E1520',
-    ink: '#FBE7EA',
   },
 ]
 

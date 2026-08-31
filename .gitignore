@@ -122,3 +122,11 @@ sbom.cdx.json
 # described above; nothing else from it was kept.
 .vscode/
 .idea/
+
+# Audit scaffolding. The finished report, its images, the consolidated finding
+# records and the per-lane checkpoints ARE committed — they are the evidence.
+# `scratch/` is transient curl output and temp files from the run; it is 3.5 MB
+# of working material that reproduces nothing on its own. Excluding it closes
+# audit finding L13-06. Do NOT widen this to `checkpoints/`: those hold the raw
+# per-lane investigate/challenge findings that CONSOLIDATED.json is derived from.
+docs/audit-*/scratch/

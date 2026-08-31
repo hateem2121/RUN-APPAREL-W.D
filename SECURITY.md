@@ -36,10 +36,18 @@ targets are honest intentions, not a contractual SLA.
 
 **Out of scope**
 
-- `https://wear-run.help/` (the bare apex) returning **522**. This is
-  [by design](CLAUDE.md) — nothing is bound to the apex, every QR deep link uses
-  the `viewer.` subdomain, and the one apex path the app uses is served by an
-  edge redirect rule. It is not an outage and not a vulnerability.
+- `https://wear-run.help/<anything>` returning **404**. This is
+  [by design](CLAUDE.md) — every QR deep link uses the `viewer.` subdomain, and
+  the apex Worker (`infra/apex-404/index.js`) is a deliberate ALLOW-LIST that
+  serves exactly two paths, `/catalogue` and `/profile`, and 404s everything else.
+  It is not an outage and not a vulnerability.
+
+  ⚠️ This said **522** until 2026-08-31, and both halves were wrong. A 522 is a
+  connection failure, not a design; and the apex stopped producing one on
+  2026-08-28 when the two PDFs moved into R2 and a Worker began answering them.
+  Re-measured 2026-08-31: `GET https://wear-run.help/` → **404**. Reporting a
+  timeout as intended behaviour would have taught a researcher to ignore a real
+  outage.
 - Missing security headers on Cloudflare's own challenge pages and error pages,
   which we do not generate.
 - Reports produced solely by an automated scanner with no demonstrated impact.

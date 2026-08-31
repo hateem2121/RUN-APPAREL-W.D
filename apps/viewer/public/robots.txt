@@ -1,0 +1,18 @@
+# Crawling is DELIBERATELY ALLOWED, and nothing here is disallowed.
+#
+# Every garment page is a link-preview target: apps/viewer/worker/index.ts rewrites
+# per-garment Open Graph cards for crawlers, and the og:image it emits is
+# /og/<product>/<colourway>.jpg on this same host. Facebook's and Twitter's crawlers
+# honour robots.txt when fetching og:image, so a Disallow on /og/ would silently
+# turn every shared link back into a generic card. That line was written and then
+# removed on 2026-08-31 after checking what the Worker actually emits — it looked
+# tidy and would have broken the feature.
+#
+# ⚠️ THIS FILE EXISTS TO STOP robots.txt BEING HTML. Until 2026-08-31 the build
+# contained no robots.txt, so the Worker's SPA fallback answered /robots.txt with
+# index.html: 9,853 bytes of `text/plain` holding 46 lines of markup, which a
+# crawler parses line by line as directives. Cloudflare's managed content-signal
+# block is prepended to whatever is served here, so that block was never the
+# problem and this file does not remove it.
+User-agent: *
+Allow: /

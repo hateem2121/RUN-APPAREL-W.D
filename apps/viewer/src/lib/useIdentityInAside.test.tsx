@@ -131,6 +131,43 @@ describe('useIdentityInAside', () => {
     expect(host.textContent).toBe('content')
   })
 
+  /**
+   * THE SECOND SIGNAL, AND WHY IT IS NOT REDUNDANT.
+   *
+   * `matches` is changed here WITHOUT notifying the media-query listeners, which is
+   * exactly what headless WebKit does on a viewport change: the query's answer moves
+   * and no `change` event arrives. Measured 2026-08-31 — the e2e assertion "the
+   * product heading moves between columns" failed on `viewer-mobile-safari` in two
+   * of three CI runs while passing locally, with the page holding exactly one
+   * visible <h1> that was still in the wrong column 5 seconds later.
+   *
+   * Without the `resize` listener this test hangs on the old value forever, which is
+   * the whole point: a subscription that never fires is indistinguishable from a
+   * constant.
+   */
+  it('still follows the query when only a resize arrives, and no change event', () => {
+    act(() => root.render(<Probe />))
+    expect(host.textContent).toBe('content')
+
+    // The query's answer moves; the media-query listeners are deliberately NOT called.
+    list.matches = true
+    expect(host.textContent, 'nothing should have re-read the query yet').toBe('content')
+
+    act(() => window.dispatchEvent(new Event('resize')))
+    expect(host.textContent).toBe('aside')
+  })
+
+  it('removes the resize listener on unmount too', () => {
+    act(() => root.render(<Probe />))
+    unmount()
+
+    // If the listener outlived the component, this would throw — React errors on a
+    // store update after unmount — or silently keep a detached tree subscribed.
+    list.matches = true
+    expect(() => window.dispatchEvent(new Event('resize'))).not.toThrow()
+    expect(host.textContent).toBe('')
+  })
+
   it('removes its listener on unmount', () => {
     act(() => root.render(<Probe />))
     expect(list.listenerCount).toBe(1)

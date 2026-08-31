@@ -10,13 +10,16 @@ import { describe, expect, it } from 'vitest'
  *
  *   1. `apps/viewer` was the ONLY Worker without an `observability` block, and it is
  *      the only public-facing one. Its logs went nowhere queryable until 2026-08-30.
- *   2. `apps/cms` is the only Worker with `workers_dev: true`, which is a second,
+ *   2. `apps/cms` was the only Worker with `workers_dev: true`, which is a second,
  *      unprotected hostname outside the wear-run.help zone — no WAF, no bot
- *      protection, no rate limiting, no analytics. The live viewer bundle calls THAT
- *      host, not cms.wear-run.help, so 100% of API traffic bypasses the zone.
+ *      protection, no rate limiting, no analytics. CLOSED 2026-08-31.
  *
- * ⚠️ TEST 2 IS MEANT TO FAIL WHEN THE CUTOVER LANDS. It pins a temporary state, and
- * the failure message says what to do. Do not "fix" it by deleting the assertion.
+ * ⚠️ TEST 2 WAS WRITTEN TO FAIL WHEN THE CUTOVER LANDED, and it did. Its own failure
+ * message said to DELETE it. That advice is declined deliberately: deleting it also
+ * deletes the only thing stopping the NEXT Worker from turning workers.dev back on —
+ * a case the same message calls out as "do not". The assertion is INVERTED instead,
+ * which is strictly stronger than what it replaced: it pinned one exception, this
+ * permits none. Audit 2026-08-30 PM, findings L1-01, L4-01, L5-02, L18-04.
  */
 const REPO_ROOT = join(import.meta.dirname, '..', '..', '..')
 
@@ -46,19 +49,28 @@ describe('wrangler config invariants', () => {
     ).toContain('"observability"')
   })
 
-  it('only apps/cms exposes a workers.dev hostname, and only until the cutover', () => {
+  it('no Worker exposes a workers.dev hostname', () => {
     const exposed = CONFIGS.filter((config) => /"workers_dev":\s*true/.test(settings(read(config))))
 
     expect(
       exposed,
       'A Worker exposes workers.dev. That is a second public hostname OUTSIDE the ' +
         'wear-run.help zone, so no WAF rule, rate limit, cache rule or analytics ' +
-        'applies to it.\n\n' +
-        'If this failed because apps/cms was FIXED: delete this test and update ' +
-        'docs/RUNBOOK.md → "Viewer: Pages → Worker cutover" step 4. That is the ' +
-        'intended end state.\n\n' +
-        'If it failed because a NEW Worker turned workers_dev on: do not.',
-    ).toEqual(['apps/cms/wrangler.jsonc'])
+        'applies to it — and for apps/cms it also published the /admin login there.\n\n' +
+        'apps/cms carried this until 2026-08-31 as the last step of the API cutover. ' +
+        'It is closed. There is no longer an approved exception, and adding one means ' +
+        'accepting an unprotected door, not just a convenience URL.',
+    ).toEqual([])
+  })
+
+  it('the workers.dev check can actually fail (negative control)', () => {
+    // The assertion above passes when every config is correct, which is also what it
+    // would do if `settings()` silently returned nothing. Feed it a config that DOES
+    // expose workers.dev and require the detector to fire.
+    const exposing = '{\n  "name": "x",\n  "workers_dev": true\n}'
+    const commented = '{\n  "name": "x",\n  // "workers_dev": true\n}'
+    expect(/"workers_dev":\s*true/.test(settings(exposing))).toBe(true)
+    expect(/"workers_dev":\s*true/.test(settings(commented))).toBe(false)
   })
 
   it.each(CONFIGS)('%s disables per-version preview URLs', (config) => {

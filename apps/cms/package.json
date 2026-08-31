@@ -13,7 +13,7 @@
     "test:coverage": "vitest run --coverage",
     "generate:types": "payload generate:types",
     "generate:importmap": "payload generate:importmap",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy --message \"${DEPLOY_MESSAGE:-manual}\"",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "migrate:create": "PAYLOAD_LOCAL_D1=1 payload migrate:create",
     "migrate": "PAYLOAD_LOCAL_D1=1 payload run src/seed/migrate.ts",

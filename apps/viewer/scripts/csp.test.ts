@@ -233,3 +233,56 @@ describe('Worker-built responses do not drift from _headers', () => {
     expect(shipped.slice().sort()).toEqual(Object.keys(SHARED_SECURITY_HEADERS).slice().sort())
   })
 })
+
+/**
+ * A policy with nowhere to report a block is a policy nobody hears refuse anything.
+ *
+ * Thirteen directives shipped without one until 2026-08-31. The stakes are concrete:
+ * when the Meshopt decoder's `blob:` URL was missing from `connect-src`, EVERY
+ * production garment tripped a CSP violation on load while 177 tests stayed green,
+ * because the seeded fixture was uncompressed and no test could exhibit it. A CSP
+ * report is how that would have been heard on the first real page view.
+ */
+describe('CSP violation reporting', () => {
+  const DSN = 'https://abc123@o4511868350496768.ingest.us.sentry.io/4509876'
+
+  it('derives Sentry\u2019s documented security endpoint from the DSN', () => {
+    const directive = buildCsp({ html: '', apiBaseUrl: API, sentryDsn: DSN })
+      .split('; ')
+      .find((d) => d.startsWith('report-uri '))
+
+    // Format per Sentry docs: https://<ingestHost>/api/<projectId>/security/?sentry_key=<publicKey>
+    expect(directive).toBe(
+      'report-uri https://o4511868350496768.ingest.us.sentry.io/api/4509876/security/?sentry_key=abc123',
+    )
+  })
+
+  it('omits the directive entirely when there is no DSN, rather than emitting a broken one', () => {
+    expect(buildCsp({ html: '', apiBaseUrl: API })).not.toContain('report-uri')
+  })
+
+  it('omits it for an unparseable DSN, and for one missing its project id', () => {
+    expect(buildCsp({ html: '', apiBaseUrl: API, sentryDsn: 'not-a-url' })).not.toContain(
+      'report-uri',
+    )
+    // Host but no path -> no project id. `report-uri .../api//security/` would 404
+    // forever and look exactly like "no violations have happened".
+    expect(
+      buildCsp({ html: '', apiBaseUrl: API, sentryDsn: 'https://abc123@o1.ingest.sentry.io/' }),
+    ).not.toContain('report-uri')
+  })
+
+  it('reports to the SAME origin connect-src already allows (negative control on the pair)', () => {
+    const policy = buildCsp({ html: '', apiBaseUrl: API, sentryDsn: DSN })
+    const connect = policy.split('; ').find((d) => d.startsWith('connect-src')) ?? ''
+    const report = policy.split('; ').find((d) => d.startsWith('report-uri')) ?? ''
+    const reportOrigin = new URL(report.replace('report-uri ', '')).origin
+
+    expect(connect).toContain(reportOrigin)
+    // The control: a policy built WITHOUT a DSN allows neither, so the pairing above
+    // is a real relation and not two strings that happen to coexist.
+    const bare = buildCsp({ html: '', apiBaseUrl: API })
+    expect(bare).not.toContain(reportOrigin)
+    expect(bare).not.toContain('report-uri')
+  })
+})

@@ -977,3 +977,66 @@ typecheck separate and green, `eval:artwork` unmoved at 1.650 / 3.070 / 9.370
 against a 5.000 ceiling, bundle budget green with a new 90% warning naming `wasm` at
 91%. Every new guard carries a negative control, and each was demonstrated failing
 by hand rather than assumed from a green run.
+
+---
+
+# 2026-08-31 — audit remediation (2026-08-30 PM audit)
+
+Continues the log after a **140-commit gap**. The root `CLAUDE.md` called this file
+the "full history" while it stopped on 2026-08-18, which is finding L13-08 of the
+2026-08-30 PM audit. Two things follow from that: entries resume here, and the
+claim in `CLAUDE.md` was corrected rather than left to rot again.
+
+## The cached-404 incident, in full
+
+Demoted from `CLAUDE.md`, which had **three characters** of headroom against its own
+39,000-character CI gate (finding L13-02). This is history; the rule that survives
+in `CLAUDE.md` is the one-paragraph version.
+
+`media.wear-run.help` is an R2 custom domain behind a 30-day edge Cache Rule, so a
+request for an object that does not exist **yet** cached the miss for a month.
+
+- **2026-08-06.** A model the shrink worker had just written returned `GET 404` — a
+  28 KB Cloudflare error page — while `HEAD` returned **200 with the correct
+  `content-length`**. The two landed on different cache entries. The cached 404 was
+  **25 hours old**, from a probe made before the file existed. The object was intact
+  in R2 the whole time (`wrangler r2 object get` returned all 28,271,780 bytes) and
+  the same URL with `?v=1` served 200 immediately.
+- **What was green while it was broken:** `artworkVerdict: ok`, the filesize, the
+  `{OPAQUE, MASK}` census, and a `HEAD`. Swapping `glbAsset` on those signals would
+  have put a 404 on the live page.
+- **2026-08-13, the opposite direction.** Same URL, same minute: `GET` →
+  `cf-cache-status: HIT`, `age: 49431` (~13.7 h against `max-age=14400`); `HEAD` →
+  `DYNAMIC`. So the divergence is not specific to a cached 404 — `HEAD` does not
+  share the `GET`'s cache entry at all. A session measuring cache behaviour with
+  `curl -I` reads `DYNAMIC` and concludes the 27 MB model is uncached on every
+  request. That is a plausible-looking performance finding and it is wrong.
+
+**Closed 2026-08-31.** The media Cache Rule now carries
+`status_code_ttl: [{400–499: 10s}, {500–599: 10s}]` beside its unchanged 30-day
+default, so a cached miss lasts seconds. Proved on a fresh URL: `MISS` → `HIT age 0`
+→ **`EXPIRED` 14 seconds later**, while the real 28 MB garment still returned
+`206 / HIT` at `age 489670` and the pre-existing stuck 404 stayed at `age 1065989`
+because it had been cached under the old rule. That last one is the cleanest control
+available: same host, same rule, opposite behaviour, and the only difference is when
+the entry was created.
+
+The GET/HEAD divergence is **not** fixed by that and never will be — it is how the
+edge keys entries. Read `cf-cache-status` off the GET's own headers.
+
+## Also this session
+
+- **Firewall.** The single custom rule skipped the WAF, Super Bot Fight Mode and
+  seven legacy products for **every** address on `cms.wear-run.help`, admin login
+  included. Narrowed to `/api/`. Not to `/api/public/` as the audit proposed:
+  `apps/shrink` and the scripts call `/api/products`, `/api/raw-uploads`,
+  `/api/media` and `/api/health` as non-browser clients, so that scoping would have
+  put the garment pipeline behind bot protection.
+- **workers.dev retired** on the CMS, closing a second hostname outside the zone
+  that published `/admin` where no zone rule could reach it.
+- **The restore guide restored zero files** and is rewritten and drilled.
+- **A required check was flaky** — `viewer-mobile-safari` failed 2 of 3 CI runs on a
+  media-query subscription that headless WebKit never notified. Fixed by listening
+  to `resize` as well as `change`.
+
+Full finding-by-finding status: `docs/audit-2026-08-30-pm/WORKLIST.md`.

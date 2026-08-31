@@ -9,13 +9,19 @@ could have justified.
 ## Read this first
 
 **[`CLAUDE.md`](CLAUDE.md) is the authority.** It is short on purpose and holds
-only the traps that have caused real incidents. Two more load automatically when
-you work in those directories:
+only the traps that have caused real incidents. **Four** more load automatically
+when you work in those directories — this said "two" until 2026-08-31, so half of
+them were invisible to anyone reading only this page:
 
 - [`apps/viewer/CLAUDE.md`](apps/viewer/CLAUDE.md) — CSP, `_headers`, the two
   `<model-viewer>` DOM traps
 - [`tools/asset-pipeline/CLAUDE.md`](tools/asset-pipeline/CLAUDE.md) — the whole
   pipeline procedure, the evals, the raw garment
+- [`apps/cms/CLAUDE.md`](apps/cms/CLAUDE.md) — Payload CLI against production D1,
+  migrations, and why `withPayload` overrides headers you set in a handler
+- [`.github/CLAUDE.md`](.github/CLAUDE.md) — the workflow traps, including that an
+  unparseable workflow is not a failed check and a `permissions:` block REPLACES
+  the defaults rather than adding to them
 
 ## `pnpm` is not on PATH here
 

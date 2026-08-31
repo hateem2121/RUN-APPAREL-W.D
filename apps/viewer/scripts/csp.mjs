@@ -76,6 +76,31 @@ function originOr(url, fallback) {
 }
 
 /**
+ * Sentry's CSP report endpoint, derived from the DSN rather than stored twice.
+ *
+ * A DSN is `https://<publicKey>@<ingestHost>/<projectId>`, and Sentry's documented
+ * security endpoint is
+ * `https://<ingestHost>/api/<projectId>/security/?sentry_key=<publicKey>` — the same
+ * three parts rearranged. Deriving it means there is ONE place the project can be
+ * wrong, which matters because a report-uri pointing at the wrong project fails
+ * silently: the browser posts, something 4xxs, and nothing appears anywhere.
+ *
+ * Returns '' for a missing or unparseable DSN, so the policy simply omits the
+ * directive rather than shipping `report-uri undefined`.
+ */
+function sentryReportUri(dsn) {
+  if (!dsn) return ''
+  try {
+    const url = new URL(dsn)
+    const projectId = url.pathname.replace(/^\//, '')
+    if (!url.username || !projectId) return ''
+    return `${url.origin}/api/${projectId}/security/?sentry_key=${url.username}`
+  } catch {
+    return ''
+  }
+}
+
+/**
  * @param {object} input
  * @param {string} input.html        The BUILT index.html, so hashes match what ships.
  * @param {string} [input.apiBaseUrl] Value of VITE_API_BASE_URL at build time.
@@ -87,6 +112,7 @@ export function buildCsp({ html, apiBaseUrl, sentryDsn }) {
   const apiOrigin = originOr(apiBaseUrl, FALLBACK_API_ORIGIN)
   // Empty (and omitted) when no DSN is configured, so no origin is added.
   const sentryOrigin = originOr(sentryDsn, '')
+  const reportUri = sentryReportUri(sentryDsn)
 
   return [
     `default-src 'self'`,
@@ -130,6 +156,22 @@ export function buildCsp({ html, apiBaseUrl, sentryDsn }) {
     `worker-src 'self' blob:`,
     `manifest-src 'self'`,
     `upgrade-insecure-requests`,
+    // ⚠️ THIRTEEN DIRECTIVES AND NOWHERE TO REPORT A BLOCK, until 2026-08-31. Every
+    // one of them can refuse something, and a refusal was visible only to whoever
+    // happened to have devtools open on the right page at the right moment. The
+    // `report-to` header on these responses belongs to Cloudflare's NEL and reports
+    // to Cloudflare, not here.
+    //
+    // This matters more than it sounds: a CSP violation is how this project would
+    // FIRST learn that a production garment stopped rendering. The Meshopt decoder
+    // builds its worker through a blob: URL, and when that was missing from
+    // connect-src EVERY production model tripped a violation on load while 177 tests
+    // stayed green — the seeded fixture was uncompressed, so no test could exhibit it.
+    //
+    // Costs nothing to allow: the Sentry ingest origin is already in connect-src
+    // above, and a report-uri is a browser-initiated POST that no directive gates.
+    // Omitted entirely when no DSN is configured. Audit 2026-08-30 PM, finding L6-09.
+    ...(reportUri ? [`report-uri ${reportUri}`] : []),
   ].join('; ')
 }
 

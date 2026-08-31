@@ -1,11 +1,19 @@
 # Backup & Restore
 
-Everything the viewer depends on lives in two Cloudflare resources:
+Everything the viewer depends on lives in **three** Cloudflare resources — and the
+third one was missing from this table until 2026-08-31, which is why 71.2 MB of
+customer-facing PDFs had no written recovery path at all:
 
 | Resource | What it holds | Backed up by |
 |---|---|---|
 | **D1** `run-apparel-viewer-db` | all products, colourways, media rows, site settings, users, analytics events | `scripts/backup-d1.mjs` → `backups/d1/*.sql` |
-| **R2** `run-apparel-viewer-media` | every uploaded GLB model + poster image | `scripts/backup-r2.mjs` → `backups/r2/<stamp>/` |
+| **R2** `run-apparel-viewer-media` | every uploaded GLB model + poster image | `scripts/backup-r2.mjs` → `backups/r2/<stamp>/media/` |
+| **R2** `run-assets` | the two customer-facing PDFs the apex serves: `/catalogue` and `/profile` (71.2 MB) | `scripts/backup-r2.mjs` → `backups/r2/<stamp>/apex/` |
+
+⚠️ **`run-assets` is SHARED with the separate `run-apparel` site**, which can write
+to and delete from it. It is not this project's private bucket, and that is the
+reason its contents need a backup of their own rather than being assumed safe.
+`infra/apex-404/index.js` is what serves those two objects.
 
 Backups are **gitignored** (a D1 export contains password hashes — never commit it).
 
@@ -56,7 +64,8 @@ media restore, because it is the only row above whose RTO is a guess.
 ```bash
 # production (needs Cloudflare auth: wrangler login, or CLOUDFLARE_API_TOKEN)
 node scripts/backup-d1.mjs            # → backups/d1/run-apparel-viewer-db-<timestamp>.sql
-node scripts/backup-r2.mjs            # → backups/r2/<timestamp>/<every media file>
+node scripts/backup-r2.mjs            # → backups/r2/<timestamp>/{media,apex}/
+node scripts/backup-r2.mjs --apex-only # → just the two customer PDFs (71 MB)
 
 # against the local dev database/bucket instead
 node scripts/backup-d1.mjs --local
@@ -76,14 +85,14 @@ rewind to the minute *before* the migration ran instead of losing up to a day.
 ```bash
 cd apps/cms
 # What can I rewind to, and how far back does the window go?
-pnpm exec wrangler d1 time-travel info run-apparel-viewer-db
+npx wrangler@4.122.0 d1 time-travel info run-apparel-viewer-db
 
 # Look at a moment before the damage WITHOUT changing anything yet.
-pnpm exec wrangler d1 time-travel info run-apparel-viewer-db --timestamp 2026-07-29T09:00:00Z
+npx wrangler@4.122.0 d1 time-travel info run-apparel-viewer-db --timestamp 2026-07-29T09:00:00Z
 
 # Restore to it. This changes production — take a dump first (above) so you can
 # get back to the current state if the rewind turns out to be the wrong call.
-pnpm exec wrangler d1 time-travel restore run-apparel-viewer-db --timestamp 2026-07-29T09:00:00Z
+npx wrangler@4.122.0 d1 time-travel restore run-apparel-viewer-db --timestamp 2026-07-29T09:00:00Z
 ```
 
 Then verify with the row-count query in step 3 below, and re-capture
@@ -116,38 +125,93 @@ is gone.
 ```bash
 cd apps/cms
 # 1. create a scratch DB
-pnpm exec wrangler d1 create run-apparel-viewer-db-restore-test
+npx wrangler@4.122.0 d1 create run-apparel-viewer-db-restore-test
 # 2. load the backup into it
-pnpm exec wrangler d1 execute run-apparel-viewer-db-restore-test --remote \
+npx wrangler@4.122.0 d1 execute run-apparel-viewer-db-restore-test --remote \
   --file ../../backups/d1/run-apparel-viewer-db-<timestamp>.sql
 # 3. sanity-check row counts
-pnpm exec wrangler d1 execute run-apparel-viewer-db-restore-test --remote \
+npx wrangler@4.122.0 d1 execute run-apparel-viewer-db-restore-test --remote \
   --command "SELECT (SELECT count(*) FROM products) AS products, (SELECT count(*) FROM products_colourways) AS colourways, (SELECT count(*) FROM media) AS media, (SELECT count(*) FROM raw_uploads) AS raw_uploads;"
 # 4. tear the scratch DB down
-pnpm exec wrangler d1 delete run-apparel-viewer-db-restore-test
+npx wrangler@4.122.0 d1 delete run-apparel-viewer-db-restore-test
 ```
 
 **Real recovery** (production data lost/corrupted): restore into the live DB. Because the export includes `CREATE TABLE`, the target must be empty first — drop tables (or recreate the D1 database and update `database_id` in `wrangler.jsonc`), then:
 
 ```bash
 cd apps/cms
-pnpm exec wrangler d1 execute run-apparel-viewer-db --remote \
+npx wrangler@4.122.0 d1 execute run-apparel-viewer-db --remote \
   --file ../../backups/d1/run-apparel-viewer-db-<timestamp>.sql
 curl -f https://cms.wear-run.help/api/health     # confirm the CMS is back
 ```
 
 ## Restoring R2
 
-Put every backed-up object back into the bucket:
+⚠️ **A BACKUP HAS TWO FOLDERS AND THEY GO TO TWO DIFFERENT BUCKETS.**
+`scripts/backup-r2.mjs` writes `backups/r2/<stamp>/media/…` **and**
+`backups/r2/<stamp>/apex/…`. The version of this section that ran until
+2026-08-31 looped over `<stamp>/*`, which after that layout change yields two
+**directories** — and `r2 object put --file <a directory>` restores **nothing**.
+It also sent everything to `run-apparel-viewer-media`, which is the wrong bucket
+for the PDFs, and never mentioned that the PDFs were in the backup at all.
+
+Set the stamp once, then run both loops:
 
 ```bash
 cd apps/cms
-for f in ../../backups/r2/<timestamp>/*; do
-  pnpm exec wrangler r2 object put "run-apparel-viewer-media/$(basename "$f")" --file "$f" --remote
+BASE=../../backups/r2/<timestamp>
+
+# Sanity-check the layout BEFORE restoring anything. Two folders, both non-empty.
+find "$BASE" -maxdepth 1 -mindepth 1 -type d
+find "$BASE/media" -type f | wc -l     # expect the media-object count
+find "$BASE/apex"  -type f | wc -l     # expect 2
+```
+
+```bash
+# 1. Media objects -> run-apparel-viewer-media.
+#    The key is the path RELATIVE to media/, never `basename`: an object key may
+#    contain slashes, and basename would flatten it to a different key.
+find "$BASE/media" -type f | while read -r f; do
+  key="${f#"$BASE/media/"}"
+  npx wrangler@4.122.0 r2 object put "run-apparel-viewer-media/$key" --file "$f" --remote
 done
 ```
 
-Then reload a product in the viewer to confirm posters + models render.
+```bash
+# 2. The two customer-facing PDFs -> run-assets. A DIFFERENT BUCKET, shared with
+#    the separate run-apparel site, and the one infra/apex-404/index.js reads.
+#    Their keys contain spaces, so keep every expansion quoted.
+find "$BASE/apex" -type f | while read -r f; do
+  key="${f#"$BASE/apex/"}"
+  npx wrangler@4.122.0 r2 object put "run-assets/$key" --file "$f" --remote
+done
+```
+
+**Then verify, and verify the way a browser asks — a plain GET, never `HEAD`.**
+`HEAD` lands on a different edge cache entry and has twice returned a different
+answer from `GET` on this domain:
+
+```bash
+curl -sS -o /dev/null -D - https://wear-run.help/catalogue | head -1
+curl -sS -o /dev/null -D - https://wear-run.help/profile   | head -1
+curl -sS -o /dev/null -D - https://viewer.wear-run.help/rxps/wine | head -1
+```
+
+Reload a product in the viewer and confirm posters and models render.
+
+### Drilling this without touching real data
+
+A restore procedure nobody has run is a guess. Practise on a throwaway key —
+it exercises the exact command path without overwriting anything real:
+
+```bash
+echo "restore drill $(date -u +%FT%TZ)" > /tmp/_restore-drill.txt
+npx wrangler@4.122.0 r2 object put "run-apparel-viewer-media/_restore-drill.txt" \
+  --file /tmp/_restore-drill.txt --remote
+npx wrangler@4.122.0 r2 object get "run-apparel-viewer-media/_restore-drill.txt" \
+  --file /tmp/_restore-drill.out --remote && cat /tmp/_restore-drill.out
+npx wrangler@4.122.0 r2 object delete "run-apparel-viewer-media/_restore-drill.txt" --remote
+```
 
 ## After any restore
 

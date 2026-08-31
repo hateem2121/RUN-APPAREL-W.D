@@ -2,6 +2,7 @@ import { parseViewerPath } from '@run-apparel/shared'
 import type { ViewerApiSuccess } from '@run-apparel/shared'
 import { OG_CARDS } from './og-cards'
 import { buildPreview, type Preview } from './preview'
+import { workerResponseHeaders } from './securityHeaders'
 
 /**
  * The viewer's Worker. Its job is to give a shared link a preview card that
@@ -302,6 +303,40 @@ export default {
     const url = new URL(request.url)
 
     const route = parseViewerPath(url.pathname)
+
+    /**
+     * A MISSING PREVIEW IMAGE MUST BE A 404, NOT A PAGE.
+     *
+     * `not_found_handling: single-page-application` is what makes every garment deep
+     * link work, and it is right for HTML routes. For `/og/*` it is actively wrong:
+     * measured 2026-08-31, `GET /og/zzz-nope/zzz-nope.jpg` returned **200 with
+     * `content-type: text/html`** and 8,017 bytes of SPA shell, byte-identical to a
+     * bogus page URL. A social platform asked for an image and was handed a document
+     * with a success code, so it has nothing to fall back to and no reason to retry.
+     *
+     * The check is on the RESPONSE rather than a list of known files: Static Assets
+     * answers a real card with `image/jpeg`, and the SPA fallback with `text/html`.
+     * Anything under `/og/` that comes back as HTML did not exist. That keeps this
+     * correct as garments are added, which a hardcoded list would not.
+     *
+     * Deliberately BEFORE the crawler branch below, because a crawler is exactly who
+     * asks for these. Audit 2026-08-30 PM, finding L5-05.
+     */
+    if (url.pathname.startsWith('/og/')) {
+      const asset = await env.ASSETS.fetch(request)
+      if ((asset.headers.get('content-type') ?? '').includes('text/html')) {
+        // ⚠️ `workerResponseHeaders()`, NOT a hand-written content-type. `dist/_headers`
+        // is applied by Cloudflare's STATIC ASSET handler: a response from
+        // `env.ASSETS.fetch()` carries it, and a `new Response(...)` never enters that
+        // path and carries NOTHING. Measured on the live edge 2026-08-12 — the old
+        // `/render` refusal shipped with all five security headers ABSENT while the
+        // 200 beside it had them all. This is the first Worker-built response since
+        // that route was removed, which is exactly what securityHeaders.ts was kept
+        // for; the file's own header says so.
+        return new Response('Not found', { status: 404, headers: workerResponseHeaders() })
+      }
+      return asset
+    }
 
     // Not a garment link, not a GET, or not a crawler → byte-for-byte what this
     // project served before the Worker existed. The overwhelming majority of

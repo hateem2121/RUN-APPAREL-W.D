@@ -69,10 +69,35 @@ export const TWO_COLUMN_QUERY =
  */
 export const IDENTITY_IN_ASIDE_QUERY = '(min-width: 1100px) and (min-height: 720px)'
 
+/**
+ * TWO signals, and the second one is not belt-and-braces.
+ *
+ * ⚠️ A `matchMedia` CHANGE EVENT IS NOT GUARANTEED TO ARRIVE. Headless WebKit in CI
+ * does not fire one when the viewport is resized: measured 2026-08-31, where
+ * `motion-and-layout.spec.ts`'s "the product heading moves between columns" failed
+ * on `viewer-mobile-safari` in two of three runs while passing 100% locally on the
+ * same browser. The log is what proves it was THIS and not a slow render — the two
+ * assertions before it passed, so the page had exactly one visible <h1>; it was
+ * simply still in `.stage__aside` after the viewport had shrunk to 375x812, 13
+ * polls and 5 seconds later.
+ *
+ * `useSyncExternalStore` re-reads ONLY when subscribe notifies it. No event, no
+ * re-read, and the page's own <h1> stays in a column that no longer exists — the
+ * same class of bug this hook was written to fix, one notification source over.
+ *
+ * The cost is a read, not a render: React calls `getSnapshot` on notification and
+ * bails out when the value is unchanged. That matters here because this repo has
+ * already measured `dvh` producing FOURTEEN resizes in a single phone swipe — so
+ * this listener fires often and, all fourteen times, does nothing.
+ */
 function subscribe(onChange: () => void): () => void {
   const list = window.matchMedia(IDENTITY_IN_ASIDE_QUERY)
   list.addEventListener('change', onChange)
-  return () => list.removeEventListener('change', onChange)
+  window.addEventListener('resize', onChange)
+  return () => {
+    list.removeEventListener('change', onChange)
+    window.removeEventListener('resize', onChange)
+  }
 }
 
 function getSnapshot(): boolean {
