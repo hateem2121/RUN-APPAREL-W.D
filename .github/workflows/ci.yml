@@ -813,6 +813,37 @@ jobs:
           PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
         run: printf '%s' "$PAYLOAD_SECRET" | pnpm --filter @run-apparel/cms exec wrangler secret put PAYLOAD_SECRET
 
+      # L6-03. Until 2026-08-31 Sentry held one project covering the browser only,
+      # and the CMS — the side with the database and the password — reported
+      # nothing anywhere. The DSN is a SEPARATE project from the viewer's, so this
+      # deliberately reads CMS_SENTRY_DSN and writes it as SENTRY_DSN inside the
+      # Worker; using the viewer's DSN here would silently merge two systems'
+      # errors into one project and destroy the grouping that makes them useful.
+      - name: Apply worker secret (SENTRY_DSN, CMS project)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CMS_SENTRY_DSN: ${{ secrets.CMS_SENTRY_DSN }}
+        run: printf '%s' "$CMS_SENTRY_DSN" | pnpm --filter @run-apparel/cms exec wrangler secret put SENTRY_DSN
+
+      # ⚠️ The assertion is the point, not the step above it. `instrumentation.ts`
+      # treats a missing DSN as a no-op — it has to, because every build, test and
+      # Payload CLI run has no DSN — so a secret that failed to apply produces a
+      # CMS that reports nothing and a deploy that goes green. That is precisely
+      # the state L6-03 recorded, and it would come back undetected. This is what
+      # makes it detectable.
+      - name: Assert the CMS Worker actually holds SENTRY_DSN
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          names=$(pnpm --filter @run-apparel/cms exec wrangler secret list)
+          echo "$names"
+          echo "$names" | grep -q '"name": *"SENTRY_DSN"' || {
+            echo "::error::The CMS Worker has no SENTRY_DSN secret. The CMS is reporting no errors to Sentry (L6-03). Check the CMS_SENTRY_DSN repository secret."
+            exit 1
+          }
+
       - name: Build viewer
         env:
           # Defaults to the clean custom domain; overridable via repo variable

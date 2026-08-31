@@ -409,7 +409,7 @@ the answer is "nothing that happens in production", it is not a test.
   verifies the loading claims above instead of asserting them, all live in
   `docs/CLAUDE-MD-MAINTENANCE.md`. Read it before moving prose between CLAUDE.md files.
 
-- **Four more traps live in `apps/cms/CLAUDE.md`** (loads on touching `apps/cms/`) —
+- **Five more traps live in `apps/cms/CLAUDE.md`** (loads on touching `apps/cms/`) —
   `NODE_ENV=production` for any Payload CLI task against production D1, why
   `src/migrations/` must hold only migrations, and why `withPayload` silently
   overrides any header you set in a handler; it also carries "Before you change
