@@ -392,17 +392,26 @@ jobs:
       # Gated inside the shell rather than by `if:` on purpose — a job-level `env:`
       # would put the DSN in the environment of `pnpm install` too, which is the
       # exposure this repo is separately closing.
-      - name: Apply worker secret (SENTRY_DSN)
+      # ⚠️ SHRINK_SENTRY_DSN, NOT SENTRY_DSN — L6-08, corrected 2026-08-31. The secret
+      # used to be called `SENTRY_DSN`, and it carried the VIEWER's DSN, so the one
+      # thing this step exists to enable would have filed pipeline failures into the
+      # browser project. Three systems now have three projects: the viewer on
+      # `vars.VITE_SENTRY_DSN` (project 4511868353708032), the CMS on
+      # `secrets.CMS_SENTRY_DSN` (4512006205865984), and this on
+      # `secrets.SHRINK_SENTRY_DSN` (4512006291718144). The rename is the point: three
+      # differently-scoped values called some variant of "the Sentry DSN" is how the
+      # wrong one gets used, and one already was.
+      - name: Apply worker secret (SENTRY_DSN, shrink project)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SHRINK_SENTRY_DSN: ${{ secrets.SHRINK_SENTRY_DSN }}
         run: |
-          if [ -z "$SENTRY_DSN" ]; then
-            echo "::warning::SENTRY_DSN secret is not set — the shrink robot's failure alerting is INERT. Set it with: gh secret set SENTRY_DSN"
+          if [ -z "$SHRINK_SENTRY_DSN" ]; then
+            echo "::warning::SHRINK_SENTRY_DSN secret is not set — the shrink robot's failure alerting is INERT. Set it with: gh secret set SHRINK_SENTRY_DSN"
             exit 0
           fi
-          printf '%s' "$SENTRY_DSN" | pnpm --filter @run-apparel/shrink exec wrangler secret put SENTRY_DSN
+          printf '%s' "$SHRINK_SENTRY_DSN" | pnpm --filter @run-apparel/shrink exec wrangler secret put SENTRY_DSN
 
       # Proof the IMAGE moved, not just the Worker script. On 2026-07-27 a
       # pipeline fix shipped to the CMS while the container kept running a
