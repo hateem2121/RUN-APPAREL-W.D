@@ -734,6 +734,71 @@ jobs:
     ).toEqual([])
   })
 
+  /**
+   * TWELFTH RULE — a monitor that watches a file nobody can parse is not a monitor.
+   *
+   * heartbeat.yml holds a WATCHED list of workflow files and alarms when one has not
+   * succeeded inside its budget. On 2026-08-30 `diagnostics-digest.yml` became
+   * unparseable and GitHub produced a run NAMED AFTER THE FILE PATH with zero jobs
+   * and conclusion `failure`. Twelve green ticks sat on the same commit. The
+   * eleventh rule above catches the YAML shape that caused it; this one catches the
+   * class the WATCHED list is uniquely exposed to — a name in that list that no
+   * longer resolves to a workflow with any jobs at all, whether because the file was
+   * renamed, deleted, or broken.
+   *
+   * A watcher pointed at a filename is only as good as the filename, and nothing
+   * else in this repository compares the two.
+   */
+  it('every workflow heartbeat.yml watches exists, parses, and declares a job', () => {
+    // ⚠️ THE CHARACTER CLASS IS DELIBERATELY WIDE. It was `[a-z0-9-]` for about ten
+    // minutes, and a control that renamed a watched file to `perf-watch-GONE.yml`
+    // did NOT fail this rule — the uppercase name simply stopped matching, so the
+    // entry dropped out of the list and the loop below had nothing to complain
+    // about. A guard that quietly narrows its own input is the failure mode this
+    // whole suite exists to prevent, so the count assertion below is not optional.
+    const watched = [...read('heartbeat.yml').matchAll(/^\s*([A-Za-z0-9._-]+\.ya?ml):\d+:/gm)].map(
+      (m) => m[1] as string,
+    )
+
+    expect(
+      watched.length,
+      'no WATCHED entries were parsed out of heartbeat.yml — if the list moved, move ' +
+        'this matcher with it rather than letting the assertion pass on an empty set',
+    ).toBeGreaterThan(0)
+
+    const problems: string[] = []
+    for (const file of watched) {
+      if (!existsSync(join(WORKFLOW_DIR, file))) {
+        problems.push(`${file} is watched by heartbeat.yml but does not exist`)
+        continue
+      }
+      const source = read(file)
+      if (orphanedKeys(source).length > 0) {
+        problems.push(`${file} is watched but does not parse — GitHub will run zero jobs from it`)
+      }
+      if (declaredJobs(source).length === 0) {
+        problems.push(`${file} is watched but declares no jobs`)
+      }
+    }
+
+    expect(
+      problems,
+      'heartbeat.yml watches a workflow that cannot report anything. Its alarm would ' +
+        'fire only after the staleness budget expired — eight days in the case that ' +
+        'motivated this rule — and the run it is watching for would never appear.\n' +
+        `${problems.join('\n')}`,
+    ).toEqual([])
+  })
+
+  it('the watched-workflow rule can actually fail (negative control)', () => {
+    // A watched name that does not resolve, and a watched file that parses to no jobs.
+    expect(existsSync(join(WORKFLOW_DIR, 'no-such-workflow.yml'))).toBe(false)
+    expect(declaredJobs('on:\n  push:\n')).toEqual([])
+    // …and the real list must not be empty, or the loop above would assert nothing.
+    const watched = [...read('heartbeat.yml').matchAll(/^\s*([A-Za-z0-9._-]+\.ya?ml):\d+:/gm)]
+    expect(watched.length).toBeGreaterThanOrEqual(4)
+  })
+
   it('the parse guard can actually fail (negative control)', () => {
     // The exact shape shipped in this PR: `env:` removed, GH_TOKEN left behind.
     const broken = [
