@@ -138,6 +138,12 @@ export function eventId(random: () => number = Math.random): string {
   return out
 }
 
+/** A Node builtin — `node:internal/...`, never our code. */
+const isNodeInternal = (filename: string) => filename.startsWith('node:')
+
+/** Anywhere inside an installed dependency, at any depth. Deliberately unanchored. */
+const isDependency = (filename: string) => /[\\/]node_modules[\\/]/.test(filename)
+
 /** One parsed line of a V8 stack, in the shape Sentry's `frames` array wants. */
 export interface StackFrame {
   filename: string
@@ -184,8 +190,17 @@ export function parseStack(stack: string | undefined): StackFrame[] {
       ...(fn ? { function: fn } : {}),
       ...(lineno ? { lineno: Number(lineno) } : {}),
       ...(colno ? { colno: Number(colno) } : {}),
-      // Anything inside the bundle is ours; node internals and the runtime are not.
-      in_app: !/^node:|[\\/]node_modules[\\/]/.test(filename),
+      // Anything inside the bundle is ours; node internals and dependencies are not.
+      //
+      // ⚠️ TWO SEPARATE TESTS, NOT ONE ALTERNATION. This was
+      // `/^node:|[\\/]node_modules[\\/]/` and CodeQL caught it on the PR
+      // (js/regex/missing-regexp-anchor, HIGH): `^` binds only to the FIRST
+      // alternative, so the expression reads as though both branches are anchored
+      // when only one is. It happened to behave as intended — anchored `node:`,
+      // unanchored `node_modules` — which is exactly why it would have survived
+      // review. Written as two named checks, the intent is on the page instead of
+      // depending on the reader knowing alternation precedence.
+      in_app: !isNodeInternal(filename) && !isDependency(filename),
     })
     if (frames.length >= 50) break
   }
