@@ -26,7 +26,7 @@ export default defineConfig({
       // v8 coverage is deterministic for the same source, so exact floors are safe
       // and any regression fails the package's own `test` script. Raise these when
       // you add tests; never lower one to make a build green.
-      thresholds: { lines: 84, functions: 92, branches: 61, statements: 81 },
+      thresholds: { lines: 84, functions: 92, branches: 68, statements: 81 },
     }),
   },
 })

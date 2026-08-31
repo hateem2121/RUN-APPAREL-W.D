@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { LIVE_PRODUCTS } from '../../../scripts/live-products.mjs'
 import { TARGETS, evaluate } from '../../../scripts/perf-probe.mjs'
 
 /**
@@ -94,11 +95,22 @@ describe('evaluate', () => {
 })
 
 describe('targets', () => {
-  it('probes the viewer, the product API and health', () => {
+  /**
+   * ⚠️ ASSERTS COVERAGE OF EVERY LIVE PRODUCT, NOT TWO FIXED NAMES — L10-08,
+   * 2026-08-31. This used to check for the literals 'viewer HTML' and 'product API',
+   * which is exactly what the old TARGETS produced while timing only `rxps`. A test
+   * naming the same single product the code names cannot notice that the second live
+   * garment is measured by nothing. Derived from LIVE_PRODUCTS, it fails the day a
+   * garment is added to the catalogue and not to the probe.
+   */
+  it('probes BOTH endpoints for every live product, plus health', () => {
     const names = (TARGETS as { name: string }[]).map((t) => t.name)
-    expect(names).toContain('viewer HTML')
-    expect(names).toContain('product API')
+    for (const { slug } of LIVE_PRODUCTS) {
+      expect(names, `no viewer timing for ${slug}`).toContain(`viewer ${slug}`)
+      expect(names, `no API timing for ${slug}`).toContain(`API ${slug}`)
+    }
     expect(names).toContain('health')
+    expect(TARGETS).toHaveLength(LIVE_PRODUCTS.length * 2 + 1)
   })
 
   it('never GETs the model — 27 MB against a $5/month egress cap', () => {
@@ -117,14 +129,19 @@ describe('targets', () => {
    *                             pass through the edge cache, so s-maxage buys nothing)
    */
   it.each([
-    ['viewer HTML', 0.92],
-    ['product API', 3.7],
-  ])('gives %s headroom above its measured worst case', (name, measuredWorst) => {
-    const target = (TARGETS as { name: string; maxSeconds: number }[]).find((t) => t.name === name)
-    expect(target).toBeDefined()
-    expect(
-      target?.maxSeconds,
-      `A threshold at or below the measured ${measuredWorst}s would alert from the day it ships.`,
-    ).toBeGreaterThan(measuredWorst)
+    ['viewer', 0.92],
+    ['API', 3.7],
+  ])('gives every %s target headroom above its measured worst case', (kind, measuredWorst) => {
+    const matching = (TARGETS as { name: string; maxSeconds: number }[]).filter((t) =>
+      t.name.startsWith(`${kind} `),
+    )
+    // One per live product — if this is ever zero the loop below asserts nothing.
+    expect(matching, `no ${kind} targets at all`).toHaveLength(LIVE_PRODUCTS.length)
+    for (const target of matching) {
+      expect(
+        target.maxSeconds,
+        `${target.name}: a threshold at or below the measured ${measuredWorst}s would alert from the day it ships.`,
+      ).toBeGreaterThan(measuredWorst)
+    }
   })
 })
