@@ -35,6 +35,8 @@
  * a 27 MB GET. It reports reachability only, and says so.
  */
 
+import { LIVE_PRODUCTS } from './live-products.mjs'
+
 /**
  * Thresholds, from the live measurements recorded in docs/QA-CHECKLIST.md.
  *
@@ -45,26 +47,35 @@
  * meant what its name claimed.
  */
 export const TARGETS = [
-  {
-    name: 'viewer HTML',
-    path: '/rxps/wine',
-    host: 'https://viewer.wear-run.help',
-    method: 'GET',
-    // Measured 0.47–0.92 s. The checklist says treat > 1.5 s as a problem; 2.5 s is
-    // the ALERT line, deliberately above it — this fires an issue, and the gap
-    // between "worth looking at" and "worth waking someone" should be real.
-    maxSeconds: 2.5,
-  },
-  {
-    name: 'product API',
-    path: '/api/public/viewer/rxps/wine',
-    host: 'https://cms.wear-run.help',
-    method: 'GET',
-    // Measured 2.1–3.7 s and KNOWN SLOW BY DESIGN: a Worker's own response does not
-    // pass through the edge cache, so its s-maxage buys nothing. This is why
-    // per-garment link previews are crawler-only. 6 s is the line.
-    maxSeconds: 6,
-  },
+  // ⚠️ BUILT FROM LIVE_PRODUCTS, NOT TYPED OUT — L10-08, 2026-08-31. Both rows below
+  // used to name `rxps` as a literal, so the SECOND live product (`r-xmp`, the
+  // X-MILO PRO BIB) was timed by nothing. That is the same shape as the two
+  // incidents this file already documents: a check that resolves to one product
+  // while reading as though it covers the catalogue. Adding a garment to
+  // scripts/live-products.mjs now adds it here, and a rename fails everything at
+  // once instead of quietly narrowing what is measured.
+  ...LIVE_PRODUCTS.flatMap(({ slug, colourway }) => [
+    {
+      name: `viewer ${slug}`,
+      path: `/${slug}/${colourway}`,
+      host: 'https://viewer.wear-run.help',
+      method: 'GET',
+      // Measured 0.47–0.92 s. The checklist says treat > 1.5 s as a problem; 2.5 s is
+      // the ALERT line, deliberately above it — this fires an issue, and the gap
+      // between "worth looking at" and "worth waking someone" should be real.
+      maxSeconds: 2.5,
+    },
+    {
+      name: `API ${slug}`,
+      path: `/api/public/viewer/${slug}/${colourway}`,
+      host: 'https://cms.wear-run.help',
+      method: 'GET',
+      // Measured 2.1–3.7 s and KNOWN SLOW BY DESIGN: a Worker's own response does not
+      // pass through the edge cache, so its s-maxage buys nothing. This is why
+      // per-garment link previews are crawler-only. 6 s is the line.
+      maxSeconds: 6,
+    },
+  ]),
   {
     name: 'health',
     path: '/api/health',
@@ -169,7 +180,7 @@ async function main() {
   for (const observation of observations) {
     if (observation.cache) {
       // Read off the GET's own headers. A HEAD would report DYNAMIC regardless.
-      console.log(`  ${observation.name.padEnd(16)} cf-cache-status: ${observation.cache}`)
+      console.log(`  ${observation.name.padEnd(20)} cf-cache-status: ${observation.cache}`)
     }
   }
 
