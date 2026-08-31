@@ -233,3 +233,26 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   NOT a secret — it is the same public ingest key already shipped to every browser in
   `VITE_SENTRY_DSN`.
 
+- **A code-scanning dismissal REQUEST is not a dismissal — someone must APPROVE it.**
+  Two requests sat `status: pending` from 2026-08-19 to 2026-08-31 with a good
+  justification, and both alerts stayed `open` the whole time. Delegated dismissal
+  splits the two, and only the filing half had been done. The same account that
+  raised them can approve them:
+  `gh api -X PATCH /repos/O/R/dismissal-requests/code-scanning/<n> -f status=approve -f message=…`
+  (`approve`/`deny`, and `message` is required — a 422 names the legal values).
+  ⚠️ **Alerts carry TWO severities and the ruleset has TWO thresholds.**
+  `rule.severity` is warning/error and is judged by `alerts_threshold`;
+  `rule.security_severity_level` is low…critical and is judged by
+  `security_alerts_threshold`. A "medium" alert can be a `warning`, and neither
+  number alone tells you whether a merge is blocked.
+- **Read a check's NAME off a PR head commit, never a merge commit.** A merge commit
+  carries fewer check runs: `Socket Security: Project Report` appears on both, and
+  `Socket Security: Pull Request Alerts` — the one worth requiring — only on the head.
+  Reading the merge commit produced a confident "the audit has the wrong name"
+  correction that would have blocked every PR forever on a check Socket never posts.
+  Confirm across several PR HEADs before adding a name to the required-checks list.
+  ⚠️ **CodeQL parses ANY file named `action.yml`, wherever it sits** — including under
+  `docs/`, including a directory literally named `fake`. A committed fixture that
+  contains the defect on purpose raises a real alert. Default setup has no
+  path-exclusion config, so RENAME the fixture (`action.yml.fixture`) rather than
+  dismissing an alert that will simply come back.

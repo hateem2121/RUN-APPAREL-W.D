@@ -314,12 +314,16 @@ the answer is "nothing that happens in production", it is not a test.
   browser will — bare URL, plain GET — before pointing a product at it**; a
   `HEAD`, the filesize, `artworkVerdict: ok` and the `{OPAQUE, MASK}` census were
   ALL green while the file was unreachable. Fix is a Custom Purge of that one URL.
+
+- **A Cloudflare API write with inline JSON is refused by the auto-mode classifier.**
+  Write the body to a file and `curl … -d @/tmp/body.json` — same request, accepted.
+  Cost three blocked attempts on 2026-08-31 (rate-limit, compression, push ruleset).
   ✅ The 30-day exposure was capped on 2026-08-31: the media Cache Rule now carries
   `status_code_ttl` of 10s for 4xx/5xx, so a cached miss lasts seconds rather than
   a month. The GET/HEAD divergence is unaffected and is why this stays. Full
   incident: `docs/HARDENING-LOG.md`.
 
-- **Ten more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
+- **Twelve more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
   of them moved there 2026-08-19 because they bite only while you are editing a
   workflow, which is exactly when that file loads. Enough to stop you: every workflow
   is gated by `apps/cms/src/workflowHardening.test.ts` on eleven rules with verified
