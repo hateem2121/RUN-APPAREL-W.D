@@ -68,6 +68,14 @@ reason: ten committed documents cite them by path, including three audit reports
 and `docs/audit-2026-08-30-pm/CONSOLIDATED.json`, and `scripts/doc-citations.mjs`
 resolves every one of those. Moving them trades a tidy root for a broken gate.
 
+**Maintainer** — [@hateem2121](https://github.com/hateem2121), sole maintainer.
+
+**Getting help** — for the live site (a deploy, a rollback, a rotated secret, a
+garment that will not process) start at [`docs/RUNBOOK.md`](docs/RUNBOOK.md). For a
+change to this repository, [`CONTRIBUTING.md`](CONTRIBUTING.md) has the full gate
+list. For anything that looks like a security problem, follow
+[`SECURITY.md`](SECURITY.md) and **do not open an issue**.
+
 **Session logs** — narrative records of expensive debugging, kept because
 re-deriving them costs days: [`docs/SESSION-2026-07-27.md`](docs/SESSION-2026-07-27.md)
 (why raw uploads never worked) · [`docs/SESSION-2026-07-28.md`](docs/SESSION-2026-07-28.md)
