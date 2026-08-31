@@ -33,7 +33,7 @@ export default defineConfig({
       // tests (57.88% → 76.25% lines). What remains uncovered is largely Payload
       // COLLECTION CONFIG — declarative field definitions whose behaviour is already
       // extracted into publishGating.ts, mediaRules.ts and rawRules.ts, all at ~100%.
-      thresholds: { lines: 76, functions: 74, branches: 66, statements: 75 },
+      thresholds: { lines: 84, functions: 80, branches: 74, statements: 84 },
     }),
   },
 })

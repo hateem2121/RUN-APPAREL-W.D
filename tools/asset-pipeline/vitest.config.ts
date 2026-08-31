@@ -30,7 +30,7 @@ export default defineConfig({
       ],
       // Measured 2026-08-13. Read the note above before treating this number as a
       // statement about artwork safety — it is not one.
-      thresholds: { lines: 87, functions: 86, branches: 73, statements: 84 },
+      thresholds: { lines: 91, functions: 87, branches: 75, statements: 88 },
     }),
   },
 })

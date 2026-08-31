@@ -95,7 +95,7 @@ export default defineConfig({
        * The right way to raise this number is to move logic OUT of those components
        * into `src/lib/` — which is where every 100%-covered module here came from.
        */
-      thresholds: { lines: 42, functions: 42, branches: 32, statements: 41 },
+      thresholds: { lines: 58, functions: 55, branches: 49, statements: 57 },
     }),
   },
 })

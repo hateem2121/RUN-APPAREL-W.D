@@ -160,8 +160,32 @@ console.log(
  */
 const WARN_AT = 0.9
 
+/**
+ * FLOOR — L10-05, 2026-08-31. A gated category below this fraction of its budget
+ * FAILS, exactly as one over budget does.
+ *
+ * WHY A CEILING ALONE IS HALF A GATE. Every budget here answers "did the shell get
+ * heavier". None of them noticed a category getting LIGHTER, and the way a category
+ * gets lighter without anyone deciding to is by DISAPPEARING — a decoder that stops
+ * being copied, a font subset that stops being emitted, a chunk that fails to build.
+ * Each of those ships a viewer that is smaller and broken, and each would have read
+ * as a comfortable pass here. The repo has already paid for exactly this shape:
+ * `apps/viewer/scripts/copy-decoders.mjs` writes `public/draco/` at build time, and
+ * a missing decoder is what stopped every production model rendering in July.
+ *
+ * ⚠️ THIS IS NOT A RULE AGAINST GETTING SMALLER. If you genuinely halve a category —
+ * a better font subset, a decoder dropped on purpose — LOWER THE BUDGET in the same
+ * change. The floor is measured against the budget, so re-baselining is the
+ * intended way past it, and it keeps the number meaning something either way.
+ *
+ * 0.5 is chosen against the live figures, not picked round: the four categories sit
+ * at 72–91% of budget today, so the nearest is 22 points clear of tripping it.
+ */
+const FLOOR_AT = 0.5
+
 const failures = []
 const warnings = []
+const collapses = []
 
 for (const category of [...Object.keys(BUDGETS), UNGATED]) {
   const t = totals[category] ?? { raw: 0, gz: 0, count: 0 }
@@ -174,6 +198,9 @@ for (const category of [...Object.keys(BUDGETS), UNGATED]) {
     if (t.gz > budget) {
       verdict = `${fmt(budget)}  OVER by ${fmt(t.gz - budget)}`
       failures.push({ category, actual: t.gz, budget })
+    } else if (t.gz < budget * FLOOR_AT) {
+      verdict = `${fmt(budget)}  COLLAPSED to ${pct}% — under the ${FLOOR_AT * 100}% floor`
+      collapses.push({ category, actual: t.gz, budget, count: t.count })
     } else if (t.gz >= budget * WARN_AT) {
       verdict = `${fmt(budget)}  (${pct}% used — ${fmt(budget - t.gz)} left)`
       warnings.push({ category, actual: t.gz, budget })
@@ -204,6 +231,20 @@ if (unset.length) {
       `  A budget of 0 is not "no budget", it is an unfinished one. Run with --report\n` +
       `  and set them from the measurement.`,
   )
+  process.exit(1)
+}
+
+if (collapses.length) {
+  console.error(
+    `\n\u2717 ${collapses.length} gated category collapsed below ${FLOOR_AT * 100}% of budget.\n`,
+  )
+  for (const c of collapses) {
+    console.error(
+      `::error::${c.category} is ${fmt(c.actual)} gzip against a ${fmt(c.budget)} budget ` +
+        `(${((c.actual / c.budget) * 100).toFixed(0)}%, ${c.count} file(s)). A category does not ` +
+        `halve by accident — check it is still being emitted. If the drop is deliberate, lower the budget.`,
+    )
+  }
   process.exit(1)
 }
 

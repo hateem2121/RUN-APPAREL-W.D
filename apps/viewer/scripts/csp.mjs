@@ -238,6 +238,26 @@ export function buildHeadersFile(input) {
 /meshopt_decoder.js
   Cache-Control: public, max-age=31536000, immutable
 
+# Link-preview images — L1-06, 2026-08-31.
+#
+# /og/<product>/<colour>.jpg fell through every rule above and landed on Workers
+# Static Assets' default of \`max-age=0, must-revalidate\`, so every crawler that
+# re-read a card paid a full round trip for a file that changes only when the
+# garment does. These are the images WhatsApp, Slack, iMessage and every search
+# crawler fetch when somebody shares a product link.
+#
+# ⚠️ BOUNDED, NOT immutable — and the distinction is the whole reason this rule is
+# separate from the four above. Those URLs are pinned by content hash or by version,
+# so \`immutable\` is honest: the bytes at that URL cannot change. An /og/ path is
+# NOT: re-processing a garment rewrites the poster behind the same address. An
+# immutable year would leave a stale card in every crawler's cache with no way to
+# purge theirs. One hour is long enough that a card being shared around is served
+# from cache, and short enough that a re-processed garment corrects itself.
+#
+# Cannot collide with /assets/* — see the comma-joining trap above.
+/og/*
+  Cache-Control: public, max-age=3600
+
 # The SPA shell must always revalidate so new deploys go live immediately.
 #
 # no-transform is NOT a caching decision. It stops Cloudflare injecting Bot Fight

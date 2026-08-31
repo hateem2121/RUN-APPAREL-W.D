@@ -59,6 +59,25 @@ A backup nobody has restored is a hypothesis. Add a row each time one is run.
 **Next drill due: 2026-11-05** (quarterly). The one worth doing next is the R2
 media restore, because it is the only row above whose RTO is a guess.
 
+## ⚠️ What this document does NOT cover
+
+**`run-apparel-db` — the OTHER site's database — is out of scope here.** It lives in
+the same Cloudflare account, it is backed up by nothing in this repository, and
+**D1 Time Travel is its only recovery path** (30 days, and it cannot recover a
+database that has been deleted). It belongs to the commercial site, not to the
+viewer.
+
+That is a deliberate boundary, not an oversight (L7-03). Adding it to
+`scripts/backup-d1.mjs` would make this repository responsible for restoring a
+system it does not own, cannot test a restore of, and whose schema it does not
+track — and a backup nobody has ever restored is the thing this document exists to
+argue against.
+
+What this repository DOES back up: `run-apparel-viewer-db` (nightly D1 dump,
+restore-verified, kept as a GitHub artifact **and** in R2 under
+`run-private/run-apparel-viewer-db/`), the `run-apparel-viewer-media` bucket, and
+the two apex PDFs from `run-assets`.
+
 ## Taking a backup
 
 ```bash

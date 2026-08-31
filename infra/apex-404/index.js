@@ -50,7 +50,20 @@
  * `key` is the R2 object name; `name` is what the browser shows in its title bar and
  * uses if the reader saves the file.
  */
-const FILES = {
+/**
+ * The two objects this Worker serves, and the download names it gives them.
+ *
+ * EXPORTED — L17-14, 2026-08-31. `scripts/backup-r2.mjs` used to carry its own
+ * hardcoded `APEX_KEYS` copy of these R2 keys. Two hand-maintained copies of a
+ * string that only R2 can validate is how the backup quietly starts backing up
+ * nothing: rename an object here, and the other list still names the old key,
+ * and the nightly job reports success having saved a 404.
+ *
+ * ⚠️ "RUN PRODUCT CATALOUGE.pdf" IS NOT A TYPO TO FIX. It is the object's real
+ * name in the `run-assets` bucket. Correcting the spelling here breaks both the
+ * live download and the backup at once.
+ */
+export const FILES = {
   '/catalogue': { key: 'RUN PRODUCT CATALOUGE.pdf', name: 'RUN-Apparel-Catalogue.pdf' },
   '/profile': { key: 'Company Profile.pdf', name: 'RUN-Apparel-Company-Profile.pdf' },
 }
@@ -116,7 +129,17 @@ export async function handle(request, env) {
   headers.set('content-type', 'application/pdf')
   // `inline` so it opens in the browser instead of forcing a download.
   headers.set('content-disposition', `inline; filename="${file.name}"`)
-  headers.set('cache-control', 'public, max-age=3600')
+  // L17-12, 2026-08-31: one DAY, not one hour, with a week of
+  // stale-while-revalidate. These are a 54.3 MB catalogue and a 16.9 MB profile that
+  // change a few times a year, on a low-traffic apex whose COLD fetch measured 1.6 s.
+  // An hourly TTL meant almost every visitor paid that cold cost for bytes that had
+  // not changed. stale-while-revalidate serves the cached copy instantly and
+  // refreshes behind it, so a replaced PDF still reaches people within the week
+  // without anyone waiting on it.
+  // ⚠️ NOT immutable: the object behind these two paths CAN be replaced (the keys are
+  // fixed, the bytes are not), and an immutable year would strand an old catalogue in
+  // caches with no way to purge someone else's.
+  headers.set('cache-control', 'public, max-age=86400, stale-while-revalidate=604800')
   headers.set('accept-ranges', 'bytes')
   headers.set('x-content-type-options', 'nosniff')
 

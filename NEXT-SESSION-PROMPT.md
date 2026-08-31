@@ -1,5 +1,10 @@
 # Prompt for the next session — paste this whole thing
 
+> **STATUS: WORKING NOTE — last updated 2026-08-31.** A hand-off prompt, rewritten
+> each session. It is never a record of what is true now; for that read
+> [`CLAUDE.md`](CLAUDE.md) and [`docs/README.md`](docs/README.md). Listed in
+> [`README.md`](README.md) per L13-09.
+
 Remember to never assume. Always ask if you have any questions, confusions or stuck
 anywhere.
 

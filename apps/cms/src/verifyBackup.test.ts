@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { MUST_NOT_BE_EMPTY, claimedInserts, verify } from '../../../scripts/verify-backup.mjs'
+import {
+  EXACT_ROWS,
+  MINIMUM_ROWS,
+  MUST_NOT_BE_EMPTY,
+  claimedInserts,
+  verify,
+} from '../../../scripts/verify-backup.mjs'
+
+/**
+ * The volume floors (L20-03) are sized for a REAL production dump — 50 products,
+ * 15 media. GOOD_DUMP carries one of each on purpose, because the tests that use it
+ * are about replay mechanics, not about how much data a backup should hold.
+ * Switching the floors off in those tests states that difference instead of
+ * quietly inflating a fixture until it clears a threshold it was never testing.
+ */
+const NO_VOLUME_CHECKS = { minimumRows: {}, exactRows: {} }
 
 /**
  * Tests for the nightly backup verifier.
@@ -177,7 +192,7 @@ CREATE INDEX \`users_email_idx\` ON \`users\` (\`email\`);
 
 describe('a real wrangler d1 export', () => {
   it('restores, even though it inserts into a child table before the parent exists', () => {
-    const result = verify(WRANGLER_SHAPED_DUMP)
+    const result = verify(WRANGLER_SHAPED_DUMP, NO_VOLUME_CHECKS)
 
     expect(result.problems, 'this is the exact ordering a production dump has').toEqual([])
     expect(result.ok).toBe(true)
@@ -201,7 +216,7 @@ describe('a real wrangler d1 export', () => {
 
 describe('verify — a good backup', () => {
   it('accepts a complete dump and reports the row counts', () => {
-    const result = verify(GOOD_DUMP)
+    const result = verify(GOOD_DUMP, NO_VOLUME_CHECKS)
 
     expect(result.problems).toEqual([])
     expect(result.ok).toBe(true)
@@ -256,5 +271,77 @@ describe('the required-table list matches the real schema', () => {
       'MUST_NOT_BE_EMPTY names a table no migration creates — the nightly verifier ' +
         'would report it missing on every run, which is an alarm nobody reads.',
     ).toEqual([])
+  })
+})
+
+/**
+ * L20-03 — the volume floors.
+ *
+ * WHAT WOULD HAVE TO BREAK FOR THESE TO FAIL: a dump that restores perfectly and
+ * carries a fraction of the catalogue would have to start passing again. That is
+ * not a hypothetical shape — it is the ONLY shape `MUST_NOT_BE_EMPTY` cannot see,
+ * because one row is not zero rows.
+ *
+ * Each test below is paired: the same dump is checked with the floors OFF to prove
+ * the old gate really did pass it, and ON to prove the new one catches it. A test
+ * that only showed the failure would not show that anything changed.
+ */
+describe('volume floors', () => {
+  /** Enough rows to clear every floor: 50 products, 15 media, 5 colourways. */
+  const bulk = (table: string, n: number, row: (i: number) => string) =>
+    Array.from({ length: n }, (_, i) => `INSERT INTO ${table} VALUES ${row(i + 1)};`).join('\n')
+
+  const FULL_DUMP = [
+    SCHEMA,
+    "INSERT INTO users VALUES (1, 'owner@example.com');",
+    "INSERT INTO site_settings VALUES (1, 'https://example.com/catalogue');",
+    bulk('products', 60, (i) => `(${i}, 'p${i}')`),
+    bulk('media', 20, (i) => `(${i}, 'f${i}.glb')`),
+    bulk('colourways', 8, (i) => `(${i}, 1, 'c${i}')`),
+  ].join('\n')
+
+  /** The same database with 3 products instead of 60 — and nothing else wrong. */
+  const THIN_DUMP = [
+    SCHEMA,
+    "INSERT INTO users VALUES (1, 'owner@example.com');",
+    "INSERT INTO site_settings VALUES (1, 'https://example.com/catalogue');",
+    bulk('products', 3, (i) => `(${i}, 'p${i}')`),
+    bulk('media', 20, (i) => `(${i}, 'f${i}.glb')`),
+    bulk('colourways', 8, (i) => `(${i}, 1, 'c${i}')`),
+  ].join('\n')
+
+  it('accepts a dump that carries a real catalogue', () => {
+    const result = verify(FULL_DUMP)
+    expect(result.problems).toEqual([])
+    expect(result.ok).toBe(true)
+  })
+
+  it('rejects a dump missing most of the catalogue', () => {
+    const result = verify(THIN_DUMP)
+    expect(result.ok).toBe(false)
+    expect(result.problems.join(' ')).toMatch(/products: restored 3 rows, below the floor of 50/)
+  })
+
+  it('THE POINT: that same thin dump passes every pre-L20-03 check', () => {
+    // The old gate in full — replay, claimed-vs-actual, foreign keys, not-empty.
+    // It says yes. Three products out of sixty is a catastrophe that looks like a
+    // clean backup, and this is the assertion that says so.
+    const old = verify(THIN_DUMP, NO_VOLUME_CHECKS)
+    expect(old.problems).toEqual([])
+    expect(old.ok).toBe(true)
+  })
+
+  it('rejects a duplicated global, which no other check would notice', () => {
+    const twoSettings = `${FULL_DUMP}\nINSERT INTO site_settings VALUES (2, 'https://example.com/other');`
+    const result = verify(twoSettings)
+    expect(result.ok).toBe(false)
+    expect(result.problems.join(' ')).toMatch(/site_settings: restored 2 rows where exactly 1/)
+    // Control: the same dump is clean to everything else.
+    expect(verify(twoSettings, NO_VOLUME_CHECKS).ok).toBe(true)
+  })
+
+  it('pins the floors themselves, so lowering one is a deliberate edit', () => {
+    expect(MINIMUM_ROWS).toEqual({ products: 50, media: 15, products_colourways: 5, users: 1 })
+    expect(EXACT_ROWS).toEqual({ site_settings: 1 })
   })
 })

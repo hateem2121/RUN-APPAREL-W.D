@@ -44,12 +44,29 @@ export const EXPECTED_PACKAGES = [
 ]
 
 /**
- * Repo-wide floor, measured 2026-08-13 across all five packages combined:
- * 1794/2686 lines = 66.79%. Set at 66 — one point of slack so an unrelated
- * refactor that moves code between packages does not fail the build, while a real
- * removal of tests still does.
+ * Repo-wide floor.
+ *
+ * RE-RATCHETED 2026-08-31 (L10-01). It was set to 66 on 2026-08-13 from a
+ * then-measurement of 1794/2686 lines = 66.79%, and never moved again. By
+ * 2026-08-31 the real figure was 83.77%, so **319 already-covered lines could have
+ * stopped being covered with every gate still green** — a floor 17 points below
+ * reality is a floor that has stopped measuring anything.
+ *
+ * Now 81, from a measured 83.77% with two points of slack. Per-package thresholds
+ * moved the same way and by the same rule: floor(measured) - 2, and NEVER below the
+ * existing number, so this can only tighten.
+ *
+ * ⚠️ RAISING IS ALLOWED; LOWERING IS NOT. If a change drops coverage under a floor,
+ * the answer is a test, not a smaller number. See CLAUDE.md — the viewer's floor is
+ * deliberately the lowest in the repo and must NOT be "fixed" by excluding App.tsx
+ * or Stage.tsx, which is where most of its uncovered lines live; they are covered by
+ * apps/viewer/e2e/ in a real browser instead.
+ *
+ * ⚠️ RE-RATCHET AFTER A DELETION WITH CARE. A number a deletion happened to produce
+ * is one nobody measured — that is why the floor was deliberately NOT raised when
+ * RenderPage.tsx was removed on 2026-08-17.
  */
-export const REPO_LINE_FLOOR = 66
+export const REPO_LINE_FLOOR = 81
 
 /**
  * Decide the outcome from already-loaded summaries. Pure — no fs, no process — so

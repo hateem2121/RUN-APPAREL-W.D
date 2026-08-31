@@ -23,6 +23,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { FILES as APEX_FILES } from '../infra/apex-404/index.js'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const cmsDir = join(root, 'apps', 'cms')
@@ -32,16 +33,27 @@ const BUCKET = 'run-apparel-viewer-media'
 /**
  * The apex PDFs, in the bucket the separate `run-apparel` site also uses.
  *
- * Keys are listed explicitly rather than enumerated, for two reasons: `wrangler r2`
+ * Keys are DERIVED FROM THE WORKER, not enumerated and not retyped. `wrangler r2`
  * has no object-list command, and `run-assets` is SHARED — enumerating it, if that
- * were possible, would drag in the other application's objects. These two are what
- * infra/apex-404/index.js serves.
+ * were possible, would drag in the other application's objects. So the list has to
+ * be explicit; the question is only whether it is explicit ONCE.
  *
- * ⚠️ "RUN PRODUCT CATALOUGE.pdf" is spelled as the object really is, typo included.
- * Correcting it here silently backs up nothing.
+ * Until 2026-08-31 it was twice: this file carried its own literal copy of the two
+ * keys (L17-14). Nothing compared them, and only R2 can say whether either is
+ * right — so a rename would have left this job naming a key that no longer exists
+ * and reporting success having saved a 404. It now reads them from
+ * infra/apex-404/index.js, which is the file that must be correct anyway or the
+ * live download breaks first and loudly.
+ *
+ * ⚠️ The spelling "CATALOUGE" is the object's REAL name. Correcting it breaks the
+ * download and the backup together. The comment in the Worker says so too.
  */
 const APEX_BUCKET = 'run-assets'
-const APEX_KEYS = ['RUN PRODUCT CATALOUGE.pdf', 'Company Profile.pdf']
+// DERIVED, not retyped — L17-14, 2026-08-31. These are the exact R2 keys the apex
+// Worker serves, read from the Worker itself so the two can never drift. The
+// previous hardcoded copy would have gone on naming an old key after a rename,
+// and this job would have reported success while saving a 404.
+const APEX_KEYS = Object.values(APEX_FILES).map((f) => f.key)
 
 const mode = process.argv.includes('--local') ? '--local' : '--remote'
 

@@ -95,6 +95,58 @@ jobs:
       # `if: always()` so a backup that FAILED verification is still kept. The job goes
       # red either way, and a corrupt dump is evidence worth having when working out
       # what went wrong upstream.
+      # A SECOND HOME FOR THE DUMP — L2-05, 2026-08-31.
+      #
+      # Until now the viewer database's only copy outside D1 was a GitHub artifact,
+      # while `run-private` held thirty nightly dumps of the OTHER site's database and
+      # nothing of ours. One platform holding both the live database and its only
+      # backup is the shape this step exists to end, and the bucket was already there.
+      #
+      # Prefixed `run-apparel-viewer-db/` so the two applications' dumps cannot be
+      # confused for each other during a restore, which is the moment nobody is
+      # reading carefully. Runs AFTER the verify step on purpose: an unverified dump
+      # is not a backup, and copying one further only spreads a false sense of safety.
+      - name: Copy the verified dump into R2 (run-private)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          shopt -s nullglob
+          dumps=(backups/d1/*.sql)
+          if [ ${#dumps[@]} -eq 0 ]; then
+            echo "::error::No dump to copy — the export step produced nothing."
+            exit 1
+          fi
+          for dump in "${dumps[@]}"; do
+            key="run-apparel-viewer-db/$(basename "$dump")"
+            echo "uploading $dump -> run-private/$key"
+            pnpm --filter @run-apparel/cms exec wrangler r2 object put \
+              "run-private/$key" --file "$dump" --remote
+          done
+
+      # ⚠️ The upload above is only worth having if it ARRIVED. `wrangler r2 object
+      # put` exits 0 on a great many things; this reads the object back and checks its
+      # size against the file on disk, which is the difference between "we ran an
+      # upload" and "the bytes are there".
+      - name: Assert the dump is readable back out of R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          shopt -s nullglob
+          for dump in backups/d1/*.sql; do
+            key="run-apparel-viewer-db/$(basename "$dump")"
+            pnpm --filter @run-apparel/cms exec wrangler r2 object get \
+              "run-private/$key" --file /tmp/roundtrip.sql --remote
+            want=$(wc -c < "$dump")
+            got=$(wc -c < /tmp/roundtrip.sql)
+            if [ "$want" != "$got" ]; then
+              echo "::error::$key read back as $got bytes, expected $want. The copy in R2 is not the dump."
+              exit 1
+            fi
+            echo "verified $key: $got bytes match"
+          done
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
@@ -133,7 +185,13 @@ jobs:
             node scripts/backup-r2.mjs --apex-only --stamp="$(date -u +%Y-%m-%d)"
           fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: ${{ hashFiles('backups/r2/**') != '' }}
+        # L2-12, 2026-08-31: always(), matching the D1 upload above and for the same
+        # reason written there. A PARTLY-failed mirror is the run whose output is most
+        # worth keeping — it says which objects made it and which did not. Discarding
+        # it leaves only "the job went red" and nothing to diagnose from.
+        # hashFiles() still guards the empty case, so a run that mirrored nothing does
+        # not upload an empty artifact.
+        if: ${{ always() && hashFiles('backups/r2/**') != '' }}
         with:
           name: r2-backup-${{ github.run_id }}
           path: backups/r2/**

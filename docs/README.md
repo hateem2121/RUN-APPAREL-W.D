@@ -82,6 +82,39 @@ Newest first.
 | [2026-07-28](SESSION-2026-07-28.md) | Texture-aware decimation; CI token scope |
 | [2026-07-27](SESSION-2026-07-27.md) | Why raw uploads never worked |
 
+## Audit working files
+
+The two Cloudflare + GitHub audits each keep their evidence beside the report, so a
+claim can be checked rather than believed. **These are working material, not
+guidance** — read the report, and come here only to verify something in it.
+
+| What | Where |
+|---|---|
+| The 2026-08-30 **PM** report — 358 checks, 21 lanes, the one being remediated | [AUDIT-2026-08-30-PM-CLOUDFLARE-AND-GITHUB.md](AUDIT-2026-08-30-PM-CLOUDFLARE-AND-GITHUB.md) |
+| That report split into readable sections (`01-the-short-version` … `16-appendix`) | [audit-2026-08-30-pm/sections/](audit-2026-08-30-pm/sections/) |
+| **The remediation tracker — every finding, its status and its evidence** | [audit-2026-08-30-pm/WORKLIST.md](audit-2026-08-30-pm/WORKLIST.md) |
+| Instruments that reported clean while measuring nothing (D1–D7) | [audit-2026-08-30-pm/INSTRUMENT-DEFECTS.md](audit-2026-08-30-pm/INSTRUMENT-DEFECTS.md) |
+| Live Cloudflare changes made during remediation, with rollback JSON | [audit-2026-08-30-pm/CLOUDFLARE-LIVE-CHANGES.md](audit-2026-08-30-pm/CLOUDFLARE-LIVE-CHANGES.md) |
+| Where to pick the work back up | [audit-2026-08-30-pm/RESUME.md](audit-2026-08-30-pm/RESUME.md) |
+| The earlier 2026-08-30 **AM** audit and its evidence | [AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md](AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md) · [audit-2026-08-30/EVIDENCE-firsthand.md](audit-2026-08-30/EVIDENCE-firsthand.md) · [audit-2026-08-30/APPENDIX-generated.md](audit-2026-08-30/APPENDIX-generated.md) · [audit-2026-08-30/CLOUDFLARE-LIVE-CHANGES.md](audit-2026-08-30/CLOUDFLARE-LIVE-CHANGES.md) |
+
+⚠️ **`audit-2026-08-30-pm/sections/13-do-not-change.md` is the one to read before
+"tidying" anything.** It lists 153 things that were checked and found CORRECT,
+several of which look wrong and are deliberate.
+
+## Plans and specs
+
+Written before the work, kept after it. A plan says what was intended; the matching
+spec says how it was designed. They are **historical records** — where a plan and the
+code disagree, the code is right and the plan simply landed differently.
+
+| What | Where |
+|---|---|
+| Every implementation plan (CMS UX redesign, audit remediations, CI sizing, viewer layout, garment-pipeline defects) | [superpowers/plans/](superpowers/plans/) |
+| The design spec behind each of those plans | [superpowers/specs/](superpowers/specs/) |
+| A post-merge review kept as a worked example | [reviews/2026-08-12-post-merge-8927062.md](reviews/2026-08-12-post-merge-8927062.md) |
+| **In-progress** plans live at the repository ROOT, not here — see the README | [../README.md](../README.md) |
+
 ## Not in this folder
 
 | What | Where |

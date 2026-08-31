@@ -57,6 +57,39 @@ import { readFileSync } from 'node:fs'
 export const MUST_NOT_BE_EMPTY = ['products', 'users', 'site_settings', 'media']
 
 /**
+ * VOLUME floors — L20-03, 2026-08-31.
+ *
+ * WHY "NOT EMPTY" IS NOT ENOUGH. `MUST_NOT_BE_EMPTY` catches a table that
+ * cascade-deleted to zero, which is the 2026-07-29 incident it was written for. It
+ * cannot see a dump that restored 3 products out of 67 — one row is not zero rows,
+ * so the check passes and the nightly job reports a good backup. The whole value of
+ * a backup is the part that would be missing.
+ *
+ * MEASURED, not chosen, against the 2026-08-29 dump: products 67, media 21,
+ * users 2, site_settings 1, products_colourways 10. The floors below sit roughly a
+ * quarter under each, so ordinary catalogue work never trips them and losing half
+ * the catalogue always does.
+ *
+ * ⚠️ RAISE THESE WHEN THE CATALOGUE GROWS; do not lower one to make a red run go
+ * green. A floor lowered to fit a bad backup is a floor that has stopped meaning
+ * anything — the same rule as the coverage floors in scripts/check-coverage.mjs.
+ */
+export const MINIMUM_ROWS = {
+  products: 50,
+  media: 15,
+  products_colourways: 5,
+  users: 1,
+}
+
+/**
+ * Tables whose row count is a FACT, not a range.
+ *
+ * `site_settings` is a Payload global: exactly one row, always. Two means a
+ * migration duplicated it; zero means it is gone. Both are silent today.
+ */
+export const EXACT_ROWS = { site_settings: 1 }
+
+/**
  * Count the INSERT statements per table in a dump, i.e. what the file CLAIMS it will
  * restore. Deliberately textual and deliberately conservative: it counts statements,
  * not tuples, so a multi-row `INSERT INTO t VALUES (…),(…)` counts as one. That
@@ -159,10 +192,13 @@ export function replay(sql) {
  * below can be tested with a string instead of a 40 MB production dump.
  *
  * @param {string} sql
- * @param {{ mustNotBeEmpty?: string[] }} [options]
+ * @param {{ mustNotBeEmpty?: string[], minimumRows?: Record<string, number>, exactRows?: Record<string, number> }} [options]
  * @returns {{ ok: boolean, problems: string[], tables: Map<string, number> }}
  */
-export function verify(sql, { mustNotBeEmpty = MUST_NOT_BE_EMPTY } = {}) {
+export function verify(
+  sql,
+  { mustNotBeEmpty = MUST_NOT_BE_EMPTY, minimumRows = MINIMUM_ROWS, exactRows = EXACT_ROWS } = {},
+) {
   const problems = []
 
   if (!sql.trim()) {
@@ -214,6 +250,33 @@ export function verify(sql, { mustNotBeEmpty = MUST_NOT_BE_EMPTY } = {}) {
       problems.push(
         `${table}: restored with 0 rows. A syntactically perfect dump of an empty database ` +
           'is the failure that looks most like success.',
+      )
+    }
+  }
+
+  // VOLUME — L20-03. "not zero" passes on 3 products out of 67, and the missing 64
+  // are the entire reason anyone keeps a backup.
+  for (const [table, floor] of Object.entries(minimumRows)) {
+    const actual = tables.get(table)
+    if (actual === undefined) continue // already reported by the checks above
+    if (actual < floor) {
+      problems.push(
+        `${table}: restored ${actual} rows, below the floor of ${floor}. Not empty is not the ` +
+          'same as intact — this dump is missing data that a real one would carry. Check the ' +
+          'export before trusting this as a recovery point.',
+      )
+    }
+  }
+
+  // Counts that are facts rather than ranges. A Payload global has exactly one row;
+  // two means a migration duplicated it, and nothing else would say so.
+  for (const [table, expected] of Object.entries(exactRows)) {
+    const actual = tables.get(table)
+    if (actual === undefined) continue
+    if (actual !== expected) {
+      problems.push(
+        `${table}: restored ${actual} rows where exactly ${expected} is correct. This is a ` +
+          'global — more than one row means something duplicated it.',
       )
     }
   }

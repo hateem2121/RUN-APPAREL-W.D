@@ -41,6 +41,12 @@
         "max_batch_size": 1,
         "max_concurrency": 1,
         "max_retries": 2,
+        // L7-04, 2026-08-31. Without this, the three attempts run BACK TO BACK
+        // against the same Container — so a transient start-up failure is retried
+        // twice while the cause is still present, all three fail, and the job goes
+        // to the dead-letter queue as if it were permanently broken. 30s is free on
+        // an idle queue and converts that class of failure into a recovery.
+        "retry_delay": 30,
         "dead_letter_queue": "glb-shrink-dlq"
       },
       // The dead-letter queue had no consumer at all until 2026-08-03, so a job

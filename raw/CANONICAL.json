@@ -29,7 +29,22 @@
     "`sha256` means the calibration no longer applies to it: re-run with --calibrate,",
     "LOOK at the contact sheets, and update `ceiling` and `calibratedAt` together.",
     "Never update the checksum alone to make the guard pass — that is precisely the",
-    "move this file exists to prevent."
+    "move this file exists to prevent.",
+    "",
+    "EXTENDED 2026-08-31 (L20-07). Until then this manifest held ONE garment while ten",
+    "raw exports sat on the laptop, so nine of them had no recorded fingerprint at all —",
+    "a re-export or a partial copy would have been undetectable. Every file now has a",
+    "sha256 and a byte count.",
+    "",
+    "⚠️ TEN GARMENTS, ELEVEN FILES. `3D Products/cycling all colours.glb` and",
+    "`raw/cycling-all-colours.glb` are BYTE-IDENTICAL — same sha256, 382,107,380 bytes",
+    "stored twice. Recorded once, under n001, whose `localFile` is the raw/ copy.",
+    "",
+    "Only n001 is CALIBRATED. The rest carry `calibrated: false`: their fingerprint says",
+    "'this is the same file', not 'this file passed anything'. Do not read an entry here",
+    "as evidence a garment is good.",
+    "",
+    "Re-check every fingerprint with:  node scripts/check-canonical-raw.mjs"
   ],
   "version": 1,
   "garments": {
@@ -163,6 +178,78 @@
           ]
         }
       ]
+    },
+    "cycling-bib": {
+      "description": "Raw CLO export: Cycling-Bib. NOT CALIBRATED — no artwork ceiling has been measured against this file.",
+      "localFile": "3D Products/Cycling-Bib.glb",
+      "bytes": 1313979936,
+      "sha256": "369423e60ea6566f01de9dd02f3ca660fb00a813c83695f155beb81f2a847e73",
+      "calibrated": false,
+      "$calibratedComment": "eval:artwork:real has never been run against this garment, so there is no ceiling to compare a future run to. The sha256 still earns its place: it is what makes 'this is the same file' checkable when one IS calibrated."
+    },
+    "geovent-tennis-dress": {
+      "description": "Raw CLO export: Geovent Tennis Dress. NOT CALIBRATED — no artwork ceiling has been measured against this file.",
+      "localFile": "3D Products/Geovent Tennis Dress.glb",
+      "bytes": 641537032,
+      "sha256": "f7ecd3485b3a51b6d9a3610bbc079beecde1a19410a309ed37e8c02e8635ef29",
+      "calibrated": false,
+      "$calibratedComment": "eval:artwork:real has never been run against this garment, so there is no ceiling to compare a future run to. The sha256 still earns its place: it is what makes 'this is the same file' checkable when one IS calibrated."
+    },
+    "mantra-ray-proflex": {
+      "description": "Raw CLO export: Mantra Ray Proflex. NOT CALIBRATED — no artwork ceiling has been measured against this file.",
+      "localFile": "3D Products/Mantra Ray Proflex.glb",
+      "bytes": 11138368,
+      "sha256": "cd88cfb99df46a98f4a4329468cbaab0066ff298e9a760b40cd532e7de895900",
+      "calibrated": false,
+      "$calibratedComment": "eval:artwork:real has never been run against this garment, so there is no ceiling to compare a future run to. The sha256 still earns its place: it is what makes 'this is the same file' checkable when one IS calibrated."
+    },
+    "minecut-motion": {
+      "description": "Raw CLO export: Minecut Motion. NOT CALIBRATED — no artwork ceiling has been measured against this file.",
+      "localFile": "3D Products/Minecut Motion.glb",
+      "bytes": 94269088,
+      "sha256": "80f14355b955e62cdf81bd8bfa507f90aff6dc7f975c3a478304e4b29cfc76f3",
+      "calibrated": false,
+      "$calibratedComment": "eval:artwork:real has never been run against this garment, so there is no ceiling to compare a future run to. The sha256 still earns its place: it is what makes 'this is the same file' checkable when one IS calibrated."
+    },
+    "scuba-neck-performance": {
+      "description": "Raw CLO export: Scuba-Neck Performance. NOT CALIBRATED — no artwork ceiling has been measured against this file.",
+      "localFile": "3D Products/Scuba-Neck Performance.glb",
+      "bytes": 152151128,
+      "sha256": "1599743369337fd1d708c142cb9e1f4a1d2c4bcb47a9eb946d6398ab9f307670",
+      "calibrated": false,
+      "$calibratedComment": "eval:artwork:real has never been run against this garment, so there is no ceiling to compare a future run to. The sha256 still earns its place: it is what makes 'this is the same file' checkable when one IS calibrated."
+    },
+    "training-trouser": {
+      "description": "Raw CLO export: Training Trouser. NOT CALIBRATED — no artwork ceiling has been measured against this file.",
+      "localFile": "3D Products/Training Trouser.glb",
+      "bytes": 379052116,
+      "sha256": "2c88b8be405249404d8aa3e8c0882cd8665931ebe8b65a39c4672221220658b7",
+      "calibrated": false,
+      "$calibratedComment": "eval:artwork:real has never been run against this garment, so there is no ceiling to compare a future run to. The sha256 still earns its place: it is what makes 'this is the same file' checkable when one IS calibrated."
+    },
+    "x-milo-training-vest": {
+      "description": "Raw CLO export: X-Milo Training Vest. NOT CALIBRATED — no artwork ceiling has been measured against this file.",
+      "localFile": "3D Products/X-Milo Training Vest.glb",
+      "bytes": 136375812,
+      "sha256": "df19258377c3bae3af8e52e541f823ccdd2b325e9b263010ccd96abc6ca0fc59",
+      "calibrated": false,
+      "$calibratedComment": "eval:artwork:real has never been run against this garment, so there is no ceiling to compare a future run to. The sha256 still earns its place: it is what makes 'this is the same file' checkable when one IS calibrated."
+    },
+    "tennis-suit": {
+      "description": "Raw CLO export: tennis suit. NOT CALIBRATED — no artwork ceiling has been measured against this file.",
+      "localFile": "3D Products/tennis suit.glb",
+      "bytes": 33493336,
+      "sha256": "d9ba28b059711d48c5e5f335ee6299edec1cfc472c38d364f478e5bbec8d624a",
+      "calibrated": false,
+      "$calibratedComment": "eval:artwork:real has never been run against this garment, so there is no ceiling to compare a future run to. The sha256 still earns its place: it is what makes 'this is the same file' checkable when one IS calibrated."
+    },
+    "women-athlatic-dress": {
+      "description": "Raw CLO export: women athlatic dress. NOT CALIBRATED — no artwork ceiling has been measured against this file.",
+      "localFile": "3D Products/women athlatic dress.glb",
+      "bytes": 351700208,
+      "sha256": "e38f5aace491e22a8d4fe81e1c163af3797cb1c7be644143c1753c64790e45ea",
+      "calibrated": false,
+      "$calibratedComment": "eval:artwork:real has never been run against this garment, so there is no ceiling to compare a future run to. The sha256 still earns its place: it is what makes 'this is the same file' checkable when one IS calibrated."
     }
   }
 }

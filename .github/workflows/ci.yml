@@ -375,6 +375,8 @@ jobs:
       - name: gitleaks
         env:
           GITLEAKS_VERSION: 8.30.1
+          # gitleaks' own published checksum for that exact release. Bump together.
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
         run: |
           set -euo pipefail
           # ⚠️ DOWNLOAD TO A FILE, THEN EXTRACT — NOT curl | tar. On run
@@ -390,6 +392,17 @@ jobs:
           curl -sSfL --retry 5 --retry-delay 3 --retry-all-errors \
             -o /tmp/gitleaks.tar.gz \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          # ⚠️ VERIFY THE ARCHIVE BEFORE UNPACKING IT — L9-06, 2026-08-31.
+          # Until now this downloaded a binary over the network and RAN it, with the
+          # only check being that `gitleaks version` printed something. That proves
+          # the bytes are a working executable; it says nothing about WHOSE. This is
+          # the tool whose job is to stop secrets leaving the repository, running
+          # with the checkout in front of it.
+          # The digest is gitleaks' own published checksum for this exact version.
+          # ⚠️ BUMP IT WITH GITLEAKS_VERSION — they change together, and a stale
+          # digest fails loudly here rather than silently skipping, which is the
+          # behaviour worth having.
+          echo "${GITLEAKS_SHA256}  /tmp/gitleaks.tar.gz" | sha256sum -c -
           tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
           # Proves the binary is real before the scan, so a corrupt archive fails
           # here with a clear message rather than as an ambiguous scan result.
@@ -812,6 +825,37 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
         run: printf '%s' "$PAYLOAD_SECRET" | pnpm --filter @run-apparel/cms exec wrangler secret put PAYLOAD_SECRET
+
+      # L6-03. Until 2026-08-31 Sentry held one project covering the browser only,
+      # and the CMS — the side with the database and the password — reported
+      # nothing anywhere. The DSN is a SEPARATE project from the viewer's, so this
+      # deliberately reads CMS_SENTRY_DSN and writes it as SENTRY_DSN inside the
+      # Worker; using the viewer's DSN here would silently merge two systems'
+      # errors into one project and destroy the grouping that makes them useful.
+      - name: Apply worker secret (SENTRY_DSN, CMS project)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CMS_SENTRY_DSN: ${{ secrets.CMS_SENTRY_DSN }}
+        run: printf '%s' "$CMS_SENTRY_DSN" | pnpm --filter @run-apparel/cms exec wrangler secret put SENTRY_DSN
+
+      # ⚠️ The assertion is the point, not the step above it. `instrumentation.ts`
+      # treats a missing DSN as a no-op — it has to, because every build, test and
+      # Payload CLI run has no DSN — so a secret that failed to apply produces a
+      # CMS that reports nothing and a deploy that goes green. That is precisely
+      # the state L6-03 recorded, and it would come back undetected. This is what
+      # makes it detectable.
+      - name: Assert the CMS Worker actually holds SENTRY_DSN
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          names=$(pnpm --filter @run-apparel/cms exec wrangler secret list)
+          echo "$names"
+          echo "$names" | grep -q '"name": *"SENTRY_DSN"' || {
+            echo "::error::The CMS Worker has no SENTRY_DSN secret. The CMS is reporting no errors to Sentry (L6-03). Check the CMS_SENTRY_DSN repository secret."
+            exit 1
+          }
 
       - name: Build viewer
         env:

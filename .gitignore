@@ -130,3 +130,18 @@ sbom.cdx.json
 # audit finding L13-06. Do NOT widen this to `checkpoints/`: those hold the raw
 # per-lane investigate/challenge findings that CONSOLIDATED.json is derived from.
 docs/audit-*/scratch/
+
+# 3.3 GB of raw CLO exports and working files — L13-05, added 2026-08-31.
+#
+# ⚠️ THIS WAS PROTECTED ONLY BY `.git/info/exclude` UNTIL NOW, AND THAT FILE IS
+# NOT CLONED. It is per-checkout local state: `git clone` creates a fresh one, so
+# every other machine — and every CI checkout, and every worktree — saw these
+# files as untracked and offerable to `git add -A`. The single largest file here
+# is 1.2 GB against GitHub's 100 MB hard limit, so the failure is not a slow
+# push, it is a REJECTED push after the objects are already in local history,
+# which then has to be rewritten out.
+#
+# The directory is deliberately not in the repo at all: docs/HANDOVER and the
+# session memory record that `origin/main` is the authority and these are local
+# artefacts. Keeping the exclude file too is harmless and costs nothing.
+3D Products/

@@ -78,9 +78,25 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   gh api /repos/OWNER/REPO/git/commits/<sha> --jq .sha      # 404 => not a commit
   ```
   All six pins in this repo were re-verified as commits on 2026-08-25.
-  ⚠️ **THE REQUIRED-CHECKS LIST IS A SECOND COPY OF `deploy.needs`, AND IT IS ORG
-  CONFIG NO TEST HERE CAN READ.** It was four checks until 2026-08-20 and is five now
-  (`verify`, `e2e`, `audit`, `secrets`, `artwork`) — `e2e` was added when it was split
+  ⚠️ **THE REQUIRED-CHECKS LIST IS A SECOND COPY OF `deploy.needs`. IT IS NOT
+  UNREADABLE — that claim was false and cost a session (L8-07).** It is repository
+  config under the ordinary `repo` scope, and one command prints it:
+  ```bash
+  gh api repos/RUN-APPAREL/run-apparel-viewer/rulesets/21016174 \
+    --jq '[.rules[]|select(.type=="required_status_checks").parameters.required_status_checks[].context]'
+  ```
+  It still cannot be a CI GATE — `GITHUB_TOKEN` has no `administration` permission —
+  but "no test can read it" and "no test can read it FROM CI" are different claims,
+  and the first one talked people out of running the command at all. It was four checks until 2026-08-20, five until
+  2026-08-31, and is **six** now — the five Actions jobs (`verify`, `e2e`, `audit`,
+  `secrets`, `artwork`, all bound to integration 15368) plus
+  **`Socket Security: Pull Request Alerts`** bound to integration **156372**, added
+  for L8-05 so a malicious-dependency finding can stop a merge rather than only
+  comment on it. ⚠️ The Socket app publishes TWO checks; the required one is
+  *Pull Request Alerts*, not *Project Report*. Verified across five PR HEAD commits
+  before it was required — a merge commit shows only one of the two, and reading
+  that instead nearly produced a "correction" that would have required a name Socket
+  never posts. `e2e` was added when it was split
   out of `verify`, where it had been gating by living inside a job that gates. `needs:`
   stops the DEPLOY; this list stops the MERGE. Split or rename a gating job and you
   must edit BOTH, or a red gate silently stops blocking. The tenth rule in
@@ -217,3 +233,26 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   NOT a secret — it is the same public ingest key already shipped to every browser in
   `VITE_SENTRY_DSN`.
 
+- **A code-scanning dismissal REQUEST is not a dismissal — someone must APPROVE it.**
+  Two requests sat `status: pending` from 2026-08-19 to 2026-08-31 with a good
+  justification, and both alerts stayed `open` the whole time. Delegated dismissal
+  splits the two, and only the filing half had been done. The same account that
+  raised them can approve them:
+  `gh api -X PATCH /repos/O/R/dismissal-requests/code-scanning/<n> -f status=approve -f message=…`
+  (`approve`/`deny`, and `message` is required — a 422 names the legal values).
+  ⚠️ **Alerts carry TWO severities and the ruleset has TWO thresholds.**
+  `rule.severity` is warning/error and is judged by `alerts_threshold`;
+  `rule.security_severity_level` is low…critical and is judged by
+  `security_alerts_threshold`. A "medium" alert can be a `warning`, and neither
+  number alone tells you whether a merge is blocked.
+- **Read a check's NAME off a PR head commit, never a merge commit.** A merge commit
+  carries fewer check runs: `Socket Security: Project Report` appears on both, and
+  `Socket Security: Pull Request Alerts` — the one worth requiring — only on the head.
+  Reading the merge commit produced a confident "the audit has the wrong name"
+  correction that would have blocked every PR forever on a check Socket never posts.
+  Confirm across several PR HEADs before adding a name to the required-checks list.
+  ⚠️ **CodeQL parses ANY file named `action.yml`, wherever it sits** — including under
+  `docs/`, including a directory literally named `fake`. A committed fixture that
+  contains the defect on purpose raises a real alert. Default setup has no
+  path-exclusion config, so RENAME the fixture (`action.yml.fixture`) rather than
+  dismissing an alert that will simply come back.

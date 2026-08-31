@@ -54,6 +54,28 @@ First-time deployment: follow **`docs/CLOUDFLARE-SETUP.md`** once, top to bottom
 | Report a security problem (**do not open an issue**) | [`SECURITY.md`](SECURITY.md) |
 | **See every document in `docs/`, including the ones not listed above** | [`docs/README.md`](docs/README.md) |
 
+**Two working documents live at the repository root and are NOT finished
+records** — listed here because L13-09 found them reachable from no index, which
+is how a stale plan gets read as a current one:
+
+| Root file | What it is | Status |
+|---|---|---|
+| [`PLAN-IN-PROGRESS.md`](PLAN-IN-PROGRESS.md) | The garment-pipeline defects implementation plan — five units landing in `tools/asset-pipeline/src/` | **IN PROGRESS.** Being implemented on the unmerged `feat/garment-pipeline-defects` branch. Delete it when that branch merges. |
+| [`NEXT-SESSION-PROMPT.md`](NEXT-SESSION-PROMPT.md) | A hand-off prompt for the next AI session | **WORKING NOTE.** Rewritten per session; never a record of what is true now. |
+
+They stay at the root rather than moving into a working subdirectory for one measured
+reason: ten committed documents cite them by path, including three audit reports
+and `docs/audit-2026-08-30-pm/CONSOLIDATED.json`, and `scripts/doc-citations.mjs`
+resolves every one of those. Moving them trades a tidy root for a broken gate.
+
+**Maintainer** — [@hateem2121](https://github.com/hateem2121), sole maintainer.
+
+**Getting help** — for the live site (a deploy, a rollback, a rotated secret, a
+garment that will not process) start at [`docs/RUNBOOK.md`](docs/RUNBOOK.md). For a
+change to this repository, [`CONTRIBUTING.md`](CONTRIBUTING.md) has the full gate
+list. For anything that looks like a security problem, follow
+[`SECURITY.md`](SECURITY.md) and **do not open an issue**.
+
 **Session logs** — narrative records of expensive debugging, kept because
 re-deriving them costs days: [`docs/SESSION-2026-07-27.md`](docs/SESSION-2026-07-27.md)
 (why raw uploads never worked) · [`docs/SESSION-2026-07-28.md`](docs/SESSION-2026-07-28.md)

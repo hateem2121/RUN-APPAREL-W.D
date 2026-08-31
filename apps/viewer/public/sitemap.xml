@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  L5-06, 2026-08-31. The ten live garment pages, so a crawler is told they exist
+  rather than having to find them.
+
+  ⚠️ THIS IS A SNAPSHOT, NOT A DERIVED FILE, and that is deliberate. Generating it
+  at build time would put a network call to cms.wear-run.help on the critical path
+  of every build — and a Bot Fight Mode 403 from a runner would then fail the build
+  for a reason that has nothing to do with the change being built.
+
+  ⚠️ A COLOURWAY SLUG IS PRINTED ON PHYSICAL QR TAGS, so these do not drift on their
+  own; a product is added or retired deliberately. Regenerate when that happens:
+
+    curl -s https://cms.wear-run.help/api/public/viewer/<slug>/<colour> \
+      | python3 -c "import json,sys;print([c['slug'] for c in json.load(sys.stdin)['colourways']])"
+
+  No <lastmod>: a date nobody updates is worse than no date, because a crawler
+  believes it. No <priority>: Google has ignored it since 2015.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://viewer.wear-run.help/rxps/wine</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/rxps/blush</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/rxps/butter</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/rxps/lime</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/rxps/black</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-xmp/wine</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-xmp/olive</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-xmp/lavender</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-xmp/white</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-xmp/mint</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+</urlset>

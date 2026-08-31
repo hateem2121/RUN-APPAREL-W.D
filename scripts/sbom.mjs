@@ -3,11 +3,30 @@
  * Generate a CycloneDX 1.6 SBOM (Software Bill of Materials — a machine-readable
  * inventory of every dependency and its licence) and enforce a licence policy.
  *
- * WHY THIS, AND WHY NOT GitHub'S BUILT-IN. `actions/attest-build-provenance` and
- * CodeQL both want a public repository or a paid tier; this repo is private and the
- * project's entire budget is $5/month, already spent on Cloudflare Workers Paid for
- * the shrink Containers. So the supply-chain evidence has to be something the repo
- * produces itself.
+ * WHY THIS, AND WHY NOT GitHub'S BUILT-IN.
+ *
+ * ⚠️ THE ORIGINAL ANSWER HERE IS NOW HALF FALSE, AND CORRECTED 2026-08-31 (L11-08)
+ * RATHER THAN DELETED, because a stale reason is worse than none: it argues the
+ * next reader out of a feature they already have.
+ *
+ * It said `actions/attest-build-provenance` and CodeQL "both want a public
+ * repository or a paid tier; this repo is private". Measured today:
+ *   - the organisation is on plan `enterprise`;
+ *   - this repository is `private: true`;
+ *   - and CodeQL is `state: configured` across FOUR languages, with live alerts.
+ * So CodeQL is not merely affordable, it has been RUNNING on this private repo
+ * since 2026-08-18. The paid tier the comment treated as hypothetical is the tier
+ * the org is on.
+ *
+ * The provenance half is therefore plausible now and NOT YET PROVEN. Build
+ * attestations are available to private repositories on Enterprise Cloud, but
+ * nothing here has produced one, and `GET /repos/.../attestations/{digest}` cannot
+ * answer the question without a real artifact to ask about. Treat "we cannot have
+ * provenance" as unverified rather than true.
+ *
+ * What has NOT changed is why this script exists: an SBOM plus an enforced licence
+ * policy is evidence the repo produces itself, and it answers a different question
+ * from provenance — what is IN the tree, versus who built the artifact.
  *
  * NO NEW DEPENDENCY. Adding an SBOM generator to fix a supply-chain gap would mean
  * trusting one more package to audit the packages — and `pnpm-workspace.yaml`'s

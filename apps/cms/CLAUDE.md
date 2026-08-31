@@ -36,6 +36,24 @@ root file first.
   negative control reproducing the inert state. **Verify a header change in
   `.next/routes-manifest.json`, never in a handler.**
 
+- **Error reporting is `src/instrumentation.ts` + a hand-rolled envelope, and BOTH
+  halves are load-bearing.** ⚠️ Next resolves `instrumentation.ts` from the project
+  root or `src/` and NOWHERE ELSE — move it into `src/lib/` for tidiness and the hook
+  simply stops firing, with no warning and no error. `src/instrumentation.test.ts`
+  pins the path for that reason. ⚠️ **Do NOT "upgrade" this to `@sentry/nextjs`.**
+  It was rejected on measured evidence, not preference: `Sentry.captureRequestError`
+  inside `onRequestError` throws AsyncLocalStorage errors on Workers
+  (sentry-javascript#18842), OpenTelemetry does not bundle on Next 16 + OpenNext
+  (opennextjs-cloudflare#969), and `withSentryConfig` would have to join the
+  next.config wrapper chain that `publicViewerHeaders.mjs` documents as having
+  already shipped one green-but-inert fix. ⚠️ A missing `SENTRY_DSN` is a deliberate
+  NO-OP — it has to be, since every build, test and Payload CLI run has none — so a
+  secret that fails to apply yields a silent, green, blind deploy. `ci.yml` asserts
+  the Worker holds it; keep that step. And when changing the event shape, verify the
+  INGESTED event in Sentry, not the payload: the first version passed every unit
+  test, got a 200, and displayed "No stacktrace available" because an empty `frames`
+  array is valid and `raw` is not a field Sentry knows.
+
 - **The publish gate and the public API are DIFFERENT gates, and relaxing one
   without the other saved a product the API then refused to serve.** A poster
   requirement lived in three places — `publishGating.ts` (may I save it?),
