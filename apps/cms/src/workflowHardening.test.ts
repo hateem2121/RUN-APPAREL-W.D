@@ -790,6 +790,70 @@ jobs:
     ).toEqual([])
   })
 
+  /**
+   * THIRTEENTH RULE — a deploy label with a SPACE in it breaks the deploy.
+   *
+   * Added 2026-08-31 after it did exactly that, in run 33389281950. The CMS deploy
+   * goes through `opennextjs-cloudflare`, whose `runWrangler` calls
+   * `spawnSync(..., { shell: true })` — and Node itself warns that with that option
+   * arguments are "not escaped, only concatenated". So the argv array is joined into
+   * a shell string and a quoted value containing a space is re-split:
+   *
+   *   --message "c8f130b main"  ->  ["deploy","--message","c8f130b","main"]
+   *   --message "c8f130b@main"  ->  ["deploy","--message","c8f130b@main"]
+   *
+   * `wrangler deploy` takes an optional `[script]` positional, so the stray `main`
+   * became the entry point and the deploy died with `The entry-point file at "main"
+   * was not found` — an error that names the git ref and says nothing about the ref.
+   * Nothing was deployed; the gate held. But every gate had passed.
+   */
+  it('never gives DEPLOY_MESSAGE a value containing a space', async () => {
+    const problems: string[] = []
+    for (const file of await workflowFiles()) {
+      for (const [i, line] of read(file).split('\n').entries()) {
+        const raw = /^\s*DEPLOY_MESSAGE:\s*(.+?)\s*$/.exec(line)?.[1]
+        // ⚠️ BLANK OUT `${{ … }}` FIRST. Those expressions contain spaces of their own
+        // (`${{ github.sha }}`), and the first version of this rule flagged the very
+        // line it was written to bless. What breaks the deploy is a space BETWEEN two
+        // values, not the whitespace inside an expression GitHub evaluates before the
+        // shell ever sees it.
+        const value = raw?.replace(/\$\{\{[^}]*\}\}/g, 'X')
+        if (value !== undefined && /\s/.test(value)) {
+          problems.push(`${file}:${i + 1} DEPLOY_MESSAGE is \`${value}\` — it contains a space`)
+        }
+      }
+    }
+    expect(
+      problems,
+      'A deploy label with a space in it is re-split by the shell that opennextjs-\n' +
+        'cloudflare uses to invoke wrangler, and the trailing word becomes wrangler\u2019s\n' +
+        '`[script]` positional. Join the parts with `@` or `-`, never a space.\n' +
+        `${problems.join('\n')}`,
+    ).toEqual([])
+  })
+
+  it('the DEPLOY_MESSAGE rule can actually fail (negative control)', () => {
+    const deployMessageValue = (line: string) =>
+      /^\s*DEPLOY_MESSAGE:\s*(.+?)\s*$/.exec(line)?.[1]?.replace(/\$\{\{[^}]*\}\}/g, 'X')
+    expect(/\s/.test(deployMessageValue('          DEPLOY_MESSAGE: abc123 main') ?? '')).toBe(true)
+    expect(/\s/.test(deployMessageValue('          DEPLOY_MESSAGE: abc123@main') ?? '')).toBe(false)
+    // The real shapes: an expression pair joined by `@` is FINE, separated by a space
+    // is NOT — even though both contain spaces before the blanking step.
+    //
+    // Assembled from fragments because a literal `$`+`{{` in a TS string trips biome's
+    // noTemplateCurlyInString, exactly as the parse-guard control above records.
+    const EXPR_A = `$${'{{'} github.sha }}`
+    const EXPR_B = `$${'{{'} github.ref_name }}`
+    expect(
+      /\s/.test(deployMessageValue(`          DEPLOY_MESSAGE: ${EXPR_A}@${EXPR_B}`) ?? ''),
+    ).toBe(false)
+    expect(
+      /\s/.test(deployMessageValue(`          DEPLOY_MESSAGE: ${EXPR_A} ${EXPR_B}`) ?? ''),
+    ).toBe(true)
+    // And the matcher must not fire on an unrelated line, or every workflow fails.
+    expect(deployMessageValue('          CLOUDFLARE_ACCOUNT_ID: abc')).toBeUndefined()
+  })
+
   it('the watched-workflow rule can actually fail (negative control)', () => {
     // A watched name that does not resolve, and a watched file that parses to no jobs.
     expect(existsSync(join(WORKFLOW_DIR, 'no-such-workflow.yml'))).toBe(false)

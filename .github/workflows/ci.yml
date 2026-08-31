@@ -778,7 +778,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          DEPLOY_MESSAGE: ${{ github.sha }} ${{ github.ref_name }}
+          DEPLOY_MESSAGE: ${{ github.sha }}@${{ github.ref_name }}
         # ⚠️ LABEL THE VERSION. Of 85 deployed versions across all five Workers,
         # exactly ONE carried a message — and it was the hand-edit in the dashboard
         # that caused the 2026-08-28 apex drift. So `wrangler versions list` was a
@@ -794,6 +794,16 @@ jobs:
         # script received `["--", "--message", "abc def"]`, so wrangler would have been
         # handed a bare `--` as its first argument. The env-var form also keeps ONE
         # copy of the deploy command, in package.json, instead of a second copy here.
+        #
+        # ⚠️⚠️ AND THE VALUE MUST CONTAIN NO SPACES. `<sha> <ref>` BROKE THE DEPLOY on
+        # 2026-08-31 (run 33389281950): opennextjs-cloudflare's `runWrangler` calls
+        # `spawnSync(..., { shell: true })`, which JOINS the argv array into a shell
+        # string — so a quoted value with a space is re-split by the shell. wrangler
+        # then read the trailing word as its optional `[script]` positional and
+        # reported `The entry-point file at "main" was not found`, which names the ref,
+        # not the config. Hence `@` rather than a space. The viewer and shrink call
+        # wrangler directly and were never affected, but the same form is used
+        # everywhere so nobody has to remember which is which.
         run: pnpm --filter @run-apparel/cms run deploy
 
       - name: Apply worker secret (PAYLOAD_SECRET)
@@ -985,7 +995,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          DEPLOY_MESSAGE: ${{ github.sha }} ${{ github.ref_name }}
+          DEPLOY_MESSAGE: ${{ github.sha }}@${{ github.ref_name }}
         # See the version-labelling note on the CMS deploy step above. The apex is
         # the Worker this matters most for: its drift is what motivated the finding.
         run: pnpm deploy:apex
