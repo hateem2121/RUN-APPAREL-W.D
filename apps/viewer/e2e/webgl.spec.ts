@@ -155,7 +155,7 @@ test('3D model loads and switching colourway changes the KHR material variant', 
   await page.waitForFunction(
     () =>
       (document.querySelector('model-viewer') as { variantName?: string } | null)?.variantName ===
-      'N001-NAVY',
+      'N001-WINE',
     undefined,
     { timeout: 20_000 },
   )
@@ -250,6 +250,41 @@ test('3D model loads and switching colourway changes the KHR material variant', 
     'a colourway swap left printed decals un-biased: they will z-fight with the ' +
       'cloth and the artwork shatters. Stage.tsx must re-apply on `variant-applied`.',
   ).toBe(afterSwap.reachable)
+
+  /**
+   * A THIRD SWAP, TO A MIDDLE VARIANT — added 2026-08-31 with the 5-colourway fixture.
+   *
+   * Until then `serve.mjs` mapped five slugs onto THREE variant ids: blush, butter
+   * and lime all resolved to N001-CRIMSON. So "click a tab, the variant changes" was
+   * only ever proven for the first and last entries, and a swap that had to reach the
+   * 4th or 5th variant of the GLB could not be expressed. That is the precise shape of
+   * the 2026-08-27 production bug — model-viewer builds only the ARRIVING colourway's
+   * materials, and four of five colourways went on flickering while every test passed.
+   *
+   * `lime` is 4th of five and is neither the arrival variant nor the last one, so it
+   * cannot be satisfied by an off-by-one that happens to land on either end.
+   */
+  await page.getByRole('tab', { name: /lime/i }).click()
+  await page.waitForFunction(
+    () =>
+      (document.querySelector('model-viewer') as { variantName?: string } | null)?.variantName ===
+      'N001-LIME',
+    undefined,
+    { timeout: 20_000 },
+  )
+
+  const afterMiddleSwap = await countBias()
+  expect(
+    afterMiddleSwap.reachable,
+    'swapping to a MIDDLE variant loaded no cut-outs at all, so nothing here is ' +
+      'being measured. Check that PlaceholderColourway.ink is distinct per colourway ' +
+      'or dedup() has merged the decal materials into one eager copy.',
+  ).toBeGreaterThan(0)
+  expect(
+    afterMiddleSwap.biased,
+    'a swap to a middle colourway left printed decals un-biased. This is the exact ' +
+      'case the fixture could not express before 2026-08-31, and the one that shipped.',
+  ).toBe(afterMiddleSwap.reachable)
 
   // The whole real-3D flow ran under the production CSP with no violations.
   const cspViolations = await page.evaluate(() => (window as unknown as { __csp: string[] }).__csp)

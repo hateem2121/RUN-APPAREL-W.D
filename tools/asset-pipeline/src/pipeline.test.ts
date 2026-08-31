@@ -159,11 +159,26 @@ afterAll(async () => {
   await rm(dir, { recursive: true, force: true })
 })
 
+/**
+ * The seeded colourways, derived rather than restated.
+ *
+ * ⚠️ NINE TESTS HERE HARDCODED N001-NAVY / N001-BLACK / N001-CRIMSON and all nine
+ * broke together on 2026-08-31, when the fixture went from three colourways to
+ * production's five. That change made the fixture MORE representative — the live
+ * garment has always had five — so a literal that has to be edited nine times is
+ * friction against realism, which is the one thing this repo's fixtures keep
+ * getting wrong. Derive; do not restate.
+ */
+const VARIANT_IDS = PLACEHOLDER_COLOURWAYS.map((c) => c.variantId)
+const VARIANT_IDS_SORTED = [...VARIANT_IDS].sort()
+/** The first seeded colourway. Named once so a rename moves every path with it. */
+const FIRST = PLACEHOLDER_COLOURWAYS[0]!
+
 describe('placeholder generation', () => {
   it('writes one GLB and two posters per colourway', async () => {
     const out = await generatePlaceholders(join(dir, 'placeholders'))
-    expect(out.glbFiles).toHaveLength(3)
-    expect(out.posterFiles).toHaveLength(6)
+    expect(out.glbFiles).toHaveLength(PLACEHOLDER_COLOURWAYS.length)
+    expect(out.posterFiles).toHaveLength(PLACEHOLDER_COLOURWAYS.length * 2)
     const report = await inspectGlb(out.glbFiles[0]!)
     // 4 fabric boxes + the printed chest graphic + one quad per real artwork
     // profile. Materials: BODY, TRIM, the SVG decal, then the five.
@@ -182,10 +197,10 @@ describe('mergeVariants', () => {
     const merged = join(dir, 'n001.glb')
     const result = await mergeVariants(inputs, merged)
 
-    expect(result.variants).toEqual(['N001-NAVY', 'N001-BLACK', 'N001-CRIMSON'])
+    expect(result.variants).toEqual(VARIANT_IDS)
 
     const report = await inspectGlb(merged)
-    expect(report.variants).toEqual(['N001-BLACK', 'N001-CRIMSON', 'N001-NAVY']) // sorted
+    expect(report.variants).toEqual(VARIANT_IDS_SORTED) // sorted
     expect(report.primitiveCount).toBe(PLACEHOLDER_PRIMITIVES)
     // ⚠️ THIS WAS 12 UNTIL 2026-08-27, AND THE DIFFERENCE IS THE WHOLE POINT.
     // Every colourway used to build byte-identical artwork materials, so `dedup()`
@@ -221,21 +236,21 @@ describe('mergeVariants', () => {
     await mergeVariants(inputs, merged)
 
     const report = await inspectGlb(merged)
-    expect(report.variantsInFileOrder).toEqual(['N001-NAVY', 'N001-BLACK', 'N001-CRIMSON'])
-    expect(report.variants).toEqual(['N001-BLACK', 'N001-CRIMSON', 'N001-NAVY'])
+    expect(report.variantsInFileOrder).toEqual(VARIANT_IDS)
+    expect(report.variants).toEqual(VARIANT_IDS_SORTED)
     // Same set, different order — never a different set.
     expect([...report.variantsInFileOrder].sort()).toEqual(report.variants)
   })
 
   it('reports no file-order variants for a raw export that binds none', async () => {
-    const report = await inspectGlb(join(dir, 'placeholders', 'n001-navy.glb'))
+    const report = await inspectGlb(join(dir, 'placeholders', `n001-${FIRST.slug}.glb`))
     expect(report.variants).toEqual([])
     expect(report.variantsInFileOrder).toEqual([])
   })
 
   it('detects a missing variant against the CMS list', async () => {
     const report = await inspectGlb(join(dir, 'n001.glb'))
-    const check = checkVariants(report, ['N001-NAVY', 'N001-BLACK', 'N001-CRIMSON', 'N001-SAGE'])
+    const check = checkVariants(report, [...VARIANT_IDS, 'N001-SAGE'])
     expect(check.ok).toBe(false)
     expect(check.missing).toEqual(['N001-SAGE'])
   })
@@ -261,7 +276,10 @@ describe('mergeVariants', () => {
     await expect(
       mergeVariants(
         [
-          { file: join(dir, 'placeholders', 'n001-navy.glb'), variantName: 'N001-NAVY' },
+          {
+            file: join(dir, 'placeholders', `n001-${FIRST.slug}.glb`),
+            variantName: FIRST.variantId,
+          },
           { file: boxFile, variantName: 'N001-BOX' },
         ],
         join(dir, 'broken.glb'),
@@ -270,15 +288,15 @@ describe('mergeVariants', () => {
   })
 
   it('rejects fewer than two inputs and duplicate variant names', async () => {
-    const navy = join(dir, 'placeholders', 'n001-navy.glb')
+    const navy = join(dir, 'placeholders', `n001-${FIRST.slug}.glb`)
     await expect(
-      mergeVariants([{ file: navy, variantName: 'N001-NAVY' }], join(dir, 'x.glb')),
+      mergeVariants([{ file: navy, variantName: FIRST.variantId }], join(dir, 'x.glb')),
     ).rejects.toThrow(/at least two/)
     await expect(
       mergeVariants(
         [
-          { file: navy, variantName: 'N001-NAVY' },
-          { file: navy, variantName: 'N001-NAVY' },
+          { file: navy, variantName: FIRST.variantId },
+          { file: navy, variantName: FIRST.variantId },
         ],
         join(dir, 'x.glb'),
       ),
@@ -589,11 +607,11 @@ describe('mergeVariants — Draco', () => {
     }))
     const out = join(dir, 'n001-draco.glb')
     const result = await mergeVariants(inputs, out, { draco: true })
-    expect(result.variants).toEqual(['N001-NAVY', 'N001-BLACK', 'N001-CRIMSON'])
+    expect(result.variants).toEqual(VARIANT_IDS)
     // A Draco-encoded GLB must still round-trip through the IO with its
     // KHR_materials_variants bindings preserved.
     const report = await inspectGlb(out)
-    expect(report.variants).toEqual(['N001-BLACK', 'N001-CRIMSON', 'N001-NAVY'])
+    expect(report.variants).toEqual(VARIANT_IDS_SORTED)
     expect(report.primitiveCount).toBe(PLACEHOLDER_PRIMITIVES)
   })
 })
@@ -738,7 +756,7 @@ describe('optimizeGlb — Meshopt geometry', () => {
     expect(result.geometry).toBe('meshopt')
 
     const report = await inspectGlb(out)
-    expect(report.variants).toEqual(['N001-BLACK', 'N001-CRIMSON', 'N001-NAVY'])
+    expect(report.variants).toEqual(VARIANT_IDS_SORTED)
     expect(report.primitiveCount).toBe(PLACEHOLDER_PRIMITIVES)
 
     const reread = await createIO().then((io) => io.read(out))
@@ -1453,7 +1471,7 @@ describe('mergeVariants — opaque step preserves variants', () => {
     }))
     const out = join(dir, 'n001-opaque.glb')
     const result = await mergeVariants(inputs, out, { opaque: true })
-    expect(result.variants).toEqual(['N001-NAVY', 'N001-BLACK', 'N001-CRIMSON'])
+    expect(result.variants).toEqual(VARIANT_IDS)
 
     const reread = await createIO().then((io) => io.read(out))
     const materials = reread.getRoot().listMaterials()
@@ -1486,7 +1504,7 @@ describe('mergeVariants — opaque step preserves variants', () => {
     }
 
     const report = await inspectGlb(out)
-    expect(report.variants).toEqual(['N001-BLACK', 'N001-CRIMSON', 'N001-NAVY']) // still bound
+    expect(report.variants).toEqual(VARIANT_IDS_SORTED) // still bound
   })
 })
 

@@ -120,22 +120,32 @@ const MIME = {
  * turns that test into a second scan of a healthy page.
  *
  * ⚠️ `variantId` IS NOT the production value and must not be "corrected" to it.
- * Production reports `Colorway 2`/`3`/`6`; these name variants inside the SEEDED
- * PLACEHOLDER GLB, which `pnpm seed:assets` builds from
- * `tools/asset-pipeline/src/placeholders.ts` as N001-NAVY / N001-BLACK /
- * N001-CRIMSON. `webgl.spec.ts` asserts `model-viewer.variantName` equals one of
- * them — it is the check that proves the real KHR_materials_variants swap
- * happened — so this field must match the asset on disk, not the live CMS.
- * Renaming the placeholders to match production is a pipeline change (see
- * tools/asset-pipeline/CLAUDE.md) and was deliberately not bundled into the
- * 2026-08-13 fixture fix; the slug is what the audited URLs use, and the slug is
- * what was wrong.
+ * Production reports `Colorway 2`..`Colorway 6`; these name variants inside the
+ * SEEDED PLACEHOLDER GLB, which `pnpm seed:assets` builds from
+ * `tools/asset-pipeline/src/placeholders.ts`. `webgl.spec.ts` asserts
+ * `model-viewer.variantName` equals one of them — it is the check that proves the
+ * real KHR_materials_variants swap happened — so this field must match the asset
+ * on disk, not the live CMS.
+ *
+ * ⚠️ ONE SLUG, ONE VARIANT — do not collapse two slugs onto one id again.
+ * Until 2026-08-31 the placeholder carried only N001-NAVY / N001-BLACK /
+ * N001-CRIMSON, so blush, butter AND lime all pointed at N001-CRIMSON. Three
+ * consequences, none of which failed a test:
+ *   1. A swap that had to reach the 4th or 5th variant could not be expressed —
+ *      the exact bug that shipped on 2026-08-27, where model-viewer built only
+ *      the arriving colourway's materials and four of five flickered.
+ *   2. FOUR OF FIVE POSTER URLS 404'd. The poster path below is built from these
+ *      slugs, and only `black` existed on disk.
+ *   3. The retired-colourway fallback points at the default colourway's poster,
+ *      so that path served a 404 as well.
+ * The placeholder now ships five colourways under production's own slugs, so all
+ * three are closed at once.
  */
 const COLOURWAYS = [
   {
     slug: 'wine',
     displayName: 'Wine',
-    variantId: 'N001-NAVY',
+    variantId: 'N001-WINE',
     hexSwatch: '#825353',
     sequence: 1,
     isDefault: true,
@@ -143,7 +153,7 @@ const COLOURWAYS = [
   {
     slug: 'blush',
     displayName: 'Blush',
-    variantId: 'N001-CRIMSON',
+    variantId: 'N001-BLUSH',
     hexSwatch: '#F7CDCD',
     sequence: 2,
     isDefault: false,
@@ -151,7 +161,7 @@ const COLOURWAYS = [
   {
     slug: 'butter',
     displayName: 'Butter',
-    variantId: 'N001-CRIMSON',
+    variantId: 'N001-BUTTER',
     hexSwatch: '#FDFDC8',
     sequence: 3,
     isDefault: false,
@@ -167,7 +177,7 @@ const COLOURWAYS = [
     // The retired-colourway URL moved to `navy` in the same change (see below).
     slug: 'lime',
     displayName: 'Lime',
-    variantId: 'N001-CRIMSON',
+    variantId: 'N001-LIME',
     hexSwatch: '#D6F26B',
     sequence: 4,
     isDefault: false,
