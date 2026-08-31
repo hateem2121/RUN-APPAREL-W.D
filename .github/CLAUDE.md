@@ -79,8 +79,16 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   ```
   All six pins in this repo were re-verified as commits on 2026-08-25.
   ⚠️ **THE REQUIRED-CHECKS LIST IS A SECOND COPY OF `deploy.needs`, AND IT IS ORG
-  CONFIG NO TEST HERE CAN READ.** It was four checks until 2026-08-20 and is five now
-  (`verify`, `e2e`, `audit`, `secrets`, `artwork`) — `e2e` was added when it was split
+  CONFIG NO TEST HERE CAN READ.** It was four checks until 2026-08-20, five until
+  2026-08-31, and is **six** now — the five Actions jobs (`verify`, `e2e`, `audit`,
+  `secrets`, `artwork`, all bound to integration 15368) plus
+  **`Socket Security: Pull Request Alerts`** bound to integration **156372**, added
+  for L8-05 so a malicious-dependency finding can stop a merge rather than only
+  comment on it. ⚠️ The Socket app publishes TWO checks; the required one is
+  *Pull Request Alerts*, not *Project Report*. Verified across five PR HEAD commits
+  before it was required — a merge commit shows only one of the two, and reading
+  that instead nearly produced a "correction" that would have required a name Socket
+  never posts. `e2e` was added when it was split
   out of `verify`, where it had been gating by living inside a job that gates. `needs:`
   stops the DEPLOY; this list stops the MERGE. Split or rename a gating job and you
   must edit BOTH, or a red gate silently stops blocking. The tenth rule in
