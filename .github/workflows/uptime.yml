@@ -63,6 +63,24 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
       HEALTH_URL: ${{ github.event.inputs.target || format('{0}/api/health', vars.VITE_API_BASE_URL || 'https://cms.wear-run.help') }}
+      # ⚠️ FETCH THE MODEL THE WAY A BROWSER DOES. Without this the scheduled check
+      # only ever sent a HEAD, and on this domain HEAD and GET land on DIFFERENT edge
+      # cache entries — measured 2026-08-06, where HEAD returned 200 with the correct
+      # content-length while GET returned a cached 404 for a file that was intact in
+      # R2 the whole time. A monitor that cannot see the failure mode the project has
+      # already suffered is decoration.
+      #
+      # It was off here because "uptime.yml runs this every 15 minutes and the extra
+      # request would be pointless". BOTH HALVES OF THAT ARE NOW STALE: the schedule
+      # has been a single daily cron since 2026-08-18, and a cached 404 stopped being
+      # a 30-day condition on 2026-08-31 when the media cache rule gained a
+      # status_code_ttl of 10s.
+      #
+      # And it is not expensive, which was the other unstated worry:
+      # smoke-viewer-payload.mjs calls `res.body?.cancel()` as soon as the status line
+      # arrives, so a bare GET costs a few buffered KB rather than 27 MB.
+      # Audit 2026-08-30 PM, finding L6-02.
+      SMOKE_BROWSER_GET: '1'
       # Must be a LIVE product AND colour slug. This was `/n001/navy` until
       # 2026-08-07, three days after `navy` was retired — and it kept returning 200,
       # because a retired slug correctly falls back to the default colourway. That
