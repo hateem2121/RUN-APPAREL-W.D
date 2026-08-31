@@ -50,7 +50,20 @@
  * `key` is the R2 object name; `name` is what the browser shows in its title bar and
  * uses if the reader saves the file.
  */
-const FILES = {
+/**
+ * The two objects this Worker serves, and the download names it gives them.
+ *
+ * EXPORTED — L17-14, 2026-08-31. `scripts/backup-r2.mjs` used to carry its own
+ * hardcoded `APEX_KEYS` copy of these R2 keys. Two hand-maintained copies of a
+ * string that only R2 can validate is how the backup quietly starts backing up
+ * nothing: rename an object here, and the other list still names the old key,
+ * and the nightly job reports success having saved a 404.
+ *
+ * ⚠️ "RUN PRODUCT CATALOUGE.pdf" IS NOT A TYPO TO FIX. It is the object's real
+ * name in the `run-assets` bucket. Correcting the spelling here breaks both the
+ * live download and the backup at once.
+ */
+export const FILES = {
   '/catalogue': { key: 'RUN PRODUCT CATALOUGE.pdf', name: 'RUN-Apparel-Catalogue.pdf' },
   '/profile': { key: 'Company Profile.pdf', name: 'RUN-Apparel-Company-Profile.pdf' },
 }
