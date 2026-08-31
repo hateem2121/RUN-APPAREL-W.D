@@ -311,6 +311,8 @@ jobs:
       - name: gitleaks
         env:
           GITLEAKS_VERSION: 8.30.1
+          # gitleaks' own published checksum for that exact release. Bump together.
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
         run: |
           set -euo pipefail
           # Kept identical to ci.yml's secrets job — see the note there. A CDN 504
@@ -323,6 +325,17 @@ jobs:
           curl -sSfL --retry 5 --retry-delay 3 --retry-all-errors \
             -o /tmp/gitleaks.tar.gz \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          # ⚠️ VERIFY THE ARCHIVE BEFORE UNPACKING IT — L9-06, 2026-08-31.
+          # Until now this downloaded a binary over the network and RAN it, with the
+          # only check being that `gitleaks version` printed something. That proves
+          # the bytes are a working executable; it says nothing about WHOSE. This is
+          # the tool whose job is to stop secrets leaving the repository, running
+          # with the checkout in front of it.
+          # The digest is gitleaks' own published checksum for this exact version.
+          # ⚠️ BUMP IT WITH GITLEAKS_VERSION — they change together, and a stale
+          # digest fails loudly here rather than silently skipping, which is the
+          # behaviour worth having.
+          echo "${GITLEAKS_SHA256}  /tmp/gitleaks.tar.gz" | sha256sum -c -
           tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
           /tmp/gitleaks version
           /tmp/gitleaks detect \
