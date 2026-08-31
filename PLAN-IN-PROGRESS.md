@@ -1,5 +1,11 @@
 # Garment Pipeline Defects Implementation Plan
 
+> **STATUS: IN PROGRESS — last updated 2026-08-31.** A plan, not a record. Being
+> implemented on the unmerged `feat/garment-pipeline-defects` branch; where this and
+> the code disagree, the code is right. **Delete this file when that branch merges.**
+> Listed in [`README.md`](README.md) because L13-09 found it reachable from no index,
+> which is how a stale plan gets read as a current one.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Stop the pipeline applying a geometry-first compression strategy to texture-first CLO exports, and fix the four measured input defects that make printed artwork render damaged, plastic or metallic.
