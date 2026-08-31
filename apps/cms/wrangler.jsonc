@@ -4,13 +4,29 @@
   // site. This viewer CMS is fully isolated. Never deploy over "run-apparel".
   "name": "run-apparel-viewer-cms",
   "main": ".open-next/worker.js",
-  // TEMPORARY: the viewer calls the CMS API via this workers.dev URL (set as the
-  // VITE_API_BASE_URL repo variable) to bypass the wear-run.help zone's Bot Fight
-  // Mode, which challenges cms.wear-run.help. This is the LAST thing flipped in
-  // the API cutover: once Bot Fight Mode is resolved and VITE_API_BASE_URL points
-  // at https://cms.wear-run.help, set this to false to retire the workers.dev URL.
-  // Full ordered steps: docs/RUNBOOK.md → "API + media domain cutover".
-  "workers_dev": true,
+  // RETIRED 2026-08-31. This was a TEMPORARY workers.dev URL opened so the viewer
+  // could reach the CMS API while Bot Fight Mode was challenging cms.wear-run.help.
+  // It was the last step of the API cutover, and BOTH conditions this comment set
+  // for closing it are now met — each measured, not assumed:
+  //
+  //   1. VITE_API_BASE_URL = https://cms.wear-run.help (repo variable, set
+  //      2026-08-30T16:12:33Z).
+  //   2. The LIVE deployed bundle contains ZERO references to workers.dev —
+  //      index.html and all four JS chunks. Control: the same grep finds
+  //      'cms.wear-run.help' twice in the same chunk, so it is not a broken search.
+  //   3. cms.wear-run.help answered /api/public/viewer/rxps/wine with 200 on four
+  //      consecutive plain GETs.
+  //
+  // Why it mattered: while true, the whole CMS — including the /admin login —
+  // answered on a hostname OUTSIDE the wear-run.help zone, so no zone rule, WAF
+  // rule or rate limit applied to it. Narrowing the firewall rule protects
+  // cms.wear-run.help; it could never protect this host.
+  // Audit 2026-08-30 PM, findings L1-01, L4-01, L5-02, L18-04.
+  //
+  // ⚠️ Retiring this makes the workers.dev entry in the INGEST bucket's CORS
+  // allow-list dead (finding L2-06). Remove it AFTER this deploy is verified, not
+  // before — in that order a rollback never leaves the upload flow without an origin.
+  "workers_dev": false,
   // Per-version preview URLs (…-run-apparel-viewer-cms.<sub>.workers.dev) would
   // expose /admin on ephemeral hosts; the viewer never uses them. Disabled.
   "preview_urls": false,

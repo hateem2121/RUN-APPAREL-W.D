@@ -1275,20 +1275,24 @@ tests say.
 >   CMS worker) and purge the `media.wear-run.help` hostname cache. Note R2
 >   sends `Vary: Origin`, so per-origin cache entries self-heal after a CORS
 >   policy change — but purge the hostname once after editing the policy.
-> - **API:** ❌ still on `workers.dev`. A cutover attempt to `cms.wear-run.help`
->   was **rolled back**: free **Bot Fight Mode** *intermittently* returns HTTP
->   **403** to datacenter/automated requests on `cms.wear-run.help` (caught by
->   the post-deploy health check; ~low frequency but real). Residential browsers
->   usually pass, so casual `curl` tests give false confidence — do NOT trust a
->   handful of green curls. The `workers.dev` zone has no Bot Fight Mode and is
->   reliable. The existing "Exempt CMS API" WAF **Skip** rule cannot exempt the
->   *free* Bot Fight Mode (only Super Bot Fight Mode is per-host exemptible), so
->   it does NOT fully solve this — and it is therefore **load-bearing, not a
->   redundant leftover; do not delete it.**
-> - **To finish the API half you need the Cloudflare Pro plan (~$20/mo):** enable
->   **Super Bot Fight Mode** + a WAF Skip rule for `http.host eq
->   "cms.wear-run.help"`, then repeat the repoint below and confirm the CI
->   health check stays green across several deploys before retiring workers.dev.
+> - **API:** ✅ **DONE 2026-08-31.** `VITE_API_BASE_URL` is
+>   `https://cms.wear-run.help`, the live bundle contains **zero** references to
+>   `workers.dev` (index.html plus all four JS chunks — control: the same grep
+>   finds `cms.wear-run.help` twice in the same chunk), and
+>   `apps/cms/wrangler.jsonc` now sets `workers_dev: false`.
+>   **The Pro plan turned out not to be needed.** The blocker below assumed free
+>   Bot Fight Mode was on; it was switched **off on 2026-08-06**, and
+>   `cms.wear-run.help/api/public/viewer/rxps/wine` answered 200 on four
+>   consecutive plain GETs, with `/admin` answering 200 on ten out of ten from a
+>   datacenter-shaped client. Measured, not assumed — the warning below about
+>   casual curls giving false confidence is still right in principle, which is why
+>   the check was repeated rather than run once.
+> - ⚠️ **The "Exempt CMS API" WAF Skip rule is still load-bearing — do not delete
+>   it.** It was NARROWED on 2026-08-31 from the whole host to
+>   `starts_with(http.request.uri.path, "/api/")`, because as written it also
+>   switched the WAF off for `/admin`. It is deliberately **not** narrowed to
+>   `/api/public/`: `apps/shrink` and the scripts call `/api/products`,
+>   `/api/raw-uploads`, `/api/media` and `/api/health` as non-browser clients.
 >
 > ### ⚠️ RE-TEST THIS (noted 2026-08-07): the stated blocker may no longer exist
 >
@@ -1349,6 +1353,12 @@ break mid-flight (each config flip is a one-liner already commented in
 4. **Flip the two worker config values** in `apps/cms/wrangler.jsonc`:
    `PUBLIC_MEDIA_BASE_URL` → `"https://media.wear-run.help"`, and once step 3 is
    live, `workers_dev` → `false`. Commit + deploy (the next push/merge).
+   ✅ **Both done — media 2026-08-xx, `workers_dev` 2026-08-31.** The invariant is
+   now enforced by `apps/cms/src/workerConfigs.test.ts`, which asserts that **no**
+   Worker sets `workers_dev: true` and carries a negative control proving the
+   detector fires. The older version of that test pinned `apps/cms` as an approved
+   exception and told you to delete it on cutover; it was inverted instead, because
+   deleting it would also delete the guard against the next Worker turning it on.
 5. **KEEP the "Exempt CMS API subdomain from bot challenges" custom rule** —
    this supersedes older advice to remove it. It is load-bearing (skips managed
    rules / Browser Integrity Check / Security Level for the cms host, and
