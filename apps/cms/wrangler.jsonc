@@ -30,6 +30,30 @@
   // Per-version preview URLs (…-run-apparel-viewer-cms.<sub>.workers.dev) would
   // expose /admin on ephemeral hosts; the viewer never uses them. Disabled.
   "preview_urls": false,
+  /**
+   * SMART PLACEMENT — run this Worker near D1, not near the visitor.
+   *
+   * ⚠️ MEASURED BEFORE CHANGING ANYTHING. Five consecutive plain GETs of
+   * /api/public/viewer/rxps/wine on 2026-08-31: 2.041 / 1.991 / 2.849 / 1.943 /
+   * 1.971 s to first byte, and NOT ONE carried a `cf-cache-status` header. The
+   * viewer page on the same network in the same minute: 0.089 / 0.105 / 0.159 s
+   * with `cf-cache-status: HIT`. So the delay is this Worker's own work, not the
+   * network — every QR scan pays it.
+   *
+   * The `s-maxage=60` this endpoint sends is INERT and publicViewer.ts already says
+   * so: a Worker's own response does not pass through the edge cache. So the edge
+   * cannot be the fix here; the round trip to D1 is what there is to shorten.
+   * `wrangler d1 info` puts the database in ENAM, and no placement was set on any
+   * Worker in this repo.
+   *
+   * Cloudflare's own guidance is that this helps Workers making round trips to a
+   * database and that fewer than 1% of Workers get slower. It takes up to 15
+   * MINUTES after deploy to analyse traffic, so a measurement taken immediately
+   * afterwards proves nothing either way — re-measure later, and if it has not
+   * moved, delete these four lines rather than leaving a setting nobody can point
+   * at a number for. Audit 2026-08-30 PM, findings L3-01 and L1-02.
+   */
+  "placement": { "mode": "smart" },
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
   // Workers Logs (free tier): worker errors + console output become queryable
