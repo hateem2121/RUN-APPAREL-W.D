@@ -122,7 +122,16 @@ describe('apex worker headers', () => {
     expect(res.headers.get('content-disposition')).toBe(
       'inline; filename="RUN-Apparel-Catalogue.pdf"',
     )
-    expect(res.headers.get('cache-control')).toBe('public, max-age=3600')
+    // L17-12, 2026-08-31: one day plus a week of stale-while-revalidate, raised from
+    // one hour. A 54.3 MB catalogue that changes a few times a year, on an apex whose
+    // cold fetch measured 1.6 s, should not be re-fetched hourly.
+    // ⚠️ Asserted as a WHOLE STRING on purpose. stale-while-revalidate is the half
+    // that makes the long TTL safe — it is what lets a replaced PDF reach people
+    // without anyone waiting on it — and a substring match on max-age would let it be
+    // dropped silently.
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=86400, stale-while-revalidate=604800',
+    )
     expect(res.headers.get('accept-ranges')).toBe('bytes')
     expect(res.headers.get('x-content-type-options')).toBe('nosniff')
     expect(res.headers.get('etag')).toBe('"etag-RUN PRODUCT CATALOUGE.pdf"')

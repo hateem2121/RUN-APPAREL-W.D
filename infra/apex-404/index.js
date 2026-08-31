@@ -129,7 +129,17 @@ export async function handle(request, env) {
   headers.set('content-type', 'application/pdf')
   // `inline` so it opens in the browser instead of forcing a download.
   headers.set('content-disposition', `inline; filename="${file.name}"`)
-  headers.set('cache-control', 'public, max-age=3600')
+  // L17-12, 2026-08-31: one DAY, not one hour, with a week of
+  // stale-while-revalidate. These are a 54.3 MB catalogue and a 16.9 MB profile that
+  // change a few times a year, on a low-traffic apex whose COLD fetch measured 1.6 s.
+  // An hourly TTL meant almost every visitor paid that cold cost for bytes that had
+  // not changed. stale-while-revalidate serves the cached copy instantly and
+  // refreshes behind it, so a replaced PDF still reaches people within the week
+  // without anyone waiting on it.
+  // ⚠️ NOT immutable: the object behind these two paths CAN be replaced (the keys are
+  // fixed, the bytes are not), and an immutable year would strand an old catalogue in
+  // caches with no way to purge someone else's.
+  headers.set('cache-control', 'public, max-age=86400, stale-while-revalidate=604800')
   headers.set('accept-ranges', 'bytes')
   headers.set('x-content-type-options', 'nosniff')
 
