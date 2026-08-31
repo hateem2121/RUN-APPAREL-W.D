@@ -349,11 +349,25 @@ npx wrangler@4.122.0 queues create glb-shrink-dlq
 ```
 
 `glb-shrink` carries the upload jobs; `glb-shrink-dlq` is the dead-letter queue
-where a thrice-failed garment leaves its only trace. Retention on `glb-shrink` was
-raised 4 → **14 days** (1209600s, the documented maximum) on 2026-08-30.
-⚠️ `glb-shrink-dlq` is still at the 4-day default and is arguably the more important
-of the two — evidence of a failed garment evaporates fastest exactly where you would
-go looking for it.
+where a thrice-failed garment leaves its only trace. **Both** are set to
+**14 days** (`message_retention_period` 1209600 s, Cloudflare's documented maximum
+on Workers Paid; the default is 345600 s and the FREE-tier maximum is 24 h, so
+copying this number onto a free account will fail).
+
+```bash
+npx wrangler@4.122.0 queues update glb-shrink     --message-retention-period-secs 1209600
+npx wrangler@4.122.0 queues update glb-shrink-dlq --message-retention-period-secs 1209600
+```
+
+⚠️ **This paragraph said the DLQ was "still at the 4-day default" when it was first
+written on 2026-08-31, and that was WRONG.** It came from a stale project note
+rather than a measurement. Both queues were independently re-read at 1209600 s by
+two agents hours apart during the 2026-08-30 audit (finding L7-10), and
+`modified_on` for the DLQ is 2026-08-30T14:07:33Z. The correction is left visible
+because the mistake is the point: the audit's own conclusion is that this setting
+lives ONLY in Cloudflare's control plane — a repo-wide grep for `1209600` or
+`message_retention` finds nothing in shipping code — so there is nothing here to
+check a claim against, and prose drifts (finding L7-01, still open).
 
 ### 11.3 The shrink Worker and its Container
 

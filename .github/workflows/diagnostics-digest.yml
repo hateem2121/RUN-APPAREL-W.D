@@ -156,6 +156,37 @@ jobs:
       # secret and a new failure mode, in a job that already holds working D1
       # credentials and already queries this table. If the metered figure is ever
       # wanted, that is the upgrade path and this is where to start.
+      # ⚠️ A SETTING THAT LIVES ONLY IN CLOUDFLARE'S CONTROL PLANE, AND NOWHERE HERE.
+      #
+      # Both queues retain messages for 14 days (1209600 s, the documented maximum on
+      # Workers Paid). A repo-wide grep for `1209600` or `message_retention` finds it
+      # in no shipping code, test or config — audit 2026-08-30 PM, finding L7-01. So
+      # the value is correct and completely unguarded: anyone with dashboard access
+      # can restore the 345600 s default and nothing would notice.
+      #
+      # That matters most for the DLQ. It is where a thrice-failed garment leaves its
+      # only trace, and the ingest bucket's own lifecycle rule expires the raw upload
+      # at 14 days too. The two numbers are deliberately equal: evidence that outlives
+      # its input is recoverable, and evidence that does not is a garment which
+      # silently never arrived.
+      #
+      # Runs HERE rather than in uptime.yml because that workflow deliberately holds
+      # no Cloudflare credentials at all, and this one already declares
+      # `environment: production`.
+      #
+      # `|| true` on purpose: the probe exits 2 for INCONCLUSIVE — no credentials, an
+      # auth error, or an empty queue list — and an unreadable setting must never be
+      # reported as a drifted one. It exits 1, and fails this step, only on a reading
+      # that actually contradicts the documented value.
+      - name: Queue retention has not drifted
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          node scripts/queue-settings-probe.mjs || code=$?
+          if [ "${code:-0}" = "1" ]; then exit 1; fi
+
       - name: Measure events growth
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
