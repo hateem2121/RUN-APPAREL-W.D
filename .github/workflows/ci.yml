@@ -64,6 +64,43 @@ jobs:
       # left the orphan finder blind to the new field — and it can delete files.
       - run: pnpm lint
 
+      # ⚠️ A REAL YAML PARSER, BECAUSE THE HAND-WRITTEN RULE CATCHES ONE SHAPE IN FOUR.
+      #
+      # `workflowHardening.test.ts` is line-and-regex based. It caught the 2026-08-30
+      # defect — a key nested under a scalar, which GitHub could not parse, so it
+      # produced a run named after the FILE PATH with zero jobs while twelve green
+      # ticks sat on the same commit — and it catches nothing else of that family.
+      # Measured on 2026-08-31 against four deliberately-broken workflows:
+      #
+      #   key nested under a scalar   regex: caught   actionlint: caught
+      #   needs: a job that does not exist   regex: MISSED   actionlint: caught
+      #   an unknown runner label            regex: MISSED   actionlint: caught
+      #   an undefined expression field      regex: MISSED   actionlint: caught
+      #   a healthy workflow                 both clean (the control that makes the
+      #                                      four above mean something)
+      #
+      # Against THIS repo's workflows it currently reports zero, so it is added as a
+      # blocking step rather than a warning.
+      #
+      # A single Go binary, so it does not touch pnpm-workspace.yaml's 24-hour
+      # cooldown or dependencyPolicy.test.ts. Installed the way gitleaks is — pinned
+      # release, downloaded TO A FILE and not piped, version printed before use — for
+      # the reasons written at length on that step: a 504 from the release CDN must
+      # fail as "the linter never downloaded", never as "the workflows are broken".
+      - name: actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+        run: |
+          set -euo pipefail
+          curl -sSfL --retry 5 --retry-delay 3 --retry-all-errors \
+            -o /tmp/actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
+          # Proves the binary is real before the lint, so a corrupt archive fails here
+          # with a clear message rather than as an ambiguous clean run.
+          /tmp/actionlint --version
+          /tmp/actionlint
+
       - run: pnpm typecheck
 
       # The shrink container is NOT a workspace member (see its package.json), so
