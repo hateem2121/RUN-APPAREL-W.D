@@ -26,17 +26,28 @@
    * already carries — so a block that does not match what is live DETACHES the Worker
    * from the hostname, and every QR tag already sewn into a garment stops resolving.
    *
-   * It was deliberately not added on 2026-08-31 because the live configuration could
-   * not be READ: `GET /zones/<id>/workers/routes` answers `Authentication error` with
-   * the zone token available here, `wrangler` has no `domains list` command, and
-   * custom domains are an account-scoped resource. Guessing the shape of a binding
-   * whose failure mode is "every printed tag goes dark" is not a trade worth taking
-   * for a tidier config file.
+   * ⚠️ READ 2026-08-31, AND THE ANSWER CHANGES THE ADVICE. This block used to say the
+   * live configuration "could not be READ" because the zone token answered
+   * `Authentication error`. That was the TOKEN, not the account. With a key that can
+   * read routes:
    *
-   * To finish it: read the live route in the Cloudflare dashboard
-   * (Workers → run-apparel-viewer-site → Settings → Domains & Routes), write the
-   * matching block here, deploy, and confirm https://viewer.wear-run.help/rxps/wine
-   * still answers 200 with the garment payload — a plain GET, never a HEAD.
+   *   GET /zones/<id>/workers/routes        -> www.wear-run.help/*  and  wear-run.help/*
+   *                                            BOTH -> run-apparel-apex-404
+   *   GET /accounts/<id>/workers/domains?service=run-apparel-viewer-site
+   *                                         -> viewer.wear-run.help
+   *
+   * So this Worker has NO ROUTE AT ALL. It is bound by a **Custom Domain**, which is
+   * an account-scoped resource and a different mechanism — the only routes on the zone
+   * belong to the apex Worker. That makes "add a matching `routes` block" the WRONG
+   * fix, not merely a risky one: a `routes` entry here would add a binding beside the
+   * custom domain rather than describe it, and wrangler's reconciliation is what then
+   * makes the failure mode "every printed tag goes dark".
+   *
+   * Leave it out. The binding is recorded here in prose, which is what L5-09 actually
+   * asked for — the address written down where the next person looks. If it is ever
+   * declared in config, the field is `routes: [{ pattern, custom_domain: true }]`, and
+   * it must be deployed against a confirmed `https://viewer.wear-run.help/rxps/wine`
+   * 200 with the garment payload — a plain GET, never a HEAD.
    */
   "compatibility_date": "2026-07-01",
   // ⚠️ MISSING UNTIL 2026-08-30, ON THE ONLY PUBLIC-FACING WORKER. `apps/cms`,
