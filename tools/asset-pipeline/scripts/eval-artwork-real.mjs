@@ -126,10 +126,19 @@ function withFlag(flags, name, value) {
  * leaves the UV weight unset by default, so a caller that stops passing the flag
  * loses artwork protection silently. A realistic regression, not a contrived one.
  */
-const CONTROL_FLAGS = withFlag(BALANCED_FLAGS, '--uv-weight', '0')
+// ⚠️ SINCE 2026-09-02 A PRINT PIECE IS NEVER DECIMATED (fix plan Rank 3). Neither
+// control could reach the label any more — both read the shipped number and the eval
+// reported itself blind, correctly. Both now also pass `--decimate-artwork`, the
+// negative-control flag that lets decimation reach the print as every run did
+// before, so the damage is still produced and still measured. The shipped presets
+// never carry it (strategy.test.ts).
+const CONTROL_FLAGS = [...withFlag(BALANCED_FLAGS, '--uv-weight', '0'), '--decimate-artwork']
 
 /** Run F from the 2026-08-05 sweep: known to render the wordmark illegible. */
-const KNOWN_BAD_FLAGS = withFlag(BALANCED_FLAGS, '--simplify-error', '0.005')
+const KNOWN_BAD_FLAGS = [
+  ...withFlag(BALANCED_FLAGS, '--simplify-error', '0.005'),
+  '--decimate-artwork',
+]
 
 /**
  * Damage ceiling: fraction of pixels in the wordmark crop differing from the
@@ -1153,9 +1162,9 @@ async function main() {
   }
   if (control.worst <= ceiling) {
     failures.push(
-      `The NEGATIVE CONTROL did not register as damage: --uv-weight 0 changed only ${pct(control.worst)}, ` +
+      `The NEGATIVE CONTROL did not register as damage: --decimate-artwork --uv-weight 0 changed only ${pct(control.worst)}, ` +
         `at or under the ${pct(ceiling)} ceiling.\n` +
-        `  Switching UV weighting off REMOVES the protection for printed graphics, so it must show up.\n` +
+        `  Decimating the print with UV weighting off is the damage this eval exists to catch, so it must show up.\n` +
         `  This eval has gone BLIND. Fix the eval; do NOT relax the ceiling.`,
     )
   }

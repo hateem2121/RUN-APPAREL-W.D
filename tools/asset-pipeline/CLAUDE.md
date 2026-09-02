@@ -189,7 +189,7 @@ make the shrink worker throw `PermanentJobError` and save nothing:
 
 | Finding | Where it is decided |
 |---|---|
-| A primitive carrying printed artwork took the position-only decimation fallback | `simplify-textured.ts` → `artworkAtRisk` |
+| A print piece was decimated — never, since 2026-09-02; the assertion names any that moved | `simplify-textured.ts` → `artworkAtRisk` |
 | A hard-edged, opaque print is STILL `BLEND` (the opaque step would have changed it) | `texture-artwork.ts` → `auditArtworkAlpha` |
 | An artwork `MASK` has an `alphaCutoff` other than 0.5 | same |
 
@@ -273,19 +273,15 @@ only the root's one-liners. Open this file before changing anything here.
 - **`--keep-transparency` is not the fix for damaged artwork.** `<model-viewer>`
   has no order-independent transparency; restoring BLEND trades one "half
   visible" for depth-sorting artefacts. Use `MASK` with `alphaCutoff 0.5`.
-- **A cutout is "few mid pixels" AND "actually cut out somewhere" — never the
-  first alone.** `solidifyMaterials` resolves BLEND→MASK on `CUTOUT_MID_FRACTION`
-  (0.05), *deliberately looser* than `BINARY_MID_FRACTION` (0.02), because the
-  N001 wordmark measures 3.58% mid — 96.42% at the extremes, plainly a cutout,
-  and `character` still called it `graded` (i.e. "sheer, leave on BLEND"). But
-  raising that ceiling **alone** deletes fabric: a uniformly translucent inset
-  covering 2–6% of a map also measures ~2–6% mid, and MASKing it at 0.5 when its
-  alpha is ~0.35 discards *every* fragment — a hole, not a hardening, and MASK@0.5
-  is exactly what the gate considers correct so nothing catches it. Hence
-  `CUTOUT_MIN_TRANSPARENT` (0.05): the wordmark is 66.38% fully transparent,
-  those insets are 0.000%. Keep both halves. And keep the two constants separate
-  — `character` 'binary' is also the gate's cut-out signal (`classifyArtworkForGate`),
-  so widening it widens what may refuse a garment.
+- **A cutout is "little soft alpha IN THE INK" AND "actually cut out somewhere" —
+  never the first alone.** Since 2026-09-02 `solidifyMaterials` resolves BLEND→MASK on
+  `CUTOUT_MAX_SOFT_INK` (0.31, soft pixels as a share of mid+opaque): the whole-texture
+  `CUTOUT_MID_FRACTION` read ARISAN's brush print (4% soft overall, 36% of its ink) as a
+  sticker and chopped every fade into steps (F1-01). The line is a table in textures.ts
+  — hard cut-outs 0.3–12.6%, the halftone 26.3% (must stay MASK), the brush 36.3%. The
+  second half, `CUTOUT_MIN_TRANSPARENT` (0.05), still stops a uniformly translucent
+  inset (all soft, cut out nowhere) being MASKed into a hole. Keep both halves, and
+  keep `character` 'binary' separate — it is also the gate's cut-out signal.
 - **An explicit `baseColorFactor[3]` beats anything inferred from pixels.** glTF
   effective alpha is `factor.a * texel.a`, so a material declaring itself sheer at
   0.4 can never reach `alphaCutoff 0.5` — MASK renders it as *nothing at all*,
@@ -357,40 +353,38 @@ only the root's one-liners. Open this file before changing anything here.
   `<model-viewer>` renders see-through — the reported symptom exactly. Go through
   the parser, as `apps/shrink/container/server.ts` does. Pinned by a test in
   `pipeline.test.ts`.
-- **The three blocking gates do NOT catch decimation damage.** They test
-  `alphaMode`, which decimation does not change. A six-run sweep from the raw
-  N001 export (`tools/asset-pipeline/scripts/sweep-size-vs-artwork.mjs`,
-  2026-08-05) rendered the chest
-  wordmark illegible at `--simplify-error 0.005` and **every run passed all three
-  gates**, `artworkAtRisk` and `findArtworkAlphaProblems` both empty. With
-  `--uv-weight` set, the UVs *are* in the error budget, so `artworkAtRisk` cannot
-  fire — the budget was merely too loose. **Nothing in this system measured
-  whether the letters survived; only a rendered crop did.** This is why the old
-  `small` preset was deleted rather than re-tuned.
-  **Partly closed on 2026-08-06 by `pnpm eval:artwork`** — it renders the real
-  wordmark alpha before and after the real chain and measures how much moved, so
-  the *presets* are now watched by something other than memory. Read what it does
-  NOT cover before relying on it: it runs on a synthetic fixture, not on a
-  production garment, so it catches a preset or simplifier regression and would
-  still miss damage specific to a particular CLO export.
-  **Closed for N001 later the same day by `pnpm eval:artwork:real`**, which runs
-  the same method on the actual 382 MB export. It is **manual and local** — why is
-  in "Before you change the pipeline" above. Measured on the real file: fidelity
-  **0.980%**, balanced **2.990%**, sweep run F **5.770%**, `--uv-weight 0`
-  **5.810%**, ceiling **4.2%**. Run F is the one that "passed all three gates"
-  above — there is now a number that stops it.
-  ⚠️ **RUN THIS ON AN IDLE MACHINE.** Measured 2026-08-07, same file (checksum
-  verified), same Chromium: **two runs with a test suite/build alongside** gave
-  `0.490 / 2.510 / 5.290 / 5.330`; **three idle runs** gave `0.980 / 2.990 / — /
-  5.810`, identical to three decimals and reproducing the 2026-08-06 calibration
-  exactly. `--keep` was ruled out (idle, with and without → same numbers). Since
-  every case is diffed against the same baseline, a *uniform* ~0.48pp offset — not
-  scatter — implicates the baseline render, not decimation. Mechanism: `render.ts`
-  settles a camera move on `jumpCameraToGoal()` plus **two chained rAFs**, which is
-  best-effort rather than a convergence check. The verdict and the contact sheets
-  agreed either way. This does not weaken the determinism claim — it qualifies it
-  with "idle". **Do not "fix" a small absolute difference; re-run idle first.** The
-  first hypothesis here was a Chromium version bump, and it was wrong.
+- **A print piece is NEVER decimated — since 2026-09-02 (fix plan Rank 3).**
+  `simplifyTextured` skips every primitive whose material is artwork by name or by
+  UV span (colourway mappings walked, thread excluded) and reports `N print piece(s)
+  left exactly as exported`; `artworkAtRisk` now ASSERTS that, on every path.
+  `--decimate-artwork` is the negative control that brings the damage back —
+  measured on the fixed harness: ARISAN macro 20.6%, Trouser logo 8.5%, Minecut
+  holes 3.8% → 0.5%. Exports under `SMALL_EXPORT_MAX_TRIANGLES` (500k) get no
+  `--simplify` at all (`refineFlagsForSize`). **Before that, the three blocking
+  gates did NOT catch decimation damage** — they test `alphaMode`; a 2026-08-05
+  sweep (`tools/asset-pipeline/scripts/sweep-size-vs-artwork.mjs`) rendered the N001 wordmark illegible
+  at `--simplify-error 0.005` with every gate green and `artworkAtRisk` silent by
+  construction on the normal path (HG-02). Only a rendered crop saw it — why the old
+  `small` preset was deleted rather than re-tuned, and why `pnpm eval:artwork`
+  exists: it renders the real wordmark before and after the real chain on a
+  synthetic fixture, so it catches a preset or simplifier regression and would still
+  miss damage specific to one CLO export.
+- **A flat frame scores 0.00% against another flat frame.** 2026-09-02: three
+  ARISAN macro crops matched their control PERFECTLY because all three were grey —
+  the near-plane getter is read only when three rebuilds the projection, which
+  model-viewer does on a FOV change and never on a radius-only move, so a 2.2 m view
+  followed by a 0.6 m view kept the far plane and clipped the garment.
+  `viewer-page.ts` refreshes the projection on every `camera-change`, `render`
+  names any flat view (`flatViews`, ⚠️ FLAT in the CLI), and
+  `instruments.browser.test.ts` drives the sequence both ways. Treat a 0.00% on a
+  crop as "look at the picture", never as a pass.
+  **Closed for N001 by `pnpm eval:artwork:real`**, the same method on the actual
+  382 MB export — **manual and local** (why: "Before you change the pipeline"). Its
+  ceilings and camera fingerprints live in `raw/CANONICAL.json`, recalibrated on the
+  truthful harness on 2026-09-02 (C-02). ⚠️ **RUN IT ON AN IDLE MACHINE**: with a
+  test suite alongside every case read a *uniform* ~0.48pp low (2026-08-07, three
+  idle runs identical to three decimals) — the baseline render, not decimation.
+  **Do not "fix" a small absolute difference; re-run idle first.**
   ⚠️ **Correction while building that: "the sweep remains the authority on a real
   garment" — stated here until 2026-08-06 — was wrong.**
   `sweep-size-vs-artwork.mjs` imports no renderer and renders nothing; it measures

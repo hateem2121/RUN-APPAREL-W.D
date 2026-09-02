@@ -4,6 +4,7 @@ import { createServer, type Server } from 'node:http'
 import { createRequire } from 'node:module'
 import { dirname, extname, join } from 'node:path'
 import { chromium } from '@playwright/test'
+import sharp from 'sharp'
 import {
   CAMERA_FREEDOM_ATTRIBUTES,
   environmentUrl,
@@ -139,6 +140,13 @@ export interface RenderResult {
   files: string[]
   /** Variant names the model exposes, so a missing `--variant` is visible. */
   availableVariants: string[]
+  /**
+   * Views whose frame came back a single flat colour — nothing in view, or the whole
+   * model clipped. A flat frame diffs as 0.00% against another flat frame, which is
+   * how three ARISAN macro crops scored a perfect match on 2026-09-02 while showing
+   * nothing. A caller that measures must treat any entry here as "measured nothing".
+   */
+  flatViews: string[]
 }
 
 export const DEFAULT_RENDER_SIZE = 1024
@@ -377,6 +385,7 @@ export async function renderViews(
 
     const element = page.locator('#mv')
     const files: string[] = []
+    const flatViews: string[] = []
     for (const view of views) {
       // jumpCameraToGoal skips the interpolation, so the frame captured is the
       // one asked for rather than wherever the easing happened to be. The two
@@ -390,18 +399,31 @@ export async function renderViews(
         mv.fieldOfView = ${JSON.stringify(view.fieldOfView ?? 'auto')}
         mv.jumpCameraToGoal()
         await mv.updateComplete
+        // The near-plane getter is only read when the projection is rebuilt, and a
+        // radius-only move never rebuilds it (see viewer-page.ts). Ask for it.
+        if (window.__instruments && window.__instruments.refreshProjection) window.__instruments.refreshProjection()
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
       })()`)
       const file = `${view.name}.png`
       await element.screenshot({ path: join(outDir, file) })
       files.push(file)
+      const stats = await sharp(join(outDir, file)).stats()
+      if (stats.channels.every((channel) => channel.stdev < 1)) {
+        flatViews.push(view.name)
+        console.warn(
+          `  ⚠️ ${view.name}: a flat frame (rgb ${stats.channels
+            .slice(0, 3)
+            .map((c) => Math.round(c.mean))
+            .join('/')}) — nothing in view or the model clipped. This view measured NOTHING.`,
+        )
+      }
     }
 
     await writeFile(
       join(outDir, 'views.json'),
-      `${JSON.stringify({ glb: glbFile, width, height, variant: options.variant ?? null, lighting, instruments, availableVariants, views }, null, 2)}\n`,
+      `${JSON.stringify({ glb: glbFile, width, height, variant: options.variant ?? null, lighting, instruments, availableVariants, flatViews, views }, null, 2)}\n`,
     )
-    return { outDir, files, availableVariants }
+    return { outDir, files, availableVariants, flatViews }
   } finally {
     await browser.close()
     await new Promise<void>((resolve) => server.close(() => resolve()))

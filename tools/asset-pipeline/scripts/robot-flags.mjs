@@ -16,7 +16,7 @@
 import { resolve } from 'node:path'
 import { shrinkFlagsFor } from '../../../packages/shared/src/shrink.ts'
 import { describeGlb } from '../src/describe.ts'
-import { refineFlagsForFamily } from '../src/strategy.ts'
+import { refineFlags } from '../src/strategy.ts'
 
 const args = process.argv.slice(2)
 const file = args.find((a) => !a.startsWith('--'))
@@ -28,9 +28,17 @@ const detailIndex = args.indexOf('--detail')
 const detail = detailIndex >= 0 ? args[detailIndex + 1] : undefined
 const description = await describeGlb(resolve(file))
 const family = description.error ? 'mixed' : description.family
-const flags = refineFlagsForFamily(shrinkFlagsFor(detail), family)
+const flags = refineFlags(shrinkFlagsFor(detail), description)
 if (args.includes('--json')) {
-  console.log(JSON.stringify({ file, detail: detail ?? 'default', family, flags }))
+  console.log(
+    JSON.stringify({
+      file,
+      detail: detail ?? 'default',
+      family,
+      triangles: description.triangles,
+      flags,
+    }),
+  )
 } else {
   console.error(
     `# ${file}: family ${family}${description.error ? ` (describe error: ${description.error})` : ''}`,

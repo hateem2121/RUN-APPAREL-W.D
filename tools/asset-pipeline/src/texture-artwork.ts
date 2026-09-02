@@ -8,6 +8,8 @@ import {
   type AlphaProfile,
   ARTWORK_ASPECT_RATIO,
   CRUSHED_BYTES_PER_PIXEL,
+  isFlatInk,
+  profileInkDetail,
   NO_ALPHA_PROFILE,
   OPAQUE_FACTOR_THRESHOLD,
   profileAlpha,
@@ -187,7 +189,12 @@ export interface CrushedArtwork {
   width: number
   height: number
   bytes: number
+  /** Over the whole picture — kept for the record; the verdict uses the ink figure. */
   bytesPerPixel: number
+  /** The share of pixels that carry ink (part-transparent or opaque); 1 without an alpha channel. */
+  inkFraction: number
+  /** Bytes per INK pixel — the number judged against CRUSHED_BYTES_PER_PIXEL since 2026-09-02. */
+  bytesPerInkPixel: number
 }
 
 /**
@@ -209,9 +216,32 @@ export interface CrushedArtwork {
  * also encodes tiny, and a gate the owner learns to override is worse than no
  * gate. The blocking signal is `artworkAtRisk` in simplify-textured.ts, which is
  * structural and cannot false-positive.
+ *
+ * MEASURED OVER THE INK SINCE 2026-09-02 (audit F2-07). Bytes per pixel of the WHOLE
+ * picture cried wolf on three of four finished garments: a logo strip is mostly
+ * transparent padding with a hard edge, which WebP stores in almost nothing, so a
+ * healthy encode of AERO's 1095x720 strip came out at 0.0121 and 4096x1263 at 0.0181
+ * while the 6° crops matched the raw file to 0.6% of pixels. Divided by the ink
+ * fraction those are 0.024 and 0.074; the wordmark that really WAS crushed (N001's
+ * live file, 0.003 over the picture) is 0.009. The 0.02 line separates them both ways.
  */
 export async function findCrushedArtwork(document: Document): Promise<CrushedArtwork[]> {
   const crushed: CrushedArtwork[] = []
+  // WHICH TEXTURES ARE PRINTS. `isArtworkTexture` reads the TEXTURE's name, aspect
+  // and alpha — and a CLO export leaves every texture anonymous, so an opaque
+  // 1800x1200 care label (alpha none, aspect 1.5) was invisible to it: the crushed
+  // q15 control of 2026-09-02 passed this check in silence. The material name and
+  // the UV span are the signals that actually name a print in this catalogue
+  // (classifyArtworkForGate, findArtworkTexturesByGeometry); a texture any of the
+  // three calls artwork is judged.
+  const named = new Set<Texture>(findArtworkTexturesByGeometry(document))
+  const cache = new Map<Texture, AlphaProfile>()
+  for (const material of document.getRoot().listMaterials()) {
+    if (!(await classifyArtworkForGate(material, cache)).artwork) continue
+    for (const texture of [material.getBaseColorTexture(), material.getEmissiveTexture()]) {
+      if (texture) named.add(texture)
+    }
+  }
   for (const [index, texture] of document.getRoot().listTextures().entries()) {
     const image = texture.getImage()
     if (!image) continue
@@ -225,15 +255,23 @@ export async function findCrushedArtwork(document: Document): Promise<CrushedArt
     }
     if (!width || !height) continue
     const bytesPerPixel = image.byteLength / (width * height)
-    // CHEAP TEST FIRST. `isArtworkTexture` falls through to `profileAlpha`,
-    // which decodes every pixel; bytes-per-pixel needs only the header. Almost
-    // no texture is below the threshold, so ordering it this way means the
-    // pixel decode runs a handful of times per file rather than once per
-    // texture — same result, and it keeps this affordable on the 22-texture
-    // real garment. Measured on output/n001.glb: 0.21 ms/call for the whole
-    // function, against 0.90 ms for `inspectGlb` end to end.
+    // CHEAP TEST FIRST. Bytes per pixel of the whole picture is a header-only
+    // number and an UPPER bound on the ink figure (ink is at most every pixel), so a
+    // picture that clears the line here clears it over the ink too — the decode runs
+    // only for the few that do not. Measured on output/n001.glb: 0.21 ms/call for the
+    // whole function, against 0.90 ms for `inspectGlb` end to end.
     if (bytesPerPixel >= CRUSHED_BYTES_PER_PIXEL) continue
-    if (!(await isArtworkTexture(texture))) continue
+    if (!named.has(texture) && !(await isArtworkTexture(texture))) continue
+    const alpha = await profileAlpha(image)
+    const inkFraction =
+      alpha.character === 'none' || alpha.character === 'unknown'
+        ? 1
+        : alpha.midFraction + alpha.opaqueFraction
+    const bytesPerInkPixel = inkFraction > 0 ? bytesPerPixel / inkFraction : bytesPerPixel
+    if (bytesPerInkPixel >= CRUSHED_BYTES_PER_PIXEL) continue
+    // A flat one-colour print stores tiny and crisp — see isFlatInk. Decoded only here.
+    const detail = await profileInkDetail(image)
+    if (detail && isFlatInk(detail)) continue
     crushed.push({
       index,
       name: texture.getName() || texture.getURI() || `#${index}`,
@@ -241,6 +279,8 @@ export async function findCrushedArtwork(document: Document): Promise<CrushedArt
       height,
       bytes: image.byteLength,
       bytesPerPixel: Math.round(bytesPerPixel * 10000) / 10000,
+      inkFraction: Math.round(inkFraction * 1000) / 1000,
+      bytesPerInkPixel: Math.round(bytesPerInkPixel * 10000) / 10000,
     })
   }
   return crushed

@@ -343,7 +343,7 @@ the answer is "nothing that happens in production", it is not a test.
 
 - **A CLO 7.0 export arrives as one GLB PER COLOURWAY** (`_0.._N`); `pipeline merge`
   joins them, and **`apps/shrink` never calls it**. See `tools/asset-pipeline/CLAUDE.md`.
-- **Twenty-two more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
+- **Twenty-three more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
   2026-08-19, when this file measured 44,993 characters against Claude Code's
   40,000-character warning, the point at which Anthropic's own guidance says adherence
   to *every* rule in a file starts dropping. They load the moment you touch
@@ -371,6 +371,9 @@ the answer is "nothing that happens in production", it is not a test.
   because ETC1S mottles white fabric; **a CLO export leaves every TEXTURE anonymous**
   so a name-based artwork check must read the MATERIAL name or it is silently inert;
   and forced double-siding put a **mirrored care label on the outside**.
+  **Added 2026-09-02:** a print piece is NEVER decimated (`--decimate-artwork` is the
+  negative control), and **a flat frame scores 0.00% against another flat frame** — a
+  perfect crop match means look at the picture, never pass.
   **Five more findings are recorded there under 2026-08-27**, outside that bulleted
   list: the six unreadable exports carry a texture that is
   **referenced, not orphaned** — safe to strip only because it is always

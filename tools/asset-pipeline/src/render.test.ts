@@ -93,6 +93,20 @@ describe('render harness page — instruments and lighting', () => {
     expect(flat).toContain("Object.defineProperty(camera, 'near'")
   })
 
+  /**
+   * THE BLANK MACRO FRAMES, 2026-09-02. three.js reads the near-plane getter only
+   * when the projection is rebuilt; model-viewer rebuilds it on a field-of-view change
+   * and never on a radius-only move. A 2.2 m view followed by a 0.6 m view kept the
+   * far plane, clipped the whole garment and rendered flat grey — scored 0.00% against
+   * the other flat grey. The page refreshes the projection on every camera move, the
+   * harness asks for it after each jump, and a flat frame is named in views.json.
+   * The browser test drives the sequence; this pins that the wiring is present.
+   */
+  it('refreshes the projection after a camera move, and names a flat frame', () => {
+    expect(PAGE_HTML).toContain("addEventListener('camera-change', refreshProjection)")
+    expect(PAGE_HTML).toContain('refreshProjection,')
+  })
+
   it('lets the camera pull back past the framed radius (HR-5)', () => {
     // model-viewer's max-camera-orbit radius defaults to auto, which clamps at the
     // framed distance: 110/140/200/500% all rendered byte-identical to 105%.

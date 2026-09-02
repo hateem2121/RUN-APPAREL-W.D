@@ -202,6 +202,94 @@ describe.skipIf(!chromiumAvailable)('the instruments, read back from a real brow
     ])
   }, 120_000)
 
+  /**
+   * THE BLANK MACRO FRAMES, 2026-09-02. The near-plane getter is consulted only when
+   * three.js rebuilds the projection, which model-viewer does on a field-of-view
+   * change and never on a radius-only move. A far view followed by a near view kept
+   * the far plane, clipped the garment, and rendered flat grey — which the compare
+   * step scored as a 0.00% match. This drives that exact sequence and asserts the
+   * plane in the projection is the plane the current radius calls for.
+   */
+  it('the near plane follows a radius-only camera move (the blank macro frames)', async () => {
+    const page = await browser.newPage({ viewport: { width: 400, height: 400 } })
+    await page.goto(await harness(true), { waitUntil: 'domcontentloaded' })
+    await page.waitForFunction(
+      '(() => { const i = window.__instruments; return !!(i && i.nearPlane.installed) })()',
+      null,
+      { timeout: 60_000 },
+    )
+    const result = (await page.evaluate(`(async () => {
+      const mv = document.getElementById('mv')
+      const inst = window.__instruments
+      const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+      const projectedNear = () => {
+        // What the GPU actually uses: read back from the projection matrix, not the getter.
+        const m = inst.camera().projectionMatrix.elements
+        return m[14] / (m[10] - 1)
+      }
+      mv.fieldOfView = '7deg'
+      mv.cameraOrbit = '0deg 90deg 300%'
+      mv.jumpCameraToGoal(); await mv.updateComplete; await frames()
+      const far = { radius: mv.getCameraOrbit().radius, projected: projectedNear() }
+      mv.cameraOrbit = '0deg 90deg 40%'
+      mv.jumpCameraToGoal(); await mv.updateComplete; await frames()
+      const near = { radius: mv.getCameraOrbit().radius, projected: projectedNear(), expected: inst.nearPlaneFor(mv.getCameraOrbit().radius) }
+      return { far, near }
+    })()`)) as {
+      far: { radius: number; projected: number }
+      near: { radius: number; projected: number; expected: number }
+    }
+    await page.close()
+    expect(result.near.radius).toBeLessThan(result.far.radius)
+    // The projection moved with the radius...
+    expect(result.near.projected).toBeLessThan(result.far.projected)
+    // ...and to the value the getter defines for THIS radius (1% tolerance on a float
+    // read back through the matrix).
+    expect(
+      Math.abs(result.near.projected - result.near.expected) / result.near.expected,
+    ).toBeLessThan(0.01)
+  }, 120_000)
+
+  it('NEGATIVE CONTROL: without the refresh, the far plane survives the move — the defect, reproduced', async () => {
+    const page = await browser.newPage({ viewport: { width: 400, height: 400 } })
+    await page.goto(await harness(true), { waitUntil: 'domcontentloaded' })
+    await page.waitForFunction(
+      '(() => { const i = window.__instruments; return !!(i && i.nearPlane.installed) })()',
+      null,
+      { timeout: 60_000 },
+    )
+    const result = (await page.evaluate(`(async () => {
+      const mv = document.getElementById('mv')
+      const inst = window.__instruments
+      mv.removeEventListener('camera-change', inst.refreshProjection)
+      const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+      const projectedNear = () => { const m = inst.camera().projectionMatrix.elements; return m[14] / (m[10] - 1) }
+      mv.fieldOfView = '7deg'
+      mv.cameraOrbit = '0deg 90deg 300%'
+      mv.jumpCameraToGoal(); await mv.updateComplete; await frames()
+      const far = projectedNear()
+      const farRadius = mv.getCameraOrbit().radius
+      mv.cameraOrbit = '0deg 90deg 40%'
+      mv.jumpCameraToGoal(); await mv.updateComplete; await frames()
+      return { far, farRadius, stale: projectedNear(), nearRadius: mv.getCameraOrbit().radius, expected: inst.nearPlaneFor(mv.getCameraOrbit().radius), min: mv.minCameraOrbit, max: mv.maxCameraOrbit, dims: mv.getDimensions() }
+    })()`)) as {
+      far: number
+      farRadius: number
+      stale: number
+      nearRadius: number
+      expected: number
+      min: string
+      max: string
+      dims: unknown
+    }
+    await page.close()
+    // The getter says one thing, the projection still holds the other: the plane did
+    // not move with the radius, and it is not the plane this radius calls for.
+    expect(result.nearRadius).not.toBeCloseTo(result.farRadius, 1)
+    expect(Math.abs(result.stale - result.far) / result.far).toBeLessThan(0.01)
+    expect(Math.abs(result.stale - result.expected) / result.expected).toBeGreaterThan(0.05)
+  }, 120_000)
+
   it('NEGATIVE CONTROL: the old page (instruments off) reads back exactly as the audit found it', async () => {
     const instrumented = await probe(await harness(true))
     const p = await probe(await harness(false))

@@ -209,6 +209,7 @@ export function instrumentsScript(): string {
   const MIN_NEAR = ${MIN_NEAR}
   let nearPlaneInstalled = false
   let nearPlaneSkipped = ''
+  let modelRadius = NaN
 
   const computeNearPlane = (orbitRadius, radius) => {
     if (!Number.isFinite(orbitRadius) || !Number.isFinite(radius)) return MIN_NEAR
@@ -243,6 +244,7 @@ export function instrumentsScript(): string {
       return
     }
     const radius = Math.sqrt(d.x * d.x + d.y * d.y + d.z * d.z) / 2
+    modelRadius = radius
     try {
       Object.defineProperty(camera, 'near', {
         configurable: true,
@@ -256,6 +258,23 @@ export function instrumentsScript(): string {
     nearPlaneInstalled = true
     camera.updateProjectionMatrix()
   }
+
+  // THE GETTER IS READ ONLY WHEN THREE REBUILDS THE PROJECTION, and model-viewer
+  // rebuilds it on a field-of-view change, never on a radius-only move — its own
+  // near plane is a constant, so it has no reason to. Measured 2026-09-02 on ARISAN:
+  // a 2.2 m view followed by a 0.6 m view at a different FOV still projected with the
+  // 2.2 m near plane (0.96 m), which clipped the whole garment and returned a flat
+  // grey frame that the compare step scored as a perfect 0.00% match. Every camera
+  // move now refreshes the projection, so the plane that was computed is the plane
+  // that draws.
+  const refreshProjection = () => {
+    if (!nearPlaneInstalled) return false
+    const camera = internalCamera(mv)
+    if (!camera || typeof camera.updateProjectionMatrix !== 'function') return false
+    camera.updateProjectionMatrix()
+    return true
+  }
+  mv.addEventListener('camera-change', refreshProjection)
 
   // THE DECAL DEPTH BIAS. A printed cut-out authored flush with the cloth gives the
   // GPU two surfaces at near-identical depth, and the winner changes per pixel and
@@ -370,6 +389,9 @@ export function instrumentsScript(): string {
     setBias: (on) => { biasOn = on; applyBias() },
     applyBias,
     installNearPlane,
+    refreshProjection,
+    /** The near plane the getter yields at a given orbit radius — what a test expects. */
+    nearPlaneFor: (orbitRadius) => computeNearPlane(orbitRadius, modelRadius),
   }
   mv.addEventListener('variant-applied', applyBias)
   mv.addEventListener('load', () => {

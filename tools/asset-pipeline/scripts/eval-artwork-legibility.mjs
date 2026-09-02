@@ -98,6 +98,15 @@ const EVAL_LIGHTING = 'diagnostic'
  * mismatch CLAUDE.md already warns about.
  *
  * Measured: 9.370% versus 3.070% — 3× the damage, on the same fixture, same run.
+ *
+ * ⚠️ SINCE 2026-09-02 A PRINT PIECE IS NEVER DECIMATED (fix plan Rank 3), so
+ * `--uv-weight 0` alone can no longer touch the wordmark: on 2026-09-02 all three
+ * runs read 0.130% and this eval reported itself blind — correctly. The control now
+ * also passes `--decimate-artwork`, the negative-control flag that lets decimation
+ * reach the print exactly as every run did before, so the damage this eval exists
+ * to catch is still produced and still measured. The shipped presets do NOT carry
+ * it (strategy.test.ts pins that), which is why they now read ~0.1%: what remains is
+ * the texture re-encode.
  */
 const CONTROL_FLAGS = [
   '--simplify',
@@ -107,6 +116,7 @@ const CONTROL_FLAGS = [
   '0.001',
   '--uv-weight',
   '0',
+  '--decimate-artwork',
 ]
 
 /**
@@ -407,9 +417,9 @@ async function main() {
   }
   if (control.changedFraction <= MAX_CHANGED_FRACTION) {
     failures.push(
-      `The NEGATIVE CONTROL did not register as damage: --uv-weight 0 changed only ` +
+      `The NEGATIVE CONTROL did not register as damage: --decimate-artwork --uv-weight 0 changed only ` +
         `${pct(control.changedFraction)}, at or under the ${pct(MAX_CHANGED_FRACTION)} ceiling.\n` +
-        `  Switching UV weighting off REMOVES the mechanism that protects printed graphics, so it must show up.\n` +
+        `  Decimating the print with UV weighting off is the damage this eval exists to catch, so it must show up.\n` +
         `  This eval has gone BLIND — the fixture, the render size or the metric no longer exhibits the failure.\n` +
         `  Fix the eval; do NOT relax the ceiling. A green run means nothing until this control is red again.`,
     )

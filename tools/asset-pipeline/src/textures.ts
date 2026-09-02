@@ -126,11 +126,90 @@ export interface TextureInventory {
 }
 
 /**
- * Below this, a stored colour map is suspiciously small for its pixel count.
- * A clean WebP of a flat logo lands around 0.05-0.15 bpp; the damaged N001
- * textures measured 0.003.
+ * Below this many bytes per INK pixel, a print that carries colour detail is stored
+ * suspiciously small. Drawn from a table, not chosen (scripts/artwork-detail-census.mjs,
+ * 2026-09-02, bytes per ink pixel):
+ *
+ *   detailed print                       q95 (production)   q15      q5
+ *   AERO label 1800x1200, 16 colours     0.0208             0.0086   0.0070
+ *   AERO Main Single Logo, 121 colours   0.0731             0.0397   0.0374
+ *   ARISAN Material_Graphic, 5 colours   0.0567             —        —
+ *   Minecut THE EXTRA MILE, 6 colours    0.1263             —        —
+ *
+ * 0.012 sits between the lowest clean value (0.0208) and the highest crushed one this
+ * can see (0.0086). The damaged N001 wordmark of 2026-08-05 measured 0.003. What the
+ * signal CANNOT see: a multi-colour cut-out crushed by quality keeps 0.037-0.040 (its
+ * alpha stays near-lossless and carries the shape) — that damage shows only in a
+ * rendered crop, which is what eval:artwork is for. And a FLAT one-colour print is
+ * exempt altogether: see `isFlatInk`.
  */
-export const CRUSHED_BYTES_PER_PIXEL = 0.02
+export const CRUSHED_BYTES_PER_PIXEL = 0.012
+
+/**
+ * A print whose ink is one flat colour has nothing for lossy compression to lose:
+ * WebP stores alpha near-losslessly, so the shape survives at any quality and the
+ * bytes are legitimately tiny. ARMOR's 1462x1069 mark stores in 15.5 KB (0.018 per
+ * ink pixel) and is crisp — the last of the F2-07 false alarms, looked at on
+ * 2026-09-02. Measured flat prints: 1-5 colours, 0.00% colour edges; the detailed
+ * ones above: 5-121 colours, 0.09-3.94% colour edges. Both lines must be crossed.
+ */
+export const FLAT_INK_MAX_COLOURS = 4
+export const FLAT_INK_MAX_EDGE_FRACTION = 0.001
+
+export interface InkDetail {
+  /** Distinct ink colours at 16 levels per channel. */
+  colours: number
+  /** Share of ink pixels whose right or lower ink neighbour differs in luminance by > 24/255. */
+  colourEdgeFraction: number
+}
+
+export function isFlatInk(detail: InkDetail): boolean {
+  return (
+    detail.colours <= FLAT_INK_MAX_COLOURS && detail.colourEdgeFraction < FLAT_INK_MAX_EDGE_FRACTION
+  )
+}
+
+/**
+ * How much colour detail the INK carries — the pixels with alpha > 8, or every pixel
+ * of an opaque picture. One RGBA decode; called only for textures already below the
+ * byte line, so it costs nothing on a clean file.
+ */
+export async function profileInkDetail(buffer: Uint8Array): Promise<InkDetail | null> {
+  let data: Buffer
+  let width: number
+  try {
+    const out = await sharp(buffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+    data = out.data
+    width = out.info.width
+  } catch {
+    return null
+  }
+  const pixels = data.length / 4
+  const luma = (i: number) =>
+    0.299 * (data[i * 4] ?? 0) + 0.587 * (data[i * 4 + 1] ?? 0) + 0.114 * (data[i * 4 + 2] ?? 0)
+  const isInk = (i: number) => (data[i * 4 + 3] ?? 0) > 8
+  const colours = new Set<number>()
+  let ink = 0
+  let edges = 0
+  for (let i = 0; i < pixels; i++) {
+    if (!isInk(i)) continue
+    ink++
+    colours.add(
+      (((data[i * 4] ?? 0) >> 4) << 8) |
+        (((data[i * 4 + 1] ?? 0) >> 4) << 4) |
+        ((data[i * 4 + 2] ?? 0) >> 4),
+    )
+    const l = luma(i)
+    const right = (i + 1) % width === 0 ? -1 : i + 1
+    const below = i + width < pixels ? i + width : -1
+    if (
+      (right >= 0 && isInk(right) && Math.abs(luma(right) - l) > 24) ||
+      (below >= 0 && isInk(below) && Math.abs(luma(below) - l) > 24)
+    )
+      edges++
+  }
+  return { colours: colours.size, colourEdgeFraction: ink ? edges / ink : 0 }
+}
 
 /** Above this long:short ratio a texture is almost certainly a wordmark or printed strip. */
 export const ARTWORK_ASPECT_RATIO = 3
@@ -205,6 +284,36 @@ export const BINARY_MID_FRACTION = 0.02
  * cutout may carry.
  */
 export const CUTOUT_MID_FRACTION = 0.08
+
+/**
+ * THE CUT-OUT TEST IS MEASURED OVER THE INK, NOT THE WHOLE PICTURE — since 2026-09-02.
+ *
+ * `CUTOUT_MID_FRACTION` above asked what share of ALL pixels is part-transparent. A
+ * brush print on a mostly-empty canvas is 4.2% partial over the whole texture and
+ * 36.3% partial as a share of its ink, so it read as a sticker, was hardened to MASK
+ * at 0.5, and every faded stroke edge was chopped into steps and speckles (audit
+ * F1-01, FAB-08, CT-05: ARISAN BRA's brush logo, RUN BRUSH LOGO). Dividing by the ink
+ * — mid / (mid + opaque) — makes the number describe the print rather than its
+ * canvas; the whole-texture constant is kept for the census that shows the difference
+ * and for the tests that pin what `profileAlpha` measures.
+ *
+ * THE LINE, FROM A TABLE OF THE OWNER'S GARMENTS (scripts/ink-softness-census.mjs,
+ * native resolution, 2026-09-02), soft-of-ink per print:
+ *
+ *     hard cut-outs, must stay MASK:
+ *       Teamwear Logo 1.0%  RUN LOGO 2.5–2.8%  ACTIVEWEAR LOGO 2.4%  BELT 4.0%
+ *       clothing labels 4.1–8.8%  THE EXTRA MILE (Slogan) 10.0–11.0%
+ *       TO NEVER LOOK BACK 12.6%  the Cycling-Bib halftone 26.3%
+ *     soft prints, must stay BLEND:
+ *       RUN BRUSH LOGO 36.2–36.3%  the bib's soft care label 41.0%
+ *
+ * 0.31 sits between the halftone (26.3% — the "stitches see-through" incident of
+ * 2026-08-21 if it ever went BLEND) and the brush (36.3%) with about five points of
+ * margin each way. The second half of the pair, CUTOUT_MIN_TRANSPARENT, is unchanged
+ * and still what protects a uniformly translucent inset (ink 100% partial, cut out
+ * nowhere) and the dobby weave (21% partial, 0.00% clear).
+ */
+export const CUTOUT_MAX_SOFT_INK = 0.31
 
 /**
  * A cutout must have real holes in it, not merely soft edges.
@@ -297,17 +406,23 @@ export const NO_ALPHA_PROFILE: AlphaProfile = {
 }
 
 /**
- * A cutout is "hardly any partial alpha" AND "actually cut out somewhere". The
- * second half is not decoration: a uniformly translucent inset has little partial
+ * A cutout is "hardly any partial alpha IN THE INK" AND "actually cut out somewhere".
+ * The second half is not decoration: a uniformly translucent inset has little partial
  * alpha too, and MASKing it at 0.5 deletes it outright rather than hardening it.
- * See CUTOUT_MIN_TRANSPARENT.
+ * See CUTOUT_MAX_SOFT_INK and CUTOUT_MIN_TRANSPARENT.
  */
 export function isCutoutProfile(alpha: AlphaProfile): boolean {
   return (
     alpha.character === 'binary' ||
-    (alpha.midFraction <= CUTOUT_MID_FRACTION &&
+    (softInkFraction(alpha) <= CUTOUT_MAX_SOFT_INK &&
       alpha.transparentFraction >= CUTOUT_MIN_TRANSPARENT)
   )
+}
+
+/** Part-transparent pixels as a share of the INK (mid + opaque); 0 for an empty picture. */
+export function softInkFraction(alpha: AlphaProfile): number {
+  const ink = alpha.midFraction + alpha.opaqueFraction
+  return ink > 0 ? alpha.midFraction / ink : 0
 }
 
 export type BlendResolution = 'keep' | 'MASK' | 'OPAQUE'

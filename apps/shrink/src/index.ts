@@ -132,6 +132,12 @@ interface ShrinkReport {
      * rather than failing closed: an old image must not start rejecting every job.
      */
     artworkAtRisk?: string[]
+    /**
+     * Print pieces left exactly as exported — never decimated since 2026-09-02 (fix
+     * plan Rank 3). Absent from an older container.
+     */
+    artworkUntouched?: number
+    artworkUntouchedMaterials?: string[]
   }
   /**
    * Artwork materials left translucent, or whose MASK threshold drifted.

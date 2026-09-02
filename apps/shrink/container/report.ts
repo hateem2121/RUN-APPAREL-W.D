@@ -121,7 +121,13 @@ export function buildReportText(
     // connected.
     opt.simplify
       ? `Mesh decimation: ${opt.simplify.attributeAware} part(s) with artwork protection, ` +
-        `${opt.simplify.fallback} without, ${opt.simplify.skipped} untouched.` +
+        `${opt.simplify.fallback} without, ${opt.simplify.skipped} untouched` +
+        // Since 2026-09-02 a print piece is never decimated (fix plan Rank 3). Named,
+        // so the owner sees what was protected — and so an old-style export whose
+        // whole panel IS the print shows up as a big number rather than a mystery.
+        ((opt.simplify.artworkUntouched ?? 0) > 0
+          ? `, ${opt.simplify.artworkUntouched} print piece(s) left exactly as exported (${(opt.simplify.artworkUntouchedMaterials ?? []).join(', ')}).`
+          : '.') +
         (opt.simplify.fallback > opt.simplify.attributeAware
           ? ' ⚠️ Most parts were decimated WITHOUT artwork protection — printed graphics on those are at risk.'
           : '')

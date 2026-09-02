@@ -129,6 +129,14 @@ export interface OptimizeOptions {
    * simplify-textured.ts for why it replaced `lockBorder`.
    */
   simplifyUvWeight?: number | undefined
+  /**
+   * NEGATIVE CONTROL ONLY. Lets `--simplify` reach the print pieces again, exactly as
+   * every run did before 2026-09-02, so the damage can be re-measured on demand (a
+   * measuring tool that has never seen a defect is not known to work). The robot
+   * never emits it — pinned in strategy.test.ts — and the report names every print
+   * it decimates in `artworkAtRisk`, which the shrink Worker refuses.
+   */
+  decimateArtwork?: boolean | undefined
   /** Same for vertex normals — protects shading rather than artwork. */
   simplifyNormalWeight?: number | undefined
 
@@ -534,6 +542,7 @@ export async function buildOptimizeTransforms(
         error: options.simplifyError ?? DEFAULT_SIMPLIFY_ERROR,
         uvWeight: options.simplifyUvWeight ?? DEFAULT_SIMPLIFY_UV_WEIGHT,
         normalWeight: options.simplifyNormalWeight ?? DEFAULT_SIMPLIFY_NORMAL_WEIGHT,
+        ...(options.decimateArtwork ? { decimateArtwork: true } : {}),
         // If the stitch pass ran, it OWNS those meshes — decimating them again
         // here is what frayed the cord on 2026-08-21. Passing both flags is
         // therefore safe: thread takes the stitch budget, garment takes this one.
@@ -772,6 +781,7 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
   let simplify: number | undefined
   let simplifyError: number | undefined
   let simplifyUvWeight: number | undefined
+  let decimateArtwork = false
   let simplifyNormalWeight: number | undefined
   let stitch: number | undefined
   let stitchError: number | undefined
@@ -803,6 +813,7 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
     else if (arg === '--opaque') opaque = true
     else if (arg === '--no-opaque' || arg === '--keep-transparency') opaque = false
     else if (arg === '--no-pbr-normalize') normalizePbrOption = false
+    else if (arg === '--decimate-artwork') decimateArtwork = true
     else if (!arg.startsWith('--')) input = arg
   }
 
@@ -821,6 +832,7 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
       simplify,
       simplifyError,
       simplifyUvWeight,
+      ...(decimateArtwork ? { decimateArtwork: true } : {}),
       simplifyNormalWeight,
       stitch,
       stitchError,

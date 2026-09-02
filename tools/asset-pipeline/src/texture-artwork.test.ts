@@ -317,6 +317,35 @@ describe('findCrushedArtwork', () => {
     expect(crushed[0]!.bytesPerPixel).toBeLessThan(CRUSHED_BYTES_PER_PIXEL)
   })
 
+  it('leaves a FLAT one-colour cut-out alone however few bytes it takes (F2-07, the ARMOR mark)', async () => {
+    // 1024x1024 transparent canvas with one solid disc: alpha carries the shape,
+    // the colour is constant, so a q1 WebP is tiny AND crisp.
+    const size = 1024
+    const raw = Buffer.alloc(size * size * 4)
+    for (let y = 0; y < size; y++)
+      for (let x = 0; x < size; x++) {
+        const inside = (x - 512) ** 2 + (y - 512) ** 2 < 300 ** 2
+        const i = (y * size + x) * 4
+        raw[i] = 20
+        raw[i + 1] = 30
+        raw[i + 2] = 40
+        raw[i + 3] = inside ? 255 : 0
+      }
+    const webp = new Uint8Array(
+      await sharp(raw, { raw: { width: size, height: size, channels: 4 } })
+        .webp({ quality: 1 })
+        .toBuffer(),
+    )
+    const document = new Document()
+    const texture = document.createTexture('flat-mark').setMimeType('image/webp').setImage(webp)
+    document.createMaterial('OUTERWEAR LOGO').setBaseColorTexture(texture)
+    // It IS below the byte line — that is the whole point of the exemption.
+    const bytesPerInk = webp.byteLength / (Math.PI * 300 ** 2)
+    expect(bytesPerInk).toBeLessThan(CRUSHED_BYTES_PER_PIXEL)
+
+    expect(await findCrushedArtwork(document)).toEqual([])
+  })
+
   it('leaves a healthy artwork encode alone', async () => {
     const document = new Document()
     const texture = document

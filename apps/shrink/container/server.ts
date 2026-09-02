@@ -26,7 +26,7 @@ import {
   parseOptimizeArgs,
 } from '../../../tools/asset-pipeline/src/optimize'
 import { describeGlb, readGltfJson } from '../../../tools/asset-pipeline/src/describe'
-import { refineFlagsForFamily } from '../../../tools/asset-pipeline/src/strategy'
+import { refineFlags } from '../../../tools/asset-pipeline/src/strategy'
 import {
   attributeBytes,
   formatAttributeBytes,
@@ -117,9 +117,13 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
     // A file this cannot read falls through as 'mixed', which refineFlagsForFamily
     // returns UNCHANGED: a readout failure must never silently alter a garment's
     // compression.
+    // Since 2026-09-02 this also drops general decimation for a SMALL export (see
+    // SMALL_EXPORT_MAX_TRIANGLES in strategy.ts): the finished garments are two orders
+    // of magnitude smaller than the exports the presets were written for, and on them
+    // `--simplify` saved a few hundred KB and tore the prints (audit F1-02, A-01).
     const description = await describeGlb(rawPath)
     const family = description.error ? 'mixed' : description.family
-    const flags = refineFlagsForFamily(baseFlags, family)
+    const flags = refineFlags(baseFlags, description)
 
     // Still enforced, and still the real control: assertFlagsOnly throws on any bare
     // token, and everything refineFlagsForFamily adds is a literal in strategy.ts.

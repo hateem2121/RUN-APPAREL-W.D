@@ -120,6 +120,8 @@ COMPRESSION FLAGS (merge, optimize)
                        further changes nothing — raise --simplify-error instead
   --simplify-error <r> Error budget as a fraction of mesh radius (default 0.0001)
   --uv-weight <n>      How heavily UV distortion counts against that budget
+  --decimate-artwork   NEGATIVE CONTROL ONLY: let --simplify reach the print pieces again (never
+                       decimated since 2026-09-02). Re-measures the damage; the robot refuses the file.
                        (default 1). This is what keeps printed logos and graphics
                        intact; lower it for a smaller file, raise it if artwork
                        looks smeared. 0 disables texture-aware decimation
@@ -319,13 +321,25 @@ async function main(): Promise<void> {
       }
     }
     if (result.simplify) {
-      const { attributeAware, fallback, skipped, uvSetsWeighted } = result.simplify
+      const { attributeAware, fallback, skipped, uvSetsWeighted, artworkUntouched } =
+        result.simplify
       console.log(
         `  decimation: ${attributeAware} primitive(s) with UV error in the budget, ${fallback} fallback, ${skipped} skipped`,
+      )
+      // Since 2026-09-02 a print piece is never decimated (fix plan Rank 3): say which.
+      console.log(
+        `  prints:     ${artworkUntouched} print piece(s) left exactly as exported${
+          artworkUntouched ? `: ${result.simplify.artworkUntouchedMaterials.join(', ')}` : ''
+        }`,
       )
       console.log(
         `  UV sets:    ${uvSetsWeighted.map((n) => `TEXCOORD_${n}`).join(', ') || 'none'} weighted against the error budget`,
       )
+      if (result.simplify.artworkAtRisk.length) {
+        console.log(
+          `  ⚠️ AT RISK:  ${result.simplify.artworkAtRisk.length} print piece(s) were DECIMATED — ${result.simplify.artworkAtRisk.join(', ')}. The robot refuses this file.`,
+        )
+      }
       // Without this line a --uv-weight that was never applied is invisible.
       if (fallback > attributeAware) {
         console.log(
@@ -782,6 +796,11 @@ async function main(): Promise<void> {
     console.log(`Rendered ${result.files.length} view(s) of ${file} → ${outDir}`)
     console.log(`  views:      ${result.files.join(', ')}`)
     console.log(`  variants:   ${result.availableVariants.join(', ') || '(none bound)'}`)
+    if (result.flatViews.length) {
+      console.log(
+        `  ⚠️ FLAT:    ${result.flatViews.length} view(s) rendered a single flat colour — ${result.flatViews.join(', ')}. They measured nothing; fix the camera before comparing.`,
+      )
+    }
     console.log(
       `  lighting:   ${lighting}${instruments ? '' : '   ⚠️ instruments OFF — a negative control, not a judgement'}`,
     )

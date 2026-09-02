@@ -228,9 +228,9 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
   const crushedArtwork = await findCrushedArtwork(document)
   if (crushedArtwork.length > 0) {
     warnings.push(
-      `${crushedArtwork.length} printed-artwork texture(s) are stored below ${CRUSHED_BYTES_PER_PIXEL} bytes/pixel — ` +
-        `${crushedArtwork.map((c) => `${c.name} ${c.width}x${c.height} at ${c.bytesPerPixel}`).join('; ')}. ` +
-        'A clean encode of flat artwork lands around 0.05-0.15, so this is far past it. Render the file and look ' +
+      `${crushedArtwork.length} printed-artwork texture(s) are stored below ${CRUSHED_BYTES_PER_PIXEL} bytes per INK pixel — ` +
+        `${crushedArtwork.map((c) => `${c.name} ${c.width}x${c.height} at ${c.bytesPerInkPixel} (${Math.round(c.inkFraction * 100)}% ink)`).join('; ')}. ` +
+        'Clean detailed prints measure 0.021-0.13 per ink pixel; the crushed controls 0.007-0.009 (flat one-colour prints are exempt). Render the file and look ' +
         'at the lettering before publishing; if the garment genuinely has a flat single-colour label this is expected.',
     )
   }
