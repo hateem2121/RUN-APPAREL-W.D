@@ -41,6 +41,16 @@
  * sits on. `tools/asset-pipeline/src/overlay-depth.ts` measures it once, per primitive,
  * and records the decision in the file. Sheer BLEND panels are still left alone, and so
  * is every fabric with nothing in front of it.
+ *
+ * ⚠️ WHICH three.js MATERIAL — EVERY ONE BEHIND THE WRAPPER, NOT THE FIRST (audit DV-01,
+ * fixed 2026-09-03). A model-viewer Material wrapper holds a SET of three.js materials
+ * (`$correlatedObjects`); `$backingThreeMaterial` is merely the first entry. On a
+ * colourway switch `PrimitiveNode.setActiveMaterial` binds a material from that set —
+ * or adds the mesh's own — so the one the GPU draws is often NOT the first. Writing to
+ * the first alone counted as success while the scene drew another: measured on the live
+ * skinsuit, wrapper backings present in the scene fell from 44 to 5 after the first
+ * colourway click, and the bib drew 0 of 5 biased. Every entry is written now, and the
+ * e2e probe counts what the SCENE holds, not what the wrappers report.
  */
 
 /** The three.js material properties this needs. Structural, so a test can fake it. */
@@ -89,6 +99,12 @@ export interface DepthBiasResult {
    * reaches that colourway.
    */
   pending: number
+  /**
+   * three.js materials actually written — every entry behind every biased wrapper. On a
+   * five-colourway garment this is larger than `biased.length`, and that gap is the
+   * DV-01 defect made visible: the old code wrote one per wrapper.
+   */
+  targets: number
   /**
    * Materials that ARE loaded and still have no backing material. A real fault.
    *
@@ -173,11 +189,13 @@ export function readOverlayBias(target: DepthBiasTarget): OverlayBiasRecord | nu
  *
  * Takes the backing-material accessor as an argument rather than reaching for the
  * symbol itself, so the decision logic is testable without a browser, a GPU or a
- * real model-viewer element — none of which exist under jsdom.
+ * real model-viewer element — none of which exist under jsdom. The accessor returns
+ * EVERY three.js material behind the wrapper (correlatedThreeMaterials); a single
+ * target is accepted for callers and tests written against the older shape.
  */
 export function applyDecalDepthBias<M extends { name?: string; isLoaded?: boolean }>(
   materials: Iterable<M>,
-  backingOf: (material: M) => DepthBiasTarget | null | undefined,
+  backingsOf: (material: M) => readonly DepthBiasTarget[] | DepthBiasTarget | null | undefined,
 ): DepthBiasResult {
   const result: DepthBiasResult = {
     biased: [],
@@ -185,12 +203,14 @@ export function applyDecalDepthBias<M extends { name?: string; isLoaded?: boolea
     skipped: 0,
     rejected: 0,
     pending: 0,
+    targets: 0,
     unreachable: 0,
   }
 
   for (const material of materials) {
-    const backing = backingOf(material)
-    if (!backing) {
+    const found = backingsOf(material)
+    const targets = found == null ? [] : Array.isArray(found) ? found : [found as DepthBiasTarget]
+    if (targets.length === 0) {
       // `isLoaded` is model-viewer PUBLIC API and separates the two silences: a
       // lazy variant material is expected to be unreachable and will be picked up
       // by the next `variant-applied`; a LOADED material with no backing means the
@@ -225,26 +245,65 @@ export function applyDecalDepthBias<M extends { name?: string; isLoaded?: boolea
     // bias-everything screen test, its body panel scores frontness 0.34 and is rejected
     // while its artwork scores 0.58-0.64. n001, the source of the LIVE product, comes
     // out of the pipeline BYTE-IDENTICAL — nothing on it is flagged at all.
-    const overlay = readOverlayBias(backing)
-    if (!overlay && !(backing.alphaTest > 0)) {
-      // A material carrying a record the band check refused is NOT a plain skip.
-      if (backing.userData?.depthBias) result.rejected++
+    let wrapperBiased = false
+    let wrapperOverlay = false
+    for (const backing of targets) {
+      const overlay = readOverlayBias(backing)
+      if (!overlay && !(backing.alphaTest > 0)) {
+        // A material carrying a record the band check refused is NOT a plain skip.
+        if (backing.userData?.depthBias) result.rejected++
+        continue
+      }
+      // Assignment, never accumulation — this runs again on every `variant-applied`, so
+      // anything that ADDED to the current value would deepen the bias each colourway
+      // switch until a far-side decal bled through the front of the garment.
+      backing.polygonOffset = true
+      backing.polygonOffsetFactor = overlay ? overlay.factor : OFFSET_FACTOR
+      backing.polygonOffsetUnits = overlay ? overlay.units : OFFSET_UNITS
+      backing.needsUpdate = true
+      result.targets++
+      wrapperBiased = true
+      if (overlay) wrapperOverlay = true
+    }
+    if (!wrapperBiased) {
       result.skipped++
       continue
     }
-    // Assignment, never accumulation — this runs again on every `variant-applied`, so
-    // anything that ADDED to the current value would deepen the bias each colourway
-    // switch until a far-side decal bled through the front of the garment.
-    backing.polygonOffset = true
-    backing.polygonOffsetFactor = overlay ? overlay.factor : OFFSET_FACTOR
-    backing.polygonOffsetUnits = overlay ? overlay.units : OFFSET_UNITS
-    backing.needsUpdate = true
     const name = material.name ?? '(unnamed material)'
     result.biased.push(name)
-    if (overlay) result.overlays.push(name)
+    if (wrapperOverlay) result.overlays.push(name)
   }
 
   return result
+}
+
+/**
+ * EVERY three.js material behind a model-viewer Material wrapper.
+ *
+ * model-viewer keeps them in a Set under `Symbol('correlatedObjects')` — looked up by
+ * description, as `backingThreeMaterial` is, because a deep import is not part of the
+ * package's export map. A lazy (not yet loaded) colourway material holds `null` or an
+ * empty Set, which comes back as an empty array and counts as `pending`. If the symbol
+ * is ever gone, this falls back to the single backing material so the repair degrades
+ * to the 2026-08-27 behaviour rather than to nothing — and the e2e scene count then
+ * fails loudly, which is the point of counting the scene.
+ */
+export function correlatedThreeMaterials(material: object): DepthBiasTarget[] {
+  for (const source of [material, Object.getPrototypeOf(material) as object | null]) {
+    if (!source) continue
+    for (const symbol of Object.getOwnPropertySymbols(source)) {
+      if (symbol.description !== 'correlatedObjects') continue
+      const value = (material as Record<symbol, unknown>)[symbol]
+      if (value == null) return []
+      if (typeof (value as Iterable<unknown>)[Symbol.iterator] === 'function') {
+        return [...(value as Iterable<unknown>)].filter(
+          (entry): entry is DepthBiasTarget => !!entry && typeof entry === 'object',
+        )
+      }
+    }
+  }
+  const single = backingThreeMaterial(material)
+  return single ? [single] : []
 }
 
 /**

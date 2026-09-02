@@ -42,6 +42,10 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   chunk contains it), "the setter throws" (none of them do). **`git log` proves
   nothing here** — the old line was committed, deployed, error-free and inert.
 
+- **THE BACKING MATERIAL IS THE FIRST OF A SET; A COLOURWAY SWITCH DRAWS ANOTHER
+  (DV-01, fixed 2026-09-03).** Biasing entry one of `$correlatedObjects` reported 26/26
+  while the live skinsuit drew 1 of 6 and the bib 0 of 5. `correlatedThreeMaterials()`
+  writes every entry; `webgl.spec.ts` counts the SCENE's drawn cut-outs on all five tabs.
 - **model-viewer BUILDS ONLY THE ARRIVING COLOURWAY'S MATERIALS, so anything done
   to `model.materials` on `load` reaches a fraction of them.** Measured on the live
   garment 2026-08-27: **200 materials, 44 built, 156 lazy**; of 26 printed cut-outs,

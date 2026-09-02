@@ -120,6 +120,21 @@ interface ShrinkReport {
     note?: string
   }[]
   /**
+   * The depth-bias records the container wrote for printed layers stacked on cloth
+   * (fix plan Rank 7C, 2026-09-03). Absent from an older container.
+   */
+  overlays?:
+    | {
+        measured: number
+        overlayReadings: number
+        flagged: number
+        review: number
+        clones: number
+        threadIgnored: number
+        written: boolean
+      }
+    | { error: string }
+  /**
    * What the decimation pass did. `fallback` primitives got no artwork
    * protection. Absent when no simplify ran, or from an older container.
    */

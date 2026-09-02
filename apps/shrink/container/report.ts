@@ -52,6 +52,21 @@ export function buildReportText(
    * older caller still compiles; every production caller passes it.
    */
   composition?: string[],
+  /**
+   * The depth-bias records the container wrote for printed layers stacked on cloth
+   * (fix plan Rank 7C, 2026-09-03). Optional so an older caller still compiles.
+   */
+  overlays?:
+    | {
+        measured: number
+        overlayReadings: number
+        flagged: number
+        review: number
+        clones: number
+        threadIgnored: number
+        written: boolean
+      }
+    | { error: string },
 ): string {
   // The mobile guideline, stated plainly. Nothing in CI can check this — the
   // Lighthouse budget runs against a 10 KB placeholder, so a real 20 MB garment
@@ -136,6 +151,20 @@ export function buildReportText(
           ? ' ⚠️ Most parts were decimated WITHOUT artwork protection — printed graphics on those are at risk.'
           : '')
       : 'Mesh decimation: not run for this job.',
+    // The anti-flicker records. A printed OPAQUE layer sits 0.100 mm on the cloth in a
+    // CLO export and the two fight for the depth test as the garment turns; the viewer
+    // nudges any layer the pipeline flagged. Until 2026-09-03 no robot run ever wrote
+    // one (audit F2-06, MAT-04, MAT-05, HG-05), so this line is the proof it did.
+    overlays === undefined
+      ? 'Anti-flicker: overlay scan not run for this job.'
+      : 'error' in overlays
+        ? `⚠️ Anti-flicker: the overlay scan failed (${overlays.error}) — the file was saved without depth-bias records; the viewer still nudges cut-outs on its own.`
+        : `Anti-flicker: ${overlays.measured} part(s) measured, ${overlays.overlayReadings} read as a printed layer on cloth, ` +
+          `${overlays.flagged} material(s) recorded for the viewer's depth nudge` +
+          `${overlays.review ? `, ${overlays.review} held for review` : ''}` +
+          `${overlays.clones ? `, ${overlays.clones} material(s) cloned so the cloth beneath is not nudged` : ''}` +
+          `${overlays.threadIgnored ? `, ${overlays.threadIgnored} on thread or hardware ignored` : ''}` +
+          `${overlays.flagged && !overlays.written ? ' — ⚠️ NOT WRITTEN: the binary chunk moved' : ''}.`,
     // The named version of the line above, and the one that matters. A high
     // `fallback` count on plain fabric is harmless; a SINGLE logo material in
     // this list is the mechanism that tore N001's wordmark apart. Naming the

@@ -125,11 +125,42 @@ describe('annotateGlbOverlays', () => {
     expect(materials[cloned]?.extras?.depthBias).toBeTruthy()
   })
 
-  it('annotates only OPAQUE by default — cut-outs are the other mechanism', () => {
-    // A MASK decal is already biased by apps/viewer from alphaTest alone. Writing a
-    // record for it would change nothing and enlarge every diff.
-    const { result } = annotateGlbOverlays(buildGlb(SCENE), [reading({ alphaMode: 'MASK' })])
+  it('annotates EVERY alpha mode by default — OPAQUE-only was the silent default (CI-04)', () => {
+    // CLO's printed layers arrive as MASK (after solidify) or BLEND (soft); the old
+    // ['OPAQUE'] default dropped all of them and reported "flagged 0" beside readings
+    // that said overlay.
+    const masked = annotateGlbOverlays(buildGlb(SCENE), [reading({ alphaMode: 'MASK' })])
+    expect(masked.result.flagged.length).toBeGreaterThan(0)
+    expect(masked.result.skippedByAlphaMode).toBe(0)
+    expect(masked.result.overlayReadings).toBe(1)
+    expect(masked.result.measured).toBe(1)
+
+    // The narrow filter is still available, and now SAYS what it dropped.
+    const opaqueOnly = annotateGlbOverlays(buildGlb(SCENE), [reading({ alphaMode: 'MASK' })], {
+      alphaModes: ['OPAQUE'],
+    })
+    expect(opaqueOnly.result.flagged).toEqual([])
+    expect(opaqueOnly.result.skippedByAlphaMode).toBe(1)
+  })
+
+  it('ignores THREAD and HARDWARE by name, and counts them (found the day the alpha filter opened)', () => {
+    // AERO's flat BLEND topstitch ribbons measure as 56 stacked layers at 0.26 mm.
+    // Thread is never a print; a nudge on it was never measured.
+    const thread = {
+      ...SCENE,
+      materials: [
+        { name: 'Default Topstitch_3569' },
+        { name: 'Default Fabric_2915' },
+        { name: 'Zipper 1_Teeth_92548' },
+      ],
+    }
+    const { result } = annotateGlbOverlays(buildGlb(thread), [
+      reading({ materialName: 'Default Topstitch_3569', alphaMode: 'BLEND' }),
+    ])
     expect(result.flagged).toEqual([])
+    expect(result.review).toEqual([])
+    expect(result.threadIgnored).toBe(1)
+    expect(result.overlayReadings).toBe(1)
   })
 
   it('reports a low-confidence overlay for REVIEW instead of biasing it', () => {

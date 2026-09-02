@@ -389,7 +389,7 @@ the answer is "nothing that happens in production", it is not a test.
   compacted session that has not yet opened `tools/asset-pipeline/` has only these
   one-liners. Open that file before changing anything there.
 
-- **Thirty-two more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
+- **Thirty-three more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
   restated here — they load automatically the moment you touch `apps/viewer/`,
   so a copy in this file is pure weight. Enough of a hook to make you open it: a
   `performance` global shadowed by a local (a runtime `TypeError` every unit test
@@ -406,9 +406,9 @@ the answer is "nothing that happens in production", it is not a test.
   five, which is the difference between a clean rail and a stranded tab; and
   **model-viewer builds only the ARRIVING colourway's materials**, so anything done to
   `model.materials` on `load` reached 6 of 26 printed decals on the live garment and
-  left four of five colourways flickering — and when that was fixed the bias was still
-  **eight times too weak to work**, which no test caught because none asserted it was
-  strong ENOUGH.
+  left four of five colourways flickering — when that was fixed the bias was still
+  **eight times too weak**, and then it reached only the FIRST of each wrapper's
+  materials while a colourway switch drew another (1 of 6 live).
   Read them before changing the viewer, its Worker, or its headers.
   **Maintaining these files is its own topic** — the 40,000-character warning and the
   200-line target, why `@path` imports do NOT save context, why path-scoped rules are
@@ -469,8 +469,7 @@ Two rules it must keep: a **colourway slug is printed on physical QR tags** and
 must never be changed by an automated process, and **row order decides the default
 colourway**, so nothing may reorder rows. Imported rows append, arrive
 `active: false`, and a low-confidence match arrives with an empty name rather than
-a guess. Tested in `packages/shared/src/importColours.test.ts` (moved from
-`apps/cms/src/fields/` on 2026-08-11).
+a guess. Tested in `packages/shared/src/importColours.test.ts` (moved 2026-08-11).
 
 ## Before you delete anything in the CMS
 

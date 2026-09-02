@@ -461,3 +461,50 @@ describe('the composition block reaches the owner', () => {
     expect(text).toContain('Valid 3D file')
   })
 })
+
+/**
+ * THE ANTI-FLICKER RECORDS (fix plan Rank 7C, 2026-09-03). Until then no robot run ever
+ * wrote a depth-bias record — the detector existed and the viewer obeyed it, and the
+ * container never called it. The line is the proof it did, or the honest reason it
+ * could not.
+ */
+describe('buildReportText — anti-flicker records', () => {
+  it('says how many printed layers were recorded', () => {
+    const text = buildReportText(opt(), glb(), 'x.glb', undefined, {
+      measured: 70,
+      overlayReadings: 12,
+      flagged: 36,
+      review: 1,
+      clones: 2,
+      threadIgnored: 0,
+      written: true,
+    })
+    expect(text).toContain(
+      "Anti-flicker: 70 part(s) measured, 12 read as a printed layer on cloth, 36 material(s) recorded for the viewer's depth nudge, 1 held for review, 2 material(s) cloned so the cloth beneath is not nudged.",
+    )
+  })
+
+  it('says so when the scan failed rather than pretending it ran', () => {
+    const text = buildReportText(opt(), glb(), 'x.glb', undefined, { error: 'boom' })
+    expect(text).toContain('⚠️ Anti-flicker: the overlay scan failed (boom)')
+  })
+
+  it('warns when records were found but the file could not be rewritten', () => {
+    const text = buildReportText(opt(), glb(), 'x.glb', undefined, {
+      measured: 3,
+      overlayReadings: 1,
+      flagged: 1,
+      review: 0,
+      clones: 0,
+      threadIgnored: 0,
+      written: false,
+    })
+    expect(text).toContain('NOT WRITTEN: the binary chunk moved')
+  })
+
+  it('says the scan was not run for an older container', () => {
+    expect(buildReportText(opt(), glb(), 'x.glb')).toContain(
+      'Anti-flicker: overlay scan not run for this job.',
+    )
+  })
+})

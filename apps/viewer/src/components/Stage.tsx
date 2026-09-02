@@ -1,7 +1,7 @@
 import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { boundingRadius, installAdaptiveNearPlane, internalCamera } from '../lib/camera-near-plane'
-import { applyDecalDepthBias, backingThreeMaterial } from '../lib/decal-depth-bias'
+import { applyDecalDepthBias, correlatedThreeMaterials } from '../lib/decal-depth-bias'
 import { track } from '../lib/analytics'
 import { canRender3D, prefersReducedMotion } from '../lib/capabilities'
 import { displayedColourway } from '../lib/colourwayPreview'
@@ -453,7 +453,9 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       const biasDecals = () => {
         const materials = (el as ModelViewerEl).model?.materials
         if (!materials) return
-        const result = applyDecalDepthBias(materials, (m) => backingThreeMaterial(m))
+        // EVERY three.js material behind each wrapper, not the first (audit DV-01): a
+        // colourway switch draws another entry of the same set, and the bib drew 0 of 5.
+        const result = applyDecalDepthBias(materials, (m) => correlatedThreeMaterials(m))
         // `pending` is the normal case — those materials belong to colourways the
         // visitor has not opened, and the next `variant-applied` catches them. Only
         // a LOADED material with no backing means the internal symbol has gone, and

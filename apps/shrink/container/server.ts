@@ -13,7 +13,7 @@
  * so this path resolves both locally and in the image.
  */
 import { createWriteStream } from 'node:fs'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -26,6 +26,9 @@ import {
   parseOptimizeArgs,
 } from '../../../tools/asset-pipeline/src/optimize'
 import { describeGlb, readGltfJson } from '../../../tools/asset-pipeline/src/describe'
+import { readGlb } from '../../../tools/asset-pipeline/src/io'
+import { annotateGlbOverlays } from '../../../tools/asset-pipeline/src/overlay-annotate'
+import { measureOverlays } from '../../../tools/asset-pipeline/src/overlay-depth'
 import { refineFlags } from '../../../tools/asset-pipeline/src/strategy'
 import {
   attributeBytes,
@@ -59,6 +62,45 @@ interface ShrinkRequest {
 
 /** What this container did before flags were passed in; still the fallback. */
 const DEFAULT_FLAGS = ['--simplify', '0.05', '--meshopt']
+
+export type OverlayScan =
+  | {
+      measured: number
+      overlayReadings: number
+      flagged: number
+      review: number
+      clones: number
+      threadIgnored: number
+      written: boolean
+    }
+  | { error: string }
+
+/**
+ * Measure the finished file for printed layers stacked on cloth and write the
+ * depth-bias records the viewer obeys (tools/asset-pipeline/src/overlay-depth.ts).
+ * Never throws: a failed scan is reported, not a failed job.
+ */
+async function scanOverlays(outPath: string, filename: string): Promise<OverlayScan> {
+  try {
+    const readings = measureOverlays((await readGlb(outPath)).document)
+    const annotated = annotateGlbOverlays(new Uint8Array(await readFile(outPath)), readings, {
+      garment: filename.replace(/\.glb$/i, ''),
+    })
+    const written = annotated.result.binIdentical && annotated.result.flagged.length > 0
+    if (written) await writeFile(outPath, annotated.bytes)
+    return {
+      measured: annotated.result.measured,
+      overlayReadings: annotated.result.overlayReadings,
+      flagged: annotated.result.flagged.length,
+      review: annotated.result.review.length,
+      clones: annotated.result.clones,
+      threadIgnored: annotated.result.threadIgnored,
+      written,
+    }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) }
+  }
+}
 
 async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; report: object }> {
   const aws = new AwsClient({
@@ -131,6 +173,18 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
     const { options } = parseOptimizeArgs([rawPath, '--out', outPath, ...flags])
     const opt = await optimizeGlb(rawPath, outPath, options)
 
+    // 2b. Depth-bias records for printed layers stacked on cloth (fix plan Rank 7C).
+    //
+    // ⚠️ UNTIL 2026-09-03 THIS CONTAINER NEVER RAN THE OVERLAY SCAN — the detector
+    // existed, the viewer obeyed its records, and no record ever reached production
+    // (audit F2-06, MAT-04, MAT-05, HG-05): Minecut's 36 OPAQUE prints sat 0.100 mm on
+    // the cloth with nothing to separate them. Measured on the FINISHED file, after
+    // decimation, so the geometry the record describes is the geometry that ships;
+    // the BIN chunk is copied byte for byte and the write is refused if it moved.
+    // Wrapped: a scan that fails must not fail a job that otherwise succeeded, and
+    // the report says so instead.
+    const overlays = await scanOverlays(outPath, suggestedFilename(body.key))
+
     // 3. Validate the result for the report (variants, warnings, translucency).
     const glb = await inspectGlb(outPath)
     const bytes = await readFile(outPath)
@@ -148,7 +202,7 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
     } catch {
       composition = undefined
     }
-    const text = buildReportText(opt, glb, filename, composition)
+    const text = buildReportText(opt, glb, filename, composition, overlays)
 
     const report = {
       ok: true,
@@ -201,6 +255,7 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
       crushedArtwork: glb.crushedArtwork,
       artworkAlphaProblems: glb.artworkAlphaProblems,
       artworkSoftOnBlend: glb.artworkSoftOnBlend,
+      overlays,
       ...(opt.simplify ? { simplify: opt.simplify } : {}),
       ...(opt.textures ? { textures: opt.textures } : {}),
       ...(opt.solidify ? { solidify: opt.solidify } : {}),

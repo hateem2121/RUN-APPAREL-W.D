@@ -1,3 +1,4 @@
+import { isThreadOrHardwareName } from './artwork-geometry'
 import {
   isBiasInBand,
   MAX_ABS_BIAS,
@@ -34,6 +35,9 @@ const CHUNK_BIN = 0x004e4942
 /** Bumped when the detector's thresholds change, so a stale annotation is identifiable. */
 export const DETECTOR_VERSION = 'overlay-depth@1'
 
+/** The default alpha-mode filter: none. See AnnotateOptions.alphaModes. */
+export const ALL_ALPHA_MODES: readonly string[] = ['OPAQUE', 'MASK', 'BLEND']
+
 export interface DepthBiasRecord {
   enabled: true
   factor: number
@@ -65,7 +69,16 @@ export interface OverlayOverride {
 }
 
 export interface AnnotateOptions {
-  /** Only these alpha modes are annotated. Default OPAQUE — see the note below. */
+  /**
+   * Only these alpha modes are annotated. Default: ALL of them, since 2026-09-03.
+   *
+   * ⚠️ IT DEFAULTED TO ['OPAQUE'] UNTIL THEN, AND THAT MADE THE TOOL SILENT ON EVERY
+   * REAL EXPORT (audit CI-04, A-07, B-04, MAT-07). CLO's printed layers arrive as MASK
+   * after solidify and as BLEND when soft, so the default filter discarded every reading
+   * the detector produced and the summary said "flagged 0" beside 112 readings that said
+   * overlay. A cut-out is biased by the viewer's alphaTest path too; a record on it is
+   * the same value twice, which is harmless — a missing record on a BLEND print is not.
+   */
   alphaModes?: readonly string[]
   overrides?: readonly OverlayOverride[]
   /** Garment key the overrides are matched against (usually the file's basename). */
@@ -77,6 +90,21 @@ export interface AnnotateResult {
   flagged: Array<{ index: number; name: string; clonedFrom?: number }>
   /** Overlay primitives whose materials were flagged. */
   overlayPrimitives: number
+  /** Primitives measured, and how many the detector called an overlay at any confidence. */
+  measured: number
+  overlayReadings: number
+  /**
+   * Overlay readings dropped by the alpha-mode filter. Zero under the default; the
+   * number that was invisible while the filter was ['OPAQUE'] (audit F1-08).
+   */
+  skippedByAlphaMode: number
+  /**
+   * Overlay readings on THREAD or HARDWARE, ignored by name. Found the moment the
+   * alpha filter opened (2026-09-03): AERO's flat BLEND topstitch ribbons read as 56
+   * stacked layers at 0.26 mm and flooded the review list. Thread is never a print,
+   * and a nudge on it was never measured; it is counted, not silently dropped.
+   */
+  threadIgnored: number
   /** Detected overlays held back below OVERLAY_AUTO_CONFIDENCE. Report, do not bias. */
   review: Array<{ material: string; confidence: number; reason: string; alphaMode: string }>
   /** Overrides that matched no material in this file. A stale entry, and a real fault. */
@@ -160,7 +188,7 @@ export function annotateGlbOverlays(
   readings: readonly PrimitiveReading[],
   options: AnnotateOptions = {},
 ): { bytes: Uint8Array; result: AnnotateResult } {
-  const alphaModes = options.alphaModes ?? ['OPAQUE']
+  const alphaModes = options.alphaModes ?? ALL_ALPHA_MODES
   const overrides = options.overrides ?? []
   const garment = options.garment ?? ''
   const { json, bin } = readGlb(bytes)
@@ -175,6 +203,9 @@ export function annotateGlbOverlays(
   // confidence clears the bar, unless a human override says otherwise.
   const review: AnnotateResult['review'] = []
   const chosen: PrimitiveReading[] = []
+  let overlayReadings = 0
+  let skippedByAlphaMode = 0
+  let threadIgnored = 0
   for (const reading of readings) {
     const override = overrideFor(reading.materialName)
     if (override) used.add(override)
@@ -182,7 +213,15 @@ export function annotateGlbOverlays(
     const forced = override?.force === 'bias'
     if (!forced) {
       if (!reading.verdict.overlay) continue
-      if (!alphaModes.includes(reading.alphaMode)) continue
+      overlayReadings++
+      if (isThreadOrHardwareName(reading.materialName)) {
+        threadIgnored++
+        continue
+      }
+      if (!alphaModes.includes(reading.alphaMode)) {
+        skippedByAlphaMode++
+        continue
+      }
       if (reading.verdict.confidence < OVERLAY_AUTO_CONFIDENCE) {
         review.push({
           material: reading.materialName,
@@ -314,6 +353,10 @@ export function annotateGlbOverlays(
     result: {
       flagged,
       overlayPrimitives: overlayPrimitives.length,
+      measured: readings.length,
+      overlayReadings,
+      skippedByAlphaMode,
+      threadIgnored,
       review,
       staleOverrides: overrides.filter(
         (o) => !used.has(o) && (!o.garment || o.garment === garment),

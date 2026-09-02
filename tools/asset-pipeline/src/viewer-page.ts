@@ -304,6 +304,26 @@ export function instrumentsScript(): string {
     }
     return null
   }
+  // EVERY three.js material behind the wrapper, not the first (audit DV-01, 2026-09-03).
+  // A colourway switch binds another entry of the wrapper's correlatedObjects Set to the
+  // mesh, so writing to the first alone left the drawn material un-biased: the live
+  // skinsuit drew 1 of 6, the bib 0 of 5. Kept equal to correlatedThreeMaterials() in
+  // apps/viewer/src/lib/decal-depth-bias.ts.
+  const backingsOf = (material) => {
+    for (const source of [material, Object.getPrototypeOf(material)]) {
+      if (!source) continue
+      for (const symbol of Object.getOwnPropertySymbols(source)) {
+        if (symbol.description !== 'correlatedObjects') continue
+        const value = material[symbol]
+        if (value == null) return []
+        if (typeof value[Symbol.iterator] === 'function') {
+          return Array.from(value).filter((entry) => entry && typeof entry === 'object')
+        }
+      }
+    }
+    const single = backingOf(material)
+    return single ? [single] : []
+  }
 
   // Kept equal to readOverlayBias() in apps/viewer/src/lib/decal-depth-bias.ts.
   // Validated, not trusted: a record that is disabled, mis-typed, too weak (-1
@@ -339,11 +359,12 @@ export function instrumentsScript(): string {
     let overlays = 0
     let pending = 0
     let unreachable = 0
+    let targets = 0
     let firstBiased = null
     let firstOverlay = null
     for (const material of materials) {
-      const backing = backingOf(material)
-      if (!backing) {
+      const backings = backingsOf(material)
+      if (backings.length === 0) {
         // isLoaded separates the two silences: a lazy variant material is EXPECTED
         // to be unreachable and will be caught by the next 'variant-applied'; a
         // LOADED material with no backing means the internal API has gone.
@@ -356,16 +377,26 @@ export function instrumentsScript(): string {
       // invisible from here and is flagged by the PIPELINE in the asset's material
       // extras, which three.js copies to userData. Fabric with nothing in front of
       // it is flagged by neither and is never biased.
-      const overlay = readOverlayBias(backing)
-      if (!overlay && !(backing.alphaTest > 0)) continue
-      backing.polygonOffset = biasOn
-      backing.polygonOffsetFactor = biasOn ? (overlay ? overlay.factor : OFFSET_FACTOR) : 0
-      backing.polygonOffsetUnits = biasOn ? (overlay ? overlay.units : OFFSET_UNITS) : 0
-      backing.needsUpdate = true
+      let wrapperBiased = false
+      let wrapperOverlay = false
+      let wrapperCutout = false
+      for (const backing of backings) {
+        const overlay = readOverlayBias(backing)
+        if (!overlay && !(backing.alphaTest > 0)) continue
+        backing.polygonOffset = biasOn
+        backing.polygonOffsetFactor = biasOn ? (overlay ? overlay.factor : OFFSET_FACTOR) : 0
+        backing.polygonOffsetUnits = biasOn ? (overlay ? overlay.units : OFFSET_UNITS) : 0
+        backing.needsUpdate = true
+        targets++
+        wrapperBiased = true
+        if (overlay) wrapperOverlay = true
+        if (backing.alphaTest > 0) wrapperCutout = true
+      }
+      if (!wrapperBiased) continue
       biased++
-      if (overlay) overlays++
-      if (!firstBiased && backing.alphaTest > 0) firstBiased = material
-      if (!firstOverlay && overlay) firstOverlay = material
+      if (wrapperOverlay) overlays++
+      if (!firstBiased && wrapperCutout) firstBiased = material
+      if (!firstOverlay && wrapperOverlay) firstOverlay = material
     }
     // Writing a three.js property does NOT schedule a frame. A no-op write through
     // model-viewer's OWN public setter fires its internal onUpdate, which does - and
@@ -378,7 +409,7 @@ export function instrumentsScript(): string {
       const pbr = firstOverlay.pbrMetallicRoughness
       pbr.setBaseColorFactor(pbr.baseColorFactor)
     }
-    biasSummary = { biased, overlays, pending, unreachable, on: biasOn }
+    biasSummary = { biased, overlays, targets, pending, unreachable, on: biasOn }
     reportInstruments()
   }
 

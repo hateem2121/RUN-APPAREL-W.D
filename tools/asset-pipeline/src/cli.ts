@@ -13,7 +13,7 @@ import { annotateGlbOverlays, type OverlayOverride } from './overlay-annotate'
 import { measureOverlays } from './overlay-depth'
 import { startReviewServer } from './review-server'
 import { dumpTextures } from './textures'
-import { createIO } from './io'
+import { readGlb } from './io'
 import { checkVariants, inspectGlb } from './validate'
 import { generatePlaceholders } from './placeholders'
 
@@ -390,14 +390,20 @@ async function main(): Promise<void> {
     const files: string[] = []
     let outDir: string | undefined
     let asJson = false
-    let all = false
+    let alphaModes: string[] | undefined
     for (let i = 0; i < rest.length; i++) {
       const arg = rest[i]
       if (arg === undefined) continue
       if (arg === '--out') outDir = rest[++i]
       else if (arg === '--json') asJson = true
-      else if (arg === '--all-alpha-modes') all = true
-      else if (!arg.startsWith('--')) files.push(arg)
+      // Every alpha mode is the default since 2026-09-03 (CI-04); the flag is kept so a
+      // documented command line still parses, and --alpha-modes narrows on purpose.
+      else if (arg === '--all-alpha-modes') alphaModes = undefined
+      else if (arg === '--alpha-modes') {
+        const value = rest[++i]
+        if (!value) fail('--alpha-modes needs a comma list, e.g. OPAQUE,MASK')
+        alphaModes = value.split(',').map((m) => m.trim().toUpperCase())
+      } else if (!arg.startsWith('--')) files.push(arg)
     }
     if (!files.length) fail('Missing <file.glb> — one or more GLBs to inspect')
     if (outDir === undefined && rest.includes('--out')) fail('--out needs a directory')
@@ -410,26 +416,43 @@ async function main(): Promise<void> {
       // Absent is fine — the file is a convenience, not a requirement.
     }
 
-    const io = await createIO()
     let wrote = 0
+    let failed = 0
     for (const file of files) {
       const name = basename(file, '.glb')
-      const readings = measureOverlays(await io.read(file))
-      const { bytes, result } = annotateGlbOverlays(
-        new Uint8Array(await readFile(file)),
-        readings,
-        {
+      // readGlb, not io.read: six raw exports declare a texture pointing at no image and
+      // a plain read throws — which killed the whole batch on Minecut (audit CI-03,
+      // HR-1, MAT-06). The pipeline itself reads through the repair; so does this.
+      let readings: ReturnType<typeof measureOverlays>
+      let bytes: Uint8Array
+      let result: ReturnType<typeof annotateGlbOverlays>['result']
+      try {
+        readings = measureOverlays((await readGlb(file)).document)
+        ;({ bytes, result } = annotateGlbOverlays(new Uint8Array(await readFile(file)), readings, {
           garment: name,
           overrides,
-          ...(all ? { alphaModes: ['OPAQUE', 'MASK', 'BLEND'] } : {}),
-        },
-      )
+          ...(alphaModes ? { alphaModes } : {}),
+        }))
+      } catch (error) {
+        failed++
+        console.error(
+          `\n${name}: could not be measured — ${error instanceof Error ? error.message : String(error)}`,
+        )
+        continue
+      }
       if (asJson) {
         console.log(JSON.stringify({ garment: name, ...result, readings }, null, 2))
       } else {
         console.log(`\n${name}`)
+        // The summary counts its OWN verdicts (audit A-07, B-04): until 2026-09-03 it
+        // printed "flagged 0" beside readings that said overlay, because the alpha filter
+        // dropped them silently and nothing said so (F1-08).
         console.log(
-          `  ${result.overlayPrimitives} overlay primitive(s) → ${result.flagged.length} material(s) flagged` +
+          `  ${result.measured} primitive(s) measured, ${result.overlayReadings} read as a printed layer on cloth → ` +
+            `${result.flagged.length} material(s) flagged across ${result.overlayPrimitives} primitive(s)` +
+            `${result.review.length ? `, ${result.review.length} for review` : ''}` +
+            `${result.skippedByAlphaMode ? `, ${result.skippedByAlphaMode} skipped by --alpha-modes` : ''}` +
+            `${result.threadIgnored ? `, ${result.threadIgnored} on thread/hardware ignored` : ''}` +
             `${result.clones ? `, ${result.clones} cloned` : ''}`,
         )
         for (const f of result.flagged)
@@ -451,6 +474,10 @@ async function main(): Promise<void> {
         await writeFile(join(outDir, `${name}.glb`), bytes)
         wrote++
       }
+    }
+    if (failed) {
+      console.error(`\n${failed} file(s) could not be measured; the rest were reported above.`)
+      process.exitCode = 1
     }
     if (outDir !== undefined) {
       console.log(
