@@ -180,6 +180,7 @@ describe('the committed manifest', () => {
     // The two raw exports Rank 5 (republish the live garments) starts from.
     expect(keys).toContain('raw-exports/3d-products/cycling all colours.glb')
     expect(keys).toContain('raw-exports/3d-products/Cycling-Bib.glb')
-    expect(keys.length).toBeGreaterThanOrEqual(15)
+    expect(keys).toContain('fixed-glbs/2026-09-02/THE AGGRESSOR MEN JERSEY.glb')
+    expect(keys.length).toBeGreaterThanOrEqual(18)
   })
 })

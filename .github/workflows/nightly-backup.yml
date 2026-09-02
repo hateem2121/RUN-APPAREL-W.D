@@ -215,7 +215,7 @@ jobs:
           retention-days: ${{ steps.mirror-scheduled.outputs.retention || 21 }}
 
       # THE MASTER FILES ARE VERIFIED, NOT MIRRORED. `run-apparel-archive` holds the
-      # five FIXED GLBs and the ten raw CLO exports — 5.15 GB that
+      # FIXED GLBs and the ten raw CLO exports — 5.7 GB that
       # until 2026-09-02 existed once, on one disk, in no backup (audit CI-02 / CI-08).
       # Mirroring 5 GB into a runner every night would spend artifact storage on files
       # that change only when a garment is re-exported, so this step lists the bucket

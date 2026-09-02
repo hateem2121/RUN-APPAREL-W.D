@@ -1,5 +1,5 @@
 {
-  "$comment": "Every master file in the R2 archive bucket, with the byte count and SHA-256 measured on the local copy before upload: the five production-ready FIXED GLBs and the ten raw CLO exports. CLO project files (.zprj) are deliberately NOT here — owner decision 2026-09-02, they stay on local storage. scripts/verify-archive.mjs compares the bucket against this list nightly; add a row whenever a file is added to the bucket. Written 2026-09-02 for audit findings CI-02 / CI-08.",
+  "$comment": "Every master file in the R2 archive bucket, with the byte count and SHA-256 measured on the local copy before upload: the production-ready FIXED GLBs (five from 2026-08/09-01 plus three added 2026-09-02 under fixed-glbs/2026-09-02/) and the ten raw CLO exports. CLO project files (.zprj) are deliberately NOT here — owner decision 2026-09-02, they stay on local storage. scripts/verify-archive.mjs compares the bucket against this list nightly; add a row whenever a file is added to the bucket. Written 2026-09-02 for audit findings CI-02 / CI-08.",
   "bucket": "run-apparel-archive",
   "storageClass": "Standard",
   "written": "2026-09-02",
@@ -10,6 +10,24 @@
     }
   ],
   "objects": [
+    {
+      "key": "fixed-glbs/2026-09-02/APEX FLEX PULLOVER - File A.glb",
+      "bytes": 18131368,
+      "sha256": "62fda371006dd84a912ebab5448cf8904cbfb02ae5f9eff1aa0bc189f7d9621d",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/APEX FLEX PULLOVER.zip → File A.glb (CLO export 2026-09-02 15:00, \"Diffuse Color Combined on Texture\" ON per the owner)"
+    },
+    {
+      "key": "fixed-glbs/2026-09-02/THE AGGRESSOR MEN JERSEY.glb",
+      "bytes": 516287164,
+      "sha256": "8d12ddb5a1240eace974125309a4f0222328507b1b92551daec4d32d1bcb1546",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/THE AGGRESSOR MEN  JERSEY.zip.zip → THE AGGRESSOR MEN  JERSEY.zip.glb (the LATER export, 2026-09-01 18:27; the owner named it the master)"
+    },
+    {
+      "key": "fixed-glbs/2026-09-02/WOMEN ZIP-UP VEST.glb",
+      "bytes": 38583772,
+      "sha256": "1abac91f70bfc9dbbd0859ea0de41eddfe93fa5250dd0bfb50f25d92a8f37966",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/WOMEN ZIP-UP VEST.zip → WOMEN ZIP-UP VEST.glb (2026-09-02 19:11)"
+    },
     {
       "key": "fixed-glbs/AERO-TECH WINDBREAKER.zip.glb",
       "bytes": 23563480,
