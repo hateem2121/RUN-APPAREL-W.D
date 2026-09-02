@@ -173,7 +173,19 @@ jobs:
       # storage is 0.67 GB, nightly PDFs at 90-day retention add ~6.4 GB, and GitHub
       # Enterprise Cloud includes 50 GB — so this is free, not merely cheap. Doing the
       # same to the media half would add ~14 GB for files that do not change.
+      #
+      # ⚠️ THAT ARITHMETIC DIED WITH THE ENTERPRISE PLAN, 2026-09-02. The organisation
+      # dropped to Free around 1 Sept (500 MB of artifact storage, pooled across ALL
+      # its repositories), and with 2.69 GB stored every workflow run — this one, the
+      # uptime check, the heartbeat and both CI runs of a pull request — failed at
+      # startup for a day, with no jobs and nothing to read but a "BuildFailed" path.
+      # The owner chose GitHub Team: 2 GB, still pooled, and stitchcode alone holds
+      # 1.25 GB of it. So this repository must stay under ~0.6 GB: 21 days for the
+      # weekly full mirror (~4 x 156 MB), 3 days for the nightly PDFs (~3 x 71 MB),
+      # and the 90 above is history. The retention is chosen by the step below from an
+      # output the mirror step writes, because one upload step serves both kinds.
       - name: Mirror R2 on schedule (full mirror Mondays, apex PDFs nightly)
+        id: mirror-scheduled
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -181,8 +193,10 @@ jobs:
         run: |
           if [ "$(date -u +%u)" = "1" ]; then
             node scripts/backup-r2.mjs --stamp="$(date -u +%Y-%m-%d)"
+            echo "retention=21" >> "$GITHUB_OUTPUT"
           else
             node scripts/backup-r2.mjs --apex-only --stamp="$(date -u +%Y-%m-%d)"
+            echo "retention=3" >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         # L2-12, 2026-08-31: always(), matching the D1 upload above and for the same
@@ -195,7 +209,28 @@ jobs:
         with:
           name: r2-backup-${{ github.run_id }}
           path: backups/r2/**
-          retention-days: 90
+          # 21 days for a weekly full mirror, 3 for the nightly PDFs, 21 for a manual
+          # run (the output is unset then). See the plan-change note above: this used
+          # to be 90 when the organisation had 50 GB.
+          retention-days: ${{ steps.mirror-scheduled.outputs.retention || 21 }}
+
+      # THE MASTER FILES ARE VERIFIED, NOT MIRRORED. `run-apparel-archive` holds the
+      # five FIXED GLBs and the ten raw CLO exports — 5.15 GB that
+      # until 2026-09-02 existed once, on one disk, in no backup (audit CI-02 / CI-08).
+      # Mirroring 5 GB into a runner every night would spend artifact storage on files
+      # that change only when a garment is re-exported, so this step lists the bucket
+      # (one REST call) and compares every byte count with the committed
+      # scripts/archive-manifest.json. It goes red if any object is missing or the wrong
+      # size, and it goes red if the listing or the manifest is EMPTY — a check that
+      # checked nothing must not exit green (the backup-r2 lesson, L20-11). Proven both
+      # ways on 2026-09-02 against the live bucket: a manifest with one size off by one
+      # failed naming the file, an empty bucket failed with "ZERO objects" and every
+      # file missing, and the real manifest passed 15 of 15.
+      - name: Verify the archive bucket against its manifest
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/verify-archive.mjs
 
       # RETENTION SHORTENED 180 -> 90 DAYS on 2026-08-18 (audit H1, owner
       # decision). Ninety days covers investigating a bug reported weeks ago and

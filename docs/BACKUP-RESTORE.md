@@ -1,14 +1,16 @@
 # Backup & Restore
 
-Everything the viewer depends on lives in **three** Cloudflare resources — and the
-third one was missing from this table until 2026-08-31, which is why 71.2 MB of
-customer-facing PDFs had no written recovery path at all:
+Everything the viewer depends on lives in **four** Cloudflare resources. The third
+was missing from this table until 2026-08-31, which is why 71.2 MB of customer-facing
+PDFs had no written recovery path; the fourth was missing until 2026-09-02, which is
+why 5.4 GB of master files existed once, on one disk (audit CI-02 / CI-08):
 
 | Resource | What it holds | Backed up by |
 |---|---|---|
 | **D1** `run-apparel-viewer-db` | all products, colourways, media rows, site settings, users, analytics events | `scripts/backup-d1.mjs` → `backups/d1/*.sql` |
 | **R2** `run-apparel-viewer-media` | every uploaded GLB model + poster image | `scripts/backup-r2.mjs` → `backups/r2/<stamp>/media/` |
 | **R2** `run-assets` | the two customer-facing PDFs the apex serves: `/catalogue` and `/profile` (71.2 MB) | `scripts/backup-r2.mjs` → `backups/r2/<stamp>/apex/` |
+| **R2** `run-apparel-archive` | the **master files**: the five FIXED GLBs and ten raw CLO exports (15 objects, 5.15 GB) — the only off-machine copy | uploaded by hand with rclone (see below); byte counts verified nightly by `scripts/verify-archive.mjs` against `scripts/archive-manifest.json` |
 
 ⚠️ **`run-assets` is SHARED with the separate `run-apparel` site**, which can write
 to and delete from it. It is not this project's private bucket, and that is the
@@ -32,14 +34,14 @@ Two numbers, in plain terms:
 | Cloudflare account lost | nightly SQL dump (GitHub artifact) | **up to 24h** | **~1 day** | Estimate — never drilled, and it needs a new account, new domain binding and new secrets |
 | Media (GLB/posters) deleted from R2 | weekly R2 mirror | **up to 7 days** | **~1h** | Estimate — mirror verified, restore never drilled end to end |
 | Bad deploy (code, not data) | rollback | **0** | **~5 min** | See RUNBOOK → "Undoing a bad deploy" |
-| Raw CLO export lost | **none — owner's own copies** | n/a | n/a | Deliberate: automated backup declined 2026-08-08. `raw/CANONICAL.json` records the checksum so an outside copy is *provable*, but nothing in this repo holds the file |
+| Raw CLO export or FIXED GLB lost | **archive bucket** `run-apparel-archive` (and Time Machine, once the owner's drive is set up) | **since the last hand upload** — a new export is unprotected until it is uploaded and its manifest row added | **~1h** (a 1.5 GB download) | Uploaded and hash-checked 2026-09-02; sizes verified nightly; restore never drilled. Supersedes the 2026-08-08 "declined" decision, which predates the audit finding that the masters existed once, on one disk |
 
 **The weakest row is the R2 one**, and it is weak in an uninteresting way: the
 mirror runs weekly rather than nightly because a full media mirror costs egress
 against a $5/month cap, and models change rarely. If a garment is re-shrunk on a
 Tuesday and R2 is lost on a Friday, that model is regenerable from the raw export
-— which is the row below it, and the one with no backup at all. Those two rows
-are linked; do not read either alone.
+— which is the row below it, and until 2026-09-02 the one with no backup at all.
+Those two rows are linked; do not read either alone.
 
 **RTO here excludes noticing.** Detection is a separate number and it is the
 larger one: see RUNBOOK → "Uptime alerts", where the *delivered* median gap
@@ -75,8 +77,14 @@ argue against.
 
 What this repository DOES back up: `run-apparel-viewer-db` (nightly D1 dump,
 restore-verified, kept as a GitHub artifact **and** in R2 under
-`run-private/run-apparel-viewer-db/`), the `run-apparel-viewer-media` bucket, and
-the two apex PDFs from `run-assets`.
+`run-private/run-apparel-viewer-db/`), the `run-apparel-viewer-media` bucket, the
+two apex PDFs from `run-assets`, and — verified rather than mirrored — the master
+files in `run-apparel-archive`.
+
+**Deliberately not in the archive — owner decision 2026-09-02:** CLO project files
+(`.zprj`, 19 GB in Documents/clo plus four in Documents/3D New Project) stay on local
+storage only, and the 110 older per-colourway exports in Documents/GLTF FILES (15.8 GB)
+are not archived. The FIXED GLBs folder is the canonical home of production-ready files.
 
 ## Taking a backup
 
@@ -231,6 +239,54 @@ npx wrangler@4.122.0 r2 object get "run-apparel-viewer-media/_restore-drill.txt"
   --file /tmp/_restore-drill.out --remote && cat /tmp/_restore-drill.out
 npx wrangler@4.122.0 r2 object delete "run-apparel-viewer-media/_restore-drill.txt" --remote
 ```
+
+## The archive bucket — the master files
+
+`run-apparel-archive` (R2, Standard storage, no expiry rule, created 2026-09-02) holds
+the files that until then existed once, on one disk: the five FIXED GLBs (the owner's
+canonical production-ready folder) and the ten raw CLO exports from the repo's
+gitignored 3D Products folder — 15 objects, 5.15 GB. Standard storage rather
+than Infrequent Access because the free 10 GB applies only to Standard, and Infrequent
+Access adds a 30-day minimum and a retrieval fee (R2 pricing page, checked 2026-09-02).
+
+`scripts/archive-manifest.json` is the list: every key with the byte count and SHA-256
+measured on the local file before upload. The nightly check compares the bucket against
+it, so **a file added to the bucket without a manifest row is unverified** — the check
+prints such objects as "not in the manifest" rather than failing.
+
+**Verify** (one REST call; `.github/workflows/nightly-backup.yml` runs it every night):
+
+```bash
+CLOUDFLARE_API_TOKEN=… node scripts/verify-archive.mjs
+```
+
+It exits 1 if any object is missing or the wrong size, and — deliberately — if the
+listing or the manifest is empty, because a check that checked nothing must not exit
+green. Proven both ways on 2026-09-02: a manifest with one byte count off by one made it
+fail naming the file; pointed at an empty bucket it failed with "ZERO objects" and
+every file listed as missing; the real manifest passed 15 of 15.
+
+**Restore.** `wrangler r2 object get` handles objects under 315 MB (wrangler's
+documented ceiling). The larger ones — ARISAN BRA at 1.54 GB, Cycling-Bib at 1.31 GB,
+the tennis dress, the skinsuit export — need rclone, which Cloudflare's docs recommend
+for large objects. Its credentials derive from the API token: the Access Key ID is the
+token's **id**, the secret is the **SHA-256 of the token's value**
+(developers.cloudflare.com/r2/api/tokens). Set them in the environment so nothing is
+written to disk:
+
+```bash
+export RCLONE_CONFIG_R2_TYPE=s3 RCLONE_CONFIG_R2_PROVIDER=Cloudflare RCLONE_CONFIG_R2_ACL=private \
+  RCLONE_CONFIG_R2_ENDPOINT=https://d357a1779c40da5f8c44931f12390cc8.r2.cloudflarestorage.com \
+  RCLONE_CONFIG_R2_ACCESS_KEY_ID=<the token id> \
+  RCLONE_CONFIG_R2_SECRET_ACCESS_KEY=$(printf '%s' "$CLOUDFLARE_API_TOKEN" | shasum -a 256 | cut -d' ' -f1)
+rclone copy r2:run-apparel-archive/fixed-glbs ./restored/fixed-glbs      # all five FIXED GLBs
+rclone check ./restored/fixed-glbs r2:run-apparel-archive/fixed-glbs     # hash comparison
+shasum -a 256 "./restored/fixed-glbs/ARISAN BRA.glb"                      # against the manifest's sha256
+```
+
+**Add a file.** `rclone copy <file> r2:run-apparel-archive/<prefix>/ --s3-upload-cutoff 100M --s3-chunk-size 100M`,
+then append a row to the manifest with `stat -f%z` and `shasum -a 256`, run the verify
+command, and commit both together.
 
 ## After any restore
 
