@@ -512,8 +512,11 @@ the contact sheet.
    ```
 
    It builds the baseline, lists every artwork primitive with its world-space
-   centre and size, then renders each of the largest four at four zoom levels
-   **scaled to that print's own size**, and prints a paste-ready `views` block.
+   centre and size, then renders **one frame per distinct artwork material** — the
+   largest piece of each, up to four materials — at four zoom levels **scaled to
+   that print's own size**, and prints a paste-ready `views` block. (Until
+   2026-09-02 it rendered the four largest PRIMITIVES, which on the tennis suit were
+   all printed stitching, so neither real print was ever framed — audit C-05.)
    **Open the contact sheet it names** and pick the frame that holds each print
    with a little margin — too tight and decimation at the edges reads as damage,
    too wide and the number starts describing fabric.

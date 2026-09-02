@@ -104,3 +104,41 @@ describe('compareRenders', () => {
     expect(metadata.height).toBe(2 * (32 + 34))
   })
 })
+
+describe('compareRenders refuses renders of different sizes (HR-6)', () => {
+  it('names the size it expected and the file that disagreed, instead of measuring resampling', async () => {
+    // Until 2026-09-02 a 256 px render compared against a 512 px render was silently
+    // upscaled, and the blur reported as up to 1.39% damage on a garment compared
+    // against itself — nearly half the shipped preset's real 3.100%.
+    const dir = await mkdtemp(join(tmpdir(), 'compare-size-'))
+    const a = join(dir, 'a')
+    const b = join(dir, 'b')
+    await mkdir(a)
+    await mkdir(b)
+    await sharp({ create: { width: 64, height: 64, channels: 3, background: '#808080' } })
+      .png()
+      .toFile(join(a, 'front.png'))
+    await sharp({ create: { width: 32, height: 32, channels: 3, background: '#808080' } })
+      .png()
+      .toFile(join(b, 'front.png'))
+    await expect(compareRenders(a, b, join(dir, 'sheet.png'))).rejects.toThrow(
+      /differ in size.*Expected 64x64.*front\.png 32x32/s,
+    )
+  })
+
+  it('reports the common size when they agree', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'compare-size-'))
+    const a = join(dir, 'a')
+    const b = join(dir, 'b')
+    await mkdir(a)
+    await mkdir(b)
+    for (const d of [a, b]) {
+      await sharp({ create: { width: 48, height: 40, channels: 3, background: '#808080' } })
+        .png()
+        .toFile(join(d, 'front.png'))
+    }
+    const result = await compareRenders(a, b, join(dir, 'sheet.png'))
+    expect(result.width).toBe(48)
+    expect(result.height).toBe(40)
+  })
+})

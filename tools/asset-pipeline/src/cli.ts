@@ -6,6 +6,7 @@ import { compareRenders } from './compare'
 import { type GlbDescription, describeGlb, readGltfJson } from './describe'
 import { mergeVariants, parseMergeArgs, type ParsedMergeArgs } from './merge-variants'
 import { finiteNumber, optimizeGlb, parseOptimizeArgs } from './optimize'
+import type { LightingMode } from './viewer-page'
 import { DEFAULT_VIEWS, type RenderView, renderViews } from './render'
 import { type SpecFileCheck, checkGltfSpecFileGuarded, describeSpecIssues } from './gltf-spec'
 import { annotateGlbOverlays, type OverlayOverride } from './overlay-annotate'
@@ -76,11 +77,16 @@ DIAGNOSTICS — for looking at artwork instead of guessing at it
 
   pnpm pipeline render <file.glb> --out <dir> [flags]
       Screenshot the GLB through <model-viewer>, from fixed camera angles,
-      including tight crops where printed logos live. Flat neutral lighting and
-      shadows off, so a diff shows the artwork rather than the lighting.
+      including tight crops where printed logos live. Carries the production
+      near plane and decal depth bias, so it shows what a customer sees.
       --views <file.json>  Camera list: [{ "name", "orbit", "target"?, "fieldOfView"? }]
       --variant <name>     Select a KHR_materials_variants colourway first
       --size <px>          Square render size (default 1024)
+      --lighting <mode>    production (default: the studio HDR, as the viewer) or
+                           diagnostic (flat neutral light, shadows off — a diff then
+                           shows the artwork rather than the lighting; the evals use it)
+      --no-instruments     The OLD page without the near plane or the bias. A negative
+                           control only; never judge a garment with it
 
   pnpm pipeline compare <dirA> <dirB> --out <sheet.png> [--gain <n>]
       Contact sheet of two render directories: A, B and their amplified
@@ -734,12 +740,21 @@ async function main(): Promise<void> {
     let viewsFile: string | null = null
     let variant: string | null = null
     let dimension: number | undefined
+    let lighting: LightingMode = 'production'
+    let instruments = true
     for (let i = 0; i < rest.length; i++) {
       const arg = rest[i]!
       if (arg === '--out') outDir = rest[++i] ?? null
       else if (arg === '--views') viewsFile = rest[++i] ?? null
       else if (arg === '--variant') variant = rest[++i] ?? null
       else if (arg === '--size') dimension = finiteNumber(rest[++i], '--size')
+      else if (arg === '--lighting') {
+        const value = rest[++i]
+        if (value !== 'production' && value !== 'diagnostic') {
+          fail(`--lighting must be production or diagnostic, got ${value ?? '(nothing)'}`)
+        }
+        lighting = value
+      } else if (arg === '--no-instruments') instruments = false
       else if (!arg.startsWith('--')) positional.push(arg)
     }
     const file = positional[0]
@@ -752,6 +767,8 @@ async function main(): Promise<void> {
     const result = await renderViews(file, outDir, {
       views,
       variant,
+      lighting,
+      instruments,
       /*
        * `!== undefined`, NOT a truthiness check. `--size 0` parsed to 0, which is
        * FALSY, so the flag was silently dropped and the default used — while
@@ -765,6 +782,9 @@ async function main(): Promise<void> {
     console.log(`Rendered ${result.files.length} view(s) of ${file} → ${outDir}`)
     console.log(`  views:      ${result.files.join(', ')}`)
     console.log(`  variants:   ${result.availableVariants.join(', ') || '(none bound)'}`)
+    console.log(
+      `  lighting:   ${lighting}${instruments ? '' : '   ⚠️ instruments OFF — a negative control, not a judgement'}`,
+    )
     console.log('\nNext: "pnpm pipeline compare <thisDir> <otherDir> --out sheet.png".')
     return
   }

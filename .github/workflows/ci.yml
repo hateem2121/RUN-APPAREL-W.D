@@ -628,6 +628,18 @@ jobs:
       - name: Artwork legibility eval
         run: pnpm eval:artwork
 
+      # THE INSTRUMENTS, READ BACK FROM A REAL BROWSER — audit HR-7, 2026-09-02.
+      # Every earlier test of the two local <model-viewer> pages checked TEXT: that the
+      # page source contained "Object.defineProperty(camera, 'near'". A model-viewer
+      # release that renamed one internal symbol would leave all of that green while
+      # the pages quietly stopped installing the near plane and the decal bias — the
+      # two things that made the harness misrepresent the product in the first place.
+      # This loads a fixture into Chromium and reads the internals back. It runs HERE,
+      # not in `verify`, because this is the job with a browser; in the plain runner
+      # the file skips itself loudly, and a skipped browser test is not a passed one.
+      - name: Instruments read back from a real browser
+        run: pnpm --filter @run-apparel/asset-pipeline exec vitest run src/instruments.browser.test.ts
+
   deploy:
     # `artwork` joined this list on 2026-08-06 — see the evidence above its job.
     # It is the only gate here that looks at what the customer actually sees:

@@ -80,7 +80,9 @@ import { compareRenders } from '../src/compare.ts'
 import { createIO } from '../src/io.ts'
 import { optimizeGlb, parseOptimizeArgs } from '../src/optimize.ts'
 import { renderViews } from '../src/render.ts'
+import { isThreadOrHardwareName } from '../src/artwork-geometry.ts'
 import { isArtworkTexture } from '../src/texture-artwork.ts'
+import { shrinkFlagsFor } from '../../../packages/shared/src/shrink.ts'
 
 const REPO_ROOT = join(import.meta.dirname, '..', '..', '..')
 
@@ -96,58 +98,38 @@ const REPO_ROOT = join(import.meta.dirname, '..', '..', '..')
 const BASELINE_FLAGS = ['--meshopt']
 
 /**
- * The shipped presets. DELIBERATELY A SECOND COPY of `shrinkFlagsFor()` in
- * `packages/shared/src/shrink.ts`, for the same reason the synthetic eval keeps
- * one: this package installs with plain `npm ci` inside the shrink container's
- * Docker image, where `workspace:*` cannot resolve. Pinned by
- * `assertPresetMatchesShared()` below.
+ * The shipped presets — IMPORTED, not copied, since 2026-09-02.
+ *
+ * This file kept a hand copy "because this package installs with plain npm inside
+ * the container, where workspace:* cannot resolve". True of the container; false of
+ * this script, which only ever runs under tsx in the workspace, where a relative
+ * import of the shared source resolves fine (scripts/robot-flags.mjs does the same).
+ * The copy drifted on 2026-08-21 when --stitch and the texture flags were added, its
+ * own guard refused to start, and the repository's only real-garment artwork check
+ * was dead for eleven days (audit C-01, S1). An import cannot drift.
  */
-const BALANCED_FLAGS = [
-  '--simplify',
-  '0.05',
-  '--meshopt',
-  '--simplify-error',
-  '0.001',
-  '--uv-weight',
-  '1',
-]
-const FIDELITY_FLAGS = [
-  '--simplify',
-  '0.05',
-  '--meshopt',
-  '--simplify-error',
-  '0.0002',
-  '--uv-weight',
-  '2',
-]
+const BALANCED_FLAGS = shrinkFlagsFor('balanced')
+const FIDELITY_FLAGS = shrinkFlagsFor('fidelity')
+
+/** Replace one flag's value inside a preset, so a control tracks the preset it controls. */
+function withFlag(flags, name, value) {
+  const out = [...flags]
+  const at = out.indexOf(name)
+  if (at === -1) throw new Error(`preset carries no ${name}; the control cannot be derived from it`)
+  out[at + 1] = value
+  return out
+}
 
 /**
  * The negative control: the shipped preset with UV protection switched off.
- *
- * Same axis as the synthetic eval, and for the same reason — `parseOptimizeArgs`
+ * Same axis as the synthetic eval, and for the same reason — parseOptimizeArgs
  * leaves the UV weight unset by default, so a caller that stops passing the flag
  * loses artwork protection silently. A realistic regression, not a contrived one.
  */
-const CONTROL_FLAGS = [
-  '--simplify',
-  '0.05',
-  '--meshopt',
-  '--simplify-error',
-  '0.001',
-  '--uv-weight',
-  '0',
-]
+const CONTROL_FLAGS = withFlag(BALANCED_FLAGS, '--uv-weight', '0')
 
 /** Run F from the 2026-08-05 sweep: known to render the wordmark illegible. */
-const KNOWN_BAD_FLAGS = [
-  '--simplify',
-  '0.05',
-  '--meshopt',
-  '--simplify-error',
-  '0.005',
-  '--uv-weight',
-  '1',
-]
+const KNOWN_BAD_FLAGS = withFlag(BALANCED_FLAGS, '--simplify-error', '0.005')
 
 /**
  * Damage ceiling: fraction of pixels in the wordmark crop differing from the
@@ -242,7 +224,7 @@ const DEFAULT_ARTWORK_VIEWS = [
  * 40° keeps the camera pointed at exactly the same spot — the aim guard stays
  * green — while the crop fills with fabric and the measured damage becomes a
  * statement about seams. Pinning the whole view means that edit fails loudly and
- * demands a re-calibration, which is the same trick `assertPresetMatchesShared`
+ * demands a re-calibration, which is the same trick the old preset drift guard
  * plays on the decimation flags.
  */
 function cameraFingerprint(views) {
@@ -267,17 +249,15 @@ const DEFAULT_TARGET_TOLERANCE_M = 0.05
 
 const RENDER_SIZE = 1024
 
-async function assertPresetMatchesShared() {
-  const source = await readFile(join(REPO_ROOT, 'packages', 'shared', 'src', 'shrink.ts'), 'utf8')
-  const expected = BALANCED_FLAGS.map((f) => `'${f}'`).join(', ')
-  if (!source.includes(expected)) {
-    throw new Error(
-      `BALANCED_FLAGS has drifted from packages/shared/src/shrink.ts.\n` +
-        `  this file expects: [${expected}]\n` +
-        `  Re-calibrate this eval against the new preset (--calibrate) rather than editing the constant.`,
-    )
-  }
-}
+/**
+ * Flat neutral light, shadows off — the harness's OLD default and the light every
+ * ceiling in raw/CANONICAL.json was calibrated in. Specular highlights move when
+ * geometry changes, so a lit diff lights up everywhere; the flat mode isolates the
+ * texture and the UVs beneath it. The harness's default became production lighting
+ * on 2026-09-02, so this eval now asks for the flat mode by name. Its instruments
+ * (near plane, decal bias) are on in both modes, as they are for a customer.
+ */
+const EVAL_LIGHTING = 'diagnostic'
 
 /** Stream the file through sha256. Measured on the 382 MB N001 export: 0.8 s. */
 async function sha256Of(path) {
@@ -461,6 +441,11 @@ async function findArtworkPrints(glbPath) {
 
   const artworkMats = new Set()
   for (const material of root.listMaterials()) {
+    // Thread and hardware are never prints, whatever their picture looks like — the
+    // same rule the blocking gate applies since Rank 2 (CLO's 236x39 topstitch strip
+    // reads as a wordmark by shape). Without this, APEX's --find-views offered
+    // "Topstitch 1" and "Zipper 1_TapeFabric" as two of its four frames (2026-09-02).
+    if (isThreadOrHardwareName(material.getName() ?? '')) continue
     const texture = material.getBaseColorTexture()
     if (texture && (await isArtworkTexture(texture))) artworkMats.add(material)
   }
@@ -779,13 +764,28 @@ async function findViews(raw, workDir) {
   }
   console.log()
 
-  const chosen = prints.slice(0, FIND_VIEWS_MAX_PRINTS)
-  if (prints.length > chosen.length) {
+  // ONE FRAME PER DISTINCT MATERIAL, largest primitive of each — not the largest
+  // primitives outright. On the tennis suit the 41 largest artwork primitives were
+  // all one printed-stitching material, so the four proposed cameras looked at
+  // stitching and both real prints (#42 and #44 by area) were listed as not rendered
+  // (audit C-05). A print is a material; a primitive is a piece of one.
+  const byMaterial = new Map()
+  for (const print of prints) {
+    const key = print.name.replace(/_\d+$/, '')
+    if (!byMaterial.has(key)) byMaterial.set(key, print)
+  }
+  const distinct = [...byMaterial.values()]
+  const chosen = distinct.slice(0, FIND_VIEWS_MAX_PRINTS)
+  console.log(
+    `${distinct.length} distinct artwork material(s); proposing one view each for the first ${chosen.length}: ` +
+      `${chosen.map((p) => `"${p.name}"`).join(', ')}\n`,
+  )
+  if (distinct.length > chosen.length) {
     // Say what was dropped. A capped run that reads as a complete one is the
     // failure mode this file exists to prevent.
     console.log(
-      `⚠️  rendering the largest ${chosen.length} only. NOT rendered: ` +
-        `${prints
+      `⚠️  NOT rendered (beyond the first ${chosen.length} materials): ` +
+        `${distinct
           .slice(chosen.length)
           .map((p) => `"${p.name}"`)
           .join(', ')}.\n` +
@@ -825,7 +825,12 @@ async function findViews(raw, workDir) {
       `(${chosen.length} prints × ${FOV_LADDER_MULTIPLIERS.length} zooms, each scaled to its print)…`,
   )
   const renderDir = join(workDir, 'find-views')
-  await renderViews(baseGlb, renderDir, { views, width: RENDER_SIZE, height: RENDER_SIZE })
+  await renderViews(baseGlb, renderDir, {
+    views,
+    width: RENDER_SIZE,
+    height: RENDER_SIZE,
+    lighting: EVAL_LIGHTING,
+  })
 
   // One row per print, tight→loose across the row.
   const cells = []
@@ -891,7 +896,13 @@ async function damageFor(raw, baselineDir, workDir, label, flags, views, variant
   await optimizeGlb(raw, out, options)
 
   const renderDir = join(workDir, `render-${label}`)
-  await renderViews(out, renderDir, { views, width: RENDER_SIZE, height: RENDER_SIZE, variant })
+  await renderViews(out, renderDir, {
+    views,
+    width: RENDER_SIZE,
+    height: RENDER_SIZE,
+    variant,
+    lighting: EVAL_LIGHTING,
+  })
 
   const { diffs } = await compareRenders(
     baselineDir,
@@ -986,15 +997,13 @@ async function main() {
 
   // Discovery runs BEFORE identifyGarment, and that ordering is the point: the file
   // this mode is for is precisely one the manifest does not know yet. It also skips
-  // assertPresetMatchesShared, which guards the decimation flags — this mode does not
+  // the preset import (the old drift guard), which is about decimation flags — this mode does not
   // decimate, and failing it for an unrelated preset drift would block the one tool
   // someone reaches for when they are already stuck.
   if (args.includes('--find-views')) {
     await findViews(raw, workDir)
     return
   }
-
-  await assertPresetMatchesShared()
 
   // Before anything expensive: is this even the garment the numbers below describe?
   // Cheap (0.8 s on 382 MB) and it runs first, so a wrong file costs a second rather
@@ -1014,6 +1023,7 @@ async function main() {
   const baselineDir = join(workDir, 'render-baseline')
   const baseRender = await renderViews(baseGlb, baselineDir, {
     views,
+    lighting: EVAL_LIGHTING,
     width: RENDER_SIZE,
     height: RENDER_SIZE,
   })
@@ -1054,7 +1064,13 @@ async function main() {
   for (const variant of measured) {
     if (variant === null) continue
     const dir = join(workDir, `render-baseline-${variant.replace(/[^a-z0-9]+/gi, '-')}`)
-    await renderViews(baseGlb, dir, { views, width: RENDER_SIZE, height: RENDER_SIZE, variant })
+    await renderViews(baseGlb, dir, {
+      views,
+      width: RENDER_SIZE,
+      height: RENDER_SIZE,
+      variant,
+      lighting: EVAL_LIGHTING,
+    })
     baselineFor.set(variant, dir)
   }
 

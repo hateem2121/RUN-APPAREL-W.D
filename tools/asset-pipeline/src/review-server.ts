@@ -1,10 +1,18 @@
-import { createReadStream, existsSync } from 'node:fs'
+import { createReadStream } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { type Server, createServer } from 'node:http'
-import { dirname, extname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { extname, join } from 'node:path'
 import { type GlbDescription, describeGlb } from './describe'
 import { MIME, viewerAssetMap } from './render'
+import {
+  CAMERA_FREEDOM_ATTRIBUTES,
+  environmentUrl,
+  instrumentsScript,
+  lightingAttributeHtml,
+  lightingModesLiteral,
+  PRODUCTION_ENVIRONMENT_URL,
+  productionEnvironmentPath,
+} from './viewer-page'
 
 /**
  * Serve every GLB in a directory in a live `<model-viewer>`, for judging garments.
@@ -50,86 +58,23 @@ import { MIME, viewerAssetMap } from './render'
 export const HARD_MAX_BYTES = 40 * 1024 * 1024
 
 /**
- * The decal depth bias, held equal to `apps/viewer/src/lib/decal-depth-bias.ts`.
- *
- * ⚠️ WITHOUT THIS, THIS PAGE MISREPRESENTS THE PRODUCT — and it did, for a day.
- * `apps/viewer` has biased printed cut-outs since 2026-08-27; this page did not,
- * so a garment judged here showed shattered artwork while the identical file
- * rendered correctly to a customer. That is what read to the owner as "the depth
- * bias did not work", and it is exactly the drift the header above warns about:
- * *it must be the renderer production uses, or it answers a different question.*
- *
- * Measured 2026-08-27 on `p001`, whose decals sit **0.001 mm** off the cloth:
- * bias OFF, the chevrons break into fragments and "NEVER LOOK BACK" fills with
- * holes; bias ON, the print is solid. On `n001`, whose decals sit **0.169 mm**
- * off, it changes nothing at all — which is the control that makes the first
- * measurement trustworthy.
- *
- * A DELIBERATE SECOND COPY, for the same reason `HARD_MAX_BYTES` is one:
- * `biome.jsonc` -> `noRestrictedImports` forbids a cross-app import, and this
- * package installs with plain `npm` inside the shrink container where a
- * `workspace:*` dependency cannot resolve. Pinned by a drift test in
- * `review-server.test.ts`.
+ * The instruments and their constants — the decal depth bias, the adaptive near plane,
+ * the production environment map — live in viewer-page.ts since 2026-09-02, shared
+ * with the render harness, and are re-exported here so the drift tests in
+ * review-server.test.ts and the audit's probe scripts keep reading them from this
+ * module. The history of the two drifts that led here is on the constants there.
  */
-/**
- * The band the VIEWER will obey for a pipeline-supplied overlay bias. Duplicated as
- * literals rather than imported: biome's module-boundary rule forbids a cross-app
- * import here, and review-server.test.ts pins both copies against the viewer's own.
- */
-/**
- * The adaptive near plane, held equal to `apps/viewer/src/lib/camera-near-plane.ts`.
- *
- * ⚠️ THIS PAGE MISREPRESENTED THE PRODUCT A SECOND TIME, THE SAME WAY. The comment on
- * DECAL_OFFSET_FACTOR above records that `apps/viewer` gained the decal bias on
- * 2026-08-27 and this page did not, so a garment judged here showed shattered artwork
- * while the identical file rendered correctly to a customer. `apps/viewer` then gained
- * the adaptive near plane on 2026-08-29 — and this page did not gain that either.
- *
- * The owner hit it the same day, reviewing `minecut-motion` here: *"Little bit of
- * frackling/sparkling while rotating is still present."* That is the near-plane defect
- * exactly — model-viewer pins `near` at 0.00436 m, depth precision falls with z², so the
- * sparkle appears when you pull BACK and vanishes when you zoom in. The garment was
- * fine; this page was not.
- *
- * The lesson is in the header and was already paid for once: it must be the renderer
- * production uses, or it answers a different question. A second copy for the same reason
- * HARD_MAX_BYTES is one — biome's noRestrictedImports forbids the cross-app import
- * outside tests, and this package installs with plain npm inside the container. Pinned
- * by a drift test in review-server.test.ts.
- */
-/**
- * The production environment map, held equal to ENVIRONMENT_IMAGE in
- * `apps/viewer/src/components/Stage.tsx`. Served from `apps/viewer/public/env/` when
- * that tree is present; this page falls back to `neutral` when it is not, so the shrink
- * container — which has no `apps/` and never runs this command — cannot break on it.
- */
-export const PRODUCTION_ENVIRONMENT_FILE = 'studio-soft.hdr'
-export const PRODUCTION_ENVIRONMENT_URL = '/env/studio-soft.hdr'
-
-/** Absolute path to the production HDR, or null when the viewer tree is not present. */
-export function productionEnvironmentPath(): string | null {
-  const file = join(
-    dirname(fileURLToPath(import.meta.url)),
-    '..',
-    '..',
-    '..',
-    'apps',
-    'viewer',
-    'public',
-    'env',
-    PRODUCTION_ENVIRONMENT_FILE,
-  )
-  return existsSync(file) ? file : null
-}
-
-export const NEAR_FRACTION = 0.5
-export const MIN_NEAR = 0.01
-
-export const MIN_ABS_OVERLAY_BIAS = 8
-export const MAX_ABS_OVERLAY_BIAS = 64
-
-export const DECAL_OFFSET_FACTOR = -8
-export const DECAL_OFFSET_UNITS = -8
+export {
+  DECAL_OFFSET_FACTOR,
+  DECAL_OFFSET_UNITS,
+  MAX_ABS_OVERLAY_BIAS,
+  MIN_ABS_OVERLAY_BIAS,
+  MIN_NEAR,
+  NEAR_FRACTION,
+  PRODUCTION_ENVIRONMENT_FILE,
+  PRODUCTION_ENVIRONMENT_URL,
+  productionEnvironmentPath,
+} from './viewer-page'
 
 export interface ReviewGarment {
   dirIndex: number
@@ -288,7 +233,7 @@ ${cards}
  */
 function garmentPage(garment: ReviewGarment): string {
   // 'neutral' when apps/viewer is not on disk, so this never renders a broken light.
-  const envUrl = productionEnvironmentPath() ? PRODUCTION_ENVIRONMENT_URL : 'neutral'
+  const envUrl = environmentUrl()
   const d = garment.description
   const over = d.bytes > HARD_MAX_BYTES
   const rows: [string, string][] = [
@@ -333,11 +278,8 @@ function garmentPage(garment: ReviewGarment): string {
   src="/model/${garment.dirIndex}/${garment.fileIndex}"
   camera-controls
   interaction-prompt="none"
-  environment-image="${envUrl}"
-  tone-mapping="neutral"
-  exposure="1"
-  shadow-intensity="${envUrl === 'neutral' ? '0' : '0.6'}"
-  min-field-of-view="1deg"
+  ${lightingAttributeHtml('production', envUrl)}
+  ${CAMERA_FREEDOM_ATTRIBUTES}
 ></model-viewer>
 <aside>
   <a class="back" href="/">&larr; all garments</a>
@@ -377,176 +319,18 @@ function garmentPage(garment: ReviewGarment): string {
   const mv = document.getElementById('mv')
   const status = document.getElementById('status')
 
-  // ⚠️ THE ADAPTIVE NEAR PLANE — see NEAR_FRACTION in review-server.ts for why this
-  // page must have it. model-viewer pins its near plane at 0.00436 m and never moves
-  // it, so the depth step grows with z^2 and printed layers start fighting as you
-  // zoom OUT — the sparkle is worst pulled back and vanishes up close.
-  // Without this block, a garment sparkles here and is clean for a customer.
-  //
-  // A GETTER, NOT AN ASSIGNMENT: model-viewer recomputes the near plane on every camera
-  // change, so a written value is undone by the first drag — which is exactly when
-  // the defect shows. Fails SAFE: if the internals move, the install is skipped and
-  // model-viewer's own behaviour stands.
-  const NEAR_FRACTION = ${NEAR_FRACTION}
-  const MIN_NEAR = ${MIN_NEAR}
-  let nearPlaneInstalled = false
-
-  const computeNearPlane = (orbitRadius, radius) => {
-    if (!Number.isFinite(orbitRadius) || !Number.isFinite(radius)) return MIN_NEAR
-    const clearance = orbitRadius - Math.max(radius, 0)
-    if (!(clearance > 0)) return MIN_NEAR
-    return Math.max(MIN_NEAR, clearance * NEAR_FRACTION)
-  }
-
-  // ⚠️ TWO of model-viewer's internal symbols expose a .camera. Symbol(scene) is the
-  // three.js Scene; Symbol(controls) is the orbit controller, which holds the same
-  // camera but is NOT an Object3D. Selecting on .camera alone returns whichever
-  // enumerates last. Select the SCENE by isObject3D.
-  const internalCamera = (element) => {
-    if (!element) return null
-    for (const sym of Object.getOwnPropertySymbols(element)) {
-      const value = element[sym]
-      if (value && value.isObject3D && value.camera) return value.camera
-    }
-    return null
-  }
-
-  const installNearPlane = () => {
-    if (nearPlaneInstalled) return
-    const camera = internalCamera(mv)
-    if (!camera || typeof camera.updateProjectionMatrix !== 'function') return
-    const d = mv.getDimensions?.()
-    if (!d) return
-    const radius = Math.sqrt(d.x * d.x + d.y * d.y + d.z * d.z) / 2
-    try {
-      Object.defineProperty(camera, 'near', {
-        configurable: true,
-        get: () => computeNearPlane(mv.getCameraOrbit().radius, radius),
-        set: () => {},
-      })
-    } catch {
-      return
-    }
-    nearPlaneInstalled = true
-    camera.updateProjectionMatrix()
-  }
-
-  // ⚠️ THE DECAL DEPTH BIAS. A printed cut-out authored flush with the cloth gives
-  // the GPU two surfaces at near-identical depth, and the winner changes per pixel
-  // and per frame. glTF 2.0 cannot express a polygon offset, so the FILE cannot
-  // carry this; three.js can, so the viewer applies it. Kept equal to
-  // apps/viewer/src/lib/decal-depth-bias.ts and pinned by review-server.test.ts.
-  //
-  // ⚠️ RE-APPLIED ON EVERY COLOURWAY, NOT ONLY ON LOAD. model-viewer builds only
-  // the arriving variant's materials; anything reachable solely through
-  // KHR_materials_variants is a lazy stub holding an EMPTY Set, so its backing
-  // three.js material does not exist yet and cannot be biased. Measured on the
-  // live garment: 6 of 26 decals reachable on arrival, 20 not — so four of five
-  // colourways kept flickering after the load-time fix. 'variant-applied' fires
-  // after the swap resolves, which is exactly when the rest become reachable.
-  const OFFSET_FACTOR = ${DECAL_OFFSET_FACTOR}
-  const OFFSET_UNITS = ${DECAL_OFFSET_UNITS}
-  let biasOn = true
-
-  const backingOf = (material) => {
-    for (const source of [material, Object.getPrototypeOf(material)]) {
-      if (!source) continue
-      for (const symbol of Object.getOwnPropertySymbols(source)) {
-        if (symbol.description !== 'backingThreeMaterial') continue
-        const value = material[symbol]
-        if (value && typeof value === 'object') return value
-      }
-    }
-    return null
-  }
-
-  // Kept equal to readOverlayBias() in apps/viewer/src/lib/decal-depth-bias.ts and
-  // pinned by review-server.test.ts. Validated, not trusted: a record that is
-  // disabled, mis-typed, too weak (-1 shipped and did nothing) or the wrong sign
-  // (positive pushes the print BEHIND the cloth) is refused.
-  const MIN_ABS_OVERLAY_BIAS = ${MIN_ABS_OVERLAY_BIAS}
-  const MAX_ABS_OVERLAY_BIAS = ${MAX_ABS_OVERLAY_BIAS}
-  const readOverlayBias = (backing) => {
-    const raw = backing.userData && backing.userData.depthBias
-    if (!raw || typeof raw !== 'object') return null
-    if (raw.enabled !== true) return null
-    if (typeof raw.factor !== 'number' || typeof raw.units !== 'number') return null
-    const inBand = (n) => n <= -MIN_ABS_OVERLAY_BIAS && n >= -MAX_ABS_OVERLAY_BIAS
-    if (!inBand(raw.factor) || !inBand(raw.units)) return null
-    return { factor: raw.factor, units: raw.units }
-  }
-
-  const applyBias = () => {
-    const materials = mv.model ? mv.model.materials : []
-    let biased = 0
-    let overlays = 0
-    let pending = 0
-    let unreachable = 0
-    let firstBiased = null
-    let firstOverlay = null
-    for (const material of materials) {
-      const backing = backingOf(material)
-      if (!backing) {
-        // isLoaded separates the two silences: a lazy variant material is EXPECTED
-        // to be unreachable and will be caught by the next 'variant-applied'; a
-        // LOADED material with no backing means the internal API has gone.
-        if (material.isLoaded) unreachable++
-        else pending++
-        continue
-      }
-      // TWO MECHANISMS. alphaTest > 0 IS alphaMode MASK — a printed CUT-OUT, which
-      // three.js exposes directly. An OPAQUE printed layer stacked on cloth is
-      // invisible from here and is flagged by the PIPELINE in the asset's material
-      // extras, which three.js copies to userData. Fabric with nothing in front of
-      // it is flagged by neither and is never biased: pulling the garment body
-      // forward pushes it through what is behind it.
-      const overlay = readOverlayBias(backing)
-      if (!overlay && !(backing.alphaTest > 0)) continue
-      backing.polygonOffset = biasOn
-      backing.polygonOffsetFactor = biasOn ? (overlay ? overlay.factor : OFFSET_FACTOR) : 0
-      backing.polygonOffsetUnits = biasOn ? (overlay ? overlay.units : OFFSET_UNITS) : 0
-      backing.needsUpdate = true
-      biased++
-      if (overlay) overlays++
-      // The frame nudge below calls setAlphaCutoff, which is only meaningful on a
-      // cut-out — so only a cut-out may be chosen for it.
-      if (!firstBiased && backing.alphaTest > 0) firstBiased = material
-      if (!firstOverlay && overlay) firstOverlay = material
-    }
-    // Writing a three.js property does NOT schedule a frame. A no-op write through
-    // model-viewer's OWN public setter fires its internal onUpdate, which does —
-    // and unlike nudging the camera it cannot move the view being judged.
-    // ⚠️ setAlphaCutoff would CHANGE an OPAQUE material, so a garment whose only
-    // biased surfaces are opaque overlays needs a different no-op. Writing the
-    // current baseColorFactor back through the public setter repaints without
-    // altering a single value - and it is the one write measured to repaint at all
-    // (assigning backing.color directly moved 0.000% of pixels across six garments).
-    if (firstBiased) firstBiased.setAlphaCutoff(firstBiased.getAlphaCutoff())
-    else if (firstOverlay) {
-      const pbr = firstOverlay.pbrMetallicRoughness
-      pbr.setBaseColorFactor(pbr.baseColorFactor)
-    }
-    const report = document.getElementById('bias-report')
-    report.textContent = biased + ' surface(s) ' + (biasOn ? 'biased' : 'left un-biased') +
-      (overlays ? ' [' + overlays + ' opaque overlay]' : '') +
-      (pending ? ', ' + pending + ' material(s) awaiting their colourway' : '') +
-      (unreachable ? ' — ' + unreachable + ' UNREACHABLE, model-viewer API changed' : '')
-    report.style.color = unreachable ? '#ff9b9b' : '#888'
-  }
-
+${instrumentsScript()}
   for (const on of [true, false]) {
     document.getElementById(on ? 'bias-on' : 'bias-off').onclick = () => {
-      biasOn = on
-      applyBias()
+      window.__instruments.setBias(on)
       document.getElementById('bias-on').setAttribute('aria-pressed', String(on))
       document.getElementById('bias-off').setAttribute('aria-pressed', String(!on))
     }
   }
-  mv.addEventListener('variant-applied', applyBias)
 
   mv.addEventListener('load', () => {
-    installNearPlane()
-    applyBias()
+    // The instruments install themselves on 'load' (viewer-page.ts). This listener
+    // only builds the colourway switcher.
     // KHR_materials_variants. Every garment in the catalogue declares 5 (Mantra Ray
     // 6), but STRUCTURE POLO SET binds NONE of them — so an empty list here is a
     // real finding about the file, not a bug in this page. Say which.
@@ -577,16 +361,7 @@ function garmentPage(garment: ReviewGarment): string {
       String(event.detail?.sourceError ?? event.detail?.type ?? 'unknown')
   })
 
-  const modes = {
-    // Byte-for-byte the render.ts harness: isolates texture and UVs, and hides
-    // specular entirely — which is why it is the wrong mode for judging metalness.
-    // Held equal to apps/viewer/src/components/Stage.tsx. If you change one, change both.
-    production: { 'environment-image': '${envUrl}', 'tone-mapping': 'neutral', exposure: '1', 'shadow-intensity': '${envUrl === 'neutral' ? '0' : '0.6'}' },
-    diagnostic: { 'environment-image': 'neutral', 'tone-mapping': 'neutral', exposure: '1', 'shadow-intensity': '0' },
-    // NOT what a customer sees — that is 'production' above. A deliberately punchy
-    // sales light, kept because metallic fabric only announces itself when light moves.
-    studio: { 'environment-image': 'legacy', 'tone-mapping': 'commerce', exposure: '1', 'shadow-intensity': '1' },
-  }
+  const modes = ${lightingModesLiteral(envUrl)}
   for (const key of Object.keys(modes)) {
     document.getElementById('lit-' + key).onclick = () => {
       for (const [attr, value] of Object.entries(modes[key])) mv.setAttribute(attr, value)

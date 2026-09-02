@@ -176,6 +176,45 @@
             "three decimals. Re-run idle when convenient and append a remeasurement; do NOT",
             "lower the ceiling to match an idle run's higher `balanced`."
           ]
+        },
+        {
+          "at": "2026-09-02",
+          "playwright": "1.62.1",
+          "chromium": "1234",
+          "fidelity": 0.0622,
+          "balanced": 0.0624,
+          "knownBad": 0.1102,
+          "control": 0.1039,
+          "verdict": "pass",
+          "machine": "idle — nothing else running; the desktop app driving the session was the only load",
+          "harness": "FIRST RUN ON THE TRUTHFUL HARNESS (fix plan Rank 4): the page now carries the adaptive near plane and the decal depth bias like the product; flat diagnostic light as before; the presets are IMPORTED from packages/shared/src/shrink.ts (the hand copy that refused to start since 2026-08-21 is gone)",
+          "$comment": [
+            "THE CURRENT PRESET, MEASURED AT LAST. Audit C-02 (2026-09-01) rebuilt this eval by hand",
+            "and found the shipped preset moving 6.25% of the hem-label crop on a busy machine, against",
+            "a ceiling calibrated for 3.97% — and projected ~6.7% idle, i.e. OVER. Measured idle here:",
+            "6.240% balanced, 6.220% fidelity — UNDER the 6.5% ceiling, by 0.26pp. Per view (wordmark /",
+            "hem label / neck logo, %): fidelity 3.410/6.220/0.010, balanced 3.440/6.240/0.070, knownBad",
+            "3.800/11.020/2.580, control 4.990/10.390/6.070. The metric still separates: known-bad and",
+            "the blind control sit 4pp above balanced.",
+            "",
+            "WHAT THE NUMBER IS. Fidelity and balanced are within 0.02pp of each other on the hem label,",
+            "so the 6.2% is not the decimation error budget (which differs 5x between them) — it is the",
+            "--stitch pass both presets share, cutting the topstitch cord along the hem. THE SHEET SAYS",
+            "SO: the label itself — the M, the runner mark, THE EXTRA MILE / TEAM WEARS, the care line —",
+            "reads identically to the baseline, and the difference image lights almost only the blue",
+            "cord below it. The wordmark row is crisp with the diff on the panel seams, as designed; the",
+            "neck logo is identical. So the print is untouched and the number describes thread. That is",
+            "audit C-03 territory (thread flattened, visible only at macro), and fix plan Rank 3 (prints",
+            "never decimated) plus a stitch-budget judgement by the owner are where it is decided.",
+            "",
+            "THE CEILING WAS NOT TOUCHED. 6.5% still clears balanced and still catches both failure",
+            "cases. A gate this close to its line on thread alone is worth knowing about, not hiding:",
+            "a future --stitch retune that cuts the cord harder will trip it, and that would be correct."
+          ],
+          "evidence": [
+            "docs/images/2026-09-02-real-eval-balanced-hem-label.png",
+            "docs/images/2026-09-02-real-eval-known-bad-hem-label.png"
+          ]
         }
       ]
     },
@@ -250,6 +289,46 @@
       "sha256": "e38f5aace491e22a8d4fe81e1c163af3797cb1c7be644143c1753c64790e45ea",
       "calibrated": false,
       "$calibratedComment": "eval:artwork:real has never been run against this garment, so there is no ceiling to compare a future run to. The sha256 still earns its place: it is what makes 'this is the same file' checkable when one IS calibrated."
+    },
+    "apex-flex-pullover": {
+      "description": "APEX FLEX PULLOVER — the owner's production-ready master (\"File A\", CLO export 2026-09-02 15:00, \"Diffuse Color Combined on Texture\" ON). The FIRST of the FIXED GLBs to carry calibrated artwork views (fix plan Rank 4, audit C-05): two prints, the chest wordmark and the back \"RUN / THE EXTRA MILE\". The inside-collar care label was found by --find-views and deliberately NOT guarded: it is invisible from outside the collar at every zoom (candidate sheet 2026-09-02).",
+      "localFile": "raw/apex-flex-pullover.glb",
+      "$localFileComment": "A copy of the archive object fixed-glbs/2026-09-02/APEX FLEX PULLOVER - File A.glb in run-apparel-archive (scripts/archive-manifest.json carries the same sha256). The owner's FIXED GLBs folder holds it zipped.",
+      "bytes": 18131368,
+      "sha256": "62fda371006dd84a912ebab5448cf8904cbfb02ae5f9eff1aa0bc189f7d9621d",
+      "views": [
+        {
+          "name": "activewear-logo-3182",
+          "orbit": "3.2deg 90deg 0.45m",
+          "target": "0.005m 1.451m 0.078m",
+          "fieldOfView": "19.4deg"
+        },
+        {
+          "name": "extra-mile-3204",
+          "orbit": "-178.2deg 90deg 0.45m",
+          "target": "-0.004m 1.548m -0.125m",
+          "fieldOfView": "20deg"
+        }
+      ],
+      "$viewsComment": "Proposed by --find-views (one frame per distinct artwork material, 2026-09-02) and chosen off the candidate sheet at the 1x rung: the 0.7x rung clips both prints, the wider rungs fill with fabric. The radius \"0.45m\" is DECORATIVE — model-viewer clamps every radius below ~54% of the framed distance (scripts/probe-camera-clamps.mjs); fieldOfView is the zoom.",
+      "targetToleranceM": 0.05,
+      "productCode": "APEX",
+      "$productCodeComment": "The CLO project name; the CMS product code is assigned when the product is created and was not known on 2026-09-02.",
+      "calibration": {
+        "commit": "fix/audit-rank-4-truthful-instruments, 2026-09-02 (the commit that added this entry)",
+        "calibratedAt": "2026-09-02",
+        "ceiling": 0.012,
+        "cameraFingerprint": "db2df574ff6e7c20",
+        "$cameraFingerprintComment": "Digest of `views` at the moment `ceiling` was measured, as for n001. Change the views and this MUST be re-measured, not re-pasted.",
+        "measured": {
+          "fidelity": 0.0002,
+          "balanced": 0.0029,
+          "knownBad": 0.0242,
+          "control": 0.0376
+        },
+        "$measuredComment": "WORST-OF-TWO-VIEWS, from --calibrate on an IDLE machine on the truthful harness (near plane + decal bias on, flat diagnostic light, presets imported). Per view (chest logo / back extra mile, %): fidelity 0.020/0.010, balanced 0.290/0.150, knownBad 2.420/1.450, control 3.290/3.760. A FIXED GLB is ~208k triangles and barely decimates, so every number here is a tenth of N001's: the gate is coarse on this family, and fix plan Rank 3 (prints never decimated) is expected to take balanced to ~0 on the prints.",
+        "$ceilingComment": "0.012: 4.1x balanced, half of knownBad, a third of control. THE SHEET WAS THE AUTHORITY: at balanced the chest logo is identical to the baseline with only faint edge outlines in the difference image; at knownBad the logo still reads but its outline and the knit texture light up (docs/images/2026-09-02-apex-calibration-chest-logo.png, balanced above knownBad). Chosen wide enough that a busy-machine run (which reads ~0.48pp LOW on N001, i.e. cannot false-fail here) and a re-export with slightly different UV packing do not trip it, and tight enough that the two failure cases both do."
+      }
     }
   }
 }

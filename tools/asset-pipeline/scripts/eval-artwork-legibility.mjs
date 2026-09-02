@@ -62,60 +62,20 @@ import { compareRenders } from '../src/compare.ts'
 import { optimizeGlb, parseOptimizeArgs } from '../src/optimize.ts'
 import { normalizePbr } from '../src/pbr-normalize.ts'
 import { renderViews } from '../src/render.ts'
+import { shrinkFlagsFor } from '../../../packages/shared/src/shrink.ts'
 
 /**
- * The shipped preset, as a flag list.
+ * The shipped presets — IMPORTED, not copied, since 2026-09-02. The copy was kept
+ * "because this package installs with plain npm inside the container"; this script
+ * only ever runs under tsx in the workspace, where the relative import resolves. The
+ * real-garment eval's copy drifted for eleven days (audit C-01); an import cannot.
  *
- * DELIBERATELY A SECOND COPY of `shrinkFlagsFor('balanced')` in
- * `packages/shared/src/shrink.ts`, not an import — the same arrangement, and for
- * the same reason, as `SIZE_WARNING_BYTES` in `src/validate.ts`: this package is
- * installed with plain `npm ci` inside the shrink container's Docker image,
- * where a `workspace:*` dependency cannot resolve.
- *
- * Pinned equal by `assertPresetMatchesShared()` below, which reads the shared
- * source at run time. Two unpinned copies of the number that decides whether the
- * logos survive is precisely the drift this repo keeps paying for.
+ * Flat neutral light, shadows off: the 5.000% ceiling was calibrated in it, and the
+ * harness's default became production lighting on 2026-09-02.
  */
-const BALANCED_FLAGS = [
-  '--stitch',
-  '0.03',
-  '--stitch-error',
-  '0.0005',
-  '--simplify',
-  '0.05',
-  '--simplify-error',
-  '0.001',
-  '--uv-weight',
-  '1',
-  '--meshopt',
-  '--max-texture',
-  '4096',
-  '--data-max-texture',
-  '2048',
-  '--quality',
-  '75',
-]
-
-/** `fidelity`, the stricter shipped preset. Must never damage more than `balanced`. */
-const FIDELITY_FLAGS = [
-  '--stitch',
-  '0.03',
-  '--stitch-error',
-  '0.0005',
-  '--simplify',
-  '0.05',
-  '--simplify-error',
-  '0.0002',
-  '--uv-weight',
-  '2',
-  '--meshopt',
-  '--max-texture',
-  '4096',
-  '--data-max-texture',
-  '2048',
-  '--quality',
-  '75',
-]
+const BALANCED_FLAGS = shrinkFlagsFor('balanced')
+const FIDELITY_FLAGS = shrinkFlagsFor('fidelity')
+const EVAL_LIGHTING = 'diagnostic'
 
 /**
  * The negative control: the balanced preset with UV protection switched OFF.
@@ -293,32 +253,6 @@ async function buildArtworkPanel({ segments = 200, rings = 70 } = {}) {
   return { doc, triangles: indices.length / 3 }
 }
 
-/**
- * Fail loudly if the copied preset has drifted from `@run-apparel/shared`.
- * Reads the source text rather than importing it, because importing would create
- * the dependency this copy exists to avoid.
- */
-async function assertPresetMatchesShared() {
-  const source = await readFile(
-    join(import.meta.dirname, '..', '..', '..', 'packages', 'shared', 'src', 'shrink.ts'),
-    'utf8',
-  )
-  // Compare the flag SEQUENCE, not the source layout. This used to match the
-  // literal `'a', 'b'` text, which meant Biome deciding to wrap the array across
-  // lines broke the pin for reasons that had nothing to do with the preset. The
-  // pin is about which flags ship, so normalise whitespace away on both sides.
-  const normalise = (text) => text.replace(/\s+/g, '')
-  const expected = normalise(BALANCED_FLAGS.map((f) => `'${f}'`).join(','))
-  if (!normalise(source).includes(expected)) {
-    throw new Error(
-      `BALANCED_FLAGS has drifted from packages/shared/src/shrink.ts.\n` +
-        `  this file expects: [${expected}]\n` +
-        `  which no longer appears in shrinkFlagsFor(). Re-calibrate this eval against the new preset\n` +
-        `  (node scripts/eval-artwork-legibility.mjs --calibrate) rather than editing the constant to match.`,
-    )
-  }
-}
-
 /** Optimise the fixture with `flags`, render it, and diff against the baseline. */
 // `io` used to be threaded in here and was never read — removed 2026-08-08 when
 // the linter flagged it. It is still built in main() for the baseline render.
@@ -329,6 +263,7 @@ async function damageFor(srcGlb, baselineDir, workDir, label, flags) {
   const renderDir = join(workDir, `render-${label}`)
   await renderViews(out, renderDir, {
     views: WORDMARK_VIEW,
+    lighting: EVAL_LIGHTING,
     width: RENDER_SIZE,
     height: RENDER_SIZE,
   })
@@ -355,8 +290,6 @@ async function main() {
   const workDir =
     keepAt !== -1 ? process.argv[keepAt + 1] : await mkdtemp(join(tmpdir(), 'artwork-eval-'))
   await mkdir(workDir, { recursive: true })
-
-  await assertPresetMatchesShared()
 
   const io = new NodeIO()
   const { doc, triangles } = await buildArtworkPanel()
@@ -395,6 +328,7 @@ async function main() {
   const baselineDir = join(workDir, 'render-baseline')
   await renderViews(srcGlb, baselineDir, {
     views: WORDMARK_VIEW,
+    lighting: EVAL_LIGHTING,
     width: RENDER_SIZE,
     height: RENDER_SIZE,
   })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_VIEWS, PAGE_HTML } from './render'
+import { DEFAULT_VIEWS, PAGE_HTML, renderHarnessPage } from './render'
 
 /**
  * The render harness's own configuration, pinned.
@@ -57,5 +57,45 @@ describe('render harness page', () => {
     for (const view of DEFAULT_VIEWS.filter((v) => v.name.startsWith('crop-'))) {
       expect(view.fieldOfView, `${view.name} must pin its zoom`).toBeDefined()
     }
+  })
+})
+
+/**
+ * THE INSTRUMENTS, 2026-09-02. Until then the harness page was a bare
+ * <model-viewer>: no adaptive near plane (HR-3: depth 183x coarser than the
+ * product, sparkle no customer sees) and no decal depth bias (HR-2: 0.00% for a
+ * fix the review page shows moving 1.8% of the picture). These pin that the
+ * default page carries both, that only the explicit negative control drops them,
+ * and that the lighting switch changes lighting and nothing else.
+ */
+describe('render harness page — instruments and lighting', () => {
+  it('carries the near plane and the decal bias by default', () => {
+    expect(PAGE_HTML).toContain("Object.defineProperty(camera, 'near'")
+    expect(PAGE_HTML).toContain("addEventListener('variant-applied', applyBias)")
+    expect(PAGE_HTML).toContain('window.__instruments')
+  })
+
+  it('drops them ONLY on the explicit negative control, and says so in the title', () => {
+    const blind = renderHarnessPage({ instruments: false })
+    expect(blind).not.toContain("Object.defineProperty(camera, 'near'")
+    expect(blind).not.toContain('polygonOffset')
+    expect(blind).toContain('instruments OFF')
+    expect(PAGE_HTML).toContain('instruments on')
+  })
+
+  it('defaults to production lighting and offers the flat diagnostic light', () => {
+    expect(PAGE_HTML).toContain('tone-mapping="neutral"')
+    expect(PAGE_HTML).toContain('production lighting')
+    const flat = renderHarnessPage({ lighting: 'diagnostic' })
+    expect(flat).toContain('environment-image="neutral"')
+    expect(flat).toContain('shadow-intensity="0"')
+    // The instruments do not depend on the light.
+    expect(flat).toContain("Object.defineProperty(camera, 'near'")
+  })
+
+  it('lets the camera pull back past the framed radius (HR-5)', () => {
+    // model-viewer's max-camera-orbit radius defaults to auto, which clamps at the
+    // framed distance: 110/140/200/500% all rendered byte-identical to 105%.
+    expect(PAGE_HTML).toMatch(/max-camera-orbit="[^"]*\d+%"/)
   })
 })
