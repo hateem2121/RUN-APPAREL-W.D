@@ -1,4 +1,5 @@
-import type { Document, Texture } from '@gltf-transform/core'
+import type { Document, Texture, Material } from '@gltf-transform/core'
+import type { MappingList } from '@gltf-transform/extensions'
 
 /**
  * Find printed artwork by the SHAPE of its UV mapping, not by what it is called.
@@ -96,9 +97,21 @@ export function findArtworkTexturesByGeometry(document: Document): Set<Texture> 
 
   for (const mesh of document.getRoot().listMeshes()) {
     for (const primitive of mesh.listPrimitives()) {
-      const material = primitive.getMaterial()
-      const texture = material?.getBaseColorTexture()
-      if (!material || !texture) continue
+      // The default material AND every colourway mapping: the geometry is shared, so
+      // the span says the same thing about a picture whichever colourway binds it.
+      // Until 2026-09-02 only the default was read — the twice-missed trap of
+      // 2026-08-27 (prune, the decal bias) reached here too.
+      const materials: Material[] = []
+      const fallback = primitive.getMaterial()
+      if (fallback) materials.push(fallback)
+      const mappings = primitive.getExtension<MappingList>('KHR_materials_variants')
+      if (mappings) {
+        for (const mapping of mappings.listMappings()) {
+          const material = mapping.getMaterial()
+          if (material) materials.push(material)
+        }
+      }
+      if (materials.length === 0) continue
 
       const uv = primitive.getAttribute('TEXCOORD_0')
       if (!uv) {
@@ -110,11 +123,14 @@ export function findArtworkTexturesByGeometry(document: Document): Set<Texture> 
       const max = uv.getMax([0, 0]) as number[]
       const span = Math.max((max[0] ?? 0) - (min[0] ?? 0), (max[1] ?? 0) - (min[1] ?? 0))
 
-      const looksLikeArtwork =
-        span <= ARTWORK_MAX_UV_SPAN && !isThreadOrHardwareName(material.getName())
-
-      if (looksLikeArtwork) artwork.add(texture)
-      else disqualified.add(texture)
+      for (const material of materials) {
+        const texture = material.getBaseColorTexture()
+        if (!texture) continue
+        const looksLikeArtwork =
+          span <= ARTWORK_MAX_UV_SPAN && !isThreadOrHardwareName(material.getName())
+        if (looksLikeArtwork) artwork.add(texture)
+        else disqualified.add(texture)
+      }
     }
   }
 

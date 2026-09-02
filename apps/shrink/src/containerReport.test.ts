@@ -204,6 +204,7 @@ describe('buildReportText — colours', () => {
             deltaE: 6.32,
             confidence: 'high',
             sampledMaterial: 'FABRIC 5_3068',
+            sampledFrom: 'factor',
           },
         ],
       }),
@@ -225,12 +226,55 @@ describe('buildReportText — colours', () => {
             deltaE: 21.4,
             confidence: 'low',
             sampledMaterial: 'FABRIC 5',
+            sampledFrom: 'factor',
           },
         ],
       }),
       'x.glb',
     )
     expect(text).toContain('closest match Lime, but not a confident one — check the swatch')
+  })
+
+  it('says WHY a name is blank when the file itself is the reason (CG-06, 2026-09-02)', () => {
+    // Eleven of eleven raw exports bind one fabric picture to every colourway behind a
+    // white colour. Without this line the owner types five names the next export blanks.
+    const text = buildReportText(
+      opt(),
+      glb({
+        variants: ['Colorway 1', 'Colorway 2'],
+        variantsInFileOrder: ['Colorway 1', 'Colorway 2'],
+        variantColours: [
+          {
+            variantId: 'Colorway 1',
+            hex: '#FFFFFF',
+            name: 'White',
+            slug: 'white',
+            deltaE: 0,
+            confidence: 'low',
+            sampledMaterial: 'Bull Leather_3040',
+            sampledFrom: 'factor',
+            note: 'every colourway binds the same fabric picture behind a white colour, so this export carries no colourway colours — set each colourway’s colour in CLO and re-export',
+          },
+          {
+            variantId: 'Colorway 2',
+            hex: '#1B2A4A',
+            name: 'Navy',
+            slug: 'navy',
+            deltaE: 0,
+            confidence: 'high',
+            sampledMaterial: 'FABRIC 1',
+            sampledFrom: 'texture',
+          },
+        ],
+      }),
+      'x.glb',
+    )
+    expect(text).toContain(
+      '1. Colorway 1 — closest match White, but not a confident one — check the swatch (#FFFFFF) — every colourway binds the same fabric picture',
+    )
+    expect(text).toContain(
+      '2. Colorway 2 — looks like Navy (read from the fabric picture) (#1B2A4A)',
+    )
   })
 
   it('tells a single-colour garment what to do instead of showing an empty list', () => {

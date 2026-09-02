@@ -115,6 +115,9 @@ interface ShrinkReport {
     deltaE: number
     confidence: 'high' | 'low'
     sampledMaterial: string
+    /** Since 2026-09-02: where the colour was read, and why a blank one is blank. */
+    sampledFrom?: 'factor' | 'texture'
+    note?: string
   }[]
   /**
    * What the decimation pass did. `fallback` primitives got no artwork

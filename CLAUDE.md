@@ -459,14 +459,18 @@ linear to sRGB, and names it by CIEDE2000 against a palette in `colour-name.ts`.
 This exists because on 2026-08-03 every published colour name on the live site was
 wrong — a maroon garment labelled "Navy", a blush one "Black", a powder blue one
 "Crimson" — and two colourways in the file were never mapped at all.
+⚠️ **Area is summed by material NAME (2026-09-02):** CLO writes one material per
+PANEL, and a 4.36% print panel named Geovent's white cloth "Navy"
+(CG-05). A white factor over a fabric picture is sampled only when colourways carry
+different pictures; every export censused binds one to all five, so the name stays
+blank and the report says why.
 
 Two rules it must keep: a **colourway slug is printed on physical QR tags** and
 must never be changed by an automated process, and **row order decides the default
 colourway**, so nothing may reorder rows. Imported rows append, arrive
 `active: false`, and a low-confidence match arrives with an empty name rather than
-a guess. Tested in `packages/shared/src/importColours.test.ts` — it lived at
-`apps/cms/src/fields/importColours.test.ts` until 2026-08-11 (`16b548a`), and this
-line still said so until a post-merge review followed it and found nothing.
+a guess. Tested in `packages/shared/src/importColours.test.ts` (moved from
+`apps/cms/src/fields/` on 2026-08-11).
 
 ## Before you delete anything in the CMS
 

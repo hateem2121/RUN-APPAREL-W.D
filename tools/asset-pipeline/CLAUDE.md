@@ -460,7 +460,10 @@ only the root's one-liners. Open this file before changing anything here.
   purpose; do not merge it with `texture-artwork.ts`'s. And use a token-boundary
   pattern, not the texture regex — that one contains `text`/`type`, so `Textile_Cotton`
   and `Polyester_Textured` classify as artwork and would exempt real FABRIC from
-  double-siding.
+  double-siding. Since 2026-09-02 it also sums area by NAME + factor (CLO: one material
+  per panel — Geovent CW6, CG-05), drops overlays under alpha 0.5 and UV-span prints,
+  and `readVariantColoursSampled` reads the fabric picture only when colourways carry
+  different pictures; a shared one stays blank with a note.
 - **`solidifyMaterials` forced EVERY non-`MASK` material double-sided, and that put a
   MIRRORED care label on the OUTSIDE of the garment.** The label is authored INSIDE
   and single-sided, so backface culling correctly hid it; double-siding rendered its

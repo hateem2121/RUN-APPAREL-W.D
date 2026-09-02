@@ -148,6 +148,13 @@ describe('palette coverage for real garment colours', () => {
     ['#E2725B', 'Terracotta'],
     ['#C8A2C8', 'Mauve'],
     ['#FF7F50', 'Coral'],
+    // The two yellow colourways CLO actually exported (audit CG-07): tennis suit
+    // Colorway 10 and X-Milo Training Vest Colorway 4. Neither had a name until
+    // Yellow joined the palette; the neighbours it must not crowd are pinned below.
+    ['#FFD900', 'Yellow'],
+    ['#FFFF22', 'Yellow'],
+    ['#C9A227', 'Mustard'],
+    ['#B58A2B', 'Gold'],
   ]
   for (const [hex, expected] of cases) {
     it(`names ${hex} as ${expected} with confidence`, () => {

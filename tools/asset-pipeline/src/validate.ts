@@ -11,7 +11,7 @@ import {
   findCrushedArtwork,
 } from './texture-artwork'
 import { CRUSHED_BYTES_PER_PIXEL, offUv0Warning, summariseUvSets } from './textures'
-import { type VariantColour, readVariantColours } from './variant-colour'
+import { type VariantColour, readVariantColoursSampled } from './variant-colour'
 
 /**
  * Warn when a production GLB is heavier than this — QR scans are mobile-first.
@@ -281,7 +281,7 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
     crushedArtwork,
     artworkAlphaProblems,
     artworkSoftOnBlend,
-    variantColours: readVariantColours(document),
+    variantColours: await readVariantColoursSampled(document),
     spec: await checkGltfSpecFile(file),
     warnings,
   }

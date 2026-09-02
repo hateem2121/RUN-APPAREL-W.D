@@ -86,9 +86,13 @@ export function buildReportText(
             if (!colour) return `  ${i + 1}. ${name}`
             const guess =
               colour.confidence === 'high'
-                ? `looks like ${colour.name}`
+                ? `looks like ${colour.name}${colour.sampledFrom === 'texture' ? ' (read from the fabric picture)' : ''}`
                 : `closest match ${colour.name}, but not a confident one — check the swatch`
-            return `  ${i + 1}. ${name} — ${guess} (${colour.hex})`
+            // Since 2026-09-02 the file can be the reason a name is blank (audit CG-06):
+            // every colourway behind one shared picture. Say so, or the owner types five
+            // names that the next export blanks again.
+            const why = colour.note ? ` — ${colour.note}` : ''
+            return `  ${i + 1}. ${name} — ${guess} (${colour.hex})${why}`
           })
           .join('\n')}`
       : 'No colours are stored inside this file. That is fine for a single-colour garment — set the product to “A separate file for each colour”.',
