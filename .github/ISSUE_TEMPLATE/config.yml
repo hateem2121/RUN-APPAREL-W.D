@@ -17,17 +17,17 @@ blank_issues_enabled: true
 
 contact_links:
   - name: Security vulnerability — do NOT open an issue
-    url: https://github.com/RUN-APPAREL/run-apparel-viewer/security/policy
+    url: https://github.com/hateem2121/run-apparel-viewer/security/policy
     about: Report privately. SECURITY.md explains the process and the response times.
 
   - name: Something is broken on the live site
-    url: https://github.com/RUN-APPAREL/run-apparel-viewer/blob/main/docs/RUNBOOK.md
+    url: https://github.com/hateem2121/run-apparel-viewer/blob/main/docs/RUNBOOK.md
     about: "Rollback, migrations, secrets and the cached-404 trap. Run `node scripts/apex-probe.mjs` and `node scripts/smoke-live-products.mjs` first — they say what is actually failing."
 
   - name: A garment looks wrong (artwork, colour, missing model)
-    url: https://github.com/RUN-APPAREL/run-apparel-viewer/blob/main/docs/OPEN-ISSUE-ARTWORK.md
+    url: https://github.com/hateem2121/run-apparel-viewer/blob/main/docs/OPEN-ISSUE-ARTWORK.md
     about: "Printed artwork, colour naming and the pipeline settings that damage them. Include the product slug and colourway — both are printed on physical QR tags."
 
   - name: How do I upload a garment?
-    url: https://github.com/RUN-APPAREL/run-apparel-viewer/blob/main/docs/FIRST-GARMENT-UPLOAD.md
+    url: https://github.com/hateem2121/run-apparel-viewer/blob/main/docs/FIRST-GARMENT-UPLOAD.md
     about: Plain-English walkthrough, no command line.

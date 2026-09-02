@@ -601,7 +601,8 @@ jobs:
    *
    * ⚠️ THIS SAID THE RULESET WAS "org configuration this test cannot read" UNTIL
    * 2026-08-30, AND THAT WAS WRONG IN A WAY THAT MATTERED. It is a REPOSITORY
-   * ruleset — `gh api repos/RUN-APPAREL/run-apparel-viewer/rulesets/21016174` returns
+   * ruleset — `gh api repos/hateem2121/run-apparel-viewer/rulesets/<id>` (the org ruleset
+   * 21016174 died with the organisation on 2026-09-02; see .github/CLAUDE.md) returns
    * `"source_type": "Repository"` and its five contexts under the ordinary `repo`
    * scope. So the manual check is one command, not an impossibility, and believing
    * otherwise is why it was never made part of the routine.

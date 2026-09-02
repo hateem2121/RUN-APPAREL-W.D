@@ -78,11 +78,21 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   gh api /repos/OWNER/REPO/git/commits/<sha> --jq .sha      # 404 => not a commit
   ```
   All six pins in this repo were re-verified as commits on 2026-08-25.
+  ⚠️ **THE ORG IS GONE — 2026-09-02.** The owner deleted the RUN-APPAREL organisation
+  and its Enterprise plan and transferred this repo to the personal account
+  `hateem2121` (`origin` now `github.com/hateem2121/run-apparel-viewer`; PRs, repo
+  secrets and the `production` environment came along; org secrets and the org
+  ruleset did NOT). Ruleset `21016174` no longer exists, and on a personal Free plan
+  the rulesets API answers 403 *"Upgrade to GitHub Pro"* for a private repo — so until
+  the owner takes Pro, `main` has NO required checks and a merge deploys unguarded.
+  Everything below about the ruleset is the record of what to recreate.
   ⚠️ **THE REQUIRED-CHECKS LIST IS A SECOND COPY OF `deploy.needs`. IT IS NOT
   UNREADABLE — that claim was false and cost a session (L8-07).** It is repository
-  config under the ordinary `repo` scope, and one command prints it:
+  config under the ordinary `repo` scope, and one command prints it (once a ruleset
+  exists again):
   ```bash
-  gh api repos/RUN-APPAREL/run-apparel-viewer/rulesets/21016174 \
+  gh api repos/hateem2121/run-apparel-viewer/rulesets \
+    --jq '.[].id'   # then: gh api repos/hateem2121/run-apparel-viewer/rulesets/<id> \
     --jq '[.rules[]|select(.type=="required_status_checks").parameters.required_status_checks[].context]'
   ```
   It still cannot be a CI GATE — `GITHUB_TOKEN` has no `administration` permission —
