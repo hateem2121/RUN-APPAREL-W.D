@@ -1,6 +1,6 @@
 import { describeSpecIssues } from '../../../tools/asset-pipeline/src/gltf-spec'
 import type { GlbReport } from '../../../tools/asset-pipeline/src/validate'
-import { SIZE_WARNING_BYTES } from '../../../tools/asset-pipeline/src/validate'
+import { SIZE_WARNING_BYTES, describeSoftArtwork } from '../../../tools/asset-pipeline/src/validate'
 import type { OptimizeResult } from '../../../tools/asset-pipeline/src/optimize'
 
 /**
@@ -137,6 +137,18 @@ export function buildReportText(
         'and lettering on them are likely torn or blurred. This file has NOT been saved. ' +
         'Re-upload with the Detail setting on “Highest quality”, and if it happens again the artwork ' +
         'needs its own UV map in CLO.'
+      : '',
+    // Prints the pipeline chose to leave translucent. Loud, because a soft logo on a
+    // BLEND material is what the owner will see in the viewer — but NOT a refusal,
+    // because it is the pipeline's own decision (soft-edged alpha, or an opacity the
+    // designer set in CLO). Until 2026-09-02 this case refused the whole garment, and
+    // two of the owner's five finished files could not be published (audit F2-01,
+    // B-01). `artworkSoftOnBlend` is absent from a report built before that date.
+    glb.artworkSoftOnBlend?.length
+      ? `\n⚠️ SOFT PRINTED ARTWORK KEPT SEE-THROUGH on: ${glb.artworkSoftOnBlend.map(describeSoftArtwork).join('; ')}.\n` +
+        'These prints have soft edges or were made translucent in CLO, so the pipeline left them blended ' +
+        'instead of cutting them out. The file HAS been saved. Look at them in the viewer; if a print ' +
+        'should be solid, set its opacity to 100% in CLO and re-export.'
       : '',
     // The official Khronos verdict on what this pipeline just wrote.
     //

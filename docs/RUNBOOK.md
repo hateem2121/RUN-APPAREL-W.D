@@ -1172,7 +1172,7 @@ failure. Symptom → knob:
 | Symptom | Cause | What actually helps |
 |---|---|---|
 | Graphic smeared, warped, letters stretched | UV distortion during decimation | **Detail → Highest quality.** Also check `artworkAtRisk` in the report: if it names a part, that part's UVs were outside the error budget. |
-| Graphic see-through / "half there" | material left on `alphaMode: BLEND`; `<model-viewer>` has no OIT | Nothing the owner can set. The gate now refuses to save it — read the `Report`, which names the materials. |
+| Graphic see-through / "half there" | material left on `alphaMode: BLEND`; `<model-viewer>` has no OIT | Nothing the owner can set. Since 2026-09-02 the gate refuses only a hard-edged, fully opaque print still on BLEND (a pipeline fault — report it); a soft-edged or deliberately translucent print is SAVED and listed in the `Report` under "SOFT PRINTED ARTWORK KEPT SEE-THROUGH" — fix it in CLO (opacity 100%) if it should be solid. |
 | Graphic covered by a pale box | material forced `OPAQUE`, so the transparent background painted its underlying RGB — measured (240,240,240) on N001 | Nothing the owner can set. Fixed in `d8d745f`; a file built before 2026-08-04 still shows it. |
 | Graphic missing entirely | a `MASK` whose effective alpha never reaches `alphaCutoff 0.5`, or a decal drawn from its back face only | Nothing the owner can set. Report it. |
 

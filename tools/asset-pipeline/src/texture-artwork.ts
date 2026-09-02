@@ -1,10 +1,18 @@
-import type { Document, Texture, Transform } from '@gltf-transform/core'
+import type { Document, Material, Texture, Transform } from '@gltf-transform/core'
 import { alphaBoostForCoverage, applyAlphaBoost } from './alpha-coverage'
-import { findArtworkTexturesByGeometry } from './artwork-geometry'
+import { findArtworkTexturesByGeometry, isThreadOrHardwareName } from './artwork-geometry'
 import { EXTTextureWebP } from '@gltf-transform/extensions'
 import { createTransform, listTextureSlots } from '@gltf-transform/functions'
 import sharp, { type OutputInfo } from 'sharp'
-import { ARTWORK_ASPECT_RATIO, CRUSHED_BYTES_PER_PIXEL, profileAlpha } from './textures'
+import {
+  type AlphaProfile,
+  ARTWORK_ASPECT_RATIO,
+  CRUSHED_BYTES_PER_PIXEL,
+  NO_ALPHA_PROFILE,
+  OPAQUE_FACTOR_THRESHOLD,
+  profileAlpha,
+  resolveBlendAlpha,
+} from './textures'
 
 /**
  * Texture re-encoding that treats printed artwork differently from fabric.
@@ -43,9 +51,18 @@ const ARTWORK_NAME = /(logo|print|graphic|artwork|label|decal|badge|emblem|wordm
 /**
  * Artwork words safe to match against a MATERIAL name. See
  * `isArtworkMaterialByName` for why this is not `ARTWORK_NAME`.
+ *
+ * `slogan`, `extra mile`, `never look back` and the Japanese ろご / ロゴ ("logo")
+ * were added 2026-09-02 (audit MAT-17, CLO-04): CLO names the owner's slogan material
+ * `THE EXTRA MILE (Slogan)` on 33 materials across seven garments, `Extra Mile` and
+ * `Never Look Back` on others, and `ルン ろご。` ("run logo") on the women's dress —
+ * none matched, so none was protected from decimation. The audit's two-way control
+ * holds: none of the seven fabric names it tested (`Textile_Cotton`, `Texture_Map_01`,
+ * `Polyester_Textured`, `Cotton_Canvas`, `Default Fabric`, `SUPPLIER_DOBBY_A`,
+ * `Default Topstitch`) contains any of these words. Pinned in texture-artwork.test.ts.
  */
 const ARTWORK_MATERIAL_NAME =
-  /(^|[^a-z])(logo|print|graphic|artwork|label|decal|badge|emblem|wordmark)([^a-z]|$)/i
+  /(^|[^a-z])(logo|print|graphic|artwork|label|decal|badge|emblem|wordmark|slogan|extra mile|never look back|ろご|ロゴ)([^a-z]|$)/i
 
 /** Slots that are data, not pictures. Never treated as artwork whatever they are called. */
 const DATA_SLOT = /(normal|metallicRoughness|occlusion)Texture/i
@@ -123,9 +140,10 @@ function isDataTexture(texture: Texture): boolean {
  * only reads the texture is therefore silently inert on real CLO files — which is
  * exactly how a first attempt at the double-siding fix below did nothing at all.
  *
- * Deliberately NOT wired into `isArtworkTexture`. That feeds
- * `findArtworkAlphaProblems`, which throws and saves nothing, and widening a
- * blocking gate to fix a rendering bug is the wrong trade.
+ * Deliberately NOT wired into `isArtworkTexture` (the compression budget, which
+ * has the UV-span signal for that). It IS one of the strict gate's signals since
+ * 2026-09-02 — see `classifyArtworkForGate`, where a name is what separates a
+ * decal from thread.
  *
  * ⚠️ USES ITS OWN, TIGHTER PATTERN — do not "simplify" this back to `ARTWORK_NAME`.
  * That regex is unanchored and includes `text` and `type`, which is fine for
@@ -230,15 +248,119 @@ export async function findCrushedArtwork(document: Document): Promise<CrushedArt
 
 export interface ArtworkAlphaProblem {
   material: string
-  /** `blend` = renders see-through; `cutoff` = a MASK whose threshold drifted. */
+  /**
+   * `blend` = a print the opaque step would have cut out or made solid is still
+   * BLEND — the step did not run, or a later pass undid it; `cutoff` = a MASK whose
+   * threshold drifted off 0.5.
+   */
   problem: 'blend' | 'cutoff'
+}
+
+/**
+ * A print the pipeline deliberately left translucent. Reported loudly, never
+ * refused — see `auditArtworkAlpha`.
+ */
+export interface SoftArtworkOnBlend {
+  material: string
+  /**
+   * Why `solidifyMaterials` kept it on BLEND: `graded` — soft-edged alpha (a brush
+   * stroke, a feathered fade); `sheer-factor` — the material declares itself
+   * translucent in baseColorFactor[3], which CLO writes from the graphic's opacity
+   * slider; `undecodable` — the picture could not be read, so there was nothing to
+   * judge.
+   */
+  reason: 'graded' | 'sheer-factor' | 'undecodable'
+  /** baseColorFactor[3], the declared opacity, 0-1. */
+  factor: number
+  /** Share of pixels between fully clear and fully solid — how soft the print is. */
+  midFraction: number
+}
+
+export interface ArtworkAlphaAudit {
+  /** Refuse the garment. Structural, no false-positive case. */
+  problems: ArtworkAlphaProblem[]
+  /** Warn the owner. The pipeline's own considered judgement, stated. */
+  soft: SoftArtworkOnBlend[]
 }
 
 /** The value `solidifyMaterials` resolves every hard cutout to. */
 const EXPECTED_ALPHA_CUTOFF = 0.5
 
+export interface GateClassification {
+  /** May this material's alpha state refuse the garment? */
+  artwork: boolean
+  /** Which strict signal said so. */
+  reason: 'name' | 'cutout' | null
+  /** Named as thread, seam, zipper or other hardware: never artwork for the gate. */
+  excluded: boolean
+  /** The base-colour alpha profile when a decodable picture exists; reused by the gate. */
+  alpha: AlphaProfile | null
+}
+
 /**
- * Artwork materials whose alpha ended up wrong.
+ * The STRICT classifier — the only one allowed to refuse a garment.
+ *
+ * TWO QUESTIONS, TWO ANSWERS. "Does this picture deserve the higher compression
+ * budget?" is `isArtworkTexture` below: deliberately generous, because a false
+ * positive there costs a few hundred KB and a false negative crushes a print. "May
+ * this material's alpha state REFUSE the whole garment?" is this function, and it
+ * has to be strict, because a false positive here throws a finished garment away.
+ * Until 2026-09-02 one function answered both, and the shrink robot refused two of
+ * the owner's five finished garments — AERO-TECH WINDBREAKER and ARMOR-TECH JACKET —
+ * over materials named `Default Topstitch_3569` and `Default Topstitch_3296`: CLO's
+ * thread strip is 236x39, the generous classifier reads any strip 3x longer than
+ * wide as a wordmark BEFORE looking at its alpha, and the refusal message told the
+ * owner to re-export artwork that did not exist (audit F2-01, HG-01, B-03, CG-02,
+ * CT-06). Re-exporting could never clear it: the shape of the picture is CLO's.
+ *
+ * The rules, in order:
+ *   1. A material named as thread, seam, tape, zipper or hardware is never artwork
+ *      here, whatever its picture (`NOT_ARTWORK_NAME`, the list the compression
+ *      budget already trusted). The word was in the file all along.
+ *   2. A material — or its base-colour or emissive texture — NAMED as artwork is.
+ *      Material names, because a CLO export names the MATERIAL and leaves every
+ *      texture anonymous (0 of 24 on the Cycling-Bib export).
+ *   3. A hard alpha cut-out is: 'binary' alpha is a decal sitting on the garment.
+ *   4. SHAPE ALONE NEVER QUALIFIES. A long thin picture with soft alpha is thread
+ *      or trim; a wordmark's alpha is binary and rule 3 catches it.
+ *
+ * Only OPAQUE materials skip the decode — nothing about them can be refused.
+ */
+export async function classifyArtworkForGate(
+  material: Material,
+  cache: Map<Texture, AlphaProfile> = new Map(),
+): Promise<GateClassification> {
+  const name = material.getName() || ''
+  const base = material.getBaseColorTexture()
+  const emissive = material.getEmissiveTexture()
+  const alpha = base ? await profileFor(base, cache) : null
+  if (isThreadOrHardwareName(name)) return { artwork: false, reason: null, excluded: true, alpha }
+  const byName =
+    isArtworkMaterialByName(material) ||
+    (base ? isArtworkTextureByName(base) : false) ||
+    (emissive ? isArtworkTextureByName(emissive) : false)
+  if (byName) return { artwork: true, reason: 'name', excluded: false, alpha }
+  if (alpha?.character === 'binary')
+    return { artwork: true, reason: 'cutout', excluded: false, alpha }
+  return { artwork: false, reason: null, excluded: false, alpha }
+}
+
+/** One decode per texture: a CLO export binds one thread strip to hundreds of materials. */
+async function profileFor(
+  texture: Texture,
+  cache: Map<Texture, AlphaProfile>,
+): Promise<AlphaProfile | null> {
+  const image = texture.getImage()
+  if (!image) return null
+  const cached = cache.get(texture)
+  if (cached) return cached
+  const profile = await profileAlpha(image)
+  cache.set(texture, profile)
+  return profile
+}
+
+/**
+ * Artwork materials whose alpha ended up wrong — and the ones left soft on purpose.
  *
  * <model-viewer> has no order-independent transparency, so a BLEND material
  * renders see-through and depth-sorts badly — literally the "half visible, half
@@ -247,32 +369,71 @@ const EXPECTED_ALPHA_CUTOFF = 0.5
  * the OUTPUT, so a decal that slipped through as BLEND — or a MASK whose cutoff
  * drifted — shipped in silence.
  *
+ * WHAT REFUSES, SINCE 2026-09-02. A material still on BLEND is a `blend` problem
+ * only when `resolveBlendAlpha` — the very function solidifyMaterials applies —
+ * says it should have been changed. That is a real regression: the opaque step did
+ * not run, or a later pass undid it, and the same input would fail again. When
+ * that function says `keep`, the pipeline chose to leave the print translucent
+ * (soft-edged alpha, an explicit sheer factor, or an undecodable picture) and the
+ * material is reported in `soft` for the owner to look at, never refused. The
+ * audit's finding 5 was that on a normal run the old gate could only ever fire on
+ * the decision it was policing, or on misclassified thread; this makes that
+ * explicit. The MASK-cutoff-off-0.5 refusal is unchanged.
+ *
  * Scoped to artwork deliberately. A sheer mesh panel is *supposed* to be BLEND;
  * flagging every translucent material would make this noise, and the existing
  * `translucentMaterialCount` already reports that broader number.
  */
-export async function findArtworkAlphaProblems(document: Document): Promise<ArtworkAlphaProblem[]> {
+export async function auditArtworkAlpha(document: Document): Promise<ArtworkAlphaAudit> {
   const problems: ArtworkAlphaProblem[] = []
+  const soft: SoftArtworkOnBlend[] = []
+  const cache = new Map<Texture, AlphaProfile>()
   for (const material of document.getRoot().listMaterials()) {
-    let carriesArtwork = false
-    for (const texture of [material.getBaseColorTexture(), material.getEmissiveTexture()]) {
-      if (texture && (await isArtworkTexture(texture))) {
-        carriesArtwork = true
-        break
-      }
-    }
-    if (!carriesArtwork) continue
-    const name = material.getName() || '(unnamed material)'
     const mode = material.getAlphaMode()
-    if (mode === 'BLEND') {
-      problems.push({ material: name, problem: 'blend' })
-    } else if (mode === 'MASK' && material.getAlphaCutoff() !== EXPECTED_ALPHA_CUTOFF) {
-      problems.push({ material: name, problem: 'cutoff' })
+    if (mode === 'OPAQUE') continue
+    const classification = await classifyArtworkForGate(material, cache)
+    if (!classification.artwork) continue
+    const name = material.getName() || '(unnamed material)'
+    if (mode === 'MASK') {
+      if (material.getAlphaCutoff() !== EXPECTED_ALPHA_CUTOFF) {
+        problems.push({ material: name, problem: 'cutoff' })
+      }
+      continue
     }
+    // BLEND: ask the solidify decision itself. An untextured material gets the same
+    // no-pixels profile solidifyMaterials gives it.
+    const factor = material.getBaseColorFactor()[3] ?? 1
+    const alpha = classification.alpha ?? NO_ALPHA_PROFILE
+    if (resolveBlendAlpha(alpha, factor) !== 'keep') {
+      problems.push({ material: name, problem: 'blend' })
+      continue
+    }
+    const reason: SoftArtworkOnBlend['reason'] =
+      alpha.character === 'unknown'
+        ? 'undecodable'
+        : factor < OPAQUE_FACTOR_THRESHOLD
+          ? 'sheer-factor'
+          : 'graded'
+    soft.push({ material: name, reason, factor, midFraction: alpha.midFraction })
   }
-  return problems
+  return { problems, soft }
 }
 
+/** The refusals only. Kept for the sweep and eval scripts; validate.ts uses the audit. */
+export async function findArtworkAlphaProblems(document: Document): Promise<ArtworkAlphaProblem[]> {
+  return (await auditArtworkAlpha(document)).problems
+}
+
+/** The warnings only. */
+export async function findSoftArtworkOnBlend(document: Document): Promise<SoftArtworkOnBlend[]> {
+  return (await auditArtworkAlpha(document)).soft
+}
+
+/**
+ * The GENEROUS classifier: does this picture deserve the higher compression budget?
+ * Feeds `compressTexturesForArtwork` and the crushed-artwork warning. Since
+ * 2026-09-02 it feeds NO blocking gate — see `classifyArtworkForGate`.
+ */
 export async function isArtworkTexture(texture: Texture): Promise<boolean> {
   if (isDataTexture(texture)) return false
   if (isArtworkTextureByName(texture)) return true

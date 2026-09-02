@@ -61,13 +61,26 @@ export const ARTWORK_MAX_UV_SPAN = 12
  * stitch primitives across the catalogue. Without this guard every one of them
  * would take the artwork budget and the file would grow for thread nobody can see.
  * Hardware is small in UV for the same reason and is not a picture either.
+ *
+ * SINCE 2026-09-02 THIS LIST ALSO GUARDS THE BLOCKING GATE. The 2026-09 audit found
+ * the shrink robot refusing two finished garments over materials literally named
+ * `Default Topstitch_3569` and `Default Topstitch_3296` (F2-01, B-03, CT-06): the
+ * gate read the picture's SHAPE (a 236x39 strip) and never the name. A material
+ * named here is never artwork for the gate, whatever its picture looks like — see
+ * `classifyArtworkForGate` in texture-artwork.ts. `tape` and `thread` were added for
+ * the same reason (CLO's zipper tape is `Zipper 1_TapeFabric`).
  */
-const NOT_ARTWORK_NAME =
-  /(^|[^a-z])(topstitch|stitch|seam|zipper|zip|slider|puller|stopper|button|snap|rivet|buckle|hook|eyelet|grommet|люверсы)([^a-z]|$)/i
+export const NOT_ARTWORK_NAME =
+  /(^|[^a-z])(topstitch|stitch|thread|seam|tape|zipper|zip|slider|puller|stopper|button|snap|rivet|buckle|hook|eyelet|grommet|люверсы)([^a-z]|$)/i
 
 /** Split CamelCase so `TopStitch` matches as two tokens. See material-class.ts. */
 function splitCamelCase(name: string): string {
   return name.replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+}
+
+/** Is this material, by its own name, thread, seam, zipper or other hardware? */
+export function isThreadOrHardwareName(name: string): boolean {
+  return NOT_ARTWORK_NAME.test(splitCamelCase(name || ''))
 }
 
 /**
@@ -98,8 +111,7 @@ export function findArtworkTexturesByGeometry(document: Document): Set<Texture> 
       const span = Math.max((max[0] ?? 0) - (min[0] ?? 0), (max[1] ?? 0) - (min[1] ?? 0))
 
       const looksLikeArtwork =
-        span <= ARTWORK_MAX_UV_SPAN &&
-        !NOT_ARTWORK_NAME.test(splitCamelCase(material.getName() || ''))
+        span <= ARTWORK_MAX_UV_SPAN && !isThreadOrHardwareName(material.getName())
 
       if (looksLikeArtwork) artwork.add(texture)
       else disqualified.add(texture)

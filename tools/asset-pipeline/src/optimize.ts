@@ -9,12 +9,7 @@ import { createIO, readGlb } from './io'
 import { alignVariantTexCoords } from './variant-texcoord'
 import { DEFAULT_STITCH_PATTERN, type TopstitchResult, reduceTopstitch } from './topstitch'
 import { type PbrNormalizeResult, normalizePbr } from './pbr-normalize'
-import {
-  type AlphaProfile,
-  CUTOUT_MID_FRACTION,
-  CUTOUT_MIN_TRANSPARENT,
-  profileAlpha,
-} from './textures'
+import { type AlphaProfile, NO_ALPHA_PROFILE, profileAlpha, resolveBlendAlpha } from './textures'
 import {
   type AttributeSimplifier,
   type SimplifyTexturedResult,
@@ -251,60 +246,10 @@ export interface SolidifyResult {
   doubleSided: number
 }
 
-/** Below this base-colour alpha a material is doing something deliberate with transparency. */
-const OPAQUE_FACTOR_THRESHOLD = 0.99
-
-/**
- * An alpha channel that is only ANTI-ALIASING, not translucency.
- *
- * ⚠️ THIS PAIR IS THE FIX FOR "IT GOES SEE-THROUGH WHEN YOU ROTATE IT", 2026-08-27.
- * Both halves are required and neither is arbitrary.
- *
- * WHAT WAS HAPPENING. CLO packs garment panels into one texture atlas and
- * anti-aliases their edges in the alpha channel. Measured on the raw X-MILO CORE
- * OVERSIZE export, over all 36,437,385 pixels of its 6835x5331 fabric texture:
- * **0.000% fully clear — not one pixel** — 93.33% fully solid, 6.67% in a soft
- * border band. `profileAlpha` calls a texture 'opaque' only at >= 99.9% solid and
- * 'binary' only at <= 2% partial, so this fell through to 'graded' and was kept on
- * BLEND as "deliberate translucency". <model-viewer> has no order-independent
- * transparency, so BLEND materials depth-sort per object and the sort flips as the
- * camera moves: 99 BLEND went in, 50 came out, and the garment turned see-through
- * on rotation. A texture with no clear pixels cannot be seen through.
- *
- * WHY BOTH HALVES. A uniformly sheer fabric — chiffon at alpha 0.5 — ALSO has no
- * fully-clear pixels, and forcing it opaque would destroy it. It has almost no
- * fully-SOLID pixels either, so the second half excludes it.
- *
- * ⚠️ THREE CONDITIONS, BECAUSE TWO WERE NOT ENOUGH AND THE SUITE CAUGHT IT. The
- * first version tested only "no clear pixels" and "mostly solid", and it broke the
- * organza-inset test — a 22x22 patch at alpha 90 on an otherwise solid map, which
- * is 0% clear and 97% solid and IS genuinely translucent. Counting partial pixels
- * cannot separate the two: the defect is 6.67% partial and the organza only 2.95%,
- * the wrong way round. What separates them is how DEEP the partiality goes.
- *
- * WHERE THE NUMBERS COME FROM, all measured:
- *   - clear < 1%   : every genuinely translucent or cut-out baseColor texture across
- *                    X-MILO, PRO-PILE and MATRIX-PUFF carries at least 9.29% fully
- *                    clear pixels; the defect carries 0.00%.
- *   - sheer < 0.5% : X-MILO's fabric is 0.015% below alpha 128 — its partial pixels
- *                    sit at 192-247, a visually solid edge ramp. The organza inset
- *                    is 2.95% at alpha 90. A ~200x separation.
- *   - solid >= 75% : well under the measured 93.33%, and far above the ~0% a
- *                    uniformly sheer chiffon would show, so an anti-aliasing band
- *                    may cover a quarter of the atlas before this stops firing.
- *
- * A large panel at alpha ~200 that is cut out nowhere WILL be forced opaque by this.
- * That is accepted: at 78% opacity the change is barely visible, and CLO's soft edge
- * is a likelier explanation than a design intent nothing else in the file records.
- *
- * ⚠️ Do NOT "simplify" this to a looser `opaqueFraction` threshold inside
- * `profileAlpha`. That character is also read by `isArtworkTexture`, which feeds a
- * BLOCKING gate, and widening a blocking gate to fix a rendering bug is the wrong
- * trade — the same reasoning that keeps `isArtworkMaterialByName` out of it.
- */
-const DECORATIVE_ALPHA_MAX_TRANSPARENT = 0.01
-const DECORATIVE_ALPHA_MAX_SHEER = 0.005
-const DECORATIVE_ALPHA_MIN_OPAQUE = 0.75
+// The BLEND decision — OPAQUE_FACTOR_THRESHOLD, the DECORATIVE_ALPHA_* trio, the cutout
+// test and their order — lives in textures.ts as `resolveBlendAlpha` since 2026-09-02,
+// so the gate that polices this step (`auditArtworkAlpha`) shares its exact rule. The
+// measurements behind every number moved with them.
 
 /**
  * Force fabric to render solid — deciding per material from its actual alpha
@@ -356,69 +301,21 @@ export async function solidifyMaterials(document: Document): Promise<SolidifyRes
       // An untextured material has no pixels to profile: zero of everything, so
       // it can never satisfy the cutout test and falls through to OPAQUE, which
       // is the CLO stray-opacity case this step was built for.
-      const alpha: AlphaProfile = image
-        ? await profileAlpha(image)
-        : {
-            character: 'none',
-            transparentFraction: 0,
-            opaqueFraction: 0,
-            midFraction: 0,
-            sheerFraction: 0,
-          }
+      const alpha: AlphaProfile = image ? await profileAlpha(image) : NO_ALPHA_PROFILE
       const factor = material.getBaseColorFactor()[3] ?? 1
 
-      // A cutout is "hardly any partial alpha" AND "actually cut out somewhere".
-      // The second half is not decoration: a uniformly translucent inset has
-      // little partial alpha too, and MASKing it at 0.5 deletes it outright
-      // rather than hardening it. See CUTOUT_MIN_TRANSPARENT.
-      const cutout =
-        alpha.character === 'binary' ||
-        (alpha.midFraction <= CUTOUT_MID_FRACTION &&
-          alpha.transparentFraction >= CUTOUT_MIN_TRANSPARENT)
-
-      if (alpha.character === 'unknown') {
-        // N8, 2026-08-18. 'unknown' means sharp could not DECODE the image
-        // (textures.ts) and every fraction is 0. Zeroes from a failed decode are
-        // absence of evidence, not evidence of opacity — but the chain below read
-        // them as opacity: cutout is false because 0 >= CUTOUT_MIN_TRANSPARENT
-        // fails, character is not 'graded', so a BLEND material fell through to
-        // OPAQUE and a cutout became a solid rectangle.
-        //
-        // Note this is NOT the 'none' case above, which is an untextured material
-        // with genuinely no pixels to profile and must keep falling through to
-        // OPAQUE — that is the CLO stray-opacity case this whole step was built
-        // for.
-        //
-        // Not reachable on a first pass: solidifyMaterials runs BEFORE texture
-        // compression, and WebP (the default) decodes fine. This closes the
-        // --ktx2 second-pass case, a narrower consequence of the documented
-        // "never run the pipeline on its own output" trap.
+      // ONE decision, shared with the gate that checks this step's output — see
+      // resolveBlendAlpha in textures.ts for every branch and the measurement behind
+      // it. 'keep' is deliberate translucency (soft-edged alpha, an explicit sheer
+      // factor, or a picture that would not decode) and the report says so; the
+      // operator can still decide the garment is not sheer and re-export it.
+      const resolution = resolveBlendAlpha(alpha, factor)
+      if (resolution === 'keep') {
         result.keptBlend++
-      } else if (factor < OPAQUE_FACTOR_THRESHOLD) {
-        // An explicit declaration on the material beats anything inferred from
-        // its pixels. glTF effective alpha is factor.a * texel.a, so a material
-        // that declares itself sheer at 0.4 can never reach alphaCutoff 0.5 —
-        // MASK would discard every fragment and render it as nothing at all,
-        // silently, passing every gate.
-        result.keptBlend++
-      } else if (cutout) {
+      } else if (resolution === 'MASK') {
         // A real cutout. Keep the shape, lose the sorting problem.
         material.setAlphaMode('MASK').setAlphaCutoff(0.5)
         result.masked++
-      } else if (
-        alpha.transparentFraction < DECORATIVE_ALPHA_MAX_TRANSPARENT &&
-        alpha.sheerFraction < DECORATIVE_ALPHA_MAX_SHEER &&
-        alpha.opaqueFraction >= DECORATIVE_ALPHA_MIN_OPAQUE
-      ) {
-        // Anti-aliasing, not translucency — see the constants above. Mutually
-        // exclusive with `cutout`, which needs >= CUTOUT_MIN_TRANSPARENT clear
-        // pixels, so the order of these two branches cannot change the outcome.
-        material.setAlphaMode('OPAQUE')
-        result.opaqued++
-      } else if (alpha.character === 'graded') {
-        // Deliberate translucency. Leave it and say so — the operator can still
-        // decide this garment is not sheer and re-export it.
-        result.keptBlend++
       } else {
         material.setAlphaMode('OPAQUE')
         result.opaqued++

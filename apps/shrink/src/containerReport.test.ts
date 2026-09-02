@@ -44,6 +44,7 @@ const glb = (over: Partial<GlbReport> = {}): GlbReport => ({
   alphaModeCounts: { OPAQUE: 7 },
   crushedArtwork: [],
   artworkAlphaProblems: [],
+  artworkSoftOnBlend: [],
   variantColours: [],
   // A clean spec verdict is the DEFAULT here on purpose: every test below is about
   // what the owner is told for some OTHER reason, and a fixture that quietly
@@ -130,6 +131,38 @@ describe('buildReportText — the artwork block', () => {
     )
     expect(text).toContain('has NOT been saved')
     expect(text).toContain('Highest quality')
+  })
+
+  // The other half of the artwork story, since 2026-09-02. A soft print the pipeline
+  // chose to keep translucent used to REFUSE the whole garment (audit F2-01, B-01);
+  // now it is the loudest non-blocking line in the report, and it must say the file
+  // was saved, because the owner reads "see-through" as "it failed".
+  it('names soft prints kept see-through, says why, and says the file WAS saved', () => {
+    const text = buildReportText(
+      opt(),
+      glb({
+        artworkSoftOnBlend: [
+          { material: 'RUN BRUSH LOGO_3183', reason: 'graded', factor: 1, midFraction: 0.51 },
+          { material: 'ルン ろご。_57892', reason: 'sheer-factor', factor: 0.4, midFraction: 0.01 },
+        ],
+      }),
+      'x.glb',
+    )
+    expect(text).toContain(
+      'SOFT PRINTED ARTWORK KEPT SEE-THROUGH on: RUN BRUSH LOGO_3183 (soft edges — 51% of pixels part-transparent); ルン ろご。_57892 (declared 40% opaque in CLO)',
+    )
+    expect(text).toContain('The file HAS been saved')
+    expect(text).not.toContain('has NOT been saved')
+  })
+
+  it('stays silent about soft prints when there are none, and on a report from an older container', () => {
+    expect(buildReportText(opt(), glb(), 'x.glb')).not.toContain('SOFT PRINTED ARTWORK')
+    // A report from a container built before the field existed simply lacks it.
+    const older: Partial<GlbReport> = { ...glb() }
+    delete older.artworkSoftOnBlend
+    expect(buildReportText(opt(), older as GlbReport, 'x.glb')).not.toContain(
+      'SOFT PRINTED ARTWORK',
+    )
   })
 
   it('stays silent about artwork when none was at risk', () => {

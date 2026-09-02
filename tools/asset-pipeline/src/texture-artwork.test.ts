@@ -3,9 +3,12 @@ import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
 import { CRUSHED_BYTES_PER_PIXEL } from './textures'
 import {
+  auditArtworkAlpha,
+  classifyArtworkForGate,
   compressTexturesForArtwork,
   findArtworkAlphaProblems,
   findCrushedArtwork,
+  isArtworkMaterialByName,
   isArtworkTexture,
 } from './texture-artwork'
 
@@ -351,33 +354,221 @@ describe('findCrushedArtwork', () => {
  * Structural like `artworkAtRisk`, not a guess: these are stated facts about the
  * output file.
  */
-describe('findArtworkAlphaProblems', () => {
-  const artworkTexture = (document: Document) =>
-    document
-      .createTexture('chest-logo')
-      .setMimeType('image/png')
-      .setImage(new Uint8Array([0x89, 0x50]))
+/**
+ * A soft-edged print: half its ink is part-transparent, like ARISAN BRA's brush
+ * logo (51% soft-of-ink, audit F1-01). `profileAlpha` reads it as 'graded'.
+ */
+async function softPng(size = 64): Promise<Uint8Array> {
+  const channels = 4
+  const data = Buffer.alloc(size * size * channels, 0)
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * channels
+      // A horizontal band whose alpha ramps 0 → 255 → 0 across its height: ink with
+      // feathered edges everywhere, and fully clear rows above and below it.
+      const band = y >= size / 4 && y < (3 * size) / 4
+      const t = band ? 1 - Math.abs((y - size / 2) / (size / 4)) : 0
+      data[i] = 220
+      data[i + 1] = 20
+      data[i + 2] = 40
+      data[i + 3] = Math.round(255 * t)
+    }
+  }
+  const buffer = await sharp(data, { raw: { width: size, height: size, channels } })
+    .png()
+    .toBuffer()
+  return new Uint8Array(buffer)
+}
 
-  it('flags a printed graphic left translucent', async () => {
+/** CLO's topstitch strip: 236x39, soft alpha, bound to a material named as thread. */
+async function threadStripPng(): Promise<Uint8Array> {
+  const width = 236
+  const height = 39
+  const channels = 4
+  const data = Buffer.alloc(width * height * channels, 0)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * channels
+      // A cord down the middle with feathered edges — every row part-transparent.
+      const t = Math.max(0, 1 - Math.abs((y - height / 2) / (height / 2)))
+      data[i] = 200
+      data[i + 1] = 200
+      data[i + 2] = 200
+      data[i + 3] = Math.round(255 * t)
+    }
+  }
+  const buffer = await sharp(data, { raw: { width, height, channels } }).png().toBuffer()
+  return new Uint8Array(buffer)
+}
+
+const materialWith = (
+  document: Document,
+  name: string,
+  image: Uint8Array | null,
+  mode: 'BLEND' | 'MASK' | 'OPAQUE' = 'BLEND',
+) => {
+  const material = document.createMaterial(name).setAlphaMode(mode)
+  if (image) {
+    material.setBaseColorTexture(
+      document.createTexture('').setMimeType('image/png').setImage(image),
+    )
+  }
+  return material
+}
+
+/**
+ * THE GATE'S CLASSIFIER, and the negative controls that made the audit's two refusals.
+ *
+ * Until 2026-09-02 one generous classifier fed a blocking gate, and CLO's 236x39
+ * thread strip — six times longer than wide, soft alpha, bound to a material named
+ * `Default Topstitch_3569` — was read as a wordmark BEFORE its alpha was looked at.
+ * Two of the owner's five finished garments could never be published (audit F2-01,
+ * HG-01, B-03, CG-02, CT-06). Each case below is one of those garments in miniature.
+ */
+describe('classifyArtworkForGate — the strict classifier', () => {
+  it('never calls a material named as thread artwork, whatever the picture', async () => {
     const document = new Document()
-    document
-      .createMaterial('N001-GRAPHIC')
-      .setBaseColorTexture(artworkTexture(document))
-      .setAlphaMode('BLEND')
+    const material = materialWith(document, 'Default Topstitch_3569', await threadStripPng())
+    const c = await classifyArtworkForGate(material)
+    expect(c).toMatchObject({ artwork: false, excluded: true, reason: null })
+  })
 
-    expect(await findArtworkAlphaProblems(document)).toEqual([
-      { material: 'N001-GRAPHIC', problem: 'blend' },
+  it('does NOT let a long thin picture qualify on its shape alone', async () => {
+    // Same strip, unnamed material. The generous classifier still says artwork
+    // (aspect 6.05) — that is its job. The gate must not.
+    const document = new Document()
+    const material = materialWith(document, 'Untitled', await threadStripPng())
+    expect(await isArtworkTexture(material.getBaseColorTexture()!)).toBe(true)
+    const c = await classifyArtworkForGate(material)
+    expect(c.artwork).toBe(false)
+    expect(c.alpha?.character).toBe('graded')
+  })
+
+  it('recognises artwork by the MATERIAL name — CLO leaves every texture anonymous', async () => {
+    const document = new Document()
+    const material = materialWith(document, 'RUN BRUSH LOGO_3183', await softPng())
+    expect(await classifyArtworkForGate(material)).toMatchObject({ artwork: true, reason: 'name' })
+  })
+
+  it('recognises a hard cut-out as a decal even with no name at all', async () => {
+    const document = new Document()
+    const material = materialWith(document, '76197', await cutoutPng())
+    expect(await classifyArtworkForGate(material)).toMatchObject({
+      artwork: true,
+      reason: 'cutout',
+    })
+  })
+
+  it('negative control: the thread fixture DOES qualify once it is renamed and hard-edged', async () => {
+    // Proves the exclusion and the softness are what clear the thread, not a broken
+    // fixture: rename the material and give it binary alpha, and it is artwork.
+    const document = new Document()
+    const material = materialWith(document, 'RUN LOGO', await cutoutPng())
+    expect(await classifyArtworkForGate(material)).toMatchObject({ artwork: true, reason: 'name' })
+  })
+})
+
+describe('isArtworkMaterialByName — the slogans CLO actually writes (MAT-17)', () => {
+  const named = (name: string) => ({ getName: () => name })
+
+  it.each([
+    'THE EXTRA MILE (Slogan)_9946590',
+    'Extra Mile_3170',
+    'Never Look Back',
+    'ルン ろご。_57892',
+    'All Slogan',
+    'RUN LOGO_3183',
+    'Material_Graphic_8132306',
+  ])('classifies %s as artwork', (name) => {
+    expect(isArtworkMaterialByName(named(name))).toBe(true)
+  })
+
+  // The audit's two-way control: seven fabric names that must stay at 0 false
+  // positives. Every word added to the list has to keep this green.
+  it.each([
+    'Textile_Cotton',
+    'Texture_Map_01',
+    'Polyester_Textured',
+    'Cotton_Canvas_2961',
+    'Default Fabric_2915',
+    'SUPPLIER_DOBBY_A_8132292',
+    'Default Topstitch_3168',
+  ])('does NOT classify the fabric name %s as artwork', (name) => {
+    expect(isArtworkMaterialByName(named(name))).toBe(false)
+  })
+})
+
+/**
+ * THE GATE. Refuses only what the pipeline would have changed and did not; warns
+ * about what it chose to keep. Each block names the audit finding it closes.
+ */
+describe('auditArtworkAlpha — refusals and warnings', () => {
+  it('a thread strip on BLEND is neither a problem nor a warning (F2-01, HG-01, B-03)', async () => {
+    const document = new Document()
+    materialWith(document, 'Default Topstitch_3569', await threadStripPng())
+    expect(await auditArtworkAlpha(document)).toEqual({ problems: [], soft: [] })
+    expect(await findArtworkAlphaProblems(document)).toEqual([])
+  })
+
+  it('a soft-edged print kept on BLEND is a WARNING, not a refusal (F1-01, B-01)', async () => {
+    const document = new Document()
+    materialWith(document, 'RUN BRUSH LOGO_3183', await softPng())
+    const audit = await auditArtworkAlpha(document)
+    expect(audit.problems).toEqual([])
+    expect(audit.soft).toHaveLength(1)
+    expect(audit.soft[0]).toMatchObject({
+      material: 'RUN BRUSH LOGO_3183',
+      reason: 'graded',
+      factor: 1,
+    })
+    expect(audit.soft[0]?.midFraction).toBeGreaterThan(0.1)
+  })
+
+  it("a print CLO made translucent (factor 0.4) is a WARNING that says so (B-01, women's dress)", async () => {
+    const document = new Document()
+    materialWith(document, 'ルン ろご。_57892', await cutoutPng()).setBaseColorFactor([
+      1, 1, 1, 0.4,
+    ])
+    const audit = await auditArtworkAlpha(document)
+    expect(audit.problems).toEqual([])
+    expect(audit.soft).toEqual([
+      {
+        material: 'ルン ろご。_57892',
+        reason: 'sheer-factor',
+        factor: 0.4,
+        midFraction: expect.any(Number),
+      },
     ])
   })
 
-  it('flags a cut-out whose threshold drifted off 0.5', async () => {
+  it('a hard cut-out at full opacity still on BLEND IS refused — the opaque step did not run', async () => {
     const document = new Document()
-    document
-      .createMaterial('N001-GRAPHIC')
-      .setBaseColorTexture(artworkTexture(document))
-      .setAlphaMode('MASK')
-      .setAlphaCutoff(0.1)
+    materialWith(document, 'RUN LOGO_3183', await cutoutPng())
+    expect(await auditArtworkAlpha(document)).toEqual({
+      problems: [{ material: 'RUN LOGO_3183', problem: 'blend' }],
+      soft: [],
+    })
+  })
 
+  it('negative control both ways: the same refused fixture passes once solidified to MASK 0.5', async () => {
+    const document = new Document()
+    materialWith(document, 'RUN LOGO_3183', await cutoutPng(), 'MASK').setAlphaCutoff(0.5)
+    expect(await auditArtworkAlpha(document)).toEqual({ problems: [], soft: [] })
+  })
+
+  it('a picture that will not decode is a warning, never a refusal (N8)', async () => {
+    const document = new Document()
+    materialWith(document, 'N001-GRAPHIC', new Uint8Array([0x89, 0x50]))
+    const audit = await auditArtworkAlpha(document)
+    expect(audit.problems).toEqual([])
+    expect(audit.soft).toEqual([
+      { material: 'N001-GRAPHIC', reason: 'undecodable', factor: 1, midFraction: 0 },
+    ])
+  })
+
+  it('flags a cut-out whose threshold drifted off 0.5 — unchanged', async () => {
+    const document = new Document()
+    materialWith(document, 'N001-GRAPHIC', await cutoutPng(), 'MASK').setAlphaCutoff(0.1)
     expect(await findArtworkAlphaProblems(document)).toEqual([
       { material: 'N001-GRAPHIC', problem: 'cutoff' },
     ])
@@ -385,27 +576,41 @@ describe('findArtworkAlphaProblems', () => {
 
   it('accepts the shape the pipeline is supposed to produce', async () => {
     const document = new Document()
-    document
-      .createMaterial('N001-GRAPHIC')
-      .setBaseColorTexture(artworkTexture(document))
-      .setAlphaMode('MASK')
-      .setAlphaCutoff(0.5)
-
+    materialWith(document, 'N001-GRAPHIC', await cutoutPng(), 'MASK').setAlphaCutoff(0.5)
     expect(await findArtworkAlphaProblems(document)).toEqual([])
   })
 
   it('leaves sheer FABRIC alone — a mesh panel is legitimately translucent', async () => {
     const document = new Document()
-    document
-      .createMaterial('N001-MESH-PANEL')
-      .setBaseColorTexture(
-        document
-          .createTexture('fabric-mesh')
-          .setMimeType('image/png')
-          .setImage(new Uint8Array([0x89, 0x50])),
-      )
-      .setAlphaMode('BLEND')
+    materialWith(document, 'N001-MESH-PANEL', await softPng())
+    expect(await auditArtworkAlpha(document)).toEqual({ problems: [], soft: [] })
+  })
 
-    expect(await findArtworkAlphaProblems(document)).toEqual([])
+  it('never decodes an OPAQUE material and skips it', async () => {
+    const document = new Document()
+    materialWith(document, 'RUN LOGO_3183', new Uint8Array([0x89, 0x50]), 'OPAQUE')
+    expect(await auditArtworkAlpha(document)).toEqual({ problems: [], soft: [] })
+  })
+
+  it('reaches a material bound only through a colourway variant', async () => {
+    // The repo's recurring trap: a pass that touches materials must reach the ones
+    // behind KHR_materials_variants. Root.listMaterials() does, and this pins it.
+    const { KHRMaterialsVariants } = await import('@gltf-transform/extensions')
+    const document = new Document()
+    const ext = document.createExtension(KHRMaterialsVariants)
+    const only = materialWith(document, 'RUN LOGO_3183', await cutoutPng())
+    const primitive = document
+      .createPrimitive()
+      .setMaterial(materialWith(document, 'FABRIC 1', null, 'OPAQUE'))
+    primitive.setExtension(
+      'KHR_materials_variants',
+      ext
+        .createMappingList()
+        .addMapping(ext.createMapping().setMaterial(only).addVariant(ext.createVariant('wine'))),
+    )
+    document.createMesh('m').addPrimitive(primitive)
+    expect((await auditArtworkAlpha(document)).problems).toEqual([
+      { material: 'RUN LOGO_3183', problem: 'blend' },
+    ])
   })
 })

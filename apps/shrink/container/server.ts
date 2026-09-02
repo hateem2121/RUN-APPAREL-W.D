@@ -196,6 +196,7 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
       },
       crushedArtwork: glb.crushedArtwork,
       artworkAlphaProblems: glb.artworkAlphaProblems,
+      artworkSoftOnBlend: glb.artworkSoftOnBlend,
       ...(opt.simplify ? { simplify: opt.simplify } : {}),
       ...(opt.textures ? { textures: opt.textures } : {}),
       ...(opt.solidify ? { solidify: opt.solidify } : {}),

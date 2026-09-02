@@ -190,11 +190,17 @@ make the shrink worker throw `PermanentJobError` and save nothing:
 | Finding | Where it is decided |
 |---|---|
 | A primitive carrying printed artwork took the position-only decimation fallback | `simplify-textured.ts` → `artworkAtRisk` |
-| An artwork material ended on `alphaMode: BLEND` | `texture-artwork.ts` → `findArtworkAlphaProblems` |
+| A hard-edged, opaque print is STILL `BLEND` (the opaque step would have changed it) | `texture-artwork.ts` → `auditArtworkAlpha` |
 | An artwork `MASK` has an `alphaCutoff` other than 0.5 | same |
 
 All three are *structural* — a stated fact about the output file, with no
-false-positive case — which is why they block. The bytes-per-pixel measurement
+false-positive case — which is why they block. ⚠️ **Until 2026-09-02 the second row
+refused two finished garments over THREAD**: the generous classifier read CLO's 236x39
+topstitch strip as a wordmark by SHAPE, before its soft alpha (F2-01, B-03, CT-06). The
+gate now has its own strict classifier (`classifyArtworkForGate`: material name or
+binary alpha, never a `NOT_ARTWORK_NAME`, shape alone never) and asks
+`resolveBlendAlpha` — solidify's own decision — whether a BLEND material should have
+changed; soft or translucent prints are reported (`artworkSoftOnBlend`), never refused. The bytes-per-pixel measurement
 (`findCrushedArtwork`) only **warns**, because a legitimately flat label encodes
 just as small as a smashed wordmark, and a gate the owner learns to override is
 worse than no gate. Keep that distinction if you add checks.
@@ -278,8 +284,8 @@ only the root's one-liners. Open this file before changing anything here.
   is exactly what the gate considers correct so nothing catches it. Hence
   `CUTOUT_MIN_TRANSPARENT` (0.05): the wordmark is 66.38% fully transparent,
   those insets are 0.000%. Keep both halves. And keep the two constants separate
-  — `character` feeds `isArtworkTexture` → `findArtworkAlphaProblems`, which
-  **throws and saves nothing**, so widening it widens a blocking gate.
+  — `character` 'binary' is also the gate's cut-out signal (`classifyArtworkForGate`),
+  so widening it widens what may refuse a garment.
 - **An explicit `baseColorFactor[3]` beats anything inferred from pixels.** glTF
   effective alpha is `factor.a * texel.a`, so a material declaring itself sheer at
   0.4 can never reach `alphaCutoff 0.5` — MASK renders it as *nothing at all*,
@@ -368,11 +374,8 @@ only the root's one-liners. Open this file before changing anything here.
   production garment, so it catches a preset or simplifier regression and would
   still miss damage specific to a particular CLO export.
   **Closed for N001 later the same day by `pnpm eval:artwork:real`**, which runs
-  the same method on the actual 382 MB export. It is **manual and local** — the
-  monthly workflow that used to run it was deleted on 2026-08-07, because the R2
-  copy it pulled expires after 14 days and the surviving copy is on a laptop no
-  runner can reach (see `docs/RUNBOOK.md` → "The canonical raw garment"). Measured
-  on the real file: fidelity
+  the same method on the actual 382 MB export. It is **manual and local** — why is
+  in "Before you change the pipeline" above. Measured on the real file: fidelity
   **0.980%**, balanced **2.990%**, sweep run F **5.770%**, `--uv-weight 0`
   **5.810%**, ceiling **4.2%**. Run F is the one that "passed all three gates"
   above — there is now a number that stops it.
@@ -483,9 +486,8 @@ only the root's one-liners. Open this file before changing anything here.
 - **An all-over print on `BLEND` is classified as sheer FABRIC and takes the 2048
   cap.** The Cycling-Bib halftone is 4952×7014 and got squashed to 1446×2048 (0.29×),
   turning round dots into blocky squares. **`--max-texture 4096` is the safe lever.**
-  Do NOT instead widen `isArtworkTexture` — `character` feeds it into
-  `findArtworkAlphaProblems`, which **throws and saves nothing**, so widening it
-  widens a *blocking* gate.
+  Do NOT instead widen `isArtworkTexture`: since 2026-09-02 it feeds the compression
+  budget only, but its aspect-ratio rule is exactly what misread thread as a wordmark.
 - **KTX2 came out SMALLER here (20.3 MB vs 22.2 MB) and must still be REFUSED.**
   ETC1S turned the clean white bib panel **grey and blotchy**; the letters survived,
   the fabric did not. Caught only by cropping the same region from both renders.

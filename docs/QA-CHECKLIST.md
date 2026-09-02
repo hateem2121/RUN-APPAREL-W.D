@@ -113,8 +113,12 @@ Full guide: [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md).
         UVs. **Re-upload at Highest quality.**
       - *"…came out see-through"* / *"the cut-out threshold … is wrong"* → an
         `alphaMode` fault, decided identically at every Detail level. **Detail
-        will not help.** Re-export the graphic on its own opaque piece in CLO, or
-        tell your developer. See RAW-UPLOAD-PIPELINE.md → troubleshooting
+        will not help.** Since 2026-09-02 "see-through" refuses only a hard-edged,
+        fully opaque print the pipeline failed to cut out — a pipeline fault, so
+        tell your developer rather than re-exporting. A soft or deliberately
+        translucent print no longer refuses: it is saved and listed in the report
+        under "SOFT PRINTED ARTWORK KEPT SEE-THROUGH". See RAW-UPLOAD-PIPELINE.md →
+        troubleshooting
 
 ## Performance & assets
 

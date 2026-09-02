@@ -141,6 +141,17 @@ interface ShrinkReport {
    */
   artworkAlphaProblems?: { material: string; problem: 'blend' | 'cutoff' }[]
   /**
+   * Prints the pipeline deliberately left translucent (soft edges, or an opacity set
+   * in CLO). Reported in `text`, NEVER refused — until 2026-09-02 these refused two of
+   * the owner's five finished garments (audit F2-01). Absent from an older container.
+   */
+  artworkSoftOnBlend?: {
+    material: string
+    reason: 'graded' | 'sheer-factor' | 'undecodable'
+    factor: number
+    midFraction: number
+  }[]
+  /**
    * Khronos glTF-Validator's verdict on the SHRUNK output.
    *
    * Absent from a container built before 2026-08-29, which reads as "nothing to
@@ -403,10 +414,12 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
     const cutoff = alphaProblems.filter((p) => p.problem === 'cutoff').map((p) => p.material)
     throw new PermanentJobError(
       (blend.length > 0
-        ? `The printed artwork on ${blend.join(', ')} came out see-through, which is how a logo ends up "half there". `
+        ? `The printed artwork on ${blend.join(', ')} came out see-through: a hard-edged, fully opaque print was left ` +
+          'blended, which the pipeline’s own opaque step should have cut out. '
         : `The cut-out threshold on ${cutoff.join(', ')} is wrong, which thins or fattens the lettering. `) +
-        'The file was not saved. This usually means the graphic is painted onto a transparent fabric ' +
-        'layer in CLO rather than sitting on the garment — re-export it with the artwork on its own opaque piece.',
+        'The file was not saved. This is a pipeline fault, not an export problem — re-exporting will not ' +
+        'change it; report it. (Soft-edged or deliberately translucent prints no longer refuse a garment; ' +
+        'they are listed in the report instead.)',
     )
   }
 
