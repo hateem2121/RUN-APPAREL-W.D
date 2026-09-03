@@ -191,23 +191,68 @@ describe('listArchive follows the cursor and refuses a partial answer', () => {
 })
 
 describe('the committed manifest', () => {
-  it('parses, names the archive bucket, and lists the five FIXED GLBs among its objects', () => {
+  /**
+   * ⚠️ THIS NAMED THE FIVE PRE-RE-EXPORT COPIES UNTIL 2026-09-04, AND IT TURNED `main`
+   * RED. The 2026-09-03 re-export rewrote every garment with CLO's "Diffuse Color
+   * Combined on Texture" OFF (so each colourway carries its own colour), and the
+   * manifest correctly moved the superseded copies into a `superseded` block. This test
+   * did not move with it, so a deliberate, documented restructure failed CI as though
+   * the archive had lost files. Assert the CURRENT masters, not a historical snapshot:
+   * the point of the assertion is that this set must never shrink silently.
+   */
+  it('parses, names the archive bucket, and lists the eleven diffuse-off masters among its objects', () => {
     const manifest = loadManifest()
     expect(manifest.bucket).toBe(ARCHIVE_BUCKET)
     const keys = manifest.objects.map((o: { key: string }) => o.key)
     for (const name of [
-      'AERO-TECH WINDBREAKER.zip.glb',
+      'AERO-TECH WINDBREAKER.glb',
       'APEX FLEX PULLOVER.glb',
       'ARISAN BRA.glb',
       'ARMOR-TECH JACKET.glb',
-      'Minecut Motion.glb',
+      'CLASSIC SOCCER SHIRT.zip.glb',
+      'MINECUT MOTION.glb',
+      'THE AGGRESSOR JERSEY.glb',
+      // Two spaces, deliberately: it matches the CLO export's own filename on disk, and
+      // the manifest row carries that file's real sha256. Do not "tidy" it.
+      'THE AGGRESSOR MEN  JERSEY.glb',
+      'WOMEN ZIP-UP VEST.glb',
+      'X-MILO PRO BIB.glb',
+      'X-MILO PRO SKIN-SUIT.glb',
     ]) {
-      expect(keys).toContain(`fixed-glbs/${name}`)
+      expect(keys).toContain(`fixed-glbs/2026-09-03-diffuse-off/${name}`)
     }
     // The two raw exports Rank 5 (republish the live garments) starts from.
     expect(keys).toContain('raw-exports/3d-products/cycling all colours.glb')
     expect(keys).toContain('raw-exports/3d-products/Cycling-Bib.glb')
-    expect(keys).toContain('fixed-glbs/2026-09-02/THE AGGRESSOR MEN JERSEY.glb')
-    expect(keys.length).toBeGreaterThanOrEqual(18)
+    expect(keys.length).toBeGreaterThanOrEqual(21)
+  })
+
+  /**
+   * The invariant the `superseded` block exists to create — and the half that was
+   * missing when the block was added on 2026-09-03. A key the owner is about to delete
+   * must be OUT of `objects`, so the nightly verifier reports it as an unverified EXTRA
+   * until the bucket stops holding it, never as a MISSING object. Those two readings
+   * differ entirely: an extra is a pending chore, a missing archive object is an alarm.
+   *
+   * Nothing in scripts/verify-archive.mjs reads `superseded` — the block is documentation
+   * — so this test is the only thing keeping the two lists from overlapping.
+   */
+  it('keeps every superseded key out of `objects`, so a pending deletion reads as an extra and never as a loss', () => {
+    const manifest = loadManifest()
+    // `new Set<string>`, explicitly: verify-archive.mjs is plain JS, so `manifest` is
+    // `any` and the bare `new Set(...)` widens to `Set<unknown>` regardless of the
+    // callback's annotation. Caught by `pnpm typecheck`, which is why it runs.
+    const objectKeys = new Set<string>(manifest.objects.map((o: { key: string }) => o.key))
+    const superseded: string[] = manifest.superseded?.keys ?? []
+    const overlap = (sup: string[], objs: Set<string>) => sup.filter((k) => objs.has(k))
+
+    // NEGATIVE CONTROL, because the real assertion passes vacuously once the owner has
+    // deleted the objects and the `superseded` block goes with them (the block's own note
+    // says to remove it then). Prove the check can still SEE an overlap before trusting
+    // that it found none — a verifier can only fail at its job by passing.
+    const planted = 'fixed-glbs/2026-09-03-diffuse-off/ARISAN BRA.glb'
+    expect(overlap([planted], objectKeys)).toEqual([planted])
+
+    expect(overlap(superseded, objectKeys)).toEqual([])
   })
 })
