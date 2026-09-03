@@ -117,11 +117,17 @@ jobs:
             echo "::error::No dump to copy — the export step produced nothing."
             exit 1
           fi
+          # ⚠️ ABSOLUTE PATH, on purpose. `pnpm --filter` runs wrangler with its cwd in
+          # apps/cms, so the repo-relative `backups/d1/…` that the glob above found does
+          # not exist from there: every nightly run from 2026-09-01 failed here with
+          # `The file "backups/d1/….sql" does not exist` while the export, the replay and
+          # the artifact upload all passed — the "second home" this step exists to give
+          # the database had never received a single copy. Found 2026-09-03.
           for dump in "${dumps[@]}"; do
             key="run-apparel-viewer-db/$(basename "$dump")"
             echo "uploading $dump -> run-private/$key"
             pnpm --filter @run-apparel/cms exec wrangler r2 object put \
-              "run-private/$key" --file "$dump" --remote
+              "run-private/$key" --file "$GITHUB_WORKSPACE/$dump" --remote
           done
 
       # ⚠️ The upload above is only worth having if it ARRIVED. `wrangler r2 object
