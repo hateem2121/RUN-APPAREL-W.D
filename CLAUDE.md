@@ -362,8 +362,7 @@ the answer is "nothing that happens in production", it is not a test.
   `--simplify-error` is. **Five added 2026-08-21, all from one 1.31 GB export:** a CLO
   file is **99.97% topstitch and 0.03% garment**, so thread needs its own `--stitch`
   budget and a *wide crop cannot see* a frayed cord (judge at 4–7°, not the default
-  18°); ⛔ **draco DOES NOT LOAD on the deployed viewer** — production stays on
-  `--meshopt`; normal/ORM maps outweighed the artwork at colour-map resolution
+  18°); draco **loads live since 2026-08-30 (GEO-02)** but production stays on `--meshopt` — the Draco bib was 3.4 MB larger and 20 MB heavier on the GPU (LIVE-08); normal/ORM maps outweighed the artwork at colour-map resolution
   (`--data-max-texture`); an all-over print on `BLEND` is read as sheer fabric and
   silently squashed to 29%; **KTX2 came out smaller yet still had to be refused**
   because ETC1S mottles white fabric; **a CLO export leaves every TEXTURE anonymous**
@@ -381,8 +380,7 @@ the answer is "nothing that happens in production", it is not a test.
   glTF** for want of an `EXT_texture_webp` declaration, which `<model-viewer>` renders
   anyway; **`prune()` renumbers UV sets and updates only the DEFAULT material**,
   leaving colourway-only ones pointing at an attribute that no longer exists; and
-  **`pnpm eval:artwork` fails on macOS while CI is green** — deterministic to three
-  decimals across three commits, so do NOT raise the ceiling.
+  **`pnpm eval:artwork` PASSES on macOS since 2026-08-29** (this said the opposite until 2026-09-03) — a local failure is real; do NOT raise the ceiling.
   **Added 2026-09-03:** every UV set is moved into 0..1 and stored 16-bit, so a finished
   file's raw UV span means nothing — read it through `uvSpanInPatternSpace`.
   ⚠️ These are hooks, not the traps; after `/compact` only THIS file is re-injected —

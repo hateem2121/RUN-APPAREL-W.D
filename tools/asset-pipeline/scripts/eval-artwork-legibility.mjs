@@ -446,17 +446,13 @@ export function inertFlags(flags, result) {
   }
   if (
     has('--max-texture') &&
-    !(
-      result.textures &&
-      result.textures.standardResized &&
-      result.textures.standardResized.length > 0
-    )
+    !(result.textures?.standardResized && result.textures.standardResized.length > 0)
   ) {
     inert.push('--max-texture')
   }
   if (
     has('--data-max-texture') &&
-    !(result.textures && result.textures.dataResized && result.textures.dataResized.length > 0)
+    !(result.textures?.dataResized && result.textures.dataResized.length > 0)
   ) {
     inert.push('--data-max-texture')
   }

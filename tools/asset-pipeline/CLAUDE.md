@@ -413,9 +413,10 @@ only the root's one-liners. Open this file before changing anything here.
   feature.** At the default `crop-chest` (18°) the ruined cord looked *identical*
   to the original and was reported as such. At **4°** it is obviously spiky. Judge
   thread with `render --views` at 4–7°.
-- **⛔ DRACO DOES NOT LOAD ON THE DEPLOYED VIEWER. Production is `--meshopt`, and
-  `--draco` must not be re-enabled until a live cold load proves otherwise.** Shipped
-  a draco garment on 2026-08-21: it rendered NOTHING and fell back to its poster,
+- **DRACO LOADS LIVE SINCE THE SEEDING FIX (measured 2026-08-30, GEO-02); PRODUCTION
+  STAYS `--meshopt` ANYWAY** — the Draco bib was 3.4 MB larger and 20 MB heavier on the
+  GPU (LIVE-08). The history: shipped a draco garment on 2026-08-21, it rendered
+  NOTHING and fell back to its poster,
   with the console showing model-viewer fetching the decoder from `www.gstatic.com`,
   which the CSP correctly blocks. On a cold live page
   `ModelViewerElement.dracoDecoderLocation` reads the gstatic default while
@@ -424,10 +425,8 @@ only the root's one-liners. Open this file before changing anything here.
   lives in `Stage.tsx` and is **unverified**.
   ⚠️ **This bullet said the exact opposite until the same day** — "smaller AND faster
   … so this needed no viewer change" — which would have shipped an unloadable model.
-  The SPEED measurement was real and is worth reclaiming once the viewer is fixed:
-  matched builds, CPU-throttled via CDP, median of 3 — 4× throttle **meshopt
-  31.0 MB / 1168 ms vs draco 20.6 MB / 908 ms**; 6× 1672 vs 1259. A model nobody can
-  load is worth nothing, so the number is parked, not acted on. **Checking that code
+    The SPEED measurement (4× throttle: meshopt 31.0 MB / 1168 ms vs draco 20.6 MB /
+  908 ms) is parked: on the wire and the GPU, LIVE-08 measured Draco worse. **Checking that code
   is committed and deployed is NOT checking that it works** — the decoder line was
   both, and was inert.
 - **A CLO export names the MATERIAL and leaves EVERY TEXTURE ANONYMOUS.** Measured

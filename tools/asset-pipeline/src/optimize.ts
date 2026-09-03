@@ -525,19 +525,41 @@ export async function buildOptimizeTransforms(
     )
   } else if (options.texture === 'ktx2') {
     const imageDecoder = makeImageDecoder(max)
-    // Two passes, following Basis Universal best practice:
-    //  - Normal maps → UASTC (preserves the surface detail lossy ETC1S would smear).
-    //  - Colour / data maps → ETC1S (far higher compression where it is safe).
-    // The normal pass runs first; the ETC1S pass is scoped to colour slots so it
-    // never touches the already-encoded normal maps.
+    // Three passes, following Basis Universal best practice — and, since 2026-09-03,
+    // with the colour space said EXPLICITLY on every one (fix plan Rank 14, audits
+    // TEX-03 / TEX-12): the encoder writes the file's transfer function from
+    // `isSetKTX2SRGBTransferFunc`, and until now no pass set it, so colour and data
+    // maps were stamped alike. A normal or roughness map read through an sRGB
+    // transfer is a different surface; a colour map read as linear is a different
+    // colour. That, not ETC1S vs UASTC, was the variable in the 2026-08-21 refusal.
+    //  - Normal maps → UASTC, linear (preserves the surface detail ETC1S would smear).
+    //  - Colour maps (baseColor, emissive) → ETC1S, sRGB.
+    //  - Other data maps (occlusion, metallicRoughness) → ETC1S, linear.
+    // Each pass is scoped by slot so none re-encodes another's output.
+    const ktx2Quality = options.textureQuality ?? DEFAULT_TEXTURE_QUALITY
     transforms.push(
-      ktx2({ isUASTC: true, generateMipmap: true, imageDecoder, slots: /normalTexture/i }),
       ktx2({
-        isUASTC: false,
-        qualityLevel: options.textureQuality ?? DEFAULT_TEXTURE_QUALITY,
+        isUASTC: true,
         generateMipmap: true,
         imageDecoder,
-        slots: /(baseColor|emissive|occlusion|metallicRoughness)Texture/i,
+        slots: /normalTexture/i,
+        isSetKTX2SRGBTransferFunc: false,
+      }),
+      ktx2({
+        isUASTC: false,
+        qualityLevel: ktx2Quality,
+        generateMipmap: true,
+        imageDecoder,
+        slots: /(baseColor|emissive)Texture/i,
+        isSetKTX2SRGBTransferFunc: true,
+      }),
+      ktx2({
+        isUASTC: false,
+        qualityLevel: ktx2Quality,
+        generateMipmap: true,
+        imageDecoder,
+        slots: /(occlusion|metallicRoughness)Texture/i,
+        isSetKTX2SRGBTransferFunc: false,
       }),
     )
   }
