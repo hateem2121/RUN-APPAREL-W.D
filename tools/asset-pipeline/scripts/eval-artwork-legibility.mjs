@@ -131,6 +131,34 @@ const CONTROL_FLAGS = [
 const TEXTURE_CONTROL_FLAGS = [...TEXTURE_FLAGS, '--uv-weight', '0', '--decimate-artwork']
 
 /**
+ * The preset-ORDERING rows, and they exist for the same reason the control above grew
+ * `--decimate-artwork` on 2026-09-02 — a fix that was applied to the control and missed
+ * here.
+ *
+ * `fidelity` is the stricter preset: a tighter `--simplify-error` (0.0002 vs 0.001) and
+ * double the `--uv-weight`. The ordering check asserts it is never the worse one. But
+ * since Rank 3 a print piece is NEVER decimated, so on the shipped flags neither of
+ * those two settings can reach the wordmark this eval measures — and the two presets
+ * emit a BYTE-IDENTICAL file. Measured 2026-09-04: both sha256 0c04d972…, both 197,924
+ * bytes, both 0.520%. The assertion was comparing a file to itself and passing by tie.
+ *
+ * It did not stay a tie in CI. The one primitive that IS still decimated renders
+ * slightly differently in the Linux container, and the shipped rows drifted apart there
+ * — 1.070% vs 0.520%, twice, deterministically — so a strict `>` on two numbers that
+ * should be equal failed on a difference the presets did not cause. The eval was
+ * reporting a preset regression it had no ability to see.
+ *
+ * Decimating the artwork restores the signal the ordering claim is about, exactly as it
+ * did for the control. Measured 2026-09-04, and repeated to confirm determinism:
+ *   fidelity + --decimate-artwork   1.500%  (mean 2.10)   98,244 bytes
+ *   balanced + --decimate-artwork   2.480%  (mean 3.82)   92,368 bytes
+ * A 0.98-point margin, 1.65×, in the right direction — a real measurement rather than
+ * two identical files and a tie. The shipped rows keep their own job: the ceiling.
+ */
+const ORDERING_FIDELITY_FLAGS = [...FIDELITY_FLAGS, '--decimate-artwork']
+const ORDERING_BALANCED_FLAGS = [...BALANCED_FLAGS, '--decimate-artwork']
+
+/**
  * Damage ceiling: fraction of pixels in the wordmark view differing by more than
  * `DIFF_THRESHOLD` (8/255) from the undecimated render.
  *
@@ -597,6 +625,22 @@ async function main() {
     'texture-control',
     TEXTURE_CONTROL_FLAGS,
   )
+  // The ordering pair — see ORDERING_FIDELITY_FLAGS. Decimation ON, so the two presets
+  // actually differ and the comparison measures the claim it names.
+  const orderingFidelity = await damageFor(
+    srcGlb,
+    baselineDir,
+    workDir,
+    'ordering-fidelity',
+    ORDERING_FIDELITY_FLAGS,
+  )
+  const orderingBalanced = await damageFor(
+    srcGlb,
+    baselineDir,
+    workDir,
+    'ordering-balanced',
+    ORDERING_BALANCED_FLAGS,
+  )
 
   const pct = (v) => `${(v * 100).toFixed(3)}%`
   console.log(
@@ -615,6 +659,9 @@ async function main() {
     `  T-CONTROL (texture, uv 0)        changed ${pct(textureControl.changedFraction)}  mean ${textureControl.meanDelta}`,
   )
   console.log(`  ceiling                          ${pct(MAX_CHANGED_FRACTION)}`)
+  console.log(
+    `  ordering  fidelity vs balanced   ${pct(orderingFidelity.changedFraction)} vs ${pct(orderingBalanced.changedFraction)} (decimation ON — stricter preset must be lower)`,
+  )
   for (const row of [shipped, fidelity, texture]) {
     console.log(
       `  flags acting (${row.label}): ${row.inert.length ? `⚠️ INERT ${row.inert.join(', ')}` : 'every shipped flag did something'}`,
@@ -651,12 +698,38 @@ async function main() {
         `  which is the entire reason this eval exists.`,
     )
   }
-  if (fidelity.changedFraction > shipped.changedFraction) {
+  /*
+   * ⚠️ THIS COMPARED THE SHIPPED ROWS UNTIL 2026-09-04, WHERE IT COULD NOT WORK.
+   * On the shipped flags the print is never decimated, so the two presets emit a
+   * byte-identical file and this passed only by exact tie — while in the Linux
+   * container an unrelated primitive moved the two apart and failed it. Both readings
+   * were wrong about presets. It now runs on the decimated pair, where the settings it
+   * names actually reach the artwork. See ORDERING_FIDELITY_FLAGS for the measurements.
+   */
+  if (orderingFidelity.changedFraction > orderingBalanced.changedFraction) {
     failures.push(
-      `fidelity damaged MORE than balanced (${pct(fidelity.changedFraction)} vs ${pct(shipped.changedFraction)}).\n` +
-        `  fidelity is the stricter preset; if it is now the worse one, the presets or the simplifier have\n` +
-        `  regressed and shrink.ts's ordering claim is no longer true.`,
+      `fidelity damaged MORE than balanced with decimation on ` +
+        `(${pct(orderingFidelity.changedFraction)} vs ${pct(orderingBalanced.changedFraction)}).\n` +
+        `  fidelity is the stricter preset — tighter --simplify-error, double the --uv-weight — so it must\n` +
+        `  never be the worse one. If it is, the presets or the simplifier have regressed and shrink.ts's\n` +
+        `  ordering claim is no longer true. Look at ${orderingFidelity.sheet} and ${orderingBalanced.sheet}.`,
     )
+  }
+  /*
+   * The ordering rows are only worth reading if decimation actually reached the print in
+   * BOTH of them — otherwise this pair collapses to a tie exactly as the shipped rows
+   * did, and the check above would go quietly blind again. Structural, not a threshold:
+   * `artworkAtRisk` is populated only when a primitive carrying artwork was decimated
+   * with its texture coordinates outside the error metric.
+   */
+  for (const row of [orderingFidelity, orderingBalanced]) {
+    if (!row.artworkAtRisk.length) {
+      failures.push(
+        `The ordering row ${row.label} did not decimate the artwork at all, so the preset comparison\n` +
+          '  above measured nothing. --decimate-artwork has stopped reaching the print; fix that, do not\n' +
+          '  drop the check.',
+      )
+    }
   }
   if (control.changedFraction <= MAX_CHANGED_FRACTION) {
     failures.push(
