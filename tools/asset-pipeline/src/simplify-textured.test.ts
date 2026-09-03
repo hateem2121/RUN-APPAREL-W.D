@@ -1,4 +1,4 @@
-import { Document } from '@gltf-transform/core'
+import { Document, type Primitive } from '@gltf-transform/core'
 import { MeshoptSimplifier } from 'meshoptimizer'
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -310,27 +310,162 @@ function attachArtwork(document: Document, prim: ReturnType<typeof buildGrid>) {
   return material
 }
 
-describe('runSimplifyTextured — artwork at risk', () => {
-  it('names the material when an artwork-bearing primitive takes the fallback', () => {
+/**
+ * PRINT PIECES ARE NEVER DECIMATED — fix plan Rank 3, 2026-09-02. Until then a primitive
+ * carrying artwork was decimated like any other and merely FLAGGED, and only on the rare
+ * position-only path (audit HG-02, F1-09): on every real garment the alarm was silent by
+ * construction while the fast path tore the lettering (B-02, A-01, F1-02). Now the
+ * primitive is left exactly as exported, whichever path it would have taken, and the
+ * report names it. `decimateArtwork: true` restores the old behaviour — the negative
+ * control that proves the skip is what protects the print.
+ */
+/**
+ * CLO fabric tiles its swatch — UVs run to 20, 40, 80 — while a print maps once, so
+ * findArtworkTexturesByGeometry reads a span over ARTWORK_MAX_UV_SPAN as fabric.
+ * buildGrid's UVs span exactly 1, i.e. decal-shaped; this makes them fabric-shaped.
+ */
+function tileUvs(prim: Primitive, repeats: number): void {
+  const uv = prim.getAttribute('TEXCOORD_0')
+  if (!uv) throw new Error('tileUvs needs TEXCOORD_0')
+  const array = uv.getArray()
+  if (!array) throw new Error('tileUvs needs a UV array')
+  for (let i = 0; i < array.length; i++) array[i] = (array[i] as number) * repeats
+  uv.setArray(array)
+}
+
+describe('runSimplifyTextured — print pieces are never decimated', () => {
+  it('leaves an artwork primitive untouched even where it would have taken the fallback', () => {
     const document = new Document()
-    const prim = buildGrid(document, 33, false) // no TEXCOORD_0 → position-only path
+    const prim = buildGrid(document, 33, false) // no TEXCOORD_0 → would be position-only
     attachArtwork(document, prim)
+    const before = triangleCount(prim)
 
     const result = runSimplifyTextured(document, options())
 
-    expect(result.fallback).toBe(1)
-    expect(result.artworkAtRisk).toEqual(['N001-CHEST-GRAPHIC'])
+    expect(triangleCount(prim)).toBe(before)
+    expect(result.fallback).toBe(0)
+    expect(result.artworkUntouched).toBe(1)
+    expect(result.artworkUntouchedMaterials).toEqual(['N001-CHEST-GRAPHIC'])
+    expect(result.artworkAtRisk).toEqual([])
   })
 
-  it('reports nothing when the artwork primitive keeps the UV-aware path', () => {
+  it('leaves it untouched on the UV-aware path too — the path that actually tore the letters', () => {
     const document = new Document()
     const prim = buildGrid(document) // has TEXCOORD_0
     attachArtwork(document, prim)
+    const before = triangleCount(prim)
 
     const result = runSimplifyTextured(document, options())
 
-    expect(result.attributeAware).toBe(1)
-    expect(result.artworkAtRisk).toEqual([])
+    expect(triangleCount(prim)).toBe(before)
+    expect(result.attributeAware).toBe(0)
+    expect(result.artworkUntouched).toBe(1)
+  })
+
+  it('NEGATIVE CONTROL: with decimateArtwork the print IS decimated, and the alarm names it on both paths', () => {
+    const fallback = new Document()
+    const fallbackPrim = buildGrid(fallback, 33, false)
+    attachArtwork(fallback, fallbackPrim)
+    const before = triangleCount(fallbackPrim)
+    const r1 = runSimplifyTextured(fallback, options({ decimateArtwork: true }))
+    expect(triangleCount(fallbackPrim)).toBeLessThan(before)
+    expect(r1.fallback).toBe(1)
+    expect(r1.artworkUntouched).toBe(0)
+    expect(r1.artworkAtRisk).toEqual(['N001-CHEST-GRAPHIC'])
+
+    const aware = new Document()
+    const awarePrim = buildGrid(aware)
+    attachArtwork(aware, awarePrim)
+    const r2 = runSimplifyTextured(aware, options({ decimateArtwork: true }))
+    expect(r2.attributeAware).toBe(1)
+    // The audit's silent alarm (HG-02): the old code named nothing here. Now a
+    // decimated print is named on this path too — the alarm fires on a fixture
+    // where a print is decimated, which is F1-09's closure test.
+    expect(r2.artworkAtRisk).toEqual(['N001-CHEST-GRAPHIC'])
+  })
+
+  it('still decimates plain fabric', () => {
+    const document = new Document()
+    const prim = buildGrid(document)
+    const texture = document
+      .createTexture()
+      .setMimeType('image/png')
+      .setImage(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))
+    prim.setMaterial(document.createMaterial('FABRIC 1_2860').setBaseColorTexture(texture))
+    tileUvs(prim, 20)
+    const before = triangleCount(prim)
+
+    const result = runSimplifyTextured(document, options())
+
+    expect(triangleCount(prim)).toBeLessThan(before)
+    expect(result.artworkUntouched).toBe(0)
+  })
+
+  it('protects a print whose material carries a CLO code-name, by UV span alone (HG-03)', () => {
+    // Anonymous name, but a decal-sized UV rectangle: findArtworkTexturesByGeometry says
+    // artwork. buildGrid's UVs span exactly 1x1, well under ARTWORK_MAX_UV_SPAN.
+    const document = new Document()
+    const prim = buildGrid(document)
+    const texture = document
+      .createTexture()
+      .setMimeType('image/png')
+      .setImage(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))
+    prim.setMaterial(document.createMaterial('Asset 2@2400x_220324').setBaseColorTexture(texture))
+    const before = triangleCount(prim)
+
+    const result = runSimplifyTextured(document, options())
+
+    expect(triangleCount(prim)).toBe(before)
+    expect(result.artworkUntouchedMaterials).toEqual(['Asset 2@2400x_220324'])
+  })
+
+  it('does NOT protect thread that happens to be decal-sized in UV', () => {
+    const document = new Document()
+    const prim = buildGrid(document)
+    const texture = document
+      .createTexture()
+      .setMimeType('image/png')
+      .setImage(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))
+    prim.setMaterial(document.createMaterial('Topstitch 1_3332').setBaseColorTexture(texture))
+    const before = triangleCount(prim) // UV span 1: decal-shaped, and still thread
+
+    const result = runSimplifyTextured(document, options())
+
+    expect(triangleCount(prim)).toBeLessThan(before)
+    expect(result.artworkUntouched).toBe(0)
+  })
+
+  it('protects a print bound ONLY through a colourway variant — the twice-missed trap', async () => {
+    const { KHRMaterialsVariants } = await import('@gltf-transform/extensions')
+    const document = new Document()
+    const prim = buildGrid(document)
+    // Default material: plain fabric with a big atlas span would be decimated...
+    const fabricTexture = document
+      .createTexture()
+      .setMimeType('image/png')
+      .setImage(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))
+    prim.setMaterial(document.createMaterial('FABRIC 1').setBaseColorTexture(fabricTexture))
+    tileUvs(prim, 20)
+    // ...but one colourway binds a print to the same geometry.
+    const ext = document.createExtension(KHRMaterialsVariants)
+    const print = document.createMaterial('RUN LOGO_3183').setBaseColorTexture(
+      document
+        .createTexture()
+        .setMimeType('image/png')
+        .setImage(new Uint8Array([0x89, 0x50, 0x4e, 0x47])),
+    )
+    prim.setExtension(
+      'KHR_materials_variants',
+      ext
+        .createMappingList()
+        .addMapping(ext.createMapping().setMaterial(print).addVariant(ext.createVariant('wine'))),
+    )
+    const before = triangleCount(prim)
+
+    const result = runSimplifyTextured(document, options())
+
+    expect(triangleCount(prim)).toBe(before)
+    expect(result.artworkUntouchedMaterials).toContain('RUN LOGO_3183')
   })
 
   it('does not flag plain fabric that falls back — only artwork is at risk', () => {
@@ -371,11 +506,16 @@ describe('runSimplifyTextured — the gate reads the MATERIAL name, not the text
     return prim
   }
 
-  it('flags a real CLO shape: named material, anonymous texture', () => {
+  it('protects a real CLO shape: named material, anonymous texture', () => {
     const document = new Document()
     withNames(document, 'Material_Graphic_3488354')
 
-    expect(runSimplifyTextured(document, options()).artworkAtRisk).toEqual([
+    const result = runSimplifyTextured(document, options())
+    expect(result.artworkUntouchedMaterials).toEqual(['Material_Graphic_3488354'])
+    // And under the explicit opt-in, the old gate still names it on the fallback path.
+    const again = new Document()
+    withNames(again, 'Material_Graphic_3488354')
+    expect(runSimplifyTextured(again, options({ decimateArtwork: true })).artworkAtRisk).toEqual([
       'Material_Graphic_3488354',
     ])
   })
@@ -390,7 +530,9 @@ describe('runSimplifyTextured — the gate reads the MATERIAL name, not the text
     const document = new Document()
     withNames(document, 'Cotton_Canvas_2961', 'Texture')
 
-    expect(runSimplifyTextured(document, options()).artworkAtRisk).toEqual([])
+    const result = runSimplifyTextured(document, options())
+    expect(result.artworkAtRisk).toEqual([])
+    expect(result.artworkUntouched).toBe(0)
   })
 
   it('does not flag a material named as artwork that shows no texture at all', () => {
@@ -399,14 +541,16 @@ describe('runSimplifyTextured — the gate reads the MATERIAL name, not the text
     const prim = fallbackPrim(document)
     prim.setMaterial(document.createMaterial('LOGO Plate Metal'))
 
-    expect(runSimplifyTextured(document, options()).artworkAtRisk).toEqual([])
+    const result = runSimplifyTextured(document, options())
+    expect(result.artworkAtRisk).toEqual([])
+    expect(result.artworkUntouched).toBe(0)
   })
 
   it('catches the other real names this catalogue actually uses', () => {
     for (const name of ['RUN LOGO_3488411', 'LOGO Team wear Embridory gold gold_3488372']) {
       const document = new Document()
       withNames(document, name)
-      expect(runSimplifyTextured(document, options()).artworkAtRisk).toEqual([name])
+      expect(runSimplifyTextured(document, options()).artworkUntouchedMaterials).toEqual([name])
     }
   })
 })

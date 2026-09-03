@@ -311,8 +311,18 @@ jobs:
       # is a STEP in this gating job rather than a job of its own, which would either
       # trip the deploy-gating rule or block every deploy waiting on a check that
       # cannot run.
-      - name: Dependency review (pull requests only)
-        if: github.event_name == 'pull_request'
+      # ⚠️ PUBLIC REPOSITORIES ONLY, since 2026-09-03. The action calls GitHub's
+      # dependency-review API, which a PRIVATE repository gets only with Advanced
+      # Security (Enterprise). It ran while the RUN-APPAREL org was on Enterprise; on
+      # the personal Free plan the repo moved to on 2026-09-02 it fails every pull
+      # request with "Dependency review is not supported on this repository", which
+      # blocked PR #60 with the vulnerability audit above already green. That audit
+      # (audit-ci, high/critical, path-scoped allow-list) is the gate that actually
+      # reads advisories; this step only re-reviewed the PR's dependency diff. Skipping
+      # it where it cannot run is honest; `continue-on-error` would hide a real finding
+      # the day Advanced Security exists again.
+      - name: Dependency review (pull requests on a public repository only)
+        if: github.event_name == 'pull_request' && github.event.repository.private == false
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high
@@ -628,6 +638,18 @@ jobs:
       - name: Artwork legibility eval
         run: pnpm eval:artwork
 
+      # THE INSTRUMENTS, READ BACK FROM A REAL BROWSER — audit HR-7, 2026-09-02.
+      # Every earlier test of the two local <model-viewer> pages checked TEXT: that the
+      # page source contained "Object.defineProperty(camera, 'near'". A model-viewer
+      # release that renamed one internal symbol would leave all of that green while
+      # the pages quietly stopped installing the near plane and the decal bias — the
+      # two things that made the harness misrepresent the product in the first place.
+      # This loads a fixture into Chromium and reads the internals back. It runs HERE,
+      # not in `verify`, because this is the job with a browser; in the plain runner
+      # the file skips itself loudly, and a skipped browser test is not a passed one.
+      - name: Instruments read back from a real browser
+        run: pnpm --filter @run-apparel/asset-pipeline exec vitest run src/instruments.browser.test.ts
+
   deploy:
     # `artwork` joined this list on 2026-08-06 — see the evidence above its job.
     # It is the only gate here that looks at what the customer actually sees:
@@ -641,11 +663,12 @@ jobs:
     # blocks a merge. `apps/cms/src/workflowHardening.test.ts` enforces this half.
     #
     # ⚠️ THIS SAID THE RULESET IS "org config no test here can read" UNTIL 2026-08-30.
-    # It is not org config — `gh api repos/RUN-APPAREL/run-apparel-viewer/rulesets/21016174`
+    # It is not org config — `gh api repos/hateem2121/run-apparel-viewer/rulesets/<id>` (the
+    # org and its ruleset 21016174 were deleted on 2026-09-02; see .github/CLAUDE.md)
     # returns `"source_type": "Repository"` and its five contexts under the ordinary
     # `repo` scope. Run that when changing a gating job; it is one command, and the
     # belief that it was unreadable is why nobody did.
-    #   gh api repos/RUN-APPAREL/run-apparel-viewer/rulesets/21016174 \
+    #   gh api repos/hateem2121/run-apparel-viewer/rulesets/<id> \
     #     --jq '[.rules[]|select(.type=="required_status_checks").parameters.required_status_checks[].context]'
     # It still cannot be a CI GATE: GITHUB_TOKEN has no `administration` permission,
     # so a workflow cannot read it. Unreadable BY CI is not the same as unreadable.

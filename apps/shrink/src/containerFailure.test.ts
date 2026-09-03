@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readContainerFailure } from './containerFailure'
+import { missingRawExport, readContainerFailure } from './containerFailure'
 
 /**
  * The container's 500 BODY used to echo `error.message`, which CodeQL flagged as
@@ -53,5 +53,21 @@ describe('readContainerFailure', () => {
       },
     })
     await expect(readContainerFailure(new Response(stream, { status: 500 }))).resolves.toBe('')
+  })
+})
+
+describe('missingRawExport — the upload store expired the file (CI-01)', () => {
+  it("turns the container's S3 404 into words the owner can act on", () => {
+    const message = missingRawExport(
+      'Could not read raw object "uploads/X-MILO PRO BIB.glb" from ingest (404).',
+    )
+    expect(message).toMatch(/expired from the upload store/)
+    expect(message).toMatch(/Upload the CLO export again/)
+  })
+
+  it('leaves every other container failure alone, including other S3 statuses', () => {
+    expect(missingRawExport('Could not read raw object "a.glb" from ingest (403).')).toBeNull()
+    expect(missingRawExport('meshopt encoder rejected primitive 4')).toBeNull()
+    expect(missingRawExport('')).toBeNull()
   })
 })

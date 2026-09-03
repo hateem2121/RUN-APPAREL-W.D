@@ -6,11 +6,12 @@ import { readGlb } from './io'
 import {
   type ArtworkAlphaProblem,
   type CrushedArtwork,
-  findArtworkAlphaProblems,
+  auditArtworkAlpha,
+  type SoftArtworkOnBlend,
   findCrushedArtwork,
 } from './texture-artwork'
 import { CRUSHED_BYTES_PER_PIXEL, offUv0Warning, summariseUvSets } from './textures'
-import { type VariantColour, readVariantColours } from './variant-colour'
+import { type VariantColour, readVariantColoursSampled } from './variant-colour'
 
 /**
  * Warn when a production GLB is heavier than this — QR scans are mobile-first.
@@ -99,9 +100,18 @@ export interface GlbReport {
   /**
    * Artwork materials left translucent, or whose MASK threshold drifted off 0.5.
    * Structural rather than statistical, so unlike `crushedArtwork` this one is
-   * safe to block a publish on.
+   * safe to block a publish on. Since 2026-09-02 `blend` means a print the opaque
+   * step would have cut out or made solid is STILL blended — a pipeline regression —
+   * and never a print the step chose to keep soft; those are `artworkSoftOnBlend`.
    */
   artworkAlphaProblems: ArtworkAlphaProblem[]
+  /**
+   * Printed artwork the pipeline deliberately left translucent: soft-edged alpha, an
+   * explicit sheer factor from CLO's opacity slider, or a picture it could not read.
+   * Reported loudly and NEVER refused — the 2026-09 audit found the old gate refusing
+   * finished garments for exactly the decision solidifyMaterials had just made.
+   */
+  artworkSoftOnBlend: SoftArtworkOnBlend[]
   /**
    * A suggested colour name per variant, read from the file itself. Purely
    * advisory: the CMS shows it beside the variant so the owner cannot map
@@ -218,9 +228,9 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
   const crushedArtwork = await findCrushedArtwork(document)
   if (crushedArtwork.length > 0) {
     warnings.push(
-      `${crushedArtwork.length} printed-artwork texture(s) are stored below ${CRUSHED_BYTES_PER_PIXEL} bytes/pixel — ` +
-        `${crushedArtwork.map((c) => `${c.name} ${c.width}x${c.height} at ${c.bytesPerPixel}`).join('; ')}. ` +
-        'A clean encode of flat artwork lands around 0.05-0.15, so this is far past it. Render the file and look ' +
+      `${crushedArtwork.length} printed-artwork texture(s) are stored below ${CRUSHED_BYTES_PER_PIXEL} bytes per INK pixel — ` +
+        `${crushedArtwork.map((c) => `${c.name} ${c.width}x${c.height} at ${c.bytesPerInkPixel} (${Math.round(c.inkFraction * 100)}% ink)`).join('; ')}. ` +
+        'Clean detailed prints measure 0.021-0.13 per ink pixel; the crushed controls 0.007-0.009 (flat one-colour prints are exempt). Render the file and look ' +
         'at the lettering before publishing; if the garment genuinely has a flat single-colour label this is expected.',
     )
   }
@@ -228,14 +238,23 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
   // <model-viewer> has no order-independent transparency, so BLEND is the "half
   // visible, half not" symptom directly — and the solidify step's OUTPUT was
   // never checked, only its inputs.
-  const artworkAlphaProblems = await findArtworkAlphaProblems(document)
+  const { problems: artworkAlphaProblems, soft: artworkSoftOnBlend } =
+    await auditArtworkAlpha(document)
   const blend = artworkAlphaProblems.filter((p) => p.problem === 'blend').map((p) => p.material)
   const cutoff = artworkAlphaProblems.filter((p) => p.problem === 'cutoff').map((p) => p.material)
   if (blend.length > 0) {
     warnings.push(
-      `Printed artwork left see-through on: ${blend.join(', ')}. <model-viewer> has no order-independent ` +
-        'transparency, so these render half-visible and sort badly against the garment. The opaque step ' +
-        'should have resolved them to a cut-out (MASK, alphaCutoff 0.5).',
+      `Printed artwork left see-through on: ${blend.join(', ')}. These are hard-edged, fully opaque prints ` +
+        'that the opaque step should have resolved to a cut-out (MASK, alphaCutoff 0.5) or made solid, and did ' +
+        'not — a pipeline fault, not an export problem. <model-viewer> has no order-independent transparency, ' +
+        'so they render half-visible and sort badly against the garment.',
+    )
+  }
+  if (artworkSoftOnBlend.length > 0) {
+    warnings.push(
+      `Soft printed artwork kept see-through on: ${artworkSoftOnBlend.map(describeSoftArtwork).join('; ')}. ` +
+        'The pipeline left these blended on purpose rather than cutting them out. Look at them in the viewer; ' +
+        'if a print should be solid, set its opacity to 100% in CLO and re-export.',
     )
   }
   if (cutoff.length > 0) {
@@ -261,10 +280,22 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
     alphaModeCounts,
     crushedArtwork,
     artworkAlphaProblems,
-    variantColours: readVariantColours(document),
+    artworkSoftOnBlend,
+    variantColours: await readVariantColoursSampled(document),
     spec: await checkGltfSpecFile(file),
     warnings,
   }
+}
+
+/** One phrase per soft print, e.g. "RUN BRUSH LOGO (soft edges — 51% of pixels part-transparent)". */
+export function describeSoftArtwork(soft: SoftArtworkOnBlend): string {
+  const why =
+    soft.reason === 'sheer-factor'
+      ? `declared ${Math.round(soft.factor * 100)}% opaque in CLO`
+      : soft.reason === 'undecodable'
+        ? 'picture could not be read'
+        : `soft edges — ${Math.round(soft.midFraction * 100)}% of pixels part-transparent`
+  return `${soft.material} (${why})`
 }
 
 /** Compare bound variants against the CMS colourway variantId list. Order-insensitive, exact set match. */

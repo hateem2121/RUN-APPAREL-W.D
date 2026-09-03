@@ -1,6 +1,10 @@
 import { Document, type Mesh, type Material } from '@gltf-transform/core'
 import { describe, expect, it } from 'vitest'
-import { ARTWORK_MAX_UV_SPAN, findArtworkTexturesByGeometry } from './artwork-geometry'
+import {
+  ARTWORK_MAX_UV_SPAN,
+  findArtworkTexturesByGeometry,
+  isThreadOrHardwareName,
+} from './artwork-geometry'
 
 /**
  * Add one quad whose TEXCOORD_0 spans `span` in both axes.
@@ -129,5 +133,31 @@ describe('findArtworkTexturesByGeometry', () => {
       doc.createPrimitive().setAttribute('POSITION', position).setMaterial(m.material),
     )
     expect(findArtworkTexturesByGeometry(doc).has(m.texture)).toBe(false)
+  })
+})
+
+describe('isThreadOrHardwareName — the list the blocking gate now trusts', () => {
+  it.each([
+    'Default Topstitch_3569',
+    'Topstitch 1 Copy 1',
+    'TopStitch',
+    'Zipper 1_TapeFabric',
+    'Zipper 1_Teeth',
+    'Thread_01',
+    'Seam Tape',
+    'button_4h',
+  ])('%s is thread or hardware', (name) => {
+    expect(isThreadOrHardwareName(name)).toBe(true)
+  })
+
+  it.each([
+    'RUN LOGO_3183',
+    'THE EXTRA MILE (Slogan)',
+    'Tapestry Print',
+    'Cordura Fabric',
+    'FABRIC 1',
+    '',
+  ])('%s is not', (name) => {
+    expect(isThreadOrHardwareName(name)).toBe(false)
   })
 })

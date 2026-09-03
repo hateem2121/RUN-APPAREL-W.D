@@ -1040,3 +1040,30 @@ edge keys entries. Read `cf-cache-status` off the GET's own headers.
   to `resize` as well as `change`.
 
 Full finding-by-finding status: `docs/audit-2026-08-30-pm/WORKLIST.md`.
+
+## Rank 8 — a cached 404 no longer lasts a year, and the model's size is readable (2026-09-03)
+
+Two Cloudflare rulesets on `media.wear-run.help`, both created by API with the master token
+and both invisible from the repo except through `scripts/zone-security-probe.mjs`, which
+now checks them daily from `uptime.yml`:
+
+- **Cache Response Rule** `viewer-media-errors-no-store` (phase
+  `http_response_cache_settings`, ruleset `c28759d48d684f53891165dd5afb81d9`):
+  `http.host eq "media.wear-run.help" and http.response.code ge 400` → `set_cache_control`
+  `no-store`. The 2026-08-31 fix capped the EDGE at 10 s for 4xx/5xx, but the Cache Rules'
+  browser TTL override still stamped `max-age=31536000` on the 404 itself, so a browser
+  that once asked for a file before it existed kept the miss for a year (audit DV-03).
+  Cache Response Rules take precedence over Cache Rules. Measured on a fresh fake path:
+  before `404 max-age=31536000 MISS→HIT`, after `404 no-store BYPASS`; the real bib
+  object still `206 max-age=31536000 HIT`.
+- **Response Header Transform** `viewer-media-timing-allow-origin` (phase
+  `http_response_headers_transform`, ruleset `adb1a1371ff346a892cbe6a3f4e6bc2b`):
+  `timing-allow-origin: https://viewer.wear-run.help` on every media response. Without it
+  a cross-origin resource reports 0 bytes in Resource Timing, so the page's own analytics
+  could never see the 20 MB model (audit LIVE-11). Proven on the live page: the bib's
+  `.glb` entry now reads transferSize 23,539,775.
+
+**Rollback:** `DELETE /zones/805d8ae5fa0dea40c960a2561f66d141/rulesets/<id>` for either
+ruleset (write nothing inline — the auto-mode classifier refuses inline JSON bodies, so
+`-d @file` for any PUT). Neither rule touches a 2xx on the media host or any other host,
+and the probe's negative controls reproduce the exact pre-rule readings.

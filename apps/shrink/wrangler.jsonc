@@ -70,6 +70,17 @@
   // and update the raw-upload record. Avoids the public internet (and the
   // cms.wear-run.help Bot Fight Mode challenge) entirely.
   "services": [{ "binding": "CMS", "service": "run-apparel-viewer-cms" }],
+  // The ingest bucket (read) and the archive bucket (write), bound directly since
+  // 2026-09-03 (fix plan Rank 12, audit CI-01): after a successful run the Worker streams
+  // the raw CLO export from ingest — which expires objects after 14 days and is in no
+  // backup — into `run-apparel-archive`, which has no expiry rule, under
+  // raw-exports/robot/<key>. The container keeps reading ingest over S3 with the
+  // read-only key; these bindings are the Worker's own, and archiveRaw.ts never fails a
+  // job over them.
+  "r2_buckets": [
+    { "binding": "R2_INGEST", "bucket_name": "run-apparel-viewer-ingest" },
+    { "binding": "R2_ARCHIVE", "bucket_name": "run-apparel-archive" }
+  ],
 
   // ⚠️ THE `browser` BINDING WAS HERE UNTIL 2026-08-17, driving a headless
   // session that screenshotted the viewer's /render route for every colour with

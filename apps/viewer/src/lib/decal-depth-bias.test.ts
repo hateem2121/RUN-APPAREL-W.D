@@ -10,6 +10,7 @@ import {
   type DepthBiasTarget,
   applyDecalDepthBias,
   backingThreeMaterial,
+  correlatedThreeMaterials,
   readOverlayBias,
 } from './decal-depth-bias'
 
@@ -78,6 +79,7 @@ describe('applyDecalDepthBias', () => {
       skipped: 0,
       rejected: 0,
       pending: 0,
+      targets: 0,
       unreachable: 0,
     })
   })
@@ -368,5 +370,89 @@ describe('overlay bias — a printed OPAQUE layer flagged by the pipeline', () =
     const second = applyDecalDepthBias(materials, backingOf)
     expect(second.overlays).toEqual(['Material_Graphic_330411', 'Material_Graphic_331044'])
     expect(second.pending).toBe(0)
+  })
+})
+
+/**
+ * THE MATERIAL THE GPU DRAWS IS NOT THE FIRST ONE (audit DV-01, 2026-09-03).
+ *
+ * A wrapper's `$backingThreeMaterial` is the first entry of its `$correlatedObjects`
+ * Set; a colourway switch binds ANOTHER entry of that set to the mesh. Writing to the
+ * first alone reported "26 of 26 biased" while the live skinsuit drew 1 of 6 and the bib
+ * 0 of 5. Every entry is written now.
+ */
+describe('every three.js material behind a wrapper (DV-01)', () => {
+  it('biases every cut-out entry of the set, not only the first', () => {
+    const first = target(0.5)
+    const drawn = target(0.5)
+    const third = target(0.5)
+    const result = applyDecalDepthBias([{ name: 'RUN LOGO', isLoaded: true }], () => [
+      first,
+      drawn,
+      third,
+    ])
+    expect([first, drawn, third].map((m) => m.polygonOffset)).toEqual([true, true, true])
+    expect(result.biased).toEqual(['RUN LOGO'])
+    expect(result.targets).toBe(3)
+  })
+
+  it('⚠️ NEGATIVE CONTROL — the old accessor (first entry only) leaves the drawn one un-biased', () => {
+    const first = target(0.5)
+    const drawn = target(0.5)
+    applyDecalDepthBias([{ name: 'RUN LOGO', isLoaded: true }], () => first)
+    expect(first.polygonOffset).toBe(true)
+    expect(drawn.polygonOffset).toBe(false) // exactly what the live garment showed
+  })
+
+  it('a set holding fabric AND a cut-out biases only the cut-out', () => {
+    const fabric = target(0)
+    const decal = target(0.5)
+    const result = applyDecalDepthBias([{ name: 'MIXED', isLoaded: true }], () => [fabric, decal])
+    expect(fabric.polygonOffset).toBe(false)
+    expect(decal.polygonOffset).toBe(true)
+    expect(result.targets).toBe(1)
+  })
+
+  it('an empty set is PENDING (a lazy colourway), never a fault', () => {
+    const result = applyDecalDepthBias([{ name: 'RUN LOGO', isLoaded: false }], () => [])
+    expect(result.pending).toBe(1)
+    expect(result.unreachable).toBe(0)
+  })
+
+  it('correlatedThreeMaterials reads the Set behind the symbol, own or inherited', () => {
+    const symbol = Symbol('correlatedObjects')
+    const a = target(0.5)
+    const b = target(0.5)
+    const own = { [symbol]: new Set([a, b]) }
+    expect(correlatedThreeMaterials(own)).toEqual([a, b])
+    const inherited = Object.create({ [symbol]: new Set([b]) })
+    expect(correlatedThreeMaterials(inherited)).toEqual([b])
+    expect(correlatedThreeMaterials({ [symbol]: null })).toEqual([])
+  })
+
+  it('falls back to the single backing material when the symbol is absent', () => {
+    const backing = target(0.5)
+    const wrapper = { [Symbol('backingThreeMaterial')]: backing }
+    expect(correlatedThreeMaterials(wrapper)).toEqual([backing])
+    expect(correlatedThreeMaterials({})).toEqual([])
+  })
+})
+
+describe('⚠️ GUARD — model-viewer still binds materials the way DV-01 depends on', () => {
+  const require = createRequire(import.meta.url)
+  const root = dirname(require.resolve('@google/model-viewer/package.json'))
+  const sceneGraph = join(root, 'lib', 'features', 'scene-graph')
+
+  it('still keeps the three.js materials in a Set called correlatedObjects', () => {
+    const source = readFileSync(join(sceneGraph, 'three-dom-element.js'), 'utf8')
+    expect(source).toContain("Symbol('correlatedObjects')")
+  })
+
+  it('still binds a colourway material from that set, adding the drawn one to it', () => {
+    // setActiveMaterial: `this.mesh.material = backingMaterials.values().next().value` /
+    // `backingMaterials.add(this.mesh.material)` — the reason the first entry is not
+    // enough. If this moves, re-measure with the e2e scene count before trusting either.
+    const source = readFileSync(join(sceneGraph, 'nodes', 'primitive-node.js'), 'utf8')
+    expect(source).toContain('backingMaterials.add(this.mesh.material)')
   })
 })

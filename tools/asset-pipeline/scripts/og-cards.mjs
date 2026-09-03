@@ -50,6 +50,8 @@ const MANIFEST_PATH = join(REPO_ROOT, 'apps', 'viewer', 'worker', 'og-cards.ts')
  * Same reasoning as the og-default.jpg note in apps/viewer/index.html.
  */
 const JPEG_QUALITY = 76
+/** apps/viewer/src/styles/tokens.css `--bg`, light. */
+const OG_CARD_BACKGROUND = '#f1efea'
 
 /** Relative paths resolve against the repo root, not the package. See CLAUDE.md. */
 async function resolveDir(candidate) {
@@ -165,7 +167,10 @@ async function main() {
     // onto black in JPEG, which has none. The posters are opaque today; this costs
     // nothing and stops a transparent render turning every card's backdrop black.
     const buffer = await sharp(source)
-      .flatten({ background: '#ffffff' })
+      // The posters are transparent since 2026-09-03 (pipeline posters); a JPEG has one
+      // background, so it is the viewer's light `--bg` (tokens.css) — link cards sit on
+      // white-ish chrome everywhere that shows them.
+      .flatten({ background: OG_CARD_BACKGROUND })
       .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
       .toBuffer()
     await writeFile(out, buffer)

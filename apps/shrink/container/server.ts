@@ -13,7 +13,7 @@
  * so this path resolves both locally and in the image.
  */
 import { createWriteStream } from 'node:fs'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -26,7 +26,16 @@ import {
   parseOptimizeArgs,
 } from '../../../tools/asset-pipeline/src/optimize'
 import { describeGlb, readGltfJson } from '../../../tools/asset-pipeline/src/describe'
-import { refineFlagsForFamily } from '../../../tools/asset-pipeline/src/strategy'
+import { positionGrid } from '../../../tools/asset-pipeline/src/precision'
+import { readGlb } from '../../../tools/asset-pipeline/src/io'
+import { annotateGlbOverlays } from '../../../tools/asset-pipeline/src/overlay-annotate'
+import { measureOverlays } from '../../../tools/asset-pipeline/src/overlay-depth'
+import {
+  describeInkRow,
+  type InkContrastRow,
+  measureInkContrast,
+} from '../../../tools/asset-pipeline/src/ink-contrast'
+import { refineFlags } from '../../../tools/asset-pipeline/src/strategy'
 import {
   attributeBytes,
   formatAttributeBytes,
@@ -59,6 +68,90 @@ interface ShrinkRequest {
 
 /** What this container did before flags were passed in; still the fallback. */
 const DEFAULT_FLAGS = ['--simplify', '0.05', '--meshopt']
+
+export type InkScan =
+  | {
+      prints: number
+      colourways: number
+      rows: number
+      flagged: number
+      /** The flagged rows, at most 24, in the owner's words. */
+      lines: string[]
+      /** The flagged rows themselves, bounded, for the CMS record. */
+      flaggedRows: InkContrastRow[]
+    }
+  | { error: string }
+
+export type OverlayScan =
+  | {
+      measured: number
+      overlayReadings: number
+      flagged: number
+      review: number
+      clones: number
+      threadIgnored: number
+      written: boolean
+      /** The coarsest position grid step in the file, mm (fix plan Rank 13, GEO-05). */
+      gridMm: number
+      /** The closest measured print-to-cloth gap, mm; null when no print was read. */
+      minGapMm: number | null
+    }
+  | { error: string }
+
+/**
+ * Measure the finished file for printed layers stacked on cloth and write the
+ * depth-bias records the viewer obeys (tools/asset-pipeline/src/overlay-depth.ts).
+ * Never throws: a failed scan is reported, not a failed job.
+ */
+/**
+ * Does the ink come out the colour of the cloth it sits on? (fix plan Rank 9). Report,
+ * never a change: two automatic fixes painted the wrong prints white. The owner rules
+ * per print from the report and `pipeline ink --strip`.
+ */
+async function scanInk(outPath: string): Promise<InkScan> {
+  try {
+    const { document } = await readGlb(outPath)
+    const readings = measureOverlays(document)
+    const report = await measureInkContrast(document, readings)
+    return {
+      prints: report.prints,
+      colourways: report.colourways.length,
+      rows: report.rows.length,
+      flagged: report.flagged.length,
+      lines: report.flagged.slice(0, 24).map(describeInkRow),
+      flaggedRows: report.flagged.slice(0, 24),
+    }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+async function scanOverlays(outPath: string, filename: string): Promise<OverlayScan> {
+  try {
+    const { document } = await readGlb(outPath)
+    const readings = measureOverlays(document)
+    const grid = positionGrid(document)
+    const gaps = readings.map((r) => r.gapMm).filter((g) => Number.isFinite(g) && g > 0)
+    const annotated = annotateGlbOverlays(new Uint8Array(await readFile(outPath)), readings, {
+      garment: filename.replace(/\.glb$/i, ''),
+    })
+    const written = annotated.result.binIdentical && annotated.result.flagged.length > 0
+    if (written) await writeFile(outPath, annotated.bytes)
+    return {
+      measured: annotated.result.measured,
+      overlayReadings: annotated.result.overlayReadings,
+      flagged: annotated.result.flagged.length,
+      review: annotated.result.review.length,
+      clones: annotated.result.clones,
+      threadIgnored: annotated.result.threadIgnored,
+      written,
+      gridMm: grid.gridMm,
+      minGapMm: gaps.length ? Math.min(...gaps) : null,
+    }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) }
+  }
+}
 
 async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; report: object }> {
   const aws = new AwsClient({
@@ -117,15 +210,32 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
     // A file this cannot read falls through as 'mixed', which refineFlagsForFamily
     // returns UNCHANGED: a readout failure must never silently alter a garment's
     // compression.
+    // Since 2026-09-02 this also drops general decimation for a SMALL export (see
+    // SMALL_EXPORT_MAX_TRIANGLES in strategy.ts): the finished garments are two orders
+    // of magnitude smaller than the exports the presets were written for, and on them
+    // `--simplify` saved a few hundred KB and tore the prints (audit F1-02, A-01).
     const description = await describeGlb(rawPath)
     const family = description.error ? 'mixed' : description.family
-    const flags = refineFlagsForFamily(baseFlags, family)
+    const flags = refineFlags(baseFlags, description)
 
     // Still enforced, and still the real control: assertFlagsOnly throws on any bare
     // token, and everything refineFlagsForFamily adds is a literal in strategy.ts.
     assertFlagsOnly(flags)
     const { options } = parseOptimizeArgs([rawPath, '--out', outPath, ...flags])
     const opt = await optimizeGlb(rawPath, outPath, options)
+
+    // 2b. Depth-bias records for printed layers stacked on cloth (fix plan Rank 7C).
+    //
+    // ⚠️ UNTIL 2026-09-03 THIS CONTAINER NEVER RAN THE OVERLAY SCAN — the detector
+    // existed, the viewer obeyed its records, and no record ever reached production
+    // (audit F2-06, MAT-04, MAT-05, HG-05): Minecut's 36 OPAQUE prints sat 0.100 mm on
+    // the cloth with nothing to separate them. Measured on the FINISHED file, after
+    // decimation, so the geometry the record describes is the geometry that ships;
+    // the BIN chunk is copied byte for byte and the write is refused if it moved.
+    // Wrapped: a scan that fails must not fail a job that otherwise succeeded, and
+    // the report says so instead.
+    const overlays = await scanOverlays(outPath, suggestedFilename(body.key))
+    const ink = await scanInk(outPath)
 
     // 3. Validate the result for the report (variants, warnings, translucency).
     const glb = await inspectGlb(outPath)
@@ -144,7 +254,15 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
     } catch {
       composition = undefined
     }
-    const text = buildReportText(opt, glb, filename, composition)
+    const text = buildReportText(
+      opt,
+      glb,
+      filename,
+      composition,
+      overlays,
+      ink,
+      description.error ? undefined : description.familyReason,
+    )
 
     const report = {
       ok: true,
@@ -160,6 +278,8 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
         ? { error: description.error }
         : {
             family: description.family,
+            familyReason: description.familyReason,
+            textureGpuBytes: description.textureGpuBytes,
             textureFraction: Number(description.textureFraction.toFixed(4)),
             triangles: description.triangles,
             stitchFraction: Number(description.stitchFraction.toFixed(4)),
@@ -196,8 +316,14 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
       },
       crushedArtwork: glb.crushedArtwork,
       artworkAlphaProblems: glb.artworkAlphaProblems,
+      artworkSoftOnBlend: glb.artworkSoftOnBlend,
+      overlays,
+      ink,
       ...(opt.simplify ? { simplify: opt.simplify } : {}),
+      ...(opt.repair ? { repair: opt.repair } : {}),
       ...(opt.textures ? { textures: opt.textures } : {}),
+      ...(opt.gpu ? { gpu: opt.gpu } : {}),
+      ...(opt.fold ? { fold: opt.fold } : {}),
       ...(opt.solidify ? { solidify: opt.solidify } : {}),
       text,
     }

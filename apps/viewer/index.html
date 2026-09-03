@@ -100,6 +100,20 @@
     -->
     <link rel="preconnect" href="https://cms.wear-run.help" crossorigin />
     <link rel="preconnect" href="https://media.wear-run.help" crossorigin />
+    <!--
+      Two files every 3D load needs, fetched ALONGSIDE the model instead of after it
+      (fix plan Rank 6, audit LIVE-10 — measured 0.5 s on the live waterfall). The
+      meshopt decoder is a classic script: model-viewer injects a script tag for it the
+      moment its chunk asks (CachingGLTFLoader.setMeshoptDecoderLocation → fetchScript),
+      which is after the 287 KB chunk has arrived. The lighting map is read by three's
+      FileLoader over fetch in CORS mode with same-origin credentials, so the preload
+      must say `as="fetch" crossorigin` or the browser opens a second request. Every
+      garment here is meshopt, so the decoder is never wasted; draco and ktx2 are not
+      preloaded because nothing served uses them. apps/viewer/scripts/preload.test.ts pins
+      both lines.
+    -->
+    <link rel="preload" href="/meshopt_decoder.js" as="script" />
+    <link rel="preload" href="/env/studio-soft.hdr" as="fetch" crossorigin="anonymous" />
     <script>
       // Apply the persisted theme before first paint (no flash of wrong mode).
       ;(() => {

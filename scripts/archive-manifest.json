@@ -1,0 +1,146 @@
+{
+  "$comment": "Every master file in the R2 archive bucket, with the byte count and SHA-256 measured on the local copy before upload: the production-ready FIXED GLBs (five from 2026-08/09-01 plus three added 2026-09-02 under fixed-glbs/2026-09-02/) and the ten raw CLO exports. CLO project files (.zprj) are deliberately NOT here — owner decision 2026-09-02, they stay on local storage. scripts/verify-archive.mjs compares the bucket against this list nightly; add a row whenever a file is added to the bucket. Written 2026-09-02 for audit findings CI-02 / CI-08. Rows under fixed-glbs/2026-09-03-diffuse-off/ (2026-09-03 evening): the FIXED GLBs folder re-exported with \"Diffuse Color Combined on Texture\" OFF, which is the export that carries a colour per colourway (audits F1-04, F2-02, F2-03, FX-01); the earlier copies stay in the bucket as superseded until the owner deletes them.",
+  "bucket": "run-apparel-archive",
+  "storageClass": "Standard",
+  "written": "2026-09-02",
+  "aliases": [
+    {
+      "note": "raw/cycling-all-colours.glb in the repo checkout is byte-identical (cmp) to 3D Products/cycling all colours.glb, so only the latter is stored.",
+      "key": "raw-exports/3d-products/cycling all colours.glb"
+    }
+  ],
+  "objects": [
+    {
+      "key": "fixed-glbs/2026-09-02/APEX FLEX PULLOVER - File A.glb",
+      "bytes": 18131368,
+      "sha256": "62fda371006dd84a912ebab5448cf8904cbfb02ae5f9eff1aa0bc189f7d9621d",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/APEX FLEX PULLOVER.zip → File A.glb (CLO export 2026-09-02 15:00, \"Diffuse Color Combined on Texture\" ON per the owner)"
+    },
+    {
+      "key": "fixed-glbs/2026-09-02/THE AGGRESSOR MEN JERSEY.glb",
+      "bytes": 516287164,
+      "sha256": "8d12ddb5a1240eace974125309a4f0222328507b1b92551daec4d32d1bcb1546",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/THE AGGRESSOR MEN  JERSEY.zip.zip → THE AGGRESSOR MEN  JERSEY.zip.glb (the LATER export, 2026-09-01 18:27; the owner named it the master)"
+    },
+    {
+      "key": "fixed-glbs/2026-09-02/WOMEN ZIP-UP VEST.glb",
+      "bytes": 38583772,
+      "sha256": "1abac91f70bfc9dbbd0859ea0de41eddfe93fa5250dd0bfb50f25d92a8f37966",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/WOMEN ZIP-UP VEST.zip → WOMEN ZIP-UP VEST.glb (2026-09-02 19:11)"
+    },
+    {
+      "key": "fixed-glbs/AERO-TECH WINDBREAKER.zip.glb",
+      "bytes": 23563480,
+      "sha256": "e68b0712aae12617e411bb7decac9a8db6092045af2da92ea1a17c06525a44e1",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/AERO-TECH WINDBREAKER.zip.glb"
+    },
+    {
+      "key": "fixed-glbs/APEX FLEX PULLOVER.glb",
+      "bytes": 18098016,
+      "sha256": "a3680378a90b0c51213c4424e3d27405cfff14d6d2a560d33729e8223941e75d",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/APEX FLEX PULLOVER.glb"
+    },
+    {
+      "key": "fixed-glbs/ARISAN BRA.glb",
+      "bytes": 1542993388,
+      "sha256": "dd8cd510c2dbcac5d414464f35a309347a8991265aa5da1c80bf2d11c426de55",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/ARISAN BRA.glb"
+    },
+    {
+      "key": "fixed-glbs/ARMOR-TECH JACKET.glb",
+      "bytes": 25841472,
+      "sha256": "b95a1c1aa3fef34775d2b557b56f4a0f4af321fe1cb0e2c1ccfa31eea9d5e2fa",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/ARMOR-TECH JACKET.glb"
+    },
+    {
+      "key": "fixed-glbs/Minecut Motion.glb",
+      "bytes": 45592728,
+      "sha256": "aba1ead040a724fb7b02ccc089c9073e2193f7705d66db3943a0f9e24df46c1a",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/Minecut Motion.glb"
+    },
+    {
+      "key": "raw-exports/3d-products/cycling all colours.glb",
+      "bytes": 382107380,
+      "sha256": "0f2331c42bb4f67203d60695fc38ad7f411d04b1fcdc0897fc293e4fae35b4d7",
+      "source": "<repo>/3D Products/cycling all colours.glb"
+    },
+    {
+      "key": "raw-exports/3d-products/Cycling-Bib.glb",
+      "bytes": 1313979936,
+      "sha256": "369423e60ea6566f01de9dd02f3ca660fb00a813c83695f155beb81f2a847e73",
+      "source": "<repo>/3D Products/Cycling-Bib.glb"
+    },
+    {
+      "key": "raw-exports/3d-products/Geovent Tennis Dress.glb",
+      "bytes": 641537032,
+      "sha256": "f7ecd3485b3a51b6d9a3610bbc079beecde1a19410a309ed37e8c02e8635ef29",
+      "source": "<repo>/3D Products/Geovent Tennis Dress.glb"
+    },
+    {
+      "key": "raw-exports/3d-products/Mantra Ray Proflex.glb",
+      "bytes": 11138368,
+      "sha256": "cd88cfb99df46a98f4a4329468cbaab0066ff298e9a760b40cd532e7de895900",
+      "source": "<repo>/3D Products/Mantra Ray Proflex.glb"
+    },
+    {
+      "key": "raw-exports/3d-products/Minecut Motion.glb",
+      "bytes": 94269088,
+      "sha256": "80f14355b955e62cdf81bd8bfa507f90aff6dc7f975c3a478304e4b29cfc76f3",
+      "source": "<repo>/3D Products/Minecut Motion.glb"
+    },
+    {
+      "key": "raw-exports/3d-products/Scuba-Neck Performance.glb",
+      "bytes": 152151128,
+      "sha256": "1599743369337fd1d708c142cb9e1f4a1d2c4bcb47a9eb946d6398ab9f307670",
+      "source": "<repo>/3D Products/Scuba-Neck Performance.glb"
+    },
+    {
+      "key": "raw-exports/3d-products/tennis suit.glb",
+      "bytes": 33493336,
+      "sha256": "d9ba28b059711d48c5e5f335ee6299edec1cfc472c38d364f478e5bbec8d624a",
+      "source": "<repo>/3D Products/tennis suit.glb"
+    },
+    {
+      "key": "raw-exports/3d-products/Training Trouser.glb",
+      "bytes": 379052116,
+      "sha256": "2c88b8be405249404d8aa3e8c0882cd8665931ebe8b65a39c4672221220658b7",
+      "source": "<repo>/3D Products/Training Trouser.glb"
+    },
+    {
+      "key": "raw-exports/3d-products/women athlatic dress.glb",
+      "bytes": 351700208,
+      "sha256": "e38f5aace491e22a8d4fe81e1c163af3797cb1c7be644143c1753c64790e45ea",
+      "source": "<repo>/3D Products/women athlatic dress.glb"
+    },
+    {
+      "key": "raw-exports/3d-products/X-Milo Training Vest.glb",
+      "bytes": 136375812,
+      "sha256": "df19258377c3bae3af8e52e541f823ccdd2b325e9b263010ccd96abc6ca0fc59",
+      "source": "<repo>/3D Products/X-Milo Training Vest.glb"
+    },
+    {
+      "key": "fixed-glbs/2026-09-03/X-MILO PRO SKIN-SUIT.glb",
+      "bytes": 31653964,
+      "sha256": "b5b937893e47aa18b48d96711cb94975a7852ebcf97c6968b806d7d63fdea7c6",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/X-MILO PRO SKIN-SUIT.zip → X-MILO PRO SKIN-SUIT.glb (CLO 2025.2.236 export 2026-09-03 10:13 — the live rxps garment re-exported; the owner’s source of truth from 2026-09-03)"
+    },
+    {
+      "key": "fixed-glbs/2026-09-03/X-MILO PRO BIB.glb",
+      "bytes": 59555468,
+      "sha256": "d8969eeef1c8a17b0a2a7cae786f5c0462139afa548450cf8b20a3fc95ba5013",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/X-MILO PRO BIB.zip → X-MILO PRO BIB.glb (CLO 2025.2.236 export 2026-09-03 10:24 — the live r-xmp garment re-exported)"
+    },
+    {
+      "key": "fixed-glbs/2026-09-03-diffuse-off/X-MILO PRO BIB.glb",
+      "bytes": 62815464,
+      "sha256": "e418bb4c38fa40ef7b7bf5034540cd0935596d4de625f1dea037c1e14bd445b3",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/X-MILO PRO BIB.zip → X-MILO PRO BIB.glb (CLO 2025.2.236 export 2026-09-03 19:14 with \"Diffuse Color Combined on Texture\" OFF — the live r-xmp garment; every colourway carries its own colour factor — the whole catalogue re-exported after the 2026-09-03 measurement; supersedes the earlier fixed-glbs/ copies of this garment, which are kept until the owner deletes them)"
+    },
+    {
+      "key": "fixed-glbs/2026-09-03-diffuse-off/X-MILO PRO SKIN-SUIT.glb",
+      "bytes": 35330244,
+      "sha256": "cbc950c7a0975e627ca40b976beb4a69d59fdc90c6b4822f765c84e687bfb1cb",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/X-MILO PRO SKIN-SUIT.zip → X-MILO PRO SKIN-SUIT.glb (CLO 2025.2.236 export 2026-09-03 19:17 with \"Diffuse Color Combined on Texture\" OFF — the live rxps garment; every colourway carries its own colour factor — the whole catalogue re-exported after the 2026-09-03 measurement; supersedes the earlier fixed-glbs/ copies of this garment, which are kept until the owner deletes them)"
+    }
+  ]
+}

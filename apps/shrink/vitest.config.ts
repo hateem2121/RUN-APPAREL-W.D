@@ -21,11 +21,15 @@ import { defineConfig } from 'vitest/config'
  * `permanentJobError.ts` now hold what `index.ts` used to decide inline. The
  * denominator went 52 → 81 lines at 100%.
  *
- * ⚠️ STILL NOT DELEGATED, so the claim is not yet fully true: the R2 fetch, the CMS
- * writes and the container call. `index.ts` cannot be imported under plain Node at all
- * — `@cloudflare/containers` pulls in `cloudflare:workers` — so covering those needs
- * `@cloudflare/vitest-pool-workers`, which is a dependency decision, not a test one.
- * Extract the next decision rather than widening this exclusion's justification.
+ * SINCE 2026-09-03 (fix plan Rank 13, audit Q-01) every VERDICT is out of index.ts:
+ * `refusals.ts` (size, torn artwork, see-through artwork, the stripped colour map),
+ * `specGate.ts`, `containerFailure.ts` (the expired upload), `orphanGuard.ts`,
+ * `archiveRaw.ts`, `attach.ts`, `colourImport.ts`, `queueDecisions.ts`. What index.ts
+ * still holds is TRANSPORT — the container call, the CMS reads and writes, the R2
+ * streams — and the order they run in. It cannot be imported under plain Node at all
+ * (`@cloudflare/containers` pulls in `cloudflare:workers`), so covering the transport
+ * needs `@cloudflare/vitest-pool-workers`, a dependency decision, not a test one. The
+ * rule stands: a new decision goes in a module beside these, never inline.
  */
 export default defineConfig({
   test: {

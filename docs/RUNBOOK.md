@@ -325,7 +325,8 @@ pull request:
 
   It was introduced observe-only on the worry that CI's rasteriser would produce
   different numbers from a developer Mac. That was measured and is **false** —
-  1.650% / 3.070% / 9.370% on a Mac and on three CI runs across two runner images,
+  0.520% / 0.520% / 6.230% (fidelity / balanced / control, 2026-09-03 fixture with fabric
+  and thread; 1.650 / 3.070 / 9.370 on the 2026-08-06 fixture) on a Mac and on CI runs,
   identical to three decimal places, because the eval diffs two renders taken by
   the same browser in the same run and the rasteriser cancels.
 
@@ -512,8 +513,11 @@ the contact sheet.
    ```
 
    It builds the baseline, lists every artwork primitive with its world-space
-   centre and size, then renders each of the largest four at four zoom levels
-   **scaled to that print's own size**, and prints a paste-ready `views` block.
+   centre and size, then renders **one frame per distinct artwork material** — the
+   largest piece of each, up to four materials — at four zoom levels **scaled to
+   that print's own size**, and prints a paste-ready `views` block. (Until
+   2026-09-02 it rendered the four largest PRIMITIVES, which on the tennis suit were
+   all printed stitching, so neither real print was ever framed — audit C-05.)
    **Open the contact sheet it names** and pick the frame that holds each print
    with a little margin — too tight and decimation at the edges reads as damage,
    too wide and the number starts describing fabric.
@@ -1172,7 +1176,7 @@ failure. Symptom → knob:
 | Symptom | Cause | What actually helps |
 |---|---|---|
 | Graphic smeared, warped, letters stretched | UV distortion during decimation | **Detail → Highest quality.** Also check `artworkAtRisk` in the report: if it names a part, that part's UVs were outside the error budget. |
-| Graphic see-through / "half there" | material left on `alphaMode: BLEND`; `<model-viewer>` has no OIT | Nothing the owner can set. The gate now refuses to save it — read the `Report`, which names the materials. |
+| Graphic see-through / "half there" | material left on `alphaMode: BLEND`; `<model-viewer>` has no OIT | Nothing the owner can set. Since 2026-09-02 the gate refuses only a hard-edged, fully opaque print still on BLEND (a pipeline fault — report it); a soft-edged or deliberately translucent print is SAVED and listed in the `Report` under "SOFT PRINTED ARTWORK KEPT SEE-THROUGH" — fix it in CLO (opacity 100%) if it should be solid. |
 | Graphic covered by a pale box | material forced `OPAQUE`, so the transparent background painted its underlying RGB — measured (240,240,240) on N001 | Nothing the owner can set. Fixed in `d8d745f`; a file built before 2026-08-04 still shows it. |
 | Graphic missing entirely | a `MASK` whose effective alpha never reaches `alphaCutoff 0.5`, or a decal drawn from its back face only | Nothing the owner can set. Report it. |
 
@@ -1180,6 +1184,38 @@ failure. Symptom → knob:
 progress %/status in the admin. Both hinge on switching media uploads to
 `clientUploads: true` (direct browser→R2) so the Worker body/memory limits and the
 opaque "just loading" spinner stop applying. Not yet actioned.
+
+## Posters — the picture a visitor sees while the model downloads
+
+**Since 2026-09-03 (fix plan Rank 6)** the viewer paints the colourway's photo, blurred,
+under the loading readout while the model downloads, then cross-fades into the 3D; link
+previews on WhatsApp and LinkedIn are built from the same files. The photo comes from
+the colourway's poster in the CMS (`posterPreview`), falling back to the product's
+"Backup picture". Posters are rendered locally, free, from the finished model:
+
+```bash
+npx --yes pnpm@10.33.0 pipeline posters output/<garment>.glb --product rxps \
+  --colours "Colorway 2=wine,Colorway 3=blush,Colorway 4=butter,Colorway 5=lime,Colorway 6=black"
+npx --yes pnpm@10.33.0 og:cards rxps
+```
+
+Judge the set on one sheet before uploading anything — the posters are transparent, so
+opened one at a time a white garment is invisible and every per-file check passed five
+all-wine skinsuit posters on 2026-09-03:
+
+```bash
+cd tools/asset-pipeline && npx tsx scripts/poster-sheet.mjs --out ../../output/poster-sheet.jpg \
+  "rxps=../../output/posters:rxps:wine,blush,butter,lime,black"
+```
+
+The first writes `output/posters/rxps-<colour>-poster.webp` (and `.png`): front view,
+production lighting, transparent background, no caption — 1200×1500. The `--colours`
+map is each CMS colourway's slug against the CLO variant it points at (read them off
+`GET /api/public/viewer/<product>/<colour>`: `slug` and `variantId`). The second turns
+them into the JPEG link cards under `apps/viewer/public/og/` and regenerates the manifest
+— commit both. Then, in the CMS, open each colourway and upload its poster as the photo;
+the product's "Backup picture" takes any one of them. `scripts/smoke-viewer-payload.mjs`
+now fetches every colourway's poster after a deploy and fails on one that is not served.
 
 ## Re-processing a garment (the Retry tick-box)
 
@@ -1204,6 +1240,19 @@ you do not re-upload the file — Retry re-runs the pipeline on the original.
 > ```bash
 > pnpm --filter @run-apparel/cms exec wrangler r2 bucket lifecycle list run-apparel-viewer-ingest
 > ```
+
+**Since 2026-09-03 (fix plan Rank 12) the tick-box is honest about the two cases
+above.** It shows only while `Status` is **Failed** or **Ready to review** — ticked
+while a run was still queued or processing, it used to start a second run of the same
+file. And before queuing anything the hook asks the ingest bucket whether the file is
+still there: after the 14 days it writes *"This file has expired from the upload
+store … Upload the CLO export again"* into `Report`, sets Failed, and queues nothing
+(`apps/cms/src/collections/rawUploadRetry.ts`). The robot answers the same way if
+the file expires while a job waits. To stop the loss happening again, **every
+successful run now copies the raw export into the archive bucket** under
+`raw-exports/robot/<key>` (`apps/shrink/src/archiveRaw.ts`) and says so at the end of
+`Report`; that copy has no expiry, so a garment processed after 2026-09-03 can always
+be re-run from it.
 
 **This is the only way to start a re-run.** The job is enqueued by an `afterChange`
 hook on the collection (`apps/cms/src/collections/RawUploads.ts`), which fires only

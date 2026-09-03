@@ -6,13 +6,20 @@ import { compareRenders } from './compare'
 import { type GlbDescription, describeGlb, readGltfJson } from './describe'
 import { mergeVariants, parseMergeArgs, type ParsedMergeArgs } from './merge-variants'
 import { finiteNumber, optimizeGlb, parseOptimizeArgs } from './optimize'
+import type { LightingMode } from './viewer-page'
+import sharp from 'sharp'
 import { DEFAULT_VIEWS, type RenderView, renderViews } from './render'
 import { type SpecFileCheck, checkGltfSpecFileGuarded, describeSpecIssues } from './gltf-spec'
 import { annotateGlbOverlays, type OverlayOverride } from './overlay-annotate'
 import { measureOverlays } from './overlay-depth'
 import { startReviewServer } from './review-server'
 import { dumpTextures } from './textures'
-import { createIO } from './io'
+import { describeInkRow, framePrint, measureInkContrast } from './ink-contrast'
+import { readGlb } from './io'
+import { mb as gpuMb, PHONE_GPU_BUDGET_BYTES } from './texture-fold'
+import { type PosterJob, parseColourMap, renderPosters } from './posters'
+import { describeRawCensus } from './raw-census'
+import { UV_QUANTIZE_BITS } from './uv-remap'
 import { checkVariants, inspectGlb } from './validate'
 import { generatePlaceholders } from './placeholders'
 
@@ -43,6 +50,10 @@ USAGE
       Inspect a GLB and (optionally) assert its bound variants exactly match
       the CMS colourway variantId list. Exits non-zero on mismatch.
 
+  posters <file.glb> --product <slug> [--colours "Colorway 2=wine,…"] [--out dir]
+      One poster per colourway, from the front, under production lighting, on a
+      transparent background, no caption — 1200×1500 WebP + PNG named the way
+      og:cards and the CMS expect (<product>-<colour>-poster.webp). Fix plan Rank 6.
   pnpm pipeline placeholders [--out <dir>]
       Generate placeholder seed assets (per-colour GLBs + posters) for N001.
 
@@ -76,12 +87,23 @@ DIAGNOSTICS — for looking at artwork instead of guessing at it
 
   pnpm pipeline render <file.glb> --out <dir> [flags]
       Screenshot the GLB through <model-viewer>, from fixed camera angles,
-      including tight crops where printed logos live. Flat neutral lighting and
-      shadows off, so a diff shows the artwork rather than the lighting.
+      including tight crops where printed logos live. Carries the production
+      near plane and decal depth bias, so it shows what a customer sees.
       --views <file.json>  Camera list: [{ "name", "orbit", "target"?, "fieldOfView"? }]
       --variant <name>     Select a KHR_materials_variants colourway first
       --size <px>          Square render size (default 1024)
+      --lighting <mode>    production (default: the studio HDR, as the viewer) or
+                           diagnostic (flat neutral light, shadows off — a diff then
+                           shows the artwork rather than the lighting; the evals use it)
+      --no-instruments     The OLD page without the near plane or the bias. A negative
+                           control only; never judge a garment with it
 
+  pnpm pipeline ink <file.glb> [--json] [--strip <dir>]
+      Does the printed ink come out the colour of the cloth it sits on? One row per
+      print per colourway: ink (texture × factor) vs the cloth BENEATH it (from the
+      overlay scan), WCAG contrast, and a flag where CLO copied the cloth's colour
+      into the print. --strip renders every flagged print across its colourways.
+      Report only — the owner rules per print (fix plan Rank 9).
   pnpm pipeline compare <dirA> <dirB> --out <sheet.png> [--gain <n>]
       Contact sheet of two render directories: A, B and their amplified
       difference, per view, with the real numbers in each row's label.
@@ -105,6 +127,9 @@ COMPRESSION FLAGS (merge, optimize)
                              thing resampling destroys
   --meshopt            Meshopt geometry compression (fast mobile decode)
   --draco              Draco geometry compression (smallest, slower decode)
+  --no-uv-remap        A/B CONTROL: keep UVs as CLO wrote them (pattern space, 32-bit
+                       floats the quantizer refuses). Default moves every UV set into
+                       0..1 via KHR_texture_transform and stores it in 16 bits
   --simplify <ratio>   Decimate geometry to this fraction of triangles (0-1),
                        e.g. 0.05 keeps ~5%. ESSENTIAL for raw CLO exports, whose
                        simulation meshes have millions of triangles — the mesh,
@@ -114,6 +139,8 @@ COMPRESSION FLAGS (merge, optimize)
                        further changes nothing — raise --simplify-error instead
   --simplify-error <r> Error budget as a fraction of mesh radius (default 0.0001)
   --uv-weight <n>      How heavily UV distortion counts against that budget
+  --decimate-artwork   NEGATIVE CONTROL ONLY: let --simplify reach the print pieces again (never
+                       decimated since 2026-09-02). Re-measures the damage; the robot refuses the file.
                        (default 1). This is what keeps printed logos and graphics
                        intact; lower it for a smaller file, raise it if artwork
                        looks smeared. 0 disables texture-aware decimation
@@ -283,7 +310,7 @@ async function main(): Promise<void> {
         // on every run and never rewritten. Printing it is the whole of that
         // decision — silence here would be indistinguishable from having fixed it.
         console.log(
-          `  UNCLASSIFIED (reported, never changed): ${[...new Set(unclassified)].join(', ')}`,
+          `  UNCLASSIFIED (defaulted to matte — name the part in CLO if it is really metal): ${[...new Set(unclassified)].join(', ')}`,
         )
       }
     }
@@ -313,13 +340,25 @@ async function main(): Promise<void> {
       }
     }
     if (result.simplify) {
-      const { attributeAware, fallback, skipped, uvSetsWeighted } = result.simplify
+      const { attributeAware, fallback, skipped, uvSetsWeighted, artworkUntouched } =
+        result.simplify
       console.log(
         `  decimation: ${attributeAware} primitive(s) with UV error in the budget, ${fallback} fallback, ${skipped} skipped`,
+      )
+      // Since 2026-09-02 a print piece is never decimated (fix plan Rank 3): say which.
+      console.log(
+        `  prints:     ${artworkUntouched} print piece(s) left exactly as exported${
+          artworkUntouched ? `: ${result.simplify.artworkUntouchedMaterials.join(', ')}` : ''
+        }`,
       )
       console.log(
         `  UV sets:    ${uvSetsWeighted.map((n) => `TEXCOORD_${n}`).join(', ') || 'none'} weighted against the error budget`,
       )
+      if (result.simplify.artworkAtRisk.length) {
+        console.log(
+          `  ⚠️ AT RISK:  ${result.simplify.artworkAtRisk.length} print piece(s) were DECIMATED — ${result.simplify.artworkAtRisk.join(', ')}. The robot refuses this file.`,
+        )
+      }
       // Without this line a --uv-weight that was never applied is invisible.
       if (fallback > attributeAware) {
         console.log(
@@ -330,6 +369,43 @@ async function main(): Promise<void> {
     console.log(
       `  size:       ${(result.bytesBefore / 1024).toFixed(1)} KB → ${(result.bytesAfter / 1024).toFixed(1)} KB  (−${pct}%)`,
     )
+    if (result.fold) {
+      console.log(
+        `  folded:     ${result.fold.folded.length} constant shading map(s) into material values${
+          result.fold.folded.length
+            ? ` — ${result.fold.folded.map((f) => `${f.name} ${f.width}x${f.height} (${gpuMb(f.gpuBytes)})`).join(', ')}`
+            : ''
+        }${result.fold.kept.length ? `; kept ${result.fold.kept.map((k) => `${k.name}: ${k.reason}`).join('; ')}` : ''}`,
+      )
+    }
+    if (result.raw) {
+      for (const line of describeRawCensus(result.raw, result.stitch?.meshes ?? null)) {
+        console.log(`  raw export: ${line}`)
+      }
+    }
+    if (result.repair) {
+      console.log(
+        `  ⚠️ repaired:  ${result.repair.referencesRemoved} texture reference(s) with no picture removed (${result.repair.slots.join(', ')}) — re-export from CLO`,
+      )
+    }
+    if (result.uvRemap) {
+      const r = result.uvRemap
+      console.log(
+        `  UV storage: ${r.accessors} UV set(s) on ${r.primitives} piece(s) moved into 0..1 and stored as ${UV_QUANTIZE_BITS}-bit` +
+          `${r.groups ? ` (${r.groups} group(s), widest range ${r.widestRange.toFixed(1)} pattern units, ${r.transforms} texture transform(s) composed)` : ''}` +
+          `${r.alreadyInRange ? `; ${r.alreadyInRange} already inside 0..1` : ''}` +
+          `${r.skipped.length ? `; ⚠️ left as floats: ${r.skipped.join('; ')}` : ''}`,
+      )
+    }
+    if (result.gpu) {
+      console.log(
+        `  phone GPU:  ${gpuMb(result.gpu.totalBytes)} of texture memory (artwork ${gpuMb(result.gpu.artworkBytes)}, fabric ${gpuMb(result.gpu.fabricBytes)}, shading maps ${gpuMb(result.gpu.shadingBytes)})${
+          result.gpu.overBudget
+            ? `  ⚠️ over the ${gpuMb(PHONE_GPU_BUDGET_BYTES)} iOS budget — the 3D view can drop out on a phone`
+            : ''
+        }`,
+      )
+    }
 
     /*
      * What the file is MADE OF, which nothing reported until 2026-08-29.
@@ -370,14 +446,20 @@ async function main(): Promise<void> {
     const files: string[] = []
     let outDir: string | undefined
     let asJson = false
-    let all = false
+    let alphaModes: string[] | undefined
     for (let i = 0; i < rest.length; i++) {
       const arg = rest[i]
       if (arg === undefined) continue
       if (arg === '--out') outDir = rest[++i]
       else if (arg === '--json') asJson = true
-      else if (arg === '--all-alpha-modes') all = true
-      else if (!arg.startsWith('--')) files.push(arg)
+      // Every alpha mode is the default since 2026-09-03 (CI-04); the flag is kept so a
+      // documented command line still parses, and --alpha-modes narrows on purpose.
+      else if (arg === '--all-alpha-modes') alphaModes = undefined
+      else if (arg === '--alpha-modes') {
+        const value = rest[++i]
+        if (!value) fail('--alpha-modes needs a comma list, e.g. OPAQUE,MASK')
+        alphaModes = value.split(',').map((m) => m.trim().toUpperCase())
+      } else if (!arg.startsWith('--')) files.push(arg)
     }
     if (!files.length) fail('Missing <file.glb> — one or more GLBs to inspect')
     if (outDir === undefined && rest.includes('--out')) fail('--out needs a directory')
@@ -390,26 +472,43 @@ async function main(): Promise<void> {
       // Absent is fine — the file is a convenience, not a requirement.
     }
 
-    const io = await createIO()
     let wrote = 0
+    let failed = 0
     for (const file of files) {
       const name = basename(file, '.glb')
-      const readings = measureOverlays(await io.read(file))
-      const { bytes, result } = annotateGlbOverlays(
-        new Uint8Array(await readFile(file)),
-        readings,
-        {
+      // readGlb, not io.read: six raw exports declare a texture pointing at no image and
+      // a plain read throws — which killed the whole batch on Minecut (audit CI-03,
+      // HR-1, MAT-06). The pipeline itself reads through the repair; so does this.
+      let readings: ReturnType<typeof measureOverlays>
+      let bytes: Uint8Array
+      let result: ReturnType<typeof annotateGlbOverlays>['result']
+      try {
+        readings = measureOverlays((await readGlb(file)).document)
+        ;({ bytes, result } = annotateGlbOverlays(new Uint8Array(await readFile(file)), readings, {
           garment: name,
           overrides,
-          ...(all ? { alphaModes: ['OPAQUE', 'MASK', 'BLEND'] } : {}),
-        },
-      )
+          ...(alphaModes ? { alphaModes } : {}),
+        }))
+      } catch (error) {
+        failed++
+        console.error(
+          `\n${name}: could not be measured — ${error instanceof Error ? error.message : String(error)}`,
+        )
+        continue
+      }
       if (asJson) {
         console.log(JSON.stringify({ garment: name, ...result, readings }, null, 2))
       } else {
         console.log(`\n${name}`)
+        // The summary counts its OWN verdicts (audit A-07, B-04): until 2026-09-03 it
+        // printed "flagged 0" beside readings that said overlay, because the alpha filter
+        // dropped them silently and nothing said so (F1-08).
         console.log(
-          `  ${result.overlayPrimitives} overlay primitive(s) → ${result.flagged.length} material(s) flagged` +
+          `  ${result.measured} primitive(s) measured, ${result.overlayReadings} read as a printed layer on cloth → ` +
+            `${result.flagged.length} material(s) flagged across ${result.overlayPrimitives} primitive(s)` +
+            `${result.review.length ? `, ${result.review.length} for review` : ''}` +
+            `${result.skippedByAlphaMode ? `, ${result.skippedByAlphaMode} skipped by --alpha-modes` : ''}` +
+            `${result.threadIgnored ? `, ${result.threadIgnored} on thread/hardware ignored` : ''}` +
             `${result.clones ? `, ${result.clones} cloned` : ''}`,
         )
         for (const f of result.flagged)
@@ -432,6 +531,10 @@ async function main(): Promise<void> {
         wrote++
       }
     }
+    if (failed) {
+      console.error(`\n${failed} file(s) could not be measured; the rest were reported above.`)
+      process.exitCode = 1
+    }
     if (outDir !== undefined) {
       console.log(
         `\nWrote ${wrote} file(s) to ${outDir}. Geometry and textures are byte-identical.`,
@@ -439,6 +542,80 @@ async function main(): Promise<void> {
       console.log('Next: pnpm pipeline review <that dir> — and LOOK at the garment.')
     } else if (!asJson) {
       console.log('\nReport only. Pass --out <dir> to write the annotated GLBs.')
+    }
+    return
+  }
+
+  if (command === 'ink') {
+    const file = rest.find((a) => !a.startsWith('--') && a.endsWith('.glb'))
+    if (!file) fail('Missing <file.glb>')
+    const asJson = rest.includes('--json')
+    const stripAt = rest.indexOf('--strip')
+    const stripDir = stripAt >= 0 ? rest[stripAt + 1] : undefined
+    if (stripAt >= 0 && !stripDir) fail('--strip needs a directory')
+    const { document } = await readGlb(file)
+    const readings = measureOverlays(document)
+    const report = await measureInkContrast(document, readings)
+    if (asJson) {
+      console.log(JSON.stringify(report, null, 2))
+    } else {
+      console.log(
+        `\n${basename(file, '.glb')} — ${report.prints} print(s) × ${report.colourways.length} colourway(s)`,
+      )
+      for (const variantId of report.colourways) {
+        console.log(`\n  ${variantId}`)
+        for (const row of report.rows.filter((r) => r.variantId === variantId)) {
+          const ratio =
+            row.contrastRatio === null ? '   n/a ' : `${row.contrastRatio.toFixed(2).padStart(6)}:1`
+          const flag = row.inkMatchesCloth
+            ? '  ← factor IS the cloth colour'
+            : row.verdict === 'invisible'
+              ? '  ← invisible'
+              : ''
+          console.log(
+            `    ${ratio}  ${row.verdict.padEnd(10)} ink ${row.inkHex} on ${row.clothHex ?? '(none)'} ${(row.cloth ?? '(no cloth)').slice(0, 28).padEnd(28)} ${row.clothSource === 'dominant' ? '[dominant] ' : ''}${row.print}${flag}`,
+          )
+        }
+      }
+      console.log(
+        `\n  ${report.flagged.length} flagged of ${report.rows.length} (a flag is a question for the owner, never a change to the file):`,
+      )
+      for (const row of report.flagged) console.log(`    - ${describeInkRow(row)}`)
+    }
+    if (stripDir !== undefined && report.flagged.length) {
+      // One strip per flagged PRINT, one cell per colourway, production lighting.
+      const prints = new Map<string, { meshIndex: number; primitiveIndex: number }>()
+      for (const row of report.flagged) prints.set(row.print.replace(/_\d+$/, ''), row)
+      await mkdir(stripDir, { recursive: true })
+      for (const [label, where] of prints) {
+        const view = framePrint(document, where.meshIndex, where.primitiveIndex)
+        if (!view) continue
+        const cells: { file: string; caption: string }[] = []
+        for (const variantId of report.colourways) {
+          const dir = join(stripDir, `${view.name}--${variantId.replace(/[^a-z0-9]+/gi, '-')}`)
+          const rendered = await renderViews(file, dir, {
+            views: [view],
+            ...(variantId === 'default' ? {} : { variant: variantId }),
+            width: 512,
+            height: 512,
+          })
+          // A flat frame is a camera that missed, not a print with no contrast (the
+          // 2026-09-02 trap). Say so on the cell; never let it read as a picture.
+          const flat = rendered.flatViews.length > 0
+          const row = report.rows.find(
+            (r) => r.variantId === variantId && r.print.replace(/_\d+$/, '') === label,
+          )
+          cells.push({
+            file: join(dir, `${view.name}.png`),
+            caption: flat
+              ? `${variantId} ⚠️ FLAT FRAME — camera missed the print`
+              : `${variantId} ${row?.contrastRatio?.toFixed(2) ?? '?'}:1 ${row?.verdict ?? ''}${row?.inkMatchesCloth ? ' =cloth' : ''}`,
+          })
+        }
+        const out = join(stripDir, `ink-strip-${view.name}.png`)
+        await inkStrip(cells, out)
+        console.log(`  strip → ${out}`)
+      }
     }
     return
   }
@@ -734,12 +911,21 @@ async function main(): Promise<void> {
     let viewsFile: string | null = null
     let variant: string | null = null
     let dimension: number | undefined
+    let lighting: LightingMode = 'production'
+    let instruments = true
     for (let i = 0; i < rest.length; i++) {
       const arg = rest[i]!
       if (arg === '--out') outDir = rest[++i] ?? null
       else if (arg === '--views') viewsFile = rest[++i] ?? null
       else if (arg === '--variant') variant = rest[++i] ?? null
       else if (arg === '--size') dimension = finiteNumber(rest[++i], '--size')
+      else if (arg === '--lighting') {
+        const value = rest[++i]
+        if (value !== 'production' && value !== 'diagnostic') {
+          fail(`--lighting must be production or diagnostic, got ${value ?? '(nothing)'}`)
+        }
+        lighting = value
+      } else if (arg === '--no-instruments') instruments = false
       else if (!arg.startsWith('--')) positional.push(arg)
     }
     const file = positional[0]
@@ -752,6 +938,8 @@ async function main(): Promise<void> {
     const result = await renderViews(file, outDir, {
       views,
       variant,
+      lighting,
+      instruments,
       /*
        * `!== undefined`, NOT a truthiness check. `--size 0` parsed to 0, which is
        * FALSY, so the flag was silently dropped and the default used — while
@@ -765,6 +953,14 @@ async function main(): Promise<void> {
     console.log(`Rendered ${result.files.length} view(s) of ${file} → ${outDir}`)
     console.log(`  views:      ${result.files.join(', ')}`)
     console.log(`  variants:   ${result.availableVariants.join(', ') || '(none bound)'}`)
+    if (result.flatViews.length) {
+      console.log(
+        `  ⚠️ FLAT:    ${result.flatViews.length} view(s) rendered a single flat colour — ${result.flatViews.join(', ')}. They measured nothing; fix the camera before comparing.`,
+      )
+    }
+    console.log(
+      `  lighting:   ${lighting}${instruments ? '' : '   ⚠️ instruments OFF — a negative control, not a judgement'}`,
+    )
     console.log('\nNext: "pnpm pipeline compare <thisDir> <otherDir> --out sheet.png".')
     return
   }
@@ -803,6 +999,52 @@ async function main(): Promise<void> {
     return
   }
 
+  if (command === 'posters') {
+    const positional: string[] = []
+    let product: string | null = null
+    let out = 'output/posters'
+    let colours: Record<string, string> | undefined
+    let orbit: string | undefined
+    let fieldOfView: string | undefined
+    let size: string | undefined
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i]!
+      if (arg === '--product') product = rest[++i] ?? null
+      else if (arg === '--out') out = rest[++i] ?? out
+      else if (arg === '--colours') colours = parseColourMap(rest[++i] ?? '')
+      else if (arg === '--orbit') orbit = rest[++i]
+      else if (arg === '--fov') fieldOfView = rest[++i]
+      else if (arg === '--size') size = rest[++i]
+      else if (!arg.startsWith('--')) positional.push(arg)
+    }
+    const file = positional[0]
+    if (!file || !product) {
+      fail(
+        'Usage: posters <file.glb> --product <slug> [--colours "Colorway 2=wine,…"] [--out dir] [--orbit "0deg 80deg 105%"] [--fov 30deg] [--size 1200x1500]',
+      )
+    }
+    const dims = size ? size.split('x').map((n) => finiteNumber(n, '--size')) : []
+    const job: PosterJob = { product, outDir: out }
+    if (colours) job.colours = colours
+    if (orbit) job.orbit = orbit
+    if (fieldOfView) job.fieldOfView = fieldOfView
+    if (dims.length === 2) {
+      job.width = dims[0]!
+      job.height = dims[1]!
+    }
+    const results = await renderPosters(file, job)
+    console.log(`Rendered ${results.length} poster(s) for ${product} → ${out}`)
+    for (const r of results) {
+      console.log(
+        `  ${r.variant.padEnd(14)} → ${r.colour.padEnd(12)} ${(r.bytes / 1024).toFixed(0)} KB  ${r.webp}`,
+      )
+    }
+    console.log(
+      `\nNext: pnpm og:cards ${product}   (link-preview cards), then upload each poster in the CMS as the colourway's photo.`,
+    )
+    return
+  }
+
   if (command === 'placeholders') {
     const outIdx = rest.indexOf('--out')
     const outDir =
@@ -821,3 +1063,43 @@ async function main(): Promise<void> {
 main().catch((error: unknown) => {
   fail(error instanceof Error ? error.message : String(error))
 })
+
+/** A row of captioned cells — the owner's contact strip for one print across colourways. */
+async function inkStrip(
+  cells: { file: string; caption: string }[],
+  outFile: string,
+  cell = 512,
+): Promise<void> {
+  const label = 24
+  const layers: import('sharp').OverlayOptions[] = []
+  for (const [i, { file, caption }] of cells.entries()) {
+    const text = caption.replace(
+      /[<>&]/g,
+      (ch) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[ch] ?? ch,
+    )
+    layers.push({
+      input: Buffer.from(
+        `<svg width="${cell}" height="${label}"><rect width="${cell}" height="${label}" fill="#111"/>` +
+          `<text x="6" y="16" font-family="monospace" font-size="13" fill="#eee">${text}</text></svg>`,
+      ),
+      top: 0,
+      left: i * cell,
+    })
+    layers.push({
+      input: await sharp(file).resize(cell, cell, { fit: 'contain' }).toBuffer(),
+      top: label,
+      left: i * cell,
+    })
+  }
+  await sharp({
+    create: {
+      width: cells.length * cell,
+      height: cell + label,
+      channels: 3,
+      background: { r: 17, g: 17, b: 17 },
+    },
+  })
+    .composite(layers)
+    .png()
+    .toFile(outFile)
+}

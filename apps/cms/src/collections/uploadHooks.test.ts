@@ -39,6 +39,7 @@ const mediaValidate = Media.hooks?.beforeValidate?.[0] as SyncHook
 const mediaDelete = Media.hooks?.beforeDelete?.[0] as AsyncHook
 const rawValidate = RawUploads.hooks?.beforeValidate?.[0] as SyncHook
 const rawChange = RawUploads.hooks?.beforeChange?.[0] as AsyncHook
+const rawAfterChange = RawUploads.hooks?.afterChange?.[0] as AsyncHook
 
 type ProductDoc = { productName: string }
 type FindArgs = Record<string, unknown>
@@ -259,5 +260,137 @@ describe('RawUploads.beforeChange — did the bytes actually arrive?', () => {
   it('survives getCloudflareContext throwing entirely', async () => {
     vi.mocked(getCloudflareContext).mockRejectedValue(new Error('no context'))
     await expect(create({ filename: 'x.glb', prefix: 'raw' })).resolves.toBeDefined()
+  })
+})
+
+/**
+ * The Retry tick-box (fix plan Rank 12, audits Q-07 and CI-01). Every case asserts what
+ * reached the queue: nothing, or exactly one job. A test that only checked the report text
+ * could pass while a duplicate run was still being enqueued underneath it.
+ */
+describe('RawUploads.afterChange — Retry only when it can work', () => {
+  const send = vi.fn(async (_message: Record<string, unknown>) => {})
+  const update = vi.fn(async (_args: Record<string, unknown>) => ({}))
+  const firstUpdate = () => (update.mock.calls[0]?.[0] ?? {}) as { data?: Record<string, unknown> }
+  const reqFor = () => ({ payload: { logger: logger(), update, find: makeFind([]) } })
+  const row = (over: Record<string, unknown>) => ({
+    id: 9,
+    filename: 'X-MILO PRO BIB.glb',
+    prefix: 'uploads',
+    filesize: 59_555_468,
+    status: 'failed',
+    retry: true,
+    ...over,
+  })
+
+  beforeEach(() => {
+    send.mockClear()
+    update.mockClear()
+    head.mockReset()
+    vi.mocked(getCloudflareContext).mockResolvedValue({
+      env: { R2_INGEST: { head }, SHRINK_QUEUE: { send } },
+    } as never)
+  })
+
+  it('exists, so a Payload shape change cannot silently empty this block', () => {
+    expect(typeof rawAfterChange).toBe('function')
+  })
+
+  it('ticking Retry while the upload is still PROCESSING enqueues nothing and un-ticks the box (Q-07)', async () => {
+    await rawAfterChange({
+      doc: row({ status: 'processing' }),
+      previousDoc: row({ status: 'processing', retry: false }),
+      operation: 'update',
+      req: reqFor(),
+      context: {},
+    })
+    expect(send).not.toHaveBeenCalled()
+    expect(update).toHaveBeenCalledTimes(1)
+    expect(update.mock.calls[0]?.[0]).toMatchObject({
+      data: { retry: false },
+      context: { skipShrinkEnqueue: true },
+    })
+    expect(head).not.toHaveBeenCalled()
+  })
+
+  it('ticking Retry while QUEUED is refused the same way', async () => {
+    await rawAfterChange({
+      doc: row({ status: 'queued' }),
+      previousDoc: row({ status: 'queued', retry: false }),
+      operation: 'update',
+      req: reqFor(),
+      context: {},
+    })
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('a retry on a FAILED row whose file has expired says re-upload and enqueues nothing (CI-01)', async () => {
+    head.mockResolvedValue(null)
+    await rawAfterChange({
+      doc: row({}),
+      previousDoc: row({ retry: false }),
+      operation: 'update',
+      req: reqFor(),
+      context: {},
+    })
+    expect(head).toHaveBeenCalledWith('uploads/X-MILO PRO BIB.glb')
+    expect(send).not.toHaveBeenCalled()
+    const written = firstUpdate()
+    expect(written.data).toMatchObject({ retry: false, status: 'failed' })
+    expect(String(written.data?.report)).toMatch(/expired from the upload store/)
+    expect(String(written.data?.report)).toMatch(/Upload the CLO export again/)
+  })
+
+  it('a retry on a FAILED row whose file is still there enqueues exactly one job and resets the row', async () => {
+    head.mockResolvedValue({ size: 59_555_468 })
+    await rawAfterChange({
+      doc: row({}),
+      previousDoc: row({ retry: false }),
+      operation: 'update',
+      req: reqFor(),
+      context: {},
+    })
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send.mock.calls[0]?.[0]).toMatchObject({
+      rawUploadId: 9,
+      filename: 'X-MILO PRO BIB.glb',
+      prefix: 'uploads',
+    })
+    expect(update.mock.calls[0]?.[0]).toMatchObject({ data: { retry: false, status: 'queued' } })
+  })
+
+  it('a retry on a READY row is allowed too — re-running a finished garment after a pipeline fix', async () => {
+    head.mockResolvedValue({ size: 1 })
+    await rawAfterChange({
+      doc: row({ status: 'ready' }),
+      previousDoc: row({ status: 'ready', retry: false }),
+      operation: 'update',
+      req: reqFor(),
+      context: {},
+    })
+    expect(send).toHaveBeenCalledTimes(1)
+  })
+
+  it('a fresh upload enqueues without the existence check (beforeChange already made it)', async () => {
+    await rawAfterChange({
+      doc: row({ status: 'queued', retry: false }),
+      previousDoc: undefined,
+      operation: 'create',
+      req: reqFor(),
+      context: {},
+    })
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(head).not.toHaveBeenCalled()
+  })
+
+  it("the robot's own status patches never enqueue", async () => {
+    await rawAfterChange({
+      doc: row({ status: 'ready', retry: false }),
+      previousDoc: row({ status: 'processing', retry: false }),
+      operation: 'update',
+      req: reqFor(),
+      context: {},
+    })
+    expect(send).not.toHaveBeenCalled()
   })
 })

@@ -142,6 +142,50 @@ describe('evaluate — negative controls, each reproducing a real defect', () =>
   })
 })
 
+/**
+ * THE MEDIA HOST'S TWO RANK 8 RULES (fix plan, 2026-09-03). Both live only in Cloudflare
+ * rulesets, so this probe is the one thing that notices them going. Each negative control
+ * is the exact state measured before the rule existed.
+ */
+const healthyMedia = () => ({
+  ...healthy('media.wear-run.help'),
+  hstsStatus: 404, // the root of the media host is itself a miss
+  cacheControl: 'no-store',
+  timingAllowOrigin: 'https://viewer.wear-run.help',
+  expectMedia: true,
+})
+
+describe('evaluate — the media host (Rank 8)', () => {
+  it('passes a miss that is no-store and carries timing-allow-origin', () => {
+    const result = evaluate([healthyMedia()])
+    expect(result.ok).toBe(true)
+    expect(result.failures).toEqual([])
+  })
+
+  it('FAILS when a miss is cached for a year — the state measured 2026-09-03 before the rule (DV-03)', () => {
+    const result = evaluate([{ ...healthyMedia(), cacheControl: 'max-age=31536000' }])
+    expect(result.ok).toBe(false)
+    expect(result.failures.join(' ')).toContain('DV-03')
+  })
+
+  it('FAILS when timing-allow-origin is missing (LIVE-11)', () => {
+    const result = evaluate([{ ...healthyMedia(), timingAllowOrigin: null }])
+    expect(result.ok).toBe(false)
+    expect(result.failures.join(' ')).toContain('LIVE-11')
+  })
+
+  it('does not ask the other hosts for either header', () => {
+    const result = evaluate([{ ...healthy('cms.wear-run.help'), cacheControl: 'max-age=31536000' }])
+    expect(result.ok).toBe(true)
+  })
+
+  it('still reads a 403 as Bot Fight Mode, not as a broken rule', () => {
+    const result = evaluate([{ ...healthyMedia(), hstsStatus: 403, hstsHeader: null }])
+    expect(result.ok).toBe(true)
+    expect(result.inconclusive.length).toBeGreaterThan(0)
+  })
+})
+
 describe('evaluate — what must NOT be read as a pass', () => {
   it('does not count a CLIENT-side block as the server refusing', () => {
     const result = evaluate([
@@ -216,6 +260,12 @@ describe('TARGETS', () => {
         'wear-run.help',
       ]),
     )
+  })
+
+  it('asks the media host, and only the media host, for the two Rank 8 headers', () => {
+    expect(TARGETS.filter((t) => t.media === true).map((t) => t.host)).toEqual([
+      'media.wear-run.help',
+    ])
   })
 
   it('includes media.wear-run.help — the host the zone setting does not govern', () => {

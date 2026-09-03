@@ -33,9 +33,15 @@ import { classifyMaterialName } from './material-class'
  * CLASSIFY ON THE MATERIAL NAME, NEVER THE TEXTURE NAME: 0 of 5,048 images across
  * the catalogue carry a name or URI, so a texture-name classifier is inert.
  *
- * THE THIRD BUCKET IS AN OUTPUT. `unclassified` is REPORTED and never rewritten —
- * owner decision 2026-08-26 on the 20 `Trim_*` materials, which could be metal trim
- * or fabric binding and which nobody could tell apart from the name.
+ * THE THIRD BUCKET, `unclassified`, DEFAULTS TO MATTE SINCE 2026-09-03 (fix plan Rank 13,
+ * audit A-06) — and is still reported by name. Until then it was reported and never
+ * rewritten (owner decision 2026-08-26 on 20 `Trim_*` materials that could be metal
+ * trim or fabric binding). The audit then found a trim piece shipping as polished chrome
+ * for exactly that reason: an absent `metallicFactor` on a name nobody could classify.
+ * The asymmetry decides it — a garment part is far more often cloth than chrome, and real
+ * hardware is caught BY NAME before this bucket is reached — so the unclassifiable get the
+ * fabric default and the report lists them, so a piece that really is metal can be named
+ * for it in CLO (`zipper`, `buckle`, `slider` … see material-class.ts).
  */
 
 /** Metalness at or below this is already fine; nothing is rewritten. */
@@ -54,7 +60,11 @@ const DEFAULT_MIN_ROUGHNESS = 0.5
 export interface PbrNormalizeResult {
   /** Material names forced to metallic 0. */
   fixed: string[]
-  /** Metallic, no MR texture, name not classifiable. Reported; NEVER rewritten. */
+  /**
+   * Metallic, no MR texture, name not classifiable — DEFAULTED to matte (metallic 0,
+   * roughness floor) since 2026-09-03 and reported here so a real metal part can be
+   * renamed in CLO. Before that, reported and never rewritten.
+   */
   unclassified: string[]
   /** Materials left metal because their name says hardware. */
   hardware: number
@@ -97,8 +107,9 @@ export function normalizePbr(options: PbrNormalizeOptions = {}): Transform {
         continue
       }
       if (bucket === 'unclassified') {
+        // Reported AND defaulted (A-06): the fabric default, named so it can be undone
+        // by naming the part for what it is.
         result.unclassified.push(name)
-        continue
       }
 
       material.setMetallicFactor(0)

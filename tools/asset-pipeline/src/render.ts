@@ -4,6 +4,16 @@ import { createServer, type Server } from 'node:http'
 import { createRequire } from 'node:module'
 import { dirname, extname, join } from 'node:path'
 import { chromium } from '@playwright/test'
+import sharp from 'sharp'
+import {
+  CAMERA_FREEDOM_ATTRIBUTES,
+  environmentUrl,
+  instrumentsScript,
+  type LightingMode,
+  lightingAttributeHtml,
+  PRODUCTION_ENVIRONMENT_URL,
+  productionEnvironmentPath,
+} from './viewer-page'
 
 /**
  * Headless render harness — screenshot a GLB from fixed camera angles.
@@ -19,11 +29,21 @@ import { chromium } from '@playwright/test'
  * that is model-viewer with its own tone mapping, its own decoders and its own
  * material handling. A different renderer would answer a different question.
  *
- * LIGHTING IS DELIBERATELY FLAT. Production uses a soft studio HDR, which is
- * right for selling a garment and wrong for diagnosis: specular highlights move
- * when geometry changes, so every A/B diff would light up everywhere. The
- * neutral environment with shadows off isolates the thing under test — the
- * texture and the UVs beneath it.
+ * LIGHTING IS A SWITCH, SINCE 2026-09-02. `production` (the default) is what a
+ * customer sees — the soft studio HDR, neutral tone-mapping, shadow 0.6 — so a
+ * contact sheet shows the product. `diagnostic` is flat neutral light with shadows
+ * off: specular highlights move when geometry changes, so a lit A/B diff lights up
+ * everywhere, and the flat mode isolates the thing under test — the texture and
+ * the UVs beneath it. The artwork evals run in it, and their ceilings were
+ * calibrated in it.
+ *
+ * THE INSTRUMENTS ARE NOT A SWITCH. Whatever the light, the page carries the
+ * adaptive near plane and the decal depth bias, re-applied on every colourway,
+ * exactly as apps/viewer does — because until 2026-09-02 it carried neither, so
+ * it reported 0.00% for a fix that moves 1.8% of the picture (audit HR-2) and
+ * resolved depth 183x more coarsely than the product, inventing sparkle no
+ * customer sees (HR-3). `instruments: false` exists ONLY as the negative control
+ * that proves the difference; it is the old, blind page.
  *
  * The swiftshader launch flags are the ones already proven in
  * apps/viewer/playwright.config.ts, so this gets a real WebGL context on a CI
@@ -35,6 +55,19 @@ const require = createRequire(import.meta.url)
 /** One named camera position. `orbit` is model-viewer's "theta phi radius" form. */
 export interface RenderView {
   name: string
+  /**
+   * "theta phi radius". ⚠️ THE RADIUS IS CLAMPED ON BOTH SIDES, and only one side is
+   * freed. Measured 2026-09-02 with scripts/probe-camera-clamps.mjs on a finished
+   * garment (framed radius 1.8687 m): every request below ~54% of the framed radius —
+   * 20%, 42%, 50%, and absolute 0.2m / 0.445m / 1m alike — settled on the SAME
+   * 1.0134 m, which is model-viewer's `min-camera-orbit` radius `auto`. So the
+   * calibrated views in raw/CANONICAL.json that say "0.445m" have never used that
+   * radius; their zoom comes entirely from `fieldOfView`, which is honoured to 1°.
+   * That clamp is deliberately LEFT IN PLACE: freeing it would silently re-frame every
+   * calibrated crop. The far side IS freed (max-camera-orbit, audit HR-5): 60% to 500%
+   * now render distinct frames where 105%..500% used to be one hash. Use fieldOfView
+   * to zoom in, radius only to pull back, and run the probe when in doubt.
+   */
   orbit: string
   /** Defaults to 'auto', i.e. the model's own centre. */
   target?: string
@@ -92,6 +125,15 @@ export interface RenderOptions {
   variant?: string | null
   /** Milliseconds to wait for the model's `load` event. Big raw files are slow. */
   timeoutMs?: number
+  /** `production` (default) or `diagnostic`. See the header. */
+  lighting?: LightingMode
+  /**
+   * The near plane and the decal bias. Default true. `false` is the OLD page — the
+   * negative control that shows what the instruments change, and nothing else.
+   */
+  instruments?: boolean
+  /** 'transparent' keeps the alpha channel in the PNG (posters); default the flat grey. */
+  background?: HarnessBackground
 }
 
 export interface RenderResult {
@@ -100,6 +142,13 @@ export interface RenderResult {
   files: string[]
   /** Variant names the model exposes, so a missing `--variant` is visible. */
   availableVariants: string[]
+  /**
+   * Views whose frame came back a single flat colour — nothing in view, or the whole
+   * model clipped. A flat frame diffs as 0.00% against another flat frame, which is
+   * how three ARISAN macro crops scored a perfect match on 2026-09-02 while showing
+   * nothing. A caller that measures must treat any entry here as "measured nothing".
+   */
+  flatViews: string[]
 }
 
 export const DEFAULT_RENDER_SIZE = 1024
@@ -158,24 +207,35 @@ export function viewerAssetMap(): Record<string, string> {
  * an empty stage. Draco and KTX2 get self-hosted locations for the same reason,
  * so this harness never depends on a CDN being reachable.
  */
-/** Exported so `render.test.ts` can assert on the harness without a browser. */
-export const PAGE_HTML = `<!doctype html>
+/** The page behind the garment: the harness's flat grey, or nothing (posters). */
+export type HarnessBackground = 'grey' | 'transparent'
+
+export interface HarnessPageOptions {
+  /** Default 'grey' — what `compare` diffs against. Posters render on 'transparent'. */
+  background?: HarnessBackground
+  lighting?: LightingMode
+  instruments?: boolean
+}
+
+/** Build the page under test. See the header for what each option means. */
+export function renderHarnessPage(options: HarnessPageOptions = {}): string {
+  const lighting = options.lighting ?? 'production'
+  const instruments = options.instruments ?? true
+  const background = options.background === 'transparent' ? 'transparent' : '#808080'
+  return `<!doctype html>
 <meta charset="utf-8">
-<title>asset-pipeline render harness</title>
+<title>asset-pipeline render harness (${lighting} lighting, instruments ${instruments ? 'on' : 'OFF'})</title>
 <style>
-  html, body { margin: 0; background: #808080; }
+  html, body { margin: 0; background: ${background}; }
   model-viewer { width: 100vw; height: 100vh; --poster-color: transparent; }
 </style>
 <model-viewer
   id="mv"
   src="/model.glb"
-  environment-image="neutral"
-  tone-mapping="neutral"
-  exposure="1"
-  shadow-intensity="0"
+  ${lightingAttributeHtml(lighting, environmentUrl())}
   interaction-prompt="none"
   disable-zoom
-  min-field-of-view="1deg"
+  ${CAMERA_FREEDOM_ATTRIBUTES}
 ></model-viewer>
 <script type="module">
   import { ModelViewerElement } from '/model-viewer.js'
@@ -192,11 +252,22 @@ export const PAGE_HTML = `<!doctype html>
     mv.addEventListener('load', () => resolve(true), { once: true })
     mv.addEventListener('error', (event) => reject(new Error(String(event.detail?.sourceError ?? 'model error'))), { once: true })
   })
+${instruments ? instrumentsScript() : '  // instruments OFF: the old, blind page (negative control only)'}
 </script>
 `
+}
 
-/** Serve the page, the model-viewer bundle, the Meshopt decoder and the model. */
-function startServer(glbFile: string): Promise<{ server: Server; port: number }> {
+/** The default page — exported so `render.test.ts` can assert on it without a browser. */
+export const PAGE_HTML = renderHarnessPage()
+
+/**
+ * Serve the page, the model-viewer bundle, the Meshopt decoder and the model.
+ * Exported for the browser test that reads the instruments back (HR-7).
+ */
+export function startHarnessServer(
+  glbFile: string,
+  page: string,
+): Promise<{ server: Server; port: number }> {
   // Shared with review-server.ts — see viewerAssetMap. `/model-viewer.js` is served
   // from the same map as the decoders now; it used to be a separate branch below.
   const assets = viewerAssetMap()
@@ -209,10 +280,13 @@ function startServer(glbFile: string): Promise<{ server: Server; port: number }>
     }
     if (url === '/' || url === '/index.html') {
       res.writeHead(200, { 'content-type': MIME['.html']! })
-      res.end(PAGE_HTML)
+      res.end(page)
     } else if (assets[url]) send(assets[url]!)
     else if (url === '/model.glb') send(glbFile)
-    else {
+    else if (url === PRODUCTION_ENVIRONMENT_URL && productionEnvironmentPath()) {
+      // Production lighting needs the real HDR, the same file apps/viewer ships.
+      send(productionEnvironmentPath() as string)
+    } else {
       res.writeHead(404)
       res.end()
     }
@@ -256,9 +330,15 @@ export async function renderViews(
   const width = options.width ?? DEFAULT_RENDER_SIZE
   const height = options.height ?? DEFAULT_RENDER_SIZE
   const timeout = options.timeoutMs ?? DEFAULT_RENDER_TIMEOUT_MS
+  const lighting = options.lighting ?? 'production'
+  const instruments = options.instruments ?? true
 
   await mkdir(outDir, { recursive: true })
-  const { server, port } = await startServer(glbFile)
+  const background = options.background ?? 'grey'
+  const { server, port } = await startHarnessServer(
+    glbFile,
+    renderHarnessPage({ lighting, instruments, background }),
+  )
 
   const browser = await chromium.launch({
     ...(process.env.PLAYWRIGHT_CHROMIUM_PATH
@@ -299,13 +379,22 @@ export async function renderViews(
           `This GLB has no variant "${options.variant}". It offers: ${availableVariants.join(', ') || '(none)'}`,
         )
       }
-      await page.evaluate(
-        `document.getElementById('mv').variantName = ${JSON.stringify(options.variant)}`,
-      )
+      // Wait for the swap to RESOLVE, not merely to be requested. model-viewer applies
+      // a variant asynchronously (its materials load on demand) and fires
+      // 'variant-applied' when the scene actually shows it. Rendering straight after
+      // the assignment could capture the default colourway under the new name.
+      await page.evaluate(`(async () => {
+        const mv = document.getElementById('mv')
+        const applied = new Promise((resolve) => mv.addEventListener('variant-applied', resolve, { once: true }))
+        mv.variantName = ${JSON.stringify(options.variant)}
+        await Promise.race([applied, new Promise((resolve) => setTimeout(resolve, 15000))])
+        await mv.updateComplete
+      })()`)
     }
 
     const element = page.locator('#mv')
     const files: string[] = []
+    const flatViews: string[] = []
     for (const view of views) {
       // jumpCameraToGoal skips the interpolation, so the frame captured is the
       // one asked for rather than wherever the easing happened to be. The two
@@ -319,18 +408,34 @@ export async function renderViews(
         mv.fieldOfView = ${JSON.stringify(view.fieldOfView ?? 'auto')}
         mv.jumpCameraToGoal()
         await mv.updateComplete
+        // The near-plane getter is only read when the projection is rebuilt, and a
+        // radius-only move never rebuilds it (see viewer-page.ts). Ask for it.
+        if (window.__instruments && window.__instruments.refreshProjection) window.__instruments.refreshProjection()
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
       })()`)
       const file = `${view.name}.png`
-      await element.screenshot({ path: join(outDir, file) })
+      await element.screenshot({
+        path: join(outDir, file),
+        omitBackground: background === 'transparent',
+      })
       files.push(file)
+      const stats = await sharp(join(outDir, file)).stats()
+      if (stats.channels.every((channel) => channel.stdev < 1)) {
+        flatViews.push(view.name)
+        console.warn(
+          `  ⚠️ ${view.name}: a flat frame (rgb ${stats.channels
+            .slice(0, 3)
+            .map((c) => Math.round(c.mean))
+            .join('/')}) — nothing in view or the model clipped. This view measured NOTHING.`,
+        )
+      }
     }
 
     await writeFile(
       join(outDir, 'views.json'),
-      `${JSON.stringify({ glb: glbFile, width, height, variant: options.variant ?? null, availableVariants, views }, null, 2)}\n`,
+      `${JSON.stringify({ glb: glbFile, width, height, variant: options.variant ?? null, lighting, instruments, availableVariants, flatViews, views }, null, 2)}\n`,
     )
-    return { outDir, files, availableVariants }
+    return { outDir, files, availableVariants, flatViews }
   } finally {
     await browser.close()
     await new Promise<void>((resolve) => server.close(() => resolve()))

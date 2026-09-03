@@ -46,6 +46,9 @@ export interface CompareResult {
   diffs: ViewDiff[]
   /** View names present in one directory but not the other. */
   unmatched: string[]
+  /** The size every compared image had. One size, by construction — see compareRenders. */
+  width: number
+  height: number
 }
 
 interface Decoded {
@@ -181,6 +184,34 @@ export async function compareRenders(
   const first = await sharp(join(dirA, `${shared[0]}.png`)).metadata()
   const cell = options.cell ?? first.width ?? 512
   const cellHeight = Math.round(((first.height ?? cell) / (first.width ?? cell)) * cell)
+
+  // ⚠️ EVERY IMAGE MUST BE THE SAME SIZE, AND THIS USED TO BE ASSUMED. `decode` below
+  // resizes each image to the first one's size, so a 256 px render compared against a
+  // 512 px render was silently upscaled and the resampling blur reported as damage —
+  // up to 1.39% on a garment compared against ITSELF (audit HR-6), against a shipped
+  // preset whose real damage figure is 3.100%. Nothing in the output said the sizes
+  // differed. Now the sizes are read first and a mismatch refuses, the same way a
+  // missing view already does; a number that describes resampling is not a number.
+  const sizes = new Map<string, { width: number; height: number }>()
+  for (const dir of [dirA, dirB]) {
+    for (const view of shared) {
+      const meta = await sharp(join(dir, `${view}.png`)).metadata()
+      sizes.set(`${dir}/${view}`, { width: meta.width ?? 0, height: meta.height ?? 0 })
+    }
+  }
+  const expected = sizes.get(`${dirA}/${shared[0]}`)
+  const mismatched = [...sizes.entries()].filter(
+    ([, size]) => size.width !== expected?.width || size.height !== expected?.height,
+  )
+  if (!expected || mismatched.length > 0) {
+    throw new Error(
+      `Renders differ in size, so their difference would measure resampling, not damage. ` +
+        `Expected ${expected?.width}x${expected?.height} (from ${dirA}/${shared[0]}.png); ` +
+        `got ${mismatched
+          .map(([key, size]) => `${key}.png ${size.width}x${size.height}`)
+          .join(', ')}. Render both sides at the same --size.`,
+    )
+  }
   const rowHeight = cellHeight + LABEL_HEIGHT
   const sheetWidth = cell * 3
   const sheetHeight = rowHeight * shared.length
@@ -213,5 +244,5 @@ export async function compareRenders(
     .png()
     .toFile(outFile)
 
-  return { outFile, diffs, unmatched }
+  return { outFile, diffs, unmatched, width: expected.width, height: expected.height }
 }

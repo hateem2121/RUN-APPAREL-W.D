@@ -1,4 +1,6 @@
-import type { Document, Texture } from '@gltf-transform/core'
+import type { Document, Texture, Material } from '@gltf-transform/core'
+import type { MappingList } from '@gltf-transform/extensions'
+import { uvSpanInPatternSpace } from './uv-remap'
 
 /**
  * Find printed artwork by the SHAPE of its UV mapping, not by what it is called.
@@ -61,13 +63,26 @@ export const ARTWORK_MAX_UV_SPAN = 12
  * stitch primitives across the catalogue. Without this guard every one of them
  * would take the artwork budget and the file would grow for thread nobody can see.
  * Hardware is small in UV for the same reason and is not a picture either.
+ *
+ * SINCE 2026-09-02 THIS LIST ALSO GUARDS THE BLOCKING GATE. The 2026-09 audit found
+ * the shrink robot refusing two finished garments over materials literally named
+ * `Default Topstitch_3569` and `Default Topstitch_3296` (F2-01, B-03, CT-06): the
+ * gate read the picture's SHAPE (a 236x39 strip) and never the name. A material
+ * named here is never artwork for the gate, whatever its picture looks like — see
+ * `classifyArtworkForGate` in texture-artwork.ts. `tape` and `thread` were added for
+ * the same reason (CLO's zipper tape is `Zipper 1_TapeFabric`).
  */
-const NOT_ARTWORK_NAME =
-  /(^|[^a-z])(topstitch|stitch|seam|zipper|zip|slider|puller|stopper|button|snap|rivet|buckle|hook|eyelet|grommet|люверсы)([^a-z]|$)/i
+export const NOT_ARTWORK_NAME =
+  /(^|[^a-z])(topstitch|stitch|thread|seam|tape|zipper|zip|slider|puller|stopper|button|snap|rivet|buckle|hook|eyelet|grommet|люверсы)([^a-z]|$)/i
 
 /** Split CamelCase so `TopStitch` matches as two tokens. See material-class.ts. */
 function splitCamelCase(name: string): string {
   return name.replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+}
+
+/** Is this material, by its own name, thread, seam, zipper or other hardware? */
+export function isThreadOrHardwareName(name: string): boolean {
+  return NOT_ARTWORK_NAME.test(splitCamelCase(name || ''))
 }
 
 /**
@@ -83,26 +98,41 @@ export function findArtworkTexturesByGeometry(document: Document): Set<Texture> 
 
   for (const mesh of document.getRoot().listMeshes()) {
     for (const primitive of mesh.listPrimitives()) {
-      const material = primitive.getMaterial()
-      const texture = material?.getBaseColorTexture()
-      if (!material || !texture) continue
+      // The default material AND every colourway mapping: the geometry is shared, so
+      // the span says the same thing about a picture whichever colourway binds it.
+      // Until 2026-09-02 only the default was read — the twice-missed trap of
+      // 2026-08-27 (prune, the decal bias) reached here too.
+      const materials: Material[] = []
+      const fallback = primitive.getMaterial()
+      if (fallback) materials.push(fallback)
+      const mappings = primitive.getExtension<MappingList>('KHR_materials_variants')
+      if (mappings) {
+        for (const mapping of mappings.listMappings()) {
+          const material = mapping.getMaterial()
+          if (material) materials.push(material)
+        }
+      }
+      if (materials.length === 0) continue
 
-      const uv = primitive.getAttribute('TEXCOORD_0')
-      if (!uv) {
+      // In PATTERN units, whatever the accessor spans now: since Rank 11 every UV set
+      // is moved into 0..1 before compression and the move is recorded on the primitive
+      // (uv-remap.ts), so the raw min/max of a finished file says "print" about every
+      // panel. This also decodes a quantized accessor instead of reading its integers.
+      const span = uvSpanInPatternSpace(primitive)
+      if (span === null) {
         // No UV to measure. Absence of evidence, not evidence of fabric — but this
         // signal has nothing to say, so it says nothing and the name check still runs.
         continue
       }
-      const min = uv.getMin([0, 0]) as number[]
-      const max = uv.getMax([0, 0]) as number[]
-      const span = Math.max((max[0] ?? 0) - (min[0] ?? 0), (max[1] ?? 0) - (min[1] ?? 0))
 
-      const looksLikeArtwork =
-        span <= ARTWORK_MAX_UV_SPAN &&
-        !NOT_ARTWORK_NAME.test(splitCamelCase(material.getName() || ''))
-
-      if (looksLikeArtwork) artwork.add(texture)
-      else disqualified.add(texture)
+      for (const material of materials) {
+        const texture = material.getBaseColorTexture()
+        if (!texture) continue
+        const looksLikeArtwork =
+          span <= ARTWORK_MAX_UV_SPAN && !isThreadOrHardwareName(material.getName())
+        if (looksLikeArtwork) artwork.add(texture)
+        else disqualified.add(texture)
+      }
     }
   }
 

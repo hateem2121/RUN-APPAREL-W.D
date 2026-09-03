@@ -44,6 +44,7 @@ const glb = (over: Partial<GlbReport> = {}): GlbReport => ({
   alphaModeCounts: { OPAQUE: 7 },
   crushedArtwork: [],
   artworkAlphaProblems: [],
+  artworkSoftOnBlend: [],
   variantColours: [],
   // A clean spec verdict is the DEFAULT here on purpose: every test below is about
   // what the owner is told for some OTHER reason, and a fixture that quietly
@@ -120,6 +121,8 @@ describe('buildReportText — the artwork block', () => {
           ownedElsewhere: 0,
           uvSetsWeighted: [0],
           artworkAtRisk: ['Teamwear Logo_3139', 'RUN LOGO_3183'],
+          artworkUntouched: 0,
+          artworkUntouchedMaterials: [],
         },
       }),
       glb(),
@@ -132,6 +135,38 @@ describe('buildReportText — the artwork block', () => {
     expect(text).toContain('Highest quality')
   })
 
+  // The other half of the artwork story, since 2026-09-02. A soft print the pipeline
+  // chose to keep translucent used to REFUSE the whole garment (audit F2-01, B-01);
+  // now it is the loudest non-blocking line in the report, and it must say the file
+  // was saved, because the owner reads "see-through" as "it failed".
+  it('names soft prints kept see-through, says why, and says the file WAS saved', () => {
+    const text = buildReportText(
+      opt(),
+      glb({
+        artworkSoftOnBlend: [
+          { material: 'RUN BRUSH LOGO_3183', reason: 'graded', factor: 1, midFraction: 0.51 },
+          { material: 'ルン ろご。_57892', reason: 'sheer-factor', factor: 0.4, midFraction: 0.01 },
+        ],
+      }),
+      'x.glb',
+    )
+    expect(text).toContain(
+      'SOFT PRINTED ARTWORK KEPT SEE-THROUGH on: RUN BRUSH LOGO_3183 (soft edges — 51% of pixels part-transparent); ルン ろご。_57892 (declared 40% opaque in CLO)',
+    )
+    expect(text).toContain('The file HAS been saved')
+    expect(text).not.toContain('has NOT been saved')
+  })
+
+  it('stays silent about soft prints when there are none, and on a report from an older container', () => {
+    expect(buildReportText(opt(), glb(), 'x.glb')).not.toContain('SOFT PRINTED ARTWORK')
+    // A report from a container built before the field existed simply lacks it.
+    const older: Partial<GlbReport> = { ...glb() }
+    delete older.artworkSoftOnBlend
+    expect(buildReportText(opt(), older as GlbReport, 'x.glb')).not.toContain(
+      'SOFT PRINTED ARTWORK',
+    )
+  })
+
   it('stays silent about artwork when none was at risk', () => {
     const text = buildReportText(
       opt({
@@ -142,12 +177,163 @@ describe('buildReportText — the artwork block', () => {
           ownedElsewhere: 0,
           uvSetsWeighted: [0],
           artworkAtRisk: [],
+          artworkUntouched: 0,
+          artworkUntouchedMaterials: [],
         },
       }),
       glb(),
       'x.glb',
     )
     expect(text).not.toContain('PRINTED ARTWORK WAS NOT PROTECTED')
+  })
+})
+
+describe('buildReportText — what CLO wrote (fix plan Rank 13)', () => {
+  const raw = () => ({
+    images: {
+      total: 20,
+      bytes: 1_540_000_000,
+      unique: 6,
+      duplicateBytes: 1_124_200_000,
+      duplicateFraction: 0.73,
+      duplicates: [{ name: 'FABRIC 3', copies: 5, bytes: 900_000_000 }],
+    },
+    oversized: [
+      { name: 'FABRIC 3', width: 6835, height: 5331, bytes: 12_900_000, materials: ['FABRIC 3'] },
+    ],
+    thread: {
+      triangles: 1000,
+      byMesh: 0,
+      byMaterial: 465,
+      byMeshFraction: 0,
+      byMaterialFraction: 0.465,
+    },
+    fabricWithoutWeave: ['cotton_interlock_190gsm'],
+    artworkFinish: [
+      {
+        material: 'RUN LOGO',
+        roughness: 0.6,
+        metallic: 0,
+        hasMrTexture: false,
+        opacityFactor: 1,
+        peakAlpha: 1,
+      },
+    ],
+  })
+
+  it('warns about duplicate and oversized pictures, prints thread both ways, flat cloth and print finishes', () => {
+    const text = buildReportText(
+      opt({
+        raw: raw(),
+        stitch: {
+          meshes: 0,
+          primitives: 0,
+          trianglesBefore: 0,
+          trianglesAfter: 0,
+          garmentTriangles: 1000,
+        },
+      }),
+      glb(),
+      'x.glb',
+    )
+    expect(text).toContain('⚠️ 73.0% of the picture bytes are DUPLICATES')
+    expect(text).toContain('⚠️ Pictures beyond 4096 px in the export: FABRIC 3 6835×5331')
+    expect(text).toContain(
+      'Thread: 0.0% of the triangles by mesh name (Topstitch_*), 46.5% by material name. ⚠️ The --stitch pass matched NO mesh',
+    )
+    expect(text).toContain(
+      'Cloth pieces with no weave (normal) map, so they render flat: cotton_interlock_190gsm',
+    )
+    expect(text).toContain('RUN LOGO: roughness 0.60, opacity 100.0%, ink to 100.0% alpha')
+  })
+
+  it('says when the reader had to strip a dead texture reference', () => {
+    const text = buildReportText(
+      opt({
+        repair: { deadTextures: [5], referencesRemoved: 2, slots: ['metallicRoughnessTexture'] },
+      }),
+      glb(),
+      'x.glb',
+    )
+    expect(text).toContain(
+      '⚠️ Repaired to read it: 2 texture reference(s) pointed at no picture (metallicRoughnessTexture)',
+    )
+  })
+
+  it('reports the position grid against the closest print gap, and stays quiet on an older container', () => {
+    const overlays = {
+      measured: 10,
+      overlayReadings: 4,
+      flagged: 2,
+      review: 0,
+      clones: 0,
+      threadIgnored: 3,
+      written: true,
+      gridMm: 0.05,
+      minGapMm: 0.2,
+    }
+    expect(buildReportText(opt(), glb(), 'x.glb', undefined, overlays)).toContain(
+      "Position grid: 0.050 mm per step (14-bit over the garment's size); the closest print sits 0.200 mm in front of its cloth — 4.0 grid steps.",
+    )
+    const tight = { ...overlays, minGapMm: 0.06 }
+    expect(buildReportText(opt(), glb(), 'x.glb', undefined, tight)).toContain('⚠️ Under two steps')
+    const older = {
+      measured: 10,
+      overlayReadings: 4,
+      flagged: 2,
+      review: 0,
+      clones: 0,
+      threadIgnored: 3,
+      written: true,
+    }
+    expect(buildReportText(opt(), glb(), 'x.glb', undefined, older)).not.toContain('Position grid')
+  })
+
+  it('stays silent about the raw export on a report from an older container', () => {
+    expect(buildReportText(opt(), glb(), 'x.glb')).not.toContain('Raw export pictures')
+  })
+})
+
+describe('buildReportText — UV storage (fix plan Rank 11)', () => {
+  it('says how many UV sets were moved into 0..1, and names any left as floats', () => {
+    const text = buildReportText(
+      opt({
+        uvRemap: {
+          primitives: 178,
+          accessors: 161,
+          groups: 40,
+          transforms: 138,
+          alreadyInRange: 0,
+          skipped: [],
+          widestRange: 510.4,
+        },
+      }),
+      glb(),
+      'x.glb',
+    )
+    expect(text).toContain(
+      'UV storage: 161 UV set(s) on 178 piece(s) moved into 0..1 and stored as 16-bit integers (40 group(s), widest range 510 pattern units).',
+    )
+    const partial = buildReportText(
+      opt({
+        uvRemap: {
+          primitives: 1,
+          accessors: 1,
+          groups: 1,
+          transforms: 1,
+          alreadyInRange: 2,
+          skipped: ['FABRIC 3: TEXCOORD_0 is already quantized'],
+          widestRange: 12,
+        },
+      }),
+      glb(),
+      'x.glb',
+    )
+    expect(partial).toContain('⚠️ Left as floats: FABRIC 3: TEXCOORD_0 is already quantized.')
+  })
+
+  it('stays silent on a report from a container that never ran the remap', () => {
+    expect(buildReportText(opt(), glb(), 'x.glb')).not.toContain('UV storage')
   })
 })
 
@@ -167,6 +353,7 @@ describe('buildReportText — colours', () => {
             deltaE: 6.32,
             confidence: 'high',
             sampledMaterial: 'FABRIC 5_3068',
+            sampledFrom: 'factor',
           },
         ],
       }),
@@ -188,12 +375,55 @@ describe('buildReportText — colours', () => {
             deltaE: 21.4,
             confidence: 'low',
             sampledMaterial: 'FABRIC 5',
+            sampledFrom: 'factor',
           },
         ],
       }),
       'x.glb',
     )
     expect(text).toContain('closest match Lime, but not a confident one — check the swatch')
+  })
+
+  it('says WHY a name is blank when the file itself is the reason (CG-06, 2026-09-02)', () => {
+    // Eleven of eleven raw exports bind one fabric picture to every colourway behind a
+    // white colour. Without this line the owner types five names the next export blanks.
+    const text = buildReportText(
+      opt(),
+      glb({
+        variants: ['Colorway 1', 'Colorway 2'],
+        variantsInFileOrder: ['Colorway 1', 'Colorway 2'],
+        variantColours: [
+          {
+            variantId: 'Colorway 1',
+            hex: '#FFFFFF',
+            name: 'White',
+            slug: 'white',
+            deltaE: 0,
+            confidence: 'low',
+            sampledMaterial: 'Bull Leather_3040',
+            sampledFrom: 'factor',
+            note: 'every colourway binds the same fabric picture behind a white colour, so this export carries no colourway colours — set each colourway’s colour in CLO and re-export',
+          },
+          {
+            variantId: 'Colorway 2',
+            hex: '#1B2A4A',
+            name: 'Navy',
+            slug: 'navy',
+            deltaE: 0,
+            confidence: 'high',
+            sampledMaterial: 'FABRIC 1',
+            sampledFrom: 'texture',
+          },
+        ],
+      }),
+      'x.glb',
+    )
+    expect(text).toContain(
+      '1. Colorway 1 — closest match White, but not a confident one — check the swatch (#FFFFFF) — every colourway binds the same fabric picture',
+    )
+    expect(text).toContain(
+      '2. Colorway 2 — looks like Navy (read from the fabric picture) (#1B2A4A)',
+    )
   })
 
   it('tells a single-colour garment what to do instead of showing an empty list', () => {
@@ -378,5 +608,86 @@ describe('the composition block reaches the owner', () => {
     ])
     expect(text).toContain('Made of:')
     expect(text).toContain('Valid 3D file')
+  })
+})
+
+/**
+ * THE ANTI-FLICKER RECORDS (fix plan Rank 7C, 2026-09-03). Until then no robot run ever
+ * wrote a depth-bias record — the detector existed and the viewer obeyed it, and the
+ * container never called it. The line is the proof it did, or the honest reason it
+ * could not.
+ */
+describe('buildReportText — anti-flicker records', () => {
+  it('says how many printed layers were recorded', () => {
+    const text = buildReportText(opt(), glb(), 'x.glb', undefined, {
+      measured: 70,
+      overlayReadings: 12,
+      flagged: 36,
+      review: 1,
+      clones: 2,
+      threadIgnored: 0,
+      written: true,
+    })
+    expect(text).toContain(
+      "Anti-flicker: 70 part(s) measured, 12 read as a printed layer on cloth, 36 material(s) recorded for the viewer's depth nudge, 1 held for review, 2 material(s) cloned so the cloth beneath is not nudged.",
+    )
+  })
+
+  it('says so when the scan failed rather than pretending it ran', () => {
+    const text = buildReportText(opt(), glb(), 'x.glb', undefined, { error: 'boom' })
+    expect(text).toContain('⚠️ Anti-flicker: the overlay scan failed (boom)')
+  })
+
+  it('warns when records were found but the file could not be rewritten', () => {
+    const text = buildReportText(opt(), glb(), 'x.glb', undefined, {
+      measured: 3,
+      overlayReadings: 1,
+      flagged: 1,
+      review: 0,
+      clones: 0,
+      threadIgnored: 0,
+      written: false,
+    })
+    expect(text).toContain('NOT WRITTEN: the binary chunk moved')
+  })
+
+  it('says the scan was not run for an older container', () => {
+    expect(buildReportText(opt(), glb(), 'x.glb')).toContain(
+      'Anti-flicker: overlay scan not run for this job.',
+    )
+  })
+})
+
+/** INK VS CLOTH (fix plan Rank 9, 2026-09-03): the report asks, the owner rules. */
+describe('buildReportText — ink vs cloth', () => {
+  it('names each flagged print and colourway', () => {
+    const text = buildReportText(opt(), glb(), 'x.glb', undefined, undefined, {
+      prints: 4,
+      colourways: 5,
+      rows: 20,
+      flagged: 3,
+      lines: [
+        'THE EXTRA MILE (Slogan)_3157 @ Colorway 3: 1.32:1 against FABRIC 3_3032 — the print carries the cloth’s own colour value',
+      ],
+    })
+    expect(text).toContain('⚠️ Ink vs cloth: 3 of 20 print-colourway pairs')
+    expect(text).toContain('THE EXTRA MILE (Slogan)_3157 @ Colorway 3: 1.32:1')
+  })
+
+  it('says every print stands out when nothing is flagged', () => {
+    const text = buildReportText(opt(), glb(), 'x.glb', undefined, undefined, {
+      prints: 2,
+      colourways: 5,
+      rows: 10,
+      flagged: 0,
+      lines: [],
+    })
+    expect(text).toContain('every print stands out from the cloth beneath it')
+  })
+
+  it('says so when the measurement failed', () => {
+    expect(
+      buildReportText(opt(), glb(), 'x.glb', undefined, undefined, { error: 'boom' }),
+    ).toContain('Ink vs cloth: not measured (boom)')
   })
 })

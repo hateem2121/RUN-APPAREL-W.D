@@ -218,8 +218,59 @@ test('3D model loads and switching colourway changes the KHR material variant', 
       return { reachable, biased }
     })
 
+  /**
+   * WHAT THE SCENE DRAWS, NOT WHAT THE WRAPPERS SAY (audit DV-01, 2026-09-03). The
+   * count above reads each wrapper's first three.js material; a colourway switch binds
+   * a DIFFERENT entry of the wrapper's set to the mesh, so "26 of 26 biased" was true of
+   * the wrappers while the live skinsuit drew 1 of 6 and the bib 0 of 5. This walks the
+   * three.js scene graph and counts the materials actually bound to meshes.
+   */
+  const countSceneBias = () =>
+    page.evaluate(() => {
+      const mv = document.querySelector('model-viewer') as object | null
+      if (!mv) return { cutouts: 0, biased: 0 }
+      let scene: { traverse: (fn: (o: unknown) => void) => void } | null = null
+      for (const symbol of Object.getOwnPropertySymbols(mv)) {
+        const value = (mv as Record<symbol, unknown>)[symbol] as {
+          isObject3D?: boolean
+          traverse?: unknown
+        } | null
+        if (value?.isObject3D && typeof value.traverse === 'function') {
+          scene = value as { traverse: (fn: (o: unknown) => void) => void }
+          break
+        }
+      }
+      if (!scene) return { cutouts: -1, biased: -1 }
+      const seen = new Set<object>()
+      let cutouts = 0
+      let biased = 0
+      scene.traverse((object) => {
+        const material = (object as { material?: unknown }).material
+        const list = Array.isArray(material) ? material : material ? [material] : []
+        for (const m of list as { alphaTest?: number; polygonOffset?: boolean }[]) {
+          if (!m || seen.has(m) || !((m.alphaTest ?? 0) > 0)) continue
+          seen.add(m)
+          cutouts++
+          if (m.polygonOffset) biased++
+        }
+      })
+      return { cutouts, biased }
+    })
+  const expectSceneFullyBiased = async (where: string) => {
+    const scene = await countSceneBias()
+    expect(
+      scene.cutouts,
+      `${where}: the scene must hold printed cut-outs (found the scene: ${scene.cutouts >= 0})`,
+    ).toBeGreaterThan(0)
+    expect(
+      scene.biased,
+      `${where}: every cut-out the SCENE draws must be biased — the wrappers' first entry is not what is drawn (DV-01)`,
+    ).toBe(scene.cutouts)
+  }
+
   const onArrival = await countBias()
   expect(onArrival.reachable, 'the fixture must carry printed cut-outs to bias').toBeGreaterThan(0)
+  await expectSceneFullyBiased('on arrival')
   expect(
     onArrival.biased,
     'every cut-out reachable on arrival must be biased — see decal-depth-bias.ts',
@@ -250,6 +301,7 @@ test('3D model loads and switching colourway changes the KHR material variant', 
     'a colourway swap left printed decals un-biased: they will z-fight with the ' +
       'cloth and the artwork shatters. Stage.tsx must re-apply on `variant-applied`.',
   ).toBe(afterSwap.reachable)
+  await expectSceneFullyBiased('after the swap to Black')
 
   /**
    * A THIRD SWAP, TO A MIDDLE VARIANT — added 2026-08-31 with the 5-colourway fixture.
@@ -287,6 +339,23 @@ test('3D model loads and switching colourway changes the KHR material variant', 
   ).toBe(afterMiddleSwap.reachable)
 
   // The whole real-3D flow ran under the production CSP with no violations.
+  await expectSceneFullyBiased('after the swap to Lime')
+
+  // AND THE OTHER TWO — five tabs, five counts, N of N on each (the audit's DV-01 probe
+  // read 1 of 6 on four of five colourways of the live skinsuit; a middle tab and a
+  // last tab are the ones an off-by-one hides behind).
+  for (const colour of ['blush', 'butter', 'wine']) {
+    await page.getByRole('tab', { name: new RegExp(colour, 'i') }).click()
+    await page.waitForFunction(
+      (expected) =>
+        (document.querySelector('model-viewer') as { variantName?: string } | null)?.variantName ===
+        expected,
+      `N001-${colour.toUpperCase()}`,
+      { timeout: 20_000 },
+    )
+    await expectSceneFullyBiased(`after the swap to ${colour}`)
+  }
+
   const cspViolations = await page.evaluate(() => (window as unknown as { __csp: string[] }).__csp)
   expect(cspViolations, cspViolations.join('\n')).toEqual([])
 })

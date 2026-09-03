@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Document } from '@gltf-transform/core'
+import { Accessor, Document, type Material } from '@gltf-transform/core'
 import type { MappingList } from '@gltf-transform/extensions'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -14,6 +14,8 @@ import {
   parseOptimizeArgs,
   solidifyMaterials,
 } from './optimize'
+import { shrinkFlagsFor } from '../../../packages/shared/src/shrink'
+import { uvRemapOf } from './uv-remap'
 import {
   PLACEHOLDER_ARTWORK,
   PLACEHOLDER_COLOURWAYS,
@@ -31,7 +33,10 @@ import { checkVariants, inspectGlb } from './validate'
  * incidental; what these tests are about is ORDER, which variant merging
  * depends on.
  */
-const PLACEHOLDER_PRIMITIVES = 5 + PLACEHOLDER_ARTWORK.length
+// The garment mesh's 5 (torso, two sleeves, collar, chest graphic) + one quad per print,
+// plus the Topstitch_1 mesh's single band (fix plan Rank 13, HE-05).
+const PLACEHOLDER_GARMENT_PRIMITIVES = 5 + PLACEHOLDER_ARTWORK.length
+const PLACEHOLDER_PRIMITIVES = PLACEHOLDER_GARMENT_PRIMITIVES + 1
 
 /**
  * Build a GLB carrying one large embedded PNG baseColor texture, shaped like FABRIC.
@@ -181,11 +186,12 @@ describe('placeholder generation', () => {
     expect(out.posterFiles).toHaveLength(PLACEHOLDER_COLOURWAYS.length * 2)
     const report = await inspectGlb(out.glbFiles[0]!)
     // 4 fabric boxes + the printed chest graphic + one quad per real artwork
-    // profile. Materials: BODY, TRIM, the SVG decal, then the five.
+    // profile, plus the Topstitch_1 band. Materials: BODY, TRIM, the SVG decal, the
+    // five, and Default Topstitch (fix plan Rank 13, HE-05).
     expect(report.primitiveCount).toBe(PLACEHOLDER_PRIMITIVES)
-    expect(report.materialCount).toBe(3 + PLACEHOLDER_ARTWORK.length)
+    expect(report.materialCount).toBe(4 + PLACEHOLDER_ARTWORK.length)
     expect(report.variants).toEqual([]) // raw exports carry no variants — merging binds them
-  })
+  }, 60_000) // same reason as the real-chain test below: 2.5 s here, a slower runner
 })
 
 describe('mergeVariants', () => {
@@ -210,9 +216,10 @@ describe('mergeVariants', () => {
     // KHR_materials_variants, where model-viewer loads it LAZILY. A fixture
     // without that could not exhibit the bug where a viewer-side material fix
     // reached 6 of 26 decals; see `ink` on PlaceholderColourway.
-    // Per colourway: body + trim + 1 SVG decal + 5 real profiles = 8, x 3 = 24.
+    // Per colourway: body + trim + 1 SVG decal + 5 real profiles = 8, x 5 = 40, plus
+    // ONE Default Topstitch — identical in every colourway, so dedup keeps a single copy.
     expect(report.materialCount).toBe(
-      PLACEHOLDER_COLOURWAYS.length * (3 + PLACEHOLDER_ARTWORK.length),
+      PLACEHOLDER_COLOURWAYS.length * (3 + PLACEHOLDER_ARTWORK.length) + 1,
     )
 
     const check = checkVariants(
@@ -339,6 +346,7 @@ describe('placeholder tee document', () => {
         `${colourway.variantId}-TRIM`,
         `${colourway.variantId}-GRAPHIC`,
         ...PLACEHOLDER_ARTWORK.map((a) => `${colourway.variantId}-${a.name}`),
+        'Default Topstitch',
       ])
     }
   })
@@ -352,10 +360,13 @@ describe('placeholder tee document', () => {
     //   alpha cutout      H3/H6, BLEND being flattened to OPAQUE
     //   coplanar offset   H6, z-fighting after quantization
     const tee = await buildPlaceholderTee(PLACEHOLDER_COLOURWAYS[0]!)
+    // The garment mesh's last primitive: the Topstitch_1 mesh comes after it since
+    // 2026-09-03 and carries a single UV set, as thread does.
     const prims = tee
       .getRoot()
       .listMeshes()
-      .flatMap((m) => m.listPrimitives())
+      .find((m) => m.getName() === 'garment')!
+      .listPrimitives()
     const decal = prims.at(-1)!
 
     expect(decal.getAttribute('TEXCOORD_1')).toBeTruthy()
@@ -443,7 +454,11 @@ describe('optimizeGlb — the artwork guards engage on the real chain', () => {
         .listMaterials()
         .filter((m) => m.getAlphaMode() === 'BLEND'),
     ).toEqual([])
-  })
+    // 60 s like the other real-chain tests in this file: 3.8 s here on 2026-09-03 with
+    // the realistic fixture (Rank 13: 4608-px weave, 2304-px normal map, a topstitch
+    // strip), and the GitHub runner timed out at vitest's 5 s default on the first CI
+    // run of that fixture. The runner is the variable, not the chain.
+  }, 60_000)
 })
 
 /**
@@ -766,6 +781,116 @@ describe('optimizeGlb — Meshopt geometry', () => {
       .map((e) => e.extensionName)
     expect(used).toContain('EXT_meshopt_compression')
   })
+
+  /**
+   * THE UVs ACTUALLY REACH THE QUANTIZER (fix plan Rank 11, audit CT-08). The fixture
+   * maps its fabric in pattern space like CLO (−20..20), which the quantizer refuses;
+   * until the remap every UV set in every real garment shipped as 32-bit floats while
+   * a log line nobody read said so. This reads the finished file back: every UV set is
+   * a normalised 16-bit integer, the move is recorded on the primitive, the material
+   * carries the composed transform, and the result says how many moved. Under
+   * `--no-uv-remap` the same file keeps its floats — the A/B control is real.
+   */
+  it('stores every UV set as a 16-bit integer inside 0..1, and says so', async () => {
+    // The RAW export, not the merged file: mergeVariants runs the chain (remap included)
+    // while merging, so the merged file's UVs are already inside 0..1 when it lands here.
+    const raw = join(dir, 'placeholders', `n001-${PLACEHOLDER_COLOURWAYS[0]!.slug}.glb`)
+    const out = join(dir, 'n001.uv.glb')
+    const result = await optimizeGlb(raw, out, { texture: 'none', geometry: 'meshopt' })
+    expect(result.uvRemap).toBeDefined()
+    expect(result.uvRemap?.primitives).toBeGreaterThan(0)
+    expect(result.uvRemap?.transforms).toBeGreaterThan(0)
+    expect(result.uvRemap?.skipped).toEqual([])
+
+    const reread = await createIO().then((io) => io.read(out))
+    const used = reread
+      .getRoot()
+      .listExtensionsUsed()
+      .map((e) => e.extensionName)
+    expect(used).toContain('KHR_texture_transform')
+    let uvSets = 0
+    let remapped = 0
+    for (const mesh of reread.getRoot().listMeshes()) {
+      for (const prim of mesh.listPrimitives()) {
+        for (const semantic of prim.listSemantics().filter((s) => s.startsWith('TEXCOORD_'))) {
+          uvSets++
+          const uv = prim.getAttribute(semantic)
+          expect(uv?.getNormalized()).toBe(true)
+          expect(uv?.getComponentType()).toBe(Accessor.ComponentType.UNSIGNED_SHORT)
+          const max = uv?.getMaxNormalized([]) as number[]
+          expect(Math.max(...max)).toBeLessThanOrEqual(1)
+          if (uvRemapOf(prim, semantic)) remapped++
+        }
+      }
+    }
+    expect(uvSets).toBeGreaterThan(0)
+    // The body panels (pattern space) moved; the artwork quads (already 0..1) did not.
+    expect(remapped).toBe(result.uvRemap?.primitives)
+    expect(remapped).toBeLessThan(uvSets)
+
+    const floats = join(dir, 'n001.floats.glb')
+    await optimizeGlb(raw, floats, { texture: 'none', geometry: 'meshopt', uvRemap: false })
+    const control = await createIO().then((io) => io.read(floats))
+    const floatSets = control
+      .getRoot()
+      .listMeshes()
+      .flatMap((m) => m.listPrimitives())
+      .flatMap((p) =>
+        p
+          .listSemantics()
+          .filter((s) => s.startsWith('TEXCOORD_'))
+          .map((s) => p.getAttribute(s)),
+      )
+      .filter((a) => a?.getComponentType() === Accessor.ComponentType.FLOAT)
+    expect(floatSets.length).toBeGreaterThan(0)
+  }, 120_000)
+})
+
+/**
+ * EVERY SHIPPED FLAG ACTS ON THE FIXTURE (fix plan Rank 13, audit HE-05). Until
+ * 2026-09-03 the seeded fabric carried no picture and no thread, so `--stitch`,
+ * `--max-texture` and `--data-max-texture` — three of the balanced preset's flags — did
+ * nothing on the only garment CI ever processes, and could have regressed unseen. Each
+ * flag is asserted by its EFFECT on the finished file, never by its presence in a list.
+ */
+describe('the shipped preset on the seeded garment (HE-05)', () => {
+  it('every flag of the balanced preset does something measurable', async () => {
+    const raw = join(dir, 'placeholders', `n001-${PLACEHOLDER_COLOURWAYS[0]!.slug}.glb`)
+    const out = join(dir, 'n001.preset.glb')
+    const flags = shrinkFlagsFor('balanced')
+    const { options } = parseOptimizeArgs([raw, '--out', out, ...flags])
+    const result = await optimizeGlb(raw, out, options)
+
+    // --stitch: the Topstitch_1 band was matched and decimated.
+    expect(result.stitch?.meshes).toBeGreaterThanOrEqual(1)
+    expect(result.stitch?.trianglesAfter).toBeLessThan(result.stitch?.trianglesBefore ?? 0)
+    // --simplify: the garment was decimated with artwork protection, prints untouched.
+    expect(
+      (result.simplify?.attributeAware ?? 0) + (result.simplify?.fallback ?? 0),
+    ).toBeGreaterThan(0)
+    expect(result.simplify?.artworkAtRisk).toEqual([])
+    // --quality: the textures were re-encoded.
+    expect((result.textures?.standard ?? 0) + (result.textures?.artwork ?? 0)).toBeGreaterThan(0)
+    // The census saw the oversized weave on the way in …
+    expect(result.raw?.oversized.map((o) => o.name)).toContain('fabric-weave')
+    // … --max-texture brought it down, --data-max-texture brought the normal map down.
+    expect(result.textures?.standardResized).toContain('fabric-weave')
+    expect(result.textures?.dataResized).toContain('fabric-normal')
+
+    const reread = await createIO().then((io) => io.read(out))
+    const sizeOf = (name: string) => {
+      const texture = reread
+        .getRoot()
+        .listTextures()
+        .find((t) => t.getName() === name)
+      expect(texture, name).toBeDefined()
+      const size = texture?.getSize() as [number, number]
+      return Math.max(size[0], size[1])
+    }
+    expect(sizeOf('fabric-weave')).toBeLessThanOrEqual(4096)
+    expect(sizeOf('fabric-weave')).toBeGreaterThan(2048)
+    expect(sizeOf('fabric-normal')).toBeLessThanOrEqual(2048)
+  }, 180_000)
 })
 
 describe('parseOptimizeArgs (CLI contract)', () => {
@@ -778,6 +903,12 @@ describe('parseOptimizeArgs (CLI contract)', () => {
       geometry: 'none',
       maxTextureSize: 2048,
     })
+  })
+  it('--no-uv-remap is the only way to keep the floats; the default moves them', () => {
+    expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb']).options.uvRemap).toBeUndefined()
+    expect(parseOptimizeArgs(['in.glb', '--out', 'o.glb', '--no-uv-remap']).options.uvRemap).toBe(
+      false,
+    )
   })
   it('honours --no-webp, --meshopt, --max-texture and --quality', () => {
     const parsed = parseOptimizeArgs([
@@ -1476,9 +1607,15 @@ describe('mergeVariants — opaque step preserves variants', () => {
     const reread = await createIO().then((io) => io.read(out))
     const materials = reread.getRoot().listMaterials()
 
-    // Fabric goes solid and double-sided — the see-through-CLO fix, unchanged.
-    const fabric = materials.filter((m) => !m.getBaseColorTexture())
+    // Fabric goes solid and double-sided — the see-through-CLO fix, unchanged. Fabric by
+    // NAME: since 2026-09-03 the body carries a tiled weave picture, as every CLO fabric
+    // does (fix plan Rank 11), so "has a texture" stopped meaning "is artwork".
+    // Thread (Default Topstitch, one shared copy) is cloth for this purpose: solid, both sides.
+    const isFabric = (m: Material) =>
+      /-(BODY|TRIM)$/.test(m.getName()) || m.getName() === 'Default Topstitch'
+    const fabric = materials.filter(isFabric)
     expect(fabric.length).toBeGreaterThan(0)
+    expect(fabric.some((m) => m.getBaseColorTexture())).toBe(true)
     for (const m of fabric) {
       expect(m.getAlphaMode()).toBe('OPAQUE')
       expect(m.getDoubleSided()).toBe(true)
@@ -1489,7 +1626,7 @@ describe('mergeVariants — opaque step preserves variants', () => {
     // is half there. MASK keeps the shape and is still order-independent, and it
     // is deliberately not double-sided: a decal sits a fraction of a millimetre
     // off the fabric, and drawing its back faces invites z-fighting.
-    const graphic = materials.filter((m) => m.getBaseColorTexture())
+    const graphic = materials.filter((m) => !isFabric(m))
     // The SVG decal plus the five measured artwork profiles, ONCE PER COLOURWAY —
     // they no longer dedup, because each carries its colourway's ink. Asserting
     // EVERY one rather than the first is the point: the gate that blocked

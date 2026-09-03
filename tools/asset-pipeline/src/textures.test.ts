@@ -4,7 +4,9 @@ import sharp from 'sharp'
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
   CRUSHED_BYTES_PER_PIXEL,
+  CUTOUT_MAX_SOFT_INK,
   CUTOUT_MID_FRACTION,
+  CUTOUT_MIN_TRANSPARENT,
   inventoryTextures,
   offUv0Warning,
   profileAlpha,
@@ -422,5 +424,19 @@ describe('inventoryTextures', () => {
     const inventory = await inventoryTextures(document, 'fixture.glb')
     expect(inventory.textures[0]?.bytesPerPixel).toBeLessThan(CRUSHED_BYTES_PER_PIXEL)
     expect(inventory.warnings.join('\n')).toContain('4:2:0')
+  })
+})
+
+/**
+ * THE THREE CUT-OUT CONSTANTS ARE PINNED (audit T-01, fix plan Rank 13). Every other test
+ * here is relative to them, so any of the three could drift and stay green; each moved
+ * once already on a calibration table with contact sheets (textures.ts carries the table).
+ * Changing one means producing a new table, not editing this line.
+ */
+describe('the cut-out constants', () => {
+  it('are the calibrated values', () => {
+    expect(CUTOUT_MID_FRACTION).toBe(0.08)
+    expect(CUTOUT_MAX_SOFT_INK).toBe(0.31)
+    expect(CUTOUT_MIN_TRANSPARENT).toBe(0.05)
   })
 })

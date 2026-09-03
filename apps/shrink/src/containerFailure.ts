@@ -25,6 +25,27 @@ interface FailureReport {
  * Genericising the body without this would have reduced every container failure to
  * "Container returned 500: " — silently, with every gate still green.
  */
+/**
+ * The container could not read the raw export from the ingest bucket because it is no
+ * longer there (fix plan Rank 12, audit CI-01). The ingest bucket expires objects after
+ * 14 days, so a retry after that — or a job that sat in the queue past it — hits S3's
+ * 404. Until 2026-09-03 that was an ordinary error: retried twice against the same
+ * absence, dead-lettered, and reported as "Could not read raw object … (404)", which
+ * told the owner nothing about what to do.
+ *
+ * Returns the sentence for the owner when the detail is that failure, else null. The
+ * caller throws it as a PermanentJobError: the object will not reappear on a retry.
+ */
+export function missingRawExport(detail: string): string | null {
+  if (!/Could not read raw object .* from ingest \(404\)/.test(detail)) return null
+  return (
+    'The uploaded file has expired from the upload store, so there is nothing to shrink — ' +
+    'uploads are kept for 14 days and this one is older. Upload the CLO export again as a new ' +
+    'raw upload (a successful run now also copies the export into the archive bucket, so a ' +
+    'garment processed after 2026-09-03 keeps a permanent copy).'
+  )
+}
+
 export async function readContainerFailure(res: Response): Promise<string> {
   const header = res.headers.get('x-shrink-report')
   if (header) {

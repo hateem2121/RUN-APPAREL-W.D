@@ -1,5 +1,7 @@
-import type { Document, Material, Primitive } from '@gltf-transform/core'
+import type { Document, Material, Primitive, Texture } from '@gltf-transform/core'
 import type { MappingList } from '@gltf-transform/extensions'
+import sharp, { type Stats } from 'sharp'
+import { findArtworkTexturesByGeometry } from './artwork-geometry'
 import { type ColourName, linearRgbToHex, nameColour } from './colour-name'
 import { isArtworkTextureByName } from './texture-artwork'
 
@@ -24,6 +26,14 @@ export interface VariantColour extends ColourName {
   hex: string
   /** Which material the colour came from, so a wrong answer is diagnosable. */
   sampledMaterial: string
+  /**
+   * Where the colour was read. `factor` is CLO's colourway colour in
+   * `baseColorFactor`; `texture` means the factor was white and the fabric picture
+   * was sampled instead (readVariantColoursSampled).
+   */
+  sampledFrom: 'factor' | 'texture'
+  /** Why a colourway stayed unnamed when the FILE is the reason, in the owner's words. */
+  note?: string
 }
 
 /**
@@ -98,18 +108,30 @@ function primitiveArea(prim: Primitive): number {
  * top of it? Deliberately conservative: excluding a fabric costs us a fallback
  * to the next-largest one, while including a zip names the whole colourway black.
  */
-function isGarmentFabric(material: Material): boolean {
+function isGarmentFabric(material: Material, artworkByGeometry: Set<Texture>): boolean {
   const name = material.getName()
   if (TRIM_NAME.test(name)) return false
   if (GRAPHIC_NAME.test(name)) return false
+  // A translucent overlay is never the cloth. Geovent Tennis Dress Colorway 6 (audit
+  // CG-05, 2026-09-02): the print is a material called "Asset 2_3089" — no artwork
+  // word — on BLEND at baseColorFactor[3] = 0.16, a 16%-opacity overlay, and it named
+  // the colourway Navy over white cloth. Alpha authored under 0.5 cannot be a garment.
+  if ((material.getBaseColorFactor()[3] ?? 1) < OVERLAY_ALPHA_MAX) return false
   for (const texture of [material.getBaseColorTexture(), material.getEmissiveTexture()]) {
-    if (texture && isArtworkTextureByName(texture)) return false
+    if (!texture) continue
+    if (isArtworkTextureByName(texture)) return false
+    // CLO names real artwork materials "Asset 2", "ZZ00000ZZZZ0", "01"; the UV span
+    // separates a print from cloth where no word can (artwork-geometry.ts).
+    if (artworkByGeometry.has(texture)) return false
   }
   return true
 }
 
+/** Below this authored alpha a material is an overlay, not the garment (see above). */
+const OVERLAY_ALPHA_MAX = 0.5
+
 /** Every (variant name → material) binding on a primitive. */
-function variantBindings(prim: Primitive): { variant: string; material: Material }[] {
+export function variantBindings(prim: Primitive): { variant: string; material: Material }[] {
   const list = prim.getExtension<MappingList>('KHR_materials_variants')
   if (!list) return []
   const out: { variant: string; material: Material }[] = []
@@ -157,11 +179,24 @@ function baseColourLinear(material: Material): [number, number, number] {
  * Synchronous: everything it reads is glTF metadata, so it costs nothing beside
  * the 380 MB document the caller already has open.
  */
-export function readVariantColours(document: Document): VariantColour[] {
-  // area[variant][material] — accumulated so the dominant fabric wins on
-  // coverage rather than on how many separate panels it happens to be cut into.
-  const areaByVariant = new Map<string, Map<Material, number>>()
+/**
+ * The dominant fabric of every variant, in file order.
+ *
+ * ⚠️ AGGREGATED BY NAME AND COLOUR, NOT BY MATERIAL OBJECT — since 2026-09-02 (audit
+ * CG-05). CLO emits one Material object per PANEL, all carrying the cloth's name, so a
+ * map keyed on the object did the opposite of what the comment promised: on Geovent
+ * Tennis Dress Colorway 6 the cloth "Cotton_Stretch_Sateen" totalled 60.85% of the
+ * surface and the print "Asset 2_3089" 34.23%, yet no single object exceeded 4.36%,
+ * and the winner was decided between a print panel at 4.36% and a cloth panel at
+ * 4.35% — a 0.01-point coin flip that named white cloth Navy. Across 46 variants in
+ * nine exports that was the only disagreement, and it was the one wrong answer.
+ */
+export function dominantFabricByVariant(
+  document: Document,
+): { variantId: string; material: Material }[] {
+  const areaByVariant = new Map<string, Map<string, { material: Material; area: number }>>()
   const order: string[] = []
+  const artworkByGeometry = findArtworkTexturesByGeometry(document)
 
   for (const mesh of document.getRoot().listMeshes()) {
     for (const prim of mesh.listPrimitives()) {
@@ -170,27 +205,38 @@ export function readVariantColours(document: Document): VariantColour[] {
       const area = primitiveArea(prim)
       if (area <= 0) continue
       for (const { variant, material } of bindings) {
-        let byMaterial = areaByVariant.get(variant)
-        if (!byMaterial) {
-          byMaterial = new Map()
-          areaByVariant.set(variant, byMaterial)
+        let byCloth = areaByVariant.get(variant)
+        if (!byCloth) {
+          byCloth = new Map()
+          areaByVariant.set(variant, byCloth)
           order.push(variant)
         }
-        byMaterial.set(material, (byMaterial.get(material) ?? 0) + area)
+        // Name + factor: every panel of one cloth adds up; two cloths that happen to
+        // share a name but not a colour stay apart.
+        const key = `${material.getName()}\u0000${material.getBaseColorFactor().join(',')}`
+        const entry = byCloth.get(key)
+        if (entry) entry.area += area
+        else byCloth.set(key, { material, area })
       }
     }
   }
 
-  const colours: VariantColour[] = []
+  const out: { variantId: string; material: Material }[] = []
   for (const variantId of order) {
-    const byMaterial = areaByVariant.get(variantId)!
+    const byCloth = [...areaByVariant.get(variantId)!.values()]
     // Fabric first. If a garment is somehow all trim and graphics, fall back to
     // the largest material of any kind rather than reporting nothing at all.
-    const fabric = [...byMaterial].filter(([material]) => isGarmentFabric(material))
-    const candidates = fabric.length > 0 ? fabric : [...byMaterial]
-    const dominant = candidates.sort((a, b) => b[1] - a[1])[0]
-    if (!dominant) continue
-    const [material] = dominant
+    const fabric = byCloth.filter(({ material }) => isGarmentFabric(material, artworkByGeometry))
+    const candidates = fabric.length > 0 ? fabric : byCloth
+    const dominant = candidates.sort((a, b) => b.area - a.area)[0]
+    if (dominant) out.push({ variantId, material: dominant.material })
+  }
+  return out
+}
+
+export function readVariantColours(document: Document): VariantColour[] {
+  const colours: VariantColour[] = []
+  for (const { variantId, material } of dominantFabricByVariant(document)) {
     const linear = baseColourLinear(material)
     const hex = linearRgbToHex(linear)
     const named = nameColour(hex)
@@ -216,9 +262,92 @@ export function readVariantColours(document: Document): VariantColour[] {
       variantId,
       hex,
       sampledMaterial: material.getName() || '(unnamed material)',
+      sampledFrom: 'factor',
       ...named,
       ...(colourMayLiveInTexture ? { confidence: 'low' as const } : {}),
     })
   }
   return colours
+}
+
+/**
+ * Plain fabric pictures in the owner's catalogue read a mean channel stdev of
+ * 1.8–15.9 (scripts/fabric-texture-census.mjs over eleven exports, 2026-09-02); a
+ * print or halftone is far busier. Above this the picture's dominant colour may be
+ * ink rather than cloth — the 2026-08-21 incident shape — so the name stays blank.
+ */
+export const BUSY_TEXTURE_STDEV = 32
+
+export const SHARED_TEXTURE_NOTE =
+  'every colourway binds the same fabric picture behind a white colour, so this export carries no colourway colours — set each colourway\u2019s colour in CLO and re-export'
+export const BUSY_TEXTURE_NOTE =
+  'the fabric picture is busy (a print or a halftone), so its dominant colour may be ink rather than cloth'
+
+/**
+ * readVariantColours, then the fabric PICTURE for any colourway whose factor is white.
+ *
+ * WHY. Four of the five FIXED GLBs and eleven of eleven raw exports censused on
+ * 2026-09-02 carry a white baseColorFactor with the colour in the texture (audit
+ * CG-06, F1-03, F2-04) — 23 of 25 colourway names arrived blank. sharp's stats()
+ * gives the dominant sRGB colour from a 4096-bin histogram, which is the cloth for a
+ * plain weave.
+ *
+ * WHAT IT REFUSES TO DO. On every one of those exports the SAME picture is bound to
+ * all five colourways, so sampling it would name all five identically — five
+ * confident, identical, wrong tags. A shared picture stays low-confidence and says
+ * why (SHARED_TEXTURE_NOTE); so does a busy one. This only names a colourway when the
+ * export actually carries a different picture per colourway, which is the owner's
+ * CLO setting to fix (fix plan Group 5), not this module's to guess.
+ *
+ * Async because it decodes at most one texture per variant; readVariantColours stays
+ * synchronous for callers that have no images to read.
+ */
+export async function readVariantColoursSampled(document: Document): Promise<VariantColour[]> {
+  const picked = dominantFabricByVariant(document)
+  const colours = readVariantColours(document)
+  const textures = picked.map(({ material }) => material.getBaseColorTexture())
+  const shared = colours.length > 1 && new Set(textures.filter(Boolean)).size === 1
+  const stats = new Map<Texture, Promise<Stats | null>>()
+  const statsOf = (texture: Texture) => {
+    let pending = stats.get(texture)
+    if (!pending) {
+      const image = texture.getImage()
+      pending = image
+        ? sharp(image)
+            .stats()
+            .catch(() => null)
+        : Promise.resolve(null)
+      stats.set(texture, pending)
+    }
+    return pending
+  }
+
+  const out: VariantColour[] = []
+  for (const [i, colour] of colours.entries()) {
+    const texture = textures[i] ?? null
+    const factorIsWhite = colour.hex.toUpperCase() === '#FFFFFF'
+    if (colour.confidence === 'high' || !factorIsWhite || !texture) {
+      out.push(colour)
+      continue
+    }
+    if (shared) {
+      out.push({ ...colour, note: SHARED_TEXTURE_NOTE })
+      continue
+    }
+    const st = await statsOf(texture)
+    if (!st) {
+      out.push({ ...colour, note: 'the fabric picture could not be read' })
+      continue
+    }
+    const busyness = st.channels.slice(0, 3).reduce((sum: number, c) => sum + c.stdev, 0) / 3
+    if (busyness > BUSY_TEXTURE_STDEV) {
+      out.push({ ...colour, note: BUSY_TEXTURE_NOTE })
+      continue
+    }
+    const { r, g, b } = st.dominant
+    const hex =
+      `#${[r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`.toUpperCase()
+    out.push({ ...colour, hex, ...nameColour(hex), sampledFrom: 'texture' })
+  }
+  return out
 }

@@ -290,6 +290,45 @@ if (!modelUrl) {
   }
 }
 
+// --- 2b. every colourway's poster is really served ---------------------------
+// The viewer paints the colourway's photo, blurred, while the model downloads (fix
+// plan Rank 6, 2026-09-03), and the link-preview cards are built from the same files.
+// A poster URL that 404s is an empty stage for 45–62 s on 2 Mbit, and nothing else
+// here would say so: the payload carries the URL either way. Plain GET, never HEAD —
+// HEAD and GET land on different edge cache entries on this domain (root CLAUDE.md).
+{
+  const withPoster = colourways.filter((c) => c?.poster?.url)
+  console.log(`  posters   ${withPoster.length} of ${colourways.length} colourways carry one`)
+  if (withPoster.length < colourways.length) {
+    console.log(
+      `  posters   WARN: ${colourways.length - withPoster.length} colourway(s) have no poster — the stage stays empty while their model downloads`,
+    )
+  }
+  for (const c of withPoster) {
+    try {
+      const res = await fetch(c.poster.url, {
+        method: 'GET',
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      })
+      if (res.status === 403) {
+        console.log(
+          `  posters   WARN: ${c.slug} HTTP 403 (Bot Fight Mode) — not verified from here`,
+        )
+        continue
+      }
+      const type = res.headers.get('content-type') ?? ''
+      if (!res.ok || !type.startsWith('image/')) {
+        fail(
+          `the poster for "${c.slug}" returned HTTP ${res.status} ${type} — the viewer paints nothing while that colourway downloads`,
+        )
+      }
+      await res.arrayBuffer()
+    } catch (err) {
+      fail(`the poster for "${c.slug}" could not be fetched: ${err.message}`)
+    }
+  }
+}
+
 if (failures.length > 0) {
   console.error('')
   for (const f of failures) console.error(`FAIL  ${f}`)

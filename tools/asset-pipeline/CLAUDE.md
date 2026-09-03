@@ -189,53 +189,42 @@ make the shrink worker throw `PermanentJobError` and save nothing:
 
 | Finding | Where it is decided |
 |---|---|
-| A primitive carrying printed artwork took the position-only decimation fallback | `simplify-textured.ts` → `artworkAtRisk` |
-| An artwork material ended on `alphaMode: BLEND` | `texture-artwork.ts` → `findArtworkAlphaProblems` |
+| A print piece was decimated — never, since 2026-09-02; the assertion names any that moved | `simplify-textured.ts` → `artworkAtRisk` |
+| A hard-edged, opaque print is STILL `BLEND` (the opaque step would have changed it) | `texture-artwork.ts` → `auditArtworkAlpha` |
 | An artwork `MASK` has an `alphaCutoff` other than 0.5 | same |
 
 All three are *structural* — a stated fact about the output file, with no
-false-positive case — which is why they block. The bytes-per-pixel measurement
+false-positive case — which is why they block. ⚠️ **Until 2026-09-02 the second row
+refused two finished garments over THREAD**: the generous classifier read CLO's 236x39
+topstitch strip as a wordmark by SHAPE, before its soft alpha (F2-01, B-03, CT-06). The
+gate now has its own strict classifier (`classifyArtworkForGate`: material name or
+binary alpha, never a `NOT_ARTWORK_NAME`, shape alone never) and asks
+`resolveBlendAlpha` — solidify's own decision — whether a BLEND material should have
+changed; soft or translucent prints are reported (`artworkSoftOnBlend`), never refused. The bytes-per-pixel measurement
 (`findCrushedArtwork`) only **warns**, because a legitimately flat label encodes
 just as small as a smashed wordmark, and a gate the owner learns to override is
 worse than no gate. Keep that distinction if you add checks.
 
 ## A scratch script cannot import this package's dependencies
 
-ESM resolves a bare specifier from the **importing file's** location, so a one-off
-script in `/tmp` cannot `import { NodeIO } from '@gltf-transform/core'` however the
-workspace is installed — and `NODE_PATH` does not apply to ESM. Cost several rounds
-on 2026-08-27. Two things that do work:
+ESM resolves a bare specifier from the **importing file's** location, so a one-off script
+in `/tmp` cannot `import { NodeIO } from '@gltf-transform/core'`, and `NODE_PATH` does not
+apply to ESM. Put the script under
+`tools/asset-pipeline/scripts/` as a `.mts` (the UV census and proof scripts live there), or
+run from the package directory, where cwd is the resolution base:
 
 ```bash
-# cwd IS the resolution base for -e, so run it from the package directory
 cd tools/asset-pipeline && node --input-type=module -e "import {NodeIO} from '@gltf-transform/core'; …"
-
-# or import by absolute path, resolved once
-node -e "console.log(require('./package.json') && require.resolve('@gltf-transform/core'))"
 ```
 
-⚠️ The `.pnpm` path is **`dist/index.cjs` for `require.resolve`** but ESM needs
-`dist/index.js`; and `meshoptimizer` has no `index.module.js`, only `index.js`.
-Prefer the `cd` form — it needs no path surgery and cannot drift.
+## A mistyped numeric flag used to become `NaN` — fixed 2026-08-18, keep it fixed
 
-## A mistyped numeric flag becomes `NaN`, and the defaults do not catch it
-
-`Number(rest[++i])` in `parseOptimizeArgs` yields `NaN` for a missing or non-numeric
-value, and the default applied downstream **cannot catch it** — `??` tests
-null/undefined, not `NaN`, so `NaN ?? DEFAULT_SIMPLIFY_ERROR` is `NaN`. Measured by
-calling the parser: `--simplify-error` with no value, and `--simplify-error 0.OO1`
-(letter O), both reach the simplifier as `NaN`. There are no `isNaN`/`isFinite` guards
-anywhere in this package and no test covers a malformed numeric flag.
-
-Note which dials these are. `--simplify-error` is the real aggression control, and
-`--uv-weight 0` is the artwork eval's own negative control for destroyed artwork — so a
-`NaN` weight is an undefined value on the axis that decides whether printed letters
-survive. The three blocking gates test `alphaMode`, not decimation, so nothing
-downstream objects.
-
-Production is unaffected: the container's flags come from `shrinkFlagsFor`
-(`packages/shared/src/shrink.ts`), which returns hardcoded literals from a two-value
-enum. This bites manual CLI runs — calibration, sweeps, one-off optimises.
+`Number('0.OO1')` is `NaN`, and `NaN ?? DEFAULT` is still `NaN` (`??` tests null, not
+NaN), so a mistyped `--simplify-error` or `--uv-weight` reached the simplifier as an
+undefined value on the axis that decides whether printed letters survive. Every numeric
+flag now goes through `finiteNumber` in `optimize.ts`, which refuses a missing or
+non-numeric value loudly — add a flag, use it. Production never saw this: the container's
+flags are literals from `shrinkFlagsFor` (`packages/shared/src/shrink.ts`).
 
 ## Traps — each of these has already cost a session
 
@@ -246,11 +235,8 @@ adherence to *every* rule in the file starts dropping. These twelve are the ones
 session touching `tools/asset-pipeline/` needs, so paying for them in every session was
 buying worse compliance with the rest.
 
-The intro above used to say these traps stayed in the root file "because they are cited
-from source comments and cross subsystems". That reason is preserved rather than
-discarded: each one still has a **one-line hook in the root file** naming the danger and
-pointing here, so a session that arrives from a source comment is still warned. What
-moved is the detail, not the warning.
+Each one keeps a **one-line hook in the root file**, so a session that arrives from a
+source comment is still warned; only the detail moved.
 
 ⚠️ One consequence to know, because it is the cost of this split: after `/compact`, only
 the project-root `CLAUDE.md` is re-read from disk and re-injected. This file reloads the
@@ -267,19 +253,15 @@ only the root's one-liners. Open this file before changing anything here.
 - **`--keep-transparency` is not the fix for damaged artwork.** `<model-viewer>`
   has no order-independent transparency; restoring BLEND trades one "half
   visible" for depth-sorting artefacts. Use `MASK` with `alphaCutoff 0.5`.
-- **A cutout is "few mid pixels" AND "actually cut out somewhere" — never the
-  first alone.** `solidifyMaterials` resolves BLEND→MASK on `CUTOUT_MID_FRACTION`
-  (0.05), *deliberately looser* than `BINARY_MID_FRACTION` (0.02), because the
-  N001 wordmark measures 3.58% mid — 96.42% at the extremes, plainly a cutout,
-  and `character` still called it `graded` (i.e. "sheer, leave on BLEND"). But
-  raising that ceiling **alone** deletes fabric: a uniformly translucent inset
-  covering 2–6% of a map also measures ~2–6% mid, and MASKing it at 0.5 when its
-  alpha is ~0.35 discards *every* fragment — a hole, not a hardening, and MASK@0.5
-  is exactly what the gate considers correct so nothing catches it. Hence
-  `CUTOUT_MIN_TRANSPARENT` (0.05): the wordmark is 66.38% fully transparent,
-  those insets are 0.000%. Keep both halves. And keep the two constants separate
-  — `character` feeds `isArtworkTexture` → `findArtworkAlphaProblems`, which
-  **throws and saves nothing**, so widening it widens a blocking gate.
+- **A cutout is "little soft alpha IN THE INK" AND "actually cut out somewhere" —
+  never the first alone.** Since 2026-09-02 `solidifyMaterials` resolves BLEND→MASK on
+  `CUTOUT_MAX_SOFT_INK` (0.31, soft pixels as a share of mid+opaque): the whole-texture
+  `CUTOUT_MID_FRACTION` read ARISAN's brush print (4% soft overall, 36% of its ink) as a
+  sticker and chopped every fade into steps (F1-01). The line is a table in textures.ts
+  — hard cut-outs 0.3–12.6%, the halftone 26.3% (must stay MASK), the brush 36.3%. The
+  second half, `CUTOUT_MIN_TRANSPARENT` (0.05), still stops a uniformly translucent
+  inset (all soft, cut out nowhere) being MASKed into a hole. Keep both halves, and
+  keep `character` 'binary' separate — it is also the gate's cut-out signal.
 - **An explicit `baseColorFactor[3]` beats anything inferred from pixels.** glTF
   effective alpha is `factor.a * texel.a`, so a material declaring itself sheer at
   0.4 can never reach `alphaCutoff 0.5` — MASK renders it as *nothing at all*,
@@ -350,44 +332,42 @@ only the root's one-liners. Open this file before changing anything here.
   `solidifyMaterials` and ships decals still on `alphaMode: BLEND`, which
   `<model-viewer>` renders see-through — the reported symptom exactly. Go through
   the parser, as `apps/shrink/container/server.ts` does. Pinned by a test in
-  `pipeline.test.ts`.
-- **The three blocking gates do NOT catch decimation damage.** They test
-  `alphaMode`, which decimation does not change. A six-run sweep from the raw
-  N001 export (`tools/asset-pipeline/scripts/sweep-size-vs-artwork.mjs`,
-  2026-08-05) rendered the chest
-  wordmark illegible at `--simplify-error 0.005` and **every run passed all three
-  gates**, `artworkAtRisk` and `findArtworkAlphaProblems` both empty. With
-  `--uv-weight` set, the UVs *are* in the error budget, so `artworkAtRisk` cannot
-  fire — the budget was merely too loose. **Nothing in this system measured
-  whether the letters survived; only a rendered crop did.** This is why the old
-  `small` preset was deleted rather than re-tuned.
-  **Partly closed on 2026-08-06 by `pnpm eval:artwork`** — it renders the real
-  wordmark alpha before and after the real chain and measures how much moved, so
-  the *presets* are now watched by something other than memory. Read what it does
-  NOT cover before relying on it: it runs on a synthetic fixture, not on a
-  production garment, so it catches a preset or simplifier regression and would
-  still miss damage specific to a particular CLO export.
-  **Closed for N001 later the same day by `pnpm eval:artwork:real`**, which runs
-  the same method on the actual 382 MB export. It is **manual and local** — the
-  monthly workflow that used to run it was deleted on 2026-08-07, because the R2
-  copy it pulled expires after 14 days and the surviving copy is on a laptop no
-  runner can reach (see `docs/RUNBOOK.md` → "The canonical raw garment"). Measured
-  on the real file: fidelity
-  **0.980%**, balanced **2.990%**, sweep run F **5.770%**, `--uv-weight 0`
-  **5.810%**, ceiling **4.2%**. Run F is the one that "passed all three gates"
-  above — there is now a number that stops it.
-  ⚠️ **RUN THIS ON AN IDLE MACHINE.** Measured 2026-08-07, same file (checksum
-  verified), same Chromium: **two runs with a test suite/build alongside** gave
-  `0.490 / 2.510 / 5.290 / 5.330`; **three idle runs** gave `0.980 / 2.990 / — /
-  5.810`, identical to three decimals and reproducing the 2026-08-06 calibration
-  exactly. `--keep` was ruled out (idle, with and without → same numbers). Since
-  every case is diffed against the same baseline, a *uniform* ~0.48pp offset — not
-  scatter — implicates the baseline render, not decimation. Mechanism: `render.ts`
-  settles a camera move on `jumpCameraToGoal()` plus **two chained rAFs**, which is
-  best-effort rather than a convergence check. The verdict and the contact sheets
-  agreed either way. This does not weaken the determinism claim — it qualifies it
-  with "idle". **Do not "fix" a small absolute difference; re-run idle first.** The
-  first hypothesis here was a Chromium version bump, and it was wrong.
+  `pipeline.test.ts`. ⚠️ And in zsh an unquoted `$FLAGS` is ONE argument: the robot's seven
+  flags arrived as one word, none matched, and the skinsuit "compressed" to 12 MB with
+  `geometry: none` (2026-09-03). Build the list as a bash array; `geometry: none` in a log
+  means a flag never arrived.
+- **A print piece is NEVER decimated — since 2026-09-02 (fix plan Rank 3).**
+  `simplifyTextured` skips every primitive whose material is artwork by name or by
+  UV span (colourway mappings walked, thread excluded) and reports `N print piece(s)
+  left exactly as exported`; `artworkAtRisk` now ASSERTS that, on every path.
+  `--decimate-artwork` is the negative control that brings the damage back —
+  measured on the fixed harness: ARISAN macro 20.6%, Trouser logo 8.5%, Minecut
+  holes 3.8% → 0.5%. Exports under `SMALL_EXPORT_MAX_TRIANGLES` (500k) get no
+  `--simplify` at all (`refineFlagsForSize`). **Before that, the three blocking
+  gates did NOT catch decimation damage** — they test `alphaMode`; a 2026-08-05
+  sweep (`tools/asset-pipeline/scripts/sweep-size-vs-artwork.mjs`) rendered the N001 wordmark illegible
+  at `--simplify-error 0.005` with every gate green and `artworkAtRisk` silent by
+  construction on the normal path (HG-02). Only a rendered crop saw it — why the old
+  `small` preset was deleted rather than re-tuned, and why `pnpm eval:artwork`
+  exists: it renders the real wordmark before and after the real chain on a
+  synthetic fixture, so it catches a preset or simplifier regression and would still
+  miss damage specific to one CLO export.
+- **A flat frame scores 0.00% against another flat frame.** 2026-09-02: three
+  ARISAN macro crops matched their control PERFECTLY because all three were grey —
+  the near-plane getter is read only when three rebuilds the projection, which
+  model-viewer does on a FOV change and never on a radius-only move, so a 2.2 m view
+  followed by a 0.6 m view kept the far plane and clipped the garment.
+  `viewer-page.ts` refreshes the projection on every `camera-change`, `render`
+  names any flat view (`flatViews`, ⚠️ FLAT in the CLI), and
+  `instruments.browser.test.ts` drives the sequence both ways. Treat a 0.00% on a
+  crop as "look at the picture", never as a pass.
+  **Closed for N001 by `pnpm eval:artwork:real`**, the same method on the actual
+  382 MB export — **manual and local** (why: "Before you change the pipeline"). Its
+  ceilings and camera fingerprints live in `raw/CANONICAL.json`, recalibrated on the
+  truthful harness on 2026-09-02 (C-02). ⚠️ **RUN IT ON AN IDLE MACHINE**: with a
+  test suite alongside every case read a *uniform* ~0.48pp low (2026-08-07, three
+  idle runs identical to three decimals) — the baseline render, not decimation.
+  **Do not "fix" a small absolute difference; re-run idle first.**
   ⚠️ **Correction while building that: "the sweep remains the authority on a real
   garment" — stated here until 2026-08-06 — was wrong.**
   `sweep-size-vs-artwork.mjs` imports no renderer and renders nothing; it measures
@@ -433,9 +413,10 @@ only the root's one-liners. Open this file before changing anything here.
   feature.** At the default `crop-chest` (18°) the ruined cord looked *identical*
   to the original and was reported as such. At **4°** it is obviously spiky. Judge
   thread with `render --views` at 4–7°.
-- **⛔ DRACO DOES NOT LOAD ON THE DEPLOYED VIEWER. Production is `--meshopt`, and
-  `--draco` must not be re-enabled until a live cold load proves otherwise.** Shipped
-  a draco garment on 2026-08-21: it rendered NOTHING and fell back to its poster,
+- **DRACO LOADS LIVE SINCE THE SEEDING FIX (measured 2026-08-30, GEO-02); PRODUCTION
+  STAYS `--meshopt` ANYWAY** — the Draco bib was 3.4 MB larger and 20 MB heavier on the
+  GPU (LIVE-08). The history: shipped a draco garment on 2026-08-21, it rendered
+  NOTHING and fell back to its poster,
   with the console showing model-viewer fetching the decoder from `www.gstatic.com`,
   which the CSP correctly blocks. On a cold live page
   `ModelViewerElement.dracoDecoderLocation` reads the gstatic default while
@@ -444,10 +425,8 @@ only the root's one-liners. Open this file before changing anything here.
   lives in `Stage.tsx` and is **unverified**.
   ⚠️ **This bullet said the exact opposite until the same day** — "smaller AND faster
   … so this needed no viewer change" — which would have shipped an unloadable model.
-  The SPEED measurement was real and is worth reclaiming once the viewer is fixed:
-  matched builds, CPU-throttled via CDP, median of 3 — 4× throttle **meshopt
-  31.0 MB / 1168 ms vs draco 20.6 MB / 908 ms**; 6× 1672 vs 1259. A model nobody can
-  load is worth nothing, so the number is parked, not acted on. **Checking that code
+    The SPEED measurement (4× throttle: meshopt 31.0 MB / 1168 ms vs draco 20.6 MB /
+  908 ms) is parked: on the wire and the GPU, LIVE-08 measured Draco worse. **Checking that code
   is committed and deployed is NOT checking that it works** — the decoder line was
   both, and was inert.
 - **A CLO export names the MATERIAL and leaves EVERY TEXTURE ANONYMOUS.** Measured
@@ -463,7 +442,10 @@ only the root's one-liners. Open this file before changing anything here.
   purpose; do not merge it with `texture-artwork.ts`'s. And use a token-boundary
   pattern, not the texture regex — that one contains `text`/`type`, so `Textile_Cotton`
   and `Polyester_Textured` classify as artwork and would exempt real FABRIC from
-  double-siding.
+  double-siding. Since 2026-09-02 it also sums area by NAME + factor (CLO: one material
+  per panel — Geovent CW6, CG-05), drops overlays under alpha 0.5 and UV-span prints,
+  and `readVariantColoursSampled` reads the fabric picture only when colourways carry
+  different pictures; a shared one stays blank with a note.
 - **`solidifyMaterials` forced EVERY non-`MASK` material double-sided, and that put a
   MIRRORED care label on the OUTSIDE of the garment.** The label is authored INSIDE
   and single-sided, so backface culling correctly hid it; double-siding rendered its
@@ -483,40 +465,50 @@ only the root's one-liners. Open this file before changing anything here.
 - **An all-over print on `BLEND` is classified as sheer FABRIC and takes the 2048
   cap.** The Cycling-Bib halftone is 4952×7014 and got squashed to 1446×2048 (0.29×),
   turning round dots into blocky squares. **`--max-texture 4096` is the safe lever.**
-  Do NOT instead widen `isArtworkTexture` — `character` feeds it into
-  `findArtworkAlphaProblems`, which **throws and saves nothing**, so widening it
-  widens a *blocking* gate.
+  Do NOT instead widen `isArtworkTexture`: since 2026-09-02 it feeds the compression
+  budget only, but its aspect-ratio rule is exactly what misread thread as a wordmark.
 - **KTX2 came out SMALLER here (20.3 MB vs 22.2 MB) and must still be REFUSED.**
   ETC1S turned the clean white bib panel **grey and blotchy**; the letters survived,
-  the fabric did not. Caught only by cropping the same region from both renders.
-  Note this inverts the older "KTX2 is larger on disk" reasoning — that argument
-  would have led the wrong way on this file. Judge it on the fabric, not the size.
+  the fabric did not — seen only by cropping the same region from both renders.
+  Judge it on the fabric, not the size — the older "KTX2 is larger on disk" argument
+  would have led the wrong way here.
 
-- **A backtick inside `review-server.ts`'s page script ENDS the template literal, and
-  the error names something else entirely.** Comments containing a backticked `near`
-  and `.camera` produced `TypeError: escapeHtml(...)garment.dirIndex...MIN_NEAR.camera
-  is not a function` — the whole template stringified, then a property read on it. Cost
-  two cycles on 2026-08-29. The page script must contain **zero** backticks.
+- **A backtick inside `review-server.ts`'s page script ENDS the template literal**, and
+  the error names something else (`TypeError: escapeHtml(...)…camera is not a function` —
+  the whole template stringified). Cost two cycles on 2026-08-29. The page script must
+  contain **zero** backticks.
 - **`pipeline review <dir>` resolves `<dir>` against the PACKAGE dir and indexes ONCE
-  at startup.** A relative `<dir>` is read from `tools/asset-pipeline/`, not the repo
-  root, and files added after the server has started report "0 garment(s)" — restart
-  it. Same resolution trap as `--out`.
+  at startup** — a relative path is read from `tools/asset-pipeline/`, and files added
+  after start report "0 garment(s)": restart it.
 - **A CLO 7.0.242 export is ONE GLB PER COLOURWAY; its "Combine to One File" silently
   emits a single colourway.** Measured 2026-08-29. `pipeline merge` is the fix (5 files
   → 5.59 MB, valid, all five render), but ⚠️ **`apps/shrink` never calls `merge`**, so
   such a garment cannot go through the robot unaided.
+- **A finished file's raw UV span means NOTHING — since 2026-09-03 (fix plan Rank 11,
+  CT-08).** CLO writes UVs in pattern space (a bib panel spans −206..206) and
+  glTF-Transform's quantizer refuses anything outside 0..1, so every UV set in the
+  catalogue shipped as 32-bit floats: 47% of the skinsuit's geometry bytes, 57% of the
+  bib's. `uv-remap.ts` moves every set into 0..1 (one remap per group of pieces linked by
+  a material, colourway mappings included, or a shared accessor), folds the inverse into
+  `KHR_texture_transform` composed with CLO's own, and stores 16 bits — 12 would be
+  3.1 px on the bib's widest fabric group. Measured on the 2026-09-03 masters: skinsuit
+  3.59 → 3.03 MB, bib 8.48 → 7.24 MB, UV bytes halved, validator 0 errors, renders 0.00%
+  changed (skinsuit) and 0.01–0.06% (bib: single pixels at the halftone's alpha-tested
+  dot edges, no region moved); the negative control (`composeMaterials: false`) moves
+  26.9%. So after `optimize` every accessor spans ≤ 1: read spans through
+  `uvSpanInPatternSpace` (the record is in the primitive's extras), never
+  `getMin`/`getMax` — on a quantized accessor those are raw integers anyway.
+  `--no-uv-remap` is the A/B control.
 
 ## What one session found on 2026-08-27 — the rules that survived it
 
-*The full record, with every measurement, is `docs/SESSION-2026-08-27.md`. What is here
-is only what still tells you what to DO.*
+*Full record: `docs/SESSION-2026-08-27.md`. Here is only what tells you what to DO.*
 
 **COMPARE THE ARTIFACTS, NOT A PICTURE OF THE DIFFERENCE.** A rendered diff shows what
-CHANGED, never whether it got WORSE. A macro crop "proved" reduced texture settings had
-damaged a slogan; `pipeline textures` settled it in one line — the artwork was
-byte-identical at both settings and only the fabric atlas had shrunk. The letterforms
-showed up because the CLOTH around each stroke changed and outlined them. Two wrong
-conclusions and an hour.
+CHANGED, never whether it got WORSE: a macro crop "proved" reduced texture settings had
+damaged a slogan, and `pipeline textures` showed the artwork byte-identical — only the
+fabric atlas had shrunk, and the changed CLOTH outlined each stroke. Two wrong conclusions
+and an hour.
 
 **Artwork is separated from fabric by UV SPAN, not by name** (`artwork-geometry.ts`).
 Measured over every textured primitive in 28 exports: fabric median **294.81**, topstitch
@@ -546,12 +538,13 @@ decals.
 
 **`repair-dead-textures.ts` removes the REFERENCES, never the entries.** Deleting
 `textures[5]` renumbers every later index and a material pointing at 6 silently acquires
-the picture from 7. It also pads the JSON chunk back to its original byte length so the
-BIN chunk cannot move.
+the picture from 7. It also pads the JSON chunk so the BIN chunk cannot move. Since
+2026-09-03 the repair is reported, and the robot REFUSES a stripped baseColour or
+emissive slot (`apps/shrink/src/refusals.ts`).
 
 **The spec check is a PRODUCTION dependency and must NOT go inside `describeGlb`.** The
-container installs `npm ci --omit=dev`, so a devDependency resolves locally and is missing
-in the Container — green everywhere, failing at runtime. And it costs **~3.4x the file
+container installs `npm ci --omit=dev`, so a devDependency is missing in the Container —
+green everywhere, failing at runtime. And it costs **~3.4x the file
 size** in RSS (573 MB → 1,955 MB), while `describeGlb` reads only the JSON chunk, so the
 1.25 GB Cycling Bib costs what a 5 MB one costs. `SPEC_MAX_BYTES` is 768 MB and the two
 exports over it are **skipped by name** — a skip must never read as a pass.
@@ -570,22 +563,21 @@ as a failure. CI runs it inside `mcr.microsoft.com/playwright:v1.62.1-noble`, an
 ⚠️ **`review-server.ts` and `apps/viewer` are DIFFERENT PAGES.** A fix in one is not in the
 other; the review viewer kept flickering after the product was fixed, which read as "the
 fix did not work". Both carry the bias at `-8/-8`, pinned by `review-server.test.ts`.
-⚠️ **A `git add -A` swept this file's constant into a viewer commit**, so reverting that
-commit silently reverted the pipeline too. Stage per package when two copies must agree.
+⚠️ **A `git add -A` once swept this file's constant into a viewer commit**; stage per
+package when two copies must agree.
 
 **`createTransform` is exported from `@gltf-transform/functions`, NOT `@gltf-transform/core`.**
 
-## The print takes the CLOTH'S colour — OPEN, and NOT the flicker
+## The print takes the CLOTH'S colour — REPORTED since 2026-09-03, never auto-fixed
 
-Found 2026-08-28. glTF renders base-colour TEXTURE x FACTOR; these artwork textures are
-near-white stencils, so the FACTOR is the ink — and CLO writes the colourway's
-**fabric** colour into it. Minecut's slogan: rgb(246) x 0.13 = rgb(33). **13 of 16
-garments**, `n001` included. **It is in the RAW export** — CLO's, not ours. **The depth
-bias cannot touch it** (0 vs `-8` moves 0.000%).
-⚠️ **Two fixes were tried and BOTH are wrong**, so do not re-apply either: whitening
-every cut-out turns d001's dark olive graphic white, and whitening only prints matching
-a cloth colour was **reverted (`447d15f`)** after it painted Minecut's correctly-dark
-slogan white-on-white. Judge a print against the cloth **it sits on** — model-viewer
-has no adjacency, this package does. ⚠️ **Read variants off the PRIMITIVES**:
-`root.getExtension(...)` returns nothing and reads as "no colourways", false for all
-16. All of it, incl. two non-causes: `docs/SESSION-2026-08-28.md`.
+glTF renders base-colour TEXTURE x FACTOR; these artwork textures are near-white stencils,
+so the FACTOR is the ink — and CLO writes a colourway FABRIC colour into it on 13 of 16
+garments, `n001` included. **It is in the RAW export.** ⚠️ Two fixes were tried and BOTH
+were wrong (whiten every cut-out; whiten a print matching a cloth colour, reverted in
+`447d15f`): a white stencil x a dark factor is how a COLOURED print is authored, and
+Minecut's slogan matched the grey skirt while sitting on the white band. Judge a print
+against the cloth **it sits on** — `ink-contrast.ts` does, from the overlay scan's support
+primitive (`pipeline ink <glb> --strip <dir>`; the robot report lists the flagged pairs).
+The number is WCAG luminance: butter on sky-blue reads 1.32:1 yet is readable by hue, and
+black cloth reads 2.30 by file against 1.22 rendered — **the strip judges, the number
+hints**. ⚠️ Read variants off the PRIMITIVES; `root.getExtension(...)` returns nothing.

@@ -133,6 +133,15 @@ const PALETTE: { name: string; hex: string }[] = [
   { name: 'Indigo', hex: '#4B0082' },
   // Terracotta takes the hex Coral used to hold before the correction above.
   { name: 'Terracotta', hex: '#E2725B' },
+  // Added 2026-09-02 (audit CG-07). Mustard, Gold, Butter and Cream were here and
+  // plain Yellow was not, so the two yellow colourways in the catalogue could never
+  // be named: tennis suit Colorway 10 (#FFD900) landed on Mustard at ΔE 14.95 and
+  // X-Milo Training Vest Colorway 4 (#FFFF22) on Butter at 17.43 — both past the
+  // confidence line, both blank for the owner to type. Process Yellow (#FFEF00, the
+  // published CMYK primary) names both with confidence (6.6 / 4.4) and sits 16.6+
+  // from every neighbour, where CSS yellow #FFFF00 would leave the first at 10.9 and
+  // gold #FFD700 the second at 11.6.
+  { name: 'Yellow', hex: '#FFEF00' },
   { name: 'Mauve', hex: '#C8A2C8' },
   { name: 'Camel', hex: '#C19A6B' },
   { name: 'Mocha', hex: '#3B2F2F' },

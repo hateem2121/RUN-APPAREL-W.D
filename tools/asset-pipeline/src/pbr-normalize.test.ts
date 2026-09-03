@@ -77,16 +77,21 @@ describe('normalizePbr — cloth is not metal', () => {
     expect(result.hardware).toBe(1)
   })
 
-  it('REPORTS an unclassified material and does not touch it', async () => {
-    // Owner decision 2026-08-26. The 20 Trim_* materials could be metal trim or
-    // fabric binding; nobody could say from the name, so nothing guesses.
+  it('DEFAULTS an unclassified material to matte and reports it by name (A-06, 2026-09-03)', async () => {
+    // Until 2026-09-03 this bucket was reported and never touched (owner decision
+    // 2026-08-26); the audit then found a trim piece shipping as polished chrome from an
+    // absent metallicFactor on a name nobody could classify. Cloth is the safe default;
+    // real hardware is caught by name before this bucket, and the report names the part.
     const doc = new Document()
     doc.createBuffer()
     const trim = doc.createMaterial('Trim_0091').setMetallicFactor(1).setRoughnessFactor(0.1)
+    const absent = doc.createMaterial('Piece 7') // glTF default: metallic 1
     const result = await run(doc)
-    expect(trim.getMetallicFactor()).toBe(1)
-    expect(result.unclassified).toEqual(['Trim_0091'])
-    expect(result.fixed).toEqual([])
+    expect(trim.getMetallicFactor()).toBe(0)
+    expect(trim.getRoughnessFactor()).toBe(0.5)
+    expect(absent.getMetallicFactor()).toBe(0)
+    expect(result.unclassified).toEqual(['Trim_0091', 'Piece 7'])
+    expect(result.fixed).toEqual(['Trim_0091', 'Piece 7'])
   })
 
   it('leaves fabric that is already correct completely alone', async () => {

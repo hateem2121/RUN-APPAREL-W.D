@@ -230,7 +230,7 @@
 > **Fix — and note it is NOT simply a wider band.** An adversarial review caught
 > the first attempt before it shipped, and the counterexamples are now tests:
 >
-> - `CUTOUT_MID_FRACTION = 0.05` governs only `solidifyMaterials`' BLEND→MASK
+> - `CUTOUT_MID_FRACTION` (0.05 when this was written; **0.08 since 2026-08-05, and since 2026-09-02 the decision is `CUTOUT_MAX_SOFT_INK` 0.31 over the ink — audit T-01**) governs only `solidifyMaterials`' BLEND→MASK
 >   decision. `BINARY_MID_FRACTION` stays **0.02**, because `character` also
 >   feeds `isArtworkTexture` → `findArtworkAlphaProblems`, which *throws* and
 >   saves nothing. Widening a blocking gate to rescue one texture is collateral

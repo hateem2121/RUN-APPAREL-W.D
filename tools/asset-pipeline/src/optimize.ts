@@ -6,15 +6,19 @@ import { ktx2 } from 'ktx2-encoder/gltf-transform'
 import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer'
 import sharp from 'sharp'
 import { createIO, readGlb } from './io'
+import {
+  estimateGpuTextures,
+  foldConstantTextures,
+  type FoldResult,
+  type GpuEstimate,
+} from './texture-fold'
+import { censusRawDocument, type RawCensus } from './raw-census'
+import type { DeadTextureRepair } from './repair-dead-textures'
+import { remapUvRanges, UV_QUANTIZE_BITS, type UvRemapResult } from './uv-remap'
 import { alignVariantTexCoords } from './variant-texcoord'
 import { DEFAULT_STITCH_PATTERN, type TopstitchResult, reduceTopstitch } from './topstitch'
 import { type PbrNormalizeResult, normalizePbr } from './pbr-normalize'
-import {
-  type AlphaProfile,
-  CUTOUT_MID_FRACTION,
-  CUTOUT_MIN_TRANSPARENT,
-  profileAlpha,
-} from './textures'
+import { type AlphaProfile, NO_ALPHA_PROFILE, profileAlpha, resolveBlendAlpha } from './textures'
 import {
   type AttributeSimplifier,
   type SimplifyTexturedResult,
@@ -134,6 +138,23 @@ export interface OptimizeOptions {
    * simplify-textured.ts for why it replaced `lockBorder`.
    */
   simplifyUvWeight?: number | undefined
+  /**
+   * NEGATIVE CONTROL ONLY. Lets `--simplify` reach the print pieces again, exactly as
+   * every run did before 2026-09-02, so the damage can be re-measured on demand (a
+   * measuring tool that has never seen a defect is not known to work). The robot
+   * never emits it — pinned in strategy.test.ts — and the report names every print
+   * it decimates in `artworkAtRisk`, which the shrink Worker refuses.
+   */
+  decimateArtwork?: boolean | undefined
+  /**
+   * Move every UV set into 0..1 (recording the move in KHR_texture_transform) so the
+   * quantizer takes it — fix plan Rank 11, audit CT-08/F1-10/GEO-01. ON unless set to
+   * false. CLO writes UVs in pattern space, which glTF-Transform's quantizer refuses,
+   * so every UV set in the catalogue shipped as 32-bit floats: 47% of the skinsuit's
+   * geometry bytes, 57% of the bib's. `--no-uv-remap` is the A/B control that keeps
+   * the old floats; see uv-remap.ts.
+   */
+  uvRemap?: boolean | undefined
   /** Same for vertex normals — protects shading rather than artwork. */
   simplifyNormalWeight?: number | undefined
 
@@ -251,60 +272,10 @@ export interface SolidifyResult {
   doubleSided: number
 }
 
-/** Below this base-colour alpha a material is doing something deliberate with transparency. */
-const OPAQUE_FACTOR_THRESHOLD = 0.99
-
-/**
- * An alpha channel that is only ANTI-ALIASING, not translucency.
- *
- * ⚠️ THIS PAIR IS THE FIX FOR "IT GOES SEE-THROUGH WHEN YOU ROTATE IT", 2026-08-27.
- * Both halves are required and neither is arbitrary.
- *
- * WHAT WAS HAPPENING. CLO packs garment panels into one texture atlas and
- * anti-aliases their edges in the alpha channel. Measured on the raw X-MILO CORE
- * OVERSIZE export, over all 36,437,385 pixels of its 6835x5331 fabric texture:
- * **0.000% fully clear — not one pixel** — 93.33% fully solid, 6.67% in a soft
- * border band. `profileAlpha` calls a texture 'opaque' only at >= 99.9% solid and
- * 'binary' only at <= 2% partial, so this fell through to 'graded' and was kept on
- * BLEND as "deliberate translucency". <model-viewer> has no order-independent
- * transparency, so BLEND materials depth-sort per object and the sort flips as the
- * camera moves: 99 BLEND went in, 50 came out, and the garment turned see-through
- * on rotation. A texture with no clear pixels cannot be seen through.
- *
- * WHY BOTH HALVES. A uniformly sheer fabric — chiffon at alpha 0.5 — ALSO has no
- * fully-clear pixels, and forcing it opaque would destroy it. It has almost no
- * fully-SOLID pixels either, so the second half excludes it.
- *
- * ⚠️ THREE CONDITIONS, BECAUSE TWO WERE NOT ENOUGH AND THE SUITE CAUGHT IT. The
- * first version tested only "no clear pixels" and "mostly solid", and it broke the
- * organza-inset test — a 22x22 patch at alpha 90 on an otherwise solid map, which
- * is 0% clear and 97% solid and IS genuinely translucent. Counting partial pixels
- * cannot separate the two: the defect is 6.67% partial and the organza only 2.95%,
- * the wrong way round. What separates them is how DEEP the partiality goes.
- *
- * WHERE THE NUMBERS COME FROM, all measured:
- *   - clear < 1%   : every genuinely translucent or cut-out baseColor texture across
- *                    X-MILO, PRO-PILE and MATRIX-PUFF carries at least 9.29% fully
- *                    clear pixels; the defect carries 0.00%.
- *   - sheer < 0.5% : X-MILO's fabric is 0.015% below alpha 128 — its partial pixels
- *                    sit at 192-247, a visually solid edge ramp. The organza inset
- *                    is 2.95% at alpha 90. A ~200x separation.
- *   - solid >= 75% : well under the measured 93.33%, and far above the ~0% a
- *                    uniformly sheer chiffon would show, so an anti-aliasing band
- *                    may cover a quarter of the atlas before this stops firing.
- *
- * A large panel at alpha ~200 that is cut out nowhere WILL be forced opaque by this.
- * That is accepted: at 78% opacity the change is barely visible, and CLO's soft edge
- * is a likelier explanation than a design intent nothing else in the file records.
- *
- * ⚠️ Do NOT "simplify" this to a looser `opaqueFraction` threshold inside
- * `profileAlpha`. That character is also read by `isArtworkTexture`, which feeds a
- * BLOCKING gate, and widening a blocking gate to fix a rendering bug is the wrong
- * trade — the same reasoning that keeps `isArtworkMaterialByName` out of it.
- */
-const DECORATIVE_ALPHA_MAX_TRANSPARENT = 0.01
-const DECORATIVE_ALPHA_MAX_SHEER = 0.005
-const DECORATIVE_ALPHA_MIN_OPAQUE = 0.75
+// The BLEND decision — OPAQUE_FACTOR_THRESHOLD, the DECORATIVE_ALPHA_* trio, the cutout
+// test and their order — lives in textures.ts as `resolveBlendAlpha` since 2026-09-02,
+// so the gate that polices this step (`auditArtworkAlpha`) shares its exact rule. The
+// measurements behind every number moved with them.
 
 /**
  * Force fabric to render solid — deciding per material from its actual alpha
@@ -356,69 +327,21 @@ export async function solidifyMaterials(document: Document): Promise<SolidifyRes
       // An untextured material has no pixels to profile: zero of everything, so
       // it can never satisfy the cutout test and falls through to OPAQUE, which
       // is the CLO stray-opacity case this step was built for.
-      const alpha: AlphaProfile = image
-        ? await profileAlpha(image)
-        : {
-            character: 'none',
-            transparentFraction: 0,
-            opaqueFraction: 0,
-            midFraction: 0,
-            sheerFraction: 0,
-          }
+      const alpha: AlphaProfile = image ? await profileAlpha(image) : NO_ALPHA_PROFILE
       const factor = material.getBaseColorFactor()[3] ?? 1
 
-      // A cutout is "hardly any partial alpha" AND "actually cut out somewhere".
-      // The second half is not decoration: a uniformly translucent inset has
-      // little partial alpha too, and MASKing it at 0.5 deletes it outright
-      // rather than hardening it. See CUTOUT_MIN_TRANSPARENT.
-      const cutout =
-        alpha.character === 'binary' ||
-        (alpha.midFraction <= CUTOUT_MID_FRACTION &&
-          alpha.transparentFraction >= CUTOUT_MIN_TRANSPARENT)
-
-      if (alpha.character === 'unknown') {
-        // N8, 2026-08-18. 'unknown' means sharp could not DECODE the image
-        // (textures.ts) and every fraction is 0. Zeroes from a failed decode are
-        // absence of evidence, not evidence of opacity — but the chain below read
-        // them as opacity: cutout is false because 0 >= CUTOUT_MIN_TRANSPARENT
-        // fails, character is not 'graded', so a BLEND material fell through to
-        // OPAQUE and a cutout became a solid rectangle.
-        //
-        // Note this is NOT the 'none' case above, which is an untextured material
-        // with genuinely no pixels to profile and must keep falling through to
-        // OPAQUE — that is the CLO stray-opacity case this whole step was built
-        // for.
-        //
-        // Not reachable on a first pass: solidifyMaterials runs BEFORE texture
-        // compression, and WebP (the default) decodes fine. This closes the
-        // --ktx2 second-pass case, a narrower consequence of the documented
-        // "never run the pipeline on its own output" trap.
+      // ONE decision, shared with the gate that checks this step's output — see
+      // resolveBlendAlpha in textures.ts for every branch and the measurement behind
+      // it. 'keep' is deliberate translucency (soft-edged alpha, an explicit sheer
+      // factor, or a picture that would not decode) and the report says so; the
+      // operator can still decide the garment is not sheer and re-export it.
+      const resolution = resolveBlendAlpha(alpha, factor)
+      if (resolution === 'keep') {
         result.keptBlend++
-      } else if (factor < OPAQUE_FACTOR_THRESHOLD) {
-        // An explicit declaration on the material beats anything inferred from
-        // its pixels. glTF effective alpha is factor.a * texel.a, so a material
-        // that declares itself sheer at 0.4 can never reach alphaCutoff 0.5 —
-        // MASK would discard every fragment and render it as nothing at all,
-        // silently, passing every gate.
-        result.keptBlend++
-      } else if (cutout) {
+      } else if (resolution === 'MASK') {
         // A real cutout. Keep the shape, lose the sorting problem.
         material.setAlphaMode('MASK').setAlphaCutoff(0.5)
         result.masked++
-      } else if (
-        alpha.transparentFraction < DECORATIVE_ALPHA_MAX_TRANSPARENT &&
-        alpha.sheerFraction < DECORATIVE_ALPHA_MAX_SHEER &&
-        alpha.opaqueFraction >= DECORATIVE_ALPHA_MIN_OPAQUE
-      ) {
-        // Anti-aliasing, not translucency — see the constants above. Mutually
-        // exclusive with `cutout`, which needs >= CUTOUT_MIN_TRANSPARENT clear
-        // pixels, so the order of these two branches cannot change the outcome.
-        material.setAlphaMode('OPAQUE')
-        result.opaqued++
-      } else if (alpha.character === 'graded') {
-        // Deliberate translucency. Leave it and say so — the operator can still
-        // decide this garment is not sheer and re-export it.
-        result.keptBlend++
       } else {
         material.setAlphaMode('OPAQUE')
         result.opaqued++
@@ -472,6 +395,10 @@ export async function solidifyMaterials(document: Document): Promise<SolidifyRes
  * identical, from the outside, to one that was applied and did not help.
  */
 export interface OptimizeTelemetry {
+  /** What CLO wrote, measured before any pass (fix plan Rank 13). */
+  raw?: RawCensus
+  /** Dead texture references the reader had to strip to read the file at all (HG-06). */
+  repair?: DeadTextureRepair
   /** What normalizePbr changed, left alone, and could not classify. */
   pbr?: PbrNormalizeResult
   /** Present only when a simplify pass ran. */
@@ -480,6 +407,11 @@ export interface OptimizeTelemetry {
   variantTexCoords?: string[]
   /** Present only when the WebP texture pass ran. */
   textures?: TextureArtworkResult
+  /** Near-constant shading maps folded into material factors (fix plan Rank 10). */
+  fold?: FoldResult
+  uvRemap?: UvRemapResult
+  /** What the finished file costs a phone's GPU, counted after every pass (Rank 10). */
+  gpu?: GpuEstimate
   /** Present only when the opaque/solidify pass ran. */
   solidify?: SolidifyResult
   /** Present only when the topstitch pass ran. */
@@ -499,6 +431,14 @@ export async function buildOptimizeTransforms(
   telemetry: OptimizeTelemetry = {},
 ): Promise<Transform[]> {
   const transforms: Transform[] = [
+    // FIRST, before dedup merges the duplicate pictures it is there to count: what CLO
+    // wrote — duplicate and oversized pictures, thread by both names, flat cloth, print
+    // finishes (fix plan Rank 13). Measures, reports, changes nothing.
+    censusRawDocument({
+      onResult: (census) => {
+        telemetry.raw = census
+      },
+    }),
     dedup(),
     prune({ keepExtras: true }),
     // Immediately after prune, because prune is what renumbers UV sets — and it
@@ -553,6 +493,16 @@ export async function buildOptimizeTransforms(
     })
   }
 
+  // FOLD BEFORE ENCODING (fix plan Rank 10, audit TEX-06): a 2048² roughness map that
+  // holds eight values costs 21 MB of phone memory for two numbers a factor expresses.
+  // Folded first, it is never encoded, never de-duplicated, never counted.
+  transforms.push(
+    foldConstantTextures({
+      onResult: (result) => {
+        telemetry.fold = result
+      },
+    }),
+  )
   const max = options.maxTextureSize ?? DEFAULT_MAX_TEXTURE
   if (options.texture === 'webp') {
     // Not glTF-Transform's textureCompress: it cannot reach `smartSubsample`,
@@ -575,19 +525,41 @@ export async function buildOptimizeTransforms(
     )
   } else if (options.texture === 'ktx2') {
     const imageDecoder = makeImageDecoder(max)
-    // Two passes, following Basis Universal best practice:
-    //  - Normal maps → UASTC (preserves the surface detail lossy ETC1S would smear).
-    //  - Colour / data maps → ETC1S (far higher compression where it is safe).
-    // The normal pass runs first; the ETC1S pass is scoped to colour slots so it
-    // never touches the already-encoded normal maps.
+    // Three passes, following Basis Universal best practice — and, since 2026-09-03,
+    // with the colour space said EXPLICITLY on every one (fix plan Rank 14, audits
+    // TEX-03 / TEX-12): the encoder writes the file's transfer function from
+    // `isSetKTX2SRGBTransferFunc`, and until now no pass set it, so colour and data
+    // maps were stamped alike. A normal or roughness map read through an sRGB
+    // transfer is a different surface; a colour map read as linear is a different
+    // colour. That, not ETC1S vs UASTC, was the variable in the 2026-08-21 refusal.
+    //  - Normal maps → UASTC, linear (preserves the surface detail ETC1S would smear).
+    //  - Colour maps (baseColor, emissive) → ETC1S, sRGB.
+    //  - Other data maps (occlusion, metallicRoughness) → ETC1S, linear.
+    // Each pass is scoped by slot so none re-encodes another's output.
+    const ktx2Quality = options.textureQuality ?? DEFAULT_TEXTURE_QUALITY
     transforms.push(
-      ktx2({ isUASTC: true, generateMipmap: true, imageDecoder, slots: /normalTexture/i }),
       ktx2({
-        isUASTC: false,
-        qualityLevel: options.textureQuality ?? DEFAULT_TEXTURE_QUALITY,
+        isUASTC: true,
         generateMipmap: true,
         imageDecoder,
-        slots: /(baseColor|emissive|occlusion|metallicRoughness)Texture/i,
+        slots: /normalTexture/i,
+        isSetKTX2SRGBTransferFunc: false,
+      }),
+      ktx2({
+        isUASTC: false,
+        qualityLevel: ktx2Quality,
+        generateMipmap: true,
+        imageDecoder,
+        slots: /(baseColor|emissive)Texture/i,
+        isSetKTX2SRGBTransferFunc: true,
+      }),
+      ktx2({
+        isUASTC: false,
+        qualityLevel: ktx2Quality,
+        generateMipmap: true,
+        imageDecoder,
+        slots: /(occlusion|metallicRoughness)Texture/i,
+        isSetKTX2SRGBTransferFunc: false,
       }),
     )
   }
@@ -609,6 +581,11 @@ export async function buildOptimizeTransforms(
   // Captured as a value, not a boolean: a separate `stitchRan` flag does not
   // narrow `options.stitch` for TypeScript, and `exactOptionalPropertyTypes` makes
   // that a hard error rather than an implicit `undefined` reaching the simplifier.
+  // ⚠️ DE-DUPLICATE AGAIN AFTER RE-ENCODING (audit TEX-05). The first dedup() runs on
+  // the raw export, where two copies of one picture can differ by a byte of metadata;
+  // after both are re-encoded they are byte-identical, and the live skinsuit shipped a
+  // 640x640 twin (the bib a 2048x1863 normal map) that only a second pass sees.
+  transforms.push(dedup(), prune({ keepExtras: true }))
   const stitchRatio =
     typeof options.stitch === 'number' && options.stitch > 0 && options.stitch < 1
       ? options.stitch
@@ -637,6 +614,7 @@ export async function buildOptimizeTransforms(
         error: options.simplifyError ?? DEFAULT_SIMPLIFY_ERROR,
         uvWeight: options.simplifyUvWeight ?? DEFAULT_SIMPLIFY_UV_WEIGHT,
         normalWeight: options.simplifyNormalWeight ?? DEFAULT_SIMPLIFY_NORMAL_WEIGHT,
+        ...(options.decimateArtwork ? { decimateArtwork: true } : {}),
         // If the stitch pass ran, it OWNS those meshes — decimating them again
         // here is what frayed the cord on 2026-08-21. Passing both flags is
         // therefore safe: thread takes the stitch budget, garment takes this one.
@@ -648,14 +626,42 @@ export async function buildOptimizeTransforms(
     )
   }
 
-  const geometry = resolveGeometry(options)
-  if (geometry === 'draco') {
-    transforms.push(draco())
-  } else if (geometry === 'meshopt') {
-    await MeshoptEncoder.ready
-    transforms.push(meshopt({ encoder: MeshoptEncoder, level: 'high' }))
+  // UVs INTO 0..1, LAST BEFORE THE CODEC (fix plan Rank 11; audit CT-08, F1-10,
+  // GEO-01). glTF-Transform's quantizer — which meshopt() runs — refuses any UV set
+  // outside 0..1, and CLO writes every one in pattern space, so until this pass the
+  // largest attribute in every garment shipped as 32-bit floats. Runs after the
+  // decimator (which prices UV error in the export's own units) and after everything
+  // that reads a raw UV span; whatever runs later reads spans through
+  // `uvSpanInPatternSpace`. Sixteen bits for the reason in uv-remap.ts: the widest
+  // fabric group in the catalogue quantizes to 0.19 px at 16 bits and 3.1 px at 12.
+  const uvRemap = options.uvRemap !== false
+  if (uvRemap) {
+    transforms.push(
+      remapUvRanges({
+        onResult: (result) => {
+          telemetry.uvRemap = result
+        },
+      }),
+    )
   }
 
+  const geometry = resolveGeometry(options)
+  const texcoordBits = uvRemap ? { quantizeTexcoord: UV_QUANTIZE_BITS } : {}
+  if (geometry === 'draco') {
+    transforms.push(draco(texcoordBits))
+  } else if (geometry === 'meshopt') {
+    await MeshoptEncoder.ready
+    transforms.push(meshopt({ encoder: MeshoptEncoder, level: 'high', ...texcoordBits }))
+  }
+
+  // LAST, so it counts what ships (fix plan Rank 10, audit TEX-04/TEX-07/LIVE-07).
+  transforms.push(
+    estimateGpuTextures({
+      onResult: (result) => {
+        telemetry.gpu = result
+      },
+    }),
+  )
   return transforms
 }
 
@@ -708,6 +714,14 @@ export interface OptimizeResult {
   simplify?: SimplifyTexturedResult
   /** How textures were classified and encoded, when the WebP pass ran. */
   textures?: TextureArtworkResult
+  /** What CLO wrote, measured before any pass — the report's raw-export lines (Rank 13). */
+  raw?: RawCensus
+  /** Present only when the reader had to strip dead texture references (HG-06). */
+  repair?: DeadTextureRepair
+  fold?: FoldResult
+  /** Present whenever the UV remap ran (default on); absent under --no-uv-remap. */
+  uvRemap?: UvRemapResult
+  gpu?: GpuEstimate
   /** What the metalness pass changed, left alone, and could not classify. */
   pbr?: PbrNormalizeResult
   /** How each translucent material was resolved, when the opaque pass ran. */
@@ -743,6 +757,10 @@ export async function optimizeGlb(
     )
   }
   const telemetry: OptimizeTelemetry = {}
+  // Carried into the result (fix plan Rank 13, audit HG-06): a repair used to be a
+  // console line and nothing else, so a stripped COLOUR map — the garment's own picture —
+  // would have shipped silently. The robot refuses that case (apps/shrink repairGate.ts).
+  if (repair.referencesRemoved) telemetry.repair = repair
   await optimizeDocument(document, options, telemetry)
 
   await mkdir(dirname(outputFile), { recursive: true })
@@ -760,8 +778,13 @@ export async function optimizeGlb(
     textureFormats,
     geometry: resolveGeometry(options),
     opaque: options.opaque === true,
+    ...(telemetry.raw ? { raw: telemetry.raw } : {}),
+    ...(telemetry.repair ? { repair: telemetry.repair } : {}),
     ...(telemetry.simplify ? { simplify: telemetry.simplify } : {}),
     ...(telemetry.textures ? { textures: telemetry.textures } : {}),
+    ...(telemetry.fold ? { fold: telemetry.fold } : {}),
+    ...(telemetry.uvRemap ? { uvRemap: telemetry.uvRemap } : {}),
+    ...(telemetry.gpu ? { gpu: telemetry.gpu } : {}),
     ...(telemetry.pbr ? { pbr: telemetry.pbr } : {}),
     ...(telemetry.solidify ? { solidify: telemetry.solidify } : {}),
     ...(telemetry.stitch ? { stitch: telemetry.stitch } : {}),
@@ -875,6 +898,8 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
   let simplify: number | undefined
   let simplifyError: number | undefined
   let simplifyUvWeight: number | undefined
+  let decimateArtwork = false
+  let uvRemap = true
   let simplifyNormalWeight: number | undefined
   let stitch: number | undefined
   let stitchError: number | undefined
@@ -906,6 +931,8 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
     else if (arg === '--opaque') opaque = true
     else if (arg === '--no-opaque' || arg === '--keep-transparency') opaque = false
     else if (arg === '--no-pbr-normalize') normalizePbrOption = false
+    else if (arg === '--decimate-artwork') decimateArtwork = true
+    else if (arg === '--no-uv-remap') uvRemap = false
     else if (!arg.startsWith('--')) input = arg
   }
 
@@ -924,6 +951,8 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
       simplify,
       simplifyError,
       simplifyUvWeight,
+      ...(decimateArtwork ? { decimateArtwork: true } : {}),
+      ...(uvRemap ? {} : { uvRemap: false }),
       simplifyNormalWeight,
       stitch,
       stitchError,

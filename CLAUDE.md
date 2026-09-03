@@ -78,7 +78,7 @@ Absent in earlier sessions; 2026-08-21 it WAS there (`/opt/homebrew/bin/pnpm`, e
 missing target — so `command -v pnpm` finds it and still fails. When a child process
 needs a real one (`e2e/prepare.mjs` shells out to `pnpm build`), put a shim on `PATH`
 that execs `npx --yes pnpm@10.33.0 "$@"`.
-Every documented `pnpm <script>` in this repo means that. Bare `pnpm` fails with
+ Bare `pnpm` fails with
 exit **127**, and the failure is worth naming because of *where* it surfaces:
 `apps/viewer/e2e/prepare.mjs` shells out to `pnpm build`, so the whole e2e suite
 dies as `Timed out waiting 120000ms from config.webServer` with the real
@@ -106,9 +106,7 @@ so assume neither.** 2026-08-09 both *were* set in the session environment
 `~/.zshenv`, `~/.zprofile`, `~/.bash_profile` or `~/.profile`. 2026-08-13 and
 again 2026-08-17, same machine, `env | grep -E '^(NODE_ENV|PORT)='` returned
 nothing and a full gate run passed with no workaround — **then on 2026-08-26 both
-were BACK** (`NODE_ENV=development`, `PORT=5002`). Do not read the run of two clean
-measurements as the harness having stopped: it has now flipped twice. So the harness
-supplies them *sometimes*. The consequence is the point: the owner's own terminal and any
+were BACK** (`NODE_ENV=development`, `PORT=5002`). So the harness supplies them *sometimes*. The consequence is the point: the owner's own terminal and any
 two sessions can each see a different environment, so **"it works for me" proves
 nothing about the other.** Both are fixed at the source anyway. **If a build or a
 test server fails in a way that makes no sense, run
@@ -343,7 +341,7 @@ the answer is "nothing that happens in production", it is not a test.
 
 - **A CLO 7.0 export arrives as one GLB PER COLOURWAY** (`_0.._N`); `pipeline merge`
   joins them, and **`apps/shrink` never calls it**. See `tools/asset-pipeline/CLAUDE.md`.
-- **Twenty-two more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
+- **Twenty-four more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
   2026-08-19, when this file measured 44,993 characters against Claude Code's
   40,000-character warning, the point at which Anthropic's own guidance says adherence
   to *every* rule in a file starts dropping. They load the moment you touch
@@ -364,13 +362,15 @@ the answer is "nothing that happens in production", it is not a test.
   `--simplify-error` is. **Five added 2026-08-21, all from one 1.31 GB export:** a CLO
   file is **99.97% topstitch and 0.03% garment**, so thread needs its own `--stitch`
   budget and a *wide crop cannot see* a frayed cord (judge at 4–7°, not the default
-  18°); ⛔ **draco DOES NOT LOAD on the deployed viewer** — production stays on
-  `--meshopt`; normal/ORM maps outweighed the artwork at colour-map resolution
+  18°); draco **loads live since 2026-08-30 (GEO-02)** but production stays on `--meshopt` — the Draco bib was 3.4 MB larger and 20 MB heavier on the GPU (LIVE-08); normal/ORM maps outweighed the artwork at colour-map resolution
   (`--data-max-texture`); an all-over print on `BLEND` is read as sheer fabric and
   silently squashed to 29%; **KTX2 came out smaller yet still had to be refused**
   because ETC1S mottles white fabric; **a CLO export leaves every TEXTURE anonymous**
   so a name-based artwork check must read the MATERIAL name or it is silently inert;
   and forced double-siding put a **mirrored care label on the outside**.
+  **Added 2026-09-02:** a print piece is NEVER decimated (`--decimate-artwork` is the
+  negative control), and **a flat frame scores 0.00% against another flat frame** — a
+  perfect crop match means look at the picture, never pass.
   **Five more findings are recorded there under 2026-08-27**, outside that bulleted
   list: the six unreadable exports carry a texture that is
   **referenced, not orphaned** — safe to strip only because it is always
@@ -380,13 +380,13 @@ the answer is "nothing that happens in production", it is not a test.
   glTF** for want of an `EXT_texture_webp` declaration, which `<model-viewer>` renders
   anyway; **`prune()` renumbers UV sets and updates only the DEFAULT material**,
   leaving colourway-only ones pointing at an attribute that no longer exists; and
-  **`pnpm eval:artwork` fails on macOS while CI is green** — deterministic to three
-  decimals across three commits, so do NOT raise the ceiling.
-  ⚠️ These are hooks, not the traps. After `/compact` only THIS file is re-injected, so a
-  compacted session that has not yet opened `tools/asset-pipeline/` has only these
-  one-liners. Open that file before changing anything there.
+  **`pnpm eval:artwork` PASSES on macOS since 2026-08-29** (this said the opposite until 2026-09-03) — a local failure is real; do NOT raise the ceiling.
+  **Added 2026-09-03:** every UV set is moved into 0..1 and stored 16-bit, so a finished
+  file's raw UV span means nothing — read it through `uvSpanInPatternSpace`.
+  ⚠️ These are hooks, not the traps; after `/compact` only THIS file is re-injected —
+  open that file before changing anything there.
 
-- **Thirty-two more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
+- **Thirty-three more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
   restated here — they load automatically the moment you touch `apps/viewer/`,
   so a copy in this file is pure weight. Enough of a hook to make you open it: a
   `performance` global shadowed by a local (a runtime `TypeError` every unit test
@@ -403,9 +403,9 @@ the answer is "nothing that happens in production", it is not a test.
   five, which is the difference between a clean rail and a stranded tab; and
   **model-viewer builds only the ARRIVING colourway's materials**, so anything done to
   `model.materials` on `load` reached 6 of 26 printed decals on the live garment and
-  left four of five colourways flickering — and when that was fixed the bias was still
-  **eight times too weak to work**, which no test caught because none asserted it was
-  strong ENOUGH.
+  left four of five colourways flickering — when that was fixed the bias was still
+  **eight times too weak**, and then it reached only the FIRST of each wrapper's
+  materials while a colourway switch drew another (1 of 6 live).
   Read them before changing the viewer, its Worker, or its headers.
   **Maintaining these files is its own topic** — the 40,000-character warning and the
   200-line target, why `@path` imports do NOT save context, why path-scoped rules are
@@ -456,14 +456,17 @@ linear to sRGB, and names it by CIEDE2000 against a palette in `colour-name.ts`.
 This exists because on 2026-08-03 every published colour name on the live site was
 wrong — a maroon garment labelled "Navy", a blush one "Black", a powder blue one
 "Crimson" — and two colourways in the file were never mapped at all.
+⚠️ **Area is summed by material NAME (2026-09-02):** CLO writes one material per
+PANEL, and a 4.36% print panel named Geovent's white cloth "Navy"
+(CG-05). A white factor over a fabric picture is sampled only when colourways carry
+different pictures; every export censused binds one to all five, so the name stays
+blank and the report says why.
 
 Two rules it must keep: a **colourway slug is printed on physical QR tags** and
 must never be changed by an automated process, and **row order decides the default
 colourway**, so nothing may reorder rows. Imported rows append, arrive
 `active: false`, and a low-confidence match arrives with an empty name rather than
-a guess. Tested in `packages/shared/src/importColours.test.ts` — it lived at
-`apps/cms/src/fields/importColours.test.ts` until 2026-08-11 (`16b548a`), and this
-line still said so until a post-merge review followed it and found nothing.
+a guess. Tested in `packages/shared/src/importColours.test.ts` (moved 2026-08-11).
 
 ## Before you delete anything in the CMS
 

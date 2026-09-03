@@ -126,11 +126,90 @@ export interface TextureInventory {
 }
 
 /**
- * Below this, a stored colour map is suspiciously small for its pixel count.
- * A clean WebP of a flat logo lands around 0.05-0.15 bpp; the damaged N001
- * textures measured 0.003.
+ * Below this many bytes per INK pixel, a print that carries colour detail is stored
+ * suspiciously small. Drawn from a table, not chosen (scripts/artwork-detail-census.mjs,
+ * 2026-09-02, bytes per ink pixel):
+ *
+ *   detailed print                       q95 (production)   q15      q5
+ *   AERO label 1800x1200, 16 colours     0.0208             0.0086   0.0070
+ *   AERO Main Single Logo, 121 colours   0.0731             0.0397   0.0374
+ *   ARISAN Material_Graphic, 5 colours   0.0567             —        —
+ *   Minecut THE EXTRA MILE, 6 colours    0.1263             —        —
+ *
+ * 0.012 sits between the lowest clean value (0.0208) and the highest crushed one this
+ * can see (0.0086). The damaged N001 wordmark of 2026-08-05 measured 0.003. What the
+ * signal CANNOT see: a multi-colour cut-out crushed by quality keeps 0.037-0.040 (its
+ * alpha stays near-lossless and carries the shape) — that damage shows only in a
+ * rendered crop, which is what eval:artwork is for. And a FLAT one-colour print is
+ * exempt altogether: see `isFlatInk`.
  */
-export const CRUSHED_BYTES_PER_PIXEL = 0.02
+export const CRUSHED_BYTES_PER_PIXEL = 0.012
+
+/**
+ * A print whose ink is one flat colour has nothing for lossy compression to lose:
+ * WebP stores alpha near-losslessly, so the shape survives at any quality and the
+ * bytes are legitimately tiny. ARMOR's 1462x1069 mark stores in 15.5 KB (0.018 per
+ * ink pixel) and is crisp — the last of the F2-07 false alarms, looked at on
+ * 2026-09-02. Measured flat prints: 1-5 colours, 0.00% colour edges; the detailed
+ * ones above: 5-121 colours, 0.09-3.94% colour edges. Both lines must be crossed.
+ */
+export const FLAT_INK_MAX_COLOURS = 4
+export const FLAT_INK_MAX_EDGE_FRACTION = 0.001
+
+export interface InkDetail {
+  /** Distinct ink colours at 16 levels per channel. */
+  colours: number
+  /** Share of ink pixels whose right or lower ink neighbour differs in luminance by > 24/255. */
+  colourEdgeFraction: number
+}
+
+export function isFlatInk(detail: InkDetail): boolean {
+  return (
+    detail.colours <= FLAT_INK_MAX_COLOURS && detail.colourEdgeFraction < FLAT_INK_MAX_EDGE_FRACTION
+  )
+}
+
+/**
+ * How much colour detail the INK carries — the pixels with alpha > 8, or every pixel
+ * of an opaque picture. One RGBA decode; called only for textures already below the
+ * byte line, so it costs nothing on a clean file.
+ */
+export async function profileInkDetail(buffer: Uint8Array): Promise<InkDetail | null> {
+  let data: Buffer
+  let width: number
+  try {
+    const out = await sharp(buffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+    data = out.data
+    width = out.info.width
+  } catch {
+    return null
+  }
+  const pixels = data.length / 4
+  const luma = (i: number) =>
+    0.299 * (data[i * 4] ?? 0) + 0.587 * (data[i * 4 + 1] ?? 0) + 0.114 * (data[i * 4 + 2] ?? 0)
+  const isInk = (i: number) => (data[i * 4 + 3] ?? 0) > 8
+  const colours = new Set<number>()
+  let ink = 0
+  let edges = 0
+  for (let i = 0; i < pixels; i++) {
+    if (!isInk(i)) continue
+    ink++
+    colours.add(
+      (((data[i * 4] ?? 0) >> 4) << 8) |
+        (((data[i * 4 + 1] ?? 0) >> 4) << 4) |
+        ((data[i * 4 + 2] ?? 0) >> 4),
+    )
+    const l = luma(i)
+    const right = (i + 1) % width === 0 ? -1 : i + 1
+    const below = i + width < pixels ? i + width : -1
+    if (
+      (right >= 0 && isInk(right) && Math.abs(luma(right) - l) > 24) ||
+      (below >= 0 && isInk(below) && Math.abs(luma(below) - l) > 24)
+    )
+      edges++
+  }
+  return { colours: colours.size, colourEdgeFraction: ink ? edges / ink : 0 }
+}
 
 /** Above this long:short ratio a texture is almost certainly a wordmark or printed strip. */
 export const ARTWORK_ASPECT_RATIO = 3
@@ -207,6 +286,36 @@ export const BINARY_MID_FRACTION = 0.02
 export const CUTOUT_MID_FRACTION = 0.08
 
 /**
+ * THE CUT-OUT TEST IS MEASURED OVER THE INK, NOT THE WHOLE PICTURE — since 2026-09-02.
+ *
+ * `CUTOUT_MID_FRACTION` above asked what share of ALL pixels is part-transparent. A
+ * brush print on a mostly-empty canvas is 4.2% partial over the whole texture and
+ * 36.3% partial as a share of its ink, so it read as a sticker, was hardened to MASK
+ * at 0.5, and every faded stroke edge was chopped into steps and speckles (audit
+ * F1-01, FAB-08, CT-05: ARISAN BRA's brush logo, RUN BRUSH LOGO). Dividing by the ink
+ * — mid / (mid + opaque) — makes the number describe the print rather than its
+ * canvas; the whole-texture constant is kept for the census that shows the difference
+ * and for the tests that pin what `profileAlpha` measures.
+ *
+ * THE LINE, FROM A TABLE OF THE OWNER'S GARMENTS (scripts/ink-softness-census.mjs,
+ * native resolution, 2026-09-02), soft-of-ink per print:
+ *
+ *     hard cut-outs, must stay MASK:
+ *       Teamwear Logo 1.0%  RUN LOGO 2.5–2.8%  ACTIVEWEAR LOGO 2.4%  BELT 4.0%
+ *       clothing labels 4.1–8.8%  THE EXTRA MILE (Slogan) 10.0–11.0%
+ *       TO NEVER LOOK BACK 12.6%  the Cycling-Bib halftone 26.3%
+ *     soft prints, must stay BLEND:
+ *       RUN BRUSH LOGO 36.2–36.3%  the bib's soft care label 41.0%
+ *
+ * 0.31 sits between the halftone (26.3% — the "stitches see-through" incident of
+ * 2026-08-21 if it ever went BLEND) and the brush (36.3%) with about five points of
+ * margin each way. The second half of the pair, CUTOUT_MIN_TRANSPARENT, is unchanged
+ * and still what protects a uniformly translucent inset (ink 100% partial, cut out
+ * nowhere) and the dobby weave (21% partial, 0.00% clear).
+ */
+export const CUTOUT_MAX_SOFT_INK = 0.31
+
+/**
  * A cutout must have real holes in it, not merely soft edges.
  *
  * The distinguishing measurement, and the reason the pair above is safe:
@@ -220,6 +329,145 @@ export const CUTOUT_MID_FRACTION = 0.08
  * and MASK is never the right answer for it.
  */
 export const CUTOUT_MIN_TRANSPARENT = 0.05
+
+/**
+ * Below this base-colour alpha FACTOR a material is doing something deliberate with
+ * transparency. glTF effective alpha is factor.a * texel.a, so a material that
+ * declares itself sheer at 0.4 can never reach alphaCutoff 0.5 — MASK would discard
+ * every fragment and render it as nothing at all, silently, passing every gate.
+ * CLO writes a graphic's opacity slider here.
+ *
+ * Moved from optimize.ts on 2026-09-02 together with `resolveBlendAlpha`, so the
+ * gate that polices the solidify step (`auditArtworkAlpha` in texture-artwork.ts)
+ * shares its exact rule instead of re-deriving it. The audit found the gate refusing
+ * garments for the very decision solidify had just made on purpose (F2-01, HG-01).
+ */
+export const OPAQUE_FACTOR_THRESHOLD = 0.99
+
+/**
+ * An alpha channel that is only ANTI-ALIASING, not translucency.
+ *
+ * ⚠️ THIS PAIR IS THE FIX FOR "IT GOES SEE-THROUGH WHEN YOU ROTATE IT", 2026-08-27.
+ * Both halves are required and neither is arbitrary.
+ *
+ * WHAT WAS HAPPENING. CLO packs garment panels into one texture atlas and
+ * anti-aliases their edges in the alpha channel. Measured on the raw X-MILO CORE
+ * OVERSIZE export, over all 36,437,385 pixels of its 6835x5331 fabric texture:
+ * **0.000% fully clear — not one pixel** — 93.33% fully solid, 6.67% in a soft
+ * border band. `profileAlpha` calls a texture 'opaque' only at >= 99.9% solid and
+ * 'binary' only at <= 2% partial, so this fell through to 'graded' and was kept on
+ * BLEND as "deliberate translucency". <model-viewer> has no order-independent
+ * transparency, so BLEND materials depth-sort per object and the sort flips as the
+ * camera moves: 99 BLEND went in, 50 came out, and the garment turned see-through
+ * on rotation. A texture with no clear pixels cannot be seen through.
+ *
+ * WHY BOTH HALVES. A uniformly sheer fabric — chiffon at alpha 0.5 — ALSO has no
+ * fully-clear pixels, and forcing it opaque would destroy it. It has almost no
+ * fully-SOLID pixels either, so the second half excludes it.
+ *
+ * ⚠️ THREE CONDITIONS, BECAUSE TWO WERE NOT ENOUGH AND THE SUITE CAUGHT IT. The
+ * first version tested only "no clear pixels" and "mostly solid", and it broke the
+ * organza-inset test — a 22x22 patch at alpha 90 on an otherwise solid map, which
+ * is 0% clear and 97% solid and IS genuinely translucent. Counting partial pixels
+ * cannot separate the two: the defect is 6.67% partial and the organza only 2.95%,
+ * the wrong way round. What separates them is how DEEP the partiality goes.
+ *
+ * WHERE THE NUMBERS COME FROM, all measured:
+ *   - clear < 1%   : every genuinely translucent or cut-out baseColor texture across
+ *                    X-MILO, PRO-PILE and MATRIX-PUFF carries at least 9.29% fully
+ *                    clear pixels; the defect carries 0.00%.
+ *   - sheer < 0.5% : X-MILO's fabric is 0.015% below alpha 128 — its partial pixels
+ *                    sit at 192-247, a visually solid edge ramp. The organza inset
+ *                    is 2.95% at alpha 90. A ~200x separation.
+ *   - solid >= 75% : well under the measured 93.33%, and far above the ~0% a
+ *                    uniformly sheer chiffon would show, so an anti-aliasing band
+ *                    may cover a quarter of the atlas before this stops firing.
+ *
+ * A large panel at alpha ~200 that is cut out nowhere WILL be forced opaque by this.
+ * That is accepted: at 78% opacity the change is barely visible, and CLO's soft edge
+ * is a likelier explanation than a design intent nothing else in the file records.
+ *
+ * ⚠️ Do NOT "simplify" this to a looser `opaqueFraction` threshold inside
+ * `profileAlpha`. That character is also read by `isArtworkTexture` (the
+ * compression budget) and by the gate's strict classifier ('binary' = a decal), and
+ * a threshold moved to fix a rendering bug moves both.
+ */
+const DECORATIVE_ALPHA_MAX_TRANSPARENT = 0.01
+const DECORATIVE_ALPHA_MAX_SHEER = 0.005
+const DECORATIVE_ALPHA_MIN_OPAQUE = 0.75
+
+/** The profile solidifyMaterials uses for an UNTEXTURED material: no pixels to judge. */
+export const NO_ALPHA_PROFILE: AlphaProfile = {
+  character: 'none',
+  transparentFraction: 0,
+  opaqueFraction: 0,
+  midFraction: 0,
+  sheerFraction: 0,
+}
+
+/**
+ * A cutout is "hardly any partial alpha IN THE INK" AND "actually cut out somewhere".
+ * The second half is not decoration: a uniformly translucent inset has little partial
+ * alpha too, and MASKing it at 0.5 deletes it outright rather than hardening it.
+ * See CUTOUT_MAX_SOFT_INK and CUTOUT_MIN_TRANSPARENT.
+ */
+export function isCutoutProfile(alpha: AlphaProfile): boolean {
+  return (
+    alpha.character === 'binary' ||
+    (softInkFraction(alpha) <= CUTOUT_MAX_SOFT_INK &&
+      alpha.transparentFraction >= CUTOUT_MIN_TRANSPARENT)
+  )
+}
+
+/** Part-transparent pixels as a share of the INK (mid + opaque); 0 for an empty picture. */
+export function softInkFraction(alpha: AlphaProfile): number {
+  const ink = alpha.midFraction + alpha.opaqueFraction
+  return ink > 0 ? alpha.midFraction / ink : 0
+}
+
+export type BlendResolution = 'keep' | 'MASK' | 'OPAQUE'
+
+/**
+ * What `solidifyMaterials` does with a BLEND material — THE decision, in one place.
+ *
+ * Two callers, on purpose: solidifyMaterials applies it, and `auditArtworkAlpha`
+ * (the blocking gate) asks it again on the OUTPUT. A material still on BLEND that
+ * this function says should have changed is a real regression — the opaque step
+ * did not run, or a later pass undid it. A material this function says to `keep`
+ * is the pipeline's own considered judgement (soft-edged alpha, an explicit sheer
+ * factor, or an undecodable picture), and refusing a garment over it refuses the
+ * pipeline's own decision — which is exactly what the 2026-09 audit found happening
+ * on two of the owner's five finished garments (F2-01, HG-01).
+ *
+ * Order matters and matches what shipped since 2026-08-27:
+ *   - undecodable  → keep.  'unknown' means sharp could not DECODE the image and every
+ *                    fraction is 0 (N8, 2026-08-18). Zeroes from a failed decode are
+ *                    absence of evidence, not evidence of opacity; the chain below would
+ *                    otherwise read them as "solid" and fill a cutout in.
+ *   - sheer factor → keep.  An explicit declaration on the material beats anything
+ *                    inferred from its pixels (OPAQUE_FACTOR_THRESHOLD above).
+ *   - cutout       → MASK, alphaCutoff 0.5. Keep the shape, lose the sorting problem.
+ *   - decorative   → OPAQUE. Anti-aliasing, not translucency (the trio above).
+ *                    Mutually exclusive with cutout, which needs >= CUTOUT_MIN_TRANSPARENT
+ *                    clear pixels, so the order of those two cannot change the outcome.
+ *   - graded       → keep.  Deliberate translucency; the report says so.
+ *   - anything else → OPAQUE. No alpha channel, or every pixel solid: the CLO
+ *                    stray-opacity case this step was built for.
+ */
+export function resolveBlendAlpha(alpha: AlphaProfile, factor: number): BlendResolution {
+  if (alpha.character === 'unknown') return 'keep'
+  if (factor < OPAQUE_FACTOR_THRESHOLD) return 'keep'
+  if (isCutoutProfile(alpha)) return 'MASK'
+  if (
+    alpha.transparentFraction < DECORATIVE_ALPHA_MAX_TRANSPARENT &&
+    alpha.sheerFraction < DECORATIVE_ALPHA_MAX_SHEER &&
+    alpha.opaqueFraction >= DECORATIVE_ALPHA_MIN_OPAQUE
+  ) {
+    return 'OPAQUE'
+  }
+  if (alpha.character === 'graded') return 'keep'
+  return 'OPAQUE'
+}
 
 /** Core PBR texture slots. Extension slots are still counted via `listTextureSlots`. */
 const CORE_SLOTS: {

@@ -116,6 +116,9 @@ export function authHeader(publicKey: string): string {
  * The boolean is for tests and for the caller's own logging — no call site branches on
  * it, because there is nothing useful to do when alerting is down.
  */
+/** How long the alert POST may take (fix plan Rank 12, audit Q-03). */
+export const SENTRY_TIMEOUT_MS = 10_000
+
 export async function reportFailure(
   dsn: string | undefined,
   failure: ShrinkFailure,
@@ -132,6 +135,9 @@ export async function reportFailure(
         'X-Sentry-Auth': authHeader(parsed.publicKey),
       },
       body: buildEnvelope(failure, eventId, sentAt),
+      // An alert that hangs would hold the failing job open; ten seconds is generous for
+      // one small POST, and the catch below already makes a lost alert a non-event.
+      signal: AbortSignal.timeout(SENTRY_TIMEOUT_MS),
     })
     return res.ok
   } catch {

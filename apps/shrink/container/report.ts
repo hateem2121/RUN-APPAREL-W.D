@@ -1,7 +1,9 @@
 import { describeSpecIssues } from '../../../tools/asset-pipeline/src/gltf-spec'
 import type { GlbReport } from '../../../tools/asset-pipeline/src/validate'
-import { SIZE_WARNING_BYTES } from '../../../tools/asset-pipeline/src/validate'
+import { SIZE_WARNING_BYTES, describeSoftArtwork } from '../../../tools/asset-pipeline/src/validate'
 import type { OptimizeResult } from '../../../tools/asset-pipeline/src/optimize'
+import { describePrecision } from '../../../tools/asset-pipeline/src/precision'
+import { describeRawCensus } from '../../../tools/asset-pipeline/src/raw-census'
 
 /**
  * The words the owner actually reads, and the only pure part of the container.
@@ -52,6 +54,33 @@ export function buildReportText(
    * older caller still compiles; every production caller passes it.
    */
   composition?: string[],
+  /**
+   * The depth-bias records the container wrote for printed layers stacked on cloth
+   * (fix plan Rank 7C, 2026-09-03). Optional so an older caller still compiles.
+   */
+  overlays?:
+    | {
+        measured: number
+        overlayReadings: number
+        flagged: number
+        review: number
+        clones: number
+        threadIgnored: number
+        written: boolean
+        /** Absent from a container built before 2026-09-03. */
+        gridMm?: number
+        minGapMm?: number | null
+      }
+    | { error: string },
+  /**
+   * Does the ink come out the colour of the cloth it sits on? (fix plan Rank 9). A flag
+   * is a question for the owner, never a change to the file.
+   */
+  ink?:
+    | { prints: number; colourways: number; rows: number; flagged: number; lines: string[] }
+    | { error: string },
+  /** The family the flags were chosen for, with the GPU share beside it (fix plan Rank 10, F2-10). */
+  familyReason?: string,
 ): string {
   // The mobile guideline, stated plainly. Nothing in CI can check this — the
   // Lighthouse budget runs against a 10 KB placeholder, so a real 20 MB garment
@@ -73,6 +102,38 @@ export function buildReportText(
         'it is a slow load over phone data, which is how most people reach this page. ' +
         'Most of a CLO export is geometry, so the lever is a lower Detail setting or a lighter mesh from CLO.'
       : `Within the ${guidelineMb} MB mobile guideline.`,
+    // Phone graphics memory beside the file size (fix plan Rank 10, audit TEX-04): a
+    // 3.4 MB file can need 83 MB of a phone's GPU, and iOS drops the 3D view past ~256 MB.
+    // The file size never said this; the owner published five garments over the line.
+    opt.gpu
+      ? `Phone graphics memory: about ${(opt.gpu.totalBytes / 1048576).toFixed(0)} MB of texture memory ` +
+        `(artwork ${(opt.gpu.artworkBytes / 1048576).toFixed(0)}, fabric ${(opt.gpu.fabricBytes / 1048576).toFixed(0)}, shading maps ${(opt.gpu.shadingBytes / 1048576).toFixed(0)})` +
+        (opt.gpu.overBudget
+          ? ' ⚠️ OVER THE 256 MB PHONE BUDGET — iPhones can drop the 3D view on this file. Fewer or smaller pictures in CLO, or a lower Detail setting.'
+          : ' — within the phone budget.')
+      : 'Phone graphics memory: not estimated for this job.',
+    familyReason ? `Budget family: ${familyReason}.` : '',
+    // What CLO wrote (fix plan Rank 13): duplicate and oversized pictures, thread by both
+    // names, cloth with no weave map, each print's finish and opacity. Advice, never a
+    // refusal — the owner fixes these in CLO, and only if the report says so.
+    ...(opt.raw ? describeRawCensus(opt.raw, opt.stitch?.meshes ?? null) : []),
+    opt.repair
+      ? `⚠️ Repaired to read it: ${opt.repair.referencesRemoved} texture reference(s) pointed at no picture (${opt.repair.slots.join(', ')}) and were removed. The garment renders, but re-export from CLO with its textures included.`
+      : '',
+    opt.fold?.folded.length
+      ? `Folded ${opt.fold.folded.length} constant shading map(s) into material values (${opt.fold.folded.map((f) => `${f.name} ${f.width}x${f.height}`).join(', ')}): the same look, ${(opt.fold.folded.reduce((s, f) => s + f.gpuBytes, 0) / 1048576).toFixed(0)} MB less phone memory.`
+      : '',
+    // UV storage (fix plan Rank 11, audit CT-08): CLO's pattern-space UVs were the largest
+    // thing in every file and the only attribute left as 32-bit floats, because the
+    // quantizer refuses anything outside 0..1. Saying it moved is how a report proves it.
+    opt.uvRemap
+      ? opt.uvRemap.primitives
+        ? `UV storage: ${opt.uvRemap.accessors} UV set(s) on ${opt.uvRemap.primitives} piece(s) moved into 0..1 and stored as 16-bit integers (${opt.uvRemap.groups} group(s), widest range ${opt.uvRemap.widestRange.toFixed(0)} pattern units).` +
+          (opt.uvRemap.skipped.length
+            ? ` ⚠️ Left as floats: ${opt.uvRemap.skipped.join('; ')}.`
+            : '')
+        : 'UV storage: every UV set was already inside 0..1; stored as 16-bit integers.'
+      : '',
     `Suggested filename: ${filename}`,
     // Each CLO variant name with the colour it ACTUALLY is. Before this the list
     // was bare strings like "Colorway 2", so mapping them to the CMS was a guess
@@ -86,9 +147,13 @@ export function buildReportText(
             if (!colour) return `  ${i + 1}. ${name}`
             const guess =
               colour.confidence === 'high'
-                ? `looks like ${colour.name}`
+                ? `looks like ${colour.name}${colour.sampledFrom === 'texture' ? ' (read from the fabric picture)' : ''}`
                 : `closest match ${colour.name}, but not a confident one — check the swatch`
-            return `  ${i + 1}. ${name} — ${guess} (${colour.hex})`
+            // Since 2026-09-02 the file can be the reason a name is blank (audit CG-06):
+            // every colourway behind one shared picture. Say so, or the owner types five
+            // names that the next export blanks again.
+            const why = colour.note ? ` — ${colour.note}` : ''
+            return `  ${i + 1}. ${name} — ${guess} (${colour.hex})${why}`
           })
           .join('\n')}`
       : 'No colours are stored inside this file. That is fine for a single-colour garment — set the product to “A separate file for each colour”.',
@@ -121,11 +186,48 @@ export function buildReportText(
     // connected.
     opt.simplify
       ? `Mesh decimation: ${opt.simplify.attributeAware} part(s) with artwork protection, ` +
-        `${opt.simplify.fallback} without, ${opt.simplify.skipped} untouched.` +
+        `${opt.simplify.fallback} without, ${opt.simplify.skipped} untouched` +
+        // Since 2026-09-02 a print piece is never decimated (fix plan Rank 3). Named,
+        // so the owner sees what was protected — and so an old-style export whose
+        // whole panel IS the print shows up as a big number rather than a mystery.
+        ((opt.simplify.artworkUntouched ?? 0) > 0
+          ? `, ${opt.simplify.artworkUntouched} print piece(s) left exactly as exported (${(opt.simplify.artworkUntouchedMaterials ?? []).join(', ')}).`
+          : '.') +
         (opt.simplify.fallback > opt.simplify.attributeAware
           ? ' ⚠️ Most parts were decimated WITHOUT artwork protection — printed graphics on those are at risk.'
           : '')
       : 'Mesh decimation: not run for this job.',
+    // The anti-flicker records. A printed OPAQUE layer sits 0.100 mm on the cloth in a
+    // CLO export and the two fight for the depth test as the garment turns; the viewer
+    // nudges any layer the pipeline flagged. Until 2026-09-03 no robot run ever wrote
+    // one (audit F2-06, MAT-04, MAT-05, HG-05), so this line is the proof it did.
+    ink === undefined
+      ? ''
+      : 'error' in ink
+        ? `⚠️ Ink vs cloth: not measured (${ink.error}).`
+        : ink.flagged === 0
+          ? `Ink vs cloth: ${ink.prints} print(s) checked on ${ink.colourways} colourway(s) — every print stands out from the cloth beneath it.`
+          : `⚠️ Ink vs cloth: ${ink.flagged} of ${ink.rows} print-colourway pairs read as bare cloth or carry the cloth's own colour value. ` +
+            "CLO writes the colourway colour into a print; set the graphic's colour in CLO for those colourways and re-export, or tell us it is intended:\n" +
+            ink.lines.map((line) => `  - ${line}`).join('\n'),
+    overlays === undefined
+      ? 'Anti-flicker: overlay scan not run for this job.'
+      : 'error' in overlays
+        ? `⚠️ Anti-flicker: the overlay scan failed (${overlays.error}) — the file was saved without depth-bias records; the viewer still nudges cut-outs on its own.`
+        : `Anti-flicker: ${overlays.measured} part(s) measured, ${overlays.overlayReadings} read as a printed layer on cloth, ` +
+          `${overlays.flagged} material(s) recorded for the viewer's depth nudge` +
+          `${overlays.review ? `, ${overlays.review} held for review` : ''}` +
+          `${overlays.clones ? `, ${overlays.clones} material(s) cloned so the cloth beneath is not nudged` : ''}` +
+          `${overlays.threadIgnored ? `, ${overlays.threadIgnored} on thread or hardware ignored` : ''}` +
+          `${overlays.flagged && !overlays.written ? ' — ⚠️ NOT WRITTEN: the binary chunk moved' : ''}.`,
+    // Grid against gap (fix plan Rank 13, GEO-05): the codec's 14-bit position grid versus
+    // how close the nearest print sits to its cloth. Absent on an older container.
+    overlays !== undefined && !('error' in overlays) && typeof overlays.gridMm === 'number'
+      ? (describePrecision(
+          { gridMm: overlays.gridMm, quantizedMeshes: overlays.gridMm > 0 ? 1 : 0 },
+          overlays.minGapMm ?? null,
+        ) ?? '')
+      : '',
     // The named version of the line above, and the one that matters. A high
     // `fallback` count on plain fabric is harmless; a SINGLE logo material in
     // this list is the mechanism that tore N001's wordmark apart. Naming the
@@ -137,6 +239,18 @@ export function buildReportText(
         'and lettering on them are likely torn or blurred. This file has NOT been saved. ' +
         'Re-upload with the Detail setting on “Highest quality”, and if it happens again the artwork ' +
         'needs its own UV map in CLO.'
+      : '',
+    // Prints the pipeline chose to leave translucent. Loud, because a soft logo on a
+    // BLEND material is what the owner will see in the viewer — but NOT a refusal,
+    // because it is the pipeline's own decision (soft-edged alpha, or an opacity the
+    // designer set in CLO). Until 2026-09-02 this case refused the whole garment, and
+    // two of the owner's five finished files could not be published (audit F2-01,
+    // B-01). `artworkSoftOnBlend` is absent from a report built before that date.
+    glb.artworkSoftOnBlend?.length
+      ? `\n⚠️ SOFT PRINTED ARTWORK KEPT SEE-THROUGH on: ${glb.artworkSoftOnBlend.map(describeSoftArtwork).join('; ')}.\n` +
+        'These prints have soft edges or were made translucent in CLO, so the pipeline left them blended ' +
+        'instead of cutting them out. The file HAS been saved. Look at them in the viewer; if a print ' +
+        'should be solid, set its opacity to 100% in CLO and re-export.'
       : '',
     // The official Khronos verdict on what this pipeline just wrote.
     //
