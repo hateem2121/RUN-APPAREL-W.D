@@ -1199,6 +1199,15 @@ npx --yes pnpm@10.33.0 pipeline posters output/<garment>.glb --product rxps \
 npx --yes pnpm@10.33.0 og:cards rxps
 ```
 
+Judge the set on one sheet before uploading anything — the posters are transparent, so
+opened one at a time a white garment is invisible and every per-file check passed five
+all-wine skinsuit posters on 2026-09-03:
+
+```bash
+cd tools/asset-pipeline && npx tsx scripts/poster-sheet.mjs --out ../../output/poster-sheet.jpg \
+  "rxps=../../output/posters:rxps:wine,blush,butter,lime,black"
+```
+
 The first writes `output/posters/rxps-<colour>-poster.webp` (and `.png`): front view,
 production lighting, transparent background, no caption — 1200×1500. The `--colours`
 map is each CMS colourway's slug against the CLO variant it points at (read them off

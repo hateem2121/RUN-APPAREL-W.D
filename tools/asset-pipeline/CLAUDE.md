@@ -235,11 +235,8 @@ adherence to *every* rule in the file starts dropping. These twelve are the ones
 session touching `tools/asset-pipeline/` needs, so paying for them in every session was
 buying worse compliance with the rest.
 
-The intro above used to say these traps stayed in the root file "because they are cited
-from source comments and cross subsystems". That reason is preserved rather than
-discarded: each one still has a **one-line hook in the root file** naming the danger and
-pointing here, so a session that arrives from a source comment is still warned. What
-moved is the detail, not the warning.
+Each one keeps a **one-line hook in the root file**, so a session that arrives from a
+source comment is still warned; only the detail moved.
 
 ⚠️ One consequence to know, because it is the cost of this split: after `/compact`, only
 the project-root `CLAUDE.md` is re-read from disk and re-injected. This file reloads the
@@ -335,7 +332,10 @@ only the root's one-liners. Open this file before changing anything here.
   `solidifyMaterials` and ships decals still on `alphaMode: BLEND`, which
   `<model-viewer>` renders see-through — the reported symptom exactly. Go through
   the parser, as `apps/shrink/container/server.ts` does. Pinned by a test in
-  `pipeline.test.ts`.
+  `pipeline.test.ts`. ⚠️ And in zsh an unquoted `$FLAGS` is ONE argument: the robot's seven
+  flags arrived as one word, none matched, and the skinsuit "compressed" to 12 MB with
+  `geometry: none` (2026-09-03). Build the list as a bash array; `geometry: none` in a log
+  means a flag never arrived.
 - **A print piece is NEVER decimated — since 2026-09-02 (fix plan Rank 3).**
   `simplifyTextured` skips every primitive whose material is artwork by name or by
   UV span (colourway mappings walked, thread excluded) and reports `N print piece(s)
