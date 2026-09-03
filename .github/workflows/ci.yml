@@ -635,8 +635,21 @@ jobs:
       #     setup-node 13s + pnpm install 15s + cache restore 4s + apt 14s + eval 54s
       #     = 107s total.
       # Compare `Initialize containers` in this run against that 14s and that 107s.
+      # `--keep` so a failure leaves its contact sheets behind: on 2026-09-03 the eval
+      # failed on the runner with "fidelity damaged MORE than balanced (1.070% vs 0.520%)"
+      # — a number every local run and the previous CI run had put at 0.520% — and the
+      # sheets that would have shown WHAT moved had been written to a temp dir the job
+      # threw away. The number without the picture is exactly what this eval exists to
+      # refuse; the step below uploads them only when the eval fails.
       - name: Artwork legibility eval
-        run: pnpm eval:artwork
+        run: pnpm eval:artwork -- --keep "$RUNNER_TEMP/artwork-eval"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: artwork-eval-${{ github.sha }}
+          path: ${{ runner.temp }}/artwork-eval/sheet-*.png
+          retention-days: 7
+          if-no-files-found: warn
 
       # THE INSTRUMENTS, READ BACK FROM A REAL BROWSER — audit HR-7, 2026-09-02.
       # Every earlier test of the two local <model-viewer> pages checked TEXT: that the
