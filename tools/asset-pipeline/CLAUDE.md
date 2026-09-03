@@ -207,41 +207,24 @@ worse than no gate. Keep that distinction if you add checks.
 
 ## A scratch script cannot import this package's dependencies
 
-ESM resolves a bare specifier from the **importing file's** location, so a one-off
-script in `/tmp` cannot `import { NodeIO } from '@gltf-transform/core'` however the
-workspace is installed — and `NODE_PATH` does not apply to ESM. Cost several rounds
-on 2026-08-27. Two things that do work:
+ESM resolves a bare specifier from the **importing file's** location, so a one-off script
+in `/tmp` cannot `import { NodeIO } from '@gltf-transform/core'`, and `NODE_PATH` does not
+apply to ESM. Cost several rounds on 2026-08-27. Put the script under
+`tools/asset-pipeline/scripts/` as a `.mts` (the UV census and proof scripts live there), or
+run from the package directory, where cwd is the resolution base:
 
 ```bash
-# cwd IS the resolution base for -e, so run it from the package directory
 cd tools/asset-pipeline && node --input-type=module -e "import {NodeIO} from '@gltf-transform/core'; …"
-
-# or import by absolute path, resolved once
-node -e "console.log(require('./package.json') && require.resolve('@gltf-transform/core'))"
 ```
 
-⚠️ The `.pnpm` path is **`dist/index.cjs` for `require.resolve`** but ESM needs
-`dist/index.js`; and `meshoptimizer` has no `index.module.js`, only `index.js`.
-Prefer the `cd` form — it needs no path surgery and cannot drift.
+## A mistyped numeric flag used to become `NaN` — fixed 2026-08-18, keep it fixed
 
-## A mistyped numeric flag becomes `NaN`, and the defaults do not catch it
-
-`Number(rest[++i])` in `parseOptimizeArgs` yields `NaN` for a missing or non-numeric
-value, and the default applied downstream **cannot catch it** — `??` tests
-null/undefined, not `NaN`, so `NaN ?? DEFAULT_SIMPLIFY_ERROR` is `NaN`. Measured by
-calling the parser: `--simplify-error` with no value, and `--simplify-error 0.OO1`
-(letter O), both reach the simplifier as `NaN`. There are no `isNaN`/`isFinite` guards
-anywhere in this package and no test covers a malformed numeric flag.
-
-Note which dials these are. `--simplify-error` is the real aggression control, and
-`--uv-weight 0` is the artwork eval's own negative control for destroyed artwork — so a
-`NaN` weight is an undefined value on the axis that decides whether printed letters
-survive. The three blocking gates test `alphaMode`, not decimation, so nothing
-downstream objects.
-
-Production is unaffected: the container's flags come from `shrinkFlagsFor`
-(`packages/shared/src/shrink.ts`), which returns hardcoded literals from a two-value
-enum. This bites manual CLI runs — calibration, sweeps, one-off optimises.
+`Number('0.OO1')` is `NaN`, and `NaN ?? DEFAULT` is still `NaN` (`??` tests null, not
+NaN), so a mistyped `--simplify-error` or `--uv-weight` reached the simplifier as an
+undefined value on the axis that decides whether printed letters survive. Every numeric
+flag now goes through `finiteNumber` in `optimize.ts`, which refuses a missing or
+non-numeric value loudly — add a flag, use it. Production never saw this: the container's
+flags are literals from `shrinkFlagsFor` (`packages/shared/src/shrink.ts`).
 
 ## Traps — each of these has already cost a session
 
@@ -488,34 +471,45 @@ only the root's one-liners. Open this file before changing anything here.
 - **KTX2 came out SMALLER here (20.3 MB vs 22.2 MB) and must still be REFUSED.**
   ETC1S turned the clean white bib panel **grey and blotchy**; the letters survived,
   the fabric did not. Caught only by cropping the same region from both renders.
-  Note this inverts the older "KTX2 is larger on disk" reasoning — that argument
-  would have led the wrong way on this file. Judge it on the fabric, not the size.
+  Judge it on the fabric, not the size — the older "KTX2 is larger on disk" argument
+  would have led the wrong way here.
 
-- **A backtick inside `review-server.ts`'s page script ENDS the template literal, and
-  the error names something else entirely.** Comments containing a backticked `near`
-  and `.camera` produced `TypeError: escapeHtml(...)garment.dirIndex...MIN_NEAR.camera
-  is not a function` — the whole template stringified, then a property read on it. Cost
-  two cycles on 2026-08-29. The page script must contain **zero** backticks.
+- **A backtick inside `review-server.ts`'s page script ENDS the template literal**, and
+  the error names something else (`TypeError: escapeHtml(...)…camera is not a function` —
+  the whole template stringified). Cost two cycles on 2026-08-29. The page script must
+  contain **zero** backticks.
 - **`pipeline review <dir>` resolves `<dir>` against the PACKAGE dir and indexes ONCE
-  at startup.** A relative `<dir>` is read from `tools/asset-pipeline/`, not the repo
-  root, and files added after the server has started report "0 garment(s)" — restart
-  it. Same resolution trap as `--out`.
+  at startup** — a relative path is read from `tools/asset-pipeline/`, and files added
+  after start report "0 garment(s)": restart it.
 - **A CLO 7.0.242 export is ONE GLB PER COLOURWAY; its "Combine to One File" silently
   emits a single colourway.** Measured 2026-08-29. `pipeline merge` is the fix (5 files
   → 5.59 MB, valid, all five render), but ⚠️ **`apps/shrink` never calls `merge`**, so
   such a garment cannot go through the robot unaided.
+- **A finished file's raw UV span means NOTHING — since 2026-09-03 (fix plan Rank 11,
+  CT-08).** CLO writes UVs in pattern space (a bib panel spans −206..206) and
+  glTF-Transform's quantizer refuses anything outside 0..1, so every UV set in the
+  catalogue shipped as 32-bit floats: 47% of the skinsuit's geometry bytes, 57% of the
+  bib's. `uv-remap.ts` moves every set into 0..1 (one remap per group of pieces linked by
+  a material, colourway mappings included, or a shared accessor), folds the inverse into
+  `KHR_texture_transform` composed with CLO's own, and stores 16 bits — 12 would be
+  3.1 px on the bib's widest fabric group. Measured on the 2026-09-03 masters: skinsuit
+  3.59 → 3.03 MB, bib 8.48 → 7.24 MB, UV bytes halved, validator 0 errors, renders 0.00%
+  changed (skinsuit) and 0.01–0.06% (bib: single pixels at the halftone's alpha-tested
+  dot edges, no region moved); the negative control (`composeMaterials: false`) moves
+  26.9%. So after `optimize` every accessor spans ≤ 1: read spans through
+  `uvSpanInPatternSpace` (the record is in the primitive's extras), never
+  `getMin`/`getMax` — on a quantized accessor those are raw integers anyway.
+  `--no-uv-remap` is the A/B control.
 
 ## What one session found on 2026-08-27 — the rules that survived it
 
-*The full record, with every measurement, is `docs/SESSION-2026-08-27.md`. What is here
-is only what still tells you what to DO.*
+*Full record: `docs/SESSION-2026-08-27.md`. Here is only what tells you what to DO.*
 
 **COMPARE THE ARTIFACTS, NOT A PICTURE OF THE DIFFERENCE.** A rendered diff shows what
-CHANGED, never whether it got WORSE. A macro crop "proved" reduced texture settings had
-damaged a slogan; `pipeline textures` settled it in one line — the artwork was
-byte-identical at both settings and only the fabric atlas had shrunk. The letterforms
-showed up because the CLOTH around each stroke changed and outlined them. Two wrong
-conclusions and an hour.
+CHANGED, never whether it got WORSE: a macro crop "proved" reduced texture settings had
+damaged a slogan, and `pipeline textures` showed the artwork byte-identical — only the
+fabric atlas had shrunk, and the changed CLOTH outlined each stroke. Two wrong conclusions
+and an hour.
 
 **Artwork is separated from fabric by UV SPAN, not by name** (`artwork-geometry.ts`).
 Measured over every textured primitive in 28 exports: fabric median **294.81**, topstitch

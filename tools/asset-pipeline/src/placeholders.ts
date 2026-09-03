@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Document, type Material, type Mesh } from '@gltf-transform/core'
+import { KHRTextureTransform } from '@gltf-transform/extensions'
 import sharp from 'sharp'
 import { createIO } from './io'
 
@@ -233,6 +234,44 @@ async function artworkAlphaImage(spec: PlaceholderArtwork): Promise<Uint8Array> 
   )
 }
 
+/**
+ * The fabric is mapped the way CLO maps it: in PATTERN-SPACE units, far outside 0..1,
+ * with the picture's repeat expressed by a `KHR_texture_transform` on the material.
+ * Measured on the 2026-09-03 masters: a skinsuit panel spans −137..164, the bib's
+ * −206..206, and every fabric slot carries a transform of scale ~0.015. Until 2026-09-03
+ * this fixture mapped each face to the unit square, so the quantizer took every UV set
+ * and the seeded garment could never show what production does — every real UV set
+ * shipped as 32-bit floats (audit CT-08, fix plan Rank 11). "If production compresses,
+ * seed compressed": each face now spans −20..20 units and the weave repeats through
+ * the transform, so the seeded file exercises the remap, the composition and the
+ * 16-bit storage in every browser the e2e suite runs.
+ */
+export const PLACEHOLDER_PATTERN_UNITS = 40
+/** The CLO-style transform on the fabric: one weave repeat every 8 pattern units. */
+export const PLACEHOLDER_FABRIC_TRANSFORM = {
+  offset: [0.25, 0.75] as [number, number],
+  scale: [1 / 8, 1 / 8] as [number, number],
+}
+
+/** A 64x64 two-tone weave: rows of 255 and 228, stdev ~13, so it is a picture, not a factor. */
+async function weaveImage(): Promise<Uint8Array> {
+  const size = 64
+  const raw = Buffer.alloc(size * size * 4)
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4
+      const dark = ((x >> 1) + (y >> 1)) % 2 === 0
+      raw[i] = raw[i + 1] = raw[i + 2] = dark ? 228 : 255
+      raw[i + 3] = 255
+    }
+  }
+  return new Uint8Array(
+    await sharp(raw, { raw: { width: size, height: size, channels: 4 } })
+      .png()
+      .toBuffer(),
+  )
+}
+
 /** UVs for a box: every face gets the full 0–1 square, matching BOX_FACES corner order. */
 const FACE_UV: [number, number][] = [
   [0, 1],
@@ -314,7 +353,11 @@ function addBoxPrimitive(document: Document, mesh: Mesh, material: Material, spe
         spec.cz + (uz * spec.d) / 2,
       )
       normals.push(...face.n)
-      uvs.push(...(FACE_UV[corner] as [number, number]))
+      const [fu, fv] = FACE_UV[corner] as [number, number]
+      uvs.push(
+        fu * PLACEHOLDER_PATTERN_UNITS - PLACEHOLDER_PATTERN_UNITS / 2,
+        fv * PLACEHOLDER_PATTERN_UNITS - PLACEHOLDER_PATTERN_UNITS / 2,
+      )
     }
     indices.push(start, start + 1, start + 2, start, start + 2, start + 3)
   }
@@ -419,12 +462,30 @@ export async function buildPlaceholderTee(colourway: PlaceholderColourway): Prom
   const document = new Document()
   document.createBuffer()
 
+  // A weave on the body, tiled through a CLO-style transform over pattern-space UVs
+  // (see PLACEHOLDER_PATTERN_UNITS). Near-white so the factor still decides the
+  // colour, and busier than CONSTANT_TEXTURE_MAX_STDEV so the fold pass keeps it.
+  const weaveTexture = document
+    .createTexture('fabric-weave')
+    .setImage(await weaveImage())
+    .setMimeType('image/png')
   const body = document
     .createMaterial(`${colourway.variantId}-BODY`)
+    .setBaseColorTexture(weaveTexture)
     .setBaseColorFactor(hexToLinearFactor(colourway.body))
     .setRoughnessFactor(0.85)
     .setMetallicFactor(0)
     .setDoubleSided(true)
+  body
+    .getBaseColorTextureInfo()
+    ?.setExtension(
+      KHRTextureTransform.EXTENSION_NAME,
+      document
+        .createExtension(KHRTextureTransform)
+        .createTransform()
+        .setOffset(PLACEHOLDER_FABRIC_TRANSFORM.offset)
+        .setScale(PLACEHOLDER_FABRIC_TRANSFORM.scale),
+    )
   const trim = document
     .createMaterial(`${colourway.variantId}-TRIM`)
     .setBaseColorFactor(hexToLinearFactor(colourway.trim))

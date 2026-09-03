@@ -78,7 +78,7 @@ Absent in earlier sessions; 2026-08-21 it WAS there (`/opt/homebrew/bin/pnpm`, e
 missing target — so `command -v pnpm` finds it and still fails. When a child process
 needs a real one (`e2e/prepare.mjs` shells out to `pnpm build`), put a shim on `PATH`
 that execs `npx --yes pnpm@10.33.0 "$@"`.
-Every documented `pnpm <script>` in this repo means that. Bare `pnpm` fails with
+ Bare `pnpm` fails with
 exit **127**, and the failure is worth naming because of *where* it surfaces:
 `apps/viewer/e2e/prepare.mjs` shells out to `pnpm build`, so the whole e2e suite
 dies as `Timed out waiting 120000ms from config.webServer` with the real
@@ -106,9 +106,7 @@ so assume neither.** 2026-08-09 both *were* set in the session environment
 `~/.zshenv`, `~/.zprofile`, `~/.bash_profile` or `~/.profile`. 2026-08-13 and
 again 2026-08-17, same machine, `env | grep -E '^(NODE_ENV|PORT)='` returned
 nothing and a full gate run passed with no workaround — **then on 2026-08-26 both
-were BACK** (`NODE_ENV=development`, `PORT=5002`). Do not read the run of two clean
-measurements as the harness having stopped: it has now flipped twice. So the harness
-supplies them *sometimes*. The consequence is the point: the owner's own terminal and any
+were BACK** (`NODE_ENV=development`, `PORT=5002`). So the harness supplies them *sometimes*. The consequence is the point: the owner's own terminal and any
 two sessions can each see a different environment, so **"it works for me" proves
 nothing about the other.** Both are fixed at the source anyway. **If a build or a
 test server fails in a way that makes no sense, run
@@ -343,7 +341,7 @@ the answer is "nothing that happens in production", it is not a test.
 
 - **A CLO 7.0 export arrives as one GLB PER COLOURWAY** (`_0.._N`); `pipeline merge`
   joins them, and **`apps/shrink` never calls it**. See `tools/asset-pipeline/CLAUDE.md`.
-- **Twenty-three more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
+- **Twenty-four more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
   2026-08-19, when this file measured 44,993 characters against Claude Code's
   40,000-character warning, the point at which Anthropic's own guidance says adherence
   to *every* rule in a file starts dropping. They load the moment you touch
@@ -385,9 +383,10 @@ the answer is "nothing that happens in production", it is not a test.
   leaving colourway-only ones pointing at an attribute that no longer exists; and
   **`pnpm eval:artwork` fails on macOS while CI is green** — deterministic to three
   decimals across three commits, so do NOT raise the ceiling.
-  ⚠️ These are hooks, not the traps. After `/compact` only THIS file is re-injected, so a
-  compacted session that has not yet opened `tools/asset-pipeline/` has only these
-  one-liners. Open that file before changing anything there.
+  **Added 2026-09-03:** every UV set is moved into 0..1 and stored 16-bit, so a finished
+  file's raw UV span means nothing — read it through `uvSpanInPatternSpace`.
+  ⚠️ These are hooks, not the traps; after `/compact` only THIS file is re-injected —
+  open that file before changing anything there.
 
 - **Thirty-three more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
   restated here — they load automatically the moment you touch `apps/viewer/`,

@@ -188,6 +188,49 @@ describe('buildReportText — the artwork block', () => {
   })
 })
 
+describe('buildReportText — UV storage (fix plan Rank 11)', () => {
+  it('says how many UV sets were moved into 0..1, and names any left as floats', () => {
+    const text = buildReportText(
+      opt({
+        uvRemap: {
+          primitives: 178,
+          accessors: 161,
+          groups: 40,
+          transforms: 138,
+          alreadyInRange: 0,
+          skipped: [],
+          widestRange: 510.4,
+        },
+      }),
+      glb(),
+      'x.glb',
+    )
+    expect(text).toContain(
+      'UV storage: 161 UV set(s) on 178 piece(s) moved into 0..1 and stored as 16-bit integers (40 group(s), widest range 510 pattern units).',
+    )
+    const partial = buildReportText(
+      opt({
+        uvRemap: {
+          primitives: 1,
+          accessors: 1,
+          groups: 1,
+          transforms: 1,
+          alreadyInRange: 2,
+          skipped: ['FABRIC 3: TEXCOORD_0 is already quantized'],
+          widestRange: 12,
+        },
+      }),
+      glb(),
+      'x.glb',
+    )
+    expect(partial).toContain('⚠️ Left as floats: FABRIC 3: TEXCOORD_0 is already quantized.')
+  })
+
+  it('stays silent on a report from a container that never ran the remap', () => {
+    expect(buildReportText(opt(), glb(), 'x.glb')).not.toContain('UV storage')
+  })
+})
+
 describe('buildReportText — colours', () => {
   it('shows what colour each CLO variant actually is', () => {
     // The whole reason this exists: production shipped a maroon garment labelled

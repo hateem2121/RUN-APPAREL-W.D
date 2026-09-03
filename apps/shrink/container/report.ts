@@ -111,6 +111,17 @@ export function buildReportText(
     opt.fold?.folded.length
       ? `Folded ${opt.fold.folded.length} constant shading map(s) into material values (${opt.fold.folded.map((f) => `${f.name} ${f.width}x${f.height}`).join(', ')}): the same look, ${(opt.fold.folded.reduce((s, f) => s + f.gpuBytes, 0) / 1048576).toFixed(0)} MB less phone memory.`
       : '',
+    // UV storage (fix plan Rank 11, audit CT-08): CLO's pattern-space UVs were the largest
+    // thing in every file and the only attribute left as 32-bit floats, because the
+    // quantizer refuses anything outside 0..1. Saying it moved is how a report proves it.
+    opt.uvRemap
+      ? opt.uvRemap.primitives
+        ? `UV storage: ${opt.uvRemap.accessors} UV set(s) on ${opt.uvRemap.primitives} piece(s) moved into 0..1 and stored as 16-bit integers (${opt.uvRemap.groups} group(s), widest range ${opt.uvRemap.widestRange.toFixed(0)} pattern units).` +
+          (opt.uvRemap.skipped.length
+            ? ` ⚠️ Left as floats: ${opt.uvRemap.skipped.join('; ')}.`
+            : '')
+        : 'UV storage: every UV set was already inside 0..1; stored as 16-bit integers.'
+      : '',
     `Suggested filename: ${filename}`,
     // Each CLO variant name with the colour it ACTUALLY is. Before this the list
     // was bare strings like "Colorway 2", so mapping them to the CMS was a guess

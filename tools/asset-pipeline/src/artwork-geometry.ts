@@ -1,5 +1,6 @@
 import type { Document, Texture, Material } from '@gltf-transform/core'
 import type { MappingList } from '@gltf-transform/extensions'
+import { uvSpanInPatternSpace } from './uv-remap'
 
 /**
  * Find printed artwork by the SHAPE of its UV mapping, not by what it is called.
@@ -113,15 +114,16 @@ export function findArtworkTexturesByGeometry(document: Document): Set<Texture> 
       }
       if (materials.length === 0) continue
 
-      const uv = primitive.getAttribute('TEXCOORD_0')
-      if (!uv) {
+      // In PATTERN units, whatever the accessor spans now: since Rank 11 every UV set
+      // is moved into 0..1 before compression and the move is recorded on the primitive
+      // (uv-remap.ts), so the raw min/max of a finished file says "print" about every
+      // panel. This also decodes a quantized accessor instead of reading its integers.
+      const span = uvSpanInPatternSpace(primitive)
+      if (span === null) {
         // No UV to measure. Absence of evidence, not evidence of fabric — but this
         // signal has nothing to say, so it says nothing and the name check still runs.
         continue
       }
-      const min = uv.getMin([0, 0]) as number[]
-      const max = uv.getMax([0, 0]) as number[]
-      const span = Math.max((max[0] ?? 0) - (min[0] ?? 0), (max[1] ?? 0) - (min[1] ?? 0))
 
       for (const material of materials) {
         const texture = material.getBaseColorTexture()

@@ -17,6 +17,7 @@ import { dumpTextures } from './textures'
 import { describeInkRow, framePrint, measureInkContrast } from './ink-contrast'
 import { readGlb } from './io'
 import { mb as gpuMb, PHONE_GPU_BUDGET_BYTES } from './texture-fold'
+import { UV_QUANTIZE_BITS } from './uv-remap'
 import { checkVariants, inspectGlb } from './validate'
 import { generatePlaceholders } from './placeholders'
 
@@ -120,6 +121,9 @@ COMPRESSION FLAGS (merge, optimize)
                              thing resampling destroys
   --meshopt            Meshopt geometry compression (fast mobile decode)
   --draco              Draco geometry compression (smallest, slower decode)
+  --no-uv-remap        A/B CONTROL: keep UVs as CLO wrote them (pattern space, 32-bit
+                       floats the quantizer refuses). Default moves every UV set into
+                       0..1 via KHR_texture_transform and stores it in 16 bits
   --simplify <ratio>   Decimate geometry to this fraction of triangles (0-1),
                        e.g. 0.05 keeps ~5%. ESSENTIAL for raw CLO exports, whose
                        simulation meshes have millions of triangles — the mesh,
@@ -366,6 +370,15 @@ async function main(): Promise<void> {
             ? ` — ${result.fold.folded.map((f) => `${f.name} ${f.width}x${f.height} (${gpuMb(f.gpuBytes)})`).join(', ')}`
             : ''
         }${result.fold.kept.length ? `; kept ${result.fold.kept.map((k) => `${k.name}: ${k.reason}`).join('; ')}` : ''}`,
+      )
+    }
+    if (result.uvRemap) {
+      const r = result.uvRemap
+      console.log(
+        `  UV storage: ${r.accessors} UV set(s) on ${r.primitives} piece(s) moved into 0..1 and stored as ${UV_QUANTIZE_BITS}-bit` +
+          `${r.groups ? ` (${r.groups} group(s), widest range ${r.widestRange.toFixed(1)} pattern units, ${r.transforms} texture transform(s) composed)` : ''}` +
+          `${r.alreadyInRange ? `; ${r.alreadyInRange} already inside 0..1` : ''}` +
+          `${r.skipped.length ? `; ⚠️ left as floats: ${r.skipped.join('; ')}` : ''}`,
       )
     }
     if (result.gpu) {

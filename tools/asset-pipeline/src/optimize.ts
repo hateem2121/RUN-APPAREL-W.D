@@ -12,6 +12,7 @@ import {
   type FoldResult,
   type GpuEstimate,
 } from './texture-fold'
+import { remapUvRanges, UV_QUANTIZE_BITS, type UvRemapResult } from './uv-remap'
 import { alignVariantTexCoords } from './variant-texcoord'
 import { DEFAULT_STITCH_PATTERN, type TopstitchResult, reduceTopstitch } from './topstitch'
 import { type PbrNormalizeResult, normalizePbr } from './pbr-normalize'
@@ -143,6 +144,15 @@ export interface OptimizeOptions {
    * it decimates in `artworkAtRisk`, which the shrink Worker refuses.
    */
   decimateArtwork?: boolean | undefined
+  /**
+   * Move every UV set into 0..1 (recording the move in KHR_texture_transform) so the
+   * quantizer takes it — fix plan Rank 11, audit CT-08/F1-10/GEO-01. ON unless set to
+   * false. CLO writes UVs in pattern space, which glTF-Transform's quantizer refuses,
+   * so every UV set in the catalogue shipped as 32-bit floats: 47% of the skinsuit's
+   * geometry bytes, 57% of the bib's. `--no-uv-remap` is the A/B control that keeps
+   * the old floats; see uv-remap.ts.
+   */
+  uvRemap?: boolean | undefined
   /** Same for vertex normals — protects shading rather than artwork. */
   simplifyNormalWeight?: number | undefined
 
@@ -393,6 +403,7 @@ export interface OptimizeTelemetry {
   textures?: TextureArtworkResult
   /** Near-constant shading maps folded into material factors (fix plan Rank 10). */
   fold?: FoldResult
+  uvRemap?: UvRemapResult
   /** What the finished file costs a phone's GPU, counted after every pass (Rank 10). */
   gpu?: GpuEstimate
   /** Present only when the opaque/solidify pass ran. */
@@ -579,12 +590,32 @@ export async function buildOptimizeTransforms(
     )
   }
 
+  // UVs INTO 0..1, LAST BEFORE THE CODEC (fix plan Rank 11; audit CT-08, F1-10,
+  // GEO-01). glTF-Transform's quantizer — which meshopt() runs — refuses any UV set
+  // outside 0..1, and CLO writes every one in pattern space, so until this pass the
+  // largest attribute in every garment shipped as 32-bit floats. Runs after the
+  // decimator (which prices UV error in the export's own units) and after everything
+  // that reads a raw UV span; whatever runs later reads spans through
+  // `uvSpanInPatternSpace`. Sixteen bits for the reason in uv-remap.ts: the widest
+  // fabric group in the catalogue quantizes to 0.19 px at 16 bits and 3.1 px at 12.
+  const uvRemap = options.uvRemap !== false
+  if (uvRemap) {
+    transforms.push(
+      remapUvRanges({
+        onResult: (result) => {
+          telemetry.uvRemap = result
+        },
+      }),
+    )
+  }
+
   const geometry = resolveGeometry(options)
+  const texcoordBits = uvRemap ? { quantizeTexcoord: UV_QUANTIZE_BITS } : {}
   if (geometry === 'draco') {
-    transforms.push(draco())
+    transforms.push(draco(texcoordBits))
   } else if (geometry === 'meshopt') {
     await MeshoptEncoder.ready
-    transforms.push(meshopt({ encoder: MeshoptEncoder, level: 'high' }))
+    transforms.push(meshopt({ encoder: MeshoptEncoder, level: 'high', ...texcoordBits }))
   }
 
   // LAST, so it counts what ships (fix plan Rank 10, audit TEX-04/TEX-07/LIVE-07).
@@ -648,6 +679,8 @@ export interface OptimizeResult {
   /** How textures were classified and encoded, when the WebP pass ran. */
   textures?: TextureArtworkResult
   fold?: FoldResult
+  /** Present whenever the UV remap ran (default on); absent under --no-uv-remap. */
+  uvRemap?: UvRemapResult
   gpu?: GpuEstimate
   /** What the metalness pass changed, left alone, and could not classify. */
   pbr?: PbrNormalizeResult
@@ -704,6 +737,7 @@ export async function optimizeGlb(
     ...(telemetry.simplify ? { simplify: telemetry.simplify } : {}),
     ...(telemetry.textures ? { textures: telemetry.textures } : {}),
     ...(telemetry.fold ? { fold: telemetry.fold } : {}),
+    ...(telemetry.uvRemap ? { uvRemap: telemetry.uvRemap } : {}),
     ...(telemetry.gpu ? { gpu: telemetry.gpu } : {}),
     ...(telemetry.pbr ? { pbr: telemetry.pbr } : {}),
     ...(telemetry.solidify ? { solidify: telemetry.solidify } : {}),
@@ -819,6 +853,7 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
   let simplifyError: number | undefined
   let simplifyUvWeight: number | undefined
   let decimateArtwork = false
+  let uvRemap = true
   let simplifyNormalWeight: number | undefined
   let stitch: number | undefined
   let stitchError: number | undefined
@@ -851,6 +886,7 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
     else if (arg === '--no-opaque' || arg === '--keep-transparency') opaque = false
     else if (arg === '--no-pbr-normalize') normalizePbrOption = false
     else if (arg === '--decimate-artwork') decimateArtwork = true
+    else if (arg === '--no-uv-remap') uvRemap = false
     else if (!arg.startsWith('--')) input = arg
   }
 
@@ -870,6 +906,7 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
       simplifyError,
       simplifyUvWeight,
       ...(decimateArtwork ? { decimateArtwork: true } : {}),
+      ...(uvRemap ? {} : { uvRemap: false }),
       simplifyNormalWeight,
       stitch,
       stitchError,
