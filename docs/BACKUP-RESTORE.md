@@ -296,6 +296,10 @@ shasum -a 256 "./restored/fixed-glbs/ARISAN BRA.glb"                      # agai
 **Add a file.** `rclone copy <file> r2:run-apparel-archive/<prefix>/ --s3-upload-cutoff 100M --s3-chunk-size 100M`,
 then append a row to the manifest with `stat -f%z` and `shasum -a 256`, run the verify
 command, and commit both together.
+From this machine rclone reaches R2 at ~300 kB/s (2026-09-03: 17 MB in 62 s, 2.9 GB in
+~3 h). Upload the masters first with `--transfers 1`, log to a file (`--log-file`,
+`--stats 60s`), and if a stats line reads `0 B/s` twice, restart with
+`--s3-chunk-size 25M --s3-upload-concurrency 1` — files already landed are skipped.
 
 
 **The robot writes here too, since 2026-09-03 (fix plan Rank 12, audit CI-01).** After

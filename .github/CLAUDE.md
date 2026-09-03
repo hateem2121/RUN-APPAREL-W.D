@@ -86,6 +86,12 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   the rulesets API answers 403 *"Upgrade to GitHub Pro"* for a private repo — so until
   the owner takes Pro, `main` has NO required checks and a merge deploys unguarded.
   Everything below about the ruleset is the record of what to recreate.
+  **By owner decision (2026-09-03) the repo STAYS on Free.** Two consequences:
+  `actions/dependency-review-action` cannot run on a private repo without Advanced
+  Security ("Dependency review is not supported on this repository") and is gated
+  `github.event.repository.private == false` — audit-ci is the advisory gate; and
+  workflow storage must stay under Free's 500 MB pool — trim the weekly `r2-backup-*`
+  artifacts (keep the two newest), never `d1-backup-*`.
   ⚠️ **THE REQUIRED-CHECKS LIST IS A SECOND COPY OF `deploy.needs`. IT IS NOT
   UNREADABLE — that claim was false and cost a session (L8-07).** It is repository
   config under the ordinary `repo` scope, and one command prints it (once a ruleset
@@ -138,6 +144,11 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   this private repo, which is how uptime.yml died silently for 23 hours. The
   injection rule was not theoretical: `uptime.yml` was pasting a dispatch input
   into shell in a job holding `GH_TOKEN`, found 2026-08-12.
+  ⚠️ A `run:` step that goes through `pnpm --filter <pkg> exec …` executes with its cwd
+  in THAT package, so a repo-relative path the shell just globbed does not exist there:
+  nightly-backup's R2 copy failed every night from 2026-09-01 with `The file
+  "backups/d1/….sql" does not exist` while the export, the replay and the artifact
+  upload all passed. Anchor such paths on `$GITHUB_WORKSPACE`.
 - **Anything CI fetches from a `wear-run.help` host can 403 from a runner.**
   Free-plan Bot Fight Mode intermittently blocks datacenter traffic — it forced the
   `cms.wear-run.help` API cutover to be rolled back within the hour, and it later
@@ -261,6 +272,15 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   Reading the merge commit produced a confident "the audit has the wrong name"
   correction that would have blocked every PR forever on a check Socket never posts.
   Confirm across several PR HEADs before adding a name to the required-checks list.
+  ⚠️ **Reading a red PR run (2026-09-03, PR #60 — three reds, none of them code).**
+  `gh pr checks` reports a job CANCELLED by a second push as `fail`; read conclusions
+  from `gh run view <id> --json jobs`. The runner is 2–3× slower than the Mac: a
+  real-chain test over ~2 s here trips vitest's 5 s default there (pipeline.test.ts got
+  its 60_000), and a bound measured after `load` on software WebGL (placeholder-webgl's
+  800 ms) needs seconds. A fresh advisory can land between two runs of the same
+  commit; the fix is the override floor + `pnpm install --no-frozen-lockfile`
+  (audit-ci.jsonc records why), and CI's "Vulnerable advisories are:" list is the one
+  to read — `pnpm audit`'s table ignores the allow-list.
   ⚠️ **CodeQL parses ANY file named `action.yml`, wherever it sits** — including under
   `docs/`, including a directory literally named `fake`. A committed fixture that
   contains the defect on purpose raises a real alert. Default setup has no
