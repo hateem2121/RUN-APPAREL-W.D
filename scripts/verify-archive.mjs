@@ -36,6 +36,8 @@ const here = dirname(fileURLToPath(import.meta.url))
 
 export const MANIFEST_PATH = join(here, 'archive-manifest.json')
 export const ARCHIVE_BUCKET = 'run-apparel-archive'
+/** Where apps/shrink/src/archiveRaw.ts puts the robot's copies of raw exports. */
+export const ROBOT_ARCHIVE_PREFIX = 'raw-exports/robot/'
 /**
  * Not a secret: the account id appears in every wrangler URL and throughout
  * docs/AUDIT-2026-08-30-PM-CLOUDFLARE-AND-GITHUB.md. `CLOUDFLARE_ACCOUNT_ID` in the
@@ -148,7 +150,16 @@ export function compareArchive(manifest, objects) {
     } else bytesVerified += want.bytes
   }
   const known = new Set(manifest.objects.map((object) => object.key))
-  const extra = objects.filter((object) => !known.has(object.key)).map((object) => object.key)
+  const unknown = objects.filter((object) => !known.has(object.key))
+  // The shrink robot writes its own copies of raw exports here (apps/shrink/src/archiveRaw.ts,
+  // fix plan Rank 12) and no manifest row is ever written for them — they are reported as a
+  // count with their bytes, never as "unverified", so the nightly log stays readable.
+  const robotArchived = unknown
+    .filter((object) => object.key.startsWith(ROBOT_ARCHIVE_PREFIX))
+    .map((object) => ({ key: object.key, bytes: object.size }))
+  const extra = unknown
+    .filter((object) => !object.key.startsWith(ROBOT_ARCHIVE_PREFIX))
+    .map((object) => object.key)
   const emptyListing = objects.length === 0
   return {
     ok: !emptyListing && missing.length === 0 && mismatched.length === 0,
@@ -159,6 +170,7 @@ export function compareArchive(manifest, objects) {
     missing,
     mismatched,
     extra,
+    robotArchived,
   }
 }
 
@@ -179,6 +191,12 @@ export function formatReport(result, bucket = ARCHIVE_BUCKET) {
   }
   for (const key of result.extra)
     lines.push(`[verify-archive]  ~ not in the manifest (unverified): ${key}`)
+  if (result.robotArchived?.length) {
+    const bytes = result.robotArchived.reduce((sum, object) => sum + object.bytes, 0)
+    lines.push(
+      `[verify-archive]  + robot-archived raw exports (by design not in the manifest): ${result.robotArchived.length} object(s), ${gb(bytes)}`,
+    )
+  }
   lines.push(
     `[verify-archive] ${result.ok ? 'OK' : 'FAILED'}: ${result.verified} of ${result.expected} objects present at their recorded size (${gb(result.bytesVerified)}), ${result.missing.length} missing, ${result.mismatched.length} wrong size, ${result.extra.length} unlisted.`,
   )

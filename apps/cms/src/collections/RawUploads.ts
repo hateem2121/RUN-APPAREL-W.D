@@ -9,6 +9,7 @@ import {
 import { APIError, type CollectionConfig } from 'payload'
 import { isAdmin, isAdminOrEditor } from '../access/roles'
 import { checkRawUpload } from './rawRules'
+import { EXPIRED_UPLOAD_REPORT, retryBoxVisible, retryDecision } from './rawUploadRetry'
 
 /**
  * RawUploads — the PRIVATE ingest inbox for un-processed CLO exports.
@@ -194,14 +195,62 @@ export const RawUploads: CollectionConfig = {
       // and six minutes for the first real garment, every single attempt.
       async ({ doc, operation, previousDoc, req, context }) => {
         if (context?.skipShrinkEnqueue) return doc
-        const isRetry = operation === 'update' && doc?.retry === true && !previousDoc?.retry
-        if (operation !== 'create' && !isRetry) return doc
+        const decision = retryDecision({ operation, doc, previousDoc })
+        if (decision === 'ignore') return doc
         if (!doc?.filename) return doc
+        const isRetry = decision === 'retry' || decision === 'retry-while-running'
+
+        // Q-07 (fix plan Rank 12): a box ticked while a run is queued or in progress
+        // started a SECOND run of the same file. The box is hidden in that state
+        // (`admin.condition` below), and this refuses it anyway — a hidden field is a
+        // courtesy, not a guard. Un-tick it, change nothing else, queue nothing.
+        if (decision === 'retry-while-running') {
+          await req.payload
+            .update({
+              collection: 'raw-uploads',
+              id: doc.id,
+              data: { retry: false },
+              context: { skipShrinkEnqueue: true },
+              req,
+            })
+            .catch(() => {})
+          req.payload.logger.info(
+            `Retry ignored on raw upload ${doc.id}: it is already ${String(previousDoc?.status)}.`,
+          )
+          return doc
+        }
 
         try {
           const cf = await getCloudflareContext({ async: true }).catch(() => null)
-          const queue = (cf?.env as { SHRINK_QUEUE?: Queue<ShrinkJobMessage> } | undefined)
-            ?.SHRINK_QUEUE
+          const bindings = cf?.env as
+            | { SHRINK_QUEUE?: Queue<ShrinkJobMessage>; R2_INGEST?: R2Bucket }
+            | undefined
+
+          // CI-01 (fix plan Rank 12): the ingest bucket expires objects after 14 days.
+          // A retry on a row whose file is gone used to queue a job that could only
+          // fail twice and dead-letter, while the row still said "Ready to review".
+          // Ask the bucket first; when the file is gone, say so and queue nothing.
+          if (isRetry && bindings?.R2_INGEST) {
+            const key = doc.prefix
+              ? `${doc.prefix as string}/${doc.filename as string}`
+              : (doc.filename as string)
+            const head = await bindings.R2_INGEST.head(key).catch(() => null)
+            if (!head) {
+              await req.payload.update({
+                collection: 'raw-uploads',
+                id: doc.id,
+                data: { retry: false, status: 'failed', report: EXPIRED_UPLOAD_REPORT },
+                context: { skipShrinkEnqueue: true },
+                req,
+              })
+              req.payload.logger.warn(
+                `Retry refused on raw upload ${doc.id}: "${key}" has expired from the ingest bucket.`,
+              )
+              return doc
+            }
+          }
+
+          const queue = bindings?.SHRINK_QUEUE
           if (!queue) {
             req.payload.logger.warn(
               `Raw upload ${doc.id} saved but SHRINK_QUEUE is not bound — no shrink job enqueued.`,
@@ -369,6 +418,10 @@ export const RawUploads: CollectionConfig = {
       label: 'Try this again',
       admin: {
         position: 'sidebar',
+        // Only once the last run has finished, one way or the other (Q-07): ticked while
+        // a run was queued or processing it started a duplicate. The hook refuses the
+        // same case server-side — see rawUploadRetry.ts.
+        condition: (data) => retryBoxVisible(data?.status),
         description:
           'Tick this and press Save to run the shrinking again. You do NOT need to upload the file a second time — it is still stored. Change the Detail setting first if you want a different result.',
       },

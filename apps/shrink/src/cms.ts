@@ -15,13 +15,62 @@ export interface CmsEnv {
   CMS: { fetch: (request: Request) => Promise<Response> }
   CMS_ORIGIN: string
   CMS_ROBOT_API_KEY: string
+  /** Optional override, in milliseconds, of `CMS_TIMEOUT_MS` — a var, so it needs no deploy. */
+  CMS_TIMEOUT_MS?: string
 }
 
-/** Fetch the CMS through the internal service binding with robot API-key auth. */
+/**
+ * How long one CMS call may take before the Worker gives up on it (fix plan Rank 12,
+ * audit Q-03). Until 2026-09-03 the container fetch was the ONLY outbound call with a
+ * timeout; every CMS write — the 40 MB media upload, the status patches, the product
+ * writes — could sit forever, and a stalled one was killed only by the queue's own
+ * 15-minute ceiling, which reports nothing and retries into the same stall.
+ *
+ * Two minutes: the largest call streams a ≤ 40 MB model through the service binding into
+ * R2, which takes seconds, and the container fetch already owns ten of the fifteen.
+ */
+export const CMS_TIMEOUT_MS = 120_000
+
+function timeoutFor(env: CmsEnv): number {
+  const raw = Number(env.CMS_TIMEOUT_MS)
+  return Number.isFinite(raw) && raw > 0 ? raw : CMS_TIMEOUT_MS
+}
+
+/**
+ * Fetch the CMS through the internal service binding with robot API-key auth.
+ *
+ * The timeout is enforced TWICE on purpose: the request carries an `AbortSignal`, so a
+ * transport that honours it cancels the work, and the promise is raced against the same
+ * signal, so the Worker moves on even if the transport ignores it. A timeout rejects with
+ * an ordinary Error naming the call, which the queue treats as retryable — a stalled
+ * CMS may well answer next time.
+ */
 export function cmsFetch(env: CmsEnv, path: string, init: RequestInit): Promise<Response> {
   const headers = new Headers(init.headers)
   headers.set('Authorization', `users API-Key ${env.CMS_ROBOT_API_KEY}`)
-  return env.CMS.fetch(new Request(`${env.CMS_ORIGIN}${path}`, { ...init, headers }))
+  const ms = timeoutFor(env)
+  const signal = init.signal ?? AbortSignal.timeout(ms)
+  const request = new Request(`${env.CMS_ORIGIN}${path}`, { ...init, headers, signal })
+  return new Promise<Response>((resolve, reject) => {
+    const method = init.method ?? 'GET'
+    const onAbort = () =>
+      reject(
+        new Error(`The CMS did not answer within ${Math.round(ms / 1000)}s: ${method} ${path}`),
+      )
+    if (signal.aborted) return onAbort()
+    signal.addEventListener('abort', onAbort, { once: true })
+    env.CMS.fetch(request).then(
+      (response) => {
+        signal.removeEventListener('abort', onAbort)
+        resolve(response)
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort)
+        if (signal.aborted) onAbort()
+        else reject(error)
+      },
+    )
+  })
 }
 
 /**

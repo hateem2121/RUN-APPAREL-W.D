@@ -1208,6 +1208,19 @@ you do not re-upload the file — Retry re-runs the pipeline on the original.
 > pnpm --filter @run-apparel/cms exec wrangler r2 bucket lifecycle list run-apparel-viewer-ingest
 > ```
 
+**Since 2026-09-03 (fix plan Rank 12) the tick-box is honest about the two cases
+above.** It shows only while `Status` is **Failed** or **Ready to review** — ticked
+while a run was still queued or processing, it used to start a second run of the same
+file. And before queuing anything the hook asks the ingest bucket whether the file is
+still there: after the 14 days it writes *"This file has expired from the upload
+store … Upload the CLO export again"* into `Report`, sets Failed, and queues nothing
+(`apps/cms/src/collections/rawUploadRetry.ts`). The robot answers the same way if
+the file expires while a job waits. To stop the loss happening again, **every
+successful run now copies the raw export into the archive bucket** under
+`raw-exports/robot/<key>` (`apps/shrink/src/archiveRaw.ts`) and says so at the end of
+`Report`; that copy has no expiry, so a garment processed after 2026-09-03 can always
+be re-run from it.
+
 **This is the only way to start a re-run.** The job is enqueued by an `afterChange`
 hook on the collection (`apps/cms/src/collections/RawUploads.ts`), which fires only
 on `create` or on `retry` flipping `false → true` through a save. Writing to D1

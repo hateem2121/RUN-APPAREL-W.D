@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isMediaReferenced } from './cms'
+import { CMS_TIMEOUT_MS, cmsFetch as cmsFetchWithTimeout } from './cms'
 
 /**
  * `isMediaReferenced` is the guard in front of an irreversible DELETE against
@@ -119,5 +120,82 @@ describe('isMediaReferenced', () => {
     } as never
     await isMediaReferenced(env, 7)
     expect(seen.every((h) => h === 'users API-Key secret')).toBe(true)
+  })
+})
+
+/**
+ * A stalled CMS write aborts INSIDE the Worker (fix plan Rank 12, audit Q-03). Until
+ * 2026-09-03 the container fetch was the only outbound call with a timeout; a CMS call
+ * that never answered was killed only by the queue's 15-minute ceiling, which reports
+ * nothing. Two transports are tried: one that honours the request's AbortSignal, and one
+ * that ignores it entirely and never settles — the Worker must move on in both cases.
+ */
+describe('cmsFetch — every CMS call has a timeout', () => {
+  const env = (fetch: (req: Request) => Promise<Response>) => ({
+    CMS: { fetch },
+    CMS_ORIGIN: 'https://cms.example',
+    CMS_ROBOT_API_KEY: 'k',
+    CMS_TIMEOUT_MS: '30',
+  })
+
+  it('rejects, naming the call, when the transport honours the abort', async () => {
+    const stalled = env(
+      (req) =>
+        new Promise<Response>((_, reject) => {
+          req.signal.addEventListener('abort', () => reject(req.signal.reason))
+        }),
+    )
+    const started = Date.now()
+    await expect(
+      cmsFetchWithTimeout(stalled, '/api/raw-uploads/12', { method: 'PATCH' }),
+    ).rejects.toThrow(/did not answer within 0s: PATCH \/api\/raw-uploads\/12/)
+    expect(Date.now() - started).toBeLessThan(2_000)
+  })
+
+  it('rejects even when the transport IGNORES the signal and never settles', async () => {
+    const black_hole = env(() => new Promise<Response>(() => {}))
+    const started = Date.now()
+    await expect(cmsFetchWithTimeout(black_hole, '/api/media', { method: 'POST' })).rejects.toThrow(
+      /did not answer within/,
+    )
+    expect(Date.now() - started).toBeLessThan(2_000)
+  })
+
+  it('passes a prompt answer straight through, and sends the timeout on the request', async () => {
+    let seen: Request | undefined
+    const prompt = env(async (req) => {
+      seen = req
+      return new Response('ok', { status: 200 })
+    })
+    const res = await cmsFetchWithTimeout(prompt, '/api/products/1', { method: 'GET' })
+    expect(res.status).toBe(200)
+    expect(seen?.signal).toBeInstanceOf(AbortSignal)
+    expect(seen?.signal.aborted).toBe(false)
+  })
+
+  it('defaults to two minutes when the override is absent or nonsense', async () => {
+    expect(CMS_TIMEOUT_MS).toBe(120_000)
+    const nonsense = { ...env(async () => new Response('ok')), CMS_TIMEOUT_MS: 'soon' }
+    await expect(
+      cmsFetchWithTimeout(nonsense, '/api/x', { method: 'GET' }),
+    ).resolves.toBeInstanceOf(Response)
+  })
+
+  it('passes a transport failure through as itself, not as a timeout', async () => {
+    const broken = env(async () => {
+      throw new Error('socket hang up')
+    })
+    await expect(cmsFetchWithTimeout(broken, '/api/x', { method: 'GET' })).rejects.toThrow(
+      'socket hang up',
+    )
+  })
+
+  it('a caller’s own already-aborted signal is refused up front', async () => {
+    const never = env(() => new Promise<Response>(() => {}))
+    const controller = new AbortController()
+    controller.abort()
+    await expect(
+      cmsFetchWithTimeout(never, '/api/x', { method: 'GET', signal: controller.signal }),
+    ).rejects.toThrow(/did not answer/)
   })
 })

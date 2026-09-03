@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ARCHIVE_BUCKET,
+  ROBOT_ARCHIVE_PREFIX,
   compareArchive,
   formatReport,
   listArchive,
@@ -29,6 +30,32 @@ const healthy = () => [
   { key: 'fixed-glbs/A.glb', size: 100 },
   { key: 'raw-exports/B.glb', size: 2_000_000_000 },
 ]
+
+describe('compareArchive — the robot’s own copies (fix plan Rank 12)', () => {
+  it('reports a robot-archived raw export as a counted, sized line — not as unverified', () => {
+    const result = compareArchive(MANIFEST, [
+      ...healthy(),
+      { key: `${ROBOT_ARCHIVE_PREFIX}uploads/X-MILO PRO BIB.glb`, size: 59_555_468 },
+    ])
+    expect(result.ok).toBe(true)
+    expect(result.extra).toEqual([])
+    expect(result.robotArchived).toEqual([
+      { key: `${ROBOT_ARCHIVE_PREFIX}uploads/X-MILO PRO BIB.glb`, bytes: 59_555_468 },
+    ])
+    const text = formatReport(result).join('\n')
+    expect(text).toMatch(/robot-archived raw exports .*: 1 object\(s\), 0\.06 GB/)
+    expect(text).not.toMatch(/unverified/)
+  })
+
+  it('still reports anything else outside the manifest as unverified (the prefix is exact)', () => {
+    const result = compareArchive(MANIFEST, [
+      ...healthy(),
+      { key: 'raw-exports/stray.glb', size: 5 },
+    ])
+    expect(result.extra).toEqual(['raw-exports/stray.glb'])
+    expect(result.robotArchived).toEqual([])
+  })
+})
 
 describe('compareArchive — negative controls', () => {
   it('fails on an EMPTY listing and says so explicitly, not merely "2 missing"', () => {

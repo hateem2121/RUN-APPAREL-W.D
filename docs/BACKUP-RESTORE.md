@@ -291,6 +291,17 @@ shasum -a 256 "./restored/fixed-glbs/ARISAN BRA.glb"                      # agai
 then append a row to the manifest with `stat -f%z` and `shasum -a 256`, run the verify
 command, and commit both together.
 
+
+**The robot writes here too, since 2026-09-03 (fix plan Rank 12, audit CI-01).** After
+every successful shrink the Worker streams the raw CLO export from the ingest bucket
+into this one under `raw-exports/robot/<ingest key>`, with `rawUploadId` and
+`archivedAt` as custom metadata (`apps/shrink/src/archiveRaw.ts`; idempotent by key
+and size; best-effort, reported at the end of the upload's `Report`). These copies
+have no manifest row on purpose — nobody hand-verifies a robot's write — so
+`scripts/verify-archive.mjs` lists them as one counted line
+(`robot-archived raw exports … N object(s), X GB`) instead of "unverified". Anything
+else outside the manifest is still reported as unverified.
+
 ## After any restore
 
 1. `curl -f https://cms.wear-run.help/api/health` → `{"ok":true}`.

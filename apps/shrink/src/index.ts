@@ -22,7 +22,9 @@ import { cmsFetch, isMediaReferenced } from './cms'
 import { planColourImport } from './colourImport'
 import { DEAD_LETTER_QUEUE, deadLetterReport } from './deadLetter'
 import { type ShrinkFailure, reportFailure } from './sentry'
-import { readContainerFailure } from './containerFailure'
+import { missingRawExport, readContainerFailure } from './containerFailure'
+import { archiveRawExport } from './archiveRaw'
+import { appendToError, retireOrphanedMedia } from './orphanGuard'
 
 /**
  * One container instance, shared by every job.
@@ -83,6 +85,14 @@ interface Env {
   R2_INGEST_BUCKET: string
   R2_INGEST_ACCESS_KEY_ID: string
   R2_INGEST_SECRET_ACCESS_KEY: string
+  /**
+   * The ingest and archive buckets, bound directly (fix plan Rank 12, audit CI-01) so a
+   * successful run can stream the raw export into `run-apparel-archive`, which has no
+   * expiry rule. Optional: a Worker deployed from a wrangler.jsonc without them still
+   * runs every job and merely reports "not archived".
+   */
+  R2_INGEST?: R2Bucket
+  R2_ARCHIVE?: R2Bucket
   /**
    * Optional. Absent means no alerting, which is the state everything ran in until
    * 2026-08-29 — so a missing secret must degrade to that rather than break a job.
@@ -397,6 +407,10 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
     // body ONLY, so genericising it without this change would have reduced every
     // container failure to "Container returned 500: " with nothing to say so.
     const detail = await readContainerFailure(containerRes)
+    // An upload the ingest bucket has already expired will not reappear on a retry
+    // (fix plan Rank 12, audit CI-01): say what to do, and stop.
+    const expired = missingRawExport(detail)
+    if (expired) throw new PermanentJobError(expired)
     throw new Error(`Container returned ${containerRes.status}: ${detail}`)
   }
 
@@ -497,161 +511,182 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   })
   const mediaId = media.id
 
-  // 4. Tell the product which colours are inside the file.
-  //
-  //    This is what removed the requirement to name colourways `N001-NAVY`
-  //    inside CLO 3D — previously the merged GLB's variant names had to match
-  //    the CMS character for character, and a mismatch only showed up as dead
-  //    colour buttons on the live page after a ~350 MB re-upload. Now the file
-  //    keeps whatever names CLO gave it, the CMS lists them back to the owner,
-  //    and they point each of their colours at one. Nothing is renamed.
-  //
-  //    Best-effort on purpose: the shrink itself succeeded, and the owner can
-  //    still attach the result by hand. Failing the job here would re-run several
-  //    minutes of container time for a result that is already correct.
-  //    Failure here must not fail the job — the shrink itself succeeded and the
-  //    owner can still attach the result by hand — but it must not vanish either.
-  //    It did on 2026-07-29: the CMS rejected this write and the bare
-  //    `.catch(() => {})` swallowed it, so the colour dropdown stayed empty with
-  //    nothing anywhere saying why. The reason goes in the report the owner reads.
-  const fileColours = report.variantsInFileOrder ?? report.variants
+  // Everything from here to the final write runs under the orphan guard (fix plan
+  // Rank 12, audit Q-04): if the write that records `resultGlb` fails, the model this
+  // run just saved would be stranded in the public bucket and the retry would create a
+  // second one. The guard deletes it when nothing references it, keeps it when the
+  // auto-attach already pointed the product at it, and appends what it did to the error.
   let fileColoursNote = ''
-  if (job.targetProductId != null && fileColours.length > 0) {
-    try {
-      // `fileColourDetails` is written ALONGSIDE `fileColours`, never instead of
-      // it. The existing dropdown reads the plain string list, so a product
-      // processed by an older container — or by this one, if the container is
-      // rolled back — keeps working with no backfill and no migration ordering
-      // problem. The details are pure enrichment: swatch and suggested name.
-      await patchProduct(env, job.targetProductId, {
-        fileColours,
-        ...(report.variantColours?.length ? { fileColourDetails: report.variantColours } : {}),
-      })
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error)
-      fileColoursNote =
-        `\n\n⚠️ Could not write the colour list onto the product, so the ` +
-        `"Which colour in your CLO file is this?" dropdown will be empty. ` +
-        `The colours found are listed above — tell your developer this:\n${detail}`
+  let colourImportNote = ''
+  let attachNote = ''
+  try {
+    // 4. Tell the product which colours are inside the file.
+    //
+    //    This is what removed the requirement to name colourways `N001-NAVY`
+    //    inside CLO 3D — previously the merged GLB's variant names had to match
+    //    the CMS character for character, and a mismatch only showed up as dead
+    //    colour buttons on the live page after a ~350 MB re-upload. Now the file
+    //    keeps whatever names CLO gave it, the CMS lists them back to the owner,
+    //    and they point each of their colours at one. Nothing is renamed.
+    //
+    //    Best-effort on purpose: the shrink itself succeeded, and the owner can
+    //    still attach the result by hand. Failing the job here would re-run several
+    //    minutes of container time for a result that is already correct.
+    //    Failure here must not fail the job — the shrink itself succeeded and the
+    //    owner can still attach the result by hand — but it must not vanish either.
+    //    It did on 2026-07-29: the CMS rejected this write and the bare
+    //    `.catch(() => {})` swallowed it, so the colour dropdown stayed empty with
+    //    nothing anywhere saying why. The reason goes in the report the owner reads.
+    const fileColours = report.variantsInFileOrder ?? report.variants
+    fileColoursNote = ''
+    if (job.targetProductId != null && fileColours.length > 0) {
+      try {
+        // `fileColourDetails` is written ALONGSIDE `fileColours`, never instead of
+        // it. The existing dropdown reads the plain string list, so a product
+        // processed by an older container — or by this one, if the container is
+        // rolled back — keeps working with no backfill and no migration ordering
+        // problem. The details are pure enrichment: swatch and suggested name.
+        await patchProduct(env, job.targetProductId, {
+          fileColours,
+          ...(report.variantColours?.length ? { fileColourDetails: report.variantColours } : {}),
+        })
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error)
+        fileColoursNote =
+          `\n\n⚠️ Could not write the colour list onto the product, so the ` +
+          `"Which colour in your CLO file is this?" dropdown will be empty. ` +
+          `The colours found are listed above — tell your developer this:\n${detail}`
+      }
     }
+
+    // 4b. Add the file's own colours to the product — but ONLY to a draft that
+    //     has none yet.
+    //
+    //     The owner used to have to open the Colours tab and press "Add the
+    //     ticked colours" by hand for every garment this robot finished — a
+    //     button they had to know to look for. On 2026-08-03 N001's file held
+    //     five colourways and the CMS had three rows; the other two were
+    //     invisible to every buyer, and the only way to discover them was to
+    //     open the GLB.
+    //
+    //     THE TWO CONDITIONS ARE THE WHOLE SAFETY ARGUMENT, not caution — the
+    //     full reasoning lives on planColourImport itself (./colourImport.ts),
+    //     which this only calls:
+    //
+    //     - `status !== 'published'`. `colourways` is in GATED_FIELDS, exactly
+    //       like `glbAsset` below, so the same 2026-07-29 argument applies:
+    //       never write to a published product.
+    //     - no colour rows yet. Appending to a product the owner has already set
+    //       up is a surprise, not a convenience — "Add the ticked colours" stays
+    //       for that case and must keep working unchanged.
+    //
+    //     A SEPARATE PATCH from both the colour-list write above and the model
+    //     attach below, for the same reason those two are already kept apart:
+    //     bundled into either, a failure here would risk losing a write that
+    //     matters more (fileColours fills the colour dropdown; the model attach
+    //     is what makes the product showable at all). Reports rather than
+    //     throws, like both its neighbours: the shrink succeeded, and the owner
+    //     can always press the button by hand.
+    const colourPlan = planColourImport(target, toFileColours(report.variantColours))
+    colourImportNote = colourPlan.rows === null ? colourPlan.note : ''
+    if (colourPlan.rows && colourPlan.rows.length > 0 && job.targetProductId != null) {
+      try {
+        await patchProduct(env, job.targetProductId, { colourways: colourPlan.rows })
+        colourImportNote = colourPlan.note ?? ''
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error)
+        colourImportNote =
+          '\n\n⚠️ Could not add the file’s colours to the product automatically. They are listed above ' +
+          '— open the Colours tab and press “Add the ticked colours” by hand. ' +
+          `Tell your developer this:\n${reason}`
+      }
+    }
+
+    // 4c. Attach the model to the product itself — but ONLY to a draft that has
+    //     none yet.
+    //
+    //     The owner used to do this by hand from a picker that listed every model
+    //     the library had ever held, all created by this function and all carrying
+    //     byte-identical `alt` text. On 2026-08-09 that was five GLBs differing
+    //     only by a trailing number, four of them superseded and one of them a
+    //     pre-2026-08-05 build with the old artwork damage — and picking the wrong
+    //     one published cleanly, because the gate only tests that *something* is
+    //     attached. The robot already knows exactly which document it just made and
+    //     which product asked for it, so the safest thing it can do is say so.
+    //
+    //     THE TWO CONDITIONS ARE THE WHOLE SAFETY ARGUMENT, not caution:
+    //
+    //     - `status !== 'published'`. `glbAsset` is in GATED_FIELDS, so writing it
+    //       re-runs the publish gate. On a draft `assertPublishable` returns on its
+    //       first line, so the write cannot throw. On a LIVE product it can — and a
+    //       gate rejecting the robot's own write is precisely the 2026-07-29 bug
+    //       that GATED_FIELDS exists to prevent. Never write to a published one.
+    //     - no model attached yet. Silently swapping the model under a garment the
+    //       owner has already set up is not a convenience, it is a surprise. A
+    //       deliberate re-run is what the Retry box and the picker are for.
+    //
+    //     A SEPARATE PATCH from the colour-list write and the colour import above,
+    //     deliberately. Bundled into one call, any failure here would also lose
+    //     `fileColours` — the write that fills the colour dropdown and the one
+    //     thing that repairs a half-set-up product. Extra round trips are a cheap
+    //     price for keeping those failure modes apart. Like both writes above,
+    //     this one reports rather than throws: the shrink succeeded and the owner
+    //     can always attach by hand.
+    const plan = planModelAttach(job.targetProductId, target)
+    attachNote = plan.attach ? '' : plan.note
+    if (plan.attach && job.targetProductId != null) {
+      try {
+        await patchProduct(env, job.targetProductId, { glbAsset: mediaId })
+        attachNote =
+          '\n\nAttached to the product as its finished 3D file. ' +
+          'Nothing is public until you set Status to Published.'
+      } catch (error) {
+        // Named `reason` rather than `detail`: `detail` is the Detail LEVEL in
+        // this function's scope, and shadowing it here reads as the wrong thing.
+        const reason = error instanceof Error ? error.message : String(error)
+        attachNote =
+          '\n\n⚠️ Could not attach the model to the product automatically. It is saved and ' +
+          'unharmed — open the product’s “3D file” tab and pick it by hand. ' +
+          `Tell your developer this:\n${reason}`
+      }
+    }
+
+    // 5. Mark the raw upload ready for the owner to review + publish.
+    await patchRawUpload(env, job.rawUploadId, {
+      status: 'ready',
+      resultGlb: mediaId,
+      report: report.text + fileColoursNote + colourImportNote + attachNote,
+    })
+  } catch (error) {
+    const { note } = await retireOrphanedMedia(env, mediaId, job.rawUploadId)
+    throw appendToError(error, note)
   }
 
-  // 4b. Add the file's own colours to the product — but ONLY to a draft that
-  //     has none yet.
-  //
-  //     The owner used to have to open the Colours tab and press "Add the
-  //     ticked colours" by hand for every garment this robot finished — a
-  //     button they had to know to look for. On 2026-08-03 N001's file held
-  //     five colourways and the CMS had three rows; the other two were
-  //     invisible to every buyer, and the only way to discover them was to
-  //     open the GLB.
-  //
-  //     THE TWO CONDITIONS ARE THE WHOLE SAFETY ARGUMENT, not caution — the
-  //     full reasoning lives on planColourImport itself (./colourImport.ts),
-  //     which this only calls:
-  //
-  //     - `status !== 'published'`. `colourways` is in GATED_FIELDS, exactly
-  //       like `glbAsset` below, so the same 2026-07-29 argument applies:
-  //       never write to a published product.
-  //     - no colour rows yet. Appending to a product the owner has already set
-  //       up is a surprise, not a convenience — "Add the ticked colours" stays
-  //       for that case and must keep working unchanged.
-  //
-  //     A SEPARATE PATCH from both the colour-list write above and the model
-  //     attach below, for the same reason those two are already kept apart:
-  //     bundled into either, a failure here would risk losing a write that
-  //     matters more (fileColours fills the colour dropdown; the model attach
-  //     is what makes the product showable at all). Reports rather than
-  //     throws, like both its neighbours: the shrink succeeded, and the owner
-  //     can always press the button by hand.
-  const colourPlan = planColourImport(target, toFileColours(report.variantColours))
-  let colourImportNote = colourPlan.rows === null ? colourPlan.note : ''
-  if (colourPlan.rows && colourPlan.rows.length > 0 && job.targetProductId != null) {
-    try {
-      await patchProduct(env, job.targetProductId, { colourways: colourPlan.rows })
-      colourImportNote = colourPlan.note ?? ''
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error)
-      colourImportNote =
-        '\n\n⚠️ Could not add the file’s colours to the product automatically. They are listed above ' +
-        '— open the Colours tab and press “Add the ticked colours” by hand. ' +
-        `Tell your developer this:\n${reason}`
-    }
-  }
-
-  // 4c. Attach the model to the product itself — but ONLY to a draft that has
-  //     none yet.
-  //
-  //     The owner used to do this by hand from a picker that listed every model
-  //     the library had ever held, all created by this function and all carrying
-  //     byte-identical `alt` text. On 2026-08-09 that was five GLBs differing
-  //     only by a trailing number, four of them superseded and one of them a
-  //     pre-2026-08-05 build with the old artwork damage — and picking the wrong
-  //     one published cleanly, because the gate only tests that *something* is
-  //     attached. The robot already knows exactly which document it just made and
-  //     which product asked for it, so the safest thing it can do is say so.
-  //
-  //     THE TWO CONDITIONS ARE THE WHOLE SAFETY ARGUMENT, not caution:
-  //
-  //     - `status !== 'published'`. `glbAsset` is in GATED_FIELDS, so writing it
-  //       re-runs the publish gate. On a draft `assertPublishable` returns on its
-  //       first line, so the write cannot throw. On a LIVE product it can — and a
-  //       gate rejecting the robot's own write is precisely the 2026-07-29 bug
-  //       that GATED_FIELDS exists to prevent. Never write to a published one.
-  //     - no model attached yet. Silently swapping the model under a garment the
-  //       owner has already set up is not a convenience, it is a surprise. A
-  //       deliberate re-run is what the Retry box and the picker are for.
-  //
-  //     A SEPARATE PATCH from the colour-list write and the colour import above,
-  //     deliberately. Bundled into one call, any failure here would also lose
-  //     `fileColours` — the write that fills the colour dropdown and the one
-  //     thing that repairs a half-set-up product. Extra round trips are a cheap
-  //     price for keeping those failure modes apart. Like both writes above,
-  //     this one reports rather than throws: the shrink succeeded and the owner
-  //     can always attach by hand.
-  const plan = planModelAttach(job.targetProductId, target)
-  let attachNote = plan.attach ? '' : plan.note
-  if (plan.attach && job.targetProductId != null) {
-    try {
-      await patchProduct(env, job.targetProductId, { glbAsset: mediaId })
-      attachNote =
-        '\n\nAttached to the product as its finished 3D file. ' +
-        'Nothing is public until you set Status to Published.'
-    } catch (error) {
-      // Named `reason` rather than `detail`: `detail` is the Detail LEVEL in
-      // this function's scope, and shadowing it here reads as the wrong thing.
-      const reason = error instanceof Error ? error.message : String(error)
-      attachNote =
-        '\n\n⚠️ Could not attach the model to the product automatically. It is saved and ' +
-        'unharmed — open the product’s “3D file” tab and pick it by hand. ' +
-        `Tell your developer this:\n${reason}`
-    }
-  }
-
-  // 5. Mark the raw upload ready for the owner to review + publish.
-  await patchRawUpload(env, job.rawUploadId, {
-    status: 'ready',
-    resultGlb: mediaId,
-    report: report.text + fileColoursNote + colourImportNote + attachNote,
-  })
-
-  // 6. Retire the model this run replaced — but only once `resultGlb` points at
-  //    the new one, so a failure here can never leave the upload pointing at a
-  //    document that has been deleted.
   const supersededNote = await retireSupersededResult(
     env,
     previousResultGlb,
     mediaId,
     job.rawUploadId,
   )
-  if (supersededNote) {
-    await patchRawUpload(env, job.rawUploadId, {
-      report: report.text + fileColoursNote + colourImportNote + attachNote + supersededNote,
-    }).catch(() => {
-      // The retirement note is the least important write in the job; the model
-      // is already saved and attached. Do not fail a successful shrink for it.
-    })
-  }
+
+  // 5. Keep the raw export (fix plan Rank 12, audit CI-01). The ingest bucket expires
+  //    it after 14 days and is in no backup; the archive bucket has no expiry. Best
+  //    effort and idempotent — see archiveRaw.ts — and reported either way.
+  const archiveNote =
+    env.R2_INGEST && env.R2_ARCHIVE
+      ? (
+          await archiveRawExport({ ingest: env.R2_INGEST, archive: env.R2_ARCHIVE }, key, {
+            rawUploadId: job.rawUploadId,
+          })
+        ).note
+      : '⚠️ Not archived: the archive bucket is not bound to this robot yet, so the raw export ' +
+        'still expires from the upload store after 14 days. Keep your own copy.'
+
+  await patchRawUpload(env, job.rawUploadId, {
+    report: `${report.text}${fileColoursNote}${colourImportNote}${attachNote}${supersededNote}\n\n${archiveNote}`,
+  }).catch(() => {
+    // The model is saved and the status is 'ready'; these are notes, not state.
+  })
 }
 
 /**
