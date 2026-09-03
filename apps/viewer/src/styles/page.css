@@ -1162,6 +1162,40 @@ model-viewer.stage__model:focus-within {
  * visitor to drag a garment that had not arrived. Meanwhile the largest thing on
  * screen was the preloader's invented counter. The two were the wrong way round.
  */
+/*
+ * The colourway's photo while the model downloads (fix plan Rank 6, 2026-09-03). It sits
+ * on top of <model-viewer> — which paints nothing until `load` anyway — and under the
+ * readout, so the MB / % / time line stays legible over it. `object-fit: contain`, so a
+ * 4:5 poster in a wide band letterboxes rather than crops; absolutely positioned, so the
+ * grid-item `min-height: auto` trap that once overflowed a poster by 926px cannot apply.
+ * The blur is set inline from the byte count; the fade is `--settle`, the same beat as
+ * every other entrance here, and nothing under reduced motion.
+ */
+.stage__placeholder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  opacity: 1;
+  transition:
+    opacity var(--settle) var(--ease),
+    filter var(--fast) linear;
+  will-change: filter, opacity;
+}
+
+.stage__placeholder--leaving {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage__placeholder {
+    transition: none;
+  }
+}
+
 .stage__loading {
   position: absolute;
   top: 50%;

@@ -132,6 +132,8 @@ export interface RenderOptions {
    * negative control that shows what the instruments change, and nothing else.
    */
   instruments?: boolean
+  /** 'transparent' keeps the alpha channel in the PNG (posters); default the flat grey. */
+  background?: HarnessBackground
 }
 
 export interface RenderResult {
@@ -205,7 +207,12 @@ export function viewerAssetMap(): Record<string, string> {
  * an empty stage. Draco and KTX2 get self-hosted locations for the same reason,
  * so this harness never depends on a CDN being reachable.
  */
+/** The page behind the garment: the harness's flat grey, or nothing (posters). */
+export type HarnessBackground = 'grey' | 'transparent'
+
 export interface HarnessPageOptions {
+  /** Default 'grey' — what `compare` diffs against. Posters render on 'transparent'. */
+  background?: HarnessBackground
   lighting?: LightingMode
   instruments?: boolean
 }
@@ -214,11 +221,12 @@ export interface HarnessPageOptions {
 export function renderHarnessPage(options: HarnessPageOptions = {}): string {
   const lighting = options.lighting ?? 'production'
   const instruments = options.instruments ?? true
+  const background = options.background === 'transparent' ? 'transparent' : '#808080'
   return `<!doctype html>
 <meta charset="utf-8">
 <title>asset-pipeline render harness (${lighting} lighting, instruments ${instruments ? 'on' : 'OFF'})</title>
 <style>
-  html, body { margin: 0; background: #808080; }
+  html, body { margin: 0; background: ${background}; }
   model-viewer { width: 100vw; height: 100vh; --poster-color: transparent; }
 </style>
 <model-viewer
@@ -326,9 +334,10 @@ export async function renderViews(
   const instruments = options.instruments ?? true
 
   await mkdir(outDir, { recursive: true })
+  const background = options.background ?? 'grey'
   const { server, port } = await startHarnessServer(
     glbFile,
-    renderHarnessPage({ lighting, instruments }),
+    renderHarnessPage({ lighting, instruments, background }),
   )
 
   const browser = await chromium.launch({
@@ -405,7 +414,10 @@ export async function renderViews(
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
       })()`)
       const file = `${view.name}.png`
-      await element.screenshot({ path: join(outDir, file) })
+      await element.screenshot({
+        path: join(outDir, file),
+        omitBackground: background === 'transparent',
+      })
       files.push(file)
       const stats = await sharp(join(outDir, file)).stats()
       if (stats.channels.every((channel) => channel.stdev < 1)) {

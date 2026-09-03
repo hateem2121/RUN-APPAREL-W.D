@@ -738,13 +738,13 @@ function posterSvg(colourway: PlaceholderColourway): string {
   for (let y = 0; y <= 1500; y += 48) {
     gridLines.push(`<line x1="0" y1="${y}" x2="1200" y2="${y}"/>`)
   }
+  // Transparent and caption-free since 2026-09-03 (fix plan Rank 6): the viewer paints
+  // this photo over its own stage while the model downloads, and the page prints the
+  // code itself. The grid stays as a faint texture so the picture is not one flat fill.
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1500" viewBox="0 0 1200 1500">
-  <rect width="1200" height="1500" fill="#F1EFEA"/>
   <g stroke="#1D1F1A" stroke-opacity="0.05" stroke-width="1">${gridLines.join('')}</g>
   <path d="${TEE_SILHOUETTE_PATH}" fill="${colourway.body}"/>
   <path d="M540 470 L660 470 Q600 540 540 470 Z" fill="${colourway.trim}"/>
-  <text x="80" y="1400" font-family="monospace" font-size="34" letter-spacing="4" fill="#63665B">[ ${PLACEHOLDER_PRODUCT_CODE} / ${colourway.displayName.toUpperCase()} ]</text>
-  <text x="80" y="1448" font-family="monospace" font-size="24" letter-spacing="3" fill="#63665B">RUN APPAREL — 3D PRODUCT REFERENCE</text>
 </svg>`
 }
 

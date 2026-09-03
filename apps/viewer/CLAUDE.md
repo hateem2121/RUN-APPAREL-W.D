@@ -1,9 +1,8 @@
 # CLAUDE.md — apps/viewer
 
-Split out of the root `CLAUDE.md` on 2026-08-10 by `/doctor`: the root file had reached
-39,674 chars, 326 short of the ~40,000-char point where Claude Code warns that a memory
-file is too large. These traps are reachable only by editing files under `apps/viewer/`,
-so they load when they matter instead of in every session. Nothing below was reworded.
+Split out of the root `CLAUDE.md` on 2026-08-10 by `/doctor` (the root had reached 39,674
+chars). These traps are reachable only by editing files under `apps/viewer/`, so they load
+when they matter instead of in every session.
 
 Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
 
@@ -463,7 +462,10 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   `.stage__poster-fallback` / `.stage img`; 9 were Firefox, the only engine here
   without WebGL and so the only one taking that branch. Now
   `.stage__error:not([hidden])` — `:not` is load-bearing, that `<p>` is always
-  mounted so its live region can announce. **Key a test on what the VISITOR gets.**
+    mounted so its live region can announce. **Key a test on what the VISITOR gets.**
+  Since 2026-09-03 (fix plan Rank 6) the stage paints the colourway's photo DURING THE
+  DOWNLOAD only — `.stage__placeholder`, blurred, cross-fading into the 3D — and every
+  failure state still shows no image, so the words above stay true.
 
 - **A rendering fix here must be ported to `tools/asset-pipeline/src/review-server.ts`,
   or the owner judges a good garment as broken.** Three times now: the decal bias
@@ -532,13 +534,12 @@ cannot bind and the suite reads as a code failure. `pkill -f e2e/serve.mjs` firs
 **`--grep` does NOT survive the pnpm passthrough.**
 `pnpm --filter @run-apparel/viewer test:e2e -- --grep "x"` runs the WHOLE suite and
 silently ignores the filter — measured 2026-08-20, 252 tests where 20 were asked for.
-Run `npx playwright test --grep "x"` from `apps/viewer/` instead: ~2s against ~40s,
-which is the difference between iterating on one assertion and not bothering.
+Run `npx playwright test --grep "x"` from `apps/viewer/` instead (~2 s against ~40 s).
 
 **Driving `e2e/serve.mjs` by hand needs `PORT=4173` explicitly.** `playwright.config.ts`
 owns the port for the suite, and that fix does not reach a server you start yourself —
-it still reads `process.env.PORT`. In a session with `PORT=5002` set it binds there and
-`localhost:4173` returns nothing, with no error anywhere to explain it.
+it still reads `process.env.PORT`, so under `PORT=5002` it binds there and `localhost:4173`
+returns nothing.
 
 **Driving the built app by hand needs `VITE_API_BASE_URL=''`.** A plain
 `pnpm build` bakes in the production API, so `localhost:4173/n001/wine` renders

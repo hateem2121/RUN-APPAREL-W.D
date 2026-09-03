@@ -92,6 +92,24 @@ describe('build output', () => {
 })
 
 describe('the head', () => {
+  it('preloads the meshopt decoder as a script and the lighting map as a CORS fetch (Rank 6)', () => {
+    /**
+     * Both used to start only after the model-viewer chunk arrived and asked for them
+     * (audit LIVE-10). The decoder is injected as a classic <script>, so `as="script"`;
+     * the HDR is read over fetch in CORS mode, so `as="fetch"` WITH `crossorigin` — a
+     * fetch preload without it is a second connection, not a hint.
+     */
+    const html = readFileSync(SOURCE_INDEX, 'utf8')
+    expect(html).toMatch(/<link rel="preload" href="\/meshopt_decoder\.js" as="script" \/>/)
+    expect(html).toMatch(
+      /<link rel="preload" href="\/env\/studio-soft\.hdr" as="fetch" crossorigin="anonymous" \/>/,
+    )
+    // The negative shape: no fetch preload may ship without the attribute.
+    const fetchPreloads = html.match(/<link rel="preload"[^>]*as="fetch"[^>]*>/g) ?? []
+    expect(fetchPreloads.length).toBeGreaterThan(0)
+    for (const line of fetchPreloads) expect(line).toMatch(/crossorigin/)
+  })
+
   it('preconnects to both cross-origin hosts on the critical path', () => {
     /**
      * The page's critical path runs through two cross-origin hosts —

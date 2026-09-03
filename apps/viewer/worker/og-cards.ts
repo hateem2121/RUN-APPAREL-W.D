@@ -12,6 +12,11 @@ export interface OgCard {
 }
 
 export const OG_CARDS: Record<string, OgCard> = {
+  'r-xmp/lavender': { width: 1200, height: 1500 },
+  'r-xmp/mint': { width: 1200, height: 1500 },
+  'r-xmp/olive': { width: 1200, height: 1500 },
+  'r-xmp/white': { width: 1200, height: 1500 },
+  'r-xmp/wine': { width: 1200, height: 1500 },
   'rxps/black': { width: 1200, height: 1500 },
   'rxps/blush': { width: 1200, height: 1500 },
   'rxps/butter': { width: 1200, height: 1500 },

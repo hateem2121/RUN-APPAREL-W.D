@@ -17,6 +17,7 @@ import { dumpTextures } from './textures'
 import { describeInkRow, framePrint, measureInkContrast } from './ink-contrast'
 import { readGlb } from './io'
 import { mb as gpuMb, PHONE_GPU_BUDGET_BYTES } from './texture-fold'
+import { type PosterJob, parseColourMap, renderPosters } from './posters'
 import { describeRawCensus } from './raw-census'
 import { UV_QUANTIZE_BITS } from './uv-remap'
 import { checkVariants, inspectGlb } from './validate'
@@ -49,6 +50,10 @@ USAGE
       Inspect a GLB and (optionally) assert its bound variants exactly match
       the CMS colourway variantId list. Exits non-zero on mismatch.
 
+  posters <file.glb> --product <slug> [--colours "Colorway 2=wine,…"] [--out dir]
+      One poster per colourway, from the front, under production lighting, on a
+      transparent background, no caption — 1200×1500 WebP + PNG named the way
+      og:cards and the CMS expect (<product>-<colour>-poster.webp). Fix plan Rank 6.
   pnpm pipeline placeholders [--out <dir>]
       Generate placeholder seed assets (per-colour GLBs + posters) for N001.
 
@@ -991,6 +996,52 @@ async function main(): Promise<void> {
         `  WARNING:    only in one directory: ${result.unmatched.join(', ')} — did a render fail partway?`,
       )
     }
+    return
+  }
+
+  if (command === 'posters') {
+    const positional: string[] = []
+    let product: string | null = null
+    let out = 'output/posters'
+    let colours: Record<string, string> | undefined
+    let orbit: string | undefined
+    let fieldOfView: string | undefined
+    let size: string | undefined
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i]!
+      if (arg === '--product') product = rest[++i] ?? null
+      else if (arg === '--out') out = rest[++i] ?? out
+      else if (arg === '--colours') colours = parseColourMap(rest[++i] ?? '')
+      else if (arg === '--orbit') orbit = rest[++i]
+      else if (arg === '--fov') fieldOfView = rest[++i]
+      else if (arg === '--size') size = rest[++i]
+      else if (!arg.startsWith('--')) positional.push(arg)
+    }
+    const file = positional[0]
+    if (!file || !product) {
+      fail(
+        'Usage: posters <file.glb> --product <slug> [--colours "Colorway 2=wine,…"] [--out dir] [--orbit "0deg 80deg 105%"] [--fov 30deg] [--size 1200x1500]',
+      )
+    }
+    const dims = size ? size.split('x').map((n) => finiteNumber(n, '--size')) : []
+    const job: PosterJob = { product, outDir: out }
+    if (colours) job.colours = colours
+    if (orbit) job.orbit = orbit
+    if (fieldOfView) job.fieldOfView = fieldOfView
+    if (dims.length === 2) {
+      job.width = dims[0]!
+      job.height = dims[1]!
+    }
+    const results = await renderPosters(file, job)
+    console.log(`Rendered ${results.length} poster(s) for ${product} → ${out}`)
+    for (const r of results) {
+      console.log(
+        `  ${r.variant.padEnd(14)} → ${r.colour.padEnd(12)} ${(r.bytes / 1024).toFixed(0)} KB  ${r.webp}`,
+      )
+    }
+    console.log(
+      `\nNext: pnpm og:cards ${product}   (link-preview cards), then upload each poster in the CMS as the colourway's photo.`,
+    )
     return
   }
 

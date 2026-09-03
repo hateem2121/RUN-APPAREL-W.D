@@ -9,6 +9,7 @@ import { diagnostic } from '../lib/diagnostic'
 import { fetchWithProgress } from '../lib/fetchWithProgress'
 import { describeLoad, smoothRate } from '../lib/loadProgress'
 import { CAMERA_DECAY_MS } from '../lib/motion'
+import { placeholderAsset, placeholderBlurPx, placeholderLeaveMs } from '../lib/placeholder'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
 import { type CameraView, StageControls } from './StageControls'
@@ -855,6 +856,34 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   // `!fallback` already covers Save-Data and no-WebGL, which is what libReady
   // was standing in for here.
   const loading = !fallback && load.phase !== 'ready'
+
+  /**
+   * The colourway's photo WHILE THE MODEL DOWNLOADS (fix plan Rank 6, 2026-09-03; audits
+   * LIVE-04, LIVE-06). Blurred by how much is still to come, then cross-faded into the 3D
+   * on `load` and unmounted once the fade is over. See lib/placeholder.ts for the rules.
+   * It is never shown in a failure state — those keep the 2026-08-21 decision: a notice,
+   * the specs and the enquiry buttons, no still image standing in for the model.
+   */
+  const placeholder = placeholderAsset(displayed, product)
+  const [placeholderStage, setPlaceholderStage] = useState<'shown' | 'leaving' | 'gone'>('shown')
+  useEffect(() => {
+    if (!modelLoaded) {
+      setPlaceholderStage('shown')
+      return
+    }
+    const ms = placeholderLeaveMs(prefersReducedMotion())
+    if (ms === 0) {
+      setPlaceholderStage('gone')
+      return
+    }
+    setPlaceholderStage('leaving')
+    const timer = window.setTimeout(() => setPlaceholderStage('gone'), ms)
+    return () => window.clearTimeout(timer)
+  }, [modelLoaded])
+  const showPlaceholder =
+    placeholder !== null &&
+    !fallback &&
+    (loading ? placeholderStage !== 'gone' : placeholderStage === 'leaving')
   // NOT `performance`: that name shadows the global for the whole component, and
   // the byte-counting effect above calls `performance.now()`. As a shadowed
   // string it would throw "performance.now is not a function" at runtime, with
@@ -930,10 +959,31 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
             />
           )}
 
+          {showPlaceholder && placeholder && (
+            <img
+              className={`stage__placeholder${
+                placeholderStage === 'leaving' ? ' stage__placeholder--leaving' : ''
+              }`}
+              src={placeholder.url}
+              alt=""
+              aria-hidden="true"
+              decoding="async"
+              draggable={false}
+              style={{ filter: `blur(${placeholderBlurPx(load.phase, load.percent)}px)` }}
+            />
+          )}
+
           {/*
            * THE POSTER IMAGE WAS REMOVED 2026-08-21 by owner decision — the stage
            * never shows a photograph of the garment now, either as a pre-3D
            * placeholder or as a failure fallback.
+           *
+           * SINCE 2026-09-03 (fix plan Rank 6) ONE HALF OF THAT IS BACK, BY THE OWNER'S
+           * OWN DESIGN: the colourway's photo is painted DURING THE DOWNLOAD only —
+           * `.stage__placeholder` above, aria-hidden, blurred by the bytes still to
+           * come, cross-fading into the 3D on `load`. Measured 2026-08-30, a customer
+           * on 2 Mbit looked at an empty stage for 45–62 s. Every failure state is
+           * unchanged: no image, the notice below, the specs and the enquiry buttons.
            *
            * The explanatory MESSAGE is deliberately KEPT (see `LOAD_NOTICE`
            * above): when 3D genuinely cannot run, the visitor is still told why and

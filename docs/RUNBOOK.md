@@ -325,7 +325,8 @@ pull request:
 
   It was introduced observe-only on the worry that CI's rasteriser would produce
   different numbers from a developer Mac. That was measured and is **false** —
-  1.650% / 3.070% / 9.370% on a Mac and on three CI runs across two runner images,
+  0.520% / 0.520% / 6.230% (fidelity / balanced / control, 2026-09-03 fixture with fabric
+  and thread; 1.650 / 3.070 / 9.370 on the 2026-08-06 fixture) on a Mac and on CI runs,
   identical to three decimal places, because the eval diffs two renders taken by
   the same browser in the same run and the rasteriser cancels.
 
@@ -1183,6 +1184,29 @@ failure. Symptom → knob:
 progress %/status in the admin. Both hinge on switching media uploads to
 `clientUploads: true` (direct browser→R2) so the Worker body/memory limits and the
 opaque "just loading" spinner stop applying. Not yet actioned.
+
+## Posters — the picture a visitor sees while the model downloads
+
+**Since 2026-09-03 (fix plan Rank 6)** the viewer paints the colourway's photo, blurred,
+under the loading readout while the model downloads, then cross-fades into the 3D; link
+previews on WhatsApp and LinkedIn are built from the same files. The photo comes from
+the colourway's poster in the CMS (`posterPreview`), falling back to the product's
+"Backup picture". Posters are rendered locally, free, from the finished model:
+
+```bash
+npx --yes pnpm@10.33.0 pipeline posters output/<garment>.glb --product rxps \
+  --colours "Colorway 2=wine,Colorway 3=blush,Colorway 4=butter,Colorway 5=lime,Colorway 6=black"
+npx --yes pnpm@10.33.0 og:cards rxps
+```
+
+The first writes `output/posters/rxps-<colour>-poster.webp` (and `.png`): front view,
+production lighting, transparent background, no caption — 1200×1500. The `--colours`
+map is each CMS colourway's slug against the CLO variant it points at (read them off
+`GET /api/public/viewer/<product>/<colour>`: `slug` and `variantId`). The second turns
+them into the JPEG link cards under `apps/viewer/public/og/` and regenerates the manifest
+— commit both. Then, in the CMS, open each colourway and upload its poster as the photo;
+the product's "Backup picture" takes any one of them. `scripts/smoke-viewer-payload.mjs`
+now fetches every colourway's poster after a deploy and fails on one that is not served.
 
 ## Re-processing a garment (the Retry tick-box)
 
