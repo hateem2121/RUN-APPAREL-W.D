@@ -407,7 +407,7 @@ the answer is "nothing that happens in production", it is not a test.
   **eight times too weak**, and then it reached only the FIRST of each wrapper's
   materials while a colourway switch drew another (1 of 6 live).
   Read them before changing the viewer, its Worker, or its headers.
-  **Maintaining these files is its own topic** — the 40,000-character warning and the
+  **Maintaining these files is its own topic** — the 39,000-character CI gate and the
   200-line target, why `@path` imports do NOT save context, why path-scoped rules are
   still unadopted, `/doctor`'s trim pass, and the `InstructionsLoaded` hook that
   verifies the loading claims above instead of asserting them, all live in
