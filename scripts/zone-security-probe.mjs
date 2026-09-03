@@ -62,7 +62,7 @@ const MIN_HSTS_MAX_AGE = 31_536_000
 const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
 
 /**
- * @typedef {{ host: string, hsts: boolean }} ZoneTarget
+ * @typedef {{ host: string, hsts: boolean, media?: boolean }} ZoneTarget
  */
 
 /**
@@ -78,7 +78,15 @@ const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
 export const TARGETS = [
   { host: 'viewer.wear-run.help', hsts: true },
   { host: 'cms.wear-run.help', hsts: true },
-  { host: 'media.wear-run.help', hsts: true },
+  /**
+   * `media` adds the two Rank 8 rules (fix plan, 2026-09-03): a MISS on this host must
+   * answer `cache-control: no-store` — the Cache Rules' browser TTL stamped a YEAR on
+   * 404s until then (audit DV-03) — and every response must carry
+   * `timing-allow-origin` for the viewer, or Resource Timing reads the 20 MB model as
+   * 0 bytes (LIVE-11). Both are Cloudflare rulesets, so nothing in the repo can see them
+   * drift except this probe.
+   */
+  { host: 'media.wear-run.help', hsts: true, media: true },
   { host: 'wear-run.help', hsts: true },
 ]
 
@@ -137,7 +145,10 @@ export function parseHsts(header) {
  *   hstsHeader?: string | null,
  *   hstsStatus?: number,
  *   hstsError?: string,
+ *   cacheControl?: string | null,
+ *   timingAllowOrigin?: string | null,
  *   expectHsts: boolean,
+ *   expectMedia?: boolean,
  * }[]} observations
  * @returns {{ ok: boolean, measured: number, failures: string[], inconclusive: string[], lines: string[] }}
  */
@@ -239,6 +250,28 @@ export function evaluate(observations) {
     // docs/audit-2026-08-30/CLOUDFLARE-LIVE-CHANGES.md. It is NOT asserted either way:
     // asserting its absence would fight the owner if they later choose to enable it.
     lines.push(`  ${label} TLS1.0/1.1 closed · TLS1.2 ok · HSTS ${hsts.maxAge}s ok`)
+
+    // The media host's two Rank 8 rules, read off the same response (the root of the
+    // media host is itself a miss, so one GET measures both).
+    if (o.expectMedia) {
+      const cc = (o.cacheControl ?? '').toLowerCase()
+      if (o.hstsStatus !== undefined && o.hstsStatus >= 400 && !cc.includes('no-store')) {
+        failures.push(
+          `${o.host}: a miss answers "cache-control: ${o.cacheControl ?? '(none)'}" — a browser would keep that 404 (DV-03: must be no-store).`,
+        )
+        lines.push(`  ${label} 404 cache-control ${o.cacheControl ?? '(none)'}  FAIL`)
+      } else {
+        lines.push(`  ${label} 404 no-store ok`)
+      }
+      if (!o.timingAllowOrigin) {
+        failures.push(
+          `${o.host}: no timing-allow-origin header — the viewer's Resource Timing reads the model as 0 bytes (LIVE-11).`,
+        )
+        lines.push(`  ${label} timing-allow-origin missing  FAIL`)
+      } else {
+        lines.push(`  ${label} timing-allow-origin ${o.timingAllowOrigin} ok`)
+      }
+    }
   }
 
   return { ok: failures.length === 0, measured, failures, inconclusive, lines }
@@ -305,6 +338,8 @@ async function readHeaders(host) {
     return {
       hstsHeader: response.headers.get('strict-transport-security'),
       hstsStatus: response.status,
+      cacheControl: response.headers.get('cache-control'),
+      timingAllowOrigin: response.headers.get('timing-allow-origin'),
     }
   } catch (error) {
     return { hstsError: error.message ?? String(error) }
@@ -321,7 +356,15 @@ export async function probe(targets = TARGETS) {
         handshake(target.host, 'TLSv1.2'),
         target.hsts ? readHeaders(target.host) : Promise.resolve({}),
       ])
-      return { host: target.host, tls10, tls11, tls12, expectHsts: target.hsts, ...headers }
+      return {
+        host: target.host,
+        tls10,
+        tls11,
+        tls12,
+        expectHsts: target.hsts,
+        expectMedia: target.media === true,
+        ...headers,
+      }
     }),
   )
 }
