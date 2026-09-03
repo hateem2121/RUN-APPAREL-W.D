@@ -311,8 +311,18 @@ jobs:
       # is a STEP in this gating job rather than a job of its own, which would either
       # trip the deploy-gating rule or block every deploy waiting on a check that
       # cannot run.
-      - name: Dependency review (pull requests only)
-        if: github.event_name == 'pull_request'
+      # ⚠️ PUBLIC REPOSITORIES ONLY, since 2026-09-03. The action calls GitHub's
+      # dependency-review API, which a PRIVATE repository gets only with Advanced
+      # Security (Enterprise). It ran while the RUN-APPAREL org was on Enterprise; on
+      # the personal Free plan the repo moved to on 2026-09-02 it fails every pull
+      # request with "Dependency review is not supported on this repository", which
+      # blocked PR #60 with the vulnerability audit above already green. That audit
+      # (audit-ci, high/critical, path-scoped allow-list) is the gate that actually
+      # reads advisories; this step only re-reviewed the PR's dependency diff. Skipping
+      # it where it cannot run is honest; `continue-on-error` would hide a real finding
+      # the day Advanced Security exists again.
+      - name: Dependency review (pull requests on a public repository only)
+        if: github.event_name == 'pull_request' && github.event.repository.private == false
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high
