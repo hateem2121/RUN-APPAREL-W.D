@@ -10,10 +10,7 @@ import { specRefusal } from './specGate'
 import { Container, getContainer } from '@cloudflare/containers'
 import {
   DEFAULT_SHRINK_DETAIL,
-  GLB_HARD_MAX_BYTES,
   type ShrinkJobMessage,
-  formatMb,
-  nextDetailAdvice,
   shrinkFlagsFor,
   toFileColours,
 } from '@run-apparel/shared'
@@ -25,6 +22,7 @@ import { type ShrinkFailure, reportFailure } from './sentry'
 import { missingRawExport, readContainerFailure } from './containerFailure'
 import { archiveRawExport } from './archiveRaw'
 import { appendToError, retireOrphanedMedia } from './orphanGuard'
+import { alphaRefusal, artworkRefusal, repairRefusal, sizeRefusal } from './refusals'
 
 /**
  * One container instance, shared by every job.
@@ -204,6 +202,8 @@ interface ShrinkReport {
    * `errors` is the count AFTER the noise filter in gltf-spec.ts. `issues` is at most
    * ten one-line summaries — the raw arrays are deliberately not sent.
    */
+  /** Dead texture references the container's reader stripped to read the file (HG-06). */
+  repair?: { deadTextures: string[]; referencesRemoved: number; slots: string[] }
   spec?: {
     validatorVersion: string
     errors: number
@@ -425,11 +425,10 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   //    Without this the failure surfaces as a bare HTTP 400 from Payload with no
   //    hint of which knob to turn — and the check is free, because the container
   //    already measured the output.
-  if (report.sizeBytes > GLB_HARD_MAX_BYTES) {
+  const tooBig = sizeRefusal(report.sizeBytes, detail)
+  if (tooBig) {
     await containerRes.body?.cancel().catch(() => {})
-    throw new PermanentJobError(
-      `The shrunk model is ${formatMb(report.sizeBytes)}, over the ${formatMb(GLB_HARD_MAX_BYTES)} limit for published media, so it was not saved. ${nextDetailAdvice(detail)}`,
-    )
+    throw new PermanentJobError(tooBig)
   }
 
   // 2b. Refuse to save a model whose printed artwork lost its protection.
@@ -444,14 +443,10 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   //     coordinates outside the error metric, so their UVs were free to smear.
   //     Permanent rather than retryable — the same input gives the same result,
   //     so a retry would just burn several minutes of container time.
-  const artworkAtRisk = report.simplify?.artworkAtRisk ?? []
-  if (artworkAtRisk.length > 0) {
+  const torn = artworkRefusal(report.simplify?.artworkAtRisk)
+  if (torn) {
     await containerRes.body?.cancel().catch(() => {})
-    throw new PermanentJobError(
-      `The printed artwork on ${artworkAtRisk.join(', ')} was damaged while shrinking this file, so it was not saved. ` +
-        `Re-upload it with the Detail setting on “Highest quality — bigger file”. ` +
-        `If that still fails, the artwork on those parts needs its own UV map in CLO.`,
-    )
+    throw new PermanentJobError(torn)
   }
 
   // 2c. Refuse a model whose printed artwork ended up see-through.
@@ -461,20 +456,10 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   //     it — that is the reported symptom almost word for word. The opaque step
   //     resolves hard cut-outs to MASK/0.5; until now nothing checked whether it
   //     had actually succeeded, only that it had run.
-  const alphaProblems = report.artworkAlphaProblems ?? []
-  if (alphaProblems.length > 0) {
+  const seeThrough = alphaRefusal(report.artworkAlphaProblems)
+  if (seeThrough) {
     await containerRes.body?.cancel().catch(() => {})
-    const blend = alphaProblems.filter((p) => p.problem === 'blend').map((p) => p.material)
-    const cutoff = alphaProblems.filter((p) => p.problem === 'cutoff').map((p) => p.material)
-    throw new PermanentJobError(
-      (blend.length > 0
-        ? `The printed artwork on ${blend.join(', ')} came out see-through: a hard-edged, fully opaque print was left ` +
-          'blended, which the pipeline’s own opaque step should have cut out. '
-        : `The cut-out threshold on ${cutoff.join(', ')} is wrong, which thins or fattens the lettering. `) +
-        'The file was not saved. This is a pipeline fault, not an export problem — re-exporting will not ' +
-        'change it; report it. (Soft-edged or deliberately translucent prints no longer refuse a garment; ' +
-        'they are listed in the report instead.)',
-    )
+    throw new PermanentJobError(seeThrough)
   }
 
   // 2d. Refuse a model the official Khronos validator calls invalid.
@@ -500,6 +485,15 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   if (specProblem) {
     await containerRes.body?.cancel().catch(() => {})
     throw new PermanentJobError(specProblem)
+  }
+
+  // 2e. Refuse a file the reader could only open by dropping a COLOUR map (fix plan
+  //     Rank 13, audit HG-06). A stripped shading map is the measured, harmless case;
+  //     a stripped base-colour or emissive map is the garment's own picture.
+  const repairProblem = repairRefusal(report.repair)
+  if (repairProblem) {
+    await containerRes.body?.cancel().catch(() => {})
+    throw new PermanentJobError(repairProblem)
   }
 
   // 3. Create the guardrailed Media doc from the SHRUNK output. The CMS media

@@ -253,23 +253,71 @@ export const PLACEHOLDER_FABRIC_TRANSFORM = {
   scale: [1 / 8, 1 / 8] as [number, number],
 }
 
-/** A 64x64 two-tone weave: rows of 255 and 228, stdev ~13, so it is a picture, not a factor. */
-async function weaveImage(): Promise<Uint8Array> {
-  const size = 64
-  const raw = Buffer.alloc(size * size * 4)
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const i = (y * size + x) * 4
-      const dark = ((x >> 1) + (y >> 1)) % 2 === 0
-      raw[i] = raw[i + 1] = raw[i + 2] = dark ? 228 : 255
-      raw[i + 3] = 255
+/**
+ * The fabric's pictures, sized the way CLO exports them (fix plan Rank 13, audit HE-05):
+ * a 4608² weave — past the 4096 cap, so `--max-texture` has something to do on this
+ * fixture — and a 2304² normal map, past the 2048 data cap, so `--data-max-texture` does
+ * too. Until 2026-09-03 the seeded fabric carried no picture at all and half the shipped
+ * preset acted on nothing. Both are two-tone or slow gradients so the PNGs stay small,
+ * both are busier than CONSTANT_TEXTURE_MAX_STDEV so the fold pass keeps them, and both
+ * are built once per process because every colourway shares them.
+ */
+export const PLACEHOLDER_WEAVE_PX = 4608
+export const PLACEHOLDER_NORMAL_PX = 2304
+
+let weavePromise: Promise<Uint8Array> | null = null
+let normalPromise: Promise<Uint8Array> | null = null
+
+/**
+ * A two-tone weave in 144-px cells (255 and 228, stdev ~13). ⚠️ COARSE ON PURPOSE: the
+ * fold pass judges "constant" on a 256-px thumbnail (texture-fold.ts `channelStats`), and
+ * a 4-px checker at this size averages to one flat grey there — measured 2026-09-03, the
+ * fold quietly removed the fixture's weave and every texture-cap assertion went blind.
+ * A real weave has structure that survives a thumbnail; this one must too.
+ */
+export const PLACEHOLDER_WEAVE_CELL_PX = PLACEHOLDER_WEAVE_PX / 32
+function weaveImage(): Promise<Uint8Array> {
+  weavePromise ??= (async () => {
+    const size = PLACEHOLDER_WEAVE_PX
+    const cell = PLACEHOLDER_WEAVE_CELL_PX
+    const raw = Buffer.alloc(size * size * 3)
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const i = (y * size + x) * 3
+        const dark = (Math.floor(x / cell) + Math.floor(y / cell)) % 2 === 0
+        raw[i] = raw[i + 1] = raw[i + 2] = dark ? 228 : 255
+      }
     }
-  }
-  return new Uint8Array(
-    await sharp(raw, { raw: { width: size, height: size, channels: 4 } })
-      .png()
-      .toBuffer(),
-  )
+    return new Uint8Array(
+      await sharp(raw, { raw: { width: size, height: size, channels: 3 } })
+        .png({ compressionLevel: 9 })
+        .toBuffer(),
+    )
+  })()
+  return weavePromise
+}
+
+/** A slow-gradient normal map (R and G sway ±20 around 128, B 255): busy enough to keep, cheap to store. */
+function normalImage(): Promise<Uint8Array> {
+  normalPromise ??= (async () => {
+    const size = PLACEHOLDER_NORMAL_PX
+    const raw = Buffer.alloc(size * size * 3)
+    for (let y = 0; y < size; y++) {
+      const g = Math.round(128 + 20 * Math.sin(y / 40))
+      for (let x = 0; x < size; x++) {
+        const i = (y * size + x) * 3
+        raw[i] = Math.round(128 + 20 * Math.sin(x / 40))
+        raw[i + 1] = g
+        raw[i + 2] = 255
+      }
+    }
+    return new Uint8Array(
+      await sharp(raw, { raw: { width: size, height: size, channels: 3 } })
+        .png({ compressionLevel: 9 })
+        .toBuffer(),
+    )
+  })()
+  return normalPromise
 }
 
 /** UVs for a box: every face gets the full 0–1 square, matching BOX_FACES corner order. */
@@ -406,26 +454,85 @@ function addBoxPrimitive(document: Document, mesh: Mesh, material: Material, spe
  * TEXCOORD_1. That combination is the fixture for H4: before the simplifier
  * weighted every UV set, artwork here was decimated with no protection.
  */
-function addDecalPrimitive(document: Document, mesh: Mesh, material: Material, z: number): void {
+/** Where a print sits on the tee: which face, where on it, and how far proud of it. */
+export interface DecalPlacement {
+  face: 'front' | 'back' | 'left' | 'right'
+  /** Centre along the face's own horizontal axis: x on the torso, z on a sleeve. */
+  along: number
+  y: number
+  /** Distance in front of the face, so stacked prints stay distinct (hazard H6). */
+  proud: number
+  w: number
+  h: number
+}
+
+/** The torso's front/back face sits at ±d/2 of the torso box; a sleeve's outer face at cx ± w/2. */
+const TORSO_FACE = 0.065
+const SLEEVE_OUTER = 0.46
+
+/**
+ * The six prints, SPREAD over the garment (fix plan Rank 13, audit HR-4). Until
+ * 2026-09-03 every one was a 0.26×0.13 quad on the chest, stacked 0.5 mm apart, so the
+ * front print hid the other five and destroying any of them changed no render. Each now
+ * has a face of its own — chest, hem, back, both sleeves — sized to its picture.
+ */
+export const PLACEHOLDER_DECAL_PLACEMENTS: Record<string, DecalPlacement> = {
+  'chest-graphic': { face: 'front', along: 0, y: 0.06, proud: 0.002, w: 0.26, h: 0.13 },
+  'THE EXTRA MILE (Slogan)': { face: 'front', along: 0, y: -0.14, proud: 0.0025, w: 0.3, h: 0.02 },
+  'RUN LOGO': { face: 'back', along: 0, y: 0.12, proud: 0.002, w: 0.2, h: 0.055 },
+  'Teamwear Logo': { face: 'left', along: 0, y: 0.2, proud: 0.002, w: 0.09, h: 0.064 },
+  'TEAM WEAR FRONT LABEL': { face: 'back', along: 0, y: -0.22, proud: 0.0025, w: 0.12, h: 0.053 },
+  'Zipper 3_TapeFabric': { face: 'right', along: 0, y: 0.18, proud: 0.002, w: 0.03, h: 0.063 },
+}
+
+/** The quad's corners and normal for a placement, wound counter-clockwise as seen from outside. */
+export function decalCorners(p: DecalPlacement): {
+  positions: number[]
+  normal: [number, number, number]
+} {
+  const corners: [number, number][] = [
+    [-p.w / 2, -p.h / 2],
+    [p.w / 2, -p.h / 2],
+    [p.w / 2, p.h / 2],
+    [-p.w / 2, p.h / 2],
+  ]
+  const positions: number[] = []
+  let normal: [number, number, number] = [0, 0, 1]
+  for (const [u, v] of corners) {
+    switch (p.face) {
+      case 'front':
+        positions.push(p.along + u, p.y + v, TORSO_FACE + p.proud)
+        normal = [0, 0, 1]
+        break
+      case 'back':
+        // Seen from −z, +x is to the viewer's left: mirror u to keep the winding outward.
+        positions.push(p.along - u, p.y + v, -TORSO_FACE - p.proud)
+        normal = [0, 0, -1]
+        break
+      case 'left':
+        // Seen from −x looking +x, +z is to the viewer's right.
+        positions.push(-SLEEVE_OUTER - p.proud, p.y + v, p.along + u)
+        normal = [-1, 0, 0]
+        break
+      case 'right':
+        positions.push(SLEEVE_OUTER + p.proud, p.y + v, p.along - u)
+        normal = [1, 0, 0]
+        break
+    }
+  }
+  return { positions, normal }
+}
+
+function addDecalPrimitive(
+  document: Document,
+  mesh: Mesh,
+  material: Material,
+  placement: DecalPlacement,
+): void {
   const buffer = document.getRoot().listBuffers()[0] ?? document.createBuffer()
-  const w = 0.26
-  const h = 0.13
-  const y = 0.06
-  const positions = new Float32Array([
-    -w / 2,
-    y - h / 2,
-    z,
-    w / 2,
-    y - h / 2,
-    z,
-    w / 2,
-    y + h / 2,
-    z,
-    -w / 2,
-    y + h / 2,
-    z,
-  ])
-  const normals = new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1])
+  const { positions: corners, normal } = decalCorners(placement)
+  const positions = new Float32Array(corners)
+  const normals = new Float32Array([...normal, ...normal, ...normal, ...normal])
   const uv = () => new Float32Array([0, 1, 1, 1, 1, 0, 0, 0])
 
   // Narrowed to ArrayBuffer: the default `Float32Array` now widens to
@@ -469,9 +576,14 @@ export async function buildPlaceholderTee(colourway: PlaceholderColourway): Prom
     .createTexture('fabric-weave')
     .setImage(await weaveImage())
     .setMimeType('image/png')
+  const normalTexture = document
+    .createTexture('fabric-normal')
+    .setImage(await normalImage())
+    .setMimeType('image/png')
   const body = document
     .createMaterial(`${colourway.variantId}-BODY`)
     .setBaseColorTexture(weaveTexture)
+    .setNormalTexture(normalTexture)
     .setBaseColorFactor(hexToLinearFactor(colourway.body))
     .setRoughnessFactor(0.85)
     .setMetallicFactor(0)
@@ -539,18 +651,79 @@ export async function buildPlaceholderTee(colourway: PlaceholderColourway): Prom
   addBoxPrimitive(document, mesh, body, { w: 0.2, h: 0.24, d: 0.12, cx: -0.36, cy: 0.18, cz: 0 })
   addBoxPrimitive(document, mesh, body, { w: 0.2, h: 0.24, d: 0.12, cx: 0.36, cy: 0.18, cz: 0 })
   addBoxPrimitive(document, mesh, trim, { w: 0.18, h: 0.045, d: 0.135, cx: 0, cy: 0.335, cz: 0 })
-  // Just proud of the torso's front face (d/2 = 0.065), as CLO exports one.
-  addDecalPrimitive(document, mesh, decal, 0.067)
-  // Each artwork quad a little further out, so they are coplanar-ish with the
-  // torso and with each other — the z-fighting hazard H6 is about — without
-  // being exactly coincident.
-  artworkMaterials.forEach((material, index) => {
-    addDecalPrimitive(document, mesh, material, 0.068 + index * 0.0005)
-  })
+  // Just proud of the torso's front face, as CLO exports one; the artwork quads each
+  // on their own face (PLACEHOLDER_DECAL_PLACEMENTS), a little proud of it — coplanar-ish
+  // with the cloth, the z-fighting hazard H6 is about — without being coincident.
+  addDecalPrimitive(document, mesh, decal, PLACEHOLDER_DECAL_PLACEMENTS['chest-graphic']!)
+  for (const [index, material] of artworkMaterials.entries()) {
+    const spec = PLACEHOLDER_ARTWORK[index]!
+    addDecalPrimitive(document, mesh, material, PLACEHOLDER_DECAL_PLACEMENTS[spec.name]!)
+  }
 
-  const node = document.createNode('garment').setMesh(mesh)
-  document.createScene('Scene').addChild(node)
+  const scene = document.createScene('Scene')
+  scene.addChild(document.createNode('garment').setMesh(mesh))
+
+  // Thread, as CLO exports it: its own `Topstitch_*` mesh of very many small triangles
+  // under a flat material (fix plan Rank 13, audit HE-05), so `--stitch` — half of every
+  // shipped preset — has something to decimate on this fixture. 1,200 triangles along
+  // the front hem; a real export is 99.97% of this.
+  const stitchMesh = document.createMesh('Topstitch_1')
+  addTopstitchPrimitive(
+    document,
+    stitchMesh,
+    document
+      .createMaterial('Default Topstitch')
+      .setBaseColorFactor([0.35, 0.35, 0.35, 1])
+      .setRoughnessFactor(0.9)
+      .setMetallicFactor(0),
+  )
+  scene.addChild(document.createNode('Topstitch_1').setMesh(stitchMesh))
   return document
+}
+
+/** Triangles in the fixture's stitch band; the `--stitch` budget must have something to bind on. */
+export const PLACEHOLDER_STITCH_TRIANGLES = 1200
+
+function addTopstitchPrimitive(document: Document, mesh: Mesh, material: Material): void {
+  const buffer = document.getRoot().listBuffers()[0] ?? document.createBuffer()
+  const segments = PLACEHOLDER_STITCH_TRIANGLES / 2
+  const x0 = -0.24
+  const x1 = 0.24
+  const y = -0.31
+  const width = 0.004
+  const z = TORSO_FACE + 0.0005
+  const positions: number[] = []
+  const normals: number[] = []
+  const uvs: number[] = []
+  const indices: number[] = []
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments
+    const x = x0 + (x1 - x0) * t
+    positions.push(x, y - width / 2, z, x, y + width / 2, z)
+    normals.push(0, 0, 1, 0, 0, 1)
+    uvs.push(t, 0, t, 1)
+    if (i < segments) {
+      const a = i * 2
+      indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2)
+    }
+  }
+  const accessor = (type: 'VEC3' | 'VEC2', array: Float32Array<ArrayBuffer>) =>
+    document.createAccessor().setType(type).setArray(array).setBuffer(buffer)
+  mesh.addPrimitive(
+    document
+      .createPrimitive()
+      .setAttribute('POSITION', accessor('VEC3', new Float32Array(positions)))
+      .setAttribute('NORMAL', accessor('VEC3', new Float32Array(normals)))
+      .setAttribute('TEXCOORD_0', accessor('VEC2', new Float32Array(uvs)))
+      .setIndices(
+        document
+          .createAccessor()
+          .setType('SCALAR')
+          .setArray(new Uint16Array(indices))
+          .setBuffer(buffer),
+      )
+      .setMaterial(material),
+  )
 }
 
 const TEE_SILHOUETTE_PATH =

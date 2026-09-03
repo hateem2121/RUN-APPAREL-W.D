@@ -12,6 +12,8 @@ import {
   type FoldResult,
   type GpuEstimate,
 } from './texture-fold'
+import { censusRawDocument, type RawCensus } from './raw-census'
+import type { DeadTextureRepair } from './repair-dead-textures'
 import { remapUvRanges, UV_QUANTIZE_BITS, type UvRemapResult } from './uv-remap'
 import { alignVariantTexCoords } from './variant-texcoord'
 import { DEFAULT_STITCH_PATTERN, type TopstitchResult, reduceTopstitch } from './topstitch'
@@ -393,6 +395,10 @@ export async function solidifyMaterials(document: Document): Promise<SolidifyRes
  * identical, from the outside, to one that was applied and did not help.
  */
 export interface OptimizeTelemetry {
+  /** What CLO wrote, measured before any pass (fix plan Rank 13). */
+  raw?: RawCensus
+  /** Dead texture references the reader had to strip to read the file at all (HG-06). */
+  repair?: DeadTextureRepair
   /** What normalizePbr changed, left alone, and could not classify. */
   pbr?: PbrNormalizeResult
   /** Present only when a simplify pass ran. */
@@ -425,6 +431,14 @@ export async function buildOptimizeTransforms(
   telemetry: OptimizeTelemetry = {},
 ): Promise<Transform[]> {
   const transforms: Transform[] = [
+    // FIRST, before dedup merges the duplicate pictures it is there to count: what CLO
+    // wrote — duplicate and oversized pictures, thread by both names, flat cloth, print
+    // finishes (fix plan Rank 13). Measures, reports, changes nothing.
+    censusRawDocument({
+      onResult: (census) => {
+        telemetry.raw = census
+      },
+    }),
     dedup(),
     prune({ keepExtras: true }),
     // Immediately after prune, because prune is what renumbers UV sets — and it
@@ -678,6 +692,10 @@ export interface OptimizeResult {
   simplify?: SimplifyTexturedResult
   /** How textures were classified and encoded, when the WebP pass ran. */
   textures?: TextureArtworkResult
+  /** What CLO wrote, measured before any pass — the report's raw-export lines (Rank 13). */
+  raw?: RawCensus
+  /** Present only when the reader had to strip dead texture references (HG-06). */
+  repair?: DeadTextureRepair
   fold?: FoldResult
   /** Present whenever the UV remap ran (default on); absent under --no-uv-remap. */
   uvRemap?: UvRemapResult
@@ -717,6 +735,10 @@ export async function optimizeGlb(
     )
   }
   const telemetry: OptimizeTelemetry = {}
+  // Carried into the result (fix plan Rank 13, audit HG-06): a repair used to be a
+  // console line and nothing else, so a stripped COLOUR map — the garment's own picture —
+  // would have shipped silently. The robot refuses that case (apps/shrink repairGate.ts).
+  if (repair.referencesRemoved) telemetry.repair = repair
   await optimizeDocument(document, options, telemetry)
 
   await mkdir(dirname(outputFile), { recursive: true })
@@ -734,6 +756,8 @@ export async function optimizeGlb(
     textureFormats,
     geometry: resolveGeometry(options),
     opaque: options.opaque === true,
+    ...(telemetry.raw ? { raw: telemetry.raw } : {}),
+    ...(telemetry.repair ? { repair: telemetry.repair } : {}),
     ...(telemetry.simplify ? { simplify: telemetry.simplify } : {}),
     ...(telemetry.textures ? { textures: telemetry.textures } : {}),
     ...(telemetry.fold ? { fold: telemetry.fold } : {}),

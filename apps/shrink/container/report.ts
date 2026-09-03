@@ -2,6 +2,8 @@ import { describeSpecIssues } from '../../../tools/asset-pipeline/src/gltf-spec'
 import type { GlbReport } from '../../../tools/asset-pipeline/src/validate'
 import { SIZE_WARNING_BYTES, describeSoftArtwork } from '../../../tools/asset-pipeline/src/validate'
 import type { OptimizeResult } from '../../../tools/asset-pipeline/src/optimize'
+import { describePrecision } from '../../../tools/asset-pipeline/src/precision'
+import { describeRawCensus } from '../../../tools/asset-pipeline/src/raw-census'
 
 /**
  * The words the owner actually reads, and the only pure part of the container.
@@ -65,6 +67,9 @@ export function buildReportText(
         clones: number
         threadIgnored: number
         written: boolean
+        /** Absent from a container built before 2026-09-03. */
+        gridMm?: number
+        minGapMm?: number | null
       }
     | { error: string },
   /**
@@ -108,6 +113,13 @@ export function buildReportText(
           : ' — within the phone budget.')
       : 'Phone graphics memory: not estimated for this job.',
     familyReason ? `Budget family: ${familyReason}.` : '',
+    // What CLO wrote (fix plan Rank 13): duplicate and oversized pictures, thread by both
+    // names, cloth with no weave map, each print's finish and opacity. Advice, never a
+    // refusal — the owner fixes these in CLO, and only if the report says so.
+    ...(opt.raw ? describeRawCensus(opt.raw, opt.stitch?.meshes ?? null) : []),
+    opt.repair
+      ? `⚠️ Repaired to read it: ${opt.repair.referencesRemoved} texture reference(s) pointed at no picture (${opt.repair.slots.join(', ')}) and were removed. The garment renders, but re-export from CLO with its textures included.`
+      : '',
     opt.fold?.folded.length
       ? `Folded ${opt.fold.folded.length} constant shading map(s) into material values (${opt.fold.folded.map((f) => `${f.name} ${f.width}x${f.height}`).join(', ')}): the same look, ${(opt.fold.folded.reduce((s, f) => s + f.gpuBytes, 0) / 1048576).toFixed(0)} MB less phone memory.`
       : '',
@@ -208,6 +220,14 @@ export function buildReportText(
           `${overlays.clones ? `, ${overlays.clones} material(s) cloned so the cloth beneath is not nudged` : ''}` +
           `${overlays.threadIgnored ? `, ${overlays.threadIgnored} on thread or hardware ignored` : ''}` +
           `${overlays.flagged && !overlays.written ? ' — ⚠️ NOT WRITTEN: the binary chunk moved' : ''}.`,
+    // Grid against gap (fix plan Rank 13, GEO-05): the codec's 14-bit position grid versus
+    // how close the nearest print sits to its cloth. Absent on an older container.
+    overlays !== undefined && !('error' in overlays) && typeof overlays.gridMm === 'number'
+      ? (describePrecision(
+          { gridMm: overlays.gridMm, quantizedMeshes: overlays.gridMm > 0 ? 1 : 0 },
+          overlays.minGapMm ?? null,
+        ) ?? '')
+      : '',
     // The named version of the line above, and the one that matters. A high
     // `fallback` count on plain fabric is harmless; a SINGLE logo material in
     // this list is the mechanism that tore N001's wordmark apart. Naming the

@@ -17,6 +17,7 @@ import { dumpTextures } from './textures'
 import { describeInkRow, framePrint, measureInkContrast } from './ink-contrast'
 import { readGlb } from './io'
 import { mb as gpuMb, PHONE_GPU_BUDGET_BYTES } from './texture-fold'
+import { describeRawCensus } from './raw-census'
 import { UV_QUANTIZE_BITS } from './uv-remap'
 import { checkVariants, inspectGlb } from './validate'
 import { generatePlaceholders } from './placeholders'
@@ -304,7 +305,7 @@ async function main(): Promise<void> {
         // on every run and never rewritten. Printing it is the whole of that
         // decision — silence here would be indistinguishable from having fixed it.
         console.log(
-          `  UNCLASSIFIED (reported, never changed): ${[...new Set(unclassified)].join(', ')}`,
+          `  UNCLASSIFIED (defaulted to matte — name the part in CLO if it is really metal): ${[...new Set(unclassified)].join(', ')}`,
         )
       }
     }
@@ -370,6 +371,16 @@ async function main(): Promise<void> {
             ? ` — ${result.fold.folded.map((f) => `${f.name} ${f.width}x${f.height} (${gpuMb(f.gpuBytes)})`).join(', ')}`
             : ''
         }${result.fold.kept.length ? `; kept ${result.fold.kept.map((k) => `${k.name}: ${k.reason}`).join('; ')}` : ''}`,
+      )
+    }
+    if (result.raw) {
+      for (const line of describeRawCensus(result.raw, result.stitch?.meshes ?? null)) {
+        console.log(`  raw export: ${line}`)
+      }
+    }
+    if (result.repair) {
+      console.log(
+        `  ⚠️ repaired:  ${result.repair.referencesRemoved} texture reference(s) with no picture removed (${result.repair.slots.join(', ')}) — re-export from CLO`,
       )
     }
     if (result.uvRemap) {

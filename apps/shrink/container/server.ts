@@ -26,6 +26,7 @@ import {
   parseOptimizeArgs,
 } from '../../../tools/asset-pipeline/src/optimize'
 import { describeGlb, readGltfJson } from '../../../tools/asset-pipeline/src/describe'
+import { positionGrid } from '../../../tools/asset-pipeline/src/precision'
 import { readGlb } from '../../../tools/asset-pipeline/src/io'
 import { annotateGlbOverlays } from '../../../tools/asset-pipeline/src/overlay-annotate'
 import { measureOverlays } from '../../../tools/asset-pipeline/src/overlay-depth'
@@ -90,6 +91,10 @@ export type OverlayScan =
       clones: number
       threadIgnored: number
       written: boolean
+      /** The coarsest position grid step in the file, mm (fix plan Rank 13, GEO-05). */
+      gridMm: number
+      /** The closest measured print-to-cloth gap, mm; null when no print was read. */
+      minGapMm: number | null
     }
   | { error: string }
 
@@ -123,7 +128,10 @@ async function scanInk(outPath: string): Promise<InkScan> {
 
 async function scanOverlays(outPath: string, filename: string): Promise<OverlayScan> {
   try {
-    const readings = measureOverlays((await readGlb(outPath)).document)
+    const { document } = await readGlb(outPath)
+    const readings = measureOverlays(document)
+    const grid = positionGrid(document)
+    const gaps = readings.map((r) => r.gapMm).filter((g) => Number.isFinite(g) && g > 0)
     const annotated = annotateGlbOverlays(new Uint8Array(await readFile(outPath)), readings, {
       garment: filename.replace(/\.glb$/i, ''),
     })
@@ -137,6 +145,8 @@ async function scanOverlays(outPath: string, filename: string): Promise<OverlayS
       clones: annotated.result.clones,
       threadIgnored: annotated.result.threadIgnored,
       written,
+      gridMm: grid.gridMm,
+      minGapMm: gaps.length ? Math.min(...gaps) : null,
     }
   } catch (error) {
     return { error: error instanceof Error ? error.message : String(error) }
@@ -310,6 +320,7 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
       overlays,
       ink,
       ...(opt.simplify ? { simplify: opt.simplify } : {}),
+      ...(opt.repair ? { repair: opt.repair } : {}),
       ...(opt.textures ? { textures: opt.textures } : {}),
       ...(opt.gpu ? { gpu: opt.gpu } : {}),
       ...(opt.fold ? { fold: opt.fold } : {}),

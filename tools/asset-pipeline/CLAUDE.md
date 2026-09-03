@@ -209,7 +209,7 @@ worse than no gate. Keep that distinction if you add checks.
 
 ESM resolves a bare specifier from the **importing file's** location, so a one-off script
 in `/tmp` cannot `import { NodeIO } from '@gltf-transform/core'`, and `NODE_PATH` does not
-apply to ESM. Cost several rounds on 2026-08-27. Put the script under
+apply to ESM. Put the script under
 `tools/asset-pipeline/scripts/` as a `.mts` (the UV census and proof scripts live there), or
 run from the package directory, where cwd is the resolution base:
 
@@ -470,7 +470,7 @@ only the root's one-liners. Open this file before changing anything here.
   budget only, but its aspect-ratio rule is exactly what misread thread as a wordmark.
 - **KTX2 came out SMALLER here (20.3 MB vs 22.2 MB) and must still be REFUSED.**
   ETC1S turned the clean white bib panel **grey and blotchy**; the letters survived,
-  the fabric did not. Caught only by cropping the same region from both renders.
+  the fabric did not — seen only by cropping the same region from both renders.
   Judge it on the fabric, not the size — the older "KTX2 is larger on disk" argument
   would have led the wrong way here.
 
@@ -539,12 +539,13 @@ decals.
 
 **`repair-dead-textures.ts` removes the REFERENCES, never the entries.** Deleting
 `textures[5]` renumbers every later index and a material pointing at 6 silently acquires
-the picture from 7. It also pads the JSON chunk back to its original byte length so the
-BIN chunk cannot move.
+the picture from 7. It also pads the JSON chunk so the BIN chunk cannot move. Since
+2026-09-03 the repair is reported, and the robot REFUSES a stripped baseColour or
+emissive slot (`apps/shrink/src/refusals.ts`).
 
 **The spec check is a PRODUCTION dependency and must NOT go inside `describeGlb`.** The
-container installs `npm ci --omit=dev`, so a devDependency resolves locally and is missing
-in the Container — green everywhere, failing at runtime. And it costs **~3.4x the file
+container installs `npm ci --omit=dev`, so a devDependency is missing in the Container —
+green everywhere, failing at runtime. And it costs **~3.4x the file
 size** in RSS (573 MB → 1,955 MB), while `describeGlb` reads only the JSON chunk, so the
 1.25 GB Cycling Bib costs what a 5 MB one costs. `SPEC_MAX_BYTES` is 768 MB and the two
 exports over it are **skipped by name** — a skip must never read as a pass.
@@ -563,8 +564,8 @@ as a failure. CI runs it inside `mcr.microsoft.com/playwright:v1.62.1-noble`, an
 ⚠️ **`review-server.ts` and `apps/viewer` are DIFFERENT PAGES.** A fix in one is not in the
 other; the review viewer kept flickering after the product was fixed, which read as "the
 fix did not work". Both carry the bias at `-8/-8`, pinned by `review-server.test.ts`.
-⚠️ **A `git add -A` swept this file's constant into a viewer commit**, so reverting that
-commit silently reverted the pipeline too. Stage per package when two copies must agree.
+⚠️ **A `git add -A` once swept this file's constant into a viewer commit**; stage per
+package when two copies must agree.
 
 **`createTransform` is exported from `@gltf-transform/functions`, NOT `@gltf-transform/core`.**
 

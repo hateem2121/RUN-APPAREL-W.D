@@ -62,6 +62,8 @@ import { compareRenders } from '../src/compare.ts'
 import { optimizeGlb, parseOptimizeArgs } from '../src/optimize.ts'
 import { normalizePbr } from '../src/pbr-normalize.ts'
 import { renderViews } from '../src/render.ts'
+import { refineFlagsForFamily } from '../src/strategy.ts'
+import sharp from 'sharp'
 import { shrinkFlagsFor } from '../../../packages/shared/src/shrink.ts'
 
 /**
@@ -75,6 +77,13 @@ import { shrinkFlagsFor } from '../../../packages/shared/src/shrink.ts'
  */
 const BALANCED_FLAGS = shrinkFlagsFor('balanced')
 const FIDELITY_FLAGS = shrinkFlagsFor('fidelity')
+/**
+ * The texture-family flags the robot substitutes for a picture-heavy export (S2, fix plan
+ * Rank 13): until 2026-09-03 no gate ever rendered them. A fourth row, with its own
+ * control, so a regression in `--max-texture 2048 --quality 70 --artwork-quality 95` is
+ * seen here and not on a customer's garment.
+ */
+const TEXTURE_FLAGS = refineFlagsForFamily(BALANCED_FLAGS, 'texture')
 const EVAL_LIGHTING = 'diagnostic'
 
 /**
@@ -118,6 +127,8 @@ const CONTROL_FLAGS = [
   '0',
   '--decimate-artwork',
 ]
+/** The texture row's own control: the same family flags with the artwork protection off. */
+const TEXTURE_CONTROL_FLAGS = [...TEXTURE_FLAGS, '--uv-weight', '0', '--decimate-artwork']
 
 /**
  * Damage ceiling: fraction of pixels in the wordmark view differing by more than
@@ -139,7 +150,10 @@ const CONTROL_FLAGS = [
  * 5% sits 1.6× above the shipped preset and 1.9× below the control, so neither a
  * rendering wobble nor an argument about the threshold decides the outcome.
  */
-const MAX_CHANGED_FRACTION = 0.05
+// Exported so `eval-artwork-legibility.test.ts` can PIN it (fix plan Rank 13, audit HE-04):
+// until 2026-09-03 this number could be raised 80% and no test would notice. Changing it
+// means producing a new calibration table and a contact sheet somebody looked at.
+export const MAX_CHANGED_FRACTION = 0.05
 
 /** Straight-on view of the panel, framed so the wordmark fills it. */
 const WORDMARK_VIEW = [{ name: 'wordmark', orbit: '0deg 90deg 40%', fieldOfView: '20deg' }]
@@ -257,10 +271,202 @@ async function buildArtworkPanel({ segments = 200, rings = 70 } = {}) {
     )
     .setMaterial(material)
 
-  doc
-    .createScene('scene')
-    .addChild(doc.createNode('panel').setMesh(doc.createMesh('panel').addPrimitive(primitive)))
+  const scene = doc.createScene('scene')
+  scene.addChild(doc.createNode('panel').setMesh(doc.createMesh('panel').addPrimitive(primitive)))
+
+  /*
+   * EVERY SHIPPED FLAG MUST ACT HERE (fix plan Rank 13, audit HE-05). The shipped
+   * preset is `--stitch … --simplify … --max-texture 4096 --data-max-texture 2048
+   * --quality 75`; on the wordmark panel alone only `--simplify` and `--quality` did
+   * anything, so half the preset could break and this eval would not know. A fabric
+   * panel behind the print carries a weave past the 4096 cap and a normal map past
+   * the 2048 data cap, and a Topstitch_* band gives `--stitch` its thread. `probeFlags`
+   * below reads what each pass reported and the eval fails if a shipped flag was inert.
+   */
+  const fabricPanel = doc.createMesh('Cloth_mesh_fabric')
+  const back = -0.02 // behind the print, so the wordmark view still frames the print
+  const fabricPositions = [-1.2, -0.5, back, 1.2, -0.5, back, 1.2, 0.5, back, -1.2, 0.5, back]
+  const weave = doc
+    .createTexture('fabric-weave')
+    // 144-px cells: the fold pass reads a 256-px thumbnail, and a fine checker averages flat there.
+    .setImage(await twoTonePng(4608, 144))
+    .setMimeType('image/png')
+  const normal = doc
+    .createTexture('fabric-normal')
+    .setImage(await gradientNormalPng(2304))
+    .setMimeType('image/png')
+  const fabric = doc
+    .createMaterial('FABRIC 1')
+    .setBaseColorTexture(weave)
+    .setNormalTexture(normal)
+    .setMetallicFactor(0)
+    .setRoughnessFactor(0.85)
+  // Pattern-space UVs with the CLO-style transform, as every real export carries.
+  const fabricPrim = doc
+    .createPrimitive()
+    .setAttribute(
+      'POSITION',
+      doc
+        .createAccessor()
+        .setType('VEC3')
+        .setArray(new Float32Array(fabricPositions))
+        .setBuffer(buffer),
+    )
+    .setAttribute(
+      'NORMAL',
+      doc
+        .createAccessor()
+        .setType('VEC3')
+        .setArray(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]))
+        .setBuffer(buffer),
+    )
+    .setAttribute(
+      'TEXCOORD_0',
+      doc
+        .createAccessor()
+        .setType('VEC2')
+        .setArray(new Float32Array([-20, -20, 20, -20, 20, 20, -20, 20]))
+        .setBuffer(buffer),
+    )
+    .setIndices(
+      doc
+        .createAccessor()
+        .setType('SCALAR')
+        .setArray(new Uint16Array([0, 1, 2, 0, 2, 3]))
+        .setBuffer(buffer),
+    )
+    .setMaterial(fabric)
+  fabricPanel.addPrimitive(fabricPrim)
+  scene.addChild(doc.createNode('Cloth_mesh_fabric').setMesh(fabricPanel))
+
+  const stitchMesh = doc.createMesh('Topstitch_1')
+  const stitchSegments = 600
+  const sp = []
+  const sn = []
+  const su = []
+  const si = []
+  for (let i = 0; i <= stitchSegments; i++) {
+    const t = i / stitchSegments
+    const x = -1 + 2 * t
+    sp.push(x, -0.3, back + 0.001, x, -0.296, back + 0.001)
+    sn.push(0, 0, 1, 0, 0, 1)
+    su.push(t, 0, t, 1)
+    if (i < stitchSegments) {
+      const a = i * 2
+      si.push(a, a + 1, a + 2, a + 1, a + 3, a + 2)
+    }
+  }
+  stitchMesh.addPrimitive(
+    doc
+      .createPrimitive()
+      .setAttribute(
+        'POSITION',
+        doc.createAccessor().setType('VEC3').setArray(new Float32Array(sp)).setBuffer(buffer),
+      )
+      .setAttribute(
+        'NORMAL',
+        doc.createAccessor().setType('VEC3').setArray(new Float32Array(sn)).setBuffer(buffer),
+      )
+      .setAttribute(
+        'TEXCOORD_0',
+        doc.createAccessor().setType('VEC2').setArray(new Float32Array(su)).setBuffer(buffer),
+      )
+      .setIndices(
+        doc.createAccessor().setType('SCALAR').setArray(new Uint16Array(si)).setBuffer(buffer),
+      )
+      .setMaterial(
+        doc
+          .createMaterial('Default Topstitch')
+          .setBaseColorFactor([0.35, 0.35, 0.35, 1])
+          .setMetallicFactor(0),
+      ),
+  )
+  scene.addChild(doc.createNode('Topstitch_1').setMesh(stitchMesh))
   return { doc, triangles: indices.length / 3 }
+}
+
+/** A two-tone checker PNG of `size` px with `cell`-px cells — busy enough to keep, cheap to store. */
+async function twoTonePng(size, cell) {
+  const raw = Buffer.alloc(size * size * 3)
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 3
+      const dark = (Math.floor(x / cell) + Math.floor(y / cell)) % 2 === 0
+      raw[i] = raw[i + 1] = raw[i + 2] = dark ? 228 : 255
+    }
+  }
+  return new Uint8Array(
+    await sharp(raw, { raw: { width: size, height: size, channels: 3 } })
+      .png()
+      .toBuffer(),
+  )
+}
+
+/** A slow-gradient normal map: R and G sway ±20 around 128, B 255. */
+async function gradientNormalPng(size) {
+  const raw = Buffer.alloc(size * size * 3)
+  for (let y = 0; y < size; y++) {
+    const g = Math.round(128 + 20 * Math.sin(y / 40))
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 3
+      raw[i] = Math.round(128 + 20 * Math.sin(x / 40))
+      raw[i + 1] = g
+      raw[i + 2] = 255
+    }
+  }
+  return new Uint8Array(
+    await sharp(raw, { raw: { width: size, height: size, channels: 3 } })
+      .png()
+      .toBuffer(),
+  )
+}
+
+/**
+ * Which shipped flags acted on the fixture, read from what each pass reported (HE-05).
+ * Returns the flags that were INERT; the eval fails on any for a shipped row.
+ */
+export function inertFlags(flags, result) {
+  const inert = []
+  const has = (flag) => flags.includes(flag)
+  if (
+    has('--stitch') &&
+    !(
+      result.stitch &&
+      result.stitch.meshes > 0 &&
+      result.stitch.trianglesAfter < result.stitch.trianglesBefore
+    )
+  ) {
+    inert.push('--stitch')
+  }
+  if (
+    has('--simplify') &&
+    !(result.simplify && result.simplify.attributeAware + result.simplify.fallback > 0)
+  ) {
+    inert.push('--simplify')
+  }
+  if (
+    has('--max-texture') &&
+    !(
+      result.textures &&
+      result.textures.standardResized &&
+      result.textures.standardResized.length > 0
+    )
+  ) {
+    inert.push('--max-texture')
+  }
+  if (
+    has('--data-max-texture') &&
+    !(result.textures && result.textures.dataResized && result.textures.dataResized.length > 0)
+  ) {
+    inert.push('--data-max-texture')
+  }
+  if (
+    has('--quality') &&
+    !(result.textures && result.textures.standard + result.textures.artwork > 0)
+  ) {
+    inert.push('--quality')
+  }
+  return inert
 }
 
 /** Optimise the fixture with `flags`, render it, and diff against the baseline. */
@@ -289,6 +495,7 @@ async function damageFor(srcGlb, baselineDir, workDir, label, flags) {
     meanDelta: diff.meanDelta,
     maxDelta: diff.maxDelta,
     artworkAtRisk: result.simplify?.artworkAtRisk ?? [],
+    inert: inertFlags(flags, result),
     sheet: join(workDir, `sheet-${label}.png`),
     renderDir,
   }
@@ -386,6 +593,14 @@ async function main() {
   const shipped = await damageFor(srcGlb, baselineDir, workDir, 'balanced', BALANCED_FLAGS)
   const fidelity = await damageFor(srcGlb, baselineDir, workDir, 'fidelity', FIDELITY_FLAGS)
   const control = await damageFor(srcGlb, baselineDir, workDir, 'control', CONTROL_FLAGS)
+  const texture = await damageFor(srcGlb, baselineDir, workDir, 'texture', TEXTURE_FLAGS)
+  const textureControl = await damageFor(
+    srcGlb,
+    baselineDir,
+    workDir,
+    'texture-control',
+    TEXTURE_CONTROL_FLAGS,
+  )
 
   const pct = (v) => `${(v * 100).toFixed(3)}%`
   console.log(
@@ -397,9 +612,41 @@ async function main() {
   console.log(
     `  CONTROL   (uv 0 — expect DAMAGE) changed ${pct(control.changedFraction)}  mean ${control.meanDelta}`,
   )
+  console.log(
+    `  texture   (family flags)         changed ${pct(texture.changedFraction)}  mean ${texture.meanDelta}`,
+  )
+  console.log(
+    `  T-CONTROL (texture, uv 0)        changed ${pct(textureControl.changedFraction)}  mean ${textureControl.meanDelta}`,
+  )
   console.log(`  ceiling                          ${pct(MAX_CHANGED_FRACTION)}`)
+  for (const row of [shipped, fidelity, texture]) {
+    console.log(
+      `  flags acting (${row.label}): ${row.inert.length ? `⚠️ INERT ${row.inert.join(', ')}` : 'every shipped flag did something'}`,
+    )
+  }
 
   const failures = []
+  for (const row of [shipped, fidelity, texture]) {
+    if (row.inert.length) {
+      failures.push(
+        `The ${row.label} preset carries flags that did NOTHING on this fixture: ${row.inert.join(', ')}.\n` +
+          '  A flag that acts on nothing here can regress unseen. Give the fixture something for it to act on;\n' +
+          '  do not drop the flag from the check.',
+      )
+    }
+  }
+  if (texture.changedFraction > MAX_CHANGED_FRACTION) {
+    failures.push(
+      `The TEXTURE-FAMILY preset damaged the artwork: ${pct(texture.changedFraction)} of the wordmark moved, ` +
+        `over the ${pct(MAX_CHANGED_FRACTION)} ceiling. Look at ${texture.sheet}.`,
+    )
+  }
+  if (textureControl.changedFraction <= MAX_CHANGED_FRACTION) {
+    failures.push(
+      `The texture row's NEGATIVE CONTROL did not register as damage (${pct(textureControl.changedFraction)}). ` +
+        'The fourth row has gone blind; fix the fixture, never the ceiling.',
+    )
+  }
   if (shipped.changedFraction > MAX_CHANGED_FRACTION) {
     failures.push(
       `The SHIPPED preset damaged the artwork: ${pct(shipped.changedFraction)} of the wordmark moved, ` +
@@ -437,4 +684,7 @@ async function main() {
   )
 }
 
-await main()
+// Run only as a script: the test imports the ceiling without starting a two-minute eval.
+if (process.argv[1] && import.meta.filename === process.argv[1]) {
+  await main()
+}

@@ -113,6 +113,15 @@ export interface TextureArtworkResult {
    * legitimate trade the owner should get to see rather than discover.
    */
   artworkResized: string[]
+  /**
+   * Fabric colour maps brought down to `maxSize`, and data maps (normal / ORM /
+   * occlusion) brought down to `dataMaxSize` — recorded since 2026-09-03 (fix plan
+   * Rank 13, HE-05) so the artwork eval can prove `--max-texture` and
+   * `--data-max-texture` ACTED, not merely that they were passed. Routine for a real
+   * export, so the owner's report does not list them.
+   */
+  standardResized: string[]
+  dataResized: string[]
 }
 
 /** Formats sharp can decode here. KTX2 and other GPU formats are left untouched. */
@@ -536,6 +545,8 @@ export function compressTexturesForArtwork(options: ArtworkTextureOptions): Tran
         artworkNames: [],
         alphaBoosted: [],
         artworkResized: [],
+        standardResized: [],
+        dataResized: [],
       }
 
       for (const texture of document.getRoot().listTextures()) {
@@ -563,11 +574,11 @@ export function compressTexturesForArtwork(options: ArtworkTextureOptions): Tran
         const quality = artwork ? options.artworkQuality : options.quality
 
         try {
-          // Measured only for artwork, and only to report it: a wordmark that had
-          // to be resampled has lost stroke detail, and that should be a sentence
-          // in the owner's report rather than something that just happens. Fabric
-          // resizing is routine and reporting it would be noise.
-          const before = artwork ? await sharp(image).metadata() : null
+          // A header read, for every texture: a wordmark that had to be resampled
+          // has lost stroke detail and becomes a sentence in the owner's report;
+          // fabric and data resizes are routine and go only into the result, where
+          // the artwork eval checks the caps actually acted (HE-05).
+          const before = await sharp(image).metadata()
 
           const webpOptions = {
             quality,
@@ -626,9 +637,10 @@ export function compressTexturesForArtwork(options: ArtworkTextureOptions): Tran
             before.height &&
             (info.width < before.width || info.height < before.height)
           ) {
-            result.artworkResized.push(
-              texture.getName() || texture.getURI() || `#${result.artwork + 1}`,
-            )
+            const label = texture.getName() || texture.getURI() || `#${result.artwork + 1}`
+            if (artwork) result.artworkResized.push(label)
+            else if (data) result.dataResized.push(label)
+            else result.standardResized.push(label)
           }
 
           texture.setImage(new Uint8Array(encoded)).setMimeType('image/webp')

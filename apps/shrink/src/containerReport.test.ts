@@ -188,6 +188,112 @@ describe('buildReportText — the artwork block', () => {
   })
 })
 
+describe('buildReportText — what CLO wrote (fix plan Rank 13)', () => {
+  const raw = () => ({
+    images: {
+      total: 20,
+      bytes: 1_540_000_000,
+      unique: 6,
+      duplicateBytes: 1_124_200_000,
+      duplicateFraction: 0.73,
+      duplicates: [{ name: 'FABRIC 3', copies: 5, bytes: 900_000_000 }],
+    },
+    oversized: [
+      { name: 'FABRIC 3', width: 6835, height: 5331, bytes: 12_900_000, materials: ['FABRIC 3'] },
+    ],
+    thread: {
+      triangles: 1000,
+      byMesh: 0,
+      byMaterial: 465,
+      byMeshFraction: 0,
+      byMaterialFraction: 0.465,
+    },
+    fabricWithoutWeave: ['cotton_interlock_190gsm'],
+    artworkFinish: [
+      {
+        material: 'RUN LOGO',
+        roughness: 0.6,
+        metallic: 0,
+        hasMrTexture: false,
+        opacityFactor: 1,
+        peakAlpha: 1,
+      },
+    ],
+  })
+
+  it('warns about duplicate and oversized pictures, prints thread both ways, flat cloth and print finishes', () => {
+    const text = buildReportText(
+      opt({
+        raw: raw(),
+        stitch: {
+          meshes: 0,
+          primitives: 0,
+          trianglesBefore: 0,
+          trianglesAfter: 0,
+          garmentTriangles: 1000,
+        },
+      }),
+      glb(),
+      'x.glb',
+    )
+    expect(text).toContain('⚠️ 73.0% of the picture bytes are DUPLICATES')
+    expect(text).toContain('⚠️ Pictures beyond 4096 px in the export: FABRIC 3 6835×5331')
+    expect(text).toContain(
+      'Thread: 0.0% of the triangles by mesh name (Topstitch_*), 46.5% by material name. ⚠️ The --stitch pass matched NO mesh',
+    )
+    expect(text).toContain(
+      'Cloth pieces with no weave (normal) map, so they render flat: cotton_interlock_190gsm',
+    )
+    expect(text).toContain('RUN LOGO: roughness 0.60, opacity 100.0%, ink to 100.0% alpha')
+  })
+
+  it('says when the reader had to strip a dead texture reference', () => {
+    const text = buildReportText(
+      opt({
+        repair: { deadTextures: [5], referencesRemoved: 2, slots: ['metallicRoughnessTexture'] },
+      }),
+      glb(),
+      'x.glb',
+    )
+    expect(text).toContain(
+      '⚠️ Repaired to read it: 2 texture reference(s) pointed at no picture (metallicRoughnessTexture)',
+    )
+  })
+
+  it('reports the position grid against the closest print gap, and stays quiet on an older container', () => {
+    const overlays = {
+      measured: 10,
+      overlayReadings: 4,
+      flagged: 2,
+      review: 0,
+      clones: 0,
+      threadIgnored: 3,
+      written: true,
+      gridMm: 0.05,
+      minGapMm: 0.2,
+    }
+    expect(buildReportText(opt(), glb(), 'x.glb', undefined, overlays)).toContain(
+      "Position grid: 0.050 mm per step (14-bit over the garment's size); the closest print sits 0.200 mm in front of its cloth — 4.0 grid steps.",
+    )
+    const tight = { ...overlays, minGapMm: 0.06 }
+    expect(buildReportText(opt(), glb(), 'x.glb', undefined, tight)).toContain('⚠️ Under two steps')
+    const older = {
+      measured: 10,
+      overlayReadings: 4,
+      flagged: 2,
+      review: 0,
+      clones: 0,
+      threadIgnored: 3,
+      written: true,
+    }
+    expect(buildReportText(opt(), glb(), 'x.glb', undefined, older)).not.toContain('Position grid')
+  })
+
+  it('stays silent about the raw export on a report from an older container', () => {
+    expect(buildReportText(opt(), glb(), 'x.glb')).not.toContain('Raw export pictures')
+  })
+})
+
 describe('buildReportText — UV storage (fix plan Rank 11)', () => {
   it('says how many UV sets were moved into 0..1, and names any left as floats', () => {
     const text = buildReportText(
