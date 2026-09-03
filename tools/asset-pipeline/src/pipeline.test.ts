@@ -191,7 +191,7 @@ describe('placeholder generation', () => {
     expect(report.primitiveCount).toBe(PLACEHOLDER_PRIMITIVES)
     expect(report.materialCount).toBe(4 + PLACEHOLDER_ARTWORK.length)
     expect(report.variants).toEqual([]) // raw exports carry no variants — merging binds them
-  })
+  }, 60_000) // same reason as the real-chain test below: 2.5 s here, a slower runner
 })
 
 describe('mergeVariants', () => {
@@ -454,7 +454,11 @@ describe('optimizeGlb — the artwork guards engage on the real chain', () => {
         .listMaterials()
         .filter((m) => m.getAlphaMode() === 'BLEND'),
     ).toEqual([])
-  })
+    // 60 s like the other real-chain tests in this file: 3.8 s here on 2026-09-03 with
+    // the realistic fixture (Rank 13: 4608-px weave, 2304-px normal map, a topstitch
+    // strip), and the GitHub runner timed out at vitest's 5 s default on the first CI
+    // run of that fixture. The runner is the variable, not the chain.
+  }, 60_000)
 })
 
 /**
