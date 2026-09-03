@@ -1,8 +1,9 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import sharp from 'sharp'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { describeGlb } from './describe'
+import { describeGlb, imageDimensions } from './describe'
 
 let dir: string
 beforeAll(async () => {
@@ -362,5 +363,89 @@ describe('describeGlb — never throws', () => {
     await writeGlb(file, textureHeavyGltf(), 2048)
     const d = await describeGlb(file)
     expect(d.generator).toBe('CLO Standalone OnlineAuth 2025.2.236')
+  })
+})
+
+/**
+ * THE FAMILY BY GPU MEMORY (fix plan Rank 10, audit F2-10). A picture is compressed on
+ * the wire and uncompressed on the GPU, so a small PNG of many pixels is a big phone
+ * problem the byte fraction cannot see. Where every image header is readable the GPU
+ * fraction decides; where it is not, bytes decide and the reason says so.
+ */
+describe('describeGlb — the family judged by GPU memory', () => {
+  const glbWith = async (file: string, png: Buffer, geometryBytes: number) => {
+    const pad = (4 - (png.length % 4)) % 4
+    const bin = Buffer.concat([png, Buffer.alloc(pad), Buffer.alloc(geometryBytes)])
+    const gltf = {
+      asset: { version: '2.0' },
+      buffers: [{ byteLength: bin.length }],
+      bufferViews: [
+        { buffer: 0, byteOffset: 0, byteLength: png.length },
+        { buffer: 0, byteOffset: png.length + pad, byteLength: geometryBytes },
+      ],
+      images: [{ bufferView: 0, mimeType: 'image/png' }],
+      textures: [{ source: 0 }],
+      accessors: [
+        { bufferView: 1, componentType: 5126, count: Math.floor(geometryBytes / 12), type: 'VEC3' },
+      ],
+      meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
+    }
+    const json = Buffer.from(JSON.stringify(gltf))
+    const jsonPad = (4 - (json.length % 4)) % 4
+    const header = Buffer.alloc(12)
+    header.writeUInt32LE(0x46546c67, 0)
+    header.writeUInt32LE(2, 4)
+    header.writeUInt32LE(12 + 8 + json.length + jsonPad + 8 + bin.length, 8)
+    const jsonChunk = Buffer.alloc(8)
+    jsonChunk.writeUInt32LE(json.length + jsonPad, 0)
+    jsonChunk.writeUInt32LE(0x4e4f534a, 4)
+    const binChunk = Buffer.alloc(8)
+    binChunk.writeUInt32LE(bin.length, 0)
+    binChunk.writeUInt32LE(0x004e4942, 4)
+    await writeFile(
+      file,
+      Buffer.concat([header, jsonChunk, json, Buffer.alloc(jsonPad, 0x20), binChunk, bin]),
+    )
+  }
+
+  it('reports the GPU share beside a family that stays decided by bytes', async () => {
+    // A 512x512 solid PNG is a few hundred bytes on disk and 1.4 MB on a GPU.
+    const png = await sharp({
+      create: { width: 512, height: 512, channels: 3, background: '#808080' },
+    })
+      .png()
+      .toBuffer()
+    const file = join(dir, 'gpu-texture.glb')
+    await glbWith(file, png, 200_000)
+    const d = await describeGlb(file)
+    expect(d.textureFraction).toBeLessThan(0.4) // bytes: geometry-heavy
+    expect(d.imagesMeasured).toBe(1)
+    expect(d.textureGpuBytes).toBe(Math.round(512 * 512 * 4 * (4 / 3)))
+    // Every raw CLO export is 74–100% pictures by GPU memory, so the share cannot pick a
+    // family; the file stays geometry by bytes and the reason carries both numbers.
+    expect(d.family).toBe('geometry')
+    expect(d.gpuTextureFraction).toBeGreaterThan(0.8)
+    expect(d.familyReason).toContain('geometry by file bytes')
+    expect(d.familyReason).toContain('% of GPU memory (1 MB before resizing)')
+  })
+
+  it('says so when an image header cannot be read', async () => {
+    const file = join(dir, 'gpu-unreadable.glb')
+    await glbWith(file, Buffer.alloc(300), 200_000) // no PNG signature
+    const d = await describeGlb(file)
+    expect(d.imagesMeasured).toBe(0)
+    expect(d.family).toBe('geometry')
+    expect(d.familyReason).toContain('0 of 1 image header(s) readable')
+  })
+
+  it('reads PNG, WebP and JPEG headers without decoding', async () => {
+    const make = (format: 'png' | 'webp' | 'jpeg') =>
+      sharp({ create: { width: 33, height: 17, channels: 3, background: '#fff' } })
+        [format]()
+        .toBuffer()
+    expect(imageDimensions(await make('png'))).toEqual({ width: 33, height: 17 })
+    expect(imageDimensions(await make('webp'))).toEqual({ width: 33, height: 17 })
+    expect(imageDimensions(await make('jpeg'))).toEqual({ width: 33, height: 17 })
+    expect(imageDimensions(Buffer.alloc(64))).toBeNull()
   })
 })

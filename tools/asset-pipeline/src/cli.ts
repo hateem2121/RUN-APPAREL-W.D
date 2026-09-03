@@ -16,6 +16,7 @@ import { startReviewServer } from './review-server'
 import { dumpTextures } from './textures'
 import { describeInkRow, framePrint, measureInkContrast } from './ink-contrast'
 import { readGlb } from './io'
+import { mb as gpuMb, PHONE_GPU_BUDGET_BYTES } from './texture-fold'
 import { checkVariants, inspectGlb } from './validate'
 import { generatePlaceholders } from './placeholders'
 
@@ -358,6 +359,24 @@ async function main(): Promise<void> {
     console.log(
       `  size:       ${(result.bytesBefore / 1024).toFixed(1)} KB → ${(result.bytesAfter / 1024).toFixed(1)} KB  (−${pct}%)`,
     )
+    if (result.fold) {
+      console.log(
+        `  folded:     ${result.fold.folded.length} constant shading map(s) into material values${
+          result.fold.folded.length
+            ? ` — ${result.fold.folded.map((f) => `${f.name} ${f.width}x${f.height} (${gpuMb(f.gpuBytes)})`).join(', ')}`
+            : ''
+        }${result.fold.kept.length ? `; kept ${result.fold.kept.map((k) => `${k.name}: ${k.reason}`).join('; ')}` : ''}`,
+      )
+    }
+    if (result.gpu) {
+      console.log(
+        `  phone GPU:  ${gpuMb(result.gpu.totalBytes)} of texture memory (artwork ${gpuMb(result.gpu.artworkBytes)}, fabric ${gpuMb(result.gpu.fabricBytes)}, shading maps ${gpuMb(result.gpu.shadingBytes)})${
+          result.gpu.overBudget
+            ? `  ⚠️ over the ${gpuMb(PHONE_GPU_BUDGET_BYTES)} iOS budget — the 3D view can drop out on a phone`
+            : ''
+        }`,
+      )
+    }
 
     /*
      * What the file is MADE OF, which nothing reported until 2026-08-29.

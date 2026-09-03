@@ -244,7 +244,15 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
     } catch {
       composition = undefined
     }
-    const text = buildReportText(opt, glb, filename, composition, overlays, ink)
+    const text = buildReportText(
+      opt,
+      glb,
+      filename,
+      composition,
+      overlays,
+      ink,
+      description.error ? undefined : description.familyReason,
+    )
 
     const report = {
       ok: true,
@@ -260,6 +268,8 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
         ? { error: description.error }
         : {
             family: description.family,
+            familyReason: description.familyReason,
+            textureGpuBytes: description.textureGpuBytes,
             textureFraction: Number(description.textureFraction.toFixed(4)),
             triangles: description.triangles,
             stitchFraction: Number(description.stitchFraction.toFixed(4)),
@@ -301,6 +311,8 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
       ink,
       ...(opt.simplify ? { simplify: opt.simplify } : {}),
       ...(opt.textures ? { textures: opt.textures } : {}),
+      ...(opt.gpu ? { gpu: opt.gpu } : {}),
+      ...(opt.fold ? { fold: opt.fold } : {}),
       ...(opt.solidify ? { solidify: opt.solidify } : {}),
       text,
     }

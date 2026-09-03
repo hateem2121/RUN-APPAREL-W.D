@@ -6,6 +6,12 @@ import { ktx2 } from 'ktx2-encoder/gltf-transform'
 import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer'
 import sharp from 'sharp'
 import { createIO, readGlb } from './io'
+import {
+  estimateGpuTextures,
+  foldConstantTextures,
+  type FoldResult,
+  type GpuEstimate,
+} from './texture-fold'
 import { alignVariantTexCoords } from './variant-texcoord'
 import { DEFAULT_STITCH_PATTERN, type TopstitchResult, reduceTopstitch } from './topstitch'
 import { type PbrNormalizeResult, normalizePbr } from './pbr-normalize'
@@ -385,6 +391,10 @@ export interface OptimizeTelemetry {
   variantTexCoords?: string[]
   /** Present only when the WebP texture pass ran. */
   textures?: TextureArtworkResult
+  /** Near-constant shading maps folded into material factors (fix plan Rank 10). */
+  fold?: FoldResult
+  /** What the finished file costs a phone's GPU, counted after every pass (Rank 10). */
+  gpu?: GpuEstimate
   /** Present only when the opaque/solidify pass ran. */
   solidify?: SolidifyResult
   /** Present only when the topstitch pass ran. */
@@ -458,6 +468,16 @@ export async function buildOptimizeTransforms(
     })
   }
 
+  // FOLD BEFORE ENCODING (fix plan Rank 10, audit TEX-06): a 2048² roughness map that
+  // holds eight values costs 21 MB of phone memory for two numbers a factor expresses.
+  // Folded first, it is never encoded, never de-duplicated, never counted.
+  transforms.push(
+    foldConstantTextures({
+      onResult: (result) => {
+        telemetry.fold = result
+      },
+    }),
+  )
   const max = options.maxTextureSize ?? DEFAULT_MAX_TEXTURE
   if (options.texture === 'webp') {
     // Not glTF-Transform's textureCompress: it cannot reach `smartSubsample`,
@@ -514,6 +534,11 @@ export async function buildOptimizeTransforms(
   // Captured as a value, not a boolean: a separate `stitchRan` flag does not
   // narrow `options.stitch` for TypeScript, and `exactOptionalPropertyTypes` makes
   // that a hard error rather than an implicit `undefined` reaching the simplifier.
+  // ⚠️ DE-DUPLICATE AGAIN AFTER RE-ENCODING (audit TEX-05). The first dedup() runs on
+  // the raw export, where two copies of one picture can differ by a byte of metadata;
+  // after both are re-encoded they are byte-identical, and the live skinsuit shipped a
+  // 640x640 twin (the bib a 2048x1863 normal map) that only a second pass sees.
+  transforms.push(dedup(), prune({ keepExtras: true }))
   const stitchRatio =
     typeof options.stitch === 'number' && options.stitch > 0 && options.stitch < 1
       ? options.stitch
@@ -562,6 +587,14 @@ export async function buildOptimizeTransforms(
     transforms.push(meshopt({ encoder: MeshoptEncoder, level: 'high' }))
   }
 
+  // LAST, so it counts what ships (fix plan Rank 10, audit TEX-04/TEX-07/LIVE-07).
+  transforms.push(
+    estimateGpuTextures({
+      onResult: (result) => {
+        telemetry.gpu = result
+      },
+    }),
+  )
   return transforms
 }
 
@@ -614,6 +647,8 @@ export interface OptimizeResult {
   simplify?: SimplifyTexturedResult
   /** How textures were classified and encoded, when the WebP pass ran. */
   textures?: TextureArtworkResult
+  fold?: FoldResult
+  gpu?: GpuEstimate
   /** What the metalness pass changed, left alone, and could not classify. */
   pbr?: PbrNormalizeResult
   /** How each translucent material was resolved, when the opaque pass ran. */
@@ -668,6 +703,8 @@ export async function optimizeGlb(
     opaque: options.opaque === true,
     ...(telemetry.simplify ? { simplify: telemetry.simplify } : {}),
     ...(telemetry.textures ? { textures: telemetry.textures } : {}),
+    ...(telemetry.fold ? { fold: telemetry.fold } : {}),
+    ...(telemetry.gpu ? { gpu: telemetry.gpu } : {}),
     ...(telemetry.pbr ? { pbr: telemetry.pbr } : {}),
     ...(telemetry.solidify ? { solidify: telemetry.solidify } : {}),
     ...(telemetry.stitch ? { stitch: telemetry.stitch } : {}),

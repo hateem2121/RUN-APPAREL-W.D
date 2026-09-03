@@ -74,6 +74,8 @@ export function buildReportText(
   ink?:
     | { prints: number; colourways: number; rows: number; flagged: number; lines: string[] }
     | { error: string },
+  /** The family the flags were chosen for, with the GPU share beside it (fix plan Rank 10, F2-10). */
+  familyReason?: string,
 ): string {
   // The mobile guideline, stated plainly. Nothing in CI can check this — the
   // Lighthouse budget runs against a 10 KB placeholder, so a real 20 MB garment
@@ -95,6 +97,20 @@ export function buildReportText(
         'it is a slow load over phone data, which is how most people reach this page. ' +
         'Most of a CLO export is geometry, so the lever is a lower Detail setting or a lighter mesh from CLO.'
       : `Within the ${guidelineMb} MB mobile guideline.`,
+    // Phone graphics memory beside the file size (fix plan Rank 10, audit TEX-04): a
+    // 3.4 MB file can need 83 MB of a phone's GPU, and iOS drops the 3D view past ~256 MB.
+    // The file size never said this; the owner published five garments over the line.
+    opt.gpu
+      ? `Phone graphics memory: about ${(opt.gpu.totalBytes / 1048576).toFixed(0)} MB of texture memory ` +
+        `(artwork ${(opt.gpu.artworkBytes / 1048576).toFixed(0)}, fabric ${(opt.gpu.fabricBytes / 1048576).toFixed(0)}, shading maps ${(opt.gpu.shadingBytes / 1048576).toFixed(0)})` +
+        (opt.gpu.overBudget
+          ? ' ⚠️ OVER THE 256 MB PHONE BUDGET — iPhones can drop the 3D view on this file. Fewer or smaller pictures in CLO, or a lower Detail setting.'
+          : ' — within the phone budget.')
+      : 'Phone graphics memory: not estimated for this job.',
+    familyReason ? `Budget family: ${familyReason}.` : '',
+    opt.fold?.folded.length
+      ? `Folded ${opt.fold.folded.length} constant shading map(s) into material values (${opt.fold.folded.map((f) => `${f.name} ${f.width}x${f.height}`).join(', ')}): the same look, ${(opt.fold.folded.reduce((s, f) => s + f.gpuBytes, 0) / 1048576).toFixed(0)} MB less phone memory.`
+      : '',
     `Suggested filename: ${filename}`,
     // Each CLO variant name with the colour it ACTUALLY is. Before this the list
     // was bare strings like "Colorway 2", so mapping them to the CMS was a guess

@@ -71,6 +71,29 @@ export interface GlbDescription {
   geometryBytes: number
   /** textureBytes / (textureBytes + geometryBytes). 0 when the file has neither. */
   textureFraction: number
+  /**
+   * What the pictures cost a phone's GPU, from the image headers alone (fix plan Rank
+   * 10, audit F2-10): pixels x 4 bytes x 4/3 for mipmaps. A picture is compressed on
+   * the wire and uncompressed on the GPU, so this is what decides whether the file
+   * fits a phone — the byte fraction never did.
+   */
+  textureGpuBytes: number
+  /** Images whose header could be read; the rest count 0 and the family falls back to bytes. */
+  imagesMeasured: number
+  /** textureGpuBytes / (textureGpuBytes + geometryBytes) — the GPU's view of the split. */
+  gpuTextureFraction: number
+  /**
+   * The family, and the GPU share beside it, in the report's words.
+   *
+   * ⚠️ THE FAMILY STAYS DECIDED BY FILE BYTES. Measured 2026-09-03 across all 14 raw
+   * exports: by GPU memory the pictures are 74–100% of EVERY garment (a raw CLO export
+   * carries 1–7 GB of pixels before the pipeline's resize), so a GPU-share family would
+   * read "texture" for all of them and choose smaller caps for the live bib's all-over
+   * halftone — the regression the 4096 cap exists to prevent. The share is reported so
+   * the disagreement is visible; the phone budget is judged on the OUTPUT's GPU
+   * estimate (texture-fold.ts), which is the number that separates the garments.
+   */
+  familyReason: string
   triangles: number
   stitchTriangles: number
   stitchFraction: number
@@ -96,7 +119,7 @@ interface RawPrimitive {
 
 interface RawGltf {
   asset?: { generator?: unknown }
-  bufferViews?: { byteLength?: number }[]
+  bufferViews?: { byteLength?: number; byteOffset?: number }[]
   images?: { bufferView?: number; name?: unknown; uri?: unknown }[]
   accessors?: { bufferView?: number; count?: number }[]
   meshes?: { name?: string; primitives?: RawPrimitive[] }[]
@@ -123,6 +146,10 @@ function emptyDescription(file: string, error: string | null): GlbDescription {
     textureBytes: 0,
     geometryBytes: 0,
     textureFraction: 0,
+    textureGpuBytes: 0,
+    imagesMeasured: 0,
+    gpuTextureFraction: 0,
+    familyReason: '',
     triangles: 0,
     stitchTriangles: 0,
     stitchFraction: 0,
@@ -222,7 +249,31 @@ export async function describeGlb(file: string): Promise<GlbDescription> {
 
   const classified = out.textureBytes + out.geometryBytes
   out.textureFraction = classified > 0 ? out.textureBytes / classified : 0
+
   out.family = familyFor(out.textureFraction)
+
+  // THE GPU'S VIEW, REPORTED BESIDE THE FAMILY (fix plan Rank 10, audit F2-10). The
+  // image headers give every picture's pixel count without decoding a byte; what the
+  // pictures cost a phone is stated next to the family so a file that sits just under
+  // the byte line while its pictures are the whole phone problem is visible as such.
+  try {
+    const dims = await readImageDimensions(file, gltf)
+    for (const [index, image] of (gltf.images ?? []).entries()) {
+      const size = dims[index]
+      if (!size || image.bufferView === undefined) continue
+      out.imagesMeasured++
+      out.textureGpuBytes += Math.round(size.width * size.height * 4 * (4 / 3))
+    }
+  } catch {
+    // Unreadable image data is a bytes-only description, not a failure.
+  }
+  const gpuClassified = out.textureGpuBytes + out.geometryBytes
+  out.gpuTextureFraction = gpuClassified > 0 ? out.textureGpuBytes / gpuClassified : 0
+  out.familyReason =
+    `${out.family} by file bytes (${(out.textureFraction * 100).toFixed(0)}% pictures on disk)` +
+    (out.imagesMeasured > 0
+      ? `; on a phone the pictures are ${(out.gpuTextureFraction * 100).toFixed(0)}% of GPU memory (${(out.textureGpuBytes / 1048576).toFixed(0)} MB before resizing)`
+      : `; ${out.imagesMeasured} of ${imageViews.size} image header(s) readable, so no GPU figure`)
 
   const meshes = gltf.meshes ?? []
   const meshTriangles = meshes.map((mesh) =>
@@ -296,4 +347,84 @@ export async function describeGlb(file: string): Promise<GlbDescription> {
   out.images.named = images.filter((image) => Boolean(image.name) || Boolean(image.uri)).length
 
   return out
+}
+
+/** Width and height from an image's first bytes — PNG, JPEG or WebP — without decoding. */
+export function imageDimensions(head: Buffer): { width: number; height: number } | null {
+  if (
+    head.length >= 24 &&
+    head.readUInt32BE(0) === 0x89504e47 &&
+    head.readUInt32BE(4) === 0x0d0a1a0a
+  ) {
+    return { width: head.readUInt32BE(16), height: head.readUInt32BE(20) }
+  }
+  if (
+    head.length >= 30 &&
+    head.toString('ascii', 0, 4) === 'RIFF' &&
+    head.toString('ascii', 8, 12) === 'WEBP'
+  ) {
+    const chunk = head.toString('ascii', 12, 16)
+    if (chunk === 'VP8 ')
+      return { width: head.readUInt16LE(26) & 0x3fff, height: head.readUInt16LE(28) & 0x3fff }
+    if (chunk === 'VP8L') {
+      const bits = head.readUInt32LE(21)
+      return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 }
+    }
+    if (chunk === 'VP8X')
+      return { width: head.readUIntLE(24, 3) + 1, height: head.readUIntLE(27, 3) + 1 }
+    return null
+  }
+  if (head.length >= 4 && head[0] === 0xff && head[1] === 0xd8) {
+    let i = 2
+    while (i + 9 < head.length) {
+      if (head[i] !== 0xff) {
+        i++
+        continue
+      }
+      const marker = head[i + 1] ?? 0
+      const isSof =
+        marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc
+      if (isSof) return { height: head.readUInt16BE(i + 5), width: head.readUInt16BE(i + 7) }
+      if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd7) || marker === 0x01) {
+        i += 2
+        continue
+      }
+      i += 2 + head.readUInt16BE(i + 2)
+    }
+    return null
+  }
+  return null
+}
+
+/** How much of each image to read for its header. JPEG's size marker can sit behind EXIF. */
+const IMAGE_HEADER_BYTES = 64 * 1024
+
+/** One (width, height) per image, by reading only the head of each image's bufferView. */
+async function readImageDimensions(
+  file: string,
+  gltf: RawGltf,
+): Promise<({ width: number; height: number } | null)[]> {
+  const handle = await open(file, 'r')
+  try {
+    const chunkHead = Buffer.alloc(8)
+    await handle.read(chunkHead, 0, 8, 12)
+    const jsonLength = chunkHead.readUInt32LE(0)
+    const binStart = 20 + jsonLength + 8
+    const views = gltf.bufferViews ?? []
+    const out: ({ width: number; height: number } | null)[] = []
+    for (const image of gltf.images ?? []) {
+      const view = image.bufferView === undefined ? undefined : views[image.bufferView]
+      if (!view) {
+        out.push(null)
+        continue
+      }
+      const length = Math.min(view.byteLength ?? 0, IMAGE_HEADER_BYTES)
+      const head = Buffer.alloc(length)
+      await handle.read(head, 0, length, binStart + (view.byteOffset ?? 0))
+      out.push(imageDimensions(head))
+    }
+    return out
+  } finally {
+    await handle.close()
+  }
 }

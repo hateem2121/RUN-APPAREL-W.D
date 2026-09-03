@@ -202,6 +202,15 @@ interface ShrinkReport {
   }
   /** How textures were classified and encoded. Absent from an older container. */
   textures?: { artwork: number; standard: number; skipped: number; artworkNames: string[] }
+  /** Fix plan Rank 10: what the file costs a phone's GPU, and what was folded. Absent from an older container. */
+  gpu?: {
+    totalBytes: number
+    artworkBytes: number
+    fabricBytes: number
+    shadingBytes: number
+    overBudget: boolean
+  }
+  fold?: { folded: { name: string; width: number; height: number; gpuBytes: number }[] }
   /** How each translucent material was resolved. Absent from an older container. */
   solidify?: { opaqued: number; masked: number; keptBlend: number; doubleSided: number }
   text: string
