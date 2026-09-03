@@ -117,6 +117,18 @@
       "bytes": 136375812,
       "sha256": "df19258377c3bae3af8e52e541f823ccdd2b325e9b263010ccd96abc6ca0fc59",
       "source": "<repo>/3D Products/X-Milo Training Vest.glb"
+    },
+    {
+      "key": "fixed-glbs/2026-09-03/X-MILO PRO SKIN-SUIT.glb",
+      "bytes": 31653964,
+      "sha256": "b5b937893e47aa18b48d96711cb94975a7852ebcf97c6968b806d7d63fdea7c6",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/X-MILO PRO SKIN-SUIT.zip → X-MILO PRO SKIN-SUIT.glb (CLO 2025.2.236 export 2026-09-03 10:13 — the live rxps garment re-exported; the owner’s source of truth from 2026-09-03)"
+    },
+    {
+      "key": "fixed-glbs/2026-09-03/X-MILO PRO BIB.glb",
+      "bytes": 59555468,
+      "sha256": "d8969eeef1c8a17b0a2a7cae786f5c0462139afa548450cf8b20a3fc95ba5013",
+      "source": "/Users/hateemjamshaid/Documents/FIXED GLBs/X-MILO PRO BIB.zip → X-MILO PRO BIB.glb (CLO 2025.2.236 export 2026-09-03 10:24 — the live r-xmp garment re-exported)"
     }
   ]
 }

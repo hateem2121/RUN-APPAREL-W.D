@@ -35,6 +35,8 @@ if (args.includes('--json')) {
       file,
       detail: detail ?? 'default',
       family,
+      familyReason: description.familyReason,
+      textureGpuBytes: description.textureGpuBytes,
       triangles: description.triangles,
       flags,
     }),

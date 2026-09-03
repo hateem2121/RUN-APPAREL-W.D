@@ -10,7 +10,7 @@ why 5.4 GB of master files existed once, on one disk (audit CI-02 / CI-08):
 | **D1** `run-apparel-viewer-db` | all products, colourways, media rows, site settings, users, analytics events | `scripts/backup-d1.mjs` → `backups/d1/*.sql` |
 | **R2** `run-apparel-viewer-media` | every uploaded GLB model + poster image | `scripts/backup-r2.mjs` → `backups/r2/<stamp>/media/` |
 | **R2** `run-assets` | the two customer-facing PDFs the apex serves: `/catalogue` and `/profile` (71.2 MB) | `scripts/backup-r2.mjs` → `backups/r2/<stamp>/apex/` |
-| **R2** `run-apparel-archive` | the **master files**: the FIXED GLBs (five, plus three new exports added 2026-09-02) and ten raw CLO exports (18 objects, 5.72 GB) — the only off-machine copy | uploaded by hand with rclone (see below); byte counts verified nightly by `scripts/verify-archive.mjs` against `scripts/archive-manifest.json` |
+| **R2** `run-apparel-archive` | the **master files**: the FIXED GLBs (five, plus three new exports added 2026-09-02 and the two X-MILO PRO masters added 2026-09-03) and ten raw CLO exports (20 objects, 5.82 GB) — the only off-machine copy | uploaded by hand with rclone (see below); byte counts verified nightly by `scripts/verify-archive.mjs` against `scripts/archive-manifest.json` |
 
 ⚠️ **`run-assets` is SHARED with the separate `run-apparel` site**, which can write
 to and delete from it. It is not this project's private bucket, and that is the
@@ -247,7 +247,8 @@ the files that until then existed once, on one disk: the five FIXED GLBs (the ow
 canonical production-ready folder) and the ten raw CLO exports from the repo's
 gitignored 3D Products folder — 15 objects, 5.15 GB, plus three masters the owner exported on
 1–2 September (APEX "File A", WOMEN ZIP-UP VEST, THE AGGRESSOR MEN JERSEY) under
-`fixed-glbs/2026-09-02/`: 18 objects, 5.72 GB. Standard storage rather
+`fixed-glbs/2026-09-02/`, and the two X-MILO PRO masters (SKIN-SUIT, BIB) the owner
+re-exported on 3 September under `fixed-glbs/2026-09-03/`: 20 objects, 5.82 GB. Standard storage rather
 than Infrequent Access because the free 10 GB applies only to Standard, and Infrequent
 Access adds a 30-day minimum and a retrieval fee (R2 pricing page, checked 2026-09-02).
 
@@ -266,7 +267,7 @@ It exits 1 if any object is missing or the wrong size, and — deliberately — 
 listing or the manifest is empty, because a check that checked nothing must not exit
 green. Proven both ways on 2026-09-02: a manifest with one byte count off by one made it
 fail naming the file; pointed at an empty bucket it failed with "ZERO objects" and
-every file listed as missing; the real manifest passed 15 of 15 (18 of 18 after the second batch).
+every file listed as missing; the real manifest passed 15 of 15 (18 of 18 after the second batch, 20 of 20 after the third).
 
 **Restore.** `wrangler r2 object get` handles objects under 315 MB (wrangler's
 documented ceiling). The larger ones — ARISAN BRA at 1.54 GB, Cycling-Bib at 1.31 GB,
