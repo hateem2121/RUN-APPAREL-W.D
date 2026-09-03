@@ -508,3 +508,37 @@ describe('buildReportText — anti-flicker records', () => {
     )
   })
 })
+
+/** INK VS CLOTH (fix plan Rank 9, 2026-09-03): the report asks, the owner rules. */
+describe('buildReportText — ink vs cloth', () => {
+  it('names each flagged print and colourway', () => {
+    const text = buildReportText(opt(), glb(), 'x.glb', undefined, undefined, {
+      prints: 4,
+      colourways: 5,
+      rows: 20,
+      flagged: 3,
+      lines: [
+        'THE EXTRA MILE (Slogan)_3157 @ Colorway 3: 1.32:1 against FABRIC 3_3032 — the print carries the cloth’s own colour value',
+      ],
+    })
+    expect(text).toContain('⚠️ Ink vs cloth: 3 of 20 print-colourway pairs')
+    expect(text).toContain('THE EXTRA MILE (Slogan)_3157 @ Colorway 3: 1.32:1')
+  })
+
+  it('says every print stands out when nothing is flagged', () => {
+    const text = buildReportText(opt(), glb(), 'x.glb', undefined, undefined, {
+      prints: 2,
+      colourways: 5,
+      rows: 10,
+      flagged: 0,
+      lines: [],
+    })
+    expect(text).toContain('every print stands out from the cloth beneath it')
+  })
+
+  it('says so when the measurement failed', () => {
+    expect(
+      buildReportText(opt(), glb(), 'x.glb', undefined, undefined, { error: 'boom' }),
+    ).toContain('Ink vs cloth: not measured (boom)')
+  })
+})

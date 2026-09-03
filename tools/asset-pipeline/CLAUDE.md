@@ -574,17 +574,16 @@ commit silently reverted the pipeline too. Stage per package when two copies mus
 
 **`createTransform` is exported from `@gltf-transform/functions`, NOT `@gltf-transform/core`.**
 
-## The print takes the CLOTH'S colour — OPEN, and NOT the flicker
+## The print takes the CLOTH'S colour — REPORTED since 2026-09-03, never auto-fixed
 
-Found 2026-08-28. glTF renders base-colour TEXTURE x FACTOR; these artwork textures are
-near-white stencils, so the FACTOR is the ink — and CLO writes the colourway's
-**fabric** colour into it. Minecut's slogan: rgb(246) x 0.13 = rgb(33). **13 of 16
-garments**, `n001` included. **It is in the RAW export** — CLO's, not ours. **The depth
-bias cannot touch it** (0 vs `-8` moves 0.000%).
-⚠️ **Two fixes were tried and BOTH are wrong**, so do not re-apply either: whitening
-every cut-out turns d001's dark olive graphic white, and whitening only prints matching
-a cloth colour was **reverted (`447d15f`)** after it painted Minecut's correctly-dark
-slogan white-on-white. Judge a print against the cloth **it sits on** — model-viewer
-has no adjacency, this package does. ⚠️ **Read variants off the PRIMITIVES**:
-`root.getExtension(...)` returns nothing and reads as "no colourways", false for all
-16. All of it, incl. two non-causes: `docs/SESSION-2026-08-28.md`.
+glTF renders base-colour TEXTURE x FACTOR; these artwork textures are near-white stencils,
+so the FACTOR is the ink — and CLO writes a colourway FABRIC colour into it on 13 of 16
+garments, `n001` included. **It is in the RAW export.** ⚠️ Two fixes were tried and BOTH
+were wrong (whiten every cut-out; whiten a print matching a cloth colour, reverted in
+`447d15f`): a white stencil x a dark factor is how a COLOURED print is authored, and
+Minecut's slogan matched the grey skirt while sitting on the white band. Judge a print
+against the cloth **it sits on** — `ink-contrast.ts` does, from the overlay scan's support
+primitive (`pipeline ink <glb> --strip <dir>`; the robot report lists the flagged pairs).
+The number is WCAG luminance: butter on sky-blue reads 1.32:1 yet is readable by hue, and
+black cloth reads 2.30 by file against 1.22 rendered — **the strip judges, the number
+hints**. ⚠️ Read variants off the PRIMITIVES; `root.getExtension(...)` returns nothing.

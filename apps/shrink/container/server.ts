@@ -29,6 +29,11 @@ import { describeGlb, readGltfJson } from '../../../tools/asset-pipeline/src/des
 import { readGlb } from '../../../tools/asset-pipeline/src/io'
 import { annotateGlbOverlays } from '../../../tools/asset-pipeline/src/overlay-annotate'
 import { measureOverlays } from '../../../tools/asset-pipeline/src/overlay-depth'
+import {
+  describeInkRow,
+  type InkContrastRow,
+  measureInkContrast,
+} from '../../../tools/asset-pipeline/src/ink-contrast'
 import { refineFlags } from '../../../tools/asset-pipeline/src/strategy'
 import {
   attributeBytes,
@@ -63,6 +68,19 @@ interface ShrinkRequest {
 /** What this container did before flags were passed in; still the fallback. */
 const DEFAULT_FLAGS = ['--simplify', '0.05', '--meshopt']
 
+export type InkScan =
+  | {
+      prints: number
+      colourways: number
+      rows: number
+      flagged: number
+      /** The flagged rows, at most 24, in the owner's words. */
+      lines: string[]
+      /** The flagged rows themselves, bounded, for the CMS record. */
+      flaggedRows: InkContrastRow[]
+    }
+  | { error: string }
+
 export type OverlayScan =
   | {
       measured: number
@@ -80,6 +98,29 @@ export type OverlayScan =
  * depth-bias records the viewer obeys (tools/asset-pipeline/src/overlay-depth.ts).
  * Never throws: a failed scan is reported, not a failed job.
  */
+/**
+ * Does the ink come out the colour of the cloth it sits on? (fix plan Rank 9). Report,
+ * never a change: two automatic fixes painted the wrong prints white. The owner rules
+ * per print from the report and `pipeline ink --strip`.
+ */
+async function scanInk(outPath: string): Promise<InkScan> {
+  try {
+    const { document } = await readGlb(outPath)
+    const readings = measureOverlays(document)
+    const report = await measureInkContrast(document, readings)
+    return {
+      prints: report.prints,
+      colourways: report.colourways.length,
+      rows: report.rows.length,
+      flagged: report.flagged.length,
+      lines: report.flagged.slice(0, 24).map(describeInkRow),
+      flaggedRows: report.flagged.slice(0, 24),
+    }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
 async function scanOverlays(outPath: string, filename: string): Promise<OverlayScan> {
   try {
     const readings = measureOverlays((await readGlb(outPath)).document)
@@ -184,6 +225,7 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
     // Wrapped: a scan that fails must not fail a job that otherwise succeeded, and
     // the report says so instead.
     const overlays = await scanOverlays(outPath, suggestedFilename(body.key))
+    const ink = await scanInk(outPath)
 
     // 3. Validate the result for the report (variants, warnings, translucency).
     const glb = await inspectGlb(outPath)
@@ -202,7 +244,7 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
     } catch {
       composition = undefined
     }
-    const text = buildReportText(opt, glb, filename, composition, overlays)
+    const text = buildReportText(opt, glb, filename, composition, overlays, ink)
 
     const report = {
       ok: true,
@@ -256,6 +298,7 @@ async function handleShrink(body: ShrinkRequest): Promise<{ bytes: Buffer; repor
       artworkAlphaProblems: glb.artworkAlphaProblems,
       artworkSoftOnBlend: glb.artworkSoftOnBlend,
       overlays,
+      ink,
       ...(opt.simplify ? { simplify: opt.simplify } : {}),
       ...(opt.textures ? { textures: opt.textures } : {}),
       ...(opt.solidify ? { solidify: opt.solidify } : {}),

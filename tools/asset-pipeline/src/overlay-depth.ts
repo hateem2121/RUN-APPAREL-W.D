@@ -196,8 +196,15 @@ export interface PrimitiveReading extends OverlayMetrics {
   primitiveIndex: number
   materialName: string
   alphaMode: string
-  /** The primitive found immediately behind this one, if any. */
+  /** The primitive found immediately behind this one, if any (its material name). */
   supportPrimitive: string | null
+  /**
+   * The same support primitive by position, so a caller can resolve ITS material per
+   * colourway — the material name above is the default material's only. Added
+   * 2026-09-03 for the ink report (fix plan Rank 9); absent on an older reading.
+   */
+  supportMeshIndex?: number | null
+  supportPrimitiveIndex?: number | null
   verdict: OverlayVerdict
 }
 
@@ -523,6 +530,8 @@ export function measureOverlays(document: Document): PrimitiveReading[] {
       ...info,
       ...metrics,
       supportPrimitive: top ? (meta[top[0]]?.materialName ?? null) : null,
+      supportMeshIndex: top ? (meta[top[0]]?.meshIndex ?? null) : null,
+      supportPrimitiveIndex: top ? (meta[top[0]]?.primitiveIndex ?? null) : null,
       verdict: classifyOverlay(metrics),
     })
   }

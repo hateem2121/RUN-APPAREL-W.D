@@ -67,6 +67,13 @@ export function buildReportText(
         written: boolean
       }
     | { error: string },
+  /**
+   * Does the ink come out the colour of the cloth it sits on? (fix plan Rank 9). A flag
+   * is a question for the owner, never a change to the file.
+   */
+  ink?:
+    | { prints: number; colourways: number; rows: number; flagged: number; lines: string[] }
+    | { error: string },
 ): string {
   // The mobile guideline, stated plainly. Nothing in CI can check this — the
   // Lighthouse budget runs against a 10 KB placeholder, so a real 20 MB garment
@@ -155,6 +162,15 @@ export function buildReportText(
     // CLO export and the two fight for the depth test as the garment turns; the viewer
     // nudges any layer the pipeline flagged. Until 2026-09-03 no robot run ever wrote
     // one (audit F2-06, MAT-04, MAT-05, HG-05), so this line is the proof it did.
+    ink === undefined
+      ? ''
+      : 'error' in ink
+        ? `⚠️ Ink vs cloth: not measured (${ink.error}).`
+        : ink.flagged === 0
+          ? `Ink vs cloth: ${ink.prints} print(s) checked on ${ink.colourways} colourway(s) — every print stands out from the cloth beneath it.`
+          : `⚠️ Ink vs cloth: ${ink.flagged} of ${ink.rows} print-colourway pairs read as bare cloth or carry the cloth's own colour value. ` +
+            "CLO writes the colourway colour into a print; set the graphic's colour in CLO for those colourways and re-export, or tell us it is intended:\n" +
+            ink.lines.map((line) => `  - ${line}`).join('\n'),
     overlays === undefined
       ? 'Anti-flicker: overlay scan not run for this job.'
       : 'error' in overlays

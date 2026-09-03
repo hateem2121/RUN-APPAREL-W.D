@@ -120,6 +120,13 @@ interface ShrinkReport {
     note?: string
   }[]
   /**
+   * Ink vs cloth (fix plan Rank 9, 2026-09-03): prints whose ink reads as the cloth
+   * beneath them, for the owner to rule on. Absent from an older container.
+   */
+  ink?:
+    | { prints: number; colourways: number; rows: number; flagged: number; lines: string[] }
+    | { error: string }
+  /**
    * The depth-bias records the container wrote for printed layers stacked on cloth
    * (fix plan Rank 7C, 2026-09-03). Absent from an older container.
    */

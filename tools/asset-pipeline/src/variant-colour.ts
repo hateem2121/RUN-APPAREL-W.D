@@ -131,7 +131,7 @@ function isGarmentFabric(material: Material, artworkByGeometry: Set<Texture>): b
 const OVERLAY_ALPHA_MAX = 0.5
 
 /** Every (variant name → material) binding on a primitive. */
-function variantBindings(prim: Primitive): { variant: string; material: Material }[] {
+export function variantBindings(prim: Primitive): { variant: string; material: Material }[] {
   const list = prim.getExtension<MappingList>('KHR_materials_variants')
   if (!list) return []
   const out: { variant: string; material: Material }[] = []
@@ -191,7 +191,9 @@ function baseColourLinear(material: Material): [number, number, number] {
  * 4.35% — a 0.01-point coin flip that named white cloth Navy. Across 46 variants in
  * nine exports that was the only disagreement, and it was the one wrong answer.
  */
-function dominantFabricByVariant(document: Document): { variantId: string; material: Material }[] {
+export function dominantFabricByVariant(
+  document: Document,
+): { variantId: string; material: Material }[] {
   const areaByVariant = new Map<string, Map<string, { material: Material; area: number }>>()
   const order: string[] = []
   const artworkByGeometry = findArtworkTexturesByGeometry(document)

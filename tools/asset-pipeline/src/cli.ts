@@ -7,12 +7,14 @@ import { type GlbDescription, describeGlb, readGltfJson } from './describe'
 import { mergeVariants, parseMergeArgs, type ParsedMergeArgs } from './merge-variants'
 import { finiteNumber, optimizeGlb, parseOptimizeArgs } from './optimize'
 import type { LightingMode } from './viewer-page'
+import sharp from 'sharp'
 import { DEFAULT_VIEWS, type RenderView, renderViews } from './render'
 import { type SpecFileCheck, checkGltfSpecFileGuarded, describeSpecIssues } from './gltf-spec'
 import { annotateGlbOverlays, type OverlayOverride } from './overlay-annotate'
 import { measureOverlays } from './overlay-depth'
 import { startReviewServer } from './review-server'
 import { dumpTextures } from './textures'
+import { describeInkRow, framePrint, measureInkContrast } from './ink-contrast'
 import { readGlb } from './io'
 import { checkVariants, inspectGlb } from './validate'
 import { generatePlaceholders } from './placeholders'
@@ -88,6 +90,12 @@ DIAGNOSTICS — for looking at artwork instead of guessing at it
       --no-instruments     The OLD page without the near plane or the bias. A negative
                            control only; never judge a garment with it
 
+  pnpm pipeline ink <file.glb> [--json] [--strip <dir>]
+      Does the printed ink come out the colour of the cloth it sits on? One row per
+      print per colourway: ink (texture × factor) vs the cloth BENEATH it (from the
+      overlay scan), WCAG contrast, and a flag where CLO copied the cloth's colour
+      into the print. --strip renders every flagged print across its colourways.
+      Report only — the owner rules per print (fix plan Rank 9).
   pnpm pipeline compare <dirA> <dirB> --out <sheet.png> [--gain <n>]
       Contact sheet of two render directories: A, B and their amplified
       difference, per view, with the real numbers in each row's label.
@@ -490,6 +498,80 @@ async function main(): Promise<void> {
     return
   }
 
+  if (command === 'ink') {
+    const file = rest.find((a) => !a.startsWith('--') && a.endsWith('.glb'))
+    if (!file) fail('Missing <file.glb>')
+    const asJson = rest.includes('--json')
+    const stripAt = rest.indexOf('--strip')
+    const stripDir = stripAt >= 0 ? rest[stripAt + 1] : undefined
+    if (stripAt >= 0 && !stripDir) fail('--strip needs a directory')
+    const { document } = await readGlb(file)
+    const readings = measureOverlays(document)
+    const report = await measureInkContrast(document, readings)
+    if (asJson) {
+      console.log(JSON.stringify(report, null, 2))
+    } else {
+      console.log(
+        `\n${basename(file, '.glb')} — ${report.prints} print(s) × ${report.colourways.length} colourway(s)`,
+      )
+      for (const variantId of report.colourways) {
+        console.log(`\n  ${variantId}`)
+        for (const row of report.rows.filter((r) => r.variantId === variantId)) {
+          const ratio =
+            row.contrastRatio === null ? '   n/a ' : `${row.contrastRatio.toFixed(2).padStart(6)}:1`
+          const flag = row.inkMatchesCloth
+            ? '  ← factor IS the cloth colour'
+            : row.verdict === 'invisible'
+              ? '  ← invisible'
+              : ''
+          console.log(
+            `    ${ratio}  ${row.verdict.padEnd(10)} ink ${row.inkHex} on ${row.clothHex ?? '(none)'} ${(row.cloth ?? '(no cloth)').slice(0, 28).padEnd(28)} ${row.clothSource === 'dominant' ? '[dominant] ' : ''}${row.print}${flag}`,
+          )
+        }
+      }
+      console.log(
+        `\n  ${report.flagged.length} flagged of ${report.rows.length} (a flag is a question for the owner, never a change to the file):`,
+      )
+      for (const row of report.flagged) console.log(`    - ${describeInkRow(row)}`)
+    }
+    if (stripDir !== undefined && report.flagged.length) {
+      // One strip per flagged PRINT, one cell per colourway, production lighting.
+      const prints = new Map<string, { meshIndex: number; primitiveIndex: number }>()
+      for (const row of report.flagged) prints.set(row.print.replace(/_\d+$/, ''), row)
+      await mkdir(stripDir, { recursive: true })
+      for (const [label, where] of prints) {
+        const view = framePrint(document, where.meshIndex, where.primitiveIndex)
+        if (!view) continue
+        const cells: { file: string; caption: string }[] = []
+        for (const variantId of report.colourways) {
+          const dir = join(stripDir, `${view.name}--${variantId.replace(/[^a-z0-9]+/gi, '-')}`)
+          const rendered = await renderViews(file, dir, {
+            views: [view],
+            ...(variantId === 'default' ? {} : { variant: variantId }),
+            width: 512,
+            height: 512,
+          })
+          // A flat frame is a camera that missed, not a print with no contrast (the
+          // 2026-09-02 trap). Say so on the cell; never let it read as a picture.
+          const flat = rendered.flatViews.length > 0
+          const row = report.rows.find(
+            (r) => r.variantId === variantId && r.print.replace(/_\d+$/, '') === label,
+          )
+          cells.push({
+            file: join(dir, `${view.name}.png`),
+            caption: flat
+              ? `${variantId} ⚠️ FLAT FRAME — camera missed the print`
+              : `${variantId} ${row?.contrastRatio?.toFixed(2) ?? '?'}:1 ${row?.verdict ?? ''}${row?.inkMatchesCloth ? ' =cloth' : ''}`,
+          })
+        }
+        const out = join(stripDir, `ink-strip-${view.name}.png`)
+        await inkStrip(cells, out)
+        console.log(`  strip → ${out}`)
+      }
+    }
+    return
+  }
+
   if (command === 'review') {
     // ⚠️ Walk the arguments; do NOT filter on `!startsWith('--')`. That was the
     // first version and it read the PORT NUMBER as a second directory —
@@ -887,3 +969,43 @@ async function main(): Promise<void> {
 main().catch((error: unknown) => {
   fail(error instanceof Error ? error.message : String(error))
 })
+
+/** A row of captioned cells — the owner's contact strip for one print across colourways. */
+async function inkStrip(
+  cells: { file: string; caption: string }[],
+  outFile: string,
+  cell = 512,
+): Promise<void> {
+  const label = 24
+  const layers: import('sharp').OverlayOptions[] = []
+  for (const [i, { file, caption }] of cells.entries()) {
+    const text = caption.replace(
+      /[<>&]/g,
+      (ch) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[ch] ?? ch,
+    )
+    layers.push({
+      input: Buffer.from(
+        `<svg width="${cell}" height="${label}"><rect width="${cell}" height="${label}" fill="#111"/>` +
+          `<text x="6" y="16" font-family="monospace" font-size="13" fill="#eee">${text}</text></svg>`,
+      ),
+      top: 0,
+      left: i * cell,
+    })
+    layers.push({
+      input: await sharp(file).resize(cell, cell, { fit: 'contain' }).toBuffer(),
+      top: label,
+      left: i * cell,
+    })
+  }
+  await sharp({
+    create: {
+      width: cells.length * cell,
+      height: cell + label,
+      channels: 3,
+      background: { r: 17, g: 17, b: 17 },
+    },
+  })
+    .composite(layers)
+    .png()
+    .toFile(outFile)
+}
