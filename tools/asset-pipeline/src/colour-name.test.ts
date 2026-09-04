@@ -104,9 +104,7 @@ describe('nameColour — neutrals and confidence', () => {
     // looking at the swatch.
     for (const hex of ['#101010', '#8A8F8F', '#F2F0EB', '#5B6666']) {
       const { name } = nameColour(hex)
-      expect(['Black', 'Charcoal', 'Slate', 'Grey', 'Light Grey', 'Off White', 'White']).toContain(
-        name,
-      )
+      expect(['Black', 'Charcoal', 'Slate', 'Ash', 'Pebble', 'Bone', 'Optic White']).toContain(name)
     }
   })
 
@@ -150,9 +148,11 @@ describe('palette coverage for real garment colours', () => {
     ['#FF7F50', 'Coral'],
     // The two yellow colourways CLO actually exported (audit CG-07): tennis suit
     // Colorway 10 and X-Milo Training Vest Colorway 4. Neither had a name until
-    // Yellow joined the palette; the neighbours it must not crowd are pinned below.
-    ['#FFD900', 'Yellow'],
-    ['#FFFF22', 'Yellow'],
+    // #FFEF00 joined the palette; the neighbours it must not crowd are pinned below.
+    // Called Citron since 2026-09-04 — the HEX is the load-bearing part of CG-07 and is
+    // unchanged, so these two still resolve with confidence.
+    ['#FFD900', 'Citron'],
+    ['#FFFF22', 'Citron'],
     ['#C9A227', 'Mustard'],
     ['#B58A2B', 'Gold'],
   ]

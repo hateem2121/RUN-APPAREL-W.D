@@ -57,11 +57,35 @@ const NEUTRAL_CHROMA = 8
  * lookup can find a value it was handed, and nothing about a colour it has not
  * seen. The measured table in colour-name.test.ts is the real check.
  */
+/**
+ * ⚠️ TEN NAMES WERE CHANGED ON 2026-09-04 AND NOT ONE HEX WAS — owner ruling, on seeing the
+ * first catalogue-wide naming run: *"Do not use standard names like pink, yellow, etc. All
+ * other are perfect."*
+ *
+ *   Pink -> Fuchsia    Yellow -> Citron      Orange -> Tangerine   Red -> Scarlet
+ *   Purple -> Amethyst Brown -> Chestnut     White -> Optic White  Off White -> Bone
+ *   Light Grey -> Pebble                     Grey -> Ash
+ *
+ * This is a change of vocabulary, not of measurement. Because every hex is untouched, the
+ * CIEDE2000 distances, the confidence verdicts and the spread between neighbours are all
+ * exactly as they were — including the deliberate #FFEF00 choice from audit CG-07, which is
+ * still the only entry that can name CLO's two yellow colourways with confidence, and is now
+ * called Citron. Renaming rather than re-hexing is the whole reason this was safe to do.
+ *
+ * It does NOT touch either live product: a colourway's `displayName` is stored on the product
+ * row, not derived at read time, so rxps keeps Wine / Blush / Butter / Lime / Black — two of
+ * which the owner corrected by hand in 2026-08 and which must not be re-guessed.
+ *
+ * The register to match when adding an entry is the one the comment below already asks for —
+ * the word a merchandiser would print on a line sheet, not the word a browser would accept in
+ * CSS. `Black`, `Beige`, `Ivory`, `Navy`, `Slate` and `Charcoal` stayed because they are
+ * already that word.
+ */
 const GREY_RAMP: { name: string; hex: string }[] = [
-  { name: 'White', hex: '#FFFFFF' },
-  { name: 'Off White', hex: '#F4F1EC' },
-  { name: 'Light Grey', hex: '#C8CCCC' },
-  { name: 'Grey', hex: '#8C9191' },
+  { name: 'Optic White', hex: '#FFFFFF' },
+  { name: 'Bone', hex: '#F4F1EC' },
+  { name: 'Pebble', hex: '#C8CCCC' },
+  { name: 'Ash', hex: '#8C9191' },
   { name: 'Slate', hex: '#5F6A6A' },
   { name: 'Charcoal', hex: '#3A3D3F' },
   { name: 'Black', hex: '#121212' },
@@ -89,7 +113,7 @@ const PALETTE: { name: string; hex: string }[] = [
   { name: 'Maroon', hex: '#6B2F2F' },
   { name: 'Burgundy', hex: '#6B1F35' },
   { name: 'Crimson', hex: '#B3222F' },
-  { name: 'Red', hex: '#C62828' },
+  { name: 'Scarlet', hex: '#C62828' },
   { name: 'Rust', hex: '#A8452A' },
   // Coral was #E2725B until 2026-08-10, which is in fact the canonical
   // Terracotta value (see below) — the two would have tied on any hex
@@ -98,16 +122,16 @@ const PALETTE: { name: string; hex: string }[] = [
   // Coral's own canonical #FF7F50.
   { name: 'Coral', hex: '#FF7F50' },
   { name: 'Blush', hex: '#E8B4B8' },
-  { name: 'Pink', hex: '#E75480' },
-  { name: 'Purple', hex: '#5B3B8C' },
+  { name: 'Fuchsia', hex: '#E75480' },
+  { name: 'Amethyst', hex: '#5B3B8C' },
   { name: 'Lilac', hex: '#B9A7D8' },
   { name: 'Mustard', hex: '#C9A227' },
   { name: 'Gold', hex: '#B58A2B' },
-  { name: 'Orange', hex: '#E06A1B' },
+  { name: 'Tangerine', hex: '#E06A1B' },
   { name: 'Peach', hex: '#F2B08A' },
   { name: 'Sand', hex: '#D9C9A3' },
   { name: 'Tan', hex: '#B58A5F' },
-  { name: 'Brown', hex: '#4E342E' },
+  { name: 'Chestnut', hex: '#4E342E' },
   { name: 'Cream', hex: '#F3E9D2' },
   // Added 2026-08-10. Two of N001's own five live colourways — Wine and
   // Butter — had no entry: their canonical hexes matched nearest to Maroon and
@@ -141,7 +165,7 @@ const PALETTE: { name: string; hex: string }[] = [
   // published CMYK primary) names both with confidence (6.6 / 4.4) and sits 16.6+
   // from every neighbour, where CSS yellow #FFFF00 would leave the first at 10.9 and
   // gold #FFD700 the second at 11.6.
-  { name: 'Yellow', hex: '#FFEF00' },
+  { name: 'Citron', hex: '#FFEF00' },
   { name: 'Mauve', hex: '#C8A2C8' },
   { name: 'Camel', hex: '#C19A6B' },
   { name: 'Mocha', hex: '#3B2F2F' },
