@@ -1,4 +1,5 @@
 import { parseViewerPath } from '@run-apparel/shared'
+import { withNoTransform } from './noTransform'
 import type { ViewerApiSuccess } from '@run-apparel/shared'
 import { OG_CARDS } from './og-cards'
 import { buildPreview, type Preview } from './preview'
@@ -346,7 +347,7 @@ export default {
       request.method !== 'GET' ||
       !CRAWLER.test(request.headers.get('user-agent') ?? '')
     ) {
-      return env.ASSETS.fetch(request)
+      return withNoTransform(await env.ASSETS.fetch(request))
     }
 
     const [response, payload] = await Promise.all([
@@ -354,7 +355,7 @@ export default {
       loadPayload(env, route, url.origin, ctx),
     ])
 
-    if (!payload) return response
+    if (!payload) return withNoTransform(response)
     if (!(response.headers.get('content-type') ?? '').includes('text/html')) return response
 
     const transformed = applyPreview(
@@ -366,6 +367,17 @@ export default {
     // in front of this handing a crawler's copy to a visitor.
     const headers = new Headers(transformed.headers)
     headers.append('Vary', 'User-Agent')
+    // Same reason as withNoTransform above, applied to the rewritten copy: this response is
+    // built by hand, so it does not pass through that helper. A crawler executes no
+    // JavaScript, so Cloudflare's injected bootstrap is pure weight here — and keeping the
+    // directive on every HTML route means one rule to reason about instead of two.
+    const crawlerCacheControl = headers.get('cache-control') ?? ''
+    if (!crawlerCacheControl.includes('no-transform')) {
+      headers.set(
+        'cache-control',
+        crawlerCacheControl ? `${crawlerCacheControl}, no-transform` : 'no-transform',
+      )
+    }
     return new Response(transformed.body, {
       status: transformed.status,
       statusText: transformed.statusText,
