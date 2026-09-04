@@ -191,9 +191,24 @@ function baseColourLinear(material: Material): [number, number, number] {
  * 4.35% — a 0.01-point coin flip that named white cloth Navy. Across 46 variants in
  * nine exports that was the only disagreement, and it was the one wrong answer.
  */
-export function dominantFabricByVariant(
+/**
+ * Every fabric a colourway shows, largest first, with the share of the colourway's
+ * fabric area each one covers.
+ *
+ * Split out of `dominantFabricByVariant` on 2026-09-04, which kept only `[0]`. The
+ * area map was already being built here; nothing computed it a second time. The
+ * caller that needed the rest is colour NAMING: the owner's ruling is that "a single
+ * colourway may have multiple colours in them", and the two live products already
+ * read that way in the CMS — "Wine / Black", "Olive / Sage". A one-fabric answer
+ * cannot propose those names.
+ *
+ * `dominantFabricByVariant` still returns exactly what it did, and the CMS still
+ * reads the single dominant colour through it — this adds a view, it does not change
+ * a verdict.
+ */
+export function fabricsByVariant(
   document: Document,
-): { variantId: string; material: Material }[] {
+): { variantId: string; fabrics: { material: Material; area: number; share: number }[] }[] {
   const areaByVariant = new Map<string, Map<string, { material: Material; area: number }>>()
   const order: string[] = []
   const artworkByGeometry = findArtworkTexturesByGeometry(document)
@@ -221,14 +236,40 @@ export function dominantFabricByVariant(
     }
   }
 
-  const out: { variantId: string; material: Material }[] = []
+  const out: {
+    variantId: string
+    fabrics: { material: Material; area: number; share: number }[]
+  }[] = []
   for (const variantId of order) {
     const byCloth = [...areaByVariant.get(variantId)!.values()]
     // Fabric first. If a garment is somehow all trim and graphics, fall back to
     // the largest material of any kind rather than reporting nothing at all.
     const fabric = byCloth.filter(({ material }) => isGarmentFabric(material, artworkByGeometry))
     const candidates = fabric.length > 0 ? fabric : byCloth
-    const dominant = candidates.sort((a, b) => b.area - a.area)[0]
+    const sorted = [...candidates].sort((a, b) => b.area - a.area)
+    const total = sorted.reduce((sum, entry) => sum + entry.area, 0)
+    out.push({
+      variantId,
+      fabrics: sorted.map((entry) => ({
+        material: entry.material,
+        area: entry.area,
+        share: total > 0 ? entry.area / total : 0,
+      })),
+    })
+  }
+  return out
+}
+
+/**
+ * The single largest fabric per colourway — the one whose colour names the colourway.
+ * Unchanged in behaviour since 2026-08; now a thin read over `fabricsByVariant`.
+ */
+export function dominantFabricByVariant(
+  document: Document,
+): { variantId: string; material: Material }[] {
+  const out: { variantId: string; material: Material }[] = []
+  for (const { variantId, fabrics } of fabricsByVariant(document)) {
+    const dominant = fabrics[0]
     if (dominant) out.push({ variantId, material: dominant.material })
   }
   return out
