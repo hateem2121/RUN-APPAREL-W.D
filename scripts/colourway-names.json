@@ -1,0 +1,464 @@
+{
+  "_comment": [
+    "PROPOSED colourway names, awaiting the owner's approval — applied by scripts/publish-garment.mjs.",
+    "",
+    "Every name and hex here was MEASURED out of the 2026-09-03 diffuse-off CLO exports by",
+    "fabricsByVariant + the CIEDE2000 palette in colour-name.ts, not typed by hand. A name is",
+    "compound (\"Wine / Black\") where a SECOND fabric covers 18% or more of the colourway's",
+    "fabric area, which is the shape both live products already use in the CMS.",
+    "",
+    "THE slug IS THE IRREVERSIBLE FIELD. It becomes part of the URL printed on that garment's",
+    "QR tag, so once a tag exists it can never change. deltaE is the palette distance: above 10",
+    "the match is weak and the robot itself refused to guess, leaving the CMS row blank.",
+    "",
+    "The two live products are deliberately absent: their names are already set and still match",
+    "their files."
+  ],
+  "products": {
+    "r-afp": {
+      "productName": "APEX FLEX PULLOVER",
+      "colours": [
+        {
+          "variantId": "Default Colorway",
+          "displayName": "Petrol",
+          "slug": "petrol",
+          "hex": "#02374D",
+          "deltaE": 7,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Mustard",
+          "slug": "mustard",
+          "hex": "#FF9F00",
+          "deltaE": 14.09,
+          "needsOwnerEye": true
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Sky",
+          "slug": "sky",
+          "hex": "#9CD7FF",
+          "deltaE": 8.78,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Mauve",
+          "slug": "mauve",
+          "hex": "#DCAFCB",
+          "deltaE": 5.41,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Butter",
+          "slug": "butter",
+          "hex": "#CFD590",
+          "deltaE": 7.84,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-atw": {
+      "productName": "AERO-TECH WINDBREAKER",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Turquoise",
+          "slug": "turquoise",
+          "hex": "#3CCECE",
+          "deltaE": 6.74,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Pink",
+          "slug": "pink",
+          "hex": "#A46E84",
+          "deltaE": 13.83,
+          "needsOwnerEye": true
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Sage",
+          "slug": "sage",
+          "hex": "#87956A",
+          "deltaE": 8.18,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Off White",
+          "slug": "off-white",
+          "hex": "#F2EEE4",
+          "deltaE": 2.36,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Yellow",
+          "slug": "yellow",
+          "hex": "#F1F265",
+          "deltaE": 7.01,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-atj": {
+      "productName": "ARMOR-TECH JACKET",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Grey",
+          "slug": "grey",
+          "hex": "#929292",
+          "deltaE": 2.72,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Powder Blue",
+          "slug": "powder-blue",
+          "hex": "#9DD0E3",
+          "deltaE": 6.3,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Burgundy",
+          "slug": "burgundy",
+          "hex": "#582C36",
+          "deltaE": 6.41,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Sage",
+          "slug": "sage",
+          "hex": "#A3B573",
+          "deltaE": 6.66,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Navy",
+          "slug": "navy",
+          "hex": "#053050",
+          "deltaE": 6.12,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-wzu": {
+      "productName": "WOMEN ZIP-UP VEST",
+      "colours": [
+        {
+          "variantId": "Default Colorway",
+          "displayName": "Blush",
+          "slug": "blush",
+          "hex": "#FFCACC",
+          "deltaE": 5.41,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Butter / Camel",
+          "slug": "butter",
+          "hex": "#F3E5BE",
+          "deltaE": 4.68,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#DAAC67",
+            "name": "Camel",
+            "areaShare": 24
+          }
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Powder Blue / Teal",
+          "slug": "powder-blue",
+          "hex": "#93CCD6",
+          "deltaE": 5.48,
+          "needsOwnerEye": true,
+          "secondFabric": {
+            "hex": "#2A8D9C",
+            "name": "Teal",
+            "areaShare": 24
+          }
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Beige / Lime",
+          "slug": "beige",
+          "hex": "#E7F2C5",
+          "deltaE": 7.15,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#C3D08F",
+            "name": "Lime",
+            "areaShare": 25
+          }
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Plum / Mauve",
+          "slug": "plum",
+          "hex": "#725965",
+          "deltaE": 15.01,
+          "needsOwnerEye": true,
+          "secondFabric": {
+            "hex": "#B59DAB",
+            "name": "Mauve",
+            "areaShare": 25
+          }
+        }
+      ]
+    },
+    "r-mm": {
+      "productName": "MINECUT MOTION",
+      "colours": [
+        {
+          "variantId": "Colorway A",
+          "displayName": "Blush",
+          "slug": "blush",
+          "hex": "#A58F8F",
+          "deltaE": 15.49,
+          "needsOwnerEye": true
+        },
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Sky",
+          "slug": "sky",
+          "hex": "#698592",
+          "deltaE": 17.41,
+          "needsOwnerEye": true
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Sage",
+          "slug": "sage",
+          "hex": "#AEB87A",
+          "deltaE": 7.06,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Lilac",
+          "slug": "lilac",
+          "hex": "#95A0BF",
+          "deltaE": 10.99,
+          "needsOwnerEye": true
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Grey",
+          "slug": "grey",
+          "hex": "#888585",
+          "deltaE": 5.69,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-aj": {
+      "productName": "THE AGGRESSOR JERSEY",
+      "colours": [
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Indigo",
+          "slug": "indigo",
+          "hex": "#3F006F",
+          "deltaE": 3.29,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Magenta / Burgundy",
+          "slug": "magenta",
+          "hex": "#C63257",
+          "deltaE": 4.81,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#712135",
+            "name": "Burgundy",
+            "areaShare": 30
+          }
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Orange",
+          "slug": "orange",
+          "hex": "#FF8D00",
+          "deltaE": 12.18,
+          "needsOwnerEye": true
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Lime / Yellow",
+          "slug": "lime",
+          "hex": "#DBE366",
+          "deltaE": 9.97,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#DDD75C",
+            "name": "Yellow",
+            "areaShare": 30
+          }
+        },
+        {
+          "variantId": "Colorway 6",
+          "displayName": "Light Grey / White",
+          "slug": "light-grey",
+          "hex": "#BDBDBD",
+          "deltaE": 4.11,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#FFFFFF",
+            "name": "White",
+            "areaShare": 30
+          }
+        }
+      ]
+    },
+    "r-css": {
+      "productName": "CLASSIC SOCCER SHIRT",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Blush / Powder Blue",
+          "slug": "blush",
+          "hex": "#FFC9DF",
+          "deltaE": 8.25,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#A4DFFA",
+            "name": "Powder Blue",
+            "areaShare": 24
+          }
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Slate / Powder Blue",
+          "slug": "slate",
+          "hex": "#4A575A",
+          "deltaE": 7.18,
+          "needsOwnerEye": true,
+          "secondFabric": {
+            "hex": "#B7E3CF",
+            "name": "Powder Blue",
+            "areaShare": 24
+          }
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Sky / Powder Blue",
+          "slug": "sky",
+          "hex": "#77B0D8",
+          "deltaE": 2.82,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#DEFFFF",
+            "name": "Powder Blue",
+            "areaShare": 24
+          }
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Peach / Butter",
+          "slug": "peach",
+          "hex": "#FF9E6F",
+          "deltaE": 6.31,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#FFF8A7",
+            "name": "Butter",
+            "areaShare": 24
+          }
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Lilac / Mauve",
+          "slug": "lilac",
+          "hex": "#B9AFD6",
+          "deltaE": 3.56,
+          "needsOwnerEye": true,
+          "secondFabric": {
+            "hex": "#FADFFF",
+            "name": "Mauve",
+            "areaShare": 24
+          }
+        }
+      ]
+    },
+    "r-au": {
+      "productName": "THE AGGRESSOR UNIFORM",
+      "colours": [
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Bottle Green / Mint",
+          "slug": "bottle-green",
+          "hex": "#1B6C53",
+          "deltaE": 1.8,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#55B09F",
+            "name": "Mint",
+            "areaShare": 19
+          }
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Terracotta / Blush",
+          "slug": "terracotta",
+          "hex": "#D37779",
+          "deltaE": 9.3,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#E0A6A8",
+            "name": "Blush",
+            "areaShare": 19
+          }
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Coral / Peach",
+          "slug": "coral",
+          "hex": "#F18554",
+          "deltaE": 3.2,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#EEB79E",
+            "name": "Peach",
+            "areaShare": 19
+          }
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Beige / Sage",
+          "slug": "beige",
+          "hex": "#DADCC4",
+          "deltaE": 5.57,
+          "needsOwnerEye": true,
+          "secondFabric": {
+            "hex": "#85856E",
+            "name": "Sage",
+            "areaShare": 19
+          }
+        },
+        {
+          "variantId": "Colorway 6",
+          "displayName": "Powder Blue / Sky",
+          "slug": "powder-blue",
+          "hex": "#ABEFFF",
+          "deltaE": 5.09,
+          "needsOwnerEye": true,
+          "secondFabric": {
+            "hex": "#3C95A3",
+            "name": "Sky",
+            "areaShare": 19
+          }
+        }
+      ]
+    }
+  }
+}
