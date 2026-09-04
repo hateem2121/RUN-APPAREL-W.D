@@ -30,7 +30,24 @@
  * blind gate for another.
  */
 
-/** The true object size from whatever the edge was willing to say, or 0 if neither. */
+/**
+ * The only thing this module needs from a response: a header bag it can read.
+ *
+ * Typed this narrowly on purpose. `apps/cms` compiles with @cloudflare/workers-types, so
+ * the ambient `fetch` there is the Workers one and anything typed against it forces a test
+ * stub to be a full `Response` — which this code never touches. Declaring the real contract
+ * keeps the module honest and its tests cheap.
+ *
+ * @typedef {{ get(name: string): string | null }} HeaderBag
+ * @typedef {{ headers: HeaderBag }} HeadersOnlyResponse
+ * @typedef {(url: string, init?: { method?: string, headers?: Record<string, string>, signal?: AbortSignal }) => Promise<HeadersOnlyResponse>} FetchLike
+ */
+
+/**
+ * The true object size from whatever the edge was willing to say, or 0 if neither.
+ * @param {HeaderBag} headers
+ * @returns {number}
+ */
 export function bytesFromHeaders(headers) {
   const range = headers.get('content-range')
   if (range) {
@@ -46,6 +63,11 @@ export function bytesFromHeaders(headers) {
  *
  * Returns the byte count, or 0 when the edge would not say — which the caller must
  * report as unverified rather than treat as a pass.
+ *
+ * @param {string} url
+ * @param {HeadersOnlyResponse} headResponse
+ * @param {{ fetchFn?: FetchLike, timeoutMs?: number }} [options]
+ * @returns {Promise<number>}
  */
 export async function measureModelBytes(
   url,

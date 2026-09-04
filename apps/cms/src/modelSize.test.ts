@@ -27,8 +27,8 @@ const res = (init: Record<string, string>) => ({ headers: headers(init) })
 /** Records every call so "did it fall back?" is an assertion, not an inference. */
 function stubFetch(response: Record<string, string>) {
   const calls: { url: string; range?: string }[] = []
-  const fetchFn = async (url: string, opts: { headers?: Record<string, string> }) => {
-    calls.push({ url, range: opts?.headers?.range })
+  const fetchFn = async (url: string, init?: { headers?: Record<string, string> }) => {
+    calls.push({ url, range: init?.headers?.range })
     return res(response)
   }
   return { fetchFn, calls }
@@ -74,7 +74,7 @@ describe('measureModelBytes', () => {
 
     expect(bytes).toBe(28271780)
     expect(calls).toHaveLength(1)
-    expect(calls[0].range).toBe('bytes=0-0')
+    expect(calls[0]?.range).toBe('bytes=0-0')
   })
 
   it('does not spend a second request when the HEAD already carried the length', async () => {
