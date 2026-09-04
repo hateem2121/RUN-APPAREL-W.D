@@ -270,7 +270,10 @@ jobs:
       contents: read
       pull-requests: read
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 20, not 10: the retry above needs room for three attempts, and on 2026-09-04
+    # `pnpm/action-setup` alone consumed 372-425s of the old 10-minute budget. In the
+    # normal case this job still finishes in about two minutes.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -282,7 +285,42 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Vulnerability audit (high/critical)
-        run: pnpm exec audit-ci --config audit-ci.jsonc
+        run: |
+          # audit-ci exits 1 for BOTH "found a high/critical advisory" and "could not reach
+          # the advisory registry", and `deploy` lists this job in `needs` — so on
+          # 2026-09-04 a degraded runner blocked the production deploy FIVE times while the
+          # same audit passed locally on the same commit. The log's tell is
+          # `code ERR_SOCKET_TIMEOUT: undefined` and, decisively, the absence of any
+          # advisory list: when audit-ci finds something it prints it.
+          #
+          # ⚠️ audit-ci's OWN retry cannot help here, and the config's comment claiming it
+          # does was wrong. It retries only when the error message matches
+          # `PARTIAL_RETRY_ERROR_MSG[packageManager]`, and upstream ships
+          # `pnpm: []  // TODO: Identify retry-able error message for pnpm`. So
+          # `retry-count` has never retried anything in this repo, and `--pass-enoaudit`
+          # is gated on the same flag and would be equally inert — checked in
+          # audit-ci@7.1.0/dist/bin.cjs.
+          #
+          # So retry HERE, and only on the network signature. A real advisory prints its
+          # list and must fail on the very first attempt: this must never be able to turn a
+          # finding into a pass. Bounded at 3 attempts inside a 20-minute job, because a
+          # failing attempt took ~250s and `pnpm/action-setup` itself took 372-425s that day.
+          attempts=3
+          for i in $(seq 1 $attempts); do
+            if pnpm exec audit-ci --config audit-ci.jsonc > audit.out 2>&1; then
+              cat audit.out
+              exit 0
+            fi
+            cat audit.out
+            if ! grep -q 'ERR_SOCKET_TIMEOUT' audit.out; then
+              echo "::error::audit-ci failed on a FINDING, not a network error — not retrying."
+              exit 1
+            fi
+            echo "::warning::attempt $i of $attempts could not reach the advisory registry (ERR_SOCKET_TIMEOUT); this is not a vulnerability."
+            if [ "$i" -lt "$attempts" ]; then sleep 15; fi
+          done
+          echo "::error::audit-ci could not reach the advisory registry after $attempts attempts. NOT a vulnerability — no advisory list was printed. Re-run this job."
+          exit 1
 
       # SBOM + licence gate. `audit-ci` above answers "is anything known-vulnerable
       # TODAY"; this answers the question that only matters LATER — "were we running
