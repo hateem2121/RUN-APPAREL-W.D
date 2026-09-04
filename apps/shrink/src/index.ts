@@ -384,6 +384,33 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
       body: JSON.stringify({
         key,
         flags: shrinkFlagsFor(detail),
+        /**
+         * ⚠️ THESE TWO SECRETS COME FROM ONE NAMED CLOUDFLARE KEY, AND SWITCHING IT
+         * OFF BREAKS EVERY SHRINK SILENTLY — it did, for four days, in 2026.
+         *
+         * They are the S3 credentials of the account API token **"R2 User Token"**
+         * (id `efad459b…`, issued 2026-07-24 with the single permission group
+         * `Workers R2 Storage Bucket Item Read`). On 2026-08-31 the account's eleven
+         * keys were consolidated to two and that token was disabled as having
+         * "no identified consumer" — because a Worker secret's VALUE cannot be read
+         * back, so nothing on the Cloudflare side can point at this line.
+         *
+         * Measured 2026-09-04, on the first garment attempted since: every job failed
+         * with `Container returned 500: Could not read raw object "…" from ingest
+         * (401)`, three attempts then the dead-letter queue. Nothing else was wrong —
+         * the same file through the same pipeline locally produced a valid 3.79 MB GLB.
+         * No gate could have caught it: the only thing that exercises this credential
+         * is a real garment, and none had been processed in those four days.
+         *
+         * So: if a shrink fails with 401/403 here, check the token's STATUS before
+         * anything else (`GET /user/tokens` needs `API Tokens Read`; the master key
+         * has it). Re-enabling is one call and needs `API Tokens Write`, which the
+         * master key deliberately does NOT have. Do not "fix" this by pasting the
+         * master key's own S3 credentials in here — that swaps a read-only,
+         * single-bucket credential for one with 384 permission groups. The durable fix
+         * is to delete these two secrets entirely and stream the object through the
+         * Worker's native `R2_INGEST` binding, which `archiveRaw.ts` already uses.
+         */
         s3: {
           endpoint: env.R2_INGEST_S3_ENDPOINT,
           bucket: env.R2_INGEST_BUCKET,
