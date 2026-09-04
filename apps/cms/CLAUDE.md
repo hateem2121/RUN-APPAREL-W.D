@@ -161,3 +161,24 @@ Measured 2026-08-17 as a baseline worth having: `events` held **754 rows over 28
 (668 analytics, 84 diagnostic, 2 error) and the whole database was **790,528 bytes** —
 0.015% of D1's included storage. That number downgraded a High finding to Low in
 `docs/AUDIT-2026-08-17.md`; see it before assuming the events endpoint is under load.
+
+## Writing to a product from a script — four things measured 2026-09-04
+
+- **The shrink robot REFUSES to attach a model or import colours to a PUBLISHED product** —
+  "swapping the model under a published page is your decision, not the robot's"
+  (`apps/shrink/src/colourImport.ts`, and the same refusal for `glbAsset`). So a republish is
+  TWO acts: the robot produces the Media doc, then a human PATCHes `glbAsset`. Do not read a
+  `ready` raw upload as "the live page changed" — eleven garments went through on 2026-09-04
+  and not one attached itself.
+- **`retry` only fires on a false → true TRANSITION** (`rawUploadRetry.ts` → `retryDecision`:
+  `doc.retry === true && previousDoc.retry !== true`). PATCHing `{retry:true}` onto a row that
+  is already `true` returns **200 and does nothing at all**. Reset it to `false`, then tick it.
+- **`sortOrder` is a plain `number` with no uniqueness rule**, so **10.5** inserts a product
+  between 10 and 11 without renumbering the other 67. That is how `R-AJM` landed directly
+  after `R-AJ`.
+- **A corrected export is usually already in R2** under
+  `run-apparel-archive/fixed-glbs/…`, so `scripts/ingest-from-archive.mjs` starts a shrink
+  from an S3 `CopyObject` — measured 16.9 MB in 4.9 s and 1.71 GiB in 110 s, inside
+  Cloudflare — instead of a browser re-upload up a link measured at ~300 kB/s. ⚠️ Its
+  `clientUploadContext` must be TRUTHY, or `@payloadcms/storage-r2` skips its own >50 MB
+  short-circuit and the CMS Worker tries to buffer the whole object to satisfy a create.

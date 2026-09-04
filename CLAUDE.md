@@ -67,7 +67,7 @@ Found 2026-08-27: `test:e2e` reported four engines failing with `(0ms)`, which r
 as broken code and is a browser that never launched. Install once —
 `npx --yes pnpm@10.33.0 --filter @run-apparel/viewer exec playwright install chromium webkit firefox`.
 `tools/asset-pipeline`'s render harness needs chromium too. With all four present:
-**352 passed, 6 skipped, 44.9s** — the 45s quoted above.
+**355 passed, 6 skipped, 41.8s** — the 45s quoted above.
 
 **`pnpm` may not be on `PATH` — MEASURED BOTH WAYS; use `npx --yes pnpm@10.33.0`.**
 Absent in earlier sessions; 2026-08-21 it WAS there (`/opt/homebrew/bin/pnpm`, exactly
