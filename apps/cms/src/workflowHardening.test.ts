@@ -897,4 +897,83 @@ jobs:
     ].join('\n')
     expect(orphanedKeys(fine)).toEqual([])
   })
+
+  /**
+   * THE AUDIT STEP'S RETRY MUST STAY SCOPED TO THE NETWORK ERROR.
+   *
+   * `audit-ci` exits 1 both when it finds a high/critical advisory and when it cannot
+   * reach the registry — and `deploy` lists the audit job in `needs`. On 2026-09-04 a
+   * degraded runner blocked the production deploy FIVE times while the same audit passed
+   * locally on the same commit: `code ERR_SOCKET_TIMEOUT: undefined`, and decisively no
+   * advisory list, because audit-ci prints one when it finds something.
+   *
+   * So the step retries, but only on that signature; a finding still fails on the first
+   * attempt. What this pins is a well-meant simplification: dropping the guard, or
+   * reaching for `--pass-enoaudit`, would turn "the registry was unreachable" into a PASS
+   * and let a real advisory ship on a flaky day. audit-ci's own `retry-count` cannot be
+   * used instead — it is keyed on message matching and upstream ships
+   * `pnpm: []  // TODO: Identify retry-able error message for pnpm`.
+   *
+   * Read off the source string like every other guard here, for the reason in this file's
+   * header: no YAML dependency to prune out from under it.
+   */
+  /**
+   * The `run:` block that invokes audit-ci, with comment lines stripped.
+   *
+   * Both halves matter. Isolating the BLOCK stops an assertion matching shell from an
+   * unrelated step; stripping COMMENTS stops it matching the step's own prose — the first
+   * draft of this test failed because the block's comment mentions `--pass-enoaudit` while
+   * explaining why that flag is inert, which is exactly the string the check forbids.
+   */
+  function auditSteps(source: string): string[] {
+    const blocks: string[][] = []
+    for (const { line } of shellLines(source)) {
+      if (/^\s*(?:- )?run:/.test(line)) blocks.push([])
+      blocks.at(-1)?.push(line)
+    }
+    return blocks
+      .map((block) => block.filter((line) => !/^\s*#/.test(line)).join('\n'))
+      .filter((block) => block.includes('audit-ci'))
+  }
+
+  it('retries the vulnerability audit only on the network signature, never on a finding', async () => {
+    const found: { name: string; shell: string }[] = []
+    for (const name of await workflowFiles()) {
+      for (const shell of auditSteps(read(name))) found.push({ name, shell })
+    }
+
+    // The guard must not pass by finding nothing.
+    expect(found.length).toBeGreaterThan(0)
+
+    for (const { name, shell } of found) {
+      expect(shell, `${name}: the audit step must retry`).toMatch(/for\s+\w+\s+in/)
+      expect(shell, `${name}: the retry must be gated on ERR_SOCKET_TIMEOUT`).toContain(
+        'ERR_SOCKET_TIMEOUT',
+      )
+      expect(shell, `${name}: a finding must not be retried`).toMatch(/not retrying/i)
+      expect(
+        shell,
+        `${name}: --pass-enoaudit would turn an unreachable registry into a pass`,
+      ).not.toContain('--pass-enoaudit')
+    }
+  })
+
+  it('the audit-retry check can actually fail (negative control)', () => {
+    // The step as it stood until 2026-09-04: one command, no loop, no signature guard.
+    const bare = [
+      'jobs:',
+      '  audit:',
+      '    steps:',
+      '      - run: pnpm exec audit-ci --config audit-ci.jsonc',
+    ].join('\n')
+    const shell = auditSteps(bare)
+    expect(shell).toHaveLength(1)
+    expect(shell[0]).not.toMatch(/for\s+\w+\s+in/)
+    expect(shell[0]).not.toContain('ERR_SOCKET_TIMEOUT')
+    expect(shell[0]).not.toMatch(/not retrying/i)
+
+    // And a step reaching for the inert flag must be caught.
+    const withEnoaudit = bare.replace('audit-ci.jsonc', 'audit-ci.jsonc --pass-enoaudit')
+    expect(auditSteps(withEnoaudit)[0]).toContain('--pass-enoaudit')
+  })
 })

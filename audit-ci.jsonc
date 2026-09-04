@@ -5,8 +5,20 @@
   "high": true,
   "critical": true,
   "report-type": "important",
-  // Continue past registry hiccups rather than flaking the build on a network
-  // blip (a real advisory still fails the run).
+  // ⚠️ THIS DOES NOTHING IN THIS REPO, and said the opposite until 2026-09-04. It read
+  // "Continue past registry hiccups rather than flaking the build on a network blip",
+  // which is behaviour audit-ci has never had here: it retries only when the error
+  // message matches `PARTIAL_RETRY_ERROR_MSG[packageManager]`, and upstream ships
+  // `pnpm: []  // TODO: Identify retry-able error message for pnpm`
+  // (audit-ci@7.1.0/dist/bin.cjs). We are a pnpm workspace, so `isRetryableMessage` is
+  // always false and this counter is never consulted. `--pass-enoaudit` is gated on the
+  // same flag and would be equally inert — so do NOT reach for it when the registry is
+  // down, and do NOT raise this number expecting it to help.
+  //
+  // Kept at 3 rather than deleted: it costs nothing, it is correct for npm/yarn, and it
+  // becomes live the moment upstream fills that array in. The real retry lives in the
+  // workflow step (ci.yml / deploy-shrink.yml), scoped to `ERR_SOCKET_TIMEOUT` so it can
+  // never turn a finding into a pass.
   "retry-count": 3,
   // Allowlist specific advisories that are unfixable / not exploitable in this
   // context, with a dated justification, e.g. "GHSA-xxxx-xxxx-xxxx".
