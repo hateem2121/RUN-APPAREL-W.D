@@ -29,6 +29,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { isGatedProduct } from './live-products.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const CMS_ORIGIN = process.env.CMS_ORIGIN ?? 'https://cms.wear-run.help'
@@ -95,6 +96,31 @@ for (const c of colourways) {
   const note = c._keptSlug ? '(slug already set, kept)' : '(slug set now — permanent)'
   console.log(`  ${String(c.variantId).padEnd(17)} "${c.displayName}"  /${c.slug}  ${note}`)
 }
+// ⚠️ REFUSE TO PUBLISH A GARMENT NOTHING WILL WATCH.
+//
+// scripts/live-products.mjs is what every post-deploy gate iterates —
+// smoke-live-products.mjs (is the model fetchable the way a QR scan fetches it?),
+// perf-probe.mjs, and the check-live skill. On 2026-09-04 nine garments were published
+// in one session and that list still named two, so nine live products were verified by
+// nothing for as long as it took someone to notice. That is the same failure the list
+// was written for in the first place; it just arrived from the catalogue growing rather
+// than from a rename.
+//
+// A warning here would be ignored — this whole session was a tour of protections that
+// existed and did nothing. So it is a refusal, and it costs the caller one line of code
+// in the same change that publishes the garment. It cannot fire on a recovery: this
+// script already refuses a product that is published, so the only thing it can stop is a
+// genuinely new one, which is exactly when the row has to exist.
+if (doPublish && !isGatedProduct(slug)) {
+  const first = colourways[0]
+  console.error(`[publish] REFUSED: "${slug}" is not in scripts/live-products.mjs, so no`)
+  console.error('          post-deploy gate would check it. Add this row, then re-run:')
+  console.error(
+    `\n  { slug: '${slug}', colourway: '${first?.slug ?? '<first-colourway>'}', productCode: '${product.productCode}' },\n`,
+  )
+  process.exit(1)
+}
+
 if (dryRun) {
   console.log('[publish] --dry-run: nothing written.')
   process.exit(0)

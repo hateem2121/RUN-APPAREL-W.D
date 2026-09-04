@@ -146,6 +146,21 @@ const TRY_EXTENSIONS = ['', '.ts', '.tsx', '.mjs', '.js', '.json', '.md']
  * Inline-backtick spans that look like repository paths, with fenced code blocks
  * removed first so command examples are not scanned.
  *
+ * ⚠️ THE FENCE EXCLUSION IS LOAD-BEARING — DO NOT "FIX" IT. It looks like a hole: the
+ * commands an operator runs during an incident live in fences, so a renamed script rots
+ * there unwatched, which is this repo's most-repeated incident shape. Measured 2026-09-04
+ * before touching it: fenced blocks across the tracked Markdown carry **537** repo-shaped
+ * paths, and a naive resolver calls **30** of them missing. Nearly all are false: a fence
+ * reads `cd tools/asset-pipeline && npx tsx scripts/poster-sheet.mjs`, so its paths are
+ * relative to a working directory the resolver cannot know — three of the four checked by
+ * hand resolve under `tools/asset-pipeline/`. The rest sit in dated session notes and
+ * plans, where naming a since-deleted file is CORRECT.
+ *
+ * So scanning fences would add ~30 ALLOWED_ABSENT entries to suppress mostly-imaginary
+ * breakage, and the one thing it would genuinely catch — a runbook command whose script
+ * was renamed — is better caught by running the command. Cite the path in prose backticks
+ * as well as showing it in the fence when you want it watched.
+ *
  * @param {string} markdown
  * @returns {string[]}
  */

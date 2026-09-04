@@ -303,9 +303,24 @@ jobs:
           #
           # So retry HERE, and only on the network signature. A real advisory prints its
           # list and must fail on the very first attempt: this must never be able to turn a
-          # finding into a pass. Bounded at 3 attempts inside a 20-minute job, because a
-          # failing attempt took ~250s and `pnpm/action-setup` itself took 372-425s that day.
-          attempts=3
+          # finding into a pass.
+          #
+          # ⚠️ TWO ATTEMPTS, AND THE COUNT IS ARITHMETIC, NOT TASTE. This shipped at 3 and
+          # the job died at its own 20-minute ceiling mid-attempt-3 on the very next run —
+          # `cancelled`, which reads exactly like a second push having killed it. Measured
+          # from that run: `pnpm/action-setup` 426s, checkout+node+install 31s, so ~460s of
+          # fixed cost before this step even starts, and a failing attempt took 251s then
+          # 266s. 3 attempts = 460 + 3x270 + 2x15 = 1,300s = 21.7 min > 20. 2 attempts =
+          # 1,015s = 16.9 min, which fits with three minutes of slack.
+          #
+          # Do NOT "fix" this by raising the ceiling instead. The numbers above were already
+          # in this comment when it shipped at 3 — the arithmetic was wrong, not the budget.
+          # And a third attempt cannot help what actually happens: on 2026-09-04 the registry
+          # timed out twice in a row from the runner while `audit-ci` passed from a laptop in
+          # 102s, and it had failed the same way the day before. A retry buys you a genuine
+          # one-off blip; it cannot outlast a runner-network condition. That is what the
+          # "Re-run this job" in the exhaustion message is for.
+          attempts=2
           for i in $(seq 1 $attempts); do
             if pnpm exec audit-ci --config audit-ci.jsonc > audit.out 2>&1; then
               cat audit.out
@@ -1076,6 +1091,9 @@ jobs:
           SMOKE_BROWSER_GET: '1'
         # Loops EVERY live product since 2026-08-30. It ran only `rxps` before, so
         # the second live garment (`r-xmp`, X-MILO PRO BIB) was verified by nothing.
+        # ⚠️ The list itself narrowed again on 2026-09-04 — nine garments were published
+        # and scripts/live-products.mjs still named two, so this step gated 2 of 11.
+        # Now eleven: 37 s measured, all green, and a fake twelfth row exits 1.
         run: node scripts/smoke-live-products.mjs "${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}"
 
       # The per-garment link preview is produced by an HTMLRewriter in
@@ -1086,9 +1104,14 @@ jobs:
       # browser request is NOT rewritten. A 403/429 exits 0 as inconclusive: this
       # asks for a page with a crawler user-agent from a datacenter IP, which is
       # the most challengeable request shape there is.
+      # ⚠️ Loops EVERY live product since 2026-09-04. It read DEFAULT_PRODUCT before, so
+      # it checked ONE garment — and nine went live that day carrying 45 new preview
+      # cards, verified once by hand and by nothing afterwards. Eleven products measured
+      # at 9.5 s total (a card is 38 KB; crawler HTML is 0.68 s cold, 0.03 s warm), so
+      # the coverage is nearly free. A fake twelfth row exits 1.
       - name: Post-deploy link-preview smoke test
         if: vars.VIEWER_DEPLOY_TARGET != 'pages'
-        run: node scripts/smoke-viewer-preview.mjs https://viewer.wear-run.help
+        run: node scripts/smoke-live-previews.mjs https://viewer.wear-run.help
 
       # THE APEX WORKER, WHICH NOTHING DEPLOYED UNTIL NOW.
       #
@@ -1198,6 +1221,7 @@ jobs:
             "\`\`\`bash" \
             "node scripts/apex-probe.mjs" \
             "node scripts/smoke-live-products.mjs" \
+            "node scripts/smoke-live-previews.mjs" \
             "\`\`\`")
           gh issue create --label deploy-failure \
             --title "Deploy failed: ${SHA}" --body "$body"

@@ -958,6 +958,72 @@ jobs:
     }
   })
 
+  /**
+   * The retry budget must fit the job that runs it.
+   *
+   * ⚠️ THIS EXISTS BECAUSE THE RETRY SHIPPED WITH THE WRONG ARITHMETIC. At 3 attempts the
+   * audit job died at its own 20-minute ceiling mid-attempt-3 on the very next run, and a
+   * budget death reports as `cancelled` — indistinguishable at a glance from a second push
+   * having killed the run, which CLAUDE.md warns about for exactly this reason. The two
+   * measurements needed were already sitting in the workflow comment; only the multiplication
+   * was missing. So the numbers are pinned here where they cannot drift apart silently.
+   *
+   * Measured 2026-09-04 on run 33859265482: `pnpm/action-setup` 426 s, checkout + setup-node
+   * + install 31 s, and a failing `audit-ci` attempt 251 s then 266 s.
+   */
+  const FIXED_JOB_OVERHEAD_SECONDS = 460
+  const FAILING_ATTEMPT_SECONDS = 270
+  const SLEEP_BETWEEN_ATTEMPTS_SECONDS = 15
+
+  function worstCaseSeconds(attempts: number): number {
+    return (
+      FIXED_JOB_OVERHEAD_SECONDS +
+      attempts * FAILING_ATTEMPT_SECONDS +
+      (attempts - 1) * SLEEP_BETWEEN_ATTEMPTS_SECONDS
+    )
+  }
+
+  it('every audit retry budget fits inside its own job timeout', async () => {
+    const checked: string[] = []
+    for (const name of await workflowFiles()) {
+      const source = read(name)
+      for (const shell of auditSteps(source)) {
+        const attempts = Number(/attempts=(\d+)/.exec(shell)?.[1])
+        expect(attempts, `${name}: the audit step must declare an attempt count`).toBeGreaterThan(0)
+
+        // The `timeout-minutes` of the job this step belongs to: the nearest one ABOVE the
+        // step, so a job reordering cannot quietly re-point it.
+        //
+        // ⚠️ ANCHOR ON `attempts=N`, NOT ON THE STEP'S FIRST LINE. The first draft of this
+        // test anchored on `shell.split('\n')[0]`, which is the literal `run: |` — a line
+        // that appears in every job. `indexOf` therefore found the FIRST one in the file and
+        // read an unrelated job's 30-minute ceiling, so `attempts=3` inside a 20-minute job
+        // sailed through. The negative control below is what caught it: written to fail, it
+        // passed. `attempts=` occurs exactly once per workflow, which is why it is the anchor.
+        const anchor = source.indexOf(`attempts=${attempts}`)
+        expect(anchor, `${name}: could not locate the attempts= line`).toBeGreaterThan(0)
+        const upToStep = source.slice(0, anchor)
+        const timeout = Number([...upToStep.matchAll(/timeout-minutes:\s*(\d+)/g)].at(-1)?.[1])
+        expect(timeout, `${name}: the audit job must set timeout-minutes`).toBeGreaterThan(0)
+
+        const worst = worstCaseSeconds(attempts)
+        expect(
+          worst,
+          `${name}: ${attempts} attempts need ${(worst / 60).toFixed(1)} min worst case but the job allows ${timeout} min — the job will be CANCELLED mid-attempt, which reads as a cancelled run rather than a failure`,
+        ).toBeLessThanOrEqual(timeout * 60)
+        checked.push(`${name}:${attempts}/${timeout}m`)
+      }
+    }
+    // Must not pass by finding nothing to check.
+    expect(checked.length).toBeGreaterThan(0)
+  })
+
+  it('the budget check fails at the count that actually died (negative control)', () => {
+    // 3 attempts inside 20 minutes is precisely what was cancelled on 2026-09-04.
+    expect(worstCaseSeconds(3)).toBeGreaterThan(20 * 60)
+    expect(worstCaseSeconds(2)).toBeLessThanOrEqual(20 * 60)
+  })
+
   it('the audit-retry check can actually fail (negative control)', () => {
     // The step as it stood until 2026-09-04: one command, no loop, no signature guard.
     const bare = [

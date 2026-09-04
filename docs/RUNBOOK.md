@@ -1507,13 +1507,27 @@ channels you are most likely to send a link on.
 
 ### Checking it
 
+One garment:
+
 ```bash
 node scripts/smoke-viewer-preview.mjs https://viewer.wear-run.help rxps wine
 ```
 
-CI runs this after every deploy. It asserts the card names the garment, that
-`og:url`/`canonical` are per-colourway, that the picture really fetches, **and**
-— the negative control — that a plain browser request is *not* rewritten.
+All of them — this is what CI runs after every deploy, since 2026-09-04:
+
+```bash
+node scripts/smoke-live-previews.mjs https://viewer.wear-run.help
+```
+
+Either asserts the card names the garment, that `og:url`/`canonical` are
+per-colourway, that the picture really fetches, **and** — the negative control —
+that a plain browser request is *not* rewritten.
+
+⚠️ **Until 2026-09-04 CI ran only the first form**, which reads `DEFAULT_PRODUCT`
+and so checked exactly one garment out of eleven. Nine products were published
+that day with 45 preview cards between them; they were verified by hand once and
+by nothing after. The runner costs 9.5 s for all eleven, measured — a preview card
+is 38 KB and the crawler path is 0.68 s cold, 0.03 s warm.
 
 A **403 or 429 exits 0 as inconclusive**, deliberately: it asks for a page with a
 crawler user-agent from a datacenter IP, which is the most challengeable request

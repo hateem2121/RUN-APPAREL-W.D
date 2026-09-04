@@ -63,6 +63,10 @@ export const TARGETS = [
       // Measured 0.47–0.92 s. The checklist says treat > 1.5 s as a problem; 2.5 s is
       // the ALERT line, deliberately above it — this fires an issue, and the gap
       // between "worth looking at" and "worth waking someone" should be real.
+      // Re-measured 2026-09-04 across all ELEVEN live products: 0.03–0.10 s. The
+      // ceiling is deliberately NOT lowered to match — one round of measurements from
+      // one machine is not the population, and this row's job is to catch a
+      // regression, not to record a personal best.
       maxSeconds: 2.5,
     },
     {
@@ -73,6 +77,8 @@ export const TARGETS = [
       // Measured 2.1–3.7 s and KNOWN SLOW BY DESIGN: a Worker's own response does not
       // pass through the edge cache, so its s-maxage buys nothing. This is why
       // per-garment link previews are crawler-only. 6 s is the line.
+      // Re-measured 2026-09-04 across all eleven: 0.52–0.85 s, a 4× improvement on the
+      // recorded range with no change to this code. Ceiling held, for the reason above.
       maxSeconds: 6,
     },
   ]),
