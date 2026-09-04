@@ -67,7 +67,7 @@ Found 2026-08-27: `test:e2e` reported four engines failing with `(0ms)`, which r
 as broken code and is a browser that never launched. Install once —
 `npx --yes pnpm@10.33.0 --filter @run-apparel/viewer exec playwright install chromium webkit firefox`.
 `tools/asset-pipeline`'s render harness needs chromium too. With all four present:
-**352 passed, 6 skipped, 44.9s** — the 45s quoted above.
+**355 passed, 6 skipped, 41.8s** — the 45s quoted above.
 
 **`pnpm` may not be on `PATH` — MEASURED BOTH WAYS; use `npx --yes pnpm@10.33.0`.**
 Absent in earlier sessions; 2026-08-21 it WAS there (`/opt/homebrew/bin/pnpm`, exactly
@@ -100,17 +100,14 @@ exactly as `PORT` was:** `apps/cms`'s build script is now
 `NODE_ENV=production next build`, so the environment cannot reach it. Verified
 with `NODE_ENV=development` still exported.
 
-⚠️ **Where these variables come from is NOT settled — it has measured BOTH ways,
-so assume neither.** 2026-08-09 both *were* set in the session environment
-(`NODE_ENV=development`, `PORT=5002`) while appearing in none of `~/.zshrc`,
-`~/.zshenv`, `~/.zprofile`, `~/.bash_profile` or `~/.profile`. 2026-08-13 and
-again 2026-08-17, same machine, `env | grep -E '^(NODE_ENV|PORT)='` returned
-nothing and a full gate run passed with no workaround — **then on 2026-08-26 both
-were BACK** (`NODE_ENV=development`, `PORT=5002`). So the harness supplies them *sometimes*. The consequence is the point: the owner's own terminal and any
-two sessions can each see a different environment, so **"it works for me" proves
-nothing about the other.** Both are fixed at the source anyway. **If a build or a
-test server fails in a way that makes no sense, run
-`env | grep -E 'NODE_ENV|PORT'` before reading any code** — three times now.
+⚠️ **They belong to ANOTHER of the owner's projects — confirmed by the owner
+2026-09-04 — so they are never this repo's to adopt, "respect" or design around.**
+They leak in sometimes and not always: present 2026-08-09, gone 2026-08-13 and
+2026-08-17, back 2026-08-26 and again 2026-09-04, same machine. So the owner's own
+terminal and any two sessions can each see a different environment, and **"it works
+for me" proves nothing about the other.** Both are fixed at the source anyway. **If
+a build or a test server fails in a way that makes no sense, run
+`env | grep -E 'NODE_ENV|PORT'` before reading any code** — four times now.
 
 **A `PORT` set for another project produces the IDENTICAL error, and did on
 2026-08-08.** `e2e/serve.mjs` reads `process.env.PORT ?? 4173` and inherits your

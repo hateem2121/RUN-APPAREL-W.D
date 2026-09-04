@@ -31,6 +31,7 @@
  */
 
 import { DEFAULT_PRODUCT } from './live-products.mjs'
+import { measureModelBytes } from './model-size.mjs'
 
 const [, , apiBaseArg, productArg, colourArg] = process.argv
 
@@ -209,11 +210,9 @@ if (!modelUrl) {
       )
     } else {
       headVerdict = 'ok'
-      // content-range on a 206 ("bytes 0-0/39555036"), content-length on a HEAD.
-      const range = res.headers.get('content-range')
-      const bytes = range
-        ? Number(range.split('/')[1] || 0)
-        : Number(res.headers.get('content-length') || 0)
+      // Size, via model-size.mjs — which documents why a HEAD alone reads 0 here and
+      // why the ranged fallback is what makes MIN_MODEL_BYTES below able to fire at all.
+      const bytes = await measureModelBytes(modelUrl, res, { timeoutMs: TIMEOUT_MS })
 
       if (!bytes) {
         console.log('  model     WARN: no content-length or content-range, size not verified')

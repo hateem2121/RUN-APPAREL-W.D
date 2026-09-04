@@ -61,8 +61,13 @@ the pipeline split above, and why each moved trap kept a one-line hook here.
 ⚠️ **AND A BASH-FIRST SESSION NEVER TRIGGERS IT AT ALL — MEASURED 2026-08-26 with the
 hook below, which is what it was installed for.** `nested_traversal` fires on the
 Read TOOL; `cat`, `sed` and a python heredoc do not count.
-`.claude/instructions-loaded.log` is the evidence: **7 `nested_traversal` events
-ever, all on 2026-08-20/21, none since** — and a session that EDITED THREE FILES
+`.claude/instructions-loaded.log` is the evidence: **34 `nested_traversal` events, the most
+recent 2026-09-04T04:04 — and that one WAS a Bash-first session**, so the flat "never
+triggers" above is too strong. ⚠️ The sharper finding, and the one that costs you: it
+fires PER DIRECTORY and unreliably. That same 2026-09-04 session wrote CMS scripts and
+product data all day, edited `apps/cms/src/`, and `apps/cms/CLAUDE.md` NEVER loaded — its
+five traps were satisfied by luck, not knowledge. Treat a `nested_traversal` you did not
+see in the log as absent — and a session that EDITED THREE FILES
 under `apps/viewer/` on 2026-08-26 logged `session_start` only. Auto mode and
 bypass-permissions mode BOTH instruct Bash-first file access, so in those modes the
 30 viewer, 19 pipeline and 8 CI traps moved out of this file are ALL absent, and the

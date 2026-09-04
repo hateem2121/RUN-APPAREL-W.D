@@ -243,7 +243,7 @@ describe('readVariantColours', () => {
 
     const [colour] = readVariantColours(document)
     expect(colour?.sampledMaterial).toBe('Cotton_Stretch_Sateen_3000')
-    expect(colour?.name).toBe('White')
+    expect(colour?.name).toBe('Optic White')
   })
 
   it('never samples a translucent overlay, whatever it is called (CG-05, the other half)', () => {
@@ -274,7 +274,7 @@ describe('readVariantColours', () => {
 
     expect(readVariantColours(document)[0]).toMatchObject({
       sampledMaterial: 'Cotton_Stretch_Sateen',
-      name: 'White',
+      name: 'Optic White',
     })
   })
 
@@ -351,7 +351,7 @@ describe('readVariantColours', () => {
   })
 })
 
-describe('a white factor over a texture is not a confident "White"', () => {
+describe('a white factor over a texture is not a confident "Optic White"', () => {
   /** One variant whose dominant fabric is pure white, optionally textured. */
   function whiteGarment(textured: boolean) {
     const document = new Document()

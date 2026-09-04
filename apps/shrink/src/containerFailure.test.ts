@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { missingRawExport, readContainerFailure } from './containerFailure'
+import { missingRawExport, readContainerFailure, decodeReportHeader } from './containerFailure'
 
 /**
  * The container's 500 BODY used to echo `error.message`, which CodeQL flagged as
@@ -69,5 +69,68 @@ describe('missingRawExport — the upload store expired the file (CI-01)', () =>
     expect(missingRawExport('Could not read raw object "a.glb" from ingest (403).')).toBeNull()
     expect(missingRawExport('meshopt encoder rejected primitive 4')).toBeNull()
     expect(missingRawExport('')).toBeNull()
+  })
+})
+
+/**
+ * THE REPORT'S NON-ASCII CHARACTERS WERE CORRUPTED IN PRODUCTION until 2026-09-04, and
+ * these tests are the regression. Measured on the first real garment through the
+ * container after the pipeline fix plan deployed: D1 held
+ * `Shrunk 16.1 MB â 1.8 MB` and `â ï¸ Ink vs cloth` — six bytes
+ * (`c3 a2 c2 86 c2 92`) where an arrow's three (`e2 86 92`) belong.
+ *
+ * The container was never at fault: `Buffer.from(str)` is utf8. `atob` is — it returns
+ * one character per byte, so multi-byte characters arrive pre-split and are re-encoded
+ * on the way to the CMS. The arrow and the `⚠️` marker are exactly the characters this
+ * report leans on, and it is the only thing the owner reads before publishing.
+ *
+ * The second test is the control: it asserts the OLD code fails this text. Without it,
+ * the first test would pass just as happily against `atob` for an ASCII-only string and
+ * would prove nothing.
+ */
+describe('decodeReportHeader', () => {
+  /** Encode the way the container does — apps/shrink/container/server.ts. */
+  const asContainerSends = (value: unknown) =>
+    Buffer.from(JSON.stringify(value), 'utf8').toString('base64')
+
+  /** Verbatim from the live report of 2026-09-04. */
+  const liveText =
+    'Shrunk 16.1 MB → 1.8 MB.\n⚠️ Ink vs cloth: 10 of 15 print-colourway pairs read as bare cloth'
+
+  it('round-trips the arrows and warning markers the report is built from', () => {
+    const header = asContainerSends({ text: liveText })
+    expect(JSON.parse(decodeReportHeader(header)).text).toBe(liveText)
+  })
+
+  it('CONTROL: plain atob mangles that same text, which is what shipped', () => {
+    const header = asContainerSends({ text: liveText })
+    const viaAtob = JSON.parse(atob(header)).text
+    expect(viaAtob).not.toBe(liveText)
+    /**
+     * Pin the exact corruption, not merely "it differs".
+     *
+     * The arrow's three UTF-8 bytes `e2 86 92` arrive as three separate Latin-1
+     * characters: U+00E2, U+0086, U+0092. The last two are invisible C1 controls, which
+     * is why this looks like a lone "â" in a terminal and why the first version of this
+     * assertion was written against that appearance and failed. Re-encoding these three
+     * as UTF-8 gives `c3 a2 c2 86 c2 92` — exactly the bytes measured in D1.
+     */
+    expect(viaAtob).toContain('16.1 MB \u00e2\u0086\u0092 1.8 MB')
+    expect(Buffer.from('\u00e2\u0086\u0092', 'utf8').toString('hex')).toBe('c3a2c286c292')
+  })
+
+  it('leaves ASCII-only reports untouched', () => {
+    const text = 'Shrunk 16.1 MB to 1.8 MB. No warnings.'
+    expect(JSON.parse(decodeReportHeader(asContainerSends({ text }))).text).toBe(text)
+  })
+
+  it('carries a non-ASCII failure message through readContainerFailure', async () => {
+    // A CLO material name can be non-ASCII — the pipeline notes have seen `ルン ろご。`.
+    const error = 'Could not read raw object "ルン ろご。.glb" from ingest (401).'
+    const res = new Response('Shrink failed.', {
+      status: 500,
+      headers: { 'x-shrink-report': asContainerSends({ ok: false, error }) },
+    })
+    await expect(readContainerFailure(res)).resolves.toBe(error)
   })
 })

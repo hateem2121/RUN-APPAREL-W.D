@@ -396,7 +396,10 @@ describe('buildReportText — colours', () => {
           {
             variantId: 'Colorway 1',
             hex: '#FFFFFF',
-            name: 'White',
+            // 'Optic White' since 2026-09-04, when ten plain palette words were replaced
+            // (owner ruling). A fixture naming a colour the palette can no longer produce
+            // cannot exhibit what production does — see the seed-what-production-ships rule.
+            name: 'Optic White',
             slug: 'white',
             deltaE: 0,
             confidence: 'low',
@@ -419,7 +422,7 @@ describe('buildReportText — colours', () => {
       'x.glb',
     )
     expect(text).toContain(
-      '1. Colorway 1 — closest match White, but not a confident one — check the swatch (#FFFFFF) — every colourway binds the same fabric picture',
+      '1. Colorway 1 — closest match Optic White, but not a confident one — check the swatch (#FFFFFF) — every colourway binds the same fabric picture',
     )
     expect(text).toContain(
       '2. Colorway 2 — looks like Navy (read from the fabric picture) (#1B2A4A)',
