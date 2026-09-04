@@ -19,7 +19,7 @@ import { cmsFetch, isMediaReferenced } from './cms'
 import { planColourImport } from './colourImport'
 import { DEAD_LETTER_QUEUE, deadLetterReport } from './deadLetter'
 import { type ShrinkFailure, reportFailure } from './sentry'
-import { missingRawExport, readContainerFailure } from './containerFailure'
+import { decodeReportHeader, missingRawExport, readContainerFailure } from './containerFailure'
 import { archiveRawExport } from './archiveRaw'
 import { appendToError, retireOrphanedMedia } from './orphanGuard'
 import { alphaRefusal, artworkRefusal, repairRefusal, sizeRefusal } from './refusals'
@@ -966,7 +966,7 @@ async function patchProduct(
 function decodeReport(header: string | null): ShrinkReport | null {
   if (!header) return null
   try {
-    return JSON.parse(atob(header)) as ShrinkReport
+    return JSON.parse(decodeReportHeader(header)) as ShrinkReport
   } catch {
     return null
   }

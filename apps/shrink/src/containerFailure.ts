@@ -8,6 +8,33 @@
  * container/report.ts.
  */
 
+/**
+ * Decode the container's base64 `x-shrink-report` back into text.
+ *
+ * ⚠️ `atob` ALONE CORRUPTS EVERY NON-ASCII CHARACTER, AND IT DID — measured on the
+ * live report of 2026-09-04, the first real garment through the container since the
+ * pipeline fix plan deployed.
+ *
+ * The container is correct: `Buffer.from(JSON.stringify(report))` defaults to utf8, so
+ * the header carries proper UTF-8 bytes. But `atob` returns a BINARY STRING — one
+ * JavaScript character per byte, i.e. Latin-1 — so a three-byte `→` arrives as three
+ * separate characters. Serialising that to the CMS re-encodes each of them as UTF-8,
+ * which is why D1 holds `c3 a2 c2 86 c2 92` where `e2 86 92` belongs and the owner
+ * reads `Shrunk 16.1 MB â 1.8 MB` and `â ï¸ Ink vs cloth`.
+ *
+ * That report is the pipeline's whole human-readable output — the thing the owner reads
+ * to decide whether to publish a garment — and its warning markers were the worst
+ * affected, because `⚠️` is four bytes.
+ *
+ * Both readers of this header had the same bug (`readContainerFailure` below and
+ * `decodeReport` in index.ts), so the decode lives here once. This module is the
+ * testable half of the pair: index.ts imports `cloudflare:workers` and cannot be
+ * loaded in plain vitest, which is why it exists at all.
+ */
+export function decodeReportHeader(header: string): string {
+  return new TextDecoder().decode(Uint8Array.from(atob(header), (c) => c.charCodeAt(0)))
+}
+
 /** The subset of `x-shrink-report` this module needs. */
 interface FailureReport {
   ok?: boolean
@@ -50,7 +77,7 @@ export async function readContainerFailure(res: Response): Promise<string> {
   const header = res.headers.get('x-shrink-report')
   if (header) {
     try {
-      const report = JSON.parse(atob(header)) as FailureReport
+      const report = JSON.parse(decodeReportHeader(header)) as FailureReport
       if (report?.error) return report.error
     } catch {
       // Unparsable header falls through to the body, below.
