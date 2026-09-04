@@ -10,8 +10,15 @@
  * account already holds — 2.9 GB over an uplink measured at ~300 kB/s on 2026-09-03,
  * i.e. hours, and for `ARISAN BRA` (1.71 GiB) a single upload of well over an hour
  * that nobody can watch. An S3 `CopyObject` moves the same bytes inside Cloudflare:
- * measured 16.9 MB in 4.9 s, and the response ETag came back IDENTICAL to the
- * source, which proves the bytes and not merely the length.
+ * measured 16.9 MB in 4.9 s and 1.71 GiB in 110 s.
+ *
+ * ⚠️ THE ETAG IS ONLY A BYTE-IDENTITY PROOF FOR A SINGLE-PART SOURCE. For the ten
+ * smaller masters the copy's ETag came back identical to the source's, which does prove
+ * the bytes. `ARISAN BRA` was uploaded to the archive in 70 parts, so its source ETag is
+ * `84102e93…-70` — a digest OF THE PART DIGESTS — while the copy is stored single-part
+ * and reports `a13a0a98…`. Different strings, same bytes. So the assertion below is on
+ * the SIZE against `scripts/archive-manifest.json`, not on the ETag; treat a matching
+ * ETag as a bonus and never as the gate.
  *
  * WHY THE DOCUMENT CREATE LOOKS ODD. `RawUploads` uses `clientUploads`, so Payload
  * expects the file to be in R2 already and the create to describe it rather than
