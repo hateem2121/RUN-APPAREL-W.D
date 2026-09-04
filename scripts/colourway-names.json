@@ -73,8 +73,8 @@
         },
         {
           "variantId": "Colorway 2",
-          "displayName": "Pink",
-          "slug": "pink",
+          "displayName": "Fuchsia",
+          "slug": "fuchsia",
           "hex": "#A46E84",
           "deltaE": 13.83,
           "needsOwnerEye": true
@@ -89,16 +89,16 @@
         },
         {
           "variantId": "Colorway 4",
-          "displayName": "Off White",
-          "slug": "off-white",
+          "displayName": "Bone",
+          "slug": "bone",
           "hex": "#F2EEE4",
           "deltaE": 2.36,
           "needsOwnerEye": false
         },
         {
           "variantId": "Colorway 5",
-          "displayName": "Yellow",
-          "slug": "yellow",
+          "displayName": "Citron",
+          "slug": "citron",
           "hex": "#F1F265",
           "deltaE": 7.01,
           "needsOwnerEye": false
@@ -110,8 +110,8 @@
       "colours": [
         {
           "variantId": "Colorway 1",
-          "displayName": "Grey",
-          "slug": "grey",
+          "displayName": "Ash",
+          "slug": "ash",
           "hex": "#929292",
           "deltaE": 2.72,
           "needsOwnerEye": false
@@ -252,8 +252,8 @@
         },
         {
           "variantId": "Colorway 4",
-          "displayName": "Grey",
-          "slug": "grey",
+          "displayName": "Ash",
+          "slug": "ash",
           "hex": "#888585",
           "deltaE": 5.69,
           "needsOwnerEye": false
@@ -286,35 +286,35 @@
         },
         {
           "variantId": "Colorway 4",
-          "displayName": "Orange",
-          "slug": "orange",
+          "displayName": "Tangerine",
+          "slug": "tangerine",
           "hex": "#FF8D00",
           "deltaE": 12.18,
           "needsOwnerEye": true
         },
         {
           "variantId": "Colorway 5",
-          "displayName": "Lime / Yellow",
+          "displayName": "Lime / Citron",
           "slug": "lime",
           "hex": "#DBE366",
           "deltaE": 9.97,
           "needsOwnerEye": false,
           "secondFabric": {
             "hex": "#DDD75C",
-            "name": "Yellow",
+            "name": "Citron",
             "areaShare": 30
           }
         },
         {
           "variantId": "Colorway 6",
-          "displayName": "Light Grey / White",
-          "slug": "light-grey",
+          "displayName": "Pebble / Optic White",
+          "slug": "pebble",
           "hex": "#BDBDBD",
           "deltaE": 4.11,
           "needsOwnerEye": false,
           "secondFabric": {
             "hex": "#FFFFFF",
-            "name": "White",
+            "name": "Optic White",
             "areaShare": 30
           }
         }
@@ -390,8 +390,8 @@
         }
       ]
     },
-    "r-au": {
-      "productName": "THE AGGRESSOR UNIFORM",
+    "r-ajm": {
+      "productName": "THE AGGRESSOR JERSEY MEN",
       "colours": [
         {
           "variantId": "Colorway 2",
@@ -457,6 +457,66 @@
             "name": "Sky",
             "areaShare": 19
           }
+        }
+      ]
+    },
+    "r-asb": {
+      "productName": "ARISAN SPORTS BRA",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Petrol",
+          "slug": "petrol",
+          "hex": "#114A5C",
+          "deltaE": 4.35,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Sage / Olive",
+          "slug": "sage",
+          "hex": "#738C41",
+          "deltaE": 14.88,
+          "needsOwnerEye": true,
+          "secondFabric": {
+            "hex": "#5B7526",
+            "name": "Olive",
+            "areaShare": 33
+          }
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Pebble / Khaki",
+          "slug": "pebble",
+          "hex": "#D8D2C5",
+          "deltaE": 7.11,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#B3AB98",
+            "name": "Khaki",
+            "areaShare": 33
+          }
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Blush / Fuchsia",
+          "slug": "blush",
+          "hex": "#FCB8CF",
+          "deltaE": 7.02,
+          "needsOwnerEye": true,
+          "secondFabric": {
+            "hex": "#E185A0",
+            "name": "Fuchsia",
+            "areaShare": 33
+          }
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Burgundy",
+          "slug": "burgundy",
+          "hex": "#612738",
+          "deltaE": 3.34,
+          "needsOwnerEye": false
         }
       ]
     }

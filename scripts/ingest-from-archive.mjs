@@ -120,10 +120,24 @@ const GARMENTS = {
     file: 'classic-soccer-shirt-2026-09-03.glb',
     slug: 'r-css',
   },
-  'the-aggressor-uniform': {
+  /**
+   * ⚠️ THIS FILE IS THE MEN'S CUT OF THE AGGRESSOR **JERSEY**, NOT "THE AGGRESSOR UNIFORM".
+   *
+   * It was mapped to `r-au` on 2026-09-04 and that was wrong. The mistake is worth naming:
+   * `R-AU`'s stored description reads "The men's counterpart to the Aggressor jersey", which
+   * matches this file's text perfectly — so the mapping was made from the COPY and never
+   * checked against the garment. Rendering it took two minutes and settled it at a glance:
+   * the same "46", the same player-name treatment, the same brushstroke graphic and shield as
+   * `r-aj`, in a men's straight cut. A "Uniform" is a different product (owner, 2026-09-04),
+   * so `R-AJM` was created for this and `R-AU` emptied back to a clean draft.
+   *
+   * RENDER A GARMENT BEFORE ATTACHING IT TO A PRODUCT. A description can describe the right
+   * thing and still be the wrong row.
+   */
+  'the-aggressor-jersey-men': {
     archive: 'THE AGGRESSOR MEN  JERSEY.glb',
-    file: 'the-aggressor-uniform-2026-09-03.glb',
-    slug: 'r-au',
+    file: 'the-aggressor-jersey-men-2026-09-03.glb',
+    slug: 'r-ajm',
   },
   'arisan-sports-bra': {
     archive: 'ARISAN BRA.glb',
