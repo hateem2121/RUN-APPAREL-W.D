@@ -91,9 +91,6 @@ export default async function HomePage() {
             <Link className="btn btn--primary" href="/products">
               Browse the references
             </Link>
-            <a className="btn btn--ghost" href={settings.catalogueUrl} rel="noopener">
-              Download the catalogue
-            </a>
           </div>
         </div>
       </section>

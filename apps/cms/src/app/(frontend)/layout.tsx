@@ -61,7 +61,7 @@ export default async function FrontendLayout({ children }: { children: React.Rea
         <a className="skip-link" href="#main">
           Skip to content
         </a>
-        <SiteHeader settings={settings} />
+        <SiteHeader wordmark={settings.temporaryWordmark} />
         <main id="main" className="site-main">
           {children}
         </main>

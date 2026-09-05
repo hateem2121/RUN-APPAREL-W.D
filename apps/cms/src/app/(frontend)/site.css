@@ -232,24 +232,19 @@
 }
 
 /*
- * ⚠️ THE CTA MUST INVERT INSIDE THE NOTCH, and this is not cosmetic.
+ * ⚠️ IF YOU EVER PUT A BUTTON BACK IN THE NOTCH, IT MUST INVERT. There is no button
+ * here now — the owner removed the Catalogue CTA on 2026-09-05 — but the rule that
+ * governed it is worth keeping, because the notch is a trap for buttons.
  *
- * `.btn--primary` is ink-background/volt-text in light mode — which is the same ink
- * the notch is painted in. Measured 2026-09-05: the button's computed background came
- * back rgb(29,31,26) against a notch of rgb(29,31,26), so the site's primary call to
- * action rendered as bare volt text with no button at all. Every automated check was
- * green; only the screenshot showed it.
- *
- * That is the SAME SYMPTOM the sibling website repo shipped — "every primary call to
- * action rendered black-on-black, including the header Request a quote" — reached by a
- * different route. A button on a dark bar has to be told it is on a dark bar.
+ * `.btn--primary` is ink-background/volt-text in light mode, which is the same ink the
+ * notch is painted in. Measured 2026-09-05: the button's computed background came back
+ * rgb(29,31,26) against a notch of rgb(29,31,26), so the site's primary call to action
+ * rendered as bare volt text with no button at all. Every automated check was green;
+ * only the screenshot showed it. That is the SAME SYMPTOM the sibling website repo
+ * shipped — "every primary call to action rendered black-on-black, including the header
+ * Request a quote" — reached by a different route. A new button needs
+ * `background: var(--volt); color: var(--ink);` and a rendered screenshot, not a test.
  */
-.notch__cta {
-  flex-shrink: 0;
-  margin-inline-start: 4px;
-  background: var(--volt);
-  color: var(--ink);
-}
 
 /*
  * The menu button exists only on small screens. It is a real <button> with
@@ -346,12 +341,6 @@
     flex-direction: column;
     align-items: stretch;
     gap: 0;
-  }
-
-  .notch__cta {
-    margin-inline-start: 0;
-    margin-block-start: 8px;
-    justify-content: center;
   }
 
   .nav-link {

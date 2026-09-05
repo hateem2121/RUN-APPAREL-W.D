@@ -1,6 +1,5 @@
 'use client'
 
-import type { ViewerSiteSettings } from '@run-apparel/shared'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 
@@ -33,8 +32,19 @@ import { useEffect, useRef, useState } from 'react'
  * `light-dark()`, moves nothing in the built CSS. A toggle would appear to work
  * locally and do nothing in production. The viewer's toggle is unaffected: it is a
  * different build (Vite) with its own pipeline.
+ *
+ * ⚠️ TAKES THE WORDMARK STRING, NEVER THE SETTINGS OBJECT — the cost named at the top
+ * of this comment, made concrete. Next serialises EVERY prop of a client component into
+ * the HTML it sends. Measured 2026-09-05: passing the whole `settings` global put
+ * companyName, email, whatsappNumber, footerLine, legalLine — and `catalogueUrl`,
+ * minutes after the owner had every catalogue link removed — into the page source of
+ * all three pages. No link pointed there; the URL shipped anyway. This component
+ * renders exactly one field, so it is handed exactly one field.
+ *
+ * SiteFooter takes the whole object and that is correct: it is a server component, so
+ * its props are never serialised. The rule is about the client boundary, not tidiness.
  */
-export function SiteHeader({ settings }: { settings: ViewerSiteSettings }) {
+export function SiteHeader({ wordmark }: { wordmark: string }) {
   const [open, setOpen] = useState(false)
   const notchRef = useRef<HTMLDivElement>(null)
   const toggleRef = useRef<HTMLButtonElement>(null)
@@ -66,7 +76,7 @@ export function SiteHeader({ settings }: { settings: ViewerSiteSettings }) {
     <header className="notch-shell">
       <div className="notch" data-open={open} ref={notchRef}>
         <Link className="notch__wordmark" href="/" onClick={() => setOpen(false)}>
-          {settings.temporaryWordmark}
+          {wordmark}
         </Link>
 
         <button
@@ -89,14 +99,6 @@ export function SiteHeader({ settings }: { settings: ViewerSiteSettings }) {
             <Link className="nav-link" href="/contact" onClick={() => setOpen(false)}>
               Contact
             </Link>
-            <a
-              className="btn btn--primary notch__cta"
-              href={settings.catalogueUrl}
-              rel="noopener"
-              onClick={() => setOpen(false)}
-            >
-              Catalogue
-            </a>
           </nav>
         </div>
       </div>

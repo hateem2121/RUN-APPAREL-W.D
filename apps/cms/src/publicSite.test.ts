@@ -283,13 +283,41 @@ describe('the notch', () => {
     expect(css()).not.toMatch(/@supports\s*\(corner-shape/)
   })
 
-  it('inverts the CTA inside the bar, because .btn--primary is the notch colour', () => {
-    // Measured 2026-09-05: the button's computed background came back rgb(29,31,26)
-    // against a notch of rgb(29,31,26) — the site's primary call to action rendered as
-    // bare text. Every automated check was green. The sibling repo shipped the same
-    // symptom ("every primary CTA rendered black-on-black").
-    expect(css()).toMatch(/\.notch__cta\s*\{[^}]*background:\s*var\(--volt\)/)
-    expect(css()).toMatch(/\.notch__cta\s*\{[^}]*color:\s*var\(--ink\)/)
+  it('sends no visitor to the catalogue from any public page', () => {
+    // Owner decision 2026-09-05: the notch CTA and both "Download the catalogue" ghost
+    // buttons were removed. The 3D VIEWER keeps its own catalogue link deliberately —
+    // that one is pinned by apps/viewer/e2e and a post-deploy CI assertion, and was
+    // explicitly left in scope for the viewer, not this site.
+    //
+    // This asserts the DECISION rather than the absence of one class name: a link
+    // re-added under any other class, or straight from the setting, still fails here.
+    const surfaces = [
+      [FRONTEND, 'layout.tsx'],
+      [FRONTEND, 'page.tsx'],
+      [FRONTEND, 'contact', 'page.tsx'],
+      [FRONTEND, 'products', 'page.tsx'],
+      [CMS_ROOT, 'src', 'components', 'site', 'SiteHeader.tsx'],
+      [CMS_ROOT, 'src', 'components', 'site', 'SiteFooter.tsx'],
+    ]
+    for (const parts of surfaces) {
+      expect(code(...parts), parts.at(-1)).not.toMatch(/catalogueUrl|\/catalogue/)
+    }
+    // And the rule that styled it is gone too, rather than left behind as dead CSS —
+    // which is the defect this audit found in the `aria-current` rule.
+    expect(css()).not.toMatch(/\.notch__cta\s*\{/)
+  })
+
+  it('never hands the settings object to the client component', () => {
+    // Removing the links was not enough. SiteHeader is a client component, and Next
+    // serialises every prop of one into the HTML — so passing the whole `settings`
+    // global shipped `catalogueUrl` (plus email, whatsappNumber, footerLine and
+    // legalLine) into the source of all three pages with no link pointing at it.
+    // Measured 2026-09-05 by grepping the rendered HTML, not the source.
+    //
+    // The header renders one field. Anything wider than a string re-opens the leak.
+    const header = code(CMS_ROOT, 'src', 'components', 'site', 'SiteHeader.tsx')
+    expect(header).toMatch(/export function SiteHeader\(\{\s*wordmark\s*\}: \{\s*wordmark: string/)
+    expect(header).not.toMatch(/settings/)
   })
 
   it('gives the shared link class fallbacks, because the footer has no notch scope', () => {

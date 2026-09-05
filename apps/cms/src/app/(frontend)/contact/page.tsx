@@ -85,9 +85,6 @@ export default async function ContactPage() {
             <a className="btn btn--primary" href={`mailto:${settings.email}`}>
               Email us
             </a>
-            <a className="btn btn--ghost" href={settings.catalogueUrl} rel="noopener">
-              Download the catalogue
-            </a>
           </div>
         </div>
       </section>
