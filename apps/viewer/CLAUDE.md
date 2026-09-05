@@ -492,7 +492,7 @@ writes depth.
 
 **`docs/DESIGN.md` outranks the three vendored motion skills** (`review-animations`,
 `emil-design-eng`, `motion`). It is the viewer's *locked* design system, and
-`apps/viewer/src/styles/tokens.css:2` cites it as their authority.
+`packages/ui/src/tokens.css:2` cites it as their authority.
 
 Not a precaution, arithmetic: `review-animations` standard 4 is *"sub-300ms on UI, or
 it is a finding"* while `docs/DESIGN.md` §5 locks `--settle` at **500ms** and `--slow`
@@ -503,7 +503,7 @@ not technique.** Full rulings in `.claude/skills/README.md`.
 ## No Tailwind here, and the skills will suggest it anyway
 
 **No Tailwind, no shadcn/ui, no component library. Do not add one.** Appearance is
-hand-written in `apps/viewer/src/styles/tokens.css`; behaviour, when a screen ever
+hand-written in `packages/ui/src/tokens.css`; behaviour, when a screen ever
 needs it, comes from `base-ui`, which ships no CSS. Reasoning and reject list:
 `docs/DECISION-UI-LIBRARIES.md`.
 

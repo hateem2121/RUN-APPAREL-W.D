@@ -1,0 +1,142 @@
+import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
+import { describe, expect, it } from 'vitest'
+import { mergeSiteSettings, toProductCard } from './projectPublic'
+
+describe('mergeSiteSettings', () => {
+  it('uses the shared defaults when the global has never been saved', () => {
+    expect(mergeSiteSettings(null)).toEqual(DEFAULT_SITE_SETTINGS)
+    expect(mergeSiteSettings(undefined)).toEqual(DEFAULT_SITE_SETTINGS)
+    expect(mergeSiteSettings({})).toEqual(DEFAULT_SITE_SETTINGS)
+  })
+
+  it('prefers saved values over defaults', () => {
+    const merged = mergeSiteSettings({ companyName: 'RUN APPAREL LTD', email: 'hi@example.com' })
+    expect(merged.companyName).toBe('RUN APPAREL LTD')
+    expect(merged.email).toBe('hi@example.com')
+  })
+
+  it('falls back PER FIELD, not per document', () => {
+    // A global saved once with one field blanked must not discard the others. The
+    // naive `doc ?? DEFAULT` would return every default the moment any field is empty.
+    const merged = mergeSiteSettings({ companyName: 'RUN APPAREL LTD', email: '' })
+    expect(merged.companyName).toBe('RUN APPAREL LTD')
+    expect(merged.email).toBe(DEFAULT_SITE_SETTINGS.email)
+  })
+
+  it('treats whitespace-only and non-string values as absent', () => {
+    const merged = mergeSiteSettings({ email: '   ', companyName: 42, footerLine: null })
+    expect(merged.email).toBe(DEFAULT_SITE_SETTINGS.email)
+    expect(merged.companyName).toBe(DEFAULT_SITE_SETTINGS.companyName)
+    expect(merged.footerLine).toBe(DEFAULT_SITE_SETTINGS.footerLine)
+  })
+
+  it('trims a value the owner pasted with a trailing space', () => {
+    expect(mergeSiteSettings({ email: ' partner@example.com ' }).email).toBe('partner@example.com')
+  })
+})
+
+/** A product the viewer can serve, as Payload returns it at depth 1. */
+const product = (over: Record<string, unknown> = {}) => ({
+  slug: 'rxps',
+  productName: 'Velocity Performance Cycling Suit',
+  productCode: 'R-XPS',
+  category: 'Sportswear',
+  shortDescription: 'A race-fit skinsuit.',
+  colourways: [
+    { slug: 'wine', displayName: 'Wine', hexSwatch: '#5b1f2e' },
+    { slug: 'blush', displayName: 'Blush', hexSwatch: '#e8c4c4' },
+  ],
+  ...over,
+})
+
+describe('toProductCard', () => {
+  it('projects a serveable product', () => {
+    const card = toProductCard(product())
+    expect(card).not.toBeNull()
+    expect(card?.slug).toBe('rxps')
+    expect(card?.productCode).toBe('R-XPS')
+    expect(card?.category).toBe('Sportswear')
+    expect(card?.defaultColourSlug).toBe('wine')
+    expect(card?.colourNames).toEqual(['Wine', 'Blush'])
+  })
+
+  it('returns null for anything the viewer would 404', () => {
+    // Each of these is a state buildViewerResponse refuses to serve. A card for any of
+    // them is a link straight to "[ REFERENCE UNAVAILABLE ]".
+    expect(toProductCard(null)).toBeNull()
+    expect(toProductCard(undefined)).toBeNull()
+    expect(toProductCard(product({ slug: '' }))).toBeNull()
+    expect(toProductCard(product({ colourways: [] }))).toBeNull()
+    expect(toProductCard(product({ colourways: undefined }))).toBeNull()
+    expect(toProductCard(product({ colourways: [{ slug: 'wine', active: false }] }))).toBeNull()
+    expect(toProductCard(product({ colourways: [{ slug: '  ' }] }))).toBeNull()
+  })
+
+  it('links to the FIRST ADDRESSABLE colourway, skipping retired ones', () => {
+    // Row order decides the default colourway (CLAUDE.md), so a retired first row must
+    // hand the default to the next usable row rather than produce a dead link.
+    const card = toProductCard(
+      product({
+        colourways: [
+          { slug: 'wine', displayName: 'Wine', active: false },
+          { slug: 'lime', displayName: 'Lime' },
+        ],
+      }),
+    )
+    expect(card?.defaultColourSlug).toBe('lime')
+    expect(card?.colourNames).toEqual(['Lime'])
+  })
+
+  it('never exposes hexSwatch — the CMS says buyers never see it', () => {
+    const card = toProductCard(product())
+    expect(JSON.stringify(card)).not.toContain('#5b1f2e')
+  })
+
+  it('falls back to the slug when a product or colour has no name', () => {
+    const card = toProductCard(product({ productName: '', colourways: [{ slug: 'wine' }] }))
+    expect(card?.productName).toBe('rxps')
+    expect(card?.colourNames).toEqual(['wine'])
+  })
+
+  describe('poster selection', () => {
+    it('prefers the default colourway poster', () => {
+      const card = toProductCard(
+        product({
+          colourways: [{ slug: 'wine', posterPreview: { url: '/colour.webp', alt: 'Wine' } }],
+          posterFallback: { url: '/fallback.webp', alt: 'Fallback' },
+        }),
+      )
+      expect(card?.posterUrl).toBe('/colour.webp')
+      expect(card?.posterAlt).toBe('Wine')
+    })
+
+    it('falls back to the product poster', () => {
+      const card = toProductCard(product({ posterFallback: { url: '/fallback.webp', alt: 'F' } }))
+      expect(card?.posterUrl).toBe('/fallback.webp')
+    })
+
+    it('returns null rather than a broken image when there is no poster at all', () => {
+      // Publishable with no poster since 2026-08-21 — requiring one 404'd a live
+      // garment. The card draws a placeholder instead.
+      const card = toProductCard(product())
+      expect(card?.posterUrl).toBeNull()
+      expect(card?.posterAlt).toBe('Velocity Performance Cycling Suit — 3D product reference')
+    })
+
+    it('ignores a numeric ID, which is what a depth-0 read returns', () => {
+      // At depth 0 Payload leaves uploads as row IDs. Rendering `src={7}` would emit a
+      // broken image on every card, and the read is one number away from that.
+      const card = toProductCard(
+        product({ posterFallback: 7, colourways: [{ slug: 'wine', posterPreview: 12 }] }),
+      )
+      expect(card?.posterUrl).toBeNull()
+    })
+
+    it('supplies alt text when the media row has none', () => {
+      const card = toProductCard(
+        product({ colourways: [{ slug: 'wine', posterPreview: { url: '/c.webp' } }] }),
+      )
+      expect(card?.posterAlt).toBe('Velocity Performance Cycling Suit — 3D product reference')
+    })
+  })
+})

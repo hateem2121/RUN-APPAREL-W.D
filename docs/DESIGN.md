@@ -7,7 +7,7 @@ of the other.
 ## Why this file exists, and what it is not
 
 Three source files have cited `DESIGN.md` as their authority since the design was
-locked — `apps/viewer/src/styles/tokens.css:2`, `apps/viewer/src/main.tsx:2` and
+locked — `packages/ui/src/tokens.css:2`, `apps/viewer/src/main.tsx:2` and
 `apps/viewer/src/components/SerifAccent.tsx:5` — and **the file did not exist**.
 Written 2026-08-06 to close that gap.
 

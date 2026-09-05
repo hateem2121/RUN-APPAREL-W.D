@@ -179,7 +179,11 @@ describe('the inflation belongs to the transform, never to a standalone property
    */
   // `import.meta.dirname` rather than `__dirname`: this file is ESM under vitest,
   // and a cwd-relative path would silently depend on where the runner was invoked.
-  const css = readFileSync(join(import.meta.dirname, '..', 'styles', 'base.css'), 'utf8')
+  // base.css moved to packages/ui on 2026-09-04; this file is apps/viewer/src/polish/.
+  const css = readFileSync(
+    join(import.meta.dirname, '..', '..', '..', '..', 'packages', 'ui', 'src', 'base.css'),
+    'utf8',
+  )
 
   it('base.css does not give the over-a-button rule any transform property', () => {
     const rule = css.match(/\.cursor-ring\[data-pointer="true"\]\s*\{([^}]*)\}/)

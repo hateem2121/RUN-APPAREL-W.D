@@ -43,7 +43,7 @@ the `no-transform` claim), and the correction only ever lands in ranks 1–2.
 
 This is the same principle the repo already applies to derived documents: one
 maintained file, no second copy that gets to define anything. See the note in
-`scripts/index-ai.mjs`, and the header of `apps/viewer/src/styles/tokens.css`.
+`scripts/index-ai.mjs`, and the header of `packages/ui/src/tokens.css`.
 
 ---
 

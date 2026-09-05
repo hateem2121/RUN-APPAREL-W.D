@@ -1,0 +1,537 @@
+/*
+ * Public marketing site chrome — header, footer, page sections, product grid.
+ *
+ * WHAT IS DELIBERATELY *NOT* HERE. Colours, type, buttons, [ MONO LABELS ], the
+ * blueprint motif, panels, focus rings and the reduced-motion block all come from
+ * @run-apparel/ui (tokens.css + base.css), the same two files apps/viewer ships. This
+ * file only adds the layout the viewer has no need for, because it is one page and
+ * this is a site.
+ *
+ * ⚠️ THIS FILE IS SCANNED BY apps/viewer/src/styles/tokens.test.ts. Spacing must use
+ * the documented steps, every radius/shadow/duration must cite a token, every :hover
+ * must sit inside a (hover: hover) block, and every var() must resolve. That is not
+ * bureaucracy: the sibling project shipped a homepage whose primary call-to-action
+ * rendered black-on-black because a token silently resolved to nothing, and 18/18 of
+ * its tests stayed green through it.
+ */
+
+/* ---------------------------------------------------------------- layout */
+
+.site-container {
+  width: 100%;
+  max-width: 1180px;
+  margin-inline: auto;
+  padding-inline: clamp(20px, 5vw, 64px);
+}
+
+.site-main {
+  display: block;
+  min-height: 60vh;
+}
+
+.site-section {
+  padding-block: clamp(64px, 9vw, 120px);
+}
+
+.site-section + .site-section {
+  border-top: 1px solid var(--line);
+}
+
+.site-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  padding-block: clamp(64px, 11vw, 160px);
+}
+
+.site-hero__grid {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.site-lede {
+  max-width: 62ch;
+  margin-top: 22px;
+  font-size: var(--text-body);
+  color: var(--muted);
+}
+
+.site-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* ----------------------------------------------------------------- notch */
+
+/*
+ * The notch: a dark bar carved into the top edge of the page.
+ *
+ * STUDIED FROM THREE REFERENCES, 2026-09-05. supaste.com draws its concave corners
+ * with two 20x20 divs holding inline SVG data-URIs; Framer University uses SVG shapes
+ * because Framer frames are rectangular. Neither needs to here — `mask` does it in one
+ * declaration, and the carved-away part stays genuinely TRANSPARENT, so the blueprint
+ * grid behind the hero shows through it. A `box-shadow` fillet would paint a solid
+ * patch of page colour and cut a hole in that grid.
+ *
+ * Measured on supaste 2026-09-05: its notch never moves — same width, height and
+ * offset at scrollY 0, 600 and 2000. Ours condenses slightly, by owner decision, and
+ * does it with a scroll-driven animation rather than a scroll listener.
+ */
+
+.notch-shell {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  /*
+   * The shell spans the viewport so the bar can centre itself, but only the bar may
+   * catch the pointer. Without this a full-width invisible strip sits over the hero
+   * and swallows clicks on everything beneath it — including the first CTA.
+   */
+  pointer-events: none;
+}
+
+.notch {
+  --notch-bg: light-dark(var(--ink), var(--raised));
+  --notch-text: light-dark(var(--paper), var(--text));
+  --notch-muted: light-dark(rgba(241, 239, 234, 0.7), rgba(236, 235, 228, 0.7));
+  --notch-r: var(--radius-panel);
+
+  position: relative;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: calc(100vw - 24px);
+  padding-block: 8px;
+  padding-inline: 18px;
+  background: var(--notch-bg);
+  color: var(--notch-text);
+  border-end-start-radius: var(--notch-r);
+  border-end-end-radius: var(--notch-r);
+}
+
+/*
+ * The two concave fillets, one either side, flush with the top edge.
+ *
+ * Geometry: each is a --notch-r square painted in the bar's colour, with a quarter
+ * disc of that same radius removed from the corner FURTHEST from the bar. What is
+ * left is the arc that sweeps from the page's top edge down into the bar, which is
+ * what makes the bar read as carved rather than stuck on.
+ */
+.notch::before,
+.notch::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 0;
+  width: var(--notch-r);
+  height: var(--notch-r);
+  background: var(--notch-bg);
+  pointer-events: none;
+}
+
+.notch::before {
+  inset-inline-end: 100%;
+  mask: radial-gradient(circle at 0 100%, #0000 var(--notch-r), #000 calc(var(--notch-r) + 0.5px));
+}
+
+.notch::after {
+  inset-inline-start: 100%;
+  mask: radial-gradient(
+    circle at 100% 100%,
+    #0000 var(--notch-r),
+    #000 calc(var(--notch-r) + 0.5px)
+  );
+}
+
+/*
+ * ⚠️ NO `corner-shape: scoop` ENHANCEMENT HERE, DELIBERATELY.
+ *
+ * It is the native property for exactly this arc and it was the obvious upgrade, so
+ * it was written first — and then rendered. Chrome DOES support it (139+), which
+ * meant the @supports block was live in the majority browser, and the combination of
+ * `corner-shape` with the box-shadow that fills the region outside the arc drew two
+ * white triangles either side of the bar. Screenshotted 2026-09-05.
+ *
+ * The mask below already works in every engine. An enhancement that is only
+ * exercised where it is broken is worse than no enhancement, so this stays one
+ * technique. Revisit only with a rendered screenshot, never with @supports alone —
+ * `@supports` proves the property parses, not that the result looks right.
+ */
+
+.notch__wordmark {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: var(--tracking-display-sm);
+  text-decoration: none;
+  color: var(--notch-text);
+}
+
+.notch__nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/*
+ * Shared by the notch and the footer, which is why both colours carry a FALLBACK.
+ *
+ * ⚠️ `--notch-muted` is declared on `.notch`, so in the footer it does not resolve and
+ * a bare `var(--notch-muted)` would drop the whole declaration — the colour would
+ * silently fall back to `inherit`, which is how the skip link once rendered at 1.00:1
+ * contrast (see tokens.test.ts). The token test cannot catch this one: the property IS
+ * defined, just not in scope here, and the test only knows about names it never sees
+ * defined at all. The two-argument form makes the out-of-scope case explicit instead.
+ */
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  flex-shrink: 0;
+  padding-inline: 10px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  color: var(--notch-muted, var(--muted));
+  transition: color var(--fast) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nav-link:hover {
+    color: var(--notch-text, var(--text));
+  }
+}
+
+.nav-link[aria-current="page"] {
+  color: var(--notch-text, var(--text));
+}
+
+/*
+ * ⚠️ THE CTA MUST INVERT INSIDE THE NOTCH, and this is not cosmetic.
+ *
+ * `.btn--primary` is ink-background/volt-text in light mode — which is the same ink
+ * the notch is painted in. Measured 2026-09-05: the button's computed background came
+ * back rgb(29,31,26) against a notch of rgb(29,31,26), so the site's primary call to
+ * action rendered as bare volt text with no button at all. Every automated check was
+ * green; only the screenshot showed it.
+ *
+ * That is the SAME SYMPTOM the sibling website repo shipped — "every primary call to
+ * action rendered black-on-black, including the header Request a quote" — reached by a
+ * different route. A button on a dark bar has to be told it is on a dark bar.
+ */
+.notch__cta {
+  flex-shrink: 0;
+  margin-inline-start: 4px;
+  background: var(--volt);
+  color: var(--ink);
+}
+
+/*
+ * The menu button exists only on small screens. It is a real <button> with
+ * aria-expanded, not a link, because it operates the page rather than navigating.
+ */
+.notch__toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--notch-text);
+  cursor: pointer;
+}
+
+.notch__toggle svg {
+  display: block;
+}
+
+/*
+ * SCROLL RESPONSE — no scroll listener, no JavaScript.
+ *
+ * Chrome/Edge 115+, Safari 26+; Firefox 152 still has it behind a flag (measured
+ * 2026-09-05, ~84% global). Firefox therefore keeps the resting notch, which is the
+ * whole point of putting it behind @supports: the fallback is the design, not a
+ * broken version of it. Gated on reduced-motion because it is decoration.
+ */
+@keyframes notch-condense {
+  to {
+    padding-block: 4px;
+    padding-inline: 12px;
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .notch {
+      animation: notch-condense linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 0 160px;
+    }
+  }
+}
+
+/*
+ * SMALL SCREENS — the notch BECOMES the menu.
+ *
+ * This is the behaviour Framer University's component actually ships (verified in
+ * their live demo at 390px on 2026-09-05: a "Phone Closed" variant collapses to logo
+ * plus a menu icon, and tapping it grows the notch downward into a panel while
+ * keeping the carved bottom corners). supaste takes the other route — it abandons the
+ * notch on mobile for a detached floating pill — and the owner chose to keep the
+ * shape, so this follows Framer.
+ *
+ * WHY grid-template-rows AND NOT height. Animating to `height: auto` needs
+ * `interpolate-size`/`calc-size()`, which are still Chromium-only in 2026; the 0fr→1fr
+ * grid trick does the same job in every engine and needs no fallback. The panel is
+ * `display: contents` on desktop, so the same single set of links sits inline in the
+ * bar there — the links are in the HTML either way, which is what keeps them
+ * crawlable no matter what the menu is doing.
+ */
+.notch__panel {
+  display: contents;
+}
+
+@media (max-width: 720px) {
+  .notch {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .notch__toggle {
+    display: inline-flex;
+    margin-inline-start: auto;
+  }
+
+  .notch__panel {
+    display: grid;
+    grid-template-rows: 0fr;
+    width: 100%;
+    transition: grid-template-rows var(--ui) var(--ease);
+  }
+
+  .notch[data-open="true"] .notch__panel {
+    grid-template-rows: 1fr;
+  }
+
+  .notch__nav {
+    overflow: hidden;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .notch__cta {
+    margin-inline-start: 0;
+    margin-block-start: 8px;
+    justify-content: center;
+  }
+
+  .nav-link {
+    padding-inline: 0;
+  }
+}
+
+/*
+ * The panel's contents must be unreachable while it is closed — a 0fr grid row still
+ * contains focusable links, so a keyboard user would otherwise tab into a menu they
+ * cannot see. `hidden` alone would kill the transition, so visibility carries it.
+ */
+@media (max-width: 720px) {
+  .notch:not([data-open="true"]) .notch__nav {
+    visibility: hidden;
+  }
+
+  .notch[data-open="true"] .notch__nav {
+    visibility: visible;
+  }
+}
+
+/* ---------------------------------------------------------------- footer */
+
+.site-footer {
+  border-top: 1px solid var(--line);
+  padding-block: clamp(24px, 5vw, 64px);
+  background: var(--surface);
+}
+
+.site-footer__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.site-footer__line {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: var(--tracking-display-sm);
+  color: var(--headline);
+}
+
+.site-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.site-footer__legal {
+  margin-top: 24px;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------- product gallery */
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.product-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  transition:
+    border-color var(--ui) var(--ease),
+    transform var(--ui) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .product-card:hover {
+    border-color: var(--dimension);
+    transform: translateY(-4px);
+  }
+}
+
+.product-card__link {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  text-decoration: none;
+  color: inherit;
+}
+
+/*
+ * 4:5 portrait, matching the 1200x1500 posters the pipeline already produces, so a
+ * card never letterboxes or crops the garment. `object-fit: contain` over the wash
+ * rather than `cover`: a cropped garment is a misleading product reference, which is
+ * the whole reason this system exists.
+ */
+.product-card__figure {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  margin: 0;
+  background: var(--wash);
+  border-bottom: 1px solid var(--line);
+}
+
+.product-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.product-card__placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.product-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+}
+
+.product-card__name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: var(--tracking-display-sm);
+  color: var(--headline);
+  margin: 0;
+}
+
+.product-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  color: var(--muted);
+}
+
+.product-card__desc {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ------------------------------------------------------------ contact */
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+}
+
+.contact-block__value {
+  font-size: var(--text-body);
+  color: var(--text);
+}
+
+.contact-block__note {
+  margin-top: 8px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+address.contact-block__value {
+  font-style: normal;
+}
+
+/* ------------------------------------------------------------ empty state */
+
+.site-empty {
+  padding: 64px 20px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-panel);
+  text-align: center;
+  color: var(--muted);
+}

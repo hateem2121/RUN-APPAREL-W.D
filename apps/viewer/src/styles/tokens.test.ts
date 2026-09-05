@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -24,8 +24,54 @@ import { describe, expect, it } from 'vitest'
  * shipped the bug.
  */
 
-const STYLES_DIR = join(import.meta.dirname)
-const DESIGN_MD = join(import.meta.dirname, '..', '..', '..', '..', 'docs', 'DESIGN.md')
+const REPO_ROOT = join(import.meta.dirname, '..', '..', '..', '..')
+
+/**
+ * tokens.css and base.css moved to packages/ui on 2026-09-04 so apps/cms can render
+ * the public site from the same design system rather than a second copy of it.
+ *
+ * ⚠️ EVERY check here MUST keep reaching page.css. The move would otherwise have
+ * quietly dropped it — 2,263 lines, the largest stylesheet in the repo — out of this
+ * file, and the suite would have gone green while measuring less. That is the failure
+ * this repo keeps re-learning: a gate nothing reaches is worse than no gate, because
+ * it is credited. Two directories are scanned, and files are resolved by NAME.
+ */
+const UI_STYLES_DIR = join(REPO_ROOT, 'packages', 'ui', 'src')
+const PAGE_STYLES_DIR = join(import.meta.dirname)
+/**
+ * The public marketing site's chrome (apps/cms). It reads the same tokens, so it is
+ * held to the same rules — a stylesheet outside this list is a stylesheet free to
+ * reintroduce every defect the assertions below exist for.
+ *
+ * ⚠️ Yes, this reads across an app boundary on purpose. biome.jsonc bans cross-app
+ * IMPORTS; this is a filesystem read in a test, and the alternative is a second copy
+ * of eight assertions in apps/cms that would drift from this one. One gate covering
+ * every consumer beats two gates that disagree.
+ */
+const SITE_STYLES_DIR = join(REPO_ROOT, 'apps', 'cms', 'src', 'app', '(frontend)')
+const SCANNED_DIRS = [UI_STYLES_DIR, PAGE_STYLES_DIR, SITE_STYLES_DIR]
+const DESIGN_MD = join(REPO_ROOT, 'docs', 'DESIGN.md')
+
+/**
+ * Resolve a stylesheet by NAME rather than by directory.
+ *
+ * The checks below care which file a rule is in, never where that file lives on
+ * disk. Hard-coding one directory is exactly what broke when tokens.css and base.css
+ * moved: page.css was still read from the old constant, and that surfaced as an
+ * ENOENT rather than a wrong answer only by luck. Throwing on an unknown name keeps a
+ * renamed file loud instead of silently unscanned.
+ */
+function cssPath(name: string): string {
+  const dir = SCANNED_DIRS.find((candidate) => existsSync(join(candidate, name)))
+  if (!dir) {
+    throw new Error(
+      `Stylesheet "${name}" is in none of [${SCANNED_DIRS.join(', ')}]. ` +
+        'It was renamed, deleted, or moved somewhere this test does not scan — add ' +
+        'the directory to SCANNED_DIRS rather than deleting the assertion.',
+    )
+  }
+  return join(dir, name)
+}
 
 /**
  * Blank out comment BODIES while preserving every offset and newline.
@@ -41,12 +87,14 @@ function stripComments(source: string): string {
 }
 
 function cssFiles(): { name: string; source: string }[] {
-  return readdirSync(STYLES_DIR)
-    .filter((name) => name.endsWith('.css'))
-    .map((name) => ({
-      name,
-      source: stripComments(readFileSync(join(STYLES_DIR, name), 'utf8')),
-    }))
+  return SCANNED_DIRS.flatMap((dir) =>
+    readdirSync(dir)
+      .filter((name) => name.endsWith('.css'))
+      .map((name) => ({
+        name,
+        source: stripComments(readFileSync(join(dir, name), 'utf8')),
+      })),
+  )
 }
 
 /**
@@ -96,7 +144,7 @@ describe('design tokens', () => {
   })
 
   it('the motion tokens match the locked table in docs/DESIGN.md', () => {
-    const tokens = readFileSync(join(STYLES_DIR, 'tokens.css'), 'utf8')
+    const tokens = readFileSync(cssPath('tokens.css'), 'utf8')
     const design = readFileSync(DESIGN_MD, 'utf8')
 
     // DESIGN.md calls itself the viewer's LOCKED design system and three source
@@ -206,7 +254,7 @@ describe('design tokens', () => {
  * value a decision instead of an accident.
  */
 describe('tokens added by the 2026-08-14 audit', () => {
-  const tokens = () => readFileSync(join(STYLES_DIR, 'tokens.css'), 'utf8')
+  const tokens = () => readFileSync(cssPath('tokens.css'), 'utf8')
 
   it('splits interactive motion from editorial motion', () => {
     const source = tokens()
@@ -502,13 +550,13 @@ function resolveToken(tokensSource: string, token: string): { light: string; dar
 
 describe('progress indicators', () => {
   it('every progress fill clears 3:1 against the background it sits on, in BOTH themes', () => {
-    const tokensSource = readFileSync(join(STYLES_DIR, 'tokens.css'), 'utf8')
+    const tokensSource = readFileSync(cssPath('tokens.css'), 'utf8')
     const bg = resolveToken(tokensSource, '--bg')
     expect(bg, '--bg must resolve for this test to mean anything').not.toBeNull()
 
     const failures: string[] = []
     for (const { file, selector } of PROGRESS_FILLS) {
-      const source = stripComments(readFileSync(join(STYLES_DIR, file), 'utf8'))
+      const source = stripComments(readFileSync(cssPath(file), 'utf8'))
       // Find the rule block for this selector and read its `background`.
       const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       const block = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(source)

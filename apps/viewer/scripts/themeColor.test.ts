@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
  * light/dark toggle and sets `color-scheme` in six places.
  *
  * WHY THIS TEST EXISTS AT ALL. `<meta>` cannot read a CSS custom property, so the
- * two colours are necessarily DUPLICATED out of `src/styles/tokens.css`. A
+ * two colours are necessarily DUPLICATED out of `packages/ui/src/tokens.css`. A
  * duplicate with nothing watching it is the drift this repo has paid for twice
  * (docs/DESIGN.md is written FROM the tokens for exactly this reason). This
  * asserts the two copies against each other, so changing `--bg` without changing
@@ -20,8 +20,11 @@ import { describe, expect, it } from 'vitest'
  * authored there and a build cannot change them.
  */
 const viewerRoot = join(import.meta.dirname, '..')
+// tokens.css and base.css moved to packages/ui on 2026-09-04 so apps/cms renders
+// from the same design system. This file is under apps/viewer/scripts/.
+const uiStyles = join(viewerRoot, '..', '..', 'packages', 'ui', 'src')
 const html = readFileSync(join(viewerRoot, 'index.html'), 'utf8')
-const tokens = readFileSync(join(viewerRoot, 'src', 'styles', 'tokens.css'), 'utf8')
+const tokens = readFileSync(join(uiStyles, 'tokens.css'), 'utf8')
 
 /** The two halves of `--bg: light-dark(<light>, <dark>)`. */
 function backgroundTokens(): { light: string; dark: string } {
@@ -75,7 +78,7 @@ describe('tap highlight', () => {
   it('is set deliberately rather than inherited', () => {
     // N7. The platform default is an opaque grey flash on every tap, on a product
     // whose primary device is a phone reached by scanning a QR tag.
-    const base = readFileSync(join(viewerRoot, 'src', 'styles', 'base.css'), 'utf8')
+    const base = readFileSync(join(uiStyles, 'base.css'), 'utf8')
     expect(base).toMatch(/-webkit-tap-highlight-color:\s*\S+/)
   })
 })
