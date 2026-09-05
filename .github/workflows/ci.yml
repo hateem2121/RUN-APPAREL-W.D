@@ -258,6 +258,27 @@ jobs:
         env:
           HOME: /root
         run: pnpm --filter @run-apparel/viewer test:e2e
+      # THE PUBLIC MARKETING SITE, added 2026-09-05.
+      #
+      # ⚠️ A STEP IN THIS JOB RATHER THAN A JOB OF ITS OWN, DELIBERATELY. A new job
+      # would have to be added to `deploy.needs` AND to the required-checks list, which
+      # is a second copy of it — and this file's own notes record that splitting or
+      # renaming a gating job without editing both silently stops a red gate blocking.
+      # As a step it inherits `e2e`'s existing place in both, and reuses the container's
+      # browsers instead of a second pull.
+      #
+      # WHAT IT CLOSES: until this existed, nothing in the repo loaded /, /products or
+      # /contact in a browser. All 54 CMS test files read source text or exercise pure
+      # functions, so three blank pages would have gone green through every gate. See
+      # docs/AUDIT-SITE-PAGES-2026-09-05.md.
+      #
+      # Its own `webServer` runs `next build` from the cold checkout, so this step needs
+      # no separate build step and no seeded database — the content helpers fall back to
+      # defaults, and the gallery assertions cover both the populated and empty states.
+      - name: e2e (public site)
+        env:
+          HOME: /root
+        run: pnpm --filter @run-apparel/cms test:e2e
 
   # Dependency vulnerability gate. Runs in parallel with verify and gates the
   # deploy: a HIGH/CRITICAL advisory blocks production until it is fixed or
