@@ -49,6 +49,17 @@ const nextConfig = {
   // and it narrows an attacker's search space for version-specific advisories
   // against the side of this system that holds the password.
   poweredByHeader: false,
+  /*
+   * `next dev` APPENDS A BLOCK TO apps/cms/CLAUDE.md ON EVERY RUN, and that file is
+   * hand-maintained and test-gated (src/claudeMd.test.ts checks its citations, and
+   * docs/CLAUDE-MD-MAINTENANCE.md governs its size). The generator is
+   * next/dist/server/lib/generate-agent-files.js; its own injected text says removing
+   * the block only recreates it. Turning it off at the source is the same move this
+   * repo already makes for NODE_ENV (pinned in the build script) and PORT (owned by
+   * playwright.config.ts): stop the environment reaching the file, rather than
+   * cleaning up after it every session.
+   */
+  agentRules: false,
   transpilePackages: ['@run-apparel/shared'],
   async headers() {
     return [{ source: '/:path*', headers: SECURITY_HEADERS }]

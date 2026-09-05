@@ -115,6 +115,18 @@
   color: var(--notch-text);
   border-end-start-radius: var(--notch-r);
   border-end-end-radius: var(--notch-r);
+  /*
+   * Measured 2026-09-05: in dark mode the bar sits at 1.47:1 against the page
+   * (--raised #363c2f on --bg #1c1f18), because --raised is already the lightest
+   * surface the system has — there is no darker-page/lighter-bar pair left to reach
+   * for. --shadow-raised exists for exactly this: its own comment in tokens.css
+   * records the floating colourway preview losing "its only separation from the rail
+   * behind it" over the same --bg, and the 0.5 alpha is the value that fixed it.
+   *
+   * Not a border: the fillets are pseudo-elements outside this element's border box,
+   * so a border would stop dead where the carved arcs begin.
+   */
+  box-shadow: var(--shadow-raised);
 }
 
 /*

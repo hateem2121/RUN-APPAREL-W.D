@@ -300,7 +300,7 @@ export interface RawUpload {
    */
   targetProduct: number | Product;
   /**
-   * How much detail to keep. Start with Balanced. Re-upload on “Highest quality” only if a printed graphic came back SMEARED or TORN — ragged edges, warped lettering. That is mesh damage, and Detail is the setting that fixes it. If a graphic is SEE-THROUGH, or sits in a pale box, Detail will NOT help: every level makes the same transparency decision. Report that instead. If it is rejected for being too big, the file needs re-exporting from CLO at a lower mesh density — there is no smaller setting here, because the one that existed shrank files by damaging the printed graphics.
+   * How much detail to keep. Start with Balanced — and note that a small file (under 50 MB from CLO) is put on Highest quality automatically, because on a file that size the extra quality costs only a few hundred kilobytes. You do not need to do anything for that to happen. Re-upload on “Highest quality” only if a printed graphic came back SMEARED or TORN — ragged edges, warped lettering. That is mesh damage, and Detail is the setting that fixes it. If a graphic is SEE-THROUGH, or sits in a pale box, Detail will NOT help: every level makes the same transparency decision. Report that instead. If it is rejected for being too big, the file needs re-exporting from CLO at a lower mesh density — there is no smaller setting here, because the one that existed shrank files by damaging the printed graphics.
    */
   detail?: ('balanced' | 'fidelity') | null;
   /**

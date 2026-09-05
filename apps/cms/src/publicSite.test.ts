@@ -255,6 +255,15 @@ describe('the notch', () => {
     )
   })
 
+  it('carries the elevation token, which is its ONLY separation in dark mode', () => {
+    // Measured 2026-09-05: --raised (#363c2f) on --bg (#1c1f18) is 1.47:1, and --raised
+    // is already the lightest surface the system has — there is no lighter bar to reach
+    // for. --shadow-raised is the token that exists for this; tokens.css records the
+    // floating colourway preview hitting the same wall over the same --bg. Drop the
+    // shadow and the bar stops reading as a distinct object on dark.
+    expect(css()).toMatch(/\.notch\s*\{[^}]*box-shadow: var\(--shadow-raised\)/)
+  })
+
   it('renders exactly ONE set of links, not a duplicate for mobile', () => {
     // The popover route would need a second copy of the nav inside the popover, which a
     // screen reader reads twice. CSS moves the one set instead.

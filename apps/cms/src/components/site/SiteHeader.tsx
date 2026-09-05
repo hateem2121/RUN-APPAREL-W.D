@@ -23,6 +23,16 @@ import { useEffect, useRef, useState } from 'react'
  *
  * Theme needs no script: tokens.css sets `color-scheme: light dark` and every colour
  * is `light-dark()`, so the notch is correct in both themes on first paint.
+ *
+ * ⚠️ IF YOU EVER ADD A THEME TOGGLE HERE, READ THIS FIRST. Inspected the production
+ * build 2026-09-05: lightningcss DOWNLEVELS `light-dark()` into
+ * `var(--lightningcss-light,<a>) var(--lightningcss-dark,<b>)` plus two
+ * `@media (prefers-color-scheme: …)` blocks that switch which half is live. That
+ * polyfill keys off the MEDIA QUERY, not off computed `color-scheme` — so the
+ * `:root[data-theme="dark"]` override in tokens.css, which works in dev against native
+ * `light-dark()`, moves nothing in the built CSS. A toggle would appear to work
+ * locally and do nothing in production. The viewer's toggle is unaffected: it is a
+ * different build (Vite) with its own pipeline.
  */
 export function SiteHeader({ settings }: { settings: ViewerSiteSettings }) {
   const [open, setOpen] = useState(false)
