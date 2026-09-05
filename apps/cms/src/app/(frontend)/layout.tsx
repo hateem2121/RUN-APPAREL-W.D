@@ -68,7 +68,16 @@ export default async function FrontendLayout({ children }: { children: React.Rea
           Skip to content
         </a>
         <SiteHeader wordmark={settings.temporaryWordmark} />
-        <main id="main" className="site-main">
+        {/*
+          ⚠️ tabindex="-1" IS WHAT MAKES THE SKIP LINK REACH A SCREEN READER.
+          Measured 2026-09-05: activating the skip link set the hash and the NEXT Tab
+          did land inside the content, so it worked for a sighted keyboard user — but
+          `document.activeElement` stayed on BODY, which is what a screen reader follows.
+          A non-focusable target only sets the "sequential focus navigation starting
+          point"; it does not move focus. -1 keeps it out of the tab order while making
+          it focusable programmatically.
+        */}
+        <main id="main" className="site-main" tabIndex={-1}>
           {children}
         </main>
         <SiteFooter settings={settings} />

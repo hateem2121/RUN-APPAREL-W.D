@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { NavLinks } from './NavLinks'
 
 /**
  * The notch — the public site's only navigation.
@@ -47,12 +48,7 @@ export function SiteHeader({ wordmark }: { wordmark: string }) {
         </Link>
 
         <nav className="notch__nav" aria-label="Main">
-          <Link className="nav-link" href="/products">
-            Products
-          </Link>
-          <Link className="nav-link" href="/contact">
-            Contact
-          </Link>
+          <NavLinks />
         </nav>
       </div>
     </header>

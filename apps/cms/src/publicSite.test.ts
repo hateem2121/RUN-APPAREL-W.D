@@ -433,10 +433,15 @@ describe('the notch', () => {
 
   it('renders exactly ONE set of links, not a duplicate for mobile', () => {
     // The popover route would need a second copy of the nav inside the popover, which a
-    // screen reader reads twice. CSS moves the one set instead.
-    const source = header()
-    expect(source.match(/href="\/products"/g) ?? []).toHaveLength(1)
-    expect(source.match(/href="\/contact"/g) ?? []).toHaveLength(1)
+    // screen reader reads twice. There is one set, in one place.
+    //
+    // The links live in NavLinks.tsx since the current-page marker needed the pathname;
+    // this counts across BOTH files so moving them cannot quietly leave a copy behind.
+    const both =
+      code(CMS_ROOT, 'src', 'components', 'site', 'SiteHeader.tsx') +
+      code(CMS_ROOT, 'src', 'components', 'site', 'NavLinks.tsx')
+    expect(both.match(/href: '\/products'|href="\/products"/g) ?? []).toHaveLength(1)
+    expect(both.match(/href: '\/contact'|href="\/contact"/g) ?? []).toHaveLength(1)
   })
 })
 
@@ -493,5 +498,71 @@ describe('findability', () => {
     expect(code(CMS_ROOT, 'src', 'components', 'site', 'JsonLd.tsx')).toMatch(
       /replace\(\/<\/g, '\\\\u003c'\)/,
     )
+  })
+})
+
+describe('location and contrast cues', () => {
+  const site = (...parts: string[]) => join(CMS_ROOT, 'src', 'components', 'site', ...parts)
+
+  it('marks the current page in the HTML, before any script runs', () => {
+    // The rule styling `.nav-link[aria-current="page"]` shipped from day one and had
+    // NEVER applied — nothing set the attribute. Dead CSS that looked correct.
+    //
+    // NavLinks is a client component, but a client component is rendered on the server
+    // for the initial response, so `usePathname` resolves there and the attribute is in
+    // the delivered HTML. Verified with curl, which executes nothing: /products comes
+    // back with aria-current on Products and nothing on Contact.
+    const nav = code(site('NavLinks.tsx'))
+    expect(nav).toMatch(/usePathname/)
+    // `page`, not `true` — the value names what is current; `true` reads as a generic
+    // "current item" with no context.
+    expect(nav).toMatch(/aria-current=\{pathname === href \? 'page' : undefined\}/)
+  })
+
+  it('does not signal the current page by colour alone', () => {
+    // Measured 2026-09-05 once the attribute was live: the ONLY difference between
+    // current and non-current was alpha 0.7 → 1.0 on the same colour. That is a
+    // colour-only distinction (WCAG 1.4.1) and barely perceptible at that.
+    const rule = /\.nav-link\[aria-current="page"\]\s*\{[^}]*\}/.exec(css())?.[0] ?? ''
+    expect(rule, 'the aria-current rule is missing').not.toBe('')
+    expect(rule).toContain('text-decoration: underline')
+  })
+
+  it('survives Windows High Contrast, where colour carries nothing', () => {
+    // Nothing handled forced-colors before. Two things break without help: the carved
+    // fillets are pseudo-elements whose only content is a background, so they vanish
+    // and the bar loses the shape it is named for; and the volt underline is stripped,
+    // taking the current-page cue with it.
+    const block = /@media \(forced-colors: active\)\s*\{[\s\S]*?\n\}/.exec(css())?.[0] ?? ''
+    expect(block, 'no forced-colors block').not.toBe('')
+    expect(block).toMatch(/text-decoration-color: LinkText/)
+    expect(block).toMatch(/\.notch\s*\{[^}]*border: 1px solid CanvasText/)
+    // and the brand palette must NOT be forced back over the user's chosen one
+    expect(css()).not.toMatch(/forced-color-adjust:\s*none/)
+  })
+
+  it('gives the skip link a focusable target without ringing the whole page', () => {
+    // Measured 2026-09-05: without tabindex the skip link set the hash and the next Tab
+    // did land in the content — but activeElement stayed on BODY, which is what a
+    // screen reader follows. Adding it then drew a 2px outline around the ENTIRE page,
+    // which reads as a rendering fault. Safe to suppress because -1 keeps main out of
+    // the tab order, so the skip link is the only way to focus it.
+    expect(code(FRONTEND, 'layout.tsx')).toMatch(
+      /<main id="main" className="site-main" tabIndex=\{-1\}>/,
+    )
+    expect(css()).toMatch(
+      /\.site-main:focus,\s*\n\.site-main:focus-visible \{\s*\n\s*outline: none;/,
+    )
+  })
+
+  it('keeps the client boundary to the links alone', () => {
+    // SiteHeader must stay a server component: Next serialises every prop of a client
+    // component into the HTML, which is how the whole settings global — catalogueUrl
+    // included — reached the page source on 2026-09-05.
+    expect(code(site('SiteHeader.tsx'))).not.toMatch(/'use client'/)
+    expect(code(site('SiteFooter.tsx'))).not.toMatch(/'use client'/)
+    expect(read(site('NavLinks.tsx')).startsWith("'use client'")).toBe(true)
+    // NavLinks takes no props at all, so there is nothing to serialise
+    expect(code(site('NavLinks.tsx'))).toMatch(/export function NavLinks\(\)/)
   })
 })

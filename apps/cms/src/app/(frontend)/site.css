@@ -63,6 +63,26 @@
   min-height: 60vh;
 }
 
+/*
+ * ⚠️ REMOVING A FOCUS RING IS NORMALLY WRONG. THIS ONE IS THE EXCEPTION, AND HERE IS WHY.
+ *
+ * `<main>` carries `tabindex="-1"` so the skip link moves SCREEN READER focus and not
+ * merely the keyboard's starting point. The side effect, measured 2026-09-05: focusing
+ * it matched `:focus-visible`, so activating the skip link drew a 2px outline around the
+ * ENTIRE page — which reads as a rendering fault, not as an affordance.
+ *
+ * It is safe to suppress because `-1` keeps main out of the tab order — verified, the
+ * order is skip link → wordmark → Products → Contact, with no MAIN — so the only way to
+ * focus it is the skip link itself, and the very next Tab lands on a real control that
+ * shows its own ring. A screen reader still announces the main landmark on arrival.
+ *
+ * This applies to `.site-main` alone. Do not generalise it.
+ */
+.site-main:focus,
+.site-main:focus-visible {
+  outline: none;
+}
+
 .site-section {
   padding-block: clamp(64px, 9vw, 120px);
 }
@@ -314,8 +334,60 @@
   }
 }
 
+/*
+ * ⚠️ THE CURRENT PAGE IS MARKED BY AN UNDERLINE, NOT ONLY BY COLOUR.
+ *
+ * This rule existed from the start and had never once applied — nothing set
+ * `aria-current`, so it was dead CSS that looked correct in the file. Turning it on
+ * exposed a second problem: measured 2026-09-05, the only difference between current
+ * and non-current was alpha 0.7 → 1.0 on the SAME colour. That is a colour-only
+ * distinction (WCAG 1.4.1) and, at 30% opacity apart on one hue, barely perceptible
+ * even to someone who sees colour normally.
+ *
+ * `text-decoration` rather than a positioned pseudo-element: it tracks the text at any
+ * padding, needs no `position: relative`, and survives Windows High Contrast mode —
+ * where colours are replaced wholesale and an underline is one of the few cues that
+ * still carries meaning.
+ */
 .nav-link[aria-current="page"] {
   color: var(--notch-text, var(--text));
+  text-decoration: underline;
+  text-decoration-color: var(--volt);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+
+/*
+ * WINDOWS HIGH CONTRAST — nothing handled this before.
+ *
+ * In forced-colors mode the browser replaces every colour with the user's palette and
+ * ignores backgrounds on most elements. Two things here break without help: the bar's
+ * carved fillets are pseudo-elements whose ONLY content is a background colour, so they
+ * vanish and the bar loses the shape it is named for; and the volt underline above is
+ * stripped, taking the current-page cue with it.
+ *
+ * `forced-color-adjust: none` is deliberately NOT used to force the brand palette back
+ * — that overrides a setting someone chose for legibility. The fillets are simply
+ * allowed to disappear (they are decoration, and the bar is still a bar) while the
+ * underline is restored in a system colour that is guaranteed to contrast.
+ */
+@media (forced-colors: active) {
+  .nav-link[aria-current="page"] {
+    text-decoration-color: LinkText;
+  }
+
+  .notch {
+    border: 1px solid CanvasText;
+  }
+
+  .notch::before,
+  .notch::after {
+    display: none;
+  }
+
+  .product-card {
+    border: 1px solid CanvasText;
+  }
 }
 
 /*
