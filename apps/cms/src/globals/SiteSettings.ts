@@ -2,6 +2,24 @@ import type { GlobalConfig } from 'payload'
 import { IMAGE_MIME_TYPES } from '../collections/mediaRules'
 import { isAdmin, isAuthenticated } from '../access/roles'
 
+const DAY_OPTIONS = [
+  { label: 'Monday', value: 'mon' },
+  { label: 'Tuesday', value: 'tue' },
+  { label: 'Wednesday', value: 'wed' },
+  { label: 'Thursday', value: 'thu' },
+  { label: 'Friday', value: 'fri' },
+  { label: 'Saturday', value: 'sat' },
+  { label: 'Sunday', value: 'sun' },
+]
+
+/** `HH:MM`, 24-hour. Blank is allowed — the field is optional and blank means "no hours". */
+const validateClock = (value: unknown) =>
+  !value || /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value)) || 'Use 24-hour HH:MM, e.g. 09:00'
+
+/** The public site links out to these; a plain-http profile would be a mixed-content warning. */
+const validateHttps = (value: unknown) =>
+  /^https:\/\/\S+$/.test(String(value ?? '')) || 'Must start with https://'
+
 export const SiteSettings: GlobalConfig = {
   slug: 'site-settings',
   label: 'Settings',
@@ -79,6 +97,125 @@ export const SiteSettings: GlobalConfig = {
     },
     { name: 'footerLine', type: 'text', required: true, defaultValue: 'RUN THE EXTRA MILE.' },
     { name: 'legalLine', type: 'text', required: true, defaultValue: '© RUN APPAREL (PVT) LTD' },
+    /*
+     * ── The footer ────────────────────────────────────────────────────────────
+     * Four COPY fields carry defaults. Everything under `capacity`, plus
+     * `worksCoordinates`, `certifications` and `socialLinks`, is a CLAIM about the
+     * business and carries none: the footer renders nothing for a blank claim, and a
+     * certification the company does not hold must never appear because a default
+     * put it there. Owner decision 2026-09-05; see docs/OWNER-CHECKLIST.md item 5.
+     */
+    {
+      name: 'ctaLabel',
+      type: 'text',
+      required: true,
+      maxLength: 32,
+      defaultValue: 'Start an enquiry',
+      admin: { description: 'The green tab at the top of the footer. Links to the Contact page.' },
+    },
+    {
+      name: 'ctaQuestion',
+      type: 'text',
+      required: true,
+      maxLength: 80,
+      defaultValue: 'Have a garment that needs making properly?',
+      admin: {
+        description: 'The big question. The LAST word is set in italic green automatically.',
+      },
+    },
+    {
+      name: 'ctaSubline',
+      type: 'text',
+      required: true,
+      maxLength: 120,
+      defaultValue: 'Send a tech pack, a sketch, or just the idea.',
+    },
+    {
+      name: 'ctaPromise',
+      type: 'text',
+      required: true,
+      maxLength: 48,
+      defaultValue: 'Reply within 2 business days',
+      admin: {
+        description:
+          'Drawn as a measurement line under the question. This is a promise in writing.',
+      },
+    },
+    {
+      name: 'capacity',
+      type: 'group',
+      admin: {
+        description:
+          'Facts a buyer wants before they write to you. Every box is optional and the footer hides what is blank. ' +
+          'The clock light ("Open now") is worked out from the hours — leave them blank and no light is shown.',
+      },
+      fields: [
+        {
+          name: 'moq',
+          type: 'text',
+          maxLength: 48,
+          admin: { description: 'e.g. "50 pcs per style"' },
+        },
+        {
+          name: 'leadTime',
+          type: 'text',
+          maxLength: 48,
+          admin: { description: 'e.g. "4–6 weeks from approval"' },
+        },
+        {
+          type: 'row',
+          fields: [
+            {
+              name: 'hoursFirstDay',
+              type: 'select',
+              options: DAY_OPTIONS,
+              admin: { width: '25%' },
+            },
+            { name: 'hoursLastDay', type: 'select', options: DAY_OPTIONS, admin: { width: '25%' } },
+            {
+              name: 'hoursOpen',
+              type: 'text',
+              validate: validateClock,
+              admin: { width: '25%', description: 'HH:MM, Sialkot time' },
+            },
+            {
+              name: 'hoursClose',
+              type: 'text',
+              validate: validateClock,
+              admin: { width: '25%', description: 'HH:MM, Sialkot time' },
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'worksCoordinates',
+      type: 'text',
+      maxLength: 40,
+      admin: {
+        description:
+          'Optional, shown under the address. e.g. "32.49° N · 74.52° E". Only if you know it is right.',
+      },
+    },
+    {
+      name: 'certifications',
+      type: 'array',
+      labels: { singular: 'Certification', plural: 'Certifications' },
+      admin: {
+        description:
+          'Only standards you actually hold. Each one is a claim buyers may ask you to prove.',
+      },
+      fields: [{ name: 'name', type: 'text', required: true, maxLength: 48 }],
+    },
+    {
+      name: 'socialLinks',
+      type: 'array',
+      labels: { singular: 'Social link', plural: 'Social links' },
+      fields: [
+        { name: 'label', type: 'text', required: true, maxLength: 24 },
+        { name: 'url', type: 'text', required: true, validate: validateHttps },
+      ],
+    },
     {
       name: 'inquiryTemplate',
       type: 'group',

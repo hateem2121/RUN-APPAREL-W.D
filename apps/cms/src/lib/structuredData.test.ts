@@ -1,6 +1,6 @@
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
-import type { ProductCard, PublicSiteSettings } from './projectPublic'
+import { EMPTY_FOOTER, type ProductCard, type PublicSiteSettings } from './projectPublic'
 import { SITE_ORIGIN, VIEWER_ORIGIN } from './seo'
 import {
   contactPageJsonLd,
@@ -14,6 +14,7 @@ const settings = (over: Partial<PublicSiteSettings> = {}): PublicSiteSettings =>
   ...DEFAULT_SITE_SETTINGS,
   logoUrl: null,
   logoMimeType: null,
+  footer: EMPTY_FOOTER,
   ...over,
 })
 

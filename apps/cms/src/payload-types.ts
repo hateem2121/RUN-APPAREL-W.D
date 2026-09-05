@@ -818,6 +818,62 @@ export interface SiteSetting {
   footerLine: string;
   legalLine: string;
   /**
+   * The green tab at the top of the footer. Links to the Contact page.
+   */
+  ctaLabel: string;
+  /**
+   * The big question. The LAST word is set in italic green automatically.
+   */
+  ctaQuestion: string;
+  ctaSubline: string;
+  /**
+   * Drawn as a measurement line under the question. This is a promise in writing.
+   */
+  ctaPromise: string;
+  /**
+   * Facts a buyer wants before they write to you. Every box is optional and the footer hides what is blank. The clock light ("Open now") is worked out from the hours — leave them blank and no light is shown.
+   */
+  capacity?: {
+    /**
+     * e.g. "50 pcs per style"
+     */
+    moq?: string | null;
+    /**
+     * e.g. "4–6 weeks from approval"
+     */
+    leadTime?: string | null;
+    hoursFirstDay?: ('mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun') | null;
+    hoursLastDay?: ('mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun') | null;
+    /**
+     * HH:MM, Sialkot time
+     */
+    hoursOpen?: string | null;
+    /**
+     * HH:MM, Sialkot time
+     */
+    hoursClose?: string | null;
+  };
+  /**
+   * Optional, shown under the address. e.g. "32.49° N · 74.52° E". Only if you know it is right.
+   */
+  worksCoordinates?: string | null;
+  /**
+   * Only standards you actually hold. Each one is a claim buyers may ask you to prove.
+   */
+  certifications?:
+    | {
+        name: string;
+        id?: string | null;
+      }[]
+    | null;
+  socialLinks?:
+    | {
+        label: string;
+        url: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
    * Reference copy of the enquiry template the viewer generates for email/WhatsApp. Tokens: [Product Name], [Product Code], [Colour].
    */
   inquiryTemplate?: {
@@ -900,6 +956,34 @@ export interface SiteSettingsSelect<T extends boolean = true> {
   temporaryWordmark?: T;
   footerLine?: T;
   legalLine?: T;
+  ctaLabel?: T;
+  ctaQuestion?: T;
+  ctaSubline?: T;
+  ctaPromise?: T;
+  capacity?:
+    | T
+    | {
+        moq?: T;
+        leadTime?: T;
+        hoursFirstDay?: T;
+        hoursLastDay?: T;
+        hoursOpen?: T;
+        hoursClose?: T;
+      };
+  worksCoordinates?: T;
+  certifications?:
+    | T
+    | {
+        name?: T;
+        id?: T;
+      };
+  socialLinks?:
+    | T
+    | {
+        label?: T;
+        url?: T;
+        id?: T;
+      };
   inquiryTemplate?:
     | T
     | {

@@ -20,10 +20,94 @@ import { isAddressableColourway } from './colourwayAccess'
  * icon to set. Widening it would push a field into the public viewer payload that
  * nothing there reads.
  */
+/** Working hours, parsed. Days are 0–6 with Sunday 0, matching `Date#getDay()`. */
+export interface FooterHours {
+  firstDay: number
+  lastDay: number
+  /** `HH:MM`, works local time (Asia/Karachi). */
+  open: string
+  close: string
+}
+
+export interface FooterSettings {
+  ctaLabel: string
+  ctaQuestion: string
+  ctaSubline: string
+  ctaPromise: string
+  capacity: { moq: string; leadTime: string; hours: FooterHours | null }
+  worksCoordinates: string
+  certifications: string[]
+  socialLinks: { label: string; url: string }[]
+}
+
 export interface PublicSiteSettings extends ViewerSiteSettings {
   /** Owner-uploaded tab icon. `null` falls back to the built-in mark in public/. */
   logoUrl: string | null
   logoMimeType: string | null
+  /**
+   * cms-only, NOT on the shared ViewerSiteSettings: the viewer API returns that type
+   * to the 3D pages, and its fixtures and smoke gates must not move for a footer.
+   */
+  footer: FooterSettings
+}
+
+/**
+ * Copy has a default; a claim does not. The split is the whole point of this object —
+ * a blank certification list renders NO block, never an example one.
+ */
+export const EMPTY_FOOTER: FooterSettings = {
+  ctaLabel: 'Start an enquiry',
+  ctaQuestion: 'Have a garment that needs making properly?',
+  ctaSubline: 'Send a tech pack, a sketch, or just the idea.',
+  ctaPromise: 'Reply within 2 business days',
+  capacity: { moq: '', leadTime: '', hours: null },
+  worksCoordinates: '',
+  certifications: [],
+  socialLinks: [],
+}
+
+const DAY_INDEX: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 }
+const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/
+
+function projectHours(capacity: Record<string, unknown> | null): FooterHours | null {
+  const first = DAY_INDEX[text(capacity?.hoursFirstDay)]
+  const last = DAY_INDEX[text(capacity?.hoursLastDay)]
+  const open = text(capacity?.hoursOpen)
+  const close = text(capacity?.hoursClose)
+  if (first === undefined || last === undefined) return null
+  if (!CLOCK.test(open) || !CLOCK.test(close)) return null
+  return { firstDay: first, lastDay: last, open, close }
+}
+
+export function projectFooter(doc: Record<string, unknown> | null | undefined): FooterSettings {
+  const copy = (key: 'ctaLabel' | 'ctaQuestion' | 'ctaSubline' | 'ctaPromise') =>
+    text(doc?.[key]) || EMPTY_FOOTER[key]
+  const capacity =
+    doc?.capacity && typeof doc.capacity === 'object'
+      ? (doc.capacity as Record<string, unknown>)
+      : null
+  const rows = (value: unknown): Record<string, unknown>[] =>
+    Array.isArray(value)
+      ? value.filter((r): r is Record<string, unknown> => !!r && typeof r === 'object')
+      : []
+  return {
+    ctaLabel: copy('ctaLabel'),
+    ctaQuestion: copy('ctaQuestion'),
+    ctaSubline: copy('ctaSubline'),
+    ctaPromise: copy('ctaPromise'),
+    capacity: {
+      moq: text(capacity?.moq),
+      leadTime: text(capacity?.leadTime),
+      hours: projectHours(capacity),
+    },
+    worksCoordinates: text(doc?.worksCoordinates),
+    certifications: rows(doc?.certifications)
+      .map((r) => text(r.name))
+      .filter(Boolean),
+    socialLinks: rows(doc?.socialLinks)
+      .map((r) => ({ label: text(r.label), url: text(r.url) }))
+      .filter((r) => r.label && /^https:\/\/\S+$/.test(r.url)),
+  }
 }
 
 /** One card on the public product gallery. */
@@ -71,6 +155,7 @@ export function mergeSiteSettings(
     temporaryWordmark: pick('temporaryWordmark'),
     footerLine: pick('footerLine'),
     legalLine: pick('legalLine'),
+    footer: projectFooter(doc),
   }
 }
 

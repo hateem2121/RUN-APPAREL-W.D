@@ -3,6 +3,7 @@ import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import config from '@payload-config'
 import { getPayload } from 'payload'
 import {
+  EMPTY_FOOTER,
   type ProductCard,
   type PublicSiteSettings,
   mergeSiteSettings,
@@ -84,7 +85,7 @@ export async function getSiteSettings(): Promise<PublicSiteSettings> {
     return value
   } catch (err) {
     console.error('[content] site-settings unavailable, using defaults:', err)
-    return { ...DEFAULT_SITE_SETTINGS, logoUrl: null, logoMimeType: null }
+    return { ...DEFAULT_SITE_SETTINGS, logoUrl: null, logoMimeType: null, footer: EMPTY_FOOTER }
   }
 }
 

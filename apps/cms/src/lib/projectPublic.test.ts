@@ -1,6 +1,6 @@
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
-import { mergeSiteSettings, toProductCard } from './projectPublic'
+import { EMPTY_FOOTER, mergeSiteSettings, projectFooter, toProductCard } from './projectPublic'
 
 describe('mergeSiteSettings', () => {
   it('uses the shared defaults when the global has never been saved', () => {
@@ -164,5 +164,79 @@ describe('toProductCard', () => {
       )
       expect(card?.posterAlt).toBe('Velocity Performance Cycling Suit — 3D product reference')
     })
+  })
+})
+
+describe('projectFooter', () => {
+  it('projects nothing but copy defaults from an empty global', () => {
+    expect(projectFooter(null)).toEqual(EMPTY_FOOTER)
+    expect(EMPTY_FOOTER.ctaLabel).toBe('Start an enquiry')
+    expect(EMPTY_FOOTER.certifications).toEqual([])
+    expect(EMPTY_FOOTER.socialLinks).toEqual([])
+    expect(EMPTY_FOOTER.capacity).toEqual({ moq: '', leadTime: '', hours: null })
+    expect(EMPTY_FOOTER.worksCoordinates).toBe('')
+  })
+
+  it('keeps only https social links with a label, trimmed', () => {
+    const footer = projectFooter({
+      socialLinks: [
+        { label: ' LinkedIn ', url: 'https://www.linkedin.com/company/run-apparel ' },
+        { label: 'Bad', url: 'http://insecure.example' },
+        { label: '', url: 'https://x.example' },
+        { label: 'NoUrl' },
+        'garbage',
+      ],
+    })
+    expect(footer.socialLinks).toEqual([
+      { label: 'LinkedIn', url: 'https://www.linkedin.com/company/run-apparel' },
+    ])
+  })
+
+  it('drops blank certifications and trims the rest', () => {
+    const footer = projectFooter({ certifications: [{ name: ' GOTS ' }, { name: '' }, null] })
+    expect(footer.certifications).toEqual(['GOTS'])
+  })
+
+  it('projects hours only when all four parts are valid, and never a partial week', () => {
+    const full = projectFooter({
+      capacity: {
+        hoursFirstDay: 'mon',
+        hoursLastDay: 'sat',
+        hoursOpen: '09:00',
+        hoursClose: '18:00',
+      },
+    })
+    expect(full.capacity.hours).toEqual({ firstDay: 1, lastDay: 6, open: '09:00', close: '18:00' })
+
+    const partial = projectFooter({ capacity: { hoursFirstDay: 'mon', hoursOpen: '09:00' } })
+    expect(partial.capacity.hours).toBeNull()
+
+    const malformed = projectFooter({
+      capacity: {
+        hoursFirstDay: 'mon',
+        hoursLastDay: 'sat',
+        hoursOpen: '9am',
+        hoursClose: '18:00',
+      },
+    })
+    expect(malformed.capacity.hours).toBeNull()
+  })
+
+  it('a copy field falls back to its default when blank, a claim field to empty', () => {
+    const footer = projectFooter({
+      ctaQuestion: '   ',
+      capacity: { moq: '  ' },
+      worksCoordinates: ' ',
+    })
+    expect(footer.ctaQuestion).toBe('Have a garment that needs making properly?')
+    expect(footer.capacity.moq).toBe('')
+    expect(footer.worksCoordinates).toBe('')
+  })
+
+  it('mergeSiteSettings carries the footer, and the shared type is untouched', () => {
+    const merged = mergeSiteSettings({ ctaLabel: 'Talk to us' })
+    expect(merged.footer.ctaLabel).toBe('Talk to us')
+    // The viewer API returns ViewerSiteSettings; nothing footer-shaped may leak into it.
+    expect(Object.keys(merged)).not.toContain('certifications')
   })
 })
