@@ -66,9 +66,9 @@ export default async function HomePage() {
         <div className="site-container">
           <p className="section-number">N°01 — What we make</p>
           <h2 className="display display--section">Five families, one standard.</h2>
-          <ul className="product-grid" style={{ marginTop: '24px' }}>
+          <ul className="product-grid">
             {FAMILIES.map((family) => (
-              <li className="panel" key={family.name} style={{ padding: '20px' }}>
+              <li className="panel family-card" key={family.name}>
                 <h3 className="product-card__name">{family.name}</h3>
                 <p className="product-card__desc">{family.body}</p>
               </li>

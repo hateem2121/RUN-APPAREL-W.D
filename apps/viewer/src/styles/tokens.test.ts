@@ -597,3 +597,79 @@ describe('progress indicators', () => {
     ).toEqual([])
   })
 })
+
+/**
+ * Spacing written into JSX, where the stylesheet gate cannot see it.
+ *
+ * ⚠️ THIS EXISTS BECAUSE THE GATE ABOVE HAD A HOLE AND WAS BEING CREDITED ANYWAY.
+ * "uses only the documented spacing steps" reads `.css` files. On 2026-09-05 an audit
+ * of the public site found three hard-coded spacing values living in `style={{ … }}`
+ * attributes inside `.tsx` files — `marginTop: '24px'` twice and `padding: '20px'` once
+ * — which had never been scanned by anything. The values happened to be documented
+ * steps, so nothing was visibly wrong; the point is that nothing would have been
+ * visibly wrong if they had not been.
+ *
+ * A gate with a known hole is worse than no gate, because the hole is invisible from
+ * the passing result. This closes it for the two component trees that render the
+ * design system.
+ *
+ * Inline styles are not banned outright — a computed transform or a dynamic dimension
+ * genuinely belongs in JSX. What is banned is a LITERAL spacing value, which is the
+ * one thing the token scale exists to decide.
+ */
+const COMPONENT_DIRS = [
+  join(REPO_ROOT, 'apps', 'cms', 'src', 'app', '(frontend)'),
+  join(REPO_ROOT, 'apps', 'cms', 'src', 'components'),
+  join(REPO_ROOT, 'apps', 'viewer', 'src'),
+]
+
+function tsxFiles(dir: string): Array<{ name: string; source: string }> {
+  const out: Array<{ name: string; source: string }> = []
+  const walk = (current: string) => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const full = join(current, entry.name)
+      if (entry.isDirectory()) {
+        walk(full)
+        continue
+      }
+      if (!entry.name.endsWith('.tsx') || entry.name.includes('.test.')) continue
+      out.push({ name: full.slice(REPO_ROOT.length + 1), source: readFileSync(full, 'utf8') })
+    }
+  }
+  if (existsSync(dir)) walk(dir)
+  return out
+}
+
+describe('spacing written into JSX', () => {
+  it('never hard-codes a spacing value in an inline style', () => {
+    const offenders: string[] = []
+    // `padding: '20px'`, `marginTop: "24px"`, `gap: '8px'` — a literal px string on a
+    // spacing property. A `var(--…)`, a template literal or a computed value is fine.
+    const inline = /\b(padding|margin|gap|rowGap|columnGap)[A-Za-z]*\s*:\s*'(-?\d+(?:\.\d+)?)px'/g
+
+    for (const dir of COMPONENT_DIRS) {
+      for (const { name, source } of tsxFiles(dir)) {
+        for (const match of source.matchAll(inline)) {
+          const line = source.slice(0, match.index).split('\n').length
+          offenders.push(`${name}:${line} sets ${match[1]} to ${match[2]}px inline`)
+        }
+      }
+    }
+
+    expect(
+      offenders,
+      'A spacing value is hard-coded in an inline style, where the stylesheet gate\n' +
+        'cannot see it. Move it into a class — that is what the token scale is for.',
+    ).toEqual([])
+  })
+
+  it('actually reaches the files it claims to scan', () => {
+    // The negative control for the check above. A walker that silently finds nothing —
+    // a wrong directory, a rename, a bad extension filter — reports a clean result that
+    // means "measured nothing", which is this repo's most repeated failure.
+    const counts = COMPONENT_DIRS.map((dir) => tsxFiles(dir).length)
+    for (const [index, count] of counts.entries()) {
+      expect(count, `${COMPONENT_DIRS[index]} yielded no .tsx files`).toBeGreaterThan(0)
+    }
+  })
+})

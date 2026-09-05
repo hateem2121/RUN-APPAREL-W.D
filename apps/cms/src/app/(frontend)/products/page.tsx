@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { JsonLd } from '../../../components/site/JsonLd'
+import { ProductPoster } from '../../../components/site/ProductPoster'
 import { getProductCards, type ProductCard } from '../../../lib/content'
 import { buildMetadata, VIEWER_ORIGIN } from '../../../lib/seo'
 import { productListJsonLd } from '../../../lib/structuredData'
@@ -55,7 +56,7 @@ export default async function ProductsPage() {
               <p className="section-number">
                 {products.length} reference{products.length === 1 ? '' : 's'}
               </p>
-              <ul className="product-grid" style={{ marginTop: '24px' }}>
+              <ul className="product-grid">
                 {products.map((product) => (
                   <Card key={product.slug} product={product} />
                 ))}
@@ -77,23 +78,7 @@ function Card({ product }: { product: ProductCard }) {
       <a className="product-card__link" href={href}>
         <figure className="product-card__figure">
           {product.posterUrl ? (
-            /*
-             * A plain <img>, not next/image. apps/cms runs on Workers without `sharp`,
-             * so the optimiser cannot resize anything — next/image would add a proxy
-             * hop and ship the identical bytes. `lazy` + `async` decoding keeps the
-             * posters off the critical path; the aspect-ratio box means no layout
-             * shift while they arrive.
-             */
-            // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize — it would add a proxy hop and serve byte-identical posters. See above.
-            <img
-              className="product-card__img"
-              src={product.posterUrl}
-              alt={product.posterAlt}
-              loading="lazy"
-              decoding="async"
-              width={1200}
-              height={1500}
-            />
+            <ProductPoster src={product.posterUrl} alt={product.posterAlt} />
           ) : (
             <span className="product-card__placeholder">[ 3D reference ]</span>
           )}

@@ -566,3 +566,32 @@ describe('location and contrast cues', () => {
     expect(code(site('NavLinks.tsx'))).toMatch(/export function NavLinks\(\)/)
   })
 })
+
+describe('a poster that fails to load', () => {
+  it('detects an ALREADY-failed image on mount, not only via onError', () => {
+    // The markup is server-rendered, so the browser starts fetching the poster while
+    // the HTML is still parsing. A 404 therefore fires `error` BEFORE React hydrates
+    // and attaches the handler — the listener arrives after the event it was waiting
+    // for. Measured 2026-09-05 against a forced 404: image broken (complete: true,
+    // naturalWidth: 0), React hydrated, swap never happened.
+    const src = code(CMS_ROOT, 'src', 'components', 'site', 'ProductPoster.tsx')
+    expect(src).toMatch(/img\?\.complete && img\.naturalWidth === 0/)
+    // and onError stays, for a poster that fails LATER — lazy-scrolled, or a dropped
+    // connection. Both paths are needed; neither is sufficient.
+    expect(src).toMatch(/onError=\{\(\) => setFailed\(true\)\}/)
+  })
+
+  it('keeps a no-JavaScript treatment in CSS as well', () => {
+    // The component covers the case where scripting runs. The CSS layer covers the
+    // window before hydration and every no-JS visitor, by styling the alt text the
+    // browser lays out inside a broken <img>.
+    const rule = /\.product-card__img\s*\{[^}]*\}/.exec(css())?.[0] ?? ''
+    expect(rule, '.product-card__img rule is missing').not.toBe('')
+    expect(rule).toContain('font-family: var(--font-mono)')
+    expect(rule).toContain('text-transform: uppercase')
+    // ⚠️ and NO padding: it insets the content box of a replaced element, so
+    // object-fit fits the poster inside it — a 16px pad put a visible margin around
+    // every poster that loaded correctly.
+    expect(rule).not.toMatch(/\bpadding:/)
+  })
+})

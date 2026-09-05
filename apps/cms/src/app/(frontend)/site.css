@@ -522,13 +522,28 @@
 
 /* ------------------------------------------------------- product gallery */
 
+/*
+ * ⚠️ THE TOP MARGIN IS HERE BECAUSE IT USED TO BE AN INLINE STYLE.
+ *
+ * Both pages that render this grid wrote `style={{ marginTop: '24px' }}` on it. The
+ * value was right and the placement was the problem: tokens.test.ts polices hard-coded
+ * spacing, and it reads `.css` files — so spacing written inside a `.tsx` file walked
+ * straight past the gate that exists to catch exactly that. Three such values were in
+ * the tree. The gate now scans JSX too.
+ */
 .product-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 24px;
-  margin: 0;
+  margin: 24px 0 0;
   padding: 0;
   list-style: none;
+}
+
+/* The five garment families on the homepage. `.panel` supplies the surface from
+   base.css; this supplies only the padding, which was the third inline style. */
+.family-card {
+  padding: 20px;
 }
 
 .product-card {
@@ -581,11 +596,49 @@
   border-bottom: 1px solid var(--line);
 }
 
+/*
+ * ⚠️ THE TEXT PROPERTIES HERE ARE THE BROKEN-IMAGE FALLBACK, AND THEY LOOK POINTLESS.
+ *
+ * While the poster loads they change nothing — a rendered bitmap covers the box and an
+ * image has no text to style. The moment the request fails, the browser lays the ALT
+ * text out inside this same element, and without these it renders as sprawled serif
+ * prose in the top-left corner: measured 2026-09-05, a failed poster showed "Velocity
+ * Performance Tee in Navy, front three-quarter view" across an empty card and read as a
+ * broken page.
+ *
+ * The card already has a designed `[ 3D reference ]` placeholder, but that only renders
+ * when a poster is ABSENT. A poster that exists and fails to load took a different path
+ * with no treatment at all — and this domain has served CACHED media errors for up to
+ * 30 days (see the cached-404 trap in CLAUDE.md), so it is a documented event here
+ * rather than a hypothetical.
+ *
+ * ⚠️ THIS IS THE NO-JAVASCRIPT LAYER AND IT IS NOT SUFFICIENT ALONE — measured, not
+ * assumed. Chromium and WebKit honour all of it. FIREFOX applies the font and ignores
+ * `text-align` and `text-transform`, and no engine vertically centres alt text. Worse,
+ * `getComputedStyle` in Firefox reports `text-align: center` anyway, so the computed
+ * value says it worked and only a screenshot shows that it did not.
+ *
+ * `components/site/ProductPoster.tsx` is the second layer: it swaps in the real
+ * placeholder on `error` wherever scripting is available. This layer still earns its
+ * place — it covers the window before hydration, and every no-JS case.
+ *
+ * ⚠️ NO `padding` HERE, THOUGH THE BROKEN TEXT WOULD READ BETTER WITH IT. Padding insets
+ * the content box of a replaced element, so `object-fit: contain` fits the poster inside
+ * it — measured, a 16px pad put a visible margin around every poster that loaded
+ * correctly. Changing the normal case to improve the failure case is the wrong trade.
+ */
 .product-card__img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  display: block;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .product-card__placeholder {
