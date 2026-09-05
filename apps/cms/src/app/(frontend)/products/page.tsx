@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { JsonLd } from '../../../components/site/JsonLd'
 import { ProductPoster } from '../../../components/site/ProductPoster'
 import { getProductCards, type ProductCard } from '../../../lib/content'
@@ -62,6 +63,7 @@ function crossOriginPosterHost(products: ProductCard[]): string | null {
 
 export default async function ProductsPage() {
   const products = await getProductCards()
+  const nonce = (await headers()).get('x-nonce') ?? undefined
   const posterHost = crossOriginPosterHost(products)
 
   return (
@@ -70,7 +72,7 @@ export default async function ProductsPage() {
           non-CORS connection. A preconnect in CORS mode would open a SECOND connection
           the images never use, making it slower rather than faster. */}
       {posterHost ? <link rel="preconnect" href={posterHost} /> : null}
-      {products.length > 0 ? <JsonLd data={productListJsonLd(products)} /> : null}
+      {products.length > 0 ? <JsonLd data={productListJsonLd(products)} nonce={nonce} /> : null}
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">

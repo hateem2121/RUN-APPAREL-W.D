@@ -10,10 +10,11 @@
  * The data always comes from `lib/structuredData.ts`, which builds plain objects from
  * settings and product rows — never from user-supplied HTML.
  */
-export function JsonLd({ data }: { data: unknown }) {
+export function JsonLd({ data, nonce }: { data: unknown; nonce?: string }) {
   return (
     <script
       type="application/ld+json"
+      nonce={nonce}
       // biome-ignore lint/security/noDangerouslySetInnerHtml: the only way to emit a JSON-LD block; the payload is JSON.stringify of a locally-built object with `<` escaped, per the comment above.
       dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, '\\u003c') }}
     />

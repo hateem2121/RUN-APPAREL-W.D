@@ -51,9 +51,16 @@ describe('the public site is indexable and the admin is not exposed by it', () =
     // to the client-rendered viewer is that they have to be findable. A leftover
     // noindex would make the entire exercise pointless while every page still looked
     // perfect in a browser — green, and worth nothing.
+    // ⚠️ ASSERTS THE ABSENCE OF A noindex, NOT THE PRESENCE OF AN index. `index, follow`
+    // is what a crawler does unbidden, so declaring it bought nothing — and it broke the
+    // 404: React's client-side metadata reconciliation replaced that page's own
+    // `noindex, follow` with this layout's `index, follow` after hydration, leaving a
+    // JavaScript-executing crawler reading both at once. Measured 2026-09-05.
     const layout = code(FRONTEND, 'layout.tsx')
-    expect(layout).toMatch(/robots:\s*\{\s*index:\s*true/)
     expect(layout).not.toMatch(/index:\s*false/)
+    expect(layout).not.toMatch(/noindex/)
+    // and the 404 must still declare its own, which SSR renders correctly
+    expect(code(FRONTEND, 'not-found.tsx')).toMatch(/robots:\s*\{\s*index:\s*false/)
   })
 
   it('the admin and REST API stay in the (payload) group, which this layout never wraps', () => {
@@ -593,5 +600,57 @@ describe('a poster that fails to load', () => {
     // object-fit fits the poster inside it — a 16px pad put a visible margin around
     // every poster that loaded correctly.
     expect(rule).not.toMatch(/\bpadding:/)
+  })
+})
+
+describe('the 404, the policy, and analytics', () => {
+  const site = (...parts: string[]) => join(CMS_ROOT, 'src', 'components', 'site', ...parts)
+
+  it('an unmatched URL reaches the branded 404 rather than Next own bare one', () => {
+    // A not-found.tsx inside a route group only answers notFound() raised WITHIN that
+    // group. A URL matching no route at all is a different case, and with two route
+    // groups Next cannot know whose layout to use — so it fell back to "404: This page
+    // could not be found", with no navigation, on a site whose URLs are on printed tags.
+    expect(existsSync(join(FRONTEND, 'not-found.tsx'))).toBe(true)
+    expect(existsSync(join(FRONTEND, '[...unmatched]', 'page.tsx'))).toBe(true)
+  })
+
+  it('scopes the security policy to the public pages by an explicit list', () => {
+    // ⚠️ A negative lookahead that is subtly wrong fails OPEN — it would apply the policy
+    // to /admin, and the symptom would be a broken Payload login rather than an error
+    // naming this file. next.config.mjs records why /admin deliberately has no full CSP.
+    const proxy = code(CMS_ROOT, 'src', 'proxy.ts')
+    expect(proxy).toMatch(/matcher: \['\/', '\/products', '\/contact'\]/)
+    expect(proxy).not.toMatch(/\(\?!/)
+    // a nonce, not a hash, and never unsafe-inline for scripts
+    expect(proxy).toMatch(/'nonce-\$\{nonce\}'/)
+    expect(proxy).toMatch(/'strict-dynamic'/)
+    expect(proxy).not.toMatch(/script-src[^`]*unsafe-inline/)
+  })
+
+  it('is proxy.ts, the convention Next 16 has not deprecated', () => {
+    // `next build` prints "The middleware file convention is deprecated" for the old
+    // name. Same signature, same config, current name — do not rename it back from an
+    // older tutorial.
+    expect(existsSync(join(CMS_ROOT, 'src', 'proxy.ts'))).toBe(true)
+    expect(existsSync(join(CMS_ROOT, 'src', 'middleware.ts'))).toBe(false)
+  })
+
+  it('never renders an analytics beacon without a token', () => {
+    // A beacon carrying an empty token reports to Cloudflare from an unidentified site,
+    // which is worse than not reporting. And it must carry the nonce, or the CSP refuses
+    // it silently and analytics records nothing while everything looks green.
+    const analytics = code(site('Analytics.tsx'))
+    expect(analytics).toMatch(/if \(!token\) return null/)
+    expect(analytics).toMatch(/nonce=\{nonce\}/)
+  })
+
+  it('threads the nonce to every script the app renders itself', () => {
+    // Next stamps its OWN tags from the CSP request header, but not the JSON-LD blocks
+    // or the beacon. Without the nonce those are refused with only a console entry.
+    expect(code(site('JsonLd.tsx'))).toMatch(/nonce=\{nonce\}/)
+    for (const page of ['layout.tsx', join('products', 'page.tsx'), join('contact', 'page.tsx')]) {
+      expect(code(FRONTEND, page), page).toMatch(/x-nonce/)
+    }
   })
 })

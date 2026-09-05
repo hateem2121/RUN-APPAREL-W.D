@@ -34,7 +34,9 @@ import '@run-apparel/ui/base.css'
 import './site.css'
 
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import type React from 'react'
+import { Analytics } from '../../components/site/Analytics'
 import { JsonLd } from '../../components/site/JsonLd'
 import { SiteFooter } from '../../components/site/SiteFooter'
 import { SiteHeader } from '../../components/site/SiteHeader'
@@ -45,11 +47,29 @@ import { organizationJsonLd } from '../../lib/structuredData'
 /**
  * The PUBLIC marketing site.
  *
- * ⚠️ This route group used to be a stub carrying `robots: { index: false }`, because
- * the only thing on this Worker was the admin. It is now indexable on purpose. The
- * admin and the REST API live in the sibling `(payload)` group and are unaffected —
- * they are protected by authentication, never by this metadata, and
- * `publicSite.test.ts` pins that distinction.
+ * ⚠️ This route group used to be a stub carrying `robots: { index: false }`, because the
+ * only thing on this Worker was the admin. It is now indexable on purpose. The admin and
+ * the REST API live in the sibling `(payload)` group and are unaffected — they are
+ * protected by authentication, never by this metadata, and `publicSite.test.ts` pins
+ * that distinction.
+ *
+ * ⚠️ AND IT NOW DECLARES NO `robots` AT ALL, WHICH IS DELIBERATE AND NOT A REGRESSION.
+ * `index, follow` is what every crawler does without being told, so stating it bought
+ * nothing — and it actively broke the 404. Measured 2026-09-05 on `/definitely-not-a-page`:
+ *
+ *   initial HTML      noindex  +  noindex, follow      <- correct
+ *   AFTER HYDRATION   index, follow  +  noindex        <- contradictory
+ *
+ * React's client-side metadata reconciliation replaced the not-found page's own
+ * `noindex, follow` with this layout's `index, follow`, so a crawler that executes
+ * JavaScript — Googlebot does — ended up reading both instructions at once. Google
+ * resolves that by taking the most restrictive, so it would probably have been fine;
+ * "probably" is not a basis for whether the company's 404 is indexable.
+ *
+ * Removing the declaration fixes it at the source and changes nothing for the three real
+ * pages, which are indexable by default. `publicSite.test.ts` therefore asserts the
+ * ABSENCE of a noindex rather than the presence of an index — the leftover `noindex` is
+ * the failure that was ever worth guarding against.
  */
 /** Shipped fallback mark, served from public/. See the comment in that file. */
 const DEFAULT_ICON = '/icon.svg'
@@ -72,7 +92,6 @@ export async function generateMetadata(): Promise<Metadata> {
       template: '%s — RUN APPAREL',
       default: 'RUN APPAREL — Custom B2B Sportswear & Team Wear Manufacturer',
     },
-    robots: { index: true, follow: true },
     icons: {
       icon: settings.logoUrl
         ? [{ url: settings.logoUrl, type: settings.logoMimeType ?? undefined }]
@@ -83,13 +102,23 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function FrontendLayout({ children }: { children: React.ReactNode }) {
   const settings = await getSiteSettings()
+  /*
+   * The per-request nonce from proxy.ts. `script-src` governs every <script> this
+   * app renders itself — the JSON-LD blocks and the analytics beacon — and Next only
+   * stamps its OWN tags. Without this they are silently refused: no error, no analytics,
+   * no structured data, and a green deploy.
+   *
+   * Undefined on any route the middleware matcher does not cover, which is correct:
+   * there is no CSP on those, so there is nothing to satisfy.
+   */
+  const nonce = (await headers()).get('x-nonce') ?? undefined
   return (
     <html lang="en">
       <body>
         {/* Site-wide, so every page carries the company identity a crawler or an AI
             reader resolves the rest of the page against. The other blocks reference
             this node by @id rather than redescribing the company. */}
-        <JsonLd data={organizationJsonLd(settings)} />
+        <JsonLd data={organizationJsonLd(settings)} nonce={nonce} />
         <a className="skip-link" href="#main">
           Skip to content
         </a>
@@ -107,6 +136,7 @@ export default async function FrontendLayout({ children }: { children: React.Rea
           {children}
         </main>
         <SiteFooter settings={settings} />
+        <Analytics nonce={nonce} />
       </body>
     </html>
   )

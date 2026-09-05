@@ -1,5 +1,6 @@
 import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { getSiteSettings } from '../../../lib/content'
 import { buildMetadata } from '../../../lib/seo'
 import { contactPageJsonLd, formatAddress } from '../../../lib/structuredData'
@@ -37,11 +38,12 @@ const ADDRESS = formatAddress()
  */
 export default async function ContactPage() {
   const settings = await getSiteSettings()
+  const nonce = (await headers()).get('x-nonce') ?? undefined
   const whatsapp = `https://wa.me/${normalizeWhatsAppNumber(settings.whatsappNumber)}`
 
   return (
     <>
-      <JsonLd data={contactPageJsonLd(settings)} />
+      <JsonLd data={contactPageJsonLd(settings)} nonce={nonce} />
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
