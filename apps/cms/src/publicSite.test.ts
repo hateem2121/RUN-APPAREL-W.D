@@ -255,6 +255,16 @@ describe('the notch', () => {
     )
   })
 
+  it('keeps the card placeholder off --wash, which fails AA by two hundredths', () => {
+    // axe, 2026-09-05: nine SERIOUS colour-contrast violations on /products, all the
+    // same rule — the "[ 3D REFERENCE ]" label was --muted on --wash at 4.48:1 against
+    // a 4.5:1 floor. Every other gate was green; only a live audit found it. On --bg it
+    // is 5.10:1 light and 6.69:1 dark, and the card body being the lighter --surface
+    // keeps the figure reading as recessed.
+    expect(css()).toMatch(/\.product-card__figure\s*\{[^}]*background: var\(--bg\)/)
+    expect(css()).not.toMatch(/\.product-card__figure\s*\{[^}]*background: var\(--wash\)/)
+  })
+
   it('carries the elevation token, which is its ONLY separation in dark mode', () => {
     // Measured 2026-09-05: --raised (#363c2f) on --bg (#1c1f18) is 1.47:1, and --raised
     // is already the lightest surface the system has — there is no lighter bar to reach

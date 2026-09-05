@@ -461,7 +461,16 @@
   position: relative;
   aspect-ratio: 4 / 5;
   margin: 0;
-  background: var(--wash);
+  /*
+   * --bg, NOT --wash. The placeholder label sits on this surface, and --muted on
+   * --wash measures 4.48:1 — under the 4.5:1 AA floor by two hundredths, which axe
+   * flagged on all nine placeholder cards. On --bg it is 5.10:1 and the recessed look
+   * survives, because the card body is the lighter --surface.
+   *
+   * Not fixed by darkening the text: --muted is the design system's one muted ink and
+   * changing it would move every muted string on both apps.
+   */
+  background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
 
