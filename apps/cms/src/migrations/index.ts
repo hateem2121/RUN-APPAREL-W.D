@@ -10,6 +10,7 @@ import * as migration_20260811_163415_catalogue_defaults from './20260811_163415
 import * as migration_20260811_190000_folders_on_media from './20260811_190000_folders_on_media';
 import * as migration_20260817_120000_build_process_and_description from './20260817_120000_build_process_and_description';
 import * as migration_20260905_090000_site_logo from './20260905_090000_site_logo';
+import * as migration_20260905_150000_footer_facts from './20260905_150000_footer_facts';
 
 export const migrations = [
   {
@@ -71,5 +72,10 @@ export const migrations = [
     up: migration_20260905_090000_site_logo.up,
     down: migration_20260905_090000_site_logo.down,
     name: '20260905_090000_site_logo',
+  },
+  {
+    up: migration_20260905_150000_footer_facts.up,
+    down: migration_20260905_150000_footer_facts.down,
+    name: '20260905_150000_footer_facts',
   },
 ];
