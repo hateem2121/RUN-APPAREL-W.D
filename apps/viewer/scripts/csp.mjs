@@ -213,7 +213,7 @@ export function buildHeadersFile(input) {
 # not decode a production GLB without the Meshopt decoder (see Stage.tsx), and it
 # cannot light the garment without the environment map. So a phone that already
 # has the bytes still paid a round trip for each before any 3D could start --
-# on the connection also carrying a 27 MB model.
+# on the connection also carrying the model itself (1.9-8.2 MB since 2026-09-03).
 #
 # SEPARATE RULES, NEVER /*. Cloudflare JOINS duplicate headers from every
 # matching rule with a comma rather than picking a winner, so a Cache-Control on
@@ -226,8 +226,25 @@ export function buildHeadersFile(input) {
 # copies the decoder matching the meshoptimizer the pipeline encodes with, and a
 # bump changes the bytes at the same URL -- so a decoder or environment change
 # needs a cache purge, exactly as a _headers change does.
+# Content-Type added 2026-09-05. Measured on the live edge that day:
+#     GET /env/studio-soft.hdr -> 200, content-type: (empty)
+# Workers Static Assets derives the type from the file extension and has no entry
+# for .hdr, so it served the environment map with no type at all. It works today
+# only because model-viewer's loader never checks; it is one proxy or one browser
+# hardening pass away from breaking the lighting on every garment.
+#
+# image/vnd.radiance is the registered type for a Radiance .hdr file.
+#
+# ⚠️ APPENDED TO THIS BLOCK, NOT GIVEN ITS OWN /env/* RULE — see the comma-joining
+# trap above. A second rule matching the same path would have Cloudflare join the
+# two Cache-Control values rather than pick one.
+#
+# ⚠️ This asserts a type for EVERY file under /env/. public/env/ holds exactly one
+# file and envDirectory.test.ts fails if anything that is not .hdr appears there,
+# because a second format would silently be mislabelled by this line.
 /env/*
   Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/vnd.radiance
 
 /draco/*
   Cache-Control: public, max-age=31536000, immutable
@@ -257,6 +274,33 @@ export function buildHeadersFile(input) {
 # Cannot collide with /assets/* — see the comma-joining trap above.
 /og/*
   Cache-Control: public, max-age=3600
+
+# Icons and llms.txt — 2026-09-05.
+#
+# Same L1-06 problem the /og/ rule above was written for: these are copied from
+# public/ so the /assets/* rule never reaches them, and they landed on Workers
+# Static Assets' default of \`max-age=0, must-revalidate\`. A browser asks for
+# /favicon.ico on essentially every visit, unbidden.
+#
+# ⚠️ BOUNDED, NOT immutable, and for the same reason as /og/*: none of these is
+# content-hashed or version-pinned, so the bytes at these URLs CAN change. A year of
+# immutable would leave a stale mark in every cache with no way to purge it. A day
+# is long enough to stop the per-visit round trip and short enough that a brand
+# change corrects itself.
+#
+# Separate rules rather than one glob: none of these paths can collide with
+# /assets/*, which is what makes them safe from the comma-joining trap above.
+/favicon.ico
+  Cache-Control: public, max-age=86400
+
+/favicon.svg
+  Cache-Control: public, max-age=86400
+
+/apple-touch-icon.png
+  Cache-Control: public, max-age=86400
+
+/llms.txt
+  Cache-Control: public, max-age=86400
 
 # The SPA shell must always revalidate so new deploys go live immediately.
 #

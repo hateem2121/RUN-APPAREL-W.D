@@ -250,7 +250,7 @@ if (!modelUrl) {
   // just means HEAD alone cannot see this class of fault, by construction.
   //
   // WHY THE BODY IS NOT DOWNLOADED. The verdict is in the status line, which arrives
-  // with the headers; the 27 MB body says nothing extra. Cancelling the stream
+  // with the headers; the body says nothing extra. Cancelling the stream
   // closes the connection after a few buffered KB, so a real browser-shaped GET
   // costs about as much as the HEAD it complements. Do NOT "fix" this by adding a
   // Range header or a cache-buster — a ranged or uniquely-keyed request may land on

@@ -90,3 +90,44 @@ describe('fetchWithProgress', () => {
     await expect(fetchWithProgress('https://media.example/x.glb', () => {})).rejects.toThrow(/404/)
   })
 })
+
+describe('a model URL that answers with an HTML page', () => {
+  /**
+   * ⚠️ MEASURED LIVE 2026-09-05, and the 200 case is the one that matters.
+   *
+   *     GET media.wear-run.help/<missing>.glb
+   *     -> 404, content-type: text/html, 27,150 bytes, Cloudflare's error document
+   *
+   * The 404 is already caught by the status check. This covers the same document
+   * arriving with a 200 — an edge rule, an interstitial, or a misrouted custom
+   * domain — where the bytes would otherwise reach three.js and surface as an
+   * unhandled GLB parse error instead of the branded recovery screen.
+   */
+  it('rejects rather than handing HTML to the 3D loader', async () => {
+    const response = new Response('<!doctype html><title>Not Found</title>', {
+      status: 200,
+      headers: { 'content-type': 'text/html; charset=utf-8', 'content-length': '39' },
+    })
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(response)
+    await expect(fetchWithProgress('https://media.example/x.glb', () => {})).rejects.toThrow(
+      /HTML page/i,
+    )
+  })
+
+  it('still accepts a real model, whatever the type says (negative control)', async () => {
+    // The check must be narrow. A GLB served as model/gltf-binary, as
+    // application/octet-stream, or with no type at all must all still load — the
+    // live environment map already ships with an EMPTY content-type.
+    for (const type of ['model/gltf-binary', 'application/octet-stream', '']) {
+      const headers: Record<string, string> = { 'content-length': '4' }
+      if (type) headers['content-type'] = type
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(new Uint8Array([0x67, 0x6c, 0x54, 0x46]), { status: 200, headers }),
+      )
+      await expect(
+        fetchWithProgress('https://media.example/x.glb', () => {}),
+        `a model served as "${type || '(none)'}" was refused`,
+      ).resolves.toBeInstanceOf(Blob)
+    }
+  })
+})

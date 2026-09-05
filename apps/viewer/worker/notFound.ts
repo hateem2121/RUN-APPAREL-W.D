@@ -38,8 +38,34 @@ export function shouldReturnNotFound(args: {
   contentType: string | null
 }): boolean {
   const { pathname, method, routeParsed, contentType } = args
-  if (routeParsed) return false
   if (pathname === '/') return false
   if (method !== 'GET') return false
-  return (contentType ?? '').includes('text/html')
+  if (!(contentType ?? '').includes('text/html')) return false
+  // A single segment carrying a dot is a FILE somebody asked for and we do not
+  // have — never a product page.
+  //
+  // ⚠️ THIS DOCBLOCK NAMED `/manifest.webmanifest` AS ONE OF THE THREE CASES THE
+  // FIX EXISTS FOR, AND IT WAS NOT ONE OF THEM. Measured live 2026-09-05, months
+  // after this shipped:
+  //
+  //     GET /manifest.webmanifest  -> 200 text/html
+  //     GET /favicon.ico           -> 200 text/html   (every browser asks, unbidden)
+  //
+  // Cause: `normalizeSlug('manifest.webmanifest')` returns `manifest-webmanifest`,
+  // a perfectly valid slug, so `parseViewerPath` accepts it, `routeParsed` is true
+  // and the guard above returns before it can decide anything. The comment
+  // described behaviour the code had never had.
+  //
+  // ⚠️ FIXED HERE AND NOT IN `normalizeSlug`. That function is the contract three
+  // Workers agree on, and `packages/shared` has roughly one uncovered line and ZERO
+  // uncovered functions of coverage headroom — a change there is both riskier and
+  // more expensive than a rule in the one place that is deciding a status code.
+  //
+  // A dot cannot appear in a real product or colourway slug: they are kebab-case
+  // identifiers printed on QR tags, and `normalizeSlug` strips a dot to a hyphen
+  // rather than preserving it, so no live URL can reach this branch.
+  const segments = pathname.split('/').filter(Boolean)
+  if (segments.length === 1 && segments[0]?.includes('.')) return true
+  if (routeParsed) return false
+  return true
 }

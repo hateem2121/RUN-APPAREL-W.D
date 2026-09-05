@@ -157,8 +157,37 @@ describe('buildPreview — description', () => {
     const { description } = build(payload({}))
     expect(description).toBe(
       'Sportswear · Race fit · 80% recycled polyester / 20% elastane, 160 GSM. ' +
-        'Rotate, zoom and compare all 3 colorways in 3D.',
+        'Shown in Wine. Rotate, zoom and compare all 3 colorways in 3D.',
     )
+  })
+
+  /**
+   * ⚠️ THE COLOUR WAS ABSENT UNTIL 2026-09-05, AND IT WAS AN SEO DEFECT RATHER THAN
+   * a wording preference. Measured across all 55 live pages: 55 unique titles and
+   * only **11 unique descriptions** — a garment's five colourway pages all carried
+   * byte-identical text while each declared itself canonical, so Google saw five
+   * near-duplicates per garment.
+   */
+  it('names the colourway, so a garment’s five pages are not five duplicates', () => {
+    const first = colourway({ slug: 'wine', displayName: 'Wine' })
+    const second = colourway({ slug: 'lime', displayName: 'Lime' })
+    const all = [first, second]
+    const a = build(payload({ colourways: all, selectedColourway: first })).description
+    const b = build(payload({ colourways: all, selectedColourway: second })).description
+    expect(a).toContain('Wine')
+    expect(b).toContain('Lime')
+    expect(a, 'two colourways of one garment still describe themselves identically').not.toBe(b)
+  })
+
+  it('describes the colourway that will LOAD, not the one that was asked for', () => {
+    // A QR tag pointing at a retired colour resolves to the default one. Describing
+    // the requested colour would name something the visitor never sees — the same
+    // reasoning that puts `selectedColourway` in the canonical URL.
+    const live = colourway({ slug: 'wine', displayName: 'Wine' })
+    const retired = colourway({ slug: 'ochre', displayName: 'Ochre' })
+    const { description } = build(payload({ colourways: [live], selectedColourway: live }))
+    expect(description).toContain('Wine')
+    expect(description).not.toContain(retired.displayName)
   })
 
   it('never returns an empty description, however little the CMS holds', () => {
@@ -169,7 +198,7 @@ describe('buildPreview — description', () => {
         product: { category: '' as never, garmentFit: '', fabricComposition: '', gsm: '' },
       }),
     ).description
-    expect(bare).toBe('Rotate, zoom and compare all 3 colorways in 3D.')
+    expect(bare).toBe('Shown in Wine. Rotate, zoom and compare all 3 colorways in 3D.')
   })
 
   it('says "this reference" rather than "all 1 colourways"', () => {

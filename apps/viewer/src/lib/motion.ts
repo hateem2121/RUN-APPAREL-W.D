@@ -31,14 +31,45 @@ export const PRELOADER_MIN_DWELL_MS = 400
 /**
  * Hover intent before a colourway preview is applied to the model.
  *
- * Not a token either. Rebinding a variant swaps every material on a 27 MB model,
+ * Not a token either. Rebinding a variant swaps every material on the model,
  * so this exists to coalesce a pointer crossing five tabs into one swap — it is
  * a debounce measured against human pointing, not a value on the motion scale.
  */
 export const HOVER_INTENT_MS = 90
 
-/** model-viewer's camera interpolation decay. Higher is snappier. */
-export const CAMERA_DECAY_MS = 120
+/**
+ * model-viewer's camera interpolation decay, in milliseconds.
+ *
+ * ⚠️ THIS SAID "Higher is snappier" UNTIL 2026-09-05, AND IT IS EXACTLY BACKWARDS.
+ * `Damper.setDecayTime` sets `naturalFrequency = 1 / decayMilliseconds`, and each
+ * frame applies `Math.exp(-naturalFrequency · dt)`. A LARGER decay time gives a
+ * LOWER natural frequency, so the term stays closer to 1 and the camera converges
+ * more SLOWLY. model-viewer's own default is `DECAY_MILLISECONDS = 50`.
+ *
+ * A wrong comment is worse than no comment here: the next person wanting a
+ * snappier viewer reads that line, raises the number, makes it worse, and believes
+ * they improved it.
+ *
+ * MEASURED on the live `rxps` page with trusted drag events, counting
+ * `camera-change` and timing from pointer-up to the last one:
+ *
+ *     decay   settle after release
+ *      120    1071 ms      <- what shipped, and what the owner felt as "laggy"
+ *       50     396 ms      <- model-viewer's own default; shipped since 2026-09-05
+ *       16      96 ms
+ *
+ * ⚠️ DO NOT CHASE 96 ms. 50 is the library's tuned default. This same damper also
+ * drives `applyView()`'s FRONT/BACK/SIDE moves and the idle interaction sweep, and
+ * at 16 both read as a jump-cut rather than a camera move.
+ *
+ * ⚠️ IT ALSO DAMPS THE PAN TARGET, not just the orbit — `features/controls.js`
+ * passes this to `setDamperDecayTime` AND `scene.setTargetDamperDecayTime`. So it
+ * is half of the owner's two-finger complaint; `lib/adaptive-pan.ts` is the other
+ * half.
+ *
+ * Reduced motion collapses this to `1` at the call site in `Stage.tsx`.
+ */
+export const CAMERA_DECAY_MS = 50
 
 /** Lenis smooth-scroll duration, in SECONDS — Lenis takes seconds, not ms. */
 export const SCROLL_DURATION_S = 1.1

@@ -5,8 +5,9 @@ import { Accessor, Document, type Material } from '@gltf-transform/core'
 import type { MappingList } from '@gltf-transform/extensions'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createIO } from './io'
+import { createIO, readGlb } from './io'
 import { mergeVariants, parseMergeArgs } from './merge-variants'
+import { ASSET_COPYRIGHT } from './strip-root-extras'
 import {
   DEFAULT_SIMPLIFY_ERROR,
   assertFlagsOnly,
@@ -397,6 +398,63 @@ describe('placeholder tee document', () => {
  * @run-apparel/shared, on the fixture built to be capable of failing.
  */
 describe('optimizeGlb — the artwork guards engage on the real chain', () => {
+  /**
+   * ⚠️ THE WIRING GATE. Added 2026-09-05 after an independent verification pass
+   * found that `stripRootExtras` was referenced ONLY by its own module and its own
+   * unit test — so deleting the call from `optimize.ts` removed the fix from every
+   * future garment and left the whole suite green.
+   *
+   * A unit test proves the transform works. This proves it RUNS. That distinction is
+   * the one the root CLAUDE.md keeps paying for: the draco decoder line was
+   * committed, deployed, error-free and inert, and "checking that code is committed
+   * and deployed is NOT checking that it works".
+   *
+   * This drives the REAL chain through `parseOptimizeArgs`, as the container does —
+   * not `stripRootExtras()` in isolation — so it fails if the transform is dropped
+   * from `transforms`, if it is pushed after the final write, or if a later pass
+   * puts extras back.
+   */
+  it('strips CLO root extras on the real chain, not just in isolation', async () => {
+    const tee = await buildPlaceholderTee(PLACEHOLDER_COLOURWAYS[0]!)
+    // The shape a real CLO export carries — see strip-root-extras.ts for the census.
+    tee.getRoot().setExtras({
+      MetaData: {
+        PhysicalPropertyList: [
+          { PhysicalPropertyName: 'Polyester_Taffeta_0', 'Stretch-Warp': 605146 },
+        ],
+        SeamLinePairList: [[1, 2]],
+        globalMap: { FilePath: 'D:/New File/PLACEHOLDER TEE/base.png' },
+      },
+    })
+    const src = join(dir, 'root-extras-src.glb')
+    const out = join(dir, 'root-extras-out.glb')
+    await writeFile(src, await (await createIO()).writeBinary(tee))
+
+    // Prove the fixture really carries the leak, or the assertion below is vacuous.
+    expect(JSON.stringify(tee.getRoot().getExtras())).toContain('Stretch-Warp')
+
+    const { options } = parseOptimizeArgs([src, '--out', out, '--meshopt'])
+    const result = await optimizeGlb(src, out, options)
+
+    expect(result.rootExtras?.removedKeys, 'the transform did not run on the chain').toEqual([
+      'MetaData',
+    ])
+
+    const { document: written } = await readGlb(out)
+    expect(written.getRoot().getExtras(), 'root extras survived the real chain').toEqual({})
+    expect(written.getRoot().getAsset().copyright).toBe(ASSET_COPYRIGHT)
+
+    // The strings themselves, on the SERIALISED output — the form that ships.
+    const serialised = JSON.stringify(written.getRoot().getExtras())
+    for (const leak of ['Stretch-Warp', 'SeamLinePairList', 'D:/New File']) {
+      expect(serialised, `${leak} is still in the shipped file`).not.toContain(leak)
+    }
+    // 60s, matching the sibling end-to-end optimize tests. This runs the REAL chain
+    // — meshopt encode included — and measured ~4s locally, i.e. inside vitest's 5s
+    // default by less than a second. CI's runner is slower and it timed out there on
+    // the first push. A whole-chain test cannot live on the default timeout.
+  }, 60_000)
+
   it("weights the decal's UV set and reports no artwork at risk", async () => {
     const tee = await buildPlaceholderTee(PLACEHOLDER_COLOURWAYS[0]!)
     const src = join(dir, 'artwork-src.glb')

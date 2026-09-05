@@ -161,7 +161,7 @@ describe('TARGETS', () => {
     ])
   })
 
-  it('never targets the 27 MB model — that belongs to the payload smoke test', () => {
+  it('never targets the model — that belongs to the payload smoke test', () => {
     // Mirrors perfProbe.test.ts. R2 egress is inside a $5/month cap, and a probe that
     // pulls a model is affordable only until someone changes the schedule.
     for (const target of TARGETS as { url: string }[]) {

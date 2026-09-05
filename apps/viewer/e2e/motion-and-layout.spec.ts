@@ -176,7 +176,7 @@ test.describe('motion layer', () => {
      *
      * `will-change` is a hint with a real memory cost, and the spec is explicit
      * that it should be removed once the animation is done. This is exactly the
-     * device that is already carrying a 27 MB model on a phone GPU.
+     * device that is already carrying a 1.9-8.2 MB model on a phone GPU.
      *
      * Must run under `no-preference`: the whole reveal layer — and therefore the
      * hint — lives inside that media block, so under the suite's default `reduce`
@@ -1693,10 +1693,26 @@ test.describe('the garment is named on the first screen', () => {
    * screen reader has no fold to be above; see "the product heading moves between
    * columns and never doubles" in this file.
    */
+  /**
+   * ⚠️ THE TABLET ROWS WERE ADDED 2026-09-05, AND THEY ARE THE POINT OF THIS BLOCK
+   * NOW. The rule was `max-width: 699px`, so three real devices took the hidden
+   * branch and showed no name at all — measured with reveals forced:
+   *
+   *     768x1024   iPad portrait       h1 top 1094 — 70px below the fold
+   *     834x1194   iPad Pro portrait   h1 top 1267 — 73px below
+   *     1024x1366  iPad Pro 12.9       h1 top 1446 — 80px below
+   *
+   * The last one is two-column, so no width ceiling on this element could have
+   * expressed the condition. The element is gated on `!identityInAside` instead —
+   * the query that actually decides whether the `<h1>` is on the first screen.
+   */
   for (const { width, height, name } of [
     { width: 320, height: 640, name: 'small mobile' },
     { width: 375, height: 812, name: 'mobile' },
     { width: 414, height: 896, name: 'large mobile' },
+    { width: 768, height: 1024, name: 'tablet portrait' },
+    { width: 834, height: 1194, name: 'tablet pro portrait' },
+    { width: 1024, height: 1366, name: 'tablet pro 12.9 portrait' },
   ]) {
     test(`the product code and name are above the fold at ${name} (${width}x${height})`, async ({
       page,
@@ -1722,6 +1738,31 @@ test.describe('the garment is named on the first screen', () => {
       expect(text.length, 'the line rendered empty').toBeGreaterThan(6)
     })
   }
+
+  test('a wide desktop uses the real heading instead, so the line is not rendered at all', async ({
+    page,
+  }) => {
+    /**
+     * NEGATIVE CONTROL for the block above. Without it, a change that rendered the
+     * compact line unconditionally would pass all six sizes and quietly put a second
+     * name on every desktop page, above a heading that already says it.
+     *
+     * 1440x900 puts the identity in the aside (`min-width: 1100px` AND
+     * `min-height: 720px`), so `identityInAside` is true and the element is absent
+     * from the DOM entirely — not merely hidden.
+     */
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/n001/wine')
+    const h1 = page.getByRole('heading', { level: 1 })
+    await expect(h1).toBeVisible()
+    const box = await h1.boundingBox()
+    expect(
+      (box as { y: number }).y,
+      'the real heading is below the fold on a desktop, so hiding the compact line ' +
+        'leaves the garment unnamed there too',
+    ).toBeLessThan(900)
+    await expect(page.locator('.stage-block__name')).toHaveCount(0)
+  })
 
   test('it stays hidden in the two-column landscape band, which has no row to spare', async ({
     page,

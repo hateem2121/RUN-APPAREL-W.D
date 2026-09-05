@@ -113,7 +113,7 @@ describe('targets', () => {
     expect(TARGETS).toHaveLength(LIVE_PRODUCTS.length * 2 + 1)
   })
 
-  it('never GETs the model — 27 MB against a $5/month egress cap', () => {
+  it('never GETs the model — 53.69 MB of models against a $5/month egress cap', () => {
     // The rule is enforced by ABSENCE, so assert the absence explicitly. A future
     // target pointing at media.wear-run.help would turn a weekly check into
     // gigabytes of R2 egress, and the bill is the first sign.

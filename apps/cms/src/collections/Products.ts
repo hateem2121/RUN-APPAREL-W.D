@@ -769,7 +769,7 @@ export const Products: CollectionConfig = {
                 const defaults = await readCatalogueDefaults(req)
                 return defaults?.catalogueUrl || 'https://wear-run.help/catalogue'
               },
-              label: 'Catalogue link',
+              label: 'Catalogue link (not shown on the website)',
               validate: (value: unknown) => {
                 if (typeof value !== 'string' || value.trim() === '') {
                   return 'A catalogue link is required.'
@@ -781,7 +781,16 @@ export const Products: CollectionConfig = {
                   return `“${value}” is not a complete web address. It needs to start with https:// — e.g. https://wear-run.help/catalogue.`
                 }
               },
-              admin: { description: 'Where the “Catalogue” button sends people.' },
+              // ⚠️ THE LABEL AND DESCRIPTION ARE THE FIX, NOT THE FIELD. Both said
+              // "Where the “Catalogue” button sends people" until 2026-09-05 — a
+              // button removed on 2026-09-04. This one is on EVERY product, so an
+              // editor met a control that named a thing the site no longer has and
+              // reasonably concluded it still did. The field itself stays: the CMS
+              // owns the value and another surface may want it.
+              admin: {
+                description:
+                  'Kept on record only. The website has had no “Catalogue” button since 4 September 2026 — these product pages are indexed by Google and the catalogue is a 54 MB trade PDF. Changing this does not change anything a visitor sees.',
+              },
             },
             {
               name: 'retiredMessage',

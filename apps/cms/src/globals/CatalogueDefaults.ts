@@ -62,7 +62,7 @@ export const CatalogueDefaults: GlobalConfig = {
       type: 'text',
       required: true,
       defaultValue: 'https://wear-run.help/catalogue',
-      label: 'Catalogue link',
+      label: 'Catalogue link (not shown on the website)',
       validate: (value: unknown) => {
         if (typeof value !== 'string' || value.trim() === '') {
           return 'A catalogue link is required.'
@@ -74,7 +74,12 @@ export const CatalogueDefaults: GlobalConfig = {
           return `“${value}” is not a complete web address. It needs to start with https:// — e.g. https://wear-run.help/catalogue.`
         }
       },
-      admin: { description: 'Where a NEW product’s “Catalogue” button sends people.' },
+      // See the note on the same field in Products.ts: this named a button removed
+      // on 2026-09-04. It is the value a NEW product starts with.
+      admin: {
+        description:
+          'The value a NEW product starts with. Kept on record only. The website has had no “Catalogue” button since 4 September 2026 — these product pages are indexed by Google and the catalogue is a 54 MB trade PDF. Changing this does not change anything a visitor sees.',
+      },
     },
     {
       name: 'retiredMessage',

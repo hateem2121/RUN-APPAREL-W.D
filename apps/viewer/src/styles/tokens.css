@@ -180,6 +180,19 @@
   --text-mono: 0.6875rem; /* 11px — .mono, content labels */
   --text-mono-sm: 0.625rem; /* 10px */ /* .label, .section-number — chips */
 
+  /* ── The four sizes that were still raw on 2026-09-05 ───────────────
+     The block above landed 2026-08-14 and named its own gap: the shipped
+     literals were "17, 18, 16, 15, 14, 13, 12, 11, 10 — with nothing to stop a
+     tenth", and it tokenised only five of the nine. These are the other four,
+     measured from the 17 raw declarations still in page.css and base.css. They
+     move no pixel. Named by REGISTER rather than by a t-shirt step, because the
+     evens interleave the odds (18·17·16·15·14·13·12·11·10) and a `--text-md`
+     between `--text-sm` and `--text-xs` would read as a scale that is not one. */
+  --text-wordmark: 1.125rem; /* 18px — .header__wordmark, wide */
+  --text-wordmark-sm: 1rem; /* 16px — .header__wordmark compact, .footer__brand */
+  --text-note: 0.875rem; /* 14px — .stage__error, .notice, .contact__micro */
+  --text-mono-lg: 0.75rem; /* 12px — tracked caps one step above --text-mono */
+
   /* Display tracking follows the OPTICAL SIZE rather than sitting at one value.
      Added 2026-08-14 by owner decision. Both sizes clamp across roughly a 2x
      range and carried a flat -0.02em, so the same tracking did two jobs: tight
@@ -190,6 +203,39 @@
      Measured: 320px viewport → -0.015em; 1440px → -0.030em. */
   --tracking-display-lg: clamp(-2.16px, -0.16vw, -0.4px);
   --tracking-display-sm: clamp(-1.38px, -0.1vw, -0.26px);
+
+  /* ── Tracking for everything that is NOT display type ───────────────
+     Added 2026-09-05, documenting 21 shipped values. Three steps carried 15 of
+     them (0.1em x7, 0.12em x6, 0.14em x2) and were written as literals every
+     time. The wordmark one is the one with a history: docs/DESIGN.md §3 records
+     that `.header__wordmark` and `.footer__brand` "must agree with each other,
+     which they did not until 2026-08-14" — a token is what stops that recurring.
+
+     ⚠️ `--tracking-mono` is 0.11em and is NOT a rounding error to be folded into
+     `--tracking-caps`. docs/DESIGN.md §3's Mono table states 11px/0.11em and
+     10px/0.12em as separate, load-bearing rows: they render 1.21px and 1.20px,
+     i.e. the SAME optical tracking reached from two sizes. Collapsing them would
+     move `.mono` to 1.32px to tidy a table. */
+  --tracking-caps-tight: 0.1em; /* .btn, .step__*, .stage__hint, .colourway-tab */
+  --tracking-caps: 0.12em; /* .label, .camera-btn, .spec-list dt, .stage__ar */
+  --tracking-caps-wide: 0.14em; /* .section-number, .footer__line */
+  --tracking-caps-compact: 0.06em; /* the colourway rail below 500px container */
+  --tracking-mono: 0.11em; /* .mono — see the warning above */
+  --tracking-wordmark: -0.02em; /* fixed: display type with no optical range */
+
+  /* ── Layering ───────────────────────────────────────────────────────
+     Added 2026-09-05. The seven values below are EXACTLY what shipped — 1, 40,
+     50, 60, 70, 80, 100 — so this moves nothing. It is written down because a
+     z-index is only meaningful against the others, and until now the only way to
+     learn the stack was to grep two stylesheets. docs/DESIGN.md §4 carries the
+     same table in reading order. */
+  --z-stage-control: 1; /* .stage__ar — inside the stage, above the canvas */
+  --z-header: 40;
+  --z-action-bar: 50;
+  --z-grain: 60; /* the full-page grain overlay */
+  --z-cursor: 70; /* .cursor-ring — pointer devices only */
+  --z-preloader: 80; /* the opening curtain */
+  --z-skip-link: 100; /* must beat everything, including the preloader */
 
   --font-display: "Archivo Variable", "Archivo", system-ui, sans-serif;
   --font-body: "Archivo Variable", "Archivo", system-ui, sans-serif;

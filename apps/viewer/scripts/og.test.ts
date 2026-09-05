@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -139,5 +139,32 @@ describe('link preview (Open Graph) tags', () => {
     // instead of as a CSP violation on the live site.
     const inlineScripts = html.match(/<script(?![^>]*\ssrc=)[^>]*>[\s\S]*?<\/script>/gi) ?? []
     expect(inlineScripts).toHaveLength(1) // the theme bootstrap, and only that
+  })
+})
+
+describe('the fallback card', () => {
+  /**
+   * ⚠️ IT WAS 189,402 BYTES — nearly 5x the mean per-garment card (60,566) at
+   * IDENTICAL dimensions (1200x1500), because it was never put through the same
+   * encoder. Re-encoded at the pipeline's own `JPEG_QUALITY = 76` with mozjpeg it
+   * is 64,306 bytes, a 66% saving, and a side-by-side crop at 500x625 shows no
+   * visible difference — the printed slogan and the seam lines are equally crisp.
+   *
+   * This is the image every link unfurls with when a garment has no card of its
+   * own, so it is fetched by crawlers far more often than any single card.
+   */
+  it('is encoded like the per-garment cards, not left at source quality', () => {
+    const bytes = statSync(join(viewerRoot, 'public', 'og-default.jpg')).size
+    expect(
+      bytes,
+      'og-default.jpg is heavier than the per-garment cards at the same dimensions. ' +
+        'Re-encode it at the same quality tools/asset-pipeline/scripts/og-cards.mjs uses.',
+    ).toBeLessThan(100_000)
+    // Floor too: a card that has collapsed to a few KB is a broken render, and
+    // "smaller" is not automatically better.
+    expect(
+      bytes,
+      'og-default.jpg is suspiciously small — is it still a real image?',
+    ).toBeGreaterThan(20_000)
   })
 })

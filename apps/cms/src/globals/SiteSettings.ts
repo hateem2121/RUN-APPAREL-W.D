@@ -33,6 +33,15 @@ export const SiteSettings: GlobalConfig = {
       type: 'text',
       required: true,
       defaultValue: 'https://wear-run.help/catalogue',
+      // The third of the three catalogue fields corrected 2026-09-05. This one
+      // carried no label and no description at all, so it rendered as "Catalogue
+      // Url" with nothing to say it is inert — quieter than the other two and
+      // misleading in the same way.
+      label: 'Catalogue link (not shown on the website)',
+      admin: {
+        description:
+          'Kept on record only. The website has had no “Catalogue” button since 4 September 2026 — these product pages are indexed by Google and the catalogue is a 54 MB trade PDF. Changing this does not change anything a visitor sees.',
+      },
     },
     { name: 'temporaryWordmark', type: 'text', required: true, defaultValue: 'RUN APPAREL' },
     { name: 'footerLine', type: 'text', required: true, defaultValue: 'RUN THE EXTRA MILE.' },

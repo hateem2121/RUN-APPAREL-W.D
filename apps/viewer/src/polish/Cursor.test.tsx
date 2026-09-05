@@ -69,7 +69,7 @@ describe('the custom cursor hides the real one only once it has drawn a replacem
    * there was NO cursor at all — real one suppressed, replacement invisible.
    *
    * Not a theoretical window. `startPolish()` runs after the ready render, while a
-   * 27 MB model downloads, which is exactly when a visitor parks the pointer and
+   * model downloads, which is exactly when a visitor parks the pointer and
    * waits. Park it and the cursor vanished until they moved.
    */
   it('does not suppress the real cursor before the pointer has been located', () => {

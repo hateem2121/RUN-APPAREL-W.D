@@ -76,3 +76,91 @@ describe('shouldReturnNotFound', () => {
     }
   })
 })
+
+describe('a single segment carrying a dot is a missing FILE, not a product', () => {
+  /**
+   * ⚠️ THE DOCBLOCK ON `shouldReturnNotFound` NAMED `/manifest.webmanifest` AS ONE
+   * OF THE THREE CASES THE FIX EXISTS FOR, AND IT WAS NEVER ONE OF THEM. Measured
+   * live 2026-09-05, months after that shipped:
+   *
+   *     GET /manifest.webmanifest -> 200 text/html
+   *     GET /favicon.ico          -> 200 text/html
+   *
+   * `normalizeSlug('manifest.webmanifest')` yields `manifest-webmanifest`, a valid
+   * slug, so `parseViewerPath` accepted it and `routeParsed` short-circuited the
+   * whole guard. A comment asserting behaviour the code did not have.
+   */
+  for (const pathname of [
+    '/manifest.webmanifest',
+    '/favicon.ico',
+    '/sw.js',
+    '/apple-touch-icon.png',
+  ]) {
+    it(`404s ${pathname}`, () => {
+      expect(
+        shouldReturnNotFound({
+          pathname,
+          method: 'GET',
+          // TRUE on purpose — this is the exact state that defeated the old guard.
+          routeParsed: true,
+          contentType: 'text/html; charset=utf-8',
+        }),
+      ).toBe(true)
+    })
+  }
+
+  it('does NOT 404 a real product page, which has no dot (negative control)', () => {
+    for (const pathname of ['/rxps/wine', '/rxps', '/r-milo-pro/bottle-green']) {
+      expect(
+        shouldReturnNotFound({
+          pathname,
+          method: 'GET',
+          routeParsed: true,
+          contentType: 'text/html; charset=utf-8',
+        }),
+        `${pathname} is a live garment URL and must never 404`,
+      ).toBe(false)
+    }
+  })
+
+  it('leaves a real FILE alone — a served asset is not a missing page', () => {
+    // robots.txt and sitemap.xml both contain a dot and both exist. They are
+    // excluded by CONTENT TYPE, not by path, which is what keeps this correct as
+    // files are added — so the dot rule must not overtake that.
+    expect(
+      shouldReturnNotFound({
+        pathname: '/robots.txt',
+        method: 'GET',
+        routeParsed: true,
+        contentType: 'text/plain; charset=utf-8',
+      }),
+    ).toBe(false)
+    expect(
+      shouldReturnNotFound({
+        pathname: '/sitemap.xml',
+        method: 'GET',
+        routeParsed: true,
+        contentType: 'application/xml',
+      }),
+    ).toBe(false)
+  })
+
+  it('still refuses to 404 the site root or a non-GET', () => {
+    expect(
+      shouldReturnNotFound({
+        pathname: '/',
+        method: 'GET',
+        routeParsed: false,
+        contentType: 'text/html',
+      }),
+    ).toBe(false)
+    expect(
+      shouldReturnNotFound({
+        pathname: '/favicon.ico',
+        method: 'HEAD',
+        routeParsed: true,
+        contentType: 'text/html',
+      }),
+    ).toBe(false)
+  })
+})

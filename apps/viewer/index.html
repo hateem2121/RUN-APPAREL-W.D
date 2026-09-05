@@ -85,6 +85,28 @@
     />
 
     <!--
+      ⚠️ THE DATA URI ABOVE IS KEPT AS THE PRIMARY ICON ON PURPOSE — it paints with
+      zero requests. What it could never do is answer `/favicon.ico`, which every
+      browser asks for unbidden whatever the document declares. Measured live
+      2026-09-05, before the file existed:
+
+          GET /favicon.ico -> 200, content-type: text/html, 10,046 bytes
+
+      Ten kilobytes of HTML labelled as a web page, in answer to a request for an
+      icon — a soft 404 to a crawler, and on the crawler path it also burned a CMS
+      service-binding fetch that could only fail. `public/favicon.ico` now exists,
+      so Static Assets serves it and the Worker is never invoked for it.
+
+      `/favicon.ico` needs no <link>: it is requested by convention. The Apple touch
+      icon does need one, and it cannot be a data URI — iOS reads a real file when a
+      buyer adds a garment page to their home screen.
+
+      All three files are generated from the SVG above by
+      apps/viewer/scripts/gen-favicon.mjs, so the mark cannot drift between them.
+    -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!--
       The whole critical path runs through these two hosts and neither had a
       hint: cms.wear-run.help serves the product payload and media.wear-run.help
       serves the model. Each paid DNS + TCP + TLS serially at the moment it was

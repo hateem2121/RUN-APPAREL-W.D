@@ -78,7 +78,8 @@ jobs:
       #
       # And it is not expensive, which was the other unstated worry:
       # smoke-viewer-payload.mjs calls `res.body?.cancel()` as soon as the status line
-      # arrives, so a bare GET costs a few buffered KB rather than 27 MB.
+      # arrives, so a bare GET costs a few buffered KB rather than the whole
+      # 1.9-8.2 MB object.
       # Audit 2026-08-30 PM, finding L6-02.
       SMOKE_BROWSER_GET: '1'
       # Must be a LIVE product AND colour slug. This was `/n001/navy` until

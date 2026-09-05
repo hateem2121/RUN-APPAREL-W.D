@@ -57,7 +57,7 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
    * The roving tabindex tracked SELECTION, not FOCUS: `tabIndex` was
    * `slug === selected.slug ? 0 : -1`. Because activation here is MANUAL — arrows
    * move focus, Enter/Space selects, deliberately, since selecting rebinds every
-   * material on a 27 MB model — arrowing away from the selected tab left focus on
+   * material on a multi-megabyte model — arrowing away from the selected tab left focus on
    * a tab whose tabIndex was -1. Tabbing out and back then returned the browser
    * to the SELECTED tab rather than the one the user had arrowed to, silently
    * discarding their navigation.

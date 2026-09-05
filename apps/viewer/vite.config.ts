@@ -1,6 +1,11 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+// @ts-expect-error — plain .mjs, as scripts/csp.mjs is. Every decision it makes is
+// a pure function with tests in scripts/sw.test.ts; this plugin is only the I/O.
+import { serviceWorkerSource, serviceWorkerVersion, shellFromBundle } from './scripts/sw.mjs'
 
 /**
  * Source maps are uploaded to Sentry ONLY when an auth token is present, and are
@@ -84,6 +89,49 @@ export default defineConfig({
     },
     // Absent entirely without a token, so a local or PR build is byte-identical to
     // what it was before this plugin existed.
+    /**
+     * Emit the offline shell service worker.
+     *
+     * Scope, and the four measured reasons no garment is in it:
+     * `docs/DECISION-OFFLINE-SCOPE.md`. Every decision below is a pure function in
+     * `scripts/sw.mjs` with tests; this hook is the I/O around them, which is the
+     * same split `scripts/csp.mjs` and `scripts/gen-headers.mjs` use and the reason
+     * only the pure half is counted for coverage.
+     *
+     * ⚠️ IT HAS TO BE GENERATED, NOT A FILE IN `public/`. Two halves:
+     *   - the shell is content-hashed, so a hand-written list goes stale at the next
+     *     build and precaches a 404 — the same argument the font-preload plugin above
+     *     makes about hardcoding a filename;
+     *   - the browser only re-installs a service worker whose BYTES changed, so a
+     *     static `sw.js` would pin the first shell it ever saw, forever.
+     */
+    {
+      name: 'run-offline-shell',
+      apply: 'build' as const,
+      generateBundle(_options: unknown, bundle: Record<string, unknown>) {
+        const shell = shellFromBundle(bundle) as string[]
+        // The two immutable-but-unhashed files are read from public/ so their BYTES
+        // reach the version hash. Without this a decoder bump leaves the worker
+        // byte-identical and the stale decoder is served from cache indefinitely.
+        const contents: Record<string, string> = {}
+        for (const path of shell) {
+          if (path === '/' || path.startsWith('/assets/')) continue
+          try {
+            contents[path] = readFileSync(join(import.meta.dirname, 'public', path), 'utf8')
+          } catch {
+            // A shell entry that is not on disk is a bug, but failing the build here
+            // would trade a stale-cache risk for no deploy at all. The version simply
+            // falls back to being name-derived for that entry.
+          }
+        }
+        const version = serviceWorkerVersion(shell, contents) as string
+        ;(this as { emitFile: (file: unknown) => void }).emitFile({
+          type: 'asset',
+          fileName: 'sw.js',
+          source: serviceWorkerSource({ shell, version }),
+        })
+      },
+    },
     ...(uploadSourceMaps
       ? [
           sentryVitePlugin({

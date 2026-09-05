@@ -26,8 +26,8 @@ import { afterEach, describe, expect, it } from 'vitest'
  * have seen nothing.
  *
  * The fix was a bare GET, gated behind SMOKE_BROWSER_GET so it runs once per deploy
- * rather than every 15 minutes (a GET on a 27 MB model against a $5/month R2 egress
- * cap is the reason check 3 uses HEAD in the first place).
+ * rather than every 15 minutes (a GET on a multi-megabyte model against a $5/month
+ * R2 egress cap is the reason check 3 uses HEAD in the first place).
  *
  * CLAUDE.md's rule for a new test is "ask what would have to break for it to fail".
  * Here that is answered by scenario B: with the flag OFF, the identical broken
@@ -140,7 +140,7 @@ describe('post-deploy smoke test — cached 404', () => {
     // Not an aspiration: this is the behaviour that let the incident through, kept
     // here so the value of the flag is measured rather than asserted. If this ever
     // starts failing, the bare GET is no longer opt-in and uptime.yml is pulling a
-    // 27 MB model every 15 minutes.
+    // whole model every 15 minutes.
     expect(code).toBe(0)
     expect(output).toContain('serves a real, fetchable model')
   }, 30_000)

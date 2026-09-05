@@ -329,14 +329,31 @@ export default function App() {
               same name before the real heading is pure noise. This is a purely
               visual affordance and is marked as one.
 
-              Portrait phones only, via CSS: at 844x390 the two-column band is
-              already asserted at <=390px tall and has no row to spare, so this stays
-              hidden there. That leaves landscape unfixed and it is the smaller case
-              — the dominant journey is a phone held upright at a garment rail.
+              ⚠️ GATED ON `identityInAside`, NOT ON A WIDTH — and mirroring the CSS
+              query here instead is the mistake `useIdentityInAside.ts` was written
+              about. This line exists for exactly one condition: the `<h1>` is not
+              on the first screen. That is true whenever the identity has NOT moved
+              into the aside, which is its own query (`min-width: 1100px` AND
+              `min-height: 720px`) and a strict subset of the two-column one.
+
+              Keying it to `max-width: 699px` left three real devices anonymous,
+              measured 2026-09-05 with reveals forced:
+
+                  768x1024   iPad portrait        h1 top 1094 — 70px below the fold
+                  834x1194   iPad Pro portrait    h1 top 1267 — 73px below
+                  1024x1366  iPad Pro 12.9        h1 top 1446 — 80px below
+
+              The last one is two-column and still has no name, which no width
+              ceiling on this element could have expressed.
+
+              The height cost (a measured 20px off the canvas) is refused in CSS
+              below when the band is too short for it — the landscape-phone case.
             */}
-            <p className="stage-block__name" aria-hidden="true">
-              {data.product.productCode} · {data.product.productName}
-            </p>
+            {!identityInAside && (
+              <p className="stage-block__name" aria-hidden="true">
+                {data.product.productCode} · {data.product.productName}
+              </p>
+            )}
             {/* The panel half of <ColourwayTabs>'s tablist. Labelled by whichever
                 tab is selected, so a screen reader reaching the stage is told
                 which colourway it is showing. */}

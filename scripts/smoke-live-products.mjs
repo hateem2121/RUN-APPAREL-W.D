@@ -17,9 +17,12 @@
  *
  * ⚠️ COST IS NOT A REASON TO SKIP A PRODUCT HERE. It looks like it should be —
  * `SMOKE_BROWSER_GET=1` fetches the model the way a browser does, and the models are
- * 27.0 MB and 22.7 MB. But smoke-viewer-payload.mjs cancels the response body
+ * 1.9-8.2 MB each, 53.69 MB across the eleven (measured 2026-09-05; they were 27.0
+ * and 22.7 MB before the 2026-09-03 re-exports). But smoke-viewer-payload.mjs
+ * cancels the response body
  * (`res.body?.cancel()`) as soon as the status line arrives, so a "bare GET" costs a
- * few buffered KB, not 27 MB. Do NOT "optimise" this by adding a Range header: that
+ * few buffered KB, not the whole object. Do NOT "optimise" this by adding a Range
+ * header: that
  * script's own comment forbids it, because a ranged request may land on a DIFFERENT
  * edge cache entry, and the cached-404 divergence between GET and HEAD is the exact
  * bug check 4 exists to catch.

@@ -99,8 +99,27 @@ function buildTitle(payload: ViewerApiSuccess): string {
  * title. A garment with none of these fields filled in still gets the tail, so
  * this can never return an empty description.
  */
+/**
+ * ⚠️ THE COLOURWAY IS IN HERE SINCE 2026-09-05, AND ITS ABSENCE WAS AN SEO DEFECT.
+ *
+ * Measured across all 55 live pages: 55 unique `<title>` tags and only **11 unique
+ * descriptions** — every one of a garment's five colourway pages carried a
+ * byte-identical description, while each page declares itself canonical. So Google
+ * saw five near-duplicate indexable pages per garment, splitting whatever ranking
+ * strength the garment has five ways.
+ *
+ * The colour was already in the title and in `og:image:alt`; it was the description
+ * — the line a person actually reads under a search result — that never named it.
+ *
+ * Done here rather than in the CMS on purpose: this fixes all 55 at once, cannot
+ * drift, and does not ask anyone to write 55 descriptions by hand. The colour comes
+ * from `selectedColourway`, which is the page that will actually load — a QR tag
+ * pointing at a retired colour resolves to the default one, and describing the
+ * requested colour would name something the visitor never sees.
+ */
 function buildDescription(payload: ViewerApiSuccess): string {
   const p = payload.product
+  const colour = payload.selectedColourway.displayName.trim()
   const fabric = [p.fabricComposition.trim(), p.gsm.trim()].filter(Boolean).join(', ')
   const specs = [p.category, p.garmentFit.trim(), fabric].filter(Boolean).join(' · ')
   const count = payload.colourways.length
@@ -108,7 +127,10 @@ function buildDescription(payload: ViewerApiSuccess): string {
     count > 1
       ? `Rotate, zoom and compare all ${count} colorways in 3D.`
       : 'Rotate and zoom this reference in 3D.'
-  return truncate(specs ? `${specs}. ${tail}` : tail)
+  // "Shown in Wine." rather than prefixing the specs: the specs are what a trade
+  // buyer scans for, and pushing them behind the colour buries the useful half.
+  const shown = colour ? `Shown in ${colour}.` : ''
+  return truncate([specs ? `${specs}.` : '', shown, tail].filter(Boolean).join(' '))
 }
 
 /**

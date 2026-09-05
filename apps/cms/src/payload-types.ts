@@ -300,7 +300,7 @@ export interface RawUpload {
    */
   targetProduct: number | Product;
   /**
-   * How much detail to keep. Start with Balanced. Re-upload on “Highest quality” only if a printed graphic came back SMEARED or TORN — ragged edges, warped lettering. That is mesh damage, and Detail is the setting that fixes it. If a graphic is SEE-THROUGH, or sits in a pale box, Detail will NOT help: every level makes the same transparency decision. Report that instead. If it is rejected for being too big, the file needs re-exporting from CLO at a lower mesh density — there is no smaller setting here, because the one that existed shrank files by damaging the printed graphics.
+   * How much detail to keep. Start with Balanced — and note that a small file (under 50 MB from CLO) is put on Highest quality automatically, because on a file that size the extra quality costs only a few hundred kilobytes. You do not need to do anything for that to happen. Re-upload on “Highest quality” only if a printed graphic came back SMEARED or TORN — ragged edges, warped lettering. That is mesh damage, and Detail is the setting that fixes it. If a graphic is SEE-THROUGH, or sits in a pale box, Detail will NOT help: every level makes the same transparency decision. Report that instead. If it is rejected for being too big, the file needs re-exporting from CLO at a lower mesh density — there is no smaller setting here, because the one that existed shrank files by damaging the printed graphics.
    */
   detail?: ('balanced' | 'fidelity') | null;
   /**
@@ -437,6 +437,9 @@ export interface Product {
         id?: string | null;
       }[]
     | null;
+  /**
+   * One short paragraph introducing how this garment is made. If you leave it blank the page shows a general sentence instead.
+   */
   customisationIntro?: {
     root: {
       type: string;
@@ -452,6 +455,9 @@ export interface Product {
     };
     [k: string]: unknown;
   } | null;
+  /**
+   * Four steps is the shape every live garment uses. Fewer or more will render; none hides the section.
+   */
   customisationSteps?:
     | {
         number: number;
@@ -466,7 +472,7 @@ export interface Product {
   cameraTarget: string;
   defaultFieldOfView: string;
   /**
-   * Where the “Catalogue” button sends people.
+   * Kept on record only. The website has had no “Catalogue” button since 4 September 2026 — these product pages are indexed by Google and the catalogue is a 54 MB trade PDF. Changing this does not change anything a visitor sees.
    */
   catalogueUrl: string;
   /**
@@ -806,6 +812,9 @@ export interface SiteSetting {
    * International format; the viewer builds wa.me links from the digits.
    */
   whatsappNumber: string;
+  /**
+   * Kept on record only. The website has had no “Catalogue” button since 4 September 2026 — these product pages are indexed by Google and the catalogue is a 54 MB trade PDF. Changing this does not change anything a visitor sees.
+   */
   catalogueUrl: string;
   temporaryWordmark: string;
   footerLine: string;
@@ -830,7 +839,7 @@ export interface SiteSetting {
 export interface CatalogueDefault {
   id: number;
   /**
-   * Where a NEW product’s “Catalogue” button sends people.
+   * The value a NEW product starts with. Kept on record only. The website has had no “Catalogue” button since 4 September 2026 — these product pages are indexed by Google and the catalogue is a 54 MB trade PDF. Changing this does not change anything a visitor sees.
    */
   catalogueUrl: string;
   /**
@@ -841,7 +850,7 @@ export interface CatalogueDefault {
   createdAt?: string | null;
 }
 /**
- * This text appears on EVERY product page, including ones you have already made. Change it here and it changes everywhere as soon as you save — you never have to edit it product by product.
+ * Retired. Customisation copy is written per garment, on each product’s own “How we build your product” tab.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "build-process".

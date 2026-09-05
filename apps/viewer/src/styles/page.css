@@ -107,7 +107,7 @@
 .header {
   position: sticky;
   top: 0;
-  z-index: 40;
+  z-index: var(--z-header);
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -146,8 +146,8 @@
   font-weight: 900;
   font-stretch: 122%;
   text-transform: uppercase;
-  letter-spacing: -0.02em;
-  font-size: 1.125rem;
+  letter-spacing: var(--tracking-wordmark);
+  font-size: var(--text-wordmark);
   color: var(--text);
   text-decoration: none;
   white-space: nowrap;
@@ -227,7 +227,7 @@
   }
 
   .header__wordmark {
-    font-size: 1rem;
+    font-size: var(--text-wordmark-sm);
   }
 }
 
@@ -652,20 +652,53 @@
   display: none;
 }
 
-@media (max-width: 699px) {
+/*
+ * ⚠️ THE VISIBILITY DECISION MOVED TO JSX ON 2026-09-05, and the reason is in
+ * App.tsx: this line is needed exactly when the `<h1>` is not on the first screen,
+ * which is `!identityInAside` — a query no width ceiling here could express. A
+ * `max-width: 699px` rule left iPad portrait (768x1024, 834x1194) and iPad Pro
+ * 12.9 (1024x1366) showing a garment with no name at all.
+ *
+ * What CSS still owns is the HEIGHT refusal below, because that is a layout
+ * question rather than a content one.
+ *
+ * ⚠️ IT COSTS THE CANVAS ITS OWN HEIGHT, and that trade is the point rather than a
+ * side effect. `.stage__canvas` is `flex: 1 1 auto` inside a band whose job is
+ * dividing a fixed `100svh - var(--header-h)`, so every pixel here is a pixel off
+ * the garment. MEASURED by rendering it and then hiding it at 375x812:
+ * canvas 495px without, 475px with — a cost of exactly 20px, which is the 14px
+ * line-box plus the 6px margin and nothing else. A named garment 20px shorter beats
+ * an anonymous one, on a page a visitor reaches by scanning a tag and asking "what
+ * is this?".
+ */
+.stage-block__name {
+  display: block;
+  margin: 0 0 6px;
+  padding: 0 var(--stage-gutter);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps);
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/*
+ * The one place the 20px is NOT affordable: a landscape phone. At 844x390 the
+ * two-column band is already asserted at <=390px tall and has no row to spare, so
+ * the name is refused rather than taken out of the garment.
+ *
+ * Same 500px threshold the action bar uses, and for the same reason — it is the
+ * height below which this band stops having spare rows. That leaves landscape
+ * without a visible name, which is a real gap and the smaller one: the dominant
+ * journey is a phone held upright at a garment rail.
+ */
+@media (max-height: 500px) {
   .stage-block__name {
-    display: block;
-    margin: 0 0 6px;
-    padding: 0 var(--stage-gutter);
-    font-family: var(--font-mono);
-    font-size: var(--text-mono-sm);
-    letter-spacing: 0.12em;
-    line-height: 1.4;
-    text-transform: uppercase;
-    color: var(--muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: none;
   }
 }
 
@@ -815,12 +848,14 @@
    * `clamp(-2.16px, -0.16vw, -0.4px)`, a VIEWPORT-derived value that resolves to
    * its tightest -2.16px on any desktop — tracking drawn for a 69px headline,
    * applied to a 34px one. Size-specific tracking is the rule (docs/DESIGN.md §3,
-   * and Apple's own type guidance); `-0.02em` is the wordmark's own value and
-   * rescales with the heading automatically instead of needing a third token.
+   * and Apple's own type guidance); this borrows `--tracking-wordmark`, which is
+   * the same -0.02em in `em` and so rescales with the heading automatically
+   * instead of needing a third token. It was the literal until 2026-09-05; the
+   * token makes the borrowing explicit rather than coincidental.
    */
   .product-info--aside .display--hero {
     font-size: clamp(1.5625rem, 9.5cqi, 2.5rem);
-    letter-spacing: -0.02em;
+    letter-spacing: var(--tracking-wordmark);
     /*
      * ⚠️ WITHOUT THIS, "X-MILO PRO SKIN-SUIT" SET AS "X-MILO PRO SKIN-" / "SUIT".
      *
@@ -895,6 +930,57 @@
  * for and already empty. Verified: garment heights return to 296 / 520 / 421 /
  * 603 and the rail's clearance returns to 25px.
  */
+/*
+ * The AR entry point — iOS Quick Look only, rendered only when the device can
+ * actually enter AR (see `arAvailable` in Stage.tsx).
+ *
+ * ⚠️ IT IS OURS BECAUSE THE DEFAULT ONE IS THE BUG. model-viewer paints
+ * `#default-ar-button` inside its shadow root, over the canvas — the same geometry
+ * StageControls.tsx measured and moved OUT of `.stage__canvas` in August, where it
+ * covered 26px of garment at 1440x900 and 38px at 390x844.
+ *
+ * ⚠️ TOP-RIGHT, AND THE FIRST ATTEMPT WAS BOTTOM-LEFT. That version's comment
+ * claimed the bottom-left corner was "reliably empty"; a screenshot on an iPhone 17
+ * Pro showed `.stage__hint` — "DRAG TO ROTATE · PINCH TO ZOOM", centred on the
+ * bottom edge and nearly full-width on a phone — sitting straight over it, clipping
+ * the label to the word "VIEW". Reasoned, not measured, and wrong.
+ *
+ * The top-right is genuinely empty on a phone: the garment is centred and portrait
+ * (widest live shape 0.60m against 0.24m depth), the hint and the loading readout
+ * both anchor to the bottom, and `.callout` — which does use the corners — renders
+ * only at >=1000px, where AR never appears because `canActivateAR` is false on
+ * desktop. The two cannot co-occur.
+ *
+ * `--dimension` rather than `--muted`: this is a call to action a thumb has to find
+ * against a rendered garment of unknown colour, and it is the token that already
+ * exists for "must stay legible on either background".
+ */
+.stage__ar {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: var(--z-stage-control);
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--dimension);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-transparency: no-preference) {
+  .stage__ar {
+    backdrop-filter: blur(6px);
+  }
+}
+
 .stage__more {
   position: absolute;
   left: 0;
@@ -904,8 +990,31 @@
   justify-content: center;
   pointer-events: none;
   color: var(--muted);
-  opacity: 0.55;
 }
+
+/*
+ * ⚠️ THIS CARRIED `opacity: 0.55` UNTIL 2026-09-05, AND IT WAS THE LEAST VISIBLE
+ * THING ON THE PAGE.
+ *
+ * Composited against `--bg`, that opacity took `--muted` from 5.10:1 to **2.19:1**
+ * in light and 6.69:1 to **2.97:1** in dark — under the 3:1 floor for a graphical
+ * object in both, badly in light. It is `aria-hidden="true"`, so axe never scored
+ * it and the a11y gate could not have found it; and `tokens.test.ts`'s contrast
+ * block reads the TOKEN, which was always fine. The defect lived entirely in the
+ * opacity.
+ *
+ * It matters more than a decoration usually would: on a phone this chevron is the
+ * only thing telling a visitor there is more page below it — the customisation
+ * steps and both enquiry buttons. The one cue you cannot afford to have missed was
+ * the faintest mark drawn.
+ *
+ * ⚠️ `--dimension` WAS THE OBVIOUS FIX AND IS DELIBERATELY NOT USED. It measures
+ * 4.57:1 light / 13.11:1 dark, so it passes — but it resolves to volt, and a
+ * brand-coloured arrow beside the garment pulls the eye off the garment. The rule
+ * above already refuses to animate this element for that reason. Dropping the
+ * opacity keeps the quiet grey the design intends and clears the floor with room:
+ * **5.10:1 light, 6.69:1 dark**.
+ */
 
 @media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
   .stage__more {
@@ -1080,8 +1189,8 @@ model-viewer.stage__model {
   position: absolute;
   max-width: 240px;
   font-family: var(--font-mono);
-  font-size: 0.625rem;
-  letter-spacing: 0.1em;
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps-tight);
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -1220,8 +1329,8 @@ model-viewer.stage__model {
   padding: 8px 16px;
   border-radius: var(--radius-pill);
   font-family: var(--font-mono);
-  font-size: 0.625rem;
-  letter-spacing: 0.12em;
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--text);
   transition:
@@ -1309,8 +1418,8 @@ model-viewer.stage__model {
      and here the "body content" is a garment in an arbitrary colour. */
   background: var(--bg);
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  letter-spacing: 0.1em;
+  font-size: var(--text-mono);
+  letter-spacing: var(--tracking-caps-tight);
   text-transform: uppercase;
   /* `--text`, not `--muted`: this is the one line whose whole job is being noticed. */
   color: var(--text);
@@ -1398,7 +1507,7 @@ model-viewer.stage__model {
   gap: 10px;
   width: min(320px, 78%);
   font-family: var(--font-mono);
-  letter-spacing: 0.12em;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   text-align: center;
   color: var(--text);
@@ -1409,14 +1518,14 @@ model-viewer.stage__model {
 }
 
 .stage__loading-title {
-  font-size: 0.75rem;
+  font-size: var(--text-mono-lg);
   /* The percentage climbs while the line is centred; without tabular digits the
      whole readout shifts sideways on every tick. */
   font-variant-numeric: tabular-nums;
 }
 
 .stage__loading-detail {
-  font-size: 0.625rem;
+  font-size: var(--text-mono-sm);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1476,7 +1585,7 @@ model-viewer.stage__model {
   transform: translateX(-50%);
   max-width: min(90%, 420px);
   text-align: center;
-  font-size: 0.875rem;
+  font-size: var(--text-note);
   color: var(--muted);
   background: var(--surface);
   border: 1px solid var(--line);
@@ -1496,7 +1605,7 @@ model-viewer.stage__model {
   border-left-width: 4px;
   border-radius: var(--radius-button);
   background: var(--surface);
-  font-size: 0.875rem;
+  font-size: var(--text-note);
   color: var(--text);
 }
 
@@ -1589,7 +1698,7 @@ model-viewer.stage__model {
 .spec-list dt {
   font-family: var(--font-mono);
   font-size: var(--text-mono);
-  letter-spacing: 0.12em;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--muted);
   margin-bottom: 4px;
@@ -1713,7 +1822,7 @@ model-viewer.stage__model {
   border-radius: var(--radius-button);
   font-family: var(--font-mono);
   font-size: var(--text-mono);
-  letter-spacing: 0.1em;
+  letter-spacing: var(--tracking-caps-tight);
   text-transform: uppercase;
   color: var(--text);
   transition:
@@ -1813,21 +1922,21 @@ model-viewer.stage__model {
 
 .step__num {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-tight);
   color: var(--dimension);
 }
 
 .step__title {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-tight);
   text-transform: uppercase;
   margin-bottom: 6px;
 }
 
 .step__body {
-  font-size: 0.9375rem;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 
@@ -1844,7 +1953,7 @@ model-viewer.stage__model {
 }
 
 .contact__micro {
-  font-size: 0.875rem;
+  font-size: var(--text-note);
   color: var(--muted);
 }
 
@@ -1876,7 +1985,7 @@ model-viewer.stage__model {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 50;
+  z-index: var(--z-action-bar);
   display: flex;
   gap: 10px;
   padding-top: 12px;
@@ -2040,17 +2149,17 @@ model-viewer.stage__model {
   font-weight: 900;
   font-stretch: 122%;
   text-transform: uppercase;
-  font-size: 1rem;
+  font-size: var(--text-wordmark-sm);
   /* Matches `.header__wordmark`. The same wordmark was set two different ways on
      one page: -0.02em in the header and 0 here, so the brand read as two
      slightly different logotypes between the top and bottom of a single scroll. */
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-wordmark);
 }
 
 .footer__line {
   font-family: var(--font-mono);
-  font-size: 0.625rem;
-  letter-spacing: 0.14em;
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps-wide);
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -2108,7 +2217,7 @@ model-viewer.stage__model {
 .preloader {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: var(--z-preloader);
   display: grid;
   place-items: center;
   background: var(--bg);
@@ -2198,8 +2307,8 @@ model-viewer.stage__model {
 
 .preloader__status {
   color: var(--muted);
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-tight);
 }
 
 /* ══ Customisation accordion (grid-rows collapse) ═════════════════════ */
@@ -2393,8 +2502,8 @@ model-viewer.stage__model {
        it, but it is the kind of recorded number the next session trusts. */
     min-height: 48px;
     padding: 8px 6px;
-    font-size: 0.625rem;
-    letter-spacing: 0.06em;
+    font-size: var(--text-mono-sm);
+    letter-spacing: var(--tracking-caps-compact);
     text-align: center;
   }
 

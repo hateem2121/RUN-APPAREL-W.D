@@ -14,6 +14,7 @@ import {
 } from '../lib/interactionCue'
 import { fetchWithProgress } from '../lib/fetchWithProgress'
 import { describeLoad, showsIndeterminateSweep, smoothRate } from '../lib/loadProgress'
+import { adaptivePanSensitivity, PAN_SENS_OUT, shouldWritePan } from '../lib/adaptive-pan'
 import { CAMERA_DECAY_MS } from '../lib/motion'
 import { placeholderAsset, placeholderBlurPx, placeholderLeaveMs } from '../lib/placeholder'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
@@ -38,6 +39,20 @@ interface ModelViewerEl extends HTMLElement {
   getDimensions?: () => { x: number; y: number; z: number }
   /** Current orbit. `radius` is the camera distance the near plane has to follow. */
   getCameraOrbit?: () => { radius: number }
+  /** Current field of view in DEGREES. Drives the adaptive pan curve. */
+  getFieldOfView?: () => number
+  /**
+   * Whether THIS device can enter AR. False on every desktop and on Android here
+   * (`ar-modes="quick-look"` is iOS-only by choice — see docs/DECISION-AR-SCOPE.md).
+   * Read after `load`, because it depends on the loaded model.
+   */
+  canActivateAR?: boolean
+  /**
+   * How far a two-finger gesture slides the garment. Written as a PROPERTY:
+   * `features/controls.js` observes `changedProperties.has('panSensitivity')`,
+   * and React never reflects a custom-element property to an attribute.
+   */
+  panSensitivity?: number
 }
 
 interface StageProps {
@@ -240,8 +255,42 @@ const DISABLE_TAP = true
  *    and moves the radius to match "so that the camera itself does not move".
  *    That is the whole y/z component of the number above and it is invisible.
  *    Only the **x** component is what a person actually sees slide.
+ *
+ * ⚠️ SINCE 2026-09-05 THIS IS ONLY THE STARTING VALUE, not the whole story. It is
+ * still exactly what ships at the default framing — the measurement above is
+ * unchanged and still governs — but `lib/adaptive-pan.ts` raises it as the field
+ * of view narrows, up to 1:1 finger tracking at `MIN_FIELD_OF_VIEW`. Read that
+ * file before touching either end: the low end exists for the off-screen defect
+ * above, and the high end exists because the garment is 56.6x bigger at full zoom.
  */
-const PAN_SENSITIVITY = 0.3
+const PAN_SENSITIVITY = PAN_SENS_OUT
+
+/**
+ * Push the field-of-view-appropriate `panSensitivity` onto the element.
+ *
+ * Module scope on purpose: `onCameraChange` lives inside an effect, and a
+ * component-scope helper would become one of that effect's dependencies for no
+ * benefit. The only mutable state is the caller's ref.
+ *
+ * Silent no-ops are correct here. `getFieldOfView` is optional on the interface
+ * because the element is dynamically imported and this can fire against a stub in
+ * a unit test; a viewer that simply keeps the shipped 0.3 is the safe outcome.
+ */
+function applyAdaptivePan(
+  // Takes the ref's own handle rather than the listener's `HTMLElement`: `attachRef`
+  // has already narrowed it once, and re-casting at the call site would assert the
+  // same thing a second time in a place nothing verifies.
+  el: ModelViewerEl | null,
+  lastWritten: { current: number | null },
+): void {
+  if (!el) return
+  const fov = el.getFieldOfView?.()
+  if (typeof fov !== 'number') return
+  const next = adaptivePanSensitivity(fov)
+  if (!shouldWritePan(lastWritten.current, next)) return
+  lastWritten.current = next
+  el.panSensitivity = next
+}
 
 export function Stage({ data, selected, preview = null, onModelReadyChange }: StageProps) {
   const { product } = data
@@ -252,6 +301,8 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   const displayed = displayedColourway(separateMode, preview, selected)
 
   const mvRef = useRef<ModelViewerEl | null>(null)
+  /** Last `panSensitivity` written. See PAN_SENS_STEP — one gesture fires ~165 events. */
+  const panSensRef = useRef<number | null>(null)
   const [libReady, setLibReady] = useState(false)
   /**
    * ONE value, not three booleans. `fallback`, `modelLoaded` and `swapping` were
@@ -274,6 +325,16 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
    * hint FIRST and a sweep second, and why the sweep is only 14 degrees.
    */
   const [cueVisible, setCueVisible] = useState(false)
+  /**
+   * Whether to offer AR at all. Driven by model-viewer's own `canActivateAR`
+   * rather than by sniffing the user agent, so it is false on desktop, false on
+   * Android (Quick Look only) and false when the model has not loaded.
+   *
+   * The button is not merely hidden when this is false — it is not rendered, so it
+   * never enters the tab order and never occupies a slot the element would then
+   * lay out.
+   */
+  const [arAvailable, setArAvailable] = useState(false)
   const cueSpentRef = useRef(false)
   /**
    * Once per visit, and permanently. A cue that returns after every colourway
@@ -321,7 +382,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
    * file ourselves, or the plain URL if that failed.
    *
    * The element is not rendered until this is set, which is load-bearing — with
-   * both the element and our fetch active at once the 27 MB file downloads twice.
+   * both the element and our fetch active at once the file downloads twice.
    */
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(null)
 
@@ -544,6 +605,9 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       const onLoad = () => {
         dispatchPhase({ type: 'loaded' })
 
+        // AFTER load: `canActivateAR` depends on the loaded model, and reading it
+        // before returns false on a device that can.
+        setArAvailable(mvRef.current?.canActivateAR === true)
         clampNearPlane()
         biasDecals()
         // PROPERTY first, attribute second. React sets `src` on a custom element
@@ -660,6 +724,19 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
           // its own cue by firing this handler.
           dismissCue()
         }
+        // Retune the pan for the new zoom level — see src/lib/adaptive-pan.ts.
+        //
+        // ⚠️ HERE AND NOT ON `pointerdown`. model-viewer reads `panSensitivity`
+        // once per gesture, inside `initializePan()`, which runs in ITS OWN
+        // pointerdown handler — registered when the element connected, so before
+        // any listener we add. A value written from our pointerdown would land one
+        // gesture late, which is worse than not adapting at all: the sensitivity
+        // would always belong to the previous zoom level.
+        //
+        // ⚠️ NOT gated on `user-interaction`. A FRONT/BACK/SIDE press also changes
+        // the field of view, and the next two-finger gesture after one must not
+        // inherit the sensitivity from wherever the visitor had zoomed to before.
+        applyAdaptivePan(mvRef.current, panSensRef)
       }
       // The model loaded fine and THEN the GPU took the context away. Distinct
       // from `error`, which is a load failure, and previously unhandled: the
@@ -806,7 +883,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
    * That fallback is what makes counting bytes a safe thing to do at all.
    */
   useEffect(() => {
-    // `canRender3D()`, NOT `libReady`. The 27 MB download used to wait for the
+    // `canRender3D()`, NOT `libReady`. The model download used to wait for the
     // model-viewer module to finish downloading and parsing first, serialising
     // two independent transfers on the connection that matters least — a phone
     // on 4G, where the model is already ~23s.
@@ -815,7 +892,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
     // (1) `libReady` was silently doing double duty as the Save-Data / no-WebGL
     //     guard: the effect above returns early WITHOUT importing the module in
     //     those cases, so libReady never became true and this effect never ran.
-    //     Removing it without calling canRender3D() would start a 27 MB download
+    //     Removing it without calling canRender3D() would start a 1.9-8.2 MB download
     //     on a connection that explicitly asked us not to.
     // (2) `libReady` must leave the dependency array in the SAME edit. Left in,
     //     the effect re-runs when it flips and the file downloads twice.
@@ -982,7 +1059,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   })
   // No longer gated on `libReady`: the download now starts immediately rather
   // than after the model-viewer module lands, so gating the readout on the
-  // module would leave the stage blank for the first seconds of a 27 MB
+  // module would leave the stage blank for the first seconds of a 1.9-8.2 MB
   // transfer — the exact dead time the byte-accurate readout exists to remove.
   // `!fallback` already covers Save-Data and no-WebGL, which is what libReady
   // was standing in for here.
@@ -1087,7 +1164,44 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               exposure="1"
               loading="eager"
               reveal="auto"
-            />
+              /**
+               * AR — iOS Quick Look only. docs/DECISION-AR-SCOPE.md has the full
+               * reasoning; the two facts that matter here:
+               *
+               *   - NO USDZ FILE IS NEEDED. model-viewer 4.3.1 exports one in the
+               *     browser from the loaded GLB, so the pipeline is untouched and
+               *     this costs zero new bytes — the AR code already ships inside
+               *     the model-viewer chunk every build emits.
+               *   - ANDROID IS DELIBERATELY EXCLUDED. Scene Viewer cannot read a
+               *     `blob:` URL, and `src` here is a blob because we fetch the GLB
+               *     ourselves to drive the byte-accurate progress readout. Listing
+               *     `scene-viewer` would crash or silently fail rather than
+               *     degrade, so it is left out and Android simply sees no button.
+               *
+               * `ar-scale="fixed"` is the point of the feature — a buyer judging
+               * fit needs real size, not a scalable toy. Verified 2026-09-05 that
+               * the exports are authored in metres: rxps 0.60x0.76x0.24,
+               * r-xmp 0.37x0.92x0.27, r-afp 0.55x0.73x0.28.
+               */
+              ar
+              ar-modes="quick-look"
+              ar-placement="floor"
+              ar-scale="fixed"
+            >
+              {/*
+                OUR button, not model-viewer's.
+                ⚠️ The default `#default-ar-button` is a Google-styled pill placed
+                inside the shadow root, over the canvas — the exact geometry
+                StageControls.tsx measured and moved OUT of `.stage__canvas` in
+                August, when it covered 26px of garment at 1440x900 and 38px at
+                390x844. Letting the default render re-creates that defect.
+              */}
+              {arAvailable && (
+                <button type="button" slot="ar-button" className="stage__ar">
+                  VIEW IN YOUR SPACE
+                </button>
+              )}
+            </model-viewer>
           )}
 
           {showPlaceholder && placeholder && (

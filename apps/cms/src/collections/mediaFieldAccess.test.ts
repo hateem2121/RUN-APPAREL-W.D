@@ -3,8 +3,18 @@ import { isAuthenticatedFieldLevel } from '../access/roles'
 import { Media } from './Media'
 
 /**
- * `Media.access.read` is `() => true` on purpose — posters and models render on the
- * public viewer, so the collection has to be readable without a session.
+ * Media access, at both the collection and the field level.
+ *
+ * ⚠️ THIS DOCBLOCK OPENED WITH "`Media.access.read` is `() => true` on purpose" UNTIL
+ * 2026-09-05. It is `isAuthenticated` now, and the premise was wrong — the files are
+ * served from R2, not through this API, so the collection never had to be anonymous.
+ * See the collection test below for the measurement that ended it, and Media.ts for
+ * why narrowing it cannot affect the viewer.
+ *
+ * The field-level half below still stands exactly as written, and it is the reason
+ * the collection-level hole survived an audit: framing the 2026-08-30 leak as "a
+ * public collection is not the same as public fields" fixed the three fields and
+ * treated the enumeration itself as harmless.
  *
  * ⚠️ "THE COLLECTION IS PUBLIC" WAS READ AS "EVERY FIELD ON IT IS PUBLIC", and three
  * reviewer-only fields rode along for months. Measured 2026-08-30 against production:
@@ -57,11 +67,34 @@ describe('Media field-level access', () => {
     }
   })
 
-  it('keeps the COLLECTION publicly readable — posters render on the viewer', () => {
-    // If this ever changes, the viewer's posters stop loading for anonymous
-    // visitors. Restricting the collection is NOT the fix for a leaky field.
+  it('refuses an anonymous read of the COLLECTION — the index is not public', () => {
+    // ⚠️ THIS TEST ASSERTED THE OPPOSITE UNTIL 2026-09-05, on a stated premise that
+    // was wrong: "if this ever changes, the viewer's posters stop loading for
+    // anonymous visitors." They do not. The posters and models are served from R2 at
+    // media.wear-run.help, which this setting does not govern, and the viewer reaches
+    // its data through the LOCAL API (`req.payload.find` in publicViewer.ts, whose
+    // `overrideAccess` defaults to true) — never through `GET /api/media`.
+    //
+    // The proof is already in production and predates this change: `Products.read`
+    // has been `isAuthenticated` throughout, and all 55 public viewer states serve
+    // anonymously anyway. If collection access reached that endpoint, Products would
+    // already have broken it.
+    //
+    // What `() => true` actually published was the INDEX: 66 documents in one
+    // unauthenticated request, 13 model URLs, 51.2 MB, every filename and size —
+    // while the bucket itself correctly refuses to list its own contents.
     expect(typeof Media.access?.read).toBe('function')
-    expect(Media.access?.read?.({} as never)).toBe(true)
+    expect(Media.access?.read?.({ req: {} } as never)).toBe(false)
+    expect(Media.access?.read?.({ req: { user: null } } as never)).toBe(false)
+  })
+
+  it('still admits a signed-in reader — the robot and the orphan finder need it', () => {
+    // The other direction, and it is not decoration. `read: () => false` would pass
+    // the test above and silently break the shrink robot (`cmsFetch` sends
+    // `Authorization: users API-Key`) and scripts/find-orphan-media.mjs, which reads
+    // the whole library to decide what is unreferenced before deleting it.
+    expect(Media.access?.read?.({ req: { user: { role: 'editor' } } } as never)).toBe(true)
+    expect(Media.access?.read?.({ req: { user: { role: 'admin' } } } as never)).toBe(true)
   })
 
   it.each(INTERNAL_FIELDS)('hides %s from unauthenticated reads', (name) => {

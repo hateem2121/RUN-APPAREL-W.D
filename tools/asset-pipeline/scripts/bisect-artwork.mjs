@@ -51,7 +51,7 @@ const DETAIL_FLAGS = {
   // Retired presets, kept ONLY so a job that already ran can be reproduced.
   // Neither is offered by the CMS any more — do not bisect a new upload with them.
   //   `balanced-pre-2026-08-05`: what balanced was until run C was adopted (37.7 MB
-  //     on N001, vs 27.0 MB now).
+  //     on N001, vs 27.0 MB then; the live models are 1.9-8.2 MB since 2026-09-03).
   //   `small`: removed on 2026-08-05. It renders the chest wordmark with MILE
   //     breaking apart while passing all three blocking gates.
   'balanced-pre-2026-08-05': [

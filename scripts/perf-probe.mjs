@@ -19,7 +19,9 @@
  *    Cloudflare's mood, and an alert that cries wolf gets muted — which is how the
  *    uptime check sat dead for 17 days.
  *
- * 2. NEVER GET THE MODEL. It is 27 MB. The R2 egress budget is part of a $5/month
+ * 2. NEVER GET THE MODEL. It is 1.9-8.2 MB, 53.69 MB across the eleven (measured
+ *    2026-09-05; ~27 MB each before the 2026-09-03 re-exports). The R2 egress
+ *    budget is part of a $5/month
  *    cap, and a weekly GET is affordable only until someone changes the schedule.
  *    HEAD gives existence and content-length, which is all this needs.
  *
@@ -32,7 +34,7 @@
  *
  * Consequence of (2) and (3) together, stated plainly because it is a real limit:
  * this probe CANNOT report the model's cache status, because doing so would require
- * a 27 MB GET. It reports reachability only, and says so.
+ * a full GET of the model. It reports reachability only, and says so.
  */
 
 import { LIVE_PRODUCTS } from './live-products.mjs'
@@ -150,8 +152,8 @@ async function probe(target) {
       headers: { 'user-agent': 'run-apparel-perf-probe' },
     })
     // Drain the body so `seconds` measures a complete small response rather than
-    // just the headers. Every target here is small by construction; the 27 MB model
-    // is deliberately not one of them.
+    // just the headers. Every target here is small by construction; the model is
+    // deliberately not one of them.
     await response.arrayBuffer()
     return {
       name: target.name,

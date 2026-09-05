@@ -107,7 +107,7 @@ export const IGNORED_ERRORS: (string | RegExp)[] = [
  * countries, zero from any geography a QR tag is scanned in — while
  * `GET https://viewer.wear-run.help/env/studio-soft.hdr` returned 200, 135,171
  * bytes, `cf-cache-status: HIT`. Link-preview scanners open the page, start the
- * 27 MB model, and are killed seconds later.
+ * model, and are killed seconds later.
  *
  * (That byte count is the 2026-08-26 measurement and is left as recorded. The
  * file is 100,649 bytes since 2026-09-05, when the analytic placeholder was
@@ -154,7 +154,7 @@ export function isHttpError(event: Record<string, unknown>): boolean {
 
 /**
  * Set once the page has started going away. A fetch that fails AFTER this is the
- * visitor navigating off mid-download, which on a 27 MB model is ordinary
+ * visitor navigating off mid-download, which on a 1.9-8.2 MB model is ordinary
  * behaviour rather than an incident. One that fails while the page is still live
  * still reports, which is the half that matters.
  *

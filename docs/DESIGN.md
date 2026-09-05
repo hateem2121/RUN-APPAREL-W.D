@@ -189,6 +189,10 @@ enforced globally in `base.css`, not per-component.
 | `--text-xs` | 0.8125rem | 13px |
 | `--text-mono` | 0.6875rem | 11px |
 | `--text-mono-sm` | 0.625rem | 10px |
+| `--text-wordmark` | 1.125rem | 18px — `.header__wordmark`, wide |
+| `--text-wordmark-sm` | 1rem | 16px — `.header__wordmark` compact, `.footer__brand` |
+| `--text-note` | 0.875rem | 14px — `.stage__error`, `.notice`, `.contact__micro` |
+| `--text-mono-lg` | 0.75rem | 12px — tracked caps one step above `--text-mono` |
 
 ⚠️ **rem since 2026-09-04, and the unit is the accessibility feature.** Every size
 here was px and `html` declares no font-size, so a visitor who set their browser's
@@ -219,6 +223,43 @@ decorative section numbering above them.
 
 Display sizes stay as `clamp()` expressions rather than tokens, because they are
 ranges rather than values; see `.display--hero` and `.display--section` above.
+`.serif-accent`'s `1.07em` is likewise not a scale step — it is a ratio against
+whatever it sits inside, which is the point of the accent.
+
+**The last four landed 2026-09-05, and the paragraph above is why they had to.**
+That block tokenised five of the nine shipped sizes and named its own gap —
+"nothing to stop a tenth". Seventeen raw declarations were still in `page.css` and
+`base.css`: seven already equalled a token and were simply not using it, and ten
+were the four sizes now above. They are named by **register**, not by a t-shirt
+step, because the evens interleave the odds — 18·17·16·15·14·13·12·11·10 — so a
+`--text-md` sitting between `--text-sm` and `--text-xs` would advertise a scale
+this system does not have.
+
+### Tracking
+
+Display tracking is in *Display* above. Everything else is uppercase micro-type,
+and it shipped as 21 literals until 2026-09-05.
+
+| Token | Value | Use |
+|---|---|---|
+| `--tracking-caps-tight` | 0.1em | `.btn`, `.step__num`, `.step__title`, `.stage__hint`, `.colourway-tab`, `.callout`, `.preloader__status` |
+| `--tracking-caps` | 0.12em | `.label`, `.camera-btn`, `.spec-list dt`, `.stage__ar`, `.stage__loading`, `.stage-block__name` |
+| `--tracking-caps-wide` | 0.14em | `.section-number`, `.footer__line` |
+| `--tracking-caps-compact` | 0.06em | the colourway rail below its 500px container |
+| `--tracking-mono` | 0.11em | `.mono` — see the warning below |
+| `--tracking-wordmark` | -0.02em | `.header__wordmark`, `.footer__brand`, and the aside heading that borrows it |
+
+⚠️ **`--tracking-mono` is 0.11em and must not be folded into `--tracking-caps`.**
+The Mono table above states 11px/0.11em and 10px/0.12em as separate rows, and they
+are separate on purpose: they render **1.21px and 1.20px**, the same optical
+tracking reached from two different sizes. The 0.01px gap is evidence they agree,
+not evidence one is a typo — collapsing them would move `.mono` to 1.32px, a real
+change made to tidy a table.
+
+**`--tracking-wordmark` is the one with a history.** *Display* above records that
+`.header__wordmark` and `.footer__brand` "must agree with each other, which they
+did not until 2026-08-14". They agreed as two literals for a year; a token is what
+stops the third divergence.
 
 ---
 
@@ -305,6 +346,31 @@ system had **no shadow token at all**, and its one drop shadow was a raw
 `--bg` (#1c1f18), so the preview lost its only separation from the rail behind it.
 Pure black is wrong in both halves of this system for the same reason `--ink` is
 `#1d1f1a` and never `#000`.
+
+### Layering
+
+Seven stacking contexts, in reading order from the canvas upward. Added as tokens
+2026-09-05; the numbers are exactly what shipped, so nothing moved.
+
+| Token | Value | Layer |
+|---|---|---|
+| `--z-stage-control` | 1 | `.stage__ar` — inside the stage, above the canvas |
+| `--z-header` | 40 | the sticky header |
+| `--z-action-bar` | 50 | the persistent contact bar |
+| `--z-grain` | 60 | the full-page grain overlay |
+| `--z-cursor` | 70 | `.cursor-ring`, pointer devices only |
+| `--z-preloader` | 80 | the opening curtain |
+| `--z-skip-link` | 100 | must beat everything, the preloader included |
+
+**A z-index only means something against the others**, and until this table existed
+the only way to learn the stack was to grep two stylesheets and sort the results.
+The gaps are deliberate: 10 between neighbours leaves room to insert a layer
+without renumbering, which is the edit that silently reorders a stack.
+
+`--z-skip-link` above `--z-preloader` is not decoration. The skip link is the
+keyboard user's first control, and the preloader covers the whole viewport; if the
+curtain won, tabbing during load would focus a control nobody can see. That is the
+same class of defect as the 1.00:1 skip link `tokens.test.ts` was written for.
 
 ---
 

@@ -63,7 +63,7 @@ export function startPolish(): void {
    * null on any touch device, under reduced motion, and under automation. A
    * static import meant the phone that scans a QR tag downloaded a spring-physics
    * library for a crosshair it can never show, on the connection already
-   * carrying a 27 MB model. The component performs this same check itself;
+   * carrying a 1.9-8.2 MB model. The component performs this same check itself;
    * performing it before the import is what turns a wasted download into no
    * download.
    *
