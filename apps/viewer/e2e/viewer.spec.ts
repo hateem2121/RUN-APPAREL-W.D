@@ -4,7 +4,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
   test('direct QR URL loads product with pre-selected colourway', async ({ page }) => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toContainText(/Velocity Performance/i)
-    await expect(page.getByText('[ COLOURWAY 01 / WINE ]')).toBeVisible()
+    await expect(page.getByText('[ COLORWAY 01 / WINE ]')).toBeVisible()
     // NOT "poster-first" any more — changed deliberately on 2026-08-13.
     //
     // The poster used to cover the stage for the whole download. It could never
@@ -75,7 +75,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
      */
     await page.getByRole('tab', { name: /^black$/i }).click()
     await expect(page).toHaveURL(/\/n001\/black$/)
-    await expect(page.getByText('[ COLOURWAY 05 / BLACK ]')).toBeVisible()
+    await expect(page.getByText('[ COLORWAY 05 / BLACK ]')).toBeVisible()
     const preserved = await page.evaluate(
       () => (window as unknown as { __noReload?: boolean }).__noReload,
     )
@@ -83,7 +83,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
     // back button returns to wine client-side
     await page.goBack()
     await expect(page).toHaveURL(/\/n001\/wine$/)
-    await expect(page.getByText('[ COLOURWAY 01 / WINE ]')).toBeVisible()
+    await expect(page.getByText('[ COLORWAY 01 / WINE ]')).toBeVisible()
   })
 
   test('retired colourway falls back to default with notice and silent URL fix', async ({
@@ -94,7 +94,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
     await page.goto('/n001/navy')
     await expect(page.getByText(/no longer active/i)).toBeVisible()
     await expect(page).toHaveURL(/\/n001\/wine$/)
-    await expect(page.getByText('[ COLOURWAY 01 / WINE ]')).toBeVisible()
+    await expect(page.getByText('[ COLORWAY 01 / WINE ]')).toBeVisible()
   })
 
   // A tag printed with only the product code, or a buyer trimming the URL back
@@ -105,7 +105,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
   }) => {
     await page.goto('/n001')
     await expect(page.getByRole('heading', { level: 1 })).toContainText(/Velocity Performance/i)
-    await expect(page.getByText('[ COLOURWAY 01 / WINE ]')).toBeVisible()
+    await expect(page.getByText('[ COLORWAY 01 / WINE ]')).toBeVisible()
     // The URL is normalised so the page can be shared and bookmarked.
     await expect(page).toHaveURL(/\/n001\/wine$/)
     // Nothing was retired — claiming otherwise tells the buyer a colour has been
@@ -166,7 +166,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
     const notice = page.locator('.stage__error')
     await expect(notice).toBeVisible()
     await expect(notice).toHaveText(
-      'The 3D view is not available. The colours, fabric and specifications on this page are correct, and you can still send an enquiry below.',
+      'The 3D view is not available. The colors, fabric and specifications on this page are correct, and you can still send an inquiry below.',
     )
     // Scoped to the stage: unrelated product copy is free to use the word.
     await expect(page.locator('.stage').getByText(/photograph/i)).toHaveCount(0)
@@ -177,7 +177,11 @@ test.describe('RUN APPAREL 3D viewer', () => {
   test('unknown product shows branded unavailable state', async ({ page }) => {
     await page.goto('/zzz9/none')
     await expect(page.getByText('[ REFERENCE UNAVAILABLE ]')).toBeVisible()
-    await expect(page.getByRole('link', { name: /back to catalogue/i })).toBeVisible()
+    // The catalogue button was removed here on 2026-09-04 (owner decision). This
+    // asserts the removal rather than merely dropping the old assertion, because
+    // `catalogueUrl` is still in the payload and still in this component's props:
+    // nothing but this line and src/catalogueLinks.test.ts stops it coming back.
+    await expect(page.getByRole('link', { name: /catalogue/i })).toHaveCount(0)
     // Unscoped is correct HERE: the unavailable state renders no action bar, so
     // there is only ever one "Email Us" on this page.
     await expect(page.getByRole('link', { name: /email us/i })).toBeVisible()
@@ -192,7 +196,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
     const mailto = await email.getAttribute('href')
     expect(mailto).toContain('mailto:partner@wear-run.com')
     expect(mailto).toContain(
-      encodeURIComponent('Product Enquiry — Velocity Performance Tee / Wine'),
+      encodeURIComponent('Product Inquiry — Velocity Performance Tee / Wine'),
     )
     expect(mailto).toContain(
       encodeURIComponent('I am interested in Velocity Performance Tee (N001) in Wine.'),

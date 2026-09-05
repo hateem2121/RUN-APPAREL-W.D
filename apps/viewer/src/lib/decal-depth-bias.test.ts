@@ -220,7 +220,7 @@ describe('⚠️ GUARD — model-viewer still exposes the internal API this depe
 
   it('still declares isLoaded, which is how pending is told from broken', () => {
     /*
-     * ⚠️ THE OLD GUARD COULD NOT HAVE CAUGHT THE COLOURWAY BUG. It asserted the
+     * ⚠️ THE OLD GUARD COULD NOT HAVE CAUGHT THE COLORWAY BUG. It asserted the
      * symbol existed, which was true the whole time the fix reached 6 of 26
      * decals. What the fix actually depends on now is `isLoaded` — public API,
      * and the only thing separating "this colourway is not open yet" from

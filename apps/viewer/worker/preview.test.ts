@@ -157,7 +157,7 @@ describe('buildPreview — description', () => {
     const { description } = build(payload({}))
     expect(description).toBe(
       'Sportswear · Race fit · 80% recycled polyester / 20% elastane, 160 GSM. ' +
-        'Rotate, zoom and compare all 3 colourways in 3D.',
+        'Rotate, zoom and compare all 3 colorways in 3D.',
     )
   })
 
@@ -169,7 +169,7 @@ describe('buildPreview — description', () => {
         product: { category: '' as never, garmentFit: '', fabricComposition: '', gsm: '' },
       }),
     ).description
-    expect(bare).toBe('Rotate, zoom and compare all 3 colourways in 3D.')
+    expect(bare).toBe('Rotate, zoom and compare all 3 colorways in 3D.')
   })
 
   it('says "this reference" rather than "all 1 colourways"', () => {
@@ -312,5 +312,134 @@ describe('the tags index.ts rewrites still exist in index.html', () => {
   it('has a <title> and a description for the Worker to overwrite', () => {
     expect(html).toMatch(/<title>[^<]+<\/title>/i)
     expect(html).toMatch(/<meta\s+name="description"/i)
+  })
+})
+
+describe('schema.org Product JSON-LD', () => {
+  /**
+   * This is the only machine-readable description of the product that a crawler
+   * which runs no JavaScript ever sees — `<div id="root">` is empty in the served
+   * HTML. Every failure here is silent: the page renders perfectly and the
+   * structured data is wrong, absent, or malformed, and nobody inspects a rich
+   * result on purpose.
+   */
+  const parse = (p: ReturnType<typeof buildPreview>) => JSON.parse(p.jsonLd)
+
+  it('describes the garment with the values the CMS actually holds', () => {
+    const data = parse(
+      buildPreview(
+        payload({
+          product: {
+            shortDescription: 'A four-way stretch skinsuit.',
+            performanceFeatures: ['Moisture management', 'Four-way stretch'],
+          },
+        }),
+        { origin: ORIGIN, cards: CARDS },
+      ),
+    )
+
+    expect(data['@context']).toBe('https://schema.org')
+    expect(data['@type']).toBe('Product')
+    expect(data.name).toBe('Velocity Performance Skinsuit')
+    expect(data.sku).toBe('N001')
+    expect(data.category).toBe('Sportswear')
+    expect(data.description).toBe('A four-way stretch skinsuit.')
+    expect(data.material).toBe('80% recycled polyester / 20% elastane')
+    expect(data.color).toBe('Wine')
+    expect(data.brand).toEqual({ '@type': 'Brand', name: 'RUN' })
+    expect(data.url).toBe(`${ORIGIN}/n001/wine`)
+    expect(data.image).toBe(`${ORIGIN}/og/n001/wine.jpg`)
+
+    const specs = Object.fromEntries(
+      (data.additionalProperty as Array<{ name: string; value: string }>).map((s) => [
+        s.name,
+        s.value,
+      ]),
+    )
+    expect(specs.Weight).toBe('160 GSM')
+    expect(specs.Fit).toBe('Race fit')
+    expect(specs['Performance features']).toBe('Moisture management, Four-way stretch')
+    expect(specs['Colorways available']).toBe('3')
+  })
+
+  it('carries NO offers — this catalogue has no prices, and inventing one is a false claim', () => {
+    const data = parse(buildPreview(payload({}), { origin: ORIGIN, cards: CARDS }))
+    // Deliberate: Google's Product docs want an offer, and satisfying that would
+    // put a fabricated price, currency or availability on 55 public URLs in
+    // machine-readable form. A rich result we do not get is the cheaper mistake.
+    expect(data.offers).toBeUndefined()
+    expect(data.price).toBeUndefined()
+    expect(data.availability).toBeUndefined()
+  })
+
+  it('omits an empty field rather than emitting an empty string', () => {
+    // "" is a claim that the value is blank. Absence says nothing, which is what
+    // an unfilled CMS field actually means. Ten of eleven live products had empty
+    // customisation fields on 2026-09-04, so partly-filled records are the norm.
+    const data = parse(
+      buildPreview(
+        payload({
+          product: {
+            shortDescription: '   ',
+            // NOT category: it is a closed union (ProductCategory) with no empty
+            // member, so a blank one is unrepresentable and asserting it would be
+            // testing a state that cannot occur. The runtime guard in
+            // buildProductJsonLd stays anyway — the payload crosses a network
+            // boundary and TypeScript does not validate what actually arrives.
+            garmentFit: '',
+            fabricComposition: '',
+            gsm: '',
+            performanceFeatures: [],
+          },
+        }),
+        { origin: ORIGIN, cards: CARDS },
+      ),
+    )
+    expect(data).not.toHaveProperty('description')
+    expect(data).not.toHaveProperty('material')
+    expect(data.category).toBe('Sportswear')
+    const names = (data.additionalProperty as Array<{ name: string }>).map((s) => s.name)
+    expect(names).toEqual(['Colorways available'])
+    // …and the fields that always exist are still there.
+    expect(data.name).toBe('Velocity Performance Skinsuit')
+    expect(data.url).toBe(`${ORIGIN}/n001/wine`)
+  })
+
+  it('escapes < so CMS text cannot break out of the script block', () => {
+    const hostile = 'Ends here.</script><script>alert(1)</script>'
+    const preview = buildPreview(payload({ product: { shortDescription: hostile } }), {
+      origin: ORIGIN,
+      cards: CARDS,
+    })
+
+    // The literal sequence must not survive into the emitted string …
+    expect(preview.jsonLd).not.toContain('</script>')
+    expect(preview.jsonLd).not.toContain('<script')
+    expect(preview.jsonLd).toContain('\\u003c/script>')
+    // … while the VALUE round-trips intact, so escaping has not corrupted content.
+    expect(parse(preview).description).toBe(hostile)
+
+    // NEGATIVE CONTROL: prove the assertion can fail. Without the escape in
+    // buildProductJsonLd, JSON.stringify alone leaves `</script>` verbatim — it is
+    // a legal JSON string — and the block would close early on a live page.
+    expect(JSON.stringify({ description: hostile })).toContain('</script>')
+  })
+
+  it('describes the colourway that will LOAD, not the one that was requested', () => {
+    // A QR tag pointing at a retired colour resolves to the default. Structured
+    // data naming the requested colour would advertise a page nobody can reach —
+    // the same reason `url` uses selectedColourway.
+    const colourways = [
+      colourway({ displayName: 'Wine', slug: 'wine' }),
+      colourway({ displayName: 'Lime', slug: 'lime', sequence: 2, isDefault: false }),
+    ]
+    const data = parse(
+      buildPreview(payload({ colourways, selectedColourway: colourways[1]! }), {
+        origin: ORIGIN,
+        cards: CARDS,
+      }),
+    )
+    expect(data.color).toBe('Lime')
+    expect(data.url).toBe(`${ORIGIN}/n001/lime`)
   })
 })

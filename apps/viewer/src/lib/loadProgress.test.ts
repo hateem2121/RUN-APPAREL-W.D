@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  describeLoad,
   formatEta,
   formatMb,
   percentComplete,
   secondsRemaining,
+  showsIndeterminateSweep,
   smoothRate,
-  describeLoad,
 } from './loadProgress'
 
 /**
@@ -188,5 +189,28 @@ describe('describeLoad', () => {
   it('omits the ETA clause before a rate exists', () => {
     const d = describeLoad({ ...base, bytesLoaded: 1_048_576, bytesPerSecond: null })
     expect(d.detail).toBe('1.0 / 27.0 MB')
+  })
+})
+
+describe('showsIndeterminateSweep', () => {
+  it('sweeps while preparing, when motion is allowed', () => {
+    expect(showsIndeterminateSweep('preparing', false)).toBe(true)
+  })
+
+  it('does NOT sweep under reduced motion — a collapsed loop reads as a stall', () => {
+    // base.css collapses animations to one 0.01ms iteration. On a looping sweep with
+    // no fill-mode that freezes the bar at its 40% width, which reads as a stalled
+    // download. Preloader.tsx omits the identical keyframe for the same reason.
+    expect(showsIndeterminateSweep('preparing', true)).toBe(false)
+  })
+
+  it('never sweeps in any other phase, with or without motion', () => {
+    // The sweep means "bytes are in, the model is decoding". `downloading` has a real
+    // percentage to show and `ready` has nothing to show at all; a sweep in either
+    // would be reporting progress the page does not have.
+    for (const reduced of [false, true]) {
+      expect(showsIndeterminateSweep('downloading', reduced)).toBe(false)
+      expect(showsIndeterminateSweep('ready', reduced)).toBe(false)
+    }
   })
 })

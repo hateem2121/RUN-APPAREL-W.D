@@ -25,6 +25,63 @@ const uploadSourceMaps = Boolean(
 export default defineConfig({
   plugins: [
     react(),
+    /**
+     * Preload the two font faces a Latin visitor actually uses.
+     *
+     * ⚠️ THEY WERE THIRD IN A THREE-DEEP CHAIN: HTML -> CSS -> font. A woff2 is not
+     * discoverable until the bundled stylesheet has arrived AND parsed, so the two
+     * faces on the critical path each waited a full round trip that the browser
+     * could have started immediately. index.html already preloads the meshopt
+     * decoder and the lighting map for exactly this reason ("fetched ALONGSIDE the
+     * model instead of after it — measured 0.5s on the live waterfall"); the fonts
+     * were the remaining case and are the ones the FIRST PAINT waits on.
+     *
+     * ⚠️ IT HAS TO BE A BUILD-TIME PLUGIN, NOT A LINK IN index.html, because the
+     * filenames are content-hashed. Hardcoding one would go stale at the next font
+     * bump and preload a 404 — strictly worse than no hint, since the browser then
+     * fetches twice.
+     *
+     * ⚠️ `crossorigin` IS REQUIRED AND IS THE HALF THAT GETS DROPPED. Fonts are
+     * fetched in CORS mode even same-origin; a preload without it opens a
+     * connection in the wrong credentials mode, the real request opens a second
+     * one, and the hint costs a round trip instead of saving one. index.html's own
+     * comment makes the same point about its two preconnects, and
+     * scripts/preload.test.ts pins both halves there.
+     *
+     * LATIN ONLY. The build emits seven font files — latin, latin-ext and
+     * vietnamese subsets plus two .woff fallbacks no modern browser chooses.
+     * Preloading a subset this audience does not use would fetch bytes nobody
+     * renders, which is the opposite of the point. `unicode-range` still governs
+     * what the browser USES; this only front-runs the two it will ask for anyway.
+     */
+    {
+      name: 'run-preload-latin-fonts',
+      enforce: 'post' as const,
+      transformIndexHtml: {
+        order: 'post' as const,
+        handler(html: string, ctx: { bundle?: Record<string, unknown> }) {
+          const files = Object.keys(ctx.bundle ?? {})
+          const wanted = files.filter(
+            (f) => /\.woff2$/.test(f) && /-latin-/.test(f) && !/latin-ext/.test(f),
+          )
+          if (wanted.length === 0) return html
+          return {
+            html,
+            tags: wanted.map((file) => ({
+              tag: 'link',
+              attrs: {
+                rel: 'preload',
+                as: 'font',
+                type: 'font/woff2',
+                href: `/${file}`,
+                crossorigin: '',
+              },
+              injectTo: 'head' as const,
+            })),
+          }
+        },
+      },
+    },
     // Absent entirely without a token, so a local or PR build is byte-identical to
     // what it was before this plugin existed.
     ...(uploadSourceMaps

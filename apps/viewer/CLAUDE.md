@@ -324,20 +324,21 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   left it at 623px. `min-height: 0` is the line that actually fixes it. Same trap
   as the familiar `min-width: 0` on flex children.
 
-- **The CSP violation on every page load was Bot Fight Mode, NOT Web Analytics —
-  RESOLVED 2026-08-06.** It was Cloudflare's **JavaScript Detections**
-  (`window.__CF$cv$params`), bundled with Bot Fight Mode. It was first diagnosed as Web
-  Analytics and that was **wrong** — corrected by reading the injected script instead of
-  inferring it.
-  **No hash can ever cover it**: the script embeds a per-request ray id, so its sha256
-  differs on every load — three values measured inside a minute. Anyone "fixing" this by
-  pinning a hash is chasing a value that changed before they pasted it.
-  **Turning Bot Fight Mode off is NOT sufficient** — `enable_js` is a separate zone flag
-  that does not clear with it, and the Free plan shows it as read-only text. It must be
-  cleared over the API (PUT, not PATCH; PUT REPLACES the config so echo every field back).
-  **Never widen to `'unsafe-inline'`.** Nonces are not usable from a static `_headers`
-  file. Full diagnosis, the exact API call, the zone id and the two rejected alternatives:
-  `docs/VIEWER-CSP-BOT-FIGHT-MODE.md`.
+- **The inline-script CSP violation is Cloudflare PRECURSOR, and it is NOT fixed.**
+  Called Web Analytics (wrong), then JavaScript Detections and "RESOLVED 2026-08-06"
+  (also wrong — `enable_js:false` is Precursor's FINGERPRINT; Cloudflare disables JSD
+  when Precursor is on). Root-caused 2026-09-04, live as Sentry VIEWER-8, **archived not
+  resolved** because it still fires. No hash can cover it (per-request ray id) and
+  nonces are impossible from a static `_headers`; never widen to `'unsafe-inline'`.
+  ⚠️ **Only `sec-fetch-mode: navigate` reproduces it — plain `curl` reports it fixed.**
+  Nothing visitor-facing is broken. `docs/VIEWER-CSP-BOT-FIGHT-MODE.md`.
+
+- **A reserve adding `env(safe-area-inset-bottom)` counts the notch TWICE**
+  (`.action-bar`'s height already holds it — ~34px dead on every iPhone page, reading as
+  generous spacing), **and a layout assertion that scrolls first measures the scroll**:
+  a 203px shortfall read as "the footer is 202px under the bar", and three scroll loops
+  all lose that race. Measure reachability in DOCUMENT space,
+  `el.bottom + scrollY <= docH - barH`.
 
 - **`_headers` rules that both match are COMBINED, not overridden — duplicate
   headers are joined with a comma.** There is no "most specific wins" here, and

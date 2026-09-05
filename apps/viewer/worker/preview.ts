@@ -54,6 +54,12 @@ export interface Preview {
   /** Absolute; used for og:url AND <link rel="canonical">. */
   url: string
   image: PreviewImage | null
+  /**
+   * schema.org Product as a ready-to-embed JSON string. Built here, not in
+   * index.ts, so the decision stays in the pure half that vitest can reach —
+   * `applyPreview` receives only a Preview and never sees the payload.
+   */
+  jsonLd: string
 }
 
 /**
@@ -100,7 +106,7 @@ function buildDescription(payload: ViewerApiSuccess): string {
   const count = payload.colourways.length
   const tail =
     count > 1
-      ? `Rotate, zoom and compare all ${count} colourways in 3D.`
+      ? `Rotate, zoom and compare all ${count} colorways in 3D.`
       : 'Rotate and zoom this reference in 3D.'
   return truncate(specs ? `${specs}. ${tail}` : tail)
 }
@@ -173,15 +179,93 @@ export interface PreviewOptions {
 
 export function buildPreview(payload: ViewerApiSuccess, options: PreviewOptions): Preview {
   const { origin, cards } = options
+  // selectedColourway, NOT the slug the visitor asked for. A QR tag pointing at
+  // a retired colour resolves to the default one, and the preview has to
+  // describe the page that will actually load — otherwise the canonical URL
+  // advertises a colourway that 404s at the API and the card names a colour the
+  // visitor will never see. The JSON-LD reuses both values for the same reason:
+  // structured data must describe the page that loads, not the one requested.
+  const url = `${origin}/${payload.product.slug}/${payload.selectedColourway.slug}`
+  const image = pickImage(payload, origin, cards)
   return {
     title: buildTitle(payload),
     description: buildDescription(payload),
-    // selectedColourway, NOT the slug the visitor asked for. A QR tag pointing at
-    // a retired colour resolves to the default one, and the preview has to
-    // describe the page that will actually load — otherwise the canonical URL
-    // advertises a colourway that 404s at the API and the card names a colour the
-    // visitor will never see.
-    url: `${origin}/${payload.product.slug}/${payload.selectedColourway.slug}`,
-    image: pickImage(payload, origin, cards),
+    url,
+    image,
+    jsonLd: buildProductJsonLd(payload, { url, image }),
   }
+}
+
+/**
+ * schema.org Product data for this garment, as a JSON string ready to embed.
+ *
+ * WHY THIS EXISTS. This viewer is a single-page app: `<div id="root">` is empty
+ * in the served HTML and every word a visitor reads is written by JavaScript. A
+ * crawler that does not execute JS therefore sees a page with no product on it,
+ * which is most of what indexes these URLs. The Open Graph tags above fix how a
+ * link LOOKS when shared; they say nothing about what the page IS. This does.
+ *
+ * It rides the crawler path deliberately, alongside og:url and canonical. The
+ * measurement that justifies that path applies unchanged: the static HTML is
+ * 0.106-0.155s to first byte and the CMS payload 0.56-0.72s, so building this for
+ * every visitor would slow every QR scan to fix something no visitor can see.
+ * `CRAWLER` matches on 'bot', which covers Googlebot.
+ *
+ * ⚠️ NO `offers`, DELIBERATELY. Google's Product documentation wants an offer with
+ * a price, and this catalogue has none — it is a B2B development reference where
+ * price follows a conversation about quantity and specification. Inventing a
+ * price, a currency or an availability to satisfy a validator would put a false
+ * claim in machine-readable form on 55 public URLs, which is worse than a rich
+ * result we do not get. Everything emitted here is a value the CMS actually holds.
+ *
+ * ⚠️ ESCAPING IS NOT OPTIONAL. All of these strings are CMS-authored, so a product
+ * description containing `</script>` would otherwise close the block and inject
+ * whatever followed into the document. `<` is escaped to its unicode form, which
+ * is valid inside a JSON string and inert inside a script element. The CSP here is
+ * hash-based with no `unsafe-inline` for scripts, so a `<script type=
+ * "application/ld+json">` block is NOT executable script and needs no hash — but
+ * that is a reason to escape properly, not a reason to skip it.
+ */
+export function buildProductJsonLd(
+  payload: ViewerApiSuccess,
+  context: { url: string; image: PreviewImage | null },
+): string {
+  const p = payload.product
+  const selected = payload.selectedColourway
+
+  // Only what the CMS actually holds. Every field is dropped when empty rather
+  // than emitted as "" — an empty string is a claim that the value is blank,
+  // where absence correctly says nothing at all.
+  const specs: Array<{ '@type': 'PropertyValue'; name: string; value: string }> = []
+  const addSpec = (name: string, value: string) => {
+    const trimmed = value.trim()
+    if (trimmed) specs.push({ '@type': 'PropertyValue', name, value: trimmed })
+  }
+  addSpec('Fabric composition', p.fabricComposition)
+  addSpec('Weight', p.gsm)
+  addSpec('Fit', p.garmentFit)
+  if (p.performanceFeatures.length > 0) {
+    addSpec('Performance features', p.performanceFeatures.join(', '))
+  }
+  addSpec('Colorways available', String(payload.colourways.length))
+
+  const data: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: p.productName,
+    url: context.url,
+    brand: {
+      '@type': 'Brand',
+      name: payload.siteSettings.temporaryWordmark || payload.siteSettings.companyName,
+    },
+  }
+  if (p.productCode.trim()) data.sku = p.productCode.trim()
+  if (p.category.trim()) data.category = p.category.trim()
+  if (p.shortDescription.trim()) data.description = p.shortDescription.trim()
+  if (p.fabricComposition.trim()) data.material = p.fabricComposition.trim()
+  if (selected.displayName.trim()) data.color = selected.displayName.trim()
+  if (context.image) data.image = context.image.url
+  if (specs.length > 0) data.additionalProperty = specs
+
+  return JSON.stringify(data).replace(/</g, '\\u003c')
 }

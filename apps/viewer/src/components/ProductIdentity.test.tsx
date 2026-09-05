@@ -75,9 +75,9 @@ describe('the product identity has exactly one home', () => {
 
     expect(host.querySelector('h1')?.id).toBe('product-heading')
     expect(host.textContent).toContain('ATHLETIC')
-    expect(host.textContent).toContain('COLOURWAY 01')
+    expect(host.textContent).toContain('COLORWAY 01')
     expect(host.textContent).toContain('long summer mileage')
-    expect(host.textContent).toContain('These colourways are examples')
+    expect(host.textContent).toContain('These colorways are examples')
   })
 
   it('renders the same fields in .content when the layout is one column', () => {

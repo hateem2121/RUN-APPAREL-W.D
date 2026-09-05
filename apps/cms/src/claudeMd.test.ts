@@ -51,6 +51,10 @@ const REPO_ROOT = join(import.meta.dirname, '..', '..', '..')
 
 async function findClaudeMdFiles(dir: string, found: string[] = []): Promise<string[]> {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
+    // See scripts/doc-citations.mjs for why: `.claude/worktrees/` holds other
+    // branches' working trees, and resolving their citations against THIS root
+    // fails a branch for work it does not contain. Found 2026-09-04.
+    if (entry.name === 'worktrees' && dir.endsWith('.claude')) continue
     if (entry.name === 'node_modules' || entry.name === '.git') continue
     const path = join(dir, entry.name)
     if (entry.isDirectory()) {

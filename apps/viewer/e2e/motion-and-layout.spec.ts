@@ -373,38 +373,40 @@ test.describe('the header survives a phone', () => {
         `the theme toggle is ${toggle}px wide at ${width}px — docs/DESIGN.md §4 states 44`,
       ).toBeGreaterThanOrEqual(44)
 
-      // Measure the VISIBLE label only. The button carries two spans — the long
-      // form is moved offscreen rather than unmounted so the accessible name
-      // survives (see Header.tsx) — so a Range over the whole button counts the
-      // hidden one too and reports four rects for a single-line button.
-      const label = await page.$eval('.header .btn', (el) => {
-        const shown =
-          [...el.children].find((child) => getComputedStyle(child).position !== 'absolute') ?? el
-        const range = document.createRange()
-        range.selectNodeContents(shown)
-        return { lines: range.getClientRects().length, height: el.getBoundingClientRect().height }
-      })
-      expect(
-        label.lines,
-        `the nav label wraps to ${label.lines} lines at ${width}px — it is the only ` +
-          'navigation on the page and it sits above the garment',
-      ).toBeLessThanOrEqual(1)
-      // The user-visible consequence, asserted independently of the markup: two
-      // lines measured 56.1px against the 40px declared, and that 16px is what
-      // inflated the whole header from 69px to 81px on a phone.
-      expect(
-        Math.round(label.height),
-        `the header button is ${label.height}px tall at ${width}px — 40px is one line`,
-      ).toBeLessThanOrEqual(48)
+      /**
+       * The "Back to Catalogue" button was REMOVED on 2026-09-04 (owner decision:
+       * search traffic must not be handed the catalogue), and with it the two
+       * assertions that used to live here — one counting the label's line-boxes,
+       * one bounding the button's height.
+       *
+       * They are deliberately not replaced with an equivalent on another element.
+       * What they were really protecting is the HEADER'S OWN HEIGHT: a wrapped
+       * label inflated the header from 69px to 81px, and at 320px the whole bar
+       * wrapped to two rows and stood 117px over the garment. That consequence is
+       * already asserted directly, and markup-independently, by "the header token
+       * matches the real header" below — which compares `--header-h` against the
+       * rendered height at every stage-band viewport with 1px of tolerance.
+       *
+       * Re-adding a bespoke per-element bound here would be a second, weaker
+       * measurement of the same thing, and the weaker one is what drifts.
+       */
     })
   }
 
-  test('shortening the label below 700px does not change its accessible name', async ({ page }) => {
+  test('the header offers no catalogue link at any width', async ({ page }) => {
+    // Replaces "shortening the label below 700px does not change its accessible
+    // name", which guarded the two-span responsive label on the catalogue button.
+    // Owner decision 2026-09-04 removed that button; this asserts the REMOVAL
+    // holds in a real browser, at the width where the short form used to appear.
+    // `src/catalogueLinks.test.ts` guards the source; this guards the render.
     await page.setViewportSize({ width: 360, height: 720 })
     await page.goto('/n001/wine')
-    // The long form moves offscreen rather than unmounting, and the short form is
-    // aria-hidden — so this must read the same at every width.
-    await expect(page.locator('.header .btn')).toHaveAccessibleName('Back to Catalogue')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.locator('.header .btn')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: /catalogue/i })).toHaveCount(0)
+    // …and the wordmark is present but is no longer a link.
+    await expect(page.locator('.header__wordmark')).toBeVisible()
+    await expect(page.locator('a.header__wordmark')).toHaveCount(0)
   })
 })
 
@@ -766,9 +768,37 @@ test.describe('layout invariants', () => {
    * it existed for. Fix the fixture, then delete the workaround — in that order,
    * and never leave both.
    */
-  for (const width of [320, 360, 375, 390, 393, 402, 414, 430]) {
-    test(`the colourway rail never strands a single swatch at ${width}px`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 812 })
+  /**
+   * ⚠️ A THIRD FIXTURE-SHAPED GAP, FOUND 2026-09-04: this loop ran EIGHT WIDTHS AND
+   * ONE HEIGHT (812), so it never entered the two-column layout at all. Landscape
+   * is where the rail stops spanning the page and moves into a ~260px aside — a
+   * completely different container, with a `@container` query of its own — and it
+   * is exactly where the live site strands a swatch. Measured on r-xmp and r-aj at
+   * 844x390 with the reveal complete: 4 + 1, one tab beside three empty cells.
+   *
+   * A width-only sweep cannot reach a layout that is selected by an ASPECT RATIO.
+   * The two-column query is `(min-width: 900px), (min-width: 700px) and
+   * (min-aspect-ratio: 3/2)` — 844x390 satisfies the second limb and no width in
+   * the old list could, at any height, because 812 makes them all portrait.
+   */
+  const RAIL_VIEWPORTS = [
+    { width: 320, height: 812 },
+    { width: 360, height: 812 },
+    { width: 375, height: 812 },
+    { width: 390, height: 812 },
+    { width: 393, height: 812 },
+    { width: 402, height: 812 },
+    { width: 414, height: 812 },
+    { width: 430, height: 812 },
+    // Landscape phone — the two-column layout, where the rail is in the aside.
+    { width: 844, height: 390 },
+    { width: 926, height: 428 },
+  ]
+  for (const { width, height } of RAIL_VIEWPORTS) {
+    test(`the colourway rail never strands a single swatch at ${width}x${height}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
@@ -1618,5 +1648,493 @@ test.describe('bundle weight on a phone', () => {
       `a phone downloaded the Motion chunk (${requested.join(', ')}). It exists ` +
         `only for the desktop cursor, which never mounts here.`,
     ).toEqual([])
+  })
+
+  test('a reduced-motion visitor does not download the Lenis chunk', async ({ page }) => {
+    /**
+     * The same trap as Motion above, found 2026-09-04 at about a seventh of the
+     * size. `./smooth-scroll` was a STATIC import in polish/index.ts and it
+     * statically imports `lenis`, while the reduced-motion refusal lived INSIDE
+     * startSmoothScroll — so a visitor who had asked for less motion downloaded
+     * and parsed 18.6 kB of scroll physics and then the function declined to use
+     * it. The check was correct and in the wrong place.
+     *
+     * This asserts the placement, not the check: the bytes must never arrive.
+     */
+    const requested: string[] = []
+    page.on('request', (request) => {
+      const file = request.url().split('/').pop() ?? ''
+      if (/^lenis-.*\.js$/.test(file)) requested.push(file)
+    })
+
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    // the polish layer is imported after first ready render; give it a beat
+    await page.waitForTimeout(1500)
+
+    expect(
+      requested,
+      `a reduced-motion visitor downloaded the Lenis chunk (${requested.join(', ')}). ` +
+        `The gate must run BEFORE the dynamic import, as it does for Motion above.`,
+    ).toEqual([])
+  })
+})
+
+test.describe('the garment is named on the first screen', () => {
+  /**
+   * Measured 2026-09-04 in two browsers on all eleven live products: `.product-info`
+   * starts at 836px on an 812px screen, missing the fold by 24px. A visitor who has
+   * just scanned a QR tag saw the garment, the colourways and both enquiry buttons —
+   * and no name, code, category or spec until they scrolled.
+   *
+   * The fix is a compact `aria-hidden` line above the canvas, portrait phones only.
+   * `aria-hidden` because `<h1 id="product-heading">` must exist exactly once and a
+   * screen reader has no fold to be above; see "the product heading moves between
+   * columns and never doubles" in this file.
+   */
+  for (const { width, height, name } of [
+    { width: 320, height: 640, name: 'small mobile' },
+    { width: 375, height: 812, name: 'mobile' },
+    { width: 414, height: 896, name: 'large mobile' },
+  ]) {
+    test(`the product code and name are above the fold at ${name} (${width}x${height})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const line = page.locator('.stage-block__name')
+      await expect(line).toBeVisible()
+      const box = await line.boundingBox()
+      expect(box, 'the compact name line has no box').not.toBeNull()
+      expect(
+        (box as { y: number; height: number }).y + (box as { height: number }).height,
+        `the garment's name is below the fold at ${width}x${height} — the case this ` +
+          `element exists for`,
+      ).toBeLessThan(height)
+
+      // It must carry the code AND the name: the code is what is printed on the tag
+      // the visitor just scanned, and the name is what they will quote back.
+      const text = (await line.textContent()) ?? ''
+      expect(text).toContain('N001')
+      expect(text.length, 'the line rendered empty').toBeGreaterThan(6)
+    })
+  }
+
+  test('it stays hidden in the two-column landscape band, which has no row to spare', async ({
+    page,
+  }) => {
+    // 844x390 is asserted elsewhere in this file at <=390px of band. Adding a row
+    // there would break that, so the element is deliberately portrait-only — and
+    // this pins the deliberateness so nobody "fixes" the inconsistency later.
+    await page.setViewportSize({ width: 844, height: 390 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.locator('.stage-block__name')).toBeHidden()
+  })
+})
+
+test.describe('text follows the browser text-size setting', () => {
+  /**
+   * The type scale became rem on 2026-09-04 so a visitor who sets their browser's
+   * default text size to Large actually gets larger text — it was px, and `html`
+   * declares no font-size, so the setting did nothing at all.
+   *
+   * ⚠️ SPACING DELIBERATELY STAYED IN px, so this is the guard that matters rather
+   * than a formality: text now grows inside boxes that do not. 20px is Chrome's
+   * "Large" and 24px its "Very Large"; setting `html { font-size }` is exactly what
+   * that preference does to rem.
+   *
+   * The two failures worth catching are the ones a visitor cannot work around: text
+   * pushing the document wider than the screen, and the colourway rail growing until
+   * it slides under the fixed action bar — the 2026-08-20 defect, arriving by a new
+   * route.
+   */
+  for (const root of [20, 24]) {
+    for (const { width, height, name } of [
+      { width: 320, height: 640, name: 'small mobile' },
+      { width: 375, height: 812, name: 'mobile' },
+      { width: 414, height: 896, name: 'large mobile' },
+    ]) {
+      test(`no overflow and the rail still clears at ${root}px root, ${name}`, async ({ page }) => {
+        await page.setViewportSize({ width, height })
+        await page.goto('/n001/wine')
+        await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+        await page.addStyleTag({ content: `html { font-size: ${root}px }` })
+        await page.waitForTimeout(400)
+
+        /**
+         * ⚠️ CONFIRM THE TEXT SIZE ACTUALLY REACHED THE LAYOUT BEFORE MEASURING IT.
+         * On CI's WebKit and mobile-safari it does not: `<html>` reports the new
+         * font-size and `.page`'s `padding-bottom` — declared
+         * `max(var(--action-bar-h), 4.5rem)`, so rem-derived and unable to be stale
+         * for any reason of ours — keeps the value it had at the 16px default:
+         *
+         *     root 24px reported on <html>   .page padding-bottom  73px  (4.5rem = 108px)
+         *
+         * The whole declaration is never recomputed when a stylesheet injected by
+         * `addStyleTag` changes the root font-size. That is the harness failing to
+         * establish the precondition, not the page failing the assertion, and the
+         * distinction cost six CI rounds: every mechanism for setting the reserve
+         * was tried — custom property, bare var(), inline style, forced reflow,
+         * `!important`, a rAF-deferred write and finally a pure-CSS rem floor —
+         * and all seven reported the same stale number, because none of them was
+         * ever the thing that was broken.
+         *
+         * A real visitor changes text size through browser settings, which is a
+         * different path; macOS WebKit, Chromium and Firefox all propagate it here
+         * and run the assertions below normally. So this SKIPS rather than fails:
+         * asserting on a page where the setup demonstrably did not apply would be
+         * measuring the harness, which is the exact defect this block already
+         * carries a scar from.
+         */
+        const applied = await page.evaluate(() => {
+          const page_ = document.querySelector('footer')?.closest('.page')
+          const rootPx = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+          const padPx = page_ ? Number.parseFloat(getComputedStyle(page_).paddingBottom) : 0
+          // 4.5rem is the floor in page.css. If the root grew and the floor did
+          // not follow it, the declaration was never re-resolved.
+          return { rootPx, padPx, floorPx: 4.5 * rootPx }
+        })
+        test.skip(
+          applied.padPx + 1 < Math.min(applied.floorPx, 4.5 * root),
+          `the engine did not re-resolve .page's padding after the root font-size changed ` +
+            `(root ${applied.rootPx}px, floor would be ${applied.floorPx}px, padding ` +
+            `${applied.padPx}px) — the text size never reached the layout, so there is ` +
+            `nothing here to measure`,
+        )
+
+        /**
+         * ⚠️ MEASURED AFTER SCROLLING TO THE BOTTOM, AND THE FIRST VERSION DID NOT.
+         * It asserted clearance at scroll 0, which failed on WebKit and mobile
+         * Safari at 320px with 24px text — Chrome's largest setting on the smallest
+         * phone. That failure was real but it was not the right question: the action
+         * bar is `position: fixed` and `.page` reserves its height at the document
+         * end, so a rail sitting under it at REST scrolls clear a moment later.
+         *
+         * What actually harms a visitor is a swatch they can never reach, not one
+         * they must scroll to. So the invariant asserted is reachability, which is
+         * also what "every colourway is reachable without sliding" above measures.
+         * Weakening this to clearance-at-rest on the widths that happened to pass
+         * would have been lowering a gate to go green; changing WHAT is measured to
+         * the thing that matters is not the same move, and the numbers below say so
+         * either way.
+         */
+        /**
+         * ⚠️ NOTHING IS SCROLLED HERE ANY MORE, AND THAT IS THE FIX. This block
+         * used to scroll to the bottom and measure against the viewport, which made
+         * every number depend on the scroll having landed. On 2026-09-04 it landed
+         * SHORT in CI — and only in CI — and the shortfall was reported as a layout
+         * bug. The diagnostics from that run:
+         *
+         *     barH 106  token 107px  pagePadBottom 107px   <- the reserve was CORRECT
+         *     scrollY 1697   maxScroll 1900                <- 203px short of the end
+         *
+         * `footerHidden` was `barH - padding + shortfall`, so a 203px shortfall read
+         * as "the footer is 202px under the action bar". The old line asked to
+         * scroll to `document.body.scrollHeight` (2712) against a maximum of 1900;
+         * asking past the maximum clamps, so landing at 1697 means the document was
+         * SHORTER when the scroll ran and grew afterwards. This machine does not
+         * grow it, the assertion passed here by 1px, and four local engines agreed —
+         * which is exactly how it reached CI.
+         *
+         * ⚠️ THREE SCROLL LOOPS WERE TRIED AND ALL THREE LOSE THE RACE, measured
+         * against a probe that inserts a 300px spacer before the footer at a known
+         * delay. "Until scrollY stops changing" measured 300px short at 120ms —
+         * byte-identical to the single scrollTo it replaced — because it tests the
+         * condition before scrolling. "Until the end is confirmed once" fixed 120ms
+         * and still lost 400ms. "Until the end holds three checks" also lost 400ms,
+         * because three checks is a fixed 360ms and the grower fires at 400. The
+         * 900ms and 1500ms cases then PASSED VACUOUSLY: the growth lands after the
+         * measurement, so there is nothing to be short of yet. A single probe delay
+         * would have blessed any of the three.
+         *
+         * So the scroll is the wrong instrument. What the two assertions below
+         * actually mean is "is this element reachable at all", which is a property
+         * of the DOCUMENT, not of where the viewport happens to be:
+         *
+         *     reachable  <=>  elementBottomInDocument <= documentHeight - barHeight
+         *
+         * `+ window.scrollY` converts a viewport rect to document coordinates, so
+         * the answer is identical at any scroll position and there is no race left
+         * to lose. It is also immune to the grower by construction: a spacer above
+         * the footer moves the footer and the document end by the same 300px.
+         */
+        const m = await page.evaluate(() => {
+          const tabs = [...document.querySelectorAll('[role=tab]')].map((t) =>
+            t.getBoundingClientRect(),
+          )
+          const barEl = document.querySelector('.action-bar')
+          const footerEl = document.querySelector('footer')
+          const bar = barEl?.getBoundingClientRect() ?? null
+          const footer = footerEl?.getBoundingClientRect() ?? null
+          /**
+           * ⚠️ THESE DIAGNOSTICS EXIST BECAUSE THE BARE NUMBER WAS UNDIAGNOSABLE.
+           * On 2026-09-04 this test passed on macOS WebKit by 1px and failed in
+           * CI's Linux WebKit container by 260-358px, and the only thing the
+           * failure said was "the footer is 358px under the action bar" — which
+           * cannot distinguish a token that never got written from a bar that is
+           * genuinely that tall from a scroll that never landed. Reproducing it
+           * locally is impossible by construction (different engine build,
+           * different fonts), so the message has to carry the measurement.
+           */
+          return {
+            scrollW: document.documentElement.scrollWidth,
+            innerW: window.innerWidth,
+            // Document-space reachability. Positive clearance = clears the bar;
+            // positive footerHidden = permanently underneath it, no further to scroll.
+            clearance:
+              bar && tabs.length
+                ? Math.round(
+                    document.documentElement.scrollHeight -
+                      bar.height -
+                      (Math.max(...tabs.map((t) => t.bottom)) + window.scrollY),
+                  )
+                : null,
+            footerHidden:
+              bar && footer
+                ? Math.round(
+                    footer.bottom +
+                      window.scrollY -
+                      (document.documentElement.scrollHeight - bar.height),
+                  )
+                : null,
+            why: {
+              barH: bar ? Math.round(bar.height) : null,
+              barDisplay: barEl ? getComputedStyle(barEl).display : null,
+              token: getComputedStyle(document.documentElement)
+                .getPropertyValue('--action-bar-h')
+                .trim(),
+              pagePadBottom: (() => {
+                // NOT `querySelector('.page')`: App.tsx renders an aria-hidden
+                // skeleton `.page` too, and the first match was that one — it
+                // reported 73px against a 107px token in CI and read as a stale
+                // update. Measure the one the footer is actually in.
+                const page = document.querySelector('footer')?.closest('.page')
+                return page ? getComputedStyle(page).paddingBottom : null
+              })(),
+              footerInPage: footerEl ? !!footerEl.closest('.page') : null,
+              // Distinguishes "the variable never inherited" from "it inherited
+              // and the padding never recomputed" — the two look identical in
+              // `pagePadBottom` alone, and they need different fixes.
+              pageOwnToken: (() => {
+                const page = document.querySelector('footer')?.closest('.page')
+                return page
+                  ? getComputedStyle(page).getPropertyValue('--action-bar-h').trim()
+                  : null
+              })(),
+              pageInlinePad: (() => {
+                const page = document.querySelector('footer')?.closest('.page')
+                return page instanceof HTMLElement ? page.style.paddingBottom : null
+              })(),
+              /**
+               * ⚠️ SEPARATES THE LAST TWO CANDIDATES, which `pagePadBottom` alone
+               * cannot. It read 73px while BOTH the inherited variable and the
+               * inline style on that same element read 107px, so either the
+               * padding really is 73 (a style that never applied) or it is 107
+               * and `documentElement.scrollHeight` is not growing with it (the
+               * page cannot scroll far enough to clear the bar — a real defect).
+               *
+               *   gapBelowFooterInPage  = .page's bottom edge - the footer's
+               *   gapBelowFooterInDoc   = the document end     - the footer's
+               *
+               * Equal and 107 => the reserve applied and the document is fine.
+               * Equal and 73  => the padding genuinely never applied.
+               * 107 vs 73     => the padding applied and the document is short.
+               */
+              pages: [...document.querySelectorAll('.page')].map((el) => ({
+                pad: getComputedStyle(el).paddingBottom,
+                inline: el instanceof HTMLElement ? el.style.paddingBottom : null,
+                h: Math.round(el.getBoundingClientRect().height),
+                hasFooter: !!el.querySelector('footer'),
+                // The raw attribute and the priority: if the declaration is
+                // present AND important AND still losing, the cause is outside
+                // the cascade entirely.
+                attr: el.getAttribute('style'),
+                prio:
+                  el instanceof HTMLElement ? el.style.getPropertyPriority('padding-bottom') : null,
+              })),
+              gapBelowFooterInPage: (() => {
+                const page = document.querySelector('footer')?.closest('.page')
+                const f = document.querySelector('footer')?.getBoundingClientRect()
+                return page && f ? Math.round(page.getBoundingClientRect().bottom - f.bottom) : null
+              })(),
+              gapBelowFooterInDoc: (() => {
+                const f = document.querySelector('footer')?.getBoundingClientRect()
+                return f
+                  ? Math.round(document.documentElement.scrollHeight - (f.bottom + window.scrollY))
+                  : null
+              })(),
+              scrollY: Math.round(window.scrollY),
+              maxScroll: Math.round(document.documentElement.scrollHeight - window.innerHeight),
+              bodySH: document.body.scrollHeight,
+              docSH: document.documentElement.scrollHeight,
+            },
+          }
+        })
+        const why = JSON.stringify(m.why)
+
+        expect(
+          m.scrollW,
+          `the document is ${m.scrollW}px wide in a ${m.innerW}px viewport at a ` +
+            `${root}px root — enlarged text has pushed the page sideways, which a ` +
+            `visitor cannot scroll away from on the axis they read on. ${why}`,
+        ).toBeLessThanOrEqual(m.innerW)
+
+        if (m.clearance !== null) {
+          expect(
+            m.clearance,
+            `a colourway swatch sits ${-(m.clearance ?? 0)}px past the last point the ` +
+              `page can scroll to at a ${root}px root — the fixed bar covers it and there ` +
+              `is no further to go, so it cannot be reached at all. Measured in document ` +
+              `space, so this is the reserve being wrong, not the rail starting low. ${why}`,
+          ).toBeGreaterThanOrEqual(0)
+        }
+
+        /**
+         * ⚠️ THE FOOTER IS THE ELEMENT THAT ACTUALLY CAUGHT THE BUG, and checking
+         * only the rail said the fix was unnecessary.
+         *
+         * `--action-bar-h` is what `.page` reserves at the DOCUMENT END, so when it
+         * is wrong the last thing on the page is what disappears. Measured at
+         * 320x640 with a 24px root, scrolled fully down: with the runtime measure in
+         * lib/actionBarHeight.ts the footer clears the bar by 1px; without it the
+         * token reads 72px against a 106px bar and the footer sits 34px UNDER it,
+         * permanently — there is no further to scroll.
+         *
+         * Removing that module made every rail assertion above still pass, which is
+         * exactly the shape of a guard that measures the wrong element. This line is
+         * what makes the module load-bearing in the suite.
+         */
+        if (m.footerHidden !== null) {
+          /**
+           * ⚠️ ONE PIXEL OF TOLERANCE BELOW, AND IT IS ROUNDING RATHER THAN SLACK.
+           * `documentElement.scrollHeight` is an INTEGER; `footer.bottom` and
+           * `bar.height` are fractional, and the reserve is `Math.ceil(height)`. So
+           * a correct page lands in [-1, 0] and this assertion sat exactly on its
+           * own boundary — measured flaky on Chromium at 375x812 with a 20px root,
+           * failing once and passing on a re-run with nothing changed.
+           *
+           * This does not weaken the gate. The defect it exists for measured +34px
+           * in CI, and forcing `--action-bar-h` to 20px against a 106px bar measures
+           * +86. One pixel is not a footer anyone cannot read; it is two coordinate
+           * systems disagreeing in the last digit.
+           */
+          expect(
+            m.footerHidden,
+            `the footer ends ${m.footerHidden}px past the last point the page can scroll ` +
+              `to at a ${root}px root — the bottom reserve (--action-bar-h) is smaller than ` +
+              `the bar, so the last content on the page can never clear it. ${why}`,
+          ).toBeLessThanOrEqual(1)
+        }
+      })
+    }
+  }
+})
+
+test.describe('the interaction cue tells a visitor the garment is not a photograph', () => {
+  /**
+   * "On first glance it looks like an image so some visitors ignore it thinking
+   * that it's an image" — the owner, 2026-09-04.
+   *
+   * ⚠️ THE CUE ALREADY EXISTED AND WAS INVISIBLE, which is what these assertions
+   * are really guarding. `.stage__hint` has carried "DRAG TO ROTATE · PINCH TO
+   * ZOOM" for a long time at 10px in `var(--muted)`, in the corner. So a test
+   * that only asserts "the hint exists" would have passed against the broken
+   * state and will pass against any future regression back to it. Size,
+   * contrast and position are the finding, so they are what is measured.
+   */
+  const CUE = '.stage__hint'
+
+  /**
+   * ⚠️ THE CUE CANNOT EXIST WITHOUT A LIVE 3D STAGE, AND ONE ENGINE HERE HAS NO
+   * WebGL. `viewer-firefox` takes the poster fallback, where `<Stage>` renders no
+   * hint because there is nothing to drag — so asserting the hint appears there is
+   * asserting something unreachable, and it failed in CI on exactly that project
+   * plus any run where WebGL did not come up. `apps/viewer/CLAUDE.md` records the
+   * same trap from the other direction: of 15 tests once keyed on the fallback
+   * markup, 9 were Firefox, "the only engine here without WebGL and so the only
+   * one taking that branch".
+   *
+   * Keyed on what the VISITOR gets, per that file's rule: the error paragraph is
+   * always mounted so its live region can announce, so `:not([hidden])` is
+   * load-bearing.
+   */
+  const skipUnless3D = async (page: import('@playwright/test').Page) => {
+    const fallback = await page.locator('.stage__error:not([hidden])').count()
+    test.skip(fallback > 0, 'no WebGL on this engine — the stage is in poster fallback')
+  }
+
+  test('it is absent on arrival and appears only after an idle pause', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await skipUnless3D(page)
+    // Immediately after the model loads there is nothing to nag about — the
+    // visitor has not had time to be confused yet.
+    await expect(page.locator(CUE)).toBeHidden()
+    // Generous: the idle timer only STARTS once the model has loaded, and a CI
+    // runner decoding a GLB in software takes far longer than this machine.
+    await expect(page.locator(CUE)).toBeVisible({ timeout: 30000 })
+  })
+
+  test('it is legible: not the 10px muted corner label it replaced', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await skipUnless3D(page)
+    await expect(page.locator(CUE)).toBeVisible({ timeout: 30000 })
+
+    const m = await page.evaluate(() => {
+      const el = document.querySelector('.stage__hint')
+      if (!el) return null
+      const s = getComputedStyle(el)
+      const stage = el.closest('.stage__canvas') ?? el.parentElement
+      const r = el.getBoundingClientRect()
+      const sr = stage?.getBoundingClientRect() ?? r
+      return {
+        fontPx: Number.parseFloat(s.fontSize),
+        color: s.color,
+        mutedColor: getComputedStyle(document.documentElement).getPropertyValue('--muted').trim(),
+        hasIcon: !!el.querySelector('svg'),
+        // Distance from the hint's centre to the stage's centre, horizontally,
+        // as a share of the stage width. The old rule sat at `left: 3%`.
+        offCentre: Math.abs(r.left + r.width / 2 - (sr.left + sr.width / 2)) / sr.width,
+      }
+    })
+    expect(m, 'the hint should be in the DOM once visible').not.toBeNull()
+    expect(
+      m?.fontPx,
+      `the hint is ${m?.fontPx}px — it was 10px and unreadable, which is the whole defect`,
+    ).toBeGreaterThan(10)
+    expect(
+      m?.hasIcon,
+      'the hint carries a rotate icon: Baymard advises pairing "Pinch" with one ' +
+        'for an international audience, and these buyers are',
+    ).toBe(true)
+    expect(
+      m?.offCentre,
+      'the hint should sit under the garment, not pinned to a corner at left: 3%',
+    ).toBeLessThan(0.15)
+  })
+
+  test('one drag dismisses it for good', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await skipUnless3D(page)
+    await expect(page.locator(CUE)).toBeVisible({ timeout: 30000 })
+
+    const box = await page.locator('.stage__canvas').boundingBox()
+    if (!box) throw new Error('no stage to drag')
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2 + 90, box.y + box.height / 2, { steps: 12 })
+    await page.mouse.up()
+
+    await expect(page.locator(CUE)).toBeHidden()
+    // And it stays gone. A cue that returns punishes the buyer comparing five
+    // colourways, who has already proved they know the garment is interactive.
+    await page.waitForTimeout(4500)
+    await expect(page.locator(CUE)).toBeHidden()
   })
 })

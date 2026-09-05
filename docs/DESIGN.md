@@ -184,11 +184,25 @@ enforced globally in `base.css`, not per-component.
 
 | Token | Value |
 |---|---|
-| `--text-body` | 17px |
-| `--text-sm` | 15px |
-| `--text-xs` | 13px |
-| `--text-mono` | 11px |
-| `--text-mono-sm` | 10px |
+| `--text-body` | 1.0625rem | 17px at the 16px default |
+| `--text-sm` | 0.9375rem | 15px |
+| `--text-xs` | 0.8125rem | 13px |
+| `--text-mono` | 0.6875rem | 11px |
+| `--text-mono-sm` | 0.625rem | 10px |
+
+⚠️ **rem since 2026-09-04, and the unit is the accessibility feature.** Every size
+here was px and `html` declares no font-size, so a visitor who set their browser's
+default text size to Large got no change anywhere on the page. Page zoom worked and
+is tested to 400%, but zoom enlarges the 3D garment and the whole layout; the
+text-size setting enlarges only the words, and it is the one older buyers use.
+
+The pixel values are unchanged at the 16px default, so nothing moves for a visitor
+who has changed nothing. **Spacing deliberately stays in px** — `tokens.test.ts`
+enforces a twelve-step px allowlist for padding, margin and gap, and converting
+layout too is a far larger blast radius. The consequence is that text grows inside
+boxes that do not, which is bounded and guarded: `motion-and-layout.spec.ts` asserts
+no horizontal overflow and the colourway rail's clearance at a **20px root**, not
+just at the default.
 
 **Added 2026-08-14, documenting what already shipped — it did not move a pixel.**
 This is the same move §6 made for spacing, and it was made for the same reason: an

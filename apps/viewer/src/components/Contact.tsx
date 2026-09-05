@@ -37,11 +37,7 @@ interface ContactProps {
  * ever does need fixing, the answer is a distinguishing accessible name — not
  * deleting one of them.
  */
-function ContactButtons({
-  settings,
-  enquiry,
-  compact = false,
-}: ContactProps & { compact?: boolean }) {
+function ContactButtons({ settings, enquiry }: ContactProps) {
   return (
     <>
       <a
@@ -49,7 +45,7 @@ function ContactButtons({
         href={buildMailtoUrl(settings.email, enquiry)}
         onClick={() => track('email_clicked')}
       >
-        {compact ? 'Email' : 'Email Us'}
+        Email Us
       </a>
       <a
         className="btn btn--ghost"
@@ -58,7 +54,7 @@ function ContactButtons({
         rel="noopener noreferrer"
         onClick={() => track('whatsapp_clicked')}
       >
-        {compact ? 'WhatsApp' : 'WhatsApp Us'}
+        WhatsApp Us
       </a>
     </>
   )
@@ -75,41 +71,37 @@ export function ContactSection(props: ContactProps) {
         <ContactButtons {...props} />
       </div>
       <p className="contact__micro">
-        We have already filled in this garment&rsquo;s code and colourway. Please add your company,
+        We have already filled in this garment&rsquo;s code and colorway. Please add your company,
         your market and the quantity you need, then send.
       </p>
     </section>
   )
 }
 
-/**
- * Desktop rail — always there, from the first paint.
+/*
+ * `<StickyContactRail>` WAS DELETED HERE ON 2026-09-04, with its CSS, its two
+ * unit tests and the `compact` prop that nothing else used.
  *
- * ⚠️ IT USED TO APPEAR ONLY AFTER THE GARMENT SCROLLED OUT OF VIEW, gated on an
- * IntersectionObserver watching `.stage`. Removed 2026-08-17 by owner decision,
- * and the reason is worth keeping: this is the only conversion path in the whole
- * product. There is no cart and no form — a buyer either taps one of these or
- * leaves. On a desktop machine the entire first screen, which for a visitor who
- * does not scroll is the entire page, offered no way to make contact.
+ * It had been dead on screen since 2026-08-20 and the CSS said so: `.contact-rail`
+ * was `display: flex` inside `@media (min-width: 900px)` and then `display: none`
+ * inside `@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3/2)`
+ * — same specificity, later source order wins, and the second query is a superset
+ * of the first. It could not paint at any viewport.
  *
- * The observer took `aria-hidden`, `inert`, the `visible` state and the
- * `stageSelector` prop with it. Those existed to keep a HIDDEN rail out of both
- * the tab order and the accessibility tree at the same time (axe rule
- * `aria-hidden-focus`); with nothing ever hidden there is nothing to keep in
- * step, so removing them is the fix rather than a regression of it.
+ * `<StageContact>` replaced it and says why: measured at 2560x1440 the rail was
+ * 196x54px, 0.29% of the screen, 1,064px right of centre, while the four spec
+ * callouts occupied 3.0x its area — the facts were louder than the only control
+ * that starts a conversation.
  *
- * The rail is still desktop-only, and still by CSS alone: `.contact-rail` is
- * `display: none` until 900px, which is the exact width where `.action-bar`
- * takes over on the other side. Those two breakpoints must stay equal — they
- * were 1100 and 900, which left 900-1099px with neither.
+ * The removal was scheduled in page.css in the same commit that made it dead
+ * ("Do it next, and delete this comment with it"), deliberately unbundled from the
+ * layout change that caused it. This is that commit.
+ *
+ * `compact` went with it. It shortened the labels to "Email" / "WhatsApp" because
+ * the rail was a narrow pill in a corner; both surviving surfaces
+ * (<StageContact>, <MobileActionBar>) carry comments saying they deliberately do
+ * NOT use it, because the verb is the point on the only conversion path here.
  */
-export function StickyContactRail(props: ContactProps) {
-  return (
-    <div className="contact-rail">
-      <ContactButtons {...props} compact />
-    </div>
-  )
-}
 
 /**
  * The contact pair INSIDE the stage band, for screens laid out in two columns.

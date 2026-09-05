@@ -62,24 +62,97 @@ const REPORT_ONLY = process.argv.includes('--report')
  *
  *   - CSS gets the loosest, same call lighthouserc.json makes — a genuine design
  *     change moves it most, and 40% of 5 KB is 2 KB, which cannot hide anything.
- *   - wasm gets the tightest. Both files are VENDORED binaries (basis_transcoder,
- *     draco_decoder) that change only when someone deliberately bumps a decoder.
- *     There is no legitimate slow drift here, so drift is the signal.
+ *   - decoder took the +10% that `wasm` used to have, and then gave it back. The
+ *     old argument was sound — vendored binaries change only on a deliberate bump,
+ *     so drift is the signal — but at +10% a CLEAN build sits at 91% and prints the
+ *     "at or above 90%" warning on every single run. A warning that always fires is
+ *     one people learn to scroll past, which costs more than the tightness buys.
+ *     The tightness is less needed now anyway: the decoders have their own line in
+ *     `--report`, so any change to them is visible without a threshold at all.
  *   - script carries the two biggest single items in the build —
  *     model-viewer (279 KB gz) and draco_decoder.js (104 KB gz). 15% is ~81 KB,
  *     which is smaller than any dependency anyone would add by accident and larger
  *     than ordinary churn.
  *
- * `script` deliberately includes the vendored decoders in `public/`, not just the
- * app's own chunks. They are shipped to the visitor, so they count. See CLAUDE.md:
- * the Meshopt decoder is not optional — no production model renders without it.
+ * ⚠️ RE-CUT 2026-09-04, BECAUSE ONE SENTENCE HERE WAS FALSE AND IT WAS LOAD-BEARING.
+ * It read: "`script` deliberately includes the vendored decoders in `public/`... They
+ * are shipped to the visitor, so they count."
+ *
+ * That is true of `meshopt_decoder.js` and false of draco and basis. Production is
+ * 100% meshopt (`packages/shared/src/shrink.ts`), the meshopt decoder is preloaded
+ * from index.html, and index.html says of the other two in its own words: "draco and
+ * ktx2 are not preloaded because nothing served uses them." No visitor has ever
+ * fetched a byte of them.
+ *
+ * The consequence was not academic. Measured on the committed build:
+ *
+ *     app shell (incl. meshopt)     412,409 B gz   11 files
+ *     draco + basis, never fetched  441,238 B gz    5 files
+ *
+ * More than half of what this gate measured was files nobody downloads — and it was
+ * masking the shell twice over. The `wasm` category was 100% decoders and sat at 91%
+ * of budget, reporting a headroom warning about a number no visitor experiences;
+ * and 119 KB of decoder JS inside `script` left the real shell looking closer to its
+ * ceiling than it is.
+ *
+ * ⚠️ THIS IS NOT THE "RAISE A BUDGET TO GO GREEN" MOVE CLAUDE.md FORBIDS, and the
+ * difference matters. Nothing is exempted and nothing is loosened: the decoders keep
+ * a gate of their own, cut tight to what they measure today, so a decoder bump still
+ * has to be a deliberate act. What changed is that they stopped being counted as
+ * part of the shell, because they are not part of it. Both budgets went DOWN.
+ *
+ * ⚠️ DO NOT DELETE THE DECODERS TO "FIX" THIS. apps/viewer/CLAUDE.md records the
+ * draco decoder-location fix as UNVERIFIED and keeps the path open for a future
+ * draco garment; KTX2/basis was refused for quality, not removed. Deleting them
+ * turns a re-enable into a debugging session.
+ *
+ * MEASURED 2026-09-04 on the committed build (`--report`), gzip level 9:
+ *
+ *     script       412,409 B     budget 474,000   (+15%)
+ *     decoder      441,238 B     budget 507,000   (+15%)
+ *     wasm               0 B     budget  20,000   (tripwire — see below)
+ *     font         275,187 B     budget 317,000   (+15%)
+ *     stylesheet     6,047 B     budget   7,000   (+16%)
+ *
+ * `wasm` now matches ZERO files, and the budget is a deliberate tripwire rather than
+ * a measurement: every .wasm in dist today is a decoder and is gated as one, so the
+ * next real WebAssembly in the shell should fail this and force a decision. A
+ * category that matches nothing with a 339,000 B ceiling would have waved through
+ * a third of a megabyte in silence — the "gate measuring nothing" failure this repo
+ * keeps paying for.
  */
 const BUDGETS = {
-  script: { bytes: 624_000, note: 'app chunks + vendored draco/basis decoder JS' },
-  wasm: { bytes: 339_000, note: 'basis_transcoder + draco_decoder — vendored binaries' },
+  script: { bytes: 474_000, note: 'app chunks + the meshopt decoder every model needs' },
+  decoder: { bytes: 507_000, note: 'draco + basis — vendored, in dist, never fetched' },
+  wasm: {
+    bytes: 20_000,
+    note: 'tripwire: no shell wasm today; decoders are gated separately',
+    /*
+     * ⚠️ THE ONLY CATEGORY EXEMPT FROM THE COLLAPSE FLOOR, and it needs saying why.
+     *
+     * The floor exists to catch a category that STOPPED being emitted — "check it is
+     * still being emitted", as its own error says. This one is empty BY DESIGN as of
+     * 2026-09-04: every .wasm in dist is a vendored decoder and is gated under
+     * `decoder`, so zero here is the correct reading, not a build that broke.
+     *
+     * The CEILING still applies, and that is the whole point of keeping the category
+     * rather than deleting it: the next real WebAssembly added to the shell trips
+     * this at 20 KB and forces a deliberate measurement. Deleting the category would
+     * let it through in silence.
+     */
+    expectEmpty: true,
+  },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
   stylesheet: { bytes: 7_000, note: 'CSS' },
 }
+
+/**
+ * Files under these dist paths are vendored decoders that ship but are never
+ * fetched. Path-based, not extension-based, because the split runs through both
+ * `.js` and `.wasm`. `meshopt_decoder.js` is deliberately NOT here — it sits at the
+ * dist root, it is preloaded, and every production model needs it.
+ */
+const DECODER_DIRS = ['draco/', 'basis/']
 
 const CATEGORY_BY_EXT = {
   '.js': 'script',
@@ -125,7 +198,10 @@ const files = {}
 
 for (const file of walk(DIST)) {
   const ext = extname(file).toLowerCase()
-  const category = CATEGORY_BY_EXT[ext] ?? UNGATED
+  const rel = relative(DIST, file)
+  const category = DECODER_DIRS.some((dir) => rel.startsWith(dir))
+    ? 'decoder'
+    : (CATEGORY_BY_EXT[ext] ?? UNGATED)
   const raw = readFileSync(file)
   // Text compresses; wasm and images barely do. gzip everything anyway so the
   // number means the same thing in every row.
@@ -198,6 +274,10 @@ for (const category of [...Object.keys(BUDGETS), UNGATED]) {
     if (t.gz > budget) {
       verdict = `${fmt(budget)}  OVER by ${fmt(t.gz - budget)}`
       failures.push({ category, actual: t.gz, budget })
+    } else if (BUDGETS[category]?.expectEmpty && t.count === 0) {
+      // Empty on purpose — see the note on this budget. The ceiling above still
+      // applies, so anything landing here still has to be argued for.
+      verdict = `${fmt(budget)}  (empty by design — tripwire only)`
     } else if (t.gz < budget * FLOOR_AT) {
       verdict = `${fmt(budget)}  COLLAPSED to ${pct}% — under the ${FLOOR_AT * 100}% floor`
       collapses.push({ category, actual: t.gz, budget, count: t.count })

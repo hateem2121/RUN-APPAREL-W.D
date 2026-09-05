@@ -685,55 +685,59 @@ export const Products: CollectionConfig = {
           ],
         },
         /**
-         * ⚠️ THIS TAB IS GONE FROM THE ADMIN UI, and its two fields are HIDDEN
-         * rather than deleted. 2026-08-17, owner decision.
+         * ⚠️ THIS TAB IS BACK, 2026-09-05, REVERSING THE 2026-08-17 DECISION.
          *
-         * "How we build your product" is now ONE text for the whole catalogue,
-         * living in the `build-process` global and read on every public request
-         * (globals/BuildProcess.ts). Editing it changes every page immediately,
-         * including products made months ago — which is what an editor
-         * reasonably expects and what the old seed-at-create design could not do.
+         * From 2026-08-17 these two fields were hidden and "How we build your
+         * product" was ONE text for the whole catalogue, in the `build-process`
+         * global. That global overrode every product's own copy the moment it was
+         * saved — the discriminator was `id`, "has anyone ever opened this
+         * screen", not "does it contain anything" — so a single save replaced the
+         * copy on every live garment, and saving it EMPTY served zero steps
+         * everywhere because `Array.isArray([])` is true.
          *
-         * WHY THE FIELDS STAY. Two reasons, and either alone would be enough:
+         * On 2026-09-04 the owner asked for the opposite: "for each garment you
+         * can draft its unique version that is personalised according to that
+         * garment". Eleven bespoke step sets were written and published against
+         * these very columns. Leaving the fields hidden would have meant the
+         * owner could not edit their own live copy, while a screen that could
+         * erase all of it in one click stayed in the sidebar.
          *
-         *   1. Removing a field means dropping its D1 columns, and on D1 a table
-         *      rebuild is the single most hazardous operation in this repo — a
-         *      DROP runs an implicit DELETE and that cascades, while
-         *      `PRAGMA foreign_keys=OFF` is a no-op there. Same precedent as
-         *      `presentation_mode`, retired in place on 2026-08-09 and still sat
-         *      in the schema harmlessly.
-         *   2. `buildViewerResponse` still FALLS BACK to these columns while the
-         *      new global has no saved row — the window between this deploying
-         *      and someone first opening the screen. Delete the data and every
-         *      live page loses its build steps for that window.
+         * So the global is retired and hidden (globals/BuildProcess.ts), the
+         * projection reads these columns and only these (endpoints/projectViewer.ts),
+         * and this tab is visible again.
          *
-         * `hidden: true` on a FIELD hides it from the form only; it is not the
-         * `admin.hidden` on a COLLECTION that also gates the admin ROUTES (see
-         * RawUploads.ts for that trap). The REST API still exposes these, which
-         * is what the fallback above needs.
-         *
-         * The `defaultValue` functions that seeded them from Catalogue defaults
-         * are gone with the tab: seeding a hidden field nobody reads would write
-         * a copy of the shared copy onto every new product, which is exactly the
-         * drift this change removes.
+         * ⚠️ NO `defaultValue` SEEDING, AND THAT IS NOT AN OVERSIGHT. The
+         * pre-2026-08-17 design seeded each new product from CatalogueDefaults at
+         * CREATE time and nothing read it again, so editing the defaults changed
+         * what the NEXT garment started with and left every existing page saying
+         * whatever it said the day it was made. At 67 products that is 67 chances
+         * to leave stale copy live on one page and current wording on another.
+         * Per-garment copy is written per garment; there is no shared source to
+         * drift from.
          */
         {
-          label: 'Superseded',
+          label: 'How we build your product',
           description:
-            'Nothing to do here. “How we build your product” now lives in one place for every product — find it in the sidebar under Content.',
+            'The steps shown on this garment’s page, under “FROM IDEA TO PRODUCTION”. They are specific to THIS product — editing them changes nothing anywhere else. Leave the steps empty and the section is hidden on this page.',
           fields: [
             {
               name: 'customisationIntro',
               type: 'richText',
-              label: 'Opening paragraph (no longer used)',
-              admin: { hidden: true },
+              label: 'Opening paragraph',
+              admin: {
+                description:
+                  'One short paragraph introducing how this garment is made. If you leave it blank the page shows a general sentence instead.',
+              },
             },
             {
               name: 'customisationSteps',
               type: 'array',
-              label: 'The steps (no longer used)',
+              label: 'The steps',
               labels: { singular: 'Step', plural: 'Steps' },
-              admin: { hidden: true },
+              admin: {
+                description:
+                  'Four steps is the shape every live garment uses. Fewer or more will render; none hides the section.',
+              },
               fields: [
                 { name: 'number', type: 'number', required: true, label: 'Step number' },
                 { name: 'title', type: 'text', required: true, label: 'Step title' },

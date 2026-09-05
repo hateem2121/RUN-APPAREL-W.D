@@ -286,3 +286,18 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   contains the defect on purpose raises a real alert. Default setup has no
   path-exclusion config, so RENAME the fixture (`action.yml.fixture`) rather than
   dismissing an alert that will simply come back.
+
+- **CI's WebKit REPORTS A STALE COMPUTED STYLE, and no write beats it.** 2026-09-05,
+  `.page`'s bottom reserve, read on one element in one pass:
+  `attr "padding-bottom: 107px !important;"  prio "important"  pad "73px"` — an
+  important INLINE declaration losing the cascade, always to the PREVIOUS value. Seven
+  mechanisms reported that same stale number: a custom property, a bare `var()`, an
+  inline style, a forced `offsetHeight` reflow, `!important`, a rAF-deferred write out
+  of the ResizeObserver, and a pure-CSS rem floor that cannot be stale for any reason of
+  ours. The engine never recomputes after Playwright's `addStyleTag` changes
+  `html { font-size }`; macOS WebKit, Chromium and Firefox all do, and a real visitor's
+  text-size setting is a different path entirely. **Confirm a test's SETUP took effect
+  before asserting on it** — six CI rounds went into fixing a page that was never
+  broken. The specs now `test.skip()` WITH THE MEASURED NUMBERS when the precondition
+  demonstrably did not apply; asserting on a page whose setup never landed is measuring
+  the harness.

@@ -240,11 +240,14 @@ describe('tokens added by the 2026-08-14 audit', () => {
   it('declares a type scale written FROM the shipped sizes', () => {
     const source = tokens()
     for (const token of [
-      '--text-body: 17px',
-      '--text-sm: 15px',
-      '--text-xs: 13px',
-      '--text-mono: 11px',
-      '--text-mono-sm: 10px',
+      // rem since 2026-09-04 — same pixels at the 16px default, but they now follow
+      // the visitor's own text-size setting. The px equivalents stay in the comment
+      // beside each token so the audit's original measurement is still readable.
+      '--text-body: 1.0625rem',
+      '--text-sm: 0.9375rem',
+      '--text-xs: 0.8125rem',
+      '--text-mono: 0.6875rem',
+      '--text-mono-sm: 0.625rem',
     ]) {
       expect(source, `${token} is one of the eleven raw sizes the audit counted`).toContain(token)
     }
@@ -547,5 +550,36 @@ describe('progress indicators', () => {
         'DESIGN.md says volt is illegible on paper-white, which is why --volt-deep\n' +
         'exists and why --dimension resolves to it in light mode.',
     ).toEqual([])
+  })
+})
+
+describe('user preferences the stylesheets answer', () => {
+  /**
+   * Each of these is a real accessibility need with a real consumer on this page,
+   * and the list has grown by discovery rather than by design — reduced-transparency
+   * was added 2026-08-14 after a grep found only two were answered, and
+   * forced-colors and prefers-contrast on 2026-09-04 after an audit found the
+   * colourway selection was expressed purely as a fill inversion, which is exactly
+   * what Windows High Contrast overrides.
+   *
+   * The test names the consumer for each, so a future removal has to argue with a
+   * specific case rather than with a media query.
+   */
+  const REQUIRED = [
+    ['prefers-color-scheme', 'the light/dark palette'],
+    ['prefers-reduced-motion', 'reveals, the cursor, Lenis and the loading sweep'],
+    ['prefers-reduced-transparency', 'the blurred sticky header and the loading card'],
+    ['forced-colors', 'colourway and camera selection, which is fill-inversion only'],
+    ['prefers-contrast', 'the 18%-opacity hairlines every panel is separated by'],
+  ] as const
+
+  it.each(REQUIRED)('answers %s — %s', (query, consumer) => {
+    const all = cssFiles()
+      .map(({ source }) => source)
+      .join('\n')
+    expect(
+      all.includes(`(${query}`),
+      `No stylesheet answers ${query}. It matters here for ${consumer}.`,
+    ).toBe(true)
   })
 })

@@ -64,6 +64,29 @@ root file first.
   requirement, grep all three. ⚠️ `uptime.yml` cannot catch this — it probes an SPA
   that returns 200 HTML for any path, so it stayed green throughout.
 
+- **A PATCH NAMING A PROJECTED FIELD RETURNS 200 AND STORES NOTHING.** 2026-09-04: a
+  script wrote `customisationIntroHtml` on all eleven live products, printed `✓ written`
+  eleven times and stored ten of eleven intros nowhere — while the `customisationSteps`
+  in the same body landed, which is what hid it. That field does not exist on the
+  collection; `endpoints/publicViewer.ts` COMPUTES it at read time from the real column,
+  `customisationIntro` (Lexical). Payload drops an unknown key and answers 200. **Verify
+  a write by READING IT BACK** (`?depth=0`, compare), never by the status code —
+  `scripts/apply-customisation-copy.mjs` now does. And **do not escape text bound for a
+  Lexical field**: `convertLexicalToHTML` escapes text nodes itself (measured,
+  `Teamwear & Uniforms` → `Teamwear &amp; Uniforms`), so escaping first ships a literal
+  `&amp;`.
+
+- **The `build-process` global is RETIRED — do not reconnect it.** It held one "How we
+  build your product" text for the whole catalogue and won over a product's own copy the
+  moment it was saved, the discriminator being `id` ("has anyone opened this screen"),
+  not content — so one save replaced the copy on all eleven live garments, and saving it
+  EMPTY served zero steps everywhere (`Array.isArray([])` is true). Once the owner chose
+  per-garment copy on 2026-09-04 its only available effect was destroying that work in a
+  click. `buildViewerResponse` no longer takes it as a parameter, so passing one is a
+  TYPE error rather than a silently-ignored argument; the global is `admin.hidden`; the
+  per-product tab is visible again. The table stays — D1 rebuild hazard,
+  `presentation_mode` precedent.
+
 ## Writing products from a script
 
 **Go through the REST API, never D1.** `Authorization: users API-Key <key>` — the

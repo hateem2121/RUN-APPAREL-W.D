@@ -7,8 +7,9 @@ interface StageControlsProps {
   activeView: CameraView | null
   onSelect: (view: CameraView) => void
   /**
-   * True while there is no model to point a camera at — the whole ~23s a 27 MB
-   * garment takes on 4G. See the note on rendering-while-disabled below.
+   * True while there is no model to point a camera at — the whole download. That
+   * was ~23s on 4G when garments were ~27 MB; live GLBs measure 1.8-7.8 MB since
+   * 2026-09-04, so it is shorter, not gone. See rendering-while-disabled below.
    */
   disabled: boolean
 }

@@ -29,7 +29,7 @@ export function ProductIdentityFields({ product, selected, selectedIndex }: Prod
         </span>
         {/* Re-keyed so switching colourway cross-fades the label. */}
         <span className="label product-info__colour" key={selected.slug}>
-          [ COLOURWAY {String(selectedIndex + 1).padStart(2, '0')} /{' '}
+          [ COLORWAY {String(selectedIndex + 1).padStart(2, '0')} /{' '}
           {selected.displayName.toUpperCase()} ]
         </span>
       </div>
@@ -56,7 +56,7 @@ export function ProductIdentityFields({ product, selected, selectedIndex }: Prod
       */}
       <p className="product-info__statement">
         {product.shortDescription ||
-          'This is a development reference, not a finished stock product. We can change the fabric, colour, fit, trims, branding and performance details to suit your brand.'}
+          'This is a development reference, not a finished stock product. We can change the fabric, color, fit, trims, branding and performance details to suit your brand.'}
       </p>
       {/*
         Moved out of <ColourwayTabs> on 2026-08-20, and into this component on
@@ -70,7 +70,7 @@ export function ProductIdentityFields({ product, selected, selectedIndex }: Prod
         on a phone.
       */}
       <p className="product-info__colour-note">
-        These colourways are examples. We match your own colours to your requirements.
+        These colorways are examples. We match your own colors to your requirements.
       </p>
     </>
   )

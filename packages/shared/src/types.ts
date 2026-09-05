@@ -142,6 +142,17 @@ export const VIEWER_ANALYTICS_EVENTS = [
   'whatsapp_clicked',
   'catalogue_clicked',
   'retired_colourway_fallback',
+  /*
+   * Core Web Vitals, one report per visit, sent when the page is hidden.
+   *
+   * ⚠️ Adding a name here is the WHOLE integration. `apps/cms/src/endpoints/
+   * events.ts` builds `KNOWN_ANALYTICS` from this array and rejects anything not in
+   * it, so an event the viewer sends and this list does not carry is dropped
+   * silently at ingest — no error, no row, and a dashboard that simply never fills
+   * in. There is no schema or migration to change; there is also no second place
+   * that would tell you if you forgot.
+   */
+  'web_vitals',
 ] as const
 
 export type ViewerAnalyticsEvent = (typeof VIEWER_ANALYTICS_EVENTS)[number]

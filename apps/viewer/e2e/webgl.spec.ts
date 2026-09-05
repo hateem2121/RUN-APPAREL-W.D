@@ -161,7 +161,7 @@ test('3D model loads and switching colourway changes the KHR material variant', 
   )
 
   /**
-   * ⚠️ THE DEPTH BIAS MUST SURVIVE A COLOURWAY CHANGE, AND FOR ONE DAY IT DID NOT.
+   * ⚠️ THE DEPTH BIAS MUST SURVIVE A COLORWAY CHANGE, AND FOR ONE DAY IT DID NOT.
    *
    * Printed cut-outs are pulled toward the camera so they win the depth test
    * against the cloth (src/lib/decal-depth-bias.ts). The first version applied it
@@ -345,7 +345,13 @@ test('3D model loads and switching colourway changes the KHR material variant', 
   // read 1 of 6 on four of five colourways of the live skinsuit; a middle tab and a
   // last tab are the ones an off-by-one hides behind).
   for (const colour of ['blush', 'butter', 'wine']) {
-    await page.getByRole('tab', { name: new RegExp(colour, 'i') }).click()
+    // Located by ID, not by accessible name. The id is `colourway-tab-<slug>` and
+    // the slug is what this loop already reasons about (it derives the variant id
+    // from it two lines below); the LABEL is CMS copy that can say anything. When
+    // serve.mjs gave one fixture colourway a two-word name on 2026-09-04 — to
+    // reproduce a real stranding defect — a name-based lookup here broke on a
+    // change that had nothing to do with WebGL. Match on the stable identifier.
+    await page.locator(`#colourway-tab-${colour}`).click()
     await page.waitForFunction(
       (expected) =>
         (document.querySelector('model-viewer') as { variantName?: string } | null)?.variantName ===
@@ -446,7 +452,7 @@ test('a lost WebGL context is reported as such, not as a failed colour swap', as
   const notice = page.locator('.stage__error')
   await expect(notice).toBeVisible({ timeout: 10_000 })
   await expect(notice).toHaveText(
-    'The 3D view is not available. The colours, fabric and specifications on this page are correct, and you can still send an enquiry below.',
+    'The 3D view is not available. The colors, fabric and specifications on this page are correct, and you can still send an inquiry below.',
   )
   // No image stands in for the model any more, in any state.
   await expect(page.locator('.stage img')).toHaveCount(0)
@@ -460,4 +466,185 @@ test('a lost WebGL context is reported as such, not as a failed colour swap', as
 
   // The part that only this change provides.
   expect(diagnostics.join('\n')).toContain('[viewer:webgl-context-lost]')
+})
+
+test.describe('the 3D view shows a focus ring', () => {
+  /**
+   * ⚠️ ASSERTING THAT THE RULE EXISTS IS NOT ENOUGH, and that is the whole reason
+   * this test measures geometry instead.
+   *
+   * The original rule put the ring on `model-viewer.stage__model`, which is
+   * `position: absolute; inset: 0` inside `.stage__canvas` — an `overflow: hidden`
+   * box whose edges it therefore matches EXACTLY. An outline at
+   * `outline-offset: 2px` paints 2-4px outside the element's border box, i.e.
+   * entirely outside the clip, so it had nowhere to go. Measured on the live site
+   * 2026-09-04: both boxes at top 77.0, left 11.3, right 363.8, bottom 571.5.
+   *
+   * The rule shipped, linted, and painted nothing. A test that read
+   * `outlineStyle === 'solid'` would have passed against it — the style computes
+   * fine, it is the PAINT that is thrown away. Same shape as the `--poster-color`
+   * trap in apps/viewer/CLAUDE.md.
+   *
+   * So the invariant asserted here is the one that actually matters: whatever
+   * element carries the ring must have room to paint it. Either it IS the
+   * clipping box (an element's own `overflow` never clips its own outline), or it
+   * sits far enough inside one.
+   */
+  // Lives in webgl.spec.ts, not motion-and-layout.spec.ts: `playwright.config.ts`
+  // routes only /(webgl|render)\.spec\.ts/ to the project that has a GPU, and the
+  // other four projects have no WebGL — so <model-viewer> never mounts there and
+  // this test could only ever SKIP. A skipped test reads as green.
+  test('the ring has room to paint, not just a rule that computes', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    // The element mounts only after the whole GLB is buffered, and its shadow root
+    // is built later still. Querying before that returns null and the test SKIPS,
+    // which reads as green — the exact failure this file exists to prevent.
+    await page.locator('model-viewer').waitFor({ state: 'attached', timeout: 30_000 })
+    await page.waitForFunction(
+      () =>
+        (document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded === true,
+      undefined,
+      { timeout: 30_000 },
+    )
+
+    const result = await page.evaluate(() => {
+      const mv = document.querySelector('model-viewer') as
+        | (HTMLElement & { shadowRoot: ShadowRoot })
+        | null
+      if (!mv?.shadowRoot) return { skip: 'no model-viewer (poster fallback)' as const }
+      const inner = mv.shadowRoot.querySelector<HTMLElement>('[tabindex="0"]')
+      if (!inner) return { skip: 'no focusable node in the shadow root' as const }
+      inner.focus()
+
+      // Which element actually carries an outline right now?
+      const candidates = [mv, ...document.querySelectorAll<HTMLElement>('.stage__canvas, .stage')]
+      const outlined = candidates.find((el) => {
+        const s = getComputedStyle(el)
+        return s.outlineStyle !== 'none' && Number.parseFloat(s.outlineWidth) > 0
+      })
+      if (!outlined) return { skip: false as const, outlined: null }
+
+      const s = getComputedStyle(outlined)
+      const need = Number.parseFloat(s.outlineWidth) + Number.parseFloat(s.outlineOffset)
+
+      // Walk up to the first ancestor that clips.
+      let clipper: HTMLElement | null = outlined.parentElement
+      while (clipper && getComputedStyle(clipper).overflow === 'visible') {
+        clipper = clipper.parentElement
+      }
+      const selfClips = getComputedStyle(outlined).overflow !== 'visible'
+      const a = outlined.getBoundingClientRect()
+      const room = clipper
+        ? (() => {
+            const c = clipper.getBoundingClientRect()
+            return Math.min(a.top - c.top, a.left - c.left, c.right - a.right, c.bottom - a.bottom)
+          })()
+        : Number.POSITIVE_INFINITY
+
+      return {
+        skip: false as const,
+        outlined:
+          outlined.tagName.toLowerCase() + (outlined.className ? `.${outlined.className}` : ''),
+        selfClips,
+        need,
+        room,
+        clipper: clipper ? clipper.className || clipper.tagName : null,
+      }
+    })
+
+    if ('skip' in result && typeof result.skip === 'string') {
+      test.skip(true, result.skip)
+      return
+    }
+    const r = result as {
+      outlined: string | null
+      selfClips: boolean
+      need: number
+      room: number
+      clipper: string | null
+    }
+
+    expect(
+      r.outlined,
+      'nothing carries a focus outline while the 3D view is focused',
+    ).not.toBeNull()
+    expect(
+      r.selfClips || r.room >= r.need,
+      `the focus ring is drawn on ${r.outlined}, which needs ${r.need}px outside its own ` +
+        `border box, but its clipping ancestor (${r.clipper}) leaves ${r.room}px. The ring ` +
+        `is painted and then clipped away — put it on the clipping element itself, whose ` +
+        `own overflow does not clip its own outline.`,
+    ).toBe(true)
+  })
+})
+
+test('model_loaded reports how long the visitor actually waited', async ({ page }) => {
+  /**
+   * ⚠️ THE DURATION WAS COMPUTED ON EVERY LOAD AND THROWN AWAY. The progress bar and
+   * the "~8s LEFT" readout cannot exist without it, and `model_loaded` still carried
+   * only the product code — so the one question a QR-scan business actually has,
+   * "how long does a buyer wait after scanning a tag?", was unanswerable from the
+   * data the page already had in its hand.
+   *
+   * `bytes` rides along because a duration alone is uninterpretable across an
+   * 1.8-7.8 MB catalogue: four seconds means very different things for the 1.8 MB
+   * pullover and the 7.8 MB bib.
+   */
+  const events: Array<Record<string, unknown>> = []
+  await page.exposeFunction('__captureAnalytics', (detail: Record<string, unknown>) => {
+    events.push(detail)
+  })
+  await page.addInitScript(() => {
+    document.addEventListener('run:analytics', (e) => {
+      ;(window as unknown as { __captureAnalytics: (d: unknown) => void }).__captureAnalytics(
+        (e as CustomEvent).detail,
+      )
+    })
+  })
+
+  await page.goto('/n001/wine')
+  await page.locator('model-viewer').waitFor({ state: 'attached', timeout: 30_000 })
+  await page.waitForFunction(
+    () => (document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded === true,
+    undefined,
+    { timeout: 30_000 },
+  )
+  await expect
+    .poll(() => events.some((e) => e.event === 'model_loaded'), { timeout: 10_000 })
+    .toBe(true)
+
+  const loaded = events.find((e) => e.event === 'model_loaded') as Record<string, string>
+  expect(loaded.product, 'the product code was already reported and must remain').toBeTruthy()
+  expect(
+    loaded.durationMs,
+    'model_loaded carried no durationMs — the number is computed for the progress ' +
+      'bar on every load and must not be discarded again',
+  ).toMatch(/^\d+$/)
+  expect(
+    Number(loaded.durationMs),
+    'a duration of zero means the start timestamp was never stamped',
+  ).toBeGreaterThan(0)
+  /*
+   * ⚠️ `bytes` IS DELIBERATELY NOT ASSERTED, AND THE REASON IS THE SAME FIXTURE GAP
+   * DOCUMENTED IN e2e/serve.mjs. The fixture streams the GLB without
+   * `content-length`, so `fetchWithProgress` reports `total: 0`, so the field is
+   * correctly omitted rather than sent as a lie. Production DOES send the header
+   * (measured 2026-09-04, `content-length: 3883016`), so the field will be present
+   * in the field data this exists to produce.
+   *
+   * Asserting it here would mean asserting the fixture's limitation. Asserting the
+   * OPPOSITE — that it is absent — would pin the gap in place and fail the day the
+   * fixture is fixed. So it is left unasserted with the reason written down, which
+   * is the honest third option.
+   *
+   * This is the second assertion that same missing header has blocked today; the
+   * first was the whole `preparing` phase. If the header is ever added — see the
+   * warning in serve.mjs about why the attempt was reverted — both become testable.
+   */
+  expect(
+    'bytes' in loaded ? typeof loaded.bytes : 'absent',
+    'when bytes IS present it must be a numeric string, never a placeholder',
+  ).toMatch(/^(string|absent)$/)
 })

@@ -109,6 +109,11 @@ export const IGNORED_ERRORS: (string | RegExp)[] = [
  * bytes, `cf-cache-status: HIT`. Link-preview scanners open the page, start the
  * 27 MB model, and are killed seconds later.
  *
+ * (That byte count is the 2026-08-26 measurement and is left as recorded. The
+ * file is 100,649 bytes since 2026-09-05, when the analytic placeholder was
+ * replaced by a real studio map — see apps/viewer/scripts/gen-env-hdr.mjs. The
+ * argument above turns on the request having SUCCEEDED, not on its size.)
+ *
  * ⚠️ **This block used to say a cached 404 "surfaces as a fetch failure", and that
  * is FALSE — it is why the string was left unfiltered.** three.js never lets a
  * non-200 reach this predicate; it throws `HttpError` instead. Read at

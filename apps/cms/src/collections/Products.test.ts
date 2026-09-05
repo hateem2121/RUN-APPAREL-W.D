@@ -167,18 +167,26 @@ describe('Products defaultValue — inherits from CatalogueDefaults on create on
     expect(fieldNamed('customisationSteps').defaultValue).toBeUndefined()
   })
 
-  it('keeps both fields on the collection, hidden rather than removed', () => {
-    // Removing them would mean dropping D1 columns, and on D1 a table rebuild
-    // runs an implicit DELETE that cascades — `products` is the parent of every
-    // colourway, media reference and raw upload. Same precedent as
-    // `presentation_mode`, retired in place on 2026-08-09.
+  /**
+   * ⚠️ THIS ASSERTED `hidden: true` UNTIL 2026-09-05, AND NOW ASSERTS THE
+   * OPPOSITE. Both fields were hidden from 2026-08-17, when the copy moved to the
+   * shared `build-process` global. That global is retired: it overrode every
+   * product's own copy as soon as it was saved, so after the owner asked for
+   * per-garment copy on 2026-09-04 the only thing a save there could do was erase
+   * eleven bespoke step sets in one click.
+   *
+   * The owner now writes this copy per garment, so the fields have to be EDITABLE.
+   * A hidden field the owner cannot reach, guarding live copy they are expected to
+   * maintain, is the worse failure of the two.
+   */
+  it('shows both fields so the copy can be edited per garment', () => {
     for (const name of ['customisationIntro', 'customisationSteps']) {
       const field = fieldNamed(name)
       expect(field, `${name} was removed from the collection`).toBeDefined()
       expect(
         (field as { admin?: { hidden?: boolean } }).admin?.hidden,
-        `${name} is still shown in the admin form`,
-      ).toBe(true)
+        `${name} is hidden — the owner cannot edit the copy their garments ship with`,
+      ).not.toBe(true)
     }
   })
 })

@@ -1,13 +1,11 @@
 import { useState } from 'react'
-import { track } from '../lib/analytics'
 import { appliedTheme, toggleTheme, type Theme } from '../lib/theme'
 
 interface HeaderProps {
   wordmark: string
-  catalogueUrl: string
 }
 
-export function Header({ wordmark, catalogueUrl }: HeaderProps) {
+export function Header({ wordmark }: HeaderProps) {
   // Lazy init from the already-applied theme (client-only SPA) so the toggle
   // glyph is correct on first paint — no light→dark flash on dark systems.
   const [theme, setThemeState] = useState<Theme>(() => appliedTheme())
@@ -19,19 +17,26 @@ export function Header({ wordmark, catalogueUrl }: HeaderProps) {
   return (
     <header className="header">
       {/*
-        The wordmark used to link to "/". This SPA has no route there — the path
-        parses to nothing and renders UnavailableState — so clicking the logo took
-        a buyer from a working product page to "This reference has moved forward."
-        The catalogue is the only real "home" this viewer has.
+        THE WORDMARK IS DELIBERATELY NOT A LINK, since 2026-09-04.
+
+        Its history is worth keeping, because both previous answers were wrong in
+        different ways. It first linked to "/", which this SPA has no route for —
+        the path parses to nothing and renders UnavailableState — so clicking the
+        logo took a buyer from a working product page to "This reference has moved
+        forward." It was then pointed at the catalogue, which fixed that but made
+        the logo a second, unlabelled catalogue link.
+
+        Owner decision 2026-09-04: no page may hand a visitor the catalogue. These
+        pages are indexed by Google, and the catalogue is a 54 MB B2B PDF that is
+        not for arbitrary search traffic. That rules out the wordmark too — its
+        visible text says "RUN APPAREL" but it navigated straight there, so it
+        defeated the intent more quietly than the button did.
+
+        A plain <span> is the honest answer: this viewer genuinely has no "home"
+        to offer, and a logo that goes nowhere is better than one that goes
+        somewhere wrong. The enquiry buttons are the intended next step.
       */}
-      <a
-        className="header__wordmark"
-        href={catalogueUrl}
-        aria-label={`${wordmark} — back to catalogue`}
-        onClick={() => track('catalogue_clicked', { placement: 'wordmark' })}
-      >
-        {wordmark}
-      </a>
+      <span className="header__wordmark">{wordmark}</span>
       <span className="label header__tag">[ 3D PRODUCT REFERENCE ]</span>
       <span className="header__spacer" />
       <button
@@ -63,28 +68,27 @@ export function Header({ wordmark, catalogueUrl }: HeaderProps) {
         )}
       </button>
       {/*
-        Two spans, one visible at a time — see `.header__cta-*` in page.css.
-        This label wrapped to TWO LINES at every phone width (measured 2026-08-14
-        with a Range over the text node: line-boxes at y=25 and y=42, box 56.1px
-        against the 40px declared), and still overflowed the document to 325px on
-        a 320px viewport. It is the only navigation on the page and it sits above
-        the garment, so a buyer met a broken-looking header before they met the
-        product.
+        THE "BACK TO CATALOGUE" BUTTON WAS REMOVED HERE on 2026-09-04, by owner
+        decision: search traffic must not be handed the catalogue directly.
 
-        The accessible name is deliberately unchanged at every width: the long
-        form moves offscreen rather than unmounting, and the short form is
-        aria-hidden. A screen reader always hears "Back to Catalogue".
+        Two measured consequences worth knowing, because they make other comments
+        in `page.css` stale rather than wrong:
+
+        1. It freed 118px of header width (104px button + one 14px gap). The
+           header's own arithmetic note recorded its children needing 351px of an
+           available 343px at 375px wide, which is why it wrapped to two rows and
+           stood 117px tall over the garment. That pressure is gone.
+        2. `--header-h` carries TWO values (`tokens.css`) because below 360px this
+           button wrapped. Re-measure before collapsing them to one — the number
+           must be read off the live band, and every estimate in that comment's
+           history has been wrong.
+
+        The removed markup used two spans, one visible at a time, so the
+        accessible name stayed "Back to Catalogue" at every width. If any
+        catalogue affordance ever returns, that is the pattern to return to; do
+        not reintroduce a bare responsive label that unmounts, which is what it
+        replaced.
       */}
-      <a
-        className="btn btn--ghost"
-        href={catalogueUrl}
-        onClick={() => track('catalogue_clicked', { placement: 'header' })}
-      >
-        <span className="header__cta-long">Back to Catalogue</span>
-        <span className="header__cta-short" aria-hidden="true">
-          Catalogue
-        </span>
-      </a>
     </header>
   )
 }

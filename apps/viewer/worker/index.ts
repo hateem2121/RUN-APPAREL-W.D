@@ -2,6 +2,7 @@ import { parseViewerPath } from '@run-apparel/shared'
 import { withNoTransform } from './noTransform'
 import type { ViewerApiSuccess } from '@run-apparel/shared'
 import { OG_CARDS } from './og-cards'
+import { shouldReturnNotFound } from './notFound'
 import { buildPreview, type Preview } from './preview'
 import { workerResponseHeaders } from './securityHeaders'
 
@@ -248,7 +249,14 @@ function applyPreview(response: Response, preview: Preview): Response {
       element(el) {
         el.append(
           `<meta property="og:url" content="${attr(preview.url)}" />` +
-            `<link rel="canonical" href="${attr(preview.url)}" />`,
+            `<link rel="canonical" href="${attr(preview.url)}" />` +
+            // schema.org Product, so a crawler that runs no JavaScript learns what
+            // this page IS and not merely how its link should look. See
+            // buildProductJsonLd for why there is no `offers` and how the CMS
+            // strings are escaped. APPENDED, never overwriting a tag in
+            // index.html: there is no ld+json block there to match, and an
+            // HTMLRewriter selector that matches nothing is a silent no-op.
+            `<script type="application/ld+json">${preview.jsonLd}</script>`,
           { html: true },
         )
       },
@@ -347,7 +355,42 @@ export default {
       request.method !== 'GET' ||
       !CRAWLER.test(request.headers.get('user-agent') ?? '')
     ) {
-      return withNoTransform(await env.ASSETS.fetch(request))
+      const asset = await env.ASSETS.fetch(request)
+
+      /**
+       * A path that cannot be a product page answers 404 — with the SAME body.
+       *
+       * See `shouldReturnNotFound` for the full reasoning. The short version: every
+       * unknown URL here answered "200 OK" until 2026-09-04, which is a soft 404 to
+       * a crawler, and the body must stay the branded page so a human who scanned a
+       * worn tag still gets Email and WhatsApp rather than a browser error.
+       *
+       * ⚠️ THE HEADERS ARE COPIED EXPLICITLY, and that is not incidental. `_headers`
+       * is applied by Cloudflare's STATIC ASSET handler: a response FROM
+       * `env.ASSETS.fetch()` carries CSP, HSTS, permissions-policy, referrer-policy
+       * and nosniff, and a `new Response(...)` carries NONE of them — measured on
+       * the live edge 2026-08-12, all five present on the 200 and all five absent on
+       * a Worker-built 400. Passing `asset.headers` through is what keeps this a
+       * status change rather than a silent security-header regression.
+       */
+      if (
+        shouldReturnNotFound({
+          pathname: url.pathname,
+          method: request.method,
+          routeParsed: route !== null,
+          contentType: asset.headers.get('content-type'),
+        })
+      ) {
+        return withNoTransform(
+          new Response(asset.body, {
+            status: 404,
+            statusText: 'Not Found',
+            headers: asset.headers,
+          }),
+        )
+      }
+
+      return withNoTransform(asset)
     }
 
     const [response, payload] = await Promise.all([

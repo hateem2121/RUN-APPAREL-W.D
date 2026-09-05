@@ -61,108 +61,90 @@ describe('absolutize', () => {
   })
 })
 
-describe('the universal build-process copy', () => {
+describe('the customisation copy comes from the product, and only the product', () => {
   /**
-   * "How we build your product" is ONE text for the whole catalogue since
-   * 2026-08-17, by owner decision.
+   * ⚠️ THIS SUITE ASSERTED THE OPPOSITE UNTIL 2026-09-05, and the behaviour it
+   * guarded was a loaded gun.
    *
-   * It used to be per-product: `CatalogueDefaults` seeded each new product's own
-   * `customisationIntro`/`customisationSteps` at CREATE time and nothing read it
-   * again, so editing the defaults changed what the NEXT garment started with and
-   * left every existing page saying whatever it said the day it was made. At 100+
-   * products that is 100 chances to leave stale copy live on one page and the
-   * current wording on another.
+   * "How we build your product" was ONE text for the whole catalogue from
+   * 2026-08-17 (owner decision), read from the `build-process` global on every
+   * public request. It won over a product's own copy as soon as it was SAVED —
+   * the discriminator was `id`, "has anyone ever opened this screen", not "does
+   * it contain anything". So one save replaced the customisation copy on all
+   * eleven live garments at once, and saving it EMPTY served zero steps
+   * everywhere, because `Array.isArray([])` is true.
    *
-   * The projection is where the switch happens, which is why the viewer needed no
-   * change at all: it still consumes `customisationIntroHtml` and
-   * `customisationSteps` exactly as before.
+   * On 2026-09-04 the owner asked for the reverse — "for each garment you can
+   * draft its unique version that is personalised according to that garment" —
+   * and eleven bespoke step sets were written and published. The global then had
+   * exactly one effect available to it: destroying that work in a single click,
+   * from a screen labelled invitingly in the sidebar. A note in a CLAUDE.md
+   * telling people not to open it is not a control, which is why this is a code
+   * change rather than a warning.
+   *
+   * The projection no longer takes the global at all. These tests exist to keep
+   * it that way: the first one fails the moment anything reintroduces an
+   * override.
    */
-  const buildProcess = {
-    customisationIntro: { root: { NEW: true } },
-    customisationSteps: [{ number: 1, title: 'NEW STEP', body: 'new body' }],
-  }
+  const own = [{ number: 4, title: 'OWN STEP', body: 'own body' }]
 
-  it('overrides whatever the product itself stored', () => {
+  it('is the product’s own, with no global able to reach it', () => {
     const body = buildViewerResponse(
-      product({ customisationSteps: [{ number: 9, title: 'OLD STEP', body: 'old body' }] }),
+      product({ customisationSteps: own }),
       [colourway()],
       {},
       origin,
       'navy',
       deps,
-      { id: 1, ...buildProcess },
     )!
-    expect(body.product.customisationSteps).toEqual([
-      { number: 1, title: 'NEW STEP', body: 'new body' },
-    ])
-    expect(JSON.stringify(body)).not.toContain('OLD STEP')
+    expect(body.product.customisationSteps).toEqual(own)
   })
 
-  /**
-   * ⚠️ THE FALLBACK IS NOT DEFENSIVENESS — it covers a real window, and the shape
-   * it has to survive was MEASURED rather than assumed.
-   *
-   * This test used `{}`, `null` and `undefined` until 2026-08-17 and passed —
-   * against code that was broken. Payload does not return `{}` for a never-saved
-   * global with an array field. Probed against a real local D1:
-   *
-   *   never saved   {"customisationSteps":[]}                    <- no id
-   *   saved         {id:1, customisationSteps:[...], updatedAt, createdAt, globalType}
-   *   saved+cleared {id:1, customisationSteps:[],    updatedAt,  …}
-   *
-   * So an unsaved global arrives as an EMPTY ARRAY, `Array.isArray` said true,
-   * and the projection used it — discarding the product's own four steps on
-   * every page at once, for the whole window between the migration deploying and
-   * somebody first opening the new screen. Exactly the failure the fallback
-   * exists to prevent, caused by the fallback's own test asserting a shape that
-   * never occurs.
-   *
-   * `id` is the discriminator, because it is the only field present in the saved
-   * shapes and absent from the unsaved one.
-   */
-  it('falls back to the product’s own copy when the global has never been saved', () => {
-    const own = [{ number: 4, title: 'OWN STEP', body: 'own body' }]
-    const unsavedShapes = [
-      // What Payload ACTUALLY returns — measured, and the case that was broken.
-      { customisationSteps: [] },
-      // Belt and braces: a read that failed, and a global with no fields at all.
-      null,
-      undefined,
-      {},
-    ]
-    for (const unsaved of unsavedShapes) {
-      const body = buildViewerResponse(
-        product({ customisationSteps: own }),
-        [colourway()],
-        {},
-        origin,
-        'navy',
-        deps,
-        unsaved,
-      )!
-      expect(body.product.customisationSteps, `unsaved global: ${JSON.stringify(unsaved)}`).toEqual(
-        own,
-      )
-    }
-  })
-
-  it('an empty step list on a SAVED global is a real answer, not a missing one', () => {
-    // Deleting every step must actually remove the accordion from every page —
-    // otherwise "clear it" silently means "revert to whatever each product had".
-    //
-    // `id: 1` is what makes this a saved document rather than the unsaved shape
-    // above. Both carry `customisationSteps: []`; only the id tells them apart,
-    // which is why the projection cannot decide on the array alone.
+  it('an empty step list on the product is a real answer', () => {
+    // Deleting a product's steps must actually remove the accordion from ITS
+    // page — the section is hidden when the array is empty.
     const body = buildViewerResponse(
-      product({ customisationSteps: [{ number: 4, title: 'OWN STEP', body: 'b' }] }),
+      product({ customisationSteps: [] }),
       [colourway()],
       {},
       origin,
       'navy',
       deps,
-      { id: 1, customisationIntro: null, customisationSteps: [], updatedAt: '2026-08-17' },
     )!
     expect(body.product.customisationSteps).toEqual([])
+  })
+
+  it('the intro is the product’s own richText', () => {
+    // A capturing stub rather than the shared one at the top of this file, which
+    // returns a constant and so cannot tell WHICH value reached it. What is being
+    // proved here is the argument, not the output.
+    const seen: unknown[] = []
+    const capture = {
+      richTextToHtml: (v: unknown) => {
+        seen.push(v)
+        return '<p>x</p>'
+      },
+    }
+    buildViewerResponse(
+      product({ customisationIntro: { root: { OWN: true } } }),
+      [colourway()],
+      {},
+      origin,
+      'navy',
+      capture,
+    )
+    expect(seen).toContainEqual({ root: { OWN: true } })
+  })
+
+  /**
+   * ⚠️ THE ARITY IS THE GUARD, and it is deliberate rather than incidental.
+   * `buildViewerResponse` used to take the global as a seventh argument. Removing
+   * the parameter means any attempt to pass one is a TYPE ERROR rather than a
+   * silently ignored argument — so a future change cannot half-reintroduce the
+   * override and have it look wired up.
+   */
+  it('takes no global argument at all', () => {
+    expect(buildViewerResponse.length).toBe(6)
   })
 })
 

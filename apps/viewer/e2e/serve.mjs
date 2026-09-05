@@ -151,8 +151,26 @@ const COLOURWAYS = [
     isDefault: true,
   },
   {
+    // ⚠️ A TWO-WORD NAME, 20 CHARACTERS, ADDED 2026-09-04 TO CLOSE A SECOND
+    // FIXTURE GAP — and it is the longest one production actually ships, not a
+    // stress value. This fixture served five single words ('Wine', 'Blush',
+    // 'Butter', 'Lime', 'Black', 4-6 chars) while SIX of the eleven live products
+    // ship two-word colourways: 'Pebble / Optic White' (20), 'Bottle Green / Mint'
+    // (19), 'Blush / Powder Blue' (19), 'Powder Blue / Teal' (18), 'Lavender /
+    // Indigo' (17), 'Blush / Fuchsia' (15).
+    //
+    // The consequence, measured on the live site 2026-09-04 at 844x390: the rail
+    // wraps 4 + 1 and strands one swatch alone beside three empty cells. The test
+    // written to prevent exactly that — "never strands a single swatch on its own
+    // row" — PASSED, because a long word widens every equal-width column and short
+    // words never trigger it. Same shape as the four-vs-five gap closed on
+    // 2026-08-30 directly below: the gate could not see the defect it exists for.
+    //
+    // The SLUG stays 'blush' so no URL, no retired-colourway route and no existing
+    // assertion moves; only the label a human reads gets longer. 'Blush' was chosen
+    // because it was the one display name with zero references in any test.
     slug: 'blush',
-    displayName: 'Blush',
+    displayName: 'Pebble / Optic White',
     variantId: 'N001-BLUSH',
     hexSwatch: '#F7CDCD',
     sequence: 2,
@@ -344,6 +362,34 @@ const server = http.createServer((req, res) => {
     const file = path.join(ASSETS, url.pathname.replace('/fixtures/', ''))
     if (existsSync(file)) {
       res.setHeader('content-type', MIME[path.extname(file)] ?? 'application/octet-stream')
+      /*
+       * ⚠️ NO `content-length`, AND THAT MAKES ONE WHOLE UI STATE UNREACHABLE HERE.
+       *
+       * Node streams chunked without it, so `fetchWithProgress` reads a null
+       * content-length and `bytesTotal` stays 0. `describeLoad` returns `preparing`
+       * only for `bytesTotal > 0 && bytesLoaded >= bytesTotal`, so that phase never
+       * occurs in e2e: its "PREPARING 3D MODEL…" title, its indeterminate sweep, and
+       * its live-region announcement "Download complete. Preparing the interactive
+       * 3D model." have never been exercised by any browser test. Production DOES
+       * send the header — measured on the live model 2026-09-04,
+       * `content-length: 3883016` — so this fixture is less faithful than it looks.
+       *
+       * ⚠️ IT WAS ADDED ON 2026-09-04 AND THEN REVERTED, and the reason is worth
+       * more than the line was. With `res.setHeader('content-length', statSync(file)
+       * .size)` here, `webgl.spec.ts` -> "3D model loads and switching colourway
+       * changes the KHR material variant" fails in the FULL suite — `model-viewer`
+       * never mounts inside its 5s wait — while passing when the webgl project runs
+       * alone. Measured both ways, twice: 369 passed without the header, 368 passed
+       * and 1 failed with it. `fetchWithProgress` does not validate the length, so
+       * the mechanism is not that; it is some interaction with the other four
+       * projects sharing this server, and it was not understood.
+       *
+       * A change that makes CI fail for a reason nobody can explain is worse than a
+       * documented gap, so the gap is documented instead. If the `preparing` state
+       * needs real coverage, find out WHY that test regresses first — the answer is
+       * probably worth knowing on its own. The phase's decision logic is unit-tested
+       * in the meantime: `showsIndeterminateSweep` in lib/loadProgress.ts.
+       */
       createReadStream(file).pipe(res)
       return
     }

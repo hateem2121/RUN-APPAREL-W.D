@@ -152,3 +152,34 @@ export function describeLoad(args: {
     detail: clauses.join(' · '),
   }
 }
+
+/**
+ * Whether the loading bar should sweep, rather than sit at a fixed width.
+ *
+ * ⚠️ THE SWEEP MUST BE OMITTED UNDER REDUCED MOTION, NOT COLLAPSED, and that is the
+ * whole reason this is a function instead of an inline ternary.
+ *
+ * `base.css` collapses every animation to a single 0.01ms iteration for a
+ * reduced-motion visitor. On a LOOPING sweep with no fill-mode that leaves the bar
+ * frozen at its 40% width — which reads as a stalled download, on the one screen
+ * where somebody is already waiting and looking for reassurance. `page.css` and
+ * `Preloader.tsx` both record that conclusion in those words ("a sweep that cannot
+ * sweep is a bar frozen at one width"), and the preloader solved it for this exact
+ * keyframe by not rendering its sweep at all. The stage's bar had the same problem
+ * and did not get the same treatment until 2026-09-04.
+ *
+ * Omitting it leaves the fill at its default `scaleX(1)` — FULL — and that is the
+ * honest reading rather than a cosmetic fallback: `preparing` means every byte has
+ * arrived and the model is decoding. The download IS complete. A full bar beside
+ * "PREPARING 3D MODEL…" tells the truth; a 40% stub does not.
+ *
+ * ⚠️ PURE, AND TESTED HERE, BECAUSE E2E CANNOT REACH THIS STATE RELIABLY. `preparing`
+ * is the gap between the last byte landing and model-viewer finishing its parse; on
+ * the fixture's small GLB that is too brief to assert against, and a two-way control
+ * proved it — the test asserting the sweep is ABSENT under reduced motion passed
+ * while its companion asserting the sweep is PRESENT with motion allowed failed,
+ * which is how the vacuity showed up rather than shipping as a green test.
+ */
+export function showsIndeterminateSweep(phase: LoadPhase, reducedMotion: boolean): boolean {
+  return phase === 'preparing' && !reducedMotion
+}

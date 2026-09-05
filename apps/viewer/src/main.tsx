@@ -12,10 +12,13 @@ import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { initErrorTracking } from './lib/sentry'
 import { initTelemetry } from './lib/telemetry'
+import { initWebVitals } from './lib/webVitals'
 
 initErrorTracking()
 initTelemetry()
 
+// Reported when the page is hidden, on the flush telemetry already performs.
+initWebVitals()
 /**
  * Never restore a previous scroll position here.
  *
