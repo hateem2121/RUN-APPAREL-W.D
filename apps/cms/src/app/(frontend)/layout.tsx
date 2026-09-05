@@ -1,3 +1,29 @@
+/*
+ * ⚠️ DO NOT "OPTIMISE" THESE INTO next/font TO GET A PRELOAD. IT WAS TRIED AND MEASURED
+ * WORSE, on 2026-09-05, and the instinct to try it is entirely reasonable.
+ *
+ * A font declared inside a stylesheet cannot be fetched until that stylesheet has
+ * arrived, so these start late — 639 ms against an HTML response finished at 350 ms.
+ * Moving them to `next/font/local` fixes exactly that: the fetch starts at 318 ms.
+ *
+ * It also makes the page slower. Five runs each, throttled to 1.6 Mbps / 150 ms latency
+ * (nothing is visible on localhost, where everything finishes inside 90 ms):
+ *
+ *                     fontsource      next/font + preload
+ *   first paint         664 ms          732 ms      <- 68 ms WORSE
+ *   font fetch starts   639 ms          318 ms
+ *   Archivo delivered  1788 ms         1767 ms      <- unchanged
+ *
+ * The connection is the constraint, not the discovery order. Preloading 110 KB of fonts
+ * ahead of a 4.4 KB stylesheet takes bandwidth from the one file that unblocks painting,
+ * so text appears later — and the fonts still arrive at the same moment, because the
+ * pipe was always the limit. `font-display: swap` already means nobody waits on them.
+ *
+ * The lesson generalises: preload is a priority hint, and raising the priority of
+ * something large is the same as lowering the priority of everything else.
+ * `products/page.tsx` preconnects to the media host, which costs no bandwidth at all —
+ * that is the shape of hint worth adding.
+ */
 import '@fontsource-variable/archivo/wdth.css'
 import '@fontsource/instrument-serif/400-italic.css'
 // ORDER IS LOAD-BEARING — tokens define the custom properties the two files below
