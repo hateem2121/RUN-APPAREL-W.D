@@ -500,41 +500,609 @@ html {
 
 /* ---------------------------------------------------------------- footer */
 
+/*
+ * "The Quiet Room" — docs/superpowers/specs/2026-09-05-site-footer-quiet-room-design.md.
+ * A full-screen dark slab from tablet widths up, mostly empty on purpose, ending in the
+ * company's name at the width of the screen.
+ *
+ * ⚠️ THE TAB SITS ON THE SLAB'S TOP EDGE, OUTSIDE THE CLIP. `.site-footer` is unclipped
+ * and positions; `.site-footer__slab` clips (the wordmark is cropped by its bottom edge).
+ * The first draft put the tab inside the slab and it never rose out of anything.
+ */
 .site-footer {
-  border-top: 1px solid var(--line);
-  padding-block: clamp(24px, 5vw, 64px);
-  background: var(--surface);
+  --footer-pad: clamp(20px, 4.4vw, 64px);
+  --footer-bg: light-dark(var(--ink), var(--raised));
+  --footer-text: light-dark(var(--paper), var(--text));
+  /* dark is 0.68, not 0.6: on --raised, 0.6 measured 4.57:1 — AA by 0.07 */
+  --footer-muted: light-dark(rgba(241, 239, 234, 0.6), rgba(236, 235, 228, 0.68));
+  --footer-line: light-dark(rgba(241, 239, 234, 0.16), rgba(236, 235, 228, 0.16));
+  --footer-grid: light-dark(rgba(241, 239, 234, 0.07), rgba(236, 235, 228, 0.06));
+  --footer-stroke: light-dark(rgba(241, 239, 234, 0.26), rgba(236, 235, 228, 0.24));
+  position: relative;
+  /* room for the tab, which is seated above the slab's edge */
+  padding-block-start: var(--target-min);
 }
 
-.site-footer__row {
+/* The SLAB owns --gx/--gy (set by FooterGlow from the ring's trailed point) and every
+   glow layer inherits them, so one write lights everything. */
+.site-footer__slab {
+  --gx: -1000px;
+  --gy: -1000px;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  align-items: baseline;
-  justify-content: space-between;
+  flex-direction: column;
+  padding: 0 var(--footer-pad);
+  background: var(--footer-bg);
+  color: var(--footer-text);
+  /* In dark mode --raised sits at 1.47:1 against the page — the header notch's
+     figure, fixed there with --shadow-raised. A slab is too wide for a shadow to
+     read as an edge, so a hairline; invisible against light-mode ink. */
+  border-top: 1px solid var(--footer-line);
 }
 
-.site-footer__line {
+/* the blueprint grid (base.css's recipe) fading in toward the bottom */
+.site-footer__slab::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--footer-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--footer-grid) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask: linear-gradient(to bottom, transparent 30%, #000 100%);
+  pointer-events: none;
+}
+
+/* One full screen from tablet up. `svh`, not `dvh`: the viewer measured dvh resizing
+   a stage 14 times in one swipe; a footer's height must not follow the toolbar. On a
+   phone the content sets the height — a dark screen after the page is thumb-travel
+   past nothing. */
+@media (min-width: 768px) {
+  .site-footer__slab {
+    min-height: 100svh;
+  }
+}
+
+/* ── the flipped notch ─────────────────────────────────────────────────────
+ *   header (.notch)              footer tab
+ *   border-end-*-radius          border-start-*-radius
+ *   fillet inset-block-start: 0  fillet inset-block-end: 0
+ *   mask circle at *,100%        mask circle at *,0
+ * The fillets live OUTSIDE the tab's box, one --notch-r each; the max-width reserves
+ * exactly that (see .notch-shell for why "exactly"). */
+.site-footer__tab {
+  --arrow-w: 14px;
+  --arrow-gap: 10px;
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target-min);
+  max-width: calc(100% - var(--notch-r) * 2);
+  padding-inline: 24px;
+  background: var(--volt);
+  color: var(--ink);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-start-start-radius: var(--notch-r);
+  border-start-end-radius: var(--notch-r);
+}
+
+.site-footer__tab::before,
+.site-footer__tab::after {
+  content: "";
+  position: absolute;
+  inset-block-end: 0;
+  width: var(--notch-r);
+  height: var(--notch-r);
+  background: var(--volt);
+  pointer-events: none;
+}
+
+.site-footer__tab::before {
+  inset-inline-end: 100%;
+  mask: radial-gradient(circle at 0 0, #0000 var(--notch-r), #000 calc(var(--notch-r) + 0.5px));
+}
+
+.site-footer__tab::after {
+  inset-inline-start: 100%;
+  mask: radial-gradient(circle at 100% 0, #0000 var(--notch-r), #000 calc(var(--notch-r) + 0.5px));
+}
+
+/* The label rests centred; on hover it slides left and the arrow arrives. The tab's
+   WIDTH NEVER CHANGES — the arrow's slot is always reserved and the label is nudged
+   right by half of it at rest — so the fillets never move. Touch has no hover, so
+   there the arrow is simply always shown. */
+.site-footer__tab-arrow {
+  font-family: var(--font-display);
+  width: var(--arrow-w);
+  margin-inline-start: var(--arrow-gap);
+  text-align: end;
+}
+
+.site-footer__tab:focus-visible {
+  outline: 2px solid var(--footer-text);
+  outline-offset: 4px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .site-footer__tab {
+    transition: background-color var(--fast) var(--ease);
+  }
+
+  .site-footer__tab:hover {
+    background: color-mix(in srgb, var(--volt) 88%, white);
+  }
+
+  .site-footer__tab-label {
+    transform: translateX(calc((var(--arrow-w) + var(--arrow-gap)) / 2));
+    transition: transform var(--ui) var(--ease);
+  }
+
+  .site-footer__tab-arrow {
+    opacity: 0;
+    transform: translateX(-6px);
+    transition:
+      opacity var(--fast) var(--ease),
+      transform var(--ui) var(--ease);
+  }
+
+  .site-footer__tab:hover .site-footer__tab-label,
+  .site-footer__tab:focus-visible .site-footer__tab-label {
+    transform: translateX(0);
+  }
+
+  .site-footer__tab:hover .site-footer__tab-arrow,
+  .site-footer__tab:focus-visible .site-footer__tab-arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ── the question ──────────────────────────────────────────────────────── */
+.footer-cta {
+  position: relative;
+  padding-block-start: clamp(44px, 6vw, 84px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: start;
+}
+
+.footer-side {
+  display: grid;
+  gap: 14px;
+  justify-items: end;
+}
+
+@media (max-width: 720px) {
+  .footer-cta {
+    grid-template-columns: 1fr;
+  }
+
+  .footer-side {
+    justify-items: start;
+  }
+}
+
+.footer-eyebrow {
+  margin: 0 0 14px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--footer-muted);
+}
+
+.footer-q {
+  margin: 0;
+  max-width: 22ch;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 20px;
+  font-stretch: 122%;
+  font-size: clamp(27px, 4.3vw, 52px);
+  line-height: 1;
   letter-spacing: var(--tracking-display-sm);
-  color: var(--headline);
+  text-wrap: balance;
 }
 
-.site-footer__links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  list-style: none;
+.footer-q em {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-stretch: 100%;
+  color: var(--volt);
+}
+
+.footer-derisk {
+  margin: 16px 0 0;
+  max-width: 44ch;
+  font-size: var(--text-sm);
+  color: var(--footer-muted);
+}
+
+/* the dimension line: end ticks on the ends of the text, so it is fit-content and
+   nowrap — a wrapped one measured half of what it labelled. */
+.footer-dim {
+  position: relative;
+  width: fit-content;
+  margin: 24px 0 0;
+  padding-block-start: 8px;
+  border-top: 1px solid currentColor;
+  color: var(--volt);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.footer-dim::before,
+.footer-dim::after {
+  content: "";
+  position: absolute;
+  inset-block-start: -4px;
+  width: 1px;
+  height: 8px;
+  background: currentColor;
+}
+
+.footer-dim::before {
+  inset-inline-start: 0;
+}
+
+.footer-dim::after {
+  inset-inline-end: 0;
+}
+
+/* ── the clock, corner-bracketed ───────────────────────────────────────── */
+.footer-clock {
+  position: relative;
+  display: inline-grid;
+  gap: 4px;
+  padding: 10px 14px 8px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.footer-clock i {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.footer-clock::before,
+.footer-clock::after,
+.footer-clock i::before,
+.footer-clock i::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--footer-muted);
+  pointer-events: none;
+}
+
+.footer-clock::before {
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  border-width: 1px 0 0 1px;
+}
+
+.footer-clock::after {
+  inset-block-end: 0;
+  inset-inline-end: 0;
+  border-width: 0 1px 1px 0;
+}
+
+.footer-clock i::before {
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  border-width: 1px 1px 0 0;
+}
+
+.footer-clock i::after {
+  inset-block-end: 0;
+  inset-inline-start: 0;
+  border-width: 0 0 1px 1px;
+}
+
+.footer-clock__city {
+  font-size: var(--text-mono-sm);
+  letter-spacing: 0.18em;
+  color: var(--footer-muted);
+}
+
+.footer-clock__time {
+  font-size: var(--text-sm);
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+
+.footer-clock__time small {
+  margin-inline-start: 6px;
+  font-size: var(--text-mono-sm);
+  letter-spacing: 0.14em;
+  color: var(--footer-muted);
+}
+
+.footer-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--footer-muted);
+}
+
+.footer-status::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--footer-muted);
+}
+
+.footer-status[data-open="true"] {
+  color: var(--footer-text);
+}
+
+.footer-status[data-open="true"]::before {
+  background: var(--volt);
+  box-shadow: var(--shadow-raised);
+}
+
+/* ── the facts, 2 × 2, bottom-right ────────────────────────────────────── */
+.footer-grow {
+  flex: 1 1 auto;
+  min-height: 24px;
+}
+
+.footer-facts {
+  max-width: 640px;
+  margin-inline-start: auto;
+  padding: 24px 0 clamp(24px, 4vw, 64px);
+  border-top: 1px solid var(--footer-line);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+@media (max-width: 420px) {
+  .footer-facts {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* On a phone bottom-right has nowhere to be bottom-right OF: measured 2026-09-05 the
+   block kept its desktop right-alignment and sat in the right 264px of a 390px screen
+   with a dead gutter beside it. Full width there. */
+@media (max-width: 720px) {
+  .footer-facts {
+    max-width: none;
+    margin-inline-start: 0;
+  }
+}
+
+.footer-block h3 {
+  margin: 0 0 12px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--footer-muted);
+}
+
+.footer-block ul {
   margin: 0;
   padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
 }
 
-.site-footer__legal {
-  margin-top: 24px;
-  font-size: var(--text-xs);
-  color: var(--muted);
+.footer-block li,
+.footer-block a {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  color: var(--footer-text);
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.footer-block__sub {
+  color: var(--footer-muted);
+  font-size: var(--text-mono-sm);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .footer-block a:hover {
+    color: var(--volt);
+  }
+}
+
+.footer-block a:focus-visible {
+  outline: 2px solid var(--volt);
+  outline-offset: 2px;
+}
+
+/* ── legal ─────────────────────────────────────────────────────────────── */
+.footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px 24px;
+  padding: 16px 0 22px;
+  border-top: 1px solid var(--footer-line);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--footer-muted);
+}
+
+.footer-legal .nav-link {
+  min-height: 0;
+  padding-inline: 0;
+  --notch-muted: var(--footer-muted);
+  --notch-text: var(--footer-text);
+}
+
+/* the same ring every other footer link gets — measured 2026-09-05 these two fell
+   back to the browser's `auto 1px` while the rest showed the design's 2px volt */
+.footer-legal .nav-link:focus-visible {
+  outline: 2px solid var(--volt);
+  outline-offset: 2px;
+}
+
+/* ── the wordmark: outlined, fitted, cropped, spotlit ──────────────────────
+   Two identical layers. The base is always there. The lit layer is a volt stroke
+   with a 30% volt fill, masked to the light's point, and fades out. Fine pointers
+   only; the base outline IS the design. The font-size here is a first paint only —
+   FooterWordmark measures the rendered text and scales it to the slab's width. */
+.footer-mark {
+  position: relative;
+  margin-inline: calc(var(--footer-pad) * -1);
+  margin-block-end: -0.2em;
+  font-size: 12vw;
+  line-height: 0.74;
+  cursor: default;
+}
+
+.footer-mark__layer {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-stretch: 122%;
+  letter-spacing: -0.045em;
+  line-height: inherit;
+  white-space: nowrap;
+  text-align: center;
+  user-select: none;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--footer-stroke);
+}
+
+.footer-mark__layer--lit {
+  position: absolute;
+  inset: 0;
+  --mx: -1000px;
+  --my: -1000px;
+  color: color-mix(in srgb, var(--volt) 30%, transparent);
+  -webkit-text-stroke: 1.5px var(--volt);
+  opacity: 0;
+  transition: opacity var(--ui) var(--ease);
+  mask-image: radial-gradient(
+    circle 170px at var(--mx) var(--my),
+    #000 0%,
+    rgba(0, 0, 0, 0.55) 45%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.footer-mark[data-lit="true"] .footer-mark__layer--lit {
+  opacity: 1;
+}
+
+@media (hover: none), (prefers-reduced-motion: reduce) {
+  .footer-mark__layer--lit {
+    display: none;
+  }
+}
+
+/* ── the glow (footer only) — driven by FooterGlow from the cursor ring ─── */
+.footer-glow {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--ui) var(--ease);
+}
+
+.site-footer__slab[data-glow="true"] .footer-glow {
+  opacity: 1;
+}
+
+.footer-glow--halo {
+  background: radial-gradient(
+    circle 230px at var(--gx) var(--gy),
+    rgba(205, 243, 69, 0.22) 0%,
+    rgba(205, 243, 69, 0.07) 50%,
+    transparent 100%
+  );
+  mix-blend-mode: screen;
+}
+
+.site-footer__slab[data-glow="true"][data-over="true"] .footer-glow--halo {
+  opacity: 0.32;
+}
+
+.footer-glow--transfer {
+  background: radial-gradient(
+    circle 170px at var(--gx) var(--gy),
+    var(--volt) 0%,
+    rgba(205, 243, 69, 0.55) 50%,
+    transparent 100%
+  );
+  mix-blend-mode: multiply;
+}
+
+.footer-glow--grid {
+  background-image:
+    linear-gradient(rgba(205, 243, 69, 0.42) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(205, 243, 69, 0.42) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image:
+    radial-gradient(
+      circle 200px at var(--gx) var(--gy),
+      #000 0%,
+      rgba(0, 0, 0, 0.5) 50%,
+      transparent 100%
+    ),
+    linear-gradient(to bottom, transparent 30%, #000 100%);
+  mask-composite: intersect;
+}
+
+@media (hover: none), (prefers-reduced-motion: reduce) {
+  .footer-glow {
+    display: none;
+  }
+}
+
+/* Windows High Contrast: the tab's fillets and the grid are decoration and may go;
+   the tab keeps a border, the wordmark keeps a stroke in a system colour. */
+@media (forced-colors: active) {
+  .site-footer__tab {
+    border: 1px solid CanvasText;
+  }
+
+  .site-footer__tab::before,
+  .site-footer__tab::after,
+  .site-footer__slab::before {
+    display: none;
+  }
+
+  .footer-mark__layer {
+    -webkit-text-stroke-color: CanvasText;
+  }
 }
 
 /* ------------------------------------------------------- product gallery */
