@@ -50,6 +50,7 @@ apps/cms/src/lib/footerCopy.ts                           CREATE  pure: splitLast
 apps/cms/src/lib/footerCopy.test.ts                      CREATE
 apps/cms/src/components/site/SiteFooter.tsx              REWRITE server component, the whole slab
 apps/cms/src/components/site/SiteFooter.test.ts          CREATE  renderToStaticMarkup assertions
+apps/cms/src/components/site/FooterTab.tsx               CREATE  'use client' — /contact everywhere, mailto: on /contact
 apps/cms/src/components/site/FooterClock.tsx             CREATE  'use client' island
 apps/cms/src/components/site/FooterWordmark.tsx          CREATE  'use client' island (fit + spotlight)
 apps/cms/src/components/site/FooterGlow.tsx              CREATE  'use client' island (three layers)
@@ -754,20 +755,38 @@ The footer's markup test (new file, SiteFooter.test.ts beside the component — 
 ```ts
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createElement } from 'react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import { EMPTY_FOOTER, type PublicSiteSettings } from '../../lib/projectPublic'
 import { SiteFooter } from './SiteFooter'
+
+// `usePathname` needs the app router; outside Next it is mocked, and the path is a
+// hoisted mutable so each case can choose the page it renders on.
+const route = vi.hoisted(() => ({ path: '/' }))
+vi.mock('next/navigation', () => ({ usePathname: () => route.path }))
+vi.mock('next/link', () => ({
+  default: ({ href, children, ...rest }: { href: string; children: unknown }) =>
+    createElement('a', { href, ...rest }, children as never),
+}))
 
 const base: PublicSiteSettings = { ...DEFAULT_SITE_SETTINGS, logoUrl: null, logoMimeType: null, footer: EMPTY_FOOTER }
 const html = (settings: PublicSiteSettings) => renderToStaticMarkup(createElement(SiteFooter, { settings }))
 
 describe('SiteFooter', () => {
   it('renders the tab as a real link to Contact, label and arrow in separate spans', () => {
+    route.path = '/'
     const out = html(base)
     expect(out).toContain('class="site-footer__tab" href="/contact"')
     expect(out).toContain('site-footer__tab-label">Start an enquiry<')
     expect(out).toContain('aria-hidden="true">→<')
+  })
+
+  it('on the Contact page the tab links to the email instead — the visitor is already there', () => {
+    route.path = '/contact'
+    const out = html(base)
+    expect(out).toContain('class="site-footer__tab" href="mailto:partner@wear-run.com"')
+    expect(out).not.toContain('site-footer__tab" href="/contact"')
+    route.path = '/'
   })
 
   it('sets the last word of the question in the serif accent', () => {
@@ -852,6 +871,7 @@ import type { PublicSiteSettings } from '../../lib/projectPublic'
 import { formatAddress } from '../../lib/structuredData'
 import { FooterClock } from './FooterClock'
 import { FooterGlow } from './FooterGlow'
+import { FooterTab } from './FooterTab'
 import { FooterWordmark } from './FooterWordmark'
 
 /**
@@ -876,12 +896,7 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
 
   return (
     <footer className="site-footer">
-      <Link className="site-footer__tab" href="/contact">
-        <span className="site-footer__tab-label">{f.ctaLabel}</span>
-        <span className="site-footer__tab-arrow" aria-hidden="true">
-          →
-        </span>
-      </Link>
+      <FooterTab label={f.ctaLabel} email={settings.email} />
 
       <div className="site-footer__slab">
         <FooterGlow />
@@ -979,7 +994,44 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
 }
 ```
 
-The three islands do not exist yet. For this task, create them as **server-safe stubs** so the markup test can run; Tasks 6 and 8 replace them:
+The tab is its own small client component, because it changes where it points depending on the page — owner decision 2026-09-05: on the Contact page a visitor is already where the tab would send them, so there it links straight to the email. Same `usePathname` pattern `NavLinks.tsx` already uses for `aria-current`; it resolves during SSR, so the href is in the HTML.
+
+```tsx
+// apps/cms/src/components/site/FooterTab.tsx
+'use client'
+
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+
+/**
+ * The flipped notch: a volt tab seated on the slab's top edge, carrying the one
+ * action. Everywhere it links to /contact; ON /contact — where the visitor already is
+ * what the tab would send them to — it links to the email instead. Both are real links
+ * with the label in the HTML, so JavaScript-off and crawlers see the same thing.
+ */
+export function FooterTab({ label, email }: { label: string; email: string }) {
+  const onContact = usePathname() === '/contact'
+  const inner = (
+    <>
+      <span className="site-footer__tab-label">{label}</span>
+      <span className="site-footer__tab-arrow" aria-hidden="true">
+        →
+      </span>
+    </>
+  )
+  return onContact ? (
+    <a className="site-footer__tab" href={`mailto:${email}`}>
+      {inner}
+    </a>
+  ) : (
+    <Link className="site-footer__tab" href="/contact">
+      {inner}
+    </Link>
+  )
+}
+```
+
+The other three islands do not exist yet. For this task, create them as **server-safe stubs** so the markup test can run; Tasks 6 and 8 replace them:
 
 ```tsx
 // apps/cms/src/components/site/FooterClock.tsx  (stub — replaced in Task 6)
@@ -988,7 +1040,7 @@ export function FooterClock(_props: { hours: FooterHours | null }) {
   return (
     <span className="footer-clock">
       <i aria-hidden="true" />
-      <span className="footer-clock__city">Sialkot · works</span>
+      <span className="footer-clock__city">Sialkot · HQ &amp; works</span>
       <span className="footer-clock__time">
         <span>--:--</span>
         <small>PKT</small>
@@ -1020,12 +1072,12 @@ export function FooterGlow() {
 - [ ] **Step 5: Run the tests**
 
 Run: `npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/lib/footerCopy.test.ts src/components/site/SiteFooter.test.ts`
-Expected: PASS. If `renderToStaticMarkup` complains about `next/link` outside a Next runtime, mock it at the top of the test: `vi.mock('next/link', () => ({ default: (p: Record<string, unknown>) => createElement('a', { ...p, href: p.href }) }))`.
+Expected: PASS — `next/link` and `next/navigation` are both mocked at the top of the test, because neither works outside a Next runtime.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/cms/src/lib/footerCopy.ts apps/cms/src/lib/footerCopy.test.ts apps/cms/src/components/site/SiteFooter.tsx apps/cms/src/components/site/SiteFooter.test.ts apps/cms/src/components/site/FooterClock.tsx apps/cms/src/components/site/FooterWordmark.tsx apps/cms/src/components/site/FooterGlow.tsx
+git add apps/cms/src/lib/footerCopy.ts apps/cms/src/lib/footerCopy.test.ts apps/cms/src/components/site/SiteFooter.tsx apps/cms/src/components/site/SiteFooter.test.ts apps/cms/src/components/site/FooterTab.tsx apps/cms/src/components/site/FooterClock.tsx apps/cms/src/components/site/FooterWordmark.tsx apps/cms/src/components/site/FooterGlow.tsx
 git commit -m "feat(cms): the Quiet Room footer markup — claim blocks render only from real values
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
@@ -1767,7 +1819,7 @@ export function FooterClock({ hours }: { hours: FooterHours | null }) {
     <>
       <span className="footer-clock">
         <i aria-hidden="true" />
-        <span className="footer-clock__city">Sialkot · works</span>
+        <span className="footer-clock__city">Sialkot · HQ &amp; works</span>
         <span className="footer-clock__time">
           <span>{now ? worksClock(now) : '--:--'}</span>
           <small>PKT</small>
@@ -2504,8 +2556,11 @@ test.describe('touch', () => {
 test.describe('without JavaScript', () => {
   test.use({ javaScriptEnabled: false })
   test('every route out still renders, the clock is honest, no cursor', async ({ page }) => {
-    await page.goto('/contact')
+    await page.goto('/')
     await expect(page.locator('.site-footer__tab')).toHaveAttribute('href', '/contact')
+    // on Contact the tab points at the email — in the HTML, not added by a script
+    await page.goto('/contact')
+    await expect(page.locator('.site-footer__tab')).toHaveAttribute('href', /^mailto:/)
     await expect(page.locator('.footer-legal a[href="/products"]')).toBeVisible()
     await expect(page.locator('.footer-block--contact a[href^="mailto:"]')).toBeVisible()
     await expect(page.locator('.footer-clock__time span').first()).toHaveText('--:--')

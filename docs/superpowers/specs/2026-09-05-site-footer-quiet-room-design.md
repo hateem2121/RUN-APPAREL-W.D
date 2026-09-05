@@ -84,7 +84,11 @@ The mechanism that makes the emptiness read as composed is a **missing middle**:
    180ms of hysteresis on leaving (four dim-and-relight toggles crossing the 2×2 became one).
    `multiply` was chosen over `overlay` by rendering both: overlay lifts the ground into a
    torch-on-the-floor; multiply puts the light into the letters, which is what was asked for.
-10. **Owner's answers to the four open questions:** whole-footer two columns → *no, the facts
+10. **Two later decisions (2026-09-05, after the audit):** on the Contact page the tab links
+    straight to the email — the visitor is already where it would send them; everywhere else
+    it links to `/contact`. The clock reads "Sialkot · HQ & works": the owner confirmed that
+    HQ, office and factory are all at the one Daska Road address.
+11. **Owner's answers to the four open questions:** whole-footer two columns → *no, the facts
     area as a 2×2*; spotlight colour → *volt*; on phones → *nothing, plain outline*; bring over
     → *all four* (serif accent, Elsewhere block, dimension line, mono eyebrow).
 
