@@ -410,11 +410,13 @@ the answer is "nothing that happens in production", it is not a test.
   verifies the loading claims above instead of asserting them, all live in
   `docs/CLAUDE-MD-MAINTENANCE.md`. Read it before moving prose between CLAUDE.md files.
 
-- **Five more traps live in `apps/cms/CLAUDE.md`** (loads on touching `apps/cms/`) —
+- **Eight more traps live in `apps/cms/CLAUDE.md`** (loads on touching `apps/cms/`) —
   `NODE_ENV=production` for any Payload CLI task against production D1, why
-  `src/migrations/` must hold only migrations, and why `withPayload` silently
-  overrides any header you set in a handler; it also carries "Before you change
-  a migration" and how to write products from a script. ⚠️ This said "Two more
+  `src/migrations/` must hold only migrations, why `withPayload` silently
+  overrides any header you set in a handler, why **`pnpm build` passing does not mean the
+  app can be DEPLOYED**, a 60s content cache, and a style gate that now reads JSX; it also
+  carries "Before you change a migration", the site's browser tests, and how to write
+  products from a script. ⚠️ This said "Two more
   **live** in" until 2026-08-17 — without the word "traps",
   `claudeMd.test.ts`'s counter silently skipped it. **"Before you delete anything in the
   CMS" below deliberately did NOT move**: it governs `apps/shrink/src/cms.ts` and

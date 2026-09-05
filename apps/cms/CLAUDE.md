@@ -35,6 +35,10 @@ root file first.
   `src/publicViewerHeaders.test.ts`, which asserts which rule WINS and carries a
   negative control reproducing the inert state. **Verify a header change in
   `.next/routes-manifest.json`, never in a handler.**
+  The public pages' Content-Security-Policy uses the same wrapper for the same reason
+  (`publicPageCspRules`), scoped to `/`, `/products`, `/contact` — an explicit list, not a
+  negative lookahead, because a wrong lookahead fails OPEN onto `/admin` and the symptom
+  is a broken Payload login rather than an error.
 
 - **Error reporting is `src/instrumentation.ts` + a hand-rolled envelope, and BOTH
   halves are load-bearing.** ⚠️ Next resolves `instrumentation.ts` from the project
@@ -63,6 +67,42 @@ root file first.
   live** (2026-08-21, fixed in PR #40). Before relaxing any per-colourway
   requirement, grep all three. ⚠️ `uptime.yml` cannot catch this — it probes an SPA
   that returns 200 HTML for any path, so it stayed green throughout.
+
+- **`pnpm build` PASSING DOES NOT MEAN THE APP CAN BE DEPLOYED.** `opennextjs-cloudflare
+  build` is a second, stricter build and nothing in `pnpm test` runs it. Measured
+  2026-09-05: a `proxy.ts` (Next 16's renamed middleware) compiled fine under `next build`,
+  `tsc --noEmit` and 2,000 tests, and failed the Cloudflare build outright — *"Node.js
+  middleware is not currently supported"*; adding `runtime: 'edge'` failed earlier still —
+  *"Proxy does not support Edge runtime"*. **There is no middleware/proxy on this stack, and
+  a per-request CSP nonce is therefore impossible.** Run
+  `pnpm --filter @run-apparel/cms exec opennextjs-cloudflare build` before trusting any
+  change to routing, middleware, headers or `next.config.mjs`. Same shape as the TypeScript
+  pin in the root file, one level deeper.
+
+- **Public page content is cached in-process for 60 seconds** (`src/lib/content.ts`), which
+  took `/products` from 302 ms to 5.7 ms in workerd. It is NOT shared between isolates and
+  NOT cleared on save, so a CMS edit can take a minute to appear — owner's decision
+  2026-09-05 over an R2 incremental cache plus a D1 tag table. Failures are never cached.
+
+- **`apps/viewer/src/styles/tokens.test.ts` now scans JSX too**, so a literal
+  `style={{ padding: '20px' }}` in a `.tsx` fails the build. It previously read only `.css`
+  and three such values had walked past it. A `var()` or computed value is still fine.
+  (Documented here because that file's own CLAUDE.md has 59 characters of headroom.)
+
+## Browser tests for the public site
+
+`pnpm --filter @run-apparel/cms test:e2e` — 70 tests, Chromium + Firefox, added 2026-09-05
+because nothing loaded `/`, `/products` or `/contact` in a browser and three blank pages
+would have passed every gate. Runs in CI as a **step inside the existing `e2e` job**, not a
+job of its own: a new job would need adding to `deploy.needs` AND the required-checks list,
+and `.github/CLAUDE.md` records that splitting those silently stops a red gate blocking.
+
+⚠️ **`e2e/prepare.mjs` SKIPS THE REBUILD LOCALLY**, so a source edit does not reach
+`next start` and a negative control passes without testing anything. Use `CI=1` when
+breaking something on purpose.
+
+⚠️ The port is owned by `playwright.config.ts` (4174) and `e2e/serve.mjs` THROWS if it is
+unset — a leaked `PORT` moved the viewer's server once and cost two dead-end runs.
 
 ## Writing products from a script
 
