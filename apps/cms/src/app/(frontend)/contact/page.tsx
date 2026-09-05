@@ -2,6 +2,8 @@ import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import { getSiteSettings } from '../../../lib/content'
 import { buildMetadata } from '../../../lib/seo'
+import { contactPageJsonLd, formatAddress } from '../../../lib/structuredData'
+import { JsonLd } from '../../../components/site/JsonLd'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,11 +15,17 @@ export const metadata: Metadata = buildMetadata({
 })
 
 /**
- * Registered address. A constant rather than a CMS field because `site-settings` has
- * no address today, and inventing a field is CMS schema work (a D1 migration) that
- * this page does not need. When the field is added, read it here and delete this.
+ * Registered address, rendered from `lib/structuredData.ts`.
+ *
+ * It lives there rather than here because the JSON-LD block on this page needs the same
+ * address broken into parts, and two copies drift — a visible address that contradicts
+ * the structured one is read by Google as a spam signal, not as a typo.
+ *
+ * Still a constant rather than a CMS field: `site-settings` has no address today, and
+ * adding one is a D1 migration this page does not need. When that field exists, read it
+ * in `structuredData.ts` and both sides follow.
  */
-const ADDRESS = '13 Km Daska Road, Sialkot, 51040, Pakistan'
+const ADDRESS = formatAddress()
 
 /**
  * ⚠️ NO FORM, ON PURPOSE. There is no endpoint to receive one: the `Inquiries`-style
@@ -33,6 +41,7 @@ export default async function ContactPage() {
 
   return (
     <>
+      <JsonLd data={contactPageJsonLd(settings)} />
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">

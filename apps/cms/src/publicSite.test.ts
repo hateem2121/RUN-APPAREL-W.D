@@ -439,3 +439,59 @@ describe('the notch', () => {
     expect(source.match(/href="\/contact"/g) ?? []).toHaveLength(1)
   })
 })
+
+describe('findability', () => {
+  const appDir = join(CMS_ROOT, 'src', 'app')
+
+  it('robots and sitemap sit at the app root, not inside a route group', () => {
+    // Route groups contribute nothing to the URL, but Next only honours these two as
+    // metadata conventions at the app root. Inside `(frontend)` they would be stray
+    // modules serving nothing, with no error to say so.
+    expect(existsSync(join(appDir, 'robots.ts'))).toBe(true)
+    expect(existsSync(join(appDir, 'sitemap.ts'))).toBe(true)
+    expect(existsSync(join(FRONTEND, 'robots.ts'))).toBe(false)
+    expect(existsSync(join(FRONTEND, 'sitemap.ts'))).toBe(false)
+  })
+
+  it('keeps crawlers out of the admin and the API', () => {
+    // Not their protection — both are behind authentication and a Disallow is a request,
+    // never access control. Worth stating anyway: without it the login screen is a
+    // candidate for indexing and /api/* is crawlable JSON that costs D1 reads.
+    const robots = code(appDir, 'robots.ts')
+    expect(robots).toMatch(/disallow:\s*\['\/admin', '\/api\/'\]/)
+    expect(robots).toMatch(/sitemap:/)
+  })
+
+  it('the sitemap speaks only for this host', () => {
+    // Cards link to viewer.wear-run.help, a different host with its own sitemap. A
+    // sitemap may only speak for the host serving it, so listing garments here would be
+    // ignored at best. It also means this file needs no database.
+    const sitemap = code(appDir, 'sitemap.ts')
+    expect(sitemap).not.toMatch(/VIEWER_ORIGIN|getProductCards/)
+    expect(sitemap).not.toMatch(/lastModified/)
+  })
+
+  it('supplies the large image it promises', () => {
+    // `twitter.card = summary_large_image` is an undertaking to provide a picture.
+    // Measured 2026-09-05: og:image and twitter:image were absent from all three pages,
+    // so every shared link rendered as a bare grey box. Promising and omitting is worse
+    // than declaring `summary`.
+    const seo = code(CMS_ROOT, 'src', 'lib', 'seo.ts')
+    expect(seo).toMatch(/card: 'summary_large_image'/)
+    expect(seo).toMatch(/images: \[OG_IMAGE\]/)
+    expect(seo).toMatch(/images: \[OG_IMAGE\.url\]/)
+    // and the file it points at must actually exist, at the ratio platforms crop to
+    expect(existsSync(join(CMS_ROOT, 'public', 'og-default.png'))).toBe(true)
+    expect(seo).toMatch(/width: 1200/)
+    expect(seo).toMatch(/height: 630/)
+  })
+
+  it('escapes `<` in structured data so a value cannot close the script element', () => {
+    // The HTML parser ends a <script> at the first literal `</script>`, inside a JSON
+    // string or not. structuredData.test.ts proves the escape defeats a hostile value;
+    // this pins that the renderer still applies it.
+    expect(code(CMS_ROOT, 'src', 'components', 'site', 'JsonLd.tsx')).toMatch(
+      /replace\(\/<\/g, '\\\\u003c'\)/,
+    )
+  })
+})

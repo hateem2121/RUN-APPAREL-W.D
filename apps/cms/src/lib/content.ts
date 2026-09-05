@@ -1,5 +1,4 @@
 import 'server-only'
-import type { ViewerSiteSettings } from '@run-apparel/shared'
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import config from '@payload-config'
 import { getPayload } from 'payload'

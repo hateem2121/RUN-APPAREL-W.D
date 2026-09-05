@@ -9,10 +9,12 @@ import './site.css'
 
 import type { Metadata } from 'next'
 import type React from 'react'
+import { JsonLd } from '../../components/site/JsonLd'
 import { SiteFooter } from '../../components/site/SiteFooter'
 import { SiteHeader } from '../../components/site/SiteHeader'
 import { getSiteSettings } from '../../lib/content'
 import { SITE_ORIGIN } from '../../lib/seo'
+import { organizationJsonLd } from '../../lib/structuredData'
 
 /**
  * The PUBLIC marketing site.
@@ -58,6 +60,10 @@ export default async function FrontendLayout({ children }: { children: React.Rea
   return (
     <html lang="en">
       <body>
+        {/* Site-wide, so every page carries the company identity a crawler or an AI
+            reader resolves the rest of the page against. The other blocks reference
+            this node by @id rather than redescribing the company. */}
+        <JsonLd data={organizationJsonLd(settings)} />
         <a className="skip-link" href="#main">
           Skip to content
         </a>

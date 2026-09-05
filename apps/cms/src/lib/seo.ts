@@ -22,6 +22,28 @@ export const VIEWER_ORIGIN = (
 const SITE_NAME = 'RUN APPAREL'
 
 /**
+ * The default social preview card.
+ *
+ * ⚠️ THE PAGES ALREADY PROMISED THIS AND DID NOT SUPPLY IT. `twitter.card` was set to
+ * `summary_large_image` — an explicit undertaking to provide a large picture — with no
+ * image anywhere in the metadata. Measured 2026-09-05: `og:image` and `twitter:image`
+ * both absent from all three pages, so every link shared to WhatsApp, LinkedIn or
+ * Slack rendered as a bare grey box. Promising a picture and omitting it is worse than
+ * declaring `summary`.
+ *
+ * 1200x630 is the ratio every major platform crops to. The 1200x1500 garment posters in
+ * `apps/viewer/public/og/` are portrait link-preview cards for individual colourways and
+ * are NOT interchangeable with this. Regenerate with
+ * `apps/cms/scripts/gen-og-image.mjs` after a brand change.
+ */
+const OG_IMAGE = {
+  url: `${SITE_ORIGIN}/og-default.png`,
+  width: 1200,
+  height: 630,
+  alt: 'RUN APPAREL — made to order, made properly. B2B apparel manufacturer, Sialkot, Pakistan.',
+}
+
+/**
  * Build page metadata with a canonical URL and matching social tags.
  *
  * WHY A HELPER RATHER THAN PER-PAGE OBJECTS. The viewer learned this the hard way: OG
@@ -50,7 +72,9 @@ export function buildMetadata({
       title,
       description,
       url,
+      locale: 'en_GB',
+      images: [OG_IMAGE],
     },
-    twitter: { card: 'summary_large_image', title, description },
+    twitter: { card: 'summary_large_image', title, description, images: [OG_IMAGE.url] },
   }
 }

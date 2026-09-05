@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
+import { JsonLd } from '../../../components/site/JsonLd'
 import { getProductCards, type ProductCard } from '../../../lib/content'
 import { buildMetadata, VIEWER_ORIGIN } from '../../../lib/seo'
+import { productListJsonLd } from '../../../lib/structuredData'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,6 +29,7 @@ export default async function ProductsPage() {
 
   return (
     <>
+      {products.length > 0 ? <JsonLd data={productListJsonLd(products)} /> : null}
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
