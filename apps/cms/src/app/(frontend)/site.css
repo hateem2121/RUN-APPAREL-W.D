@@ -51,6 +51,23 @@
   --notch-r: var(--radius-panel);
 }
 
+/*
+ * ⚠️ ANY IN-PAGE ANCHOR MUST LAND BELOW THE FIXED BAR, AND NOTHING TODAY PROVES IT DOES.
+ *
+ * There are no jump links on the site yet — the skip link targets `#main`, which sits at
+ * the very top where there is nothing to scroll past. So this fixes no visible defect.
+ * It is here because the moment one is added — a "jump to specs" link, an FAQ anchor, a
+ * deep link from an email — the browser would scroll that heading to y=0, directly
+ * underneath a 60px bar, and the reader would land on a heading they cannot see.
+ *
+ * That failure arrives with a future change and looks like a bug in that change, not
+ * here. One line prevents it, and it costs nothing while unused. `--notch-clearance` is
+ * the same value the hero clears the bar by, so the two cannot drift.
+ */
+html {
+  scroll-padding-top: var(--notch-clearance);
+}
+
 .site-container {
   width: 100%;
   max-width: 1180px;
