@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="RUN APPAREL">
+  <title>RUN APPAREL</title>
+  <!--
+    RUN APPAREL browser icon.
+
+    PORTED from the dormant website repo (its src/app/icon.svg), where it was drawn
+    against the same Paper & Ink values this repo's tokens.css holds: #f1efea is
+    --paper, #1d1f1a is --ink, #cdf345 is --volt. Reused rather than redrawn so the two
+    projects cannot end up with two different marks.
+
+    ⚠️ STILL A DRAFT, and it carries that status over with it. Its original note says it
+    "swaps for a mark derived from the vector logo whenever Hateem supplies it" — as of
+    2026-09-05 there are no logo vectors, so this stands in.
+
+    ⚠️ RAW HEX IS CORRECT HERE, and only here. tokens.css:4 forbids raw hex in
+    components because they read semantic custom properties — but a favicon is fetched
+    as a standalone document, with no page and therefore no :root to inherit from. A
+    var() would resolve to nothing and the icon would render blank. The media query is
+    how it follows the theme instead.
+  -->
+  <style>
+    .tile { fill: #f1efea; }
+    .mark { fill: #1d1f1a; }
+    .tick { fill: #cdf345; stroke: #1d1f1a; stroke-width: 1; }
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #1c1f18; }
+      .mark { fill: #cdf345; }
+      .tick { fill: #cdf345; stroke: none; }
+    }
+  </style>
+  <rect class="tile" x="0" y="0" width="64" height="64" rx="12" />
+  <text
+    class="mark"
+    x="31"
+    y="47"
+    text-anchor="middle"
+    font-family="Archivo, 'Helvetica Neue', Arial, sans-serif"
+    font-size="42"
+    font-weight="800"
+    letter-spacing="-1"
+  >R</text>
+  <circle class="tick" cx="50" cy="46" r="5" />
+</svg>
