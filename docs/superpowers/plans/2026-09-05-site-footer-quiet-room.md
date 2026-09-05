@@ -766,7 +766,9 @@ const route = vi.hoisted(() => ({ path: '/' }))
 vi.mock('next/navigation', () => ({ usePathname: () => route.path }))
 vi.mock('next/link', () => ({
   default: ({ href, children, ...rest }: { href: string; children: unknown }) =>
-    createElement('a', { href, ...rest }, children as never),
+    // `href` LAST, so the mock renders `class` before `href` like a real <a> does and
+    // both branches of the tab assert the same way
+    createElement('a', { ...rest, href }, children as never),
 }))
 
 const base: PublicSiteSettings = { ...DEFAULT_SITE_SETTINGS, logoUrl: null, logoMimeType: null, footer: EMPTY_FOOTER }
