@@ -49,7 +49,34 @@ export const SiteSettings: GlobalConfig = {
           'Around 512 x 512 is plenty. Upload it under Photos & 3D files first, then pick it here.',
       },
     },
-    { name: 'temporaryWordmark', type: 'text', required: true, defaultValue: 'RUN APPAREL' },
+    /*
+     * ⚠️ maxLength EXISTS SO THE NAME IS NOT SILENTLY SHORTENED — the layout can no
+     * longer break, and that distinction was measured rather than assumed.
+     *
+     * First attempt got this wrong in both directions. The bar originally wrapped to a
+     * second line as the wordmark grew — 112px against an 84px top clearance, silently
+     * reintroducing the overlap that clearance exists to prevent, from a CMS text field.
+     * The fix was made in CSS (`flex-wrap: nowrap` + truncation), so the bar is now 60px
+     * tall at EVERY input; re-measured at 320px across 11–32 characters, no ceiling.
+     *
+     * What is left is cosmetic: at 320px, the narrowest phone still in use, only about
+     * TWELVE characters fit before the name truncates with an ellipsis. "RUN APPAREL"
+     * is eleven. So this cap is not protecting the layout — it is keeping the value in
+     * a range where most phones show the whole name.
+     */
+    {
+      name: 'temporaryWordmark',
+      type: 'text',
+      required: true,
+      maxLength: 24,
+      defaultValue: 'RUN APPAREL',
+      admin: {
+        description:
+          'The brand name in the top bar. Short is better: on the narrowest phones only ' +
+          'about 12 characters fit, and a longer name is shortened with "…" there. ' +
+          'The page layout is safe either way.',
+      },
+    },
     { name: 'footerLine', type: 'text', required: true, defaultValue: 'RUN THE EXTRA MILE.' },
     { name: 'legalLine', type: 'text', required: true, defaultValue: '© RUN APPAREL (PVT) LTD' },
     {

@@ -339,20 +339,77 @@ describe('the notch', () => {
     )
   })
 
-  it('grows the panel with grid rows, not height, so every engine animates it', () => {
-    // Animating to `height: auto` needs interpolate-size/calc-size(), still
-    // Chromium-only in 2026. 0fr→1fr works everywhere and needs no fallback.
-    expect(css()).toMatch(/grid-template-rows: 0fr/)
-    expect(css()).toMatch(/grid-template-rows: 1fr/)
-    expect(css()).not.toMatch(/interpolate-size|calc-size\(/)
+  it('needs no JavaScript to navigate — there is no disclosure to hydrate', () => {
+    // THE DEFECT THIS REPLACES. The bar used to hide its links behind a button whose
+    // open state lived in React: `.notch:not([data-open="true"]) .notch__nav` stayed in
+    // force until hydration, so with scripting disabled at 390px **0 of 2 links were
+    // reachable**, and likewise for the second or two before the bundle lands on a slow
+    // connection. Desktop never showed it.
+    //
+    // Two no-JS replacements were measured and rejected: `<details>` (CSS can reveal a
+    // closed one, but its links are absent from the accessibility tree and unreachable
+    // by keyboard in all three engines) and the checkbox pattern (announced as a
+    // checkbox). Removing the Catalogue CTA left two short links that FIT at every
+    // width, so the disclosure is gone rather than reimplemented.
+    const source = header()
+    expect(source).not.toMatch(/'use client'/)
+    expect(source).not.toMatch(/useState|useEffect|useRef/)
+    expect(source).not.toMatch(/data-open/)
+    // and nothing in CSS may hide the links behind a state attribute again
+    expect(css()).not.toMatch(/\.notch__nav\s*\{[^}]*visibility: hidden/)
+    expect(css()).not.toMatch(/data-open/)
   })
 
-  it('hides the closed panel from the keyboard, not just from the eye', () => {
-    // A 0fr grid row still contains focusable links. Without this a keyboard user tabs
-    // into a menu they cannot see.
+  it('clears the fixed bar with a height derived from the bar, not a second guess', () => {
+    // Measured 2026-09-05: the bar's bottom sat at 68px while the hero's first line
+    // began at 64px, so it covered the opening line on EVERY phone width on all three
+    // pages. Two independent numbers had to agree and nothing made them.
+    //
+    // A literal here would be the same bug with a different value, so the clearance is
+    // computed from the tokens that produce the bar. e2e re-measures the real gap.
+    expect(css()).toMatch(/--notch-h: calc\(var\(--target-min\) \+ var\(--notch-pad-y\) \* 2\)/)
+    expect(css()).toMatch(/--notch-clearance: calc\(var\(--notch-h\) \+ 24px\)/)
     expect(css()).toMatch(
-      /\.notch:not\(\[data-open="true"\]\) \.notch__nav\s*\{[^}]*visibility: hidden/,
+      /padding-block-start: max\(clamp\(64px, 11vw, 160px\), var\(--notch-clearance\)\)/,
     )
+    // the bar must use the same padding token the clearance is derived from
+    expect(css()).toMatch(/\.notch\s*\{[\s\S]*?padding-block: var\(--notch-pad-y\)/)
+  })
+
+  it('sizes the bar against the shell, not the viewport, so a scrollbar cannot overflow it', () => {
+    // `100vw` includes a classic scrollbar; the fixed shell's width excludes it. On
+    // Windows and Linux `calc(100vw - 24px)` therefore resolves wider than the space
+    // the bar has. Invisible on macOS, where overlay scrollbars are zero-width.
+    expect(css()).toMatch(/\.notch\s*\{[\s\S]*?max-width: 100%/)
+    expect(css()).not.toMatch(/max-width: calc\(100vw/)
+  })
+
+  it('reserves the fillets width on the shell, with a token BOTH scopes can read', () => {
+    // The fillets are pseudo-elements outside the bar's box, so the shell reserves their
+    // width. The first attempt wrote that reservation using `--notch-r` while the token
+    // was still declared on `.notch` — out of scope for the shell, so the whole
+    // declaration was silently dropped and the bar ran to the viewport edge.
+    //
+    // tokens.test.ts cannot catch this shape: the property IS defined, just not where it
+    // is read. Same blind spot `--notch-muted` carries an explicit fallback for.
+    expect(css()).toMatch(/:root\s*\{[\s\S]*?--notch-r: var\(--radius-panel\)/)
+    // EXACTLY the fillet width. An earlier `calc(12px + var(--notch-r))` cost 36px of
+    // bar width — enough that the default 11-character wordmark truncated at 320px.
+    expect(css()).toMatch(/\.notch-shell\s*\{[\s\S]*?padding-inline: var\(--notch-r\)/)
+    // and it must NOT be re-declared on .notch, which would reopen the scope trap
+    expect(css()).not.toMatch(/\.notch\s*\{[^}]*--notch-r:/)
+  })
+
+  it('keeps the bar one line tall whatever the CMS wordmark says', () => {
+    // The bar's height is what the page's top spacing is derived from. With `flex-wrap:
+    // wrap` the nav dropped to a second line as the wordmark grew — 112px against an
+    // 84px clearance, reintroducing the overlap from a CMS text field with nothing
+    // failing. Measured at 320px: the fit broke at THIRTEEN characters and the default
+    // wordmark is eleven.
+    expect(css()).toMatch(/\.notch\s*\{[\s\S]*?flex-wrap: nowrap/)
+    expect(css()).toMatch(/\.notch__wordmark\s*\{[^}]*text-overflow: ellipsis/)
+    // min-width: 0 is required or the flex item refuses to shrink and overflows instead
+    expect(css()).toMatch(/\.notch__wordmark\s*\{[^}]*min-width: 0/)
   })
 
   it('keeps the card placeholder off --wash, which fails AA by two hundredths', () => {
@@ -380,32 +437,5 @@ describe('the notch', () => {
     const source = header()
     expect(source.match(/href="\/products"/g) ?? []).toHaveLength(1)
     expect(source.match(/href="\/contact"/g) ?? []).toHaveLength(1)
-  })
-
-  it('the menu button is a real button with aria-expanded and aria-controls', () => {
-    const source = header()
-    expect(source).toMatch(/type="button"/)
-    expect(source).toMatch(/aria-expanded=\{open\}/)
-    expect(source).toMatch(/aria-controls="notch-nav"/)
-    expect(source).toMatch(/id="notch-nav"/)
-  })
-
-  it('closes on Escape and hands focus back to the button', () => {
-    // Without the focus return a keyboard user is dropped at the top of the document
-    // with no idea where they are.
-    const source = header()
-    expect(source).toMatch(/event\.key !== 'Escape'/)
-    expect(source).toMatch(/toggleRef\.current\?\.focus\(\)/)
-  })
-
-  it('closes when the pointer goes down outside the notch', () => {
-    expect(header()).toMatch(/notchRef\.current\?\.contains/)
-  })
-
-  it('removes both document listeners when it closes', () => {
-    // A listener per open would accumulate for the life of the page.
-    const source = header()
-    expect(source).toMatch(/removeEventListener\('keydown'/)
-    expect(source).toMatch(/removeEventListener\('pointerdown'/)
   })
 })

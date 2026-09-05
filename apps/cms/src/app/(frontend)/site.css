@@ -17,6 +17,40 @@
 
 /* ---------------------------------------------------------------- layout */
 
+/*
+ * ⚠️ THE FIXED BAR'S HEIGHT, DERIVED — NOT TYPED IN.
+ *
+ * The navbar is `position: fixed`, so the first thing on every page has to clear it.
+ * It did not: measured 2026-09-05, the bar's bottom edge sat at 68px on phones while
+ * the hero's first line began at 64px, so the bar covered the top of the page's opening
+ * line on EVERY phone width, on all three pages. Tablets and desktops had 24–103px of
+ * clearance, which is why nothing looked wrong anywhere anyone normally checks.
+ *
+ * The cause was arithmetic: the hero's top padding is `clamp(64px, 11vw, 160px)`, and
+ * 11vw of a 390px phone is 42.9px, so the clamp floor of 64px won — against a bar that
+ * is taller than 64px. Two independent numbers that had to agree, and nothing made them.
+ *
+ * So the bar's height is now computed from the same tokens that produce it — a 44px
+ * minimum-height wordmark inside its vertical padding — and the hero clears THAT. A
+ * change to either input moves both sides together. This repo has had a height budget
+ * come out wrong three times by recalculating it and a fourth from an unaccounted
+ * transform, so `apps/cms/e2e/` re-measures the real gap at every phone width rather
+ * than trusting this comment.
+ */
+:root {
+  --notch-pad-y: 8px;
+  --notch-h: calc(var(--target-min) + var(--notch-pad-y) * 2);
+  --notch-clearance: calc(var(--notch-h) + 24px);
+  /*
+   * ⚠️ AT :root, NOT ON .notch — the shell reads it too, to reserve room for the fillets.
+   * It lived on `.notch` and the shell's `padding-inline: calc(12px + var(--notch-r))`
+   * silently resolved to nothing, so the whole declaration was dropped and the bar ran
+   * to the viewport edge. Exactly the failure `--notch-muted` carries a fallback for,
+   * and tokens.test.ts cannot see it: the property IS defined, just not in that scope.
+   */
+  --notch-r: var(--radius-panel);
+}
+
 .site-container {
   width: 100%;
   max-width: 1180px;
@@ -42,7 +76,10 @@
   isolation: isolate;
   overflow: hidden;
   border-bottom: 1px solid var(--line);
-  padding-block: clamp(64px, 11vw, 160px);
+  /* Top and bottom are no longer the same value: the top must also clear the fixed
+     bar (see --notch-clearance above), which on phones is larger than the clamp floor. */
+  padding-block-start: max(clamp(64px, 11vw, 160px), var(--notch-clearance));
+  padding-block-end: clamp(64px, 11vw, 160px);
 }
 
 .site-hero__grid {
@@ -90,6 +127,18 @@
   display: flex;
   justify-content: center;
   /*
+   * The fillets are pseudo-elements OUTSIDE the bar's box, one --notch-r wide each, so
+   * the bar cannot be allowed to grow to the full viewport or they render off-screen.
+   * Reserving their width here — rather than subtracting it from the bar's own
+   * max-width — keeps the arithmetic in one place and lets the bar simply be `100%`.
+   * The wordmark comes from the CMS, so a long one is a real input, not a hypothetical.
+   */
+  /* EXACTLY the fillet width, no more. An earlier version added 12px of breathing room
+     on top and that cost 36px of bar width — enough that even the default 11-character
+     wordmark truncated at 320px. At this value the fillets sit flush to the viewport
+     edge when the bar is at its widest, and are never clipped. */
+  padding-inline: var(--notch-r);
+  /*
    * The shell spans the viewport so the bar can centre itself, but only the bar may
    * catch the pointer. Without this a full-width invisible strip sits over the hero
    * and swallows clicks on everything beneath it — including the first CTA.
@@ -101,15 +150,39 @@
   --notch-bg: light-dark(var(--ink), var(--raised));
   --notch-text: light-dark(var(--paper), var(--text));
   --notch-muted: light-dark(rgba(241, 239, 234, 0.7), rgba(236, 235, 228, 0.7));
-  --notch-r: var(--radius-panel);
 
   position: relative;
   pointer-events: auto;
   display: flex;
   align-items: center;
+  /*
+   * ⚠️ nowrap, AND min-width: 0 — together they make the bar's height UNBREAKABLE.
+   *
+   * The page's top spacing is derived from this bar being one line (--notch-clearance).
+   * With `flex-wrap: wrap` the nav dropped to a second line the moment the wordmark grew,
+   * taking the bar to 112px against an 84px clearance — reintroducing the overlap that
+   * clearance exists to prevent, from a CMS text field, with nothing failing.
+   *
+   * Measured 2026-09-05 at 320px, the narrowest phone in use: the fit broke at THIRTEEN
+   * characters, and "RUN APPAREL" is eleven. One character of headroom is not a margin.
+   * So the wordmark truncates instead of wrapping — a bounded, visible degradation
+   * rather than a silent geometric one — and the bar is 60px at every width and every
+   * input. `min-width: 0` is required or the flex item refuses to shrink below its
+   * min-content width and overflows instead.
+   */
+  flex-wrap: nowrap;
+  min-width: 0;
   gap: 16px;
-  max-width: calc(100vw - 24px);
-  padding-block: 8px;
+  /*
+   * `100%`, NOT `100vw`. The shell is fixed with `inset-inline: 0`, so its width is the
+   * viewport MINUS any classic scrollbar, while `100vw` includes that scrollbar. On
+   * Windows and Linux, where scrollbars take real width, `calc(100vw - 24px)` therefore
+   * resolves WIDER than the space the bar actually has. Not observable on this machine —
+   * macOS overlay scrollbars are zero-width — which is exactly why it is worth fixing
+   * from the spec rather than waiting to see it.
+   */
+  max-width: 100%;
+  padding-block: var(--notch-pad-y);
   padding-inline: 18px;
   background: var(--notch-bg);
   color: var(--notch-text);
@@ -178,10 +251,23 @@
  */
 
 .notch__wordmark {
-  display: inline-flex;
-  align-items: center;
+  /*
+   * ⚠️ `block` + `line-height`, NOT `inline-flex` + `align-items`. Both centre the text
+   * on the 44px touch target, but `text-overflow: ellipsis` is ignored on a flex
+   * container — the text becomes an anonymous flex item. Measured 2026-09-05: an
+   * over-long wordmark cut mid-word to "RUN APPARI" with no ellipsis, which reads as a
+   * typo rather than as a shortened name.
+   */
+  display: block;
+  line-height: var(--target-min);
   min-height: var(--target-min);
-  flex-shrink: 0;
+  /* Shrinks and truncates rather than forcing the bar wider. flex-shrink here affects
+     WIDTH only — this is a row container, so the min-height above is unaffected. */
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 16px;
@@ -193,6 +279,7 @@
 .notch__nav {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   gap: 4px;
 }
 
@@ -247,27 +334,35 @@
  */
 
 /*
- * The menu button exists only on small screens. It is a real <button> with
- * aria-expanded, not a link, because it operates the page rather than navigating.
+ * ⚠️ THERE IS NO MENU BUTTON, AND THAT IS THE FIX — 2026-09-05.
+ *
+ * There was one: a real <button> with aria-expanded driving a `data-open` attribute,
+ * plus Escape-to-close, click-outside and focus return. All of it correct, and all of
+ * it dependent on React state — so `.notch:not([data-open="true"]) .notch__nav` stayed
+ * in force until hydration. Measured: with JavaScript disabled at 390px, **0 of 2
+ * navigation links were reachable**; on a slow connection the same holds for the second
+ * or two before the bundle arrives. Desktop was unaffected, which is why it never
+ * looked wrong.
+ *
+ * TWO REPLACEMENTS WERE TESTED AND REJECTED BEFORE THIS ONE:
+ *
+ *  - `<details>/<summary>`, the native no-JS disclosure. CSS *can* reveal a closed
+ *    details' content — verified in all three engines — but the revealed links are
+ *    **not keyboard-reachable and absent from the accessibility tree** (measured:
+ *    tab order stayed on BODY, `ariaSnapshot()` showed `- navigation` with no links).
+ *    It looks right and is invisible to exactly the users it exists for.
+ *  - The checkbox-and-label pattern. Works without JS, but screen readers announce the
+ *    menu control as a checkbox.
+ *
+ * What made the button unnecessary was removing the Catalogue CTA: two short links
+ * remain, and they FIT. Measured at every width 320–720px — the bar needs 266px inside
+ * 296px of usable space at 320px, its worst case, and gets narrower as the viewport
+ * grows. So the links are simply always present, the whole disclosure is deleted, and
+ * this component needs no browser JavaScript at all.
+ *
+ * ⚠️ If a third link or a longer wordmark is ever added, RE-MEASURE that fit before
+ * assuming it still holds. `flex-wrap` below is the safety net, not a licence.
  */
-.notch__toggle {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  min-width: var(--target-min);
-  min-height: var(--target-min);
-  flex-shrink: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--notch-text);
-  cursor: pointer;
-}
-
-.notch__toggle svg {
-  display: block;
-}
-
 /*
  * SCROLL RESPONSE — no scroll listener, no JavaScript.
  *
@@ -294,72 +389,23 @@
 }
 
 /*
- * SMALL SCREENS — the notch BECOMES the menu.
+ * SMALL SCREENS — the same bar, tightened.
  *
- * This is the behaviour Framer University's component actually ships (verified in
- * their live demo at 390px on 2026-09-05: a "Phone Closed" variant collapses to logo
- * plus a menu icon, and tapping it grows the notch downward into a panel while
- * keeping the carved bottom corners). supaste takes the other route — it abandons the
- * notch on mobile for a detached floating pill — and the owner chose to keep the
- * shape, so this follows Framer.
- *
- * WHY grid-template-rows AND NOT height. Animating to `height: auto` needs
- * `interpolate-size`/`calc-size()`, which are still Chromium-only in 2026; the 0fr→1fr
- * grid trick does the same job in every engine and needs no fallback. The panel is
- * `display: contents` on desktop, so the same single set of links sits inline in the
- * bar there — the links are in the HTML either way, which is what keeps them
- * crawlable no matter what the menu is doing.
+ * Nothing collapses and nothing hides: the wordmark and both links sit in one row at
+ * every width. `flex-wrap` is a safety net for a wordmark longer than the measured
+ * fit — it wraps to a second line rather than overflowing the bar — not an expected
+ * state. The gap and link padding tighten so the fit keeps its headroom.
  */
-.notch__panel {
-  display: contents;
-}
-
 @media (max-width: 720px) {
   .notch {
-    flex-wrap: wrap;
     gap: 8px;
-  }
-
-  .notch__toggle {
-    display: inline-flex;
-    margin-inline-start: auto;
-  }
-
-  .notch__panel {
-    display: grid;
-    grid-template-rows: 0fr;
-    width: 100%;
-    transition: grid-template-rows var(--ui) var(--ease);
-  }
-
-  .notch[data-open="true"] .notch__panel {
-    grid-template-rows: 1fr;
-  }
-
-  .notch__nav {
-    overflow: hidden;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
+    /* Buys back the width the fillet reservation costs, so the measured fit still
+       holds at 320px — the narrowest phone still in use. */
+    padding-inline: 12px;
   }
 
   .nav-link {
-    padding-inline: 0;
-  }
-}
-
-/*
- * The panel's contents must be unreachable while it is closed — a 0fr grid row still
- * contains focusable links, so a keyboard user would otherwise tab into a menu they
- * cannot see. `hidden` alone would kill the transition, so visibility carries it.
- */
-@media (max-width: 720px) {
-  .notch:not([data-open="true"]) .notch__nav {
-    visibility: hidden;
-  }
-
-  .notch[data-open="true"] .notch__nav {
-    visibility: visible;
+    padding-inline: 6px;
   }
 }
 

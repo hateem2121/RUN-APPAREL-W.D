@@ -811,6 +811,9 @@ export interface SiteSetting {
    * The little picture on the browser tab. Leave this empty and the built-in RUN mark is used. A SQUARE picture works best — a wide logo gets squashed into a tiny square and becomes unreadable. Around 512 x 512 is plenty. Upload it under Photos & 3D files first, then pick it here.
    */
   logo?: (number | null) | Media;
+  /**
+   * The brand name in the top bar. Short is better: on the narrowest phones only about 12 characters fit, and a longer name is shortened with "…" there. The page layout is safe either way.
+   */
   temporaryWordmark: string;
   footerLine: string;
   legalLine: string;
