@@ -23,13 +23,34 @@ import { SITE_ORIGIN } from '../../lib/seo'
  * they are protected by authentication, never by this metadata, and
  * `publicSite.test.ts` pins that distinction.
  */
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_ORIGIN),
-  title: {
-    template: '%s — RUN APPAREL',
-    default: 'RUN APPAREL — Custom B2B Sportswear & Team Wear Manufacturer',
-  },
-  robots: { index: true, follow: true },
+/** Shipped fallback mark, served from public/. See the comment in that file. */
+const DEFAULT_ICON = '/icon.svg'
+
+/**
+ * `generateMetadata`, not a static `metadata` export, because the tab icon is now the
+ * owner's to set: Settings → "Company logo (browser tab icon)" in the admin.
+ *
+ * ⚠️ THE FALLBACK MARK HAD TO LEAVE app/ FOR THIS TO WORK. As `app/icon.svg` it was
+ * Next's file-based metadata convention, and file-based metadata BEATS whatever
+ * generateMetadata returns — so uploading a logo would have changed nothing, silently,
+ * with the CMS field looking like it worked. It lives in public/ instead, referenced
+ * here by URL, so there is exactly one place that decides.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteSettings()
+  return {
+    metadataBase: new URL(SITE_ORIGIN),
+    title: {
+      template: '%s — RUN APPAREL',
+      default: 'RUN APPAREL — Custom B2B Sportswear & Team Wear Manufacturer',
+    },
+    robots: { index: true, follow: true },
+    icons: {
+      icon: settings.logoUrl
+        ? [{ url: settings.logoUrl, type: settings.logoMimeType ?? undefined }]
+        : [{ url: DEFAULT_ICON, type: 'image/svg+xml' }],
+    },
+  }
 }
 
 export default async function FrontendLayout({ children }: { children: React.ReactNode }) {

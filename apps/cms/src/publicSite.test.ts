@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { isAddressableColourway } from './lib/colourwayAccess'
@@ -34,6 +34,16 @@ function stripComments(source: string): string {
 
 /** Source with comments blanked — use this for every "the code says X" assertion. */
 const code = (...parts: string[]) => stripComments(read(...parts))
+
+/**
+ * The site stylesheet, comments blanked.
+ *
+ * Module scope, not inside one describe: this file's own comments discuss the very
+ * techniques being asserted about, and the `interpolate-size` check once matched the
+ * paragraph explaining why interpolate-size is NOT used. Third time that shape of
+ * false positive appeared here — the fix is always to read the code, not the prose.
+ */
+const css = () => stripComments(read(FRONTEND, 'site.css'))
 
 describe('the public site is indexable and the admin is not exposed by it', () => {
   it('the frontend layout asks to be indexed', () => {
@@ -121,6 +131,76 @@ describe('the gallery advertises only what the viewer can serve', () => {
   })
 })
 
+describe('touch targets', () => {
+  it('the contact page links clear the 44px floor', () => {
+    // MEASURED 2026-09-05 across twelve viewports: both links were 19px tall at EVERY
+    // size. Email and WhatsApp are the contact page's only two actions, so on a phone
+    // the page's entire purpose was a thumb-sized miss. Nothing looked wrong at desktop
+    // widths, which is why a sweep found it and reading the design did not.
+    //
+    // BOTH lines are required: min-height on a flex child is only a suggestion until
+    // flex-shrink is pinned — the same pairing the notch wordmark needs.
+    const rule = /a\.contact-block__value\s*\{[^}]*\}/.exec(css())?.[0] ?? ''
+    expect(rule, 'a.contact-block__value rule is missing entirely').not.toBe('')
+    expect(rule).toContain('min-height: var(--target-min)')
+    expect(rule).toContain('flex-shrink: 0')
+  })
+
+  it('the notch wordmark and links clear it too', () => {
+    for (const selector of ['.notch__wordmark', '.nav-link']) {
+      const rule = new RegExp(`\\${selector}\\s*\\{[^}]*\\}`).exec(css())?.[0] ?? ''
+      expect(rule, `${selector} rule is missing`).not.toBe('')
+      expect(rule, `${selector} does not pin the touch floor`).toContain(
+        'min-height: var(--target-min)',
+      )
+    }
+  })
+})
+
+describe('the owner can replace the tab icon from the CMS', () => {
+  it('the fallback mark is in public/, NOT app/', () => {
+    // As app/icon.svg it was Next's file-based metadata convention, and file-based
+    // metadata BEATS generateMetadata — so uploading a logo would have changed nothing
+    // while the CMS field looked like it worked. Measured 2026-09-05.
+    expect(existsSync(join(CMS_ROOT, 'public', 'icon.svg'))).toBe(true)
+    expect(existsSync(join(CMS_ROOT, 'src', 'app', 'icon.svg'))).toBe(false)
+  })
+
+  it('the layout picks the CMS logo when set and the built-in mark when not', () => {
+    const layout = code(FRONTEND, 'layout.tsx')
+    expect(layout).toContain('export async function generateMetadata')
+    expect(layout).toMatch(/settings\.logoUrl[\s\S]{0,200}DEFAULT_ICON/)
+    // A static `metadata` export cannot read the database, so it must be gone.
+    expect(layout).not.toMatch(/export const metadata:/)
+  })
+
+  it('Settings carries a logo field the owner can actually find', () => {
+    const global = code(CMS_ROOT, 'src', 'globals', 'SiteSettings.ts')
+    expect(global).toMatch(/name: 'logo'/)
+    expect(global).toMatch(/type: 'upload'/)
+    expect(global).toMatch(/relationTo: 'media'/)
+    // Images only — the same allow-list every other image field uses, so a GLB
+    // cannot be chosen as a tab icon.
+    expect(global).toMatch(/IMAGE_MIME_TYPES/)
+  })
+
+  it('reads settings at depth 1, or the upload arrives as a bare row id', () => {
+    expect(code(CMS_ROOT, 'src', 'lib', 'content.ts')).toMatch(
+      /findGlobal\(\{ slug: 'site-settings', depth: 1 \}\)/,
+    )
+  })
+
+  it('the migration adds the column without rebuilding the table', () => {
+    // A rebuild is the most hazardous operation in this repo on D1: a DROP runs an
+    // implicit DELETE that cascades, and it emptied two tables in production on
+    // 2026-07-29. ADD COLUMN does none of that.
+    const migration = code(CMS_ROOT, 'src', 'migrations', '20260905_090000_site_logo.ts')
+    expect(migration).toMatch(/ALTER TABLE .{0,2}site_settings.{0,2} ADD COLUMN .{0,2}logo_id/)
+    expect(migration).not.toMatch(/CREATE TABLE __new|DROP TABLE/)
+    expect(code(CMS_ROOT, 'src', 'migrations', 'index.ts')).toContain('20260905_090000_site_logo')
+  })
+})
+
 describe('copy rules', () => {
   /**
    * The viewer's e2e suite asserts the product page carries no retail language
@@ -184,14 +264,6 @@ describe('public pages are never pre-rendered', () => {
 })
 
 describe('the notch', () => {
-  /*
-   * Comments stripped, like every other source assertion in this file. This file's own
-   * comments discuss the very techniques being asserted about — the `interpolate-size`
-   * check below matched the paragraph explaining why interpolate-size is NOT used.
-   * Third time that shape of false positive has appeared here; the fix is always to
-   * read the code, not the prose.
-   */
-  const css = () => stripComments(read(FRONTEND, 'site.css'))
   const header = () => code(CMS_ROOT, 'src', 'components', 'site', 'SiteHeader.tsx')
 
   it('draws its concave corners with a mask, so the blueprint grid shows through', () => {

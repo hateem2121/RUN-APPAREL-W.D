@@ -807,6 +807,10 @@ export interface SiteSetting {
    */
   whatsappNumber: string;
   catalogueUrl: string;
+  /**
+   * The little picture on the browser tab. Leave this empty and the built-in RUN mark is used. A SQUARE picture works best — a wide logo gets squashed into a tiny square and becomes unreadable. Around 512 x 512 is plenty. Upload it under Photos & 3D files first, then pick it here.
+   */
+  logo?: (number | null) | Media;
   temporaryWordmark: string;
   footerLine: string;
   legalLine: string;
@@ -889,6 +893,7 @@ export interface SiteSettingsSelect<T extends boolean = true> {
   email?: T;
   whatsappNumber?: T;
   catalogueUrl?: T;
+  logo?: T;
   temporaryWordmark?: T;
   footerLine?: T;
   legalLine?: T;

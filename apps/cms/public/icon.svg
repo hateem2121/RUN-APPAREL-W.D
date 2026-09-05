@@ -1,7 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="RUN APPAREL">
   <title>RUN APPAREL</title>
   <!--
-    RUN APPAREL browser icon.
+    RUN APPAREL browser icon — the FALLBACK, used when Settings has no logo.
+
+    ⚠️ IT LIVES IN public/, NOT app/, ON PURPOSE. As `app/icon.svg` this was Next's
+    file-based metadata convention, and file-based metadata BEATS anything
+    generateMetadata returns — so the owner could upload a logo in the CMS and this
+    would keep winning, silently. Moved to public/ so there is exactly one source of
+    truth: layout.tsx picks the CMS logo when one is set and this when one is not.
 
     PORTED from the dormant website repo (its src/app/icon.svg), where it was drawn
     against the same Paper & Ink values this repo's tokens.css holds: #f1efea is

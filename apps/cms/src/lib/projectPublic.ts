@@ -13,6 +13,19 @@ import { isAddressableColourway } from './colourwayAccess'
  * stays a thin Payload wrapper around them.
  */
 
+/**
+ * The shared settings the viewer also uses, plus the one field only the public site
+ * needs. Kept as an EXTENSION rather than added to ViewerSiteSettings in
+ * packages/shared: that type is the viewer's API contract, and the viewer has no tab
+ * icon to set. Widening it would push a field into the public viewer payload that
+ * nothing there reads.
+ */
+export interface PublicSiteSettings extends ViewerSiteSettings {
+  /** Owner-uploaded tab icon. `null` falls back to the built-in mark in public/. */
+  logoUrl: string | null
+  logoMimeType: string | null
+}
+
 /** One card on the public product gallery. */
 export interface ProductCard {
   slug: string
@@ -40,10 +53,17 @@ const text = (value: unknown): string => (typeof value === 'string' ? value.trim
  */
 export function mergeSiteSettings(
   doc: Record<string, unknown> | null | undefined,
-): ViewerSiteSettings {
+): PublicSiteSettings {
   const pick = (key: keyof ViewerSiteSettings): string =>
     text(doc?.[key]) || DEFAULT_SITE_SETTINGS[key]
+  // Populated only at depth >= 1. At depth 0 Payload leaves an upload as a bare row
+  // id, which is a number, not a URL — rendering it would emit a broken icon link.
+  const logo = doc?.logo
+  const logoDoc =
+    logo && typeof logo === 'object' ? (logo as { url?: unknown; mimeType?: unknown }) : null
   return {
+    logoUrl: text(logoDoc?.url) || null,
+    logoMimeType: text(logoDoc?.mimeType) || null,
     companyName: pick('companyName'),
     email: pick('email'),
     whatsappNumber: pick('whatsappNumber'),

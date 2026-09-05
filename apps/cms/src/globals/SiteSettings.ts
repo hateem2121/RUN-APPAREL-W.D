@@ -1,4 +1,5 @@
 import type { GlobalConfig } from 'payload'
+import { IMAGE_MIME_TYPES } from '../collections/mediaRules'
 import { isAdmin, isAuthenticated } from '../access/roles'
 
 export const SiteSettings: GlobalConfig = {
@@ -33,6 +34,20 @@ export const SiteSettings: GlobalConfig = {
       type: 'text',
       required: true,
       defaultValue: 'https://wear-run.help/catalogue',
+    },
+    {
+      name: 'logo',
+      type: 'upload',
+      relationTo: 'media',
+      label: 'Company logo (browser tab icon)',
+      // Same allow-list every other image field uses, so a GLB can never be picked.
+      filterOptions: { mimeType: { in: [...IMAGE_MIME_TYPES] } },
+      admin: {
+        description:
+          'The little picture on the browser tab. Leave this empty and the built-in RUN mark is used. ' +
+          'A SQUARE picture works best — a wide logo gets squashed into a tiny square and becomes unreadable. ' +
+          'Around 512 x 512 is plenty. Upload it under Photos & 3D files first, then pick it here.',
+      },
     },
     { name: 'temporaryWordmark', type: 'text', required: true, defaultValue: 'RUN APPAREL' },
     { name: 'footerLine', type: 'text', required: true, defaultValue: 'RUN THE EXTRA MILE.' },

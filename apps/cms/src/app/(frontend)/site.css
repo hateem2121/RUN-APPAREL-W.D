@@ -537,6 +537,23 @@
   color: var(--text);
 }
 
+/*
+ * ⚠️ THE TWO LINKS ON THIS PAGE ARE THE WHOLE POINT OF IT, and they measured 19px tall
+ * at EVERY viewport — under half the 44px floor in docs/DESIGN.md. Email and WhatsApp
+ * are the contact page's only two actions, and on a phone they were a thumb-sized miss.
+ * Found by sweeping twelve viewports, not by looking: at desktop widths a 19px link is
+ * unremarkable, so nothing in the design read as wrong.
+ *
+ * Both lines are needed. `min-height` alone is a suggestion on a flex child, which is
+ * the same pairing the notch wordmark needs.
+ */
+a.contact-block__value {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  flex-shrink: 0;
+}
+
 .contact-block__note {
   margin-top: 8px;
   font-size: var(--text-sm);

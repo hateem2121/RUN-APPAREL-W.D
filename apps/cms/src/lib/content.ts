@@ -3,7 +3,12 @@ import type { ViewerSiteSettings } from '@run-apparel/shared'
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import config from '@payload-config'
 import { getPayload } from 'payload'
-import { type ProductCard, mergeSiteSettings, toProductCard } from './projectPublic'
+import {
+  type ProductCard,
+  type PublicSiteSettings,
+  mergeSiteSettings,
+  toProductCard,
+} from './projectPublic'
 
 /**
  * Server-only content access for the PUBLIC marketing pages.
@@ -24,7 +29,7 @@ import { type ProductCard, mergeSiteSettings, toProductCard } from './projectPub
  * fully, with the defaults and an empty gallery, and logged the cause once per read.
  */
 
-export type { ProductCard }
+export type { ProductCard, PublicSiteSettings }
 
 let cachedPayload: Awaited<ReturnType<typeof getPayload>> | null = null
 
@@ -34,14 +39,15 @@ async function client() {
 }
 
 /** Site-wide settings, falling back to the shared defaults on any failure. */
-export async function getSiteSettings(): Promise<ViewerSiteSettings> {
+export async function getSiteSettings(): Promise<PublicSiteSettings> {
   try {
     const payload = await client()
-    const doc = await payload.findGlobal({ slug: 'site-settings', depth: 0 })
+    // depth 1 populates the `logo` upload; at depth 0 it is a bare row id.
+    const doc = await payload.findGlobal({ slug: 'site-settings', depth: 1 })
     return mergeSiteSettings(doc as unknown as Record<string, unknown>)
   } catch (err) {
     console.error('[content] site-settings unavailable, using defaults:', err)
-    return DEFAULT_SITE_SETTINGS
+    return { ...DEFAULT_SITE_SETTINGS, logoUrl: null, logoMimeType: null }
   }
 }
 

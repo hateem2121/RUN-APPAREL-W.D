@@ -4,9 +4,35 @@ import { mergeSiteSettings, toProductCard } from './projectPublic'
 
 describe('mergeSiteSettings', () => {
   it('uses the shared defaults when the global has never been saved', () => {
-    expect(mergeSiteSettings(null)).toEqual(DEFAULT_SITE_SETTINGS)
-    expect(mergeSiteSettings(undefined)).toEqual(DEFAULT_SITE_SETTINGS)
-    expect(mergeSiteSettings({})).toEqual(DEFAULT_SITE_SETTINGS)
+    // toMatchObject, not toEqual: the return type EXTENDS ViewerSiteSettings with the
+    // tab-icon fields, which the shared defaults deliberately do not carry.
+    for (const doc of [null, undefined, {}]) {
+      expect(mergeSiteSettings(doc)).toMatchObject(DEFAULT_SITE_SETTINGS)
+      expect(mergeSiteSettings(doc).logoUrl).toBeNull()
+      expect(mergeSiteSettings(doc).logoMimeType).toBeNull()
+    }
+  })
+
+  describe('the owner-uploaded tab icon', () => {
+    it('projects a populated logo upload', () => {
+      const merged = mergeSiteSettings({
+        logo: { url: 'https://media.wear-run.help/logo.png', mimeType: 'image/png' },
+      })
+      expect(merged.logoUrl).toBe('https://media.wear-run.help/logo.png')
+      expect(merged.logoMimeType).toBe('image/png')
+    })
+
+    it('IGNORES a bare row id, which is what a depth-0 read returns', () => {
+      // getSiteSettings reads at depth 1 for exactly this reason. If that ever drops
+      // back to 0 the upload arrives as a number, and rendering it would emit
+      // <link rel="icon" href="7"> — a broken icon on every page, with nothing failing.
+      expect(mergeSiteSettings({ logo: 7 }).logoUrl).toBeNull()
+      expect(mergeSiteSettings({ logo: null }).logoUrl).toBeNull()
+    })
+
+    it('falls back when the media row exists but carries no URL', () => {
+      expect(mergeSiteSettings({ logo: { mimeType: 'image/png' } }).logoUrl).toBeNull()
+    })
   })
 
   it('prefers saved values over defaults', () => {
