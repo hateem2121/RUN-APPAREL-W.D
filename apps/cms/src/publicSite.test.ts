@@ -615,24 +615,35 @@ describe('the 404, the policy, and analytics', () => {
     expect(existsSync(join(FRONTEND, '[...unmatched]', 'page.tsx'))).toBe(true)
   })
 
-  it('scopes the security policy to the public pages by an explicit list', () => {
-    // ⚠️ A negative lookahead that is subtly wrong fails OPEN — it would apply the policy
-    // to /admin, and the symptom would be a broken Payload login rather than an error
-    // naming this file. next.config.mjs records why /admin deliberately has no full CSP.
-    const proxy = code(CMS_ROOT, 'src', 'proxy.ts')
-    expect(proxy).toMatch(/matcher: \['\/', '\/products', '\/contact'\]/)
-    expect(proxy).not.toMatch(/\(\?!/)
-    // a nonce, not a hash, and never unsafe-inline for scripts
-    expect(proxy).toMatch(/'nonce-\$\{nonce\}'/)
-    expect(proxy).toMatch(/'strict-dynamic'/)
-    expect(proxy).not.toMatch(/script-src[^`]*unsafe-inline/)
+  it('gives the public pages a CSP and leaves the admin alone', () => {
+    // ⚠️ NO NONCE, AND NOT FOR WANT OF TRYING. A nonce needs per-request middleware, and
+    // measured 2026-09-05: `proxy.ts` on the Node runtime fails the Cloudflare build
+    // ("Node.js middleware is not currently supported"), and with `runtime: 'edge'` it
+    // fails earlier ("Proxy does not support Edge runtime"). Both with pnpm build, the
+    // typecheck and the whole suite GREEN — only `opennextjs-cloudflare build` fails.
+    // ⚠️ `code`, NOT `read` — comments blanked. The first version read the raw file, and
+    // that file's own comment explains why `object-src 'none'` matters, so deleting the
+    // real directive still matched the prose. A negative control caught it: removing the
+    // directive failed nothing. Fourth time this shape of false positive has appeared in
+    // this repo's style tests, and the fix is always the same — assert against the code.
+    const headers = code(CMS_ROOT, 'publicViewerHeaders.mjs')
+    expect(headers).toMatch(/PUBLIC_PAGE_SOURCES = \['\/', '\/products', '\/contact'\]/)
+    // The directives that are worth having regardless of the inline-script compromise:
+    // each closes an attack class that has nothing to do with inline scripts.
+    for (const directive of ["object-src 'none'", "base-uri 'self'", "form-action 'self'"]) {
+      expect(headers, `CSP is missing ${directive}`).toContain(directive)
+    }
+    // and it must be appended AFTER withPayload's blanket rule, or it never applies —
+    // the exact way L1's Vary fix shipped green and inert in production.
+    // Whitespace-insensitive: the formatter reflows this call across lines, and an
+    // assertion that depends on its layout fails for a reason that is not a defect.
+    expect(headers.replace(/\s+/g, ' ')).toMatch(/publicViewerVaryRule,\s*\.\.\.publicPageCspRules/)
   })
 
-  it('is proxy.ts, the convention Next 16 has not deprecated', () => {
-    // `next build` prints "The middleware file convention is deprecated" for the old
-    // name. Same signature, same config, current name — do not rename it back from an
-    // older tutorial.
-    expect(existsSync(join(CMS_ROOT, 'src', 'proxy.ts'))).toBe(true)
+  it('has no middleware or proxy file, because neither can be deployed', () => {
+    // Keeping a dead one around would break `opennextjs-cloudflare build` again, and
+    // `pnpm build` would stay green while it did.
+    expect(existsSync(join(CMS_ROOT, 'src', 'proxy.ts'))).toBe(false)
     expect(existsSync(join(CMS_ROOT, 'src', 'middleware.ts'))).toBe(false)
   })
 
@@ -642,15 +653,18 @@ describe('the 404, the policy, and analytics', () => {
     // it silently and analytics records nothing while everything looks green.
     const analytics = code(site('Analytics.tsx'))
     expect(analytics).toMatch(/if \(!token\) return null/)
-    expect(analytics).toMatch(/nonce=\{nonce\}/)
   })
 
-  it('threads the nonce to every script the app renders itself', () => {
-    // Next stamps its OWN tags from the CSP request header, but not the JSON-LD blocks
-    // or the beacon. Without the nonce those are refused with only a console entry.
-    expect(code(site('JsonLd.tsx'))).toMatch(/nonce=\{nonce\}/)
+  it('carries no leftover nonce plumbing', () => {
+    // The nonce was threaded through the layout, both pages, JsonLd and Analytics before
+    // the Cloudflare build proved a proxy cannot exist here. Leaving it would be exactly
+    // the dead code this audit found in the `aria-current` rule: present, plausible, and
+    // wired to nothing.
+    for (const file of [site('JsonLd.tsx'), site('Analytics.tsx')]) {
+      expect(code(file), file).not.toMatch(/nonce/)
+    }
     for (const page of ['layout.tsx', join('products', 'page.tsx'), join('contact', 'page.tsx')]) {
-      expect(code(FRONTEND, page), page).toMatch(/x-nonce/)
+      expect(code(FRONTEND, page), page).not.toMatch(/x-nonce|next\/headers/)
     }
   })
 })

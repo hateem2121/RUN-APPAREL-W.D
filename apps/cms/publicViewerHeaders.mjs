@@ -44,6 +44,53 @@ export const PUBLIC_VIEWER_SOURCE = '/api/public/viewer/:path*'
  */
 export const PUBLIC_VIEWER_VARY = 'Origin, Sec-CH-Prefers-Color-Scheme'
 
+/**
+ * The PUBLIC MARKETING PAGES' Content-Security-Policy.
+ *
+ * ⚠️ THERE IS NO NONCE HERE, AND IT IS NOT FOR WANT OF TRYING. A nonce-based policy is
+ * the right answer and is impossible on this stack today. Measured 2026-09-05:
+ *
+ *   `proxy.ts` on the Node runtime  ->  `opennextjs-cloudflare build` fails:
+ *                                        "Node.js middleware is not currently supported"
+ *   the same file with `runtime: 'edge'` ->  the build fails earlier:
+ *                                        "Proxy does not support Edge runtime"
+ *
+ * Both were reached with `pnpm build`, `pnpm typecheck` and the full suite GREEN — only
+ * the Cloudflare build, the one that actually produces a deploy, fails. Nothing else can
+ * generate a per-request nonce: a layout cannot set a response header, and hashes cannot
+ * work against dynamically-rendered pages whose inline flight data changes per request.
+ *
+ * So `script-src` carries 'unsafe-inline', which next.config.mjs rightly calls a false
+ * sense of safety AGAINST INLINE INJECTION — and the rest of this policy is not
+ * theatre. `object-src 'none'`, `base-uri 'self'` and `form-action 'self'` each close a
+ * real attack class that has nothing to do with inline scripts: base-tag hijacking of
+ * every relative URL on the page, plugin-based execution, and a stolen page posting
+ * credentials elsewhere. Those are worth having on their own.
+ *
+ * ⚠️ SCOPED TO THE THREE PUBLIC PATHS. `/admin` keeps only `frame-ancestors 'none'` from
+ * SECURITY_HEADERS, deliberately — see the note in next.config.mjs. Widening this source
+ * would break the Payload login rather than fail loudly.
+ */
+export const PUBLIC_PAGE_SOURCES = ['/', '/products', '/contact']
+
+export const PUBLIC_PAGE_CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https://media.wear-run.help",
+  "font-src 'self'",
+  "connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ')
+
+export const publicPageCspRules = PUBLIC_PAGE_SOURCES.map((source) => ({
+  source,
+  headers: [{ key: 'Content-Security-Policy', value: PUBLIC_PAGE_CSP }],
+}))
+
 export const publicViewerVaryRule = {
   source: PUBLIC_VIEWER_SOURCE,
   headers: [{ key: 'Vary', value: PUBLIC_VIEWER_VARY }],
@@ -58,7 +105,16 @@ export function withPublicViewerVary(config) {
   const inner = config.headers
   return {
     ...config,
-    headers: async () => [...((await inner?.()) ?? []), publicViewerVaryRule],
+    // ⚠️ ORDER IS THE WHOLE MECHANISM. Next applies matching rules in order and the LAST
+    // one wins, and `withPayload` appends its own blanket `/:path*` rule after whatever
+    // nextConfig.headers() returns. These therefore go after BOTH: the Vary rule for the
+    // public viewer API, then the CSP for the three marketing pages, which overrides the
+    // weaker `frame-ancestors`-only policy SECURITY_HEADERS sets for everything else.
+    headers: async () => [
+      ...((await inner?.()) ?? []),
+      publicViewerVaryRule,
+      ...publicPageCspRules,
+    ],
   }
 }
 

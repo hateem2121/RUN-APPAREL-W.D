@@ -21,14 +21,13 @@
  * nonce the browser silently refuses to run it and analytics quietly records nothing —
  * green, deployed, and blind, which is this repo's most repeated failure shape.
  */
-export function Analytics({ nonce }: { nonce?: string }) {
+export function Analytics() {
   const token = process.env.CF_ANALYTICS_TOKEN?.trim()
   if (!token) return null
 
   return (
     <script
       defer
-      nonce={nonce}
       src="https://static.cloudflareinsights.com/beacon.min.js"
       // The attribute Cloudflare's beacon reads. JSON.stringify rather than a template
       // string so a malformed token cannot produce malformed JSON.

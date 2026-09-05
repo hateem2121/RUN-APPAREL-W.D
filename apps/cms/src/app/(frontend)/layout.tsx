@@ -34,7 +34,6 @@ import '@run-apparel/ui/base.css'
 import './site.css'
 
 import type { Metadata } from 'next'
-import { headers } from 'next/headers'
 import type React from 'react'
 import { Analytics } from '../../components/site/Analytics'
 import { JsonLd } from '../../components/site/JsonLd'
@@ -102,23 +101,13 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function FrontendLayout({ children }: { children: React.ReactNode }) {
   const settings = await getSiteSettings()
-  /*
-   * The per-request nonce from proxy.ts. `script-src` governs every <script> this
-   * app renders itself — the JSON-LD blocks and the analytics beacon — and Next only
-   * stamps its OWN tags. Without this they are silently refused: no error, no analytics,
-   * no structured data, and a green deploy.
-   *
-   * Undefined on any route the middleware matcher does not cover, which is correct:
-   * there is no CSP on those, so there is nothing to satisfy.
-   */
-  const nonce = (await headers()).get('x-nonce') ?? undefined
   return (
     <html lang="en">
       <body>
         {/* Site-wide, so every page carries the company identity a crawler or an AI
             reader resolves the rest of the page against. The other blocks reference
             this node by @id rather than redescribing the company. */}
-        <JsonLd data={organizationJsonLd(settings)} nonce={nonce} />
+        <JsonLd data={organizationJsonLd(settings)} />
         <a className="skip-link" href="#main">
           Skip to content
         </a>
@@ -136,7 +125,7 @@ export default async function FrontendLayout({ children }: { children: React.Rea
           {children}
         </main>
         <SiteFooter settings={settings} />
-        <Analytics nonce={nonce} />
+        <Analytics />
       </body>
     </html>
   )

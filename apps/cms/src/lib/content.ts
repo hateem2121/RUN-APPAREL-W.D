@@ -30,6 +30,41 @@ import {
 
 export type { ProductCard, PublicSiteSettings }
 
+/**
+ * A SHORT IN-PROCESS CACHE, and the honest limits of it.
+ *
+ * ⚠️ MEASURED IN THE REAL WORKERS RUNTIME, 2026-09-05: `/` answered in 9.8 ms, `/contact`
+ * in 20.8 ms, and `/products` in **302 ms** — fifteen times slower, because it queries
+ * D1 for every published product at depth 1 on every single request. The pages are
+ * `force-dynamic` (they must be: no D1 binding exists during `next build`), and
+ * `Cache-Control` is `no-store`, so nothing anywhere kept a copy.
+ *
+ * ⚠️ WHAT THIS IS NOT. It is not shared between Workers isolates and it is not cleared
+ * when the CMS is saved, so a change can take up to TTL_MS to appear — the owner chose
+ * this trade on 2026-09-05 over the alternative, which needed a new R2 bucket for
+ * Next's incremental cache plus a tag table in the production database. That remains the
+ * upgrade path if instant invalidation is ever wanted; nothing here blocks it.
+ *
+ * ⚠️ FAILURES ARE NEVER CACHED. Both readers below fall back to defaults when D1 is
+ * unhappy, and caching that fallback would turn a bad second into a bad minute. Only a
+ * successful read is stored.
+ *
+ * Public, non-personalised data only. Nothing user-specific passes through here, so
+ * there is no risk of one visitor being served another's response.
+ */
+const TTL_MS = 60_000
+
+type Cached<T> = { value: T; expires: number }
+
+let settingsCache: Cached<PublicSiteSettings> | null = null
+let productsCache: Cached<ProductCard[]> | null = null
+
+/** Exported for the tests, which must not depend on wall-clock timing to prove a miss. */
+export function __clearContentCache(): void {
+  settingsCache = null
+  productsCache = null
+}
+
 let cachedPayload: Awaited<ReturnType<typeof getPayload>> | null = null
 
 async function client() {
@@ -39,11 +74,14 @@ async function client() {
 
 /** Site-wide settings, falling back to the shared defaults on any failure. */
 export async function getSiteSettings(): Promise<PublicSiteSettings> {
+  if (settingsCache && settingsCache.expires > Date.now()) return settingsCache.value
   try {
     const payload = await client()
     // depth 1 populates the `logo` upload; at depth 0 it is a bare row id.
     const doc = await payload.findGlobal({ slug: 'site-settings', depth: 1 })
-    return mergeSiteSettings(doc as unknown as Record<string, unknown>)
+    const value = mergeSiteSettings(doc as unknown as Record<string, unknown>)
+    settingsCache = { value, expires: Date.now() + TTL_MS }
+    return value
   } catch (err) {
     console.error('[content] site-settings unavailable, using defaults:', err)
     return { ...DEFAULT_SITE_SETTINGS, logoUrl: null, logoMimeType: null }
@@ -52,6 +90,7 @@ export async function getSiteSettings(): Promise<PublicSiteSettings> {
 
 /** Every product the viewer can actually serve, in the order the CMS orders them. */
 export async function getProductCards(): Promise<ProductCard[]> {
+  if (productsCache && productsCache.expires > Date.now()) return productsCache.value
   try {
     const payload = await client()
     const res = await payload.find({
@@ -63,9 +102,11 @@ export async function getProductCards(): Promise<ProductCard[]> {
       // 0 they arrive as numeric IDs and every card would draw the placeholder.
       depth: 1,
     })
-    return res.docs
+    const value = res.docs
       .map((doc) => toProductCard(doc as unknown as Record<string, unknown>))
       .filter((card): card is ProductCard => card !== null)
+    productsCache = { value, expires: Date.now() + TTL_MS }
+    return value
   } catch (err) {
     console.error('[content] products unavailable:', err)
     return []
