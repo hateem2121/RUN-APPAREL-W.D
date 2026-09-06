@@ -190,9 +190,11 @@ enforced globally in `base.css`, not per-component.
 | `--text-mono` | 0.6875rem | 11px |
 | `--text-mono-sm` | 0.625rem | 10px |
 | `--text-wordmark` | 1.125rem | 18px — `.header__wordmark`, wide |
-| `--text-wordmark-sm` | 1rem | 16px — `.header__wordmark` compact, `.footer__brand` |
+| `--text-wordmark-sm` | 1rem | 16px — `.header__wordmark` compact, `.footer__brand`, the marketing site's `.notch__wordmark` |
 | `--text-note` | 0.875rem | 14px — `.stage__error`, `.notice`, `.contact__micro` |
 | `--text-mono-lg` | 0.75rem | 12px — tracked caps one step above `--text-mono` |
+| `--text-card-title` | 1.125rem | 18px — the marketing site's `.product-card__name`; the wordmark's size in a different role |
+| `--text-footer-mark` | 12vw | first paint only — the site's cropped footer wordmark, refitted to the slab's width by `FooterWordmark.tsx` once fonts load |
 
 ⚠️ **rem since 2026-09-04, and the unit is the accessibility feature.** Every size
 here was px and `html` declares no font-size, so a visitor who set their browser's
@@ -244,10 +246,28 @@ and it shipped as 21 literals until 2026-09-05.
 |---|---|---|
 | `--tracking-caps-tight` | 0.1em | `.btn`, `.step__num`, `.step__title`, `.stage__hint`, `.colourway-tab`, `.callout`, `.preloader__status` |
 | `--tracking-caps` | 0.12em | `.label`, `.camera-btn`, `.spec-list dt`, `.stage__ar`, `.stage__loading`, `.stage-block__name` |
-| `--tracking-caps-wide` | 0.14em | `.section-number`, `.footer__line` |
-| `--tracking-caps-compact` | 0.06em | the colourway rail below its 500px container |
+| `--tracking-caps-wide` | 0.14em | `.section-number`, `.footer__line`; the site's `.footer-clock__time small` |
+| `--tracking-caps-compact` | 0.06em | the colourway rail below its 500px container; the site's `.footer-clock__time` |
 | `--tracking-mono` | 0.11em | `.mono` — see the warning below |
 | `--tracking-wordmark` | -0.02em | `.header__wordmark`, `.footer__brand`, and the aside heading that borrows it |
+| `--tracking-caps-snug` | 0.08em | the marketing site: `.nav-link`, `.product-card__img` alt text, `.product-card__placeholder` |
+| `--tracking-caps-spaced` | 0.16em | the site footer's facts headings, `.footer-block h3`, and the open light `.footer-status` |
+| `--tracking-instrument` | 0.17em | the site footer's instrument captions: the `.site-footer__tab` label and the `.footer-dim` dimension line |
+| `--tracking-clock-caption` | 0.18em | `.footer-clock__city` — "SIALKOT · HQ & WORKS" |
+| `--tracking-eyebrow` | 0.2em | `.footer-eyebrow` — the mono eyebrow over the footer's question |
+| `--tracking-legal` | 0.13em | `.footer-legal` — the © line and its two links |
+| `--tracking-link-mono` | 0.055em | `.footer-block a` — the email and WhatsApp rows |
+| `--tracking-footer-mark` | -0.045em | `.footer-mark__layer` — the cropped outline wordmark at 122% stretch |
+
+**The eight site rows landed 2026-09-06, the day the two branches merged.** The
+marketing site (`apps/cms`) reads the same token file, and this branch's
+`tokens.test.ts` deliberately scans its stylesheet, so the three gates above reached
+21 values the navbar and footer had shipped as literals. They are named by **role**
+rather than by scale step because three of them — 0.16, 0.17 and 0.18em — are a
+tenth of a pixel apart at the 10px chip size, and no step name could tell them apart
+honestly. They were kept exact by owner decision ("the site keeps looking exactly as
+approved") rather than folded into one; folding would have been the tidier table and
+the wrong reason, exactly as the `--tracking-mono` warning below says.
 
 ⚠️ **`--tracking-mono` is 0.11em and must not be folded into `--tracking-caps`.**
 The Mono table above states 11px/0.11em and 10px/0.12em as separate rows, and they
@@ -349,18 +369,28 @@ Pure black is wrong in both halves of this system for the same reason `--ink` is
 
 ### Layering
 
-Seven stacking contexts, in reading order from the canvas upward. Added as tokens
-2026-09-05; the numbers are exactly what shipped, so nothing moved.
+Seven stacking contexts in the viewer, in reading order from the canvas upward, and
+three more that only the marketing site uses. Added as tokens 2026-09-05 (the
+viewer's) and 2026-09-06 (the site's); the numbers are exactly what shipped, so
+nothing moved — with one stated exception below.
 
 | Token | Value | Layer |
 |---|---|---|
+| `--z-hero-grid` | -1 | the site's `.site-hero__grid` — the blueprint grid behind the hero copy |
 | `--z-stage-control` | 1 | `.stage__ar` — inside the stage, above the canvas |
-| `--z-header` | 40 | the sticky header |
+| `--z-footer-tab` | 2 | the site's `.site-footer__tab` — seated on the footer slab's top edge |
+| `--z-footer-glow` | 6 | the site's `.footer-glow` — the light, blended over the slab's content |
+| `--z-header` | 40 | the sticky header; the site's `.notch-shell` shares it |
 | `--z-action-bar` | 50 | the persistent contact bar |
 | `--z-grain` | 60 | the full-page grain overlay |
 | `--z-cursor` | 70 | `.cursor-ring`, pointer devices only |
 | `--z-preloader` | 80 | the opening curtain |
 | `--z-skip-link` | 100 | must beat everything, the preloader included |
+
+The exception: the site's notch bar shipped at a raw `20` and now reads `--z-header`
+(40). Its stylesheet declares no other stacking value between the two, and the
+shared cursor and skip link sit at 70 and 100 either way, so the order a visitor
+sees is unchanged — measured by grep of `site.css` and `base.css`, not assumed.
 
 **A z-index only means something against the others**, and until this table existed
 the only way to learn the stack was to grep two stylesheets and sort the results.

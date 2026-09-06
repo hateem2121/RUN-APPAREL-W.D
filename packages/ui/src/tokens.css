@@ -189,9 +189,20 @@
      evens interleave the odds (18·17·16·15·14·13·12·11·10) and a `--text-md`
      between `--text-sm` and `--text-xs` would read as a scale that is not one. */
   --text-wordmark: 1.125rem; /* 18px — .header__wordmark, wide */
-  --text-wordmark-sm: 1rem; /* 16px — .header__wordmark compact, .footer__brand */
+  --text-wordmark-sm: 1rem; /* 16px — .header__wordmark compact, .footer__brand, the site's .notch__wordmark */
   --text-note: 0.875rem; /* 14px — .stage__error, .notice, .contact__micro */
   --text-mono-lg: 0.75rem; /* 12px — tracked caps one step above --text-mono */
+
+  /* ── The marketing site's two, added 2026-09-06 ──────────────────────
+     apps/cms reads this file too, and the three gates above started scanning
+     its stylesheet the day the two branches merged. Both values are exactly
+     what shipped, so nothing moves. The card title is the wordmark's 18px in
+     a different role — it gets its own name rather than borrowing "wordmark".
+     The footer mark is NOT a scale step: it is the FIRST PAINT of the cropped
+     outline wordmark, and FooterWordmark.tsx refits it to the slab's width
+     once the fonts have loaded. Tokenised so the gate sees a decision. */
+  --text-card-title: 1.125rem; /* 18px — .product-card__name */
+  --text-footer-mark: 12vw; /* first paint only — .footer-mark, refitted by JS */
 
   /* Display tracking follows the OPTICAL SIZE rather than sitting at one value.
      Added 2026-08-14 by owner decision. Both sizes clamp across roughly a 2x
@@ -218,10 +229,26 @@
      move `.mono` to 1.32px to tidy a table. */
   --tracking-caps-tight: 0.1em; /* .btn, .step__*, .stage__hint, .colourway-tab */
   --tracking-caps: 0.12em; /* .label, .camera-btn, .spec-list dt, .stage__ar */
-  --tracking-caps-wide: 0.14em; /* .section-number, .footer__line */
-  --tracking-caps-compact: 0.06em; /* the colourway rail below 500px container */
+  --tracking-caps-wide: 0.14em; /* .section-number, .footer__line, the site's .footer-clock__time small */
+  --tracking-caps-compact: 0.06em; /* the colourway rail below 500px container, the site's .footer-clock__time */
   --tracking-mono: 0.11em; /* .mono — see the warning above */
   --tracking-wordmark: -0.02em; /* fixed: display type with no optical range */
+
+  /* ── The marketing site's tracking, added 2026-09-06 ─────────────────
+     Eight values the footer and navbar shipped with, documented the day the
+     gate reached them. Named by ROLE, because three of them — 0.16, 0.17 and
+     0.18em — are a tenth of a pixel apart at the 10px chip size and no scale
+     name could tell them apart honestly. They are kept exact by owner
+     decision (2026-09-06, "the site keeps looking exactly as approved")
+     rather than folded; docs/DESIGN.md §3 carries the same rows. */
+  --tracking-caps-snug: 0.08em; /* .nav-link, .product-card__img alt, .product-card__placeholder */
+  --tracking-caps-spaced: 0.16em; /* .footer-status, .footer-block h3 — the facts headings */
+  --tracking-instrument: 0.17em; /* .site-footer__tab label, .footer-dim — the dimension line */
+  --tracking-clock-caption: 0.18em; /* .footer-clock__city — "SIALKOT · HQ & WORKS" */
+  --tracking-eyebrow: 0.2em; /* .footer-eyebrow — the mono eyebrow over the question */
+  --tracking-legal: 0.13em; /* .footer-legal — the © line and its two links */
+  --tracking-link-mono: 0.055em; /* .footer-block a — the email and WhatsApp rows */
+  --tracking-footer-mark: -0.045em; /* .footer-mark__layer — the cropped outline wordmark at 122% stretch */
 
   /* ── Layering ───────────────────────────────────────────────────────
      Added 2026-09-05. The seven values below are EXACTLY what shipped — 1, 40,
@@ -230,12 +257,21 @@
      learn the stack was to grep two stylesheets. docs/DESIGN.md §4 carries the
      same table in reading order. */
   --z-stage-control: 1; /* .stage__ar — inside the stage, above the canvas */
-  --z-header: 40;
+  --z-header: 40; /* the sticky header; the site's .notch-shell shares it */
   --z-action-bar: 50;
   --z-grain: 60; /* the full-page grain overlay */
   --z-cursor: 70; /* .cursor-ring — pointer devices only */
   --z-preloader: 80; /* the opening curtain */
   --z-skip-link: 100; /* must beat everything, including the preloader */
+
+  /* ── The marketing site's three, added 2026-09-06 ────────────────────
+     All three sit UNDER the header, inside their own sections. The notch bar
+     itself moved from a raw 20 to --z-header (40): site.css declares no other
+     stacking value between them, and base.css's cursor and skip link sit at
+     70 and 100 either way, so the order the visitor sees is unchanged. */
+  --z-hero-grid: -1; /* .site-hero__grid — the blueprint grid behind the hero copy */
+  --z-footer-tab: 2; /* .site-footer__tab — seated on the slab's top edge, above it */
+  --z-footer-glow: 6; /* .footer-glow — the light, blended over the slab's content */
 
   --font-display: "Archivo Variable", "Archivo", system-ui, sans-serif;
   --font-body: "Archivo Variable", "Archivo", system-ui, sans-serif;
