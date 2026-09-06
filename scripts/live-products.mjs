@@ -32,13 +32,30 @@
  *   GET /api/public/viewer/<slug>          -> 200, 5 active colourways, for all 11
  *   GET /<slug>/<colourway> (viewer shell) -> 200 in 0.03-0.10 s  (perf ceiling 2.5 s)
  *   GET /api/public/viewer/<slug>/<colour> -> 200 in 0.52-0.85 s  (perf ceiling 6 s)
+ * ⚠️ `colourways` ADDED 2026-09-05, AND IT IS NOT DECORATION. Until then each row
+ * carried ONE colourway, so nothing offline could derive the 55 live URLs — which is
+ * why `public/sitemap.xml` was a hand-typed snapshot with no test comparing it to
+ * anything. On 2026-09-04 that file listed 10 URLs for 2 products while 11 were
+ * live: 45 of 55 pages invisible to search, nothing red anywhere. `colourways` is
+ * what lets a test close that loop.
+ *
+ * ⚠️ EVERY SLUG HERE IS COPIED FROM THE LIVE PAYLOAD, NEVER GUESSED OR PATTERNED.
+ * A colourway slug is printed on a physical QR tag; inventing one that looks
+ * plausible produces a URL that 404s a buyer holding the garment. Re-read them with:
+ *
+ *     curl -s https://cms.wear-run.help/api/public/viewer/<slug> | jq -r '.colourways[].slug'
+ *
+ * Verified 2026-09-05: these 55 are byte-identical to `public/sitemap.xml`, and each
+ * row's `colourways[0]` equals its `colourway`. `liveProducts.test.ts` asserts that
+ * second property so the two fields cannot drift apart.
+ *
  * The `colourway` on each row is that product's FIRST row in the CMS, which is the one
  * a bare /<slug> resolves to — read from the live payload, never guessed, because a
  * colourway slug is printed on a physical QR tag.
  */
 
 /**
- * @typedef {{ slug: string, colourway: string, productCode: string }} LiveProduct
+ * @typedef {{ slug: string, colourway: string, colourways: string[], productCode: string }} LiveProduct
  */
 
 /**
@@ -50,17 +67,72 @@
  * baselines were taken against.
  */
 export const LIVE_PRODUCTS = [
-  { slug: 'rxps', colourway: 'wine', productCode: 'R-XPS' },
-  { slug: 'r-xmp', colourway: 'wine', productCode: 'R-XMP' },
-  { slug: 'r-afp', colourway: 'petrol', productCode: 'R-AFP' },
-  { slug: 'r-atw', colourway: 'turquoise', productCode: 'R-ATW' },
-  { slug: 'r-atj', colourway: 'ash', productCode: 'R-ATJ' },
-  { slug: 'r-wzu', colourway: 'blush', productCode: 'R-WZU' },
-  { slug: 'r-mm', colourway: 'blush', productCode: 'R-MM' },
-  { slug: 'r-aj', colourway: 'indigo', productCode: 'R-AJ' },
-  { slug: 'r-ajm', colourway: 'bottle-green', productCode: 'R-AJM' },
-  { slug: 'r-css', colourway: 'blush', productCode: 'R-CSS' },
-  { slug: 'r-asb', colourway: 'petrol', productCode: 'R-ASB' },
+  {
+    slug: 'rxps',
+    colourway: 'wine',
+    colourways: ['wine', 'blush', 'butter', 'lime', 'black'],
+    productCode: 'R-XPS',
+  },
+  {
+    slug: 'r-xmp',
+    colourway: 'wine',
+    colourways: ['wine', 'olive', 'lavender', 'white', 'mint'],
+    productCode: 'R-XMP',
+  },
+  {
+    slug: 'r-afp',
+    colourway: 'petrol',
+    colourways: ['petrol', 'mustard', 'sky', 'mauve', 'butter'],
+    productCode: 'R-AFP',
+  },
+  {
+    slug: 'r-atw',
+    colourway: 'turquoise',
+    colourways: ['turquoise', 'fuchsia', 'sage', 'bone', 'citron'],
+    productCode: 'R-ATW',
+  },
+  {
+    slug: 'r-atj',
+    colourway: 'ash',
+    colourways: ['ash', 'powder-blue', 'burgundy', 'sage', 'navy'],
+    productCode: 'R-ATJ',
+  },
+  {
+    slug: 'r-wzu',
+    colourway: 'blush',
+    colourways: ['blush', 'butter', 'powder-blue', 'beige', 'plum'],
+    productCode: 'R-WZU',
+  },
+  {
+    slug: 'r-mm',
+    colourway: 'blush',
+    colourways: ['blush', 'sky', 'sage', 'lilac', 'ash'],
+    productCode: 'R-MM',
+  },
+  {
+    slug: 'r-aj',
+    colourway: 'indigo',
+    colourways: ['indigo', 'magenta', 'tangerine', 'lime', 'pebble'],
+    productCode: 'R-AJ',
+  },
+  {
+    slug: 'r-ajm',
+    colourway: 'bottle-green',
+    colourways: ['bottle-green', 'terracotta', 'coral', 'beige', 'powder-blue'],
+    productCode: 'R-AJM',
+  },
+  {
+    slug: 'r-css',
+    colourway: 'blush',
+    colourways: ['blush', 'slate', 'sky', 'peach', 'lilac'],
+    productCode: 'R-CSS',
+  },
+  {
+    slug: 'r-asb',
+    colourway: 'petrol',
+    colourways: ['petrol', 'sage', 'pebble', 'blush', 'burgundy'],
+    productCode: 'R-ASB',
+  },
 ]
 
 /**

@@ -66,7 +66,7 @@ export function Cursor() {
    * hidden and the fake one was invisible: NO CURSOR AT ALL, anywhere on the page.
    *
    * That window is not theoretical here. `startPolish()` runs after the ready
-   * render, while the 27 MB model downloads — precisely when a visitor has parked
+   * render, while the model downloads — precisely when a visitor has parked
    * the pointer over the viewer and is waiting. Park it, and the cursor vanished
    * until they moved; move it onto a colourway tab and it came back. Reported as
    * "the cursor seems broken on the buttons", which is where it was noticed rather

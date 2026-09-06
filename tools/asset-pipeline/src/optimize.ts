@@ -6,6 +6,7 @@ import { ktx2 } from 'ktx2-encoder/gltf-transform'
 import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer'
 import sharp from 'sharp'
 import { createIO, readGlb } from './io'
+import { stripRootExtras, type StripRootExtrasResult } from './strip-root-extras'
 import {
   estimateGpuTextures,
   foldConstantTextures,
@@ -414,6 +415,8 @@ export interface OptimizeTelemetry {
   gpu?: GpuEstimate
   /** Present only when the opaque/solidify pass ran. */
   solidify?: SolidifyResult
+  /** CLO's internal design database, removed from the document root (2026-09-05). */
+  rootExtras?: StripRootExtrasResult
   /** Present only when the topstitch pass ran. */
   stitch?: TopstitchResult
 }
@@ -586,6 +589,25 @@ export async function buildOptimizeTransforms(
   // after both are re-encoded they are byte-identical, and the live skinsuit shipped a
   // 640x640 twin (the bib a 2048x1863 normal map) that only a second pass sees.
   transforms.push(dedup(), prune({ keepExtras: true }))
+  /**
+   * ⚠️ AFTER the final prune, and NOT by changing `keepExtras` above.
+   *
+   * `keepExtras` governs whether an otherwise-unreferenced property survives
+   * BECAUSE it carries extras; `treeShake` is never called on Root, so root extras
+   * are untouched by prune either way. Setting it false would remove nothing here
+   * and would start disposing the material-level `extras.depthBias` that
+   * overlay-annotate.ts writes and the viewer reads through three.js
+   * `material.userData` — returning the decal z-fighting with no error anywhere.
+   * See strip-root-extras.ts for the measurement and the full contents of what this
+   * removes.
+   */
+  transforms.push(
+    stripRootExtras({
+      onResult: (result) => {
+        telemetry.rootExtras = result
+      },
+    }),
+  )
   const stitchRatio =
     typeof options.stitch === 'number' && options.stitch > 0 && options.stitch < 1
       ? options.stitch
@@ -726,6 +748,16 @@ export interface OptimizeResult {
   pbr?: PbrNormalizeResult
   /** How each translucent material was resolved, when the opaque pass ran. */
   solidify?: SolidifyResult
+  /**
+   * CLO's internal design database, removed from the document root (2026-09-05).
+   *
+   * ⚠️ Declared on OptimizeTelemetry from the start and MISSING here until the
+   * end-to-end wiring test was added — so the strip ran and its result was dropped
+   * at the public boundary, unreportable and unassertable. Same defect as the
+   * Khronos verdict the 2026-08-28 pipeline audit found being computed and
+   * discarded. A telemetry field that is not on this type does not exist.
+   */
+  rootExtras?: StripRootExtrasResult
   /** Stitch vs garment triangle split, when the topstitch pass ran. */
   stitch?: TopstitchResult
 }
@@ -787,6 +819,14 @@ export async function optimizeGlb(
     ...(telemetry.gpu ? { gpu: telemetry.gpu } : {}),
     ...(telemetry.pbr ? { pbr: telemetry.pbr } : {}),
     ...(telemetry.solidify ? { solidify: telemetry.solidify } : {}),
+    // ⚠️ THIS LINE WAS MISSING UNTIL 2026-09-05, and the omission was invisible.
+    // `rootExtras` was declared on OptimizeTelemetry and assigned in
+    // optimizeDocument, but never spread here — so the strip ran and its result was
+    // discarded at the boundary. The container's job report could not mention it and
+    // no caller could assert it, which is the same defect the 2026-08-28 pipeline
+    // audit recorded against the Khronos verdict. Found by the end-to-end wiring
+    // test in pipeline.test.ts, not by review.
+    ...(telemetry.rootExtras ? { rootExtras: telemetry.rootExtras } : {}),
     ...(telemetry.stitch ? { stitch: telemetry.stitch } : {}),
   }
 }

@@ -106,6 +106,25 @@ test.describe('the colourway photo while the model downloads', () => {
     expect(started.hdr!).toBeLessThan(glbFinished!)
   })
 
+  test('carries the payload dimensions so the browser can plan the decode', async ({ page }) => {
+    // The payload has carried width/height since the CMS started storing them and
+    // this element ignored them until 2026-09-04. Their absence never showed as
+    // layout shift — CSS sizes the element absolutely — so nothing caught it.
+    await page.route('**/api/public/viewer/**', async (route) => route.continue())
+    await page.goto('/n001/wine')
+    const img = page.locator('.stage__placeholder')
+    await img.waitFor({ state: 'attached', timeout: 30_000 })
+    const dims = await img.evaluate((el: HTMLImageElement) => ({
+      w: el.getAttribute('width'),
+      h: el.getAttribute('height'),
+    }))
+    expect(
+      dims,
+      'the placeholder lost its intrinsic dimensions — they come from the payload ' +
+        'and let the browser plan the decode before the bytes arrive',
+    ).toEqual({ w: '1200', h: '1500' })
+  })
+
   test('NEGATIVE CONTROL: a payload with no poster paints no image during the download', async ({
     page,
   }) => {

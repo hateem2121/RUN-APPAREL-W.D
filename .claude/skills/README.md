@@ -205,9 +205,11 @@ actually measured.
 
 From the 2026-08-06 audit:
 
-- **`performance-optimization`** — the viewer ships a **27 MB GLB to a phone over
-  mobile data**, and the only performance gate is a Lighthouse assertion that
-  *warns* at `minScore 0.5` and blocks nothing.
+- **`performance-optimization`** — the viewer ships a **multi-megabyte GLB to a
+  phone over mobile data**, and the only performance gate is a Lighthouse assertion
+  that *warns* at `minScore 0.5` and blocks nothing. (The audit said 27 MB; measured
+  2026-09-05 the eleven live models are **1.9-8.2 MB**, 53.69 MB in total. The
+  finding stands — the gate still blocks nothing — but the number does not.)
 - **`observability-and-instrumentation`** — Sentry and a diagnostics digest exist,
   but no written practice for using them.
 - **`emil-design-eng` / `review-animations`** — the viewer imports `motion` and

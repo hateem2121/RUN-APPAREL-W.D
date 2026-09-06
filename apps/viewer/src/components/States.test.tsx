@@ -84,11 +84,16 @@ describe('UnavailableState', () => {
   it('falls back to the shared default settings when none are supplied', () => {
     render(<UnavailableState />)
 
-    const catalogue = host.querySelector<HTMLAnchorElement>('a.btn--primary')
-    expect(catalogue?.href).toContain(DEFAULT_SITE_SETTINGS.catalogueUrl)
+    // The primary action moved from the catalogue to Email on 2026-09-04, when the
+    // catalogue button was removed. This screen must keep exactly ONE primary
+    // action — it is the only screen a visitor reaches with intent and gets
+    // nothing, so an ambiguous recovery path is the expensive failure here.
+    const primary = host.querySelector<HTMLAnchorElement>('a.btn--primary')
+    expect(primary?.href).toContain(`mailto:${DEFAULT_SITE_SETTINGS.email}`)
+    expect(host.querySelectorAll('a.btn--primary')).toHaveLength(1)
   })
 
-  it('offers all three escape routes — catalogue, email and WhatsApp', () => {
+  it('offers both contact routes, and deliberately does NOT link the catalogue', () => {
     const settings: ViewerSiteSettings = {
       ...DEFAULT_SITE_SETTINGS,
       email: 'sales@example.com',
@@ -102,11 +107,19 @@ describe('UnavailableState', () => {
     )
 
     // This page is a dead end unless these work: the visitor arrived from a printed
-    // tag for a product that no longer exists, and these three links are the only
-    // path from "your QR is dead" to "talk to us".
-    expect(hrefs.some((h) => h === 'https://example.com/catalogue')).toBe(true)
+    // tag for a product that no longer exists, and these are the only path from
+    // "your QR is dead" to "talk to us".
     expect(hrefs.some((h) => h.startsWith('mailto:sales@example.com'))).toBe(true)
     expect(hrefs.some((h) => h.includes('441234567890'))).toBe(true)
+
+    // ⚠️ THE NEGATIVE HALF IS THE POINT, and it is why this assertion exists at all.
+    // Owner decision 2026-09-04: no page may hand a visitor the catalogue, because
+    // these pages are indexed and the catalogue is a 54 MB B2B PDF. `catalogueUrl`
+    // is STILL in the payload and still in this component's props, so nothing about
+    // the types stops someone rendering it again — only this line does. It was
+    // previously asserted the other way round (`toBe(true)`), so the decision would
+    // silently revert if this were merely deleted rather than inverted.
+    expect(hrefs.some((h) => h.includes('example.com/catalogue'))).toBe(false)
   })
 
   it('opens WhatsApp in a new tab without leaking the referrer', () => {

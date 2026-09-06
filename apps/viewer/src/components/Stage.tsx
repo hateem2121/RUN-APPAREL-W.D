@@ -6,8 +6,15 @@ import { track } from '../lib/analytics'
 import { canRender3D, prefersReducedMotion } from '../lib/capabilities'
 import { displayedColourway } from '../lib/colourwayPreview'
 import { diagnostic } from '../lib/diagnostic'
+import {
+  CUE_IDLE_MS,
+  CUE_RETURN_MS,
+  CUE_SWEEP_DEGREES,
+  offsetOrbitAzimuth,
+} from '../lib/interactionCue'
 import { fetchWithProgress } from '../lib/fetchWithProgress'
-import { describeLoad, smoothRate } from '../lib/loadProgress'
+import { describeLoad, showsIndeterminateSweep, smoothRate } from '../lib/loadProgress'
+import { adaptivePanSensitivity, PAN_SENS_OUT, shouldWritePan } from '../lib/adaptive-pan'
 import { CAMERA_DECAY_MS } from '../lib/motion'
 import { placeholderAsset, placeholderBlurPx, placeholderLeaveMs } from '../lib/placeholder'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
@@ -32,6 +39,20 @@ interface ModelViewerEl extends HTMLElement {
   getDimensions?: () => { x: number; y: number; z: number }
   /** Current orbit. `radius` is the camera distance the near plane has to follow. */
   getCameraOrbit?: () => { radius: number }
+  /** Current field of view in DEGREES. Drives the adaptive pan curve. */
+  getFieldOfView?: () => number
+  /**
+   * Whether THIS device can enter AR. False on every desktop and on Android here
+   * (`ar-modes="quick-look"` is iOS-only by choice — see docs/DECISION-AR-SCOPE.md).
+   * Read after `load`, because it depends on the loaded model.
+   */
+  canActivateAR?: boolean
+  /**
+   * How far a two-finger gesture slides the garment. Written as a PROPERTY:
+   * `features/controls.js` observes `changedProperties.has('panSensitivity')`,
+   * and React never reflects a custom-element property to an attribute.
+   */
+  panSensitivity?: number
 }
 
 interface StageProps {
@@ -88,12 +109,12 @@ const KTX2_TRANSCODER_URL = '/basis/'
  * the UI it describes is deleted; nothing here can check that for you.
  */
 const VARIANT_NOTICE =
-  'The 3D model cannot show this colourway, so it is still showing the previous one. ' +
-  'The colour name, fabric and specifications on this page are for the colourway you selected.'
+  'The 3D model cannot show this colorway, so it is still showing the previous one. ' +
+  'The color name, fabric and specifications on this page are for the colorway you selected.'
 const LOAD_NOTICE =
   'The 3D view is not available. ' +
-  'The colours, fabric and specifications on this page are correct, ' +
-  'and you can still send an enquiry below.'
+  'The colors, fabric and specifications on this page are correct, ' +
+  'and you can still send an inquiry below.'
 
 // Image-based lighting for PBR materials. Without an explicit environment,
 // <model-viewer>'s built-in neutral scene renders technical fabrics flat and
@@ -234,8 +255,42 @@ const DISABLE_TAP = true
  *    and moves the radius to match "so that the camera itself does not move".
  *    That is the whole y/z component of the number above and it is invisible.
  *    Only the **x** component is what a person actually sees slide.
+ *
+ * ⚠️ SINCE 2026-09-05 THIS IS ONLY THE STARTING VALUE, not the whole story. It is
+ * still exactly what ships at the default framing — the measurement above is
+ * unchanged and still governs — but `lib/adaptive-pan.ts` raises it as the field
+ * of view narrows, up to 1:1 finger tracking at `MIN_FIELD_OF_VIEW`. Read that
+ * file before touching either end: the low end exists for the off-screen defect
+ * above, and the high end exists because the garment is 56.6x bigger at full zoom.
  */
-const PAN_SENSITIVITY = 0.3
+const PAN_SENSITIVITY = PAN_SENS_OUT
+
+/**
+ * Push the field-of-view-appropriate `panSensitivity` onto the element.
+ *
+ * Module scope on purpose: `onCameraChange` lives inside an effect, and a
+ * component-scope helper would become one of that effect's dependencies for no
+ * benefit. The only mutable state is the caller's ref.
+ *
+ * Silent no-ops are correct here. `getFieldOfView` is optional on the interface
+ * because the element is dynamically imported and this can fire against a stub in
+ * a unit test; a viewer that simply keeps the shipped 0.3 is the safe outcome.
+ */
+function applyAdaptivePan(
+  // Takes the ref's own handle rather than the listener's `HTMLElement`: `attachRef`
+  // has already narrowed it once, and re-casting at the call site would assert the
+  // same thing a second time in a place nothing verifies.
+  el: ModelViewerEl | null,
+  lastWritten: { current: number | null },
+): void {
+  if (!el) return
+  const fov = el.getFieldOfView?.()
+  if (typeof fov !== 'number') return
+  const next = adaptivePanSensitivity(fov)
+  if (!shouldWritePan(lastWritten.current, next)) return
+  lastWritten.current = next
+  el.panSensitivity = next
+}
 
 export function Stage({ data, selected, preview = null, onModelReadyChange }: StageProps) {
   const { product } = data
@@ -246,6 +301,8 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   const displayed = displayedColourway(separateMode, preview, selected)
 
   const mvRef = useRef<ModelViewerEl | null>(null)
+  /** Last `panSensitivity` written. See PAN_SENS_STEP — one gesture fires ~165 events. */
+  const panSensRef = useRef<number | null>(null)
   const [libReady, setLibReady] = useState(false)
   /**
    * ONE value, not three booleans. `fallback`, `modelLoaded` and `swapping` were
@@ -261,9 +318,59 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   const swapping = isSwapping(phase)
   const [notice, setNotice] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<CameraView | null>('front')
+  /**
+   * The garment reads as a photograph and visitors do not touch it — reported by
+   * the owner 2026-09-04. `cueVisible` shows the hint; `cueSpent` makes it a
+   * once-per-visit thing. See lib/interactionCue.ts for why the fix is a legible
+   * hint FIRST and a sweep second, and why the sweep is only 14 degrees.
+   */
+  const [cueVisible, setCueVisible] = useState(false)
+  /**
+   * Whether to offer AR at all. Driven by model-viewer's own `canActivateAR`
+   * rather than by sniffing the user agent, so it is false on desktop, false on
+   * Android (Quick Look only) and false when the model has not loaded.
+   *
+   * The button is not merely hidden when this is false — it is not rendered, so it
+   * never enters the tab order and never occupies a slot the element would then
+   * lay out.
+   */
+  const [arAvailable, setArAvailable] = useState(false)
+  const cueSpentRef = useRef(false)
+  /**
+   * Once per visit, and permanently. A cue that returns after every colourway
+   * switch punishes exactly the buyer who is comparing five colours — someone
+   * who has already proved they know the garment is interactive.
+   */
+  /** The pending return-to-front, so an unmount cannot leave the camera turned. */
+  const returnRef = useRef<number | null>(null)
+  const dismissCue = useCallback(() => {
+    cueSpentRef.current = true
+    setCueVisible(false)
+  }, [])
   // Re-reads when a keyboard is attached or detached — see lib/useCoarsePointer.ts.
   const coarsePointer = useCoarsePointer()
   const loadedSrcRef = useRef<string | null>(null)
+  /**
+   * When this colourway's model download began, for the one number a QR-scan
+   * business most wants and never had: how long a real customer waits before the
+   * garment appears. It was computed on every single load — the progress bar and
+   * the "~8s LEFT" readout cannot exist without it — and then thrown away, because
+   * `model_loaded` reported only the product code.
+   */
+  const downloadStartedAtRef = useRef<number | null>(null)
+  /**
+   * The download's total size, mirrored into a ref.
+   *
+   * ⚠️ NOT the `bytesTotal` STATE, deliberately. The `load` handler is created
+   * inside `attachRef`, a `useCallback` whose dependency array does not list
+   * `bytesTotal` — so reading the state there closes over whatever value the
+   * render that produced the attached callback happened to hold. It would usually
+   * be right, because the element only mounts after the fetch resolves, and
+   * "usually right" is precisely the stale-closure shape this file has been bitten
+   * by before (`performance` shadowed by a local, green in every unit test). A ref
+   * has one value and it is always the current one.
+   */
+  const downloadTotalRef = useRef(0)
 
   // Real bytes, counted by us. See `fetchWithProgress` for why model-viewer's own
   // `progress` event cannot supply them.
@@ -275,7 +382,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
    * file ourselves, or the plain URL if that failed.
    *
    * The element is not rendered until this is set, which is load-bearing — with
-   * both the element and our fetch active at once the 27 MB file downloads twice.
+   * both the element and our fetch active at once the file downloads twice.
    */
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(null)
 
@@ -498,6 +605,9 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       const onLoad = () => {
         dispatchPhase({ type: 'loaded' })
 
+        // AFTER load: `canActivateAR` depends on the loaded model, and reading it
+        // before returns false on a device that can.
+        setArAvailable(mvRef.current?.canActivateAR === true)
         clampNearPlane()
         biasDecals()
         // PROPERTY first, attribute second. React sets `src` on a custom element
@@ -530,7 +640,34 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
         const src = (el as unknown as { src?: string }).src ?? el.getAttribute('src') ?? ''
         if (loadedSrcRef.current !== src) {
           loadedSrcRef.current = src
-          track('model_loaded', { product: product.productCode })
+          /*
+           * ⚠️ THE DURATION IS THE POINT, AND IT USED TO BE DISCARDED. This event
+           * carried only the product code, so the question the business actually
+           * has — "how long does a buyer wait after scanning a tag?" — could not be
+           * answered from the data, despite the browser computing it on every load
+           * to draw the progress bar.
+           *
+           * Measured from the start of OUR fetch, not from navigation: that is the
+           * span the visitor spends looking at a blurred photo, and it is the one
+           * this page can act on. Navigation-relative timing is what Core Web
+           * Vitals is for.
+           *
+           * Rounded to 10ms and sent as a string because `track` takes
+           * Record<string, string> — sub-10ms precision would be false anyway, since
+           * the sample is one visitor on one connection.
+           *
+           * `bytes` rides along because a duration without a size is uninterpretable
+           * across an 1.8-7.8 MB catalogue: 4s means something very different for
+           * the 1.8 MB pullover than for the 7.8 MB bib.
+           */
+          const startedAt = downloadStartedAtRef.current
+          track('model_loaded', {
+            product: product.productCode,
+            ...(startedAt !== null
+              ? { durationMs: String(Math.round((performance.now() - startedAt) / 10) * 10) }
+              : {}),
+            ...(downloadTotalRef.current > 0 ? { bytes: String(downloadTotalRef.current) } : {}),
+          })
         }
       }
       const onError = (event: Event) => {
@@ -580,7 +717,26 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       }
       const onCameraChange = (event: Event) => {
         const detail = (event as CustomEvent<{ source?: string }>).detail
-        if (detail?.source === 'user-interaction') setActiveView(null)
+        if (detail?.source === 'user-interaction') {
+          setActiveView(null)
+          // They have found it. `user-interaction` is model-viewer's own word for
+          // "a human did this", so the programmatic sweep below cannot dismiss
+          // its own cue by firing this handler.
+          dismissCue()
+        }
+        // Retune the pan for the new zoom level — see src/lib/adaptive-pan.ts.
+        //
+        // ⚠️ HERE AND NOT ON `pointerdown`. model-viewer reads `panSensitivity`
+        // once per gesture, inside `initializePan()`, which runs in ITS OWN
+        // pointerdown handler — registered when the element connected, so before
+        // any listener we add. A value written from our pointerdown would land one
+        // gesture late, which is worse than not adapting at all: the sensitivity
+        // would always belong to the previous zoom level.
+        //
+        // ⚠️ NOT gated on `user-interaction`. A FRONT/BACK/SIDE press also changes
+        // the field of view, and the next two-finger gesture after one must not
+        // inherit the sensitivity from wherever the visitor had zoomed to before.
+        applyAdaptivePan(mvRef.current, panSensRef)
       }
       // The model loaded fine and THEN the GPU took the context away. Distinct
       // from `error`, which is a load failure, and previously unhandled: the
@@ -660,7 +816,9 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
         el.removeEventListener('render-scale', onRenderScale)
       }
     },
-    [product.productCode],
+    // `dismissCue` is a `useCallback([])`, so it is stable and cannot re-run this
+    // ref callback — which would detach and reattach every model event listener.
+    [product.productCode, dismissCue],
   )
 
   // Apply the colourway currently being displayed — the hovered one if there is
@@ -725,7 +883,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
    * That fallback is what makes counting bytes a safe thing to do at all.
    */
   useEffect(() => {
-    // `canRender3D()`, NOT `libReady`. The 27 MB download used to wait for the
+    // `canRender3D()`, NOT `libReady`. The model download used to wait for the
     // model-viewer module to finish downloading and parsing first, serialising
     // two independent transfers on the connection that matters least — a phone
     // on 4G, where the model is already ~23s.
@@ -734,7 +892,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
     // (1) `libReady` was silently doing double duty as the Save-Data / no-WebGL
     //     guard: the effect above returns early WITHOUT importing the module in
     //     those cases, so libReady never became true and this effect never ran.
-    //     Removing it without calling canRender3D() would start a 27 MB download
+    //     Removing it without calling canRender3D() would start a 1.9-8.2 MB download
     //     on a connection that explicitly asked us not to.
     // (2) `libReady` must leave the dependency array in the SAME edit. Left in,
     //     the effect re-runs when it flips and the file downloads twice.
@@ -754,6 +912,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
     let smoothed: number | null = null
     let lastAt = performance.now()
     let lastLoaded = 0
+    downloadStartedAtRef.current = lastAt
 
     fetchWithProgress(
       glbUrl,
@@ -761,6 +920,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
         if (cancelled) return
         setBytesLoaded(loaded)
         setBytesTotal(total)
+        downloadTotalRef.current = total
         const now = performance.now()
         const seconds = (now - lastAt) / 1000
         // Sample no faster than ~10 Hz: below that the deltas are dominated by
@@ -791,7 +951,8 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
     return () => {
       cancelled = true
       controller.abort()
-      // Releases the ~27 MB the blob is holding. Without this a visitor moving
+      // Releases the megabytes the blob is holding (~27 MB when written; 1.8-7.8 MB
+      // measured across every live GLB on 2026-09-04). Without this a visitor moving
       // between colourways in separate-GLB mode accumulates a copy per swap.
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
@@ -811,8 +972,55 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
     mv.fieldOfView = product.camera.defaultFieldOfView
     if (prefersReducedMotion()) mv.jumpCameraToGoal?.()
     setActiveView(view)
+    // A FRONT/BACK/SIDE press is interaction too, and it does NOT come through
+    // `camera-change` as `user-interaction` — that source is model-viewer's word
+    // for a drag or a wheel. Without this the cue would still appear over a
+    // visitor who has just used the controls.
+    dismissCue()
     track(`camera_${view}_selected`)
   }
+
+  /**
+   * Show the cue only if nobody has touched the garment for a few seconds, then
+   * nudge it once.
+   *
+   * ⚠️ THE SWEEP IS THE SECOND HALF, NOT THE FIRST. The hint below already
+   * existed and was 10px of `var(--muted)` in a corner; motion beside an
+   * invisible label would have been the expensive half of the fix. Reasoning,
+   * the research it came from, and the measured cost of orbiting this garment
+   * are in lib/interactionCue.ts.
+   *
+   * ⚠️ NO MOTION UNDER `prefers-reduced-motion`, and the hint still appears. A
+   * garment that turns on its own is a textbook vestibular trigger, and it is
+   * the reinforcement here rather than the message — so removing it costs the
+   * visitor nothing except the part they asked not to receive.
+   */
+  useEffect(() => {
+    if (fallback || !modelLoaded || swapping || cueSpentRef.current) return
+    const idle = window.setTimeout(() => {
+      if (cueSpentRef.current) return
+      setCueVisible(true)
+      if (prefersReducedMotion()) return
+      const mv = mvRef.current
+      if (!mv) return
+      const home = product.camera.frontCameraOrbit
+      // null when the CMS value is not the "<deg> <deg> <radius>" this expects.
+      // Skipping the sweep leaves the visitor exactly where they already were;
+      // guessing would aim the camera somewhere nobody calibrated.
+      const turned = offsetOrbitAzimuth(home, CUE_SWEEP_DEGREES)
+      if (!turned) return
+      mv.cameraOrbit = turned
+      returnRef.current = window.setTimeout(() => {
+        // Only if they still have not touched it — otherwise this would drag the
+        // camera back out from under someone who started exploring mid-sweep.
+        if (!cueSpentRef.current && mvRef.current) mvRef.current.cameraOrbit = home
+      }, CUE_RETURN_MS)
+    }, CUE_IDLE_MS)
+    return () => {
+      window.clearTimeout(idle)
+      if (returnRef.current !== null) window.clearTimeout(returnRef.current)
+    }
+  }, [fallback, modelLoaded, swapping, product.camera.frontCameraOrbit])
 
   /**
    * The photo appears ONLY when 3D cannot run at all.
@@ -851,7 +1059,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   })
   // No longer gated on `libReady`: the download now starts immediately rather
   // than after the model-viewer module lands, so gating the readout on the
-  // module would leave the stage blank for the first seconds of a 27 MB
+  // module would leave the stage blank for the first seconds of a 1.9-8.2 MB
   // transfer — the exact dead time the byte-accurate readout exists to remove.
   // `!fallback` already covers Save-Data and no-WebGL, which is what libReady
   // was standing in for here.
@@ -956,7 +1164,44 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               exposure="1"
               loading="eager"
               reveal="auto"
-            />
+              /**
+               * AR — iOS Quick Look only. docs/DECISION-AR-SCOPE.md has the full
+               * reasoning; the two facts that matter here:
+               *
+               *   - NO USDZ FILE IS NEEDED. model-viewer 4.3.1 exports one in the
+               *     browser from the loaded GLB, so the pipeline is untouched and
+               *     this costs zero new bytes — the AR code already ships inside
+               *     the model-viewer chunk every build emits.
+               *   - ANDROID IS DELIBERATELY EXCLUDED. Scene Viewer cannot read a
+               *     `blob:` URL, and `src` here is a blob because we fetch the GLB
+               *     ourselves to drive the byte-accurate progress readout. Listing
+               *     `scene-viewer` would crash or silently fail rather than
+               *     degrade, so it is left out and Android simply sees no button.
+               *
+               * `ar-scale="fixed"` is the point of the feature — a buyer judging
+               * fit needs real size, not a scalable toy. Verified 2026-09-05 that
+               * the exports are authored in metres: rxps 0.60x0.76x0.24,
+               * r-xmp 0.37x0.92x0.27, r-afp 0.55x0.73x0.28.
+               */
+              ar
+              ar-modes="quick-look"
+              ar-placement="floor"
+              ar-scale="fixed"
+            >
+              {/*
+                OUR button, not model-viewer's.
+                ⚠️ The default `#default-ar-button` is a Google-styled pill placed
+                inside the shadow root, over the canvas — the exact geometry
+                StageControls.tsx measured and moved OUT of `.stage__canvas` in
+                August, when it covered 26px of garment at 1440x900 and 38px at
+                390x844. Letting the default render re-creates that defect.
+              */}
+              {arAvailable && (
+                <button type="button" slot="ar-button" className="stage__ar">
+                  VIEW IN YOUR SPACE
+                </button>
+              )}
+            </model-viewer>
           )}
 
           {showPlaceholder && placeholder && (
@@ -969,6 +1214,26 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               aria-hidden="true"
               decoding="async"
               draggable={false}
+              /*
+               * The payload has carried these since the CMS started storing them,
+               * and this element ignored them until 2026-09-04. They do NOT affect
+               * layout here — `.stage__placeholder` is `position: absolute; inset: 0`
+               * with `width/height: 100%` and `object-fit: contain`, so CSS wins —
+               * which is why their absence never showed up as layout shift and why
+               * nothing caught it.
+               *
+               * What they buy is the intrinsic ratio BEFORE the bytes arrive, so the
+               * browser can plan the decode instead of discovering the dimensions
+               * from the file. This is the first thing a phone visitor sees and it
+               * holds the screen for the whole model download.
+               *
+               * Guarded because both are `number | null` on ViewerMediaAsset: a
+               * product whose poster predates the dimension fields still renders.
+               * Emitting `width="0"` would be worse than emitting nothing.
+               */
+              {...(placeholder.width && placeholder.height
+                ? { width: placeholder.width, height: placeholder.height }
+                : {})}
               style={{ filter: `blur(${placeholderBlurPx(load.phase, load.percent)}px)` }}
             />
           )}
@@ -1042,8 +1307,41 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               the exact behaviour the owner reported as a bug on 2026-08-17. See
               TOUCH_ACTION above: a one-finger drag now turns the garment, in any
               direction, and the page is scrolled from outside the canvas. */}
-          {!fallback && modelLoaded && !swapping && (
+          {!fallback && modelLoaded && !swapping && cueVisible && (
+            /*
+             * ⚠️ STILL `aria-hidden`, AND DELIBERATELY SO. A `visually-hidden`
+             * paragraph below already tells a screen reader how to rotate and
+             * zoom, INCLUDING the keyboard route this line cannot describe.
+             * Un-hiding this would restore the triple-description the comment
+             * down there records consolidating.
+             *
+             * The ICON is not decoration. Baymard's gesture research says to pair
+             * the word "Pinch" with one when selling internationally, because the
+             * term is not understood by all non-native speakers — and this
+             * catalogue is aimed at buyers in North America, South America,
+             * Europe, the GCC and Oceania.
+             */
             <p className="stage__hint" aria-hidden="true">
+              <svg className="stage__hint-icon" viewBox="0 0 24 24" focusable="false">
+                <title>Rotate</title>
+                {/* An arc with an arrowhead: "this turns". Stroked, not filled,
+                    so it inherits the hint's colour and weight. */}
+                <path
+                  d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3M19.5 12a7.5 7.5 0 0 1-12.8 5.3"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M17.3 3.4v3.3h-3.3M6.7 20.6v-3.3h3.3"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
               {coarsePointer ? 'DRAG TO ROTATE · PINCH TO ZOOM' : 'DRAG TO ROTATE · SCROLL TO ZOOM'}
             </p>
           )}
@@ -1065,9 +1363,30 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
                 {load.phase === 'preparing' ? 'PREPARING 3D MODEL…' : 'LOADING 3D MODEL'}
                 {load.percent !== null && ` · ${load.percent}%`}
               </span>
+              {/*
+                ⚠️ THE SWEEP IS OMITTED UNDER REDUCED MOTION, NOT COLLAPSED, and the
+                preloader next door already learned this the hard way.
+
+                `base.css` collapses every animation to a single 0.01ms iteration for
+                a reduced-motion visitor. On a LOOPING sweep with no fill-mode that
+                leaves a static bar frozen at its 40% width — which reads as a
+                stalled download, on the one screen where a visitor is already
+                waiting and looking for reassurance. `page.css` and `Preloader.tsx`
+                both record that exact conclusion ("a sweep that cannot sweep is a
+                bar frozen at one width"), and the preloader solved it by not
+                rendering its sweep at all. This is the same keyframe with the same
+                problem; it simply did not get the same treatment.
+
+                Full, not empty, and that is the honest reading rather than a
+                cosmetic choice: `preparing` means every byte has arrived and the
+                model is decoding. The download IS complete. A full bar beside
+                "PREPARING 3D MODEL…" tells the truth; a 40% stub does not.
+              */}
               <span
                 className={`stage__loading-bar${
-                  load.phase === 'preparing' ? ' stage__loading-bar--indeterminate' : ''
+                  showsIndeterminateSweep(load.phase, prefersReducedMotion())
+                    ? ' stage__loading-bar--indeterminate'
+                    : ''
                 }`}
               >
                 {/* scaleX, not width. `width` is a layout property and this is

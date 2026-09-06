@@ -17,12 +17,20 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { registerServiceWorker } from './lib/registerServiceWorker'
 import { initErrorTracking } from './lib/sentry'
 import { initTelemetry } from './lib/telemetry'
+import { initWebVitals } from './lib/webVitals'
 
 initErrorTracking()
 initTelemetry()
 
+// Reported when the page is hidden, on the flush telemetry already performs.
+initWebVitals()
+
+// Offline shell only — no garment is cached, deliberately. The four measured reasons
+// are in docs/DECISION-OFFLINE-SCOPE.md, and sw.test.ts asserts the absence.
+registerServiceWorker()
 /**
  * Never restore a previous scroll position here.
  *

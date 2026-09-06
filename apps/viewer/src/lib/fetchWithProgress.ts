@@ -34,6 +34,37 @@ export async function fetchWithProgress(
     throw new Error(`fetchWithProgress: ${url} responded ${response.status}`)
   }
 
+  /**
+   * ⚠️ A 200 IS NOT ENOUGH — A MISSING MODEL ARRIVES AS AN HTML PAGE.
+   *
+   * `media.wear-run.help` is R2's public bucket domain with no Worker in front, so a
+   * key that is not there gets Cloudflare's own branded error document. Measured
+   * live 2026-09-05:
+   *
+   *     GET media.wear-run.help/<missing>.glb
+   *     -> 404, content-type: text/html, 27,150 bytes, <title>Not Found</title>
+   *
+   * The 404 is caught above. What is NOT caught is the same document arriving with a
+   * 200 — which is exactly what happens when an edge rule, an interstitial or a
+   * misrouted custom domain answers instead of the object. Without this check those
+   * bytes reach `<model-viewer>`, three.js tries to parse HTML as a GLB, and the
+   * visitor gets an unhandled parse error rather than the branded "reference
+   * unavailable" screen with Email and WhatsApp on it.
+   *
+   * Checking the type rather than sniffing the bytes: a GLB begins with the magic
+   * `glTF`, but a truncated or compressed body would fail that check for reasons
+   * that are not "this is a web page", and turning a slow connection into an error
+   * is worse than the bug being fixed.
+   */
+  const contentType = response.headers.get('content-type') ?? ''
+  if (contentType.includes('text/html')) {
+    throw new Error(
+      `fetchWithProgress: ${url} returned an HTML page (${contentType}), not a model. ` +
+        'The object is probably missing from storage — R2 answers a missing key with ' +
+        "Cloudflare's own error document.",
+    )
+  }
+
   const header = response.headers.get('content-length')
   const parsed = header === null ? Number.NaN : Number(header)
   // 0 rather than NaN: `percentComplete` and `secondsRemaining` both treat a

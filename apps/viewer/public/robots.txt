@@ -11,13 +11,27 @@
 # ⚠️ THIS FILE EXISTS TO STOP robots.txt BEING HTML. Until 2026-08-31 the build
 # contained no robots.txt, so the Worker's SPA fallback answered /robots.txt with
 # index.html: 9,853 bytes of `text/plain` holding 46 lines of markup, which a
-# crawler parses line by line as directives. Cloudflare's managed content-signal
-# block is prepended to whatever is served here, so that block was never the
-# problem and this file does not remove it.
+# crawler parses line by line as directives.
+#
+# ⚠️ UNTIL 2026-09-04 THIS FILE WAS NOT WHAT WAS SERVED. Cloudflare's managed
+# robots.txt prepended its own block to it, so the live file carried nine Disallow
+# lines and a `Content-Signal: ai-train=no` that contradicted the first line above:
+# Amazonbot, Applebot-Extended, Bytespider, CCBot, ClaudeBot, Google-Extended,
+# GPTBot and meta-externalagent were all refused. Reading this file told you
+# nothing about what a crawler received. The owner turned that feature off
+# ("Disable robots.txt configuration") and separately set the deprecated "Block AI
+# bots" rule to "Do not block" on 2026-09-04 — the second is load-bearing, because
+# robots.txt only ASKS and that rule ENFORCED. Verified after both: 0 Disallow
+# lines served, and GPTBot, ClaudeBot, Claude-User, OAI-SearchBot, PerplexityBot,
+# Google-Extended, meta-externalagent and Googlebot each answered 200.
+#
+# So this file is now the whole story — which it was not before. If AI crawlers
+# need blocking again, that is a dashboard decision, and this comment should be
+# corrected in the same change.
 User-agent: *
 Allow: /
 
-# L5-06, 2026-08-31. Points crawlers at the ten live garment pages explicitly.
+# L5-06, 2026-08-31. Points crawlers at every live garment page explicitly.
 # This viewer is a single-page app: every path returns the same 200 HTML shell, so
 # a crawler that follows links finds nothing — there are no links to follow. Without
 # this line the only discoverable pages are the ones someone happened to share.

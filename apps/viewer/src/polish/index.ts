@@ -1,6 +1,5 @@
 import { isCoarsePointer, prefersReducedMotion } from '../lib/capabilities'
 import { startReveals } from './reveal'
-import { startSmoothScroll } from './smooth-scroll'
 
 /**
  * The refined-motion layer, dynamically imported after first paint so its
@@ -22,12 +21,40 @@ import { startSmoothScroll } from './smooth-scroll'
  */
 let started = false
 let stopCursor: (() => void) | null = null
+let stopScroll: (() => void) | null = null
 
 export function startPolish(): void {
   if (started || typeof document === 'undefined') return
   started = true
-  startSmoothScroll()
   startReveals()
+
+  /**
+   * Lenis is gated BEFORE its import, for the same reason Motion is below.
+   *
+   * ⚠️ IT WAS NOT, UNTIL 2026-09-04, AND THE MODULE READ AS THOUGH IT WERE.
+   * `./smooth-scroll` was a STATIC import at the top of this file and it statically
+   * imports `lenis`, while the `navigator.webdriver || prefersReducedMotion()`
+   * refusal lived INSIDE `startSmoothScroll`. So a visitor who has asked for
+   * reduced motion downloaded and parsed 18.6 kB of scroll-physics and then the
+   * function declined to use it. The check was correct, in the wrong place.
+   *
+   * This is the identical shape to the Motion trap documented below — the one that
+   * cost a rebuild of the chunking config — at roughly a seventh of the size. The
+   * right pattern already existed one function down; this makes the two match.
+   *
+   * `smooth-scroll.ts` keeps its own internal guard. That is defence in depth, not
+   * duplication: this call site can be reached from a test, and the module must
+   * refuse on its own terms as well.
+   */
+  if (!navigator.webdriver && !prefersReducedMotion()) {
+    void import('./smooth-scroll')
+      .then(({ startSmoothScroll }) => {
+        stopScroll = startSmoothScroll()
+      })
+      .catch(() => {
+        // Smooth scroll is decorative; the page scrolls natively without it.
+      })
+  }
 
   /**
    * The gate runs BEFORE the import, which is the whole point.
@@ -36,7 +63,7 @@ export function startPolish(): void {
    * null on any touch device, under reduced motion, and under automation. A
    * static import meant the phone that scans a QR tag downloaded a spring-physics
    * library for a crosshair it can never show, on the connection already
-   * carrying a 27 MB model. The component performs this same check itself;
+   * carrying a 1.9-8.2 MB model. The component performs this same check itself;
    * performing it before the import is what turns a wasted download into no
    * download.
    *
@@ -58,4 +85,6 @@ export function startPolish(): void {
 export function stopPolish(): void {
   stopCursor?.()
   stopCursor = null
+  stopScroll?.()
+  stopScroll = null
 }

@@ -71,42 +71,34 @@ export function buildViewerResponse(
   colourSlug: string | null,
   deps: ProjectionDeps,
   /**
-   * The `build-process` global — ONE "How we build your product" text for the
-   * whole catalogue, since 2026-08-17 (owner decision).
+   * ⚠️ THE `build-process` GLOBAL IS NO LONGER READ HERE, AND THIS PARAMETER IS
+   * GONE. Retired 2026-09-05 by owner decision, reversing the 2026-08-17 one.
    *
-   * ⚠️ AN UNSAVED GLOBAL DOES NOT ARRIVE AS `{}`. This was written believing it
-   * did — Products.ts's readCatalogueDefaults says so, and that is true for a
-   * global whose fields are all scalars — and it was WRONG here, because this one
-   * has an array field. Probed against a real local D1 on 2026-08-17:
+   * That global held ONE "How we build your product" text for the whole
+   * catalogue, and it won over every product's own copy the moment it was saved
+   * — the discriminator was `id`, i.e. "has anyone ever opened this screen",
+   * not "does it have anything in it". So a single save replaced the
+   * customisation copy on all eleven live garments, and saving it EMPTY served
+   * zero steps everywhere, because `Array.isArray([])` is true.
    *
-   *   never saved   {"customisationSteps":[]}                     <- no id
-   *   saved         {id:1, customisationSteps:[…], updatedAt, createdAt, globalType}
-   *   saved+cleared {id:1, customisationSteps:[],  updatedAt, …}
+   * On 2026-09-04 the owner asked for per-garment copy instead — "for each
+   * garment you can draft its unique version that is personalised according to
+   * that garment" — and eleven bespoke step sets were written and published.
+   * A global that silently overwrites all of them is then not a feature with a
+   * warning attached; it is a loaded gun, and a note telling people not to open
+   * a screen in their own CMS is not a control.
    *
-   * So the unsaved case and the deliberately-cleared case carry the SAME empty
-   * array, and only `id` tells them apart. Deciding on the array alone — which is
-   * what shipped first — meant an unsaved global won, discarding every product's
-   * own steps on every page at once, for the entire window between this migration
-   * deploying and somebody first opening the new screen. That is precisely the
-   * failure this fallback exists to prevent, and its own test could not see it
-   * because the test asserted a shape Payload never returns.
-   *
-   * Once SAVED, an empty step list is a real answer and wins — otherwise "delete
-   * them all" would silently mean "revert to whatever each product had".
+   * The steps and the intro now come from the product, always. The global still
+   * exists in the schema and its table is untouched — `presentation_mode` is the
+   * precedent, retired in place on 2026-08-09 — but nothing reads it, and it is
+   * hidden from the admin so it cannot be opened by accident. Deleting the
+   * columns would mean a D1 table rebuild, which the root CLAUDE.md calls the
+   * single most hazardous operation in this repo.
    */
-  buildProcess?: Doc | null,
 ): ViewerApiSuccess | null {
   const separateMode = product.variantMode === 'separate-glb-per-colour'
 
-  // `id` is the discriminator, NOT the array — see the `buildProcess` parameter's
-  // comment. It is the only field present in every saved shape and absent from
-  // the unsaved one, so it is what separates "nobody has opened this screen yet"
-  // from "somebody deliberately cleared it".
-  const buildProcessSaved = buildProcess != null && buildProcess.id != null
-  const buildSteps =
-    buildProcessSaved && Array.isArray(buildProcess.customisationSteps)
-      ? buildProcess.customisationSteps
-      : product.customisationSteps
+  const buildSteps = product.customisationSteps
 
   const colourways: ViewerColourway[] = []
   for (const doc of colourwayDocs) {
@@ -180,12 +172,7 @@ export function buildViewerResponse(
         : [],
       garmentFit: String(product.garmentFit ?? ''),
       shortDescription: String(product.shortDescription ?? ''),
-      // Same gate as the steps: an unsaved global must not blank the paragraph
-      // either. `??` on top of it, so a SAVED global with no paragraph written
-      // yet still shows the product's rather than nothing.
-      customisationIntroHtml: deps.richTextToHtml(
-        (buildProcessSaved ? buildProcess.customisationIntro : null) ?? product.customisationIntro,
-      ),
+      customisationIntroHtml: deps.richTextToHtml(product.customisationIntro),
       customisationSteps: Array.isArray(buildSteps)
         ? buildSteps.map((step) => {
             const s = step as { number?: unknown; title?: unknown; body?: unknown }

@@ -20,7 +20,7 @@
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1c1f18" />
     <meta
       name="description"
-      content="RUN APPAREL — interactive 3D product reference for B2B partners. Rotate, zoom and explore colourways of this development reference."
+      content="RUN APPAREL — interactive 3D product reference for B2B partners. Rotate, zoom and explore colorways of this development reference."
     />
     <title>RUN APPAREL — 3D Product Reference</title>
 
@@ -60,7 +60,7 @@
     <meta property="og:title" content="RUN APPAREL — 3D Product Reference" />
     <meta
       property="og:description"
-      content="Interactive 3D garment reference for B2B partners. Rotate, zoom and switch colourways."
+      content="Interactive 3D garment reference for B2B partners. Rotate, zoom and switch colorways."
     />
     <meta property="og:image" content="https://viewer.wear-run.help/og-default.jpg" />
     <meta property="og:image:type" content="image/jpeg" />
@@ -75,7 +75,7 @@
     <meta name="twitter:title" content="RUN APPAREL — 3D Product Reference" />
     <meta
       name="twitter:description"
-      content="Interactive 3D garment reference for B2B partners. Rotate, zoom and switch colourways."
+      content="Interactive 3D garment reference for B2B partners. Rotate, zoom and switch colorways."
     />
     <meta name="twitter:image" content="https://viewer.wear-run.help/og-default.jpg" />
 
@@ -85,11 +85,46 @@
     />
 
     <!--
+      ⚠️ THE DATA URI ABOVE IS KEPT AS THE PRIMARY ICON ON PURPOSE — it paints with
+      zero requests. What it could never do is answer `/favicon.ico`, which every
+      browser asks for unbidden whatever the document declares. Measured live
+      2026-09-05, before the file existed:
+
+          GET /favicon.ico -> 200, content-type: text/html, 10,046 bytes
+
+      Ten kilobytes of HTML labelled as a web page, in answer to a request for an
+      icon — a soft 404 to a crawler, and on the crawler path it also burned a CMS
+      service-binding fetch that could only fail. `public/favicon.ico` now exists,
+      so Static Assets serves it and the Worker is never invoked for it.
+
+      `/favicon.ico` needs no <link>: it is requested by convention. The Apple touch
+      icon does need one, and it cannot be a data URI — iOS reads a real file when a
+      buyer adds a garment page to their home screen.
+
+      All three files are generated from the SVG above by
+      apps/viewer/scripts/gen-favicon.mjs, so the mark cannot drift between them.
+    -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!--
       The whole critical path runs through these two hosts and neither had a
-      hint: cms.wear-run.help serves the product payload (measured 1.77-2.27s to
-      first byte) and media.wear-run.help serves the 27 MB model. Each paid DNS +
-      TCP + TLS serially at the moment it was first needed, on a phone that has
-      just scanned a QR tag.
+      hint: cms.wear-run.help serves the product payload and media.wear-run.help
+      serves the model. Each paid DNS + TCP + TLS serially at the moment it was
+      first needed, on a phone that had just scanned a QR tag.
+
+      ⚠️ THE NUMBERS THAT USED TO BE IN THIS PARAGRAPH WERE STALE BY A FACTOR OF
+      THREE AND SEVEN, and they were quoted elsewhere as if current. It said the
+      payload took "1.77-2.27s to first byte" and the model was "27 MB". Both were
+      true when written (2026-08-08) and neither survived the work since:
+
+          payload TTFB   1.77-2.27s  ->  0.56-0.72s   (measured across all 11
+                                                       live products 2026-09-04)
+          model size        ~27 MB   ->  1.8-7.8 MB   (every live GLB, same day)
+
+      The hint is still correct and still earns its place — a serial DNS+TCP+TLS
+      round trip costs the same regardless of what arrives afterwards. But a
+      measurement with a date is a fact, and one without is folklore: re-measure
+      before quoting these anywhere else.
 
       ⚠️ `crossorigin` is REQUIRED on both, and it is the half that gets dropped.
       Both are CORS requests — fetchWithProgress reads content-length, and the

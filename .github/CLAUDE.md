@@ -154,8 +154,9 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   `cms.wear-run.help` API cutover to be rolled back within the hour, and it later
   failed a deploy through a new post-deploy check that treated the 403 as "no
   model". Treat such a 403 as *inconclusive*, never as a failed assertion. And use
-  `HEAD`: a `GET` on the model is 27 MB per run, which the 15-minute uptime job
-  turns into gigabytes of R2 egress against a $5/month cap.
+  `HEAD`: a `GET` on the model is **1.9-8.2 MB** per garment (measured 2026-09-05;
+  it was ~27 MB before the 2026-09-03 re-exports), which the 15-minute uptime job
+  still turns into gigabytes of R2 egress against a $5/month cap.
 - **A red `secrets` job can mean gitleaks never DOWNLOADED.** Run 33264929752,
   2026-08-29: the release CDN answered **504**, `curl | tar` died on the truncated
   stream, and the PR showed `secrets: fail` on a branch with no secret in it. A failed
@@ -286,3 +287,18 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   contains the defect on purpose raises a real alert. Default setup has no
   path-exclusion config, so RENAME the fixture (`action.yml.fixture`) rather than
   dismissing an alert that will simply come back.
+
+- **CI's WebKit REPORTS A STALE COMPUTED STYLE, and no write beats it.** 2026-09-05,
+  `.page`'s bottom reserve, read on one element in one pass:
+  `attr "padding-bottom: 107px !important;"  prio "important"  pad "73px"` — an
+  important INLINE declaration losing the cascade, always to the PREVIOUS value. Seven
+  mechanisms reported that same stale number: a custom property, a bare `var()`, an
+  inline style, a forced `offsetHeight` reflow, `!important`, a rAF-deferred write out
+  of the ResizeObserver, and a pure-CSS rem floor that cannot be stale for any reason of
+  ours. The engine never recomputes after Playwright's `addStyleTag` changes
+  `html { font-size }`; macOS WebKit, Chromium and Firefox all do, and a real visitor's
+  text-size setting is a different path entirely. **Confirm a test's SETUP took effect
+  before asserting on it** — six CI rounds went into fixing a page that was never
+  broken. The specs now `test.skip()` WITH THE MEASURED NUMBERS when the precondition
+  demonstrably did not apply; asserting on a page whose setup never landed is measuring
+  the harness.

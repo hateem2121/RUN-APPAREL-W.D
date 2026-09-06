@@ -23,8 +23,15 @@ import { UnavailableState } from './States'
  *
  * NO AUTO-RESET, deliberately. Retrying a render that just threw invites a loop
  * that burns the device's battery and fills the Events table with the same row;
- * `UnavailableState` already offers the catalogue and both contact routes, so a
- * visitor is never stranded. Recovery is a page load.
+ * `UnavailableState` offers both contact routes, so a visitor is never stranded.
+ * Recovery is a page load.
+ *
+ * ⚠️ This said "already offers the catalogue and both contact routes" until
+ * 2026-09-05, and the catalogue button was removed on 2026-09-04 — so the safety
+ * argument for not auto-resetting cited an affordance that no longer existed. The
+ * argument still holds on the two contact routes alone, which is why the decision
+ * did not change; but a comment that justifies a behaviour with a deleted button is
+ * how a later reader concludes the behaviour is now unsafe and "fixes" it.
  */
 
 /** Component names only — no props, no state, no user data. Enough to locate the bug. */

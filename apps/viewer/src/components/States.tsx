@@ -43,20 +43,28 @@ export function UnavailableState({ settings }: { settings?: ViewerSiteSettings }
       <h1 className="display display--hero">
         {headingWithAccent('This reference is no longer live')}
       </h1>
+      {/*
+        THE COPY AND THE BUTTONS CHANGED TOGETHER on 2026-09-04, and they had to.
+
+        The catalogue button was removed by owner decision (search traffic must not
+        be handed the catalogue). This sentence previously read "Our catalogue has
+        every current reference" — which, with the button gone, would promise a
+        thing the page no longer offers. A dead-end promise on the one screen a
+        visitor reaches by scanning a QR tag that no longer resolves is worse than
+        no promise at all, so the sentence names the route that does exist.
+
+        `btn--primary` moved from the catalogue to Email, because this screen must
+        still have exactly one obvious next step. Leaving three ghost buttons would
+        make the recovery path from a dead QR tag ambiguous — and this is the only
+        screen where the visitor arrived with intent and got nothing.
+      */}
       <p style={{ color: 'var(--muted)' }}>
-        The QR code you scanned points to a garment we no longer show here. Our catalogue has every
-        current reference, and our team can send you the details for this one.
+        The QR code you scanned points to a garment we no longer show here. Tell our team what you
+        were looking at and we will send you the current reference for it.
       </p>
       <div className="unavailable__actions">
         <a
           className="btn btn--primary"
-          href={site.catalogueUrl}
-          onClick={() => track('catalogue_clicked', { placement: 'unavailable' })}
-        >
-          Back to Catalogue
-        </a>
-        <a
-          className="btn btn--ghost"
           href={buildMailtoUrl(site.email, enquiry)}
           onClick={() => track('email_clicked')}
         >

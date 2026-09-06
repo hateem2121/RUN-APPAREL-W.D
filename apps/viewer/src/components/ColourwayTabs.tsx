@@ -43,7 +43,8 @@ interface ColourwayTabsProps {
  * moment the model was ready, so it only ever appeared during the load window —
  * which is why it reads as an intermittent popup rather than a feature.
  *
- * The cost of removing it is real and was accepted knowingly: for the ~22s a 27 MB
+ * The cost of removing it is real and was accepted knowingly: for the whole
+ * download — ~22s on 4G at the ~27 MB models of the time, less at the 1.8-7.8 MB
  * model takes on 4G, hovering a colourway now does nothing at all. Restoring it
  * means restoring `shouldShowThumbnail` (deleted from `lib/colourwayPreview.ts`),
  * the `.colourways__preview` slot, and the `modelReady` wiring in `App.tsx` —
@@ -56,7 +57,7 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
    * The roving tabindex tracked SELECTION, not FOCUS: `tabIndex` was
    * `slug === selected.slug ? 0 : -1`. Because activation here is MANUAL — arrows
    * move focus, Enter/Space selects, deliberately, since selecting rebinds every
-   * material on a 27 MB model — arrowing away from the selected tab left focus on
+   * material on a multi-megabyte model — arrowing away from the selected tab left focus on
    * a tab whose tabIndex was -1. Tabbing out and back then returned the browser
    * to the SELECTED tab rather than the one the user had arrowed to, silently
    * discarding their navigation.
@@ -156,8 +157,8 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
   }
 
   return (
-    <section className="colourways" aria-label="Colourways" data-reveal>
-      <div className="colourways__list" role="tablist" aria-label="Select colourway">
+    <section className="colourways" aria-label="Colorways" data-reveal>
+      <div className="colourways__list" role="tablist" aria-label="Select colorway">
         {colourways.map((colourway, index) => (
           <button
             key={colourway.variantId}

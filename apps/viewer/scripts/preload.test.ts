@@ -91,6 +91,50 @@ describe('build output', () => {
   )
 })
 
+describe('the Latin fonts are preloaded, and only those', () => {
+  /**
+   * ⚠️ ASSERTED AGAINST dist/, NOT index.html, AND THAT IS THE POINT. The filenames
+   * are content-hashed, so these links cannot live in the source HTML — a hardcoded
+   * one would go stale at the next font bump and preload a 404, which is strictly
+   * WORSE than no hint because the browser then fetches twice. They are injected by
+   * the `run-preload-latin-fonts` plugin in vite.config.ts, which reads the emitted
+   * bundle, so the only place the claim can be checked is the build.
+   */
+  it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)(
+    'preloads exactly the two Latin faces, each with crossorigin',
+    () => {
+      const html = readFileSync(INDEX, 'utf8')
+      const links = html.match(/<link[^>]*rel="preload"[^>]*as="font"[^>]*>/g) ?? []
+
+      expect(
+        links.length,
+        'expected exactly two font preloads — Archivo latin and Instrument Serif ' +
+          'latin. A different count means the plugin matched the wrong subsets.',
+      ).toBe(2)
+
+      const joined = links.join('\n')
+      expect(joined).toMatch(/archivo-latin-/)
+      expect(joined).toMatch(/instrument-serif-latin-/)
+
+      // ⚠️ The half that gets dropped. Fonts are fetched in CORS mode even
+      // same-origin; without this the preload opens a connection in the wrong
+      // credentials mode and the real request opens a SECOND one, so the hint
+      // costs a round trip instead of saving one.
+      for (const link of links) {
+        expect(link, `a font preload without crossorigin: ${link}`).toMatch(/crossorigin/)
+      }
+
+      // Latin only. Preloading a subset this audience does not render would fetch
+      // bytes for nothing, which is the opposite of the point.
+      expect(joined, 'latin-ext must not be preloaded').not.toMatch(/latin-ext/)
+      expect(joined, 'vietnamese must not be preloaded').not.toMatch(/vietnamese/)
+      expect(joined, 'the .woff fallbacks are never chosen by a modern browser').not.toMatch(
+        /\.woff"/,
+      )
+    },
+  )
+})
+
 describe('the head', () => {
   it('preloads the meshopt decoder as a script and the lighting map as a CORS fetch (Rank 6)', () => {
     /**

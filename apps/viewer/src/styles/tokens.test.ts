@@ -288,14 +288,65 @@ describe('tokens added by the 2026-08-14 audit', () => {
   it('declares a type scale written FROM the shipped sizes', () => {
     const source = tokens()
     for (const token of [
-      '--text-body: 17px',
-      '--text-sm: 15px',
-      '--text-xs: 13px',
-      '--text-mono: 11px',
-      '--text-mono-sm: 10px',
+      // rem since 2026-09-04 — same pixels at the 16px default, but they now follow
+      // the visitor's own text-size setting. The px equivalents stay in the comment
+      // beside each token so the audit's original measurement is still readable.
+      '--text-body: 1.0625rem',
+      '--text-sm: 0.9375rem',
+      '--text-xs: 0.8125rem',
+      '--text-mono: 0.6875rem',
+      '--text-mono-sm: 0.625rem',
+      // The four added 2026-09-05, closing the gap the 2026-08-14 block named in
+      // its own comment: it tokenised five of nine and said "nothing to stop a
+      // tenth". Seventeen raw declarations were still in the two component sheets.
+      '--text-wordmark: 1.125rem',
+      '--text-wordmark-sm: 1rem',
+      '--text-note: 0.875rem',
+      '--text-mono-lg: 0.75rem',
     ]) {
       expect(source, `${token} is one of the eleven raw sizes the audit counted`).toContain(token)
     }
+  })
+
+  it('declares the tracking and layering scales added 2026-09-05', () => {
+    const source = tokens()
+    for (const token of [
+      '--tracking-caps-tight: 0.1em',
+      '--tracking-caps: 0.12em',
+      '--tracking-caps-wide: 0.14em',
+      '--tracking-caps-compact: 0.06em',
+      // ⚠️ NOT 0.12em. docs/DESIGN.md §3 states 11px/0.11em and 10px/0.12em as
+      // separate rows because they render 1.21px and 1.20px — the same optical
+      // tracking from two sizes. Folding them moves `.mono` to 1.32px.
+      '--tracking-mono: 0.11em',
+      '--tracking-wordmark: -0.02em',
+      '--z-stage-control: 1',
+      '--z-header: 40',
+      '--z-action-bar: 50',
+      '--z-grain: 60',
+      '--z-cursor: 70',
+      '--z-preloader: 80',
+      '--z-skip-link: 100',
+    ]) {
+      expect(source, `${token} documents a value that already shipped`).toContain(token)
+    }
+  })
+
+  it('keeps the skip link above the preloader', () => {
+    // Not a style preference. The preloader covers the viewport, and the skip link
+    // is the keyboard user's first control — if the curtain won, tabbing during
+    // load would focus something nobody can see. Asserted on the NUMBERS so a
+    // renumbering that reads fine cannot invert them.
+    const source = tokens()
+    const value = (token: string) => {
+      const match = source.match(new RegExp(`${token}:\\s*(\\d+)`))
+      expect(match, `${token} is missing`).not.toBeNull()
+      return Number(match?.[1])
+    }
+    expect(value('--z-skip-link')).toBeGreaterThan(value('--z-preloader'))
+    expect(value('--z-preloader')).toBeGreaterThan(value('--z-cursor'))
+    expect(value('--z-grain')).toBeGreaterThan(value('--z-action-bar'))
+    expect(value('--z-action-bar')).toBeGreaterThan(value('--z-header'))
   })
 })
 
@@ -362,6 +413,24 @@ describe('spacing', () => {
  *
  * `tokens.css` is exempt: it is where the literals are SUPPOSED to live.
  */
+/**
+ * Match a declaration terminated by `;` OR by the closing `}` of its block.
+ *
+ * ⚠️ Both halves added 2026-09-05 after an independent verification pass found the
+ * three gates below could be walked past two ways. Neither was being exploited —
+ * re-scanned at the time, 0 instances of each — but a gate with a known hole is a
+ * gate that stops being trusted the first time it misses something.
+ */
+const DECL = (prop: string) => new RegExp(`${prop}:\\s*([^;}]+)[;}]`, 'g')
+
+/**
+ * A `var()` with a RAW FALLBACK is a raw value wearing a token's clothes:
+ * `font-size: var(--nope, 14px)` renders 14px when the token does not exist, which
+ * is exactly the mistyped-token failure `tokens.test.ts` was written for. Only a
+ * bare `var(--token)` counts as tokenised.
+ */
+const isTokenised = (value: string) => /^var\(\s*--[\w-]+\s*\)$/.test(value.trim())
+
 describe('raw values in component stylesheets', () => {
   const components = () => cssFiles().filter(({ name }) => name !== 'tokens.css')
 
@@ -419,6 +488,82 @@ describe('raw values in component stylesheets', () => {
       offenders,
       'Use --instant / --fast / --ui / --settle / --slow. docs/DESIGN.md §5 says which\n' +
         'is which; they are 20ms apart in places and mean different things.',
+    ).toEqual([])
+  })
+
+  /**
+   * The three gates added 2026-09-05, and what each of them would have caught.
+   *
+   * The radius/shadow/duration gates above have held since 2026-08-14 while
+   * font-size, letter-spacing and z-index went on being written as literals — 17,
+   * 21 and 7 of them. That is not an oversight anyone would spot by reading: a
+   * lone `font-size: 0.875rem` looks like a decision, and only counting reveals
+   * that three separate components each made it independently.
+   *
+   * ⚠️ EACH ALLOWLIST BELOW IS A DOCUMENTED DECISION, NOT A TODO. `clamp()`
+   * display sizes and `.serif-accent`'s `1.07em` are exempt because
+   * docs/DESIGN.md §3 says ranges and ratios are not scale steps. Emptying an
+   * allowlist to "finish the job" would reverse that.
+   */
+  it('every font-size cites a token, a range, or a ratio', () => {
+    const offenders: string[] = []
+    for (const { name, source } of components()) {
+      for (const match of source.matchAll(DECL('font-size'))) {
+        const value = (match[1] ?? '').trim()
+        if (isTokenised(value)) continue
+        // A clamp() is a RANGE and an em is a RATIO — neither is a step on a
+        // scale, and docs/DESIGN.md §3 exempts both by name.
+        if (value.startsWith('clamp(')) continue
+        if (/^[\d.]+em$/.test(value)) continue
+        const line = source.slice(0, match.index).split('\n').length
+        offenders.push(`${name}:${line} — font-size: ${value}`)
+      }
+    }
+    expect(
+      offenders,
+      'Use a --text-* token. Nine sizes ship (10-18px) and all nine are declared;\n' +
+        'if a tenth is genuinely needed, add it to tokens.css AND to the table in\n' +
+        'docs/DESIGN.md §3 — the drift test above reads that table.',
+    ).toEqual([])
+  })
+
+  it('every letter-spacing cites a token, or is exactly 0', () => {
+    const offenders: string[] = []
+    for (const { name, source } of components()) {
+      for (const match of source.matchAll(DECL('letter-spacing'))) {
+        const value = (match[1] ?? '').trim()
+        if (isTokenised(value)) continue
+        // `0` is the serif accent deliberately opting OUT of tracking, which
+        // docs/DESIGN.md §3 states. It is an absence, not an eighth step.
+        if (value === '0') continue
+        const line = source.slice(0, match.index).split('\n').length
+        offenders.push(`${name}:${line} — letter-spacing: ${value}`)
+      }
+    }
+    expect(
+      offenders,
+      'Use --tracking-caps-tight / --tracking-caps / --tracking-caps-wide /\n' +
+        '--tracking-caps-compact / --tracking-mono / --tracking-wordmark, or one of\n' +
+        'the two display tokens. Six steps cover 21 shipped declarations; a seventh\n' +
+        'needs a row in docs/DESIGN.md §3 saying what it is FOR.',
+    ).toEqual([])
+  })
+
+  it('every z-index cites a token', () => {
+    const offenders: string[] = []
+    for (const { name, source } of components()) {
+      for (const match of source.matchAll(DECL('z-index'))) {
+        const value = (match[1] ?? '').trim()
+        if (isTokenised(value)) continue
+        const line = source.slice(0, match.index).split('\n').length
+        offenders.push(`${name}:${line} — z-index: ${value}`)
+      }
+    }
+    expect(
+      offenders,
+      'Use a --z-* token. A z-index means nothing on its own — it is only a\n' +
+        'position in the stack, and the stack is the table in docs/DESIGN.md §4.\n' +
+        'A raw number is a layer nobody can order against the other six.',
     ).toEqual([])
   })
 })
@@ -511,6 +656,13 @@ function luminance(hex: string): number {
   return 0.2126 * (linear[0] ?? 0) + 0.7152 * (linear[1] ?? 0) + 0.0722 * (linear[2] ?? 0)
 }
 
+/** What the eye receives when `fg` is drawn over `bg` at `alpha`. */
+function composite(fg: string, bg: string, alpha: number): string {
+  const ch = (hex: string, i: number) => Number.parseInt(hex.slice(i, i + 2), 16)
+  const mix = (i: number) => Math.round(ch(fg, i) * alpha + ch(bg, i) * (1 - alpha))
+  return `#${[1, 3, 5].map((i) => mix(i).toString(16).padStart(2, '0')).join('')}`
+}
+
 function contrast(a: string, b: string): number {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
   return ((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05)
@@ -595,6 +747,106 @@ describe('progress indicators', () => {
         'DESIGN.md says volt is illegible on paper-white, which is why --volt-deep\n' +
         'exists and why --dimension resolves to it in light mode.',
     ).toEqual([])
+  })
+
+  /**
+   * ⚠️ THE TEST ABOVE READS THE TOKEN, AND THAT IS WHY IT MISSED `.stage__more`.
+   *
+   * `.stage__more` — the chevron telling a phone visitor there is more page below —
+   * carried `color: var(--muted); opacity: 0.55` until 2026-09-05. The token was
+   * fine at 5.10:1 light / 6.69:1 dark. Composited through that opacity a visitor
+   * actually saw **2.19:1 and 2.97:1**, both under the 3:1 floor for a graphical
+   * object. It is `aria-hidden="true"`, so axe skipped it too — three gates, none
+   * of which could see the defect, on the only cue that says the page continues.
+   *
+   * So this checks the thing the other test structurally cannot: a rule that
+   * declares BOTH a token colour and an `opacity`, scored on what the eye receives.
+   *
+   * It does not attempt to resolve arbitrary opacity anywhere in the cascade — a
+   * translucent ANCESTOR is a different problem and one this file cannot see. It
+   * pins the case that actually shipped, which is opacity beside colour in one rule.
+   */
+  const TRANSLUCENT_GRAPHICS = [{ file: 'page.css', selector: '.stage__more' }]
+
+  it('a rule that dims its own colour still clears 3:1 on what the eye receives', () => {
+    const tokensSource = readFileSync(join(STYLES_DIR, 'tokens.css'), 'utf8')
+    const bg = resolveToken(tokensSource, '--bg')
+    expect(bg, '--bg must resolve for this test to mean anything').not.toBeNull()
+
+    const failures: string[] = []
+    for (const { file, selector } of TRANSLUCENT_GRAPHICS) {
+      const source = stripComments(readFileSync(join(STYLES_DIR, file), 'utf8'))
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const block = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(source)
+      if (!block?.[1]) {
+        failures.push(`${file}: no rule found for \`${selector}\` — did it get renamed?`)
+        continue
+      }
+      const colour = /(?:^|[;{\s])color\s*:\s*var\(\s*(--[a-z0-9-]+)\s*\)/i.exec(block[1])
+      if (!colour?.[1]) {
+        failures.push(`${file} ${selector}: color is not a bare var(--token); cannot verify it`)
+        continue
+      }
+      const resolved = resolveToken(tokensSource, colour[1])
+      if (!resolved) {
+        failures.push(`${file} ${selector}: ${colour[1]} does not resolve to a hex pair`)
+        continue
+      }
+      const alphaMatch = /(?:^|[;{\s])opacity\s*:\s*([\d.]+)/i.exec(block[1])
+      const alpha = alphaMatch?.[1] ? Number(alphaMatch[1]) : 1
+      for (const mode of ['light', 'dark'] as const) {
+        const behind = bg?.[mode] ?? '#ffffff'
+        const seen = composite(resolved[mode], behind, alpha)
+        const ratio = contrast(seen, behind)
+        if (ratio < 3) {
+          failures.push(
+            `${file} ${selector}: ${colour[1]} at opacity ${alpha} reads ${ratio.toFixed(2)}:1 ` +
+              `on ${behind} in ${mode} mode — below the 3:1 floor. The token itself is ` +
+              `${contrast(resolved[mode], behind).toFixed(2)}:1, which is why a token-only ` +
+              `check passes this.`,
+          )
+        }
+      }
+    }
+
+    expect(
+      failures,
+      'A cue is being dimmed below the contrast floor by its own opacity.\n' +
+        'Lower the opacity requirement rather than the colour: dropping `opacity`\n' +
+        'and keeping --muted measures 5.10:1 light / 6.69:1 dark. --dimension also\n' +
+        'passes but resolves to volt, which pulls the eye off the garment.',
+    ).toEqual([])
+  })
+})
+
+describe('user preferences the stylesheets answer', () => {
+  /**
+   * Each of these is a real accessibility need with a real consumer on this page,
+   * and the list has grown by discovery rather than by design — reduced-transparency
+   * was added 2026-08-14 after a grep found only two were answered, and
+   * forced-colors and prefers-contrast on 2026-09-04 after an audit found the
+   * colourway selection was expressed purely as a fill inversion, which is exactly
+   * what Windows High Contrast overrides.
+   *
+   * The test names the consumer for each, so a future removal has to argue with a
+   * specific case rather than with a media query.
+   */
+  const REQUIRED = [
+    ['prefers-color-scheme', 'the light/dark palette'],
+    ['prefers-reduced-motion', 'reveals, the cursor, Lenis and the loading sweep'],
+    ['prefers-reduced-transparency', 'the blurred sticky header and the loading card'],
+    ['forced-colors', 'colourway and camera selection, which is fill-inversion only'],
+    ['prefers-contrast', 'the 18%-opacity hairlines every panel is separated by'],
+  ] as const
+
+  it.each(REQUIRED)('answers %s — %s', (query, consumer) => {
+    const all = cssFiles()
+      .map(({ source }) => source)
+      .join('\n')
+    expect(
+      all.includes(`(${query}`),
+      `No stylesheet answers ${query}. It matters here for ${consumer}.`,
+    ).toBe(true)
   })
 })
 

@@ -17,7 +17,9 @@
  *      the material census and that HEAD were ALL green while the file was
  *      unreachable. Re-confirmed in the opposite direction on 2026-08-13: GET said
  *      HIT with age 49431, HEAD said DYNAMIC, same URL, same minute.
- *   3. A FULL GET COSTS 27 MB. scripts/smoke-viewer-payload.mjs uses HEAD precisely
+ *   3. A FULL GET COSTS 1.9-8.2 MB PER GARMENT, 53.69 MB for all eleven (measured
+ *      2026-09-05; ~27 MB each before the 2026-09-03 re-exports).
+ *      scripts/smoke-viewer-payload.mjs uses HEAD precisely
  *      to keep R2 egress off the $5/month cap, which is why it would not have caught
  *      the cached 404 either.
  *
@@ -30,12 +32,15 @@
  *
  * A range request is a GET, so it reads the entry a browser would read and a cached
  * 404 shows up as a 404. It also reports the object's FULL size in content-range, so
- * the size assertion survives. 1 KB per check instead of 27 MB.
+ * the size assertion survives. 1 KB per check instead of the whole object.
  *
  * Usage:
  *   node .claude/skills/check-live/check-live.mjs
- *   node .claude/skills/check-live/check-live.mjs --full   # whole model, 27 MB each
+ *   node .claude/skills/check-live/check-live.mjs --full   # whole model, 1.9-8.2 MB each
  */
+
+/** Strings that appear ONLY in CLO's internal design database. */
+const LEAK_NEEDLES = ['Stretch-Warp', 'SeamLinePairList', 'D:/New File', 'PhysicalPropertyName']
 
 const API = 'https://cms.wear-run.help/api/public/viewer'
 const VIEWER = 'https://viewer.wear-run.help'
@@ -94,6 +99,61 @@ async function probeAsset(url, label) {
   await response.arrayBuffer().catch(() => {})
 }
 
+/**
+ * The shipped file must carry NO CLO factory data and MUST carry a copyright.
+ *
+ * ⚠️ ADDED 2026-09-05 BECAUSE NOTHING WATCHED THIS. Every published GLB carried root
+ * `extras.MetaData` — fabric physics, supplier codes, Coloro dye references, seam
+ * pairs, absolute Windows paths — until they were stripped that day. The pipeline
+ * fix (`stripRootExtras`) stops it recurring for NEW garments, but a garment
+ * attached by hand, restored from an older object, or processed by a container
+ * image built before the fix would re-introduce it silently. This is the only check
+ * that looks at what is actually SERVED.
+ *
+ * Reads the JSON chunk only — 512 KB of a multi-megabyte file, one ranged GET. A
+ * GLB is a 12-byte header then [uint32 length][uint32 type][payload], so the JSON
+ * length is at offset 12 and the JSON itself starts at 20.
+ */
+async function probeModelPrivacy(url) {
+  let bytes
+  try {
+    const response = await fetch(url, { headers: { Range: 'bytes=0-524287' } })
+    if (!response.ok) return // probeAsset already reported the status.
+    bytes = new Uint8Array(await response.arrayBuffer())
+  } catch {
+    return
+  }
+  if (bytes.byteLength < 20) return
+
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  const jsonLength = view.getUint32(12, true)
+  const end = Math.min(20 + jsonLength, bytes.byteLength)
+  let doc
+  try {
+    doc = JSON.parse(new TextDecoder().decode(bytes.subarray(20, end)))
+  } catch {
+    // A truncated read is normal on a large JSON chunk; fall back to a string scan
+    // so the check still catches the leak rather than going quiet.
+    const text = new TextDecoder().decode(bytes.subarray(20, end))
+    const found = LEAK_NEEDLES.filter((needle) => text.includes(needle))
+    if (found.length > 0) fail(`model LEAKS CLO factory data: ${found.join(', ')}`)
+    return
+  }
+
+  const extras = doc.extras ? Object.keys(doc.extras) : []
+  if (extras.length > 0) {
+    fail(
+      `model carries root extras [${extras.join(', ')}] — CLO factory data is being ` +
+        `served. Re-run the pipeline on the RAW export, or strip it with ` +
+        `tools/asset-pipeline/scripts/strip-live-r2.mts, then PURGE the URL.`,
+    )
+  } else if (!doc.asset?.copyright) {
+    fail('model has no asset.copyright — it was not processed by the current pipeline')
+  } else {
+    ok(`model carries no CLO metadata, copyright "${doc.asset.copyright}"`)
+  }
+}
+
 for (const { slug, colourway } of PRODUCTS) {
   console.log(`\n=== ${slug} ===`)
 
@@ -127,6 +187,7 @@ for (const { slug, colourway } of PRODUCTS) {
     fail('no glbUrl on the product — there is nothing for the viewer to render')
   } else {
     await probeAsset(product.glbUrl, 'model')
+    await probeModelPrivacy(product.glbUrl)
   }
 
   const poster = product.posterFallback?.url ?? payload.selectedColourway?.poster?.url

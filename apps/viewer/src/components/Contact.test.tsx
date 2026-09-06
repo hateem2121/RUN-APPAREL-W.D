@@ -2,7 +2,7 @@ import { DEFAULT_SITE_SETTINGS, type EnquiryContext } from '@run-apparel/shared'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ContactSection, MobileActionBar, StickyContactRail } from './Contact'
+import { ContactSection, MobileActionBar } from './Contact'
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 /**
@@ -120,16 +120,14 @@ describe('contact buttons (shared by all three surfaces)', () => {
      * audit had recorded the layout overflowing at that width, which is why the
      * check was necessary and why it had to come after the header fix.
      *
-     * `compact` is kept for <StickyContactRail> — narrow, desktop-only, and
-     * beside a page that has already made the offer in full.
+     * ⚠️ `compact` WAS DELETED WITH <StickyContactRail> on 2026-09-04. It was the
+     * only surface that used it, and both surviving surfaces carry comments saying
+     * they deliberately do not — the verb is the point on the only conversion path
+     * in the product. Every contact link now reads "Email Us" / "WhatsApp Us".
      */
     render(<MobileActionBar settings={SETTINGS} enquiry={ENQUIRY} />)
     expect(host.textContent).toContain('Email Us')
     expect(host.textContent).toContain('WhatsApp Us')
-
-    render(<StickyContactRail settings={SETTINGS} enquiry={ENQUIRY} />)
-    expect(host.textContent).toContain('Email')
-    expect(host.textContent).not.toContain('Email Us')
 
     render(<ContactSection settings={SETTINGS} enquiry={ENQUIRY} />)
     expect(host.textContent).toContain('Email Us')
@@ -165,30 +163,3 @@ describe('ContactSection', () => {
  * always-visible rail cannot have the two attributes drift apart, because it no
  * longer sets either.
  */
-describe('StickyContactRail', () => {
-  it('is visible and interactive from first paint', () => {
-    render(<StickyContactRail settings={SETTINGS} enquiry={ENQUIRY} />)
-    const rail = host.querySelector('.contact-rail')
-
-    expect(rail, 'no rail rendered at all').not.toBeNull()
-    expect(
-      rail?.hasAttribute('inert'),
-      'inert keeps the links out of the tab order — the rail is always reachable now',
-    ).toBe(false)
-    expect(
-      rail?.getAttribute('aria-hidden'),
-      'aria-hidden would conceal the only conversion path from a screen reader',
-    ).toBeNull()
-  })
-
-  it('needs no stage element, and observes nothing', () => {
-    // The rail used to require `.stage` to exist before it would ever appear, so
-    // the separate-GLB error path (no stage) silently had no contact rail.
-    expect(() => render(<StickyContactRail settings={SETTINGS} enquiry={ENQUIRY} />)).not.toThrow()
-    expect(
-      observers,
-      'the rail still constructs an IntersectionObserver — it should not scroll-gate at all',
-    ).toHaveLength(0)
-    expect(host.querySelectorAll('a')).toHaveLength(2)
-  })
-})

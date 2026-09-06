@@ -437,6 +437,9 @@ export interface Product {
         id?: string | null;
       }[]
     | null;
+  /**
+   * One short paragraph introducing how this garment is made. If you leave it blank the page shows a general sentence instead.
+   */
   customisationIntro?: {
     root: {
       type: string;
@@ -452,6 +455,9 @@ export interface Product {
     };
     [k: string]: unknown;
   } | null;
+  /**
+   * Four steps is the shape every live garment uses. Fewer or more will render; none hides the section.
+   */
   customisationSteps?:
     | {
         number: number;
@@ -466,7 +472,7 @@ export interface Product {
   cameraTarget: string;
   defaultFieldOfView: string;
   /**
-   * Where the “Catalogue” button sends people.
+   * Kept on record only. The website has had no “Catalogue” button since 4 September 2026 — these product pages are indexed by Google and the catalogue is a 54 MB trade PDF. Changing this does not change anything a visitor sees.
    */
   catalogueUrl: string;
   /**
@@ -806,6 +812,9 @@ export interface SiteSetting {
    * International format; the viewer builds wa.me links from the digits.
    */
   whatsappNumber: string;
+  /**
+   * Kept on record only. The website has had no “Catalogue” button since 4 September 2026 — these product pages are indexed by Google and the catalogue is a 54 MB trade PDF. Changing this does not change anything a visitor sees.
+   */
   catalogueUrl: string;
   /**
    * The little picture on the browser tab. Leave this empty and the built-in RUN mark is used. A SQUARE picture works best — a wide logo gets squashed into a tiny square and becomes unreadable. Around 512 x 512 is plenty. Upload it under Photos & 3D files first, then pick it here.
@@ -893,7 +902,7 @@ export interface SiteSetting {
 export interface CatalogueDefault {
   id: number;
   /**
-   * Where a NEW product’s “Catalogue” button sends people.
+   * The value a NEW product starts with. Kept on record only. The website has had no “Catalogue” button since 4 September 2026 — these product pages are indexed by Google and the catalogue is a 54 MB trade PDF. Changing this does not change anything a visitor sees.
    */
   catalogueUrl: string;
   /**
@@ -904,7 +913,7 @@ export interface CatalogueDefault {
   createdAt?: string | null;
 }
 /**
- * This text appears on EVERY product page, including ones you have already made. Change it here and it changes everywhere as soon as you save — you never have to edit it product by product.
+ * Retired. Customisation copy is written per garment, on each product’s own “How we build your product” tab.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "build-process".

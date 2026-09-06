@@ -426,3 +426,79 @@ Cloudflare's bot challenge has broken this viewer before.
 
 Cache and firewall rules are recorded with their rollback JSON in
 `docs/audit-2026-08-30-pm/CLOUDFLARE-LIVE-CHANGES.md`.
+
+---
+
+## Protecting the 3D models (added 2026-09-05)
+
+Two controls, deployed by hand in the dashboard. They are **not in git** — nothing in
+this repo can create or verify them — so this is the only operational record. The
+reasoning and the live measurements are in `docs/AUDIT-PRODUCT-PAGES-2026-09-05.md`.
+
+### WAF custom rule — hotlinked models
+
+| Field | Value |
+|---|---|
+| Name | `Block hotlinked 3D models (referrer must be our own origin)` |
+| Expression | `(http.host eq "media.wear-run.help" and ends_with(http.request.uri.path, ".glb") and len(http.referer) > 0 and not starts_with(http.referer, "https://viewer.wear-run.help/") and not starts_with(http.referer, "https://cms.wear-run.help/"))` |
+| Action | Block |
+| Order | 2 (after the CMS-API skip rule) |
+
+⚠️ **`len(http.referer) > 0` IS LOAD-BEARING — do not "tighten" it away.** The viewer's
+own model fetch sends `Referer: https://viewer.wear-run.help/` and **no `Origin` header
+at all** (measured before the rule was written; a rule keyed on `Origin` would match
+nothing). Dropping the length test would block every referrer-less client — `curl`, a
+privacy browser that strips the header, the backup script — which is a self-inflicted
+outage wearing a security badge. The failure mode of a miss is today's behaviour.
+
+⚠️ **IT WAS `contains "wear-run.help"` FOR HALF A DAY, AND THAT WAS BYPASSABLE.**
+`contains` matches the string anywhere in the referrer, so all five of these returned
+**206**: `https://evil.com/wear-run.help`, `https://wear-run.help.evil.com/`,
+`https://notwear-run.help/`, `https://evil.com/?x=wear-run.help`,
+`https://viewer.wear-run.help.attacker.io/`. Anyone appending the string to their own
+URL, or registering a lookalike subdomain, defeated it. Key on the referrer's **origin
+prefix**, never on a substring of the host. Re-measured after the fix: all five 403,
+and the viewer's own referrer, a deep viewer path, the CMS admin and a referrer-less
+request all still 206.
+
+**Images are deliberately NOT gated.** A poster with a hostile referrer still returns
+200, on purpose — see PP3-N-07 in the audit.
+
+### Response-header Transform Rule — `media.wear-run.help`
+
+| Field | Value |
+|---|---|
+| Name | `media headers: Timing-Allow-Origin for the viewer's own page + CORP same-site …` |
+| If | `(http.host eq "media.wear-run.help")` |
+| Set static | `Timing-Allow-Origin` = `https://viewer.wear-run.help` |
+| Set static | `Cross-Origin-Resource-Policy` = `same-site` |
+
+**`same-site`, not `same-origin`.** The viewer and the media host share the registrable
+domain `wear-run.help`, so the viewer's own fetches are allowed while a foreign page
+embedding a model is refused by the browser itself — the half a WAF rule cannot do,
+since a `Referer` is forgeable and this is not.
+
+⚠️ **ADD HEADERS TO THIS ONE RULE, NEVER A SECOND RULE ON THE SAME HOST.** This domain
+*joins* duplicate headers from every matching rule with a comma rather than picking a
+winner — the same trap `_headers` has, documented in `apps/viewer/CLAUDE.md`.
+
+⚠️ **Verified before trusting it:** all 11 models still 206 with both headers,
+`Timing-Allow-Origin` survived the edit, and every `og:image` across the sampled pages
+points at `viewer.wear-run.help/og/…` rather than `media.wear-run.help`, so no
+link-preview image is subject to CORP.
+
+### After changing an object in R2, PURGE
+
+Deleting or overwriting an R2 object does **not** change what the edge serves. Measured
+2026-09-05: two objects deleted from R2 and removed from the CMS still returned **200
+with `cf-cache-status: HIT`** and ages of 178,483 s and 23,981 s, under
+`max-age=31536000`. Without a Custom Purge of each exact URL the change is cosmetic for
+a year. Caching → Configuration → Purge Cache → Custom Purge → URL, up to 30 at a time.
+Verify with a **plain GET**, never a HEAD — they land on different edge cache entries on
+this domain.
+
+### Search Console
+
+A **Domain** property `sc-domain:wear-run.help` was created 2026-09-05 and **auto-verified**
+— Google recognised Cloudflare as the DNS provider, so no TXT record was needed. It
+therefore depends on the zone staying on Cloudflare nameservers.

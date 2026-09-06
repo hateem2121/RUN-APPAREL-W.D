@@ -49,3 +49,60 @@ describe('fetchViewerData', () => {
     expect(url).toMatch(/\/api\/public\/viewer\/n001$/)
   })
 })
+
+describe('fetchViewerData — timeout and retry', () => {
+  // ⚠️ THERE WAS NO TIMEOUT AT ALL BEFORE 2026-09-04. A slow (not down) CMS left
+  // App.tsx in `{ kind: 'loading' }` forever, with the whole document aria-hidden
+  // behind the preloader. These tests pin the bound and the retry policy.
+
+  it('passes an abort signal, so a hung request cannot wait forever', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await fetchViewerData('rxps', 'wine')
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
+    // NEGATIVE CONTROL: drop `signal:` from api.ts and this line fails. Asserting
+    // only that fetch was called would pass against the unbounded version.
+    expect(init?.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('retries exactly once on a transport failure, then succeeds', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new DOMException('The operation timed out.', 'TimeoutError'))
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(fetchViewerData('rxps', 'wine')).resolves.toEqual({ ok: true })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives up after the retry and rethrows the transport error', async () => {
+    const timeout = new DOMException('The operation timed out.', 'TimeoutError')
+    const fetchMock = vi.fn().mockRejectedValue(timeout)
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(fetchViewerData('rxps', 'wine')).rejects.toThrow(/timed out/i)
+    // bounded: two attempts, not an unbounded loop
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('does NOT retry a 404 — it is a real answer, not a failure', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: 'not_found' }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(fetchViewerData('nope', 'wine')).resolves.toEqual({ error: 'not_found' })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does NOT retry a 5xx — re-asking cannot change it, and doubles the load', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({}) })
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(fetchViewerData('rxps', 'wine')).rejects.toThrow(/503/)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})

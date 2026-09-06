@@ -2,12 +2,7 @@ import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
 import { isViewerApiError } from '@run-apparel/shared'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { COLOURWAY_PANEL_ID, ColourwayTabs, colourwayTabId } from './components/ColourwayTabs'
-import {
-  ContactSection,
-  MobileActionBar,
-  StageContact,
-  StickyContactRail,
-} from './components/Contact'
+import { ContactSection, MobileActionBar, StageContact } from './components/Contact'
 import { CustomisationSection } from './components/CustomisationSection'
 import { Footer } from './components/Footer'
 import { Header } from './components/Header'
@@ -16,6 +11,7 @@ import { ProductIdentity } from './components/ProductIdentity'
 import { ProductPanel } from './components/ProductPanel'
 import { Stage } from './components/Stage'
 import { RetiredNotice, UnavailableState } from './components/States'
+import { startActionBarHeight } from './lib/actionBarHeight'
 import { track } from './lib/analytics'
 import { fetchViewerData } from './lib/api'
 import { diagnostic } from './lib/diagnostic'
@@ -46,8 +42,8 @@ type AppState =
  * exists to prevent.
  */
 const RETIRED_FALLBACK =
-  'The colourway printed on your tag is no longer in production. This page is showing the ' +
-  'current default colourway for this garment.'
+  'The colorway printed on your tag is no longer in production. This page is showing the ' +
+  'current default colorway for this garment.'
 
 export default function App() {
   const [state, setState] = useState<AppState>({ kind: 'loading' })
@@ -138,6 +134,21 @@ export default function App() {
     void load()
   }, [load])
 
+  /**
+   * Keep the stage band's bottom reserve equal to the action bar's real height.
+   *
+   * Runs after the ready render, because the bar does not exist before it. See
+   * `lib/actionBarHeight.ts` for why this is measured rather than computed: the bar
+   * grows with the visitor's text-size setting since the type scale became rem, and
+   * between Chrome's "Large" and "Very Large" its labels wrap and it jumps 30px at
+   * once — not a function any CSS expression fits.
+   */
+  const ready = state.kind === 'ready'
+  useEffect(() => {
+    if (!ready) return
+    return startActionBarHeight()
+  }, [ready])
+
   // Back/forward: reselect locally when possible, refetch otherwise.
   useEffect(
     () =>
@@ -176,7 +187,8 @@ export default function App() {
    *
    * EVERY visit to this viewer is a fresh QR scan, so this transition happens on
    * essentially 100% of sessions rather than on an occasional in-app route
-   * change. For the 1.77–2.27s the CMS fetch takes, the entire document is
+   * change. For the time the CMS fetch takes — 1.77-2.27s when this was written,
+   * 0.56-0.72s across all 11 live products on 2026-09-04 — the entire document is
    * `aria-hidden="true"` (see the loading branch below) except the preloader
    * overlay. When the data arrives, the overlay unmounts and a full page appears
    * — with focus still on <body> and nothing announced. A screen-reader user's
@@ -277,10 +289,7 @@ export default function App() {
         <a className="skip-link" href="#main-content">
           Skip to main content
         </a>
-        <Header
-          wordmark={data.siteSettings.temporaryWordmark}
-          catalogueUrl={data.product.catalogueUrl}
-        />
+        <Header wordmark={data.siteSettings.temporaryWordmark} />
         {/* `tabIndex={-1}` is what makes the skip link actually skip. <main> is not
             focusable by default, so following the fragment moves the SCROLL
             position but leaves focus in the header — the next Tab then walks back
@@ -301,6 +310,50 @@ export default function App() {
             `.stage-block` is what draws the band's bottom edge — see page.css.
           */}
           <div className="stage-block">
+            {/*
+              THE GARMENT'S NAME, ON THE FIRST SCREEN OF A PHONE.
+
+              ⚠️ Measured 2026-09-04 in two browsers, on all eleven live products:
+              `.product-info` starts at 836px on an 812px screen. It misses the fold
+              by 24px — one line of text — so a visitor who has just scanned a QR tag
+              sewn into a garment sees the garment, the colourways and both enquiry
+              buttons, and NO product name, code, category or spec until they scroll.
+              On a reference whose entire job is telling a buyer what they are
+              looking at, that is the wrong first screen.
+
+              ⚠️ `aria-hidden`, AND IT IS NOT AN OVERSIGHT. `<h1 id="product-heading">`
+              must exist exactly once — `<ProductIdentity>` and `<ProductPanel
+              showIdentity>` are deliberate opposites, and "the product heading moves
+              between columns and never doubles" is an e2e test. A screen reader has
+              no fold to be above, so it loses nothing; a second announcement of the
+              same name before the real heading is pure noise. This is a purely
+              visual affordance and is marked as one.
+
+              ⚠️ GATED ON `identityInAside`, NOT ON A WIDTH — and mirroring the CSS
+              query here instead is the mistake `useIdentityInAside.ts` was written
+              about. This line exists for exactly one condition: the `<h1>` is not
+              on the first screen. That is true whenever the identity has NOT moved
+              into the aside, which is its own query (`min-width: 1100px` AND
+              `min-height: 720px`) and a strict subset of the two-column one.
+
+              Keying it to `max-width: 699px` left three real devices anonymous,
+              measured 2026-09-05 with reveals forced:
+
+                  768x1024   iPad portrait        h1 top 1094 — 70px below the fold
+                  834x1194   iPad Pro portrait    h1 top 1267 — 73px below
+                  1024x1366  iPad Pro 12.9        h1 top 1446 — 80px below
+
+              The last one is two-column and still has no name, which no width
+              ceiling on this element could have expressed.
+
+              The height cost (a measured 20px off the canvas) is refused in CSS
+              below when the band is too short for it — the landscape-phone case.
+            */}
+            {!identityInAside && (
+              <p className="stage-block__name" aria-hidden="true">
+                {data.product.productCode} · {data.product.productName}
+              </p>
+            )}
             {/* The panel half of <ColourwayTabs>'s tablist. Labelled by whichever
                 tab is selected, so a screen reader reaching the stage is told
                 which colourway it is showing. */}
@@ -396,7 +449,6 @@ export default function App() {
             <ContactSection settings={data.siteSettings} enquiry={enquiry} />
           </div>
         </main>
-        <StickyContactRail settings={data.siteSettings} enquiry={enquiry} />
         <MobileActionBar settings={data.siteSettings} enquiry={enquiry} />
         <Footer settings={data.siteSettings} />
       </div>

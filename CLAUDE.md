@@ -318,7 +318,7 @@ the answer is "nothing that happens in production", it is not a test.
   a month. The GET/HEAD divergence is unaffected and is why this stays. Full
   incident: `docs/HARDENING-LOG.md`.
 
-- **Twelve more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
+- **Thirteen more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
   of them moved there 2026-08-19 because they bite only while you are editing a
   workflow, which is exactly when that file loads. Enough to stop you: every workflow
   is gated by `apps/cms/src/workflowHardening.test.ts` on eleven rules with verified
@@ -383,7 +383,7 @@ the answer is "nothing that happens in production", it is not a test.
   ⚠️ These are hooks, not the traps; after `/compact` only THIS file is re-injected —
   open that file before changing anything there.
 
-- **Thirty-three more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
+- **Thirty-four more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
   restated here — they load automatically the moment you touch `apps/viewer/`,
   so a copy in this file is pure weight. Enough of a hook to make you open it: a
   `performance` global shadowed by a local (a runtime `TypeError` every unit test
@@ -410,7 +410,7 @@ the answer is "nothing that happens in production", it is not a test.
   verifies the loading claims above instead of asserting them, all live in
   `docs/CLAUDE-MD-MAINTENANCE.md`. Read it before moving prose between CLAUDE.md files.
 
-- **Eight more traps live in `apps/cms/CLAUDE.md`** (loads on touching `apps/cms/`) —
+- **Ten more traps live in `apps/cms/CLAUDE.md`** (loads on touching `apps/cms/`) —
   `NODE_ENV=production` for any Payload CLI task against production D1, why
   `src/migrations/` must hold only migrations, why `withPayload` silently
   overrides any header you set in a handler, why **`pnpm build` passing does not mean the

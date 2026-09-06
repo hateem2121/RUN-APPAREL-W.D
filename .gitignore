@@ -145,3 +145,11 @@ docs/audit-*/scratch/
 # session memory record that `origin/main` is the authority and these are local
 # artefacts. Keeping the exclude file too is harmless and costs nothing.
 3D Products/
+
+# Generated /workflow wrappers, one per skill in .agents/skills/ (whose sources ARE
+# committed). Each embeds an ABSOLUTE path to this checkout — e.g. apple-design.md
+# carries "/Users/<user>/Sites/Model-Viewer-main/.agents/skills/apple-design/SKILL.md" —
+# so committing them would break on every other machine. Nothing regenerates or gates
+# them (skills-lock.json has no "workflow" entry), and leaving them neither committed
+# nor ignored is what kept `git status` permanently dirty.
+.agents/workflows/

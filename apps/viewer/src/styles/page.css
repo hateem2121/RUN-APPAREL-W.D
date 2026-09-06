@@ -21,8 +21,62 @@
    * precisely why `--action-bar-h` exists; this was a fourth place, still
    * disagreeing, inside the fix. Owner decision 2026-08-20: make them match.
    * Nothing on screen moves — the 4px was never doing a job anyone recorded.
+   *
+   * ⚠️ NO `env(safe-area-inset-bottom)` HERE, AND REMOVING IT FIXED TWO BUGS.
+   * It read `calc(var(--action-bar-h) + env(safe-area-inset-bottom, 0px))` until
+   * 2026-09-04.
+   *
+   * 1. DOUBLE-COUNTED THE INSET. `.action-bar` sets
+   *    `padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px))`, so the
+   *    height `lib/actionBarHeight.ts` measures ALREADY contains the inset.
+   *    Adding it again reserved the notch twice — ~34px of dead space at the
+   *    bottom of every page on a notched iPhone, which is the one device class
+   *    this viewer is built for.
+   *
+   * 2. THE RUNTIME MEASUREMENT NEVER REACHED THIS RULE ON SOME WEBKIT BUILDS.
+   *    Measured in CI (Linux WebKit + mobile-safari, 2026-09-04), across four
+   *    failing viewports at two root font sizes:
+   *
+   *        token 77px  -> .page padding-bottom 73px
+   *        token 81px  -> .page padding-bottom 73px
+   *        token 107px -> .page padding-bottom 73px
+   *
+   *    73px is 72px — the `:root` default in tokens.css — plus a 1px inset. The
+   *    inline custom property on <html> updated correctly every time and this
+   *    declaration never re-resolved, so the whole ResizeObserver was inert HERE
+   *    while appearing to work everywhere it was inspected. macOS WebKit does
+   *    re-resolve it, which is why four engines passed locally.
+   *
+   *    `calc(var() + env())` is the construct that does not re-resolve; a bare
+   *    `var()` does. Do NOT reintroduce the `env()` — the bar's height carries it.
    */
-  padding-bottom: calc(var(--action-bar-h) + env(safe-area-inset-bottom, 0px));
+  /*
+   * ⚠️ `max()` WITH A rem FLOOR, BECAUSE THE RUNTIME MEASUREMENT CANNOT BE RELIED
+   * ON. `lib/actionBarHeight.ts` measures the bar and writes `--action-bar-h`, and
+   * on CI's WebKit that value reaches this element ONE UPDATE LATE — proven with
+   * the strongest write available, an important inline style:
+   *
+   *     attr "padding-bottom: 107px !important;"  prio "important"  pad "73px"
+   *
+   * Six mechanisms were tried and all six failed identically (custom property,
+   * bare var(), inline style, forced reflow, `!important`, and deferring the write
+   * out of the ResizeObserver into a rAF), so no write can fix it.
+   *
+   * The floor does, and for a reason rather than by luck: the bar grows because
+   * its own text is rem-based, so a rem floor grows with exactly the thing that
+   * makes the bar taller. Measured, 375x812 in WebKit:
+   *
+   *     root 16px   bar  72px   4.5rem  72px   ok
+   *     root 20px   bar  76px   4.5rem  90px   ok
+   *     root 24px   bar 107px   4.5rem 108px   ok
+   *
+   * 4.5rem is the smallest step that clears every measured height, and it is a
+   * FLOOR — where the variable does arrive it still wins whenever it is larger,
+   * so nothing loses precision. The cost is a few pixels of slack at enlarged text
+   * sizes, which is the correct direction to be wrong in: too much room below the
+   * last content is invisible, too little makes it unreachable.
+   */
+  padding-bottom: max(var(--action-bar-h), 4.5rem);
 }
 
 @media (min-width: 900px) {
@@ -53,13 +107,35 @@
 .header {
   position: sticky;
   top: 0;
-  z-index: 40;
+  z-index: var(--z-header);
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 14px;
   row-gap: 8px;
-  padding: 12px clamp(16px, 4vw, 48px);
+  /*
+   * ⚠️ LEFT AND RIGHT INSETS, ADDED 2026-09-04. `index.html` sets
+   * `viewport-fit=cover`, which tells the browser to lay out UNDER the notch and
+   * the home indicator. The BOTTOM edge was protected in three places from the
+   * start; the sides never were — and the sides are the ones that matter in
+   * LANDSCAPE, where the notch moves to whichever edge the phone was rotated
+   * towards.
+   *
+   * That is not a hypothetical orientation here: the two-column layout is
+   * deliberately selected by `(min-width: 700px) and (min-aspect-ratio: 3/2)`,
+   * i.e. a phone held sideways, and this header spans the full width above it.
+   * `env()` is 0 on every device without a cutout, so this costs nothing anywhere
+   * else — which is also why it is easy to forget and impossible to notice on a
+   * desktop.
+   *
+   * `max()` rather than adding the two: the clamp is already the design's own
+   * gutter, and the inset only needs to WIN when it is larger. Adding them would
+   * push content 16px further in than intended on every notched phone.
+   */
+  padding-top: 12px;
+  padding-bottom: 12px;
+  padding-left: max(clamp(16px, 4vw, 48px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(16px, 4vw, 48px), env(safe-area-inset-right, 0px));
   background: color-mix(in oklab, var(--bg) 88%, transparent);
   backdrop-filter: blur(8px); /* the single allowed blurred sticky header */
   border-bottom: 1px solid var(--line);
@@ -70,8 +146,8 @@
   font-weight: 900;
   font-stretch: 122%;
   text-transform: uppercase;
-  letter-spacing: -0.02em;
-  font-size: 18px;
+  letter-spacing: var(--tracking-wordmark);
+  font-size: var(--text-wordmark);
   color: var(--text);
   text-decoration: none;
   white-space: nowrap;
@@ -98,25 +174,18 @@
 }
 
 /*
- * The nav label shortens below 700px rather than wrapping.
+ * `.header__cta-short` / `.header__cta-long` were DELETED on 2026-09-04, with the
+ * "Back to Catalogue" button they styled (owner decision: search traffic must not
+ * be handed the catalogue).
  *
- * The precedent is `.header__tag` directly above, hidden at the same breakpoint
- * for the same reason. The ACCESSIBLE NAME is unchanged at every width: the long
- * form is moved offscreen rather than removed, and the short form is
- * aria-hidden, so a screen reader always hears "Back to Catalogue".
+ * The pattern is recorded because it solved a real problem and would be the right
+ * answer again: the label shortened below 700px rather than wrapping, and the
+ * accessible name stayed constant at every width because the LONG form moved
+ * offscreen rather than unmounting while the short form was aria-hidden. The
+ * naive version — swapping the text — silently changes what a screen reader
+ * announces as the viewport changes. `.header__tag` directly above still uses the
+ * same breakpoint for the same reason.
  */
-.header__cta-short {
-  display: inline;
-}
-
-.header__cta-long {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
 
 /*
  * ⚠️ THE HEADER WAS 117px TALL ON A 375px PHONE — 14% of the viewport, above the
@@ -158,25 +227,13 @@
   }
 
   .header__wordmark {
-    font-size: 16px;
+    font-size: var(--text-wordmark-sm);
   }
 }
 
 @media (min-width: 700px) {
   .header__tag {
     display: inline-block;
-  }
-
-  .header__cta-short {
-    display: none;
-  }
-
-  .header__cta-long {
-    position: static;
-    width: auto;
-    height: auto;
-    overflow: visible;
-    clip: auto;
   }
 }
 
@@ -248,7 +305,15 @@
  * than into hidden product. That is the whole design.
  */
 .stage-block {
-  --stage-gutter: clamp(8px, 3vw, 40px);
+  /* Left/right safe-area for the same reason as `.header` above: `viewport-fit=cover`
+     plus a two-column layout that is selected by a LANDSCAPE aspect ratio, which is
+     exactly where a notch sits on a long edge. `max()`, not addition — the inset
+     only needs to win when it is larger than the design's own gutter. */
+  --stage-gutter: max(
+    clamp(8px, 3vw, 40px),
+    env(safe-area-inset-left, 0px),
+    env(safe-area-inset-right, 0px)
+  );
   display: flex;
   flex-direction: column;
   /* The containing block for `.stage__more`, which is taken out of flow so it
@@ -544,22 +609,96 @@
  *
  * All that survives here is the header override, because the wrap is real.
  */
-@media (max-width: 359px) {
-  /* The header wraps to a second flex row here — deliberately; see the header
-     rule above. `tokens.css` holds the 69px default and the reasoning; this is
-     the one exception, and it lives beside the rule that causes it rather than
-     in the token file, where it would read as a second global default.
+/* THE `max-width: 359px` HEADER OVERRIDE WAS DELETED HERE ON 2026-09-04.
+   `--header-h` is now a single value, 69px, at every width.
 
-     ⚠️ 117 -> 121 ON 2026-08-20, and the guard is why anyone noticed. Raising
-     `.header .btn` to the 44px `--target-min` declares added 4px to the WRAPPED
-     row only — the unwrapped header stayed 69px, because the theme toggle sets
-     that row's height. Nothing on any other screen moved, so this would have
-     drifted silently and re-broken the 320px layout the flex band just fixed.
-     "the header token matches the real header" failed on all four engines with
-     the exact number to write here. That test is the whole reason this token
-     exists rather than a hardcoded subtrahend. */
-  :root {
-    --header-h: 121px;
+   It existed because the header wrapped to a second flex row on the narrowest
+   phones: its children needed 351px of an available 343px at 375px, and below
+   360px the "Back to Catalogue" button was what pushed them over. Removing that
+   button (owner decision — search traffic must not be handed the catalogue) freed
+   118px: the 104px button plus one 14px column-gap. The header no longer wraps
+   anywhere, so there is no second value to hold.
+
+   ⚠️ MEASURED, NOT REASONED, and by the guard rather than by hand. "the header
+   token matches the real header" failed on ALL FOUR ENGINES with the number in
+   its own message: `--header-h is 121px but the header renders 69px at 320x640`.
+   That is 52px returned to the garment on a 320px phone. Every hand-derivation
+   in this file's history has been wrong; this one was read off the page.
+
+   If a third control is ever added to the header, expect this override to come
+   back — and get the number from that test, not from arithmetic. */
+
+/*
+ * The compact garment name, portrait phones only.
+ *
+ * Hidden everywhere else because everywhere else already shows the real thing: the
+ * `<h1>` is in the aside from 1100x720 up, and in `.content` above the fold on any
+ * screen tall enough. This exists for exactly the case where neither is true.
+ *
+ * ⚠️ IT COSTS THE CANVAS ITS OWN HEIGHT, and that trade is the point rather than a
+ * side effect. `.stage__canvas` is `flex: 1 1 auto` inside a band whose job is
+ * dividing a fixed `100svh - var(--header-h)`, so every pixel here is a pixel off
+ * the garment. MEASURED by rendering it and then hiding it at 375x812:
+ * canvas 495px without, 475px with — a cost of exactly 20px, which is the 14px
+ * line-box plus the 6px margin and nothing else. A named garment 20px shorter beats
+ * an anonymous one, on a page a visitor reaches by scanning a tag and asking "what
+ * is this?". The colourway rail's clearance above the action bar is unchanged at
+ * 29px, measured at 320, 375 and 414.
+ *
+ * 699px, not the two-column query: at 844x390 the band is already asserted at
+ * <=390px tall and has no row to spare.
+ */
+.stage-block__name {
+  display: none;
+}
+
+/*
+ * ⚠️ THE VISIBILITY DECISION MOVED TO JSX ON 2026-09-05, and the reason is in
+ * App.tsx: this line is needed exactly when the `<h1>` is not on the first screen,
+ * which is `!identityInAside` — a query no width ceiling here could express. A
+ * `max-width: 699px` rule left iPad portrait (768x1024, 834x1194) and iPad Pro
+ * 12.9 (1024x1366) showing a garment with no name at all.
+ *
+ * What CSS still owns is the HEIGHT refusal below, because that is a layout
+ * question rather than a content one.
+ *
+ * ⚠️ IT COSTS THE CANVAS ITS OWN HEIGHT, and that trade is the point rather than a
+ * side effect. `.stage__canvas` is `flex: 1 1 auto` inside a band whose job is
+ * dividing a fixed `100svh - var(--header-h)`, so every pixel here is a pixel off
+ * the garment. MEASURED by rendering it and then hiding it at 375x812:
+ * canvas 495px without, 475px with — a cost of exactly 20px, which is the 14px
+ * line-box plus the 6px margin and nothing else. A named garment 20px shorter beats
+ * an anonymous one, on a page a visitor reaches by scanning a tag and asking "what
+ * is this?".
+ */
+.stage-block__name {
+  display: block;
+  margin: 0 0 6px;
+  padding: 0 var(--stage-gutter);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps);
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/*
+ * The one place the 20px is NOT affordable: a landscape phone. At 844x390 the
+ * two-column band is already asserted at <=390px tall and has no row to spare, so
+ * the name is refused rather than taken out of the garment.
+ *
+ * Same 500px threshold the action bar uses, and for the same reason — it is the
+ * height below which this band stops having spare rows. That leaves landscape
+ * without a visible name, which is a real gap and the smaller one: the dominant
+ * journey is a phone held upright at a garment rail.
+ */
+@media (max-height: 500px) {
+  .stage-block__name {
+    display: none;
   }
 }
 
@@ -709,12 +848,14 @@
    * `clamp(-2.16px, -0.16vw, -0.4px)`, a VIEWPORT-derived value that resolves to
    * its tightest -2.16px on any desktop — tracking drawn for a 69px headline,
    * applied to a 34px one. Size-specific tracking is the rule (docs/DESIGN.md §3,
-   * and Apple's own type guidance); `-0.02em` is the wordmark's own value and
-   * rescales with the heading automatically instead of needing a third token.
+   * and Apple's own type guidance); this borrows `--tracking-wordmark`, which is
+   * the same -0.02em in `em` and so rescales with the heading automatically
+   * instead of needing a third token. It was the literal until 2026-09-05; the
+   * token makes the borrowing explicit rather than coincidental.
    */
   .product-info--aside .display--hero {
-    font-size: clamp(25px, 9.5cqi, 40px);
-    letter-spacing: -0.02em;
+    font-size: clamp(1.5625rem, 9.5cqi, 2.5rem);
+    letter-spacing: var(--tracking-wordmark);
     /*
      * ⚠️ WITHOUT THIS, "X-MILO PRO SKIN-SUIT" SET AS "X-MILO PRO SKIN-" / "SUIT".
      *
@@ -789,6 +930,57 @@
  * for and already empty. Verified: garment heights return to 296 / 520 / 421 /
  * 603 and the rail's clearance returns to 25px.
  */
+/*
+ * The AR entry point — iOS Quick Look only, rendered only when the device can
+ * actually enter AR (see `arAvailable` in Stage.tsx).
+ *
+ * ⚠️ IT IS OURS BECAUSE THE DEFAULT ONE IS THE BUG. model-viewer paints
+ * `#default-ar-button` inside its shadow root, over the canvas — the same geometry
+ * StageControls.tsx measured and moved OUT of `.stage__canvas` in August, where it
+ * covered 26px of garment at 1440x900 and 38px at 390x844.
+ *
+ * ⚠️ TOP-RIGHT, AND THE FIRST ATTEMPT WAS BOTTOM-LEFT. That version's comment
+ * claimed the bottom-left corner was "reliably empty"; a screenshot on an iPhone 17
+ * Pro showed `.stage__hint` — "DRAG TO ROTATE · PINCH TO ZOOM", centred on the
+ * bottom edge and nearly full-width on a phone — sitting straight over it, clipping
+ * the label to the word "VIEW". Reasoned, not measured, and wrong.
+ *
+ * The top-right is genuinely empty on a phone: the garment is centred and portrait
+ * (widest live shape 0.60m against 0.24m depth), the hint and the loading readout
+ * both anchor to the bottom, and `.callout` — which does use the corners — renders
+ * only at >=1000px, where AR never appears because `canActivateAR` is false on
+ * desktop. The two cannot co-occur.
+ *
+ * `--dimension` rather than `--muted`: this is a call to action a thumb has to find
+ * against a rendered garment of unknown colour, and it is the token that already
+ * exists for "must stay legible on either background".
+ */
+.stage__ar {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: var(--z-stage-control);
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--dimension);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-transparency: no-preference) {
+  .stage__ar {
+    backdrop-filter: blur(6px);
+  }
+}
+
 .stage__more {
   position: absolute;
   left: 0;
@@ -798,8 +990,31 @@
   justify-content: center;
   pointer-events: none;
   color: var(--muted);
-  opacity: 0.55;
 }
+
+/*
+ * ⚠️ THIS CARRIED `opacity: 0.55` UNTIL 2026-09-05, AND IT WAS THE LEAST VISIBLE
+ * THING ON THE PAGE.
+ *
+ * Composited against `--bg`, that opacity took `--muted` from 5.10:1 to **2.19:1**
+ * in light and 6.69:1 to **2.97:1** in dark — under the 3:1 floor for a graphical
+ * object in both, badly in light. It is `aria-hidden="true"`, so axe never scored
+ * it and the a11y gate could not have found it; and `tokens.test.ts`'s contrast
+ * block reads the TOKEN, which was always fine. The defect lived entirely in the
+ * opacity.
+ *
+ * It matters more than a decoration usually would: on a phone this chevron is the
+ * only thing telling a visitor there is more page below it — the customisation
+ * steps and both enquiry buttons. The one cue you cannot afford to have missed was
+ * the faintest mark drawn.
+ *
+ * ⚠️ `--dimension` WAS THE OBVIOUS FIX AND IS DELIBERATELY NOT USED. It measures
+ * 4.57:1 light / 13.11:1 dark, so it passes — but it resolves to volt, and a
+ * brand-coloured arrow beside the garment pulls the eye off the garment. The rule
+ * above already refuses to animate this element for that reason. Dropping the
+ * opacity keeps the quiet grey the design intends and clears the floor with room:
+ * **5.10:1 light, 6.69:1 dark**.
+ */
 
 @media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
   .stage__more {
@@ -870,13 +1085,36 @@ model-viewer.stage__model {
  * The largest control on the page was the only one without the brand focus ring.
  *
  * `:focus-visible` in base.css cannot reach it: model-viewer takes focus on its
- * own inner canvas inside a shadow root, so the host never matches. A keyboard
- * visitor tabbing to the garment — which IS operable by keyboard, with arrows to
- * orbit — got no indication they had arrived. `:focus-within` on the host is what
- * sees a descendant's focus across the boundary. Same token as everywhere else,
- * so no new colour is introduced.
+ * own inner element inside a shadow root (`.userInput`, tabindex="0"), so the
+ * HOST never matches. A keyboard visitor tabbing to the garment — which IS
+ * operable by keyboard: arrows orbit, Page Up/Down zoom, both verified in a real
+ * browser 2026-09-04 — got no indication they had arrived. `:focus-within` is
+ * what sees a descendant's focus across the shadow boundary.
+ *
+ * ⚠️ THE RING IS ON THE CANVAS, NOT ON THE HOST, AND IT HAD TO MOVE THERE.
+ * Putting it on `model-viewer.stage__model` drew it and then threw it away.
+ * Measured live 2026-09-04 at 375x812 with the element focused:
+ *
+ *     model-viewer   top 77.0  left 11.3  right 363.8  bottom 571.5
+ *     .stage__canvas top 77.0  left 11.3  right 363.8  bottom 571.5   <- identical
+ *
+ * The host is `position: absolute; inset: 0`, so its border box coincides EXACTLY
+ * with `.stage__canvas`, which is `overflow: hidden`. An outline at
+ * `outline-offset: 2px` is painted 2-4px OUTSIDE that box — i.e. entirely outside
+ * the clip — so it had zero room and never appeared. The rule shipped, linted,
+ * and did nothing, which is the same shape as the --poster-color trap in
+ * apps/viewer/CLAUDE.md: CSS says nothing when you set a property nobody paints.
+ *
+ * `overflow: hidden` clips a box's DESCENDANTS, never its own outline, so on
+ * `.stage__canvas` the ring paints freely — and it follows that element's 18px
+ * `border-radius` instead of drawing a square around a rounded box, which the
+ * host (radius 0) could not do even unclipped.
+ *
+ * `.stage__canvas` holds exactly one focusable thing, the model-viewer; the
+ * camera buttons live in `.stage__plinth`, outside it. So `:focus-within` here
+ * cannot be triggered by anything else.
  */
-model-viewer.stage__model:focus-within {
+.stage__canvas:focus-within {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
@@ -902,7 +1140,9 @@ model-viewer.stage__model:focus-within {
 
 /*
  * The poster is the FIRST thing a phone visitor sees, and it holds the screen for
- * as long as a 27 MB model takes to arrive — so its box has to be right.
+ * as long as the model takes to arrive — so its box has to be right.
+ * (Models were ~27 MB when this was written; every live GLB measured 1.8-7.8 MB
+ * on 2026-09-04. The box still has to be right, for less time.)
  *
  * `max-height: 100%` alone was not. The <img> carries width/height attributes
  * (1200x1500, kept for the aspect ratio so there is no layout shift), and with no
@@ -949,8 +1189,8 @@ model-viewer.stage__model:focus-within {
   position: absolute;
   max-width: 240px;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps-tight);
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -1062,7 +1302,9 @@ model-viewer.stage__model:focus-within {
 }
 
 /*
- * A disabled camera button is the honest state for the ~23s a 27 MB model takes,
+ * A disabled camera button is the honest state for the seconds a model takes to
+ * arrive (~23s when this was written at ~27 MB; live GLBs are 1.8-7.8 MB since
+ * 2026-09-04, so proportionally less),
  * and it used to be missing: the buttons were live from first paint with 'front'
  * already showing as pressed, over a stage with no model in it. `applyView`
  * returned silently when the element did not exist, so a visitor who tapped BACK
@@ -1087,8 +1329,8 @@ model-viewer.stage__model:focus-within {
   padding: 8px 16px;
   border-radius: var(--radius-pill);
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--text);
   transition:
@@ -1141,16 +1383,74 @@ model-viewer.stage__model:focus-within {
  * At 375px this resolves to ~11px, which clears the canvas's 18px corner radius
  * comfortably: at y=12 the rounded edge has already come in to x≈1px.
  */
+/*
+ * "It looks like an image so some visitors ignore it" — the owner, 2026-09-04.
+ *
+ * ⚠️ THE CUE EXISTED AND WAS THE PROBLEM. This rule was `font-size: 0.625rem`
+ * (10px) in `var(--muted)`, pinned at `top: 12px; left: 3%` — a 10px muted
+ * monospace label in the corner, furthest from the thing it describes. It read
+ * as a technical caption rather than an invitation, which is why a viewer that
+ * has always carried an affordance was still being mistaken for a photograph.
+ * Baymard's gesture research is blunt about the cost: users treat image gestures
+ * as hidden functionality they routinely miss.
+ *
+ * So it moves to the bottom-centre of the stage, under the garment where the eye
+ * already is, at a legible size and real contrast, on a backing so it survives
+ * a pale colourway. It appears only after `CUE_IDLE_MS` of no interaction and
+ * disappears for good on the first drag, pinch, tap or camera button — Baymard
+ * found no usability issue with a hint that fades after a few seconds, and a
+ * label that never leaves is permanent noise over the product being sold.
+ */
 .stage__hint {
   position: absolute;
-  top: 12px;
-  left: 3%;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  /* Opaque, not translucent. `.action-bar` records the same decision for the
+     same reason: body content showing through a label reads as broken layout,
+     and here the "body content" is a garment in an arbitrary colour. */
+  background: var(--bg);
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: var(--text-mono);
+  letter-spacing: var(--tracking-caps-tight);
   text-transform: uppercase;
-  color: var(--muted);
+  /* `--text`, not `--muted`: this is the one line whose whole job is being noticed. */
+  color: var(--text);
   white-space: nowrap;
+  pointer-events: none;
+  animation: stage-hint-in var(--settle) var(--ease) both;
+}
+
+.stage__hint-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+@keyframes stage-hint-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* The hint still appears; it simply arrives rather than rises. Its content is
+   the message, and the motion was never the message. */
+@media (prefers-reduced-motion: reduce) {
+  .stage__hint {
+    animation: none;
+  }
 }
 
 /*
@@ -1207,7 +1507,7 @@ model-viewer.stage__model:focus-within {
   gap: 10px;
   width: min(320px, 78%);
   font-family: var(--font-mono);
-  letter-spacing: 0.12em;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   text-align: center;
   color: var(--text);
@@ -1218,14 +1518,14 @@ model-viewer.stage__model:focus-within {
 }
 
 .stage__loading-title {
-  font-size: 12px;
+  font-size: var(--text-mono-lg);
   /* The percentage climbs while the line is centred; without tabular digits the
      whole readout shifts sideways on every tick. */
   font-variant-numeric: tabular-nums;
 }
 
 .stage__loading-detail {
-  font-size: 10px;
+  font-size: var(--text-mono-sm);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1242,7 +1542,9 @@ model-viewer.stage__model:focus-within {
   display: block;
   /* Full width, scaled — NOT a width transition. `width` is a layout property,
      so every retarget cost layout + paint + composite, and Stage.tsx samples at
-     ~10 Hz for the ~23s a 27 MB model takes on average 4G. That is roughly 230
+     ~10 Hz for the whole download — ~23s on average 4G at the ~27 MB models of
+     the time, proportionally less at the 1.8-7.8 MB measured 2026-09-04. That
+     was ~230
      layout passes during the single heaviest thing the page does, on the phone
      that is also decoding the model. `scaleX` is composited: same picture, no
      layout. Fixed 2026-08-14. */
@@ -1283,7 +1585,7 @@ model-viewer.stage__model:focus-within {
   transform: translateX(-50%);
   max-width: min(90%, 420px);
   text-align: center;
-  font-size: 14px;
+  font-size: var(--text-note);
   color: var(--muted);
   background: var(--surface);
   border: 1px solid var(--line);
@@ -1303,7 +1605,7 @@ model-viewer.stage__model:focus-within {
   border-left-width: 4px;
   border-radius: var(--radius-button);
   background: var(--surface);
-  font-size: 14px;
+  font-size: var(--text-note);
   color: var(--text);
 }
 
@@ -1396,7 +1698,7 @@ model-viewer.stage__model:focus-within {
 .spec-list dt {
   font-family: var(--font-mono);
   font-size: var(--text-mono);
-  letter-spacing: 0.12em;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--muted);
   margin-bottom: 4px;
@@ -1520,7 +1822,7 @@ model-viewer.stage__model:focus-within {
   border-radius: var(--radius-button);
   font-family: var(--font-mono);
   font-size: var(--text-mono);
-  letter-spacing: 0.1em;
+  letter-spacing: var(--tracking-caps-tight);
   text-transform: uppercase;
   color: var(--text);
   transition:
@@ -1620,21 +1922,21 @@ model-viewer.stage__model:focus-within {
 
 .step__num {
   font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.1em;
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-tight);
   color: var(--dimension);
 }
 
 .step__title {
   font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.1em;
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-tight);
   text-transform: uppercase;
   margin-bottom: 6px;
 }
 
 .step__body {
-  font-size: 15px;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 
@@ -1651,119 +1953,31 @@ model-viewer.stage__model:focus-within {
 }
 
 .contact__micro {
-  font-size: 14px;
+  font-size: var(--text-note);
   color: var(--muted);
 }
 
 /*
- * Desktop contact rail — present from the first paint.
+ * `.contact-rail` WAS DELETED HERE ON 2026-09-04, with <StickyContactRail>, its
+ * two unit tests, and the `--shadow-raised` and `--raised` tokens whose only
+ * consumers it was.
  *
- * ⚠️ TWO CHANGES HERE ON 2026-08-17, and the breakpoint one fixed a gap nobody
- * had reported because it is invisible unless you happen to be at that width.
+ * IT COULD NOT PAINT AT ANY VIEWPORT, and had not since 2026-08-20. The rule set
+ * declared `display: flex` inside `@media (min-width: 900px)` and then
+ * `display: none` inside `@media (min-width: 900px), (min-width: 700px) and
+ * (min-aspect-ratio: 3 / 2)` — identical specificity, later source order wins, and
+ * the second query is a strict superset of the first. Nothing was wrong with
+ * either rule in isolation, which is why it survived review.
  *
- * 1. `1100px` -> `900px`. `.action-bar` is hidden from `min-width: 900px`, and
- *    this rail only existed from `min-width: 1100px` — so **between 900px and
- *    1099px the page had no persistent contact control at all**. That band is
- *    a small laptop and a tablet in landscape. The two breakpoints are now the
- *    same number and must stay that way: one hands over to the other, and any
- *    daylight between them is a dead zone on the only conversion path there is.
- *
- * 2. The `opacity: 0` / `translateY` / `pointer-events: none` resting state and
- *    the `--visible` modifier are GONE, with the IntersectionObserver that drove
- *    them (see Contact.tsx). Keeping a transition whose start state nothing can
- *    ever apply would be dead CSS — the same tidy-up `.preloader__count` got.
+ * ⚠️ ONE THING FROM IT MUST OUTLIVE IT: `.action-bar` and this rail had to share a
+ * breakpoint. They were 1100px and 900px, so between 900 and 1099px the page
+ * carried NO persistent contact control at all — on the only conversion path in
+ * the product, at exactly the widths of a small laptop and a landscape tablet.
+ * Nothing reported it because the e2e matrix ran 320/375/768/1280 and both 768 and
+ * 1280 sit on working sides of the gap. `.action-bar` now hands over to
+ * `<StageContact>` at 900px; if a third surface is ever added, it inherits that
+ * rule, and the e2e test at 950px is what enforces it.
  */
-.contact-rail {
-  display: none;
-}
-
-/*
- * ⚠️ IT WAS A VERTICAL STACK OF TWO LOOSE BUTTONS UNTIL 2026-08-17, and the
- * owner asked for it to be refined — "I don't like the way you stacked them".
- *
- * They were right, and the reason is that the page had since grown a house style
- * for a floating control cluster and this predated it. `.stage__controls` is a
- * SINGLE pill — `--surface` fill, one `--line` hairline, `--radius-pill`, its
- * buttons sharing that container — and once that pattern exists on the same
- * screen, two separate stacked buttons read as leftovers rather than as a set.
- *
- * So this now uses the same recipe: one horizontal pill, two controls inside it,
- * bottom-right. It is the same object the camera controls are, doing a different
- * job, which is what makes a system feel designed rather than assembled.
- *
- * Horizontal rather than stacked is also the honest shape for the content: these
- * are two PEERS (email or WhatsApp — pick one), and a vertical stack implies a
- * ranking that does not exist.
- */
-@media (min-width: 900px) {
-  .contact-rail {
-    position: fixed;
-    right: 20px;
-    bottom: 20px;
-    z-index: 50;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 6px;
-    padding: 6px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-pill);
-    /* The one shadow on this surface, and it is doing a real job: this pill
-       floats over scrolling content rather than sitting in the page, so it needs
-       to read as being ABOVE it. `--shadow-raised` is the token that already
-       exists for an elevated surface — see tokens.css, where it was kept after
-       the hover thumbnail was deleted "for the next elevated surface". This is
-       that surface. */
-    box-shadow: var(--shadow-raised);
-  }
-
-  /* Inside the pill the buttons are the cluster's members, not standalone
-     controls — so they lose their own outlines and take the pill's radius, the
-     same relationship `.camera-btn` has with `.stage__controls`. */
-  .contact-rail .btn {
-    border-radius: var(--radius-pill);
-    /* Kept in step with the other two even though this rail is superseded by the
-       two-column layout and never paints — so that deleting the component later
-       removes a consistent rule rather than the last 40px exception. */
-    min-height: var(--target-min);
-    padding: 10px 18px;
-    white-space: nowrap;
-  }
-
-  .contact-rail .btn--ghost {
-    border-color: transparent;
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .contact-rail .btn--ghost:hover {
-      border-color: var(--line);
-    }
-  }
-}
-
-/*
- * ⚠️ THE FLOATING PILL IS SUPERSEDED BY THE TWO-COLUMN LAYOUT, AND THIS RULE
- * MUST STAY BELOW THE BLOCK ABOVE — same specificity, so source order decides.
- *
- * The rail is painted from `min-width: 900px`. The two-column layout starts at
- * exactly the same 900px (plus landscape), so every width that would show the
- * pill now shows the column instead, and `<StageContact>` carries the same two
- * links on the reading path rather than 464px right of it.
- *
- * ⚠️ THAT MAKES `<StickyContactRail>` DEAD IN PRACTICE, and dead code that still
- * renders is exactly the failure this repo keeps paying for — `--poster-color`
- * shipped for a whole major version while the source read as though it worked,
- * and `REFERENCE_PATHS` was declared and never read while a test told people to
- * add to it. Removing the component, its `compact` prop (nothing else uses it),
- * its three unit tests and the CSS above is a mechanical change, deliberately
- * NOT bundled with a layout change. Do it next, and delete this comment with it.
- */
-@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
-  .contact-rail {
-    display: none;
-  }
-}
 
 /* Mobile bottom action bar — safe-area aware, never covers stage controls */
 .action-bar {
@@ -1771,10 +1985,13 @@ model-viewer.stage__model:focus-within {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 50;
+  z-index: var(--z-action-bar);
   display: flex;
   gap: 10px;
-  padding: 12px clamp(16px, 4vw, 24px) calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-top: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(clamp(16px, 4vw, 24px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(16px, 4vw, 24px), env(safe-area-inset-right, 0px));
   /*
     Opaque, not 92%. At 92% with no blur, body copy scrolling underneath stayed
     fully legible through the bar and read as broken layout — the contact
@@ -1841,6 +2058,77 @@ model-viewer.stage__model:focus-within {
   }
 }
 
+/*
+ * The fourth and fifth preferences: forced colours, and a request for more contrast.
+ *
+ * ⚠️ FORCED-COLORS IS THE ONE THAT BREAKS SOMETHING REAL, and the reason is written
+ * two comments below this file's own colourway rules. Selection here is expressed
+ * PURELY as a fill inversion — `[aria-selected="true"]` and `[aria-pressed="true"]`
+ * both swap `background` and `color` and nothing else. That was a deliberate,
+ * measured decision, and the argument for it is correct as far as it goes: a fill
+ * inversion survives greyscale and every colour-vision deficiency, which is why the
+ * redundant dot was removed on 2026-08-21.
+ *
+ * Windows High Contrast is the case that argument does not cover. Forced-colors
+ * mode REPLACES author background and text colours with a system palette, so both
+ * sides of the inversion become the same two system colours and the selected tab
+ * stops being distinguishable from its four neighbours — on the control that
+ * chooses what the visitor is looking at.
+ *
+ * The fix is an OUTLINE in the system `Highlight` colour, because outlines are
+ * preserved in forced-colors mode and `Highlight` is what the OS itself uses for
+ * selection. `outline-offset` is negative so the ring sits inside the control and
+ * cannot be clipped by the rail's own padding — the same trap the 3D view's focus
+ * ring fell into, where an outline drawn outside a coincident clipping box was
+ * painted and then discarded.
+ *
+ * ⚠️ `forced-color-adjust: none` ON THE SWATCH ONLY, and nowhere else. That element
+ * exists to show a colour; forced-colors removes exactly that, which turns the rail
+ * into five identical circles. This is the sanctioned escape for the case — the
+ * same one a colour picker uses — and it is scoped to the 16px dot rather than to
+ * the control, so every text, border and outline around it still follows the user's
+ * palette.
+ *
+ * NOT VERIFIED ON A REAL WINDOWS MACHINE. Neither engine available here emulates
+ * forced-colors, so this is written from the specification and reviewed against it,
+ * not measured. That is a weaker basis than the rest of this file and it is said
+ * plainly rather than left implied.
+ */
+@media (forced-colors: active) {
+  .colourway-tab[aria-selected="true"],
+  .camera-btn[aria-pressed="true"] {
+    outline: 3px solid Highlight;
+    outline-offset: -3px;
+  }
+
+  .colourway-tab__swatch {
+    forced-color-adjust: none;
+  }
+}
+
+/*
+ * `prefers-contrast: more` is a request, not a diagnosis — the visitor has told the
+ * OS that default contrast is not enough for them. The two things this page leans
+ * on hardest are hairlines: `--line` at 18% opacity separates every panel, and the
+ * translucent header sits over scrolling content.
+ *
+ * Raising the token rather than restyling components means every border, rule and
+ * divider in the system answers at once, including any added later.
+ */
+@media (prefers-contrast: more) {
+  :root {
+    --line: light-dark(rgba(29, 31, 26, 0.55), rgba(241, 239, 234, 0.55));
+    --dimension: var(--text);
+  }
+
+  /* A translucent bar over moving content is the one surface where "more contrast"
+     and "blurred material" are in direct conflict. Contrast wins. */
+  .header {
+    background: var(--bg);
+    backdrop-filter: none;
+  }
+}
+
 /* ── Footer ────────────────────────────────────────────────────────── */
 .footer {
   margin-top: auto;
@@ -1861,17 +2149,17 @@ model-viewer.stage__model:focus-within {
   font-weight: 900;
   font-stretch: 122%;
   text-transform: uppercase;
-  font-size: 16px;
+  font-size: var(--text-wordmark-sm);
   /* Matches `.header__wordmark`. The same wordmark was set two different ways on
      one page: -0.02em in the header and 0 here, so the brand read as two
      slightly different logotypes between the top and bottom of a single scroll. */
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-wordmark);
 }
 
 .footer__line {
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.14em;
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps-wide);
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -1883,7 +2171,7 @@ model-viewer.stage__model:focus-within {
      padding of its own; 16px on both axes would double-space a wrapped row. */
   gap: 4px 16px;
   align-items: center;
-  font-size: 13px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -1929,7 +2217,7 @@ model-viewer.stage__model:focus-within {
 .preloader {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: var(--z-preloader);
   display: grid;
   place-items: center;
   background: var(--bg);
@@ -2019,8 +2307,8 @@ model-viewer.stage__model:focus-within {
 
 .preloader__status {
   color: var(--muted);
-  font-size: 12px;
-  letter-spacing: 0.1em;
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-tight);
 }
 
 /* ══ Customisation accordion (grid-rows collapse) ═════════════════════ */
@@ -2214,8 +2502,8 @@ model-viewer.stage__model:focus-within {
        it, but it is the kind of recorded number the next session trusts. */
     min-height: 48px;
     padding: 8px 6px;
-    font-size: 10px;
-    letter-spacing: 0.06em;
+    font-size: var(--text-mono-sm);
+    letter-spacing: var(--tracking-caps-compact);
     text-align: center;
   }
 
@@ -2224,6 +2512,45 @@ model-viewer.stage__model:focus-within {
   .colourway-tab__label {
     text-wrap: balance;
     line-height: 1.25;
+  }
+}
+
+/*
+ * A rail narrower than ~300px lays out 3 + 2, never 4 + 1.
+ *
+ * ⚠️ THIS IS THE TWO-COLUMN ASIDE, NOT A PHONE, and that is why the sweep above
+ * never caught it. `.colourways` spans the page on a phone but sits in a ~260px
+ * aside once the two-column layout engages — which is selected by an ASPECT
+ * RATIO, `(min-width: 700px) and (min-aspect-ratio: 3/2)`, so no width-only test
+ * at height 812 could ever reach it. Measured 2026-09-04 on the live site and
+ * reproduced in the fixture:
+ *
+ *     viewport   rail   list   columns   tab      rows
+ *     844x390    260    268    4x59px    59x90    2   <- 4 + 1, one stranded
+ *     926x428    261    269    4x59px    59x90    2   <- 4 + 1, one stranded
+ *     320x812    320    308.8  5         53.8x90  1   ok
+ *     375x812    375    360.5  5         64.1x77  1   ok
+ *
+ * The `minmax(52px, 1fr)` floor above needs 5x52 + 4x8 = 292px for one row, and
+ * the aside offers 260. So four fit and the fifth is stranded beside three empty
+ * cells: nothing overflows, nothing is covered, every clearance assertion passes,
+ * and the control looks broken. Exactly the failure the guard above describes —
+ * arriving through the one container it could not see.
+ *
+ * ⚠️ THREE COLUMNS RATHER THAN A LOWER FLOOR, and the arithmetic is why. Fitting
+ * five into 260px needs (260 - 4x8) / 5 = 45.6px per tab, which is NARROWER than
+ * the 59px they already have and would push a two-word colourway — production
+ * ships six of them, up to "Pebble / Optic White" — onto a fourth label line.
+ * Three columns give (260 - 2x8) / 3 = 81.3px instead: wider tabs, fewer label
+ * lines, and a last row of two. Cramming was the worse answer at every measure.
+ *
+ * 300px, not 280 or 320: the aside measures 260-261 and the narrowest phone rail
+ * measures 320. Any threshold in between works; 300 sits in the middle of a 60px
+ * gap rather than against either edge.
+ */
+@container colourrail (max-width: 300px) {
+  .colourways__list {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 

@@ -7,9 +7,28 @@ paths:
 
 # Viewer headers, CSP and the edge
 
-⚠️ **THIS RULE IS UNDER TEST AND CARRIES NO TRAPS YET. Do not add any until the
-check below passes.** The viewer's headers/CSP/edge traps are still where they have
-always been, in `apps/viewer/CLAUDE.md`. Read them there.
+✅ **THE CHECK PASSED, 2026-09-05. The mechanism works.** The traps have not moved
+yet — that migration is still to do — so they remain in `apps/viewer/CLAUDE.md` for
+now. Read them there.
+
+**The measurement, so nobody runs this experiment a third time.**
+`.claude/instructions-loaded.log` carries **7** `path_glob_match` lines for this file,
+across four separate dates (2026-08-30, 09-03, 09-04, and twice on 09-05). The last
+was emitted by a session that opened `apps/viewer/worker/securityHeaders.ts` with the
+Read tool while editing `apps/viewer/scripts/csp.mjs` — exactly the two-directory case
+this rule exists to cover, and exactly the case a nested CLAUDE.md cannot.
+
+That confirms the 2026-08-20 negative was the *ambiguous* one it suspected it was: a
+rule created mid-session does not fire in that session, but a rule present at session
+start does. Both halves of the original hypothesis are now settled.
+
+**What is left:** move the seven headers/CSP/edge traps here verbatim from
+`apps/viewer/CLAUDE.md` (the block beginning "`_headers` rules that both match are
+COMBINED" and ending "A build-time CSP cannot cover an edge-injected script"), leave a
+hook line behind, and update the trap count the root `CLAUDE.md` states — which
+`apps/cms/src/claudeMd.test.ts` verifies, so the count and the move must land in one
+commit. Worth doing: `apps/viewer/CLAUDE.md` is 39,273 bytes against a 40,000-byte
+warning, and this is its largest cluster.
 
 ## Why a rule and not a nested CLAUDE.md
 

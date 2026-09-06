@@ -1,6 +1,11 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+// @ts-expect-error — plain .mjs, as scripts/csp.mjs is. Every decision it makes is
+// a pure function with tests in scripts/sw.test.ts; this plugin is only the I/O.
+import { serviceWorkerSource, serviceWorkerVersion, shellFromBundle } from './scripts/sw.mjs'
 
 /**
  * Source maps are uploaded to Sentry ONLY when an auth token is present, and are
@@ -25,8 +30,108 @@ const uploadSourceMaps = Boolean(
 export default defineConfig({
   plugins: [
     react(),
+    /**
+     * Preload the two font faces a Latin visitor actually uses.
+     *
+     * ⚠️ THEY WERE THIRD IN A THREE-DEEP CHAIN: HTML -> CSS -> font. A woff2 is not
+     * discoverable until the bundled stylesheet has arrived AND parsed, so the two
+     * faces on the critical path each waited a full round trip that the browser
+     * could have started immediately. index.html already preloads the meshopt
+     * decoder and the lighting map for exactly this reason ("fetched ALONGSIDE the
+     * model instead of after it — measured 0.5s on the live waterfall"); the fonts
+     * were the remaining case and are the ones the FIRST PAINT waits on.
+     *
+     * ⚠️ IT HAS TO BE A BUILD-TIME PLUGIN, NOT A LINK IN index.html, because the
+     * filenames are content-hashed. Hardcoding one would go stale at the next font
+     * bump and preload a 404 — strictly worse than no hint, since the browser then
+     * fetches twice.
+     *
+     * ⚠️ `crossorigin` IS REQUIRED AND IS THE HALF THAT GETS DROPPED. Fonts are
+     * fetched in CORS mode even same-origin; a preload without it opens a
+     * connection in the wrong credentials mode, the real request opens a second
+     * one, and the hint costs a round trip instead of saving one. index.html's own
+     * comment makes the same point about its two preconnects, and
+     * scripts/preload.test.ts pins both halves there.
+     *
+     * LATIN ONLY. The build emits seven font files — latin, latin-ext and
+     * vietnamese subsets plus two .woff fallbacks no modern browser chooses.
+     * Preloading a subset this audience does not use would fetch bytes nobody
+     * renders, which is the opposite of the point. `unicode-range` still governs
+     * what the browser USES; this only front-runs the two it will ask for anyway.
+     */
+    {
+      name: 'run-preload-latin-fonts',
+      enforce: 'post' as const,
+      transformIndexHtml: {
+        order: 'post' as const,
+        handler(html: string, ctx: { bundle?: Record<string, unknown> }) {
+          const files = Object.keys(ctx.bundle ?? {})
+          const wanted = files.filter(
+            (f) => /\.woff2$/.test(f) && /-latin-/.test(f) && !/latin-ext/.test(f),
+          )
+          if (wanted.length === 0) return html
+          return {
+            html,
+            tags: wanted.map((file) => ({
+              tag: 'link',
+              attrs: {
+                rel: 'preload',
+                as: 'font',
+                type: 'font/woff2',
+                href: `/${file}`,
+                crossorigin: '',
+              },
+              injectTo: 'head' as const,
+            })),
+          }
+        },
+      },
+    },
     // Absent entirely without a token, so a local or PR build is byte-identical to
     // what it was before this plugin existed.
+    /**
+     * Emit the offline shell service worker.
+     *
+     * Scope, and the four measured reasons no garment is in it:
+     * `docs/DECISION-OFFLINE-SCOPE.md`. Every decision below is a pure function in
+     * `scripts/sw.mjs` with tests; this hook is the I/O around them, which is the
+     * same split `scripts/csp.mjs` and `scripts/gen-headers.mjs` use and the reason
+     * only the pure half is counted for coverage.
+     *
+     * ⚠️ IT HAS TO BE GENERATED, NOT A FILE IN `public/`. Two halves:
+     *   - the shell is content-hashed, so a hand-written list goes stale at the next
+     *     build and precaches a 404 — the same argument the font-preload plugin above
+     *     makes about hardcoding a filename;
+     *   - the browser only re-installs a service worker whose BYTES changed, so a
+     *     static `sw.js` would pin the first shell it ever saw, forever.
+     */
+    {
+      name: 'run-offline-shell',
+      apply: 'build' as const,
+      generateBundle(_options: unknown, bundle: Record<string, unknown>) {
+        const shell = shellFromBundle(bundle) as string[]
+        // The two immutable-but-unhashed files are read from public/ so their BYTES
+        // reach the version hash. Without this a decoder bump leaves the worker
+        // byte-identical and the stale decoder is served from cache indefinitely.
+        const contents: Record<string, string> = {}
+        for (const path of shell) {
+          if (path === '/' || path.startsWith('/assets/')) continue
+          try {
+            contents[path] = readFileSync(join(import.meta.dirname, 'public', path), 'utf8')
+          } catch {
+            // A shell entry that is not on disk is a bug, but failing the build here
+            // would trade a stale-cache risk for no deploy at all. The version simply
+            // falls back to being name-derived for that entry.
+          }
+        }
+        const version = serviceWorkerVersion(shell, contents) as string
+        ;(this as { emitFile: (file: unknown) => void }).emitFile({
+          type: 'asset',
+          fileName: 'sw.js',
+          source: serviceWorkerSource({ shell, version }),
+        })
+      },
+    },
     ...(uploadSourceMaps
       ? [
           sentryVitePlugin({

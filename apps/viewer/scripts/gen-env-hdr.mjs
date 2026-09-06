@@ -1,19 +1,46 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 /**
- * Generate the placeholder studio environment map used by <model-viewer>'s
- * `environment-image` (see Stage.tsx → ENVIRONMENT_IMAGE). A soft equirectangular
- * HDR with two overhead key lights: enough image-based lighting to reveal fabric
- * weave, sheen and depth without washing out baseColor.
+ * ⚠️ RETIRED 2026-09-05 — THIS NO LONGER PRODUCES THE SHIPPED FILE, AND RUNNING
+ * IT WOULD MAKE THE GARMENTS FLAT AGAIN. It refuses to overwrite unless you pass
+ * `--force`. Kept, not deleted, because its RGBE encoder and its round-trip
+ * decoder are the only Radiance codec in this repo and the downsampler that
+ * produced the current map was built from them.
  *
- *   node apps/viewer/scripts/gen-env-hdr.mjs
+ * `public/env/studio-soft.hdr` is now Poly Haven's `studio_small_09` — CC0, no
+ * attribution required — box-downsampled in LINEAR space to 256x128.
  *
- * This is a PLACEHOLDER. For final polish, replace public/env/studio-soft.hdr
- * with a real studio HDR — ideally an UltraHDR (.jpg) map (≤1024×512), which
- * model-viewer prefers for 10–30× smaller downloads than .hdr — and update the
- * ENVIRONMENT_IMAGE path in Stage.tsx if the filename changes.
+ * WHY IT WAS REPLACED, measured on the live rxps garment at a fixed camera and
+ * exposure, mean absolute pixel difference against the same scene lit by the
+ * full 1024x512 original:
+ *
+ *     256x128 downsample   0.54/255   max  10     <- what ships
+ *     512x256 downsample   0.27/255   max   5
+ *     THIS placeholder    11.38/255   max  65     <- 21x further away
+ *
+ * The placeholder is a smooth analytic gradient, so it lit the garment almost
+ * flat: no chest curvature, no shadow under the bust, no leg volume. That is not
+ * only a quality problem — it is part of why the owner reported on 2026-09-04
+ * that "on first glance it looks like an image". A photograph of a real softbox
+ * rig puts form back on the body.
+ *
+ * ⚠️ AND THE REPLACEMENT IS SMALLER: 100,649 bytes against this script's 135,171,
+ * on a file that is `<link rel="preload">`ed on every visit. That is not a
+ * trade — it is better lighting for 34 KB less on the critical path. It works
+ * because RLE compresses an analytic gradient beautifully and a photograph
+ * hardly at all, so dropping to a quarter of the pixels more than pays for the
+ * detail. 256x128 is enough because a rough, non-metallic fabric integrates the
+ * environment into near-irradiance anyway; the 0.54/255 above is that claim
+ * measured rather than asserted.
+ *
+ * An UltraHDR (.jpg) map would be smaller again — model-viewer's own docs quote
+ * 10-30x over .hdr, via https://gainmap-creator.monogrid.com — but that is a
+ * browser-side conversion nobody has run yet, and it is no longer urgent now
+ * that the file is under its old size.
+ *
+ *   node apps/viewer/scripts/gen-env-hdr.mjs --force
  *
  * Output is Radiance RGBE, new-format RLE (exactly what three.js RGBELoader,
  * which model-viewer uses, expects). The script round-trips the file it writes
@@ -125,6 +152,18 @@ const target = join(
   'studio-soft.hdr',
 )
 mkdirSync(dirname(target), { recursive: true })
+// See the retirement note at the top: the shipped map is a real studio
+// photograph now, and regenerating over it flattens every garment.
+if (existsSync(target) && !process.argv.includes('--force')) {
+  console.error(
+    `gen-env-hdr: REFUSING to overwrite ${target}.\n` +
+      'That file is Poly Haven studio_small_09 (CC0), downsampled to 256x128 — not this\n' +
+      "script's output. Regenerating it would light every garment flat again, which is\n" +
+      'measurably 21x further from the reference than what ships. Pass --force if you\n' +
+      'genuinely mean to go back to the analytic placeholder.',
+  )
+  process.exit(1)
+}
 writeFileSync(target, buf)
 
 // Verify: decode what we wrote and confirm it round-trips exactly.

@@ -1,7 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  L5-06, 2026-08-31. The ten live garment pages, so a crawler is told they exist
+  L5-06, 2026-08-31. Every live garment page, so a crawler is told they exist
   rather than having to find them.
+
+  ⚠️ UPDATED 2026-09-04: this file listed 10 URLs covering TWO products while
+  ELEVEN were live — 45 of 55 pages were absent. That is not cosmetic. This viewer
+  is a single-page app with NO links between garment pages, so a crawler that
+  follows links finds nothing; this file is the only way those pages are
+  discoverable at all. The 45 missing ones were reachable only by someone sharing
+  the link. Audit: docs/AUDIT-PRODUCT-PAGES-2026-09-04.md.
+
+  The 55 entries below were cross-checked against THREE independent sources that
+  agreed exactly, with zero discrepancies in either direction:
+    1. the live CMS payload for each of the 11 products in scripts/live-products.mjs
+    2. the 55-entry manifest in apps/viewer/worker/og-cards.ts
+    3. the 55 .jpg files actually present under apps/viewer/public/og/
+  A mismatch between those three is the tell that this file has drifted again.
 
   ⚠️ THIS IS A SNAPSHOT, NOT A DERIVED FILE, and that is deliberate. Generating it
   at build time would put a network call to cms.wear-run.help on the critical path
@@ -11,8 +25,10 @@
   ⚠️ A COLOURWAY SLUG IS PRINTED ON PHYSICAL QR TAGS, so these do not drift on their
   own; a product is added or retired deliberately. Regenerate when that happens:
 
-    curl -s https://cms.wear-run.help/api/public/viewer/<slug>/<colour> \
-      | python3 -c "import json,sys;print([c['slug'] for c in json.load(sys.stdin)['colourways']])"
+    for p in $(node -e "import('./scripts/live-products.mjs').then(m=>console.log(m.LIVE_PRODUCTS.map(x=>x.slug).join(' ')))"); do
+      curl -s https://cms.wear-run.help/api/public/viewer/$p \
+        | python3 -c "import json,sys;d=json.load(sys.stdin);[print(d['product']['slug']+'/'+c['slug']) for c in d['colourways']]"
+    done
 
   No <lastmod>: a date nobody updates is worse than no date, because a crawler
   believes it. No <priority>: Google has ignored it since 2015.
@@ -56,6 +72,186 @@
   </url>
   <url>
     <loc>https://viewer.wear-run.help/r-xmp/mint</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-afp/petrol</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-afp/mustard</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-afp/sky</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-afp/mauve</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-afp/butter</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-atw/turquoise</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-atw/fuchsia</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-atw/sage</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-atw/bone</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-atw/citron</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-atj/ash</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-atj/powder-blue</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-atj/burgundy</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-atj/sage</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-atj/navy</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-wzu/blush</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-wzu/butter</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-wzu/powder-blue</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-wzu/beige</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-wzu/plum</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-mm/blush</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-mm/sky</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-mm/sage</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-mm/lilac</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-mm/ash</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-aj/indigo</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-aj/magenta</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-aj/tangerine</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-aj/lime</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-aj/pebble</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-ajm/bottle-green</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-ajm/terracotta</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-ajm/coral</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-ajm/beige</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-ajm/powder-blue</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-css/blush</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-css/slate</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-css/sky</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-css/peach</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-css/lilac</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-asb/petrol</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-asb/sage</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-asb/pebble</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-asb/blush</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-asb/burgundy</loc>
     <changefreq>monthly</changefreq>
   </url>
 </urlset>

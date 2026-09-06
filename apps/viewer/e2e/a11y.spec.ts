@@ -183,7 +183,7 @@ test('the notice-only fallback is usable with a screen reader', async ({ page })
   // now 'Product reference'.
   await page.goto('/n002/wine')
   await expect(page.locator('.stage__error')).toHaveText(
-    'The 3D view is not available. The colours, fabric and specifications on this page are correct, and you can still send an enquiry below.',
+    'The 3D view is not available. The colors, fabric and specifications on this page are correct, and you can still send an inquiry below.',
   )
   // `exact` is load-bearing: Playwright's name matcher is a case-insensitive
   // SUBSTRING by default, so without it this also matches the interactive name

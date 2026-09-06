@@ -229,6 +229,18 @@ export function resolves(root, cited) {
  */
 export async function walkDocuments(dir, found = []) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
+    // ⚠️ `.claude/worktrees/` holds OTHER BRANCHES' WORKING TREES, and walking them
+    // makes this gate fail on work that is not in this branch at all. Found
+    // 2026-09-04: a concurrent session in
+    // `.claude/worktrees/cms-pages-audit-.../` added `packages/ui/`, its own
+    // CLAUDE.md cited `packages/ui/src/tokens.css`, and this gate resolved that
+    // path against THIS tree's root — where it does not exist — and failed a branch
+    // that had never touched it. 245 of the repo's 517 markdown files were in
+    // worktrees; the gate had been reading half its input from another branch and
+    // passed only while the two trees happened to agree.
+    //
+    // Each worktree is checked by its own branch's CI run, where the paths resolve.
+    if (entry.name === 'worktrees' && dir.endsWith('.claude')) continue
     if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'dist') continue
     const path = join(dir, entry.name)
     if (entry.isDirectory()) {

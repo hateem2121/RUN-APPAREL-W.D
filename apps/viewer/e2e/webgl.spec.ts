@@ -124,31 +124,150 @@ test('3D model loads and switching colourway changes the KHR material variant', 
    * a 4.82deg zoom. See PAN_SENSITIVITY in Stage.tsx for the full table and for
    * why 0 is not an option.
    *
+   * ⚠️ THIS ASSERTED `panSensitivity <= 0.3` UNTIL 2026-09-05. It could not
+   * survive adaptive pan, which legitimately exceeds 0.3 once the visitor zooms
+   * in — but the replacement below is a STRICTER guard, not a relaxed one. The old
+   * assertion caught one failure mode and silently accepted two others:
+   *
+   *   reverted to model-viewer's default 1.0  -> old FAILED    · new fails (A)
+   *   pinned at a flat 0.3, curve gone        -> old passed    · new fails (B)
+   *   set to 0, pan dead entirely             -> old PASSED    · new fails (A)
+   *
+   * That last one matters: with `disable-tap` on and `cameraTarget` fixed at the
+   * model centre, two-finger pan is the ONLY way to reach an off-centre print at
+   * `min-field-of-view: 1deg`, and "the printed artwork IS the product". A guard
+   * that accepts 0 is not guarding the thing it was written for.
+   *
    * ⚠️ PROPERTIES, not attributes — same reason as the poster check above.
    */
-  const gestureConfig = await page.evaluate(() => {
-    const mv = document.querySelector('model-viewer') as {
-      disableTap?: boolean
-      panSensitivity?: number
-    } | null
-    return { disableTap: mv?.disableTap ?? null, panSensitivity: mv?.panSensitivity ?? null }
-  })
+  const readGesture = () =>
+    page.evaluate(() => {
+      const mv = document.querySelector('model-viewer') as {
+        disableTap?: boolean
+        panSensitivity?: number
+        getFieldOfView?: () => number
+      } | null
+      return {
+        disableTap: mv?.disableTap ?? null,
+        panSensitivity: mv?.panSensitivity ?? null,
+        fieldOfView: mv?.getFieldOfView?.() ?? null,
+      }
+    })
+
+  const gestureConfig = await readGesture()
   expect(
     gestureConfig.disableTap,
     'tap-to-recenter is live again — a tap on the empty canvas around the garment ' +
       'will zoom it all the way out. Check `disable-tap` in Stage.tsx.',
   ).toBe(true)
+
+  // (A) At the framing every visit starts in, the value must still be the measured
+  // one. This is the anti-revert guard, and it rejects 0 as firmly as it rejects 1.0.
+  expect(gestureConfig.fieldOfView, 'the stage did not start at the framed view').toBeCloseTo(30, 0)
   expect(
     gestureConfig.panSensitivity,
-    'pan sensitivity is back to model-viewer default, so a pinch will drag the ' +
-      'garment off-centre. Check `pan-sensitivity` in Stage.tsx.',
-  ).toBeLessThanOrEqual(0.3)
+    'pan sensitivity at the DEFAULT framing is no longer 0.30. At 1.0 an asymmetric ' +
+      'pinch shoves the garment off screen (measured 2026-08-19); at 0 two-finger pan ' +
+      'dies and an off-centre print becomes unreachable at min-field-of-view. See ' +
+      'PAN_SENS_OUT in src/lib/adaptive-pan.ts.',
+  ).toBeCloseTo(0.3, 2)
 
   // The model actually finishes loading (not just the poster).
   await page.waitForFunction(
     () => Boolean((document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded),
     undefined,
     { timeout: 20_000 },
+  )
+
+  /**
+   * (B) THE CURVE GUARD. Zoom in and the sensitivity must MOVE, and move to the
+   * place the curve says.
+   *
+   * Without this, a build that had dropped `applyAdaptivePan` entirely — leaving a
+   * flat 0.3 — would pass (A) and every other test in this suite, and the owner's
+   * 2026-09-05 complaint would silently return.
+   *
+   * The expected value is recomputed from the field of view the element actually
+   * settled at, not from the one requested, because `min-camera-orbit` and the
+   * damper both have a say. Comparing against a hardcoded number here would make
+   * this test a second, drifting copy of the curve.
+   */
+  await page.evaluate(() => {
+    const mv = document.querySelector('model-viewer') as { fieldOfView?: string } | null
+    if (mv) mv.fieldOfView = '3deg'
+  })
+  /**
+   * ⚠️ WAIT ON THE CONDITION, NOT ON A DURATION. This was `waitForTimeout(1500)`
+   * and it passed alone and failed inside the full 428-test run — the suite uses
+   * two workers, and under that load the damper had not finished when the read
+   * happened. A fixed sleep here is a test that measures machine speed.
+   *
+   * Settled = the field of view has stopped moving between polls. `camera-change`
+   * is what drives the retune, so once the camera is still the sensitivity is
+   * final.
+   */
+  await page.waitForFunction(
+    () => {
+      const mv = document.querySelector('model-viewer') as { getFieldOfView?: () => number } | null
+      const now = mv?.getFieldOfView?.()
+      if (typeof now !== 'number') return false
+      const w = window as unknown as { __lastFov?: number; __stillFor?: number }
+      const moved = w.__lastFov === undefined || Math.abs(w.__lastFov - now) > 0.01
+      w.__lastFov = now
+      w.__stillFor = moved ? 0 : (w.__stillFor ?? 0) + 1
+      return (w.__stillFor ?? 0) >= 3 && now < 10
+    },
+    undefined,
+    { timeout: 15_000, polling: 100 },
+  )
+
+  const zoomed = await readGesture()
+  expect(zoomed.fieldOfView, 'the camera did not accept the zoom').toBeLessThan(10)
+  expect(
+    zoomed.panSensitivity,
+    'pan sensitivity did not rise when the visitor zoomed in — adaptive pan is not ' +
+      'running, so a two-finger slide at full zoom moves the garment 1/57th as far ' +
+      'as the frame. Check applyAdaptivePan is still called from the camera-change ' +
+      'listener in Stage.tsx.',
+  ).toBeGreaterThan(gestureConfig.panSensitivity ?? 0)
+  // And it lands where the curve says, within the write step. Recomputed here from
+  // the same two endpoints rather than imported, so a change to the module has to
+  // be a deliberate change to this expectation too.
+  const expected = 0.3 * (30 / Math.min(30, Math.max(1, zoomed.fieldOfView ?? 30))) ** 0.345
+  expect(
+    zoomed.panSensitivity,
+    `pan sensitivity is ${zoomed.panSensitivity} at ${zoomed.fieldOfView}deg, but the ` +
+      `curve in src/lib/adaptive-pan.ts says ${expected.toFixed(3)}.`,
+  ).toBeCloseTo(expected, 1)
+
+  /**
+   * Put it back before the colourway assertions below, which frame the garment.
+   *
+   * ⚠️ ALSO WAITS ON THE CONDITION. This was `waitForTimeout(800)` and the suite
+   * failed once in three full runs with it — the same shape as the settle above,
+   * which had already been caught and fixed. A fixed sleep anywhere in this test
+   * measures machine load, and under two workers and 444 tests the load is real.
+   */
+  await page.evaluate(() => {
+    const mv = document.querySelector('model-viewer') as { fieldOfView?: string } | null
+    if (mv) mv.fieldOfView = '30deg'
+    const w = window as unknown as { __lastFov?: number; __stillFor?: number }
+    w.__lastFov = undefined
+    w.__stillFor = 0
+  })
+  await page.waitForFunction(
+    () => {
+      const mv = document.querySelector('model-viewer') as { getFieldOfView?: () => number } | null
+      const now = mv?.getFieldOfView?.()
+      if (typeof now !== 'number') return false
+      const w = window as unknown as { __lastFov?: number; __stillFor?: number }
+      const moved = w.__lastFov === undefined || Math.abs(w.__lastFov - now) > 0.01
+      w.__lastFov = now
+      w.__stillFor = moved ? 0 : (w.__stillFor ?? 0) + 1
+      return (w.__stillFor ?? 0) >= 3 && now > 20
+    },
+    undefined,
+    { timeout: 15_000, polling: 100 },
   )
 
   // The selected colourway binds the matching KHR_materials_variants entry.
@@ -161,7 +280,7 @@ test('3D model loads and switching colourway changes the KHR material variant', 
   )
 
   /**
-   * ⚠️ THE DEPTH BIAS MUST SURVIVE A COLOURWAY CHANGE, AND FOR ONE DAY IT DID NOT.
+   * ⚠️ THE DEPTH BIAS MUST SURVIVE A COLORWAY CHANGE, AND FOR ONE DAY IT DID NOT.
    *
    * Printed cut-outs are pulled toward the camera so they win the depth test
    * against the cloth (src/lib/decal-depth-bias.ts). The first version applied it
@@ -345,7 +464,13 @@ test('3D model loads and switching colourway changes the KHR material variant', 
   // read 1 of 6 on four of five colourways of the live skinsuit; a middle tab and a
   // last tab are the ones an off-by-one hides behind).
   for (const colour of ['blush', 'butter', 'wine']) {
-    await page.getByRole('tab', { name: new RegExp(colour, 'i') }).click()
+    // Located by ID, not by accessible name. The id is `colourway-tab-<slug>` and
+    // the slug is what this loop already reasons about (it derives the variant id
+    // from it two lines below); the LABEL is CMS copy that can say anything. When
+    // serve.mjs gave one fixture colourway a two-word name on 2026-09-04 — to
+    // reproduce a real stranding defect — a name-based lookup here broke on a
+    // change that had nothing to do with WebGL. Match on the stable identifier.
+    await page.locator(`#colourway-tab-${colour}`).click()
     await page.waitForFunction(
       (expected) =>
         (document.querySelector('model-viewer') as { variantName?: string } | null)?.variantName ===
@@ -446,7 +571,7 @@ test('a lost WebGL context is reported as such, not as a failed colour swap', as
   const notice = page.locator('.stage__error')
   await expect(notice).toBeVisible({ timeout: 10_000 })
   await expect(notice).toHaveText(
-    'The 3D view is not available. The colours, fabric and specifications on this page are correct, and you can still send an enquiry below.',
+    'The 3D view is not available. The colors, fabric and specifications on this page are correct, and you can still send an inquiry below.',
   )
   // No image stands in for the model any more, in any state.
   await expect(page.locator('.stage img')).toHaveCount(0)
@@ -460,4 +585,403 @@ test('a lost WebGL context is reported as such, not as a failed colour swap', as
 
   // The part that only this change provides.
   expect(diagnostics.join('\n')).toContain('[viewer:webgl-context-lost]')
+})
+
+test.describe('the 3D view shows a focus ring', () => {
+  /**
+   * ⚠️ ASSERTING THAT THE RULE EXISTS IS NOT ENOUGH, and that is the whole reason
+   * this test measures geometry instead.
+   *
+   * The original rule put the ring on `model-viewer.stage__model`, which is
+   * `position: absolute; inset: 0` inside `.stage__canvas` — an `overflow: hidden`
+   * box whose edges it therefore matches EXACTLY. An outline at
+   * `outline-offset: 2px` paints 2-4px outside the element's border box, i.e.
+   * entirely outside the clip, so it had nowhere to go. Measured on the live site
+   * 2026-09-04: both boxes at top 77.0, left 11.3, right 363.8, bottom 571.5.
+   *
+   * The rule shipped, linted, and painted nothing. A test that read
+   * `outlineStyle === 'solid'` would have passed against it — the style computes
+   * fine, it is the PAINT that is thrown away. Same shape as the `--poster-color`
+   * trap in apps/viewer/CLAUDE.md.
+   *
+   * So the invariant asserted here is the one that actually matters: whatever
+   * element carries the ring must have room to paint it. Either it IS the
+   * clipping box (an element's own `overflow` never clips its own outline), or it
+   * sits far enough inside one.
+   */
+  // Lives in webgl.spec.ts, not motion-and-layout.spec.ts: `playwright.config.ts`
+  // routes only /(webgl|render)\.spec\.ts/ to the project that has a GPU, and the
+  // other four projects have no WebGL — so <model-viewer> never mounts there and
+  // this test could only ever SKIP. A skipped test reads as green.
+  test('the ring has room to paint, not just a rule that computes', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    // The element mounts only after the whole GLB is buffered, and its shadow root
+    // is built later still. Querying before that returns null and the test SKIPS,
+    // which reads as green — the exact failure this file exists to prevent.
+    await page.locator('model-viewer').waitFor({ state: 'attached', timeout: 30_000 })
+    await page.waitForFunction(
+      () =>
+        (document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded === true,
+      undefined,
+      { timeout: 30_000 },
+    )
+
+    const result = await page.evaluate(() => {
+      const mv = document.querySelector('model-viewer') as
+        | (HTMLElement & { shadowRoot: ShadowRoot })
+        | null
+      if (!mv?.shadowRoot) return { skip: 'no model-viewer (poster fallback)' as const }
+      const inner = mv.shadowRoot.querySelector<HTMLElement>('[tabindex="0"]')
+      if (!inner) return { skip: 'no focusable node in the shadow root' as const }
+      inner.focus()
+
+      // Which element actually carries an outline right now?
+      const candidates = [mv, ...document.querySelectorAll<HTMLElement>('.stage__canvas, .stage')]
+      const outlined = candidates.find((el) => {
+        const s = getComputedStyle(el)
+        return s.outlineStyle !== 'none' && Number.parseFloat(s.outlineWidth) > 0
+      })
+      if (!outlined) return { skip: false as const, outlined: null }
+
+      const s = getComputedStyle(outlined)
+      const need = Number.parseFloat(s.outlineWidth) + Number.parseFloat(s.outlineOffset)
+
+      // Walk up to the first ancestor that clips.
+      let clipper: HTMLElement | null = outlined.parentElement
+      while (clipper && getComputedStyle(clipper).overflow === 'visible') {
+        clipper = clipper.parentElement
+      }
+      const selfClips = getComputedStyle(outlined).overflow !== 'visible'
+      const a = outlined.getBoundingClientRect()
+      const room = clipper
+        ? (() => {
+            const c = clipper.getBoundingClientRect()
+            return Math.min(a.top - c.top, a.left - c.left, c.right - a.right, c.bottom - a.bottom)
+          })()
+        : Number.POSITIVE_INFINITY
+
+      return {
+        skip: false as const,
+        outlined:
+          outlined.tagName.toLowerCase() + (outlined.className ? `.${outlined.className}` : ''),
+        selfClips,
+        need,
+        room,
+        clipper: clipper ? clipper.className || clipper.tagName : null,
+      }
+    })
+
+    if ('skip' in result && typeof result.skip === 'string') {
+      test.skip(true, result.skip)
+      return
+    }
+    const r = result as {
+      outlined: string | null
+      selfClips: boolean
+      need: number
+      room: number
+      clipper: string | null
+    }
+
+    expect(
+      r.outlined,
+      'nothing carries a focus outline while the 3D view is focused',
+    ).not.toBeNull()
+    expect(
+      r.selfClips || r.room >= r.need,
+      `the focus ring is drawn on ${r.outlined}, which needs ${r.need}px outside its own ` +
+        `border box, but its clipping ancestor (${r.clipper}) leaves ${r.room}px. The ring ` +
+        `is painted and then clipped away — put it on the clipping element itself, whose ` +
+        `own overflow does not clip its own outline.`,
+    ).toBe(true)
+  })
+})
+
+test('model_loaded reports how long the visitor actually waited', async ({ page }) => {
+  /**
+   * ⚠️ THE DURATION WAS COMPUTED ON EVERY LOAD AND THROWN AWAY. The progress bar and
+   * the "~8s LEFT" readout cannot exist without it, and `model_loaded` still carried
+   * only the product code — so the one question a QR-scan business actually has,
+   * "how long does a buyer wait after scanning a tag?", was unanswerable from the
+   * data the page already had in its hand.
+   *
+   * `bytes` rides along because a duration alone is uninterpretable across an
+   * 1.8-7.8 MB catalogue: four seconds means very different things for the 1.8 MB
+   * pullover and the 7.8 MB bib.
+   */
+  const events: Array<Record<string, unknown>> = []
+  await page.exposeFunction('__captureAnalytics', (detail: Record<string, unknown>) => {
+    events.push(detail)
+  })
+  await page.addInitScript(() => {
+    document.addEventListener('run:analytics', (e) => {
+      ;(window as unknown as { __captureAnalytics: (d: unknown) => void }).__captureAnalytics(
+        (e as CustomEvent).detail,
+      )
+    })
+  })
+
+  await page.goto('/n001/wine')
+  await page.locator('model-viewer').waitFor({ state: 'attached', timeout: 30_000 })
+  await page.waitForFunction(
+    () => (document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded === true,
+    undefined,
+    { timeout: 30_000 },
+  )
+  await expect
+    .poll(() => events.some((e) => e.event === 'model_loaded'), { timeout: 10_000 })
+    .toBe(true)
+
+  const loaded = events.find((e) => e.event === 'model_loaded') as Record<string, string>
+  expect(loaded.product, 'the product code was already reported and must remain').toBeTruthy()
+  expect(
+    loaded.durationMs,
+    'model_loaded carried no durationMs — the number is computed for the progress ' +
+      'bar on every load and must not be discarded again',
+  ).toMatch(/^\d+$/)
+  expect(
+    Number(loaded.durationMs),
+    'a duration of zero means the start timestamp was never stamped',
+  ).toBeGreaterThan(0)
+  /*
+   * ⚠️ `bytes` IS DELIBERATELY NOT ASSERTED, AND THE REASON IS THE SAME FIXTURE GAP
+   * DOCUMENTED IN e2e/serve.mjs. The fixture streams the GLB without
+   * `content-length`, so `fetchWithProgress` reports `total: 0`, so the field is
+   * correctly omitted rather than sent as a lie. Production DOES send the header
+   * (measured 2026-09-04, `content-length: 3883016`), so the field will be present
+   * in the field data this exists to produce.
+   *
+   * Asserting it here would mean asserting the fixture's limitation. Asserting the
+   * OPPOSITE — that it is absent — would pin the gap in place and fail the day the
+   * fixture is fixed. So it is left unasserted with the reason written down, which
+   * is the honest third option.
+   *
+   * This is the second assertion that same missing header has blocked today; the
+   * first was the whole `preparing` phase. If the header is ever added — see the
+   * warning in serve.mjs about why the attempt was reverted — both become testable.
+   */
+  expect(
+    'bytes' in loaded ? typeof loaded.bytes : 'absent',
+    'when bytes IS present it must be a numeric string, never a placeholder',
+  ).toMatch(/^(string|absent)$/)
+})
+
+test.describe('AR — iOS Quick Look only', () => {
+  /**
+   * The whole feature is three attributes and a slotted button, and the two things
+   * worth guarding are both ABSENCES:
+   *
+   *   1. `scene-viewer` must never appear in `ar-modes`. Android's Scene Viewer
+   *      cannot read a `blob:` URL, and Stage.tsx gives the element a blob so it can
+   *      drive the byte-accurate progress readout. model-viewer's own source says a
+   *      blob "will cause Scene Viewer to crash or fail silently" — so adding it
+   *      would not degrade, it would break, on a device nobody here tests.
+   *   2. Our own button must be the one that renders. model-viewer's default AR
+   *      button paints inside the shadow root over the canvas, which is the exact
+   *      geometry StageControls.tsx measured and moved out in August.
+   *
+   * ⚠️ WHETHER QUICK LOOK ACTUALLY PLACES THE GARMENT ON A FLOOR CANNOT BE TESTED
+   * HERE OR IN THE SIMULATOR — neither has a camera or an ARKit session. That step
+   * needs a physical iPhone and is recorded as an owner action in
+   * docs/DECISION-AR-SCOPE.md.
+   */
+  test('is configured for Quick Look and never for Scene Viewer', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await page.locator('model-viewer').waitFor({ state: 'attached', timeout: 30_000 })
+    const config = await page.evaluate(() => {
+      const mv = document.querySelector('model-viewer')
+      return {
+        ar: (mv as unknown as { ar?: boolean })?.ar ?? null,
+        modes: mv?.getAttribute('ar-modes') ?? null,
+        placement: mv?.getAttribute('ar-placement') ?? null,
+        scale: mv?.getAttribute('ar-scale') ?? null,
+      }
+    })
+    // ⚠️ THE PROPERTY, NOT THE ATTRIBUTE — the repo's documented custom-element
+    // trap. React sets a boolean JSX prop on a custom element as a property and
+    // never reflects it, and model-viewer does not reflect `ar` back: measured
+    // `mv.ar === true` while `getAttribute('ar')` is null. The string-valued
+    // `ar-modes` / `ar-scale` / `ar-placement` DO arrive as attributes, which is why
+    // they are read differently below. The first version of this test asserted
+    // `hasAttribute('ar')` and failed against entirely working code.
+    expect(config.ar, 'the ar property is gone — AR is off entirely').toBe(true)
+    expect(config.modes).toBe('quick-look')
+    expect(
+      config.modes,
+      'scene-viewer is listed. Android cannot read the blob: URL this page gives ' +
+        'model-viewer, so AR there crashes or fails silently rather than degrading. ' +
+        'See docs/DECISION-AR-SCOPE.md.',
+    ).not.toContain('scene-viewer')
+    expect(config.modes).not.toContain('webxr')
+    expect(
+      config.scale,
+      'ar-scale is not fixed, so the garment can be resized in AR — which removes ' +
+        'the only reason a buyer would use it: judging real size.',
+    ).toBe('fixed')
+    expect(config.placement).toBe('floor')
+  })
+
+  test('offers no AR button on a device that cannot enter AR (negative control)', async ({
+    page,
+  }) => {
+    // Desktop Chrome reports canActivateAR === false, so the button must not be in
+    // the DOM at all — not merely hidden. A hidden button is still a tab stop and
+    // still occupies the slot.
+    await page.goto('/n001/wine')
+    await page.locator('model-viewer').waitFor({ state: 'attached', timeout: 30_000 })
+    await page.waitForFunction(
+      () =>
+        (document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded === true,
+      undefined,
+      { timeout: 30_000 },
+    )
+    const canActivate = await page.evaluate(
+      () =>
+        (document.querySelector('model-viewer') as { canActivateAR?: boolean } | null)
+          ?.canActivateAR,
+    )
+    expect(canActivate, 'desktop unexpectedly reports AR support — rethink this test').toBe(false)
+    await expect(page.locator('.stage__ar')).toHaveCount(0)
+    // And model-viewer's own default button must not have taken its place.
+    const defaultButton = await page.evaluate(() => {
+      const mv = document.querySelector('model-viewer') as
+        | (HTMLElement & { shadowRoot: ShadowRoot })
+        | null
+      const el = mv?.shadowRoot?.getElementById('default-ar-button')
+      if (!el) return { present: false, area: 0 }
+      const box = el.getBoundingClientRect()
+      return { present: true, area: Math.round(box.width * box.height) }
+    })
+    // ⚠️ MEASURE THE BOX, NOT `display`. With AR unavailable the element computes
+    // `display: flex` and renders at 0x0 — it paints nothing and covers nothing.
+    // Asserting `display === 'none'` failed against correct behaviour. The
+    // rendered rectangle is the only thing that answers "is it covering the
+    // garment", and it is what StageControls.tsx measured in August.
+    expect(
+      defaultButton.area,
+      "model-viewer's own AR button is painting over the canvas — it covered 26-38px " +
+        'of garment when last measured. Our slotted .stage__ar replaces it, and only ' +
+        'renders when AR is actually available.',
+    ).toBe(0)
+  })
+})
+
+/**
+ * The offline shell caches the shell — and provably not the garment.
+ *
+ * ⚠️ THIS LIVES IN THE `webgl` PROJECT ON PURPOSE, AND THE REASON IS THE WHOLE
+ * VALUE OF THE TEST. `canRender3D()` returns false without a WebGL context, so in
+ * the four DOM projects the page takes the poster path and never downloads a model
+ * at all. "No .glb in the cache" would then pass while measuring nothing — this
+ * repo's signature failure, recorded in the root CLAUDE.md as fixtures that cannot
+ * exhibit the defect. Here a real GLB is really fetched, same-origin, from
+ * `e2e/serve.mjs`, so the assertion has something to be wrong about.
+ *
+ * `docs/DECISION-OFFLINE-SCOPE.md` is the owner decision this defends: 53.69 MB of
+ * garments are NOT precached, for four measured reasons.
+ */
+test('the offline shell caches the shell and never the garment', async ({ page }) => {
+  await page.goto('/n001/wine')
+
+  const hasWebGL = await page.evaluate(() => {
+    try {
+      return Boolean(document.createElement('canvas').getContext('webgl2'))
+    } catch {
+      return false
+    }
+  })
+  test.skip(!hasWebGL, 'no WebGL context on this runner')
+
+  // Wait for the worker to take control. Registration happens on `load`, so it is
+  // deliberately not instant; polling beats a fixed timeout, which is a race this
+  // suite has already lost twice.
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker?.controller), null, {
+    timeout: 30_000,
+  })
+
+  // And wait for a real model, so the .glb assertion below is not vacuous.
+  await page.waitForFunction(
+    () => {
+      const mv = document.querySelector('model-viewer') as { loaded?: boolean } | null
+      return Boolean(mv?.loaded)
+    },
+    null,
+    { timeout: 60_000 },
+  )
+
+  const state = await page.evaluate(async () => {
+    const cached: string[] = []
+    for (const name of await caches.keys()) {
+      const cache = await caches.open(name)
+      for (const request of await cache.keys()) cached.push(new URL(request.url).pathname)
+    }
+    const fetched = performance
+      .getEntriesByType('resource')
+      .map((entry) => new URL(entry.name).pathname)
+    return { cached, glbFetched: fetched.filter((path) => path.endsWith('.glb')) }
+  })
+
+  // POSITIVE CONTROL, and it is not optional: without it a worker that failed to
+  // install at all would satisfy every assertion below by having an empty cache.
+  expect(
+    state.cached.filter((path) => path.endsWith('.css')),
+    'the shell stylesheet must be cached, or the cache is simply empty',
+  ).not.toEqual([])
+
+  // The model really was downloaded — this is what makes the next assertion mean
+  // something.
+  expect(state.glbFetched, 'no GLB was fetched, so the cache assertion proves nothing').not.toEqual(
+    [],
+  )
+
+  expect(
+    state.cached.filter((path) => path.endsWith('.glb')),
+    'a garment reached the cache — see docs/DECISION-OFFLINE-SCOPE.md',
+  ).toEqual([])
+
+  /**
+   * ⚠️ THE RENDERER IS CHECKED AGAINST THE SHELL, NOT THE CACHE, AND THE FIRST
+   * VERSION OF THIS GOT IT WRONG — CI caught it, twice green locally beforehand.
+   *
+   * It asserted `state.cached` held no `model-viewer`, under the message
+   * "model-viewer was precached". Those are different claims. The cache holds the
+   * precached SHELL *plus* whatever the visitor actually fetched, and `/assets/` is
+   * cache-first — so on a page that really renders 3D, model-viewer is fetched and
+   * runtime-cached. That is correct: the bytes were already paid for and the file is
+   * content-hashed and immutable. Caching it afterwards costs nothing and helps.
+   *
+   * What must never happen is model-viewer being in the PRECACHE SHELL, which would
+   * download 1.0 MB up front for a visitor who may never render 3D — defeating the
+   * dynamic import in Stage.tsx and the Save-Data guard in canRender3D().
+   *
+   * Reading /sw.js also closes the gap the 2026-09-05 verification named: until now
+   * the only test of the shell's contents ran against a hand-written fixture bundle
+   * in sw.test.ts, so nothing checked what the build actually emitted.
+   */
+  const shell = await page.evaluate(async () => {
+    const source = await fetch('/sw.js').then((response) => response.text())
+    const body = source.match(/const SHELL = \[([\s\S]*?)\n\]/)?.[1]
+    if (body === undefined) return null
+    // `?? ''` then filter, rather than a non-null assertion: a capture group is
+    // `string | undefined` to TypeScript, and this file is typechecked by `tsc` as
+    // well as run by Playwright. Playwright transpiles without type checking, so a
+    // suite that passes locally can still fail `pnpm typecheck` — which is exactly
+    // what happened here.
+    return [...body.matchAll(/"([^"]+)"/g)].map((match) => match[1] ?? '').filter(Boolean)
+  })
+
+  expect(shell, '/sw.js did not parse — the shell could not be read at all').not.toBeNull()
+  expect(shell?.length ?? 0, 'an empty shell would satisfy every assertion below').toBeGreaterThan(
+    3,
+  )
+  expect(
+    (shell ?? []).filter((path) => path.includes('model-viewer')),
+    'model-viewer is in the PRECACHE SHELL, defeating its own dynamic import',
+  ).toEqual([])
+  expect(
+    (shell ?? []).filter((path) => path.endsWith('.glb')),
+    'a garment is in the precache shell — see docs/DECISION-OFFLINE-SCOPE.md',
+  ).toEqual([])
 })

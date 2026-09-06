@@ -10,7 +10,7 @@ export interface EnquiryContext {
 }
 
 export function buildEnquirySubject({ productName, colourName }: EnquiryContext): string {
-  return `Product Enquiry — ${productName} / ${colourName}`
+  return `Product Inquiry — ${productName} / ${colourName}`
 }
 
 export function buildEnquiryBody({ productName, productCode, colourName }: EnquiryContext): string {
@@ -25,7 +25,7 @@ export function buildEnquiryBody({ productName, productCode, colourName }: Enqui
     'Country / target market:',
     'Estimated quantity:',
     'Target delivery date:',
-    'Requirements / customisation needed:',
+    'Requirements / customization needed:',
     'Do you have a tech pack, artwork or reference image? Yes / No',
     '',
     'Please contact me to discuss this product.',

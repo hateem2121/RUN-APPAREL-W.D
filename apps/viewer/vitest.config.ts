@@ -68,6 +68,12 @@ export default defineConfig({
         'scripts/gen-headers.mjs',
         'scripts/gen-env-hdr.mjs',
         'scripts/copy-decoders.mjs',
+        // Same category, added 2026-09-05: reads index.html, drives sharp, writes
+        // three files. Its ONE decision — the .ico byte layout, where a wrong offset
+        // yields a file browsers silently refuse to draw — lives in scripts/ico.mjs
+        // and IS counted, with a test that rebuilds the committed favicon and
+        // compares it byte for byte.
+        'scripts/gen-favicon.mjs',
       ],
       /**
        * Measured 2026-08-13, and DELIBERATELY the lowest number in the repo.

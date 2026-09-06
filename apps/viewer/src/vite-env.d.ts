@@ -61,6 +61,21 @@ interface ModelViewerAttributes {
   exposure?: string | number
   loading?: 'auto' | 'lazy' | 'eager'
   reveal?: 'auto' | 'manual'
+  /**
+   * AR. Added 2026-09-05 — iOS Quick Look ONLY, by decision; see
+   * docs/DECISION-AR-SCOPE.md.
+   *
+   * ⚠️ `ar-modes` must NOT list `scene-viewer`. Android's Scene Viewer cannot read
+   * a `blob:` URL, and Stage.tsx gives the element a blob because it fetches the
+   * GLB itself to drive the byte-accurate progress readout. model-viewer's own
+   * source says passing one "will cause Scene Viewer to crash or fail silently" —
+   * so listing it would not degrade, it would break.
+   */
+  ar?: boolean | ''
+  'ar-modes'?: string
+  'ar-placement'?: 'floor' | 'wall'
+  /** `fixed` keeps real-world size, which is the whole point for judging fit. */
+  'ar-scale'?: 'auto' | 'fixed'
 }
 
 declare module 'react' {

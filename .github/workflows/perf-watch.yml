@@ -34,7 +34,8 @@ jobs:
       #
       # WHAT IT DOES NOT DO, and why, because both are counter-intuitive:
       #
-      #   * It never GETs the model. 27 MB against a $5/month R2 egress cap, and a
+      #   * It never GETs the model. 1.9-8.2 MB against a $5/month R2 egress cap
+      #     (measured 2026-09-05; ~27 MB before the 2026-09-03 re-exports), and a
       #     weekly GET is affordable only until someone tightens the schedule.
       #   * It therefore cannot report the model's cache status, because
       #     `cf-cache-status` is only trustworthy when read from a GET's own headers.

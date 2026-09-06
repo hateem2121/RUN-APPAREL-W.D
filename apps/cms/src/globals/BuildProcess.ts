@@ -36,8 +36,33 @@ export const BuildProcess: GlobalConfig = {
   versions: false,
   admin: {
     group: 'Content',
+    /**
+     * ⚠️ RETIRED 2026-09-05 AND HIDDEN FROM THE ADMIN. Nothing reads this global
+     * any more; see the docblock on `buildViewerResponse` in
+     * endpoints/projectViewer.ts.
+     *
+     * It held one "How we build your product" text for the whole catalogue and
+     * OVERRODE every product's own copy the moment it was saved — the
+     * discriminator was `id`, "has anyone ever opened this screen", not "does it
+     * contain anything". After 2026-09-04, when eleven garments were given
+     * bespoke per-garment copy by owner decision, the only thing a save here
+     * could do was destroy that work in one click. Saving it EMPTY was worse: it
+     * served zero steps on every page, because `Array.isArray([])` is true.
+     *
+     * `hidden` is what makes that unreachable rather than merely discouraged. A
+     * warning in a CLAUDE.md is not a control — the owner asked for the hazard
+     * removed, not documented.
+     *
+     * ⚠️ THE DOCUMENT AND ITS TABLE ARE DELIBERATELY LEFT IN PLACE. Dropping
+     * columns on D1 means a table rebuild, which the root CLAUDE.md calls the
+     * single most hazardous operation in this repo; `presentation_mode`, retired
+     * in place on 2026-08-09, is the precedent and still sits in the schema
+     * harmlessly. The config also stays registered so `payload migrate` continues
+     * to know the table exists.
+     */
+    hidden: true,
     description:
-      'This text appears on EVERY product page, including ones you have already made. Change it here and it changes everywhere as soon as you save — you never have to edit it product by product.',
+      'Retired. Customisation copy is written per garment, on each product’s own “How we build your product” tab.',
   },
   access: {
     // Anonymous visitors never read this document directly. It reaches them only

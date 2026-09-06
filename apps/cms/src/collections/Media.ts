@@ -3,6 +3,7 @@ import {
   isAdmin,
   isAdminFieldLevel,
   isAdminOrEditor,
+  isAuthenticated,
   isAuthenticatedFieldLevel,
 } from '../access/roles'
 import {
@@ -53,17 +54,40 @@ export const Media: CollectionConfig = {
       'Every picture and finished 3D file used on the website. Shrunk 3D files arrive here on their own once your CLO upload has been processed — you rarely need to add anything by hand.',
   },
   access: {
-    // Poster and model files are public by nature (they render on the public
-    // viewer), so the COLLECTION stays readable without auth.
+    // ⚠️ THIS WAS `() => true` UNTIL 2026-09-05, AND THE REASONING WAS WRONG TWICE.
     //
-    // ⚠️ THIS SAID "document data contains nothing sensitive" UNTIL 2026-08-30, AND
-    // THAT WAS WRONG. Measured: an unauthenticated `GET /api/media` returned all 21
-    // documents with `artworkVerdict`, `artworkOverrideReason` and `sizeWarning` —
-    // the internal QA verdict on a garment's printed artwork, the reason someone
-    // published a damaged one anyway, and an internal size flag. A public collection
-    // is not the same as public fields; those three now carry their own
-    // `access.read`. Add field-level access to anything new that is for reviewers.
-    read: () => true,
+    // It said: "poster and model files are public by nature (they render on the
+    // public viewer), so the COLLECTION stays readable without auth." The files are
+    // public — they are served straight from R2 at media.wear-run.help, which this
+    // setting does not govern at all. What was public was the *index*: measured
+    // 2026-09-05, an unauthenticated `GET /api/media?limit=200` returned **all 68
+    // documents in one request** — 11 GLB URLs totalling 51.2 MB, 55 posters, every
+    // filename, size and dimension, plus `alt` strings carrying the pipeline's own
+    // preset labels ("shrunk 2026-09-04, 1.8 MB, Highest quality — bigger file").
+    // Two of the 13 models were orphans no product references, including the
+    // superseded 28.3 MB flagship.
+    //
+    // The bucket itself correctly refuses to list its contents (`GET
+    // media.wear-run.help/` → 404). This endpoint made that protection pointless: a
+    // competitor no longer had to guess a filename, they could ask for the manifest.
+    //
+    // The 2026-08-30 fix put THREE reviewer fields behind `isAuthenticatedFieldLevel`
+    // and left the collection open, because the comment above framed the problem as
+    // "a public collection is not the same as public fields". True, but it treated
+    // the enumeration itself as harmless, and it is not.
+    //
+    // ⚠️ NARROWING THIS DOES NOT AFFECT THE VIEWER, and the proof already exists in
+    // production rather than in an argument: `Products.read` has been
+    // `isAuthenticated` all along, and `GET /api/public/viewer/:product/:colourway`
+    // serves all 55 states to anonymous visitors regardless. That endpoint reaches
+    // the data through the LOCAL API (`req.payload.find`, publicViewer.ts), whose
+    // `overrideAccess` defaults to true, and it populates media at `depth: 1`. If
+    // access control reached it, Products would already have broken it.
+    //
+    // Every other HTTP caller authenticates: the shrink robot sends
+    // `Authorization: users API-Key` via `cmsFetch` (apps/shrink/src/cms.ts), and so
+    // does scripts/find-orphan-media.mjs.
+    read: isAuthenticated,
     create: isAdminOrEditor,
     update: isAdminOrEditor,
     delete: isAdmin,

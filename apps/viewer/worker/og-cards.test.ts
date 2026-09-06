@@ -3,6 +3,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { OG_CARDS } from './og-cards'
+// Repo-root script, the same import path apps/cms/src/liveProducts.test.ts uses.
+import { LIVE_PRODUCTS } from '../../../scripts/live-products.mjs'
 
 /**
  * Keep the generated manifest and the files on disk in step, in BOTH directions.
@@ -61,10 +63,49 @@ describe('the preview-card manifest', () => {
   })
 
   it('ships at least one card, so the fallback path is not the only one in use', () => {
-    // N001 is live and shared with leads. If this ever hits zero, every link has
-    // silently reverted to the WebP poster — which LinkedIn and iMessage do not
-    // render at all.
+    // If this ever hits zero, every link has silently reverted to the WebP poster —
+    // which LinkedIn and iMessage do not render at all.
+    //
+    // ⚠️ THIS COMMENT NAMED `N001` AS "live and shared with leads" UNTIL 2026-09-05.
+    // `n001` 404s in production and has since the 2026-08-15 rename; the eleven live
+    // slugs are in scripts/live-products.mjs. The test is sound — only the product
+    // in its rationale was dead. `n001` remains correct inside e2e/serve.mjs, which
+    // IS the fixture.
     expect(cardsOnDisk().length).toBeGreaterThan(0)
+  })
+
+  /**
+   * ⚠️ THE TWO ASSERTIONS ABOVE CLOSE A LOOP THAT DOES NOT INCLUDE THE PRODUCTS.
+   *
+   * Manifest-vs-disk is checked in both directions, which is good and stays. But
+   * until 2026-09-05 nothing compared either side to the list of live garments — so
+   * a twelfth product published without running `pnpm og:cards <slug>` left manifest
+   * and disk in perfect agreement, every test green, and that garment's five links
+   * silently falling back to the generic card on WhatsApp, Slack, iMessage and every
+   * search crawler.
+   *
+   * The `> 0` floor above was all that stood in for this, and a floor of one is not
+   * a guard on fifty-five.
+   */
+  it('has a card for every live product and colourway, and nothing else', () => {
+    // No cast: scripts/live-products.d.mts types this, so a renamed field fails
+    // typecheck rather than silently becoming `any` and passing.
+    const expected = LIVE_PRODUCTS.flatMap((p) => p.colourways.map((c) => `${p.slug}/${c}`)).sort()
+    // Negative control: if either side came back empty the comparison below would be
+    // empty-to-empty and would mean nothing.
+    expect(expected.length, 'LIVE_PRODUCTS produced no expected cards').toBeGreaterThan(10)
+    expect(Object.keys(OG_CARDS).length, 'the manifest is empty').toBeGreaterThan(10)
+
+    const actual = Object.keys(OG_CARDS).sort()
+    const missing = expected.filter((k) => !actual.includes(k))
+    const extra = actual.filter((k) => !expected.includes(k))
+    expect(
+      { missing, extra },
+      'The link-preview manifest and the live product list disagree.\n' +
+        'MISSING means those garment links unfurl with the generic card instead of\n' +
+        'the garment — run `pnpm og:cards <slug>` for each, then rebuild the manifest.\n' +
+        'EXTRA means a card exists for a page that is no longer live.',
+    ).toEqual({ missing: [], extra: [] })
   })
 
   it.each(Object.keys(OG_CARDS))('%s exists and is a real JPEG of the declared size', (key) => {
