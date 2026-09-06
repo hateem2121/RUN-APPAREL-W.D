@@ -1187,7 +1187,7 @@ Stop the preview, restart it without `--infer-origin-from-routes=false`, repeat 
 npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnpm@10.33.0 seed:assets && npx --yes pnpm@10.33.0 build && npx --yes pnpm@10.33.0 test:coverage && bash scripts/test-alert-shell.sh && node scripts/check-bundle-budget.mjs && node scripts/doc-citations.mjs && npx --yes pnpm@10.33.0 --filter @run-apparel/viewer test:preload && npx --yes pnpm@10.33.0 --filter @run-apparel/cms test:routes
 ```
 
-then `npx --yes pnpm@10.33.0 --filter @run-apparel/viewer test:e2e`, then `CI=1 npx --yes pnpm@10.33.0 --filter @run-apparel/cms test:e2e`, then the CMS suite once more with `apps/cms/.env` and `apps/cms/.dev.vars` moved aside and `apps/cms/.wrangler` removed (CI's cold conditions; restore both files after), then `npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec opennextjs-cloudflare build`.
+then `npx --yes pnpm@10.33.0 --filter @run-apparel/viewer test:e2e`, then `CI=1 npx --yes pnpm@10.33.0 --filter @run-apparel/cms test:e2e`, then the CMS suite once more with the two local env files (apps/cms/.env and apps/cms/.dev.vars — gitignored, so never cited in backticks) moved aside and wrangler's local state folder apps/cms/.wrangler removed (CI's cold conditions; restore both files after), then `npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec opennextjs-cloudflare build`.
 
 Expected: all green. The build runs BEFORE `test:coverage` above on purpose — both post-build guards read build output and a stale one fails them.
 
