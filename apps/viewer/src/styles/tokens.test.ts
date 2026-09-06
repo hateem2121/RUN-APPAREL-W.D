@@ -769,13 +769,18 @@ describe('progress indicators', () => {
   const TRANSLUCENT_GRAPHICS = [{ file: 'page.css', selector: '.stage__more' }]
 
   it('a rule that dims its own colour still clears 3:1 on what the eye receives', () => {
-    const tokensSource = readFileSync(join(STYLES_DIR, 'tokens.css'), 'utf8')
+    // ⚠️ `cssPath`, NOT a directory constant. This test arrived from main (2026-09-05)
+    // written against `STYLES_DIR`, the same day this branch deleted that constant by
+    // moving tokens.css into packages/ui. Git auto-merged the two without a marker and
+    // the result referenced a name that no longer existed — caught by running the
+    // gates on a trial merge, not by reading the diff.
+    const tokensSource = readFileSync(cssPath('tokens.css'), 'utf8')
     const bg = resolveToken(tokensSource, '--bg')
     expect(bg, '--bg must resolve for this test to mean anything').not.toBeNull()
 
     const failures: string[] = []
     for (const { file, selector } of TRANSLUCENT_GRAPHICS) {
-      const source = stripComments(readFileSync(join(STYLES_DIR, file), 'utf8'))
+      const source = stripComments(readFileSync(cssPath(file), 'utf8'))
       const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       const block = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(source)
       if (!block?.[1]) {
