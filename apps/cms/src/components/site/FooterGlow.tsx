@@ -40,8 +40,12 @@ export function FooterGlow() {
       x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
     let glowOn = false
     let lastOverAt = Number.NEGATIVE_INFINITY
+    let lastPoint: CursorPoint | null = null
+    let settle = 0
 
     const light = (point: CursorPoint) => {
+      lastPoint = point
+      window.clearTimeout(settle)
       const r = slab.getBoundingClientRect()
       const on = point.placed && inside(r, point.x, point.y)
       if (on !== glowOn) {
@@ -60,7 +64,23 @@ export function FooterGlow() {
       const under = document.elementFromPoint(point.x, point.y)
       const overNow = Boolean(under && slab.contains(under) && under.closest(CONTENT))
       if (overNow) lastOverAt = point.now
-      slab.dataset.over = String(overNow || point.now - lastOverAt < LINGER_MS)
+      const lingering = !overNow && point.now - lastOverAt < LINGER_MS
+      slab.dataset.over = String(overNow || lingering)
+      /*
+       * ⚠️ THE LINGER NEEDS ITS OWN TICK. The bus publishes only while the ring moves;
+       * once it lands, nothing calls this again — so a hand-off that was still inside
+       * the linger window at the last frame stayed `data-over="true"` over empty ground
+       * for good. Caught by the browser suite on the first run (one engine, one hover).
+       * Re-evaluate once, at the same point, the moment the window closes.
+       */
+      if (lingering) {
+        settle = window.setTimeout(
+          () => {
+            if (lastPoint) light({ ...lastPoint, now: performance.now() })
+          },
+          LINGER_MS - (point.now - lastOverAt) + 1,
+        )
+      }
 
       if (mark && lit) {
         const m = mark.getBoundingClientRect()
@@ -73,7 +93,11 @@ export function FooterGlow() {
         }
       }
     }
-    return subscribeToCursor(light)
+    const unsubscribe = subscribeToCursor(light)
+    return () => {
+      window.clearTimeout(settle)
+      unsubscribe()
+    }
   }, [])
 
   return (

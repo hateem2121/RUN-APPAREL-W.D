@@ -913,11 +913,20 @@ html {
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 6px;
+  /* no gap: every row is already a 44px touch target (below), and the list
+     measures its own pitch from that */
+  gap: 0;
 }
 
 .footer-block li,
 .footer-block a {
+  /* THE 44px TOUCH FLOOR. navbar.spec.ts measures every link on every page at 390px
+     and the first footer build shipped 16px rows: six controls under the floor. Real
+     44px rows, not a padding/negative-margin trick — that would overlap neighbouring
+     targets and hide the miss from the gate rather than fix it. */
+  display: flex;
+  align-items: center;
+  min-height: var(--target-min);
   font-family: var(--font-mono);
   font-size: var(--text-mono);
   letter-spacing: 0.055em;
@@ -947,7 +956,8 @@ html {
 .footer-legal {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  /* center, not baseline: the links are 44px touch targets, the text is not */
+  align-items: center;
   gap: 12px 24px;
   padding: 16px 0 22px;
   border-top: 1px solid var(--footer-line);
@@ -959,7 +969,7 @@ html {
 }
 
 .footer-legal .nav-link {
-  min-height: 0;
+  /* keeps the shared 44px min-height — the first build zeroed it and failed the floor */
   padding-inline: 0;
   --notch-muted: var(--footer-muted);
   --notch-text: var(--footer-text);

@@ -1522,11 +1522,19 @@ Delete everything from `/* -----------------------------------------------------
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 6px;
+  /* no gap: every row is already a 44px touch target (below) */
+  gap: 0;
 }
 
 .footer-block li,
 .footer-block a {
+  /* THE 44px TOUCH FLOOR. navbar.spec.ts measures every link on every page at 390px
+     and the first footer build shipped 16px rows: six controls under the floor. Real
+     44px rows, not a padding/negative-margin trick — that would overlap neighbouring
+     targets and hide the miss from the gate rather than fix it. */
+  display: flex;
+  align-items: center;
+  min-height: var(--target-min);
   font-family: var(--font-mono);
   font-size: var(--text-mono);
   letter-spacing: 0.055em;
@@ -1568,7 +1576,8 @@ Delete everything from `/* -----------------------------------------------------
 }
 
 .footer-legal .nav-link {
-  min-height: 0;
+  /* keeps the shared 44px min-height — the first build zeroed it and failed the
+     touch floor; and the row is align-items: center for the same reason */
   padding-inline: 0;
   --notch-muted: var(--footer-muted);
   --notch-text: var(--footer-text);
@@ -2260,7 +2269,15 @@ export function FooterGlow() {
       const under = document.elementFromPoint(point.x, point.y)
       const overNow = Boolean(under && slab.contains(under) && under.closest(CONTENT))
       if (overNow) lastOverAt = point.now
-      slab.dataset.over = String(overNow || point.now - lastOverAt < LINGER_MS)
+      const lingering = !overNow && point.now - lastOverAt < LINGER_MS
+      slab.dataset.over = String(overNow || lingering)
+      // ⚠️ THE LINGER NEEDS ITS OWN TICK. The bus publishes only while the ring moves;
+      // once it lands nothing calls this again, so a hand-off still inside the window
+      // stayed `data-over="true"` over empty ground for good (caught by the browser
+      // suite on its first run). Keep `lastPoint` and a `settle` timer in the closure,
+      // clear the timer at the top of every call, and when lingering re-run
+      // `light({ ...lastPoint, now: performance.now() })` the moment the window closes.
+      // Clear the timer in the effect's cleanup alongside the unsubscribe.
 
       if (mark && lit) {
         const m = mark.getBoundingClientRect()
@@ -2483,19 +2500,28 @@ test.describe('the numbers the design audit fixed', () => {
     })
     expect(Math.abs(settled.ringX - settled.lightX)).toBeLessThanOrEqual(1)
 
-    // sweep down through the facts at 3px per frame and count over/off toggles
-    const facts = await page.locator('.footer-facts').boundingBox()
-    if (!facts) throw new Error('no facts')
+    // Sweep down through the 2×2's INTERIOR at 3px per frame — from just above the
+    // first block to just below the last — and count over/off toggles. The gap between
+    // the two rows is the case: without hysteresis the halo dimmed and relit across it.
+    // The empty padding BELOW the last block is deliberately outside the sweep: there
+    // is nothing to light there, so the halo coming back is correct, not a flicker.
+    // (The first version swept 20px past the block into 51px of empty ground and
+    // counted that hand-off as a flicker — 3 toggles, both engines.)
+    const blocks = page.locator('.footer-block')
+    const firstBlock = await blocks.first().boundingBox()
+    const lastBlock = await blocks.last().boundingBox()
+    if (!firstBlock || !lastBlock) throw new Error('no facts blocks')
     let toggles = 0
     let last: string | null = null
-    for (let y = facts.y - 20; y < facts.y + facts.height + 20; y += 3) {
-      await page.mouse.move(facts.x + 60, y)
+    for (let y = firstBlock.y - 2; y < lastBlock.y + lastBlock.height + 2; y += 3) {
+      await page.mouse.move(firstBlock.x + 60, y)
       await page.waitForTimeout(16)
       const over = await slab.getAttribute('data-over')
       if (last !== null && over !== last) toggles++
       last = over
     }
-    expect(toggles).toBeLessThanOrEqual(2)
+    // one toggle: the entry. Anything more means the hand-off flickered inside the block.
+    expect(toggles).toBeLessThanOrEqual(1)
   })
 
   test('the facts run full width on a phone, and the legal links get the design focus ring', async ({ page }) => {
