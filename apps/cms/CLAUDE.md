@@ -222,3 +222,32 @@ Measured 2026-08-17 as a baseline worth having: `events` held **754 rows over 28
   Cloudflare — instead of a browser re-upload up a link measured at ~300 kB/s. ⚠️ Its
   `clientUploadContext` must be TRUTHY, or `@payloadcms/storage-r2` skips its own >50 MB
   short-circuit and the CMS Worker tries to buffer the whole object to satisfy a create.
+
+## The public site footer
+
+Built 2026-09-05 from an approved design — `docs/superpowers/specs/2026-09-05-site-footer-quiet-room-design.md`.
+Four things that bit while building it:
+
+- **The CTA tab sits ON the slab's top edge, OUTSIDE the clipped box.** `<footer>` is
+  unclipped; the inner slab carries `overflow: hidden` for the cropped wordmark. Put the
+  tab inside the clipped element and it is invisible — the first draft did, and the fillets
+  curved into an edge that was already behind them.
+- **The wordmark is fitted by measuring the rendered text**, after `document.fonts.ready`.
+  Two fixed sizes both ran the name off the edge; the name is a CMS field, so its length is
+  an input. `apps/cms/src/lib/wordmarkFit.ts`.
+- **The cursor honours `navigator.webdriver`** (as the viewer's does), so Playwright never
+  sees it unless the test lifts the flag with `addInitScript`. `apps/cms/e2e/footer.spec.ts`
+  does, and also asserts the honest default — absent under automation.
+- **The footer's light is positioned from the cursor ring's TRAILED point** (`apps/cms/src/lib/cursorBus.ts`),
+  never the raw pointer, and its 180ms linger needs its own timer tick: the bus publishes
+  only while the ring moves, so without one a hand-off caught inside the window stayed lit
+  over empty ground for good. The browser suite found that on its first run.
+
+Two gates to know about here: `navbar.spec.ts` measures EVERY link on every page against
+the 44px touch floor (the first footer shipped 16px rows — real 44px rows, never a
+padding/negative-margin trick, which overlaps neighbours and hides the miss); and
+`publicSite.test.ts` forbids `data-open` anywhere in the site's CSS, so the clock's light
+is `data-state`. The seven claim fields (`capacity.*`, `worksCoordinates`, `certifications`,
+`socialLinks`) carry **no defaults on purpose**; `projectFooter()` renders nothing for a
+blank claim. `vitest.config.ts` compiles JSX through **oxc** — Vite 8 ignores the `esbuild`
+option when both are set, and the first attempt changed nothing.

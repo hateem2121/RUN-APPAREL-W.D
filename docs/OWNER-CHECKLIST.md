@@ -97,6 +97,25 @@ The icon on the browser tab is still the draft mark from the old website reposit
 
 ---
 
+## 5 · Fill in the three footer blocks (about 10 minutes)
+
+**Why me.** Each is a claim about the business. The footer shows nothing for a blank one —
+it will never invent a certification — so until you type them, buyers see Contact only.
+
+Open the CMS admin, go to **Settings**, and fill in:
+
+1. **Capacity** — your minimum order (e.g. "50 pcs per style"), your usual lead time, and
+   your working days and hours in Sialkot time. The hours also switch on the little
+   "Open now" light beside the clock; leave them blank and there is no light.
+2. **Certifications** — only standards you hold today. Add one row per certificate.
+3. **Social links** — one row per live account, with the full `https://` address.
+
+Optional: **Works coordinates** under the address, only if you know them to be right.
+
+**You are done when** the bottom of any page shows the blocks you filled and nothing you did not.
+
+---
+
 ## What I could not close, and why
 
 Stated plainly so nothing here reads as finished when it is not.
