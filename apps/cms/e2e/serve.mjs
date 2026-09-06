@@ -36,6 +36,17 @@ const child = spawn('npx', ['--yes', 'pnpm@10.33.0', '--filter', '@run-apparel/c
     // throws and the content helpers fall back to defaults — which the suite tolerates
     // by design (see the empty-gallery case), but the richer path would go untested.
     PAYLOAD_LOCAL_D1: '1',
+    /*
+     * ⚠️ A THROWAWAY SECRET WHEN THE ENVIRONMENT HAS NONE. Payload refuses to
+     * initialise without one ("missing secret key"), and CI's e2e job passes none —
+     * only the deploy job holds the real PAYLOAD_SECRET. Measured 2026-09-06 by running
+     * this suite with .env moved aside, exactly as a cold checkout runs it: the three
+     * public pages still rendered (their content falls back to defaults) but `/admin`
+     * and `/api/*` answered 500 and four tests failed. Nothing behind this server is
+     * worth protecting — there is no database — so a per-process value is correct here,
+     * and a literal is deliberately avoided so the secrets scanner has nothing to match.
+     */
+    PAYLOAD_SECRET: process.env.PAYLOAD_SECRET ?? `cms-e2e-${process.pid}`,
   },
 })
 

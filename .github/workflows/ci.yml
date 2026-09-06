@@ -275,6 +275,10 @@ jobs:
       # Its own `webServer` runs `next build` from the cold checkout, so this step needs
       # no separate build step and no seeded database — the content helpers fall back to
       # defaults, and the gallery assertions cover both the populated and empty states.
+      # It needs no secret either: apps/cms/e2e/serve.mjs supplies a throwaway
+      # PAYLOAD_SECRET when the environment has none. Measured 2026-09-06 under these
+      # exact conditions: without that fallback Payload never initialises, `/admin` and
+      # `/api/*` answer 500, and four tests fail — while the page tests stay green.
       - name: e2e (public site)
         env:
           HOME: /root

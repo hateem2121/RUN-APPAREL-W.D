@@ -58,21 +58,35 @@ test.describe('the branded 404', () => {
 })
 
 test.describe('the catch-all shadows nothing', () => {
+  /*
+   * ⚠️ THE REST API ROW EXPECTS 403, NOT 200, AND THAT IS THE POINT OF THE ROW.
+   * `Media.read` became `isAuthenticated` on main on 2026-09-05 (the collection was
+   * enumerating every model URL to anyone), so an anonymous `GET /api/media` is now
+   * refused BY PAYLOAD — a JSON 403 from the API is proof the request reached the API.
+   * What this test guards against is the catch-all answering instead, which is the
+   * HTML not-found page with a 404. Written as 200 before that change landed, it
+   * failed the first time the two branches met.
+   */
   const MUST_STILL_WORK = [
-    { path: '/admin', label: 'the Payload admin' },
-    { path: '/api/media?limit=1', label: 'the REST API' },
-    { path: '/robots.txt', label: 'robots.txt' },
-    { path: '/sitemap.xml', label: 'sitemap.xml' },
-    { path: '/og-default.png', label: 'the social card' },
-    { path: '/icon.svg', label: 'the fallback tab icon' },
+    { path: '/admin', label: 'the Payload admin', status: 200 },
+    { path: '/api/media?limit=1', label: 'the REST API', status: 403, json: true },
+    { path: '/robots.txt', label: 'robots.txt', status: 200 },
+    { path: '/sitemap.xml', label: 'sitemap.xml', status: 200 },
+    { path: '/og-default.png', label: 'the social card', status: 200 },
+    { path: '/icon.svg', label: 'the fallback tab icon', status: 200 },
   ]
 
   for (const route of MUST_STILL_WORK) {
     test(`${route.label} is not swallowed`, async ({ request }) => {
       const response = await request.get(route.path)
-      expect(response.status(), `${route.path} returned ${response.status()}`).toBe(200)
-      // A 200 that is secretly the HTML 404 would pass a status check, so assert the
-      // body is not the not-found page.
+      expect(response.status(), `${route.path} returned ${response.status()}`).toBe(route.status)
+      if (route.json) {
+        // The refusal must come from Payload — JSON — not from a page that happens
+        // to carry the same status.
+        expect(response.headers()['content-type'] ?? '').toContain('json')
+      }
+      // A matching status that is secretly the HTML 404 would pass the check above,
+      // so assert the body is not the not-found page.
       const body = await response.text()
       expect(body).not.toContain('404 · PAGE NOT FOUND')
     })

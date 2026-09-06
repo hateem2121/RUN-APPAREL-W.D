@@ -114,7 +114,7 @@ root file first.
 
 ## Browser tests for the public site
 
-`pnpm --filter @run-apparel/cms test:e2e` — 70 tests, Chromium + Firefox, added 2026-09-05
+`pnpm --filter @run-apparel/cms test:e2e` — 100 tests, Chromium + Firefox, added 2026-09-05
 because nothing loaded `/`, `/products` or `/contact` in a browser and three blank pages
 would have passed every gate. Runs in CI as a **step inside the existing `e2e` job**, not a
 job of its own: a new job would need adding to `deploy.needs` AND the required-checks list,
@@ -126,6 +126,14 @@ breaking something on purpose.
 
 ⚠️ The port is owned by `playwright.config.ts` (4174) and `e2e/serve.mjs` THROWS if it is
 unset — a leaked `PORT` moved the viewer's server once and cost two dead-end runs.
+
+⚠️ **CI's `e2e` job has NO `PAYLOAD_SECRET`, and local runs always do** (`.env`). So a
+"passes locally" run proves nothing about the CI step: measured 2026-09-06 with `.env`
+moved aside, Payload never initialised, `/admin` and `/api/*` answered 500, and four tests
+failed while every page test stayed green. `e2e/serve.mjs` now supplies a throwaway
+secret when the environment has none. To reproduce CI here, move `.env` and `.dev.vars`
+aside and run with `CI=1`. And `/api/media` answers **403** to anonymous requests since
+main narrowed `Media.read` — the catch-all test expects that, not 200.
 
 ## Writing products from a script
 
