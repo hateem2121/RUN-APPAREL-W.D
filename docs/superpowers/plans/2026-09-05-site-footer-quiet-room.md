@@ -1320,7 +1320,7 @@ Delete everything from `/* -----------------------------------------------------
   font-stretch: 122%;
   font-size: clamp(27px, 4.3vw, 52px);
   line-height: 1;
-  letter-spacing: var(--tracking-display);
+  letter-spacing: var(--tracking-display-sm); /* the only display tracking token that exists */
   text-wrap: balance;
 }
 
@@ -1465,11 +1465,11 @@ Delete everything from `/* -----------------------------------------------------
   background: var(--footer-muted);
 }
 
-.footer-status[data-open="true"] {
+.footer-status[data-state="open"] {
   color: var(--footer-text);
 }
 
-.footer-status[data-open="true"]::before {
+.footer-status[data-state="open"]::before {
   background: var(--volt);
   box-shadow: var(--shadow-raised);
 }
@@ -1487,7 +1487,8 @@ Delete everything from `/* -----------------------------------------------------
   border-top: 1px solid var(--footer-line);
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px 44px;
+  /* 24 both ways — 44 is not a documented spacing step and the gate says so */
+  gap: 24px;
 }
 
 @media (max-width: 420px) {
@@ -1828,7 +1829,7 @@ export function FooterClock({ hours }: { hours: FooterHours | null }) {
         </span>
       </span>
       {open === null ? null : (
-        <span className="footer-status" data-open={open}>
+        <span className="footer-status" data-state={open ? 'open' : 'closed'}>
           {open ? 'Open now' : `Opens ${hours?.open} PKT`}
         </span>
       )}

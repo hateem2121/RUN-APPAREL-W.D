@@ -857,11 +857,11 @@ html {
   background: var(--footer-muted);
 }
 
-.footer-status[data-open="true"] {
+.footer-status[data-state="open"] {
   color: var(--footer-text);
 }
 
-.footer-status[data-open="true"]::before {
+.footer-status[data-state="open"]::before {
   background: var(--volt);
   box-shadow: var(--shadow-raised);
 }
