@@ -36,6 +36,7 @@ import './site.css'
 import type { Metadata } from 'next'
 import type React from 'react'
 import { Analytics } from '../../components/site/Analytics'
+import { Cursor } from '../../components/site/Cursor'
 import { JsonLd } from '../../components/site/JsonLd'
 import { SiteFooter } from '../../components/site/SiteFooter'
 import { SiteHeader } from '../../components/site/SiteHeader'
@@ -126,6 +127,8 @@ export default async function FrontendLayout({ children }: { children: React.Rea
         </main>
         <SiteFooter settings={settings} />
         <Analytics />
+        {/* The viewer's dot-and-ring cursor, dependency-free; fine pointers only. */}
+        <Cursor />
       </body>
     </html>
   )
