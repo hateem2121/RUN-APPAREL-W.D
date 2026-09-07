@@ -77,6 +77,27 @@ for k in apex-flex-pullover the-aggressor-jersey the-aggressor-jersey-men arisan
 done
 [ $bad -eq 0 ] && printf '  ✓ %-52s all 206\n' "11 garments"
 
+echo "── Beta Website (2026-09-06): the apex serves the site, with one address ──"
+# ⚠️ WRITTEN TO FAIL FIRST. Against production before the merge every line here fails
+# (the apex 404s, nothing redirects); after the deploy all six pass. Calibrated, not
+# assumed — the header of this file says why that matters.
+# ⚠️ HELPERS, NOT AN INLINE `case`. A `case` written inside `$(...)` breaks: bash reads
+# the `)` of the first pattern as the end of the command substitution, and the line then
+# fails at RUNTIME with "syntax error near unexpected token `newline'"" while `bash -n`
+# stays silent. That is why nothtml() above exists; these two are its siblings.
+ishtml() { case "$(ctype "$1")" in *text/html*) echo ok;; *) echo nothtml;; esac; }
+ispdf()  { case "$(ctype "$1")" in *application/pdf*) echo ok;; *) echo notpdf;; esac; }
+
+chk "GET / on the apex is the site"        200 "$(code https://wear-run.help/)"
+chk "apex / is HTML, not a PDF or a 404"   ok  "$(ishtml https://wear-run.help/)"
+chk "apex / carries noindex while hidden"  ok  "$(curl -s https://wear-run.help/ | grep -q 'name="robots" content="noindex"' && echo ok || echo missing)"
+chk "www -> apex, same path"               "308 https://wear-run.help/products" "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' https://www.wear-run.help/products)"
+chk "cms public page -> apex"              "308 https://wear-run.help/products" "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' https://cms.wear-run.help/products)"
+chk "apex /admin is the site's 404"        404 "$(code https://wear-run.help/admin)"
+chk "apex /admin shows no login"           ok  "$(curl -s https://wear-run.help/admin | grep -q '404 · PAGE NOT FOUND' && echo ok || echo login)"
+chk "cms /admin is still the admin"        200 "$(code https://cms.wear-run.help/admin)"
+chk "www /catalogue is still the PDF"      ok  "$(ispdf https://www.wear-run.help/catalogue)"
+
 echo
 echo "PASS $ok   FAIL $bad"
 exit $([ $bad -eq 0 ] && echo 0 || echo 1)

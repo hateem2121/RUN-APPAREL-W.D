@@ -854,7 +854,7 @@ git commit -m "infra: the apex belongs to the site — the CMS Worker takes the 
 - Consumes: the redirect statuses (308) and the 404 from Task 2; `noindex` from Task 1.
 - Produces: `evaluate()` accepts `kind: 'pdf' | 'site'` observations, with `wordmark?: boolean` for `site`.
 
-- [ ] **Step 1: Write the failing probe tests**
+- [x] **Step 1: Write the failing probe tests**
 
 In `apps/cms/src/apexProbe.test.ts`, change the `Observation` type and the `apexRoot` fixture:
 
@@ -915,12 +915,12 @@ and in the `TARGETS` describe add:
   })
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `cd apps/cms && npx --yes pnpm@10.33.0 exec vitest run src/apexProbe.test.ts`
 Expected: FAIL — `evaluate` still expects 404 and `TARGETS` still says `not-found`.
 
-- [ ] **Step 3: Change the probe**
+- [x] **Step 3: Change the probe**
 
 In `scripts/apex-probe.mjs`:
 
@@ -967,7 +967,7 @@ In `probe()`, after `magic` is computed, add the body check (the CMS ignores `Ra
 
 and include `wordmark,` in the returned object. Change the final log line to `'[apex-probe] both PDFs serve, and the apex serves the site.'` and the header's first line to `Assert the apex serves the marketing site and the two customer-facing PDFs.`
 
-- [ ] **Step 4: Run the probe tests**
+- [x] **Step 4: Run the probe tests**
 
 Run: `cd apps/cms && npx --yes pnpm@10.33.0 exec vitest run src/apexProbe.test.ts`
 Expected: PASS.
@@ -975,7 +975,7 @@ Expected: PASS.
 Run the probe against production once: `node scripts/apex-probe.mjs`
 Expected: **exit 1** — `apex root 404 FAIL (expected 200 …)` while both PDFs pass. That is the calibration: the probe fails before the deploy and passes after. Record the output in the commit message.
 
-- [ ] **Step 5: Reorder the deploy job**
+- [x] **Step 5: Reorder the deploy job**
 
 In `.github/workflows/ci.yml`, cut the whole `Deploy apex worker (catalogue + profile PDFs)` step together with its comment block (`# THE APEX WORKER, WHICH NOTHING DEPLOYED UNTIL NOW.` through the `run: pnpm deploy:apex` line) and paste it **immediately before** `- name: Deploy CMS worker`. Replace the paragraph that begins `# LAST, AFTER the viewer smoke tests` with:
 
@@ -998,7 +998,7 @@ In `.github/workflows/uptime.yml`, change line 17's `apex-probe.mjs asserts the 
 Run: `npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHardening.test.ts`
 Expected: PASS — the eleven rules, incl. "only invokes pnpm scripts that exist" and "gates the deploy on every job".
 
-- [ ] **Step 6: The post-deploy smoke**
+- [x] **Step 6: The post-deploy smoke**
 
 In `scripts/smoke-post-deploy.sh`, after the `nothtml()` helper is defined and before the final summary lines, add:
 
@@ -1021,7 +1021,7 @@ chk "www /catalogue is still the PDF"      ok  "$(case "$(ctype https://www.wear
 Run: `bash scripts/smoke-post-deploy.sh`
 Expected: exit 1, with the nine new lines failing and every earlier line unchanged. Paste the nine failing lines into the commit message as the pre-deploy calibration.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add .github/workflows/ci.yml .github/workflows/uptime.yml scripts/apex-probe.mjs apps/cms/src/apexProbe.test.ts scripts/smoke-post-deploy.sh

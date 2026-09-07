@@ -907,6 +907,41 @@ jobs:
           PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
         run: pnpm --filter @run-apparel/cms migrate:remote
 
+      # THE APEX WORKER, WHICH NOTHING DEPLOYED UNTIL NOW.
+      #
+      # `infra/apex-404/` was hand-deployed from the Cloudflare dashboard on
+      # 2026-08-28 and drifted from the repo for two days: the live Worker served
+      # /catalogue and /profile from R2 while the committed source 404'd every path.
+      # A routine `wrangler deploy` from that folder would have taken both PDFs
+      # offline and reported success. CI owns it now, so the repo is the record.
+      #
+      # A STEP, NOT A JOB, deliberately. A new job in this file must also be added to
+      # the `main` ruleset's required-status-checks list, which is org config no test
+      # here can read — so a job would introduce a second place to forget. A step
+      # inherits this job's gates.
+      #
+      # FIRST, BEFORE THE CMS WORKER, SINCE 2026-09-06 — and not merely "early".
+      # A route pattern belongs to one Worker at a time. This Worker used to hold
+      # `wear-run.help/*` and `www.wear-run.help/*`; the marketing site now lives on
+      # them, served by the CMS Worker. So this deploy must give the wildcards UP
+      # before the CMS deploy claims them, or the CMS deploy is refused for a route
+      # that is still taken. The four PDF routes stay attached throughout; the only
+      # window is the seconds between the two deploys on `wear-run.help/` itself.
+      # Its assertion stays LAST in this job, after the site is up, so a bad apex
+      # deploy is still caught in this run rather than by tomorrow's uptime cron.
+      #
+      # ⚠️ `git revert` across the reconcile commit redeploys the 404-everything
+      # script. docs/RUNBOOK.md → "Undoing a bad deploy" carries the exception.
+      - name: Deploy apex worker (catalogue + profile PDFs)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEPLOY_MESSAGE: ${{ github.sha }}@${{ github.ref_name }}
+        # See the version-labelling note on the CMS deploy step BELOW (it was above
+        # until this step moved ahead of it on 2026-09-06). The apex is the Worker
+        # this matters most for: its drift is what motivated the finding.
+        run: pnpm deploy:apex
+
       - name: Deploy CMS worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -1144,35 +1179,7 @@ jobs:
         if: vars.VIEWER_DEPLOY_TARGET != 'pages'
         run: node scripts/smoke-live-previews.mjs https://viewer.wear-run.help
 
-      # THE APEX WORKER, WHICH NOTHING DEPLOYED UNTIL NOW.
-      #
-      # `infra/apex-404/` was hand-deployed from the Cloudflare dashboard on
-      # 2026-08-28 and drifted from the repo for two days: the live Worker served
-      # /catalogue and /profile from R2 while the committed source 404'd every path.
-      # A routine `wrangler deploy` from that folder would have taken both PDFs
-      # offline and reported success. CI owns it now, so the repo is the record.
-      #
-      # A STEP, NOT A JOB, deliberately. A new job in this file must also be added to
-      # the `main` ruleset's required-status-checks list, which is org config no test
-      # here can read — so a job would introduce a second place to forget. A step
-      # inherits this job's gates.
-      #
-      # LAST, AFTER the viewer smoke tests, so a bad apex deploy cannot block the
-      # viewer's — and immediately followed by its own assertion, so it is caught in
-      # this run rather than by tomorrow's uptime cron.
-      #
-      # ⚠️ `git revert` across the reconcile commit redeploys the 404-everything
-      # script. docs/RUNBOOK.md → "Undoing a bad deploy" carries the exception.
-      - name: Deploy apex worker (catalogue + profile PDFs)
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          DEPLOY_MESSAGE: ${{ github.sha }}@${{ github.ref_name }}
-        # See the version-labelling note on the CMS deploy step above. The apex is
-        # the Worker this matters most for: its drift is what motivated the finding.
-        run: pnpm deploy:apex
-
-      - name: Post-deploy apex assertion (both PDFs, ranged GET)
+      - name: Post-deploy apex assertion (the site, both PDFs)
         run: node scripts/apex-probe.mjs
 
       # Put the rollback command where someone will actually be looking.

@@ -31,11 +31,12 @@ import { TARGETS, evaluate } from '../../../scripts/apex-probe.mjs'
 
 type Observation = {
   name: string
-  kind: 'pdf' | 'not-found'
+  kind: 'pdf' | 'site'
   status: number
   contentType?: string
   totalBytes?: number
   magic?: string
+  wordmark?: boolean
   cache?: string
   error?: string
 }
@@ -52,17 +53,19 @@ const pdf = (over: Partial<Observation> = {}): Observation => ({
   ...over,
 })
 
+/** The apex serving the marketing site — measured shape after 2026-09-06. */
 const apexRoot = (over: Partial<Observation> = {}): Observation => ({
   name: 'apex root',
-  kind: 'not-found',
-  status: 404,
+  kind: 'site',
+  status: 200,
+  contentType: 'text/html; charset=utf-8',
+  wordmark: true,
   ...over,
 })
 
 describe('evaluate', () => {
-  it('passes when both PDFs serve and the bare apex 404s', () => {
+  it('passes when both PDFs serve and the apex serves the site', () => {
     const result = evaluate([pdf(), pdf({ name: 'profile', totalBytes: 16_891_515 }), apexRoot()])
-
     expect(result.ok).toBe(true)
     expect(result.failures).toEqual([])
   })
@@ -129,13 +132,19 @@ describe('evaluate', () => {
     expect(result.ok).toBe(false)
   })
 
-  it('FAILS if the bare apex stops 404ing', () => {
-    // It returned 522 after 20.2 s until 2026-08-19. A 200 here would mean something
-    // unexpected is now bound to the apex.
-    const result = evaluate([apexRoot({ status: 200 })])
-
+  it('FAILS if the apex stops serving the site — a 404 there is the OLD behaviour', () => {
+    // Until 2026-09-06 the bare apex 404'd by design and this test asserted that. The
+    // site lives there now; a 404 means the CMS Worker lost its wildcard route.
+    const result = evaluate([apexRoot({ status: 404 })])
     expect(result.ok).toBe(false)
-    expect(result.failures[0]).toContain('expected 404')
+    expect(result.failures[0]).toContain('expected 200')
+    expect(result.failures[0]).toContain('wildcard')
+  })
+
+  it('FAILS a 200 that is not the site — wrong type, or no wordmark in the body', () => {
+    expect(evaluate([apexRoot({ contentType: 'application/pdf' })]).ok).toBe(false)
+    expect(evaluate([apexRoot({ wordmark: false })]).ok).toBe(false)
+    expect(evaluate([apexRoot({ wordmark: false })]).failures[0]).toContain('RUN APPAREL')
   })
 
   it('treats a network error as inconclusive, not an outage', () => {
@@ -168,6 +177,12 @@ describe('TARGETS', () => {
       expect(target.url).not.toContain('media.wear-run.help')
       expect(target.url).not.toContain('.glb')
     }
+  })
+
+  it('asserts the apex root as the SITE, not a 404', () => {
+    expect(
+      (TARGETS as { name: string; kind: string }[]).find((t) => t.name === 'apex root')?.kind,
+    ).toBe('site')
   })
 
   it('points at the apex, not the viewer — the viewer is an SPA and answers anything', () => {
