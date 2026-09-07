@@ -1764,7 +1764,18 @@ a.contact-block__value:active {
   align-items: start;
 }
 
-.product-card__desc {
+/*
+ * ⚠️ SCOPED TO `.product-card`, BECAUSE THE UNSCOPED VERSION TRUNCATED THE HOMEPAGE.
+ * `.family-card` reuses this class, and at five across it is 191px wide — three lines is
+ * not enough for "Squad kit, staff uniforms and matching sets at scale", which rendered as
+ * "matching sets at…" on the company's own home page. Caught by looking at a screenshot,
+ * which is the only instrument that would have.
+ *
+ * The clamp exists for the GALLERY, where descriptions are CMS copy of unknown length and
+ * one long one unbalances a whole row. The five family blurbs are fixed, short, and
+ * written to fit.
+ */
+.product-card .product-card__desc {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;

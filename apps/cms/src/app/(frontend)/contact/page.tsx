@@ -176,7 +176,13 @@ export default async function ContactPage({
                 required
                 rows={6}
                 maxLength={MAX_LENGTHS.message}
-                placeholder="Styles and quantities, your target fabric or a reference garment, any artwork, and the date you need it by."
+                /*
+                  ⚠️ NO PLACEHOLDER. The first version repeated the paragraph directly
+                  above it word for word — the same sentence twice on one phone screen,
+                  which a screenshot showed and no test would have. A placeholder is a poor
+                  place for guidance anyway: it disappears the moment someone starts
+                  typing, exactly when they might want to re-read it.
+                */
               />
             </label>
 
