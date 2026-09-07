@@ -187,19 +187,34 @@ then emailed** — so if the email ever fails, the message is still there under 
 That ordering is the whole design and it means an outage can cost you a notification but
 never an inquiry.
 
-### 7a · Confirm the domain is verified in Resend
+### 7a · ~~Confirm the domain is verified in Resend~~ — **checked 2026-09-07, it looks set up**
 
-`RESEND_API_KEY` is already set on your Worker — I found it there. What I could not check
-is whether `wear-run.help` is **verified** in Resend, because the key is a secret the
-platform will not read back to me.
+⚠️ **I told you there was "a reason to doubt it" and I was wrong.** The reason I gave was
+that your domain's SPF record names Hostinger, Google and SendGrid and not Resend. That is
+true and it does not mean what I said it meant — Resend does not authenticate through your
+main domain's SPF at all.
 
-⚠️ **There is a reason to doubt it.** Your domain's SPF record names Hostinger, Google and
-SendGrid — not Resend. If Resend has not been given the domain, every notification fails.
+I read your DNS. All three records Resend asks for are there:
 
-1. Sign in to Resend and open **Domains**.
-2. If `wear-run.help` is not listed as **Verified**, add it and follow the DNS steps.
-3. If you would rather not, tell me and I will switch the form to a service you already
-   use — the code that sends the mail is one function.
+| Record | Found |
+|---|---|
+| `send.wear-run.help` TXT | `v=spf1 include:amazonses.com ~all` ✅ |
+| `send.wear-run.help` MX | `10 feedback-smtp.us-east-1.amazonses.com` ✅ |
+| `resend._domainkey.wear-run.help` TXT | a 218-character signing key ✅ |
+
+Somebody set this up properly. Resend sends through Amazon, so the "envelope" address it
+authenticates is `send.wear-run.help` — which is where that first record lives — while the
+message still shows as coming from `noreply@wear-run.help`. Your `DMARC` policy is
+`quarantine`, and both of the checks it makes line up correctly.
+
+⚠️ **Two things DNS still cannot tell me**, so this is "looks right", not "proven":
+whether Resend's own dashboard has ticked the domain as Verified, and whether the API key
+on the Worker is still valid. Both live behind a login I do not have.
+
+**The cheapest way to settle it is to use it.** Once the site is live, send yourself one
+message through the contact form. If it arrives, everything above is confirmed. If it does
+not, open **Inquiries** in the CMS: the message will be there with `notified` unticked and
+the exact reason written beside it.
 
 **How you will know either way:** open **Inquiries** in the CMS. Every row has a
 `notified` tick. If a row is saved but unticked, the message reached you and the email did

@@ -426,8 +426,20 @@ in that commit.
 
 ## Still open
 
-**`FA-Q-07`'s sibling: the Resend domain.** `RESEND_API_KEY` is set on the CMS Worker, but
-`wear-run.help`'s SPF record names Hostinger, Google and SendGrid — not Resend — so the
-domain may not be verified for sending. If it is not, every inquiry notification fails
-with a 4xx. The inquiry itself is stored either way and the failure is written onto the
-row, so nothing is lost while this is settled. `docs/OWNER-CHECKLIST.md` §7a.
+**`FA-Q-07`'s sibling: the Resend domain — the DOUBT was unfounded, checked 2026-09-07.**
+This said the domain "may not be verified for sending" because `wear-run.help`'s SPF names
+Hostinger, Google and SendGrid and not Resend. The premise was a misreading: Resend sends
+through Amazon SES, so SPF is evaluated against the ENVELOPE sender, not the `From:`
+header. All three records Resend requires are present —
+`send.wear-run.help` TXT `v=spf1 include:amazonses.com ~all`, `send.wear-run.help` MX
+`10 feedback-smtp.us-east-1.amazonses.com`, and a 218-character key at
+`resend._domainkey.wear-run.help`. DMARC is `p=quarantine` and aligns both ways: SPF
+relaxed (`send.wear-run.help` and `wear-run.help` share an organisational domain) and DKIM
+strict (`d=wear-run.help`).
+
+⚠️ **Still not PROVEN, and the gap is named rather than closed.** DNS shows the records
+exist; it cannot show that Resend's dashboard has ticked the domain Verified, nor that the
+API key on the Worker is still valid. Both are behind a login. The cheap proof is one form
+submission after launch — and the inquiry is stored before the email is attempted, with
+the failure written onto the row, so a wrong answer costs a notification and never a lead.
+`docs/OWNER-CHECKLIST.md` §7a.
