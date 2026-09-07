@@ -244,7 +244,30 @@ jobs:
   # HOME the runner expects. Do not add `options: --user 1001` on top of it.
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # ⚠️ 30, RAISED FROM 20 ON 2026-09-07 BECAUSE THE WORK GREW, NOT BECAUSE A CEILING WAS
+    # INCONVENIENT. Measured, this job, five consecutive runs:
+    #
+    #   89b611c  success    15.0 min
+    #   d653c5b  failure    15.3 min
+    #   d2696f3  failure    16.0 min
+    #   f9eb442  CANCELLED  20.1 min   <- hit this ceiling
+    #   986b051  CANCELLED  20.1 min   <- hit this ceiling
+    #
+    # ⚠️ AND A JOB THAT HITS ITS OWN `timeout-minutes` REPORTS `cancelled`, NOT `failure` —
+    # which reads exactly like the concurrency cancellation this file documents above, and
+    # cost a round trip to tell apart. The tell is that ONE job is cancelled while the
+    # others succeed; a concurrency cancel takes the whole run.
+    #
+    # The runner does 636 viewer tests then 312 CMS tests at ONE worker (`Running 636 tests
+    # using 1 worker` in the log): 14.0 min and ~6 min respectively, plus install. That is
+    # ~21 minutes of real work against a 20-minute budget — it did not fit, and the two
+    # green runs above only fitted because the suites were 75 tests smaller. `verify`
+    # already sits at 30 for the same reason.
+    #
+    # Raising this is NOT the answer to a slow external dependency — see the apt-mirror
+    # account earlier in this file, where lifting one ceiling only moved which job died.
+    # It is the answer when the ceiling is smaller than the measured work, which is this.
+    timeout-minutes: 30
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble
     steps:
