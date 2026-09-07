@@ -65,6 +65,24 @@ export function ProductPoster({ src, alt }: { src: string; alt: string }) {
      * optimiser cannot resize anything — next/image would add a proxy hop and ship the
      * identical bytes. `lazy` + `async` keeps posters off the critical path; the
      * aspect-ratio box on the figure means no layout shift while they arrive.
+     *
+     * ⚠️ NO `srcset`, AND THE AUDIT'S "one poster size for every screen" (FA-J-51) IS
+     * MEASURED RATHER THAN ARGUED HERE. A `srcset` needs more than one file to choose
+     * between, and the pipeline emits exactly one 1200x1500 WebP per colourway. Creating
+     * others means either changing `tools/asset-pipeline` and re-running all 55 posters,
+     * or paying for Cloudflare Image Resizing against a $5/month ceiling. `sizes` alone
+     * does nothing without a `srcset` to select from.
+     *
+     * What that would buy, measured live on media.wear-run.help 2026-09-07:
+     *
+     *   rxps-wine    40,450 B     rxps-black   52,330 B
+     *   r-mm-sky     33,762 B     r-aj-lime    66,442 B      all cf-cache-status HIT
+     *
+     * 34-66 KB for a full-resolution garment photograph, lazy-loaded and served from the
+     * edge. A phone card is ~350px wide, so a smaller variant might save ~25 KB on an
+     * image that is not on the critical path and is not fetched until it scrolls into
+     * view. That is a real saving and a small one, and it costs a pipeline change and a
+     * re-run of every poster — an owner's trade, not a silent one.
      */
     // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize — it would add a proxy hop and serve byte-identical posters. See above.
     <img
