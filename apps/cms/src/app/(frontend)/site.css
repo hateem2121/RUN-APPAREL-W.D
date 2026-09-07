@@ -15,6 +15,107 @@
  * its tests stayed green through it.
  */
 
+/* ------------------------------------------------- webfont fallbacks (FA-L-51) */
+
+/*
+ * ⚠️ THE HOME PAGE FAILED CUMULATIVE LAYOUT SHIFT AT 0.1533 AGAINST A 0.1 LIMIT, AND THE
+ * WEBFONTS WERE THE WHOLE OF IT — measured 0.0000 with the fonts removed. Both faces load
+ * with `font-display: swap` (fontsource's default), so the page paints in a fallback and
+ * then re-flows every line when the real font arrives. Nothing else on the page moves.
+ *
+ * ⚠️ PRELOADING IS NOT THE FIX AND WAS MEASURED. Moving these to `next/font/local` starts
+ * the fetch 1.4s earlier and delivers Archivo at 1767ms against 1788ms — unchanged, and
+ * 68ms slower overall. See the comment at the top of layout.tsx. The shift has to be
+ * removed rather than raced.
+ *
+ * WHAT THESE NUMBERS ARE. Each face makes a system font occupy the same space as the
+ * webfont it stands in for, so the swap moves nothing. Every value below was COMPUTED
+ * FROM THE FONT FILES on 2026-09-07 — frequency-weighted average advance widths taken
+ * from the real glyph tables, with the variable font instanced at the axis values the CSS
+ * actually asks for — and not taken from a table of remembered constants:
+ *
+ *   body     Archivo wght 400, lowercase corpus   0.44078em  vs Arial      0.44697em
+ *   display  Archivo wght 860 wdth 122, UPPERCASE 0.78662em  vs Arial Bold 0.61341em
+ *   serif    Instrument Serif italic              0.36209em  vs Georgia It 0.45532em
+ *
+ * ⚠️ THE DISPLAY FACE NEEDS ITS OWN ADJUSTMENT AND THAT IS THE POINT. `.display` renders
+ * at `font-stretch: 122%` and `font-weight: 860` in uppercase, where Archivo is 28% wider
+ * than Arial Bold — against 1.4% NARROWER than Arial for lowercase body text at 400. One
+ * shared fallback would have under-corrected the headlines, which are the largest text on
+ * the page and therefore most of the shift.
+ *
+ * ⚠️ OS/2's `xAvgCharWidth` IS NOT USABLE FOR THIS. Its definition changed between OS/2
+ * versions, so it is not comparable across fonts: it reports Archivo as 30% wider than
+ * Arial where the real prose measurement says 2.5%. Read the advances directly.
+ *
+ * `local()` only, so nothing new is downloaded and the faces cost zero bytes over the
+ * wire. Where none of the named fonts exists the face simply fails to load and the stack
+ * falls through to `system-ui` — today's behaviour, unchanged. Arial and Helvetica are
+ * metric-identical here (both 0.44697em, computed, not assumed), so one entry covers both.
+ *
+ * ⚠️ DECLARED IN THIS FILE AND NOT IN packages/ui/src/tokens.css. The viewer measured CLS
+ * 0.000 — it does not have this problem — and base.css/tokens.css ship inside its
+ * stylesheet budget, whose headroom is deliberately small. Site-only bytes, site-only
+ * sheet. docs/DESIGN.md §3 records the same split.
+ */
+@font-face {
+  font-family: "Archivo Fallback";
+  src: local("Arial"), local("Helvetica Neue"), local("Helvetica");
+  size-adjust: 98.61%;
+  ascent-override: 89.03%;
+  descent-override: 21.29%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Archivo Display Fallback";
+  src: local("Arial Bold"), local("Helvetica Neue Bold"), local("Arial");
+  font-weight: 700 900;
+  size-adjust: 128.24%;
+  ascent-override: 68.47%;
+  descent-override: 16.38%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Instrument Serif Fallback";
+  src: local("Georgia Italic"), local("Georgia");
+  font-style: italic;
+  size-adjust: 79.52%;
+  ascent-override: 124.49%;
+  descent-override: 38.98%;
+  line-gap-override: 0%;
+}
+
+/*
+ * The three stacks, with each fallback inserted AFTER the real face and BEFORE the
+ * generic one, so the webfont still wins the moment it arrives.
+ */
+:root {
+  --font-display: "Archivo Variable", "Archivo", "Archivo Display Fallback", system-ui, sans-serif;
+  --font-body: "Archivo Variable", "Archivo", "Archivo Fallback", system-ui, sans-serif;
+  --font-serif: "Instrument Serif", "Instrument Serif Fallback", Georgia, serif;
+}
+
+/* ------------------------------------------------ widows and measure (FA-C-53) */
+
+/*
+ * ⚠️ `p, li` ONLY — NEVER `.display`. Every page ended sections on a one-word last line.
+ * `text-wrap: pretty` asks the browser to avoid that, at a small layout cost it only pays
+ * on the last few lines of a block.
+ *
+ * It is kept off the headlines deliberately. `.display` carries `overflow-wrap: anywhere`
+ * from a MEASURED WCAG 1.4.10 fix — 320px viewport, clientWidth 320 against scrollWidth
+ * 352, i.e. 32px of two-dimensional scrolling — and the interaction between the two
+ * properties is untested. A stage-height budget in this repo has come out wrong four
+ * times by arithmetic and a fifth from an unaccounted transform; this is not the place to
+ * find out about a sixth.
+ */
+p,
+li {
+  text-wrap: pretty;
+}
+
 /* ---------------------------------------------------------------- layout */
 
 /*

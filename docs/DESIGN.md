@@ -110,6 +110,29 @@ font CDN, which is also a CSP consideration.
 | `--font-serif` | `'Instrument Serif', Georgia, serif` |
 | `--font-mono` | `ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, …` |
 
+### The marketing site adds three metric-matched fallback faces
+
+`apps/cms/src/app/(frontend)/site.css` declares `Archivo Fallback`,
+`Archivo Display Fallback` and `Instrument Serif Fallback`, and inserts each into the
+stack above between the real face and the generic one. They are `local()` only, so they
+download nothing.
+
+They exist because the home page failed Cumulative Layout Shift at **0.1533** against a
+0.1 limit, measured **0.0000** with the webfonts removed — both faces load with
+`font-display: swap`, so the page painted in a fallback and re-flowed every line when the
+real font arrived. Preloading was measured and does not fix it (see the comment at the top
+of `apps/cms/src/app/(frontend)/layout.tsx`).
+
+Every adjustment is computed from the font files, with the variable font instanced at the
+axis values the CSS asks for. The display face needs its own numbers: at
+`font-stretch: 122%` and `font-weight: 860` in uppercase, Archivo is **28% wider** than
+Arial Bold, while lowercase body text at 400 is **1.4% narrower** than Arial.
+
+⚠️ **This is the one place the two surfaces' type differs, and deliberately.** The viewer
+measured CLS 0.000 and does not have the problem, and `tokens.css` / `base.css` ship inside
+its stylesheet budget. The site overrides the three tokens in its own sheet rather than
+changing the shared ones.
+
 **Archivo is imported from its `wdth` build** (`@fontsource-variable/archivo/wdth.css`),
 which carries both the weight axis (100–900) and the width axis (62–125%). The
 display style needs `font-stretch: 122%`, so the plain weight-only build will not
