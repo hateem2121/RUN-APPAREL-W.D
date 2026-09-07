@@ -44,6 +44,21 @@ const onHost = (host) => [{ type: 'host', value: hostPattern(host) }]
 
 export function siteRedirects() {
   return [
+    /*
+     * ⚠️ THE ROOT NEEDS ITS OWN RULE, AND THE MODEL DID NOT SAY SO. Measured in workerd
+     * on 2026-09-07: with only the `/:path*` rule below, `GET www.wear-run.help/`
+     * answered `308 Location: https://wear-run.help/:path*` — the literal token,
+     * unsubstituted, because `:path*` matches ZERO segments at the root and Next has
+     * nothing to interpolate. That is the bare `www` address, the one a person is most
+     * likely to type, landing on a 404. Every unit test was green while it did; only
+     * the real runtime showed it, which is the whole reason Task 6 exists.
+     */
+    {
+      source: '/',
+      has: onHost(WWW_HOST),
+      destination: `https://${SITE_HOST}`,
+      permanent: true,
+    },
     {
       source: '/:path*',
       has: onHost(WWW_HOST),

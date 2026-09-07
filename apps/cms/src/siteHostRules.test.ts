@@ -58,7 +58,10 @@ describe('routeFor — what each hostname does with a path', () => {
       kind: 'redirect',
       to: `https://${SITE_HOST}/products`,
     })
-    expect(routeFor(WWW_HOST, '/')).toEqual({ kind: 'redirect', to: `https://${SITE_HOST}/` })
+    // The ROOT has its own rule ahead of the wildcard: `:path*` matches zero segments,
+    // so the wildcard alone emitted a literal `https://wear-run.help/:path*` in workerd
+    // (measured 2026-09-07). siteHostRules.mjs carries the account.
+    expect(routeFor(WWW_HOST, '/')).toEqual({ kind: 'redirect', to: `https://${SITE_HOST}` })
     // Never reached in production — the PDF Worker's narrower www route wins first —
     // but if it were, it would still land on the PDF.
     expect(routeFor(WWW_HOST, '/catalogue')).toEqual({

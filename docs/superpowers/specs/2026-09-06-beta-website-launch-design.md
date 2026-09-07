@@ -97,6 +97,37 @@ The only window is the seconds between the two deploys, on `wear-run.help/` itse
 | e2e in workerd (`opennextjs-cloudflare preview`): requests with `Host: www.wear-run.help`, `cms.wear-run.help` and `wear-run.help` for `/`, `/products`, `/admin`, `/api/media` | The host rules as the real runtime evaluates them. ⚠️ `wrangler dev` rewrites the Host to the first configured route unless `--infer-origin-from-routes=false` is passed; the preview command forwards wrangler flags, and the plan passes it explicitly |
 | Negative controls, each run once and recorded | A gate that passes because it measures nothing: a wrong host value, a removed rewrite, a flipped default |
 
+**Measured 2026-09-07** in `opennextjs-cloudflare preview` (workerd, wrangler 4.122.0),
+one preview per hostname, `SITE_INDEXING` unset in the environment so the Worker binding
+(`hidden`) applies:
+
+| Host | Path | Measured |
+|---|---|---|
+| wear-run.help | `/`, `/products`, `/contact` | 200 `text/html`; body carries `content="noindex"` and `RUN APPAREL` |
+| wear-run.help | `/admin`, `/admin/collections/products`, `/api/media?limit=1` | 404 `text/html`; body has `404 · PAGE NOT FOUND`; **zero** `<form>` elements |
+| wear-run.help | `/sitemap.xml` | 200 `application/xml`, **zero** `<loc>` |
+| wear-run.help | `/robots.txt` | 200 `text/plain` |
+| www.wear-run.help | every path tried | 308 → `https://wear-run.help<path>` |
+| cms.wear-run.help | `/`, `/products`, `/contact`, `/sitemap.xml` | 308 → `https://wear-run.help<path>` |
+| cms.wear-run.help | `/admin` | 200 (the admin) |
+| cms.wear-run.help | `/api/media?limit=1` | 403 `application/json` — `You are not allowed to perform this action.` |
+| cms.wear-run.help | `/robots.txt` | 200 |
+
+**A DEFECT THE UNIT TESTS COULD NOT SEE, and the reason this step is in the plan.**
+The first www run answered `GET / → 308 Location: https://wear-run.help/:path*` — the
+literal token, unsubstituted, because `:path*` matches ZERO segments at the root and Next
+had nothing to interpolate. That is the bare `www` address, the one a person is most
+likely to type, landing on a 404, with every unit test green. Fixed by giving the root
+its own rule ahead of the wildcard; re-measured: `308 → https://wear-run.help/`.
+
+**What `wrangler dev` does to the Host — the negative control.** Started without any host
+flag, all three hostnames *and* `localhost` behaved as `cms.wear-run.help`, the FIRST
+route in `wrangler.jsonc`: `/admin` → 200 and `/products` → 308 regardless of the `Host:`
+header sent. So a preview read without a host flag says nothing about the apex.
+`--infer-origin-from-routes=false` **does not exist** on wrangler 4.122.0 (`Unknown
+arguments: infer-origin-from-routes`); `--local-upstream <host>` is what works, and it
+pins every request to that host — hence one preview per hostname.
+
 ## 9. Documents that must change with it
 
 - `CLAUDE.md` (root): the paragraph "The apex serves TWO PDFs and 404s everything else" — now the apex serves the site and two PDFs; the DNS warning stays. The file has ~150 characters of headroom under its gate, so the edit must be size-neutral.

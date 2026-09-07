@@ -155,7 +155,10 @@ describe('the apex route split (2026-09-06)', () => {
   })
 
   it('the pattern reader can actually fail (negative control)', () => {
-    expect(patterns('{ "routes": [{ "pattern": "a/*" }, { "pattern": "b" }] }')).toEqual(['a/*', 'b'])
+    expect(patterns('{ "routes": [{ "pattern": "a/*" }, { "pattern": "b" }] }')).toEqual([
+      'a/*',
+      'b',
+    ])
     expect(patterns('{ "routes": [] }')).toEqual([])
   })
 })

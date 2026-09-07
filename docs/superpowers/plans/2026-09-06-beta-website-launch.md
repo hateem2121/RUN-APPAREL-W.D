@@ -1148,12 +1148,12 @@ git commit -m "docs: the apex is the site now — root notes, the cms traps, the
 
 **Files:** none modified except by the gates' own outputs. Findings go into the commit message of a `docs:` commit that appends a dated "Measured" paragraph to the spec's §8 table.
 
-- [ ] **Step 1: Build for Cloudflare and start the preview with the Host preserved**
+- [x] **Step 1: Build for Cloudflare and start the preview with the Host preserved**
 
 Run, in the background with its own log: `cd apps/cms && npx --yes pnpm@10.33.0 exec opennextjs-cloudflare build && npx --yes pnpm@10.33.0 exec opennextjs-cloudflare preview -- --port 8788 --infer-origin-from-routes=false`
 Expected: `Ready on http://localhost:8788`. If the flag is not accepted (it is a `wrangler dev` flag and the preview command forwards its arguments), try `--host wear-run.help` and record which worked.
 
-- [ ] **Step 2: The matrix, with the Host header set by curl**
+- [x] **Step 2: The matrix, with the Host header set by curl**
 
 ```bash
 for h in wear-run.help www.wear-run.help cms.wear-run.help; do
@@ -1177,11 +1177,11 @@ Expected (record the actual table in the commit message):
 | cms.wear-run.help | `/api/media?limit=1` | 403 JSON |
 | cms.wear-run.help | `/robots.txt` | 200 |
 
-- [ ] **Step 3: Negative control — start the preview WITHOUT the flag and observe the Host inference**
+- [x] **Step 3: Negative control — start the preview WITHOUT the flag and observe the Host inference**
 
 Stop the preview, restart it without `--infer-origin-from-routes=false`, repeat the `wear-run.help /admin` and `cms.wear-run.help /products` lines. Record what the app saw (which hostname the rules fired for). Whatever the outcome, it is what `apps/cms/CLAUDE.md`'s new bullet must state; edit that bullet's last sentence to match the measurement if it differs.
 
-- [ ] **Step 4: Every gate, in CI's order**
+- [x] **Step 4: Every gate, in CI's order**
 
 ```bash
 npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnpm@10.33.0 seed:assets && npx --yes pnpm@10.33.0 build && npx --yes pnpm@10.33.0 test:coverage && bash scripts/test-alert-shell.sh && node scripts/check-bundle-budget.mjs && node scripts/doc-citations.mjs && npx --yes pnpm@10.33.0 --filter @run-apparel/viewer test:preload && npx --yes pnpm@10.33.0 --filter @run-apparel/cms test:routes
@@ -1191,7 +1191,7 @@ then `npx --yes pnpm@10.33.0 --filter @run-apparel/viewer test:e2e`, then `CI=1 
 
 Expected: all green. The build runs BEFORE `test:coverage` above on purpose — both post-build guards read build output and a stale one fails them.
 
-- [ ] **Step 5: Record and commit**
+- [x] **Step 5: Record and commit**
 
 Append to the spec's §8 a paragraph `**Measured 2026-09-06:**` with the matrix from Step 2 and the Host-inference result from Step 3, then:
 
@@ -1207,6 +1207,10 @@ CI on PR #69 is the last measurement; read each job's `conclusion`, never the ex
 
 ### Task 7: The pre-launch audit (Phase 2)
 
+> **DELIVERED — `docs/AUDIT-BETA-WEBSITE-2026-09-06.md`.** The audit was carried out and
+> committed separately; the boxes below are ticked against that report. It was NOT re-run
+> during the Task 1–6 execution pass on 2026-09-07.
+
 **Files:**
 - Create (named here only, so this document's citations stay valid): the report, at
 
@@ -1216,7 +1220,7 @@ docs/AUDIT-BETA-WEBSITE-2026-09-06.md
 
 **Method, fixed before measuring** — the spec's §10 verbatim: workerd preview with `Host: wear-run.help`, `next start` for the browser suites, Playwright and `curl` for every number, the Browser pane for looking only.
 
-- [ ] **Step 1: The checklist, each item measured and scored 0–10 with the measurement beside it**
+- [x] **Step 1: The checklist, each item measured and scored 0–10 with the measurement beside it**
 
 1. Every page and state: `/`, `/products` (populated and empty), `/contact`, the 404 — light/dark, reduced motion, forced colours, no-JS, touch, print, 320/375/390/414/768/1024/1280/1440/1920 px, keyboard-only through every control, the footer's claim blocks empty and filled (fill them through the local admin, then empty them again).
 2. Security headers on all three hostnames, read from the workerd preview with the Host set: HSTS, CSP on the three pages, `frame-ancestors` on the admin, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`; the 403 on `/api/media`; the rewrite on `/admin`.
@@ -1227,16 +1231,16 @@ docs/AUDIT-BETA-WEBSITE-2026-09-06.md
 7. Broken links: every `href` on every page fetched (`viewer.wear-run.help` ones included) — status and content type.
 8. The deploy itself: which migrations are pending against production (`pnpm --filter @run-apparel/cms migrate:remote` is NOT run; read `apps/cms/src/migrations/index.ts` against the last deployed list), what the backup step covers, what the probe and the smoke assert after.
 
-- [ ] **Step 2: Write the report** in the same form as `docs/AUDIT-SITE-PAGES-2026-09-05.md`: a score table, one section per area with the measurement, a "found false" section for any first-draft finding that did not survive re-measurement, and a "not covered" list stated plainly.
+- [x] **Step 2: Write the report** in the same form as `docs/AUDIT-SITE-PAGES-2026-09-05.md`: a score table, one section per area with the measurement, a "found false" section for any first-draft finding that did not survive re-measurement, and a "not covered" list stated plainly.
 
-- [ ] **Step 3: Commit the report**
+- [x] **Step 3: Commit the report**
 
 ```bash
 git add docs/AUDIT-BETA-WEBSITE-2026-09-06.md
 git commit -m "docs: the Beta Website pre-launch audit — measured on the merged branch in workerd and a real browser"
 ```
 
-- [ ] **Step 4: Stop.** Fixes are a separate plan written from the report, per the spec (§10: "not guessed before it"). Present the score table to the owner and ask which findings to fix before the merge.
+- [x] **Step 4: Stop.** Fixes are a separate plan written from the report, per the spec (§10: "not guessed before it"). Present the score table to the owner and ask which findings to fix before the merge.
 
 ---
 

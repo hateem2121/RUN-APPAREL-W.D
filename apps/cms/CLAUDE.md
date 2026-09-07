@@ -120,10 +120,14 @@ root file first.
   `src/hostRulesManifest.test.ts`, never in a handler. ⚠️ OpenNext tests a host value
   UNANCHORED — a bare `wear-run.help` also matches `cms.wear-run.help` and the admin
   rewrite takes the admin down — so every pattern is `^…$` with escaped dots.
-  ⚠️ `wrangler dev`, and therefore `opennextjs-cloudflare preview`, rewrites the Host
-  to the FIRST configured route unless `--infer-origin-from-routes=false` is passed:
-  a preview without it wears the wrong hostname and the rules fire for the wrong reason
-  (Task 6 of the launch plan records what was measured).
+  ⚠️ **`opennextjs-cloudflare preview` REWRITES THE HOST AND IGNORES YOUR `-H Host:`.**
+  Measured 2026-09-07 on wrangler 4.122.0: with no flag, all three hostnames AND
+  `localhost` behaved as `cms.wear-run.help` — the FIRST route in `wrangler.jsonc` —
+  so `/admin` answered 200 and `/products` 308'd, whatever Host was sent. A preview
+  read that way tells you nothing about the apex. `--infer-origin-from-routes=false`
+  does NOT exist on this wrangler (`Unknown arguments: infer-origin-from-routes`);
+  **`--local-upstream <host>` is the one that works**, and it pins every request to
+  that host, so proving all three takes three previews, one per hostname.
 
 ## Browser tests for the public site
 
