@@ -33,11 +33,21 @@
   "workers_dev": false,
   "preview_urls": false,
 
-  // Apex AND www. Neither pattern matches viewer./cms./media.wear-run.help — those
-  // are distinct hostnames bound as Workers custom domains.
+  // FOUR NARROW ROUTES, DELIBERATELY NO WILDCARD (2026-09-06). Until then this Worker
+  // held `wear-run.help/*` and `www.wear-run.help/*` and 404'd everything but the two
+  // PDFs. The marketing site now lives on those wildcards, served by the CMS Worker
+  // (apps/cms/wrangler.jsonc); Cloudflare hands `/catalogue*` and `/profile*` here
+  // because the most specific route wins. index.js is unchanged — its own 404 for any
+  // other path is simply no longer reachable in production.
+  //
+  // ⚠️ A ROUTE PATTERN BELONGS TO ONE WORKER AT A TIME. Restoring a wildcard here
+  // collides with the CMS Worker's, and ci.yml deploys THIS Worker before the CMS
+  // Worker for exactly that reason. Neither pattern matches viewer./cms./media.
   "routes": [
-    { "pattern": "wear-run.help/*", "zone_name": "wear-run.help" },
-    { "pattern": "www.wear-run.help/*", "zone_name": "wear-run.help" }
+    { "pattern": "wear-run.help/catalogue*", "zone_name": "wear-run.help" },
+    { "pattern": "wear-run.help/profile*", "zone_name": "wear-run.help" },
+    { "pattern": "www.wear-run.help/catalogue*", "zone_name": "wear-run.help" },
+    { "pattern": "www.wear-run.help/profile*", "zone_name": "wear-run.help" }
   ],
 
   // ⚠️ SHARED BUCKET. `run-assets` is also bound by the separate `run-apparel`

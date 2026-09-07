@@ -59,9 +59,18 @@
   // Workers Logs (free tier): worker errors + console output become queryable
   // in the Cloudflare dashboard and via `wrangler tail`.
   "observability": { "enabled": true },
-  // Custom domain for this CMS worker. Cloudflare creates/manages the
-  // cms.wear-run.help DNS record automatically (zone is on the same account).
-  "routes": [{ "pattern": "cms.wear-run.help", "custom_domain": true }],
+  // THREE HOSTNAMES, ONE WORKER (2026-09-06). The custom domain is the admin and the
+  // API; the two zone routes are the public marketing site on its real address. The
+  // PDF Worker (infra/apex-404) keeps `/catalogue*` and `/profile*` on both hosts —
+  // Cloudflare sends a request to the MOST SPECIFIC route, so those four never reach
+  // this Worker. Only host-conditioned rules in next.config.mjs tell the hostnames
+  // apart; see siteHostRules.mjs. The apex DNS record must stay proxied: zone routes
+  // require it, and it is the same record the PDFs have always needed.
+  "routes": [
+    { "pattern": "cms.wear-run.help", "custom_domain": true },
+    { "pattern": "wear-run.help/*", "zone_name": "wear-run.help" },
+    { "pattern": "www.wear-run.help/*", "zone_name": "wear-run.help" }
+  ],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -115,6 +124,11 @@
     ]
   },
   "vars": {
+    // Search engines. `hidden` = every public page carries noindex and the sitemap is
+    // empty; ONLY the exact word `visible` opens the site. Absent also means hidden.
+    // Owner decision 2026-09-06: a deploy-time switch, not an admin field. To launch
+    // for real: change this to "visible", PR, merge. See src/lib/searchVisibility.ts.
+    "SITE_INDEXING": "hidden",
     // Public URL of this CMS worker (used to absolutise media URLs when R2 public access is not configured).
     "CMS_PUBLIC_URL": "https://cms.wear-run.help",
     // Public base URL for R2 media. Media is served direct from R2 at

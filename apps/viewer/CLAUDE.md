@@ -460,8 +460,8 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   still claimed a photograph — through every gate, because the e2e asserting that
   sentence checked `.stage img` one line ABOVE and died there. **Negative assertion
   before the copy assertion.** Separately 15 tests keyed "stage in fallback?" on
-  `.stage__poster-fallback` / `.stage img`; 9 were Firefox, the only engine here
-  without WebGL and so the only one taking that branch. Now
+  `.stage__poster-fallback` / `.stage img`; 9 were Firefox — which HAS WebGL
+  here and NOT on a runner, so **that branch is CI-only**. Now
   `.stage__error:not([hidden])` — `:not` is load-bearing, that `<p>` is always
     mounted so its live region can announce. **Key a test on what the VISITOR gets.**
   Since 2026-09-03 (fix plan Rank 6) the stage paints the colourway's photo DURING THE
@@ -493,7 +493,7 @@ writes depth.
 
 **`docs/DESIGN.md` outranks the three vendored motion skills** (`review-animations`,
 `emil-design-eng`, `motion`). It is the viewer's *locked* design system, and
-`apps/viewer/src/styles/tokens.css:2` cites it as their authority.
+`packages/ui/src/tokens.css:2` cites it as their authority.
 
 Not a precaution, arithmetic: `review-animations` standard 4 is *"sub-300ms on UI, or
 it is a finding"* while `docs/DESIGN.md` §5 locks `--settle` at **500ms** and `--slow`
@@ -504,7 +504,7 @@ not technique.** Full rulings in `.claude/skills/README.md`.
 ## No Tailwind here, and the skills will suggest it anyway
 
 **No Tailwind, no shadcn/ui, no component library. Do not add one.** Appearance is
-hand-written in `apps/viewer/src/styles/tokens.css`; behaviour, when a screen ever
+hand-written in `packages/ui/src/tokens.css`; behaviour, when a screen ever
 needs it, comes from `base-ui`, which ships no CSS. Reasoning and reject list:
 `docs/DECISION-UI-LIBRARIES.md`.
 

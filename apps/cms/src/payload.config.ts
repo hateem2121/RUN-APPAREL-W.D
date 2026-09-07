@@ -8,6 +8,7 @@ import { r2Storage } from '@payloadcms/storage-r2'
 import { buildConfig } from 'payload'
 
 import { Events } from './collections/Events'
+import { Inquiries } from './collections/Inquiries'
 import { Media } from './collections/Media'
 import { Products } from './collections/Products'
 import { RawUploads } from './collections/RawUploads'
@@ -74,9 +75,28 @@ async function resolveCloudflareEnv(): Promise<CloudflareEnv | null> {
 
 const env = await resolveCloudflareEnv()
 
+/*
+ * ⚠️ `||`, NOT `??`, AND ONLY FOR THIS ONE VAR. An EMPTY binding here is not a value, it
+ * is the local convention: `.dev.vars` sets `PUBLIC_MEDIA_BASE_URL=` on purpose so
+ * Payload serves media itself while the files live in the emulated R2 bucket. With `??`
+ * that empty string WON over anything the process supplied, which made it impossible for
+ * a harness to ask for production's URL shape — `apps/cms/e2e/serve.mjs` set it, Payload
+ * ignored it, and ten browser tests failed locally while passing in CI, where there is no
+ * `.dev.vars` and wrangler.jsonc's value applies. A local/CI split in the direction that
+ * passes remotely is the worst of the two.
+ *
+ * Production is unaffected: its binding is a non-empty origin, so `||` and `??` behave
+ * identically. `next dev` is unaffected: nothing sets this in the process there, so an
+ * empty binding still falls through to `''`. The only new behaviour is that a DELIBERATE
+ * process value is no longer masked by an empty binding.
+ *
+ * ⚠️ AND THE ORDER STAYS BINDING-FIRST. This repo has been bitten four times by a stray
+ * environment variable (NODE_ENV, PORT) reaching something it should not; reversing these
+ * two so the process wins outright would invite exactly that on the media host.
+ */
 const mediaBaseUrl = (
-  env?.PUBLIC_MEDIA_BASE_URL ??
-  process.env.PUBLIC_MEDIA_BASE_URL ??
+  env?.PUBLIC_MEDIA_BASE_URL ||
+  process.env.PUBLIC_MEDIA_BASE_URL ||
   ''
 ).replace(/\/$/, '')
 
@@ -123,7 +143,7 @@ export default buildConfig({
       },
     },
   },
-  collections: [Users, Media, RawUploads, Products, Events],
+  collections: [Users, Media, RawUploads, Products, Events, Inquiries],
   globals: [SiteSettings, CatalogueDefaults, BuildProcess],
   // The two-segment route is registered first so it wins over the one-segment
   // route for /n001/navy, whatever order the router happens to try them in.

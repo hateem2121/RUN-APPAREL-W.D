@@ -140,6 +140,13 @@ jobs:
       - name: Alert-shell checks (uptime + heartbeat)
         run: bash scripts/test-alert-shell.sh
 
+      # Every maintained document is reachable from docs/README.md (audit FA-T-06,
+      # FA-T-12). That index was brought up to date by hand twice — once when it was
+      # written, once when the 2026-09-06 audit found it missing 8 of 43 — and nothing
+      # stopped it drifting a third time. Needs no build; it reads `git ls-files`.
+      - name: Docs index reachability
+        run: node scripts/check-docs-index.mjs
+
       - run: pnpm seed:assets
       - run: pnpm build
 
@@ -158,6 +165,21 @@ jobs:
       # `seed:assets`, changing the fixtures the tests themselves see.
       - name: Bundle preload guard (needs the build above)
         run: pnpm --filter @run-apparel/viewer test:preload
+
+      # The three host rules that give the marketing site ONE address, read back from
+      # .next/routes-manifest.json. Same reason as the preload guard: a config rule that
+      # did not reach the build is the Vary failure shape, and only the build can say.
+      - name: Host rules guard (needs the build above)
+        run: pnpm --filter @run-apparel/cms test:routes
+
+      # Two more settings that only exist if they reached the build: whether AI crawlers
+      # still get a finished <head> rather than streamed metadata, and whether the
+      # catch-all CSP still covers the 404 without reaching /admin. Same reason as the two
+      # guards above — `htmlLimitedBots` deleted from next.config.mjs leaves every unit
+      # assertion passing against Next's own default, and a negative lookahead can only be
+      # judged against the regex Next actually emitted.
+      - name: Built-config guards (need the build above)
+        run: pnpm --filter @run-apparel/cms test:built-config
 
       # Deterministic weight budget for the viewer shell. This is inside `verify`,
       # which IS in the deploy's `needs:` list — unlike the `lighthouse` job, which
@@ -222,7 +244,30 @@ jobs:
   # HOME the runner expects. Do not add `options: --user 1001` on top of it.
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # ⚠️ 30, RAISED FROM 20 ON 2026-09-07 BECAUSE THE WORK GREW, NOT BECAUSE A CEILING WAS
+    # INCONVENIENT. Measured, this job, five consecutive runs:
+    #
+    #   89b611c  success    15.0 min
+    #   d653c5b  failure    15.3 min
+    #   d2696f3  failure    16.0 min
+    #   f9eb442  CANCELLED  20.1 min   <- hit this ceiling
+    #   986b051  CANCELLED  20.1 min   <- hit this ceiling
+    #
+    # ⚠️ AND A JOB THAT HITS ITS OWN `timeout-minutes` REPORTS `cancelled`, NOT `failure` —
+    # which reads exactly like the concurrency cancellation this file documents above, and
+    # cost a round trip to tell apart. The tell is that ONE job is cancelled while the
+    # others succeed; a concurrency cancel takes the whole run.
+    #
+    # The runner does 636 viewer tests then 312 CMS tests at ONE worker (`Running 636 tests
+    # using 1 worker` in the log): 14.0 min and ~6 min respectively, plus install. That is
+    # ~21 minutes of real work against a 20-minute budget — it did not fit, and the two
+    # green runs above only fitted because the suites were 75 tests smaller. `verify`
+    # already sits at 30 for the same reason.
+    #
+    # Raising this is NOT the answer to a slow external dependency — see the apt-mirror
+    # account earlier in this file, where lifting one ceiling only moved which job died.
+    # It is the answer when the ceiling is smaller than the measured work, which is this.
+    timeout-minutes: 30
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble
     steps:
@@ -258,6 +303,62 @@ jobs:
         env:
           HOME: /root
         run: pnpm --filter @run-apparel/viewer test:e2e
+      # THE PUBLIC MARKETING SITE, added 2026-09-05.
+      #
+      # ⚠️ A STEP IN THIS JOB RATHER THAN A JOB OF ITS OWN, DELIBERATELY. A new job
+      # would have to be added to `deploy.needs` AND to the required-checks list, which
+      # is a second copy of it — and this file's own notes record that splitting or
+      # renaming a gating job without editing both silently stops a red gate blocking.
+      # As a step it inherits `e2e`'s existing place in both, and reuses the container's
+      # browsers instead of a second pull.
+      #
+      # WHAT IT CLOSES: until this existed, nothing in the repo loaded /, /products or
+      # /contact in a browser. All 54 CMS test files read source text or exercise pure
+      # functions, so three blank pages would have gone green through every gate. See
+      # docs/AUDIT-SITE-PAGES-2026-09-05.md.
+      #
+      # Its own `webServer` runs `next build` from the cold checkout, so this step needs
+      # no separate build step and no seeded database — the content helpers fall back to
+      # defaults, and the gallery assertions cover both the populated and empty states.
+      # It needs no secret either: apps/cms/e2e/serve.mjs supplies a throwaway
+      # PAYLOAD_SECRET when the environment has none. Measured 2026-09-06 under these
+      # exact conditions: without that fallback Payload never initialises, `/admin` and
+      # `/api/*` answer 500, and four tests fail — while the page tests stay green.
+      # ⚠️ THE PUBLIC-SITE SUITE NEEDS A DATABASE, AND UNTIL 2026-09-07 CI GAVE IT NONE.
+      #
+      # `serve.mjs` starts the built CMS against the local D1 emulation, and on a fresh
+      # runner that database has no tables at all — the server log filled with
+      # `D1_ERROR: no such table: site_settings`. The content helpers degrade to defaults
+      # by design, so most pages still rendered and 285 tests passed, which is exactly why
+      # nobody noticed: the eleven that failed were the ones that need real content —
+      # the ItemList, the scroll restore, and both inquiry tests, which cannot store a row
+      # in a table that does not exist.
+      #
+      # ⚠️ AND THE SUITE HAD BEEN DARK SINCE 2026-09-06. It is the LAST step of this job,
+      # so every run whose viewer step failed first meant this never executed at all. Two
+      # blind spots had to be open together for that to hide, and both were.
+      #
+      # This is the documented first-run from docs/ONBOARDING.md, in order. It is not
+      # optional and it is not slow: seed:assets measured 7s, migrate and seed ~4s.
+      #
+      # PAYLOAD_SECRET: this job deliberately holds no real one (only the deploy job
+      # does), and Payload refuses to initialise without any. A per-run throwaway is
+      # correct here for the same reason serve.mjs supplies one — there is nothing behind
+      # this database worth protecting — and a literal is avoided so the secrets scanner
+      # has nothing to match.
+      - name: Seed the database the public-site suite reads
+        env:
+          HOME: /root
+          PAYLOAD_SECRET: ci-e2e-${{ github.run_id }}
+        run: |
+          pnpm seed:assets
+          pnpm --filter @run-apparel/cms migrate
+          pnpm seed:cms
+
+      - name: e2e (public site)
+        env:
+          HOME: /root
+        run: pnpm --filter @run-apparel/cms test:e2e
 
   # Dependency vulnerability gate. Runs in parallel with verify and gates the
   # deploy: a HIGH/CRITICAL advisory blocks production until it is fixed or
@@ -876,6 +977,41 @@ jobs:
           PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
         run: pnpm --filter @run-apparel/cms migrate:remote
 
+      # THE APEX WORKER, WHICH NOTHING DEPLOYED UNTIL NOW.
+      #
+      # `infra/apex-404/` was hand-deployed from the Cloudflare dashboard on
+      # 2026-08-28 and drifted from the repo for two days: the live Worker served
+      # /catalogue and /profile from R2 while the committed source 404'd every path.
+      # A routine `wrangler deploy` from that folder would have taken both PDFs
+      # offline and reported success. CI owns it now, so the repo is the record.
+      #
+      # A STEP, NOT A JOB, deliberately. A new job in this file must also be added to
+      # the `main` ruleset's required-status-checks list, which is org config no test
+      # here can read — so a job would introduce a second place to forget. A step
+      # inherits this job's gates.
+      #
+      # FIRST, BEFORE THE CMS WORKER, SINCE 2026-09-06 — and not merely "early".
+      # A route pattern belongs to one Worker at a time. This Worker used to hold
+      # `wear-run.help/*` and `www.wear-run.help/*`; the marketing site now lives on
+      # them, served by the CMS Worker. So this deploy must give the wildcards UP
+      # before the CMS deploy claims them, or the CMS deploy is refused for a route
+      # that is still taken. The four PDF routes stay attached throughout; the only
+      # window is the seconds between the two deploys on `wear-run.help/` itself.
+      # Its assertion stays LAST in this job, after the site is up, so a bad apex
+      # deploy is still caught in this run rather than by tomorrow's uptime cron.
+      #
+      # ⚠️ `git revert` across the reconcile commit redeploys the 404-everything
+      # script. docs/RUNBOOK.md → "Undoing a bad deploy" carries the exception.
+      - name: Deploy apex worker (catalogue + profile PDFs)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEPLOY_MESSAGE: ${{ github.sha }}@${{ github.ref_name }}
+        # See the version-labelling note on the CMS deploy step BELOW (it was above
+        # until this step moved ahead of it on 2026-09-06). The apex is the Worker
+        # this matters most for: its drift is what motivated the finding.
+        run: pnpm deploy:apex
+
       - name: Deploy CMS worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -1113,35 +1249,7 @@ jobs:
         if: vars.VIEWER_DEPLOY_TARGET != 'pages'
         run: node scripts/smoke-live-previews.mjs https://viewer.wear-run.help
 
-      # THE APEX WORKER, WHICH NOTHING DEPLOYED UNTIL NOW.
-      #
-      # `infra/apex-404/` was hand-deployed from the Cloudflare dashboard on
-      # 2026-08-28 and drifted from the repo for two days: the live Worker served
-      # /catalogue and /profile from R2 while the committed source 404'd every path.
-      # A routine `wrangler deploy` from that folder would have taken both PDFs
-      # offline and reported success. CI owns it now, so the repo is the record.
-      #
-      # A STEP, NOT A JOB, deliberately. A new job in this file must also be added to
-      # the `main` ruleset's required-status-checks list, which is org config no test
-      # here can read — so a job would introduce a second place to forget. A step
-      # inherits this job's gates.
-      #
-      # LAST, AFTER the viewer smoke tests, so a bad apex deploy cannot block the
-      # viewer's — and immediately followed by its own assertion, so it is caught in
-      # this run rather than by tomorrow's uptime cron.
-      #
-      # ⚠️ `git revert` across the reconcile commit redeploys the 404-everything
-      # script. docs/RUNBOOK.md → "Undoing a bad deploy" carries the exception.
-      - name: Deploy apex worker (catalogue + profile PDFs)
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          DEPLOY_MESSAGE: ${{ github.sha }}@${{ github.ref_name }}
-        # See the version-labelling note on the CMS deploy step above. The apex is
-        # the Worker this matters most for: its drift is what motivated the finding.
-        run: pnpm deploy:apex
-
-      - name: Post-deploy apex assertion (both PDFs, ranged GET)
+      - name: Post-deploy apex assertion (the site, both PDFs)
         run: node scripts/apex-probe.mjs
 
       # Put the rollback command where someone will actually be looking.

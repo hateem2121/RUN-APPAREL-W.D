@@ -44,6 +44,132 @@ export const PUBLIC_VIEWER_SOURCE = '/api/public/viewer/:path*'
  */
 export const PUBLIC_VIEWER_VARY = 'Origin, Sec-CH-Prefers-Color-Scheme'
 
+/**
+ * The PUBLIC MARKETING PAGES' Content-Security-Policy.
+ *
+ * ⚠️ THERE IS NO NONCE HERE, AND IT IS NOT FOR WANT OF TRYING. A nonce-based policy is
+ * the right answer and is impossible on this stack today. Measured 2026-09-05:
+ *
+ *   `proxy.ts` on the Node runtime  ->  `opennextjs-cloudflare build` fails:
+ *                                        "Node.js middleware is not currently supported"
+ *   the same file with `runtime: 'edge'` ->  the build fails earlier:
+ *                                        "Proxy does not support Edge runtime"
+ *
+ * Both were reached with `pnpm build`, `pnpm typecheck` and the full suite GREEN — only
+ * the Cloudflare build, the one that actually produces a deploy, fails. Nothing else can
+ * generate a per-request nonce: a layout cannot set a response header, and hashes cannot
+ * work against dynamically-rendered pages whose inline flight data changes per request.
+ *
+ * So `script-src` carries 'unsafe-inline', which next.config.mjs rightly calls a false
+ * sense of safety AGAINST INLINE INJECTION — and the rest of this policy is not
+ * theatre. `object-src 'none'`, `base-uri 'self'` and `form-action 'self'` each close a
+ * real attack class that has nothing to do with inline scripts: base-tag hijacking of
+ * every relative URL on the page, plugin-based execution, and a stolen page posting
+ * credentials elsewhere. Those are worth having on their own.
+ *
+ * ⚠️ SCOPED TO AN EXPLICIT LIST OF PUBLIC PATHS. `/admin` keeps only `frame-ancestors
+ * 'none'` from SECURITY_HEADERS, deliberately — see the note in next.config.mjs. Widening
+ * this source would break the Payload login rather than fail loudly.
+ *
+ * ⚠️ WHICH MEANS A NEW PUBLIC PAGE SHIPS WITH NO CSP UNTIL IT IS ADDED HERE, and nothing
+ * about that failure is visible: the page renders, every test passes, and only a header
+ * dump shows the policy missing. `/privacy` and `/terms` were added on 2026-09-07 in the
+ * same commit that created them. `publicSite.test.ts` pins this list, so at least the
+ * omission cannot happen silently twice.
+ */
+export const PUBLIC_PAGE_SOURCES = ['/', '/products', '/contact', '/privacy', '/terms']
+
+export const PUBLIC_PAGE_CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https://media.wear-run.help",
+  "font-src 'self'",
+  "connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ')
+
+/**
+ * Cross-origin isolation for the HTML surfaces (audit FA-O-07).
+ *
+ * `Cross-Origin-Opener-Policy: same-origin` severs the `window.opener` relationship, so a
+ * page this site opens — or one that opens it — cannot reach into its browsing context.
+ * Nothing here opens a cross-origin popup that needs to talk back, so it costs nothing.
+ *
+ * `Cross-Origin-Resource-Policy: same-origin` says this DOCUMENT may not be embedded as a
+ * subresource by another origin. It complements `frame-ancestors 'none'` rather than
+ * repeating it: that one covers frames, this one covers every other embedding path.
+ *
+ * ⚠️ COEP IS DELIBERATELY ABSENT, AND THAT IS THE WHOLE REASON THIS BLOCK IS SCOPED TO
+ * PAGES. `Cross-Origin-Embedder-Policy: require-corp` demands a CORP header from every
+ * cross-origin subresource — which here means every poster on media.wear-run.help. Any
+ * that lacked one would silently stop rendering, and the gallery's whole content is
+ * posters. It buys cross-origin isolation this site has no use for: there is no
+ * SharedArrayBuffer and no high-resolution timer anywhere in it.
+ *
+ * ⚠️ AND WHY THESE ARE NOT IN `SECURITY_HEADERS`, which applies to every route including
+ * `/api/*`. The viewer fetches the public API from another origin. CORP's interaction with
+ * a CORS fetch is subtler than it looks, and the failure mode — the 3D pages rendering
+ * "REFERENCE UNAVAILABLE" intermittently — is the exact incident `src/endpoints/
+ * publicViewer.ts` already documents from the Vary/ACAO episode. Scoping to the five
+ * pages that are documents makes that impossible rather than unlikely.
+ */
+export const PUBLIC_PAGE_ISOLATION = [
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+  { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
+]
+
+export const publicPageCspRules = PUBLIC_PAGE_SOURCES.map((source) => ({
+  source,
+  headers: [{ key: 'Content-Security-Policy', value: PUBLIC_PAGE_CSP }, ...PUBLIC_PAGE_ISOLATION],
+}))
+
+/**
+ * The CSP for everything else — which in practice means THE 404 (audit FA-O-01).
+ *
+ * ⚠️ THE BRANDED 404 SHIPPED WITH NO POLICY AT ALL. Measured 2026-09-07 on the real
+ * build: `/` and `/products` answered with the full `PUBLIC_PAGE_CSP`, and
+ * `/definitely-not-a-page` answered `content-security-policy: frame-ancestors 'none'` —
+ * no `default-src`, no `script-src`, no `form-action`. `PUBLIC_PAGE_SOURCES` is an
+ * explicit list of five paths and a 404 is by definition not on any list, so the page a
+ * visitor reaches by mistyping a URL was the one page with no policy.
+ *
+ * ⚠️ AND AN EXPLICIT LIST IS STILL RIGHT FOR THOSE FIVE. This rule is appended BEFORE
+ * them, so for `/`, `/products`, `/contact`, `/privacy` and `/terms` the later, explicit
+ * rule wins — last matching rule wins in Next, which is the whole mechanism this file
+ * exists to exploit. Nothing about those five changes.
+ *
+ * ⚠️ THE LOOKAHEAD IS THE DANGEROUS PART, AND IT IS WHY THIS IS VERIFIED IN THE BUILD.
+ * The comment on PUBLIC_PAGE_SOURCES warns that a wrong negative lookahead reaches
+ * `/admin` — where this policy has no `unsafe-eval` and would break the Payload login,
+ * on the side of the system that holds the password. `sourceMatches` below cannot model
+ * a custom regex parameter (it rewrites `:name` to `[^/]+` and knows nothing of
+ * `(?!…)`), so asserting against it would prove nothing. `src/notFoundCsp.test.ts`
+ * compiles the regex Next actually emitted into `.next/routes-manifest.json` and checks
+ * `/admin` and `/api/*` against THAT.
+ *
+ * ⚠️ CSP ONLY — no COOP or CORP. Those two are on the five HTML pages deliberately
+ * (FA-O-07). This rule matches text files as well as documents, and
+ * `Cross-Origin-Resource-Policy: same-origin` on `/robots.txt` or an Open Graph image
+ * would be a change to how other origins may fetch them, made as a side effect of fixing
+ * a 404's script policy. One header, one reason.
+ */
+/*
+ * ⚠️ THE ROOTS, NOT THE PREFIXES. The first version was `(?!admin|api/)`, which also
+ * excluded `/administrator` — a path that does not exist here, and whose 404 would
+ * therefore have been the one page still shipping without a policy. `(?:/|$)` pins the
+ * exclusion to the two real route roots.
+ */
+export const OTHER_PAGE_CSP_SOURCE = '/:path((?!admin(?:/|$)|api(?:/|$)).*)'
+
+export const notFoundCspRule = {
+  source: OTHER_PAGE_CSP_SOURCE,
+  headers: [{ key: 'Content-Security-Policy', value: PUBLIC_PAGE_CSP }],
+}
+
 export const publicViewerVaryRule = {
   source: PUBLIC_VIEWER_SOURCE,
   headers: [{ key: 'Vary', value: PUBLIC_VIEWER_VARY }],
@@ -58,7 +184,19 @@ export function withPublicViewerVary(config) {
   const inner = config.headers
   return {
     ...config,
-    headers: async () => [...((await inner?.()) ?? []), publicViewerVaryRule],
+    // ⚠️ ORDER IS THE WHOLE MECHANISM. Next applies matching rules in order and the LAST
+    // one wins, and `withPayload` appends its own blanket `/:path*` rule after whatever
+    // nextConfig.headers() returns. These therefore go after BOTH: the Vary rule for the
+    // public viewer API, then the CSP for the three marketing pages, which overrides the
+    // weaker `frame-ancestors`-only policy SECURITY_HEADERS sets for everything else.
+    headers: async () => [
+      ...((await inner?.()) ?? []),
+      publicViewerVaryRule,
+      // Before the five explicit pages on purpose — they must win for themselves, and
+      // this catches everything else, which in practice is the 404. See its docblock.
+      notFoundCspRule,
+      ...publicPageCspRules,
+    ],
   }
 }
 

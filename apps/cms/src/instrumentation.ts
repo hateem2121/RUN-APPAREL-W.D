@@ -20,27 +20,8 @@
  * why the Sentry SDK is not used here.
  */
 import type { Instrumentation } from 'next'
+import { resolveDsn } from './lib/reportCaught'
 import { reportToSentry } from './lib/sentry'
-
-/**
- * Read the DSN from the Worker's bindings, falling back to the process env.
- *
- * The live Worker gets it as a Cloudflare secret, so it arrives on the
- * OpenNext context rather than on `process.env`; `next build`, tests and the
- * Payload CLI have no context at all and must not crash for the want of one.
- * A missing DSN is a no-op, never an error.
- */
-async function resolveDsn(): Promise<string | undefined> {
-  try {
-    const { getCloudflareContext } = await import('@opennextjs/cloudflare')
-    const context = await getCloudflareContext({ async: true }).catch(() => null)
-    const fromBinding = (context?.env as Record<string, unknown> | undefined)?.SENTRY_DSN
-    if (typeof fromBinding === 'string' && fromBinding) return fromBinding
-  } catch {
-    // No OpenNext context (build, test, CLI). Fall through to process.env.
-  }
-  return process.env.SENTRY_DSN || undefined
-}
 
 export const onRequestError: Instrumentation.onRequestError = async (error, request, context) => {
   // Wrapped whole. This runs while the app is already failing, and an exception

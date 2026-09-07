@@ -4,6 +4,13 @@ import { defineConfig } from 'vitest/config'
 // Node-environment unit tests for the pure, security-critical logic
 // (publish gating + the public API projection). No Payload/Next bootstrap.
 export default defineConfig({
+  // The cms tsconfig sets `jsx: preserve` for Next, which leaves JSX untransformed and
+  // makes any test that imports a .tsx component fail vite's import analysis with
+  // "invalid JS syntax". SiteFooter.test.ts renders components with react-dom/server,
+  // so vitest compiles JSX itself. ⚠️ `oxc`, NOT `esbuild`: this is Vite 8, which
+  // transforms with oxc and IGNORES esbuild options when both are present — the first
+  // attempt set `esbuild.jsx` and changed nothing. Added 2026-09-05.
+  oxc: { jsx: { runtime: 'automatic' } },
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],

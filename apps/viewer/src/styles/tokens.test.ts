@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -24,8 +24,54 @@ import { describe, expect, it } from 'vitest'
  * shipped the bug.
  */
 
-const STYLES_DIR = join(import.meta.dirname)
-const DESIGN_MD = join(import.meta.dirname, '..', '..', '..', '..', 'docs', 'DESIGN.md')
+const REPO_ROOT = join(import.meta.dirname, '..', '..', '..', '..')
+
+/**
+ * tokens.css and base.css moved to packages/ui on 2026-09-04 so apps/cms can render
+ * the public site from the same design system rather than a second copy of it.
+ *
+ * ⚠️ EVERY check here MUST keep reaching page.css. The move would otherwise have
+ * quietly dropped it — 2,263 lines, the largest stylesheet in the repo — out of this
+ * file, and the suite would have gone green while measuring less. That is the failure
+ * this repo keeps re-learning: a gate nothing reaches is worse than no gate, because
+ * it is credited. Two directories are scanned, and files are resolved by NAME.
+ */
+const UI_STYLES_DIR = join(REPO_ROOT, 'packages', 'ui', 'src')
+const PAGE_STYLES_DIR = join(import.meta.dirname)
+/**
+ * The public marketing site's chrome (apps/cms). It reads the same tokens, so it is
+ * held to the same rules — a stylesheet outside this list is a stylesheet free to
+ * reintroduce every defect the assertions below exist for.
+ *
+ * ⚠️ Yes, this reads across an app boundary on purpose. biome.jsonc bans cross-app
+ * IMPORTS; this is a filesystem read in a test, and the alternative is a second copy
+ * of eight assertions in apps/cms that would drift from this one. One gate covering
+ * every consumer beats two gates that disagree.
+ */
+const SITE_STYLES_DIR = join(REPO_ROOT, 'apps', 'cms', 'src', 'app', '(frontend)')
+const SCANNED_DIRS = [UI_STYLES_DIR, PAGE_STYLES_DIR, SITE_STYLES_DIR]
+const DESIGN_MD = join(REPO_ROOT, 'docs', 'DESIGN.md')
+
+/**
+ * Resolve a stylesheet by NAME rather than by directory.
+ *
+ * The checks below care which file a rule is in, never where that file lives on
+ * disk. Hard-coding one directory is exactly what broke when tokens.css and base.css
+ * moved: page.css was still read from the old constant, and that surfaced as an
+ * ENOENT rather than a wrong answer only by luck. Throwing on an unknown name keeps a
+ * renamed file loud instead of silently unscanned.
+ */
+function cssPath(name: string): string {
+  const dir = SCANNED_DIRS.find((candidate) => existsSync(join(candidate, name)))
+  if (!dir) {
+    throw new Error(
+      `Stylesheet "${name}" is in none of [${SCANNED_DIRS.join(', ')}]. ` +
+        'It was renamed, deleted, or moved somewhere this test does not scan — add ' +
+        'the directory to SCANNED_DIRS rather than deleting the assertion.',
+    )
+  }
+  return join(dir, name)
+}
 
 /**
  * Blank out comment BODIES while preserving every offset and newline.
@@ -40,13 +86,49 @@ function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
 }
 
+/**
+ * The selector of the block a declaration sits in — enough to name an offender without
+ * parsing CSS.
+ *
+ * ⚠️ THIS WAS A REGEX AND THE REGEX TOOK 3.3 SECONDS. `(before.match(/([^{};\n]+)\s*\{[^{}]*$/))`
+ * reads correctly and backtracks catastrophically: `stripComments` replaces every comment
+ * character with a SPACE, so these files carry runs of thousands of spaces, and both
+ * `[^{};\n]+` and `\s*` can consume them in any split while `[^{}]*$` forces a rescan to
+ * the end of the slice. Measured 2026-09-07 over the four scanned stylesheets
+ * (base 19 KB, tokens 19 KB, page 119 KB, site 90 KB): **3316.6 ms**, against 0.1 ms for
+ * this. Byte-identical output, both before and after the change.
+ *
+ * That single assertion was 3512 ms where every other test in this file is 2-11 ms, and
+ * with vitest's 5 s default it TIMED OUT TWICE on a loaded machine in one session —
+ * reported as "Test timed out in 5000ms" on a file nobody had edited, which reads as a
+ * broken gate rather than a slow one. Raising the timeout would have hidden it.
+ *
+ * Same rule as the regex it replaces: the nearest `{` above the declaration, only if no
+ * `}` intervenes, and the selector is the text on that line before it.
+ */
+function enclosingSelector(source: string, index: number): string {
+  const before = source.slice(0, index)
+  const open = before.lastIndexOf('{')
+  if (open <= before.lastIndexOf('}')) return '?'
+  const head = before.slice(0, open)
+  const cut = Math.max(
+    head.lastIndexOf('}'),
+    head.lastIndexOf('{'),
+    head.lastIndexOf(';'),
+    head.lastIndexOf('\n'),
+  )
+  return head.slice(cut + 1).trim() || '?'
+}
+
 function cssFiles(): { name: string; source: string }[] {
-  return readdirSync(STYLES_DIR)
-    .filter((name) => name.endsWith('.css'))
-    .map((name) => ({
-      name,
-      source: stripComments(readFileSync(join(STYLES_DIR, name), 'utf8')),
-    }))
+  return SCANNED_DIRS.flatMap((dir) =>
+    readdirSync(dir)
+      .filter((name) => name.endsWith('.css'))
+      .map((name) => ({
+        name,
+        source: stripComments(readFileSync(join(dir, name), 'utf8')),
+      })),
+  )
 }
 
 /**
@@ -96,7 +178,7 @@ describe('design tokens', () => {
   })
 
   it('the motion tokens match the locked table in docs/DESIGN.md', () => {
-    const tokens = readFileSync(join(STYLES_DIR, 'tokens.css'), 'utf8')
+    const tokens = readFileSync(cssPath('tokens.css'), 'utf8')
     const design = readFileSync(DESIGN_MD, 'utf8')
 
     // DESIGN.md calls itself the viewer's LOCKED design system and three source
@@ -180,6 +262,45 @@ describe('design tokens', () => {
         '2026-08-06 precisely because a derived document that drifts is worse than none.',
     ).toEqual([])
   })
+
+  /**
+   * ⚠️ THE GATE ABOVE IS ASYMMETRIC, AND IT IS BLIND IN THE DIRECTION THAT ACTUALLY
+   * HAPPENED. Measured 2026-09-07, both ways:
+   *
+   *   DESIGN.md documents a token tokens.css does not declare  -> caught
+   *   tokens.css declares a token DESIGN.md does not document  -> 27 passed, silent
+   *
+   * The second is the dead-token case: something shipped to every visitor that no
+   * document mentions and nothing reads. `--stagger: 60ms` lived in exactly that gap from
+   * 2026-08-14 to 2026-09-07 and was reported by THREE separate audits before anyone
+   * deleted it, because the gate meant to prevent drift skipped it by construction —
+   * `if (!declared) continue` only ever walks rows that exist in the document.
+   *
+   * Motion tokens only. Colour and spacing tokens are documented across tables whose
+   * columns differ and several are deliberately half-documented (see the `alpha` note
+   * above); widening this would report those as failures on its first run.
+   */
+  it('every motion token in tokens.css is documented in DESIGN.md', () => {
+    const tokens = readFileSync(cssPath('tokens.css'), 'utf8')
+    const design = readFileSync(DESIGN_MD, 'utf8')
+
+    // The motion block is delimited in the file by its own section comment.
+    const block = tokens.slice(tokens.indexOf('--ease:'), tokens.indexOf('── Targets ─'))
+    const declared = [...block.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gm)].map((m) => m[1] ?? '')
+
+    expect(
+      declared.length,
+      'the motion block parser found nothing — it has stopped reading tokens.css',
+    ).toBeGreaterThan(6)
+
+    const undocumented = declared.filter((token) => !design.includes(`\`${token}\``))
+    expect(
+      undocumented,
+      'a motion token is shipped to every visitor and appears in no document.\n' +
+        'Either use it and add it to the table in docs/DESIGN.md §5, or delete it.\n' +
+        'This is the gap `--stagger` sat in for three weeks and three audits.',
+    ).toEqual([])
+  })
 })
 
 /**
@@ -206,7 +327,7 @@ describe('design tokens', () => {
  * value a decision instead of an accident.
  */
 describe('tokens added by the 2026-08-14 audit', () => {
-  const tokens = () => readFileSync(join(STYLES_DIR, 'tokens.css'), 'utf8')
+  const tokens = () => readFileSync(cssPath('tokens.css'), 'utf8')
 
   it('splits interactive motion from editorial motion', () => {
     const source = tokens()
@@ -479,15 +600,26 @@ describe('raw values in component stylesheets', () => {
     ).toEqual([])
   })
 
-  it('every letter-spacing cites a token, or is exactly 0', () => {
+  it('every letter-spacing cites a token, or inherits its parent’s', () => {
     const offenders: string[] = []
     for (const { name, source } of components()) {
       for (const match of source.matchAll(DECL('letter-spacing'))) {
         const value = (match[1] ?? '').trim()
         if (isTokenised(value)) continue
-        // `0` is the serif accent deliberately opting OUT of tracking, which
-        // docs/DESIGN.md §3 states. It is an absence, not an eighth step.
-        if (value === '0') continue
+        /*
+         * `inherit` is the serif accent taking whatever the headline around it has —
+         * see `.serif-accent` in base.css and docs/DESIGN.md §3. It is not a value, so
+         * it cannot be an eighth step, and it cannot drift from the headline the way a
+         * cited token can: whatever it resolves to has already passed this gate on the
+         * parent.
+         *
+         * ⚠️ THIS EXEMPTION WAS `value === '0'` UNTIL 2026-09-07 AND IS NOW STRICTLY
+         * TIGHTER, not widened. `0` existed for this one rule, which is what audit
+         * FA-C-63 was about: the accent sat untracked inside a headline tracked
+         * -2.16px, a visible change of rhythm mid-sentence. With the rule gone, a bare
+         * `0` is no longer allowed anywhere — grep confirms none remains.
+         */
+        if (value === 'inherit') continue
         const line = source.slice(0, match.index).split('\n').length
         offenders.push(`${name}:${line} — letter-spacing: ${value}`)
       }
@@ -496,8 +628,9 @@ describe('raw values in component stylesheets', () => {
       offenders,
       'Use --tracking-caps-tight / --tracking-caps / --tracking-caps-wide /\n' +
         '--tracking-caps-compact / --tracking-mono / --tracking-wordmark, or one of\n' +
-        'the two display tokens. Six steps cover 21 shipped declarations; a seventh\n' +
-        'needs a row in docs/DESIGN.md §3 saying what it is FOR.',
+        'the two display tokens — or `inherit`, if the rule is text sitting INSIDE\n' +
+        'other text and should carry that text’s tracking. Six steps cover the shipped\n' +
+        'declarations; a seventh needs a row in docs/DESIGN.md §3 saying what it is FOR.',
     ).toEqual([])
   })
 
@@ -654,13 +787,13 @@ function resolveToken(tokensSource: string, token: string): { light: string; dar
 
 describe('progress indicators', () => {
   it('every progress fill clears 3:1 against the background it sits on, in BOTH themes', () => {
-    const tokensSource = readFileSync(join(STYLES_DIR, 'tokens.css'), 'utf8')
+    const tokensSource = readFileSync(cssPath('tokens.css'), 'utf8')
     const bg = resolveToken(tokensSource, '--bg')
     expect(bg, '--bg must resolve for this test to mean anything').not.toBeNull()
 
     const failures: string[] = []
     for (const { file, selector } of PROGRESS_FILLS) {
-      const source = stripComments(readFileSync(join(STYLES_DIR, file), 'utf8'))
+      const source = stripComments(readFileSync(cssPath(file), 'utf8'))
       // Find the rule block for this selector and read its `background`.
       const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       const block = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(source)
@@ -721,13 +854,18 @@ describe('progress indicators', () => {
   const TRANSLUCENT_GRAPHICS = [{ file: 'page.css', selector: '.stage__more' }]
 
   it('a rule that dims its own colour still clears 3:1 on what the eye receives', () => {
-    const tokensSource = readFileSync(join(STYLES_DIR, 'tokens.css'), 'utf8')
+    // ⚠️ `cssPath`, NOT a directory constant. This test arrived from main (2026-09-05)
+    // written against `STYLES_DIR`, the same day this branch deleted that constant by
+    // moving tokens.css into packages/ui. Git auto-merged the two without a marker and
+    // the result referenced a name that no longer existed — caught by running the
+    // gates on a trial merge, not by reading the diff.
+    const tokensSource = readFileSync(cssPath('tokens.css'), 'utf8')
     const bg = resolveToken(tokensSource, '--bg')
     expect(bg, '--bg must resolve for this test to mean anything').not.toBeNull()
 
     const failures: string[] = []
     for (const { file, selector } of TRANSLUCENT_GRAPHICS) {
-      const source = stripComments(readFileSync(join(STYLES_DIR, file), 'utf8'))
+      const source = stripComments(readFileSync(cssPath(file), 'utf8'))
       const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       const block = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(source)
       if (!block?.[1]) {
@@ -799,5 +937,152 @@ describe('user preferences the stylesheets answer', () => {
       all.includes(`(${query}`),
       `No stylesheet answers ${query}. It matters here for ${consumer}.`,
     ).toBe(true)
+  })
+
+  /**
+   * FA-G-52 / FA-G-61 — Windows High Contrast works because the code does NOT
+   * fight it, and there is exactly one sanctioned exception.
+   *
+   * The audit of 2026-09-06 scored this 9 and the whole finding rests on a
+   * negative: `forced-color-adjust: none` opts an element out of the user's
+   * palette, and it appears on ONE selector in the entire design system —
+   * `.colourway-tab__swatch`, whose only job is to show a colour that
+   * forced-colors would otherwise erase, turning the rail into five identical
+   * circles. `page.css:2316` states the rule as prose ("ON THE SWATCH ONLY, and
+   * nowhere else"); prose is not a gate.
+   *
+   * ⚠️ THE FAILURE MODE IS SILENT AND LOOKS LIKE A FIX. Someone reports that the
+   * brand colours vanish in High Contrast, adds `forced-color-adjust: none` to
+   * `.btn--primary` or to `body`, and the page now ignores the palette a visitor
+   * with low vision explicitly chose — while looking correct to everyone who
+   * reviews it, because neither engine available on this machine emulates
+   * forced-colors. The related audit finding FA-G-61 is that 51 reported contrast
+   * failures under forced-colors were FALSE: the checker read author colours
+   * before substitution. Substitution is what this property switches off.
+   *
+   * The SET OF SELECTORS is what must not grow, so that is what is compared — not
+   * a count, and not a line number. A count says nothing about which element
+   * escaped, and a line number would make this fail on every unrelated edit above
+   * it, which is how a gate gets loosened to shut it up.
+   */
+  /*
+   * ⚠️ THE CONTROL FOR THE ASSERTION BELOW, AND IT IS NOT OPTIONAL. That test passes when
+   * the set of offenders is exactly one — which is also what it would report if
+   * `enclosingSelector` silently returned `?` for everything, or if the match loop found
+   * nothing at all. This feeds it a stylesheet shaped like the failure it exists to
+   * catch, including the long comment run that made the old regex quadratic, and
+   * requires the offender to be NAMED.
+   */
+  it('the offender detector names a real selector (negative control)', () => {
+    const sabotaged = [
+      `/*${' '.repeat(4000)}*/`,
+      '.colourway-tab__swatch {',
+      '  forced-color-adjust: none;',
+      '}',
+      '.btn--primary {',
+      '  forced-color-adjust: none;',
+      '}',
+    ].join('\n')
+
+    const found = [...sabotaged.matchAll(/forced-color-adjust\s*:\s*none/g)].map((match) =>
+      enclosingSelector(sabotaged, match.index),
+    )
+    expect(found).toEqual(['.colourway-tab__swatch', '.btn--primary'])
+  })
+
+  it('opts exactly one element out of the forced-colors palette', () => {
+    const uses: string[] = []
+    for (const { name, source } of cssFiles()) {
+      // `none` is the only value that opts out; `auto` is the default and is a
+      // no-op wherever it appears.
+      for (const match of source.matchAll(/forced-color-adjust\s*:\s*none/g)) {
+        uses.push(`${name} ${enclosingSelector(source, match.index)}`)
+      }
+    }
+
+    expect(
+      uses.sort(),
+      'forced-color-adjust: none opts an element out of the palette a Windows High\n' +
+        'Contrast user chose. It is sanctioned on the colourway swatch ONLY, because\n' +
+        'that element exists to show a colour. Anywhere else it overrides an\n' +
+        'accessibility preference, and no browser on this machine can show you that\n' +
+        'it did. See page.css and audit FA-G-52.',
+    ).toEqual(['page.css .colourway-tab__swatch'])
+  })
+})
+
+/**
+ * Spacing written into JSX, where the stylesheet gate cannot see it.
+ *
+ * ⚠️ THIS EXISTS BECAUSE THE GATE ABOVE HAD A HOLE AND WAS BEING CREDITED ANYWAY.
+ * "uses only the documented spacing steps" reads `.css` files. On 2026-09-05 an audit
+ * of the public site found three hard-coded spacing values living in `style={{ … }}`
+ * attributes inside `.tsx` files — `marginTop: '24px'` twice and `padding: '20px'` once
+ * — which had never been scanned by anything. The values happened to be documented
+ * steps, so nothing was visibly wrong; the point is that nothing would have been
+ * visibly wrong if they had not been.
+ *
+ * A gate with a known hole is worse than no gate, because the hole is invisible from
+ * the passing result. This closes it for the two component trees that render the
+ * design system.
+ *
+ * Inline styles are not banned outright — a computed transform or a dynamic dimension
+ * genuinely belongs in JSX. What is banned is a LITERAL spacing value, which is the
+ * one thing the token scale exists to decide.
+ */
+const COMPONENT_DIRS = [
+  join(REPO_ROOT, 'apps', 'cms', 'src', 'app', '(frontend)'),
+  join(REPO_ROOT, 'apps', 'cms', 'src', 'components'),
+  join(REPO_ROOT, 'apps', 'viewer', 'src'),
+]
+
+function tsxFiles(dir: string): Array<{ name: string; source: string }> {
+  const out: Array<{ name: string; source: string }> = []
+  const walk = (current: string) => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const full = join(current, entry.name)
+      if (entry.isDirectory()) {
+        walk(full)
+        continue
+      }
+      if (!entry.name.endsWith('.tsx') || entry.name.includes('.test.')) continue
+      out.push({ name: full.slice(REPO_ROOT.length + 1), source: readFileSync(full, 'utf8') })
+    }
+  }
+  if (existsSync(dir)) walk(dir)
+  return out
+}
+
+describe('spacing written into JSX', () => {
+  it('never hard-codes a spacing value in an inline style', () => {
+    const offenders: string[] = []
+    // `padding: '20px'`, `marginTop: "24px"`, `gap: '8px'` — a literal px string on a
+    // spacing property. A `var(--…)`, a template literal or a computed value is fine.
+    const inline = /\b(padding|margin|gap|rowGap|columnGap)[A-Za-z]*\s*:\s*'(-?\d+(?:\.\d+)?)px'/g
+
+    for (const dir of COMPONENT_DIRS) {
+      for (const { name, source } of tsxFiles(dir)) {
+        for (const match of source.matchAll(inline)) {
+          const line = source.slice(0, match.index).split('\n').length
+          offenders.push(`${name}:${line} sets ${match[1]} to ${match[2]}px inline`)
+        }
+      }
+    }
+
+    expect(
+      offenders,
+      'A spacing value is hard-coded in an inline style, where the stylesheet gate\n' +
+        'cannot see it. Move it into a class — that is what the token scale is for.',
+    ).toEqual([])
+  })
+
+  it('actually reaches the files it claims to scan', () => {
+    // The negative control for the check above. A walker that silently finds nothing —
+    // a wrong directory, a rename, a bad extension filter — reports a clean result that
+    // means "measured nothing", which is this repo's most repeated failure.
+    const counts = COMPONENT_DIRS.map((dir) => tsxFiles(dir).length)
+    for (const [index, count] of counts.entries()) {
+      expect(count, `${COMPONENT_DIRS[index]} yielded no .tsx files`).toBeGreaterThan(0)
+    }
   })
 })

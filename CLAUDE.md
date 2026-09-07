@@ -318,7 +318,7 @@ the answer is "nothing that happens in production", it is not a test.
   a month. The GET/HEAD divergence is unaffected and is why this stays. Full
   incident: `docs/HARDENING-LOG.md`.
 
-- **Thirteen more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
+- **Fourteen more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
   of them moved there 2026-08-19 because they bite only while you are editing a
   workflow, which is exactly when that file loads. Enough to stop you: every workflow
   is gated by `apps/cms/src/workflowHardening.test.ts` on eleven rules with verified
@@ -410,11 +410,13 @@ the answer is "nothing that happens in production", it is not a test.
   verifies the loading claims above instead of asserting them, all live in
   `docs/CLAUDE-MD-MAINTENANCE.md`. Read it before moving prose between CLAUDE.md files.
 
-- **Seven more traps live in `apps/cms/CLAUDE.md`** (loads on touching `apps/cms/`) —
+- **Eleven more traps live in `apps/cms/CLAUDE.md`** (loads on touching `apps/cms/`) —
   `NODE_ENV=production` for any Payload CLI task against production D1, why
-  `src/migrations/` must hold only migrations, and why `withPayload` silently
-  overrides any header you set in a handler; it also carries "Before you change
-  a migration" and how to write products from a script. ⚠️ This said "Two more
+  `src/migrations/` must hold only migrations, why `withPayload` silently
+  overrides any header you set in a handler, why **`pnpm build` passing does not mean the
+  app can be DEPLOYED**, a 60s content cache, and a style gate that now reads JSX; it also
+  carries "Before you change a migration", the site's browser tests, and how to write
+  products from a script. ⚠️ This said "Two more
   **live** in" until 2026-08-17 — without the word "traps",
   `claudeMd.test.ts`'s counter silently skipped it. **"Before you delete anything in the
   CMS" below deliberately did NOT move**: it governs `apps/shrink/src/cms.ts` and
@@ -555,16 +557,15 @@ not only from a second push.** On 2026-08-18 a degraded Ubuntu mirror made
 twice, then `verify` at 30m21s — with nothing in the repository changed. Raising a
 ceiling only moved which job died. See `.github/CLAUDE.md`.
 
-**The apex serves TWO PDFs and 404s everything else — `infra/apex-404/index.js`.**
-`/catalogue` (54.3 MB) and `/profile` (16.9 MB) come from the **shared** `run-assets`
-bucket, which the separate `run-apparel` site also binds. `https://wear-run.help/`
-404s in ~0.7 s; it returned 522 after 20.2 s until 2026-08-19 (audit L6 — the
-DURATION was the finding, not the 522). **Do not delete the apex DNS record**: it
-must stay proxied or both PDFs stop resolving.
-⚠️ **This said `/catalogue` was a Single Redirect to a Drive PDF until 2026-08-30.**
-False in both halves — the PDFs moved into R2 on 2026-08-28 and this Worker answers
-them, 200, no `Location`. The deployed script had DRIFTED from the repo for two days
-and `wrangler deploy` from that folder would have 404'd both, reporting success.
+**The apex serves the SITE and two PDFs — two Workers, split by route (2026-09-06).**
+`wear-run.help/*` and `www.` go to the CMS Worker (the marketing site); `/catalogue`
+(54.3 MB) and `/profile` (16.9 MB) go to `infra/apex-404/index.js` on four NARROWER
+routes, from the **shared** `run-assets` bucket the separate `run-apparel` site also
+binds — most-specific route wins. **Do not delete the apex DNS record**: zone routes
+need it proxied, or the site AND both PDFs stop resolving. Before 2026-09-06 the apex
+404'd everything else (and 522'd after 20.2 s before 2026-08-19 — the DURATION was the
+finding); `scripts/apex-probe.mjs` now expects the site there. The PDF Worker DRIFTED
+from the repo for two days in 2026-08 after a dashboard edit; CI deploys it now, FIRST.
 
 ## Style
 

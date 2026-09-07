@@ -183,4 +183,44 @@ describe('the observer callback — what actually reveals the content', () => {
     expect(second?.classList.contains('is-inview')).toBe(true)
     expect(first?.classList.contains('is-inview')).toBe(false)
   })
+
+  /**
+   * FA-H-20 — the reveal is ONE-WAY, and it is one-way by TWO mechanisms.
+   *
+   * Audited 2026-09-06 on the live page and scored 8 with the note that nothing
+   * stopped the next change undoing it. The two mechanisms are:
+   *
+   *   1. `observer.unobserve(target)` — pinned by "stops watching a section once
+   *      revealed" above, which is about the OBSERVER.
+   *   2. the callback has no `else` branch — nothing ever removes `.is-inview`.
+   *
+   * The second is not implied by the first, and it is the one with teeth. Add
+   * `else entry.target.classList.remove('is-inview')` — the shape every "fade in
+   * and out on scroll" tutorial writes — and mechanism 1 stops protecting
+   * anything the moment someone also drops the `unobserve` as redundant. The
+   * result is `.colourways`, `.customise`, `.contact` and `.footer` fading back
+   * to `opacity: 0` behind a visitor who scrolls up, on a page whose reveal
+   * carriers include the colourway picker, i.e. the product.
+   *
+   * Fired directly rather than through a scroll: the element is unobserved after
+   * arrival, so in the real browser no second entry ever comes. That is the
+   * point — this asserts what the callback would do if one did, which is the
+   * only way to see mechanism 2 on its own.
+   */
+  it('keeps a revealed section revealed if it is reported off-screen again', () => {
+    startReveals()
+    const [first] = Array.from(document.querySelectorAll('[data-reveal]'))
+
+    fire([{ isIntersecting: true, target: first as Element }])
+    expect(first?.classList.contains('is-inview')).toBe(true)
+
+    fire([{ isIntersecting: false, target: first as Element }])
+
+    expect(
+      first?.classList.contains('is-inview'),
+      'the reveal ran backwards — a section that has already arrived was hidden ' +
+        'again. Reveal is a one-way entrance here, not a scroll-linked fade: see ' +
+        'docs/DESIGN.md §5 and audit FA-H-20.',
+    ).toBe(true)
+  })
 })

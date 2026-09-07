@@ -119,3 +119,75 @@ describe('the product identity has exactly one home', () => {
     expect(host.textContent).toContain('development reference, not a finished stock product')
   })
 })
+
+/**
+ * FA-H-17 — rapid colourway switching settles correctly, and one `key` is why.
+ *
+ * Audited 2026-09-06: tab 2 clicked, tab 4 clicked ~60 ms later; the colour note
+ * read `opacity 0.906 → 0.830` — DOWN, i.e. the fade RESTARTED rather than
+ * continuing — and settled at `opacity 1 / transform none` carrying the right
+ * label. Scored 9, with nothing holding it there.
+ *
+ * The whole mechanism is `key={selected.slug}` on `.product-info__colour`. React
+ * reuses a DOM node across renders when the key does not change, and a CSS
+ * entrance animation runs on ELEMENT INSERTION — so without the key the node
+ * survives the colourway change, `colour-swap` never re-fires, and the label text
+ * simply mutates in place. The text is still correct, which is exactly why this
+ * cannot be caught by reading the page: the defect is that a visitor tapping
+ * through five colourways gets no acknowledgement that the label changed, on the
+ * control that chooses what they are looking at.
+ *
+ * ⚠️ ASSERTED AS NODE IDENTITY, NOT AS AN ANIMATION. jsdom runs no animations and
+ * the e2e suite forces `prefers-reduced-motion: reduce`, under which the fade is
+ * collapsed to 0.01ms by `base.css` — so any assertion phrased in terms of
+ * opacity would pass vacuously in both places. Insertion is the thing the key
+ * controls and the thing an animation needs; it is observable here and nowhere
+ * else in the suite.
+ */
+describe('the colour note re-announces itself on every switch', () => {
+  const OTHER: ViewerColourway = {
+    variantId: 'N001-BUTTER',
+    displayName: 'Butter',
+    slug: 'butter',
+  } as unknown as ViewerColourway
+
+  it('replaces the colour-note element rather than mutating it in place', () => {
+    act(() =>
+      root.render(<ProductIdentity product={PRODUCT} selected={SELECTED} selectedIndex={0} />),
+    )
+    const first = host.querySelector('.product-info__colour')
+    expect(first, 'no .product-info__colour rendered').not.toBeNull()
+    expect(first?.textContent).toContain('WINE')
+
+    act(() => root.render(<ProductIdentity product={PRODUCT} selected={OTHER} selectedIndex={2} />))
+    const second = host.querySelector('.product-info__colour')
+
+    expect(second?.textContent).toContain('BUTTER')
+    expect(
+      second === first,
+      'the colour note kept its DOM node across a colourway change, so its ' +
+        'entrance animation cannot re-fire — the label changes with no ' +
+        'acknowledgement. Restore key={selected.slug} in ProductIdentity.tsx. ' +
+        'See audit FA-H-17.',
+    ).toBe(false)
+    expect(first?.isConnected, 'the old colour note is still in the document').toBe(false)
+  })
+
+  it('keeps the node when nothing changed, so the check above is about the key', () => {
+    /*
+     * The negative control. Without it, a component that recreated its whole
+     * subtree on every render — or a test rendering into a fresh root each time —
+     * would satisfy the assertion above while proving nothing about the key.
+     */
+    act(() =>
+      root.render(<ProductIdentity product={PRODUCT} selected={SELECTED} selectedIndex={0} />),
+    )
+    const first = host.querySelector('.product-info__colour')
+
+    act(() =>
+      root.render(<ProductIdentity product={PRODUCT} selected={SELECTED} selectedIndex={0} />),
+    )
+
+    expect(host.querySelector('.product-info__colour')).toBe(first)
+  })
+})

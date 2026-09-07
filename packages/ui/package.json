@@ -1,0 +1,14 @@
+{
+  "name": "@run-apparel/ui",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The RUN APPAREL design system — semantic tokens and the shared component layer, consumed by both the viewer and the public site",
+  "exports": {
+    "./tokens.css": "./src/tokens.css",
+    "./base.css": "./src/base.css"
+  },
+  "files": [
+    "src"
+  ]
+}

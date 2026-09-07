@@ -191,6 +191,44 @@ test.describe('motion layer', () => {
       window.scrollTo(0, 0)
     })
 
+    /**
+     * ⚠️ THE POSITIVE CONTROL BELOW IS THE TEST. Without it this passed twice under a
+     * sabotage it exists to catch — audit FA-H-18, re-verified 2026-09-07.
+     *
+     * `will-change: auto` in `[data-reveal].is-inview` was changed back to
+     * `opacity, transform` and the built CSS was confirmed to carry it
+     * (`is-inview{opacity:1;will-change:opacity, transform;transform:none}` in
+     * `dist/assets/index-*.css`), and a probe on the same page read
+     * `willChange: "opacity, transform"` on all four revealed elements, in Chromium
+     * and in WebKit. The assertion still went green in **102 ms**.
+     *
+     * The reason is `expect.poll`: it stops at the FIRST success. `startPolish()` is
+     * dynamically imported after the ready render, so for the first frames there is
+     * no `.is-inview` anywhere — `querySelectorAll` returns an empty list, the filter
+     * returns `[]`, and `.toEqual([])` matches an empty page. Whether this test
+     * measured anything depended on whether the poll's first tick beat a dynamic
+     * import, and on a warm run it did. Left alone it would have gone on being
+     * credited with catching a regression it could not see.
+     *
+     * So: wait for the reveals to ARRIVE, assert there are some, and only then look
+     * at the hint. `[data-reveal]` count is read from the same page rather than
+     * hard-coded, because the comment above this test has already been wrong about
+     * how many there are (it says five; the fixture renders four).
+     */
+    const revealCount = await page.locator('[data-reveal]').count()
+    expect(
+      revealCount,
+      'the page uses no reveal layer at all — nothing to release',
+    ).toBeGreaterThan(0)
+    await expect
+      .poll(async () => page.locator('[data-reveal].is-inview').count(), {
+        message:
+          'no [data-reveal] element ever arrived, so the will-change assertion below ' +
+          'would have been made against an empty list',
+        timeout: 10_000,
+      })
+      .toBe(revealCount)
+
     await expect
       .poll(
         async () =>
@@ -254,6 +292,98 @@ test.describe('interaction feedback', () => {
       'these controls give a phone no press feedback — every other cue in this ' +
         'stylesheet is correctly hidden behind (hover: hover), which leaves touch with nothing',
     ).toEqual([])
+  })
+
+  test('the press it answers with is eased, at the duration the token is named for', async ({
+    page,
+  }) => {
+    /**
+     * Audit FA-H-31. The `:active { scale: 0.97 }` rules the test above guards had
+     * no transition covering `scale`, so both edges of every press were hard cuts:
+     * measured six consecutive frames at 0.97 after `mouse.down()` and six at
+     * `none` after `mouse.up()`, 0ms either way. `tokens.css` names `--instant`
+     * "focus responses and press feedback" and only the focus half used it — the
+     * token's second purpose described an intention rather than the code.
+     *
+     * ⚠️ THE PROPERTY IS READ FROM THE COMPUTED LIST, NOT FROM THE SOURCE. A second
+     * `transition` declaration REPLACES the first rather than adding to it, so the
+     * obvious "add a rule for scale" fix silently deletes the colour transitions
+     * beside it — and the stylesheet would still contain the word `scale`. Only the
+     * resolved list can tell the two apart.
+     */
+    // ⚠️ THE DEFAULT BRANCH, EXPLICITLY. The suite-wide `beforeEach` emulates
+    // reduced motion, and `base.css` collapses every transition-duration to 0.01ms
+    // there — which is correct behaviour and would make this test pass against a
+    // transition list that does not mention `scale` at all, since 0.01 rounds to
+    // the same 0 as "absent". This asserts the branch most visitors get.
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const measured = await page.evaluate(() => {
+      const ms = (value: string) =>
+        value.trim().endsWith('ms')
+          ? Number.parseFloat(value)
+          : Math.round(Number.parseFloat(value) * 1000)
+      const instant = ms(getComputedStyle(document.documentElement).getPropertyValue('--instant'))
+
+      return {
+        instant,
+        /*
+         * ⚠️ `.camera-btn` IS CONDITIONAL ON WEBGL, AND THIS FAILED IN CI FOR THAT REASON.
+         * `Stage.tsx` renders `{!fallback && <StageControls …>}` — "the poster branch has
+         * no camera to point" — and FIREFOX IS THE ONE ENGINE HERE WITHOUT WebGL, so on a
+         * runner it takes the fallback branch and the button does not exist. It passed on
+         * every local Firefox, which has WebGL, and failed on both attempts in CI with
+         * ".camera-btn is not on the page to measure". Nine other tests in this suite
+         * already carry this gate; this one was written without it.
+         *
+         * Filtered rather than skipped: the other three controls are present in both
+         * branches and are most of what this test is for. The assertion below requires a
+         * minimum count so a filter that silently matched nothing cannot pass.
+         */
+        controls: ['.btn', '.camera-btn', '.colourway-tab', '.theme-toggle']
+          .filter((selector) => selector !== '.camera-btn' || document.querySelector(selector))
+          .map((selector) => {
+            const el = document.querySelector(selector)
+            if (!el) return { selector, found: false, scaleMs: null, others: 0 }
+            const style = getComputedStyle(el)
+            const properties = style.transitionProperty.split(',').map((p) => p.trim())
+            const durations = style.transitionDuration.split(',').map((d) => ms(d))
+            const index = properties.indexOf('scale')
+            return {
+              selector,
+              found: true,
+              scaleMs: index === -1 ? null : (durations[index] ?? null),
+              // The colour transitions that a replacing declaration would have eaten.
+              others: properties.filter((p) => p !== 'scale').length,
+            }
+          }),
+      }
+    })
+
+    /*
+     * The floor that stops the filter above from emptying the test. Three controls exist
+     * in both the WebGL and the poster-fallback branch; only `.camera-btn` is conditional.
+     */
+    expect(
+      measured.controls.length,
+      'no controls were measured at all — the page did not render its chrome',
+    ).toBeGreaterThanOrEqual(3)
+
+    for (const control of measured.controls) {
+      expect(control.found, `${control.selector} is not on the page to measure`).toBe(true)
+      expect(
+        control.scaleMs,
+        `${control.selector} does not transition \`scale\`, so its :active press is a ` +
+          `hard cut — see the transition list in page.css (base.css for .btn).`,
+      ).toBe(measured.instant)
+      expect(
+        control.others,
+        `${control.selector} lost its other transitions — a second \`transition\` ` +
+          `declaration replaces the list rather than extending it.`,
+      ).toBeGreaterThanOrEqual(2)
+    }
   })
 
   /**
@@ -404,9 +534,42 @@ test.describe('the header survives a phone', () => {
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await expect(page.locator('.header .btn')).toHaveCount(0)
     await expect(page.getByRole('link', { name: /catalogue/i })).toHaveCount(0)
-    // …and the wordmark is present but is no longer a link.
-    await expect(page.locator('.header__wordmark')).toBeVisible()
-    await expect(page.locator('a.header__wordmark')).toHaveCount(0)
+    // …and the wordmark is a link to the SITE, never to the catalogue. It was a
+    // plain <span> between 2026-09-04 and 2026-09-07; owner decision D5 restored
+    // the link once `wear-run.help` had ordinary pages to send anyone to. The
+    // catalogue assertion above is the one that must not move.
+    await expect(page.locator('a.header__wordmark')).toBeVisible()
+    await expect(page.locator('a.header__wordmark')).toHaveAttribute(
+      'href',
+      'https://wear-run.help',
+    )
+  })
+
+  test('the wordmark is a real target and keeps the header 69px tall', async ({ page }) => {
+    // Two things at once, because the second is what makes the first safe.
+    //
+    // ⚠️ THE TARGET-SIZE HALF PASSED BEFORE THE FIX — measured, not assumed. The
+    // link's box is 24.8px tall with no padding at all, i.e. 0.8px over WCAG
+    // 2.5.8's floor, on a number a font produces. The padding takes it to 32.8px;
+    // this assertion pins the FLOOR rather than the padding, and says so instead of
+    // pretending to be a regression test for something it cannot see.
+    //
+    // The header height is the assertion that bites: `--header-h` is subtracted
+    // from the stage band, and that budget has been wrong four times in this file's
+    // history by arithmetic instead of measurement. Making the wordmark taller than
+    // the 44px theme toggle grows the header and fails this.
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const measured = await page.evaluate(() => {
+      const wordmark = document.querySelector('.header__wordmark')?.getBoundingClientRect()
+      const header = document.querySelector('.header')?.getBoundingClientRect()
+      return { w: wordmark?.width ?? 0, h: wordmark?.height ?? 0, header: header?.height ?? 0 }
+    })
+
+    expect(measured.h, `the wordmark link is ${measured.h}px tall`).toBeGreaterThanOrEqual(24)
+    expect(measured.header, 'the header grew: --header-h and the stage budget now lie').toBe(69)
   })
 })
 
@@ -472,7 +635,7 @@ test.describe('layout invariants', () => {
        * it is the thing that used to move the page, so "it has happened and the
        * page is still at the top" is exactly the claim being made.
        */
-      await page.waitForFunction(() => document.activeElement?.id === 'main-content')
+      await page.waitForFunction(() => document.activeElement?.id === 'viewer-top')
 
       const top = await page.evaluate(() => ({
         scrollY: Math.round(window.scrollY),
@@ -793,6 +956,22 @@ test.describe('layout invariants', () => {
     // Landscape phone — the two-column layout, where the rail is in the aside.
     { width: 844, height: 390 },
     { width: 926, height: 428 },
+    /**
+     * ⚠️ A FOURTH FIXTURE-SHAPED GAP, FOUND 2026-09-07 (audit FA-E-51): tablet
+     * PORTRAIT was in neither list. Above 430 and below 900, held upright, the rail
+     * still spans the page and is wider than the 500px container threshold — so it
+     * was the one band left on the old wrapping-flex layout, where the number of
+     * tabs per row is decided by the length of the colour names. Measured on the
+     * live site: r-aj, r-ajm, r-css and r-wzu all laid out 4 + 1 at 768 and/or 834,
+     * while rxps — five single-word names — never did at any of ten viewports.
+     *
+     * The 548 and 600 rows are the same band lower down, where even this fixture's
+     * five names wrapped to two rows before the fix.
+     */
+    { width: 548, height: 900 },
+    { width: 600, height: 900 },
+    { width: 768, height: 1024 },
+    { width: 834, height: 1194 },
   ]
   for (const { width, height } of RAIL_VIEWPORTS) {
     test(`the colourway rail never strands a single swatch at ${width}x${height}`, async ({
@@ -2177,5 +2356,281 @@ test.describe('the interaction cue tells a visitor the garment is not a photogra
     // colourways, who has already proved they know the garment is interactive.
     await page.waitForTimeout(4500)
     await expect(page.locator(CUE)).toBeHidden()
+  })
+})
+
+/**
+ * The chrome and the content column are two different formulas for one edge, and
+ * the four spec callouts are a technical drawing whose fourth corner floated.
+ *
+ * Both were measured on the live site by the 2026-09-06 audit (FA-D-07, FA-D-08)
+ * and both reproduce in this fixture, which is why they are pinned here rather
+ * than described in a comment: each one is a number two rules have to agree on,
+ * and this file's history is a list of such numbers drifting apart.
+ */
+test.describe('the page composes on one grid', () => {
+  const EDGE_WIDTHS = [390, 768, 1024, 1280, 1440, 1920] as const
+
+  for (const width of EDGE_WIDTHS) {
+    test(`the header starts where the page's content column starts at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const edges = await page.evaluate(() => {
+        const x = (sel: string) => {
+          const el = document.querySelector(sel)
+          return el ? Math.round(el.getBoundingClientRect().x * 10) / 10 : null
+        }
+        // `.footer__inner` is the same 1200px centred measure as `.content` and
+        // `.stage__inner`, and it is the one that is present at every width and in
+        // every layout branch — the other two move into the two-column band.
+        return { wordmark: x('.header__wordmark'), footer: x('.footer__inner') }
+      })
+
+      expect(
+        edges.wordmark,
+        `the wordmark starts at ${edges.wordmark} and the page's own content at ` +
+          `${edges.footer}. Two independent inset formulas — see the third term on ` +
+          `.header's padding in page.css.`,
+      ).toBe(edges.footer)
+    })
+  }
+
+  test('the four stage callouts share two baselines, not three', async ({ page }) => {
+    // 1440x900 because `.stage__callouts` is `display: none` below 1000px — measured
+    // 0x0 boxes at 834, 768 and 390 — so this is a desktop-only composition.
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const tops = await page.evaluate(() =>
+      [...document.querySelectorAll('.callout')].map((c) => ({
+        label: c.querySelector('.label')?.textContent?.trim() ?? '',
+        top: Math.round(c.getBoundingClientRect().top * 10) / 10,
+        bottom: Math.round(c.getBoundingClientRect().bottom * 10) / 10,
+      })),
+    )
+
+    expect(tops).toHaveLength(4)
+    const at = (label: string) => tops.find((t) => t.label.includes(label))
+
+    // The top pair was always pinned and always agreed; asserting it is what makes
+    // the bottom assertion meaningful rather than a coincidence of one layout.
+    expect(at('FABRIC')?.top).toBe(at('WEIGHT')?.top)
+
+    // ⚠️ THE ONE THAT USED TO FAIL. Measured before the fix, this fixture: [ FIT ]
+    // 636.7 against [ PERFORMANCE ] 621.2, and 15.5 / 31.0 / 46.5 / 62.0 across six
+    // live products — always a whole multiple of 15.5px, one line of value text,
+    // because each block was bottom-anchored and grew upward by however many lines
+    // the CMS gave it.
+    expect(
+      at('FIT')?.top,
+      `[ FIT ] sits at ${at('FIT')?.top} and [ PERFORMANCE ] at ${at('PERFORMANCE')?.top} — ` +
+        `the bottom pair is meant to share one baseline, set by the taller block.`,
+    ).toBe(at('PERFORMANCE')?.top)
+
+    /*
+     * …and the row is still anchored where it was: the taller block's bottom edge has not
+     * moved toward the plinth.
+     *
+     * ⚠️ THIS WAS `toBe(686.7)`, AND THAT NUMBER SILENTLY ENCODED "THE STAGE HAS WebGL".
+     * CI's Firefox measured 688.3 and failed twice on a layout that is correct.
+     *
+     * The first guess was platform font metrics, and it was wrong — REPRODUCED locally by
+     * launching Firefox with `webgl.disabled: true`, which gives **688.3 exactly**. The
+     * 1.6px is the poster-fallback branch composing the stage slightly differently, not a
+     * different font stack. A constant read off a WebGL-capable machine is therefore not a
+     * property of this layout at all; it is a property of the runner.
+     *
+     * The sentence above describes a RELATIONSHIP — "has not moved toward the plinth" —
+     * and it was written as an absolute, which is the arithmetic-instead-of-measurement
+     * mistake this repo's stage-height budget has already made three times. The
+     * relationship holds in both branches.
+     *
+     * So the relationship is what is asserted. The plinth is the thing it must not
+     * approach, and its position is read from the same page rather than assumed.
+     */
+    const plinthTop = await page.evaluate(
+      () => document.querySelector('.stage__plinth')?.getBoundingClientRect().top ?? null,
+    )
+    expect(plinthTop, 'no .stage__plinth to measure against').not.toBeNull()
+
+    const bottom = at('PERFORMANCE')?.bottom ?? 0
+    expect(
+      plinthTop === null ? 0 : plinthTop - bottom,
+      `[ PERFORMANCE ] ends at ${bottom} and the plinth starts at ${plinthTop} — the ` +
+        'callout row has drifted down into the controls.',
+    ).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * The colourway rail against the catalogue's worst case, not the fixture's.
+ *
+ * ⚠️ WHY THE LABELS ARE REWRITTEN IN THE TEST. The fixture ships production's five
+ * names for ONE product, of which one is long ('Pebble / Optic White', 20 chars).
+ * Six of the eleven live products ship SEVERAL two-word names, and that is what
+ * strands a swatch at tablet widths — five long labels, not one. No single fixture
+ * product can carry both shapes, and the strand guard above deliberately measures
+ * the shipped fixture as-is, so this is the other half rather than a substitute for
+ * it: same page, labels replaced with the longest name the catalogue actually
+ * contains, in the container band where the old flex layout decided rows by content.
+ */
+test.describe('the colourway rail survives the catalogue, not just the fixture', () => {
+  for (const [width, height] of [
+    [768, 1024],
+    [834, 1194],
+  ] as const) {
+    test(`five long colour names still lay out in one row at ${width}x${height}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const layout = await page.evaluate(() => {
+        for (const label of document.querySelectorAll('.colourway-tab__label')) {
+          label.textContent = 'Pebble / Optic White'
+        }
+        const tabs = [...document.querySelectorAll('.colourway-tab')].map((t) =>
+          Math.round(t.getBoundingClientRect().top),
+        )
+        const rows = [...new Set(tabs)].sort((a, b) => a - b)
+        return { counts: rows.map((top) => tabs.filter((t) => t === top).length) }
+      })
+
+      expect(
+        layout.counts,
+        `five equally-long swatches laid out as ${layout.counts.join(' + ')}. With ` +
+          `equal grid columns this cannot depend on the label at all; a wrapping ` +
+          `flex row lays them out 4 + 1 here.`,
+      ).toEqual([5])
+    })
+  }
+
+  test('a long one-word colour name stays inside its own tab', async ({ page }) => {
+    // Audit FA-E-08, measured live on r-ajm at 1440x900: five 65.6px cells, and
+    // "TERRACOTTA" rendered 66.2px — 0.3px across its own right border into the
+    // neighbouring swatch. `.colourway-tab` is overflow: visible, so nothing clips
+    // and nothing is unreadable; the rail simply has no slack, and the name is read
+    // out of a garment file by variant-colour.ts rather than typed by anyone.
+    //
+    // The fixture cannot exhibit it — its longest WORD is six characters and it
+    // wraps at the spaces — so the name is written in. It is a real production
+    // value, not a stress string.
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const spill = await page.evaluate(() => {
+      const worst = { text: '', spill: Number.NEGATIVE_INFINITY, cell: 0 }
+      for (const label of document.querySelectorAll('.colourway-tab__label')) {
+        label.textContent = 'Terracotta'
+      }
+      for (const label of document.querySelectorAll('.colourway-tab__label')) {
+        const tab = label.closest('.colourway-tab')
+        if (!tab) continue
+        const range = document.createRange()
+        range.selectNodeContents(label)
+        const text = range.getBoundingClientRect()
+        const cell = tab.getBoundingClientRect()
+        const over = Math.max(cell.left - text.left, text.right - cell.right)
+        if (over > worst.spill) {
+          worst.text = label.textContent ?? ''
+          worst.spill = Math.round(over * 10) / 10
+          worst.cell = Math.round(cell.width * 10) / 10
+        }
+      }
+      return worst
+    })
+
+    expect(
+      spill.spill,
+      `"${spill.text}" reaches ${spill.spill}px past the edge of its ${spill.cell}px ` +
+        `tab, into the swatch beside it. See overflow-wrap on .colourway-tab__label.`,
+    ).toBeLessThanOrEqual(0)
+  })
+})
+
+/**
+ * Where the first Tab goes — audit FA-H-26.
+ *
+ * ⚠️ THE KEYBOARD IS MEASURED HERE AND NOWHERE ELSE, and the reason is worth
+ * keeping: a browser-automation pane was measured DROPPING key events on this page
+ * (`keydownDoc: 0` on a real press), which made the keyboard look broken when it was
+ * fine. Playwright delivers them; every assertion below is on
+ * `document.activeElement` after a real `Tab`.
+ */
+test.describe('the keyboard starts at the top of the document', () => {
+  test('Tab 1 reaches the skip link, and Tab 2 the wordmark', async ({ page, browserName }) => {
+    test.skip(
+      browserName === 'webkit',
+      'WebKit does not put LINKS in the tab order unless "Press Tab to highlight each item" ' +
+        'is on — a browser preference, not a page behaviour. Measured with the skip removed: ' +
+        'Tab 1 on WebKit lands on a colourway tab (a <button>), skipping both links. ' +
+        'Chromium and Firefox cover this.',
+    )
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    // ⚠️ WAIT FOR THE HAND-OFF, exactly as "the page opens at the very top" does.
+    // Asserting before `App.tsx` moves focus measures the browser's own default and
+    // passes against the unfixed code — flaky in the direction that passes.
+    await page.waitForFunction(() => document.activeElement?.id === 'viewer-top')
+
+    await page.keyboard.press('Tab')
+    const first = await page.evaluate(() => ({
+      className: document.activeElement?.className ?? '',
+      // The link reveals itself on focus; -75.5px is where it sits when it has not.
+      top: Math.round((document.activeElement?.getBoundingClientRect().top ?? -999) * 10) / 10,
+    }))
+    expect(
+      first.className,
+      `the first Tab landed on "${first.className}" — focus was handed to <main>, so ` +
+        `everything above it (skip link, wordmark, theme toggle) was reachable only ` +
+        `backwards. See PAGE_TOP_ID in App.tsx.`,
+    ).toContain('skip-link')
+    /**
+     * ⚠️ POLLED, NOT READ ONCE — the first version of this assertion raced the
+     * reveal and failed at exactly -75.5px, the un-revealed position, because
+     * `getBoundingClientRect()` right after the key press returns the transition's
+     * value at t=0. Same defect this file's own header documents for `.colourways`.
+     * What is being asserted is that the link ARRIVES, not when.
+     */
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() =>
+            Math.round(document.activeElement?.getBoundingClientRect().top ?? -999),
+          ),
+        { message: 'the skip link is focused but never leaves its hidden position' },
+      )
+      .toBeGreaterThanOrEqual(0)
+
+    await page.keyboard.press('Tab')
+    const second = await page.evaluate(() => document.activeElement?.className ?? '')
+    expect(second).toContain('header__wordmark')
+  })
+
+  test('the skip link still skips: it moves focus into <main>, not just the scroll', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName === 'webkit', 'see above — link focus is a WebKit preference')
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await page.waitForFunction(() => document.activeElement?.id === 'viewer-top')
+
+    await page.keyboard.press('Tab')
+    await page.keyboard.press('Enter')
+
+    // `tabIndex={-1}` on <main> is what makes this work; without it the fragment
+    // moves the scroll position and leaves focus in the header, so the next Tab
+    // walks back through exactly the links the visitor asked to skip.
+    const landed = await page.evaluate(() => document.activeElement?.id ?? '')
+    expect(landed).toBe('main-content')
   })
 })

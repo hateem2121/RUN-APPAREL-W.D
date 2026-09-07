@@ -27,6 +27,15 @@
         "4180"
       ],
       "port": 4180
+    },
+    {
+      "name": "cms-prod",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "PORT=3100 PAYLOAD_LOCAL_D1=1 NODE_ENV=production npx --yes pnpm@10.33.0 --filter @run-apparel/cms start"
+      ],
+      "port": 3100
     }
   ]
 }

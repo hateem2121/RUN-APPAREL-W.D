@@ -7,7 +7,7 @@ of the other.
 ## Why this file exists, and what it is not
 
 Three source files have cited `DESIGN.md` as their authority since the design was
-locked — `apps/viewer/src/styles/tokens.css:2`, `apps/viewer/src/main.tsx:2` and
+locked — `packages/ui/src/tokens.css:2`, `apps/viewer/src/main.tsx:2` and
 `apps/viewer/src/components/SerifAccent.tsx:5` — and **the file did not exist**.
 Written 2026-08-06 to close that gap.
 
@@ -110,6 +110,29 @@ font CDN, which is also a CSP consideration.
 | `--font-serif` | `'Instrument Serif', Georgia, serif` |
 | `--font-mono` | `ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, …` |
 
+### The marketing site adds three metric-matched fallback faces
+
+`apps/cms/src/app/(frontend)/site.css` declares `Archivo Fallback`,
+`Archivo Display Fallback` and `Instrument Serif Fallback`, and inserts each into the
+stack above between the real face and the generic one. They are `local()` only, so they
+download nothing.
+
+They exist because the home page failed Cumulative Layout Shift at **0.1533** against a
+0.1 limit, measured **0.0000** with the webfonts removed — both faces load with
+`font-display: swap`, so the page painted in a fallback and re-flowed every line when the
+real font arrived. Preloading was measured and does not fix it (see the comment at the top
+of `apps/cms/src/app/(frontend)/layout.tsx`).
+
+Every adjustment is computed from the font files, with the variable font instanced at the
+axis values the CSS asks for. The display face needs its own numbers: at
+`font-stretch: 122%` and `font-weight: 860` in uppercase, Archivo is **28% wider** than
+Arial Bold, while lowercase body text at 400 is **1.4% narrower** than Arial.
+
+⚠️ **This is the one place the two surfaces' type differs, and deliberately.** The viewer
+measured CLS 0.000 and does not have the problem, and `tokens.css` / `base.css` ship inside
+its stylesheet budget. The site overrides the three tokens in its own sheet rather than
+changing the shared ones.
+
 **Archivo is imported from its `wdth` build** (`@fontsource-variable/archivo/wdth.css`),
 which carries both the weight axis (100–900) and the width axis (62–125%). The
 display style needs `font-stretch: 122%`, so the plain weight-only build will not
@@ -140,6 +163,25 @@ The wordmark (`.header__wordmark`, `.footer__brand`) keeps a fixed `-0.02em`: it
 is display type at a FIXED size, so it has no optical range to follow — and the
 two must agree with each other, which they did not until 2026-08-14.
 
+⚠️ **THE RULE IS SIZE-SPECIFIC TRACKING, NOT "hero is the tighter class", and the
+two stop coinciding above 1100px.** `apps/viewer/src/styles/page.css` re-sizes
+`.product-info--aside .display--hero` in `cqi` for the ~360px column the product
+name moves into and re-tracks it with `--tracking-wordmark`, because the
+viewport-derived `--tracking-display-lg` resolves to its tightest `-2.16px` on any
+desktop — tracking drawn for a 69px headline, applied to a 34px one. Measured on
+the viewer, 2026-09-07:
+
+| | 360px viewport | 1440px viewport |
+|---|---|---|
+| `.display--hero` | 34.0px · -0.0169em | **34.2px · -0.0200em** |
+| `.display--section` | 26.0px · -0.0138em | **46.0px · -0.0300em** |
+
+So at 1440 the hero is the *smaller* of the two and correctly the *looser*. What
+holds at both widths is the sentence above — larger rendered size, tighter
+tracking — and that is what `apps/viewer/e2e/audit-guards.spec.ts` asserts for
+FA-C-54. A guard written as "hero is bigger and tighter than section" fails
+against a page that is right; one was, before it was measured.
+
 ### The serif accent
 
 One Instrument Serif italic word per headline, set by `headingWithAccent()` in
@@ -161,7 +203,7 @@ replacement rule.
 
 ```
 .serif-accent   Instrument Serif · italic · 400 · lowercase
-                letter-spacing 0 · font-size 1.07em · colour --serif-accent
+                letter-spacing inherit · font-size 1.07em · colour --serif-accent
 ```
 
 **Budget: 1–2 accents per headline, always lowercase.** More than two and the
@@ -171,7 +213,7 @@ device stops reading as an accent and starts reading as a second typeface.
 
 | Class | Size | Tracking | Use |
 |---|---|---|---|
-| `.mono` | 11px | 0.11em | `[ BRACKETED ]` labels, N°00X, specs |
+| `.mono` | 11px | 0.11em | `[ BRACKETED ]` labels, `№0X` section numbers, specs |
 | `.label` | 10px | 0.12em | Tag chips, 4/8px padding, 6px radius |
 | `.section-number` | 10px | 0.14em | Section numbering, `--muted` |
 
@@ -190,9 +232,11 @@ enforced globally in `base.css`, not per-component.
 | `--text-mono` | 0.6875rem | 11px |
 | `--text-mono-sm` | 0.625rem | 10px |
 | `--text-wordmark` | 1.125rem | 18px — `.header__wordmark`, wide |
-| `--text-wordmark-sm` | 1rem | 16px — `.header__wordmark` compact, `.footer__brand` |
+| `--text-wordmark-sm` | 1rem | 16px — `.header__wordmark` compact, `.footer__brand`, the marketing site's `.notch__wordmark` |
 | `--text-note` | 0.875rem | 14px — `.stage__error`, `.notice`, `.contact__micro` |
 | `--text-mono-lg` | 0.75rem | 12px — tracked caps one step above `--text-mono` |
+| `--text-card-title` | 1.125rem | 18px — the marketing site's `.product-card__name`; the wordmark's size in a different role |
+| `--text-footer-mark` | 12vw | first paint only — the site's cropped footer wordmark, refitted to the slab's width by `FooterWordmark.tsx` once fonts load |
 
 ⚠️ **rem since 2026-09-04, and the unit is the accessibility feature.** Every size
 here was px and `html` declares no font-size, so a visitor who set their browser's
@@ -244,10 +288,29 @@ and it shipped as 21 literals until 2026-09-05.
 |---|---|---|
 | `--tracking-caps-tight` | 0.1em | `.btn`, `.step__num`, `.step__title`, `.stage__hint`, `.colourway-tab`, `.callout`, `.preloader__status` |
 | `--tracking-caps` | 0.12em | `.label`, `.camera-btn`, `.spec-list dt`, `.stage__ar`, `.stage__loading`, `.stage-block__name` |
-| `--tracking-caps-wide` | 0.14em | `.section-number`, `.footer__line` |
-| `--tracking-caps-compact` | 0.06em | the colourway rail below its 500px container |
+| `--tracking-caps-wide` | 0.14em | `.section-number`, `.footer__line`; the site's `.footer-clock__time small` |
+| `--tracking-caps-compact` | 0.06em | the colourway rail below its 500px container; the site's `.footer-clock__time` |
 | `--tracking-mono` | 0.11em | `.mono` — see the warning below |
-| `--tracking-wordmark` | -0.02em | `.header__wordmark`, `.footer__brand`, and the aside heading that borrows it |
+| `--tracking-wordmark` | -0.02em | `.header__wordmark`, `.footer__brand`, the site's `.notch__wordmark`, and the aside heading that borrows it |
+| `--tracking-card-title` | -0.02em | the site's `.product-card__name` |
+| `--tracking-caps-snug` | 0.08em | the marketing site: `.nav-link`, `.product-card__img` alt text, `.product-card__placeholder` |
+| `--tracking-caps-spaced` | 0.16em | the site footer's facts headings, `.footer-block h3`, and the open light `.footer-status` |
+| `--tracking-instrument` | 0.17em | the site footer's instrument captions: the `.site-footer__tab` label and the `.footer-dim` dimension line |
+| `--tracking-clock-caption` | 0.18em | `.footer-clock__city` — "SIALKOT · HQ & WORKS" |
+| `--tracking-eyebrow` | 0.2em | `.footer-eyebrow` — the mono eyebrow over the footer's question |
+| `--tracking-legal` | 0.13em | `.footer-legal` — the © line and its two links |
+| `--tracking-link-mono` | 0.055em | `.footer-block a` — the email and WhatsApp rows |
+| `--tracking-footer-mark` | -0.045em | `.footer-mark__layer` — the cropped outline wordmark at 122% stretch |
+
+**The eight site rows landed 2026-09-06, the day the two branches merged.** The
+marketing site (`apps/cms`) reads the same token file, and this branch's
+`tokens.test.ts` deliberately scans its stylesheet, so the three gates above reached
+21 values the navbar and footer had shipped as literals. They are named by **role**
+rather than by scale step because three of them — 0.16, 0.17 and 0.18em — are a
+tenth of a pixel apart at the 10px chip size, and no step name could tell them apart
+honestly. They were kept exact by owner decision ("the site keeps looking exactly as
+approved") rather than folded into one; folding would have been the tidier table and
+the wrong reason, exactly as the `--tracking-mono` warning below says.
 
 ⚠️ **`--tracking-mono` is 0.11em and must not be folded into `--tracking-caps`.**
 The Mono table above states 11px/0.11em and 10px/0.12em as separate rows, and they
@@ -349,18 +412,28 @@ Pure black is wrong in both halves of this system for the same reason `--ink` is
 
 ### Layering
 
-Seven stacking contexts, in reading order from the canvas upward. Added as tokens
-2026-09-05; the numbers are exactly what shipped, so nothing moved.
+Seven stacking contexts in the viewer, in reading order from the canvas upward, and
+three more that only the marketing site uses. Added as tokens 2026-09-05 (the
+viewer's) and 2026-09-06 (the site's); the numbers are exactly what shipped, so
+nothing moved — with one stated exception below.
 
 | Token | Value | Layer |
 |---|---|---|
+| `--z-hero-grid` | -1 | the site's `.site-hero__grid` — the blueprint grid behind the hero copy |
 | `--z-stage-control` | 1 | `.stage__ar` — inside the stage, above the canvas |
-| `--z-header` | 40 | the sticky header |
+| `--z-footer-tab` | 2 | the site's `.site-footer__tab` — seated on the footer slab's top edge |
+| `--z-footer-glow` | 6 | the site's `.footer-glow` — the light, blended over the slab's content |
+| `--z-header` | 40 | the sticky header; the site's `.notch-shell` shares it |
 | `--z-action-bar` | 50 | the persistent contact bar |
 | `--z-grain` | 60 | the full-page grain overlay |
 | `--z-cursor` | 70 | `.cursor-ring`, pointer devices only |
 | `--z-preloader` | 80 | the opening curtain |
 | `--z-skip-link` | 100 | must beat everything, the preloader included |
+
+The exception: the site's notch bar shipped at a raw `20` and now reads `--z-header`
+(40). Its stylesheet declares no other stacking value between the two, and the
+shared cursor and skip link sit at 70 and 100 either way, so the order a visitor
+sees is unchanged — measured by grep of `site.css` and `base.css`, not assumed.
 
 **A z-index only means something against the others**, and until this table existed
 the only way to learn the stack was to grep two stylesheets and sort the results.
@@ -385,7 +458,6 @@ same class of defect as the 1.00:1 skip link `tokens.test.ts` was written for.
 | `--ui` | 220ms |
 | `--settle` | 500ms |
 | `--slow` | 800ms |
-| `--stagger` | 60ms |
 | `--reveal-y` | 24px |
 
 Both curves are **ease-out**: fast departure, slow arrival. Enter animations use
@@ -428,9 +500,20 @@ Written the other way round — hide by default, un-hide for motion users — a
 reduced-motion visitor is left staring at permanently invisible content. That
 inversion is the single most load-bearing line in the motion layer.
 
-Lenis smooth scroll is loaded lazily and applies its classes to `<html>`;
-`.lenis-smooth` deliberately forces `scroll-behavior: auto` so the two scroll
-systems do not fight.
+Lenis smooth scroll is loaded lazily and applies its classes to `<html>`. ⚠️ **They are
+STATE classes, not a flag, and this paragraph said otherwise until 2026-09-07**
+(audit FA-F-11). `lenis` stays for the session; `lenis-smooth` is present only while a
+smooth scroll is actually running — verified in lenis 1.3.26, `dist/lenis.mjs:1041`, which
+adds it only while `isScrolling === 'smooth'`, and on the live page at rest
+`document.documentElement.className` is `lenis has-custom-cursor`.
+
+So `.lenis.lenis-smooth { scroll-behavior: auto }` guards the moment the two scroll
+systems could fight, not the whole session — which is enough, because nothing here sets
+`scroll-behavior: smooth`. Do not read it as a session-wide override, and do not "simplify"
+it to `.lenis` on the assumption that it is one.
+`.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain }` is likewise
+active only mid-scroll. `packages/ui/src/base.css`'s own comment was already accurate; it
+was this document that implied permanence.
 
 ---
 

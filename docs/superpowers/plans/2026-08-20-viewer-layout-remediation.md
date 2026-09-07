@@ -16,7 +16,7 @@
 - Run `env | grep -E 'NODE_ENV|PORT'` before believing any build or e2e failure. Both have caused a `Timed out waiting 120000ms from config.webServer` here.
 - `pkill -f e2e/serve.mjs` before running e2e — a stray fixture server on 4173 causes the same timeout.
 - **No Tailwind, no shadcn/ui, no component library.** Appearance is hand-written CSS. A `className` containing utility strings is the tell that something went wrong. See `docs/DECISION-UI-LIBRARIES.md`.
-- **No raw hex, no raw spacing values.** Components read semantic tokens from `apps/viewer/src/styles/tokens.css`. `apps/viewer/src/styles/tokens.test.ts` enforces the spacing set.
+- **No raw hex, no raw spacing values.** Components read semantic tokens from `packages/ui/src/tokens.css`. `apps/viewer/src/styles/tokens.test.ts` enforces the spacing set.
 - **`docs/DESIGN.md` outranks every vendored design skill** on duration and easing. `--settle` is 500ms and `--slow` is 800ms by decision; do not "fix" them to sub-300ms.
 - **No node builtins** in `apps/viewer/src` or `apps/viewer/worker` — lint-enforced via `biome.jsonc` `noRestrictedImports`.
 - **Biome rejects the duplicate-property CSS fallback idiom.** Use `@supports` blocks, never two `height:` declarations.
@@ -27,7 +27,7 @@
 
 1. **Never compute a layout number by addition.** The number this plan removes was wrong four times that way.
 2. **Never sweep the live page.** `.colourways` sits under `transform: translateY(24px)` until its reveal finishes, so live readings are 24px out in a direction that depends on how long the page has been open.
-3. **Tune against the e2e suite.** `apps/viewer/playwright.config.ts` sets `reducedMotion: 'reduce'` and `apps/viewer/src/styles/base.css` gates the reveal on `prefers-reduced-motion: no-preference`, so there is no transform to pollute the measurement, and three engines are measured at once.
+3. **Tune against the e2e suite.** `apps/viewer/playwright.config.ts` sets `reducedMotion: 'reduce'` and `packages/ui/src/base.css` gates the reveal on `prefers-reduced-motion: no-preference`, so there is no transform to pollute the measurement, and three engines are measured at once.
 4. **A desktop browser at a phone's width measures the stage wrong** unless its viewport height is the device's `svh` value. 402×714 is an iPhone 17.
 
 ## File Structure
@@ -35,7 +35,7 @@
 | File | Responsibility | Change |
 |------|---------------|--------|
 | `apps/viewer/e2e/motion-and-layout.spec.ts` | Layout invariants across viewports | Extend guards; add landscape; add a rendered-garment assertion |
-| `apps/viewer/src/styles/tokens.css` | Semantic tokens | Add `--header-h`; reconcile `--action-bar-h` |
+| `packages/ui/src/tokens.css` | Semantic tokens | Add `--header-h`; reconcile `--action-bar-h` |
 | `apps/viewer/src/styles/page.css` | All page layout | Replace the stage-height rules with a flex band; add the two-column layout |
 | `apps/viewer/src/styles/tokens.test.ts` | Token/spacing gate | Admit the new token values |
 | `apps/viewer/src/components/ColourwayTabs.tsx` | Colourway rail + its caption | Move the "examples" note out |
@@ -242,7 +242,7 @@ reach it. Passes today; it is the control for the flex conversion."
 The band's height depends on the sticky header above it. That is one measured value, not a guess — and it must not be allowed to drift, which is exactly what happened to the number this plan is removing.
 
 **Files:**
-- Modify: `apps/viewer/src/styles/tokens.css`
+- Modify: `packages/ui/src/tokens.css`
 - Modify: `apps/viewer/src/styles/tokens.test.ts`
 - Modify: `apps/viewer/e2e/motion-and-layout.spec.ts`
 
@@ -260,7 +260,7 @@ Then read the height off the built app at 320 and at 402 rather than trusting an
 
 - [ ] **Step 2: Add the token**
 
-In `apps/viewer/src/styles/tokens.css`, after the `--action-bar-h` block:
+In `packages/ui/src/tokens.css`, after the `--action-bar-h` block:
 
 ```css
   /* The sticky header's own height, which the stage band below it must subtract.
@@ -356,7 +356,7 @@ If `tokens.test.ts` rejects the new values, add them to the documented set with 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/viewer/src/styles/tokens.css apps/viewer/src/styles/page.css apps/viewer/src/styles/tokens.test.ts apps/viewer/e2e/motion-and-layout.spec.ts
+git add packages/ui/src/tokens.css apps/viewer/src/styles/page.css apps/viewer/src/styles/tokens.test.ts apps/viewer/e2e/motion-and-layout.spec.ts
 git commit -m "feat(viewer): add --header-h, pinned to the rendered header by a test
 
 The stage band must subtract the sticky header's height. Two measured values
@@ -914,7 +914,7 @@ Measured 105 × 20.1px — the smallest target on the page, against the same des
 ### Task C4: Resolve the 44px target contradiction
 
 **Files:**
-- Modify: `apps/viewer/src/styles/tokens.css` and/or `apps/viewer/src/styles/page.css`
+- Modify: `packages/ui/src/tokens.css` and/or `apps/viewer/src/styles/page.css`
 
 `--target-min: 44px` is declared under a long comment about a control that once shipped 2px wide, then overridden to 40px by three rules: the header button, the camera buttons and the contact rail.
 

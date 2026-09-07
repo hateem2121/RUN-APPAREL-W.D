@@ -3,7 +3,7 @@
 **Decided 2026-08-15.** Short version:
 
 > **Behaviour comes from `base-ui`. Appearance stays hand-written in
-> `apps/viewer/src/styles/tokens.css`. We do not adopt Tailwind, shadcn/ui or MUI.**
+> `packages/ui/src/tokens.css`. We do not adopt Tailwind, shadcn/ui or MUI.**
 
 This file exists because the question *"shouldn't we just use Tailwind/shadcn like
 everyone else?"* is reasonable, recurs, and costs an afternoon each time it is asked
@@ -17,8 +17,18 @@ only loads when someone explicitly invokes it; this note is the discoverable cop
 
 ## The decision, in three parts
 
-**1. `apps/viewer` keeps its own CSS.** No component library, no CSS framework.
-It is one page. Measured 2026-08-15, the stylesheets already use 16 × `clamp()`,
+**1. The design system is hand-written. No component library, no CSS framework.**
+
+⚠️ **UPDATED 2026-09-04 — the tokens no longer live in `apps/viewer`.** `tokens.css`
+and `base.css` moved to [`packages/ui/src/`](../packages/ui/src/tokens.css) so the
+public marketing site (`apps/cms`) renders from the SAME system rather than a second
+copy of it; `apps/viewer/src/styles/page.css` stays in the viewer because it is
+product-page-specific. The move was a pure `git mv` — the built stylesheet is
+byte-identical, verified against `scripts/check-bundle-budget.mjs` before and after —
+and `apps/viewer/src/styles/tokens.test.ts` now scans all three consumers, so the
+rules below still reach every stylesheet. The decision itself is unchanged.
+
+The original reasoning, which still holds: it was one page. Measured 2026-08-15, the stylesheets already use 16 × `clamp()`,
 4 × `dvh`, `@media (pointer: coarse)` and `@media (hover: hover) and (pointer: fine)`,
 and the suite tests an `iPhone 13` profile
 ([`apps/viewer/playwright.config.ts:88`](../apps/viewer/playwright.config.ts)) plus an

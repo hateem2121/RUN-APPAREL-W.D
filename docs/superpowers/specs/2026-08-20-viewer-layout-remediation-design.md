@@ -116,7 +116,7 @@ Six rules and two magic numbers become one rule and two named values.
 
 ### Tokens
 
-`--action-bar-h: 72px` already exists in `apps/viewer/src/styles/tokens.css`.
+`--action-bar-h: 72px` already exists in `packages/ui/src/tokens.css`.
 `--header-h` is new. It is **two measured values, not one**: 69px at 360px and above,
 119px below 360px, where the catalogue button deliberately wraps to a second flex row
 (see the block comment above `@media (max-width: 699px)` in
@@ -254,7 +254,7 @@ Each is independent and none depends on A or B.
 3. **Footer catalogue link.** `apps/viewer/src/components/Footer.tsx` — give the bare
    `<a>` padding so its smallest dimension clears 24px. It currently passes WCAG 2.5.8
    only via the spacing exception.
-4. **The 44px target rule.** `--target-min: 44px` in `apps/viewer/src/styles/tokens.css`
+4. **The 44px target rule.** `--target-min: 44px` in `packages/ui/src/tokens.css`
    is overridden to 40px by three rules in `page.css`. Decide once: either the token is
    the floor and the three rules change, or the token documents an aspiration and its
    comment says so. Do not leave it contradicted.

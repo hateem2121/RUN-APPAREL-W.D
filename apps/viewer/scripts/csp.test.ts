@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { SHARED_SECURITY_HEADERS } from '../worker/securityHeaders'
+import { SHARED_SECURITY_HEADERS, workerResponseHeaders } from '../worker/securityHeaders'
 import { buildCsp, buildHeadersFile } from './csp.mjs'
 
 /**
@@ -193,6 +195,61 @@ describe('buildHeadersFile — the _headers file', () => {
     // No Cache-Control here: /* would match hashed assets too.
     expect(joined.toLowerCase()).not.toContain('cache-control:')
   })
+
+  /**
+   * FA-O-03 — the policy is ENFORCED, and the difference is one suffix.
+   *
+   * Audited 2026-09-06 and scored 9: both surfaces send `Content-Security-Policy`
+   * and neither sends `Content-Security-Policy-Report-Only`. Nothing held it
+   * there.
+   *
+   * ⚠️ REPORT-ONLY IS THE FAILURE MODE THAT LOOKS LIKE SUCCESS. A
+   * `-Report-Only` header is parsed, validated, and reported on — the Sentry
+   * `report-uri` two describes above keeps working, so the dashboard keeps
+   * filling with violations — and it blocks NOTHING. A visitor's browser
+   * executes every script the policy names as forbidden. The whole reason this
+   * repo carries a CSP is two production incidents where a real directive was
+   * missing (the self-hosted decoder location, and `blob:` in `connect-src`);
+   * shipping the same policy in report-only is indistinguishable from shipping
+   * it correctly in every log, in every test that reads the policy STRING, and
+   * in every browser devtools panel except the one line naming the header.
+   *
+   * It is a plausible edit, not a fanciful one: "switch it to report-only for a
+   * day while we work out which directive is blocking X" is the standard way to
+   * debug a CSP, and the standard way to forget to switch it back.
+   *
+   * Both halves are checked because they are written in different files — the
+   * `_headers` copy in `csp.mjs`, and the copy a Worker-built response would
+   * carry in `worker/securityHeaders.ts` (which has no caller today and exists
+   * precisely so the next one does not re-learn that `_headers` never reaches
+   * it).
+   */
+  it('sends an enforcing CSP, never a report-only one', () => {
+    const out = buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API })
+
+    const cspHeaders = out
+      .split('\n')
+      .filter((line) => /^\s+/.test(line))
+      .map((line) => line.trim().split(':')[0]?.trim() ?? '')
+      .filter((name) => name.toLowerCase().startsWith('content-security-policy'))
+
+    // Positive control first: a parser that found nothing would make the
+    // "no report-only" assertion below pass against a file with no CSP at all.
+    expect(cspHeaders.length, 'no Content-Security-Policy header found in _headers').toBe(1)
+    expect(
+      cspHeaders,
+      'the viewer ships a REPORT-ONLY CSP. It still reports to Sentry and it blocks\n' +
+        'nothing — the policy is present in every log and enforcing in no browser.\n' +
+        'See audit FA-O-03.',
+    ).toEqual(['Content-Security-Policy'])
+
+    expect(
+      Object.keys(workerResponseHeaders()).filter((name) =>
+        name.toLowerCase().startsWith('content-security-policy'),
+      ),
+      'a Worker-built response would carry a report-only CSP',
+    ).toEqual(['Content-Security-Policy'])
+  })
 })
 
 /**
@@ -284,5 +341,53 @@ describe('CSP violation reporting', () => {
     const bare = buildCsp({ html: '', apiBaseUrl: API })
     expect(bare).not.toContain(reportOrigin)
     expect(bare).not.toContain('report-uri')
+  })
+})
+
+/**
+ * The comment and the code it guards must describe the same product.
+ *
+ * ⚠️ THIS IS A TEST OF PROSE, AND IT EARNS ITS PLACE. `csp.mjs`'s docblock said
+ * "`camera=()` WILL block `<model-viewer ar>`. There is no AR mode today (no `ar`
+ * attribute anywhere in src/, no USDZ)" — while `Stage.tsx` had been shipping
+ * `ar ar-modes="quick-look"` since 2026-09-05 (audit FA-O-11). Both halves were
+ * wrong, and the file's whole purpose is to stop someone loosening a header: a
+ * stale premise here is how `camera=()` gets deleted for a reason that is not true.
+ *
+ * Measured in the installed `@google/model-viewer@4.3.1` before the comment was
+ * rewritten: `getUserMedia` appears in ZERO files under `lib/` (positive control —
+ * the same grep does find `relList.supports`), and the quick-look gate is
+ * `IS_AR_QUICKLOOK_CANDIDATE` in `lib/constants.js:67`, i.e. a LINK into an OS
+ * viewer. So the header does not block what shipped, and stays.
+ */
+describe('the AR comment matches the AR that ships', () => {
+  const read = (relative: string) => readFileSync(join(import.meta.dirname, '..', relative), 'utf8')
+
+  it('does not claim there is no AR mode while Stage.tsx ships one', () => {
+    const stage = read('src/components/Stage.tsx')
+    const csp = read('scripts/csp.mjs')
+
+    // The negative control for this test is the file itself: if Stage ever stops
+    // shipping AR, this assertion fails and the comment is free to say so again.
+    expect(stage, 'Stage.tsx no longer ships an AR mode — revisit csp.mjs').toMatch(
+      /ar-modes=["']quick-look["']/,
+    )
+    // ⚠️ A POSITIVE MATCH, not "the old sentence is absent". The corrected comment
+    // QUOTES the sentence it replaced — this repo keeps its history — so a matcher
+    // hunting the old wording fails against the fix itself, which is exactly what
+    // the first draft of this test did. What must hold is that the file names the
+    // AR mode that ships; the paragraph explaining why `camera=()` is still right
+    // cannot be written without doing so.
+    expect(
+      csp,
+      'csp.mjs does not mention the AR mode Stage.tsx ships, so its Permissions-Policy ' +
+        'reasoning is about a viewer that no longer exists. See FA-O-11.',
+    ).toMatch(/ar-modes/)
+  })
+
+  it('still denies the camera, because quick-look does not need it', () => {
+    // The header itself, not the comment: the correction must not have quietly
+    // widened the policy while explaining it.
+    expect(buildHeadersFile({ apiBaseUrl: API, html: '<html></html>' })).toContain('camera=()')
   })
 })

@@ -35,6 +35,11 @@
  * DURATION was the finding: a typo, an accidental link or a crawler hung for twenty
  * seconds. 404 rather than 410, because 410 asserts the resource once existed here.
  *
+ * WHAT IT IS FOR NOW (2026-09-06). Two PDFs, on four narrow routes. The apex itself
+ * serves the marketing site from the CMS Worker; this Worker is reached only for
+ * `/catalogue*` and `/profile*` on the apex and on www. The 404 branch below still
+ * exists and still tests the allowlist property, and no production request reaches it.
+ *
  * ⚠️ Do NOT delete the apex DNS record. It must stay proxied or this Worker is never
  * reached and both PDFs stop resolving.
  *

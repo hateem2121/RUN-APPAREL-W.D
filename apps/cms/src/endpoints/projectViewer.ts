@@ -4,6 +4,7 @@ import {
   type ViewerColourway,
   type ViewerMediaAsset,
 } from '@run-apparel/shared'
+import { isAddressableColourway } from '../lib/colourwayAccess'
 
 /**
  * Pure projection from CMS documents to the public ViewerApiSuccess shape.
@@ -101,8 +102,6 @@ export function buildViewerResponse(
 
   const colourways: ViewerColourway[] = []
   for (const doc of colourwayDocs) {
-    // `active` defaults to true, so only an explicit false retires a colour.
-    if (doc.active === false) continue
     /**
      * ⚠️ THIS GUARD USED TO BE `if (!poster) continue`, AND REMOVING IT NAIVELY
      * WOULD REGRESS SOMETHING ELSE. Measured live 2026-08-21: with the poster no
@@ -118,7 +117,7 @@ export function buildViewerResponse(
      * being ADDRESSABLE: the slug is the URL segment and the string printed on the
      * physical tag, so a row without one can be neither linked nor scanned.
      */
-    if (!String(doc.slug ?? '').trim()) continue
+    if (!isAddressableColourway(doc)) continue
     const poster = toMediaAsset(doc.posterPreview, origin)
     colourways.push({
       variantId: String(doc.variantId ?? ''),

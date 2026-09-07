@@ -202,7 +202,27 @@ li {
   font-style: italic;
   font-weight: 400;
   text-transform: lowercase;
-  letter-spacing: 0;
+  /*
+   * ⚠️ `inherit`, AND IT IS NOT THE SAME AS OMITTING THE LINE BY ACCIDENT. Audit
+   * FA-C-63: this was `0` while the headline around it is tracked, so one line of type
+   * changed rhythm mid-sentence. Measured on the live page at 1440px —
+   *
+   *   .display--hero      72.0px headline tracked -2.16px  ·  accent 77.0px tracked 0
+   *   .display--section   46.0px headline tracked -1.38px  ·  accent 49.2px tracked 0
+   *
+   * — a 2.16px discontinuity per letter-pair inside a single headline.
+   *
+   * ⚠️ A TOKEN WOULD NOT HAVE FIXED IT. `--tracking-display-sm` was the obvious
+   * candidate and resolves to -1.38px at desktop: exact for the section headline and
+   * 0.78px short for the hero, because the two registers carry different tracking.
+   * `inherit` takes whatever the surrounding headline has, at every size and every
+   * breakpoint, and cannot drift from it.
+   *
+   * Owner decision 2026-09-07, shown both renderings side by side and asked to choose.
+   * The alternative — that a serif italic wants more air than a tight sans — is a real
+   * typographic argument and was the one put against it.
+   */
+  letter-spacing: inherit;
   font-size: 1.07em;
   color: var(--serif-accent);
 }
@@ -218,6 +238,20 @@ li {
 }
 
 .label {
+  /*
+   * ⚠️ NOT PROSE, SO NOT SUBJECT TO THE PROSE MEASURE. `p, li { max-width: 60ch }` above
+   * is an accessibility rule and stays exactly as it is — but `60ch` resolves against the
+   * element's OWN font, and this chip is 10px mono, so the cap computed to 361.23px at
+   * every viewport. The homepage's opening line is a `<p class="label">`, so the first
+   * thing on the company's home page broke mid-sentence after "EST." into a ragged
+   * two-step volt block inside a 1052px column — at every width from 320 to 1920
+   * (audit FA-A-01).
+   *
+   * Scoped here rather than by loosening the `p, li` rule, which the viewer's body copy
+   * depends on. Provably inert for the viewer: all ten of its `.label` uses are on
+   * `<span>`, which `p, li` never matched.
+   */
+  max-width: none;
   display: inline-block;
   font-family: var(--font-mono);
   font-size: var(--text-mono-sm);
@@ -254,8 +288,19 @@ li {
   cursor: pointer;
   /* --ui, not --fast: a control is a state that changed once, not a value that
      keeps changing. See docs/DESIGN.md §5 — the two are 20ms apart and mean
-     different things; do not collapse them. */
+     different things; do not collapse them.
+
+     ⚠️ `scale` TAKES --instant AND IS IN THIS LIST RATHER THAN A RULE OF ITS OWN.
+     tokens.css names --instant "focus responses and press feedback", and until
+     2026-09-07 the only thing using it was the skip link: the `:active { scale: 0.97 }`
+     below carried no transition at all, so the press was a hard cut and the token's
+     second half described an intention rather than the code (audit FA-H-31).
+     It cannot be a separate rule — `transition` is a shorthand, and a second
+     declaration REPLACES this list rather than adding to it, which would silently
+     drop the four transitions above. This also changes the LIVE VIEWER's button
+     feel, deliberately: one system, one press. */
   transition:
+    scale var(--instant) var(--ease),
     transform var(--ui) var(--ease),
     background-color var(--ui) var(--ease),
     color var(--ui) var(--ease),
@@ -372,8 +417,13 @@ li {
        motion-sensitive visitor experiences as the page not responding. The
        negative animation-delay is the conventional value and is deliberate: it
        starts an animation already past its own end, so the element lands in its
-       final state rather than playing a 0.01ms flicker. Added 2026-08-14; it
-       matters more now that --stagger has a documented use. */
+       final state rather than playing a 0.01ms flicker. Added 2026-08-14.
+       ⚠️ This used to end "it matters more now that --stagger has a documented
+       use." That was false when it was written and stayed false for three weeks:
+       nothing ever read --stagger, and the token was deleted on 2026-09-07. The
+       two declarations below are unaffected and still earn their place — they
+       collapse a delay from ANY source, which is the case that actually reaches a
+       motion-sensitive visitor. */
     transition-delay: 0s !important;
     animation-delay: -0.01ms !important;
   }

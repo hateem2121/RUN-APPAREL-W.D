@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Assert the apex actually serves the two customer-facing PDFs.
+ * Assert the apex serves the marketing site and the two customer-facing PDFs.
  *
  * WHY THIS EXISTS. `.github/workflows/uptime.yml` asserted that
  * `https://wear-run.help/catalogue` returns a **301**. On 2026-08-28 the catalogue
@@ -65,7 +65,7 @@ const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
  * @typedef {{
  *   name: string,
  *   url: string,
- *   kind: 'pdf' | 'not-found',
+ *   kind: 'pdf' | 'site',
  * }} ApexTarget
  */
 
@@ -78,9 +78,9 @@ const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
 export const TARGETS = [
   { name: 'catalogue', url: 'https://wear-run.help/catalogue', kind: 'pdf' },
   { name: 'profile', url: 'https://wear-run.help/profile', kind: 'pdf' },
-  // The bare apex must keep 404ing fast rather than hanging — the original reason
-  // this Worker exists (it returned 522 after 20.2 s until 2026-08-19).
-  { name: 'apex root', url: 'https://wear-run.help/', kind: 'not-found' },
+  // The apex serves the MARKETING SITE since 2026-09-06 (it 404'd by design before).
+  // A 404 here now means the CMS Worker lost its wildcard route to the PDF Worker.
+  { name: 'apex root', url: 'https://wear-run.help/', kind: 'site' },
 ]
 
 /**
@@ -93,7 +93,8 @@ export const TARGETS = [
  *   contentType?: string,
  *   totalBytes?: number,
  *   magic?: string,
- *   kind: 'pdf' | 'not-found',
+ *   wordmark?: boolean,
+ *   kind: 'pdf' | 'site',
  *   cache?: string,
  *   error?: string,
  * }[]} observations
@@ -123,12 +124,24 @@ export function evaluate(observations) {
       continue
     }
 
-    if (o.kind === 'not-found') {
-      if (o.status !== 404) {
-        failures.push(`${o.name}: expected 404, got HTTP ${o.status}.`)
-        lines.push(`  ${label} ${o.status}    FAIL (expected 404)`)
+    if (o.kind === 'site') {
+      const problems = []
+      if (o.status !== 200) {
+        problems.push(
+          `HTTP ${o.status}, expected 200 — the marketing site should answer here. A 404 means ` +
+            'the CMS Worker no longer holds the wear-run.help/* wildcard route.',
+        )
       } else {
-        lines.push(`  ${label} 404    ok`)
+        if (!String(o.contentType ?? '').includes('text/html')) {
+          problems.push(`content-type is "${o.contentType ?? '(none)'}", expected text/html`)
+        }
+        if (o.wordmark !== true) problems.push('the body does not contain "RUN APPAREL"')
+      }
+      if (problems.length > 0) {
+        failures.push(`${o.name}: ${problems.join('; ')}.`)
+        lines.push(`  ${label} ${o.status}    FAIL  ${problems.join('; ')}`)
+      } else {
+        lines.push(`  ${label} 200    ok  the site  cf-cache-status: ${o.cache ?? '(none)'}`)
       }
       continue
     }
@@ -191,6 +204,9 @@ async function probe(target) {
     // Only the first bytes are needed, and only 1024 were requested.
     const buffer = await response.arrayBuffer().catch(() => new ArrayBuffer(0))
     const magic = new TextDecoder().decode(buffer.slice(0, 5))
+    // The CMS ignores `Range`, so the whole page arrives — about 30 KB.
+    const wordmark =
+      target.kind === 'site' ? new TextDecoder().decode(buffer).includes('RUN APPAREL') : undefined
 
     return {
       name: target.name,
@@ -199,6 +215,7 @@ async function probe(target) {
       contentType: response.headers.get('content-type') ?? undefined,
       totalBytes: Number.isFinite(totalBytes) ? totalBytes : undefined,
       magic,
+      wordmark,
       cache: response.headers.get('cf-cache-status') ?? '(none)',
     }
   } catch (error) {
@@ -251,7 +268,7 @@ async function main() {
     for (const failure of failures) console.error(`::error::${failure}`)
     process.exit(1)
   }
-  console.log('[apex-probe] both PDFs serve, and the bare apex still 404s.')
+  console.log('[apex-probe] both PDFs serve, and the apex serves the site.')
 }
 
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {

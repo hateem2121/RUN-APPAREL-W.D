@@ -14,9 +14,9 @@ on:
     # 5 minutes (3x more often) and costs no Actions minutes. What stayed here is
     # the part that service CANNOT do: smoke-viewer-payload.mjs resolves the
     # model URL out of the live API payload and fetches it, so a garment that
-    # silently lost its GLB is caught; and apex-probe.mjs asserts the catalogue
-    # and profile PDFs actually serve. Neither is expressible as an HTTP or
-    # keyword check.
+    # silently lost its GLB is caught; and apex-probe.mjs asserts the marketing
+    # site answers on the apex and the catalogue and profile PDFs actually serve.
+    # Neither is expressible as an HTTP or keyword check.
     #
     # ⚠️ This said "the catalogue probe asserts the redirect still lands on the
     # PDF" until 2026-08-30. It never did — the old check tested only that a 3xx
@@ -190,6 +190,7 @@ jobs:
             # floor + the `%PDF-` magic number — because an error page can be served
             # 200 with a coerced content-type. It resolves the URL from the live CMS
             # payload rather than keeping a second copy of a value the CMS owns.
+            # Since 2026-09-06 it also asserts the apex root serves the SITE (200, HTML, wordmark).
             node scripts/apex-probe.mjs || ok=false
 
             # The zone's SECURITY posture, which lives in Cloudflare's control plane

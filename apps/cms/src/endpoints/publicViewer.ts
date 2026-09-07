@@ -3,6 +3,7 @@ import { normalizeSlug } from '@run-apparel/shared'
 import { convertLexicalToHTML } from '@payloadcms/richtext-lexical/html'
 import type { Endpoint, PayloadRequest } from 'payload'
 import { buildViewerResponse } from './projectViewer'
+import { readViewerCache, viewerCacheKey, writeViewerCache } from './viewerCache'
 
 /**
  * GET /api/public/viewer/:productSlug/:colourSlug
@@ -117,6 +118,25 @@ const buildHandler =
         ? process.env.CMS_PUBLIC_URL.replace(/\/$/, '')
         : new URL(req.url ?? 'http://localhost').origin
 
+    /*
+     * ⚠️ BEFORE THE DATABASE, WHICH IS THE ENTIRE POINT. Measured 2026-09-06, five samples
+     * per URL: this endpoint answers in 1,178–1,291 ms against 41–49 ms for the viewer's
+     * own HTML and 37–42 ms for the model — 25× slower than anything else on the page, and
+     * not a cold start. Isolated against `/api/health` on the same host (265–338 ms),
+     * ~900 ms of it is the two D1 reads below plus the projection.
+     *
+     * The poster's address only arrives in this answer, so nothing on the page can paint
+     * until it does. See viewerCache.ts for why the BODY is cached and the Response is
+     * not, and for the honest limit: a first scan of a cold isolate is unaffected.
+     */
+    const cacheKey = viewerCacheKey(origin, productSlug, colourSlug)
+    const cached = readViewerCache(cacheKey)
+    if (cached) {
+      return Response.json(cached, {
+        headers: { 'Cache-Control': PUBLIC_CACHE_CONTROL, Vary: ORIGIN_VARY },
+      })
+    }
+
     const products = await req.payload.find({
       collection: 'products',
       where: {
@@ -158,6 +178,10 @@ const buildHandler =
     if (!body) {
       return notFound('This product reference is not currently available.')
     }
+
+    // Only a successful projection is stored. A 404 or a D1 wobble stays a bad request
+    // rather than becoming a bad minute — the same rule src/lib/content.ts follows.
+    writeViewerCache(cacheKey, body)
 
     return Response.json(body, {
       headers: {

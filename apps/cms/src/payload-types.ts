@@ -119,6 +119,7 @@ export interface Config {
     'raw-uploads': RawUpload;
     products: Product;
     events: Event;
+    inquiries: Inquiry;
     'payload-kv': PayloadKv;
     'payload-folders': FolderInterface;
     'payload-locked-documents': PayloadLockedDocument;
@@ -139,6 +140,7 @@ export interface Config {
     'raw-uploads': RawUploadsSelect<false> | RawUploadsSelect<true>;
     products: ProductsSelect<false> | ProductsSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
+    inquiries: InquiriesSelect<false> | InquiriesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-folders': PayloadFoldersSelect<false> | PayloadFoldersSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -507,6 +509,33 @@ export interface Event {
   createdAt: string;
 }
 /**
+ * Messages sent through the form on the contact page. Every one is saved here BEFORE the notification email is attempted, so a mail problem can never lose an inquiry — if the email did not arrive, the message is still on this screen.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "inquiries".
+ */
+export interface Inquiry {
+  id: number;
+  name: string;
+  company?: string | null;
+  email: string;
+  message: string;
+  /**
+   * The one field on this screen you are meant to change.
+   */
+  status: 'new' | 'replied' | 'archived';
+  /**
+   * Whether the notification email was accepted for delivery.
+   */
+  notified?: boolean | null;
+  /**
+   * Why the notification could not be sent, if it could not. The inquiry itself is unaffected — it is the message above.
+   */
+  notifyError?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -549,6 +578,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'events';
         value: number | Event;
+      } | null)
+    | ({
+        relationTo: 'inquiries';
+        value: number | Inquiry;
       } | null)
     | ({
         relationTo: 'payload-folders';
@@ -750,6 +783,21 @@ export interface EventsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "inquiries_select".
+ */
+export interface InquiriesSelect<T extends boolean = true> {
+  name?: T;
+  company?: T;
+  email?: T;
+  message?: T;
+  status?: T;
+  notified?: T;
+  notifyError?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv_select".
  */
 export interface PayloadKvSelect<T extends boolean = true> {
@@ -816,9 +864,72 @@ export interface SiteSetting {
    * Kept on record only. The website has had no “Catalogue” button since 4 September 2026 — these product pages are indexed by Google and the catalogue is a 54 MB trade PDF. Changing this does not change anything a visitor sees.
    */
   catalogueUrl: string;
+  /**
+   * The little picture on the browser tab. Leave this empty and the built-in RUN mark is used. A SQUARE picture works best — a wide logo gets squashed into a tiny square and becomes unreadable. Around 512 x 512 is plenty. Upload it under Photos & 3D files first, then pick it here.
+   */
+  logo?: (number | null) | Media;
+  /**
+   * The brand name in the top bar. Short is better: on the narrowest phones only about 12 characters fit, and a longer name is shortened with "…" there. The page layout is safe either way.
+   */
   temporaryWordmark: string;
   footerLine: string;
   legalLine: string;
+  /**
+   * The green tab at the top of the footer. Links to the Contact page.
+   */
+  ctaLabel: string;
+  /**
+   * The big question. The LAST word is set in italic green automatically.
+   */
+  ctaQuestion: string;
+  ctaSubline: string;
+  /**
+   * Drawn as a measurement line under the question. This is a promise in writing.
+   */
+  ctaPromise: string;
+  /**
+   * Facts a buyer wants before they write to you. Every box is optional and the footer hides what is blank. The clock light ("Open now") is worked out from the hours — leave them blank and no light is shown.
+   */
+  capacity?: {
+    /**
+     * e.g. "50 pcs per style"
+     */
+    moq?: string | null;
+    /**
+     * e.g. "4–6 weeks from approval"
+     */
+    leadTime?: string | null;
+    hoursFirstDay?: ('mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun') | null;
+    hoursLastDay?: ('mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun') | null;
+    /**
+     * HH:MM, Sialkot time
+     */
+    hoursOpen?: string | null;
+    /**
+     * HH:MM, Sialkot time
+     */
+    hoursClose?: string | null;
+  };
+  /**
+   * Optional, shown under the address. e.g. "32.49° N · 74.52° E". Only if you know it is right.
+   */
+  worksCoordinates?: string | null;
+  /**
+   * Only standards you actually hold. Each one is a claim buyers may ask you to prove.
+   */
+  certifications?:
+    | {
+        name: string;
+        id?: string | null;
+      }[]
+    | null;
+  socialLinks?:
+    | {
+        label: string;
+        url: string;
+        id?: string | null;
+      }[]
+    | null;
   /**
    * Reference copy of the enquiry template the viewer generates for email/WhatsApp. Tokens: [Product Name], [Product Code], [Colour].
    */
@@ -898,9 +1009,38 @@ export interface SiteSettingsSelect<T extends boolean = true> {
   email?: T;
   whatsappNumber?: T;
   catalogueUrl?: T;
+  logo?: T;
   temporaryWordmark?: T;
   footerLine?: T;
   legalLine?: T;
+  ctaLabel?: T;
+  ctaQuestion?: T;
+  ctaSubline?: T;
+  ctaPromise?: T;
+  capacity?:
+    | T
+    | {
+        moq?: T;
+        leadTime?: T;
+        hoursFirstDay?: T;
+        hoursLastDay?: T;
+        hoursOpen?: T;
+        hoursClose?: T;
+      };
+  worksCoordinates?: T;
+  certifications?:
+    | T
+    | {
+        name?: T;
+        id?: T;
+      };
+  socialLinks?:
+    | T
+    | {
+        label?: T;
+        url?: T;
+        id?: T;
+      };
   inquiryTemplate?:
     | T
     | {

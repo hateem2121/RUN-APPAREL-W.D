@@ -79,6 +79,22 @@
   padding-bottom: max(var(--action-bar-h), 4.5rem);
 }
 
+/*
+ * The page wrapper takes focus when the preloader leaves (`App.tsx`, audit
+ * FA-H-26), so that the next Tab starts at the top of the document — at the skip
+ * link — instead of inside <main>, past the header.
+ *
+ * It carries `tabindex="-1"`, so nothing a visitor does can focus it; the only
+ * focus it ever receives is that one programmatic call. A ring around the entire
+ * page would therefore only ever be noise, and in Firefox — which can match
+ * `:focus-visible` on a programmatic focus when the last interaction was the
+ * keyboard, e.g. Enter in the address bar — it would be noise on arrival. Every
+ * control INSIDE the page keeps the global `:focus-visible` ring from base.css.
+ */
+.page:focus {
+  outline: none;
+}
+
 @media (min-width: 900px) {
   .page {
     padding-bottom: 0;
@@ -132,16 +148,68 @@
    * gutter, and the inset only needs to WIN when it is larger. Adding them would
    * push content 16px further in than intended on every notched phone.
    */
+  /*
+   * ⚠️ THE THIRD TERM IS THE CONTENT COLUMN, ADDED 2026-09-07 (audit FA-D-08).
+   *
+   * This row is full-bleed and everything under it is a 1200px measure centred in
+   * the page, and the two insets were computed independently. They agree until the
+   * viewport passes 1200px and then diverge — measured on the built app, x of the
+   * wordmark against x of `.footer__inner` (which is the same 1200px measure):
+   *
+   *     390   16.0 / 16.0     768   30.7 / 30.7     1024  41.0 / 41.0
+   *     1280  48.0 / 48.0     1440  48.0 / 120.0    1920  48.0 / 360.0
+   *
+   * So from 1200px up the wordmark hung 72px to the left of the page it sits on,
+   * growing to 312px on a 1920 monitor. `max()` of the clamp and the half-gutter is
+   * exactly the footer's own edge at every one of those widths — the two formulas
+   * are equal below 1296px, where the clamp's 48px ceiling and (100% - 1200) / 2
+   * cross — so nothing below 1200 moves.
+   *
+   * The `env()` term stays outermost for the reason above: it must WIN when a notch
+   * is wider than either, and `max()` of all three is the only ordering that does
+   * that regardless of which one is largest.
+   */
   padding-top: 12px;
   padding-bottom: 12px;
-  padding-left: max(clamp(16px, 4vw, 48px), env(safe-area-inset-left, 0px));
-  padding-right: max(clamp(16px, 4vw, 48px), env(safe-area-inset-right, 0px));
+  padding-left: max(
+    clamp(16px, 4vw, 48px),
+    calc((100% - 1200px) / 2),
+    env(safe-area-inset-left, 0px)
+  );
+  padding-right: max(
+    clamp(16px, 4vw, 48px),
+    calc((100% - 1200px) / 2),
+    env(safe-area-inset-right, 0px)
+  );
   background: color-mix(in oklab, var(--bg) 88%, transparent);
   backdrop-filter: blur(8px); /* the single allowed blurred sticky header */
   border-bottom: 1px solid var(--line);
 }
 
+/*
+ * ⚠️ THIS IS AN <a> AGAIN SINCE 2026-09-07 (owner decision D5) — the four-step
+ * history is on the element itself in `Header.tsx`. The rule already carried
+ * `text-decoration: none` and `color: var(--text)` from the last time it was a
+ * link, so the only thing that changes here is the press/hover/target treatment.
+ *
+ * `padding-block`, and the numbers are measured rather than reasoned — the first
+ * version of this comment claimed the link's box was 19px and needed rescuing. It
+ * did not. Measured in the built app at 375x812, all four engines:
+ *
+ *     without padding-block   24.8 x 143.5   header 69.0
+ *     with    padding-block   32.8 x 143.5   header 69.0
+ *
+ * So it already cleared WCAG 2.5.8's 24px floor — by 0.8px, on a number produced
+ * by a font's line box. That is a coincidence, not an invariant, and this file's
+ * history is a list of margins that thin being spent by the next change. 8px of
+ * padding costs the header NOTHING (the 44px theme toggle sets the row's height)
+ * and costs the width nothing (`padding-block` only), which is what the
+ * 351px-of-343px arithmetic above depends on.
+ */
 .header__wordmark {
+  display: inline-flex;
+  align-items: center;
+  padding-block: 4px;
   font-family: var(--font-display);
   font-weight: 900;
   font-stretch: 122%;
@@ -151,6 +219,15 @@
   color: var(--text);
   text-decoration: none;
   white-space: nowrap;
+  transition: color var(--ui) var(--ease);
+}
+
+/* Pointer-gated like every other hover in this file: an ungated :hover STICKS
+   after a tap on a phone, which is the device a QR tag is scanned with. */
+@media (hover: hover) and (pointer: fine) {
+  .header__wordmark:hover {
+    color: var(--dimension);
+  }
 }
 
 .header__tag {
@@ -250,7 +327,17 @@
   border-radius: var(--radius-pill);
   border: 1.4px solid var(--line);
   color: var(--text);
+  /* ⚠️ `scale` TAKES --instant AND IS IN THIS LIST RATHER THAN A RULE OF ITS OWN.
+     `base.css` sets `:active { scale: 0.97 }` for this control, and until 2026-09-07
+     no transition covered it, so both edges of the press were hard cuts at 0ms —
+     measured six frames at 0.97 after pointerdown and six at `none` after pointerup
+     (audit FA-H-31). tokens.css names --instant "focus responses and press
+     feedback"; the focus half honoured it and the press half did not.
+     It CANNOT be a separate declaration: `transition` is a shorthand, and a second
+     one REPLACES this list rather than adding to it — which would silently drop the
+     colour transitions above. Same fix, same wording, as `.btn` in base.css. */
   transition:
+    scale var(--instant) var(--ease),
     background-color var(--ui) var(--ease),
     color var(--ui) var(--ease);
 }
@@ -1211,6 +1298,38 @@ model-viewer.stage__model {
   text-align: right;
 }
 
+/*
+ * The bottom pair shares one baseline — audit FA-D-07, and the account of what it
+ * fixes is on the markup in `Stage.tsx`.
+ *
+ * `bottom: 18%` is the SAME anchor the two boxes carried individually, so the row's
+ * bottom edge lands where theirs did (measured 686.7 at 1440x900, before and
+ * after); `align-items: flex-start` is the whole fix. `left`/`right: 3%` reproduce
+ * the two inline offsets exactly — measured x 144.0 and right edge 896.0 in an
+ * 800px canvas at x 120, both unchanged.
+ *
+ * `margin-left: auto` rather than `justify-content: space-between`, because either
+ * half can be absent: a lone [ PERFORMANCE ] must stay on the right, and
+ * space-between would put it on the left.
+ */
+.stage__callouts-bottom {
+  position: absolute;
+  left: 3%;
+  right: 3%;
+  bottom: 18%;
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.stage__callouts-bottom .callout {
+  position: static;
+}
+
+.stage__callouts-bottom .callout--right {
+  margin-left: auto;
+}
+
 .callout .label {
   margin-bottom: 4px;
 }
@@ -1333,7 +1452,17 @@ model-viewer.stage__model {
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--text);
+  /* ⚠️ `scale` TAKES --instant AND IS IN THIS LIST RATHER THAN A RULE OF ITS OWN.
+     `base.css` sets `:active { scale: 0.97 }` for this control, and until 2026-09-07
+     no transition covered it, so both edges of the press were hard cuts at 0ms —
+     measured six frames at 0.97 after pointerdown and six at `none` after pointerup
+     (audit FA-H-31). tokens.css names --instant "focus responses and press
+     feedback"; the focus half honoured it and the press half did not.
+     It CANNOT be a separate declaration: `transition` is a shorthand, and a second
+     one REPLACES this list rather than adding to it — which would silently drop the
+     colour transitions above. Same fix, same wording, as `.btn` in base.css. */
   transition:
+    scale var(--instant) var(--ease),
     background-color var(--ui) var(--ease),
     color var(--ui) var(--ease);
 }
@@ -1792,20 +1921,70 @@ model-viewer.stage__model {
 }
 
 /*
- * ⚠️ WRAPS, never scrolls. `overflow-x: auto` here until 2026-08-15 was the thing
- * that hid three of five colourways at 375px (see the phone rule below) — and the
- * same valve was still open on desktop for any garment with enough colourways to
- * exceed the measure. A rail that scrolls with no affordance hides product.
+ * ⚠️ NEVER SCROLLS. `overflow-x: auto` here until 2026-08-15 was the thing that hid
+ * three of five colourways at 375px (see the phone rule below) — and the same valve
+ * was still open on desktop for any garment with enough colourways to exceed the
+ * measure. A rail that scrolls with no affordance hides product.
  *
- * Measured 2026-08-15 on N001: the five pills are 606.6px intrinsic against 854px
- * of room at a 900px viewport, so wrapping never triggers today. That is the point
- * — the sixth colourway now starts a second line instead of disappearing.
+ * ⚠️ AND IT IS A GRID AT EVERY WIDTH SINCE 2026-09-07, NOT A WRAPPING FLEX ROW —
+ * audit FA-E-51. It was `display: flex; flex-wrap: wrap` here, with the grid
+ * declared only inside `@container colourrail (max-width: 500px)` below. That left
+ * ONE band on the flex branch: a rail wider than 500px that still spans the page,
+ * which after the two-column layout arrives at 900px means tablet portrait and
+ * nothing else. There, five pills of natural width wrap by CONTENT: measured on
+ * the live site at 768 and 834, r-aj, r-ajm, r-css and r-wzu each laid out 4 + 1 —
+ * one swatch alone beside three empty cells, while rxps (five single-word names)
+ * never did. Nothing overflowed, nothing was covered, and every clearance
+ * assertion passed.
+ *
+ * The grid is what makes that unreachable rather than unlikely: with `auto-fit`,
+ * empty tracks COLLAPSE, so five items in a rail that fits five tracks is always
+ * five equal columns and one row — the label length stops deciding the layout.
+ * That is the same mechanism the phone rail has used since 2026-08-20; this only
+ * stops it switching off above 500px.
+ *
+ * ⚠️ TUNED FOR FIVE, WHICH IS WHAT ALL ELEVEN PRODUCTS SHIP. `auto-fit` collapses
+ * to the item count, so a two-colourway product would get two half-width cells
+ * rather than two pills. The `(max-width: 300px)` rule below already carries the
+ * same warning for the same reason; re-tune both against a real product before
+ * publishing one with a different count.
  *
  * `padding: 4px; margin: -4px` is the focus-ring bleed allowance, not spacing.
  */
 .colourways__list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  /*
+   * ⚠️ 92px -> 52px, AND IT IS THE REMOVED "01/02/03" PREFIX THAT PAID FOR IT.
+   * (This lived inside the `@container colourrail (max-width: 500px)` block until
+   * 2026-09-07; it moved with the declaration it explains.)
+   *
+   * Measured at 402x714: the widest tab needed 67.2px with the number and 51.7px
+   * without. Five tabs plus four 8px gaps therefore went from 368px of required
+   * width to 290.5px — and the narrowest container this rail ever gets, a 320px
+   * phone, offers 300.8px. So five swatches fit ONE ROW at every phone width
+   * instead of only at 402px and above.
+   *
+   * That is why this is one value again. A second `@container` branch existed for
+   * a day, switching floors at 370px because no single value served both 375 and
+   * 402; deleting the number deleted the need for it.
+   *
+   * 52, not less: it is the LARGEST floor that still fits five at 320px, so the
+   * tabs stay as wide as they can be. 48px measures identically at every width,
+   * which is the sign that 52 is the stopping point, not a guess.
+   *
+   * Garment height, measured, floor 92 -> 52 with five colourways:
+   *     320: 235 -> 296   360: 427 -> 488   375: 459 -> 520
+   *     402: 361 -> 421   414: 543 -> 603
+   *
+   * ⚠️ TUNED FOR FIVE, WHICH IS WHAT SHIPS. `auto-fit` fits five columns at 320px,
+   * so a product with SIX colourways lays out 5 + 1 there — one tab alone.
+   * `motion-and-layout.spec.ts` -> "never strands a single swatch" is the guard;
+   * if a six-colourway product is ever published, extend it first and re-tune this
+   * floor against it. (That guard used to append a fifth swatch itself, because the
+   * fixture shipped four; serve.mjs has shipped five since 2026-08-30 and the
+   * append is gone.)
+   */
+  grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
   gap: 8px;
   padding: 4px;
   margin: -4px;
@@ -1815,6 +1994,11 @@ model-viewer.stage__model {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
+  /* Centred since 2026-09-07: the list is a grid at every width now, so the tab is
+     stretched to its track rather than shrink-wrapped around its own label. Without
+     this the swatch and the name hug the left edge of a cell that may be twice as
+     wide as they are. Inert in the compact branch below, which already centres. */
+  justify-content: center;
   gap: 8px;
   min-height: 44px;
   padding: 10px 16px;
@@ -1825,7 +2009,17 @@ model-viewer.stage__model {
   letter-spacing: var(--tracking-caps-tight);
   text-transform: uppercase;
   color: var(--text);
+  /* ⚠️ `scale` TAKES --instant AND IS IN THIS LIST RATHER THAN A RULE OF ITS OWN.
+     `base.css` sets `:active { scale: 0.97 }` for this control, and until 2026-09-07
+     no transition covered it, so both edges of the press were hard cuts at 0ms —
+     measured six frames at 0.97 after pointerdown and six at `none` after pointerup
+     (audit FA-H-31). tokens.css names --instant "focus responses and press
+     feedback"; the focus half honoured it and the press half did not.
+     It CANNOT be a separate declaration: `transition` is a shorthand, and a second
+     one REPLACES this list rather than adding to it — which would silently drop the
+     colour transitions above. Same fix, same wording, as `.btn` in base.css. */
   transition:
+    scale var(--instant) var(--ease),
     border-color var(--ui) var(--ease),
     background-color var(--ui) var(--ease),
     color var(--ui) var(--ease);
@@ -1841,6 +2035,43 @@ model-viewer.stage__model {
   border-radius: 50%;
   border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper) 55%, transparent);
+}
+
+/*
+ * ⚠️ A COLOUR NAME IS CMS CONTENT AND THE CELL IS A FIXED SHARE OF THE RAIL, so the
+ * two are set independently and one of them already lost — audit FA-E-08.
+ *
+ * Measured on the live site at 1440x900: the rail in the aside is 368px holding
+ * five equal 65.6px cells, and on r-ajm "TERRACOTTA" rendered 66.2px — 0.3px past
+ * its own tab's right border, into the neighbour. `.colourway-tab` is
+ * `overflow: visible`, so nothing was clipped and nothing was unreadable; the
+ * finding is that the rail has ZERO slack, and the input is
+ * `tools/asset-pipeline/src/variant-colour.ts` reading a name out of a garment
+ * file — it changes without a code change.
+ *
+ * ⚠️ `anywhere`, AND `break-word` WAS TRIED FIRST AND MEASURED TO DO NOTHING.
+ * The two differ in exactly one way — `anywhere` affects INTRINSIC (min-content)
+ * sizing and `break-word` does not — and that is the whole mechanism here. This
+ * label is a flex item centred in its tab, so its width is its fit-content size,
+ * and fit-content is floored by min-content. With `break-word` the min-content of
+ * "TERRACOTTA" is still the whole unbreakable word, so the LABEL BOX itself
+ * measured 66.2px inside a 53.6px content area and the text never wrapped:
+ *
+ *     break-word   label box 66.2px   1 line    0.3px past the tab's border
+ *     anywhere     label box 53.6px   2 lines   inside its own tab
+ *
+ * Both values read off the built app at 1440x900. `break-word` looks like the
+ * conservative choice and is, here, the inert one — the test in
+ * `motion-and-layout.spec.ts` failed against it, which is the only reason this is
+ * the right property rather than a plausible one.
+ *
+ * Neither breaks a name that fits: a break happens only when the line would
+ * overflow. A broken long name is worse-looking than a short one and better than a
+ * name crossing into the swatch beside it, which is the choice actually on offer
+ * while the cells divide a fixed width by the colourway count.
+ */
+.colourway-tab__label {
+  overflow-wrap: anywhere;
 }
 
 /* Same shape as `.camera-btn` above: `[aria-selected="true"]` below is real
@@ -2446,38 +2677,15 @@ model-viewer.stage__model {
  * existing `svh` floor of Safari 15.4 and the iOS 16.4 oldest testable runtime.
  */
 @container colourrail (max-width: 500px) {
-  .colourways__list {
-    display: grid;
-    /*
-     * ⚠️ 92px -> 52px, AND IT IS THE REMOVED "01/02/03" PREFIX THAT PAID FOR IT.
-     *
-     * Measured at 402x714: the widest tab needed 67.2px with the number and
-     * 51.7px without. Five tabs plus four 8px gaps therefore went from 368px of
-     * required width to 290.5px — and the narrowest container this rail ever
-     * gets, a 320px phone, offers 300.8px. So five swatches now fit ONE ROW at
-     * every phone width instead of only at 402px and above.
-     *
-     * That is why this is one rule again. A second `@container` branch existed
-     * here for a day, switching floors at 370px because no single value served
-     * both 375 and 402; deleting the number deleted the need for it.
-     *
-     * 52, not less: it is the LARGEST floor that still fits five at 320px, so
-     * the tabs stay as wide as they can be. 48px measures identically at every
-     * width, which is the sign that 52 is the stopping point, not a guess.
-     *
-     * Garment height, measured, floor 92 -> 52 with five colourways:
-     *     320: 235 -> 296   360: 427 -> 488   375: 459 -> 520
-     *     402: 361 -> 421   414: 543 -> 603
-     *
-     * ⚠️ TUNED FOR FIVE, WHICH IS WHAT SHIPS. `auto-fit` fits five columns at
-     * 320px, so a product with SIX colourways lays out 5 + 1 there — one tab
-     * alone. The guard in motion-and-layout.spec.ts appends a fifth swatch
-     * because the fixture has four; if a six-colourway product is ever
-     * published, extend that guard first and re-tune this floor against it.
-     */
-    grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
-    gap: 8px;
-  }
+  /*
+   * ⚠️ THE COLUMNS LEFT THIS BLOCK ON 2026-09-07 and now sit on the base
+   * `.colourways__list` rule, because the flex branch they used to leave behind
+   * above 500px was where the rail stranded a swatch (audit FA-E-51; the whole
+   * account is on that rule). The `minmax(52px, 1fr)` floor did not change, and
+   * the measurement that produced it is up there with it. What stays here is
+   * everything that is genuinely about a NARROW rail: the stacked tab, the bigger
+   * swatch, the wrapping label.
+   */
 
   /* A swatch is the only thing on this control that carries meaning at a glance,
      so it gets the space rather than the label. 16px, not the 18px used while this
@@ -2544,11 +2752,29 @@ model-viewer.stage__model {
  * Three columns give (260 - 2x8) / 3 = 81.3px instead: wider tabs, fewer label
  * lines, and a last row of two. Cramming was the worse answer at every measure.
  *
- * 300px, not 280 or 320: the aside measures 260-261 and the narrowest phone rail
- * measures 320. Any threshold in between works; 300 sits in the middle of a 60px
- * gap rather than against either edge.
+ * ⚠️ 280px, AND 300px WAS 0.8px FROM BREAKING IN SAFARI — corrected 2026-09-07.
+ *
+ * This comment used to read: "300px, not 280 or 320: the aside measures 260-261 and
+ * the narrowest phone rail measures 320. Any threshold in between works; 300 sits in
+ * the middle of a 60px gap rather than against either edge."
+ *
+ * The arithmetic compared the wrong two numbers. A container query is evaluated
+ * against the CONTAINER's content box, not against the rail it lays out — and at a
+ * 320px viewport that box measures **300.80px**, not 320. So the real gap was
+ * 260.x to 300.8, and 300 sat 0.8px below its upper edge rather than in the middle
+ * of anything.
+ *
+ * Measured: Chromium and Firefox read 300.80 as above the threshold and lay out five
+ * columns; **WebKit does not, and produced a 3 + 2 rail at exactly 320px**. All three
+ * agree from 321px up. 320px is the WCAG 1.4.10 reflow width AND what a 1280px desktop
+ * shows at the 400% zoom that criterion requires, and WebKit is the engine a QR scan
+ * opens in on an iPhone — so this was the one width and the one engine that mattered
+ * most, disagreeing by less than a pixel.
+ *
+ * 280 is the actual midpoint of the measured range (260.x - 300.8), leaving ~19px of
+ * margin on each side instead of 0.8px on one.
  */
-@container colourrail (max-width: 300px) {
+@container colourrail (max-width: 280px) {
   .colourways__list {
     grid-template-columns: repeat(3, 1fr);
   }
