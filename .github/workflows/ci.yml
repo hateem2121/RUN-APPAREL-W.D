@@ -159,6 +159,12 @@ jobs:
       - name: Bundle preload guard (needs the build above)
         run: pnpm --filter @run-apparel/viewer test:preload
 
+      # The three host rules that give the marketing site ONE address, read back from
+      # .next/routes-manifest.json. Same reason as the preload guard: a config rule that
+      # did not reach the build is the Vary failure shape, and only the build can say.
+      - name: Host rules guard (needs the build above)
+        run: pnpm --filter @run-apparel/cms test:routes
+
       # Deterministic weight budget for the viewer shell. This is inside `verify`,
       # which IS in the deploy's `needs:` list — unlike the `lighthouse` job, which
       # measures the same thing better but needs Chrome and is therefore

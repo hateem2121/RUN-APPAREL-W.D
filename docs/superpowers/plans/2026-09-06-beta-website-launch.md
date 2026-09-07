@@ -385,7 +385,7 @@ git commit -m "feat(cms): SITE_INDEXING — a deploy-time switch that keeps the 
 - Consumes: `sourceMatches(source, pathname)` from `apps/cms/publicViewerHeaders.mjs`.
 - Produces: `SITE_HOST`, `WWW_HOST`, `CMS_HOST`, `hostPattern(host)`, `CMS_PUBLIC_PATHS`, `BLOCKED_PREFIX`, `siteRedirects()`, `siteRewrites()`, `routeFor(host, pathname)` → `{ kind: 'redirect' | 'rewrite' | 'serve', to?: string }`. Tasks 4 and 6 use the exact statuses: redirects are `permanent` (308); the rewrite yields the branded 404.
 
-- [ ] **Step 1: Write the failing model tests**
+- [x] **Step 1: Write the failing model tests**
 
 apps/cms/src/siteHostRules.test.ts:
 
@@ -473,12 +473,12 @@ describe('routeFor — what each hostname does with a path', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `cd apps/cms && npx --yes pnpm@10.33.0 exec vitest run src/siteHostRules.test.ts`
 Expected: FAIL — cannot resolve `../siteHostRules.mjs`.
 
-- [ ] **Step 3: Write the module**
+- [x] **Step 3: Write the module**
 
 apps/cms/siteHostRules.mjs:
 
@@ -586,12 +586,12 @@ export function routeFor(host, pathname) {
 
 Note on `fill`: for the www rule (`source: '/:path*'`, prefix `''`), `/` maps to `https://wear-run.help/` and `/products` to `https://wear-run.help/products`; for `/admin/:path*` (prefix `/admin`), `/admin/x` maps to `/_not-here/admin/x`. `sourceMatches` treats `/:path*` as "this prefix, then optionally a slash and anything", so `/administration` does not match `/admin/:path*` and is served — the test above pins that.
 
-- [ ] **Step 4: Run the model tests**
+- [x] **Step 4: Run the model tests**
 
 Run: `cd apps/cms && npx --yes pnpm@10.33.0 exec vitest run src/siteHostRules.test.ts`
 Expected: PASS, 8 tests. If `sourceMatches` rejects `/:path*` at the root (`source: '/:path*'` → pattern `^(?:/.*)?$`), `/` and `/products` both match — confirm by the passing test rather than by reading.
 
-- [ ] **Step 5: Wire the rules into Next**
+- [x] **Step 5: Wire the rules into Next**
 
 In `apps/cms/next.config.mjs`, add the import:
 
@@ -618,7 +618,7 @@ and inside `nextConfig`, after `headers()`:
   },
 ```
 
-- [ ] **Step 6: Write the failing manifest guard**
+- [x] **Step 6: Write the failing manifest guard**
 
 apps/cms/src/hostRulesManifest.test.ts:
 
@@ -674,16 +674,16 @@ describe('the build carries every host rule', () => {
 })
 ```
 
-- [ ] **Step 7: Build and run the guard**
+- [x] **Step 7: Build and run the guard**
 
 Run: `npx --yes pnpm@10.33.0 --filter @run-apparel/cms build && cd apps/cms && REQUIRE_BUILD_ARTIFACTS=1 npx --yes pnpm@10.33.0 exec vitest run src/hostRulesManifest.test.ts`
 Expected: PASS, 3 tests. If Next stores `statusCode` as 308 under a different key (older manifests use `permanent: true`), read the manifest once and assert on what is there — the property is the redirect being permanent, not the key name.
 
-- [ ] **Step 8: Negative control — a rule removed from the config fails the guard**
+- [x] **Step 8: Negative control — a rule removed from the config fails the guard**
 
 Temporarily delete the `'/api'` entry from the `beforeFiles` list in `siteHostRules.mjs`, rebuild, run the guard: the rewrite test must FAIL naming the missing rule. Restore, rebuild, PASS. Then a second control: change `hostPattern` to return the bare host (no anchors) — the model test `matches exactly the host` must FAIL naming `cms.wear-run.help`. Restore.
 
-- [ ] **Step 9: The post-build guard script and the CI step**
+- [x] **Step 9: The post-build guard script and the CI step**
 
 `apps/cms/package.json`, in `scripts`, after `"test:e2e"`:
 
@@ -703,7 +703,7 @@ Temporarily delete the `'/api'` entry from the `beforeFiles` list in `siteHostRu
 
 `apps/cms/src/workflowHardening.test.ts` requires every invoked pnpm script to exist — it does now.
 
-- [ ] **Step 10: The Cloudflare build, then commit**
+- [x] **Step 10: The Cloudflare build, then commit**
 
 Run: `npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec opennextjs-cloudflare build`
 Expected: `OpenNext build complete.` (redirects and rewrites with `has` are routed by the OpenNext layer; a config it cannot express fails HERE, not in `next build`).

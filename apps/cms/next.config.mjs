@@ -1,6 +1,7 @@
 import { withPayload } from '@payloadcms/next/withPayload'
 import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare'
 import { withPublicViewerVary } from './publicViewerHeaders.mjs'
+import { siteRedirects, siteRewrites } from './siteHostRules.mjs'
 
 // Makes wrangler.jsonc bindings (local D1/R2 emulation) available during `next dev`.
 initOpenNextCloudflareForDev()
@@ -63,6 +64,20 @@ const nextConfig = {
   transpilePackages: ['@run-apparel/shared'],
   async headers() {
     return [{ source: '/:path*', headers: SECURITY_HEADERS }]
+  },
+  /*
+   * ONE ADDRESS. www -> the main address; the cms host's public pages -> the main
+   * address; /admin and /api on the main address -> the branded 404. siteHostRules.mjs
+   * carries the decisions and the anchoring warning; src/hostRulesManifest.test.ts
+   * reads .next/routes-manifest.json after every build and fails if any rule did not
+   * land — a rule that reads fine here and never reaches the build is the same failure
+   * shape the Vary header had. withPayload wraps only headers(), so these are untouched.
+   */
+  async redirects() {
+    return siteRedirects()
+  },
+  async rewrites() {
+    return siteRewrites()
   },
 }
 
