@@ -391,14 +391,38 @@ describe('schema.org Product JSON-LD', () => {
     expect(specs['Colorways available']).toBe('3')
   })
 
-  it('carries NO offers — this catalogue has no prices, and inventing one is a false claim', () => {
-    const data = parse(buildPreview(payload({}), { origin: ORIGIN, cards: CARDS }))
-    // Deliberate: Google's Product docs want an offer, and satisfying that would
-    // put a fabricated price, currency or availability on 55 public URLs in
-    // machine-readable form. A rich result we do not get is the cheaper mistake.
-    expect(data.offers).toBeUndefined()
-    expect(data.price).toBeUndefined()
-    expect(data.availability).toBeUndefined()
+  it('declares made-to-order, because silence is not the same as no price', () => {
+    /*
+     * Owner decision 2026-09-07 (D10). This asserted `data.offers` was UNDEFINED until
+     * then, on the reasoning that Google's Product docs want a price and inventing one
+     * would put a false claim on 55 public URLs. That reasoning survives intact and is
+     * the next test; what it got wrong was treating "no price" as "say nothing".
+     * `MadeToOrder` and `Sell` are facts about this business, not inventions.
+     */
+    const data = parse(buildPreview(payload({}), { origin: ORIGIN, cards: CARDS })) as {
+      offers?: Record<string, unknown>
+    }
+    expect(data.offers).toBeDefined()
+    expect(data.offers?.['@type']).toBe('Offer')
+    expect(data.offers?.availability).toBe('https://schema.org/MadeToOrder')
+    expect(data.offers?.businessFunction).toBe('http://purl.org/goodrelations/v1#Sell')
+  })
+
+  it('states no price ANYWHERE in the block, which is the failure worth guarding', () => {
+    /*
+     * ⚠️ ASSERTED OVER THE WHOLE SERIALISED BLOCK, NOT OVER `offers.price`. The thing
+     * that must never happen is a number appearing beside a garment in a search result
+     * that nobody chose — and it could arrive as `price`, `lowPrice`, `highPrice` or
+     * inside a `priceSpecification` a later edit adds one level down. Checking one
+     * property would pass while any of the others shipped.
+     */
+    const raw = buildPreview(payload({}), { origin: ORIGIN, cards: CARDS })
+    const block = JSON.stringify(parse(raw))
+    expect(block, 'a price reached the structured data').not.toMatch(
+      /"(?:price|lowPrice|highPrice|minPrice|maxPrice)"\s*:\s*"?\d/,
+    )
+    expect(block, 'a currency reached the structured data').not.toMatch(/"priceCurrency"/)
+    expect(block).not.toMatch(/"priceSpecification"/)
   })
 
   it('omits an empty field rather than emitting an empty string', () => {

@@ -233,12 +233,26 @@ export function buildPreview(payload: ViewerApiSuccess, options: PreviewOptions)
  * every visitor would slow every QR scan to fix something no visitor can see.
  * `CRAWLER` matches on 'bot', which covers Googlebot.
  *
- * ⚠️ NO `offers`, DELIBERATELY. Google's Product documentation wants an offer with
- * a price, and this catalogue has none — it is a B2B development reference where
- * price follows a conversation about quantity and specification. Inventing a
- * price, a currency or an availability to satisfy a validator would put a false
- * claim in machine-readable form on 55 public URLs, which is worse than a rich
- * result we do not get. Everything emitted here is a value the CMS actually holds.
+ * ⚠️ AN `offers` WITH NO PRICE, AND THE ABSENCE OF A PRICE IS THE POINT.
+ *
+ * This said "NO `offers`, DELIBERATELY" until 2026-09-07, on the reasoning that Google's
+ * Product documentation wants an offer with a price, this catalogue has none, and
+ * inventing a price or a currency to satisfy a validator would put a false claim in
+ * machine-readable form on 55 public URLs. **Every word of that still holds** and is why
+ * there is no `price`, no `priceCurrency` and no number of any kind below.
+ *
+ * What it got wrong is treating "no price" as "say nothing". schema.org has two terms
+ * for exactly this situation, and both are facts about this business rather than
+ * inventions: `availability: MadeToOrder` and `businessFunction: Sell`. Saying nothing
+ * leaves a crawler to infer availability from silence; saying made-to-order states the
+ * true answer to the question it is asking. Owner decision 2026-09-07 (D10), taken with
+ * the price risk put to them explicitly.
+ *
+ * ⚠️ SO THE TEST FOR THIS IS A NEGATIVE ONE. `preview.test.ts` asserts that the whole
+ * serialised block matches neither `"price…": <digit>` nor `"priceCurrency"` — because
+ * the failure mode worth guarding is not a missing offer, it is a number appearing beside
+ * a garment in search results that nobody chose. Everything else emitted here is a value
+ * the CMS actually holds.
  *
  * ⚠️ ESCAPING IS NOT OPTIONAL. All of these strings are CMS-authored, so a product
  * description containing `</script>` would otherwise close the block and inject
@@ -288,6 +302,19 @@ export function buildProductJsonLd(
   if (selected.displayName.trim()) data.color = selected.displayName.trim()
   if (context.image) data.image = context.image.url
   if (specs.length > 0) data.additionalProperty = specs
+
+  /*
+   * Made to order, sold, quoted per enquiry — see the warning above. No `price`, no
+   * `priceCurrency`, and deliberately no `priceSpecification`: a `Specification` with an
+   * absent price is still an invitation for a validator, or a downstream aggregator, to
+   * render "from —".
+   */
+  data.offers = {
+    '@type': 'Offer',
+    url: context.url,
+    availability: 'https://schema.org/MadeToOrder',
+    businessFunction: 'http://purl.org/goodrelations/v1#Sell',
+  }
 
   return JSON.stringify(data).replace(/</g, '\\u003c')
 }

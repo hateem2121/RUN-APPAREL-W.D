@@ -203,7 +203,7 @@ replacement rule.
 
 ```
 .serif-accent   Instrument Serif · italic · 400 · lowercase
-                letter-spacing 0 · font-size 1.07em · colour --serif-accent
+                letter-spacing inherit · font-size 1.07em · colour --serif-accent
 ```
 
 **Budget: 1–2 accents per headline, always lowercase.** More than two and the

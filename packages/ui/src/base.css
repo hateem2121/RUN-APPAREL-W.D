@@ -202,7 +202,27 @@ li {
   font-style: italic;
   font-weight: 400;
   text-transform: lowercase;
-  letter-spacing: 0;
+  /*
+   * ⚠️ `inherit`, AND IT IS NOT THE SAME AS OMITTING THE LINE BY ACCIDENT. Audit
+   * FA-C-63: this was `0` while the headline around it is tracked, so one line of type
+   * changed rhythm mid-sentence. Measured on the live page at 1440px —
+   *
+   *   .display--hero      72.0px headline tracked -2.16px  ·  accent 77.0px tracked 0
+   *   .display--section   46.0px headline tracked -1.38px  ·  accent 49.2px tracked 0
+   *
+   * — a 2.16px discontinuity per letter-pair inside a single headline.
+   *
+   * ⚠️ A TOKEN WOULD NOT HAVE FIXED IT. `--tracking-display-sm` was the obvious
+   * candidate and resolves to -1.38px at desktop: exact for the section headline and
+   * 0.78px short for the hero, because the two registers carry different tracking.
+   * `inherit` takes whatever the surrounding headline has, at every size and every
+   * breakpoint, and cannot drift from it.
+   *
+   * Owner decision 2026-09-07, shown both renderings side by side and asked to choose.
+   * The alternative — that a serif italic wants more air than a tight sans — is a real
+   * typographic argument and was the one put against it.
+   */
+  letter-spacing: inherit;
   font-size: 1.07em;
   color: var(--serif-accent);
 }

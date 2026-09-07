@@ -169,8 +169,24 @@ publish, and inventing one to satisfy a search engine is not an option. The
 correct expression of "price on application" is a declared availability and
 business function rather than a number.
 
-**Guard:** a test asserts the structured data validates and contains no numeric
-price.
+**Guard:** `apps/viewer/worker/preview.test.ts` asserts the offer is present and
+says `MadeToOrder`, and — separately — that the WHOLE serialised block matches
+neither `"price…": <digit>` nor `"priceCurrency"` nor `"priceSpecification"`. The
+second assertion is the one that matters: the failure worth guarding is a number
+appearing beside a garment in a search result that nobody chose, and it could
+arrive as `price`, `lowPrice`, `highPrice` or one level down inside a
+`priceSpecification` a later edit adds. Checking one property would pass while any
+of the others shipped. Negative control observed: with `price: '49.99'` injected,
+it fails and names the block.
+
+⚠️ **The second sentence of this decision went unimplemented for a day, and the
+code argued the opposite in prose.** `buildProductJsonLd` carried "NO `offers`,
+DELIBERATELY", and its test asserted `offers` was *undefined*. That was a
+defensible reading of the same decision — Google's Product docs want a price, and
+a fabricated one on 55 public URLs is worse than a rich result you do not get —
+but it is not what D10 says. Put to the owner again on 2026-09-07 with the price
+risk stated plainly, and the answer was unchanged: declare made-to-order, no
+numbers. Implemented that day.
 
 ### D11 · Two sitemaps stay, and point at each other — `FA-N-13`
 

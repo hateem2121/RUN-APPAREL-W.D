@@ -600,15 +600,26 @@ describe('raw values in component stylesheets', () => {
     ).toEqual([])
   })
 
-  it('every letter-spacing cites a token, or is exactly 0', () => {
+  it('every letter-spacing cites a token, or inherits its parent’s', () => {
     const offenders: string[] = []
     for (const { name, source } of components()) {
       for (const match of source.matchAll(DECL('letter-spacing'))) {
         const value = (match[1] ?? '').trim()
         if (isTokenised(value)) continue
-        // `0` is the serif accent deliberately opting OUT of tracking, which
-        // docs/DESIGN.md §3 states. It is an absence, not an eighth step.
-        if (value === '0') continue
+        /*
+         * `inherit` is the serif accent taking whatever the headline around it has —
+         * see `.serif-accent` in base.css and docs/DESIGN.md §3. It is not a value, so
+         * it cannot be an eighth step, and it cannot drift from the headline the way a
+         * cited token can: whatever it resolves to has already passed this gate on the
+         * parent.
+         *
+         * ⚠️ THIS EXEMPTION WAS `value === '0'` UNTIL 2026-09-07 AND IS NOW STRICTLY
+         * TIGHTER, not widened. `0` existed for this one rule, which is what audit
+         * FA-C-63 was about: the accent sat untracked inside a headline tracked
+         * -2.16px, a visible change of rhythm mid-sentence. With the rule gone, a bare
+         * `0` is no longer allowed anywhere — grep confirms none remains.
+         */
+        if (value === 'inherit') continue
         const line = source.slice(0, match.index).split('\n').length
         offenders.push(`${name}:${line} — letter-spacing: ${value}`)
       }
@@ -617,8 +628,9 @@ describe('raw values in component stylesheets', () => {
       offenders,
       'Use --tracking-caps-tight / --tracking-caps / --tracking-caps-wide /\n' +
         '--tracking-caps-compact / --tracking-mono / --tracking-wordmark, or one of\n' +
-        'the two display tokens. Six steps cover 21 shipped declarations; a seventh\n' +
-        'needs a row in docs/DESIGN.md §3 saying what it is FOR.',
+        'the two display tokens — or `inherit`, if the rule is text sitting INSIDE\n' +
+        'other text and should carry that text’s tracking. Six steps cover the shipped\n' +
+        'declarations; a seventh needs a row in docs/DESIGN.md §3 saying what it is FOR.',
     ).toEqual([])
   })
 
