@@ -324,6 +324,37 @@ jobs:
       # PAYLOAD_SECRET when the environment has none. Measured 2026-09-06 under these
       # exact conditions: without that fallback Payload never initialises, `/admin` and
       # `/api/*` answer 500, and four tests fail — while the page tests stay green.
+      # ⚠️ THE PUBLIC-SITE SUITE NEEDS A DATABASE, AND UNTIL 2026-09-07 CI GAVE IT NONE.
+      #
+      # `serve.mjs` starts the built CMS against the local D1 emulation, and on a fresh
+      # runner that database has no tables at all — the server log filled with
+      # `D1_ERROR: no such table: site_settings`. The content helpers degrade to defaults
+      # by design, so most pages still rendered and 285 tests passed, which is exactly why
+      # nobody noticed: the eleven that failed were the ones that need real content —
+      # the ItemList, the scroll restore, and both inquiry tests, which cannot store a row
+      # in a table that does not exist.
+      #
+      # ⚠️ AND THE SUITE HAD BEEN DARK SINCE 2026-09-06. It is the LAST step of this job,
+      # so every run whose viewer step failed first meant this never executed at all. Two
+      # blind spots had to be open together for that to hide, and both were.
+      #
+      # This is the documented first-run from docs/ONBOARDING.md, in order. It is not
+      # optional and it is not slow: seed:assets measured 7s, migrate and seed ~4s.
+      #
+      # PAYLOAD_SECRET: this job deliberately holds no real one (only the deploy job
+      # does), and Payload refuses to initialise without any. A per-run throwaway is
+      # correct here for the same reason serve.mjs supplies one — there is nothing behind
+      # this database worth protecting — and a literal is avoided so the secrets scanner
+      # has nothing to match.
+      - name: Seed the database the public-site suite reads
+        env:
+          HOME: /root
+          PAYLOAD_SECRET: ci-e2e-${{ github.run_id }}
+        run: |
+          pnpm seed:assets
+          pnpm --filter @run-apparel/cms migrate
+          pnpm seed:cms
+
       - name: e2e (public site)
         env:
           HOME: /root

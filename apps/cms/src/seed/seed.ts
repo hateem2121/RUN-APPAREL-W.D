@@ -51,11 +51,34 @@ interface SeedColourway {
   hexSwatch: string
 }
 
-// Array order IS the order: Navy is first, so Navy is the default colour.
+/**
+ * ⚠️ THIS LIST MUST MATCH `PLACEHOLDER_COLOURWAYS` IN
+ * `tools/asset-pipeline/src/placeholders.ts`, AND IT DID NOT FOR WEEKS.
+ *
+ * It said navy / black / crimson with variant ids `N001-NAVY` and `N001-CRIMSON`, while
+ * `pnpm seed:assets` has generated wine / blush / butter / lime / black since commit
+ * bc723f7 ("the seeded garment now has five colourways, because production does"). That
+ * commit changed the pipeline and left this file behind.
+ *
+ * The consequence was not cosmetic: `pnpm seed:cms` — step three of the documented
+ * first-run in `docs/ONBOARDING.md` — DIED on a clean checkout, looking for
+ * `n001-navy-poster.webp`, a file nothing generates. Two of the three variant ids also
+ * matched no variant inside the merged GLB, so even a hand-fixed poster would have bound
+ * nothing. Nobody noticed because a developer seeds once and CI never ran this at all.
+ *
+ * `seedColourways.test.ts` reads the pipeline's constant and fails the moment the two
+ * disagree again. Array ORDER is the colourway order, and the first is the default —
+ * wine, which is what `apps/viewer/e2e` already fixtures as `/n001/wine`.
+ *
+ * `hexSwatch` is the pipeline's `body` colour: the swatch shows the garment's cloth, not
+ * its trim or its print.
+ */
 const COLOURWAYS: SeedColourway[] = [
-  { slug: 'navy', displayName: 'Navy', variantId: 'N001-NAVY', hexSwatch: '#22314E' },
-  { slug: 'black', displayName: 'Black', variantId: 'N001-BLACK', hexSwatch: '#17181A' },
-  { slug: 'crimson', displayName: 'Crimson', variantId: 'N001-CRIMSON', hexSwatch: '#8C1F2F' },
+  { slug: 'wine', displayName: 'Wine', variantId: 'N001-WINE', hexSwatch: '#825353' },
+  { slug: 'blush', displayName: 'Blush', variantId: 'N001-BLUSH', hexSwatch: '#F7CDCD' },
+  { slug: 'butter', displayName: 'Butter', variantId: 'N001-BUTTER', hexSwatch: '#FDFDC8' },
+  { slug: 'lime', displayName: 'Lime', variantId: 'N001-LIME', hexSwatch: '#D6F26B' },
+  { slug: 'black', displayName: 'Black', variantId: 'N001-BLACK', hexSwatch: '#262727' },
 ]
 
 export async function seed(payload: Payload, assetsDir: string): Promise<void> {
@@ -228,6 +251,6 @@ export async function seed(payload: Payload, assetsDir: string): Promise<void> {
   })
 
   payload.logger.info(
-    'Seed complete: N001 published as single-glb-variants with three inline colours; per-colour GLBs attached so separate-glb-per-colour also works. Try /api/public/viewer/n001/navy',
+    `Seed complete: N001 published as single-glb-variants with ${COLOURWAYS.length} inline colours; per-colour GLBs attached so separate-glb-per-colour also works. Try /api/public/viewer/n001/${COLOURWAYS[0]?.slug}`,
   )
 }
