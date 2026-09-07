@@ -1275,16 +1275,39 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
                 <div className="callout__value">{product.gsm}</div>
               </div>
             )}
-            {product.garmentFit && (
-              <div className="callout" style={{ bottom: '18%', left: '3%' }}>
-                <span className="label">[ FIT ]</span>
-                <div className="callout__value">{product.garmentFit}</div>
-              </div>
-            )}
-            {performanceSummary && (
-              <div className="callout callout--right" style={{ bottom: '18%', right: '3%' }}>
-                <span className="label">[ PERFORMANCE ]</span>
-                <div className="callout__value">{performanceSummary}</div>
+            {/*
+              ⚠️ THE BOTTOM PAIR IS ONE ROW, NOT TWO ABSOLUTE BOXES — 2026-09-07,
+              audit FA-D-07. They were `bottom: 18%` each, which pins their BOTTOM
+              edges and lets their chips float apart by however many lines of text
+              the CMS put in each: measured at 1440x900, [ FIT ] top 636.7 against
+              [ PERFORMANCE ] top 621.2 on the fixture, and 15.5 / 31.0 / 46.5 /
+              62.0 across six live products — always a whole multiple of 15.5px, one
+              line of the value text. Three corners of a technical-drawing layout
+              lined up and the fourth floated, by an amount the CMS decided.
+
+              `align-items: flex-start` inside a bottom-anchored row gives both
+              chips one baseline while keeping the row's bottom edge exactly where
+              it was, so nothing moves toward the plinth. The taller block sets the
+              line and the shorter one rises to meet it.
+
+              The pair is deliberately still rendered by the same two conditions:
+              either half can be absent, and `.callout--right`'s `margin-left: auto`
+              keeps a lone right-hand block on the right.
+            */}
+            {(product.garmentFit || performanceSummary) && (
+              <div className="stage__callouts-bottom">
+                {product.garmentFit && (
+                  <div className="callout">
+                    <span className="label">[ FIT ]</span>
+                    <div className="callout__value">{product.garmentFit}</div>
+                  </div>
+                )}
+                {performanceSummary && (
+                  <div className="callout callout--right">
+                    <span className="label">[ PERFORMANCE ]</span>
+                    <div className="callout__value">{performanceSummary}</div>
+                  </div>
+                )}
               </div>
             )}
           </div>

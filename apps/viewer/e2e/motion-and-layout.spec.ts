@@ -826,6 +826,22 @@ test.describe('layout invariants', () => {
     // Landscape phone — the two-column layout, where the rail is in the aside.
     { width: 844, height: 390 },
     { width: 926, height: 428 },
+    /**
+     * ⚠️ A FOURTH FIXTURE-SHAPED GAP, FOUND 2026-09-07 (audit FA-E-51): tablet
+     * PORTRAIT was in neither list. Above 430 and below 900, held upright, the rail
+     * still spans the page and is wider than the 500px container threshold — so it
+     * was the one band left on the old wrapping-flex layout, where the number of
+     * tabs per row is decided by the length of the colour names. Measured on the
+     * live site: r-aj, r-ajm, r-css and r-wzu all laid out 4 + 1 at 768 and/or 834,
+     * while rxps — five single-word names — never did at any of ten viewports.
+     *
+     * The 548 and 600 rows are the same band lower down, where even this fixture's
+     * five names wrapped to two rows before the fix.
+     */
+    { width: 548, height: 900 },
+    { width: 600, height: 900 },
+    { width: 768, height: 1024 },
+    { width: 834, height: 1194 },
   ]
   for (const { width, height } of RAIL_VIEWPORTS) {
     test(`the colourway rail never strands a single swatch at ${width}x${height}`, async ({
@@ -2210,5 +2226,172 @@ test.describe('the interaction cue tells a visitor the garment is not a photogra
     // colourways, who has already proved they know the garment is interactive.
     await page.waitForTimeout(4500)
     await expect(page.locator(CUE)).toBeHidden()
+  })
+})
+
+/**
+ * The chrome and the content column are two different formulas for one edge, and
+ * the four spec callouts are a technical drawing whose fourth corner floated.
+ *
+ * Both were measured on the live site by the 2026-09-06 audit (FA-D-07, FA-D-08)
+ * and both reproduce in this fixture, which is why they are pinned here rather
+ * than described in a comment: each one is a number two rules have to agree on,
+ * and this file's history is a list of such numbers drifting apart.
+ */
+test.describe('the page composes on one grid', () => {
+  const EDGE_WIDTHS = [390, 768, 1024, 1280, 1440, 1920] as const
+
+  for (const width of EDGE_WIDTHS) {
+    test(`the header starts where the page's content column starts at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const edges = await page.evaluate(() => {
+        const x = (sel: string) => {
+          const el = document.querySelector(sel)
+          return el ? Math.round(el.getBoundingClientRect().x * 10) / 10 : null
+        }
+        // `.footer__inner` is the same 1200px centred measure as `.content` and
+        // `.stage__inner`, and it is the one that is present at every width and in
+        // every layout branch — the other two move into the two-column band.
+        return { wordmark: x('.header__wordmark'), footer: x('.footer__inner') }
+      })
+
+      expect(
+        edges.wordmark,
+        `the wordmark starts at ${edges.wordmark} and the page's own content at ` +
+          `${edges.footer}. Two independent inset formulas — see the third term on ` +
+          `.header's padding in page.css.`,
+      ).toBe(edges.footer)
+    })
+  }
+
+  test('the four stage callouts share two baselines, not three', async ({ page }) => {
+    // 1440x900 because `.stage__callouts` is `display: none` below 1000px — measured
+    // 0x0 boxes at 834, 768 and 390 — so this is a desktop-only composition.
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const tops = await page.evaluate(() =>
+      [...document.querySelectorAll('.callout')].map((c) => ({
+        label: c.querySelector('.label')?.textContent?.trim() ?? '',
+        top: Math.round(c.getBoundingClientRect().top * 10) / 10,
+        bottom: Math.round(c.getBoundingClientRect().bottom * 10) / 10,
+      })),
+    )
+
+    expect(tops).toHaveLength(4)
+    const at = (label: string) => tops.find((t) => t.label.includes(label))
+
+    // The top pair was always pinned and always agreed; asserting it is what makes
+    // the bottom assertion meaningful rather than a coincidence of one layout.
+    expect(at('FABRIC')?.top).toBe(at('WEIGHT')?.top)
+
+    // ⚠️ THE ONE THAT USED TO FAIL. Measured before the fix, this fixture: [ FIT ]
+    // 636.7 against [ PERFORMANCE ] 621.2, and 15.5 / 31.0 / 46.5 / 62.0 across six
+    // live products — always a whole multiple of 15.5px, one line of value text,
+    // because each block was bottom-anchored and grew upward by however many lines
+    // the CMS gave it.
+    expect(
+      at('FIT')?.top,
+      `[ FIT ] sits at ${at('FIT')?.top} and [ PERFORMANCE ] at ${at('PERFORMANCE')?.top} — ` +
+        `the bottom pair is meant to share one baseline, set by the taller block.`,
+    ).toBe(at('PERFORMANCE')?.top)
+
+    // …and the row is still anchored to the same place it was: the taller block's
+    // bottom edge has not moved toward the plinth.
+    expect(at('PERFORMANCE')?.bottom).toBe(686.7)
+  })
+})
+
+/**
+ * The colourway rail against the catalogue's worst case, not the fixture's.
+ *
+ * ⚠️ WHY THE LABELS ARE REWRITTEN IN THE TEST. The fixture ships production's five
+ * names for ONE product, of which one is long ('Pebble / Optic White', 20 chars).
+ * Six of the eleven live products ship SEVERAL two-word names, and that is what
+ * strands a swatch at tablet widths — five long labels, not one. No single fixture
+ * product can carry both shapes, and the strand guard above deliberately measures
+ * the shipped fixture as-is, so this is the other half rather than a substitute for
+ * it: same page, labels replaced with the longest name the catalogue actually
+ * contains, in the container band where the old flex layout decided rows by content.
+ */
+test.describe('the colourway rail survives the catalogue, not just the fixture', () => {
+  for (const [width, height] of [
+    [768, 1024],
+    [834, 1194],
+  ] as const) {
+    test(`five long colour names still lay out in one row at ${width}x${height}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const layout = await page.evaluate(() => {
+        for (const label of document.querySelectorAll('.colourway-tab__label')) {
+          label.textContent = 'Pebble / Optic White'
+        }
+        const tabs = [...document.querySelectorAll('.colourway-tab')].map((t) =>
+          Math.round(t.getBoundingClientRect().top),
+        )
+        const rows = [...new Set(tabs)].sort((a, b) => a - b)
+        return { counts: rows.map((top) => tabs.filter((t) => t === top).length) }
+      })
+
+      expect(
+        layout.counts,
+        `five equally-long swatches laid out as ${layout.counts.join(' + ')}. With ` +
+          `equal grid columns this cannot depend on the label at all; a wrapping ` +
+          `flex row lays them out 4 + 1 here.`,
+      ).toEqual([5])
+    })
+  }
+
+  test('a long one-word colour name stays inside its own tab', async ({ page }) => {
+    // Audit FA-E-08, measured live on r-ajm at 1440x900: five 65.6px cells, and
+    // "TERRACOTTA" rendered 66.2px — 0.3px across its own right border into the
+    // neighbouring swatch. `.colourway-tab` is overflow: visible, so nothing clips
+    // and nothing is unreadable; the rail simply has no slack, and the name is read
+    // out of a garment file by variant-colour.ts rather than typed by anyone.
+    //
+    // The fixture cannot exhibit it — its longest WORD is six characters and it
+    // wraps at the spaces — so the name is written in. It is a real production
+    // value, not a stress string.
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const spill = await page.evaluate(() => {
+      const worst = { text: '', spill: Number.NEGATIVE_INFINITY, cell: 0 }
+      for (const label of document.querySelectorAll('.colourway-tab__label')) {
+        label.textContent = 'Terracotta'
+      }
+      for (const label of document.querySelectorAll('.colourway-tab__label')) {
+        const tab = label.closest('.colourway-tab')
+        if (!tab) continue
+        const range = document.createRange()
+        range.selectNodeContents(label)
+        const text = range.getBoundingClientRect()
+        const cell = tab.getBoundingClientRect()
+        const over = Math.max(cell.left - text.left, text.right - cell.right)
+        if (over > worst.spill) {
+          worst.text = label.textContent ?? ''
+          worst.spill = Math.round(over * 10) / 10
+          worst.cell = Math.round(cell.width * 10) / 10
+        }
+      }
+      return worst
+    })
+
+    expect(
+      spill.spill,
+      `"${spill.text}" reaches ${spill.spill}px past the edge of its ${spill.cell}px ` +
+        `tab, into the swatch beside it. See overflow-wrap on .colourway-tab__label.`,
+    ).toBeLessThanOrEqual(0)
   })
 })
