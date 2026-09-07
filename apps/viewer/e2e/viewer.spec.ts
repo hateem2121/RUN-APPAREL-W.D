@@ -114,13 +114,29 @@ test.describe('RUN APPAREL 3D viewer', () => {
   })
 
   // The wordmark pointed at "/", which parses to no route at all and rendered the
-  // unavailable page — so the most natural click on the page broke it.
-  test('header wordmark does not lead to the unavailable state', async ({ page }) => {
+  // unavailable page — so the most natural click on the page broke it. It was then
+  // a plain <span> from 2026-09-04, and is a link home again from 2026-09-07 (owner
+  // decision D5). This test has survived all three states because it asserts the
+  // OUTCOME — a click that does not dead-end — rather than the markup of the day.
+  test('header wordmark leads to the site, not to the unavailable state', async ({ page }) => {
+    // The destination is a different origin, so it is stubbed rather than fetched:
+    // a real navigation here would make the suite depend on the live marketing site
+    // being up, which is precisely the kind of test that goes red for someone else's
+    // reason. The click is still real.
+    await page.route('https://wear-run.help/', (route) =>
+      route.fulfill({ contentType: 'text/html', body: '<!doctype html><h1>RUN APPAREL</h1>' }),
+    )
+
     await page.goto('/n001/wine')
-    const wordmark = page.locator('.header__wordmark')
+    const wordmark = page.locator('a.header__wordmark')
+    // ⚠️ Both halves. "/" is the value that rendered UnavailableState, and it is
+    // what a future "simplification" back to a same-origin home would reach for.
+    await expect(wordmark).toHaveAttribute('href', 'https://wear-run.help')
     await expect(wordmark).not.toHaveAttribute('href', '/')
+
     await wordmark.click()
     await expect(page.getByText('[ REFERENCE UNAVAILABLE ]')).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'RUN APPAREL' })).toBeVisible()
   })
 
   // A published product with no finished 3D file is the worst state the viewer

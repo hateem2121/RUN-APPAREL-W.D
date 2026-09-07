@@ -404,9 +404,42 @@ test.describe('the header survives a phone', () => {
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await expect(page.locator('.header .btn')).toHaveCount(0)
     await expect(page.getByRole('link', { name: /catalogue/i })).toHaveCount(0)
-    // …and the wordmark is present but is no longer a link.
-    await expect(page.locator('.header__wordmark')).toBeVisible()
-    await expect(page.locator('a.header__wordmark')).toHaveCount(0)
+    // …and the wordmark is a link to the SITE, never to the catalogue. It was a
+    // plain <span> between 2026-09-04 and 2026-09-07; owner decision D5 restored
+    // the link once `wear-run.help` had ordinary pages to send anyone to. The
+    // catalogue assertion above is the one that must not move.
+    await expect(page.locator('a.header__wordmark')).toBeVisible()
+    await expect(page.locator('a.header__wordmark')).toHaveAttribute(
+      'href',
+      'https://wear-run.help',
+    )
+  })
+
+  test('the wordmark is a real target and keeps the header 69px tall', async ({ page }) => {
+    // Two things at once, because the second is what makes the first safe.
+    //
+    // ⚠️ THE TARGET-SIZE HALF PASSED BEFORE THE FIX — measured, not assumed. The
+    // link's box is 24.8px tall with no padding at all, i.e. 0.8px over WCAG
+    // 2.5.8's floor, on a number a font produces. The padding takes it to 32.8px;
+    // this assertion pins the FLOOR rather than the padding, and says so instead of
+    // pretending to be a regression test for something it cannot see.
+    //
+    // The header height is the assertion that bites: `--header-h` is subtracted
+    // from the stage band, and that budget has been wrong four times in this file's
+    // history by arithmetic instead of measurement. Making the wordmark taller than
+    // the 44px theme toggle grows the header and fails this.
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const measured = await page.evaluate(() => {
+      const wordmark = document.querySelector('.header__wordmark')?.getBoundingClientRect()
+      const header = document.querySelector('.header')?.getBoundingClientRect()
+      return { w: wordmark?.width ?? 0, h: wordmark?.height ?? 0, header: header?.height ?? 0 }
+    })
+
+    expect(measured.h, `the wordmark link is ${measured.h}px tall`).toBeGreaterThanOrEqual(24)
+    expect(measured.header, 'the header grew: --header-h and the stage budget now lie').toBe(69)
   })
 })
 

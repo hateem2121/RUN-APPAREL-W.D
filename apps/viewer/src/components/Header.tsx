@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SITE_ORIGIN } from '../lib/siteLinks'
 import { appliedTheme, toggleTheme, type Theme } from '../lib/theme'
 
 interface HeaderProps {
@@ -17,26 +18,36 @@ export function Header({ wordmark }: HeaderProps) {
   return (
     <header className="header">
       {/*
-        THE WORDMARK IS DELIBERATELY NOT A LINK, since 2026-09-04.
+        THE WORDMARK IS A LINK HOME AGAIN since 2026-09-07 — owner decision D5,
+        `docs/DECISIONS-BETA-WEBSITE.md`. Two earlier answers were wrong and the
+        third was right for a premise that has now expired; all four are recorded
+        because each one reads as the obvious fix for the last.
 
-        Its history is worth keeping, because both previous answers were wrong in
-        different ways. It first linked to "/", which this SPA has no route for —
-        the path parses to nothing and renders UnavailableState — so clicking the
-        logo took a buyer from a working product page to "This reference has moved
-        forward." It was then pointed at the catalogue, which fixed that but made
-        the logo a second, unlabelled catalogue link.
+        1. It linked to "/", which this SPA has no route for — the path parses to
+           nothing and renders UnavailableState — so the most natural click on the
+           page took a buyer from a working product to "This reference is no longer
+           live". `viewer.spec.ts` still guards that exact regression.
+        2. It was pointed at the catalogue, which fixed the dead end and made the
+           logo a second, unlabelled link to a 54.3 MB B2B PDF.
+        3. Owner decision 2026-09-04 removed it: no indexed page may hand arbitrary
+           search traffic the catalogue, and a <span> was the honest answer while
+           this viewer genuinely had no home to offer. `wear-run.help` served two
+           PDFs and a 404 that day.
+        4. It has one now. The marketing site launches on `wear-run.help` with
+           `/products` indexing the same eleven garments this viewer serves. That
+           is an ordinary web page, not the catalogue, so the 2026-09-04 decision
+           does not reach it — see the docblock in `lib/siteLinks.ts`.
 
-        Owner decision 2026-09-04: no page may hand a visitor the catalogue. These
-        pages are indexed by Google, and the catalogue is a 54 MB B2B PDF that is
-        not for arbitrary search traffic. That rules out the wordmark too — its
-        visible text says "RUN APPAREL" but it navigated straight there, so it
-        defeated the intent more quietly than the button did.
+        Someone who scans a QR tag on a garment reached a page describing that one
+        garment with no route to the other sixty-six (audit FA-W-01/FA-W-02).
 
-        A plain <span> is the honest answer: this viewer genuinely has no "home"
-        to offer, and a logo that goes nowhere is better than one that goes
-        somewhere wrong. The enquiry buttons are the intended next step.
+        The destination is the ORIGIN, not `/products`: a wordmark is a home
+        affordance, and every visitor here already has a garment in front of them.
+        `UnavailableState` is the screen that needs the index, and links to it.
       */}
-      <span className="header__wordmark">{wordmark}</span>
+      <a className="header__wordmark" href={SITE_ORIGIN}>
+        {wordmark}
+      </a>
       <span className="label header__tag">[ 3D PRODUCT REFERENCE ]</span>
       <span className="header__spacer" />
       <button

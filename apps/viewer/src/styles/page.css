@@ -141,7 +141,30 @@
   border-bottom: 1px solid var(--line);
 }
 
+/*
+ * ⚠️ THIS IS AN <a> AGAIN SINCE 2026-09-07 (owner decision D5) — the four-step
+ * history is on the element itself in `Header.tsx`. The rule already carried
+ * `text-decoration: none` and `color: var(--text)` from the last time it was a
+ * link, so the only thing that changes here is the press/hover/target treatment.
+ *
+ * `padding-block`, and the numbers are measured rather than reasoned — the first
+ * version of this comment claimed the link's box was 19px and needed rescuing. It
+ * did not. Measured in the built app at 375x812, all four engines:
+ *
+ *     without padding-block   24.8 x 143.5   header 69.0
+ *     with    padding-block   32.8 x 143.5   header 69.0
+ *
+ * So it already cleared WCAG 2.5.8's 24px floor — by 0.8px, on a number produced
+ * by a font's line box. That is a coincidence, not an invariant, and this file's
+ * history is a list of margins that thin being spent by the next change. 8px of
+ * padding costs the header NOTHING (the 44px theme toggle sets the row's height)
+ * and costs the width nothing (`padding-block` only), which is what the
+ * 351px-of-343px arithmetic above depends on.
+ */
 .header__wordmark {
+  display: inline-flex;
+  align-items: center;
+  padding-block: 4px;
   font-family: var(--font-display);
   font-weight: 900;
   font-stretch: 122%;
@@ -151,6 +174,15 @@
   color: var(--text);
   text-decoration: none;
   white-space: nowrap;
+  transition: color var(--ui) var(--ease);
+}
+
+/* Pointer-gated like every other hover in this file: an ungated :hover STICKS
+   after a tap on a phone, which is the device a QR tag is scanned with. */
+@media (hover: hover) and (pointer: fine) {
+  .header__wordmark:hover {
+    color: var(--dimension);
+  }
 }
 
 .header__tag {

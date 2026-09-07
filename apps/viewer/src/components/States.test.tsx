@@ -122,6 +122,24 @@ describe('UnavailableState', () => {
     expect(hrefs.some((h) => h.includes('example.com/catalogue'))).toBe(false)
   })
 
+  it('offers a browse route out, and it is the index rather than the catalogue', () => {
+    // Audit FA-W-03: a mistyped URL on the marketing site got "Browse the
+    // references"; a DEAD QR TAG — the visitor who arrived with intent, holding the
+    // garment — got the two enquiry buttons and nothing else. Both halves are
+    // asserted, because the fix is only correct if it is the ordinary index page:
+    // linking the catalogue here would satisfy "a browse route exists" and break
+    // the 2026-09-04 decision the assertion below guards.
+    render(<UnavailableState />)
+
+    const browse = [...host.querySelectorAll<HTMLAnchorElement>('a')].find((a) =>
+      (a.getAttribute('href') ?? '').includes('/products'),
+    )
+    expect(browse?.getAttribute('href')).toBe('https://wear-run.help/products')
+    expect(browse?.textContent).toMatch(/browse/i)
+    // …and it did not smuggle the catalogue back in under a different label.
+    expect(browse?.getAttribute('href')).not.toContain('catalogue')
+  })
+
   it('opens WhatsApp in a new tab without leaking the referrer', () => {
     render(<UnavailableState />)
     const wa = [...host.querySelectorAll<HTMLAnchorElement>('a')].find((a) =>
