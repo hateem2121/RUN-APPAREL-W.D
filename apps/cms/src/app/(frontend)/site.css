@@ -1355,10 +1355,6 @@ html {
 
 /* The five garment families on the homepage. `.panel` supplies the surface from
    base.css; this supplies only the padding, which was the third inline style. */
-.family-card {
-  padding: 20px;
-}
-
 .product-card {
   display: flex;
   flex-direction: column;
@@ -1872,6 +1868,97 @@ a.contact-block__value:active {
 .fact__note {
   font-size: var(--text-sm);
   color: var(--muted);
+}
+
+/* ------------------------------------------------ gallery filter (FA-I-08) */
+
+/*
+ * Owner decision 2026-09-07: filters, not pagination — see the note on ProductsPage. Every
+ * chip is a real link to a real URL, so this needs no JavaScript, no state and no
+ * hydration; `aria-current="page"` marks the active one, the same mechanism the header nav
+ * uses.
+ *
+ * ⚠️ THE ACTIVE CHIP IS NOT MARKED BY COLOUR ALONE. `.nav-link[aria-current]` learned this
+ * the hard way here: its first version distinguished current from non-current by alpha 0.7
+ * against 1.0 on the SAME hue, which is a WCAG 1.4.1 failure and was barely perceptible to
+ * anyone. The filled background is the cue; the colour is the reinforcement.
+ */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block-end: 24px;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--target-min);
+  padding-inline: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-chip);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps-snug);
+  text-decoration: none;
+  color: var(--muted);
+  background: transparent;
+  transition:
+    color var(--ui) var(--ease),
+    border-color var(--ui) var(--ease),
+    background-color var(--ui) var(--ease),
+    scale var(--instant) var(--ease);
+}
+
+.filter-chip__count {
+  font-size: var(--text-mono-sm);
+  opacity: 0.7;
+}
+
+/*
+ * A family with no references yet is still part of what the company makes, so the chip
+ * stays and stays clickable — the empty state behind it explains, and says so honestly.
+ * It is dimmed rather than removed so the five families the homepage advertises and the
+ * five the gallery offers are always the same five.
+ */
+.filter-chip[data-empty="true"] {
+  opacity: 0.55;
+}
+
+.filter-chip[aria-current="page"] {
+  background: var(--volt);
+  border-color: var(--volt);
+  color: var(--ink);
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .filter-chip:hover {
+    color: var(--text);
+    border-color: var(--dimension);
+  }
+
+  .filter-chip[aria-current="page"]:hover {
+    color: var(--ink);
+  }
+}
+
+.filter-chip:active {
+  scale: 0.97;
+}
+
+/* The whole family card is the link, so the anchor has to fill it. */
+.family-card {
+  padding: 0;
+}
+
+.family-card__link {
+  display: block;
+  padding: 20px;
+  text-decoration: none;
+  color: inherit;
 }
 
 /* ------------------------------------------------------------ print (FA-M-52) */

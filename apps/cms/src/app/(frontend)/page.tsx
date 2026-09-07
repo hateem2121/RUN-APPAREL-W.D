@@ -2,6 +2,7 @@ import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getSiteSettings } from '../../lib/content'
+import { FAMILIES } from '../../lib/families'
 import { buildMetadata } from '../../lib/seo'
 
 /**
@@ -52,18 +53,6 @@ const FACTS = [
   { value: '193,000', label: 'Sq ft under roof' },
 ]
 
-/**
- * What we make. Mirrors the `category` options on the Products collection, so the
- * homepage and the gallery filter cannot describe different catalogues.
- */
-const FAMILIES = [
-  { name: 'Sportswear', body: 'Performance kit built for training loads and race days.' },
-  { name: 'Teamwear & Uniforms', body: 'Squad kit, staff uniforms and matching sets at scale.' },
-  { name: 'Casual Wear', body: 'Everyday pieces in the same construction standard.' },
-  { name: 'Outerwear', body: 'Weather layers engineered for movement, not just cover.' },
-  { name: 'Sports Accessories', body: 'The supporting pieces that finish a programme.' },
-]
-
 export default async function HomePage() {
   const settings = await getSiteSettings()
   return (
@@ -112,8 +101,16 @@ export default async function HomePage() {
           <ul className="family-grid">
             {FAMILIES.map((family) => (
               <li className="panel family-card" key={family.name}>
-                <h3 className="product-card__name">{family.name}</h3>
-                <p className="product-card__desc">{family.body}</p>
+                {/*
+                  ⚠️ THE WHOLE CARD IS THE LINK. These five described a family and then went
+                  nowhere — a card that looks like a control and is not one (FA-I-02). They
+                  now open the gallery already filtered to that family, which is the page a
+                  reader of this card wants next and which did not exist until 2026-09-07.
+                */}
+                <Link className="family-card__link" href={`/products?family=${family.slug}`}>
+                  <h3 className="product-card__name">{family.name}</h3>
+                  <p className="product-card__desc">{family.body}</p>
+                </Link>
               </li>
             ))}
           </ul>
