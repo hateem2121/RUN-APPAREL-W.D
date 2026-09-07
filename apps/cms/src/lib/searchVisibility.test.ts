@@ -66,6 +66,8 @@ describe('what the switch does', () => {
       'https://wear-run.help',
       'https://wear-run.help/products',
       'https://wear-run.help/contact',
+      'https://wear-run.help/privacy',
+      'https://wear-run.help/terms',
     ])
   })
 })

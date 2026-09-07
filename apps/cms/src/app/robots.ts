@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next'
-import { SITE_ORIGIN } from '../lib/seo'
+import { SITE_ORIGIN, VIEWER_ORIGIN } from '../lib/seo'
 
 /**
  * `/robots.txt` for the public marketing site.
@@ -29,6 +29,19 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/admin', '/api/'],
       },
     ],
-    sitemap: `${SITE_ORIGIN}/sitemap.xml`,
+    /*
+     * ⚠️ BOTH SITEMAPS, AND THAT IS THE OWNER'S DECISION D11 OF 2026-09-07 (FA-N-13).
+     *
+     * The garments live on a different host with its own sitemap, and a SITEMAP may only
+     * list URLs on the host that serves it — which is why sitemap.ts lists no garments.
+     * `robots.txt` is the exception: it is the one file that may point a crawler at a
+     * sitemap on another host, and doing so is what tells a search engine these two
+     * origins are one business rather than two unrelated sites.
+     *
+     * It is a hint, not a grant. A crawler will only trust a cross-host sitemap when both
+     * hosts are verified in the same Search Console account, which is the other half of
+     * D11 and is on the owner's checklist.
+     */
+    sitemap: [`${SITE_ORIGIN}/sitemap.xml`, `${VIEWER_ORIGIN}/sitemap.xml`],
   }
 }
