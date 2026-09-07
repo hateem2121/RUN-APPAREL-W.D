@@ -124,3 +124,23 @@ code disagree, the code is right and the plan simply landed differently.
 | Reporting a security problem (**not** an issue) | [../SECURITY.md](../SECURITY.md) |
 | Processing a GLB by hand | [../tools/asset-pipeline/README.md](../tools/asset-pipeline/README.md) |
 | Per-area traps | `apps/*/CLAUDE.md`, `.github/CLAUDE.md`, `tools/asset-pipeline/CLAUDE.md` |
+
+## Added since this index was last swept
+
+⚠️ **A document that is reachable from nothing is a document nobody maintains**, which is
+the reason this file exists at all. The audit found ten here (FA-T-06) — every one written
+after the last sweep, which is exactly how the previous thirteen went missing. Adding a
+document and not adding its row is the failure this section is named for.
+
+| Document | What it is |
+|---|---|
+| [AUDIT-BETA-WEBSITE-2026-09-06.md](AUDIT-BETA-WEBSITE-2026-09-06.md) | The full-site audit: 236 scored checks across both surfaces, with the four false findings it caught in itself |
+| [AUDIT-PRODUCT-PAGES-2026-09-04.md](AUDIT-PRODUCT-PAGES-2026-09-04.md) | Product-page audit — and the three first-draft findings its own controls killed |
+| [AUDIT-PRODUCT-PAGES-2026-09-05.md](AUDIT-PRODUCT-PAGES-2026-09-05.md) | Product-page audit, second pass |
+| [AUDIT-SITE-PAGES-2026-09-05.md](AUDIT-SITE-PAGES-2026-09-05.md) | The marketing pages, before the beta-website work |
+| [CUSTOMISATION-COPY-2026-09-04.md](CUSTOMISATION-COPY-2026-09-04.md) | The owner’s American-spelling decision, and the copy it governs |
+| [DECISION-AR-SCOPE.md](DECISION-AR-SCOPE.md) | Why there is no AR mode |
+| [DECISION-OFFLINE-SCOPE.md](DECISION-OFFLINE-SCOPE.md) | How far offline support goes, and why it stops there |
+| [DECISIONS-BETA-WEBSITE.md](DECISIONS-BETA-WEBSITE.md) | The fourteen decisions taken before the beta launch — read this before "fixing" anything that looks odd |
+| [OWNER-CHECKLIST.md](OWNER-CHECKLIST.md) | The things only the owner can do, and what is already done |
+| [PIPELINE-INVESTIGATION-2026-09-01.md](PIPELINE-INVESTIGATION-2026-09-01.md) | The pipeline investigation of 2026-09-01 |

@@ -78,7 +78,7 @@ export default function NotFound() {
     <html lang="en">
       <body>
         <a className="skip-link" href="#main">
-          Skip to content
+          Skip to main content
         </a>
 
         <header className="notch-shell">

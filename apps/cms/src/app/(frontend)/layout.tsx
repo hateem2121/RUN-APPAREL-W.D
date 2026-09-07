@@ -116,7 +116,7 @@ export default async function FrontendLayout({ children }: { children: React.Rea
             this node by @id rather than redescribing the company. */}
         <JsonLd data={organizationJsonLd(settings)} />
         <a className="skip-link" href="#main">
-          Skip to content
+          Skip to main content
         </a>
         <SiteHeader wordmark={settings.temporaryWordmark} />
         {/*

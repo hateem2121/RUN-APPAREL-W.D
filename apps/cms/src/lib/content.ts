@@ -1,4 +1,5 @@
 import 'server-only'
+import { reportCaught } from './reportCaught'
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import config from '@payload-config'
 import { getPayload } from 'payload'
@@ -84,6 +85,18 @@ export async function getSiteSettings(): Promise<PublicSiteSettings> {
     settingsCache = { value, expires: Date.now() + TTL_MS }
     return value
   } catch (err) {
+    /*
+     * ⚠️ REPORTED, NOT JUST LOGGED. This catch is deliberate — a D1 wobble degrades the
+     * page to its defaults rather than showing a visitor an error — so the request
+     * SUCCEEDS and Next's `onRequestError` never fires. Until 2026-09-07 the only trace
+     * was this line, in a Worker log nobody reads (audit FA-P-04).
+     *
+     * The degraded state is indistinguishable from the healthy one: the page still
+     * renders, with the shipped defaults, so a wrong email address would sit on the live
+     * site looking entirely normal. Not awaited — a report must never slow or fail the
+     * page it is reporting about.
+     */
+    void reportCaught('content.site-settings', err)
     console.error('[content] site-settings unavailable, using defaults:', err)
     return { ...DEFAULT_SITE_SETTINGS, logoUrl: null, logoMimeType: null, footer: EMPTY_FOOTER }
   }
@@ -109,6 +122,8 @@ export async function getProductCards(): Promise<ProductCard[]> {
     productsCache = { value, expires: Date.now() + TTL_MS }
     return value
   } catch (err) {
+    // Same reasoning as site-settings above: caught on purpose, so nothing else sees it.
+    void reportCaught('content.products', err)
     console.error('[content] products unavailable:', err)
     return []
   }
