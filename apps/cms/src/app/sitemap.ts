@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next'
+import { searchVisibility, sitemapFor } from '../lib/searchVisibility'
 import { SITE_ORIGIN } from '../lib/seo'
 
 /**
@@ -24,10 +25,8 @@ import { SITE_ORIGIN } from '../lib/seo'
  * When the 404 page lands it does NOT belong here; a sitemap advertises pages that
  * should be indexed.
  */
-export default function sitemap(): MetadataRoute.Sitemap {
-  return [
-    { url: SITE_ORIGIN, changeFrequency: 'monthly', priority: 1 },
-    { url: `${SITE_ORIGIN}/products`, changeFrequency: 'weekly', priority: 0.8 },
-    { url: `${SITE_ORIGIN}/contact`, changeFrequency: 'yearly', priority: 0.5 },
-  ]
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Empty while the beta is hidden — see searchVisibility.ts. An empty urlset is
+  // valid XML and is what a crawler should see for a site carrying noindex.
+  return sitemapFor(await searchVisibility(), SITE_ORIGIN)
 }

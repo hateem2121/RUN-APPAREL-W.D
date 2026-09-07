@@ -46,21 +46,25 @@ const code = (...parts: string[]) => stripComments(read(...parts))
 const css = () => stripComments(read(FRONTEND, 'site.css'))
 
 describe('the public site is indexable and the admin is not exposed by it', () => {
-  it('the frontend layout asks to be indexed', () => {
-    // The whole reason these pages are server-rendered in apps/cms rather than added
-    // to the client-rendered viewer is that they have to be findable. A leftover
-    // noindex would make the entire exercise pointless while every page still looked
-    // perfect in a browser — green, and worth nothing.
-    // ⚠️ ASSERTS THE ABSENCE OF A noindex, NOT THE PRESENCE OF AN index. `index, follow`
-    // is what a crawler does unbidden, so declaring it bought nothing — and it broke the
-    // 404: React's client-side metadata reconciliation replaced that page's own
-    // `noindex, follow` with this layout's `index, follow` after hydration, leaving a
-    // JavaScript-executing crawler reading both at once. Measured 2026-09-05.
+  it('the frontend layout derives robots from the switch and never hard-codes index', () => {
+    // Until 2026-09-06 this asserted the ABSENCE of noindex: the pages exist to be
+    // found. They still do — but the owner launches them as a hidden beta first, so the
+    // layout now derives `robots` from SITE_INDEXING and must never state `index` itself
+    // (declaring it broke the 404's own noindex after hydration, measured 2026-09-05).
     const layout = code(FRONTEND, 'layout.tsx')
-    expect(layout).not.toMatch(/index:\s*false/)
-    expect(layout).not.toMatch(/noindex/)
+    expect(layout).toMatch(/robots:\s*robotsFor\(visibility\)/)
+    expect(layout).not.toMatch(/index:\s*true/)
     // and the 404 must still declare its own, which SSR renders correctly
     expect(code(FRONTEND, 'not-found.tsx')).toMatch(/robots:\s*\{\s*index:\s*false/)
+  })
+
+  it('the switch ships HIDDEN in wrangler.jsonc, and the sitemap follows it', () => {
+    // A Worker deployed with this var missing is ALSO hidden (the parser fails closed),
+    // but the file must say so explicitly, or the next reader assumes the default is open.
+    expect(read(CMS_ROOT, 'wrangler.jsonc')).toMatch(/"SITE_INDEXING":\s*"hidden"/)
+    expect(code(join(CMS_ROOT, 'src', 'app'), 'sitemap.ts')).toMatch(
+      /sitemapFor\(await searchVisibility\(\), SITE_ORIGIN\)/,
+    )
   })
 
   it('the admin and REST API stay in the (payload) group, which this layout never wraps', () => {

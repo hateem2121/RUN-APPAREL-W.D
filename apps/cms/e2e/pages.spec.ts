@@ -118,3 +118,26 @@ test.describe('accessibility', () => {
     })
   }
 })
+
+test.describe('search visibility defaults to hidden', () => {
+  /*
+   * SITE_INDEXING is unset for this server — exactly as in CI's cold checkout — and
+   * absent means hidden. Owner decision 2026-09-06: the beta launches on its real
+   * address and stays out of search results until called final.
+   */
+  for (const page of PAGES) {
+    test(`${page.name} carries noindex`, async ({ page: browser }) => {
+      await browser.goto(page.path)
+      await expect(browser.locator('meta[name="robots"]').first()).toHaveAttribute(
+        'content',
+        /noindex/,
+      )
+    })
+  }
+
+  test('the sitemap lists nothing', async ({ request }) => {
+    const response = await request.get('/sitemap.xml')
+    expect(response.status()).toBe(200)
+    expect(await response.text()).not.toContain('<loc>')
+  })
+})

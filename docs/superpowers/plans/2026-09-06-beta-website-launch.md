@@ -74,7 +74,7 @@ docs/RUNBOOK.md                                   MODIFY  rollback order for rou
 **Interfaces:**
 - Produces: `parseSearchVisibility(raw: unknown): 'hidden' | 'visible'`; `searchVisibility(): Promise<'hidden' | 'visible'>`; `robotsFor(v): Metadata['robots'] | undefined`; `sitemapFor(v, origin: string): MetadataRoute.Sitemap`. Task 4's smoke check and Task 6's preview matrix rely on the rendered `<meta name="robots" content="noindex">`.
 
-- [ ] **Step 1: Write the failing unit tests**
+- [x] **Step 1: Write the failing unit tests**
 
 apps/cms/src/lib/searchVisibility.test.ts:
 
@@ -154,12 +154,12 @@ describe('what the switch does', () => {
 })
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd apps/cms && npx --yes pnpm@10.33.0 exec vitest run src/lib/searchVisibility.test.ts`
 Expected: FAIL — cannot resolve `./searchVisibility`.
 
-- [ ] **Step 3: Write the module**
+- [x] **Step 3: Write the module**
 
 apps/cms/src/lib/searchVisibility.ts:
 
@@ -221,12 +221,12 @@ export function sitemapFor(visibility: SearchVisibility, origin: string): Metada
 }
 ```
 
-- [ ] **Step 4: Run the unit tests to verify they pass**
+- [x] **Step 4: Run the unit tests to verify they pass**
 
 Run: `cd apps/cms && npx --yes pnpm@10.33.0 exec vitest run src/lib/searchVisibility.test.ts`
 Expected: PASS, 14 tests.
 
-- [ ] **Step 5: Wire the layout and the sitemap**
+- [x] **Step 5: Wire the layout and the sitemap**
 
 In `apps/cms/src/app/(frontend)/layout.tsx`, add the import beside the others:
 
@@ -291,7 +291,7 @@ In `apps/cms/wrangler.jsonc`, inside `vars`, before `CMS_PUBLIC_URL`:
     "SITE_INDEXING": "hidden",
 ```
 
-- [ ] **Step 6: Replace the "indexable" assertions in `publicSite.test.ts`**
+- [x] **Step 6: Replace the "indexable" assertions in `publicSite.test.ts`**
 
 Replace the whole `it('the frontend layout asks to be indexed', …)` block (lines 49–64) with:
 
@@ -320,7 +320,7 @@ Replace the whole `it('the frontend layout asks to be indexed', …)` block (lin
 
 `join`, `CMS_ROOT`, `FRONTEND`, `read` and `code` already exist in that file.
 
-- [ ] **Step 7: Add the browser assertions**
+- [x] **Step 7: Add the browser assertions**
 
 Append to `apps/cms/e2e/pages.spec.ts`:
 
@@ -349,7 +349,7 @@ test.describe('search visibility defaults to hidden', () => {
 })
 ```
 
-- [ ] **Step 8: Run the unit suite and the browser suite**
+- [x] **Step 8: Run the unit suite and the browser suite**
 
 Run: `npx --yes pnpm@10.33.0 --filter @run-apparel/cms test`
 Expected: PASS (856 + 14 new).
@@ -357,12 +357,12 @@ Expected: PASS (856 + 14 new).
 Run: `CI=1 npx --yes pnpm@10.33.0 --filter @run-apparel/cms test:e2e`
 Expected: PASS, 108 (100 + 4 new × 2 engines).
 
-- [ ] **Step 9: Negative control — the switch reaches the server**
+- [x] **Step 9: Negative control — the switch reaches the server**
 
 Run: `SITE_INDEXING=visible CI=1 npx --yes pnpm@10.33.0 --filter @run-apparel/cms test:e2e -g "search visibility"`
 Expected: FAIL — the three `carries noindex` tests fail in both engines and `the sitemap lists nothing` fails with `<loc>` present. Run once more without the var and confirm PASS. Record both results in the commit message.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add apps/cms/src/lib/searchVisibility.ts apps/cms/src/lib/searchVisibility.test.ts 'apps/cms/src/app/(frontend)/layout.tsx' apps/cms/src/app/sitemap.ts apps/cms/wrangler.jsonc apps/cms/src/publicSite.test.ts apps/cms/e2e/pages.spec.ts

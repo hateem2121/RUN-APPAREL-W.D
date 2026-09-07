@@ -41,6 +41,7 @@ import { JsonLd } from '../../components/site/JsonLd'
 import { SiteFooter } from '../../components/site/SiteFooter'
 import { SiteHeader } from '../../components/site/SiteHeader'
 import { getSiteSettings } from '../../lib/content'
+import { robotsFor, searchVisibility } from '../../lib/searchVisibility'
 import { SITE_ORIGIN } from '../../lib/seo'
 import { organizationJsonLd } from '../../lib/structuredData'
 
@@ -53,7 +54,9 @@ import { organizationJsonLd } from '../../lib/structuredData'
  * protected by authentication, never by this metadata, and `publicSite.test.ts` pins
  * that distinction.
  *
- * ⚠️ AND IT NOW DECLARES NO `robots` AT ALL, WHICH IS DELIBERATE AND NOT A REGRESSION.
+ * ⚠️ IT DECLARES `noindex` WHILE THE BETA IS HIDDEN, AND NOTHING WHEN VISIBLE — the
+ * switch is `SITE_INDEXING` (src/lib/searchVisibility.ts). Declaring `index` here was
+ * tried and is what the rest of this paragraph is about:
  * `index, follow` is what every crawler does without being told, so stating it bought
  * nothing — and it actively broke the 404. Measured 2026-09-05 on `/definitely-not-a-page`:
  *
@@ -85,13 +88,16 @@ const DEFAULT_ICON = '/icon.svg'
  * here by URL, so there is exactly one place that decides.
  */
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await getSiteSettings()
+  const [settings, visibility] = await Promise.all([getSiteSettings(), searchVisibility()])
   return {
     metadataBase: new URL(SITE_ORIGIN),
     title: {
       template: '%s — RUN APPAREL',
       default: 'RUN APPAREL — Custom B2B Sportswear & Team Wear Manufacturer',
     },
+    // `noindex` while the beta is hidden; NOTHING when visible — see searchVisibility.ts
+    // and the paragraph above about why `index: true` must never be declared here.
+    robots: robotsFor(visibility),
     icons: {
       icon: settings.logoUrl
         ? [{ url: settings.logoUrl, type: settings.logoMimeType ?? undefined }]
