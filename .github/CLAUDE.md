@@ -302,3 +302,15 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   broken. The specs now `test.skip()` WITH THE MEASURED NUMBERS when the precondition
   demonstrably did not apply; asserting on a page whose setup never landed is measuring
   the harness.
+
+- **`gh run rerun --failed` CANCELS ITSELF ON THIS WORKFLOW, and reports `cancelled`
+  rather than an error.** Measured 2026-09-07. `ci.yml` sets
+  `concurrency: cancel-in-progress: true`, and a re-run of a job is placed in the SAME
+  concurrency group as the run it belongs to — so it queues, starts, collides with its own
+  parent and is cancelled. Nothing else had pushed; the branch was quiet.
+  The trap is what that looks like: the run's conclusion FLIPS from `failure` to
+  `cancelled`, so the evidence of the original failure is gone from `gh run list` and the
+  obvious reading is "somebody pushed over it". **There is no way to re-run one job here.**
+  To decide whether a failing test is flaky or real, push an empty or trivial commit and
+  read the fresh run — and confirm nothing is in flight first, because a push during a run
+  cancels that one too (the trap the root `CLAUDE.md` records).
