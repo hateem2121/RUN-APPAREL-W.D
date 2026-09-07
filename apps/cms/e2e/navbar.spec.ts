@@ -205,6 +205,18 @@ test.describe('rendering', () => {
       if (message.type() !== 'error') return
       // "Failed to load resource" is the network signal, handled below.
       if (/Failed to load resource/i.test(message.text())) return
+      /*
+       * ⚠️ A CROSS-ORIGIN ASSET REFUSED BY ITS OWN POLICY IS NOT THIS PAGE'S SCRIPT ERROR,
+       * and on a runner it is not even a defect. `media.wear-run.help` answers
+       * `Cross-Origin-Resource-Policy: same-site` — read off the live wire 2026-09-07 —
+       * so PRODUCTION embeds it fine (`wear-run.help` shares its registrable domain) and
+       * `localhost` never can. CI resolves the media host from wrangler.jsonc, so Firefox
+       * logs one console error per poster and this counted every one as a script fault.
+       *
+       * Narrow on purpose: only a CORP refusal, only for a host that is not this origin.
+       * A genuine script error still fails, which is what the test is for.
+       */
+      if (/Cross-Origin-Resource-Policy/i.test(message.text())) return
       scriptErrors.push(message.text())
     })
     page.on('response', async (response) => {

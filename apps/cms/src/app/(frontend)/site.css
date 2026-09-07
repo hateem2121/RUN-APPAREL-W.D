@@ -2077,9 +2077,22 @@ a.contact-block__value:active {
   }
 }
 
+/*
+ * ⚠️ THE MEASURE CAP REACHES THIS TOO, AND ITS ABSENCE WAS INVISIBLE ON A DEVELOPER'S
+ * MACHINE. `--site-measure` was applied to `.site-lede` and `.prose p` and this was
+ * missed — the certification paragraph is the longest prose on the home page and had no
+ * cap at all. Locally it fitted inside 75 characters and passed; on a CI runner the
+ * web font is not what rendered, the fallback packs tighter, and the same 540px column
+ * took **82 characters** (audit FA-C-52's guard, caught 2026-09-07).
+ *
+ * `ch` is the unit that makes this font-independent: 56ch is fifty-six of THIS element's
+ * characters whichever face draws them, which is the property the guard actually asserts.
+ * A px cap would have passed on one machine and failed on the other exactly as before.
+ */
 .fact__note {
   font-size: var(--text-sm);
   color: var(--muted);
+  max-width: var(--site-measure);
 }
 
 /* ------------------------------------------------ gallery filter (FA-I-08) */
