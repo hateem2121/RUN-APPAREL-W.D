@@ -460,8 +460,8 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   still claimed a photograph — through every gate, because the e2e asserting that
   sentence checked `.stage img` one line ABOVE and died there. **Negative assertion
   before the copy assertion.** Separately 15 tests keyed "stage in fallback?" on
-  `.stage__poster-fallback` / `.stage img`; 9 were Firefox, the only engine here
-  without WebGL and so the only one taking that branch. Now
+  `.stage__poster-fallback` / `.stage img`; 9 were Firefox — which HAS WebGL
+  here and NOT on a runner, so **that branch is CI-only**. Now
   `.stage__error:not([hidden])` — `:not` is load-bearing, that `<p>` is always
     mounted so its live region can announce. **Key a test on what the VISITOR gets.**
   Since 2026-09-03 (fix plan Rank 6) the stage paints the colourway's photo DURING THE
