@@ -1961,6 +1961,59 @@ a.contact-block__value:active {
   color: inherit;
 }
 
+/* ------------------------------------------------ prose pages (privacy, terms) */
+
+/*
+ * The two legal pages are the only long-form reading on the site, and body copy needs a
+ * rhythm the marketing sections — one paragraph at a time — never needed.
+ *
+ * The measure is inherited rather than restated: `p, li { max-width: 60ch }` in base.css
+ * already caps every paragraph here. `.section-number + *` supplies the gap under each
+ * sub-heading, the same one the marketing sections use, so these pages sit on the site's
+ * existing vertical rhythm instead of inventing one.
+ */
+.prose p {
+  margin-block-start: 16px;
+}
+
+.prose .section-number {
+  margin-block-start: 24px;
+}
+
+.prose .section-number:first-child {
+  margin-block-start: 0;
+}
+
+/*
+ * Underlined at rest, for the reason the contact page's two links now are — except that
+ * here it genuinely IS a link inside running text, which is the case WCAG 1.4.1 is about:
+ * a link distinguished from its surrounding prose by colour alone.
+ */
+.prose__link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 5px;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  transition:
+    text-decoration-color var(--ui) var(--ease),
+    scale var(--instant) var(--ease);
+}
+
+.prose__link:focus-visible {
+  text-decoration-color: currentColor;
+}
+
+.prose__link:active {
+  scale: 0.97;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .prose__link:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
 /* ------------------------------------------------------------ print (FA-M-52) */
 
 /*

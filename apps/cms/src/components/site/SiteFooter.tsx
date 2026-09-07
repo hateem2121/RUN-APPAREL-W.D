@@ -144,6 +144,18 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
             <Link className="nav-link" href="/contact">
               Contact
             </Link>
+            {/*
+              The privacy notice is a legal requirement, not a nicety — the trigger is
+              processing personal data, not setting cookies, and both surfaces process at
+              least an IP address while the viewer sends errors to Sentry in the US
+              (audit FA-O-75, FA-O-76). The footer is where a visitor looks for it.
+            */}
+            <Link className="nav-link" href="/privacy">
+              Privacy
+            </Link>
+            <Link className="nav-link" href="/terms">
+              Terms
+            </Link>
           </div>
         </div>
 

@@ -67,11 +67,17 @@ export const PUBLIC_VIEWER_VARY = 'Origin, Sec-CH-Prefers-Color-Scheme'
  * every relative URL on the page, plugin-based execution, and a stolen page posting
  * credentials elsewhere. Those are worth having on their own.
  *
- * ⚠️ SCOPED TO THE THREE PUBLIC PATHS. `/admin` keeps only `frame-ancestors 'none'` from
- * SECURITY_HEADERS, deliberately — see the note in next.config.mjs. Widening this source
- * would break the Payload login rather than fail loudly.
+ * ⚠️ SCOPED TO AN EXPLICIT LIST OF PUBLIC PATHS. `/admin` keeps only `frame-ancestors
+ * 'none'` from SECURITY_HEADERS, deliberately — see the note in next.config.mjs. Widening
+ * this source would break the Payload login rather than fail loudly.
+ *
+ * ⚠️ WHICH MEANS A NEW PUBLIC PAGE SHIPS WITH NO CSP UNTIL IT IS ADDED HERE, and nothing
+ * about that failure is visible: the page renders, every test passes, and only a header
+ * dump shows the policy missing. `/privacy` and `/terms` were added on 2026-09-07 in the
+ * same commit that created them. `publicSite.test.ts` pins this list, so at least the
+ * omission cannot happen silently twice.
  */
-export const PUBLIC_PAGE_SOURCES = ['/', '/products', '/contact']
+export const PUBLIC_PAGE_SOURCES = ['/', '/products', '/contact', '/privacy', '/terms']
 
 export const PUBLIC_PAGE_CSP = [
   "default-src 'self'",

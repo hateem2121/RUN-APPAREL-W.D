@@ -631,7 +631,9 @@ describe('the 404, the policy, and analytics', () => {
     // directive failed nothing. Fourth time this shape of false positive has appeared in
     // this repo's style tests, and the fix is always the same — assert against the code.
     const headers = code(CMS_ROOT, 'publicViewerHeaders.mjs')
-    expect(headers).toMatch(/PUBLIC_PAGE_SOURCES = \['\/', '\/products', '\/contact'\]/)
+    expect(headers).toMatch(
+      /PUBLIC_PAGE_SOURCES = \['\/', '\/products', '\/contact', '\/privacy', '\/terms'\]/,
+    )
     // The directives that are worth having regardless of the inline-script compromise:
     // each closes an attack class that has nothing to do with inline scripts.
     for (const directive of ["object-src 'none'", "base-uri 'self'", "form-action 'self'"]) {
