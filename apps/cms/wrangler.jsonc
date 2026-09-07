@@ -59,9 +59,18 @@
   // Workers Logs (free tier): worker errors + console output become queryable
   // in the Cloudflare dashboard and via `wrangler tail`.
   "observability": { "enabled": true },
-  // Custom domain for this CMS worker. Cloudflare creates/manages the
-  // cms.wear-run.help DNS record automatically (zone is on the same account).
-  "routes": [{ "pattern": "cms.wear-run.help", "custom_domain": true }],
+  // THREE HOSTNAMES, ONE WORKER (2026-09-06). The custom domain is the admin and the
+  // API; the two zone routes are the public marketing site on its real address. The
+  // PDF Worker (infra/apex-404) keeps `/catalogue*` and `/profile*` on both hosts —
+  // Cloudflare sends a request to the MOST SPECIFIC route, so those four never reach
+  // this Worker. Only host-conditioned rules in next.config.mjs tell the hostnames
+  // apart; see siteHostRules.mjs. The apex DNS record must stay proxied: zone routes
+  // require it, and it is the same record the PDFs have always needed.
+  "routes": [
+    { "pattern": "cms.wear-run.help", "custom_domain": true },
+    { "pattern": "wear-run.help/*", "zone_name": "wear-run.help" },
+    { "pattern": "www.wear-run.help/*", "zone_name": "wear-run.help" }
+  ],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"

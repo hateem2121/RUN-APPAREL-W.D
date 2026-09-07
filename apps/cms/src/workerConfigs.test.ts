@@ -121,3 +121,41 @@ describe('apex Workers Caching', () => {
     expect(source).not.toMatch(/range:\s*request\.headers/)
   })
 })
+
+/**
+ * The marketing site lives on the apex, and the PDFs keep their two paths.
+ *
+ * Cloudflare hands a request to the MOST SPECIFIC matching route, so the CMS Worker can
+ * hold `wear-run.help/*` while the PDF Worker holds `wear-run.help/catalogue*` and the
+ * PDFs never notice the site arriving. A route pattern belongs to ONE Worker at a time —
+ * which is why ci.yml deploys the PDF Worker before the CMS Worker (see the deploy job).
+ *
+ * ⚠️ A WILDCARD RESTORED TO THE PDF WORKER TAKES THE SITE DOWN, and a wildcard removed
+ * from the CMS Worker does the same. Both are one-line edits that read as tidying.
+ */
+describe('the apex route split (2026-09-06)', () => {
+  const cms = settings(read('apps/cms/wrangler.jsonc'))
+  const apex = settings(read('infra/apex-404/wrangler.jsonc'))
+  const patterns = (source: string) =>
+    [...source.matchAll(/"pattern":\s*"([^"]+)"/g)].map((m) => m[1]).sort()
+
+  it('the CMS Worker holds the custom domain AND both wildcards', () => {
+    expect(patterns(cms)).toEqual(['cms.wear-run.help', 'wear-run.help/*', 'www.wear-run.help/*'])
+    expect(cms).toMatch(/"pattern":\s*"wear-run\.help\/\*",\s*"zone_name":\s*"wear-run\.help"/)
+    expect(cms).toMatch(/"pattern":\s*"www\.wear-run\.help\/\*",\s*"zone_name":\s*"wear-run\.help"/)
+  })
+
+  it('the PDF Worker holds exactly the four PDF routes and no wildcard', () => {
+    expect(patterns(apex)).toEqual([
+      'wear-run.help/catalogue*',
+      'wear-run.help/profile*',
+      'www.wear-run.help/catalogue*',
+      'www.wear-run.help/profile*',
+    ])
+  })
+
+  it('the pattern reader can actually fail (negative control)', () => {
+    expect(patterns('{ "routes": [{ "pattern": "a/*" }, { "pattern": "b" }] }')).toEqual(['a/*', 'b'])
+    expect(patterns('{ "routes": [] }')).toEqual([])
+  })
+})

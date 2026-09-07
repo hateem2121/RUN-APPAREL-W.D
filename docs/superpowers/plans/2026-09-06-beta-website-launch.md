@@ -726,7 +726,7 @@ git commit -m "feat(cms): one address — www and the cms host's public pages re
 **Interfaces:**
 - Produces: the route sets Task 4's deploy order depends on. Nothing in code reads them; Cloudflare does.
 
-- [ ] **Step 1: Write the failing config tests**
+- [x] **Step 1: Write the failing config tests**
 
 Append to `apps/cms/src/workerConfigs.test.ts`:
 
@@ -770,12 +770,12 @@ describe('the apex route split (2026-09-06)', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `cd apps/cms && npx --yes pnpm@10.33.0 exec vitest run src/workerConfigs.test.ts`
 Expected: FAIL — the CMS holds one pattern, the PDF Worker holds two wildcards.
 
-- [ ] **Step 3: Change the two configs**
+- [x] **Step 3: Change the two configs**
 
 `apps/cms/wrangler.jsonc` — replace the `routes` line and its comment with:
 
@@ -824,7 +824,7 @@ Expected: FAIL — the CMS holds one pattern, the PDF Worker holds two wildcards
  * exists and still tests the allowlist property, and no production request reaches it.
 ```
 
-- [ ] **Step 4: Run the config tests and the wrangler dry run**
+- [x] **Step 4: Run the config tests and the wrangler dry run**
 
 Run: `cd apps/cms && npx --yes pnpm@10.33.0 exec vitest run src/workerConfigs.test.ts`
 Expected: PASS.
@@ -832,7 +832,7 @@ Expected: PASS.
 Run: `npx --yes pnpm@10.33.0 --filter @run-apparel/viewer exec wrangler deploy --dry-run --config "$PWD/infra/apex-404/wrangler.jsonc"` and `npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec wrangler deploy --dry-run`
 Expected: both parse and print their bindings and routes; no upload happens (`--dry-run`). If wrangler rejects mixing a custom domain with zone routes in one `routes` array, STOP and report — that is a design change, not a fix.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/cms/wrangler.jsonc infra/apex-404/wrangler.jsonc infra/apex-404/index.js apps/cms/src/workerConfigs.test.ts
