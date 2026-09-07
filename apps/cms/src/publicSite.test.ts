@@ -748,8 +748,17 @@ describe('the 404, the policy, and analytics', () => {
 
   it('never renders an analytics beacon without a token', () => {
     // A beacon carrying an empty token reports to Cloudflare from an unidentified site,
-    // which is worse than not reporting. And it must carry the nonce, or the CSP refuses
-    // it silently and analytics records nothing while everything looks green.
+    // which is worse than not reporting.
+    //
+    // ⚠️ THIS COMMENT DEMANDED A NONCE UNTIL 2026-09-07, AND THE TEST DIRECTLY BELOW IT
+    // FORBIDS ONE (audit FA-T-04). It read "it must carry the nonce, or the CSP refuses
+    // it silently and analytics records nothing while everything looks green" — a
+    // description of a stack this one is not. The nonce plumbing was removed once the
+    // Cloudflare build proved a proxy cannot exist here, so a reader following this
+    // instruction would have re-added dead code that the next assertion then rejects.
+    //
+    // What actually admits the beacon is the HOST:
+    // `script-src … https://static.cloudflareinsights.com` in publicViewerHeaders.mjs.
     const analytics = code(site('Analytics.tsx'))
     expect(analytics).toMatch(/if \(!token\) return null/)
   })

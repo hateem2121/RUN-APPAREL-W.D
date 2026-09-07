@@ -211,8 +211,21 @@ test.describe('rendering', () => {
       if (response.status() < 400) return
       const url = new URL(response.url())
       if (url.host !== new URL(page.url() || 'http://localhost').host) return
-      // Media is content, not code — see above.
-      if (url.pathname.startsWith('/api/media/')) return
+      /*
+       * Media is content, not code — see above.
+       *
+       * ⚠️ KEYED ON WHAT THE RESOURCE IS, NOT ON WHERE IT SITS. This exempted the
+       * `/api/media/` PREFIX until 2026-09-07, which stopped covering the case the moment
+       * poster URLs became absolute: `e2e/serve.mjs` now supplies a `PUBLIC_MEDIA_BASE_URL`
+       * so the fixture emits production's URL shape, and the posters arrive as
+       * root-level filenames. The prefix check silently stopped matching and a missing
+       * seed poster started reading as a broken page.
+       *
+       * `resourceType()` says image regardless of the path, which is what the sentence
+       * above actually meant. A broken script, stylesheet or document on our own host
+       * still fails, which is the point.
+       */
+      if (response.request().resourceType() === 'image') return
       brokenOwnResources.push(`${response.status()} ${url.pathname}`)
     })
 

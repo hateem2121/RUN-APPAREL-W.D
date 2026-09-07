@@ -226,7 +226,37 @@ function pickPoster(
     if (!candidate || typeof candidate !== 'object') continue
     const media = candidate as { url?: unknown; alt?: unknown }
     const url = text(media.url)
-    if (url) return { url, alt: text(media.alt) }
+    if (isPubliclyFetchable(url)) return { url, alt: text(media.alt) }
   }
   return { url: null, alt: '' }
+}
+
+/**
+ * ⚠️ A PAYLOAD-RELATIVE MEDIA URL IS NOT A POSTER — IT IS A 403 (audit FA-O-10).
+ *
+ * `Media.read` is `isAuthenticated` and must stay that way: relaxing it re-opens the
+ * anonymous enumeration of `/api/media` that FA-O-08 credits as fixed, and breaks the
+ * assertion in `e2e/notfound.spec.ts` whose comment records that the two branches have
+ * met before. So the fix is on this side — never hand a public page a URL it is not
+ * allowed to fetch.
+ *
+ * Measured 2026-09-07, anonymous, on the real build:
+ *
+ *   GET /api/media/file/n001-navy-poster-1.webp   ->  403 application/json
+ *   the live public API's poster                  ->  https://media.wear-run.help/…webp
+ *
+ * Production sets `PUBLIC_MEDIA_BASE_URL`, so `@payloadcms/storage-r2`'s
+ * `generateFileURL` fires and every URL is absolute. Without it — `next dev`, a Worker
+ * deployed with the var missing, or any environment nobody thought about — Payload emits
+ * its own `/api/media/file/<name>` route instead, and the gallery renders an `<img>` that
+ * every visitor is refused.
+ *
+ * ⚠️ THE FAILURE IS INVISIBLE WITHOUT THIS, WHICH IS WHY IT IS WORTH A FUNCTION.
+ * `ProductPoster` swaps in the designed placeholder once the image errors, so the page
+ * looks deliberate either way — after a wasted round trip, only where JavaScript runs,
+ * and with a broken image in the window before hydration. Refusing the URL up front gets
+ * the same designed placeholder server-rendered, with no request at all.
+ */
+function isPubliclyFetchable(url: string): url is string {
+  return url.startsWith('https://') || url.startsWith('http://')
 }

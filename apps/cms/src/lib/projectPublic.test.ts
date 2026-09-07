@@ -125,20 +125,83 @@ describe('toProductCard', () => {
   })
 
   describe('poster selection', () => {
+    /*
+     * ⚠️ THESE FIXTURES WERE RELATIVE URLS UNTIL 2026-09-07, WHICH IS THE ONE SHAPE THAT
+     * CANNOT WORK. `/colour.webp` stood in for a real poster while the real thing in that
+     * position is `/api/media/file/<name>` — Payload's own route, which answers 403 to
+     * every anonymous visitor. The fixture could not have exhibited FA-O-10 because it
+     * was the failing case, dressed as the passing one. They are absolute now, as
+     * production's are, and the refusal has a test of its own below.
+     */
+    const MEDIA = 'https://media.wear-run.help'
+
     it('prefers the default colourway poster', () => {
       const card = toProductCard(
         product({
-          colourways: [{ slug: 'wine', posterPreview: { url: '/colour.webp', alt: 'Wine' } }],
-          posterFallback: { url: '/fallback.webp', alt: 'Fallback' },
+          colourways: [
+            { slug: 'wine', posterPreview: { url: `${MEDIA}/colour.webp`, alt: 'Wine' } },
+          ],
+          posterFallback: { url: `${MEDIA}/fallback.webp`, alt: 'Fallback' },
         }),
       )
-      expect(card?.posterUrl).toBe('/colour.webp')
+      expect(card?.posterUrl).toBe(`${MEDIA}/colour.webp`)
       expect(card?.posterAlt).toBe('Wine')
     })
 
     it('falls back to the product poster', () => {
-      const card = toProductCard(product({ posterFallback: { url: '/fallback.webp', alt: 'F' } }))
-      expect(card?.posterUrl).toBe('/fallback.webp')
+      const card = toProductCard(
+        product({ posterFallback: { url: `${MEDIA}/fallback.webp`, alt: 'F' } }),
+      )
+      expect(card?.posterUrl).toBe(`${MEDIA}/fallback.webp`)
+    })
+
+    /*
+     * FA-O-10. `Media.read` is `isAuthenticated` and stays that way — relaxing it
+     * re-opens the anonymous enumeration FA-O-08 credits as fixed. So a URL the visitor
+     * is not allowed to fetch must never reach the page. Measured anonymous on the real
+     * build: `GET /api/media/file/n001-navy-poster-1.webp` -> 403 application/json.
+     */
+    it('refuses a Payload-relative URL, which every visitor is 403ed from', () => {
+      const card = toProductCard(
+        product({
+          colourways: [
+            {
+              slug: 'wine',
+              posterPreview: { url: '/api/media/file/n001-navy-poster-1.webp', alt: 'Wine' },
+            },
+          ],
+        }),
+      )
+      expect(card?.posterUrl).toBeNull()
+      // and the card still names itself, so the designed placeholder is what renders
+      expect(card?.posterAlt).toBe('Velocity Performance Cycling Suit — 3D product reference')
+    })
+
+    /*
+     * The control for the rule above: it would also pass if `pickPoster` had started
+     * returning null for everything. This is the same product with the one difference
+     * that matters.
+     */
+    it('the refusal is about the URL, not about posters in general', () => {
+      const withAbsolute = toProductCard(
+        product({
+          colourways: [{ slug: 'wine', posterPreview: { url: `${MEDIA}/x.webp`, alt: 'Wine' } }],
+        }),
+      )
+      expect(withAbsolute?.posterUrl).toBe(`${MEDIA}/x.webp`)
+    })
+
+    it('falls THROUGH a relative colourway poster to an absolute product fallback', () => {
+      // The loop must not stop at the first candidate that merely exists.
+      const card = toProductCard(
+        product({
+          colourways: [
+            { slug: 'wine', posterPreview: { url: '/api/media/file/a.webp', alt: 'W' } },
+          ],
+          posterFallback: { url: `${MEDIA}/fallback.webp`, alt: 'F' },
+        }),
+      )
+      expect(card?.posterUrl).toBe(`${MEDIA}/fallback.webp`)
     })
 
     it('returns null rather than a broken image when there is no poster at all', () => {

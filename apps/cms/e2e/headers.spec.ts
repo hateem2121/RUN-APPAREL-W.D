@@ -153,10 +153,26 @@ test.describe('FA-O-13 — nothing is stored, and nothing is told', () => {
   test('no cookies, no device storage, and nobody else is contacted', async ({ page, context }) => {
     const thirdParty: string[] = []
     const origin = new URL(test.info().project.use.baseURL ?? 'http://localhost:4174')
+
+    /*
+     * ⚠️ THE COMPANY'S OWN MEDIA HOST IS NOT A THIRD PARTY, AND PRODUCTION DOES CONTACT
+     * IT. Every garment photograph on `/` and `/products` is served from
+     * media.wear-run.help — same company, same Cloudflare account, no cookies, no script.
+     * It is named here rather than left implicit because this test's own measurement
+     * ("zero third-party requests") was taken while the fixture emitted Payload-relative
+     * poster URLs, which are same-origin and 403 to a visitor. So the number was a fact
+     * about the fixture, not about production, and this list is what makes the assertion
+     * mean the same thing in both. `e2e/serve.mjs` now emits production's URL shape.
+     *
+     * Anything NOT on this list still fails: one embedded map, one chat widget, one CDN
+     * font, and the privacy notice's claims stop being true with nothing else going red.
+     */
+    const FIRST_PARTY_HOSTS = [origin.host, 'media.wear-run.help']
+
     page.on('request', (request) => {
       const url = new URL(request.url())
       if (url.protocol === 'data:' || url.protocol === 'blob:') return
-      if (url.host === origin.host) return
+      if (FIRST_PARTY_HOSTS.includes(url.host)) return
       thirdParty.push(`${url.host}${url.pathname}`)
     })
 

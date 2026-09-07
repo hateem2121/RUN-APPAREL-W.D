@@ -37,6 +37,43 @@ const child = spawn('npx', ['--yes', 'pnpm@10.33.0', '--filter', '@run-apparel/c
     // by design (see the empty-gallery case), but the richer path would go untested.
     PAYLOAD_LOCAL_D1: '1',
     /*
+     * ⚠️ PRODUCTION'S URL SHAPE, NOT PRODUCTION'S HOST — AND NOT THE LOCAL CONVENTION.
+     *
+     * `.dev.vars` sets this EMPTY on purpose: locally the files live in the emulated R2
+     * bucket, so pointing at media.wear-run.help would 404 everything you just seeded,
+     * and Payload serving its own media is what makes `next dev` usable for an admin who
+     * is logged in.
+     *
+     * That convention cannot be right for THIS server, because this one serves the
+     * PUBLIC site and `Media.read` is `isAuthenticated`. With the var empty, Payload
+     * emits `/api/media/file/<name>` — measured anonymous on this exact build, **403
+     * application/json** — so every poster the suite saw was a URL no visitor can fetch,
+     * and `projectPublic.ts` now correctly refuses to hand one to a page (audit FA-O-10).
+     * The result was ten browser tests failing against a fix, because the fixture was
+     * the failing case dressed as the passing one.
+     *
+     * ⚠️ SAME ORIGIN, AND PRODUCTION'S REAL HOST CANNOT BE USED HERE — MEASURED, NOT
+     * ASSUMED. Pointing this at `https://media.wear-run.help` was tried and it fails by
+     * design: that host answers `Cross-Origin-Resource-Policy: same-site` (read off the
+     * live wire 2026-09-07 alongside a 200 and `cf-cache-status: HIT`). `wear-run.help`
+     * and `media.wear-run.help` share a registrable domain, so PRODUCTION is same-site
+     * and every poster loads; `localhost` is not, so Firefox refuses the image and logs
+     *   "blocked due to its Cross-Origin-Resource-Policy header".
+     * That is a correct production configuration, not a defect — and it means no local
+     * server can ever embed those files.
+     *
+     * Same origin is then the only option left: the page CSP is
+     * `img-src 'self' data: https://media.wear-run.help`, so any OTHER absolute host
+     * would be blocked by the policy instead. `navbar.spec.ts` carries the one exemption
+     * this forces, with the same account.
+     *
+     * The seeded files are not served from this origin either, so each poster 404s and
+     * the DESIGNED placeholder renders. What the fixture buys is the URL SHAPE — absolute,
+     * off Payload's authenticated API route — which is what `projectPublic.ts` now
+     * requires and what production emits.
+     */
+    PUBLIC_MEDIA_BASE_URL: `http://localhost:${PORT}`,
+    /*
      * ⚠️ A THROWAWAY SECRET WHEN THE ENVIRONMENT HAS NONE. Payload refuses to
      * initialise without one ("missing secret key"), and CI's e2e job passes none —
      * only the deploy job holds the real PAYLOAD_SECRET. Measured 2026-09-06 by running
