@@ -1873,3 +1873,123 @@ a.contact-block__value:active {
   font-size: var(--text-sm);
   color: var(--muted);
 }
+
+/* ------------------------------------------------------------ print (FA-M-52) */
+
+/*
+ * ⚠️ PRESSING Cmd-P LOST EVERY WAY OF CONTACTING THE COMPANY, and the rest of the page
+ * printed fine, which is what made it easy to miss.
+ *
+ * There was no print stylesheet anywhere in this repo — zero matches for `@media print`
+ * across all three source trees. The footer slab paints its own dark background and sets
+ * its text near-white; browsers omit background colours from print by default, so the
+ * dark panel vanished and the white text stayed white. Measured against white paper:
+ * **14 of 14 text runs below 3:1**, all at 1.15–1.27:1, where AA body text needs 4.5:1.
+ * What a buyer lost: the email address, the WhatsApp number, the factory address, the
+ * response-time promise and the company's legal name.
+ *
+ * ⚠️ `color-scheme: light` WOULD NOT HAVE FIXED IT, AND WOULD HAVE LOOKED LIKE IT DID.
+ * lightningcss downlevels `light-dark()` into a pair of `@media (prefers-color-scheme)`
+ * blocks, and that polyfill keys off the MEDIA QUERY rather than off computed
+ * `color-scheme` — print does not change `prefers-color-scheme`, so a visitor printing
+ * from dark mode would still get the dark values out of the built CSS. The same trap
+ * SiteHeader.tsx records for a theme toggle. Explicit values are the only reliable
+ * answer here.
+ *
+ * The footer already reads every one of its colours from local custom properties, so
+ * redefining those six is the whole fix — all 14 runs at once, with no per-element rules.
+ */
+@media print {
+  .site-footer {
+    --footer-bg: #fff;
+    --footer-text: #111;
+    --footer-muted: #333;
+    --footer-line: #999;
+    --footer-grid: transparent;
+    --footer-stroke: #999;
+    /* the serif accent in the CTA and the dimension line read this directly */
+    --volt: #111;
+  }
+
+  .site-footer__slab {
+    min-height: 0;
+    border-top: 1px solid #999;
+  }
+
+  /*
+   * The Quiet Room is a screen device — a full viewport of deliberately empty slab. On
+   * paper it is a blank sheet between the question and the contact details, so the band
+   * that holds it open is released. The band itself is not being reconsidered: the owner
+   * confirmed it on 2026-09-07 (FA-B-03) and it is untouched on screen.
+   */
+  .footer-grow {
+    display: none;
+  }
+
+  /* Fixed chrome cannot be fixed on paper — it reprints on every sheet. */
+  .notch-shell {
+    position: static;
+  }
+
+  /* Decoration, interaction and things that only mean something on a screen. */
+  .site-hero__grid,
+  .footer-glow,
+  .footer-mark,
+  .site-footer__tab,
+  .footer-status,
+  .skip-link,
+  .cursor-dot,
+  .cursor-ring {
+    display: none !important;
+  }
+
+  /*
+   * ⚠️ EXPANDED ONLY WHERE THE TEXT IS NOT ALREADY THE ADDRESS. The contact page prints
+   * `partner@wear-run.com (mailto:partner@wear-run.com)` if this is applied blindly, and
+   * the footer does the same. `:not()` on the two classes whose visible text IS the
+   * destination keeps the expansion where it earns its space — a "Browse the references"
+   * button that prints as nothing but its label.
+   */
+  a[href^="http"]:not(.contact-block__value):not(.footer-block a)::after {
+    content: " (" attr(href) ")";
+    font-family: var(--font-mono);
+    font-size: var(--text-mono);
+    word-break: break-all;
+  }
+
+  /*
+   * Nothing that reads as one block should be split across a sheet.
+   *
+   * ⚠️ `:root h1` RATHER THAN A BARE `h1`, and the reason is ordering, not taste. This
+   * whole block has to stay at the END of the file: `@media print` rules take part in the
+   * normal cascade and only differ in when they APPLY, so moving it above
+   * `.site-footer { --footer-bg: … }` would let the screen rule win in print and the
+   * override would be silently dead. Staying last means a bare `h1, h2, h3` at (0,0,1)
+   * sits after `.footer-block h3` at (0,1,1) and loses to it — which is exactly what
+   * Biome's noDescendingSpecificity warns about. `:root` costs nothing, matches
+   * identically, and lifts this to (0,1,1) so the later rule wins as intended.
+   */
+  :root h1,
+  :root h2,
+  :root h3 {
+    break-after: avoid;
+  }
+
+  .product-card,
+  .family-card,
+  .fact,
+  .footer-block,
+  .contact-block,
+  .site-empty {
+    break-inside: avoid;
+  }
+
+  .site-section,
+  .site-hero {
+    padding-block: 24px;
+  }
+
+  @page {
+    margin: 16mm;
+  }
+}
