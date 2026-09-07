@@ -24,8 +24,28 @@ initOpenNextCloudflareForDev()
  * read-only projections (see src/endpoints/publicViewer.ts).
  */
 const SECURITY_HEADERS = [
-  // Two years, preload-eligible. The zone is HTTPS-only already; this stops the
-  // first request of a session being downgradeable.
+  /*
+   * Two years. The zone is HTTPS-only already; this stops the first request of a session
+   * being downgradeable.
+   *
+   * ⚠️ THE `preload` TOKEN IS NOT ON THE WIRE, AND HAS NEVER BEEN (audit FA-O-04).
+   * Measured live 2026-09-07: `cms.wear-run.help` answers
+   * `strict-transport-security: max-age=63072000; includeSubDomains` — the max-age and
+   * the subdomain flag exactly as declared here, and no `preload`. Cloudflare's own HSTS
+   * setting owns this header at the edge and its preload switch is off.
+   *
+   * It is left in place rather than deleted because the value is right and the intent is
+   * right; what would be wrong is believing the site is preload-eligible on the strength
+   * of this line. It is not, and it will not be until someone turns the switch on in
+   * Cloudflare AND submits the domain.
+   *
+   * ⚠️ AND THAT IS A ONE-WAY DOOR, WHICH IS WHY NOBODY HAS DONE IT HERE. Once a domain is
+   * on the browsers' preload list, every subdomain must serve valid HTTPS for as long as
+   * it takes to be removed — months, shipped in browser releases. `media.wear-run.help`,
+   * `viewer.`, `cms.` and anything added later are all inside `includeSubDomains`. It is
+   * an owner decision with a long tail, not a header change, and it sits on
+   * docs/OWNER-CHECKLIST.md.
+   */
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
   // The admin panel has no reason to be framed, and framing it is how an
   // admin's click gets borrowed.

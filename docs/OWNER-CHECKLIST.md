@@ -196,6 +196,33 @@ is needed from you — this is here so the change does not surprise you.
 
 ---
 
+## 8 · One security switch that is a one-way door (5 minutes to read, your call)
+
+**HSTS preload.** Your site already tells browsers "only ever reach me over HTTPS" for two
+years. There is a stronger version — getting `wear-run.help` onto a list that ships inside
+Chrome, Firefox and Safari themselves, so a browser refuses plain HTTP *before it has ever
+visited you*.
+
+The code asks for it. Measured live on 2026-09-07, the actual header on the wire is
+`max-age=63072000; includeSubDomains` — with no `preload`. Cloudflare owns this header at
+the edge and its preload switch is off, so nothing has ever been submitted.
+
+⚠️ **This is the reason I have not turned it on for you.** Getting off that list takes
+months and ships in browser releases. While you are on it, **every** subdomain must serve
+valid HTTPS for ever — `media.`, `viewer.`, `cms.`, and anything you add later. One
+misconfigured subdomain becomes unreachable rather than merely insecure, and you cannot
+undo it that afternoon.
+
+**My honest view:** the benefit is small for you. It protects the very first request a
+brand-new visitor ever makes, before any redirect. Your two-year HSTS already covers
+everyone else. Most businesses your size correctly skip it.
+
+**If you want it anyway**, tell me and I will walk you through the Cloudflare switch and
+the submission. **If not, nothing needs doing** — this is written down so the next person
+reading the code does not assume it is already in place.
+
+---
+
 ## What I could not close, and why
 
 Stated plainly so nothing here reads as finished when it is not.

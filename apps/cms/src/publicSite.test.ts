@@ -674,6 +674,53 @@ describe('the 404, the policy, and analytics', () => {
     expect(headers.replace(/\s+/g, ' ')).toMatch(/publicViewerVaryRule,\s*\.\.\.publicPageCspRules/)
   })
 
+  /**
+   * ⚠️ `GET /api/access` ANSWERS 200 TO ANYONE, AND THAT IS CORRECT — MEASURED, NOT
+   * ASSUMED (audit FA-O-09, scored 6).
+   *
+   * Fetched live on 2026-09-07, the anonymous response is:
+   *
+   *     {"collections":{"users":{"fields":{"sessions":{"read":true,
+   *       "fields":{"id":{"read":true},"createdAt":{"read":true},"expiresAt":{"read":true}}}}}}}
+   *
+   * One collection, three field names, and no `canAccessAdmin`. It does NOT enumerate the
+   * collections, which is what the finding's severity assumed. Everything in it is already
+   * implied by the existence of `/admin`.
+   *
+   * ⚠️ AND BLOCKING IT WOULD BREAK THE ADMIN. Payload's own admin calls this endpoint to
+   * decide which screens a signed-in user may see; shadowing it with a 403 would take the
+   * panel down for the owner while protecting three strings. That is the trade, and it is
+   * a bad one.
+   *
+   * This test pins the ONE thing that would make the finding serious: that no other
+   * collection ever appears in that response. If `products`, `media`, `raw-uploads` or
+   * `inquiries` start showing up, an access rule has been loosened somewhere.
+   * `e2e/notfound.spec.ts` fetches the live shape; this asserts the rule that produces it.
+   */
+  it('no collection but `users` is readable without authentication', () => {
+    /*
+     * ⚠️ ANY OF THE THREE GATES, NOT `isAuthenticated` SPECIFICALLY. The first version of
+     * this test demanded that exact helper and failed immediately — on three collections
+     * that are STRICTER than it: `RawUploads` is `isAdminOrEditor` and `Events` is
+     * `isAdmin`. Asserting the tightest rule would have made a future tightening fail the
+     * build, which is the wrong direction for a security guard to point.
+     */
+    const GATED = ['isAuthenticated', 'isAdminOrEditor', 'isAdmin']
+    const roles = code(join(CMS_ROOT, 'src', 'access'), 'roles.ts')
+    for (const helper of GATED) expect(roles).toContain(`export const ${helper}`)
+
+    for (const collection of ['Products', 'Media', 'RawUploads', 'Events', 'Inquiries']) {
+      const source = code(join(CMS_ROOT, 'src', 'collections'), `${collection}.ts`)
+      const match = source.match(/read:\s*([A-Za-z]+)/)
+      expect(match, `${collection} declares no read rule at all`).not.toBeNull()
+      expect(
+        GATED,
+        `${collection}.read is "${match?.[1]}" — /api/access will now enumerate it to ` +
+          'anyone, which is the exposure FA-O-09 was scored against',
+      ).toContain(match?.[1])
+    }
+  })
+
   it('has no middleware or proxy file, because neither can be deployed', () => {
     // Keeping a dead one around would break `opennextjs-cloudflare build` again, and
     // `pnpm build` would stay green while it did.
