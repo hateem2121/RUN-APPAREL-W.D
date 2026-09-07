@@ -284,3 +284,82 @@ test.describe('RUN APPAREL 3D viewer', () => {
     }
   })
 })
+
+/**
+ * A payload that does not arrive is not a retired garment — audit FA-P-05/FA-P-06.
+ *
+ * ⚠️ THE ASSERTION THAT MATTERS IS THE NEGATIVE ONE. Until 2026-09-07 a 500 from
+ * the CMS and a phone with no signal both rendered the retired-product screen:
+ * "THIS REFERENCE IS NO LONGER LIVE — the QR code you scanned points to a garment
+ * we no longer show here." It was reached by every visitor holding the garment
+ * during any bad minute the CMS had, and there was no retry of any kind.
+ *
+ * These run in the default project only where they need `navigator.onLine`
+ * overridden; the 500 path runs everywhere, because the copy is the product.
+ */
+test.describe('the payload failed, the garment did not', () => {
+  const API = '**/api/public/viewer/**'
+  const RETIRED = /no longer live|no longer show here/i
+
+  test('a 500 offers a retry, and the retry actually recovers', async ({ page }) => {
+    let failing = true
+    await page.route(API, async (route) => {
+      if (!failing) return route.continue()
+      return route.fulfill({ status: 500, contentType: 'application/json', body: '{}' })
+    })
+
+    await page.goto('/n001/wine')
+    await expect(page.getByText('[ TEMPORARILY UNAVAILABLE ]')).toBeVisible()
+    await expect(page.getByText(RETIRED)).toHaveCount(0)
+
+    // Recovery, end to end: the same page, no reload, the garment arrives.
+    failing = false
+    await page.getByRole('button', { name: /try again/i }).click()
+    await expect(page.getByRole('heading', { name: /velocity performance tee/i })).toBeVisible()
+  })
+
+  test('an offline device is told it is offline, not that the garment is gone', async ({
+    page,
+  }) => {
+    // `navigator.onLine` is overridden rather than using context.setOffline, which
+    // is not supported on every engine here — and the shell must still load, which
+    // is the whole point: the service worker precaches it, so offline reaches this
+    // screen rather than the browser's own error page.
+    await page.addInitScript(() => {
+      Object.defineProperty(window.navigator, 'onLine', { get: () => false, configurable: true })
+    })
+    await page.route(API, (route) => route.abort('internetdisconnected'))
+
+    await page.goto('/n001/wine')
+    await expect(page.getByText('[ NO CONNECTION ]')).toBeVisible()
+    await expect(page.getByText(RETIRED)).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /try again/i })).toBeVisible()
+  })
+
+  test('it comes back on its own when the connection does', async ({ page }) => {
+    let offline = true
+    await page.addInitScript(() => {
+      Object.defineProperty(window.navigator, 'onLine', {
+        // Starts false: `__online` is undefined until the test sets it.
+        get: () => (window as unknown as { __online?: boolean }).__online === true,
+        configurable: true,
+      })
+    })
+    await page.route(API, async (route) => {
+      if (!offline) return route.continue()
+      return route.abort('internetdisconnected')
+    })
+
+    await page.goto('/n001/wine')
+    await expect(page.getByText('[ NO CONNECTION ]')).toBeVisible()
+
+    offline = false
+    await page.evaluate(() => {
+      ;(window as unknown as { __online?: boolean }).__online = true
+      window.dispatchEvent(new Event('online'))
+    })
+
+    // No click: the page listens for the browser's own `online` event.
+    await expect(page.getByRole('heading', { name: /velocity performance tee/i })).toBeVisible()
+  })
+})

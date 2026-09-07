@@ -43,6 +43,50 @@ const REQUEST_TIMEOUT_MS = 8000
 const RETRY_ATTEMPTS = 1
 
 /**
+ * Why the payload could not be fetched — and it matters because the viewer used to
+ * answer all three with the same sentence.
+ *
+ * Audit FA-P-05/FA-P-06, measured on the live site: with the API forced to 500,
+ * and again with the device offline, a buyer holding the garment was told
+ * "THIS REFERENCE IS NO LONGER LIVE — the QR code you scanned points to a garment
+ * we no longer show here". That is the correct copy for exactly one case, a 404,
+ * and it is a lie in the other two: nothing has been retired, and there was no way
+ * to try again.
+ *
+ *   offline  the device says it has no network (`navigator.onLine === false`)
+ *   network  the request never got an answer — DNS, TLS, CORS, our own 8s timeout
+ *   server   an answer arrived and it was not one we can use (5xx)
+ *
+ * `offline` is split from `network` because it is the only one whose cause the
+ * VISITOR can see and act on, and because the service worker makes it reachable:
+ * the shell is precached, so the page loads perfectly and only the payload is
+ * missing. A factory floor with no signal is a real place this product is opened.
+ */
+export type ViewerFetchFailure = 'offline' | 'network' | 'server'
+
+export class ViewerFetchError extends Error {
+  readonly kind: ViewerFetchFailure
+
+  constructor(kind: ViewerFetchFailure, message: string, options?: ErrorOptions) {
+    super(message, options)
+    this.name = 'ViewerFetchError'
+    this.kind = kind
+  }
+}
+
+/**
+ * ⚠️ READ AT THE MOMENT OF FAILURE, never cached. `navigator.onLine` is false only
+ * when the OS is certain there is no network; it is true on a captive portal and on
+ * a connection that drops mid-request, which is why a `true` here means "we do not
+ * know" and falls through to `network` rather than to a confident claim.
+ * `typeof navigator` is guarded for the unit run, where the module is imported
+ * outside a document.
+ */
+function transportKind(): ViewerFetchFailure {
+  return typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'network'
+}
+
+/**
  * Fetch the published viewer payload.
  *
  * `colourSlug: null` is "/n001" — no colour named. The segment is dropped rather
@@ -76,11 +120,17 @@ export async function fetchViewerData(
       continue
     }
     if (!res.ok && res.status !== 404) {
-      throw new Error(`Viewer API responded ${res.status}`)
+      throw new ViewerFetchError('server', `Viewer API responded ${res.status}`)
     }
     return (await res.json()) as ViewerApiResponse
   }
-  throw lastError instanceof Error
-    ? lastError
-    : new Error(`Viewer API unreachable: ${String(lastError)}`)
+  // The message keeps the underlying error's text — it is what reaches the
+  // diagnostic beacon, and "TimeoutError: signal timed out" and "Failed to fetch"
+  // are different enough to be worth telling apart in Sentry. The KIND is what the
+  // visitor sees, and it deliberately carries less detail than this.
+  throw new ViewerFetchError(
+    transportKind(),
+    lastError instanceof Error ? lastError.message : `Viewer API unreachable: ${String(lastError)}`,
+    { cause: lastError },
+  )
 }

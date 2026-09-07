@@ -106,3 +106,60 @@ describe('fetchViewerData — timeout and retry', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
+
+/**
+ * ⚠️ WHY THE FAILURE'S KIND IS A TESTED CONTRACT AND NOT AN IMPLEMENTATION DETAIL.
+ *
+ * Audit FA-P-05/FA-P-06: a 500 and a phone with no signal both reached
+ * `App.tsx`'s catch, which rendered the retired-product screen — "THIS REFERENCE
+ * IS NO LONGER LIVE". Nothing had been retired. `App.tsx` now picks the screen
+ * from `ViewerFetchError.kind`, so these three values ARE the copy a buyer reads.
+ */
+describe('fetchViewerData — why it failed', () => {
+  const onLine = (value: boolean) => vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(value)
+
+  it('labels a 5xx as a server failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }),
+    )
+    await expect(fetchViewerData('rxps', 'wine')).rejects.toMatchObject({
+      name: 'ViewerFetchError',
+      kind: 'server',
+    })
+  })
+
+  it('labels a dropped request as a network failure when the device says it is online', async () => {
+    onLine(true)
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+    await expect(fetchViewerData('rxps', 'wine')).rejects.toMatchObject({ kind: 'network' })
+  })
+
+  it('labels it offline when the device says it has no network', async () => {
+    // The case the service worker makes reachable: the shell is precached, so the
+    // page renders perfectly and only the payload is missing. Measured on the live
+    // site — the navigation SUCCEEDED offline and showed "no longer live".
+    onLine(false)
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+    await expect(fetchViewerData('rxps', 'wine')).rejects.toMatchObject({ kind: 'offline' })
+  })
+
+  it('keeps the underlying message, which is what reaches the beacon', async () => {
+    onLine(true)
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('signal timed out')))
+    // The visitor sees the KIND; Sentry needs to tell a timeout from a CORS
+    // rejection, and both arrive here as the same kind.
+    await expect(fetchViewerData('rxps', 'wine')).rejects.toThrow(/signal timed out/)
+  })
+
+  it('reads onLine at the moment of failure, not at import — negative control', async () => {
+    // Without this the two assertions above could both be satisfied by a constant.
+    // Same fetch rejection, opposite navigator state, opposite kind.
+    const failing = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.stubGlobal('fetch', failing)
+    onLine(false)
+    await expect(fetchViewerData('a', 'b')).rejects.toMatchObject({ kind: 'offline' })
+    onLine(true)
+    await expect(fetchViewerData('a', 'b')).rejects.toMatchObject({ kind: 'network' })
+  })
+})

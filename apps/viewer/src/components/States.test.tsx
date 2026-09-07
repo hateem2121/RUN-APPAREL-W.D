@@ -1,8 +1,8 @@
 import { DEFAULT_SITE_SETTINGS, type ViewerSiteSettings } from '@run-apparel/shared'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { RetiredNotice, UnavailableState } from './States'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { RetiredNotice, UnavailableState, UnreachableState } from './States'
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 /**
@@ -155,5 +155,85 @@ describe('UnavailableState', () => {
   it('marks itself as the page main landmark', () => {
     render(<UnavailableState />)
     expect(host.querySelector('main')).not.toBeNull()
+  })
+})
+
+/**
+ * The screen a buyer gets when the payload does not arrive — audit FA-P-05/P-06.
+ *
+ * ⚠️ EVERY ASSERTION HERE IS ABOUT A SENTENCE, and that is the point. The bug was
+ * not a crash: it was that a 500 and a phone with no signal both printed "THIS
+ * REFERENCE IS NO LONGER LIVE" at someone holding the garment. Nothing catches
+ * copy that is grammatical, branded, calm and false.
+ */
+describe('UnreachableState', () => {
+  const RETIRED_COPY = /no longer live|no longer show here/i
+
+  it('does not tell an offline visitor the garment has been retired', () => {
+    render(<UnreachableState reason="offline" onRetry={() => {}} />)
+
+    expect(host.textContent).not.toMatch(RETIRED_COPY)
+    expect(host.textContent).toContain('[ NO CONNECTION ]')
+    expect(host.textContent).toMatch(/offline/i)
+    // It must also say the garment is FINE, not merely omit the claim that it is not.
+    expect(host.textContent).toMatch(/still here/i)
+  })
+
+  it('does not tell a visitor hitting a 500 that the garment has been retired', () => {
+    render(<UnreachableState reason="server" onRetry={() => {}} />)
+
+    expect(host.textContent).not.toMatch(RETIRED_COPY)
+    expect(host.textContent).toContain('[ TEMPORARILY UNAVAILABLE ]')
+    expect(host.textContent).toMatch(/nothing has been discontinued/i)
+  })
+
+  it('says something different for offline than for a server failure', () => {
+    // Negative control for the two above: if the copy were one string, both would
+    // pass while the split did nothing.
+    render(<UnreachableState reason="offline" onRetry={() => {}} />)
+    const offline = host.textContent
+    act(() => root.render(<UnreachableState reason="server" onRetry={() => {}} />))
+    expect(host.textContent).not.toBe(offline)
+  })
+
+  it('offers a retry, and it re-fetches rather than reloading the document', () => {
+    // `location.reload()` offline would replace a working precached page with the
+    // browser's own error page. The affordance is a button wired to the fetch.
+    const onRetry = vi.fn()
+    render(<UnreachableState reason="network" onRetry={onRetry} />)
+
+    const button = host.querySelector<HTMLButtonElement>('button.btn--primary')
+    expect(button?.textContent).toMatch(/try again/i)
+    act(() => button?.click())
+    expect(onRetry).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports the attempt and cannot be fired twice while it runs', () => {
+    render(<UnreachableState reason="network" onRetry={() => {}} retrying />)
+
+    const button = host.querySelector<HTMLButtonElement>('button.btn--primary')
+    expect(button?.disabled).toBe(true)
+    expect(button?.textContent).toMatch(/trying/i)
+  })
+
+  it('keeps both enquiry routes, because the visitor may not want to wait', () => {
+    render(<UnreachableState reason="server" onRetry={() => {}} />)
+    const hrefs = [...host.querySelectorAll<HTMLAnchorElement>('a')].map(
+      (a) => a.getAttribute('href') ?? '',
+    )
+    expect(hrefs.some((h) => h.startsWith('mailto:'))).toBe(true)
+    expect(hrefs.some((h) => h.includes('wa.me'))).toBe(true)
+  })
+
+  it('adds and removes the robots noindex tag, exactly as the retired screen does', () => {
+    // A crawler that catches a 5xx minute must not bank this page as the garment's
+    // content — and must not keep the tag once a live product renders.
+    expect(robotsMetas()).toHaveLength(0)
+    render(<UnreachableState reason="server" onRetry={() => {}} />)
+    expect(robotsMetas()).toHaveLength(1)
+    expect(robotsMetas()[0]?.getAttribute('content')).toBe('noindex')
+
+    act(() => root.render(<div />))
+    expect(robotsMetas()).toHaveLength(0)
   })
 })

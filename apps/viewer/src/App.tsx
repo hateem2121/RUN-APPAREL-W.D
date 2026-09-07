@@ -10,10 +10,10 @@ import { Preloader } from './components/Preloader'
 import { ProductIdentity } from './components/ProductIdentity'
 import { ProductPanel } from './components/ProductPanel'
 import { Stage } from './components/Stage'
-import { RetiredNotice, UnavailableState } from './components/States'
+import { RetiredNotice, UnavailableState, UnreachableState } from './components/States'
 import { startActionBarHeight } from './lib/actionBarHeight'
 import { track } from './lib/analytics'
-import { fetchViewerData } from './lib/api'
+import { type ViewerFetchFailure, ViewerFetchError, fetchViewerData } from './lib/api'
 import { diagnostic } from './lib/diagnostic'
 import { currentRoute, onRouteChange, setColourwayUrl } from './lib/router'
 import { useIdentityInAside } from './lib/useIdentityInAside'
@@ -21,6 +21,20 @@ import { useIdentityInAside } from './lib/useIdentityInAside'
 type AppState =
   | { kind: 'loading' }
   | { kind: 'unavailable' }
+  /**
+   * ⚠️ NOT THE SAME STATE AS `unavailable`, since 2026-09-07 — audit FA-P-05/P-06.
+   *
+   * They were one state and one screen: a 500 from the CMS, a dropped connection
+   * and a phone with no signal all rendered "THIS REFERENCE IS NO LONGER LIVE —
+   * the QR code you scanned points to a garment we no longer show here". Measured
+   * on the live site by forcing the API to 500, and again by going offline (the
+   * service worker precaches the shell, so the page loads and only the payload is
+   * missing). A buyer holding the garment was told it had been retired, and given
+   * no way to try again.
+   *
+   * A 404 keeps `unavailable`, which is what that copy is true of.
+   */
+  | { kind: 'unreachable'; reason: ViewerFetchFailure }
   | {
       kind: 'ready'
       data: ViewerApiSuccess
@@ -118,13 +132,20 @@ export default function App() {
         track('viewer_page_loaded', { product: response.product.productCode })
       }
     } catch (error) {
-      setState({ kind: 'unavailable' })
+      // The KIND decides which screen, and it is deliberately conservative:
+      // anything that is not a recognised transport/server failure — malformed
+      // JSON, a thrown parse error, a bug in here — is treated as `network`,
+      // because "we could not load this, try again" is true of all of them and
+      // "this garment is retired" is true of none.
+      const reason: ViewerFetchFailure = error instanceof ViewerFetchError ? error.kind : 'network'
+      setState({ kind: 'unreachable', reason })
       // Network failure, CORS, a 5xx, malformed JSON — all previously swallowed
-      // whole. The visitor still gets the same calm screen; the difference is
-      // that now somebody can find out why they got it.
+      // whole. The visitor still gets a calm screen; the difference is that now
+      // somebody can find out why they got it.
       diagnostic('viewer-load-failed', {
         product: route.productSlug,
         variant: route.colourSlug ?? '',
+        kind: reason,
         reason: error instanceof Error ? error.message : String(error),
       })
     }
@@ -133,6 +154,43 @@ export default function App() {
   useEffect(() => {
     void load()
   }, [load])
+
+  /**
+   * The retry the unreachable screen offers — audit FA-P-05 ("there is no retry
+   * and no try again").
+   *
+   * ⚠️ IT MUST NOT GO BACK TO `{ kind: 'loading' }`, and that is the whole reason
+   * this local flag exists. The loading branch renders `<div className="page"
+   * aria-hidden="true" />` behind the preloader — which is correct on first paint
+   * and wrong on a retry, because `preloaderGone` is already true by then: the
+   * visitor would watch the page they are reading turn into an empty, aria-hidden
+   * div. So the error screen stays on screen and its button reports the attempt.
+   */
+  const [retrying, setRetrying] = useState(false)
+  const retry = useCallback(async () => {
+    setRetrying(true)
+    try {
+      await load()
+    } finally {
+      setRetrying(false)
+    }
+  }, [load])
+
+  /**
+   * Come back on its own when the network does.
+   *
+   * The offline case is the one where the visitor's action ("walk to the window")
+   * and the recovery are separable, and a page that has already told them it is
+   * offline should not also make them find a button. `online` fires on the window
+   * when the OS regains a connection; it is not a promise that anything is
+   * reachable, so this is exactly the same attempt the button makes.
+   */
+  useEffect(() => {
+    if (state.kind !== 'unreachable') return
+    const onOnline = () => void retry()
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+  }, [state.kind, retry])
 
   /**
    * Keep the stage band's bottom reserve equal to the action bar's real height.
@@ -239,6 +297,14 @@ export default function App() {
     return (
       <div className="page">
         <UnavailableState />
+      </div>
+    )
+  }
+
+  if (state.kind === 'unreachable') {
+    return (
+      <div className="page">
+        <UnreachableState reason={state.reason} onRetry={retry} retrying={retrying} />
       </div>
     )
   }
