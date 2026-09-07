@@ -54,7 +54,7 @@ export default async function ContactPage() {
         </div>
       </section>
 
-      <section className="site-section">
+      <section className="site-section" data-site-reveal>
         <div className="site-container">
           <div className="contact-grid">
             <div className="contact-block">
@@ -80,7 +80,7 @@ export default async function ContactPage() {
         </div>
       </section>
 
-      <section className="site-section">
+      <section className="site-section" data-site-reveal>
         <div className="site-container">
           <p className="section-number">What helps us reply faster</p>
           <h2 className="display display--section">

@@ -28,12 +28,63 @@ test.describe('the footer geometry', () => {
     expect((tab?.y ?? 0) + (tab?.height ?? 0)).toBeLessThanOrEqual((slab?.y ?? 0) + 1)
   })
 
-  test('the facts are a 2×2 at desktop width', async ({ page }) => {
+  /**
+   * ⚠️ THIS TEST USED TO ASSERT `gridTemplateColumns` HAD TWO TRACKS, AND IT COULD NEVER
+   * HAVE FAILED FOR A REAL REASON.
+   *
+   * `repeat(2, minmax(0, 1fr))` reports two tracks whatever the content is, so the
+   * assertion read the CSS declaration back to itself. Meanwhile the 2x2 it was named for
+   * is a state the site cannot currently reach: three of the four blocks are conditional
+   * on CMS fields the owner has not filled, so ONE block renders — into a two-column grid
+   * with a `border-top` drawn across the whole 640px box. The rule ran 51.9-56.4% wider
+   * than anything beneath it (audit FA-D-02), on the emptiest surface on the site, and
+   * this test was green throughout.
+   *
+   * It now measures the thing the rule is for: a hairline that underlines content should
+   * be about as wide as the content. Measured after the fix, at 430/600/768/1440/1920:
+   * rule 303.6px, widest ink 303.6px, overshoot 0.0% at every width.
+   *
+   * The 10% bound is generous on purpose — the grid gap and a block's own padding are
+   * legitimate reasons for the rule to exceed the ink slightly. What it rejects is the
+   * half-empty rule the audit found.
+   */
+  test('the rule is as wide as what it underlines', async ({ page }) => {
+    for (const width of [430, 768, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/contact')
+      const m = await page.locator('.footer-facts').evaluate((el) => {
+        let ink = 0
+        for (const child of el.querySelectorAll('li, h3')) {
+          const range = document.createRange()
+          range.selectNodeContents(child)
+          for (const rect of range.getClientRects()) ink = Math.max(ink, rect.width)
+        }
+        return { rule: el.getBoundingClientRect().width, ink }
+      })
+      expect(
+        m.ink,
+        `no measurable content at ${width}px — the probe is reading nothing`,
+      ).toBeGreaterThan(50)
+      const overshoot = ((m.rule - m.ink) / m.ink) * 100
+      expect(
+        overshoot,
+        `at ${width}px the rule is ${m.rule.toFixed(1)}px over ${m.ink.toFixed(1)}px of ink ` +
+          `(${overshoot.toFixed(1)}% wider than the content it underlines)`,
+      ).toBeLessThan(10)
+    }
+  })
+
+  test('the facts grid uses one track per block that renders', async ({ page }) => {
+    // `auto-fit` collapses empty tracks, so the count follows the content rather than a
+    // hardcoded 2. With the three conditional blocks unfilled that is one; when the owner
+    // fills them it becomes two at desktop, without a CSS change.
+    await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/contact')
-    const tracks = await page
-      .locator('.footer-facts')
-      .evaluate((el) => getComputedStyle(el).gridTemplateColumns)
-    expect(tracks.trim().split(/\s+/)).toHaveLength(2)
+    const m = await page.locator('.footer-facts').evaluate((el) => ({
+      tracks: getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length,
+      blocks: el.children.length,
+    }))
+    expect(m.tracks).toBe(Math.min(m.blocks, 2))
   })
 
   test('the wordmark spans the slab exactly, cropped only at the bottom', async ({ page }) => {

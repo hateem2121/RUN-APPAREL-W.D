@@ -48,7 +48,7 @@ export default async function TermsPage() {
         </div>
       </section>
 
-      <section className="site-section">
+      <section className="site-section" data-site-reveal>
         <div className="site-container prose">
           <p>
             This website and its 3D product references are published by {settings.companyName} for

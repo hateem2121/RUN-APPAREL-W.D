@@ -82,7 +82,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="site-section">
+      <section className="site-section" data-site-reveal>
         <div className="site-container">
           <p className="section-number">N°01 — What we make</p>
           <h2 className="display display--section">Five families, one standard.</h2>
@@ -117,7 +117,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="site-section">
+      <section className="site-section" data-site-reveal>
         <div className="site-container">
           <p className="section-number">N°02 — See it before it exists</p>
           <h2 className="display display--section">
@@ -141,7 +141,7 @@ export default async function HomePage() {
         docs/DECISIONS-BETA-WEBSITE.md D6), so this is inserted below rather than above —
         adding proof must not quietly reorder a section whose position was just settled.
       */}
-      <section className="site-section">
+      <section className="site-section" data-site-reveal>
         <div className="site-container">
           <p className="section-number">N°03 — The works</p>
           <h2 className="display display--section">
@@ -186,7 +186,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="site-section">
+      <section className="site-section" data-site-reveal>
         <div className="site-container">
           <p className="section-number">N°04 — Talk to us</p>
           <h2 className="display display--section">Tell us what you&rsquo;re making.</h2>

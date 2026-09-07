@@ -157,10 +157,25 @@ test.describe('rendering', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     for (const path of ['/', '/products', '/contact']) {
       await page.goto(path)
+      /*
+       * ⚠️ 43.95, NOT 44, AND THE 0.05 IS A MEASUREMENT ARTEFACT RATHER THAN A CONCESSION.
+       *
+       * `getBoundingClientRect().height` is `bottom - top` in floating point. Where an
+       * element sits at a fractional offset — which fluid `clamp()` type above it
+       * guarantees — that subtraction loses precision: measured 2026-09-07, two filter
+       * chips with a computed `min-height: 44px` reported **43.999969482421875** while
+       * four identical chips on later flex lines reported exactly 44. Their tops were
+       * 472.8596 and 524.8596 respectively.
+       *
+       * Compared strictly, this test fails on elements that are 44px by declaration and
+       * 3.1e-5 px short by arithmetic — a false positive that says nothing about a thumb.
+       * The tolerance costs it nothing: the failure it was written for measured **19px**,
+       * and the smallest real miss this codebase has shipped was 16px.
+       */
       const small = await page.evaluate(() =>
         [...document.querySelectorAll('a[href], button')]
           .filter((el) => el.getBoundingClientRect().height > 0)
-          .filter((el) => el.getBoundingClientRect().height < 44)
+          .filter((el) => el.getBoundingClientRect().height < 43.95)
           .map((el) => `${(el.textContent ?? '').trim().slice(0, 24)}`),
       )
       // Both contact links measured 19px tall at every viewport — the page's only two

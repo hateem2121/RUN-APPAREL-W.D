@@ -59,7 +59,7 @@ export default async function PrivacyPage() {
         </div>
       </section>
 
-      <section className="site-section">
+      <section className="site-section" data-site-reveal>
         <div className="site-container prose">
           <p className="section-number">Who we are</p>
           <p>

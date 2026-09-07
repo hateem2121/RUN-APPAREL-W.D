@@ -1097,6 +1097,14 @@ html {
  * 320px screen once the gutters are taken, which is the classic auto-fit mistake.
  */
 .footer-facts {
+  /*
+   * ⚠️ `fit-content`, AND WITHOUT IT THE auto-fit ABOVE DOES NOT ACTUALLY FIX FA-D-02.
+   * Measured 2026-09-07: `auto-fit` collapses the empty tracks, but the surviving track is
+   * `1fr` of a 640px box, so one block still filled 640px while its widest ink was 303.6px
+   * — the same 52% overshoot, now drawn by one track instead of two. The rule is a
+   * `border-top` on this element, so the element has to be the width of its content.
+   */
+  width: fit-content;
   max-width: 640px;
   margin-inline-start: auto;
   padding: 24px 0 clamp(24px, 4vw, 64px);
@@ -1920,11 +1928,19 @@ a.contact-block__value:active {
 /*
  * A family with no references yet is still part of what the company makes, so the chip
  * stays and stays clickable — the empty state behind it explains, and says so honestly.
- * It is dimmed rather than removed so the five families the homepage advertises and the
- * five the gallery offers are always the same five.
+ *
+ * ⚠️ A DASHED BORDER, NOT `opacity: 0.55`. The first version dimmed it, and axe caught the
+ * result on its first run: `--muted` at 55% over the page ground is #a3a49b on #f1efea,
+ * which measures **2.19:1** against a 4.5:1 requirement — a serious WCAG 1.4.3 failure, on
+ * a site the audit scored 10/10 for accessibility. Opacity is never a safe way to de-
+ * emphasise TEXT.
+ *
+ * A border carries no text-contrast requirement, and the count beside the label already
+ * says "0" — so the state is signalled twice, by shape and by number, and never by
+ * lowering legibility.
  */
 .filter-chip[data-empty="true"] {
-  opacity: 0.55;
+  border-style: dashed;
 }
 
 .filter-chip[aria-current="page"] {
@@ -2011,6 +2027,83 @@ a.contact-block__value:active {
 @media (hover: hover) and (pointer: fine) {
   .prose__link:hover {
     text-decoration-color: currentColor;
+  }
+}
+
+/* ------------------------------------------------ entrance motion (FA-H-11) */
+
+/*
+ * Owner decision 2026-09-07 (D8): the site gets the viewer's gentle entrance so the two
+ * halves of one company stop feeling like two products. The viewer reveals its content as
+ * it arrives; the site snapped everything into place.
+ *
+ * ⚠️ CSS SCROLL-DRIVEN, NOT AN IntersectionObserver, AND THE REASON IS THE ONE THING THIS
+ * SITE MUST NOT LOSE. The viewer's `[data-reveal]` sets `opacity: 0` and waits for
+ * `polish/reveal.ts` to add `.is-inview`. Copying that here would mean the marketing
+ * pages render BLANK whenever the JavaScript does not run — and "the three real pages
+ * render fully without JavaScript" is a measured strength of this site, scored 9 twice
+ * (FA-P-02, FA-W-04). An animation cannot do that: a browser that does not run it simply
+ * shows the content, and one that does not support the timeline never enters the block.
+ *
+ * ⚠️ HENCE `@supports`, WHICH IS LOAD-BEARING RATHER THAN POLITE. Without it, a browser
+ * lacking `animation-timeline` would apply the keyframes' `from` state through `both` and
+ * hold every section at `opacity: 0` for ever. The support query is what makes the failure
+ * mode "no animation" instead of "no content".
+ *
+ * ⚠️ AND THE HERO IS DELIBERATELY EXCLUDED. It is above the fold on every viewport, so
+ * animating it would delay the first thing a visitor reads to buy nothing. `[data-reveal]`
+ * was not reused as the attribute name because base.css's rule for it is UNSCOPED and
+ * would reach these elements with the opacity trap attached.
+ *
+ * `--reveal-y` and the two curves are the viewer's own tokens; nothing new is introduced.
+ * `entry 0%` to `entry 60%` means a section is fully arrived well before it reaches the
+ * middle of the screen, so nothing is still moving while it is being read.
+ *
+ * ⚠️ THE SECOND COST, RECORDED BECAUSE IT WILL BITE A FUTURE MEASUREMENT. A transformed
+ * section is composited, and `getBoundingClientRect()` inside one returns fractional
+ * values: measured 2026-09-07, two filter chips with a computed `min-height: 44px`
+ * reported 43.999969482421875 with this animation applied and exactly 44.000000 without
+ * it, their tops differing by 0.0002px. That is the same class of trap
+ * apps/viewer/CLAUDE.md records for `[data-reveal]`, where a transform silently offset a
+ * layout sweep by 24px. Anything measuring geometry inside these sections must tolerate
+ * sub-pixel error or read the values with the animation disabled.
+ */
+/*
+ * ⚠️ NO `opacity` IN THESE KEYFRAMES, AND THAT IS A MEASURED CONSTRAINT RATHER THAN A
+ * STYLE PREFERENCE.
+ *
+ * The first version faded from 0 to 1, and axe reported **seven colour-contrast
+ * violations** on the home page on its first run — on a site scored 10/10 for
+ * accessibility. The reported foreground was `#7a7c72`, which is not a token in this
+ * system: solving `α·#63665b + (1-α)·#f1efea = #7a7c72` gives **α = 0.84**, so the checker
+ * had measured the text MID-ANIMATION, at 84% opacity, where `--muted` falls from 5.10:1
+ * to 3.68:1 against a 4.5:1 requirement.
+ *
+ * ⚠️ AND `--muted` ITSELF IS FINE — 5.10:1 on `--paper`, 3.96:1 on `--surface` only when
+ * faded. The first reading of that failure blamed the token, which would have meant
+ * changing a colour across both surfaces to fix an animation. Computing the alpha is what
+ * separated the two.
+ *
+ * A translate carries no such hazard: the text is at full opacity throughout, so what a
+ * contrast checker sees is what a reader sees. Removing the fade took the home page from
+ * 7 violations back to 0. Verified both ways.
+ */
+@keyframes site-reveal {
+  from {
+    transform: translateY(var(--reveal-y));
+  }
+  to {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    [data-site-reveal] {
+      animation: site-reveal var(--settle) var(--ease-out-expo) both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60%;
+    }
   }
 }
 

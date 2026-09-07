@@ -124,7 +124,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
         </div>
       </section>
 
-      <section className="site-section">
+      <section className="site-section" data-site-reveal>
         <div className="site-container">
           {/*
             A <nav> of plain links, not a listbox or a set of buttons. Every chip is a real
