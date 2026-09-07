@@ -16,10 +16,24 @@
  * beacon with an empty one: that reports to Cloudflare from an unidentified site, which
  * is worse than not reporting.
  *
- * ⚠️ THE SCRIPT MUST CARRY THE NONCE. `proxy.ts` sets a per-request
- * Content-Security-Policy, and `script-src` governs this tag like any other. Without the
- * nonce the browser silently refuses to run it and analytics quietly records nothing —
- * green, deployed, and blind, which is this repo's most repeated failure shape.
+ * ⚠️ THIS TAG NEEDS NO NONCE, AND THE COMMENT THAT SAID OTHERWISE DESCRIBED A FILE THAT
+ * HAS NEVER EXISTED (audit FA-O-12). It read: "`proxy.ts` sets a per-request
+ * Content-Security-Policy... without the nonce the browser silently refuses to run it."
+ * There is no `proxy.ts` and there cannot be one — measured 2026-09-05, Next 16's renamed
+ * middleware fails `opennextjs-cloudflare build` outright on the Node runtime and fails
+ * earlier still with `runtime: 'edge'`, while `pnpm build` and 2,000 tests stay green.
+ * `publicSite.test.ts` asserts no such file exists for that reason.
+ *
+ * What actually admits this script is the HOST in the policy:
+ * `script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com` in
+ * `publicViewerHeaders.mjs`, and `connect-src` names the two Insights origins the beacon
+ * reports to. Both are pinned by tests. A comment demanding a nonce would send the next
+ * reader looking for machinery that cannot be built here.
+ *
+ * TOKEN SET ON THE WORKER 2026-09-07 (`CF_ANALYTICS_TOKEN`, `run-apparel-viewer-cms`) and
+ * verified in `wrangler secret list`. It renders nothing yet, correctly: fetched live the
+ * same day, `cms.wear-run.help/` serves a private holding page and the marketing site is
+ * not deployed anywhere. The beacon appears when the site does.
  */
 export function Analytics() {
   const token = process.env.CF_ANALYTICS_TOKEN?.trim()

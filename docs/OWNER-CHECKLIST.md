@@ -60,26 +60,30 @@ the old wording carried, and it is being reworded to say so plainly. See
 
 ---
 
-## 3 · Turn on visitor analytics (about 5 minutes)
+## 3 · ~~Turn on visitor analytics~~ — **DONE 2026-09-07**
 
-**Why me.** The token is created against your Cloudflare account and cannot be generated
-from the code.
+You asked me to do this one, and it is finished. Nothing is left for you here.
 
-There is currently **no way to tell whether these pages produce a single enquiry**. The
-code for this is already written and does nothing until you supply a token.
+Two things were already in place: `wear-run.help` had been added to Cloudflare Web
+Analytics a month ago (it is showing 100 page views in the last 24 hours, from the two
+PDFs the apex serves), and `viewer.wear-run.help` was added four days ago.
 
-1. Sign in to Cloudflare and open **Analytics & Logs → Web Analytics**.
-2. Choose **Add a site**, and enter `wear-run.help`.
-3. Cloudflare shows a snippet containing a **token** — a long string of letters and
-   numbers. Copy just the token.
-4. Send it to me, or set it yourself with:
+What was missing was the token reaching the site's code. I read it from your Cloudflare
+dashboard and set it on the Worker:
 
 ```bash
-npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec wrangler secret put CF_ANALYTICS_TOKEN
+npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec wrangler secret list
 ```
 
+`CF_ANALYTICS_TOKEN` now appears in that list beside `PAYLOAD_SECRET`, `RESEND_API_KEY`
+and `SENTRY_DSN`.
+
+⚠️ **It reports nothing yet, and that is correct.** Fetched live the same day,
+`cms.wear-run.help` serves a private holding page — the marketing site is not deployed
+anywhere. The counter starts when the site launches.
+
 **You are done when** the site reports visitors in that dashboard within a day of going
-live.
+live. Nothing to do until then.
 
 **What you get.** Visitor numbers, which pages they read, and where they arrived from. It
 sets no cookies, so it needs no cookie banner and collects nothing personal — that is why
