@@ -892,6 +892,56 @@ describe('user preferences the stylesheets answer', () => {
       `No stylesheet answers ${query}. It matters here for ${consumer}.`,
     ).toBe(true)
   })
+
+  /**
+   * FA-G-52 / FA-G-61 — Windows High Contrast works because the code does NOT
+   * fight it, and there is exactly one sanctioned exception.
+   *
+   * The audit of 2026-09-06 scored this 9 and the whole finding rests on a
+   * negative: `forced-color-adjust: none` opts an element out of the user's
+   * palette, and it appears on ONE selector in the entire design system —
+   * `.colourway-tab__swatch`, whose only job is to show a colour that
+   * forced-colors would otherwise erase, turning the rail into five identical
+   * circles. `page.css:2316` states the rule as prose ("ON THE SWATCH ONLY, and
+   * nowhere else"); prose is not a gate.
+   *
+   * ⚠️ THE FAILURE MODE IS SILENT AND LOOKS LIKE A FIX. Someone reports that the
+   * brand colours vanish in High Contrast, adds `forced-color-adjust: none` to
+   * `.btn--primary` or to `body`, and the page now ignores the palette a visitor
+   * with low vision explicitly chose — while looking correct to everyone who
+   * reviews it, because neither engine available on this machine emulates
+   * forced-colors. The related audit finding FA-G-61 is that 51 reported contrast
+   * failures under forced-colors were FALSE: the checker read author colours
+   * before substitution. Substitution is what this property switches off.
+   *
+   * The SET OF SELECTORS is what must not grow, so that is what is compared — not
+   * a count, and not a line number. A count says nothing about which element
+   * escaped, and a line number would make this fail on every unrelated edit above
+   * it, which is how a gate gets loosened to shut it up.
+   */
+  it('opts exactly one element out of the forced-colors palette', () => {
+    const uses: string[] = []
+    for (const { name, source } of cssFiles()) {
+      // `none` is the only value that opts out; `auto` is the default and is a
+      // no-op wherever it appears.
+      for (const match of source.matchAll(/forced-color-adjust\s*:\s*none/g)) {
+        const before = source.slice(0, match.index)
+        // The nearest selector above the declaration — enough to name the
+        // offender without parsing CSS.
+        const selector = (before.match(/([^{};\n]+)\s*\{[^{}]*$/)?.[1] ?? '?').trim()
+        uses.push(`${name} ${selector}`)
+      }
+    }
+
+    expect(
+      uses.sort(),
+      'forced-color-adjust: none opts an element out of the palette a Windows High\n' +
+        'Contrast user chose. It is sanctioned on the colourway swatch ONLY, because\n' +
+        'that element exists to show a colour. Anywhere else it overrides an\n' +
+        'accessibility preference, and no browser on this machine can show you that\n' +
+        'it did. See page.css and audit FA-G-52.',
+    ).toEqual(['page.css .colourway-tab__swatch'])
+  })
 })
 
 /**

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { SHARED_SECURITY_HEADERS } from '../worker/securityHeaders'
+import { SHARED_SECURITY_HEADERS, workerResponseHeaders } from '../worker/securityHeaders'
 import { buildCsp, buildHeadersFile } from './csp.mjs'
 
 /**
@@ -194,6 +194,61 @@ describe('buildHeadersFile — the _headers file', () => {
     expect(joined).toContain('Strict-Transport-Security:')
     // No Cache-Control here: /* would match hashed assets too.
     expect(joined.toLowerCase()).not.toContain('cache-control:')
+  })
+
+  /**
+   * FA-O-03 — the policy is ENFORCED, and the difference is one suffix.
+   *
+   * Audited 2026-09-06 and scored 9: both surfaces send `Content-Security-Policy`
+   * and neither sends `Content-Security-Policy-Report-Only`. Nothing held it
+   * there.
+   *
+   * ⚠️ REPORT-ONLY IS THE FAILURE MODE THAT LOOKS LIKE SUCCESS. A
+   * `-Report-Only` header is parsed, validated, and reported on — the Sentry
+   * `report-uri` two describes above keeps working, so the dashboard keeps
+   * filling with violations — and it blocks NOTHING. A visitor's browser
+   * executes every script the policy names as forbidden. The whole reason this
+   * repo carries a CSP is two production incidents where a real directive was
+   * missing (the self-hosted decoder location, and `blob:` in `connect-src`);
+   * shipping the same policy in report-only is indistinguishable from shipping
+   * it correctly in every log, in every test that reads the policy STRING, and
+   * in every browser devtools panel except the one line naming the header.
+   *
+   * It is a plausible edit, not a fanciful one: "switch it to report-only for a
+   * day while we work out which directive is blocking X" is the standard way to
+   * debug a CSP, and the standard way to forget to switch it back.
+   *
+   * Both halves are checked because they are written in different files — the
+   * `_headers` copy in `csp.mjs`, and the copy a Worker-built response would
+   * carry in `worker/securityHeaders.ts` (which has no caller today and exists
+   * precisely so the next one does not re-learn that `_headers` never reaches
+   * it).
+   */
+  it('sends an enforcing CSP, never a report-only one', () => {
+    const out = buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API })
+
+    const cspHeaders = out
+      .split('\n')
+      .filter((line) => /^\s+/.test(line))
+      .map((line) => line.trim().split(':')[0]?.trim() ?? '')
+      .filter((name) => name.toLowerCase().startsWith('content-security-policy'))
+
+    // Positive control first: a parser that found nothing would make the
+    // "no report-only" assertion below pass against a file with no CSP at all.
+    expect(cspHeaders.length, 'no Content-Security-Policy header found in _headers').toBe(1)
+    expect(
+      cspHeaders,
+      'the viewer ships a REPORT-ONLY CSP. It still reports to Sentry and it blocks\n' +
+        'nothing — the policy is present in every log and enforcing in no browser.\n' +
+        'See audit FA-O-03.',
+    ).toEqual(['Content-Security-Policy'])
+
+    expect(
+      Object.keys(workerResponseHeaders()).filter((name) =>
+        name.toLowerCase().startsWith('content-security-policy'),
+      ),
+      'a Worker-built response would carry a report-only CSP',
+    ).toEqual(['Content-Security-Policy'])
   })
 })
 
