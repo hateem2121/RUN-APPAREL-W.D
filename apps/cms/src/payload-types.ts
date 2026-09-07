@@ -119,6 +119,7 @@ export interface Config {
     'raw-uploads': RawUpload;
     products: Product;
     events: Event;
+    enquiries: Enquiry;
     'payload-kv': PayloadKv;
     'payload-folders': FolderInterface;
     'payload-locked-documents': PayloadLockedDocument;
@@ -139,6 +140,7 @@ export interface Config {
     'raw-uploads': RawUploadsSelect<false> | RawUploadsSelect<true>;
     products: ProductsSelect<false> | ProductsSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
+    enquiries: EnquiriesSelect<false> | EnquiriesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-folders': PayloadFoldersSelect<false> | PayloadFoldersSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -507,6 +509,33 @@ export interface Event {
   createdAt: string;
 }
 /**
+ * Messages sent through the form on the contact page. Every one is saved here BEFORE the notification email is attempted, so a mail problem can never lose an enquiry — if the email did not arrive, the message is still on this screen.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "enquiries".
+ */
+export interface Enquiry {
+  id: number;
+  name: string;
+  company?: string | null;
+  email: string;
+  message: string;
+  /**
+   * The one field on this screen you are meant to change.
+   */
+  status: 'new' | 'replied' | 'archived';
+  /**
+   * Whether the notification email was accepted for delivery.
+   */
+  notified?: boolean | null;
+  /**
+   * Why the notification could not be sent, if it could not. The enquiry itself is unaffected — it is the message above.
+   */
+  notifyError?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -549,6 +578,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'events';
         value: number | Event;
+      } | null)
+    | ({
+        relationTo: 'enquiries';
+        value: number | Enquiry;
       } | null)
     | ({
         relationTo: 'payload-folders';
@@ -745,6 +778,21 @@ export interface EventsSelect<T extends boolean = true> {
   placement?: T;
   message?: T;
   ua?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "enquiries_select".
+ */
+export interface EnquiriesSelect<T extends boolean = true> {
+  name?: T;
+  company?: T;
+  email?: T;
+  message?: T;
+  status?: T;
+  notified?: T;
+  notifyError?: T;
   updatedAt?: T;
   createdAt?: T;
 }

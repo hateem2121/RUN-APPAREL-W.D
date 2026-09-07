@@ -186,6 +186,20 @@ html {
  * number.
  */
 :root {
+  /*
+   * ⚠️ `light-dark()`, AND THE FIXED VALUE IT REPLACED FAILED IN DARK MODE. This marks an
+   * invalid form field and the error notice — a UI boundary, so WCAG 1.4.11 asks 3:1
+   * against its own background. Measured 2026-09-07 against `--surface`:
+   *
+   *   #b3261e on #faf9f6 (light)  6.21:1  PASS
+   *   #b3261e on #23271f (dark)   2.33:1  FAIL
+   *   #f2b8b5 on #23271f (dark)   8.90:1  PASS
+   *
+   * Declared here rather than in packages/ui: only the site has a form. It is also never
+   * the ONLY signal — the browser's own validation message says what is wrong and is
+   * announced, because colour alone would be a WCAG 1.4.1 failure.
+   */
+  --danger: light-dark(#b3261e, #f2b8b5);
   --site-max: 1180px;
   --site-gutter: clamp(20px, 5vw, 64px);
   /* what a `.site-container` child actually gets, at the cap */
@@ -2105,6 +2119,141 @@ a.contact-block__value:active {
       animation-range: entry 0% entry 60%;
     }
   }
+}
+
+/* ------------------------------------------------ the enquiry form (FA-I-06) */
+
+/*
+ * Owner decision 2026-09-07 (D3). The page kept its email and WhatsApp links; this is an
+ * addition, and it is built to work with scripting off — a plain form posting to a plain
+ * route handler, with `required` / `type="email"` / `maxlength` enforced by the browser.
+ */
+.enquiry-form {
+  margin-block-start: 24px;
+  max-width: 62ch;
+}
+
+.enquiry-form__row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 560px) {
+  .enquiry-form__row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.enquiry-form__field {
+  display: block;
+  margin-block-start: 16px;
+}
+
+.enquiry-form__row .enquiry-form__field {
+  margin-block-start: 0;
+}
+
+.enquiry-form__label {
+  display: block;
+  margin-block-end: 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps-snug);
+  color: var(--muted);
+}
+
+/*
+ * ⚠️ 16px MINIMUM FONT SIZE, AND IT IS NOT A TASTE DECISION. iOS Safari zooms the whole
+ * page when a focused input's text is under 16px, and then leaves it zoomed — the page a
+ * QR-scanning visitor lands on ends up horizontally scrollable through no action of
+ * theirs. `--text-body` is 17px, which clears it.
+ *
+ * `min-height` AND `flex-shrink: 0` are not redundant either: the pairing this codebase
+ * already needs on `a.contact-block__value` and the notch wordmark, because `min-height`
+ * alone is a suggestion on a flex child.
+ */
+.enquiry-form__input {
+  display: block;
+  width: 100%;
+  min-height: var(--target-min);
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: var(--text-body);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-button);
+  transition:
+    border-color var(--ui) var(--ease),
+    box-shadow var(--ui) var(--ease);
+}
+
+.enquiry-form__textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.enquiry-form__input::placeholder {
+  color: var(--muted);
+}
+
+.enquiry-form__input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-color: var(--dimension);
+}
+
+/*
+ * ⚠️ `:user-invalid`, NOT `:invalid`. `:invalid` matches an empty required field the
+ * instant the page loads, so every visitor is greeted by a form that is already telling
+ * them off. `:user-invalid` waits until they have actually interacted with it — which is
+ * the whole reason the pseudo-class exists.
+ *
+ * The border is not the only signal: the browser's own validation message says what is
+ * wrong, and it is announced. Colour alone would be a WCAG 1.4.1 failure.
+ */
+.enquiry-form__input:user-invalid {
+  border-color: var(--danger);
+}
+
+/*
+ * ⚠️ VISUALLY HIDDEN, NOT `display: none`. A bot that parses CSS skips a hidden field;
+ * one that fills every input it finds does not, and the second kind is most of them.
+ * `aria-hidden` and `tabIndex={-1}` in the markup keep it out of the accessibility tree
+ * and the tab order, so nobody using a screen reader is ever offered a field they must
+ * leave empty — which is the way honeypots earn their bad reputation.
+ */
+.enquiry-form__trap {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * The outcome message. `role="status"` / `role="alert"` in the markup are what make it
+ * reach a screen reader after the redirect; this only has to make it visible.
+ */
+.form-notice {
+  margin-block-start: 24px;
+  padding: 12px 16px;
+  border-inline-start: 3px solid var(--line);
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: var(--surface);
+  border-radius: var(--radius-button);
+}
+
+.form-notice--ok {
+  border-inline-start-color: var(--dimension);
+}
+
+.form-notice--bad {
+  border-inline-start-color: var(--danger);
 }
 
 /* ------------------------------------------------------------ print (FA-M-52) */
