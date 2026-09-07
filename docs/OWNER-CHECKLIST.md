@@ -238,9 +238,10 @@ undo it that afternoon.
 brand-new visitor ever makes, before any redirect. Your two-year HSTS already covers
 everyone else. Most businesses your size correctly skip it.
 
-**If you want it anyway**, tell me and I will walk you through the Cloudflare switch and
-the submission. **If not, nothing needs doing** — this is written down so the next person
-reading the code does not assume it is already in place.
+### ✅ ANSWERED 2026-09-07 — you agreed to skip it
+
+Nothing to do. It is recorded as decision D21 in `docs/DECISIONS-BETA-WEBSITE.md` so the
+next person reading the code does not assume it is in place, and does not re-open it.
 
 ## 9 · One question about AI: may they train on your work? (2 minutes, your call)
 
@@ -271,17 +272,23 @@ take back, and it is the exact setting Cloudflare had switched to "no" on your b
 until you turned that off on 4 September. So I have left it **unstated** — which the rules
 define as "no preference expressed", not as yes.
 
-**What I need from you: one word.** Are you happy for AI companies to train their models
-on your product photography and site copy?
+### ✅ ANSWERED 2026-09-07 — you said no
 
-- **"Yes"** — I add one line saying so. Slightly friendlier to those crawlers.
-- **"No"** — I add one line refusing it. This is a stated preference, not a lock; it does
-  not stop a badly-behaved scraper, but it puts your objection on the record, which
-  matters in Europe.
-- **"Leave it"** — nothing changes. This is where it stands now and it is a perfectly
-  normal place to be.
+Your `robots.txt` now carries one line, in every group:
 
-Nothing is broken either way, and nothing waits on this answer.
+> `Content-Signal: search=yes, ai-input=yes, ai-train=no`
+
+In plain words: **be findable, answer questions about us, do not train on us.** Your
+objection is on the record in the form the rules define, which is what carries weight in
+Europe. It is a stated preference and not a lock — a badly-behaved scraper ignores it, as
+it ignores everything.
+
+**One stronger step is still available if you want it.** The line above objects to the
+USE. I could also refuse the CRAWL for the training-only bots — GPTBot, Google-Extended,
+Applebot-Extended, CCBot, Bytespider — while keeping the search ones (the bots behind
+ChatGPT search, Claude search and Perplexity) welcome. That would actually stop them
+reading the site rather than asking them not to keep it. It costs you visibility with
+those five specific bots. Say the word and I will do it; it is one more line.
 
 ---
 

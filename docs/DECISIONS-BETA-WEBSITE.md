@@ -341,12 +341,74 @@ legal weight, which is another reason it should be the owner's words. It is on
 `docs/OWNER-CHECKLIST.md` §9 as a one-line yes/no. Omitting a signal is defined by the
 policy as expressing no preference, which is the honest state today.
 
-**Guard:** `apps/cms/src/app/robots.test.ts` asserts every group — wildcard and named —
-carries the same `Disallow` list *from the same array instance*, because a named group
-REPLACES the wildcard group for that agent rather than adding to it. A tidy edit that
+**Guard:** `apps/cms/src/lib/robotsTxt.test.ts` asserts every group — wildcard and named
+— carries the same `Disallow` list, because a named group REPLACES the wildcard group for
+that agent rather than adding to it. (It lived at `app/robots.test.ts` until D20 turned
+`/robots.txt` into a route handler; the citation gate caught the move, which is what it
+is for.) A tidy edit that
 writes `User-Agent: GPTBot` + `Allow: /` and stops there hands every AI crawler the admin
 panel while making the file read more welcoming than before.
 `apps/cms/e2e/findability.spec.ts` re-checks it on the served file.
+
+### D20 · AI may read and answer, but not train — `FA-N-17`
+
+**Decision: `Content-Signal: search=yes, ai-input=yes, ai-train=no`. Owner, 2026-09-07.**
+
+Asked as one question with the consequence of each answer stated. The owner refused
+training on the company's photography and copy and put the objection on the record.
+
+- `search=yes` — be findable. The point of the site.
+- `ai-input=yes` — let an answer engine quote the real capacity figures to a buyer who
+  asks, with a link back. This is what "make the site readable to AI" (D19) was for.
+- `ai-train=no` — the objection.
+
+⚠️ **It is a stated preference, not a block, and the owner chose it on that basis.**
+Google and Bing ignore the field; a badly-behaved scraper ignores everything. What it does
+is put a reservation of rights in machine-readable form, which carries weight in the EU.
+
+**The stronger move was deliberately NOT taken, and remains open.** `Disallow: /` for the
+training-only crawlers — GPTBot, Google-Extended, Applebot-Extended, CCBot, Bytespider —
+while leaving the search crawlers (OAI-SearchBot, Claude-SearchBot, PerplexityBot) allowed
+would actually prevent the crawl rather than object to the use. It costs discoverability
+with those specific agents, so it is a separate decision and the owner's to make.
+
+**This forced a mechanism change.** Next's `robots.ts` convention emits only
+`User-agent`, `Allow`, `Disallow`, `Sitemap` and `Host` — there is no representation for
+`Content-Signal` and no escape hatch. `/robots.txt` is now a route handler over
+`src/lib/robotsTxt.ts`, and the old `app/robots.ts` is **deleted**: both answer the same
+URL, and leaving it would make which one wins a property of Next's internals.
+
+**Guard:** `src/lib/robotsTxt.test.ts` parses the served text into groups the way a
+crawler does — on blank lines, since a run of consecutive `User-agent` lines is ONE group
+per RFC 9309 — and asserts every group carries the signal AND the disallows. That is the
+failure worth guarding: a named group REPLACES the wildcard group, so a `Content-Signal`
+written only in `*` never reaches the AI crawlers it is addressed to, while the file still
+parses and still allows everything it should. Control observed: dropping it from the named
+group alone fails exactly one assertion.
+
+### D21 · HSTS preload stays off — `FA-O-04`
+
+**Decision: do not submit. Owner confirmed 2026-09-07, on my advice.**
+
+The site already sends `max-age=63072000; includeSubDomains`. Preloading would put
+`wear-run.help` on a list shipped inside Chrome, Firefox and Safari, so a browser refuses
+plain HTTP before it has ever visited — protecting only the very first request a
+brand-new visitor makes.
+
+Against that: it is a one-way door. Removal takes months and ships in browser releases,
+and for the whole time **every** subdomain must serve valid HTTPS — `media.`, `viewer.`,
+`cms.` and anything added later. A misconfigured subdomain becomes unreachable rather than
+merely insecure.
+
+⚠️ **The header already says `preload` and that token is NOT on the wire.** Measured live
+2026-09-07: `cms.wear-run.help` answers `max-age=63072000; includeSubDomains`, no
+`preload`. Cloudflare owns this header at the edge and its switch is off. The declaration
+in `next.config.mjs` is kept because the value and the intent are right; what would be
+wrong is reading that line as evidence the site is preload-eligible. It is not, and will
+not be until someone turns the Cloudflare switch on AND submits the domain.
+
+**Guard:** none, and that is correct — this is a decision not to act on a setting that
+lives outside the repository. `docs/OWNER-CHECKLIST.md` §8 carries it.
 
 ## Closed since
 

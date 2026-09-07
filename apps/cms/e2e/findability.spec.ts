@@ -306,8 +306,16 @@ test.describe('FA-N-16 / FA-N-17 — the machine-readable files are served as te
 
   test('robots.txt names the AI crawlers AND still refuses them the admin', async ({ request }) => {
     const body = await (await request.get('/robots.txt')).text()
-    expect(body).toContain('User-Agent: GPTBot')
-    expect(body).toContain('User-Agent: ClaudeBot')
+    /*
+     * ⚠️ CASE-INSENSITIVE, BECAUSE A CRAWLER IS. Field names in robots.txt are
+     * case-insensitive per RFC 9309, and the spelling here has already changed once:
+     * Next's `robots.ts` convention emitted `User-Agent:` and the hand-built file that
+     * replaced it writes `User-agent:`, which is the spelling the RFC and Google's own
+     * documentation use. A literal match failed against a file no crawler would read any
+     * differently.
+     */
+    expect(body).toMatch(/^user-agent:\s*GPTBot$/im)
+    expect(body).toMatch(/^user-agent:\s*ClaudeBot$/im)
 
     /*
      * A named group REPLACES the wildcard group for that agent, so every group must carry
@@ -319,11 +327,21 @@ test.describe('FA-N-16 / FA-N-17 — the machine-readable files are served as te
      * decided `User-Agent: GPTBot` was a group with no rules in it, and failed against a
      * file that is correct — a parser bug reported as a policy bug.
      */
-    const groups = body.split(/\n\s*\n/).filter((block) => /User-Agent:/i.test(block))
+    const groups = body.split(/\n\s*\n/).filter((block) => /^user-agent:/im.test(block))
     expect(groups.length, 'expected a wildcard group and a named AI group').toBeGreaterThan(1)
     for (const group of groups) {
-      expect(group, `a group with no admin Disallow:\n${group}`).toContain('Disallow: /admin')
-      expect(group).toContain('Disallow: /api/')
+      expect(group, `a group with no admin Disallow:\n${group}`).toMatch(/^disallow:\s*\/admin$/im)
+      expect(group).toMatch(/^disallow:\s*\/api\/$/im)
+      /*
+       * ⚠️ THE REUSE POLICY IS PER GROUP TOO, AND ITS ABSENCE IS SILENT. A named group
+       * replaces the wildcard one, so a `Content-Signal` written only in `*` never
+       * reaches the AI crawlers it is addressed to — the file still parses, still allows
+       * what it should, and simply stops carrying the owner's objection to training
+       * (decision 2026-09-07).
+       */
+      expect(group, `a group with no Content-Signal:\n${group}`).toMatch(
+        /^content-signal:\s*search=yes,\s*ai-input=yes,\s*ai-train=no$/im,
+      )
     }
   })
 

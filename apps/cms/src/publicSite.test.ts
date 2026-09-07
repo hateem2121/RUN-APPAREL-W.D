@@ -479,11 +479,19 @@ describe('findability', () => {
   const appDir = join(CMS_ROOT, 'src', 'app')
 
   it('robots and sitemap sit at the app root, not inside a route group', () => {
-    // Route groups contribute nothing to the URL, but Next only honours these two as
-    // metadata conventions at the app root. Inside `(frontend)` they would be stray
-    // modules serving nothing, with no error to say so.
-    expect(existsSync(join(appDir, 'robots.ts'))).toBe(true)
+    // Route groups contribute nothing to the URL, but a text file served from inside
+    // `(frontend)` would inherit that group's layout, which is a full HTML document —
+    // and `sitemap.ts` is only honoured as a metadata convention at the app root, where
+    // inside a group it would be a stray module serving nothing with no error to say so.
+    //
+    // ⚠️ ROBOTS IS A ROUTE HANDLER SINCE 2026-09-07, NOT `robots.ts`. Next's convention
+    // can emit only User-agent/Allow/Disallow/Sitemap/Host, and the owner's reuse policy
+    // needs a `Content-Signal` field it has no representation for. Both files answer
+    // `/robots.txt`, so the old one is DELETED rather than left to race — that is what
+    // the third assertion is for.
+    expect(existsSync(join(appDir, 'robots.txt', 'route.ts'))).toBe(true)
     expect(existsSync(join(appDir, 'sitemap.ts'))).toBe(true)
+    expect(existsSync(join(appDir, 'robots.ts'))).toBe(false)
     expect(existsSync(join(FRONTEND, 'robots.ts'))).toBe(false)
     expect(existsSync(join(FRONTEND, 'sitemap.ts'))).toBe(false)
   })
@@ -493,17 +501,18 @@ describe('findability', () => {
     // never access control. Worth stating anyway: without it the login screen is a
     // candidate for indexing and /api/* is crawlable JSON that costs D1 reads.
     //
-    // ⚠️ THIS ASSERTS THE SOURCE CARRIES ONE SHARED LIST, NOT THE LIST ITSELF. It read
-    // the literal `disallow: ['/admin', '/api/']` until 2026-09-07, when robots.txt
-    // gained a second group naming the AI crawlers and the paths moved into a constant
-    // both groups share — so a text scan for the literal failed against a file that had
-    // just become MORE careful. What the OUTPUT contains is asserted properly, per group,
-    // in src/app/robots.test.ts; this file only ever reads source text, so what it can
-    // usefully say is that the constant exists and is not typed out twice.
-    const robots = code(appDir, 'robots.ts')
+    // ⚠️ THIS ASSERTS THE SOURCE CARRIES ONE SHARED LIST, NOT THE LIST ITSELF, and it has
+    // now been wrong twice for the same reason: it read the literal
+    // `disallow: ['/admin', '/api/']` until the AI-crawler group arrived and the paths
+    // moved into a constant, then read `robots.ts` until that file was replaced by a
+    // route handler. A text scan cannot decide what a crawler receives. What the OUTPUT
+    // contains, per group, is asserted properly in src/lib/robotsTxt.test.ts — including
+    // that a NAMED group repeats the disallows rather than inheriting them, which is the
+    // failure worth guarding.
+    const robots = code(join(CMS_ROOT, 'src', 'lib'), 'robotsTxt.ts')
     expect(robots).toMatch(/const DISALLOW = \['\/admin', '\/api\/'\]/)
-    expect(robots.match(/disallow: DISALLOW/g)?.length ?? 0).toBeGreaterThan(1)
-    expect(robots).toMatch(/sitemap:/)
+    expect(robots, 'the groups no longer share one builder').toMatch(/function group\(/)
+    expect(robots).toMatch(/Sitemap:/)
   })
 
   it('the sitemap speaks only for this host', () => {
