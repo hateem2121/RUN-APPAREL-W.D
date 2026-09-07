@@ -254,8 +254,19 @@ li {
   cursor: pointer;
   /* --ui, not --fast: a control is a state that changed once, not a value that
      keeps changing. See docs/DESIGN.md §5 — the two are 20ms apart and mean
-     different things; do not collapse them. */
+     different things; do not collapse them.
+
+     ⚠️ `scale` TAKES --instant AND IS IN THIS LIST RATHER THAN A RULE OF ITS OWN.
+     tokens.css names --instant "focus responses and press feedback", and until
+     2026-09-07 the only thing using it was the skip link: the `:active { scale: 0.97 }`
+     below carried no transition at all, so the press was a hard cut and the token's
+     second half described an intention rather than the code (audit FA-H-31).
+     It cannot be a separate rule — `transition` is a shorthand, and a second
+     declaration REPLACES this list rather than adding to it, which would silently
+     drop the four transitions above. This also changes the LIVE VIEWER's button
+     feel, deliberately: one system, one press. */
   transition:
+    scale var(--instant) var(--ease),
     transform var(--ui) var(--ease),
     background-color var(--ui) var(--ease),
     color var(--ui) var(--ease),

@@ -342,7 +342,12 @@ html {
   letter-spacing: var(--tracking-caps-snug);
   text-decoration: none;
   color: var(--notch-muted, var(--muted));
-  transition: color var(--fast) var(--ease);
+  /* `scale` rides in this list rather than a rule of its own: `transition` is a
+     shorthand, so a second declaration would replace the colour transition instead of
+     adding to it. --instant is the token named for press feedback (tokens.css). */
+  transition:
+    color var(--fast) var(--ease),
+    scale var(--instant) var(--ease);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -596,6 +601,26 @@ html {
   white-space: nowrap;
   border-start-start-radius: var(--notch-r);
   border-start-end-radius: var(--notch-r);
+  /* Ungated, unlike the hover transition further down — a press happens on both
+     pointer types and this tab is the footer's only call to action. */
+  transition: background-color var(--instant) var(--ease);
+}
+
+/*
+ * ⚠️ THE TAB PRESSES WITH COLOUR, NOT WITH `scale` LIKE EVERY OTHER CONTROL HERE.
+ *
+ * Its two concave fillets are `::before`/`::after` drawn OUTSIDE its own box, seating it
+ * into the slab's top edge (see the geometry note above). A transform on the tab scales
+ * its pseudo-elements with it, so `scale: 0.97` would lift the tab off the edge and open
+ * a hairline gap where the fillets were — the exact property the audit scored 9 for
+ * keeping still (FA-R-09: "its width, and therefore its two carved corner fillets, never
+ * change"). Colour costs a paint and moves no geometry.
+ *
+ * 88% volt / 12% ink measures 10.4:1 against the ink label — the hover mix goes the
+ * other way, toward white, so press and hover never look like the same state.
+ */
+.site-footer__tab:active {
+  background: color-mix(in srgb, var(--volt) 88%, var(--ink));
 }
 
 .site-footer__tab::before,
@@ -1150,7 +1175,8 @@ html {
   background: var(--surface);
   transition:
     border-color var(--ui) var(--ease),
-    transform var(--ui) var(--ease);
+    transform var(--ui) var(--ease),
+    scale var(--instant) var(--ease);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1307,6 +1333,34 @@ a.contact-block__value {
   align-items: center;
   min-height: var(--target-min);
   flex-shrink: 0;
+  /*
+   * ⚠️ THEY ARE LINKS AND THEY DID NOT LOOK LIKE LINKS (audit FA-R-02). The email
+   * address and the WhatsApp number are this page's only two actions, and they were
+   * rendered in body colour with no underline, no hover response and no press — visually
+   * identical to the address in the third block, which is not a link.
+   *
+   * `currentColor` at partial alpha rather than `--volt`: volt is a pale yellow-green
+   * and all but disappears as a 1px decoration on the light surface. This is legible in
+   * both themes by construction and cannot affect TEXT contrast, since only the
+   * decoration colour moves.
+   */
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 5px;
+  transition:
+    text-decoration-color var(--ui) var(--ease),
+    scale var(--instant) var(--ease);
+}
+
+a.contact-block__value:focus-visible {
+  text-decoration-color: currentColor;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  a.contact-block__value:hover {
+    text-decoration-color: currentColor;
+  }
 }
 
 .contact-block__note {
@@ -1327,4 +1381,66 @@ address.contact-block__value {
   border-radius: var(--radius-panel);
   text-align: center;
   color: var(--muted);
+}
+
+/* ------------------------------------------------ press feedback (audit FA-R-01) */
+
+/*
+ * ⚠️ NOTHING BUT `.btn` ANSWERED A PRESS. Measured 2026-09-06 across the whole site: a
+ * tap on a product card, a nav link, the header wordmark or a contact link produced no
+ * visual response whatsoever (FA-R-01, FA-H-04, FA-R-03). `:hover` cannot stand in for
+ * this — it is gated on `(hover: hover) and (pointer: fine)` throughout, deliberately,
+ * because a `:hover` that sticks after a tap makes a merely-tapped control look
+ * selected, and a phone is the device a QR tag is scanned with.
+ *
+ * `:active` is ungated for the same reason base.css leaves its own ungated: it is a real
+ * press on both pointer types and it releases itself, so it cannot stick.
+ *
+ * ⚠️ `scale`, THE STANDALONE PROPERTY, NEVER `transform: scale()`. `.product-card:hover`
+ * owns `transform` (the -4px lift) and Cursor.tsx's magnet owns `translate` on links.
+ * Three independent properties compose; one shared `transform` would overwrite. The
+ * fixed composition order is translate → rotate → scale → transform, which is why the
+ * lift and the press can both apply at once without one multiplying the other. The long
+ * comment above `.btn:active` in packages/ui/src/base.css is the full account.
+ *
+ * ⚠️ AND WHY THESE LIVE HERE RATHER THAN JOINING THAT SHARED RULE. All four classes
+ * exist only in this app — `git grep` finds none of them under apps/viewer — while
+ * base.css ships inside the viewer's stylesheet budget, which is measured with
+ * deliberately small headroom (7,000 gzipped bytes, and it cannot simply be raised
+ * because the floor is a collapse threshold). Site-only rules belong in the site-only
+ * sheet.
+ *
+ * Reduced motion needs no gate here: base.css collapses every transition-duration to
+ * 0.01ms under `prefers-reduced-motion: reduce`, so the press becomes instantaneous
+ * rather than absent — which is the correct outcome. The feedback still exists.
+ */
+.product-card:active,
+.nav-link:active,
+.notch__wordmark:active {
+  scale: 0.97;
+}
+
+a.contact-block__value:active {
+  scale: 0.97;
+}
+
+/*
+ * The wordmark was the one header link with no pointer response at all (FA-R-03) — it
+ * sits beside two nav links that both lighten on hover. It cannot answer with colour:
+ * it already renders at `--notch-text`, the strongest value available, so there is
+ * nowhere brighter to go and dimming reads as disabled. An underline is the same cue the
+ * nav uses for the current page, in the same volt, and survives Windows High Contrast
+ * where colour is replaced wholesale.
+ */
+.notch__wordmark {
+  transition: scale var(--instant) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .notch__wordmark:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--volt);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 5px;
+  }
 }
