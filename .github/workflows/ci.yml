@@ -140,6 +140,13 @@ jobs:
       - name: Alert-shell checks (uptime + heartbeat)
         run: bash scripts/test-alert-shell.sh
 
+      # Every maintained document is reachable from docs/README.md (audit FA-T-06,
+      # FA-T-12). That index was brought up to date by hand twice — once when it was
+      # written, once when the 2026-09-06 audit found it missing 8 of 43 — and nothing
+      # stopped it drifting a third time. Needs no build; it reads `git ls-files`.
+      - name: Docs index reachability
+        run: node scripts/check-docs-index.mjs
+
       - run: pnpm seed:assets
       - run: pnpm build
 

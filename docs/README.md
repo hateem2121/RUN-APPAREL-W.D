@@ -4,13 +4,56 @@ The [root README](../README.md) links the dozen documents you need for a *task*
 ("I want to deploy", "I want to upload a garment"). This file lists **everything**,
 including the records the task table deliberately leaves out.
 
-It exists because 13 of the 34 documents here were reachable from nothing. A
-document nobody can find is a document nobody maintains — and this repository keeps
-a lot of hard-won measurement in prose, so losing track of it is expensive.
+It exists because 13 of the 34 documents here were reachable from nothing *at the
+time it was written*. A document nobody can find is a document nobody maintains — and
+this repository keeps a lot of hard-won measurement in prose, so losing track of it is
+expensive. The folder has grown a long way past 34 since; see **How much of this is a
+record** below for what that growth actually is.
 
 ⚠️ **Point the root README's task table at THIS file rather than growing the table.**
 The table answers "what do I do now"; this answers "what exists". Mixing the two is
 how the table got to sixteen rows and still missed a third of the folder.
+
+---
+
+## How much of this is a record — audit FA-T-12
+
+The audit of 2026-09-06 reported "6.45 MB of prose against 1.48 MB of source" and scored
+it 5, as documentation outgrowing the thing it documents by more than four times.
+
+⚠️ **The ratio is real and the comparison is not.** Measured 2026-09-07 over tracked
+files:
+
+| | files | size |
+|---|---|---|
+| **Records** — write-once, never maintained | 63 | **4.48 MB** |
+| **Tooling manifests** — `.claude/`, `.agents/`, `.github/` | 135 | 0.63 MB |
+| **Maintained documentation** — everything else | 47 | **0.80 MB** |
+| Source (`.ts` `.tsx` `.mjs` `.js` `.css`) | | 4.27 MB |
+| *of which tests* | | *1.77 MB* |
+
+So the prose a person is expected to keep true is **0.80 MB against 4.27 MB of source**
+— under a fifth, not four times over. The 4.48 MB is six audit runs, eighteen plans and
+specs, and one investigation: each written on a date, about a state of the world on that
+date, and correct to leave exactly as it is. Editing one to keep it "current" would
+destroy the only thing it is for. The 0.63 MB of manifests is addressed by name by the
+tooling and read by a person about never.
+
+**Records live in:** `docs/AUDIT-*.md`, `docs/audit-2026-08-30/`,
+`docs/audit-2026-08-30-pm/`, `docs/superpowers/plans/`, `docs/superpowers/specs/`,
+`investigation/`, `PLAN-IN-PROGRESS.md` and `NEXT-SESSION-PROMPT.md`. Nothing in those
+trees is indexed file-by-file below, deliberately — an eighteen-row table of superseded
+plans would bury the eight documents somebody actually needs. They are reachable through
+the audit or plan that owns them.
+
+**Everything outside those paths is maintained**, is citation-checked by
+`scripts/doc-citations.mjs`, and belongs in the tables below.
+
+⚠️ **And that is now enforced.** `scripts/check-docs-index.mjs` fails if a maintained
+document is reachable from nothing — which is the thing this file's own opening paragraph
+says matters and which had been fixed by hand twice. The list of what counts as a record
+lives in that script, with a warning about the one way it can be abused: a path added to
+the exclusion list silently stops being checked.
 
 ---
 
