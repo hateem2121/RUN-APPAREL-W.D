@@ -71,6 +71,25 @@ export function organizationJsonLd(settings: PublicSiteSettings) {
       postalCode: POSTAL_ADDRESS.postalCode,
       addressCountry: POSTAL_ADDRESS.country,
     },
+    /*
+     * ⚠️ CONFIRMED FACTS ONLY, AND NO `foundingDate`. The owner's 1889 claim is a FAMILY
+     * trade — "company names have changed over the years, the roots have not"
+     * (2026-09-07) — so stamping 1889 as this legal entity's founding date would be a
+     * false statement in machine-readable form, which is the one place a wrong claim
+     * travels furthest. It is stated in prose on the home page, where it can be
+     * qualified, and asserted nowhere a crawler will read it as a date.
+     *
+     * The rest are the owner's confirmed numbers of 2026-09-07 and exist here because
+     * this is what an AI search answer is assembled from: a description that names the
+     * capability, the markets served, and the size of the works.
+     */
+    description:
+      'Private label apparel manufacturer in Sialkot, Pakistan. Team wear, active wear, ' +
+      'casual wear, outerwear and sports accessories, made to order from 50 pieces per ' +
+      'style, with capacity for 100,000 pieces a month. Every garment ships with a 3D ' +
+      'reference a customer can turn and inspect before production.',
+    numberOfEmployees: { '@type': 'QuantitativeValue', value: 200 },
+    areaServed: ['Europe', 'North America', 'South America', 'Oceania'],
     ...(sameAs.length > 0 ? { sameAs } : {}),
   }
 }

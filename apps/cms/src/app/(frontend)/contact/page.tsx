@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = buildMetadata({
   title: 'Contact',
   description:
-    'Get in touch with RUN APPAREL — a 100% B2B custom apparel manufacturer in Sialkot, Pakistan. We reply within 2 business days.',
+    'Get in touch with RUN APPAREL — a private label apparel manufacturer in Sialkot, Pakistan. We reply within 2 business days.',
   path: '/contact',
 })
 
@@ -72,7 +72,7 @@ export default async function ContactPage() {
               <p className="contact-block__note">Fastest for a quick question.</p>
             </div>
             <div className="contact-block">
-              <p className="section-number">[ HQ coordinates ]</p>
+              <p className="section-number">[ Address ]</p>
               <address className="contact-block__value">{ADDRESS}</address>
               <p className="contact-block__note">{settings.companyName}</p>
             </div>

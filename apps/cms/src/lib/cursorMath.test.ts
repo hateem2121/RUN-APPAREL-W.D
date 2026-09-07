@@ -19,7 +19,7 @@ describe('cursorMath', () => {
    * defect, and these expectations reject it.
    */
   describe('trail is frame-rate independent', () => {
-    const after = (steps: number, dt: number) => {
+    const advance = (steps: number, dt: number) => {
       let v = 0
       for (let i = 0; i < steps; i += 1) v = trail(v, 100, 0.22, dt)
       return v
@@ -30,8 +30,8 @@ describe('cursorMath', () => {
     })
 
     it('lands in the same place at 60Hz and at 120Hz over the same 100ms', () => {
-      const at60 = after(6, FRAME_MS) // 6 frames x 16.67ms
-      const at120 = after(12, FRAME_MS / 2) // 12 frames x 8.33ms
+      const at60 = advance(6, FRAME_MS) // 6 frames x 16.67ms
+      const at120 = advance(12, FRAME_MS / 2) // 12 frames x 8.33ms
       expect(at120).toBeCloseTo(at60, 6)
     })
 
@@ -44,7 +44,7 @@ describe('cursorMath', () => {
       }
       expect(uncorrected(12)).not.toBeCloseTo(uncorrected(6), 1)
       // ...and it is the 120Hz half of the pair that runs away.
-      expect(uncorrected(12)).toBeGreaterThan(after(12, FRAME_MS / 2) + 5)
+      expect(uncorrected(12)).toBeGreaterThan(advance(12, FRAME_MS / 2) + 5)
     })
 
     it('a long gap lands on the pointer rather than crawling', () => {

@@ -1698,3 +1698,77 @@ a.contact-block__value:active {
       color var(--settle) var(--ease);
   }
 }
+
+/* ------------------------------------------------ the works, in numbers (FA-I-10) */
+
+/*
+ * Six facts, so every column count resolves into a complete rectangle: one column below
+ * 560, two up to 899, three above — 6 / 3 / 2 rows with no empty cell at any width. The
+ * same reasoning as `.family-grid`, and the same reason `.product-grid` was wrong for a
+ * list whose length is known.
+ *
+ * `<dl>` with a `<div>` per pair is the valid HTML5 grouping and the one that survives a
+ * screen reader: the value is the term and the unit is its description. It also needs the
+ * UA's `dd { margin-inline-start: 40px }` removed, which is the one thing that catches
+ * people out here.
+ */
+.facts-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  margin: 24px 0 0;
+}
+
+@media (min-width: 560px) {
+  .facts-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 900px) {
+  .facts-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.fact {
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--line);
+}
+
+/*
+ * The value carries `.display display--section` so it reuses the existing type scale
+ * rather than introducing a seventh size — the audit already counts 48 distinct text
+ * styles across the two surfaces (FA-C-62) and this section is not worth a 49th.
+ */
+.fact__value {
+  margin: 0;
+}
+
+.fact__label {
+  margin: 8px 0 0;
+  margin-inline-start: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps-snug);
+  color: var(--muted);
+}
+
+.facts-notes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  margin-block-start: 24px;
+}
+
+@media (min-width: 900px) {
+  .facts-notes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.fact__note {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
