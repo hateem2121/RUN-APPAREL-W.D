@@ -167,7 +167,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
             </p>
           ) : (
             <>
-              <p className="section-number">
+              <p className="result-count">
                 {products.length} reference{products.length === 1 ? '' : 's'}
                 {family ? ` in ${family.name}` : ''}
               </p>

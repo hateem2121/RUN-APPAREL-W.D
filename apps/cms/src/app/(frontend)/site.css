@@ -140,7 +140,22 @@ li {
  */
 :root {
   --notch-pad-y: 8px;
-  --notch-h: calc(var(--target-min) + var(--notch-pad-y) * 2);
+  /*
+   * ⚠️ HOW MANY ROWS THE BAR IS — THE ONE DIAL, AND THE HEIGHT AND THE CLEARANCE BOTH
+   * READ IT. See "the bar at large browser text" below for why a second row exists at
+   * all. Two numbers that had to agree is exactly the shape that has come out wrong four
+   * times in this file, so there is only one.
+   */
+  --notch-lines: 1;
+  --notch-row-gap: 16px;
+  --notch-h: calc(
+    var(--target-min) *
+    var(--notch-lines) +
+    var(--notch-pad-y) *
+    2 +
+    (var(--notch-lines) - 1) *
+    var(--notch-row-gap)
+  );
   --notch-clearance: calc(var(--notch-h) + 24px);
   /*
    * ⚠️ AT :root, NOT ON .notch — the shell reads it too, to reserve room for the fillets.
@@ -200,6 +215,30 @@ html {
    * announced, because colour alone would be a WCAG 1.4.1 failure.
    */
   --danger: light-dark(#b3261e, #f2b8b5);
+  /*
+   * ⚠️ THE MEASURE IS 56ch AND `ch` IS NOT A CHARACTER — audit FA-C-52.
+   *
+   * `ch` is the advance of the digit ZERO, and in Archivo that is WIDER than the average
+   * letter in running prose. Counted 2026-09-07 by walking each rendered line's Range
+   * rects on all five pages at 1440 / 1180 / 768 — not by dividing a width by a font
+   * advance, which is the error the audit's own correction records:
+   *
+   *   62ch = 603.63px  ->  a longest line of 82 characters   (.site-lede)
+   *   60ch = 584.16px  ->  a longest line of 81 characters   (base.css `p, li`)
+   *
+   * 48 of the 134 prose blocks measured ran past the 75-character upper bound. 56ch
+   * measures 545.2px, which the same probe re-counts at 73–74. One number, so the lede
+   * and the legal pages cannot drift apart again.
+   *
+   * ⚠️ SCOPED HERE, NOT LOWERED IN packages/ui/src/base.css. `p, li { max-width: 60ch }`
+   * there is shared with the 3D viewer, whose body copy is a different size in a
+   * different column and was NOT measured over. FA-C-52 is scoped to this site.
+   *
+   * ⚠️ NOT APPLIED TO `.site-empty` OR `.inquiry-form`, both of which are also 62ch.
+   * Those two are BOX widths — a centred dashed panel and a form — not a line a reader
+   * follows, and narrowing them would move a layout the audit passed (FA-D-03, FA-I-06).
+   */
+  --site-measure: 56ch;
   --site-max: 1180px;
   --site-gutter: clamp(20px, 5vw, 64px);
   /* what a `.site-container` child actually gets, at the cap */
@@ -277,7 +316,7 @@ html {
 }
 
 .site-lede {
-  max-width: 62ch;
+  max-width: var(--site-measure);
   /*
    * ⚠️ 16px, NOT 22px — owner decision 2026-09-07 (audit FA-B-02, FA-B-72).
    *
@@ -695,6 +734,77 @@ html {
 
   .nav-link {
     padding-inline: 6px;
+  }
+}
+
+/*
+ * ------------------------------- the bar at large browser text (audit FA-E-03)
+ *
+ * ⚠️ THE COMPANY'S NAME WAS BEING CUT OFF ON THE COMMONEST PHONE WIDTHS. Measured
+ * 2026-09-07 in Chromium and Firefox, identically, on `/`:
+ *
+ *   text size   320px          390px          430px          768px
+ *   100%        115/115 ok     ok             ok             ok
+ *   125%        144/96  CUT    ok             ok             ok
+ *   150%        173/71  CUT    173/141 CUT    ok             ok
+ *   200%        230/19  CUT    230/89  CUT    230/129 CUT    ok
+ *
+ * (scrollWidth/clientWidth of `.notch__wordmark`.) At 150% on a 390px phone the name
+ * needs 173px and gets 141px. Nothing was wrong with the bar: the wordmark is `1rem` and
+ * the two links are `0.625rem`, so all three grow with the reader's setting while the bar
+ * stays the width of the viewport — the nav alone goes 130.3px -> 181.5px — and the
+ * wordmark, the only shrinkable item, absorbs every pixel of it. WCAG 1.4.4 asks for 200%
+ * without loss of content.
+ *
+ * ⚠️ THE FIX IS A SECOND ROW, NOT A SMALLER WORDMARK. Capping the font-size would trade a
+ * clipped name for text that stops answering the reader's setting, which is the thing
+ * 1.4.4 is actually about (FA-C-61 scores 10 for exactly that property). Squeezing the
+ * padding was measured and is not enough either: every gap, pad and inline padding in the
+ * bar together is ~28px against the 32px shortfall at 390px, and nothing at all at 320px,
+ * where 173px is wanted and 71px exists.
+ *
+ * ⚠️ AND IT CANNOT BE LEFT TO `flex-wrap` ALONE, WHICH IS THE TRAP `nowrap` WAS PUT THERE
+ * TO CLOSE. A wrapped bar is 120px where the page reserves 60, so the bar covers the top
+ * of the hero — the failure recorded on `.notch`'s `flex-wrap: nowrap`. Both effects
+ * therefore hang off ONE condition and the height follows from `--notch-lines`, so they
+ * cannot drift.
+ *
+ * ⚠️ `rem` IN A MEDIA QUERY IS THE BROWSER'S DEFAULT FONT SIZE, NOT `html { font-size }`,
+ * AND THAT IS THE WHOLE MECHANISM. It is what tracks the reader's text-size setting.
+ * Verified both ways 2026-09-07 with a `@media (max-width: 20rem)` control at 350px: an
+ * injected `html { font-size: 24px }` moved every length and left the query FALSE, while
+ * Chrome's `Page.setFontSizes` and Firefox's `font.size.variable.x-western` moved both.
+ * A test that fakes the setting with a stylesheet exercises none of this.
+ *
+ * ⚠️ THE THRESHOLD IS FITTED TO A MEASURED SWEEP, NOT GUESSED. Binary-searching the
+ * narrowest viewport that fits, per root size: 313px at 16, 368 at 20, 422 at 24, 531 at
+ * 32, 640 at 40 — i.e. `95px + 13.625rem` below 720px, where the tighter gap and padding
+ * apply, and `131px + 13.625rem` above it. The two clauses below round those up, so the
+ * bar wraps slightly before it would have to and NEVER after; the widest over-trigger is
+ * 36px. At 100% text the first clause resolves to 319.2px, BELOW the 320px WCAG reflow
+ * width, so nothing on any real device changes at the default text size.
+ *
+ * `calc()` in a media feature was verified in Chromium, Firefox AND WebKit before this
+ * was written, and `apps/cms/e2e/navbar.spec.ts` re-measures the outcome — clipping and
+ * hero clearance — across the whole sweep rather than trusting this arithmetic.
+ */
+@media (max-width: calc(100px + 13.7rem)), (min-width: 720px) and (max-width: calc(136px + 13.7rem)) {
+  :root {
+    --notch-lines: 2;
+  }
+
+  .notch {
+    flex-wrap: wrap;
+    /* Stated, not inherited from `gap`: the 720px block above sets `gap: 8px`, and
+       `--notch-h` has to know the row gap exactly or the clearance is 8px out. */
+    row-gap: var(--notch-row-gap);
+  }
+
+  .notch__wordmark {
+    /* A full line of its own, so the nav is pushed to the second row rather than the
+       wordmark shrinking into an ellipsis. `overflow: hidden` and the ellipsis stay in
+       force for a CMS wordmark longer than one line — that degradation is deliberate. */
+    flex-basis: 100%;
   }
 }
 
@@ -1726,7 +1836,46 @@ a.contact-block__value:active {
   margin-block-start: 10px;
 }
 
-.section-number + * {
+/*
+ * ------------------------------- the mono micro-label, by meaning (audit FA-I-14)
+ *
+ * ⚠️ `.section-number` WAS DOING FIVE JOBS ON THIS SITE. Counted 2026-09-07 across the
+ * five public pages — the audit said four, the fifth is the gallery's count line:
+ *
+ *   №01 — What we make          a numbered section marker      home        x4
+ *   What helps us reply faster  an unnumbered section eyebrow  contact     x1
+ *   Who we are                  a sub-heading inside prose     privacy 6, terms 5
+ *   [ Partnerships ]            a label naming the value below contact 3, home 2
+ *   10 references in Outerwear  a result count over the grid   products    x1
+ *
+ * They look alike and they are not alike. The cost of one name is that a change meant
+ * for the numbered markers — a counter, a rule, a colour — silently restyles the legal
+ * pages and the contact card; and because `.section-number` is declared in
+ * packages/ui/src/base.css, it reaches the 3D viewer's two uses as well.
+ *
+ * So the numbered marker keeps `.section-number` and the other four are named for what
+ * they are. `.section-number` is NOT restyled here and the viewer is untouched.
+ *
+ * ⚠️ THE FIVE DECLARATIONS BELOW ARE A DELIBERATE SECOND COPY OF base.css's
+ * `.section-number`, because that file is shared with the viewer and is not this site's
+ * to repurpose. They read the SAME tokens, so a token change still moves both — and
+ * `publicSite.test.ts` compares the two rules property by property, so a change to one
+ * that is not made to the other fails rather than drifting.
+ */
+.subhead,
+.field-label,
+.result-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps-wide);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.section-number + *,
+.subhead + *,
+.field-label + *,
+.result-count + * {
   margin-block-start: 8px;
 }
 
@@ -2038,20 +2187,34 @@ a.contact-block__value:active {
  * The two legal pages are the only long-form reading on the site, and body copy needs a
  * rhythm the marketing sections — one paragraph at a time — never needed.
  *
- * The measure is inherited rather than restated: `p, li { max-width: 60ch }` in base.css
- * already caps every paragraph here. `.section-number + *` supplies the gap under each
- * sub-heading, the same one the marketing sections use, so these pages sit on the site's
- * existing vertical rhythm instead of inventing one.
+ * ⚠️ THE MEASURE IS RESTATED HERE, AND UNTIL 2026-09-07 IT WAS NOT. This comment used
+ * to say the measure was "inherited rather than restated" from base.css's
+ * `p, li { max-width: 60ch }`. It was — and 60ch rendered an 81-character line on both
+ * legal pages, six characters past the upper bound (audit FA-C-52). `--site-measure`
+ * carries the counted value and its provenance; base.css is shared with the viewer and
+ * is deliberately left alone.
+ *
+ * The rhythm is 24px above each sub-heading and 16px between paragraphs, both existing
+ * steps. ⚠️ The 16px comes from `.prose p` below and NOT from `.subhead + *`, which is
+ * 8px: `.prose p` is (0,1,1) and the sibling rule (0,1,0), so the sibling rule loses
+ * here. That was true of `.section-number + *` before the rename too — measured 16px on
+ * /privacy both before and after — and it is written down because the selectors read as
+ * though the 8px applies.
  */
+.prose p,
+.prose li {
+  max-width: var(--site-measure);
+}
+
 .prose p {
   margin-block-start: 16px;
 }
 
-.prose .section-number {
+.prose .subhead {
   margin-block-start: 24px;
 }
 
-.prose .section-number:first-child {
+.prose .subhead:first-child {
   margin-block-start: 0;
 }
 
@@ -2509,5 +2672,53 @@ a.contact-block__value:active {
 @media (prefers-reduced-motion: reduce) {
   .proof__link:active {
     scale: 1;
+  }
+}
+
+/*
+ * ------------------------------------- more contrast, when it is asked for (FA-H-09)
+ *
+ * ⚠️ THE SITE ANSWERED `prefers-contrast: more` WITH NOTHING. Counted 2026-09-07: zero
+ * blocks in this stylesheet, against one in the viewer's `page.css`. `forced-colors` was
+ * handled twice here and this was not — and they are different requests. Forced colours
+ * is the OS replacing the palette; this is a visitor who can see colour and has told the
+ * OS that the default separation is not enough for them.
+ *
+ * Tokens are raised rather than components restyled, so every border, rule, divider and
+ * piece of secondary text in the system answers at once, including any added later. The
+ * same choice, and the same `--line` value, the viewer already made.
+ *
+ * MEASURED (WCAG 2.x contrast ratios, both themes, computed from the token hexes):
+ *
+ *   --line  0.18 -> 0.55 alpha    light  1.43:1 -> 3.62:1   dark  1.68:1 -> 5.13:1
+ *           (a divider is a UI boundary: 3:1 is the 1.4.11 floor, and 1.43 was not near it)
+ *   --muted                       light  5.10:1 -> 8.24:1 on --bg,  4.48:1 -> 7.25:1 on --wash
+ *                                 dark   6.69:1 -> 10.85:1 on --bg, 4.57:1 -> 7.40:1 on --raised
+ *   --notch-muted (the nav links) light  7.70:1 -> 14.47:1  dark  5.59:1 -> 9.53:1
+ *
+ * The two `--muted`-on-`--wash` / `-on-raised` figures are the ones worth having: 4.48
+ * and 4.57 are AA by a hundredth or two at default contrast — this stylesheet already
+ * carries a comment saying so — and a reader asking for more contrast is exactly the
+ * reader for whom two hundredths is not a margin.
+ *
+ * ⚠️ `--grid` AND `--contour` ARE DELIBERATELY NOT RAISED. The blueprint behind the hero
+ * is decoration; making it louder for someone who asked for more contrast would add noise
+ * to the thing they are trying to read past, not separation.
+ */
+@media (prefers-contrast: more) {
+  :root {
+    --line: light-dark(rgba(29, 31, 26, 0.55), rgba(236, 235, 228, 0.55));
+    --muted: light-dark(#44473e, #cfd2c2);
+  }
+
+  /*
+   * ⚠️ ON `.notch`, BECAUSE THAT IS WHERE IT IS DECLARED. `--notch-muted` is a local
+   * custom property on the bar, so a `:root` override would not reach it — the same
+   * scoping trap `--notch-muted`'s own two-argument `var()` fallback exists for. The
+   * nav links go to full opacity: the bar's ink is already the highest-contrast pair
+   * the palette has, so 0.7 alpha was the only thing costing anything.
+   */
+  .notch {
+    --notch-muted: light-dark(var(--paper), var(--text));
   }
 }

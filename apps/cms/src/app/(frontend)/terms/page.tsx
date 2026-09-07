@@ -55,7 +55,7 @@ export default async function TermsPage() {
             business customers considering manufacture with us.
           </p>
 
-          <p className="section-number">The 3D references are indicative</p>
+          <p className="subhead">The 3D references are indicative</p>
           <p>
             They show construction, fit and artwork placement. Color appears differently on
             different screens and under different lighting, and a rendered garment is not a color
@@ -63,25 +63,25 @@ export default async function TermsPage() {
             physical sample before production.
           </p>
 
-          <p className="section-number">Nothing here is an offer</p>
+          <p className="subhead">Nothing here is an offer</p>
           <p>
             Prices, minimum quantities and lead times are quoted in writing for each inquiry.
             Nothing on this site forms a contract.
           </p>
 
-          <p className="section-number">Your artwork stays yours</p>
+          <p className="subhead">Your artwork stays yours</p>
           <p>
             Tech packs, artwork and samples you send us remain your property and your intellectual
             property. We use them only to quote and to manufacture for you.
           </p>
 
-          <p className="section-number">Our material stays ours</p>
+          <p className="subhead">Our material stays ours</p>
           <p>
             The photographs, 3D models, text and marks on this site belong to {settings.companyName}
             .
           </p>
 
-          <p className="section-number">Availability</p>
+          <p className="subhead">Availability</p>
           <p>
             We try to keep the site and its 3D references available, but we do not guarantee it and
             we are not liable for loss arising from it being unavailable.

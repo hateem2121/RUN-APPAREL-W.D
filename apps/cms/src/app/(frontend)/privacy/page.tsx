@@ -61,12 +61,12 @@ export default async function PrivacyPage() {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container prose">
-          <p className="section-number">Who we are</p>
+          <p className="subhead">Who we are</p>
           <p>
             {settings.companyName}, {formatAddress()}.
           </p>
 
-          <p className="section-number">What we collect, and when</p>
+          <p className="subhead">What we collect, and when</p>
           <p>
             <strong>When you visit.</strong> Our hosting provider, Cloudflare, processes your IP
             address, the page you asked for and your browser type in order to serve the site and
@@ -86,26 +86,26 @@ export default async function PrivacyPage() {
             we go on to work together.
           </p>
 
-          <p className="section-number">Why we are allowed to</p>
+          <p className="subhead">Why we are allowed to</p>
           <p>
             To run and secure the website, and to answer business inquiries — our legitimate
             interests — and to perform a contract where one follows.
           </p>
 
-          <p className="section-number">How long we keep it</p>
+          <p className="subhead">How long we keep it</p>
           <p>
             Inquiry correspondence for as long as our business relationship needs it. Technical logs
             and error reports are kept briefly by our providers and then deleted.
           </p>
 
-          <p className="section-number">Where it goes</p>
+          <p className="subhead">Where it goes</p>
           <p>
             Cloudflare and Sentry process data outside Pakistan, including in the United States and
             the European Union, under their standard contractual protections. We do not sell your
             data and we do not share it for advertising.
           </p>
 
-          <p className="section-number">Your rights</p>
+          <p className="subhead">Your rights</p>
           <p>
             You may ask us for a copy of what we hold about you, ask us to correct or delete it, or
             object to our processing. Email{' '}

@@ -141,3 +141,108 @@ test.describe('search visibility defaults to hidden', () => {
     expect(await response.text()).not.toContain('<loc>')
   })
 })
+
+test.describe('FA-P-09 — the empty gallery is a designed state, reached on purpose', () => {
+  /**
+   * ⚠️ THE EXISTING CHECK COULD NOT SEE THIS ONE, AND THAT IS THE FINDING. "shows either
+   * real cards or the designed empty state" above takes the `count === 0` branch only
+   * where the gallery happens to be empty — which is CI, never a developer's machine (10
+   * seeded products here, 0 there). So the empty state was asserted in exactly the
+   * environment nobody looks at, and the one where it is easy to look never ran it.
+   *
+   * The family filters make it reachable deterministically in both: `?family=` on a
+   * family with no garments renders the SECOND empty message, the one written because a
+   * single message would have been a lie — nothing is "being updated" when the catalogue
+   * is fine and this family is simply empty.
+   *
+   * What "designed" has to mean, or the row is just "some text appeared": the dashed
+   * panel, centred in its column (FA-D-03 — it used to hug the left edge with up to 468px
+   * of empty column beside it while its own text was centred), naming the family, and
+   * offering a way out. Plus the rest of the page still being a page.
+   */
+  test('an empty family renders the dashed panel, centred, with a route out', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/products')
+
+    const empties = await page.locator('.filter-chip[data-empty="true"]').all()
+    /*
+     * The negative control on the FIXTURE, not on the page. If every family has garments
+     * there is no empty route to visit, and this test would skip quietly forever — which
+     * is the failure it was written to remove. Fail instead, and say what to do.
+     */
+    expect(
+      empties.length,
+      'no family is empty in this environment, so the empty gallery cannot be reached. ' +
+        'Point this test at a fixture that has one rather than letting it skip.',
+    ).toBeGreaterThan(0)
+
+    const href = await empties[0]?.getAttribute('href')
+    const familyName = ((await empties[0]?.textContent()) ?? '').replace(/\d+$/, '').trim()
+    expect(href).toMatch(/\?family=/)
+    await page.goto(href as string)
+
+    await expect(page.locator('.product-card')).toHaveCount(0)
+    const empty = page.locator('.site-empty')
+    await expect(empty).toBeVisible()
+
+    // It names THIS family — the generic "being updated" message would be untrue here.
+    await expect(empty).toContainText(familyName)
+    await expect(empty).toContainText(/email us/i)
+
+    const box = await page.evaluate(() => {
+      const panel = document.querySelector('.site-empty') as HTMLElement
+      const column = panel.closest('.site-container') as HTMLElement
+      const p = panel.getBoundingClientRect()
+      const c = column.getBoundingClientRect()
+      const style = getComputedStyle(panel)
+      return {
+        leftGap: Number((p.left - c.left).toFixed(1)),
+        rightGap: Number((c.right - p.right).toFixed(1)),
+        borderStyle: style.borderTopStyle,
+        borderWidth: Number.parseFloat(style.borderTopWidth),
+        width: Number(p.width.toFixed(1)),
+        columnWidth: Number(c.width.toFixed(1)),
+      }
+    })
+    // The FA-D-03 fix: `margin-inline: auto` on a block that is narrower than its column.
+    expect(
+      box.columnWidth,
+      'the panel fills its column, so centring proves nothing',
+    ).toBeGreaterThan(box.width + 20)
+    expect(
+      Math.abs(box.leftGap - box.rightGap),
+      `the panel sits ${box.leftGap}px from the left and ${box.rightGap}px from the right`,
+    ).toBeLessThanOrEqual(1)
+    expect(box.borderStyle, 'the panel lost its dashed edge').toBe('dashed')
+    expect(box.borderWidth).toBeGreaterThanOrEqual(1)
+
+    // and the page is still a page: the filters, the header and the footer are all there
+    await expect(page.locator('.filter-bar .filter-chip').first()).toBeVisible()
+    await expect(page.locator('.notch__nav a')).toHaveCount(2)
+    await expect(page.locator('.site-footer')).toBeVisible()
+  })
+
+  test('the unfiltered empty message is a DIFFERENT sentence from the filtered one', async ({
+    page,
+  }) => {
+    /*
+     * Both strings live in one ternary and one is unreachable in whichever environment
+     * this runs in, so the two are compared as SOURCE-visible copy through the rendered
+     * page: whichever branch is live here must not be the other one's wording. It is a
+     * small assertion and it pins the decision the comment in products/page.tsx records —
+     * that a single message would have been a lie in the filtered case.
+     */
+    await page.goto('/products')
+    const cards = await page.locator('.product-card').count()
+    if (cards === 0) {
+      await expect(page.locator('.site-empty')).toContainText(/being updated/i)
+      await expect(page.locator('.site-empty')).not.toContainText(/yet —/i)
+      return
+    }
+    const empties = await page.locator('.filter-chip[data-empty="true"]').all()
+    expect(empties.length).toBeGreaterThan(0)
+    await page.goto((await empties[0]?.getAttribute('href')) as string)
+    await expect(page.locator('.site-empty')).toContainText(/still being built/i)
+    await expect(page.locator('.site-empty')).not.toContainText(/being updated/i)
+  })
+})

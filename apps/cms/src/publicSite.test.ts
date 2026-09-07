@@ -383,7 +383,21 @@ describe('the notch', () => {
     //
     // A literal here would be the same bug with a different value, so the clearance is
     // computed from the tokens that produce the bar. e2e re-measures the real gap.
-    expect(css()).toMatch(/--notch-h: calc\(var\(--target-min\) \+ var\(--notch-pad-y\) \* 2\)/)
+    //
+    // ⚠️ THE HEIGHT GAINED A ROW COUNT ON 2026-09-07 (audit FA-E-03). At large browser
+    // text the bar wraps to two rows, and the ONE thing that must stay true is that the
+    // clearance is derived from the same `--notch-lines` the wrap sets — the failure the
+    // `flex-wrap: nowrap` comment describes is a 120px bar against a 60px reservation.
+    // Whitespace is collapsed first: the expression is long enough that the formatter
+    // breaks it over seven lines.
+    const flat = css().replace(/\s+/g, ' ')
+    expect(flat).toContain(
+      '--notch-h: calc( var(--target-min) * var(--notch-lines) + var(--notch-pad-y) * 2 + ' +
+        '(var(--notch-lines) - 1) * var(--notch-row-gap) )',
+    )
+    expect(flat, 'the wrap no longer moves the row count the clearance is built from').toMatch(
+      /--notch-lines: 2/,
+    )
     expect(css()).toMatch(/--notch-clearance: calc\(var\(--notch-h\) \+ 24px\)/)
     expect(css()).toMatch(
       /padding-block-start: max\(clamp\(64px, 11vw, 160px\), var\(--notch-clearance\)\)/,
@@ -774,5 +788,136 @@ describe('the 404, the policy, and analytics', () => {
     for (const page of ['layout.tsx', join('products', 'page.tsx'), join('contact', 'page.tsx')]) {
       expect(code(FRONTEND, page), page).not.toMatch(/x-nonce|next\/headers/)
     }
+  })
+})
+
+describe('FA-I-14 — the mono micro-label says which of its five jobs it is doing', () => {
+  /**
+   * ⚠️ ONE CLASS WAS DOING FIVE JOBS. Counted 2026-09-07 across the five public pages:
+   * `.section-number` marked the numbered section headers (`№01 — What we make`), the
+   * unnumbered section eyebrow on /contact, eleven sub-headings inside the two legal
+   * pages, six labels naming the value under them, and the gallery's result count. They
+   * look identical and they are not the same thing — and because `.section-number` is
+   * declared in `packages/ui/src/base.css`, a change aimed at the numbered markers
+   * reaches the 3D viewer's two uses as well.
+   *
+   * The rename is only worth anything if it stays done, and there is no visual signal
+   * when it comes undone: a new `.section-number` on a legal page renders correctly and
+   * silently rejoins the pile. Hence a gate rather than a convention.
+   */
+  const PAGES = [
+    ['home', join(FRONTEND, 'page.tsx')],
+    ['products', join(FRONTEND, 'products', 'page.tsx')],
+    ['contact', join(FRONTEND, 'contact', 'page.tsx')],
+    ['privacy', join(FRONTEND, 'privacy', 'page.tsx')],
+    ['terms', join(FRONTEND, 'terms', 'page.tsx')],
+  ] as const
+
+  const MEANING_CLASSES = ['subhead', 'field-label', 'result-count']
+
+  it('`.section-number` is only ever on a numbered marker', () => {
+    const offenders: string[] = []
+    let numbered = 0
+    for (const [name, path] of PAGES) {
+      const source = stripComments(readFileSync(path, 'utf8'))
+      for (const match of source.matchAll(/className="section-number">([^<]*)</g)) {
+        const text = (match[1] ?? '').trim()
+        // `№` is written `&#8470;` in the viewer and literally here; accept both.
+        if (/^(?:№|&#8470;)/.test(text)) {
+          numbered += 1
+          continue
+        }
+        offenders.push(`${name}: "${text.slice(0, 48)}"`)
+      }
+    }
+    // The negative control: if the regex stopped matching, `offenders` would be empty
+    // and this gate would pass while reading nothing at all.
+    expect(numbered, 'no numbered section markers found — the matcher is broken').toBeGreaterThan(3)
+    expect(
+      offenders,
+      'these use `.section-number` for something that is not a section number. Use ' +
+        `one of ${MEANING_CLASSES.join(', ')} — site.css explains which is which.`,
+    ).toEqual([])
+  })
+
+  it('every meaning class is actually used, so none of them is a dead name', () => {
+    const markup = PAGES.map(([, path]) => stripComments(readFileSync(path, 'utf8'))).join('\n')
+    for (const name of MEANING_CLASSES) {
+      expect(markup, `.${name} is declared in site.css and used nowhere`).toContain(
+        `className="${name}"`,
+      )
+    }
+  })
+
+  it('and they look EXACTLY like the class they were split out of', () => {
+    /*
+     * ⚠️ THE DRIFT CONTROL, AND THE REASON THIS SPLIT IS SAFE. site.css restates the five
+     * declarations because base.css belongs to both surfaces and is not this site's to
+     * repurpose — so the appearance now exists twice. Two copies of a look is exactly the
+     * shape that produced FA-Q-03 (two cursors that agreed only by luck), so the copies
+     * are compared here rather than trusted. They cite the same tokens, so a token change
+     * still moves both; what this catches is one of them being edited and not the other.
+     */
+    const declarations = (source: string, selector: RegExp) => {
+      const match = selector.exec(stripComments(source))
+      expect(match, `the rule ${selector} is gone`).not.toBeNull()
+      return (match?.[1] ?? '')
+        .split(';')
+        .map((part) => part.trim().replace(/\s+/g, ' '))
+        .filter(Boolean)
+        .sort()
+    }
+
+    const base = readFileSync(
+      join(CMS_ROOT, '..', '..', 'packages', 'ui', 'src', 'base.css'),
+      'utf8',
+    )
+    const sectionNumber = declarations(base, /\.section-number\s*\{([^}]*)\}/)
+    const meaning = declarations(
+      read(FRONTEND, 'site.css'),
+      /\.subhead,\s*\.field-label,\s*\.result-count\s*\{([^}]*)\}/,
+    )
+
+    // Not `toHaveLength(0)` on a diff — name what moved, or the failure says nothing.
+    expect(meaning, 'the site copy and base.css no longer describe the same label').toEqual(
+      sectionNumber,
+    )
+    expect(sectionNumber.length, 'the base rule parsed empty').toBeGreaterThan(3)
+  })
+
+  it('the site never restyles `.section-number` itself', () => {
+    // Restyling it here would reach the viewer's Contact and Customisation sections,
+    // which render the same class on live product pages.
+    const rules = [...css().matchAll(/([^{}]*)\{([^}]*)\}/g)]
+      .filter(([, selector]) => /\.section-number\b/.test(selector ?? ''))
+      .filter(([, selector]) => !/\+\s*\*/.test(selector ?? ''))
+      .map(([, selector]) => (selector ?? '').trim().replace(/\s+/g, ' '))
+    expect(
+      rules,
+      'site.css now styles .section-number. That class is declared in packages/ui and ' +
+        'the 3D viewer renders it on every product page.',
+    ).toEqual([])
+  })
+})
+
+describe('FA-N-10 / D10 — the pages say in words why there is no price', () => {
+  /**
+   * The JSON-LD half is in `lib/structuredData.test.ts`. This is the other half of the
+   * decision: Google reads structured data that contradicts the visible page as a spam
+   * signal, and a buyer reads the page. Both have to say the same thing, and the page has
+   * to say it at all — "no price" with no explanation reads as an omission.
+   */
+  it('/products states it is a reference set and not a shop', () => {
+    const source = stripComments(read(FRONTEND, 'products', 'page.tsx'))
+    expect(source, 'the products page no longer says it is not a shop').toMatch(
+      /development references, not a shop/i,
+    )
+  })
+
+  it('/terms states that nothing on the site is an offer', () => {
+    const source = stripComments(read(FRONTEND, 'terms', 'page.tsx'))
+    expect(source).toMatch(/Nothing here is an offer/i)
+    // and it explains what a price actually depends on, rather than only denying one
+    expect(source.toLowerCase()).toMatch(/quot/)
   })
 })

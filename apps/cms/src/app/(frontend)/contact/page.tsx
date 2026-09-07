@@ -84,21 +84,21 @@ export default async function ContactPage({
         <div className="site-container">
           <div className="contact-grid">
             <div className="contact-block">
-              <p className="section-number">[ Partnerships ]</p>
+              <p className="field-label">[ Partnerships ]</p>
               <a className="contact-block__value" href={`mailto:${settings.email}`}>
                 {settings.email}
               </a>
               <p className="contact-block__note">New programs, quotes and samples.</p>
             </div>
             <div className="contact-block">
-              <p className="section-number">[ WhatsApp ]</p>
+              <p className="field-label">[ WhatsApp ]</p>
               <a className="contact-block__value" href={whatsapp} rel="noopener">
                 {settings.whatsappNumber}
               </a>
               <p className="contact-block__note">Fastest for a quick question.</p>
             </div>
             <div className="contact-block">
-              <p className="section-number">[ Address ]</p>
+              <p className="field-label">[ Address ]</p>
               <address className="contact-block__value">{ADDRESS}</address>
               <p className="contact-block__note">{settings.companyName}</p>
             </div>
@@ -108,7 +108,7 @@ export default async function ContactPage({
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <p className="section-number">What helps us reply faster</p>
+          <p className="subhead">What helps us reply faster</p>
           <h2 className="display display--section">
             Send what you have. <span className="serif-accent">A sketch is enough.</span>
           </h2>

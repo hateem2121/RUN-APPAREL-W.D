@@ -209,11 +209,11 @@ export default async function HomePage() {
           </dl>
           <div className="facts-notes">
             <div>
-              <p className="section-number">Where we ship</p>
+              <p className="field-label">Where we ship</p>
               <p className="fact__note">{SHIPS_TO}</p>
             </div>
             <div>
-              <p className="section-number">Certification</p>
+              <p className="field-label">Certification</p>
               <p className="fact__note">{CERTIFICATION}</p>
             </div>
           </div>

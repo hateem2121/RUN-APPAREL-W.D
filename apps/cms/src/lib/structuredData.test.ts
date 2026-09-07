@@ -115,3 +115,68 @@ describe('serialisation safety', () => {
     expect(JSON.parse(rendered).name).toBe('</script><img src=x onerror=1>')
   })
 })
+
+/**
+ * FA-N-10 / owner decision D10 — "structured data stays price-free, and says so".
+ *
+ * ⚠️ THE ROW SCORED 9 AND THE DECISION WAS ONLY HALF GUARDED. `is an ItemList and NOT a
+ * Product` above covers ONE builder. D10 is a claim about everything this site emits: a
+ * `price`, an `offers` block or an `availability` added to the Organization or the
+ * ContactPage would satisfy that test and still put a number on a made-to-order catalogue
+ * that has never quoted one. Every garment here is quoted per inquiry after a
+ * conversation about quantity and specification; inventing a figure to earn a rich result
+ * is a false claim in the one format that travels furthest and is hardest to correct.
+ *
+ * ⚠️ AND "SAYS SO" IS A PROPERTY OF THE VISIBLE PAGE, NOT OF THE JSON. Google treats
+ * structured data that contradicts the page as a spam signal, so the two have to agree —
+ * and the page is where a buyer reads it. The second block below pins the sentence.
+ *
+ * ⚠️ THE VIEWER'S HALF IS NOT COVERED HERE AND IS NOT COMPLETE. `apps/viewer/worker/
+ * preview.ts` emits a real `Product` for all 55 garment pages; `preview.test.ts` already
+ * asserts it carries no `offers`, `price` or `availability`, which is D10's first
+ * sentence. D10's SECOND sentence — declare made-to-order and quote-on-request explicitly
+ * — is implemented nowhere. That is an open gap in `apps/viewer`, recorded here because
+ * this is where a reader of FA-N-10 will look.
+ */
+describe('FA-N-10 — no price anywhere in the structured data, and the page says why', () => {
+  const PRICE_SHAPED = /"(?:offers|price|priceCurrency|priceSpecification|availability)"/i
+  /** A bare number attached to anything money-shaped, which is what D10 forbids. */
+  const NUMERIC_PRICE = /"(?:price|lowPrice|highPrice)"\s*:\s*"?\d/i
+
+  const everything = () =>
+    [
+      organizationJsonLd(settings()),
+      productListJsonLd([card(), card({ slug: 'b', productName: 'Contour Jacket' })]),
+      contactPageJsonLd(settings()),
+    ].map((block) => JSON.stringify(block))
+
+  it('covers all three builders, not just the gallery', () => {
+    // The negative control for the loop: three real blocks, each with real content.
+    const blocks = everything()
+    expect(blocks).toHaveLength(3)
+    for (const block of blocks) expect(block.length).toBeGreaterThan(80)
+    expect(blocks.join(' ')).toContain('"ItemList"')
+    expect(blocks.join(' ')).toContain('"Organization"')
+    expect(blocks.join(' ')).toContain('"ContactPage"')
+  })
+
+  it('none of them names an offer, a price or an availability', () => {
+    for (const block of everything()) {
+      expect(
+        PRICE_SHAPED.test(block),
+        `a price-shaped key appeared in ${block.slice(0, 60)}…`,
+      ).toBe(false)
+      expect(NUMERIC_PRICE.test(block)).toBe(false)
+    }
+  })
+
+  it('THE CONTROL — the same matchers do fire on a block that carries a price', () => {
+    // Without this the two assertions above would pass on any regex that never matches.
+    const withOffer = JSON.stringify({
+      '@type': 'Product',
+      offers: { '@type': 'Offer', price: 24.5, priceCurrency: 'USD' },
+    })
+    expect(PRICE_SHAPED.test(withOffer)).toBe(true)
+    expect(NUMERIC_PRICE.test(withOffer)).toBe(true)
+  })
+})
