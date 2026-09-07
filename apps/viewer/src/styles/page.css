@@ -79,6 +79,22 @@
   padding-bottom: max(var(--action-bar-h), 4.5rem);
 }
 
+/*
+ * The page wrapper takes focus when the preloader leaves (`App.tsx`, audit
+ * FA-H-26), so that the next Tab starts at the top of the document — at the skip
+ * link — instead of inside <main>, past the header.
+ *
+ * It carries `tabindex="-1"`, so nothing a visitor does can focus it; the only
+ * focus it ever receives is that one programmatic call. A ring around the entire
+ * page would therefore only ever be noise, and in Firefox — which can match
+ * `:focus-visible` on a programmatic focus when the last interaction was the
+ * keyboard, e.g. Enter in the address bar — it would be noise on arrival. Every
+ * control INSIDE the page keeps the global `:focus-visible` ring from base.css.
+ */
+.page:focus {
+  outline: none;
+}
+
 @media (min-width: 900px) {
   .page {
     padding-bottom: 0;
@@ -311,7 +327,17 @@
   border-radius: var(--radius-pill);
   border: 1.4px solid var(--line);
   color: var(--text);
+  /* ⚠️ `scale` TAKES --instant AND IS IN THIS LIST RATHER THAN A RULE OF ITS OWN.
+     `base.css` sets `:active { scale: 0.97 }` for this control, and until 2026-09-07
+     no transition covered it, so both edges of the press were hard cuts at 0ms —
+     measured six frames at 0.97 after pointerdown and six at `none` after pointerup
+     (audit FA-H-31). tokens.css names --instant "focus responses and press
+     feedback"; the focus half honoured it and the press half did not.
+     It CANNOT be a separate declaration: `transition` is a shorthand, and a second
+     one REPLACES this list rather than adding to it — which would silently drop the
+     colour transitions above. Same fix, same wording, as `.btn` in base.css. */
   transition:
+    scale var(--instant) var(--ease),
     background-color var(--ui) var(--ease),
     color var(--ui) var(--ease);
 }
@@ -1426,7 +1452,17 @@ model-viewer.stage__model {
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--text);
+  /* ⚠️ `scale` TAKES --instant AND IS IN THIS LIST RATHER THAN A RULE OF ITS OWN.
+     `base.css` sets `:active { scale: 0.97 }` for this control, and until 2026-09-07
+     no transition covered it, so both edges of the press were hard cuts at 0ms —
+     measured six frames at 0.97 after pointerdown and six at `none` after pointerup
+     (audit FA-H-31). tokens.css names --instant "focus responses and press
+     feedback"; the focus half honoured it and the press half did not.
+     It CANNOT be a separate declaration: `transition` is a shorthand, and a second
+     one REPLACES this list rather than adding to it — which would silently drop the
+     colour transitions above. Same fix, same wording, as `.btn` in base.css. */
   transition:
+    scale var(--instant) var(--ease),
     background-color var(--ui) var(--ease),
     color var(--ui) var(--ease);
 }
@@ -1973,7 +2009,17 @@ model-viewer.stage__model {
   letter-spacing: var(--tracking-caps-tight);
   text-transform: uppercase;
   color: var(--text);
+  /* ⚠️ `scale` TAKES --instant AND IS IN THIS LIST RATHER THAN A RULE OF ITS OWN.
+     `base.css` sets `:active { scale: 0.97 }` for this control, and until 2026-09-07
+     no transition covered it, so both edges of the press were hard cuts at 0ms —
+     measured six frames at 0.97 after pointerdown and six at `none` after pointerup
+     (audit FA-H-31). tokens.css names --instant "focus responses and press
+     feedback"; the focus half honoured it and the press half did not.
+     It CANNOT be a separate declaration: `transition` is a shorthand, and a second
+     one REPLACES this list rather than adding to it — which would silently drop the
+     colour transitions above. Same fix, same wording, as `.btn` in base.css. */
   transition:
+    scale var(--instant) var(--ease),
     border-color var(--ui) var(--ease),
     background-color var(--ui) var(--ease),
     color var(--ui) var(--ease);

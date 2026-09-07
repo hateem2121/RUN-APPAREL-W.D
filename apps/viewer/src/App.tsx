@@ -55,6 +55,13 @@ type AppState =
  * different colourway without a word is the one outcome this whole fallback path
  * exists to prevent.
  */
+/**
+ * The focus target when the preloader leaves — the page wrapper, not `<main>`.
+ * See the effect below for what moved and why, and `page.css` for the one rule
+ * this id needs (`outline: none`, because nothing can focus it deliberately).
+ */
+const PAGE_TOP_ID = 'viewer-top'
+
 const RETIRED_FALLBACK =
   'The colorway printed on your tag is no longer in production. This page is showing the ' +
   'current default colorway for this garment.'
@@ -241,7 +248,7 @@ export default function App() {
   }, [state.kind])
 
   /**
-   * Hand focus to <main> when the preloader leaves.
+   * Hand focus to the TOP OF THE PAGE when the preloader leaves.
    *
    * EVERY visit to this viewer is a fresh QR scan, so this transition happens on
    * essentially 100% of sessions rather than on an occasional in-app route
@@ -252,9 +259,27 @@ export default function App() {
    * — with focus still on <body> and nothing announced. A screen-reader user's
    * virtual cursor is left pointing at what was, a moment ago, a hidden document.
    *
-   * `<main id="main-content" tabIndex={-1}>` already exists and is already
-   * focusable for exactly this purpose; it was reachable only via the skip link.
-   * Nothing new is built here.
+   * ⚠️ IT WAS `<main>` UNTIL 2026-09-07, AND THAT PUT THE HEADER BEHIND THE
+   * VISITOR — audit FA-H-26. Measured in a real browser: `document.activeElement`
+   * before any key press was `<main>`, so Tab 1 went to the `model-viewer` element
+   * and Tab 2-4 to the camera buttons, while `.skip-link` stayed at `top: -75.5px`
+   * throughout. Everything BEFORE `<main>` in the document — the skip link, the
+   * wordmark (a link home since the same day) and the theme toggle — was reachable
+   * only by tabbing backwards, or by tabbing forward through the entire page and
+   * the browser's own chrome. On the marketing site, which hands off no focus,
+   * Tab 1 focuses the skip link exactly as it should.
+   *
+   * The hand-off itself is unchanged and still required; only its target moves, to
+   * the page wrapper, which is ABOVE the skip link. That restores the ordinary
+   * document order — Tab 1 is the skip link again — while still moving the virtual
+   * cursor out of the departed overlay and into the live document, which is the
+   * whole reason this effect exists.
+   *
+   * ⚠️ NOT the skip link itself, which was the obvious alternative: `.skip-link`
+   * reveals on `:focus`, not `:focus-visible`, so focusing it would flash a black
+   * "Skip to main content" chip into the top-left corner of every visit, mouse and
+   * touch included. `<main id="main-content">` keeps its `tabIndex={-1}` because
+   * that is what makes the skip link actually skip.
    *
    * Guarded on `preloaderGone` rather than on `state.kind` alone so focus moves
    * when the overlay has actually left, not while it still covers the page.
@@ -285,7 +310,7 @@ export default function App() {
   useEffect(() => {
     if (state.kind !== 'ready' || !preloaderGone || focusHandedOff.current) return
     focusHandedOff.current = true
-    document.getElementById('main-content')?.focus({ preventScroll: true })
+    document.getElementById(PAGE_TOP_ID)?.focus({ preventScroll: true })
   }, [state.kind, preloaderGone])
 
   // Stable identity: this is in <Preloader>'s effect dependency array, and a new
@@ -348,7 +373,10 @@ export default function App() {
   return (
     <>
       {preloader}
-      <div className="page">
+      {/* `tabIndex={-1}` makes this focusable WITHOUT putting it in the tab order:
+          the effect above hands focus here when the preloader leaves, and the next
+          Tab then continues from the top of the document into the skip link. */}
+      <div className="page" id={PAGE_TOP_ID} tabIndex={-1}>
         {/* First focusable thing on the page: a keyboard user should not have to
             tab through the header to reach the garment. Visually hidden until
             focused — see `.skip-link` in the stylesheet. */}

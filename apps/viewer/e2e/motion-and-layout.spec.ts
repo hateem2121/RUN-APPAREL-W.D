@@ -256,6 +256,74 @@ test.describe('interaction feedback', () => {
     ).toEqual([])
   })
 
+  test('the press it answers with is eased, at the duration the token is named for', async ({
+    page,
+  }) => {
+    /**
+     * Audit FA-H-31. The `:active { scale: 0.97 }` rules the test above guards had
+     * no transition covering `scale`, so both edges of every press were hard cuts:
+     * measured six consecutive frames at 0.97 after `mouse.down()` and six at
+     * `none` after `mouse.up()`, 0ms either way. `tokens.css` names `--instant`
+     * "focus responses and press feedback" and only the focus half used it — the
+     * token's second purpose described an intention rather than the code.
+     *
+     * ⚠️ THE PROPERTY IS READ FROM THE COMPUTED LIST, NOT FROM THE SOURCE. A second
+     * `transition` declaration REPLACES the first rather than adding to it, so the
+     * obvious "add a rule for scale" fix silently deletes the colour transitions
+     * beside it — and the stylesheet would still contain the word `scale`. Only the
+     * resolved list can tell the two apart.
+     */
+    // ⚠️ THE DEFAULT BRANCH, EXPLICITLY. The suite-wide `beforeEach` emulates
+    // reduced motion, and `base.css` collapses every transition-duration to 0.01ms
+    // there — which is correct behaviour and would make this test pass against a
+    // transition list that does not mention `scale` at all, since 0.01 rounds to
+    // the same 0 as "absent". This asserts the branch most visitors get.
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const measured = await page.evaluate(() => {
+      const ms = (value: string) =>
+        value.trim().endsWith('ms')
+          ? Number.parseFloat(value)
+          : Math.round(Number.parseFloat(value) * 1000)
+      const instant = ms(getComputedStyle(document.documentElement).getPropertyValue('--instant'))
+
+      return {
+        instant,
+        controls: ['.btn', '.camera-btn', '.colourway-tab', '.theme-toggle'].map((selector) => {
+          const el = document.querySelector(selector)
+          if (!el) return { selector, found: false, scaleMs: null, others: 0 }
+          const style = getComputedStyle(el)
+          const properties = style.transitionProperty.split(',').map((p) => p.trim())
+          const durations = style.transitionDuration.split(',').map((d) => ms(d))
+          const index = properties.indexOf('scale')
+          return {
+            selector,
+            found: true,
+            scaleMs: index === -1 ? null : (durations[index] ?? null),
+            // The colour transitions that a replacing declaration would have eaten.
+            others: properties.filter((p) => p !== 'scale').length,
+          }
+        }),
+      }
+    })
+
+    for (const control of measured.controls) {
+      expect(control.found, `${control.selector} is not on the page to measure`).toBe(true)
+      expect(
+        control.scaleMs,
+        `${control.selector} does not transition \`scale\`, so its :active press is a ` +
+          `hard cut — see the transition list in page.css (base.css for .btn).`,
+      ).toBe(measured.instant)
+      expect(
+        control.others,
+        `${control.selector} lost its other transitions — a second \`transition\` ` +
+          `declaration replaces the list rather than extending it.`,
+      ).toBeGreaterThanOrEqual(2)
+    }
+  })
+
   /**
    * ⚠️ THE CUSTOM CURSOR IS THE ONE THING ON THIS PAGE NO TEST CAN DRIVE DIRECTLY,
    * and that is by design: `Cursor.tsx` refuses to mount when `navigator.webdriver`
@@ -505,7 +573,7 @@ test.describe('layout invariants', () => {
        * it is the thing that used to move the page, so "it has happened and the
        * page is still at the top" is exactly the claim being made.
        */
-      await page.waitForFunction(() => document.activeElement?.id === 'main-content')
+      await page.waitForFunction(() => document.activeElement?.id === 'viewer-top')
 
       const top = await page.evaluate(() => ({
         scrollY: Math.round(window.scrollY),
@@ -2393,5 +2461,85 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
       `"${spill.text}" reaches ${spill.spill}px past the edge of its ${spill.cell}px ` +
         `tab, into the swatch beside it. See overflow-wrap on .colourway-tab__label.`,
     ).toBeLessThanOrEqual(0)
+  })
+})
+
+/**
+ * Where the first Tab goes — audit FA-H-26.
+ *
+ * ⚠️ THE KEYBOARD IS MEASURED HERE AND NOWHERE ELSE, and the reason is worth
+ * keeping: a browser-automation pane was measured DROPPING key events on this page
+ * (`keydownDoc: 0` on a real press), which made the keyboard look broken when it was
+ * fine. Playwright delivers them; every assertion below is on
+ * `document.activeElement` after a real `Tab`.
+ */
+test.describe('the keyboard starts at the top of the document', () => {
+  test('Tab 1 reaches the skip link, and Tab 2 the wordmark', async ({ page, browserName }) => {
+    test.skip(
+      browserName === 'webkit',
+      'WebKit does not put LINKS in the tab order unless "Press Tab to highlight each item" ' +
+        'is on — a browser preference, not a page behaviour. Measured with the skip removed: ' +
+        'Tab 1 on WebKit lands on a colourway tab (a <button>), skipping both links. ' +
+        'Chromium and Firefox cover this.',
+    )
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    // ⚠️ WAIT FOR THE HAND-OFF, exactly as "the page opens at the very top" does.
+    // Asserting before `App.tsx` moves focus measures the browser's own default and
+    // passes against the unfixed code — flaky in the direction that passes.
+    await page.waitForFunction(() => document.activeElement?.id === 'viewer-top')
+
+    await page.keyboard.press('Tab')
+    const first = await page.evaluate(() => ({
+      className: document.activeElement?.className ?? '',
+      // The link reveals itself on focus; -75.5px is where it sits when it has not.
+      top: Math.round((document.activeElement?.getBoundingClientRect().top ?? -999) * 10) / 10,
+    }))
+    expect(
+      first.className,
+      `the first Tab landed on "${first.className}" — focus was handed to <main>, so ` +
+        `everything above it (skip link, wordmark, theme toggle) was reachable only ` +
+        `backwards. See PAGE_TOP_ID in App.tsx.`,
+    ).toContain('skip-link')
+    /**
+     * ⚠️ POLLED, NOT READ ONCE — the first version of this assertion raced the
+     * reveal and failed at exactly -75.5px, the un-revealed position, because
+     * `getBoundingClientRect()` right after the key press returns the transition's
+     * value at t=0. Same defect this file's own header documents for `.colourways`.
+     * What is being asserted is that the link ARRIVES, not when.
+     */
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() =>
+            Math.round(document.activeElement?.getBoundingClientRect().top ?? -999),
+          ),
+        { message: 'the skip link is focused but never leaves its hidden position' },
+      )
+      .toBeGreaterThanOrEqual(0)
+
+    await page.keyboard.press('Tab')
+    const second = await page.evaluate(() => document.activeElement?.className ?? '')
+    expect(second).toContain('header__wordmark')
+  })
+
+  test('the skip link still skips: it moves focus into <main>, not just the scroll', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName === 'webkit', 'see above — link focus is a WebKit preference')
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await page.waitForFunction(() => document.activeElement?.id === 'viewer-top')
+
+    await page.keyboard.press('Tab')
+    await page.keyboard.press('Enter')
+
+    // `tabIndex={-1}` on <main> is what makes this work; without it the fragment
+    // moves the scroll position and leaves focus in the header, so the next Tab
+    // walks back through exactly the links the visitor asked to skip.
+    const landed = await page.evaluate(() => document.activeElement?.id ?? '')
+    expect(landed).toBe('main-content')
   })
 })
