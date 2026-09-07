@@ -54,8 +54,13 @@ describe('the public site is indexable and the admin is not exposed by it', () =
     const layout = code(FRONTEND, 'layout.tsx')
     expect(layout).toMatch(/robots:\s*robotsFor\(visibility\)/)
     expect(layout).not.toMatch(/index:\s*true/)
-    // and the 404 must still declare its own, which SSR renders correctly
-    expect(code(FRONTEND, 'not-found.tsx')).toMatch(/robots:\s*\{\s*index:\s*false/)
+    // and the 404 must still declare its own. It moved to the app root on 2026-09-07 —
+    // `notFound()` does not server-render (vercel/next.js#62228), so the branded page had
+    // to become Next's own unmatched handler rather than a catch-all's. See the test
+    // below that pins that layout.
+    expect(code(join(CMS_ROOT, 'src', 'app'), 'not-found.tsx')).toMatch(
+      /robots:\s*\{\s*index:\s*false/,
+    )
   })
 
   it('the switch ships HIDDEN in wrangler.jsonc, and the sitemap follows it', () => {
@@ -610,13 +615,36 @@ describe('a poster that fails to load', () => {
 describe('the 404, the policy, and analytics', () => {
   const site = (...parts: string[]) => join(CMS_ROOT, 'src', 'components', 'site', ...parts)
 
-  it('an unmatched URL reaches the branded 404 rather than Next own bare one', () => {
-    // A not-found.tsx inside a route group only answers notFound() raised WITHIN that
-    // group. A URL matching no route at all is a different case, and with two route
-    // groups Next cannot know whose layout to use — so it fell back to "404: This page
-    // could not be found", with no navigation, on a site whose URLs are on printed tags.
-    expect(existsSync(join(FRONTEND, 'not-found.tsx'))).toBe(true)
-    expect(existsSync(join(FRONTEND, '[...unmatched]', 'page.tsx'))).toBe(true)
+  /**
+   * ⚠️ THE 404 LIVES AT THE APP ROOT, AND PUTTING IT BACK IN A ROUTE GROUP RE-BREAKS IT
+   * FOR EVERY VISITOR WITHOUT JAVASCRIPT.
+   *
+   * The arrangement this replaced was a `[...unmatched]` catch-all inside (frontend)
+   * calling `notFound()`, so the branded page rendered inside the site's own layout. It
+   * looked right and measured as a blank white screen with scripting off — 0 characters
+   * of body text on every wrong URL (FA-I-01, FA-P-01).
+   *
+   * The cause is an open upstream bug, vercel/next.js#62228: `notFound()` does not
+   * server-render its page, delivering the markup only inside the Flight payload. Next's
+   * OWN unmatched handling does render, which is why the catch-all had to go rather than
+   * be repaired. Measured 2026-09-07 over raw HTTP:
+   *
+   *   catch-all + notFound()   404, 0 <h1>, 0 links,  28 chars
+   *   root not-found.tsx       404, 1 <h1>, 6 links, 365 chars
+   *
+   * `e2e/notfound.spec.ts` proves the rendered output; this pins the file layout that
+   * produces it, because the two files it forbids are the obvious "tidy-up".
+   */
+  it('the 404 is at the app root, where Next server-renders it', () => {
+    expect(existsSync(join(CMS_ROOT, 'src', 'app', 'not-found.tsx'))).toBe(true)
+    expect(
+      existsSync(join(FRONTEND, 'not-found.tsx')),
+      'a not-found.tsx inside (frontend) only answers notFound(), which does not render',
+    ).toBe(false)
+    expect(
+      existsSync(join(FRONTEND, '[...unmatched]', 'page.tsx')),
+      'the catch-all is what routed unmatched URLs through the broken notFound() path',
+    ).toBe(false)
   })
 
   it('gives the public pages a CSP and leaves the admin alone', () => {

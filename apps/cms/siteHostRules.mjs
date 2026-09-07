@@ -32,11 +32,16 @@ export const CMS_HOST = 'cms.wear-run.help'
 export const hostPattern = (host) => `^${host.replace(/\./g, '\\.')}$`
 
 /** The public paths the cms host hands to the main address. robots.txt deliberately stays. */
-export const CMS_PUBLIC_PATHS = ['/', '/products', '/contact', '/sitemap.xml']
+export const CMS_PUBLIC_PATHS = ['/', '/products', '/contact', '/privacy', '/terms', '/sitemap.xml']
 
 /**
- * Unrouted on purpose. Anything under it reaches the frontend group's catch-all
- * (src/app/(frontend)/[...unmatched]/page.tsx), which calls notFound().
+ * Unrouted on purpose. Anything under it matches no route at all and is answered by
+ * `src/app/not-found.tsx`, which Next server-renders with a 404.
+ *
+ * ⚠️ It used to reach a `[...unmatched]` catch-all calling `notFound()`. That path was
+ * deleted on 2026-09-07 because `notFound()` does not server-render its page
+ * (vercel/next.js#62228) — the 404 was blank without JavaScript. Do not reintroduce a
+ * catch-all to "make the 404 use the site layout"; that is exactly what broke it.
  */
 export const BLOCKED_PREFIX = '/_not-here'
 

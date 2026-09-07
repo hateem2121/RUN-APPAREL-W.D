@@ -1,15 +1,26 @@
 import { expect, test } from '@playwright/test'
 
 /**
- * The 404 page, and the catch-all route that makes it reachable.
+ * The 404 page — and the two ways it has been broken.
  *
- * ⚠️ THE SHADOWING CASES BELOW ARE THE POINT OF THIS FILE. Reaching the branded 404
- * required a catch-all route at the root of the (frontend) group, and a catch-all is
- * exactly the kind of change that can quietly swallow everything else the Worker serves
- * — the Payload admin, the public REST API, the robots and sitemap conventions, and the
- * static files in public/. Next's specificity rules say it does not. This proves it,
- * because getting it wrong takes down the admin and the API together and the only
- * symptom on the 404 itself would be that it works.
+ * ⚠️ IT MUST RENDER WITHOUT JAVASCRIPT, AND FOR MONTHS IT DID NOT. The branded page was a
+ * `[...unmatched]` catch-all inside (frontend) calling `notFound()`. Measured 2026-09-06
+ * by three instruments, two of them independent: a blank white screen with scripting off
+ * — 0 characters of body text, no heading, no links, on every wrong URL, while the three
+ * real pages rendered fully in the same run (FA-I-01, FA-P-01). The page built to prevent
+ * a dead end WAS the dead end.
+ *
+ * The cause is upstream and still open: `notFound()` does not server-render its page,
+ * delivering the markup only inside the Flight payload (vercel/next.js#62228, #57583).
+ * Next's OWN unmatched handling does render, so the catch-all was deleted and
+ * `src/app/not-found.tsx` took its place. The no-JS case below is the guard.
+ *
+ * ⚠️ THE SHADOWING CASES ARE THE SECOND POINT OF THIS FILE. Anything answering unmatched
+ * URLs can quietly swallow everything else the Worker serves — the Payload admin, the
+ * public REST API, the robots and sitemap conventions, and the static files in public/.
+ * Next's specificity rules say it does not. This proves it, because getting it wrong
+ * takes down the admin and the API together and the only symptom on the 404 itself would
+ * be that it works.
  */
 
 test.describe('the branded 404', () => {
@@ -22,10 +33,59 @@ test.describe('the branded 404', () => {
 
     await expect(page.locator('h1')).toContainText(/isn.t here/i)
     await expect(page.locator('.notch__nav a')).toHaveCount(2)
-    await expect(page.locator('.site-footer')).toBeVisible()
     // both routes out are offered
     await expect(page.locator('main a[href="/products"]')).toBeVisible()
     await expect(page.locator('main a[href="/contact"]')).toBeVisible()
+    /*
+     * ⚠️ THE EMAIL IN FULL, NOT ONLY BEHIND A BUTTON — and it comes from the shared
+     * defaults rather than from D1. This page reads no database on purpose: a 404 is
+     * disproportionately likely to be reached during exactly the failure that would make
+     * that read fail, and its whole job is to work when something else has not. There is
+     * no `.site-footer` here for the same reason.
+     */
+    await expect(page.locator('main a[href^="mailto:"]')).toBeVisible()
+  })
+
+  /**
+   * ⚠️ THE REGRESSION GUARD FOR THE DEFECT THIS PAGE WAS REBUILT AROUND (FA-I-01,
+   * FA-P-01), AND FOR THE GAP THAT LET IT SHIP (FA-T-09).
+   *
+   * `apps/cms/e2e/` already asserted that the three real pages render with scripting off.
+   * It skipped the one page whose entire purpose is recovering from a broken link — which
+   * is how a blank 404 survived a full audit's worth of green tests.
+   *
+   * `javaScriptEnabled: false` is the actual condition, not an approximation of it: the
+   * browser never runs the Flight payload, so what this sees is what a visitor behind a
+   * corporate proxy, a privacy extension or a failed script fetch receives.
+   */
+  test.describe('with scripting off', () => {
+    test.use({ javaScriptEnabled: false })
+
+    test('the 404 is rendered HTML, not a Flight payload', async ({ page }) => {
+      const response = await page.goto('/definitely-not-a-page')
+      expect(response?.status()).toBe(404)
+
+      await expect(page.locator('h1')).toContainText(/isn.t here/i)
+      await expect(page.locator('main a[href="/products"]')).toBeVisible()
+      await expect(page.locator('main a[href="/contact"]')).toBeVisible()
+
+      // The measurement that failed before the fix: 0 characters of body text.
+      const text = await page.locator('body').innerText()
+      expect(
+        text.replace(/\s+/g, ' ').trim().length,
+        'the 404 body is empty without JavaScript — notFound() is back, or the page moved ' +
+          'into a route group. See the docblock above and vercel/next.js#62228.',
+      ).toBeGreaterThan(200)
+    })
+
+    test('the three real pages still render too — the control', async ({ page }) => {
+      // Without this the test above could pass on a page that renders nothing at all
+      // anywhere, which is a state this suite should also notice.
+      for (const path of ['/', '/products', '/contact']) {
+        await page.goto(path)
+        await expect(page.locator('h1'), `${path} has no heading without JS`).toBeVisible()
+      }
+    })
   })
 
   test('is not indexable, unlike every other page under this layout', async ({ page }) => {
@@ -57,7 +117,7 @@ test.describe('the branded 404', () => {
   })
 })
 
-test.describe('the catch-all shadows nothing', () => {
+test.describe('the 404 shadows nothing', () => {
   /*
    * ⚠️ THE REST API ROW EXPECTS 403, NOT 200, AND THAT IS THE POINT OF THE ROW.
    * `Media.read` became `isAuthenticated` on main on 2026-09-05 (the collection was
@@ -85,10 +145,25 @@ test.describe('the catch-all shadows nothing', () => {
         // to carry the same status.
         expect(response.headers()['content-type'] ?? '').toContain('json')
       }
-      // A matching status that is secretly the HTML 404 would pass the check above,
-      // so assert the body is not the not-found page.
+      /*
+       * A matching status that is secretly the HTML 404 would pass the check above, so
+       * assert the body is not the not-found page.
+       *
+       * ⚠️ AGAINST RENDERED MARKUP, NOT RAW HTML, AND THAT DISTINCTION COST A DEBUGGING
+       * ROUND. When the branded 404 moved to `src/app/not-found.tsx` on 2026-09-07, Next
+       * began inlining that route's chunk into EVERY document — so `/admin` contains the
+       * string "404 · PAGE NOT FOUND" as bundled data while rendering "Dashboard — RUN
+       * APPAREL CMS" perfectly well at 200. The raw-text assertion failed on a page that
+       * was entirely correct.
+       *
+       * Stripping `<script>` blocks is what separates what a visitor SEES from what the
+       * response happens to carry. This is the fifth time this repo has recorded the same
+       * shape of false positive — a check matching prose or payload rather than output —
+       * and the fix is always the same.
+       */
       const body = await response.text()
-      expect(body).not.toContain('404 · PAGE NOT FOUND')
+      const rendered = body.replace(/<script[\s\S]*?<\/script>/g, '')
+      expect(rendered).not.toContain('404 · PAGE NOT FOUND')
     })
   }
 })
