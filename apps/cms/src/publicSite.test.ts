@@ -678,9 +678,18 @@ describe('the 404, the policy, and analytics', () => {
     }
     // and it must be appended AFTER withPayload's blanket rule, or it never applies —
     // the exact way L1's Vary fix shipped green and inert in production.
+    //
+    // ⚠️ THIS ONLY CHECKS THAT THE RULES ARE APPENDED, NOT WHICH ONE WINS. It asserted
+    // `publicViewerVaryRule, ...publicPageCspRules` as ADJACENT text until 2026-09-07,
+    // when `notFoundCspRule` was inserted between them — and failed against a change
+    // that made the headers strictly better. A text scan cannot decide precedence
+    // anyway; src/notFoundCsp.test.ts does it properly, by reading the rules back out of
+    // .next/routes-manifest.json in the order Next recorded them.
     // Whitespace-insensitive: the formatter reflows this call across lines, and an
     // assertion that depends on its layout fails for a reason that is not a defect.
-    expect(headers.replace(/\s+/g, ' ')).toMatch(/publicViewerVaryRule,\s*\.\.\.publicPageCspRules/)
+    const appended = headers.replace(/\s+/g, ' ')
+    expect(appended).toMatch(/publicViewerVaryRule,.*\.\.\.publicPageCspRules/)
+    expect(appended).toMatch(/notFoundCspRule,\s*\.\.\.publicPageCspRules/)
   })
 
   /**

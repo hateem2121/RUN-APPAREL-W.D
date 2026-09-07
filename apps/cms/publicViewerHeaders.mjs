@@ -127,6 +127,49 @@ export const publicPageCspRules = PUBLIC_PAGE_SOURCES.map((source) => ({
   headers: [{ key: 'Content-Security-Policy', value: PUBLIC_PAGE_CSP }, ...PUBLIC_PAGE_ISOLATION],
 }))
 
+/**
+ * The CSP for everything else — which in practice means THE 404 (audit FA-O-01).
+ *
+ * ⚠️ THE BRANDED 404 SHIPPED WITH NO POLICY AT ALL. Measured 2026-09-07 on the real
+ * build: `/` and `/products` answered with the full `PUBLIC_PAGE_CSP`, and
+ * `/definitely-not-a-page` answered `content-security-policy: frame-ancestors 'none'` —
+ * no `default-src`, no `script-src`, no `form-action`. `PUBLIC_PAGE_SOURCES` is an
+ * explicit list of five paths and a 404 is by definition not on any list, so the page a
+ * visitor reaches by mistyping a URL was the one page with no policy.
+ *
+ * ⚠️ AND AN EXPLICIT LIST IS STILL RIGHT FOR THOSE FIVE. This rule is appended BEFORE
+ * them, so for `/`, `/products`, `/contact`, `/privacy` and `/terms` the later, explicit
+ * rule wins — last matching rule wins in Next, which is the whole mechanism this file
+ * exists to exploit. Nothing about those five changes.
+ *
+ * ⚠️ THE LOOKAHEAD IS THE DANGEROUS PART, AND IT IS WHY THIS IS VERIFIED IN THE BUILD.
+ * The comment on PUBLIC_PAGE_SOURCES warns that a wrong negative lookahead reaches
+ * `/admin` — where this policy has no `unsafe-eval` and would break the Payload login,
+ * on the side of the system that holds the password. `sourceMatches` below cannot model
+ * a custom regex parameter (it rewrites `:name` to `[^/]+` and knows nothing of
+ * `(?!…)`), so asserting against it would prove nothing. `src/notFoundCsp.test.ts`
+ * compiles the regex Next actually emitted into `.next/routes-manifest.json` and checks
+ * `/admin` and `/api/*` against THAT.
+ *
+ * ⚠️ CSP ONLY — no COOP or CORP. Those two are on the five HTML pages deliberately
+ * (FA-O-07). This rule matches text files as well as documents, and
+ * `Cross-Origin-Resource-Policy: same-origin` on `/robots.txt` or an Open Graph image
+ * would be a change to how other origins may fetch them, made as a side effect of fixing
+ * a 404's script policy. One header, one reason.
+ */
+/*
+ * ⚠️ THE ROOTS, NOT THE PREFIXES. The first version was `(?!admin|api/)`, which also
+ * excluded `/administrator` — a path that does not exist here, and whose 404 would
+ * therefore have been the one page still shipping without a policy. `(?:/|$)` pins the
+ * exclusion to the two real route roots.
+ */
+export const OTHER_PAGE_CSP_SOURCE = '/:path((?!admin(?:/|$)|api(?:/|$)).*)'
+
+export const notFoundCspRule = {
+  source: OTHER_PAGE_CSP_SOURCE,
+  headers: [{ key: 'Content-Security-Policy', value: PUBLIC_PAGE_CSP }],
+}
+
 export const publicViewerVaryRule = {
   source: PUBLIC_VIEWER_SOURCE,
   headers: [{ key: 'Vary', value: PUBLIC_VIEWER_VARY }],
@@ -149,6 +192,9 @@ export function withPublicViewerVary(config) {
     headers: async () => [
       ...((await inner?.()) ?? []),
       publicViewerVaryRule,
+      // Before the five explicit pages on purpose — they must win for themselves, and
+      // this catches everything else, which in practice is the 404. See its docblock.
+      notFoundCspRule,
       ...publicPageCspRules,
     ],
   }
