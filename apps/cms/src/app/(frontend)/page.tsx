@@ -84,7 +84,25 @@ export default async function HomePage() {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <p className="section-number">N°01 — What we make</p>
+          {/*
+        ⚠️ `№` ALONE — NOT `N°` AND NOT `N№`. The numero sign already means "number", so a
+        letter N in front of it reads as "N-number-01". Both surfaces got this wrong in
+        different ways until 2026-09-07 (audit FA-Q-08, FA-Q-51): the site wrote `N` plus
+        U+00B0 DEGREE SIGN, which means degrees of temperature or angle, and the viewer
+        wrote `N` plus U+2116, doubling the abbreviation.
+
+        Measured before choosing, because the audit's evidence warned that U+2116 has
+        patchy coverage in system monospace stacks and might be substituted from a
+        fallback face: in `--font-mono` at 40px, "0", "N", `№`, `°` and `º` all advance
+        24.09px — the numero sign is present in the face and is not substituted. The
+        control is that "0" and "N" agree, which is what proves the face is monospaced at
+        all; the first version of that probe put quoted family names inside an HTML
+        `style` attribute, terminated it early, and measured a proportional font.
+
+        Two digits, not three, on both surfaces: there are four sections here and three
+        there, and `003` implies a scale that does not exist.
+      */}
+          <p className="section-number">№01 — What we make</p>
           <h2 className="display display--section">Five families, one standard.</h2>
           <p className="site-lede">
             One standard means one factory, one set of hands and one set of tolerances — every
@@ -119,7 +137,7 @@ export default async function HomePage() {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <p className="section-number">N°02 — See it before it exists</p>
+          <p className="section-number">№02 — See it before it exists</p>
           <h2 className="display display--section">
             Every reference, <span className="serif-accent">in 3D.</span>
           </h2>
@@ -143,7 +161,7 @@ export default async function HomePage() {
       */}
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <p className="section-number">N°03 — The works</p>
+          <p className="section-number">№03 — The works</p>
           <h2 className="display display--section">
             Numbers you can <span className="serif-accent">hold us to.</span>
           </h2>
@@ -187,7 +205,7 @@ export default async function HomePage() {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <p className="section-number">N°04 — Talk to us</p>
+          <p className="section-number">№04 — Talk to us</p>
           <h2 className="display display--section">Tell us what you&rsquo;re making.</h2>
           <p className="site-lede">
             Send the styles, quantities and specs you have — a sketch is enough to start. We reply

@@ -35,7 +35,7 @@ export function CustomisationSection({ data }: { data: ViewerApiSuccess }) {
 
   return (
     <section className="customise" aria-labelledby="customise-heading" data-reveal>
-      <p className="section-number">N&#8470;002 — CUSTOMIZATION — N&#8470;002</p>
+      <p className="section-number">&#8470;02 — CUSTOMIZATION — &#8470;02</p>
       <h2 id="customise-heading" className="display display--section">
         FROM IDEA TO <span className="serif-accent">production</span>.
       </h2>

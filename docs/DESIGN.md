@@ -194,7 +194,7 @@ device stops reading as an accent and starts reading as a second typeface.
 
 | Class | Size | Tracking | Use |
 |---|---|---|---|
-| `.mono` | 11px | 0.11em | `[ BRACKETED ]` labels, N°00X, specs |
+| `.mono` | 11px | 0.11em | `[ BRACKETED ]` labels, `№0X` section numbers, specs |
 | `.label` | 10px | 0.12em | Tag chips, 4/8px padding, 6px radius |
 | `.section-number` | 10px | 0.14em | Section numbering, `--muted` |
 
