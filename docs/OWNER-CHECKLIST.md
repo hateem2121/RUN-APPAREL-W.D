@@ -109,13 +109,34 @@ The icon on the browser tab is still the draft mark from the old website reposit
 
 **Why me.** Each is a claim about the business. The footer shows nothing for a blank one —
 it will never invent a certification — so until you type them, buyers see Contact only.
+That is what audit finding `FA-T-13` noticed: a carefully-built footer with a light that
+follows the cursor, sitting beside one lonely block. The code is right to stay quiet; it
+is these boxes that are empty, and the whole job is ten minutes.
 
 Open the CMS admin, go to **Settings**, and fill in:
 
-1. **Capacity** — your minimum order (e.g. "50 pcs per style"), your usual lead time, and
-   your working days and hours in Sialkot time. The hours also switch on the little
+1. **Capacity** — you already gave me these on 7 September, so this is copy and paste
+   rather than thinking. Into **Minimum order**, type:
+
+   > 50 pcs per style
+
+   Into **Lead time**, type:
+
+   > 21–45 days from approved sample
+
+   Then your working days and hours in Sialkot time. The hours also switch on the little
    "Open now" light beside the clock; leave them blank and there is no light.
-2. **Certifications** — only standards you hold today. Add one row per certificate.
+
+   ⚠️ **Type them even though the same numbers already appear higher up the home page.**
+   Those are in the code; these are yours to change without me. If you ever edit these,
+   yours win — that is deliberate.
+2. **Certifications** — ⚠️ **read this one before typing.** You told me RUN APPAREL holds
+   none in its own name: SEDEX and SMETA are DURUS INDUSTRIES', and OEKO-TEX, GOTS and GRS
+   are your suppliers'. The home page says exactly that, in full. This box is a bare list
+   with no room to explain, so a buyer's compliance officer would read "SEDEX" here as
+   yours and find out otherwise at the worst moment. **My advice: leave it empty** and let
+   the home page's paragraph do the work. If you want something here, the only safe
+   wording is a holder name beside each one — "SEDEX (DURUS INDUSTRIES)".
 3. **Social links** — one row per live account, with the full `https://` address.
 
 Optional: **Works coordinates** under the address, only if you know them to be right.

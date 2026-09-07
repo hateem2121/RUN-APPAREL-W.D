@@ -31,6 +31,27 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
   const f = settings.footer
   const q = splitLastWord(f.ctaQuestion)
   const hours = f.capacity.hours
+  /*
+   * ⚠️ THE FACTS AREA RENDERS ONE BLOCK OF FOUR TODAY, AND THAT IS THE CODE BEING RIGHT.
+   *
+   * Audit FA-T-13 reads "a cursor-following footer light beside an empty fact block" — a
+   * fair thing to notice, and the wrong thing to fix here. Capacity, Certified and
+   * Elsewhere are all CLAIMS ABOUT THE BUSINESS, and every one of them is blank in the
+   * CMS, so `projectFooter()` supplies nothing and these guards hide the headings. The
+   * alternative is a footer that invents a certification, which is the failure this
+   * shape exists to prevent; `e2e/footer.spec.ts` -> "no block is ever empty, and no
+   * placeholder ever appears" is the guard.
+   *
+   * ⚠️ AND A CODE-SIDE DEFAULT IS NOT THE ANSWER EITHER, though the numbers now exist.
+   * The owner confirmed minimum order and lead time on 2026-09-07 and both are in
+   * `lib/companyFacts.ts`, which the home page renders — so it is tempting to fall back
+   * to them here. That would falsify the sentence the admin panel shows above these very
+   * fields: "Every box is optional and the footer hides what is blank." A box that keeps
+   * showing a number after you empty it is a worse surprise than an empty band.
+   *
+   * It is an owner task, not an engineering one, and it is ten minutes:
+   * `docs/OWNER-CHECKLIST.md` §5 now carries the exact strings to paste.
+   */
   const showCapacity = Boolean(f.capacity.moq || f.capacity.leadTime || hours)
 
   return (

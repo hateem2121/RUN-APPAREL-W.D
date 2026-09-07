@@ -175,6 +175,42 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
   }
 
+  /*
+   * ⚠️ COUNT IT WHERE THE VIEWER'S ARE COUNTED — audit FA-I-16.
+   *
+   * The finding was "the viewer counts, the site does not": every enquiry button on a
+   * garment page raises a `run:analytics` event that `apps/viewer/src/lib/telemetry.ts`
+   * ships to `POST /api/public/events`, and the marketing site recorded nothing at all.
+   * Since D3 that is no longer true of the substance — an inquiry is a row in
+   * `inquiries`, which is strictly more than a count — but the two surfaces still
+   * reported into different places, so "did the website produce any leads this month?"
+   * had two answers in two systems.
+   *
+   * ⚠️ A ROW HERE, NOT A BEACON FROM THE PAGE. The obvious symmetry would be a client
+   * counter like the viewer's, and it would cost three things this site has decided
+   * against: `connect-src` widened to reach cms.wear-run.help (the marketing site is
+   * served from the apex, where `/api` is deliberately rewritten to the 404 so the API
+   * has ONE hostname), a CORS surface, and JavaScript on a page whose own client bundle
+   * is 6.0 KB gzip. This runs in the same request that already stored the inquiry.
+   *
+   * ⚠️ AND IT CARRIES NO PERSONAL DATA, deliberately — not the name, not the email, not
+   * the message. Those are in `inquiries`, behind authentication. This is the count, and
+   * `Events` is read by anyone who can read events.
+   *
+   * Never awaited in a way that can fail the request: the inquiry is already stored and
+   * the visitor has already been served. A missing count is not worth a 500.
+   */
+  try {
+    const payload = await getPayload({ config })
+    await payload.create({
+      collection: 'events',
+      data: { type: 'analytics', event: 'inquiry_submitted', placement: 'site-contact-form' },
+      overrideAccess: true,
+    })
+  } catch (err) {
+    console.error('[inquiry] stored but not counted:', err)
+  }
+
   // The visitor's experience does not depend on the email. Their message is safe either way.
   return back(request, '?sent=1')
 }
