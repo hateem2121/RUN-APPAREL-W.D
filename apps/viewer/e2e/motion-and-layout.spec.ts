@@ -191,6 +191,44 @@ test.describe('motion layer', () => {
       window.scrollTo(0, 0)
     })
 
+    /**
+     * ⚠️ THE POSITIVE CONTROL BELOW IS THE TEST. Without it this passed twice under a
+     * sabotage it exists to catch — audit FA-H-18, re-verified 2026-09-07.
+     *
+     * `will-change: auto` in `[data-reveal].is-inview` was changed back to
+     * `opacity, transform` and the built CSS was confirmed to carry it
+     * (`is-inview{opacity:1;will-change:opacity, transform;transform:none}` in
+     * `dist/assets/index-*.css`), and a probe on the same page read
+     * `willChange: "opacity, transform"` on all four revealed elements, in Chromium
+     * and in WebKit. The assertion still went green in **102 ms**.
+     *
+     * The reason is `expect.poll`: it stops at the FIRST success. `startPolish()` is
+     * dynamically imported after the ready render, so for the first frames there is
+     * no `.is-inview` anywhere — `querySelectorAll` returns an empty list, the filter
+     * returns `[]`, and `.toEqual([])` matches an empty page. Whether this test
+     * measured anything depended on whether the poll's first tick beat a dynamic
+     * import, and on a warm run it did. Left alone it would have gone on being
+     * credited with catching a regression it could not see.
+     *
+     * So: wait for the reveals to ARRIVE, assert there are some, and only then look
+     * at the hint. `[data-reveal]` count is read from the same page rather than
+     * hard-coded, because the comment above this test has already been wrong about
+     * how many there are (it says five; the fixture renders four).
+     */
+    const revealCount = await page.locator('[data-reveal]').count()
+    expect(
+      revealCount,
+      'the page uses no reveal layer at all — nothing to release',
+    ).toBeGreaterThan(0)
+    await expect
+      .poll(async () => page.locator('[data-reveal].is-inview').count(), {
+        message:
+          'no [data-reveal] element ever arrived, so the will-change assertion below ' +
+          'would have been made against an empty list',
+        timeout: 10_000,
+      })
+      .toBe(revealCount)
+
     await expect
       .poll(
         async () =>

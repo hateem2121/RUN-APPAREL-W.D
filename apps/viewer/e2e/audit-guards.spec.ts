@@ -9,6 +9,10 @@ import { expect, test } from '@playwright/test'
  * fact about Sunday. This file turns the viewer's share of those measurements
  * into assertions, one `describe` per finding, each naming its audit id.
  *
+ * ⚠️ ONE EXCEPTION, ADDED 2026-09-07: FA-F-12 scored 7 and was a real defect. It is
+ * here rather than elsewhere because it belongs with the audit ids, and its own
+ * comment says so — do not read the paragraph above as covering it.
+ *
  * ⚠️ THREE OF THESE NEED `navigator.webdriver` LIFTED, and that is not a trick —
  * it is the only way to reach the code at all. `polish/index.ts` refuses to start
  * Lenis or the cursor under automation, and `polish/reveal.ts` reveals everything
@@ -798,5 +802,382 @@ test.describe('rapid colourway switching settles correctly (FA-H-17)', () => {
     // count of one proves nothing about WHICH one if the second click had been
     // dropped and the first had stuck.
     await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'false')
+  })
+})
+
+/* ══ FA-F-12 — the smooth layer refuses a wheel event nobody rolled ══════════ */
+
+/**
+ * ⚠️ THIS ONE IS A FIX, NOT A CONFIRMATION — the only entry in this file that is.
+ * FA-F-12 scored 7 and was true when it was written; `smooth-scroll.ts` gained a
+ * `virtualScroll` predicate on 2026-09-07 and this pins it.
+ *
+ * ⚠️ AND IT IS UNTIDINESS, NOT A VULNERABILITY. Measured on the built app before
+ * the fix, one page each, same synthetic event:
+ *
+ *     Lenis running   scrollY 0 → 1090
+ *     Lenis absent    scrollY 0 →    0     (window.scrollTo(0, 500) → 500)
+ *
+ * Dispatching an untrusted event needs script execution in this origin, and the
+ * third number is the point: such a script already has `window.scrollTo`. Nothing
+ * is gained, and a document cannot dispatch events into another document, so there
+ * is no cross-origin path either. What the predicate buys is that the decorative
+ * scroll layer stops differing in behaviour from the platform underneath it.
+ *
+ * BOTH HALVES OR NEITHER. "The page did not scroll" is the trivial result on a page
+ * where Lenis never started — which is every Playwright page by default, because
+ * `polish/index.ts` refuses under automation. So Lenis is proven running first, and
+ * a TRUSTED wheel is proven to still scroll afterwards. Without that second half
+ * this test would pass just as happily against a smooth-scroll layer that had been
+ * deleted.
+ */
+test.describe('a synthetic wheel event does not scroll the page (FA-F-12)', () => {
+  test('the untrusted one is refused and the real one still works', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'wheel events are not how a phone scrolls; FA-F-09 covers touch')
+
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.addInitScript(asAHuman)
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    // POSITIVE CONTROL 1: Lenis is actually running. It adds `lenis` to <html> in
+    // its constructor; without it every assertion below is about native scrolling.
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.classList.contains('lenis')), {
+        message:
+          'Lenis never started, so this test measures the platform rather than the ' +
+          'smooth-scroll layer and would pass with smooth-scroll.ts deleted. Check ' +
+          'the webdriver spoof and the reduced-motion emulation.',
+        timeout: 10_000,
+      })
+      .toBe(true)
+
+    expect(
+      await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight),
+      'the page is not tall enough to scroll, so neither half of this means anything',
+    ).toBeGreaterThan(400)
+
+    // The synthetic event: deltaY 4000 moved the document 1090px before the fix.
+    const afterSynthetic = await page.evaluate(async () => {
+      window.scrollTo(0, 0)
+      document.body.dispatchEvent(
+        new WheelEvent('wheel', { deltaY: 4000, bubbles: true, cancelable: true }),
+      )
+      // Longer than --scroll-duration, so a slow glide cannot hide inside the wait.
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      return Math.round(window.scrollY)
+    })
+    expect(
+      afterSynthetic,
+      'an untrusted wheel event scrolled the page. The browser ignores these and the ' +
+        'smooth layer must not differ — see the virtualScroll predicate in ' +
+        'src/polish/smooth-scroll.ts and audit FA-F-12.',
+    ).toBe(0)
+
+    /**
+     * POSITIVE CONTROL 2: a REAL wheel still scrolls. Playwright's `mouse.wheel` is
+     * driver-injected, so `isTrusted` is true — which is exactly the distinction the
+     * predicate draws, and without this half the test passes against a smooth-scroll
+     * layer that rejects everything.
+     *
+     * ⚠️ THE POINTER MUST NOT BE OVER THE GARMENT, and a first draft put it there.
+     * `(640, 450)` on a 1280x900 screen is inside `.stage__canvas`, which carries
+     * `data-lenis-prevent` so that model-viewer keeps scroll-to-zoom. Instrumented:
+     * the event arrived `isTrusted: true` on `target: "stage__model"` with
+     * `defaultPrevented: true`, the page did not move, and the assertion read that
+     * as "the fix broke scrolling" against a working fix. The point is therefore
+     * TAKEN FROM THE PAGE and proven to be outside the prevent region, rather than
+     * typed as a coordinate that a layout change can quietly move onto the stage.
+     */
+    const point = await page.evaluate(() => {
+      const aside =
+        document.querySelector('.product-info__statement') ?? document.querySelector('h1')
+      if (!aside) return null
+      const box = aside.getBoundingClientRect()
+      const x = Math.round(box.left + box.width / 2)
+      const y = Math.round(box.top + box.height / 2)
+      const under = document.elementFromPoint(x, y)
+      return { x, y, prevented: !!under?.closest('[data-lenis-prevent]') }
+    })
+    expect(point, 'no element to aim the wheel at').not.toBeNull()
+    expect(
+      (point as { prevented: boolean }).prevented,
+      'the chosen wheel point is inside [data-lenis-prevent], where model-viewer ' +
+        'consumes the event by design — pick a point off the garment',
+    ).toBe(false)
+
+    await page.mouse.move((point as { x: number }).x, (point as { y: number }).y)
+    await page.mouse.wheel(0, 800)
+    await expect
+      .poll(() => page.evaluate(() => Math.round(window.scrollY)), {
+        message:
+          'a real wheel event no longer scrolls the page — the FA-F-12 predicate is ' +
+          'rejecting trusted input, which breaks scrolling for every visitor',
+        timeout: 5_000,
+      })
+      .toBeGreaterThan(100)
+  })
+})
+
+/* ══ FA-H-13 / FA-R-11 — the cursor's honest default under automation ═══════ */
+
+/**
+ * ⚠️ FA-H-13 AND FA-R-11 ARE ONE PROPERTY, and this is one guard for both. The
+ * audit lists them separately — FA-H-13 under "Motion & feel", FA-R-11 under
+ * "Craft details" with "(honest default recorded)" — but they name the same
+ * behaviour: `Cursor` refuses to mount when `navigator.webdriver` is set. Writing
+ * two tests would double the runtime and halve the chance that both stay true.
+ *
+ * ⚠️ WHY IT IS WORTH A TEST AT ALL, given the refusal is what makes the cursor
+ * invisible to every tool: BECAUSE it is. `apps/viewer/CLAUDE.md` records four
+ * defects that shipped in this component at once — including a ring that flew
+ * 1.53x away from the pointer — and the reason all four survived is that no test
+ * and no browser agent ever rendered it. The refusal is the right default and it
+ * is also the thing that hid the bugs, so it is worth pinning that it is a
+ * DELIBERATE refusal and not an accident of the gate order.
+ *
+ * The default is asserted first, from a page with NO spoof — which is what a
+ * crawler, a screenshot service and every other automated visitor gets.
+ * FA-Q-03 above covers what happens once the flag is lifted; the second half here
+ * is only the positive control that proves this page could have had a cursor.
+ */
+test.describe('the custom cursor refuses to mount under automation (FA-H-13, FA-R-11)', () => {
+  test('no cursor by default, and one the moment the flag is lifted', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'a coarse pointer refuses for a second reason; this is about webdriver')
+
+    // ── The honest default. No addInitScript: navigator.webdriver is true. ──
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    // The polish layer has to have RUN, or "no cursor" is just "nothing happened
+    // yet". `startPolish()` calls startReveals() unconditionally, so `.is-inview`
+    // arriving is the proof that the module executed and reached the cursor gate.
+    await expect
+      .poll(() => page.locator('[data-reveal].is-inview').count(), {
+        message:
+          'the polish layer never ran, so the absence of a cursor below proves ' +
+          'nothing about the automation gate',
+        timeout: 10_000,
+      })
+      .toBeGreaterThan(0)
+
+    const defaultState = await page.evaluate(() => ({
+      webdriver: navigator.webdriver,
+      dot: document.querySelectorAll('.cursor-dot').length,
+      ring: document.querySelectorAll('.cursor-ring').length,
+      classed: document.documentElement.classList.contains('has-custom-cursor'),
+      rootCursor: getComputedStyle(document.documentElement).cursor,
+    }))
+
+    expect(
+      defaultState.webdriver,
+      'Playwright is not reporting navigator.webdriver, so there is no automation to refuse',
+    ).toBe(true)
+    expect(defaultState.dot, 'a cursor dot mounted under automation').toBe(0)
+    expect(defaultState.ring, 'a cursor ring mounted under automation').toBe(0)
+    expect(
+      defaultState.classed,
+      'has-custom-cursor was applied under automation — that rule sets `cursor: none` ' +
+        'on the root and on every link, button and tab, so an automated visitor would ' +
+        'have no pointer at all and no replacement drawn',
+    ).toBe(false)
+    expect(defaultState.rootCursor, 'the real pointer was suppressed under automation').not.toBe(
+      'none',
+    )
+
+    // ── POSITIVE CONTROL: this page CAN have a cursor. Without it the four
+    // assertions above are satisfied by a page where the cursor was deleted,
+    // where the polish chunk 404s, or where the fine-pointer gate is broken. ──
+    const human = await page.context().newPage()
+    await human.emulateMedia({ reducedMotion: 'no-preference' })
+    await human.addInitScript(asAHuman)
+    await human.setViewportSize({ width: 1280, height: 900 })
+    await human.goto('/n001/wine')
+    await expect(human.getByRole('heading', { level: 1 })).toBeVisible()
+    await human.locator('.cursor-dot').waitFor({ state: 'attached', timeout: 10_000 })
+    expect(
+      await human.evaluate(() => document.querySelectorAll('.cursor-ring').length),
+      'lifting the automation flag did not produce a cursor either, so the refusal ' +
+        'above is not a refusal — it is a cursor that no longer works at all',
+    ).toBe(1)
+    await human.close()
+  })
+})
+
+/* ══ FA-C-54 — the tracking and leading curves are correct by class ═════════ */
+
+/**
+ * The claim is a RELATIONSHIP, so it is asserted as one. The absolute values are
+ * already pinned by `src/styles/tokens.test.ts` — the `--tracking-*` scale, the
+ * `--text-*` scale, and the rule that no stylesheet may write either as a literal.
+ * What nothing checked is that those numbers still form the curve
+ * `docs/DESIGN.md` §3 describes: "Large display type wants tighter tracking and
+ * small type wants looser; that relationship is what optical sizing IS."
+ *
+ * ⚠️ THE CURVE IS BY RENDERED SIZE, NOT BY CLASS NAME, and writing it the other
+ * way round produced a test that failed against correct code. Measured on
+ * `/n001/wine`, 2026-09-07:
+ *
+ *              360px viewport            1440px viewport
+ *   hero       34.0px  -0.0169em         34.2px  -0.0200em
+ *   section    26.0px  -0.0138em         46.0px  -0.0300em
+ *
+ * At 1440 the hero is SMALLER than the section, because `.product-info--aside
+ * .display--hero` re-sizes the product name in `cqi` for the 360px column it
+ * moves into and re-tracks it with `--tracking-wordmark` — deliberately, with the
+ * reasoning in `page.css`. A guard asserting "hero is bigger and tighter than
+ * section" therefore fails on a page that is right. What holds at both widths, and
+ * is the actual design rule, is that the LARGER rendered size is tracked tighter,
+ * whichever class produced it.
+ *
+ * ⚠️ IN EM, NOT PX. `letter-spacing` computes to px and these sizes differ by up
+ * to 1.8x, so the larger element is the more negative in px even when the tracking
+ * has been flattened to ONE em value across the register — which is exactly the
+ * flat `-0.02em` that DESIGN.md records replacing on 2026-08-15. Dividing by the
+ * computed font-size is what makes this able to fail. Equal em values fail: the
+ * comparison is strict.
+ */
+test.describe('the tracking and leading curves are correct by class (FA-C-54)', () => {
+  const WIDTHS = [360, 1440] as const
+  /** Two rendered sizes closer than this are one size for the purposes of the curve. */
+  const SAME_SIZE_PX = 0.5
+
+  type Metric = { label: string; size: number; trackingEm: number; leadingRatio: number }
+
+  test('tracking tightens as display type grows, and display leads tighter than body', async ({
+    page,
+  }) => {
+    // `reduce` so no `[data-reveal]` carrier is mid-transition. Opacity does not
+    // change computed type metrics, but a settled page is one less variable.
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+
+    const read = async (width: number) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      return page.evaluate(() => {
+        const metric = (el: Element, label: string) => {
+          const style = getComputedStyle(el)
+          const size = Number.parseFloat(style.fontSize)
+          const spacing =
+            style.letterSpacing === 'normal' ? 0 : Number.parseFloat(style.letterSpacing)
+          const leading =
+            style.lineHeight === 'normal' ? Number.NaN : Number.parseFloat(style.lineHeight)
+          return { label, size, trackingEm: spacing / size, leadingRatio: leading / size }
+        }
+        const display = [...document.querySelectorAll('.display')].map((el, index) =>
+          metric(el, `${el.className}[${index}]`),
+        )
+        const bodyEl =
+          document.querySelector('.product-info__statement') ??
+          document.querySelector('.product-info__desc') ??
+          document.body
+        return { display, body: metric(bodyEl, bodyEl.className || 'body') }
+      })
+    }
+
+    for (const width of WIDTHS) {
+      const { display, body } = await read(width)
+
+      // Positive control. One display element on the page makes every pairwise
+      // claim below vacuous, and two at the same size makes the curve unobservable.
+      expect(display.length, `fewer than two .display elements at ${width}px`).toBeGreaterThan(1)
+      const distinctSizes = new Set(display.map((m: Metric) => Math.round(m.size * 2)))
+      expect(
+        distinctSizes.size,
+        `every .display element renders at the same size at ${width}px (${display
+          .map((m: Metric) => `${m.label} ${m.size}px`)
+          .join(', ')}), so there is no optical range for the tracking to follow`,
+      ).toBeGreaterThan(1)
+
+      for (const m of display as Metric[]) {
+        expect(
+          m.trackingEm,
+          `${m.label} is tracked at ${m.trackingEm.toFixed(4)}em at ${width}px. Display ` +
+            'type here is set at font-stretch 122%, which narrows the counters, so it ' +
+            'is tracked negative at every size — see docs/DESIGN.md §3.',
+        ).toBeLessThan(0)
+        expect(
+          m.leadingRatio,
+          `${m.label} leads at ${m.leadingRatio.toFixed(3)} of its size at ${width}px; ` +
+            'the display face is set at 0.92 so the caps stack as a block',
+        ).toBeLessThan(1)
+        expect(
+          m.leadingRatio,
+          `${m.label} leads no tighter than the body copy at ${width}px — large type ` +
+            'needs less air between its lines, not the same amount',
+        ).toBeLessThan(body.leadingRatio)
+      }
+
+      // THE CURVE: every pair of genuinely different sizes, larger tracked tighter.
+      for (const a of display as Metric[]) {
+        for (const b of display as Metric[]) {
+          if (a.size - b.size <= SAME_SIZE_PX) continue
+          expect(
+            a.trackingEm,
+            `at ${width}px, ${a.label} renders at ${a.size}px tracked ` +
+              `${a.trackingEm.toFixed(4)}em while ${b.label} renders at ${b.size}px tracked ` +
+              `${b.trackingEm.toFixed(4)}em. The larger optical size must be tracked ` +
+              'TIGHTER; equal values are one tracking doing two jobs across the range, ' +
+              'which is the flat -0.02em docs/DESIGN.md §3 records replacing on ' +
+              '2026-08-15. See audit FA-C-54.',
+          ).toBeLessThan(b.trackingEm)
+        }
+      }
+
+      // The body register: 17px / 1.55, which is what the 60ch measure is set for.
+      expect(
+        body.leadingRatio,
+        `body copy leads at ${body.leadingRatio.toFixed(3)} of its size at ${width}px, ` +
+          'against the 1.55 docs/DESIGN.md §3 sets',
+      ).toBeCloseTo(1.55, 2)
+      expect(
+        body.trackingEm,
+        'body copy carries tracking. It is set at 0 on purpose — tracked lowercase ' +
+          'text at a 60ch measure reads as spaced-out, not as refined.',
+      ).toBeCloseTo(0, 3)
+    }
+
+    /**
+     * The optical curve ACROSS widths, on the one class that is viewport-clamped at
+     * both: `.display--section` is `clamp(26px, 4vw, 46px)` with
+     * `--tracking-display-sm`. `.display--hero` cannot be used here — above 1100px
+     * it moves into the aside and takes that block's `cqi` sizing instead.
+     */
+    const sectionAt = async (width: number) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      return page.evaluate(() => {
+        const el = document.querySelector('.display--section')
+        if (!el) return null
+        const style = getComputedStyle(el)
+        const size = Number.parseFloat(style.fontSize)
+        return { size, trackingEm: Number.parseFloat(style.letterSpacing) / size }
+      })
+    }
+    const narrow = await sectionAt(360)
+    const wide = await sectionAt(1440)
+    expect(narrow, 'no .display--section at 360px').not.toBeNull()
+    expect(wide, 'no .display--section at 1440px').not.toBeNull()
+    if (!narrow || !wide) return
+
+    expect(
+      wide.size,
+      'the section heading does not grow between 360px and 1440px, so its clamp has ' +
+        'been flattened and the curve below cannot be observed',
+    ).toBeGreaterThan(narrow.size)
+    expect(
+      wide.trackingEm,
+      `.display--section is tracked at ${narrow.trackingEm.toFixed(4)}em at 360px and ` +
+        `${wide.trackingEm.toFixed(4)}em at 1440px. It must TIGHTEN as it grows — that ` +
+        'is what --tracking-display-sm being a clamp against vw is for.',
+    ).toBeLessThan(narrow.trackingEm)
   })
 })

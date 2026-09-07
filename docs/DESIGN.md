@@ -163,6 +163,25 @@ The wordmark (`.header__wordmark`, `.footer__brand`) keeps a fixed `-0.02em`: it
 is display type at a FIXED size, so it has no optical range to follow — and the
 two must agree with each other, which they did not until 2026-08-14.
 
+⚠️ **THE RULE IS SIZE-SPECIFIC TRACKING, NOT "hero is the tighter class", and the
+two stop coinciding above 1100px.** `apps/viewer/src/styles/page.css` re-sizes
+`.product-info--aside .display--hero` in `cqi` for the ~360px column the product
+name moves into and re-tracks it with `--tracking-wordmark`, because the
+viewport-derived `--tracking-display-lg` resolves to its tightest `-2.16px` on any
+desktop — tracking drawn for a 69px headline, applied to a 34px one. Measured on
+the viewer, 2026-09-07:
+
+| | 360px viewport | 1440px viewport |
+|---|---|---|
+| `.display--hero` | 34.0px · -0.0169em | **34.2px · -0.0200em** |
+| `.display--section` | 26.0px · -0.0138em | **46.0px · -0.0300em** |
+
+So at 1440 the hero is the *smaller* of the two and correctly the *looser*. What
+holds at both widths is the sentence above — larger rendered size, tighter
+tracking — and that is what `apps/viewer/e2e/audit-guards.spec.ts` asserts for
+FA-C-54. A guard written as "hero is bigger and tighter than section" fails
+against a page that is right; one was, before it was measured.
+
 ### The serif accent
 
 One Instrument Serif italic word per headline, set by `headingWithAccent()` in
