@@ -22,6 +22,18 @@ import { RetiredNotice, UnavailableState, UnreachableState } from './States'
  *     looks different in either case, and no test elsewhere in this repo — including
  *     the axe scan and the Lighthouse run, which measure a single static state —
  *     could observe the difference.
+ *
+ * ⚠️ AND WHAT THIS FILE DELIBERATELY DOES NOT COVER, because it reads as though it
+ * does. Measured 2026-09-07: both the `[ REFERENCE UNAVAILABLE ]` label and the
+ * `display display--hero` class were stripped off `UnavailableState` and this file
+ * stayed **16 passed**. That is correct — the visible chrome of these screens is
+ * asserted in a real browser by `apps/viewer/e2e/viewer.spec.ts` ("an unknown product
+ * shows the designed unavailable state", audit FA-I-15), where the fonts, the
+ * blueprint and the reveal layer actually exist and jsdom's are stubs.
+ *
+ * The risk in duplicating those assertions here is the one this repo keeps meeting
+ * from the other direction: two places to update, and the weaker one passing while the
+ * screen is wrong. What was missing was not a test, it was this paragraph.
  */
 
 let host: HTMLDivElement
