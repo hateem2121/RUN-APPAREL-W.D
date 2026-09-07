@@ -298,12 +298,25 @@ objection is on the record in the form the rules define, which is what carries w
 Europe. It is a stated preference and not a lock — a badly-behaved scraper ignores it, as
 it ignores everything.
 
-**One stronger step is still available if you want it.** The line above objects to the
-USE. I could also refuse the CRAWL for the training-only bots — GPTBot, Google-Extended,
-Applebot-Extended, CCBot, Bytespider — while keeping the search ones (the bots behind
-ChatGPT search, Claude search and Perplexity) welcome. That would actually stop them
-reading the site rather than asking them not to keep it. It costs you visibility with
-those five specific bots. Say the word and I will do it; it is one more line.
+### ✅ AND THE STRONGER STEP IS DONE TOO — you asked what I recommend, so I did it
+
+There are two kinds of AI robot. One **reads your site to answer someone's question**, and
+when it does it names you and links to you. The other **copies your site to help build a
+product** and never mentions you again. They have different names, so you can refuse one
+and keep the other.
+
+Five now get a flat "no, do not read this site": **GPTBot, Google-Extended,
+Applebot-Extended, CCBot, Bytespider.** Everything that can send you a buyer is still
+welcome.
+
+**It costs you nothing, and that is checked rather than assumed:**
+
+- Refusing GPTBot does **not** stop ChatGPT citing you — a different robot,
+  `OAI-SearchBot`, does that, and it stays welcome.
+- Refusing Google-Extended does **not** affect your Google ranking or your appearance in
+  Google's AI answers — Googlebot does both, and it stays welcome.
+
+**To undo it**, tell me and I remove five lines. Nothing else changes.
 
 ---
 

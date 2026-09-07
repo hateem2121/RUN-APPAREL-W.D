@@ -316,6 +316,11 @@ test.describe('FA-N-16 / FA-N-17 — the machine-readable files are served as te
      */
     expect(body).toMatch(/^user-agent:\s*GPTBot$/im)
     expect(body).toMatch(/^user-agent:\s*ClaudeBot$/im)
+    // The two sides of the owner's decision, on the served file.
+    expect(body, 'the training-only crawlers are no longer refused').toMatch(/^disallow:\s*\/$/im)
+    expect(body, 'OAI-SearchBot must stay welcome — it is what cites you in ChatGPT').toMatch(
+      /^user-agent:\s*OAI-SearchBot$/im,
+    )
 
     /*
      * A named group REPLACES the wildcard group for that agent, so every group must carry
@@ -330,6 +335,18 @@ test.describe('FA-N-16 / FA-N-17 — the machine-readable files are served as te
     const groups = body.split(/\n\s*\n/).filter((block) => /^user-agent:/im.test(block))
     expect(groups.length, 'expected a wildcard group and a named AI group').toBeGreaterThan(1)
     for (const group of groups) {
+      /*
+       * ⚠️ THE REFUSED GROUP IS THE EXCEPTION, AND IT IS EXEMPT FOR A REASON RATHER THAN
+       * BY OMISSION. The training-only crawlers get `Disallow: /`, which already covers
+       * the admin and the API — and it must NOT carry an `Allow:` line, because most
+       * crawlers resolve a conflict by longest match and `Allow: /` ties with
+       * `Disallow: /`, quietly re-opening the crawl in a file that still reads as a
+       * refusal. Asserted here rather than skipped.
+       */
+      if (/^disallow:\s*\/$/im.test(group)) {
+        expect(group, `a refused group that also allows:\n${group}`).not.toMatch(/^allow:/im)
+        continue
+      }
       expect(group, `a group with no admin Disallow:\n${group}`).toMatch(/^disallow:\s*\/admin$/im)
       expect(group).toMatch(/^disallow:\s*\/api\/$/im)
       /*

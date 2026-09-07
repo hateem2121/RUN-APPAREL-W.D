@@ -366,11 +366,32 @@ training on the company's photography and copy and put the objection on the reco
 Google and Bing ignore the field; a badly-behaved scraper ignores everything. What it does
 is put a reservation of rights in machine-readable form, which carries weight in the EU.
 
-**The stronger move was deliberately NOT taken, and remains open.** `Disallow: /` for the
-training-only crawlers — GPTBot, Google-Extended, Applebot-Extended, CCBot, Bytespider —
-while leaving the search crawlers (OAI-SearchBot, Claude-SearchBot, PerplexityBot) allowed
-would actually prevent the crawl rather than object to the use. It costs discoverability
-with those specific agents, so it is a separate decision and the owner's to make.
+**And the stronger move WAS then taken — same day, on evidence.** The owner asked what
+best practice was rather than choosing from options, so it was researched and recommended:
+`Disallow: /` for the five training-only crawlers — GPTBot, Google-Extended,
+Applebot-Extended, CCBot, Bytespider — while every crawler that reads in order to ANSWER
+stays welcome.
+
+⚠️ **It costs nothing a buyer would notice, and that is measured rather than assumed.**
+Blocking GPTBot has no measurable effect on ChatGPT citations, because `OAI-SearchBot` is
+what produces them and the two are independent access decisions
+(https://cloro.dev/research/ai-crawler-blocks/). Blocking `Google-Extended` affects neither
+Search ranking nor AI Overviews eligibility, both of which run off Googlebot
+(https://aicrawlercheck.com/blog/google-extended-vs-googlebot). Every one of the five has a
+sibling that stays allowed.
+
+⚠️ **`ClaudeBot` is deliberately NOT on the refused list.** It is plausibly a training
+crawler by the same pattern, and that could not be established to the standard the five
+above meet. An over-block costs a lead and is invisible.
+
+⚠️ **The refused group carries NO `Allow:` line.** Most crawlers resolve a conflict by
+longest match, and `Allow: /` ties exactly with `Disallow: /` — so adding one "for
+consistency" with the other two groups quietly re-opens the crawl while the file still
+reads as a refusal. Asserted in both the unit and the browser test.
+
+The `Content-Signal` stays on the refused group too: the refusal and the reason are not
+the same statement, and a crawler that ignores the `Disallow` should still meet the
+objection.
 
 **This forced a mechanism change.** Next's `robots.ts` convention emits only
 `User-agent`, `Allow`, `Disallow`, `Sitemap` and `Host` — there is no representation for

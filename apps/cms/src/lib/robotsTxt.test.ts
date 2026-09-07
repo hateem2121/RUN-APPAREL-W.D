@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { AI_CRAWLER_UAS } from '../../htmlLimitedBots.mjs'
-import { buildRobotsTxt, CONTENT_SIGNAL, DISALLOW } from './robotsTxt'
+import { AI_CRAWLER_UAS, TRAINING_ONLY_UAS } from '../../htmlLimitedBots.mjs'
+import { ANSWERING_UAS, buildRobotsTxt, CONTENT_SIGNAL, DISALLOW } from './robotsTxt'
 import { SITE_ORIGIN, VIEWER_ORIGIN } from './seo'
 
 /**
@@ -32,13 +32,14 @@ const groups = text
   }))
 
 describe('the groups', () => {
-  it('there is a wildcard group and a named AI group, and nothing else', () => {
-    expect(groups).toHaveLength(2)
+  it('there are three: wildcard, the answering crawlers, the training-only ones', () => {
+    expect(groups).toHaveLength(3)
     expect(groups[0]?.agents).toEqual(['*'])
-    expect(groups[1]?.agents).toEqual([...AI_CRAWLER_UAS])
+    expect(groups[1]?.agents).toEqual([...ANSWERING_UAS])
+    expect(groups[2]?.agents).toEqual([...TRAINING_ONLY_UAS])
   })
 
-  it.each([0, 1])('group %i refuses the admin and the API', (index) => {
+  it.each([0, 1])('allowed group %i refuses the admin and the API', (index) => {
     const lines = groups[index]?.lines ?? []
     for (const path of DISALLOW) {
       expect(lines, `group ${index} does not disallow ${path}`).toContain(`Disallow: ${path}`)
@@ -47,12 +48,34 @@ describe('the groups', () => {
   })
 
   /*
+   * ⚠️ NO `Allow:` IN THE REFUSED GROUP. Most crawlers resolve a conflict by longest
+   * match, and `Allow: /` ties exactly with `Disallow: /` — so adding one "for
+   * consistency" with the two groups above quietly re-opens the crawl, while the file
+   * still reads as a refusal.
+   */
+  it('the training-only group refuses everything, with nothing that re-allows it', () => {
+    const lines = groups[2]?.lines ?? []
+    expect(lines).toContain('Disallow: /')
+    expect(lines.some((line) => line.startsWith('Allow:'))).toBe(false)
+  })
+
+  /*
+   * An agent in two groups is a state where what a crawler does is anybody's guess, and
+   * it is one careless copy-paste away. `ANSWERING_UAS` is derived by filtering rather
+   * than typed out, so this asserts the derivation still holds.
+   */
+  it('no crawler appears in more than one group', () => {
+    const named = [...(groups[1]?.agents ?? []), ...(groups[2]?.agents ?? [])]
+    expect(new Set(named).size).toBe(named.length)
+  })
+
+  /*
    * The reuse policy has to be repeated per group for the same reason the disallows do.
    * Stated as its own test because the failure is invisible: the file still parses, still
    * allows everything it should, and simply stops expressing the owner's objection to the
    * only agents that objection is about.
    */
-  it.each([0, 1])('group %i carries the content signal', (index) => {
+  it.each([0, 1, 2])('group %i carries the content signal', (index) => {
     expect(groups[index]?.lines).toContain(`Content-Signal: ${CONTENT_SIGNAL}`)
   })
 })
@@ -83,21 +106,36 @@ describe('the owner’s reuse policy', () => {
   })
 })
 
-describe('the AI crawlers are named', () => {
-  it.each(['GPTBot', 'ClaudeBot', 'PerplexityBot', 'OAI-SearchBot', 'CCBot'])(
-    'names %s',
-    (agent) => {
-      expect(groups[1]?.agents).toContain(agent)
-    },
-  )
+describe('who is welcomed and who is refused', () => {
+  /*
+   * ⚠️ THE ASSERTION THAT PROTECTS THE BUSINESS. Every one of these reads in order to
+   * ANSWER a buyer's question and cite the site for it. Moving any of them into the
+   * refused group makes the company invisible to the engines people actually ask — and it
+   * would look like tightening security rather than losing leads.
+   */
+  it.each([
+    'OAI-SearchBot',
+    'ChatGPT-User',
+    'Claude-SearchBot',
+    'Claude-User',
+    'PerplexityBot',
+    'ClaudeBot',
+  ])('%s is WELCOME', (agent) => {
+    expect(groups[1]?.agents, `${agent} is not in the allowed group`).toContain(agent)
+    expect(groups[2]?.agents, `${agent} has been moved to the refused group`).not.toContain(agent)
+  })
+
+  it.each([...TRAINING_ONLY_UAS])('%s is refused', (agent) => {
+    expect(groups[2]?.agents).toContain(agent)
+  })
 
   /*
-   * From the same constant that gives them a blocking metadata render — a crawler we
-   * invite is a crawler we owe a finished `<head>`. Typed separately, one would be
-   * welcomed here and served a title-less page there.
+   * The welcomed list is still exactly what `htmlLimitedBots.mjs` gives a blocking
+   * metadata render to, minus the refused ones — a crawler we invite is a crawler we owe
+   * a finished `<head>`.
    */
-  it('is exactly the list htmlLimitedBots.mjs blocks metadata for', () => {
-    expect(groups[1]?.agents).toEqual([...AI_CRAWLER_UAS])
+  it('the welcomed list is the metadata list minus the refused', () => {
+    expect(groups[1]?.agents).toEqual(AI_CRAWLER_UAS.filter((a) => !TRAINING_ONLY_UAS.includes(a)))
   })
 })
 

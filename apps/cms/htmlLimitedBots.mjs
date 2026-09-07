@@ -104,6 +104,45 @@ export const AI_CRAWLER_UAS = [
 ]
 
 /**
+ * Crawlers that read only to TRAIN, and are refused the crawl outright in robots.txt.
+ *
+ * Owner decision 2026-09-07. They had already refused training as a stated preference
+ * (`Content-Signal: ai-train=no`, decision D20) and asked what best practice was for
+ * making that refusal effective. It is this list, and the reason it costs nothing is that
+ * every one of them has a SIBLING that does the answering:
+ *
+ *   GPTBot              trains OpenAI's models  ·  OAI-SearchBot cites you in ChatGPT
+ *   Google-Extended     trains Gemini           ·  Googlebot ranks you and feeds AI Overviews
+ *   Applebot-Extended   trains Apple's models   ·  Applebot serves Siri and Spotlight
+ *   CCBot               fills a public dataset others train from
+ *   Bytespider          ByteDance; mixed robots.txt compliance on the record
+ *
+ * ⚠️ MEASURED BY OTHERS, NOT ASSUMED BY ME. Blocking GPTBot has no measurable effect on
+ * ChatGPT citations — the two crawlers are independent access decisions, and it is
+ * blocking OAI-SearchBot that removes you from ChatGPT answers
+ * (https://cloro.dev/research/ai-crawler-blocks/). Blocking Google-Extended affects
+ * neither Search ranking nor AI Overviews eligibility, both of which run off Googlebot
+ * (https://aicrawlercheck.com/blog/google-extended-vs-googlebot).
+ *
+ * ⚠️ SO THE DANGEROUS EDIT IS ADDING A SIBLING TO THIS LIST. `OAI-SearchBot`,
+ * `Claude-SearchBot`, `PerplexityBot`, `ChatGPT-User` or `Claude-User` here would make
+ * this site invisible to the answer engines a buyer actually asks — which is the opposite
+ * of what the site is for, and would look like tightening security.
+ * `src/lib/robotsTxt.test.ts` asserts each of those five is on the ALLOWED side.
+ *
+ * ⚠️ AND `ClaudeBot` IS DELIBERATELY NOT HERE. It is plausibly the training crawler by the
+ * same pattern, and I could not establish that to the standard the five above meet. An
+ * over-block costs a lead and is invisible; leave it allowed until someone measures it.
+ */
+export const TRAINING_ONLY_UAS = [
+  'GPTBot',
+  'Google-Extended',
+  'Applebot-Extended',
+  'CCBot',
+  'Bytespider',
+]
+
+/**
  * The value for `next.config.mjs` -> `htmlLimitedBots`.
  *
  * A pattern SOURCE, not a RegExp: Next serialises it into the build output and

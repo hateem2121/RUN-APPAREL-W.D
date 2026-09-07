@@ -1,4 +1,4 @@
-import { AI_CRAWLER_UAS } from '../../htmlLimitedBots.mjs'
+import { AI_CRAWLER_UAS, TRAINING_ONLY_UAS } from '../../htmlLimitedBots.mjs'
 import { SITE_ORIGIN, VIEWER_ORIGIN } from './seo'
 
 /**
@@ -73,6 +73,32 @@ function group(agents: readonly string[]): string {
   ].join('\n')
 }
 
+/**
+ * The refused group: read nothing at all.
+ *
+ * ⚠️ NO `Allow:` LINE, AND THAT IS THE WHOLE DIFFERENCE. Adding one beside `Disallow: /`
+ * makes the group ambiguous — most crawlers resolve a conflict by longest match, and
+ * `Allow: /` ties with `Disallow: /` — so the obvious "keep it consistent with the other
+ * groups" edit quietly re-opens the crawl.
+ *
+ * The Content-Signal stays: the refusal and the reason are not the same statement, and a
+ * crawler that ignores the `Disallow` should still meet the objection.
+ */
+function refusedGroup(agents: readonly string[]): string {
+  return [
+    ...agents.map((agent) => `User-agent: ${agent}`),
+    `Content-Signal: ${CONTENT_SIGNAL}`,
+    'Disallow: /',
+  ].join('\n')
+}
+
+/**
+ * The crawlers that are welcome: every named AI crawler that is not on the training-only
+ * list. Derived rather than typed, so an agent cannot end up in BOTH groups — which is
+ * the state where what a crawler does is anybody's guess.
+ */
+export const ANSWERING_UAS = AI_CRAWLER_UAS.filter((agent) => !TRAINING_ONLY_UAS.includes(agent))
+
 export function buildRobotsTxt(): string {
   return `# What may be done with this content: ${CONTENT_SIGNAL}
 # https://contentsignals.org — a stated preference, not a technical block.
@@ -85,9 +111,23 @@ ${group(['*'])}
 # about AI crawlers at all, so "are we open to them?" had no answer on the site. The
 # answer is yes for reading and answering, no for training.
 #
-# Same list that ${'`htmlLimitedBots.mjs`'} gives a blocking metadata render to: a crawler we
-# invite is a crawler we owe a finished <head>.
-${group(AI_CRAWLER_UAS)}
+# These are the ones that read in order to ANSWER a question and cite you for it. They are
+# welcome, and they are the same list that ${'`htmlLimitedBots.mjs`'} gives a blocking metadata
+# render to: a crawler we invite is a crawler we owe a finished <head>.
+${group(ANSWERING_UAS)}
+
+# ⚠️ AND THESE READ ONLY TO TRAIN. Refused outright — owner decision 2026-09-07, taken
+# after the objection above was already on the record and they asked what would make it
+# effective. It costs nothing a buyer would notice, because every one of them has a
+# sibling above that does the answering: OAI-SearchBot cites you in ChatGPT, Googlebot
+# ranks you and feeds AI Overviews, Applebot serves Siri. Blocking GPTBot has no
+# measurable effect on ChatGPT citations, and blocking Google-Extended affects neither
+# Search ranking nor AI Overviews. htmlLimitedBots.mjs carries the sources.
+#
+# ⚠️ NEVER PUT A SEARCH CRAWLER IN THIS GROUP. OAI-SearchBot, Claude-SearchBot,
+# PerplexityBot, ChatGPT-User or Claude-User here makes this site invisible to the answer
+# engines a buyer actually asks — and it would read as tightening security.
+${refusedGroup(TRAINING_ONLY_UAS)}
 
 # ⚠️ BOTH HOSTS, AND THAT IS OWNER DECISION D11 OF 2026-09-07 (FA-N-13).
 # The garments live on a different host with its own sitemap, and a SITEMAP may only list
