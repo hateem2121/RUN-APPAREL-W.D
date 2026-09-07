@@ -40,98 +40,111 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
       <div className="site-footer__slab">
         <FooterGlow />
 
-        <div className="footer-cta">
-          <div>
-            <p className="footer-eyebrow">Start here</p>
-            <h2 className="footer-q">
-              {q.head}
-              <em>{q.last}</em>
-              {q.tail}
-            </h2>
-            <p className="footer-derisk">{f.ctaSubline}</p>
-            <p className="footer-dim">{f.ctaPromise}</p>
-          </div>
-          <div className="footer-side">
-            <FooterClock hours={hours} />
-          </div>
-        </div>
-
-        <div className="footer-grow" />
-
-        <div className="footer-facts">
-          <div className="footer-block footer-block--contact">
-            <h3>Contact</h3>
-            <ul>
-              <li>
-                <a href={`mailto:${settings.email}`}>{settings.email}</a>
-              </li>
-              <li>
-                <a
-                  href={`https://wa.me/${normalizeWhatsAppNumber(settings.whatsappNumber)}`}
-                  rel="noopener"
-                >
-                  WhatsApp {settings.whatsappNumber}
-                </a>
-              </li>
-              <li>{formatAddress()}</li>
-              {f.worksCoordinates ? (
-                <li className="footer-block__sub">{f.worksCoordinates}</li>
-              ) : null}
-            </ul>
-          </div>
-
-          {showCapacity ? (
-            <div className="footer-block footer-block--capacity">
-              <h3>Capacity</h3>
-              <ul>
-                {f.capacity.moq ? <li>MOQ {f.capacity.moq}</li> : null}
-                {f.capacity.leadTime ? <li>Lead time {f.capacity.leadTime}</li> : null}
-                {hours ? <li>{formatHours(hours)}</li> : null}
-              </ul>
-            </div>
-          ) : null}
-
-          {f.certifications.length > 0 ? (
-            <div className="footer-block footer-block--certified">
-              <h3>Certified</h3>
-              <ul>
-                {f.certifications.map((name) => (
-                  <li key={name}>{name}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {f.socialLinks.length > 0 ? (
-            <div className="footer-block footer-block--elsewhere">
-              <h3>Elsewhere</h3>
-              <ul>
-                {f.socialLinks.map((link) => (
-                  <li key={link.url}>
-                    <a href={link.url} rel="noopener">
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-
         {/*
-          `legalLine` ALREADY CONTAINS the company name — its default is
-          "© RUN APPAREL (PVT) LTD" and `companyName` is "RUN APPAREL (PVT) LTD".
-          Appending one to the other once rendered the name twice on every page.
+          ⚠️ THE CONTENT COLUMN. The slab stays full-bleed — background, blueprint grid,
+          glow and the cropped wordmark all run to the edge on purpose — but its TEXT ran
+          to the edge too, so the footer’s left edge left the page’s by up to 370px at
+          1920 and by 4.6–6.2px at tablet widths (audit FA-D-01). That middle band is the
+          tell it was a bug and not a device: the two paddings share a floor and a ceiling,
+          so they were plainly meant to agree.
+
+          `FooterGlow` and `FooterWordmark` stay OUTSIDE this wrapper, which is the whole
+          point of introducing it rather than padding the slab.
         */}
-        <div className="footer-legal">
-          <span>{settings.legalLine}</span>
-          <span>{settings.footerLine}</span>
-          <Link className="nav-link" href="/products">
-            Products
-          </Link>
-          <Link className="nav-link" href="/contact">
-            Contact
-          </Link>
+        <div className="site-footer__inner">
+          <div className="footer-cta">
+            <div>
+              <p className="footer-eyebrow">Start here</p>
+              <h2 className="footer-q">
+                {q.head}
+                <em>{q.last}</em>
+                {q.tail}
+              </h2>
+              <p className="footer-derisk">{f.ctaSubline}</p>
+              <p className="footer-dim">{f.ctaPromise}</p>
+            </div>
+            <div className="footer-side">
+              <FooterClock hours={hours} />
+            </div>
+          </div>
+
+          <div className="footer-grow" />
+
+          <div className="footer-facts">
+            <div className="footer-block footer-block--contact">
+              <h3>Contact</h3>
+              <ul>
+                <li>
+                  <a href={`mailto:${settings.email}`}>{settings.email}</a>
+                </li>
+                <li>
+                  <a
+                    href={`https://wa.me/${normalizeWhatsAppNumber(settings.whatsappNumber)}`}
+                    rel="noopener"
+                  >
+                    WhatsApp {settings.whatsappNumber}
+                  </a>
+                </li>
+                <li>{formatAddress()}</li>
+                {f.worksCoordinates ? (
+                  <li className="footer-block__sub">{f.worksCoordinates}</li>
+                ) : null}
+              </ul>
+            </div>
+
+            {showCapacity ? (
+              <div className="footer-block footer-block--capacity">
+                <h3>Capacity</h3>
+                <ul>
+                  {f.capacity.moq ? <li>MOQ {f.capacity.moq}</li> : null}
+                  {f.capacity.leadTime ? <li>Lead time {f.capacity.leadTime}</li> : null}
+                  {hours ? <li>{formatHours(hours)}</li> : null}
+                </ul>
+              </div>
+            ) : null}
+
+            {f.certifications.length > 0 ? (
+              <div className="footer-block footer-block--certified">
+                <h3>Certified</h3>
+                <ul>
+                  {f.certifications.map((name) => (
+                    <li key={name}>{name}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {f.socialLinks.length > 0 ? (
+              <div className="footer-block footer-block--elsewhere">
+                <h3>Elsewhere</h3>
+                <ul>
+                  {f.socialLinks.map((link) => (
+                    <li key={link.url}>
+                      <a href={link.url} rel="noopener">
+                        {link.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+
+          {/*
+            `legalLine` ALREADY CONTAINS the company name — its default is
+            "© RUN APPAREL (PVT) LTD" and `companyName` is "RUN APPAREL (PVT) LTD".
+            Appending one to the other once rendered the name twice on every page.
+          */}
+          <div className="footer-legal">
+            <span>{settings.legalLine}</span>
+            <span>{settings.footerLine}</span>
+            <Link className="nav-link" href="/products">
+              Products
+            </Link>
+            <Link className="nav-link" href="/contact">
+              Contact
+            </Link>
+          </div>
         </div>
 
         <FooterWordmark text={settings.temporaryWordmark} />

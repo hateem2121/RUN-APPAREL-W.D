@@ -66,7 +66,14 @@ export default async function HomePage() {
         <div className="site-container">
           <p className="section-number">N°01 — What we make</p>
           <h2 className="display display--section">Five families, one standard.</h2>
-          <ul className="product-grid">
+          {/*
+            ⚠️ ITS OWN GRID, NOT THE PRODUCT ONE. Five items in a generic `auto-fill` grid
+            never resolve into a shape — at 768 the fifth card sat alone under a pair, and
+            from 1024 up the last row was two cards and a hole, at every width (FA-E-01).
+            The count here is fixed and mirrors the `category` options on Products, so the
+            grid can treat it as a composition rather than as an unknown list.
+          */}
+          <ul className="family-grid">
             {FAMILIES.map((family) => (
               <li className="panel family-card" key={family.name}>
                 <h3 className="product-card__name">{family.name}</h3>

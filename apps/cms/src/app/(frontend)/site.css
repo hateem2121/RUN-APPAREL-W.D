@@ -68,11 +68,47 @@ html {
   scroll-padding-top: var(--notch-clearance);
 }
 
+/*
+ * ⚠️ THE PAGE'S WIDTH AND GUTTER ARE ONE SOURCE, BECAUSE THREE THINGS HAD TO AGREE AND
+ * NOTHING MADE THEM.
+ *
+ * These were literals here and a near-copy in `.site-footer` (`clamp(20px, 4.4vw, 64px)`
+ * against this `5vw`). Both clamps share a 20px floor and a 64px ceiling, so they were
+ * plainly meant to be the same number — and they missed each other by 4.6–6.2px at
+ * 768–1024, then by 130px at 1440 and 370px at 1920, because the footer is full-bleed
+ * and the page is centred (audit FA-D-01). Five pixels is the worst available value: too
+ * small to read as contrast, large enough to read as a mistake.
+ *
+ * Naming them also makes the width a single dial. `--site-max` is the ONLY thing the
+ * 1600px query below changes, and the gallery's fourth column, the wider hero and the
+ * footer's edge all follow from it — they cannot drift apart, because there is one
+ * number.
+ */
+:root {
+  --site-max: 1180px;
+  --site-gutter: clamp(20px, 5vw, 64px);
+  /* what a `.site-container` child actually gets, at the cap */
+  --site-content: calc(var(--site-max) - var(--site-gutter) * 2);
+}
+
+/*
+ * Owner decision 2026-09-07 (audit FA-E-04): below 1600px nothing changes at all; above
+ * it the page widens so a fourth gallery column fills space that was empty margin.
+ * 1440 − 128 = 1312px of content takes four 260px minimum tracks with 24px gaps
+ * (4 × 260 + 3 × 24 = 1112), where 1052px took three. Prose is unaffected — `p, li` are
+ * capped at 60ch and `.site-lede` at 62ch, so nothing gets a longer line to read.
+ */
+@media (min-width: 1600px) {
+  :root {
+    --site-max: 1440px;
+  }
+}
+
 .site-container {
   width: 100%;
-  max-width: 1180px;
+  max-width: var(--site-max);
   margin-inline: auto;
-  padding-inline: clamp(20px, 5vw, 64px);
+  padding-inline: var(--site-gutter);
 }
 
 .site-main {
@@ -137,6 +173,22 @@ html {
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 24px;
+}
+
+/*
+ * ⚠️ ONLY WHERE THEY STACK. "Start a conversation" is 200.45px and "See the 3D
+ * references" is 208.19px — a constant 7.74px apart. Side by side that is invisible and
+ * normal; stacked and left-aligned, from 320 to 430px, it is a ragged right edge on two
+ * otherwise identical rectangles, and 7.74px is the awkward size: too small to read as
+ * deliberate, too large to look like alignment (FA-D-05).
+ *
+ * The width they stack at is a fact about the buttons, not a design breakpoint, so this
+ * is keyed to the measured wrap width rather than to a token.
+ */
+@media (max-width: 430px) {
+  .site-actions > * {
+    flex: 1 1 100%;
+  }
 }
 
 /* ----------------------------------------------------------------- notch */
@@ -515,7 +567,8 @@ html {
  * The first draft put the tab inside the slab and it never rose out of anything.
  */
 .site-footer {
-  --footer-pad: clamp(20px, 4.4vw, 64px);
+  /* the page's gutter, not a near-copy of it — see the :root note (FA-D-01) */
+  --footer-pad: var(--site-gutter);
   --footer-bg: light-dark(var(--ink), var(--raised));
   --footer-text: light-dark(var(--paper), var(--text));
   /* dark is 0.68, not 0.6: on --raised, 0.6 measured 4.57:1 — AA by 0.07 */
@@ -545,6 +598,32 @@ html {
      figure, fixed there with --shadow-raised. A slab is too wide for a shadow to
      read as an edge, so a hairline; invisible against light-mode ink. */
   border-top: 1px solid var(--footer-line);
+}
+
+/*
+ * ⚠️ THE CONTENT COLUMN, NOT THE SLAB. The slab must stay full-bleed — it carries the
+ * background, the blueprint grid, the glow and the cropped wordmark, all of which are
+ * meant to run to the edge. What was wrong is that its TEXT ran to the edge too, so the
+ * footer's left edge left the page's by up to 370px (FA-D-01).
+ *
+ * This reproduces `.site-container`'s geometry exactly rather than approximating it:
+ * the slab's padding supplies the gutter, and this centres a `--site-content`-wide
+ * column inside what remains. Checked against the audit's measured table at every
+ * width it sampled — 20.0 at 320, 38.4 at 768, 51.2 at 1024, 194.0 at 1440, 434.0 at
+ * 1920 — all of which now match the page to the pixel by construction.
+ *
+ * `flex` and `flex-direction` are inherited responsibilities, not decoration:
+ * `.footer-grow`'s `flex: 1 1 auto` is what holds the Quiet Room open, and it needs a
+ * flex column parent. Moving it a level down without this would collapse the band the
+ * owner confirmed on 2026-09-07 that they want kept.
+ */
+.site-footer__inner {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: var(--site-content);
+  margin-inline: auto;
 }
 
 /* the blueprint grid (base.css's recipe) fading in toward the bottom */
@@ -897,20 +976,33 @@ html {
   min-height: 24px;
 }
 
+/*
+ * ⚠️ `auto-fit`, NOT `repeat(2, …)`, AND THAT CLOSES TWO FINDINGS AT ONCE.
+ *
+ * The fixed two-track grid assumed a 2 × 2 the site cannot currently reach: three of the
+ * four blocks are conditional on CMS fields that are empty, so ONE block renders — into
+ * a two-column grid with a `border-top` drawn across the whole 640px block. The rule ran
+ * 51.9–56.4% further right than anything beneath it, on the emptiest surface on the site
+ * (FA-D-02).
+ *
+ * The same declaration also closed a hole between two breakpoints. Below 421px the grid
+ * went single-column and below 721px it stopped right-aligning, but nothing made it
+ * single-column BETWEEN them — so at 430px (iPhone 15/16 Pro Max) the sole contact block
+ * was 183px wide with an empty 183px column beside it, sixteen pixels narrower than the
+ * same block at 414px (FA-E-06). `auto-fit` collapses empty tracks by definition, so the
+ * 420px query is not replaced, it is unnecessary.
+ *
+ * `min(100%, 280px)` rather than a bare minimum: a bare `minmax(280px, 1fr)` overflows a
+ * 320px screen once the gutters are taken, which is the classic auto-fit mistake.
+ */
 .footer-facts {
   max-width: 640px;
   margin-inline-start: auto;
   padding: 24px 0 clamp(24px, 4vw, 64px);
   border-top: 1px solid var(--footer-line);
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 24px;
-}
-
-@media (max-width: 420px) {
-  .footer-facts {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* On a phone bottom-right has nowhere to be bottom-right OF: measured 2026-09-05 the
@@ -1375,7 +1467,16 @@ address.contact-block__value {
 
 /* ------------------------------------------------------------ empty state */
 
+/*
+ * ⚠️ IT IS A `<p>`, SO IT INHERITED `max-width: 60ch` AND A BLOCK max-width DOES NOT
+ * CENTRE. From 768px up the dashed rectangle hugged the left edge with up to 468px of
+ * empty column beside it while its own text was centred — a box centred inside and not
+ * outside reads as a rendering fault, on the one page a buyer sees when the references
+ * are down (FA-D-03).
+ */
 .site-empty {
+  max-width: 62ch;
+  margin-inline: auto;
   padding: 64px 20px;
   border: 1px dashed var(--line);
   border-radius: var(--radius-panel);
@@ -1442,5 +1543,158 @@ a.contact-block__value:active {
     text-decoration-color: var(--volt);
     text-decoration-thickness: 2px;
     text-underline-offset: 5px;
+  }
+}
+
+/* ------------------------------------------------ eyebrow rhythm (FA-B-01) */
+
+/*
+ * ⚠️ THE GAP BETWEEN AN EYEBROW AND ITS HEADLINE WAS EXACTLY 0.00px — measured on the
+ * hero and all three homepage sections, at all twelve widths swept.
+ *
+ * What looked like air was leftover half-leading from `.display { line-height: 0.92 }`,
+ * so it SHRANK as the viewport shrank — smallest exactly where the page is most cramped.
+ * Pixel-measured ink gaps: at 1440 the eyebrow sat 3px from a 72px headline whose own two
+ * lines are 12px apart, so the label was spatially closer to the headline than the
+ * headline was to itself, and read as another line of it. The hierarchy was carried
+ * entirely by colour and size, never by position (audit FA-A-02, FA-B-01).
+ *
+ * ⚠️ HERE AND NOT IN packages/ui/src/base.css, WHERE BOTH CLASSES ARE DEFINED. The
+ * audit's suggested fix was `margin-bottom` on the classes themselves, and for `.label`
+ * that would have been safe — the viewer only ever uses it on `<span>`. `.section-number`
+ * is a different matter: the viewer renders it on `<p>` in Contact.tsx and
+ * CustomisationSection.tsx, so a margin there moves the live 3D pages. The adjacent
+ * sibling puts the space between the two elements rather than on either one, which is
+ * where it belongs, and reaches nothing outside this site.
+ *
+ * Both values are existing steps. This resolves the vertical rhythm to 10 / 22 / 24 —
+ * three steps where there was one gap and one collision. FA-B-02 (22 and 24 being only
+ * 2px apart, which cannot encode a difference in relationship) is NOT closed by this and
+ * is deliberately not fixed here: widening it needs a step the scale does not have, and
+ * docs/DESIGN.md calls the scale locked, so it is the owner's call.
+ */
+.label + * {
+  margin-block-start: 10px;
+}
+
+.section-number + * {
+  margin-block-start: 8px;
+}
+
+/* ------------------------------------------------ the family grid (FA-E-01) */
+
+/*
+ * ⚠️ FIVE ITEMS IN A GENERIC `auto-fill` GRID NEVER RESOLVE INTO A SHAPE. The family list
+ * borrowed `.product-grid`, which fits at most three 260px tracks in the container: at
+ * 768 the fifth card sat alone under a pair, and at 1024 and up the last row was two
+ * cards and a hole. There is no width at which "Five families, one standard." came out
+ * as a complete rectangle (audit FA-E-01).
+ *
+ * The count is fixed and known — it mirrors the `category` options on Products — so it
+ * is treated as a composition rather than as an unknown list. Every state is complete:
+ * one column below 560, two columns with the fifth spanning both up to 1179, and all
+ * five in a row at 1180 and above, where 1052px of content gives each card 191px.
+ */
+.family-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.family-grid > li:last-child {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 559px) {
+  .family-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 1180px) {
+  .family-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .family-grid > li:last-child {
+    grid-column: auto;
+  }
+}
+
+/* ------------------------------- card proportions and empty state (FA-B-04, FA-A-03) */
+
+/*
+ * ⚠️ ONE PRODUCT WITH A DESCRIPTION INFLATED ITS WHOLE ROW BY UP TO 107px. Grid rows
+ * stretch, and a card is a flex column of content-sized children, so the surplus landed
+ * as blank card below the last line — the same component rendering at 70.8% and 81.7%
+ * image-to-text on one screen (audit FA-B-04).
+ *
+ * `align-items: start` over a fixed body height, deliberately. Equalising the body would
+ * mean computing three line-heights plus two margins, and this repo has had a height
+ * budget come out wrong four times by arithmetic and once from an unaccounted transform.
+ * This costs a ragged bottom edge on a mixed row and buys a constant figure ratio with no
+ * arithmetic at all — and the finding was the ratio, not the edge.
+ *
+ * The clamp is the other half: without it one long description reintroduces the same
+ * imbalance from the other direction.
+ */
+.product-grid {
+  align-items: start;
+}
+
+.product-card__desc {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+/*
+ * A card is 65–82% figure, so when a poster is missing the absence IS the card — three
+ * grey rectangles reading `[ 3D reference ]` in 10px mono, with the first product name
+ * 585px down the page. There was no designed state for "reference exists, poster does
+ * not" (audit FA-A-03). The blueprint motif is already in base.css and is the site's own
+ * language for a drawing rather than a photograph, which is exactly what an unrendered
+ * reference is.
+ */
+.product-card__placeholder {
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+/* ------------------------------------------------ focus and theme (FA-R-08, FA-R-05) */
+
+/*
+ * Every focusable element already had a visible ring; the finding was that there were
+ * three variants on one page (audit FA-R-08). The page/footer split is justified — the
+ * volt ring is what carries contrast against the dark slab — but the tab's 4px offset
+ * made it the only ring on the site that does not sit 2px from its control, for no
+ * reason the design gives.
+ */
+.site-footer__tab:focus-visible {
+  outline-offset: 2px;
+}
+
+/*
+ * ⚠️ AN OS THEME SWITCH AT SUNSET FLIPPED THE WHOLE PAGE IN ONE FRAME — near-white ground
+ * to near-black, measured `instant: true` with `body`'s transition at the browser default
+ * of 0s (audit FA-R-05). There is no toggle on this site; it follows the OS through
+ * `light-dark()`, so this is the only place the change can be eased.
+ *
+ * `--settle` is the locked 500ms entrance duration; no new value. Guarded rather than
+ * left to base.css's blanket reduced-motion collapse, because a colour transition on the
+ * root is exactly the kind of full-viewport change someone sets that preference to avoid.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    transition:
+      background-color var(--settle) var(--ease),
+      color var(--settle) var(--ease);
   }
 }

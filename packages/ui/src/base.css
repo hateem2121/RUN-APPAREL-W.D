@@ -218,6 +218,20 @@ li {
 }
 
 .label {
+  /*
+   * ⚠️ NOT PROSE, SO NOT SUBJECT TO THE PROSE MEASURE. `p, li { max-width: 60ch }` above
+   * is an accessibility rule and stays exactly as it is — but `60ch` resolves against the
+   * element's OWN font, and this chip is 10px mono, so the cap computed to 361.23px at
+   * every viewport. The homepage's opening line is a `<p class="label">`, so the first
+   * thing on the company's home page broke mid-sentence after "EST." into a ragged
+   * two-step volt block inside a 1052px column — at every width from 320 to 1920
+   * (audit FA-A-01).
+   *
+   * Scoped here rather than by loosening the `p, li` rule, which the viewer's body copy
+   * depends on. Provably inert for the viewer: all ten of its `.label` uses are on
+   * `<span>`, which `p, li` never matched.
+   */
+  max-width: none;
   display: inline-block;
   font-family: var(--font-mono);
   font-size: var(--text-mono-sm);
