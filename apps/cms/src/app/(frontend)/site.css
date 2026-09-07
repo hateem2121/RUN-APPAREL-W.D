@@ -278,7 +278,20 @@ html {
 
 .site-lede {
   max-width: 62ch;
-  margin-top: 22px;
+  /*
+   * ⚠️ 16px, NOT 22px — owner decision 2026-09-07 (audit FA-B-02, FA-B-72).
+   *
+   * The page's vertical rhythm measured 0 / 22 / 24: eyebrow to headline, headline to
+   * lede, lede to actions. Two of those three gaps were 2px apart, which no reader can
+   * distinguish, so a page that needed three levels of relationship had one gap and one
+   * collision. The 0 was fixed separately and is now 10.
+   *
+   * 22px had a defensible provenance — a 1.3x measure against 17px body type — but
+   * provenance is not perceptibility. 10 / 16 / 24 is three steps a reader can actually
+   * see, and all three are already on the twelve-step allowlist, so no new size is
+   * invented and `docs/DESIGN.md`'s locked scale is untouched.
+   */
+  margin-top: 16px;
   font-size: var(--text-body);
   color: var(--muted);
 }

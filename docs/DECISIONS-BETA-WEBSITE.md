@@ -68,16 +68,16 @@ defensible, on the grounds that a form with nowhere to send its contents is wors
 than no form at all — that reasoning stands, and is why the delivery design is
 part of this decision rather than an implementation detail.
 
-**Store-then-notify, in that order.** The enquiry is written to the database
+**Store-then-notify, in that order.** The inquiry is written to the database
 before any mail is attempted, so a mail outage costs a notification, never the
-enquiry. This is the same discipline as
+inquiry. This is the same discipline as
 `apps/cms/CLAUDE.md`'s rule that a write is verified by reading it back rather
 than by a status code.
 
 Email and WhatsApp links stay. The form is an addition, not a replacement — a B2B
 buyer who wants a record of what they sent still has one.
 
-**Guard:** a test asserts the enquiry row exists after a submission whose mail
+**Guard:** a test asserts the inquiry row exists after a submission whose mail
 step is forced to fail.
 
 ### D4 · The gallery grows to four columns above 1600px — `FA-E-04`
@@ -164,7 +164,7 @@ control at the constant-gain value.
 **Decision: no `price` in the product structured data. Declare made-to-order and
 quote-on-request explicitly.**
 
-Every garment is made to order and quoted per enquiry, so there is no price to
+Every garment is made to order and quoted per inquiry, so there is no price to
 publish, and inventing one to satisfy a search engine is not an option. The
 correct expression of "price on application" is a declared availability and
 business function rather than a number.
@@ -224,14 +224,82 @@ than a test.
 
 ---
 
+## 2026-09-07, later — three more, after the fixes were visible
+
+### D15 · The vertical rhythm becomes 10 / 16 / 24 — `FA-B-02`, `FA-B-72`
+
+**Decision: tighten the headline-to-lede gap from 22px to 16px.**
+
+The page's three vertical relationships measured **0 / 22 / 24** — eyebrow to headline,
+headline to lede, lede to actions. The 0 was a defect and was fixed separately (now 10).
+The other two are 2px apart, which no reader can distinguish, so a page needing three
+levels of relationship had one gap and one collision.
+
+22px had a defensible provenance — a 1.3× measure against 17px body type — but provenance
+is not perceptibility. All three values are already on the twelve-step allowlist, so
+`docs/DESIGN.md`'s locked scale is untouched and no thirteenth step is invented.
+
+This supersedes the deferred `FA-B-73`, which asked whether the scale needed a new step.
+It does not.
+
+### D16 · The 3D page's floating pills stay — `FA-R-51`
+
+**Decision: leave them, and record what the research says. Nothing to change.**
+
+The audit found "two floating pills on top of the garment". Researched against current
+guidance and then checked against the code, that description turns out to cover two
+different things:
+
+- **The interaction hint** ("DRAG TO ROTATE · PINCH TO ZOOM") is *transient*. It is
+  once-per-visit, dismissed on the first real interaction, and
+  `apps/viewer/e2e/motion-and-layout.spec.ts` already asserts that **it stays gone** —
+  "a cue that returns punishes the buyer comparing five colourways".
+- **The camera pill** (FRONT / BACK / SIDE) is a control, not a hint, and is persistent
+  by necessity.
+
+So one pill is permanent, not two — and the moment the audit measured is the one moment
+the hint is *supposed* to be there. Current guidance for 3D commerce viewers is explicit
+that a viewer with no visible affordance "often functions as an unusually heavy static
+image", and that progressive disclosure should retire the hint once the visitor engages.
+That is exactly what this already does. The icon paired with the word "Pinch" follows
+Baymard's gesture research, for a catalogue sold outside the English-speaking world.
+
+Every alternative placement was examined and each collides with something else;
+`apps/viewer/src/styles/page.css` records the bottom-left corner being clipped by the hint
+on a real iPhone. **Do not move these without a real device in hand.**
+
+### D17 · Empty product families keep their filter, showing zero — `FA-I-03`
+
+**Decision: leave Teamwear & Uniforms, Casual Wear and Sports Accessories in the gallery
+filter with a count of 0.**
+
+They are part of what the company makes, and the home page advertises five families —
+hiding three would mean a visitor reads five and is offered three, which looks like a
+fault. The count is honest, the chip is dashed rather than dimmed (dimming failed contrast
+at 2.19:1), and clicking one gives a designed message offering to send what exists.
+
+It resolves itself as references are built; nothing needs doing again.
+
+---
+
+## Closed since
+
+**`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap
+between 24px and 52px in the spacing scale. That 52px is a *measured median produced by
+fluid `clamp()` values*, not a literal anyone typed, so there was no missing step to add.
+The real problem sat next to it — two gaps 2px apart — and D15 fixes that with values the
+scale already has. No thirteenth step.
+
+**`FA-I-10` — ANSWERED 2026-09-07.** The owner supplied capacity, minimum order, sample
+and shipment lead times, headcount, floor area, export markets and the certification
+position. All of it is on the home page under N°03; nothing was published that they did
+not confirm. The certification wording names the actual certificate holder — see the note
+in that commit.
+
 ## Still open
 
-**`FA-B-73` — whether the spacing scale needs a thirteenth step.** Deferred, not
-avoided. The audit reported a gap between 24px and 52px, but the 52px is a
-*measured median produced by fluid `clamp()` values*, not a literal anyone typed.
-Whether the fix is a new literal step or a clamp changes both the work and which
-gate covers it, so the question is being put back to the owner with that
-measurement rather than before it.
-
-**`FA-I-10` — checkable facts.** The owner has asked for a list of specific
-questions to answer. Nothing is published until they confirm each value.
+**`FA-Q-07`'s sibling: the Resend domain.** `RESEND_API_KEY` is set on the CMS Worker, but
+`wear-run.help`'s SPF record names Hostinger, Google and SendGrid — not Resend — so the
+domain may not be verified for sending. If it is not, every inquiry notification fails
+with a 4xx. The inquiry itself is stored either way and the failure is written onto the
+row, so nothing is lost while this is settled. `docs/OWNER-CHECKLIST.md` §7a.
