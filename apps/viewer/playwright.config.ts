@@ -15,8 +15,14 @@ const baseLaunch = chromiumPath ? { executablePath: chromiumPath } : {}
  * since it waits on `window.__RENDER_READY`, which only fires after
  * <model-viewer>'s `load` event — undetectable without actually decoding a
  * Meshopt-compressed model.
+ *
+ * camera-settle.spec.ts joined them on 2026-09-07 for the same reason: it drags the
+ * garment and measures where the camera comes to rest, and without a GL context the
+ * stage is in poster fallback, so the drag lands on an image and the probe measures a
+ * settle of zero — which reads as an excellent result. It skips itself in that state
+ * rather than reporting one, but it belongs where the context actually exists.
  */
-const DOM_SUITE = /(webgl|render)\.spec\.ts/
+const DOM_SUITE = /(webgl|render|camera-settle)\.spec\.ts/
 
 /**
  * The e2e server's port, in ONE place and passed explicitly to the server.
