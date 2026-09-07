@@ -81,20 +81,20 @@ export default async function PrivacyPage() {
           </p>
           <p>
             <strong>When you contact us.</strong> If you email us, message us on WhatsApp or send an
-            enquiry through this site, we keep what you send — your name, company, contact details
-            and the enquiry itself — so that we can reply, and so that we can fulfil your order if
+            inquiry through this site, we keep what you send — your name, company, contact details
+            and the inquiry itself — so that we can reply, and so that we can fulfil your order if
             we go on to work together.
           </p>
 
           <p className="section-number">Why we are allowed to</p>
           <p>
-            To run and secure the website, and to answer business enquiries — our legitimate
+            To run and secure the website, and to answer business inquiries — our legitimate
             interests — and to perform a contract where one follows.
           </p>
 
           <p className="section-number">How long we keep it</p>
           <p>
-            Enquiry correspondence for as long as our business relationship needs it. Technical logs
+            Inquiry correspondence for as long as our business relationship needs it. Technical logs
             and error reports are kept briefly by our providers and then deleted.
           </p>
 

@@ -119,7 +119,7 @@ export interface Config {
     'raw-uploads': RawUpload;
     products: Product;
     events: Event;
-    enquiries: Enquiry;
+    inquiries: Inquiry;
     'payload-kv': PayloadKv;
     'payload-folders': FolderInterface;
     'payload-locked-documents': PayloadLockedDocument;
@@ -140,7 +140,7 @@ export interface Config {
     'raw-uploads': RawUploadsSelect<false> | RawUploadsSelect<true>;
     products: ProductsSelect<false> | ProductsSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
-    enquiries: EnquiriesSelect<false> | EnquiriesSelect<true>;
+    inquiries: InquiriesSelect<false> | InquiriesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-folders': PayloadFoldersSelect<false> | PayloadFoldersSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -509,12 +509,12 @@ export interface Event {
   createdAt: string;
 }
 /**
- * Messages sent through the form on the contact page. Every one is saved here BEFORE the notification email is attempted, so a mail problem can never lose an enquiry — if the email did not arrive, the message is still on this screen.
+ * Messages sent through the form on the contact page. Every one is saved here BEFORE the notification email is attempted, so a mail problem can never lose an inquiry — if the email did not arrive, the message is still on this screen.
  *
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "enquiries".
+ * via the `definition` "inquiries".
  */
-export interface Enquiry {
+export interface Inquiry {
   id: number;
   name: string;
   company?: string | null;
@@ -529,7 +529,7 @@ export interface Enquiry {
    */
   notified?: boolean | null;
   /**
-   * Why the notification could not be sent, if it could not. The enquiry itself is unaffected — it is the message above.
+   * Why the notification could not be sent, if it could not. The inquiry itself is unaffected — it is the message above.
    */
   notifyError?: string | null;
   updatedAt: string;
@@ -580,8 +580,8 @@ export interface PayloadLockedDocument {
         value: number | Event;
       } | null)
     | ({
-        relationTo: 'enquiries';
-        value: number | Enquiry;
+        relationTo: 'inquiries';
+        value: number | Inquiry;
       } | null)
     | ({
         relationTo: 'payload-folders';
@@ -783,9 +783,9 @@ export interface EventsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "enquiries_select".
+ * via the `definition` "inquiries_select".
  */
-export interface EnquiriesSelect<T extends boolean = true> {
+export interface InquiriesSelect<T extends boolean = true> {
   name?: T;
   company?: T;
   email?: T;

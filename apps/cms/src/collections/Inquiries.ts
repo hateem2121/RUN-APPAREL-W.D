@@ -2,10 +2,10 @@ import type { CollectionConfig } from 'payload'
 import { isAdmin, isAuthenticated } from '../access/roles'
 
 /**
- * Enquiries sent through the contact form.
+ * Inquiries sent through the contact form.
  *
  * Owner decision 2026-09-07 (D3, FA-I-06): **stored first, emailed second**. A mail
- * outage then costs a notification and never the enquiry. The audit's case against a form
+ * outage then costs a notification and never the inquiry. The audit's case against a form
  * at all was that one which silently drops a buyer's message is worse than a mailto link
  * that works — this ordering is the answer to it, not a footnote.
  *
@@ -13,7 +13,7 @@ import { isAdmin, isAuthenticated } from '../access/roles'
  * is the whole security posture of this collection. The public route handler writes with
  * the local API and `overrideAccess: true`, so the ONLY path in is code that has already
  * validated the input, checked the honeypot and passed the rate limiter. Opening `create`
- * to anonymous requests would put `POST /api/enquiries` on the internet with none of
+ * to anonymous requests would put `POST /api/inquiries` on the internet with none of
  * that, and Payload's REST API would happily accept whatever shape it was given.
  *
  * ⚠️ AND `read` IS AUTHENTICATED, WHICH MATTERS MORE HERE THAN ON ANY OTHER COLLECTION.
@@ -24,11 +24,11 @@ import { isAdmin, isAuthenticated } from '../access/roles'
  *
  * ⚠️ NOTHING HERE IS EVER RENDERED ON A PUBLIC PAGE, and it must stay that way. There is
  * no projection function for this collection and no public endpoint reads it. A "recent
- * enquiries" feature would publish a customer's name and plans to the internet.
+ * inquiries" feature would publish a customer's name and plans to the internet.
  */
-export const Enquiries: CollectionConfig = {
-  slug: 'enquiries',
-  labels: { singular: 'Enquiry', plural: 'Enquiries' },
+export const Inquiries: CollectionConfig = {
+  slug: 'inquiries',
+  labels: { singular: 'Inquiry', plural: 'Inquiries' },
   access: {
     read: isAuthenticated,
     // See the warning above — the form writes through the local API, not through this.
@@ -41,7 +41,7 @@ export const Enquiries: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name', 'company', 'email', 'status', 'createdAt'],
     description:
-      'Messages sent through the form on the contact page. Every one is saved here BEFORE the notification email is attempted, so a mail problem can never lose an enquiry — if the email did not arrive, the message is still on this screen.',
+      'Messages sent through the form on the contact page. Every one is saved here BEFORE the notification email is attempted, so a mail problem can never lose an inquiry — if the email did not arrive, the message is still on this screen.',
     // Payload's own `createdAt` is the received time; a second field would drift from it.
     disableCopyToLocale: true,
   },
@@ -65,7 +65,7 @@ export const Enquiries: CollectionConfig = {
     /*
      * ⚠️ THE NOTIFICATION'S OUTCOME IS RECORDED ON THE ROW, and this is the field that
      * makes "stored first" worth anything. Without it a failed email is invisible: the
-     * enquiry is safely in the database and nobody knows to look. `notified: false` with a
+     * inquiry is safely in the database and nobody knows to look. `notified: false` with a
      * reason beside it is what turns a silent loss into a visible one.
      */
     {
@@ -83,7 +83,7 @@ export const Enquiries: CollectionConfig = {
       admin: {
         readOnly: true,
         description:
-          'Why the notification could not be sent, if it could not. The enquiry itself is unaffected — it is the message above.',
+          'Why the notification could not be sent, if it could not. The inquiry itself is unaffected — it is the message above.',
       },
     },
   ],

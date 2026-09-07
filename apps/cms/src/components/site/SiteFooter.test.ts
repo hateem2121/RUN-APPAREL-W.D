@@ -28,7 +28,7 @@ describe('SiteFooter', () => {
     route.path = '/'
     const out = html(base)
     expect(out).toContain('class="site-footer__tab" href="/contact"')
-    expect(out).toContain('site-footer__tab-label">Start an enquiry<')
+    expect(out).toContain('site-footer__tab-label">Start an inquiry<')
     expect(out).toContain('aria-hidden="true">→<')
   })
 

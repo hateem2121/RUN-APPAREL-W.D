@@ -8,7 +8,7 @@ import { r2Storage } from '@payloadcms/storage-r2'
 import { buildConfig } from 'payload'
 
 import { Events } from './collections/Events'
-import { Enquiries } from './collections/Enquiries'
+import { Inquiries } from './collections/Inquiries'
 import { Media } from './collections/Media'
 import { Products } from './collections/Products'
 import { RawUploads } from './collections/RawUploads'
@@ -124,7 +124,7 @@ export default buildConfig({
       },
     },
   },
-  collections: [Users, Media, RawUploads, Products, Events, Enquiries],
+  collections: [Users, Media, RawUploads, Products, Events, Inquiries],
   globals: [SiteSettings, CatalogueDefaults, BuildProcess],
   // The two-segment route is registered first so it wins over the one-segment
   // route for /n001/navy, whatever order the router happens to try them in.

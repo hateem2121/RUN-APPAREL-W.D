@@ -1,9 +1,9 @@
 import { type MigrateDownArgs, type MigrateUpArgs, sql } from '@payloadcms/db-d1-sqlite'
 
 /**
- * The `enquiries` collection — the contact form's storage.
+ * The `inquiries` collection — the contact form's storage.
  *
- * Owner decision 2026-09-07 (D3, FA-I-06): the form stores the enquiry BEFORE it attempts
+ * Owner decision 2026-09-07 (D3, FA-I-06): the form stores the inquiry BEFORE it attempts
  * the notification email, so a mail outage can only cost a notification. This table is
  * the half of that promise that has to exist.
  *
@@ -27,14 +27,14 @@ import { type MigrateDownArgs, type MigrateUpArgs, sql } from '@payloadcms/db-d1
  * than cascades; ordering is the only thing that makes a rebuild safe, and `up` needs no
  * rebuild at all.
  *
- * ⚠️ THE `enquiries_id` COLUMN IS NOT OPTIONAL BOOKKEEPING. Payload gives every collection
+ * ⚠️ THE `inquiries_id` COLUMN IS NOT OPTIONAL BOOKKEEPING. Payload gives every collection
  * a column on `payload_locked_documents_rels` for document locking; without it the admin
  * screen for this collection breaks rather than degrades. `ALTER TABLE ... ADD` cannot
  * attach a table-level foreign key in SQLite, so it takes the bare inline `REFERENCES`
  * form with no `ON DELETE` — exactly as `payload_folders_id` did on 2026-08-11.
  */
 export async function up({ db }: MigrateUpArgs): Promise<void> {
-  await db.run(sql`CREATE TABLE \`enquiries\` (
+  await db.run(sql`CREATE TABLE \`inquiries\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`name\` text NOT NULL,
   	\`company\` text,
@@ -47,22 +47,41 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL
   );
   `)
-  await db.run(sql`CREATE INDEX \`enquiries_updated_at_idx\` ON \`enquiries\` (\`updated_at\`);`)
-  await db.run(sql`CREATE INDEX \`enquiries_created_at_idx\` ON \`enquiries\` (\`created_at\`);`)
+  await db.run(sql`CREATE INDEX \`inquiries_updated_at_idx\` ON \`inquiries\` (\`updated_at\`);`)
+  await db.run(sql`CREATE INDEX \`inquiries_created_at_idx\` ON \`inquiries\` (\`created_at\`);`)
 
   await db.run(
-    sql`ALTER TABLE \`payload_locked_documents_rels\` ADD \`enquiries_id\` integer REFERENCES enquiries(id);`,
+    sql`ALTER TABLE \`payload_locked_documents_rels\` ADD \`inquiries_id\` integer REFERENCES inquiries(id);`,
   )
   await db.run(
-    sql`CREATE INDEX \`payload_locked_documents_rels_enquiries_id_idx\` ON \`payload_locked_documents_rels\` (\`enquiries_id\`);`,
+    sql`CREATE INDEX \`payload_locked_documents_rels_inquiries_id_idx\` ON \`payload_locked_documents_rels\` (\`inquiries_id\`);`,
+  )
+
+  /*
+   * ⚠️ THE ONLY DATA CHANGE HERE, AND IT IS GUARDED ON THE EXACT OLD DEFAULT.
+   *
+   * The footer's call to action reads "Start an enquiry" on every page — a visible string,
+   * and the owner decided on AMERICAN spelling on 2026-09-04 ("colorway", "color",
+   * "customization", "inquiry"), which the marketing site never followed (audit FA-Q-05).
+   * The code default moves with this commit; the STORED value would not, so the page would
+   * keep saying the British form.
+   *
+   * `WHERE cta_label = 'Start an enquiry'` is what makes this safe to run: if the owner has
+   * ever typed their own label, it is left completely alone. Overwriting owner-edited copy
+   * from a migration is precisely the failure the retired `build-process` global caused —
+   * one save replaced bespoke text on eleven live garments — and this cannot do it.
+   * Idempotent: a second run matches nothing.
+   */
+  await db.run(
+    sql`UPDATE \`site_settings\` SET \`cta_label\` = 'Start an inquiry' WHERE \`cta_label\` = 'Start an enquiry';`,
   )
 }
 
 /**
  * ⚠️ THE REFERENCING TABLE IS REBUILT FIRST, AND THE ORDER IS THE WHOLE SAFETY ARGUMENT.
  *
- * `DROP TABLE enquiries` runs an implicit DELETE, and that cascades. If
- * `payload_locked_documents_rels` still carried `enquiries_id` at that moment, the delete
+ * `DROP TABLE inquiries` runs an implicit DELETE, and that cascades. If
+ * `payload_locked_documents_rels` still carried `inquiries_id` at that moment, the delete
  * would reach its rows — which are the admin's document locks for EVERY collection, not
  * just this one. Removing the column first makes the drop reach nothing. This is the same
  * ordering 20260721_084024_add_events records, and the reason the root CLAUDE.md says
@@ -71,9 +90,9 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
  * Rebuilding this table specifically is safe: `PRAGMA foreign_key_list` on every other
  * table returns nothing that targets `payload_locked_documents_rels`, so dropping the old
  * copy cannot cascade further. SQLite cannot DROP COLUMN a column that is indexed or
- * carries a foreign key, and `enquiries_id` is both, which is why this is a rebuild at all.
+ * carries a foreign key, and `inquiries_id` is both, which is why this is a rebuild at all.
  *
- * ⚠️ THIS `down` DESTROYS EVERY STORED ENQUIRY. That is what reverting the collection
+ * ⚠️ THIS `down` DESTROYS EVERY STORED INQUIRY. That is what reverting the collection
  * means and it cannot be otherwise, but it is worth writing down: these rows are customer
  * names, employers, addresses and commercial intentions, and there is no other copy. Take
  * a D1 backup before running it — docs/BACKUP-RESTORE.md.
@@ -134,5 +153,5 @@ export async function down({ db }: MigrateDownArgs): Promise<void> {
   )
 
   // Only now, with nothing referencing it, can the table go.
-  await db.run(sql`DROP TABLE \`enquiries\`;`)
+  await db.run(sql`DROP TABLE \`inquiries\`;`)
 }

@@ -2121,40 +2121,40 @@ a.contact-block__value:active {
   }
 }
 
-/* ------------------------------------------------ the enquiry form (FA-I-06) */
+/* ------------------------------------------------ the inquiry form (FA-I-06) */
 
 /*
  * Owner decision 2026-09-07 (D3). The page kept its email and WhatsApp links; this is an
  * addition, and it is built to work with scripting off — a plain form posting to a plain
  * route handler, with `required` / `type="email"` / `maxlength` enforced by the browser.
  */
-.enquiry-form {
+.inquiry-form {
   margin-block-start: 24px;
   max-width: 62ch;
 }
 
-.enquiry-form__row {
+.inquiry-form__row {
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
 }
 
 @media (min-width: 560px) {
-  .enquiry-form__row {
+  .inquiry-form__row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-.enquiry-form__field {
+.inquiry-form__field {
   display: block;
   margin-block-start: 16px;
 }
 
-.enquiry-form__row .enquiry-form__field {
+.inquiry-form__row .inquiry-form__field {
   margin-block-start: 0;
 }
 
-.enquiry-form__label {
+.inquiry-form__label {
   display: block;
   margin-block-end: 8px;
   font-family: var(--font-mono);
@@ -2174,7 +2174,7 @@ a.contact-block__value:active {
  * already needs on `a.contact-block__value` and the notch wordmark, because `min-height`
  * alone is a suggestion on a flex child.
  */
-.enquiry-form__input {
+.inquiry-form__input {
   display: block;
   width: 100%;
   min-height: var(--target-min);
@@ -2190,16 +2190,16 @@ a.contact-block__value:active {
     box-shadow var(--ui) var(--ease);
 }
 
-.enquiry-form__textarea {
+.inquiry-form__textarea {
   resize: vertical;
   line-height: 1.5;
 }
 
-.enquiry-form__input::placeholder {
+.inquiry-form__input::placeholder {
   color: var(--muted);
 }
 
-.enquiry-form__input:focus-visible {
+.inquiry-form__input:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
   border-color: var(--dimension);
@@ -2214,7 +2214,7 @@ a.contact-block__value:active {
  * The border is not the only signal: the browser's own validation message says what is
  * wrong, and it is announced. Colour alone would be a WCAG 1.4.1 failure.
  */
-.enquiry-form__input:user-invalid {
+.inquiry-form__input:user-invalid {
   border-color: var(--danger);
 }
 
@@ -2225,7 +2225,7 @@ a.contact-block__value:active {
  * and the tab order, so nobody using a screen reader is ever offered a field they must
  * leave empty — which is the way honeypots earn their bad reputation.
  */
-.enquiry-form__trap {
+.inquiry-form__trap {
   position: absolute;
   width: 1px;
   height: 1px;

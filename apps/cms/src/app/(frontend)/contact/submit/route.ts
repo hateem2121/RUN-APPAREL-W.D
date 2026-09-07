@@ -2,13 +2,13 @@ import config from '@payload-config'
 import { type NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import {
-  type EnquiryInput,
-  enquirySubject,
-  formatEnquiryEmail,
+  type InquiryInput,
+  inquirySubject,
+  formatInquiryEmail,
   isHoneypotTripped,
-  validateEnquiry,
-} from '../../../../lib/enquiry'
-import { checkEnquiryRate } from '../../../../lib/enquiryRate'
+  validateInquiry,
+} from '../../../../lib/inquiry'
+import { checkInquiryRate } from '../../../../lib/inquiryRate'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,8 +17,8 @@ export const dynamic = 'force-dynamic'
  *
  * Owner decision 2026-09-07 (D3, FA-I-06). The audit's case against a form was that one
  * which silently drops a buyer's message is worse than a mailto link that works. The
- * answer is the ORDER of the two writes below: the enquiry is stored, and only then is
- * mail attempted. A mail outage costs a notification; it can never cost the enquiry.
+ * answer is the ORDER of the two writes below: the inquiry is stored, and only then is
+ * mail attempted. A mail outage costs a notification; it can never cost the inquiry.
  *
  * ⚠️ A ROUTE HANDLER, NOT A SERVER ACTION, AND NOT ON `/api`.
  *
@@ -37,7 +37,7 @@ export const dynamic = 'force-dynamic'
  * stores NOTHING on the visitor's device, which is measured (FA-O-74) and is why it needs
  * no consent banner. One cookie would end that.
  *
- * The cost is that a rejected enquiry is retyped. It is kept small by native HTML
+ * The cost is that a rejected inquiry is retyped. It is kept small by native HTML
  * validation — `required`, `type="email"`, `maxlength` — which the browser enforces with
  * scripting off, so the ordinary mistakes never reach here at all.
  */
@@ -50,11 +50,11 @@ const RESEND_ENDPOINT = 'https://api.resend.com/emails'
  * `wear-run.help`'s SPF record names Hostinger, Google and SendGrid — not Resend — so the
  * domain may not be verified for it. If it is not, every send fails with a 4xx.
  *
- * That is survivable BY DESIGN rather than by luck: the enquiry is already stored, and
+ * That is survivable BY DESIGN rather than by luck: the inquiry is already stored, and
  * the failure is written onto the row as `notified: false` with the reason beside it, so
  * it is visible in the admin rather than silent. See docs/OWNER-CHECKLIST.md.
  */
-const FROM = process.env.ENQUIRY_FROM?.trim() || 'enquiries@wear-run.help'
+const FROM = process.env.INQUIRY_FROM?.trim() || 'inquiries@wear-run.help'
 
 const back = (request: NextRequest, params: string) =>
   NextResponse.redirect(new URL(`/contact${params}`, request.url), {
@@ -62,9 +62,9 @@ const back = (request: NextRequest, params: string) =>
     status: 303,
   })
 
-/** Never throws. A notification is a nice-to-have; the enquiry is the thing. */
+/** Never throws. A notification is a nice-to-have; the inquiry is the thing. */
 async function notify(
-  value: EnquiryInput,
+  value: InquiryInput,
   receivedAt: Date,
   to: string,
 ): Promise<{ notified: boolean; notifyError?: string }> {
@@ -76,12 +76,12 @@ async function notify(
       method: 'POST',
       headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
       body: JSON.stringify({
-        from: `RUN APPAREL enquiries <${FROM}>`,
+        from: `RUN APPAREL inquiries <${FROM}>`,
         to: [to],
         // Hitting Reply in any mail client answers the customer, not the robot.
         reply_to: value.email,
-        subject: enquirySubject(value),
-        text: formatEnquiryEmail(value, receivedAt),
+        subject: inquirySubject(value),
+        text: formatInquiryEmail(value, receivedAt),
       }),
       signal: AbortSignal.timeout(8000),
     })
@@ -113,9 +113,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const ip =
     request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown'
-  if (!checkEnquiryRate(ip, Date.now())) return back(request, '?error=too-many')
+  if (!checkInquiryRate(ip, Date.now())) return back(request, '?error=too-many')
 
-  const result = validateEnquiry(raw)
+  const result = validateInquiry(raw)
   if (!result.ok)
     return back(request, `?error=invalid&fields=${Object.keys(result.errors).join(',')}`)
 
@@ -125,19 +125,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const payload = await getPayload({ config })
     /*
      * ⚠️ `overrideAccess: true` IS WHAT LETS THIS WRITE AT ALL, and it is why
-     * `Enquiries.access.create` is closed to everyone. The only path into that collection
+     * `Inquiries.access.create` is closed to everyone. The only path into that collection
      * is this function, which has already checked the honeypot, the rate limit and the
      * shape of the input. Opening `create` instead would put the collection's REST
      * endpoint on the internet with none of those.
      */
     created = await payload.create({
-      collection: 'enquiries',
+      collection: 'inquiries',
       data: { ...result.value, status: 'new', notified: false },
       overrideAccess: true,
     })
   } catch (err) {
     // The one genuinely bad outcome: nothing stored. Say so rather than thanking them.
-    console.error('[enquiry] could not be stored:', err)
+    console.error('[inquiry] could not be stored:', err)
     return back(request, '?error=storage')
   }
 
@@ -149,11 +149,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const outcome = await notify(result.value, receivedAt, to)
 
   if (!outcome.notified) {
-    console.error('[enquiry] stored but not notified:', outcome.notifyError)
+    console.error('[inquiry] stored but not notified:', outcome.notifyError)
     try {
       const payload = await getPayload({ config })
       await payload.update({
-        collection: 'enquiries',
+        collection: 'inquiries',
         id: created.id,
         data: { notified: false, notifyError: outcome.notifyError },
         overrideAccess: true,
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
       const payload = await getPayload({ config })
       await payload.update({
-        collection: 'enquiries',
+        collection: 'inquiries',
         id: created.id,
         data: { notified: true },
         overrideAccess: true,

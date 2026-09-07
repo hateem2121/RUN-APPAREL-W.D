@@ -5,9 +5,9 @@
  * Owner decision 2026-09-07 (D3, FA-I-06). The audit scored "no contact form" an 8 and
  * called it defensible, on the grounds that a form with nowhere to send its contents is
  * worse than no form at all. That reasoning stands, and it is why the delivery order is
- * part of the decision rather than an implementation detail: **the enquiry is written to
+ * part of the decision rather than an implementation detail: **the inquiry is written to
  * the database before any mail is attempted**, so a mail outage costs a notification and
- * never the enquiry itself.
+ * never the inquiry itself.
  *
  * ⚠️ THE HONEYPOT IS NOT A CAPTCHA AND MUST NOT BE READ AS ONE. It stops the bots that
  * fill every field they can see, which is most of them, and it costs a visitor nothing —
@@ -19,7 +19,7 @@
  * ⚠️ AND WHY NOT A CAPTCHA: Turnstile would be free and effective, and it is a
  * third-party script on a site whose privacy notice currently gets to say it contacts
  * nobody and stores nothing on the visitor's device. That claim is measured (FA-O-74) and
- * worth more than the marginal spam it would stop on a B2B enquiry form. Revisit if the
+ * worth more than the marginal spam it would stop on a B2B inquiry form. Revisit if the
  * spam is ever real rather than anticipated.
  */
 
@@ -33,16 +33,16 @@ export const MAX_LENGTHS = {
 /** The hidden field a bot fills and a person never sees. */
 export const HONEYPOT_FIELD = 'website'
 
-export type EnquiryInput = {
+export type InquiryInput = {
   name: string
   company: string
   email: string
   message: string
 }
 
-export type EnquiryResult =
-  | { ok: true; value: EnquiryInput }
-  | { ok: false; errors: Partial<Record<keyof EnquiryInput, string>> }
+export type InquiryResult =
+  | { ok: true; value: InquiryInput }
+  | { ok: false; errors: Partial<Record<keyof InquiryInput, string>> }
 
 const clean = (value: unknown, max: number): string =>
   typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : ''
@@ -52,28 +52,28 @@ const clean = (value: unknown, max: number): string =>
  *
  * A strict address regex rejects valid addresses — plus-tags, new TLDs, quoted local
  * parts, IDN domains — and the cost of a false rejection here is a buyer who cannot make
- * an enquiry, which is the exact outcome the whole site exists to avoid. The only thing
+ * an inquiry, which is the exact outcome the whole site exists to avoid. The only thing
  * worth refusing is input that is plainly not an address at all. Whether the address
  * receives mail is answered by replying to it, not by a pattern.
  */
 const LOOKS_LIKE_EMAIL = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/
 
-export function validateEnquiry(raw: Record<string, unknown>): EnquiryResult {
-  const value: EnquiryInput = {
+export function validateInquiry(raw: Record<string, unknown>): InquiryResult {
+  const value: InquiryInput = {
     name: clean(raw.name, MAX_LENGTHS.name),
     company: clean(raw.company, MAX_LENGTHS.company),
     email: clean(raw.email, MAX_LENGTHS.email),
     message: clean(raw.message, MAX_LENGTHS.message),
   }
 
-  const errors: Partial<Record<keyof EnquiryInput, string>> = {}
+  const errors: Partial<Record<keyof InquiryInput, string>> = {}
   if (!value.name) errors.name = 'Please tell us your name.'
   if (!value.email) errors.email = 'Please give us an email address to reply to.'
   else if (!LOOKS_LIKE_EMAIL.test(value.email))
     errors.email = 'That does not look like an email address.'
   if (!value.message) errors.message = 'Please tell us what you are making.'
   // `company` is optional: a designer or a club officer may not have one, and refusing
-  // them an enquiry over it would be absurd.
+  // them an inquiry over it would be absurd.
 
   return Object.keys(errors).length > 0 ? { ok: false, errors } : { ok: true, value }
 }
@@ -92,10 +92,10 @@ export function isHoneypotTripped(raw: Record<string, unknown>): boolean {
  * text has no such failure mode at all. It also threads and quotes properly, which
  * matters more for a business reply than styling does.
  *
- * The reply-to is the enquirer, so hitting Reply in any mail client answers the customer
+ * The reply-to is the inquirer, so hitting Reply in any mail client answers the customer
  * rather than the robot. That is set by the caller, not here.
  */
-export function formatEnquiryEmail(value: EnquiryInput, receivedAt: Date): string {
+export function formatInquiryEmail(value: InquiryInput, receivedAt: Date): string {
   return [
     `Name:    ${value.name}`,
     `Company: ${value.company || '(not given)'}`,
@@ -104,12 +104,12 @@ export function formatEnquiryEmail(value: EnquiryInput, receivedAt: Date): strin
     '',
     value.message,
     '',
-    '— sent from the enquiry form on wear-run.help',
+    '— sent from the inquiry form on wear-run.help',
   ].join('\n')
 }
 
 /** A subject a mail client can scan in a list without opening. */
-export function enquirySubject(value: EnquiryInput): string {
+export function inquirySubject(value: InquiryInput): string {
   const who = value.company || value.name
-  return `Enquiry — ${who}`.slice(0, 160)
+  return `Inquiry — ${who}`.slice(0, 160)
 }

@@ -1,7 +1,7 @@
 import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import { getSiteSettings } from '../../../lib/content'
-import { HONEYPOT_FIELD, MAX_LENGTHS } from '../../../lib/enquiry'
+import { HONEYPOT_FIELD, MAX_LENGTHS } from '../../../lib/inquiry'
 import { buildMetadata } from '../../../lib/seo'
 import { contactPageJsonLd, formatAddress } from '../../../lib/structuredData'
 import { JsonLd } from '../../../components/site/JsonLd'
@@ -29,14 +29,14 @@ export const metadata: Metadata = buildMetadata({
 const ADDRESS = formatAddress()
 
 /**
- * ⚠️ THE FORM'S ONE RULE: THE ENQUIRY IS STORED BEFORE ANY MAIL IS ATTEMPTED.
+ * ⚠️ THE FORM'S ONE RULE: THE INQUIRY IS STORED BEFORE ANY MAIL IS ATTEMPTED.
  *
  * This page carried "NO FORM, ON PURPOSE" until 2026-09-07, and the reasoning was sound —
  * a form that silently drops a buyer's message is worse than a mailto link that works.
  * The owner asked for one (D3, FA-I-06), so that reasoning became the DESIGN rather than
- * the objection: `contact/submit/route.ts` writes to the `enquiries` collection first and
+ * the objection: `contact/submit/route.ts` writes to the `inquiries` collection first and
  * only then calls Resend, and records the outcome on the row. A mail failure costs a
- * notification and is visible in the admin; it can never cost the enquiry.
+ * notification and is visible in the admin; it can never cost the inquiry.
  *
  * ⚠️ IT WORKS WITH SCRIPTING OFF, AND EVERY PIECE OF IT IS CHOSEN FOR THAT. A plain
  * `<form method="post">` to a plain route handler — no client component, nothing to
@@ -88,7 +88,7 @@ export default async function ContactPage({
               <a className="contact-block__value" href={`mailto:${settings.email}`}>
                 {settings.email}
               </a>
-              <p className="contact-block__note">New programmes, quotes and samples.</p>
+              <p className="contact-block__note">New programs, quotes and samples.</p>
             </div>
             <div className="contact-block">
               <p className="section-number">[ WhatsApp ]</p>
@@ -118,25 +118,25 @@ export default async function ContactPage({
           </p>
           {sent ? (
             <p className="form-notice form-notice--ok" role="status">
-              Thank you — your enquiry is with us. We reply within 2 business days.
+              Thank you — your inquiry is with us. We reply within 2 business days.
             </p>
           ) : null}
           {error ? (
             <p className="form-notice form-notice--bad" role="alert">
               {error === 'too-many'
-                ? 'That is several enquiries in a short time. Please wait a few minutes, or email us directly.'
+                ? 'That is several inquiries in a short time. Please wait a few minutes, or email us directly.'
                 : error === 'storage'
                   ? 'We could not save your message — please email us directly so it is not lost.'
                   : 'Something in the form was not filled in. Please check and send again.'}
             </p>
           ) : null}
 
-          <form className="enquiry-form" method="post" action="/contact/submit">
-            <div className="enquiry-form__row">
-              <label className="enquiry-form__field">
-                <span className="enquiry-form__label">Your name</span>
+          <form className="inquiry-form" method="post" action="/contact/submit">
+            <div className="inquiry-form__row">
+              <label className="inquiry-form__field">
+                <span className="inquiry-form__label">Your name</span>
                 <input
-                  className="enquiry-form__input"
+                  className="inquiry-form__input"
                   type="text"
                   name="name"
                   required
@@ -144,10 +144,10 @@ export default async function ContactPage({
                   autoComplete="name"
                 />
               </label>
-              <label className="enquiry-form__field">
-                <span className="enquiry-form__label">Company (optional)</span>
+              <label className="inquiry-form__field">
+                <span className="inquiry-form__label">Company (optional)</span>
                 <input
-                  className="enquiry-form__input"
+                  className="inquiry-form__input"
                   type="text"
                   name="company"
                   maxLength={MAX_LENGTHS.company}
@@ -156,10 +156,10 @@ export default async function ContactPage({
               </label>
             </div>
 
-            <label className="enquiry-form__field">
-              <span className="enquiry-form__label">Email</span>
+            <label className="inquiry-form__field">
+              <span className="inquiry-form__label">Email</span>
               <input
-                className="enquiry-form__input"
+                className="inquiry-form__input"
                 type="email"
                 name="email"
                 required
@@ -168,10 +168,10 @@ export default async function ContactPage({
               />
             </label>
 
-            <label className="enquiry-form__field">
-              <span className="enquiry-form__label">What are you making?</span>
+            <label className="inquiry-form__field">
+              <span className="inquiry-form__label">What are you making?</span>
               <textarea
-                className="enquiry-form__input enquiry-form__textarea"
+                className="inquiry-form__input inquiry-form__textarea"
                 name="message"
                 required
                 rows={6}
@@ -189,7 +189,7 @@ export default async function ContactPage({
               real person out — which is the failure mode that makes honeypots infamous.
               It is not a CAPTCHA and the rate limiter is the real backstop.
             */}
-            <div className="enquiry-form__trap" aria-hidden="true">
+            <div className="inquiry-form__trap" aria-hidden="true">
               <label htmlFor={HONEYPOT_FIELD}>Website</label>
               <input
                 id={HONEYPOT_FIELD}
@@ -202,7 +202,7 @@ export default async function ContactPage({
 
             <div className="site-actions">
               <button className="btn btn--primary" type="submit">
-                Send enquiry
+                Send inquiry
               </button>
               <a className="btn btn--ghost" href={`mailto:${settings.email}`}>
                 Or email us instead

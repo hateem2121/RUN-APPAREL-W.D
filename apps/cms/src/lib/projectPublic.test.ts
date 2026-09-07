@@ -170,7 +170,7 @@ describe('toProductCard', () => {
 describe('projectFooter', () => {
   it('projects nothing but copy defaults from an empty global', () => {
     expect(projectFooter(null)).toEqual(EMPTY_FOOTER)
-    expect(EMPTY_FOOTER.ctaLabel).toBe('Start an enquiry')
+    expect(EMPTY_FOOTER.ctaLabel).toBe('Start an inquiry')
     expect(EMPTY_FOOTER.certifications).toEqual([])
     expect(EMPTY_FOOTER.socialLinks).toEqual([])
     expect(EMPTY_FOOTER.capacity).toEqual({ moq: '', leadTime: '', hours: null })

@@ -13,14 +13,14 @@
  * buying a second is not on the table. This costs nothing and needs no binding.
  *
  * ⚠️ THE NUMBERS ARE DELIBERATELY GENEROUS, AND THE ASYMMETRY IS THE ARGUMENT. A false
- * positive here silently loses a real buyer's enquiry — the single most valuable event on
+ * positive here silently loses a real buyer's inquiry — the single most valuable event on
  * this site — while a false negative costs a database row. Nobody sends five genuine
- * enquiries in ten minutes, and an office or a mobile carrier can put many genuine
+ * inquiries in ten minutes, and an office or a mobile carrier can put many genuine
  * visitors behind one address, so the limit sits well above any plausible person and well
  * below anything worth calling a flood.
  */
 
-/** Enquiries one address may send per window. */
+/** Inquiries one address may send per window. */
 export const MAX_PER_IP = 5
 
 /** Across the whole isolate, whatever the addresses — the backstop for a rotating IP. */
@@ -39,7 +39,7 @@ type State = { windowStart: number; isolateCount: number; perIp: Map<string, num
 let state: State | null = null
 
 /** True when this request may proceed. */
-export function checkEnquiryRate(ip: string, now: number): boolean {
+export function checkInquiryRate(ip: string, now: number): boolean {
   if (!state || now - state.windowStart >= WINDOW_MS) {
     state = { windowStart: now, isolateCount: 0, perIp: new Map() }
   }
@@ -58,6 +58,6 @@ export function checkEnquiryRate(ip: string, now: number): boolean {
 }
 
 /** Exported for the tests, which must not depend on wall-clock timing. */
-export function __resetEnquiryRate(): void {
+export function __resetInquiryRate(): void {
   state = null
 }

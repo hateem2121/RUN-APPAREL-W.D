@@ -5,20 +5,20 @@ import { expect, test } from '@playwright/test'
  *
  * Owner decision 2026-09-07 (D3, FA-I-06). The page carried "NO FORM, ON PURPOSE" for
  * good reason — a form that silently drops a buyer's message is worse than a mailto link
- * that works — so that reasoning became the design: the enquiry is stored BEFORE any mail
+ * that works — so that reasoning became the design: the inquiry is stored BEFORE any mail
  * is attempted, and the outcome of the send is recorded on the row.
  *
- * ⚠️ WHAT THIS FILE CANNOT PROVE, said plainly. It cannot read the `enquiries` collection
- * back — `Enquiries.read` is authenticated, deliberately, because those rows hold a named
+ * ⚠️ WHAT THIS FILE CANNOT PROVE, said plainly. It cannot read the `inquiries` collection
+ * back — `Inquiries.read` is authenticated, deliberately, because those rows hold a named
  * person, their employer and their commercial intentions. So these tests prove the
  * request path and the visitor's experience; the storage itself is covered by the unit
- * tests around `validateEnquiry` and by the route handler's own ordering, which puts the
+ * tests around `validateInquiry` and by the route handler's own ordering, which puts the
  * `payload.create` before the `fetch` to Resend.
  */
-test.describe('the enquiry form', () => {
+test.describe('the inquiry form', () => {
   test('renders with a label on every field and no honeypot in reach', async ({ page }) => {
     await page.goto('/contact')
-    const form = page.locator('.enquiry-form')
+    const form = page.locator('.inquiry-form')
     await expect(form).toBeVisible()
 
     for (const name of ['name', 'company', 'email', 'message']) {
@@ -51,7 +51,7 @@ test.describe('the enquiry form', () => {
      * nothing about what anyone can see, which is the mistake the first version of this
      * test made. What bounds the visible area is the wrapper.
      */
-    const wrapper = page.locator('.enquiry-form__trap')
+    const wrapper = page.locator('.inquiry-form__trap')
     const box = await wrapper.boundingBox()
     expect(
       box,
@@ -71,7 +71,7 @@ test.describe('the enquiry form', () => {
   test('every control clears the 44px touch floor', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/contact')
-    const small = await page.locator('.enquiry-form').evaluate((form) =>
+    const small = await page.locator('.inquiry-form').evaluate((form) =>
       [...form.querySelectorAll('input, textarea, button')]
         .filter((el) => !el.closest('[aria-hidden="true"]'))
         .filter((el) => el.getBoundingClientRect().height < 43.95)
@@ -96,7 +96,7 @@ test.describe('the enquiry form', () => {
      * events are the deterministic signal — the browser fires none when validation fails,
      * so counting them proves the refusal without depending on timing.
      */
-    const state = await page.locator('.enquiry-form').evaluate((form) => {
+    const state = await page.locator('.inquiry-form').evaluate((form) => {
       let submitted = 0
       form.addEventListener('submit', (e) => {
         submitted += 1
@@ -125,16 +125,16 @@ test.describe('the enquiry form', () => {
     await expect(page).toHaveURL(/\/contact$/)
   })
 
-  test('a complete enquiry is accepted and the visitor is told so', async ({ page }) => {
+  test('a complete inquiry is accepted and the visitor is told so', async ({ page }) => {
     await page.goto('/contact')
-    await page.fill('.enquiry-form [name="name"]', 'Dana Okafor')
-    await page.fill('.enquiry-form [name="company"]', 'Northfield Athletic')
-    await page.fill('.enquiry-form [name="email"]', 'dana@northfield.example')
+    await page.fill('.inquiry-form [name="name"]', 'Dana Okafor')
+    await page.fill('.inquiry-form [name="company"]', 'Northfield Athletic')
+    await page.fill('.inquiry-form [name="email"]', 'dana@northfield.example')
     await page.fill(
-      '.enquiry-form [name="message"]',
+      '.inquiry-form [name="message"]',
       'We need 400 training tops in two colourways for a March delivery.',
     )
-    await page.locator('.enquiry-form button[type="submit"]').click()
+    await page.locator('.inquiry-form button[type="submit"]').click()
 
     await expect(page).toHaveURL(/\/contact\?sent=1$/)
     await expect(page.locator('.form-notice--ok')).toBeVisible()
@@ -183,15 +183,15 @@ test.describe('the enquiry form', () => {
 
     test('the form is a real form and still submits', async ({ page }) => {
       await page.goto('/contact')
-      const action = await page.locator('.enquiry-form').getAttribute('action')
-      const method = await page.locator('.enquiry-form').getAttribute('method')
+      const action = await page.locator('.inquiry-form').getAttribute('action')
+      const method = await page.locator('.inquiry-form').getAttribute('method')
       expect(action).toBe('/contact/submit')
       expect(method?.toLowerCase()).toBe('post')
 
-      await page.fill('.enquiry-form [name="name"]', 'No Script')
-      await page.fill('.enquiry-form [name="email"]', 'noscript@example.com')
-      await page.fill('.enquiry-form [name="message"]', 'Sent with JavaScript disabled.')
-      await page.locator('.enquiry-form button[type="submit"]').click()
+      await page.fill('.inquiry-form [name="name"]', 'No Script')
+      await page.fill('.inquiry-form [name="email"]', 'noscript@example.com')
+      await page.fill('.inquiry-form [name="message"]', 'Sent with JavaScript disabled.')
+      await page.locator('.inquiry-form button[type="submit"]').click()
       await expect(page).toHaveURL(/\/contact\?sent=1$/)
       await expect(page.locator('.form-notice--ok')).toBeVisible()
     })

@@ -56,7 +56,7 @@ export interface PublicSiteSettings extends ViewerSiteSettings {
  * a blank certification list renders NO block, never an example one.
  */
 export const EMPTY_FOOTER: FooterSettings = {
-  ctaLabel: 'Start an enquiry',
+  ctaLabel: 'Start an inquiry',
   ctaQuestion: 'Have a garment that needs making properly?',
   ctaSubline: 'Send a tech pack, a sketch, or just the idea.',
   ctaPromise: 'Reply within 2 business days',

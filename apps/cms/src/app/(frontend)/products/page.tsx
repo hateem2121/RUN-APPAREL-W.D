@@ -204,7 +204,7 @@ function Card({ product }: { product: ProductCard }) {
             <span>{product.productCode}</span>
             {product.category ? <span>· {product.category}</span> : null}
             <span>
-              · {colours} colour{colours === 1 ? '' : 's'}
+              · {colours} color{colours === 1 ? '' : 's'}
             </span>
           </p>
           {product.shortDescription ? (

@@ -119,7 +119,7 @@ export const SiteSettings: GlobalConfig = {
       type: 'text',
       required: true,
       maxLength: 32,
-      defaultValue: 'Start an enquiry',
+      defaultValue: 'Start an inquiry',
       admin: { description: 'The green tab at the top of the footer. Links to the Contact page.' },
     },
     {

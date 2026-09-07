@@ -72,7 +72,15 @@ export function buildMetadata({
       title,
       description,
       url,
-      locale: 'en_GB',
+      /*
+       * ⚠️ `en_US`, AND `en_GB` WAS ACTIVELY WRONG RATHER THAN MERELY VAGUE (audit FA-Q-06).
+       * The owner decided on AMERICAN spelling on 2026-09-04 — "colorway", "color",
+       * "customization", "inquiry" — because colorway is the higher-volume search term in
+       * the US and Canada, the largest target market. This tag told a crawler the opposite
+       * of what the page says. `docs/CUSTOMISATION-COPY-2026-09-04.md` logged it as open;
+       * the marketing site was built after and inherited the value rather than resolving it.
+       */
+      locale: 'en_US',
       images: [OG_IMAGE],
     },
     twitter: { card: 'summary_large_image', title, description, images: [OG_IMAGE.url] },

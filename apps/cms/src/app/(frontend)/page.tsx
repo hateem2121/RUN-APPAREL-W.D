@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic'
 
 const TITLE = 'RUN APPAREL — Custom B2B Sportswear & Team Wear Manufacturer'
 const DESCRIPTION =
-  'A private label apparel manufacturer in Sialkot, Pakistan — 100,000 pieces a month, from 50 pieces per style. Team wear, active wear, casual wear, outerwear and sports accessories, made to order for brands, teams and organisations worldwide. A family manufacturing and exporting trade since 1889.'
+  'A private label apparel manufacturer in Sialkot, Pakistan — 100,000 pieces a month, from 50 pieces per style. Team wear, active wear, casual wear, outerwear and sports accessories, made to order for brands, teams and organizations worldwide. A family manufacturing and exporting trade since 1889.'
 
 export const metadata: Metadata = {
   ...buildMetadata({ title: TITLE, description: DESCRIPTION, path: '/' }),
@@ -69,7 +69,7 @@ export default async function HomePage() {
           <p className="site-lede">
             RUN APPAREL is a private label manufacturer in Sialkot — team wear, active wear, casual
             wear, outerwear and sports accessories, made to order for the brands, teams and
-            organisations that never look back.
+            organizations that never look back.
           </p>
           <div className="site-actions">
             <Link className="btn btn--primary" href="/contact">
@@ -148,7 +148,7 @@ export default async function HomePage() {
             Numbers you can <span className="serif-accent">hold us to.</span>
           </h2>
           <p className="site-lede">
-            Confirmed capacity, not marketing. If any of these matters to your programme, ask and we
+            Confirmed capacity, not marketing. If any of these matters to your program, ask and we
             will put it in writing.
           </p>
           <dl className="facts-grid">
@@ -178,8 +178,7 @@ export default async function HomePage() {
                 RUN APPAREL does not hold certification in its own name. Our parent company, DURUS
                 INDUSTRIES, is SEDEX-registered and SMETA-audited, and we operate within the same
                 facility. Our fabric and trim suppliers hold OEKO-TEX, GOTS and GRS certification.
-                Where a programme requires certification in our own name, we will pursue it with
-                you.
+                Where a program requires certification in our own name, we will pursue it with you.
               </p>
             </div>
           </div>

@@ -159,6 +159,43 @@ wording, show it to you, and publish only what you approve.
 
 ---
 
+## 7 · Two things about the new contact form (about 10 minutes)
+
+The contact page now has a form. Every message is **saved into your CMS first, and only
+then emailed** — so if the email ever fails, the message is still there under **Inquiries**.
+That ordering is the whole design and it means an outage can cost you a notification but
+never an inquiry.
+
+### 7a · Confirm the domain is verified in Resend
+
+`RESEND_API_KEY` is already set on your Worker — I found it there. What I could not check
+is whether `wear-run.help` is **verified** in Resend, because the key is a secret the
+platform will not read back to me.
+
+⚠️ **There is a reason to doubt it.** Your domain's SPF record names Hostinger, Google and
+SendGrid — not Resend. If Resend has not been given the domain, every notification fails.
+
+1. Sign in to Resend and open **Domains**.
+2. If `wear-run.help` is not listed as **Verified**, add it and follow the DNS steps.
+3. If you would rather not, tell me and I will switch the form to a service you already
+   use — the code that sends the mail is one function.
+
+**How you will know either way:** open **Inquiries** in the CMS. Every row has a
+`notified` tick. If a row is saved but unticked, the message reached you and the email did
+not, and the reason is written on the row beside it. Nothing is ever lost while you decide.
+
+### 7b · The site now spells things the American way
+
+You decided this on 2026-09-04 — "colorway", "color", "inquiry" — because colorway is the
+higher-volume search term in the US and Canada. The 3D pages followed it; the marketing
+site was built afterwards and did not, so a buyer could read "5 colours" on one page and
+"COLORWAY 01" on the very next one.
+
+The site's wording now matches, and the footer button says **"Start an inquiry"**. Nothing
+is needed from you — this is here so the change does not surprise you.
+
+---
+
 ## What I could not close, and why
 
 Stated plainly so nothing here reads as finished when it is not.

@@ -49,7 +49,7 @@ export const FAMILIES: readonly Family[] = [
   {
     slug: 'sports-accessories',
     name: 'Sports Accessories',
-    body: 'The supporting pieces that finish a programme.',
+    body: 'The supporting pieces that finish a program.',
   },
 ]
 

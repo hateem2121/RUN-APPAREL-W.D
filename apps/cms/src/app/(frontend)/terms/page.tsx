@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = buildMetadata({
   title: 'Terms',
   description:
-    'The terms on which RUN APPAREL publishes this site and its 3D garment references. A reference is indicative; colour is confirmed against a physical sample.',
+    'The terms on which RUN APPAREL publishes this site and its 3D garment references. A reference is indicative; color is confirmed against a physical sample.',
   path: '/terms',
 })
 
@@ -57,15 +57,15 @@ export default async function TermsPage() {
 
           <p className="section-number">The 3D references are indicative</p>
           <p>
-            They show construction, fit and artwork placement. Colour appears differently on
-            different screens and under different lighting, and a rendered garment is not a colour
-            match to finished cloth. Colour, fabric weight and finish are confirmed against a
+            They show construction, fit and artwork placement. Color appears differently on
+            different screens and under different lighting, and a rendered garment is not a color
+            match to finished cloth. Color, fabric weight and finish are confirmed against a
             physical sample before production.
           </p>
 
           <p className="section-number">Nothing here is an offer</p>
           <p>
-            Prices, minimum quantities and lead times are quoted in writing for each enquiry.
+            Prices, minimum quantities and lead times are quoted in writing for each inquiry.
             Nothing on this site forms a contract.
           </p>
 
