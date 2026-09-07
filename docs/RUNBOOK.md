@@ -160,6 +160,21 @@ The four Worker names:
 Rolling back the **viewer** is the safe one — it holds no data and reads only the
 public API.
 
+### Routes are not versions — rolling back the site's address
+
+`wrangler rollback` restores a Worker's CODE and leaves its ROUTES where they are. To
+put the apex back the way it was before 2026-09-06 (the PDF Worker answering everything):
+
+1. remove the two wildcard routes from `apps/cms/wrangler.jsonc` and deploy the CMS
+   Worker — the site stops answering on the apex;
+2. restore `wear-run.help/*` and `www.wear-run.help/*` on `infra/apex-404/wrangler.jsonc`
+   and deploy the PDF Worker.
+
+**That order, not the reverse** — a pattern belongs to one Worker at a time, and the
+second deploy is refused while the first still holds it. `scripts/apex-probe.mjs` will
+then FAIL on the apex root (it expects the site), which is correct and is the reminder to
+revert this section's steps in the repo too.
+
 ### ⚠️ Rollback does not undo a database migration
 
 `ci.yml` applies pending D1 migrations **before** the Workers deploy, in a
@@ -848,11 +863,11 @@ yourself muting UptimeRobot, add a second destination instead.
 - **No error budget policy.** Recorded as a decision, not an oversight: with a
   single maintainer there is no release train to halt, so a budget would be a
   number nobody could act on.
-- **The bare apex `wear-run.help` returns 404 in ~0.7 s since 2026-08-19** (audit
-  L6; previously 522 after 20.2 s — by design, but a twenty-second hang for any typo
-  or crawler). Answered by `infra/apex-404/index.js`, which since 2026-08-28 ALSO
-  serves `/catalogue` and `/profile` from the shared `run-assets` R2 bucket. All
-  three paths are asserted by `scripts/apex-probe.mjs`, run from `uptime.yml`.
+- **The bare apex `wear-run.help` serves the marketing site since 2026-09-06** (it
+  404'd in ~0.7 s from 2026-08-19, and 522'd after 20.2 s before that). The CMS Worker
+  answers it on zone routes; `infra/apex-404/index.js` keeps `/catalogue` and `/profile`
+  on four narrower routes. All three are asserted by `scripts/apex-probe.mjs`, run from
+  `uptime.yml`, and the site's redirects by `scripts/smoke-post-deploy.sh`.
 
 ## Uptime alerts
 

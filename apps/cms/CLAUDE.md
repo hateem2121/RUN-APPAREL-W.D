@@ -112,6 +112,19 @@ root file first.
   and three such values had walked past it. A `var()` or computed value is still fine.
   (Documented here because that file's own CLAUDE.md has 59 characters of headroom.)
 
+- **THE SITE ANSWERS ON THREE HOSTNAMES AND ONLY `has: host` RULES TELL THEM APART.**
+  `wear-run.help` is the site; `www.` 308s to it; `cms.wear-run.help` is the admin and
+  the API and 308s its four public paths to the apex; `/admin` and `/api` on the apex
+  rewrite to the branded 404 so the login has ONE hostname. The rules live in
+  `siteHostRules.mjs` and are proven in `.next/routes-manifest.json` by
+  `src/hostRulesManifest.test.ts`, never in a handler. ⚠️ OpenNext tests a host value
+  UNANCHORED — a bare `wear-run.help` also matches `cms.wear-run.help` and the admin
+  rewrite takes the admin down — so every pattern is `^…$` with escaped dots.
+  ⚠️ `wrangler dev`, and therefore `opennextjs-cloudflare preview`, rewrites the Host
+  to the FIRST configured route unless `--infer-origin-from-routes=false` is passed:
+  a preview without it wears the wrong hostname and the rules fire for the wrong reason
+  (Task 6 of the launch plan records what was measured).
+
 ## Browser tests for the public site
 
 `pnpm --filter @run-apparel/cms test:e2e` — 100 tests, Chromium + Firefox, added 2026-09-05

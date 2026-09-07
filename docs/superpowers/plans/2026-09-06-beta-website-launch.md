@@ -1038,7 +1038,7 @@ git commit -m "ci: deploy the PDF Worker before the CMS Worker, and expect the s
 - Modify: `docs/CLOUDFLARE-SETUP.md` (§11.4 and the `## Live endpoints` table)
 - Modify: `docs/RUNBOOK.md` (the `## Undoing a bad deploy (rollback)` section and the bullet beginning `**The bare apex \`wear-run.help\` returns 404`)
 
-- [ ] **Step 1: Root `CLAUDE.md`, size-neutral**
+- [x] **Step 1: Root `CLAUDE.md`, size-neutral**
 
 Replace the paragraph from `**The apex serves TWO PDFs and 404s everything else` through `reporting success.` with:
 
@@ -1058,7 +1058,7 @@ Change `**Ten more traps live in \`apps/cms/CLAUDE.md\`**` to `**Eleven more tra
 
 Measure: `python3 -c "print(len(open('CLAUDE.md',encoding='utf-8').read()))"` — must be ≤ 39,000. If it is over, shorten the new paragraph (drop the 522 clause first); never touch another section to make room.
 
-- [ ] **Step 2: `apps/cms/CLAUDE.md` — the eleventh trap**
+- [x] **Step 2: `apps/cms/CLAUDE.md` — the eleventh trap**
 
 Insert as the last bullet under `## Traps` (immediately before the blank line and `## Browser tests for the public site`):
 
@@ -1077,7 +1077,7 @@ Insert as the last bullet under `## Traps` (immediately before the blank line an
   (Task 6 of the launch plan records what was measured).
 ```
 
-- [ ] **Step 3: `docs/CLOUDFLARE-SETUP.md`**
+- [x] **Step 3: `docs/CLOUDFLARE-SETUP.md`**
 
 Replace §11.4's body with:
 
@@ -1101,7 +1101,7 @@ In the `## Live endpoints` table add, as the first two rows:
 | Catalogue and profile PDFs (`run-apparel-apex-404`) | `https://wear-run.help/catalogue`, `https://wear-run.help/profile` |
 ```
 
-- [ ] **Step 4: `docs/RUNBOOK.md`**
+- [x] **Step 4: `docs/RUNBOOK.md`**
 
 In `## Undoing a bad deploy (rollback)`, after the `### The commands` block's closing fence, add:
 
@@ -1132,7 +1132,7 @@ Replace the bullet that begins `**The bare apex \`wear-run.help\` returns 404` w
   `uptime.yml`, and the site's redirects by `scripts/smoke-post-deploy.sh`.
 ```
 
-- [ ] **Step 5: Verify every gate that reads documents, then commit**
+- [x] **Step 5: Verify every gate that reads documents, then commit**
 
 Run: `node scripts/doc-citations.mjs && npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/claudeMd.test.ts`
 Expected: `0 unresolved`; the trap count for `apps/cms/CLAUDE.md` is Eleven; every instruction file under 39,000.
