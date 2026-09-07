@@ -2416,3 +2416,98 @@ a.contact-block__value:active {
     margin: 16mm;
   }
 }
+
+/*
+ * №02's proof — one still garment beside the 3D claim (audit FA-A-04).
+ *
+ * ⚠️ ONE COLUMN UNTIL 900px, AND THE PICTURE COMES SECOND IN BOTH ORDERS. On a phone the
+ * argument has to be read before the evidence means anything, and `.proof__copy` is
+ * first in the DOM, so no `order` juggling is needed and the tab order matches the
+ * reading order at every width. 900px is the same breakpoint `.facts-notes` uses; a new
+ * one would be a third number describing the same idea.
+ */
+.proof {
+  display: grid;
+  grid-template-columns: 1fr;
+  /*
+   * ⚠️ 24 AND 64, BECAUSE THEY ARE STEPS. The first draft used 32 and 48 and
+   * apps/viewer/src/styles/tokens.test.ts rejected both by name and line number — the
+   * documented scale is [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 64] and adding a step
+   * is an owner decision (docs/DESIGN.md), not a convenience during a layout. 24 is what
+   * `.facts-notes` uses for the same stacked relationship; 64 is the scale's one large
+   * step, and separating the argument from the evidence is what it is for.
+   */
+  gap: 24px;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .proof {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+    gap: 64px;
+  }
+}
+
+/*
+ * ⚠️ `margin: 0` IS LOAD-BEARING, AND ITS ABSENCE IS INVISIBLE. The UA stylesheet gives
+ * `<figure>` `margin: 1em 40px`. Measured 2026-09-07 at 1440px: the grid track was 352px
+ * and the picture rendered at 272 — 80px narrower, pushed off-centre inside its own
+ * column, with the caption following it. Nothing overflowed and nothing looked broken;
+ * it just quietly was not the layout that was written. `.product-card__figure` carries
+ * the same line for the same reason.
+ */
+.proof__figure {
+  margin: 0;
+}
+
+.proof__link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+/*
+ * ⚠️ THE ASPECT BOX IS THE CLS FIX AND IT IS NOT OPTIONAL. `ProductPoster` ships explicit
+ * width/height (1200x1500), which reserves the right shape only while the box is free to
+ * take it; this pins the ratio so the space exists before the request starts. The home
+ * page failed Cumulative Layout Shift in this audit (FA-L-51) and an unsized image here
+ * would have re-opened it in the same release that closed it. 4/5 is the gallery's ratio
+ * — same posters, same frame.
+ */
+.proof__frame {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 5;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+
+.proof__caption {
+  margin-block-start: 10px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/*
+ * The press, matching every other control on the site rather than inventing one. `scale`
+ * is a standalone property here on purpose — `transform` is applied innermost and would
+ * fight anything the cursor layer writes (packages/ui/src/base.css carries the account).
+ */
+@media (hover: hover) {
+  .proof__link:hover .proof__caption {
+    color: var(--ink);
+  }
+}
+
+.proof__link:active {
+  scale: 0.99;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .proof__link:active {
+    scale: 1;
+  }
+}

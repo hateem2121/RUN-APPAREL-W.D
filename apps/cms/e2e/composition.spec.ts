@@ -359,3 +359,122 @@ test.describe('FA-R-09 / FA-H-12 — the footer tab reserves its arrow and never
     ).toBeCloseTo(12, 1)
   })
 })
+
+/**
+ * FA-A-04 — the page that sells "see it in 3D" now shows a garment.
+ *
+ * Section №02 argued for the one differentiator this company has and showed nothing at
+ * all: four lines of prose and a link. Owner's decision 2026-09-07 was a STILL from a
+ * real garment rather than a live `<model-viewer>` — the live garment is a 3.9 MB GLB and
+ * the viewer measured its own page at 4.37 s to a picture, against ~40 KB for a poster.
+ */
+test.describe('FA-A-04 — a real garment on the home page', () => {
+  test('the picture is there, and it opens the 3D reference', async ({ page }) => {
+    await page.goto('/')
+    const figure = page.locator('.proof__figure')
+    await expect(figure).toHaveCount(1)
+
+    /*
+     * The link goes to the VIEWER's host, not this one. Nothing here serves
+     * `/{slug}/{colour}`, so a same-origin href would 404 — the same trap the gallery
+     * cards carry a warning about.
+     */
+    const href = await figure.locator('a.proof__link').getAttribute('href')
+    expect(href).toMatch(/^https?:\/\/[^/]+\/[^/]+\/[^/]+$/)
+    expect(new URL(href ?? '').origin).not.toBe(new URL(page.url()).origin)
+  })
+
+  /*
+   * ⚠️ THE SPACE MUST EXIST BEFORE THE IMAGE DOES. The home page failed Cumulative
+   * Layout Shift in this audit (FA-L-51) and was fixed in the same release; an unsized
+   * picture in section two would have re-opened it silently, because a poster loads fast
+   * on a developer's machine and late on a phone.
+   *
+   * Asserted on the FRAME rather than the image, and that is the point: the frame holds
+   * its 4/5 box whether the poster arrives, fails, or was never there. The seeded local
+   * database serves Payload-relative poster URLs which 403 (audit FA-O-10), so this test
+   * runs in the degraded state by default — which is the state that would show a
+   * collapse.
+   */
+  test('the frame reserves a 4:5 box whether or not the poster loads', async ({ page }) => {
+    await page.goto('/')
+    const box = await page.locator('.proof__frame').boundingBox()
+    if (!box) throw new Error('the proof frame has no box at all')
+    expect(box.width).toBeGreaterThan(100)
+    expect(box.width / box.height).toBeCloseTo(0.8, 2)
+  })
+
+  /*
+   * ⚠️ THE PICTURE MUST FILL ITS COLUMN, AND THE DEFAULT SAYS OTHERWISE. The UA
+   * stylesheet gives `<figure>` `margin: 1em 40px`. Measured 2026-09-07 at 1440px before
+   * the reset: the grid track was 352px and the figure rendered at 272 — 80px narrower,
+   * off-centre in its own column, with the caption following it. Nothing overflowed,
+   * nothing looked broken, and it simply was not the layout that had been written. That
+   * is the class of defect no other assertion here can see.
+   */
+  test('the picture fills its column, with no inherited figure margin', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/')
+    const measured = await page.evaluate(() => {
+      const figure = document.querySelector('.proof__figure') as HTMLElement | null
+      const grid = document.querySelector('.proof') as HTMLElement | null
+      if (!figure || !grid) return null
+      const tracks = getComputedStyle(grid).gridTemplateColumns.split(' ').map(Number.parseFloat)
+      return { figure: figure.getBoundingClientRect().width, track: tracks[tracks.length - 1] ?? 0 }
+    })
+    if (!measured) throw new Error('the proof grid did not render')
+    expect(measured.track, 'the grid is not in two columns at 1440px').toBeGreaterThan(200)
+    expect(
+      measured.figure,
+      `the figure is ${Math.round(measured.figure)}px inside a ${Math.round(measured.track)}px ` +
+        'column — something is adding a margin, most likely the UA default on <figure>',
+    ).toBeCloseTo(measured.track, 0)
+  })
+
+  test('on a phone the argument comes before the evidence, with no sideways scroll', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/')
+    const copy = await page.locator('.proof__copy').boundingBox()
+    const frame = await page.locator('.proof__frame').boundingBox()
+    if (!copy || !frame) throw new Error('the proof block did not lay out')
+
+    // Stacked, picture second. The DOM order is the reading order, so no `order` juggling.
+    expect(frame.y).toBeGreaterThanOrEqual(copy.y + copy.height - 1)
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(overflow, 'the proof block pushed the page sideways on a phone').toBe(0)
+  })
+
+  /*
+   * The degraded path, and it is not hypothetical here: this domain has served CACHED
+   * media errors for up to 30 days (the cached-404 trap in CLAUDE.md). What must never
+   * happen is a broken-image icon and sprawled alt text on the home page.
+   */
+  test('a poster that fails becomes the designed placeholder, not a broken image', async ({
+    page,
+  }) => {
+    await page.route('**/*poster*', (route) => route.fulfill({ status: 404, body: '' }))
+    await page.goto('/')
+    const frame = page.locator('.proof__frame')
+    await expect(frame).toBeVisible()
+
+    /*
+     * ⚠️ SCROLL TO IT FIRST, OR THIS TEST MEASURES NOTHING IN FIREFOX. The poster is
+     * `loading="lazy"` and sits a screen below the fold. Chromium's lazy threshold is
+     * generous enough that it fetches anyway; Firefox does not, so the image reported
+     * `complete: false` and `currentSrc: ""` — it had never been requested, the
+     * component correctly did not mark it failed, and the assertion failed against
+     * working code. Measured 2026-09-07, both engines side by side.
+     */
+    await frame.scrollIntoViewIfNeeded()
+    await expect(frame.locator('.product-card__placeholder')).toHaveText(/3D reference/i)
+    // and the box is still the right shape, so nothing above or below it moved
+    const box = await frame.boundingBox()
+    if (!box) throw new Error('the frame collapsed when the poster failed')
+    expect(box.width / box.height).toBeCloseTo(0.8, 2)
+  })
+})

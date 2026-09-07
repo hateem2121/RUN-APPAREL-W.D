@@ -1,10 +1,12 @@
 import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { ProductPoster } from '../../components/site/ProductPoster'
 import { CERTIFICATION, FACTS, SHIPS_TO } from '../../lib/companyFacts'
+import { getProductCards, type ProductCard } from '../../lib/content'
 import { getSiteSettings } from '../../lib/content'
 import { FAMILIES } from '../../lib/families'
-import { buildMetadata } from '../../lib/seo'
+import { buildMetadata, VIEWER_ORIGIN } from '../../lib/seo'
 
 /**
  * ⚠️ `force-dynamic` IS NOT OPTIONAL. `resolveCloudflareEnv()` returns null during
@@ -25,8 +27,61 @@ export const metadata: Metadata = {
   title: { absolute: TITLE },
 }
 
+/**
+ * One real garment, standing still, on the page that sells 3D (audit FA-A-04).
+ *
+ * ⚠️ THE PAGE ARGUED FOR 3D AND SHOWED NONE OF IT. Section №02 was four lines of prose
+ * and a link — a manufacturer's site claiming a differentiator with nothing to look at,
+ * which is the one section where a picture is the argument rather than decoration.
+ *
+ * ⚠️ A STILL, NOT A LIVE MODEL — owner's decision 2026-09-07. `<model-viewer>` on the
+ * home page would put a WebGL renderer and a multi-megabyte GLB on the first screen a
+ * buyer ever loads: the live garment is 3.9 MB and the viewer measured its own page at
+ * 4.37 s to a picture. A 40 KB poster says the same thing at 1% of the weight, and the
+ * real thing is one click away.
+ *
+ * ⚠️ IT IS A REAL PRODUCT, READ FROM THE CMS, AND THAT IS THE POINT. A hardcoded file
+ * would go stale the first time a garment was retired and nothing would say so — the
+ * same failure the gallery avoids by sharing `isAddressableColourway`. This picks the
+ * first published product that HAS a poster, which is the same ordering the gallery
+ * shows, so the home page can never advertise a garment the gallery does not carry.
+ *
+ * ⚠️ FIXED DIMENSIONS, AND THE ASPECT BOX IS WHY. `.proof__figure` carries the same
+ * `aspect-ratio: 4 / 5` the gallery cards use and `ProductPoster` ships explicit
+ * width/height, so the space is reserved before a byte of image arrives. The home page
+ * failed Cumulative Layout Shift in this audit (FA-L-51); adding an unsized image here
+ * would have re-opened it in the same commit that closed it.
+ *
+ * Renders NOTHING when there is no product or no poster. An empty band is honest; a
+ * broken image on the home page is not, and `ProductPoster` already carries the two
+ * layers that handle a poster which exists and fails.
+ */
+function ProofGarment({ product }: { product: ProductCard | null }) {
+  if (!product?.posterUrl) return null
+  const href = `${VIEWER_ORIGIN}/${product.slug}/${product.defaultColourSlug}`
+  return (
+    <figure className="proof__figure">
+      <a className="proof__link" href={href}>
+        <span className="proof__frame">
+          <ProductPoster src={product.posterUrl} alt={product.posterAlt} />
+        </span>
+        <figcaption className="proof__caption">
+          {product.productCode} {product.productName} — open the 3D reference
+        </figcaption>
+      </a>
+    </figure>
+  )
+}
+
 export default async function HomePage() {
-  const settings = await getSiteSettings()
+  /*
+   * Two reads, in parallel. `getProductCards` is the same 60-second in-process cache the
+   * gallery uses (`lib/content.ts`), so the home page adds no D1 round trip of its own
+   * once either page has been served, and both helpers degrade to a safe default rather
+   * than throwing — a database wobble costs this section, not the page.
+   */
+  const [settings, products] = await Promise.all([getSiteSettings(), getProductCards()])
+  const proof = products.find((product) => product.posterUrl) ?? null
   return (
     <>
       <section className="site-hero">
@@ -108,20 +163,23 @@ export default async function HomePage() {
       </section>
 
       <section className="site-section" data-site-reveal>
-        <div className="site-container">
-          <p className="section-number">№02 — See it before it exists</p>
-          <h2 className="display display--section">
-            Every reference, <span className="serif-accent">in 3D.</span>
-          </h2>
-          <p className="site-lede">
-            Each garment we develop gets a 3D reference you can turn, inspect and share — the same
-            model our QR tags open. No sample shipped, no guesswork about how a print sits.
-          </p>
-          <div className="site-actions">
-            <Link className="btn btn--primary" href="/products">
-              Browse the references
-            </Link>
+        <div className="site-container proof">
+          <div className="proof__copy">
+            <p className="section-number">№02 — See it before it exists</p>
+            <h2 className="display display--section">
+              Every reference, <span className="serif-accent">in 3D.</span>
+            </h2>
+            <p className="site-lede">
+              Each garment we develop gets a 3D reference you can turn, inspect and share — the same
+              model our QR tags open. No sample shipped, no guesswork about how a print sits.
+            </p>
+            <div className="site-actions">
+              <Link className="btn btn--primary" href="/products">
+                Browse the references
+              </Link>
+            </div>
           </div>
+          <ProofGarment product={proof} />
         </div>
       </section>
 
