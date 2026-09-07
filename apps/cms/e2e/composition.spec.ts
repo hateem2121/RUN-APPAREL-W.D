@@ -18,6 +18,23 @@ import { expect, test } from '@playwright/test'
 
 const PAGES = ['/', '/products', '/contact'] as const
 
+/**
+ * Wait for the layout to stop moving before measuring a box.
+ *
+ * ⚠️ ADDED AFTER A REAL FLAKE, AND IT IS A CORRECTNESS FIX RATHER THAN A LOOSENED
+ * TOLERANCE. FA-D-04 at 768px went flaky on Firefox under full-suite load only, and
+ * passed 3/3 in isolation — the tell for a measurement racing the page rather than a
+ * wrong number. Everything here is centred on `documentElement.clientWidth`, and that
+ * value MOVES by the width of a classic scrollbar the moment the document grows tall
+ * enough to need one. Firefox reserves 15px for it and Chromium's headless default
+ * overlay reserves none, which is why one engine saw it. Measuring after the fonts have
+ * landed and the network is quiet means the scrollbar state is final.
+ */
+const settle = async (page: import('@playwright/test').Page) => {
+  await page.waitForLoadState('networkidle')
+  await page.evaluate(() => document.fonts.ready)
+}
+
 test.describe('FA-A-71 — the loudest thing above the fold is the headline', () => {
   /**
    * MEASURED 2026-09-06: on every page the largest, heaviest element above the fold is
@@ -32,6 +49,7 @@ test.describe('FA-A-71 — the loudest thing above the fold is the headline', ()
     test(`${path} — nothing above the fold is set larger than the h1`, async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 900 })
       await page.goto(path)
+      await settle(page)
 
       const louder = await page.evaluate(() => {
         const h1 = document.querySelector('h1') as HTMLElement
@@ -100,6 +118,7 @@ test.describe('FA-B-71 — proximity says what belongs to what', () => {
     }) => {
       await page.setViewportSize({ width, height: 900 })
       await page.goto('/')
+      await settle(page)
 
       const measured = await page.evaluate((pairs) => {
         const gap = (a: string, b: string) => {
@@ -144,6 +163,7 @@ test.describe('FA-D-04 — the two carved shapes read as one system', () => {
     test(`both are on the viewport centre at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 })
       await page.goto('/')
+      await settle(page)
       const centres = await page.evaluate(() => {
         const centre = (selector: string) => {
           const box = document.querySelector(selector)?.getBoundingClientRect()
@@ -259,6 +279,7 @@ test.describe('FA-R-09 / FA-H-12 — the footer tab reserves its arrow and never
   test('its width, its fillets and its arrow all behave on hover', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto('/')
+    await settle(page)
     const tab = page.locator('.site-footer__tab')
     await tab.scrollIntoViewIfNeeded()
 
