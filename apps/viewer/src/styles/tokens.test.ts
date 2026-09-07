@@ -86,6 +86,40 @@ function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
 }
 
+/**
+ * The selector of the block a declaration sits in — enough to name an offender without
+ * parsing CSS.
+ *
+ * ⚠️ THIS WAS A REGEX AND THE REGEX TOOK 3.3 SECONDS. `(before.match(/([^{};\n]+)\s*\{[^{}]*$/))`
+ * reads correctly and backtracks catastrophically: `stripComments` replaces every comment
+ * character with a SPACE, so these files carry runs of thousands of spaces, and both
+ * `[^{};\n]+` and `\s*` can consume them in any split while `[^{}]*$` forces a rescan to
+ * the end of the slice. Measured 2026-09-07 over the four scanned stylesheets
+ * (base 19 KB, tokens 19 KB, page 119 KB, site 90 KB): **3316.6 ms**, against 0.1 ms for
+ * this. Byte-identical output, both before and after the change.
+ *
+ * That single assertion was 3512 ms where every other test in this file is 2-11 ms, and
+ * with vitest's 5 s default it TIMED OUT TWICE on a loaded machine in one session —
+ * reported as "Test timed out in 5000ms" on a file nobody had edited, which reads as a
+ * broken gate rather than a slow one. Raising the timeout would have hidden it.
+ *
+ * Same rule as the regex it replaces: the nearest `{` above the declaration, only if no
+ * `}` intervenes, and the selector is the text on that line before it.
+ */
+function enclosingSelector(source: string, index: number): string {
+  const before = source.slice(0, index)
+  const open = before.lastIndexOf('{')
+  if (open <= before.lastIndexOf('}')) return '?'
+  const head = before.slice(0, open)
+  const cut = Math.max(
+    head.lastIndexOf('}'),
+    head.lastIndexOf('{'),
+    head.lastIndexOf(';'),
+    head.lastIndexOf('\n'),
+  )
+  return head.slice(cut + 1).trim() || '?'
+}
+
 function cssFiles(): { name: string; source: string }[] {
   return SCANNED_DIRS.flatMap((dir) =>
     readdirSync(dir)
@@ -919,17 +953,38 @@ describe('user preferences the stylesheets answer', () => {
    * escaped, and a line number would make this fail on every unrelated edit above
    * it, which is how a gate gets loosened to shut it up.
    */
+  /*
+   * ⚠️ THE CONTROL FOR THE ASSERTION BELOW, AND IT IS NOT OPTIONAL. That test passes when
+   * the set of offenders is exactly one — which is also what it would report if
+   * `enclosingSelector` silently returned `?` for everything, or if the match loop found
+   * nothing at all. This feeds it a stylesheet shaped like the failure it exists to
+   * catch, including the long comment run that made the old regex quadratic, and
+   * requires the offender to be NAMED.
+   */
+  it('the offender detector names a real selector (negative control)', () => {
+    const sabotaged = [
+      `/*${' '.repeat(4000)}*/`,
+      '.colourway-tab__swatch {',
+      '  forced-color-adjust: none;',
+      '}',
+      '.btn--primary {',
+      '  forced-color-adjust: none;',
+      '}',
+    ].join('\n')
+
+    const found = [...sabotaged.matchAll(/forced-color-adjust\s*:\s*none/g)].map((match) =>
+      enclosingSelector(sabotaged, match.index),
+    )
+    expect(found).toEqual(['.colourway-tab__swatch', '.btn--primary'])
+  })
+
   it('opts exactly one element out of the forced-colors palette', () => {
     const uses: string[] = []
     for (const { name, source } of cssFiles()) {
       // `none` is the only value that opts out; `auto` is the default and is a
       // no-op wherever it appears.
       for (const match of source.matchAll(/forced-color-adjust\s*:\s*none/g)) {
-        const before = source.slice(0, match.index)
-        // The nearest selector above the declaration — enough to name the
-        // offender without parsing CSS.
-        const selector = (before.match(/([^{};\n]+)\s*\{[^{}]*$/)?.[1] ?? '?').trim()
-        uses.push(`${name} ${selector}`)
+        uses.push(`${name} ${enclosingSelector(source, match.index)}`)
       }
     }
 
