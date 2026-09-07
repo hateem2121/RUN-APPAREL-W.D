@@ -37,6 +37,30 @@ export const Users: CollectionConfig = {
     },
     update: isAdmin,
     delete: isAdmin,
+    /*
+     * ⚠️ THE UNPATCHED PAYLOAD ADVISORY, CLOSED BY CONFIGURATION — audit FA-O-71.
+     *
+     * GHSA-jg8r-5jh2-v2xj, "default account-unlock access allows authenticated users to
+     * reset other accounts' lockouts". Affects `payload <= 3.88.0`; this app runs 3.88.0
+     * and **`first_patched_version` is NONE** — read off the GitHub advisory API
+     * 2026-09-07, not inferred. There is no upgrade to take.
+     *
+     * ⚠️ AND IT APPLIED HERE ONLY BECAUSE THIS KEY WAS ABSENT. Payload's own source:
+     * `collections/config/defaults.js` assigns `unlock: defaultAccess`, and
+     * `auth/defaultAccess.js` is `({ req: { user } }) => Boolean(user)` — ANY
+     * authenticated principal. `access` above named create/read/update/delete and said
+     * nothing about unlock, so the default stood.
+     *
+     * What that cost, concretely: `maxLoginAttempts: 5` above is this admin panel's only
+     * brute-force protection, and an EDITOR — or the shrink robot, which authenticates
+     * with `users API-Key` — could clear the lockout on an admin account it was
+     * protecting. A lockout anyone signed in can undo is not a lockout.
+     *
+     * `isAdmin` and not `false`: an admin locking themselves out is the case this
+     * operation exists for, and a second admin unlocking them is the intended recovery.
+     * With `false` the only route back would be a D1 write against production.
+     */
+    unlock: isAdmin,
   },
   fields: [
     {
