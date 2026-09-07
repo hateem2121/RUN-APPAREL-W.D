@@ -189,6 +189,38 @@ test.describe('content security policy', () => {
     expect(csp).toContain("frame-ancestors 'none'")
   })
 
+  /**
+   * ⚠️ ON THE DOCUMENTS AND NOT ON THE API, WHICH IS THE POINT OF BOTH HALVES.
+   *
+   * COOP severs `window.opener`; CORP says this document may not be embedded as a
+   * subresource by another origin, covering every path `frame-ancestors` does not
+   * (FA-O-07).
+   *
+   * The second assertion is the one that matters more. The viewer fetches
+   * `/api/public/viewer/*` from another origin, and CORP's interaction with a CORS fetch
+   * is subtler than it looks — the failure mode is the 3D pages rendering "REFERENCE
+   * UNAVAILABLE" intermittently, which is precisely the incident publicViewer.ts already
+   * records from the Vary/ACAO episode. Putting these in `SECURITY_HEADERS` would have
+   * applied them to every route; this proves they did not.
+   *
+   * COEP is absent on purpose: `require-corp` demands a CORP header from every
+   * cross-origin subresource, which here means every poster on media.wear-run.help, and
+   * buys cross-origin isolation this site has no use for.
+   */
+  test('the documents are cross-origin isolated and the API is not', async ({ request }) => {
+    for (const path of ['/', '/products', '/contact', '/privacy', '/terms']) {
+      const h = (await request.get(path)).headers()
+      expect(h['cross-origin-opener-policy'], `${path} has no COOP`).toBe('same-origin')
+      expect(h['cross-origin-resource-policy'], `${path} has no CORP`).toBe('same-origin')
+    }
+    const api = (await request.get('/api/public/viewer/does-not-exist')).headers()
+    expect(
+      api['cross-origin-resource-policy'],
+      'CORP on the public API is how the viewer stops being able to read it',
+    ).toBeUndefined()
+    expect(api['cross-origin-embedder-policy']).toBeUndefined()
+  })
+
   test('the admin does NOT get it', async ({ request }) => {
     // Payload's bundle needs inline styles and dynamic imports; next.config.mjs records
     // why it deliberately has no full policy. Widening the source list would break the

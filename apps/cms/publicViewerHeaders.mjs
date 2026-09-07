@@ -92,9 +92,39 @@ export const PUBLIC_PAGE_CSP = [
   "frame-ancestors 'none'",
 ].join('; ')
 
+/**
+ * Cross-origin isolation for the HTML surfaces (audit FA-O-07).
+ *
+ * `Cross-Origin-Opener-Policy: same-origin` severs the `window.opener` relationship, so a
+ * page this site opens — or one that opens it — cannot reach into its browsing context.
+ * Nothing here opens a cross-origin popup that needs to talk back, so it costs nothing.
+ *
+ * `Cross-Origin-Resource-Policy: same-origin` says this DOCUMENT may not be embedded as a
+ * subresource by another origin. It complements `frame-ancestors 'none'` rather than
+ * repeating it: that one covers frames, this one covers every other embedding path.
+ *
+ * ⚠️ COEP IS DELIBERATELY ABSENT, AND THAT IS THE WHOLE REASON THIS BLOCK IS SCOPED TO
+ * PAGES. `Cross-Origin-Embedder-Policy: require-corp` demands a CORP header from every
+ * cross-origin subresource — which here means every poster on media.wear-run.help. Any
+ * that lacked one would silently stop rendering, and the gallery's whole content is
+ * posters. It buys cross-origin isolation this site has no use for: there is no
+ * SharedArrayBuffer and no high-resolution timer anywhere in it.
+ *
+ * ⚠️ AND WHY THESE ARE NOT IN `SECURITY_HEADERS`, which applies to every route including
+ * `/api/*`. The viewer fetches the public API from another origin. CORP's interaction with
+ * a CORS fetch is subtler than it looks, and the failure mode — the 3D pages rendering
+ * "REFERENCE UNAVAILABLE" intermittently — is the exact incident `src/endpoints/
+ * publicViewer.ts` already documents from the Vary/ACAO episode. Scoping to the five
+ * pages that are documents makes that impossible rather than unlikely.
+ */
+export const PUBLIC_PAGE_ISOLATION = [
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+  { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
+]
+
 export const publicPageCspRules = PUBLIC_PAGE_SOURCES.map((source) => ({
   source,
-  headers: [{ key: 'Content-Security-Policy', value: PUBLIC_PAGE_CSP }],
+  headers: [{ key: 'Content-Security-Policy', value: PUBLIC_PAGE_CSP }, ...PUBLIC_PAGE_ISOLATION],
 }))
 
 export const publicViewerVaryRule = {
