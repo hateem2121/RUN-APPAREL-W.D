@@ -282,6 +282,24 @@ It resolves itself as references are built; nothing needs doing again.
 
 ---
 
+### D18 · Camera momentum stays declined — `FA-H-22`, `FA-H-51`
+
+**Decision: no momentum. Confirmed 2026-09-07, first taken 2026-08-21.**
+
+A flick that keeps the garment spinning after the finger leaves. It was put to the owner
+on 2026-08-21 alongside the Lenis glide and **declined then**; the full-site audit raised
+it again as two separate findings because **that decision was never written down anywhere
+a later session would find it.** That omission is the reason it resurfaced, and this entry
+exists to stop a third pass.
+
+The case against acting is not only the earlier decision. Momentum on a 3D camera has to
+be tuned on a real device — an emulator's synthetic flick has no relationship to a thumb —
+and the camera already comes to rest **437.9 ms** after a release (measured 2026-09-07,
+`apps/viewer/e2e/camera-settle.spec.ts`, over 285 frames with the camera travelling 92.6°).
+That is responsive rather than sluggish, which is the complaint momentum would answer.
+
+**Guard:** none. This is a decision not to act, and the record is the point.
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap

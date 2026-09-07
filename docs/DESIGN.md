@@ -481,9 +481,20 @@ Written the other way round — hide by default, un-hide for motion users — a
 reduced-motion visitor is left staring at permanently invisible content. That
 inversion is the single most load-bearing line in the motion layer.
 
-Lenis smooth scroll is loaded lazily and applies its classes to `<html>`;
-`.lenis-smooth` deliberately forces `scroll-behavior: auto` so the two scroll
-systems do not fight.
+Lenis smooth scroll is loaded lazily and applies its classes to `<html>`. ⚠️ **They are
+STATE classes, not a flag, and this paragraph said otherwise until 2026-09-07**
+(audit FA-F-11). `lenis` stays for the session; `lenis-smooth` is present only while a
+smooth scroll is actually running — verified in lenis 1.3.26, `dist/lenis.mjs:1041`, which
+adds it only while `isScrolling === 'smooth'`, and on the live page at rest
+`document.documentElement.className` is `lenis has-custom-cursor`.
+
+So `.lenis.lenis-smooth { scroll-behavior: auto }` guards the moment the two scroll
+systems could fight, not the whole session — which is enough, because nothing here sets
+`scroll-behavior: smooth`. Do not read it as a session-wide override, and do not "simplify"
+it to `.lenis` on the assumption that it is one.
+`.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain }` is likewise
+active only mid-scroll. `packages/ui/src/base.css`'s own comment was already accurate; it
+was this document that implied permanence.
 
 ---
 
