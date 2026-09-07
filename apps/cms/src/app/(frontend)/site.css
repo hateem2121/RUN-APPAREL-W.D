@@ -2416,7 +2416,3 @@ a.contact-block__value:active {
     margin: 16mm;
   }
 }
-
-
-/* NEGATIVE CONTROL */
-.product-card__figure { aspect-ratio: auto; }
