@@ -104,6 +104,38 @@ export default defineConfig({
       // equivalent way to guarantee a WebGL context in headless WebKit.
       name: 'webgl',
       testMatch: DOM_SUITE,
+      /**
+       * ⚠️ A LONGER BUDGET FOR THIS PROJECT ONLY, AND IT IS A MEASUREMENT RATHER THAN A
+       * RAISE TO GO GREEN.
+       *
+       * These tests render a real garment through SwiftShader — 3D in SOFTWARE, on the
+       * CPU. Timed locally on an M1 2026-09-07, the heaviest of them ("3D model loads and
+       * switching colourway changes the KHR material variant") takes **9.9 s**, and the
+       * whole file 30.0 s. A GitHub runner is several times slower at CPU-bound
+       * rasterisation, so the suite-wide 30 s ceiling was never a margin — it was a
+       * coin-flip, and it lost twice in a row (runs 34121278710 and 34124770667, both
+       * attempts each, always at `page.waitForFunction` waiting for the model). It had
+       * passed on the two runs before that with nothing relevant changed between them.
+       *
+       * ⚠️ THE ROOT `.github/CLAUDE.md` SAYS RAISING A CEILING IS THE WRONG FIX, AND THAT
+       * RULE IS ABOUT A DIFFERENT CASE. There, a degraded Ubuntu mirror ate whole job
+       * budgets and lifting one ceiling only moved which job died — the ceiling was never
+       * the problem. Here the ceiling IS the problem: it is smaller than the measured cost
+       * of the work on the machine that does it. Scoped to this project so the other five
+       * keep the 30 s ceiling, which is generous for everything they do.
+       *
+       * ⚠️ 120 s AND NOT 60, DELIBERATELY, THOUGH 60 WOULD COVER THE MEASURED COST.
+       * A timeout only bounds a FAILURE — a passing test costs its real duration and
+       * nothing more — so a generous ceiling is free on every green run and buys one
+       * thing that matters: at 120 s a failure can no longer be explained away as "the
+       * runner was slow". If this times out again the model is BROKEN, not slow, and the
+       * next person is spared the round trip I just spent deciding which. The price is
+       * four extra minutes on a genuinely broken run, twice, because of `retries`.
+       *
+       * A broken model also shows up in `webgl.spec.ts`'s own context assertions. Do not
+       * raise this again without measuring which of the two it is.
+       */
+      timeout: 120_000,
       use: {
         ...devices['Desktop Chrome'],
         launchOptions: {
