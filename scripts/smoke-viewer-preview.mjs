@@ -25,6 +25,8 @@
  * reported as "the previews are broken".
  */
 
+import http from 'node:http'
+import https from 'node:https'
 import { DEFAULT_PRODUCT, squashCode } from './live-products.mjs'
 
 const [, , baseArg, productArg, colourArg] = process.argv
@@ -71,6 +73,41 @@ const fail = (message) => failures.push(message)
 const meta = (html, key) =>
   html.match(new RegExp(`<meta\\s+(?:property|name)="${key}"\\s+content="([^"]*)"`, 'i'))?.[1] ??
   null
+
+/**
+ * A GET that can send `Sec-Fetch-Mode`, which `fetch` cannot.
+ *
+ * ⚠️ `sec-fetch-mode` IS A FORBIDDEN HEADER NAME, and `fetch` does not refuse it — it
+ * silently REWRITES it to `cors`. Verified against a local echo server 2026-09-07:
+ * `fetch(url, { headers: { 'sec-fetch-mode': 'navigate' } })` arrives as `cors`. So the
+ * first version of the check below reported every navigation identical to a plain
+ * request, which reads as "nothing to fix". `node:https` sends what it is given.
+ */
+function rawGet(target, headers) {
+  const url = new URL(target)
+  const mod = url.protocol === 'https:' ? https : http
+  return new Promise((resolve, reject) => {
+    const req = mod.request(
+      {
+        hostname: url.hostname,
+        port: url.port || undefined,
+        path: url.pathname + url.search,
+        method: 'GET',
+        headers,
+      },
+      (res) => {
+        let body = ''
+        res.setEncoding('utf8')
+        res.on('data', (chunk) => {
+          body += chunk
+        })
+        res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, html: body }))
+      },
+    )
+    req.on('error', reject)
+    req.end()
+  })
+}
 
 async function get(target, ua) {
   const res = await fetch(target, { headers: { 'user-agent': ua, accept: 'text/html' } })
@@ -205,6 +242,48 @@ async function runChecks() {
         '   Visitors must be served the static shell — see the latency measurement in\n' +
         '   apps/viewer/worker/index.ts.',
     )
+  }
+
+  // 6. THE SAME CRAWLER REQUEST, SENT AS A NAVIGATION. This is the check that was
+  //    missing, and the one this script could not physically perform: `fetch` cannot
+  //    send `Sec-Fetch-Mode` (see rawGet above), so every assertion here was made with
+  //    a header shape no real crawler or browser uses.
+  //
+  //    Cloudflare's Static Assets router serves a top-level navigation straight from
+  //    the asset router and never invokes the Worker. Measured live 2026-09-07: this
+  //    exact URL with a Twitterbot UA returned the per-garment og:title on a plain
+  //    request and the GENERIC one with `sec-fetch-mode: navigate`. A navigation is the
+  //    only way a person or a link crawler ever reaches a page, so the whole feature was
+  //    inert for its audience while every check in this file passed.
+  //
+  //    The fix is the `run_worker_first` ARRAY in apps/viewer/wrangler.jsonc, which
+  //    disables that automatic detection. This asserts it is still in force ON THE
+  //    DEPLOYED WORKER, which no unit test can.
+  {
+    const nav = await rawGet(url, {
+      'user-agent': CRAWLER_UA,
+      accept: 'text/html',
+      'sec-fetch-mode': 'navigate',
+      'sec-fetch-dest': 'document',
+      'sec-fetch-site': 'none',
+    })
+    if (nav.status === 403 || nav.status === 429) {
+      console.log(
+        `⚠️  ${url} returned ${nav.status} to a navigation request — INCONCLUSIVE, as above.`,
+      )
+    } else {
+      const navTitle = nav.html.match(/<title>([^<]*)<\/title>/i)?.[1] ?? ''
+      if (!squash(navTitle).includes(expectCode)) {
+        fail(
+          `A crawler sending Sec-Fetch-Mode: navigate got <title> "${navTitle}",\n` +
+            `   which does not name ${expectCode}. The Worker did not run: Cloudflare\n` +
+            '   served the request from the asset router. Check that the\n' +
+            '   `run_worker_first` array is still present in apps/viewer/wrangler.jsonc.',
+        )
+      } else {
+        console.log('   navigation request → rewritten too')
+      }
+    }
   }
 
   return { title, canonical }

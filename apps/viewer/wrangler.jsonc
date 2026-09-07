@@ -65,32 +65,58 @@
   // exactly one thing — rewrite the Open Graph tags per garment so a link shared
   // with a lead unfurls as that garment in that colourway. See worker/index.ts.
   //
-  // ⚠️ `run_worker_first` is deliberately absent. Without it, anything matching a
-  // file in dist/ is served by the asset router and the Worker is NEVER invoked,
-  // so /assets/*.js keeps the zero-overhead path it had before this line existed.
-  // Only SPA-fallback routes reach the script, and it returns early for all but
-  // crawler GETs.
+  // ⚠️ `run_worker_first` IS AN ARRAY, AND THE ARRAY FORM IS THE WHOLE POINT.
   //
-  // ⚠️ AND HERE IS WHAT THAT COSTS, which this comment and docs/RUNBOOK.md both
-  // omitted until 2026-09-07 (audit FA-T-15) — so the two places an engineer
-  // actually reads at the point of change argued for the absence without naming
-  // what adding it would buy. Measured against the live viewer, same URL, same
-  // crawler user-agent, one header apart:
+  // It was ABSENT until 2026-09-07, on the reasoning that adding it puts the Worker in
+  // front of every asset request and `/assets/*.js` would lose the zero-overhead path it
+  // had before the script existed. That reasoning was sound and the conclusion was wrong,
+  // because it was reasoning about `run_worker_first: true`. Cloudflare's docs for
+  // Advanced routing control (wrangler >= 4.20.0; this repo pins 4.122.0):
   //
-  //   Googlebot UA, no sec-fetch-mode        12,491 bytes, per-garment <title>, 1 JSON-LD
-  //   Googlebot UA + sec-fetch-mode: navigate 11,204 bytes, generic <title>,   0 JSON-LD
+  //   "you can use run_worker_first with an array of route patterns. This approach
+  //    DISABLES the automatic Sec-Fetch-Mode: navigate detection and gives you explicit
+  //    control over which requests should be handled by your Worker script vs served as
+  //    static assets."
   //
-  // A navigation request is served straight from the asset router, so the Worker
-  // never runs and the per-garment rewrite silently does not happen. Adding
-  // `run_worker_first` is the documented fix and is a REAL trade, not a bug fix:
-  // it puts the Worker in front of every asset request as well. Both sides are
-  // written up in docs/AUDIT-PRODUCT-PAGES-2026-09-05.md, which also establishes
-  // that Google had never crawled these pages, so the live impact so far is nil.
+  // Two facts in one sentence. The automatic navigate detection is what was skipping the
+  // Worker; an array both turns that off and lets the asset paths keep bypassing it. So
+  // the cost that argued against `true` does not apply to this shape.
   //
-  // If it is ever added, prefer a narrow path array over `true`, and re-run the
-  // log-every-entry measurement rather than trusting either note — the 2026-08-08
-  // asset-path result is version-specific to wrangler 4.114.0 and the pin has
-  // moved since.
+  // ⚠️ WHAT IT FIXES — MEASURED AGAINST THE LIVE VIEWER 2026-09-07, one header apart
+  // (audit FA-N-14, FA-N-15):
+  //
+  //   /rxps/wine   Twitterbot, plain              200, og:title "R-XPS X-MILO PRO SKIN-SUIT"
+  //   /rxps/wine   Twitterbot + navigate          200, og:title "RUN APPAREL — 3D Product…"
+  //   /manifest.webmanifest  browser, plain       404
+  //   /manifest.webmanifest  browser + navigate   200
+  //
+  // A NAVIGATION IS THE ONLY WAY A HUMAN OR A LINK CRAWLER EVER REACHES A PAGE, so both
+  // features the Worker exists for — the per-garment card and the soft-404 fix shipped on
+  // 2026-09-04 — were inert for their entire audience. Neither was broken code; the
+  // script was never invoked.
+  //
+  // ⚠️ AND THE FIRST MEASUREMENT OF THIS SAID THE OPPOSITE, because node's `fetch`
+  // REWRITES `sec-fetch-mode` to `cors` (it is a forbidden header name). Every "navigate"
+  // column read identical to plain, which reads as "already fixed". Verified against a
+  // local echo server before any of the numbers above were believed, and taken with a raw
+  // `node:https` client. Do not measure this with `fetch`.
+  //
+  // ⚠️ NEGATIVE PATTERNS TAKE PRECEDENCE AND ORDER IS INSIGNIFICANT (max 100 entries).
+  // The exclusions below are the paths that are always real files, so they keep the
+  // asset-router path exactly as before. `/og/*` is deliberately NOT excluded — the
+  // Worker turns a missing preview image from a 200 HTML page into a 404, and a social
+  // platform asking for that image is precisely who needs it.
+  //
+  // ⚠️ A PATH NOT LISTED HERE IS NOT BROKEN, ONLY SLOWER: the default branch returns
+  // `env.ASSETS.fetch(request)`, which is also what keeps `dist/_headers` on the
+  // response — it is applied by the static asset handler, so a response pulled through
+  // the binding carries the CSP and HSTS and a `new Response(...)` carries neither
+  // (measured on the live edge 2026-08-12).
+  //
+  // ⚠️ VERIFY AFTER DEPLOY, NOT BEFORE. This is a routing change on the one Worker a
+  // printed QR tag lands on, and no local runtime proves the edge. Re-run the two rows
+  // above against viewer.wear-run.help and expect the navigate rows to match the plain
+  // ones. `scripts/smoke-viewer-preview.mjs` carries the crawler assertion.
   "main": "./worker/index.ts",
   // `single-page-application` replaces the Pages `_redirects` SPA fallback (CI
   // deletes dist/_redirects for this target — Workers Static Assets rejects the
@@ -101,7 +127,23 @@
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/*",
+      "!/assets/*",
+      "!/basis/*",
+      "!/draco/*",
+      "!/env/*",
+      "!/apple-touch-icon.png",
+      "!/favicon.ico",
+      "!/favicon.svg",
+      "!/llms.txt",
+      "!/meshopt_decoder.js",
+      "!/og-default.jpg",
+      "!/robots.txt",
+      "!/sitemap.xml",
+      "!/sw.js"
+    ]
   },
   // Internal, same-account call to the CMS worker for the published payload. A
   // service binding rather than a public fetch: no DNS, no TLS, no zone in the
