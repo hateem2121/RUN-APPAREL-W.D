@@ -47,12 +47,16 @@ Check each of these and tell me if any is wrong:
 | `partner@wear-run.com` | Contact page, home page, footer |
 | `+923361777313` | Contact page, footer, WhatsApp links |
 | `RUN APPAREL (PVT) LTD` | Footer, and the structured data |
-| **"EST. LINEAGE 1889"** | Home page headline strip |
+| ~~**"EST. LINEAGE 1889"**~~ — **answered 2026-09-07**, being reworded | Home page headline strip |
 | **"We reply within 2 business days"** | Home and Contact — this is a promise; it should be one you can keep |
 | **"100% B2B manufacturer"** | Home page |
 
-The 1889 line and the 2-day reply are the two worth pausing on. The first is a heritage
-claim a buyer may ask you to substantiate; the second is a commitment in writing.
+The 2-day reply is the one worth pausing on: it is a commitment in writing.
+
+The 1889 line is **settled** — you confirmed on 2026-09-07 that your family began
+manufacturing and exporting in 1889 and has done so since. That is a stronger claim than
+the old wording carried, and it is being reworded to say so plainly. See
+`docs/DECISIONS-BETA-WEBSITE.md`.
 
 ---
 
@@ -113,6 +117,41 @@ Open the CMS admin, go to **Settings**, and fill in:
 Optional: **Works coordinates** under the address, only if you know them to be right.
 
 **You are done when** the bottom of any page shows the blocks you filled and nothing you did not.
+
+---
+
+## 6 · Numbers a buyer will look for (about 15 minutes)
+
+**Why this matters.** Your whole marketing site currently contains **two** checkable
+numbers. A manufacturing buyer decides whether to enquire by looking for specifics — can
+this factory take my order, and how fast. Adjectives do not answer that; numbers do.
+
+**Nothing here is published until you confirm it.** Leave anything blank that you cannot
+stand behind — a blank is fine, a guess is not. Several of these already have a home in
+the CMS (section 5 above); the rest would go on the home and contact pages.
+
+Answer whichever you can:
+
+| # | Question | Example of a good answer |
+|---|---|---|
+| 1 | How many garments can you produce per month? | `40,000 pieces / month` |
+| 2 | What is your minimum order, per style and colour? | `100 pieces per style, 50 per colour` |
+| 3 | How long from approved sample to shipment? | `21–28 days` |
+| 4 | How long to produce a sample? | `7–10 days` |
+| 5 | How many people work at the factory? | `180` |
+| 6 | How big is the factory? | `45,000 sq ft` |
+| 7 | Which certifications do you hold **today**? | `OEKO-TEX Standard 100`, `SEDEX` |
+| 8 | Which countries do you currently export to? | `UK, Germany, Australia` |
+| 9 | How many years has the business been exporting? | Answered — since **1889** |
+| 10 | Any named customers you are allowed to mention? | Only ones who have agreed |
+
+**A warning worth reading.** Numbers 7 and 10 are the two that can cost you. A
+certification you no longer hold, or a customer who has not agreed to be named, is worse
+on your website than nothing at all — it is the first thing a buyer's compliance team
+checks. If you are unsure about one, leave it out.
+
+**You are done when** you have sent me the answers you are confident in. I will draft the
+wording, show it to you, and publish only what you approve.
 
 ---
 
