@@ -272,7 +272,8 @@ and it shipped as 21 literals until 2026-09-05.
 | `--tracking-caps-wide` | 0.14em | `.section-number`, `.footer__line`; the site's `.footer-clock__time small` |
 | `--tracking-caps-compact` | 0.06em | the colourway rail below its 500px container; the site's `.footer-clock__time` |
 | `--tracking-mono` | 0.11em | `.mono` — see the warning below |
-| `--tracking-wordmark` | -0.02em | `.header__wordmark`, `.footer__brand`, and the aside heading that borrows it |
+| `--tracking-wordmark` | -0.02em | `.header__wordmark`, `.footer__brand`, the site's `.notch__wordmark`, and the aside heading that borrows it |
+| `--tracking-card-title` | -0.02em | the site's `.product-card__name` |
 | `--tracking-caps-snug` | 0.08em | the marketing site: `.nav-link`, `.product-card__img` alt text, `.product-card__placeholder` |
 | `--tracking-caps-spaced` | 0.16em | the site footer's facts headings, `.footer-block h3`, and the open light `.footer-status` |
 | `--tracking-instrument` | 0.17em | the site footer's instrument captions: the `.site-footer__tab` label and the `.footer-dim` dimension line |

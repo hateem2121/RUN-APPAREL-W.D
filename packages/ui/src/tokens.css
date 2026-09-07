@@ -243,6 +243,18 @@
   --tracking-caps-compact: 0.06em; /* the colourway rail below 500px container, the site's .footer-clock__time */
   --tracking-mono: 0.11em; /* .mono — see the warning above */
   --tracking-wordmark: -0.02em; /* fixed: display type with no optical range */
+  /*
+   * ⚠️ THE CARD TITLE GETS ITS OWN NAME RATHER THAN BORROWING "wordmark", which is what
+   * the note further down this file already asked for. Same value today; a card title and
+   * a brand mark are different jobs and will not always want the same number.
+   *
+   * It exists because `.product-card__name` was reading `--tracking-display-sm`, a
+   * `clamp(-1.38px, -0.1vw, -0.26px)` — VIEWPORT-SCALED tracking on text whose SIZE is
+   * fixed at 18px (audit FA-C-51). Letter-spacing that changes with window width on type
+   * that does not is a defect, not a fluid design: at 1440 it resolved to -1.38px, which
+   * is -0.0767em on an 18px face.
+   */
+  --tracking-card-title: -0.02em;
 
   /* ── The marketing site's tracking, added 2026-09-06 ─────────────────
      Eight values the footer and navbar shipped with, documented the day the
