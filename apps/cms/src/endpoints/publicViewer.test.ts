@@ -1,6 +1,7 @@
 import type { PayloadRequest } from 'payload'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { publicViewerDefaultColourEndpoint, publicViewerEndpoint } from './publicViewer'
+import { __clearViewerCache } from './viewerCache'
 
 /**
  * The HANDLER half of the only public door in this system.
@@ -93,7 +94,19 @@ const defaultColour = publicViewerDefaultColourEndpoint.handler as (
   req: PayloadRequest,
 ) => Promise<Response>
 
+/**
+ * ⚠️ THE CACHE IS PROCESS-WIDE, SO IT SURVIVES BETWEEN TESTS UNLESS IT IS CLEARED.
+ *
+ * This is not tidiness. Without it, the first test to request a product seeds an entry
+ * and every later test asking for the same slug is answered from it — so a case that
+ * REMOVES a product's colourways and expects a 404 gets the earlier payload instead, and
+ * fails. Exactly that happened when the cache was added, which is a fair description of
+ * the production behaviour too: for up to the 60s TTL, an isolate keeps serving the last
+ * good projection. That is the trade the owner accepted for the public pages on
+ * 2026-09-05 and it is documented in viewerCache.ts — but a test must not depend on it.
+ */
 afterEach(() => {
+  __clearViewerCache()
   delete process.env.CMS_PUBLIC_URL
 })
 
@@ -281,5 +294,76 @@ describe('asset origin resolution', () => {
     }
 
     expect(body.product.posterFallback.url).toBe('https://fallback.example/media/fallback.webp')
+  })
+})
+
+/**
+ * The cache, asserted as the thing it exists for: NOT reaching the database.
+ *
+ * Measured 2026-09-06, five samples per URL: this endpoint answered in 1,178–1,291 ms
+ * against 41–49 ms for the viewer's own HTML on the same page, and `/api/health` on the
+ * same host answered in 265–338 ms — so ~900 ms of it is the two D1 reads and the
+ * projection. Asserting a duration here would be a flaky way of saying the same thing;
+ * asserting that `payload.find` is not called again says it exactly.
+ *
+ * ⚠️ EACH CASE CLEARS THE CACHE FIRST. Without that these pass for the wrong reason —
+ * whichever ran first would seed the entry the others then read. The `afterEach` above
+ * covers the rest of the file; these clear at the start because they care about the very
+ * first request.
+ */
+describe('the in-process payload cache', () => {
+  it('answers a repeat request without touching the database', async () => {
+    __clearViewerCache()
+    const first = makeReq({ productSlug: 'n001', colourSlug: 'wine' })
+    const a = await withColour(first.req)
+    expect(first.find).toHaveBeenCalledTimes(1)
+
+    const second = makeReq({ productSlug: 'n001', colourSlug: 'wine' })
+    const b = await withColour(second.req)
+    expect(second.find, 'the second request must not query D1').not.toHaveBeenCalled()
+    expect(await b.json()).toEqual(await a.json())
+    expect(b.headers.get('Vary'), 'a cached answer keeps the same headers').toBe(
+      'Origin, Sec-CH-Prefers-Color-Scheme',
+    )
+  })
+
+  it('the negative control: a different colourway is a different entry', async () => {
+    __clearViewerCache()
+    await withColour(makeReq({ productSlug: 'n001', colourSlug: 'wine' }).req)
+    const other = makeReq({ productSlug: 'n001', colourSlug: 'navy' })
+    await withColour(other.req)
+    expect(
+      other.find,
+      'a different colour must not be served from wine’s entry',
+    ).toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * ⚠️ THE ORIGIN IS PART OF THE KEY BECAUSE IT IS PART OF THE BODY — every poster and
+   * model URL is resolved against it. Serving one origin's payload to another looks like a
+   * broken image, not like a caching mistake.
+   */
+  it('does not serve one origin’s payload to another', async () => {
+    __clearViewerCache()
+    process.env.CMS_PUBLIC_URL = 'https://cms.wear-run.help'
+    await withColour(makeReq({ productSlug: 'n001', colourSlug: 'wine' }).req)
+    process.env.CMS_PUBLIC_URL = 'http://localhost:3100'
+    const local = makeReq({ productSlug: 'n001', colourSlug: 'wine' })
+    const res = await withColour(local.req)
+    expect(local.find, 'a different origin must re-query').toHaveBeenCalledTimes(1)
+    const body = (await res.json()) as { product: { posterFallback: { url: string } } }
+    expect(body.product.posterFallback.url).toContain('localhost:3100')
+  })
+
+  it('never caches a 404', async () => {
+    __clearViewerCache()
+    const missing = makeReq({ productSlug: 'gone', colourSlug: 'wine' }, { product: null })
+    expect((await withColour(missing.req)).status).toBe(404)
+    const retry = makeReq({ productSlug: 'gone', colourSlug: 'wine' })
+    await withColour(retry.req)
+    expect(
+      retry.find,
+      'a failure must stay a bad request, not become a bad minute',
+    ).toHaveBeenCalledTimes(1)
   })
 })
