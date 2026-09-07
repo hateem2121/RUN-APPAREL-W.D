@@ -438,7 +438,6 @@ same class of defect as the 1.00:1 skip link `tokens.test.ts` was written for.
 | `--ui` | 220ms |
 | `--settle` | 500ms |
 | `--slow` | 800ms |
-| `--stagger` | 60ms |
 | `--reveal-y` | 24px |
 
 Both curves are **ease-out**: fast departure, slow arrival. Enter animations use

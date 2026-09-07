@@ -397,8 +397,13 @@ li {
        motion-sensitive visitor experiences as the page not responding. The
        negative animation-delay is the conventional value and is deliberate: it
        starts an animation already past its own end, so the element lands in its
-       final state rather than playing a 0.01ms flicker. Added 2026-08-14; it
-       matters more now that --stagger has a documented use. */
+       final state rather than playing a 0.01ms flicker. Added 2026-08-14.
+       ⚠️ This used to end "it matters more now that --stagger has a documented
+       use." That was false when it was written and stayed false for three weeks:
+       nothing ever read --stagger, and the token was deleted on 2026-09-07. The
+       two declarations below are unaffected and still earn their place — they
+       collapse a delay from ANY source, which is the case that actually reaches a
+       motion-sensitive visitor. */
     transition-delay: 0s !important;
     animation-delay: -0.01ms !important;
   }

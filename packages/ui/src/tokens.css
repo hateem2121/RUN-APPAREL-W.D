@@ -74,7 +74,17 @@
   --ui: 220ms; /* controls: hover, press, state a finger is waiting on */
   --settle: 500ms; /* entrances */
   --slow: 800ms; /* wipes and reveals */
-  --stagger: 60ms;
+  /* ⚠️ `--stagger` (60ms) WAS HERE AND NOTHING READ IT — declared 2026-08-14, flagged by
+     three audits (2026-08-14, 2026-09-05 and 2026-09-06 FA-T-01/FA-H-19), and shipped to
+     every visitor for the whole of that time. Deleted 2026-09-07 rather than given a use:
+     neither surface staggers anything, and the marketing site's new entrance animations
+     deliberately match the viewer's, which reveal each element on its own as it arrives.
+     If a stagger is ever wanted, adding a token back is one line — carrying a dead one is
+     what made two audits report the same thing twice.
+     ⚠️ Written `--stagger` rather than `--stagger:` on purpose: tokens.test.ts matches
+     `--name<colon>value;` against this file as raw text, and `[^;]` crosses newlines, so a
+     colon here makes a COMMENT parse as a declaration and the drift test compares
+     paragraphs of prose against a documented value. Found on the way to deleting it. */
   --reveal-y: 24px;
 
   /* ── Targets ────────────────────────────────────────────────────── */

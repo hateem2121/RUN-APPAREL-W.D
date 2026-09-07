@@ -228,6 +228,45 @@ describe('design tokens', () => {
         '2026-08-06 precisely because a derived document that drifts is worse than none.',
     ).toEqual([])
   })
+
+  /**
+   * ⚠️ THE GATE ABOVE IS ASYMMETRIC, AND IT IS BLIND IN THE DIRECTION THAT ACTUALLY
+   * HAPPENED. Measured 2026-09-07, both ways:
+   *
+   *   DESIGN.md documents a token tokens.css does not declare  -> caught
+   *   tokens.css declares a token DESIGN.md does not document  -> 27 passed, silent
+   *
+   * The second is the dead-token case: something shipped to every visitor that no
+   * document mentions and nothing reads. `--stagger: 60ms` lived in exactly that gap from
+   * 2026-08-14 to 2026-09-07 and was reported by THREE separate audits before anyone
+   * deleted it, because the gate meant to prevent drift skipped it by construction —
+   * `if (!declared) continue` only ever walks rows that exist in the document.
+   *
+   * Motion tokens only. Colour and spacing tokens are documented across tables whose
+   * columns differ and several are deliberately half-documented (see the `alpha` note
+   * above); widening this would report those as failures on its first run.
+   */
+  it('every motion token in tokens.css is documented in DESIGN.md', () => {
+    const tokens = readFileSync(cssPath('tokens.css'), 'utf8')
+    const design = readFileSync(DESIGN_MD, 'utf8')
+
+    // The motion block is delimited in the file by its own section comment.
+    const block = tokens.slice(tokens.indexOf('--ease:'), tokens.indexOf('── Targets ─'))
+    const declared = [...block.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gm)].map((m) => m[1] ?? '')
+
+    expect(
+      declared.length,
+      'the motion block parser found nothing — it has stopped reading tokens.css',
+    ).toBeGreaterThan(6)
+
+    const undocumented = declared.filter((token) => !design.includes(`\`${token}\``))
+    expect(
+      undocumented,
+      'a motion token is shipped to every visitor and appears in no document.\n' +
+        'Either use it and add it to the table in docs/DESIGN.md §5, or delete it.\n' +
+        'This is the gap `--stagger` sat in for three weeks and three audits.',
+    ).toEqual([])
+  })
 })
 
 /**
