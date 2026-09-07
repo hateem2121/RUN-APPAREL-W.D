@@ -300,6 +300,38 @@ That is responsive rather than sluggish, which is the complaint momentum would a
 
 **Guard:** none. This is a decision not to act, and the record is the point.
 
+### D19 · AI crawlers are welcomed by name, and no reuse rights are granted — `FA-N-17`
+
+**Decision: name them, allow them, and leave the training question to the owner.
+2026-09-07.**
+
+`robots.txt` said nothing about AI crawlers, so "are we open to them?" had no answer on
+the site — and on this domain that question already has a history. Cloudflare's managed
+robots.txt was prepending nine `Disallow` lines and a `Content-Signal: ai-train=no` to the
+served file until the owner turned that feature off on 2026-09-04, so reading the file in
+the repo told you nothing about what a crawler actually received.
+
+Twenty-four AI crawlers are now named explicitly, with the same `Allow: /` and the same
+two refusals as everyone else. The policy has not changed; it is now legible in the served
+file rather than inferred from a wildcard.
+
+**What was deliberately NOT done: a `Content-Signal` line.** Cloudflare's policy expresses
+reuse preferences as `search=`, `ai-input=` and `ai-train=`. `ai-train` grants or refuses
+permission to train models on this company's product photography and copy, which is a
+business decision and not a developer's to make in a config file — and it is exactly the
+line the owner removed three days earlier by turning the managed file off. Google and Bing
+ignore the field in any case; its value is as a stated preference with possible future
+legal weight, which is another reason it should be the owner's words. It is on
+`docs/OWNER-CHECKLIST.md` §9 as a one-line yes/no. Omitting a signal is defined by the
+policy as expressing no preference, which is the honest state today.
+
+**Guard:** `apps/cms/src/app/robots.test.ts` asserts every group — wildcard and named —
+carries the same `Disallow` list *from the same array instance*, because a named group
+REPLACES the wildcard group for that agent rather than adding to it. A tidy edit that
+writes `User-Agent: GPTBot` + `Allow: /` and stops there hands every AI crawler the admin
+panel while making the file read more welcoming than before.
+`apps/cms/e2e/findability.spec.ts` re-checks it on the served file.
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap

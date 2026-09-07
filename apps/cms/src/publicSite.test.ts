@@ -478,8 +478,17 @@ describe('findability', () => {
     // Not their protection — both are behind authentication and a Disallow is a request,
     // never access control. Worth stating anyway: without it the login screen is a
     // candidate for indexing and /api/* is crawlable JSON that costs D1 reads.
+    //
+    // ⚠️ THIS ASSERTS THE SOURCE CARRIES ONE SHARED LIST, NOT THE LIST ITSELF. It read
+    // the literal `disallow: ['/admin', '/api/']` until 2026-09-07, when robots.txt
+    // gained a second group naming the AI crawlers and the paths moved into a constant
+    // both groups share — so a text scan for the literal failed against a file that had
+    // just become MORE careful. What the OUTPUT contains is asserted properly, per group,
+    // in src/app/robots.test.ts; this file only ever reads source text, so what it can
+    // usefully say is that the constant exists and is not typed out twice.
     const robots = code(appDir, 'robots.ts')
-    expect(robots).toMatch(/disallow:\s*\['\/admin', '\/api\/'\]/)
+    expect(robots).toMatch(/const DISALLOW = \['\/admin', '\/api\/'\]/)
+    expect(robots.match(/disallow: DISALLOW/g)?.length ?? 0).toBeGreaterThan(1)
     expect(robots).toMatch(/sitemap:/)
   })
 

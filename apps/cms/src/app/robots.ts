@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next'
+import { AI_CRAWLER_UAS } from '../../htmlLimitedBots.mjs'
 import { SITE_ORIGIN, VIEWER_ORIGIN } from '../lib/seo'
 
 /**
@@ -13,20 +14,47 @@ import { SITE_ORIGIN, VIEWER_ORIGIN } from '../lib/seo'
  * fell through to the app and answered with HTML — which a crawler parses line by line
  * as directives. `apps/viewer/public/robots.txt` carries the same warning after the
  * same thing happened there on 2026-08-31.
- *
- * ⚠️ THE ADMIN AND THE REST API ARE DISALLOWED HERE, AND THAT IS NOT THEIR PROTECTION.
- * Both are guarded by authentication; a `Disallow` is a request to well-behaved
- * crawlers, not access control, and nothing here should ever be relied on as such. It
- * is worth stating anyway: without it, the login screen is a candidate for indexing,
- * and `/api/*` responses are crawlable JSON that costs D1 reads to serve.
  */
+/**
+ * ⚠️ NOT ACCESS CONTROL, AND SHARED BY EVERY GROUP. Both paths are guarded by
+ * authentication; a `Disallow` is a request to well-behaved crawlers. It is worth stating
+ * anyway — without it the login screen is a candidate for indexing and `/api/*` is
+ * crawlable JSON that costs a D1 read to serve.
+ */
+const DISALLOW = ['/admin', '/api/']
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/admin', '/api/'],
+        disallow: DISALLOW,
+      },
+      /*
+       * ⚠️ THE AI CRAWLERS ARE NAMED, AND THE DISALLOWS ARE REPEATED FROM THE SAME
+       * CONSTANT. This is the one dangerous edit in this file. A robots.txt group for a
+       * named user agent REPLACES the `*` group for that agent — it does not add to it —
+       * so writing `User-agent: GPTBot` + `Allow: /` and nothing else would invite every
+       * AI crawler into `/admin` and `/api/`, which is the opposite of what naming them
+       * was for. Sharing `DISALLOW` means the two groups cannot drift; `robots.test.ts`
+       * asserts every group carries it.
+       *
+       * WHY NAME THEM AT ALL, when the policy is identical to `*`. Audit FA-N-17: the
+       * file said nothing about AI crawlers, so "are we open to them?" had no answer on
+       * the site — and the answer here has a history. Cloudflare's managed robots.txt was
+       * prepending nine `Disallow` lines and a `Content-Signal: ai-train=no` to this
+       * host's file until the owner turned it off on 2026-09-04, so reading the file in
+       * the repo told you nothing about what a crawler received. Stating it explicitly is
+       * what makes the deliberate answer legible in the served file.
+       *
+       * The list is the same one `htmlLimitedBots.mjs` gives a blocking render to, from
+       * the same constant — a crawler we invite is a crawler we owe a finished `<head>`.
+       */
+      {
+        userAgent: [...AI_CRAWLER_UAS],
+        allow: '/',
+        disallow: DISALLOW,
       },
     ],
     /*

@@ -221,6 +221,49 @@ everyone else. Most businesses your size correctly skip it.
 the submission. **If not, nothing needs doing** — this is written down so the next person
 reading the code does not assume it is already in place.
 
+## 9 · One question about AI: may they train on your work? (2 minutes, your call)
+
+Your site is now readable by the AI systems people ask questions in — ChatGPT, Claude,
+Perplexity, Google's AI answers and about twenty others. That is deliberate: when a buyer
+asks one of them "who makes custom team wear in Sialkot", you want your real capacity
+figures to be what it finds, rather than nothing.
+
+To make that work I added two things. A file at `wear-run.help/llms.txt` that describes
+your business in plain text — what you make, your six confirmed numbers, where you ship,
+the certification position and where the 3D pages live. And a line in `robots.txt` that
+names each AI crawler and says they are welcome, with the admin login and the internal API
+off limits, exactly as they already were for Google.
+
+**What I did NOT do, because it is your decision and not mine.**
+
+There is a separate, newer setting that says what those systems may DO with your content
+once they have read it. It splits into three:
+
+| | What it means |
+|---|---|
+| **Show me in search** | Let people find you. You already want this. |
+| **Use me to answer questions** | Let ChatGPT or Claude quote your capacity to a buyer who asks, with a link back. This is the point of the whole exercise. |
+| **Train on me** | Let a company keep your photography and copy permanently, as material their next model is built from. **This one is different.** |
+
+The first two are what you are already getting. The third gives away something you cannot
+take back, and it is the exact setting Cloudflare had switched to "no" on your behalf
+until you turned that off on 4 September. So I have left it **unstated** — which the rules
+define as "no preference expressed", not as yes.
+
+**What I need from you: one word.** Are you happy for AI companies to train their models
+on your product photography and site copy?
+
+- **"Yes"** — I add one line saying so. Slightly friendlier to those crawlers.
+- **"No"** — I add one line refusing it. This is a stated preference, not a lock; it does
+  not stop a badly-behaved scraper, but it puts your objection on the record, which
+  matters in Europe.
+- **"Leave it"** — nothing changes. This is where it stands now and it is a perfectly
+  normal place to be.
+
+Nothing is broken either way, and nothing waits on this answer.
+
+---
+
 ---
 
 ## What I could not close, and why

@@ -165,6 +165,13 @@ jobs:
       - name: Host rules guard (needs the build above)
         run: pnpm --filter @run-apparel/cms test:routes
 
+      # Whether AI crawlers still get a finished <head> rather than streamed metadata.
+      # Same reason as the two guards above: `htmlLimitedBots` only exists if it reached
+      # .next/required-server-files.json, and deleting it from next.config.mjs leaves
+      # every unit assertion in that file passing against Next's own default.
+      - name: Crawler metadata guard (needs the build above)
+        run: pnpm --filter @run-apparel/cms test:crawler-config
+
       # Deterministic weight budget for the viewer shell. This is inside `verify`,
       # which IS in the deploy's `needs:` list — unlike the `lighthouse` job, which
       # measures the same thing better but needs Chrome and is therefore

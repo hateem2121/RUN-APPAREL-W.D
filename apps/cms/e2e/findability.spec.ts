@@ -275,3 +275,101 @@ test.describe('FA-P-02 / FA-W-04 — the pages work with scripting off', () => {
     await expect(page.locator('h1')).toHaveCount(1)
   })
 })
+
+/**
+ * FA-N-16, FA-N-17, FA-N-18 — what a machine reader gets.
+ *
+ * The unit suites already pin the CONTENT of `/robots.txt`, `/llms.txt` and the
+ * `htmlLimitedBots` pattern. What they cannot say is that any of it is SERVED: a route
+ * handler under a route group would answer the same URL wrapped in the site's HTML
+ * document, and `robots.ts` in the wrong directory serves nothing at all with no error.
+ * This is the half that only a request can answer.
+ */
+test.describe('FA-N-16 / FA-N-17 — the machine-readable files are served as text', () => {
+  for (const path of ['/robots.txt', '/llms.txt']) {
+    test(`${path} is plain text, not a web page`, async ({ request }) => {
+      const res = await request.get(path)
+      expect(res.status(), `${path} did not answer`).toBe(200)
+      expect(res.headers()['content-type']).toContain('text/plain')
+
+      const body = await res.text()
+      /*
+       * ⚠️ THE ASSERTION THAT MATTERS. apps/viewer/public/robots.txt carries the account:
+       * with no file present, the SPA fallback answered /robots.txt with index.html as
+       * `text/plain` — 46 lines of markup that a crawler parses line by line as
+       * directives. A 200 and a content-type prove nothing on their own.
+       */
+      expect(body, `${path} is serving HTML`).not.toMatch(/<\/(html|body|div)>/i)
+      expect(body.length).toBeGreaterThan(80)
+    })
+  }
+
+  test('robots.txt names the AI crawlers AND still refuses them the admin', async ({ request }) => {
+    const body = await (await request.get('/robots.txt')).text()
+    expect(body).toContain('User-Agent: GPTBot')
+    expect(body).toContain('User-Agent: ClaudeBot')
+
+    /*
+     * A named group REPLACES the wildcard group for that agent, so every group must carry
+     * the refusals. This is what catches the welcoming, wide-open version of this file.
+     *
+     * ⚠️ SPLIT ON THE BLANK LINE, NOT ON `User-Agent:`. Per RFC 9309 a run of consecutive
+     * user-agent lines forms ONE group covering all of them, which is exactly the shape
+     * Next emits for a `userAgent` array. The first version of this test split per line,
+     * decided `User-Agent: GPTBot` was a group with no rules in it, and failed against a
+     * file that is correct — a parser bug reported as a policy bug.
+     */
+    const groups = body.split(/\n\s*\n/).filter((block) => /User-Agent:/i.test(block))
+    expect(groups.length, 'expected a wildcard group and a named AI group').toBeGreaterThan(1)
+    for (const group of groups) {
+      expect(group, `a group with no admin Disallow:\n${group}`).toContain('Disallow: /admin')
+      expect(group).toContain('Disallow: /api/')
+    }
+  })
+
+  test('llms.txt points at both hosts and states the real capacity', async ({ request }) => {
+    const body = await (await request.get('/llms.txt')).text()
+    expect(body).toContain('100,000')
+    expect(body).toContain('/products?family=outerwear')
+    expect(body).toMatch(/viewer\.[\w.-]+\/llms\.txt/)
+  })
+})
+
+test.describe('FA-N-18 — an AI crawler gets a finished head', () => {
+  /*
+   * ⚠️ THIS PASSES WITH AND WITHOUT THE FIX TODAY, AND IS KEPT ANYWAY. Measured
+   * 2026-09-07: metadata currently resolves before the shell flushes, so every user agent
+   * receives a complete head regardless of `htmlLimitedBots`. The guard that can fail is
+   * `src/htmlLimitedBots.test.ts`, which asserts the contract through Next's own decision
+   * function and against the built config. This one asserts the OUTCOME a crawler cares
+   * about, so that if the mechanism is ever replaced the requirement still has a witness.
+   */
+  const CRAWLERS = {
+    GPTBot:
+      'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; GPTBot/1.2; +https://openai.com/gptbot',
+    ClaudeBot: 'Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)',
+    PerplexityBot:
+      'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)',
+  }
+
+  for (const [name, ua] of Object.entries(CRAWLERS)) {
+    test(`${name} receives a title and a canonical inside </head>`, async ({ playwright }) => {
+      const context = await playwright.request.newContext({
+        baseURL: test.info().project.use.baseURL,
+        extraHTTPHeaders: { 'user-agent': ua },
+      })
+      try {
+        for (const page of PAGES) {
+          const html = await (await context.get(page.path)).text()
+          const head = headOf(html)
+          expect(head, `${name} got no <title> in the head of ${page.path}`).toMatch(/<title[^>]*>/)
+          expect(head, `${name} got no canonical in the head of ${page.path}`).toContain(
+            'rel="canonical"',
+          )
+        }
+      } finally {
+        await context.dispose()
+      }
+    })
+  }
+})

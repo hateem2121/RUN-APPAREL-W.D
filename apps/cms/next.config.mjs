@@ -1,5 +1,6 @@
 import { withPayload } from '@payloadcms/next/withPayload'
 import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare'
+import { HTML_LIMITED_BOTS } from './htmlLimitedBots.mjs'
 import { withPublicViewerVary } from './publicViewerHeaders.mjs'
 import { siteRedirects, siteRewrites } from './siteHostRules.mjs'
 
@@ -81,6 +82,13 @@ const nextConfig = {
    * cleaning up after it every session.
    */
   agentRules: false,
+  /*
+   * Crawlers that must receive a finished `<head>` instead of streamed metadata.
+   * htmlLimitedBots.mjs carries the measurement and the warning that this value REPLACES
+   * Next's default rather than extending it; src/htmlLimitedBots.test.ts fails if the
+   * embedded copy of that default ever stops matching the installed Next.
+   */
+  htmlLimitedBots: HTML_LIMITED_BOTS,
   transpilePackages: ['@run-apparel/shared'],
   async headers() {
     return [{ source: '/:path*', headers: SECURITY_HEADERS }]

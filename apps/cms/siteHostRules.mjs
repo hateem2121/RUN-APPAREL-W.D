@@ -32,7 +32,18 @@ export const CMS_HOST = 'cms.wear-run.help'
 export const hostPattern = (host) => `^${host.replace(/\./g, '\\.')}$`
 
 /** The public paths the cms host hands to the main address. robots.txt deliberately stays. */
-export const CMS_PUBLIC_PATHS = ['/', '/products', '/contact', '/privacy', '/terms', '/sitemap.xml']
+export const CMS_PUBLIC_PATHS = [
+  '/',
+  '/products',
+  '/contact',
+  '/privacy',
+  '/terms',
+  '/sitemap.xml',
+  // Added 2026-09-07 with /llms.txt itself: same reasoning as the sitemap above.
+  // One description of one business, on the address it describes. robots.txt is the
+  // deliberate exception and stays on this host.
+  '/llms.txt',
+]
 
 /**
  * Unrouted on purpose. Anything under it matches no route at all and is answered by

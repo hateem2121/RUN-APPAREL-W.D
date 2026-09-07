@@ -22,7 +22,8 @@
     "migrate:remote:down": "NODE_ENV=production PAYLOAD_LOCAL_D1=1 PAYLOAD_MIGRATE_REMOTE=1 PAYLOAD_MIGRATE_DOWN=1 payload run src/seed/migrate.ts",
     "seed": "PAYLOAD_LOCAL_D1=1 SEED_DEV_ADMIN=1 payload run src/seed/run.ts",
     "test:e2e": "playwright test",
-    "test:routes": "REQUIRE_BUILD_ARTIFACTS=1 vitest run src/hostRulesManifest.test.ts"
+    "test:routes": "REQUIRE_BUILD_ARTIFACTS=1 vitest run src/hostRulesManifest.test.ts",
+    "test:crawler-config": "REQUIRE_BUILD_ARTIFACTS=1 vitest run src/htmlLimitedBots.test.ts"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "5.3.0",
