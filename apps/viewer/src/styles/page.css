@@ -2752,11 +2752,29 @@ model-viewer.stage__model {
  * Three columns give (260 - 2x8) / 3 = 81.3px instead: wider tabs, fewer label
  * lines, and a last row of two. Cramming was the worse answer at every measure.
  *
- * 300px, not 280 or 320: the aside measures 260-261 and the narrowest phone rail
- * measures 320. Any threshold in between works; 300 sits in the middle of a 60px
- * gap rather than against either edge.
+ * ⚠️ 280px, AND 300px WAS 0.8px FROM BREAKING IN SAFARI — corrected 2026-09-07.
+ *
+ * This comment used to read: "300px, not 280 or 320: the aside measures 260-261 and
+ * the narrowest phone rail measures 320. Any threshold in between works; 300 sits in
+ * the middle of a 60px gap rather than against either edge."
+ *
+ * The arithmetic compared the wrong two numbers. A container query is evaluated
+ * against the CONTAINER's content box, not against the rail it lays out — and at a
+ * 320px viewport that box measures **300.80px**, not 320. So the real gap was
+ * 260.x to 300.8, and 300 sat 0.8px below its upper edge rather than in the middle
+ * of anything.
+ *
+ * Measured: Chromium and Firefox read 300.80 as above the threshold and lay out five
+ * columns; **WebKit does not, and produced a 3 + 2 rail at exactly 320px**. All three
+ * agree from 321px up. 320px is the WCAG 1.4.10 reflow width AND what a 1280px desktop
+ * shows at the 400% zoom that criterion requires, and WebKit is the engine a QR scan
+ * opens in on an iPhone — so this was the one width and the one engine that mattered
+ * most, disagreeing by less than a pixel.
+ *
+ * 280 is the actual midpoint of the measured range (260.x - 300.8), leaving ~19px of
+ * margin on each side instead of 0.8px on one.
  */
-@container colourrail (max-width: 300px) {
+@container colourrail (max-width: 280px) {
   .colourways__list {
     grid-template-columns: repeat(3, 1fr);
   }

@@ -76,14 +76,7 @@ test.describe('the colourway rail seats five swatches in one row (FA-E-61)', () 
   const PHONE_WIDTHS = [320, 360, 375, 390, 393, 402, 414, 430] as const
 
   for (const width of PHONE_WIDTHS) {
-    test(`one row of five at ${width}px`, async ({ page, browserName }) => {
-      test.skip(
-        width === 320 && browserName === 'webkit',
-        'KNOWN, MEASURED, UNFIXED: at exactly 320px the rail container is 300.8px ' +
-          'and WebKit takes the (max-width: 300px) branch, laying out 3 + 2 where ' +
-          'Chromium and Firefox lay out 5. Agrees again at 321px. See the block ' +
-          'comment above — this is a finding about page.css, not about the test.',
-      )
+    test(`one row of five at ${width}px`, async ({ page }) => {
       await page.emulateMedia({ reducedMotion: 'reduce' })
       await page.setViewportSize({ width, height: 812 })
       await page.goto('/n001/wine')
@@ -158,15 +151,7 @@ test.describe('colourway labels are optically centred (FA-E-09)', () => {
   ]) {
     test(`tabs share one height and their contents sit in the middle of it at ${width}px`, async ({
       page,
-      browserName,
     }) => {
-      test.skip(
-        width === 320 && browserName === 'webkit',
-        'Same 300.8px container-query divergence as FA-E-61 above: WebKit lays the ' +
-          'rail out 3 + 2 at exactly 320px, and a grid stretches tabs within a row, ' +
-          'not across rows — so the heights are 65 and 52.5 rather than one value. ' +
-          'A finding about page.css, measured, unfixed.',
-      )
       await page.emulateMedia({ reducedMotion: 'reduce' })
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
