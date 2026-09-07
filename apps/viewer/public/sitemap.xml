@@ -10,11 +10,16 @@
   discoverable at all. The 45 missing ones were reachable only by someone sharing
   the link. Audit: docs/AUDIT-PRODUCT-PAGES-2026-09-04.md.
 
-  The 55 entries below were cross-checked against THREE independent sources that
+  ⚠️ UPDATED 2026-09-07: 55 -> 80. Five more garments went live that day (r-cch,
+  r-gtd, r-au, r-ect, r-et), and this file was regenerated in the same change —
+  which is the whole point of the 2026-09-04 note above. The catalogue growing is
+  what silently narrows this file; a rename is not.
+
+  The 80 entries below were cross-checked against THREE independent sources that
   agreed exactly, with zero discrepancies in either direction:
-    1. the live CMS payload for each of the 11 products in scripts/live-products.mjs
-    2. the 55-entry manifest in apps/viewer/worker/og-cards.ts
-    3. the 55 .jpg files actually present under apps/viewer/public/og/
+    1. the live CMS payload for each of the 16 products in scripts/live-products.mjs
+    2. the 80-entry manifest in apps/viewer/worker/og-cards.ts
+    3. the 80 .jpg files actually present under apps/viewer/public/og/
   A mismatch between those three is the tell that this file has drifted again.
 
   ⚠️ THIS IS A SNAPSHOT, NOT A DERIVED FILE, and that is deliberate. Generating it
@@ -252,6 +257,106 @@
   </url>
   <url>
     <loc>https://viewer.wear-run.help/r-asb/burgundy</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-cch/olive</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-cch/blush</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-cch/mint</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-cch/powder-blue</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-cch/wine</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-gtd/ash</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-gtd/blush</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-gtd/butter</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-gtd/powder-blue</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-gtd/optic-white</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-au/bone</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-au/tangerine</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-au/lime</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-au/powder-blue</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-au/pebble</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-ect/rust</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-ect/ash</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-ect/mustard</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-ect/lilac</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-ect/sage</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-et/cream</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-et/blush</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-et/sky</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-et/sage</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-et/burgundy</loc>
     <changefreq>monthly</changefreq>
   </url>
 </urlset>

@@ -133,6 +133,40 @@ export const LIVE_PRODUCTS = [
     colourways: ['petrol', 'sage', 'pebble', 'blush', 'burgundy'],
     productCode: 'R-ASB',
   },
+  // Added 2026-09-07 with the five garments from that day's exports. Every slug below was
+  // read back out of the CMS after `publish-garment.mjs` set it, never guessed — which is
+  // why these rows are added AFTER naming and BEFORE publishing, in that order: the naming
+  // run stays `draft`, so the slugs exist to be copied while the page is still not live.
+  {
+    slug: 'r-cch',
+    colourway: 'olive',
+    colourways: ['olive', 'blush', 'mint', 'powder-blue', 'wine'],
+    productCode: 'R-CCH',
+  },
+  {
+    slug: 'r-gtd',
+    colourway: 'ash',
+    colourways: ['ash', 'blush', 'butter', 'powder-blue', 'optic-white'],
+    productCode: 'R-GTD',
+  },
+  {
+    slug: 'r-au',
+    colourway: 'bone',
+    colourways: ['bone', 'tangerine', 'lime', 'powder-blue', 'pebble'],
+    productCode: 'R-AU',
+  },
+  {
+    slug: 'r-ect',
+    colourway: 'rust',
+    colourways: ['rust', 'ash', 'mustard', 'lilac', 'sage'],
+    productCode: 'R-ECT',
+  },
+  {
+    slug: 'r-et',
+    colourway: 'cream',
+    colourways: ['cream', 'blush', 'sky', 'sage', 'burgundy'],
+    productCode: 'R-ET',
+  },
 ]
 
 /**

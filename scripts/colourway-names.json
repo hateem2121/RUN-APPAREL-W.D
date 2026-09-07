@@ -12,7 +12,15 @@
     "the match is weak and the robot itself refused to guess, leaving the CMS row blank.",
     "",
     "The two live products are deliberately absent: their names are already set and still match",
-    "their files."
+    "their files.",
+    "",
+    "ADDED 2026-09-07: the five garments from that day's exports (r-cch, r-gtd, r-au, r-ect,",
+    "r-et). Same method, measured on the RAW exports with fabricsByVariant. Four names the",
+    "robot left blank were chosen by the owner from labelled renders; one — r-ect Colorway 4 —",
+    "was named \"Beige\" CONFIDENTLY and wrongly (the garment is pale sage green), so it was",
+    "renamed and its slug moved off /beige while the product was still an unpublished draft.",
+    "That is the 2026-08-03 failure in miniature: a confident wrong name beats a blank one only",
+    "if the arithmetic and the picture agree. LOOK AT THE RENDER."
   ],
   "products": {
     "r-afp": {
@@ -517,6 +525,296 @@
           "hex": "#612738",
           "deltaE": 3.34,
           "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-cch": {
+      "productName": "CAPSULE CORE HOODIE",
+      "colours": [
+        {
+          "variantId": "Default Colorway",
+          "displayName": "Olive / Sage",
+          "slug": "olive",
+          "hex": "#6C6C3B",
+          "deltaE": 5.47,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#9E9D5C",
+            "name": "Sage",
+            "areaShare": 33
+          }
+        },
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Blush",
+          "slug": "blush",
+          "hex": "#EDB1AF",
+          "deltaE": 3,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Mint",
+          "slug": "mint",
+          "hex": "#A0D1C0",
+          "deltaE": 14.9,
+          "needsOwnerEye": true
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Powder Blue / Sky",
+          "slug": "powder-blue",
+          "hex": "#BED6EB",
+          "deltaE": 10.73,
+          "needsOwnerEye": true,
+          "secondFabric": {
+            "hex": "#7DACD6",
+            "name": "Sky",
+            "areaShare": 33
+          }
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Wine / Burgundy",
+          "slug": "wine",
+          "hex": "#905260",
+          "deltaE": 11.85,
+          "needsOwnerEye": true,
+          "secondFabric": {
+            "hex": "#722738",
+            "name": "Burgundy",
+            "areaShare": 33
+          }
+        }
+      ]
+    },
+    "r-gtd": {
+      "productName": "GEOVENT TENNIS DRESS",
+      "colours": [
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Ash",
+          "slug": "ash",
+          "hex": "#807575",
+          "deltaE": 12.54,
+          "needsOwnerEye": true
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Blush",
+          "slug": "blush",
+          "hex": "#C8949D",
+          "deltaE": 8.93,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Butter",
+          "slug": "butter",
+          "hex": "#ECFDAE",
+          "deltaE": 9.73,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Powder Blue",
+          "slug": "powder-blue",
+          "hex": "#9BD7DE",
+          "deltaE": 3.44,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 6",
+          "displayName": "Optic White",
+          "slug": "optic-white",
+          "hex": "#F5F5F5",
+          "deltaE": 2.01,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-au": {
+      "productName": "THE AGGRESSOR UNIFORM",
+      "colours": [
+        {
+          "variantId": "Colorway A",
+          "displayName": "Bone / Blush",
+          "slug": "bone",
+          "hex": "#F0DEDC",
+          "deltaE": 8.02,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#E69DA6",
+            "name": "Blush",
+            "areaShare": 35
+          }
+        },
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Tangerine / Rust",
+          "slug": "tangerine",
+          "hex": "#EE741B",
+          "deltaE": 3.78,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#A55021",
+            "name": "Rust",
+            "areaShare": 35
+          }
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Lime / Olive",
+          "slug": "lime",
+          "hex": "#CCE358",
+          "deltaE": 7.54,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#5E6A2A",
+            "name": "Olive",
+            "areaShare": 35
+          }
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Powder Blue / Teal",
+          "slug": "powder-blue",
+          "hex": "#A1C9CF",
+          "deltaE": 5.53,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#336C7C",
+            "name": "Teal",
+            "areaShare": 35
+          }
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Pebble / Plum",
+          "slug": "pebble",
+          "hex": "#D7D2DE",
+          "deltaE": 8.4,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#5E4B61",
+            "name": "Plum",
+            "areaShare": 35
+          }
+        }
+      ]
+    },
+    "r-ect": {
+      "productName": "ENDURA CROP TOP",
+      "colours": [
+        {
+          "variantId": "Default Colorway",
+          "displayName": "Rust",
+          "slug": "rust",
+          "hex": "#904320",
+          "deltaE": 6,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Ash",
+          "slug": "ash",
+          "hex": "#889D9D",
+          "deltaE": 7.09,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Mustard",
+          "slug": "mustard",
+          "hex": "#F2C25F",
+          "deltaE": 9.88,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Lilac",
+          "slug": "lilac",
+          "hex": "#C5BEE1",
+          "deltaE": 7.06,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Sage",
+          "slug": "sage",
+          "hex": "#D2E0B8",
+          "deltaE": 12.9,
+          "needsOwnerEye": true
+        }
+      ]
+    },
+    "r-et": {
+      "productName": "ENDURANCE TRACKSUIT",
+      "colours": [
+        {
+          "variantId": "Colorway A",
+          "displayName": "Cream / Optic White",
+          "slug": "cream",
+          "hex": "#E4DBCA",
+          "deltaE": 3.72,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#FFFFFF",
+            "name": "Optic White",
+            "areaShare": 22
+          }
+        },
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Blush / Bone",
+          "slug": "blush",
+          "hex": "#E9BCC2",
+          "deltaE": 2.53,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#E7DEDA",
+            "name": "Bone",
+            "areaShare": 22
+          }
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Sky / Optic White",
+          "slug": "sky",
+          "hex": "#9BB5D3",
+          "deltaE": 8.95,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#DAEEF0",
+            "name": "Optic White",
+            "areaShare": 22
+          }
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Sage / Beige",
+          "slug": "sage",
+          "hex": "#AFC39E",
+          "deltaE": 5.55,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#E9EACA",
+            "name": "Beige",
+            "areaShare": 22
+          }
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Burgundy / Mauve",
+          "slug": "burgundy",
+          "hex": "#5D3446",
+          "deltaE": 8.36,
+          "needsOwnerEye": false,
+          "secondFabric": {
+            "hex": "#CBB3C1",
+            "name": "Mauve",
+            "areaShare": 22
+          }
         }
       ]
     }

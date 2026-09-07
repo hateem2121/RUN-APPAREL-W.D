@@ -16,9 +16,13 @@ import { isGatedProduct, LIVE_PRODUCTS, squashCode } from '../../../scripts/live
  * now stops a twelfth garment going live ungated actually rejects.
  */
 describe('live products', () => {
-  it('carries every product published as of 2026-09-04', () => {
-    // Measured that day from the PUBLIC endpoint — the visitor's own truth, not the CMS
-    // admin API, which reported `published: 0` because REST returns the draft version.
+  it('carries every product published as of 2026-09-07', () => {
+    // Measured from the PUBLIC endpoint — the visitor's own truth, not the CMS admin API,
+    // which reported `published: 0` because REST returns the draft version.
+    //
+    // Went 11 -> 16 on 2026-09-07: r-cch, r-gtd, r-au, r-ect and r-et, from the five CLO
+    // exports dated that day. The list is widened in the SAME change that publishes them,
+    // which is what `publish-garment.mjs` now refuses to let anyone skip.
     expect(LIVE_PRODUCTS.map((p) => p.slug).sort()).toEqual(
       [
         'r-afp',
@@ -27,7 +31,12 @@ describe('live products', () => {
         'r-asb',
         'r-atj',
         'r-atw',
+        'r-au',
+        'r-cch',
         'r-css',
+        'r-ect',
+        'r-et',
+        'r-gtd',
         'r-mm',
         'r-wzu',
         'r-xmp',
@@ -67,8 +76,21 @@ describe('live products', () => {
     // THE NEGATIVE CONTROL. Without this the guard could be `() => true` and every
     // assertion above would still pass — which is precisely how the nine garments went
     // live unwatched.
+    //
+    // ⚠️ IT USED TO NAME `r-au`, AND `r-au` WENT LIVE ON 2026-09-07. A control pinned to a
+    // real draft product expires the day that product is published: the test then fails for
+    // a reason that has nothing to do with the guard, and the tempting fix is to swap in
+    // another draft and start the same clock again. So the premise is now ASSERTED rather
+    // than assumed — the slug is proven absent from LIVE_PRODUCTS first, and only then is
+    // the guard asked about it. That cannot rot, and it still fails loudly if the guard is
+    // ever replaced by `() => true`.
     it('rejects a product the gates do NOT cover', () => {
-      expect(isGatedProduct('r-au')).toBe(false)
+      const absent = 'r-not-a-live-product'
+      expect(
+        LIVE_PRODUCTS.some((p) => p.slug === absent),
+        `the control slug "${absent}" is in LIVE_PRODUCTS — pick one that is not`,
+      ).toBe(false)
+      expect(isGatedProduct(absent)).toBe(false)
       expect(isGatedProduct('')).toBe(false)
     })
   })
