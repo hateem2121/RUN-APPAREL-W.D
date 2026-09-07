@@ -175,7 +175,10 @@ describe('the catalogue is not linked from the viewer', () => {
     // permanently-green string that nobody could tell from a working one.
     expect(CATALOGUE_URL.test('<a href="https://wear-run.help/catalogue">Catalogue</a>')).toBe(true)
     expect(CATALOGUE_URL.test('href="https://www.wear-run.help/catalogue"')).toBe(true)
-    // The prose in llms.txt says "There is no catalogue" — that must NOT match.
+    // Prose that merely says the word must NOT match. This sentence was llms.txt's
+    // own wording until 2026-09-07, when it was corrected (audit FA-W-05: the site
+    // now has an index) — it is kept here as the control it always was, because the
+    // regex must distinguish a URL from a mention, not because any file says it.
     expect(CATALOGUE_URL.test('There is no catalogue, no index and no search')).toBe(false)
     // A commented-out link is stripped before the matcher ever sees it …
     expect(CATALOGUE_URL.test(withoutComments('/* https://wear-run.help/catalogue */'))).toBe(false)

@@ -31,6 +31,42 @@ function cmsSiteHost(): string {
   return match[1] ?? ''
 }
 
+/**
+ * ⚠️ llms.txt IS PROSE AND IT WENT STALE — audit FA-W-05. It told AI readers
+ * "There is no catalogue, no index and no search: a page exists for a garment a
+ * buyer is already holding", which was true while `wear-run.help` served two PDFs
+ * and a 404, and false the moment the marketing site launched with an index of
+ * these same garments. It also never named the company's own site, so a model
+ * summarising a garment page had no way to connect the two.
+ *
+ * A file served verbatim to machines has no other gate: nothing renders it, no
+ * type covers it, and a wrong sentence there is indistinguishable from a right one
+ * until someone reads it. This pins the one fact in it that can be checked.
+ */
+const LLMS_TXT = join(import.meta.dirname, '..', 'public', 'llms.txt')
+
+describe('llms.txt points at the site it belongs to', () => {
+  const text = () => readFileSync(LLMS_TXT, 'utf8')
+
+  it('names the marketing site by its real origin', () => {
+    expect(text()).toContain(SITE_ORIGIN)
+    expect(text()).toContain(SITE_PRODUCTS_URL)
+  })
+
+  it('no longer claims there is no index anywhere', () => {
+    // The specific sentence that expired. Kept as a literal because it is the
+    // claim, not the wording, that matters — and because `catalogueLinks.test.ts`
+    // still uses the same sentence as a control for a different matcher.
+    expect(text()).not.toContain('There is no catalogue, no index and no search')
+  })
+
+  it('reads a file with content — negative control', () => {
+    // Without this, both assertions above pass on an empty or missing read.
+    expect(text().length).toBeGreaterThan(500)
+    expect(text()).toContain('viewer.wear-run.help')
+  })
+})
+
 describe('the viewer and the CMS agree on where the site lives', () => {
   it('SITE_ORIGIN is the CMS host rules’ SITE_HOST over https', () => {
     expect(SITE_ORIGIN).toBe(`https://${cmsSiteHost()}`)

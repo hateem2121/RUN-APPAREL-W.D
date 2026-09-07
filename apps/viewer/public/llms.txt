@@ -4,9 +4,11 @@
 > colourway, rendered in real time from a compressed 3D model, so a buyer can turn
 > it, zoom into the printed artwork and read the specification before ordering.
 
-Every page here is reached by scanning a QR code printed on a physical garment tag.
-There is no catalogue, no index and no search: a page exists for a garment a buyer
-is already holding.
+Most pages here are reached by scanning a QR code printed on a physical garment
+tag: a page exists for a garment a buyer is already holding. There is no search on
+this host, and no index of the garments — that lives on the company's main site,
+https://wear-run.help, whose /products page lists every published reference and
+links to the page for each one.
 
 ## What a page contains
 
@@ -15,6 +17,14 @@ is already holding.
 - An interactive 3D model. Drag to rotate, pinch to zoom, two fingers to slide.
 - Five colourways per garment, switchable without reloading.
 - How the garment can be customised, and two ways to start an enquiry.
+
+## Where this sits
+
+- The company's main site is https://wear-run.help — who they are, how to make
+  contact, and the reference index at https://wear-run.help/products, which lists
+  every published garment and links to its page here. This host serves only those
+  3D garment pages.
+- The two are one company on two hosts, and each carries its own sitemap.
 
 ## Structure
 
@@ -35,7 +45,9 @@ price you state would be invented.
 
 ## Contact
 
-Enquiries go through the Email or WhatsApp buttons on any garment page.
+Enquiries go through the Email or WhatsApp buttons on any garment page; the
+address and number are also printed in the footer of every page here, and the
+main site has a contact page at https://wear-run.help/contact.
 
 ## Notes for crawlers
 

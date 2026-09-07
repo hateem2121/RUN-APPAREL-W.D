@@ -70,6 +70,27 @@
   // so /assets/*.js keeps the zero-overhead path it had before this line existed.
   // Only SPA-fallback routes reach the script, and it returns early for all but
   // crawler GETs.
+  //
+  // ⚠️ AND HERE IS WHAT THAT COSTS, which this comment and docs/RUNBOOK.md both
+  // omitted until 2026-09-07 (audit FA-T-15) — so the two places an engineer
+  // actually reads at the point of change argued for the absence without naming
+  // what adding it would buy. Measured against the live viewer, same URL, same
+  // crawler user-agent, one header apart:
+  //
+  //   Googlebot UA, no sec-fetch-mode        12,491 bytes, per-garment <title>, 1 JSON-LD
+  //   Googlebot UA + sec-fetch-mode: navigate 11,204 bytes, generic <title>,   0 JSON-LD
+  //
+  // A navigation request is served straight from the asset router, so the Worker
+  // never runs and the per-garment rewrite silently does not happen. Adding
+  // `run_worker_first` is the documented fix and is a REAL trade, not a bug fix:
+  // it puts the Worker in front of every asset request as well. Both sides are
+  // written up in docs/AUDIT-PRODUCT-PAGES-2026-09-05.md, which also establishes
+  // that Google had never crawled these pages, so the live impact so far is nil.
+  //
+  // If it is ever added, prefer a narrow path array over `true`, and re-run the
+  // log-every-entry measurement rather than trusting either note — the 2026-08-08
+  // asset-path result is version-specific to wrangler 4.114.0 and the pin has
+  // moved since.
   "main": "./worker/index.ts",
   // `single-page-application` replaces the Pages `_redirects` SPA fallback (CI
   // deletes dist/_redirects for this target — Workers Static Assets rejects the

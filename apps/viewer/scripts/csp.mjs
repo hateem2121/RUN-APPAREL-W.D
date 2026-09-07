@@ -179,11 +179,38 @@ export function buildCsp({ html, apiBaseUrl, sentryDsn }) {
  * The full `dist/_headers` file. Honoured by Cloudflare Pages and Workers Static
  * Assets.
  *
- * ⚠️ `camera=()` in Permissions-Policy WILL block `<model-viewer ar>`. There is no
- * AR mode today (no `ar` attribute anywhere in src/, no USDZ), so denying it is
- * free — but if AR is ever added for iOS Quick Look, this is the line that makes it
- * silently fail. Same for `accelerometer`/`gyroscope` if a future device-orientation
- * camera control is wanted; ordinary drag-to-rotate uses pointer events.
+ * ⚠️ AR SHIPPED, AND THIS WARNING WAS ABOUT A DIFFERENT KIND OF AR. Corrected
+ * 2026-09-07 (audit FA-O-11). It read: "`camera=()` WILL block `<model-viewer ar>`.
+ * There is no AR mode today (no `ar` attribute anywhere in src/, no USDZ)" — and
+ * `Stage.tsx` has shipped `ar ar-modes="quick-look" ar-placement="floor"
+ * ar-scale="fixed"` since 2026-09-05. A load-bearing comment in the one file whose
+ * job is to stop someone loosening a header had come to describe code that no
+ * longer exists, which is the way a header gets widened for a reason that is not
+ * true.
+ *
+ * The premise was false and so was the consequence, and BOTH halves were measured
+ * in the installed `@google/model-viewer@4.3.1` rather than reasoned:
+ *
+ *   - `getUserMedia` appears in ZERO files under `lib/`. The positive control for
+ *     that grep is that the same search does find `relList.supports`, so the empty
+ *     result is a real absence rather than a bad pattern.
+ *   - the quick-look gate is `IS_AR_QUICKLOOK_CANDIDATE` (`lib/constants.js:67`),
+ *     which on iOS is `anchor.relList.supports('ar')` (and a straight `true` for
+ *     the listed third-party iOS browsers) — Safari's AR Quick Look is an OS
+ *     viewer reached by a LINK, not a camera stream in the page.
+ *
+ * So `camera=()` does not block what shipped, and it stays. What WOULD be blocked
+ * is WebXR (`ar-modes="webxr"`), which does need camera access — if that is ever
+ * wanted, this is the line to change, and `docs/DECISION-AR-SCOPE.md` records why
+ * it is not wanted today (Android's Scene Viewer cannot read the `blob:` URL this
+ * viewer loads the GLB from). Same for `accelerometer`/`gyroscope` if a future
+ * device-orientation camera control is wanted; ordinary drag-to-rotate uses
+ * pointer events.
+ *
+ * ⚠️ NOT VERIFIED END TO END: the iOS Simulator has no ARKit, so
+ * `relList.supports('ar')` is false there and "the button appears and launches
+ * Quick Look" has never been observed on a real iPhone. The claim above is about
+ * what the HEADER can block, which is measurable here; the launch is not.
  *
  * Strict-Transport-Security and Permissions-Policy were both absent until
  * 2026-08-03; only nosniff, Referrer-Policy and the CSP were emitted.

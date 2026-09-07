@@ -1589,6 +1589,17 @@ scan. Unrelated to previews; recorded here because this is where it was measured
   `/n001/lime` produced one. Setting `run_worker_first` would undo that.
   (Both `n001` paths are pre-rename; the cards moved to `/og/rxps/…` on
   2026-08-21. The finding is unchanged — only the example URLs are historical.)
+- **…and what its absence costs, which this list omitted until 2026-09-07.** A
+  request carrying `sec-fetch-mode: navigate` is answered by the asset router, so
+  the worker never runs and the per-garment rewrite silently does not happen.
+  Measured against the live viewer, same URL and crawler user-agent, one header
+  apart: **12,491 bytes with a per-garment `<title>` and 1 JSON-LD block**
+  without the header, **11,204 bytes with the generic title and 0 JSON-LD** with
+  it. `run_worker_first` is the documented fix and a real trade — it also puts
+  the worker in front of every asset request. Both sides are in
+  `docs/AUDIT-PRODUCT-PAGES-2026-09-05.md`; the same audit establishes Google had
+  never crawled these pages, so the impact so far is nil. Do not read the bullet
+  above as an argument on its own.
 
 ## Login protection
 

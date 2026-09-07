@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { SHARED_SECURITY_HEADERS } from '../worker/securityHeaders'
 import { buildCsp, buildHeadersFile } from './csp.mjs'
@@ -284,5 +286,53 @@ describe('CSP violation reporting', () => {
     const bare = buildCsp({ html: '', apiBaseUrl: API })
     expect(bare).not.toContain(reportOrigin)
     expect(bare).not.toContain('report-uri')
+  })
+})
+
+/**
+ * The comment and the code it guards must describe the same product.
+ *
+ * ⚠️ THIS IS A TEST OF PROSE, AND IT EARNS ITS PLACE. `csp.mjs`'s docblock said
+ * "`camera=()` WILL block `<model-viewer ar>`. There is no AR mode today (no `ar`
+ * attribute anywhere in src/, no USDZ)" — while `Stage.tsx` had been shipping
+ * `ar ar-modes="quick-look"` since 2026-09-05 (audit FA-O-11). Both halves were
+ * wrong, and the file's whole purpose is to stop someone loosening a header: a
+ * stale premise here is how `camera=()` gets deleted for a reason that is not true.
+ *
+ * Measured in the installed `@google/model-viewer@4.3.1` before the comment was
+ * rewritten: `getUserMedia` appears in ZERO files under `lib/` (positive control —
+ * the same grep does find `relList.supports`), and the quick-look gate is
+ * `IS_AR_QUICKLOOK_CANDIDATE` in `lib/constants.js:67`, i.e. a LINK into an OS
+ * viewer. So the header does not block what shipped, and stays.
+ */
+describe('the AR comment matches the AR that ships', () => {
+  const read = (relative: string) => readFileSync(join(import.meta.dirname, '..', relative), 'utf8')
+
+  it('does not claim there is no AR mode while Stage.tsx ships one', () => {
+    const stage = read('src/components/Stage.tsx')
+    const csp = read('scripts/csp.mjs')
+
+    // The negative control for this test is the file itself: if Stage ever stops
+    // shipping AR, this assertion fails and the comment is free to say so again.
+    expect(stage, 'Stage.tsx no longer ships an AR mode — revisit csp.mjs').toMatch(
+      /ar-modes=["']quick-look["']/,
+    )
+    // ⚠️ A POSITIVE MATCH, not "the old sentence is absent". The corrected comment
+    // QUOTES the sentence it replaced — this repo keeps its history — so a matcher
+    // hunting the old wording fails against the fix itself, which is exactly what
+    // the first draft of this test did. What must hold is that the file names the
+    // AR mode that ships; the paragraph explaining why `camera=()` is still right
+    // cannot be written without doing so.
+    expect(
+      csp,
+      'csp.mjs does not mention the AR mode Stage.tsx ships, so its Permissions-Policy ' +
+        'reasoning is about a viewer that no longer exists. See FA-O-11.',
+    ).toMatch(/ar-modes/)
+  })
+
+  it('still denies the camera, because quick-look does not need it', () => {
+    // The header itself, not the comment: the correction must not have quietly
+    // widened the policy while explaining it.
+    expect(buildHeadersFile({ apiBaseUrl: API, html: '<html></html>' })).toContain('camera=()')
   })
 })
