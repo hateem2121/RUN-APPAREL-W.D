@@ -365,7 +365,7 @@ jobs:
           # GitHub-hosted run on its normal path, where the cache genuinely helps because
           # the disk is ephemeral.
           cache: ${{ runner.environment == 'github-hosted' && 'true' || 'false' }}
-          cache-dir: ${{ runner.environment == 'github-hosted' && format('{0}/.cache/trivy', github.workspace) || '/actions-runner/_work/.trivy-cache' }}
+          cache-dir: ${{ runner.environment == 'github-hosted' && format('{0}/.cache/trivy', github.workspace) || '/trivy-cache' }}
           scan-type: image
           image-ref: ${{ steps.baseimage.outputs.ref }}
           format: table
@@ -383,7 +383,7 @@ jobs:
         with:
           # Same reasoning as the step above — see the note there.
           cache: ${{ runner.environment == 'github-hosted' && 'true' || 'false' }}
-          cache-dir: ${{ runner.environment == 'github-hosted' && format('{0}/.cache/trivy', github.workspace) || '/actions-runner/_work/.trivy-cache' }}
+          cache-dir: ${{ runner.environment == 'github-hosted' && format('{0}/.cache/trivy', github.workspace) || '/trivy-cache' }}
           scan-type: image
           image-ref: ${{ steps.baseimage.outputs.ref }}
           format: table
