@@ -341,6 +341,31 @@ jobs:
         # result and must not look the same." The gate below is the one that may fail.
         continue-on-error: true
         with:
+          # ⚠️ GITHUB'S CACHE SERVICE IS THE SLOWEST THING ON A SELF-HOSTED RUNNER, AND
+          # IT TIMED THIS JOB OUT. Verified against the pinned action.yaml: `cache`
+          # defaults to 'true', which gates an `actions/cache` restore/save around the
+          # vulnerability DB. On run 34246137969 that cost:
+          #
+          #     step  8  Base image report        10m 08s   <- cache RESTORE timing out
+          #     step  9  Fail on fixable CRITICAL  2m 37s
+          #     step 14  Post-step (cache save)    6m 02s   <- then failing to SAVE it
+          #     => "The job has exceeded the maximum execution time of 20m0s"
+          #
+          # with `Failed to restore: The operation cannot be completed in timeout` and
+          # `Cache save failed` in the annotations. 10m08s is GitHub's own cache-restore
+          # timeout, almost to the second. Identical in shape to `cache: pnpm` on
+          # setup-node, which pulled 377 MB per job to rebuild a store already on disk.
+          #
+          # ⚠️ RAISING `timeout-minutes` WOULD BE THE WRONG FIX, and .github/CLAUDE.md
+          # already records why from the 2026-08-18 apt outage: lifting one ceiling only
+          # moves which job absorbs the problem.
+          #
+          # So: no cache service, and a DB directory that PERSISTS inside the runner's own
+          # volume — the same fix that made pnpm fast here. `runner.environment` keeps a
+          # GitHub-hosted run on its normal path, where the cache genuinely helps because
+          # the disk is ephemeral.
+          cache: ${{ runner.environment == 'github-hosted' && 'true' || 'false' }}
+          cache-dir: ${{ runner.environment == 'github-hosted' && format('{0}/.cache/trivy', github.workspace) || '/actions-runner/_work/.trivy-cache' }}
           scan-type: image
           image-ref: ${{ steps.baseimage.outputs.ref }}
           format: table
@@ -356,6 +381,9 @@ jobs:
         env:
           TRIVY_IMAGE_SRC: remote
         with:
+          # Same reasoning as the step above — see the note there.
+          cache: ${{ runner.environment == 'github-hosted' && 'true' || 'false' }}
+          cache-dir: ${{ runner.environment == 'github-hosted' && format('{0}/.cache/trivy', github.workspace) || '/actions-runner/_work/.trivy-cache' }}
           scan-type: image
           image-ref: ${{ steps.baseimage.outputs.ref }}
           format: table
