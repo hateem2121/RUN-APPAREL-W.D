@@ -97,6 +97,13 @@ jobs:
           # disk. `runner.environment` keeps this correct if a job ever runs on GitHub
           # again, where the store IS ephemeral and the archive genuinely helps.
           cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          # ⚠️ setup-node v7 AUTO-ENABLES this separately when `package.json` declares
+          # `packageManager` (ours does, `package.json:6`), so `cache: ''` alone no
+          # longer describes what the action does. Full measurement in ci.yml beside the
+          # matching line — and it is in BOTH files deliberately, because this repo's
+          # own rule is that a fix applied to one of these two workflows is half a fix
+          # (gitleaks sat wrong here for three months; the container fix for ten days).
+          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
       - run: pnpm install --frozen-lockfile
       # ⚠️ `pnpm lint` WAS MISSING HERE UNTIL 2026-08-30, and `pnpm test` was the
       # bare runner. Both matter, and the second is the subtle one: vitest evaluates
@@ -178,6 +185,13 @@ jobs:
           # disk. `runner.environment` keeps this correct if a job ever runs on GitHub
           # again, where the store IS ephemeral and the archive genuinely helps.
           cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          # ⚠️ setup-node v7 AUTO-ENABLES this separately when `package.json` declares
+          # `packageManager` (ours does, `package.json:6`), so `cache: ''` alone no
+          # longer describes what the action does. Full measurement in ci.yml beside the
+          # matching line — and it is in BOTH files deliberately, because this repo's
+          # own rule is that a fix applied to one of these two workflows is half a fix
+          # (gitleaks sat wrong here for three months; the container fix for ten days).
+          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
       - run: pnpm install --frozen-lockfile
       # No browser install step at all: the image ships Chromium at /ms-playwright,
       # and the render harness runs software WebGL via swiftshader against it.
@@ -206,6 +220,13 @@ jobs:
           # disk. `runner.environment` keeps this correct if a job ever runs on GitHub
           # again, where the store IS ephemeral and the archive genuinely helps.
           cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          # ⚠️ setup-node v7 AUTO-ENABLES this separately when `package.json` declares
+          # `packageManager` (ours does, `package.json:6`), so `cache: ''` alone no
+          # longer describes what the action does. Full measurement in ci.yml beside the
+          # matching line — and it is in BOTH files deliberately, because this repo's
+          # own rule is that a fix applied to one of these two workflows is half a fix
+          # (gitleaks sat wrong here for three months; the container fix for ten days).
+          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
       - run: pnpm install --frozen-lockfile
       - name: Vulnerability audit (high/critical)
         run: |
@@ -540,6 +561,13 @@ jobs:
           # disk. `runner.environment` keeps this correct if a job ever runs on GitHub
           # again, where the store IS ephemeral and the archive genuinely helps.
           cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          # ⚠️ setup-node v7 AUTO-ENABLES this separately when `package.json` declares
+          # `packageManager` (ours does, `package.json:6`), so `cache: ''` alone no
+          # longer describes what the action does. Full measurement in ci.yml beside the
+          # matching line — and it is in BOTH files deliberately, because this repo's
+          # own rule is that a fix applied to one of these two workflows is half a fix
+          # (gitleaks sat wrong here for three months; the container fix for ten days).
+          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
       - run: pnpm install --frozen-lockfile
       # Captured BEFORE the deploy, because the drift assertion at the end of this
       # job compares the image's LAST MODIFIED against it. Recording it afterwards

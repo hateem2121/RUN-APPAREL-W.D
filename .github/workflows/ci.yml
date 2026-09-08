@@ -63,6 +63,25 @@ jobs:
           # correct if a job ever runs on GitHub again — where the store IS ephemeral
           # and the archive genuinely helps.
           cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          # ⚠️ `cache: ''` ALONE IS NOT ENOUGH ON setup-node v7, AND THAT IS NEW.
+          # Since v7 the action AUTO-ENABLES the package-manager cache when
+          # `package.json` declares `packageManager` — and ours does
+          # (`package.json:6`, `pnpm@10.33.0`). The input that governs it defaults to
+          # TRUE and is a SEPARATE knob from `cache:`, so the block above no longer
+          # fully describes what the action will do.
+          #
+          # Measured 2026-09-08 in run 34256940744's `verify` log, where both appear:
+          #
+          #     cache: false
+          #     package-manager-cache: true
+          #     Progress: resolved 1063, reused 1059, downloaded 0, added 1063, done
+          #     Done in 4.5s using pnpm v10.33.0
+          #
+          # So the explicit `cache:` currently WINS and nothing is fetched. Pinned here
+          # anyway because it is one upstream default away from silently restoring the
+          # 377 MB fetch this block exists to prevent — and the symptom would be a slow
+          # job, never a failing one, which is the kind of regression nobody reports.
+          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
       - run: pnpm install --frozen-lockfile
 
       # Style + lint (Biome). Runs BEFORE typecheck because it is the cheapest
@@ -215,6 +234,132 @@ jobs:
       # numbers and exits 1 with the category named when a budget is undercut.
       - name: Bundle weight budget (deterministic, no browser)
         run: node scripts/check-bundle-budget.mjs
+
+      # THE RUNNER SUPERVISOR'S OWN TESTS, WHICH RAN NOWHERE UNTIL 2026-09-08.
+      #
+      # `infra/ci-runner/test-supervise.sh` extracts the `supervise()` function out of
+      # entrypoint.sh with sed and drives it against a stubbed `sleep`, `kill` and
+      # `runner_status`. Six cases, both directions — including the one that matters
+      # most, that an unreachable API decides NOTHING (a runner must not tear itself
+      # down because GitHub blipped).
+      #
+      # It tests real logic that can strand a job for 46 minutes when wrong, and it was
+      # invoked only by hand. Nothing installs, nothing downloads, no browser: it stubs
+      # `sleep`, so the whole suite is milliseconds. There is no reason for it to be
+      # outside the gate.
+      #
+      # ⚠️ Its own header records why the stub's state lives in a FILE: `runner_status`
+      # is called as `$(…)`, i.e. in a subshell, so an in-memory index returned the
+      # FIRST value on every poll and produced two false passes. If you edit the stub,
+      # re-read that note before trusting a green result.
+      - name: Runner supervisor tests
+        run: bash infra/ci-runner/test-supervise.sh
+
+      # ⚠️ IS THE PINNED RUNNER STILL SUPPORTED? THIS IS THE ONLY AUTHORITATIVE ANSWER.
+      #
+      # `infra/ci-runner/entrypoint.sh` passes `--disableupdate`, deliberately — in a
+      # container the self-update lands in a discarded layer, and a stale runner can
+      # "self update then exit without actually running a job or de-registering"
+      # (actions/runner #485, #1396), which with `--restart unless-stopped` is a silent
+      # crash-loop. The price of that flag is that the pin is now ours to maintain, and
+      # GitHub DOES eventually refuse: registration below v2.329.0 has been blocked
+      # since 2026-03-16.
+      #
+      # Do NOT watch the releases page for this. RUNTIME and REGISTRATION deprecation
+      # are separate tracks, and v2.329.0 is simultaneously the enforced registration
+      # minimum and already PAST its runtime deprecation (2026-01-23) — so "meets the
+      # minimum" and "supported" are different questions. One endpoint answers both.
+      #
+      # ⚠️ THE DEPRECATION ENDPOINT IS UNREACHABLE FROM CI, AND THE FIRST VERSION OF THIS
+      # STEP WAS THEREFORE INERT. Measured in run 34264646597, this job:
+      #
+      #     ##[warning]runner deprecation API answered 403
+      #     {"message": "Resource not accessible by integration", "status": "403"}
+      #
+      # `administration` is not a grantable `permissions:` key, so no workflow token can
+      # reach `/actions/runners/deprecations/…` — `.github/CLAUDE.md` already records
+      # that limit for the required-checks list, and it applies here too. A step that
+      # warns "inconclusive" on EVERY run and never checks anything is precisely the
+      # green-but-empty gate this repo keeps getting caught by, so it is not left that
+      # way: the authoritative call is still attempted (it works with a richer token,
+      # e.g. `gh api` locally), and the fallback is a check that genuinely runs.
+      #
+      # THE FALLBACK USES THE PUBLIC `actions/runner` RELEASES API, which needs no auth
+      # at all — measured 2026-09-08: HTTP 200 unauthenticated, 60 requests/hour with 55
+      # remaining, and one call per run cannot exhaust that.
+      #
+      # ⚠️ "N RELEASES BEHIND" IS NOT "DEPRECATED", and the threshold is measured rather
+      # than picked. When GitHub enforced a v2.329.0 minimum, v2.337.0 was current —
+      # index 0 vs index 10 in the stable release list, i.e. **10 releases apart**. So
+      # warning at 4 behind leaves six releases of margin before enforcement can bite.
+      #
+      # WHAT ACTUALLY FAILS THIS STEP is a pin that is not a real release — a typo in
+      # `ARG RUNNER_VERSION` would otherwise surface as an image build that 404s on the
+      # tarball, far from the line that caused it. Staleness only warns, because the
+      # remedy (bump, rebuild, restart) is a deliberate human action and `verify` gates
+      # the deploy: an API hiccup must never be why a release is blocked.
+      #
+      # Negative controls, run before committing:
+      #   deprecations 2.337.0 -> null           passes
+      #   deprecations 2.329.0 -> 2026-01-23…    fails, naming the date
+      #   deprecations, bad token -> 401         warns, exits 0
+      #   releases: v2.337.0 -> index 0          0 behind
+      - name: Self-hosted runner version is still supported
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          ver="$(sed -n 's/^ARG RUNNER_VERSION=\(.*\)$/\1/p' infra/ci-runner/Dockerfile)"
+          if [ -z "$ver" ]; then
+            echo "::error::could not read ARG RUNNER_VERSION from infra/ci-runner/Dockerfile"
+            exit 1
+          fi
+          echo "pinned runner: $ver"
+
+          # 1. Authoritative, when the token allows it (it does not in CI; see above).
+          dep=/tmp/runner-deprecation.json
+          code="$(curl -sS -o "$dep" -w '%{http_code}' \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/actions/runners/deprecations/${ver}" || echo 000)"
+          if [ "$code" = "200" ]; then
+            runtime="$(jq -r '.runtime_deprecates_at // "none"' "$dep")"
+            registration="$(jq -r '.registration_deprecates_at // "none"' "$dep")"
+            echo "deprecations API: runtime=${runtime} registration=${registration}"
+            if [ "$runtime" != "none" ] || [ "$registration" != "none" ]; then
+              echo "::error::runner ${ver} is DEPRECATED (runtime=${runtime} registration=${registration})."
+              echo "Bump ARG RUNNER_VERSION in infra/ci-runner/Dockerfile, rebuild the image and"
+              echo "restart the runners with infra/ci-runner/start.sh."
+              exit 1
+            fi
+            echo "runner ${ver} is supported (authoritative)."
+            exit 0
+          fi
+          echo "deprecations API answered ${code} (expected: no workflow token has 'administration')."
+
+          # 2. Fallback that actually runs: is the pin a real release, and how stale?
+          rel=/tmp/runner-releases.json
+          rcode="$(curl -sS -o "$rel" -w '%{http_code}' \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/actions/runner/releases?per_page=100" || echo 000)"
+          if [ "$rcode" != "200" ]; then
+            echo "::warning::actions/runner releases API answered ${rcode}; INCONCLUSIVE, not a failure"
+            exit 0
+          fi
+          behind="$(jq -r --arg v "v${ver}" '[.[] | select(.prerelease==false) | .tag_name] | index($v) // "missing"' "$rel")"
+          if [ "$behind" = "missing" ]; then
+            echo "::error::v${ver} is not a published actions/runner release. Check ARG RUNNER_VERSION"
+            echo "in infra/ci-runner/Dockerfile — the image build would 404 on the tarball."
+            exit 1
+          fi
+          latest="$(jq -r '[.[] | select(.prerelease==false) | .tag_name][0]' "$rel")"
+          echo "v${ver} is ${behind} stable release(s) behind ${latest}."
+          if [ "$behind" -ge 4 ]; then
+            echo "::warning::runner pin is ${behind} releases behind. GitHub's last enforced minimum sat"
+            echo "::warning::10 releases back, so this is an early warning, not an outage. Bump"
+            echo "::warning::ARG RUNNER_VERSION, rebuild, and restart with infra/ci-runner/start.sh."
+          fi
 
 
   # E2E IN A REAL BROWSER. Split out of `verify` on 2026-08-20 and containerised for
@@ -378,6 +523,45 @@ jobs:
       - name: e2e (public site)
         run: pnpm --filter @run-apparel/cms test:e2e
 
+      # ⚠️ THE MEASUREMENT THAT DECIDES `--memory` IN infra/ci-runner/start.sh, PRINTED
+      # WHERE THE NEXT PERSON WILL FIND IT.
+      #
+      # The cap there is a runaway guard sized just above what a correct run costs, and
+      # it has been wrong twice by being reasoned about instead of read: 7g (chosen by
+      # dividing the VM four ways) OOM-killed 37 browser processes, and 20g was nearly
+      # shipped on a stale 16.77 GiB figure when the real peak is 17.49 GiB.
+      #
+      # ⚠️ `docker inspect` CANNOT ANSWER THIS. It reported `OOMKilled=false` throughout
+      # the 7g incident, which was TRUE and useless: the container was never killed,
+      # only the browsers inside it. The cgroup is the only honest source, and a job can
+      # read its own — verified 2026-09-08 that all three files are readable as `pwuser`.
+      #
+      # `always()` because a run that FAILED on memory is exactly the one whose numbers
+      # matter, and a failing step would otherwise skip this. `|| true` on the reads for
+      # the same reason: this is a diagnostic and must never itself fail a gating job.
+      #
+      # Read `oom_kill` first. Anything above 0 means tests marked flaky above were
+      # killed, not flaky — do not re-run them, raise the cap.
+      - name: Memory high-water mark (sizes the runner cap)
+        if: always() && runner.environment == 'self-hosted'
+        run: |
+          set -uo pipefail
+          peak=$(cat /sys/fs/cgroup/memory.peak 2>/dev/null || echo 0)
+          max=$(cat /sys/fs/cgroup/memory.max 2>/dev/null || echo 0)
+          if [ "$peak" = "0" ] || [ "$max" = "0" ]; then
+            echo "::warning::cgroup v2 memory files unreadable here; cannot report the peak"
+            exit 0
+          fi
+          awk -v p="$peak" -v m="$max" 'BEGIN{
+            printf "memory.peak  %.2f GiB\nmemory.max   %.2f GiB\nused         %.1f%% of the cap\n",
+              p/1073741824, m/1073741824, 100*p/m }'
+          echo "memory.events: $(cat /sys/fs/cgroup/memory.events 2>/dev/null | tr '\n' ' ' || true)"
+          kills=$(sed -n 's/^oom_kill \([0-9]*\)$/\1/p' /sys/fs/cgroup/memory.events 2>/dev/null || echo 0)
+          if [ "${kills:-0}" != "0" ]; then
+            echo "::warning::${kills} process(es) were OOM-killed inside this runner. Any test failing"
+            echo "::warning::with 'Target page, context or browser has been closed' was KILLED, not flaky."
+          fi
+
   # Dependency vulnerability gate. Runs in parallel with verify and gates the
   # deploy: a HIGH/CRITICAL advisory blocks production until it is fixed or
   # explicitly allowlisted (with justification) in audit-ci.jsonc.
@@ -414,6 +598,25 @@ jobs:
           # correct if a job ever runs on GitHub again — where the store IS ephemeral
           # and the archive genuinely helps.
           cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          # ⚠️ `cache: ''` ALONE IS NOT ENOUGH ON setup-node v7, AND THAT IS NEW.
+          # Since v7 the action AUTO-ENABLES the package-manager cache when
+          # `package.json` declares `packageManager` — and ours does
+          # (`package.json:6`, `pnpm@10.33.0`). The input that governs it defaults to
+          # TRUE and is a SEPARATE knob from `cache:`, so the block above no longer
+          # fully describes what the action will do.
+          #
+          # Measured 2026-09-08 in run 34256940744's `verify` log, where both appear:
+          #
+          #     cache: false
+          #     package-manager-cache: true
+          #     Progress: resolved 1063, reused 1059, downloaded 0, added 1063, done
+          #     Done in 4.5s using pnpm v10.33.0
+          #
+          # So the explicit `cache:` currently WINS and nothing is fetched. Pinned here
+          # anyway because it is one upstream default away from silently restoring the
+          # 377 MB fetch this block exists to prevent — and the symptom would be a slow
+          # job, never a failing one, which is the kind of regression nobody reports.
+          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
       - run: pnpm install --frozen-lockfile
       - name: Vulnerability audit (high/critical)
         run: |
@@ -680,6 +883,25 @@ jobs:
           # correct if a job ever runs on GitHub again — where the store IS ephemeral
           # and the archive genuinely helps.
           cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          # ⚠️ `cache: ''` ALONE IS NOT ENOUGH ON setup-node v7, AND THAT IS NEW.
+          # Since v7 the action AUTO-ENABLES the package-manager cache when
+          # `package.json` declares `packageManager` — and ours does
+          # (`package.json:6`, `pnpm@10.33.0`). The input that governs it defaults to
+          # TRUE and is a SEPARATE knob from `cache:`, so the block above no longer
+          # fully describes what the action will do.
+          #
+          # Measured 2026-09-08 in run 34256940744's `verify` log, where both appear:
+          #
+          #     cache: false
+          #     package-manager-cache: true
+          #     Progress: resolved 1063, reused 1059, downloaded 0, added 1063, done
+          #     Done in 4.5s using pnpm v10.33.0
+          #
+          # So the explicit `cache:` currently WINS and nothing is fetched. Pinned here
+          # anyway because it is one upstream default away from silently restoring the
+          # 377 MB fetch this block exists to prevent — and the symptom would be a slow
+          # job, never a failing one, which is the kind of regression nobody reports.
+          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
       - run: pnpm install --frozen-lockfile
       - name: Build viewer with the e2e mock origin
         run: node apps/viewer/e2e/prepare.mjs
@@ -982,6 +1204,25 @@ jobs:
           # correct if a job ever runs on GitHub again — where the store IS ephemeral
           # and the archive genuinely helps.
           cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          # ⚠️ `cache: ''` ALONE IS NOT ENOUGH ON setup-node v7, AND THAT IS NEW.
+          # Since v7 the action AUTO-ENABLES the package-manager cache when
+          # `package.json` declares `packageManager` — and ours does
+          # (`package.json:6`, `pnpm@10.33.0`). The input that governs it defaults to
+          # TRUE and is a SEPARATE knob from `cache:`, so the block above no longer
+          # fully describes what the action will do.
+          #
+          # Measured 2026-09-08 in run 34256940744's `verify` log, where both appear:
+          #
+          #     cache: false
+          #     package-manager-cache: true
+          #     Progress: resolved 1063, reused 1059, downloaded 0, added 1063, done
+          #     Done in 4.5s using pnpm v10.33.0
+          #
+          # So the explicit `cache:` currently WINS and nothing is fetched. Pinned here
+          # anyway because it is one upstream default away from silently restoring the
+          # 377 MB fetch this block exists to prevent — and the symptom would be a slow
+          # job, never a failing one, which is the kind of regression nobody reports.
+          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm seed:assets
 
