@@ -314,8 +314,32 @@ jobs:
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
           echo "Scanning $ref"
 
+      # ⚠️ SCAN THE REGISTRY, NOT THE LOCAL DAEMON — AND THAT BECAME LOAD-BEARING
+      # ON 2026-09-08. Trivy prefers a reachable Docker daemon over the registry, and
+      # this runner now mounts the host socket so `shrink-deploy` can build the
+      # container. The host is an arm64 Mac; the base image is pinned BY DIGEST to
+      # amd64 content. The daemon holds the arm64 variant under that tag and cannot
+      # produce the pinned digest, so the scan died:
+      #
+      #     FATAL unable to export the image: ... content digest sha256:e9b5516b...:
+      #     not found
+      #
+      # Which reads as a corrupt image or a bad pin, and is neither. `remote` skips
+      # the daemon entirely and is also the more correct question: this step audits
+      # the UPSTREAM image we pinned, not whatever a local daemon happens to hold.
+      # Verified 2026-09-08 — a registry scan of the pinned digest returns a real
+      # report (4 HIGH in brace-expansion / ip-address / tar).
       - name: Base image report (informational)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_IMAGE_SRC: remote
+        # ⚠️ `exit-code: '0'` DOES NOT MAKE THIS STEP INFORMATIONAL, WHICH IS HOW A
+        # STEP NAMED "(informational)" FAILED THE JOB AND BLOCKED THE DEPLOY.
+        # That input governs the exit code for FINDINGS; a scanner that CRASHES still
+        # exits non-zero and still fails the step. Same distinction ci.yml's gitleaks
+        # step already records: "A failed fetch and a failed scan are not the same
+        # result and must not look the same." The gate below is the one that may fail.
+        continue-on-error: true
         with:
           scan-type: image
           image-ref: ${{ steps.baseimage.outputs.ref }}
@@ -323,8 +347,14 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: '0'
 
+      # This one IS a gate and fails closed on purpose — no continue-on-error. Its
+      # daemon-dependent failure mode is removed by TRIVY_IMAGE_SRC above, so a
+      # failure here now means a fixable CRITICAL in the base OS layer, which is
+      # exactly what it is for.
       - name: Fail on a fixable CRITICAL in the base OS layer
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_IMAGE_SRC: remote
         with:
           scan-type: image
           image-ref: ${{ steps.baseimage.outputs.ref }}

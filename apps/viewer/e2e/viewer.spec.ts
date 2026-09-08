@@ -224,15 +224,43 @@ test.describe('RUN APPAREL 3D viewer', () => {
     expect(wa).toContain(encodeURIComponent('Hello RUN Team,'))
   })
 
+  /**
+   * ⚠️ THE TIMEOUTS BELOW WAIT ON A RENDERING OPPORTUNITY, NOT ON OUR CODE, AND
+   * REMOVING THEM RE-ARMS A CI-ONLY FLAKE.
+   *
+   * `setTheme` (src/lib/theme.ts) passes `apply()` — which sets `data-theme` AND
+   * writes localStorage — as the update callback of `document.startViewTransition`.
+   * The browser runs that callback only after it has captured the outgoing snapshot,
+   * so nothing is applied until the page gets a frame.
+   *
+   * Measured 2026-09-08: ALL FOUR engines take that branch
+   * (`startViewTransition=true`, `prefers-reduced-motion=false`), so this is not a
+   * WebKit capability gap. It surfaced on webkit alone because that engine, headless
+   * and under CI CPU pressure, did not produce the frame inside Playwright's 5s
+   * default — first as `2 flaky` (passing on retry) on run 34226292207, then as a
+   * hard failure on 34231845965 once twelve jobs were sharing four runners.
+   * `- unexpected value "null"` five polls running: never set, not set-then-cleared.
+   *
+   * This does NOT weaken the assertion. Same attribute, same value, and the reload
+   * still proves persistence — only the harness's patience changes, and 5 seconds
+   * was never a product requirement. A visitor on a starved machine sees the
+   * cross-fade a moment late, which is what a cross-fade is.
+   */
   test('theme toggle persists an explicit manual choice', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' })
     await page.goto('/n001/wine')
     await page.getByRole('button', { name: /switch to dark mode/i }).click()
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark', {
+      timeout: 15_000,
+    })
+    // Also written inside the deferred `apply()`, so read it only after the
+    // attribute has landed — reading first would race the same frame.
     const stored = await page.evaluate(() => localStorage.getItem('run-theme'))
     expect(stored).toBe('dark')
     await page.reload()
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark', {
+      timeout: 15_000,
+    })
   })
 
   test('customisation section expands the four build steps', async ({ page }) => {
