@@ -237,23 +237,27 @@ jobs:
 
       # THE RUNNER SUPERVISOR'S OWN TESTS, WHICH RAN NOWHERE UNTIL 2026-09-08.
       #
-      # `infra/ci-runner/test-supervise.sh` extracts the `supervise()` function out of
-      # entrypoint.sh with sed and drives it against a stubbed `sleep`, `kill` and
-      # `runner_status`. Six cases, both directions — including the one that matters
-      # most, that an unreachable API decides NOTHING (a runner must not tear itself
-      # down because GitHub blipped).
+      # `infra/ci-runner/test-runner-loop.sh` sources `runner-loop.sh` as a library and
+      # drives `supervise_container` against stubbed `sleep`, `kill_container`,
+      # `runner_status` and `container_running`. Ten cases, both directions — including
+      # the one that matters most, that an unreachable API decides NOTHING (a runner must
+      # not be torn down because GitHub blipped).
       #
-      # It tests real logic that can strand a job for 46 minutes when wrong, and it was
-      # invoked only by hand. Nothing installs, nothing downloads, no browser: it stubs
-      # `sleep`, so the whole suite is milliseconds. There is no reason for it to be
-      # outside the gate.
+      # It tests logic that can strand a job for 46 minutes when it is too slow, and
+      # cause that same failure itself when it is too eager — both of which happened on
+      # 2026-09-08. Nothing installs, nothing downloads, no browser: `sleep` is stubbed,
+      # so the whole suite is milliseconds.
       #
-      # ⚠️ Its own header records why the stub's state lives in a FILE: `runner_status`
-      # is called as `$(…)`, i.e. in a subshell, so an in-memory index returned the
-      # FIRST value on every poll and produced two false passes. If you edit the stub,
-      # re-read that note before trusting a green result.
+      # ⚠️ TWO THINGS THE HARNESS ITSELF GOT WRONG, BOTH WORTH KNOWING BEFORE YOU EDIT IT.
+      # The stub's state lives in a FILE because `runner_status` is called as `$(…)`, in a
+      # SUBSHELL — an in-memory index is incremented in a child and discarded, so every
+      # poll returns the first value, which produced two false passes in the predecessor.
+      # And "how long the container lives" and "what GitHub says about it" are stubbed
+      # SEPARATELY: the first version drove both off one counter, so during the start
+      # period — when the status is never polled — the container could never exit, and
+      # the case meant to prove suppression proved only that a delay is a delay.
       - name: Runner supervisor tests
-        run: bash infra/ci-runner/test-supervise.sh
+        run: bash infra/ci-runner/test-runner-loop.sh
 
       # ⚠️ IS THE PINNED RUNNER STILL SUPPORTED? THIS IS THE ONLY AUTHORITATIVE ANSWER.
       #
