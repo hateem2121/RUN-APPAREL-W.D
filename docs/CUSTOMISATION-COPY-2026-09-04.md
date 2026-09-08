@@ -69,6 +69,11 @@ these pages; nothing here claims a capability the site does not already state.
 | THE AGGRESSOR JERSEY MEN | custom American football jersey manufacturer |
 | CLASSIC SOCCER SHIRT | custom soccer jersey manufacturer |
 | ARISAN SPORTS BRA | custom sports bra manufacturer |
+| CAPSULE CORE HOODIE | custom cropped hoodie manufacturer |
+| GEOVENT TENNIS DRESS | custom tennis uniform manufacturer |
+| THE AGGRESSOR UNIFORM | custom American football uniform manufacturer |
+| ENDURA CROP TOP | private label women's activewear manufacturer |
+| ENDURANCE TRACKSUIT | custom tracksuit manufacturer |
 
 ## What is grounded, and what is deliberately absent
 
@@ -89,6 +94,11 @@ decoration method the product actually specifies:
 | THE AGGRESSOR JERSEY MEN | silicone printing |
 | CLASSIC SOCCER SHIRT | digital sublimation print |
 | ARISAN SPORTS BRA | screen printing |
+| GEOVENT TENNIS DRESS | digital sublimation print |
+| THE AGGRESSOR UNIFORM | silicone printing |
+| ENDURA CROP TOP | screen printing |
+| **CAPSULE CORE HOODIE** | **high-density screen print** (owner-confirmed 2026-09-07) |
+| **ENDURANCE TRACKSUIT** | **screen print** (owner-confirmed 2026-09-07) |
 
 ⚠️ **The ARMOR-TECH JACKET entry is a correction.** An earlier draft of this file
 said the jacket "is not printed — leather does not take sublimation" and built its
@@ -314,17 +324,119 @@ after MOQ, so that is the next-biggest gap — see the end of this file.
 
 ---
 
+## 12. CAPSULE CORE HOODIE — `r-cch` (R-CCH)
+
+**Intro**
+
+> A cropped hoodie lives or dies on where the hem sits and how the hood holds its
+> shape once it is worn in. We work as a custom cropped hoodie manufacturer for
+> lifestyle and studio brands — send a tech pack, a reference piece or a mood board
+> and we develop it into a production-ready garment.
+> A first test order can be as few as 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | A sketch, a hoodie you want bettered, or a description of where it will be worn — yoga studio, recovery, street. Crop length and hood volume are the two decisions that define this garment, and a photograph of the look you want settles both faster than a spec sheet. |
+| 2 | LOCK THE SPECIFICATION | We fix the soft-touch tech fleece at 140–180 GSM in a 98% recycled polyester / 2% spandex blend, the relaxed flow fit, the structured raglan panelling, and the ribbed hemline that holds the crop where you want it. Wide bell sleeves and the oversized hood are specified to your proportions, not to one house block. |
+| 3 | ADD YOUR BRAND | The body takes a high-density screen print, so a chest logo sits raised and solid rather than sinking into the fleece pile. Placement is set against the raglan seams before printing, so a mark never breaks across a panel join. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development hoodie is worn and washed, not just measured. Crop length and hood weight are the usual corrections; you approve a reference sample and production is manufactured to that approved standard. |
+
+---
+
+## 13. GEOVENT TENNIS DRESS — `r-gtd` (R-GTD)
+
+**Intro**
+
+> A tennis dress has to hold a serve and a hem at the same time. We manufacture
+> tennis and court uniforms to your specification — as a custom tennis uniform
+> manufacturer we take a club design, a sponsor sheet or a written brief and develop
+> it into a production-ready garment with you.
+> Test orders start at 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | A club colourway, a squad list, a dress you want matched, or simply the level your players compete at. Skirt length and coverage under the skirt are the questions that come up first, and they are easier answered in conversation than on a drawing. |
+| 2 | LOCK THE SPECIFICATION | We fix the eco poly stretch at 180–220 GSM in an 85% recycled polyester / 15% spandex blend, the engineered seam placement that keeps stitching off the shoulder and underarm, and the flex jersey panels that carry the movement. Once agreed, that specification is the standard every unit is measured against. |
+| 3 | ADD YOUR BRAND | Digital sublimation puts colour into the fibre rather than onto it, so an all-over pattern crosses the bodice and the skirt without a join and will not crack at the waist seam. Artwork is mapped to pattern pieces before printing, so a sponsor mark never lands on a curve. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development dress is played in. Skirt length and strap position are the usual corrections; both are fixed against your feedback, you approve a reference sample, and production follows it. |
+
+---
+
+## 14. THE AGGRESSOR UNIFORM — `r-au` (R-AU)
+
+**Intro**
+
+> A football uniform is two garments that have to survive the same contact. We work as
+> a custom American football uniform manufacturer for clubs and programs — bring a
+> team sheet, a numbering font, sponsor artwork or a uniform you want matched, and we
+> develop the jersey and the padded trouser together.
+> A first test order can start at 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | A roster with numbers and names, a helmet colour to build around, or a program's existing identity. You do not need finished artwork — most uniform programs begin with a colour and a number font, and the panel layout is built around them. |
+| 2 | LOCK THE SPECIFICATION | We fix the double mesh interlock at 220–260 GSM in a 95% polyester / 5% spandex blend, the contoured masculine-specific cut, the contrasting ribbed V-neck trim, and the EVA foam pad placement at hip, thigh and knee in the trouser. Pad position is set to the positions your players actually play. |
+| 3 | ADD YOUR BRAND | Silicone printing holds a hard edge through contact, which is why numbers and player names are printed this way rather than transferred. Numbering, name panel and sponsor marks are laid out against the chevron yoke before printing so nothing breaks across a seam. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development set is worn in contact, not inspected on a table. Pad position and number legibility at distance are the two things that usually change; both are corrected, you approve a reference set, and production is manufactured to it. |
+
+---
+
+## 15. ENDURA CROP TOP — `r-ect` (R-ECT)
+
+**Intro**
+
+> A training set is judged on whether the two halves still match after twenty washes.
+> As a private label women's activewear manufacturer we develop the crop top and the
+> shorts as one program — send a tech pack, a sample or a description of the training
+> and we take it to a production-ready garment.
+> Test orders can be as small as 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | A colour story, a set you want bettered, or the kind of session it is for — studio, lifting, running. Sleeve length and rise on the shorts are the decisions that shape the set, and your training description usually answers both. |
+| 2 | LOCK THE SPECIFICATION | We fix the single jersey knit at 140–190 GSM in a 90% polyester / 10% spandex blend, the cropped cut, the thumb holes that keep the sleeves down through a full session, and the high-waist rise on the matching shorts. Both pieces are specified together so the fabric and the colour match across them. |
+| 3 | ADD YOUR BRAND | Screen printing sits cleanly on a fine single jersey without stiffening it, which is why it is used here rather than a heavier transfer. The printed logo band that finishes the top's hem and the shorts' waist is set out as one layout across both pieces. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development set is trained in and washed. Crop length and waistband tension are the usual corrections; you approve a reference set and production is manufactured to that approved standard. |
+
+---
+
+## 16. ENDURANCE TRACKSUIT — `r-et` (R-ET)
+
+**Intro**
+
+> A tracksuit is worn on the way to training and on the way home, so it is judged as
+> often off the field as on it. We work as a custom tracksuit manufacturer for teams
+> and brands — bring a team identity, a sample or a sketch and we develop the hood and
+> the pant as one set.
+> A first test order can be as few as 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | A team colour, a travel kit you want matched, or simply how it will be used — warm-ups, team travel, or everyday wear. Whether the top is a hood or a collar is the first decision, and it changes the pattern more than any other choice here. |
+| 2 | LOCK THE SPECIFICATION | We fix the 100% organic cotton fleece at 280–350 GSM, the tapered pant silhouette, the pullover hood with drawcord, the contrast raglan sleeves, and the ribbed cuffs and elasticated waist that hold the shape after washing. Once agreed, that specification is what every unit is measured against. |
+| 3 | ADD YOUR BRAND | The chest takes a screen print, which is what allows an oversized tonal logo to read as texture rather than as a patch stuck on the front. Placement is set against the raglan seams so a large mark never breaks across the shoulder join. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development set is worn and washed, because cotton fleece moves on the first wash and that is exactly what a reference sample has to account for. Sleeve length and cuff tension are the usual corrections; you approve a reference set and production follows it. |
+
+---
+
 ## Garment fit values — owner-confirmed 2026-09-04
 
-Three products had an empty `garmentFit`, so the `[ FIT ]` annotation on the stage
-and the `[ Fit ]` row in the spec list were both omitted on their pages. Confirmed
-values, to be entered in the CMS:
+Four products had an empty `garmentFit`, so the `[ FIT ]` annotation on the stage
+and the `[ Fit ]` row in the spec list were both omitted on their pages — and the
+value is also absent from the JSON-LD `Fit` property. Confirmed values, to be
+entered in the CMS:
+
+⚠️ `r-gtd` was added on **2026-09-07**, when it was published. Its fit is empty in
+the printed catalogue too, so there was nothing to read it from — the other tennis
+dress in the range (`r-mm` MINECUT MOTION) already says **Athletic fit**, and the
+owner chose the same words so a buyer comparing the two sees matching language.
 
 | Product | `garmentFit` |
 |---|---|
 | `r-wzu` WOMEN ZIP-UP VEST | **Athletic fit** |
 | `r-mm` MINECUT MOTION | **Athletic fit** |
 | `r-css` CLASSIC SOCCER SHIRT | **Boxy fit** |
+| `r-gtd` GEOVENT TENNIS DRESS | **Athletic fit** |
 
 These now also appear in the step 2 copy above, so the two do not contradict each
 other. They also flow into the JSON-LD structured data as a `Fit` property, which

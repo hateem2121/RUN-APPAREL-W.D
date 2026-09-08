@@ -93,6 +93,41 @@ const COPY = {
       'Tapered pant with ribbed cuffs',
       'Elasticated waist',
       'Wrinkle-resistant fabric',
+      // Added in the second pass — see the r-cch note below.
+      'Screen print',
+    ],
+  },
+  /**
+   * SECOND PASS, same day. `r-cch`'s DESCRIPTION was already correct and is written
+   * back unchanged; only the feature list moves.
+   *
+   * Why it needed touching at all: `docs/CUSTOMISATION-COPY-2026-09-04.md` names each
+   * garment's decoration method in step 3, read from that garment's own spec — and
+   * neither the hoodie nor the tracksuit named one, so their step 3 had nothing
+   * grounded to cite. The owner confirmed both on 2026-09-07 (hoodie: high-density
+   * screen print, tracksuit: screen print). The hoodie's own description already said
+   * "high-density logo printing", so the fact was in the copy and missing from the
+   * spec; the tracksuit's was in neither.
+   *
+   * ⚠️ THE PRECEDENT FOR ASKING RATHER THAN INFERRING is in that doc: an earlier draft
+   * reasoned the ARMOR-TECH JACKET "is not printed — leather does not take sublimation"
+   * and built its step 3 around hardware. The garment carries a screen-printed logo.
+   * The sublimation half was true and the conclusion drawn from it was not.
+   */
+  'r-cch': {
+    shortDescription:
+      'A women’s crop hoodie in soft-touch tech fleece with structured raglan panelling ' +
+      'and a modern cropped silhouette. Wide bell sleeves and an oversized hood give it ' +
+      'shape, and a ribbed hemline finishes it. Breathable warmth and high-density logo ' +
+      'printing make it a premium lifestyle layer for the yoga studio, recovery and urban ' +
+      'streetwear.',
+    performanceFeatures: [
+      'Soft-touch tech fleece',
+      'Structured raglan panelling',
+      'Wide bell sleeves',
+      'Oversized hood construction',
+      'Ribbed hemline',
+      'High-density screen print',
     ],
   },
 }
@@ -158,7 +193,7 @@ console.log(
   dryRun
     ? '\n[copy] --dry-run complete: nothing written, nothing verified.'
     : failures === 0
-      ? '\n[copy] ✅ all three verified by read-back'
+      ? `\n[copy] ✅ all ${Object.keys(COPY).length} verified by read-back`
       : `\n[copy] ✗ ${failures} failed`,
 )
 process.exit(failures === 0 ? 0 : 1)

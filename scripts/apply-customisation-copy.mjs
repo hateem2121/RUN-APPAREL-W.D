@@ -22,7 +22,7 @@
  * anything else would mean editing the reviewed copy in a second place afterwards.
  *
  * Fragile parsing is handled by being LOUD rather than clever: the expected shape
- * is asserted up front — eleven products, each with an intro and exactly four
+ * is asserted up front — see EXPECTED_PRODUCTS, each with an intro and exactly four
  * numbered steps — and any shortfall exits non-zero before a single request is
  * made. A parser that silently found nine products would write nine and report
  * success, which is the failure mode worth engineering against here.
@@ -30,7 +30,7 @@
  * Usage:
  *   node scripts/apply-customisation-copy.mjs                 # dry run, prints a diff
  *   node scripts/apply-customisation-copy.mjs --only rxps     # dry run, one product
- *   node scripts/apply-customisation-copy.mjs --apply         # write all eleven
+ *   node scripts/apply-customisation-copy.mjs --apply         # write every product
  *   node scripts/apply-customisation-copy.mjs --only rxps --apply
  *
  * Env:
@@ -64,7 +64,18 @@ const APPLY = args.includes('--apply')
 const onlyAt = args.indexOf('--only')
 const ONLY = onlyAt === -1 ? null : args[onlyAt + 1]
 
-const EXPECTED_PRODUCTS = 11
+/**
+ * 11 -> 16 on 2026-09-07, with the five garments published that day.
+ *
+ * ⚠️ THIS NUMBER IS THE ONLY THING THAT NOTICES A NEW PRODUCT HAS NO COPY. It is not
+ * a formality: the five 2026-09-07 garments went live with `customisationIntro` null
+ * and zero steps, so all five served the generic fallback paragraph — which is the
+ * red finding from `docs/AUDIT-PRODUCT-PAGES-2026-09-04.md` ("Ten of your eleven
+ * product pages are missing your sales pitch") reintroduced for five of sixteen
+ * pages. Nothing went red, because the fallback renders fine and this script was
+ * never re-run. Raise it in the same change that publishes a garment.
+ */
+const EXPECTED_PRODUCTS = 16
 const EXPECTED_STEPS = 4
 
 /** `| a | b | c |` -> ['a','b','c'], with escaped pipes preserved. */
@@ -228,7 +239,7 @@ for (const p of parsed) {
 }
 // The fit table is one of two explicit owner instructions (2026-09-04), so a
 // silent zero here would drop half of what was asked for. Assert the count.
-const EXPECTED_FITS = 3
+const EXPECTED_FITS = 4
 if (Object.keys(fits).length !== EXPECTED_FITS) {
   problems.push(
     `expected ${EXPECTED_FITS} owner-confirmed garmentFit values, parsed ` +
