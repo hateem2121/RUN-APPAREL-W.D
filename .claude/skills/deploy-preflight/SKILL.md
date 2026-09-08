@@ -64,7 +64,13 @@ that is exactly the check that would have caught the stale slug above:
 node -e "const d=require('/tmp/rxps-wine-before.json'); if (d.error) { console.error('REFUSED: got an error payload, not the product:', d); process.exit(1) } console.log(d.product.productCode, d.colourways.length + ' colourways,', JSON.stringify(d).length + ' bytes')"
 ```
 
-Expect `R-XPS 5 colourways, ~4477 bytes` — MEASURED 2026-08-25.
+Expect `R-XPS 5 colourways, ~5265 bytes` — MEASURED 2026-09-08.
+
+⚠️ This said `~4477 bytes` until then. The payload GREW because the per-garment
+sales copy landed (`customisationIntro`, `performanceFeatures`); nothing was lost.
+Recording it because a stale expected value is the failure this file already warns
+about twice below, and "longer than expected" is the reading that gets waved
+through — the stop condition is SHORTER, or a non-zero exit.
 
 ⚠️ This line said `RXPS ... ~4264 bytes` until then. `productCode` went
 `RXPS` -> `R-XPS` on 2026-08-17 while the SLUG stayed `rxps`, so that rename has

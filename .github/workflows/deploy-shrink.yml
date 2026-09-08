@@ -82,7 +82,7 @@ jobs:
   # e2e flake blocking a pipeline fix.
   shrink-verify:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arm64, playwright]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -92,7 +92,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          cache: pnpm
+          # NOT on the self-hosted runner: `cache: pnpm` pulled a 377 MB archive from
+          # GitHub's cache service at 0.4-0.7 MB/s to rebuild a store already on local
+          # disk. `runner.environment` keeps this correct if a job ever runs on GitHub
+          # again, where the store IS ephemeral and the archive genuinely helps.
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
       - run: pnpm install --frozen-lockfile
       # ⚠️ `pnpm lint` WAS MISSING HERE UNTIL 2026-08-30, and `pnpm test` was the
       # bare runner. Both matter, and the second is the subtle one: vitest evaluates
@@ -134,7 +138,7 @@ jobs:
   # reason the `verify` job above is a copy — see the note there.
   shrink-artwork:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arm64, playwright]
     # 30, matching ci.yml. It was 20 here while ci.yml had already been raised —
     # and the raise was itself recorded there as the WRONG fix, which is why the
     # container below is the actual one.
@@ -153,12 +157,14 @@ jobs:
     # here runs apt any more. .github/CLAUDE.md's trap is updated to say so — and
     # kept, because its reasoning is what stops the next one being added.
     #
-    # ⚠️ THE TAG IS NOT DECORATIVE. It must equal the declared `@playwright/test`
-    # version; the image SHIPS the browsers, so a mismatch fails at runtime with
-    # `browser not found at /ms-playwright/...`. apps/cms/src/workflowHardening.test.ts
-    # asserts the two agree, which is why this can be pinned by tag rather than digest.
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
+    # ⚠️ NO `container:` BLOCK SINCE 2026-09-08 — THE RUNNER *IS* THAT IMAGE.
+    # `infra/ci-runner/Dockerfile` is built `FROM mcr.microsoft.com/playwright:v1.62.1-noble`,
+    # the same image this job used to pull per run, so the browsers are already present
+    # and there is no Docker-in-Docker to go wrong. The tag is still not decorative: it
+    # must equal the declared `@playwright/test` version or the render harness fails at
+    # runtime with `browser not found at /ms-playwright/...`, and
+    # apps/cms/src/workflowHardening.test.ts asserts the Dockerfile's FROM and the
+    # package version agree. Bumping @playwright/test means REBUILDING that image.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -167,7 +173,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          cache: pnpm
+          # NOT on the self-hosted runner: `cache: pnpm` pulled a 377 MB archive from
+          # GitHub's cache service at 0.4-0.7 MB/s to rebuild a store already on local
+          # disk. `runner.environment` keeps this correct if a job ever runs on GitHub
+          # again, where the store IS ephemeral and the archive genuinely helps.
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
       - run: pnpm install --frozen-lockfile
       # No browser install step at all: the image ships Chromium at /ms-playwright,
       # and the render harness runs software WebGL via swiftshader against it.
@@ -179,7 +189,7 @@ jobs:
   # was never true for the container.
   shrink-audit:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arm64, playwright]
     # 20, not 10 — same reason as ci.yml's audit job: the retry needs room, and this is
     # the job that gates `shrink-deploy`, so a slow runner here blocks the container.
     timeout-minutes: 20
@@ -191,7 +201,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          cache: pnpm
+          # NOT on the self-hosted runner: `cache: pnpm` pulled a 377 MB archive from
+          # GitHub's cache service at 0.4-0.7 MB/s to rebuild a store already on local
+          # disk. `runner.environment` keeps this correct if a job ever runs on GitHub
+          # again, where the store IS ephemeral and the archive genuinely helps.
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
       - run: pnpm install --frozen-lockfile
       - name: Vulnerability audit (high/critical)
         run: |
@@ -326,7 +340,7 @@ jobs:
   # different workflow and therefore cannot block this deploy.
   shrink-secrets:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arm64, playwright]
     timeout-minutes: 15
     permissions:
       contents: read
@@ -363,8 +377,17 @@ jobs:
       - name: gitleaks
         env:
           GITLEAKS_VERSION: 8.30.1
-          # gitleaks' own published checksum for that exact release. Bump together.
-          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+          # gitleaks' own published checksums, ONE PER ARCH.
+          # ⚠️ BOTH ARE NEEDED SINCE 2026-09-08, when CI moved to a self-hosted arm64
+          # runner. This step hardcoded `linux_x64`, which is not a binary an arm64
+          # machine can execute — and `shrink-secrets` is in `shrink-deploy.needs`, so
+          # getting it wrong blocks the container deploy. This file kept the commercial
+          # ACTION for three months after ci.yml replaced it, scanning 0 commits while
+          # reporting success; .github/CLAUDE.md's trap generalises the lesson as "a fix
+          # to one of these two workflows is only half a fix. Grep the other." That is
+          # precisely what happened again here on 2026-09-08 with the arch.
+          GITLEAKS_SHA256_X64: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+          GITLEAKS_SHA256_ARM64: e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080
         run: |
           set -euo pipefail
           # Kept identical to ci.yml's secrets job — see the note there. A CDN 504
@@ -374,9 +397,18 @@ jobs:
           # deploy's needs:), and the gitleaks history above records what happens
           # when only one of the two copies gets a fix: the wrapper survived here
           # for three months, scanning ZERO commits, green.
+          # Resolve the arch, and REFUSE an unknown one rather than guessing. A wrong
+          # guess downloads a binary that cannot execute, and the failure reads as
+          # "gitleaks is broken" rather than "wrong architecture".
+          case "$(uname -m)" in
+            x86_64|amd64) GL_ARCH=x64;    GL_SHA="${GITLEAKS_SHA256_X64}" ;;
+            aarch64|arm64) GL_ARCH=arm64; GL_SHA="${GITLEAKS_SHA256_ARM64}" ;;
+            *) echo "::error::unsupported arch $(uname -m) — add its gitleaks checksum"; exit 1 ;;
+          esac
+          echo "gitleaks ${GITLEAKS_VERSION} for linux_${GL_ARCH}"
           curl -sSfL --retry 5 --retry-delay 3 --retry-all-errors \
             -o /tmp/gitleaks.tar.gz \
-            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${GL_ARCH}.tar.gz"
           # ⚠️ VERIFY THE ARCHIVE BEFORE UNPACKING IT — L9-06, 2026-08-31.
           # Until now this downloaded a binary over the network and RAN it, with the
           # only check being that `gitleaks version` printed something. That proves
@@ -387,7 +419,7 @@ jobs:
           # ⚠️ BUMP IT WITH GITLEAKS_VERSION — they change together, and a stale
           # digest fails loudly here rather than silently skipping, which is the
           # behaviour worth having.
-          echo "${GITLEAKS_SHA256}  /tmp/gitleaks.tar.gz" | sha256sum -c -
+          echo "${GL_SHA}  /tmp/gitleaks.tar.gz" | sha256sum -c -
           tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
           /tmp/gitleaks version
           /tmp/gitleaks detect \
@@ -402,7 +434,7 @@ jobs:
     # 2026-08-08; before that this deploy was gated on `verify` alone.
     needs: [shrink-verify, shrink-artwork, shrink-audit, shrink-secrets]
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arm64, playwright]
     timeout-minutes: 45
     environment:
       name: production
@@ -414,7 +446,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          cache: pnpm
+          # NOT on the self-hosted runner: `cache: pnpm` pulled a 377 MB archive from
+          # GitHub's cache service at 0.4-0.7 MB/s to rebuild a store already on local
+          # disk. `runner.environment` keeps this correct if a job ever runs on GitHub
+          # again, where the store IS ephemeral and the archive genuinely helps.
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
       - run: pnpm install --frozen-lockfile
       # Captured BEFORE the deploy, because the drift assertion at the end of this
       # job compares the image's LAST MODIFIED against it. Recording it afterwards
@@ -427,8 +463,26 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        # `wrangler deploy` builds the Dockerfile locally (Docker is preinstalled
-        # on ubuntu-latest) and pushes it to Cloudflare's registry, then deploys.
+          # ⚠️ WITHOUT THIS, AN ARM64 RUNNER SHIPS AN ARM64 IMAGE TO AN AMD64 PLATFORM.
+          # `apps/shrink/Dockerfile` says it in its own header — "Must run on
+          # linux/amd64. Build in CI (amd64 runners) or, on an arm64 Mac, with
+          # `--platform linux/amd64`" — and that instruction was load-bearing on the
+          # RUNNER being amd64, which stopped being true on 2026-09-08 when this job
+          # moved to a self-hosted Apple Silicon Mac. `wrangler deploy` passes no
+          # platform of its own, so the build would silently follow the host and
+          # produce an image Cloudflare cannot run. Docker reads this variable for
+          # every build, so it is correct on BOTH machines: a no-op on an amd64
+          # runner, the required flag on this one.
+          #
+          # Verified on the Mac 2026-09-08: `DOCKER_DEFAULT_PLATFORM=linux/amd64`
+          # produced `Architecture: amd64` with `uname -m` reporting `x86_64` inside
+          # the built image. Emulation is available; expect the `npm ci` layer (sharp
+          # links against system libs) to be slower than native — `timeout-minutes: 45`
+          # above is the headroom for it.
+          DOCKER_DEFAULT_PLATFORM: linux/amd64
+        # `wrangler deploy` builds the Dockerfile locally (Docker reaches the host
+        # daemon through the socket this runner mounts — see infra/ci-runner/start.sh)
+        # and pushes it to Cloudflare's registry, then deploys.
         # See the version-labelling note in ci.yml's CMS deploy step.
         # ⚠️ `run: |`, NOT a plain scalar. A plain YAML scalar folds its newlines into
         # SPACES, so a trailing `\` survives into the shell as a literal backslash and
@@ -438,6 +492,37 @@ jobs:
         run: |
           pnpm --filter @run-apparel/shrink exec wrangler deploy \
             --message "${GITHUB_SHA:0:7} ${GITHUB_REF_NAME}"
+
+      # ⚠️ ASSERT THE ARCH THAT WAS ACTUALLY BUILT, NOT THE ONE WE ASKED FOR.
+      # DOCKER_DEFAULT_PLATFORM above is an instruction; this is the measurement. A
+      # wrong-arch image deploys clean and fails only when a garment is processed —
+      # and the drift check below cannot see it, because the image DID move. This
+      # repo's recurring failure is a green gate over a broken production path.
+      #
+      # Deliberately asymmetric: finding no local image is a WARNING (wrangler may
+      # tag or prune differently in a future version, and a check that guesses wrong
+      # would block deploys for no reason), while finding an arm64 one is an ERROR.
+      # Only positive evidence of the defect fails the job.
+      - name: Assert the container image is amd64
+        run: |
+          set -euo pipefail
+          imgs=$(docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null \
+                 | grep -iE 'shrink|cloudflare' || true)
+          if [ -z "$imgs" ]; then
+            echo "::warning::no local shrink image found to inspect — arch NOT verified. If wrangler changed how it tags the build, fix this step rather than deleting it."
+            exit 0
+          fi
+          bad=0
+          for i in $imgs; do
+            a=$(docker image inspect "$i" --format '{{.Architecture}}' 2>/dev/null || echo unknown)
+            echo "  $i -> $a"
+            if [ "$a" = "arm64" ] || [ "$a" = "aarch64" ]; then bad=1; fi
+          done
+          if [ "$bad" = "1" ]; then
+            echo "::error::An arm64 container image was built. Cloudflare Containers run amd64 — this image would fail at runtime while the deploy reported success. DOCKER_DEFAULT_PLATFORM did not take effect."
+            exit 1
+          fi
+          echo "amd64 confirmed."
 
       # ALERTING ONLY EXISTS IF THIS RUNS.
       #
