@@ -1,0 +1,18 @@
+# actionlint config.
+#
+# WHY THIS FILE EXISTS. `verify` runs actionlint over every workflow, and actionlint
+# validates `runs-on:` against the labels GitHub actually provides. Since 2026-09-08 the
+# jobs run on a self-hosted runner labelled `self-hosted, linux, arm64, playwright` —
+# the first three are built in, `playwright` is ours, and without declaring it here
+# actionlint fails `verify` with:
+#
+#   label "playwright" is unknown. … if it is a custom label for self-hosted runner,
+#   set list of labels in actionlint.yaml config file [runner-label]
+#
+# The label is kept rather than dropped because it is the one that says WHAT the runner
+# is: an image built FROM mcr.microsoft.com/playwright (infra/ci-runner/Dockerfile), so
+# the browsers are already present and no job needs `container:` or a browser install.
+# A future second runner without browsers must NOT carry this label.
+self-hosted-runner:
+  labels:
+    - playwright

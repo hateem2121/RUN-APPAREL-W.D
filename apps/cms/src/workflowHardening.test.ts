@@ -79,8 +79,24 @@ function deployNeeds(source: string): string[] {
  * negative control can prove it distinguishes a match from a mismatch instead of
  * returning [] for everything.
  */
+/**
+ * Every declared Playwright image version, from a workflow `container.image:` OR a
+ * Dockerfile `FROM`.
+ *
+ * ⚠️ THE `FROM` HALF WAS ADDED 2026-09-08 IN THE SAME CHANGE THAT MOVED THE PIN, and
+ * skipping it would have made this whole rule inert. `ci.yml`'s two container jobs were
+ * replaced by a self-hosted runner built FROM the same image
+ * (`infra/ci-runner/Dockerfile`), so no workflow declares `container:` any more — and a
+ * regex that only reads `image:` then finds nothing, the loop below never executes, and
+ * the assertion passes for a repo whose runner image could drift freely. That is this
+ * repo's most repeated CI failure (a gate that stops gating: 2026-08-15, 2026-08-17,
+ * and `scripts/live-products.mjs` twice), reproduced by deleting a container.
+ *
+ * The caller therefore also asserts the count is non-zero — finding NOTHING is now a
+ * failure, not a pass.
+ */
 function playwrightImageVersions(source: string): string[] {
-  return [...source.matchAll(/image:\s*\S*playwright:v(\d+\.\d+\.\d+)\b/g)]
+  return [...source.matchAll(/(?:image:|FROM)\s*\S*playwright:v(\d+\.\d+\.\d+)\b/g)]
     .map((m) => m[1])
     .filter((v): v is string => v !== undefined)
 }
@@ -550,18 +566,58 @@ jobs:
     const expected = [...declared][0]
 
     const offenders: string[] = []
-    for (const file of await workflowFiles()) {
-      for (const found of playwrightImageVersions(read(file))) {
+    let declaredImages = 0
+    // The runner Dockerfile joined this list on 2026-09-08: it is where the pin LIVES
+    // now that no workflow declares `container:`.
+    //
+    // ⚠️ It is read from the REPO ROOT, not through `read()`. That helper joins onto
+    // `.github/workflows/`, so passing this path to it looked right and threw
+    // `ENOENT … /.github/workflows/infra/ci-runner/Dockerfile`.
+    const sources: { name: string; source: string }[] = [
+      ...(await workflowFiles()).map((f) => ({ name: f, source: read(f) })),
+      {
+        name: 'infra/ci-runner/Dockerfile',
+        source: readFileSync(join(REPO_ROOT, 'infra/ci-runner/Dockerfile'), 'utf8'),
+      },
+    ]
+    for (const { name: file, source } of sources) {
+      for (const found of playwrightImageVersions(source)) {
+        declaredImages++
         if (found !== expected)
-          offenders.push(`${file}: container image v${found} != @playwright/test ${expected}`)
+          offenders.push(`${file}: Playwright image v${found} != @playwright/test ${expected}`)
       }
     }
 
+    // ⚠️ FINDING NOTHING IS A FAILURE, NOT A PASS, AND IT MUST BE CHECKED PER SOURCE.
+    //
+    // The first version of this asserted only that the TOTAL was non-zero, and that was
+    // provably too weak: deleting the `FROM` line from the runner Dockerfile still left
+    // `deploy-shrink.yml`'s own `container:` to satisfy the count, so the sabotage passed
+    // 25/25. The runner image is now the pin that decides which browsers every ci.yml job
+    // gets, so it is asserted by name.
+    const runnerImages = playwrightImageVersions(
+      readFileSync(join(REPO_ROOT, 'infra/ci-runner/Dockerfile'), 'utf8'),
+    )
+    expect(
+      runnerImages,
+      'infra/ci-runner/Dockerfile declares no Playwright image. That FROM line is what\n' +
+        'gives every ci.yml job its browsers — no job declares `container:` any more — so\n' +
+        'losing it means the runner silently stops matching @playwright/test.\n' +
+        'If the pin moved again, point this rule at its new home; do not delete the check.',
+    ).toHaveLength(1)
+
+    expect(
+      declaredImages,
+      'No Playwright image version found in any workflow or infra/ci-runner/Dockerfile.\n' +
+        'Either the pin moved again and this rule can no longer see it, or the parser broke.',
+    ).toBeGreaterThan(0)
+
     expect(
       offenders,
-      'A container image and @playwright/test have drifted. The image SHIPS the browsers;\n' +
+      'A Playwright image and @playwright/test have drifted. The image SHIPS the browsers;\n' +
         'a mismatch fails at runtime with "browser not found at /ms-playwright/...".\n' +
-        'Bump the image tag in the workflow and the package together.\n' +
+        'Bump the image tag AND the package together — the runner image is\n' +
+        'infra/ci-runner/Dockerfile, and it must be rebuilt for the bump to take effect.\n' +
         `${offenders.join('\n')}`,
     ).toEqual([])
   })
@@ -581,6 +637,17 @@ jobs:
     expect(playwrightImageVersions(drifted)).toEqual(['1.60.0'])
     expect(playwrightImageVersions(drifted.replace('v1.60.0', 'v1.62.1'))).toEqual(['1.62.1'])
     expect(playwrightImageVersions('jobs:\n  a:\n    runs-on: ubuntu-latest\n')).toEqual([])
+
+    // The Dockerfile form, which is where the pin actually lives since 2026-09-08. Read
+    // both ways: a drifted FROM must be SEEN, and a file with no image must yield [] so
+    // the caller's non-zero assertion is what catches an inert rule.
+    expect(
+      playwrightImageVersions('FROM mcr.microsoft.com/playwright:v1.60.0-noble\nUSER pwuser\n'),
+    ).toEqual(['1.60.0'])
+    expect(
+      playwrightImageVersions('FROM mcr.microsoft.com/playwright:v1.62.1-noble\nUSER pwuser\n'),
+    ).toEqual(['1.62.1'])
+    expect(playwrightImageVersions('FROM node:24-bookworm\nRUN echo hi\n')).toEqual([])
   })
   /**
    * TENTH RULE, added 2026-08-20 when `e2e` was split out of `verify`.

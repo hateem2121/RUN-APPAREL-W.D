@@ -40,7 +40,7 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arm64, playwright]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -50,7 +50,19 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          cache: pnpm
+          # ⚠️ ONLY ON GITHUB'S RUNNERS. `cache: pnpm` makes setup-node pull a pnpm
+          # cache archive from GitHub's cache service, and on the self-hosted runner
+          # that archive is 377 MB arriving at 0.4-0.7 MB/s over a home connection —
+          # measured as 151s of `audit`'s 205s, 206s of `lighthouse`'s 278s, in EVERY
+          # job. It is also redundant there: each runner keeps its own persistent pnpm
+          # store inside its work volume (infra/ci-runner/Dockerfile), on the same
+          # filesystem as the checkout so pnpm hard-links instead of copying. Paying
+          # 377 MB to rebuild a store that is already on disk is worse than no cache.
+          #
+          # `runner.environment` is the built-in that distinguishes them, so this stays
+          # correct if a job ever runs on GitHub again — where the store IS ephemeral
+          # and the archive genuinely helps.
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
       - run: pnpm install --frozen-lockfile
 
       # Style + lint (Biome). Runs BEFORE typecheck because it is the cheapest
@@ -92,9 +104,17 @@ jobs:
           ACTIONLINT_VERSION: 1.7.12
         run: |
           set -euo pipefail
+          # Arch-resolved for the same reason gitleaks is (2026-09-08, self-hosted arm64
+          # runner): `linux_amd64` is not executable on arm64, and `verify` is in
+          # `deploy.needs`. Refuse an unknown arch rather than fetch the wrong binary.
+          case "$(uname -m)" in
+            x86_64|amd64) AL_ARCH=amd64 ;;
+            aarch64|arm64) AL_ARCH=arm64 ;;
+            *) echo "::error::unsupported arch $(uname -m) for actionlint"; exit 1 ;;
+          esac
           curl -sSfL --retry 5 --retry-delay 3 --retry-all-errors \
             -o /tmp/actionlint.tar.gz \
-            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_${AL_ARCH}.tar.gz"
           tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
           # Proves the binary is real before the lint, so a corrupt archive fails here
           # with a clear message rather than as an ambiguous clean run.
@@ -224,26 +244,31 @@ jobs:
   # suite ran Chromium twice and the single most likely browser for this product had
   # never executed a line of it. Firefox is cheap once the matrix exists.
   #
-  # ⚠️ FIREFOX NEEDS `HOME=/root`, AND NEITHER USER CHOICE FIXES IT ALONE. Measured on
-  # run 32349283297: 176 tests passed, 57 failed, every one of them `viewer-firefox`,
-  # all on `browserType.launch: Failed to launch the browser process`:
+  # ⚠️ THE `HOME=/root` WORKAROUND IS GONE — AND KNOW WHY, BEFORE REINSTATING A CONTAINER.
+  # Kept because it comes straight back the moment a `container:` returns here.
+  #
+  # Measured on run 32349283297, when this job ran `container: playwright:...`:
+  # 176 tests passed, 57 failed, every one of them `viewer-firefox`, all on
+  # `browserType.launch: Failed to launch the browser process`:
   #
   #     Running Nightly as root in a regular user's session is not supported.
   #     ($HOME is /github/home which is owned by pwuser.)
   #
-  # The cause is NOT the user. GitHub forces `HOME=/github/home` into every container
-  # job — visible in the `docker create` line as `-e "HOME=/github/home"` — and that
-  # path is mounted from the host, while inside this image it is owned by `pwuser`
-  # (the image's own uid 1000). Firefox refuses when the process owner and $HOME's
-  # owner differ, so running as root breaks it AND `--user 1001` breaks it differently
-  # (`Can't find profile directory`, microsoft/playwright#31685). Chromium and WebKit
-  # do not check; only Firefox does, which is why `artwork` never saw this.
+  # The cause was never the user. GitHub forces `HOME=/github/home` into every CONTAINER
+  # job — visible in the `docker create` line as `-e "HOME=/github/home"` — mounted from
+  # the host, while inside the image it is owned by `pwuser` (uid 1000). Firefox refuses
+  # when the process owner and $HOME's owner differ, so root broke it AND `--user 1001`
+  # broke it differently (`Can't find profile directory`,
+  # microsoft/playwright#31685). Chromium and WebKit do not check; only Firefox does,
+  # which is why `artwork` never saw it.
   #
-  # `HOME: /root` on the e2e step is Playwright's own printed workaround. It is scoped
-  # to the STEP, not the job, so `actions/checkout` and the pnpm store cache keep the
-  # HOME the runner expects. Do not add `options: --user 1001` on top of it.
+  # Since 2026-09-08 there is NO container: the self-hosted runner IS that image
+  # (infra/ci-runner/Dockerfile), so the job runs as `pwuser` with `HOME=/home/pwuser`
+  # — owner and $HOME agree, and nothing needs overriding. Verified by running the
+  # image: `whoami=pwuser HOME=/home/pwuser`. If a `container:` is ever added back,
+  # `HOME: /root` must come back with it, scoped to the STEP and not the job.
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arm64, playwright]
     # ⚠️ 30, RAISED FROM 20 ON 2026-09-07 BECAUSE THE WORK GREW, NOT BECAUSE A CEILING WAS
     # INCONVENIENT. Measured, this job, five consecutive runs:
     #
@@ -268,8 +293,6 @@ jobs:
     # account earlier in this file, where lifting one ceiling only moved which job died.
     # It is the answer when the ceiling is smaller than the measured work, which is this.
     timeout-minutes: 30
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -300,8 +323,6 @@ jobs:
       # while wall-clock falls. The apt path that cost 23 webkit tests on run
       # 32248711203 is gone from this file entirely.
       - name: e2e
-        env:
-          HOME: /root
         run: pnpm --filter @run-apparel/viewer test:e2e
       # THE PUBLIC MARKETING SITE, added 2026-09-05.
       #
@@ -348,7 +369,6 @@ jobs:
       # has nothing to match.
       - name: Seed the database the public-site suite reads
         env:
-          HOME: /root
           PAYLOAD_SECRET: ci-e2e-${{ github.run_id }}
         run: |
           pnpm seed:assets
@@ -356,8 +376,6 @@ jobs:
           pnpm seed:cms
 
       - name: e2e (public site)
-        env:
-          HOME: /root
         run: pnpm --filter @run-apparel/cms test:e2e
 
   # Dependency vulnerability gate. Runs in parallel with verify and gates the
@@ -370,7 +388,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arm64, playwright]
     # 20, not 10: the retry above needs room for three attempts, and on 2026-09-04
     # `pnpm/action-setup` alone consumed 372-425s of the old 10-minute budget. In the
     # normal case this job still finishes in about two minutes.
@@ -383,7 +401,19 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          cache: pnpm
+          # ⚠️ ONLY ON GITHUB'S RUNNERS. `cache: pnpm` makes setup-node pull a pnpm
+          # cache archive from GitHub's cache service, and on the self-hosted runner
+          # that archive is 377 MB arriving at 0.4-0.7 MB/s over a home connection —
+          # measured as 151s of `audit`'s 205s, 206s of `lighthouse`'s 278s, in EVERY
+          # job. It is also redundant there: each runner keeps its own persistent pnpm
+          # store inside its work volume (infra/ci-runner/Dockerfile), on the same
+          # filesystem as the checkout so pnpm hard-links instead of copying. Paying
+          # 377 MB to rebuild a store that is already on disk is worse than no cache.
+          #
+          # `runner.environment` is the built-in that distinguishes them, so this stays
+          # correct if a job ever runs on GitHub again — where the store IS ephemeral
+          # and the archive genuinely helps.
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
       - run: pnpm install --frozen-lockfile
       - name: Vulnerability audit (high/critical)
         run: |
@@ -501,7 +531,7 @@ jobs:
   # Moving it here is what makes the word "gate" true.
   secrets:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arm64, playwright]
     timeout-minutes: 15
     permissions:
       contents: read
@@ -539,8 +569,15 @@ jobs:
       - name: gitleaks
         env:
           GITLEAKS_VERSION: 8.30.1
-          # gitleaks' own published checksum for that exact release. Bump together.
-          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+          # gitleaks' own published checksums for that exact release, ONE PER ARCH.
+          # ⚠️ BOTH ARE NEEDED SINCE 2026-09-08, when CI moved to a self-hosted arm64
+          # runner. This step used to hardcode `linux_x64`, which is not a binary an
+          # arm64 machine can execute — and `secrets` is in `deploy.needs`, so getting
+          # this wrong blocks every deploy. Keeping both means the job runs unchanged on
+          # a GitHub-hosted x64 runner too, which is the point: the workflow should not
+          # care which machine it landed on.
+          GITLEAKS_SHA256_X64: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+          GITLEAKS_SHA256_ARM64: e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080
         run: |
           set -euo pipefail
           # ⚠️ DOWNLOAD TO A FILE, THEN EXTRACT — NOT curl | tar. On run
@@ -553,9 +590,18 @@ jobs:
           # retry that begins mid-stream feeds tar the tail of one response
           # glued to the head of the next. Landing the archive first makes the
           # retry safe and lets tar verify the gzip in one piece.
+          # Resolve the arch, and REFUSE an unknown one rather than guessing. A wrong
+          # guess here downloads a binary that cannot execute, and the failure reads as
+          # "gitleaks is broken" rather than "wrong architecture".
+          case "$(uname -m)" in
+            x86_64|amd64) GL_ARCH=x64;   GL_SHA="${GITLEAKS_SHA256_X64}" ;;
+            aarch64|arm64) GL_ARCH=arm64; GL_SHA="${GITLEAKS_SHA256_ARM64}" ;;
+            *) echo "::error::unsupported arch $(uname -m) — add its gitleaks checksum"; exit 1 ;;
+          esac
+          echo "gitleaks ${GITLEAKS_VERSION} for linux_${GL_ARCH}"
           curl -sSfL --retry 5 --retry-delay 3 --retry-all-errors \
             -o /tmp/gitleaks.tar.gz \
-            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${GL_ARCH}.tar.gz"
           # ⚠️ VERIFY THE ARCHIVE BEFORE UNPACKING IT — L9-06, 2026-08-31.
           # Until now this downloaded a binary over the network and RAN it, with the
           # only check being that `gitleaks version` printed something. That proves
@@ -566,7 +612,7 @@ jobs:
           # ⚠️ BUMP IT WITH GITLEAKS_VERSION — they change together, and a stale
           # digest fails loudly here rather than silently skipping, which is the
           # behaviour worth having.
-          echo "${GITLEAKS_SHA256}  /tmp/gitleaks.tar.gz" | sha256sum -c -
+          echo "${GL_SHA}  /tmp/gitleaks.tar.gz" | sha256sum -c -
           tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
           # Proves the binary is real before the scan, so a corrupt archive fails
           # here with a clear message rather than as an ambiguous scan result.
@@ -611,7 +657,7 @@ jobs:
   # (which DOES carry the DSN) is weighed by nothing. Do not read a green run as a
   # statement about the live page's script weight.
   lighthouse:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arm64, playwright]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -621,12 +667,42 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          cache: pnpm
+          # ⚠️ ONLY ON GITHUB'S RUNNERS. `cache: pnpm` makes setup-node pull a pnpm
+          # cache archive from GitHub's cache service, and on the self-hosted runner
+          # that archive is 377 MB arriving at 0.4-0.7 MB/s over a home connection —
+          # measured as 151s of `audit`'s 205s, 206s of `lighthouse`'s 278s, in EVERY
+          # job. It is also redundant there: each runner keeps its own persistent pnpm
+          # store inside its work volume (infra/ci-runner/Dockerfile), on the same
+          # filesystem as the checkout so pnpm hard-links instead of copying. Paying
+          # 377 MB to rebuild a store that is already on disk is worse than no cache.
+          #
+          # `runner.environment` is the built-in that distinguishes them, so this stays
+          # correct if a job ever runs on GitHub again — where the store IS ephemeral
+          # and the archive genuinely helps.
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
       - run: pnpm install --frozen-lockfile
       - name: Build viewer with the e2e mock origin
         run: node apps/viewer/e2e/prepare.mjs
       - name: Lighthouse CI
-        run: pnpm exec lhci autorun
+        # ⚠️ THIS RUNNER HAS NO SYSTEM CHROME, and Lighthouse needs one. GitHub-hosted
+        # ubuntu images ship google-chrome; the self-hosted image is Playwright-based and
+        # puts browsers under /ms-playwright instead, where chrome-launcher will not look
+        # unless CHROME_PATH says so. Without this, `lhci autorun` fails with
+        # "no Chrome installations found" — which reads as a broken config, not a missing
+        # binary. Resolved at runtime so the job is correct on EITHER runner, and it
+        # fails loudly rather than letting Lighthouse pick something unintended.
+        run: |
+          set -euo pipefail
+          CHROME_PATH="${CHROME_PATH:-}"
+          [ -n "$CHROME_PATH" ] || CHROME_PATH="$(command -v google-chrome || command -v chromium || true)"
+          [ -n "$CHROME_PATH" ] || CHROME_PATH="$(ls -d /ms-playwright/chromium-*/chrome-linux*/chrome 2>/dev/null | head -1 || true)"
+          if [ ! -x "$CHROME_PATH" ]; then
+            echo "::error::no Chrome for Lighthouse (looked for google-chrome, chromium, /ms-playwright/chromium-*)"
+            exit 1
+          fi
+          export CHROME_PATH
+          echo "Lighthouse will drive $CHROME_PATH"
+          pnpm exec lhci autorun
 
   # Does the shipped decimation preset still leave printed artwork readable?
   #
@@ -671,7 +747,7 @@ jobs:
   # Chromium only — WebKit and Firefox are not needed, and the render harness
   # already runs software WebGL via swiftshader.
   artwork:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arm64, playwright]
     # 20 -> 30 on 2026-08-18, to match `verify`, after this job was CANCELLED twice
     # in a row at exactly 20m20s — which reads as a failed gate and was not one.
     #
@@ -737,14 +813,17 @@ jobs:
     # as root disables the Chromium sandbox; the render harness already runs software
     # WebGL through swiftshader, so it costs nothing.
     #
-    # THE TAG IS NOT DECORATIVE. It must equal the `@playwright/test` version: the image
-    # SHIPS the browsers, the package drives them, and a mismatch fails at RUNTIME with
-    # `browser not found at /ms-playwright/...` on whichever PR happens to bump the
-    # package. `apps/cms/src/workflowHardening.test.ts` fails if they drift. A TAG and
-    # not a digest because `.github/dependabot.yml` declares no docker ecosystem, so a
-    # digest would go stale in silence with nothing to notice.
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
+    # THE PLAYWRIGHT IMAGE MOVED, THE PIN DID NOT LOOSEN. This job no longer declares a
+    # `container:`; since 2026-09-08 the self-hosted runner is built FROM that image, so
+    # the tag now lives in `infra/ci-runner/Dockerfile`. It must still equal the
+    # `@playwright/test` version — the image SHIPS the browsers, the package drives them,
+    # and a mismatch fails at RUNTIME with `browser not found at /ms-playwright/...`.
+    # `apps/cms/src/workflowHardening.test.ts` reads the Dockerfile as well as every
+    # workflow, and now FAILS if it finds no image at all, because deleting the container
+    # is exactly what made that rule inert. A TAG and not a digest because
+    # `.github/dependabot.yml` declares no docker ecosystem, so a digest would go stale
+    # in silence. ⚠️ Bumping the tag needs the runner image REBUILT to take effect —
+    # see infra/ci-runner/README.md.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -855,7 +934,7 @@ jobs:
     # Enabled once Cloudflare secrets are configured (Phase 10):
     #   gh variable set DEPLOY_ENABLED --body true
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arm64, playwright]
     timeout-minutes: 20
     # The `production` environment is a LABEL here, and that is a CLOSED DECISION
     # rather than an unfinished setup step. Required reviewers need GitHub Pro
@@ -890,7 +969,19 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          cache: pnpm
+          # ⚠️ ONLY ON GITHUB'S RUNNERS. `cache: pnpm` makes setup-node pull a pnpm
+          # cache archive from GitHub's cache service, and on the self-hosted runner
+          # that archive is 377 MB arriving at 0.4-0.7 MB/s over a home connection —
+          # measured as 151s of `audit`'s 205s, 206s of `lighthouse`'s 278s, in EVERY
+          # job. It is also redundant there: each runner keeps its own persistent pnpm
+          # store inside its work volume (infra/ci-runner/Dockerfile), on the same
+          # filesystem as the checkout so pnpm hard-links instead of copying. Paying
+          # 377 MB to rebuild a store that is already on disk is worse than no cache.
+          #
+          # `runner.environment` is the built-in that distinguishes them, so this stays
+          # correct if a job ever runs on GitHub again — where the store IS ephemeral
+          # and the archive genuinely helps.
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm seed:assets
 

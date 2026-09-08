@@ -62,6 +62,18 @@ describe.skipIf(!chromiumAvailable)('renderPosters (needs Chromium)', () => {
     const alphaAt = (x: number, y: number) => data[(y * info.width + x) * 4 + 3] ?? -1
     expect(alphaAt(2, 2)).toBe(0) // the corner: nothing there
     expect(alphaAt(info.width - 3, 2)).toBe(0)
+    /**
+     * THE WHOLE TOP EDGE, not two pixels — because the defect those two corners
+     * caught on 2026-09-08 was a BAND. model-viewer paints its loading progress bar
+     * as a full-width 5px strip at `top: 0` in `rgba(0, 0, 0, 0.4)`, which captured
+     * as alpha 102 for 5 rows; the two corner samples happened to sit inside it.
+     * They are kept exactly as they were, and this measures the shape of the thing.
+     * 8 of 8 concurrent renders carried it before `render.ts` suppressed the chrome.
+     */
+    let worstTopAlpha = 0
+    for (let y = 0; y < 8; y++)
+      for (let x = 0; x < info.width; x++) worstTopAlpha = Math.max(worstTopAlpha, alphaAt(x, y))
+    expect(worstTopAlpha, "the top edge must carry none of model-viewer's chrome").toBe(0)
     expect(alphaAt(Math.floor(info.width / 2), Math.floor(info.height / 2))).toBe(255) // the garment
   }, 180_000)
 })

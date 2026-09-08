@@ -50,6 +50,38 @@ describe('render harness page', () => {
   })
 
   /**
+   * ⚠️ THE INCIDENT THIS PINS (2026-09-08). model-viewer's own loading chrome can
+   * be CAPTURED, and its progress bar was: `#default-progress-bar > .bar` is a
+   * full-width 5px strip at `top: 0` filled with
+   * `var(--progress-bar-color, rgba(0, 0, 0, 0.4))`, so a poster came out with
+   * **alpha 102 across the whole top edge, 5 rows deep** — `posters.test.ts`
+   * reporting `expected 102 to be +0`. It read as a flaky test because the bar is
+   * only hidden by CSS transitions (`opacity 0.3s 1s`, applied from a rAF), so an
+   * idle machine captures before the bar expands and a loaded one captures while
+   * it is still opaque: 8 of 8 concurrent `renderPosters` runs carried the band.
+   *
+   * The page has always suppressed the POSTER this way; the progress bar was the
+   * omission. Height and colour are both asserted because either alone is enough
+   * to keep the frame clean, so this survives a rename of one of them.
+   */
+  it('keeps model-viewer’s own loading chrome out of the capture', () => {
+    expect(PAGE_HTML).toContain('--poster-color: transparent')
+    expect(PAGE_HTML).toContain('--progress-bar-color: transparent')
+    expect(PAGE_HTML).toContain('--progress-bar-height: 0px')
+  })
+
+  /** Every page the harness can build, not just the default one. */
+  it('suppresses the progress bar on the transparent poster page too', () => {
+    for (const background of ['grey', 'transparent'] as const) {
+      const page = renderHarnessPage({ background })
+      expect(page, `${background} page must hide the progress bar`).toContain(
+        '--progress-bar-color: transparent',
+      )
+      expect(page).toContain('--progress-bar-height: 0px')
+    }
+  })
+
+  /**
    * Every default crop view must carry an explicit `fieldOfView`. Left at 'auto',
    * model-viewer frames the whole bounding sphere and a "crop" measures the garment.
    */

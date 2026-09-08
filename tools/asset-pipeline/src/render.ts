@@ -217,6 +217,45 @@ export interface HarnessPageOptions {
   instruments?: boolean
 }
 
+/**
+ * The custom properties that keep model-viewer's own LOADING CHROME out of a
+ * captured frame. `--poster-color` was always here; the progress bar was not, and
+ * that shipped a defect into customer-facing posters.
+ *
+ * ⚠️ MODEL-VIEWER PAINTS A 5px PROGRESS BAR ACROSS THE TOP OF THE ELEMENT, AND A
+ * SCREENSHOT CAN CATCH IT. Measured 2026-09-08 on @google/model-viewer 4.3.1:
+ * `#default-progress-bar > .bar` is `position: absolute; top: 0; width: 100%;
+ * height: var(--progress-bar-height, 5px)` filled with
+ * `var(--progress-bar-color, rgba(0, 0, 0, 0.4))` — so on the transparent poster
+ * background it captures as **alpha 102 across the whole top edge, exactly 5 rows
+ * deep**, which is the `expected 102 to be +0` that `posters.test.ts` reported.
+ *
+ * IT IS A RACE, NOT A CONSTANT, WHICH IS WHY IT LOOKED LIKE A FLAKY TEST. The bar
+ * is only hidden by CSS TRANSITIONS — `transform 0.09s` as it fills, then
+ * `opacity 0.3s 1s` once model-viewer adds `.hide` from inside a
+ * `requestAnimationFrame`. Both are wall-clock, and the rAF is starved by exactly
+ * what CI has: several swiftshader browsers rasterising in software at once. Idle,
+ * the capture lands before the bar expands (measured: bar still `scaleX(0)` at
+ * 420 ms, corner alpha 0, test green). Loaded, it lands while the bar is expanded
+ * AND still opaque: **8 of 8 concurrent `renderPosters` runs came back with the
+ * band, 0 of 8 after this fix.**
+ *
+ * WHY SUPPRESS IT RATHER THAN WAIT FOR IT. There is no scene state here to wait
+ * on — this is chrome, not the garment, and it has no business in a poster at any
+ * time. A wait would still be racing the rAF that applies `.hide`, and would add
+ * ~1.3 s to every one of the 25+ posters a catalogue render writes. Removing the
+ * cause cannot be raced.
+ *
+ * BOTH PROPERTIES ON PURPOSE: either one alone stops the bar painting, so a rename
+ * of one in a future model-viewer still leaves a clean frame. Pinned by
+ * `render.test.ts`, and `posters.test.ts` measures the pixels in a real browser.
+ * ⚠️ Do NOT copy this to `review-server.ts` — that page is interactive and a human
+ * loading a 27 MB garment there wants the progress bar.
+ */
+const CHROME_SUPPRESSION = `--poster-color: transparent;
+    --progress-bar-color: transparent;
+    --progress-bar-height: 0px;`
+
 /** Build the page under test. See the header for what each option means. */
 export function renderHarnessPage(options: HarnessPageOptions = {}): string {
   const lighting = options.lighting ?? 'production'
@@ -227,7 +266,11 @@ export function renderHarnessPage(options: HarnessPageOptions = {}): string {
 <title>asset-pipeline render harness (${lighting} lighting, instruments ${instruments ? 'on' : 'OFF'})</title>
 <style>
   html, body { margin: 0; background: ${background}; }
-  model-viewer { width: 100vw; height: 100vh; --poster-color: transparent; }
+  model-viewer {
+    width: 100vw;
+    height: 100vh;
+    ${CHROME_SUPPRESSION}
+  }
 </style>
 <model-viewer
   id="mv"

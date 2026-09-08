@@ -2014,15 +2014,44 @@ test.describe('text follows the browser text-size setting', () => {
           const page_ = document.querySelector('footer')?.closest('.page')
           const rootPx = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
           const padPx = page_ ? Number.parseFloat(getComputedStyle(page_).paddingBottom) : 0
-          // 4.5rem is the floor in page.css. If the root grew and the floor did
-          // not follow it, the declaration was never re-resolved.
-          return { rootPx, padPx, floorPx: 4.5 * rootPx }
+          // A rem length on a throwaway element, measured through layout rather
+          // than read back off a declaration. Nothing of ours can make it stale,
+          // so it says whether `rem` means the injected root AT ALL.
+          const probe = document.createElement('div')
+          probe.style.cssText = 'position:absolute;visibility:hidden;width:1px;height:4.5rem'
+          document.body.appendChild(probe)
+          const probePx = probe.getBoundingClientRect().height
+          probe.remove()
+          return { rootPx, padPx, probePx }
         })
+        /**
+         * ⚠️ THE YARDSTICK IS THE ROOT WE INJECTED, NEVER THE ONE THE ENGINE REPORTS.
+         * This guard read `Math.min(4.5 * applied.rootPx, 4.5 * root)` until
+         * 2026-09-08, which disarmed it in precisely the case it exists to catch:
+         * when propagation fails, `applied.rootPx` is itself stale, so the floor
+         * collapsed to the stale value and the stale padding cleared it.
+         *
+         * Measured on run 34226292207, mobile-safari at 414x896, 20px root:
+         *
+         *     injected root 20px    4.5 * root      = 90px   <- ground truth
+         *     engine reported 16px  4.5 * rootPx    = 72px   <- stale
+         *     .page padding         73px                     <- stale, clears 72
+         *     action bar height     77px                     <- DID re-resolve
+         *
+         * `Math.min(72, 90)` is 72, `73 + 1 < 72` is false, so the precondition was
+         * recorded as satisfied and the assertion then compared a re-resolved bar
+         * against an unre-resolved reserve and reported a 4px shortfall no visitor
+         * experiences. Propagation here is PARTIAL and per-element — the bar grew
+         * while `.page` and `<html>`'s own reported size did not — so no single
+         * element's self-report can be trusted to answer the question.
+         */
+        const expectedFloor = 4.5 * root
         test.skip(
-          applied.padPx + 1 < Math.min(applied.floorPx, 4.5 * root),
-          `the engine did not re-resolve .page's padding after the root font-size changed ` +
-            `(root ${applied.rootPx}px, floor would be ${applied.floorPx}px, padding ` +
-            `${applied.padPx}px) — the text size never reached the layout, so there is ` +
+          applied.probePx + 1 < expectedFloor || applied.padPx + 1 < expectedFloor,
+          `the engine did not re-resolve after the root font-size changed to ${root}px ` +
+            `(4.5rem probe measured ${applied.probePx}px, .page padding ${applied.padPx}px, ` +
+            `both against an expected ${expectedFloor}px; <html> reports ` +
+            `${applied.rootPx}px) — the text size never reached the layout, so there is ` +
             `nothing here to measure`,
         )
 
