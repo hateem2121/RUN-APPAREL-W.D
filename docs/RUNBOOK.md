@@ -89,6 +89,83 @@ part of `ci.yml` — a green CI run says nothing about it.
 >
 > Full diagnosis and the checklist state: [RAW-UPLOAD-PIPELINE.md](RAW-UPLOAD-PIPELINE.md).
 
+## Deploying the shrink container
+
+**Since 2026-09-08 the container is deployed by Cloudflare, not by CI, and the reason is
+upload bandwidth.** `shrink-deploy` in `.github/workflows/deploy-shrink.yml` is gated off
+behind the repository variable `SHRINK_DEPLOY_FROM_CI`, which is unset.
+
+The image builds here without trouble — measured on run 34251256826: **amd64, 54
+seconds**, using the host Docker socket the self-hosted runner mounts. What fails is the
+push:
+
+| | |
+|---|---|
+| built image | **135 MB** |
+| this Mac's upload, measured | **85 kB/s** (a 10 MB test did not finish in 120s) |
+| 135 MB at 85 kB/s | **~26 minutes**, best case |
+
+and one layer died as `net/http: timeout awaiting response headers` against
+`registry.cloudflare.com`. Downloads are fine — the 1.3 GB Trivy database arrives in
+about three minutes — so this is ordinary asymmetric home broadband, and the container
+push is the only job in this repo that has to send anything outward.
+
+### What the owner has to do once (nobody else can)
+
+Connecting a repository to Cloudflare needs a dashboard action and a GitHub
+authorisation, so it cannot be scripted or done by an agent.
+
+1. Cloudflare dashboard → **Workers & Pages** → the Worker named
+   **`run-apparel-viewer-shrink`**. ⚠️ The name must match `"name"` in
+   `apps/shrink/wrangler.jsonc` exactly, or the build fails on a name check.
+2. **Settings → Builds → Connect**, and choose `hateem2121/run-apparel-viewer`.
+3. Set **root directory** to `apps/shrink`.
+4. Leave the **deploy command** as `npx wrangler deploy`. That is the command that
+   builds and publishes the image; Cloudflare's docs state that "Dockerfile builds can
+   run in the Workers Builds environment", which is the whole point — the 135 MB never
+   leaves this machine because it is never built on it.
+5. Set the **production branch** to `main`, and leave non-production branch builds OFF.
+   `wrangler versions upload` (what preview builds run) does **not** update container
+   images, so a preview build would be misleading rather than useful.
+
+### ⚠️ The gate this loses, and how to get it back
+
+**Workers Builds deploys on a push to `main` regardless of the four gates in
+`deploy-shrink.yml`.** `needs:` stops that workflow's own deploy job; it cannot stop
+Cloudflare's. So until the gates are also expressed as Workers Builds' **build command**,
+a pipeline change that fails `shrink-artwork` here will still reach the container.
+
+That is a real weakening, so it is written down rather than absorbed. To restore it, set
+the build command in the same **Settings → Builds** screen:
+
+```
+npx --yes pnpm@10.33.0 install --frozen-lockfile && npx --yes pnpm@10.33.0 --filter @run-apparel/shrink typecheck && npx --yes pnpm@10.33.0 --filter @run-apparel/shrink test
+```
+
+A failing build command stops the deploy command from running, which is exactly the
+gating behaviour `needs:` provides here.
+
+⚠️ **That command is UNVERIFIED** — it cannot be tested until the repository is
+connected, because there is no way to run a Workers Build without the connection. Check
+the first build's log rather than assuming it worked, and note that the artwork eval is
+deliberately **not** in it: that gate needs a browser, and whether Cloudflare's build
+environment can install one has not been measured. Until it has, `shrink-artwork` in
+GitHub CI is a report, not a gate on the container.
+
+### Deploying it by hand instead
+
+Still supported and sometimes the right answer — from any machine with real upload
+bandwidth, with Docker running:
+
+```bash
+CLOUDFLARE_API_TOKEN=$(cat ~/cf_token.txt) DOCKER_DEFAULT_PLATFORM=linux/amd64 npx --yes pnpm@10.33.0 --filter @run-apparel/shrink exec wrangler deploy
+```
+
+⚠️ `DOCKER_DEFAULT_PLATFORM` is **not optional on an Apple Silicon Mac**. Cloudflare
+Containers run amd64; without it the build silently follows the host, publishes an arm64
+image, reports success, and fails only when a garment is processed — and the drift check
+cannot see it, because the image did move.
+
 ## Deploy safety gate
 
 The `deploy` job runs in the **`production`** GitHub Environment. To make every
