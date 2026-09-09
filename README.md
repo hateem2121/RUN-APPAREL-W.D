@@ -44,7 +44,6 @@ First-time deployment: follow **`docs/CLOUDFLARE-SETUP.md`** once, top to bottom
 | Add UI — which library, and why we are not on Tailwind | [`docs/DECISION-UI-LIBRARIES.md`](docs/DECISION-UI-LIBRARIES.md) |
 | Know whether to buy Zaraz or Log Explorer (we are not) | [`docs/DECISION-ZARAZ-AND-LOG-EXPLORER.md`](docs/DECISION-ZARAZ-AND-LOG-EXPLORER.md) |
 | Know why the 90-day backup artifact stays that long | [`docs/DECISION-BACKUP-RETENTION.md`](docs/DECISION-BACKUP-RETENTION.md) |
-| See the 2026-08-30 Cloudflare + GitHub audit, all 211 findings | [`docs/AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md`](docs/AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md) |
 | Back up or restore the database | [`docs/BACKUP-RESTORE.md`](docs/BACKUP-RESTORE.md) |
 | Deploy without the command line | [`docs/DEPLOY-BY-CLICKING.md`](docs/DEPLOY-BY-CLICKING.md) |
 | See how the AI agent tooling is wired | [`docs/AI-TOOLING.md`](docs/AI-TOOLING.md) |
@@ -64,8 +63,7 @@ is how a stale plan gets read as a current one:
 | [`NEXT-SESSION-PROMPT.md`](NEXT-SESSION-PROMPT.md) | A hand-off prompt for the next AI session | **WORKING NOTE.** Rewritten per session; never a record of what is true now. |
 
 They stay at the root rather than moving into a working subdirectory for one measured
-reason: ten committed documents cite them by path, including three audit reports
-and `docs/audit-2026-08-30-pm/CONSOLIDATED.json`, and `scripts/doc-citations.mjs`
+reason: many committed documents cite them by path and `scripts/doc-citations.mjs`
 resolves every one of those. Moving them trades a tidy root for a broken gate.
 
 **Maintainer** — [@hateem2121](https://github.com/hateem2121), sole maintainer.

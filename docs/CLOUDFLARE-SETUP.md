@@ -432,7 +432,7 @@ on the wire).
 Cloudflare's bot challenge has broken this viewer before.
 
 Cache and firewall rules are recorded with their rollback JSON in
-`docs/audit-2026-08-30-pm/CLOUDFLARE-LIVE-CHANGES.md`.
+the private audit's live-changes record.
 
 ---
 

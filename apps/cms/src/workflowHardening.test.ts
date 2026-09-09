@@ -86,7 +86,6 @@ function deployNeeds(source: string): string[] {
  * ⚠️ THE `FROM` HALF WAS ADDED 2026-09-08 IN THE SAME CHANGE THAT MOVED THE PIN, and
  * skipping it would have made this whole rule inert. `ci.yml`'s two container jobs were
  * replaced by a self-hosted runner built FROM the same image
- * (`infra/ci-runner/Dockerfile`), so no workflow declares `container:` any more — and a
  * regex that only reads `image:` then finds nothing, the loop below never executes, and
  * the assertion passes for a repo whose runner image could drift freely. That is this
  * repo's most repeated CI failure (a gate that stops gating: 2026-08-15, 2026-08-17,
@@ -567,19 +566,14 @@ jobs:
 
     const offenders: string[] = []
     let declaredImages = 0
-    // The runner Dockerfile joined this list on 2026-09-08: it is where the pin LIVES
-    // now that no workflow declares `container:`.
-    //
-    // ⚠️ It is read from the REPO ROOT, not through `read()`. That helper joins onto
-    // `.github/workflows/`, so passing this path to it looked right and threw
-    // `ENOENT … /.github/workflows/infra/ci-runner/Dockerfile`.
-    const sources: { name: string; source: string }[] = [
-      ...(await workflowFiles()).map((f) => ({ name: f, source: read(f) })),
-      {
-        name: 'infra/ci-runner/Dockerfile',
-        source: readFileSync(join(REPO_ROOT, 'infra/ci-runner/Dockerfile'), 'utf8'),
-      },
-    ]
+    // ⚠️ THE PIN LIVES IN THE WORKFLOWS AGAIN, as it did before 2026-09-08. CI ran on a
+    // self-hosted runner for one day, and during that day the pin lived in that runner's
+    // Dockerfile because no job declared `container:`. Both the runner and its Dockerfile
+    // are gone; the browser jobs declare `container:` once more, so this reads workflows.
+    const sources: { name: string; source: string }[] = (await workflowFiles()).map((f) => ({
+      name: f,
+      source: read(f),
+    }))
     for (const { name: file, source } of sources) {
       for (const found of playwrightImageVersions(source)) {
         declaredImages++
@@ -588,27 +582,26 @@ jobs:
       }
     }
 
-    // ⚠️ FINDING NOTHING IS A FAILURE, NOT A PASS, AND IT MUST BE CHECKED PER SOURCE.
+    // ⚠️ FINDING NOTHING IS A FAILURE, NOT A PASS, AND IT MUST BE CHECKED PER FILE.
     //
     // The first version of this asserted only that the TOTAL was non-zero, and that was
-    // provably too weak: deleting the `FROM` line from the runner Dockerfile still left
-    // `deploy-shrink.yml`'s own `container:` to satisfy the count, so the sabotage passed
-    // 25/25. The runner image is now the pin that decides which browsers every ci.yml job
-    // gets, so it is asserted by name.
-    const runnerImages = playwrightImageVersions(
-      readFileSync(join(REPO_ROOT, 'infra/ci-runner/Dockerfile'), 'utf8'),
-    )
+    // provably too weak: dropping ci.yml's images still left `deploy-shrink.yml`'s own
+    // `container:` to satisfy the count, so the sabotage passed 25/25. ci.yml's two
+    // browser jobs — `e2e` and `artwork` — are what get browsers from the image, so the
+    // count is asserted against that file by name rather than against the total.
+    const ciImages = playwrightImageVersions(read('ci.yml'))
     expect(
-      runnerImages,
-      'infra/ci-runner/Dockerfile declares no Playwright image. That FROM line is what\n' +
-        'gives every ci.yml job its browsers — no job declares `container:` any more — so\n' +
-        'losing it means the runner silently stops matching @playwright/test.\n' +
-        'If the pin moved again, point this rule at its new home; do not delete the check.',
-    ).toHaveLength(1)
+      ciImages,
+      'ci.yml declares no Playwright `container:` image on `e2e` and `artwork`. Those two\n' +
+        'jobs install NO browsers and NO node of their own — the container IS their\n' +
+        'toolchain — so losing the block means both fail at runtime with\n' +
+        '"browser not found at /ms-playwright/...". If the pin moved, point this rule at\n' +
+        'its new home; do not delete the check.',
+    ).toHaveLength(2)
 
     expect(
       declaredImages,
-      'No Playwright image version found in any workflow or infra/ci-runner/Dockerfile.\n' +
+      'No Playwright image version found in any workflow.\n' +
         'Either the pin moved again and this rule can no longer see it, or the parser broke.',
     ).toBeGreaterThan(0)
 
@@ -616,8 +609,7 @@ jobs:
       offenders,
       'A Playwright image and @playwright/test have drifted. The image SHIPS the browsers;\n' +
         'a mismatch fails at runtime with "browser not found at /ms-playwright/...".\n' +
-        'Bump the image tag AND the package together — the runner image is\n' +
-        'infra/ci-runner/Dockerfile, and it must be rebuilt for the bump to take effect.\n' +
+        'Bump the image tag AND the package together.\n' +
         `${offenders.join('\n')}`,
     ).toEqual([])
   })

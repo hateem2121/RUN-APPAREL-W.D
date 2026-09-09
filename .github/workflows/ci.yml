@@ -40,7 +40,7 @@ permissions:
 
 jobs:
   verify:
-    runs-on: [self-hosted, linux, arm64, playwright]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -235,137 +235,6 @@ jobs:
       - name: Bundle weight budget (deterministic, no browser)
         run: node scripts/check-bundle-budget.mjs
 
-      # THE RUNNER SUPERVISOR'S OWN TESTS, WHICH RAN NOWHERE UNTIL 2026-09-08.
-      #
-      # `infra/ci-runner/test-runner-loop.sh` sources `runner-loop.sh` as a library and
-      # drives `supervise_container` against stubbed `sleep`, `kill_container`,
-      # `runner_status` and `container_running`. Ten cases, both directions — including
-      # the one that matters most, that an unreachable API decides NOTHING (a runner must
-      # not be torn down because GitHub blipped).
-      #
-      # It tests logic that can strand a job for 46 minutes when it is too slow, and
-      # cause that same failure itself when it is too eager — both of which happened on
-      # 2026-09-08. Nothing installs, nothing downloads, no browser: `sleep` is stubbed,
-      # so the whole suite is milliseconds.
-      #
-      # ⚠️ TWO THINGS THE HARNESS ITSELF GOT WRONG, BOTH WORTH KNOWING BEFORE YOU EDIT IT.
-      # The stub's state lives in a FILE because `runner_status` is called as `$(…)`, in a
-      # SUBSHELL — an in-memory index is incremented in a child and discarded, so every
-      # poll returns the first value, which produced two false passes in the predecessor.
-      # And "how long the container lives" and "what GitHub says about it" are stubbed
-      # SEPARATELY: the first version drove both off one counter, so during the start
-      # period — when the status is never polled — the container could never exit, and
-      # the case meant to prove suppression proved only that a delay is a delay.
-      - name: Runner supervisor tests
-        run: bash infra/ci-runner/test-runner-loop.sh
-
-      # ⚠️ IS THE PINNED RUNNER STILL SUPPORTED? THIS IS THE ONLY AUTHORITATIVE ANSWER.
-      #
-      # `infra/ci-runner/entrypoint.sh` passes `--disableupdate`, deliberately — in a
-      # container the self-update lands in a discarded layer, and a stale runner can
-      # "self update then exit without actually running a job or de-registering"
-      # (actions/runner #485, #1396), which with `--restart unless-stopped` is a silent
-      # crash-loop. The price of that flag is that the pin is now ours to maintain, and
-      # GitHub DOES eventually refuse: registration below v2.329.0 has been blocked
-      # since 2026-03-16.
-      #
-      # Do NOT watch the releases page for this. RUNTIME and REGISTRATION deprecation
-      # are separate tracks, and v2.329.0 is simultaneously the enforced registration
-      # minimum and already PAST its runtime deprecation (2026-01-23) — so "meets the
-      # minimum" and "supported" are different questions. One endpoint answers both.
-      #
-      # ⚠️ THE DEPRECATION ENDPOINT IS UNREACHABLE FROM CI, AND THE FIRST VERSION OF THIS
-      # STEP WAS THEREFORE INERT. Measured in run 34264646597, this job:
-      #
-      #     ##[warning]runner deprecation API answered 403
-      #     {"message": "Resource not accessible by integration", "status": "403"}
-      #
-      # `administration` is not a grantable `permissions:` key, so no workflow token can
-      # reach `/actions/runners/deprecations/…` — `.github/CLAUDE.md` already records
-      # that limit for the required-checks list, and it applies here too. A step that
-      # warns "inconclusive" on EVERY run and never checks anything is precisely the
-      # green-but-empty gate this repo keeps getting caught by, so it is not left that
-      # way: the authoritative call is still attempted (it works with a richer token,
-      # e.g. `gh api` locally), and the fallback is a check that genuinely runs.
-      #
-      # THE FALLBACK USES THE PUBLIC `actions/runner` RELEASES API, which needs no auth
-      # at all — measured 2026-09-08: HTTP 200 unauthenticated, 60 requests/hour with 55
-      # remaining, and one call per run cannot exhaust that.
-      #
-      # ⚠️ "N RELEASES BEHIND" IS NOT "DEPRECATED", and the threshold is measured rather
-      # than picked. When GitHub enforced a v2.329.0 minimum, v2.337.0 was current —
-      # index 0 vs index 10 in the stable release list, i.e. **10 releases apart**. So
-      # warning at 4 behind leaves six releases of margin before enforcement can bite.
-      #
-      # WHAT ACTUALLY FAILS THIS STEP is a pin that is not a real release — a typo in
-      # `ARG RUNNER_VERSION` would otherwise surface as an image build that 404s on the
-      # tarball, far from the line that caused it. Staleness only warns, because the
-      # remedy (bump, rebuild, restart) is a deliberate human action and `verify` gates
-      # the deploy: an API hiccup must never be why a release is blocked.
-      #
-      # Negative controls, run before committing:
-      #   deprecations 2.337.0 -> null           passes
-      #   deprecations 2.329.0 -> 2026-01-23…    fails, naming the date
-      #   deprecations, bad token -> 401         warns, exits 0
-      #   releases: v2.337.0 -> index 0          0 behind
-      - name: Self-hosted runner version is still supported
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -uo pipefail
-          ver="$(sed -n 's/^ARG RUNNER_VERSION=\(.*\)$/\1/p' infra/ci-runner/Dockerfile)"
-          if [ -z "$ver" ]; then
-            echo "::error::could not read ARG RUNNER_VERSION from infra/ci-runner/Dockerfile"
-            exit 1
-          fi
-          echo "pinned runner: $ver"
-
-          # 1. Authoritative, when the token allows it (it does not in CI; see above).
-          dep=/tmp/runner-deprecation.json
-          code="$(curl -sS -o "$dep" -w '%{http_code}' \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${REPO}/actions/runners/deprecations/${ver}" || echo 000)"
-          if [ "$code" = "200" ]; then
-            runtime="$(jq -r '.runtime_deprecates_at // "none"' "$dep")"
-            registration="$(jq -r '.registration_deprecates_at // "none"' "$dep")"
-            echo "deprecations API: runtime=${runtime} registration=${registration}"
-            if [ "$runtime" != "none" ] || [ "$registration" != "none" ]; then
-              echo "::error::runner ${ver} is DEPRECATED (runtime=${runtime} registration=${registration})."
-              echo "Bump ARG RUNNER_VERSION in infra/ci-runner/Dockerfile, rebuild the image and"
-              echo "restart the runners with infra/ci-runner/start.sh."
-              exit 1
-            fi
-            echo "runner ${ver} is supported (authoritative)."
-            exit 0
-          fi
-          echo "deprecations API answered ${code} (expected: no workflow token has 'administration')."
-
-          # 2. Fallback that actually runs: is the pin a real release, and how stale?
-          rel=/tmp/runner-releases.json
-          rcode="$(curl -sS -o "$rel" -w '%{http_code}' \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/actions/runner/releases?per_page=100" || echo 000)"
-          if [ "$rcode" != "200" ]; then
-            echo "::warning::actions/runner releases API answered ${rcode}; INCONCLUSIVE, not a failure"
-            exit 0
-          fi
-          behind="$(jq -r --arg v "v${ver}" '[.[] | select(.prerelease==false) | .tag_name] | index($v) // "missing"' "$rel")"
-          if [ "$behind" = "missing" ]; then
-            echo "::error::v${ver} is not a published actions/runner release. Check ARG RUNNER_VERSION"
-            echo "in infra/ci-runner/Dockerfile — the image build would 404 on the tarball."
-            exit 1
-          fi
-          latest="$(jq -r '[.[] | select(.prerelease==false) | .tag_name][0]' "$rel")"
-          echo "v${ver} is ${behind} stable release(s) behind ${latest}."
-          if [ "$behind" -ge 4 ]; then
-            echo "::warning::runner pin is ${behind} releases behind. GitHub's last enforced minimum sat"
-            echo "::warning::10 releases back, so this is an early warning, not an outage. Bump"
-            echo "::warning::ARG RUNNER_VERSION, rebuild, and restart with infra/ci-runner/start.sh."
-          fi
-
-
   # E2E IN A REAL BROWSER. Split out of `verify` on 2026-08-20 and containerised for
   # the same measured reason `artwork` was: `playwright install-deps` is an apt-get,
   # and a degraded Azure Ubuntu mirror twice consumed whole job budgets with nothing
@@ -417,7 +286,7 @@ jobs:
   # image: `whoami=pwuser HOME=/home/pwuser`. If a `container:` is ever added back,
   # `HOME: /root` must come back with it, scoped to the STEP and not the job.
   e2e:
-    runs-on: [self-hosted, linux, arm64, playwright]
+    runs-on: ubuntu-latest
     # ⚠️ 30, RAISED FROM 20 ON 2026-09-07 BECAUSE THE WORK GREW, NOT BECAUSE A CEILING WAS
     # INCONVENIENT. Measured, this job, five consecutive runs:
     #
@@ -442,6 +311,8 @@ jobs:
     # account earlier in this file, where lifting one ceiling only moved which job died.
     # It is the answer when the ceiling is smaller than the measured work, which is this.
     timeout-minutes: 30
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -472,6 +343,8 @@ jobs:
       # while wall-clock falls. The apt path that cost 23 webkit tests on run
       # 32248711203 is gone from this file entirely.
       - name: e2e
+        env:
+          HOME: /root
         run: pnpm --filter @run-apparel/viewer test:e2e
       # THE PUBLIC MARKETING SITE, added 2026-09-05.
       #
@@ -518,6 +391,7 @@ jobs:
       # has nothing to match.
       - name: Seed the database the public-site suite reads
         env:
+          HOME: /root
           PAYLOAD_SECRET: ci-e2e-${{ github.run_id }}
         run: |
           pnpm seed:assets
@@ -525,46 +399,9 @@ jobs:
           pnpm seed:cms
 
       - name: e2e (public site)
+        env:
+          HOME: /root
         run: pnpm --filter @run-apparel/cms test:e2e
-
-      # ⚠️ THE MEASUREMENT THAT DECIDES `--memory` IN infra/ci-runner/start.sh, PRINTED
-      # WHERE THE NEXT PERSON WILL FIND IT.
-      #
-      # The cap there is a runaway guard sized just above what a correct run costs, and
-      # it has been wrong twice by being reasoned about instead of read: 7g (chosen by
-      # dividing the VM four ways) OOM-killed 37 browser processes, and 20g was nearly
-      # shipped on a stale 16.77 GiB figure when the real peak is 17.49 GiB.
-      #
-      # ⚠️ `docker inspect` CANNOT ANSWER THIS. It reported `OOMKilled=false` throughout
-      # the 7g incident, which was TRUE and useless: the container was never killed,
-      # only the browsers inside it. The cgroup is the only honest source, and a job can
-      # read its own — verified 2026-09-08 that all three files are readable as `pwuser`.
-      #
-      # `always()` because a run that FAILED on memory is exactly the one whose numbers
-      # matter, and a failing step would otherwise skip this. `|| true` on the reads for
-      # the same reason: this is a diagnostic and must never itself fail a gating job.
-      #
-      # Read `oom_kill` first. Anything above 0 means tests marked flaky above were
-      # killed, not flaky — do not re-run them, raise the cap.
-      - name: Memory high-water mark (sizes the runner cap)
-        if: always() && runner.environment == 'self-hosted'
-        run: |
-          set -uo pipefail
-          peak=$(cat /sys/fs/cgroup/memory.peak 2>/dev/null || echo 0)
-          max=$(cat /sys/fs/cgroup/memory.max 2>/dev/null || echo 0)
-          if [ "$peak" = "0" ] || [ "$max" = "0" ]; then
-            echo "::warning::cgroup v2 memory files unreadable here; cannot report the peak"
-            exit 0
-          fi
-          awk -v p="$peak" -v m="$max" 'BEGIN{
-            printf "memory.peak  %.2f GiB\nmemory.max   %.2f GiB\nused         %.1f%% of the cap\n",
-              p/1073741824, m/1073741824, 100*p/m }'
-          echo "memory.events: $(cat /sys/fs/cgroup/memory.events 2>/dev/null | tr '\n' ' ' || true)"
-          kills=$(sed -n 's/^oom_kill \([0-9]*\)$/\1/p' /sys/fs/cgroup/memory.events 2>/dev/null || echo 0)
-          if [ "${kills:-0}" != "0" ]; then
-            echo "::warning::${kills} process(es) were OOM-killed inside this runner. Any test failing"
-            echo "::warning::with 'Target page, context or browser has been closed' was KILLED, not flaky."
-          fi
 
   # Dependency vulnerability gate. Runs in parallel with verify and gates the
   # deploy: a HIGH/CRITICAL advisory blocks production until it is fixed or
@@ -576,7 +413,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    runs-on: [self-hosted, linux, arm64, playwright]
+    runs-on: ubuntu-latest
     # 20, not 10: the retry above needs room for three attempts, and on 2026-09-04
     # `pnpm/action-setup` alone consumed 372-425s of the old 10-minute budget. In the
     # normal case this job still finishes in about two minutes.
@@ -738,7 +575,7 @@ jobs:
   # Moving it here is what makes the word "gate" true.
   secrets:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, linux, arm64, playwright]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
@@ -864,7 +701,7 @@ jobs:
   # (which DOES carry the DSN) is weighed by nothing. Do not read a green run as a
   # statement about the live page's script weight.
   lighthouse:
-    runs-on: [self-hosted, linux, arm64, playwright]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -973,7 +810,7 @@ jobs:
   # Chromium only — WebKit and Firefox are not needed, and the render harness
   # already runs software WebGL via swiftshader.
   artwork:
-    runs-on: [self-hosted, linux, arm64, playwright]
+    runs-on: ubuntu-latest
     # 20 -> 30 on 2026-08-18, to match `verify`, after this job was CANCELLED twice
     # in a row at exactly 20m20s — which reads as a failed gate and was not one.
     #
@@ -1050,6 +887,8 @@ jobs:
     # `.github/dependabot.yml` declares no docker ecosystem, so a digest would go stale
     # in silence. ⚠️ Bumping the tag needs the runner image REBUILT to take effect —
     # see infra/ci-runner/README.md.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1160,7 +999,7 @@ jobs:
     # Enabled once Cloudflare secrets are configured (Phase 10):
     #   gh variable set DEPLOY_ENABLED --body true
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: [self-hosted, linux, arm64, playwright]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     # The `production` environment is a LABEL here, and that is a CLOSED DECISION
     # rather than an unfinished setup step. Required reviewers need GitHub Pro

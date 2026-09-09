@@ -1039,7 +1039,7 @@ edge keys entries. Read `cf-cache-status` off the GET's own headers.
   media-query subscription that headless WebKit never notified. Fixed by listening
   to `resize` as well as `change`.
 
-Full finding-by-finding status: `docs/audit-2026-08-30-pm/WORKLIST.md`.
+Full finding-by-finding status is kept in the private audit tracker.
 
 ## Rank 8 — a cached 404 no longer lasts a year, and the model's size is readable (2026-09-03)
 

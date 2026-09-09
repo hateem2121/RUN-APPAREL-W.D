@@ -36,13 +36,7 @@ const REPO = join(dirname(fileURLToPath(import.meta.url)), '..')
  * Write-once records. Each is about a state of the world on a date, and editing one to
  * keep it "current" destroys the only thing it is for.
  */
-export const RECORD_TREES = [
-  'docs/audit-2026-08-30/',
-  'docs/audit-2026-08-30-pm/',
-  'docs/superpowers/plans/',
-  'docs/superpowers/specs/',
-  'investigation/',
-]
+export const RECORD_TREES = ['docs/superpowers/plans/', 'docs/superpowers/specs/']
 
 /** Single files that are records rather than trees. */
 export const RECORD_FILES = [

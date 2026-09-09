@@ -14,7 +14,7 @@ retention of a file containing password hashes" is an easy thing to agree with.
 
 ## The finding
 
-[AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md](AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md)
+the 2026-08-30 Cloudflare + GitHub audit (kept privately — it records live infrastructure identifiers and is not part of this public repository)
 records it as CONFIRMED, and the fact is true:
 [`.github/workflows/nightly-backup.yml`](../.github/workflows/nightly-backup.yml)
 uploads `backups/d1/*.sql` as a GitHub Actions artifact with `retention-days: 90`, the

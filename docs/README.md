@@ -39,9 +39,11 @@ date, and correct to leave exactly as it is. Editing one to keep it "current" wo
 destroy the only thing it is for. The 0.63 MB of manifests is addressed by name by the
 tooling and read by a person about never.
 
-**Records live in:** `docs/AUDIT-*.md`, `docs/audit-2026-08-30/`,
-`docs/audit-2026-08-30-pm/`, `docs/superpowers/plans/`, `docs/superpowers/specs/`,
-`investigation/`, `PLAN-IN-PROGRESS.md` and `NEXT-SESSION-PROMPT.md`. Nothing in those
+**Records live in:** `docs/AUDIT-*.md`, `docs/superpowers/plans/`,
+`docs/superpowers/specs/`, `PLAN-IN-PROGRESS.md` and `NEXT-SESSION-PROMPT.md`.
+The 2026-08-30 Cloudflare + GitHub infrastructure audits are kept privately and
+are not part of this public repository — they record live account, monitor and
+application identifiers. Nothing in those
 trees is indexed file-by-file below, deliberately — an eighteen-row table of superseded
 plans would bury the eight documents somebody actually needs. They are reachable through
 the audit or plan that owns them.
@@ -101,7 +103,6 @@ one day, and several of their findings have since been fixed, refuted or reverse
 
 | Date | File |
 |---|---|
-| 2026-08-30 — Cloudflare + GitHub, 211 findings | [AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md](AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md) |
 | 2026-08-17 | [AUDIT-2026-08-17.md](AUDIT-2026-08-17.md) |
 | 2026-08-14 | [AUDIT-2026-08-14.md](AUDIT-2026-08-14.md) |
 | 2026-08-13 — scorecard | [SCORECARD-2026-08-13.md](SCORECARD-2026-08-13.md) |
@@ -133,15 +134,8 @@ guidance** — read the report, and come here only to verify something in it.
 
 | What | Where |
 |---|---|
-| The 2026-08-30 **PM** report — 358 checks, 21 lanes, the one being remediated | [AUDIT-2026-08-30-PM-CLOUDFLARE-AND-GITHUB.md](AUDIT-2026-08-30-PM-CLOUDFLARE-AND-GITHUB.md) |
-| That report split into readable sections (`01-the-short-version` … `16-appendix`) | [audit-2026-08-30-pm/sections/](audit-2026-08-30-pm/sections/) |
-| **The remediation tracker — every finding, its status and its evidence** | [audit-2026-08-30-pm/WORKLIST.md](audit-2026-08-30-pm/WORKLIST.md) |
-| Instruments that reported clean while measuring nothing (D1–D7) | [audit-2026-08-30-pm/INSTRUMENT-DEFECTS.md](audit-2026-08-30-pm/INSTRUMENT-DEFECTS.md) |
-| Live Cloudflare changes made during remediation, with rollback JSON | [audit-2026-08-30-pm/CLOUDFLARE-LIVE-CHANGES.md](audit-2026-08-30-pm/CLOUDFLARE-LIVE-CHANGES.md) |
-| Where to pick the work back up | [audit-2026-08-30-pm/RESUME.md](audit-2026-08-30-pm/RESUME.md) |
-| The earlier 2026-08-30 **AM** audit and its evidence | [AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md](AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md) · [audit-2026-08-30/EVIDENCE-firsthand.md](audit-2026-08-30/EVIDENCE-firsthand.md) · [audit-2026-08-30/APPENDIX-generated.md](audit-2026-08-30/APPENDIX-generated.md) · [audit-2026-08-30/CLOUDFLARE-LIVE-CHANGES.md](audit-2026-08-30/CLOUDFLARE-LIVE-CHANGES.md) |
 
-⚠️ **`audit-2026-08-30-pm/sections/13-do-not-change.md` is the one to read before
+⚠️ **The private audit's "do not change" section is the one to read before
 "tidying" anything.** It lists 153 things that were checked and found CORRECT,
 several of which look wrong and are deliberate.
 

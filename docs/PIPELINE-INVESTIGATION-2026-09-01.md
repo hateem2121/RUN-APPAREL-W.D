@@ -1,11 +1,9 @@
 # 3D pipeline investigation — 1–2 September 2026
 
 > **STATUS: COMPLETE, report only.** No repository code was changed by this
-> investigation. This file is the index; the full report, the evidence and the
-> reproduction scripts live in `investigation/`, which sits outside this
-> directory deliberately — the report cites render paths under the gitignored
-> output directory, and `scripts/doc-citations.mjs` would fail on them in a clean
-> checkout.
+> investigation. This file is the summary. The full report, the evidence and the
+> reproduction scripts are kept privately and are not part of this public
+> repository — they cite live infrastructure identifiers and local render paths.
 
 The whole pipeline was examined end to end: the CLO export, ingest, the queue,
 the shrink Worker, the container, `tools/asset-pipeline`, delivery, and the
@@ -45,13 +43,6 @@ corroborated by other means.
 
 | What | Where |
 |---|---|
-| Full report | `investigation/REPORT.md` |
-| Issue cards, diagrams, gaps (separately) | `investigation/report-cards.md`, `investigation/report-visuals.md`, `investigation/report-gaps.md` |
-| Findings with evidence, per phase | `investigation/findings/` |
-| Refutation verdicts | `investigation/findings/phase4-verdicts-MERGED.json` |
-| Corrected instruction-file claims | `investigation/prior-corrected-claims.json` |
-| Reproduction scripts written by the checkers | `investigation/refute-scripts/` |
-| Run state and handoff | `investigation/STATE.json`, `investigation/RESUME.md` |
 | Renders and per-garment measurements | gitignored, under the output directory |
 
 ## What this does not settle

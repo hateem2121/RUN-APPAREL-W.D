@@ -18,7 +18,7 @@ recorded below, not just the verdict, so a future session can check whether the
 reasoning still holds rather than re-deriving it.
 
 Both were assessed during the audit in
-[AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md](AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md).
+the 2026-08-30 Cloudflare + GitHub audit (kept privately — it records live infrastructure identifiers and is not part of this public repository).
 
 ---
 

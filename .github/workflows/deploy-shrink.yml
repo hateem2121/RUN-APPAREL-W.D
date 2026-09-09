@@ -82,7 +82,7 @@ jobs:
   # e2e flake blocking a pipeline fix.
   shrink-verify:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: [self-hosted, linux, arm64, playwright]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -145,7 +145,7 @@ jobs:
   # reason the `verify` job above is a copy — see the note there.
   shrink-artwork:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: [self-hosted, linux, arm64, playwright]
+    runs-on: ubuntu-latest
     # 30, matching ci.yml. It was 20 here while ci.yml had already been raised —
     # and the raise was itself recorded there as the WRONG fix, which is why the
     # container below is the actual one.
@@ -172,6 +172,8 @@ jobs:
     # runtime with `browser not found at /ms-playwright/...`, and
     # apps/cms/src/workflowHardening.test.ts asserts the Dockerfile's FROM and the
     # package version agree. Bumping @playwright/test means REBUILDING that image.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -203,7 +205,7 @@ jobs:
   # was never true for the container.
   shrink-audit:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: [self-hosted, linux, arm64, playwright]
+    runs-on: ubuntu-latest
     # 20, not 10 — same reason as ci.yml's audit job: the retry needs room, and this is
     # the job that gates `shrink-deploy`, so a slow runner here blocks the container.
     timeout-minutes: 20
@@ -419,7 +421,7 @@ jobs:
   # different workflow and therefore cannot block this deploy.
   shrink-secrets:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, linux, arm64, playwright]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
@@ -544,7 +546,7 @@ jobs:
     # 2026-08-08; before that this deploy was gated on `verify` alone.
     needs: [shrink-verify, shrink-artwork, shrink-audit, shrink-secrets]
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true' && vars.SHRINK_DEPLOY_FROM_CI == 'true'
-    runs-on: [self-hosted, linux, arm64, playwright]
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     environment:
       name: production
