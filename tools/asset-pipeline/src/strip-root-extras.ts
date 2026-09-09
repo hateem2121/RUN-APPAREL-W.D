@@ -11,9 +11,11 @@ import type { Document, Transform } from '@gltf-transform/core'
  *
  * What is in it, quoted from the live `rxps` and `r-aj` files:
  *
- *   - **Fabric physics.** `{"PhysicalPropertyName":"Polyester_Taffeta_0",
- *     "Stretch-Warp":…,"Bending-Weft":…,"Shear":…,
- *     "Density":…,"FrictionCoefficient":…}` — four fabrics per garment.
+ *   - **Fabric physics.** `{"PhysicalPropertyName":…,"Stretch-Warp":…,
+ *     "Bending-Weft":…,"Shear":…,"Density":…,"FrictionCoefficient":…}` — four
+ *     fabrics per garment. Real values are deliberately NOT quoted here: this
+ *     repository is public, and reproducing the leak in the module that exists to
+ *     prevent it would be self-defeating.
  *     A competitor loads these into their own CLO library and gets a garment that
  *     drapes identically.
  *   - **Supplier fabric codes**, as PBRMaterial names: `SUPPLIER_DOBBY_A`,

@@ -110,6 +110,11 @@ were therefore **merged** into a single rule, deployed and live-tested
 | If incoming requests match | Cloudflare's leaked-credential check, OR a POST to the CMS admin login path |
 | Rate / characteristic / action | Held privately — see the operator note, not this file |
 
+⚠️ **The exact expression, threshold and block duration are deliberately NOT written
+here.** This repository is public; publishing the precise guessing budget for the admin
+login hands an attacker the one number they cannot otherwise measure. Read the live rule
+in the Cloudflare dashboard instead.
+
 This layers on top of the built-in Payload login lockout (5 attempts → 10-min
 account lock) with an IP-level edge limit, so an attacker can't cycle accounts.
 Do not delete the leaked-credential half — it guards the whole zone (including
