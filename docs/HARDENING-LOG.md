@@ -905,8 +905,7 @@ verify. Trigger it by hand once rather than waiting for the 1st.
 
 # 2026-08-18 — all 24 findings of the 2026-08-17 whole-monorepo audit
 
-Design: `docs/superpowers/specs/2026-08-18-audit-remediation-design.md`.
-Plan: `docs/superpowers/plans/2026-08-18-audit-remediation.md`.
+Design and plan: kept privately since 2026-09-10, with the audit they answer.
 
 ## The gate that could not fail, and the two it hid
 

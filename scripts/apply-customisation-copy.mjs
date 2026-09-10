@@ -70,7 +70,7 @@ const ONLY = onlyAt === -1 ? null : args[onlyAt + 1]
  * ⚠️ THIS NUMBER IS THE ONLY THING THAT NOTICES A NEW PRODUCT HAS NO COPY. It is not
  * a formality: the five 2026-09-07 garments went live with `customisationIntro` null
  * and zero steps, so all five served the generic fallback paragraph — which is the
- * red finding from `docs/AUDIT-PRODUCT-PAGES-2026-09-04.md` ("Ten of your eleven
+ * red finding from the 2026-09-04 product-page audit ("Ten of your eleven
  * product pages are missing your sales pitch") reintroduced for five of sixteen
  * pages. Nothing went red, because the fallback renders fine and this script was
  * never re-run. Raise it in the same change that publishes a garment.

@@ -1674,7 +1674,7 @@ scan. Unrelated to previews; recorded here because this is where it was measured
   without the header, **11,204 bytes with the generic title and 0 JSON-LD** with
   it. `run_worker_first` is the documented fix and a real trade — it also puts
   the worker in front of every asset request. Both sides are in
-  `docs/AUDIT-PRODUCT-PAGES-2026-09-05.md`; the same audit establishes Google had
+  the 2026-09-05 product-page audit (kept privately); the same audit establishes Google had
   never crawled these pages, so the impact so far is nil. Do not read the bullet
   above as an argument on its own.
 

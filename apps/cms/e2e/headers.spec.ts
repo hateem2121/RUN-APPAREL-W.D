@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 /**
- * Security-header and privacy guards for `docs/AUDIT-BETA-WEBSITE-2026-09-06.md`.
+ * Security-header and privacy guards for the 2026-09-06 beta-website audit (kept privately).
  *
  * ⚠️ MEASURED ON THE WIRE, NOT READ OUT OF next.config.mjs — AND THIS REPO HAS THE
  * INCIDENT THAT MAKES THE DIFFERENCE. `Vary: Origin` shipped green and INERT twice

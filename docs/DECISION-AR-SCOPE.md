@@ -1,7 +1,8 @@
 # Decision — AR is iOS Quick Look only, and Android is blocked by the loader
 
-**Decided 2026-09-05 by the owner, on the evidence below.** Finding #26 of
-`docs/AUDIT-PRODUCT-PAGES-2026-09-04.md` left "View in your space" open. This records
+**Decided 2026-09-05 by the owner, on the evidence below.** Finding #26 of the
+2026-09-04 product-page audit (kept privately since 2026-09-10) left "View in your
+space" open. This records
 what was measured, so the Android half is not re-attempted as an oversight.
 
 ## What is being built

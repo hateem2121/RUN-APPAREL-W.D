@@ -1,16 +1,18 @@
 Copyright (c) 2026 RUN APPAREL. All rights reserved.
 
-PROPRIETARY AND CONFIDENTIAL
+This repository is published on GitHub so that its source can be read. Being able to
+read it does not make it open source.
 
 This software and its accompanying documentation, 3D assets, product imagery and
-data (together, "the Software") are the proprietary and confidential property of
-RUN APPAREL.
+data (together, "the Software") are the proprietary property of RUN APPAREL.
 
-No licence, express or implied, is granted by the publication of this repository
-or by access to it. Without the prior written permission of RUN APPAREL you may
-not:
+Because this repository is public, GitHub users may view it and fork it on GitHub, as
+GitHub's Terms of Service (section D.5) provide. Beyond those rights, no licence,
+express or implied, is granted by the publication of this repository or by access to
+it. Without the prior written permission of RUN APPAREL you may not:
 
-  1. copy, reproduce, publish or redistribute the Software, in whole or in part;
+  1. copy, reproduce, publish or redistribute the Software, in whole or in part,
+     other than viewing or forking it on GitHub as described above;
   2. modify the Software or create derivative works from it;
   3. sell, sublicense, rent, lease or otherwise transfer any interest in it;
   4. reverse engineer, decompile or disassemble any part of it, except to the
@@ -24,8 +26,10 @@ writing with RUN APPAREL, and for no other purpose.
 THIRD-PARTY COMPONENTS. The Software depends on open-source packages that are
 licensed separately by their own authors, under their own terms. Those terms
 govern those components and are not altered by this notice; a full inventory is
-resolvable from `pnpm-lock.yaml`. This notice applies to the original work in
-this repository only.
+resolvable from `pnpm-lock.yaml`. Files copied into this repository from other
+projects keep their own licences, which are listed with their full text in
+`THIRD-PARTY-NOTICES.md`. This notice applies to the original work in this
+repository only.
 
 GARMENT DATA. Product designs, colourway names, printed artwork, photography and
 the CLO 3D source exports referenced by this repository are separately protected

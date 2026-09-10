@@ -357,8 +357,8 @@ jobs:
       #
       # WHAT IT CLOSES: until this existed, nothing in the repo loaded /, /products or
       # /contact in a browser. All 54 CMS test files read source text or exercise pure
-      # functions, so three blank pages would have gone green through every gate. See
-      # docs/AUDIT-SITE-PAGES-2026-09-05.md.
+      # functions, so three blank pages would have gone green through every gate. Found by
+      # the 2026-09-05 site-pages audit (kept privately).
       #
       # Its own `webServer` runs `next build` from the cold checkout, so this step needs
       # no separate build step and no seeded database — the content helpers fall back to

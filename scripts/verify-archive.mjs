@@ -39,8 +39,8 @@ export const ARCHIVE_BUCKET = 'run-apparel-archive'
 /** Where apps/shrink/src/archiveRaw.ts puts the robot's copies of raw exports. */
 export const ROBOT_ARCHIVE_PREFIX = 'raw-exports/robot/'
 /**
- * Not a secret: the account id appears in every wrangler URL and throughout
- * docs/AUDIT-2026-08-30-PM-CLOUDFLARE-AND-GITHUB.md. `CLOUDFLARE_ACCOUNT_ID` in the
+ * Not a secret: the account id appears in every wrangler URL and in the Cloudflare
+ * dashboard's own address bar. `CLOUDFLARE_ACCOUNT_ID` in the
  * environment overrides it, which is what the workflow sets.
  */
 export const DEFAULT_ACCOUNT_ID = 'd357a1779c40da5f8c44931f12390cc8'

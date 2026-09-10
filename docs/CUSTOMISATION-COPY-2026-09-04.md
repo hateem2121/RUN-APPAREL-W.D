@@ -537,4 +537,4 @@ it that are not visible from the code.
 
 The sitemap listed 2 of 11 products (45 of 55 pages absent), and no page carried
 structured data. Both are addressed in `fix/product-page-audit-2026-09-04`; see
-`docs/AUDIT-PRODUCT-PAGES-2026-09-04.md`.
+the 2026-09-04 product-page audit (kept privately since 2026-09-10).

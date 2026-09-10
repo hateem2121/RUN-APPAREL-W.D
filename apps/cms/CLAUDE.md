@@ -248,7 +248,8 @@ cannot tell a `SELECT` from a `DELETE`. Use the Cloudflare MCP connector's
 Measured 2026-08-17 as a baseline worth having: `events` held **754 rows over 28 days**
 (668 analytics, 84 diagnostic, 2 error) and the whole database was **790,528 bytes** —
 0.015% of D1's included storage. That number downgraded a High finding to Low in
-`docs/AUDIT-2026-08-17.md`; see it before assuming the events endpoint is under load.
+the 2026-08-17 audit (kept privately since 2026-09-10); re-measure before assuming the
+events endpoint is under load.
 
 ## Writing to a product from a script — four things measured 2026-09-04
 

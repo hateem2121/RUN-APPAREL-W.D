@@ -2,8 +2,8 @@
  * Strip CLO's factory metadata from the ELEVEN ALREADY-PUBLISHED models, in place.
  *
  * Owner approved 2026-09-05. Background and the full list of what leaks:
- * `tools/asset-pipeline/src/strip-root-extras.ts` and
- * `docs/AUDIT-PRODUCT-PAGES-2026-09-05.md` → PP3-N-01.
+ * `tools/asset-pipeline/src/strip-root-extras.ts`, and finding PP3-N-01 of the
+ * 2026-09-05 product-page audit (kept privately).
  *
  * ⚠️ THIS IS NOT "RUNNING THE PIPELINE ON ITS OWN OUTPUT", and the distinction is
  * the whole safety argument. The root CLAUDE.md forbids that because meshopt has

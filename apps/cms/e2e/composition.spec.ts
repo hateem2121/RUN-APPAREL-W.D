@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 /**
- * Composition guards for `docs/AUDIT-BETA-WEBSITE-2026-09-06.md`.
+ * Composition guards for the 2026-09-06 beta-website audit (kept privately).
  *
  * ⚠️ EVERY CASE HERE PINS A ROW THE AUDIT SCORED 8 OR 9 — a measurement that PASSED, and
  * that lost its last point for one reason: nothing stopped the next change undoing it.

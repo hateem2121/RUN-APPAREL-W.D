@@ -4,8 +4,9 @@
 reopen as an untriaged to-do every time someone greps for `serviceWorker` and finds
 nothing.
 
-Finding #29 of `docs/AUDIT-PRODUCT-PAGES-2026-09-04.md` left "offline support" open.
-`docs/AUDIT-PRODUCT-PAGES-2026-09-05.md` scored the absence 6/10. The instinctive fix —
+Finding #29 of the 2026-09-04 product-page audit left "offline support" open, and
+the 2026-09-05 second pass scored the absence 6/10 (both kept privately since
+2026-09-10). The instinctive fix —
 precache the garments so the page works on a bad connection — is the wrong shape here,
 and the reason is the **audience**, not the byte count.
 

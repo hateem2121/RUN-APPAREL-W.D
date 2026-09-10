@@ -114,8 +114,8 @@ describe('the catalogue is not linked from the viewer', () => {
     expect(
       offenders,
       `These files read catalogueUrl in live code. The catalogue must not be linked ` +
-        `from a product page — see the docblock in this file for why, and ` +
-        `docs/AUDIT-PRODUCT-PAGES-2026-09-04.md for the audit that prompted it.`,
+        `from a product page — see the docblock in this file for why; the ` +
+        `2026-09-04 product-page audit prompted it.`,
     ).toEqual([])
   })
 

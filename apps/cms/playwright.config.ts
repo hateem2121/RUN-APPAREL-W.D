@@ -7,7 +7,7 @@ import { defineConfig, devices } from '@playwright/test'
  * browser. All 54 CMS test files read source text or exercise pure functions, and the
  * viewer's suite never touches `/`, `/products` or `/contact` — so if all three pages
  * had rendered completely blank, every gate in CI would have stayed green. That is the
- * single largest finding in docs/AUDIT-SITE-PAGES-2026-09-05.md.
+ * single largest finding in the 2026-09-05 site-pages audit (kept privately).
  *
  * ⚠️ THE PORT IS OWNED BY THIS FILE AND PASSED EXPLICITLY. apps/viewer's config carries
  * the full account: a `PORT` exported for an unrelated project moved its server while

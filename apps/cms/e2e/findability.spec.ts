@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 /**
- * Findability and no-JavaScript guards for `docs/AUDIT-BETA-WEBSITE-2026-09-06.md`.
+ * Findability and no-JavaScript guards for the 2026-09-06 beta-website audit (kept privately).
  *
  * ⚠️ EVERY ONE OF THESE IS INVISIBLE IN A BROWSER. A missing canonical, an og:image that
  * stopped resolving, a JSON-LD block that no longer parses, a page that renders only

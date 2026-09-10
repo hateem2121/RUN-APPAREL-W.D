@@ -29,7 +29,7 @@
  * the JSON chunk length and the total length are rewritten.
  *
  * ⚠️ VERIFY ON THE LIVE OBJECT, NOT THE LOCAL OUTPUT. A ranged GET of the first
- * megabyte reads the JSON chunk; `docs/AUDIT-PRODUCT-PAGES-2026-09-05.md` records
+ * megabyte reads the JSON chunk; the 2026-09-05 product-page audit records
  * why local output is not evidence about what is being served.
  */
 import { createHash } from 'node:crypto'

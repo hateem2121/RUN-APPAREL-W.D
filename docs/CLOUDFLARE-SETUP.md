@@ -445,7 +445,8 @@ the private audit's live-changes record.
 
 Two controls, deployed by hand in the dashboard. They are **not in git** — nothing in
 this repo can create or verify them — so this is the only operational record. The
-reasoning and the live measurements are in `docs/AUDIT-PRODUCT-PAGES-2026-09-05.md`.
+reasoning and the live measurements are in the 2026-09-05 product-page audit, kept
+privately since 2026-09-10.
 
 ### WAF custom rule — hotlinked models
 

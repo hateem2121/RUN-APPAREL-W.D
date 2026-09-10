@@ -129,6 +129,19 @@ export const ALLOWED_ABSENT = new Map([
     '.claude/settings.local.json',
     'gitignored per-machine agent config (.gitignore:66). docs/AI-TOOLING.md:335 says permissions "belong in" it and labels it "per machine, not committed" in the very code block beneath — the document states the reason for its own absence. Third of the three from 1723c3c. It outlived apps/viewer/dist by a few hours only because the machine that ran `pnpm test` had the file, which is the same asymmetry that entry records and the reason CI is the authority on this guard, not a local run.',
   ],
+  // ── Removed from the PUBLIC repository and from its history, 2026-09-10 ────────
+  // The repository went public on 2026-09-09. These audit reports listed weak spots in
+  // detail, so they were taken out of every commit and kept privately by the owner.
+  // Maintained documents were reworded to cite the audit by date instead; only dated
+  // RECORDS still name the file, and a record is right to name what existed that day.
+  [
+    'docs/AUDIT-BETA-WEBSITE-2026-09-06.md',
+    'removed from the public repository and its history on 2026-09-10 (kept privately). Cited by the 2026-09-06 beta-website plan, a dated record of the work as planned that day.',
+  ],
+  [
+    'docs/AUDIT-SITE-PAGES-2026-09-05.md',
+    'removed from the public repository and its history on 2026-09-10 (kept privately). Cited by the 2026-09-06 beta-website plan and its design spec, both dated records.',
+  ],
 ])
 
 /**

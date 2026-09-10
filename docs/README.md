@@ -103,10 +103,12 @@ one day, and several of their findings have since been fixed, refuted or reverse
 
 | Date | File |
 |---|---|
-| 2026-08-17 | [AUDIT-2026-08-17.md](AUDIT-2026-08-17.md) |
-| 2026-08-14 | [AUDIT-2026-08-14.md](AUDIT-2026-08-14.md) |
 | 2026-08-13 — scorecard | [SCORECARD-2026-08-13.md](SCORECARD-2026-08-13.md) |
 | 2026-08-08 — scorecard | [SCORECARD-2026-08-08.md](SCORECARD-2026-08-08.md) |
+
+⚠️ **The audit reports themselves are kept privately since 2026-09-10.** This repository
+is public, and those reports listed weak spots in detail. Other documents cite them by
+date ("the 2026-09-05 product-page audit"), which is deliberate, not a broken link.
 
 ## Session logs
 
@@ -159,6 +161,7 @@ code disagree, the code is right and the plan simply landed differently.
 | Traps that have cost sessions — **read first** | [../CLAUDE.md](../CLAUDE.md) |
 | How to contribute, and the full gate list | [../CONTRIBUTING.md](../CONTRIBUTING.md) |
 | Reporting a security problem (**not** an issue) | [../SECURITY.md](../SECURITY.md) |
+| Licences of files copied in from other projects | [../THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md) |
 | Processing a GLB by hand | [../tools/asset-pipeline/README.md](../tools/asset-pipeline/README.md) |
 | Per-area traps | `apps/*/CLAUDE.md`, `.github/CLAUDE.md`, `tools/asset-pipeline/CLAUDE.md` |
 
@@ -171,10 +174,6 @@ document and not adding its row is the failure this section is named for.
 
 | Document | What it is |
 |---|---|
-| [AUDIT-BETA-WEBSITE-2026-09-06.md](AUDIT-BETA-WEBSITE-2026-09-06.md) | The full-site audit: 236 scored checks across both surfaces, with the four false findings it caught in itself |
-| [AUDIT-PRODUCT-PAGES-2026-09-04.md](AUDIT-PRODUCT-PAGES-2026-09-04.md) | Product-page audit — and the three first-draft findings its own controls killed |
-| [AUDIT-PRODUCT-PAGES-2026-09-05.md](AUDIT-PRODUCT-PAGES-2026-09-05.md) | Product-page audit, second pass |
-| [AUDIT-SITE-PAGES-2026-09-05.md](AUDIT-SITE-PAGES-2026-09-05.md) | The marketing pages, before the beta-website work |
 | [CUSTOMISATION-COPY-2026-09-04.md](CUSTOMISATION-COPY-2026-09-04.md) | The owner’s American-spelling decision, and the copy it governs |
 | [DECISION-AR-SCOPE.md](DECISION-AR-SCOPE.md) | Why there is no AR mode |
 | [DECISION-OFFLINE-SCOPE.md](DECISION-OFFLINE-SCOPE.md) | How far offline support goes, and why it stops there |

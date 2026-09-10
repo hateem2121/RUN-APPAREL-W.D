@@ -68,9 +68,16 @@ the keystroke point 4 is about.
 | `vercel-react-best-practices` | `vercel-labs/agent-skills` @ `b8caa260a420` | MIT |
 | `vercel-composition-patterns` | `vercel-labs/agent-skills` @ `b8caa260a420` | MIT |
 | `vercel-react-view-transitions` | `vercel-labs/agent-skills` @ `b8caa260a420` | MIT |
-| `web-design-guidelines` | `vercel-labs/agent-skills` @ `b8caa260a420` | **unstated** |
-| `writing-guidelines` | `vercel-labs/agent-skills` @ `b8caa260a420` | **unstated** |
-| `motion` | `motiondivision/ai-kit` @ `1140efe9ad5e` | **unstated** |
+| `web-design-guidelines` | `vercel-labs/agent-skills` @ `b8caa260a420` | **unstated** — local only since 2026-09-10 |
+| `writing-guidelines` | `vercel-labs/agent-skills` @ `b8caa260a420` | **unstated** — local only since 2026-09-10 |
+| `motion` | `motiondivision/ai-kit` @ `1140efe9ad5e` | **unstated** — local only since 2026-09-10 |
+
+⚠️ **THE THREE "UNSTATED" ROWS ARE NOT IN THE PUBLIC REPOSITORY — since 2026-09-10.**
+The repository went public on 2026-09-09, and a file with no licence carries no
+permission to republish it. They were taken out of git and out of its history and are
+gitignored, so a session on the owner's machine still loads them while nobody else
+receives a copy. A fresh clone does not have them: re-fetch at the pinned SHA if you need
+them elsewhere. The licensed rows' notices are in `THIRD-PARTY-NOTICES.md`.
 
 First four fetched 2026-08-06, from two upstreams active that week (82.2k ⭐ and
 26.0k ⭐, last pushed 2026-08-05). The last six fetched **2026-08-13**;

@@ -153,3 +153,11 @@ docs/audit-*/scratch/
 # them (skills-lock.json has no "workflow" entry), and leaving them neither committed
 # nor ignored is what kept `git status` permanently dirty.
 .agents/workflows/
+
+# Vendored agent skills that state NO licence, in the files or upstream. The repository
+# went public on 2026-09-09 and no licence means no permission to republish, so these
+# were taken out of git and its history on 2026-09-10. They stay on the owner's machine,
+# which is where Claude Code loads them from — see THIRD-PARTY-NOTICES.md.
+.claude/skills/motion/
+.claude/skills/web-design-guidelines/
+.claude/skills/writing-guidelines/

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 /**
- * Regression guards for measurements in `docs/AUDIT-BETA-WEBSITE-2026-09-06.md` that
+ * Regression guards for measurements in the 2026-09-06 beta-website audit (kept privately) that
  * PASSED and that nothing was holding in place.
  *
  * ⚠️ WHY A SEPARATE FILE FROM publicSite.test.ts. That file gates what the marketing

@@ -11,7 +11,8 @@ gets re-taken.
 and are not. Each carries the guard that stops it drifting, so a change that
 contradicts one goes red rather than shipping.
 
-The findings referenced (`FA-…`) are from `docs/AUDIT-BETA-WEBSITE-2026-09-06.md`.
+The findings referenced (`FA-…`) are from the 2026-09-06 beta-website audit, kept
+privately since 2026-09-10.
 
 ---
 

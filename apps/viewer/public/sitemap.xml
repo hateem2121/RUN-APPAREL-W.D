@@ -8,7 +8,7 @@
   is a single-page app with NO links between garment pages, so a crawler that
   follows links finds nothing; this file is the only way those pages are
   discoverable at all. The 45 missing ones were reachable only by someone sharing
-  the link. Audit: docs/AUDIT-PRODUCT-PAGES-2026-09-04.md.
+  the link. Found by the 2026-09-04 product-page audit.
 
   ⚠️ UPDATED 2026-09-07: 55 -> 80. Five more garments went live that day (r-cch,
   r-gtd, r-au, r-ect, r-et), and this file was regenerated in the same change —

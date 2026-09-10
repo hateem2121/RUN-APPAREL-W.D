@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 /**
- * Motion and preference guards for `docs/AUDIT-BETA-WEBSITE-2026-09-06.md`.
+ * Motion and preference guards for the 2026-09-06 beta-website audit (kept privately).
  *
  * ⚠️ EACH CASE RE-TAKES A MEASUREMENT THAT PASSED AND THAT NOTHING WAS HOLDING. These
  * are the rows the audit scored 8 and 9 — correct on the day, and one ordinary edit from
