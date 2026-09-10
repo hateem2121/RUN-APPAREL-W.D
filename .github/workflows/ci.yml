@@ -1037,38 +1037,24 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          # ⚠️ ONLY ON GITHUB'S RUNNERS. `cache: pnpm` makes setup-node pull a pnpm
-          # cache archive from GitHub's cache service, and on the self-hosted runner
-          # that archive is 377 MB arriving at 0.4-0.7 MB/s over a home connection —
-          # measured as 151s of `audit`'s 205s, 206s of `lighthouse`'s 278s, in EVERY
-          # job. It is also redundant there: each runner keeps its own persistent pnpm
-          # store inside its work volume (infra/ci-runner/Dockerfile), on the same
-          # filesystem as the checkout so pnpm hard-links instead of copying. Paying
-          # 377 MB to rebuild a store that is already on disk is worse than no cache.
+          # ⚠️ NO CACHE IN THIS JOB — IT HOLDS THE PRODUCTION CLOUDFLARE TOKEN.
           #
-          # `runner.environment` is the built-in that distinguishes them, so this stays
-          # correct if a job ever runs on GitHub again — where the store IS ephemeral
-          # and the archive genuinely helps.
-          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
-          # ⚠️ `cache: ''` ALONE IS NOT ENOUGH ON setup-node v7, AND THAT IS NEW.
-          # Since v7 the action AUTO-ENABLES the package-manager cache when
-          # `package.json` declares `packageManager` — and ours does
-          # (`package.json:6`, `pnpm@10.34.5`). The input that governs it defaults to
-          # TRUE and is a SEPARATE knob from `cache:`, so the block above no longer
-          # fully describes what the action will do.
+          # A restored pnpm store was saved by an EARLIER job that holds no secrets
+          # (`verify`, `audit` and `lighthouse` on `main` all use `cache: pnpm`), so
+          # anything that ran during that job's install could plant code this job then
+          # executes with the token in reach. That is the shape of TanStack's
+          # 2026-05-11 compromise: a poisoned pnpm-store cache, restored by the job that
+          # published. setup-node's own README, at the pinned SHA: "For workflows with
+          # elevated privileges or access to sensitive information, we recommend
+          # disabling automatic caching". The price is one uncached install per deploy.
           #
-          # Measured 2026-09-08 in run 34256940744's `verify` log, where both appear:
-          #
-          #     cache: false
-          #     package-manager-cache: true
-          #     Progress: resolved 1063, reused 1059, downloaded 0, added 1063, done
-          #     Done in 4.5s using pnpm v10.33.0
-          #
-          # So the explicit `cache:` currently WINS and nothing is fetched. Pinned here
-          # anyway because it is one upstream default away from silently restoring the
-          # 377 MB fetch this block exists to prevent — and the symptom would be a slow
-          # job, never a failing one, which is the kind of regression nobody reports.
-          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
+          # BOTH inputs, deliberately. `cache: ''` is what keeps the pnpm store out
+          # (setup-node caches pnpm only when asked); `package-manager-cache` is a
+          # separate input with its own default, pinned so no upstream default change
+          # can turn caching back on here. apps/cms/src/publicRepoGuards.test.ts fails
+          # if a job holding the production environment restores a cache.
+          cache: ''
+          package-manager-cache: false
       - run: pnpm install --frozen-lockfile
       - run: pnpm seed:assets
 
@@ -1093,31 +1079,17 @@ jobs:
       # production against a snapshot 16+ hours old, which is the gap between "we
       # have backups" and "we have a backup of the thing we are about to change".
       #
-      # `if: always()` on the upload so the artifact survives a FAILED migration —
-      # which is precisely when it is needed.
+      # WHERE THE SNAPSHOT GOES — changed 2026-09-10, when the repository became
+      # public. It was uploaded as a GitHub artifact (7 days), and on a public
+      # repository ANY signed-in GitHub account can download an artifact: this one is
+      # an unredacted dump carrying user password hashes and encrypted API keys. It now
+      # goes to the private R2 bucket beside the nightly copies — after it is proven to
+      # restore, and before the migration can run (the three steps below).
       - name: Back up production D1 before migrating
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: node scripts/backup-d1.mjs --stamp="pre-deploy-${{ github.sha }}"
-
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always()
-        with:
-          name: d1-pre-deploy-${{ github.sha }}
-          path: backups/d1/*.sql
-          # ⚠️ 7, NOT 90, AND NOT BECAUSE DISK IS SCARCE. This artifact is an
-          # UNREDACTED production D1 dump: it carries user password hashes AND
-          # encrypted API keys, and any account that can read this repository can
-          # download it. It exists to answer "what did the database look like
-          # immediately before this migration" — a question nobody asks three
-          # months later. The nightly backup in nightly-backup.yml is the actual
-          # disaster-recovery copy and DELIBERATELY stays at 90 days; do not
-          # "consistently" lower that one. Audit 2026-08-30 PM, finding L14-08.
-          #
-          # `if: always()` above stays: a FAILED migration is exactly when this
-          # snapshot is needed.
-          retention-days: 7
 
       # ⚠️ THE ONE BACKUP NOBODY CHECKED, TAKEN AT THE ONE MOMENT IT MATTERS MOST.
       #
@@ -1146,6 +1118,47 @@ jobs:
           fi
           for dump in "${dumps[@]}"; do
             node scripts/verify-backup.mjs "$dump"
+          done
+
+      # KEEP IT, PRIVATELY, BEFORE ANYTHING CHANGES. Copied into the private
+      # `run-private` bucket under `run-apparel-viewer-db/pre-deploy/`, beside the
+      # nightly dumps, then read back and compared byte-for-byte — `wrangler r2 object
+      # put` exits 0 on a great many things. Both steps sit between the restore check and
+      # the migration, so a snapshot that could not be stored stops the deploy while the
+      # database is still untouched. The absolute `--file` path is required: `pnpm
+      # --filter` runs wrangler with its cwd in apps/cms (same note in nightly-backup.yml).
+      - name: Copy the verified pre-deploy dump into R2 (run-private)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for dump in backups/d1/*.sql; do
+            key="run-apparel-viewer-db/pre-deploy/$(basename "$dump")"
+            echo "uploading $dump -> run-private/$key"
+            pnpm --filter @run-apparel/cms exec wrangler r2 object put \
+              "run-private/$key" --file "$GITHUB_WORKSPACE/$dump" --remote
+          done
+
+      - name: Assert the pre-deploy dump is readable back out of R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for dump in backups/d1/*.sql; do
+            key="run-apparel-viewer-db/pre-deploy/$(basename "$dump")"
+            pnpm --filter @run-apparel/cms exec wrangler r2 object get \
+              "run-private/$key" --file "$RUNNER_TEMP/roundtrip.sql" --remote
+            want=$(wc -c < "$dump")
+            got=$(wc -c < "$RUNNER_TEMP/roundtrip.sql")
+            if [ "$want" != "$got" ]; then
+              echo "::error::$key read back as $got bytes, expected $want. The copy in R2 is not the dump."
+              exit 1
+            fi
+            echo "verified $key: $got bytes match"
           done
 
       - name: Apply pending D1 migrations (gated, pre-deploy)

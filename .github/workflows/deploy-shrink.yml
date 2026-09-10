@@ -558,18 +558,14 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          # NOT on the self-hosted runner: `cache: pnpm` pulled a 377 MB archive from
-          # GitHub's cache service at 0.4-0.7 MB/s to rebuild a store already on local
-          # disk. `runner.environment` keeps this correct if a job ever runs on GitHub
-          # again, where the store IS ephemeral and the archive genuinely helps.
-          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
-          # ⚠️ setup-node v7 AUTO-ENABLES this separately when `package.json` declares
-          # `packageManager` (ours does, `package.json:6`), so `cache: ''` alone no
-          # longer describes what the action does. Full measurement in ci.yml beside the
-          # matching line — and it is in BOTH files deliberately, because this repo's
-          # own rule is that a fix applied to one of these two workflows is half a fix
-          # (gitleaks sat wrong here for three months; the container fix for ten days).
-          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
+          # ⚠️ NO CACHE: this job deploys with the production Cloudflare token. The
+          # reasoning — a pnpm store restored from a job that held no secrets, the shape
+          # of TanStack's 2026-05-11 compromise — is written beside the same two lines in
+          # ci.yml's `deploy` job. It is in BOTH files deliberately: this repo's own rule
+          # is that a fix applied to one of these two workflows is half a fix (gitleaks
+          # sat wrong here for three months; the container fix for ten days).
+          cache: ''
+          package-manager-cache: false
       - run: pnpm install --frozen-lockfile
       # Captured BEFORE the deploy, because the drift assertion at the end of this
       # job compares the image's LAST MODIFIED against it. Recording it afterwards

@@ -83,7 +83,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          cache: pnpm
+          # ⚠️ NO CACHE: this job reads production D1 with the Cloudflare token. The
+          # same two lines in ci.yml's `deploy` job say why a restored pnpm store does
+          # not belong in a job that holds a production credential.
+          cache: ''
+          package-manager-cache: false
       - run: pnpm install --frozen-lockfile
 
       # Diagnostics and errors only. `analytics` rows are the healthy path and

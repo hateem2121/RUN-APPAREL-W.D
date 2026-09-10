@@ -1,5 +1,15 @@
 # DECISION — the 90-day backup artifact stays, and why an audit finding was refused
 
+> ⚠️ **SUPERSEDED IN PART, 2026-09-10 — the repository became public.** This file names
+> exactly that event as the trigger to revisit, and the owner decided: the nightly
+> artifact STAYS at 90 days, but it is now ENCRYPTED with `age` to a key only the owner
+> holds, and so is the R2 mirror artifact (docs/BACKUP-RESTORE.md, "The backup key"). The
+> pre-deploy snapshot is no longer an artifact at all; it goes to R2 `run-private`. A
+> repository's own artifact-retention setting caps `retention-days` — measured on
+> 2026-09-10, an artifact asking for 90 days was given the repository's 30 — so that
+> setting was put back to 90 to match. Everything below is the reasoning as it stood while
+> the repository was private.
+
 **Decided 2026-08-30.** Short version:
 
 > **We are NOT shortening `retention-days: 90` on the nightly D1 backup artifact,

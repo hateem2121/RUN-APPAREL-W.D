@@ -49,8 +49,38 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          cache: pnpm
+          # ⚠️ NO CACHE: this job holds the production Cloudflare token. The same two
+          # lines in ci.yml's `deploy` job say why a pnpm store restored from a job that
+          # held no secrets does not belong here.
+          cache: ''
+          package-manager-cache: false
       - run: pnpm install --frozen-lockfile
+
+      # THE BACKUP LOCK — added 2026-09-10, the day after this repository went public.
+      #
+      # On a public repository ANY signed-in GitHub account can download a workflow
+      # artifact. Both uploads in this job carry data that must not be readable that way:
+      # the D1 dump holds user password hashes and encrypted API keys, and the R2 mirror
+      # can hold media that is not published yet. So both are encrypted with `age` before
+      # upload, to the owner's PUBLIC key in .github/backup-recipients.txt, whose private
+      # half only the owner holds (owner decision 2026-09-10; restore steps in
+      # docs/BACKUP-RESTORE.md). CI never needs to decrypt: the dump is verified in
+      # plaintext, in this job, before it is locked.
+      #
+      # Installed from the official release and checked against the SHA-256 GitHub
+      # publishes for that asset, so a swapped download stops here instead of encrypting
+      # the database with an attacker's binary. Early in the job on purpose: the lock
+      # steps below run `if: always()`, and must find `age` even when a step failed.
+      - name: Install age (backup encryption)
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
+            -o "$RUNNER_TEMP/age.tar.gz" \
+            https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-linux-amd64.tar.gz
+          echo "cbe24006683f8eb669266162894b9a522a1af52f2665fbc63a4bb032ed26ac10  $RUNNER_TEMP/age.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/age.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/age" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/age/age" --version
 
       - name: Export D1
       # ⚠️ SCOPED TO THE STEPS THAT NEED IT, 2026-08-30. These two variables sat in
@@ -92,9 +122,6 @@ jobs:
             node scripts/verify-backup.mjs "$dump"
           done
 
-      # `if: always()` so a backup that FAILED verification is still kept. The job goes
-      # red either way, and a corrupt dump is evidence worth having when working out
-      # what went wrong upstream.
       # A SECOND HOME FOR THE DUMP — L2-05, 2026-08-31.
       #
       # Until now the viewer database's only copy outside D1 was a GitHub artifact,
@@ -153,11 +180,41 @@ jobs:
             echo "verified $key: $got bytes match"
           done
 
+      # LOCK THE DUMP BEFORE IT LEAVES THE RUNNER. `if: always()`, and the upload below
+      # too, so a dump that FAILED verification is still kept — the job goes red either
+      # way, and a corrupt dump is evidence worth having when working out what went
+      # wrong upstream. Locked like any other.
+      #
+      # No key, no upload: if .github/backup-recipients.txt is missing or holds no age
+      # public key this step fails and nothing is uploaded, because the upload below
+      # takes only `.age` files. apps/cms/src/publicRepoGuards.test.ts fails if any
+      # workflow uploads something under backups/ that is not a `.age` file.
+      - name: Encrypt the D1 dump for the off-account copy
+        if: always()
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          recipients=.github/backup-recipients.txt
+          if ! grep -q '^age1' "$recipients" 2>/dev/null; then
+            echo "::error::$recipients is missing or holds no age public key, so nothing is uploaded. docs/BACKUP-RESTORE.md says how to add the owner's PUBLIC key."
+            exit 1
+          fi
+          for dump in backups/d1/*.sql; do
+            age -R "$recipients" -o "$dump.age" "$dump"
+            echo "locked $dump -> $dump.age ($(wc -c < "$dump.age") bytes)"
+          done
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: d1-backup-${{ github.run_id }}
-          path: backups/d1/*.sql
+          # ONLY the `.age` files. A plaintext `.sql` path here would hand the password
+          # hashes to every GitHub account.
+          path: backups/d1/*.sql.age
+          # ⚠️ THE REPOSITORY'S OWN RETENTION SETTING CAPS THIS NUMBER. Measured
+          # 2026-09-10 on this repository: an artifact asking for 90 days was given the
+          # repository's 30. Settings → Actions → General → "Artifact and log retention"
+          # is the value that actually applies; keep the two in step.
           retention-days: 90
 
       - name: Mirror R2 (weekly, Mondays)
@@ -190,6 +247,12 @@ jobs:
       # weekly full mirror (~4 x 156 MB), 3 days for the nightly PDFs (~3 x 71 MB),
       # and the 90 above is history. The retention is chosen by the step below from an
       # output the mirror step writes, because one upload step serves both kinds.
+      #
+      # ⚠️ AND THE ACCOUNT CHANGED AGAIN, 2026-09-09/10: the organisation is gone, the
+      # repository lives on a personal account and is PUBLIC, and the mirror is now
+      # ENCRYPTED before upload (the lock step below). GitHub documents storage quotas
+      # only for private repositories, and nobody here has measured one for a public
+      # repository, so the short 21/3-day windows stay.
       - name: Mirror R2 on schedule (full mirror Mondays, apex PDFs nightly)
         id: mirror-scheduled
         env:
@@ -204,17 +267,32 @@ jobs:
             node scripts/backup-r2.mjs --apex-only --stamp="$(date -u +%Y-%m-%d)"
             echo "retention=3" >> "$GITHUB_OUTPUT"
           fi
+
+      # LOCK THE MIRROR TOO — owner decision 2026-09-10. It can hold media that is not
+      # published yet, and on a public repository the artifact below is downloadable by
+      # any signed-in account. One tarball, one lock, same key as the D1 dump.
+      - name: Encrypt the R2 mirror for the off-account copy
+        if: ${{ always() && hashFiles('backups/r2/**') != '' }}
+        run: |
+          set -euo pipefail
+          recipients=.github/backup-recipients.txt
+          if ! grep -q '^age1' "$recipients" 2>/dev/null; then
+            echo "::error::$recipients is missing or holds no age public key, so the mirror is not uploaded."
+            exit 1
+          fi
+          tar -C backups -cf - r2 | age -R "$recipients" -o backups/r2-mirror.tar.age
+          echo "locked backups/r2 -> backups/r2-mirror.tar.age ($(wc -c < backups/r2-mirror.tar.age) bytes)"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         # L2-12, 2026-08-31: always(), matching the D1 upload above and for the same
         # reason written there. A PARTLY-failed mirror is the run whose output is most
         # worth keeping — it says which objects made it and which did not. Discarding
         # it leaves only "the job went red" and nothing to diagnose from.
-        # hashFiles() still guards the empty case, so a run that mirrored nothing does
-        # not upload an empty artifact.
-        if: ${{ always() && hashFiles('backups/r2/**') != '' }}
+        # hashFiles() guards the empty case: no lock file, no artifact — and the lock
+        # step refuses to write one without the owner's key.
+        if: ${{ always() && hashFiles('backups/r2-mirror.tar.age') != '' }}
         with:
           name: r2-backup-${{ github.run_id }}
-          path: backups/r2/**
+          path: backups/r2-mirror.tar.age
           # 21 days for a weekly full mirror, 3 for the nightly PDFs, 21 for a manual
           # run (the output is unset then). See the plan-change note above: this used
           # to be 90 when the organisation had 50 GB.
