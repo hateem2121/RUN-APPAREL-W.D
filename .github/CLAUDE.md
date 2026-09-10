@@ -86,6 +86,11 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   the rulesets API answers 403 *"Upgrade to GitHub Pro"* for a private repo — so until
   the owner takes Pro, `main` has NO required checks and a merge deploys unguarded.
   Everything below about the ruleset is the record of what to recreate.
+  ⚠️ **AND THE REPOSITORY WENT PUBLIC — 2026-09-09, then was RE-CREATED CLEAN on
+  2026-09-10 as `hateem2121/RUN-APPAREL-W.D`**, with audit material and supplier codes
+  scrubbed from every commit (the previous copy is `hateem2121/run-apparel-viewer-old`,
+  private). Rulesets are free on a public repository, so the record below is exactly
+  what to recreate there — once a first run on `main` has produced the check names.
   **By owner decision (2026-09-03) the repo STAYS on Free.** Two consequences:
   `actions/dependency-review-action` cannot run on a private repo without Advanced
   Security ("Dependency review is not supported on this repository") and is gated
@@ -97,8 +102,8 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   config under the ordinary `repo` scope, and one command prints it (once a ruleset
   exists again):
   ```bash
-  gh api repos/hateem2121/run-apparel-viewer/rulesets \
-    --jq '.[].id'   # then: gh api repos/hateem2121/run-apparel-viewer/rulesets/<id> \
+  gh api repos/hateem2121/RUN-APPAREL-W.D/rulesets \
+    --jq '.[].id'   # then: gh api repos/hateem2121/RUN-APPAREL-W.D/rulesets/<id> \
     --jq '[.rules[]|select(.type=="required_status_checks").parameters.required_status_checks[].context]'
   ```
   It still cannot be a CI GATE — `GITHUB_TOKEN` has no `administration` permission —

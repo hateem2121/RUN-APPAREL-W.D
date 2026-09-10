@@ -118,7 +118,7 @@ authorisation, so it cannot be scripted or done by an agent.
 1. Cloudflare dashboard → **Workers & Pages** → the Worker named
    **`run-apparel-viewer-shrink`**. ⚠️ The name must match `"name"` in
    `apps/shrink/wrangler.jsonc` exactly, or the build fails on a name check.
-2. **Settings → Builds → Connect**, and choose `hateem2121/run-apparel-viewer`.
+2. **Settings → Builds → Connect**, and choose `hateem2121/RUN-APPAREL-W.D`.
 3. Set **root directory** to `apps/shrink`.
 4. Leave the **deploy command** as `npx wrangler deploy`. That is the command that
    builds and publishes the image; Cloudflare's docs state that "Dockerfile builds can
