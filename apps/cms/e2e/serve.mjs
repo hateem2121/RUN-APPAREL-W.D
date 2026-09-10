@@ -25,7 +25,7 @@ if (!PORT) {
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 
-const child = spawn('npx', ['--yes', 'pnpm@10.33.0', '--filter', '@run-apparel/cms', 'start'], {
+const child = spawn('npx', ['--yes', 'pnpm@10.34.5', '--filter', '@run-apparel/cms', 'start'], {
   cwd: REPO,
   stdio: 'inherit',
   env: {

@@ -61,7 +61,7 @@ const EXPLANATIONS = [
       '     so PORT=5002 bound the server where Playwright was not polling. Run:\n' +
       '       env | grep -E "^(NODE_ENV|PORT)="\n' +
       '  2. A bare `pnpm`. e2e/prepare.mjs shells out to `pnpm build`, so exit 127 dies inside a\n' +
-      '     child process and surfaces only as this timeout. Use `npx --yes pnpm@10.33.0`.\n' +
+      '     child process and surfaces only as this timeout. Use `npx --yes pnpm@10.34.5`.\n' +
       'Check both BEFORE reading any code. Both are fixed at the source, so a recurrence means\n' +
       'something new — but check them first anyway.',
   },
@@ -72,7 +72,7 @@ const EXPLANATIONS = [
       (text.includes('pnpm') && text.includes('exit code 127')),
     note:
       '`pnpm` is not reliably on PATH here — it has MEASURED BOTH WAYS on this machine, so assume\n' +
-      'neither. Every documented `pnpm <script>` in this repo means `npx --yes pnpm@10.33.0 <script>`.',
+      'neither. Every documented `pnpm <script>` in this repo means `npx --yes pnpm@10.34.5 <script>`.',
   },
   {
     name: 'next-build-usecontext',

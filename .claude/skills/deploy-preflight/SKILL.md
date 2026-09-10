@@ -21,7 +21,7 @@ the capture is what makes it *noticed*. Do not skip step 2 because step 1 succee
 ## Steps
 
 Run every command from the repo root. `pnpm` is not on PATH here — every command
-below uses the `npx --yes pnpm@10.33.0` form, and a guard will refuse the bare one.
+below uses the `npx --yes pnpm@10.34.5` form, and a guard will refuse the bare one.
 
 ### 1. Back up D1
 
@@ -86,7 +86,7 @@ fine; if you get one, retry rather than concluding anything.
 ### 3. Verify the branch is actually green
 
 ```bash
-npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnpm@10.33.0 test && npx --yes pnpm@10.33.0 build
+npx --yes pnpm@10.34.5 lint && npx --yes pnpm@10.34.5 typecheck && npx --yes pnpm@10.34.5 test && npx --yes pnpm@10.34.5 build
 ```
 
 `pnpm build` is not optional and is not covered by typecheck — that gap is
@@ -102,7 +102,7 @@ If a preset or anything under `tools/asset-pipeline/` changed, also run the
 artwork eval **on an idle machine** (a busy one reads ~0.48pp low):
 
 ```bash
-npx --yes pnpm@10.33.0 eval:artwork
+npx --yes pnpm@10.34.5 eval:artwork
 ```
 
 ### 4. Merge

@@ -53,7 +53,7 @@ check('names PORT and bare pnpm for the Playwright timeout that names neither', 
     bashFailure('Exit code 1\nError: Timed out waiting 120000ms from config.webServer'),
   )
   if (!got.includes('PORT')) throw new Error('did not mention PORT')
-  if (!got.includes('npx --yes pnpm@10.33.0')) throw new Error('did not mention the npx form')
+  if (!got.includes('npx --yes pnpm@10.34.5')) throw new Error('did not mention the npx form')
 })
 
 check('names NODE_ENV for the useContext error that reads as a React problem', () => {

@@ -10,7 +10,7 @@
 
 ## Gates run locally
 
-`pnpm` below means `npx --yes pnpm@10.33.0` — bare `pnpm` exits 127 here.
+`pnpm` below means `npx --yes pnpm@10.34.5` — bare `pnpm` exits 127 here.
 
 - [ ] `pnpm install --frozen-lockfile`
 - [ ] `pnpm lint`

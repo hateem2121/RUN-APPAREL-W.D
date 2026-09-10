@@ -28,7 +28,7 @@
  */
 import { spawnSync } from 'node:child_process'
 
-const PNPM = ['npx', '--yes', 'pnpm@10.33.0']
+const PNPM = ['npx', '--yes', 'pnpm@10.34.5']
 
 /**
  * In CI's order. `cwd` is repo-relative.
