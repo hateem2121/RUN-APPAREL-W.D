@@ -1,11 +1,11 @@
 version: 2
-# QUIET MODE: routine version-update PRs are turned OFF
+# QUIET MODE for npm: routine version-update PRs are OFF
 # (open-pull-requests-limit: 0) so the branch list stays clean. Dependabot still
-# opens a PR automatically when a real SECURITY vulnerability is found — those
-# are rare and worth seeing. Day-to-day vulnerability protection also runs on
-# every change via the audit-ci gate in .github/workflows/ci.yml.
+# opens a PR automatically when a real SECURITY vulnerability is found in an npm
+# dependency — those are rare and worth seeing. Day-to-day vulnerability protection
+# also runs on every change via the audit-ci gate in .github/workflows/ci.yml.
 #
-# To re-enable routine updates later, raise the limits below (e.g. 5-10); the
+# To re-enable routine npm updates later, raise that limit (e.g. 5-10); the
 # grouping/ignore rules are kept ready for that.
 updates:
   # Application + tooling dependencies (pnpm workspace, npm ecosystem).
@@ -29,11 +29,21 @@ updates:
         update-types:
           - version-update:semver-major
 
-  # GitHub Actions.
+  # GitHub Actions — ONE update PR at a time, since 2026-09-10 (owner decision).
+  #
+  # This was 0 with the note "security advisories for actions still open", and that
+  # half was never true here: every action is pinned to a full commit SHA, and
+  # GitHub's secure-use guide says Dependabot "will not create alerts for actions
+  # pinned to SHA values". So the pinned actions received neither alerts nor updates.
+  #
+  # ⚠️ NO `cooldown:` HERE, AND NOT BY OVERSIGHT. The Dependabot options reference
+  # (checked 2026-09-10) lists the ecosystems that support `cooldown`, and
+  # `github-actions` is not among them. The owner asked for a 7-day wait anyway, so it
+  # is a MANUAL check: before merging one of these PRs, confirm the new release is at
+  # least 7 days old and that nothing has been reported against it.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
       day: monday
-    # 0 = no routine update PRs (security advisories for actions still open).
-    open-pull-requests-limit: 0
+    open-pull-requests-limit: 1

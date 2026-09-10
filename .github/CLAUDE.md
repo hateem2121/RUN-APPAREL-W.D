@@ -91,12 +91,15 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   scrubbed from every commit (the previous copy is `hateem2121/run-apparel-viewer-old`,
   private). Rulesets are free on a public repository, so the record below is exactly
   what to recreate there — once a first run on `main` has produced the check names.
-  **By owner decision (2026-09-03) the repo STAYS on Free.** Two consequences:
-  `actions/dependency-review-action` cannot run on a private repo without Advanced
-  Security ("Dependency review is not supported on this repository") and is gated
-  `github.event.repository.private == false` — audit-ci is the advisory gate; and
-  workflow storage must stay under Free's 500 MB pool — trim the weekly `r2-backup-*`
-  artifacts (keep the two newest), never `d1-backup-*`.
+  **By owner decision (2026-09-03) the repo STAYS on Free.** Two consequences were
+  recorded here for a PRIVATE repo, and going public changed both.
+  `actions/dependency-review-action` is gated `github.event.repository.private == false`,
+  so it RUNS now. And the old storage rule (trim `r2-backup-*`, never `d1-backup-*`) is
+  superseded: since 2026-09-10 both backup artifacts are age-ENCRYPTED before upload,
+  because a public repository's artifacts are downloadable by any signed-in account —
+  `apps/cms/src/publicRepoGuards.test.ts` fails on a plaintext one. The repository's own
+  retention setting also CAPS every `retention-days` (measured 2026-09-10: an artifact
+  asking for 90 days was given the repository's 30).
   ⚠️ **THE REQUIRED-CHECKS LIST IS A SECOND COPY OF `deploy.needs`. IT IS NOT
   UNREADABLE — that claim was false and cost a session (L8-07).** It is repository
   config under the ordinary `repo` scope, and one command prints it (once a ruleset

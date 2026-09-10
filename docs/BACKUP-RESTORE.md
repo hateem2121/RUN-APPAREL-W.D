@@ -31,7 +31,7 @@ Two numbers, in plain terms:
 |---|---|---|---|---|
 | Bad migration / bad edit, D1 | Time Travel | **~1 minute** | **~10 min** | Drilled 2026-07-29 — this is the failure that actually happened |
 | D1 gone, or damage older than 30 days | nightly SQL dump | **up to 24h** | **~1h** | Drilled 2026-08-05; the drill is what found the restore instructions were wrong |
-| Cloudflare account lost | nightly SQL dump (GitHub artifact) | **up to 24h** | **~1 day** | Estimate — never drilled, and it needs a new account, new domain binding and new secrets |
+| Cloudflare account lost | nightly SQL dump (the ENCRYPTED GitHub artifact — needs the owner's backup key) | **up to 24h** | **~1 day** | Estimate — never drilled, and it needs a new account, new domain binding, new secrets and the backup key |
 | Media (GLB/posters) deleted from R2 | weekly R2 mirror | **up to 7 days** | **~1h** | Estimate — mirror verified, restore never drilled end to end |
 | Bad deploy (code, not data) | rollback | **0** | **~5 min** | See RUNBOOK → "Undoing a bad deploy" |
 | Raw CLO export or FIXED GLB lost | **archive bucket** `run-apparel-archive` (and Time Machine, once the owner's drive is set up) | **since the last hand upload** — a new export is unprotected until it is uploaded and its manifest row added | **~1h** (a 1.5 GB download) | Uploaded and hash-checked 2026-09-02; sizes verified nightly; restore never drilled. Supersedes the 2026-08-08 "declined" decision, which predates the audit finding that the masters existed once, on one disk |
@@ -76,8 +76,9 @@ track — and a backup nobody has ever restored is the thing this document exist
 argue against.
 
 What this repository DOES back up: `run-apparel-viewer-db` (nightly D1 dump,
-restore-verified, kept as a GitHub artifact **and** in R2 under
-`run-private/run-apparel-viewer-db/`), the `run-apparel-viewer-media` bucket, the
+restore-verified, kept in R2 under `run-private/run-apparel-viewer-db/` **and** as an
+age-encrypted GitHub artifact; the pre-deploy snapshot goes to R2 only, under
+`run-private/run-apparel-viewer-db/pre-deploy/`), the `run-apparel-viewer-media` bucket, the
 two apex PDFs from `run-assets`, and — verified rather than mirrored — the master
 files in `run-apparel-archive`.
 
@@ -99,7 +100,38 @@ node scripts/backup-d1.mjs --local
 node scripts/backup-r2.mjs --local
 ```
 
-Automated: `.github/workflows/nightly-backup.yml` runs the D1 export nightly (uploaded as a 90-day GitHub artifact) and the R2 mirror weekly. See [DEPLOY-BY-CLICKING.md](DEPLOY-BY-CLICKING.md) for the one-time secret setup.
+Automated: `.github/workflows/nightly-backup.yml` runs the D1 export nightly (copied to R2, and uploaded as a 90-day GitHub artifact ENCRYPTED to the owner's backup key) and the R2 mirror weekly (also encrypted). See [DEPLOY-BY-CLICKING.md](DEPLOY-BY-CLICKING.md) for the one-time secret setup, and "The backup key" below.
+
+## The backup key (since 2026-09-10)
+
+This repository is **public**, and anyone signed in to GitHub can download a workflow
+artifact. So the nightly D1 dump and the R2 mirror are encrypted with
+[age](https://github.com/FiloSottile/age) before they are uploaded, to the PUBLIC key in
+`.github/backup-recipients.txt`. Only the owner holds the private half, outside GitHub and
+outside Cloudflare. Until that file holds a key, the nightly job fails at its lock step and
+uploads nothing to GitHub — the dump still reaches R2.
+
+Making the key, once, on the owner's Mac (install age first with `brew install age`):
+
+```bash
+age-keygen -pq -o ~/Desktop/run-apparel-backup-key.txt
+age-keygen -y ~/Desktop/run-apparel-backup-key.txt > ~/Desktop/run-apparel-backup-PUBLIC.txt
+```
+
+Store the whole of `run-apparel-backup-key.txt` in a password manager **and** on paper,
+then delete that file. Add the one line from the PUBLIC file to
+`.github/backup-recipients.txt` through a pull request. **Lose the private key and every
+encrypted artifact is unreadable** — the R2 copies and D1 Time Travel are unaffected.
+
+Unlocking a downloaded artifact needs age 1.3 or newer, which reads `-pq` keys:
+
+```bash
+# D1 dump (from a d1-backup-<run> artifact)
+age -d -i run-apparel-backup-key.txt -o run-apparel-viewer-db-<stamp>.sql run-apparel-viewer-db-<stamp>.sql.age
+
+# R2 mirror (from an r2-backup-<run> artifact) — recreates backups/r2/<stamp>/{media,apex}/
+mkdir -p backups && age -d -i run-apparel-backup-key.txt r2-mirror.tar.age | tar -xf - -C backups
+```
 
 ## Restoring D1 — try Time Travel FIRST
 
