@@ -27,8 +27,8 @@
   // advisory stays blocking for any path not listed here, so if one of these
   // packages ever reaches runtime code the gate fails again instead of staying
   // silently suppressed. Re-check each entry when its parent package is bumped.
-  // ONE ENTRY since 2026-08-13 (extract-zip, at the bottom); it was empty from
-  // 2026-08-12 until then, and getting back to empty is still the goal.
+  // TWO ENTRIES since 2026-09-10, both extract-zip (at the bottom). One from
+  // 2026-08-13, empty from 2026-08-12 before that; getting back to empty is the goal.
   //
   // Two GHSA-mh99-v99m-4gvg (brace-expansion DoS) paths lived here from
   // 2026-07-27, correctly: at the time the only patched release was 5.0.8, there
@@ -184,7 +184,19 @@
   // most recent of 24 versions, and CVE-2026-56876 reports patched_versions
   // "<0.0.0". The UNFIXABLE-not-unfixed reasoning above is confirmed still
   // correct; only the condition it waited on was unreachable.
+  //
+  // ── extract-zip, a SECOND advisory, added 2026-09-10 ────────────────────────
+  // GHSA-7pqw-9j4j-h8q3 (CVE-2026-19693), "extract-zip allows arbitrary file writes through symlink archive entries", published 2026-08-17 — a
+  // different advisory against the SAME package at the SAME dependency path as the
+  // entry above. It blocked the first CI run of the public repository on 2026-09-09.
+  // UNFIXABLE for the same measured reason: extract-zip's latest is still 2.0.1
+  // and GitHub reports no first patched version. The safety argument is the one
+  // recorded above, unchanged: @lhci/cli is a root devDependency, and the only
+  // archive @puppeteer/browsers extracts is the Chrome build it downloads from
+  // Google's CDN. DELETE WITH the entry above — both go the day
+  // `pnpm why extract-zip -r` stops reporting this path.
   "allowlist": [
-    "GHSA-jmr9-qjv8-65gv|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip"
+    "GHSA-jmr9-qjv8-65gv|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
+    "GHSA-7pqw-9j4j-h8q3|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip"
   ]
 }

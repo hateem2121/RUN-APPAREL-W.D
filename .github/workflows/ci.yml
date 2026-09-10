@@ -747,20 +747,23 @@ jobs:
       - name: Build viewer with the e2e mock origin
         run: node apps/viewer/e2e/prepare.mjs
       - name: Lighthouse CI
-        # ⚠️ THIS RUNNER HAS NO SYSTEM CHROME, and Lighthouse needs one. GitHub-hosted
-        # ubuntu images ship google-chrome; the self-hosted image is Playwright-based and
-        # puts browsers under /ms-playwright instead, where chrome-launcher will not look
-        # unless CHROME_PATH says so. Without this, `lhci autorun` fails with
-        # "no Chrome installations found" — which reads as a broken config, not a missing
-        # binary. Resolved at runtime so the job is correct on EITHER runner, and it
-        # fails loudly rather than letting Lighthouse pick something unintended.
+        # Chrome is resolved at runtime and the step FAILS LOUDLY without one. GitHub's
+        # ubuntu image ships google-chrome; with none, `lhci autorun` says "no Chrome
+        # installations found", which reads as a broken config rather than a missing binary.
+        #
+        # ⚠️ THE `/ms-playwright` FALLBACK WENT WITH THE SELF-HOSTED RUNNER, 2026-09-10. It
+        # was also the one line actionlint rejected when CI returned to GitHub's runners:
+        # `ls -d /ms-playwright/...` is shellcheck SC2012, and actionlint applies shellcheck
+        # rules only when a `shellcheck` binary is on PATH. GitHub's image has one; the
+        # Mac's Playwright-based runner image did not, so the line passed there for a day.
+        # Proven both ways locally with actionlint 1.7.12: no shellcheck -> exit 0,
+        # shellcheck present -> SC2012.
         run: |
           set -euo pipefail
           CHROME_PATH="${CHROME_PATH:-}"
           [ -n "$CHROME_PATH" ] || CHROME_PATH="$(command -v google-chrome || command -v chromium || true)"
-          [ -n "$CHROME_PATH" ] || CHROME_PATH="$(ls -d /ms-playwright/chromium-*/chrome-linux*/chrome 2>/dev/null | head -1 || true)"
           if [ ! -x "$CHROME_PATH" ]; then
-            echo "::error::no Chrome for Lighthouse (looked for google-chrome, chromium, /ms-playwright/chromium-*)"
+            echo "::error::no Chrome for Lighthouse (looked for google-chrome and chromium on PATH)"
             exit 1
           fi
           export CHROME_PATH

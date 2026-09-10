@@ -53,9 +53,20 @@ paths = [
 # silent-failure mode: unset in CI, the tag builds with an empty token and
 # analytics quietly stop.
 #
-# Both entries are pinned to the exact literal on purpose. A pattern like
+# Every entry is pinned to the exact literal on purpose. A pattern like
 # "any 32-char hex" would blind the scanner to real keys.
+#
+# ⚠️ THE THIRD ENTRY IS A FILENAME, AND IT TURNED `main` RED FROM ANOTHER BRANCH —
+# 2026-09-09. `rxps-2026-09-03-optimized.glb` is an R2 object key used as a fixture
+# in the backup Worker's tests and in docs/BACKUP-RESTORE.md; the generic-api-key
+# rule scores it at entropy 4.21. `gitleaks detect` walks EVERY ref the checkout
+# fetched (`fetch-depth: 0`), so the moment the `cf-cron-backup` branch was pushed,
+# the `secrets` job on `main` — whose own tree never held the string — failed with
+# 4 findings, all in that branch's commit. Proven both ways with gitleaks 8.30.1:
+# this entry removes exactly those 4, and a bait file holding a random 44-hex
+# `apiKey` beside the same filename is still caught (1 finding, the key).
 regexes = [
   '''41e20361-1a5f-4c87-b5ca-781c57c9b3f4''',
   '''cfd98c6043ce4fd2a594010af6b80c75''',
+  '''rxps-2026-09-03-optimized\.glb''',
 ]
