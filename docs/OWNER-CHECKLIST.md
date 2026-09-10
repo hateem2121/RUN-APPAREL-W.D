@@ -72,7 +72,7 @@ What was missing was the token reaching the site's code. I read it from your Clo
 dashboard and set it on the Worker:
 
 ```bash
-npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec wrangler secret list
+npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec wrangler secret list
 ```
 
 `CF_ANALYTICS_TOKEN` now appears in that list beside `PAYLOAD_SECRET`, `RESEND_API_KEY`

@@ -34,7 +34,7 @@ written back onto the product → the viewer reads
 which since 2026-08-28 also copies the two apex PDFs from `run-assets`. That asymmetry is why the raw CLO export is a local artifact — see
 `tools/asset-pipeline/CLAUDE.md`.
 
-**The gates, in CI's order** — `pnpm` below means `npx --yes pnpm@10.33.0`:
+**The gates, in CI's order** — `pnpm` below means `npx --yes pnpm@10.34.5`:
 
 ```bash
 pnpm install --frozen-lockfile   # after every merge; the lockfile moves often here
@@ -65,11 +65,11 @@ commands rather than re-reading the sentence (same lesson as
 **Playwright's browsers are NOT installed here, and a missing one fails at 0ms.**
 Found 2026-08-27: `test:e2e` reported four engines failing with `(0ms)`, which reads
 as broken code and is a browser that never launched. Install once —
-`npx --yes pnpm@10.33.0 --filter @run-apparel/viewer exec playwright install chromium webkit firefox`.
+`npx --yes pnpm@10.34.5 --filter @run-apparel/viewer exec playwright install chromium webkit firefox`.
 `tools/asset-pipeline`'s render harness needs chromium too. With all four present:
 **355 passed, 6 skipped, 41.8s** — the 45s quoted above.
 
-**`pnpm` may not be on `PATH` — MEASURED BOTH WAYS; use `npx --yes pnpm@10.33.0`.**
+**`pnpm` may not be on `PATH` — MEASURED BOTH WAYS; use `npx --yes pnpm@10.34.5`.**
 Absent in earlier sessions; 2026-08-21 it WAS there (`/opt/homebrew/bin/pnpm`, exactly
 10.33.0). Assume neither, and never let a script shell out to bare `pnpm`.
 ⚠️ **A THIRD STATE, 2026-08-27: the path EXISTS and does not run.**
@@ -77,7 +77,7 @@ Absent in earlier sessions; 2026-08-21 it WAS there (`/opt/homebrew/bin/pnpm`, e
 `ls` succeeds; running it says `no such file or directory` naming the SYMLINK, not the
 missing target — so `command -v pnpm` finds it and still fails. When a child process
 needs a real one (`e2e/prepare.mjs` shells out to `pnpm build`), put a shim on `PATH`
-that execs `npx --yes pnpm@10.33.0 "$@"`.
+that execs `npx --yes pnpm@10.34.5 "$@"`.
  Bare `pnpm` fails with
 exit **127**, and the failure is worth naming because of *where* it surfaces:
 `apps/viewer/e2e/prepare.mjs` shells out to `pnpm build`, so the whole e2e suite

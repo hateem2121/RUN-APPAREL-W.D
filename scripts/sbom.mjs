@@ -159,7 +159,7 @@ export function auditLicences(sbom) {
 function main() {
   const out = process.argv[2] ?? 'sbom.cdx.json'
 
-  const raw = execFileSync('npx', ['--yes', 'pnpm@10.33.0', 'licenses', 'list', '--json'], {
+  const raw = execFileSync('npx', ['--yes', 'pnpm@10.34.5', 'licenses', 'list', '--json'], {
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
     stdio: ['ignore', 'pipe', 'ignore'],

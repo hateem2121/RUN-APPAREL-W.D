@@ -139,7 +139,7 @@ That is a real weakening, so it is written down rather than absorbed. To restore
 the build command in the same **Settings → Builds** screen:
 
 ```
-npx --yes pnpm@10.33.0 install --frozen-lockfile && npx --yes pnpm@10.33.0 --filter @run-apparel/shrink typecheck && npx --yes pnpm@10.33.0 --filter @run-apparel/shrink test
+npx --yes pnpm@10.34.5 install --frozen-lockfile && npx --yes pnpm@10.34.5 --filter @run-apparel/shrink typecheck && npx --yes pnpm@10.34.5 --filter @run-apparel/shrink test
 ```
 
 A failing build command stops the deploy command from running, which is exactly the
@@ -158,7 +158,7 @@ Still supported and sometimes the right answer — from any machine with real up
 bandwidth, with Docker running:
 
 ```bash
-CLOUDFLARE_API_TOKEN=$(cat ~/cf_token.txt) DOCKER_DEFAULT_PLATFORM=linux/amd64 npx --yes pnpm@10.33.0 --filter @run-apparel/shrink exec wrangler deploy
+CLOUDFLARE_API_TOKEN=$(cat ~/cf_token.txt) DOCKER_DEFAULT_PLATFORM=linux/amd64 npx --yes pnpm@10.34.5 --filter @run-apparel/shrink exec wrangler deploy
 ```
 
 ⚠️ `DOCKER_DEFAULT_PLATFORM` is **not optional on an Apple Silicon Mac**. Cloudflare
@@ -1286,9 +1286,9 @@ the colourway's poster in the CMS (`posterPreview`), falling back to the product
 "Backup picture". Posters are rendered locally, free, from the finished model:
 
 ```bash
-npx --yes pnpm@10.33.0 pipeline posters output/<garment>.glb --product rxps \
+npx --yes pnpm@10.34.5 pipeline posters output/<garment>.glb --product rxps \
   --colours "Colorway 2=wine,Colorway 3=blush,Colorway 4=butter,Colorway 5=lime,Colorway 6=black"
-npx --yes pnpm@10.33.0 og:cards rxps
+npx --yes pnpm@10.34.5 og:cards rxps
 ```
 
 Judge the set on one sheet before uploading anything — the posters are transparent, so

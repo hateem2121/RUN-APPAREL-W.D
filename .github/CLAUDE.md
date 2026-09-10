@@ -6,7 +6,7 @@ negative control, so a failure names the file and line. Run it before pushing a
 workflow edit:
 
 ```bash
-npx --yes pnpm@10.33.0 --filter @run-apparel/cms exec vitest run src/workflowHardening.test.ts
+npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHardening.test.ts
 ```
 
 ## Traps

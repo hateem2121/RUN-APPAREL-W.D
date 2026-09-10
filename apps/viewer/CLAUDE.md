@@ -517,7 +517,7 @@ strings**; the fix is a semantic token, per `docs/DESIGN.md` §8.
 ## Running what these traps describe
 
 ```bash
-npx --yes pnpm@10.33.0 --filter @run-apparel/viewer test:e2e
+npx --yes pnpm@10.34.5 --filter @run-apparel/viewer test:e2e
 ```
 
 The e2e suite is the only thing that exercises `<model-viewer>` for real — under jsdom
