@@ -1,0 +1,8 @@
+# age PUBLIC key(s) the nightly backup encrypts to — one per line.
+#
+# Only a PUBLIC key belongs here (it starts with "age1"). Its private half is held by
+# the owner, outside GitHub and outside Cloudflare, so nobody else can open the backups.
+# How to make one, and how to unlock a backup: docs/BACKUP-RESTORE.md, "The backup key".
+#
+# Until a line starting with age1 is added below, the nightly backup job fails at its
+# lock step and uploads NOTHING to GitHub. The dumps still reach the private R2 bucket.
