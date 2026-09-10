@@ -14,6 +14,9 @@ comes out, and a customer scans a tag and looks at the garment. **For a B2B
 garment reference the printed artwork IS the product** — "the 3D loads" is not
 success.
 
+⚠️ **PUBLIC repo since 2026-09-10:** never commit audits, supplier/factory data, D1 dumps
+or customer data.
+
 ```
 apps/viewer   Public 3D viewer (React + <model-viewer>, Cloudflare Worker + Static
               Assets; the Pages project was DELETED 2026-07-22 and survives only
@@ -318,7 +321,7 @@ the answer is "nothing that happens in production", it is not a test.
   a month. The GET/HEAD divergence is unaffected and is why this stays. Full
   incident: `docs/HARDENING-LOG.md`.
 
-- **Fourteen more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
+- **Fifteen more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
   of them moved there 2026-08-19 because they bite only while you are editing a
   workflow, which is exactly when that file loads. Enough to stop you: every workflow
   is gated by `apps/cms/src/workflowHardening.test.ts` on eleven rules with verified

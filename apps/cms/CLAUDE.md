@@ -169,6 +169,9 @@ in D1 with `PAYLOAD_SECRET`, and the robot's copy lives in a Cloudflare secret
 (`CMS_ROBOT_API_KEY` on `apps/shrink`) which Cloudflare will not return.
 **Regenerating the robot's key breaks the shrink pipeline** — issue a key on a
 different user instead, and untick it afterwards.
+⚠️ **Rotating `PAYLOAD_SECRET` kills EVERY API key, the robot's included**, and
+*Generate new API key* stores nothing until **Save**. Follow `docs/RUNBOOK.md` →
+"Rotating PAYLOAD_SECRET" (2026-09-10: skipping either stranded a job on Queued).
 
 ⚠️ **Never send `slug` when updating an existing product.** It is printed on
 physical QR tags; `Products.ts` and `fields/colourways.ts` both enforce

@@ -322,3 +322,9 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   To decide whether a failing test is flaky or real, push an empty or trivial commit and
   read the fresh run — and confirm nothing is in flight first, because a push during a run
   cancels that one too (the trap the root `CLAUDE.md` records).
+
+- **`DEPLOY_ENABLED=false` pauses SEVEN workflows, not just deploys:** `ci`'s deploy,
+  `deploy-shrink`, `nightly-backup`, `uptime`, `heartbeat`, `diagnostics-digest` and
+  `perf-watch`. Off means no backups and no monitoring — measured 2026-09-10, after the
+  switch had been off since the public re-creation. Re-count with
+  `grep -l 'vars.DEPLOY_ENABLED' .github/workflows/*.yml`.
