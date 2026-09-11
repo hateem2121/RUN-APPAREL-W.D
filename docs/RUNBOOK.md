@@ -834,6 +834,18 @@ What the events mean:
 | `webgl-context-lost` | The device gave up the GPU context mid-view — usually memory | Expect on older iPhones with heavy models; the lever is triangle count |
 | `variants-unverified-while-published` | A re-upload renamed the colours under a live product | Re-map the colours on the Colours tab |
 | `render3d-unavailable` | The device or Data Saver refused 3D up front | Nothing — the poster fallback is working as intended |
+| `viewer-load-failed` | The product's details never reached the page — a server error or the visitor's connection | Look up that minute in the CMS Worker's logs; a 200 there means the visitor's side failed |
+| `render-scale-degraded` | A slow device drew the 3D at lower sharpness (model-viewer's own GPU throttling) | Nothing, unless many **browsers** report it on one product |
+
+**Read the `browsers` column before the count.** On 2026-09-10 one scripted audit
+of ours wrote 371 of the week's 385 rows, and a count on its own read like an
+outage. Since 2026-09-11 the digest counts distinct user-agents per row and leaves
+out two things on purpose: user-agents carrying `run-apparel-` (every tool of ours
+names itself that, and `apps/cms/src/endpoints/events.ts` also drops them at
+intake) and the `ResizeObserver loop…` browser notice, which Sentry already
+ignores. `apps/cms/src/diagnosticsDigest.test.ts` runs the digest's own SQL
+against SQLite. Rows named `server` or `network` are `viewer-load-failed` stored
+under the wrong name, from 2026-09-07 until that fix shipped.
 
 ## Error tracking
 

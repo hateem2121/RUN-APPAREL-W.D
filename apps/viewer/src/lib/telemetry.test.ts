@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { diagnostic } from './diagnostic'
 import { initTelemetry } from './telemetry'
 
 // telemetry reads VITE_API_BASE_URL at import time. This used to say the endpoint
@@ -96,6 +97,37 @@ describe('initTelemetry', () => {
       'e2',
       'e3',
       'e4',
+    ])
+  })
+
+  /**
+   * The seam between `diagnostic()` and this file, where a report lost its name.
+   *
+   * Both use `kind` for the event NAME, and `diagnostic()` spread its detail after it —
+   * so `viewer-load-failed`, reported by App.tsx with its failure class in a `kind`
+   * field, was stored as an event called `server`. The 2026-09-11 weekly digest then
+   * listed `server` and `network` rows that nothing emits under those names. Each file
+   * was right on its own; only a test that runs both can see it.
+   */
+  it('stores a diagnostic under its own name even when its detail carries `kind`', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    stop = initTelemetry()
+    diagnostic('viewer-load-failed', {
+      product: 'rxps',
+      variant: 'wine',
+      kind: 'server',
+      reason: 'Viewer API responded 500',
+    })
+    window.dispatchEvent(new Event('pagehide'))
+    const arr = await batchOf(beacon.mock.calls[0]!)
+    expect(arr).toEqual([
+      {
+        type: 'diagnostic',
+        event: 'viewer-load-failed',
+        product: 'rxps',
+        variant: 'wine',
+        message: 'Viewer API responded 500',
+      },
     ])
   })
 })

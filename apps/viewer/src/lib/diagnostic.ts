@@ -15,6 +15,10 @@
  * console only.
  */
 export function diagnostic(kind: string, detail: Record<string, string> = {}): void {
-  document.dispatchEvent(new CustomEvent('run:diagnostic', { detail: { kind, ...detail } }))
+  // `kind` goes LAST, so no detail field can replace the report's name. Until 2026-09-11
+  // App.tsx sent its failure class in a field called `kind`, and with the spread the
+  // other way round every `viewer-load-failed` was stored as `server` or `network` —
+  // names the weekly digest then listed and nothing emits. telemetry.test.ts runs both.
+  document.dispatchEvent(new CustomEvent('run:diagnostic', { detail: { ...detail, kind } }))
   console.warn(`[viewer:${kind}]`, detail)
 }
