@@ -22,7 +22,7 @@ the warning and still over the line target.
 
 ⚠️ **THIS SAID "treat 40,000 as the hard gate" UNTIL 2026-09-04, AND THAT NUMBER IS
 1,000 TOO HIGH.** 40,000 is Claude Code's *warning*; the gate that fails CI is
-**39,000** (`apps/cms/src/claudeMd.test.ts:195`), set deliberately low because a gate
+**39,000** (`apps/cms/src/claudeMd.test.ts:199`), set deliberately low because a gate
 firing at the ceiling fires after the harm. The argument for it was written only in
 that test file, which a session editing a CLAUDE.md has no reason to open — so every
 document a session actually reads stated a budget it did not have. Budget against

@@ -181,7 +181,7 @@ reading as a tidy-up. See the comment in `RawUploads.ts`.
   and the authority, because only the test enforces the recursive walk and the
   negative control.
   ⚠️ **Line RANGES resolve too, since 2026-08-18 — this said the opposite.** The regex
-  (`scripts/doc-citations.mjs:151`) strips `:42`, `:42:7` and `:42-80` alike. Prefer a
+  (`scripts/doc-citations.mjs:202`) strips `:42`, `:42:7` and `:42-80` alike. Prefer a
   single line — the harness renders it as a clickable link — but a range is not a
   silent failure.
 - **`pnpm test` now also checks** the npm lockfile sync (above), the SBOM licence
@@ -262,7 +262,7 @@ the answer is "nothing that happens in production", it is not a test.
   since 2026-08-29.** Every release from `5.20260808.1` on fails that package's typecheck
   with `Property 'readUInt32LE' does not exist on type 'NonSharedBuffer'` x3 plus one
   arity error — **all four in one 15-line function**, `readGlbGenerator`
-  (`tools/asset-pipeline/src/validate.ts:44`). Re-measured on `5.20260827.1`: still
+  (`tools/asset-pipeline/src/validate.ts:45`). Re-measured on `5.20260827.1`: still
   broken, so the hold stands where it applies.
   **It applies nowhere else.** `apps/cms` and `apps/viewer` run `5.20260827.1` and
   typecheck clean; the hold had frozen 24 days of updates across both for a fault
@@ -324,8 +324,8 @@ the answer is "nothing that happens in production", it is not a test.
 - **Fifteen more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
   of them moved there 2026-08-19 because they bite only while you are editing a
   workflow, which is exactly when that file loads. Enough to stop you: every workflow
-  is gated by `apps/cms/src/workflowHardening.test.ts` on eleven rules with verified
-  negative controls — an unparseable workflow is NOT a check, so CI goes green; a
+  is gated by `apps/cms/src/workflowHardening.test.ts` on fifteen rules, nine with their
+  own negative control — an unparseable workflow is NOT a check, so CI goes green; a
   `permissions:` block **REPLACES** the defaults rather than
   adding to them — omitting `contents: read` killed uptime.yml for 23 hours with a 404.
   A CI fetch from a `wear-run.help` host can 403 from a runner (Bot Fight Mode); treat
