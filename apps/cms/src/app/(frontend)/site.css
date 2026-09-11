@@ -60,7 +60,7 @@
  */
 @font-face {
   font-family: "Archivo Fallback";
-  src: local("Arial"), local("Helvetica Neue"), local("Helvetica");
+  src: local("Arial"), local("Helvetica Neue"), local("Helvetica"), local("Liberation Sans");
   size-adjust: 98.61%;
   ascent-override: 89.03%;
   descent-override: 21.29%;
@@ -69,7 +69,8 @@
 
 @font-face {
   font-family: "Archivo Display Fallback";
-  src: local("Arial Bold"), local("Helvetica Neue Bold"), local("Arial");
+  src:
+    local("Arial Bold"), local("Helvetica Neue Bold"), local("Liberation Sans Bold"), local("Arial");
   font-weight: 700 900;
   size-adjust: 128.24%;
   ascent-override: 68.47%;
@@ -88,13 +89,50 @@
 }
 
 /*
+ * ⚠️ A MACHINE WITH NO ARIAL AND NO GEORGIA GOT NONE OF THE ABOVE UNTIL 2026-09-11 — a Linux
+ * desktop, and CI's Playwright image (`mcr.microsoft.com/playwright:v1.62.1-noble`), where every
+ * face errored, the stacks fell through to the generic family, and PR #10's font tests failed
+ * while passing on a Mac. Measured in that image, and from the font files:
+ *
+ *   - Liberation Sans has Arial's advance widths exactly — 0.45630em lowercase and 0.62277em bold
+ *     uppercase for both, computed, not assumed — so it is one more source in the sans faces
+ *     above, at their values.
+ *   - Liberation Serif is shaped like Times, not Georgia: Liberation Serif Italic 0.41336em (the
+ *     same as Times New Roman Italic) against Georgia Italic 0.46473em. So the serif has a face
+ *     of its own, the Georgia face's value carried over as a ratio:
+ *     79.52 × 0.46473 / 0.41336 = 89.40%. Those averages use Next.js's fallback weighting
+ *     (`avgCharacters`); the 2026-09-07 weighting is not recorded and reads every font about 2%
+ *     wider, which a ratio cancels. The Linux browsers agree: "Made properly." wanted 89.53%.
+ *     Overrides re-derived as for every face here: 124.49 × 79.52 / 89.40 = 110.73 and
+ *     38.98 × 79.52 / 89.40 = 34.67.
+ *   - ⚠️ NO SINGLE `local()` NAME MATCHES IN ALL THREE ENGINES. Chromium and Firefox match a FULL
+ *     name ("Liberation Serif Italic"), and given the family name they load the regular or upright
+ *     face whatever this rule's `font-style`/`font-weight` say. WebKit matches only the FAMILY
+ *     name and picks the face from those descriptors. So each list names both, full name first.
+ *     (WebKit also reaches Liberation Sans through `local("Arial")`, by fontconfig's alias.)
+ *
+ * Android has neither family and still falls through to its own system font.
+ */
+@font-face {
+  font-family: "Instrument Serif Fallback Liberation";
+  src: local("Liberation Serif Italic"), local("Liberation Serif");
+  font-style: italic;
+  size-adjust: 89.4%;
+  ascent-override: 110.73%;
+  descent-override: 34.67%;
+  line-gap-override: 0%;
+}
+
+/*
  * The three stacks, with each fallback inserted AFTER the real face and BEFORE the
  * generic one, so the webfont still wins the moment it arrives.
  */
 :root {
   --font-display: "Archivo Variable", "Archivo", "Archivo Display Fallback", system-ui, sans-serif;
   --font-body: "Archivo Variable", "Archivo", "Archivo Fallback", system-ui, sans-serif;
-  --font-serif: "Instrument Serif", "Instrument Serif Fallback", Georgia, serif;
+  --font-serif:
+    "Instrument Serif", "Instrument Serif Fallback", "Instrument Serif Fallback Liberation",
+    Georgia, serif;
 }
 
 /*
@@ -129,7 +167,8 @@
  */
 @font-face {
   font-family: "Archivo Display Fallback Products";
-  src: local("Arial Bold"), local("Helvetica Neue Bold"), local("Arial");
+  src:
+    local("Arial Bold"), local("Helvetica Neue Bold"), local("Liberation Sans Bold"), local("Arial");
   font-weight: 700 900;
   size-adjust: 130.15%;
   ascent-override: 67.46%;
@@ -147,10 +186,30 @@
   line-gap-override: 0%;
 }
 
+/*
+ * The Linux twin of the face above — see "A MACHINE WITH NO ARIAL AND NO GEORGIA". 92.34% is the
+ * minimax of "turnable."'s ideal `size-adjust` in Chromium and Firefox inside CI's Playwright image
+ * (`calibrate-fallback.mjs --linux`, 2026-09-11: 92.50–92.93%, worst error 0.66%, most of it
+ * Chromium drawing `local()` faces in whole pixels there). The display face needs no twin: its
+ * Liberation Sans Bold source is within 0.9% of that headline's Linux ideal at 130.15%.
+ * Overrides: 124.49 × 79.52 / 92.34 = 107.21 and 38.98 × 79.52 / 92.34 = 33.57.
+ */
+@font-face {
+  font-family: "Instrument Serif Fallback Products Liberation";
+  src: local("Liberation Serif Italic"), local("Liberation Serif");
+  font-style: italic;
+  size-adjust: 92.34%;
+  ascent-override: 107.21%;
+  descent-override: 33.57%;
+  line-gap-override: 0%;
+}
+
 .hero-products {
   --font-display:
     "Archivo Variable", "Archivo", "Archivo Display Fallback Products", system-ui, sans-serif;
-  --font-serif: "Instrument Serif", "Instrument Serif Fallback Products", Georgia, serif;
+  --font-serif:
+    "Instrument Serif", "Instrument Serif Fallback Products",
+    "Instrument Serif Fallback Products Liberation", Georgia, serif;
 }
 
 /* ------------------------------------------------ widows and measure (FA-C-53) */
@@ -373,7 +432,7 @@ html {
 }
 
 /*
- * ⚠️ BELOW 347px THE HERO HEADLINE SHRINKS WITH THE WINDOW — owner decision 2026-09-11.
+ * ⚠️ BELOW 355px THE HERO HEADLINE SHRINKS WITH THE WINDOW — owner decision 2026-09-11.
  *
  * `.display--hero` is `clamp(2.125rem, 5.4vw, 4.5rem)` (packages/ui/src/base.css), so on the
  * narrowest phones it sits at its 34px floor while the column keeps narrowing. Measured
@@ -383,15 +442,18 @@ html {
  * shown both and chose a slightly smaller headline over a split word. A hyphen was measured as
  * well: no engine hyphenated that word, and two of them began splitting others.
  *
- * `min(2.125rem, 9.8vw)`: 9.8vw is the smallest size-to-window ratio at which every word of the
- * home, products and contact headlines fits, across the three engines at 320–390px, rounded down —
- * 31.36px at 320px, 33.32px at 340px, and the unchanged 34px from 347px up. Site-only, because the
- * viewer's product title shares `.display--hero` and was not part of the decision.
+ * `min(2.125rem, 9.6vw)`: 9.6vw is the largest size-to-window ratio at which every word of the
+ * home, products and contact headlines fits, across the three engines at 320–390px on macOS AND in
+ * CI's Linux container, rounded down — 30.72px at 320px, 32.64px at 340px, and the unchanged 34px
+ * from 355px up. ⚠️ 9.8vw, measured on macOS first, split the word in CI: Linux Chromium draws
+ * "production." 280.38px wide at 31.36px against the 280px column, where macOS drew 278.6px
+ * (measured in the CI image, 2026-09-11). Site-only, because the viewer's product title shares
+ * `.display--hero` and was not part of the decision.
  * `e2e/composition.spec.ts` ("no heading splits a word") fails if any heading on the site splits
  * a word again.
  */
 .site-hero .display--hero {
-  font-size: clamp(min(2.125rem, 9.8vw), 5.4vw, 4.5rem);
+  font-size: clamp(min(2.125rem, 9.6vw), 5.4vw, 4.5rem);
 }
 
 .site-lede {

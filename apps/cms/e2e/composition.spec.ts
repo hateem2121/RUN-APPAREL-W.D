@@ -630,8 +630,9 @@ test.describe('TY-12 — no heading splits a word across two lines', () => {
    * 2026-09-11 in Chromium, WebKit and Firefox: at 320 and 340px the /contact headline did exactly
    * that, "PRODUCTIO / N.", because "production." is 302.8px wide at 34px against a 280px column.
    * The stranded-word check above skips three-word headlines, so nothing saw it. Owner decision
-   * 2026-09-11: below 347px the site's hero headline shrinks with the window rather than split a
-   * word (site.css).
+   * 2026-09-11: below 355px the site's hero headline shrinks with the window rather than split a
+   * word (site.css). CI's Linux Chromium draws that word ~0.6% wider than macOS, which is why the
+   * ratio is 9.6vw and not the 9.8vw first measured on a Mac.
    *
    * A word is split when its client rects sit on more than one line.
    */

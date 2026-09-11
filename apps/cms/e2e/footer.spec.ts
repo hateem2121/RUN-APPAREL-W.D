@@ -115,8 +115,24 @@ test.describe('the footer geometry', () => {
   }) => {
     await page.setViewportSize({ width: 1024, height: 700 })
     await page.goto('/contact')
-    const tall = await page.locator(SLAB).boundingBox()
-    expect(tall?.height ?? 0).toBeGreaterThanOrEqual(700)
+    /*
+     * ⚠️ READ IN THE PAGE, NOT WITH `boundingBox()`. Measured 2026-09-11 in CI's container
+     * (mcr.microsoft.com/playwright:v1.62.1-noble): Firefox's `boundingBox().height` was
+     * 699.9998779296875 while the slab's computed height, offsetHeight and
+     * getBoundingClientRect().height were all exactly 700; Chromium and WebKit returned 700 from
+     * the same call. The box Playwright derives lost a fraction of a pixel; the element did not.
+     *
+     * The rule is asserted directly too. Here the slab's content is 743px tall, so the height
+     * alone would still pass with `min-height: 100svh` deleted.
+     */
+    const tall = await page.locator(SLAB).evaluate((el) => ({
+      height: el.getBoundingClientRect().height,
+      minHeight: getComputedStyle(el).minHeight,
+    }))
+    expect(tall.height).toBeGreaterThanOrEqual(700)
+    expect(tall.minHeight, 'the slab no longer reserves one full screen from tablet up').toBe(
+      '700px',
+    )
 
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/contact')

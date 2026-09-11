@@ -45,11 +45,11 @@ const WIDTHS = [390, 1280, 1350, 1680] as const
 const LEDE_TOLERANCE_PX = 12
 
 /**
- * The site hero's `clamp(min(2.125rem, 9.8vw), 5.4vw, 4.5rem)` at `width` — `.site-hero
- * .display--hero` in src/app/(frontend)/site.css, which lowers base.css's 34px floor below 347px.
+ * The site hero's `clamp(min(2.125rem, 9.6vw), 5.4vw, 4.5rem)` at `width` — `.site-hero
+ * .display--hero` in src/app/(frontend)/site.css, which lowers base.css's 34px floor below 355px.
  */
 const heroFontSize = (width: number) =>
-  Math.min(72, Math.max(Math.min(34, width * 0.098), width * 0.054))
+  Math.min(72, Math.max(Math.min(34, width * 0.096), width * 0.054))
 
 interface Reading {
   lines: number

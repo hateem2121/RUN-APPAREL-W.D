@@ -59,10 +59,12 @@ function standInFaces(css: string): StandInFace[] {
     const sizeAdjust = body.match(/size-adjust:\s*([\d.]+)%/)
     if (!sizeAdjust) continue
     const firstLocal = body.match(/src:\s*local\("([^"]+)"\)/)?.[1] ?? ''
+    // A Liberation Serif face stands in for the SAME real font as a Georgia one (Instrument
+    // Serif), on the machines that have no Georgia — so it shares the serif baseline.
     const realFont: RealFont | null =
       firstLocal === 'Arial Bold'
         ? 'display'
-        : firstLocal === 'Georgia Italic'
+        : firstLocal === 'Georgia Italic' || firstLocal === 'Liberation Serif Italic'
           ? 'serif'
           : firstLocal === 'Arial'
             ? 'body'

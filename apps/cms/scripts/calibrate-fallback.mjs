@@ -20,6 +20,7 @@
  *
  * USAGE
  *   node apps/cms/scripts/calibrate-fallback.mjs
+ *   node apps/cms/scripts/calibrate-fallback.mjs --linux   (inside CI's Playwright image — see LINUX)
  *
  * Needs Playwright's browsers (`playwright install chromium webkit firefox`); no server, no
  * build. It reads the live files — the real font binaries, the real tokens.css and base.css —
@@ -96,16 +97,37 @@ const HEADLINES = [
   { page: '/contact', archivo: 'Let’s talk production.', accent: null },
 ]
 
+/**
+ * `--linux`: the faces a machine WITHOUT Arial and Georgia draws — a Linux desktop, and CI's
+ * Playwright image (`mcr.microsoft.com/playwright:v1.62.1-noble` has neither, measured 2026-09-11,
+ * which is why PR #10's font tests failed there and nowhere else). Liberation Sans has Arial's
+ * advance widths, so the display face keeps its values and Liberation Sans Bold is one more source
+ * in it. Liberation Serif is shaped like Times, not Georgia, so the serif gets faces of its own in
+ * site.css, sized by this mode. Run it INSIDE that image:
+ *   docker run --rm --init --ipc=host -v "$PWD":/repo:ro mcr.microsoft.com/playwright:v1.62.1-noble \
+ *     node /repo/apps/cms/scripts/calibrate-fallback.mjs --linux
+ * ⚠️ READ ITS CHROMIUM AND FIREFOX ROWS ONLY. In that image WebKit's real-font widths did not
+ * change between 390, 1350 and 1440px, and its display ideal came out at 90% where the other two
+ * engines put it at 125–131%, so its rows (and the summary, which includes them) are noise.
+ * Chromium draws `local()` faces there in whole pixels, so its search error stays near 1% where
+ * Firefox's reaches 0.01%.
+ */
+const LINUX = process.argv.includes('--linux')
+
 const FACES = {
   archivoDisplay: {
     label: 'Archivo Display Fallback',
-    src: 'local("Arial Bold"), local("Helvetica Neue Bold"), local("Arial")',
+    // The same sources, in the same order, as site.css.
+    src: 'local("Arial Bold"), local("Helvetica Neue Bold"), local("Liberation Sans Bold"), local("Arial")',
     weightDescriptor: '700 900',
     current: CURRENT.archivoDisplay,
   },
   instrumentSerif: {
-    label: 'Instrument Serif Fallback',
-    src: 'local("Georgia Italic"), local("Georgia")',
+    label: LINUX ? 'Instrument Serif Fallback Liberation' : 'Instrument Serif Fallback',
+    // Full name first for Chromium and Firefox, family name second for WebKit — see site.css.
+    src: LINUX
+      ? 'local("Liberation Serif Italic"), local("Liberation Serif")'
+      : 'local("Georgia Italic"), local("Georgia")',
     weightDescriptor: 'normal',
     styleDescriptor: 'italic',
     current: CURRENT.instrumentSerif,
@@ -413,7 +435,12 @@ async function main() {
   )
 }
 
-main().catch((error) => {
-  console.error(error)
-  process.exitCode = 1
-})
+// `process.exit`, not `exitCode`: an error mid-engine leaves that browser open, and an open browser
+// keeps node alive. The first `--linux` run on 2026-09-11 printed WebKit's error and then sat there.
+main().then(
+  () => process.exit(0),
+  (error) => {
+    console.error(error)
+    process.exit(1)
+  },
+)

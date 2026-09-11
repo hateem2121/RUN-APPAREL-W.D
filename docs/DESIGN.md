@@ -152,6 +152,17 @@ correct in them, and every other piece of display text uses them too.
 and fails on any hero headline that breaks differently; `apps/cms/src/fallbackMetrics.test.ts`
 fails when a headline is reworded without re-running the script.
 
+**Machines with no Arial and no Georgia get Liberation (2026-09-11).** A Linux desktop, and CI's
+Playwright image, has neither, so every face above errored there and PR #10's font tests failed
+in CI while passing on a Mac. Liberation Sans has Arial's advance widths exactly (computed from
+both files), so it is one more `local()` source in the sans faces at their values. Liberation
+Serif is shaped like Times, not Georgia, so the serif has two more faces:
+`Instrument Serif Fallback Liberation` (89.40%, the Georgia face's value carried over by the
+ratio of the two fonts' average widths) and `Instrument Serif Fallback Products Liberation`
+(92.34%, `calibrate-fallback.mjs --linux` inside that image). Each lists the full font name and
+then the family name, because Chromium and Firefox match only the first and WebKit only the
+second. Android has neither family and still uses its own system font.
+
 **Archivo is imported from its `wdth` build** (`@fontsource-variable/archivo/wdth.css`),
 which carries both the weight axis (100–900) and the width axis (62–125%). The
 display style needs `font-stretch: 122%`, so the plain weight-only build will not
@@ -167,8 +178,10 @@ do — swapping the import silently flattens every headline back to normal width
 ```
 
 **The marketing site lowers the hero floor on the narrowest phones (owner decision
-2026-09-11).** Its `.site-hero .display--hero` is `clamp(min(34px, 9.8vw), 5.4vw, 72px)`: 31.36px
-at 320px, 33.32px at 340px, and unchanged from 347px up. At the 34px floor "PRODUCTION." is
+2026-09-11).** Its `.site-hero .display--hero` is `clamp(min(34px, 9.6vw), 5.4vw, 72px)`:
+30.72px at 320px, 32.64px at 340px, and unchanged from 355px up. (9.6, not the 9.8 first
+measured on macOS: CI's Linux Chromium draws "production." 280.38px wide at 31.36px, and it
+split there.) At the 34px floor "PRODUCTION." is
 302.8px wide and the `/contact` column 280px, so `overflow-wrap: anywhere` split it as
 "PRODUCTIO / N." in all three engines. The viewer's product title keeps the shared clamp.
 `apps/cms/e2e/composition.spec.ts` fails if any heading on the site splits a word.
