@@ -1,6 +1,7 @@
 import type { GlobalConfig } from 'payload'
 import { IMAGE_MIME_TYPES } from '../collections/mediaRules'
 import { isAdmin, isAuthenticated } from '../access/roles'
+import { validateCatalogueUrl } from '../lib/privateDocumentLinks'
 
 const DAY_OPTIONS = [
   { label: 'Monday', value: 'mon' },
@@ -57,6 +58,9 @@ export const SiteSettings: GlobalConfig = {
       // Url" with nothing to say it is inert — quieter than the other two and
       // misleading in the same way.
       label: 'Catalogue link (not shown on the website)',
+      // It had no validate at all until 2026-09-11. The public API emits this value, so a
+      // private document link must never save here.
+      validate: validateCatalogueUrl,
       admin: {
         description:
           'Kept on record only. The website has had no “Catalogue” button since 4 September 2026 — these product pages are indexed by Google and the catalogue is a 54 MB trade PDF. Changing this does not change anything a visitor sees.',

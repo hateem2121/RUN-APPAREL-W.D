@@ -1,6 +1,7 @@
 import type { GlobalConfig } from 'payload'
 import { isAdminOrEditor, isAuthenticated } from '../access/roles'
 import { DEFAULT_RETIRED_MESSAGE } from '../collections/Products'
+import { validateCatalogueUrl } from '../lib/privateDocumentLinks'
 
 /**
  * Catalogue defaults — the copy every garment starts with.
@@ -63,17 +64,9 @@ export const CatalogueDefaults: GlobalConfig = {
       required: true,
       defaultValue: 'https://wear-run.help/catalogue',
       label: 'Catalogue link (not shown on the website)',
-      validate: (value: unknown) => {
-        if (typeof value !== 'string' || value.trim() === '') {
-          return 'A catalogue link is required.'
-        }
-        try {
-          new URL(value)
-          return true
-        } catch {
-          return `“${value}” is not a complete web address. It needs to start with https:// — e.g. https://wear-run.help/catalogue.`
-        }
-      },
+      // Shared with Products and SiteSettings; refuses a private document link, because the
+      // public API publishes whatever is saved here.
+      validate: validateCatalogueUrl,
       // See the note on the same field in Products.ts: this named a button removed
       // on 2026-09-04. It is the value a NEW product starts with.
       admin: {
