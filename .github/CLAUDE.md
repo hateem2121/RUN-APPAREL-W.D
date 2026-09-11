@@ -328,3 +328,12 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   `perf-watch`. Off means no backups and no monitoring — measured 2026-09-10, after the
   switch had been off since the public re-creation. Re-count with
   `grep -l 'vars.DEPLOY_ENABLED' .github/workflows/*.yml`.
+
+- **ON A PUBLIC REPO EVERY ACTIONS LOG IS PUBLIC, and `wrangler d1 export` prints a
+  one-hour download link to the WHOLE database.** 2026-09-11, the first nightly-backup
+  run here: its log carried a presigned R2 URL to the unencrypted dump (password hashes,
+  API keys, customer inquiries), readable by anyone who opened the run. The deploy's
+  pre-migration backup was cancelled before it could print a second. `scripts/backup-d1.mjs`
+  now captures wrangler's output and prints it through `redactPresignedUrls`, and
+  `apps/cms/src/backupD1Redaction.test.ts` runs it against a fake runner that prints a
+  real-shaped link. Before any step runs a CLI against production, ask what it PRINTS.

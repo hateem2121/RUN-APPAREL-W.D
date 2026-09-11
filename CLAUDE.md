@@ -321,7 +321,7 @@ the answer is "nothing that happens in production", it is not a test.
   a month. The GET/HEAD divergence is unaffected and is why this stays. Full
   incident: `docs/HARDENING-LOG.md`.
 
-- **Fifteen more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
+- **Sixteen more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
   of them moved there 2026-08-19 because they bite only while you are editing a
   workflow, which is exactly when that file loads. Enough to stop you: every workflow
   is gated by `apps/cms/src/workflowHardening.test.ts` on fifteen rules, nine with their
