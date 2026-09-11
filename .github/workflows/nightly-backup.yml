@@ -253,6 +253,12 @@ jobs:
       # ENCRYPTED before upload (the lock step below). GitHub documents storage quotas
       # only for private repositories, and nobody here has measured one for a public
       # repository, so the short 21/3-day windows stay.
+      #
+      # 2026-09-11, two facts and still no measured quota: a GitHub staff answer
+      # (community discussion #26438) says a public repository's artifacts do not count
+      # toward the storage limit, and the first encrypted runs here uploaded 160.5 MB
+      # (full mirror), 71.3 MB (apex PDFs) and 2.4 MB (D1) without an error. The
+      # windows stay until a quota is actually measured.
       - name: Mirror R2 on schedule (full mirror Mondays, apex PDFs nightly)
         id: mirror-scheduled
         env:
