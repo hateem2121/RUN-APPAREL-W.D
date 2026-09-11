@@ -1,205 +1,367 @@
-import { describe, expect, it } from 'vitest'
-import { handle } from '../../../infra/apex-404/index.js'
+import { timingSafeEqual as nodeTimingSafeEqual } from 'node:crypto'
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it, vi } from 'vitest'
+import { CACHE_CONTROL, FILES, createHandler } from '../../../infra/apex-404/index.js'
 
 /**
- * The apex Worker's routing and header rules.
+ * The private document Worker end to end, against a stub R2 bucket.
  *
- * WHY THIS EXISTS. On 2026-08-30 `infra/apex-404/index.js` was reconciled against the
- * Worker that had been deployed from the Cloudflare dashboard two days earlier. The
- * recovered source arrived MINIFIED — the dashboard editor had collapsed the whole
- * handler onto one line — and was rewritten here as readable code. That is a
- * behavioural risk: a reformat can change behaviour, and Biome formats this directory
- * (`biome.jsonc` includes `**`), so "byte-identical to what is deployed" is not a
- * property this file can ever have.
+ * WHAT MUST NEVER BREAK, in order of cost if it did:
+ *   1. No code, a wrong code, or the other document's code → the "not active" page, and
+ *      R2 is NEVER read. Every refusal below asserts `calls` is empty.
+ *   2. A picture is served only if the manifest lists it — the bucket cannot be walked.
+ *   3. The download is a whole 200 and never forwards the Range to R2 — a 206 from a
+ *      Worker is not cached (the 2026-08-30 incident), so the edge must slice.
+ *   4. No response header, and no body except a page the code opened, contains a code.
  *
- * So it is verified by BEHAVIOUR instead. These are the rules the live Worker was
- * measured to follow on 2026-08-30:
- *
- *   /catalogue /CATALOGUE /catalogue/ /catalogue.pdf /catalogue?x=1  -> 200, same etag
- *   /profile /profile.pdf                                            -> 200, other etag
- *   / /cataloguexyz /RUN-Apparel-Catalogue.pdf /assets/index.js      -> 404
- *
- * ⚠️ THE LAST GROUP IS THE SECURITY PROPERTY, and it is easy to lose in a rewrite.
- * This is a two-path ALLOWLIST, not a generic proxy onto `run-assets` — so the bucket
- * is not enumerable through the apex. A refactor that passed the pathname to
- * `env.ASSETS.get()` would still serve both PDFs and pass every other test here.
+ * The codes are non-words on purpose: the real links' words must never appear in this
+ * public repository.
  */
+const CATALOGUE_CODE = 'zzzz-yyyy-xxxx-wwww-vvvv-uuuu'
+const PROFILE_CODE = 'tttt-ssss-rrrr-qqqq-pppp-oooo'
+const CATALOGUE_VERSION = '20260911-e8698731'
+const PROFILE_VERSION = '20260911-ea7936d5'
+const part = (id: string, width = 2400, height = 1350) => ({ id, width, height })
 
-type StubObject = {
-  body: string | null
-  size: number
-  httpEtag: string
-  range?: { offset?: number; length?: number }
-  writeHttpMetadata: (headers: Headers) => void
+const OBJECTS: Record<string, string> = {
+  'documents/catalogue/manifest.json': JSON.stringify({
+    schema: 1,
+    document: 'catalogue',
+    version: CATALOGUE_VERSION,
+    widths: [800, 1600, 2400],
+    pdf: {
+      key: 'RUN PRODUCT CATALOUGE.pdf',
+      bytes: 54_336_461,
+      md5: 'e8698731ac2348595c3268dfd6d466c6',
+    },
+    pages: [{ number: 1, parts: [part('p001a'), part('p001b')] }],
+  }),
+  'documents/profile/manifest.json': JSON.stringify({
+    schema: 1,
+    document: 'profile',
+    version: PROFILE_VERSION,
+    widths: [800, 1600, 2400],
+    pdf: { key: 'Company Profile.pdf', bytes: 16_891_515, md5: 'ea7936d585961a06d1e83c4cd8d02b14' },
+    pages: [{ number: 1, parts: [part('p001w')] }],
+  }),
+  [`documents/catalogue/${CATALOGUE_VERSION}/p001a-1600.webp`]: 'webp:catalogue:p001a',
+  [`documents/profile/${PROFILE_VERSION}/p001w-800.webp`]: 'webp:profile:p001w',
+  'RUN PRODUCT CATALOUGE.pdf': '%PDF-catalogue',
+  'Company Profile.pdf': '%PDF-profile',
 }
 
-const SIZE = 54_336_461
+type Call = { key: string; ranged: boolean }
+type Captured = { url: string; status: number; headers: [string, string][]; body: string }
 
-/** A stub R2 bucket holding exactly the two real objects, under their real keys. */
-const bucket = (over: { miss?: boolean } = {}) => {
-  const calls: { key: string; ranged: boolean }[] = []
+/** Every response this file produces, for the leak scan at the end. */
+const captured: Captured[] = []
+
+const handle = createHandler({ timingSafeEqual: (a, b) => nodeTimingSafeEqual(a, b) })
+
+async function send(
+  url: string,
+  init: RequestInit = {},
+  over: { objects?: Record<string, string>; env?: Record<string, unknown> } = {},
+) {
+  const calls: Call[] = []
+  const objects = over.objects ?? OBJECTS
   const env = {
+    CATALOGUE_CODE,
+    PROFILE_CODE,
+    ...over.env,
     ASSETS: {
-      get: async (key: string, options?: { range?: Headers }) => {
-        calls.push({ key, ranged: Boolean(options?.range) })
-        if (over.miss) return null
-        if (key !== 'RUN PRODUCT CATALOUGE.pdf' && key !== 'Company Profile.pdf') return null
-
-        const rangeHeader = options?.range?.get('range')
-        const object: StubObject = {
-          body: 'stub-body',
-          size: SIZE,
-          httpEtag: `"etag-${key}"`,
-          writeHttpMetadata: (headers: Headers) => headers.set('x-from-metadata', '1'),
-        }
-        if (rangeHeader === 'bytes=0-1023') object.range = { offset: 0, length: 1024 }
-        if (rangeHeader === 'whole') object.range = { offset: 0, length: SIZE }
-        return object
+      get: async (key: string, options?: { range?: unknown }) => {
+        calls.push({ key, ranged: options?.range !== undefined })
+        const body = objects[key]
+        return body === undefined
+          ? null
+          : { body, httpEtag: `"etag:${key}"`, text: async () => body }
       },
     },
   }
-  return { env, calls }
+  const res = await handle(new Request(url, init), env as never)
+  const body = res.body === null ? '' : await res.text()
+  captured.push({ url, status: res.status, headers: [...res.headers], body })
+  return { res, body, calls }
 }
 
-/** The handler's `env` param, narrowed to the only binding it touches. */
-type ApexEnv = Parameters<typeof handle>[1]
+const catalogue = (path = '') => `https://catalogue.wear-run.help/${CATALOGUE_CODE}${path}`
+const profile = (path = '') => `https://profile.wear-run.help/${PROFILE_CODE}${path}`
+const MESSAGE = 'This link is not complete or no longer active.'
 
-const get = (path: string, init?: RequestInit) => {
-  const { env, calls } = bucket()
-  const request = new Request(`https://wear-run.help${path}`, init)
-  return handle(request, env as unknown as ApexEnv).then((res: Response) => ({ res, calls }))
-}
-
-describe('apex worker routing', () => {
-  it.each([
-    ['/catalogue', 'RUN PRODUCT CATALOUGE.pdf'],
-    ['/profile', 'Company Profile.pdf'],
-  ])('serves %s from the right R2 key', async (path, key) => {
-    const { res, calls } = await get(path)
+describe('a document page', () => {
+  it('opens with the right code on its own host, reading only the manifest', async () => {
+    const { res, body, calls } = await send(catalogue())
     expect(res.status).toBe(200)
-    expect(calls[0]?.key).toBe(key)
+    expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8')
+    expect(res.headers.get('cache-control')).toBe(CACHE_CONTROL.page)
+    expect(res.headers.get('content-security-policy')).toContain("default-src 'none'")
+    expect(body).toContain(`/${CATALOGUE_CODE}/p/${CATALOGUE_VERSION}/p001a-1600.webp`)
+    expect(calls).toEqual([{ key: 'documents/catalogue/manifest.json', ranged: false }])
   })
 
-  it.each(['/CATALOGUE', '/catalogue/', '/catalogue.pdf', '/CATALOGUE.PDF', '/catalogue///'])(
-    'normalises %s to the catalogue',
-    async (path) => {
-      const { res } = await get(path)
-      expect(res.status).toBe(200)
+  it('opens with a trailing slash too', async () => {
+    expect((await send(catalogue('/'))).res.status).toBe(200)
+  })
+
+  it('forgives capitals, which a messaging app may add', async () => {
+    const url = `https://catalogue.wear-run.help/${CATALOGUE_CODE.toUpperCase()}`
+    expect((await send(url)).res.status).toBe(200)
+  })
+
+  it('opens the profile with its own code', async () => {
+    const { res, body } = await send(profile())
+    expect(res.status).toBe(200)
+    expect(body).toContain(`/${PROFILE_CODE}/p/${PROFILE_VERSION}/p001w-1600.webp`)
+  })
+})
+
+describe('refusals never touch R2', () => {
+  const cases: [string, string][] = [
+    ['a code one letter away', 'https://catalogue.wear-run.help/zzzz-yyyy-xxxx-wwww-vvvv-uuut'],
+    ['the bare host', 'https://catalogue.wear-run.help/'],
+    ['five words', 'https://catalogue.wear-run.help/zzzz-yyyy-xxxx-wwww-vvvv'],
+    ['seven words', 'https://catalogue.wear-run.help/zzzz-yyyy-xxxx-wwww-vvvv-uuuu-tttt'],
+    ["the profile's code on the catalogue host", `https://catalogue.wear-run.help/${PROFILE_CODE}`],
+    ["the catalogue's code on the profile host", `https://profile.wear-run.help/${CATALOGUE_CODE}`],
+    ['a percent-encoded code', 'https://catalogue.wear-run.help/zzzz%2Dyyyy-xxxx-wwww-vvvv-uuuu'],
+    ['an underscore in the code', 'https://catalogue.wear-run.help/zzzz_yyyy-xxxx-wwww-vvvv-uuuu'],
+    ['an unknown sub-path', catalogue('/admin')],
+    ['extra segments', catalogue(`/p/${CATALOGUE_VERSION}/p001a-1600.webp/more`)],
+  ]
+
+  it.each(cases)('%s → the not-active page', async (_label, url) => {
+    const { res, body, calls } = await send(url)
+    expect(res.status).toBe(404)
+    expect(body).toContain(MESSAGE)
+    expect(res.headers.get('cache-control')).toBe('no-store')
+    expect(calls).toEqual([])
+  })
+})
+
+describe('fails closed without a secret', () => {
+  it.each([undefined, '', '  \n'])(
+    'CATALOGUE_CODE = %j → not active, no R2 read',
+    async (secret) => {
+      const { res, calls } = await send(catalogue(), {}, { env: { CATALOGUE_CODE: secret } })
+      expect(res.status).toBe(404)
+      expect(calls).toEqual([])
     },
   )
 
-  it('ignores the query string', async () => {
-    const { res } = await get('/catalogue?utm_source=qr')
+  it('and the same request opens once the secret is set (positive control)', async () => {
+    expect((await send(catalogue(), {}, { env: { CATALOGUE_CODE } })).res.status).toBe(200)
+  })
+})
+
+describe('pictures', () => {
+  it('serves a listed picture, immutable, same-origin only', async () => {
+    const { res, body, calls } = await send(catalogue(`/p/${CATALOGUE_VERSION}/p001a-1600.webp`))
     expect(res.status).toBe(200)
+    expect(body).toBe('webp:catalogue:p001a')
+    expect(res.headers.get('content-type')).toBe('image/webp')
+    expect(res.headers.get('cache-control')).toBe(CACHE_CONTROL.picture)
+    expect(res.headers.get('cross-origin-resource-policy')).toBe('same-origin')
+    expect(calls.map((c) => c.key)).toEqual([
+      'documents/catalogue/manifest.json',
+      `documents/catalogue/${CATALOGUE_VERSION}/p001a-1600.webp`,
+    ])
   })
 
-  it.each(['/', '/cataloguexyz', '/nope', '/assets/index.js'])('404s %s', async (path) => {
-    const { res } = await get(path)
+  it.each([
+    ['an unlisted part', `/p/${CATALOGUE_VERSION}/p009a-1600.webp`],
+    ['an unlisted width', `/p/${CATALOGUE_VERSION}/p001a-1200.webp`],
+    ['an old version', `/p/20250101-e8698731/p001a-1600.webp`],
+    ['an encoded slash', `/p/${CATALOGUE_VERSION}/p001a%2F1600.webp`],
+    ['the manifest', `/p/${CATALOGUE_VERSION}/manifest.json`],
+  ])('refuses %s after reading only the manifest', async (_label, path) => {
+    const { res, calls } = await send(catalogue(path))
     expect(res.status).toBe(404)
-    expect(await res.text()).toContain('viewer.wear-run.help')
+    expect(calls.map((c) => c.key)).toEqual(['documents/catalogue/manifest.json'])
   })
 
-  it('is an ALLOWLIST, not a proxy — an R2 key is not reachable as a path', async () => {
-    // The security property. A refactor that forwarded the pathname to
-    // env.ASSETS.get() would serve both PDFs and pass every other test in this file,
-    // while making the whole shared bucket enumerable through the apex.
-    for (const path of [
-      '/RUN PRODUCT CATALOUGE.pdf',
-      '/Company Profile.pdf',
-      '/RUN-Apparel-Catalogue.pdf',
-    ]) {
-      const { res, calls } = await get(path)
-      expect(res.status, `${path} should not resolve`).toBe(404)
-      expect(calls, `${path} must not reach R2 at all`).toEqual([])
+  it('answers 503, not cached, when a listed picture is missing from R2', async () => {
+    const { res } = await send(catalogue(`/p/${CATALOGUE_VERSION}/p001b-1600.webp`))
+    expect(res.status).toBe(503)
+    expect(res.headers.get('cache-control')).toBe('no-store')
+  })
+})
+
+describe('the download', () => {
+  it('is the original PDF, as an attachment, cacheable for an hour', async () => {
+    const { res, body, calls } = await send(catalogue('/download'))
+    expect(res.status).toBe(200)
+    expect(body).toBe('%PDF-catalogue')
+    expect(res.headers.get('content-type')).toBe('application/pdf')
+    expect(res.headers.get('content-disposition')).toBe(
+      'attachment; filename="RUN-Apparel-Catalogue.pdf"',
+    )
+    expect(res.headers.get('cache-control')).toBe(CACHE_CONTROL.download)
+    expect(res.headers.get('accept-ranges')).toBe('bytes')
+    expect(calls).toEqual([{ key: 'RUN PRODUCT CATALOUGE.pdf', ranged: false }])
+  })
+
+  it('answers a Range request with a whole 200 and never forwards the Range', async () => {
+    const { res, calls } = await send(catalogue('/download'), {
+      headers: { range: 'bytes=0-1023' },
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-range')).toBeNull()
+    expect(calls[0]?.ranged).toBe(false)
+  })
+
+  it('refuses a speculative prefetch, so nobody downloads 54 MB by hovering', async () => {
+    const { res, calls } = await send(catalogue('/download'), {
+      headers: { 'sec-purpose': 'prefetch' },
+    })
+    expect(res.status).toBe(503)
+    expect(res.headers.get('cache-control')).toBe('no-store')
+    expect(calls).toEqual([])
+  })
+
+  it('names the profile download after the profile', async () => {
+    const { res } = await send(profile('/download'))
+    expect(res.headers.get('content-disposition')).toBe(
+      'attachment; filename="RUN-Apparel-Company-Profile.pdf"',
+    )
+  })
+})
+
+describe('the retired apex addresses', () => {
+  it.each([
+    'https://wear-run.help/catalogue',
+    'https://wear-run.help/CATALOGUE/',
+    'https://wear-run.help/catalogue.pdf',
+    'https://www.wear-run.help/catalogue',
+    'https://wear-run.help/profile',
+    'https://wear-run.help/profile/anything',
+    'https://www.wear-run.help/profile',
+  ])('%s → 410 not active, never a PDF, no R2 read', async (url) => {
+    const { res, body, calls } = await send(url)
+    expect(res.status).toBe(410)
+    expect(body).toContain(MESSAGE)
+    expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8')
+    expect(res.headers.get('cache-control')).toBe('no-store')
+    expect(calls).toEqual([])
+  })
+
+  it('refuses every method the same way', async () => {
+    const { res, calls } = await send('https://wear-run.help/catalogue', { method: 'POST' })
+    expect(res.status).toBe(410)
+    expect(calls).toEqual([])
+  })
+})
+
+describe('methods', () => {
+  it('HEAD gets the page headers and no body', async () => {
+    const { res, body } = await send(catalogue(), { method: 'HEAD' })
+    expect(res.status).toBe(200)
+    expect(body).toBe('')
+    expect(res.headers.get('cache-control')).toBe(CACHE_CONTROL.page)
+  })
+
+  it('any other method on a matching code → 405 with an allow header', async () => {
+    const { res, calls } = await send(catalogue(), { method: 'POST' })
+    expect(res.status).toBe(405)
+    expect(res.headers.get('allow')).toBe('GET, HEAD')
+    expect(calls).toEqual([])
+  })
+})
+
+describe('a broken upload is diagnosable and never cached', () => {
+  // The Worker logs why it refused a manifest. The spy keeps that line out of the test
+  // output and proves the reason is there for whoever reads the Worker's logs.
+  it.each<[string, Record<string, string>, string | null]>([
+    ['a missing manifest', {}, null],
+    ['a manifest that is not JSON', { 'documents/catalogue/manifest.json': '{' }, 'is not JSON'],
+    [
+      "the profile's manifest under the catalogue's key",
+      { 'documents/catalogue/manifest.json': OBJECTS['documents/profile/manifest.json']! },
+      'document must be catalogue',
+    ],
+  ])('%s → 503', async (_label, objects, logged) => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      const { res } = await send(catalogue(), {}, { objects })
+      expect(res.status).toBe(503)
+      expect(res.headers.get('cache-control')).toBe('no-store')
+      if (logged === null) expect(log).not.toHaveBeenCalled()
+      else expect(log).toHaveBeenCalledWith(expect.stringContaining(logged))
+    } finally {
+      log.mockRestore()
     }
   })
 })
 
-describe('apex worker headers', () => {
-  it('sets everything a browser needs to render the PDF inline', async () => {
-    const { res } = await get('/catalogue')
-    expect(res.headers.get('content-type')).toBe('application/pdf')
-    expect(res.headers.get('content-disposition')).toBe(
-      'inline; filename="RUN-Apparel-Catalogue.pdf"',
-    )
-    // L17-12, 2026-08-31: one day plus a week of stale-while-revalidate, raised from
-    // one hour. A 54.3 MB catalogue that changes a few times a year, on an apex whose
-    // cold fetch measured 1.6 s, should not be re-fetched hourly.
-    // ⚠️ Asserted as a WHOLE STRING on purpose. stale-while-revalidate is the half
-    // that makes the long TTL safe — it is what lets a replaced PDF reach people
-    // without anyone waiting on it — and a substring match on max-age would let it be
-    // dropped silently.
-    expect(res.headers.get('cache-control')).toBe(
-      'public, max-age=86400, stale-while-revalidate=604800',
-    )
-    expect(res.headers.get('accept-ranges')).toBe('bytes')
-    expect(res.headers.get('x-content-type-options')).toBe('nosniff')
-    expect(res.headers.get('etag')).toBe('"etag-RUN PRODUCT CATALOUGE.pdf"')
-    // R2's own metadata is written first, then overridden where we care.
-    expect(res.headers.get('x-from-metadata')).toBe('1')
+describe('the backup script still finds both PDFs', () => {
+  it('exports FILES with the real R2 keys', () => {
+    expect(Object.values(FILES).map((f) => f.key)).toEqual([
+      'RUN PRODUCT CATALOUGE.pdf',
+      'Company Profile.pdf',
+    ])
   })
 })
 
-describe('apex worker methods and ranges', () => {
-  it.each(['POST', 'PUT', 'DELETE'])('405s %s with an allow header', async (method) => {
-    const { res } = await get('/catalogue', { method })
-    expect(res.status).toBe(405)
-    expect(res.headers.get('allow')).toBe('GET, HEAD')
+/**
+ * The owner's words for each link must exist ONLY as Worker secrets. This proves the
+ * Worker compares a request against `env[doc.secret]` and never against text written in
+ * its source — which is how a real link's words would otherwise end up in this public
+ * repository.
+ */
+describe("no link's words are ever written into the Worker", () => {
+  const dir = join(import.meta.dirname, '..', '..', '..', 'infra', 'apex-404')
+  const sources = readdirSync(dir)
+    .filter((file) => file.endsWith('.js'))
+    .map((file) => ({ file, text: readFileSync(join(dir, file), 'utf8') }))
+  const literalCompare = /codesMatch\([^,)]+,\s*['"`]/
+
+  it('compares a request only against the secret held in env', () => {
+    const sites = sources
+      .filter((s) => s.file !== 'codes.js')
+      .flatMap((s) =>
+        [...s.text.matchAll(/codesMatch\(([^)]*)\)/g)].map((m) => ({ file: s.file, args: m[1]! })),
+      )
+    expect(sites.length).toBeGreaterThan(0)
+    for (const site of sites) {
+      expect(site.args.split(',')[1]?.trim(), site.file).toBe('env[doc.secret]')
+    }
   })
 
-  it('405 takes priority only AFTER the path is known — an unknown path still 404s', async () => {
-    const { res } = await get('/nope', { method: 'POST' })
-    expect(res.status).toBe(404)
-  })
-
-  it('HEAD returns the headers and no body', async () => {
-    const { res } = await get('/catalogue', { method: 'HEAD' })
-    expect(res.status).toBe(200)
-    expect(res.body).toBeNull()
-    expect(res.headers.get('content-type')).toBe('application/pdf')
-  })
-
-  /**
-   * ⚠️ THE WORKER MUST NOT ANSWER RANGES ITSELF. It did until 2026-08-30, returning
-   * its own 206 — and Cloudflare does not store a 206 produced by a Worker
-   * (developers.cloudflare.com/workers/cache/debugging/: "Return a full 200
-   * instead"). That single behaviour is why a 54 MB PDF showed no cf-cache-status
-   * at all and was re-read from R2 on every request.
-   *
-   * Workers Caching, enabled in wrangler.jsonc, fetches the full body ONCE, caches
-   * the 200, and slices every subsequent range out of that entry without invoking
-   * this Worker. Visitors still receive a 206; it comes from the edge.
-   *
-   * So these two assertions ARE the performance fix. A future refactor that
-   * "restores" range handling would silently make both PDFs uncacheable again, and
-   * nothing else in the repo would notice.
-   */
-  it('answers a range request with a FULL 200 — never its own 206', async () => {
-    const { res } = await get('/catalogue', { headers: { range: 'bytes=0-1023' } })
-    expect(res.status).toBe(200)
-    expect(res.headers.get('content-range')).toBeNull()
-  })
-
-  it('never forwards a Range to R2 — the edge slices, not this Worker', async () => {
-    const { calls } = await get('/catalogue', { headers: { range: 'bytes=0-1023' } })
-    expect(calls[0]?.ranged).toBe(false)
-  })
-
-  it('still advertises accept-ranges, because the EDGE serves them', async () => {
-    const { res } = await get('/catalogue')
-    expect(res.headers.get('accept-ranges')).toBe('bytes')
+  it('passes no string literal to codesMatch anywhere (negative control included)', () => {
+    for (const { file, text } of sources) {
+      expect(literalCompare.test(text), file).toBe(false)
+    }
+    expect(literalCompare.test("codesMatch(code, 'zzzz-yyyy', equal)")).toBe(true)
   })
 })
 
-describe('apex worker when the object is missing', () => {
-  it('404s with a distinct message, so a cached miss is diagnosable', async () => {
-    const { env } = bucket({ miss: true })
-    const request = new Request('https://wear-run.help/catalogue')
-    const res = await handle(request, env as unknown as ApexEnv)
-    expect(res.status).toBe(404)
-    // Deliberately NOT the same body as an unknown path: "the route exists but the
-    // file did not come back" is a different fault from "no such route", and on an
-    // R2-backed host it can be a CACHED 404 from before the object existed.
-    expect(await res.text()).toContain('temporarily unavailable')
+describe('every response', () => {
+  it('asks not to be indexed, not to pass on the address, and not to be sniffed', () => {
+    expect(captured.length).toBeGreaterThan(30)
+    for (const response of captured) {
+      const headers = new Map(response.headers)
+      expect(headers.get('x-robots-tag'), response.url).toBe('noindex, nofollow')
+      expect(headers.get('referrer-policy'), response.url).toBe('no-referrer')
+      expect(headers.get('x-content-type-options'), response.url).toBe('nosniff')
+    }
+  })
+
+  it('never carries a code — except the links inside a page that code opened', () => {
+    for (const response of captured) {
+      const headerText = response.headers.map(([k, v]) => `${k}: ${v}`).join('\n')
+      expect(headerText, response.url).not.toContain(CATALOGUE_CODE)
+      expect(headerText, response.url).not.toContain(PROFILE_CODE)
+      const openedPage =
+        response.status === 200 &&
+        response.headers.some(([k, v]) => k === 'content-type' && v.startsWith('text/html'))
+      if (!openedPage) {
+        expect(response.body, response.url).not.toContain(CATALOGUE_CODE)
+        expect(response.body, response.url).not.toContain(PROFILE_CODE)
+      } else {
+        const other = response.url.includes('catalogue.') ? PROFILE_CODE : CATALOGUE_CODE
+        expect(response.body, response.url).not.toContain(other)
+      }
+    }
   })
 })
