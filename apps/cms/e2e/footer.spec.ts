@@ -308,8 +308,27 @@ test.describe('the numbers the design audit fixed', () => {
 
 test.describe('touch', () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } })
-  test('no cursor, no glow, arrow always shown on the tab', async ({ page }) => {
+  /**
+   * ⚠️ UNTIL 2026-09-11 THIS COULD NOT FAIL FOR THE REASON IN ITS NAME. `Cursor.tsx`
+   * refuses on `navigator.webdriver` as well as on a coarse pointer, and this test never
+   * lifted the flag — so it measured the automation refusal, and deleting the pointer
+   * check left it green. The flag is lifted now and both preconditions are asserted;
+   * "present on a fine pointer once the mouse moves" above is the positive control that
+   * the cursor can mount at all.
+   */
+  test('no cursor, no glow, arrow always shown on the tab', async ({ page, context }) => {
+    await liftAutomationGate(context)
     await page.goto('/contact')
+    expect(
+      await page.evaluate(() => ({
+        webdriver: navigator.webdriver,
+        fine: matchMedia('(hover: hover) and (pointer: fine)').matches,
+      })),
+      'the webdriver spoof did not land, or this browser still reports a fine pointer',
+    ).toEqual({ webdriver: false, fine: false })
+    // Hydrated, or "no cursor" only means "no JavaScript yet": the clock reads --:--
+    // until the client renders it (FooterClock.tsx).
+    await expect(page.locator('.footer-clock__time span').first()).not.toHaveText('--:--')
     await expect(page.locator('.cursor-dot')).toHaveCount(0)
     await expect(page.locator('.footer-glow').first()).toBeHidden()
     await expect(page.locator('.site-footer__tab-arrow')).toHaveCSS('opacity', '1')

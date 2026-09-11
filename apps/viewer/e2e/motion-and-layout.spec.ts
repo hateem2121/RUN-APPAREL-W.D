@@ -1839,17 +1839,49 @@ test.describe('bundle weight on a phone', () => {
      * it. The check was correct and in the wrong place.
      *
      * This asserts the placement, not the check: the bytes must never arrive.
+     *
+     * ⚠️ UNTIL 2026-09-11 THIS TEST COULD NOT FAIL FOR THE RULE IN ITS NAME.
+     * `polish/index.ts` asks `navigator.webdriver` BEFORE `prefersReducedMotion()`,
+     * and Playwright sets `navigator.webdriver`, so the import was refused as a robot
+     * and the reduced-motion half of the gate was never reached: deleting it left this
+     * test green. The flag is lifted now (the `asAHuman` spoof from
+     * audit-guards.spec.ts), both preconditions are asserted, and the test below is
+     * the positive control that proves the listener sees a Lenis chunk at all.
      */
+    const asAHuman = `Object.defineProperty(Navigator.prototype, 'webdriver', {
+  get: () => false,
+  configurable: true,
+})`
     const requested: string[] = []
     page.on('request', (request) => {
       const file = request.url().split('/').pop() ?? ''
       if (/^lenis-.*\.js$/.test(file)) requested.push(file)
     })
 
+    await page.addInitScript(asAHuman)
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    // the polish layer is imported after first ready render; give it a beat
+
+    expect(
+      await page.evaluate(() => ({
+        webdriver: navigator.webdriver,
+        reduce: matchMedia('(prefers-reduced-motion: reduce)').matches,
+      })),
+      'the webdriver spoof or the reduced-motion emulation never reached the page, ' +
+        'so this would be measuring a different gate',
+    ).toEqual({ webdriver: false, reduce: true })
+
+    // The polish layer has to have RUN, or "no request" only means "not yet".
+    // startPolish() calls startReveals() first, which reveals everything at once
+    // under reduced motion.
+    await expect
+      .poll(() => page.locator('[data-reveal].is-inview').count(), {
+        message: 'the polish layer never ran, so the absence of Lenis proves nothing',
+        timeout: 10_000,
+      })
+      .toBeGreaterThan(0)
+    // give a dynamic import that was NOT refused time to reach the network
     await page.waitForTimeout(1500)
 
     expect(
@@ -1857,6 +1889,35 @@ test.describe('bundle weight on a phone', () => {
       `a reduced-motion visitor downloaded the Lenis chunk (${requested.join(', ')}). ` +
         `The gate must run BEFORE the dynamic import, as it does for Motion above.`,
     ).toEqual([])
+  })
+
+  test('a human with motion allowed DOES download the Lenis chunk (the control)', async ({
+    page,
+  }) => {
+    const asAHuman = `Object.defineProperty(Navigator.prototype, 'webdriver', {
+  get: () => false,
+  configurable: true,
+})`
+    const requested: string[] = []
+    page.on('request', (request) => {
+      const file = request.url().split('/').pop() ?? ''
+      if (/^lenis-.*\.js$/.test(file)) requested.push(file)
+    })
+
+    await page.addInitScript(asAHuman)
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    await expect
+      .poll(() => requested.length, {
+        message:
+          'no Lenis chunk was requested for a human with motion allowed. Either the ' +
+          'chunk is no longer named lenis-*.js or the listener stopped matching — and ' +
+          'then the reduced-motion test above passes without measuring anything.',
+        timeout: 10_000,
+      })
+      .toBeGreaterThan(0)
   })
 })
 
