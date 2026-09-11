@@ -26,7 +26,12 @@ const LIMITS = {
 } as const
 const VALID_TYPES = new Set(['analytics', 'diagnostic', 'error'])
 const KNOWN_ANALYTICS = new Set<string>(VIEWER_ANALYTICS_EVENTS)
-const BOT_UA = /bot|crawler|spider|headless|preview|scan|lighthouse|monitor/i
+// `run-apparel-` is the name every tool of ours carries when it touches production
+// (scripts/perf-probe.mjs, scripts/apex-probe.mjs, the browser audit). On 2026-09-10 one
+// such audit wrote 489 rows in 19 minutes — 371 of the weekly digest's 385 — because its
+// user-agent held no crawler word, only its own name. A check that needs to see its own
+// rows here has to leave the tag off.
+const BOT_UA = /bot|crawler|spider|headless|preview|scan|lighthouse|monitor|run-apparel-/i
 
 export interface EventRecord {
   type: 'analytics' | 'diagnostic' | 'error'

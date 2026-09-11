@@ -152,7 +152,7 @@ export default function App() {
       diagnostic('viewer-load-failed', {
         product: route.productSlug,
         variant: route.colourSlug ?? '',
-        kind: reason,
+        failure: reason,
         reason: error instanceof Error ? error.message : String(error),
       })
     }

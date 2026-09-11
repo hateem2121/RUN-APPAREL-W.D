@@ -99,6 +99,18 @@ jobs:
       # dependency could simply read it. `minimumReleaseAge: 1440` in
       # pnpm-workspace.yaml narrows that window; it does not close it, and there is
       # no reason for the installer to see a production credential at all.
+      #
+      # ⚠️ THREE THINGS THIS QUERY GOT WRONG IN ITS FIRST PUBLIC ISSUE (#5, 2026-09-11).
+      # apps/cms/src/diagnosticsDigest.test.ts runs this exact SQL against SQLite:
+      #   - 371 of 385 rows were ONE scripted audit of ours, and nothing said so.
+      #     `browsers` counts distinct user-agents now, and `run-apparel-` ones (our
+      #     own tools, which the events endpoint also drops at intake) are left out.
+      #   - 17 of 19 client_error rows were `ResizeObserver loop…`, a notice Sentry
+      #     already ignores as harmless (apps/viewer/src/lib/sentry.ts). Left out too,
+      #     through coalesce(), so an error that arrived with NO message still counts.
+      #   - created_at is ISO, with a `T`. datetime('now', …) prints a SPACE there, and
+      #     `T` sorts after a space, so every row on the cutoff DATE passed whatever its
+      #     time. strftime() keeps the `T`.
       - name: Read the last 7 days of diagnostics
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -107,7 +119,7 @@ jobs:
         run: |
           set -euo pipefail
           pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote \
-            --json --command "SELECT type, event, product, variant, count(*) AS n, max(created_at) AS latest FROM events WHERE type IN ('diagnostic','error') AND created_at > datetime('now','-7 days') GROUP BY type, event, product, variant ORDER BY n DESC LIMIT 50;" \
+            --json --command "SELECT type, event, product, variant, count(*) AS n, count(DISTINCT ua) AS browsers, max(created_at) AS latest FROM events WHERE type IN ('diagnostic','error') AND created_at > strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days') AND (ua IS NULL OR ua NOT LIKE '%run-apparel-%') AND NOT (event = 'client_error' AND coalesce(message, '') LIKE 'ResizeObserver loop%') GROUP BY type, event, product, variant ORDER BY n DESC LIMIT 50;" \
             > digest.json
           # `.[0].results` is wrangler's shape; empty means a clean week.
           rows=$(node -e "const d=require('./digest.json');console.log((d[0]?.results??[]).length)")
@@ -129,10 +141,12 @@ jobs:
               // early and forge step outputs), pipes (which break the markdown
               // table) and every shell metacharacter in one rule.
               const s = (v) => String(v ?? '').replace(/[^A-Za-z0-9 ._:-]/g, '?').slice(0, 80);
-              console.log('| count | type | event | product | colour | most recent |');
-              console.log('|---:|---|---|---|---|---|');
+              // browsers is count(DISTINCT ua): a number, never text a stranger chose. A row
+              // the server wrote itself has no user-agent, so its 0 prints as '-'.
+              console.log('| count | browsers | type | event | product | colour | most recent |');
+              console.log('|---:|---:|---|---|---|---|---|');
               for (const r of rows) {
-                console.log(\`| \${Number(r.n)} | \${s(r.type)} | \${s(r.event)} | \${s(r.product)} | \${s(r.variant)} | \${s(r.latest)} |\`);
+                console.log(\`| \${Number(r.n)} | \${Number(r.browsers) || '-'} | \${s(r.type)} | \${s(r.event)} | \${s(r.product)} | \${s(r.variant)} | \${s(r.latest)} |\`);
               }
             "
             echo 'DIGEST'
@@ -191,6 +205,9 @@ jobs:
           node scripts/queue-settings-probe.mjs || code=$?
           if [ "${code:-0}" = "1" ]; then exit 1; fi
 
+      # Growth counts EVERY row, our own checks included: it measures write volume, not
+      # visitors. Its cutoffs are ISO for the reason given above the digest query — with
+      # datetime() this line said "491 rows in 24h" on 2026-09-11, when the true count was 1.
       - name: Measure events growth
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -199,7 +216,7 @@ jobs:
         run: |
           set -euo pipefail
           pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote \
-            --json --command "SELECT (SELECT count(*) FROM events WHERE created_at > datetime('now','-1 day')) AS day, (SELECT count(*) FROM events WHERE created_at > datetime('now','-7 days')) AS week, (SELECT count(*) FROM events) AS total;" \
+            --json --command "SELECT (SELECT count(*) FROM events WHERE created_at > strftime('%Y-%m-%dT%H:%M:%fZ','now','-1 day')) AS day, (SELECT count(*) FROM events WHERE created_at > strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days')) AS week, (SELECT count(*) FROM events) AS total;" \
             > growth.json
           # Integers straight out of count(*) — not attacker-controlled text, unlike
           # the digest table above. Number() regardless, so a malformed response
@@ -270,7 +287,7 @@ jobs:
             "Viewer diagnostics for the 7 days to $(date -u +%Y-%m-%d)." \
             "$DIGEST_TABLE" \
             "$GROWTH_SUMMARY" \
-            "\`model-load-error\` means a buyer opened a product and the 3D file did not load. \`variant-missing\` means a colour button pointed at a colour that is not inside the file. \`variants-unverified-while-published\` means a re-upload renamed the colours under a live product. See docs/RUNBOOK.md.")
+            "\`model-load-error\` means a buyer opened a product and the 3D file did not load. \`variant-missing\` means a colour button pointed at a colour that is not inside the file. \`variants-unverified-while-published\` means a re-upload renamed the colours under a live product. \`viewer-load-failed\` means the product's details never reached the page. \`render-scale-degraded\` means a slow device drew the 3D at lower sharpness; the garment still showed. **browsers** is how many different browsers sent those rows, so one busy browser cannot pass for many buyers (- means the server wrote it). Left out on purpose: our own checks (user-agent \`run-apparel-…\`) and the harmless \`ResizeObserver loop\` browser notice. See docs/RUNBOOK.md.")
           existing=$(gh issue list --label diagnostics --state open --json number --jq '.[0].number // empty')
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body "$body"

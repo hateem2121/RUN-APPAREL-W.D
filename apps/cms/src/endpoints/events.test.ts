@@ -173,6 +173,31 @@ describe('POST /api/public/events', () => {
     },
   )
 
+  /**
+   * OUR OWN CHECKS ARE NOT VISITORS. On 2026-09-10 one scripted browser audit wrote 489
+   * rows in 19 minutes — 371 of the 385 the weekly digest then reported, two of them
+   * "server errors" it simulated inside its own browser. It passed `BOT_UA` because its
+   * user-agent carried no crawler word, only its own name. Every tool here that touches
+   * production names itself `run-apparel-…` (scripts/perf-probe.mjs,
+   * scripts/apex-probe.mjs, the browser audit), so that tag is the filter.
+   */
+  it.each(['Mozilla/5.0 (compatible) run-apparel-audit/1.0', 'run-apparel-perf-probe'])(
+    'drops everything from one of our own tools (%s)',
+    async (ua) => {
+      const { req, create } = makeReq({
+        ip: '203.0.113.14',
+        ua,
+        body: JSON.stringify([
+          { type: 'diagnostic', event: 'render-scale-degraded', message: 'GPU throttling' },
+        ]),
+      })
+      const res = await handler(req)
+
+      expect(res.status).toBe(204)
+      expect(create, 'a check we ran ourselves must not read as a visitor').not.toHaveBeenCalled()
+    },
+  )
+
   it('survives a failed row write without losing the rest of the batch', async () => {
     // "Best-effort: one bad row must never fail the whole batch." A throw escaping
     // here would 500 a beacon, which is the one thing this endpoint must never do.
