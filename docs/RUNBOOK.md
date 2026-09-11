@@ -91,9 +91,18 @@ part of `ci.yml` — a green CI run says nothing about it.
 
 ## Deploying the shrink container
 
-**Since 2026-09-08 the container is deployed by Cloudflare, not by CI, and the reason is
-upload bandwidth.** `shrink-deploy` in `.github/workflows/deploy-shrink.yml` is gated off
-behind the repository variable `SHRINK_DEPLOY_FROM_CI`, which is unset.
+**Since 2026-09-10, GitHub CI deploys it again, behind all four gates.** `shrink-deploy` in
+`.github/workflows/deploy-shrink.yml` runs on a push to `main` that touches `apps/shrink/`
+or `tools/asset-pipeline/` (or by hand, with *Run workflow*). It runs only after
+`shrink-verify`, `shrink-artwork`, `shrink-audit` and `shrink-secrets` pass, and only
+while the repository variables `DEPLOY_ENABLED` and `SHRINK_DEPLOY_FROM_CI` are both
+`true`.
+
+**It was off from 2026-09-08 to 2026-09-10 because of upload bandwidth.** CI then ran on a
+self-hosted runner on the owner's Mac. The repository moved to GitHub-hosted runners when
+it was re-created as public, which removed the bottleneck below, so the variable was set
+back to `true`. The measurement that switched it off is kept, because it is why a home
+machine is still the wrong place to push the image from:
 
 The image builds here without trouble — measured on run 34251256826: **amd64, 54
 seconds**, using the host Docker socket the self-hosted runner mounts. What fails is the
@@ -110,47 +119,14 @@ and one layer died as `net/http: timeout awaiting response headers` against
 about three minutes — so this is ordinary asymmetric home broadband, and the container
 push is the only job in this repo that has to send anything outward.
 
-### What the owner has to do once (nobody else can)
+### Do NOT connect Workers Builds to `run-apparel-viewer-shrink`
 
-Connecting a repository to Cloudflare needs a dashboard action and a GitHub
-authorisation, so it cannot be scripted or done by an agent.
-
-1. Cloudflare dashboard → **Workers & Pages** → the Worker named
-   **`run-apparel-viewer-shrink`**. ⚠️ The name must match `"name"` in
-   `apps/shrink/wrangler.jsonc` exactly, or the build fails on a name check.
-2. **Settings → Builds → Connect**, and choose `hateem2121/RUN-APPAREL-W.D`.
-3. Set **root directory** to `apps/shrink`.
-4. Leave the **deploy command** as `npx wrangler deploy`. That is the command that
-   builds and publishes the image; Cloudflare's docs state that "Dockerfile builds can
-   run in the Workers Builds environment", which is the whole point — the 135 MB never
-   leaves this machine because it is never built on it.
-5. Set the **production branch** to `main`, and leave non-production branch builds OFF.
-   `wrangler versions upload` (what preview builds run) does **not** update container
-   images, so a preview build would be misleading rather than useful.
-
-### ⚠️ The gate this loses, and how to get it back
-
-**Workers Builds deploys on a push to `main` regardless of the four gates in
-`deploy-shrink.yml`.** `needs:` stops that workflow's own deploy job; it cannot stop
-Cloudflare's. So until the gates are also expressed as Workers Builds' **build command**,
-a pipeline change that fails `shrink-artwork` here will still reach the container.
-
-That is a real weakening, so it is written down rather than absorbed. To restore it, set
-the build command in the same **Settings → Builds** screen:
-
-```
-npx --yes pnpm@10.34.5 install --frozen-lockfile && npx --yes pnpm@10.34.5 --filter @run-apparel/shrink typecheck && npx --yes pnpm@10.34.5 --filter @run-apparel/shrink test
-```
-
-A failing build command stops the deploy command from running, which is exactly the
-gating behaviour `needs:` provides here.
-
-⚠️ **That command is UNVERIFIED** — it cannot be tested until the repository is
-connected, because there is no way to run a Workers Build without the connection. Check
-the first build's log rather than assuming it worked, and note that the artwork eval is
-deliberately **not** in it: that gate needs a browser, and whether Cloudflare's build
-environment can install one has not been measured. Until it has, `shrink-artwork` in
-GitHub CI is a report, not a gate on the container.
+Connecting Cloudflare's Workers Builds to this repository was the 2026-09-08 plan, and it
+was never done. Leave it that way. **Workers Builds deploys on every push to `main`,
+whatever the four gates in `deploy-shrink.yml` say.** `needs:` stops that workflow's own
+deploy job; it cannot stop Cloudflare's. So a pipeline change that fails
+`shrink-artwork` would still reach the container. With CI deploying too, every change
+would also be published twice.
 
 ### Deploying it by hand instead
 
@@ -780,13 +756,51 @@ screen-reader user is not. That is the line between this decision and those fixe
 
 ## Rotating PAYLOAD_SECRET
 
-Rotating logs everyone out of `/admin` (sessions are signed with it). Passwords
-are unaffected.
+⚠️ **Corrected 2026-09-10. This section said rotating only "logs everyone out". It also
+switches off EVERY CMS API key, the garment robot's included.** Payload stores each API
+key encrypted with this secret and looks it up by a fingerprint made with it (see
+`apps/cms/CLAUDE.md`, "A Payload API key cannot be read back"). Passwords are unaffected.
+
+Followed as written on 2026-09-10, it left raw upload 14 stuck on **Queued**:
+- The robot's first call marks the row `processing` (`apps/shrink/src/index.ts`).
+- The CMS answered 403 three times, and the job dead-lettered.
+- The admin cannot move a Queued row. The Status field is read-only, and *Try this again* is refused unless the row is Failed or Ready (`apps/cms/src/collections/rawUploadRetry.ts`).
+
+The new secret took effect at once, with no redeploy. The robot's old key got its first 403 two minutes after the rotation.
+
+Do all of it in one sitting, in this order, with `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` set in the shell:
+
+1. **One value, three places.** Every deploy writes GitHub's `PAYLOAD_SECRET` into the
+   Worker (`.github/workflows/ci.yml`, "Apply worker secret"), so changing only the
+   Worker is undone by the next deploy. The Keychain copy is written FIRST, so a failure
+   in a later step cannot lose the value:
+
+   ```bash
+   s="$(openssl rand -hex 32)" && security add-generic-password -U -a payload -s run-apparel-payload-secret -w "$s" && printf '%s' "$s" | npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec wrangler secret put PAYLOAD_SECRET && printf '%s' "$s" | gh secret set PAYLOAD_SECRET --env production && unset s
+   ```
+
+   Read the value back later with
+   `security find-generic-password -a payload -s run-apparel-payload-secret -w`.
+2. Log in to `/admin` again, because every session ended.
+3. **Re-issue the robot's key:** *Users* → `robot@wear-run.help` → **Generate new API
+   key** → **Save**. The "New API Key Generated." message is NOT a save. On 2026-09-10
+   the key was generated but not saved, and `users.updated_at` stayed at the day the
+   robot was created. Check that *Last Modified* changed.
+4. Give the SAVED key to the robot, pasting it at the prompt:
+   `npx --yes pnpm@10.34.5 --filter @run-apparel/shrink exec wrangler secret put CMS_ROBOT_API_KEY`
+5. **Only then**, tick *Try this again* on a finished raw upload whose product is already
+   published (the robot will not attach to it), and wait for **Ready to review**.
+   Ticking it before step 4 strands the row on Queued.
+
+Any other API key is dead too, for example one on `admin@wear-run.help`. Issue a new
+one only if something actually uses it.
+
+**A row already stuck on Queued** has no admin exit. Set it back to Failed in D1, which
+enqueues nothing, then retry it from the admin:
 
 ```bash
-openssl rand -hex 32 | pnpm --filter @run-apparel/cms exec wrangler secret put PAYLOAD_SECRET
-# redeploy so the running worker picks it up:
-pnpm --filter @run-apparel/cms run deploy
+npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "UPDATE raw_uploads SET status = 'failed' WHERE id = <id> AND status = 'queued'"
 ```
 
 ## Analytics & events
@@ -1705,8 +1719,9 @@ periodically):
    intended people exist and that `admin@wear-run.help` has role **Admin /
    Director**. Delete or downgrade any stray accounts.
 2. Rotate its password from the user's *Account* screen (or *Users → edit*). This
-   is independent of `PAYLOAD_SECRET` — rotating the secret logs everyone out but
-   does not change passwords (see "Rotating PAYLOAD_SECRET").
+   is independent of `PAYLOAD_SECRET` — rotating the secret logs everyone out and
+   switches off every API key, but does not change passwords (see "Rotating
+   PAYLOAD_SECRET").
 3. The production database must **never** contain the local dev seed admin. The
    seed only creates it when `SEED_DEV_ADMIN=1` (local `seed` script) and never
    in production (`apps/cms/src/seed/seed.ts` guards this); confirm no

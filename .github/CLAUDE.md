@@ -1,8 +1,8 @@
 # CLAUDE.md — .github
 
 Loads when you touch `.github/`. Every workflow change is gated by
-`apps/cms/src/workflowHardening.test.ts` — ten assertions, each with a verified
-negative control, so a failure names the file and line. Run it before pushing a
+`apps/cms/src/workflowHardening.test.ts` — fifteen rules, nine with their own
+negative control (counted 2026-09-11), so a failure names the file and line. Run it before pushing a
 workflow edit:
 
 ```bash
@@ -55,13 +55,11 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   A failed install emits a named `::warning::` so a browser that cannot **launch** is
   not debugged as a flaky test — that warning fired four minutes before the
   `browserType.launch` failure it predicted.
-- **The org is on GitHub ENTERPRISE, which invalidates a closed decision stated in
-  `.github/workflows/ci.yml`.** That file declines required reviewers on the
-  `production` environment because they "need GitHub Pro (~$4/month)" against a
-  $5/month budget, and instructs the reader "Do not list it as pending work". The
-  cost premise is now false. **APPLIED 2026-08-19**: ruleset `21016174` on `main`
-  (blocks deletion and force-push, requires a PR, and requires the same status checks
-  the deploy needs), `production` restricted to protected branches, and
+- **`main` is guarded by ruleset `22763709` — read 2026-09-11: no deletion or
+  force-push, a PR with 0 approvals, `code_scanning`, NO bypass actors, and five
+  required checks.** The rules below carry its history. It first existed as org ruleset
+  `21016174` (APPLIED 2026-08-19, while the repo sat in the RUN-APPAREL org on GitHub
+  ENTERPRISE), alongside `production` restricted to protected branches and
   `sha_pinning_required: true`, which the repo already satisfied so it cost nothing.
   ⚠️ **A 40-hex SHA CAN STILL BE THE WRONG OBJECT, and the hardening test cannot
   see it.** Found 2026-08-25 while pinning `aquasecurity/trivy-action`. For an
@@ -78,19 +76,12 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   gh api /repos/OWNER/REPO/git/commits/<sha> --jq .sha      # 404 => not a commit
   ```
   All six pins in this repo were re-verified as commits on 2026-08-25.
-  ⚠️ **THE ORG IS GONE — 2026-09-02.** The owner deleted the RUN-APPAREL organisation
-  and its Enterprise plan and transferred this repo to the personal account
-  `hateem2121` (`origin` now `github.com/hateem2121/run-apparel-viewer`; PRs, repo
-  secrets and the `production` environment came along; org secrets and the org
-  ruleset did NOT). Ruleset `21016174` no longer exists, and on a personal Free plan
-  the rulesets API answers 403 *"Upgrade to GitHub Pro"* for a private repo — so until
-  the owner takes Pro, `main` has NO required checks and a merge deploys unguarded.
-  Everything below about the ruleset is the record of what to recreate.
-  ⚠️ **AND THE REPOSITORY WENT PUBLIC — 2026-09-09, then was RE-CREATED CLEAN on
-  2026-09-10 as `hateem2121/RUN-APPAREL-W.D`**, with audit material and supplier codes
-  scrubbed from every commit (the previous copy is `hateem2121/run-apparel-viewer-old`,
-  private). Rulesets are free on a public repository, so the record below is exactly
-  what to recreate there — once a first run on `main` has produced the check names.
+  ⚠️ **History.** The org and its ruleset were deleted on 2026-09-02, leaving `main`
+  unguarded while the repo was private on Free (the rulesets API answered 403 *"Upgrade
+  to GitHub Pro"*). The repo went public on 2026-09-09 and was RE-CREATED CLEAN on
+  2026-09-10 as `hateem2121/RUN-APPAREL-W.D`, with audit material and supplier codes
+  scrubbed from every commit. Rulesets are free on a public repository, and `22763709`
+  was recreated there from this record the same day.
   **By owner decision (2026-09-03) the repo STAYS on Free.** Two consequences were
   recorded here for a PRIVATE repo, and going public changed both.
   `actions/dependency-review-action` is gated `github.event.repository.private == false`,
@@ -99,11 +90,11 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   because a public repository's artifacts are downloadable by any signed-in account —
   `apps/cms/src/publicRepoGuards.test.ts` fails on a plaintext one. The repository's own
   retention setting also CAPS every `retention-days` (measured 2026-09-10: an artifact
-  asking for 90 days was given the repository's 30).
+  asking for 90 days was given the repository's 30; the setting was put back to 90 the
+  same day).
   ⚠️ **THE REQUIRED-CHECKS LIST IS A SECOND COPY OF `deploy.needs`. IT IS NOT
   UNREADABLE — that claim was false and cost a session (L8-07).** It is repository
-  config under the ordinary `repo` scope, and one command prints it (once a ruleset
-  exists again):
+  config under the ordinary `repo` scope, and one command prints it:
   ```bash
   gh api repos/hateem2121/RUN-APPAREL-W.D/rulesets \
     --jq '.[].id'   # then: gh api repos/hateem2121/RUN-APPAREL-W.D/rulesets/<id> \
@@ -112,26 +103,31 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   It still cannot be a CI GATE — `GITHUB_TOKEN` has no `administration` permission —
   but "no test can read it" and "no test can read it FROM CI" are different claims,
   and the first one talked people out of running the command at all. It was four checks until 2026-08-20, five until
-  2026-08-31, and is **six** now — the five Actions jobs (`verify`, `e2e`, `audit`,
-  `secrets`, `artwork`, all bound to integration 15368) plus
-  **`Socket Security: Pull Request Alerts`** bound to integration **156372**, added
-  for L8-05 so a malicious-dependency finding can stop a merge rather than only
-  comment on it. ⚠️ The Socket app publishes TWO checks; the required one is
-  *Pull Request Alerts*, not *Project Report*. Verified across five PR HEAD commits
-  before it was required — a merge commit shows only one of the two, and reading
-  that instead nearly produced a "correction" that would have required a name Socket
-  never posts. `e2e` was added when it was split
+  2026-08-31, six until the org died on 2026-09-02, five on the re-created repo, and
+  **six** again since 2026-09-11 — the Actions jobs `verify`, `e2e`, `audit`, `secrets`
+  and `artwork`, all bound to integration 15368, plus **`Socket Security: Pull Request
+  Alerts`** (integration 156372, added for L8-05 so a malicious-dependency finding can
+  stop a merge). ⚠️ **Socket had to be REINSTALLED on 2026-09-11** — it had been an org
+  install and vanished with the org — and was required again only after it posted on
+  PR HEAD commits. Require *Pull Request Alerts*, never *Project Report*: a merge
+  commit shows only one of the two, and reading that instead nearly produced a
+  "correction" requiring a name Socket never posts. ⚠️ **A red
+  `github-advanced-security` check is NOT ours**: it was GitHub's *AI findings* preview
+  (no workflow file; it posts as app 15368). It failed every PR with
+  `CAPIError: 400 The requested model is not supported`, and was switched OFF on
+  2026-09-11 under Settings → Advanced Security. It was never required. `e2e` was added when it was split
   out of `verify`, where it had been gating by living inside a job that gates. `needs:`
   stops the DEPLOY; this list stops the MERGE. Split or rename a gating job and you
-  must edit BOTH, or a red gate silently stops blocking. The tenth rule in
+  must edit BOTH, or a red gate silently stops blocking. The deploy-gating rule in
   `apps/cms/src/workflowHardening.test.ts` covers the `needs:` half only.
   ⚠️ ORDER MATTERS HERE TOO, the same way it does for `production` below: add a check
   to this list only AFTER a workflow exists on `main` that produces it, or every PR
   blocks forever waiting on a check that never runs.
   ⚠️ At one filled seat, any rule requiring an approving review would deadlock every
   merge — nobody can approve their own PR. Hence
-  `required_approving_review_count: 0`, with the status checks as the gate and an
-  `OrganizationAdmin` bypass actor, verified by a direct push to `main`.
+  `required_approving_review_count: 0`, with the status checks as the gate and NO
+  bypass actors (read 2026-09-11), so a direct push to `main` is refused and everything
+  goes through a PR.
   ⚠️ ORDER MATTERS: setting `production` to protected-branches-only *before* `main`
   is protected blocks every deploy. Create the ruleset first.
 - **Editing a workflow? `apps/cms/src/workflowHardening.test.ts` gates it.** Since
@@ -147,9 +143,13 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   `run:` block. **Two more on 2026-08-20**, with the first container job: a Playwright
   `container: image:` tag must equal the declared `@playwright/test` version, and every
   job must appear in `deploy.needs` unless it is on a written non-gating allow-list.
-  All ten have verified negative controls, so a failure names the file and line. ⚠️ A `permissions:` block **REPLACES** the defaults rather than adding to
+  **Five more since:** a parse guard for a key nested under a key
+  that already has a value, every workflow `heartbeat.yml` watches must exist and parse,
+  `DEPLOY_MESSAGE` may not contain a space, and the vulnerability audit retries only on
+  the network signature and within its job's timeout. Fifteen rules; nine have their own
+  negative control, and a failure names the file and line. ⚠️ A `permissions:` block **REPLACES** the defaults rather than adding to
   them — omitting `contents: read` breaks `actions/checkout` with a **404** on
-  this private repo, which is how uptime.yml died silently for 23 hours. The
+  what was then a private repo, which is how uptime.yml died silently for 23 hours. The
   injection rule was not theoretical: `uptime.yml` was pasting a dispatch input
   into shell in a job holding `GH_TOKEN`, found 2026-08-12.
   ⚠️ A `run:` step that goes through `pnpm --filter <pkg> exec …` executes with its cwd
@@ -226,9 +226,9 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   `diagnostics-digest.yml`, the one workflow that reads the Events table, which had
   already been silently dead once before for a comparable reason (a `permissions:`
   block missing `contents: read`).
-  The eleventh rule in `apps/cms/src/workflowHardening.test.ts` now catches it: a key
-  may not be indented deeper than a preceding key that already has a value. The other
-  ten never parse the document, and biome does not lint YAML.
+  A parse guard in `apps/cms/src/workflowHardening.test.ts` now catches it: a key
+  may not be indented deeper than a preceding key that already has a value. Biome does
+  not lint YAML.
   ⚠️ After ANY workflow edit, look for a run named after the path:
   `gh run list --limit 5 --json name,conclusion`
 
@@ -322,3 +322,9 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   To decide whether a failing test is flaky or real, push an empty or trivial commit and
   read the fresh run — and confirm nothing is in flight first, because a push during a run
   cancels that one too (the trap the root `CLAUDE.md` records).
+
+- **`DEPLOY_ENABLED=false` pauses SEVEN workflows, not just deploys:** `ci`'s deploy,
+  `deploy-shrink`, `nightly-backup`, `uptime`, `heartbeat`, `diagnostics-digest` and
+  `perf-watch`. Off means no backups and no monitoring — measured 2026-09-10, after the
+  switch had been off since the public re-creation. Re-count with
+  `grep -l 'vars.DEPLOY_ENABLED' .github/workflows/*.yml`.
