@@ -39,7 +39,7 @@ export default async function TermsPage() {
         <div className="site-container">
           <p className="label">[ TERMS ]</p>
           <h1 className="display display--hero">
-            A reference, <span className="serif-accent">not a promise.</span>
+            A reference, <span className="serif-accent">not a&nbsp;promise.</span>
           </h1>
           <p className="site-lede">
             What our 3D references do and do not settle, and what happens to the artwork you send

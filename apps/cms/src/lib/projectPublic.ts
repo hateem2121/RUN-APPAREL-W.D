@@ -66,6 +66,20 @@ export const EMPTY_FOOTER: FooterSettings = {
   socialLinks: [],
 }
 
+/**
+ * What every public page falls back to when D1 cannot be read — and the ONLY settings the
+ * 404 renders, because that page reads no database on purpose (`src/app/not-found.tsx`).
+ * One definition, so the footer on a broken link is exactly the footer `getSiteSettings()`
+ * serves during an outage. It lives here and not in content.ts because content.ts imports
+ * Payload, and the 404 must not.
+ */
+export const FALLBACK_SITE_SETTINGS: PublicSiteSettings = {
+  ...DEFAULT_SITE_SETTINGS,
+  logoUrl: null,
+  logoMimeType: null,
+  footer: EMPTY_FOOTER,
+}
+
 const DAY_INDEX: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 }
 const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/
 

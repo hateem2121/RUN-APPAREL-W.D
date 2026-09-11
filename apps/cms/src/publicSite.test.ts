@@ -929,4 +929,15 @@ describe('FA-N-10 / D10 — the pages say in words why there is no price', () =>
     // and it explains what a price actually depends on, rather than only denying one
     expect(source.toLowerCase()).toMatch(/quot/)
   })
+
+  it('/contact never says nothing is required above three required fields (CT-14)', () => {
+    const source = stripComments(read(FRONTEND, 'contact', 'page.tsx'))
+    // The lede lists what HELPS a reply; the form under it requires a name, an email and a
+    // message. "Nothing is required" read as a claim about the form (audit CT-14). The owner
+    // chose this replacement wording on 2026-09-11.
+    expect(source).not.toMatch(/Nothing is required/i)
+    expect(source).toMatch(/None of it is required to start the conversation\./)
+    // and the fields the sentence must not contradict are still required
+    expect(source.match(/\brequired\b(?!\s*to start)/g)?.length ?? 0).toBeGreaterThanOrEqual(3)
+  })
 })

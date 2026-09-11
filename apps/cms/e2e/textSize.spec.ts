@@ -40,7 +40,8 @@ test.describe('FA-E-03 — the company name survives the reader turning text up'
    * single-size Firefox case below keeps one live check on that.
    */
   const SIZES = [100, 125, 150, 175, 200]
-  const WIDTHS = [320, 360, 390, 412, 430, 768, 1440]
+  // 340: inside the band below 360px where site.css tightens the bar's spacing (2026-09-11).
+  const WIDTHS = [320, 340, 360, 390, 412, 430, 768, 1440]
 
   for (const scale of SIZES) {
     test(`nothing is clipped and the hero still clears the bar at ${scale}% text`, async ({
@@ -129,4 +130,87 @@ test.describe('FA-E-03 — the company name survives the reader turning text up'
       expect(m.gap).toBeGreaterThanOrEqual(0)
     })
   })
+})
+
+test.describe('TY-11 — the footer keeps every word at 200% text on a phone', () => {
+  /**
+   * Measured 2026-09-09/10 (audit TY-11): at 200% browser text on a phone, the dark footer cut
+   * off real text at its right edge — "Send a tech pack, a sketch, o…", "Reply within 2
+   * business…" and the address line. The slab is `overflow: hidden` for its cropped wordmark,
+   * so an over-wide column is not scrolled, it is silently clipped.
+   *
+   * The instrument asks every word in the slab to end inside the slab, skipping `aria-hidden`
+   * layers (the cropped wordmark is cropped on purpose). Its negative control is a planted
+   * nowrap line, which must be reported before any real page is graded.
+   *
+   * 200% comes from the browser's text-size setting, never an injected `html { font-size }` —
+   * see the top of this file for why only the real setting moves `rem` media queries. Chromium
+   * takes it over CDP; Firefox takes it from the profile pref this file sets at launch.
+   */
+  const clipped = (page: import('@playwright/test').Page) =>
+    page.evaluate(() => {
+      const slab = document.querySelector('.site-footer__slab')
+      if (!slab) return ['there is no .site-footer__slab on this page']
+      const edge = slab.getBoundingClientRect().right
+      const out: string[] = []
+      const walker = document.createTreeWalker(slab, NodeFilter.SHOW_TEXT)
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const text = (node.nodeValue ?? '').trim()
+        if (!text || node.parentElement?.closest('[aria-hidden="true"]')) continue
+        const range = document.createRange()
+        range.selectNodeContents(node)
+        const right = Math.max(...[...range.getClientRects()].map((rect) => rect.right))
+        if (right - edge > 1)
+          out.push(`"${text.slice(0, 40)}" runs ${(right - edge).toFixed(0)}px past the slab`)
+      }
+      return out
+    })
+
+  const at200 = async (
+    page: import('@playwright/test').Page,
+    context: import('@playwright/test').BrowserContext,
+    browserName: string,
+  ) => {
+    if (browserName === 'chromium') {
+      const cdp = await context.newCDPSession(page)
+      await cdp.send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 32 } })
+    }
+    await page.setViewportSize({ width: 390, height: 844 })
+  }
+
+  test('the detector reports a planted clipped line (negative control)', async ({
+    page,
+    context,
+    browserName,
+  }) => {
+    await at200(page, context, browserName)
+    await page.goto('/contact')
+    await page.evaluate(() => {
+      const line = document.createElement('p')
+      line.textContent = 'PLANTED '.repeat(40)
+      line.style.whiteSpace = 'nowrap'
+      document.querySelector('.site-footer__inner')?.append(line)
+    })
+    const found = await clipped(page)
+    expect(
+      found.some((entry) => entry.startsWith('"PLANTED')),
+      found.join('\n'),
+    ).toBe(true)
+  })
+
+  for (const path of ['/', '/contact']) {
+    test(`${path}: nothing in the footer is clipped at 200% text, 390px`, async ({
+      page,
+      context,
+      browserName,
+    }) => {
+      await at200(page, context, browserName)
+      await page.goto(path)
+      await page.evaluate(() => document.fonts.ready)
+      const root = await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)
+      // The control for the setup: at the default size nothing would be clipped anyway.
+      expect(root, `the text size never moved to 200% in ${browserName}`).toBe('32px')
+      expect(await clipped(page)).toEqual([])
+    })
+  }
 })

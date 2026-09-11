@@ -408,3 +408,29 @@ test.describe('FA-N-18 — an AI crawler gets a finished head', () => {
     })
   }
 })
+
+test.describe('CO-05 — the phone browser bar follows the page', () => {
+  /**
+   * The viewer has declared `theme-color` since 2026-08-18; this site declared nothing, so
+   * Safari guessed a bar colour (audit CO-05). Asserted on every page's SERVED HTML, the 404
+   * included, because `viewport` is exported per page and a page that forgets it still
+   * renders perfectly. The colours themselves are pinned to `--bg` by
+   * `src/lib/themeColor.test.ts`.
+   *
+   * ⚠️ THE WHOLE DOCUMENT, NOT `headOf()`. On 2026-09-11 this site's streamed metadata was
+   * measured landing in the body on 1 fetch in 6; that is its own finding, and a test about
+   * whether the tag is DECLARED must not flake on it.
+   */
+  for (const path of ['/', '/products', '/contact', '/definitely-not-a-page']) {
+    test(`${path} declares one theme-color per scheme`, async ({ request }) => {
+      const html = await (await request.get(path)).text()
+      const tags = [...html.matchAll(/<meta[^>]*name="theme-color"[^>]*>/g)].map((m) => m[0])
+      const media = tags.map((tag) => tag.match(/media="([^"]*)"/)?.[1] ?? '(none)').sort()
+      expect(media, `${path} theme-color tags: ${tags.join(' ')}`).toEqual([
+        '(prefers-color-scheme: dark)',
+        '(prefers-color-scheme: light)',
+      ])
+      for (const tag of tags) expect(tag).toMatch(/content="#[0-9a-f]{6}"/i)
+    })
+  }
+})

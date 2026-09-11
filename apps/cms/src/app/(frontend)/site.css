@@ -60,7 +60,7 @@
  */
 @font-face {
   font-family: "Archivo Fallback";
-  src: local("Arial"), local("Helvetica Neue"), local("Helvetica");
+  src: local("Arial"), local("Helvetica Neue"), local("Helvetica"), local("Liberation Sans");
   size-adjust: 98.61%;
   ascent-override: 89.03%;
   descent-override: 21.29%;
@@ -69,7 +69,8 @@
 
 @font-face {
   font-family: "Archivo Display Fallback";
-  src: local("Arial Bold"), local("Helvetica Neue Bold"), local("Arial");
+  src:
+    local("Arial Bold"), local("Helvetica Neue Bold"), local("Liberation Sans Bold"), local("Arial");
   font-weight: 700 900;
   size-adjust: 128.24%;
   ascent-override: 68.47%;
@@ -88,28 +89,143 @@
 }
 
 /*
+ * ⚠️ A MACHINE WITH NO ARIAL AND NO GEORGIA GOT NONE OF THE ABOVE UNTIL 2026-09-11 — a Linux
+ * desktop, and CI's Playwright image (`mcr.microsoft.com/playwright:v1.62.1-noble`), where every
+ * face errored, the stacks fell through to the generic family, and PR #10's font tests failed
+ * while passing on a Mac. Measured in that image, and from the font files:
+ *
+ *   - Liberation Sans has Arial's advance widths exactly — 0.45630em lowercase and 0.62277em bold
+ *     uppercase for both, computed, not assumed — so it is one more source in the sans faces
+ *     above, at their values.
+ *   - Liberation Serif is shaped like Times, not Georgia: Liberation Serif Italic 0.41336em (the
+ *     same as Times New Roman Italic) against Georgia Italic 0.46473em. So the serif has a face
+ *     of its own, the Georgia face's value carried over as a ratio:
+ *     79.52 × 0.46473 / 0.41336 = 89.40%. Those averages use Next.js's fallback weighting
+ *     (`avgCharacters`); the 2026-09-07 weighting is not recorded and reads every font about 2%
+ *     wider, which a ratio cancels. The Linux browsers agree: "Made properly." wanted 89.53%.
+ *     Overrides re-derived as for every face here: 124.49 × 79.52 / 89.40 = 110.73 and
+ *     38.98 × 79.52 / 89.40 = 34.67.
+ *   - ⚠️ NO SINGLE `local()` NAME MATCHES IN ALL THREE ENGINES. Chromium and Firefox match a FULL
+ *     name ("Liberation Serif Italic"), and given the family name they load the regular or upright
+ *     face whatever this rule's `font-style`/`font-weight` say. WebKit matches only the FAMILY
+ *     name and picks the face from those descriptors. So each list names both, full name first.
+ *     (WebKit also reaches Liberation Sans through `local("Arial")`, by fontconfig's alias.)
+ *
+ * Android has neither family and still falls through to its own system font.
+ */
+@font-face {
+  font-family: "Instrument Serif Fallback Liberation";
+  src: local("Liberation Serif Italic"), local("Liberation Serif");
+  font-style: italic;
+  size-adjust: 89.4%;
+  ascent-override: 110.73%;
+  descent-override: 34.67%;
+  line-gap-override: 0%;
+}
+
+/*
  * The three stacks, with each fallback inserted AFTER the real face and BEFORE the
  * generic one, so the webfont still wins the moment it arrives.
  */
 :root {
   --font-display: "Archivo Variable", "Archivo", "Archivo Display Fallback", system-ui, sans-serif;
   --font-body: "Archivo Variable", "Archivo", "Archivo Fallback", system-ui, sans-serif;
-  --font-serif: "Instrument Serif", "Instrument Serif Fallback", Georgia, serif;
+  --font-serif:
+    "Instrument Serif", "Instrument Serif Fallback", "Instrument Serif Fallback Liberation",
+    Georgia, serif;
+}
+
+/*
+ * ⚠️ /products HAS TWO FACES OF ITS OWN — PF-03, 2026-09-11. Not the other pages, and not a change
+ * to the shared faces above.
+ *
+ * The faces above are sized from average advance widths, which suits running text and cannot suit
+ * every short headline. For two of the three hero headlines that is harmless: measured in Chromium,
+ * WebKit and Firefox at 390, 1350, 1440 and 1680px, "Made to order. Made properly." and
+ * "Let’s talk production." break at the same words in these faces as in the real fonts.
+ * "Every garment, turnable." does not. In the real fonts it is only 8px wider than its 1052px column
+ * (1060px in Chromium and WebKit), and these faces set it 1.7% narrower, so it fits on one line until
+ * Archivo arrives and pushes "turnable." onto a second. The live page scored CLS 0.404 at 1350px, and
+ * 0.212 at 390px, where the same thing happens one line further down.
+ *
+ * The values are that headline's own, printed by `apps/cms/scripts/calibrate-fallback.mjs`: the
+ * minimax, across engines and widths, of each run's ideal `size-adjust` — 129.77–130.56% for
+ * "Every garment, " (its trailing space included, because the page draws that space in this face)
+ * and 81.93–81.95% for "turnable.". The overrides are re-derived from the baselines above, as for
+ * every face in this file: 68.47 × 128.24 / 130.15 = 67.46 and 16.38 × 128.24 / 130.15 = 16.14;
+ * 124.49 × 79.52 / 81.94 = 120.82 and 38.98 × 79.52 / 81.94 = 37.83.
+ *
+ * The shared faces were NOT moved to fit this headline instead. Section headings, product names and
+ * the wordmark use them too, and the 2026-09-08 attempt — one value for all three headlines, 129.24%
+ * and 80.32% — still left this one on the wrong number of lines at 1350 and 1440px in Chromium and
+ * WebKit when it was measured on 2026-09-11.
+ *
+ * Scoped through the stacks' custom properties, never a `font-family` declaration, so `.display` and
+ * `.serif-accent` resolve it on this element whatever order the stylesheets load in.
+ * `src/fallbackMetrics.test.ts` checks the arithmetic, that both faces are reachable, and that the
+ * headline is still the string they were sized for; `e2e/fontSwap.spec.ts` checks the result.
+ */
+@font-face {
+  font-family: "Archivo Display Fallback Products";
+  src:
+    local("Arial Bold"), local("Helvetica Neue Bold"), local("Liberation Sans Bold"), local("Arial");
+  font-weight: 700 900;
+  size-adjust: 130.15%;
+  ascent-override: 67.46%;
+  descent-override: 16.14%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Instrument Serif Fallback Products";
+  src: local("Georgia Italic"), local("Georgia");
+  font-style: italic;
+  size-adjust: 81.94%;
+  ascent-override: 120.82%;
+  descent-override: 37.83%;
+  line-gap-override: 0%;
+}
+
+/*
+ * The Linux twin of the face above — see "A MACHINE WITH NO ARIAL AND NO GEORGIA". 92.34% is the
+ * minimax of "turnable."'s ideal `size-adjust` in Chromium and Firefox inside CI's Playwright image
+ * (`calibrate-fallback.mjs --linux`, 2026-09-11: 92.50–92.93%, worst error 0.66%, most of it
+ * Chromium drawing `local()` faces in whole pixels there). The display face needs no twin: its
+ * Liberation Sans Bold source is within 0.9% of that headline's Linux ideal at 130.15%.
+ * Overrides: 124.49 × 79.52 / 92.34 = 107.21 and 38.98 × 79.52 / 92.34 = 33.57.
+ */
+@font-face {
+  font-family: "Instrument Serif Fallback Products Liberation";
+  src: local("Liberation Serif Italic"), local("Liberation Serif");
+  font-style: italic;
+  size-adjust: 92.34%;
+  ascent-override: 107.21%;
+  descent-override: 33.57%;
+  line-gap-override: 0%;
+}
+
+.hero-products {
+  --font-display:
+    "Archivo Variable", "Archivo", "Archivo Display Fallback Products", system-ui, sans-serif;
+  --font-serif:
+    "Instrument Serif", "Instrument Serif Fallback Products",
+    "Instrument Serif Fallback Products Liberation", Georgia, serif;
 }
 
 /* ------------------------------------------------ widows and measure (FA-C-53) */
 
 /*
- * ⚠️ `p, li` ONLY — NEVER `.display`. Every page ended sections on a one-word last line.
- * `text-wrap: pretty` asks the browser to avoid that, at a small layout cost it only pays
- * on the last few lines of a block.
+ * `pretty` on prose here; headlines take `balance` in packages/ui/src/base.css `.display`.
+ * Every page ended sections on a one-word last line. `text-wrap: pretty` asks the browser to
+ * avoid that, at a small layout cost it only pays on the last few lines of a block.
  *
- * It is kept off the headlines deliberately. `.display` carries `overflow-wrap: anywhere`
- * from a MEASURED WCAG 1.4.10 fix — 320px viewport, clientWidth 320 against scrollWidth
- * 352, i.e. 32px of two-dimensional scrolling — and the interaction between the two
- * properties is untested. A stage-height budget in this repo has come out wrong four
- * times by arithmetic and a fifth from an unaccounted transform; this is not the place to
- * find out about a sixth.
+ * ⚠️ THIS SAID "NEVER `.display`" UNTIL 2026-09-11, and the reason was sound when written:
+ * `.display` carries `overflow-wrap: anywhere` from a MEASURED WCAG 1.4.10 fix (320px
+ * viewport, 32px of sideways scrolling) and the interaction between the two properties was
+ * untested. It is tested now — the 320px reflow gates on both surfaces, and
+ * `e2e/composition.spec.ts` → TY-12 / TY-13, which measures stranded last words instead of
+ * reading the declaration. Headlines take `balance`, not `pretty`: `pretty` only weighs the
+ * last lines, and a two- or three-line headline is all last lines.
  */
 p,
 li {
@@ -313,6 +429,31 @@ html {
   position: absolute;
   inset: 0;
   z-index: var(--z-hero-grid);
+}
+
+/*
+ * ⚠️ BELOW 355px THE HERO HEADLINE SHRINKS WITH THE WINDOW — owner decision 2026-09-11.
+ *
+ * `.display--hero` is `clamp(2.125rem, 5.4vw, 4.5rem)` (packages/ui/src/base.css), so on the
+ * narrowest phones it sits at its 34px floor while the column keeps narrowing. Measured
+ * 2026-09-11 in Chromium, WebKit and Firefox: "production." is 302.8px wide at 34px, the /contact
+ * column is 280px at 320px and 300px at 340px, and `.display`'s `overflow-wrap: anywhere` — the
+ * reflow fix that stops the page scrolling sideways — broke it as "PRODUCTIO / N.". The owner was
+ * shown both and chose a slightly smaller headline over a split word. A hyphen was measured as
+ * well: no engine hyphenated that word, and two of them began splitting others.
+ *
+ * `min(2.125rem, 9.6vw)`: 9.6vw is the largest size-to-window ratio at which every word of the
+ * home, products and contact headlines fits, across the three engines at 320–390px on macOS AND in
+ * CI's Linux container, rounded down — 30.72px at 320px, 32.64px at 340px, and the unchanged 34px
+ * from 355px up. ⚠️ 9.8vw, measured on macOS first, split the word in CI: Linux Chromium draws
+ * "production." 280.38px wide at 31.36px against the 280px column, where macOS drew 278.6px
+ * (measured in the CI image, 2026-09-11). Site-only, because the viewer's product title shares
+ * `.display--hero` and was not part of the decision.
+ * `e2e/composition.spec.ts` ("no heading splits a word") fails if any heading on the site splits
+ * a word again.
+ */
+.site-hero .display--hero {
+  font-size: clamp(min(2.125rem, 9.6vw), 5.4vw, 4.5rem);
 }
 
 .site-lede {
@@ -571,7 +712,9 @@ html {
   flex-shrink: 0;
   padding-inline: 10px;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  /* 12px, not 10 (audit TY-07): PRODUCTS and CONTACT are how a visitor gets anywhere,
+     so they are not chips. The 10px chip size stays on labels and section numbers. */
+  font-size: var(--text-mono-lg);
   text-transform: uppercase;
   letter-spacing: var(--tracking-caps-snug);
   text-decoration: none;
@@ -688,6 +831,11 @@ html {
  * grows. So the links are simply always present, the whole disclosure is deleted, and
  * this component needs no browser JavaScript at all.
  *
+ * (Those figures are for 10px links. At 12px — audit TY-07, 2026-09-11 — the name stopped fitting
+ * below 334px and the bar needed the tighter spacing below 360px; see the TEMPORARY block after the
+ * small-screen rules. The owner has asked for a phone menu as the lasting answer, because more
+ * pages are coming — so the finding above has to be re-solved, not reverted.)
+ *
  * ⚠️ If a third link or a longer wordmark is ever added, RE-MEASURE that fit before
  * assuming it still holds. `flex-wrap` below is the safety net, not a licence.
  */
@@ -738,6 +886,35 @@ html {
 }
 
 /*
+ * ⚠️ TEMPORARY, UNTIL THE PHONE MENU — owner decision 2026-09-11.
+ *
+ * PR 2 raised `.nav-link` to 12px (audit TY-07), and the bar's measured fit moved with it: the name
+ * needs 115px, and below 334px (337px in WebKit) the links left it less — 101px at 320px, where it
+ * showed as "RUN APPA…". On the narrowest phones the links lose their side padding and the gap
+ * between them grows from 4px to 6px, which buys back 22px: the name then fits from 312px (315px in
+ * WebKit), each link stays wider than the 44px touch floor at the width of its own word, and from
+ * 360px up nothing changes, because the normal spacing already fits there.
+ *
+ * Why these numbers and no others:
+ *  - NOT `.notch`'s `padding-inline`, because the scroll response below animates it to 12px — a
+ *    narrower resting value would widen the bar again as the page scrolls.
+ *  - `0` and `6px`, not 2px, because apps/viewer/src/styles/tokens.test.ts allows only the
+ *    documented spacing steps, and a temporary block is no reason to add a step.
+ *
+ * The owner chose a menu button for phones as the lasting fix, because more pages are coming, and
+ * asked for it as its own update. That update replaces this block and the second-row rule below.
+ */
+@media (max-width: 359.98px) {
+  .notch__nav {
+    gap: 6px;
+  }
+
+  .nav-link {
+    padding-inline: 0;
+  }
+}
+
+/*
  * ------------------------------- the bar at large browser text (audit FA-E-03)
  *
  * ⚠️ THE COMPANY'S NAME WAS BEING CUT OFF ON THE COMMONEST PHONE WIDTHS. Measured
@@ -776,19 +953,30 @@ html {
  * Chrome's `Page.setFontSizes` and Firefox's `font.size.variable.x-western` moved both.
  * A test that fakes the setting with a stylesheet exercises none of this.
  *
- * ⚠️ THE THRESHOLD IS FITTED TO A MEASURED SWEEP, NOT GUESSED. Binary-searching the
- * narrowest viewport that fits, per root size: 313px at 16, 368 at 20, 422 at 24, 531 at
- * 32, 640 at 40 — i.e. `95px + 13.625rem` below 720px, where the tighter gap and padding
- * apply, and `131px + 13.625rem` above it. The two clauses below round those up, so the
- * bar wraps slightly before it would have to and NEVER after; the widest over-trigger is
- * 36px. At 100% text the first clause resolves to 319.2px, BELOW the 320px WCAG reflow
- * width, so nothing on any real device changes at the default text size.
+ * ⚠️ THE THRESHOLD IS FITTED TO A MEASURED SWEEP, NOT GUESSED — AND WAS RE-FITTED ON 2026-09-11,
+ * WHEN THE LINKS WENT FROM 10px TO 12px (audit TY-07). Binary-searching, one fresh page per width
+ * with this rule switched off, the narrowest viewport at which the name fits on one row, per root
+ * size, in Chromium:
+ *
+ *   root size          16    20    24    32    40    44    48    56
+ *   below 360px       312   371   431   550   669                   (the temporary spacing above)
+ *   360–720px         334   393   453   572   691
+ *   720px and up                                   787   845   965
+ *
+ * i.e. `73.7px + 14.884rem`, `95.7px + 14.884rem` and `132.7px + 14.857rem`, every point within
+ * 0.6px of its line. WebKit needs 3px more at the default size (315 and 337); Firefox matches
+ * Chromium. The three clauses below round those up, so the bar wraps slightly before it would have
+ * to and NEVER after; the widest over-trigger is under 8px. At 100% text the first clause resolves
+ * to 318.4px, BELOW the 320px WCAG reflow width, and the second to 339.4px, below its own 360px
+ * floor, so nothing on any real device wraps at the default text size. (The 2026-09-07 fit, with
+ * 10px links: 313px at 16 and `95px + 13.625rem`.)
  *
  * `calc()` in a media feature was verified in Chromium, Firefox AND WebKit before this
- * was written, and `apps/cms/e2e/navbar.spec.ts` re-measures the outcome — clipping and
+ * was written, and `apps/cms/e2e/textSize.spec.ts` re-measures the outcome — clipping and
  * hero clearance — across the whole sweep rather than trusting this arithmetic.
  */
-@media (max-width: calc(100px + 13.7rem)), (min-width: 720px) and (max-width: calc(136px + 13.7rem)) {
+@media (max-width: calc(80px + 14.9rem)), (min-width: 360px) and (max-width: calc(101px + 14.9rem)),
+  (min-width: 720px) and (max-width: calc(138px + 14.9rem)) {
   :root {
     --notch-lines: 2;
   }
@@ -1044,7 +1232,13 @@ html {
 
 @media (max-width: 720px) {
   .footer-cta {
-    grid-template-columns: 1fr;
+    /*
+     * `minmax(0, 1fr)`, NOT `1fr` (audit TY-11). A bare `1fr` keeps an AUTOMATIC minimum, so
+     * the nowrap promise line below could stretch the whole column past the slab — and the
+     * slab is `overflow: hidden`, so at 200% browser text every paragraph in the column was
+     * clipped mid-word instead of wrapping. The two-column rule above already had this right.
+     */
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .footer-side {
@@ -1120,6 +1314,19 @@ html {
 
 .footer-dim::after {
   inset-inline-end: 0;
+}
+
+/*
+ * One column below 720px, so the promise may wrap when it genuinely cannot fit — at 200% text on a
+ * phone (audit TY-11). At normal sizes it still fits on one row, so its ticks stay on the ends of
+ * its own text (footer.spec.ts). After the rules above rather than inside the 720px block with the
+ * rest of the CTA's narrow layout, so a more specific selector never precedes a less specific one
+ * (Biome's noDescendingSpecificity); `.footer-cta` keeps it to the promise line.
+ */
+@media (max-width: 720px) {
+  .footer-cta .footer-dim {
+    white-space: normal;
+  }
 }
 
 /* ── the clock, corner-bracketed ───────────────────────────────────────── */
@@ -1349,6 +1556,10 @@ html {
 .footer-legal .nav-link {
   /* keeps the shared 44px min-height — the first build zeroed it and failed the floor */
   padding-inline: 0;
+  /* …and a 44px WIDTH floor too (audit SZ-03): "Terms" measured 34px wide at 390px, a
+     comfortable height on a target a thumb could still miss. `inline-flex` keeps the word
+     where it was; the extra width sits after it. */
+  min-width: var(--target-min);
   --notch-muted: var(--footer-muted);
   --notch-text: var(--footer-text);
 }
@@ -2139,7 +2350,12 @@ a.contact-block__value:active {
 
 .filter-chip__count {
   font-size: var(--text-mono-sm);
-  opacity: 0.7;
+  /*
+   * ⚠️ NO `opacity`. It was 0.7 over `--muted`, measured 2.85:1 in light mode and 3.98:1
+   * in dark (audit CO-01, CO-04): the only text on the site under the 4.5:1 AA floor. The
+   * count is already quieter than its label by size, so dimming it as well made it
+   * unreadable rather than secondary.
+   */
 }
 
 /*
@@ -2400,7 +2616,9 @@ a.contact-block__value:active {
   font-size: var(--text-body);
   color: var(--text);
   background: var(--surface);
-  border: 1px solid var(--line);
+  /* --line-control, not --line: a field's edge is what identifies it, so it needs 3:1
+     (WCAG 1.4.11; tokens.css, audit CO-02). It measured 1.43:1 light / 1.68:1 dark. */
+  border: 1px solid var(--line-control);
   border-radius: var(--radius-button);
   transition:
     border-color var(--ui) var(--ease),

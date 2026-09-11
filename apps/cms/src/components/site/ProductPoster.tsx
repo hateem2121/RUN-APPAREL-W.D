@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { type PosterLoading, posterLoading } from '../../lib/posterLoading'
 
 /**
  * A gallery poster that degrades to the designed placeholder when it fails to load.
@@ -28,7 +29,18 @@ import { useEffect, useRef, useState } from 'react'
  * the page — the concern that made SiteHeader take a wordmark rather than the settings
  * global does not arise here.
  */
-export function ProductPoster({ src, alt }: { src: string; alt: string }) {
+export function ProductPoster({
+  src,
+  alt,
+  index,
+}: {
+  src: string
+  alt: string
+  /** The card's position in the gallery. Omitted means off the first screen: lazy. */
+  index?: number
+}) {
+  const { loading, fetchPriority } =
+    index === undefined ? ({ loading: 'lazy' } as PosterLoading) : posterLoading(index)
   const [failed, setFailed] = useState(false)
   const ref = useRef<HTMLImageElement>(null)
 
@@ -63,7 +75,7 @@ export function ProductPoster({ src, alt }: { src: string; alt: string }) {
     /*
      * A plain <img>, not next/image. apps/cms runs on Workers without `sharp`, so the
      * optimiser cannot resize anything — next/image would add a proxy hop and ship the
-     * identical bytes. `lazy` + `async` keeps posters off the critical path; the
+     * identical bytes. `posterLoading()` keeps all but the first row off the critical path; the
      * aspect-ratio box on the figure means no layout shift while they arrive.
      *
      * ⚠️ NO `srcset`, AND THE AUDIT'S "one poster size for every screen" (FA-J-51) IS
@@ -90,7 +102,8 @@ export function ProductPoster({ src, alt }: { src: string; alt: string }) {
       ref={ref}
       src={src}
       alt={alt}
-      loading="lazy"
+      loading={loading}
+      fetchPriority={fetchPriority}
       decoding="async"
       width={1200}
       height={1500}

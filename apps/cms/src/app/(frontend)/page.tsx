@@ -91,7 +91,7 @@ export default async function HomePage() {
             [ PRIVATE LABEL MANUFACTURER · SIALKOT, PK · FAMILY TRADE SINCE 1889 ]
           </p>
           <h1 className="display display--hero">
-            Made to order. <span className="serif-accent">Made properly.</span>
+            Made to order. <span className="serif-accent">Made&nbsp;properly.</span>
           </h1>
           <p className="site-lede">
             RUN APPAREL is a private label manufacturer in Sialkot — team wear, active wear, casual
@@ -130,7 +130,7 @@ export default async function HomePage() {
         there, and `003` implies a scale that does not exist.
       */}
           <p className="section-number">№01 — What we make</p>
-          <h2 className="display display--section">Five families, one standard.</h2>
+          <h2 className="display display--section">Five families, one&nbsp;standard.</h2>
           <p className="site-lede">
             One standard means one factory, one set of hands and one set of tolerances — every
             family below is cut, stitched and finished on the same floor, to the same specification,
@@ -167,7 +167,7 @@ export default async function HomePage() {
           <div className="proof__copy">
             <p className="section-number">№02 — See it before it exists</p>
             <h2 className="display display--section">
-              Every reference, <span className="serif-accent">in 3D.</span>
+              Every reference, <span className="serif-accent">in&nbsp;3D.</span>
             </h2>
             <p className="site-lede">
               Each garment we develop gets a 3D reference you can turn, inspect and share — the same
@@ -193,7 +193,7 @@ export default async function HomePage() {
         <div className="site-container">
           <p className="section-number">№03 — The works</p>
           <h2 className="display display--section">
-            Numbers you can <span className="serif-accent">hold us to.</span>
+            Numbers you can <span className="serif-accent">hold us&nbsp;to.</span>
           </h2>
           <p className="site-lede">
             Confirmed capacity, not marketing. If any of these matters to your program, ask and we
@@ -223,7 +223,7 @@ export default async function HomePage() {
       <section className="site-section" data-site-reveal>
         <div className="site-container">
           <p className="section-number">№04 — Talk to us</p>
-          <h2 className="display display--section">Tell us what you&rsquo;re making.</h2>
+          <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
           <p className="site-lede">
             Send the styles, quantities and specs you have — a sketch is enough to start. We reply
             within 2 business days.

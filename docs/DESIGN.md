@@ -75,7 +75,14 @@ decoration, and must stay near-invisible.
 |---|---|---|
 | `--grid` | 0.05 | `.blueprint` 26 px graph-paper grid |
 | `--contour` | 0.07 | Contour line-work |
-| `--line` | 0.18 | Panel and ghost-button borders |
+| `--line` | 0.18 | Panel borders and dividers |
+
+**`--line-control` is not a motif ink, and it is deliberately not near-invisible.** At 0.55
+alpha it is the edge that identifies a control — the outline button and the form fields —
+and WCAG 1.4.11 asks 3:1 for exactly that. `--line` measured 1.43:1 light / 1.68:1 dark
+there (audit CO-02, 2026-09-11). 0.55 is the value both `prefers-contrast: more` blocks
+already raise `--line` to, so the system gained a role, not a new number: 3.48–3.77:1 light
+and 4.10–5.13:1 dark across `--bg`, `--surface`, `--wash` and `--raised`.
 
 `--glow` and `--grain-color` are **dark-mode-only garnish and resolve to
 `transparent` in light**, which is how `.grain` is suppressed without a second
@@ -133,6 +140,29 @@ measured CLS 0.000 and does not have the problem, and `tokens.css` / `base.css` 
 its stylesheet budget. The site overrides the three tokens in its own sheet rather than
 changing the shared ones.
 
+**One headline has faces of its own (PF-03, 2026-09-11).** "Every garment, turnable." on
+`/products` is only 8px wider than its 1052px column in the real fonts, so the shared faces'
+1.7% shortfall set it on one line until Archivo arrived, and everything under it dropped: CLS
+**0.404** at 1350px on the live page. `/products` now uses `Archivo Display Fallback Products`
+(130.15%) and `Instrument Serif Fallback Products` (81.94%), that headline's own values from
+`apps/cms/scripts/calibrate-fallback.mjs`, switched on by the `.hero-products` class through the
+stacks' custom properties. The shared faces are unchanged: the other two hero headlines measure
+correct in them, and every other piece of display text uses them too.
+`apps/cms/e2e/fontSwap.spec.ts` blocks and delivers the webfonts at four widths in three engines
+and fails on any hero headline that breaks differently; `apps/cms/src/fallbackMetrics.test.ts`
+fails when a headline is reworded without re-running the script.
+
+**Machines with no Arial and no Georgia get Liberation (2026-09-11).** A Linux desktop, and CI's
+Playwright image, has neither, so every face above errored there and PR #10's font tests failed
+in CI while passing on a Mac. Liberation Sans has Arial's advance widths exactly (computed from
+both files), so it is one more `local()` source in the sans faces at their values. Liberation
+Serif is shaped like Times, not Georgia, so the serif has two more faces:
+`Instrument Serif Fallback Liberation` (89.40%, the Georgia face's value carried over by the
+ratio of the two fonts' average widths) and `Instrument Serif Fallback Products Liberation`
+(92.34%, `calibrate-fallback.mjs --linux` inside that image). Each lists the full font name and
+then the family name, because Chromium and Firefox match only the first and WebKit only the
+second. Android has neither family and still uses its own system font.
+
 **Archivo is imported from its `wdth` build** (`@fontsource-variable/archivo/wdth.css`),
 which carries both the weight axis (100–900) and the width axis (62–125%). The
 display style needs `font-stretch: 122%`, so the plain weight-only build will not
@@ -142,10 +172,19 @@ do — swapping the import silently flattens every headline back to normal width
 
 ```
 .display          Archivo · weight 860 · font-stretch 122% · UPPERCASE
-                  line-height 0.92 · colour --headline
+                  line-height 0.92 · colour --headline · text-wrap balance
 .display--hero    clamp(34px, 5.4vw, 72px) · --tracking-display-lg
 .display--section clamp(26px, 4vw, 46px)  · --tracking-display-sm
 ```
+
+**The marketing site lowers the hero floor on the narrowest phones (owner decision
+2026-09-11).** Its `.site-hero .display--hero` is `clamp(min(34px, 9.6vw), 5.4vw, 72px)`:
+30.72px at 320px, 32.64px at 340px, and unchanged from 355px up. (9.6, not the 9.8 first
+measured on macOS: CI's Linux Chromium draws "production." 280.38px wide at 31.36px, and it
+split there.) At the 34px floor "PRODUCTION." is
+302.8px wide and the `/contact` column 280px, so `overflow-wrap: anywhere` split it as
+"PRODUCTIO / N." in all three engines. The viewer's product title keeps the shared clamp.
+`apps/cms/e2e/composition.spec.ts` fails if any heading on the site splits a word.
 
 **Tracking follows the optical size — changed 2026-08-15 by owner decision.**
 
@@ -234,7 +273,7 @@ enforced globally in `base.css`, not per-component.
 | `--text-wordmark` | 1.125rem | 18px — `.header__wordmark`, wide |
 | `--text-wordmark-sm` | 1rem | 16px — `.header__wordmark` compact, `.footer__brand`, the marketing site's `.notch__wordmark` |
 | `--text-note` | 0.875rem | 14px — `.stage__error`, `.notice`, `.contact__micro` |
-| `--text-mono-lg` | 0.75rem | 12px — tracked caps one step above `--text-mono` |
+| `--text-mono-lg` | 0.75rem | 12px — tracked caps one step above `--text-mono`; since 2026-09-11 also `.btn` and the site's `.nav-link` (audit TY-07) |
 | `--text-card-title` | 1.125rem | 18px — the marketing site's `.product-card__name`; the wordmark's size in a different role |
 | `--text-footer-mark` | 12vw | first paint only — the site's cropped footer wordmark, refitted to the slab's width by `FooterWordmark.tsx` once fonts load |
 
@@ -340,13 +379,18 @@ it ships no CSS and leaves this system intact.
 code with a phone, so it is the common case rather than the edge case.
 
 ```
-.btn           mono 11px UPPERCASE · tracking 0.1em · padding 14/22px
+.btn           mono 12px (--text-mono-lg) UPPERCASE · tracking 0.1em · padding 14/22px
                radius --radius-button (10px) · min-height 44px
 .btn--primary  --btn-primary-bg fill, 1.4px border of the same
                hover: translateY(-2px)
-.btn--ghost    transparent, 1.4px --line border
+.btn--ghost    transparent, 1.4px --line-control border (3:1, see §1)
                hover: INVERTS to --text bg with --bg text
 ```
+
+**12px since 2026-09-11 (audit TY-07).** A button's words, and the site's PRODUCTS and
+CONTACT links, are how a visitor gets anywhere, so they moved one step up the scale to
+`--text-mono-lg`. The mono labels, chips and section numbers keep their 10–11px register —
+that scale is this system's own and was not the finding.
 
 ### Panels
 

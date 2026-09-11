@@ -50,7 +50,7 @@ export default async function PrivacyPage() {
         <div className="site-container">
           <p className="label">[ PRIVACY ]</p>
           <h1 className="display display--hero">
-            We store nothing <span className="serif-accent">on your device.</span>
+            We store nothing <span className="serif-accent">on your&nbsp;device.</span>
           </h1>
           <p className="site-lede">
             No cookies, no local storage, no tracking identifiers — on this site or on our 3D
