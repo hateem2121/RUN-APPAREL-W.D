@@ -370,22 +370,37 @@ test.describe('FA-R-09 / FA-H-12 — the footer tab reserves its arrow and never
  */
 test.describe('FA-A-04 — a real garment on the home page', () => {
   /**
-   * ⚠️ THE CATALOGUE CAN BE EMPTY, AND ON CI IT ALWAYS IS. `ProofGarment` renders the
-   * first published product that has a publicly-fetchable poster, and NOTHING when there
-   * is none — deliberately, because an empty band is honest and a broken image on the
-   * home page is not. CI has no seeded database (`no such table: products` in the server
-   * log), so `getProductCards()` returns `[]` and the block is correctly absent.
+   * ⚠️ THE CATALOGUE CAN BE EMPTY. `ProofGarment` renders the first published product that
+   * has a publicly-fetchable poster, and NOTHING when there is none — deliberately, because
+   * an empty band is honest and a broken image on the home page is not.
    *
-   * These five tests asserted it was present and failed all five on the runner while
-   * passing on every local machine, which has a seeded D1. Reproduced here by moving
-   * `apps/cms/.wrangler` aside: 5 failed, the same signatures.
+   * ⚠️ CORRECTED 2026-09-11: this said the catalogue is empty "on CI, always". That was true
+   * when written (`no such table: products` in the server log) and stopped being true when
+   * ci.yml gained "Seed the database the public-site suite reads" (`pnpm seed:cms`, one
+   * published garment, N001). Left standing, the note made a silent skip on CI look
+   * expected — so on CI the populated branch is now REQUIRED (`skipUnlessProof`), and only
+   * a local database with no garment may skip it.
    *
-   * So the empty case is ASSERTED rather than skipped past — the designed absence is a
-   * real state with a real requirement (nothing rendered, no empty box, no broken image)
-   * — and the geometry tests below skip with a reason that names why.
+   * These five tests once asserted presence and failed all five on the runner while
+   * passing on every local machine with a seeded D1. Reproduced by moving
+   * `apps/cms/.wrangler` aside: 5 failed, the same signatures. The empty case is ASSERTED
+   * rather than skipped past — the designed absence is a real state with a real
+   * requirement (nothing rendered, no empty box, no broken image).
    */
   const hasProof = async (page: import('@playwright/test').Page) =>
     (await page.locator('.proof__figure').count()) > 0
+
+  const skipUnlessProof = async (page: import('@playwright/test').Page) => {
+    const present = await hasProof(page)
+    if (!present && process.env.CI) {
+      throw new Error(
+        'CI seeds a published garment with posters (ci.yml → "Seed the database the ' +
+          'public-site suite reads"), so the proof garment must render here and it did ' +
+          'not. Skipping would hide exactly the regression these tests exist for.',
+      )
+    }
+    test.skip(!present, 'no published garment with a poster in this database')
+  }
 
   test('the empty catalogue renders NOTHING, not an empty box', async ({ page }) => {
     await page.goto('/')
@@ -403,7 +418,7 @@ test.describe('FA-A-04 — a real garment on the home page', () => {
 
   test('the picture is there, and it opens the 3D reference', async ({ page }) => {
     await page.goto('/')
-    test.skip(!(await hasProof(page)), 'no published garment with a poster in this database')
+    await skipUnlessProof(page)
     const figure = page.locator('.proof__figure')
     await expect(figure).toHaveCount(1)
 
@@ -431,7 +446,7 @@ test.describe('FA-A-04 — a real garment on the home page', () => {
    */
   test('the frame reserves a 4:5 box whether or not the poster loads', async ({ page }) => {
     await page.goto('/')
-    test.skip(!(await hasProof(page)), 'no published garment with a poster in this database')
+    await skipUnlessProof(page)
     const box = await page.locator('.proof__frame').boundingBox()
     if (!box) throw new Error('the proof frame has no box at all')
     expect(box.width).toBeGreaterThan(100)
@@ -449,7 +464,7 @@ test.describe('FA-A-04 — a real garment on the home page', () => {
   test('the picture fills its column, with no inherited figure margin', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/')
-    test.skip(!(await hasProof(page)), 'no published garment with a poster in this database')
+    await skipUnlessProof(page)
     const measured = await page.evaluate(() => {
       const figure = document.querySelector('.proof__figure') as HTMLElement | null
       const grid = document.querySelector('.proof') as HTMLElement | null
@@ -471,7 +486,7 @@ test.describe('FA-A-04 — a real garment on the home page', () => {
   }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await page.goto('/')
-    test.skip(!(await hasProof(page)), 'no published garment with a poster in this database')
+    await skipUnlessProof(page)
     const copy = await page.locator('.proof__copy').boundingBox()
     const frame = await page.locator('.proof__frame').boundingBox()
     if (!copy || !frame) throw new Error('the proof block did not lay out')
@@ -495,7 +510,7 @@ test.describe('FA-A-04 — a real garment on the home page', () => {
   }) => {
     await page.route('**/*poster*', (route) => route.fulfill({ status: 404, body: '' }))
     await page.goto('/')
-    test.skip(!(await hasProof(page)), 'no published garment with a poster in this database')
+    await skipUnlessProof(page)
     const frame = page.locator('.proof__frame')
     await expect(frame).toBeVisible()
 
