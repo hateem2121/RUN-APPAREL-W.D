@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -81,20 +81,35 @@ describe('wrangler config invariants', () => {
 })
 
 /**
- * The apex PDF caching fix spans a config file and a source file, and neither half
+ * The apex caching fix spans a config file and the Worker's source, and neither half
  * works alone. Nothing else connects them.
  *
- *   wrangler.jsonc  must enable Workers Caching, at a compatibility_date >= 2026-07-06
- *   index.js        must return a full 200, never its own 206
+ *   wrangler.jsonc   must enable Workers Caching, at a compatibility_date >= 2026-07-06
+ *   infra/apex-404   must return a whole 200 and never its own 206
  *
- * Cloudflare does not store a 206 produced by a Worker, so leaving the range handling
- * in place makes `cache.enabled` do nothing at all — silently, with no error and no
- * header. That is precisely the state the two PDFs were in until 2026-08-30: served
- * with no `cf-cache-status` whatsoever, ~1.0-1.8 s to first byte, never improving.
+ * Cloudflare does not store a 206 produced by a Worker, so range handling in the Worker
+ * makes `cache.enabled` do nothing — silently. That is the state both PDFs were in until
+ * 2026-08-30: no `cf-cache-status` at all, ~1.0-1.8 s to first byte.
+ *
+ * ⚠️ EVERY FILE, NOT JUST index.js (2026-09-11). The Worker became five modules for the
+ * private document links; a 206 or a forwarded Range in any of them breaks the cache the
+ * same way, and a check reading only index.js would pass.
  */
 describe('apex Workers Caching', () => {
   const config = read('infra/apex-404/wrangler.jsonc')
-  const source = read('infra/apex-404/index.js')
+  const sources = readdirSync(join(REPO_ROOT, 'infra', 'apex-404'))
+    .filter((file) => file.endsWith('.js'))
+    .map((file) => ({ file, text: read(`infra/apex-404/${file}`) }))
+
+  it('reads every Worker module, not just one', () => {
+    expect(sources.map((s) => s.file).sort()).toEqual([
+      'codes.js',
+      'documents.js',
+      'index.js',
+      'manifest.js',
+      'page.js',
+    ])
+  })
 
   it('enables Workers Caching', () => {
     expect(settings(config)).toMatch(/"cache":\s*\{\s*"enabled":\s*true/)
@@ -103,22 +118,22 @@ describe('apex Workers Caching', () => {
   it('sits at or above the compatibility_date the feature requires', () => {
     const date = settings(config).match(/"compatibility_date":\s*"(\d{4}-\d{2}-\d{2})"/)?.[1]
     expect(date, 'no compatibility_date found').toBeDefined()
-    // Workers Caching requires >= 2026-07-06. String compare is safe on ISO dates.
     expect(String(date) >= '2026-07-06').toBe(true)
   })
 
-  it('does NOT return its own 206 — that would make the cache inert', () => {
-    expect(
-      source,
-      'The apex Worker builds a 206 again. Cloudflare will not store it, so ' +
-        '`cache.enabled` becomes a no-op and both PDFs go back to being re-read from ' +
-        'R2 on every request — with no error anywhere to say so.',
-    ).not.toMatch(/status:\s*206|status\s*=\s*206/)
-    expect(source).not.toContain('content-range')
+  it('no module returns its own 206 — that would make the cache inert', () => {
+    for (const { file, text } of sources) {
+      expect(text, `${file} builds a 206; Cloudflare will not store it`).not.toMatch(
+        /status:\s*206|status\s*=\s*206/,
+      )
+      expect(text, file).not.toContain('content-range')
+    }
   })
 
-  it('does not forward the client Range to R2 — the edge slices', () => {
-    expect(source).not.toMatch(/range:\s*request\.headers/)
+  it('no module forwards the client Range to R2 — the edge slices', () => {
+    for (const { file, text } of sources) {
+      expect(text, file).not.toMatch(/range:\s*request\.headers/)
+    }
   })
 })
 
@@ -145,13 +160,25 @@ describe('the apex route split (2026-09-06)', () => {
     expect(cms).toMatch(/"pattern":\s*"www\.wear-run\.help\/\*",\s*"zone_name":\s*"wear-run\.help"/)
   })
 
-  it('the PDF Worker holds exactly the four PDF routes and no wildcard', () => {
+  /**
+   * 2026-09-11: the PDFs moved to their own hostnames behind a code. The four apex
+   * routes stay ONLY so the old addresses answer "no longer active" (410) instead of
+   * the site's 404. ⚠️ The two custom domains must be created by the same deploy that
+   * ships the new code: attached to the old code, `catalogue.wear-run.help/catalogue`
+   * would have served the PDF.
+   */
+  it('the PDF Worker holds the two private hosts and the four retired paths, and no wildcard', () => {
     expect(patterns(apex)).toEqual([
+      'catalogue.wear-run.help',
+      'profile.wear-run.help',
       'wear-run.help/catalogue*',
       'wear-run.help/profile*',
       'www.wear-run.help/catalogue*',
       'www.wear-run.help/profile*',
     ])
+    expect(apex).toMatch(/"pattern":\s*"catalogue\.wear-run\.help",\s*"custom_domain":\s*true/)
+    expect(apex).toMatch(/"pattern":\s*"profile\.wear-run\.help",\s*"custom_domain":\s*true/)
+    expect(patterns(apex).some((p) => p?.endsWith('/*'))).toBe(false)
   })
 
   it('the pattern reader can actually fail (negative control)', () => {
