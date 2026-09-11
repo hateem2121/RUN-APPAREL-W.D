@@ -40,10 +40,21 @@ test.describe('the branded 404', () => {
      * ⚠️ THE EMAIL IN FULL, NOT ONLY BEHIND A BUTTON — and it comes from the shared
      * defaults rather than from D1. This page reads no database on purpose: a 404 is
      * disproportionately likely to be reached during exactly the failure that would make
-     * that read fail, and its whole job is to work when something else has not. There is
-     * no `.site-footer` here for the same reason.
+     * that read fail, and its whole job is to work when something else has not.
      */
     await expect(page.locator('main a[href^="mailto:"]')).toBeVisible()
+
+    /*
+     * ⚠️ AND THE SITE'S FOOTER SINCE 2026-09-11, which this comment used to say was absent
+     * "for the same reason". It no longer needs D1: it renders from `FALLBACK_SITE_SETTINGS`,
+     * the object `getSiteSettings()` returns during an outage (audit LA-05 — a broken link
+     * offered no address, no privacy notice and no terms).
+     */
+    const footer = page.locator('footer.site-footer')
+    await expect(footer).toHaveCount(1)
+    await expect(footer.locator('a[href="/privacy"]')).toHaveCount(1)
+    await expect(footer.locator('a[href="/terms"]')).toHaveCount(1)
+    await expect(footer.locator('a[href^="mailto:"]').first()).toBeVisible()
   })
 
   /**
@@ -68,6 +79,9 @@ test.describe('the branded 404', () => {
       await expect(page.locator('h1')).toContainText(/isn.t here/i)
       await expect(page.locator('main a[href="/products"]')).toBeVisible()
       await expect(page.locator('main a[href="/contact"]')).toBeVisible()
+      // The footer's routes out are HTML too, not something hydration adds (LA-05).
+      await expect(page.locator('footer.site-footer a[href="/privacy"]')).toHaveCount(1)
+      await expect(page.locator('footer.site-footer a[href="/terms"]')).toHaveCount(1)
 
       // The measurement that failed before the fix: 0 characters of body text.
       const text = await page.locator('body').innerText()

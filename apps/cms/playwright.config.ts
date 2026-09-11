@@ -39,6 +39,18 @@ export default defineConfig({
      * actually takes it.
      */
     { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    /*
+     * WebKit, for ONE file: `e2e/fontSwap.spec.ts`. The stand-in font metrics differ between
+     * engines (`scripts/calibrate-fallback.mjs` prints the per-engine table), and WebKit is the
+     * engine behind iOS Safari, where a QR code scanned off a garment tag opens — and it ignores
+     * `ascent-override`. Adding it to every file would double this suite's runtime for no other
+     * test's benefit, for the same reason Firefox earns its place above rather than by symmetry.
+     */
+    {
+      name: 'fontswap-webkit',
+      testMatch: /fontSwap\.spec\.ts/,
+      use: { ...devices['Desktop Safari'] },
+    },
   ],
   webServer: {
     command: 'node e2e/prepare.mjs && node e2e/serve.mjs',

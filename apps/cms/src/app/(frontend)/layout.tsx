@@ -33,7 +33,7 @@ import '@run-apparel/ui/tokens.css'
 import '@run-apparel/ui/base.css'
 import './site.css'
 
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import type React from 'react'
 import { Analytics } from '../../components/site/Analytics'
 import { Cursor } from '../../components/site/Cursor'
@@ -44,6 +44,14 @@ import { getSiteSettings } from '../../lib/content'
 import { robotsFor, searchVisibility } from '../../lib/searchVisibility'
 import { SITE_ORIGIN } from '../../lib/seo'
 import { organizationJsonLd } from '../../lib/structuredData'
+import { THEME_COLOR } from '../../lib/themeColor'
+
+/**
+ * The phone's browser bar, one colour per scheme (audit CO-05). The viewer has declared it
+ * since 2026-08-18; this site declared nothing, so Safari guessed. `themeColor.ts` explains
+ * why the colours are a pinned copy of `--bg`.
+ */
+export const viewport: Viewport = { themeColor: THEME_COLOR }
 
 /**
  * The PUBLIC marketing site.

@@ -110,11 +110,11 @@ export default async function ContactPage({
         <div className="site-container">
           <p className="subhead">What helps us reply faster</p>
           <h2 className="display display--section">
-            Send what you have. <span className="serif-accent">A sketch is enough.</span>
+            Send what you have. <span className="serif-accent">A sketch is&nbsp;enough.</span>
           </h2>
           <p className="site-lede">
             Styles and quantities, your target fabric or a reference garment, any artwork, and the
-            date you need it by. Nothing is required to start the conversation.
+            date you need it by. None of it is required to start the conversation.
           </p>
           {sent ? (
             <p className="form-notice form-notice--ok" role="status">

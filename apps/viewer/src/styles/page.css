@@ -2238,6 +2238,24 @@ model-viewer.stage__model {
   flex: 1;
 }
 
+/*
+ * ⚠️ 18px, NOT 22px, BELOW 360px — 2026-09-11, when `.btn` went from 11px to 12px (audit TY-07).
+ *
+ * At 320px each bar button is (320 - 2x16 - 10) / 2 = 139px, and `.btn`'s 22px inline padding left
+ * its label about 92px. Measured in WebKit — desktop Safari and the iPhone 13 profile — the 12px
+ * "WhatsApp Us" needed a hair more and wrapped onto a second line: the bar grew from 73.6px to
+ * 92.2px, the garment gave up about 20px, and until `lib/actionBarHeight.ts` re-measured the bar,
+ * the colourway rail sat 4-5px from it (motion-and-layout.spec.ts, "clears the action bar").
+ * Chromium and Firefox fitted the label on one line at every width. With 18px, no button label
+ * wraps and the bar stays 73.6px (74.3px in the iPhone profile) in all four engines from 320px up;
+ * from 360px the buttons are wide enough for the full padding.
+ */
+@media (max-width: 359.98px) {
+  .action-bar .btn {
+    padding-inline: 18px;
+  }
+}
+
 @media (min-width: 900px) {
   .action-bar {
     display: none;

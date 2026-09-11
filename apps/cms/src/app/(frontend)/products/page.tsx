@@ -114,7 +114,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
           <p className="label">[ 3D PRODUCT REFERENCES ]</p>
-          <h1 className="display display--hero">
+          <h1 className="display display--hero hero-products">
             Every garment, <span className="serif-accent">turnable.</span>
           </h1>
           <p className="site-lede">
@@ -172,8 +172,8 @@ export default async function ProductsPage({ searchParams }: PageProps) {
                 {family ? ` in ${family.name}` : ''}
               </p>
               <ul className="product-grid">
-                {products.map((product) => (
-                  <Card key={product.slug} product={product} />
+                {products.map((product, index) => (
+                  <Card key={product.slug} product={product} index={index} />
                 ))}
               </ul>
             </>
@@ -184,7 +184,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
   )
 }
 
-function Card({ product }: { product: ProductCard }) {
+function Card({ product, index }: { product: ProductCard; index: number }) {
   const href = `${VIEWER_ORIGIN}/${product.slug}/${product.defaultColourSlug}`
   const colours = product.colourNames.length
 
@@ -193,7 +193,7 @@ function Card({ product }: { product: ProductCard }) {
       <a className="product-card__link" href={href}>
         <figure className="product-card__figure">
           {product.posterUrl ? (
-            <ProductPoster src={product.posterUrl} alt={product.posterAlt} />
+            <ProductPoster src={product.posterUrl} alt={product.posterAlt} index={index} />
           ) : (
             <span className="product-card__placeholder">[ 3D reference ]</span>
           )}

@@ -250,3 +250,42 @@ test.describe('rendering', () => {
     expect(brokenOwnResources, 'a resource this site serves failed').toEqual([])
   })
 })
+
+test.describe('TY-07 / SZ-03 — the words that take a visitor anywhere are readable and reachable', () => {
+  /**
+   * Measured 2026-09-09/10 (audit): PRODUCTS and CONTACT at 10px, the two main buttons at
+   * 11px, and the footer's "Terms" link 34px wide on a phone. The 44px floor test above
+   * measures HEIGHT only, which is exactly why a 34px-wide target passed it.
+   */
+  test('nav links and buttons are 12px or more, legal links 44px wide or more', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    for (const path of ['/', '/products', '/contact']) {
+      await page.goto(path)
+      const m = await page.evaluate(() => {
+        const px = (el: Element) => Number.parseFloat(getComputedStyle(el).fontSize)
+        const name = (el: Element) => (el.textContent ?? '').trim().slice(0, 24)
+        const visible = (el: Element) => (el as HTMLElement).getClientRects().length > 0
+        const nav = [...document.querySelectorAll('.nav-link')].filter(visible)
+        const buttons = [...document.querySelectorAll('.btn')].filter(visible)
+        const legal = [...document.querySelectorAll('.footer-legal a')].filter(visible)
+        return {
+          nav: nav.length,
+          legal: legal.length,
+          small: [...nav, ...buttons]
+            .filter((el) => px(el) < 12)
+            .map((el) => `${name(el)} ${px(el)}px`),
+          narrow: legal
+            .filter((el) => el.getBoundingClientRect().width < 43.95)
+            .map((el) => `${name(el)} ${el.getBoundingClientRect().width.toFixed(1)}px`),
+        }
+      })
+      // The controls must exist, or an empty page passes both assertions below.
+      expect(m.nav, `${path}: no nav links to measure`).toBeGreaterThan(0)
+      expect(m.legal, `${path}: no footer legal links to measure`).toBeGreaterThan(0)
+      expect(m.small, `${path}: control text under 12px`).toEqual([])
+      expect(m.narrow, `${path}: footer legal links under 44px wide`).toEqual([])
+    }
+  })
+})

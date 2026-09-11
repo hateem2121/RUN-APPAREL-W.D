@@ -6,8 +6,11 @@ import '@run-apparel/ui/base.css'
 import './(frontend)/site.css'
 
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import Link from 'next/link'
+import { SiteFooter } from '../components/site/SiteFooter'
+import { FALLBACK_SITE_SETTINGS } from '../lib/projectPublic'
+import { THEME_COLOR } from '../lib/themeColor'
 
 /**
  * The page a mistyped or retired URL lands on.
@@ -71,6 +74,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 }
 
+/** The phone's browser bar follows the page here too, as on every other page (audit CO-05). */
+export const viewport: Viewport = { themeColor: THEME_COLOR }
+
 export default function NotFound() {
   const wordmark = DEFAULT_SITE_SETTINGS.temporaryWordmark
 
@@ -103,7 +109,7 @@ export default function NotFound() {
             <div className="site-container">
               <p className="label">[ 404 · PAGE NOT FOUND ]</p>
               <h1 className="display display--hero">
-                That page isn&rsquo;t here. <span className="serif-accent">The rest is.</span>
+                That page isn&rsquo;t here. <span className="serif-accent">The rest&nbsp;is.</span>
               </h1>
               <p className="site-lede">
                 The address may have changed, or a character may have been mistyped. If you scanned
@@ -133,6 +139,13 @@ export default function NotFound() {
             </div>
           </section>
         </main>
+        {/*
+          The site's own footer, from the built-in fallback settings rather than D1 — the same
+          object `getSiteSettings()` returns during an outage — so a broken link still offers
+          the address, the contact routes and the privacy and terms pages (audit LA-05) while
+          this page keeps its rule of reading no database.
+        */}
+        <SiteFooter settings={FALLBACK_SITE_SETTINGS} />
       </body>
     </html>
   )

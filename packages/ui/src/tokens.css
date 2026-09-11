@@ -39,6 +39,15 @@
   --grid: light-dark(rgba(29, 31, 26, 0.05), rgba(236, 235, 228, 0.05));
   --contour: light-dark(rgba(29, 31, 26, 0.07), rgba(236, 235, 228, 0.07));
   --line: light-dark(rgba(29, 31, 26, 0.18), rgba(236, 235, 228, 0.18));
+  /*
+   * The EDGE OF A CONTROL: the outline button and the form fields (audit CO-02). WCAG
+   * 1.4.11 asks 3:1 for a boundary that identifies a control, and `--line` is a divider at
+   * 1.43:1 light / 1.68:1 dark. 0.55 is the alpha both `prefers-contrast: more` blocks
+   * already raise `--line` to, so it is one proven value rather than a new one. Measured
+   * against every ground a control sits on: 3.48–3.77:1 light and 4.10–5.13:1 dark across
+   * --bg, --surface, --wash and --raised; the weakest ground needs 0.50 light / 0.42 dark.
+   */
+  --line-control: light-dark(rgba(29, 31, 26, 0.55), rgba(236, 235, 228, 0.55));
 
   /* ── Mode-flip components ───────────────────────────────────────── */
   /* Tags [ LABEL ]: light = volt block + ink text · dark = transparent + volt text */

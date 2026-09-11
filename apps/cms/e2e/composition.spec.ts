@@ -530,3 +530,200 @@ test.describe('FA-A-04 — a real garment on the home page', () => {
     expect(box.width / box.height).toBeCloseTo(0.8, 2)
   })
 })
+
+test.describe('TY-12 / TY-13 — no headline strands its last word', () => {
+  /**
+   * "Five families, one standard." ended on "standard." alone at 390px (audit TY-12), and six
+   * headings had no balanced wrapping (TY-13). `.display` carries `text-wrap: balance` since
+   * 2026-09-11; this checks what a reader SEES rather than the declaration, so it also
+   * catches an engine that ignores the property.
+   *
+   * ⚠️ IT CAUGHT ONE. Firefox's `balance` still broke the home headline as "Made to / order.
+   * Made / properly." at 320 and 390px (measured 2026-09-11, Firefox 153), while Chromium and
+   * WebKit kept "Made properly." together; `text-wrap: pretty` is unsupported in Firefox and made
+   * Chromium strand twelve headings. So every heading of four or more words on the site also
+   * joins its last two words with `&nbsp;` in the markup — the one fix measured at zero stranded
+   * words in all three engines.
+   *
+   * ⚠️ LINES ARE COUNTED PER WORD, NOT PER CHARACTER. A headline mixes sizes — the serif
+   * accent is 1.07em — and per-character rect tops split one visual line into two (found
+   * 2026-09-08 on the /products headline). Each word's vertical centre is grouped with the
+   * line's within half a line height.
+   *
+   * Headlines under four words are skipped: three words on two lines cannot avoid a one-word
+   * line, and "Every garment, turnable." is designed to break exactly there.
+   */
+  const strandedLastWords = (page: import('@playwright/test').Page) =>
+    page.evaluate(() => {
+      const offenders: string[] = []
+      for (const heading of document.querySelectorAll(
+        'h1.display, h2.display, #stranded-control',
+      )) {
+        if ((heading as HTMLElement).getClientRects().length === 0) continue
+        const words: { mid: number; text: string }[] = []
+        const walker = document.createTreeWalker(heading, NodeFilter.SHOW_TEXT)
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          const value = node.nodeValue ?? ''
+          const re = /\S+/g
+          for (let match = re.exec(value); match; match = re.exec(value)) {
+            const range = document.createRange()
+            range.setStart(node, match.index)
+            range.setEnd(node, match.index + match[0].length)
+            const rect = range.getBoundingClientRect()
+            if (rect.width > 0) words.push({ mid: rect.top + rect.height / 2, text: match[0] })
+          }
+        }
+        if (words.length < 4) continue
+        const tolerance = (Number.parseFloat(getComputedStyle(heading).fontSize) * 0.9) / 2
+        const lines: string[][] = []
+        let lineMid = Number.NEGATIVE_INFINITY
+        for (const word of words) {
+          if (Math.abs(word.mid - lineMid) > tolerance) {
+            lines.push([])
+            lineMid = word.mid
+          }
+          lines[lines.length - 1]?.push(word.text)
+        }
+        const last = lines[lines.length - 1] ?? []
+        if (lines.length > 1 && last.length === 1) {
+          offenders.push(`"${words.map((w) => w.text).join(' ')}" ends on "${last[0]}"`)
+        }
+      }
+      return offenders
+    })
+
+  test('the detector flags a planted stranded word (negative control)', async ({ page }) => {
+    await page.goto('/')
+    await page.evaluate(() => {
+      const planted = document.createElement('h2')
+      planted.id = 'stranded-control'
+      planted.textContent = 'Aaaaaa aaaaaa aaaaaa b'
+      planted.style.cssText =
+        'font-family:monospace;font-size:24px;width:20ch;white-space:normal;text-wrap:wrap'
+      document.querySelector('main')?.prepend(planted)
+    })
+    const offenders = await strandedLastWords(page)
+    expect(
+      offenders.some((line) => line.endsWith('ends on "b"')),
+      offenders.join('\n'),
+    ).toBe(true)
+  })
+
+  for (const width of [320, 390]) {
+    test(`no headline on /, /products or /contact ends on one word at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 844 })
+      for (const path of ['/', '/products', '/contact']) {
+        await page.goto(path)
+        await page.evaluate(() => document.fonts.ready)
+        expect(await strandedLastWords(page), `${path} at ${width}px`).toEqual([])
+      }
+    })
+  }
+})
+
+test.describe('TY-12 — no heading splits a word across two lines', () => {
+  /**
+   * `.display` carries `overflow-wrap: anywhere`, so a word wider than its column breaks instead
+   * of scrolling the page sideways (the WCAG 1.4.10 fix in packages/ui/src/base.css). Measured
+   * 2026-09-11 in Chromium, WebKit and Firefox: at 320 and 340px the /contact headline did exactly
+   * that, "PRODUCTIO / N.", because "production." is 302.8px wide at 34px against a 280px column.
+   * The stranded-word check above skips three-word headlines, so nothing saw it. Owner decision
+   * 2026-09-11: below 347px the site's hero headline shrinks with the window rather than split a
+   * word (site.css).
+   *
+   * A word is split when its client rects sit on more than one line.
+   */
+  const splitWords = (page: import('@playwright/test').Page) =>
+    page.evaluate(() => {
+      const splits: string[] = []
+      let scanned = 0
+      for (const heading of document.querySelectorAll('h1, h2')) {
+        if ((heading as HTMLElement).getClientRects().length === 0) continue
+        scanned += 1
+        const fontSize = Number.parseFloat(getComputedStyle(heading).fontSize)
+        const walker = document.createTreeWalker(heading, NodeFilter.SHOW_TEXT)
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          const value = node.nodeValue ?? ''
+          const re = /\S+/g
+          for (let match = re.exec(value); match; match = re.exec(value)) {
+            const range = document.createRange()
+            range.setStart(node, match.index)
+            range.setEnd(node, match.index + match[0].length)
+            const tops: number[] = []
+            for (const rect of range.getClientRects()) {
+              if (rect.width > 0 && !tops.some((top) => Math.abs(top - rect.top) < fontSize / 2)) {
+                tops.push(rect.top)
+              }
+            }
+            if (tops.length > 1) {
+              splits.push(`${heading.id || heading.tagName.toLowerCase()} splits "${match[0]}"`)
+            }
+          }
+        }
+      }
+      return { scanned, splits }
+    })
+
+  test('the detector flags a planted split word and passes a planted whole one (negative control)', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page.evaluate(() => {
+      for (const [id, width] of [
+        ['split-control', 60],
+        ['whole-control', 600],
+      ] as const) {
+        const planted = document.createElement('h2')
+        planted.id = id
+        planted.textContent = 'Unbreakableword here'
+        planted.style.cssText = `width:${width}px;font:700 32px/1 sans-serif;overflow-wrap:anywhere`
+        document.querySelector('main')?.prepend(planted)
+      }
+    })
+    const { splits } = await splitWords(page)
+    expect(splits, splits.join('\n')).toContain('split-control splits "Unbreakableword"')
+    expect(splits.filter((line) => line.startsWith('whole-control'))).toEqual([])
+  })
+
+  for (const width of [320, 340, 390]) {
+    test(`no heading on the site splits a word at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 })
+      for (const path of ['/', '/products', '/contact', '/privacy', '/terms', '/no-such-page']) {
+        await page.goto(path)
+        await page.evaluate(() => document.fonts.ready.then(() => true))
+        const { scanned, splits } = await splitWords(page)
+        expect(scanned, `${path} at ${width}px: no heading was measured`).toBeGreaterThan(0)
+        // Soft, so one run names every page that splits a word rather than stopping at the first.
+        expect.soft(splits, `${path} at ${width}px`).toEqual([])
+      }
+    })
+  }
+})
+
+test.describe('IM-05 / PF-20 — the first gallery poster is requested first', () => {
+  /**
+   * Every gallery poster was `loading="lazy"`, the first screen's included, so the picture
+   * Largest Contentful Paint times started late: Lighthouse measured /products at 4,012 ms on
+   * its phone profile (2026-09-11). `src/lib/posterLoading.ts` decides it.
+   *
+   * ⚠️ READ FROM THE SERVED HTML, NOT THE LIVE PAGE. A poster that fails to load is swapped for
+   * the designed placeholder after hydration (`ProductPoster.tsx`), and on CI the seeded
+   * posters do 404 — so the `<img>` a browser test would inspect can be gone by the time it
+   * looks.
+   */
+  test('the first card is eager at high priority, and only the first', async ({ request }) => {
+    const html = await (await request.get('/products')).text()
+    const images = [...html.matchAll(/<img[^>]*class="product-card__img"[^>]*>/g)].map((m) => m[0])
+    if (images.length === 0 && process.env.CI) {
+      throw new Error('CI seeds a published garment with a poster, so /products must render one')
+    }
+    test.skip(images.length === 0, 'no garment with a poster in this database')
+    expect(images[0], 'the first poster is not eager').toMatch(/loading="eager"/)
+    expect(images[0], 'the first poster is not high priority').toMatch(/fetchpriority="high"/i)
+    expect(images.filter((img) => /fetchpriority="high"/i.test(img))).toHaveLength(1)
+    if (images.length > 3)
+      expect(images[3], 'the fourth poster is not lazy').toMatch(/loading="lazy"/)
+  })
+})

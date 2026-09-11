@@ -77,6 +77,16 @@ li {
   border-radius: var(--radius-chip);
 }
 
+/*
+ * Selected text in the brand's own pair, on both sites (audit CR-03). The browser default is
+ * a system blue that belongs to neither theme. Ink on volt is the pair the light-mode primary
+ * button and the tag already use, and it reads in both themes because neither colour flips.
+ */
+::selection {
+  background-color: var(--volt);
+  color: var(--ink);
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -162,6 +172,20 @@ li {
    * started at 375, which is where the header's contents happen to still fit.
    */
   overflow-wrap: anywhere;
+  /*
+   * Balanced lines, so a headline never ends on one stranded word (audit TY-12, TY-13:
+   * "Five families, one standard." left "standard." alone at 390px). `balance` only
+   * redistributes words across the lines the text already needs and never adds one, so
+   * no height budget moves. It was kept off `.display` until 2026-09-11 because its
+   * interaction with `overflow-wrap: anywhere` was untested; the 320px reflow gates in
+   * apps/cms/e2e/composition.spec.ts and apps/viewer/e2e/motion-and-layout.spec.ts now
+   * run against it on both surfaces.
+   *
+   * ⚠️ Balance is not a guarantee in every engine: Firefox still left "properly." alone on the
+   * site's home headline at 320 and 390px (measured 2026-09-11). The site's multi-word headings
+   * therefore also join their last two words with `&nbsp;` — see composition.spec.ts, TY-12.
+   */
+  text-wrap: balance;
 }
 
 /*
@@ -281,7 +305,12 @@ li {
   padding: 14px 22px;
   border-radius: var(--radius-button);
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  /*
+   * 12px, not 11 (audit TY-07): a button's words are what a visitor must read to go
+   * anywhere. The mono LABELS keep the design system's 10–11px scale; this moves the
+   * control text only. Shared by both sites on purpose — one system, one press.
+   */
+  font-size: var(--text-mono-lg);
   text-transform: uppercase;
   letter-spacing: var(--tracking-caps-tight);
   text-decoration: none;
@@ -328,7 +357,8 @@ li {
 .btn--ghost {
   background: transparent;
   color: var(--text);
-  border: 1.4px solid var(--line);
+  /* --line-control, not --line: a control's edge needs 3:1 (tokens.css, audit CO-02). */
+  border: 1.4px solid var(--line-control);
 }
 
 /* Ghost hover inverts text/bg. */

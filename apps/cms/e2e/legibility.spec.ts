@@ -302,3 +302,182 @@ test.describe('FA-H-09 — a request for more contrast is answered', () => {
     })
   }
 })
+
+test.describe('CO-01 / CO-04 / CO-02 / CR-03 — text and control edges clear their floors', () => {
+  /**
+   * The audit's measured contrast misses, turned into floors that hold in BOTH themes:
+   *
+   *   `.filter-chip__count`      2.85:1 light, 3.98:1 dark   floor 4.5:1 (text, WCAG 1.4.3)
+   *   `.btn--ghost` edge         1.43:1 light, 1.68:1 dark   floor 3:1 (control, 1.4.11)
+   *   `.inquiry-form__input`     1.43:1 light, 1.68:1 dark   floor 3:1, against BOTH sides
+   *
+   * ⚠️ OPACITY IS PART OF THE COLOUR. The chip count failed through `opacity: 0.7`, not
+   * through its `color`: a probe reading `color` alone scores it 5.10:1 and passes the
+   * defect. So each element's own opacity chain is multiplied into the foreground before
+   * compositing — valid here because the elements that carry opacity have no background of
+   * their own — and a planted grey-on-grey must be reported as a failure before any real
+   * number is trusted.
+   */
+  const channel = (value: number) => {
+    const c = value / 255
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  }
+  const luminance = (rgb: number[]) =>
+    0.2126 * channel(rgb[0] ?? 0) + 0.7152 * channel(rgb[1] ?? 0) + 0.0722 * channel(rgb[2] ?? 0)
+  const ratio = (a: number[], b: number[]) => {
+    const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+    return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05)
+  }
+  type Row = { label: string; pairs: [number[], number[]][] }
+  const worst = (row: Row) => Math.min(...row.pairs.map(([fg, bg]) => ratio(fg, bg)))
+
+  /**
+   * In the page: each visible match's foreground — its text colour, or its top border — with
+   * its opacity chain, composited over the opaque colour behind it. A border is checked
+   * against what it sits on AND what surrounds it, because a field's edge must separate both.
+   */
+  const measure = (
+    page: import('@playwright/test').Page,
+    selector: string,
+    part: 'text' | 'border',
+  ) =>
+    page.evaluate(
+      ({ selector, part }) => {
+        const parse = (value: string) => {
+          const n = (value.match(/[\d.]+/g) ?? []).map(Number)
+          return { rgb: [n[0] ?? 0, n[1] ?? 0, n[2] ?? 0], a: n.length > 3 ? (n[3] ?? 1) : 1 }
+        }
+        const over = (top: { rgb: number[]; a: number }, under: number[]) =>
+          top.rgb.map((v, i) => v * top.a + (under[i] ?? 0) * (1 - top.a))
+        const ground = (start: Element | null): number[] => {
+          const layers: { rgb: number[]; a: number }[] = []
+          for (let el = start; el; el = el.parentElement) {
+            const bg = parse(getComputedStyle(el).backgroundColor)
+            if (bg.a > 0) layers.push(bg)
+            if (bg.a >= 1) break
+          }
+          let colour = [255, 255, 255]
+          for (const layer of layers.reverse()) colour = over(layer, colour)
+          return colour
+        }
+        return [...document.querySelectorAll(selector)]
+          .filter((el) => (el as HTMLElement).getClientRects().length > 0)
+          .map((el) => {
+            const style = getComputedStyle(el)
+            const fg = parse(part === 'text' ? style.color : style.borderTopColor)
+            let opacity = 1
+            for (let node: Element | null = el; node; node = node.parentElement) {
+              opacity *= Number(getComputedStyle(node).opacity)
+            }
+            const behind = ground(el)
+            const seen = over({ rgb: fg.rgb, a: fg.a * opacity }, behind)
+            const pairs: [number[], number[]][] =
+              part === 'text'
+                ? [[seen, behind]]
+                : [
+                    [seen, behind],
+                    [seen, ground(el.parentElement)],
+                  ]
+            return { label: `${el.tagName.toLowerCase()}.${el.className}`.slice(0, 60), pairs }
+          })
+      },
+      { selector, part },
+    )
+
+  const settle = async (
+    page: import('@playwright/test').Page,
+    path: string,
+    scheme: 'light' | 'dark',
+  ) => {
+    await page.goto(path)
+    // Emulate AFTER a navigation, then navigate again: Firefox drops emulation set on
+    // about:blank (measured 2026-09-07, see FA-H-09 above).
+    await page.emulateMedia({
+      colorScheme: scheme,
+      reducedMotion: 'reduce',
+      contrast: 'no-preference',
+    })
+    await page.goto(path)
+    await page.evaluate(() => document.fonts.ready)
+    const applied = await page.evaluate(
+      (s) =>
+        matchMedia(`(prefers-color-scheme: ${s})`).matches &&
+        matchMedia('(prefers-reduced-motion: reduce)').matches,
+      scheme,
+    )
+    expect(applied, `the ${scheme} scheme or reduced motion never reached the page`).toBe(true)
+  }
+
+  test('the probe fails a planted grey-on-grey before it grades anything (negative control)', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page.evaluate(() => {
+      const plant = (id: string, css: string) => {
+        const el = document.createElement('p')
+        el.id = id
+        el.textContent = 'planted'
+        el.style.cssText = css
+        document.body.append(el)
+      }
+      plant('contrast-bad', 'color:#777777;background:#888888;border-top:2px solid #777777')
+      plant('contrast-good', 'color:#000000;background:#ffffff')
+    })
+    const [bad] = await measure(page, '#contrast-bad', 'text')
+    const [badEdge] = await measure(page, '#contrast-bad', 'border')
+    const [good] = await measure(page, '#contrast-good', 'text')
+    if (!bad || !badEdge || !good) throw new Error('the planted elements were not measured')
+    expect(worst(bad), 'grey on grey was not reported as a failure').toBeLessThan(1.5)
+    expect(worst(badEdge), 'a grey edge on grey was not reported as a failure').toBeLessThan(1.5)
+    expect(worst(good), 'black on white did not read 21:1').toBeCloseTo(21, 0)
+  })
+
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`${scheme}: every filter-chip count clears 4.5:1`, async ({ page }) => {
+      await settle(page, '/products', scheme)
+      const rows = await measure(page, '.filter-chip__count', 'text')
+      expect(rows.length, 'no filter-chip counts on /products to measure').toBeGreaterThan(0)
+      const failing = rows.filter((row) => worst(row) < 4.5)
+      expect(failing.map((row) => `${row.label} ${worst(row).toFixed(2)}:1`)).toEqual([])
+    })
+
+    test(`${scheme}: the outline button and the form fields have a 3:1 edge`, async ({ page }) => {
+      await settle(page, '/', scheme)
+      const ghost = await measure(page, '.btn--ghost', 'border')
+      await settle(page, '/contact', scheme)
+      const fields = await measure(page, '.inquiry-form__input', 'border')
+      expect(ghost.length, 'no outline button on the home page').toBeGreaterThan(0)
+      expect(fields.length, 'no form fields on /contact').toBeGreaterThan(0)
+      const failing = [...ghost, ...fields].filter((row) => worst(row) < 3)
+      expect(failing.map((row) => `${row.label} ${worst(row).toFixed(2)}:1`)).toEqual([])
+    })
+  }
+
+  test('selected text is the brand pair, not the system blue (CR-03)', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(
+      browserName !== 'chromium',
+      "getComputedStyle(el, '::selection') is reliable in Chromium",
+    )
+    await page.goto('/')
+    const selection = await page.evaluate(() => {
+      const lede = document.querySelector('.site-lede') as HTMLElement
+      const chosen = getComputedStyle(lede, '::selection')
+      // Resolve the tokens through a real element, so the assertion follows tokens.css.
+      const swatch = document.createElement('span')
+      swatch.style.cssText = 'background-color:var(--volt);color:var(--ink)'
+      document.body.append(swatch)
+      const token = getComputedStyle(swatch)
+      return {
+        bg: chosen.backgroundColor,
+        fg: chosen.color,
+        volt: token.backgroundColor,
+        ink: token.color,
+      }
+    })
+    expect(selection.bg, 'the selection background is not --volt').toBe(selection.volt)
+    expect(selection.fg, 'the selection text is not --ink').toBe(selection.ink)
+  })
+})
