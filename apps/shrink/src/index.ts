@@ -388,12 +388,19 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
          * ⚠️ THESE TWO SECRETS COME FROM ONE NAMED CLOUDFLARE KEY, AND SWITCHING IT
          * OFF BREAKS EVERY SHRINK SILENTLY — it did, for four days, in 2026.
          *
-         * They are the S3 credentials of the account API token **"R2 User Token"**
-         * (id `efad459b…`, issued 2026-07-24 with the single permission group
-         * `Workers R2 Storage Bucket Item Read`). On 2026-08-31 the account's eleven
-         * keys were consolidated to two and that token was disabled as having
-         * "no identified consumer" — because a Worker secret's VALUE cannot be read
-         * back, so nothing on the Cloudflare side can point at this line.
+         * Since 2026-09-11 they are the S3 credentials of the R2 account API token
+         * **`shrink-robot-ingest-read`**: "Object Read only", applied to
+         * `run-apparel-viewer-ingest` and nothing else. Its status shows on the
+         * dashboard's R2 API-tokens page, under Account API Tokens (an OAuth API
+         * session was refused that list, 9109, the same day). A finished job was
+         * retried through it that day and reached `ready`.
+         *
+         * The first key here was **"R2 User Token"** (id `efad459b…`, issued
+         * 2026-07-24, single permission group `Workers R2 Storage Bucket Item Read`).
+         * On 2026-08-31 the account's eleven keys were consolidated to two and that
+         * token was disabled as having "no identified consumer" — because a Worker
+         * secret's VALUE cannot be read back, so nothing on the Cloudflare side can
+         * point at this line.
          *
          * Measured 2026-09-04, on the first garment attempted since: every job failed
          * with `Container returned 500: Could not read raw object "…" from ingest
@@ -402,13 +409,11 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
          * No gate could have caught it: the only thing that exercises this credential
          * is a real garment, and none had been processed in those four days.
          *
-         * So: if a shrink fails with 401/403 here, check the token's STATUS before
-         * anything else (`GET /user/tokens` needs `API Tokens Read`; the master key
-         * has it). Re-enabling is one call and needs `API Tokens Write`, which the
-         * master key deliberately does NOT have. Do not "fix" this by pasting the
-         * master key's own S3 credentials in here — that swaps a read-only,
-         * single-bucket credential for one with 384 permission groups. The durable fix
-         * is to delete these two secrets entirely and stream the object through the
+         * So: if a shrink fails with 401/403 here, check that token's STATUS on that
+         * page before anything else. Do not "fix" this by pasting the master key's
+         * own S3 credentials in here — that swaps a read-only, single-bucket
+         * credential for one with 384 permission groups. The durable fix is to
+         * delete these two secrets entirely and stream the object through the
          * Worker's native `R2_INGEST` binding, which `archiveRaw.ts` already uses.
          */
         s3: {

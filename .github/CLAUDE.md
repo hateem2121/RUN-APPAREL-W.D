@@ -103,15 +103,19 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   It still cannot be a CI GATE — `GITHUB_TOKEN` has no `administration` permission —
   but "no test can read it" and "no test can read it FROM CI" are different claims,
   and the first one talked people out of running the command at all. It was four checks until 2026-08-20, five until
-  2026-08-31, six until the org died on 2026-09-02, and is **five** now — the Actions
-  jobs `verify`, `e2e`, `audit`, `secrets` and `artwork`, all bound to integration
-  15368. The sixth was **`Socket Security: Pull Request Alerts`** (integration 156372,
-  added for L8-05 so a malicious-dependency finding can stop a merge). ⚠️ **The Socket
-  app was NOT installed on this repo on 2026-09-11** — it had been an org install — so
-  its check cannot be required until it posts again. When it does, require *Pull
-  Request Alerts*, not *Project Report*, and only after it appears on several PR HEAD
-  commits: a merge commit shows only one of the two, and reading that instead nearly
-  produced a "correction" requiring a name Socket never posts. `e2e` was added when it was split
+  2026-08-31, six until the org died on 2026-09-02, five on the re-created repo, and
+  **six** again since 2026-09-11 — the Actions jobs `verify`, `e2e`, `audit`, `secrets`
+  and `artwork`, all bound to integration 15368, plus **`Socket Security: Pull Request
+  Alerts`** (integration 156372, added for L8-05 so a malicious-dependency finding can
+  stop a merge). ⚠️ **Socket had to be REINSTALLED on 2026-09-11** — it had been an org
+  install and vanished with the org — and was required again only after it posted on
+  PR HEAD commits. Require *Pull Request Alerts*, never *Project Report*: a merge
+  commit shows only one of the two, and reading that instead nearly produced a
+  "correction" requiring a name Socket never posts. ⚠️ **A red
+  `github-advanced-security` check is NOT ours**: it was GitHub's *AI findings* preview
+  (no workflow file; it posts as app 15368). It failed every PR with
+  `CAPIError: 400 The requested model is not supported`, and was switched OFF on
+  2026-09-11 under Settings → Advanced Security. It was never required. `e2e` was added when it was split
   out of `verify`, where it had been gating by living inside a job that gates. `needs:`
   stops the DEPLOY; this list stops the MERGE. Split or rename a gating job and you
   must edit BOTH, or a red gate silently stops blocking. The deploy-gating rule in
