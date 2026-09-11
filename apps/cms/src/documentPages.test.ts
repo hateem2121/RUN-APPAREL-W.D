@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { DOCUMENTS } from '../../../infra/apex-404/documents.js'
 import {
@@ -7,6 +9,17 @@ import {
   pictureKey,
   validateManifest,
 } from '../../../infra/apex-404/manifest.js'
+import {
+  REPO_ROOT,
+  buildManifest,
+  isInside,
+  pageCountArgs,
+  parsePageList,
+  partsForPage,
+  postScriptString,
+  renderArgs,
+  versionFor,
+} from '../../../scripts/document-pages.mjs'
 
 /**
  * The manifest is the Worker's allow-list: it builds an R2 key only for a part and a
@@ -134,5 +147,117 @@ describe('pictureKey', () => {
     ['a parent-directory name', '20260911-e8698731', '..'],
   ])('refuses %s', (_label, version, fileName) => {
     expect(pictureKey(manifest, version, fileName)).toBeNull()
+  })
+})
+
+describe('versionFor', () => {
+  it('joins the date and the first 8 digits of the MD5', () => {
+    expect(versionFor('20260911', 'e8698731ac2348595c3268dfd6d466c6')).toBe('20260911-e8698731')
+  })
+
+  it.each([
+    ['2026-09-11', 'e8698731ac2348595c3268dfd6d466c6', 'YYYYMMDD'],
+    ['20260911', 'E8698731AC2348595C3268DFD6D466C6', '32 lowercase hex'],
+  ])('refuses date %j with MD5 %j', (date, md5, message) => {
+    expect(() => versionFor(date, md5)).toThrow(message)
+  })
+})
+
+describe('parsePageList', () => {
+  it('reads a comma-separated list of page numbers', () => {
+    expect([...parsePageList('5, 17')]).toEqual([5, 17])
+    expect(parsePageList(undefined).size).toBe(0)
+    expect(parsePageList('').size).toBe(0)
+  })
+
+  it.each(['0', 'five', '5-7', '1000'])('refuses %j', (text) => {
+    expect(() => parsePageList(text)).toThrow('page numbers like 5,17')
+  })
+})
+
+describe('partsForPage', () => {
+  it('splits a spread into two equal halves, left then right', () => {
+    expect(partsForPage({ split: true, number: 3, width: 4800, height: 1350 })).toEqual([
+      { id: 'p003a', left: 0, top: 0, width: 2400, height: 1350 },
+      { id: 'p003b', left: 2400, top: 0, width: 2400, height: 1350 },
+    ])
+  })
+
+  it('keeps a page whole when asked', () => {
+    expect(partsForPage({ split: false, number: 12, width: 2400, height: 1350 })).toEqual([
+      { id: 'p012w', left: 0, top: 0, width: 2400, height: 1350 },
+    ])
+  })
+
+  it('refuses an odd width, which cannot split into equal halves', () => {
+    expect(() => partsForPage({ split: true, number: 1, width: 4801, height: 1350 })).toThrow(
+      'two equal halves',
+    )
+  })
+
+  it('refuses a part narrower than the widest picture, which would need enlarging', () => {
+    expect(() => partsForPage({ split: true, number: 1, width: 3000, height: 1350 })).toThrow(
+      'narrower than 2400',
+    )
+  })
+})
+
+describe('buildManifest', () => {
+  it('builds a manifest the Worker accepts, for both documents', () => {
+    const catalogue = buildManifest({
+      doc: DOCUMENTS.catalogue,
+      version: '20260911-e8698731',
+      pdf: { bytes: 54_336_461, md5: 'e8698731ac2348595c3268dfd6d466c6' },
+      pages: [{ number: 1, parts: [part('p001a'), part('p001b')] }],
+    })
+    const profile = buildManifest({
+      doc: DOCUMENTS.profile,
+      version: '20260911-ea7936d5',
+      pdf: { bytes: 16_891_515, md5: 'ea7936d585961a06d1e83c4cd8d02b14' },
+      pages: [{ number: 1, parts: [part('p001w')] }],
+    })
+    expect(validateManifest(catalogue, DOCUMENTS.catalogue).ok).toBe(true)
+    expect(validateManifest(profile, DOCUMENTS.profile).ok).toBe(true)
+    expect(catalogue.pdf.key).toBe('RUN PRODUCT CATALOUGE.pdf')
+  })
+})
+
+describe('Ghostscript arguments', () => {
+  it('renders at the design resolution, with text and graphics anti-aliasing', () => {
+    expect(renderArgs('/tmp/a.pdf', '/tmp/out/page-%03d.png')).toEqual([
+      '-q',
+      '-dSAFER',
+      '-dBATCH',
+      '-dNOPAUSE',
+      '-sDEVICE=png16m',
+      '-r120',
+      '-dTextAlphaBits=4',
+      '-dGraphicsAlphaBits=4',
+      '-sOutputFile=/tmp/out/page-%03d.png',
+      '/tmp/a.pdf',
+    ])
+  })
+
+  it('counts pages with the command measured on the real PDFs (2026-09-11)', () => {
+    expect(pageCountArgs('/tmp/a.pdf')).toEqual([
+      '-q',
+      '-dNODISPLAY',
+      '-dNOSAFER',
+      '-c',
+      '(/tmp/a.pdf) (r) file runpdfbegin pdfpagecount = quit',
+    ])
+  })
+
+  it('escapes brackets and backslashes inside a PostScript string', () => {
+    expect(postScriptString('/a (b)\\c.pdf')).toBe('(/a \\(b\\)\\\\c.pdf)')
+  })
+})
+
+describe('isInside', () => {
+  it('refuses to write pictures into the public repository', () => {
+    expect(isInside(join(REPO_ROOT, 'output'), REPO_ROOT)).toBe(true)
+    expect(isInside(REPO_ROOT, REPO_ROOT)).toBe(true)
+    expect(isInside(join(tmpdir(), 'document-pages'), REPO_ROOT)).toBe(false)
+    expect(isInside(`${REPO_ROOT.replace(/\/$/, '')}-sibling`, REPO_ROOT)).toBe(false)
   })
 })
