@@ -86,7 +86,7 @@ echo "── Beta Website (2026-09-06): the apex serves the site, with one addre
 # fails at RUNTIME with "syntax error near unexpected token `newline'"" while `bash -n`
 # stays silent. That is why nothtml() above exists; these two are its siblings.
 ishtml() { case "$(ctype "$1")" in *text/html*) echo ok;; *) echo nothtml;; esac; }
-ispdf()  { case "$(ctype "$1")" in *application/pdf*) echo ok;; *) echo notpdf;; esac; }
+notpdf() { case "$(ctype "$1")" in *application/pdf*) echo pdf;; *) echo ok;; esac; }
 
 chk "GET / on the apex is the site"        200 "$(code https://wear-run.help/)"
 chk "apex / is HTML, not a PDF or a 404"   ok  "$(ishtml https://wear-run.help/)"
@@ -96,7 +96,12 @@ chk "cms public page -> apex"              "308 https://wear-run.help/products" 
 chk "apex /admin is the site's 404"        404 "$(code https://wear-run.help/admin)"
 chk "apex /admin shows no login"           ok  "$(curl -s https://wear-run.help/admin | grep -q '404 · PAGE NOT FOUND' && echo ok || echo login)"
 chk "cms /admin is still the admin"        200 "$(code https://cms.wear-run.help/admin)"
-chk "www /catalogue is still the PDF"      ok  "$(ispdf https://www.wear-run.help/catalogue)"
+chk "www /catalogue is retired (410)"      410 "$(code https://www.wear-run.help/catalogue)"
+chk "www /catalogue is not a PDF"          ok  "$(notpdf https://www.wear-run.help/catalogue)"
+chk "www /profile is retired (410)"        410 "$(code https://www.wear-run.help/profile)"
+chk "www /profile is not a PDF"            ok  "$(notpdf https://www.wear-run.help/profile)"
+chk "catalogue. refuses without a code"    404 "$(code https://catalogue.wear-run.help/)"
+chk "profile. refuses without a code"      404 "$(code https://profile.wear-run.help/)"
 
 echo
 echo "PASS $ok   FAIL $bad"

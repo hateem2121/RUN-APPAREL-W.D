@@ -1440,7 +1440,7 @@ jobs:
         if: vars.VIEWER_DEPLOY_TARGET != 'pages'
         run: node scripts/smoke-live-previews.mjs https://viewer.wear-run.help
 
-      - name: Post-deploy apex assertion (the site, both PDFs)
+      - name: Post-deploy apex assertion (site, retired PDF paths, private hosts)
         run: node scripts/apex-probe.mjs
 
       # Put the rollback command where someone will actually be looking.
