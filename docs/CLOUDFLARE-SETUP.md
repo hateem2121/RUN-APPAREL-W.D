@@ -398,7 +398,9 @@ BEFORE the CMS Worker because a route pattern belongs to one Worker at a time, a
 deploy it without both secrets. Operating it: `docs/RUNBOOK.md` → "Private document links".
 
 ⚠️ **The apex DNS record must stay proxied.** Zone routes require it; deleting it
-takes the site and both PDFs offline.
+takes the site and the four retired PDF routes offline. The private links are not on
+it: `catalogue.` and `profile.wear-run.help` are custom domains whose DNS records
+`wrangler deploy` creates.
 
 ### 11.5 DNSSEC
 

@@ -167,7 +167,8 @@ only from private links whose codes are Worker secrets, and nothing in this chec
 hold one. Check the real links by opening them from the owner's Passwords.
 
 **Do not "simplify" this by deleting the apex DNS record** — it must stay proxied or
-the Worker is never reached and both PDFs stop resolving.
+the site and the retired `/catalogue` and `/profile` addresses stop resolving. The
+private links do not depend on it: they are custom domains with their own DNS records.
 
 ⚠️ **Read `cf-cache-status` from the GET, never from a `curl -I`.** Measured the
 same minute: the GET said `HIT`, a HEAD on the identical URL said `DYNAMIC`. HEAD
