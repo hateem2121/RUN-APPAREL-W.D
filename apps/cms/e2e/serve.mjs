@@ -1,15 +1,11 @@
 /**
  * Serve the built CMS for the e2e suite.
  *
- * ⚠️ THE PORT COMES FROM playwright.config.ts VIA `webServer.env`, NOT FROM THE SHELL.
- * apps/viewer learned this the expensive way: `serve.mjs` there read `process.env.PORT`,
- * a developer had `PORT=5002` exported for an unrelated project, the server bound 5002
- * while Playwright polled 4173, and the suite died as
- * `Timed out waiting 120000ms from config.webServer` with nothing naming the cause. Two
- * dead-end runs went by before anyone ran `echo $PORT`.
+ * ⚠️ THE PORT COMES FROM playwright.config.ts VIA `webServer.env`.
  *
- * So the port is asserted, not defaulted: if the config did not set it, fail loudly here
- * rather than bind something arbitrary and time out two minutes later.
+ * It is asserted, not defaulted: if the config did not set it, fail loudly here rather
+ * than bind something arbitrary and time out two minutes later as
+ * `Timed out waiting 120000ms from config.webServer`.
  */
 import { spawn } from 'node:child_process'
 import { dirname, join } from 'node:path'

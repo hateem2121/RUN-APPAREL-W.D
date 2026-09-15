@@ -142,7 +142,7 @@ and `.github/CLAUDE.md` records that splitting those silently stops a red gate b
 breaking something on purpose.
 
 ⚠️ The port is owned by `playwright.config.ts` (4174) and `e2e/serve.mjs` THROWS if it is
-unset — a leaked `PORT` moved the viewer's server once and cost two dead-end runs.
+unset.
 
 ⚠️ **CI's `e2e` job has NO `PAYLOAD_SECRET`, and local runs always do** (`.env`). So a
 "passes locally" run proves nothing about the CI step: measured 2026-09-06 with `.env`

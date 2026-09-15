@@ -9,11 +9,9 @@ import { defineConfig, devices } from '@playwright/test'
  * had rendered completely blank, every gate in CI would have stayed green. That is the
  * single largest finding in the 2026-09-05 site-pages audit (kept privately).
  *
- * ⚠️ THE PORT IS OWNED BY THIS FILE AND PASSED EXPLICITLY. apps/viewer's config carries
- * the full account: a `PORT` exported for an unrelated project moved its server while
- * Playwright polled the original, and the only symptom was a two-minute timeout naming
- * nothing. Passing it through `webServer.env` means the environment cannot reach it.
- * 4174, one above the viewer's 4173, so both suites can run at once.
+ * ⚠️ THE PORT IS OWNED BY THIS FILE AND PASSED EXPLICITLY through `webServer.env`, so a
+ * mismatch cannot end as a two-minute timeout naming nothing. 4174, one above the
+ * viewer's 4173, so both suites can run at once.
  */
 const PORT = 4174
 const ORIGIN = `http://localhost:${PORT}`

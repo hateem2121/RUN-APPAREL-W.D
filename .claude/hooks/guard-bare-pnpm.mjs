@@ -10,8 +10,6 @@
  *    config.webServer` with the real `status: 127` buried inside a child process."
  *
  * So the error message names a Playwright timeout and says nothing about pnpm.
- * Two dead-end runs went by before anyone ran `echo $PORT` for the sibling trap;
- * this one has the same shape.
  *
  * Verified on this machine 2026-08-12: `command -v pnpm` exits 1,
  * `pnpm --version` prints `command not found`.
