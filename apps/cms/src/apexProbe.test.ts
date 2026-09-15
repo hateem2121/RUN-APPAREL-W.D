@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { MESSAGE_HEADLINE } from '../../../infra/apex-404/page.js'
 import { MESSAGE, RETRY_DELAYS_MS, TARGETS, evaluate } from '../../../scripts/apex-probe.mjs'
 
 /**
@@ -156,5 +157,19 @@ describe('TARGETS', () => {
 
   it('waits before re-checking a failure, because a new custom domain takes a moment', () => {
     expect(RETRY_DELAYS_MS).toEqual([15_000, 30_000])
+  })
+})
+
+/**
+ * The probe cannot read the page's own text (it never holds a code, so it never opens
+ * one) — it decides "refused" or "retired" from MESSAGE, a short substring, against
+ * whatever page.js actually renders. A wording change to MESSAGE_HEADLINE that dropped
+ * or reworded MESSAGE would go green in every unit test here and still turn every
+ * post-deploy probe run red once the Worker was already live. Pin the relationship
+ * instead of discovering it that way.
+ */
+describe('MESSAGE stays inside the page the Worker actually serves', () => {
+  it('MESSAGE_HEADLINE contains MESSAGE', () => {
+    expect(MESSAGE_HEADLINE).toContain(MESSAGE)
   })
 })

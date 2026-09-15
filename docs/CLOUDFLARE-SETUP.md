@@ -402,6 +402,12 @@ takes the site and the four retired PDF routes offline. The private links are no
 it: `catalogue.` and `profile.wear-run.help` are custom domains whose DNS records
 `wrangler deploy` creates.
 
+⚠️ **Two zone rules for `catalogue.wear-run.help` and `profile.wear-run.help` live only
+in Cloudflare, not in any wrangler file** (owner decision, 2026-09-15): a Configuration
+Rule that turns off Zaraz and Web Analytics script injection on both hosts — the pages
+allow no JavaScript at all — and a Cache Rule whose browser TTL respects the Worker's
+own `Cache-Control` instead of overriding it.
+
 ### 11.5 DNSSEC
 
 Active since 2026-08-30. ⚠️ **DNS is Cloudflare; REGISTRATION is Hostinger.** The DS

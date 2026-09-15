@@ -847,8 +847,10 @@ external uptime monitors, nowhere else.
    `npx wrangler@4.122.0 secret put CATALOGUE_CODE --name run-apparel-apex-404`. Either
    creates and deploys a new Worker version.
 3. Check with a plain GET, never HEAD: the old link must answer **404** and the new one
-   **200**. If the old one still opens, run `pnpm deploy:apex`: every deployment starts
-   from a cold cache, and Workers Caching cannot be purged from outside a Worker.
+   **200**. If the old one still opens, run `pnpm deploy:apex` from a clean, up-to-date
+   `origin/main` checkout — it deploys whatever is on disk, so a stale or dirty tree
+   ships the wrong code: every deployment starts from a cold cache, and Workers Caching
+   cannot be purged from outside a Worker.
 4. Update that document's uptime monitor, then give the owner the new link.
 
 ### Replacing the catalogue or profile PDF
@@ -865,8 +867,13 @@ external uptime monitors, nowhere else.
    rendered with. Upload `<dir>/manifest.json` to `run-assets/documents/<doc>/manifest.json`
    LAST.
 4. The page shows the new pictures within 5 minutes and the download within an hour, or at
-   once after `pnpm deploy:apex`. Old picture versions stay in R2 until the owner decides
-   to delete them.
+   once after running `pnpm deploy:apex` from a clean, up-to-date `origin/main` checkout.
+   Old picture versions stay in R2 until the owner decides to delete them. **A page already
+   open in a visitor's browser shows broken pictures until they reload it**: `pictureKey`
+   (`infra/apex-404/manifest.js`) serves a picture only when its version segment matches
+   the CURRENT manifest, so the moment the new manifest is uploaded, the old version's
+   picture URLs already sitting in that open page's HTML stop resolving — even though the
+   old files are still physically in R2, untouched.
 
 ### If a link stops working
 
@@ -874,6 +881,8 @@ external uptime monitors, nowhere else.
   `npx wrangler@4.122.0 secret list --name run-apparel-apex-404` shows names only.
 - **"Temporarily unavailable" (503):** the manifest is missing or invalid, or a file it
   lists is missing. Workers Logs carry the reason (`[apex] … manifest rejected: …`).
+  ⚠️ **Workers Logs' REQUEST lines carry the full address, words included** — if you
+  ever paste a log anywhere public, quote only the `[apex] …` reason line.
 - **The old `/catalogue` serves a PDF again:** the Worker was rolled back. See "Undoing a
   bad deploy".
 
