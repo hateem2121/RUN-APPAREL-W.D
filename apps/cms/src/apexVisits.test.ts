@@ -358,6 +358,18 @@ describe('requestDetails', () => {
     })
   })
 
+  it('is empty when the Referer is an IP-address literal, not a hostname', () => {
+    // A referring page served from an IP literal (an intranet host, or one with no DNS name)
+    // must never put that address in came_from — the Global Constraints forbid storing an IP
+    // address outright, and do not distinguish the referring server's from the visitor's own
+    // (Task 5 review, 2026-09-16).
+    const cameFromReferer = (referer: string) =>
+      requestDetails(incoming(`https://catalogue.wear-run.help/${CODE}`, { referer })).cameFrom
+    expect(cameFromReferer('http://192.168.1.50/intranet/page')).toBe('')
+    expect(cameFromReferer('https://203.0.113.9:8443/x')).toBe('')
+    expect(cameFromReferer('http://[2001:db8::1]/')).toBe('')
+  })
+
   it('cuts a value to 100 characters', () => {
     const request = incoming(
       `https://catalogue.wear-run.help/${CODE}`,

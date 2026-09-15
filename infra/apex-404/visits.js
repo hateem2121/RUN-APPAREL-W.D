@@ -90,6 +90,9 @@ function secureRandomHex(bytes) {
 /** @param {unknown} value */
 const detail = (value) => (typeof value === 'string' ? value.slice(0, DETAIL_LIMIT) : '')
 
+/** An IPv4 dotted quad, or the `[…]` form Node's URL parser gives an IPv6 literal. */
+const IP_LITERAL_HOST = /^(\d{1,3}\.){3}\d{1,3}$|^\[/
+
 /**
  * The Referer's host and nothing else: a full address can carry a path, a query or a code.
  *
@@ -98,7 +101,12 @@ const detail = (value) => (typeof value === 'string' ? value.slice(0, DETAIL_LIM
 function refererHost(referer) {
   if (!referer) return ''
   try {
-    return new URL(referer).hostname
+    const { hostname } = new URL(referer)
+    // Never an IP address. A link followed from an intranet page at http://192.168.1.50/ would
+    // otherwise put one in came_from, and the Global Constraints forbid storing an IP address
+    // with no exception (Task 5 review, 2026-09-16). It is the referring server's address, never
+    // the visitor's — that one is only ever hashed — but the rule does not distinguish them.
+    return IP_LITERAL_HOST.test(hostname) ? '' : hostname
   } catch {
     return ''
   }
