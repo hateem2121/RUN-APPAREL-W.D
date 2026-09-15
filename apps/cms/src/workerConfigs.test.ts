@@ -121,6 +121,7 @@ describe('apex Workers Caching', () => {
       'index.js',
       'manifest.js',
       'page.js',
+      'visitorAgent.js',
     ])
   })
 
