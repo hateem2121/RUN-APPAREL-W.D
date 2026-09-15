@@ -112,8 +112,30 @@ describe('apex Workers Caching', () => {
     ])
   })
 
-  it('enables Workers Caching', () => {
-    expect(settings(config)).toMatch(/"cache":\s*\{\s*"enabled":\s*true/)
+  /**
+   * The block must be EXACTLY `{ "enabled": true }`. A regex anchored only on
+   * `"enabled": true` still passes if a second flag such as
+   * `"cross_version_cache": true` is added beside it — and that flag removes the
+   * Worker version from the cache key, so revoking a leaked code and deploying a new
+   * one would stop invalidating what is already cached under the old version.
+   */
+  it('the cache block is exactly { "enabled": true } — no other flag', () => {
+    const match = /"cache":\s*\{([^}]*)\}/.exec(settings(config))
+    expect(match, 'no "cache" block found').not.toBeNull()
+    const inside = match![1]!.replace(/\s+/g, ' ').trim()
+    expect(
+      inside,
+      'cache must be exactly { "enabled": true }. A second flag such as ' +
+        '"cross_version_cache": true removes the version from the cache key, so ' +
+        "revoking a link's code would stop invalidating cached responses.",
+    ).toBe('"enabled": true')
+  })
+
+  it('the cache-block check can actually fail (negative control)', () => {
+    const withExtraFlag = '{ "cache": { "enabled": true, "cross_version_cache": true } }'
+    const match = /"cache":\s*\{([^}]*)\}/.exec(withExtraFlag)
+    const inside = match![1]!.replace(/\s+/g, ' ').trim()
+    expect(inside).not.toBe('"enabled": true')
   })
 
   it('sits at or above the compatibility_date the feature requires', () => {

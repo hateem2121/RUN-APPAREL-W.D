@@ -90,6 +90,22 @@ const catalogue = (path = '') => `https://catalogue.wear-run.help/${CATALOGUE_CO
 const profile = (path = '') => `https://profile.wear-run.help/${PROFILE_CODE}${path}`
 const MESSAGE = 'This link is not complete or no longer active.'
 
+/**
+ * index.js says these are "Asserted as whole strings" — pin them here as literals, not
+ * by re-deriving them from CACHE_CONTROL, or a value could drift with every assertion
+ * below still passing because both sides changed together.
+ */
+describe('CACHE_CONTROL is pinned to literal strings', () => {
+  it('matches exactly what every response below is compared against', () => {
+    expect(CACHE_CONTROL).toEqual({
+      page: 'public, max-age=300',
+      picture: 'public, max-age=31536000, immutable',
+      download: 'public, max-age=3600',
+      none: 'no-store',
+    })
+  })
+})
+
 describe('a document page', () => {
   it('opens with the right code on its own host, reading only the manifest', async () => {
     const { res, body, calls } = await send(catalogue())
