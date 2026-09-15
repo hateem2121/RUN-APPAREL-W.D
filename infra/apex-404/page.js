@@ -16,6 +16,8 @@
 import { WIDTHS, pictureFileName } from './manifest.js'
 
 export const CONTACT_URL = 'https://wear-run.help/contact'
+/** The footer's Privacy link (owner decision D37, 2026-09-15). */
+export const PRIVACY_URL = 'https://wear-run.help/privacy'
 export const MESSAGE_HEADLINE = 'This link is not complete or no longer active.'
 export const MESSAGE_BODY = 'Please contact RUN Apparel for the current link.'
 
@@ -49,13 +51,19 @@ export const STYLE = [
   '.wordmark{margin:0;font-weight:800;letter-spacing:.08em}',
   '.title{margin:0;flex:1 1 auto;font-size:1.125rem;font-weight:600}',
   '.button{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;border-radius:999px;background:var(--btn-primary-bg);color:var(--btn-primary-text);font-weight:600;text-decoration:none}',
-  '.button:focus-visible{outline:3px solid var(--focus-ring);outline-offset:3px}',
+  '.button:focus-visible,.privacy:focus-visible{outline:3px solid var(--focus-ring);outline-offset:3px}',
+  // As tall as the button (44px). --muted on --surface measures 5.57:1 light, 6.10:1 dark.
+  '.privacy{display:inline-flex;align-items:center;min-height:44px;margin-left:auto;padding:0 8px;color:var(--muted);font-size:.875rem;text-underline-offset:3px}',
   '.doc{max-width:1600px;margin:0 auto;padding:16px}',
-  '.page{margin:0 0 24px}',
+  // `position:relative` makes each page the box its reading marker sits at the foot of.
+  '.page{position:relative;margin:0 0 24px}',
   '.parts{display:grid;grid-template-columns:1fr;background:var(--wash)}',
   '@media (min-width:900px){.parts--split{grid-template-columns:1fr 1fr}}',
   '.parts img{display:block;width:100%;height:auto}',
   '.caption{margin:6px 0 0;color:var(--muted);font-size:.875rem;text-align:center}',
+  // A marker must never be seen, tapped, or given a line of its own: left inline, even a
+  // 1px image opens a line box as tall as the body's line height under every caption.
+  '.seen{position:absolute;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none}',
   '.message{max-width:36rem;margin:0 auto;padding:15vh 16px;text-align:center}',
   '.message .title{margin:16px 0 8px;font-size:1.5rem}',
   '.message p{margin:0 0 24px;color:var(--muted)}',
@@ -116,7 +124,10 @@ const head = (title) =>
 export function renderDocumentPage({ doc, manifest, code }) {
   const base = `/${escapeHtml(code)}`
   const total = manifest.pages.length
-  const download = `<a class="button" href="${base}/download" download>Download PDF (${megabytes(manifest.pdf.bytes)})</a>`
+  // `/get`, not `/download` (owner decision D32, 2026-09-15). The PDF is cached for an hour
+  // and a cache HIT never runs the Worker, so index.js counts the press at /get, which is
+  // never cached, and sends the browser on to /download.
+  const download = `<a class="button" href="${base}/get" download>Download PDF (${megabytes(manifest.pdf.bytes)})</a>`
 
   const sections = manifest.pages.map((page) => {
     const split = page.parts.length === 2
@@ -138,12 +149,22 @@ export function renderDocumentPage({ doc, manifest, code }) {
         `decoding="async" ${loading}>`,
       ].join(' ')
     })
+    // A READING MARKER (owner decision D32, 2026-09-15). The last thing in every page after
+    // the first is a lazy, invisible 1×1 picture, so its request tells index.js that someone
+    // scrolled that far. Page 1 needs none: opening the page counts it. Still no script.
+    const marker =
+      page.number >= 2
+        ? [
+            `<img class="seen" src="${base}/seen/${page.number}" alt="" aria-hidden="true" width="1" height="1" loading="lazy" decoding="async" fetchpriority="low">`,
+          ]
+        : []
     return [
       `<section class="page" id="page-${page.number}" aria-label="Page ${page.number} of ${total}">`,
       `<div class="parts parts--${split ? 'split' : 'whole'}">`,
       ...images,
       '</div>',
       `<p class="caption">Page ${page.number} of ${total}</p>`,
+      ...marker,
       '</section>',
     ].join('\n')
   })
@@ -161,6 +182,7 @@ export function renderDocumentPage({ doc, manifest, code }) {
     '</main>',
     '<footer class="bar">',
     download,
+    `<a class="privacy" href="${PRIVACY_URL}">Privacy</a>`,
     '</footer>',
     '</body>',
     '</html>',
