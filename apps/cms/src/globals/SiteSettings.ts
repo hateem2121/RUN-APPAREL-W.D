@@ -58,8 +58,9 @@ export const SiteSettings: GlobalConfig = {
       // Url" with nothing to say it is inert — quieter than the other two and
       // misleading in the same way.
       label: 'Catalogue link (not shown on the website)',
-      // It had no validate at all until 2026-09-11. The public API emits this value, so a
-      // private document link must never save here.
+      // It had no validate at all before this change (decided 2026-09-11, live from the
+      // merge that deploys it). The public API emits this value, so a private document
+      // link must never save here.
       validate: validateCatalogueUrl,
       admin: {
         description:

@@ -162,9 +162,10 @@ a plain GET returns **200 with no `Location` at all**. `.github/workflows/uptime
 had been asserting the redirect and erroring on every run since, while still
 concluding `success`; `scripts/apex-probe.mjs` replaced that check.
 
-⚠️ **Since 2026-09-11 neither address serves a PDF at all.** The catalogue and profile open
-only from private links whose codes are Worker secrets, and nothing in this checklist may
-hold one. Check the real links by opening them from the owner's Passwords.
+⚠️ **Decided 2026-09-11, live from the merge that deploys it: neither address serves a
+PDF at all.** The catalogue and profile open only from private links whose codes are
+Worker secrets, and nothing in this checklist may hold one. Check the real links by
+opening them from the owner's Passwords.
 
 **Do not "simplify" this by deleting the apex DNS record** — it must stay proxied or
 the site and the retired `/catalogue` and `/profile` addresses stop resolving. The

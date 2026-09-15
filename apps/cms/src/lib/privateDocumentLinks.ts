@@ -51,7 +51,8 @@ export function privateDocumentLinkError(value: unknown): string | null {
 /**
  * The one validator all three public `catalogueUrl` fields share. The required and
  * complete-address rules are the ones Products and CatalogueDefaults already had;
- * SiteSettings had none at all until 2026-09-11.
+ * SiteSettings had none at all before this change (decided 2026-09-11, live from the
+ * merge that deploys it).
  */
 export function validateCatalogueUrl(value: unknown): true | string {
   if (typeof value !== 'string' || value.trim() === '') return 'A catalogue link is required.'

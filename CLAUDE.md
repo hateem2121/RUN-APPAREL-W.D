@@ -528,7 +528,8 @@ not only from a second push.** On 2026-08-18 a degraded Ubuntu mirror made
 twice, then `verify` at 30m21s — with nothing in the repository changed. Raising a
 ceiling only moved which job died. See `.github/CLAUDE.md`.
 
-**The apex serves the SITE; the PDFs are PRIVATE LINKS (2026-09-11).** `wear-run.help/*`
+**The apex serves the SITE; the PDFs are PRIVATE LINKS (decided 2026-09-11, live from
+the merge that deploys it).** `wear-run.help/*`
 and `www.` go to the CMS Worker. `infra/apex-404/` serves `catalogue.` and
 `profile.wear-run.help/<code>` (pictures + the PDF, from the **shared** `run-assets`
 bucket) and 410s the old `/catalogue` and `/profile`. **Each code is a Worker secret:

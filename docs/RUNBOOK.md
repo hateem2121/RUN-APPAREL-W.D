@@ -264,8 +264,9 @@ every gate. **When you have the minutes to spare, prefer it.**
 >
 > 1. `git revert` across the apex reconciliation commit (2026-08-30) redeploys an
 >    `index.js` that returns 404 for **every** path and declares no R2 binding.
-> 2. **Rolling back or reverting the private-links change (2026-09-11) re-opens the
->    guessable PDFs.** The earlier code serves the PDF for any path `/catalogue` or
+> 2. **Rolling back or reverting the private-links change (decided 2026-09-11, live
+>    from the merge that deploys it) re-opens the guessable PDFs.** The earlier code
+>    serves the PDF for any path `/catalogue` or
 >    `/profile` — on the apex, and on `catalogue.` / `profile.wear-run.help` too, because
 >    `wrangler rollback` restores code, not routes, and the custom domains stay attached.
 >    If that is not acceptable for the minutes a fix takes, detach them as well: list with
@@ -812,8 +813,8 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec wrangler d1 execute run-ap
 
 ## Private document links (catalogue and profile)
 
-Since 2026-09-11 the catalogue and the company profile have no guessable address. Each
-opens only from a private link:
+Decided 2026-09-11 and live from the merge that deploys it: the catalogue and the
+company profile have no guessable address. Each opens only from a private link:
 
 | Document | Link | Worker secret |
 |---|---|---|

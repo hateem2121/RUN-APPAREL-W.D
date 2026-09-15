@@ -38,16 +38,18 @@ targets are honest intentions, not a contractual SLA.
 
 - `https://wear-run.help/catalogue` and `/profile` answering **410**, and
   `https://catalogue.wear-run.help/` or `https://profile.wear-run.help/` answering **404**
-  without a valid link. This is [by design](CLAUDE.md): since 2026-09-11 the catalogue and
-  company profile open only from a private link whose code is a Worker secret
-  (`infra/apex-404/`). The apex itself is the marketing site, and every QR deep link uses
-  the `viewer.` subdomain. None of these is an outage or a vulnerability, and neither is
-  guessing a link's words: they keep out accidental visitors and search engines by design.
-  Any way to reach a document's pages, pictures or PDF **without** its words is in scope.
+  without a valid link. This is [by design](CLAUDE.md): decided 2026-09-11 and live from
+  the merge that deploys it, the catalogue and company profile open only from a private
+  link whose code is a Worker secret (`infra/apex-404/`). The apex itself is the
+  marketing site, and every QR deep link uses the `viewer.` subdomain. None of these is
+  an outage or a vulnerability, and neither is guessing a link's words: they keep out
+  accidental visitors and search engines by design. Any way to reach a document's pages,
+  pictures or PDF **without** its words is in scope.
 
   ⚠️ This said **522** until 2026-08-31, and "404 for everything but two PDF paths" until
-  2026-09-11. A 522 is a connection failure, not a design; reporting a timeout as intended
-  behaviour would have taught a researcher to ignore a real outage.
+  this change (decided 2026-09-11, live from the merge that deploys it). A 522 is a
+  connection failure, not a design; reporting a timeout as intended behaviour would have
+  taught a researcher to ignore a real outage.
 - Missing security headers on Cloudflare's own challenge pages and error pages,
   which we do not generate.
 - Reports produced solely by an automated scanner with no demonstrated impact.

@@ -184,8 +184,9 @@ describe('the apex route split (2026-09-06)', () => {
   })
 
   /**
-   * 2026-09-11: the PDFs moved to their own hostnames behind a code. The four apex
-   * routes stay ONLY so the old addresses answer "no longer active" (410) instead of
+   * Decided 2026-09-11, live from the merge that deploys it: the PDFs move to their own
+   * hostnames behind a code. The four apex routes stay ONLY so the old addresses answer
+   * "no longer active" (410) instead of
    * the site's 404. ⚠️ The two custom domains must be created by the same deploy that
    * ships the new code: attached to the old code, `catalogue.wear-run.help/catalogue`
    * would have served the PDF.
