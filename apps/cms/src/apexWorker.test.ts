@@ -294,6 +294,78 @@ describe('a broken upload is diagnosable and never cached', () => {
   })
 })
 
+/**
+ * THE WORD RULE (review Important 1, owner decision D18, 2026-09-15). Workers Caching
+ * keys on path, not host, and the four retired zone routes match any suffix
+ * (`wear-run.help/catalogue*`, `/profile*`, and the `www.` pair) — so a code shaped
+ * like a retired word could be served from a cache entry the retired routes still
+ * match, and two documents sharing one code would answer for each other. Checked
+ * against the deployed secret itself, before the code comparison, so it costs no R2
+ * read either way.
+ */
+describe('the word rule: a retired path word or a shared code refuses, before any R2 read', () => {
+  it.each<[string, string, Record<string, string>, string]>([
+    [
+      'CATALOGUE_CODE is exactly the retired word "catalogue"',
+      'https://catalogue.wear-run.help/catalogue',
+      { CATALOGUE_CODE: 'catalogue' },
+      `[apex] catalogue's code starts with the retired path "catalogue" and cannot be served`,
+    ],
+    [
+      'CATALOGUE_CODE starts with the retired word, e.g. "catalogue-2027"',
+      'https://catalogue.wear-run.help/catalogue-2027',
+      { CATALOGUE_CODE: 'catalogue-2027' },
+      `[apex] catalogue's code starts with the retired path "catalogue" and cannot be served`,
+    ],
+    [
+      "PROFILE_CODE starts with the OTHER document's retired word too",
+      'https://profile.wear-run.help/catalogue-oops',
+      { PROFILE_CODE: 'catalogue-oops' },
+      `[apex] profile's code starts with the retired path "catalogue" and cannot be served`,
+    ],
+    [
+      'CATALOGUE_CODE equals PROFILE_CODE',
+      'https://catalogue.wear-run.help/zzzz-shared-code',
+      { CATALOGUE_CODE: 'zzzz-shared-code', PROFILE_CODE: 'zzzz-shared-code' },
+      `[apex] catalogue's code equals profile's code and cannot be served`,
+    ],
+    [
+      'the same shared code also refuses on the profile host',
+      'https://profile.wear-run.help/zzzz-shared-code',
+      { CATALOGUE_CODE: 'zzzz-shared-code', PROFILE_CODE: 'zzzz-shared-code' },
+      `[apex] profile's code equals catalogue's code and cannot be served`,
+    ],
+  ])('%s → the not-active page, no R2 read', async (_label, url, env, logged) => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      const { res, calls } = await send(url, {}, { env })
+      expect(res.status).toBe(404)
+      expect(calls).toEqual([])
+      expect(log).toHaveBeenCalledTimes(1)
+      expect(log).toHaveBeenCalledWith(logged)
+      // Never the secret's value — only the retired word or the other document's name.
+      const loggedText = log.mock.calls.flat().join('\n')
+      expect(loggedText).not.toContain('zzzz-shared-code')
+      expect(loggedText).not.toContain('catalogue-2027')
+      expect(loggedText).not.toContain('catalogue-oops')
+    } finally {
+      log.mockRestore()
+    }
+  })
+
+  it('the control "zzzz-catalogue" — contains but does not START WITH the word — still opens', async () => {
+    const { res, calls } = await send(
+      'https://catalogue.wear-run.help/zzzz-catalogue',
+      {},
+      {
+        env: { CATALOGUE_CODE: 'zzzz-catalogue' },
+      },
+    )
+    expect(res.status).toBe(200)
+    expect(calls).toEqual([{ key: 'documents/catalogue/manifest.json', ranged: false }])
+  })
+})
+
 describe('the backup script still finds both PDFs', () => {
   it('exports FILES with the real R2 keys', () => {
     expect(Object.values(FILES).map((f) => f.key)).toEqual([

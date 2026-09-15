@@ -23,7 +23,7 @@
  */
 
 import { codesMatch, normaliseCode } from './codes.js'
-import { DOCUMENTS, RETIRED_HOSTS, documentForHost } from './documents.js'
+import { DOCUMENTS, RETIRED_HOSTS, RETIRED_PATH_NAMES, documentForHost } from './documents.js'
 import { pictureKey, validateManifest } from './manifest.js'
 import { contentSecurityPolicy, renderDocumentPage, renderMessagePage } from './page.js'
 
@@ -104,6 +104,21 @@ function finish(method, response) {
 }
 
 /**
+ * Trim and lower-case a Worker secret for comparing it against the retired path names
+ * and the other document's own secret. Never used against a request's candidate code —
+ * that stays `codesMatch`'s job alone, unchanged (apps/cms/src/apexWorker.test.ts pins
+ * its call site structurally).
+ *
+ * @param {string | undefined} secret
+ * @returns {string | null}
+ */
+function normalisedSecret(secret) {
+  if (typeof secret !== 'string') return null
+  const trimmed = secret.trim().toLowerCase()
+  return trimmed === '' ? null : trimmed
+}
+
+/**
  * @param {ApexEnv} env
  * @param {import('./documents.js').DocumentConfig} doc
  * @returns {Promise<import('./manifest.js').Manifest | null>}
@@ -145,6 +160,30 @@ export function createHandler({ timingSafeEqual } = {}) {
       const headers = baseHeaders(CACHE_CONTROL.none)
       headers.set('content-type', 'text/plain; charset=utf-8')
       return finish(method, new Response('Not found.', { status: 404, headers }))
+    }
+
+    // ⚠️ THE WORD RULE (review Important 1, owner decision D18, 2026-09-15). Workers
+    // Caching keys on path, not host (file header above), and the four retired routes
+    // in wrangler.jsonc match any suffix — so a code shaped like a retired path name, or
+    // shared between the two documents, could be served from a cache entry the retired
+    // route still matches, or from the other document's host. Checked against the
+    // deployed secret itself, never the request, so a correctly-typed code is still
+    // refused when the SECRET is the misconfigured one — and it costs no R2 read either
+    // way. documents.js explains why these particular words. Never logs a secret's value.
+    const other = Object.values(DOCUMENTS).find((candidate) => candidate.id !== doc.id)
+    const ownSecret = normalisedSecret(env[doc.secret])
+    if (ownSecret !== null && other) {
+      const badPrefix = RETIRED_PATH_NAMES.find((name) => ownSecret.startsWith(name))
+      const otherSecret = normalisedSecret(env[other.secret])
+      const reason = badPrefix
+        ? `starts with the retired path "${badPrefix}"`
+        : otherSecret !== null && ownSecret === otherSecret
+          ? `equals ${other.id}'s code`
+          : null
+      if (reason) {
+        console.error(`[apex] ${doc.id}'s code ${reason} and cannot be served`)
+        return finish(method, await messagePage(404))
+      }
     }
 
     // Decided before anything touches R2. A wrong, missing or malformed code — or the

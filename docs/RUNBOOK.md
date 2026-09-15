@@ -834,7 +834,11 @@ external uptime monitors, nowhere else.
 ### Changing a link's words (a leaked or retired link)
 
 1. The owner chooses the new words: lowercase letters and digits in hyphen-joined words
-   (a new year is the simplest change). Never write them into this repository, an issue or
+   (a new year is the simplest change). **Two rules the Worker enforces itself, fail
+   closed:** the words must not start with `catalogue` or `profile` (the retired zone
+   routes match any suffix, so a code shaped like one could be served from their cache
+   entry — see `infra/apex-404/documents.js`), and the catalogue's and profile's words
+   must differ from each other. Never write them into this repository, an issue or
    a CI log.
 2. Set the secret to the chosen words — the words alone, not the whole link — through the
    Cloudflare API (`PUT /accounts/{account_id}/workers/scripts/run-apparel-apex-404/secrets`

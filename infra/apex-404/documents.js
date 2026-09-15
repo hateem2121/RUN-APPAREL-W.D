@@ -57,6 +57,22 @@ export const DOCUMENTS = {
 export const RETIRED_HOSTS = ['wear-run.help', 'www.wear-run.help']
 
 /**
+ * The retired ROUTES' path prefixes — `wrangler.jsonc`: `wear-run.help/catalogue*`,
+ * `/profile*`, and the `www.` pair. Matched in index.js against a document's own CODE,
+ * never a request (review Important 1, owner decision D18, 2026-09-15).
+ *
+ * WHY A CODE MUST AVOID THESE WORDS. Workers Caching keys on path + Worker version, NOT
+ * host (index.js file header), and those four routes match ANY suffix — so
+ * `wear-run.help/catalogue-2027…` is still "the retired route" as far as the cache is
+ * concerned. A code that starts with one of these words could therefore have its page,
+ * picture or download served from a cache entry the retired route matches, on the
+ * retired apex address, without this Worker running there at all; a code exactly
+ * `catalogue` would re-open `wear-run.help/catalogue` outright. `apps/cms/src/workerConfigs.test.ts`
+ * pins these against the routes so the two lists cannot drift apart.
+ */
+export const RETIRED_PATH_NAMES = ['catalogue', 'profile']
+
+/**
  * @param {string} hostname
  * @returns {DocumentConfig | undefined}
  */

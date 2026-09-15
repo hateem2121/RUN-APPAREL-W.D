@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { RETIRED_PATH_NAMES } from '../../../infra/apex-404/documents.js'
 
 /**
  * Invariants across all four wrangler configs.
@@ -187,6 +188,21 @@ describe('the apex route split (2026-09-06)', () => {
       'b',
     ])
     expect(patterns('{ "routes": [] }')).toEqual([])
+  })
+
+  /**
+   * The word rule (index.js) refuses a code shaped like a retired path name — because
+   * these routes match ANY suffix, not just literally `/catalogue` or `/profile` — so
+   * the two lists have to name the same words or they drift apart silently: a route
+   * renamed here without updating `RETIRED_PATH_NAMES` would leave the Worker checking
+   * against a word nothing actually retires, review Important 1, 2026-09-15.
+   */
+  it("the retired routes' path prefixes are exactly the exported retired path names", () => {
+    const prefixes = patterns(apex)
+      .map((p) => p ?? '')
+      .filter((p) => p.includes('/'))
+      .map((p) => p.split('/')[1]!.replace(/\*$/, ''))
+    expect([...new Set(prefixes)].sort()).toEqual([...RETIRED_PATH_NAMES].sort())
   })
 })
 
