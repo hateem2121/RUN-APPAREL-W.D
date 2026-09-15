@@ -22,8 +22,8 @@ export const PRIVATE_LINK_MESSAGE =
  * a hostname character. Built from PRIVATE_DOCUMENT_HOSTS with the dots escaped, so the
  * two can never say different hosts (a test pins that below).
  *
- * WHY A TEXT SCAN, NOT `new URL(text).hostname` (2026-09-15). Parsing the whole trimmed
- * value as ONE url missed a private link that was not the entire field: `Catalogue:
+ * WHY A TEXT SCAN, NOT ONLY `new URL(text).hostname` (2026-09-15). Parsing the whole
+ * trimmed value as ONE url missed a private link that was not the entire field: `Catalogue:
  * https://catalogue.wear-run.help/…` parsed with `catalogue:` read as the scheme; a
  * link buried in another URL's query string was never unwrapped; two links separated by
  * a space failed to parse as any one URL and fell through to a `text.split('/')[0]`
@@ -36,16 +36,71 @@ const PRIVATE_HOST_PATTERN = new RegExp(
 )
 
 /**
+ * Percent-decode once — some mail scanners (Outlook Safe Links) wrap a link as
+ * `?url=https%3A%2F%2Fcatalogue.wear-run.help%2F…`. A value that fails to decode (a
+ * literal `%` with no valid escape after it) is kept as-is, rather than thrown away.
+ */
+function decodeOnce(text: string): string {
+  try {
+    return decodeURIComponent(text)
+  } catch {
+    return text
+  }
+}
+
+/**
+ * The text, once, and twice percent-decoded — so a scanner in front of a scanner
+ * (`%253A`, a double-encoded link) resolves too.
+ */
+function decodedVariants(text: string): string[] {
+  const once = decodeOnce(text)
+  return [text, once, decodeOnce(once)]
+}
+
+/** A URL-shaped run of text, with or without a scheme — a bare `//host/…` counts too. */
+const URL_TOKEN_PATTERN = /(?:https?:)?\/\/[^\s<>"']+/gi
+
+/**
+ * The private host that some URL-shaped token in `text` resolves to, or null.
+ *
+ * WHY THIS EXISTS ALONGSIDE THE TEXT SCAN ABOVE (2026-09-16, re-review Important 4
+ * residual gap, and this fix's own regression). `new URL().hostname` runs the same
+ * host normalisation a browser does, which the plain text scan cannot: a
+ * percent-encoded dot in the host, the ideographic full stop U+3002, a soft hyphen
+ * inside the host, and a fullwidth first letter all parse to the exact private
+ * hostname (checked against Node's own URL implementation before writing this), and
+ * none of them is a literal substring match for the text scan alone.
+ */
+function hostFromUrlTokens(text: string): string | null {
+  for (const token of text.match(URL_TOKEN_PATTERN) ?? []) {
+    const withScheme = token.startsWith('//') ? `https:${token}` : token
+    try {
+      const host = new URL(withScheme).hostname.replace(/\.$/, '')
+      if ((PRIVATE_DOCUMENT_HOSTS as readonly string[]).includes(host)) return host
+    } catch {
+      // Not a parseable URL — the text scan above is what would catch it, if anything does.
+    }
+  }
+  return null
+}
+
+/**
  * The refusal message when `value` contains a private document host anywhere in its
- * text, otherwise null. A link pasted without `https://`, labelled, buried in another
- * URL's query string, or one of several space-separated links is caught too — anything
- * short of scanning the whole text let each of those through (see the pattern above).
+ * text — read directly, percent-decoded up to twice, or as a URL-shaped token's
+ * browser-normalised hostname — otherwise null. A link pasted without `https://`,
+ * labelled, buried in another URL's query string, percent-encoded, or spelled with a
+ * host-normalisation look-alike is caught too — anything short of all three checks
+ * let one of those through (see the patterns above).
  */
 export function privateDocumentLinkError(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const text = value.trim().toLowerCase()
   if (text === '') return null
-  return PRIVATE_HOST_PATTERN.test(text) ? PRIVATE_LINK_MESSAGE : null
+  return decodedVariants(text).some(
+    (variant) => PRIVATE_HOST_PATTERN.test(variant) || hostFromUrlTokens(variant) !== null,
+  )
+    ? PRIVATE_LINK_MESSAGE
+    : null
 }
 
 /**

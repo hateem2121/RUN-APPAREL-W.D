@@ -402,11 +402,20 @@ takes the site and the four retired PDF routes offline. The private links are no
 it: `catalogue.` and `profile.wear-run.help` are custom domains whose DNS records
 `wrangler deploy` creates.
 
-⚠️ **Two zone rules for `catalogue.wear-run.help` and `profile.wear-run.help` live only
-in Cloudflare, not in any wrangler file** (owner decision, 2026-09-15): a Configuration
-Rule that turns off Zaraz and Web Analytics script injection on both hosts — the pages
-allow no JavaScript at all — and a Cache Rule whose browser TTL respects the Worker's
-own `Cache-Control` instead of overriding it.
+⚠️ **Two zone rules for `catalogue.wear-run.help` and `profile.wear-run.help` were
+created 2026-09-15 and live only in Cloudflare, not in any wrangler file** (owner
+decisions D20, D21). Named here by description, because no rule id may appear in this
+public repository:
+
+- the Configuration Rule **"Private document links: no Zaraz or Web Analytics
+  injection (owner decision D20, 2026-09-15)"** — the pages allow no JavaScript at all;
+- the Cache Rule **"Private document links: browsers follow the Worker's own
+  Cache-Control (owner decision D21, 2026-09-15)"**.
+
+Cloudflare's own documentation states that zone cache settings do not apply to Workers
+Caching — the Worker's own `Cache-Control` response header is what actually decides —
+so the proof that either rule does anything is a header check against the real response
+after switch-on, not the dashboard screen.
 
 ### 11.5 DNSSEC
 

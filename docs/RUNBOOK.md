@@ -849,8 +849,9 @@ external uptime monitors, nowhere else.
 3. Check with a plain GET, never HEAD: the old link must answer **404** and the new one
    **200**. If the old one still opens, run `pnpm deploy:apex` from a clean, up-to-date
    `origin/main` checkout — it deploys whatever is on disk, so a stale or dirty tree
-   ships the wrong code: every deployment starts from a cold cache, and Workers Caching
-   cannot be purged from outside a Worker.
+   ships the wrong code. Running it clears the old link regardless of what was cached:
+   every deployment starts from a cold cache, and Workers Caching cannot be purged from
+   outside a Worker.
 4. Update that document's uptime monitor, then give the owner the new link.
 
 ### Replacing the catalogue or profile PDF
@@ -877,7 +878,10 @@ external uptime monitors, nowhere else.
 
 ### If a link stops working
 
-- **The real link shows "not active" (404):** the secret is missing or different.
+- **The real link shows "not active" (404):** the secret is missing or different, or —
+  the word rule, decided 2026-09-15 — it starts with the retired word `catalogue` or
+  `profile`, or equals the other document's own secret. Only the Worker's own
+  `[apex] … cannot be served` log line says which of these it is.
   `npx wrangler@4.122.0 secret list --name run-apparel-apex-404` shows names only.
 - **"Temporarily unavailable" (503):** the manifest is missing or invalid, or a file it
   lists is missing. Workers Logs carry the reason (`[apex] … manifest rejected: …`).

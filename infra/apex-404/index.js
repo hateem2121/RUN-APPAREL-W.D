@@ -170,14 +170,19 @@ export function createHandler({ timingSafeEqual } = {}) {
     // deployed secret itself, never the request, so a correctly-typed code is still
     // refused when the SECRET is the misconfigured one — and it costs no R2 read either
     // way. documents.js explains why these particular words. Never logs a secret's value.
+    // The prefix check runs whenever this document HAS a secret, whether or not there
+    // is another document to compare against — only the equals-check needs `other`.
+    // Before this change both checks sat behind `&& other`, which cannot go dark today
+    // (DOCUMENTS always holds two), but would have if it ever held one (re-review, New
+    // Breakage, 2026-09-15).
     const other = Object.values(DOCUMENTS).find((candidate) => candidate.id !== doc.id)
     const ownSecret = normalisedSecret(env[doc.secret])
-    if (ownSecret !== null && other) {
+    if (ownSecret !== null) {
       const badPrefix = RETIRED_PATH_NAMES.find((name) => ownSecret.startsWith(name))
-      const otherSecret = normalisedSecret(env[other.secret])
+      const otherSecret = other ? normalisedSecret(env[other.secret]) : null
       const reason = badPrefix
         ? `starts with the retired path "${badPrefix}"`
-        : otherSecret !== null && ownSecret === otherSecret
+        : other && otherSecret !== null && ownSecret === otherSecret
           ? `equals ${other.id}'s code`
           : null
       if (reason) {

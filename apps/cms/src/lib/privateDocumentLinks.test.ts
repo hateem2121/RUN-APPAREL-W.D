@@ -58,8 +58,40 @@ describe('privateDocumentLinkError', () => {
     'https://example.com/go?next=https://catalogue.wear-run.help/zzzz-yyyy',
     'https://wear-run.help/contact https://profile.wear-run.help/tttt-ssss-rrrr',
     'catalogue.wear-run.help:443/zzzz-yyyy-xxxx-wwww-vvvv-uuuu',
+    // 2026-09-16 (re-review, New Breakage — this fix's own regression). Each of these
+    // four is a host-NORMALISATION look-alike: a browser's `new URL()` resolves every
+    // one to the exact private hostname, but the plain lower-cased text scan above
+    // never sees "catalogue.wear-run.help" as a literal substring, so all four saved
+    // once the earlier `new URL(text).hostname` parse was removed in favour of the
+    // text scan alone.
+    'https://catalogue%2ewear-run.help/x',
+    'https://catalogue。wear-run.help/x',
+    'https://cata­logue.wear-run.help/x',
+    'https://ｃatalogue.wear-run.help/x',
+    // The Outlook Safe Links shape: the private host is percent-encoded inside
+    // ANOTHER host's query string. One percent-decode pass turns %3A%2F%2F back into
+    // "://", and the literal private host then matches the plain text scan.
+    'https://eur01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fcatalogue.wear-run.help%2Fx&data=1',
   ])('refuses %j', (value) => {
     expect(privateDocumentLinkError(value)).toBe(PRIVATE_LINK_MESSAGE)
+  })
+
+  /**
+   * A negative control MUST run both ways (root CLAUDE.md). The "refuses %j" case
+   * above proves the REAL guard catches the Safe Links shape; this proves a guard
+   * reduced to text-scan-only (a) — without percent-decoding (b) or URL-token
+   * hostname parsing (c) — would NOT: it recreates pattern (a) alone, locally, rather
+   * than reaching into the module's internals.
+   */
+  describe('negative control: text-scan-only would let the Safe Links shape save', () => {
+    it('the plain host pattern, with no decoding and no URL-token parse, does not match it', () => {
+      const textScanOnly = new RegExp(
+        `(?<![a-z0-9.-])(?:${PRIVATE_DOCUMENT_HOSTS.map((host) => host.replace(/\./g, '\\.')).join('|')})\\.?(?![a-z0-9.-])`,
+      )
+      const safeLinks =
+        'https://eur01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fcatalogue.wear-run.help%2Fx&data=1'
+      expect(textScanOnly.test(safeLinks.toLowerCase())).toBe(false)
+    })
   })
 
   it.each([

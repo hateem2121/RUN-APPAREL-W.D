@@ -334,6 +334,16 @@ describe('the word rule: a retired path word or a shared code refuses, before an
       `[apex] catalogue's code starts with the retired path "catalogue" and cannot be served`,
     ],
     [
+      // 2026-09-16 (re-review, New Breakage): every existing prefix case used
+      // "catalogue"; a regression that hard-coded that word at index.js's badPrefix
+      // check would have stayed green. RETIRED_PATH_NAMES.find(...) is already generic,
+      // so this passes today — it is the guard against that regression, not a fix.
+      'PROFILE_CODE starts with its OWN retired word, e.g. "profile-2027"',
+      'https://profile.wear-run.help/profile-2027',
+      { PROFILE_CODE: 'profile-2027' },
+      `[apex] profile's code starts with the retired path "profile" and cannot be served`,
+    ],
+    [
       "PROFILE_CODE starts with the OTHER document's retired word too",
       'https://profile.wear-run.help/catalogue-oops',
       { PROFILE_CODE: 'catalogue-oops' },
@@ -363,6 +373,7 @@ describe('the word rule: a retired path word or a shared code refuses, before an
       const loggedText = log.mock.calls.flat().join('\n')
       expect(loggedText).not.toContain('zzzz-shared-code')
       expect(loggedText).not.toContain('catalogue-2027')
+      expect(loggedText).not.toContain('profile-2027')
       expect(loggedText).not.toContain('catalogue-oops')
     } finally {
       log.mockRestore()

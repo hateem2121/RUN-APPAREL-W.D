@@ -102,6 +102,18 @@ describe('apex Workers Caching', () => {
     .filter((file) => file.endsWith('.js'))
     .map((file) => ({ file, text: read(`infra/apex-404/${file}`) }))
 
+  /**
+   * The `"cache": {...}` block's trimmed inner text, or null when the config has
+   * none. Shared by the assertion below and its negative control, in the pattern of
+   * the `patterns` helper in `describe('the apex route split (2026-09-06)', ...)`
+   * further down this file — a control that re-types the regex only proves a COPY
+   * of the check can fail (re-review, New Breakage, 2026-09-15).
+   */
+  const cacheBlock = (source: string): string | null => {
+    const match = /"cache":\s*\{([^}]*)\}/.exec(source)
+    return match ? match[1]!.replace(/\s+/g, ' ').trim() : null
+  }
+
   it('reads every Worker module, not just one', () => {
     expect(sources.map((s) => s.file).sort()).toEqual([
       'codes.js',
@@ -120,9 +132,8 @@ describe('apex Workers Caching', () => {
    * one would stop invalidating what is already cached under the old version.
    */
   it('the cache block is exactly { "enabled": true } — no other flag', () => {
-    const match = /"cache":\s*\{([^}]*)\}/.exec(settings(config))
-    expect(match, 'no "cache" block found').not.toBeNull()
-    const inside = match![1]!.replace(/\s+/g, ' ').trim()
+    const inside = cacheBlock(settings(config))
+    expect(inside, 'no "cache" block found').not.toBeNull()
     expect(
       inside,
       'cache must be exactly { "enabled": true }. A second flag such as ' +
@@ -132,9 +143,7 @@ describe('apex Workers Caching', () => {
   })
 
   it('the cache-block check can actually fail (negative control)', () => {
-    const withExtraFlag = '{ "cache": { "enabled": true, "cross_version_cache": true } }'
-    const match = /"cache":\s*\{([^}]*)\}/.exec(withExtraFlag)
-    const inside = match![1]!.replace(/\s+/g, ' ').trim()
+    const inside = cacheBlock('{ "cache": { "enabled": true, "cross_version_cache": true } }')
     expect(inside).not.toBe('"enabled": true')
   })
 
