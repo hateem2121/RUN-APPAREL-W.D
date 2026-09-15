@@ -1058,6 +1058,31 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm seed:assets
 
+      # THE PRIVATE DOCUMENT CODES MUST EXIST BEFORE THE CODE THAT CHECKS THEM SHIPS.
+      #
+      # catalogue.wear-run.help and profile.wear-run.help open only with a code held
+      # as a Worker secret, and codesMatch fails CLOSED without one — so a deploy with
+      # a missing secret shows every customer "not active" while every gate here stays
+      # green. This stops the deploy instead. The secrets are set by a person
+      # (docs/RUNBOOK.md → "Private document links"), never by CI: a code printed in
+      # this public log would be a published link.
+      #
+      # `wrangler secret list` prints names and types, never values.
+      - name: Assert the apex Worker holds both private document codes
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          names=$(pnpm --filter @run-apparel/viewer exec wrangler secret list --name run-apparel-apex-404)
+          for secret in CATALOGUE_CODE PROFILE_CODE; do
+            if echo "$names" | grep -q "\"name\": *\"$secret\""; then
+              echo "$secret: present"
+            else
+              echo "::error::The apex Worker has no $secret secret, so that private document link would show 'not active'. Set it (docs/RUNBOOK.md → Private document links), then re-run this job."
+              exit 1
+            fi
+          done
+
       # Gated migration step: apply any pending committed migrations to the
       # REMOTE production D1 *before* the new Worker is deployed. Replaces the
       # old cold-start `prodMigrations` path (which hung in production once). If
@@ -1167,31 +1192,6 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
         run: pnpm --filter @run-apparel/cms migrate:remote
-
-      # THE PRIVATE DOCUMENT CODES MUST EXIST BEFORE THE CODE THAT CHECKS THEM SHIPS.
-      #
-      # catalogue.wear-run.help and profile.wear-run.help open only with a code held
-      # as a Worker secret, and codesMatch fails CLOSED without one — so a deploy with
-      # a missing secret shows every customer "not active" while every gate here stays
-      # green. This stops the deploy instead. The secrets are set by a person
-      # (docs/RUNBOOK.md → "Private document links"), never by CI: a code printed in
-      # this public log would be a published link.
-      #
-      # `wrangler secret list` prints names and types, never values.
-      - name: Assert the apex Worker holds both private document codes
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          names=$(pnpm --filter @run-apparel/viewer exec wrangler secret list --name run-apparel-apex-404)
-          for secret in CATALOGUE_CODE PROFILE_CODE; do
-            if echo "$names" | grep -q "\"name\": *\"$secret\""; then
-              echo "$secret: present"
-            else
-              echo "::error::The apex Worker has no $secret secret, so that private document link would show 'not active'. Set it (docs/RUNBOOK.md → Private document links), then re-run this job."
-              exit 1
-            fi
-          done
 
       # THE APEX WORKER, WHICH NOTHING DEPLOYED UNTIL NOW.
       #
