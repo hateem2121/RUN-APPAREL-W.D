@@ -291,7 +291,7 @@ step 10 is done (or via the manual commands above). Endpoints:
 | Piece | URL |
 |---|---|
 | Marketing site (CMS Worker on zone routes) | `https://wear-run.help` — `www.` redirects here; `/admin` and `/api` here answer the site's 404 |
-| Catalogue and profile PDFs (`run-apparel-apex-404`) | `https://wear-run.help/catalogue`, `https://wear-run.help/profile` |
+| Private catalogue and profile links (`run-apparel-apex-404`) | `https://catalogue.wear-run.help/<code>` and `https://profile.wear-run.help/<code>` (custom domains; each code is a Worker secret). The old `wear-run.help/catalogue` and `/profile` answer 410 |
 | CMS worker (`run-apparel-viewer-cms`) | `https://cms.wear-run.help` (custom domain) — the viewer *calls* the API via the workers.dev URL instead (Bot Fight Mode, see RUNBOOK) |
 | CMS admin | `https://cms.wear-run.help/admin` |
 | CMS health | `https://cms.wear-run.help/api/health` |
@@ -385,15 +385,17 @@ locally and pushes the image to Cloudflare's registry, which a plain
 of `.github/workflows/deploy-shrink.yml`. The container runs as **uid 1000** and can
 write only under `/tmp`.
 
-### 11.4 The apex Worker (both customer PDFs)
+### 11.4 The apex Worker (both private document links)
 
-`infra/apex-404/` is a deployed Worker (`run-apparel-apex-404`) that serves exactly
-two paths from the **shared** `run-assets` bucket — `/catalogue` and `/profile` — on
-four narrow routes (`wear-run.help/catalogue*`, `/profile*`, and the `www.` pair).
-Since 2026-09-06 the apex itself — `wear-run.help/*` and `www.wear-run.help/*` — is the
-marketing site, served by the CMS Worker; Cloudflare hands a request to the most
-specific route, so the PDFs are untouched. CI deploys this Worker BEFORE the CMS Worker
-because a route pattern belongs to one Worker at a time.
+`infra/apex-404/` is a deployed Worker (`run-apparel-apex-404`) with two custom domains,
+`catalogue.wear-run.help` and `profile.wear-run.help`, each opening only with a code held as
+a Worker secret (`CATALOGUE_CODE`, `PROFILE_CODE`), and four narrow apex routes
+(`wear-run.help/catalogue*`, `/profile*`, and the `www.` pair) that answer 410. It reads the
+PDFs and the page pictures from the **shared** `run-assets` bucket. Since 2026-09-06 the
+apex itself — `wear-run.help/*` and `www.wear-run.help/*` — is the marketing site, served by
+the CMS Worker; Cloudflare hands a request to the most specific route. CI deploys this Worker
+BEFORE the CMS Worker because a route pattern belongs to one Worker at a time, and refuses to
+deploy it without both secrets. Operating it: `docs/RUNBOOK.md` → "Private document links".
 
 ⚠️ **The apex DNS record must stay proxied.** Zone routes require it; deleting it
 takes the site and both PDFs offline.

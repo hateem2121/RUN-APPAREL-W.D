@@ -9,13 +9,13 @@ why 5.4 GB of master files existed once, on one disk (audit CI-02 / CI-08):
 |---|---|---|
 | **D1** `run-apparel-viewer-db` | all products, colourways, media rows, site settings, users, analytics events | `scripts/backup-d1.mjs` → `backups/d1/*.sql` |
 | **R2** `run-apparel-viewer-media` | every uploaded GLB model + poster image | `scripts/backup-r2.mjs` → `backups/r2/<stamp>/media/` |
-| **R2** `run-assets` | the two customer-facing PDFs the apex serves: `/catalogue` and `/profile` (71.2 MB) | `scripts/backup-r2.mjs` → `backups/r2/<stamp>/apex/` |
+| **R2** `run-assets` | the two customer-facing PDFs behind the private catalogue and profile links (71.2 MB); the page pictures under `documents/` are regenerated from them and not backed up | `scripts/backup-r2.mjs` → `backups/r2/<stamp>/apex/` |
 | **R2** `run-apparel-archive` | the **master files**: the FIXED GLBs (five, plus three new exports added 2026-09-02, the two X-MILO PRO masters added 2026-09-03, and the same two masters re-exported that evening with the diffuse setting OFF under `fixed-glbs/2026-09-03-diffuse-off/`) and ten raw CLO exports (21 objects, 6.42 GB in the manifest; the ten superseded pre-diffuse-off copies are listed under `superseded` for the owner to delete) — the only off-machine copy | uploaded by hand with rclone (see below); byte counts verified nightly by `scripts/verify-archive.mjs` against `scripts/archive-manifest.json` |
 
 ⚠️ **`run-assets` is SHARED with the separate `run-apparel` site**, which can write
 to and delete from it. It is not this project's private bucket, and that is the
 reason its contents need a backup of their own rather than being assumed safe.
-`infra/apex-404/index.js` is what serves those two objects.
+`infra/apex-404/` serves those two objects, as each private link's Download button.
 
 Backups are **gitignored** (a D1 export contains password hashes — never commit it).
 
@@ -252,11 +252,12 @@ answer from `GET` on this domain:
 
 ```bash
 curl -sS -o /dev/null -D - https://wear-run.help/catalogue | head -1
-curl -sS -o /dev/null -D - https://wear-run.help/profile   | head -1
 curl -sS -o /dev/null -D - https://viewer.wear-run.help/rxps/wine | head -1
 ```
 
-Reload a product in the viewer and confirm posters and models render.
+`/catalogue` must answer **410**: it is retired and never serves a PDF. Then open both
+private links from the owner's Passwords and press Download — the only check that reads
+the restored objects, because no command here may hold a code.
 
 ### Drilling this without touching real data
 

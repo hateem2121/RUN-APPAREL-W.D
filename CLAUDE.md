@@ -528,15 +528,14 @@ not only from a second push.** On 2026-08-18 a degraded Ubuntu mirror made
 twice, then `verify` at 30m21s — with nothing in the repository changed. Raising a
 ceiling only moved which job died. See `.github/CLAUDE.md`.
 
-**The apex serves the SITE and two PDFs — two Workers, split by route (2026-09-06).**
-`wear-run.help/*` and `www.` go to the CMS Worker (the marketing site); `/catalogue`
-(54.3 MB) and `/profile` (16.9 MB) go to `infra/apex-404/index.js` on four NARROWER
-routes, from the **shared** `run-assets` bucket the separate `run-apparel` site also
-binds — most-specific route wins. **Do not delete the apex DNS record**: zone routes
-need it proxied, or the site AND both PDFs stop resolving. Before 2026-09-06 the apex
-404'd everything else (and 522'd after 20.2 s before 2026-08-19 — the DURATION was the
-finding); `scripts/apex-probe.mjs` now expects the site there. The PDF Worker DRIFTED
-from the repo for two days in 2026-08 after a dashboard edit; CI deploys it now, FIRST.
+**The apex serves the SITE; the PDFs are PRIVATE LINKS (2026-09-11).** `wear-run.help/*`
+and `www.` go to the CMS Worker. `infra/apex-404/` serves `catalogue.` and
+`profile.wear-run.help/<code>` (pictures + the PDF, from the **shared** `run-assets`
+bucket) and 410s the old `/catalogue` and `/profile`. **Each code is a Worker secret:
+never commit, log or print one** — ci.yml refuses to deploy without both. Workers
+Caching keys on path, NOT host, so all cacheable output sits under the code. **Do not
+delete the apex DNS record** (zone routes need it proxied). CI deploys this Worker FIRST;
+it once DRIFTED after a dashboard edit. How-tos: `docs/RUNBOOK.md`.
 
 ## Style
 

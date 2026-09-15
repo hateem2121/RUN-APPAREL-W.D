@@ -145,8 +145,8 @@ as *inconclusive* and keeps the run green.
 | The garment itself (27 MB GLB) | **~19 s at ~1.45 MB/s** | the *rate* drops, not the time — time scales with the tester's line |
 | Model edge cache | **`cf-cache-status: HIT`**, age ~13.7 h | `MISS` on repeat requests |
 | Bare apex (`https://wear-run.help/`) | **404 in 0.89 s** (2026-08-19) | a 5xx, or > 2 s |
-| Catalogue PDF (`/catalogue`) | **200, `application/pdf`, 54,336,461 B**, TTFB 0.9–1.8 s | anything but a 200 PDF; or a body not starting `%PDF-` |
-| Company profile PDF (`/profile`) | **200, `application/pdf`, 16,891,515 B** | anything but a 200 PDF |
+| Old catalogue and profile addresses (`/catalogue`, `/profile`) | **410**, `text/html`, "no longer active" | a PDF, or anything but 410 |
+| Private host without a code (`https://catalogue.wear-run.help/`) | **404**, `text/html`, `x-robots-tag: noindex, nofollow` | a 200, or a PDF |
 
 ⚠️ **The apex figure replaced a 20.2 s one on 2026-08-19 (audit L6).** It used to
 return **522 after 20.214 s** — Cloudflare timing out against an origin that was
@@ -161,6 +161,10 @@ the `run-assets` R2 bucket on 2026-08-28, and the apex Worker serves them itself
 a plain GET returns **200 with no `Location` at all**. `.github/workflows/uptime.yml`
 had been asserting the redirect and erroring on every run since, while still
 concluding `success`; `scripts/apex-probe.mjs` replaced that check.
+
+⚠️ **Since 2026-09-11 neither address serves a PDF at all.** The catalogue and profile open
+only from private links whose codes are Worker secrets, and nothing in this checklist may
+hold one. Check the real links by opening them from the owner's Passwords.
 
 **Do not "simplify" this by deleting the apex DNS record** — it must stay proxied or
 the Worker is never reached and both PDFs stop resolving.
