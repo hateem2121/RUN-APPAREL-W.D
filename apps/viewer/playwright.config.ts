@@ -27,21 +27,9 @@ const DOM_SUITE = /(webgl|render|camera-settle)\.spec\.ts/
 /**
  * The e2e server's port, in ONE place and passed explicitly to the server.
  *
- * ⚠️ `serve.mjs` reads `process.env.PORT ?? 4173`, and it inherits the developer's
- * environment. A `PORT` exported for some OTHER project — 5002 on the owner's
- * machine, set globally for a different repo — makes the server bind 5002 while
- * Playwright polls 4173, and the suite dies as:
- *
- *     Error: Timed out waiting 120000ms from config.webServer.
- *
- * That is the SAME misleading signature as the `pnpm`-not-on-PATH trap in
- * CLAUDE.md: a two-minute wait, a build that looks like it worked, and no mention
- * of the actual cause. It cost two dead-end runs on 2026-08-08 before anyone
- * thought to check `echo $PORT`.
- *
- * Passing it via `webServer.env` rather than reading it here is the point — the
- * config now DICTATES the port instead of hoping the environment agrees. Nothing
- * changes on CI, where PORT is unset and 4173 was already the default.
+ * Passing it via `webServer.env` means the config DICTATES the port, so a mismatch
+ * cannot end as `Error: Timed out waiting 120000ms from config.webServer`: the same
+ * misleading two-minute signature as the `pnpm`-not-on-PATH trap in CLAUDE.md.
  */
 const PORT = 4173
 const ORIGIN = `http://localhost:${PORT}`

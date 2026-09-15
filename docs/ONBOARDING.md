@@ -11,9 +11,9 @@ before.
 
 ---
 
-## Before you start — the two things that waste the most time here
+## Before you start — the thing that wastes the most time here
 
-**1. `pnpm` is probably not on your PATH. Every documented `pnpm <script>` in this
+**`pnpm` is probably not on your PATH. Every documented `pnpm <script>` in this
 repository means `npx --yes pnpm@10.34.5 <script>`.**
 
 Bare `pnpm` fails with exit **127**, and the failure surfaces somewhere unhelpful:
@@ -25,19 +25,6 @@ with the real error buried in a child process.
 npx --yes pnpm@10.34.5 --version   # expect 10.33.0
 node --version                     # expect v24.x
 ```
-
-**2. If anything fails in a way that makes no sense, check these two variables
-FIRST — before reading any code.**
-
-```bash
-env | grep -E '^(NODE_ENV|PORT)='
-```
-
-A `NODE_ENV=development` inherited from another project broke the CMS build with a
-React `useContext` error that named nothing relevant. A `PORT` set for another
-project bound the e2e server to the wrong port and produced the same two-minute
-timeout as above. Both are now fixed at the source, so day to day this does not
-matter — but it has cost two sessions, and the check costs one second.
 
 ---
 

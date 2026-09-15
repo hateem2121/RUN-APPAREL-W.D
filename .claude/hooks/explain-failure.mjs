@@ -7,12 +7,9 @@
  * the wrong component, and each entry is there because a session was spent
  * believing the error text. The tally in that file, by its own dates:
  *
- *   "Timed out waiting 120000ms from config.webServer"  — TWO sessions to a stray
- *       PORT (2026-08-08), then TWO more to a bare `pnpm` exiting 127 inside a
- *       child process (2026-08-21). The message names Playwright either way.
- *   "Cannot read properties of null (reading 'useContext')" — blamed on React, then
- *       on an unused import a linter had removed. It was NODE_ENV=development, and
- *       Next says so only in a mild warning twenty lines earlier (2026-08-09).
+ *   "Timed out waiting 120000ms from config.webServer"  — TWO sessions to a bare
+ *       `pnpm` exiting 127 inside a child process (2026-08-21). The message names
+ *       Playwright instead.
  *   "##[error]The operation was canceled" — a session spent debugging a HEALTHY job
  *       that a second push had cancelled; `gh run watch --exit-status` returns 1 for
  *       `cancelled` exactly as for `failure` (2026-08-12).
@@ -20,10 +17,9 @@
  *       tools/asset-pipeline, which no workspace tooling maintains. Cost a deploy
  *       (2026-08-12).
  *
- * That is seven-plus sessions against four strings. The file already tells you to
- * "run `env | grep -E 'NODE_ENV|PORT'` before reading any code — three times now",
- * which is an instruction to remember something at exactly the moment attention is
- * elsewhere. This hook does not ask anyone to remember.
+ * That is at least three sessions and a deploy against three strings. A note in a
+ * document asks someone to remember it at exactly the moment attention is elsewhere;
+ * this hook does not ask anyone to remember.
  *
  * WHICH FIELD IT READS, AND WHY THAT WAS CHECKED RATHER THAN ASSUMED. The docs give
  * PostToolUseFailure a top-level `error` string, and for Bash its first line is
@@ -55,15 +51,10 @@ const EXPLANATIONS = [
     when: (text) =>
       text.includes('config.webserver') || text.includes('timed out waiting 120000ms'),
     note:
-      'This error names Playwright and means almost anything else. CLAUDE.md records TWO causes,\n' +
-      'each of which cost two sessions:\n' +
-      '  1. A `PORT` exported for another project. e2e/serve.mjs used to read process.env.PORT,\n' +
-      '     so PORT=5002 bound the server where Playwright was not polling. Run:\n' +
-      '       env | grep -E "^(NODE_ENV|PORT)="\n' +
-      '  2. A bare `pnpm`. e2e/prepare.mjs shells out to `pnpm build`, so exit 127 dies inside a\n' +
-      '     child process and surfaces only as this timeout. Use `npx --yes pnpm@10.34.5`.\n' +
-      'Check both BEFORE reading any code. Both are fixed at the source, so a recurrence means\n' +
-      'something new — but check them first anyway.',
+      'This error names Playwright and usually means something else. The recorded cause cost two\n' +
+      'sessions: a bare `pnpm`. e2e/prepare.mjs shells out to `pnpm build`, so exit 127 dies\n' +
+      'inside a child process and surfaces only as this timeout. Use `npx --yes pnpm@10.34.5`,\n' +
+      'and check this BEFORE reading any code.',
   },
   {
     name: 'bare-pnpm-127',
@@ -73,20 +64,6 @@ const EXPLANATIONS = [
     note:
       '`pnpm` is not reliably on PATH here — it has MEASURED BOTH WAYS on this machine, so assume\n' +
       'neither. Every documented `pnpm <script>` in this repo means `npx --yes pnpm@10.34.5 <script>`.',
-  },
-  {
-    name: 'next-build-usecontext',
-    when: (text) =>
-      text.includes("reading 'usecontext'") ||
-      text.includes('_global-error') ||
-      (text.includes('prerendering page') && text.includes('usecontext')),
-    note:
-      'This reads as a React-version or duplicate-copy problem and is neither. On 2026-08-09 it was\n' +
-      '`NODE_ENV=development` present in the environment; Next prints only a mild "non-standard\n' +
-      'NODE_ENV" warning twenty lines earlier. Run:\n' +
-      '  env | grep -E "^(NODE_ENV|PORT)="\n' +
-      "apps/cms's build script already pins NODE_ENV=production, so a recurrence means the pin was\n" +
-      'bypassed — check that before blaming React or an import.',
   },
   {
     name: 'ci-run-cancelled',

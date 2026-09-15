@@ -523,12 +523,11 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/viewer test:e2e
 The e2e suite is the only thing that exercises `<model-viewer>` for real — under jsdom
 it asserts against a stub, which is why this package's coverage floor is the repo's
 lowest at 42% and why the floor must not be "fixed" by excluding `App.tsx`/`Stage.tsx`.
-If it dies with `Timed out waiting 120000ms from config.webServer`, run
-`env | grep -E 'NODE_ENV|PORT'` and confirm `pnpm` resolved (bare `pnpm` exits 127
-inside the child process) **before reading any code** — both have caused that exact
-timeout here.
+If it dies with `Timed out waiting 120000ms from config.webServer`, confirm `pnpm`
+resolved (bare `pnpm` exits 127 inside the child process) **before reading any code** —
+it has caused that exact timeout here.
 
-**A THIRD cause of that same timeout: a stray fixture server.** `e2e/serve.mjs`
+**A SECOND cause of that same timeout: a stray fixture server.** `e2e/serve.mjs`
 started by hand to drive the simulator holds 4173, so Playwright's own `webServer`
 cannot bind and the suite reads as a code failure. `pkill -f e2e/serve.mjs` first.
 
@@ -536,11 +535,6 @@ cannot bind and the suite reads as a code failure. `pkill -f e2e/serve.mjs` firs
 `pnpm --filter @run-apparel/viewer test:e2e -- --grep "x"` runs the WHOLE suite and
 silently ignores the filter — measured 2026-08-20, 252 tests where 20 were asked for.
 Run `npx playwright test --grep "x"` from `apps/viewer/` instead (~2 s against ~40 s).
-
-**Driving `e2e/serve.mjs` by hand needs `PORT=4173` explicitly.** `playwright.config.ts`
-owns the port for the suite, and that fix does not reach a server you start yourself —
-it still reads `process.env.PORT`, so under `PORT=5002` it binds there and `localhost:4173`
-returns nothing.
 
 **Driving the built app by hand needs `VITE_API_BASE_URL=''`.** A plain
 `pnpm build` bakes in the production API, so `localhost:4173/n001/wine` renders
@@ -573,8 +567,6 @@ returns nothing.
   green.** Found 2026-08-25: it sets `VITE_API_BASE_URL=http://localhost:3000`, and
   Vite loads `.env.local` in test mode too, so `src/lib/telemetry.test.ts` asserts
   the production endpoint and receives localhost. CI has no such file, so this is
-  invisible there. The third instance of the environment-shadowing class the root
-  file documents for `NODE_ENV` and `PORT` — and it cost a stash-to-baseline bisect
-  to rule out as a code fault. Move it aside to test what CI tests; do not delete
-  it, it is the local dev pointer.
+  invisible there. It cost a stash-to-baseline bisect to rule out as a code fault.
+  Move it aside to test what CI tests; do not delete it, it is the local dev pointer.
 

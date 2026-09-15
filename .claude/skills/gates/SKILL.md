@@ -39,9 +39,8 @@ Report the failure and stop. Do not re-run the whole sequence to "check"; use
 Two failures mean something other than what they say, and the PostToolUseFailure
 hook will surface both automatically:
 
-- `Timed out waiting 120000ms from config.webServer` — a stray `PORT`, or a bare
-  `pnpm` exiting 127 inside a child process. Run `env | grep -E '^(NODE_ENV|PORT)='`
-  before reading any code.
+- `Timed out waiting 120000ms from config.webServer` — a bare `pnpm` exiting 127
+  inside a child process. Use `npx --yes pnpm@10.34.5` before reading any code.
 - `npm ci` failing at `container-install` — the second lockfile in
   `tools/asset-pipeline`, which no workspace tooling maintains.
 
