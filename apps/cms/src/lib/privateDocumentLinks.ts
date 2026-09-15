@@ -17,21 +17,35 @@ export const PRIVATE_LINK_MESSAGE =
   'This field is public — the product API shows it to anyone. Do not paste the private catalogue or profile link here.'
 
 /**
- * The refusal message when `value` points at a private document host, otherwise null.
- * A link pasted without `https://` is caught too, because that is how people paste.
+ * Matches a private host anywhere in the text, as a WHOLE hostname: not preceded by a
+ * hostname character, optionally followed by one trailing dot, and then not followed by
+ * a hostname character. Built from PRIVATE_DOCUMENT_HOSTS with the dots escaped, so the
+ * two can never say different hosts (a test pins that below).
+ *
+ * WHY A TEXT SCAN, NOT `new URL(text).hostname` (2026-09-15). Parsing the whole trimmed
+ * value as ONE url missed a private link that was not the entire field: `Catalogue:
+ * https://catalogue.wear-run.help/…` parsed with `catalogue:` read as the scheme; a
+ * link buried in another URL's query string was never unwrapped; two links separated by
+ * a space failed to parse as any one URL and fell through to a `text.split('/')[0]`
+ * fallback that named neither host; and a bare `catalogue.wear-run.help:443/…` with no
+ * `https://` parses as a URL whose SCHEME is `catalogue.wear-run.help` (dots and
+ * hyphens are legal scheme characters) and so has no hostname at all. All four saved.
+ */
+const PRIVATE_HOST_PATTERN = new RegExp(
+  `(?<![a-z0-9.-])(?:${PRIVATE_DOCUMENT_HOSTS.map((host) => host.replace(/\./g, '\\.')).join('|')})\\.?(?![a-z0-9.-])`,
+)
+
+/**
+ * The refusal message when `value` contains a private document host anywhere in its
+ * text, otherwise null. A link pasted without `https://`, labelled, buried in another
+ * URL's query string, or one of several space-separated links is caught too — anything
+ * short of scanning the whole text let each of those through (see the pattern above).
  */
 export function privateDocumentLinkError(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const text = value.trim().toLowerCase()
   if (text === '') return null
-  let host: string
-  try {
-    host = new URL(text).hostname
-  } catch {
-    host = text.split('/')[0] ?? ''
-  }
-  const bare = host.replace(/\.$/, '')
-  return (PRIVATE_DOCUMENT_HOSTS as readonly string[]).includes(bare) ? PRIVATE_LINK_MESSAGE : null
+  return PRIVATE_HOST_PATTERN.test(text) ? PRIVATE_LINK_MESSAGE : null
 }
 
 /**

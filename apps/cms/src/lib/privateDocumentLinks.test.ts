@@ -52,6 +52,12 @@ describe('privateDocumentLinkError', () => {
     'catalogue.wear-run.help/zzzz-yyyy-xxxx-wwww-vvvv-uuuu',
     'https://catalogue.wear-run.help./anything',
     '  https://profile.wear-run.help  ',
+    // 2026-09-15: parsing the trimmed text as ONE url missed every one of these — the
+    // private host was still in the text, just not where a single `new URL()` looked.
+    'Catalogue: https://catalogue.wear-run.help/zzzz-yyyy-xxxx-wwww-vvvv-uuuu',
+    'https://example.com/go?next=https://catalogue.wear-run.help/zzzz-yyyy',
+    'https://wear-run.help/contact https://profile.wear-run.help/tttt-ssss-rrrr',
+    'catalogue.wear-run.help:443/zzzz-yyyy-xxxx-wwww-vvvv-uuuu',
   ])('refuses %j', (value) => {
     expect(privateDocumentLinkError(value)).toBe(PRIVATE_LINK_MESSAGE)
   })
