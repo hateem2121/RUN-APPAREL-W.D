@@ -91,38 +91,6 @@ Since 2026-08-26 the PreToolUse guard **rewrites** a bare `pnpm` you type rather
 than refusing it — but it sees only the Bash tool's own command, never what a
 script shells out to, which is the case that actually cost the sessions above.
 
-**`NODE_ENV=development` in the environment broke `next build` in a way that
-named nothing.** Found 2026-08-09. The CMS build died with
-`Error occurred prerendering page "/_global-error"` and
-`TypeError: Cannot read properties of null (reading 'useContext')` — which reads
-as a React-version or duplicate-copy problem, and was first blamed on an unused
-`import React` that a linter had just removed. It was neither: Next prints only a
-mild "non-standard NODE_ENV" warning twenty lines earlier, and the same tree
-built cleanly the moment `NODE_ENV=production` was set. **Fixed at the source,
-exactly as `PORT` was:** `apps/cms`'s build script is now
-`NODE_ENV=production next build`, so the environment cannot reach it. Verified
-with `NODE_ENV=development` still exported.
-
-⚠️ **They belong to ANOTHER of the owner's projects — confirmed by the owner
-2026-09-04 — so they are never this repo's to adopt, "respect" or design around.**
-They leak in sometimes and not always: present 2026-08-09, gone 2026-08-13 and
-2026-08-17, back 2026-08-26 and again 2026-09-04, same machine. So the owner's own
-terminal and any two sessions can each see a different environment, and **"it works
-for me" proves nothing about the other.** Both are fixed at the source anyway. **If
-a build or a test server fails in a way that makes no sense, run
-`env | grep -E 'NODE_ENV|PORT'` before reading any code** — four times now.
-
-**A `PORT` set for another project produces the IDENTICAL error, and did on
-2026-08-08.** `e2e/serve.mjs` reads `process.env.PORT ?? 4173` and inherits your
-shell, so a global `PORT=5002` exported for a different repo binds the e2e server
-to 5002 while Playwright polls 4173 — same two-minute wait, same
-`Timed out waiting 120000ms from config.webServer`, same silence about the cause.
-Two dead-end runs went by before anyone ran `echo $PORT`. **Fixed at the source:**
-`playwright.config.ts` now owns the port and passes it via `webServer.env`, so the
-environment cannot move the server. Verified with `PORT=5002` still set. If you
-ever see that timeout again, the two candidates are these; check both before
-believing the suite is broken.
-
 **Running the CMS dev server DIRTIES the working tree and then `pnpm lint` fails.**
 Found 2026-08-09. `next dev` rewrites two committed generated files —
 `apps/cms/src/app/(payload)/admin/importMap.js` (Payload regenerates it, in its

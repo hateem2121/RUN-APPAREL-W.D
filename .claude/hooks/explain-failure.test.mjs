@@ -48,22 +48,11 @@ function bashFailure(error, extra = {}) {
   return { tool_name: 'Bash', tool_input: { command: 'x' }, error, ...extra }
 }
 
-check('names PORT and bare pnpm for the Playwright timeout that names neither', () => {
+check('names bare pnpm for the Playwright timeout that does not name it', () => {
   const got = run(
     bashFailure('Exit code 1\nError: Timed out waiting 120000ms from config.webServer'),
   )
-  if (!got.includes('PORT')) throw new Error('did not mention PORT')
   if (!got.includes('npx --yes pnpm@10.34.5')) throw new Error('did not mention the npx form')
-})
-
-check('names NODE_ENV for the useContext error that reads as a React problem', () => {
-  const got = run(
-    bashFailure(
-      'Exit code 1\nError occurred prerendering page "/_global-error"\n' +
-        "TypeError: Cannot read properties of null (reading 'useContext')",
-    ),
-  )
-  if (!got.includes('NODE_ENV')) throw new Error('did not mention NODE_ENV')
 })
 
 check('tells you to read `conclusion`, not the exit code, on a cancelled run', () => {

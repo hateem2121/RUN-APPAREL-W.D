@@ -25,9 +25,9 @@ files. You report.
   which had been fixed long before. A session read that line and skipped a check that
   worked. **A stale trap does not merely fail to help; it argues you out of a working
   check.**
-- The `pnpm`-not-on-PATH claim has now measured BOTH ways on the same machine, as
-  have `NODE_ENV` and `PORT`. The file says "assume neither" precisely because nobody
-  re-measured between the two observations.
+- The `pnpm`-not-on-PATH claim has now measured BOTH ways on the same machine. The
+  file says "assume neither" precisely because nobody re-measured between the two
+  observations.
 
 ## Method
 
@@ -62,7 +62,6 @@ passing baseline is `INCONCLUSIVE`.
 These are runnable today. They are a starting set, not the whole list — grep for more.
 
 - `command -v pnpm; pnpm --version` — the file says this has measured BOTH ways.
-- `env | grep -E '^(NODE_ENV|PORT)='` — same; the file says it flipped twice.
 - `node scripts/doc-citations.mjs` — claimed to print a summary and exit 1 on failure.
 - `node -e "require('node:sqlite')"` — claimed built into the pinned Node 24.
 - The held `@cloudflare/workers-types` version, and the wrangler version beside it —
