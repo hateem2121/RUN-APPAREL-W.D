@@ -31,6 +31,12 @@ const refused = groups.find((lines) => lines.includes('Disallow: /')) ?? []
 const wildcard = groups.find((lines) => agentsOf(lines).includes('*')) ?? []
 
 describe('the viewer host’s robots.txt matches the site’s policy (L-09, FI-06)', () => {
+  it('parses two groups: everyone, and the refused', () => {
+    expect(groups).toHaveLength(2)
+    expect(refused.length).toBeGreaterThan(0)
+    expect(wildcard.length).toBeGreaterThan(0)
+  })
+
   it('refuses exactly the site’s training-only crawlers', () => {
     expect(lower(agentsOf(refused))).toEqual(lower(TRAINING_ONLY_UAS))
   })

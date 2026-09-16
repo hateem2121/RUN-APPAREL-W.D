@@ -85,7 +85,7 @@ export const AI_CRAWLER_UAS = [
   'meta-externalagent',
   'meta-externalfetcher',
   'FacebookBot',
-  // Amazon. Amazonbot trains; Amzn-SearchBot (Alexa) and Amzn-User answer.
+  // Amazon. Amazonbot may train; Amzn-SearchBot indexes for Amazon search (Alexa included); Amzn-User fetches live for a person's Alexa question.
   'Amazonbot',
   'Amzn-SearchBot',
   'Amzn-User',
@@ -137,7 +137,8 @@ export const AI_CRAWLER_UAS = [
  *
  *   ClaudeBot           trains Anthropic's models   ·  Claude-SearchBot and Claude-User answer
  *   meta-externalagent  trains Meta's models        ·  meta-externalfetcher fetches for a person
- *   Amazonbot           may train Amazon's models   ·  Amzn-SearchBot (Alexa) and Amzn-User answer
+ *   Amazonbot           may train Amazon's models   ·  Amzn-SearchBot (search, Alexa included) and
+ *                                                      Amzn-User (live answers) do not train
  *
  * Checked 2026-09-16 against https://developer.amazon.com/amazonbot ,
  * https://developers.facebook.com/documentation/sharing/webmasters/web-crawlers and
