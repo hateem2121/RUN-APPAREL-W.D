@@ -75,7 +75,7 @@ export default async function PrivacyPage() {
             cookies and without identifying you.
           </p>
           <p>
-            <strong>When you open a document we share with you.</strong> Our catalogue and company
+            <strong>When you open a document we share with you.</strong> Our catalog and company
             profile open from private links. When one is opened, we record the day and time; the
             approximate location (country, region and city), its time zone, and the name of the
             network your connection comes from; your type of device, system, browser and language;
