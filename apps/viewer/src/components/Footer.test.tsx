@@ -1,4 +1,4 @@
-import { DEFAULT_SITE_SETTINGS, type ViewerSiteSettings } from '@run-apparel/shared'
+import { DEFAULT_SITE_SETTINGS, formatAddress, type ViewerSiteSettings } from '@run-apparel/shared'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -83,5 +83,20 @@ describe('Footer', () => {
   it('still shows the legal line', () => {
     render(<Footer settings={settings} />)
     expect(host.textContent).toContain(DEFAULT_SITE_SETTINGS.legalLine)
+  })
+
+  it('links the privacy notice and the terms on the marketing site', () => {
+    render(<Footer settings={settings} />)
+
+    // Both surfaces process visitor data, and the notice says it covers these pages; a
+    // visitor looks for it in the footer of the page they are on.
+    const byText = (label: string) => links().find((a) => a.textContent === label)
+    expect(byText('Privacy')?.getAttribute('href')).toBe('https://wear-run.help/privacy')
+    expect(byText('Terms')?.getAttribute('href')).toBe('https://wear-run.help/terms')
+  })
+
+  it('prints the postal address the site footer prints', () => {
+    render(<Footer settings={settings} />)
+    expect(host.querySelector('.footer__meta')?.textContent).toContain(formatAddress())
   })
 })

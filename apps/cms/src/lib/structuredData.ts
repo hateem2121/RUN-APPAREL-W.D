@@ -1,4 +1,4 @@
-import { normalizeWhatsAppNumber } from '@run-apparel/shared'
+import { normalizeWhatsAppNumber, POSTAL_ADDRESS } from '@run-apparel/shared'
 import type { ProductCard, PublicSiteSettings } from './projectPublic'
 import { SITE_ORIGIN, VIEWER_ORIGIN } from './seo'
 
@@ -22,24 +22,11 @@ import { SITE_ORIGIN, VIEWER_ORIGIN } from './seo'
  */
 
 /**
- * The postal address, in ONE place.
- *
- * It was a bare string inside the contact page. Structured data needs it broken into
- * parts, and two copies of an address drift — so the page now renders this and the
- * schema reads it, from here.
+ * The postal address lives in `@run-apparel/shared` (`company.ts`) since the viewer's
+ * footer prints it too. Re-exported here so the pages and tests that import it from this
+ * file keep working unchanged.
  */
-export const POSTAL_ADDRESS = {
-  street: '13 Km Daska Road',
-  locality: 'Sialkot',
-  postalCode: '51040',
-  country: 'PK',
-} as const
-
-/** The same address as one line, for display. */
-export function formatAddress(): string {
-  const { street, locality, postalCode } = POSTAL_ADDRESS
-  return `${street}, ${locality}, ${postalCode}, Pakistan`
-}
+export { formatAddress, POSTAL_ADDRESS } from '@run-apparel/shared'
 
 /**
  * The organisation itself — rendered on every page via the layout.
