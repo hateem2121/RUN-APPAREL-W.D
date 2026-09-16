@@ -9,11 +9,13 @@ import { expect, test } from '@playwright/test'
  * paragraph normally (confirmed independently: `page.content()`, `page.locator('p')
  * .textContent()` and a failed run's own CDP accessibility snapshot all show the exact
  * text, and `page.locator('p').isVisible()` is `true`), yet `page.locator('text=…')`
- * and `getByText(…)` both resolve to zero elements — Playwright's dedicated "text="
- * engine specifically does not run under a scripting-disabled page. A plain CSS
- * locator and the `hasText` filter are unaffected (diagnosed the same session), and so
- * is `getByRole('link', { name })` below — only the "text=" engine is broken. Use
- * `hasText` for any text assertion on a `javaScriptEnabled: false` page here.
+ * and `getByText(…)` both resolve to zero elements. That is not about scripting being
+ * off: playwright-core's injected text engine skips SCRIPT, NOSCRIPT and STYLE
+ * elements by tag name, and anything inside one (`shouldSkipForTextMatching`, plus
+ * the lax-mode ancestor short-circuit), so text that lives inside `<noscript>` is
+ * invisible to it in any page. A plain CSS locator with the `hasText` filter, and
+ * `getByRole('link', { name })` below, do not use that skip. Use `hasText` (or a
+ * plain CSS locator) for text that lives inside `<noscript>`.
  */
 test.use({ javaScriptEnabled: false })
 
