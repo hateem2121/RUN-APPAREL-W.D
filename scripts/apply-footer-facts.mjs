@@ -25,11 +25,19 @@
  *
  * Usage:
  *   node scripts/apply-footer-facts.mjs                    # dry run, no key needed
- *   CMS_API_KEY=… node scripts/apply-footer-facts.mjs --apply
+ *   node scripts/apply-footer-facts.mjs --apply    # asks for the key, hidden
+ *
+ * ⚠️ DO NOT PUT THE KEY ON THE COMMAND LINE. This block used to read
+ * `CMS_API_KEY=… node …`, and on 2026-09-16 that shape failed twice: a command block is
+ * something you run, not something you edit first, so the placeholder went through as the
+ * key both times. It also writes the key into the shell history in plain text, where it
+ * outlives the minute it was needed for. `CMS_API_KEY` still works when it is already
+ * exported, for CI; it is no longer what anyone is handed.
  */
 
 const API_BASE = (process.env.CMS_API_BASE || 'https://cms.wear-run.help').replace(/\/+$/, '')
-const API_KEY = process.env.CMS_API_KEY || ''
+/** `let`, not `const`: the prompt in main() assigns the key when the variable is unset. */
+let API_KEY = process.env.CMS_API_KEY || ''
 const APPLY = process.argv.includes('--apply')
 const GLOBAL = '/api/globals/site-settings'
 
@@ -171,31 +179,96 @@ async function main() {
     console.log(
       '\nDry run. A global is not public, so the current values cannot be read without a key.',
     )
-    console.log('To write them:  CMS_API_KEY=… node scripts/apply-footer-facts.mjs --apply')
+    console.log('To write them:  node scripts/apply-footer-facts.mjs --apply')
     return
   }
-  if (!API_KEY) {
-    console.error('\nCMS_API_KEY is not set. Export it before using --apply.')
-    process.exit(2)
-  }
+
   /*
-   * ⚠️ CATCH THE INSTRUCTIONS BEING PASTED AS THE KEY. The owner ran this on 2026-09-16
-   * with the literal placeholder from the written instructions, and the only feedback was
-   * Payload's "403 You are not allowed to perform this action" — which reads like a
-   * permissions problem and is not one. Refusing locally turns a confusing server error
-   * into an obvious sentence.
+   * ⚠️ THE KEY IS ASKED FOR, NOT PUT ON THE COMMAND LINE, AND THAT IS A FIX FOR TWO FAULTS.
    *
-   * Deliberately narrow: whitespace, or wording that only appears in instructions. A real
-   * key is a single opaque token, so neither can occur in one. No length or character-set
-   * floor, because guessing a key's format risks rejecting a valid key and leaving the
-   * owner stuck with no way round it.
+   * The written instruction used to be `CMS_API_KEY=… node scripts/apply-footer-facts.mjs`.
+   * On 2026-09-16 the owner ran it twice with the placeholder still in place — first
+   * `paste-your-key-here`, then `your-real-key` — because a command block is something you
+   * run, not something you edit first. That is an instruction-design fault, not a user
+   * error, and no amount of pattern-matching the placeholder fixes the shape of it.
+   *
+   * The second fault is worse and was never mentioned: `CMS_API_KEY=<secret> node …` writes
+   * the key into the shell history in plain text, where it outlives the minute it was
+   * needed for. Asking for it leaves the command free of secrets.
+   *
+   * The environment variable still wins when it is set, so CI and any existing habit keep
+   * working; it simply stops being what the owner is handed.
    */
-  if (/\s/.test(API_KEY) || /paste|placeholder|your[-_]?key/i.test(API_KEY)) {
-    console.error('\nThat looks like the instructions rather than a key:')
-    console.error(`  CMS_API_KEY=${API_KEY}`)
-    console.error('Paste the key the CMS gave you in place of that text.')
+  let key = API_KEY
+
+  if (!key) {
+    /*
+     * Hidden entry. `readline/promises` is the repo's existing prompt (see
+     * `find-orphan-media.mjs`), but it ECHOES — correct for a `[y/N]`, wrong for a secret —
+     * and muting it means reaching for `_writeToOutput`, which is private. Raw mode is
+     * documented, so the characters are assembled here instead. Iterated per character
+     * because a paste arrives as one chunk that may carry its own newline.
+     */
+    const readHidden = (promptText) =>
+      new Promise((resolve, reject) => {
+        const input = process.stdin
+        process.stdout.write(promptText)
+        input.setRawMode(true)
+        input.resume()
+        input.setEncoding('utf8')
+        let typed = ''
+        const finish = (done) => {
+          input.setRawMode(false)
+          input.pause()
+          input.off('data', onData)
+          process.stdout.write('\n')
+          done()
+        }
+        const onData = (chunk) => {
+          for (const ch of chunk) {
+            if (ch === '\r' || ch === '\n' || ch === '') return finish(() => resolve(typed))
+            if (ch === '') return finish(() => reject(new Error('cancelled')))
+            if (ch === '' || ch === '\b') typed = typed.slice(0, -1)
+            else typed += ch
+          }
+        }
+        input.on('data', onData)
+      })
+
+    if (!process.stdin.isTTY) {
+      console.error('\nNo key, and this is not an interactive terminal.')
+      console.error('Run it in your own Terminal so it can ask, or set CMS_API_KEY.')
+      process.exit(2)
+    }
+    console.log('\nThe key is needed to read and change Settings. It is not shown as you type,')
+    console.log('and it is not stored anywhere — not in this command, not in your history.\n')
+    key = (await readHidden('CMS API key (admin user): ')).trim()
+    if (!key) {
+      console.error('Nothing entered.')
+      process.exit(2)
+    }
+  }
+
+  /*
+   * Backstop for the environment-variable route only. Narrow on purpose: whitespace, or
+   * wording that appears in instructions and cannot occur in an opaque token. Still no
+   * length or character-set floor — guessing a key's format risks rejecting a valid key
+   * and stranding whoever is running it.
+   */
+  /*
+   * ⚠️ NO BARE ENGLISH WORDS HERE. A first pass at this listed `your`, `here` and `example`
+   * on their own, which contradicts the paragraph above it: that is a format assumption by
+   * the back door, and a real key containing `here` would strand whoever is running it with
+   * no way round. Every pattern below needs BOTH halves of a placeholder, or a character a
+   * token cannot contain.
+   */
+  if (/\s/.test(key) || /paste|placeholder|your[-\w]*key|real[-_]?key|[<>]/i.test(key)) {
+    console.error('\nThat looks like instruction text rather than a key:')
+    console.error(`  ${key}`)
+    console.error('Run without CMS_API_KEY set and the script will ask for it instead.')
     process.exit(2)
   }
+  API_KEY = key
 
   const before = await api('GET', `${GLOBAL}?depth=0`)
   if (!before.ok) {
