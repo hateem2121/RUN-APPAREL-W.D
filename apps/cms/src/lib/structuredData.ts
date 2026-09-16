@@ -82,6 +82,26 @@ export function organizationJsonLd(settings: PublicSiteSettings) {
 }
 
 /**
+ * The website itself, on the home page only (audit FI-10).
+ *
+ * Search engines read a `WebSite` node on the home page when choosing the site name to show
+ * in results; without one they guess from the title, which here carries a strapline as well
+ * as the name. Measured live 2026-09-16: the site emitted Organization only. `publisher`
+ * points at the Organization node by `@id` rather than declaring a second company.
+ * No `SearchAction`: the site has no search.
+ */
+export function websiteJsonLd(settings: PublicSiteSettings) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    '@id': `${SITE_ORIGIN}/#website`,
+    name: settings.companyName,
+    url: `${SITE_ORIGIN}/`,
+    publisher: { '@id': `${SITE_ORIGIN}/#organization` },
+  }
+}
+
+/**
  * The gallery, as an ordered list of garments.
  *
  * ⚠️ EACH ITEM'S URL POINTS AT THE VIEWER HOST, not at this one. That is where the

@@ -8,6 +8,7 @@ import {
   organizationJsonLd,
   POSTAL_ADDRESS,
   productListJsonLd,
+  websiteJsonLd,
 } from './structuredData'
 
 const settings = (over: Partial<PublicSiteSettings> = {}): PublicSiteSettings => ({
@@ -64,6 +65,20 @@ describe('organisation', () => {
     // the visible one-liner must be built from the same parts
     expect(formatAddress()).toContain(POSTAL_ADDRESS.street)
     expect(formatAddress()).toContain(POSTAL_ADDRESS.postalCode)
+  })
+})
+
+describe('the website (FI-10)', () => {
+  it('is a WebSite node for the home page, named after the company', () => {
+    const site = websiteJsonLd(settings())
+    expect(site['@type']).toBe('WebSite')
+    expect(site.name).toBe(settings().companyName)
+    expect(site.url).toBe(`${SITE_ORIGIN}/`)
+    expect(site['@id']).toBe(`${SITE_ORIGIN}/#website`)
+  })
+
+  it('is published by the same organisation node, not a second company', () => {
+    expect(websiteJsonLd(settings()).publisher['@id']).toBe(organizationJsonLd(settings())['@id'])
   })
 })
 

@@ -1,6 +1,7 @@
 import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { JsonLd } from '../../components/site/JsonLd'
 import { ProductPoster } from '../../components/site/ProductPoster'
 import { CERTIFICATION, FACTS, SHIPS_TO } from '../../lib/companyFacts'
 import { getProductCards, type ProductCard } from '../../lib/content'
@@ -8,6 +9,7 @@ import { getSiteSettings } from '../../lib/content'
 import { FAMILIES } from '../../lib/families'
 import { HOME_DESCRIPTION } from '../../lib/pageDescriptions'
 import { buildMetadata, VIEWER_ORIGIN } from '../../lib/seo'
+import { websiteJsonLd } from '../../lib/structuredData'
 
 /**
  * ⚠️ `force-dynamic` IS NOT OPTIONAL. `resolveCloudflareEnv()` returns null during
@@ -83,6 +85,7 @@ export default async function HomePage() {
   const proof = products.find((product) => product.posterUrl) ?? null
   return (
     <>
+      <JsonLd data={websiteJsonLd(settings)} />
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">

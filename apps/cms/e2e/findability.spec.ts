@@ -224,6 +224,18 @@ test.describe('FA-N-08 — the structured data parses and says what it should', 
       expect(types, `${page.path} no longer declares ${page.ld}`).toContain(page.ld)
     })
   }
+
+  test('home names the website for search results (FI-10)', async ({ request }) => {
+    const html = await (await request.get('/')).text()
+    const nodes = [
+      ...html.matchAll(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g),
+    ].map((match) => JSON.parse(match[1] ?? 'null') as Record<string, unknown>)
+    const site = nodes.find((node) => node?.['@type'] === 'WebSite')
+    expect(site, '/ has no WebSite node').toBeDefined()
+    expect(String(site?.url)).toMatch(/^https:\/\/.+\/$/)
+    expect(String(site?.name).length).toBeGreaterThan(0)
+    expect((site?.publisher as Record<string, unknown>)?.['@id']).toMatch(/\/#organization$/)
+  })
 })
 
 test.describe('FA-N-11 — the heading outline is real', () => {
