@@ -178,10 +178,40 @@ async function main() {
     console.error('\nCMS_API_KEY is not set. Export it before using --apply.')
     process.exit(2)
   }
+  /*
+   * ⚠️ CATCH THE INSTRUCTIONS BEING PASTED AS THE KEY. The owner ran this on 2026-09-16
+   * with the literal placeholder from the written instructions, and the only feedback was
+   * Payload's "403 You are not allowed to perform this action" — which reads like a
+   * permissions problem and is not one. Refusing locally turns a confusing server error
+   * into an obvious sentence.
+   *
+   * Deliberately narrow: whitespace, or wording that only appears in instructions. A real
+   * key is a single opaque token, so neither can occur in one. No length or character-set
+   * floor, because guessing a key's format risks rejecting a valid key and leaving the
+   * owner stuck with no way round it.
+   */
+  if (/\s/.test(API_KEY) || /paste|placeholder|your[-_]?key/i.test(API_KEY)) {
+    console.error('\nThat looks like the instructions rather than a key:')
+    console.error(`  CMS_API_KEY=${API_KEY}`)
+    console.error('Paste the key the CMS gave you in place of that text.')
+    process.exit(2)
+  }
 
   const before = await api('GET', `${GLOBAL}?depth=0`)
   if (!before.ok) {
-    console.error(`\nCould not read the global (${before.status}): ${explain(before.json)}`)
+    console.error(`\nCould not read Settings (${before.status}): ${explain(before.json)}`)
+    /*
+     * ⚠️ A REFUSAL HERE IS THE KEY, NOT THE ROLE, and the message Payload sends says the
+     * opposite. `SiteSettings.access.read` is `isAuthenticated` — ANY signed-in user
+     * passes, editor included — so being refused means the key was not recognised as a
+     * user at all. Only `update` is admin-only, and that gate is further down.
+     */
+    if (before.status === 401 || before.status === 403) {
+      console.error('  Reading Settings needs only a recognised key, so this is the key itself.')
+      console.error(
+        '  In the CMS: Generate new API key, then SAVE. Generating alone stores nothing.',
+      )
+    }
     process.exit(1)
   }
   console.log('\nBefore:')
@@ -199,6 +229,18 @@ async function main() {
   const saved = await api('POST', GLOBAL, FOOTER_FACTS)
   if (!saved.ok) {
     console.error(`\nRefused (${saved.status}): ${explain(saved.json)}`)
+    /*
+     * ⚠️ THIS GATE IS STRICTER THAN THE READ ABOVE, AND THE ASYMMETRY IS THE TRAP.
+     * `SiteSettings.access` is `read: isAuthenticated` but `update: isAdmin`, so an
+     * editor's key passes the read and is refused only here — the same message, a
+     * different cause. Worse, the owner's previous CMS script wrote to
+     * `catalogue-defaults`, whose update is `isAdminOrEditor`, so prior experience
+     * teaches the wrong lesson about which key works.
+     */
+    if (saved.status === 401 || saved.status === 403) {
+      console.error('  Reading Settings worked, so the key is real — its user is not an admin.')
+      console.error('  Changing Settings needs the admin role. Issue the key on an admin user.')
+    }
     process.exit(1)
   }
 
