@@ -224,6 +224,7 @@ describe('the weekly email', () => {
     expect(init.headers).toEqual({
       authorization: 'Bearer test-only-resend-key',
       'content-type': 'application/json',
+      'idempotency-key': `weekly-${WEEK_OF}`,
     })
     expect(init.signal).toBeInstanceOf(AbortSignal)
     expect(JSON.parse(String(init.body))).toEqual({

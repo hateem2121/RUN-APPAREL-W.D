@@ -232,7 +232,20 @@ async function weeklyEmail(db, env, now, send) {
   try {
     response = await send(RESEND_ENDPOINT, {
       method: 'POST',
-      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      headers: {
+        authorization: `Bearer ${key}`,
+        'content-type': 'application/json',
+        // One email a week, even when this runs twice for the same week: a Cloudflare
+        // retry after a send whose D1 write was lost, or the temporary every-minute
+        // trigger used for the owner's one test email. Resend keeps a key for 24 hours
+        // and returns the first response instead of sending again (measured 2026-09-16,
+        // resend.com/blog/engineering-idempotency-keys). The retry's payload is
+        // identical — `range` is a closed Monday–Sunday span and neither the subject nor
+        // the body carries a timestamp — so the cached response comes back `ok` and the
+        // retry writes the `sent` row the first attempt lost. Beyond 24 hours the key
+        // has expired, but by then the Monday cron computes a different week.
+        'idempotency-key': `weekly-${range.monday}`,
+      },
       body: JSON.stringify({
         from: EMAIL_FROM,
         to: [recipient],
