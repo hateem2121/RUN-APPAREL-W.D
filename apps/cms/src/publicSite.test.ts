@@ -182,6 +182,66 @@ describe('the owner can replace the tab icon from the CMS', () => {
     expect(existsSync(join(CMS_ROOT, 'src', 'app', 'icon.svg'))).toBe(false)
   })
 
+  /*
+   * ⚠️ NOTHING PARSED THIS FILE UNTIL 2026-09-16, AND AN UNREADABLE ICON PASSED EVERY GATE.
+   *
+   * The icon shipped explaining itself by naming the three brand colour tokens, each of
+   * which begins with two hyphens — and two hyphens are illegal inside an XML comment. A
+   * standalone `.svg` is parsed as strict XML, so Chromium refused the whole document:
+   * `parserError: true`, root element `html`, nothing drawn, while the server answered
+   * `200, image/svg+xml, 2202 bytes`. `structuredData.ts` also points the Organization
+   * JSON-LD `logo` at it, so a crawler was handed the same unreadable file.
+   *
+   * Every check that existed was blind to it by construction: this file asserted the icon
+   * EXISTS, and `e2e/notfound.spec.ts` asserted it returns 200. Both pass on a file no
+   * browser can read. The comment meant to prevent the icon drifting from the tokens is
+   * what broke it.
+   *
+   * ⚠️ USE `read`, NOT `code`. `code()` blanks comment BODIES, so a comment check written
+   * against it would pass on the very file that shipped broken — the failure this test
+   * exists to catch, reintroduced by one identifier.
+   */
+  it('the fallback mark is valid XML, which is what a browser actually has to parse', () => {
+    const svg = read(CMS_ROOT, 'public', 'icon.svg')
+    const comments = [...svg.matchAll(/<!--([\s\S]*?)-->/g)]
+    expect(comments.length, 'the icon should still explain itself').toBeGreaterThan(0)
+    for (const match of comments) {
+      /*
+       * `?? ''` is for the type checker, not for behaviour: TypeScript types a capture
+       * group as `string | undefined` because a group CAN fail to participate, but this
+       * one is the only group and the match cannot succeed without it, so the fallback is
+       * unreachable. Written this way rather than with a non-null assertion so that a
+       * surprise would read as an empty comment rather than throw inside the loop.
+       */
+      const body = match[1] ?? ''
+      expect(body, 'an XML comment body may not contain two hyphens').not.toContain('--')
+      expect(body.endsWith('-'), 'an XML comment body may not end with a hyphen').toBe(false)
+    }
+    /*
+     * The other half of the same fix. The ground is transparent by the owner's choice, so
+     * one fixed colour disappears against one of the two tab strips — the mark has to
+     * follow the theme. Verified in Chromium 2026-09-16: rgb(29,31,26) on light and
+     * rgb(205,243,69) on dark.
+     */
+    expect(svg).toMatch(/@media \(prefers-color-scheme: dark\)/)
+    expect(svg).toContain('#1d1f1a')
+    expect(svg).toContain('#cdf345')
+  })
+
+  it('the two icons a browser asks for without being told exist as real files', () => {
+    /*
+     * Measured live 2026-09-16, before they existed:
+     *   GET /favicon.ico          -> 404, text/html, 17,772 bytes
+     *   GET /apple-touch-icon.png -> 404, text/html, 17,781 bytes
+     * `/favicon.ico` is requested by every browser whatever the document declares, so a
+     * miss is 17 KB of branded error page in answer to a request for an icon. The viewer
+     * fixed the identical fault on 2026-09-05; this site never got the same treatment.
+     * Generated from icon.svg by `scripts/gen-icons.mjs`, so the three cannot drift.
+     */
+    expect(existsSync(join(CMS_ROOT, 'public', 'favicon.ico'))).toBe(true)
+    expect(existsSync(join(CMS_ROOT, 'public', 'apple-touch-icon.png'))).toBe(true)
+  })
+
   it('the layout picks the CMS logo when set and the built-in mark when not', () => {
     const layout = code(FRONTEND, 'layout.tsx')
     expect(layout).toContain('export async function generateMetadata')
