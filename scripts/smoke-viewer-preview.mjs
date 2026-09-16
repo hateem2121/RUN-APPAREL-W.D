@@ -286,6 +286,29 @@ async function runChecks() {
     }
   }
 
+  // 5. The garment page states its cross-origin policy (SE-05). Asked the way a browser
+  //    asks. Only the headers are read; the body is not used.
+  {
+    const page = await rawGet(url, {
+      'user-agent': BROWSER_UA,
+      accept: 'text/html',
+      'accept-encoding': 'br, gzip',
+    })
+    if (page.status === 403 || page.status === 429) {
+      console.log(
+        `⚠️  ${url} returned ${page.status} to a browser request — INCONCLUSIVE, as above.`,
+      )
+    } else {
+      for (const header of ['cross-origin-opener-policy', 'cross-origin-resource-policy']) {
+        if (page.headers[header] !== 'same-origin') {
+          fail(
+            `${url} answered ${header}: ${page.headers[header] ?? '(none)'}; expected same-origin (SE-05).`,
+          )
+        }
+      }
+    }
+  }
+
   return { title, canonical }
 }
 
@@ -305,7 +328,7 @@ for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
 }
 
 if (failures.length > 0) {
-  console.error(`\n❌ Link previews are wrong on ${url}:\n`)
+  console.error(`\n❌ The viewer page is wrong on ${url}:\n`)
   for (const message of failures) console.error(`   • ${message}`)
   console.error('')
   process.exit(1)

@@ -328,6 +328,21 @@ export function buildHeadersFile(input) {
 
 /llms.txt
   Cache-Control: public, max-age=86400
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: cross-origin
+
+# robots.txt, sitemap.xml and llms.txt say openly that anyone may fetch them (SE-05,
+# 2026-09-16). They never reach the Worker (run_worker_first excludes them), so these
+# rules are the only place their headers can come from. None of them can collide with
+# /assets/*, and /* carries neither header, so nothing is comma-joined. COOP only ever
+# applies to a document and is inert here; it is stated so every response says the same.
+/robots.txt
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: cross-origin
+
+/sitemap.xml
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: cross-origin
 
 # The SPA shell must always revalidate so new deploys go live immediately.
 #

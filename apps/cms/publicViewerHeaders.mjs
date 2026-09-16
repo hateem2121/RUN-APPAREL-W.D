@@ -151,11 +151,10 @@ export const publicPageCspRules = PUBLIC_PAGE_SOURCES.map((source) => ({
  * compiles the regex Next actually emitted into `.next/routes-manifest.json` and checks
  * `/admin` and `/api/*` against THAT.
  *
- * ⚠️ CSP ONLY — no COOP or CORP. Those two are on the five HTML pages deliberately
- * (FA-O-07). This rule matches text files as well as documents, and
- * `Cross-Origin-Resource-Policy: same-origin` on `/robots.txt` or an Open Graph image
- * would be a change to how other origins may fetch them, made as a side effect of fixing
- * a 404's script policy. One header, one reason.
+ * ⚠️ AND SINCE 2026-09-16 COOP AND CORP TOO, with CORP deliberately `cross-origin`. This
+ * rule matches text files and images as well as documents, and `same-origin` here would
+ * change how other origins may fetch /robots.txt or an Open Graph image, as a side effect.
+ * See OTHER_PATH_ISOLATION.
  */
 /*
  * ⚠️ THE ROOTS, NOT THE PREFIXES. The first version was `(?!admin|api/)`, which also
@@ -165,9 +164,28 @@ export const publicPageCspRules = PUBLIC_PAGE_SOURCES.map((source) => ({
  */
 export const OTHER_PAGE_CSP_SOURCE = '/:path((?!admin(?:/|$)|api(?:/|$)).*)'
 
+/**
+ * Cross-origin headers for everything the five pages do not cover (audit SE-05): the 404,
+ * the text files and the static images. Measured live 2026-09-16: those answered with
+ * neither header.
+ *
+ * `Cross-Origin-Opener-Policy: same-origin` only ever applies to a document, so on a text
+ * file or an image it does nothing, and on the 404 it does what it does on the five pages.
+ *
+ * `Cross-Origin-Resource-Policy: cross-origin`, deliberately NOT `same-origin`. This rule
+ * also reaches /og-default.png and the icons, which other sites display when they unfurl a
+ * link, and the text files, which are meant to be read by anyone. `cross-origin` states
+ * that openly, so every response carries the header and nothing that works today changes.
+ * The five pages still end `same-origin`, because their own rules come later and win.
+ */
+export const OTHER_PATH_ISOLATION = [
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+  { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
+]
+
 export const notFoundCspRule = {
   source: OTHER_PAGE_CSP_SOURCE,
-  headers: [{ key: 'Content-Security-Policy', value: PUBLIC_PAGE_CSP }],
+  headers: [{ key: 'Content-Security-Policy', value: PUBLIC_PAGE_CSP }, ...OTHER_PATH_ISOLATION],
 }
 
 export const publicViewerVaryRule = {
