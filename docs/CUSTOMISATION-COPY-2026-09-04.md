@@ -355,9 +355,9 @@ after MOQ, so that is the next-biggest gap — see the end of this file.
 
 | # | Title | Body |
 |---|---|---|
-| 1 | START WHERE YOU ARE | A club colourway, a squad list, a dress you want matched, or simply the level your players compete at. Skirt length and coverage under the skirt are the questions that come up first, and they are easier answered in conversation than on a drawing. |
+| 1 | START WHERE YOU ARE | A club colorway, a squad list, a dress you want matched, or simply the level your players compete at. Skirt length and coverage under the skirt are the questions that come up first, and they are easier answered in conversation than on a drawing. |
 | 2 | LOCK THE SPECIFICATION | We fix the eco poly stretch at 180–220 GSM in an 85% recycled polyester / 15% spandex blend, the engineered seam placement that keeps stitching off the shoulder and underarm, and the flex jersey panels that carry the movement. Once agreed, that specification is the standard every unit is measured against. |
-| 3 | ADD YOUR BRAND | Digital sublimation puts colour into the fibre rather than onto it, so an all-over pattern crosses the bodice and the skirt without a join and will not crack at the waist seam. Artwork is mapped to pattern pieces before printing, so a sponsor mark never lands on a curve. |
+| 3 | ADD YOUR BRAND | Digital sublimation puts color into the fibre rather than onto it, so an all-over pattern crosses the bodice and the skirt without a join and will not crack at the waist seam. Artwork is mapped to pattern pieces before printing, so a sponsor mark never lands on a curve. |
 | 4 | SAMPLE, APPROVE, PRODUCE | A development dress is played in. Skirt length and strap position are the usual corrections; both are fixed against your feedback, you approve a reference sample, and production follows it. |
 
 ---
@@ -374,7 +374,7 @@ after MOQ, so that is the next-biggest gap — see the end of this file.
 
 | # | Title | Body |
 |---|---|---|
-| 1 | START WHERE YOU ARE | A roster with numbers and names, a helmet colour to build around, or a program's existing identity. You do not need finished artwork — most uniform programs begin with a colour and a number font, and the panel layout is built around them. |
+| 1 | START WHERE YOU ARE | A roster with numbers and names, a helmet color to build around, or a program's existing identity. You do not need finished artwork — most uniform programs begin with a color and a number font, and the panel layout is built around them. |
 | 2 | LOCK THE SPECIFICATION | We fix the double mesh interlock at 220–260 GSM in a 95% polyester / 5% spandex blend, the contoured masculine-specific cut, the contrasting ribbed V-neck trim, and the EVA foam pad placement at hip, thigh and knee in the trouser. Pad position is set to the positions your players actually play. |
 | 3 | ADD YOUR BRAND | Silicone printing holds a hard edge through contact, which is why numbers and player names are printed this way rather than transferred. Numbering, name panel and sponsor marks are laid out against the chevron yoke before printing so nothing breaks across a seam. |
 | 4 | SAMPLE, APPROVE, PRODUCE | A development set is worn in contact, not inspected on a table. Pad position and number legibility at distance are the two things that usually change; both are corrected, you approve a reference set, and production is manufactured to it. |
@@ -393,8 +393,8 @@ after MOQ, so that is the next-biggest gap — see the end of this file.
 
 | # | Title | Body |
 |---|---|---|
-| 1 | START WHERE YOU ARE | A colour story, a set you want bettered, or the kind of session it is for — studio, lifting, running. Sleeve length and rise on the shorts are the decisions that shape the set, and your training description usually answers both. |
-| 2 | LOCK THE SPECIFICATION | We fix the single jersey knit at 140–190 GSM in a 90% polyester / 10% spandex blend, the cropped cut, the thumb holes that keep the sleeves down through a full session, and the high-waist rise on the matching shorts. Both pieces are specified together so the fabric and the colour match across them. |
+| 1 | START WHERE YOU ARE | A color story, a set you want bettered, or the kind of session it is for — studio, lifting, running. Sleeve length and rise on the shorts are the decisions that shape the set, and your training description usually answers both. |
+| 2 | LOCK THE SPECIFICATION | We fix the single jersey knit at 140–190 GSM in a 90% polyester / 10% spandex blend, the cropped cut, the thumb holes that keep the sleeves down through a full session, and the high-waist rise on the matching shorts. Both pieces are specified together so the fabric and the color match across them. |
 | 3 | ADD YOUR BRAND | Screen printing sits cleanly on a fine single jersey without stiffening it, which is why it is used here rather than a heavier transfer. The printed logo band that finishes the top's hem and the shorts' waist is set out as one layout across both pieces. |
 | 4 | SAMPLE, APPROVE, PRODUCE | A development set is trained in and washed. Crop length and waistband tension are the usual corrections; you approve a reference set and production is manufactured to that approved standard. |
 
@@ -412,7 +412,7 @@ after MOQ, so that is the next-biggest gap — see the end of this file.
 
 | # | Title | Body |
 |---|---|---|
-| 1 | START WHERE YOU ARE | A team colour, a travel kit you want matched, or simply how it will be used — warm-ups, team travel, or everyday wear. Whether the top is a hood or a collar is the first decision, and it changes the pattern more than any other choice here. |
+| 1 | START WHERE YOU ARE | A team color, a travel kit you want matched, or simply how it will be used — warm-ups, team travel, or everyday wear. Whether the top is a hood or a collar is the first decision, and it changes the pattern more than any other choice here. |
 | 2 | LOCK THE SPECIFICATION | We fix the 100% organic cotton fleece at 280–350 GSM, the tapered pant silhouette, the pullover hood with drawcord, the contrast raglan sleeves, and the ribbed cuffs and elasticated waist that hold the shape after washing. Once agreed, that specification is what every unit is measured against. |
 | 3 | ADD YOUR BRAND | The chest takes a screen print, which is what allows an oversized tonal logo to read as texture rather than as a patch stuck on the front. Placement is set against the raglan seams so a large mark never breaks across the shoulder join. |
 | 4 | SAMPLE, APPROVE, PRODUCE | A development set is worn and washed, because cotton fleece moves on the first wash and that is exactly what a reference sample has to account for. Sleeve length and cuff tension are the usual corrections; you approve a reference set and production follows it. |

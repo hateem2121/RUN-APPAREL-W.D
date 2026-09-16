@@ -246,7 +246,7 @@ export async function seed(payload: Payload, assetsDir: string): Promise<void> {
       catalogueUrl: 'https://wear-run.help/catalogue',
       sortOrder: 1,
       retiredMessage:
-        'The colourway linked by this QR is no longer active. You are viewing the current available reference.',
+        'The colorway linked by this QR is no longer active. You are viewing the current available reference.',
     },
   })
 

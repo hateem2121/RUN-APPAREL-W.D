@@ -17,7 +17,7 @@ import {
 } from './publishGating'
 
 export const DEFAULT_RETIRED_MESSAGE =
-  'The colourway linked by this QR is no longer active. You are viewing the current available reference.'
+  'The colorway linked by this QR is no longer active. You are viewing the current available reference.'
 
 /**
  * Read the artwork verdict off the attached model.

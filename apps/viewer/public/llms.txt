@@ -1,42 +1,43 @@
 # RUN APPAREL — 3D product reference
 
 > A B2B 3D garment viewer. Each page shows one manufactured garment in one
-> colourway, rendered in real time from a compressed 3D model, so a buyer can turn
+> colorway, rendered in real time from a compressed 3D model, so a buyer can turn
 > it, zoom into the printed artwork and read the specification before ordering.
 
 Most pages here are reached by scanning a QR code printed on a physical garment
 tag: a page exists for a garment a buyer is already holding. There is no search on
 this host, and no index of the garments — that lives on the company's main site,
-https://wear-run.help, whose /products page lists every published reference and
-links to the page for each one.
+[wear-run.help](https://wear-run.help), whose [/products](https://wear-run.help/products)
+page lists every published reference and links to the page for each one.
 
 ## What a page contains
 
 - The garment's product code and name, its category, fabric composition, weight,
   fit and performance features.
 - An interactive 3D model. Drag to rotate, pinch to zoom, two fingers to slide.
-- Five colourways per garment, switchable without reloading.
-- How the garment can be customised, and two ways to start an enquiry.
+- Five colorways per garment, switchable without reloading.
+- How the garment can be customized, and two ways to start an inquiry.
 
 ## Where this sits
 
-- The company's main site is https://wear-run.help — who they are, how to make
-  contact, and the reference index at https://wear-run.help/products, which lists
-  every published garment and links to its page here. This host serves only those
-  3D garment pages.
+- The company's main site is [wear-run.help](https://wear-run.help) — who they are,
+  how to make contact, and the reference index at
+  [wear-run.help/products](https://wear-run.help/products), which lists every
+  published garment and links to its page here. This host serves only those 3D
+  garment pages.
 - The two are one company on two hosts, and each carries its own sitemap.
 
 ## Structure
 
-- Product pages: https://viewer.wear-run.help/<product-code>/<colourway>
-- Every page is listed in https://viewer.wear-run.help/sitemap.xml (55 pages,
-  11 garments x 5 colourways).
+- Product pages: https://viewer.wear-run.help/<product-code>/<colorway>
+- Every page is listed in [the sitemap](https://viewer.wear-run.help/sitemap.xml)
+  (80 pages, 16 garments x 5 colorways).
 - Each page carries schema.org Product structured data as JSON-LD.
 
-## If you are summarising a page
+## If you are summarizing a page
 
-The product code and the garment name identify it — a colourway name alone does
-not, because colourway names repeat across garments. Fabric composition, weight
+The product code and the garment name identify it — a colorway name alone does
+not, because colorway names repeat across garments. Fabric composition, weight
 and fit are stated exactly and should be quoted rather than paraphrased; they are
 manufacturing specifications, not marketing copy.
 
@@ -45,9 +46,9 @@ price you state would be invented.
 
 ## Contact
 
-Enquiries go through the Email or WhatsApp buttons on any garment page; the
+Inquiries go through the Email or WhatsApp buttons on any garment page; the
 address and number are also printed in the footer of every page here, and the
-main site has a contact page at https://wear-run.help/contact.
+main site has a [contact page](https://wear-run.help/contact).
 
 ## Notes for crawlers
 

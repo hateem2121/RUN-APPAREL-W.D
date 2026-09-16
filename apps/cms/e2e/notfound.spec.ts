@@ -148,6 +148,18 @@ test.describe('the 404 shadows nothing', () => {
     { path: '/sitemap.xml', label: 'sitemap.xml', status: 200 },
     { path: '/og-default.png', label: 'the social card', status: 200 },
     { path: '/icon.svg', label: 'the fallback tab icon', status: 200 },
+    /*
+     * ⚠️ MEASURED 404 ON THE LIVE SITE, 2026-09-16, both of them:
+     *     GET /favicon.ico          -> 404, text/html, 17,772 bytes
+     *     GET /apple-touch-icon.png -> 404, text/html, 17,781 bytes
+     * Every browser asks for /favicon.ico unbidden whatever the document declares, so a
+     * miss is 17 KB of branded error page on a request for an icon, and a soft 404 to a
+     * crawler. The viewer hit the identical fault and fixed it on 2026-09-05; the
+     * marketing site never got the same treatment. The body check below is what makes
+     * these rows real: a 200 that is secretly the not-found page would pass on status.
+     */
+    { path: '/favicon.ico', label: 'the icon every browser asks for', status: 200 },
+    { path: '/apple-touch-icon.png', label: 'the home-screen icon', status: 200 },
   ]
 
   for (const route of MUST_STILL_WORK) {

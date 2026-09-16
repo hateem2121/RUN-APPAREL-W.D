@@ -39,7 +39,7 @@ import { FAMILIES } from './families'
 export function buildLlmsTxt(siteOrigin: string, viewerOrigin: string): string {
   const facts = FACTS.map((fact) => `- ${fact.label}: ${fact.value}`).join('\n')
   const families = FAMILIES.map(
-    (family) => `- ${family.name} — ${family.body} ${siteOrigin}/products?family=${family.slug}`,
+    (family) => `- [${family.name}](${siteOrigin}/products?family=${family.slug}) — ${family.body}`,
   ).join('\n')
 
   return `# RUN APPAREL
@@ -74,11 +74,11 @@ ${CERTIFICATION}
 
 ## Pages
 
-- ${siteOrigin} — what the company makes, the numbers above, and how to start.
-- ${siteOrigin}/products — every reference garment, filterable by family. Each card links
-  to that garment's 3D page.
-- ${siteOrigin}/contact — the addresses, and a form that reaches the company directly.
-- ${siteOrigin}/privacy and ${siteOrigin}/terms.
+- [Home](${siteOrigin}) — what the company makes, the numbers above, and how to start.
+- [Products](${siteOrigin}/products) — every reference garment, filterable by family. Each card
+  links to that garment's 3D page.
+- [Contact](${siteOrigin}/contact) — the addresses, and a form that reaches the company directly.
+- [Privacy](${siteOrigin}/privacy) and [Terms](${siteOrigin}/terms).
 
 ## The 3D references
 
@@ -88,7 +88,7 @@ printed on a physical garment tag, and each renders the garment in real time fro
 compressed 3D model with its fabric composition, weight, fit and performance features
 stated exactly.
 
-That host carries its own llms.txt at ${viewerOrigin}/llms.txt and its own sitemap. The
+That host carries its own [llms.txt](${viewerOrigin}/llms.txt) and its own sitemap. The
 two hosts are one company.
 
 ## If you are summarizing this site
@@ -108,7 +108,7 @@ two hosts are one company.
 
 ## Notes for crawlers
 
-robots.txt at ${siteOrigin}/robots.txt allows all user agents, AI crawlers included, and
+[robots.txt](${siteOrigin}/robots.txt) allows all user agents, AI crawlers included, and
 names them explicitly. The admin panel and the REST API are the only paths disallowed;
 both require authentication in any case.
 `

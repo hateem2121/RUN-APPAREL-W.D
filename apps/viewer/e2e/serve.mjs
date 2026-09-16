@@ -276,7 +276,7 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
   const unavailable = colourSlug !== null && requested === null
   const fallback = colourways.find((c) => c.isDefault)
   const retiredMessage =
-    'The colourway linked by this QR is no longer active. You are viewing the current available reference.'
+    'The colorway linked by this QR is no longer active. You are viewing the current available reference.'
   return {
     product: {
       productCode: meta.productCode,
@@ -304,7 +304,7 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
         {
           number: 2,
           title: 'DEFINE THE PRODUCT',
-          body: 'Fabric, colour, fit, trims, performance.',
+          body: 'Fabric, color, fit, trims, performance.',
         },
         { number: 3, title: 'ADD YOUR BRAND', body: 'Logos, labels, prints, embroidery.' },
         { number: 4, title: 'SAMPLE, REFINE AND PRODUCE', body: 'Approve, refine, produce.' },

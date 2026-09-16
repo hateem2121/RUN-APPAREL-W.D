@@ -1,49 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="RUN APPAREL">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8671 8671" role="img" aria-label="RUN APPAREL">
   <title>RUN APPAREL</title>
   <!--
-    RUN APPAREL browser icon — the FALLBACK, used when Settings has no logo.
+    RUN APPAREL browser tab icon. GENERATED, NOT DRAWN BY HAND, from the owner's vector
+    wordmark; the trademark glyph is two long bezier paths and was copied by machine.
 
-    ⚠️ IT LIVES IN public/, NOT app/, ON PURPOSE. As `app/icon.svg` this was Next's
-    file-based metadata convention, and file-based metadata BEATS anything
-    generateMetadata returns — so the owner could upload a logo in the CMS and this
-    would keep winning, silently. Moved to public/ so there is exactly one source of
-    truth: layout.tsx picks the CMS logo when one is set and this when one is not.
+    ⚠️ NEVER PUT TWO HYPHENS IN THIS COMMENT. They are illegal inside an XML comment, and a
+    standalone .svg is parsed as strict XML. The file this replaced named the three brand
+    colour tokens, each of which begins with two hyphens, and every browser refused to draw
+    it while the server still answered 200. Nothing caught it: the tests check that the file
+    EXISTS and that it returns 200, and both pass on a file no browser can read.
 
-    PORTED from the dormant website repo (its src/app/icon.svg), where it was drawn
-    against the same Paper & Ink values this repo's tokens.css holds: #f1efea is
-    --paper, #1d1f1a is --ink, #cdf345 is --volt. Reused rather than redrawn so the two
-    projects cannot end up with two different marks.
+    ⚠️ RAW HEX IS CORRECT HERE, AND ONLY HERE. A favicon is fetched as its own document, so
+    there is no page and no root element to inherit a custom property from; a var() would
+    resolve to nothing and the icon would come out blank. The media query below is how it
+    follows the theme instead. Values, copied from the locked tokens: ink is the near black
+    with an olive cast, volt is the single loud brand colour.
 
-    ⚠️ STILL A DRAFT, and it carries that status over with it. Its original note says it
-    "swaps for a mark derived from the vector logo whenever Hateem supplies it" — as of
-    2026-09-05 there are no logo vectors, so this stands in.
+    ⚠️ THE GROUND IS TRANSPARENT, BY THE OWNER'S CHOICE (2026-09-16), which is exactly why
+    the mark must change colour with the theme: one fixed colour disappears against one of
+    the two tab strips. Measured: the lime the supplied files used scores 1.01 to 1 against
+    the light page background, which is the ratio for invisible.
 
-    ⚠️ RAW HEX IS CORRECT HERE, and only here. tokens.css:4 forbids raw hex in
-    components because they read semantic custom properties — but a favicon is fetched
-    as a standalone document, with no page and therefore no :root to inherit from. A
-    var() would resolve to nothing and the icon would render blank. The media query is
-    how it follows the theme instead.
+    The wordmark is 2.89 times wider than tall, so at 16 pixels the letters are 5.54 pixels
+    and it reads as a smudge rather than as the word RUN. The owner was shown that at true
+    size and chose the full wordmark anyway, over a square crop of a single glyph.
   -->
   <style>
-    .tile { fill: #f1efea; }
     .mark { fill: #1d1f1a; }
-    .tick { fill: #cdf345; stroke: #1d1f1a; stroke-width: 1; }
     @media (prefers-color-scheme: dark) {
-      .tile { fill: #1c1f18; }
       .mark { fill: #cdf345; }
-      .tick { fill: #cdf345; stroke: none; }
     }
   </style>
-  <rect class="tile" x="0" y="0" width="64" height="64" rx="12" />
-  <text
-    class="mark"
-    x="31"
-    y="47"
-    text-anchor="middle"
-    font-family="Archivo, 'Helvetica Neue', Arial, sans-serif"
-    font-size="42"
-    font-weight="800"
-    letter-spacing="-1"
-  >R</text>
-  <circle class="tick" cx="50" cy="46" r="5" />
+  <g class="mark" transform="translate(0,2836)"><polygon points="2950,0 0,0 0,819 2090,819 2090,1991 0,1991 0,3000 1076,3000 2950,1173"/><polygon points="2321,1991 2090,2216 2090,3000 2950,3000 2950,1991"/><polygon points="6225,0 5094,0 5094,2181 4267,2181 4267,94 3207,1127 3207,3000 4295,3000 6225,1119"/><polygon points="8670,0 7582,0 5653,1881 5653,3000 6785,3000 6785,819 7621,819 7621,3000 8670,1973"/><g fill-rule="evenodd"><path d="M 8570.0 2684.0 c 37.0 5.0 70.0 30.0 87.0 64.0 9.0 19.0 12.0 34.0 12.0 56.0 -1.0 18.0 -3.0 27.0 -9.0 42.0 -27.0 62.0 -98.0 89.0 -159.0 60.0 -28.0 -15.0 -49.0 -38.0 -60.0 -69.0 -7.0 -21.0 -8.0 -51.0 0.0 -73.0 15.0 -45.0 55.0 -77.0 102.0 -81.0 9.0 -1.0 17.0 -0.0 27.0 1.0 z M 8535.0 2691.0 c -37.0 6.0 -70.0 32.0 -84.0 68.0 -10.0 25.0 -11.0 55.0 -1.0 80.0 19.0 48.0 69.0 78.0 119.0 70.0 24.0 -4.0 44.0 -15.0 61.0 -32.0 37.0 -37.0 42.0 -94.0 13.0 -138.0 -23.0 -35.0 -66.0 -54.0 -108.0 -48.0 z"/><path d="M 8574.0 2744.0 c 13.0 4.0 20.0 9.0 24.0 18.0 2.0 4.0 2.0 7.0 2.0 15.0 0.0 8.0 0.0 9.0 -3.0 15.0 -5.0 11.0 -14.0 16.0 -30.0 18.0 l -7.0 -0.0 19.0 23.0 c 10.0 13.0 18.0 24.0 19.0 24.0 0.0 1.0 -3.0 1.0 -7.0 1.0 -8.0 -0.0 -8.0 -0.0 -27.0 -24.0 l -19.0 -24.0 -15.0 -0.0 -14.0 -0.0 0.0 24.0 c 0.0 23.0 0.0 23.0 -6.0 24.0 l -6.0 -0.0 0.0 -58.0 0.0 -58.0 32.0 -0.0 c 26.0 1.0 34.0 1.0 38.0 2.0 z M 8516.0 2776.0 l 0.0 23.0 23.0 -0.0 c 26.0 -0.0 35.0 -1.0 41.0 -6.0 7.0 -5.0 9.0 -13.0 7.0 -22.0 -2.0 -8.0 -5.0 -11.0 -12.0 -14.0 -5.0 -2.0 -7.0 -2.0 -32.0 -3.0 l -27.0 -0.0 0.0 22.0 z"/></g></g>
 </svg>

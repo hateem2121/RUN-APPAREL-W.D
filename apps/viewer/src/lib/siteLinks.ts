@@ -23,3 +23,13 @@ export const SITE_ORIGIN = 'https://wear-run.help'
 
 /** The reference index — every published garment, one ordinary indexable page. */
 export const SITE_PRODUCTS_URL = `${SITE_ORIGIN}/products`
+
+/**
+ * The privacy notice and the terms, on the marketing site.
+ *
+ * The notice says it covers these 3D pages too ("on this site or on our 3D reference
+ * pages"), and a visitor looks for it in the footer of the page they are on, so the viewer
+ * links the site's pages rather than keeping second copies that could drift.
+ */
+export const SITE_PRIVACY_URL = `${SITE_ORIGIN}/privacy`
+export const SITE_TERMS_URL = `${SITE_ORIGIN}/terms`

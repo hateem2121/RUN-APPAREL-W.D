@@ -62,7 +62,7 @@ export function UnreachableState({
   }, [])
 
   const enquiry = {
-    productName: 'a product reference from your catalogue',
+    productName: 'a product reference from your catalog',
     productCode: 'QR reference unavailable',
     colourName: 'N/A',
   }
@@ -134,7 +134,7 @@ export function UnavailableState({ settings }: { settings?: ViewerSiteSettings }
   }, [])
 
   const enquiry = {
-    productName: 'a product reference from your catalogue',
+    productName: 'a product reference from your catalog',
     productCode: 'QR reference unavailable',
     colourName: 'N/A',
   }

@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { SITE_ORIGIN, SITE_PRODUCTS_URL } from './lib/siteLinks'
+import { SITE_ORIGIN, SITE_PRIVACY_URL, SITE_PRODUCTS_URL, SITE_TERMS_URL } from './lib/siteLinks'
 
 /**
  * The viewer now links to the marketing site (owner decision D5, 2026-09-07), and
@@ -88,5 +88,24 @@ describe('the viewer and the CMS agree on where the site lives', () => {
     expect(SITE_PRODUCTS_URL).not.toContain('catalogue')
     expect(SITE_ORIGIN.endsWith('/')).toBe(false)
     expect(SITE_PRODUCTS_URL).toBe(`${SITE_ORIGIN}/products`)
+  })
+})
+
+describe('the legal links point at pages the site really serves', () => {
+  const FRONTEND = join(import.meta.dirname, '..', '..', 'cms', 'src', 'app', '(frontend)')
+
+  it('privacy and terms are paths on SITE_ORIGIN', () => {
+    expect(SITE_PRIVACY_URL).toBe(`${SITE_ORIGIN}/privacy`)
+    expect(SITE_TERMS_URL).toBe(`${SITE_ORIGIN}/terms`)
+  })
+
+  it('the CMS app has both routes, so renaming one breaks this test rather than the link', () => {
+    // READ, not imported — the same cross-app reasoning as `cmsSiteHost()` above.
+    expect(existsSync(join(FRONTEND, 'privacy', 'page.tsx'))).toBe(true)
+    expect(existsSync(join(FRONTEND, 'terms', 'page.tsx'))).toBe(true)
+  })
+
+  it('the route check can fail — negative control', () => {
+    expect(existsSync(join(FRONTEND, 'no-such-route', 'page.tsx'))).toBe(false)
   })
 })

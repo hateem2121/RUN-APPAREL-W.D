@@ -110,6 +110,19 @@ export async function generateMetadata(): Promise<Metadata> {
       icon: settings.logoUrl
         ? [{ url: settings.logoUrl, type: settings.logoMimeType ?? undefined }]
         : [{ url: DEFAULT_ICON, type: 'image/svg+xml' }],
+      /*
+       * ⚠️ DECLARED, BECAUSE UNLIKE /favicon.ico THIS ONE IS NOT REQUESTED BY CONVENTION.
+       * iOS reads a real file when someone adds the site to their home screen, and it
+       * cannot be a data URI. It stays the built-in mark rather than following
+       * `settings.logoUrl`: the CMS logo is whatever the owner uploaded, at whatever
+       * shape, and a wide logo squashed into a 180px square is unreadable — the same
+       * reason the logo field's own help text asks for a square picture.
+       *
+       * Placed AFTER `icon:` on purpose. `publicSite.test.ts` matches `settings.logoUrl`
+       * to `DEFAULT_ICON` within a 200-character window, and inserting anything between
+       * them would push that assertion apart and break a guard that is doing its job.
+       */
+      apple: '/apple-touch-icon.png',
     },
   }
 }

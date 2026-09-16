@@ -87,6 +87,11 @@ describe('routeFor — what each hostname does with a path', () => {
       '/robots.txt',
       '/og-default.png',
       '/icon.svg',
+      // Requested by every browser unbidden, whatever the document declares. Both
+      // answered 404 with 17.7 KB of branded error page until 2026-09-16, so they are
+      // pinned here as served-not-rewritten alongside the icon they sit beside.
+      '/favicon.ico',
+      '/apple-touch-icon.png',
     ]) {
       expect(routeFor(CMS_HOST, path), path).toEqual({ kind: 'serve' })
     }
