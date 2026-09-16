@@ -156,8 +156,8 @@ describe('buildPreview — description', () => {
   it('is built from the garment’s own specs, not a fixed sentence', () => {
     const { description } = build(payload({}))
     expect(description).toBe(
-      'Sportswear · Race fit · 80% recycled polyester / 20% elastane, 160 GSM. ' +
-        'Shown in Wine. Rotate, zoom and compare all 3 colorways in 3D.',
+      'Race fit · 80% recycled polyester / 20% elastane, 160 GSM. ' +
+        'Shown in Wine. See all 3 colorways in 3D.',
     )
   })
 
@@ -198,7 +198,7 @@ describe('buildPreview — description', () => {
         product: { category: '' as never, garmentFit: '', fabricComposition: '', gsm: '' },
       }),
     ).description
-    expect(bare).toBe('Shown in Wine. Rotate, zoom and compare all 3 colorways in 3D.')
+    expect(bare).toBe('Shown in Wine. See all 3 colorways in 3D.')
   })
 
   it('says "this reference" rather than "all 1 colourways"', () => {
@@ -217,6 +217,55 @@ describe('buildPreview — description', () => {
     // The cut lands after a whole word, so the visible text never reads
     // "…polyeste…". Everything before the ellipsis is complete words.
     expect(long.slice(0, -1).trimEnd()).toMatch(/\w$/)
+  })
+
+  /**
+   * Owner decision 2026-09-16 (FI-01): 15 of the 80 live pages ran 161-176 characters, so
+   * the end of each was cut off in search results. The owner chose "both changes": drop the
+   * leading category, and close with the shorter sentence. The category is still in the
+   * page's structured data.
+   */
+  it('leaves the category out of the description', () => {
+    expect(build(payload({})).description).not.toContain('Sportswear')
+  })
+
+  it('fits the longest live garment whole, without cutting it', () => {
+    const colourways = [
+      colourway({ displayName: 'Bottle Green / Mint', slug: 'bottle-green' }),
+      colourway({ displayName: 'Terracotta', slug: 'terracotta', sequence: 2, isDefault: false }),
+      colourway({ displayName: 'Coral', slug: 'coral', sequence: 3, isDefault: false }),
+      colourway({ displayName: 'Beige', slug: 'beige', sequence: 4, isDefault: false }),
+      colourway({ displayName: 'Powder Blue', slug: 'powder-blue', sequence: 5, isDefault: false }),
+    ]
+    const { description } = build(
+      payload({
+        product: {
+          category: 'Teamwear & Uniforms',
+          garmentFit: 'Contoured, masculine-specific cut',
+          fabricComposition: '95% Polyester / 5% Spandex',
+          gsm: '220-260 GSM',
+        },
+        colourways,
+        selectedColourway: colourways[0]!,
+      }),
+    )
+    expect(description).toBe(
+      'Contoured, masculine-specific cut · 95% Polyester / 5% Spandex, 220-260 GSM. ' +
+        'Shown in Bottle Green / Mint. See all 5 colorways in 3D.',
+    )
+    expect(description.length).toBeLessThanOrEqual(160)
+  })
+
+  it('never exceeds 160 characters, whatever the CMS holds', () => {
+    const long = build(
+      payload({
+        product: {
+          garmentFit: 'Contoured fit '.repeat(20),
+          fabricComposition: 'Recycled polyester '.repeat(30),
+        },
+      }),
+    ).description
+    expect(long.length).toBeLessThanOrEqual(160)
   })
 })
 
