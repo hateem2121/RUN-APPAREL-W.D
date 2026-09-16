@@ -5,6 +5,7 @@ import {
   findEmoji,
   readCopyInPage,
 } from '../../../scripts/copy-rules.mjs'
+import { FACTS } from '../src/lib/companyFacts'
 
 /**
  * The copy rules, on every page of the site a visitor can reach — the 404 included.
@@ -34,3 +35,24 @@ for (const path of PAGES) {
     ).toEqual([])
   })
 }
+
+test.describe('the 1889 wording and the confirmed numbers on the home page (CT-06, decision D14)', () => {
+  test('1889 reads as a family trade, never "EST. LINEAGE", and minimum order and lead time are shown', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    // textContent, not innerText: CSS sets some labels in capitals, and this checks the words.
+    const text = (await page.locator('main').textContent()) ?? ''
+    expect(text).toContain('1889')
+    expect(text).not.toMatch(/EST\.?\s*LINEAGE/i)
+    for (const label of ['Minimum order, per style', 'Days, approved sample to shipment']) {
+      const fact = FACTS.find((f) => f.label === label)
+      expect(
+        fact,
+        `companyFacts.ts no longer has "${label}" — ask the owner before changing this test`,
+      ).toBeDefined()
+      expect(text).toContain(label)
+      expect(text).toContain(fact?.value ?? 'missing value')
+    }
+  })
+})
