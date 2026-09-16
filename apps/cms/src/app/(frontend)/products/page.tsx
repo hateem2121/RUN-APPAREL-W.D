@@ -4,13 +4,11 @@ import { JsonLd } from '../../../components/site/JsonLd'
 import { ProductPoster } from '../../../components/site/ProductPoster'
 import { getProductCards, type ProductCard } from '../../../lib/content'
 import { FAMILIES, familyBySlug } from '../../../lib/families'
+import { productsDescription } from '../../../lib/pageDescriptions'
 import { buildMetadata, SITE_ORIGIN, VIEWER_ORIGIN } from '../../../lib/seo'
 import { productListJsonLd } from '../../../lib/structuredData'
 
 export const dynamic = 'force-dynamic'
-
-const DESCRIPTION =
-  'Every RUN APPAREL garment with a 3D reference — turn it, inspect the construction and see the print before a sample ships. Team wear, active wear, casual wear, outerwear and accessories.'
 
 /**
  * ⚠️ THE CANONICAL IS ALWAYS `/products`, WHATEVER THE FILTER SAYS.
@@ -27,7 +25,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const family = familyBySlug((await searchParams).family)
   return buildMetadata({
     title: family ? `${family.name} — 3D references` : 'Products',
-    description: family ? `${family.name} from RUN APPAREL. ${DESCRIPTION}` : DESCRIPTION,
+    description: productsDescription(family?.name ?? null),
     path: '/products',
   })
 }

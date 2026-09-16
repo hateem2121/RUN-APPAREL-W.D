@@ -6,6 +6,7 @@ import { CERTIFICATION, FACTS, SHIPS_TO } from '../../lib/companyFacts'
 import { getProductCards, type ProductCard } from '../../lib/content'
 import { getSiteSettings } from '../../lib/content'
 import { FAMILIES } from '../../lib/families'
+import { HOME_DESCRIPTION } from '../../lib/pageDescriptions'
 import { buildMetadata, VIEWER_ORIGIN } from '../../lib/seo'
 
 /**
@@ -18,11 +19,9 @@ import { buildMetadata, VIEWER_ORIGIN } from '../../lib/seo'
 export const dynamic = 'force-dynamic'
 
 const TITLE = 'RUN APPAREL — Custom B2B Sportswear & Team Wear Manufacturer'
-const DESCRIPTION =
-  'A private label apparel manufacturer in Sialkot, Pakistan — 100,000 pieces a month, from 50 pieces per style. Team wear, active wear, casual wear, outerwear and sports accessories, made to order for brands, teams and organizations worldwide. A family manufacturing and exporting trade since 1889.'
 
 export const metadata: Metadata = {
-  ...buildMetadata({ title: TITLE, description: DESCRIPTION, path: '/' }),
+  ...buildMetadata({ title: TITLE, description: HOME_DESCRIPTION, path: '/' }),
   // The template in layout.tsx would render "RUN APPAREL — … — RUN APPAREL".
   title: { absolute: TITLE },
 }
