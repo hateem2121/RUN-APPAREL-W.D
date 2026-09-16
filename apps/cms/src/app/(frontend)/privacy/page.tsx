@@ -82,7 +82,7 @@ export default async function PrivacyPage() {
           <p>
             <strong>When you contact us.</strong> If you email us, message us on WhatsApp or send an
             inquiry through this site, we keep what you send — your name, company, contact details
-            and the inquiry itself — so that we can reply, and so that we can fulfil your order if
+            and the inquiry itself — so that we can reply, and so that we can fulfill your order if
             we go on to work together.
           </p>
 

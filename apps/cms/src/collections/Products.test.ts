@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_RETIRED_MESSAGE, Products } from './Products'
+import { findBritishSpellings } from '../../../../scripts/copy-rules.mjs'
 
 /** A field as this test needs to see it — name plus whatever hooks it carries. */
 interface NamedField {
@@ -338,5 +339,13 @@ describe('Products beforeDuplicate hooks', () => {
   // A copy must never arrive published — it has no model and no verified colours.
   it('always arrives as a draft, even duplicating a published product', () => {
     expect(runDuplicate('status', { value: 'published' })).toBe('draft')
+  })
+})
+
+describe('the default message for a switched-off colorway', () => {
+  it('is written in American spelling — owner decision 2026-09-04', () => {
+    // A visitor reads this when a QR tag points at a colorway that is no longer active.
+    expect(findBritishSpellings(DEFAULT_RETIRED_MESSAGE)).toEqual([])
+    expect(DEFAULT_RETIRED_MESSAGE).toContain('colorway')
   })
 })

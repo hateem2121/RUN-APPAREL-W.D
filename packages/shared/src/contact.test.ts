@@ -6,6 +6,7 @@ import {
   buildWhatsAppUrl,
   normalizeWhatsAppNumber,
 } from './contact'
+import { findBritishSpellings } from '../../../scripts/copy-rules.mjs'
 
 const ctx = {
   productName: 'Velocity Performance Tee',
@@ -60,5 +61,14 @@ describe('WhatsApp', () => {
     const url = buildWhatsAppUrl('+923361777313', ctx)
     expect(url.startsWith('https://wa.me/923361777313?text=')).toBe(true)
     expect(url).toContain(encodeURIComponent('Hello RUN Team,'))
+  })
+})
+
+describe('the enquiry template is written in American spelling — owner decision 2026-09-04', () => {
+  it('has no British forms in the words it always sends', () => {
+    const context = { productName: 'Velocity Tee', productCode: 'N001', colourName: 'Wine' }
+    expect(
+      findBritishSpellings(`${buildEnquirySubject(context)}\n${buildEnquiryBody(context)}`),
+    ).toEqual([])
   })
 })
