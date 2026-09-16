@@ -3,6 +3,9 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { CACHE_CONTROL, FILES, createHandler } from '../../../infra/apex-404/index.js'
+import { createVisitRecorder } from '../../../infra/apex-404/visits.js'
+import { migratedDatabase } from './migrationReplay/migrated'
+import { d1From } from './migrationReplay/sqliteD1'
 
 /**
  * The private document Worker end to end, against a stub R2 bucket.
@@ -14,6 +17,9 @@ import { CACHE_CONTROL, FILES, createHandler } from '../../../infra/apex-404/ind
  *   3. The download is a whole 200 and never forwards the Range to R2 — a 206 from a
  *      Worker is not cached (the 2026-08-30 incident), so the edge must slice.
  *   4. No response header, and no body except a page the code opened, contains a code.
+ *   5. A visit is recorded only for a GET, only after the response is built, and only
+ *      through `ctx.waitUntil`: a failed write changes no status, header or byte, and no
+ *      stored visit row holds a code (owner decisions D24–D32, 2026-09-15).
  *
  * The codes are non-words on purpose: the real links' words must never appear in this
  * public repository.
@@ -53,16 +59,36 @@ const OBJECTS: Record<string, string> = {
 
 type Call = { key: string; ranged: boolean }
 type Captured = { url: string; status: number; headers: [string, string][]; body: string }
+type Ctx = { waitUntil(promise: Promise<unknown>): void }
+type StoredVisit = Record<string, string | number | null>
 
 /** Every response this file produces, for the leak scan at the end. */
 const captured: Captured[] = []
+/** Every visit row this file reads back, for the same scan. */
+const stored: StoredVisit[] = []
 
-const handle = createHandler({ timingSafeEqual: (a, b) => nodeTimingSafeEqual(a, b) })
+/**
+ * One handler for the whole file, with a fixed clock and a fixed salt so every stored row
+ * is predictable. A request sent without a `ctx` records nothing at all, which is exactly
+ * how the Worker behaved before visits, and what every older test below still checks.
+ */
+const handle = createHandler({
+  timingSafeEqual: (a, b) => nodeTimingSafeEqual(a, b),
+  recordVisit: createVisitRecorder({
+    now: () => new Date('2026-09-15T10:00:00.000Z'),
+    randomHex: () => 'ab'.repeat(32),
+  }),
+})
 
 async function send(
   url: string,
   init: RequestInit = {},
-  over: { objects?: Record<string, string>; env?: Record<string, unknown> } = {},
+  over: {
+    objects?: Record<string, string>
+    env?: Record<string, unknown>
+    cf?: Record<string, string>
+    ctx?: Ctx
+  } = {},
 ) {
   const calls: Call[] = []
   const objects = over.objects ?? OBJECTS
@@ -80,25 +106,106 @@ async function send(
       },
     },
   }
-  const res = await handle(new Request(url, init), env as never)
-  const body = res.body === null ? '' : await res.text()
+  const request = new Request(url, init)
+  // Cloudflare attaches `request.cf`; a Node Request has none, so a test lends it one.
+  if (over.cf) Object.defineProperty(request, 'cf', { value: over.cf })
+  const res = await handle(request, env as never, over.ctx)
+  // Bytes, not text: a marker's GIF is compared byte for byte. A null body reads as none.
+  const bytes = new Uint8Array(await res.arrayBuffer())
+  const body = new TextDecoder().decode(bytes)
   captured.push({ url, status: res.status, headers: [...res.headers], body })
-  return { res, body, calls }
+  return { res, body, bytes, calls }
 }
 
 const catalogue = (path = '') => `https://catalogue.wear-run.help/${CATALOGUE_CODE}${path}`
 const profile = (path = '') => `https://profile.wear-run.help/${PROFILE_CODE}${path}`
 const MESSAGE = 'This link is not complete or no longer active.'
 
+/** Safari on an iPhone (iOS 17.5), in the format WebKit sends. */
+const IPHONE_SAFARI =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
+/** WhatsApp's link-preview fetcher: `WhatsApp/<version> <platform letter>`. */
+const WHATSAPP = 'WhatsApp/2.23.20.0 A'
+/** A person, as a browser and Cloudflare describe one. 203.0.113.7 is a documentation address. */
+const PERSON = {
+  'user-agent': IPHONE_SAFARI,
+  'cf-connecting-ip': '203.0.113.7',
+  'accept-language': 'en-GB,en;q=0.9',
+  referer: 'https://mail.google.com/mail/u/0/',
+}
+const CF = {
+  country: 'PK',
+  region: 'Punjab',
+  city: 'Lahore',
+  timezone: 'Asia/Karachi',
+  asOrganization: 'Example Network',
+}
+/** Three pages, so `pages_total` (3) can never pass for `furthest_page` (1). */
+const THREE_PAGES: Record<string, string> = {
+  ...OBJECTS,
+  'documents/catalogue/manifest.json': JSON.stringify({
+    schema: 1,
+    document: 'catalogue',
+    version: CATALOGUE_VERSION,
+    widths: [800, 1600, 2400],
+    pdf: {
+      key: 'RUN PRODUCT CATALOUGE.pdf',
+      bytes: 54_336_461,
+      md5: 'e8698731ac2348595c3268dfd6d466c6',
+    },
+    pages: [
+      { number: 1, parts: [part('p001a'), part('p001b')] },
+      { number: 2, parts: [part('p002a'), part('p002b')] },
+      { number: 3, parts: [part('p003w', 4800)] },
+    ],
+  }),
+}
+/**
+ * The marker's bytes, decoded here with Node's own base64, not the Worker's `atob`, so a
+ * wrong constant in index.js cannot pass by being compared with itself. 42 bytes: the
+ * base64 is 56 characters with no padding.
+ */
+const TRANSPARENT_GIF = new Uint8Array(
+  Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'),
+)
+
+/**
+ * A fresh database with every real migration applied, and a ctx that keeps whatever the
+ * Worker hands to waitUntil. The write runs AFTER the response, so a test that read the
+ * table without waiting for it would pass against an empty table.
+ */
+async function visitsDatabase() {
+  const database = await migratedDatabase()
+  const pending: Promise<unknown>[] = []
+  const ctx: Ctx = {
+    waitUntil: (promise) => {
+      pending.push(promise)
+    },
+  }
+  const rows = async () => {
+    await Promise.all(pending)
+    const found = database
+      .prepare('SELECT * FROM document_visits ORDER BY id')
+      .all() as StoredVisit[]
+    stored.push(...found)
+    return found
+  }
+  return { env: { VISITS: d1From(database) }, ctx, pending, rows }
+}
+
 /**
  * index.js says these are "Asserted as whole strings" — pin them here as literals, not
  * by re-deriving them from CACHE_CONTROL, or a value could drift with every assertion
  * below still passing because both sides changed together.
+ *
+ * ⚠️ `page` IS `no-store` FOR THE VISIT RECORDS (owner decision D32, 2026-09-15). It was
+ * `public, max-age=300`, and a cache HIT never runs the Worker, so an open served from that
+ * copy could not be counted. The pictures and the PDF keep their long cache.
  */
 describe('CACHE_CONTROL is pinned to literal strings', () => {
   it('matches exactly what every response below is compared against', () => {
     expect(CACHE_CONTROL).toEqual({
-      page: 'public, max-age=300',
+      page: 'no-store',
       picture: 'public, max-age=31536000, immutable',
       download: 'public, max-age=3600',
       none: 'no-store',
@@ -435,9 +542,293 @@ describe("no link's words are ever written into the Worker", () => {
   })
 })
 
+describe('visits: opening the page', () => {
+  it('a GET from an iPhone is one person row, and the page itself is never cached', async () => {
+    const visits = await visitsDatabase()
+    const { res } = await send(
+      catalogue(),
+      { headers: PERSON },
+      { objects: THREE_PAGES, env: visits.env, cf: CF, ctx: visits.ctx },
+    )
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe('no-store')
+    const rows = await visits.rows()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      day: '2026-09-15',
+      document: 'catalogue',
+      kind: 'person',
+      first_at: '2026-09-15T10:00:00.000Z',
+      last_at: '2026-09-15T10:00:00.000Z',
+      minutes_active: 0,
+      opens: 1,
+      furthest_page: 1,
+      pages_total: 3,
+      downloads: 0,
+      country: 'PK',
+      region: 'Punjab',
+      city: 'Lahore',
+      timezone: 'Asia/Karachi',
+      network: 'Example Network',
+      device: 'phone',
+      system: 'iOS',
+      browser: 'Safari',
+      language: 'en-GB',
+      came_from: 'mail.google.com',
+    })
+    expect(rows[0]?.visitor).toMatch(/^[0-9a-f]{16}$/)
+  })
+
+  it('a HEAD is not an open, and is never offered to the recorder', async () => {
+    const visits = await visitsDatabase()
+    const { res } = await send(
+      catalogue(),
+      { method: 'HEAD', headers: PERSON },
+      { objects: THREE_PAGES, env: visits.env, ctx: visits.ctx },
+    )
+    expect(res.status).toBe(200)
+    expect(visits.pending).toEqual([])
+    expect(await visits.rows()).toEqual([])
+  })
+
+  it('a wrong code records nothing', async () => {
+    const visits = await visitsDatabase()
+    const { res } = await send(
+      'https://catalogue.wear-run.help/zzzz-yyyy-xxxx-wwww-vvvv-uuut',
+      { headers: PERSON },
+      { env: visits.env, ctx: visits.ctx },
+    )
+    expect(res.status).toBe(404)
+    expect(visits.pending).toEqual([])
+    expect(await visits.rows()).toEqual([])
+  })
+
+  it('without a ctx no write is even attempted, although VISITS is bound', async () => {
+    const VISITS = { prepare: vi.fn(), batch: vi.fn() }
+    const { res } = await send(catalogue(), { headers: PERSON }, { env: { VISITS } })
+    expect(res.status).toBe(200)
+    expect(VISITS.prepare).not.toHaveBeenCalled()
+    expect(VISITS.batch).not.toHaveBeenCalled()
+  })
+})
+
+describe('visits: reading markers', () => {
+  it('answers a transparent GIF, never cached, without touching R2, and records the page', async () => {
+    const visits = await visitsDatabase()
+    const { res, bytes, calls } = await send(
+      catalogue('/seen/3'),
+      { headers: PERSON },
+      { env: visits.env, ctx: visits.ctx },
+    )
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/gif')
+    expect(res.headers.get('cache-control')).toBe('no-store')
+    expect(res.headers.get('cross-origin-resource-policy')).toBe('same-origin')
+    expect(bytes).toEqual(TRANSPARENT_GIF)
+    expect(bytes).toHaveLength(42)
+    expect(calls).toEqual([])
+    const rows = await visits.rows()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ kind: 'person', opens: 0, furthest_page: 3, downloads: 0 })
+  })
+
+  it.each(['/seen/0', '/seen/1000', '/seen/abc'])(
+    '%s → the not-active page, no R2 read, nothing recorded',
+    async (path) => {
+      const visits = await visitsDatabase()
+      const { res, body, calls } = await send(
+        catalogue(path),
+        { headers: PERSON },
+        { env: visits.env, ctx: visits.ctx },
+      )
+      expect(res.status).toBe(404)
+      expect(body).toContain(MESSAGE)
+      expect(calls).toEqual([])
+      expect(visits.pending).toEqual([])
+    },
+  )
+})
+
+describe('visits: the download stop', () => {
+  it('counts a press and sends the browser on, with no R2 read and no code in any header', async () => {
+    const visits = await visitsDatabase()
+    const { res, body, calls } = await send(
+      catalogue('/get'),
+      { headers: PERSON },
+      { env: visits.env, ctx: visits.ctx },
+    )
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location')).toBe('download')
+    expect(res.headers.get('cache-control')).toBe('no-store')
+    expect(body).toBe('')
+    expect(calls).toEqual([])
+    // A browser resolves the relative location against the stop's own address.
+    expect(new URL('download', catalogue('/get')).href).toBe(catalogue('/download'))
+    const rows = await visits.rows()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ kind: 'person', opens: 0, furthest_page: 0, downloads: 1 })
+  })
+
+  it('refuses a speculative prefetch and counts nothing', async () => {
+    const visits = await visitsDatabase()
+    const { res, calls } = await send(
+      catalogue('/get'),
+      { headers: { ...PERSON, 'sec-purpose': 'prefetch' } },
+      { env: visits.env, ctx: visits.ctx },
+    )
+    expect(res.status).toBe(503)
+    expect(res.headers.get('cache-control')).toBe('no-store')
+    expect(calls).toEqual([])
+    expect(visits.pending).toEqual([])
+    expect(await visits.rows()).toEqual([])
+  })
+})
+
+describe('visits: the retired addresses', () => {
+  it.each([
+    ['https://wear-run.help/catalogue', 'catalogue'],
+    ['https://www.wear-run.help/profile', 'profile'],
+  ])(
+    'a person at %s is one old-link try for the %s, and the 410 is unchanged',
+    async (url, document) => {
+      const visits = await visitsDatabase()
+      const { res, body, calls } = await send(
+        url,
+        { headers: PERSON },
+        { env: visits.env, ctx: visits.ctx },
+      )
+      expect(res.status).toBe(410)
+      expect(body).toContain(MESSAGE)
+      expect(calls).toEqual([])
+      const rows = await visits.rows()
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toMatchObject({
+        document,
+        kind: 'old-link',
+        opens: 1,
+        furthest_page: 0,
+        pages_total: 0,
+        downloads: 0,
+      })
+    },
+  )
+
+  it.each<[string, Record<string, string>]>([
+    ['asks not to be tracked (Sec-GPC: 1)', { ...PERSON, 'sec-gpc': '1' }],
+    ['comes from curl', { ...PERSON, 'user-agent': 'curl/8.7.1' }],
+  ])('a GET that %s is not recorded', async (_label, headers) => {
+    const visits = await visitsDatabase()
+    const { res } = await send(
+      'https://wear-run.help/catalogue',
+      { headers },
+      { env: visits.env, ctx: visits.ctx },
+    )
+    expect(res.status).toBe(410)
+    expect(await visits.rows()).toEqual([])
+  })
+
+  it('a HEAD is never offered to the recorder', async () => {
+    const visits = await visitsDatabase()
+    const { res } = await send(
+      'https://wear-run.help/catalogue',
+      { method: 'HEAD', headers: PERSON },
+      { env: visits.env, ctx: visits.ctx },
+    )
+    expect(res.status).toBe(410)
+    expect(visits.pending).toEqual([])
+    expect(await visits.rows()).toEqual([])
+  })
+})
+
+describe('visits: who is counted', () => {
+  it('Sec-GPC: 1 on the page is a private visit that keeps nothing about the visitor', async () => {
+    const visits = await visitsDatabase()
+    await send(
+      catalogue(),
+      { headers: { ...PERSON, 'sec-gpc': '1' } },
+      { objects: THREE_PAGES, env: visits.env, cf: CF, ctx: visits.ctx },
+    )
+    const rows = await visits.rows()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      kind: 'private',
+      visitor: '',
+      opens: 1,
+      country: '',
+      region: '',
+      city: '',
+      timezone: '',
+      network: '',
+      device: '',
+      system: '',
+      browser: '',
+      language: '',
+      came_from: '',
+    })
+  })
+
+  it("WhatsApp's link-preview fetcher is a link preview, named as such", async () => {
+    const visits = await visitsDatabase()
+    await send(
+      catalogue(),
+      { headers: { 'user-agent': WHATSAPP } },
+      { objects: THREE_PAGES, env: visits.env, ctx: visits.ctx },
+    )
+    const rows = await visits.rows()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      kind: 'link-preview',
+      browser: 'WhatsApp',
+      device: 'unknown',
+      opens: 1,
+    })
+  })
+})
+
+describe('visits: a failing database changes nothing a visitor receives', () => {
+  it('same status, headers and bytes as with no database, and one fixed log line', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      const pending: Promise<unknown>[] = []
+      const ctx: Ctx = {
+        waitUntil: (promise) => {
+          pending.push(promise)
+        },
+      }
+      const failing = {
+        prepare: () => {
+          throw new Error('D1_ERROR: no such table: document_visits')
+        },
+        batch: async () => [],
+      }
+      const init = { headers: PERSON }
+      const plain = await send(catalogue(), init, { objects: THREE_PAGES, cf: CF, ctx })
+      const broken = await send(catalogue(), init, {
+        objects: THREE_PAGES,
+        env: { VISITS: failing },
+        cf: CF,
+        ctx,
+      })
+      await Promise.all(pending)
+      expect(broken.res.status).toBe(plain.res.status)
+      expect([...broken.res.headers]).toEqual([...plain.res.headers])
+      expect(broken.bytes).toEqual(plain.bytes)
+      // One write was attempted — the plain request has no database to try — and it failed.
+      expect(pending).toHaveLength(1)
+      expect(log).toHaveBeenCalledTimes(1)
+      expect(log).toHaveBeenCalledWith('[visits] could not record:', 'Error')
+    } finally {
+      log.mockRestore()
+    }
+  })
+})
+
 describe('every response', () => {
   it('asks not to be indexed, not to pass on the address, and not to be sniffed', () => {
     expect(captured.length).toBeGreaterThan(30)
+    // The visit routes are inside this scan, not beside it.
+    expect(captured.some((r) => r.url.includes('/seen/') && r.status === 200)).toBe(true)
+    expect(captured.some((r) => r.url.endsWith('/get') && r.status === 302)).toBe(true)
     for (const response of captured) {
       const headers = new Map(response.headers)
       expect(headers.get('x-robots-tag'), response.url).toBe('noindex, nofollow')
@@ -461,6 +852,15 @@ describe('every response', () => {
         const other = response.url.includes('catalogue.') ? PROFILE_CODE : CATALOGUE_CODE
         expect(response.body, response.url).not.toContain(other)
       }
+    }
+  })
+
+  it('and no visit row this file stored ever holds a code', () => {
+    expect(stored.length).toBeGreaterThan(5)
+    for (const row of stored) {
+      const text = Object.values(row).join('\n')
+      expect(text).not.toContain(CATALOGUE_CODE)
+      expect(text).not.toContain(PROFILE_CODE)
     }
   })
 })

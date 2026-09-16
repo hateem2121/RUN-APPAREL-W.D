@@ -16,7 +16,10 @@
  * version, NOT the host (developers.cloudflare.com/workers/cache/cache-keys/, 2026-07-06).
  * That is safe only because every cacheable response lives under `/<code>/…`. Every miss —
  * a wrong code, `/`, the retired paths — is `no-store`, so it is always answered here and
- * never shared between the two hostnames.
+ * never shared between the two hostnames. The page, a reading marker and the download stop
+ * are `no-store` too (owner decision D32, 2026-09-15), so every open, page read and press
+ * of Download reaches this code and can be counted. A picture or the PDF served from the
+ * cache never is.
  *
  * ⚠️ THE R2 KEYS ARE SPELLED EXACTLY AS THE OBJECTS ARE NAMED, TYPO INCLUDED
  * (documents.js).
@@ -26,6 +29,7 @@ import { codesMatch, normaliseCode } from './codes.js'
 import { DOCUMENTS, RETIRED_HOSTS, RETIRED_PATH_NAMES, documentForHost } from './documents.js'
 import { pictureKey, validateManifest } from './manifest.js'
 import { contentSecurityPolicy, renderDocumentPage, renderMessagePage } from './page.js'
+import { createVisitRecorder } from './visits.js'
 
 /**
  * The two PDF objects and their download names.
@@ -39,19 +43,34 @@ export const FILES = {
   '/profile': { key: DOCUMENTS.profile.pdfKey, name: DOCUMENTS.profile.downloadName },
 }
 
-/** Asserted as whole strings in apps/cms/src/apexWorker.test.ts. */
+/**
+ * Asserted as whole strings in apps/cms/src/apexWorker.test.ts.
+ *
+ * ⚠️ THE PAGE IS `no-store` ON PURPOSE (owner decision D32, 2026-09-15). It was
+ * `public, max-age=300`, and a cache HIT never runs this code, so an open served from that
+ * copy could not be counted. The page is HTML built from the manifest on each request; the
+ * pictures and the PDF, which are the weight, keep their long cache.
+ */
 export const CACHE_CONTROL = Object.freeze({
-  page: 'public, max-age=300',
+  page: 'no-store',
   picture: 'public, max-age=31536000, immutable',
   download: 'public, max-age=3600',
   none: 'no-store',
 })
 
 /**
+ * `VISITS` is optional on purpose. Without it nothing is recorded, and every response is
+ * exactly what it was before visits: a test, a local run, or a rollback to a version with no
+ * binding. The two email settings belong to the Monday summary email; a missing one never
+ * stops a deploy.
+ *
  * @typedef {{
  *   ASSETS: R2Bucket,
  *   CATALOGUE_CODE?: string,
  *   PROFILE_CODE?: string,
+ *   VISITS?: D1Database,
+ *   RESEND_API_KEY?: string,
+ *   VISITS_EMAIL_TO?: string,
  * }} ApexEnv
  */
 
@@ -79,6 +98,16 @@ function unavailable() {
   headers.set('content-type', 'text/plain; charset=utf-8')
   return new Response('This document is temporarily unavailable.', { status: 503, headers })
 }
+
+/**
+ * The answer to every reading marker (page.js): a 1×1 transparent GIF, 42 bytes. Decoded
+ * once per isolate. The Fetch standard copies the bytes a Response is given, so this one
+ * array serves every marker.
+ */
+const MARKER_GIF = Uint8Array.from(
+  atob('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'),
+  (character) => character.charCodeAt(0),
+)
 
 /**
  * This zone sends Speed Brain speculation rules. A speculative prefetch of the download
@@ -142,18 +171,46 @@ async function loadManifest(env, doc) {
 }
 
 /**
- * @param {{ timingSafeEqual?: import('./codes.js').TimingSafeEqual }} [options]
- * @returns {(request: Request, env: ApexEnv) => Promise<Response>}
+ * `recordVisit` can be replaced, so a test can fix the clock and the salt.
+ *
+ * A visit is offered to it only for a GET, and only once the response is built. The
+ * recorder hands its write to `ctx.waitUntil`, and does nothing at all without both
+ * `env.VISITS` and `ctx` (visits.js). So a visitor never waits for the database, and a
+ * failed write cannot change a response.
+ *
+ * @param {{
+ *   timingSafeEqual?: import('./codes.js').TimingSafeEqual,
+ *   recordVisit?: (
+ *     env: ApexEnv,
+ *     ctx: import('./visits.js').WaitUntil | undefined,
+ *     visit: import('./visits.js').Visit,
+ *   ) => void,
+ * }} [options]
+ * @returns {(
+ *   request: Request,
+ *   env: ApexEnv,
+ *   ctx?: import('./visits.js').WaitUntil,
+ * ) => Promise<Response>}
  */
-export function createHandler({ timingSafeEqual } = {}) {
-  return async function handle(request, env) {
+export function createHandler({ timingSafeEqual, recordVisit = createVisitRecorder() } = {}) {
+  return async function handle(request, env, ctx) {
     const url = new URL(request.url)
     const method = request.method
     const host = url.hostname.toLowerCase()
 
     // The retired addresses reach this Worker only through their /catalogue* and
     // /profile* routes (wrangler.jsonc), and all of it is gone: no R2 read, any path.
-    if (RETIRED_HOSTS.includes(host)) return finish(method, await messagePage(410))
+    // Someone still following an old link is worth knowing about, so a GET is offered to
+    // the recorder as that document's old-link try; visits.js keeps it only for a person.
+    if (RETIRED_HOSTS.includes(host)) {
+      const response = finish(method, await messagePage(410))
+      const path = url.pathname.toLowerCase()
+      const retired = RETIRED_PATH_NAMES.find((name) => path.startsWith(`/${name}`))
+      if (method === 'GET' && retired) {
+        recordVisit(env, ctx, { event: 'old-link', document: retired, request })
+      }
+      return response
+    }
 
     const doc = documentForHost(host)
     if (!doc) {
@@ -202,12 +259,50 @@ export function createHandler({ timingSafeEqual } = {}) {
     const isPage = rest.length === 0 || (rest.length === 1 && rest[0] === '')
     const isDownload = rest.length === 1 && rest[0] === 'download'
     const isPicture = rest.length === 3 && rest[0] === 'p'
-    if (!isPage && !isDownload && !isPicture) return finish(method, await messagePage(404))
+    // Page numbers 1 to 999, the manifest's own limit (manifest.js, MAX_PAGES). Any other
+    // `seen/…` shape is the not-active page, like every unknown path.
+    const isMarker = rest.length === 2 && rest[0] === 'seen' && /^[1-9][0-9]{0,2}$/.test(rest[1])
+    const isStop = rest.length === 1 && rest[0] === 'get'
+    if (!isPage && !isDownload && !isPicture && !isMarker && !isStop) {
+      return finish(method, await messagePage(404))
+    }
 
     if (method !== 'GET' && method !== 'HEAD') {
       const headers = baseHeaders(CACHE_CONTROL.none)
       headers.set('allow', 'GET, HEAD')
       return new Response(null, { status: 405, headers })
+    }
+
+    // A READING MARKER (page.js). Answered without reading R2, and never cached, so every
+    // reader's lazy load reaches this code. `same-origin`, like the pictures.
+    if (isMarker) {
+      const headers = baseHeaders(CACHE_CONTROL.none)
+      headers.set('content-type', 'image/gif')
+      headers.set('cross-origin-resource-policy', 'same-origin')
+      const response = finish(method, new Response(MARKER_GIF, { status: 200, headers }))
+      if (method === 'GET') {
+        const page = Number(rest[1])
+        recordVisit(env, ctx, { event: 'marker', document: doc.id, request, page })
+      }
+      return response
+    }
+
+    // THE DOWNLOAD STOP. The Download button points here, not at /download: the PDF is cached
+    // for an hour, and a HIT never runs this code, so the press is counted here and the
+    // browser is sent on. The location is RELATIVE (a browser resolves `download` against
+    // /<code>/get), so no response header ever carries the code. A prefetch is refused
+    // exactly as the download refuses one, and is not a press.
+    if (isStop) {
+      if (isPrefetch(request)) {
+        return new Response(null, { status: 503, headers: baseHeaders(CACHE_CONTROL.none) })
+      }
+      const headers = baseHeaders(CACHE_CONTROL.none)
+      headers.set('location', 'download')
+      const response = finish(method, new Response(null, { status: 302, headers }))
+      if (method === 'GET') {
+        recordVisit(env, ctx, { event: 'download', document: doc.id, request })
+      }
+      return response
     }
 
     if (isDownload) {
@@ -234,7 +329,12 @@ export function createHandler({ timingSafeEqual } = {}) {
       headers.set('content-type', 'text/html; charset=utf-8')
       headers.set('content-security-policy', await contentSecurityPolicy())
       const html = renderDocumentPage({ doc, manifest, code })
-      return finish(method, new Response(html, { status: 200, headers }))
+      const response = finish(method, new Response(html, { status: 200, headers }))
+      if (method === 'GET') {
+        const pagesTotal = manifest.pages.length
+        recordVisit(env, ctx, { event: 'open', document: doc.id, request, pagesTotal })
+      }
+      return response
     }
 
     const key = pictureKey(manifest, rest[1], rest[2])
@@ -255,6 +355,7 @@ export default {
   /**
    * @param {Request} request
    * @param {ApexEnv} env
+   * @param {ExecutionContext} ctx
    */
-  fetch: (request, env) => handle(request, env),
+  fetch: (request, env, ctx) => handle(request, env, ctx),
 }

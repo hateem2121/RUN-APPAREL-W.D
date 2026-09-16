@@ -867,8 +867,11 @@ external uptime monitors, nowhere else.
    `Company Profile.pdf`, spelled exactly — and confirm its etag equals the `--md5` you
    rendered with. Upload `<dir>/manifest.json` to `run-assets/documents/<doc>/manifest.json`
    LAST.
-4. The page shows the new pictures within 5 minutes and the download within an hour, or at
-   once after running `pnpm deploy:apex` from a clean, up-to-date `origin/main` checkout.
+4. Anyone who opens or reloads the page sees the new pictures from the moment the manifest
+   is uploaded: the page is never cached (`no-store`, owner decision D32, 2026-09-15, live
+   from the merge that deploys it), so the Worker builds every open from the current
+   manifest. The download follows within an hour, or at once after running
+   `pnpm deploy:apex` from a clean, up-to-date `origin/main` checkout.
    Old picture versions stay in R2 until the owner decides to delete them. **A page already
    open in a visitor's browser shows broken pictures until they reload it**: `pictureKey`
    (`infra/apex-404/manifest.js`) serves a picture only when its version segment matches
