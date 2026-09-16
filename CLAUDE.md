@@ -536,7 +536,11 @@ bucket) and 410s the old `/catalogue` and `/profile`. **Each code is a Worker se
 never commit, log or print one** — ci.yml refuses to deploy without both. Workers
 Caching keys on path, NOT host, so all cacheable output sits under the code. **Do not
 delete the apex DNS record** (zone routes need it proxied). CI deploys this Worker FIRST;
-it once DRIFTED after a dashboard edit. How-tos: `docs/RUNBOOK.md`.
+it once DRIFTED after a dashboard edit. Decided 2026-09-15, live from the merge that
+deploys it: it also writes a visit row into the CMS database after each response, in
+`ctx.waitUntil`. The page's own `cache-control` is `no-store` so every open reaches the
+Worker, while pictures stay cached, so a cache HIT still never runs it. How-tos:
+`docs/RUNBOOK.md`.
 
 ## Style
 

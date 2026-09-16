@@ -147,6 +147,9 @@ as *inconclusive* and keeps the run green.
 | Bare apex (`https://wear-run.help/`) | **404 in 0.89 s** (2026-08-19) | a 5xx, or > 2 s |
 | Old catalogue and profile addresses (`/catalogue`, `/profile`) | **410**, `text/html`, "no longer active" | a PDF, or anything but 410 |
 | Private host without a code (`https://catalogue.wear-run.help/`) | **404**, `text/html`, `x-robots-tag: noindex, nofollow` | a 200, or a PDF |
+| Private document page, with its code (decided 2026-09-15) | **200**, `text/html`, `cache-control: no-store` | `public, max-age=300`, or any cached `HIT` — the page must reach the Worker on every open, so every visit is counted |
+| Marker pixel (`/<code>/seen/<n>`) | **200**, `image/gif`, `cache-control: no-store`, `cross-origin-resource-policy: same-origin` | any other status, or a cached `HIT` |
+| Download stop (`/<code>/get`) | **302**, `location: download`, `cache-control: no-store` | a 200, or a cached `HIT` |
 
 ⚠️ **The apex figure replaced a 20.2 s one on 2026-08-19 (audit L6).** It used to
 return **522 after 20.214 s** — Cloudflare timing out against an origin that was

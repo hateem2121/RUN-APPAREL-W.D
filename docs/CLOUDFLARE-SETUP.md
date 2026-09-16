@@ -417,6 +417,16 @@ Caching — the Worker's own `Cache-Control` response header is what actually de
 so the proof that either rule does anything is a header check against the real response
 after switch-on, not the dashboard screen.
 
+**Document visits (decided 2026-09-15, live from the merge that deploys it).** The same
+Worker also holds a D1 binding `VISITS`, pointed at the same database the CMS uses
+(`run-apparel-viewer-db`), and two Cron Triggers: one daily, deleting visit records
+older than 12 months, and one weekly, sending the Monday summary email. Two Worker
+secrets configure the email — `RESEND_API_KEY` (a sending-only Resend key, restricted
+to the `wear-run.help` domain, created by the owner) and `VISITS_EMAIL_TO` (the
+recipient) — named here, values nowhere. CI's deploy requires neither: a week with
+either secret missing simply records that week's email as not sent, and nothing about
+the deploy itself depends on it.
+
 ### 11.5 DNSSEC
 
 Active since 2026-08-30. ⚠️ **DNS is Cloudflare; REGISTRATION is Hostinger.** The DS

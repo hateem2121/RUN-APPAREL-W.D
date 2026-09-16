@@ -893,6 +893,97 @@ external uptime monitors, nowhere else.
 - **The old `/catalogue` serves a PDF again:** the Worker was rolled back. See "Undoing a
   bad deploy".
 
+### Document visits
+
+Since 2026-09-15 the documents Worker records every visit to a private link in the
+website's own database, in `ctx.waitUntil` after the response is already sent — a
+slow or failed write never slows down or breaks a real visitor's page.
+
+**Where to look:**
+- **Admin → Document visits** (`/admin/collections/document-visits`): one row per
+  day, document and visitor code, newest first. Every field is read-only.
+- The summary box above that list shows the last 7 and 30 days for each document —
+  people, opens, downloads, how many read past halfway or to the end, the top
+  countries, and the device split.
+
+**What a row's `kind` means**, decided in this order: `private` — the visitor's
+browser sent a Global Privacy Control signal, so only the open itself is counted and
+every detail column is blank; `link-preview` — a messaging or social app fetching the
+page to build a preview card (WhatsApp, Facebook, Slack and similar); `robot` — any
+other automated client; `old-link` — a `person` request to the retired
+`wear-run.help/catalogue` or `/profile` address; `person` — everything else, which is
+what "people" and "opens" on the summary box count.
+
+**Known limits**, worth having in mind before treating a number as exact:
+- A few rows will have no city — Cloudflare does not always resolve one.
+- **WhatsApp usually opens a link in the phone's own browser**, so most WhatsApp
+  visits show as Safari or Chrome, not as a named app. Instagram, Facebook and
+  LinkedIn's own in-app browsers DO announce themselves and are named.
+- Outlook "Safe Links" and similar email scanners can open a link the way a person
+  does, and cannot always be told apart from one.
+- **iPads usually count as computers:** Safari on iPadOS 13 and later sends the same
+  User-Agent as a Mac.
+- "Read up to page" is approximate — a browser loads a page or two ahead before
+  anyone actually scrolls that far.
+- Counts of people are "about": several people behind the same office or mobile
+  network, on the same kind of phone or browser, share one code for the day.
+
+**Three read-only queries, through the Cloudflare connector's D1 query tool**
+(database `run-apparel-viewer-db`, id `41e20361-1a5f-4c87-b5ca-781c57c9b3f4` — the same
+one `apps/cms/CLAUDE.md` already documents reading production with; its response
+carries `rows_written`, so "this was read-only" is provable). All three are ordinary
+`SELECT`s a Claude report can run directly:
+
+- **This week, per document:**
+  ```sql
+  SELECT document, kind, COUNT(DISTINCT visitor) AS people, SUM(opens) AS opens, SUM(downloads) AS downloads
+  FROM document_visits
+  WHERE day >= date(datetime('now', '+5 hours'), '-6 days', 'weekday 1')
+  GROUP BY document, kind
+  ORDER BY document, kind;
+  ```
+- **People by country, last 30 days:**
+  ```sql
+  SELECT country, COUNT(DISTINCT visitor) AS people
+  FROM document_visits
+  WHERE kind = 'person' AND country != '' AND day >= date(datetime('now', '+5 hours'), '-29 days')
+  GROUP BY country
+  ORDER BY people DESC
+  LIMIT 10;
+  ```
+- **The last weekly email:**
+  ```sql
+  SELECT week, status, sent_at, error FROM document_visit_emails ORDER BY week DESC LIMIT 1;
+  ```
+
+**The weekly email.** Every Monday 09:00 Pakistan time, a summary for the previous
+Monday-Sunday goes out. `status: failed` with `error: not configured` means the Worker
+secrets that hold the sending key and the recipient are not both set — this never
+blocks a deploy (CI requires neither), it only means nobody gets that week's email
+until the secrets are set and a trigger fires again for that week.
+
+**Rotating the sending key — all owner actions, guided at the time:** the owner
+creates a new sending-only key in Resend, replaces the Worker secret with it, then
+deletes the old key in Resend. Claude never sees the value either side of the swap.
+
+**Sending a test email, with the owner's okay at that moment:** add a temporary
+`* * * * *` trigger through the connector, wait for that week's `document_visit_emails`
+row to read `sent`, put back exactly the two triggers `infra/apex-404/wrangler.jsonc`
+declares, and confirm with the owner that the email actually arrived.
+
+⚠️ **The same week cannot be sent twice inside 24 hours, by design.** Each send carries
+an idempotency key built from that week's Monday, and the email provider keeps a key for
+24 hours: a second attempt at the same week within that window returns the first
+response instead of sending again. That is what stops a retry — or a forgotten
+`* * * * *` trigger — from mailing the same summary repeatedly. After 24 hours the key
+expires and a genuine re-send works. If a test email must be repeated sooner, change
+nothing and wait it out; do not try to force it.
+
+**Clean-up.** Every day at 05:05 Pakistan time, visit rows and weekly-email rows older
+than 12 months are deleted, and yesterday's and older daily secrets are deleted with
+them — once a day's secret is gone, that day's visitor codes can never be recomputed
+or linked to a later day's.
+
 ## Analytics & events
 
 Viewer telemetry (analytics, diagnostics, client errors) lands in the **Events**
