@@ -102,7 +102,7 @@ function rawGet(target, headers) {
       },
       (res) => {
         // Bytes, not text: a compressed body has to be decoded before it can be read (PF-13).
-        // `html` is kept for the checks above, which never ask for an encoding.
+        // `html` is kept for the crawler-navigation check below, which never asks for one.
         const chunks = []
         res.on('data', (chunk) => {
           chunks.push(chunk)
@@ -318,8 +318,9 @@ async function runChecks() {
     }
   }
 
-  // 5. The garment page states its cross-origin policy (SE-05). Asked the way a browser
-  //    asks. Only the headers are read; the body is not used.
+  // 5. The garment page states its cross-origin policy (SE-05) and arrives compressed
+  //    (PF-13). Asked the way a browser asks, offering br and gzip: the headers must carry
+  //    both SE-05 values, and the body must arrive brotli-encoded and decode to the page.
   {
     const page = await rawGet(url, {
       'user-agent': BROWSER_UA,
@@ -362,12 +363,22 @@ async function runChecks() {
     ['a client naming no encoding', {}, undefined],
   ]) {
     const res = await rawGet(url, { 'user-agent': BROWSER_UA, accept: 'text/html', ...offered })
-    if (res.status === 403 || res.status === 429) continue
+    if (res.status === 403 || res.status === 429) {
+      console.log(`⚠️  ${url} returned ${res.status} to ${who} — INCONCLUSIVE, as above.`)
+      continue
+    }
     if (res.headers['content-encoding'] !== expected) {
       fail(
         `${url} came back ${res.headers['content-encoding'] ?? 'uncompressed'} to ${who}; ` +
           `expected ${expected ?? 'uncompressed'} (PF-13).`,
       )
+    } else {
+      const text = decodeBody(res)
+      if (text === null || !/<title>[^<]*<\/title>/i.test(text)) {
+        fail(
+          `${url} came back ${expected ?? 'uncompressed'} to ${who}, but the body does not decode to a page (PF-13).`,
+        )
+      }
     }
   }
   {
@@ -387,6 +398,10 @@ async function runChecks() {
             'body that does not decode to a page (PF-13).',
         )
       }
+    } else {
+      console.log(
+        `⚠️  ${url} returned ${nav.status} to a browser navigation — INCONCLUSIVE, as above.`,
+      )
     }
   }
 

@@ -17,8 +17,9 @@ import { isDocumentResponse } from './documentHeaders'
  * when the `brotli_content_encoding` flag became the default. Measured 2026-09-17 on a bare
  * workerd with that date: `br` and `gzip` both arrived compressed and decoded to the exact
  * page, WHATEVER the client offered, while an `encodeBody: 'manual'` control arrived
- * undecodable. The runtime does not check the visitor, so the choice below is the only
- * thing between a visitor and bytes it cannot read.
+ * undecodable. The runtime does not check the visitor. Cloudflare's fetch docs say the edge
+ * re-encodes a passed-through body for a client that cannot read it, but not whether that
+ * still happens under `no-transform`, so the choice below is treated as the only safeguard.
  *
  * ⚠️ THE CHOICE READS `request.cf.clientAcceptEncoding`, NOT THE HEADER. Cloudflare rewrites
  * the visitor's Accept-Encoding before the Worker runs and keeps the visitor's own list there
