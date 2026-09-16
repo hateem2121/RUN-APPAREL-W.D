@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { llmsTxtProblems } from '../../../../scripts/copy-rules.mjs'
 import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
 import { FAMILIES } from './families'
 import { buildLlmsTxt } from './llmsTxt'
@@ -126,5 +127,21 @@ describe('it is a text file', () => {
   it('contains no markup', () => {
     expect(text).not.toMatch(/<\/[a-z]/i)
     expect(text).not.toMatch(/<(a|p|div|span|br|html|head|body|script|meta|link)\b/i)
+  })
+})
+
+describe('it passes Lighthouse 13.4.1’s llms-txt audit (FI-08)', () => {
+  it('has an H1, at least one Markdown link, and enough text', () => {
+    expect(llmsTxtProblems(text)).toEqual([])
+  })
+
+  it('links every page it names instead of printing bare addresses', () => {
+    for (const path of ['', '/products', '/contact', '/privacy', '/terms', '/robots.txt']) {
+      expect(text).toContain(`](${SITE}${path})`)
+    }
+    expect(text).toContain(`](${VIEWER}/llms.txt)`)
+    for (const family of FAMILIES) {
+      expect(text).toContain(`[${family.name}](${SITE}/products?family=${family.slug})`)
+    }
   })
 })
