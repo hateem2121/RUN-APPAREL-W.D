@@ -30,6 +30,7 @@ import { DOCUMENTS, RETIRED_HOSTS, RETIRED_PATH_NAMES, documentForHost } from '.
 import { pictureKey, validateManifest } from './manifest.js'
 import { contentSecurityPolicy, renderDocumentPage, renderMessagePage } from './page.js'
 import { createVisitRecorder } from './visits.js'
+import { runScheduled } from './weekly.js'
 
 /**
  * The two PDF objects and their download names.
@@ -358,4 +359,13 @@ export default {
    * @param {ExecutionContext} ctx
    */
   fetch: (request, env, ctx) => handle(request, env, ctx),
+  /**
+   * The two cron triggers in wrangler.jsonc. runScheduled never throws, so a failed job is a
+   * `failed` week in the database or one log line naming the error, never an exception.
+   *
+   * @param {ScheduledController} controller
+   * @param {ApexEnv} env
+   * @param {ExecutionContext} ctx
+   */
+  scheduled: (controller, env, ctx) => ctx.waitUntil(runScheduled(controller.cron, env)),
 }

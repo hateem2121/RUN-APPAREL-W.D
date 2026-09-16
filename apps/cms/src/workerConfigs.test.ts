@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { RETIRED_PATH_NAMES } from '../../../infra/apex-404/documents.js'
+import { CLEANUP_CRON, WEEKLY_CRON } from '../../../infra/apex-404/weekly.js'
 
 /**
  * Invariants across all four wrangler configs.
@@ -123,6 +124,7 @@ describe('apex Workers Caching', () => {
       'page.js',
       'visitorAgent.js',
       'visits.js',
+      'weekly.js',
     ])
   })
 
@@ -237,6 +239,48 @@ describe('the apex route split (2026-09-06)', () => {
       .filter((p) => p.includes('/'))
       .map((p) => p.split('/')[1]!.replace(/\*$/, ''))
     expect([...new Set(prefixes)].sort()).toEqual([...RETIRED_PATH_NAMES].sort())
+  })
+})
+
+/**
+ * The documents Worker's visit records (owner decisions D27–D30, 2026-09-15).
+ *
+ * ⚠️ ONE DATABASE, TWO CONFIGS. The Worker writes into the CMS's own database, whose tables
+ * the CMS's migrations create. An id that differs from the CMS's would send every visit to a
+ * database with no such tables, and each write would fail into a log line nobody reads.
+ * The crons must be exactly the two weekly.js tells apart, because it sends the weekly email
+ * for ANY other string.
+ */
+describe('the documents Worker records visits', () => {
+  const apex = JSON.parse(settings(read('infra/apex-404/wrangler.jsonc'))) as {
+    d1_databases?: { binding?: string; database_name?: string; database_id?: string }[]
+    triggers?: { crons?: string[] }
+  }
+  /**
+   * apps/cms/wrangler.jsonc carries `/** … *\/` block comments, which JSON.parse refuses, so
+   * its database id is read with a pattern instead, and there must be exactly one.
+   */
+  const databaseIds = (source: string) =>
+    [...settings(source).matchAll(/"database_id":\s*"([^"]+)"/g)].map((m) => m[1])
+
+  it('binds VISITS, and only VISITS, to the database the CMS migrates', () => {
+    expect(apex.d1_databases).toHaveLength(1)
+    expect(apex.d1_databases?.[0]?.binding).toBe('VISITS')
+    expect(apex.d1_databases?.[0]?.database_name).toBe('run-apparel-viewer-db')
+    const cmsIds = databaseIds(read('apps/cms/wrangler.jsonc'))
+    expect(cmsIds).toHaveLength(1)
+    expect(apex.d1_databases?.[0]?.database_id).toBe(cmsIds[0])
+  })
+
+  it('runs exactly the two scheduled jobs weekly.js tells apart', () => {
+    expect(apex.triggers?.crons).toEqual([CLEANUP_CRON, WEEKLY_CRON])
+  })
+
+  it('the id reader can actually fail (negative control)', () => {
+    const two = '{\n  "a": { "database_id": "x" },\n  "b": { "database_id": "y" }\n}'
+    const commented = '{\n  // "database_id": "x"\n  "name": "cms"\n}'
+    expect(databaseIds(two)).toEqual(['x', 'y'])
+    expect(databaseIds(commented)).toEqual([])
   })
 })
 

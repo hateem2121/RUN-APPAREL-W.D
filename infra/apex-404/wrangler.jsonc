@@ -66,5 +66,28 @@
   // either side can break the other.
   "r2_buckets": [{ "binding": "ASSETS", "bucket_name": "run-assets" }],
 
+  // VISIT RECORDS (owner decisions D24–D30, 2026-09-15). This is the CMS's own database, not a
+  // new one. The CMS owns these tables through a Payload migration, which ci.yml applies
+  // BEFORE this Worker deploys, and the admin reads them. The id must equal
+  // apps/cms/wrangler.jsonc's; apps/cms/src/workerConfigs.test.ts fails if it does not.
+  // Optional at runtime: a version without this binding records nothing and answers exactly
+  // as before.
+  "d1_databases": [
+    {
+      "binding": "VISITS",
+      "database_name": "run-apparel-viewer-db",
+      "database_id": "41e20361-1a5f-4c87-b5ca-781c57c9b3f4"
+    }
+  ],
+
+  // TWO SCHEDULED JOBS, IN UTC (Pakistan is UTC+05:00 all year). weekly.js runs:
+  //   - the daily clean-up for "5 0 * * *" (05:05 in Pakistan);
+  //   - the Monday summary email for "0 4 * * 1" (09:00), AND for ANY other string.
+  // Any other string is how a temporary "* * * * *" trigger sends the one owner-approved test
+  // email (D38). ⚠️ `wrangler deploy` PUTs exactly this list and replaces every trigger the
+  // Worker had (read in wrangler 4.122.0's deploy code, 2026-09-16). So a temporary trigger
+  // does not survive the next deploy, and a trigger removed here is gone.
+  "triggers": { "crons": ["5 0 * * *", "0 4 * * 1"] },
+
   "observability": { "enabled": true }
 }
