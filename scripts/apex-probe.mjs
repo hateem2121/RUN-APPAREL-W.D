@@ -1,103 +1,73 @@
 #!/usr/bin/env node
 /**
- * Assert the apex serves the marketing site and the two customer-facing PDFs.
+ * Assert from outside: the apex serves the site, the two old PDF addresses stay retired,
+ * and the private document hosts refuse without a code.
  *
- * WHY THIS EXISTS. `.github/workflows/uptime.yml` asserted that
- * `https://wear-run.help/catalogue` returns a **301**. On 2026-08-28 the catalogue
- * and company profile moved off Google Drive into the `run-assets` R2 bucket, so the
- * apex Worker now answers them directly with a 200 PDF. Three things followed:
+ * WHY IT CHANGED (2026-09-11). This probe used to fetch the catalogue and profile PDFs
+ * at `wear-run.help/catalogue` and `/profile`. Those addresses now answer 410, and the
+ * documents live at `catalogue.wear-run.help/<code>` and `profile.wear-run.help/<code>`.
+ * It holds NO code and must never be given one: GitHub Actions logs are public, and a
+ * presigned D1 link already leaked through one (2026-09-11). UptimeRobot checks the real
+ * links every five minutes instead (docs/RUNBOOK.md → "Private document links").
  *
- *   1. FALSE ALARM. The check errored on every run and opened outage issue #47
- *      against a perfectly healthy site.
- *   2. FALSE GREEN. `ok=false` was only a shell variable; the last command in the
- *      step succeeded, so the run still concluded `success`. The Actions tab showed
- *      a tick while the log showed `##[error]`.
- *   3. BLIND. Because it demanded a redirect, it could no longer tell a working PDF
- *      from a broken one — a genuinely dead catalogue produced the same message.
+ * WHAT A FAILURE MEANS:
+ *   retired — an old address answers anything but the 410 page. The worst case is a PDF:
+ *             the guessable link is open again.
+ *   refused — a private host without a code answers anything but the 404 page, or drops
+ *             `x-robots-tag: noindex`.
+ *   site    — the apex no longer serves the site (the CMS Worker lost its wildcard route).
  *
- * And the check never asserted what its own comment claimed. The 3xx branch only
- * tested that `Location` was non-empty, never where it pointed. "The catalogue probe
- * asserts the redirect still lands on the PDF" (docs/RUNBOOK.md) was never true.
- *
- * FOUR CONSTRAINTS FROM CLAUDE.md, none obvious, all shaping this design:
- *
- * 1. A 403 FROM A RUNNER IS INCONCLUSIVE, NOT A FAILURE. Free-plan Bot Fight Mode
- *    blocks datacenter IPs intermittently; it has already forced a rollback and
- *    failed a deploy on this repo. An alarm that fires on Cloudflare's mood gets
- *    muted, which is how the uptime check sat dead for 17 days.
- *
- * 2. RANGED GET, NEVER HEAD. Measured twice in both directions: a HEAD returned 200
- *    while a GET returned a 25-hour-old cached 404 (2026-08-06), and the same URL in
- *    the same minute gave `GET -> HIT (age 49431)` and `HEAD -> DYNAMIC`
- *    (2026-08-13). HEAD does not share the GET's cache entry, so it cannot see the
- *    cached-404 failure this check exists to catch. `Range: bytes=0-1023` is a GET,
- *    reads the entry a browser would read, and still reports the object's full size
- *    in `content-range` — 1 KB instead of 54 MB.
- *
- * 3. CONTENT-TYPE IS NOT ENOUGH. A Cloudflare error page can be served 200 with a
- *    coerced type. The first bytes of a real PDF are `%PDF-`; an error page's are
- *    not. Having fetched 1024 bytes anyway, checking the magic number is free.
- *
- * 4. THE URL IS NOT A CONSTANT. `siteSettings.catalogueUrl` lives in the CMS and is
- *    overridable per product. uptime.yml hard-coded a second copy — the same shape
- *    as the `n001` -> `rxps` drift that broke two post-deploy gates on 2026-08-15.
- *    This resolves the URL from the live payload, and falls back only if the API is
- *    unreachable (which its own target reports separately).
+ * KEPT FROM THE PREVIOUS VERSION, for the same measured reasons:
+ * 1. A 403, 429 or 503 FROM A RUNNER IS INCONCLUSIVE, not a failure: Free-plan Bot Fight
+ *    Mode blocks datacenter IPs intermittently, and an alarm that fires on Cloudflare's
+ *    mood gets muted.
+ * 2. A RANGED GET, NEVER HEAD: HEAD reads a different edge cache entry on this zone.
+ * 3. THE BYTES DECIDE. A PDF starts `%PDF-`; an address that returns those bytes is
+ *    serving the file, whatever its content-type says.
  */
 
-import { DEFAULT_PRODUCT } from './live-products.mjs'
+/** Words the not-active page always contains. */
+export const MESSAGE = 'no longer active'
 
-const API = 'https://cms.wear-run.help/api/public/viewer'
+/** A custom domain can take a moment after the deploy that creates it. */
+export const RETRY_DELAYS_MS = [15_000, 30_000]
 
-/**
- * A PDF smaller than this is not one of ours.
- *
- * The two live files are 54,336,461 B and 16,891,515 B. A Cloudflare error page is
- * ~28 KB, which is the actual failure this floor separates from success. 1 MB sits
- * far above the error page and far below either real file.
- */
-const MIN_PDF_BYTES = 1_000_000
-
-/** Statuses that mean "ask again later", not "the apex is broken". */
 const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
+
+/** @typedef {{ name: string, url: string, kind: 'site' | 'retired' | 'refused' }} ApexTarget */
+
+/** @type {ApexTarget[]} */
+export const TARGETS = [
+  { name: 'apex root', url: 'https://wear-run.help/', kind: 'site' },
+  { name: 'old catalogue', url: 'https://wear-run.help/catalogue', kind: 'retired' },
+  { name: 'old profile', url: 'https://wear-run.help/profile', kind: 'retired' },
+  { name: 'old www catalogue', url: 'https://www.wear-run.help/catalogue', kind: 'retired' },
+  { name: 'old www profile', url: 'https://www.wear-run.help/profile', kind: 'retired' },
+  { name: 'catalogue host', url: 'https://catalogue.wear-run.help/', kind: 'refused' },
+  { name: 'profile host', url: 'https://profile.wear-run.help/', kind: 'refused' },
+  // A fixed, meaningless path: it must never become a real link's words.
+  { name: 'wrong code', url: 'https://catalogue.wear-run.help/not-a-real-link', kind: 'refused' },
+]
 
 /**
  * @typedef {{
  *   name: string,
- *   url: string,
- *   kind: 'pdf' | 'site',
- * }} ApexTarget
- */
-
-/**
- * The fallback targets. `catalogue` is replaced at run time by whatever the live CMS
- * payload names, so this literal is the last resort, not the source of truth.
- *
- * @type {ApexTarget[]}
- */
-export const TARGETS = [
-  { name: 'catalogue', url: 'https://wear-run.help/catalogue', kind: 'pdf' },
-  { name: 'profile', url: 'https://wear-run.help/profile', kind: 'pdf' },
-  // The apex serves the MARKETING SITE since 2026-09-06 (it 404'd by design before).
-  // A 404 here now means the CMS Worker lost its wildcard route to the PDF Worker.
-  { name: 'apex root', url: 'https://wear-run.help/', kind: 'site' },
-]
-
-/**
- * Turn observations into a verdict. Pure — no network — so every branch, including
- * the ones that only happen while Cloudflare is challenging the runner, is testable.
- *
- * @param {{
- *   name: string,
+ *   kind: ApexTarget['kind'],
  *   status: number,
  *   contentType?: string,
- *   totalBytes?: number,
  *   magic?: string,
  *   wordmark?: boolean,
- *   kind: 'pdf' | 'site',
+ *   message?: boolean,
+ *   robots?: string,
  *   cache?: string,
  *   error?: string,
- * }[]} observations
+ * }} Observation
+ */
+
+/**
+ * Turn observations into a verdict. Pure — no network — so every branch is testable.
+ *
+ * @param {Observation[]} observations
  * @returns {{ ok: boolean, failures: string[], inconclusive: string[], lines: string[] }}
  */
 export function evaluate(observations) {
@@ -106,7 +76,7 @@ export function evaluate(observations) {
   const lines = []
 
   for (const o of observations) {
-    const label = o.name.padEnd(12)
+    const label = o.name.padEnd(18)
 
     if (o.error) {
       inconclusive.push(`${o.name}: request failed (${o.error}) — treating as inconclusive.`)
@@ -115,7 +85,6 @@ export function evaluate(observations) {
     }
 
     if (INCONCLUSIVE_STATUSES.has(o.status)) {
-      // Bot Fight Mode. Never an assertion failure — see constraint 1 in the header.
       inconclusive.push(
         `${o.name}: HTTP ${o.status} from a datacenter IP. Free-plan Bot Fight Mode ` +
           'blocks these intermittently; this is inconclusive, not an outage.',
@@ -124,98 +93,72 @@ export function evaluate(observations) {
       continue
     }
 
+    const problems = []
+    const html = String(o.contentType ?? '').includes('text/html')
+
     if (o.kind === 'site') {
-      const problems = []
       if (o.status !== 200) {
         problems.push(
           `HTTP ${o.status}, expected 200 — the marketing site should answer here. A 404 means ` +
-            'the CMS Worker no longer holds the wear-run.help/* wildcard route.',
+            'the CMS Worker no longer holds the wear-run.help/* wildcard route',
         )
       } else {
-        if (!String(o.contentType ?? '').includes('text/html')) {
+        if (!html)
           problems.push(`content-type is "${o.contentType ?? '(none)'}", expected text/html`)
-        }
         if (o.wordmark !== true) problems.push('the body does not contain "RUN APPAREL"')
       }
-      if (problems.length > 0) {
-        failures.push(`${o.name}: ${problems.join('; ')}.`)
-        lines.push(`  ${label} ${o.status}    FAIL  ${problems.join('; ')}`)
-      } else {
-        lines.push(`  ${label} 200    ok  the site  cf-cache-status: ${o.cache ?? '(none)'}`)
+    } else {
+      const expected = o.kind === 'retired' ? 410 : 404
+      if (o.magic === '%PDF-') {
+        problems.push(
+          o.kind === 'retired'
+            ? 'it serves a PDF — the old guessable address is open again'
+            : 'it serves a PDF without a code',
+        )
       }
-      continue
-    }
-
-    // A ranged GET answers 206; an origin that ignores Range answers 200. Both fine.
-    if (o.status !== 200 && o.status !== 206) {
-      failures.push(
-        `${o.name}: HTTP ${o.status}. A 404 here can be a CACHED miss from before the ` +
-          'file existed — the fix is a Custom Purge of this exact URL, not a redeploy.',
-      )
-      lines.push(`  ${label} ${o.status}    FAIL`)
-      continue
-    }
-
-    const problems = []
-    if (!String(o.contentType ?? '').includes('application/pdf')) {
-      problems.push(`content-type is "${o.contentType ?? '(none)'}", expected application/pdf`)
-    }
-    // Constraint 3: an error page can carry a coerced content-type. The bytes cannot lie.
-    if (o.magic !== '%PDF-') {
-      problems.push(`does not begin with %PDF- (got ${JSON.stringify(o.magic ?? '')})`)
-    }
-    if (!Number.isFinite(o.totalBytes) || Number(o.totalBytes) < MIN_PDF_BYTES) {
-      problems.push(`size ${o.totalBytes ?? 'unknown'} B is under the ${MIN_PDF_BYTES} B floor`)
+      if (o.status !== expected) problems.push(`HTTP ${o.status}, expected ${expected}`)
+      if (!html) problems.push(`content-type is "${o.contentType ?? '(none)'}", expected text/html`)
+      if (o.message !== true) problems.push(`the body does not say "${MESSAGE}"`)
+      if (o.kind === 'refused' && !String(o.robots ?? '').includes('noindex')) {
+        problems.push('x-robots-tag does not say noindex')
+      }
     }
 
     if (problems.length > 0) {
       failures.push(`${o.name}: ${problems.join('; ')}.`)
       lines.push(`  ${label} ${o.status}    FAIL  ${problems.join('; ')}`)
-      continue
+    } else {
+      lines.push(`  ${label} ${o.status}    ok  cf-cache-status: ${o.cache ?? '(none)'}`)
     }
-
-    const mb = (Number(o.totalBytes) / 1_000_000).toFixed(1)
-    lines.push(`  ${label} ${o.status}    ok  ${mb} MB  cf-cache-status: ${o.cache ?? '(none)'}`)
   }
 
   return { ok: failures.length === 0, failures, inconclusive, lines }
 }
 
 /**
- * Ranged GET — the browser's cache entry, at HEAD's cost. See constraint 2.
- *
  * @param {ApexTarget} target
+ * @returns {Promise<Observation>}
  */
 async function probe(target) {
   try {
     const response = await fetch(target.url, {
       redirect: 'manual',
-      headers: {
-        Range: 'bytes=0-1023',
-        'user-agent': 'run-apparel-apex-probe',
-      },
+      headers: { Range: 'bytes=0-4095', 'user-agent': 'run-apparel-apex-probe' },
     })
-
-    const range = response.headers.get('content-range')
-    const totalBytes = range
-      ? Number(range.split('/')[1])
-      : Number(response.headers.get('content-length'))
-
-    // Only the first bytes are needed, and only 1024 were requested.
-    const buffer = await response.arrayBuffer().catch(() => new ArrayBuffer(0))
-    const magic = new TextDecoder().decode(buffer.slice(0, 5))
-    // The CMS ignores `Range`, so the whole page arrives — about 30 KB.
-    const wordmark =
-      target.kind === 'site' ? new TextDecoder().decode(buffer).includes('RUN APPAREL') : undefined
-
+    // The CMS ignores Range, so the site's whole page arrives (~30 KB); everything else
+    // here is a small page, or 4 KB of a PDF if something has gone badly wrong.
+    const text = new TextDecoder().decode(
+      await response.arrayBuffer().catch(() => new ArrayBuffer(0)),
+    )
     return {
       name: target.name,
       kind: target.kind,
       status: response.status,
       contentType: response.headers.get('content-type') ?? undefined,
-      totalBytes: Number.isFinite(totalBytes) ? totalBytes : undefined,
-      magic,
-      wordmark,
+      magic: text.slice(0, 5),
+      wordmark: target.kind === 'site' ? text.includes('RUN APPAREL') : undefined,
+      message: target.kind === 'site' ? undefined : text.includes(MESSAGE),
+      robots: response.headers.get('x-robots-tag') ?? undefined,
       cache: response.headers.get('cf-cache-status') ?? '(none)',
     }
   } catch (error) {
@@ -228,39 +171,26 @@ async function probe(target) {
   }
 }
 
-/**
- * Ask the CMS where the catalogue actually is (constraint 4). Returns the fallback
- * targets unchanged if the API cannot be reached — that failure is the product API's
- * own to report, not this probe's to duplicate.
- *
- * @returns {Promise<ApexTarget[]>}
- */
-async function resolveTargets() {
-  try {
-    const response = await fetch(`${API}/${DEFAULT_PRODUCT.slug}/${DEFAULT_PRODUCT.colourway}`, {
-      headers: { accept: 'application/json' },
-    })
-    if (!response.ok) return TARGETS
-    const payload = await response.json()
-    const live = payload?.product?.catalogueUrl ?? payload?.siteSettings?.catalogueUrl
-    if (typeof live !== 'string' || !live.startsWith('https://')) return TARGETS
-    return TARGETS.map((t) => (t.name === 'catalogue' ? { ...t, url: live } : t))
-  } catch {
-    return TARGETS
-  }
-}
+/** @param {number} ms */
+const sleep = (ms) => new Promise((done) => setTimeout(done, ms))
 
 async function main() {
-  const targets = await resolveTargets()
-  const observations = []
-  for (const target of targets) {
-    observations.push(await probe(target))
+  let observations = []
+  for (const target of TARGETS) observations.push(await probe(target))
+
+  for (const delay of RETRY_DELAYS_MS) {
+    const failing = evaluate(observations).failures.map((f) => f.split(':')[0])
+    if (failing.length === 0) break
+    console.log(`[apex-probe] ${failing.length} target(s) failed; re-checking in ${delay / 1000} s`)
+    await sleep(delay)
+    observations = await Promise.all(
+      TARGETS.map((target, i) => (failing.includes(target.name) ? probe(target) : observations[i])),
+    )
   }
 
   const { ok, failures, inconclusive, lines } = evaluate(observations)
-
-  console.log('[apex-probe] the apex serves the customer-facing PDFs')
-  for (const target of targets) console.log(`  ${target.name.padEnd(12)} ${target.url}`)
+  console.log('[apex-probe] the site, the retired PDF addresses, and the private document hosts')
+  for (const target of TARGETS) console.log(`  ${target.name.padEnd(18)} ${target.url}`)
   for (const line of lines) console.log(line)
   for (const note of inconclusive) console.log(`[apex-probe] ${note}`)
 
@@ -268,7 +198,9 @@ async function main() {
     for (const failure of failures) console.error(`::error::${failure}`)
     process.exit(1)
   }
-  console.log('[apex-probe] both PDFs serve, and the apex serves the site.')
+  console.log(
+    '[apex-probe] the site answers, the old addresses stay retired, and the private hosts refuse without a code.',
+  )
 }
 
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {

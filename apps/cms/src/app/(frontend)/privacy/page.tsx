@@ -38,7 +38,8 @@ export const metadata: Metadata = buildMetadata({
  *
  * NOT LEGAL ADVICE. This is a factual account of what the software does, plus the
  * mainstream reading of the rules as of September 2026. Wording approved by the owner
- * 2026-09-07; a solicitor should review it before it carries any weight.
+ * 2026-09-07; a solicitor should review it before it carries any weight. Visit-records
+ * wording approved by the owner 2026-09-15.
  */
 export default async function PrivacyPage() {
   const settings = await getSiteSettings()
@@ -74,6 +75,18 @@ export default async function PrivacyPage() {
             cookies and without identifying you.
           </p>
           <p>
+            <strong>When you open a document we share with you.</strong> Our catalogue and company
+            profile open from private links. When one is opened, we record the day and time; the
+            approximate location (country, region and city), its time zone, and the name of the
+            network your connection comes from; your type of device, system, browser and language;
+            the website you came from; how far you scrolled; the time between your first and last
+            activity on it that day; and whether you downloaded the file. We do not record your IP
+            address. To count how many different people opened a document each day, we use a code
+            made from your connection and a secret that is replaced and deleted every day, so it
+            cannot be traced back to you or linked across days. If your browser sends a Global
+            Privacy Control signal, we count the visit and record nothing else.
+          </p>
+          <p>
             <strong>When something breaks.</strong> Our 3D reference pages report technical faults
             to Sentry, a service based in the United States, so that we can fix them. A report
             contains the error and the page it happened on. We have configured it not to send
@@ -88,14 +101,16 @@ export default async function PrivacyPage() {
 
           <p className="subhead">Why we are allowed to</p>
           <p>
-            To run and secure the website, and to answer business inquiries — our legitimate
-            interests — and to perform a contract where one follows.
+            To run and secure the website, to see how the documents we share are used, and to answer
+            business inquiries — our legitimate interests — and to perform a contract where one
+            follows.
           </p>
 
           <p className="subhead">How long we keep it</p>
           <p>
             Inquiry correspondence for as long as our business relationship needs it. Technical logs
-            and error reports are kept briefly by our providers and then deleted.
+            and error reports are kept briefly by our providers and then deleted. Records of visits
+            to our shared documents for 12 months, after which they are deleted automatically.
           </p>
 
           <p className="subhead">Where it goes</p>

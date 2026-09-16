@@ -173,24 +173,16 @@ jobs:
             # covered by nothing.
             node scripts/smoke-live-products.mjs || ok=false
 
-            # The apex PDFs — the catalogue button is the only user-facing link in
-            # the product that no test covers.
+            # The apex, from the PUBLIC side only (rewritten 2026-09-11). The catalogue
+            # and profile moved to catalogue./profile.wear-run.help behind a code held
+            # as a Worker secret; this log is public, so the probe holds no code. It
+            # asserts the old /catalogue and /profile stay retired (410, and never a
+            # PDF), the private hosts refuse without a code (404 + noindex), and the
+            # apex still serves the site. UptimeRobot checks the real links.
             #
-            # ⚠️ THIS USED TO ASSERT A 301 TO GOOGLE DRIVE, and it was wrong twice
-            # over. On 2026-08-28 the PDFs moved into R2 and the apex Worker began
-            # answering them with a 200, so the check errored on every run and opened
-            # outage issue #47 against a healthy site — while the run still concluded
-            # `success`, because `ok=false` was only a shell variable. And even
-            # before that it never asserted what it claimed: the 3xx branch tested
-            # only that `Location` was non-empty, never where it pointed.
-            #
-            # scripts/apex-probe.mjs replaces it with something stronger: a RANGED
-            # GET (1 KB, and unlike HEAD it reads the entry a browser would read, so
-            # a cached 404 is visible), asserting 200/206 + application/pdf + a size
-            # floor + the `%PDF-` magic number — because an error page can be served
-            # 200 with a coerced content-type. It resolves the URL from the live CMS
-            # payload rather than keeping a second copy of a value the CMS owns.
-            # Since 2026-09-06 it also asserts the apex root serves the SITE (200, HTML, wordmark).
+            # ⚠️ History worth keeping: this once asserted a 301 to Google Drive, went
+            # red on a healthy site for days, and still concluded `success` because
+            # `ok=false` was only a shell variable. The probe exits non-zero itself.
             node scripts/apex-probe.mjs || ok=false
 
             # The zone's SECURITY posture, which lives in Cloudflare's control plane

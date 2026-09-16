@@ -1,60 +1,35 @@
 import { describe, expect, it } from 'vitest'
-import { TARGETS, evaluate } from '../../../scripts/apex-probe.mjs'
+import { MESSAGE_HEADLINE } from '../../../infra/apex-404/page.js'
+import { MESSAGE, RETRY_DELAYS_MS, TARGETS, evaluate } from '../../../scripts/apex-probe.mjs'
 
 /**
- * Tests for the apex PDF probe.
+ * Tests for the public-side apex probe (rewritten 2026-09-11).
  *
- * THE CHECK THIS REPLACED WAS WRONG IN THREE WAYS AT ONCE, and each has a test here.
+ * THE PROBE HOLDS NO CODE, AND THESE TESTS ENFORCE IT. The documents now live at
+ * catalogue./profile.wear-run.help/<code>; the codes are Worker secrets, and GitHub
+ * Actions logs are public. So this probe checks only what is safe to check from a public
+ * log: the old addresses stay retired, the private hosts refuse without a code, and the
+ * apex still serves the site. UptimeRobot checks the real links.
  *
- * `.github/workflows/uptime.yml` asserted `/catalogue` returns a 301. After the PDFs
- * moved off Google Drive into R2 it returns a 200 PDF, so the check errored on every
- * run (false alarm, outage issue #47), the run still concluded `success` (false
- * green), and it could no longer distinguish a working catalogue from a dead one
- * (blind). It also never asserted what its own comment claimed: the 3xx branch tested
- * only that `Location` was non-empty, never where it pointed.
- *
- * THE TWO MOST IMPORTANT TESTS ARE THE LEAST OBVIOUS.
- *
- * 1. THE 403 CASE. Root CLAUDE.md: a 403 from a runner is *inconclusive, never a
- *    failed assertion* — free-plan Bot Fight Mode blocks datacenter IPs
- *    intermittently, and it has already forced a rollback and failed a deploy here.
- *    An alarm that fires on Cloudflare's mood gets muted, which is how the uptime
- *    check sat dead for 17 days. Paired with a control proving inconclusive is not
- *    blanket amnesty: a 404 and a 500 must still fail.
- *
- * 2. THE MAGIC-NUMBER CASE. A Cloudflare error page can be served 200 with a coerced
- *    `content-type: application/pdf`. Status and content-type together still pass it.
- *    Only the bytes settle it — a real PDF starts `%PDF-`. This is the negative
- *    control that makes the whole probe worth running, and it is why the probe reads
- *    1024 bytes rather than issuing a HEAD.
+ * THE MOST IMPORTANT NEGATIVE CONTROL is a retired address serving a PDF again — that is
+ * the guessable link reopened, and it must fail even if the status and content-type
+ * look fine.
  */
 
 type Observation = {
   name: string
-  kind: 'pdf' | 'site'
+  kind: 'site' | 'retired' | 'refused'
   status: number
   contentType?: string
-  totalBytes?: number
   magic?: string
   wordmark?: boolean
+  message?: boolean
+  robots?: string
   cache?: string
   error?: string
 }
 
-/** A healthy catalogue response. Numbers are the live ones, measured 2026-08-30. */
-const pdf = (over: Partial<Observation> = {}): Observation => ({
-  name: 'catalogue',
-  kind: 'pdf',
-  status: 206,
-  contentType: 'application/pdf',
-  totalBytes: 54_336_461,
-  magic: '%PDF-',
-  cache: 'HIT',
-  ...over,
-})
-
-/** The apex serving the marketing site — measured shape after 2026-09-06. */
-const apexRoot = (over: Partial<Observation> = {}): Observation => ({
+const site = (over: Partial<Observation> = {}): Observation => ({
   name: 'apex root',
   kind: 'site',
   status: 200,
@@ -63,131 +38,138 @@ const apexRoot = (over: Partial<Observation> = {}): Observation => ({
   ...over,
 })
 
+const retired = (over: Partial<Observation> = {}): Observation => ({
+  name: 'old catalogue',
+  kind: 'retired',
+  status: 410,
+  contentType: 'text/html; charset=utf-8',
+  magic: '<!doc',
+  message: true,
+  robots: 'noindex, nofollow',
+  ...over,
+})
+
+const refused = (over: Partial<Observation> = {}): Observation => ({
+  name: 'catalogue host',
+  kind: 'refused',
+  status: 404,
+  contentType: 'text/html; charset=utf-8',
+  magic: '<!doc',
+  message: true,
+  robots: 'noindex, nofollow',
+  ...over,
+})
+
 describe('evaluate', () => {
-  it('passes when both PDFs serve and the apex serves the site', () => {
-    const result = evaluate([pdf(), pdf({ name: 'profile', totalBytes: 16_891_515 }), apexRoot()])
+  it('passes when the site answers, the old addresses are retired and the hosts refuse', () => {
+    const result = evaluate([site(), retired(), refused()])
     expect(result.ok).toBe(true)
     expect(result.failures).toEqual([])
+    expect(result.lines).toHaveLength(3)
   })
 
-  it('accepts 200 as well as 206 — an origin may ignore the Range header', () => {
-    expect(evaluate([pdf({ status: 200 })]).ok).toBe(true)
+  it('FAILS a retired address that serves a PDF again, whatever else it says', () => {
+    const result = evaluate([retired({ magic: '%PDF-', status: 410, message: true })])
+    expect(result.ok).toBe(false)
+    expect(result.failures[0]).toContain('open again')
+  })
+
+  it('FAILS a retired address that answers 200', () => {
+    expect(evaluate([retired({ status: 200 })]).failures[0]).toContain('expected 410')
+  })
+
+  it('FAILS a private host that answers 200 without a code', () => {
+    expect(evaluate([refused({ status: 200 })]).failures[0]).toContain('expected 404')
+  })
+
+  it('FAILS a private host that serves a PDF without a code', () => {
+    expect(evaluate([refused({ magic: '%PDF-' })]).failures[0]).toContain('without a code')
+  })
+
+  it('FAILS a private host that drops noindex', () => {
+    expect(evaluate([refused({ robots: undefined })]).failures[0]).toContain('noindex')
+  })
+
+  it('FAILS a refusal that does not show the not-active message', () => {
+    expect(evaluate([refused({ message: false })]).failures[0]).toContain(MESSAGE)
   })
 
   it.each([403, 429, 503])('treats HTTP %s as INCONCLUSIVE, not an outage', (status) => {
-    const result = evaluate([pdf({ status })])
-
-    // Not merely "does not fail" — it must be recorded as inconclusive, so a human
-    // reading the log can tell "we could not measure" from "we measured, it is fine".
+    const result = evaluate([refused({ status })])
     expect(result.ok).toBe(true)
-    expect(result.failures).toEqual([])
-    expect(result.inconclusive).toHaveLength(1)
     expect(result.inconclusive[0]).toContain('Bot Fight Mode')
   })
 
-  it.each([404, 500, 502])(
-    'still FAILS on HTTP %s — inconclusive is not blanket amnesty',
-    (status) => {
-      const result = evaluate([pdf({ status })])
-
-      expect(result.ok).toBe(false)
-      expect(result.inconclusive).toEqual([])
-    },
-  )
-
-  it('names the cached-404 remedy, because a redeploy will not fix one', () => {
-    const result = evaluate([pdf({ status: 404 })])
-
-    // CLAUDE.md: a 404 from an R2-backed host can be a CACHED miss from before the
-    // object existed. The fix is a Custom Purge of that exact URL. An operator who
-    // redeploys instead loses an hour.
-    expect(result.failures[0]).toContain('Custom Purge')
+  it.each([404, 500, 502])('still FAILS the site on HTTP %s', (status) => {
+    const result = evaluate([site({ status })])
+    expect(result.ok).toBe(false)
+    expect(result.inconclusive).toEqual([])
   })
 
-  it('FAILS an error page dressed as a PDF — the magic number is the only real proof', () => {
-    // 200, and content-type says application/pdf. Both weaker checks pass this.
-    const result = evaluate([pdf({ magic: '<!DOC', totalBytes: 28_000 })])
-
-    expect(result.ok).toBe(false)
-    expect(result.failures[0]).toContain('%PDF-')
-  })
-
-  it('FAILS a PDF that is too small to be one of ours', () => {
-    const result = evaluate([pdf({ totalBytes: 28_000 })])
-
-    expect(result.ok).toBe(false)
-    expect(result.failures[0]).toContain('floor')
-  })
-
-  it('FAILS a wrong content-type', () => {
-    const result = evaluate([pdf({ contentType: 'text/html; charset=utf-8' })])
-
-    expect(result.ok).toBe(false)
-    expect(result.failures[0]).toContain('application/pdf')
-  })
-
-  it('FAILS when the size is unknown rather than passing on absence', () => {
-    const result = evaluate([pdf({ totalBytes: undefined })])
-
-    expect(result.ok).toBe(false)
-  })
-
-  it('FAILS if the apex stops serving the site — a 404 there is the OLD behaviour', () => {
-    // Until 2026-09-06 the bare apex 404'd by design and this test asserted that. The
-    // site lives there now; a 404 means the CMS Worker lost its wildcard route.
-    const result = evaluate([apexRoot({ status: 404 })])
-    expect(result.ok).toBe(false)
+  it('names the lost wildcard when the apex stops serving the site', () => {
+    const result = evaluate([site({ status: 404 })])
     expect(result.failures[0]).toContain('expected 200')
     expect(result.failures[0]).toContain('wildcard')
   })
 
-  it('FAILS a 200 that is not the site — wrong type, or no wordmark in the body', () => {
-    expect(evaluate([apexRoot({ contentType: 'application/pdf' })]).ok).toBe(false)
-    expect(evaluate([apexRoot({ wordmark: false })]).ok).toBe(false)
-    expect(evaluate([apexRoot({ wordmark: false })]).failures[0]).toContain('RUN APPAREL')
+  it('FAILS a 200 at the apex that is not the site', () => {
+    expect(evaluate([site({ contentType: 'application/pdf' })]).ok).toBe(false)
+    expect(evaluate([site({ wordmark: false })]).failures[0]).toContain('RUN APPAREL')
   })
 
-  it('treats a network error as inconclusive, not an outage', () => {
-    const result = evaluate([pdf({ error: 'getaddrinfo ENOTFOUND' })])
-
+  it('treats a network error as inconclusive', () => {
+    const result = evaluate([refused({ error: 'getaddrinfo ENOTFOUND' })])
     expect(result.ok).toBe(true)
     expect(result.inconclusive[0]).toContain('inconclusive')
-  })
-
-  it('reports every target, so a silent skip is visible in the log', () => {
-    const result = evaluate([pdf(), pdf({ name: 'profile' }), apexRoot()])
-
-    expect(result.lines).toHaveLength(3)
   })
 })
 
 describe('TARGETS', () => {
-  it('covers both PDFs and the bare apex', () => {
-    expect(TARGETS.map((t: { name: string }) => t.name).sort()).toEqual([
-      'apex root',
-      'catalogue',
-      'profile',
+  it('covers the site, four retired addresses and three refusals', () => {
+    const kinds = TARGETS.map((t: { kind: string }) => t.kind)
+    expect(kinds.filter((k: string) => k === 'site')).toHaveLength(1)
+    expect(kinds.filter((k: string) => k === 'retired')).toHaveLength(4)
+    expect(kinds.filter((k: string) => k === 'refused')).toHaveLength(3)
+  })
+
+  it('never carries a code — its log is public — only fixed paths no link uses', () => {
+    const paths = (TARGETS as { url: string }[]).map((t) => new URL(t.url).pathname)
+    expect([...new Set(paths)].sort()).toEqual(['/', '/catalogue', '/not-a-real-link', '/profile'])
+  })
+
+  it('stays on the four hostnames this Worker and the site answer', () => {
+    const hosts = new Set((TARGETS as { url: string }[]).map((t) => new URL(t.url).hostname))
+    expect([...hosts].sort()).toEqual([
+      'catalogue.wear-run.help',
+      'profile.wear-run.help',
+      'wear-run.help',
+      'www.wear-run.help',
     ])
   })
 
-  it('never targets the model — that belongs to the payload smoke test', () => {
-    // Mirrors perfProbe.test.ts. R2 egress is inside a $5/month cap, and a probe that
-    // pulls a model is affordable only until someone changes the schedule.
+  it('never targets a model or the viewer', () => {
     for (const target of TARGETS as { url: string }[]) {
       expect(target.url).not.toContain('media.wear-run.help')
+      expect(target.url).not.toContain('viewer.wear-run.help')
       expect(target.url).not.toContain('.glb')
     }
   })
 
-  it('asserts the apex root as the SITE, not a 404', () => {
-    expect(
-      (TARGETS as { name: string; kind: string }[]).find((t) => t.name === 'apex root')?.kind,
-    ).toBe('site')
+  it('waits before re-checking a failure, because a new custom domain takes a moment', () => {
+    expect(RETRY_DELAYS_MS).toEqual([15_000, 30_000])
   })
+})
 
-  it('points at the apex, not the viewer — the viewer is an SPA and answers anything', () => {
-    for (const target of TARGETS as { url: string }[]) {
-      expect(target.url.startsWith('https://wear-run.help/')).toBe(true)
-    }
+/**
+ * The probe cannot read the page's own text (it never holds a code, so it never opens
+ * one) — it decides "refused" or "retired" from MESSAGE, a short substring, against
+ * whatever page.js actually renders. A wording change to MESSAGE_HEADLINE that dropped
+ * or reworded MESSAGE would go green in every unit test here and still turn every
+ * post-deploy probe run red once the Worker was already live. Pin the relationship
+ * instead of discovering it that way.
+ */
+describe('MESSAGE stays inside the page the Worker actually serves', () => {
+  it('MESSAGE_HEADLINE contains MESSAGE', () => {
+    expect(MESSAGE_HEADLINE).toContain(MESSAGE)
   })
 })

@@ -2,7 +2,7 @@
   "$comment": [
     "The 67-product printed catalogue, as CMS product rows.",
     "",
-    "SOURCE: https://wear-run.help/catalogue -> Google Drive file 1l4ZbvZDMU-7yVWMhTGtdcjMRY5ixGqc-,",
+    "SOURCE: the RUN PRODUCT CATALOUGE.pdf catalogue (54,336,461 bytes),",
     "a 68-page PDF. Page 1 is the index; pages 2-68 are one product spread each.",
     "`sourcePage` on every row is the PDF page it came from, so any value here can be",
     "checked against the artwork rather than trusted.",

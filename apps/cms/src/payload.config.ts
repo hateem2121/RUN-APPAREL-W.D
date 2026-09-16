@@ -7,6 +7,9 @@ import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { r2Storage } from '@payloadcms/storage-r2'
 import { buildConfig } from 'payload'
 
+import { DocumentVisitEmails } from './collections/DocumentVisitEmails'
+import { DocumentVisits } from './collections/DocumentVisits'
+import { DocumentVisitSalts } from './collections/DocumentVisitSalts'
 import { Events } from './collections/Events'
 import { Inquiries } from './collections/Inquiries'
 import { Media } from './collections/Media'
@@ -143,7 +146,17 @@ export default buildConfig({
       },
     },
   },
-  collections: [Users, Media, RawUploads, Products, Events, Inquiries],
+  collections: [
+    Users,
+    Media,
+    RawUploads,
+    Products,
+    Events,
+    Inquiries,
+    DocumentVisits,
+    DocumentVisitSalts,
+    DocumentVisitEmails,
+  ],
   globals: [SiteSettings, CatalogueDefaults, BuildProcess],
   // The two-segment route is registered first so it wins over the one-segment
   // route for /n001/navy, whatever order the router happens to try them in.

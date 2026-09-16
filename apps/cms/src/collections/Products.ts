@@ -4,6 +4,7 @@ import { isAdmin, isAdminOrEditor, isAuthenticated } from '../access/roles'
 import { cameraFields } from '../fields/camera'
 import { colourwaysField } from '../fields/colourways'
 import { deriveSlug } from '../fields/deriveSlug'
+import { validateCatalogueUrl } from '../lib/privateDocumentLinks'
 import type { CatalogueDefault } from '../payload-types'
 import { IMAGE_MIME_TYPES, MODEL_MIME_TYPES } from './mediaRules'
 import {
@@ -770,17 +771,9 @@ export const Products: CollectionConfig = {
                 return defaults?.catalogueUrl || 'https://wear-run.help/catalogue'
               },
               label: 'Catalogue link (not shown on the website)',
-              validate: (value: unknown) => {
-                if (typeof value !== 'string' || value.trim() === '') {
-                  return 'A catalogue link is required.'
-                }
-                try {
-                  new URL(value)
-                  return true
-                } catch {
-                  return `“${value}” is not a complete web address. It needs to start with https:// — e.g. https://wear-run.help/catalogue.`
-                }
-              },
+              // Shared with CatalogueDefaults and SiteSettings, which also refuses a
+              // private document link: this field is published by the public API.
+              validate: validateCatalogueUrl,
               // ⚠️ THE LABEL AND DESCRIPTION ARE THE FIX, NOT THE FIELD. Both said
               // "Where the “Catalogue” button sends people" until 2026-09-05 — a
               // button removed on 2026-09-04. This one is on EVERY product, so an

@@ -208,7 +208,7 @@ The four Worker names:
 | `run-apparel-viewer-site` | the public viewer — what a lead sees |
 | `run-apparel-viewer-cms` | the admin *and* the API the viewer reads |
 | `run-apparel-viewer-shrink` | garment processing only; the live site is unaffected |
-| `run-apparel-apex-404` | the catalogue and company-profile PDFs on the apex |
+| `run-apparel-apex-404` | the private catalogue and profile links, and the retired apex PDF paths |
 
 Rolling back the **viewer** is the safe one — it holds no data and reads only the
 public API.
@@ -260,13 +260,21 @@ command's exit code — the same discipline the cached-404 incident forced on
 `git revert` + push has no such uncertainty: it rebuilds and redeploys through
 every gate. **When you have the minutes to spare, prefer it.**
 
-> ⚠️ **ONE EXCEPTION, AND IT IS NEW.** `git revert` across the apex reconciliation
-> commit (2026-08-30) redeploys the old `infra/apex-404/index.js`, which returns 404
-> for **every** path and declares no R2 binding — taking `/catalogue` and `/profile`
-> offline while reporting a successful deploy. That is the exact failure the
-> reconciliation fixed, reached through the documented safe path. Before reverting
-> anything that touches `infra/apex-404/`, run `node scripts/apex-probe.mjs`
-> afterwards and confirm both PDFs still serve.
+> ⚠️ **TWO EXCEPTIONS, BOTH IN `infra/apex-404/`.**
+>
+> 1. `git revert` across the apex reconciliation commit (2026-08-30) redeploys an
+>    `index.js` that returns 404 for **every** path and declares no R2 binding.
+> 2. **Rolling back or reverting the private-links change (decided 2026-09-11, live
+>    from the merge that deploys it) re-opens the guessable PDFs.** The earlier code
+>    serves the PDF for any path `/catalogue` or
+>    `/profile` — on the apex, and on `catalogue.` / `profile.wear-run.help` too, because
+>    `wrangler rollback` restores code, not routes, and the custom domains stay attached.
+>    If that is not acceptable for the minutes a fix takes, detach them as well: list with
+>    `GET /accounts/{account_id}/workers/domains?service=run-apparel-apex-404`, detach each
+>    with `DELETE /accounts/{account_id}/workers/domains/{domain_id}`. Deploying the fix
+>    attaches them again.
+>
+> After either, run `node scripts/apex-probe.mjs` and open both private links.
 
 ### After any rollback
 
@@ -803,6 +811,179 @@ enqueues nothing, then retry it from the admin:
 npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "UPDATE raw_uploads SET status = 'failed' WHERE id = <id> AND status = 'queued'"
 ```
 
+## Private document links (catalogue and profile)
+
+Decided 2026-09-11 and live from the merge that deploys it: the catalogue and the
+company profile have no guessable address. Each opens only from a private link:
+
+| Document | Link | Worker secret |
+|---|---|---|
+| Product catalogue | `https://catalogue.wear-run.help/<code>` | `CATALOGUE_CODE` |
+| Company profile | `https://profile.wear-run.help/<code>` | `PROFILE_CODE` |
+
+The words after each address are chosen by the owner. They keep out accidental visitors and
+search engines, and are **not** a password against someone determined to guess (owner
+decision, 2026-09-11). The link opens a page of pictures, one per PDF page, with a
+Download PDF button that serves the original file. `wear-run.help/catalogue` and `/profile`
+answer 410 "no longer active". Code: `infra/apex-404/`.
+
+⚠️ **A code is a password in a URL.** Never put one in this repository, a commit message,
+an issue, a CI log, a CMS field (the CMS refuses it, because the public API would publish
+it) or anywhere public. The full links live in the owner's Passwords and in the two
+external uptime monitors, nowhere else.
+
+### Changing a link's words (a leaked or retired link)
+
+1. The owner chooses the new words: lowercase letters and digits in hyphen-joined words
+   (a new year is the simplest change). **Two rules the Worker enforces itself, fail
+   closed:** the words must not start with `catalogue` or `profile` (the retired zone
+   routes match any suffix, so a code shaped like one could be served from their cache
+   entry — see `infra/apex-404/documents.js`), and the catalogue's and profile's words
+   must differ from each other. Never write them into this repository, an issue or
+   a CI log.
+2. Set the secret to the chosen words — the words alone, not the whole link — through the
+   Cloudflare API (`PUT /accounts/{account_id}/workers/scripts/run-apparel-apex-404/secrets`
+   with `{"name": "CATALOGUE_CODE", "text": "<code>", "type": "secret_text"}`), or with
+   `npx wrangler@4.122.0 secret put CATALOGUE_CODE --name run-apparel-apex-404`. Either
+   creates and deploys a new Worker version.
+3. Check with a plain GET, never HEAD: the old link must answer **404** and the new one
+   **200**. If the old one still opens, run `pnpm deploy:apex` from a clean, up-to-date
+   `origin/main` checkout — it deploys whatever is on disk, so a stale or dirty tree
+   ships the wrong code. Running it clears the old link regardless of what was cached:
+   every deployment starts from a cold cache, and Workers Caching cannot be purged from
+   outside a Worker.
+4. Update that document's uptime monitor, then give the owner the new link.
+
+### Replacing the catalogue or profile PDF
+
+1. Render the pictures from the new file, **outside this repository**:
+   `node scripts/document-pages.mjs --doc catalogue --pdf <new.pdf> --md5 <its MD5> --out <dir>`.
+   Open `<dir>/contact-sheet.jpg`; if a spread's artwork crosses its red centre line,
+   re-run with `--whole <page numbers>`.
+2. Upload every `<dir>/<version>/*.webp` to `run-assets/documents/<doc>/<version>/` with
+   `npx wrangler@4.122.0 r2 object put run-assets/<key> --file <file> --content-type image/webp --remote`,
+   then list that prefix and check the count is three per part in the manifest.
+3. Upload the new PDF over the SAME key — `RUN PRODUCT CATALOUGE.pdf` or
+   `Company Profile.pdf`, spelled exactly — and confirm its etag equals the `--md5` you
+   rendered with. Upload `<dir>/manifest.json` to `run-assets/documents/<doc>/manifest.json`
+   LAST.
+4. Anyone who opens or reloads the page sees the new pictures from the moment the manifest
+   is uploaded: the page is never cached (`no-store`, owner decision D32, 2026-09-15, live
+   from the merge that deploys it), so the Worker builds every open from the current
+   manifest. The download follows within an hour, or at once after running
+   `pnpm deploy:apex` from a clean, up-to-date `origin/main` checkout.
+   Old picture versions stay in R2 until the owner decides to delete them. **A page already
+   open in a visitor's browser shows broken pictures until they reload it**: `pictureKey`
+   (`infra/apex-404/manifest.js`) serves a picture only when its version segment matches
+   the CURRENT manifest, so the moment the new manifest is uploaded, the old version's
+   picture URLs already sitting in that open page's HTML stop resolving — even though the
+   old files are still physically in R2, untouched.
+
+### If a link stops working
+
+- **The real link shows "not active" (404):** the secret is missing or different, or —
+  the word rule, decided 2026-09-15 — it starts with the retired word `catalogue` or
+  `profile`, or equals the other document's own secret. Only the Worker's own
+  `[apex] … cannot be served` log line says which of these it is.
+  `npx wrangler@4.122.0 secret list --name run-apparel-apex-404` shows names only.
+- **"Temporarily unavailable" (503):** the manifest is missing or invalid, or a file it
+  lists is missing. Workers Logs carry the reason (`[apex] … manifest rejected: …`).
+  ⚠️ **Workers Logs' REQUEST lines carry the full address, words included** — if you
+  ever paste a log anywhere public, quote only the `[apex] …` reason line.
+- **The old `/catalogue` serves a PDF again:** the Worker was rolled back. See "Undoing a
+  bad deploy".
+
+### Document visits
+
+Since 2026-09-15 the documents Worker records every visit to a private link in the
+website's own database, in `ctx.waitUntil` after the response is already sent — a
+slow or failed write never slows down or breaks a real visitor's page.
+
+**Where to look:**
+- **Admin → Document visits** (`/admin/collections/document-visits`): one row per
+  day, document and visitor code, newest first. Every field is read-only.
+- The summary box above that list shows the last 7 and 30 days for each document —
+  people, opens, downloads, how many read past halfway or to the end, the top
+  countries, and the device split.
+
+**What a row's `kind` means**, decided in this order: `private` — the visitor's
+browser sent a Global Privacy Control signal, so only the open itself is counted and
+every detail column is blank; `link-preview` — a messaging or social app fetching the
+page to build a preview card (WhatsApp, Facebook, Slack and similar); `robot` — any
+other automated client; `old-link` — a `person` request to the retired
+`wear-run.help/catalogue` or `/profile` address; `person` — everything else, which is
+what "people" and "opens" on the summary box count.
+
+**Known limits**, worth having in mind before treating a number as exact:
+- A few rows will have no city — Cloudflare does not always resolve one.
+- **WhatsApp usually opens a link in the phone's own browser**, so most WhatsApp
+  visits show as Safari or Chrome, not as a named app. Instagram, Facebook and
+  LinkedIn's own in-app browsers DO announce themselves and are named.
+- Outlook "Safe Links" and similar email scanners can open a link the way a person
+  does, and cannot always be told apart from one.
+- **iPads usually count as computers:** Safari on iPadOS 13 and later sends the same
+  User-Agent as a Mac.
+- "Read up to page" is approximate — a browser loads a page or two ahead before
+  anyone actually scrolls that far.
+- Counts of people are "about": several people behind the same office or mobile
+  network, on the same kind of phone or browser, share one code for the day.
+
+**Three read-only queries, through the Cloudflare connector's D1 query tool**
+(database `run-apparel-viewer-db`, id `41e20361-1a5f-4c87-b5ca-781c57c9b3f4` — the same
+one `apps/cms/CLAUDE.md` already documents reading production with; its response
+carries `rows_written`, so "this was read-only" is provable). All three are ordinary
+`SELECT`s a Claude report can run directly:
+
+- **This week, per document:**
+  ```sql
+  SELECT document, kind, COUNT(DISTINCT visitor) AS people, SUM(opens) AS opens, SUM(downloads) AS downloads
+  FROM document_visits
+  WHERE day >= date(datetime('now', '+5 hours'), '-6 days', 'weekday 1')
+  GROUP BY document, kind
+  ORDER BY document, kind;
+  ```
+- **People by country, last 30 days:**
+  ```sql
+  SELECT country, COUNT(DISTINCT visitor) AS people
+  FROM document_visits
+  WHERE kind = 'person' AND country != '' AND day >= date(datetime('now', '+5 hours'), '-29 days')
+  GROUP BY country
+  ORDER BY people DESC
+  LIMIT 10;
+  ```
+- **The last weekly email:**
+  ```sql
+  SELECT week, status, sent_at, error FROM document_visit_emails ORDER BY week DESC LIMIT 1;
+  ```
+
+**The weekly email.** Every Monday 09:00 Pakistan time, a summary for the previous
+Monday-Sunday goes out. `status: failed` with `error: not configured` means the Worker
+secrets that hold the sending key and the recipient are not both set — this never
+blocks a deploy (CI requires neither), it only means nobody gets that week's email
+until the secrets are set and a trigger fires again for that week.
+
+**Rotating the sending key — all owner actions, guided at the time:** the owner
+creates a new sending-only key in Resend, replaces the Worker secret with it, then
+deletes the old key in Resend. Claude never sees the value either side of the swap.
+
+**Sending a test email, with the owner's okay at that moment:** add a temporary
+`* * * * *` trigger through the connector, wait for that week's `document_visit_emails`
+row to read `sent`, put back exactly the two triggers `infra/apex-404/wrangler.jsonc`
+declares, and confirm with the owner that the email actually arrived.
+
+⚠️ **The same week cannot be sent twice inside 24 hours, by design.** Each send carries
+an idempotency key built from that week's Monday, and the email provider keeps a key for
+24 hours: a second attempt at the same week within that window returns the first
+response instead of sending again. That is what stops a retry — or a forgotten
+`* * * * *` trigger — from mailing the same summary repeatedly. After 24 hours the key
+expires and a genuine re-send works. If a test email must be repeated sooner, change
+nothing and wait it out; do not try to force it.
+
+**Clean-up.** Every day at 05:05 Pakistan time, visit rows and weekly-email rows older
+than 12 months are deleted, and yesterday's and older daily secrets are deleted with
+them — once a day's secret is gone, that day's visitor codes can never be recomputed
+or linked to a later day's.
+
 ## Analytics & events
 
 Viewer telemetry (analytics, diagnostics, client errors) lands in the **Events**
@@ -968,9 +1149,10 @@ yourself muting UptimeRobot, add a second destination instead.
   number nobody could act on.
 - **The bare apex `wear-run.help` serves the marketing site since 2026-09-06** (it
   404'd in ~0.7 s from 2026-08-19, and 522'd after 20.2 s before that). The CMS Worker
-  answers it on zone routes; `infra/apex-404/index.js` keeps `/catalogue` and `/profile`
-  on four narrower routes. All three are asserted by `scripts/apex-probe.mjs`, run from
-  `uptime.yml`, and the site's redirects by `scripts/smoke-post-deploy.sh`.
+  answers it on zone routes; `infra/apex-404/` answers the old `/catalogue` and `/profile`
+  (410) and the private document hosts. `scripts/apex-probe.mjs`, run from `uptime.yml`,
+  asserts the site, the retired paths and the refusals; the external uptime monitor
+  watches the real private links.
 
 ## Uptime alerts
 
@@ -985,8 +1167,9 @@ yourself muting UptimeRobot, add a second destination instead.
 > three times more often — and costs no Actions minutes. What stayed in this
 > workflow is what that service cannot express: `smoke-live-products.mjs` resolves
 > each live garment's model URL out of the API payload and fetches it, catching a
-> garment that silently lost its GLB, and `scripts/apex-probe.mjs` asserts both apex
-> PDFs actually serve.
+> garment that silently lost its GLB, and `scripts/apex-probe.mjs` asserts the old PDF
+> addresses stay retired and the private document hosts refuse without a code. It holds
+> no code, because this log is public; the external monitor checks the real links.
 >
 > ⚠️ **This said "the catalogue probe asserts the redirect still reaches the PDF"
 > until 2026-08-30. It never did.** The old check tested only that a 3xx carried a
