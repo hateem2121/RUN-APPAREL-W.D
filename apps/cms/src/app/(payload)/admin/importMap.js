@@ -28,6 +28,7 @@ import { StrikethroughFeatureClient as StrikethroughFeatureClient_e70f5e05f09f93
 import { UnderlineFeatureClient as UnderlineFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { BoldFeatureClient as BoldFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { ItalicFeatureClient as ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
+import { DocumentVisitsSummary as DocumentVisitsSummary_1153acb0542b668fba63ed978a418b6e } from '../../../collections/DocumentVisitsSummary'
 import { FolderTypeField as FolderTypeField_2b8867833a34864a02ddf429b0728a40 } from '@payloadcms/next/client'
 import { R2ClientUploadHandler as R2ClientUploadHandler_85cc02ed84006fcc91d3aff39dda669d } from '@payloadcms/storage-r2/client'
 import { Dashboard as Dashboard_883c31e5a2819bb83d4b37435313e9bf } from '../../../views/Dashboard'
@@ -91,6 +92,8 @@ export const importMap = {
     BoldFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   '@payloadcms/richtext-lexical/client#ItalicFeatureClient':
     ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
+  '/collections/DocumentVisitsSummary#DocumentVisitsSummary':
+    DocumentVisitsSummary_1153acb0542b668fba63ed978a418b6e,
   '@payloadcms/next/client#FolderTypeField': FolderTypeField_2b8867833a34864a02ddf429b0728a40,
   '@payloadcms/storage-r2/client#R2ClientUploadHandler':
     R2ClientUploadHandler_85cc02ed84006fcc91d3aff39dda669d,

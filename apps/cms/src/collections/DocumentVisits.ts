@@ -30,8 +30,9 @@ export const DocumentVisits: CollectionConfig = {
     ],
     description:
       'One line per person, per document, per day (Pakistan time). Counts of people are approximate. WhatsApp visits usually show as Safari or Chrome. Email scanners such as Outlook Safe Links can look like a person. Lines older than 12 months are deleted automatically.',
-    // Task 9 adds `components: { beforeListTable: [...] }` here, once the component it
-    // names actually exists — this task only builds the table.
+    components: {
+      beforeListTable: ['/collections/DocumentVisitsSummary#DocumentVisitsSummary'],
+    },
   },
   defaultSort: '-lastAt',
   access: {
