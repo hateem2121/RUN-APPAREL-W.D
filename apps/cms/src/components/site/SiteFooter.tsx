@@ -23,7 +23,7 @@ import { FooterWordmark } from './FooterWordmark'
  * spotlight, the glow, the cursor — are islands that hydrate over markup that already
  * reads correctly without them.
  *
- * ⚠️ EVERY CLAIM BLOCK IS CONDITIONAL. Capacity, Certified and Elsewhere render only
+ * ⚠️ EVERY CLAIM BLOCK IS CONDITIONAL. Capacity, Standards and Elsewhere render only
  * from real values; a blank claim renders no block and never an example. See the
  * comment above the footer fields in SiteSettings.ts.
  */
@@ -35,7 +35,7 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
    * ⚠️ THE FACTS AREA RENDERS ONE BLOCK OF FOUR TODAY, AND THAT IS THE CODE BEING RIGHT.
    *
    * Audit FA-T-13 reads "a cursor-following footer light beside an empty fact block" — a
-   * fair thing to notice, and the wrong thing to fix here. Capacity, Certified and
+   * fair thing to notice, and the wrong thing to fix here. Capacity, Standards and
    * Elsewhere are all CLAIMS ABOUT THE BUSINESS, and every one of them is blank in the
    * CMS, so `projectFooter()` supplies nothing and these guards hide the headings. The
    * alternative is a footer that invents a certification, which is the failure this
@@ -124,9 +124,26 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
               </div>
             ) : null}
 
+            {/*
+             * ⚠️ "Standards", NOT "Certified", AND THE HEADING IS THE WHOLE POINT.
+             * RUN APPAREL holds no certification in its own name — `lib/companyFacts.ts`
+             * CERTIFICATION says so and has been live since 2026-09-07. The parent,
+             * DURUS INDUSTRIES, is SEDEX-registered and SMETA-audited; the fabric and
+             * trim suppliers hold OEKO-TEX, GOTS and GRS. A heading reading "Certified"
+             * over supplier-held standards is a false claim aimed at the buyers most
+             * likely to verify it, and OEKO-TEX, GOTS and Textile Exchange each reserve
+             * the right to act on misuse. Owner's ruling 2026-09-16.
+             *
+             * The entries carry the qualifier ("Parent: …", "Suppliers: …") rather than
+             * the heading, because this row is four columns of single-word headings:
+             * measured on the live footer in its 10px spaced-caps mono, "Standards" is
+             * 69px and "Certified" was 69px, so the row is unchanged, while the owner's
+             * first choice, "Our supply chain standards", measured 199px — 2.9x the
+             * widest heading there, and wrapping at 200% text.
+             */}
             {f.certifications.length > 0 ? (
-              <div className="footer-block footer-block--certified">
-                <h3>Certified</h3>
+              <div className="footer-block footer-block--standards">
+                <h3>Standards</h3>
                 <ul>
                   {f.certifications.map((name) => (
                     <li key={name}>{name}</li>
