@@ -115,11 +115,17 @@ jobs:
           # that says the wrong thing during a real incident is this repo's
           # most-repeated recorded failure. uptime.yml owns "is the site up"; heartbeat
           # owns "is the watcher still watching".
+          # lighthouse-live.yml (added 2026-09-16) is watched for COMPLETION, like
+          # uptime.yml: failing is its job when a page regresses, so "no success" would
+          # be a false alarm. Known limit: it also runs after every CI run on main and
+          # its job is SKIPPED when CI failed — a skipped run still counts as completed,
+          # so a stretch of red CI could hide a dead weekly schedule.
           WATCHED="
           uptime.yml:36:completed:daily at 07:23 UTC
           nightly-backup.yml:36:success:nightly
           diagnostics-digest.yml:192:success:weekly on Mondays
           perf-watch.yml:192:success:weekly on Mondays
+          lighthouse-live.yml:192:completed:weekly on Tuesdays, and after each deploy
           "
 
           # perf-watch.yml was NOT watched until 2026-08-30 — it could have stopped
