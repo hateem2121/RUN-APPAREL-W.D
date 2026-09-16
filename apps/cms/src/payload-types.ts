@@ -120,6 +120,9 @@ export interface Config {
     products: Product;
     events: Event;
     inquiries: Inquiry;
+    'document-visits': DocumentVisit;
+    'document-visit-salts': DocumentVisitSalt;
+    'document-visit-emails': DocumentVisitEmail;
     'payload-kv': PayloadKv;
     'payload-folders': FolderInterface;
     'payload-locked-documents': PayloadLockedDocument;
@@ -141,6 +144,9 @@ export interface Config {
     products: ProductsSelect<false> | ProductsSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
     inquiries: InquiriesSelect<false> | InquiriesSelect<true>;
+    'document-visits': DocumentVisitsSelect<false> | DocumentVisitsSelect<true>;
+    'document-visit-salts': DocumentVisitSaltsSelect<false> | DocumentVisitSaltsSelect<true>;
+    'document-visit-emails': DocumentVisitEmailsSelect<false> | DocumentVisitEmailsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-folders': PayloadFoldersSelect<false> | PayloadFoldersSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -536,6 +542,62 @@ export interface Inquiry {
   createdAt: string;
 }
 /**
+ * One line per person, per document, per day (Pakistan time). Counts of people are approximate. WhatsApp visits usually show as Safari or Chrome. Email scanners such as Outlook Safe Links can look like a person. Lines older than 12 months are deleted automatically.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "document-visits".
+ */
+export interface DocumentVisit {
+  id: number;
+  day: string;
+  document: 'catalogue' | 'profile';
+  kind: 'person' | 'private' | 'link-preview' | 'robot' | 'old-link';
+  visitor?: string | null;
+  firstAt?: string | null;
+  lastAt?: string | null;
+  minutesActive?: number | null;
+  opens?: number | null;
+  furthestPage?: number | null;
+  pagesTotal?: number | null;
+  downloads?: number | null;
+  country?: string | null;
+  region?: string | null;
+  city?: string | null;
+  timezone?: string | null;
+  network?: string | null;
+  device?: string | null;
+  system?: string | null;
+  browser?: string | null;
+  language?: string | null;
+  cameFrom?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "document-visit-salts".
+ */
+export interface DocumentVisitSalt {
+  id: number;
+  day: string;
+  salt: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "document-visit-emails".
+ */
+export interface DocumentVisitEmail {
+  id: number;
+  week: string;
+  status: 'sent' | 'failed';
+  sentAt?: string | null;
+  error?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -582,6 +644,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'inquiries';
         value: number | Inquiry;
+      } | null)
+    | ({
+        relationTo: 'document-visits';
+        value: number | DocumentVisit;
+      } | null)
+    | ({
+        relationTo: 'document-visit-salts';
+        value: number | DocumentVisitSalt;
+      } | null)
+    | ({
+        relationTo: 'document-visit-emails';
+        value: number | DocumentVisitEmail;
       } | null)
     | ({
         relationTo: 'payload-folders';
@@ -793,6 +867,57 @@ export interface InquiriesSelect<T extends boolean = true> {
   status?: T;
   notified?: T;
   notifyError?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "document-visits_select".
+ */
+export interface DocumentVisitsSelect<T extends boolean = true> {
+  day?: T;
+  document?: T;
+  kind?: T;
+  visitor?: T;
+  firstAt?: T;
+  lastAt?: T;
+  minutesActive?: T;
+  opens?: T;
+  furthestPage?: T;
+  pagesTotal?: T;
+  downloads?: T;
+  country?: T;
+  region?: T;
+  city?: T;
+  timezone?: T;
+  network?: T;
+  device?: T;
+  system?: T;
+  browser?: T;
+  language?: T;
+  cameFrom?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "document-visit-salts_select".
+ */
+export interface DocumentVisitSaltsSelect<T extends boolean = true> {
+  day?: T;
+  salt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "document-visit-emails_select".
+ */
+export interface DocumentVisitEmailsSelect<T extends boolean = true> {
+  week?: T;
+  status?: T;
+  sentAt?: T;
+  error?: T;
   updatedAt?: T;
   createdAt?: T;
 }

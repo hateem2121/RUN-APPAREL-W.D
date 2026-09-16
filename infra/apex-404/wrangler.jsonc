@@ -33,27 +33,61 @@
   "workers_dev": false,
   "preview_urls": false,
 
-  // FOUR NARROW ROUTES, DELIBERATELY NO WILDCARD (2026-09-06). Until then this Worker
-  // held `wear-run.help/*` and `www.wear-run.help/*` and 404'd everything but the two
-  // PDFs. The marketing site now lives on those wildcards, served by the CMS Worker
-  // (apps/cms/wrangler.jsonc); Cloudflare hands `/catalogue*` and `/profile*` here
-  // because the most specific route wins. index.js is unchanged — its own 404 for any
-  // other path is simply no longer reachable in production.
+  // TWO PRIVATE HOSTS AND FOUR RETIRED PATHS, DELIBERATELY NO WILDCARD (2026-09-11).
+  //
+  // catalogue.wear-run.help and profile.wear-run.help are CUSTOM DOMAINS: `wrangler
+  // deploy` creates their DNS records and certificates. Each opens only with a code held
+  // as a Worker secret (CATALOGUE_CODE / PROFILE_CODE); ci.yml refuses to deploy without
+  // both. ⚠️ They must be created by the same deploy that ships the code that checks
+  // them: attached to the pre-2026-09-11 script, `catalogue.wear-run.help/catalogue`
+  // would have served the PDF to anyone.
+  //
+  // The four apex routes stay only so the old guessable addresses answer "no longer
+  // active" (410). The marketing site lives on `wear-run.help/*` and `www.wear-run.help/*`,
+  // served by the CMS Worker (apps/cms/wrangler.jsonc); Cloudflare hands `/catalogue*`
+  // and `/profile*` here because the most specific route wins.
   //
   // ⚠️ A ROUTE PATTERN BELONGS TO ONE WORKER AT A TIME. Restoring a wildcard here
-  // collides with the CMS Worker's, and ci.yml deploys THIS Worker before the CMS
-  // Worker for exactly that reason. Neither pattern matches viewer./cms./media.
+  // collides with the CMS Worker's, and ci.yml deploys THIS Worker before the CMS Worker
+  // for exactly that reason. Neither pattern matches viewer./cms./media.
   "routes": [
+    { "pattern": "catalogue.wear-run.help", "custom_domain": true },
+    { "pattern": "profile.wear-run.help", "custom_domain": true },
     { "pattern": "wear-run.help/catalogue*", "zone_name": "wear-run.help" },
     { "pattern": "wear-run.help/profile*", "zone_name": "wear-run.help" },
     { "pattern": "www.wear-run.help/catalogue*", "zone_name": "wear-run.help" },
     { "pattern": "www.wear-run.help/profile*", "zone_name": "wear-run.help" }
   ],
 
-  // ⚠️ SHARED BUCKET. `run-assets` is also bound by the separate `run-apparel`
-  // commercial site's Worker. Two products, one bucket, and nothing written down
-  // about who owns what — clearing "old files" from either side breaks the other.
+  // ⚠️ SHARED BUCKET. `run-assets` is also bound by the older `run-apparel` Worker, whose
+  // public addresses were switched off on 2026-09-11 (it served every object in this
+  // bucket by name). Page pictures live under `documents/`; the two PDFs keep their
+  // original keys. Nothing written down says who owns what — clearing "old files" from
+  // either side can break the other.
   "r2_buckets": [{ "binding": "ASSETS", "bucket_name": "run-assets" }],
+
+  // VISIT RECORDS (owner decisions D24–D30, 2026-09-15). This is the CMS's own database, not a
+  // new one. The CMS owns these tables through a Payload migration, which ci.yml applies
+  // BEFORE this Worker deploys, and the admin reads them. The id must equal
+  // apps/cms/wrangler.jsonc's; apps/cms/src/workerConfigs.test.ts fails if it does not.
+  // Optional at runtime: a version without this binding records nothing and answers exactly
+  // as before.
+  "d1_databases": [
+    {
+      "binding": "VISITS",
+      "database_name": "run-apparel-viewer-db",
+      "database_id": "41e20361-1a5f-4c87-b5ca-781c57c9b3f4"
+    }
+  ],
+
+  // TWO SCHEDULED JOBS, IN UTC (Pakistan is UTC+05:00 all year). weekly.js runs:
+  //   - the daily clean-up for "5 0 * * *" (05:05 in Pakistan);
+  //   - the Monday summary email for "0 4 * * 1" (09:00), AND for ANY other string.
+  // Any other string is how a temporary "* * * * *" trigger sends the one owner-approved test
+  // email (D38). ⚠️ `wrangler deploy` PUTs exactly this list and replaces every trigger the
+  // Worker had (read in wrangler 4.122.0's deploy code, 2026-09-16). So a temporary trigger
+  // does not survive the next deploy, and a trigger removed here is gone.
+  "triggers": { "crons": ["5 0 * * *", "0 4 * * 1"] },
 
   "observability": { "enabled": true }
 }
