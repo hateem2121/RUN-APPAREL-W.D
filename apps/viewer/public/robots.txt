@@ -1,38 +1,46 @@
-# Crawling is DELIBERATELY ALLOWED, and nothing here is disallowed.
+# What may be done with this content: search=yes, ai-input=yes, ai-train=no
+# https://contentsignals.org — a stated preference, not a technical block.
 #
-# Every garment page is a link-preview target: apps/viewer/worker/index.ts rewrites
-# per-garment Open Graph cards for crawlers, and the og:image it emits is
-# /og/<product>/<colourway>.jpg on this same host. Facebook's and Twitter's crawlers
-# honour robots.txt when fetching og:image, so a Disallow on /og/ would silently
-# turn every shared link back into a generic card. That line was written and then
-# removed on 2026-08-31 after checking what the Worker actually emits — it looked
-# tidy and would have broken the feature.
+# ⚠️ THE SAME POLICY AS https://wear-run.help/robots.txt (owner decision 2026-09-11), and
+# apps/cms/src/viewerRobots.test.ts fails if the two hosts drift. That file's list lives in
+# apps/cms/htmlLimitedBots.mjs; this host serves public/ as plain files, so it is copied here.
 #
-# ⚠️ THIS FILE EXISTS TO STOP robots.txt BEING HTML. Until 2026-08-31 the build
-# contained no robots.txt, so the Worker's SPA fallback answered /robots.txt with
-# index.html: 9,853 bytes of `text/plain` holding 46 lines of markup, which a
-# crawler parses line by line as directives.
+# Everyone except the eight below may crawl everything. Every garment page is a
+# link-preview target: apps/viewer/worker/index.ts rewrites per-garment Open Graph cards
+# for crawlers, and the og:image it emits is /og/<product>/<colourway>.jpg on this host.
+# Facebook's and Twitter's crawlers honour robots.txt when fetching og:image, so a
+# Disallow on /og/, or refusing a link-preview crawler, would turn every shared link back
+# into a generic card. A /og/ line was written and removed on 2026-08-31 for that reason.
 #
-# ⚠️ UNTIL 2026-09-04 THIS FILE WAS NOT WHAT WAS SERVED. Cloudflare's managed
-# robots.txt prepended its own block to it, so the live file carried nine Disallow
-# lines and a `Content-Signal: ai-train=no` that contradicted the first line above:
-# Amazonbot, Applebot-Extended, Bytespider, CCBot, ClaudeBot, Google-Extended,
-# GPTBot and meta-externalagent were all refused. Reading this file told you
-# nothing about what a crawler received. The owner turned that feature off
-# ("Disable robots.txt configuration") and separately set the deprecated "Block AI
-# bots" rule to "Do not block" on 2026-09-04 — the second is load-bearing, because
-# robots.txt only ASKS and that rule ENFORCED. Verified after both: 0 Disallow
-# lines served, and GPTBot, ClaudeBot, Claude-User, OAI-SearchBot, PerplexityBot,
-# Google-Extended, meta-externalagent and Googlebot each answered 200.
+# ⚠️ THIS FILE EXISTS TO STOP robots.txt BEING HTML. Until 2026-08-31 the build had no
+# robots.txt, so the SPA fallback answered /robots.txt with index.html, which a crawler
+# parses line by line as directives.
 #
-# So this file is now the whole story — which it was not before. If AI crawlers
-# need blocking again, that is a dashboard decision, and this comment should be
-# corrected in the same change.
+# ⚠️ ROBOTS.TXT ASKS; IT DOES NOT ENFORCE. Cloudflare's managed robots.txt and its
+# "Block AI bots" rule were both switched off on 2026-09-04, so this file is the whole
+# story. If refusal ever needs ENFORCING, that is a dashboard decision, and this comment
+# should be corrected in the same change.
 User-agent: *
+Content-Signal: search=yes, ai-input=yes, ai-train=no
 Allow: /
 
-# L5-06, 2026-08-31. Points crawlers at every live garment page explicitly.
-# This viewer is a single-page app: every path returns the same 200 HTML shell, so
-# a crawler that follows links finds nothing — there are no links to follow. Without
-# this line the only discoverable pages are the ones someone happened to share.
+# ⚠️ THESE READ ONLY TO TRAIN, and each has a sibling that answers and stays welcome under
+# * above (OAI-SearchBot, Googlebot, Applebot, Claude-SearchBot, meta-externalfetcher,
+# Amzn-SearchBot). No Allow line here: Allow: / would tie with Disallow: / and reopen the
+# crawl for most parsers.
+User-agent: GPTBot
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: CCBot
+User-agent: Bytespider
+User-agent: ClaudeBot
+User-agent: meta-externalagent
+User-agent: Amazonbot
+Content-Signal: search=yes, ai-input=yes, ai-train=no
+Disallow: /
+
+# Both hosts (owner decision D11): this host's sitemap lists the 80 garment pages, and the
+# site's lists its own. Naming both here, as the site's file does, tells a search engine
+# the two hosts are one business.
 Sitemap: https://viewer.wear-run.help/sitemap.xml
+Sitemap: https://wear-run.help/sitemap.xml

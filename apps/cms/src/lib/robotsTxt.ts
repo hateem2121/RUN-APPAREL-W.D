@@ -41,10 +41,9 @@ export const DISALLOW = ['/admin', '/api/']
  * ⚠️ IT IS A STATED PREFERENCE, NOT A BLOCK, AND THE OWNER CHOSE IT KNOWING THAT. Google
  * and Bing ignore the field outright; a badly-behaved scraper ignores everything. What it
  * does is put a reservation of rights in machine-readable form, which carries weight in
- * the EU. The stronger move — `Disallow: /` for the training-only crawlers (GPTBot,
- * Google-Extended, Applebot-Extended, CCBot, Bytespider) while leaving the SEARCH
- * crawlers allowed — was deliberately not taken here: it is a different decision, with a
- * discoverability cost, and it is the owner's to make separately.
+ * the EU. The stronger move — `Disallow: /` for the training-only crawlers — was then
+ * taken as its own decision: five on 2026-09-07, eight on both hosts since 2026-09-11
+ * (see the refused group in buildRobotsTxt).
  *
  * ⚠️ AND CLOUDFLARE USED TO INJECT THE OPPOSITE OF THIS. Its managed robots.txt prepended
  * `Content-Signal: ai-train=no` plus nine `Disallow` lines to this host's file until the
@@ -116,7 +115,7 @@ ${group(['*'])}
 # render to: a crawler we invite is a crawler we owe a finished <head>.
 ${group(ANSWERING_UAS)}
 
-# ⚠️ AND THESE READ ONLY TO TRAIN. Refused outright — owner decision 2026-09-07, taken
+# ⚠️ AND THESE READ ONLY TO TRAIN. Refused outright — owner decision 2026-09-07, widened to eight on both hosts 2026-09-11, taken
 # after the objection above was already on the record and they asked what would make it
 # effective. It costs nothing a buyer would notice, because every one of them has a
 # sibling above that does the answering: OAI-SearchBot cites you in ChatGPT, Googlebot

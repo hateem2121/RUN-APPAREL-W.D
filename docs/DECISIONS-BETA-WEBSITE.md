@@ -408,6 +408,15 @@ written only in `*` never reaches the AI crawlers it is addressed to, while the 
 parses and still allows everything it should. Control observed: dropping it from the named
 group alone fails exactly one assertion.
 
+**Widened 2026-09-11, owner decision: eight crawlers, on both hosts.** `ClaudeBot`,
+`meta-externalagent` and `Amazonbot` joined the five above. Each is documented by its
+operator as a training crawler with a separate sibling that answers, and the siblings stay
+welcome: `Claude-SearchBot` and `Claude-User`, `meta-externalfetcher`, and `Amzn-SearchBot`
+and `Amzn-User`. So the rule above still costs nothing a buyer would notice (checked
+2026-09-16). The viewer host serves the same refusal and the same `Content-Signal` from
+`apps/viewer/public/robots.txt`, names the site's sitemap as well as its own, and
+`apps/cms/src/viewerRobots.test.ts` fails if the two hosts drift.
+
 ### D21 · HSTS preload stays off — `FA-O-04`
 
 **Decision: do not submit. Owner confirmed 2026-09-07, on my advice.**
