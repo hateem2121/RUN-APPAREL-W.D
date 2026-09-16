@@ -11,7 +11,6 @@ export declare const CATEGORIES: string[]
 export declare const PAGES: { name: string; url: string }[]
 export declare const INCONCLUSIVE_STATUSES: Set<number>
 export declare const EXPECTED_BELOW_ONE: Record<string, string[]>
-export declare const KNOWN_FINDINGS: Record<string, string>
 export declare const PERFORMANCE_FLOORS: Record<string, number>
 
 export declare function median(values: unknown[]): number | null

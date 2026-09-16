@@ -9,7 +9,6 @@ import {
   evaluate,
   FORM_FACTORS,
   judgePage,
-  KNOWN_FINDINGS,
   LIGHTHOUSE_VERSION,
   median,
   PAGES,
@@ -305,12 +304,12 @@ describe('judgePage', () => {
   })
 })
 
-describe('known findings — tracked every run, never failing', () => {
+describe('CSP issues — judged like any other audit', () => {
   /** A run carrying the real `inspector-issues` shape: issue types, each with sub-items. */
-  const withInspector = (types: string[], shape: Shape) => {
+  const withInspector = (types: string[]) => {
     const report = lhr({
-      ...shape,
-      below: [...(shape.below ?? []), 'best-practices/inspector-issues'],
+      scores: { ...HOME_SCORES, 'best-practices': 0.96 },
+      below: [...HOME_BELOW, 'best-practices/inspector-issues'],
     })
     Object.assign(report.audits, {
       'inspector-issues': {
@@ -329,36 +328,29 @@ describe('known findings — tracked every run, never failing', () => {
     judgePage({
       page: 'contact',
       formFactor: 'desktop',
-      runs: Array.from({ length: 5 }, () =>
-        withInspector(types, {
-          scores: { ...HOME_SCORES, 'best-practices': 0.96 },
-          below: HOME_BELOW,
-        }),
-      ),
-    })
+      runs: Array.from({ length: 5 }, () => withInspector(types)),
+    }).failures
 
-  it('reports CSP-only inspector issues as known — the 2026-09-16 live pattern', () => {
-    const verdict = contactDesktop(['Content security policy'])
-    expect(verdict.failures).toEqual([])
-    expect(verdict.advisories.join()).toMatch(
-      /inspector-issues\[csp\] in 5 of 5 runs — known, not failed: .*area 4/,
-    )
-  })
-
-  it('still fails any OTHER inspector issue — negative control for the narrowing', () => {
-    expect(contactDesktop(['Mixed content']).failures).toEqual([
+  // The 2026-09-16 live pattern, which an exemption briefly sheltered. The report keeps only
+  // each issue's URL, so the same shape is also what a REAL enforced block looks like.
+  it('fails CSP-only inspector issues in most runs', () => {
+    expect(contactDesktop(['Content security policy'])).toEqual([
       'contact.desktop: best-practices/inspector-issues fails in 5 of 5 valid runs.',
     ])
   })
 
-  it('does not let a CSP issue shelter a different issue in the same run', () => {
-    expect(contactDesktop(['Content security policy', 'Cookie']).failures.join()).toMatch(
-      /best-practices\/inspector-issues fails in 5 of 5/,
-    )
+  it('fails every other issue type the same way (positive control)', () => {
+    expect(contactDesktop(['Mixed content'])).toEqual([
+      'contact.desktop: best-practices/inspector-issues fails in 5 of 5 valid runs.',
+    ])
   })
 
-  it('only knows findings it can name', () => {
-    expect(Object.keys(KNOWN_FINDINGS)).toEqual(['best-practices/inspector-issues[csp]'])
+  it('records a CSP-only run under the plain audit id, with no triage suffix', () => {
+    const run = withInspector(['Content security policy'])
+    expect(run.missing).toBe(false)
+    if (run.missing) return
+    expect(run.belowOne).toContain('best-practices/inspector-issues')
+    expect(run.belowOne.filter((id) => id.includes('['))).toEqual([])
   })
 })
 

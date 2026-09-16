@@ -104,37 +104,22 @@ export const EXPECTED_BELOW_ONE = {
   contact: ['seo/is-crawlable'],
 }
 
-/**
- * Real, triaged findings owned by a later area: printed on EVERY run with their counts,
- * never failing it. A watchdog that is wrong every cycle trains its reader to ignore it
- * (.github/CLAUDE.md), so a known issue waiting its turn must not redden each deploy.
+/*
+ * ⚠️ A CSP ISSUE FAILS LIKE ANY OTHER AUDIT, AND UNTIL 2026-09-16 ONE DID NOT. That day
+ * Chrome logged "Content security policy" issues in 8 of 40 live runs, against URLs the
+ * enforced policies permit; a probe keeping Chrome's full record caught 63 more, and every
+ * one was REPORT-ONLY. The source was Cloudflare's
+ * client-side security ("Continuous script monitoring", on by default): it adds
+ * `Content-Security-Policy-Report-Only: script-src 'unsafe-inline' 'unsafe-eval';
+ * connect-src 'none'` to a SAMPLE of responses, so every script load and every connection
+ * is reported while nothing is blocked. Cloudflare Speed Brain was suspected first and ruled
+ * out — the issues persisted with `/cdn-cgi/speculation` blocked.
  *
- * ⚠️ `inspector-issues` IS NARROWED TO CSP-ONLY RUNS, and nothing wider. Measured
- * 2026-09-16 over 40 live runs: Chrome logged "Content security policy" issues in 8 runs
- * (3 of 5 on contact, computer) — against URLs the ENFORCED policy PERMITS. The site's own
- * `/_next/static` chunks sit under `script-src 'self'`, its RSC prefetches under
- * `connect-src 'self'`, and the Cloudflare beacon and `/cdn-cgi/rum` are both listed; no
- * report-only policy is sent at all. A policy does not block what it permits, so these come
- * from a browser context the site does not create. Cloudflare Speed Brain
- * (`speculation-rules: "/cdn-cgi/speculation"` on every page) is the leading suspect, NOT a
- * proven cause — Lighthouse drops the violated directive that would settle it. Spec §9
- * routes the question to area 4. A run carrying ANY other issue type keeps the plain id and
- * is judged normally, so this cannot shelter mixed content, a cookie issue or a real block.
- * Delete the entry when area 4 closes it.
+ * An exemption was tried and removed the same day: the report keeps only each issue's URL,
+ * so "every issue is a CSP issue" also matches a REAL enforced block that breaks the page.
+ * The monitoring was switched off instead (owner's decision). If these issues return, check
+ * that Cloudflare setting before anything else.
  */
-export const KNOWN_FINDINGS = {
-  'best-practices/inspector-issues[csp]':
-    'CSP issues on URLs the enforced policy permits; Speed Brain suspected; owned by area 4 (spec §9)',
-}
-
-const CSP_ISSUE = 'Content security policy'
-
-/** `inspector-issues` whose every issue is a CSP issue gets its own id, so it can be triaged. */
-function qualify(auditId, audit) {
-  if (auditId !== 'inspector-issues') return auditId
-  const types = (audit?.details?.items ?? []).map((item) => item.issueType)
-  return types.length > 0 && types.every((type) => type === CSP_ISSUE) ? `${auditId}[csp]` : auditId
-}
 
 /**
  * The worst single performance score in the 2026-09-15 baseline (Lighthouse 13.4.1, five
@@ -195,7 +180,7 @@ export function readRun(lhr) {
       const score = lhr.audits?.[ref.id]?.score
       // Zero-weight and non-numeric (not applicable, informative) audits cannot move a score.
       if (ref.weight > 0 && typeof score === 'number' && score < 1) {
-        belowOne.push(`${id}/${qualify(ref.id, lhr.audits[ref.id])}`)
+        belowOne.push(`${id}/${ref.id}`)
       }
     }
   }
@@ -291,9 +276,8 @@ export function judgePage({ page, formFactor, runs }) {
   const failing = new Set([...counts].filter(([, count]) => count >= majority).map(([id]) => id))
   const expected = EXPECTED_BELOW_ONE[page] ?? []
 
-  // Performance is judged by its floor, below; every other category by its failing audits,
-  // apart from the known findings, which are reported further down and never fail.
-  const judged = (id) => !id.startsWith('performance/') && !(id in KNOWN_FINDINGS)
+  // Performance is judged by its floor, below; every other category by its failing audits.
+  const judged = (id) => !id.startsWith('performance/')
   const unexpected = [...failing].filter((id) => judged(id) && !expected.includes(id))
   for (const id of unexpected) {
     failures.push(`${key}: ${id} fails in ${counts.get(id)} of ${valid.length} valid runs.`)
@@ -307,11 +291,7 @@ export function judgePage({ page, formFactor, runs }) {
     }
   }
   for (const [id, count] of counts) {
-    if (id in KNOWN_FINDINGS) {
-      advisories.push(
-        `${key}: ${id} in ${count} of ${valid.length} runs — known, not failed: ${KNOWN_FINDINGS[id]}.`,
-      )
-    } else if (count < majority && judged(id)) {
+    if (count < majority && judged(id)) {
       advisories.push(`${key}: ${id} failed in ${count} of ${valid.length} runs (occasional).`)
     }
   }
