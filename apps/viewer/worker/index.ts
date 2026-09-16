@@ -1,4 +1,5 @@
 import { parseViewerPath } from '@run-apparel/shared'
+import { withCompression } from './compression'
 import { withDocumentIsolation } from './documentHeaders'
 import { withNoTransform } from './noTransform'
 import type { ViewerApiSuccess } from '@run-apparel/shared'
@@ -382,18 +383,21 @@ export default {
           contentType: asset.headers.get('content-type'),
         })
       ) {
-        return withDocumentIsolation(
-          withNoTransform(
-            new Response(asset.body, {
-              status: 404,
-              statusText: 'Not Found',
-              headers: asset.headers,
-            }),
+        return withCompression(
+          request,
+          withDocumentIsolation(
+            withNoTransform(
+              new Response(asset.body, {
+                status: 404,
+                statusText: 'Not Found',
+                headers: asset.headers,
+              }),
+            ),
           ),
         )
       }
 
-      return withDocumentIsolation(withNoTransform(asset))
+      return withCompression(request, withDocumentIsolation(withNoTransform(asset)))
     }
 
     const [response, payload] = await Promise.all([
@@ -401,7 +405,7 @@ export default {
       loadPayload(env, route, url.origin, ctx),
     ])
 
-    if (!payload) return withDocumentIsolation(withNoTransform(response))
+    if (!payload) return withCompression(request, withDocumentIsolation(withNoTransform(response)))
     if (!(response.headers.get('content-type') ?? '').includes('text/html')) return response
 
     const transformed = applyPreview(
@@ -424,12 +428,15 @@ export default {
         crawlerCacheControl ? `${crawlerCacheControl}, no-transform` : 'no-transform',
       )
     }
-    return withDocumentIsolation(
-      new Response(transformed.body, {
-        status: transformed.status,
-        statusText: transformed.statusText,
-        headers,
-      }),
+    return withCompression(
+      request,
+      withDocumentIsolation(
+        new Response(transformed.body, {
+          status: transformed.status,
+          statusText: transformed.statusText,
+          headers,
+        }),
+      ),
     )
   },
 } satisfies ExportedHandler<Env>
