@@ -88,3 +88,23 @@ export function payloadCopyProblems(slug, payload) {
     problems.push(`${slug}: the payload had no text at all`)
   return problems
 }
+
+/**
+ * What a whole run means, as ONE decision in one place.
+ *
+ * ⚠️ PROBLEMS DECIDE FIRST. A refusal explains what could not be measured, never what was.
+ * Until 2026-09-16 the runner asked about refusals first, using a single `refusedCount`
+ * shared by the viewer-page loop and the CMS-payload loop: so a viewer that bot-blocked our
+ * crawler user-agent (403 to a crawler from a datacentre IP is the most challengeable
+ * request there is) left `pages` at 0 and `refusedCount` at 80, and the run threw away the
+ * 23 genuine CMS findings it had already made and exited 0 saying "inconclusive". The
+ * negative control could not catch it: that run had no refusals at all.
+ *
+ * `refusedCount === -1` means the very first request was refused, so nothing was measured
+ * and `problems` is necessarily empty.
+ */
+export function runVerdict({ problems = [], refusedCount = 0, pages = 0 }) {
+  if (problems.length > 0) return 'problems'
+  if (refusedCount === -1 || (pages === 0 && refusedCount > 0)) return 'inconclusive'
+  return 'clean'
+}

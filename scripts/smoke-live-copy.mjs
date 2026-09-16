@@ -15,7 +15,7 @@
  */
 import http from 'node:http'
 import https from 'node:https'
-import { headProblems, payloadCopyProblems, readHead } from './live-copy.mjs'
+import { headProblems, payloadCopyProblems, readHead, runVerdict } from './live-copy.mjs'
 import { LIVE_PRODUCTS } from './live-products.mjs'
 
 const VIEWER = (process.argv[2] || 'https://viewer.wear-run.help').replace(/\/+$/, '')
@@ -110,16 +110,18 @@ for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
   await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
 }
 
-if (result.refusedCount === -1 || (result.pages === 0 && result.refusedCount > 0)) {
+// One decision, in live-copy.mjs, so a refusal can never overrule a finding again.
+const verdict = runVerdict(result)
+if (verdict === 'problems') {
+  console.error(`\n❌ ${result.problems.length} copy problem(s) on the live garments:\n`)
+  for (const problem of result.problems) console.error(`   • ${problem}`)
+  process.exit(1)
+}
+if (verdict === 'inconclusive') {
   console.log(
     '⚠️  The viewer refused the requests (403/429). INCONCLUSIVE — a bot rule, not the copy.',
   )
   process.exit(0)
-}
-if (result.problems.length > 0) {
-  console.error(`\n❌ ${result.problems.length} copy problem(s) on the live garments:\n`)
-  for (const problem of result.problems) console.error(`   • ${problem}`)
-  process.exit(1)
 }
 console.log(
   `\n✅ ${result.pages} of ${EXPECTED_PAGES} garment pages describe themselves, and the CMS text of ` +

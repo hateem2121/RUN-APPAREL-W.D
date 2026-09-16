@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { headProblems, payloadCopyProblems, readHead } from '../../../scripts/live-copy.mjs'
+import {
+  headProblems,
+  payloadCopyProblems,
+  readHead,
+  runVerdict,
+} from '../../../scripts/live-copy.mjs'
 
 const SHELL = {
   title: 'RUN APPAREL — 3D Product Reference',
@@ -76,5 +81,34 @@ describe('payloadCopyProblems — the text the CMS serves for a garment', () => 
 
   it('reports a payload with no text at all instead of passing it', () => {
     expect(payloadCopyProblems('t', {})).toEqual(['t: the payload had no text at all'])
+  })
+})
+
+describe('runVerdict — a refusal never overrules a finding', () => {
+  it('still reports problems when the viewer refused every page — the case that exited 0', () => {
+    /*
+     * The masking case, and the reason this function exists: the viewer bot-blocks our
+     * crawler user-agent while the CMS answers normally, so `pages` is 0 and `refusedCount`
+     * is 80 — with 23 real CMS findings already in `problems`. Ask about refusals first and
+     * this run reports "inconclusive" and exits 0.
+     */
+    expect(
+      runVerdict({
+        problems: ['t retiredMessage: British spelling "colourway"'],
+        refusedCount: 80,
+        pages: 0,
+      }),
+    ).toBe('problems')
+  })
+
+  it('says inconclusive only when nothing was found and the requests were refused', () => {
+    expect(runVerdict({ problems: [], refusedCount: 80, pages: 0 })).toBe('inconclusive')
+    // -1 is the early return: the very first request was refused, so nothing was measured.
+    expect(runVerdict({ problems: [], refusedCount: -1, pages: 0 })).toBe('inconclusive')
+  })
+
+  it('passes a clean run, including one where only some requests were refused', () => {
+    expect(runVerdict({ problems: [], refusedCount: 0, pages: 80 })).toBe('clean')
+    expect(runVerdict({ problems: [], refusedCount: 3, pages: 77 })).toBe('clean')
   })
 })

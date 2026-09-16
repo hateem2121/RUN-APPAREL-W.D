@@ -6,3 +6,8 @@ export interface Head {
 export declare function readHead(html: string): Head
 export declare function headProblems(pages: Array<Head & { url: string }>, shell: Head): string[]
 export declare function payloadCopyProblems(slug: string, payload: unknown): string[]
+export declare function runVerdict(result: {
+  problems?: string[]
+  refusedCount?: number
+  pages?: number
+}): 'problems' | 'inconclusive' | 'clean'
