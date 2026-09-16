@@ -1,4 +1,4 @@
-import { addDays, pakistanDay, summariseVisits } from '@run-apparel/shared'
+import { addDays, pakistanDay, summariseVisits, VISIT_KINDS } from '@run-apparel/shared'
 import type { DocumentId, DocumentSummary, VisitRow } from '@run-apparel/shared'
 import type { BasePayload } from 'payload'
 
@@ -24,7 +24,11 @@ function toVisitRow(doc: Record<string, unknown>): VisitRow {
   return {
     day: text(doc.day),
     document: doc.document === 'profile' ? 'profile' : 'catalogue',
-    kind: (['person', 'private', 'link-preview', 'robot', 'old-link'].includes(doc.kind as string)
+    // VISIT_KINDS itself, never a copy of it. A kind added to the shared module is then
+    // recognised here the moment it exists; the hand-typed copy this replaced would have
+    // let it fall through and be counted as a person, silently and with no type error —
+    // the list and its type widen together (whole-branch review, 2026-09-16).
+    kind: (VISIT_KINDS.includes(doc.kind as VisitRow['kind'])
       ? doc.kind
       : 'person') as VisitRow['kind'],
     visitor: text(doc.visitor),
