@@ -77,13 +77,14 @@ export default async function PrivacyPage() {
           <p>
             <strong>When you open a document we share with you.</strong> Our catalogue and company
             profile open from private links. When one is opened, we record the day and time; the
-            approximate location (country, region and city) and the name of the network your
-            connection comes from; your type of device, system, browser and language; the website
-            you came from; how far you scrolled; and whether you downloaded the file. We do not
-            record your IP address. To count how many different people opened a document each day,
-            we use a code made from your connection and a secret that is replaced and deleted every
-            day, so it cannot be traced back to you or linked across days. If your browser sends a
-            Global Privacy Control signal, we count the visit and record nothing else.
+            approximate location (country, region and city), its time zone, and the name of the
+            network your connection comes from; your type of device, system, browser and language;
+            the website you came from; how far you scrolled; the time between your first and last
+            activity on it that day; and whether you downloaded the file. We do not record your IP
+            address. To count how many different people opened a document each day, we use a code
+            made from your connection and a secret that is replaced and deleted every day, so it
+            cannot be traced back to you or linked across days. If your browser sends a Global
+            Privacy Control signal, we count the visit and record nothing else.
           </p>
           <p>
             <strong>When something breaks.</strong> Our 3D reference pages report technical faults

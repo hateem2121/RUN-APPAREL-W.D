@@ -99,8 +99,9 @@ viewer never receives the message. The CMS stores staff accounts (email +
 password hash) and product content only.
 
 The private catalogue and company profile links are different: opening one records
-the day and time, an approximate location and network, the visitor's device, system,
-browser and language, the site they came from, how far they read and whether they
+the day and time, an approximate location, its time zone and the network, the
+visitor's device, system, browser and language, the site they came from, how far they
+read, the time between their first and last activity that day, and whether they
 downloaded the file — in the website's own database, admins only. No IP address and
 no cookie are stored. Counting different people uses a code built from the
 connection and a secret that is replaced and deleted every day, so it cannot be
