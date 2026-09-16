@@ -3,6 +3,7 @@ import {
   findBritishSpellings,
   findBuzzwords,
   findEmoji,
+  primaryActionsInPage,
   readCopyInPage,
 } from '../../../scripts/copy-rules.mjs'
 import { FACTS } from '../src/lib/companyFacts'
@@ -56,3 +57,41 @@ test.describe('the 1889 wording and the confirmed numbers on the home page (CT-0
     }
   })
 })
+
+/**
+ * CT-08: one primary action per screen, and only agreed labels. The list is what the pages
+ * carried on 2026-09-15 — a new primary button is a design decision, so adding one means
+ * adding its label here on purpose. A screen is one viewport-high slice of the page; the
+ * same destination repeated counts once.
+ */
+const PRIMARY_LABELS = [
+  /^Start a conversation$/,
+  /^Browse the references$/,
+  /^Email \S+@\S+$/,
+  /^Send inquiry$/,
+]
+
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 1440, height: 900 },
+]) {
+  test(`one primary action per screen at ${viewport.width}px (CT-08)`, async ({ page }) => {
+    await page.setViewportSize(viewport)
+    for (const path of PAGES) {
+      await page.goto(path)
+      const { primaries, windows } = await page.evaluate(primaryActionsInPage)
+      for (const { label } of primaries) {
+        expect(
+          PRIMARY_LABELS.some((pattern) => pattern.test(label)),
+          `"${label}" on ${path} is not an agreed primary action`,
+        ).toBe(true)
+      }
+      for (const { top, destinations } of windows) {
+        expect(
+          destinations.length,
+          `${path} at ${viewport.width}px: the screen starting at ${top}px leads to ${destinations.join(' + ')}`,
+        ).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+}

@@ -5,6 +5,7 @@ import {
   findBuzzwords,
   findEmoji,
   GARMENT_TERMS,
+  primaryActionsInPage,
   readCopyInPage,
 } from '../../../scripts/copy-rules.mjs'
 
@@ -90,3 +91,46 @@ test.describe('copy rules on every screen a QR scan can land on', () => {
     )
   })
 })
+
+const PRIMARY_LABELS = [/^Email Us$/, /^Try Again$/, /^Trying…$/]
+
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 1440, height: 900 },
+]) {
+  test(`one primary action per screen at ${viewport.width}px (CT-08)`, async ({ page }) => {
+    await page.setViewportSize(viewport)
+    const screens: [string, () => Promise<void>][] = [
+      [
+        '/n001/wine',
+        () =>
+          expect(page.getByRole('heading', { level: 1 })).toContainText(/Velocity Performance/i),
+      ],
+      [
+        '/not-a-garment/wine',
+        () => expect(page.getByText('[ REFERENCE UNAVAILABLE ]')).toBeVisible(),
+      ],
+    ]
+    for (const [path, ready] of screens) {
+      await page.goto(path)
+      await ready()
+      const { primaries, windows } = await page.evaluate(primaryActionsInPage)
+      expect(
+        primaries.length,
+        `${path}: no primary action found, so this would pass vacuously`,
+      ).toBeGreaterThan(0)
+      for (const { label } of primaries) {
+        expect(
+          PRIMARY_LABELS.some((pattern) => pattern.test(label)),
+          `"${label}" on ${path}`,
+        ).toBe(true)
+      }
+      for (const { top, destinations } of windows) {
+        expect(
+          destinations.length,
+          `${path} at ${viewport.width}px: the screen starting at ${top}px leads to ${destinations.join(' + ')}`,
+        ).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+}
