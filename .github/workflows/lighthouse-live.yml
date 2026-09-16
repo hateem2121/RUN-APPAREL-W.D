@@ -1,0 +1,94 @@
+name: Lighthouse live
+
+# The four public pages — home, products, contact and one garment in the viewer — on a
+# phone profile and a computer profile, five runs each, judged on the median, against the
+# LIVE sites. Runs after every successful deploy of `main`, and on demand.
+#
+# The rules live in scripts/lighthouse-robot.mjs, each beside the measurement behind it.
+#
+# WHY A WORKFLOW OF ITS OWN, NOT A JOB IN ci.yml. ci.yml's concurrency group QUEUES on
+# `main` instead of cancelling, because that run migrates D1 and deploys (the block at the
+# top of ci.yml says why). Forty Lighthouse runs took ~17 minutes on the owner's Mac and a
+# runner is slower, so a job there would hold that queue and every later deploy would wait
+# behind it. Here it has a group of its own.
+#
+# WHY IT BLOCKS NOTHING. It runs after the deploy, so there is nothing left to stop. A
+# failure reaches the owner through GitHub's own workflow-failure notification — the same
+# choice perf-watch.yml makes, for the same reason: no third, untested copy of the
+# issue-opening shell that scripts/test-alert-shell.sh exists to exercise.
+#
+# ⚠️ A 403 FROM THIS RUNNER IS INCONCLUSIVE, NOT A FAILURE. Free-plan Bot Fight Mode blocks
+# datacenter traffic intermittently. Lighthouse SCORES a blocked page rather than erroring
+# (measured 2026-09-16), so the robot reads each report's own status code and sets 403,
+# 429 and 503 runs aside; a page left with too few valid runs is "not judged". If most
+# runs come back that way, this robot belongs on the owner's Mac (spec §4.2) — ask the
+# owner before moving it.
+#
+# WHY ALSO WEEKLY. The home page's phone score fell 96 → 86 between 11 and 15 September
+# 2026 with no code change — server response time, not the site. A robot that ran only on
+# deploys would never see that kind of drift.
+#
+# WATCHED BY heartbeat.yml for COMPLETION, not success — failing is this robot's job when a
+# page regresses. Every scheduled workflow must be watched: heartbeatMonitor.test.ts fails
+# otherwise, and it did, the day this workflow first gained its schedule.
+#
+# Egress: the garment page downloads its model on every run, about 38 MB per full run —
+# roughly 160 MB a month from the weekly run, plus one full run per deploy.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  schedule:
+    # Tuesdays, clear of perf-watch.yml on Mondays. GitHub runs these 19-90+ minutes late
+    # (measured, .github/CLAUDE.md), which does not matter for a weekly trend.
+    - cron: '41 5 * * 2'
+  workflow_dispatch:
+
+# A `permissions:` block REPLACES the defaults; `contents: read` is what checkout needs.
+permissions:
+  contents: read
+
+concurrency:
+  group: lighthouse-live
+  # Nothing here deploys, and a newer deploy makes an older measurement moot.
+  cancel-in-progress: true
+
+jobs:
+  measure:
+    # `workflow_run` also fires for CI runs that a pull request started, and `branches:`
+    # matches the HEAD branch — which a fork may name `main`. Only a green PUSH counts.
+    if: vars.DEPLOY_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-latest
+    # 40 runs took ~17 minutes on an M4 Pro; a hosted runner is two to three times slower.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          # The same two settings as ci.yml's jobs; the reasons are written there.
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
+      # Lighthouse is a pinned devDependency, so it passes through the lockfile, the
+      # release cooldown and Socket like every other package. `npx lighthouse@x` would
+      # bypass all three.
+      - run: pnpm install --frozen-lockfile
+      - name: Judge the live pages
+        # Chrome is resolved exactly as ci.yml's lighthouse job does it, and a missing one
+        # fails loudly — "no Chrome installations found" reads as a broken robot.
+        run: |
+          set -euo pipefail
+          CHROME_PATH="${CHROME_PATH:-}"
+          [ -n "$CHROME_PATH" ] || CHROME_PATH="$(command -v google-chrome || command -v chromium || true)"
+          if [ ! -x "$CHROME_PATH" ]; then
+            echo "::error::no Chrome for Lighthouse (looked for google-chrome and chromium on PATH)"
+            exit 1
+          fi
+          export CHROME_PATH
+          echo "Lighthouse will drive $CHROME_PATH"
+          node scripts/lighthouse-robot.mjs

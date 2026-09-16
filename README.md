@@ -287,8 +287,9 @@ reach it. See `docs/RUNBOOK.md` → "The canonical raw garment".
 | `uptime.yml` | daily *(requested — GitHub delivers 19–90 min late, measured n=11)* | health + viewer + **every** live product's model payload + both apex PDFs; opens an `outage` issue |
 | `nightly-backup.yml` | nightly | D1 export; R2 media mirror on Mondays |
 | `diagnostics-digest.yml` | Mondays | reads the Events table — the client errors the viewer records |
-| `heartbeat.yml` | every 6 h | checks the three above have actually *run*; opens a `monitoring` issue |
+| `heartbeat.yml` | every 6 h | checks every other workflow in this table has actually *run* (its `WATCHED` list); opens a `monitoring` issue |
 | `perf-watch.yml` | weekly (Mon) | live response times vs the thresholds in `docs/QA-CHECKLIST.md`; a 403 is inconclusive, never a failure |
+| `lighthouse-live.yml` | weekly (Tue), and after every green push to `main` | Lighthouse 13.4.1 on the four public pages, phone and computer, five runs each, judged on the median (`scripts/lighthouse-robot.mjs`); a 403 is inconclusive, never a failure |
 
 `heartbeat.yml` exists because a monitor that fails **before** it measures anything
 opens no alert at all — which is how the uptime check sat dead for ~23 hours on

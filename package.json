@@ -59,6 +59,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.8",
     "@lhci/cli": "0.15.1",
-    "audit-ci": "7.1.0"
+    "audit-ci": "7.1.0",
+    "lighthouse": "13.4.1"
   }
 }
