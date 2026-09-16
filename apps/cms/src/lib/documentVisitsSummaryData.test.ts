@@ -52,6 +52,15 @@ describe('loadVisitSummaries', () => {
     expect(result.last7.catalogue.people).toBe(1)
   })
 
+  it('pins the 7-day boundary: 2026-09-09 is included, 2026-09-08 is not', async () => {
+    const boundaryDay = { day: '2026-09-09', document: 'catalogue', kind: 'person', opens: 1 }
+    const dayBeforeBoundary = { day: '2026-09-08', document: 'catalogue', kind: 'person', opens: 1 }
+    const { find } = fakeFind([boundaryDay, dayBeforeBoundary], [])
+    const result = await loadVisitSummaries({ find }, NOW)
+    expect(result.last7.catalogue.people).toBe(1)
+    expect(result.last30.catalogue.people).toBe(2)
+  })
+
   it('maps the newest document-visit-emails row to lastEmail', async () => {
     const { find } = fakeFind(
       [],
