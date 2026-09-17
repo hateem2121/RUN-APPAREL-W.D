@@ -11,7 +11,10 @@ export declare const CATEGORIES: string[]
 export declare const PAGES: { name: string; url: string }[]
 export declare const INCONCLUSIVE_STATUSES: Set<number>
 export declare const EXPECTED_BELOW_ONE: Record<string, string[]>
-export declare const PERFORMANCE_FLOORS: Record<string, number>
+
+export type MeasuringMachine = 'local' | 'github-runner'
+export declare const PERFORMANCE_FLOORS: Record<MeasuringMachine, Record<string, number>>
+export declare function measuringMachine(env?: Record<string, string | undefined>): MeasuringMachine
 
 export declare function median(values: unknown[]): number | null
 export declare function documentStatus(lhr: unknown): number | null
@@ -26,6 +29,7 @@ export type Run =
       runtimeError: string | null
       scores: Record<string, number | null>
       belowOne: string[]
+      rttMs: number | null
     }
 
 export declare function readRun(lhr: unknown): Run
@@ -40,6 +44,8 @@ export interface PageRuns {
   page: string
   formFactor: string
   runs: Run[]
+  machine?: MeasuringMachine
+  floors?: Record<string, number>
 }
 export interface PageVerdict {
   key: string
