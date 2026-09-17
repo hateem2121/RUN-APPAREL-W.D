@@ -42,9 +42,16 @@
  * A 403/429/503 from a runner is INCONCLUSIVE, not a failure — free-plan Bot Fight
  * Mode blocks datacenter IPs intermittently and has already forced a rollback on this
  * repo. Same discipline as `scripts/apex-probe.mjs`.
+ *
+ * SINCE 2026-09-17 (audit IM-13) IT ALSO READS A POSTER AND A MODEL. Their
+ * `Cross-Origin-Resource-Policy: same-site` is the one thing that stops another website
+ * drawing our pictures — measured that day, a page on another origin got nothing in
+ * Chromium, Firefox and WebKit — and it comes from a Cloudflare Transform Rule this
+ * repository cannot see. The owner chose this check over a WAF change.
  */
 
 import tls from 'node:tls'
+import { DEFAULT_PRODUCT } from './live-products.mjs'
 
 /**
  * Lowering OpenSSL's security level is what lets a TLS 1.0 ClientHello onto the wire
@@ -60,6 +67,45 @@ const MIN_HSTS_MAX_AGE = 31_536_000
 
 /** Statuses that mean "ask again later", not "the host is broken". */
 const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
+
+/** Where the live payload is read from, to name a poster and a model the viewer loads. */
+const API_BASE = 'https://cms.wear-run.help'
+
+/**
+ * What every picture and model on the media host must answer (audit IM-13).
+ *
+ * `same-site`, not `same-origin`: the viewer and the site share the registrable domain
+ * wear-run.help, so their own pages draw the files, while a page on another site is refused
+ * BY THE BROWSER — the half a Referer rule cannot do, because a Referer can be forged.
+ */
+export const MEDIA_CORP = 'same-site'
+
+/**
+ * A poster and a model the viewer really loads, read out of the live payload rather than typed:
+ * a re-export renames the model and a re-render renames a poster, and a typed address would then
+ * measure an error page. Anything not on the media host is not a sample of the media host.
+ *
+ * @param {unknown} body `GET /api/public/viewer/<product>/<colourway>`
+ * @returns {{ poster: string, model: string } | { error: string }}
+ */
+export function samplesFromPayload(body) {
+  const payload = /** @type {any} */ (body)
+  const poster = payload?.selectedColourway?.poster?.url
+  const model = payload?.product?.glbUrl
+  if (typeof poster !== 'string' || typeof model !== 'string') {
+    return { error: 'the live payload named no poster or no model' }
+  }
+  for (const url of [poster, model]) {
+    let host = ''
+    try {
+      host = new URL(url).host
+    } catch {
+      return { error: `the live payload named "${url}", which is not an absolute address` }
+    }
+    if (host !== 'media.wear-run.help') return { error: `${url} is not on media.wear-run.help` }
+  }
+  return { poster, model }
+}
 
 /**
  * @typedef {{ host: string, hsts: boolean, media?: boolean }} ZoneTarget
@@ -84,7 +130,9 @@ export const TARGETS = [
    * 404s until then (audit DV-03) — and every response must carry
    * `timing-allow-origin` for the viewer, or Resource Timing reads the 20 MB model as
    * 0 bytes (LIVE-11). Both are Cloudflare rulesets, so nothing in the repo can see them
-   * drift except this probe.
+   * drift except this probe. Since 2026-09-17 it also reads one poster and one model for
+   * `cross-origin-resource-policy: same-site` (audit IM-13), the header that keeps both
+   * off other websites — see `MEDIA_CORP`.
    */
   { host: 'media.wear-run.help', hsts: true, media: true },
   { host: 'wear-run.help', hsts: true },
@@ -147,6 +195,12 @@ export function parseHsts(header) {
  *   hstsError?: string,
  *   cacheControl?: string | null,
  *   timingAllowOrigin?: string | null,
+ *   posterStatus?: number,
+ *   posterCorp?: string | null,
+ *   posterError?: string,
+ *   modelStatus?: number,
+ *   modelCorp?: string | null,
+ *   modelError?: string,
  *   expectHsts: boolean,
  *   expectMedia?: boolean,
  * }[]} observations
@@ -271,6 +325,50 @@ export function evaluate(observations) {
       } else {
         lines.push(`  ${label} timing-allow-origin ${o.timingAllowOrigin} ok`)
       }
+
+      // IM-13: the header that keeps our pictures and models off other sites.
+      for (const [what, status, corp, error] of [
+        ['poster', o.posterStatus, o.posterCorp, o.posterError],
+        ['model', o.modelStatus, o.modelCorp, o.modelError],
+      ]) {
+        if (error) {
+          inconclusive.push(`${o.host}: could not read a ${what}'s headers (${error}). NOT a pass.`)
+          lines.push(`  ${label} ${what} CORP unread — inconclusive`)
+          continue
+        }
+        if (status === undefined) {
+          inconclusive.push(`${o.host}: no ${what} was measured. NOT a pass.`)
+          lines.push(`  ${label} ${what} CORP not measured — inconclusive`)
+          continue
+        }
+        if (INCONCLUSIVE_STATUSES.has(status)) {
+          inconclusive.push(
+            `${o.host}: the ${what} answered HTTP ${status} — Bot Fight Mode, inconclusive rather than a failure.`,
+          )
+          lines.push(`  ${label} ${what} ${status} — inconclusive`)
+          continue
+        }
+        if (status < 200 || status >= 300) {
+          inconclusive.push(
+            `${o.host}: the ${what} answered HTTP ${status}, so no file was served to judge — ` +
+              'scripts/smoke-live-products.mjs reports that. NOT a pass.',
+          )
+          lines.push(`  ${label} ${what} ${status} — inconclusive`)
+          continue
+        }
+        if (corp !== MEDIA_CORP) {
+          failures.push(
+            `${o.host}: a ${what} answered cross-origin-resource-policy: ${corp ?? '(none)'}, not ${MEDIA_CORP}, ` +
+              'so another website can now show it (IM-13). Restore it in the Cloudflare response-header ' +
+              'Transform Rule "media headers …" on media.wear-run.help — docs/CLOUDFLARE-SETUP.md → ' +
+              '"Response-header Transform Rule — media.wear-run.help". Add it to THAT rule: headers from a ' +
+              'second rule are comma-joined.',
+          )
+          lines.push(`  ${label} ${what} CORP ${corp ?? '(none)'}  FAIL`)
+        } else {
+          lines.push(`  ${label} ${what} CORP ${MEDIA_CORP} ok`)
+        }
+      }
     }
   }
 
@@ -346,15 +444,66 @@ async function readHeaders(host) {
   }
 }
 
+/**
+ * One media file's status and CORP, as a browser's GET gets them. A plain GET, never HEAD — on
+ * this domain the two land on different edge cache entries (root CLAUDE.md) — and the body is
+ * cancelled once the headers are in, so a 4 MB model costs a few kilobytes, as it does in
+ * scripts/smoke-viewer-payload.mjs.
+ */
+async function readCorp(url) {
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(20_000) })
+    const result = {
+      status: response.status,
+      corp: response.headers.get('cross-origin-resource-policy'),
+    }
+    await response.body?.cancel()
+    return result
+  } catch (error) {
+    return { error: error.message ?? String(error) }
+  }
+}
+
+/** A poster and a model from the live payload, with their CORP (IM-13). */
+async function readMediaSamples(product = DEFAULT_PRODUCT) {
+  let body
+  try {
+    const response = await fetch(
+      `${API_BASE}/api/public/viewer/${product.slug}/${product.colourway}`,
+      { signal: AbortSignal.timeout(20_000) },
+    )
+    if (!response.ok) {
+      const error = `the live payload answered HTTP ${response.status}`
+      return { posterError: error, modelError: error }
+    }
+    body = await response.json()
+  } catch (error) {
+    const message = `the live payload could not be read (${error.message ?? String(error)})`
+    return { posterError: message, modelError: message }
+  }
+  const samples = samplesFromPayload(body)
+  if ('error' in samples) return { posterError: samples.error, modelError: samples.error }
+  const [poster, model] = await Promise.all([readCorp(samples.poster), readCorp(samples.model)])
+  return {
+    posterStatus: poster.status,
+    posterCorp: poster.corp,
+    posterError: poster.error,
+    modelStatus: model.status,
+    modelCorp: model.corp,
+    modelError: model.error,
+  }
+}
+
 /** Gather every observation. All network lives here. */
 export async function probe(targets = TARGETS) {
   return Promise.all(
     targets.map(async (target) => {
-      const [tls10, tls11, tls12, headers] = await Promise.all([
+      const [tls10, tls11, tls12, headers, media] = await Promise.all([
         handshake(target.host, 'TLSv1'),
         handshake(target.host, 'TLSv1.1'),
         handshake(target.host, 'TLSv1.2'),
         target.hsts ? readHeaders(target.host) : Promise.resolve({}),
+        target.media ? readMediaSamples() : Promise.resolve({}),
       ])
       return {
         host: target.host,
@@ -364,6 +513,7 @@ export async function probe(targets = TARGETS) {
         expectHsts: target.hsts,
         expectMedia: target.media === true,
         ...headers,
+        ...media,
       }
     }),
   )
