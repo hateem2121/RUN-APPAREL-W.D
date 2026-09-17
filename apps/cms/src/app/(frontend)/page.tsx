@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { JsonLd } from '../../components/site/JsonLd'
 import { ProductPoster } from '../../components/site/ProductPoster'
+import { ViewerCue } from '../../components/site/ViewerCue'
 import { CERTIFICATION, FACTS, SHIPS_TO } from '../../lib/companyFacts'
 import { getProductCards, type ProductCard } from '../../lib/content'
 import { getSiteSettings } from '../../lib/content'
@@ -56,6 +57,10 @@ export const metadata: Metadata = {
  * Renders NOTHING when there is no product or no poster. An empty band is honest; a
  * broken image on the home page is not, and `ProductPoster` already carries the two
  * layers that handle a poster which exists and fails.
+ *
+ * ⚠️ THE CAPTION NAMES THE GARMENT; `<ViewerCue />` SAYS WHERE THE LINK GOES (XS-09,
+ * 2026-09-17). The caption used to end "— open the 3D reference", which the owner's
+ * approved line now says in their words, so the tail went rather than saying it twice.
  */
 function ProofGarment({ product }: { product: ProductCard | null }) {
   if (!product?.posterUrl) return null
@@ -67,8 +72,9 @@ function ProofGarment({ product }: { product: ProductCard | null }) {
           <ProductPoster src={product.posterUrl} alt={product.posterAlt} />
         </span>
         <figcaption className="proof__caption">
-          {product.productCode} {product.productName} — open the 3D reference
+          {product.productCode} {product.productName}
         </figcaption>
+        <ViewerCue />
       </a>
     </figure>
   )

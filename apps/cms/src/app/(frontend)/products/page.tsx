@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { JsonLd } from '../../../components/site/JsonLd'
 import { ProductPoster } from '../../../components/site/ProductPoster'
+import { ViewerCue } from '../../../components/site/ViewerCue'
 import { getProductCards, type ProductCard } from '../../../lib/content'
 import { FAMILIES, familyBySlug } from '../../../lib/families'
 import { productsDescription } from '../../../lib/pageDescriptions'
@@ -37,7 +38,8 @@ type PageProps = { searchParams: Promise<{ family?: string }> }
  *
  * ⚠️ CARDS LINK OUT TO THE VIEWER, on its own host. The 3D reference is a separate
  * Worker reached from printed QR tags, and those URLs must not change. Linking to
- * `/{slug}/{colour}` on THIS host would 404 — nothing here serves that shape.
+ * `/{slug}/{colour}` on THIS host would 404 — nothing here serves that shape. Each card
+ * says so in words, with the owner's caption (XS-09, `components/site/ViewerCue.tsx`).
  *
  * ⚠️ THE LIST IS FILTERED BY THE SAME RULE THE DETAIL PAGE USES. `getProductCards`
  * shares `isAddressableColourway` with `buildViewerResponse`; without that, a card
@@ -205,6 +207,7 @@ function Card({ product, index }: { product: ProductCard; index: number }) {
               · {colours} color{colours === 1 ? '' : 's'}
             </span>
           </p>
+          <ViewerCue />
           {product.shortDescription ? (
             <p className="product-card__desc">{product.shortDescription}</p>
           ) : null}
