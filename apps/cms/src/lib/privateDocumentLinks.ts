@@ -3,15 +3,22 @@
  *
  * WHY (2026-09-11). The catalogue and company profile moved to
  * `catalogue.wear-run.help/<code>` and `profile.wear-run.help/<code>`, where the words
- * after the address are what keep casual visitors out. The three "Catalogue link" fields (Products,
- * Catalogue defaults, Site settings) look like the obvious place to put the new link — and
- * the public product API emits `catalogueUrl` to anyone, twice per response. A link saved
- * there would be published.
+ * after the address are what keep casual visitors out — and, decided 2026-09-17 (live from
+ * the merge that deploys it), to the same two addresses on `wear-run.com`. The three
+ * "Catalogue link" fields (Products, Catalogue defaults, Site settings) look like the
+ * obvious place to put the new link — and the public product API emits `catalogueUrl` to
+ * anyone, twice per response. A link saved there would be published, whichever address it
+ * uses.
  *
  * ⚠️ The host list must match `infra/apex-404/documents.js`; a test pins it.
  */
 
-export const PRIVATE_DOCUMENT_HOSTS = ['catalogue.wear-run.help', 'profile.wear-run.help'] as const
+export const PRIVATE_DOCUMENT_HOSTS = [
+  'catalogue.wear-run.help',
+  'catalogue.wear-run.com',
+  'profile.wear-run.help',
+  'profile.wear-run.com',
+] as const
 
 export const PRIVATE_LINK_MESSAGE =
   'This field is public — the product API shows it to anyone. Do not paste the private catalogue or profile link here.'

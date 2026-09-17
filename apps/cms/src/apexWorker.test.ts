@@ -117,8 +117,13 @@ async function send(
   return { res, body, bytes, calls }
 }
 
-const catalogue = (path = '') => `https://catalogue.wear-run.help/${CATALOGUE_CODE}${path}`
-const profile = (path = '') => `https://profile.wear-run.help/${PROFILE_CODE}${path}`
+/** Both address families serve the same documents (decided 2026-09-17). */
+const FAMILIES = ['wear-run.help', 'wear-run.com'] as const
+type Family = (typeof FAMILIES)[number]
+const catalogue = (path = '', family: Family = 'wear-run.help') =>
+  `https://catalogue.${family}/${CATALOGUE_CODE}${path}`
+const profile = (path = '', family: Family = 'wear-run.help') =>
+  `https://profile.${family}/${PROFILE_CODE}${path}`
 const MESSAGE = 'This link is not complete or no longer active.'
 
 /** Safari on an iPhone (iOS 17.5), in the format WebKit sends. */
@@ -240,6 +245,64 @@ describe('a document page', () => {
   })
 })
 
+/**
+ * THE SAME DOCUMENTS ON wear-run.com (decided 2026-09-17, live from the merge that deploys
+ * it). Same words, same pictures, same PDF — and the .help addresses keep working, because
+ * links already sent use them.
+ */
+describe('both address families open the same document', () => {
+  // `[...FAMILIES]`, not FAMILIES: it.each takes a mutable array, and a readonly tuple
+  // fails `tsc --noEmit`, which does check test files here.
+  it.each([...FAMILIES])(
+    'the catalogue opens on catalogue.%s, reading only its manifest',
+    async (family) => {
+      const { res, body, calls } = await send(catalogue('', family))
+      expect(res.status).toBe(200)
+      expect(res.headers.get('cache-control')).toBe(CACHE_CONTROL.page)
+      expect(body).toContain(`/${CATALOGUE_CODE}/p/${CATALOGUE_VERSION}/p001a-1600.webp`)
+      expect(calls).toEqual([{ key: 'documents/catalogue/manifest.json', ranged: false }])
+    },
+  )
+
+  it.each([...FAMILIES])('the profile opens on profile.%s', async (family) => {
+    const { res, body } = await send(profile('', family))
+    expect(res.status).toBe(200)
+    expect(body).toContain(`/${PROFILE_CODE}/p/${PROFILE_VERSION}/p001w-1600.webp`)
+  })
+
+  it('serves the same picture and the same download on wear-run.com', async () => {
+    const picture = await send(catalogue(`/p/${CATALOGUE_VERSION}/p001a-1600.webp`, 'wear-run.com'))
+    expect(picture.res.status).toBe(200)
+    expect(picture.body).toBe('webp:catalogue:p001a')
+    expect(picture.res.headers.get('cache-control')).toBe(CACHE_CONTROL.picture)
+    const download = await send(profile('/download', 'wear-run.com'))
+    expect(download.res.status).toBe(200)
+    expect(download.body).toBe('%PDF-profile')
+    expect(download.res.headers.get('content-disposition')).toBe(
+      'attachment; filename="RUN-Apparel-Company-Profile.pdf"',
+    )
+  })
+})
+
+/**
+ * A host this Worker has no document for. Production never routes one here — there is no
+ * route on wear-run.com's own apex, which belongs to the separate email-signature project
+ * — but if one arrived it must learn nothing and cost nothing.
+ */
+describe('a host this Worker does not serve', () => {
+  it.each([
+    'https://wear-run.com/catalogue',
+    'https://go.wear-run.com/',
+    `https://catalogue.wear-run.co/${CATALOGUE_CODE}`,
+  ])('%s → a plain 404, no R2 read, never cached', async (url) => {
+    const { res, body, calls } = await send(url)
+    expect(res.status).toBe(404)
+    expect(body).toBe('Not found.')
+    expect(res.headers.get('cache-control')).toBe('no-store')
+    expect(calls).toEqual([])
+  })
+})
+
 describe('refusals never touch R2', () => {
   const cases: [string, string][] = [
     ['a code one letter away', 'https://catalogue.wear-run.help/zzzz-yyyy-xxxx-wwww-vvvv-uuut'],
@@ -248,6 +311,19 @@ describe('refusals never touch R2', () => {
     ['seven words', 'https://catalogue.wear-run.help/zzzz-yyyy-xxxx-wwww-vvvv-uuuu-tttt'],
     ["the profile's code on the catalogue host", `https://catalogue.wear-run.help/${PROFILE_CODE}`],
     ["the catalogue's code on the profile host", `https://profile.wear-run.help/${CATALOGUE_CODE}`],
+    [
+      "the profile's code on catalogue.wear-run.com",
+      `https://catalogue.wear-run.com/${PROFILE_CODE}`,
+    ],
+    [
+      "the catalogue's code on profile.wear-run.com",
+      `https://profile.wear-run.com/${CATALOGUE_CODE}`,
+    ],
+    ['the bare wear-run.com host', 'https://profile.wear-run.com/'],
+    [
+      'a code one letter away on wear-run.com',
+      'https://profile.wear-run.com/tttt-ssss-rrrr-qqqq-pppp-ooon',
+    ],
     ['a percent-encoded code', 'https://catalogue.wear-run.help/zzzz%2Dyyyy-xxxx-wwww-vvvv-uuuu'],
     ['an underscore in the code', 'https://catalogue.wear-run.help/zzzz_yyyy-xxxx-wwww-vvvv-uuuu'],
     ['an unknown sub-path', catalogue('/admin')],
@@ -468,6 +544,20 @@ describe('the word rule: a retired path word or a shared code refuses, before an
       { CATALOGUE_CODE: 'zzzz-shared-code', PROFILE_CODE: 'zzzz-shared-code' },
       `[apex] profile's code equals catalogue's code and cannot be served`,
     ],
+    [
+      // 2026-09-17: the rule is about the DOCUMENT, so a second address changes nothing —
+      // and that is worth pinning, because wear-run.com has no retired route of its own.
+      'the retired-word rule holds on wear-run.com too',
+      'https://catalogue.wear-run.com/catalogue-2027',
+      { CATALOGUE_CODE: 'catalogue-2027' },
+      `[apex] catalogue's code starts with the retired path "catalogue" and cannot be served`,
+    ],
+    [
+      'and so does the shared-code rule',
+      'https://profile.wear-run.com/zzzz-shared-code',
+      { CATALOGUE_CODE: 'zzzz-shared-code', PROFILE_CODE: 'zzzz-shared-code' },
+      `[apex] profile's code equals catalogue's code and cannot be served`,
+    ],
   ])('%s → the not-active page, no R2 read', async (_label, url, env, logged) => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     try {
@@ -577,6 +667,29 @@ describe('visits: opening the page', () => {
       came_from: 'mail.google.com',
     })
     expect(rows[0]?.visitor).toMatch(/^[0-9a-f]{16}$/)
+  })
+
+  /**
+   * Owner decision W4, 2026-09-17: the two addresses are ONE document. A visit row is
+   * keyed on (day, document, visitor, kind) and carries no hostname, so the same reader
+   * opening each address is one row with two opens — not two rows, and not a second
+   * "document".
+   */
+  it('an open on each address family is the same document, counted in one row', async () => {
+    const visits = await visitsDatabase()
+    for (const family of FAMILIES) {
+      const { res } = await send(
+        catalogue('', family),
+        { headers: PERSON },
+        { objects: THREE_PAGES, env: visits.env, cf: CF, ctx: visits.ctx },
+      )
+      expect(res.status).toBe(200)
+    }
+    const rows = await visits.rows()
+    expect(rows).toHaveLength(1)
+    // Only what this change is about: one row, one document, both opens counted. The
+    // test above pins every other column of a row like this one.
+    expect(rows[0]).toMatchObject({ document: 'catalogue', opens: 2 })
   })
 
   it('a HEAD is not an open, and is never offered to the recorder', async () => {

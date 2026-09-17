@@ -291,7 +291,7 @@ step 10 is done (or via the manual commands above). Endpoints:
 | Piece | URL |
 |---|---|
 | Marketing site (CMS Worker on zone routes) | `https://wear-run.help` — `www.` redirects here; `/admin` and `/api` here answer the site's 404 |
-| Private catalogue and profile links (`run-apparel-apex-404`) | `https://catalogue.wear-run.help/<code>` and `https://profile.wear-run.help/<code>` (custom domains; each code is a Worker secret). The old `wear-run.help/catalogue` and `/profile` answer 410 |
+| Private catalogue and profile links (`run-apparel-apex-404`) | `https://catalogue.wear-run.help/<code>` and `https://profile.wear-run.help/<code>`, and the same two on `wear-run.com` (custom domains; each code is a Worker secret). The old `wear-run.help/catalogue` and `/profile` answer 410 |
 | CMS worker (`run-apparel-viewer-cms`) | `https://cms.wear-run.help` (custom domain) — the viewer *calls* the API via the workers.dev URL instead (Bot Fight Mode, see RUNBOOK) |
 | CMS admin | `https://cms.wear-run.help/admin` |
 | CMS health | `https://cms.wear-run.help/api/health` |
@@ -397,14 +397,26 @@ the CMS Worker; Cloudflare hands a request to the most specific route. CI deploy
 BEFORE the CMS Worker because a route pattern belongs to one Worker at a time, and refuses to
 deploy it without both secrets. Operating it: `docs/RUNBOOK.md` → "Private document links".
 
+**The same two documents on `wear-run.com` (decided 2026-09-17, live from the merge that
+deploys it).** `catalogue.wear-run.com` and `profile.wear-run.com` are two more custom
+domains on this Worker, in the `wear-run.com` zone of the same account. The same words open
+the same document on either address, and the `.help` pair must keep working forever because
+links already sent use it. That zone accepts **TLS 1.3 only**.
+⚠️ **The zone is shared** with the email-signature project (section 11.8), and in CI
+`wrangler deploy` runs without a terminal — so it takes any hostname listed in
+`infra/apex-404/wrangler.jsonc` from whichever Worker holds it, without asking. That file
+may therefore name no other `wear-run.com` host, and `apps/cms/src/workerConfigs.test.ts`
+fails if one appears.
+
 ⚠️ **The apex DNS record must stay proxied.** Zone routes require it; deleting it
 takes the site and the four retired PDF routes offline. The private links are not on
 it: `catalogue.` and `profile.wear-run.help` are custom domains whose DNS records
 `wrangler deploy` creates.
 
-⚠️ **Two zone rules for `catalogue.wear-run.help` and `profile.wear-run.help` were
-created 2026-09-15 and live only in Cloudflare, not in any wrangler file** (owner
-decisions D20, D21). Named here by description, because no rule id may appear in this
+⚠️ **Two zone rules for the document hosts live only in Cloudflare, not in any wrangler
+file** (owner decisions D20, D21): created 2026-09-15 in `wear-run.help` for its two hosts,
+and copied on 2026-09-17, with the same descriptions and matching only its two hosts, into
+the `wear-run.com` zone. Named here by description, because no rule id may appear in this
 public repository:
 
 - the Configuration Rule **"Private document links: no Zaraz or Web Analytics
@@ -467,6 +479,37 @@ Cloudflare's bot challenge has broken this viewer before.
 
 Cache and firewall rules are recorded with their rollback JSON in
 the private audit's live-changes record.
+
+### 11.8 Other projects on these zones — never delete
+
+Recorded 2026-09-17 at the owner's request. These live in the same Cloudflare account and
+belong to the separate **email-signature project**, whose Worker is `run-domain-edge`.
+Nothing in this repository creates, reads or deploys them, so no test here would notice one
+disappearing — and deleting one breaks company email, not this site.
+
+On `wear-run.help`:
+
+| Record | What it is |
+|---|---|
+| Custom domain `mta-sts.wear-run.help` (Worker `run-domain-edge`) | serves the MTA-STS policy |
+| TXT `_mta-sts.wear-run.help` | announces that policy |
+| TXT `default._bimi.wear-run.help` | the BIMI logo record; its own comment names the R2 bucket `run-email-assets` |
+| TXT `_dmarc.wear-run.help` and TXT `_smtp._tls.wear-run.help` | DMARC and TLS-RPT, **managed by that project** |
+
+`scripts/check-email-dns.mjs` still reads DMARC and TLS-RPT, but a value that changed may be
+that project's deliberate edit: check with it before "fixing" a record.
+
+On `wear-run.com`, the apex, `www.`, `go.`, `assets.` and `mta-sts.` belong to that project
+too. Its apex and `www.` redirect to `wear-run.help`, which is how an old
+`wear-run.com/catalogue` link still reaches the 410 page — no route of ours is needed there.
+Only `catalogue.` and `profile.wear-run.com` are this repository's (section 11.4).
+
+**Two redirects that old emails use — keep them forever.** `wear-run.help/map` (302 to the
+Google Maps pin) and `wear-run.help/meeting` (301 to the Apollo meeting-booking page) are
+Cloudflare **redirect rules**, named "Map" and "Book Meeting", in no file. Their expressions
+match the PATH on every proxied host of the zone and run before any Worker, so a site page
+at either path would never be seen. `scripts/apex-probe.mjs` checks both after every deploy
+and daily, by host, so the target's path can still change.
 
 ---
 

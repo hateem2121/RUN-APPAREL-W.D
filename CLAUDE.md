@@ -530,9 +530,11 @@ ceiling only moved which job died. See `.github/CLAUDE.md`.
 
 **The apex serves the SITE; the PDFs are PRIVATE LINKS (decided 2026-09-11, live from
 the merge that deploys it).** `wear-run.help/*`
-and `www.` go to the CMS Worker. `infra/apex-404/` serves `catalogue.` and
-`profile.wear-run.help/<code>` (pictures + the PDF, from the **shared** `run-assets`
-bucket) and 410s the old `/catalogue` and `/profile`. **Each code is a Worker secret:
+and `www.` go to the CMS Worker. `infra/apex-404/` serves `catalogue.` and `profile.` on
+BOTH `wear-run.help` and `wear-run.com` (`/<code>`; pictures + the PDF, from the **shared**
+`run-assets` bucket) and 410s the old `/catalogue` and `/profile`. The rest of
+`wear-run.com`, `mta-sts.wear-run.help` and the `/map` + `/meeting` redirects belong to the
+email-signature project: never list or delete one (`docs/CLOUDFLARE-SETUP.md` 11.8). **Each code is a Worker secret:
 never commit, log or print one** — ci.yml refuses to deploy without both. Workers
 Caching keys on path, NOT host, so all cacheable output sits under the code. **Do not
 delete the apex DNS record** (zone routes need it proxied). CI deploys this Worker FIRST;
