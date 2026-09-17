@@ -185,6 +185,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'home',
       formFactor: 'mobile',
+      machine: 'local',
       runs: runs(5, { scores: HOME_SCORES, below: HOME_BELOW }),
     })
     expect(verdict.failures).toEqual([])
@@ -196,6 +197,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'home',
       formFactor: 'mobile',
+      machine: 'local',
       runs: runs(5, {
         status: 403,
         scores: { seo: 0.45, 'best-practices': 0.96 },
@@ -210,6 +212,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'home',
       formFactor: 'mobile',
+      machine: 'local',
       runs: runs(5, { status: 404, below: ERROR_PAGE_BELOW }),
     })
     expect(verdict.failures.join()).toMatch(/HTTP 404 in 5 of 5 runs/)
@@ -223,6 +226,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'home',
       formFactor: 'mobile',
+      machine: 'local',
       runs: [...broken, ...runs(2, { scores: HOME_SCORES, below: HOME_BELOW })],
     })
     expect(verdict.failures).toEqual([
@@ -235,6 +239,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'products',
       formFactor: 'mobile',
+      machine: 'local',
       runs: [
         readRun(
           lhr({ scores: HOME_SCORES, below: [...HOME_BELOW, 'best-practices/inspector-issues'] }),
@@ -250,6 +255,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'home',
       formFactor: 'mobile',
+      machine: 'local',
       runs: runs(5, { scores: { performance: 0.85 }, below: HOME_BELOW.slice(0, 3) }),
     })
     expect(verdict.failures.join()).toMatch(/seo\/is-crawlable was expected to fail and now passes/)
@@ -271,6 +277,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'home',
       formFactor: 'mobile',
+      machine: 'local',
       runs: [
         ...runs(2, { scores: HOME_SCORES, below: HOME_BELOW }),
         readRun(null),
@@ -286,6 +293,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'viewer-rxps-wine',
       formFactor: 'mobile',
+      machine: 'local',
       runs: runs(5, {
         scores: { performance: 0.56, 'agentic-browsing': 0.67 },
         below: ['agentic-browsing/llms-txt'],
@@ -300,6 +308,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'viewer-some-other-garment',
       formFactor: 'mobile',
+      machine: 'local',
       runs: runs(5, { scores: { performance: 0.9 } }),
     })
     expect(verdict.failures.join()).toMatch(/no performance floor is recorded/)
@@ -330,6 +339,7 @@ describe('CSP issues — judged like any other audit', () => {
     judgePage({
       page: 'contact',
       formFactor: 'desktop',
+      machine: 'local',
       runs: Array.from({ length: 5 }, () => withInspector(types)),
     }).failures
 
@@ -362,9 +372,10 @@ describe('evaluate', () => {
       {
         page: 'home',
         formFactor: 'mobile',
+        machine: 'local',
         runs: runs(5, { scores: HOME_SCORES, below: HOME_BELOW }),
       },
-      { page: 'contact', formFactor: 'mobile', runs: runs(5, { status: 403 }) },
+      { page: 'contact', formFactor: 'mobile', machine: 'local', runs: runs(5, { status: 403 }) },
     ])
     expect(verdict.ok).toBe(true)
     expect(verdict.lines).toHaveLength(2)
@@ -372,7 +383,7 @@ describe('evaluate', () => {
 
   it('is not ok when any page fails', () => {
     const verdict = evaluate([
-      { page: 'home', formFactor: 'mobile', runs: runs(5, { status: 404 }) },
+      { page: 'home', formFactor: 'mobile', machine: 'local', runs: runs(5, { status: 404 }) },
     ])
     expect(verdict.ok).toBe(false)
   })
