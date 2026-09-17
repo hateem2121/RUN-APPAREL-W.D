@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   OTHER_PAGE_CSP_SOURCE,
+  OTHER_PATH_ISOLATION,
   PUBLIC_PAGE_CSP,
   PUBLIC_PAGE_SOURCES,
 } from '../publicViewerHeaders.mjs'
@@ -85,7 +86,14 @@ describe('the catch-all CSP', () => {
       'the catch-all CSP rule is not in routes-manifest.json — a rule that did not reach ' +
         'the build does not exist, however correct next.config.mjs reads',
     ).toBeDefined()
-    expect(rule?.headers).toEqual([{ key: 'Content-Security-Policy', value: PUBLIC_PAGE_CSP }])
+    expect(rule?.headers).toEqual([
+      { key: 'Content-Security-Policy', value: PUBLIC_PAGE_CSP },
+      ...OTHER_PATH_ISOLATION,
+    ])
+    expect(OTHER_PATH_ISOLATION).toEqual([
+      { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+      { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
+    ])
   })
 
   it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)('matches exactly the paths it should', () => {

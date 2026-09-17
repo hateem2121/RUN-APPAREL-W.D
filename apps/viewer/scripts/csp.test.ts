@@ -186,6 +186,20 @@ describe('buildHeadersFile — the _headers file', () => {
     expect(cc).not.toContain('max-age=0')
   })
 
+  // SE-05. The machine-read files never reach the Worker (wrangler.jsonc run_worker_first
+  // excludes them), so their cross-origin headers live here, on their own rules. `/*`
+  // must stay free of both: Cloudflare comma-joins duplicates from every matching rule.
+  it.each(['/robots.txt', '/sitemap.xml', '/llms.txt'])('%s says anyone may fetch it', (file) => {
+    const rule = ruleFor(buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API }), file)
+    expect(rule).toContain('Cross-Origin-Opener-Policy: same-origin')
+    expect(rule).toContain('Cross-Origin-Resource-Policy: cross-origin')
+  })
+
+  it('keeps the cross-origin headers out of the /* rule', () => {
+    const rule = ruleFor(buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API }), '/*')
+    expect(rule.some((line) => /^cross-origin-/i.test(line))).toBe(false)
+  })
+
   it('emits the CSP and the other security headers on every path', () => {
     const rule = ruleFor(buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API }), '/*')
     const joined = rule.join('\n')

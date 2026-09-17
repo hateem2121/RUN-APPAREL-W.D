@@ -14,6 +14,10 @@
  * garment, or with no picture, renders a perfect page in a browser — you only
  * find out when a lead sees it.
  *
+ * Since 2026-09-17 it also checks the garment page's cross-origin headers (audit SE-05) and
+ * its compression (PF-13), for the same reason: both are made by the deployed Worker, and
+ * only a request to it can show them.
+ *
  * Usage:
  *   node scripts/smoke-viewer-preview.mjs [viewerBase] [productSlug] [colourSlug]
  *
@@ -27,6 +31,7 @@
 
 import http from 'node:http'
 import https from 'node:https'
+import zlib from 'node:zlib'
 import { DEFAULT_PRODUCT, squashCode } from './live-products.mjs'
 
 const [, , baseArg, productArg, colourArg] = process.argv
@@ -96,17 +101,44 @@ function rawGet(target, headers) {
         headers,
       },
       (res) => {
-        let body = ''
-        res.setEncoding('utf8')
+        // Bytes, not text: a compressed body has to be decoded before it can be read (PF-13).
+        // `html` is kept for the crawler-navigation check below, which never asks for one.
+        const chunks = []
         res.on('data', (chunk) => {
-          body += chunk
+          chunks.push(chunk)
         })
-        res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, html: body }))
+        res.on('end', () => {
+          const bytes = Buffer.concat(chunks)
+          resolve({
+            status: res.statusCode,
+            headers: res.headers,
+            bytes,
+            html: bytes.toString('utf8'),
+          })
+        })
       },
     )
     req.on('error', reject)
     req.end()
   })
+}
+
+/**
+ * A body as text, decoded by its Content-Encoding (PF-13). Null means it does not decode,
+ * which is what a visitor would see as a blank or garbled page. `zstd` is here because a
+ * browser offers it and Cloudflare may re-encode a page it rewrites; Node 24 has it.
+ */
+function decodeBody({ headers, bytes }) {
+  const encoding = headers['content-encoding']
+  try {
+    if (!encoding || encoding === 'identity') return bytes.toString('utf8')
+    if (encoding === 'br') return zlib.brotliDecompressSync(bytes).toString('utf8')
+    if (encoding === 'gzip') return zlib.gunzipSync(bytes).toString('utf8')
+    if (encoding === 'zstd') return zlib.zstdDecompressSync(bytes).toString('utf8')
+  } catch {
+    return null
+  }
+  return null
 }
 
 async function get(target, ua) {
@@ -286,6 +318,93 @@ async function runChecks() {
     }
   }
 
+  // 7. The garment page states its cross-origin policy (SE-05) and arrives compressed
+  //    (PF-13). Asked the way a browser asks, offering br and gzip: the headers must carry
+  //    both SE-05 values, and the body must arrive brotli-encoded and decode to the page.
+  {
+    const page = await rawGet(url, {
+      'user-agent': BROWSER_UA,
+      accept: 'text/html',
+      'accept-encoding': 'br, gzip',
+    })
+    if (page.status === 403 || page.status === 429) {
+      console.log(
+        `⚠️  ${url} returned ${page.status} to a browser request — INCONCLUSIVE, as above.`,
+      )
+    } else {
+      for (const header of ['cross-origin-opener-policy', 'cross-origin-resource-policy']) {
+        if (page.headers[header] !== 'same-origin') {
+          fail(
+            `${url} answered ${header}: ${page.headers[header] ?? '(none)'}; expected same-origin (SE-05).`,
+          )
+        }
+      }
+      // PF-13: this browser offered br and gzip, so the Worker must have used brotli, and the
+      // bytes must decode to the page.
+      const text = decodeBody(page)
+      if (page.headers['content-encoding'] !== 'br') {
+        fail(
+          `${url} came back ${page.headers['content-encoding'] ?? 'uncompressed'} to a browser offering br and gzip (PF-13).`,
+        )
+      } else if (text === null || !/<title>[^<]*<\/title>/i.test(text)) {
+        fail(`${url} came back br but the body does not decode to a page (PF-13).`)
+      }
+    }
+  }
+
+  // 8. PF-13: only an encoding the visitor can read. Cloudflare rewrites Accept-Encoding
+  //    before the Worker runs, so the gzip and identity cases prove the Worker chose from
+  //    the visitor's own list (request.cf.clientAcceptEncoding), and the last proves it
+  //    sends plain when there is no list. Then a NAVIGATION, which Cloudflare may rewrite
+  //    on the way out (apps/viewer/worker/noTransform.ts): whatever arrives must decode.
+  for (const [who, offered, expected] of [
+    ['a browser offering only gzip', { 'accept-encoding': 'gzip' }, 'gzip'],
+    ['a client asking for identity', { 'accept-encoding': 'identity' }, undefined],
+    ['a client naming no encoding', {}, undefined],
+  ]) {
+    const res = await rawGet(url, { 'user-agent': BROWSER_UA, accept: 'text/html', ...offered })
+    if (res.status === 403 || res.status === 429) {
+      console.log(`⚠️  ${url} returned ${res.status} to ${who} — INCONCLUSIVE, as above.`)
+      continue
+    }
+    if (res.headers['content-encoding'] !== expected) {
+      fail(
+        `${url} came back ${res.headers['content-encoding'] ?? 'uncompressed'} to ${who}; ` +
+          `expected ${expected ?? 'uncompressed'} (PF-13).`,
+      )
+    } else {
+      const text = decodeBody(res)
+      if (text === null || !/<title>[^<]*<\/title>/i.test(text)) {
+        fail(
+          `${url} came back ${expected ?? 'uncompressed'} to ${who}, but the body does not decode to a page (PF-13).`,
+        )
+      }
+    }
+  }
+  {
+    const nav = await rawGet(url, {
+      'user-agent': BROWSER_UA,
+      accept: 'text/html',
+      'accept-encoding': 'gzip, deflate, br, zstd',
+      'sec-fetch-mode': 'navigate',
+      'sec-fetch-dest': 'document',
+      'sec-fetch-site': 'none',
+    })
+    if (nav.status !== 403 && nav.status !== 429) {
+      const text = decodeBody(nav)
+      if (text === null || !/<title>[^<]*<\/title>/i.test(text)) {
+        fail(
+          `A browser navigating to ${url} got a ${nav.headers['content-encoding'] ?? 'plain'} ` +
+            'body that does not decode to a page (PF-13).',
+        )
+      }
+    } else {
+      console.log(
+        `⚠️  ${url} returned ${nav.status} to a browser navigation — INCONCLUSIVE, as above.`,
+      )
+    }
+  }
+
   return { title, canonical }
 }
 
@@ -305,7 +424,7 @@ for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
 }
 
 if (failures.length > 0) {
-  console.error(`\n❌ Link previews are wrong on ${url}:\n`)
+  console.error(`\n❌ The viewer page is wrong on ${url}:\n`)
   for (const message of failures) console.error(`   • ${message}`)
   console.error('')
   process.exit(1)

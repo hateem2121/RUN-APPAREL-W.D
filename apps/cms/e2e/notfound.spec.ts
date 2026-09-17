@@ -247,12 +247,31 @@ test.describe('content security policy', () => {
     expect(api['cross-origin-embedder-policy']).toBeUndefined()
   })
 
+  /**
+   * SE-05. Everything the five pages do not cover now says how other origins may use it.
+   * CORP is `cross-origin` here ON PURPOSE: the text files are meant for anyone. COOP only
+   * ever applies to a document, so it is inert on them. (Under `next start` this rule also
+   * reaches the static images; in production Workers Static Assets serves those before the
+   * Worker, so they carry none of these headers. See OTHER_PATH_ISOLATION.)
+   */
+  test('the 404 and the text files state their cross-origin policy', async ({ request }) => {
+    for (const path of ['/definitely-not-a-page', '/robots.txt', '/sitemap.xml', '/llms.txt']) {
+      const h = (await request.get(path)).headers()
+      expect(h['cross-origin-opener-policy'], `${path} has no COOP`).toBe('same-origin')
+      expect(h['cross-origin-resource-policy'], `${path} has no CORP`).toBe('cross-origin')
+    }
+  })
+
   test('the admin does NOT get it', async ({ request }) => {
     // Payload's bundle needs inline styles and dynamic imports; next.config.mjs records
     // why it deliberately has no full policy. Widening the source list would break the
     // login rather than fail loudly.
     const csp = (await request.get('/admin')).headers()['content-security-policy'] ?? ''
     expect(csp).toBe("frame-ancestors 'none'")
+
+    const admin = (await request.get('/admin')).headers()
+    expect(admin['cross-origin-resource-policy']).toBeUndefined()
+    expect(admin['cross-origin-opener-policy']).toBeUndefined()
   })
 
   test('every page still runs its scripts under the policy', async ({ page }) => {

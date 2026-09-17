@@ -119,7 +119,9 @@ describe('who is welcomed and who is refused', () => {
     'Claude-SearchBot',
     'Claude-User',
     'PerplexityBot',
-    'ClaudeBot',
+    'meta-externalfetcher',
+    'Amzn-SearchBot',
+    'Amzn-User',
   ])('%s is WELCOME', (agent) => {
     expect(groups[1]?.agents, `${agent} is not in the allowed group`).toContain(agent)
     expect(groups[2]?.agents, `${agent} has been moved to the refused group`).not.toContain(agent)
@@ -127,6 +129,26 @@ describe('who is welcomed and who is refused', () => {
 
   it.each([...TRAINING_ONLY_UAS])('%s is refused', (agent) => {
     expect(groups[2]?.agents).toContain(agent)
+  })
+
+  /*
+   * Owner decision 2026-09-11: both hosts refuse these eight. The last three joined the
+   * original five after each operator's own documentation named them training crawlers
+   * with a separate answering sibling (checked 2026-09-16; sources in htmlLimitedBots.mjs).
+   */
+  it('refuses exactly the eight the owner named', () => {
+    expect([...TRAINING_ONLY_UAS].sort()).toEqual(
+      [
+        'Amazonbot',
+        'Applebot-Extended',
+        'Bytespider',
+        'CCBot',
+        'ClaudeBot',
+        'Google-Extended',
+        'GPTBot',
+        'meta-externalagent',
+      ].sort(),
+    )
   })
 
   /*

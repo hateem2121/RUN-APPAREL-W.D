@@ -10,6 +10,7 @@ import {
   FORM_FACTORS,
   judgePage,
   LIGHTHOUSE_VERSION,
+  measuringMachine,
   median,
   PAGES,
   PERFORMANCE_FLOORS,
@@ -184,6 +185,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'home',
       formFactor: 'mobile',
+      machine: 'local',
       runs: runs(5, { scores: HOME_SCORES, below: HOME_BELOW }),
     })
     expect(verdict.failures).toEqual([])
@@ -195,6 +197,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'home',
       formFactor: 'mobile',
+      machine: 'local',
       runs: runs(5, {
         status: 403,
         scores: { seo: 0.45, 'best-practices': 0.96 },
@@ -209,6 +212,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'home',
       formFactor: 'mobile',
+      machine: 'local',
       runs: runs(5, { status: 404, below: ERROR_PAGE_BELOW }),
     })
     expect(verdict.failures.join()).toMatch(/HTTP 404 in 5 of 5 runs/)
@@ -222,6 +226,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'home',
       formFactor: 'mobile',
+      machine: 'local',
       runs: [...broken, ...runs(2, { scores: HOME_SCORES, below: HOME_BELOW })],
     })
     expect(verdict.failures).toEqual([
@@ -234,6 +239,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'products',
       formFactor: 'mobile',
+      machine: 'local',
       runs: [
         readRun(
           lhr({ scores: HOME_SCORES, below: [...HOME_BELOW, 'best-practices/inspector-issues'] }),
@@ -249,6 +255,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'home',
       formFactor: 'mobile',
+      machine: 'local',
       runs: runs(5, { scores: { performance: 0.85 }, below: HOME_BELOW.slice(0, 3) }),
     })
     expect(verdict.failures.join()).toMatch(/seo\/is-crawlable was expected to fail and now passes/)
@@ -259,9 +266,10 @@ describe('judgePage', () => {
       judgePage({
         page: 'products',
         formFactor: 'mobile',
+        machine: 'local',
         runs: runs(5, { scores: { ...HOME_SCORES, performance }, below: HOME_BELOW }),
       }).failures
-    expect(at(0.5).join()).toMatch(/performance median 0\.5 is below the floor of 0\.55/)
+    expect(at(0.5).join()).toMatch(/performance median 0\.5 is below the local floor of 0\.55/)
     expect(at(0.56)).toEqual([])
   })
 
@@ -269,6 +277,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'home',
       formFactor: 'mobile',
+      machine: 'local',
       runs: [
         ...runs(2, { scores: HOME_SCORES, below: HOME_BELOW }),
         readRun(null),
@@ -284,6 +293,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'viewer-rxps-wine',
       formFactor: 'mobile',
+      machine: 'local',
       runs: runs(5, {
         scores: { performance: 0.56, 'agentic-browsing': 0.67 },
         below: ['agentic-browsing/llms-txt'],
@@ -298,6 +308,7 @@ describe('judgePage', () => {
     const verdict = judgePage({
       page: 'viewer-some-other-garment',
       formFactor: 'mobile',
+      machine: 'local',
       runs: runs(5, { scores: { performance: 0.9 } }),
     })
     expect(verdict.failures.join()).toMatch(/no performance floor is recorded/)
@@ -328,6 +339,7 @@ describe('CSP issues — judged like any other audit', () => {
     judgePage({
       page: 'contact',
       formFactor: 'desktop',
+      machine: 'local',
       runs: Array.from({ length: 5 }, () => withInspector(types)),
     }).failures
 
@@ -360,9 +372,10 @@ describe('evaluate', () => {
       {
         page: 'home',
         formFactor: 'mobile',
+        machine: 'local',
         runs: runs(5, { scores: HOME_SCORES, below: HOME_BELOW }),
       },
-      { page: 'contact', formFactor: 'mobile', runs: runs(5, { status: 403 }) },
+      { page: 'contact', formFactor: 'mobile', machine: 'local', runs: runs(5, { status: 403 }) },
     ])
     expect(verdict.ok).toBe(true)
     expect(verdict.lines).toHaveLength(2)
@@ -370,7 +383,7 @@ describe('evaluate', () => {
 
   it('is not ok when any page fails', () => {
     const verdict = evaluate([
-      { page: 'home', formFactor: 'mobile', runs: runs(5, { status: 404 }) },
+      { page: 'home', formFactor: 'mobile', machine: 'local', runs: runs(5, { status: 404 }) },
     ])
     expect(verdict.ok).toBe(false)
   })
@@ -385,10 +398,16 @@ describe('the page list and its floors cannot drift apart', () => {
   })
 
   it('has a floor for every page on every form factor', () => {
-    const missing = PAGES.flatMap((page) =>
-      FORM_FACTORS.map((factor) => `${page.name}.${factor}`),
-    ).filter((key) => !(key in PERFORMANCE_FLOORS))
-    expect(missing).toEqual([])
+    const keys = PAGES.flatMap((page) => FORM_FACTORS.map((factor) => `${page.name}.${factor}`))
+    for (const machine of ['local', 'github-runner'] as const) {
+      const missing = keys.filter((key) => !(key in PERFORMANCE_FLOORS[machine]))
+      expect(missing).toEqual([])
+      for (const value of Object.values(PERFORMANCE_FLOORS[machine])) {
+        expect(typeof value).toBe('number')
+        expect(value).toBeGreaterThanOrEqual(0)
+        expect(value).toBeLessThanOrEqual(1)
+      }
+    }
   })
 
   it('pins the same Lighthouse that the root package.json installs', () => {
@@ -401,5 +420,50 @@ describe('the page list and its floors cannot drift apart', () => {
   it('only exempts pages that exist', () => {
     const names = new Set(PAGES.map((page) => page.name))
     expect(Object.keys(EXPECTED_BELOW_ONE).filter((name) => !names.has(name))).toEqual([])
+  })
+})
+
+describe('each measuring machine has its own floors', () => {
+  it('a GitHub runner is recognised by the variable every runner sets', () => {
+    expect(measuringMachine({ GITHUB_ACTIONS: 'true' })).toBe('github-runner')
+    expect(measuringMachine({})).toBe('local')
+    expect(measuringMachine({ GITHUB_ACTIONS: 'false' })).toBe('local')
+  })
+
+  it('judges a page against the floors it is given, not a global', () => {
+    const at = (floor: number) =>
+      judgePage({
+        page: 'products',
+        formFactor: 'mobile',
+        machine: 'github-runner',
+        floors: { 'products.mobile': floor },
+        runs: runs(5, { scores: { ...HOME_SCORES, performance: 0.6 }, below: HOME_BELOW }),
+      }).failures
+    expect(at(0.5)).toEqual([])
+    expect(at(0.7).join()).toMatch(
+      /performance median 0\.6 is below the github-runner floor of 0\.7/,
+    )
+  })
+
+  it('prints every run and the median slowest round-trip, so a failure explains itself', () => {
+    const scored = [0.61, 0.58, 0.55, 0.9, 0.82].map((performance, index) => ({
+      ...readRun(lhr({ scores: { ...HOME_SCORES, performance }, below: HOME_BELOW })),
+      rttMs: [596, 518, 126, 280, 375][index],
+    })) as Run[]
+    const { line } = judgePage({
+      page: 'products',
+      formFactor: 'mobile',
+      machine: 'local',
+      runs: scored,
+    })
+    expect(line).toContain('perf runs 0.61/0.58/0.55/0.9/0.82')
+    expect(line).toContain('rtt 375ms')
+  })
+
+  it('reads the round-trip time from the report, and says so when it is absent', () => {
+    const report = lhr({ scores: HOME_SCORES, below: HOME_BELOW })
+    expect((readRun(report) as { rttMs: number | null }).rttMs).toBeNull()
+    Object.assign(report.audits, { 'network-rtt': { score: null, numericValue: 212.4 } })
+    expect((readRun(report) as { rttMs: number | null }).rttMs).toBe(212.4)
   })
 })

@@ -63,11 +63,12 @@ export interface Preview {
 }
 
 /**
- * Most platforms truncate somewhere between 150 and 300 characters, and none of
- * them say where. Cutting at a word boundary here means the visible text always
- * ends in a whole word rather than mid-"polyeste".
+ * 160 characters, the most a search result shows. It was 200 until 2026-09-16,
+ * when 15 of the 80 live pages measured 161-176 and lost their last words in
+ * every result (audit FI-01). Cutting at a word boundary means the visible text
+ * always ends in a whole word rather than mid-"polyeste".
  */
-export const MAX_DESCRIPTION = 200
+export const MAX_DESCRIPTION = 160
 
 function truncate(text: string, limit = MAX_DESCRIPTION): string {
   if (text.length <= limit) return text
@@ -121,12 +122,12 @@ function buildDescription(payload: ViewerApiSuccess): string {
   const p = payload.product
   const colour = payload.selectedColourway.displayName.trim()
   const fabric = [p.fabricComposition.trim(), p.gsm.trim()].filter(Boolean).join(', ')
-  const specs = [p.category, p.garmentFit.trim(), fabric].filter(Boolean).join(' · ')
+  // No category since 2026-09-16 (owner decision, FI-01). It cost 22 characters on the
+  // longest pages, and the page's structured data still carries it.
+  const specs = [p.garmentFit.trim(), fabric].filter(Boolean).join(' · ')
   const count = payload.colourways.length
   const tail =
-    count > 1
-      ? `Rotate, zoom and compare all ${count} colorways in 3D.`
-      : 'Rotate and zoom this reference in 3D.'
+    count > 1 ? `See all ${count} colorways in 3D.` : 'Rotate and zoom this reference in 3D.'
   // "Shown in Wine." rather than prefixing the specs: the specs are what a trade
   // buyer scans for, and pushing them behind the colour buries the useful half.
   const shown = colour ? `Shown in ${colour}.` : ''

@@ -1,12 +1,15 @@
 import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { JsonLd } from '../../components/site/JsonLd'
 import { ProductPoster } from '../../components/site/ProductPoster'
 import { CERTIFICATION, FACTS, SHIPS_TO } from '../../lib/companyFacts'
 import { getProductCards, type ProductCard } from '../../lib/content'
 import { getSiteSettings } from '../../lib/content'
 import { FAMILIES } from '../../lib/families'
+import { HOME_DESCRIPTION } from '../../lib/pageDescriptions'
 import { buildMetadata, VIEWER_ORIGIN } from '../../lib/seo'
+import { websiteJsonLd } from '../../lib/structuredData'
 
 /**
  * ⚠️ `force-dynamic` IS NOT OPTIONAL. `resolveCloudflareEnv()` returns null during
@@ -18,11 +21,9 @@ import { buildMetadata, VIEWER_ORIGIN } from '../../lib/seo'
 export const dynamic = 'force-dynamic'
 
 const TITLE = 'RUN APPAREL — Custom B2B Sportswear & Team Wear Manufacturer'
-const DESCRIPTION =
-  'A private label apparel manufacturer in Sialkot, Pakistan — 100,000 pieces a month, from 50 pieces per style. Team wear, active wear, casual wear, outerwear and sports accessories, made to order for brands, teams and organizations worldwide. A family manufacturing and exporting trade since 1889.'
 
 export const metadata: Metadata = {
-  ...buildMetadata({ title: TITLE, description: DESCRIPTION, path: '/' }),
+  ...buildMetadata({ title: TITLE, description: HOME_DESCRIPTION, path: '/' }),
   // The template in layout.tsx would render "RUN APPAREL — … — RUN APPAREL".
   title: { absolute: TITLE },
 }
@@ -84,6 +85,7 @@ export default async function HomePage() {
   const proof = products.find((product) => product.posterUrl) ?? null
   return (
     <>
+      <JsonLd data={websiteJsonLd(settings)} />
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">

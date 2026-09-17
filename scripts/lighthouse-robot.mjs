@@ -122,13 +122,29 @@ export const EXPECTED_BELOW_ONE = {
  */
 
 /**
- * The worst single performance score in the 2026-09-15 baseline (Lighthouse 13.4.1, five
- * runs each). A median of five that falls below the worst run seen before is not noise.
+ * The worst single performance score in each MEASURING MACHINE's baseline (Lighthouse
+ * 13.4.1, five runs each). A median of five below the worst run seen before is not noise.
+ *
+ * ⚠️ ONE SET PER MACHINE, BECAUSE THE NUMBERS DO NOT TRAVEL. `local` is the 2026-09-15
+ * baseline, taken on the owner's Mac. The robot's first run on a GitHub runner (2026-09-16)
+ * scored the marketing pages close to the Mac but the 3D viewer far lower on a computer
+ * (median 0.58 against 0.73), with total blocking time failing beside the paint timings:
+ * a GitHub-hosted runner has no GPU, so the model is drawn in software on the CPU, and a
+ * visitor's device is not like that. The same Mac on a noisy network that day saw single
+ * viewer runs of 0.55, which is why each page line now prints its runs and round-trip time.
+ *
+ * ⚠️ `github-runner` IS THE RUNNER'S OWN BASELINE: the worst single run of two dispatches of
+ * this workflow on 2026-09-17 (runs 35188571511 and 35189406771; ten runs per page, nine for
+ * products.mobile and contact.desktop, where Lighthouse once could not load the page). The
+ * runner scores the marketing pages HIGHER than the Mac, its round trips to the edge were
+ * 2–26 ms, and the viewer lower, so its floors are tighter on the site and looser on the
+ * viewer. If a runner image change moves every page at once, re-take this baseline rather
+ * than loosening one number.
  *
  * ⚠️ Keyed by page name. A different default product is a different page with a different
  * model, so its missing floor FAILS the robot rather than borrowing this one — measure it.
  */
-export const PERFORMANCE_FLOORS = {
+const LOCAL_FLOORS = {
   'home.mobile': 0.69,
   'home.desktop': 0.89,
   'products.mobile': 0.55,
@@ -137,6 +153,25 @@ export const PERFORMANCE_FLOORS = {
   'contact.desktop': 0.69,
   'viewer-rxps-wine.mobile': 0.26,
   'viewer-rxps-wine.desktop': 0.73,
+}
+
+export const PERFORMANCE_FLOORS = {
+  local: LOCAL_FLOORS,
+  'github-runner': {
+    'home.mobile': 0.79,
+    'home.desktop': 0.95,
+    'products.mobile': 0.83,
+    'products.desktop': 0.96,
+    'contact.mobile': 0.91,
+    'contact.desktop': 0.98,
+    'viewer-rxps-wine.mobile': 0.4,
+    'viewer-rxps-wine.desktop': 0.49,
+  },
+}
+
+/** The floor set that applies here. Every GitHub-hosted runner sets GITHUB_ACTIONS=true. */
+export function measuringMachine(env = process.env) {
+  return env.GITHUB_ACTIONS === 'true' ? 'github-runner' : 'local'
 }
 
 /** Median of the numeric values; null when there are none. */
@@ -192,6 +227,14 @@ export function readRun(lhr) {
     runtimeError: lhr.runtimeError?.code ?? null,
     scores,
     belowOne,
+    // The SLOWEST round-trip Lighthouse estimated to any origin the page used: `network-rtt`
+    // lists one per origin and reports their maximum as its numericValue. On 2026-09-16 the
+    // Mac's viewer runs that scored below the floor were at 375-596 ms, and the two at or
+    // above it were at 126-280 ms.
+    rttMs:
+      typeof lhr.audits?.['network-rtt']?.numericValue === 'number'
+        ? lhr.audits['network-rtt'].numericValue
+        : null,
   }
 }
 
@@ -224,7 +267,13 @@ const LABELS = {
 }
 
 /** Judge one page on one form factor. Pure. */
-export function judgePage({ page, formFactor, runs }) {
+export function judgePage({
+  page,
+  formFactor,
+  runs,
+  machine = measuringMachine(),
+  floors = PERFORMANCE_FLOORS[machine],
+}) {
   const key = `${page}.${formFactor}`
   const failures = []
   const inconclusive = []
@@ -256,9 +305,12 @@ export function judgePage({ page, formFactor, runs }) {
   const scores = Object.fromEntries(
     CATEGORIES.map((category) => [category, median(valid.map((run) => run.scores[category]))]),
   )
+  const rtt = median(valid.map((run) => run.rttMs))
   const line = (note) =>
     `  ${key.padEnd(26)} ${String(valid.length).padStart(1)}/${runs.length} runs  ` +
     CATEGORIES.map((category) => `${LABELS[category]} ${short(scores[category])}`).join('  ') +
+    `  perf runs ${valid.map((run) => short(run.scores.performance)).join('/')}` +
+    `  rtt ${rtt === null ? '—' : `${Math.round(rtt)}ms`}` +
     (note ? `  ${note}` : '')
 
   if (valid.length < MIN_VALID_RUNS) {
@@ -296,13 +348,13 @@ export function judgePage({ page, formFactor, runs }) {
     }
   }
 
-  const floor = PERFORMANCE_FLOORS[key]
+  const floor = floors?.[key]
   if (floor === undefined) {
     failures.push(`${key}: no performance floor is recorded — measure this page and add one.`)
   } else if (scores.performance === null || scores.performance < floor) {
     const causes = [...failing].filter((id) => id.startsWith('performance/')).join(', ')
     failures.push(
-      `${key}: performance median ${short(scores.performance)} is below the floor of ${floor}` +
+      `${key}: performance median ${short(scores.performance)} is below the ${machine} floor of ${floor}` +
         (causes ? ` (failing: ${causes}).` : '.'),
     )
   }
@@ -312,7 +364,7 @@ export function judgePage({ page, formFactor, runs }) {
     failures,
     inconclusive,
     advisories,
-    line: line(floor === undefined ? '' : `(perf floor ${floor})`),
+    line: line(floor === undefined ? '' : `(${machine} perf floor ${floor})`),
   }
 }
 
@@ -390,7 +442,7 @@ async function main() {
   if (!args.from) mkdirSync(dir, { recursive: true })
 
   console.log(
-    `[lighthouse-robot] Lighthouse ${LIGHTHOUSE_VERSION}, ${args.runs} run(s) each, ` +
+    `[lighthouse-robot] Lighthouse ${LIGHTHOUSE_VERSION}, ${args.runs} run(s) each, floors: ${measuringMachine()}, ` +
       `${args.from ? `judging reports in ${dir}` : `writing reports to ${dir}`}`,
   )
   const results = []

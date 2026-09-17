@@ -85,9 +85,10 @@ export const AI_CRAWLER_UAS = [
   'meta-externalagent',
   'meta-externalfetcher',
   'FacebookBot',
-  // Amazon.
+  // Amazon. Amazonbot may train; Amzn-SearchBot indexes for Amazon search (Alexa included); Amzn-User fetches live for a person's Alexa question.
   'Amazonbot',
   'Amzn-SearchBot',
+  'Amzn-User',
   // Mistral.
   'MistralAI-User',
   'MistralAI-Index',
@@ -130,9 +131,21 @@ export const AI_CRAWLER_UAS = [
  * of what the site is for, and would look like tightening security.
  * `src/lib/robotsTxt.test.ts` asserts each of those five is on the ALLOWED side.
  *
- * ⚠️ AND `ClaudeBot` IS DELIBERATELY NOT HERE. It is plausibly the training crawler by the
- * same pattern, and I could not establish that to the standard the five above meet. An
- * over-block costs a lead and is invisible; leave it allowed until someone measures it.
+ * ⚠️ EIGHT SINCE 2026-09-11, when the owner refused three more on BOTH hosts. Each is
+ * documented by its operator as a training crawler with a separate sibling that answers,
+ * and the siblings stay welcome, so the rule above still holds:
+ *
+ *   ClaudeBot           trains Anthropic's models   ·  Claude-SearchBot and Claude-User answer
+ *   meta-externalagent  trains Meta's models        ·  meta-externalfetcher fetches for a person
+ *   Amazonbot           may train Amazon's models   ·  Amzn-SearchBot (search, Alexa included) and
+ *                                                      Amzn-User (live answers) do not train
+ *
+ * Checked 2026-09-16 against https://developer.amazon.com/amazonbot ,
+ * https://developers.facebook.com/documentation/sharing/webmasters/web-crawlers and
+ * https://searchengineland.com/anthropic-claude-bots-470171 . This list was five until
+ * then, and said ClaudeBot was left out until someone measured it; that is now done.
+ * `apps/viewer/public/robots.txt` serves the same eight, and `src/viewerRobots.test.ts`
+ * fails if the two hosts drift.
  */
 export const TRAINING_ONLY_UAS = [
   'GPTBot',
@@ -140,6 +153,9 @@ export const TRAINING_ONLY_UAS = [
   'Applebot-Extended',
   'CCBot',
   'Bytespider',
+  'ClaudeBot',
+  'meta-externalagent',
+  'Amazonbot',
 ]
 
 /**

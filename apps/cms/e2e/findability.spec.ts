@@ -48,6 +48,17 @@ test.describe('FA-N-04 — every page names itself', () => {
         ''
       expect(description.length, `${page.path} has no meta description`).toBeGreaterThan(50)
 
+      // L-06 / FI-01: what a search result shows. Entities are decoded first so an `&amp;`
+      // is measured as the one character a reader sees.
+      const shown = description
+        .replace(/&amp;/g, '&')
+        .replace(/&#x27;|&#39;/g, "'")
+        .replace(/&quot;/g, '"')
+      expect(
+        shown.length,
+        `${page.path} description is cut off in search results`,
+      ).toBeLessThanOrEqual(160)
+
       const canonical =
         head.match(/<link rel="canonical" href="([^"]*)"/)?.[1] ??
         head.match(/<link href="([^"]*)" rel="canonical"/)?.[1] ??
@@ -60,6 +71,19 @@ test.describe('FA-N-04 — every page names itself', () => {
       ).toBe(suffix)
     })
   }
+
+  test('a family-filtered products view still fits a search result', async ({ request }) => {
+    const response = await request.get('/products?family=teamwear-uniforms')
+    expect(response.status()).toBe(200)
+    const head = headOf(await response.text())
+    const description =
+      head.match(/<meta name="description" content="([^"]*)"/)?.[1] ??
+      head.match(/<meta content="([^"]*)" name="description"/)?.[1] ??
+      ''
+    const shown = description.replace(/&amp;/g, '&')
+    expect(shown).toContain('Teamwear & Uniforms from RUN APPAREL.')
+    expect(shown.length).toBeLessThanOrEqual(160)
+  })
 })
 
 test.describe('FA-N-06 — nine real crawlers get a card, in the head', () => {
@@ -200,6 +224,18 @@ test.describe('FA-N-08 — the structured data parses and says what it should', 
       expect(types, `${page.path} no longer declares ${page.ld}`).toContain(page.ld)
     })
   }
+
+  test('home names the website for search results (FI-10)', async ({ request }) => {
+    const html = await (await request.get('/')).text()
+    const nodes = [
+      ...html.matchAll(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g),
+    ].map((match) => JSON.parse(match[1] ?? 'null') as Record<string, unknown>)
+    const site = nodes.find((node) => node?.['@type'] === 'WebSite')
+    expect(site, '/ has no WebSite node').toBeDefined()
+    expect(String(site?.url)).toMatch(/^https:\/\/.+\/$/)
+    expect(String(site?.name).length).toBeGreaterThan(0)
+    expect((site?.publisher as Record<string, unknown>)?.['@id']).toMatch(/\/#organization$/)
+  })
 })
 
 test.describe('FA-N-11 — the heading outline is real', () => {
