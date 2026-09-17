@@ -157,6 +157,17 @@ describe('initTelemetry — the page-speed numbers (PF-05b)', () => {
     ])
   })
 
+  // webVitals.ts sets `lcpMs` only when an LCP entry actually fired, so a real visit
+  // can report `cls` with the `lcpMs` key entirely absent, not just blank or invalid.
+  it('sends the steadiness number alone when the engine measured no loading time', async () => {
+    stop = initTelemetry()
+    analytics({ event: 'web_vitals', cls: '0.012' })
+    window.dispatchEvent(new Event('pagehide'))
+    expect(await batchOf(beacon.mock.calls[0]!)).toEqual([
+      { type: 'analytics', event: 'web_vitals', cls: 0.012 },
+    ])
+  })
+
   it('never attaches the numbers to another event', async () => {
     stop = initTelemetry()
     analytics({ event: 'model_loaded', lcpMs: '2400', cls: '0.012' })
