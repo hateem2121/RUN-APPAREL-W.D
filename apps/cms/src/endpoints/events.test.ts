@@ -278,3 +278,79 @@ describe('POST /api/public/events', () => {
     expect(second.create).toHaveBeenCalledTimes(MAX_EVENT_BATCH)
   })
 })
+
+/**
+ * PAGE SPEED (audit PF-05b, 2026-09-17). The viewer has measured LCP and CLS on every
+ * visit since 2026-09-04 and none of it was kept: telemetry.ts forwarded only the event
+ * name, and this endpoint had nowhere to put a number. These pin what may now be stored
+ * and, because this endpoint is unauthenticated, everything that may not.
+ */
+describe('sanitizeEvents — the two page-speed numbers (PF-05b)', () => {
+  const vitals = (extra: Record<string, unknown>) =>
+    sanitizeEvents([{ type: 'analytics', event: 'web_vitals', product: 'rxps', ...extra }], 'ua')[0]
+
+  it('keeps an LCP in milliseconds and a CLS score on a web_vitals report', () => {
+    expect(vitals({ lcpMs: 2400, cls: 0.012 })).toMatchObject({
+      type: 'analytics',
+      event: 'web_vitals',
+      product: 'rxps',
+      lcpMs: 2400,
+      cls: 0.012,
+    })
+  })
+
+  it('keeps both bounds themselves', () => {
+    expect(vitals({ lcpMs: 0, cls: 0 })).toMatchObject({ lcpMs: 0, cls: 0 })
+    expect(vitals({ lcpMs: 600_000, cls: 10 })).toMatchObject({ lcpMs: 600_000, cls: 10 })
+  })
+
+  it.each([
+    ['a negative LCP', { lcpMs: -1 }],
+    ['an LCP past ten minutes', { lcpMs: 600_001 }],
+    ['an infinite LCP', { lcpMs: Number.POSITIVE_INFINITY }],
+    ['a NaN LCP', { lcpMs: Number.NaN }],
+    ['an LCP sent as text', { lcpMs: '2400' }],
+    ['a CLS above 10', { cls: 10.5 }],
+    ['a negative CLS', { cls: -0.1 }],
+    ['a CLS sent as text', { cls: '0.1' }],
+  ])('drops %s but keeps the visit', (_label, extra) => {
+    const record = vitals(extra)
+    expect(record, 'the visit itself still counts').toMatchObject({ event: 'web_vitals' })
+    expect(record?.lcpMs).toBeUndefined()
+    expect(record?.cls).toBeUndefined()
+  })
+
+  it('never stores the numbers on another analytics event', () => {
+    expect(analyticsEvent, 'the precondition: a different allowed event').not.toBe('web_vitals')
+    const [record] = sanitizeEvents(
+      [{ type: 'analytics', event: analyticsEvent, lcpMs: 2400, cls: 0.012 }],
+      'ua',
+    )
+    expect(record).toBeDefined()
+    expect(record?.lcpMs).toBeUndefined()
+    expect(record?.cls).toBeUndefined()
+  })
+
+  it('never stores them on a diagnostic that borrows the name', () => {
+    const [record] = sanitizeEvents(
+      [{ type: 'diagnostic', event: 'web_vitals', lcpMs: 2400, cls: 0.012 }],
+      'ua',
+    )
+    expect(record).toBeDefined()
+    expect(record?.lcpMs).toBeUndefined()
+    expect(record?.cls).toBeUndefined()
+  })
+
+  it('hands both numbers to the database write', async () => {
+    const { req, create } = makeReq({
+      ip: '203.0.113.30',
+      body: JSON.stringify([{ type: 'analytics', event: 'web_vitals', lcpMs: 2400, cls: 0.012 }]),
+    })
+    await handler(req)
+    expect(create).toHaveBeenCalledOnce()
+    expect(create.mock.calls[0]?.[0]).toMatchObject({
+      collection: 'events',
+      data: { event: 'web_vitals', lcpMs: 2400, cls: 0.012 },
+    })
+  })
+})

@@ -57,5 +57,30 @@ export const Events: CollectionConfig = {
       type: 'text',
       admin: { description: 'Coarse, truncated user-agent. No IP is stored.' },
     },
+    /*
+     * A page-speed report's two numbers (audit PF-05b, 2026-09-17). Set ONLY on
+     * `analytics` / `web_vitals` rows, and bounded, by endpoints/events.ts; every other
+     * row leaves them empty. The bounds are repeated here so an out-of-range number is
+     * refused even if a future write skips the endpoint.
+     */
+    {
+      name: 'lcpMs',
+      type: 'number',
+      min: 0,
+      max: 600_000,
+      admin: {
+        description:
+          'Page speed (web vitals only): milliseconds until the largest element painted.',
+      },
+    },
+    {
+      name: 'cls',
+      type: 'number',
+      min: 0,
+      max: 10,
+      admin: {
+        description: 'Page steadiness (web vitals only): the layout-shift score for the visit.',
+      },
+    },
   ],
 }

@@ -149,8 +149,11 @@ export const VIEWER_ANALYTICS_EVENTS = [
    * events.ts` builds `KNOWN_ANALYTICS` from this array and rejects anything not in
    * it, so an event the viewer sends and this list does not carry is dropped
    * silently at ingest — no error, no row, and a dashboard that simply never fills
-   * in. There is no schema or migration to change; there is also no second place
-   * that would tell you if you forgot.
+   * in. There is no second place that would tell you if you forgot.
+   *
+   * `web_vitals` is the one event that carries numbers: `lcpMs` and `cls`, stored in
+   * their own columns since 2026-09-17 (audit PF-05b). A new number needs a column,
+   * a migration and a bound in `events.ts` — the name alone is not enough for it.
    */
   'web_vitals',
 ] as const
