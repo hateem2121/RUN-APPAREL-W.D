@@ -102,6 +102,15 @@ chk "www /profile is retired (410)"        410 "$(code https://www.wear-run.help
 chk "www /profile is not a PDF"            ok  "$(notpdf https://www.wear-run.help/profile)"
 chk "catalogue. refuses without a code"    404 "$(code https://catalogue.wear-run.help/)"
 chk "profile. refuses without a code"      404 "$(code https://profile.wear-run.help/)"
+# The same two documents on wear-run.com (decided 2026-09-17). Written to fail first:
+# before that deploy both lines answer 000 (no such name).
+chk "catalogue.wear-run.com refuses too"   404 "$(code https://catalogue.wear-run.com/)"
+chk "profile.wear-run.com refuses too"     404 "$(code https://profile.wear-run.com/)"
+# Two Cloudflare redirect rules that live in no file and that old emails still use
+# (docs/CLOUDFLARE-SETUP.md → 11.8). `cut` keeps scheme+host, so the target's path may
+# change without this going red.
+chk "wear-run.help/map still redirects"    "302 https://maps.app.goo.gl" "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' https://wear-run.help/map | cut -d/ -f1-3)"
+chk "wear-run.help/meeting still redirects" "301 https://app.apollo.io" "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' https://wear-run.help/meeting | cut -d/ -f1-3)"
 
 echo
 echo "PASS $ok   FAIL $bad"
