@@ -318,7 +318,7 @@ async function runChecks() {
     }
   }
 
-  // 5. The garment page states its cross-origin policy (SE-05) and arrives compressed
+  // 7. The garment page states its cross-origin policy (SE-05) and arrives compressed
   //    (PF-13). Asked the way a browser asks, offering br and gzip: the headers must carry
   //    both SE-05 values, and the body must arrive brotli-encoded and decode to the page.
   {
@@ -352,7 +352,7 @@ async function runChecks() {
     }
   }
 
-  // 6. PF-13: only an encoding the visitor can read. Cloudflare rewrites Accept-Encoding
+  // 8. PF-13: only an encoding the visitor can read. Cloudflare rewrites Accept-Encoding
   //    before the Worker runs, so the gzip and identity cases prove the Worker chose from
   //    the visitor's own list (request.cf.clientAcceptEncoding), and the last proves it
   //    sends plain when there is no list. Then a NAVIGATION, which Cloudflare may rewrite

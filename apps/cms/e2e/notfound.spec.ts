@@ -249,9 +249,10 @@ test.describe('content security policy', () => {
 
   /**
    * SE-05. Everything the five pages do not cover now says how other origins may use it.
-   * CORP is `cross-origin` here ON PURPOSE: this rule also reaches /og-default.png and the
-   * icons, which other sites display when they unfurl a link, and the text files, which are
-   * meant for anyone. COOP only ever applies to a document, so it is inert on those.
+   * CORP is `cross-origin` here ON PURPOSE: the text files are meant for anyone. COOP only
+   * ever applies to a document, so it is inert on them. (Under `next start` this rule also
+   * reaches the static images; in production Workers Static Assets serves those before the
+   * Worker, so they carry none of these headers. See OTHER_PATH_ISOLATION.)
    */
   test('the 404 and the text files state their cross-origin policy', async ({ request }) => {
     for (const path of ['/definitely-not-a-page', '/robots.txt', '/sitemap.xml', '/llms.txt']) {
