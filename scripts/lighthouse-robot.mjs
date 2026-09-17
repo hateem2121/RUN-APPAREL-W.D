@@ -133,9 +133,13 @@ export const EXPECTED_BELOW_ONE = {
  * visitor's device is not like that. The same Mac on a noisy network that day saw single
  * viewer runs of 0.55, which is why each page line now prints its runs and round-trip time.
  *
- * ⚠️ `github-runner` IS PROVISIONAL UNTIL THE RUNNER BASELINE IS TAKEN: it starts as a copy
- * of `local`, and the controller replaces it with the worst runs the runner itself prints
- * (Phase 1a Task 10) before this change can merge.
+ * ⚠️ `github-runner` IS THE RUNNER'S OWN BASELINE: the worst single run of two dispatches of
+ * this workflow on 2026-09-17 (runs 35188571511 and 35189406771; ten runs per page, nine for
+ * products.mobile and contact.desktop, where Lighthouse once could not load the page). The
+ * runner scores the marketing pages HIGHER than the Mac, its round trips to the edge were
+ * 2–26 ms, and the viewer lower, so its floors are tighter on the site and looser on the
+ * viewer. If a runner image change moves every page at once, re-take this baseline rather
+ * than loosening one number.
  *
  * ⚠️ Keyed by page name. A different default product is a different page with a different
  * model, so its missing floor FAILS the robot rather than borrowing this one — measure it.
@@ -153,7 +157,16 @@ const LOCAL_FLOORS = {
 
 export const PERFORMANCE_FLOORS = {
   local: LOCAL_FLOORS,
-  'github-runner': { ...LOCAL_FLOORS },
+  'github-runner': {
+    'home.mobile': 0.79,
+    'home.desktop': 0.95,
+    'products.mobile': 0.83,
+    'products.desktop': 0.96,
+    'contact.mobile': 0.91,
+    'contact.desktop': 0.98,
+    'viewer-rxps-wine.mobile': 0.4,
+    'viewer-rxps-wine.desktop': 0.49,
+  },
 }
 
 /** The floor set that applies here. Every GitHub-hosted runner sets GITHUB_ACTIONS=true. */
