@@ -1,5 +1,7 @@
 /**
- * Private document links: catalogue.wear-run.help/<code> and profile.wear-run.help/<code>.
+ * Private document links: catalogue./profile.wear-run.help/<code>, and the same two
+ * documents on wear-run.com (decided 2026-09-17, live from the merge that deploys it;
+ * documents.js explains which hosts and why).
  *
  * WHAT THIS WORKER IS FOR (2026-09-11). It used to serve two PDFs at guessable apex
  * paths — `wear-run.help/catalogue` and `/profile` — which anyone could type. Each

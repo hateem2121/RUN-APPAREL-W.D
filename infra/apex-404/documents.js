@@ -8,6 +8,13 @@
  * this repository. They keep out accidental visitors and search engines; they are not a
  * password against someone determined to guess, and the owner accepted that knowingly.
  *
+ * TWO HOSTS EACH (decided 2026-09-17, live from the merge that deploys it). The same
+ * document, with the same words, also opens on the company's own `wear-run.com`. The
+ * `.help` hosts must keep working forever: links already sent use them. `wear-run.com`'s
+ * apex and `www.` belong to the separate email-signature project (Worker `run-domain-edge`)
+ * and already redirect `/catalogue` and `/profile` to the `.help` 410, so RETIRED_HOSTS
+ * stays `.help`-only. See docs/CLOUDFLARE-SETUP.md sections 11.4 and 11.8.
+ *
  * ⚠️ THE R2 KEYS ARE SPELLED EXACTLY AS THE OBJECTS ARE NAMED, TYPO INCLUDED.
  * "RUN PRODUCT CATALOUGE.pdf" is the object's real key in `run-assets`. Correcting it
  * here 404s the download AND makes `scripts/backup-r2.mjs` back up nothing.
@@ -16,7 +23,7 @@
 /**
  * @typedef {{
  *   id: 'catalogue' | 'profile',
- *   host: string,
+ *   hosts: string[],
  *   secret: 'CATALOGUE_CODE' | 'PROFILE_CODE',
  *   pdfKey: string,
  *   downloadName: string,
@@ -30,7 +37,7 @@
 export const DOCUMENTS = {
   catalogue: {
     id: 'catalogue',
-    host: 'catalogue.wear-run.help',
+    hosts: ['catalogue.wear-run.help', 'catalogue.wear-run.com'],
     secret: 'CATALOGUE_CODE',
     pdfKey: 'RUN PRODUCT CATALOUGE.pdf',
     downloadName: 'RUN-Apparel-Catalogue.pdf',
@@ -40,7 +47,7 @@ export const DOCUMENTS = {
   },
   profile: {
     id: 'profile',
-    host: 'profile.wear-run.help',
+    hosts: ['profile.wear-run.help', 'profile.wear-run.com'],
     secret: 'PROFILE_CODE',
     pdfKey: 'Company Profile.pdf',
     downloadName: 'RUN-Apparel-Company-Profile.pdf',
@@ -49,6 +56,14 @@ export const DOCUMENTS = {
     manifestKey: 'documents/profile/manifest.json',
   },
 }
+
+/**
+ * Every hostname a document opens on, in DOCUMENTS order. `wrangler.jsonc` must attach
+ * exactly these as custom domains, and the CMS must refuse exactly these in its public
+ * link fields — `apps/cms/src/workerConfigs.test.ts` and
+ * `apps/cms/src/lib/privateDocumentLinks.test.ts` pin both against this list.
+ */
+export const DOCUMENT_HOSTS = Object.values(DOCUMENTS).flatMap((doc) => doc.hosts)
 
 /**
  * The hosts whose `/catalogue*` and `/profile*` routes still reach this Worker, only so
@@ -78,5 +93,5 @@ export const RETIRED_PATH_NAMES = ['catalogue', 'profile']
  */
 export function documentForHost(hostname) {
   const host = hostname.toLowerCase()
-  return Object.values(DOCUMENTS).find((doc) => doc.host === host)
+  return Object.values(DOCUMENTS).find((doc) => doc.hosts.includes(host))
 }
