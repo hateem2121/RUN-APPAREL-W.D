@@ -2078,6 +2078,14 @@ model-viewer.stage__model {
  * overflow. A broken long name is worse-looking than a short one and better than a
  * name crossing into the swatch beside it, which is the choice actually on offer
  * while the cells divide a fixed width by the colourway count.
+ *
+ * ⚠️ SINCE 2026-09-17 THE LABEL CARRIES SOFT HYPHENS (audit SZ-06), so a long name breaks
+ * at a syllable — "TERRA-" / "COTTA" — instead of wherever the line ran out: 50 of 400 live
+ * labels split mid-word at 390px and 70 at 320px. They come from src/lib/softHyphenate.ts,
+ * applied in ColourwayTabs.tsx; nothing in this rule changed. `anywhere` STAYS as the safety
+ * net for a syllable wider than a line ("QUOISE" at 320px in WebKit), and `hyphens` stays at
+ * its default `manual`, the value that honours a soft hyphen. Checked at 390 and 320 by
+ * motion-and-layout.spec.ts.
  */
 .colourway-tab__label {
   overflow-wrap: anywhere;

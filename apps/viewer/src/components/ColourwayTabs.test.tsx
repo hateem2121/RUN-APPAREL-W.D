@@ -205,3 +205,44 @@ describe('ColourwayTabs ARIA wiring', () => {
     expect(tabs().map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'false', 'true'])
   })
 })
+
+describe('ColourwayTabs long colour names (SZ-06)', () => {
+  const LONG = COLOURWAYS.map((colourway, index) => ({
+    ...colourway,
+    displayName:
+      ['Terracotta / Blush', 'Lavender / Indigo', 'Black'][index] ?? colourway.displayName,
+  }))
+
+  function renderLong() {
+    act(() => {
+      root.render(
+        <ColourwayTabs
+          colourways={LONG}
+          selected={LONG[0]!}
+          onSelect={onSelect}
+          onPreview={() => {}}
+        />,
+      )
+    })
+  }
+
+  it('puts the soft hyphens in the visible label', () => {
+    renderLong()
+    expect(tabAt(0).querySelector('.colourway-tab__label')?.textContent).toBe(
+      'Ter\u{00AD}ra\u{00AD}cotta / Blush',
+    )
+    expect(tabAt(2).querySelector('.colourway-tab__label')?.textContent).toBe('Black')
+  })
+
+  it('names every tab with the plain colour name, so a screen reader never meets one', () => {
+    renderLong()
+    expect(tabs().map((tab) => tab.getAttribute('aria-label'))).toEqual([
+      'Terracotta / Blush',
+      'Lavender / Indigo',
+      'Black',
+    ])
+    for (const tab of tabs()) {
+      expect(tab.getAttribute('aria-label') ?? '').not.toContain('\u{00AD}')
+    }
+  })
+})
