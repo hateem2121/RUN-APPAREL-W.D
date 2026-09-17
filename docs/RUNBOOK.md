@@ -267,7 +267,8 @@ every gate. **When you have the minutes to spare, prefer it.**
 > 2. **Rolling back or reverting the private-links change (decided 2026-09-11, live
 >    from the merge that deploys it) re-opens the guessable PDFs.** The earlier code
 >    serves the PDF for any path `/catalogue` or
->    `/profile` — on the apex, and on `catalogue.` / `profile.wear-run.help` too, because
+>    `/profile` — on the apex, and on the `catalogue.` / `profile.` hosts of BOTH zones
+>    too (`wear-run.help` and, from 2026-09-17, `wear-run.com`), because
 >    `wrangler rollback` restores code, not routes, and the custom domains stay attached.
 >    If that is not acceptable for the minutes a fix takes, detach them as well: list with
 >    `GET /accounts/{account_id}/workers/domains?service=run-apparel-apex-404`, detach each
@@ -816,10 +817,18 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec wrangler d1 execute run-ap
 Decided 2026-09-11 and live from the merge that deploys it: the catalogue and the
 company profile have no guessable address. Each opens only from a private link:
 
-| Document | Link | Worker secret |
+| Document | Links — the same words after either address | Worker secret |
 |---|---|---|
-| Product catalogue | `https://catalogue.wear-run.help/<code>` | `CATALOGUE_CODE` |
-| Company profile | `https://profile.wear-run.help/<code>` | `PROFILE_CODE` |
+| Product catalogue | `https://catalogue.wear-run.help/<code>` and `https://catalogue.wear-run.com/<code>` | `CATALOGUE_CODE` |
+| Company profile | `https://profile.wear-run.help/<code>` and `https://profile.wear-run.com/<code>` | `PROFILE_CODE` |
+
+**Both addresses, one document (decided 2026-09-17, live from the merge that deploys it).**
+The `wear-run.com` addresses are additional; the `wear-run.help` ones must keep working
+forever, because links already sent use them. A visit to either counts as the same
+document, and the visit records store no hostname. ⚠️ `wear-run.com` accepts **TLS 1.3
+only** (a setting of that zone, which belongs to the email-signature project), so a visitor
+behind an old office security filter or antivirus may be able to open only the `.help`
+link. Give out whichever address suits; both open the same pages.
 
 The words after each address are chosen by the owner. They keep out accidental visitors and
 search engines, and are **not** a password against someone determined to guess (owner
@@ -846,8 +855,8 @@ external uptime monitors, nowhere else.
    with `{"name": "CATALOGUE_CODE", "text": "<code>", "type": "secret_text"}`), or with
    `npx wrangler@4.122.0 secret put CATALOGUE_CODE --name run-apparel-apex-404`. Either
    creates and deploys a new Worker version.
-3. Check with a plain GET, never HEAD: the old link must answer **404** and the new one
-   **200**. If the old one still opens, run `pnpm deploy:apex` from a clean, up-to-date
+3. Check with a plain GET, never HEAD, **on both addresses** (`.help` and `.com`): the old
+   link must answer **404** and the new one **200**. If the old one still opens, run `pnpm deploy:apex` from a clean, up-to-date
    `origin/main` checkout — it deploys whatever is on disk, so a stale or dirty tree
    ships the wrong code. Running it clears the old link regardless of what was cached:
    every deployment starts from a cold cache, and Workers Caching cannot be purged from

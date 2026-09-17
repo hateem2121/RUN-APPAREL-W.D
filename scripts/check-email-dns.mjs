@@ -22,6 +22,12 @@
  *   4. TLS-RPT exists, because it is the only thing that would ever tell you a
  *      sending server could not negotiate TLS to your MX.
  *
+ * ⚠️ OWNERSHIP (recorded 2026-09-17). DMARC and TLS-RPT on this domain are managed by the
+ * separate email-signature project (Worker `run-domain-edge`), which also owns
+ * `mta-sts.wear-run.help` and the `_mta-sts` and `default._bimi` records. A value that
+ * changed may be that project's deliberate edit — check with it before "fixing" one, and
+ * never delete one. docs/CLOUDFLARE-SETUP.md → 11.8 lists them all.
+ *
  * ⚠️ THIS IS NOT A CI GATE, DELIBERATELY. It reads live DNS, and a CI job that fails
  * on a resolver hiccup teaches everyone to ignore it — the same trap `.github/CLAUDE.md`
  * records for `wear-run.help` fetches from runners. Like

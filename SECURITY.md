@@ -37,8 +37,8 @@ targets are honest intentions, not a contractual SLA.
 **Out of scope**
 
 - `https://wear-run.help/catalogue` and `/profile` answering **410**, and
-  `https://catalogue.wear-run.help/` or `https://profile.wear-run.help/` answering **404**
-  without a valid link. This is [by design](CLAUDE.md): decided 2026-09-11 and live from
+  `https://catalogue.wear-run.help/`, `https://profile.wear-run.help/` or the same two
+  addresses on `wear-run.com` answering **404** without a valid link. This is [by design](CLAUDE.md): decided 2026-09-11 and live from
   the merge that deploys it, the catalogue and company profile open only from a private
   link whose code is a Worker secret (`infra/apex-404/`). The apex itself is the
   marketing site, and every QR deep link uses the `viewer.` subdomain. None of these is
