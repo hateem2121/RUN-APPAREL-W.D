@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DOCUMENTS } from '../../../../infra/apex-404/documents.js'
+import { DOCUMENT_HOSTS } from '../../../../infra/apex-404/documents.js'
 import { Products } from '../collections/Products'
 import { CatalogueDefaults } from '../globals/CatalogueDefaults'
 import { SiteSettings } from '../globals/SiteSettings'
@@ -38,12 +38,12 @@ function findField(fields: Field[], name: string): Field | undefined {
 const PRIVATE = 'https://catalogue.wear-run.help/zzzz-yyyy-xxxx-wwww-vvvv-uuuu'
 
 describe('privateDocumentLinkError', () => {
-  it('guards exactly the hosts the Worker serves', () => {
-    expect([...PRIVATE_DOCUMENT_HOSTS].sort()).toEqual(
-      Object.values(DOCUMENTS)
-        .map((doc) => doc.host)
-        .sort(),
-    )
+  it('guards exactly the hosts the Worker serves — both address families', () => {
+    expect([...PRIVATE_DOCUMENT_HOSTS].sort()).toEqual([...DOCUMENT_HOSTS].sort())
+    // Named, not only derived: a wear-run.com link in a public field would be published
+    // by the product API exactly as a wear-run.help one would (decided 2026-09-17).
+    expect(PRIVATE_DOCUMENT_HOSTS).toContain('catalogue.wear-run.com')
+    expect(PRIVATE_DOCUMENT_HOSTS).toContain('profile.wear-run.com')
   })
 
   it.each([
@@ -72,6 +72,12 @@ describe('privateDocumentLinkError', () => {
     // ANOTHER host's query string. One percent-decode pass turns %3A%2F%2F back into
     // "://", and the literal private host then matches the plain text scan.
     'https://eur01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fcatalogue.wear-run.help%2Fx&data=1',
+    // 2026-09-17: the same document links on wear-run.com, in the same tricky shapes.
+    'https://catalogue.wear-run.com/zzzz-yyyy-xxxx-wwww-vvvv-uuuu',
+    'profile.wear-run.com/tttt-ssss-rrrr-qqqq-pppp-oooo',
+    'Profile: https://PROFILE.wear-run.com/tttt-ssss-rrrr',
+    'https://catalogue%2ewear-run.com/x',
+    'https://eur01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fprofile.wear-run.com%2Fx&data=1',
   ])('refuses %j', (value) => {
     expect(privateDocumentLinkError(value)).toBe(PRIVATE_LINK_MESSAGE)
   })
@@ -98,6 +104,11 @@ describe('privateDocumentLinkError', () => {
     'https://wear-run.help/catalogue',
     'https://viewer.wear-run.help/rxps/wine',
     'https://catalogue.wear-run.help.example.com/',
+    // The company's other addresses are ordinary public ones — only the two document
+    // hosts on each zone are private (2026-09-17).
+    'https://wear-run.com/',
+    'https://go.wear-run.com/anything',
+    'https://catalogue.wear-run.com.example.com/',
     '',
     42,
     undefined,
