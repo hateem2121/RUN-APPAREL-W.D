@@ -1,4 +1,11 @@
 import { expect, test } from '@playwright/test'
+import {
+  measureContrastInPage,
+  parseCssColour,
+  relativeLuminance,
+  toHex,
+  worstRatio,
+} from '../../../scripts/contrast-rules.mjs'
 
 /**
  * Guards for the things the 2026-09-06 whole-site audit found ALREADY CORRECT.
@@ -1180,4 +1187,84 @@ test.describe('the tracking and leading curves are correct by class (FA-C-54)', 
         'is what --tracking-display-sm being a clamp against vw is for.',
     ).toBeLessThan(narrow.trackingEm)
   })
+})
+
+/* ══ CO-12 — every colour swatch keeps a 3:1 ring against its tab ═══════════ */
+
+/**
+ * Measured live 2026-09-17 with `scripts/contrast-rules.mjs` on all 400 swatches (80 pages x
+ * 5, both themes): the ring `color-mix(in srgb, var(--ink) 22%, transparent)` left 180 of 320
+ * unselected swatches under 3:1 in light and 88 in dark. It was a THEME-FLAT ink tone, so a
+ * pale swatch vanished into the light page and a dark one into the dark page.
+ * `--line-control` flips with the theme: 0 of 320 under 3:1, worst 3.39 light and 4.94 dark.
+ * The selected swatch takes `currentColor`, the selected tab's own text colour, which stands
+ * 13–14:1 off the inverted fill; `--line-control` there failed every selected ring in dark.
+ *
+ * ⚠️ ONLY THE OUTER PAIR IS GRADED, ON PURPOSE. For a border, `measureContrastInPage` returns
+ * the ring against the swatch's OWN fill (`pairs[0]`) and against what the swatch sits on
+ * (`pairs[1]`). A 1px ring inside a coloured disc cannot contrast with every fill at once —
+ * 400 of 400 were under 3:1 on that pair before AND after the fix — and it does not need to:
+ * its job is to separate the swatch from the tab. `worstRatio` over both pairs would fail
+ * every swatch forever and prove nothing.
+ *
+ * The fixture carries a near-white swatch (butter) and a near-black one (black), which is what
+ * lets the light and the dark half fail at all; FA-T-10 above guards the first.
+ */
+test.describe('every colour swatch keeps a 3:1 ring against its tab (CO-12)', () => {
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`${scheme}: all five rings, the selected one included`, async ({ page }) => {
+      // Navigate BEFORE emulating — Firefox drops emulation set on about:blank (measured
+      // 2026-09-07, apps/cms/e2e/legibility.spec.ts) — then again so it applies.
+      await page.goto('/n001/wine')
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const state = await page.evaluate(() => ({
+        reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
+        ground: getComputedStyle(document.body).backgroundColor,
+        selected: [...document.querySelectorAll('.colourway-tab__swatch')]
+          .filter((element) => element.getClientRects().length > 0)
+          .map(
+            (element) =>
+              element.closest('.colourway-tab')?.getAttribute('aria-selected') === 'true',
+          ),
+      }))
+      // The controls. An un-revealed rail is opacity 0 and grades 1:1 whatever the ring is,
+      // and a scheme that never applied would grade the other theme twice.
+      expect(state.reduced, 'reduced motion never reached the page').toBe(true)
+      const groundLuminance = relativeLuminance(parseCssColour(state.ground).rgb)
+      if (scheme === 'dark') {
+        expect(groundLuminance, `the page ground is ${state.ground}, not dark`).toBeLessThan(0.2)
+      } else {
+        expect(groundLuminance, `the page ground is ${state.ground}, not light`).toBeGreaterThan(
+          0.5,
+        )
+      }
+
+      const rows = await page.evaluate(measureContrastInPage, {
+        selector: '.colourway-tab__swatch',
+        part: 'border' as const,
+      })
+      expect(rows, 'the fixture no longer draws five swatches').toHaveLength(5)
+      expect(state.selected.filter(Boolean), 'exactly one tab should be selected').toHaveLength(1)
+
+      const failing = rows.flatMap((row, index) => {
+        const outer = row.pairs[1]
+        if (!outer) return [`swatch ${index + 1}: no outer pair was measured`]
+        const ratio = worstRatio({ label: row.label, pairs: [outer] })
+        if (ratio >= 3) return []
+        const which = state.selected[index] ? 'selected' : 'unselected'
+        return [
+          `${which} swatch ${index + 1}: ring ${toHex(outer[0])} on ${toHex(outer[1])} is ${ratio.toFixed(2)}:1`,
+        ]
+      })
+      expect(
+        failing,
+        `${scheme}: a swatch ring under 3:1 lets the colour vanish into its tab (WCAG 1.4.11). ` +
+          'Unselected rings use --line-control and the selected one currentColor; see ' +
+          '.colourway-tab__swatch in apps/viewer/src/styles/page.css.',
+      ).toEqual([])
+    })
+  }
 })

@@ -2027,13 +2027,22 @@ model-viewer.stage__model {
 
 /* The measured fabric colour, read from the GLB by variant-colour.ts. A ring
    rather than a bare disc so a near-white colourway (Cream, #FDFDC8) still reads
-   as a swatch against the panel instead of vanishing into it. */
+   as a swatch against the panel instead of vanishing into it.
+
+   ⚠️ THE RING IS --line-control, THE CONTROL-EDGE TOKEN, SINCE 2026-09-17 (audit CO-12).
+   It was `color-mix(in srgb, var(--ink) 22%, transparent)`, a theme-FLAT ink tone, and it
+   measured under 3:1 against the tab on 180 of 320 unselected live swatches in light and
+   88 in dark: a pale swatch vanished into the light page and a dark one into the dark
+   page — the opposite of what the paragraph above asks of it. --line-control flips with
+   the theme: 0 of 320 under 3:1, worst 3.39:1 light and 4.94:1 dark (all 80 live pages,
+   scripts/contrast-rules.mjs). The selected tab overrides it below. Guarded by
+   apps/viewer/e2e/audit-guards.spec.ts → CO-12. */
 .colourway-tab__swatch {
   flex: 0 0 auto;
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+  border: 1px solid var(--line-control);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper) 55%, transparent);
 }
 
@@ -2086,6 +2095,13 @@ model-viewer.stage__model {
   background: var(--btn-primary-bg);
   color: var(--btn-primary-text);
   border-color: var(--btn-primary-bg);
+}
+
+/* The selected swatch's ring is the selected tab's own text colour (CO-12). --line-control
+   is drawn for the page ground; on the inverted fill it failed every selected ring in dark,
+   while the tab's text colour already stands 13–14:1 off that fill. */
+.colourway-tab[aria-selected="true"] .colourway-tab__swatch {
+  border-color: currentColor;
 }
 
 /*
