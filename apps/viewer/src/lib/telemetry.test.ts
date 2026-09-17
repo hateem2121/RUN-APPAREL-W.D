@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { diagnostic } from './diagnostic'
 import { initTelemetry } from './telemetry'
+import { initWebVitals, resetWebVitalsForTest } from './webVitals'
 
 // telemetry reads VITE_API_BASE_URL at import time. This used to say the endpoint
 // was deterministic "with none set in tests", which was FALSE on any machine
@@ -129,5 +130,85 @@ describe('initTelemetry', () => {
         message: 'Viewer API responded 500',
       },
     ])
+  })
+})
+
+/**
+ * PAGE SPEED (audit PF-05b, 2026-09-17). webVitals.ts has measured LCP and CLS since
+ * 2026-09-04, and this file dropped both on every visit: `onAnalytics` forwarded only the
+ * name, product, variant and placement. The CMS stores them only as numbers.
+ */
+describe('initTelemetry — the page-speed numbers (PF-05b)', () => {
+  it('sends a web_vitals report with its two numbers, as numbers', async () => {
+    stop = initTelemetry()
+    analytics({ event: 'web_vitals', lcpMs: '2400', cls: '0.012', product: 'rxps' })
+    window.dispatchEvent(new Event('pagehide'))
+    expect(await batchOf(beacon.mock.calls[0]!)).toEqual([
+      { type: 'analytics', event: 'web_vitals', product: 'rxps', lcpMs: 2400, cls: 0.012 },
+    ])
+  })
+
+  it('sends no number it cannot read, and still sends the visit', async () => {
+    stop = initTelemetry()
+    analytics({ event: 'web_vitals', lcpMs: 'soon', cls: '' })
+    window.dispatchEvent(new Event('pagehide'))
+    expect(await batchOf(beacon.mock.calls[0]!)).toEqual([
+      { type: 'analytics', event: 'web_vitals' },
+    ])
+  })
+
+  it('never attaches the numbers to another event', async () => {
+    stop = initTelemetry()
+    analytics({ event: 'model_loaded', lcpMs: '2400', cls: '0.012' })
+    window.dispatchEvent(new Event('pagehide'))
+    expect(await batchOf(beacon.mock.calls[0]!)).toEqual([
+      { type: 'analytics', event: 'model_loaded' },
+    ])
+  })
+
+  /**
+   * The seam, end to end, in main.tsx's order: telemetry first, then the reporter. Each
+   * file passed its own tests while the numbers never left the page; only a test that
+   * runs both can see that.
+   */
+  it('carries what webVitals.ts measured all the way into the beacon', async () => {
+    type Cb = (list: { getEntries: () => unknown[] }) => void
+    const callbacks: Record<string, Cb> = {}
+    class FakeObserver {
+      private cb: Cb
+      constructor(cb: Cb) {
+        this.cb = cb
+      }
+      observe({ type }: { type: string; buffered?: boolean }) {
+        callbacks[type] = this.cb
+      }
+      disconnect() {}
+    }
+    vi.spyOn(console, 'debug').mockImplementation(() => {})
+    vi.stubGlobal('PerformanceObserver', FakeObserver)
+    resetWebVitalsForTest()
+    stop = initTelemetry()
+    const stopVitals = initWebVitals()
+    try {
+      callbacks['largest-contentful-paint']?.({ getEntries: () => [{ startTime: 2399.6 }] })
+      callbacks['layout-shift']?.({
+        getEntries: () => [{ value: 0.012, hadRecentInput: false }],
+      })
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+      window.dispatchEvent(new Event('pagehide'))
+      expect(beacon).toHaveBeenCalledTimes(1)
+      expect(await batchOf(beacon.mock.calls[0]!)).toContainEqual({
+        type: 'analytics',
+        event: 'web_vitals',
+        lcpMs: 2400,
+        cls: 0.012,
+      })
+    } finally {
+      stopVitals()
+      resetWebVitalsForTest()
+      Reflect.deleteProperty(document, 'visibilityState')
+      vi.unstubAllGlobals()
+    }
   })
 })
