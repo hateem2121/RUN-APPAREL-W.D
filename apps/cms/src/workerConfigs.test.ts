@@ -422,3 +422,33 @@ describe('the viewer Worker runs on navigations', () => {
     expect(Array.isArray(parsed.assets?.run_worker_first)).toBe(false)
   })
 })
+
+/*
+ * The script guard (SE-04, decided 2026-09-18, live from the merge that deploys it). The site
+ * Worker's entry is apps/cms/worker.mjs, which wraps OpenNext and gives every public page's
+ * scripts a fresh nonce. Pointing `main` back at OpenNext is the documented one-line ROLLBACK.
+ * So a "tidy-up" that does it by accident would silently return every public page to
+ * 'unsafe-inline'. This fails first, and names the file to read.
+ */
+describe('the site Worker entry runs the script guard (SE-04, 2026-09-18)', () => {
+  const MAIN = /"main":\s*"worker\.mjs"/
+
+  it('apps/cms/wrangler.jsonc deploys worker.mjs, not OpenNext directly', () => {
+    expect(
+      settings(read('apps/cms/wrangler.jsonc')),
+      'main no longer points at worker.mjs, so the public pages fall back to ' +
+        "'unsafe-inline'. Read apps/cms/cspNonce.mjs before changing it.",
+    ).toMatch(MAIN)
+  })
+
+  it('worker.mjs re-exports everything OpenNext exports and applies the pure decisions', () => {
+    const entry = read('apps/cms/worker.mjs')
+    expect(entry).toContain("export * from './.open-next/worker.js'")
+    expect(entry).toContain("from './cspNonce.mjs'")
+    expect(entry).toContain('new HTMLRewriter()')
+  })
+
+  it('the main reader can fail (negative control)', () => {
+    expect('"main": ".open-next/worker.js"').not.toMatch(MAIN)
+  })
+})
