@@ -144,6 +144,14 @@ breaking something on purpose.
 ⚠️ The port is owned by `playwright.config.ts` (4174) and `e2e/serve.mjs` THROWS if it is
 unset.
 
+⚠️ **FIREFOX RUNS WITH `Cross-Origin-Opener-Policy` SWITCHED OFF, ON PURPOSE (2026-09-18).**
+Every page sends that header, and it makes Playwright's Firefox driver lose a navigation
+(microsoft/playwright#42731): `page.goto` times out waiting for "load" on a page that has
+finished loading. That hit 25 of 40 CI runs; the retry hid it until PR #17 failed on it.
+`e2e/firefoxPrefs.mjs` has the mechanism and the numbers, and `src/firefoxPrefs.test.ts`
+pins it. Keep it until `node e2e/firefox-coop-hang.mjs --prefs=none` shows 0 stuck on a
+newer Playwright.
+
 ⚠️ **CI's `e2e` job has NO `PAYLOAD_SECRET`, and local runs always do** (`.env`). So a
 "passes locally" run proves nothing about the CI step: measured 2026-09-06 with `.env`
 moved aside, Payload never initialised, `/admin` and `/api/*` answered 500, and four tests
