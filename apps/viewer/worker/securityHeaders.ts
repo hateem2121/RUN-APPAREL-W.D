@@ -59,7 +59,9 @@
  */
 export const SHARED_SECURITY_HEADERS: Record<string, string> = {
   'X-Content-Type-Options': 'nosniff',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  // same-origin since 2026-09-18, matching the site (apps/cms/next.config.mjs says why not
+  // no-referrer). scripts/csp.test.ts keeps `_headers` equal to this.
+  'Referrer-Policy': 'same-origin',
   'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
   'Permissions-Policy':
     'accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()',

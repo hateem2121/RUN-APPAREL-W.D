@@ -2,7 +2,11 @@
 
 ## Reporting a vulnerability
 
-**Email `partner@wear-run.com` with `SECURITY` in the subject line.**
+**Email `team@wear-run.com` with `SECURITY` in the subject line.**
+
+The same address is in `/.well-known/security.txt` (RFC 9116) on every host — owner
+decision 2026-09-18, so a researcher sees one address wherever they look.
+`partner@wear-run.com` is the company's public enquiry address, not for security reports.
 
 Please do **not** open a GitHub issue for a security problem. Issues in this
 repository are used by the automated monitors (`uptime.yml`, `heartbeat.yml`,

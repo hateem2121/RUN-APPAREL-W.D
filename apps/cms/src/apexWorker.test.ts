@@ -1,6 +1,7 @@
 import { timingSafeEqual as nodeTimingSafeEqual } from 'node:crypto'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { SECURITY_TXT } from '@run-apparel/shared'
 import { describe, expect, it, vi } from 'vitest'
 import { CACHE_CONTROL, FILES, createHandler } from '../../../infra/apex-404/index.js'
 import { createVisitRecorder } from '../../../infra/apex-404/visits.js'
@@ -131,12 +132,21 @@ const IPHONE_SAFARI =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
 /** WhatsApp's link-preview fetcher: `WhatsApp/<version> <platform letter>`. */
 const WHATSAPP = 'WhatsApp/2.23.20.0 A'
-/** A person, as a browser and Cloudflare describe one. 203.0.113.7 is a documentation address. */
+/**
+ * A person, as a browser and Cloudflare describe one. 203.0.113.7 is a documentation address.
+ * The Fetch Metadata and navigation headers are what Safari 17.5 sends when a link is opened;
+ * since 2026-09-18 a visit counts as a person only with them (visitorAgent.js).
+ */
 const PERSON = {
   'user-agent': IPHONE_SAFARI,
   'cf-connecting-ip': '203.0.113.7',
   'accept-language': 'en-GB,en;q=0.9',
   referer: 'https://mail.google.com/mail/u/0/',
+  'sec-fetch-mode': 'navigate',
+  'sec-fetch-dest': 'document',
+  'sec-fetch-site': 'cross-site',
+  'upgrade-insecure-requests': '1',
+  accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
 }
 const CF = {
   country: 'PK',
@@ -214,6 +224,7 @@ describe('CACHE_CONTROL is pinned to literal strings', () => {
       picture: 'public, max-age=31536000, immutable',
       download: 'public, max-age=3600',
       none: 'no-store',
+      securityTxt: 'public, max-age=3600',
     })
   })
 })
@@ -281,6 +292,53 @@ describe('both address families open the same document', () => {
     expect(download.res.headers.get('content-disposition')).toBe(
       'attachment; filename="RUN-Apparel-Company-Profile.pdf"',
     )
+  })
+})
+
+/**
+ * security.txt (RFC 9116) on every document host — decided 2026-09-18, live from the merge
+ * that deploys it. It is answered BEFORE the word check (a `.well-known` segment is never a
+ * code), costs no R2 read, and is never offered to the visit recorder.
+ */
+describe('security.txt', () => {
+  it.each([
+    'https://catalogue.wear-run.help/.well-known/security.txt',
+    'https://profile.wear-run.help/.well-known/security.txt',
+    'https://catalogue.wear-run.com/.well-known/security.txt',
+    'https://profile.wear-run.com/.well-known/security.txt',
+  ])('%s is the shared text, as plain UTF-8, cacheable, with no R2 read', async (url) => {
+    const { res, body, calls } = await send(url)
+    expect(res.status).toBe(200)
+    expect(body).toBe(SECURITY_TXT)
+    expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8')
+    expect(res.headers.get('cache-control')).toBe('public, max-age=3600')
+    expect(calls).toEqual([])
+  })
+
+  it('HEAD gets the same headers and no body', async () => {
+    const { res, body } = await send('https://catalogue.wear-run.com/.well-known/security.txt', {
+      method: 'HEAD',
+    })
+    expect(res.status).toBe(200)
+    expect(body).toBe('')
+    expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8')
+  })
+
+  it('is never recorded as a visit', async () => {
+    const visits = await visitsDatabase()
+    const { res } = await send(
+      'https://profile.wear-run.help/.well-known/security.txt',
+      { headers: PERSON },
+      { env: visits.env, cf: CF, ctx: visits.ctx },
+    )
+    expect(res.status).toBe(200)
+    expect(visits.pending).toEqual([])
+  })
+
+  it('only the exact path — anything else under .well-known is the not-active page', async () => {
+    const { res, calls } = await send('https://catalogue.wear-run.help/.well-known/other.txt')
+    expect(res.status).toBe(404)
+    expect(calls).toEqual([])
   })
 })
 
@@ -692,6 +750,31 @@ describe('visits: opening the page', () => {
     expect(rows[0]).toMatchObject({ document: 'catalogue', opens: 2 })
   })
 
+  /**
+   * ⚠️ THE TEST BELOW IS TRUE OF THIS CODE AND FALSE OF PRODUCTION, which is why this one
+   * exists (2026-09-18). The Worker's logs showed Cloudflare hand the FIRST HEAD for an
+   * address to the Worker as a GET — Workers Caching keeps one entry for GET and HEAD and
+   * fills a miss with a GET — so a HEAD checker arrives here looking like this: a GET with
+   * none of a browser's navigation headers. It must not become a person.
+   */
+  it("a HEAD that the cache turned into a GET is a robot, even with a browser's name", async () => {
+    const visits = await visitsDatabase()
+    const converted = {
+      'user-agent': IPHONE_SAFARI,
+      'cf-connecting-ip': '203.0.113.9',
+      accept: '*/*',
+    }
+    const { res } = await send(
+      catalogue(),
+      { headers: converted },
+      { objects: THREE_PAGES, env: visits.env, cf: CF, ctx: visits.ctx },
+    )
+    expect(res.status).toBe(200)
+    expect(await visits.rows()).toEqual([
+      expect.objectContaining({ kind: 'robot', browser: 'no browser signals' }),
+    ])
+  })
+
   it('a HEAD is not an open, and is never offered to the recorder', async () => {
     const visits = await visitsDatabase()
     const { res } = await send(
@@ -947,6 +1030,12 @@ describe('every response', () => {
       expect(headers.get('x-robots-tag'), response.url).toBe('noindex, nofollow')
       expect(headers.get('referrer-policy'), response.url).toBe('no-referrer')
       expect(headers.get('x-content-type-options'), response.url).toBe('nosniff')
+      // 2026-09-18: the two headers securityheaders.com and internet.nl found missing on
+      // these hosts. The value is the site's own, byte for byte.
+      expect(headers.get('x-frame-options'), response.url).toBe('DENY')
+      expect(headers.get('permissions-policy'), response.url).toBe(
+        'accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()',
+      )
     }
   })
 

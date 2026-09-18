@@ -149,6 +149,34 @@ function browserOf(userAgent) {
 }
 
 /**
+ * Does this request say it is a browser opening a page? (decided 2026-09-18, live from the
+ * merge that deploys it)
+ *
+ * WHY THE NAME IS NOT ENOUGH. A User-Agent is whatever the sender types, and two kinds of
+ * checker were counted as people on 17–18 September: scripts borrowing a browser's name, and
+ * HEAD requests — Cloudflare hands the FIRST HEAD for an address to this Worker as a GET
+ * (measured in the Worker's own logs; Workers Caching keeps one entry for GET and HEAD and
+ * fills a miss with a GET). A browser opening a page says so in its headers; they do not.
+ *
+ * - Fetch Metadata (Chrome, Edge, Firefox 90+, Safari 16.4+): `Sec-Fetch-Mode: navigate`.
+ *   When the header is present it decides alone — Node's fetch sends `cors`, an image `no-cors`.
+ * - Browsers without it (Safari before 16.4): the classic navigation pair,
+ *   `Upgrade-Insecure-Requests: 1` and an `Accept` that asks for HTML. curl and scripts send
+ *   neither by default.
+ *
+ * @param {Headers} headers
+ * @returns {boolean}
+ */
+export function isBrowserNavigation(headers) {
+  const mode = headers.get('sec-fetch-mode')
+  if (mode !== null) return mode.trim().toLowerCase() === 'navigate'
+  return (
+    headers.get('upgrade-insecure-requests')?.trim() === '1' &&
+    (headers.get('accept') ?? '').toLowerCase().includes('text/html')
+  )
+}
+
+/**
  * @param {string | null} userAgent
  * @param {{ mobileHint?: string | null, platformHint?: string | null }} [hints] raw
  *   Sec-CH-UA-Mobile / Sec-CH-UA-Platform header values

@@ -7,6 +7,7 @@ import { OG_CARDS } from './og-cards'
 import { shouldReturnNotFound } from './notFound'
 import { buildPreview, type Preview } from './preview'
 import { workerResponseHeaders } from './securityHeaders'
+import { securityTxtResponse } from './securityTxt'
 
 /**
  * The viewer's Worker. Its job is to give a shared link a preview card that
@@ -312,6 +313,11 @@ function applyPreview(response: Response, preview: Preview): Response {
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
+
+    // RFC 9116's fixed address (2026-09-18). First, because `/.well-known/security.txt` has
+    // two segments and would otherwise be read as a product/colour pair below.
+    const securityTxt = securityTxtResponse(request)
+    if (securityTxt) return securityTxt
 
     const route = parseViewerPath(url.pathname)
 

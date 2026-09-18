@@ -812,6 +812,25 @@ enqueues nothing, then retry it from the admin:
 npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "UPDATE raw_uploads SET status = 'failed' WHERE id = <id> AND status = 'queued'"
 ```
 
+## security.txt — renewing it once a year
+
+Decided 2026-09-18, live from the merge that deploys it: every host answers
+`/.well-known/security.txt` (RFC 9116) with one shared text,
+`packages/shared/src/securityTxt.ts` — the documents Worker, the site (wear-run.help and
+cms.; www. redirects to the apex copy) and the viewer all import it. Security reports go to
+`team@wear-run.com`, which SECURITY.md names too.
+
+Its `Expires` must stay less than a year ahead. `scripts/public-security-probe.mjs` reads
+every host's live copy daily (uptime.yml) and **fails 30 days before the date**, opening an
+uptime alert. To renew:
+
+1. Confirm `team@wear-run.com` still reaches someone.
+2. In `packages/shared/src/securityTxt.ts`, set `SECURITY_TXT_REVIEWED` to today and
+   `SECURITY_TXT_EXPIRES` to at most a year later. The unit test refuses anything further.
+   The current date matches wear-run.com's own security.txt, run by the email-signature
+   project, so both renew together.
+3. Merge and let CI deploy; its post-deploy step runs the probe strictly.
+
 ## Private document links (catalogue and profile)
 
 Decided 2026-09-11 and live from the merge that deploys it: the catalogue and the

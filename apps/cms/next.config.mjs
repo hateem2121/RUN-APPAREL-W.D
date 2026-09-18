@@ -53,7 +53,20 @@ const SECURITY_HEADERS = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
-  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  /*
+   * `same-origin` since 2026-09-18 (was strict-origin-when-cross-origin): nothing about a
+   * page leaves for another site, and internet.nl rates it good.
+   *
+   * Why not `no-referrer`, which looks stricter: it also drops the Referer on this site's
+   * OWN page-to-page navigations, and it makes a browser send `Origin: null` on a native
+   * form POST — the Fetch standard's "append a request `Origin` header" nulls it for any
+   * non-GET request whose mode is not "cors" (read 2026-09-18). The contact form is one.
+   * Payload 3.88 (`auth/extractJWT.js`) refuses the login cookie when a present Origin is
+   * not on its csrf list, so any cookie-authenticated form post would break. The admin's
+   * own saves are `fetch()` calls (mode "cors") and keep their Origin either way.
+   * The document hosts keep `no-referrer`: they have no forms and make no requests.
+   */
+  { key: 'Referrer-Policy', value: 'same-origin' },
   // Nothing in a CMS needs these, and denying them means a compromised
   // dependency cannot quietly ask for them.
   {

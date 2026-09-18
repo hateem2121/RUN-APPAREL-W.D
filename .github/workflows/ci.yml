@@ -1468,6 +1468,11 @@ jobs:
       - name: Post-deploy apex assertion (site, retired PDF paths, private hosts)
         run: node scripts/apex-probe.mjs
 
+      # Strict after a deploy (2026-09-18): every host must now serve the shared security.txt,
+      # and the www./cms. redirects must carry the headers their Cloudflare rule adds.
+      - name: Post-deploy security.txt and redirect headers
+        run: node scripts/public-security-probe.mjs
+
       # Put the rollback command where someone will actually be looking.
       #
       # docs/RUNBOOK.md → "Undoing a bad deploy" is the authority and is more complete
