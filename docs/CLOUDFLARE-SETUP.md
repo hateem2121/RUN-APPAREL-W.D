@@ -480,6 +480,34 @@ Cloudflare's bot challenge has broken this viewer before.
 Cache and firewall rules are recorded with their rollback JSON in
 the private audit's live-changes record.
 
+**Three decisions from the 2026-09-18 security scans** (internet.nl, MDN HTTP Observatory,
+securityheaders.com; results kept privately):
+
+- **Minimum TLS stays 1.2 on purpose.** internet.nl marks this zone down for Cloudflare's
+  default TLS 1.2 cipher list, cipher order and SHA-1 signature support; changing that list
+  without dropping TLS 1.2 needs the paid Advanced Certificate Manager. Measured instead:
+  in the week to 2026-09-17, 3,469 of 129,308 TLS requests (2.7%) still used TLS 1.2 —
+  nearly all robots, but a few modern browser names that only negotiate 1.2 behind an office
+  filter or antivirus, who would see an error page. Mozilla's server guide (TLSRef) calls
+  1.2 + 1.3 "the recommended configuration for the vast majority of services", and
+  `scripts/zone-security-probe.mjs` uses a successful 1.2 handshake as each host's own
+  control, so a 1.3-only zone would blind it. Revisit if the 1.2 share reaches zero.
+- **0-RTT is off** (since 2026-09-18). TLS 1.3 early data can be replayed by anyone on the
+  network path, and internet.nl failed it on every host. The cost is one round trip on a
+  resumed connection.
+- **The www. and cms. redirects carry security headers from a response-header Transform
+  Rule**, "www./cms. redirects: the site's security headers, which OpenNext does not attach
+  to a redirect (2026-09-18)". OpenNext 4.1.0 returns a matched redirect before it attaches
+  the site's own headers (`routingHandler.js`), so no setting in `apps/cms` can reach those
+  responses. The rule matches only a 3xx on those two hosts, and
+  `scripts/public-security-probe.mjs` checks it after every deploy and daily. A wrapper
+  Worker around OpenNext (planned for the CSP nonce work) could take it over.
+
+HSTS `includeSubDomains` also covers `url7790.wear-run.help`, a DNS-only CNAME to SendGrid
+used for click tracking, which cannot serve HTTPS for that name. Click tracking is off, so no
+link points there and nothing breaks. **Do not turn SendGrid click tracking on** without
+first giving that host HTTPS.
+
 ### 11.8 Other projects on these zones — never delete
 
 Recorded 2026-09-17 at the owner's request. These live in the same Cloudflare account and
