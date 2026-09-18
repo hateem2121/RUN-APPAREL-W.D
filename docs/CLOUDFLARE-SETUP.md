@@ -401,7 +401,9 @@ deploy it without both secrets. Operating it: `docs/RUNBOOK.md` → "Private doc
 deploys it).** `catalogue.wear-run.com` and `profile.wear-run.com` are two more custom
 domains on this Worker, in the `wear-run.com` zone of the same account. The same words open
 the same document on either address, and the `.help` pair must keep working forever because
-links already sent use it. That zone accepts **TLS 1.3 only**.
+links already sent use it. That zone's minimum is **TLS 1.2**, like `wear-run.help`. It was
+1.3-only for five hours on 2026-09-17, until the email-signature project set it back after the
+ruling in section 11.7. The zone audit log shows both changes.
 ⚠️ **The zone is shared** with the email-signature project (section 11.8), and in CI
 `wrangler deploy` runs without a terminal — so it takes any hostname listed in
 `infra/apex-404/wrangler.jsonc` from whichever Worker holds it, without asking. That file
