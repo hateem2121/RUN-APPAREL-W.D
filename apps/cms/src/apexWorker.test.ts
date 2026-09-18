@@ -132,12 +132,21 @@ const IPHONE_SAFARI =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
 /** WhatsApp's link-preview fetcher: `WhatsApp/<version> <platform letter>`. */
 const WHATSAPP = 'WhatsApp/2.23.20.0 A'
-/** A person, as a browser and Cloudflare describe one. 203.0.113.7 is a documentation address. */
+/**
+ * A person, as a browser and Cloudflare describe one. 203.0.113.7 is a documentation address.
+ * The Fetch Metadata and navigation headers are what Safari 17.5 sends when a link is opened;
+ * since 2026-09-18 a visit counts as a person only with them (visitorAgent.js).
+ */
 const PERSON = {
   'user-agent': IPHONE_SAFARI,
   'cf-connecting-ip': '203.0.113.7',
   'accept-language': 'en-GB,en;q=0.9',
   referer: 'https://mail.google.com/mail/u/0/',
+  'sec-fetch-mode': 'navigate',
+  'sec-fetch-dest': 'document',
+  'sec-fetch-site': 'cross-site',
+  'upgrade-insecure-requests': '1',
+  accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
 }
 const CF = {
   country: 'PK',
@@ -739,6 +748,31 @@ describe('visits: opening the page', () => {
     // Only what this change is about: one row, one document, both opens counted. The
     // test above pins every other column of a row like this one.
     expect(rows[0]).toMatchObject({ document: 'catalogue', opens: 2 })
+  })
+
+  /**
+   * ⚠️ THE TEST BELOW IS TRUE OF THIS CODE AND FALSE OF PRODUCTION, which is why this one
+   * exists (2026-09-18). The Worker's logs showed Cloudflare hand the FIRST HEAD for an
+   * address to the Worker as a GET — Workers Caching keeps one entry for GET and HEAD and
+   * fills a miss with a GET — so a HEAD checker arrives here looking like this: a GET with
+   * none of a browser's navigation headers. It must not become a person.
+   */
+  it("a HEAD that the cache turned into a GET is a robot, even with a browser's name", async () => {
+    const visits = await visitsDatabase()
+    const converted = {
+      'user-agent': IPHONE_SAFARI,
+      'cf-connecting-ip': '203.0.113.9',
+      accept: '*/*',
+    }
+    const { res } = await send(
+      catalogue(),
+      { headers: converted },
+      { objects: THREE_PAGES, env: visits.env, cf: CF, ctx: visits.ctx },
+    )
+    expect(res.status).toBe(200)
+    expect(await visits.rows()).toEqual([
+      expect.objectContaining({ kind: 'robot', browser: 'no browser signals' }),
+    ])
   })
 
   it('a HEAD is not an open, and is never offered to the recorder', async () => {

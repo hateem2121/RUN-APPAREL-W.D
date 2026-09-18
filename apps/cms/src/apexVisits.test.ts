@@ -37,6 +37,19 @@ const IPHONE_SAFARI =
 // curl's own documentation: the default User-Agent is curl/<version>.
 const CURL = 'curl/8.7.1'
 
+/**
+ * What a browser sends when it opens a page (Fetch Metadata, plus the classic navigation
+ * headers). Since 2026-09-18 a visit counts as a person only with this signal, so a fixture
+ * without it is a script — which is what these fixtures were until then, and why they could
+ * not have caught a checker being counted as a person.
+ */
+const NAVIGATION = {
+  'sec-fetch-mode': 'navigate',
+  'sec-fetch-dest': 'document',
+  'upgrade-insecure-requests': '1',
+  accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+}
+
 interface VisitColumns {
   day: string
   document: string
@@ -397,7 +410,7 @@ function collectingCtx() {
 const pageRequest = (headers: Record<string, string> = {}) =>
   incoming(
     `https://catalogue.wear-run.help/${CODE}`,
-    { 'user-agent': IPHONE_SAFARI, 'cf-connecting-ip': IP, ...headers },
+    { 'user-agent': IPHONE_SAFARI, 'cf-connecting-ip': IP, ...NAVIGATION, ...headers },
     LAHORE,
   )
 
@@ -575,6 +588,7 @@ describe('the recorder', () => {
       incoming('https://wear-run.help/catalogue', {
         'user-agent': userAgent,
         'cf-connecting-ip': IP,
+        ...NAVIGATION,
       })
     recordVisit(env, ctx, {
       event: 'old-link',
@@ -594,6 +608,85 @@ describe('the recorder', () => {
         browser: 'Safari',
       }),
     ])
+  })
+
+  /**
+   * A PERSON IS A BROWSER NAVIGATING (decided 2026-09-18, live from the merge that deploys
+   * it). Measured that day in the Worker's logs: Cloudflare hands the FIRST HEAD for an
+   * address to the Worker as a GET, and a script may borrow any browser's name — both had
+   * put checkers into the owner's people figures (7 rows on 17–18 September).
+   */
+  describe('a person must be a browser navigating', () => {
+    async function recordOne(visit: Visit) {
+      const database = await migratedDatabase()
+      const recordVisit = createVisitRecorder({ now: () => new Date(NOW), randomHex: () => SALT })
+      const { ctx, settled } = collectingCtx()
+      recordVisit({ VISITS: d1From(database) as never }, ctx, visit)
+      await settled()
+      return visitRows(database)
+    }
+    const scriptWith = (headers: Record<string, string>) =>
+      incoming(
+        `https://catalogue.wear-run.help/${CODE}`,
+        { 'user-agent': IPHONE_SAFARI, 'cf-connecting-ip': IP, ...headers },
+        LAHORE,
+      )
+
+    it.each<[string, Record<string, string>]>([
+      [
+        "a script borrowing a browser's name (Node fetch sends sec-fetch-mode: cors)",
+        { 'sec-fetch-mode': 'cors', accept: '*/*' },
+      ],
+      ['a HEAD that a cache turned into a GET — no browser headers at all', {}],
+    ])('%s is a robot, whatever name it gives', async (_label, headers) => {
+      expect(await recordOne(open(scriptWith(headers)))).toEqual([
+        expect.objectContaining({ kind: 'robot', browser: 'no browser signals', opens: 1 }),
+      ])
+    })
+
+    it('Safari before 16.4 sends no Fetch Metadata but still navigates, so it stays a person', async () => {
+      const oldSafari = scriptWith({
+        'upgrade-insecure-requests': '1',
+        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      })
+      expect(await recordOne(open(oldSafari))).toEqual([
+        expect.objectContaining({ kind: 'person', browser: 'Safari' }),
+      ])
+    })
+
+    it('the Download stop pressed by a script is a robot download', async () => {
+      const rows = await recordOne({
+        event: 'download',
+        document: 'catalogue',
+        request: scriptWith({}),
+      })
+      expect(rows).toEqual([expect.objectContaining({ kind: 'robot', downloads: 1 })])
+    })
+
+    it('a reading marker is an image request, never a navigation — it keeps its person', async () => {
+      const marker = scriptWith({ 'sec-fetch-mode': 'no-cors', 'sec-fetch-dest': 'image' })
+      const rows = await recordOne({
+        event: 'marker',
+        document: 'catalogue',
+        request: marker,
+        page: 2,
+      })
+      expect(rows).toEqual([expect.objectContaining({ kind: 'person', furthest_page: 2 })])
+    })
+
+    it('a privacy request (Sec-GPC) that is not a browser navigation records nothing at all', async () => {
+      expect(await recordOne(open(scriptWith({ 'sec-gpc': '1' })))).toEqual([])
+    })
+
+    it('an old-link try by a script with a browser name is not kept', async () => {
+      const old = incoming('https://wear-run.help/catalogue', {
+        'user-agent': IPHONE_SAFARI,
+        'cf-connecting-ip': IP,
+      })
+      expect(await recordOne({ event: 'old-link', document: 'catalogue', request: old })).toEqual(
+        [],
+      )
+    })
   })
 
   it('a database that throws leaves the promise resolved and logs only the error name', async () => {

@@ -24,7 +24,7 @@
  */
 
 import { pakistanDay } from '../../packages/shared/src/documentVisits.ts'
-import { classifyAgent } from './visitorAgent.js'
+import { classifyAgent, isBrowserNavigation } from './visitorAgent.js'
 
 /** Every statement this Worker runs against the visit tables. */
 export const VISIT_SQL = Object.freeze({
@@ -196,9 +196,17 @@ export function createVisitRecorder({ now = () => new Date(), randomHex = secure
     const { request } = visit
     const [opens, furthestPage, pagesTotal, downloads] = increments(visit)
 
+    // A reading marker is an image request, never a navigation, so it is judged by its name
+    // alone; everything else must come from a browser opening a page (visitorAgent.js,
+    // decided 2026-09-18).
+    const navigating = visit.event === 'marker' || isBrowserNavigation(request.headers)
+
     // Global Privacy Control (owner decision D24): the open is counted on one shared row per
     // day and document, and nothing else is kept. No code is made, so no salt is touched.
+    // A request that asks for privacy but is not a browser navigating keeps NOTHING at all —
+    // not even the shared count, which is for people.
     if (request.headers.get('sec-gpc')?.trim() === '1') {
+      if (!navigating) return
       if (visit.event !== 'open') return
       await db
         .prepare(VISIT_SQL.upsertVisit)
@@ -228,10 +236,16 @@ export function createVisitRecorder({ now = () => new Date(), randomHex = secure
     }
 
     const userAgent = request.headers.get('user-agent')
-    const agent = classifyAgent(userAgent, {
+    const named = classifyAgent(userAgent, {
       mobileHint: request.headers.get('sec-ch-ua-mobile'),
       platformHint: request.headers.get('sec-ch-ua-platform'),
     })
+    // A browser's name without a browser's navigation is a checker, a monitor or a script.
+    // Link previews are named by their own robots and keep that name.
+    const agent =
+      named.kind === 'person' && !navigating
+        ? { kind: 'robot', device: 'unknown', system: 'other', browser: 'no browser signals' }
+        : named
     // A robot trying an old address tells the owner nothing.
     if (visit.event === 'old-link' && agent.kind !== 'person') return
     const kind = visit.event === 'old-link' ? 'old-link' : agent.kind
