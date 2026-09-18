@@ -17,6 +17,13 @@ import {
  * outside the app tsconfig's `include` (so it may import the untyped csp.mjs),
  * and this file is inside it.
  */
+describe('Referrer-Policy (2026-09-18)', () => {
+  it('is same-origin, as on the site — internet.nl rates it good', () => {
+    // scripts/csp.test.ts then proves `_headers` ships the same value.
+    expect(SHARED_SECURITY_HEADERS['Referrer-Policy']).toBe('same-origin')
+  })
+})
+
 describe('workerResponseHeaders', () => {
   it('carries every header the /* rule sets, so a Worker-built response is not bare', () => {
     const headers = workerResponseHeaders()
