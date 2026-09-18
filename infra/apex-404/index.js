@@ -27,6 +27,7 @@
  * (documents.js).
  */
 
+import { SECURITY_TXT } from '../../packages/shared/src/securityTxt.ts'
 import { codesMatch, normaliseCode } from './codes.js'
 import { DOCUMENTS, RETIRED_HOSTS, RETIRED_PATH_NAMES, documentForHost } from './documents.js'
 import { pictureKey, validateManifest } from './manifest.js'
@@ -59,7 +60,20 @@ export const CACHE_CONTROL = Object.freeze({
   picture: 'public, max-age=31536000, immutable',
   download: 'public, max-age=3600',
   none: 'no-store',
+  securityTxt: 'public, max-age=3600',
 })
+
+/**
+ * RFC 9116's fixed address. Answered on every document host (decided 2026-09-18, live from
+ * the merge that deploys it) BEFORE the word check — a `.well-known` segment is never a code.
+ *
+ * ⚠️ CACHEABLE ON PURPOSE, although the file header says a host-agnostic path must be
+ * `no-store`. That rule exists because Workers Caching keys on the path and NOT the host, so
+ * a response that DIFFERS between the two documents' hosts could be handed to the wrong one.
+ * This text is byte-identical on all four hosts (packages/shared/src/securityTxt.ts), so a
+ * shared cache entry is exactly right.
+ */
+const SECURITY_TXT_PATH = '/.well-known/security.txt'
 
 /**
  * `VISITS` is optional on purpose. Without it nothing is recorded, and every response is
@@ -77,6 +91,14 @@ export const CACHE_CONTROL = Object.freeze({
  * }} ApexEnv
  */
 
+/**
+ * The site's Permissions-Policy, byte for byte (apps/cms/next.config.mjs). Added here
+ * 2026-09-18 with X-Frame-Options: securityheaders.com graded these hosts A for lacking the
+ * first, and internet.nl lists the second separately from CSP frame-ancestors.
+ */
+const PERMISSIONS_POLICY =
+  'accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()'
+
 /** @param {string} cacheControl */
 function baseHeaders(cacheControl) {
   return new Headers({
@@ -84,6 +106,8 @@ function baseHeaders(cacheControl) {
     'x-robots-tag': 'noindex, nofollow',
     'referrer-policy': 'no-referrer',
     'x-content-type-options': 'nosniff',
+    'x-frame-options': 'DENY',
+    'permissions-policy': PERMISSIONS_POLICY,
   })
 }
 
@@ -220,6 +244,19 @@ export function createHandler({ timingSafeEqual, recordVisit = createVisitRecord
       const headers = baseHeaders(CACHE_CONTROL.none)
       headers.set('content-type', 'text/plain; charset=utf-8')
       return finish(method, new Response('Not found.', { status: 404, headers }))
+    }
+
+    // security.txt, before the word rule and the word check: it has nothing to do with
+    // either document, so a misconfigured secret must not take it down. No R2, no visit.
+    if (url.pathname === SECURITY_TXT_PATH) {
+      if (method !== 'GET' && method !== 'HEAD') {
+        const headers = baseHeaders(CACHE_CONTROL.none)
+        headers.set('allow', 'GET, HEAD')
+        return new Response(null, { status: 405, headers })
+      }
+      const headers = baseHeaders(CACHE_CONTROL.securityTxt)
+      headers.set('content-type', 'text/plain; charset=utf-8')
+      return finish(method, new Response(SECURITY_TXT, { status: 200, headers }))
     }
 
     // ⚠️ THE WORD RULE (review Important 1, owner decision D18, 2026-09-15). Workers
