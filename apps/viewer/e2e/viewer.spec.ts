@@ -67,11 +67,11 @@ test.describe('RUN APPAREL 3D viewer', () => {
      * "04 Black ●" on top of `aria-selected`.
      *
      * The number is still VISIBLE, and it is still positional rather than the
-     * `sequence` field: Black carries sequence 5 in this fixture (production's
-     * numbering, with Lime at 4 deliberately absent so `/n001/lime` reaches the
-     * retired-colourway notice) but is the 4th array entry, so it displays 04.
-     * The UI never shows a gap — worth knowing before "fixing" either number to
-     * match the other. The visible label below still asserts it.
+     * `sequence` field. Since `lime` joined the fixture on 2026-08-30, Black is
+     * both the 5th array entry and sequence 5, so the two agree today and the tab
+     * displays 05 — but they are still computed differently, and inserting a
+     * colourway between would split them again. The UI never shows a gap; the
+     * visible label below still asserts the number.
      */
     await page.getByRole('tab', { name: /^black$/i }).click()
     await expect(page).toHaveURL(/\/n001\/black$/)

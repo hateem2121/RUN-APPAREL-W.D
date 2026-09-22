@@ -53,18 +53,20 @@ First-time deployment: follow **`docs/CLOUDFLARE-SETUP.md`** once, top to bottom
 | Report a security problem (**do not open an issue**) | [`SECURITY.md`](SECURITY.md) |
 | **See every document in `docs/`, including the ones not listed above** | [`docs/README.md`](docs/README.md) |
 
-**Two working documents live at the repository root and are NOT finished
-records** — listed here because L13-09 found them reachable from no index, which
-is how a stale plan gets read as a current one:
+**One working document lives at the repository root and is NOT a finished
+record** — listed here because L13-09 found it reachable from no index, which
+is how a stale plan gets read as a current one. (The garment-pipeline plan that
+used to sit beside it was resolved on 2026-09-22 — every step ticked or migrated —
+and moved to its own designated final home under
+[`docs/superpowers/plans/`](docs/superpowers/plans/).)
 
 | Root file | What it is | Status |
 |---|---|---|
-| [`PLAN-IN-PROGRESS.md`](PLAN-IN-PROGRESS.md) | The garment-pipeline defects implementation plan — five units in `tools/asset-pipeline/src/` | **PARTLY IMPLEMENTED.** The code is on `main` (PR #48); 110 steps remain unticked. Keep it until they are done or dropped. |
 | [`NEXT-SESSION-PROMPT.md`](NEXT-SESSION-PROMPT.md) | A hand-off prompt for the next AI session | **WORKING NOTE.** Rewritten per session; never a record of what is true now. |
 
-They stay at the root rather than moving into a working subdirectory for one measured
-reason: many committed documents cite them by path and `scripts/doc-citations.mjs`
-resolves every one of those. Moving them trades a tidy root for a broken gate.
+It stays at the root rather than moving into a working subdirectory for one measured
+reason: committed documents cite it by path and `scripts/doc-citations.mjs` resolves
+every one of those. Moving it trades a tidy root for a broken gate.
 
 **Maintainer** — [@hateem2121](https://github.com/hateem2121), sole maintainer.
 

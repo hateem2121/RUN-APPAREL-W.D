@@ -1,30 +1,67 @@
 # Garment Pipeline Defects Implementation Plan
 
-> **STATUS: PARTLY IMPLEMENTED — last updated 2026-09-01.** A plan, not a record;
-> where this and the code disagree, the code is right.
+> **STATUS: RESOLVED 2026-09-22 — a record now, not a plan.** All 110 steps are
+> closed: **72 ticked** (the behaviour exists on `main`; the evidence is in the B1
+> audit table below) and **38 migrated with reasons** (Tasks 7 and 11–14 → master-plan
+> item C4, marked by the ⤴ banners on each of those tasks). **Zero steps remain
+> unticked.** Where this and the code disagree, the code is right.
 >
-> ⚠️ **THE CODE IS ALREADY ON `main`. THE PLAN IS NOT FINISHED.** An earlier version
-> of this header said the work sat on an unmerged `feat/garment-pipeline-defects`
-> branch and told you to delete this file when that branch merged. Both halves were
-> wrong: the work landed on `main` through PR #48, that branch was a stale copy
-> holding no file `main` lacks, and it has been deleted. **110 steps here are still
-> unticked** — keep this file until they are done or deliberately dropped.
+> 🟢 (history, kept) An earlier version of this header said the work sat on an
+> unmerged `feat/garment-pipeline-defects` branch and told you to delete this file
+> when that branch merged. Both halves were wrong: the work landed on `main` through
+> PR #48, that branch was a stale copy holding no file `main` lacks, and it has been
+> deleted.
 >
-> ⚠️ Measuring this cost a wrong alarm. `git diff main...branch` (three dots) reports
+> 🟢 Measuring this cost a wrong alarm. `git diff main...branch` (three dots) reports
 > what the BRANCH changed since it diverged — 98 files, 16,513 lines — and reads like
 > unmerged work even when every line is already merged. `git diff main..branch` (two
 > dots) compares the tips and told the truth. Use two dots to ask "what would I lose".
 >
-> Listed in [`README.md`](README.md) because L13-09 found it reachable from no index,
-> which is how a stale plan gets read as a current one.
+> Moved 2026-09-22 to its Task 14–designated final home,
+> `docs/superpowers/plans/2026-08-26-garment-pipeline-defects.md`, so it is no longer
+> listed among the root working documents in `README.md`. It stays readable because it
+> is still the executable specification for the steps migrated to C4.
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** every step in this file is already resolved (2026-09-22) —
+> do not re-open it to "finish" it. Ticked steps landed via PR #48; the ⤴ banners mark
+> work moved to master-plan item C4, and the unbuilt sections below are C4's
+> specification, not open checkboxes.
 
 **Goal:** Stop the pipeline applying a geometry-first compression strategy to texture-first CLO exports, and fix the four measured input defects that make printed artwork render damaged, plastic or metallic.
 
 **Architecture:** Five units land in `tools/asset-pipeline/src/`, which the shrink Container imports by relative path and the CLI imports directly. A new `describe.ts` reads only a GLB's JSON chunk (no binary decode) to classify each export as geometry-heavy or texture-heavy; the Container calls it after downloading the raw file and refines the flags the Worker sent. `packages/shared/src/shrink.ts` keeps returning hardcoded literals unchanged — it cannot read files (lint-enforced, no `node:*` imports) and the Worker never has the file. Three material-level fixes (metalness, per-material alpha, decal offset) and one texture fix (weave density) run as gltf-transform Transforms inside `buildOptimizeTransforms`.
 
 **Tech Stack:** TypeScript, Node 24 (CI) / 26 (local), vitest, `@gltf-transform/core` 4.4.2, `meshoptimizer` 1.2.0, `sharp` 0.35.3, Playwright + `<model-viewer>` for rendered verification.
+
+---
+
+## B1 audit — 2026-09-22 (task-by-task verdicts)
+
+Every step was checked against `main`, per this file's own rule: where plan and code
+disagree, the code is right. **72 ticked · 38 migrated · 0 left open.**
+
+| Task | Verdict | Evidence on `main` |
+|---|---|---|
+| 0 Branch setup & spec correction | ✅ ticked | The `CUTOUT_*` citation now names `textures.ts` (design spec line 223); the stale `stitch` doc comment was rewritten (`tools/asset-pipeline/src/optimize.ts:175-181`); landed in PR #48 |
+| 1 `material-class.ts` | ✅ ticked | `tools/asset-pipeline/src/material-class.ts` + `material-class.test.ts` |
+| 2 `describe.ts` | ✅ ticked | `tools/asset-pipeline/src/describe.ts` + `describe.test.ts` |
+| 3 `pipeline describe` + baseline | ✅ ticked | `cli.ts` `describe` command; `docs/GARMENT-CATALOGUE-BASELINE.md` |
+| 4 `pipeline review` | ✅ ticked | `tools/asset-pipeline/src/review-server.ts` + its test; the `review` command in `cli.ts` |
+| 5 Calibration sweep | ✅ ticked | `tools/asset-pipeline/scripts/sweep-texture-family.mjs`; baseline §"Texture-family calibration — measured 2026-08-26"; `docs/images/2026-08-26-xmilo-texture-sweep-macro.png` |
+| 6 `strategy.ts` | ✅ ticked | `tools/asset-pipeline/src/strategy.ts` + `strategy.test.ts`; its values cite Task 5's measurement |
+| 7 Fixtures | ⤴ migrated → C4 | `buildCloShapedTee` / `buildTextureHeavyTee` were never written. Fixtures 1–3 landed inline in `pbr-normalize.test.ts` instead; fixtures 5–6 belong to Tasks 12/11 and migrated with them |
+| 8 Family flags into the Container | ✅ ticked | `apps/shrink/container/server.ts` calls `describeGlb` and refines the flags (`refineFlags`, with `refineFlagsForFamily` kept in `strategy.ts`), and emits `family`/`familyReason` on the shrink report |
+| 9 `pbr-normalize.ts` | ✅ ticked | `tools/asset-pipeline/src/pbr-normalize.ts` + `pbr-normalize.test.ts` |
+| 10 Wire `normalizePbr` | ✅ ticked | `optimize.ts` runs it by default (opt-out `--no-pbr-normalize`) and records `OptimizeTelemetry.pbr` |
+| 11 Unit 4a — stroke width / MASK | ⤴ migrated → C4 | `thinStrokeAction` appears nowhere outside this file; `solidifyMaterials(document)` takes no action parameter. The design spec still reads "awaiting owner approval" |
+| 12 Unit 4b — decal offset | ⤴ migrated → C4 | `offsetDecals` / `DecalOffsetResult` appear nowhere outside this file; same approval + regression dependency |
+| 13 Unit 5 — weave density | ⤴ migrated → C4 | `applyWeave` / `weave.ts` appear nowhere outside this file, and the design spec narrowed the unit to clamp-and-report out-of-band tiling rather than apply it |
+| 14 Regression + final home | ⤴ migrated → C4 | The 28-garment regression never ran, so the `thinStrokeAction`/`applyWeave` decisions stay open. Step 1 (move this file to `docs/superpowers/plans/`) was executed by the commit carrying this audit |
+
+**Where the migrated work lives now:** master-plan item **C4** ("Units 4a/4b/5 + the
+28-garment regression"), tracked in the owner's private plan file. This document remains
+C4's executable specification; C4 is done when the code above exists and the regression
+has been judged in the live viewer — at which point this file can be deleted outright.
 
 ---
 
@@ -142,7 +179,7 @@ Extremes: `women athlatic dress` = 335.0 MB textures / 0.3 MB geometry / 9,980 t
 
 **Context:** the spec currently lives on the **docs/garment-pipeline-defects-design branch** (written without backticks on purpose — `scripts/doc-citations.mjs` reads any backticked token containing a `/` whose first segment is a real top-level directory as a repository path, and `docs` is one, so a backticked branch name is reported as a broken citation). That branch is 2 commits BEHIND `main` (it predates the `feat/claude-automation-setup` merge). Diffing it against `main` therefore looks like it deletes 20 `.claude/` files. It does not. Rebase rather than merge.
 
-- [ ] **Step 1: Confirm git identity is set (the merge deadlocks without it)**
+- [x] **Step 1: Confirm git identity is set (the merge deadlocks without it)**
 
 ```bash
 git config --local user.email hateemjamshaid@gmail.com && git config --local user.name "Hateem Jamshaid" && git config --local user.email
@@ -150,7 +187,7 @@ git config --local user.email hateemjamshaid@gmail.com && git config --local use
 
 Expected: `hateemjamshaid@gmail.com`
 
-- [ ] **Step 2: Create the working branch off main, bringing the spec across**
+- [x] **Step 2: Create the working branch off main, bringing the spec across**
 
 ```bash
 git checkout main && git checkout -b feat/garment-pipeline-defects && git checkout origin/docs/garment-pipeline-defects-design -- docs/superpowers/specs/2026-08-26-garment-pipeline-defects-design.md && git status --porcelain
@@ -158,7 +195,7 @@ git checkout main && git checkout -b feat/garment-pipeline-defects && git checko
 
 Expected: exactly one line, `A  docs/superpowers/specs/2026-08-26-garment-pipeline-defects-design.md`
 
-- [ ] **Step 3: Fix the spec's one wrong citation**
+- [x] **Step 3: Fix the spec's one wrong citation**
 
 The spec says `CUTOUT_MID_FRACTION` / `CUTOUT_MIN_TRANSPARENT` live in `texture-artwork.ts`. Verified 2026-08-26: they are `export const` at `tools/asset-pipeline/src/textures.ts:195` and `:210`. The citation gate does not catch this — it checks only that the named FILE exists, and `texture-artwork.ts` does.
 
@@ -180,7 +217,7 @@ with:
   widening either widens a *blocking* gate.
 ```
 
-- [ ] **Step 4: Fix the stale `stitch` doc comment in shrink.ts's consumer**
+- [x] **Step 4: Fix the stale `stitch` doc comment in shrink.ts's consumer**
 
 `tools/asset-pipeline/src/optimize.ts`'s `OptimizeOptions.stitch` says *"Use INSTEAD OF `--simplify` on such a garment, not alongside it"*. That was true before `skipMeshes` existed. `buildOptimizeTransforms` now passes `skipMeshes: DEFAULT_STITCH_PATTERN` to `simplifyTextured` whenever the stitch pass ran, and its own comment says *"Passing both flags is therefore safe"*. `shrinkFlagsFor` passes both. Replace the misleading sentence in `tools/asset-pipeline/src/optimize.ts`:
 
@@ -202,7 +239,7 @@ with:
    * described the code as it was BEFORE that guard existed.
 ```
 
-- [ ] **Step 5: Run the citation gate and confirm it still passes**
+- [x] **Step 5: Run the citation gate and confirm it still passes**
 
 ```bash
 node scripts/doc-citations.mjs
@@ -212,7 +249,7 @@ Expected: **0 unresolved, exit 0.** This plan lives at the repository root while
 is being executed, precisely so this gate stays meaningful — see Global Constraints.
 A non-zero count here is a REAL broken citation and must be fixed, not exempted.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add docs/superpowers/specs/2026-08-26-garment-pipeline-defects-design.md tools/asset-pipeline/src/optimize.ts && git commit -m "docs(pipeline): land the garment-defects design, and correct two stale citations
@@ -241,7 +278,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"```
 
 **Why a THIRD list rather than reusing an existing one.** `texture-artwork.ts` has two lists already and `variant-colour.ts` has a third, all deliberately separate. `ARTWORK_NAME` includes `text` and `type`, so `Textile_Cotton` and `Polyester_Textured` classify as artwork. `variant-colour.ts`'s `TRIM_NAME` includes `trim`, `thread`, `stitch`, `label` — correct for "which surface names the colour", wrong here, because the owner decided on 2026-08-26 that `Trim_*` must be reported and NOT rewritten.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tools/asset-pipeline/src/material-class.test.ts`:
 
@@ -312,7 +349,7 @@ describe('classifyMaterialName', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/material-class.test.ts
@@ -320,7 +357,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: FAIL — `Failed to resolve import "./material-class"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `tools/asset-pipeline/src/material-class.ts`:
 
@@ -395,7 +432,7 @@ export function classifyMaterialName(name: string): MaterialClass {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/material-class.test.ts
@@ -403,7 +440,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: PASS, all cases.
 
-- [ ] **Step 5: Lint and typecheck**
+- [x] **Step 5: Lint and typecheck**
 
 ```bash
 npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck
@@ -411,7 +448,7 @@ npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck
 
 Expected: both exit 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tools/asset-pipeline/src/material-class.ts tools/asset-pipeline/src/material-class.test.ts && git commit -m "feat(pipeline): classify a material name as hardware, fabric or unclassified
@@ -448,7 +485,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **⚠️ MUST NOT read the whole file.** `readGlbGenerator` (`validate.ts:43`) does `await readFile(file)`, which on the Cycling Bib pulls 1.3 GB into a Buffer. Use `open()` plus positional reads: the header is 12 bytes, the chunk descriptor 8, and the JSON chunk is a few hundred KB. That is why this is as fast on a 1.3 GB file as on a 5 MB one.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tools/asset-pipeline/src/describe.test.ts`:
 
@@ -809,7 +846,7 @@ describe('describeGlb — never throws', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/describe.test.ts
@@ -817,7 +854,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: FAIL — `Failed to resolve import "./describe"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `tools/asset-pipeline/src/describe.ts`:
 
@@ -1123,7 +1160,7 @@ export async function describeGlb(file: string): Promise<GlbDescription> {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/describe.test.ts
@@ -1131,7 +1168,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: PASS, all cases.
 
-- [ ] **Step 5: Confirm coverage did not fall through the floor**
+- [x] **Step 5: Confirm coverage did not fall through the floor**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline test:coverage
@@ -1139,7 +1176,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline test:coverage
 
 Expected: exit 0. The floors are lines 87 / functions 86 / branches 73 / statements 84. If a new file dropped the number, ADD TESTS — never lower a floor.
 
-- [ ] **Step 6: Lint and typecheck**
+- [x] **Step 6: Lint and typecheck**
 
 ```bash
 npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck
@@ -1147,7 +1184,7 @@ npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck
 
 Expected: both exit 0.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add tools/asset-pipeline/src/describe.ts tools/asset-pipeline/src/describe.test.ts && git commit -m "feat(pipeline): describe a raw export from its JSON chunk alone
@@ -1174,7 +1211,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **⚠️ The baseline document must name garments, never paths.** `scripts/doc-citations.mjs` walks `docs/` recursively; a path under `~/Documents` would resolve on this machine and fail on a clean checkout — the exact failure mode already recorded for `public/draco/` in `CLAUDE.md`.
 
-- [ ] **Step 1: Add the command to `cli.ts`**
+- [x] **Step 1: Add the command to `cli.ts`**
 
 Add the import beside the others at the top of `tools/asset-pipeline/src/cli.ts`:
 
@@ -1246,7 +1283,7 @@ Insert this block immediately BEFORE `if (command === 'validate') {`:
   }
 ```
 
-- [ ] **Step 2: Add it to the DIAGNOSTICS section of `USAGE`**
+- [x] **Step 2: Add it to the DIAGNOSTICS section of `USAGE`**
 
 In the `USAGE` template literal, insert directly above the existing `pnpm pipeline textures` entry:
 
@@ -1259,7 +1296,7 @@ In the `USAGE` template literal, insert directly above the existing `pnpm pipeli
       5 MB one. Run this BEFORE spending a pipeline run.
 ```
 
-- [ ] **Step 3: Verify against the two extremes, which are already measured**
+- [x] **Step 3: Verify against the two extremes, which are already measured**
 
 ```bash
 cd tools/asset-pipeline && npx --yes pnpm@10.33.0 start describe "$HOME/Documents/3D Products/women athlatic dress.glb" "$HOME/Documents/3D Products/Cycling Bib.glb"
@@ -1270,7 +1307,7 @@ Expected, EXACTLY (measured 2026-08-26 — a mismatch means the reader is wrong,
 - `women athlatic dress` → `texture`, 100%, 335.0 MB textures, 0.3 MB geometry, 9,980 triangles, 0.0% stitch, 118 materials, 48 BLEND, 5 colourways
 - `Cycling Bib` → `geometry`, 16%, 201.8 MB textures, 1051.1 MB geometry, 33,964,432 triangles, 100.0% stitch, 121 materials, 71 BLEND, 5 colourways
 
-- [ ] **Step 4: Run the whole catalogue and capture it**
+- [x] **Step 4: Run the whole catalogue and capture it**
 
 ```bash
 cd tools/asset-pipeline && npx --yes pnpm@10.33.0 start describe "$HOME/Documents/3D Products/"*.glb | tee /tmp/describe-baseline.txt | tail -12
@@ -1278,7 +1315,7 @@ cd tools/asset-pipeline && npx --yes pnpm@10.33.0 start describe "$HOME/Document
 
 Expected totals: 28 files, 0 unreadable, **15 texture / 12 geometry / 1 mixed**, 5,048 images of which **0** carry a name or URI.
 
-- [ ] **Step 5: Write the baseline document**
+- [x] **Step 5: Write the baseline document**
 
 Create `docs/GARMENT-CATALOGUE-BASELINE.md`. Paste the table from `/tmp/describe-baseline.txt`, and open it with this header — adjusting only if the run disagrees with the numbers, in which case the RUN wins and this note gets corrected:
 
@@ -1300,7 +1337,7 @@ Every figure here is reproducible in about two seconds per file:
 measured against ONE garment; it is false for the majority of this catalogue.
 ```
 
-- [ ] **Step 6: Run the citation gate on the new document**
+- [x] **Step 6: Run the citation gate on the new document**
 
 ```bash
 node scripts/doc-citations.mjs
@@ -1308,7 +1345,7 @@ node scripts/doc-citations.mjs
 
 Expected: exit 0, and the document count goes 51 → 52.
 
-- [ ] **Step 7: Run the full gates**
+- [x] **Step 7: Run the full gates**
 
 ```bash
 npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnpm@10.33.0 test:coverage
@@ -1316,7 +1353,7 @@ npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnp
 
 Expected: all exit 0.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add tools/asset-pipeline/src/cli.ts docs/GARMENT-CATALOGUE-BASELINE.md && git commit -m "feat(pipeline): pnpm pipeline describe, and the catalogue baseline it produced
@@ -1354,7 +1391,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **One deliberate difference from `render.ts`.** That harness uses flat neutral lighting with shadows OFF, because it diffs two renders and moving specular highlights would light up everywhere. This viewer is for a human judging a garment, so it offers **both**: neutral for diagnosis and the production studio environment for "does this look right". The lighting toggle is the point, not a decoration — a metallic-fabric defect is invisible under flat light and obvious under a studio HDR.
 
-- [ ] **Step 1: Extract the shared asset map out of `render.ts`**
+- [x] **Step 1: Extract the shared asset map out of `render.ts`**
 
 In `tools/asset-pipeline/src/render.ts`, lift the bundle and decoder resolution currently inside the server function into an exported function, and have the existing server call it. Behaviour must not change.
 
@@ -1387,7 +1424,7 @@ export function viewerAssetMap(): Record<string, string> {
 }
 ```
 
-- [ ] **Step 2: Confirm the extraction changed nothing**
+- [x] **Step 2: Confirm the extraction changed nothing**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/render.test.ts
@@ -1395,7 +1432,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: PASS, unchanged. If `render.test.ts` fails here, the extraction is wrong — fix it before writing anything new.
 
-- [ ] **Step 3: Write the failing test**
+- [x] **Step 3: Write the failing test**
 
 Create `tools/asset-pipeline/src/review-server.test.ts`:
 
@@ -1475,7 +1512,7 @@ describe('review server', () => {
 })
 ```
 
-- [ ] **Step 4: Run it, confirm it fails**
+- [x] **Step 4: Run it, confirm it fails**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/review-server.test.ts
@@ -1483,7 +1520,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: FAIL — `Failed to resolve import "./review-server"`.
 
-- [ ] **Step 5: Implement `review-server.ts`**
+- [x] **Step 5: Implement `review-server.ts`**
 
 Build it to this shape. Every point below is a requirement, not a suggestion:
 
@@ -1526,7 +1563,7 @@ The page's script block, which is the part that has to be exactly right:
 </script>
 ```
 
-- [ ] **Step 6: Add the CLI command**
+- [x] **Step 6: Add the CLI command**
 
 In `cli.ts`, beside the other DIAGNOSTICS commands:
 
@@ -1556,7 +1593,7 @@ Add to the DIAGNOSTICS block of `USAGE`:
       damage is judged: no automated gate in this system can see it.
 ```
 
-- [ ] **Step 7: Run it against the seeded placeholders and look**
+- [x] **Step 7: Run it against the seeded placeholders and look**
 
 ```bash
 cd tools/asset-pipeline && npx --yes pnpm@10.33.0 start placeholders --out /tmp/review-demo && npx --yes pnpm@10.33.0 start review /tmp/review-demo
@@ -1564,7 +1601,7 @@ cd tools/asset-pipeline && npx --yes pnpm@10.33.0 start placeholders --out /tmp/
 
 Open the printed URL. Confirm: the garment renders, it turns, the colourway buttons switch it, and the lighting toggle changes the highlights. **If the model is blank, the decoder path is wrong — that is the failure this viewer must never show silently.**
 
-- [ ] **Step 8: Gates**
+- [x] **Step 8: Gates**
 
 ```bash
 npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnpm@10.33.0 test:coverage
@@ -1572,7 +1609,7 @@ npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnp
 
 Expected: all exit 0, the citation gate included.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add tools/asset-pipeline/src/review-server.ts tools/asset-pipeline/src/review-server.test.ts tools/asset-pipeline/src/render.ts tools/asset-pipeline/src/cli.ts && git commit -m "feat(pipeline): a live model-viewer for judging garments, not still frames
@@ -1604,7 +1641,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 There is a real tension to resolve here, and guessing it wrong is the whole risk of Unit 2: a texture-heavy garment is **10–25× over the 40 MB ceiling on textures alone**, so "spend the freed budget on higher quality" may be exactly backwards. The sweep decides it.
 
-- [ ] **Step 1: Pick the three sweep garments**
+- [x] **Step 1: Pick the three sweep garments**
 
 Chosen to span the texture family rather than sample it evenly:
 
@@ -1614,7 +1651,7 @@ Chosen to span the texture family rather than sample it evenly:
 | `X-MILO CORE OVERSIZE` | The largest — 1,022.7 MB of textures, 2.0 M triangles. If any setting can bring this under 40 MB it will be visible here. |
 | `KINETIC SPLATTER SPORTS BRA` | Texture-heavy AND 98.5% topstitch. Proves the two strategies compose rather than conflict. |
 
-- [ ] **Step 2: Write the sweep script**
+- [x] **Step 2: Write the sweep script**
 
 Create `tools/asset-pipeline/scripts/sweep-texture-family.mjs`:
 
@@ -1683,7 +1720,7 @@ for (const [name] of CANDIDATES.slice(1)) {
 }
 ```
 
-- [ ] **Step 3: Run the sweep on the pure case first**
+- [x] **Step 3: Run the sweep on the pure case first**
 
 ```bash
 cd tools/asset-pipeline && node scripts/sweep-texture-family.mjs "$HOME/Documents/3D Products/women athlatic dress.glb" /tmp/sweep-dress
@@ -1693,13 +1730,13 @@ Expected: five GLBs and five render directories. Note each output's byte size �
 
 **The first thing to read is whether A and B differ in size at all.** If they are within ~1%, that is the direct proof that `--simplify` does nothing on a 9,980-triangle file, and Unit 2's whole premise is confirmed by measurement rather than inference.
 
-- [ ] **Step 4: Build the contact sheets**
+- [x] **Step 4: Build the contact sheets**
 
 ```bash
 cd tools/asset-pipeline && for c in B-nosimplify C-morequality D-lessquality E-artworkfirst; do npx --yes tsx src/cli.ts compare /tmp/sweep-dress/A-control /tmp/sweep-dress/$c --out /tmp/sweep-dress/sheet-$c.png; done && ls -la /tmp/sweep-dress/sheet-*.png
 ```
 
-- [ ] **Step 5: Repeat on the other two garments**
+- [x] **Step 5: Repeat on the other two garments**
 
 ```bash
 cd tools/asset-pipeline && node scripts/sweep-texture-family.mjs "$HOME/Documents/3D Products/X-MILO CORE OVERSIZE.glb" /tmp/sweep-xmilo
@@ -1709,7 +1746,7 @@ cd tools/asset-pipeline && node scripts/sweep-texture-family.mjs "$HOME/Document
 cd tools/asset-pipeline && node scripts/sweep-texture-family.mjs "$HOME/Documents/3D Products/KINETIC SPLATTER SPORTS BRA.glb" /tmp/sweep-splatter
 ```
 
-- [ ] **Step 6: Open all five candidates side by side in the review viewer**
+- [x] **Step 6: Open all five candidates side by side in the review viewer**
 
 ```bash
 cd tools/asset-pipeline && npx --yes pnpm@10.33.0 start review /tmp/sweep-dress --port 4180
@@ -1721,7 +1758,7 @@ Step 4 are the record, but the viewer is where the judgement is made. A print th
 reads correctly head-on can be wrong at 40°, and a metallic fabric only announces
 itself when the light moves.
 
-- [ ] **Step 7: Decide, and write the decision down**
+- [x] **Step 7: Decide, and write the decision down**
 
 Pick the candidate that is smallest **without visible artwork damage**, judged in this order:
 
@@ -1731,13 +1768,13 @@ Pick the candidate that is smallest **without visible artwork damage**, judged i
 
 Record the winner and the rejected candidates in `docs/GARMENT-CATALOGUE-BASELINE.md` under a new `## Texture-family calibration` heading, with the measured sizes and one sentence per rejection.
 
-- [ ] **Step 8: Save the deciding contact sheet**
+- [x] **Step 8: Save the deciding contact sheet**
 
 ```bash
 cp /tmp/sweep-dress/sheet-<WINNER>.png docs/images/2026-08-26-texture-family-sweep.png
 ```
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add tools/asset-pipeline/scripts/sweep-texture-family.mjs docs/GARMENT-CATALOGUE-BASELINE.md docs/images/2026-08-26-texture-family-sweep.png && git commit -m "feat(pipeline): sweep the texture-family flags, and record what the crops showed
@@ -1770,7 +1807,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 So the family decision belongs where the file is: in the Container, using a module in `tools/asset-pipeline/`. `shrinkFlagsFor` keeps its signature and its security property — the Container's own comment records that *"what actually kept this safe was upstream — shrinkFlagsFor returns hardcoded literals chosen by a two-value enum"*. **`refineFlagsForFamily` must preserve that: everything it ADDS is a literal in this file.**
 
-- [ ] **Step 1: Read the calibration winner from Task 5**
+- [x] **Step 1: Read the calibration winner from Task 5**
 
 ```bash
 sed -n '/## Texture-family calibration/,/^## /p' docs/GARMENT-CATALOGUE-BASELINE.md
@@ -1778,7 +1815,7 @@ sed -n '/## Texture-family calibration/,/^## /p' docs/GARMENT-CATALOGUE-BASELINE
 
 The implementation below carries the `D-lessquality` values, which are the candidate the 40 MB ceiling predicts. **If the sweep chose a different candidate, substitute its flag values in `TEXTURE_FAMILY_FLAGS` below.** Only those literals change; the structure does not.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `tools/asset-pipeline/src/strategy.test.ts`:
 
@@ -1857,7 +1894,7 @@ describe('refineFlagsForFamily', () => {
 })
 ```
 
-- [ ] **Step 3: Run the test to verify it fails**
+- [x] **Step 3: Run the test to verify it fails**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/strategy.test.ts
@@ -1865,7 +1902,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: FAIL — `Failed to resolve import "./strategy"`.
 
-- [ ] **Step 4: Write the implementation**
+- [x] **Step 4: Write the implementation**
 
 Create `tools/asset-pipeline/src/strategy.ts`:
 
@@ -1959,7 +1996,7 @@ export function refineFlagsForFamily(flags: readonly string[], family: GlbFamily
 }
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/strategy.test.ts
@@ -1967,7 +2004,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: PASS, all cases.
 
-- [ ] **Step 6: Lint, typecheck, coverage**
+- [x] **Step 6: Lint, typecheck, coverage**
 
 ```bash
 npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline test:coverage
@@ -1975,7 +2012,7 @@ npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnp
 
 Expected: all exit 0.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add tools/asset-pipeline/src/strategy.ts tools/asset-pipeline/src/strategy.test.ts && git commit -m "feat(pipeline): pick compression flags from the family the export belongs to
@@ -1994,6 +2031,14 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ## Task 7: Fixtures that can exhibit the failures
 
+> **⤴ MIGRATED 2026-09-22 (B1 audit).** Not implemented, not dropped — every
+> checkbox in this task has been removed and the work is now master-plan item **C4**.
+> Evidence: neither `buildCloShapedTee` nor `buildTextureHeavyTee` exists in
+> `placeholders.ts`. Fixtures 1–3 (CLO metalness shape, negative control, hardware
+> name) landed inline in `pbr-normalize.test.ts` instead; fixtures 5–6 (seam-sharing
+> decal pair, fine/bold text) are prerequisites of Tasks 12 and 11 and migrate with
+> them. This section is kept as the executable specification for C4.
+
 **Files:**
 - Modify: `tools/asset-pipeline/src/placeholders.ts`
 - Test: `tools/asset-pipeline/src/placeholders.test.ts` (new file)
@@ -2010,7 +2055,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **The mechanism that makes this seedable.** glTF's default for `metallicFactor` is **1.0**, and gltf-transform's writer omits any property equal to its default. So `.setMetallicFactor(1)` produces JSON with **no `metallicFactor` key at all** — exactly CLO's shape. Step 2 asserts that rather than assuming it.
 
-- [ ] **Step 1: Write the failing test**
+- **Step 1: Write the failing test**
 
 Create `tools/asset-pipeline/src/placeholders.test.ts`:
 
@@ -2117,7 +2162,7 @@ describe('buildTextureHeavyTee — the shape `women athlatic dress` has', () => 
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- **Step 2: Run the test to verify it fails**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/placeholders.test.ts
@@ -2125,7 +2170,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: FAIL — `buildCloShapedTee is not exported`.
 
-- [ ] **Step 3: Write the fixtures**
+- **Step 3: Write the fixtures**
 
 Append to `tools/asset-pipeline/src/placeholders.ts`:
 
@@ -2291,7 +2336,7 @@ function addUvQuad(
 
 Add `Mesh` to the existing `@gltf-transform/core` type import at the top of the file if it is not already there.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- **Step 4: Run the test to verify it passes**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/placeholders.test.ts
@@ -2299,7 +2344,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: PASS. **If the first test fails because `metallicFactor` IS present in the JSON**, gltf-transform is not eliding the default. Do not delete the assertion — seed the shape by post-processing the written JSON instead, and record the finding in the test's comment.
 
-- [ ] **Step 5: Confirm the EXISTING placeholder tests still pass**
+- **Step 5: Confirm the EXISTING placeholder tests still pass**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/pipeline.test.ts
@@ -2307,7 +2352,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: PASS. `PLACEHOLDER_PRIMITIVES` is derived from `PLACEHOLDER_ARTWORK.length`, so the new materials must NOT be added to `buildPlaceholderTee` itself — only to the new `buildCloShapedTee` wrapper.
 
-- [ ] **Step 6: Lint, typecheck, full gates**
+- **Step 6: Lint, typecheck, full gates**
 
 ```bash
 npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnpm@10.33.0 test:coverage
@@ -2315,7 +2360,7 @@ npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnp
 
 Expected: all exit 0.
 
-- [ ] **Step 7: Commit**
+- **Step 7: Commit**
 
 ```bash
 git add tools/asset-pipeline/src/placeholders.ts tools/asset-pipeline/src/placeholders.test.ts && git commit -m "test(pipeline): seed the material shapes CLO actually emits
@@ -2343,7 +2388,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **⚠️ This is the ONLY change here that needs a Docker rebuild and a `deploy-shrink` run to reach production.** It adds no npm dependency, so `tools/asset-pipeline/package-lock.json` does not change and `npm ci` cannot break — the trap that cost a deploy on 2026-08-12 is avoided as long as that stays true.
 
-- [ ] **Step 1: Add the imports**
+- [x] **Step 1: Add the imports**
 
 In `apps/shrink/container/server.ts`, beside the existing relative imports:
 
@@ -2352,7 +2397,7 @@ import { describeGlb } from '../../../tools/asset-pipeline/src/describe'
 import { refineFlagsForFamily } from '../../../tools/asset-pipeline/src/strategy'
 ```
 
-- [ ] **Step 2: Refine the flags after the download, before parsing them**
+- [x] **Step 2: Refine the flags after the download, before parsing them**
 
 Replace this block:
 
@@ -2389,7 +2434,7 @@ with:
     const { options } = parseOptimizeArgs([rawPath, '--out', outPath, ...flags])
 ```
 
-- [ ] **Step 3: Put the readout on the report so it is visible in the CMS**
+- [x] **Step 3: Put the readout on the report so it is visible in the CMS**
 
 In the `const report = {` object, after `texCoordsInUse`, add:
 
@@ -2409,7 +2454,7 @@ In the `const report = {` object, after `texCoordsInUse`, add:
           },
 ```
 
-- [ ] **Step 4: Typecheck the container, which is NOT a workspace member**
+- [x] **Step 4: Typecheck the container, which is NOT a workspace member**
 
 ```bash
 cd apps/shrink/container && npm install --no-audit --no-fund && npx tsc --noEmit
@@ -2417,7 +2462,7 @@ cd apps/shrink/container && npm install --no-audit --no-fund && npx tsc --noEmit
 
 Expected: exit 0. This is a separate CI step precisely because `pnpm -r` skips this directory.
 
-- [ ] **Step 5: Confirm the second lockfile did NOT change**
+- [x] **Step 5: Confirm the second lockfile did NOT change**
 
 ```bash
 git status --porcelain tools/asset-pipeline/package-lock.json tools/asset-pipeline/package.json
@@ -2429,7 +2474,7 @@ Expected: **no output.** If either moved, regenerate the lockfile in isolation b
 cd $(mktemp -d) && cp /Users/hateemjamshaid/Sites/Model-Viewer-main/tools/asset-pipeline/package.json . && npm install --package-lock-only && cp package-lock.json /Users/hateemjamshaid/Sites/Model-Viewer-main/tools/asset-pipeline/
 ```
 
-- [ ] **Step 6: Run the whole suite**
+- [x] **Step 6: Run the whole suite**
 
 ```bash
 npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnpm@10.33.0 test:coverage
@@ -2437,7 +2482,7 @@ npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnp
 
 Expected: all exit 0.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add apps/shrink/container/server.ts && git commit -m "feat(shrink): decide the compression family where the file actually is
@@ -2470,7 +2515,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Scope, verbatim from the design:** materials only. No geometry, no textures, no alpha.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tools/asset-pipeline/src/pbr-normalize.test.ts`:
 
@@ -2607,7 +2652,7 @@ describe('normalizePbr', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/pbr-normalize.test.ts
@@ -2615,7 +2660,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: FAIL — `Failed to resolve import "./pbr-normalize"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `tools/asset-pipeline/src/pbr-normalize.ts`:
 
@@ -2732,7 +2777,7 @@ export function normalizePbr(options: PbrNormalizeOptions = {}): Transform {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/pbr-normalize.test.ts
@@ -2740,7 +2785,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: PASS, all cases.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/asset-pipeline/src/pbr-normalize.ts tools/asset-pipeline/src/pbr-normalize.test.ts && git commit -m "feat(pipeline): force fabric off metal, and leave the 440 zippers alone
@@ -2768,7 +2813,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Default ON, with an opt-out.** Every one of the 55 offenders is a defect; the risk of the fix is misclassification, which the hardware list and the MR-texture check already bound. The opt-out exists because a garment with genuine metallic fabric (lamé, foil print) should be shippable without editing code.
 
-- [ ] **Step 1: Add the option to `OptimizeOptions`**
+- [x] **Step 1: Add the option to `OptimizeOptions`**
 
 In `tools/asset-pipeline/src/optimize.ts`, inside `export interface OptimizeOptions`, after `opaque`:
 
@@ -2788,7 +2833,7 @@ In `tools/asset-pipeline/src/optimize.ts`, inside `export interface OptimizeOpti
   normalizePbr?: boolean
 ```
 
-- [ ] **Step 2: Add the telemetry field**
+- [x] **Step 2: Add the telemetry field**
 
 In `export interface OptimizeTelemetry`:
 
@@ -2803,7 +2848,7 @@ and add to the imports at the top:
 import { type PbrNormalizeResult, normalizePbr } from './pbr-normalize'
 ```
 
-- [ ] **Step 3: Push the transform, BEFORE the alpha and texture passes**
+- [x] **Step 3: Push the transform, BEFORE the alpha and texture passes**
 
 In `buildOptimizeTransforms`, immediately after the `dedup()` / `prune()` line and **before** the `options.opaque === true` block:
 
@@ -2823,7 +2868,7 @@ In `buildOptimizeTransforms`, immediately after the `dedup()` / `prune()` line a
   }
 ```
 
-- [ ] **Step 4: Add the CLI flag**
+- [x] **Step 4: Add the CLI flag**
 
 In `parseOptimizeArgs`, beside the existing `--no-opaque` branch:
 
@@ -2837,7 +2882,7 @@ Declare `let normalizePbrOption: boolean | undefined` with the other locals, and
 
 ⚠️ **Do NOT add `--no-pbr-normalize` to `VALUE_TAKING_FLAGS`.** It takes no value.
 
-- [ ] **Step 5: Report it in the CLI output**
+- [x] **Step 5: Report it in the CLI output**
 
 In `cli.ts`'s `optimize` branch, beside where solidify telemetry is printed, add:
 
@@ -2854,7 +2899,7 @@ In `cli.ts`'s `optimize` branch, beside where solidify telemetry is printed, add
     }
 ```
 
-- [ ] **Step 6: Add the integration test**
+- [x] **Step 6: Add the integration test**
 
 Append to `tools/asset-pipeline/src/pipeline.test.ts`:
 
@@ -2906,7 +2951,7 @@ describe('normalizePbr through the real pipeline', () => {
 
 Add `buildCloShapedTee` to the existing `./placeholders` import and `describeGlb` from `./describe`.
 
-- [ ] **Step 7: Run the gates**
+- [x] **Step 7: Run the gates**
 
 ```bash
 npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnpm@10.33.0 test:coverage
@@ -2914,7 +2959,7 @@ npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnp
 
 Expected: all exit 0.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add tools/asset-pipeline/src/optimize.ts tools/asset-pipeline/src/cli.ts tools/asset-pipeline/src/pipeline.test.ts && git commit -m "feat(pipeline): run the metalness fix by default, with an opt-out
@@ -2931,6 +2976,14 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ---
 
 ## Task 11: Unit 4a — measure stroke width, and stop MASKing what MASK would destroy
+
+> **⤴ MIGRATED 2026-09-22 (B1 audit).** Not implemented, not dropped — every
+> checkbox in this task has been removed and the work is now master-plan item **C4**.
+> Evidence: `thinStrokeAction` appears nowhere outside this file;
+> `solidifyMaterials(document)` takes no action parameter (`optimize.ts:321`).
+> The design spec (`docs/superpowers/specs/2026-08-26-garment-pipeline-defects-design.md`)
+> still reads **Status: awaiting owner approval**, and the decision needs Task 14's
+> rendered crops. Kept as the executable specification for C4.
 
 **Files:**
 - Modify: `tools/asset-pipeline/src/textures.ts` (add `measureStrokeWidth`)
@@ -2953,7 +3006,7 @@ So artwork is pinned to exactly `MASK @ 0.5`, and there is no third alphaMode th
 
 **The decision, and why.** `thinStrokeAction` defaults to `'report'`: the pipeline MEASURES which materials MASK would damage, reports them, and **changes nothing**. Turning on `'keep-blend'` is a judgement that trades a sorting artefact for stroke fidelity, and this repo's most expensive lesson is that only a rendered crop can make that call. Task 14's regression run is where it gets made. The code ships in this branch; the pixel change does not ship unmeasured.
 
-- [ ] **Step 1: Write the failing test for the measurement**
+- **Step 1: Write the failing test for the measurement**
 
 Append to `tools/asset-pipeline/src/textures.test.ts`:
 
@@ -3014,7 +3067,7 @@ describe('measureStrokeWidth', () => {
 
 Add `measureStrokeWidth` to the existing `./textures` import in that file.
 
-- [ ] **Step 2: Run it, confirm it fails**
+- **Step 2: Run it, confirm it fails**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/textures.test.ts -t measureStrokeWidth
@@ -3022,7 +3075,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: FAIL — `measureStrokeWidth is not a function`.
 
-- [ ] **Step 3: Implement the measurement**
+- **Step 3: Implement the measurement**
 
 Append to `tools/asset-pipeline/src/textures.ts`:
 
@@ -3100,7 +3153,7 @@ export async function measureStrokeWidth(buffer: Uint8Array): Promise<StrokeProf
 }
 ```
 
-- [ ] **Step 4: Run it, confirm it passes**
+- **Step 4: Run it, confirm it passes**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/textures.test.ts -t measureStrokeWidth
@@ -3108,7 +3161,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: PASS.
 
-- [ ] **Step 5: Consult it in `solidifyMaterials`**
+- **Step 5: Consult it in `solidifyMaterials`**
 
 In `tools/asset-pipeline/src/optimize.ts`, add to `SolidifyResult`:
 
@@ -3166,7 +3219,7 @@ Initialise `thinStroke: []` in the result object, and inside the `if (cutout)` p
 
 Add `measureStrokeWidth` to the existing `./textures` import in `optimize.ts`.
 
-- [ ] **Step 6: Thread the option through**
+- **Step 6: Thread the option through**
 
 Add to `OptimizeOptions`:
 
@@ -3184,7 +3237,7 @@ In `buildOptimizeTransforms`, pass it: `await solidifyMaterials(document, option
 
 In `parseOptimizeArgs`, add `--keep-thin-strokes` setting it to `'keep-blend'`. It takes no value, so do **not** add it to `VALUE_TAKING_FLAGS`.
 
-- [ ] **Step 7: Report it in the CLI**
+- **Step 7: Report it in the CLI**
 
 In `cli.ts`'s optimize output, beside the solidify line:
 
@@ -3197,7 +3250,7 @@ In `cli.ts`'s optimize output, beside the solidify line:
     }
 ```
 
-- [ ] **Step 8: Add the integration test**
+- **Step 8: Add the integration test**
 
 Append to `tools/asset-pipeline/src/pipeline.test.ts`:
 
@@ -3225,7 +3278,7 @@ describe('thin-stroke detection', () => {
 })
 ```
 
-- [ ] **Step 9: Gates and commit**
+- **Step 9: Gates and commit**
 
 ```bash
 npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnpm@10.33.0 test:coverage
@@ -3247,6 +3300,12 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ## Task 12: Unit 4b — offset only what is safe to offset
 
+> **⤴ MIGRATED 2026-09-22 (B1 audit).** Not implemented, not dropped — every
+> checkbox in this task has been removed and the work is now master-plan item **C4**.
+> Evidence: `offsetDecals`/`DecalOffsetResult` appear nowhere outside this file.
+> Same owner approval + regression dependency as Task 11. Kept as the executable
+> specification for C4.
+
 **Files:**
 - Create: `tools/asset-pipeline/src/decal-offset.ts`
 - Test: `tools/asset-pipeline/src/decal-offset.test.ts`
@@ -3265,7 +3324,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 Condition 3 is what makes 1 and 2 safe, and it is the one the reverted attempt did not have.
 
-- [ ] **Step 1: Write the failing test**
+- **Step 1: Write the failing test**
 
 Create `tools/asset-pipeline/src/decal-offset.test.ts`:
 
@@ -3348,7 +3407,7 @@ describe('offsetDecals', () => {
 })
 ```
 
-- [ ] **Step 2: Run it, confirm it fails**
+- **Step 2: Run it, confirm it fails**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/decal-offset.test.ts
@@ -3356,7 +3415,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: FAIL — `Failed to resolve import "./decal-offset"`.
 
-- [ ] **Step 3: Implement**
+- **Step 3: Implement**
 
 Create `tools/asset-pipeline/src/decal-offset.ts`:
 
@@ -3570,7 +3629,7 @@ export function offsetDecals(options: DecalOffsetOptions = {}): Transform {
 
 ⚠️ **The idempotence test will fail as written above** — moving vertices twice moves them twice. Make it pass honestly: after offsetting, the primitive's positions are no longer coincident with the fabric, so the SEAM check still holds but nothing marks it as already-done. Add a `document`-level guard: record offset material names in `document.getRoot().getExtras()` under `decalOffsetApplied`, and skip a material already listed. Write that guard, then re-run the test.
 
-- [ ] **Step 4: Wire it into `buildOptimizeTransforms`**
+- **Step 4: Wire it into `buildOptimizeTransforms`**
 
 Immediately after the `options.opaque === true` block (so alpha decisions are already made) and **before** the texture pass:
 
@@ -3590,7 +3649,7 @@ Immediately after the `options.opaque === true` block (so alpha decisions are al
 
 Add `offsetDecals?: boolean` to `OptimizeOptions`, `decals?: DecalOffsetResult` to `OptimizeTelemetry`, and `--no-decal-offset` to `parseOptimizeArgs` (no value, so NOT in `VALUE_TAKING_FLAGS`).
 
-- [ ] **Step 5: Gates and commit**
+- **Step 5: Gates and commit**
 
 ```bash
 npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnpm@10.33.0 test:coverage
@@ -3610,6 +3669,12 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ---
 
 ## Task 13: Unit 5 — weave density matching
+
+> **⤴ MIGRATED 2026-09-22 (B1 audit).** Not implemented, not dropped — every
+> checkbox in this task has been removed and the work is now master-plan item **C4**.
+> Evidence: `applyWeave`/`weave.ts` appear nowhere outside this file, and the design
+> spec has since narrowed this unit to **clamp and report** out-of-band tiling rather
+> than apply it (`...design.md:291`). Kept as the executable specification for C4.
 
 **Files:**
 - Create: `tools/asset-pipeline/src/weave.ts`
@@ -3632,7 +3697,7 @@ So weave **density** is `repeats / worldSize`, and a decal needs `repeats = dens
 
 **⚠️ One material measured `396 × 410` repeats** — `FABRIC 2_3169` on Mantra Ray Proflex. Clamp and report; never tile to it.
 
-- [ ] **Step 1: Write the failing test**
+- **Step 1: Write the failing test**
 
 Create `tools/asset-pipeline/src/weave.test.ts`:
 
@@ -3699,7 +3764,7 @@ describe('matchWeaveDensity', () => {
 })
 ```
 
-- [ ] **Step 2: Run it, confirm it fails**
+- **Step 2: Run it, confirm it fails**
 
 ```bash
 npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/weave.test.ts
@@ -3707,7 +3772,7 @@ npx --yes pnpm@10.33.0 --filter @run-apparel/asset-pipeline exec vitest run src/
 
 Expected: FAIL — `Failed to resolve import "./weave"`.
 
-- [ ] **Step 3: Implement**
+- **Step 3: Implement**
 
 Create `tools/asset-pipeline/src/weave.ts`. Structure it exactly as follows:
 
@@ -3733,7 +3798,7 @@ Every constant carries its measurement in a comment:
 const DEFAULT_MAX_REPEATS = 32
 ```
 
-- [ ] **Step 4: Wire it in, DEFAULT OFF**
+- **Step 4: Wire it in, DEFAULT OFF**
 
 Add to `OptimizeOptions`:
 
@@ -3763,7 +3828,7 @@ In `buildOptimizeTransforms`, after the decal offset and before the texture pass
 
 Add `--weave` to `parseOptimizeArgs` (no value; NOT in `VALUE_TAKING_FLAGS`) and `weave?: WeaveResult` to `OptimizeTelemetry`.
 
-- [ ] **Step 5: Gates and commit**
+- **Step 5: Gates and commit**
 
 ```bash
 npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnpm@10.33.0 test:coverage
@@ -3785,6 +3850,12 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ## Task 14: Regression — all 28 garments, judged in the live viewer
 
+> **⤴ MIGRATED 2026-09-22 (B1 audit).** Not implemented, not dropped — every
+> checkbox in this task has been removed and the work is now master-plan item **C4**.
+> The 28-garment regression never ran, so the `thinStrokeAction`/`applyWeave` decisions
+> stay open. Step 1 (move this plan to its final home, `docs/superpowers/plans/`) was
+> executed by the B1 audit commit itself.
+
 **Files:**
 - Create: `tools/asset-pipeline/scripts/regress-catalogue.mjs`
 - Create: `docs/GARMENT-CATALOGUE-BASELINE.md` § "Regression run"
@@ -3800,7 +3871,7 @@ The before/after diff still runs, but as the **implementer's** check: any garmen
 
 **The sharpest watch is the 9 garments that render cleanly today** — KINETIC MATRIX, Mantra Ray Proflex, X-Milo Training Vest, ZENMOVE TIGHTS, ENDURANCE TRACKSUIT, ARISAN SPORTS BRA, MATRIX-PUFF JACKET, women athlatic dress, PRO-PILE SHERPA JACKET. A change can only make these worse. **Six of the nine are texture-heavy**, so Unit 2 changes their strategy too — they are simultaneously the regression set and the group Unit 2 is meant to help. **Judge them in the viewer, not on file size.**
 
-- [ ] **Step 1: Move this plan into its final home**
+- **Step 1: Move this plan into its final home**
 
 Every file it names now exists, so it can rejoin the walked set — and it must, or the
 plan is the one document in this repository nobody citation-checks.
@@ -3817,7 +3888,7 @@ gone, and then it needs a written reason.
 Then delete the "THIS FILE LIVES AT THE REPOSITORY ROOT" section from Global
 Constraints; it describes an arrangement that has ended.
 
-- [ ] **Step 2: Write the runner**
+- **Step 2: Write the runner**
 
 Create `tools/asset-pipeline/scripts/regress-catalogue.mjs`. It must:
 
@@ -3828,7 +3899,7 @@ Create `tools/asset-pipeline/scripts/regress-catalogue.mjs`. It must:
 - catch a per-garment failure, record it, and continue, so one bad file cannot end the run;
 - write `summary.json` with, per garment: family, bytes before, bytes after, whether it is under `GLB_HARD_MAX_BYTES`, the `pbrSuspects` / `unclassifiedMetallic` / `thinStroke` / decal-offset counts, and elapsed seconds.
 
-- [ ] **Step 3: Take the BEFORE baseline on today's code**
+- **Step 3: Take the BEFORE baseline on today's code**
 
 ```bash
 git stash && cd tools/asset-pipeline && node scripts/regress-catalogue.mjs "$HOME/Documents/3D Products" /tmp/regress-before ; git stash pop
@@ -3836,14 +3907,14 @@ git stash && cd tools/asset-pipeline && node scripts/regress-catalogue.mjs "$HOM
 
 ⚠️ Take this **before** the branch's changes are active, or there is nothing to compare against. Expect several hours; run it once and keep it.
 
-- [ ] **Step 4: Run the AFTER pass**
+- **Step 4: Run the AFTER pass**
 
 ```bash
 cd tools/asset-pipeline && node scripts/regress-catalogue.mjs "$HOME/Documents/3D Products" /tmp/regress-after```
 
 Expected: 28 garments, 0 failures. If a garment fails, `summary.json` records why and the run continues.
 
-- [ ] **Step 5: Compare, and flag anything that got worse**
+- **Step 5: Compare, and flag anything that got worse**
 
 ```bash
 cd tools/asset-pipeline && for g in /tmp/regress-after/*/ ; do n=$(basename "$g"); npx --yes tsx src/cli.ts compare "/tmp/regress-before/$n" "$g" --out "/tmp/regress-diff/$n.png" 2>/dev/null || echo "no baseline for $n"; done && ls /tmp/regress-diff | wc -l
@@ -3851,7 +3922,7 @@ cd tools/asset-pipeline && for g in /tmp/regress-after/*/ ; do n=$(basename "$g"
 
 **The nine clean garments are read first.** Any visible difference on them is a regression until proven otherwise, whatever it did to the file size.
 
-- [ ] **Step 6: Decide `thinStrokeAction` and `applyWeave` from the crops**
+- **Step 6: Decide `thinStrokeAction` and `applyWeave` from the crops**
 
 Both shipped inert on purpose (Tasks 11 and 13). Decide each on evidence:
 
@@ -3860,7 +3931,7 @@ Both shipped inert on purpose (Tasks 11 and 13). Decide each on evidence:
 
 Write both decisions into `docs/GARMENT-CATALOGUE-BASELINE.md` with the measured evidence. **A decision recorded with its reason survives; a default changed silently does not.**
 
-- [ ] **Step 7: Hand the owner the live viewer — AFTER garments only**
+- **Step 7: Hand the owner the live viewer — AFTER garments only**
 
 ```bash
 cd tools/asset-pipeline && npx --yes pnpm@10.33.0 start review /tmp/regress-after --port 4180
@@ -3879,17 +3950,17 @@ decoder or a file problem, not a verdict — and "this garment is broken" is exa
 the wrong conclusion for the owner to reach from a viewer bug. Anything that fails
 to load gets fixed, or is excluded with a written reason.
 
-- [ ] **Step 8: Write up anything that got measurably worse**
+- **Step 8: Write up anything that got measurably worse**
 
 The owner judges the after garments, so a regression they cannot see by looking must
 be told to them in words. From the Step 4 diffs, list every garment whose crops
 moved, what moved, and which unit did it. **The nine clean garments come first.**
 
-- [ ] **Step 9: Record the run**
+- **Step 9: Record the run**
 
 Append a `## Regression run` section to `docs/GARMENT-CATALOGUE-BASELINE.md`: per garment, bytes before → after, whether it is under the 40 MB ceiling, and one line for every garment that moved in a way a crop can see. **Name garments; never write a path.**
 
-- [ ] **Step 10: Confirm the citation gate covers the plan, now that it is in `docs/`**
+- **Step 10: Confirm the citation gate covers the plan, now that it is in `docs/`**
 
 ```bash
 node scripts/doc-citations.mjs
@@ -3900,7 +3971,7 @@ outside the walked set on purpose — so what this step actually verifies is the
 Step 1 changed: that the plan is now INSIDE that set and still clean. A failure here
 means the plan named a file the implementation did not build.
 
-- [ ] **Step 11: Full gates, then the PR**
+- **Step 11: Full gates, then the PR**
 
 ```bash
 npx --yes pnpm@10.33.0 install --frozen-lockfile && npx --yes pnpm@10.33.0 lint && npx --yes pnpm@10.33.0 typecheck && npx --yes pnpm@10.33.0 test:coverage
@@ -3922,7 +3993,7 @@ cd apps/shrink/container && npm install --no-audit --no-fund && npx tsc --noEmit
 
 ⚠️ The container is not a pnpm workspace member; `pnpm -r` skips it and CI checks it separately.
 
-- [ ] **Step 12: Commit and open the PR**
+- **Step 12: Commit and open the PR**
 
 ```bash
 git add docs/GARMENT-CATALOGUE-BASELINE.md tools/asset-pipeline/scripts/regress-catalogue.mjs && git commit -m "test(pipeline): regress all 28 garments, and record what the crops decided
