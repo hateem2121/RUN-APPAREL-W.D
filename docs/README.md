@@ -174,6 +174,7 @@ document and not adding its row is the failure this section is named for.
 
 | Document | What it is |
 |---|---|
+| [BUYER-JOURNEY-PROTOCOL.md](BUYER-JOURNEY-PROTOCOL.md) | How the ten buyer tag-scan sessions are run, captured and pseudonymised — the evidence behind the next scorecard |
 | [CUSTOMISATION-COPY-2026-09-04.md](CUSTOMISATION-COPY-2026-09-04.md) | The owner’s American-spelling decision, and the copy it governs |
 | [DECISION-AR-SCOPE.md](DECISION-AR-SCOPE.md) | Why there is no AR mode |
 | [DECISION-OFFLINE-SCOPE.md](DECISION-OFFLINE-SCOPE.md) | How far offline support goes, and why it stops there |
