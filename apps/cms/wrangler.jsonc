@@ -3,7 +3,11 @@
   // Deliberately NOT "run-apparel" — that worker is a separate, live RUN APPAREL
   // site. This viewer CMS is fully isolated. Never deploy over "run-apparel".
   "name": "run-apparel-viewer-cms",
-  "main": ".open-next/worker.js",
+  // ⚠️ worker.mjs, NOT .open-next/worker.js (SE-04, decided 2026-09-18). It wraps OpenNext's
+  // handler with the script guard, which gives each public page's scripts a fresh nonce.
+  // Pointing this back at OpenNext is the ONE-LINE ROLLBACK (docs/RUNBOOK.md). It is pinned
+  // by src/workerConfigs.test.ts.
+  "main": "worker.mjs",
   // RETIRED 2026-08-31. This was a TEMPORARY workers.dev URL opened so the viewer
   // could reach the CMS API while Bot Fight Mode was challenging cms.wear-run.help.
   // It was the last step of the API cutover, and BOTH conditions this comment set

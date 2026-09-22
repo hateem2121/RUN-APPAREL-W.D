@@ -291,7 +291,7 @@ step 10 is done (or via the manual commands above). Endpoints:
 | Piece | URL |
 |---|---|
 | Marketing site (CMS Worker on zone routes) | `https://wear-run.help` — `www.` redirects here; `/admin` and `/api` here answer the site's 404 |
-| Private catalogue and profile links (`run-apparel-apex-404`) | `https://catalogue.wear-run.help/<code>` and `https://profile.wear-run.help/<code>` (custom domains; each code is a Worker secret). The old `wear-run.help/catalogue` and `/profile` answer 410 |
+| Private catalogue and profile links (`run-apparel-apex-404`) | `https://catalogue.wear-run.help/<code>` and `https://profile.wear-run.help/<code>`, and the same two on `wear-run.com` (custom domains; each code is a Worker secret). The old `wear-run.help/catalogue` and `/profile` answer 410 |
 | CMS worker (`run-apparel-viewer-cms`) | `https://cms.wear-run.help` (custom domain) — the viewer *calls* the API via the workers.dev URL instead (Bot Fight Mode, see RUNBOOK) |
 | CMS admin | `https://cms.wear-run.help/admin` |
 | CMS health | `https://cms.wear-run.help/api/health` |
@@ -397,14 +397,28 @@ the CMS Worker; Cloudflare hands a request to the most specific route. CI deploy
 BEFORE the CMS Worker because a route pattern belongs to one Worker at a time, and refuses to
 deploy it without both secrets. Operating it: `docs/RUNBOOK.md` → "Private document links".
 
+**The same two documents on `wear-run.com` (decided 2026-09-17, live from the merge that
+deploys it).** `catalogue.wear-run.com` and `profile.wear-run.com` are two more custom
+domains on this Worker, in the `wear-run.com` zone of the same account. The same words open
+the same document on either address, and the `.help` pair must keep working forever because
+links already sent use it. That zone's minimum is **TLS 1.2**, like `wear-run.help`. It was
+1.3-only for five hours on 2026-09-17, until the email-signature project set it back after the
+ruling in section 11.7. The zone audit log shows both changes.
+⚠️ **The zone is shared** with the email-signature project (section 11.8), and in CI
+`wrangler deploy` runs without a terminal — so it takes any hostname listed in
+`infra/apex-404/wrangler.jsonc` from whichever Worker holds it, without asking. That file
+may therefore name no other `wear-run.com` host, and `apps/cms/src/workerConfigs.test.ts`
+fails if one appears.
+
 ⚠️ **The apex DNS record must stay proxied.** Zone routes require it; deleting it
 takes the site and the four retired PDF routes offline. The private links are not on
 it: `catalogue.` and `profile.wear-run.help` are custom domains whose DNS records
 `wrangler deploy` creates.
 
-⚠️ **Two zone rules for `catalogue.wear-run.help` and `profile.wear-run.help` were
-created 2026-09-15 and live only in Cloudflare, not in any wrangler file** (owner
-decisions D20, D21). Named here by description, because no rule id may appear in this
+⚠️ **Two zone rules for the document hosts live only in Cloudflare, not in any wrangler
+file** (owner decisions D20, D21): created 2026-09-15 in `wear-run.help` for its two hosts,
+and copied on 2026-09-17, with the same descriptions and matching only its two hosts, into
+the `wear-run.com` zone. Named here by description, because no rule id may appear in this
 public repository:
 
 - the Configuration Rule **"Private document links: no Zaraz or Web Analytics
@@ -467,6 +481,77 @@ Cloudflare's bot challenge has broken this viewer before.
 
 Cache and firewall rules are recorded with their rollback JSON in
 the private audit's live-changes record.
+
+**Five decisions from the 2026-09-18 security scans** (internet.nl, MDN HTTP Observatory,
+securityheaders.com; results kept privately):
+
+- **Minimum TLS stays 1.2 on purpose.** internet.nl marks this zone down for Cloudflare's
+  default TLS 1.2 cipher list, cipher order and SHA-1 signature support; changing that list
+  without dropping TLS 1.2 needs the paid Advanced Certificate Manager. Measured instead:
+  in the week to 2026-09-17, 3,469 of 129,308 TLS requests (2.7%) still used TLS 1.2 —
+  nearly all robots, but a few modern browser names that only negotiate 1.2 behind an office
+  filter or antivirus, who would see an error page. Mozilla's server guide (TLSRef) calls
+  1.2 + 1.3 "the recommended configuration for the vast majority of services", and
+  `scripts/zone-security-probe.mjs` uses a successful 1.2 handshake as each host's own
+  control, so a 1.3-only zone would blind it. Revisit if the 1.2 share reaches zero.
+- **0-RTT is off** (since 2026-09-18). TLS 1.3 early data can be replayed by anyone on the
+  network path, and internet.nl failed it on every host. The cost is one round trip on a
+  resumed connection.
+- **The www. and cms. redirects carry security headers from a response-header Transform
+  Rule**, "www./cms. redirects: the site's security headers, which OpenNext does not attach
+  to a redirect (2026-09-18)". OpenNext 4.1.0 returns a matched redirect before it attaches
+  the site's own headers (`routingHandler.js`), so no setting in `apps/cms` can reach those
+  responses. The rule matches only a 3xx on those two hosts, and
+  `scripts/public-security-probe.mjs` checks it after every deploy and daily. The wrapper
+  Worker around OpenNext (`apps/cms/worker.mjs`, below) could take it over.
+- **The public pages run only nonced scripts** (SE-04, decided 2026-09-18, live from the merge
+  that deploys it). `apps/cms/worker.mjs` wraps OpenNext and gives every public page a fresh
+  nonce; `script-src` there no longer allows `'unsafe-inline'`.
+  ⚠️ **So do not switch on an edge feature that injects scripts into `wear-run.help` pages.**
+  That means Web Analytics *automatic* setup, Zaraz auto-inject with tools, Email Obfuscation
+  and Rocket Loader. Their scripts carry no nonce and would be blocked.
+  `scripts/public-security-probe.mjs` names the extra script within a day. Turn the feature off
+  for that host, the way D20 already does for the document hosts.
+- **The analytics beacon carries no `integrity` hash, on purpose** (decided 2026-09-18).
+  Cloudflare's FAQ says a manually embedded beacon cannot safely carry one, because the script
+  is updated in place and version-pinning is unsupported. Its automatic injection would be
+  blocked by the nonce policy. Observatory's −5 stays, and does not prevent A+.
+
+HSTS `includeSubDomains` also covers `url7790.wear-run.help`, a DNS-only CNAME to SendGrid
+used for click tracking, which cannot serve HTTPS for that name. Click tracking is off, so no
+link points there and nothing breaks. **Do not turn SendGrid click tracking on** without
+first giving that host HTTPS.
+
+### 11.8 Other projects on these zones — never delete
+
+Recorded 2026-09-17 at the owner's request. These live in the same Cloudflare account and
+belong to the separate **email-signature project**, whose Worker is `run-domain-edge`.
+Nothing in this repository creates, reads or deploys them, so no test here would notice one
+disappearing — and deleting one breaks company email, not this site.
+
+On `wear-run.help`:
+
+| Record | What it is |
+|---|---|
+| Custom domain `mta-sts.wear-run.help` (Worker `run-domain-edge`) | serves the MTA-STS policy |
+| TXT `_mta-sts.wear-run.help` | announces that policy |
+| TXT `default._bimi.wear-run.help` | the BIMI logo record; its own comment names the R2 bucket `run-email-assets` |
+| TXT `_dmarc.wear-run.help` and TXT `_smtp._tls.wear-run.help` | DMARC and TLS-RPT, **managed by that project** |
+
+`scripts/check-email-dns.mjs` still reads DMARC and TLS-RPT, but a value that changed may be
+that project's deliberate edit: check with it before "fixing" a record.
+
+On `wear-run.com`, the apex, `www.`, `go.`, `assets.` and `mta-sts.` belong to that project
+too. Its apex and `www.` redirect to `wear-run.help`, which is how an old
+`wear-run.com/catalogue` link still reaches the 410 page — no route of ours is needed there.
+Only `catalogue.` and `profile.wear-run.com` are this repository's (section 11.4).
+
+**Two redirects that old emails use — keep them forever.** `wear-run.help/map` (302 to the
+Google Maps pin) and `wear-run.help/meeting` (301 to the Apollo meeting-booking page) are
+Cloudflare **redirect rules**, named "Map" and "Book Meeting", in no file. Their expressions
+match the PATH on every proxied host of the zone and run before any Worker, so a site page
+at either path would never be seen. `scripts/apex-probe.mjs` checks both after every deploy
+and daily, by host, so the target's path can still change.
 
 ---
 

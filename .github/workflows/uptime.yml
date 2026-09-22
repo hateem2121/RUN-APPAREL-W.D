@@ -185,6 +185,12 @@ jobs:
             # `ok=false` was only a shell variable. The probe exits non-zero itself.
             node scripts/apex-probe.mjs || ok=false
 
+            # security.txt on every host, and the headers a Cloudflare rule adds to the www./cms.
+            # redirects (2026-09-18). `--daily`: a file not served YET is inconclusive — this job
+            # runs from main, and a merge is live minutes before its deploy — while a present file
+            # under 30 days from its Expires FAILS, which is the renewal warning this run exists for.
+            node scripts/public-security-probe.mjs --daily || ok=false
+
             # The zone's SECURITY posture, which lives in Cloudflare's control plane
             # and in no file here.
             #

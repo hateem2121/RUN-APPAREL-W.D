@@ -385,7 +385,7 @@ export function buildHeadersFile(input) {
 
 /*
   X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
+  Referrer-Policy: same-origin
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()
   Content-Security-Policy: ${buildCsp(input)}

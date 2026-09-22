@@ -2,7 +2,11 @@
 
 ## Reporting a vulnerability
 
-**Email `partner@wear-run.com` with `SECURITY` in the subject line.**
+**Email `team@wear-run.com` with `SECURITY` in the subject line.**
+
+The same address is in `/.well-known/security.txt` (RFC 9116) on every host — owner
+decision 2026-09-18, so a researcher sees one address wherever they look.
+`partner@wear-run.com` is the company's public enquiry address, not for security reports.
 
 Please do **not** open a GitHub issue for a security problem. Issues in this
 repository are used by the automated monitors (`uptime.yml`, `heartbeat.yml`,
@@ -37,8 +41,8 @@ targets are honest intentions, not a contractual SLA.
 **Out of scope**
 
 - `https://wear-run.help/catalogue` and `/profile` answering **410**, and
-  `https://catalogue.wear-run.help/` or `https://profile.wear-run.help/` answering **404**
-  without a valid link. This is [by design](CLAUDE.md): decided 2026-09-11 and live from
+  `https://catalogue.wear-run.help/`, `https://profile.wear-run.help/` or the same two
+  addresses on `wear-run.com` answering **404** without a valid link. This is [by design](CLAUDE.md): decided 2026-09-11 and live from
   the merge that deploys it, the catalogue and company profile open only from a private
   link whose code is a Worker secret (`infra/apex-404/`). The apex itself is the
   marketing site, and every QR deep link uses the `viewer.` subdomain. None of these is
@@ -84,6 +88,10 @@ Reported here so you do not spend time re-discovering it:
   `apps/viewer/scripts/csp.mjs`, hashed per inline script, and applied to both
   asset-served and Worker-built responses (`worker/securityHeaders.ts`).
   `apps/viewer/scripts/csp.test.ts` pins the two copies together.
+- **The marketing site runs only nonced scripts.** `apps/cms/worker.mjs` stamps a fresh
+  nonce on every script of every public page, and its `script-src` carries no
+  `'unsafe-inline'`. `scripts/public-security-probe.mjs` checks this after every deploy and
+  daily.
 - **No source maps are deployed.** `ci.yml` asserts `apps/viewer/dist` contains
   zero `.map` files and refuses to deploy otherwise.
 - **Admin login locks after 5 failed attempts**, and the public feedback endpoint

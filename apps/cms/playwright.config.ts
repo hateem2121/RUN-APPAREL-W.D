@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { FIREFOX_USER_PREFS } from './e2e/firefoxPrefs.mjs'
 
 /**
  * Browser tests for the PUBLIC marketing site.
@@ -35,8 +36,19 @@ export default defineConfig({
      * it renders broken-image alt text differently from the other two. Both behaviours
      * are asserted, so a regression in the fallback path is caught in the engine that
      * actually takes it.
+     *
+     * ⚠️ It runs with Cross-Origin-Opener-Policy OFF, because that header makes
+     * Playwright's Firefox driver lose `page.goto`'s navigation (microsoft/playwright#42731).
+     * It hung a navigation in 25 of 40 CI runs. `e2e/firefoxPrefs.mjs` has the measurements,
+     * and says when to remove it.
      */
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    {
+      name: 'firefox',
+      use: {
+        ...devices['Desktop Firefox'],
+        launchOptions: { firefoxUserPrefs: FIREFOX_USER_PREFS },
+      },
+    },
     /*
      * WebKit, for ONE file: `e2e/fontSwap.spec.ts`. The stand-in font metrics differ between
      * engines (`scripts/calibrate-fallback.mjs` prints the per-engine table), and WebKit is the

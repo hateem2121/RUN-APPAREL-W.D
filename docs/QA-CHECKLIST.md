@@ -146,7 +146,7 @@ as *inconclusive* and keeps the run green.
 | Model edge cache | **`cf-cache-status: HIT`**, age ~13.7 h | `MISS` on repeat requests |
 | Bare apex (`https://wear-run.help/`) | **404 in 0.89 s** (2026-08-19) | a 5xx, or > 2 s |
 | Old catalogue and profile addresses (`/catalogue`, `/profile`) | **410**, `text/html`, "no longer active" | a PDF, or anything but 410 |
-| Private host without a code (`https://catalogue.wear-run.help/`) | **404**, `text/html`, `x-robots-tag: noindex, nofollow` | a 200, or a PDF |
+| Private host without a code (`https://catalogue.wear-run.help/`, and the `wear-run.com` twins) | **404**, `text/html`, `x-robots-tag: noindex, nofollow` | a 200, or a PDF |
 | Private document page, with its code (decided 2026-09-15) | **200**, `text/html`, `cache-control: no-store` | `public, max-age=300`, or any cached `HIT` — the page must reach the Worker on every open, so every visit is counted |
 | Marker pixel (`/<code>/seen/<n>`) | **200**, `image/gif`, `cache-control: no-store`, `cross-origin-resource-policy: same-origin` | any other status, or a cached `HIT` |
 | Download stop (`/<code>/get`) | **302**, `location: download`, `cache-control: no-store` | a 200, or a cached `HIT` |

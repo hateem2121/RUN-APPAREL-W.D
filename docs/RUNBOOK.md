@@ -267,7 +267,8 @@ every gate. **When you have the minutes to spare, prefer it.**
 > 2. **Rolling back or reverting the private-links change (decided 2026-09-11, live
 >    from the merge that deploys it) re-opens the guessable PDFs.** The earlier code
 >    serves the PDF for any path `/catalogue` or
->    `/profile` — on the apex, and on `catalogue.` / `profile.wear-run.help` too, because
+>    `/profile` — on the apex, and on the `catalogue.` / `profile.` hosts of BOTH zones
+>    too (`wear-run.help` and, from 2026-09-17, `wear-run.com`), because
 >    `wrangler rollback` restores code, not routes, and the custom domains stay attached.
 >    If that is not acceptable for the minutes a fix takes, detach them as well: list with
 >    `GET /accounts/{account_id}/workers/domains?service=run-apparel-apex-404`, detach each
@@ -811,15 +812,66 @@ enqueues nothing, then retry it from the admin:
 npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "UPDATE raw_uploads SET status = 'failed' WHERE id = <id> AND status = 'queued'"
 ```
 
+## security.txt — renewing it once a year
+
+Decided 2026-09-18, live from the merge that deploys it: every host answers
+`/.well-known/security.txt` (RFC 9116) with one shared text,
+`packages/shared/src/securityTxt.ts` — the documents Worker, the site (wear-run.help and
+cms.; www. redirects to the apex copy) and the viewer all import it. Security reports go to
+`team@wear-run.com`, which SECURITY.md names too.
+
+Its `Expires` must stay less than a year ahead. `scripts/public-security-probe.mjs` reads
+every host's live copy daily (uptime.yml) and **fails 30 days before the date**, opening an
+uptime alert. To renew:
+
+1. Confirm `team@wear-run.com` still reaches someone.
+2. In `packages/shared/src/securityTxt.ts`, set `SECURITY_TXT_REVIEWED` to today and
+   `SECURITY_TXT_EXPIRES` to at most a year later. The unit test refuses anything further.
+   The current date matches wear-run.com's own security.txt, run by the email-signature
+   project, so both renew together.
+3. Merge and let CI deploy; its post-deploy step runs the probe strictly.
+
+**It is unsigned, on purpose** (decided 2026-09-18). RFC 9116 recommends an OpenPGP signature,
+and internet.nl lists signing and an `Encryption:` field as optional notes that carry no score.
+HTTPS already proves the file comes from these hosts. A signature would add a private key to
+keep safe and a yearly re-signing step, for no score and little benefit on a single-maintainer
+site.
+
+## The script guard (`apps/cms/worker.mjs`) — if the public pages misbehave
+
+The site's Worker entry gives every public page's scripts a per-request nonce (SE-04, decided
+2026-09-18, live from the merge that deploys it). **It fails open until a page starts to
+stream.** If it errors first, or a page arrives with a policy or compression it does not know,
+the page keeps working under the old policy. `scripts/public-security-probe.mjs` then fails with
+"script-src still allows 'unsafe-inline'", and the Workers logs carry a `[csp-nonce]` line. An
+error after a page has started to stream cannot fall back: that page arrives cut off, and the
+probe fails with "the page is cut off or garbled".
+
+- **A new script is blocked on the site** (the browser console says "Refused to execute…
+  nonce"): an edge feature started injecting one (`docs/CLOUDFLARE-SETUP.md` 11.7). Turn that
+  feature off for `wear-run.help`.
+- **Roll back:** set `"main"` in `apps/cms/wrangler.jsonc` back to `".open-next/worker.js"` and
+  deploy through a PR. Pages then use the fallback policy immediately.
+- **Prove it:** `node apps/cms/e2e/csp-nonce-edge.mjs --origin=https://wear-run.help` checks
+  3 browser engines × 6 page types.
+
 ## Private document links (catalogue and profile)
 
 Decided 2026-09-11 and live from the merge that deploys it: the catalogue and the
 company profile have no guessable address. Each opens only from a private link:
 
-| Document | Link | Worker secret |
+| Document | Links — the same words after either address | Worker secret |
 |---|---|---|
-| Product catalogue | `https://catalogue.wear-run.help/<code>` | `CATALOGUE_CODE` |
-| Company profile | `https://profile.wear-run.help/<code>` | `PROFILE_CODE` |
+| Product catalogue | `https://catalogue.wear-run.help/<code>` and `https://catalogue.wear-run.com/<code>` | `CATALOGUE_CODE` |
+| Company profile | `https://profile.wear-run.help/<code>` and `https://profile.wear-run.com/<code>` | `PROFILE_CODE` |
+
+**Both addresses, one document (decided 2026-09-17, live from the merge that deploys it).**
+The `wear-run.com` addresses are additional; the `wear-run.help` ones must keep working
+forever, because links already sent use them. A visit to either counts as the same
+document, and the visit records store no hostname. ⚠️ `wear-run.com` accepts **TLS 1.3
+only** (a setting of that zone, which belongs to the email-signature project), so a visitor
+behind an old office security filter or antivirus may be able to open only the `.help`
+link. Give out whichever address suits; both open the same pages.
 
 The words after each address are chosen by the owner. They keep out accidental visitors and
 search engines, and are **not** a password against someone determined to guess (owner
@@ -846,8 +898,8 @@ external uptime monitors, nowhere else.
    with `{"name": "CATALOGUE_CODE", "text": "<code>", "type": "secret_text"}`), or with
    `npx wrangler@4.122.0 secret put CATALOGUE_CODE --name run-apparel-apex-404`. Either
    creates and deploys a new Worker version.
-3. Check with a plain GET, never HEAD: the old link must answer **404** and the new one
-   **200**. If the old one still opens, run `pnpm deploy:apex` from a clean, up-to-date
+3. Check with a plain GET, never HEAD, **on both addresses** (`.help` and `.com`): the old
+   link must answer **404** and the new one **200**. If the old one still opens, run `pnpm deploy:apex` from a clean, up-to-date
    `origin/main` checkout — it deploys whatever is on disk, so a stale or dirty tree
    ships the wrong code. Running it clears the old link regardless of what was cached:
    every deployment starts from a cold cache, and Workers Caching cannot be purged from

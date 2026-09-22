@@ -1,7 +1,12 @@
 import { timingSafeEqual as nodeTimingSafeEqual } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import { codesMatch, normaliseCode } from '../../../infra/apex-404/codes.js'
-import { DOCUMENTS, RETIRED_HOSTS, documentForHost } from '../../../infra/apex-404/documents.js'
+import {
+  DOCUMENTS,
+  DOCUMENT_HOSTS,
+  RETIRED_HOSTS,
+  documentForHost,
+} from '../../../infra/apex-404/documents.js'
 
 /**
  * The private document links' two security primitives: which host is which document,
@@ -19,15 +24,39 @@ const equal = (a: Uint8Array, b: Uint8Array) => nodeTimingSafeEqual(a, b)
 const SECRET = 'zzzz-yyyy-xxxx-wwww-vvvv-uuuu'
 
 describe('documents', () => {
-  it('maps each private host to its document, case-insensitively', () => {
-    expect(documentForHost('catalogue.wear-run.help')?.id).toBe('catalogue')
-    expect(documentForHost('PROFILE.wear-run.help')?.id).toBe('profile')
+  it.each([
+    ['catalogue.wear-run.help', 'catalogue'],
+    ['catalogue.wear-run.com', 'catalogue'],
+    ['profile.wear-run.help', 'profile'],
+    ['profile.wear-run.com', 'profile'],
+    ['PROFILE.wear-run.help', 'profile'],
+    ['Catalogue.Wear-Run.COM', 'catalogue'],
+  ])('maps %s to the %s, case-insensitively', (host, id) => {
+    expect(documentForHost(host)?.id).toBe(id)
   })
 
-  it('maps nothing else — not the apex, not a look-alike host', () => {
-    expect(documentForHost('wear-run.help')).toBeUndefined()
-    expect(documentForHost('www.wear-run.help')).toBeUndefined()
-    expect(documentForHost('catalogue.wear-run.help.example.com')).toBeUndefined()
+  it('lists every document host in one place, .help first (decided 2026-09-17)', () => {
+    expect(DOCUMENT_HOSTS).toEqual([
+      'catalogue.wear-run.help',
+      'catalogue.wear-run.com',
+      'profile.wear-run.help',
+      'profile.wear-run.com',
+    ])
+  })
+
+  it.each([
+    'wear-run.help',
+    'www.wear-run.help',
+    'wear-run.com',
+    'www.wear-run.com',
+    'go.wear-run.com',
+    'mta-sts.wear-run.com',
+    'mta-sts.wear-run.help',
+    'catalogue.wear-run.help.example.com',
+    'catalogue.wear-run.com.example.com',
+    'catalogue.wear-run.co',
+  ])('maps nothing to %s — not an apex, not the email project, not a look-alike', (host) => {
+    expect(documentForHost(host)).toBeUndefined()
   })
 
   it('keeps the R2 keys exactly as the objects are named, typo included', () => {

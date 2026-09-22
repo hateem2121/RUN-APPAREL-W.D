@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { RETIRED_PATH_NAMES } from '../../../infra/apex-404/documents.js'
+import { DOCUMENT_HOSTS, RETIRED_PATH_NAMES } from '../../../infra/apex-404/documents.js'
 import { CLEANUP_CRON, WEEKLY_CRON } from '../../../infra/apex-404/weekly.js'
 
 /**
@@ -198,24 +198,67 @@ describe('the apex route split (2026-09-06)', () => {
 
   /**
    * Decided 2026-09-11, live from the merge that deploys it: the PDFs move to their own
-   * hostnames behind a code. The four apex routes stay ONLY so the old addresses answer
+   * hostnames behind a code — and, decided 2026-09-17, to the same two hostnames on
+   * wear-run.com. The four apex routes stay ONLY so the old addresses answer
    * "no longer active" (410) instead of
    * the site's 404. ⚠️ The two custom domains must be created by the same deploy that
    * ships the new code: attached to the old code, `catalogue.wear-run.help/catalogue`
    * would have served the PDF.
    */
-  it('the PDF Worker holds the two private hosts and the four retired paths, and no wildcard', () => {
+  it('the PDF Worker holds the four private hosts and the four retired paths, and no wildcard', () => {
     expect(patterns(apex)).toEqual([
+      'catalogue.wear-run.com',
       'catalogue.wear-run.help',
+      'profile.wear-run.com',
       'profile.wear-run.help',
       'wear-run.help/catalogue*',
       'wear-run.help/profile*',
       'www.wear-run.help/catalogue*',
       'www.wear-run.help/profile*',
     ])
-    expect(apex).toMatch(/"pattern":\s*"catalogue\.wear-run\.help",\s*"custom_domain":\s*true/)
-    expect(apex).toMatch(/"pattern":\s*"profile\.wear-run\.help",\s*"custom_domain":\s*true/)
+    for (const host of DOCUMENT_HOSTS) {
+      expect(apex).toMatch(
+        new RegExp(`"pattern":\\s*"${host.replace(/\./g, '\\.')}",\\s*"custom_domain":\\s*true`),
+      )
+    }
     expect(patterns(apex).some((p) => p?.endsWith('/*'))).toBe(false)
+  })
+
+  /**
+   * Decided 2026-09-17, live from the merge that deploys it: each document also opens on
+   * wear-run.com. The domains attached here and the hosts the Worker answers for must be
+   * ONE list — a host attached but not served answers "Not found.", a host served but not
+   * attached is unreachable, and neither shows up in any other test.
+   */
+  const customDomains = (source: string) =>
+    [...source.matchAll(/"pattern":\s*"([^"]+)",\s*"custom_domain":\s*true/g)]
+      .map((m) => m[1])
+      .sort()
+
+  it('the custom domains are exactly the hosts documents.js serves', () => {
+    expect(customDomains(apex)).toEqual([...DOCUMENT_HOSTS].sort())
+  })
+
+  /**
+   * ⚠️ wear-run.com IS SHARED with the separate email-signature project (Worker
+   * run-domain-edge), which holds its apex, www., go., assets. and mta-sts. In CI
+   * `wrangler deploy` runs without a terminal, so wrangler 4.122.0 sets
+   * `override_existing_origin` AND `override_existing_dns_record` — a hostname listed in
+   * this file is silently TAKEN from whichever Worker had it, and that project's mail
+   * infrastructure would stop answering. Only the two document hosts may ever appear.
+   */
+  const onWearRunCom = (source: string) =>
+    patterns(source).filter((p) => /(^|\.)wear-run\.com(\/|$)/.test(p ?? ''))
+
+  it('names no other wear-run.com hostname, because CI would take it from its owner', () => {
+    expect(onWearRunCom(apex)).toEqual(['catalogue.wear-run.com', 'profile.wear-run.com'])
+  })
+
+  it('the drift and wear-run.com readers can actually fail (negative control)', () => {
+    const taken =
+      '{ "routes": [{ "pattern": "mta-sts.wear-run.com", "custom_domain": true }, { "pattern": "wear-run.com/*" }, { "pattern": "wear-run.help/catalogue*" }] }'
+    expect(onWearRunCom(taken)).toEqual(['mta-sts.wear-run.com', 'wear-run.com/*'])
+    expect(customDomains(taken)).toEqual(['mta-sts.wear-run.com'])
   })
 
   it('the pattern reader can actually fail (negative control)', () => {
@@ -377,5 +420,35 @@ describe('the viewer Worker runs on navigations', () => {
     const before = '{\n  "assets": {\n    "directory": "./dist",\n    "binding": "ASSETS"\n  }\n}'
     const parsed = JSON.parse(settings(before)) as { assets?: { run_worker_first?: unknown } }
     expect(Array.isArray(parsed.assets?.run_worker_first)).toBe(false)
+  })
+})
+
+/*
+ * The script guard (SE-04, decided 2026-09-18, live from the merge that deploys it). The site
+ * Worker's entry is apps/cms/worker.mjs, which wraps OpenNext and gives every public page's
+ * scripts a fresh nonce. Pointing `main` back at OpenNext is the documented one-line ROLLBACK.
+ * So a "tidy-up" that does it by accident would silently return every public page to
+ * 'unsafe-inline'. This fails first, and names the file to read.
+ */
+describe('the site Worker entry runs the script guard (SE-04, 2026-09-18)', () => {
+  const MAIN = /"main":\s*"worker\.mjs"/
+
+  it('apps/cms/wrangler.jsonc deploys worker.mjs, not OpenNext directly', () => {
+    expect(
+      settings(read('apps/cms/wrangler.jsonc')),
+      'main no longer points at worker.mjs, so the public pages fall back to ' +
+        "'unsafe-inline'. Read apps/cms/cspNonce.mjs before changing it.",
+    ).toMatch(MAIN)
+  })
+
+  it('worker.mjs re-exports everything OpenNext exports and applies the pure decisions', () => {
+    const entry = read('apps/cms/worker.mjs')
+    expect(entry).toContain("export * from './.open-next/worker.js'")
+    expect(entry).toContain("from './cspNonce.mjs'")
+    expect(entry).toContain('new HTMLRewriter()')
+  })
+
+  it('the main reader can fail (negative control)', () => {
+    expect('"main": ".open-next/worker.js"').not.toMatch(MAIN)
   })
 })

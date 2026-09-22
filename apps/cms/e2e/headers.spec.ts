@@ -18,6 +18,8 @@ test.describe('FA-O-05 / FA-O-02 — the three cheap headers are on everything',
    * MEASURED 2026-09-06 across five hosts: `X-Content-Type-Options: nosniff` everywhere,
    * `Referrer-Policy: strict-origin-when-cross-origin` on the viewer, the CMS and the
    * site, and a `Permissions-Policy` that is byte-identical across all three.
+   * Referrer-Policy became `same-origin` on 2026-09-18 (internet.nl rates it good;
+   * next.config.mjs says why not `no-referrer`).
    *
    * The value of asserting the WHOLE VALUE rather than its presence: `Permissions-Policy`
    * is a list, and a list is the one thing an editor shortens. Dropping `camera=()` from
@@ -37,9 +39,7 @@ test.describe('FA-O-05 / FA-O-02 — the three cheap headers are on everything',
     test(`${path}`, async ({ request }) => {
       const headers = (await request.get(path)).headers()
       expect(headers['x-content-type-options'], `${path} can be MIME-sniffed`).toBe('nosniff')
-      expect(headers['referrer-policy'], `${path} leaks its URL cross-origin`).toBe(
-        'strict-origin-when-cross-origin',
-      )
+      expect(headers['referrer-policy'], `${path} leaks its URL cross-origin`).toBe('same-origin')
       const permissions = headers['permissions-policy'] ?? ''
       for (const feature of [
         'accelerometer=()',

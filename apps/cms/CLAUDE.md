@@ -96,8 +96,9 @@ root file first.
   2026-09-05: a `proxy.ts` (Next 16's renamed middleware) compiled fine under `next build`,
   `tsc --noEmit` and 2,000 tests, and failed the Cloudflare build outright — *"Node.js
   middleware is not currently supported"*; adding `runtime: 'edge'` failed earlier still —
-  *"Proxy does not support Edge runtime"*. **There is no middleware/proxy on this stack, and
-  a per-request CSP nonce is therefore impossible.** Run
+  *"Proxy does not support Edge runtime"*. **There is no middleware/proxy on this stack, so
+  Next itself cannot make a per-request CSP nonce — `worker.mjs` does it instead, outside
+  Next (SE-04, decided 2026-09-18).** Run
   `pnpm --filter @run-apparel/cms exec opennextjs-cloudflare build` before trusting any
   change to routing, middleware, headers or `next.config.mjs`. Same shape as the TypeScript
   pin in the root file, one level deeper.
@@ -143,6 +144,28 @@ breaking something on purpose.
 
 ⚠️ The port is owned by `playwright.config.ts` (4174) and `e2e/serve.mjs` THROWS if it is
 unset.
+
+⚠️ **FIREFOX RUNS WITH `Cross-Origin-Opener-Policy` SWITCHED OFF, ON PURPOSE (2026-09-18).**
+Every page sends that header, and it makes Playwright's Firefox driver lose a navigation
+(microsoft/playwright#42731): `page.goto` times out waiting for "load" on a page that has
+finished loading. That hit 25 of 40 CI runs; the retry hid it until PR #17 failed on it.
+`e2e/firefoxPrefs.mjs` has the mechanism and the numbers, and `src/firefoxPrefs.test.ts`
+pins it. Keep it until `node e2e/firefox-coop-hang.mjs --prefs=none` shows 0 stuck on a
+newer Playwright.
+
+⚠️ **`next start` NEVER RUNS `worker.mjs`, THE SCRIPT GUARD (SE-04, 2026-09-18).** This suite
+therefore tests the fallback policy (`PUBLIC_PAGE_CSP`, still with `'unsafe-inline'`) and never
+the nonce. To see the guard:
+1. Run `opennextjs-cloudflare build`.
+2. Put a throwaway `PAYLOAD_SECRET` in a `.dev.vars` (gitignored) and run
+   `opennextjs-cloudflare preview --local-upstream wear-run.help`.
+3. Run `node e2e/csp-nonce-edge.mjs`: 3 engines × 6 page types.
+
+After a deploy, run it with `--origin=https://wear-run.help`. ⚠️ A control that skips the nonce
+on an EXTERNAL script proves nothing: `'self'` still admits it, correctly. Only a missing nonce
+on an INLINE script breaks a page, so plant the fault there. ⚠️ A local `curl` without
+`--compressed` counts ZERO scripts: the local runtime gzips a page the way Cloudflare's edge
+does, AFTER the guard (measured 2026-09-22). OpenNext hands the guard plain text.
 
 ⚠️ **CI's `e2e` job has NO `PAYLOAD_SECRET`, and local runs always do** (`.env`). So a
 "passes locally" run proves nothing about the CI step: measured 2026-09-06 with `.env`

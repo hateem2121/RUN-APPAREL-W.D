@@ -1769,22 +1769,23 @@ test.describe('the colourway rail fits the screen', () => {
            * A layout test that measures only the boxes it lays out will keep
            * agreeing with itself. Measure the text against the box that holds it.
            *
-           * ⚠️ THIS ASSERTION CANNOT CURRENTLY FAIL, AND THAT IS A FIXTURE GAP, NOT
-           * A REASON TO DELETE IT. Verified 2026-08-15 by rebuilding with the old
-           * five-column rule restored: the suite stayed green.
+           * 🟢 THE FIXTURE GAP THIS ASSERTION WAS WRITTEN AGAINST WAS CLOSED
+           * 2026-08-30 — it CAN fail now. It was verified unable to fail on
+           * 2026-08-15, when `serve.mjs` served FOUR colourways against production's
+           * five: rebuilding with the old five-column rule restored left the suite
+           * green, because under equal columns at 320px four buttons get 71.2px each
+           * against production's 55.4px — and "03 BUTTER"'s label is 55.2px, so it
+           * fit in the fixture while overflowing in production. The gate could not
+           * see the defect it exists to catch.
            *
-           * `serve.mjs` serves FOUR colourways; production ships five. Lime is
-           * deliberately absent so `/n001/lime` reaches the retired-colourway notice
-           * in `a11y.spec.ts` and `viewer.spec.ts`. Under equal columns at 320px that
-           * is 71.2px per button against production's 55.4px — and "03 Butter"'s
-           * label is 55.2px, so it fits in the fixture and overflows in production.
-           * The gate could not see the defect it exists to catch.
-           *
-           * Closing it means adding `lime` here, re-pointing the retired-colourway
-           * URL at a slug that is genuinely absent (`navy` — it never existed in
-           * production), and renumbering Black from 04 to 05 in `viewer.spec.ts`.
-           * Deliberately not bundled into the 2026-08-15 layout fix; the fix itself
-           * was verified by direct measurement in a real browser against the live
+           * Closing it meant adding `lime` to the fixture, re-pointing the
+           * retired-colourway URL at `navy` (a slug that never existed in
+           * production), and renumbering Black from 04 to 05 in `viewer.spec.ts` —
+           * all three shipped together on 2026-08-30, and a fifth single-word label
+           * was not the end of it: 2026-09-04 added the two-word "Pebble / Optic
+           * White" because five single-word labels still could not wrap the way six
+           * of the eleven live products do. The 2026-08-15 layout fix itself was
+           * verified by direct measurement in a real browser against the live
            * five-colourway payload, at 320px and 375px, including the longest names
            * in `colour-name.ts` ("Forest Green", 12 chars, wraps to two lines).
            */

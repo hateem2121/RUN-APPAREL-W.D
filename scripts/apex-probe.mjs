@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Assert from outside: the apex serves the site, the two old PDF addresses stay retired,
- * and the private document hosts refuse without a code.
+ * the private document hosts refuse without a code — on wear-run.help and, since
+ * 2026-09-17, on wear-run.com — and the two redirects old emails use still point home.
  *
  * WHY IT CHANGED (2026-09-11). This probe used to fetch the catalogue and profile PDFs
  * at `wear-run.help/catalogue` and `/profile`. Those addresses now answer 410, and the
@@ -16,6 +17,10 @@
  *   refused — a private host without a code answers anything but the 404 page, or drops
  *             `x-robots-tag: noindex`.
  *   site    — the apex no longer serves the site (the CMS Worker lost its wildcard route).
+ *   redirect — `wear-run.help/map` or `/meeting` no longer redirects to its host. Both are
+ *             Cloudflare redirect rules that exist in no file (docs/CLOUDFLARE-SETUP.md →
+ *             11.8), old emails link to them, and nothing else here would notice a
+ *             deletion. Compared by HOST, so the owner can change the target's path.
  *
  * KEPT FROM THE PREVIOUS VERSION, for the same measured reasons:
  * 1. A 403, 429 or 503 FROM A RUNNER IS INCONCLUSIVE, not a failure: Free-plan Bot Fight
@@ -34,7 +39,17 @@ export const RETRY_DELAYS_MS = [15_000, 30_000]
 
 const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
 
-/** @typedef {{ name: string, url: string, kind: 'site' | 'retired' | 'refused' }} ApexTarget */
+/** Any of these still takes an old email's reader to the right place. */
+const REDIRECT_STATUSES = new Set([301, 302, 307, 308])
+
+/**
+ * @typedef {{
+ *   name: string,
+ *   url: string,
+ *   kind: 'site' | 'retired' | 'refused' | 'redirect',
+ *   to?: string,
+ * }} ApexTarget
+ */
 
 /** @type {ApexTarget[]} */
 export const TARGETS = [
@@ -45,8 +60,27 @@ export const TARGETS = [
   { name: 'old www profile', url: 'https://www.wear-run.help/profile', kind: 'retired' },
   { name: 'catalogue host', url: 'https://catalogue.wear-run.help/', kind: 'refused' },
   { name: 'profile host', url: 'https://profile.wear-run.help/', kind: 'refused' },
+  // The same two documents on wear-run.com (decided 2026-09-17). Right after the deploy
+  // that creates them, a custom domain may still be issuing its certificate: a request
+  // that fails is inconclusive here, never a pass.
+  { name: 'com catalogue host', url: 'https://catalogue.wear-run.com/', kind: 'refused' },
+  { name: 'com profile host', url: 'https://profile.wear-run.com/', kind: 'refused' },
   // A fixed, meaningless path: it must never become a real link's words.
   { name: 'wrong code', url: 'https://catalogue.wear-run.help/not-a-real-link', kind: 'refused' },
+  // Old emails link to both, and the owner asked for them to be kept forever
+  // (2026-09-17). Checked by HOST only, so the target's path may change.
+  {
+    name: 'map redirect',
+    url: 'https://wear-run.help/map',
+    kind: 'redirect',
+    to: 'maps.app.goo.gl',
+  },
+  {
+    name: 'meeting redirect',
+    url: 'https://wear-run.help/meeting',
+    kind: 'redirect',
+    to: 'app.apollo.io',
+  },
 ]
 
 /**
@@ -60,6 +94,8 @@ export const TARGETS = [
  *   message?: boolean,
  *   robots?: string,
  *   cache?: string,
+ *   location?: string,
+ *   to?: string,
  *   error?: string,
  * }} Observation
  */
@@ -96,7 +132,22 @@ export function evaluate(observations) {
     const problems = []
     const html = String(o.contentType ?? '').includes('text/html')
 
-    if (o.kind === 'site') {
+    if (o.kind === 'redirect') {
+      let host = ''
+      try {
+        host = new URL(o.location ?? '').hostname
+      } catch {
+        host = ''
+      }
+      if (!REDIRECT_STATUSES.has(o.status)) {
+        problems.push(
+          `HTTP ${o.status}, expected a redirect — the Cloudflare redirect rule for this ` +
+            'path may be gone, and old emails link here',
+        )
+      } else if (host !== o.to) {
+        problems.push(`redirects to "${host || '(no location)'}", expected ${o.to}`)
+      }
+    } else if (o.kind === 'site') {
       if (o.status !== 200) {
         problems.push(
           `HTTP ${o.status}, expected 200 — the marketing site should answer here. A 404 means ` +
@@ -157,15 +208,19 @@ async function probe(target) {
       contentType: response.headers.get('content-type') ?? undefined,
       magic: text.slice(0, 5),
       wordmark: target.kind === 'site' ? text.includes('RUN APPAREL') : undefined,
-      message: target.kind === 'site' ? undefined : text.includes(MESSAGE),
+      message:
+        target.kind === 'retired' || target.kind === 'refused' ? text.includes(MESSAGE) : undefined,
       robots: response.headers.get('x-robots-tag') ?? undefined,
       cache: response.headers.get('cf-cache-status') ?? '(none)',
+      location: response.headers.get('location') ?? undefined,
+      to: target.to,
     }
   } catch (error) {
     return {
       name: target.name,
       kind: target.kind,
       status: 0,
+      to: target.to,
       error: error instanceof Error ? error.message : String(error),
     }
   }
@@ -189,7 +244,9 @@ async function main() {
   }
 
   const { ok, failures, inconclusive, lines } = evaluate(observations)
-  console.log('[apex-probe] the site, the retired PDF addresses, and the private document hosts')
+  console.log(
+    '[apex-probe] the site, the retired PDF addresses, the private document hosts and the email redirects',
+  )
   for (const target of TARGETS) console.log(`  ${target.name.padEnd(18)} ${target.url}`)
   for (const line of lines) console.log(line)
   for (const note of inconclusive) console.log(`[apex-probe] ${note}`)
@@ -199,7 +256,7 @@ async function main() {
     process.exit(1)
   }
   console.log(
-    '[apex-probe] the site answers, the old addresses stay retired, and the private hosts refuse without a code.',
+    '[apex-probe] the site answers, the old addresses stay retired, the private hosts refuse without a code, and the email redirects still point home.',
   )
 }
 

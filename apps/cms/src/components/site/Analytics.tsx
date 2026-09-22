@@ -16,19 +16,23 @@
  * beacon with an empty one: that reports to Cloudflare from an unidentified site, which
  * is worse than not reporting.
  *
- * ⚠️ THIS TAG NEEDS NO NONCE, AND THE COMMENT THAT SAID OTHERWISE DESCRIBED A FILE THAT
- * HAS NEVER EXISTED (audit FA-O-12). It read: "`proxy.ts` sets a per-request
- * Content-Security-Policy... without the nonce the browser silently refuses to run it."
- * There is no `proxy.ts` and there cannot be one — measured 2026-09-05, Next 16's renamed
- * middleware fails `opennextjs-cloudflare build` outright on the Node runtime and fails
- * earlier still with `runtime: 'edge'`, while `pnpm build` and 2,000 tests stay green.
- * `publicSite.test.ts` asserts no such file exists for that reason.
+ * ⚠️ THE NONCE IS ADDED OUTSIDE REACT. Since 2026-09-18, apps/cms/worker.mjs stamps a
+ * per-request nonce on every <script> of a public page, this one included (SE-04). Nothing
+ * here should read or pass a nonce. A comment once demanded one from a `proxy.ts`. That file
+ * cannot exist on this stack (audit FA-O-12, measured 2026-09-05), and `publicSite.test.ts`
+ * asserts that none does.
  *
- * What actually admits this script is the HOST in the policy:
- * `script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com` in
- * `publicViewerHeaders.mjs`, and `connect-src` names the two Insights origins the beacon
- * reports to. Both are pinned by tests. A comment demanding a nonce would send the next
- * reader looking for machinery that cannot be built here.
+ * This tag is also admitted by its HOST: `script-src … https://static.cloudflareinsights.com`
+ * in `publicViewerHeaders.mjs`, with `connect-src` naming the two Insights origins the beacon
+ * reports to. Both are pinned by tests.
+ *
+ * ⚠️ NO `integrity` ATTRIBUTE, DELIBERATELY (decided 2026-09-18). MDN Observatory takes 5
+ * points for it. Cloudflare's own FAQ says a MANUALLY embedded beacon cannot safely carry
+ * `integrity`, because Cloudflare does not support version-pinning `beacon.min.js` and updates
+ * it in place (measured: its bytes changed on 2026-09-02). Only Cloudflare's AUTOMATIC
+ * injection adds a hash, and that injected tag carries no nonce, so the script guard would
+ * block it. Keep this manual tag and accept the −5, which does not stop an A+ once
+ * 'unsafe-inline' is gone.
  *
  * TOKEN SET ON THE WORKER 2026-09-07 (`CF_ANALYTICS_TOKEN`, `run-apparel-viewer-cms`) and
  * verified in `wrangler secret list`. It renders nothing yet, correctly: fetched live the

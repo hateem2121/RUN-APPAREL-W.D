@@ -3,6 +3,7 @@ import {
   LINK_PREVIEW_AGENTS,
   ROBOT_AGENTS,
   classifyAgent,
+  isBrowserNavigation,
 } from '../../../infra/apex-404/visitorAgent.js'
 
 /**
@@ -329,5 +330,43 @@ describe('NEGATIVE CONTROL: the generic robot words can fire', () => {
   it('the CUBOT phone with " bot/1.0" appended becomes a robot', () => {
     expect(classifyAgent(CUBOT_PHONE).kind).toBe('person')
     expect(classifyAgent(`${CUBOT_PHONE} bot/1.0`)).toEqual(robot('robot'))
+  })
+})
+
+/**
+ * A PERSON IS A BROWSER NAVIGATING (decided 2026-09-18, live from the merge that deploys it).
+ *
+ * Measured that day in the Worker's own logs: Cloudflare hands the FIRST HEAD for an address
+ * to the Worker as a GET (Workers Caching keeps one entry for GET and HEAD, and a miss fills
+ * it with a GET), and a script can send any User-Agent it likes. Both had put checkers into
+ * the owner's people figures. A browser opening a page says so in its request headers; a
+ * checker, a monitor or a script does not.
+ */
+describe('isBrowserNavigation', () => {
+  const headers = (entries: Record<string, string>) => new Headers(entries)
+
+  it.each<[string, Record<string, string>, boolean]>([
+    ['a browser opening a page (Fetch Metadata)', { 'sec-fetch-mode': 'navigate' }, true],
+    ['Node fetch with a borrowed Chrome name', { 'sec-fetch-mode': 'cors' }, false],
+    ['an image request (a reading marker)', { 'sec-fetch-mode': 'no-cors' }, false],
+    [
+      'Safari before 16.4 — no Fetch Metadata, but the classic navigation headers',
+      { 'upgrade-insecure-requests': '1', accept: 'text/html,application/xhtml+xml,*/*;q=0.8' },
+      true,
+    ],
+    ['curl, or a HEAD a cache turned into a GET', { accept: '*/*' }, false],
+    ['nothing at all', {}, false],
+    [
+      'the upgrade header without asking for HTML',
+      { 'upgrade-insecure-requests': '1', accept: '*/*' },
+      false,
+    ],
+    [
+      'Fetch Metadata wins over the classic headers when both are sent',
+      { 'sec-fetch-mode': 'cors', 'upgrade-insecure-requests': '1', accept: 'text/html' },
+      false,
+    ],
+  ])('%s → %s', (_label, entries, expected) => {
+    expect(isBrowserNavigation(headers(entries))).toBe(expected)
   })
 })
