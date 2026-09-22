@@ -88,6 +88,10 @@ Reported here so you do not spend time re-discovering it:
   `apps/viewer/scripts/csp.mjs`, hashed per inline script, and applied to both
   asset-served and Worker-built responses (`worker/securityHeaders.ts`).
   `apps/viewer/scripts/csp.test.ts` pins the two copies together.
+- **The marketing site runs only nonced scripts.** `apps/cms/worker.mjs` stamps a fresh
+  nonce on every script of every public page, and its `script-src` carries no
+  `'unsafe-inline'`. `scripts/public-security-probe.mjs` checks this after every deploy and
+  daily.
 - **No source maps are deployed.** `ci.yml` asserts `apps/viewer/dist` contains
   zero `.map` files and refuses to deploy otherwise.
 - **Admin login locks after 5 failed attempts**, and the public feedback endpoint

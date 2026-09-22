@@ -831,6 +831,27 @@ uptime alert. To renew:
    project, so both renew together.
 3. Merge and let CI deploy; its post-deploy step runs the probe strictly.
 
+**It is unsigned, on purpose** (decided 2026-09-18). RFC 9116 recommends an OpenPGP signature,
+and internet.nl lists signing and an `Encryption:` field as optional notes that carry no score.
+HTTPS already proves the file comes from these hosts. A signature would add a private key to
+keep safe and a yearly re-signing step, for no score and little benefit on a single-maintainer
+site.
+
+## The script guard (`apps/cms/worker.mjs`) — if the public pages misbehave
+
+The site's Worker entry gives every public page's scripts a per-request nonce (SE-04, decided
+2026-09-18, live from the merge that deploys it). **It fails open.** If it errors, pages keep
+working under the old policy, and `scripts/public-security-probe.mjs` fails with "script-src
+still allows 'unsafe-inline'".
+
+- **A new script is blocked on the site** (the browser console says "Refused to execute…
+  nonce"): an edge feature started injecting one (`docs/CLOUDFLARE-SETUP.md` 11.7). Turn that
+  feature off for `wear-run.help`.
+- **Roll back:** set `"main"` in `apps/cms/wrangler.jsonc` back to `".open-next/worker.js"` and
+  deploy through a PR. Pages then use the fallback policy immediately.
+- **Prove it:** `node apps/cms/e2e/csp-nonce-edge.mjs --origin=https://wear-run.help` checks
+  3 browser engines × 6 page types.
+
 ## Private document links (catalogue and profile)
 
 Decided 2026-09-11 and live from the merge that deploys it: the catalogue and the
