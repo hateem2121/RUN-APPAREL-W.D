@@ -1080,6 +1080,25 @@ ignores. `apps/cms/src/diagnosticsDigest.test.ts` runs the digest's own SQL
 against SQLite. Rows named `server` or `network` are `viewer-load-failed` stored
 under the wrong name, from 2026-09-07 until that fix shipped.
 
+### Page speed from real visits — the same Monday issue
+
+Since 2026-09-17 the digest also reports how fast the 3D viewer is for the people who
+really use it, from the numbers each visit's browser measures (Largest Contentful
+Paint and Cumulative Layout Shift). The viewer measured them from 2026-09-04, but
+nothing kept them until the `events` table gained the `lcp_ms` and `cls` columns.
+The issue shows the 75th percentile of each, the level three in four visits reach:
+
+| Line | Good | Worth a look |
+|---|---|---|
+| **Loading** — seconds until the main content is on screen | 2.5 s or less | above 4 s |
+| **Steadiness** — how much the page jumps while it loads | 0.1 or less | above 0.25 |
+
+Read it the way you read the `browsers` column: fewer than 50 visits in a week is a
+hint, not a verdict, and the issue says so. Our own tools are left out, as in the
+diagnostics table. If the read fails, the issue says "Page speed could not be read
+this week" — open that run in the Actions tab. `apps/cms/src/diagnosticsDigest.test.ts`
+runs the query's own SQL against SQLite.
+
 ## Error tracking
 
 Server-side worker errors are in **Workers Logs** (Observability is enabled in
