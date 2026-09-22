@@ -56,12 +56,14 @@ export const PUBLIC_VIEWER_VARY = 'Origin, Sec-CH-Prefers-Color-Scheme'
  *                                        "Proxy does not support Edge runtime"
  *
  * Both were reached with `pnpm build`, `pnpm typecheck` and the full suite GREEN — only
- * the Cloudflare build, the one that actually produces a deploy, fails. Nothing else can
- * generate a per-request nonce: a layout cannot set a response header, and hashes cannot
+ * the Cloudflare build, the one that actually produces a deploy, fails. Nothing inside Next
+ * can generate a per-request nonce: a layout cannot set a response header, and hashes cannot
  * work against dynamically-rendered pages whose inline flight data changes per request.
+ * Since 2026-09-18, `worker.mjs` does it OUTSIDE Next (SE-04; see PUBLIC_PAGE_CSP below).
  *
- * So `script-src` carries 'unsafe-inline', which next.config.mjs rightly calls a false
- * sense of safety AGAINST INLINE INJECTION — and the rest of this policy is not
+ * So this constant's `script-src` still carries 'unsafe-inline'. next.config.mjs rightly
+ * calls that a false sense of safety AGAINST INLINE INJECTION, and it is now only the
+ * fallback the guard rewrites. The rest of this policy is not
  * theatre. `object-src 'none'`, `base-uri 'self'` and `form-action 'self'` each close a
  * real attack class that has nothing to do with inline scripts: base-tag hijacking of
  * every relative URL on the page, plugin-based execution, and a stolen page posting
@@ -79,6 +81,17 @@ export const PUBLIC_VIEWER_VARY = 'Origin, Sec-CH-Prefers-Color-Scheme'
  */
 export const PUBLIC_PAGE_SOURCES = ['/', '/products', '/contact', '/privacy', '/terms']
 
+/**
+ * ⚠️ THIS IS NOW THE FALLBACK, and the script guard's TRIGGER (SE-04, decided 2026-09-18).
+ * worker.mjs rewrites every HTML response carrying EXACTLY this string. On that response it
+ * swaps script-src's 'unsafe-inline' for a fresh 'nonce-…' and stamps the nonce on every
+ * <script> (cspNonce.mjs). If the guard ever fails, pages are served with this policy
+ * unchanged, and scripts/public-security-probe.mjs goes red.
+ *
+ * Editing this string changes the trigger. src/cspNonce.test.ts and src/cspNonceMarker.test.ts
+ * pin that the five pages and the 404 carry exactly this string, and that the admin and the API
+ * do not.
+ */
 export const PUBLIC_PAGE_CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",

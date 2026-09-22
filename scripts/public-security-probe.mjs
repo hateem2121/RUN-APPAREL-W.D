@@ -15,6 +15,12 @@
  *                  (renew: packages/shared/src/securityTxt.ts, then deploy).
  *   redirect     — www. or cms. answers `/` with a redirect that lacks a security header:
  *                  the response-header rule in docs/CLOUDFLARE-SETUP.md → 11.7 was changed.
+ *   script guard — a public page still allows 'unsafe-inline' (apps/cms/worker.mjs fell open
+ *                  or was switched off), carries a <script> without its nonce (an edge feature
+ *                  injecting scripts), repeats a nonce, is cacheable, or arrives cut off,
+ *                  garbled or with no <script> at all; or the admin's own policy changed.
+ *                  SE-04, decided 2026-09-18. docs/RUNBOOK.md → "The script guard" says what
+ *                  to do.
  *
  * TWO MODES. After a deploy (ci.yml) it is strict. Daily (uptime.yml, `--daily`) a MISSING
  * security.txt is inconclusive rather than a failure: the daily job runs from `main`, and in
@@ -37,7 +43,14 @@ export const REDIRECT_HEADERS = [
   'permissions-policy',
 ]
 
-/** @typedef {{ name: string, url: string, kind: 'security-txt' | 'redirect' }} SecurityTarget */
+/**
+ * @typedef {{
+ *   name: string,
+ *   url: string,
+ *   kind: 'security-txt' | 'redirect' | 'page-csp' | 'admin-csp',
+ *   expectStatus?: number,
+ * }} SecurityTarget
+ */
 
 /** @type {SecurityTarget[]} */
 export const TARGETS = [
@@ -58,13 +71,51 @@ export const TARGETS = [
   })),
   { name: 'www. redirect', url: 'https://www.wear-run.help/', kind: 'redirect' },
   { name: 'cms. redirect', url: 'https://cms.wear-run.help/', kind: 'redirect' },
+  // The script guard (SE-04, decided 2026-09-18). Every public page type, and / twice so that
+  // a reused nonce is visible. The admin's own policy must stay exactly as it was.
+  ...['/', '/products', '/contact', '/privacy', '/terms', '/'].map((pathname, i) => ({
+    name: i === 5 ? 'site / again' : `site ${pathname}`,
+    url: `https://wear-run.help${pathname}`,
+    kind: /** @type {const} */ ('page-csp'),
+  })),
+  {
+    name: 'site 404',
+    url: 'https://wear-run.help/definitely-not-a-page',
+    kind: 'page-csp',
+    expectStatus: 404,
+  },
+  { name: 'admin policy', url: 'https://cms.wear-run.help/admin', kind: 'admin-csp' },
 ]
+
+/** The admin's own policy. The guard must never touch it (apps/cms/cspNonce.mjs → nonceable). */
+export const ADMIN_CSP = "frame-ancestors 'none'"
+
+/** A policy's script-src directive, or ''. */
+const scriptSrcOf = (policy) =>
+  policy
+    .split(';')
+    .map((directive) => directive.trim())
+    .find((directive) => directive.startsWith('script-src ')) ?? ''
+
+/** The nonce in a policy's script-src, or null. */
+const scriptSrcNonce = (policy) =>
+  scriptSrcOf(policy).match(/'nonce-([A-Za-z0-9+/]{22}==)'/)?.[1] ?? null
+
+/**
+ * Every <script> opening tag in a page. A pattern, not a parser, on purpose (independent review,
+ * 2026-09-22): it can only err LOUD. A stray `<script` in text, or a `>` inside an attribute,
+ * yields a match without this response's nonce: a false alarm. A false pass would need the
+ * response's random nonce inside some other attribute. Measured 2026-09-22: every public page has
+ * exactly as many `<script` as `</script>`, so no stray one hides inside a script.
+ */
+const scriptTags = (html) => html.match(/<script\b[^>]*>/gi) ?? []
 
 /**
  * @typedef {{
  *   name: string,
  *   kind: SecurityTarget['kind'],
  *   status: number,
+ *   expectStatus?: number,
  *   contentType?: string,
  *   body?: string,
  *   headers?: Record<string, string>,
@@ -84,6 +135,8 @@ export function evaluate(observations, now, { daily = false } = {}) {
   const failures = []
   const inconclusive = []
   const lines = []
+  // Every public-page fetch must get its own nonce; one seen twice means a cached page.
+  const seenNonces = new Set()
 
   for (const o of observations) {
     const label = o.name.padEnd(32)
@@ -124,7 +177,7 @@ export function evaluate(observations, now, { daily = false } = {}) {
           )
         }
       }
-    } else {
+    } else if (o.kind === 'redirect') {
       if (o.status < 300 || o.status > 399) {
         problems.push(`HTTP ${o.status}, expected a redirect to the site`)
       } else {
@@ -133,6 +186,51 @@ export function evaluate(observations, now, { daily = false } = {}) {
           problems.push(`the redirect lacks ${missing.join(', ')} (the response-header rule)`)
         }
       }
+    } else if (o.kind === 'page-csp') {
+      // ⚠️ DAILY TOO, deliberately: catching the guard falling open is the reason this
+      // exists. The only false alarm possible is a daily run landing in the ~15 minutes
+      // between the guard's own merge and its deploy — re-run it once.
+      const expected = o.expectStatus ?? 200
+      if (o.status !== expected) problems.push(`HTTP ${o.status}, expected ${expected}`)
+      const policy = o.headers?.['content-security-policy'] ?? ''
+      if (scriptSrcOf(policy).includes("'unsafe-inline'")) {
+        problems.push(
+          "script-src still allows 'unsafe-inline': the script guard is not running " +
+            '(apps/cms/worker.mjs fell open?)',
+        )
+      }
+      // A page with nothing to inspect must not pass (independent review, 2026-09-22). Cut off by
+      // an error once the rewriter was streaming, or compressed twice, it has no <script> lacking
+      // the nonce, so the check below would measure nothing and say ok. Every public page ends in
+      // </body></html> and carries 11 to 14 scripts (measured 2026-09-22).
+      const body = o.body ?? ''
+      const tags = scriptTags(body)
+      if (!/<\/html>\s*$/i.test(body)) {
+        problems.push('the page is cut off or garbled (it does not end in </html>)')
+      }
+      if (tags.length === 0) {
+        problems.push('the page has no <script> at all, so its nonce was checked against nothing')
+      }
+      const nonce = scriptSrcNonce(policy)
+      if (!nonce) {
+        problems.push('the policy carries no nonce')
+      } else {
+        const bare = tags.filter((tag) => !tag.includes(`nonce="${nonce}"`))
+        if (bare.length > 0) {
+          problems.push(
+            `${bare.length} <script> without this response's nonce (an edge feature injecting scripts?)`,
+          )
+        }
+        if (seenNonces.has(nonce)) problems.push('a nonce was served twice: a cached page?')
+        seenNonces.add(nonce)
+      }
+      if (!/\bno-store\b/.test(o.headers?.['cache-control'] ?? '')) {
+        problems.push('the page is cacheable, so its nonce could be reused')
+      }
+    } else {
+      if (o.status !== 200) problems.push(`HTTP ${o.status}, expected 200`)
+      const policy = o.headers?.['content-security-policy'] ?? '(none)'
+      if (policy !== ADMIN_CSP) problems.push(`the admin policy changed: "${policy}"`)
     }
 
     if (problems.length > 0) {
@@ -164,8 +262,9 @@ async function probe(target) {
       name: target.name,
       kind: target.kind,
       status: response.status,
+      expectStatus: target.expectStatus,
       contentType: response.headers.get('content-type') ?? undefined,
-      body: target.kind === 'security-txt' ? body : undefined,
+      body: target.kind === 'security-txt' || target.kind === 'page-csp' ? body : undefined,
       headers,
     }
   } catch (error) {
@@ -183,7 +282,7 @@ async function main() {
   const observations = await Promise.all(TARGETS.map(probe))
   const { ok, failures, inconclusive, lines } = evaluate(observations, new Date(), { daily })
   console.log(
-    `[public-security-probe] security.txt on every host, and the redirect headers${daily ? ' (daily)' : ''}`,
+    `[public-security-probe] security.txt, the redirect headers and the script guard${daily ? ' (daily)' : ''}`,
   )
   for (const line of lines) console.log(line)
   for (const note of inconclusive) console.log(`[public-security-probe] ${note}`)
@@ -192,7 +291,7 @@ async function main() {
     process.exit(1)
   }
   console.log(
-    '[public-security-probe] every host serves a current security.txt, and the redirects carry their headers.',
+    '[public-security-probe] security.txt is current, the redirects carry their headers, and every public page runs only nonced scripts.',
   )
 }
 

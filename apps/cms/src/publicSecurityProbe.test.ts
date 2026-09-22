@@ -1,6 +1,8 @@
 import { SECURITY_TXT } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import { REDIRECT_HEADERS, TARGETS, evaluate } from '../../../scripts/public-security-probe.mjs'
+import { newNonce, withNonce } from '../cspNonce.mjs'
+import { PUBLIC_PAGE_CSP } from '../publicViewerHeaders.mjs'
 
 /**
  * The public-side security probe (decided 2026-09-18, live from the merge that deploys it):
@@ -9,8 +11,9 @@ import { REDIRECT_HEADERS, TARGETS, evaluate } from '../../../scripts/public-sec
  */
 type Observation = {
   name: string
-  kind: 'security-txt' | 'redirect'
+  kind: 'security-txt' | 'redirect' | 'page-csp' | 'admin-csp'
   status: number
+  expectStatus?: number
   contentType?: string
   body?: string
   headers?: Record<string, string>
@@ -146,6 +149,150 @@ describe('TARGETS', () => {
     expect([...new Set(urls.map((u) => u.pathname))].sort()).toEqual([
       '/',
       '/.well-known/security.txt',
+      '/admin',
+      '/contact',
+      '/definitely-not-a-page',
+      '/privacy',
+      '/products',
+      '/terms',
     ])
+  })
+})
+
+/*
+ * The script guard, seen from outside (SE-04, decided 2026-09-18, live from the merge that
+ * deploys it). apps/cms/worker.mjs gives every public page a per-request nonce. These are the
+ * planted faults a live check must name: the guard fell open, an edge feature injected a
+ * script, a cached page reused a nonce, or the admin's policy was touched.
+ */
+const N1 = 'AAAAAAAAAAAAAAAAAAAAAA=='
+const N2 = 'BBBBBBBBBBBBBBBBBBBBBB=='
+// The policy the guard REALLY sends (apps/cms/cspNonce.mjs), never a hand-typed copy: a change to
+// the nonce's format or the policy's shape then fails here, before a deploy, instead of failing
+// every post-deploy run (independent review, 2026-09-22).
+const NONCED = (n: string) => withNonce(PUBLIC_PAGE_CSP, n) as string
+const FALLBACK = PUBLIC_PAGE_CSP
+const HTML = (n: string) =>
+  `<html><head><script nonce="${n}">(self.__next_f=self.__next_f||[]).push([0])</script>` +
+  `<script src="/_next/static/chunks/a.js" nonce="${n}" async=""></script></head></html>`
+const NO_STORE = 'private, no-cache, no-store, max-age=0, must-revalidate'
+
+const pageCsp = (over: Partial<Observation> = {}): Observation => ({
+  name: 'site /',
+  kind: 'page-csp',
+  status: 200,
+  headers: { 'content-security-policy': NONCED(N1), 'cache-control': NO_STORE },
+  body: HTML(N1),
+  ...over,
+})
+const adminCsp = (over: Partial<Observation> = {}): Observation => ({
+  name: 'admin policy',
+  kind: 'admin-csp',
+  status: 200,
+  headers: { 'content-security-policy': "frame-ancestors 'none'" },
+  ...over,
+})
+
+describe('the script guard, seen from outside (SE-04)', () => {
+  it('passes nonced pages with distinct nonces, and an unchanged admin policy', () => {
+    const second = pageCsp({
+      name: 'site / again',
+      headers: { 'content-security-policy': NONCED(N2), 'cache-control': NO_STORE },
+      body: HTML(N2),
+    })
+    const result = evaluate([pageCsp(), second, adminCsp()], NOW)
+    expect(result.failures).toEqual([])
+    expect(result.ok).toBe(true)
+  })
+
+  it.each<[string, Partial<Observation>, string]>([
+    [
+      'the fallback policy (the guard fell open)',
+      { headers: { 'content-security-policy': FALLBACK, 'cache-control': NO_STORE } },
+      "'unsafe-inline'",
+    ],
+    [
+      'a policy with no nonce',
+      { headers: { 'content-security-policy': "script-src 'self'", 'cache-control': NO_STORE } },
+      'no nonce',
+    ],
+    [
+      'a script without this nonce (an edge injection)',
+      { body: HTML(N1).replace('</head>', '<script>injected()</script></head>') },
+      'without',
+    ],
+    // The three below all PASSED until 2026-09-22. A page with nothing to inspect has no
+    // <script> lacking the nonce, so the check measured nothing and reported ok.
+    [
+      'a page cut off mid-stream (an error once the rewriter had started)',
+      { body: HTML(N1).slice(0, 60) },
+      'cut off',
+    ],
+    [
+      'a page compressed twice, so only bytes arrive (measured in workerd, 2026-09-22)',
+      { body: '\u001f\u008b\u0008\u0000\u0000\u0000\u0000\u0000\u0000\u0003' },
+      'cut off',
+    ],
+    [
+      'a page with no <script> at all',
+      { body: '<html><head></head><body><p>hello</p></body></html>' },
+      'no <script>',
+    ],
+    [
+      'a cacheable page',
+      {
+        headers: { 'content-security-policy': NONCED(N1), 'cache-control': 'public, max-age=60' },
+      },
+      'cacheable',
+    ],
+    ['the wrong status', { status: 500 }, 'expected 200'],
+  ])('FAILS %s', (_label, over, expected) => {
+    const result = evaluate([pageCsp(over)], NOW)
+    expect(result.ok).toBe(false)
+    expect(result.failures[0]).toContain(expected)
+  })
+
+  it("recognises the guard's own nonces: two fresh ones, on the real policy", () => {
+    const page = (name: string, n: string) =>
+      pageCsp({
+        name,
+        headers: { 'content-security-policy': NONCED(n), 'cache-control': NO_STORE },
+        body: HTML(n),
+      })
+    const result = evaluate([page('site /', newNonce()), page('site / again', newNonce())], NOW)
+    expect(result.failures).toEqual([])
+  })
+
+  it('FAILS a nonce served twice (a cached page)', () => {
+    const result = evaluate([pageCsp(), pageCsp({ name: 'site / again' })], NOW)
+    expect(result.ok).toBe(false)
+    expect(result.failures.join(' ')).toContain('twice')
+  })
+
+  it('expects a 404 where a target says so', () => {
+    expect(evaluate([pageCsp({ name: 'site 404', status: 404, expectStatus: 404 })], NOW).ok).toBe(
+      true,
+    )
+  })
+
+  it('FAILS a changed admin policy', () => {
+    const result = evaluate([adminCsp({ headers: { 'content-security-policy': NONCED(N1) } })], NOW)
+    expect(result.ok).toBe(false)
+    expect(result.failures[0]).toContain('admin policy changed')
+  })
+
+  it('a runner 403 on a page is inconclusive, never a failure', () => {
+    const result = evaluate([pageCsp({ status: 403 })], NOW)
+    expect(result.ok).toBe(true)
+    expect(result.inconclusive).toHaveLength(1)
+  })
+
+  it('watches the six page types, / twice, and the admin', () => {
+    const targets = TARGETS as { kind: string; url: string }[]
+    const pages = targets.filter((t) => t.kind === 'page-csp')
+    expect(pages.map((t) => new URL(t.url).pathname).sort()).toEqual(
+      ['/', '/', '/contact', '/definitely-not-a-page', '/privacy', '/products', '/terms'].sort(),
+    )
+    expect(targets.filter((t) => t.kind === 'admin-csp')).toHaveLength(1)
   })
 })
