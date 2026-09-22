@@ -1,5 +1,7 @@
 # CLAUDE.md — apps/cms
 
+🔴 = stops here, do not proceed. 🟡 = read before acting. 🟢 = context.
+
 Split out of the repo-root `CLAUDE.md` on 2026-08-15 by `/doctor`, for the same
 reason the viewer traps moved on 2026-08-10 and the pipeline's on 2026-08-12: the
 root file is loaded into *every* session in this repo, and these are only ever
@@ -16,14 +18,14 @@ root file first.
 
 ## Traps
 
-- **Any Payload CLI task touching production D1 must set `NODE_ENV=production`**,
-  or Payload runs a dev-mode schema push against it.
+- **🔴 Any Payload CLI task touching production D1 must set `NODE_ENV=production`**,
+  or Payload runs a dev-mode schema push against it. Incident 2026-07-22: a dev-mode schema push ran against production D1 during the first gated deploy (`docs/HARDENING-LOG.md`).
 - **Put nothing but migrations in `apps/cms/src/migrations/`.** Payload's
   `readMigrationFiles` imports *every* `.ts`/`.js` there except `index.ts` and
   treats each as a migration. A test file added there on 2026-07-31 was imported
   during `migrate:remote`, ran `describe()` with no vitest runner, and stopped
   the production deploy. `src/migrationReplay/migrations.test.ts` now guards it.
-- **`withPayload` appends its OWN `headers()` rule after yours, and Next lets the
+- **🟡 `withPayload` appends its OWN `headers()` rule after yours, and Next lets the
   LAST matching rule win** — so a header set on a route handler's `Response`, or
   added to `SECURITY_HEADERS`, can be silently overridden. Measured 2026-08-18: L1
   set `Vary: Origin, Sec-CH-Prefers-Color-Scheme` in `src/endpoints/publicViewer.ts`,
@@ -40,17 +42,17 @@ root file first.
   negative lookahead, because a wrong lookahead fails OPEN onto `/admin` and the symptom
   is a broken Payload login rather than an error.
 
-- **Error reporting is `src/instrumentation.ts` + a hand-rolled envelope, and BOTH
-  halves are load-bearing.** ⚠️ Next resolves `instrumentation.ts` from the project
+- **🟡 Error reporting is `src/instrumentation.ts` + a hand-rolled envelope, and BOTH
+  halves are load-bearing.** 🟡 Next resolves `instrumentation.ts` from the project
   root or `src/` and NOWHERE ELSE — move it into `src/lib/` for tidiness and the hook
   simply stops firing, with no warning and no error. `src/instrumentation.test.ts`
-  pins the path for that reason. ⚠️ **Do NOT "upgrade" this to `@sentry/nextjs`.**
+  pins the path for that reason. 🟡 **Do NOT "upgrade" this to `@sentry/nextjs`.**
   It was rejected on measured evidence, not preference: `Sentry.captureRequestError`
   inside `onRequestError` throws AsyncLocalStorage errors on Workers
   (sentry-javascript#18842), OpenTelemetry does not bundle on Next 16 + OpenNext
   (opennextjs-cloudflare#969), and `withSentryConfig` would have to join the
   next.config wrapper chain that `publicViewerHeaders.mjs` documents as having
-  already shipped one green-but-inert fix. ⚠️ A missing `SENTRY_DSN` is a deliberate
+  already shipped one green-but-inert fix. 🟡 A missing `SENTRY_DSN` is a deliberate
   NO-OP — it has to be, since every build, test and Payload CLI run has none — so a
   secret that fails to apply yields a silent, green, blind deploy. `ci.yml` asserts
   the Worker holds it; keep that step. And when changing the event shape, verify the
@@ -58,17 +60,17 @@ root file first.
   test, got a 200, and displayed "No stacktrace available" because an empty `frames`
   array is valid and `raw` is not a field Sentry knows.
 
-- **The publish gate and the public API are DIFFERENT gates, and relaxing one
+- **🟡 The publish gate and the public API are DIFFERENT gates, and relaxing one
   without the other saved a product the API then refused to serve.** A poster
   requirement lived in three places — `publishGating.ts` (may I save it?),
   `Stage.tsx` (do I draw it?), `projectViewer.ts` (may I serve it?). PR #39 relaxed
   the first two; the third still dropped poster-less colourways, so detaching a
   published garment's five posters left zero colourways and the endpoint **404'd it
   live** (2026-08-21, fixed in PR #40). Before relaxing any per-colourway
-  requirement, grep all three. ⚠️ `uptime.yml` cannot catch this — it probes an SPA
+  requirement, grep all three. 🟡 `uptime.yml` cannot catch this — it probes an SPA
   that returns 200 HTML for any path, so it stayed green throughout.
 
-- **A PATCH NAMING A PROJECTED FIELD RETURNS 200 AND STORES NOTHING.** 2026-09-04: a
+- **🟡 A PATCH NAMING A PROJECTED FIELD RETURNS 200 AND STORES NOTHING.** 2026-09-04: a
   script wrote `customisationIntroHtml` on all eleven live products, printed `✓ written`
   eleven times and stored ten of eleven intros nowhere — while the `customisationSteps`
   in the same body landed, which is what hid it. That field does not exist on the
@@ -80,7 +82,7 @@ root file first.
   `Teamwear & Uniforms` → `Teamwear &amp; Uniforms`), so escaping first ships a literal
   `&amp;`.
 
-- **The `build-process` global is RETIRED — do not reconnect it.** It held one "How we
+- **🟡 The `build-process` global is RETIRED — do not reconnect it.** It held one "How we
   build your product" text for the whole catalogue and won over a product's own copy the
   moment it was saved, the discriminator being `id` ("has anyone opened this screen"),
   not content — so one save replaced the copy on all eleven live garments, and saving it
@@ -103,7 +105,7 @@ root file first.
   change to routing, middleware, headers or `next.config.mjs`. Same shape as the TypeScript
   pin in the root file, one level deeper.
 
-- **Public page content is cached in-process for 60 seconds** (`src/lib/content.ts`), which
+- **🟡 Public page content is cached in-process for 60 seconds** (`src/lib/content.ts`), which
   took `/products` from 302 ms to 5.7 ms in workerd. It is NOT shared between isolates and
   NOT cleared on save, so a CMS edit can take a minute to appear — owner's decision
   2026-09-05 over an R2 incremental cache plus a D1 tag table. Failures are never cached.
@@ -113,15 +115,15 @@ root file first.
   and three such values had walked past it. A `var()` or computed value is still fine.
   (Documented here because that file's own CLAUDE.md has 59 characters of headroom.)
 
-- **THE SITE ANSWERS ON THREE HOSTNAMES AND ONLY `has: host` RULES TELL THEM APART.**
+- **🟡 THE SITE ANSWERS ON THREE HOSTNAMES AND ONLY `has: host` RULES TELL THEM APART.**
   `wear-run.help` is the site; `www.` 308s to it; `cms.wear-run.help` is the admin and
   the API and 308s its four public paths to the apex; `/admin` and `/api` on the apex
   rewrite to the branded 404 so the login has ONE hostname. The rules live in
   `siteHostRules.mjs` and are proven in `.next/routes-manifest.json` by
-  `src/hostRulesManifest.test.ts`, never in a handler. ⚠️ OpenNext tests a host value
+  `src/hostRulesManifest.test.ts`, never in a handler. 🟡 OpenNext tests a host value
   UNANCHORED — a bare `wear-run.help` also matches `cms.wear-run.help` and the admin
   rewrite takes the admin down — so every pattern is `^…$` with escaped dots.
-  ⚠️ **`opennextjs-cloudflare preview` REWRITES THE HOST AND IGNORES YOUR `-H Host:`.**
+  🟡 **`opennextjs-cloudflare preview` REWRITES THE HOST AND IGNORES YOUR `-H Host:`.**
   Measured 2026-09-07 on wrangler 4.122.0: with no flag, all three hostnames AND
   `localhost` behaved as `cms.wear-run.help` — the FIRST route in `wrangler.jsonc` —
   so `/admin` answered 200 and `/products` 308'd, whatever Host was sent. A preview
@@ -138,14 +140,14 @@ would have passed every gate. Runs in CI as a **step inside the existing `e2e` j
 job of its own: a new job would need adding to `deploy.needs` AND the required-checks list,
 and `.github/CLAUDE.md` records that splitting those silently stops a red gate blocking.
 
-⚠️ **`e2e/prepare.mjs` SKIPS THE REBUILD LOCALLY**, so a source edit does not reach
+🟡 **`e2e/prepare.mjs` SKIPS THE REBUILD LOCALLY**, so a source edit does not reach
 `next start` and a negative control passes without testing anything. Use `CI=1` when
 breaking something on purpose.
 
-⚠️ The port is owned by `playwright.config.ts` (4174) and `e2e/serve.mjs` THROWS if it is
+🟢 The port is owned by `playwright.config.ts` (4174) and `e2e/serve.mjs` THROWS if it is
 unset.
 
-⚠️ **FIREFOX RUNS WITH `Cross-Origin-Opener-Policy` SWITCHED OFF, ON PURPOSE (2026-09-18).**
+🟢 **FIREFOX RUNS WITH `Cross-Origin-Opener-Policy` SWITCHED OFF, ON PURPOSE (2026-09-18).**
 Every page sends that header, and it makes Playwright's Firefox driver lose a navigation
 (microsoft/playwright#42731): `page.goto` times out waiting for "load" on a page that has
 finished loading. That hit 25 of 40 CI runs; the retry hid it until PR #17 failed on it.
@@ -153,7 +155,7 @@ finished loading. That hit 25 of 40 CI runs; the retry hid it until PR #17 faile
 pins it. Keep it until `node e2e/firefox-coop-hang.mjs --prefs=none` shows 0 stuck on a
 newer Playwright.
 
-⚠️ **`next start` NEVER RUNS `worker.mjs`, THE SCRIPT GUARD (SE-04, 2026-09-18).** This suite
+🟡 **`next start` NEVER RUNS `worker.mjs`, THE SCRIPT GUARD (SE-04, 2026-09-18).** This suite
 therefore tests the fallback policy (`PUBLIC_PAGE_CSP`, still with `'unsafe-inline'`) and never
 the nonce. To see the guard:
 1. Run `opennextjs-cloudflare build`.
@@ -161,13 +163,13 @@ the nonce. To see the guard:
    `opennextjs-cloudflare preview --local-upstream wear-run.help`.
 3. Run `node e2e/csp-nonce-edge.mjs`: 3 engines × 6 page types.
 
-After a deploy, run it with `--origin=https://wear-run.help`. ⚠️ A control that skips the nonce
+After a deploy, run it with `--origin=https://wear-run.help`. 🟡 A control that skips the nonce
 on an EXTERNAL script proves nothing: `'self'` still admits it, correctly. Only a missing nonce
-on an INLINE script breaks a page, so plant the fault there. ⚠️ A local `curl` without
+on an INLINE script breaks a page, so plant the fault there. 🟡 A local `curl` without
 `--compressed` counts ZERO scripts: the local runtime gzips a page the way Cloudflare's edge
 does, AFTER the guard (measured 2026-09-22). OpenNext hands the guard plain text.
 
-⚠️ **CI's `e2e` job has NO `PAYLOAD_SECRET`, and local runs always do** (`.env`). So a
+🟡 **CI's `e2e` job has NO `PAYLOAD_SECRET`, and local runs always do** (`.env`). So a
 "passes locally" run proves nothing about the CI step: measured 2026-09-06 with `.env`
 moved aside, Payload never initialised, `/admin` and `/api/*` answered 500, and four tests
 failed while every page test stayed green. `e2e/serve.mjs` now supplies a throwaway
@@ -177,7 +179,7 @@ main narrowed `Media.read` — the catch-all test expects that, not 200.
 
 ## Writing products from a script
 
-**Go through the REST API, never D1.** `Authorization: users API-Key <key>` — the
+🟡 **Go through the REST API, never D1.** `Authorization: users API-Key <key>` — the
 same header `apps/shrink/src/cms.ts` already uses. Every product write has to pass
 `Products.beforeChange` (it derives `variantsVerified`, runs `assertPublishable`,
 and writes an Events row when a live product loses its colour mapping), plus the
@@ -187,22 +189,22 @@ dry-run by default, idempotent by `productCode`, and it prints Payload's INNER
 validation error (`errors[0].data.errors[]`) because the outer message is the
 useless "The following field is invalid" with no field named.
 
-⚠️ **A Payload API key cannot be read back after it is created.** It is encrypted
+🟡 **A Payload API key cannot be read back after it is created.** It is encrypted
 in D1 with `PAYLOAD_SECRET`, and the robot's copy lives in a Cloudflare secret
 (`CMS_ROBOT_API_KEY` on `apps/shrink`) which Cloudflare will not return.
-**Regenerating the robot's key breaks the shrink pipeline** — issue a key on a
+🟡 **Regenerating the robot's key breaks the shrink pipeline** — issue a key on a
 different user instead, and untick it afterwards.
-⚠️ **Rotating `PAYLOAD_SECRET` kills EVERY API key, the robot's included**, and
+🟡 **Rotating `PAYLOAD_SECRET` kills EVERY API key, the robot's included**, and
 *Generate new API key* stores nothing until **Save**. Follow `docs/RUNBOOK.md` →
 "Rotating PAYLOAD_SECRET" (2026-09-10: skipping either stranded a job on Queued).
 
-⚠️ **Never send `slug` when updating an existing product.** It is printed on
+🟡 **Never send `slug` when updating an existing product.** It is printed on
 physical QR tags; `Products.ts` and `fields/colourways.ts` both enforce
 suggest-never-correct. `productCode` and `sortOrder` are safe — neither is in a
 URL. Send `sortOrder` too, or a re-run will not converge on your dataset.
 
 **The whole printed catalogue is imported as of 2026-08-17** — the CMS holds
-**67 products, not one**. 66 are drafts with no colourways, deliberately: the CLO
+🟢 **67 products, not one**. 66 are drafts with no colourways, deliberately: the CLO
 file names the colours (`ImportColoursFromFile`), so guessing 335 tag slugs was
 refused. Three defects are in the PDF itself, not the data: its product codes are
 unusable (67 products share 26; `R-XPB` alone is printed on 26 garments, so the
@@ -212,7 +214,7 @@ jacket — unsettled), and the index contradicts the artwork on two garments.
 `scripts/catalogue-products.json` carries `sourcePage` on every row so any value
 can be checked against the spread rather than trusted.
 
-⚠️ **The PDF text layer drops ligatures** — `ti`, `fl`, `fi` all vanish, so
+🟢 **The PDF text layer drops ligatures** — `ti`, `fl`, `fi` all vanish, so
 "Athletic" extracts as "Athle c" and "flatlock" as "atlock". Anything that
 diffs that text against real copy must normalise, or it reports dozens of
 phantom differences. No `pdftotext`/`mutool` on this machine; `pip install
@@ -226,16 +228,16 @@ name it the way the existing objects are named (`<product>-<colour>-poster.webp`
 `altText` on a colourway auto-fills from `productName` + `displayName` via a
 `beforeValidate` hook, so leave it out rather than retyping it.
 
-⚠️ **A PATCH to an array field REPLACES THE WHOLE ARRAY.** Fetch the product first,
+🟡 **A PATCH to an array field REPLACES THE WHOLE ARRAY.** Fetch the product first,
 change only the field you mean to, and send **every row back with its `id`** — or
 Payload drops the rows you omitted. Row order decides the default colourway and each
 `slug` is printed on a physical QR tag, so a partial send is silent data loss. Print
 the before/after per row and assert the order is unchanged *before* sending.
 
-⚠️ **zsh globs `[` in a URL.** `where[slug][equals]=x` dies with
+🟡 **zsh globs `[` in a URL.** `where[slug][equals]=x` dies with
 `curl: (3) bad range in URL`. Percent-encode (`where%5Bslug%5D%5Bequals%5D=`) or quote it.
 
-After an upload, fetch the object with a **plain GET, never HEAD** — see the cached-404
+After an upload, fetch the object with a 🟡 **plain GET, never HEAD** — see the cached-404
 trap in the root file. A fresh upload answers `200` with `cf-cache-status: MISS`.
 
 ## Before you change a migration
@@ -279,7 +281,7 @@ events endpoint is under load.
 
 ## Writing to a product from a script — four things measured 2026-09-04
 
-- **The shrink robot REFUSES to attach a model or import colours to a PUBLISHED product** —
+- **🟡 The shrink robot REFUSES to attach a model or import colours to a PUBLISHED product** —
   "swapping the model under a published page is your decision, not the robot's"
   (`apps/shrink/src/colourImport.ts`, and the same refusal for `glbAsset`). So a republish is
   TWO acts: the robot produces the Media doc, then a human PATCHes `glbAsset`. Do not read a
@@ -291,10 +293,10 @@ events endpoint is under load.
 - **`sortOrder` is a plain `number` with no uniqueness rule**, so **10.5** inserts a product
   between 10 and 11 without renumbering the other 67. That is how `R-AJM` landed directly
   after `R-AJ`.
-- **A corrected export is usually already in R2** under
+- **🟢 A corrected export is usually already in R2** under
   `run-apparel-archive/fixed-glbs/…`, so `scripts/ingest-from-archive.mjs` starts a shrink
   from an S3 `CopyObject` — measured 16.9 MB in 4.9 s and 1.71 GiB in 110 s, inside
-  Cloudflare — instead of a browser re-upload up a link measured at ~300 kB/s. ⚠️ Its
+  Cloudflare — instead of a browser re-upload up a link measured at ~300 kB/s. 🟢 Its
   `clientUploadContext` must be TRUTHY, or `@payloadcms/storage-r2` skips its own >50 MB
   short-circuit and the CMS Worker tries to buffer the whole object to satisfy a create.
 
@@ -310,15 +312,15 @@ Four things that bit while building it:
 - **The wordmark is fitted by measuring the rendered text**, after `document.fonts.ready`.
   Two fixed sizes both ran the name off the edge; the name is a CMS field, so its length is
   an input. `apps/cms/src/lib/wordmarkFit.ts`.
-- **The cursor honours `navigator.webdriver`** (as the viewer's does), so Playwright never
+- **🟡 The cursor honours `navigator.webdriver`** (as the viewer's does), so Playwright never
   sees it unless the test lifts the flag with `addInitScript`. `apps/cms/e2e/footer.spec.ts`
   does, and also asserts the honest default — absent under automation.
-- **The footer's light is positioned from the cursor ring's TRAILED point** (`apps/cms/src/lib/cursorBus.ts`),
+- **🟡 The footer's light is positioned from the cursor ring's TRAILED point** (`apps/cms/src/lib/cursorBus.ts`),
   never the raw pointer, and its 180ms linger needs its own timer tick: the bus publishes
   only while the ring moves, so without one a hand-off caught inside the window stayed lit
   over empty ground for good. The browser suite found that on its first run.
 
-Two gates to know about here: `navbar.spec.ts` measures EVERY link on every page against
+🟡 Two gates to know about here: `navbar.spec.ts` measures EVERY link on every page against
 the 44px touch floor (the first footer shipped 16px rows — real 44px rows, never a
 padding/negative-margin trick, which overlaps neighbours and hides the miss); and
 `publicSite.test.ts` forbids `data-open` anywhere in the site's CSS, so the clock's light

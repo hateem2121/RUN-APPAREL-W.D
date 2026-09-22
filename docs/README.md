@@ -179,5 +179,6 @@ document and not adding its row is the failure this section is named for.
 | [DECISION-AR-SCOPE.md](DECISION-AR-SCOPE.md) | Why there is no AR mode |
 | [DECISION-OFFLINE-SCOPE.md](DECISION-OFFLINE-SCOPE.md) | How far offline support goes, and why it stops there |
 | [DECISIONS-BETA-WEBSITE.md](DECISIONS-BETA-WEBSITE.md) | The fourteen decisions taken before the beta launch — read this before "fixing" anything that looks odd |
+| [DEEP-READ-NOTES.md](DEEP-READ-NOTES.md) | Per-file evidence notes from reading the whole codebase (A1 of the 2026-09-22 perfection plan) — invariants, warnings and measured history, section per file |
 | [OWNER-CHECKLIST.md](OWNER-CHECKLIST.md) | The things only the owner can do, and what is already done |
 | [PIPELINE-INVESTIGATION-2026-09-01.md](PIPELINE-INVESTIGATION-2026-09-01.md) | The pipeline investigation of 2026-09-01 |

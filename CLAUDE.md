@@ -1,5 +1,7 @@
 # CLAUDE.md — working notes for AI sessions on this repo
 
+🔴 = stops here, do not proceed. 🟡 = read before acting. 🟢 = context.
+
 Read this before changing anything. It is short on purpose: it holds only the
 things that have *actually* caused production incidents here, and the traps that
 have already cost more than one session each.
@@ -14,8 +16,8 @@ comes out, and a customer scans a tag and looks at the garment. **For a B2B
 garment reference the printed artwork IS the product** — "the 3D loads" is not
 success.
 
-⚠️ **PUBLIC repo since 2026-09-10:** never commit audits, supplier/factory data, D1 dumps
-or customer data.
+🔴 **PUBLIC repo since 2026-09-10:** never commit audits, supplier/factory data, D1 dumps
+or customer data. Not hypothetical: on 2026-09-11 a public Actions log carried a presigned URL to the whole database (`.github/CLAUDE.md`).
 
 ```
 apps/viewer   Public 3D viewer (React + <model-viewer>, Cloudflare Worker + Static
@@ -51,31 +53,31 @@ pnpm eval:artwork                # separate CI job — gates the deploy
 pnpm --filter @run-apparel/viewer test:e2e  # separate CI job — ALSO gates the deploy
 ```
 
-⚠️ **`e2e` is in `deploy.needs` and was absent from this list until 2026-08-21.**
+🟢 **`e2e` is in `deploy.needs` and was absent from this list until 2026-08-21.**
 Slowest gate in CI (7m45s), fastest locally (**45s**, 352 tests, four engines) — run
 it before pushing a viewer change. Two CI round trips were spent learning that.
 
-Three of these are invisible from the workspace, and that is why "it passed
+🟢 Three of these are invisible from the workspace, and that is why "it passed
 locally" has failed twice: `apps/shrink/container` is not a pnpm member and gets
 its own `npm install --no-audit --no-fund && npx tsc --noEmit` step in CI,
 `eval:artwork` runs in a job of its own, and `check-bundle-budget` reads
 `apps/viewer/dist` so it exits 1 unless `pnpm build` has already run.
-⚠️ Until 2026-08-13 this paragraph claimed README's "Local development" list omits
+🟢 Until 2026-08-13 this paragraph claimed README's "Local development" list omits
 some of these. It does not, and had not for some time — caught by running the
 commands rather than re-reading the sentence (same lesson as
 `eval:artwork:real -- raw/x.glb` below).
 
-**Playwright's browsers are NOT installed here, and a missing one fails at 0ms.**
+🟡 **Playwright's browsers are NOT installed here, and a missing one fails at 0ms.**
 Found 2026-08-27: `test:e2e` reported four engines failing with `(0ms)`, which reads
 as broken code and is a browser that never launched. Install once —
 `npx --yes pnpm@10.34.5 --filter @run-apparel/viewer exec playwright install chromium webkit firefox`.
 `tools/asset-pipeline`'s render harness needs chromium too. With all four present:
 **355 passed, 6 skipped, 41.8s** — the 45s quoted above.
 
-**`pnpm` may not be on `PATH` — MEASURED BOTH WAYS; use `npx --yes pnpm@10.34.5`.**
+🟡 **`pnpm` may not be on `PATH` — MEASURED BOTH WAYS; use `npx --yes pnpm@10.34.5`.**
 Absent in earlier sessions; 2026-08-21 it WAS there (`/opt/homebrew/bin/pnpm`, exactly
 10.33.0). Assume neither, and never let a script shell out to bare `pnpm`.
-⚠️ **A THIRD STATE, 2026-08-27: the path EXISTS and does not run.**
+🟡 **A THIRD STATE, 2026-08-27: the path EXISTS and does not run.**
 `/opt/homebrew/bin/pnpm` symlinks into a `node@24` Cellar that Node 26.7.0 replaced.
 `ls` succeeds; running it says `no such file or directory` naming the SYMLINK, not the
 missing target — so `command -v pnpm` finds it and still fails. When a child process
@@ -91,7 +93,7 @@ Since 2026-08-26 the PreToolUse guard **rewrites** a bare `pnpm` you type rather
 than refusing it — but it sees only the Bash tool's own command, never what a
 script shells out to, which is the case that actually cost the sessions above.
 
-**Running the CMS dev server DIRTIES the working tree and then `pnpm lint` fails.**
+🟡 **Running the CMS dev server DIRTIES the working tree and then `pnpm lint` fails.**
 Found 2026-08-09. `next dev` rewrites two committed generated files —
 `apps/cms/src/app/(payload)/admin/importMap.js` (Payload regenerates it, in its
 own formatting, not Biome's) and `apps/cms/next-env.d.ts` (`./.next/types/…` →
@@ -102,7 +104,7 @@ first, then `git checkout --` both files**; restoring while it is still running
 just loses the race, which is how this cost a cycle. Do not "fix" it by
 reformatting the generated file into the repo.
 
-**`admin.hidden` on a collection gates the admin ROUTES, not just the sidebar
+🟢 **`admin.hidden` on a collection gates the admin ROUTES, not just the sidebar
 entry.** Measured 2026-08-09 on payload 3.86.0: with `hidden: true`,
 `/admin/collections/raw-uploads` renders the "Nothing found" page; with the
 admin-only function it renders the normal list — same URL, same user. The REST
@@ -116,7 +118,7 @@ reading as a tidy-up. See the comment in `RawUploads.ts`.
 
 - **Coverage floors are MEASURED, not chosen** (`vitest.coverage.mjs`, a
   `thresholds:` block per package, `scripts/check-coverage.mjs` for the repo).
-  **Never lower one to go green.** `apps/viewer` is deliberately the lowest at 42%
+  🟡 **Never lower one to go green.** `apps/viewer` is deliberately the lowest at 42%
   — do NOT "fix" it by excluding `App.tsx`/`Stage.tsx`; most of its uncovered
   lines are in those two, so dropping them reports a far higher number while
   testing identically. (`RenderPage.tsx` was the third until it was deleted on
@@ -134,21 +136,21 @@ reading as a tidy-up. See the comment in `RawUploads.ts`.
   not covered.
 - **Every document is citation-checked, not just CLAUDE.md** — README, CONTRIBUTING,
   SECURITY and all of `docs/`. A genuinely-gone path goes in `ALLOWED_ABSENT`
-  **with the reason**; `file.ts:42` and extension-less citations resolve fine.
-  ⚠️ **Never cite a gitignored GENERATED directory — this warning did, and broke CI.**
+  🟡 **with the reason**; `file.ts:42` and extension-less citations resolve fine.
+  🟡 **Never cite a gitignored GENERATED directory — this warning did, and broke CI.**
   `public/draco/` is written at build time by `apps/viewer/scripts/copy-decoders.mjs`,
   so it exists locally from an earlier build and passes for you while a clean checkout
   fails. Cite the generator.
-  ⚠️ To reproduce CI's checkout, move `public/draco/` aside for the run — a local
+  🟡 To reproduce CI's checkout, move `public/draco/` aside for the run — a local
   pass with it present proves nothing, and that is what failed here twice. Note the
   gate is blind to URL-shaped references: it skips anything starting with `/`, so
   `/og/n001/wine.jpg` in RUNBOOK rotted unwatched through a slug rename.
-  ⚠️ **`node scripts/doc-citations.mjs` WORKS — this file claimed otherwise until
+  🟡 **`node scripts/doc-citations.mjs` WORKS — this file claimed otherwise until
   2026-08-19 and cost a session.** It prints each unresolved citation and exits **1**.
   Use it as the fast local check; `apps/cms/src/claudeMd.test.ts` is still the CI gate
   and the authority, because only the test enforces the recursive walk and the
   negative control.
-  ⚠️ **Line RANGES resolve too, since 2026-08-18 — this said the opposite.** The regex
+  🟡 **Line RANGES resolve too, since 2026-08-18 — this said the opposite.** The regex
   (`scripts/doc-citations.mjs:202`) strips `:42`, `:42:7` and `:42-80` alike. Prefer a
   single line — the harness renders it as a clickable link — but a range is not a
   silent failure.
@@ -158,7 +160,7 @@ reading as a tidy-up. See the comment in `RawUploads.ts`.
   installed wrangler. That last one found the runbook pinned `wrangler@4.114.0`
   while the repo ran 4.122.0.
 
-⚠️ **`node:sqlite` is built into the pinned Node 24** — `scripts/verify-backup.mjs`
+🟢 **`node:sqlite` is built into the pinned Node 24** — `scripts/verify-backup.mjs`
 uses it to replay a D1 dump with foreign keys ON. Reach for it before adding a
 SQLite dependency.
 
@@ -176,7 +178,7 @@ reason: the test fixtures could not exhibit the failure.**
 **If production compresses, seed compressed. If production prints, seed a
 print.**
 
-⚠️ **A NEGATIVE CONTROL MUST RUN BOTH WAYS.** 2026-08-29: three GPU harnesses each
+🟡 **A NEGATIVE CONTROL MUST RUN BOTH WAYS.** 2026-08-29: three GPU harnesses each
 reported clean while measuring nothing — a WebGL buffer read after compositing (needs
 `preserveDrawingBuffer`), a sample box on the wrong part of the garment, and
 `drawImage` on model-viewer's non-preserved canvas returning a stale frame (tell:
@@ -186,10 +188,10 @@ the answer is "nothing that happens in production", it is not a test.
 
 ## Traps — each of these has already cost a session
 
-- **Never run the pipeline on its own output.** Meshopt quantizes vertex
+- **🔴 Never run the pipeline on its own output.** Meshopt quantizes vertex
   attributes; `simplify-textured.ts` bails to a position-only fallback when it
   sees them, so a second pass *silently* loses artwork protection and blames the
-  wrong stage. Always start from the raw CLO export.
+  wrong stage. Always start from the raw CLO export. Cost two sessions; recorded 2026-07-31 in `docs/HARDENING-LOG.md`.
 - **`PRAGMA foreign_keys=OFF` is a no-op on D1** (SQLite ignores it inside a
   transaction; D1 wraps statements in one). `defer_foreign_keys` defers *checks*,
   not **cascades** — so neither pragma makes a table rebuild safe. **Ordering
@@ -198,13 +200,13 @@ the answer is "nothing that happens in production", it is not a test.
 - **`apps/shrink/container` is not a workspace member.** It installs with plain
   `npm` inside Docker, so it cannot use `workspace:*` deps, and `pnpm -r` skips
   it. It has its own CI typecheck step; keep it.
-  **The typecheck step was never the gap — `npm ci` is.** `tools/asset-pipeline`
+  🟢 **The typecheck step was never the gap — `npm ci` is.** `tools/asset-pipeline`
   carries a SECOND lockfile (`package-lock.json`, npm's, read only by
   `apps/shrink/Dockerfile`) that no workspace tooling maintains, so bumping that
   `package.json` in the workspace desynchronises it and the image build dies on
   `npm ci` **after** every local gate has passed. Cost a deploy on 2026-08-12; full
   procedure in `tools/asset-pipeline/CLAUDE.md`.
-- **The shrink container runs as uid 1000, not root, since 2026-08-13 — it can
+- **🟡 The shrink container runs as uid 1000, not root, since 2026-08-13 — it can
   write ONLY under `/tmp`.** `/app` is root-owned and read-only to it, so any new
   scratch path must go through `mkdtemp(join(tmpdir(), …))` as `container/server.ts`
   already does. A write to `/app` will pass every local gate and fail at runtime
@@ -212,7 +214,7 @@ the answer is "nothing that happens in production", it is not a test.
   than as a permissions problem. Verified by running the image: writes `/tmp`,
   refused `/app`, service starts and answers. The base image is **digest-pinned**
   for build reproducibility (sharp links against system libs).
-  ⚠️ **NOTHING AUTOMATED REFRESHES THAT PIN — this line claimed "Dependabot's `docker`
+  🟡 **NOTHING AUTOMATED REFRESHES THAT PIN — this line claimed "Dependabot's `docker`
   ecosystem updates it" until 2026-08-20, and that was never true.**
   `.github/dependabot.yml` declares no `docker` ecosystem at all, and the two it does
   declare (npm, github-actions) both sit at `open-pull-requests-limit: 0` by deliberate
@@ -239,7 +241,7 @@ the answer is "nothing that happens in production", it is not a test.
   `validate.ts` transitively — `container/report.ts` imports `SIZE_WARNING_BYTES` from it
   as a **value**. `tools/asset-pipeline` checks the same file and passes, because it sets
   `"types": ["node"]`. `@types/node` looks like the culprit and is not.
-  **Bisect; do not revert the plausible one.** The split is deliberate and pinned by
+  🟡 **Bisect; do not revert the plausible one.** The split is deliberate and pinned by
   `dependencyPolicy.test.ts`, which asserts the hold in `apps/shrink` AND asserts it has
   not widened again. wrangler 4.122.0 wants `^5.20260811.1`, so `apps/shrink` still
   carries an unmet-peer warning on purpose — cosmetic, and **do not "fix" it by raising
@@ -248,7 +250,7 @@ the answer is "nothing that happens in production", it is not a test.
   node-free module and `readGlbGenerator` stops being reachable. History and the re-test:
   `docs/DEPENDENCY-HOLDS.md`.
 
-- **The 24h cooldown blocks a bump SILENTLY, and `--latest` is the wrong tool.**
+- **🟡 The 24h cooldown blocks a bump SILENTLY, and `--latest` is the wrong tool.**
   `pnpm-workspace.yaml` sets `minimumReleaseAge: 1440`. A too-fresh version is not
   an error — `pnpm update -r <pkg> --latest` **exits 0 and leaves the old version
   in place**, which reads as "the bump did nothing". Measured 2026-08-12: asked for
@@ -264,12 +266,12 @@ the answer is "nothing that happens in production", it is not a test.
   **signed provenance attestation present**, **no install script**, and an unchanged
   dependency list. Provenance + no-install-script is the actual threat the cooldown
   absorbs, so that substitution is real rather than a formality.
-- **`fileColours` is deliberately NOT in `GATED_FIELDS`.** Gating it once blocked
+- **🟡 `fileColours` is deliberately NOT in `GATED_FIELDS`.** Gating it once blocked
   the shrink robot's own write on a published-but-model-less product, i.e. it
   prevented recovery from the state the gate was complaining about (2026-07-29).
   Do not "fix" this. The gap it leaves is covered by reporting instead —
   `becameUnverifiedWhilePublished` writes an Events row. See `Products.ts`.
-- **Read `cf-cache-status` off the GET's own headers, NEVER off a `HEAD`.**
+- **🟡 Read `cf-cache-status` off the GET's own headers, NEVER off a `HEAD`.**
   `HEAD` and `GET` land on DIFFERENT edge cache entries on this domain, measured
   twice in both directions: 2026-08-06 a just-written model served `GET 404` while
   `HEAD` returned 200 with the right `content-length`; 2026-08-13 the same URL in
@@ -307,7 +309,7 @@ the answer is "nothing that happens in production", it is not a test.
   so a `cron:` is a queue position, not a deadline; a watchdog built on one being
   punctual is wrong on every cycle, which is worse than no watchdog.
 
-- **A CLO 7.0 export arrives as one GLB PER COLOURWAY** (`_0.._N`); `pipeline merge`
+- **🟢 A CLO 7.0 export arrives as one GLB PER COLOURWAY** (`_0.._N`); `pipeline merge`
   joins them, and **`apps/shrink` never calls it**. See `tools/asset-pipeline/CLAUDE.md`.
 - **Twenty-four more traps live in `tools/asset-pipeline/CLAUDE.md`** — moved there
   2026-08-19, when this file measured 44,993 characters against Claude Code's
@@ -336,22 +338,22 @@ the answer is "nothing that happens in production", it is not a test.
   because ETC1S mottles white fabric; **a CLO export leaves every TEXTURE anonymous**
   so a name-based artwork check must read the MATERIAL name or it is silently inert;
   and forced double-siding put a **mirrored care label on the outside**.
-  **Added 2026-09-02:** a print piece is NEVER decimated (`--decimate-artwork` is the
+  🟡 **Added 2026-09-02:** a print piece is NEVER decimated (`--decimate-artwork` is the
   negative control), and **a flat frame scores 0.00% against another flat frame** — a
   perfect crop match means look at the picture, never pass.
   **Five more findings are recorded there under 2026-08-27**, outside that bulleted
   list: the six unreadable exports carry a texture that is
-  **referenced, not orphaned** — safe to strip only because it is always
+  🟢 **referenced, not orphaned** — safe to strip only because it is always
   `metallicRoughnessTexture` on materials already at `metallicFactor: 0`; the
   **Khronos validator does NOT catch that defect** (`texture.source` is optional, so
   the file is valid glTF); it *did* catch that **every processed garment was invalid
   glTF** for want of an `EXT_texture_webp` declaration, which `<model-viewer>` renders
   anyway; **`prune()` renumbers UV sets and updates only the DEFAULT material**,
   leaving colourway-only ones pointing at an attribute that no longer exists; and
-  **`pnpm eval:artwork` PASSES on macOS since 2026-08-29** (this said the opposite until 2026-09-03) — a local failure is real; do NOT raise the ceiling.
-  **Added 2026-09-03:** every UV set is moved into 0..1 and stored 16-bit, so a finished
+  🟡 **`pnpm eval:artwork` PASSES on macOS since 2026-08-29** (this said the opposite until 2026-09-03) — a local failure is real; do NOT raise the ceiling.
+  🟢 **Added 2026-09-03:** every UV set is moved into 0..1 and stored 16-bit, so a finished
   file's raw UV span means nothing — read it through `uvSpanInPatternSpace`.
-  ⚠️ These are hooks, not the traps; after `/compact` only THIS file is re-injected —
+  🟢 These are hooks, not the traps; after `/compact` only THIS file is re-injected —
   open that file before changing anything there.
 
 - **Thirty-four more traps live in `apps/viewer/CLAUDE.md`** and are deliberately NOT
@@ -375,7 +377,7 @@ the answer is "nothing that happens in production", it is not a test.
   **eight times too weak**, and then it reached only the FIRST of each wrapper's
   materials while a colourway switch drew another (1 of 6 live).
   Read them before changing the viewer, its Worker, or its headers.
-  **Maintaining these files is its own topic** — the 39,000-character CI gate and the
+  🟢 **Maintaining these files is its own topic** — the 39,000-character CI gate and the
   200-line target, why `@path` imports do NOT save context, why path-scoped rules are
   still unadopted, `/doctor`'s trim pass, and the `InstructionsLoaded` hook that
   verifies the loading claims above instead of asserting them, all live in
@@ -387,7 +389,7 @@ the answer is "nothing that happens in production", it is not a test.
   overrides any header you set in a handler, why **`pnpm build` passing does not mean the
   app can be DEPLOYED**, a 60s content cache, and a style gate that now reads JSX; it also
   carries "Before you change a migration", the site's browser tests, and how to write
-  products from a script. ⚠️ This said "Two more
+  products from a script. 🟢 This said "Two more
   **live** in" until 2026-08-17 — without the word "traps",
   `claudeMd.test.ts`'s counter silently skipped it. **"Before you delete anything in the
   CMS" below deliberately did NOT move**: it governs `apps/shrink/src/cms.ts` and
@@ -400,7 +402,7 @@ the answer is "nothing that happens in production", it is not a test.
   `disable-model-invocation: true` — so they neither load nor appear in the skill
   listing. A `/doctor` session researched "should we adopt Tailwind?" from scratch
   while `.agents/skills/pick-ui-library/SKILL.md` had already picked `base-ui`.
-  **Before concluding something was never decided, grep `.agents/` too, not just
+  🟢 **Before concluding something was never decided, grep `.agents/` too, not just
   `.claude/`.** Settled UI decisions now live in `docs/DECISION-UI-LIBRARIES.md`.
 
 ## Before you change the pipeline
@@ -414,25 +416,25 @@ Moved there 2026-08-12 for the reason the viewer traps moved on 2026-08-10: it i
 under `tools/asset-pipeline/` needs it — which is exactly when it now loads.
 
 The one line worth keeping here, because it is what the whole section is for:
-**do not tune presets against file size.** That is exactly how a setting that
+🟡 **do not tune presets against file size.** That is exactly how a setting that
 protects artwork *less* shipped as "Smallest file" — **deleted on 2026-08-05**
 once a sweep rendered what it actually did to the wordmark. Look at the output.
 
 ## Colour names are read from the file, not typed
 
-`tools/asset-pipeline/src/variant-colour.ts` picks each variant's dominant fabric
+🟢 `tools/asset-pipeline/src/variant-colour.ts` picks each variant's dominant fabric
 by surface area (excluding trim and artwork), converts `baseColorFactor` from
 linear to sRGB, and names it by CIEDE2000 against a palette in `colour-name.ts`.
 This exists because on 2026-08-03 every published colour name on the live site was
 wrong — a maroon garment labelled "Navy", a blush one "Black", a powder blue one
 "Crimson" — and two colourways in the file were never mapped at all.
-⚠️ **Area is summed by material NAME (2026-09-02):** CLO writes one material per
+🟢 **Area is summed by material NAME (2026-09-02):** CLO writes one material per
 PANEL, and a 4.36% print panel named Geovent's white cloth "Navy"
 (CG-05). A white factor over a fabric picture is sampled only when colourways carry
 different pictures; every export censused binds one to all five, so the name stays
 blank and the report says why.
 
-Two rules it must keep: a **colourway slug is printed on physical QR tags** and
+Two rules it must keep: a 🟡 **colourway slug is printed on physical QR tags** and
 must never be changed by an automated process, and **row order decides the default
 colourway**, so nothing may reorder rows. Imported rows append, arrive
 `active: false`, and a low-confidence match arrives with an empty name rather than
@@ -445,7 +447,7 @@ a guess. Tested in `packages/shared/src/importColours.test.ts` (moved 2026-08-11
 deletes, the other only reports. `apps/cms/src/collections/mediaReferences.test.ts`
 fails if a new Media relationship is added without updating both.
 
-⚠️ **Until 2026-08-08 updating one of those two lists did nothing.**
+🔴 **Until 2026-08-08 updating one of those two lists did nothing.**
 `REFERENCE_PATHS` in `find-orphan-media.mjs` was declared and never read — the
 four paths were hardcoded again 60 lines below it — while the guard test's own
 failure message instructs you to add new relationships *to that constant*.
@@ -456,7 +458,7 @@ unused variable, on the day it was added.
 
 ## Deploying
 
-⚠️ **`git user.email` is UNSET on this machine, and that DEADLOCKS the merge.**
+🟡 **`git user.email` is UNSET on this machine, and that DEADLOCKS the merge.**
 Found 2026-08-25, mid-deploy. With neither a local nor a global value git falls back
 to `user@hostname`, which matches no GitHub account, so `main`'s ruleset rule
 `require_extra_approval_for_unattributed_changes` demands an approving review — and
@@ -470,7 +472,7 @@ git config --local user.email hateemjamshaid@gmail.com
 git config --local user.name "Hateem Jamshaid"
 ```
 
-To repair commits already made — content is preserved, only authorship changes:
+🟡 To repair commits already made — content is preserved, only authorship changes:
 `git rebase origin/main --exec 'git commit --amend --no-edit --reset-author'`.
 Do NOT reach for `gh pr merge --admin`: the rule is doing its job, the identity is
 what is wrong.
@@ -482,7 +484,7 @@ before/after diff is what caught the last data-loss incident when the migration
 logs said success. See `docs/BACKUP-RESTORE.md`. `.claude/skills/deploy-preflight/`
 walks the whole sequence and is `disable-model-invocation: true` on purpose.
 
-⚠️ **The live product is `rxps`, and this line said `n001` until 2026-08-15.**
+🟢 **The live product is `rxps`, and this line said `n001` until 2026-08-15.**
 Measured that day: `GET /api/public/viewer/n001/wine` → **404 not_found**;
 `rxps/wine` → the real 5-colourway payload and a 27.0 MB model. The rename had
 already broken **both post-deploy gates** in `ci.yml` —
@@ -498,7 +500,7 @@ fixtures `n001`, correctly — that server *is* the fixture. RUNBOOK's four
 remaining mentions are annotated pre-rename measurements (re-checked 2026-08-17),
 not live paths.
 
-⚠️ **A RENAME BROKE A POST-DEPLOY GATE A SECOND TIME — 2026-08-17, different
+🟡 **A RENAME BROKE A POST-DEPLOY GATE A SECOND TIME — 2026-08-17, different
 field.** `productCode` went `RXPS` → `R-XPS` (slug correctly untouched; that one
 is on printed tags) and `main` went red at `smoke-viewer-preview.mjs`, which
 derived the expected code as `PRODUCT.toUpperCase()` where `PRODUCT` is the
@@ -509,7 +511,7 @@ Both sides now compare with non-alphanumerics stripped. **Before changing any
 product identity field, grep `scripts/smoke-*.mjs` and `ci.yml` for it** — `slug`
 and `productCode` are different fields whose values merely coincided.
 
-**Do not push twice in a row, and read `conclusion` not the exit code.** `ci.yml`
+🔴 **Do not push twice in a row, and read `conclusion` not the exit code.** A second merge cancelled a deploy mid-flight until the 2026-08-31 fix. `ci.yml`
 sets `concurrency: cancel-in-progress: true` on `ci-${{ github.ref }}`, so a second
 push to `main` kills the first run mid-flight — and `gh run watch --exit-status`
 returns **1 for a `cancelled` run exactly as it does for a `failure`**. On
@@ -528,7 +530,7 @@ not only from a second push.** On 2026-08-18 a degraded Ubuntu mirror made
 twice, then `verify` at 30m21s — with nothing in the repository changed. Raising a
 ceiling only moved which job died. See `.github/CLAUDE.md`.
 
-**The apex serves the SITE; the PDFs are PRIVATE LINKS (decided 2026-09-11, live from
+🟡 **The apex serves the SITE; the PDFs are PRIVATE LINKS (decided 2026-09-11, live from
 the merge that deploys it).** `wear-run.help/*`
 and `www.` go to the CMS Worker. `infra/apex-404/` serves `catalogue.` and `profile.` on
 BOTH `wear-run.help` and `wear-run.com` (`/<code>`; pictures + the PDF, from the **shared**
