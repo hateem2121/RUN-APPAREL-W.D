@@ -102,16 +102,19 @@ describe('withNonce: script-src only, and only the expected shape', () => {
 })
 
 describe('noncedHeaders', () => {
-  it('sets the nonced policy, drops Content-Length, keeps everything else', () => {
+  it('sets the nonced policy, drops Content-Length and ETag, keeps everything else', () => {
     const headers = new Headers({
       'content-type': 'text/html; charset=utf-8',
       'content-security-policy': PUBLIC_PAGE_CSP,
       'content-length': '17947',
+      // The live 404 carries one, measured 2026-09-22; the five pages do not.
+      etag: '"p148o4cfqjdpe"',
       'cache-control': 'private, no-cache, no-store, max-age=0, must-revalidate',
     })
     const out = noncedHeaders(headers, NONCE)
     expect(out?.get('content-security-policy')).toBe(withNonce(PUBLIC_PAGE_CSP, NONCE))
     expect(out?.has('content-length')).toBe(false)
+    expect(out?.has('etag')).toBe(false)
     expect(out?.get('cache-control')).toBe(headers.get('cache-control'))
     expect(out?.get('content-type')).toBe('text/html; charset=utf-8')
     expect(headers.get('content-security-policy')).toBe(PUBLIC_PAGE_CSP) // input untouched

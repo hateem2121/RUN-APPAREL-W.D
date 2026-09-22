@@ -58,9 +58,13 @@ export function withNonce(policy, nonce) {
 }
 
 /**
- * Headers for the rewritten page: the nonced policy, and NO Content-Length. Stamping attributes
- * changes the body's length, and a stale length makes the runtime reject or cut off the stream.
- * The 404 arrives with one (17,947 bytes under `next start`, measured 2026-09-18).
+ * Headers for the rewritten page: the nonced policy, and NO Content-Length or ETag.
+ * - Stamping attributes changes the body's length, and a stale length makes the runtime reject
+ *   or cut off the stream. The 404 arrives with one (17,947 bytes under `next start`, measured
+ *   2026-09-18).
+ * - It also changes the bytes on every request, so an ETag computed over the original body no
+ *   longer describes what is sent. The live 404 carries one (measured 2026-09-22); the five
+ *   pages do not.
  */
 export function noncedHeaders(headers, nonce) {
   const policy = withNonce(headers.get('content-security-policy') ?? '', nonce)
@@ -68,5 +72,6 @@ export function noncedHeaders(headers, nonce) {
   const out = new Headers(headers)
   out.set('content-security-policy', policy)
   out.delete('content-length')
+  out.delete('etag')
   return out
 }
