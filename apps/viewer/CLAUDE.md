@@ -1,5 +1,7 @@
 # CLAUDE.md — apps/viewer
 
+🔴 = stops here, do not proceed. 🟡 = read before acting. 🟢 = context.
+
 Split out of the root `CLAUDE.md` on 2026-08-10 by `/doctor` (the root had reached 39,674
 chars). These traps are reachable only by editing files under `apps/viewer/`, so they load
 when they matter instead of in every session.
@@ -8,7 +10,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
 
 ## Traps — each of these has already cost a session
 
-- **model-viewer BAKES the draco and ktx2 decoder locations at MODULE-EVALUATION
+- **🟡 model-viewer BAKES the draco and ktx2 decoder locations at MODULE-EVALUATION
   time, and there is NO equivalent line for meshopt — which is exactly why meshopt
   has always worked here and draco never has.** `lib/features/loading.js` runs, at
   import:
@@ -20,7 +22,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   CachingGLTFLoader.setDRACODecoderLocation(dracoDecoderLocation)
   ```
 
-  So it reads a GLOBAL that must exist **before** the import; meshopt has no default
+  So it reads a GLOBAL that must exist 🟡 **before** the import; meshopt has no default
   and is set only by the post-import setter. `Stage.tsx` set all four the same way
   after the import, and the two that look identical behaved oppositely. Measured on
   a cold load of the live site 2026-08-21: `dracoDecoderLocation` =
@@ -28,14 +30,14 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   = `/meshopt_decoder.js`. **A draco garment therefore rendered nothing in
   production** — the CSP correctly refused gstatic — and fell back to its poster.
   `Stage.tsx` now seeds `self.ModelViewerElement` before the dynamic import, per
-  model-viewer's own docs. ⚠️ **UNVERIFIED**: it could not be reproduced locally
+  model-viewer's own docs. 🟡 **UNVERIFIED**: it could not be reproduced locally
   because a harness using the `dist` build registers its own global and behaves
   differently from the ESM `lib/` the app bundles (`dist` reads `undefined`, live
   reads gstatic). Production stays on `--meshopt`
   (`packages/shared/src/shrink.ts`); **before re-enabling `--draco`, load the
   deployed site cold and check
   `customElements.get('model-viewer').dracoDecoderLocation === '/draco/'`.**
-  ⚠️ Three wrong diagnoses preceded the right one, all plausible, all disproved by
+  🟡 Three wrong diagnoses preceded the right one, all plausible, all disproved by
   measurement: "it is set on the instance not the class" (it is the class — the local
   is just named `element`), "model-viewer is duplicated across chunks" (only one
   chunk contains it), "the setter throws" (none of them do). **`git log` proves
@@ -48,7 +50,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
 - **model-viewer BUILDS ONLY THE ARRIVING COLOURWAY'S MATERIALS, so anything done
   to `model.materials` on `load` reaches a fraction of them.** Measured on the live
   garment 2026-08-27: **200 materials, 44 built, 156 lazy**; of 26 printed cut-outs,
-  **6 biased and 20 never**. Variant-only materials are constructed with an empty
+  🟡 **6 biased and 20 never**. Variant-only materials are constructed with an empty
   `Set` plus a `LazyLoader` (`lib/features/scene-graph/model.js`), and the backing
   getter returns `this[$correlatedObjects].values().next().value` — `undefined`. So
   the decal depth bias shipped, was committed, was deployed, and left four of five
@@ -56,18 +58,18 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   model[$switchVariant]()` resolves**, which is when the rest become reachable;
   `Stage.tsx` re-applies there. Verified in a browser: 11/11 biased on load, then
   16/16, 21/21, 26/26 as each colourway was visited.
-  ⚠️ **`isLoaded` is PUBLIC and is what separates the two silences** — "this
+  🟡 **`isLoaded` is PUBLIC and is what separates the two silences** — "this
   colourway is not open yet" (normal, quiet) from "the internal symbol is gone"
   (report it). The first version collapsed both into one counter that nothing read,
   which is how 156 misses stayed invisible.
-  ⚠️ **The seeded fixture could not exhibit this** — its colourways built identical
+  🟡 **The seeded fixture could not exhibit this** — its colourways built identical
   artwork materials, so `dedup()` merged them into one always-eager material: 6 MASK,
   6 eager, **0 lazy** against production's 26/6/20. `PlaceholderColourway.ink` now
   tints each colourway's print as a real CLO export does. A test here must assert the
   swap loaded NEW cut-outs before asserting they are biased, or an inadequate fixture
   passes it silently.
 
-- **THE LAYOUT QUERY AND THE CONTENT QUERY ARE NOT THE SAME QUERY, and building
+- **🟡 THE LAYOUT QUERY AND THE CONTENT QUERY ARE NOT THE SAME QUERY, and building
   them as one broke a landscape phone.** Found 2026-08-21, before shipping, by
   measurement rather than by review. `<ProductIdentity>` moves the product's name
   and description into `.stage__aside` on wide screens; keyed off
@@ -76,7 +78,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   underneath it. The two-column query deliberately includes a landscape phone, so
   that the CONTROLS can sit beside the garment in a ~320px band; a 312-character
   paragraph is a different question and needs its own, narrower query.
-  ⚠️ **The second attempt was worse, because it looked measured and was not.** A
+  🟡 **The second attempt was worse, because it looked measured and was not.** A
   `min-height: 700px` floor extrapolated from ONE sample at 1024x768 broke 900x700
   (band 729px). The requirement is not width-independent: below a ~300px column the
   colourway rail's container query wraps five swatches onto two rows, costing 60px
@@ -90,7 +92,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   block `.product-info--aside` has no styles at all — a 69px viewport-sized heading
   in a 260px column.
 
-- **`data-reveal` ON A COMPONENT THAT CHANGES PARENTS IS A PERMANENTLY INVISIBLE
+- **🟢 `data-reveal` ON A COMPONENT THAT CHANGES PARENTS IS A PERMANENTLY INVISIBLE
   COMPONENT.** `startReveals()` (`polish/reveal.ts`) queries `[data-reveal]` ONCE,
   at startup, and observes what it finds; it has no MutationObserver. An element
   that React re-parents on a resize — which is exactly what `<ProductIdentity>`
@@ -103,7 +105,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   wrong effect for the page's primary content anyway. `.customise` and `.contact`
   keep theirs — neither moves.
 
-- **THE SOFT SHADOW COSTS NOTHING PER FRAME — do not "optimise" it.** Measured
+- **🟡 THE SOFT SHADOW COSTS NOTHING PER FRAME — do not "optimise" it.** Measured
   2026-08-21 at 1440x900, DPR 2, 4x CPU throttle, over 2.5s of continuous orbiting:
   `shadow-intensity 0.6 / softness 0.8` (shipped) **33.4ms** median frame,
   `shadow-intensity 0` **33.3ms**, `softness 0` **33.4ms**. Identical, zero long
@@ -119,7 +121,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   CRITICAL PATH, and every deferral mechanism in the repo was powerless against
   it.** Found 2026-08-19. `__vitePreload` — Vite's own runtime function for
   loading a dynamic chunk — had been placed by rolldown *inside* the
-  **model-viewer** chunk. The entry and the polish layer each imported that one
+  🟢 **model-viewer** chunk. The entry and the polish layer each imported that one
   function from there, and a static ES import of ANY symbol forces the browser to
   fetch and evaluate the WHOLE chunk. So the entry could not execute until
   1,024,060 bytes (**286,496 gzip**) had arrived, and the live waterfall showed
@@ -135,7 +137,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   by `e2e/motion-and-layout.spec.ts` -> "the 3D renderer is not a static
   dependency of the entry chunk".
 
-- **`manualChunks` does not govern rolldown's CommonJS wrapper modules; use
+- **🟢 `manualChunks` does not govern rolldown's CommonJS wrapper modules; use
   `advancedChunks`.** Instrumented 2026-08-19, `manualChunks` returned `'react'`
   for `react/jsx-runtime.js` and `react/cjs/react-jsx-runtime.production.js`
   correctly — and rolldown duplicated them into the motion chunk anyway
@@ -167,7 +169,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   against `test:e2e`, not against an injected style on the live page** — it measures
   Chromium, WebKit, Firefox and mobile Safari at once.
 
-  ⚠️ **THE SECOND HALF OF THIS PARAGRAPH WAS FALSE UNTIL 2026-08-20, AND IT IS THE
+  🟡 **THE SECOND HALF OF THIS PARAGRAPH WAS FALSE UNTIL 2026-08-20, AND IT IS THE
   REASON THE SUITE WAS TRUSTED.** It said Playwright "sets `reducedMotion: 'reduce'`
   … so there is no transform to pollute it". `playwright.config.ts` does set it, and
   it never reached the page. Measured on Playwright 1.62.1, all four engines:
@@ -185,7 +187,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   animation**, which is the same defect the live-page sweep above was condemned for,
   in the tool recommended as the cure.
 
-  `motion-and-layout.spec.ts` now calls `page.emulateMedia({ reducedMotion: 'reduce' })`
+  🟡 `motion-and-layout.spec.ts` now calls `page.emulateMedia({ reducedMotion: 'reduce' })`
   in a `beforeEach`, which demonstrably works. If you add a layout spec elsewhere, do
   the same — **do not assume the config option applies.** Verify with
   `matchMedia('(prefers-reduced-motion: reduce)').matches` before trusting a number.
@@ -194,7 +196,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   out.** `disable-tap` is set since 2026-08-19; the reasoning, including why
   `disable-pan` is deliberately NOT used, is on `DISABLE_TAP` in `Stage.tsx`.
 
-- **The stage band's height budget has been wrong THREE TIMES, always by
+- **🟡 The stage band's height budget has been wrong THREE TIMES, always by
   reasoning instead of measuring.** `.stage__canvas`'s third term
   (`calc(100dvh - Npx)`) is the chrome around the garment. On 2026-08-17 it went
   208 → 280 (adding up: 225px measured chrome + a 54px control row) → **overflowed
@@ -204,7 +206,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   `getBoundingClientRect()` reports. Read the number off the live band; every
   estimate in that comment's history has been wrong.
 
-- **A `focus()` call is a scroll call.** `App.tsx` hands focus to `<main>` when
+- **🟡 A `focus()` call is a scroll call.** `App.tsx` hands focus to `<main>` when
   the preloader leaves — correct, and it silently scrolled every visit down by
   exactly the header's height (measured `scrollY: 69` on desktop, `117` where the
   header wraps). `<main>` starts under the sticky header and is taller than the
@@ -213,11 +215,11 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   reported as "the model gets cut off" and diagnosed as a stage-height problem.
   `focus({ preventScroll: true })`. There is no `scrollTo` anywhere in this app;
   if the page is not at the top, this is the first thing to check.
-  ⚠️ **An e2e test for it is flaky in the direction that PASSES** unless it waits
+  🟡 **An e2e test for it is flaky in the direction that PASSES** unless it waits
   for the hand-off — assert straight after the `<h1>` appears and the focus effect
   has usually not committed yet, so it measures `scrollY: 0` against unfixed code.
 
-- **model-viewer 4.x DELETED `--poster-color` and `--progress-mask`, and CSS says
+- **🟡 model-viewer 4.x DELETED `--poster-color` and `--progress-mask`, and CSS says
   nothing when you set a property nobody reads.** `page.css` used both to
   suppress the built-in loading poster; verified against the installed 4.3.1,
   `lib/template.js` contains only `--progress-bar-color` and `#default-poster`
@@ -263,11 +265,11 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   here: **verify a camera move by reading `getCameraOrbit()` back** before trusting
   any frame it produced.
 
-- **React sets `src` on a custom element as a PROPERTY, never an attribute.**
+- **🟡 React sets `src` on a custom element as a PROPERTY, never an attribute.**
   `el.getAttribute('src')` on `<model-viewer>` is always `null` — its attribute
   list carries `camera-orbit`, `tone-mapping` and a dozen others and no `src`.
   Code that keyed off it silently compared empty strings forever.
-- **`webglcontextlost` never reaches your listener.** It fires on the `<canvas>`
+- **🟡 `webglcontextlost` never reaches your listener.** It fires on the `<canvas>`
   inside model-viewer's shadow root and is not a composed event, so no listener
   on the host sees it, capture phase or not. model-viewer 4.x also renders into a
   *shared offscreen* canvas — the one in the shadow root returns a `2d` context,
@@ -288,7 +290,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   the component already binds** — `performance`, `history`, `location`, `name`,
   `status` and `screen` are all globals that read naturally as local variable names.
 
-- **`translate` / `scale` / `transform` compose in a FIXED ORDER, and that half of
+- **🟢 `translate` / `scale` / `transform` compose in a FIXED ORDER, and that half of
   the lesson cost a second bug.** `base.css` has warned since 2026-08-14 that the
   three are independent properties which cannot overwrite each other — true, and
   the fix for the magnet silently killing `.btn--primary:hover`'s lift. What it did
@@ -324,13 +326,13 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   left it at 623px. `min-height: 0` is the line that actually fixes it. Same trap
   as the familiar `min-width: 0` on flex children.
 
-- **The inline-script CSP violation is Cloudflare PRECURSOR, and it is NOT fixed.**
+- **🟡 The inline-script CSP violation is Cloudflare PRECURSOR, and it is NOT fixed.**
   Called Web Analytics (wrong), then JavaScript Detections and "RESOLVED 2026-08-06"
   (also wrong — `enable_js:false` is Precursor's FINGERPRINT; Cloudflare disables JSD
   when Precursor is on). Root-caused 2026-09-04, live as Sentry VIEWER-8, **archived not
   resolved** because it still fires. No hash can cover it (per-request ray id) and
   nonces are impossible from a static `_headers`; never widen to `'unsafe-inline'`.
-  ⚠️ **Only `sec-fetch-mode: navigate` reproduces it — plain `curl` reports it fixed.**
+  🟡 **Only `sec-fetch-mode: navigate` reproduces it — plain `curl` reports it fixed.**
   Nothing visitor-facing is broken. `docs/VIEWER-CSP-BOT-FIGHT-MODE.md`.
 
 - **A reserve adding `env(safe-area-inset-bottom)` counts the notch TWICE**
@@ -358,7 +360,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
 
 - **Per-garment link previews are CRAWLER-ONLY, and the number is why.** Measured
   2026-08-08, warm connection, five requests each: the viewer's static HTML is
-  **0.106–0.155 s** to first byte, `cms /api/health` is **0.428–0.657 s**, and
+  🟢 **0.106–0.155 s** to first byte, `cms /api/health` is **0.428–0.657 s**, and
   `cms /api/public/viewer/n001/wine` is **1.77–2.27 s**. The payload endpoint is
   not edge-cached on either host (`cf-cache-status` empty on `cms.wear-run.help`
   and the workers.dev URL alike — a Worker's own response does not pass through
@@ -380,24 +382,24 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   returning 200 while quietly ceasing to set it on every link, which is why
   `worker/preview.test.ts` asserts each rewritten tag still exists there.
 
-- **`_headers` is applied by the STATIC ASSET HANDLER, so it survives
+- **🟢 `_headers` is applied by the STATIC ASSET HANDLER, so it survives
   `env.ASSETS.fetch()` and NEVER reaches a response the Worker builds itself.** Both
   halves measured on the live edge 2026-08-12, same route:
   ```
   200 asset-served:  csp, hsts, permissions-policy, referrer-policy, nosniff  ALL PRESENT
   400 Worker-built:  ALL FIVE ABSENT
   ```
-  That is why `worker/securityHeaders.ts` is KEPT with no caller left — the Worker
+  🟡 That is why `worker/securityHeaders.ts` is KEPT with no caller left — the Worker
   currently builds no response of its own, and the next one that carries HTML must
   not re-learn this in production. `apps/viewer/scripts/csp.test.ts` pins its values
   against `buildHeadersFile()`'s `/*` rule so the two copies cannot drift, and fails
   if a SIXTH header is added to `_headers` and not to it.
-  ⚠️ **Two things made that measurement trustworthy, and both are easy to omit.** The
+  🟡 **Two things made that measurement trustworthy, and both are easy to omit.** The
   probe header carried a deliberately NON-DEFAULT value (a default-shaped one proves
   nothing — see the `_headers` combining trap above), and a `/__worker-marker` route
   returning `X-Worker-Ran: yes` proved the Worker was in the path at all; without it
   the result is indistinguishable from the Worker never running.
-  ⚠️ **The e2e fixture could never have caught the Worker-built half, because the
+  🟡 **The e2e fixture could never have caught the Worker-built half, because the
   fixture was too GOOD:** `e2e/serve.mjs` sets `GLOBAL_HEADERS` on every response, so
   its 400 was always correct while production's was not. That is the root
   `CLAUDE.md`'s fixtures-cannot-exhibit-the-failure pattern INVERTED — the usual
@@ -426,7 +428,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   in `apps/viewer/scripts/csp.mjs` with tests; `apps/viewer/scripts/gen-headers.mjs`
   is only the I/O around it.
 
-  ⚠️ Those three were written without their `apps/viewer/` prefix until 2026-08-12,
+  🟢 Those three were written without their `apps/viewer/` prefix until 2026-08-12,
   and a repo-root `scripts/` **also exists** — so each cited path resolved to a real
   directory that does not contain them, which is why eyeballing it never caught it.
   Same shape as the `--keep`-resolves-against-CWD and `eval:artwork:real -- raw/x.glb`
@@ -438,7 +440,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   serves FIVE today (since 2026-08-30)**, and one tab is the difference between a
   clean row and a stranded remainder. Measured 2026-08-20, while the fixture still
   served four: a 68px grid floor gave one row of four against the fixture and
-  **4 + 1** against the real five — a lone tab beside three empty cells, which
+  🟡 **4 + 1** against the real five — a lone tab beside three empty cells, which
   overflows nothing, covers nothing, passes every clearance assertion and looks
   broken. The fixture was fixed on 2026-08-30 and the workaround deleted with it:
   `apps/viewer/e2e/motion-and-layout.spec.ts` -> "never strands a single swatch on
@@ -448,7 +450,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   the one place it is cheapest to forget — and it bit again on 2026-09-04, when
   five single-word labels hid a two-word wrap defect the same test could not see.
 
-- **The compact colourway styling is a `@container` query, not a media query — do
+- **🟡 The compact colourway styling is a `@container` query, not a media query — do
   not convert it back.** It asked `max-width: 767px` until 2026-08-20, which
   predicted the rail's own width only while the rail spanned the page. The moment
   it moved into the two-column layout's 260px aside, an 844px-wide screen took the
@@ -459,7 +461,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   a containment root too, and this element is a flex item inside a band whose whole
   job is dividing height.
 
-- **Removing an element breaks the WORDS describing it and the TESTS keyed on it.**
+- **🟡 Removing an element breaks the WORDS describing it and the TESTS keyed on it.**
   The stage stopped painting a poster 2026-08-21. `LOAD_NOTICE` and `aria-label` both
   still claimed a photograph — through every gate, because the e2e asserting that
   sentence checked `.stage img` one line ABOVE and died there. **Negative assertion
@@ -485,7 +487,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
 left p001's print eaten through WITH the bias on; `-8/-8` closes it. n001 — tightest
 cloth, and LIVE — is **0.000%** changed at `-8` and `-64`.
 
-⚠️ **AND IT DID NOT FIX THE OWNER'S DEFECT — the NEAR PLANE did, 2026-08-29.**
+🟢 **AND IT DID NOT FIX THE OWNER'S DEFECT — the NEAR PLANE did, 2026-08-29.**
 model-viewer pins `camera.near` at 0.00436 m and the depth step grows with **z²**, so
 zooming OUT cut the margin over CLO's 0.100 mm print offset to **1.5×** (5.1× in —
 "perfect zoomed in, blinks out"). `camera-near-plane.ts` fixes it, as a property
@@ -507,7 +509,7 @@ not technique.** Full rulings in `.claude/skills/README.md`.
 
 ## No Tailwind here, and the skills will suggest it anyway
 
-**No Tailwind, no shadcn/ui, no component library. Do not add one.** Appearance is
+🟡 **No Tailwind, no shadcn/ui, no component library. Do not add one.** Appearance is
 hand-written in `packages/ui/src/tokens.css`; behaviour, when a screen ever
 needs it, comes from `base-ui`, which ships no CSS. Reasoning and reject list:
 `docs/DECISION-UI-LIBRARIES.md`.
@@ -552,7 +554,7 @@ Run `npx playwright test --grep "x"` from `apps/viewer/` instead (~2 s against ~
   freeze part-way — a paused `[data-reveal]` fade was reported as a stuck-opacity
   bug on 2026-08-19 before the check. `getBoundingClientRect()` is unaffected, so
   layout numbers from it are sound; frame rates are not obtainable at all.
-- **Synthetic `PointerEvent`s do nothing to model-viewer.** A scripted pinch on the
+- **🟡 Synthetic `PointerEvent`s do nothing to model-viewer.** A scripted pinch on the
   live page produced **0** `camera-change` events and moved neither camera nor FOV,
   and the resulting "0 m drift" was meaningless. Assert the control *responded*
   before believing any gesture measurement. Real touch comes only from the iOS
@@ -562,12 +564,12 @@ Run `npx playwright test --grep "x"` from `apps/viewer/` instead (~2 s against ~
   is (6.18 GB) — and 16.4's Safari already supports `svh`, so **no pre-15.4 browser
   is reachable on this machine.** `page.css`'s `@supports` fallback is unverifiable
   here by construction; say so rather than implying it was tested.
-- **Biome rejects the duplicate-property CSS fallback idiom**
+- **🟡 Biome rejects the duplicate-property CSS fallback idiom**
   (`lint/suspicious/noDuplicateProperties`). That is why `page.css` uses
   `@supports (height: 1svh)` blocks instead of two `height:` declarations — do not
   "simplify" them back.
 
-- **A gitignored `apps/viewer/.env.local` fails the suite LOCALLY while CI stays
+- **🟡 A gitignored `apps/viewer/.env.local` fails the suite LOCALLY while CI stays
   green.** Found 2026-08-25: it sets `VITE_API_BASE_URL=http://localhost:3000`, and
   Vite loads `.env.local` in test mode too, so `src/lib/telemetry.test.ts` asserts
   the production endpoint and receives localhost. CI has no such file, so this is

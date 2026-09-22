@@ -1,5 +1,7 @@
 # CLAUDE.md — the GLB pipeline
 
+🔴 = stops here, do not proceed. 🟡 = read before acting. 🟢 = context.
+
 Moved out of the repo-root `CLAUDE.md` on 2026-08-12 by `/doctor`, for the same
 reason the viewer traps moved to `apps/viewer/CLAUDE.md` on 2026-08-10: the root
 file is loaded into *every* session in this repo, and this section is only ever
@@ -7,7 +9,7 @@ needed by a session that is actually touching the pipeline. It loads
 automatically the moment you touch `tools/asset-pipeline/`. Paths below are
 repo-root-relative, as they were before the move.
 
-The pipeline **traps** moved here on 2026-08-19 and are now at the bottom of this file:
+The pipeline 🟡 **traps** moved here on 2026-08-19 and are now at the bottom of this file:
 `--simplify-error` vs `--simplify`, the `opaque` default mismatch, the three blocking
 gates and what they do not catch, the `fieldOfView` floor, N001's three calibrated
 prints. The root `CLAUDE.md` keeps a one-line hook for each — enough to warn a session
@@ -30,7 +32,7 @@ drifted (`@playwright/test` 1.62.0→1.62.1, `@types/node` 26.1.1→26.2.0, `tsx
 build died on `npm ci` with *"can only install packages when your package.json
 and package-lock.json are in sync"*.
 
-**Note where it did not surface — this was the whole trap.** `lint`, `typecheck`
+🟢 **Note where it did not surface — this was the whole trap.** `lint`, `typecheck`
 5/5, 621 tests, `build`, and the container's own `tsc --noEmit` were *all green*,
 because **none of them run `npm ci`**. The root `CLAUDE.md` already says
 `apps/shrink/container` "is not a workspace member… it has its own CI typecheck
@@ -47,7 +49,7 @@ inside the pnpm workspace — the other half of the procedure below. **Still
 regenerate by hand when you change `package.json`;** what changed is that
 forgetting now costs seconds instead of a deploy.
 
-Regenerate **in a temp dir, never in the workspace** — pnpm's symlinked
+Regenerate 🟡 **in a temp dir, never in the workspace** — pnpm's symlinked
 `node_modules` makes npm write `file:` paths that do not exist inside the image
 (the reason is also stated in the Dockerfile above the failing line):
 
@@ -60,7 +62,7 @@ Then copy `package-lock.json` back and check three things before committing:
 every version matches `package.json`, `npm ci --omit=dev --no-audit --no-fund`
 exits 0, and `grep -c '"resolved": "file:' package-lock.json` returns 0.
 
-## `output/` is scratch — never judge a garment from it
+## 🟡 `output/` is scratch — never judge a garment from it
 
 **Measured 2026-08-19, after the owner caught a plan that was about to do exactly
 this.** A session needed the real garment to measure a gesture and reached for the
@@ -98,7 +100,7 @@ curl -s https://cms.wear-run.help/api/public/viewer/rxps/wine \
 Cache it locally for repeated use — one 27 MB GET is nothing, but the 15-minute
 uptime job is what the root file's R2-egress warning is actually about.
 
-**For a material/alphaMode census you do NOT need the file — RANGE-FETCH the header.**
+🟡 **For a material/alphaMode census you do NOT need the file — RANGE-FETCH the header.**
 A GLB's JSON chunk is at the front and is length-prefixed, so two range requests read
 every material, texture and variant mapping in it. Measured 2026-08-27 on the live
 model: **445,064 bytes instead of 28,271,780** — 1.6% of the egress, and R2 answers
@@ -112,7 +114,7 @@ curl -s -r 20-445083 "$URL" | python3 -m json.tool | head
 
 ## Before you change the pipeline
 
-Do not tune presets against file size. That is exactly how a setting that
+🟡 Do not tune presets against file size. That is exactly how a setting that
 protects artwork *less* shipped as "Smallest file" — **deleted on 2026-08-05**
 once a sweep rendered what it actually did to the wordmark. Look at the output:
 
@@ -137,10 +139,10 @@ run it was deleted on 2026-08-07, because the file it needs no longer exists
 anywhere a GitHub runner can reach (see below). It needs
 `raw/cycling-all-colours.glb`, which is gitignored.
 
-⚠️ **THE RAW EXPORT IS NOT A DURABLE ARTIFACT AND MAY ALREADY BE GONE.** The
+🟡 **THE RAW EXPORT IS NOT A DURABLE ARTIFACT AND MAY ALREADY BE GONE.** The
 ingest bucket carries an `expire-raw-uploads` lifecycle rule — 14 days, **all
 prefixes** — so the N001 export (uploaded on/before 2026-08-05) expires around
-**2026-08-19**. `scripts/backup-r2.mjs` mirrors the *media* bucket and the two
+🟡 **2026-08-19**. `scripts/backup-r2.mjs` mirrors the *media* bucket and the two
 apex PDFs, never *ingest*, so the ingest bucket is in no backup. The canonical copy is therefore a **local** one,
 described by `raw/CANONICAL.json`, which records the byte count and SHA-256 so a
 re-downloaded or re-exported file can be proven to be the file the ceiling was
@@ -155,19 +157,19 @@ wrangler r2 object get "run-apparel-viewer-ingest/cycling all colours.glb" \
   --file raw/cycling-all-colours.glb --remote
 ```
 
-⚠️ **The R2 key contains SPACES.** It is `cycling all colours.glb`, not the
+🟡 **The R2 key contains SPACES.** It is `cycling all colours.glb`, not the
 hyphenated `cycling-all-colours.glb` that everyone types from memory and that this
 very file documented until 2026-08-07. The hyphenated form is the *local*
 filename, deliberately renamed on download so nothing downstream deals with spaces
 in a path; it is not the key. Quote it, or an unquoted expansion splits it into
 three arguments and wrangler reports a confusing bucket error.
 
-Both take `--calibrate` to print the damage curve and `--keep <dir>` for the
+🟡 Both take `--calibrate` to print the damage curve and `--keep <dir>` for the
 contact sheets. Both assert a **negative control**: if switching `--uv-weight` off
 stops registering as damage, the eval says it has gone blind and fails rather than
 passing quietly. **Do not raise either ceiling to make it green.**
 
-⚠️ **`eval:artwork:real` also refuses to run if its camera is not pointed at the
+🟡 **`eval:artwork:real` also refuses to run if its camera is not pointed at the
 print**, and that guard exists because the obvious framing was wrong. The first
 version used render.ts's own `crop-chest` view; on N001 that frames the torso and
 hips with the wordmark clipped off the top edge, and `crop-back` shows a zipper.
@@ -189,12 +191,12 @@ make the shrink worker throw `PermanentJobError` and save nothing:
 
 | Finding | Where it is decided |
 |---|---|
-| A print piece was decimated — never, since 2026-09-02; the assertion names any that moved | `simplify-textured.ts` → `artworkAtRisk` |
+| 🟡 A print piece was decimated — never, since 2026-09-02; the assertion names any that moved | `simplify-textured.ts` → `artworkAtRisk` |
 | A hard-edged, opaque print is STILL `BLEND` (the opaque step would have changed it) | `texture-artwork.ts` → `auditArtworkAlpha` |
 | An artwork `MASK` has an `alphaCutoff` other than 0.5 | same |
 
-All three are *structural* — a stated fact about the output file, with no
-false-positive case — which is why they block. ⚠️ **Until 2026-09-02 the second row
+🟡 All three are *structural* — a stated fact about the output file, with no
+false-positive case — which is why they block. 🟡 **Until 2026-09-02 the second row
 refused two finished garments over THREAD**: the generous classifier read CLO's 236x39
 topstitch strip as a wordmark by SHAPE, before its soft alpha (F2-01, B-03, CT-06). The
 gate now has its own strict classifier (`classifyArtworkForGate`: material name or
@@ -219,7 +221,7 @@ cd tools/asset-pipeline && node --input-type=module -e "import {NodeIO} from '@g
 
 ## A mistyped numeric flag used to become `NaN` — fixed 2026-08-18, keep it fixed
 
-`Number('0.OO1')` is `NaN`, and `NaN ?? DEFAULT` is still `NaN` (`??` tests null, not
+🟢 `Number('0.OO1')` is `NaN`, and `NaN ?? DEFAULT` is still `NaN` (`??` tests null, not
 NaN), so a mistyped `--simplify-error` or `--uv-weight` reached the simplifier as an
 undefined value on the axis that decides whether printed letters survive. Every numeric
 flag now goes through `finiteNumber` in `optimize.ts`, which refuses a missing or
@@ -238,7 +240,7 @@ buying worse compliance with the rest.
 Each one keeps a **one-line hook in the root file**, so a session that arrives from a
 source comment is still warned; only the detail moved.
 
-⚠️ One consequence to know, because it is the cost of this split: after `/compact`, only
+🟢 One consequence to know, because it is the cost of this split: after `/compact`, only
 the project-root `CLAUDE.md` is re-read from disk and re-injected. This file reloads the
 next time Claude reads a file under `tools/asset-pipeline/` — which is exactly when you
 need it, but it does mean a compacted session that has not yet opened this directory has
@@ -253,7 +255,7 @@ only the root's one-liners. Open this file before changing anything here.
 - **`--keep-transparency` is not the fix for damaged artwork.** `<model-viewer>`
   has no order-independent transparency; restoring BLEND trades one "half
   visible" for depth-sorting artefacts. Use `MASK` with `alphaCutoff 0.5`.
-- **A cutout is "little soft alpha IN THE INK" AND "actually cut out somewhere" —
+- **🟡 A cutout is "little soft alpha IN THE INK" AND "actually cut out somewhere" —
   never the first alone.** Since 2026-09-02 `solidifyMaterials` resolves BLEND→MASK on
   `CUTOUT_MAX_SOFT_INK` (0.31, soft pixels as a share of mid+opaque): the whole-texture
   `CUTOUT_MID_FRACTION` read ARISAN's brush print (4% soft overall, 36% of its ink) as a
@@ -262,13 +264,13 @@ only the root's one-liners. Open this file before changing anything here.
   second half, `CUTOUT_MIN_TRANSPARENT` (0.05), still stops a uniformly translucent
   inset (all soft, cut out nowhere) being MASKed into a hole. Keep both halves, and
   keep `character` 'binary' separate — it is also the gate's cut-out signal.
-- **An explicit `baseColorFactor[3]` beats anything inferred from pixels.** glTF
+- **🟡 An explicit `baseColorFactor[3]` beats anything inferred from pixels.** glTF
   effective alpha is `factor.a * texel.a`, so a material declaring itself sheer at
   0.4 can never reach `alphaCutoff 0.5` — MASK renders it as *nothing at all*,
   silently, passing every gate. Test `factor < OPAQUE_FACTOR_THRESHOLD` first.
-- **`model-viewer.toDataURL()` returns a blank canvas** —
+- **🟡 `model-viewer.toDataURL()` returns a blank canvas** —
   `preserveDrawingBuffer: false`. Screenshot the element.
-  ⚠️ **`toBlob()` IS DIFFERENT AND IS ALSO NOT A MEASURING TOOL.** Measured
+  🟡 **`toBlob()` IS DIFFERENT AND IS ALSO NOT A MEASURING TOOL.** Measured
   2026-08-27: `toBlob` returns REAL pixels where `toDataURL` is blank —
   1894x1440, 2,724,397 non-blank — so the `preserveDrawingBuffer` reasoning above
   does not apply to it. **But it does not reflect live scene-graph mutations.**
@@ -280,7 +282,7 @@ only the root's one-liners. Open this file before changing anything here.
   frame.** A no-op write through model-viewer's own
   `setAlphaCutoff(getAlphaCutoff())` does, and unlike nudging the camera it cannot
   move the view being judged.
-- **`fieldOfView` under 12° was silently ignored until 2026-08-08 — the SECOND
+- **🟡 `fieldOfView` under 12° was silently ignored until 2026-08-08 — the SECOND
   camera control model-viewer overrides without telling you.** The orbit-radius
   clamp is already documented above; this is the same trap on the axis that was
   believed to be the reliable one. `min-field-of-view` defaults to **12deg** and
@@ -303,7 +305,7 @@ only the root's one-liners. Open this file before changing anything here.
   than the flat chest print, and is now the worst case in all four rows (balanced
   3.970%, control 10.520%, known-bad 12.330%). A harder view was added; no
   measurement drifted. Three things from that session will save the next one:
-  **`--find-views` proposes the zoom that frames the PRIMITIVE**, which on the
+  🟡 **`--find-views` proposes the zoom that frames the PRIMITIVE**, which on the
   neck logo sliced "RUN" off the bottom edge — the print is two elements and the
   primitive covers one — so the shipped view is one rung wider than proposed, and
   that is visible only in the PNG, never in the number. The camera-fingerprint
@@ -313,30 +315,30 @@ only the root's one-liners. Open this file before changing anything here.
   notice. And `--keep` resolves against the CWD, which `pnpm` sets to
   `tools/asset-pipeline/`, so artifact paths are now printed **absolute** — the
   RUNBOOK's repo-relative one did not exist.
-  ⚠️ That calibration was measured on a **busy** machine (the wordmark column came
+  🟡 That calibration was measured on a **busy** machine (the wordmark column came
   back 0.490/2.510/5.290/5.330, an exact match to the busy set recorded above).
   Busy runs read ~0.48pp LOW, so the ceiling is tighter than intended rather than
   looser, and the offset was added back explicitly when choosing 6.5%. Re-run idle
   and append a remeasurement when convenient; **do not lower the ceiling to match
   an idle run's higher `balanced`.**
-- **`pnpm eval:artwork:real -- raw/x.glb` did not resolve that path.** `pnpm`
+- **🟡 `pnpm eval:artwork:real -- raw/x.glb` did not resolve that path.** `pnpm`
   forwards the `--` separator itself into `process.argv`, and the root script
   delegates via `pnpm --filter`, which runs the child with cwd set to
   `tools/asset-pipeline/` — so a repo-relative path documented in the RUNBOOK
   resolved under the package and step 3 of a five-step procedure failed for anyone
   who copied it verbatim. Relative paths now fall back to the repo root. The lesson
   is the cheap one: **run the documented command, do not read it.**
-- **`opaque` defaults DIFFERENTLY in the two ways you can call the pipeline.**
+- **🟡 `opaque` defaults DIFFERENTLY in the two ways you can call the pipeline.**
   `parseOptimizeArgs` defaults it **true**; `optimizeGlb` treats an absent
   `opaque` as **false**. So a hand-built options object silently skips
   `solidifyMaterials` and ships decals still on `alphaMode: BLEND`, which
   `<model-viewer>` renders see-through — the reported symptom exactly. Go through
   the parser, as `apps/shrink/container/server.ts` does. Pinned by a test in
-  `pipeline.test.ts`. ⚠️ And in zsh an unquoted `$FLAGS` is ONE argument: the robot's seven
+  `pipeline.test.ts`. 🟡 And in zsh an unquoted `$FLAGS` is ONE argument: the robot's seven
   flags arrived as one word, none matched, and the skinsuit "compressed" to 12 MB with
   `geometry: none` (2026-09-03). Build the list as a bash array; `geometry: none` in a log
   means a flag never arrived.
-- **A print piece is NEVER decimated — since 2026-09-02 (fix plan Rank 3).**
+- **🟡 A print piece is NEVER decimated — since 2026-09-02 (fix plan Rank 3).**
   `simplifyTextured` skips every primitive whose material is artwork by name or by
   UV span (colourway mappings walked, thread excluded) and reports `N print piece(s)
   left exactly as exported`; `artworkAtRisk` now ASSERTS that, on every path.
@@ -352,23 +354,23 @@ only the root's one-liners. Open this file before changing anything here.
   exists: it renders the real wordmark before and after the real chain on a
   synthetic fixture, so it catches a preset or simplifier regression and would still
   miss damage specific to one CLO export.
-- **A flat frame scores 0.00% against another flat frame.** 2026-09-02: three
+- **🟡 A flat frame scores 0.00% against another flat frame.** 2026-09-02: three
   ARISAN macro crops matched their control PERFECTLY because all three were grey —
   the near-plane getter is read only when three rebuilds the projection, which
   model-viewer does on a FOV change and never on a radius-only move, so a 2.2 m view
   followed by a 0.6 m view kept the far plane and clipped the garment.
   `viewer-page.ts` refreshes the projection on every `camera-change`, `render`
-  names any flat view (`flatViews`, ⚠️ FLAT in the CLI), and
+  names any flat view (`flatViews`, 🟡 FLAT in the CLI), and
   `instruments.browser.test.ts` drives the sequence both ways. Treat a 0.00% on a
   crop as "look at the picture", never as a pass.
-  **Closed for N001 by `pnpm eval:artwork:real`**, the same method on the actual
+  🟡 **Closed for N001 by `pnpm eval:artwork:real`**, the same method on the actual
   382 MB export — **manual and local** (why: "Before you change the pipeline"). Its
   ceilings and camera fingerprints live in `raw/CANONICAL.json`, recalibrated on the
-  truthful harness on 2026-09-02 (C-02). ⚠️ **RUN IT ON AN IDLE MACHINE**: with a
+  truthful harness on 2026-09-02 (C-02). 🟡 **RUN IT ON AN IDLE MACHINE**: with a
   test suite alongside every case read a *uniform* ~0.48pp low (2026-08-07, three
   idle runs identical to three decimals) — the baseline render, not decimation.
-  **Do not "fix" a small absolute difference; re-run idle first.**
-  ⚠️ **Correction while building that: "the sweep remains the authority on a real
+  🟡 **Do not "fix" a small absolute difference; re-run idle first.**
+  🟡 **Correction while building that: "the sweep remains the authority on a real
   garment" — stated here until 2026-08-06 — was wrong.**
   `sweep-size-vs-artwork.mjs` imports no renderer and renders nothing; it measures
   file size, `artworkAtRisk`, `findArtworkAlphaProblems` and the alpha census. Its
@@ -394,14 +396,14 @@ only the root's one-liners. Open this file before changing anything here.
   "nothing helps".
 - **A CLO export is mostly THREAD, and the two need different budgets.** Measured
   2026-08-21 on a 1,313,979,936-byte Cycling-Bib export: of 33,964,432 triangles,
-  **`Cloth_mesh` — the entire visible garment, carrying all 116 artwork materials —
+  🟡 **`Cloth_mesh` — the entire visible garment, carrying all 116 artwork materials —
   is 11,128 (0.03%)**, and 21 `Topstitch_*` meshes hold **99.97%**. `--simplify`
   alone cannot express that and bottoms out at 57.4 MB; `--stitch` (topstitch.ts)
   gives thread its own budget and reaches **20.6 MB** with the prints untouched.
   The stitch meshes carry a flat `baseColor` and **no artwork** — verified by
   walking mesh → primitive → material *including* the `KHR_materials_variants`
   mappings, which is why the looser budget is safe.
-  ⚠️ **TWO STACKED MISTAKES make this look broken, and neither is the triangle
+  🟡 **TWO STACKED MISTAKES make this look broken, and neither is the triangle
   count.** The first attempt frayed the cord into spikes and was rejected on sight:
   it gave thread `error 0.01` (**20x looser** than the garment's 0.001) *and* let
   `--simplify` decimate it a second time (777k → 445k). With a tight budget and a
@@ -409,11 +411,11 @@ only the root's one-liners. Open this file before changing anything here.
   read a small output as proof that thread cannot be small. `simplifyTextured` now
   takes `skipMeshes` and `optimize.ts` sets it whenever the stitch pass ran, so
   passing both flags is safe.
-  ⚠️ **A WIDE CROP CANNOT SEE THIS — the same lesson as the wordmark, on a new
+  🟡 **A WIDE CROP CANNOT SEE THIS — the same lesson as the wordmark, on a new
   feature.** At the default `crop-chest` (18°) the ruined cord looked *identical*
   to the original and was reported as such. At **4°** it is obviously spiky. Judge
   thread with `render --views` at 4–7°.
-- **DRACO LOADS LIVE SINCE THE SEEDING FIX (measured 2026-08-30, GEO-02); PRODUCTION
+- **🟢 DRACO LOADS LIVE SINCE THE SEEDING FIX (measured 2026-08-30, GEO-02); PRODUCTION
   STAYS `--meshopt` ANYWAY** — the Draco bib was 3.4 MB larger and 20 MB heavier on the
   GPU (LIVE-08). The history: shipped a draco garment on 2026-08-21, it rendered
   NOTHING and fell back to its poster,
@@ -423,13 +425,13 @@ only the root's one-liners. Open this file before changing anything here.
   `meshoptDecoderLocation` correctly reads `/meshopt_decoder.js`. Cause is in
   model-viewer itself and is documented in `apps/viewer/CLAUDE.md`; the fix attempt
   lives in `Stage.tsx` and is **unverified**.
-  ⚠️ **This bullet said the exact opposite until the same day** — "smaller AND faster
+  🟢 **This bullet said the exact opposite until the same day** — "smaller AND faster
   … so this needed no viewer change" — which would have shipped an unloadable model.
     The SPEED measurement (4× throttle: meshopt 31.0 MB / 1168 ms vs draco 20.6 MB /
   908 ms) is parked: on the wire and the GPU, LIVE-08 measured Draco worse. **Checking that code
   is committed and deployed is NOT checking that it works** — the decoder line was
   both, and was inert.
-- **A CLO export names the MATERIAL and leaves EVERY TEXTURE ANONYMOUS.** Measured
+- **🟡 A CLO export names the MATERIAL and leaves EVERY TEXTURE ANONYMOUS.** Measured
   2026-08-21: **0 of 24 textures had a name or URI**, while materials were called
   `White Black Bold Minimalist Clothing Label_9946645`, `Material_Graphic`,
   `RUN LOGO`. **Any name-based artwork check that reads only the texture is silently
@@ -438,7 +440,7 @@ only the root's one-liners. Open this file before changing anything here.
   `variant-colour.ts`'s `isGarmentFabric` (texture-name only) let the halftone print
   win on surface area and named every colourway from its dark ink —
   Wine/Slate/Lilac became Brown/Sage/Denim, the same failure as 2026-08-03. Both now
-  read the material name too. ⚠️ `variant-colour.ts` keeps its OWN word list on
+  read the material name too. 🟡 `variant-colour.ts` keeps its OWN word list on
   purpose; do not merge it with `texture-artwork.ts`'s. And use a token-boundary
   pattern, not the texture regex — that one contains `text`/`type`, so `Textile_Cotton`
   and `Polyester_Textured` classify as artwork and would exempt real FABRIC from
@@ -446,13 +448,13 @@ only the root's one-liners. Open this file before changing anything here.
   per panel — Geovent CW6, CG-05), drops overlays under alpha 0.5 and UV-span prints,
   and `readVariantColoursSampled` reads the fabric picture only when colourways carry
   different pictures; a shared one stays blank with a note.
-- **`solidifyMaterials` forced EVERY non-`MASK` material double-sided, and that put a
+- **🟡 `solidifyMaterials` forced EVERY non-`MASK` material double-sided, and that put a
   MIRRORED care label on the OUTSIDE of the garment.** The label is authored INSIDE
   and single-sided, so backface culling correctly hid it; double-siding rendered its
   reverse face through the fabric with the text reversed. The `MASK` exemption existed
   because "a printed decal" should keep its front — this label is a printed decal that
   landed on `BLEND` and so missed it. Judge on what the texture IS, not which
-  alphaMode it reached. ⚠️ **Found by the OWNER looking at the rendered garment**; no
+  alphaMode it reached. 🟡 **Found by the OWNER looking at the rendered garment**; no
   gate saw it, and it had been latent since long before. It only fires on a garment
   whose artwork carries enough soft edge to miss the cutout test — N001's live model
   has 0 BLEND materials and is unaffected, so do not assume a past model needs
@@ -462,7 +464,7 @@ only the root's one-liners. Open this file before changing anything here.
   `--data-max-texture` (half `--max-texture`) is invisible and saves 5.5 MB.
   **Quartering was tried and REFUSED**: 1.67% of pixels moved by >8/255 and it
   visibly flattens the white fabric's weave, for one more megabyte.
-- **An all-over print on `BLEND` is classified as sheer FABRIC and takes the 2048
+- **🟡 An all-over print on `BLEND` is classified as sheer FABRIC and takes the 2048
   cap.** The Cycling-Bib halftone is 4952×7014 and got squashed to 1446×2048 (0.29×),
   turning round dots into blocky squares. **`--max-texture 4096` is the safe lever.**
   Do NOT instead widen `isArtworkTexture`: since 2026-09-02 it feeds the compression
@@ -480,11 +482,11 @@ only the root's one-liners. Open this file before changing anything here.
 - **`pipeline review <dir>` resolves `<dir>` against the PACKAGE dir and indexes ONCE
   at startup** — a relative path is read from `tools/asset-pipeline/`, and files added
   after start report "0 garment(s)": restart it.
-- **A CLO 7.0.242 export is ONE GLB PER COLOURWAY; its "Combine to One File" silently
+- **🟡 A CLO 7.0.242 export is ONE GLB PER COLOURWAY; its "Combine to One File" silently
   emits a single colourway.** Measured 2026-08-29. `pipeline merge` is the fix (5 files
-  → 5.59 MB, valid, all five render), but ⚠️ **`apps/shrink` never calls `merge`**, so
+  → 5.59 MB, valid, all five render), but 🟡 **`apps/shrink` never calls `merge`**, so
   such a garment cannot go through the robot unaided.
-- **A finished file's raw UV span means NOTHING — since 2026-09-03 (fix plan Rank 11,
+- **🟡 A finished file's raw UV span means NOTHING — since 2026-09-03 (fix plan Rank 11,
   CT-08).** CLO writes UVs in pattern space (a bib panel spans −206..206) and
   glTF-Transform's quantizer refuses anything outside 0..1, so every UV set in the
   catalogue shipped as 32-bit floats: 47% of the skinsuit's geometry bytes, 57% of the
@@ -504,7 +506,7 @@ only the root's one-liners. Open this file before changing anything here.
 
 *Full record: `docs/SESSION-2026-08-27.md`. Here is only what tells you what to DO.*
 
-**COMPARE THE ARTIFACTS, NOT A PICTURE OF THE DIFFERENCE.** A rendered diff shows what
+🟡 **COMPARE THE ARTIFACTS, NOT A PICTURE OF THE DIFFERENCE.** A rendered diff shows what
 CHANGED, never whether it got WORSE: a macro crop "proved" reduced texture settings had
 damaged a slogan, and `pipeline textures` showed the artwork byte-identical — only the
 fabric atlas had shrunk, and the changed CLOTH outlined each stroke. Two wrong conclusions
@@ -516,7 +518,7 @@ Measured over every textured primitive in 28 exports: fabric median **294.81**, 
 `ZZ00000ZZZZ0`, `ZZZ00000`, `76197`, `01`, `Untitled-1` and `ルン ろご。`, and 8 garments
 match none of the nine English words.
 
-**⛔ THE KHRONOS VALIDATOR DOES NOT CATCH A SOURCE-LESS TEXTURE.** `texture.source` is
+🟡 **🟡 THE KHRONOS VALIDATOR DOES NOT CATCH A SOURCE-LESS TEXTURE.** `texture.source` is
 OPTIONAL per the spec, so it is valid glTF (ARISAN: 0 errors, 0 warnings) and
 gltf-transform is merely stricter. Anyone adding the validator to name that failure will
 find it silent.
@@ -526,53 +528,53 @@ find it silent.
 processed garment was invalid (p001 44 errors, n001 42). Declared in
 `texture-artwork.ts`, pinned by a negative-control test that strips it back out.
 
-**`prune()` RENUMBERS UV SETS AND UPDATES ONLY THE DEFAULT MATERIAL.** Anything reachable
+🟡 **`prune()` RENUMBERS UV SETS AND UPDATES ONLY THE DEFAULT MATERIAL.** Anything reachable
 solely through `KHR_materials_variants` keeps sampling a `TEXCOORD_n` that no longer
 exists. `variant-texcoord.ts` repoints them immediately after prune. **LATENT** — no real
 garment samples a texCoord other than 0; it surfaces only because `placeholders.ts`
 deliberately puts artwork on a second UV set. **Keep that fixture detail**, it is the only
 thing exercising the path.
-⚠️ **When a pass touches materials, ask what it does with the ones behind a variant.**
+🟡 **When a pass touches materials, ask what it does with the ones behind a variant.**
 That was missed twice in one day — here, and in the viewer's decal depth bias at 6 of 26
 decals.
 
-**`repair-dead-textures.ts` removes the REFERENCES, never the entries.** Deleting
+🟡 **`repair-dead-textures.ts` removes the REFERENCES, never the entries.** Deleting
 `textures[5]` renumbers every later index and a material pointing at 6 silently acquires
 the picture from 7. It also pads the JSON chunk so the BIN chunk cannot move. Since
 2026-09-03 the repair is reported, and the robot REFUSES a stripped baseColour or
 emissive slot (`apps/shrink/src/refusals.ts`).
 
-**The spec check is a PRODUCTION dependency and must NOT go inside `describeGlb`.** The
+🟡 **The spec check is a PRODUCTION dependency and must NOT go inside `describeGlb`.** The
 container installs `npm ci --omit=dev`, so a devDependency is missing in the Container —
 green everywhere, failing at runtime. And it costs **~3.4x the file
 size** in RSS (573 MB → 1,955 MB), while `describeGlb` reads only the JSON chunk, so the
 1.25 GB Cycling Bib costs what a 5 MB one costs. `SPEC_MAX_BYTES` is 768 MB and the two
 exports over it are **skipped by name** — a skip must never read as a pass.
 
-⚠️ **`pnpm eval:artwork` PASSES ON macOS — this said the opposite until 2026-08-29.**
+🟡 **`pnpm eval:artwork` PASSES ON macOS — this said the opposite until 2026-08-29.**
 The old wording: *"FAILS ON macOS AND PASSES IN CI. Local 15.290 / 16.070 / 18.760
 against a 5.000% ceiling."* **Re-run 2026-08-29 on this machine: 1.680 / 3.100 / 9.390
 with the control at 3.0x the shipped preset — a clean pass**, matching what the
 2026-08-28 audit independently measured. A commit between those dates fixed the
 baseline (`c405537`, "give eval:artwork the same baseline its optimized runs get").
-**So do NOT dismiss a local failure as a platform artefact** — that is what this note
+🟡 **So do NOT dismiss a local failure as a platform artefact** — that is what this note
 told you to do, and it would now hide a real regression. If it fails locally, treat it
 as a failure. CI runs it inside `mcr.microsoft.com/playwright:v1.62.1-noble`, and
-**do not raise the ceiling to make anything green** — that part always held.
+🟡 **do not raise the ceiling to make anything green** — that part always held.
 
-⚠️ **`review-server.ts` and `apps/viewer` are DIFFERENT PAGES.** A fix in one is not in the
+🟡 **`review-server.ts` and `apps/viewer` are DIFFERENT PAGES.** A fix in one is not in the
 other; the review viewer kept flickering after the product was fixed, which read as "the
 fix did not work". Both carry the bias at `-8/-8`, pinned by `review-server.test.ts`.
-⚠️ **A `git add -A` once swept this file's constant into a viewer commit**; stage per
+🟡 **A `git add -A` once swept this file's constant into a viewer commit**; stage per
 package when two copies must agree.
 
 **`createTransform` is exported from `@gltf-transform/functions`, NOT `@gltf-transform/core`.**
 
-## The print takes the CLOTH'S colour — REPORTED since 2026-09-03, never auto-fixed
+## 🟢 The print takes the CLOTH'S colour — REPORTED since 2026-09-03, never auto-fixed
 
-glTF renders base-colour TEXTURE x FACTOR; these artwork textures are near-white stencils,
+🟡 glTF renders base-colour TEXTURE x FACTOR; these artwork textures are near-white stencils,
 so the FACTOR is the ink — and CLO writes a colourway FABRIC colour into it on 13 of 16
-garments, `n001` included. **It is in the RAW export.** ⚠️ Two fixes were tried and BOTH
+garments, `n001` included. **It is in the RAW export.** 🟡 Two fixes were tried and BOTH
 were wrong (whiten every cut-out; whiten a print matching a cloth colour, reverted in
 `447d15f`): a white stencil x a dark factor is how a COLOURED print is authored, and
 Minecut's slogan matched the grey skirt while sitting on the white band. Judge a print
@@ -580,4 +582,4 @@ against the cloth **it sits on** — `ink-contrast.ts` does, from the overlay sc
 primitive (`pipeline ink <glb> --strip <dir>`; the robot report lists the flagged pairs).
 The number is WCAG luminance: butter on sky-blue reads 1.32:1 yet is readable by hue, and
 black cloth reads 2.30 by file against 1.22 rendered — **the strip judges, the number
-hints**. ⚠️ Read variants off the PRIMITIVES; `root.getExtension(...)` returns nothing.
+hints**. 🟡 Read variants off the PRIMITIVES; `root.getExtension(...)` returns nothing.
