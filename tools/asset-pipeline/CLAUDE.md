@@ -518,7 +518,7 @@ Measured over every textured primitive in 28 exports: fabric median **294.81**, 
 `ZZ00000ZZZZ0`, `ZZZ00000`, `76197`, `01`, `Untitled-1` and `ルン ろご。`, and 8 garments
 match none of the nine English words.
 
-🟡 **🟡 THE KHRONOS VALIDATOR DOES NOT CATCH A SOURCE-LESS TEXTURE.** `texture.source` is
+🟡 **THE KHRONOS VALIDATOR DOES NOT CATCH A SOURCE-LESS TEXTURE.** `texture.source` is
 OPTIONAL per the spec, so it is valid glTF (ARISAN: 0 errors, 0 warnings) and
 gltf-transform is merely stricter. Anyone adding the validator to name that failure will
 find it silent.
