@@ -142,6 +142,44 @@ export const ALLOWED_ABSENT = new Map([
     'docs/AUDIT-SITE-PAGES-2026-09-05.md',
     'removed from the public repository and its history on 2026-09-10 (kept privately). Cited by the 2026-09-06 beta-website plan and its design spec, both dated records.',
   ],
+  // ── 2026-09-22 — six from the garment-pipeline plan's move into the record tree ──
+  // `PLAN-IN-PROGRESS.md` became `docs/superpowers/plans/2026-08-26-garment-pipeline-defects.md`
+  // (master-plan B1: all 110 steps ticked or migrated). The walk never used to see a
+  // root-level file, so moving this one into docs/superpowers/plans/ was the first time its
+  // citations were checked — and six failed. All six are KIND 2 by the comment above:
+  // filenames the plan was WRITTEN TO CREATE (its `**Files:**` lists) and that were never
+  // built, because Tasks 7 and 11–14 migrated to the owner's private master plan as item
+  // C4. Verified with `git log --all --diff-filter=A` on each path: none ever existed in
+  // any commit. If C4 later creates a file under one of these exact names, the entry below
+  // becomes inert (the check skips citations that resolve first) and can be deleted with it.
+  [
+    'tools/asset-pipeline/src/decal-offset.ts',
+    'NEVER existed — no git history at all. The output module Task 12 of the 2026-08-26 plan proposed; that task migrated unbuilt to master-plan item C4. The plan is a dated record of intent, not an index of the tree.',
+  ],
+  [
+    'tools/asset-pipeline/src/decal-offset.test.ts',
+    'NEVER existed — no git history. The test file for the module above, proposed and never created.',
+  ],
+  [
+    'tools/asset-pipeline/src/weave.ts',
+    'NEVER existed — no git history. The module Task 13 of the 2026-08-26 plan proposed; migrated unbuilt to master-plan item C4, and the design spec has since narrowed that unit to clamp-and-report rather than apply.',
+  ],
+  [
+    'tools/asset-pipeline/src/weave.test.ts',
+    'NEVER existed — no git history. The test file for the module above, proposed and never created.',
+  ],
+  [
+    'tools/asset-pipeline/scripts/regress-catalogue.mjs',
+    'NEVER existed — no git history. The 28-garment regression driver Task 14 of the 2026-08-26 plan proposed; the regression never ran, so its two owner decisions stay open in master-plan item C4.',
+  ],
+  [
+    'docs/images/2026-08-26-texture-family-sweep.png',
+    "NEVER existed under this name — no git history. Task 5 proposed this contact sheet and the sweep delivered a macro crop under a different name (docs/images/2026-08-26-xmilo-texture-sweep-macro.png), which the baseline document cites. The proposed name is the plan's record of intent.",
+  ],
+  [
+    'docs/BUYER-EVIDENCE-YYYY-MM-DD.md',
+    'a TEMPLATE filename, not a file — docs/BUYER-JOURNEY-PROTOCOL.md instructs the reader to create one evidence file per run date, substituting the date. Same shape as the apps/cms/.env entry above: prose that tells you to write the file cites it correctly before it exists, and it must never exist until a real session runs. Each created file gets its own index row when it lands.',
+  ],
 ])
 
 /**

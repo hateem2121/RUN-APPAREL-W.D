@@ -40,7 +40,7 @@ destroy the only thing it is for. The 0.63 MB of manifests is addressed by name 
 tooling and read by a person about never.
 
 **Records live in:** `docs/AUDIT-*.md`, `docs/superpowers/plans/`,
-`docs/superpowers/specs/`, `PLAN-IN-PROGRESS.md` and `NEXT-SESSION-PROMPT.md`.
+`docs/superpowers/specs/` and `NEXT-SESSION-PROMPT.md`.
 The 2026-08-30 Cloudflare + GitHub infrastructure audits are kept privately and
 are not part of this public repository — they record live account, monitor and
 application identifiers. Nothing in those

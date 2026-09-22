@@ -39,11 +39,7 @@ const REPO = join(dirname(fileURLToPath(import.meta.url)), '..')
 export const RECORD_TREES = ['docs/superpowers/plans/', 'docs/superpowers/specs/']
 
 /** Single files that are records rather than trees. */
-export const RECORD_FILES = [
-  /^docs\/AUDIT-[\w.-]+\.md$/,
-  /^PLAN-IN-PROGRESS\.md$/,
-  /^NEXT-SESSION-PROMPT\.md$/,
-]
+export const RECORD_FILES = [/^docs\/AUDIT-[\w.-]+\.md$/, /^NEXT-SESSION-PROMPT\.md$/]
 
 /**
  * Trees addressed BY NAME by tooling rather than browsed by a person.
