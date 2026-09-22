@@ -123,6 +123,28 @@ describe('noncedHeaders', () => {
   it('returns null when the policy cannot be nonced', () => {
     expect(noncedHeaders(new Headers({ 'content-security-policy': ADMIN_CSP }), NONCE)).toBeNull()
   })
+
+  // A body that arrives ALREADY compressed (`encodeBody: 'manual'`) goes through HTMLRewriter
+  // unstamped, and the shell's `new Response(…)` then compresses it a SECOND time: measured
+  // 2026-09-22 in workerd, a visitor's one decode still left gzip. The header cannot say which
+  // kind of body it labels, so the guard must not guess.
+  it.each(['gzip', 'br'])('returns null for a page already labelled %s', (encoding) => {
+    const headers = new Headers({
+      'content-security-policy': PUBLIC_PAGE_CSP,
+      'content-encoding': encoding,
+    })
+    expect(noncedHeaders(headers, NONCE)).toBeNull()
+  })
+
+  it("still rewrites 'identity', which OpenNext's own localhost workaround sets", () => {
+    const headers = new Headers({
+      'content-security-policy': PUBLIC_PAGE_CSP,
+      'content-encoding': 'identity',
+    })
+    expect(noncedHeaders(headers, NONCE)?.get('content-security-policy')).toContain(
+      `'nonce-${NONCE}'`,
+    )
+  })
 })
 
 describe('a nonced page is never cached (pinned statically here; live by the probe)', () => {

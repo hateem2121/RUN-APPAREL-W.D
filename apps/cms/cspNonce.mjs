@@ -65,8 +65,17 @@ export function withNonce(policy, nonce) {
  * - It also changes the bytes on every request, so an ETag computed over the original body no
  *   longer describes what is sent. The live 404 carries one (measured 2026-09-22); the five
  *   pages do not.
+ *
+ * ⚠️ NULL FOR A BODY THAT MAY ALREADY BE COMPRESSED: any Content-Encoding but `identity`.
+ * Measured 2026-09-22 in workerd: a body built with `encodeBody: 'manual'` passes through
+ * HTMLRewriter unstamped, then the shell's `new Response(…)` compresses it a SECOND time, and the
+ * visitor's browser is left holding gzip. The header cannot say which kind of body it labels.
+ * OpenNext sends none today (measured the same day on all six page types: Cloudflare compresses
+ * after the Worker), and its localhost workaround sets `identity`, which stays rewritable.
  */
 export function noncedHeaders(headers, nonce) {
+  const encoding = (headers.get('content-encoding') ?? 'identity').toLowerCase()
+  if (encoding !== 'identity') return null
   const policy = withNonce(headers.get('content-security-policy') ?? '', nonce)
   if (policy === null) return null
   const out = new Headers(headers)
