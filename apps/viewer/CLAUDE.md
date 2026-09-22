@@ -434,15 +434,19 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   what it is relative to. Qualify package paths; `apps/cms/src/claudeMd.test.ts`
   now fails on a citation that resolves to nothing.
 
-- **The e2e fixture serves FOUR colourways; production serves FIVE**, and one tab
-  is the difference between a clean row and a stranded remainder. Measured
-  2026-08-20: a 68px grid floor gave one row of four against the fixture and
+- **The e2e fixture must serve the SAME colourway count production ships — it
+  serves FIVE today (since 2026-08-30)**, and one tab is the difference between a
+  clean row and a stranded remainder. Measured 2026-08-20, while the fixture still
+  served four: a 68px grid floor gave one row of four against the fixture and
   **4 + 1** against the real five — a lone tab beside three empty cells, which
   overflows nothing, covers nothing, passes every clearance assertion and looks
-  broken. Append a fifth before measuring, as `apps/viewer/e2e/motion-and-layout.spec.ts`
-  -> "never strands a single swatch on its own row" does. This is the root file's
-  fixtures-cannot-exhibit-the-failure rule in the one place it is cheapest to
-  forget: the fixture renders a plausible rail either way.
+  broken. The fixture was fixed on 2026-08-30 and the workaround deleted with it:
+  `apps/viewer/e2e/motion-and-layout.spec.ts` -> "never strands a single swatch on
+  its own row" used to append a fifth swatch itself and no longer does. Do not
+  re-add appends, and re-count the parity whenever production gains or loses a
+  colourway. This is the root file's fixtures-cannot-exhibit-the-failure rule in
+  the one place it is cheapest to forget — and it bit again on 2026-09-04, when
+  five single-word labels hid a two-word wrap defect the same test could not see.
 
 - **The compact colourway styling is a `@container` query, not a media query — do
   not convert it back.** It asked `max-width: 767px` until 2026-08-20, which

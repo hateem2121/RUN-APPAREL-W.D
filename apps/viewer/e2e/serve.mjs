@@ -115,9 +115,13 @@ const MIME = {
  * read an undefined `var(--paper)`. Without a near-white colourway here, no
  * test can ever exhibit that class of bug either.
  *
- * ⚠️ `lime` is DELIBERATELY ABSENT and must stay absent. `a11y.spec.ts` visits
- * `/n001/lime` to reach the retired-colourway notice; adding it here silently
- * turns that test into a second scan of a healthy page.
+ * 🟢 `lime` was DELIBERATELY ABSENT until 2026-08-30, when it joined the array
+ * below as the 4th colourway to close the four-vs-five fixture gap. The
+ * retired-colourway notice moved to `navy` in that same change — a slug that has
+ * never existed in production — and both `a11y.spec.ts` and `viewer.spec.ts` now
+ * visit `/n001/navy` for it. Adding `navy` here would silently turn those tests
+ * into second scans of a healthy page, which is the exact hazard the old version
+ * of this note described for `lime`.
  *
  * ⚠️ `variantId` IS NOT the production value and must not be "corrected" to it.
  * Production reports `Colorway 2`..`Colorway 6`; these name variants inside the
