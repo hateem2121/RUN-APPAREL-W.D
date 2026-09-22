@@ -163,7 +163,9 @@ the nonce. To see the guard:
 
 After a deploy, run it with `--origin=https://wear-run.help`. ⚠️ A control that skips the nonce
 on an EXTERNAL script proves nothing: `'self'` still admits it, correctly. Only a missing nonce
-on an INLINE script breaks a page, so plant the fault there.
+on an INLINE script breaks a page, so plant the fault there. ⚠️ A local `curl` without
+`--compressed` counts ZERO scripts: the local runtime gzips a page the way Cloudflare's edge
+does, AFTER the guard (measured 2026-09-22). OpenNext hands the guard plain text.
 
 ⚠️ **CI's `e2e` job has NO `PAYLOAD_SECRET`, and local runs always do** (`.env`). So a
 "passes locally" run proves nothing about the CI step: measured 2026-09-06 with `.env`
