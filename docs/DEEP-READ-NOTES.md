@@ -16,10 +16,8 @@ this repository's own vocabulary — a measurement in a comment is treated as a
 claim to check, not a fact to repeat.
 
 ---
-# A1 deep-read notes (staging — will become docs/DEEP-READ-NOTES.md)
 
 ## 1. apps/cms/src/collections/Products.ts (808 lines) — READ 2026-09-22
-Key findings: (to be summarised on final write)
 
 - `readArtworkVerdict` FAILS OPEN by design (line 22-30): a transient D1 read failure must not block publishing; only a KNOWN-damaged verdict blocks.
 - `DEFAULT_RETIRED_MESSAGE` (line 19-20) — American spelling per owner decision.
@@ -426,4 +424,4 @@ Condensed; each file's own header carries the full evidence trail.
 - `variants.test.ts` — Pins hyphen-as-separator accepts/rejects; the ambiguity asserted rather than avoided (written the other way first — that's how it earned a test); sloppy slug → valid ID round trip for a fixed slug set.
 - `shrink.ts` — Read as section 9.
 
-**Item 18 sweep summary:** Riskiest: `types.ts` (silent analytics-drop contract — the only place an event name exists), `defaults.ts` (manual sync with SiteSettings, no test tying them), `documentVisits.ts` (two runtimes' ICU must agree — well-tested at the boundary). Cross-cutting: this package is the sanctioned answer to "two copies would drift" — six of eleven modules moved here for exactly that reason (address, size ceilings, colour-import rules, visit summary, security.txt, contact template). Every module must be import-time inert because the viewer imports the barrel. No fixture-shaped-unable-to-fail tests found; `shrink.test.ts` is this package's model of pinning an absolute value next to relative invariants. Item 18 COMPLETE (20/20).","oldString":"- `nextDetailAdvice`: no smaller level to send owner to — old one reached that size by damaging printed artwork = the product; honest lever is the export (re-export from CLO at lower mesh density). Saying so plainly beats a suggestion trading visible failure for invisible one.","path":"/private/var/folders/jv/kwg83d_x5g9fdv2d6h1_qkc40000gn/T/opencode/deep-read-notes.md"}","oldString":"- Result counters: artworkResized = real stroke-detail loss on wordmark → reported NOT blocked (trade owner should see, not discover); standardResized/dataResized recorded since 2026-09-03 (Rank 13, HE-05) so artwork eval can prove `--max-texture`/`--data-max-texture` ACTED not merely passed; routine so not in owner report.","path":"/private/var/folders/jv/kwg83d_x5g9fdv2d6h1_qkc40000gn/T/opencode/deep-read-notes.md"}
+**Item 18 sweep summary:** Riskiest: `types.ts` (silent analytics-drop contract — the only place an event name exists), `defaults.ts` (manual sync with SiteSettings, no test tying them), `documentVisits.ts` (two runtimes' ICU must agree — well-tested at the boundary). Cross-cutting: this package is the sanctioned answer to "two copies would drift" — six of eleven modules moved here for exactly that reason (address, size ceilings, colour-import rules, visit summary, security.txt, contact template). Every module must be import-time inert because the viewer imports the barrel. No fixture-shaped-unable-to-fail tests found; `shrink.test.ts` is this package's model of pinning an absolute value next to relative invariants. Item 18 COMPLETE (20/20).
