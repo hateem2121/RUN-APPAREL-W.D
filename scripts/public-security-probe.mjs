@@ -17,9 +17,10 @@
  *                  the response-header rule in docs/CLOUDFLARE-SETUP.md → 11.7 was changed.
  *   script guard — a public page still allows 'unsafe-inline' (apps/cms/worker.mjs fell open
  *                  or was switched off), carries a <script> without its nonce (an edge feature
- *                  injecting scripts), repeats a nonce, or is cacheable; or the admin's own
- *                  policy changed. SE-04, decided 2026-09-18. docs/RUNBOOK.md → "The script
- *                  guard" says what to do.
+ *                  injecting scripts), repeats a nonce, is cacheable, or arrives cut off,
+ *                  garbled or with no <script> at all; or the admin's own policy changed.
+ *                  SE-04, decided 2026-09-18. docs/RUNBOOK.md → "The script guard" says what
+ *                  to do.
  *
  * TWO MODES. After a deploy (ci.yml) it is strict. Daily (uptime.yml, `--daily`) a MISSING
  * security.txt is inconclusive rather than a failure: the daily job runs from `main`, and in
@@ -100,7 +101,13 @@ const scriptSrcOf = (policy) =>
 const scriptSrcNonce = (policy) =>
   scriptSrcOf(policy).match(/'nonce-([A-Za-z0-9+/]{22}==)'/)?.[1] ?? null
 
-/** Every <script> opening tag in a page. */
+/**
+ * Every <script> opening tag in a page. A pattern, not a parser, on purpose (independent review,
+ * 2026-09-22): it can only err LOUD. A stray `<script` in text, or a `>` inside an attribute,
+ * yields a match without this response's nonce: a false alarm. A false pass would need the
+ * response's random nonce inside some other attribute. Measured 2026-09-22: every public page has
+ * exactly as many `<script` as `</script>`, so no stray one hides inside a script.
+ */
 const scriptTags = (html) => html.match(/<script\b[^>]*>/gi) ?? []
 
 /**
@@ -192,11 +199,23 @@ export function evaluate(observations, now, { daily = false } = {}) {
             '(apps/cms/worker.mjs fell open?)',
         )
       }
+      // A page with nothing to inspect must not pass (independent review, 2026-09-22). Cut off by
+      // an error once the rewriter was streaming, or compressed twice, it has no <script> lacking
+      // the nonce, so the check below would measure nothing and say ok. Every public page ends in
+      // </body></html> and carries 11 to 14 scripts (measured 2026-09-22).
+      const body = o.body ?? ''
+      const tags = scriptTags(body)
+      if (!/<\/html>\s*$/i.test(body)) {
+        problems.push('the page is cut off or garbled (it does not end in </html>)')
+      }
+      if (tags.length === 0) {
+        problems.push('the page has no <script> at all, so its nonce was checked against nothing')
+      }
       const nonce = scriptSrcNonce(policy)
       if (!nonce) {
         problems.push('the policy carries no nonce')
       } else {
-        const bare = scriptTags(o.body ?? '').filter((tag) => !tag.includes(`nonce="${nonce}"`))
+        const bare = tags.filter((tag) => !tag.includes(`nonce="${nonce}"`))
         if (bare.length > 0) {
           problems.push(
             `${bare.length} <script> without this response's nonce (an edge feature injecting scripts?)`,

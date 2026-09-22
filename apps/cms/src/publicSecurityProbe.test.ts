@@ -1,6 +1,8 @@
 import { SECURITY_TXT } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import { REDIRECT_HEADERS, TARGETS, evaluate } from '../../../scripts/public-security-probe.mjs'
+import { newNonce, withNonce } from '../cspNonce.mjs'
+import { PUBLIC_PAGE_CSP } from '../publicViewerHeaders.mjs'
 
 /**
  * The public-side security probe (decided 2026-09-18, live from the merge that deploys it):
@@ -165,10 +167,11 @@ describe('TARGETS', () => {
  */
 const N1 = 'AAAAAAAAAAAAAAAAAAAAAA=='
 const N2 = 'BBBBBBBBBBBBBBBBBBBBBB=='
-const NONCED = (n: string) =>
-  `default-src 'self'; script-src 'self' 'nonce-${n}' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'`
-const FALLBACK =
-  "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com"
+// The policy the guard REALLY sends (apps/cms/cspNonce.mjs), never a hand-typed copy: a change to
+// the nonce's format or the policy's shape then fails here, before a deploy, instead of failing
+// every post-deploy run (independent review, 2026-09-22).
+const NONCED = (n: string) => withNonce(PUBLIC_PAGE_CSP, n) as string
+const FALLBACK = PUBLIC_PAGE_CSP
 const HTML = (n: string) =>
   `<html><head><script nonce="${n}">(self.__next_f=self.__next_f||[]).push([0])</script>` +
   `<script src="/_next/static/chunks/a.js" nonce="${n}" async=""></script></head></html>`
@@ -215,8 +218,25 @@ describe('the script guard, seen from outside (SE-04)', () => {
     ],
     [
       'a script without this nonce (an edge injection)',
-      { body: `${HTML(N1)}<script>injected()</script>` },
+      { body: HTML(N1).replace('</head>', '<script>injected()</script></head>') },
       'without',
+    ],
+    // The three below all PASSED until 2026-09-22. A page with nothing to inspect has no
+    // <script> lacking the nonce, so the check measured nothing and reported ok.
+    [
+      'a page cut off mid-stream (an error once the rewriter had started)',
+      { body: HTML(N1).slice(0, 60) },
+      'cut off',
+    ],
+    [
+      'a page compressed twice, so only bytes arrive (measured in workerd, 2026-09-22)',
+      { body: '\u001f\u008b\u0008\u0000\u0000\u0000\u0000\u0000\u0000\u0003' },
+      'cut off',
+    ],
+    [
+      'a page with no <script> at all',
+      { body: '<html><head></head><body><p>hello</p></body></html>' },
+      'no <script>',
     ],
     [
       'a cacheable page',
@@ -230,6 +250,17 @@ describe('the script guard, seen from outside (SE-04)', () => {
     const result = evaluate([pageCsp(over)], NOW)
     expect(result.ok).toBe(false)
     expect(result.failures[0]).toContain(expected)
+  })
+
+  it("recognises the guard's own nonces: two fresh ones, on the real policy", () => {
+    const page = (name: string, n: string) =>
+      pageCsp({
+        name,
+        headers: { 'content-security-policy': NONCED(n), 'cache-control': NO_STORE },
+        body: HTML(n),
+      })
+    const result = evaluate([page('site /', newNonce()), page('site / again', newNonce())], NOW)
+    expect(result.failures).toEqual([])
   })
 
   it('FAILS a nonce served twice (a cached page)', () => {
