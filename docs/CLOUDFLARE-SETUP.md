@@ -482,7 +482,7 @@ Cloudflare's bot challenge has broken this viewer before.
 Cache and firewall rules are recorded with their rollback JSON in
 the private audit's live-changes record.
 
-**Three decisions from the 2026-09-18 security scans** (internet.nl, MDN HTTP Observatory,
+**Five decisions from the 2026-09-18 security scans** (internet.nl, MDN HTTP Observatory,
 securityheaders.com; results kept privately):
 
 - **Minimum TLS stays 1.2 on purpose.** internet.nl marks this zone down for Cloudflare's
@@ -502,8 +502,20 @@ securityheaders.com; results kept privately):
   to a redirect (2026-09-18)". OpenNext 4.1.0 returns a matched redirect before it attaches
   the site's own headers (`routingHandler.js`), so no setting in `apps/cms` can reach those
   responses. The rule matches only a 3xx on those two hosts, and
-  `scripts/public-security-probe.mjs` checks it after every deploy and daily. A wrapper
-  Worker around OpenNext (planned for the CSP nonce work) could take it over.
+  `scripts/public-security-probe.mjs` checks it after every deploy and daily. The wrapper
+  Worker around OpenNext (`apps/cms/worker.mjs`, below) could take it over.
+- **The public pages run only nonced scripts** (SE-04, decided 2026-09-18, live from the merge
+  that deploys it). `apps/cms/worker.mjs` wraps OpenNext and gives every public page a fresh
+  nonce; `script-src` there no longer allows `'unsafe-inline'`.
+  ⚠️ **So do not switch on an edge feature that injects scripts into `wear-run.help` pages.**
+  That means Web Analytics *automatic* setup, Zaraz auto-inject with tools, Email Obfuscation
+  and Rocket Loader. Their scripts carry no nonce and would be blocked.
+  `scripts/public-security-probe.mjs` names the extra script within a day. Turn the feature off
+  for that host, the way D20 already does for the document hosts.
+- **The analytics beacon carries no `integrity` hash, on purpose** (decided 2026-09-18).
+  Cloudflare's FAQ says a manually embedded beacon cannot safely carry one, because the script
+  is updated in place and version-pinning is unsupported. Its automatic injection would be
+  blocked by the nonce policy. Observatory's −5 stays, and does not prevent A+.
 
 HSTS `includeSubDomains` also covers `url7790.wear-run.help`, a DNS-only CNAME to SendGrid
 used for click tracking, which cannot serve HTTPS for that name. Click tracking is off, so no
