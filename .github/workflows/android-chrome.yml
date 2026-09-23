@@ -98,15 +98,10 @@ jobs:
           exit 1
 
       # `chromedriver`'s own version must be reasonably close to the on-device Chrome it
-      # drives. The google_apis_playstore image below is Google-maintained and tracks a
-      # recent stable Chrome release, so "stable" is the best available match without
-      # pinning an exact build this repo would have to keep in sync by hand — the same
-      # trade this repo already makes for the Playwright container tag
-      # (apps/cms/src/workflowHardening.test.ts's ninth rule). @puppeteer/browsers is the
-      # Chrome team's own CLI for installing exactly-matched browser/driver binaries.
-      # If the two versions ever drift too far apart to interoperate, chromedriver's own
-      # session-creation error says so — android-chrome.mjs's readSessionId prints it
-      # verbatim rather than translating it into a guess.
+      # drives, and — measured below — that cannot be decided before the emulator has
+      # booted. This step only installs the Chrome team's own browser/driver-management
+      # CLI ahead of time, so the emulator step's script can resolve the EXACT matching
+      # build once it knows the real on-device version.
       #
       # ⚠️ MEASURED 2026-09-23: `npx --yes @puppeteer/browsers@3.2.2 install …` fails
       # with "sh: browsers: command not found" (exit 127) — reproduced both in this PR's
@@ -116,13 +111,8 @@ jobs:
       # resolution for this scoped package that is unreliable on npm 11.19.1, not the
       # package. Installing to an explicit `--prefix` and invoking the CLI file directly
       # sidesteps npx's resolution entirely, which is the fix below.
-      - name: Install a matching chromedriver
-        run: |
-          npm install --no-save --no-audit --no-fund --prefix "${RUNNER_TEMP}/puppeteer-browsers" @puppeteer/browsers@3.2.2
-          node "${RUNNER_TEMP}/puppeteer-browsers/node_modules/@puppeteer/browsers/lib/main-cli.js" \
-            install chromedriver@stable --path "${RUNNER_TEMP}/chromedriver"
-          driver_dir=$(dirname "$(find "${RUNNER_TEMP}/chromedriver" -type f -name chromedriver | head -1)")
-          echo "${driver_dir}" >> "${GITHUB_PATH}"
+      - name: Install the browser-install CLI
+        run: npm install --no-save --no-audit --no-fund --prefix "${RUNNER_TEMP}/puppeteer-browsers" @puppeteer/browsers@3.2.2
 
       # The emulator boot itself, then ONE first real check once it is ready. Suggested by
       # the plan's own 2026-09-11 finding ("Android has no bundled Arial or Georgia, so a
@@ -134,9 +124,25 @@ jobs:
       # google_apis_playstore, not plain google_apis: chosen because a Play Store-capable
       # image is the one this session could be confident ships real com.android.chrome
       # rather than only AOSP's plain Browser/WebView — general Android system-image
-      # research did not settle which "google_apis" images bundle Chrome, so the safer
-      # option was taken for this first proof rather than assumed. The dumpsys line below
-      # prints the answer either way, so a wrong guess here is loud, not silent.
+      # research did not settle which "google_apis" images bundle Chrome. CONFIRMED by
+      # this workflow's own first successful boot: the dumpsys line below found a real,
+      # versioned com.android.chrome package.
+      #
+      # ⚠️ MEASURED 2026-09-23, and why chromedriver is resolved HERE rather than in the
+      # step above: this AVD image's Chrome build is FROZEN at 113.0.5672.136 — long
+      # before Chrome-for-Testing's catalog begins (it starts around Chrome 115) — so
+      # ChromeDriver "stable" (a current ~154.x build) refused the session outright:
+      # "This version of ChromeDriver only supports Chrome version 154. Current browser
+      # version is 113.0.5672.136." (android-chrome.mjs's readSessionId surfaced that
+      # message verbatim, exactly as it is designed to.) The on-device version cannot be
+      # known before boot, so it is read from the device first and a matching driver is
+      # fetched against the REAL version, never assumed. Two sources, tried in order: the
+      # classic chromedriver hosting
+      # (`chromedriver.storage.googleapis.com/LATEST_RELEASE_<major>`), which still serves
+      # the exact range this old AVD image needs — verified directly: major 113 resolves
+      # to 113.0.5672.63, and its linux64 build downloads with a 200 — falling back to the
+      # `@puppeteer/browsers` CLI installed above for any future AVD image whose Chrome is
+      # new enough to be inside Chrome-for-Testing's range instead.
       #
       # `-no-window` is what makes this work headless on a runner with no display.
       # `-gpu swiftshader_indirect` is software rendering: this repo's own plan research
@@ -154,7 +160,30 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
             echo "On-device Chrome:"
-            adb shell dumpsys package com.android.chrome | grep versionName || echo "  (not found — see the comment above this step)"
+            CHROME_VERSION=$(adb shell dumpsys package com.android.chrome | grep -m1 versionName | tr -d '\r' | cut -d= -f2)
+            echo "  ${CHROME_VERSION}"
+            if [ -z "${CHROME_VERSION}" ]; then
+              echo "::error::com.android.chrome not found on this AVD image (see the comment above this step)"
+              exit 1
+            fi
+            CHROME_MAJOR=${CHROME_VERSION%%.*}
+
+            DRIVER_DIR="${RUNNER_TEMP}/chromedriver-matched"
+            mkdir -p "${DRIVER_DIR}"
+            LEGACY_VERSION=$(curl -fsS "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_MAJOR}" 2>/dev/null || true)
+            if [ -n "${LEGACY_VERSION}" ]; then
+              echo "Matching chromedriver (legacy hosting): ${LEGACY_VERSION}"
+              curl -fsSL "https://chromedriver.storage.googleapis.com/${LEGACY_VERSION}/chromedriver_linux64.zip" -o "${DRIVER_DIR}/cd.zip"
+              unzip -q -o "${DRIVER_DIR}/cd.zip" -d "${DRIVER_DIR}"
+            else
+              echo "No legacy build for major ${CHROME_MAJOR}; trying Chrome for Testing"
+              node "${RUNNER_TEMP}/puppeteer-browsers/node_modules/@puppeteer/browsers/lib/main-cli.js" \
+                install "chromedriver@${CHROME_MAJOR}" --path "${DRIVER_DIR}"
+            fi
+            CHROMEDRIVER_BIN=$(find "${DRIVER_DIR}" -type f -name chromedriver | head -1)
+            chmod +x "${CHROMEDRIVER_BIN}"
+            export PATH="$(dirname "${CHROMEDRIVER_BIN}"):${PATH}"
+
             node scripts/android-chrome.mjs "http://10.0.2.2:4173/"
 
       - name: Stop the fixture server
