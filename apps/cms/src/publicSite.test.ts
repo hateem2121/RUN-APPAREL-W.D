@@ -1,6 +1,15 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import {
+  findBritishSpellings,
+  findBuzzwords,
+  findEmoji,
+  findPlaceholders,
+} from '../../../scripts/copy-rules.mjs'
+import { VIEWER_CUE_ARROW, VIEWER_CUE_WORDS, ViewerCue } from './components/site/ViewerCue'
 import { isAddressableColourway } from './lib/colourwayAccess'
 
 /**
@@ -318,6 +327,66 @@ describe('copy rules', () => {
     expect(page).toMatch(
       /\$\{VIEWER_ORIGIN\}\/\$\{product\.slug\}\/\$\{product\.defaultColourSlug\}/,
     )
+  })
+
+  /**
+   * XS-09 — the half of decision D2's guard that was written down and never built.
+   * docs/DECISIONS-BETA-WEBSITE.md said the gallery's links are "marked as leaving the
+   * site"; until 2026-09-17 only the host was checked, and measured live that day no card said
+   * where it went. Counted per FILE, so a page that starts linking out without the caption
+   * fails here rather than in a browser.
+   */
+  it('marks every link to the viewer host as opening the 3D viewer (XS-09)', () => {
+    const tsxUnder = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const full = join(dir, entry.name)
+        if (entry.isDirectory()) return tsxUnder(full)
+        return entry.name.endsWith('.tsx') ? [full] : []
+      })
+    const files = [...tsxUnder(FRONTEND), ...tsxUnder(join(CMS_ROOT, 'src', 'components', 'site'))]
+    const counted = files
+      .map((file) => {
+        const source = stripComments(readFileSync(file, 'utf8'))
+        return {
+          file: file.slice(CMS_ROOT.length + 1),
+          links: (source.match(/\$\{VIEWER_ORIGIN\}\//g) ?? []).length,
+          cues: (source.match(/<ViewerCue \/>/g) ?? []).length,
+        }
+      })
+      .filter((row) => row.links > 0 || row.cues > 0)
+
+    // The control: the two pages that link out today are found, so a matcher that went
+    // blind fails here instead of passing on nothing.
+    expect(counted.map((row) => row.file).sort()).toEqual([
+      'src/app/(frontend)/page.tsx',
+      'src/app/(frontend)/products/page.tsx',
+    ])
+    for (const row of counted) {
+      expect(
+        row.cues,
+        `${row.file} builds ${row.links} link(s) to the viewer and renders ${row.cues} <ViewerCue />`,
+      ).toBe(row.links)
+    }
+  })
+
+  it("says it in the owner's words, with the arrow kept out of the spoken name (XS-09)", () => {
+    // Chosen by the owner on 2026-09-17. U+FE0E asks for the text arrow, not an emoji.
+    expect(`${VIEWER_CUE_WORDS} ${VIEWER_CUE_ARROW}`).toBe('Opens the 3D viewer \u{2197}\u{FE0E}')
+    expect(renderToStaticMarkup(createElement(ViewerCue))).toBe(
+      '<span class="viewer-cue">Opens the 3D viewer <span aria-hidden="true">\u{2197}\u{FE0E}</span></span>',
+    )
+    expect(findBritishSpellings(VIEWER_CUE_WORDS)).toEqual([])
+    expect(findBuzzwords(VIEWER_CUE_WORDS)).toEqual([])
+    expect(findEmoji(VIEWER_CUE_WORDS)).toEqual([])
+    expect(findPlaceholders(VIEWER_CUE_WORDS)).toEqual([])
+    // The copy rules read ↗ as a pictograph (U+2197 is Extended_Pictographic). That is why it
+    // is decoration: aria-hidden, text presentation, and never inside a heading.
+    expect(findEmoji(VIEWER_CUE_ARROW)).toEqual(['\u{2197}'])
+  })
+
+  it('sets the caption in the muted mono voice of the meta line (XS-09)', () => {
+    expect(css()).toMatch(/\.viewer-cue\s*\{[^}]*font-family: var\(--font-mono\)/)
+    expect(css()).toMatch(/\.viewer-cue\s*\{[^}]*color: var\(--muted\)/)
   })
 })
 

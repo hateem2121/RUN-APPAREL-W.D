@@ -202,7 +202,9 @@ jobs:
             # docs/audit-2026-08-30/CLOUDFLARE-LIVE-CHANGES.md records them; only this
             # notices them being undone.
             #
-            # It is cheap (twelve TLS handshakes and four 1-byte ranged GETs) and it
+            # It is cheap (twelve TLS handshakes, four 1-byte ranged GETs, one read of the
+            # live payload, and a poster and a model each dropped once its headers are in,
+            # for IM-13) and it
             # keeps this file's 403 discipline: a blocked runner is inconclusive, and
             # a run that reached NO host emits a ::warning:: rather than a silent green
             # tick, because "everything blocked" must not read as "everything secure".

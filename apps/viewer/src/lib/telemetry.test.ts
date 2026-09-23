@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { diagnostic } from './diagnostic'
 import { initTelemetry } from './telemetry'
+import { initWebVitals, resetWebVitalsForTest } from './webVitals'
 
 // telemetry reads VITE_API_BASE_URL at import time. This used to say the endpoint
 // was deterministic "with none set in tests", which was FALSE on any machine
@@ -129,5 +130,145 @@ describe('initTelemetry', () => {
         message: 'Viewer API responded 500',
       },
     ])
+  })
+})
+
+/**
+ * PAGE SPEED (audit PF-05b, 2026-09-17). webVitals.ts has measured LCP and CLS since
+ * 2026-09-04, and this file dropped both on every visit: `onAnalytics` forwarded only the
+ * name, product, variant and placement. The CMS stores them only as numbers.
+ */
+describe('initTelemetry — the page-speed numbers (PF-05b)', () => {
+  it('sends a web_vitals report with its two numbers, as numbers', async () => {
+    stop = initTelemetry()
+    analytics({ event: 'web_vitals', lcpMs: '2400', cls: '0.012', product: 'rxps' })
+    window.dispatchEvent(new Event('pagehide'))
+    expect(await batchOf(beacon.mock.calls[0]!)).toEqual([
+      { type: 'analytics', event: 'web_vitals', product: 'rxps', lcpMs: 2400, cls: 0.012 },
+    ])
+  })
+
+  it('sends no number it cannot read, and still sends the visit', async () => {
+    stop = initTelemetry()
+    analytics({ event: 'web_vitals', lcpMs: 'soon', cls: '' })
+    window.dispatchEvent(new Event('pagehide'))
+    expect(await batchOf(beacon.mock.calls[0]!)).toEqual([
+      { type: 'analytics', event: 'web_vitals' },
+    ])
+  })
+
+  // webVitals.ts sets `lcpMs` only when an LCP entry actually fired, so a real visit
+  // can report `cls` with the `lcpMs` key entirely absent, not just blank or invalid.
+  it('sends the steadiness number alone when the engine measured no loading time', async () => {
+    stop = initTelemetry()
+    analytics({ event: 'web_vitals', cls: '0.012' })
+    window.dispatchEvent(new Event('pagehide'))
+    expect(await batchOf(beacon.mock.calls[0]!)).toEqual([
+      { type: 'analytics', event: 'web_vitals', cls: 0.012 },
+    ])
+  })
+
+  it('never attaches the numbers to another event', async () => {
+    stop = initTelemetry()
+    analytics({ event: 'model_loaded', lcpMs: '2400', cls: '0.012' })
+    window.dispatchEvent(new Event('pagehide'))
+    expect(await batchOf(beacon.mock.calls[0]!)).toEqual([
+      { type: 'analytics', event: 'model_loaded' },
+    ])
+  })
+
+  /**
+   * The seam, end to end, in main.tsx's order: telemetry first, then the reporter. Each
+   * file passed its own tests while the numbers never left the page; only a test that
+   * runs both can see that.
+   */
+  it('carries what webVitals.ts measured all the way into the beacon', async () => {
+    type Cb = (list: { getEntries: () => unknown[] }) => void
+    const callbacks: Record<string, Cb> = {}
+    class FakeObserver {
+      // I1 (2026-09-23): webVitals.ts now checks this static before ever attaching
+      // a cls to the report — without it every visit here would silently lose cls,
+      // exactly the bug I1 fixes.
+      static supportedEntryTypes = ['largest-contentful-paint', 'layout-shift']
+      private cb: Cb
+      constructor(cb: Cb) {
+        this.cb = cb
+      }
+      observe({ type }: { type: string; buffered?: boolean }) {
+        callbacks[type] = this.cb
+      }
+      disconnect() {}
+    }
+    vi.spyOn(console, 'debug').mockImplementation(() => {})
+    vi.stubGlobal('PerformanceObserver', FakeObserver)
+    resetWebVitalsForTest()
+    stop = initTelemetry()
+    const stopVitals = initWebVitals()
+    try {
+      callbacks['largest-contentful-paint']?.({ getEntries: () => [{ startTime: 2399.6 }] })
+      callbacks['layout-shift']?.({
+        getEntries: () => [{ value: 0.012, hadRecentInput: false }],
+      })
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+      window.dispatchEvent(new Event('pagehide'))
+      expect(beacon).toHaveBeenCalledTimes(1)
+      expect(await batchOf(beacon.mock.calls[0]!)).toContainEqual({
+        type: 'analytics',
+        event: 'web_vitals',
+        lcpMs: 2400,
+        cls: 0.012,
+      })
+    } finally {
+      stopVitals()
+      resetWebVitalsForTest()
+      Reflect.deleteProperty(document, 'visibilityState')
+      vi.unstubAllGlobals()
+    }
+  })
+
+  /**
+   * I2 (2026-09-23). Before the fix this failed: the report was queued but never
+   * flushed, because telemetry's OWN hide-flush had already run (over an empty
+   * queue) by the time webVitals.ts's reporter enqueued anything, and nothing here
+   * ever advances a timer or dispatches `pagehide`. A hidden page's timers may be
+   * throttled or never run again at all — an iPhone suspends Safari the moment the
+   * screen locks — so this is its own negative control: it proves the report left
+   * on the hide itself, not on the 10-second flush timer.
+   */
+  it('hides with NO pagehide: exactly one beacon carrying web_vitals, without advancing timers', async () => {
+    type Cb = (list: { getEntries: () => unknown[] }) => void
+    const callbacks: Record<string, Cb> = {}
+    class FakeObserver {
+      static supportedEntryTypes = ['largest-contentful-paint', 'layout-shift']
+      private cb: Cb
+      constructor(cb: Cb) {
+        this.cb = cb
+      }
+      observe({ type }: { type: string; buffered?: boolean }) {
+        callbacks[type] = this.cb
+      }
+      disconnect() {}
+    }
+    vi.spyOn(console, 'debug').mockImplementation(() => {})
+    vi.stubGlobal('PerformanceObserver', FakeObserver)
+    resetWebVitalsForTest()
+    stop = initTelemetry()
+    const stopVitals = initWebVitals()
+    try {
+      callbacks['largest-contentful-paint']?.({ getEntries: () => [{ startTime: 900 }] })
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+      // No pagehide. No timer advanced — real timers are left exactly as they are.
+      expect(beacon).toHaveBeenCalledTimes(1)
+      expect(await batchOf(beacon.mock.calls[0]!)).toEqual([
+        { type: 'analytics', event: 'web_vitals', lcpMs: 900, cls: 0 },
+      ])
+    } finally {
+      stopVitals()
+      resetWebVitalsForTest()
+      Reflect.deleteProperty(document, 'visibilityState')
+      vi.unstubAllGlobals()
+    }
   })
 })

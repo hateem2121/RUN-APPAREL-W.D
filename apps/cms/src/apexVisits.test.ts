@@ -494,25 +494,66 @@ describe('the recorder', () => {
     expect(visitRows(database)).toEqual([expect.objectContaining({ opens: 1, furthest_page: 2 })])
   })
 
-  it("two visits racing on a day's first write both hash with the salt that landed first", async () => {
-    const database = await migratedDatabase()
-    const salts = ['aa'.repeat(32), 'bb'.repeat(32)]
-    const recordVisit = createVisitRecorder({
-      now: () => new Date(NOW),
-      randomHex: () => salts.shift() ?? '',
-    })
-    const { ctx, settled } = collectingCtx()
-    const env = { VISITS: d1From(database) as never }
-    recordVisit(env, ctx, open())
-    recordVisit(env, ctx, open(pageRequest({ 'cf-connecting-ip': '203.0.113.8' })))
-    await settled()
-    expect(saltRows(database)).toEqual([{ day: '2026-09-15', salt: 'aa'.repeat(32) }])
-    const expected = [
-      await visitorCode('aa'.repeat(32), IP, IPHONE_SAFARI),
-      await visitorCode('aa'.repeat(32), '203.0.113.8', IPHONE_SAFARI),
-    ]
-    expect(visitRows(database).map((row) => row.visitor)).toEqual(expected)
-  })
+  /**
+   * The two writes race on purpose, so nothing decides which row is stored first:
+   * `crypto.subtle.digest` finishes on Node's thread pool. Left to chance, the second visit's row
+   * was stored first once in a full `apps/cms` run on 2026-09-17 (1,622 tests; this file alone
+   * passed 3 of 3), and the old check, which read the rows in call order, failed. So each
+   * finishing order is forced, by holding one visit's hash until the other's has finished, and
+   * the two codes are compared as a pair.
+   */
+  it.each<[string, number]>([
+    ['the first visit finishes first', 1],
+    ['the second visit finishes first', 0],
+  ])(
+    "two visits racing on a day's first write both hash with the salt that landed first (%s)",
+    async (_order, heldBack) => {
+      const expected = [
+        await visitorCode('aa'.repeat(32), IP, IPHONE_SAFARI),
+        await visitorCode('aa'.repeat(32), '203.0.113.8', IPHONE_SAFARI),
+      ]
+      const database = await migratedDatabase()
+      const salts = ['aa'.repeat(32), 'bb'.repeat(32)]
+      const recordVisit = createVisitRecorder({
+        now: () => new Date(NOW),
+        randomHex: () => salts.shift() ?? '',
+      })
+      const { ctx, settled } = collectingCtx()
+      const env = { VISITS: d1From(database) as never }
+      const hash = crypto.subtle.digest.bind(crypto.subtle)
+      let otherHashed = () => {}
+      const otherDone = new Promise<void>((resolve) => {
+        otherHashed = resolve
+      })
+      let calls = 0
+      const digest = vi
+        .spyOn(crypto.subtle, 'digest')
+        .mockImplementation(async (algorithm, data) => {
+          const call = calls++
+          if (call === heldBack) {
+            await otherDone
+            // The other visit's write settles in microtasks; a timer turn comes after all of them.
+            await new Promise((resolve) => setTimeout(resolve, 0))
+          }
+          const result = await hash(algorithm, data)
+          if (call !== heldBack) otherHashed()
+          return result
+        })
+      try {
+        recordVisit(env, ctx, open())
+        recordVisit(env, ctx, open(pageRequest({ 'cf-connecting-ip': '203.0.113.8' })))
+        await settled()
+      } finally {
+        digest.mockRestore()
+      }
+      expect(saltRows(database)).toEqual([{ day: '2026-09-15', salt: 'aa'.repeat(32) }])
+      const visitors = visitRows(database).map((row) => row.visitor)
+      // Controls: both hashes went through the hold, and the forced order really happened.
+      expect(calls).toBe(2)
+      expect(visitors[0]).toBe(heldBack === 1 ? expected[0] : expected[1])
+      expect([...visitors].sort()).toEqual([...expected].sort())
+    },
+  )
 
   it('a visit on the next day creates a new salt and deletes the one before', async () => {
     const database = await migratedDatabase()

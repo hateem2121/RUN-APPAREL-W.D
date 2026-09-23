@@ -295,7 +295,7 @@ li {
   color: var(--muted);
 }
 
-/* ── Buttons — mono uppercase 11px, 14/22px padding, 10px radius ───── */
+/* ── Buttons — mono uppercase 12px, 14/22px padding, 10px radius ───── */
 .btn {
   display: inline-flex;
   align-items: center;

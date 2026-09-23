@@ -1867,6 +1867,29 @@ html {
   margin: 0;
 }
 
+/*
+ * ⚠️ EVERY LINK TO THE 3D VIEWER SAYS SO, IN THE OWNER'S WORDS (audit XS-09, 2026-09-17).
+ *
+ * A card here opens a different host, and measured live that day nothing on a card said so,
+ * while docs/DECISIONS-BETA-WEBSITE.md D2 described the links as marked. The caption is
+ * `components/site/ViewerCue.tsx`; this is its look — the meta line's mono voice and muted
+ * ink, 5.57:1 on a card in light and 6.10:1 in dark, and 5.10:1 / 6.69:1 on the page ground
+ * the home page sets it on. It takes no letter-spacing and no capitals of its own, so it
+ * reads the same in a card and under the home page's capitalised figure caption;
+ * `e2e/viewerCue.spec.ts` checks the words a visitor gets, in both themes.
+ */
+.viewer-cue {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  color: var(--muted);
+}
+
+/* Under the home page's figure caption, a hair apart rather than touching it. */
+.proof__caption + .viewer-cue {
+  margin-block-start: 4px;
+}
+
 /* ------------------------------------------------------------ contact */
 
 .contact-grid {

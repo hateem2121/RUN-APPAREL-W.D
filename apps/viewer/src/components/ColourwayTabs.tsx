@@ -2,6 +2,7 @@ import type { ViewerColourway } from '@run-apparel/shared'
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 import { HOVER_INTENT_MS } from '../lib/motion'
+import { softHyphenate } from '../lib/softHyphenate'
 
 /**
  * The tablist's panel is the 3D stage, which lives in App.tsx as a sibling.
@@ -164,6 +165,12 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
             key={colourway.variantId}
             type="button"
             role="tab"
+            /**
+             * The plain name, because the label below carries soft hyphens (SZ-06) and a
+             * screen reader must never be handed one. The stage panel is labelled by this
+             * tab's id (App.tsx), so it inherits the same clean name.
+             */
+            aria-label={colourway.displayName}
             id={colourwayTabId(colourway.slug)}
             aria-controls={COLOURWAY_PANEL_ID}
             /**
@@ -262,7 +269,7 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
               `.colourway-tab__label` span that existed to keep the pair on one
               line.
             */}
-            <span className="colourway-tab__label">{colourway.displayName}</span>
+            <span className="colourway-tab__label">{softHyphenate(colourway.displayName)}</span>
           </button>
         ))}
       </div>

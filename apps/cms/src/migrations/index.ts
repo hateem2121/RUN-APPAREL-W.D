@@ -13,6 +13,7 @@ import * as migration_20260905_090000_site_logo from './20260905_090000_site_log
 import * as migration_20260905_150000_footer_facts from './20260905_150000_footer_facts';
 import * as migration_20260907_120000_add_inquiries from './20260907_120000_add_inquiries'
 import * as migration_20260915_220451_add_document_visits from './20260915_220451_add_document_visits'
+import * as migration_20260917_120000_add_web_vitals_values from './20260917_120000_add_web_vitals_values'
 
 export const migrations = [
   {
@@ -89,5 +90,10 @@ export const migrations = [
     up: migration_20260915_220451_add_document_visits.up,
     down: migration_20260915_220451_add_document_visits.down,
     name: '20260915_220451_add_document_visits',
+  },
+  {
+    up: migration_20260917_120000_add_web_vitals_values.up,
+    down: migration_20260917_120000_add_web_vitals_values.down,
+    name: '20260917_120000_add_web_vitals_values',
   },
 ];

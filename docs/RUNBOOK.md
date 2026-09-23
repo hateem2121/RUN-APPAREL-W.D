@@ -1080,6 +1080,25 @@ ignores. `apps/cms/src/diagnosticsDigest.test.ts` runs the digest's own SQL
 against SQLite. Rows named `server` or `network` are `viewer-load-failed` stored
 under the wrong name, from 2026-09-07 until that fix shipped.
 
+### Page speed from real visits — the same Monday issue
+
+Since 2026-09-17 the digest also reports how fast the 3D viewer is for the people who
+really use it, from the numbers each visit's browser measures (Largest Contentful
+Paint and Cumulative Layout Shift). The viewer measured them from 2026-09-04, but
+nothing kept them until the `events` table gained the `lcp_ms` and `cls` columns.
+The issue shows the 75th percentile of each, the level three in four visits reach:
+
+| Line | Good | Worth a look |
+|---|---|---|
+| **Loading** — seconds until the main content is on screen | 2.5 s or less | above 4 s |
+| **Steadiness** — how much the page jumps while it loads | 0.1 or less | above 0.25 |
+
+Read it the way you read the `browsers` column: fewer than 50 visits in a week is a
+hint, not a verdict, and the issue says so. Our own tools are left out, as in the
+diagnostics table. If the read fails, the issue says "Page speed could not be read
+this week" — open that run in the Actions tab. `apps/cms/src/diagnosticsDigest.test.ts`
+runs the query's own SQL against SQLite.
+
 ## Error tracking
 
 Server-side worker errors are in **Workers Logs** (Observability is enabled in
@@ -1569,6 +1588,89 @@ them into the JPEG link cards under `apps/viewer/public/og/` and regenerates the
 — commit both. Then, in the CMS, open each colourway and upload its poster as the photo;
 the product's "Backup picture" takes any one of them. `scripts/smoke-viewer-payload.mjs`
 now fetches every colourway's poster after a deploy and fails on one that is not served.
+
+### Is a poster too heavy? — `scripts/poster-sizes.mjs`
+
+Since 2026-09-17 (audit L-11/IM-02) this reads every live product's poster and judges
+it against the median for its OWN `category` (Sportswear, Outerwear, …) — a Teamwear
+kit's poster legitimately carries more print than a plain tee, so the comparison is
+never against the whole catalogue. A poster at `FLAG_AT` (2×) its family's median or
+heavier is flagged, unless the product is named in `OWNER_EXCEPTIONS` — one entry
+today, `r-wzu`, ceiling 3×, the owner's 2026-09-17 call on "Shrink gently": *the vest
+keeps its detail*. Past its own ceiling an exception stops covering the product; it is
+flagged same as anything else.
+
+```bash
+node scripts/poster-sizes.mjs           # exits 1 if anything is flagged, 2 if anything
+                                         # could not be read, 0 otherwise
+node scripts/poster-sizes.mjs --report  # same table, always exits 0
+```
+
+Measured live 2026-09-17, before that day's trim: Teamwear & Uniforms median 63952 B
+(40 posters), Sportswear 50517 (20), Outerwear 46816 (10), Casual Wear 35502 (10).
+Exactly 7 posters were at or above 2× — all five `r-wzu` colourways (above even the
+3× exception ceiling) and two of `r-asb`'s. The next highest was `r-cch` blush at
+1.96×, comfortably under. `apps/cms/src/posterSizes.test.ts` pins the median rule, the
+exception ceiling and that measurement. The next section is the script that brought
+`r-wzu` and `r-asb` back under it.
+
+### "Shrink gently" — `scripts/shrink-posters-gently.mjs`
+
+The script that answers the median check above. `GENTLE_TRIMS` names the seven
+posters the owner looked at and approved on 2026-09-17 (`r-asb` blush and pebble;
+all five `r-wzu` colourways) with the exact settings for each — chosen by looking at
+the rendered picture, never by tuning against file size (root CLAUDE.md's standing
+rule). Both the dry run and `--apply` always resolve a colour's CURRENT poster
+through its real product/media relation (never a guessed filename — a 2026-09-23
+fix, since a guessed name cannot see a Payload-suffixed re-upload), classify it as
+already-`done`, still-`ready` to trim, or `changed` since this was written, and stop
+naming the actual bytes/sha256 if it is the last of those. The dry run (the default,
+read-only) does this from the live viewer payload and either reports a colour
+already at the approved bytes or re-encodes it in memory and checks the result
+against the approved sha256; nothing is uploaded.
+
+**Re-running this is safe.** `--apply` asks for a CMS key with a hidden prompt
+(never on the command line — same reason as `scripts/apply-footer-facts.mjs`), then
+per product: skips any colour already at the approved bytes and, once every
+trimmed colour on a product is already done, sends no PATCH for it at all and says
+so. For a colour that still needs trimming, it checks the Media library for an
+upload a previous, half-finished run may already have made with the right bytes
+under a Payload-suffixed filename, and reuses it instead of uploading a duplicate —
+**if that check itself cannot be completed** (the Media listing answers anything
+but 200), the whole run stops there, before any upload or PATCH, and says plainly
+that the reuse check could not run and nothing was changed; it never falls through
+to uploading a possible duplicate. Only when the check succeeds does it upload,
+repoint `posterPreview` on the affected colourway rows, read the product back and
+compare every field, and poll the public payload for up to 120 s before moving to
+the next product. It deletes nothing — the superseded poster media documents stay
+in the CMS for `scripts/find-orphan-media.mjs` to report once nothing references
+them.
+
+**The owner runs this, only after the deploy that ships it**, from their own
+Terminal. **Run the dry run first — no flag — and read all seven rows: only once
+every one says `done` or `ready`, never `problem`, move on to `--apply`** (M9 +
+Recommendation 4, 2026-09-23).
+
+```bash
+cd ~/Sites/Model-Viewer-main && git switch main && git pull --ff-only && \
+  npx --yes pnpm@10.34.5 install --frozen-lockfile && \
+  node scripts/shrink-posters-gently.mjs
+```
+
+Once all seven read `done` or `ready`:
+
+```bash
+node scripts/shrink-posters-gently.mjs --apply
+```
+
+**Do not edit `r-asb` or `r-wzu` in the admin while this runs.** Each product's
+PATCH sends back the WHOLE `colourways` array, read at the start of that product's
+own turn — an edit made in the window before it writes is silently overwritten,
+and the read-back would still pass, because it compares against what THIS run sent.
+
+Afterwards, `node scripts/poster-sizes.mjs` should exit 0 with 5 excepted and 0
+flagged. `apps/cms/src/shrinkPostersGently.test.ts` pins every settings/bytes/sha256
+triple above.
 
 ## Re-processing a garment (the Retry tick-box)
 

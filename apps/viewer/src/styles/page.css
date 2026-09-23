@@ -1155,8 +1155,9 @@
  *
  * Absolute positioning resolves the height against the positioned ancestor's
  * padding box, which IS definite after flex layout. `.stage__canvas` is already
- * `position: relative; overflow: hidden`, and `.stage__poster-fallback` directly
- * above has used exactly this pattern all along — the model was the odd one out.
+ * `position: relative; overflow: hidden` — the poster rule that used this pattern
+ * first, `.stage__poster-fallback`, was removed 2026-09-23 and is kept as a note
+ * below; the model was the odd one out.
  *
  * Do not "simplify" this back to `height: 100%`.
  */
@@ -1207,56 +1208,67 @@ model-viewer.stage__model {
 }
 
 /*
- * ⚠️ DORMANT since 2026-08-21 — nothing renders these classes any more.
+ * ⚠️ DORMANT since 2026-08-21, REMOVED 2026-09-23 — these rules render nothing and
+ * now live only in this note, not as CSS.
  *
- * `Stage.tsx` stopped painting a poster image (owner decision: the stage never
- * shows a photograph of the garment, as placeholder or fallback), and the publish
- * gate stopped requiring one. The rules are KEPT rather than deleted because the
- * `min-height: 0` note below is a real, expensive finding — a grid item's
- * `min-height: auto` silently beats `max-height: 100%`, which overflowed this
- * poster by 926px for months — and that lesson applies to whatever fills this slot
- * next. Delete them only when you are sure no image will live here again.
- */
-.stage__poster-fallback {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-}
-
-/*
- * The poster is the FIRST thing a phone visitor sees, and it holds the screen for
- * as long as the model takes to arrive — so its box has to be right.
- * (Models were ~27 MB when this was written; every live GLB measured 1.8-7.8 MB
- * on 2026-09-04. The box still has to be right, for less time.)
+ * `Stage.tsx` stopped painting a poster image on 2026-08-21 (owner decision: the
+ * stage never shows a photograph of the garment, as placeholder or fallback), and
+ * the publish gate stopped requiring one. The rules stayed, unused, for the
+ * `min-height: 0` finding below — a real, expensive lesson — until this branch's
+ * net +56 B (the CO-12 swatch rules) took the built stylesheet from 28,955 B to
+ * 29,011 B raw and crossed Lighthouse CI's `resource-summary:stylesheet:size`
+ * budget: 30,030 B measured transfer against `lighthouserc.json`'s 30,000 B
+ * `maxNumericValue`. Owner ruling 2026-09-23: remove the unused rules rather than
+ * raise the budget. Comments cost nothing in the build, so the lesson and the
+ * removed rules' exact declarations stay here as the recipe for whatever fills
+ * this slot next — restore them verbatim if an image returns to the stage.
  *
- * `max-height: 100%` alone was not. The <img> carries width/height attributes
- * (1200x1500, kept for the aspect ratio so there is no layout shift), and with no
- * `max-width` and no `height: auto` the intrinsic height wins: measured on the
- * live page 2026-08-05, the box resolved to 498x1500 inside a 546x574 stage —
- * overflowing by 926px. `object-fit: contain` then fits the garment to that
- * oversized box, so it spilled past the stage and was clipped by the sections
- * above and below, which reads as the poster being tiled.
- *
- * Invisible until now only because every poster was a flat placeholder drawing.
- *
- * `min-height: 0` is the load-bearing line. This <img> is a GRID ITEM, so it gets
- * `min-height: auto` — the automatic minimum size — which floors it at its
- * intrinsic height and silently beats `max-height: 100%`. Measured on the live
+ * The poster was the FIRST thing a phone visitor saw, and held the screen for as
+ * long as the model took to arrive, so its box had to be right. `max-height: 100%`
+ * alone was not enough: the <img> carried width/height attributes (1200x1500, kept
+ * for the aspect ratio so there was no layout shift), and with no `max-width` and
+ * no `height: auto` the intrinsic height won — measured on the live page
+ * 2026-08-05, the box resolved to 498x1500 inside a 546x574 stage, overflowing by
+ * 926px, clipped by the sections above and below, which read as the poster being
+ * tiled. `min-height: 0` was the load-bearing line: this <img> was a GRID ITEM, so
+ * it got `min-height: auto` — the automatic minimum size — which floored it at its
+ * intrinsic height and silently beat `max-height: 100%`. Measured on the live
  * page: max-height alone gave 498x1500; adding max-width gave 498x623, still
- * overflowing a 498x526 content box; with min-height: 0 it resolves to 421x526
- * and fits. Removing that one line puts the overflow straight back.
+ * overflowing a 498x526 content box; with min-height: 0 it resolved to 421x526 and
+ * fit. Same trap as the familiar `min-width: 0` on flex children.
+ *
+ *   .stage__poster-fallback {
+ *     position: absolute;
+ *     inset: 0;
+ *     display: grid;
+ *     place-items: center;
+ *     padding: 24px;
+ *   }
+ *   .stage__poster-fallback img {
+ *     max-width: 100%;
+ *     max-height: 100%;
+ *     width: auto;
+ *     height: auto;
+ *     min-height: 0;
+ *     object-fit: contain;
+ *     border-radius: var(--radius-card);
+ *   }
+ *
+ * And inside `@media (prefers-reduced-motion: no-preference)`, alongside
+ * `.product-info__colour`, which stays live:
+ *
+ *   .stage__poster-img {
+ *     animation: poster-fade var(--slow) var(--ease-out-expo);
+ *   }
+ *   @keyframes poster-fade {
+ *     from {
+ *       opacity: 0;
+ *     }
+ *     to {
+ *       opacity: 1;
+ *     }
+ *   }
  */
-.stage__poster-fallback img {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
-  min-height: 0;
-  object-fit: contain;
-  border-radius: var(--radius-card);
-}
 
 /* Technical callouts around the garment */
 .stage__callouts {
@@ -2027,13 +2039,22 @@ model-viewer.stage__model {
 
 /* The measured fabric colour, read from the GLB by variant-colour.ts. A ring
    rather than a bare disc so a near-white colourway (Cream, #FDFDC8) still reads
-   as a swatch against the panel instead of vanishing into it. */
+   as a swatch against the panel instead of vanishing into it.
+
+   ⚠️ THE RING IS --line-control, THE CONTROL-EDGE TOKEN, SINCE 2026-09-17 (audit CO-12).
+   It was `color-mix(in srgb, var(--ink) 22%, transparent)`, a theme-FLAT ink tone, and it
+   measured under 3:1 against the tab on 180 of 320 unselected live swatches in light and
+   88 in dark: a pale swatch vanished into the light page and a dark one into the dark
+   page — the opposite of what the paragraph above asks of it. --line-control flips with
+   the theme: 0 of 320 under 3:1, worst 3.39:1 light and 4.94:1 dark (all 80 live pages,
+   scripts/contrast-rules.mjs). The selected tab overrides it below. Guarded by
+   apps/viewer/e2e/audit-guards.spec.ts → CO-12. */
 .colourway-tab__swatch {
   flex: 0 0 auto;
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+  border: 1px solid var(--line-control);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper) 55%, transparent);
 }
 
@@ -2069,6 +2090,14 @@ model-viewer.stage__model {
  * overflow. A broken long name is worse-looking than a short one and better than a
  * name crossing into the swatch beside it, which is the choice actually on offer
  * while the cells divide a fixed width by the colourway count.
+ *
+ * ⚠️ SINCE 2026-09-17 THE LABEL CARRIES SOFT HYPHENS (audit SZ-06), so a long name breaks
+ * at a syllable — "TERRA-" / "COTTA" — instead of wherever the line ran out: 50 of 400 live
+ * labels split mid-word at 390px and 70 at 320px. They come from src/lib/softHyphenate.ts,
+ * applied in ColourwayTabs.tsx; nothing in this rule changed. `anywhere` STAYS as the safety
+ * net for a syllable wider than a line ("QUOISE" at 320px in WebKit), and `hyphens` stays at
+ * its default `manual`, the value that honours a soft hyphen. Checked at 390 and 320 by
+ * motion-and-layout.spec.ts.
  */
 .colourway-tab__label {
   overflow-wrap: anywhere;
@@ -2086,6 +2115,13 @@ model-viewer.stage__model {
   background: var(--btn-primary-bg);
   color: var(--btn-primary-text);
   border-color: var(--btn-primary-bg);
+}
+
+/* The selected swatch's ring is the selected tab's own text colour (CO-12). --line-control
+   is drawn for the page ground; on the inverted fill it failed every selected ring in dark,
+   while the tab's text colour already stands 13–14:1 off that fill. */
+.colourway-tab[aria-selected="true"] .colourway-tab__swatch {
+  border-color: currentColor;
 }
 
 /*
@@ -2588,9 +2624,6 @@ model-viewer.stage__model {
   .product-info__colour {
     animation: colour-swap var(--settle) var(--ease);
   }
-  .stage__poster-img {
-    animation: poster-fade var(--slow) var(--ease-out-expo);
-  }
 }
 @keyframes colour-swap {
   from {
@@ -2600,14 +2633,6 @@ model-viewer.stage__model {
   to {
     opacity: 1;
     transform: none;
-  }
-}
-@keyframes poster-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
   }
 }
 .theme-toggle svg {

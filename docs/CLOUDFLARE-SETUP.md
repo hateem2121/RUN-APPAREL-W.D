@@ -614,6 +614,13 @@ winner — the same trap `_headers` has, documented in `apps/viewer/CLAUDE.md`.
 points at `viewer.wear-run.help/og/…` rather than `media.wear-run.help`, so no
 link-preview image is subject to CORP.
 
+**Watched daily since 2026-09-17 (audit IM-13).** `scripts/zone-security-probe.mjs`, run by
+`.github/workflows/uptime.yml`, reads a poster and a model named by the live payload and
+fails if either stops answering `Cross-Origin-Resource-Policy: same-site`. For the posters,
+this header is the whole protection: the WAF rule above matches `.glb` only, and images are
+deliberately not gated. Measured that day, a page on another origin drew no poster in
+Chromium, Firefox or WebKit, and the owner chose this daily check over widening the WAF rule.
+
 ### After changing an object in R2, PURGE
 
 Deleting or overwriting an R2 object does **not** change what the edge serves. Measured

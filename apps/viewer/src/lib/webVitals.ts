@@ -52,15 +52,20 @@ export function initWebVitals(): () => void {
    * paint, so the entries that matter have already been emitted; without it the
    * observer only sees what happens from here on and LCP reads as null on exactly
    * the fast loads it is supposed to praise.
+   *
+   * Returns whether `observe()` itself succeeded, so a caller can tell "nothing
+   * shifted" from "this engine cannot tell me" (I1, 2026-09-23) — see `canReportCls`.
    */
-  const observe = (type: string, cb: (entries: PerformanceEntryList) => void) => {
+  const observe = (type: string, cb: (entries: PerformanceEntryList) => void): boolean => {
     try {
       const observer = new PerformanceObserver((list) => cb(list.getEntries()))
       observer.observe({ type, buffered: true })
       observers.push(observer)
+      return true
     } catch {
       // An engine that does not support this entry type throws on observe(). The
       // metric is simply absent from the report rather than the page breaking.
+      return false
     }
   }
 
@@ -71,7 +76,7 @@ export function initWebVitals(): () => void {
     if (last) lcp = last.startTime
   })
 
-  observe('layout-shift', (entries) => {
+  const layoutShiftObserved = observe('layout-shift', (entries) => {
     for (const entry of entries as Array<
       PerformanceEntry & { value: number; hadRecentInput: boolean }
     >) {
@@ -81,6 +86,18 @@ export function initWebVitals(): () => void {
       if (!entry.hadRecentInput) cls += entry.value
     }
   })
+  /**
+   * I1 (2026-09-23): `observe()` not throwing is not enough. The spec lets an engine
+   * accept `observe({ type: 'layout-shift' })` without error and simply never emit an
+   * entry — a silent "I do not have this", not "nothing shifted". Before this, every
+   * such visit — every iPhone, since Safari has no Layout Instability API at all —
+   * stored and reported a CLS of 0.000, which is indistinguishable from a genuinely
+   * steady page and pulls the whole catalogue's p75 toward a number nobody measured.
+   * `supportedEntryTypes` is the one place an engine says so honestly.
+   */
+  const canReportCls =
+    layoutShiftObserved &&
+    (PerformanceObserver.supportedEntryTypes?.includes('layout-shift') ?? false)
 
   const report = () => {
     if (reported) return
@@ -89,7 +106,7 @@ export function initWebVitals(): () => void {
     // Rounded: sub-millisecond LCP and four-decimal CLS are false precision from a
     // single visitor on a single connection.
     if (lcp !== null) detail.lcpMs = String(Math.round(lcp))
-    detail.cls = cls.toFixed(3)
+    if (canReportCls) detail.cls = cls.toFixed(3)
     // Only send something. A report with neither metric says nothing and still
     // costs a row in the events table.
     if (Object.keys(detail).length > 0) track('web_vitals', detail)

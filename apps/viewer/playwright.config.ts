@@ -25,6 +25,17 @@ const baseLaunch = chromiumPath ? { executablePath: chromiumPath } : {}
 const DOM_SUITE = /(webgl|render|camera-settle)\.spec\.ts/
 
 /**
+ * `fontSwap.spec.ts` (TY-02) needs two engines, not four: Chromium, the only one with the
+ * Layout Instability API, and desktop WebKit, which counts the headline's lines — Mac only
+ * (owner ruling, 2026-09-23): `system-ui` only reads as an iPhone's on a Mac, so the WebKit
+ * half skips itself on CI's Linux image and runs locally, before every push, on this project.
+ * It lays out every live headline several times, and CI's `e2e` job already measured about 21
+ * of its 30 minutes on 2026-09-07; Firefox and mobile Safari would add minutes and no reading
+ * these two do not give.
+ */
+const TWO_ENGINE_SUITE = /fontSwap\.spec\.ts/
+
+/**
  * The e2e server's port, in ONE place and passed explicitly to the server.
  *
  * Passing it via `webServer.env` means the config DICTATES the port, so a mismatch
@@ -78,12 +89,12 @@ export default defineConfig({
       // iPhone viewport on the same engine: catches layout that only breaks at
       // 390px with a notch, which desktop WebKit will not show.
       name: 'viewer-mobile-safari',
-      testIgnore: DOM_SUITE,
+      testIgnore: [DOM_SUITE, TWO_ENGINE_SUITE],
       use: { ...devices['iPhone 13'] },
     },
     {
       name: 'viewer-firefox',
-      testIgnore: DOM_SUITE,
+      testIgnore: [DOM_SUITE, TWO_ENGINE_SUITE],
       use: { ...devices['Desktop Firefox'] },
     },
     {

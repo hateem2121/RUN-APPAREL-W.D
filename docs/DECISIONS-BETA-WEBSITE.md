@@ -56,8 +56,13 @@ What the audit correctly flagged was not the split but the *unsignalled* domain
 change. That is treated as a defect and fixed (see `FA-N-09`, `FA-W-01`), not as a
 reason to rebuild the page.
 
-**Guard:** a test asserts the gallery's product links resolve to the viewer host
-and are marked as leaving the site.
+**Guard:** `apps/cms/src/publicSite.test.ts` asserts that the gallery's product links
+resolve to the viewer host, and that every page building such a link renders the
+caption once per link — **"Opens the 3D viewer ↗"**, the owner's wording of 2026-09-17.
+`apps/cms/e2e/viewerCue.spec.ts` checks every such link on `/products` and `/`, in both
+themes, the caption's contrast included. Until 2026-09-17 only the host was tested, so
+the "marked as leaving the site" half of this guard existed here and nowhere else
+(audit XS-09).
 
 ### D3 · The contact page gets a form — `FA-I-06`
 

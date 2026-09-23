@@ -244,6 +244,60 @@ jobs:
             printf 'summary=%s\n' "Events growth normal — $DAY rows in 24h, $WEEK in 7d, $TOTAL all time (threshold $THRESHOLD/24h)." >> "$GITHUB_OUTPUT"
           fi
 
+      # ── PF-05b, 2026-09-17: how fast the viewer is for REAL visitors ─────────
+      # The viewer has measured LCP and CLS on every visit since 2026-09-04. Until
+      # 2026-09-17 both numbers were dropped before they were stored
+      # (apps/viewer/src/lib/telemetry.ts, apps/cms/src/endpoints/events.ts); they now
+      # have their own columns, and this reads them back once a week.
+      #
+      # The 75th percentile, because that is where both metrics are judged (2.5 s and
+      # 0.1 are the published "good" lines). SQLite has no percentile function, so it is
+      # a nearest-rank ORDER BY with an OFFSET of ceil(0.75 × n) − 1, and
+      # apps/cms/src/diagnosticsDigest.test.ts runs this exact SQL. Our own tools are left
+      # out, as in the digest query above. Only visits that carry a number are counted.
+      #
+      # ONE base predicate. type/event/the 7-day window/the own-audit ua filter used to
+      # sit inline in five places — the outer FROM and all four percentile subqueries —
+      # so an edit to the filter could land in four of five copies and miss the fifth.
+      # `WITH w AS (...)` states it once below; every count and percentile reads FROM w.
+      #
+      # Everything printed is a Number() or fixed words, never a row's text, so nothing a
+      # stranger posts reaches the heredoc below. The node script uses no `$` and no
+      # backticks, because it sits inside a double-quoted shell string.
+      #
+      # `continue-on-error`: a page-speed read that fails must not stop the diagnostics
+      # issue. The issue step says the read failed instead.
+      - name: Read the last 7 days of page speed
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        id: vitals
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote \
+            --json --command "WITH w AS (SELECT ua, lcp_ms, cls FROM events WHERE type = 'analytics' AND event = 'web_vitals' AND created_at > strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days') AND (ua IS NULL OR ua NOT LIKE '%run-apparel-%')) SELECT count(*) AS visits, count(DISTINCT ua) AS browsers, count(lcp_ms) AS lcp_n, (SELECT lcp_ms FROM w WHERE lcp_ms IS NOT NULL ORDER BY lcp_ms LIMIT 1 OFFSET (SELECT (3 * count(*) + 3) / 4 - 1 FROM w WHERE lcp_ms IS NOT NULL)) AS lcp_p75, count(cls) AS cls_n, (SELECT cls FROM w WHERE cls IS NOT NULL ORDER BY cls LIMIT 1 OFFSET (SELECT (3 * count(*) + 3) / 4 - 1 FROM w WHERE cls IS NOT NULL)) AS cls_p75 FROM w WHERE (lcp_ms IS NOT NULL OR cls IS NOT NULL);" \
+            > vitals.json
+          visits=$(node -e "const r=(require('./vitals.json')[0]?.results??[{}])[0]??{};console.log(Number(r.visits)||0)")
+          echo "visits=$visits" >> "$GITHUB_OUTPUT"
+          {
+            echo 'summary<<VITALS'
+            node -e "
+              const r = (require('./vitals.json')[0]?.results ?? [{}])[0] ?? {};
+              const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
+              const visits = num(r.visits) || 0;
+              if (!visits) { console.log('**Page speed:** no measured visits in the last 7 days.'); process.exit(0) }
+              const lines = ['**Page speed from real visits** (the whole 3D viewer, last 7 days): ' + visits + ' visits from ' + (num(r.browsers) || 0) + ' browsers.'];
+              const lcp = num(r.lcp_p75);
+              if (lcp !== null && Number.isFinite(lcp)) lines.push('- **Loading:** 3 in 4 visits had the main content on screen within ' + (lcp / 1000).toFixed(1) + ' s (' + (num(r.lcp_n) || 0) + ' visits; 2.5 s or less counts as good).');
+              const cls = num(r.cls_p75);
+              if (cls !== null && Number.isFinite(cls)) lines.push('- **Steadiness:** 3 in 4 visits had a layout-shift score of ' + cls.toFixed(3) + ' or less (' + (num(r.cls_n) || 0) + ' visits; 0.1 or less counts as good).');
+              if (visits < 50) lines.push('Fewer than 50 visits: read these as a hint, not a verdict.');
+              console.log(lines.join('\n'));
+            "
+            echo 'VITALS'
+          } >> "$GITHUB_OUTPUT"
+
       # One rolling issue rather than one per week, so a quiet month does not
       # bury the tab — same shape as the outage alert in uptime.yml.
       #
@@ -251,7 +305,7 @@ jobs:
       # rows only, so an analytics flood leaves it at 0 and this step would never
       # run — which is precisely the gap H1 describes.
       - name: Open or update the digest issue
-        if: steps.read.outputs.rows != '0' || steps.growth.outputs.alert == 'true'
+        if: steps.read.outputs.rows != '0' || steps.growth.outputs.alert == 'true' || steps.vitals.outcome == 'failure' || (steps.vitals.outputs.visits != '' && steps.vitals.outputs.visits != '0')
         env:
           # Passed through the environment rather than interpolated with ${{ }},
           # for exactly the reason heartbeat.yml gives for its own STALE variable.
@@ -267,6 +321,10 @@ jobs:
           # both, since either alone would be enough only until someone edits it.
           DIGEST_TABLE: ${{ steps.read.outputs.table }}
           GROWTH_SUMMARY: ${{ steps.growth.outputs.summary }}
+          # Numbers and fixed words only (see the step that builds it). A failed read
+          # still reaches the issue as a sentence, so a dead query cannot pass for a
+          # quiet week.
+          VITALS_SUMMARY: ${{ steps.vitals.outcome == 'success' && steps.vitals.outputs.summary || 'Page speed could not be read this week. See this run in the Actions tab.' }}
         run: |
           set -euo pipefail
           # The label has to exist before EITHER command below touches it: `gh issue
@@ -283,9 +341,10 @@ jobs:
                              --description "Weekly viewer diagnostics digest" 2>&1); then
             grep -qi 'already exists' <<<"$label_out" || echo "::warning::gh label create failed: $label_out"
           fi
-          body=$(printf '%s\n\n%s\n\n%s\n\n%s\n' \
+          body=$(printf '%s\n\n%s\n\n%s\n\n%s\n\n%s\n' \
             "Viewer diagnostics for the 7 days to $(date -u +%Y-%m-%d)." \
             "$DIGEST_TABLE" \
+            "$VITALS_SUMMARY" \
             "$GROWTH_SUMMARY" \
             "\`model-load-error\` means a buyer opened a product and the 3D file did not load. \`variant-missing\` means a colour button pointed at a colour that is not inside the file. \`variants-unverified-while-published\` means a re-upload renamed the colours under a live product. \`viewer-load-failed\` means the product's details never reached the page. \`render-scale-degraded\` means a slow device drew the 3D at lower sharpness; the garment still showed. **browsers** is how many different browsers sent those rows, so one busy browser cannot pass for many buyers (- means the server wrote it). Left out on purpose: our own checks (user-agent \`run-apparel-…\`) and the harmless \`ResizeObserver loop\` browser notice. See docs/RUNBOOK.md.")
           existing=$(gh issue list --label diagnostics --state open --json number --jq '.[0].number // empty')

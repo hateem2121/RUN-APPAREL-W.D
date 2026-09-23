@@ -12,6 +12,10 @@ import { type RateLimitState, checkRateLimit, createRateLimitState } from './eve
  * field, drop obvious bots, and store each row via the Local API. No IP and no
  * personal data are ever persisted. Always answers 204 — a fire-and-forget
  * beacon must never see a 4xx/5xx.
+ *
+ * The only numbers it stores are a page-speed report's two (audit PF-05b,
+ * 2026-09-17): `lcpMs` and `cls`, on an `analytics` / `web_vitals` item only, and
+ * only inside the bounds below.
  */
 
 export const MAX_EVENT_BATCH = 20
@@ -33,6 +37,33 @@ const KNOWN_ANALYTICS = new Set<string>(VIEWER_ANALYTICS_EVENTS)
 // rows here has to leave the tag off.
 const BOT_UA = /bot|crawler|spider|headless|preview|scan|lighthouse|monitor|run-apparel-/i
 
+/**
+ * The bounds on a page-speed report's two numbers (audit PF-05b).
+ *
+ * This endpoint is unauthenticated, and a number is as easy to forge as a name, so both
+ * are bounded rather than trusted: ten minutes is far past any real paint, and a
+ * layout-shift score of 10 far past any real page. Outside them the NUMBER is dropped,
+ * never the row — the visit still counts. Text is refused too: the viewer converts both
+ * to numbers before sending (apps/viewer/src/lib/telemetry.ts), so a string here did
+ * not come from the viewer.
+ *
+ * Exported (M4, 2026-09-23) so collections/Events.ts's field `min`/`max` can import
+ * the same values instead of repeating them as literals — the two drifting would let
+ * the FIELD end up tighter than the endpoint, and `payload.create` would then fail
+ * validation and drop the whole row silently (events.ts's own catch below), which
+ * contradicts "drop the number, never the row". This module has no Payload-config
+ * side effects (no collection import, nothing Payload-specific at module scope), so
+ * importing it from a collection file costs nothing extra at that file's load time.
+ */
+export const MAX_LCP_MS = 600_000
+export const MAX_CLS = 10
+const WEB_VITALS = 'web_vitals'
+
+const bounded = (value: unknown, max: number): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= max
+    ? value
+    : undefined
+
 export interface EventRecord {
   type: 'analytics' | 'diagnostic' | 'error'
   event: string
@@ -41,6 +72,10 @@ export interface EventRecord {
   placement?: string
   message?: string
   ua?: string
+  /** Largest Contentful Paint in milliseconds — `web_vitals` analytics rows only. */
+  lcpMs?: number
+  /** Cumulative Layout Shift for the visit — `web_vitals` analytics rows only. */
+  cls?: number
 }
 
 const cap = (value: unknown, max: number): string | undefined => {
@@ -69,6 +104,7 @@ export function sanitizeEvents(rawItems: unknown, userAgent: string): EventRecor
     // Analytics events must be from the known allowlist; diagnostics and
     // errors carry free-form kinds/messages.
     if (type === 'analytics' && !KNOWN_ANALYTICS.has(event)) continue
+    const vitals = type === 'analytics' && event === WEB_VITALS
     out.push({
       type: type as EventRecord['type'],
       event,
@@ -79,6 +115,8 @@ export function sanitizeEvents(rawItems: unknown, userAgent: string): EventRecor
       // never do (privacy — they are limited to the known allowlist).
       message: type === 'analytics' ? undefined : cap(rec.message, LIMITS.message),
       ua,
+      lcpMs: vitals ? bounded(rec.lcpMs, MAX_LCP_MS) : undefined,
+      cls: vitals ? bounded(rec.cls, MAX_CLS) : undefined,
     })
   }
   return out

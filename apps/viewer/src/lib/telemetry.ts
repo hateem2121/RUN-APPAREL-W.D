@@ -5,7 +5,8 @@
  * (a `text/plain` body keeps it a CORS simple request — no preflight).
  *
  * Privacy & safety:
- * - No IP or personal data is ever sent; only the named event + product/variant.
+ * - No IP or personal data is ever sent; only the named event + product/variant,
+ *   and, on a `web_vitals` report only, its two page-speed numbers (audit PF-05b).
  * - Analytics events respect Do-Not-Track; operational diagnostics/errors do not.
  * - Never runs under automation (Playwright) so e2e stays clean and offline.
  * - Client errors are capped and de-duplicated per session.
@@ -28,6 +29,9 @@ interface QueuedEvent {
   variant?: string
   placement?: string
   message?: string
+  /** Page-speed numbers, on a `web_vitals` report only (audit PF-05b). */
+  lcpMs?: number
+  cls?: number
 }
 
 let queue: QueuedEvent[] = []
@@ -39,6 +43,25 @@ let started = false
 function doNotTrack(): boolean {
   const dnt = navigator.doNotTrack ?? (window as Window & { doNotTrack?: string }).doNotTrack
   return dnt === '1' || dnt === 'yes'
+}
+
+/**
+ * A page-speed number the way the CMS stores it (audit PF-05b, 2026-09-17).
+ *
+ * webVitals.ts hands its two metrics over as STRINGS (every `run:analytics` detail is a
+ * `Record<string, string>`), and until 2026-09-17 `onAnalytics` forwarded neither, so
+ * both were dropped on every visit. The CMS keeps only JSON numbers
+ * (apps/cms/src/endpoints/events.ts), so convert here and send nothing for a value that
+ * is not one. The blank check matters: `Number('')` is 0, a perfect score nobody earned.
+ */
+function metric(value: string | undefined): number | undefined {
+  if (value === undefined || value.trim() === '') return undefined
+  const number = Number(value)
+  return Number.isFinite(number) ? number : undefined
+}
+
+function vitalsOf(detail: Record<string, string>): Pick<QueuedEvent, 'lcpMs' | 'cls'> {
+  return { lcpMs: metric(detail.lcpMs), cls: metric(detail.cls) }
 }
 
 function flush(): void {
@@ -68,6 +91,29 @@ function flush(): void {
 
 function enqueue(item: QueuedEvent): void {
   queue.push(item)
+  /**
+   * I2 (2026-09-23): a page-speed report is only ever emitted once, at the end of
+   * the visit (webVitals.ts's `visibilitychange`/`pagehide` reporter) — there is no
+   * second chance to send it. `initTelemetry()`'s OWN `visibilitychange` flush
+   * (below) runs on the same event, but it flushes whatever is ALREADY queued, and
+   * this item was not queued yet when that ran — it only exists because the report
+   * just fired. Left to the ordinary FLUSH_AT/FLUSH_MS path, it would ride the
+   * 10-second timer, and a hidden page's timers may be throttled or never run
+   * again at all: an iPhone suspends Safari the moment the screen locks or another
+   * app comes forward, which is the commonest way a QR visit ends. So flush THIS
+   * enqueue immediately whenever the item is the report itself, or whenever the
+   * page is already hidden by the time anything is queued — never wait on a timer
+   * that a hidden page may not get to run.
+   *
+   * Do NOT "fix" this by reordering initTelemetry()/initWebVitals() in main.tsx
+   * instead: that only works as long as nobody reorders them again, and does not
+   * even close the pagehide-only gap (a `pagehide` with no preceding
+   * `visibilitychange` never touches telemetry's own hide-flush at all).
+   */
+  if (item.event === 'web_vitals' || document.visibilityState === 'hidden') {
+    flush()
+    return
+  }
   if (queue.length >= FLUSH_AT) {
     flush()
     return
@@ -103,7 +149,15 @@ export function initTelemetry(): () => void {
     const detail = (event as CustomEvent<Record<string, string>>).detail ?? {}
     const { event: name, product, variant, placement } = detail
     if (!name) return
-    enqueue({ type: 'analytics', event: name, product, variant, placement })
+    enqueue({
+      type: 'analytics',
+      event: name,
+      product,
+      variant,
+      placement,
+      // Only a page-speed report carries numbers; every other event is sent as before.
+      ...(name === 'web_vitals' ? vitalsOf(detail) : {}),
+    })
   }
   const onDiagnostic = (event: Event) => {
     const detail = (event as CustomEvent<Record<string, string>>).detail ?? {}

@@ -143,6 +143,50 @@ describe('migration replay', () => {
     database.close()
   })
 
+  /**
+   * The page-speed columns of 2026-09-17 (audit PF-05b), for the reason the test above
+   * gives: `lcpMs` → `lcp_ms` is two hand spellings in two files. Here a mismatch would
+   * fail EVERY events insert, which the public endpoint swallows by design — so the
+   * symptom would be an analytics table that silently stops filling.
+   */
+  it('stores and returns the two page-speed numbers on an event', async () => {
+    const database = openDatabase()
+    const { args } = makeMigrationArgs(database)
+    for (const migration of migrations) {
+      await (migration.up as unknown as Runner)(args)
+    }
+
+    const columns = database
+      .prepare('PRAGMA table_info(events)')
+      .all()
+      .map((row) => row as { name: string; type: string })
+      .filter((column) => column.name === 'lcp_ms' || column.name === 'cls')
+      .map(({ name, type }) => ({ name, type }))
+    expect(
+      columns,
+      'Payload snake_cases `lcpMs` to `lcp_ms`, and a `type: number` field is numeric here',
+    ).toEqual([
+      { name: 'lcp_ms', type: 'numeric' },
+      { name: 'cls', type: 'numeric' },
+    ])
+
+    const insert = database.prepare(
+      'INSERT INTO events (id, type, event, lcp_ms, cls) VALUES (?, ?, ?, ?, ?)',
+    )
+    insert.run(9101, 'analytics', 'web_vitals', 2400, 0.012)
+    // Every other event leaves both empty.
+    insert.run(9102, 'analytics', 'model_loaded', null, null)
+    const rows = database
+      .prepare('SELECT id, lcp_ms, cls FROM events WHERE id IN (9101, 9102) ORDER BY id')
+      .all()
+      .map((row) => ({ ...(row as { id: number; lcp_ms: number | null; cls: number | null }) }))
+    expect(rows).toEqual([
+      { id: 9101, lcp_ms: 2400, cls: 0.012 },
+      { id: 9102, lcp_ms: null, cls: null },
+    ])
+    database.close()
+  })
+
   it.each(migrations.map((m, index) => [m.name, index] as const))(
     'migration %s preserves every table that had rows',
     async (_name, index) => {

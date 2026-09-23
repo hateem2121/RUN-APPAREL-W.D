@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
 /**
  * The two halves of the motion layer, and the layout invariants that no gate
@@ -68,6 +68,74 @@ import { expect, test } from '@playwright/test'
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
 })
+
+/**
+ * SZ-06: for every word in every rail label — does a long one carry a soft hyphen, and is
+ * any syllable of it split across lines?
+ *
+ * RUNS IN THE PAGE (handed to `page.evaluate`), so it references nothing outside itself.
+ *
+ * ⚠️ LINES ARE READ FROM EACH CHARACTER'S LAST RECT. Chromium also reports a rect on the
+ * PREVIOUS line for a range that starts just after a soft break, so a range over a whole
+ * syllable — or a character's FIRST rect — reads a clean "TERRA-" / "COTTA" as a split
+ * "cotta" (measured 2026-09-17 against a screenshot that showed the clean break). The
+ * research that found SZ-06 was misled the same way by first rects.
+ *
+ * `safe` is the longest syllable a line holds on every engine at the width under test; a
+ * longer one ("quoise") may still be broken by `overflow-wrap: anywhere` and is only
+ * reported, in `oversize`.
+ */
+function railBreaks(safe: number) {
+  const SHY = '\u{00AD}'
+  const lineCount = (tops: number[]) => {
+    let count = 0
+    let last = Number.NEGATIVE_INFINITY
+    for (const top of [...tops].sort((a, b) => a - b)) {
+      if (top - last > 2) count += 1
+      last = top
+    }
+    return count
+  }
+  const out = {
+    labels: [] as string[],
+    unhyphenated: [] as string[],
+    split: [] as string[],
+    oversize: [] as string[],
+    brokenAtShy: 0,
+  }
+  for (const label of document.querySelectorAll('.colourway-tab__label')) {
+    const node = label.firstChild
+    if (!node || node.nodeType !== Node.TEXT_NODE) continue
+    const text = node.nodeValue ?? ''
+    out.labels.push(text.split(SHY).join(''))
+    for (const match of text.matchAll(/[\p{L}\u{00AD}]+/gu)) {
+      const word = match[0]
+      const letters = word.split(SHY).join('')
+      if (letters.length >= 7 && !word.includes(SHY)) out.unhyphenated.push(letters)
+      const wordTops: number[] = []
+      let offset = match.index ?? 0
+      for (const syllable of word.split(SHY)) {
+        const tops: number[] = []
+        for (let i = offset; i < offset + syllable.length; i += 1) {
+          const range = document.createRange()
+          range.setStart(node, i)
+          range.setEnd(node, i + 1)
+          const rects = [...range.getClientRects()].filter((rect) => rect.width > 0.5)
+          const last = rects.at(-1)
+          if (last) tops.push(last.top)
+        }
+        wordTops.push(...tops)
+        if (lineCount(tops) > 1) {
+          if (syllable.length <= safe) out.split.push(`${syllable} (in ${letters})`)
+          else out.oversize.push(`${syllable} (in ${letters})`)
+        }
+        offset += syllable.length + 1
+      }
+      if (lineCount(wordTops) > 1) out.brokenAtShy += 1
+    }
+  }
+  return out
+}
 
 const VIEWPORTS = [
   { name: 'small mobile', width: 320, height: 640 },
@@ -2643,6 +2711,99 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
       `"${spill.text}" reaches ${spill.spill}px past the edge of its ${spill.cell}px ` +
         `tab, into the swatch beside it. See overflow-wrap on .colourway-tab__label.`,
     ).toBeLessThanOrEqual(0)
+  })
+
+  /**
+   * SZ-06, 2026-09-17: a long one-word colour name breaks at a SYLLABLE. Measured live that
+   * day on all 80 pages, 50 of 400 labels broke inside a word at 390px ("TERRACO" / "TTA")
+   * and 70 at 320px. `src/lib/softHyphenate.ts` now puts soft hyphens in the label. The
+   * fixture's names are all short, so real live names are served in their place.
+   *
+   * ⚠️ WHAT IS PROMISED DEPENDS ON THE WIDTH, BECAUSE THE FONT DOES. A 10px mono cell is
+   * 6.62px in Chromium and Firefox and 6.78px in WebKit, tracking included. At 390px the label
+   * box is 52.92px, so seven cells fit everywhere; at 320px it is 39.75px, so five fit
+   * everywhere and a sixth only in Chromium. A syllable up to that length is never split.
+   * Every word of seven letters or more carries a soft hyphen at both widths — the assertion
+   * a helper that returns its input unchanged fails.
+   */
+  const LONG_NAMES = [
+    ['Terracotta / Blush', 'Lavender / Indigo', 'Tangerine', 'Turquoise', 'Magenta / Burgundy'],
+    ['Fuchsia', 'Mustard', 'Blush / Fuchsia', 'Burgundy', 'Tangerine / Rust'],
+  ] as const
+  /** The longest syllable a rail line holds on every engine, by page width. */
+  const SAFE_SYLLABLE: Readonly<Record<number, number>> = { 390: 7, 320: 5 }
+
+  /** Serve the fixture garment with `names` as its colourway names, in row order. */
+  const serveNames = (page: Page, names: readonly string[]) =>
+    page.route('**/api/public/viewer/**', async (route) => {
+      const response = await route.fetch()
+      const body = (await response.json()) as {
+        colourways?: { slug: string; displayName: string }[]
+        selectedColourway?: { slug: string; displayName: string } | null
+      }
+      body.colourways?.forEach((colourway, index) => {
+        colourway.displayName = names[index] ?? colourway.displayName
+      })
+      const selected = body.colourways?.find((c) => c.slug === body.selectedColourway?.slug)
+      if (body.selectedColourway && selected) {
+        body.selectedColourway.displayName = selected.displayName
+      }
+      await route.fulfill({ response, json: body })
+    })
+
+  for (const width of [390, 320] as const) {
+    for (const [set, names] of LONG_NAMES.entries()) {
+      test(`long colour names break only at a soft hyphen at ${width}px (set ${set + 1}, SZ-06)`, async ({
+        page,
+      }) => {
+        await serveNames(page, names)
+        await page.setViewportSize({ width, height: 812 })
+        await page.goto('/n001/wine')
+        await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+        const report = await page.evaluate(railBreaks, SAFE_SYLLABLE[width] ?? 0)
+        expect(report.labels, 'the live names never reached the rail').toEqual([...names])
+        expect(report.unhyphenated, 'a word of seven letters or more has no soft hyphen').toEqual(
+          [],
+        )
+        expect(report.split, `a syllable that fits a ${width}px line was broken inside`).toEqual([])
+        expect(
+          report.brokenAtShy,
+          'no name broke across lines, so this test exercised nothing',
+        ).toBeGreaterThan(0)
+        test.info().annotations.push({
+          type: `SZ-06 ${width}px set ${set + 1}`,
+          description: `syllables too long for a line, broken by the safety net: ${report.oversize.join(', ') || 'none'}`,
+        })
+
+        const tabs = page.getByRole('tab')
+        await expect(tabs).toHaveCount(names.length)
+        for (const [index, name] of names.entries()) {
+          await expect(
+            tabs.nth(index),
+            'a tab is named by the plain colour name',
+          ).toHaveAccessibleName(name)
+        }
+      })
+    }
+  }
+
+  test('the syllable instrument sees a word split inside itself (negative control)', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await page.evaluate(() => {
+      const label = document.querySelector<HTMLElement>('.colourway-tab__label')
+      if (!label) throw new Error('no rail label on the page')
+      label.textContent = 'Blush'
+      label.style.width = '20px'
+    })
+    const report = await page.evaluate(railBreaks, 7)
+    expect(report.split, 'a five-letter word forced onto three lines was not reported').toContain(
+      'Blush (in Blush)',
+    )
   })
 })
 

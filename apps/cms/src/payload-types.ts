@@ -511,6 +511,14 @@ export interface Event {
    * Coarse, truncated user-agent. No IP is stored.
    */
   ua?: string | null;
+  /**
+   * Page speed (web vitals only): milliseconds until the largest element painted.
+   */
+  lcpMs?: number | null;
+  /**
+   * Page steadiness (web vitals only): the layout-shift score for the visit.
+   */
+  cls?: number | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -852,6 +860,8 @@ export interface EventsSelect<T extends boolean = true> {
   placement?: T;
   message?: T;
   ua?: T;
+  lcpMs?: T;
+  cls?: T;
   updatedAt?: T;
   createdAt?: T;
 }

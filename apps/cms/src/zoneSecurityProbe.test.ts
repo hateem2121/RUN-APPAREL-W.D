@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MEDIA_CORP,
   TARGETS,
   classifyHandshake,
   evaluate,
   parseHsts,
+  samplesFromPayload,
 } from '../../../scripts/zone-security-probe.mjs'
 
 /**
@@ -147,12 +149,21 @@ describe('evaluate — negative controls, each reproducing a real defect', () =>
  * rulesets, so this probe is the one thing that notices them going. Each negative control
  * is the exact state measured before the rule existed.
  */
-const healthyMedia = () => ({
+const mediaHeaders = () => ({
   ...healthy('media.wear-run.help'),
   hstsStatus: 404, // the root of the media host is itself a miss
   cacheControl: 'no-store',
   timingAllowOrigin: 'https://viewer.wear-run.help',
   expectMedia: true,
+})
+
+/** The same host with a poster and a model measured too, as a browser's GET gets them (IM-13). */
+const healthyMedia = () => ({
+  ...mediaHeaders(),
+  posterStatus: 200,
+  posterCorp: 'same-site' as string | null,
+  modelStatus: 200,
+  modelCorp: 'same-site' as string | null,
 })
 
 describe('evaluate — the media host (Rank 8)', () => {
@@ -246,6 +257,164 @@ describe('evaluate — what must NOT be read as a pass', () => {
     ])
     expect(result.measured).toBe(1)
     expect(result.ok).toBe(true)
+  })
+})
+
+/**
+ * IM-13 (2026-09-17). What keeps our pictures off other websites is the CORP header one
+ * Cloudflare Transform Rule adds — the WAF rule matches `.glb` alone, and images are
+ * deliberately not gated (docs/CLOUDFLARE-SETUP.md). A page on another site drew nothing in
+ * Chromium, Firefox and WebKit that day, because of this header, and nothing in the
+ * repository could see the rule go.
+ */
+describe('evaluate — pictures and models refuse other sites (IM-13)', () => {
+  it('passes when a poster and a model both answer same-site', () => {
+    expect(MEDIA_CORP).toBe('same-site')
+    const result = evaluate([healthyMedia()])
+    expect(result.ok).toBe(true)
+    expect(result.failures).toEqual([])
+    expect(result.lines.join('\n')).toContain('poster CORP same-site ok')
+    expect(result.lines.join('\n')).toContain('model CORP same-site ok')
+  })
+
+  it('FAILS on a poster answered with no CORP header, and names the rule to restore', () => {
+    // The planted fault: the header is simply gone, which is what deleting the rule does.
+    const result = evaluate([{ ...healthyMedia(), posterCorp: null }])
+    expect(result.ok).toBe(false)
+    const text = result.failures.join(' ')
+    expect(text).toContain('IM-13')
+    expect(text).toContain('(none)')
+    expect(text).toContain('media headers')
+    expect(text).toContain('docs/CLOUDFLARE-SETUP.md')
+  })
+
+  it('FAILS on a model that became cross-origin', () => {
+    const result = evaluate([{ ...healthyMedia(), modelCorp: 'cross-origin' }])
+    expect(result.ok).toBe(false)
+    expect(result.failures.join(' ')).toContain(
+      'a model answered cross-origin-resource-policy: cross-origin',
+    )
+  })
+
+  it('reads a 403 on a sample as Bot Fight Mode, never as a pass or a failure', () => {
+    const result = evaluate([{ ...healthyMedia(), posterStatus: 403, posterCorp: null }])
+    expect(result.ok).toBe(true)
+    expect(result.inconclusive.join(' ')).toContain('Bot Fight Mode')
+  })
+
+  it('reads a sample that does not exist as inconclusive, not as a header verdict', () => {
+    const result = evaluate([{ ...healthyMedia(), modelStatus: 404, modelCorp: null }])
+    expect(result.ok).toBe(true)
+    expect(result.inconclusive.join(' ')).toContain('the model answered HTTP 404')
+  })
+
+  it('reads an unreadable payload as NOT a pass', () => {
+    const unreadable = 'the live payload answered HTTP 503'
+    const result = evaluate([
+      { ...mediaHeaders(), posterError: unreadable, modelError: unreadable },
+    ])
+    expect(result.ok).toBe(true)
+    expect(result.failures).toEqual([])
+    expect(result.inconclusive.filter((note) => note.includes('NOT a pass'))).toHaveLength(2)
+  })
+
+  it('does not count a sample nobody measured as a pass', () => {
+    const result = evaluate([{ ...mediaHeaders(), modelStatus: 200, modelCorp: 'same-site' }])
+    expect(result.failures).toEqual([])
+    expect(result.inconclusive.join(' ')).toContain('no poster was measured')
+  })
+
+  it('asks no other host for either header', () => {
+    const result = evaluate([
+      { ...healthy('cms.wear-run.help'), posterCorp: null, modelCorp: null },
+    ])
+    expect(result.ok).toBe(true)
+    expect(result.inconclusive).toEqual([])
+  })
+
+  /**
+   * M5 (2026-09-23). Before this, IM-13 sat INSIDE the HSTS success path, so a 403
+   * on media.wear-run.help's own HSTS read (Bot Fight Mode, say) — or a missing
+   * header, or a short max-age, or even TLS 1.2 itself failing — meant the poster
+   * and model CORP lines never printed AT ALL, with no line of their own saying
+   * so. Each of these plants a DIFFERENT reason evaluate() used to give up before
+   * reaching IM-13; all four must still show the poster/model verdict.
+   */
+  it.each([
+    ['a 403 on the HSTS read (Bot Fight Mode)', { hstsStatus: 403, hstsHeader: null }],
+    ['no HSTS header at all', { hstsHeader: null }],
+    ['an HSTS max-age below one year', { hstsHeader: 'max-age=300; includeSubDomains' }],
+    ['HSTS missing includeSubDomains', { hstsHeader: 'max-age=63072000' }],
+  ])(
+    'never silently skips IM-13 just because the HSTS read had a problem: %s',
+    (_label, override) => {
+      const result = evaluate([{ ...healthyMedia(), ...override }])
+      expect(result.lines.join('\n')).toContain('poster CORP same-site ok')
+      expect(result.lines.join('\n')).toContain('model CORP same-site ok')
+    },
+  )
+
+  it('never silently skips IM-13 even when TLS 1.2 itself never connected', () => {
+    // The most extreme gate: this host told the TLS probe nothing at all, and
+    // IM-13's own poster/model fetch is a plain HTTPS GET, an entirely different
+    // mechanism that may have succeeded regardless.
+    const result = evaluate([{ ...healthyMedia(), tls12: 'unknown' }])
+    expect(result.lines.join('\n')).toContain('poster CORP same-site ok')
+    expect(result.lines.join('\n')).toContain('model CORP same-site ok')
+  })
+})
+
+describe('samplesFromPayload (IM-13)', () => {
+  const live = {
+    product: {
+      glbUrl: 'https://media.wear-run.help/x-milo-pro-skin-suit-2026-09-03-optimized.glb',
+    },
+    selectedColourway: { poster: { url: 'https://media.wear-run.help/rxps-wine-poster.webp' } },
+  }
+
+  it('takes the poster and the model the viewer really loads', () => {
+    expect(samplesFromPayload(live)).toEqual({
+      poster: 'https://media.wear-run.help/rxps-wine-poster.webp',
+      model: 'https://media.wear-run.help/x-milo-pro-skin-suit-2026-09-03-optimized.glb',
+    })
+  })
+
+  it.each([
+    ['a payload with no model', { ...live, product: { glbUrl: null } }],
+    ['a payload with no poster', { ...live, selectedColourway: null }],
+    ['an error body', { error: 'not_found' }],
+    ['nothing at all', null],
+    [
+      'a poster served from another host',
+      {
+        ...live,
+        selectedColourway: { poster: { url: 'https://cms.wear-run.help/api/media/file/x.webp' } },
+      },
+    ],
+    [
+      'a relative address',
+      { ...live, selectedColourway: { poster: { url: '/api/media/file/x.webp' } } },
+    ],
+  ])('refuses %s rather than measuring the wrong thing', (_label, body) => {
+    expect(samplesFromPayload(body)).toHaveProperty('error')
+  })
+
+  it('falls back to the colourway glbUrl in separate-file mode, where product.glbUrl is null by construction (M5)', () => {
+    // projectViewer.ts:139/164 — separateMode puts the model on the COLOURWAY and
+    // leaves product.glbUrl null on purpose. The "no model" case above still
+    // resolves to an error, because THAT fixture's selectedColourway carries no
+    // glbUrl at all — this is the genuinely-present case the fallback exists for.
+    const separateFileMode = {
+      product: { glbUrl: null },
+      selectedColourway: {
+        poster: { url: 'https://media.wear-run.help/rxps-wine-poster.webp' },
+        glbUrl: 'https://media.wear-run.help/rxps-wine.glb',
+      },
+    }
+    expect(samplesFromPayload(separateFileMode)).toEqual({
+      poster: 'https://media.wear-run.help/rxps-wine-poster.webp',
+      model: 'https://media.wear-run.help/rxps-wine.glb',
+    })
   })
 })
 
