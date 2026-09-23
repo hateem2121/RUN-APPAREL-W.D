@@ -666,6 +666,19 @@ describe('the notch', () => {
       /['"]\/(products|contact)['"]/,
     )
   })
+
+  it('switches between the phone menu and the inline bar at the fitted boundary (Phase 1b-B)', () => {
+    // Fitted on the live site 2026-09-23 (the plan's appendix B): 720px, or earlier when the
+    // reader's text is large enough that the inline row would cut the name; and a second row
+    // for the button when even name + button do not fit. Range syntax, so the phone and wide
+    // blocks are exact complements with no fractional gap between them.
+    const flat = barCss().replace(/\s+/g, ' ')
+    expect(flat).toContain('@media (width < 720px), (width < calc(184px + 14.9rem))')
+    expect(flat).toContain('@media (width >= 720px) and (width >= calc(184px + 14.9rem))')
+    expect(flat).toContain('@media (width < calc(114px + 7.25rem))')
+    // the old rule, fitted to two inline links, is gone
+    expect(flat).not.toContain('calc(80px + 14.9rem)')
+  })
 })
 
 describe('findability', () => {

@@ -381,83 +381,31 @@
  * ------------------------------- the bar at large browser text (audit FA-E-03)
  *
  * ⚠️ THE COMPANY'S NAME WAS BEING CUT OFF ON THE COMMONEST PHONE WIDTHS. Measured
- * 2026-09-07 in Chromium and Firefox, identically, on `/`:
+ * 2026-09-07 in Chromium and Firefox on `/`: at 150% text on a 390px phone the name needed
+ * 173px and got 141px, because everything in the bar is in `rem` and the bar is not. WCAG
+ * 1.4.4 asks for 200% without loss of content. Until Phase 1b-B the answer was a second row
+ * for the links, fitted to "name + two inline links".
  *
- *   text size   320px          390px          430px          768px
- *   100%        115/115 ok     ok             ok             ok
- *   125%        144/96  CUT    ok             ok             ok
- *   150%        173/71  CUT    173/141 CUT    ok             ok
- *   200%        230/19  CUT    230/89  CUT    230/129 CUT    ok
+ * ⚠️ SINCE PHASE 1b-B THE MENU IS THE ANSWER, and its boundary follows text size, not
+ * pixels. Fitted on the live site 2026-09-23, binary-searching the narrowest width at which
+ * the name is whole, one row, per root size:
  *
- * (scrollWidth/clientWidth of `.notch__wordmark`.) At 150% on a 390px phone the name
- * needs 173px and gets 141px. Nothing was wrong with the bar: the wordmark is `1rem` and
- * the two links are `0.625rem`, so all three grow with the reader's setting while the bar
- * stays the width of the viewport — the nav alone goes 130.3px -> 181.5px — and the
- * wordmark, the only shrinkable item, absorbs every pixel of it. WCAG 1.4.4 asks for 200%
- * without loss of content.
+ *   root size                      16    20    24    28    32    36    40    44    48    56
+ *   name + links + switch (inline) 382   441   501   560   620   679   775   835   893  1013
+ *   name + menu button             227   256   285   313   342   371   400
  *
- * ⚠️ THE FIX IS A SECOND ROW, NOT A SMALLER WORDMARK. Capping the font-size would trade a
- * clipped name for text that stops answering the reader's setting, which is the thing
- * 1.4.4 is actually about (FA-C-61 scores 10 for exactly that property). Squeezing the
- * padding was measured and is not enough either: every gap, pad and inline padding in the
- * bar together is ~28px against the 32px shortfall at 390px, and nothing at all at 320px,
- * where 173px is wanted and 71px exists.
- *
- * ⚠️ AND IT CANNOT BE LEFT TO `flex-wrap` ALONE, WHICH IS THE TRAP `nowrap` WAS PUT THERE
- * TO CLOSE. A wrapped bar is 120px where the page reserves 60, so the bar covers the top
- * of the hero — the failure recorded on `.notch`'s `flex-wrap: nowrap`. Both effects
- * therefore hang off ONE condition and the height follows from `--notch-lines`, so they
- * cannot drift.
+ * WebKit needs 3px more for the inline row at 16px (385); Firefox matches Chromium at 16 and
+ * 32. Above 720px the inline row follows `180.7px + 14.857rem` (every point within 0.6px), so
+ * the phone query adds `(width < calc(184px + 14.9rem))`: 2-5px early at every measured root,
+ * never late, and inert at the default size (422px < 720px). Name + button follow
+ * `111.6px + 7.208rem`, so the second row is `(width < calc(114px + 7.25rem))`.
  *
  * ⚠️ `rem` IN A MEDIA QUERY IS THE BROWSER'S DEFAULT FONT SIZE, NOT `html { font-size }`,
- * AND THAT IS THE WHOLE MECHANISM. It is what tracks the reader's text-size setting.
- * Verified both ways 2026-09-07 with a `@media (max-width: 20rem)` control at 350px: an
- * injected `html { font-size: 24px }` moved every length and left the query FALSE, while
- * Chrome's `Page.setFontSizes` and Firefox's `font.size.variable.x-western` moved both.
- * A test that fakes the setting with a stylesheet exercises none of this.
- *
- * ⚠️ THE THRESHOLD IS FITTED TO A MEASURED SWEEP, NOT GUESSED — AND WAS RE-FITTED ON 2026-09-11,
- * WHEN THE LINKS WENT FROM 10px TO 12px (audit TY-07). Binary-searching, one fresh page per width
- * with this rule switched off, the narrowest viewport at which the name fits on one row, per root
- * size, in Chromium:
- *
- *   root size          16    20    24    32    40    44    48    56
- *   below 360px       312   371   431   550   669                   (the temporary spacing above)
- *   360–720px         334   393   453   572   691
- *   720px and up                                   787   845   965
- *
- * i.e. `73.7px + 14.884rem`, `95.7px + 14.884rem` and `132.7px + 14.857rem`, every point within
- * 0.6px of its line. WebKit needs 3px more at the default size (315 and 337); Firefox matches
- * Chromium. The three clauses below round those up, so the bar wraps slightly before it would have
- * to and NEVER after; the widest over-trigger is under 8px. At 100% text the first clause resolves
- * to 318.4px, BELOW the 320px WCAG reflow width, and the second to 339.4px, below its own 360px
- * floor, so nothing on any real device wraps at the default text size. (The 2026-09-07 fit, with
- * 10px links: 313px at 16 and `95px + 13.625rem`.)
- *
- * `calc()` in a media feature was verified in Chromium, Firefox AND WebKit before this
- * was written, and `apps/cms/e2e/textSize.spec.ts` re-measures the outcome — clipping and
- * hero clearance — across the whole sweep rather than trusting this arithmetic.
+ * AND THAT IS THE WHOLE MECHANISM. It is what tracks the reader's text-size setting;
+ * verified both ways 2026-09-07. A test that fakes the setting with a stylesheet exercises
+ * none of this — `apps/cms/e2e/textSize.spec.ts` uses the real setting (CDP in Chromium, a
+ * profile preference in Firefox) and asserts the layout this table predicts.
  */
-@media (max-width: calc(80px + 14.9rem)), (min-width: 360px) and (max-width: calc(101px + 14.9rem)),
-  (min-width: 720px) and (max-width: calc(138px + 14.9rem)) {
-  :root {
-    --notch-lines: 2;
-  }
-
-  .notch {
-    flex-wrap: wrap;
-    /* Stated, not inherited from `gap`: the 720px block above sets `gap: 8px`, and
-       `--notch-h` has to know the row gap exactly or the clearance is 8px out. */
-    row-gap: var(--notch-row-gap);
-  }
-
-  .notch__wordmark {
-    /* A full line of its own, so the nav is pushed to the second row rather than the
-       wordmark shrinking into an ellipsis. `overflow: hidden` and the ellipsis stay in
-       force for a CMS wordmark longer than one line — that degradation is deliberate. */
-    flex-basis: 100%;
-  }
-}
 
 .nav-link:active,
 .notch__wordmark:active,
@@ -586,8 +534,8 @@
 }
 
 @supports selector(:popover-open) {
-  /* Phones. Task 5 of Phase 1b-B adds the reader's text size to this query and the next. */
-  @media (width < 720px) {
+  /* Phones — and any width too narrow for the inline row at the reader's text size (below). */
+  @media (width < 720px), (width < calc(184px + 14.9rem)) {
     /* A button in the notch must invert (the comment above): volt on ink. */
     .notch__menu-btn {
       display: inline-flex;
@@ -648,7 +596,7 @@
   }
 
   /* Wide screens: the SAME list, inline — the browser's hide rule undone. */
-  @media (width >= 720px) {
+  @media (width >= 720px) and (width >= calc(184px + 14.9rem)) {
     .notch__menu {
       display: flex;
       align-items: center;
@@ -663,6 +611,29 @@
       background: none;
       color: inherit;
       overflow: visible;
+    }
+  }
+
+  /*
+   * ⚠️ THE ONE PLACE A SECOND ROW SURVIVES. On a narrow phone at very large text even the
+   * name and the 44px button do not fit one row: measured 2026-09-23 on the live site, they
+   * need `111.6px + 7.208rem` (227px at the 16px default, 342px at 200%), so at 320-345px
+   * and ~190% text or more the name would be cut. The button drops to a second row there,
+   * and `--notch-lines` moves the bar's height, the page's clearance (site.css) and the open
+   * menu's top together — the one dial the comment on :root describes.
+   */
+  @media (width < calc(114px + 7.25rem)) {
+    :root {
+      --notch-lines: 2;
+    }
+
+    .notch {
+      flex-wrap: wrap;
+      row-gap: var(--notch-row-gap);
+    }
+
+    .notch__wordmark {
+      flex-basis: 100%;
     }
   }
 }
