@@ -149,6 +149,10 @@ test.describe('FA-O-13 — nothing is stored, and nothing is told', () => {
    * one chat widget, one font served from a CDN, and that published sentence becomes
    * untrue with nothing failing. This is the test that makes it a statement about the
    * code rather than about a Tuesday.
+   *
+   * A plain visit still keeps NOTHING. Pressing the light/dark switch keeps one key,
+   * `run-theme`, which the privacy page names; `e2e/themeSwitch.spec.ts` holds a press to
+   * exactly that key.
    */
   test('no cookies, no device storage, and nobody else is contacted', async ({ page, context }) => {
     const thirdParty: string[] = []

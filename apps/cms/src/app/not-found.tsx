@@ -11,6 +11,7 @@ import type { Metadata, Viewport } from 'next'
 import Link from 'next/link'
 import { SiteFooter } from '../components/site/SiteFooter'
 import { SiteHeader } from '../components/site/SiteHeader'
+import { ThemeBoot } from '../components/site/ThemeBoot'
 import { FALLBACK_SITE_SETTINGS } from '../lib/projectPublic'
 import { THEME_COLOR } from '../lib/themeColor'
 
@@ -84,9 +85,12 @@ export const viewport: Viewport = { themeColor: THEME_COLOR }
 export default function NotFound() {
   const wordmark = DEFAULT_SITE_SETTINGS.temporaryWordmark
 
+  // suppressHydrationWarning: ThemeBoot sets data-theme on <html> before React hydrates it.
+  // It silences that one element; its children are still checked.
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
+        <ThemeBoot />
         <a className="skip-link" href="#main">
           Skip to main content
         </a>

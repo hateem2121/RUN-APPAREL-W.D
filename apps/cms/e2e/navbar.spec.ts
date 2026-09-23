@@ -564,7 +564,7 @@ test.describe('keyboard', () => {
     expect(inMain).toBe(true)
   })
 
-  test('tab order is skip link, wordmark, then the two nav links', async ({
+  test('tab order is skip link, wordmark, the two nav links, then the switch', async ({
     page,
     browserName,
   }) => {
@@ -574,11 +574,11 @@ test.describe('keyboard', () => {
     )
     await page.goto('/')
     const order: string[] = []
-    for (let index = 0; index < 4; index++) {
+    for (let index = 0; index < 5; index++) {
       await page.keyboard.press('Tab')
       order.push(await page.evaluate(() => document.activeElement?.className ?? ''))
     }
-    expect(order).toEqual(['skip-link', 'notch__wordmark', 'nav-link', 'nav-link'])
+    expect(order).toEqual(['skip-link', 'notch__wordmark', 'nav-link', 'nav-link', 'theme-toggle'])
   })
 })
 

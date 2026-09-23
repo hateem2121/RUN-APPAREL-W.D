@@ -1727,8 +1727,8 @@ a.contact-block__value:active {
 /*
  * ⚠️ AN OS THEME SWITCH AT SUNSET FLIPPED THE WHOLE PAGE IN ONE FRAME — near-white ground
  * to near-black, measured `instant: true` with `body`'s transition at the browser default
- * of 0s (audit FA-R-05). There is no toggle on this site; it follows the OS through
- * `light-dark()`, so this is the only place the change can be eased.
+ * of 0s (audit FA-R-05). This eases the OS switching; since Phase 1b-B the switch in the bar
+ * cross-fades the whole page itself (a view transition, as in the viewer).
  *
  * `--settle` is the locked 500ms entrance duration; no new value. Guarded rather than
  * left to base.css's blanket reduced-motion collapse, because a colour transition on the

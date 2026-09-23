@@ -589,7 +589,8 @@
     }
 
     /* Full-width rows, 44px tall, as the owner approved them. */
-    .notch__menu:popover-open .nav-link {
+    .notch__menu:popover-open .nav-link,
+    .notch__menu:popover-open .theme-toggle {
       width: 100%;
       justify-content: flex-start;
     }
@@ -635,6 +636,88 @@
     .notch__wordmark {
       flex-basis: 100%;
     }
+  }
+}
+
+/*
+ * THE THEME SWITCH, IN THE BAR — owner decision 2026-09-17 ("the theme switch sits INSIDE the
+ * bar"; in the phone menu on 2026-09-23). The viewer's control, restyled for the bar: the bar
+ * is dark in BOTH themes, so the switch takes the bar's text colour (14.47:1 light, 9.53:1
+ * dark, measured 2026-09-17) and inverts WITHIN the bar on hover — the page's own
+ * `--text`/`--bg` inversion would be ink on ink here, the trap the comment on buttons in the
+ * notch describes. The border stays `--line`, exactly as the owner's approved pictures show it.
+ * `flex-shrink: 0` is what makes the 44px a floor (docs/DESIGN.md §4, Targets).
+ */
+.notch .theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--target-min);
+  height: var(--target-min);
+  border-radius: var(--radius-pill);
+  border: 1.4px solid var(--line);
+  color: var(--notch-text);
+  transition:
+    scale var(--instant) var(--ease),
+    background-color var(--ui) var(--ease),
+    color var(--ui) var(--ease);
+}
+
+.notch .theme-toggle svg {
+  transition: transform var(--ui) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .notch .theme-toggle:hover {
+    background: var(--notch-text);
+    color: var(--notch-bg);
+  }
+
+  .notch .theme-toggle:hover svg {
+    transform: rotate(18deg);
+  }
+}
+
+/*
+ * WHICH FACE SHOWS FOLLOWS THE PAGE'S THEME, IN CSS: `data-theme` when the visitor chose,
+ * the phone's preference otherwise — the same two-step `.grain` uses in base.css. The hidden
+ * face is `display: none`, so it is out of the accessible name as well as out of sight.
+ */
+.theme-toggle__face {
+  display: inline-flex;
+}
+
+.theme-toggle__face--to-light {
+  display: none;
+}
+
+:root[data-theme="dark"] .theme-toggle__face--to-dark {
+  display: none;
+}
+
+:root[data-theme="dark"] .theme-toggle__face--to-light {
+  display: inline-flex;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-toggle__face--to-dark {
+    display: none;
+  }
+
+  :root:not([data-theme="light"]) .theme-toggle__face--to-light {
+    display: inline-flex;
+  }
+}
+
+/*
+ * ⚠️ WITH SCRIPTING OFF THE SWITCH IS NOT OFFERED. It needs script to work, and a button that
+ * does nothing when pressed is worse than none. `scripting: none` was measured to apply under
+ * Playwright's `javaScriptEnabled: false` in Chromium, WebKit and Firefox (2026-09-23).
+ */
+@media (scripting: none) {
+  .notch .theme-toggle {
+    display: none;
   }
 }
 

@@ -255,6 +255,10 @@ test.describe('RUN APPAREL 3D viewer', () => {
     })
     // Also written inside the deferred `apply()`, so read it only after the
     // attribute has landed — reading first would race the same frame.
+    expect(
+      await page.evaluate(() => Object.keys(localStorage)),
+      'a press kept more than the one key the privacy page names',
+    ).toEqual(['run-theme'])
     const stored = await page.evaluate(() => localStorage.getItem('run-theme'))
     expect(stored).toBe('dark')
     await page.reload()

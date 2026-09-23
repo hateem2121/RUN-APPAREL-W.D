@@ -1,6 +1,7 @@
 import { SITE_MENU_ID, SITE_MENU_NAME, SITE_NAV_LABEL } from '@run-apparel/shared'
 import Link from 'next/link'
 import { NavLinks } from './NavLinks'
+import { ThemeSwitch } from './ThemeSwitch'
 
 /**
  * The menu bar — the public site's only navigation, and since Phase 1b-B the 3D viewer's too:
@@ -37,18 +38,18 @@ import { NavLinks } from './NavLinks'
  * for every catalogue reference removed. It renders one field, so it takes one field.
  * `publicSite.test.ts` pins both that signature and the absence of a client directive.
  *
- * Theme needs no script either: tokens.css sets `color-scheme: light dark` and every
- * colour is `light-dark()`, so the bar is correct in both themes on first paint.
+ * THE THEME SWITCH (owner, 2026-09-17: "the theme switch sits INSIDE the bar") is the one
+ * other client island, ThemeSwitch.tsx, with no props. Its name and icon are chosen by CSS
+ * from the page's theme, so the server's HTML is right before any script runs.
  *
- * ⚠️ IF YOU EVER ADD A THEME TOGGLE HERE, READ THIS FIRST. Inspected the production
- * build 2026-09-05: lightningcss DOWNLEVELS `light-dark()` into
- * `var(--lightningcss-light,<a>) var(--lightningcss-dark,<b>)` plus two
- * `@media (prefers-color-scheme: …)` blocks that switch which half is live. That
- * polyfill keys off the MEDIA QUERY, not off computed `color-scheme` — so the
- * `:root[data-theme="dark"]` override in tokens.css, which works in dev against native
- * `light-dark()`, moves nothing in the built CSS. A toggle would appear to work locally
- * and do nothing in production. The viewer's toggle is unaffected: it is a different
- * build (Vite) with its own pipeline.
+ * ⚠️ THIS PARAGRAPH SAID THE BUILT CSS WOULD IGNORE `data-theme`, and it was not measured
+ * against the build. It read: Lightning CSS downlevels `light-dark()` into
+ * `var(--lightningcss-light,<a>) var(--lightningcss-dark,<b>)` switched by
+ * `@media (prefers-color-scheme)`, so `:root[data-theme="dark"]` "moves nothing in the built
+ * CSS". Measured 2026-09-23: Lightning CSS compiles that rule to ALSO set
+ * `--lightningcss-light: ; --lightningcss-dark: initial`, the viewer's production stylesheet
+ * carries exactly that, and this site's build (Phase 1b-B, Task 0) does too.
+ * e2e/themeSwitch.spec.ts clicks the switch in the BUILT site and measures the page it paints.
  */
 export function SiteHeader({ wordmark }: { wordmark: string }) {
   return (
@@ -69,6 +70,7 @@ export function SiteHeader({ wordmark }: { wordmark: string }) {
           </button>
           <div className="notch__menu" id={SITE_MENU_ID} popover="auto">
             <NavLinks />
+            <ThemeSwitch />
           </div>
         </nav>
       </div>

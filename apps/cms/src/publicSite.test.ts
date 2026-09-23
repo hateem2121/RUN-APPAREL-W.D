@@ -809,15 +809,17 @@ describe('location and contrast cues', () => {
     )
   })
 
-  it('keeps the client boundary to the links alone', () => {
+  it('keeps the client boundary to the links and the switch, neither taking a prop', () => {
     // SiteHeader must stay a server component: Next serialises every prop of a client
     // component into the HTML, which is how the whole settings global — catalogueUrl
     // included — reached the page source on 2026-09-05.
     expect(code(site('SiteHeader.tsx'))).not.toMatch(/'use client'/)
     expect(code(site('SiteFooter.tsx'))).not.toMatch(/'use client'/)
-    expect(read(site('NavLinks.tsx')).startsWith("'use client'")).toBe(true)
-    // NavLinks takes no props at all, so there is nothing to serialise
-    expect(code(site('NavLinks.tsx'))).toMatch(/export function NavLinks\(\)/)
+    for (const island of ['NavLinks', 'ThemeSwitch']) {
+      expect(read(site(`${island}.tsx`)).startsWith("'use client'"), island).toBe(true)
+      // no props at all, so there is nothing to serialise
+      expect(code(site(`${island}.tsx`))).toMatch(new RegExp(`export function ${island}\\(\\)`))
+    }
   })
 })
 
