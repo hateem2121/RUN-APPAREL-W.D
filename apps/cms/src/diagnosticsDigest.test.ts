@@ -2,6 +2,11 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
+import {
+  FLAG_BELOW,
+  LOW_VOLUME_LOADS,
+  summarizeModelLoadRate,
+} from '../../../scripts/model-load-digest.mjs'
 
 /**
  * The weekly diagnostics digest's SQL, run against real SQLite.
@@ -41,6 +46,7 @@ function commandOf(stepName: string): string {
 const DIGEST = commandOf('Read the last 7 days of diagnostics')
 const GROWTH = commandOf('Measure events growth')
 const VITALS = commandOf('Read the last 7 days of page speed')
+const MODELS = commandOf('Read the last 7 days of model loads')
 
 // Production's DDL, as read from D1's sqlite_master on 2026-09-11.
 const EVENTS_DDL = `CREATE TABLE events (
@@ -271,5 +277,171 @@ describe('page speed query (PF-05b)', () => {
     expect(issueStep).toContain("steps.vitals.outputs.visits != '0'")
     expect(issueStep).toContain('"$VITALS_SUMMARY"')
     expect(issueStep).toContain('Page speed could not be read this week')
+  })
+})
+
+/**
+ * MODEL LOAD RATE, PER DAY (RO-11, this batch). `viewer_page_loaded` fires on every
+ * page open; `model_loaded` only once the GLB decoded. A gap between the two is the
+ * failure mode a QR scan cannot recover from unassisted, and until now nothing
+ * re-checked it recurringly — a one-off read of production (2026-09-23,
+ * `d1_database_query`, `rows_written: 0`) confirmed the finding but proved nothing
+ * about tomorrow.
+ *
+ * 85% is a MEASURED threshold — see the workflow step's own comment for the full
+ * derivation against that same 2026-09-23 read: three full days were 100%, the
+ * lowest double-digit-traffic day was 54.8%, and nothing sat between 85% and 100%.
+ */
+const day = (dateStr: string, loads: number, models: number, extra: Partial<Row> = {}): Row[] =>
+  [
+    ...Array.from({ length: loads }, () => ({
+      type: 'analytics',
+      event: 'viewer_page_loaded',
+      createdAt: `${dateStr}T12:00:00.000Z`,
+      ...extra,
+    })),
+    ...Array.from({ length: models }, () => ({
+      type: 'analytics',
+      event: 'model_loaded',
+      createdAt: `${dateStr}T12:00:01.000Z`,
+      ...extra,
+    })),
+  ] as Row[]
+
+describe('model load rate query (RO-11)', () => {
+  it('reports each day, in order, with its raw loads/models counts', () => {
+    // Both days sit safely inside the 7-day window (today minus 2 and 3 days), so
+    // neither is dropped as a partial edge day by the CALLER — this query itself
+    // reports every day it finds; edge-trimming is the node script's job, tested
+    // separately below against the workflow's actual JS.
+    const twoDaysAgo = new Date(Date.now() - 2 * DAY).toISOString().slice(0, 10)
+    const threeDaysAgo = new Date(Date.now() - 3 * DAY).toISOString().slice(0, 10)
+    const rows = query(MODELS, [...day(threeDaysAgo, 10, 6), ...day(twoDaysAgo, 4, 4)])
+    expect(rows).toEqual([
+      { day: threeDaysAgo, loads: 10, models: 6 },
+      { day: twoDaysAgo, loads: 4, models: 4 },
+    ])
+  })
+
+  it('leaves out checks we ran ourselves', () => {
+    const twoDaysAgo = new Date(Date.now() - 2 * DAY).toISOString().slice(0, 10)
+    const rows = query(MODELS, [
+      ...day(twoDaysAgo, 5, 5),
+      ...day(twoDaysAgo, 20, 1, { ua: OUR_AUDIT }),
+    ])
+    expect(rows).toEqual([{ day: twoDaysAgo, loads: 5, models: 5 }])
+  })
+
+  it('looks back exactly seven days', () => {
+    const eightDaysAgo = new Date(Date.now() - 8 * DAY).toISOString().slice(0, 10)
+    const twoDaysAgo = new Date(Date.now() - 2 * DAY).toISOString().slice(0, 10)
+    const rows = query(MODELS, [...day(eightDaysAgo, 40, 1), ...day(twoDaysAgo, 4, 4)])
+    expect(rows).toEqual([{ day: twoDaysAgo, loads: 4, models: 4 }])
+  })
+
+  it('ignores every other event, even one that sounds similar', () => {
+    const twoDaysAgo = new Date(Date.now() - 2 * DAY).toISOString().slice(0, 10)
+    const rows = query(MODELS, [
+      ...day(twoDaysAgo, 3, 3),
+      { type: 'diagnostic', event: 'model-load-error', createdAt: `${twoDaysAgo}T12:00:00.000Z` },
+    ])
+    expect(rows).toEqual([{ day: twoDaysAgo, loads: 3, models: 3 }])
+  })
+
+  it('answers a quiet week with no rows, not with nothing', () => {
+    expect(query(MODELS, [])).toEqual([])
+  })
+
+  it('reaches the weekly issue, and a failed read says so rather than hiding', () => {
+    const issueStep = WORKFLOW.slice(WORKFLOW.indexOf('- name: Open or update the digest issue'))
+    expect(issueStep).toContain("steps.models.outcome == 'failure'")
+    expect(issueStep).toContain("steps.models.outputs.days != '0'")
+    expect(issueStep).toContain('"$MODELS_SUMMARY"')
+    expect(issueStep).toContain('3D model load rate could not be read this week')
+  })
+})
+
+describe('model load rate — the summary and threshold logic (RO-11)', () => {
+  const WINDOW = { today: '2026-09-23', cutoff: '2026-09-16' }
+
+  it('flags a day under 85%, naming the date and the ratio', () => {
+    const { flagged, summary } = summarizeModelLoadRate(
+      [
+        { day: '2026-09-21', loads: 10, models: 5 }, // 50% — flagged
+        { day: '2026-09-22', loads: 20, models: 20 }, // 100% — clean
+        { day: WINDOW.today, loads: 1, models: 0 }, // partial edge day — excluded
+      ],
+      WINDOW,
+    )
+    expect(flagged).toEqual([{ day: '2026-09-21', loads: 10, models: 5 }])
+    expect(summary).toContain('2026-09-21: 5/10 (50%)')
+    expect(summary).not.toContain('2026-09-22')
+    expect(summary).not.toContain(WINDOW.today)
+  })
+
+  it('reports all-clean when every full day is at or above 85%', () => {
+    const { flagged, summary } = summarizeModelLoadRate(
+      [
+        { day: '2026-09-21', loads: 40, models: 40 },
+        { day: '2026-09-22', loads: 33, models: 33 },
+      ],
+      WINDOW,
+    )
+    expect(flagged).toEqual([])
+    expect(summary).toContain('2 full day(s) measured')
+    expect(summary).toContain('All full days at or above 85%')
+  })
+
+  it('drops the window’s own first and last calendar day as partial', () => {
+    const { fullDays } = summarizeModelLoadRate(
+      [
+        { day: WINDOW.cutoff, loads: 1, models: 0 },
+        { day: '2026-09-20', loads: 10, models: 10 },
+        { day: WINDOW.today, loads: 1, models: 0 },
+      ],
+      WINDOW,
+    )
+    expect(fullDays).toBe(1)
+  })
+
+  it('does not divide by zero on a full day with zero page loads', () => {
+    expect(() =>
+      summarizeModelLoadRate([{ day: '2026-09-20', loads: 0, models: 0 }], WINDOW),
+    ).not.toThrow()
+    const { flagged } = summarizeModelLoadRate([{ day: '2026-09-20', loads: 0, models: 0 }], WINDOW)
+    expect(flagged).toEqual([]) // excluded by loads > 0, not a false flag
+  })
+
+  it('answers a quiet week with a sentence, not an empty string', () => {
+    expect(summarizeModelLoadRate([], WINDOW).summary).toContain('no page-view data')
+    expect(summarizeModelLoadRate([], WINDOW).fullDays).toBe(0)
+  })
+
+  it('the 85% threshold is exported, not a magic number duplicated in tests', () => {
+    expect(FLAG_BELOW).toBe(0.85)
+  })
+
+  /**
+   * REAL DATA, not invented: read live 2026-09-23 (Cloudflare MCP `d1_database_query`,
+   * `rows_written: 0`) with this exact SQL. 2026-09-21 read 1/2 (50%) — one visitor's
+   * model failing to load, not a pattern — which is why a flagged day under
+   * `LOW_VOLUME_LOADS` gets an extra note rather than reading identically to a flagged
+   * 40-load day.
+   */
+  it('adds a small-sample note to a flagged day under LOW_VOLUME_LOADS, matching the live 2026-09-21 read', () => {
+    const { summary } = summarizeModelLoadRate([{ day: '2026-09-21', loads: 2, models: 1 }], {
+      today: '2026-09-23',
+      cutoff: '2026-09-16',
+    })
+    expect(summary).toContain('2026-09-21: 1/2 (50%)')
+    expect(summary).toContain('small sample')
+  })
+
+  it('does NOT add the small-sample note at or above LOW_VOLUME_LOADS', () => {
+    const { summary } = summarizeModelLoadRate(
+      [{ day: '2026-09-21', loads: LOW_VOLUME_LOADS, models: 1 }],
+      { today: '2026-09-23', cutoff: '2026-09-16' },
+    )
+    expect(summary).not.toContain('small sample')
   })
 })
