@@ -311,7 +311,7 @@ test.describe('the menu closes itself when the page moves on', () => {
   test('a link inside the menu closes it on the page it opens', async ({ page }) => {
     // Next keeps the layout — and this header — mounted across a navigation, and a tap
     // INSIDE a popover is not a tap outside it, so without NavLinks' effect the menu stays
-    // open over the next page (research-mobile-menu-2026-09.md, Q7).
+    // open over the next page.
     await page.setViewportSize({ width: 390, height: 800 })
     await page.goto('/')
     await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
