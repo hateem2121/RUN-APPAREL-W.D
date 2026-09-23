@@ -126,6 +126,7 @@ jobs:
           diagnostics-digest.yml:192:success:weekly on Mondays
           perf-watch.yml:192:success:weekly on Mondays
           lighthouse-live.yml:192:completed:weekly on Tuesdays, and after each deploy
+          r2-budget.yml:192:success:weekly on Mondays
           "
 
           # perf-watch.yml was NOT watched until 2026-08-30 — it could have stopped
