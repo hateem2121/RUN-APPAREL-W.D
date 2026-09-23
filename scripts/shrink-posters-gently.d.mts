@@ -53,7 +53,6 @@ export interface ColourwayRow {
   note: string
 }
 
-export declare const MEDIA_ORIGIN: string
 export declare const VEST: WebpSettings
 export declare const GENTLE_TRIMS: GentleTrim[]
 
@@ -67,3 +66,57 @@ export declare function repointedColourways(
 ): ColourwayRow[]
 export declare function readBackProblems(sent: ColourwayRow[], stored: ColourwayRow[]): string[]
 export declare function looksLikeInstructionText(key: string): boolean
+
+/**
+ * A verdict on a poster's CURRENT bytes against one GentleTrim, from
+ * `posterState` (`shrink-posters-gently.mjs`) — resolved through the real
+ * product/media relation, never a guessed filename: 'done' (already the approved
+ * trim), 'ready' (still the known original, safe to re-encode), or 'changed'
+ * (neither — stop).
+ */
+export type PosterVerdict = 'done' | 'ready' | 'changed'
+
+export interface PosterState {
+  state: PosterVerdict
+  /** Byte length of the CURRENT poster this was judged from. */
+  bytes: number
+  /** sha256 of the CURRENT poster this was judged from. */
+  sha256: string
+}
+
+export declare function posterState(bytes: Uint8Array, trim: GentleTrim): PosterState
+
+/** One colour's classification, carried alongside the trim it was judged against. */
+export interface TrimState extends PosterState {
+  trim: GentleTrim
+}
+
+export interface ProductWritePlan {
+  /** Colours still needing a re-encode/upload this run. */
+  toTrim: TrimState[]
+  /** Colours already at the approved bytes — left untouched. */
+  alreadyDone: TrimState[]
+  /** One message per 'changed' colour; non-empty means apply() must stop. */
+  problems: string[]
+  /** False only when every colour is 'done' — a second full run is a no-op. */
+  needsWrite: boolean
+}
+
+export declare function planProductWrite(states: TrimState[]): ProductWritePlan
+
+/** A Media document as listed at `depth=0` — only the fields this script reads. */
+export interface MediaListing {
+  id: number | string
+  filename?: string
+  url?: string
+}
+
+export declare function candidateUploads(
+  mediaDocs: MediaListing[],
+  trim: GentleTrim,
+): { id: number | string; url: string }[]
+
+export declare function findExistingUpload(
+  mediaDocs: MediaListing[],
+  trim: GentleTrim,
+): Promise<{ id: number | string; url: string } | null>

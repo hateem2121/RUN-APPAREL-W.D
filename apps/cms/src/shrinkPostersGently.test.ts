@@ -1,11 +1,15 @@
 import zlib from 'node:zlib'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { OWNER_EXCEPTIONS } from '../../../scripts/poster-sizes.mjs'
 import {
+  candidateUploads,
   type ColourwayRow,
+  findExistingUpload,
   GENTLE_TRIMS,
   idOf,
   looksLikeInstructionText,
+  planProductWrite,
+  posterState,
   readBackProblems,
   reencode,
   reencodeProblems,
@@ -347,5 +351,185 @@ describe('looksLikeInstructionText', () => {
 
   it('accepts an opaque token', () => {
     expect(looksLikeInstructionText('7f3a9c2e5b1d8f4a6c0e2b9d1f5a3c7e')).toBe(false)
+  })
+})
+
+// ---- fix round 1 (2026-09-23): the CURRENT poster is read through the live
+// product/media relation, never a guessed filename — see posterState, which both
+// dryRun() and apply() now use to classify it, and findExistingUpload(), which
+// keeps a retry from uploading a duplicate. A real trim fixture (real bytes via
+// reencode(), never one of the seven live GENTLE_TRIMS rows) so these tests do not
+// silently start asserting production values.
+
+/** A GentleTrim-shaped fixture with freshly-computed, real original/approved bytes. */
+async function fixtureTrim(overrides: { product?: string; colour?: string } = {}) {
+  const original = await reencode(garment(120, 150), PIPELINE_PRESET)
+  const approved = await reencode(original, VEST)
+  const trim = {
+    product: overrides.product ?? 'r-test',
+    colour: overrides.colour ?? 'testcolour',
+    settings: VEST,
+    original: { bytes: original.length, sha256: sha256(original) },
+    approved: { bytes: approved.length, sha256: sha256(approved) },
+  }
+  return { trim, original, approved }
+}
+
+describe('posterState', () => {
+  it('is done when the bytes equal the approved trim', async () => {
+    const { trim, approved } = await fixtureTrim()
+    expect(posterState(approved, trim)).toEqual({
+      state: 'done',
+      bytes: approved.length,
+      sha256: sha256(approved),
+    })
+  })
+
+  it('is ready when the bytes equal the known original', async () => {
+    const { trim, original } = await fixtureTrim()
+    expect(posterState(original, trim)).toEqual({
+      state: 'ready',
+      bytes: original.length,
+      sha256: sha256(original),
+    })
+  })
+
+  it('is changed when the bytes match neither — what a guessed URL could never see', async () => {
+    const { trim } = await fixtureTrim()
+    const somethingElse = await reencode(garment(60, 75), VEST)
+    expect(posterState(somethingElse, trim)).toEqual({
+      state: 'changed',
+      bytes: somethingElse.length,
+      sha256: sha256(somethingElse),
+    })
+  })
+})
+
+describe('planProductWrite', () => {
+  // Hand-built states, not derived from posterState(): this describes ONLY the
+  // planning rule (what a set of already-known states should do), independent of
+  // how those states were classified.
+  const a = {
+    product: 'p',
+    colour: 'a',
+    settings: VEST,
+    original: { bytes: 1, sha256: 'orig-a' },
+    approved: { bytes: 1, sha256: 'appr-a' },
+  }
+  const b = {
+    product: 'p',
+    colour: 'b',
+    settings: VEST,
+    original: { bytes: 1, sha256: 'orig-b' },
+    approved: { bytes: 1, sha256: 'appr-b' },
+  }
+
+  it('needs no write when every colour is already done — a second full run is a polite no-op', () => {
+    const states = [
+      { trim: a, state: 'done' as const, bytes: 1, sha256: 'appr-a' },
+      { trim: b, state: 'done' as const, bytes: 1, sha256: 'appr-b' },
+    ]
+    const plan = planProductWrite(states)
+    expect(plan.needsWrite).toBe(false)
+    expect(plan.toTrim).toEqual([])
+    expect(plan.alreadyDone).toEqual(states)
+    expect(plan.problems).toEqual([])
+  })
+
+  it('needs a write when at least one colour is still ready, leaving done colours out of it', () => {
+    const states = [
+      { trim: a, state: 'done' as const, bytes: 1, sha256: 'appr-a' },
+      { trim: b, state: 'ready' as const, bytes: 5, sha256: 'orig-b' },
+    ]
+    const plan = planProductWrite(states)
+    expect(plan.needsWrite).toBe(true)
+    expect(plan.toTrim).toEqual([states[1]])
+    expect(plan.alreadyDone).toEqual([states[0]])
+    expect(plan.problems).toEqual([])
+  })
+
+  it('a changed colour stops the whole product, naming actual vs both expected bytes and sha256', () => {
+    const states = [{ trim: a, state: 'changed' as const, bytes: 999, sha256: 'unknown-hash' }]
+    const plan = planProductWrite(states)
+    expect(plan.needsWrite).toBe(false)
+    expect(plan.toTrim).toEqual([])
+    expect(plan.problems).toEqual([
+      'a: current poster is 999 B (unknown-hash) — neither the approved trim (1 B, appr-a) nor ' +
+        'the known original (1 B, orig-a). It changed since this was written — re-run the dry ' +
+        'run first.',
+    ])
+  })
+})
+
+describe('candidateUploads', () => {
+  it('narrows by the naming convention only, never by bytes — findExistingUpload verifies those', async () => {
+    const { trim } = await fixtureTrim({ product: 'r-asb', colour: 'blush' })
+    const docs = [
+      {
+        id: 1,
+        filename: 'r-asb-blush-poster.webp',
+        url: 'https://media.wear-run.help/r-asb-blush-poster.webp',
+      },
+      {
+        id: 2,
+        filename: 'r-asb-blush-poster-1.webp',
+        url: 'https://media.wear-run.help/r-asb-blush-poster-1.webp',
+      },
+      {
+        id: 3,
+        filename: 'r-asb-pebble-poster.webp',
+        url: 'https://media.wear-run.help/r-asb-pebble-poster.webp',
+      },
+      {
+        id: 4,
+        filename: 'r-wzu-blush-poster.webp',
+        url: 'https://media.wear-run.help/r-wzu-blush-poster.webp',
+      },
+      { id: 5, filename: 'r-asb-blush-poster-no-url.webp' },
+    ]
+    expect(candidateUploads(docs, trim)).toEqual([
+      { id: 1, url: 'https://media.wear-run.help/r-asb-blush-poster.webp' },
+      { id: 2, url: 'https://media.wear-run.help/r-asb-blush-poster-1.webp' },
+    ])
+  })
+})
+
+describe('findExistingUpload', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('reuses a candidate whose bytes already equal the approved trim — no re-upload needed', async () => {
+    const { trim, original, approved } = await fixtureTrim({ product: 'r-asb', colour: 'blush' })
+    const docs = [
+      { id: 1, filename: 'r-asb-blush-poster.webp', url: 'https://example.test/original.webp' },
+      { id: 2, filename: 'r-asb-blush-poster-1.webp', url: 'https://example.test/trimmed.webp' },
+    ]
+    // new Uint8Array(...), not the Buffer itself: @cloudflare/workers-types' ambient
+    // BodyInit does not accept this package's narrowed Buffer type — same class of
+    // gap as the Buffer#equals note above, sidestepped the same way, by not handing
+    // it a Buffer at all.
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === 'https://example.test/original.webp')
+        return new Response(new Uint8Array(original))
+      if (url === 'https://example.test/trimmed.webp') return new Response(new Uint8Array(approved))
+      throw new Error(`unexpected fetch ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(findExistingUpload(docs, trim)).resolves.toEqual({
+      id: 2,
+      url: 'https://example.test/trimmed.webp',
+    })
+  })
+
+  it('returns null when no candidate matches the approved bytes — a fresh upload is still needed', async () => {
+    const { trim, original } = await fixtureTrim({ product: 'r-asb', colour: 'blush' })
+    const docs = [
+      { id: 1, filename: 'r-asb-blush-poster.webp', url: 'https://example.test/original.webp' },
+    ]
+    // Still the ORIGINAL bytes, not the approved trim — a real "nothing to reuse yet" case.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(new Uint8Array(original))),
+    )
+    await expect(findExistingUpload(docs, trim)).resolves.toBeNull()
   })
 })

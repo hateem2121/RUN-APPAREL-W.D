@@ -1620,15 +1620,27 @@ The script that answers the median check above. `GENTLE_TRIMS` names the seven
 posters the owner looked at and approved on 2026-09-17 (`r-asb` blush and pebble;
 all five `r-wzu` colourways) with the exact settings for each — chosen by looking at
 the rendered picture, never by tuning against file size (root CLAUDE.md's standing
-rule). The dry run (the default, read-only) fetches each live poster and either
-finds it already at the approved bytes or re-encodes it in memory and checks the
-result against the approved sha256; nothing is uploaded. `--apply` asks for a CMS
-key with a hidden prompt (never on the command line — same reason as
-`scripts/apply-footer-facts.mjs`), uploads each re-encoded poster, repoints only
-`posterPreview` on the affected colourway rows, reads the product back and compares
-every field, then polls the public payload for up to 120 s before moving to the next
-product. It deletes nothing — the superseded poster media documents stay in the CMS
-for `scripts/find-orphan-media.mjs` to report once nothing references them.
+rule). Both the dry run and `--apply` always resolve a colour's CURRENT poster
+through its real product/media relation (never a guessed filename — a 2026-09-23
+fix, since a guessed name cannot see a Payload-suffixed re-upload), classify it as
+already-`done`, still-`ready` to trim, or `changed` since this was written, and stop
+naming the actual bytes/sha256 if it is the last of those. The dry run (the default,
+read-only) does this from the live viewer payload and either reports a colour
+already at the approved bytes or re-encodes it in memory and checks the result
+against the approved sha256; nothing is uploaded.
+
+**Re-running this is safe.** `--apply` asks for a CMS key with a hidden prompt
+(never on the command line — same reason as `scripts/apply-footer-facts.mjs`), then
+per product: skips any colour already at the approved bytes and, once every
+trimmed colour on a product is already done, sends no PATCH for it at all and says
+so. For a colour that still needs trimming, it checks the Media library for an
+upload a previous, half-finished run may already have made with the right bytes
+under a Payload-suffixed filename, and reuses it instead of uploading a duplicate.
+Only then does it upload, repoint `posterPreview` on the affected colourway rows,
+read the product back and compare every field, and poll the public payload for up
+to 120 s before moving to the next product. It deletes nothing — the superseded
+poster media documents stay in the CMS for `scripts/find-orphan-media.mjs` to
+report once nothing references them.
 
 **The owner runs this, only after the deploy that ships it**, from their own
 Terminal:

@@ -17,6 +17,16 @@
  * "Never" list): only the owner runs this with `--apply`, and only after the deploy
  * that ships scripts/poster-sizes.mjs — see docs/RUNBOOK.md for their exact command.
  *
+ * FIXED 2026-09-23: the CURRENT poster is always resolved through the live
+ * product/media relation (posterState(), fed from dryRun()'s viewer payload and
+ * apply()'s own Media read), never a guessed `<product>-<colour>-poster.webp`
+ * filename. A guessed name cannot see a Payload-suffixed re-upload ("-1", "-2", …),
+ * so the dry run could never observe a colour's own successful trim once
+ * `--apply` had run once, and a retry after a half-finished run could not tell an
+ * already-uploaded trim from a new job — findExistingUpload() now checks the
+ * Media library for one before uploading again, and planProductWrite() skips a
+ * PATCH entirely once every colour on a product is already 'done'.
+ *
  * Usage:
  *   node scripts/shrink-posters-gently.mjs           # dry run: fetches the 7 live
  *                                                     # posters, re-encodes them in
@@ -40,7 +50,6 @@ const require = createRequire(join(REPO, 'tools/asset-pipeline/package.json'))
 const sharp = require('sharp')
 
 const API_BASE = (process.env.CMS_API_BASE || 'https://cms.wear-run.help').replace(/\/+$/, '')
-export const MEDIA_ORIGIN = 'https://media.wear-run.help'
 /** `let`, not `const`: the hidden prompt in apply() assigns it when unset. */
 let API_KEY = process.env.CMS_API_KEY || ''
 const APPLY = process.argv.includes('--apply')
@@ -314,6 +323,111 @@ export function looksLikeInstructionText(key) {
   return /\s/.test(key) || /paste|placeholder|your[-\w]*key|real[-_]?key|[<>]/i.test(key)
 }
 
+/**
+ * Classify a poster's CURRENT bytes against one GENTLE_TRIMS entry — judged by
+ * sha256 only, never by size or name, so a same-length coincidence can never be
+ * mistaken for a match:
+ *   'done'    already the approved trimmed bytes — nothing to do
+ *   'ready'   still the known original, pre-trim bytes — safe to re-encode
+ *   'changed' neither — something else is live; stop rather than guess
+ *
+ * Fix, 2026-09-23: the CURRENT poster must always be resolved through the real
+ * product/media relation (dryRun()'s live viewer payload, apply()'s own Media
+ * read) and handed to this function as bytes — never guessed from a filename,
+ * which cannot see a Payload-suffixed re-upload ("-1", "-2", …) and so could never
+ * observe a colour's own successful trim.
+ *
+ * @param {Buffer | Uint8Array} bytes
+ * @param {import('./shrink-posters-gently.d.mts').GentleTrim} trim
+ * @returns {{ state: 'done' | 'ready' | 'changed', bytes: number, sha256: string }}
+ */
+export function posterState(bytes, trim) {
+  const digest = sha256(bytes)
+  const state =
+    digest === trim.approved.sha256 ? 'done' : digest === trim.original.sha256 ? 'ready' : 'changed'
+  return { state, bytes: bytes.length, sha256: digest }
+}
+
+/**
+ * The message for a 'changed' classification — named once so dryRun() and
+ * planProductWrite() report the exact same thing for the exact same fault, naming
+ * the actual bytes/sha256 against BOTH known values rather than just saying
+ * "different".
+ *
+ * @param {import('./shrink-posters-gently.d.mts').GentleTrim} trim
+ * @param {{ bytes: number, sha256: string }} current
+ * @returns {string}
+ */
+function changedNote(trim, current) {
+  return (
+    `current poster is ${current.bytes} B (${current.sha256}) — neither the approved trim ` +
+    `(${trim.approved.bytes} B, ${trim.approved.sha256}) nor the known original ` +
+    `(${trim.original.bytes} B, ${trim.original.sha256}). It changed since this was written — ` +
+    're-run the dry run first.'
+  )
+}
+
+/**
+ * What a product's PATCH should do, decided from each of its colours' CURRENT
+ * state alone — no network, so "a second full run is a polite no-op" is provable
+ * without touching production. A 'changed' colour always stops the whole product
+ * (apply() exits rather than guessing); short of that, 'done' colours are left out
+ * of the write entirely and 'ready' colours are the ones that still need a
+ * re-encode/upload. `needsWrite` is false only when EVERY colour is already
+ * 'done' — the case a second `--apply` run hits, where the product should be left
+ * alone and the fact said plainly.
+ *
+ * @param {import('./shrink-posters-gently.d.mts').TrimState[]} states
+ * @returns {import('./shrink-posters-gently.d.mts').ProductWritePlan}
+ */
+export function planProductWrite(states) {
+  const problems = states
+    .filter((s) => s.state === 'changed')
+    .map((s) => `${s.trim.colour}: ${changedNote(s.trim, s)}`)
+  const toTrim = states.filter((s) => s.state === 'ready')
+  const alreadyDone = states.filter((s) => s.state === 'done')
+  return { toTrim, alreadyDone, problems, needsWrite: problems.length === 0 && toTrim.length > 0 }
+}
+
+/**
+ * Media docs whose filename COULD be a previous upload of this trim — by name
+ * only, never trusted alone. Payload suffixes a colliding filename ("-1", "-2", …),
+ * so this narrows a full Media listing down to the handful worth fetching and
+ * hashing; findExistingUpload() below is what actually verifies a match by bytes.
+ *
+ * @param {import('./shrink-posters-gently.d.mts').MediaListing[]} mediaDocs
+ * @param {import('./shrink-posters-gently.d.mts').GentleTrim} trim
+ * @returns {{ id: number | string, url: string }[]}
+ */
+export function candidateUploads(mediaDocs, trim) {
+  const prefix = `${trim.product}-${trim.colour}-poster`
+  return mediaDocs
+    .filter((doc) => String(doc.filename ?? '').startsWith(prefix) && doc.url)
+    .map((doc) => ({ id: doc.id, url: /** @type {string} */ (doc.url) }))
+}
+
+/**
+ * A prior, possibly interrupted `--apply` run may already have uploaded this
+ * exact trim under a Payload-suffixed filename ("-1", "-2", …). Reusing it instead
+ * of uploading again is what keeps a retry from creating a duplicate Media
+ * document for the same colour. Every candidate's BYTES are fetched and checked
+ * against the approved trim directly — the name only narrowed which candidates
+ * were worth fetching, it never decides the match.
+ *
+ * @param {import('./shrink-posters-gently.d.mts').MediaListing[]} mediaDocs
+ * @param {import('./shrink-posters-gently.d.mts').GentleTrim} trim
+ * @returns {Promise<{ id: number | string, url: string } | null>}
+ */
+export async function findExistingUpload(mediaDocs, trim) {
+  for (const candidate of candidateUploads(mediaDocs, trim)) {
+    const response = await fetch(candidate.url)
+    if (!response.ok) continue
+    const bytes = Buffer.from(await response.arrayBuffer())
+    if (sha256(bytes) === trim.approved.sha256) return candidate
+  }
+  return null
+}
+
 async function api(auth, method, pathname, body) {
   const response = await fetch(`${API_BASE}${pathname}`, {
     method,
@@ -350,69 +464,140 @@ function fail(response, doing) {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
- * The live URL for one GENTLE_TRIMS entry's poster, as a browser or QR scan loads
- * it — the same naming convention scripts/upload-posters.mjs uses.
+ * GENTLE_TRIMS, grouped by product — used by both dryRun() and apply() so every
+ * trimmed colour on a product is handled together (one viewer payload fetch, one
+ * PATCH), never one colour at a time.
+ *
+ * @param {import('./shrink-posters-gently.d.mts').GentleTrim[]} trims
+ * @returns {Map<string, import('./shrink-posters-gently.d.mts').GentleTrim[]>}
  */
-const liveUrl = (trim) => `${MEDIA_ORIGIN}/${trim.product}-${trim.colour}-poster.webp`
+function groupByProduct(trims) {
+  const byProduct = new Map()
+  for (const trim of trims) {
+    const list = byProduct.get(trim.product) ?? []
+    list.push(trim)
+    byProduct.set(trim.product, list)
+  }
+  return byProduct
+}
 
 /**
- * All network, no writes. Fetches each live poster once, and either finds it already
- * at the approved bytes ("done") or re-encodes the fetched bytes and checks the
- * result against the approved sha ("ready"). Never fetches by GUESSING what changed
- * — a poster whose live sha matches neither the known original nor the approved trim
- * is reported as a problem instead of silently re-encoded, because at that point this
- * script no longer knows what picture it is looking at.
+ * Every Media document, depth 0 — the same shape scripts/find-orphan-media.mjs
+ * already reads, and the only way this codebase searches Media at all: nothing
+ * here queries by a `where` filter on filename, so this does not invent one.
+ * Read-only; apply() calls it at most once per run, lazily, only once a colour
+ * actually needs a re-encode.
+ *
+ * @param {Record<string, string>} auth
+ * @returns {Promise<import('./shrink-posters-gently.d.mts').MediaListing[]>}
+ */
+async function fetchMediaIndex(auth) {
+  const docs = []
+  for (let page = 1; ; page++) {
+    const listed = await api(auth, 'GET', `/api/media?limit=100&depth=0&page=${page}`)
+    if (!listed.ok) return docs
+    docs.push(...(listed.json?.docs ?? []))
+    if (!listed.json?.hasNextPage) break
+  }
+  return docs
+}
+
+/**
+ * All network, no writes, no key. For each product, reads its live viewer payload
+ * ONCE — the same `GET /api/public/viewer/<product>` scripts/poster-sizes.mjs and
+ * this script's own apply() already read — and resolves each trimmed colour's
+ * poster through the REAL relation it carries.
+ *
+ * Fixed 2026-09-23: this used to build a guessed, unsuffixed filename, which could
+ * never observe a colour's own successful trim once Payload suffixed the upload
+ * ("-1", "-2", …) — so a correct `--apply` left the dry run reporting the OLD,
+ * orphaned file forever. Never fetches by GUESSING what changed — a poster whose
+ * bytes match neither the known original nor the approved trim is reported as a
+ * problem, because at that point this script no longer knows what picture it is
+ * looking at.
  */
 async function dryRun() {
   const rows = []
-  for (const trim of GENTLE_TRIMS) {
-    const url = liveUrl(trim)
-    const response = await fetch(url)
+  for (const [product, trims] of groupByProduct(GENTLE_TRIMS)) {
+    const response = await fetch(`${API_BASE}/api/public/viewer/${product}`)
     if (!response.ok) {
-      rows.push({ trim, url, status: 'problem', note: `poster answered ${response.status}` })
+      for (const trim of trims) {
+        rows.push({
+          trim,
+          url: null,
+          status: 'problem',
+          note: `viewer payload answered ${response.status}`,
+        })
+      }
       continue
     }
-    const contentType = response.headers.get('content-type') ?? ''
-    const liveBytes = Buffer.from(await response.arrayBuffer())
-    const liveSha = sha256(liveBytes)
-    if (!contentType.startsWith('image/webp')) {
-      rows.push({
-        trim,
-        url,
-        status: 'problem',
-        note: `content-type is "${contentType}", not image/webp`,
-      })
-      continue
-    }
-    if (liveSha === trim.approved.sha256) {
-      rows.push({ trim, url, status: 'done', note: `already ${trim.approved.bytes} B` })
-      continue
-    }
-    if (liveSha !== trim.original.sha256) {
-      rows.push({
-        trim,
-        url,
-        status: 'problem',
-        note: `live sha ${liveSha} matches neither the known original nor the approved trim — the poster changed since this task was written`,
-      })
-      continue
-    }
-    const result = await reencode(liveBytes, trim.settings)
-    const problems = await reencodeProblems(liveBytes, result)
-    const resultSha = sha256(result)
-    if (problems.length > 0) {
-      rows.push({ trim, url, status: 'problem', note: problems.join('; ') })
-    } else if (resultSha !== trim.approved.sha256) {
-      rows.push({
-        trim,
-        url,
-        status: 'problem',
-        note:
-          `re-encoded to ${result.length} B (${resultSha}), expected ${trim.approved.bytes} B ` +
-          `(${trim.approved.sha256})`,
-      })
-    } else {
-      rows.push({ trim, url, status: 'ready', note: `${liveBytes.length} B -> ${result.length} B` })
+    const body = await response.json()
+    const posterUrlByColour = new Map(
+      (body?.colourways ?? []).map((c) => [String(c.slug ?? ''), c.poster?.url]),
+    )
+    for (const trim of trims) {
+      const url = posterUrlByColour.get(trim.colour)
+      if (!url) {
+        rows.push({
+          trim,
+          url: null,
+          status: 'problem',
+          note: 'no poster url in the viewer payload',
+        })
+        continue
+      }
+      const posterResponse = await fetch(url)
+      if (!posterResponse.ok) {
+        rows.push({
+          trim,
+          url,
+          status: 'problem',
+          note: `poster answered ${posterResponse.status}`,
+        })
+        continue
+      }
+      const contentType = posterResponse.headers.get('content-type') ?? ''
+      if (!contentType.startsWith('image/webp')) {
+        rows.push({
+          trim,
+          url,
+          status: 'problem',
+          note: `content-type is "${contentType}", not image/webp`,
+        })
+        continue
+      }
+      const liveBytes = Buffer.from(await posterResponse.arrayBuffer())
+      const classified = posterState(liveBytes, trim)
+      if (classified.state === 'done') {
+        rows.push({ trim, url, status: 'done', note: `already ${trim.approved.bytes} B` })
+        continue
+      }
+      if (classified.state === 'changed') {
+        rows.push({ trim, url, status: 'problem', note: changedNote(trim, classified) })
+        continue
+      }
+      const result = await reencode(liveBytes, trim.settings)
+      const problems = await reencodeProblems(liveBytes, result)
+      const resultSha = sha256(result)
+      if (problems.length > 0) {
+        rows.push({ trim, url, status: 'problem', note: problems.join('; ') })
+      } else if (resultSha !== trim.approved.sha256) {
+        rows.push({
+          trim,
+          url,
+          status: 'problem',
+          note:
+            `re-encoded to ${result.length} B (${resultSha}), expected ${trim.approved.bytes} B ` +
+            `(${trim.approved.sha256})`,
+        })
+      } else {
+        rows.push({
+          trim,
+          url,
+          status: 'ready',
+          note: `${liveBytes.length} B -> ${result.length} B`,
+        })
+      }
     }
   }
   return rows
@@ -472,6 +657,14 @@ const readHidden = (promptText) =>
  * (GENTLE_TRIMS spans two: `r-asb`, two colourways; `r-wzu`, five), because
  * `colourways` PATCHes as one array per product — every trimmed colour on a product
  * goes in the SAME PATCH, never one PATCH per colour.
+ *
+ * Fixed 2026-09-23: the CURRENT poster is always read through the row's real
+ * `posterPreview` relation (never a guessed filename), classified with
+ * posterState() — done/ready/changed — and planned with planProductWrite() so a
+ * product whose colours are all already 'done' sends no PATCH at all. Before any
+ * upload, the Media library is checked for an existing upload that already carries
+ * the approved bytes (findExistingUpload()), so a retry after a half-finished run
+ * never uploads the same trim twice.
  */
 async function apply() {
   // Step 1: the key, hidden, never on the command line — see the file header.
@@ -501,14 +694,13 @@ async function apply() {
   API_KEY = key
   const auth = { Authorization: `users API-Key ${API_KEY}` }
 
-  const byProduct = new Map()
-  for (const trim of GENTLE_TRIMS) {
-    const list = byProduct.get(trim.product) ?? []
-    list.push(trim)
-    byProduct.set(trim.product, list)
-  }
+  // Fetched at most once, lazily, the first time a colour actually needs an
+  // upload — most runs (a clean first pass, or a full re-run once everything is
+  // 'done') never need it at all.
+  let mediaIndexPromise = null
+  const getMediaIndex = () => (mediaIndexPromise ??= fetchMediaIndex(auth))
 
-  for (const [product, trims] of byProduct) {
+  for (const [product, trims] of groupByProduct(GENTLE_TRIMS)) {
     console.log(`\n${product}:`)
 
     // Step 2.
@@ -525,67 +717,98 @@ async function apply() {
     }
     const rowBySlug = new Map((doc.colourways ?? []).map((row) => [String(row.slug ?? ''), row]))
 
-    const idsBySlug = new Map()
-    const newUrlByColour = new Map()
-
+    // Step 3: each trimmed colour's CURRENT poster, read through its REAL
+    // relation (never a guessed filename) and classified.
+    const currentBytesByColour = new Map()
+    const states = []
     for (const trim of trims) {
       const row = rowBySlug.get(trim.colour)
       if (!row) {
         console.error(`  no colourway "${trim.colour}" on ${product}`)
         process.exit(1)
       }
-
-      // Step 3: the row's CURRENT poster must be the live poster this was planned
-      // against — guards against a concurrent edit between the dry run and --apply.
       const media = await api(auth, 'GET', `/api/media/${idOf(row.posterPreview)}?depth=0`)
       if (!media.ok) return fail(media, `reading the current poster for ${trim.colour}`)
-      const expectedUrl = liveUrl(trim)
-      if (media.json?.url !== expectedUrl) {
-        console.error(
-          `  ${trim.colour}: live poster is ${media.json?.url}, expected ${expectedUrl} — ` +
-            'it changed since this was written. Stop, and re-run the dry run first.',
-        )
+      const currentUrl = media.json?.url
+      if (!currentUrl) {
+        console.error(`  ${trim.colour}: the current poster has no url. Stop.`)
         process.exit(1)
       }
+      const currentResponse = await fetch(currentUrl)
+      const currentBytes = Buffer.from(await currentResponse.arrayBuffer())
+      currentBytesByColour.set(trim.colour, currentBytes)
+      states.push({ trim, ...posterState(currentBytes, trim) })
+    }
 
-      const liveResponse = await fetch(expectedUrl)
-      const liveBytes = Buffer.from(await liveResponse.arrayBuffer())
-      const result =
-        sha256(liveBytes) === trim.approved.sha256
-          ? liveBytes
-          : await reencode(liveBytes, trim.settings)
+    const plan = planProductWrite(states)
+    if (plan.problems.length > 0) {
+      for (const problem of plan.problems) console.error(`  ${problem}`)
+      process.exit(1)
+    }
+    for (const done of plan.alreadyDone) {
+      console.log(`  ${done.trim.colour}: already ${done.trim.approved.bytes} B — nothing to do.`)
+    }
+    if (!plan.needsWrite) {
+      console.log(
+        `  ${product}: every trimmed colour is already at the approved bytes — nothing to write.`,
+      )
+      continue
+    }
+
+    const idsBySlug = new Map()
+    const newUrlByColour = new Map()
+
+    for (const { trim } of plan.toTrim) {
+      const row = rowBySlug.get(trim.colour)
+      const currentBytes = currentBytesByColour.get(trim.colour)
+      const result = await reencode(currentBytes, trim.settings)
       if (sha256(result) !== trim.approved.sha256) {
         console.error(`  ${trim.colour}: computed bytes do not match the approved trim. Stop.`)
         process.exit(1)
       }
 
-      // Step 4. Payload may add "-1" to the filename if one of this name already
-      // exists (it does — the current poster). That is fine; newDoc.url is read
-      // back, never assumed from the name sent.
-      const form = new FormData()
-      form.append('_payload', JSON.stringify({ alt: row.altText }))
-      form.append(
-        'file',
-        new File([result], `${product}-${trim.colour}-poster.webp`, { type: 'image/webp' }),
-      )
-      const uploadResponse = await fetch(`${API_BASE}/api/media`, {
-        method: 'POST',
-        headers: auth,
-        body: form,
-      })
-      const uploadBody = await uploadResponse.json()
-      if (uploadResponse.status >= 300) {
-        return fail({ status: uploadResponse.status, json: uploadBody }, `uploading ${trim.colour}`)
-      }
-      const newDoc = uploadBody.doc ?? uploadBody
+      // Before uploading: has a previous, possibly interrupted run already put
+      // this exact trim in the Media library under a Payload-suffixed filename?
+      // Reuse it rather than creating a second duplicate.
+      const existing = await findExistingUpload(await getMediaIndex(), trim)
+      let newDoc
+      if (existing) {
+        newDoc = existing
+        console.log(
+          `  ${trim.colour}: reusing existing upload ${existing.id} — bytes already match the approved trim.`,
+        )
+      } else {
+        // Step 4. Payload may add "-1" to the filename if one of this name
+        // already exists (it does — the current poster). That is fine; newDoc.url
+        // is read back, never assumed from the name sent.
+        const form = new FormData()
+        form.append('_payload', JSON.stringify({ alt: row.altText }))
+        form.append(
+          'file',
+          new File([result], `${product}-${trim.colour}-poster.webp`, { type: 'image/webp' }),
+        )
+        const uploadResponse = await fetch(`${API_BASE}/api/media`, {
+          method: 'POST',
+          headers: auth,
+          body: form,
+        })
+        const uploadBody = await uploadResponse.json()
+        if (uploadResponse.status >= 300) {
+          return fail(
+            { status: uploadResponse.status, json: uploadBody },
+            `uploading ${trim.colour}`,
+          )
+        }
+        newDoc = uploadBody.doc ?? uploadBody
 
-      // Step 5.
-      const readBack = await fetch(newDoc.url)
-      const readBackBytes = Buffer.from(await readBack.arrayBuffer())
-      if (sha256(readBackBytes) !== trim.approved.sha256) {
-        console.error(`  ${trim.colour}: uploaded, but the served bytes do not match. Stop.`)
-        console.error('  The product was NOT patched.')
-        process.exit(1)
+        // Step 5.
+        const readBack = await fetch(newDoc.url)
+        const readBackBytes = Buffer.from(await readBack.arrayBuffer())
+        if (sha256(readBackBytes) !== trim.approved.sha256) {
+          console.error(`  ${trim.colour}: uploaded, but the served bytes do not match. Stop.`)
+          console.error('  The product was NOT patched.')
+          process.exit(1)
+        }
       }
 
       idsBySlug.set(trim.colour, newDoc.id)
@@ -622,7 +845,9 @@ async function apply() {
         (publicBody.colourways ?? []).map((c) => [String(c.slug ?? ''), c.poster?.url]),
       )
       if (
-        trims.every((trim) => posterUrlBySlug.get(trim.colour) === newUrlByColour.get(trim.colour))
+        plan.toTrim.every(
+          ({ trim }) => posterUrlBySlug.get(trim.colour) === newUrlByColour.get(trim.colour),
+        )
       ) {
         caughtUp = true
         break
