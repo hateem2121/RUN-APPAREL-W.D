@@ -86,7 +86,11 @@ export const DEFAULT_GARMENT_NAME = 'Velocity Performance'
 export const EXPECTED_COLOURWAY_COUNT = 5
 
 const HEADING_SEARCH_LIMIT = 8
-const CONTROL_SEARCH_LIMIT = 60
+/** Items stepped through one at a time (VO-Right) from the top of the web content while
+ *  looking for the colourway tabs. The fixture page puts them in its first screen, well
+ *  inside this; the bound only turns a page that never announces them into a named
+ *  failure rather than a 30-minute job timeout. */
+const ITEM_SEARCH_LIMIT = 80
 
 /**
  * The macOS application name VoiceOver's `macOSActivate()` must bring to the front for
@@ -207,9 +211,14 @@ export function containsGarmentName(text, garmentName) {
  * (read directly from that file). `\btab\b` requires a word boundary on both sides, so
  * it matches "Wine, tab, 1 of 5" but not "tablet" or "tabular" — negative-controlled in
  * apps/cms/src/voiceOver.test.ts.
+ *
+ * "tab group" is the TABLIST's own role name, not a tab, so it is excluded: counted as a
+ * tab, the container announcement ("Select colorway, tab group") would pass for a second,
+ * not-selected tab and could turn one real tab into a pass. A phrase that carries both a
+ * real "tab," and a trailing "tab group" still matches, on the first.
  */
 export function isTabAnnouncement(itemText) {
-  return /\btab\b/i.test(String(itemText ?? ''))
+  return /\btab\b(?!\s+group)/i.test(String(itemText ?? ''))
 }
 
 /**
@@ -221,10 +230,12 @@ export function isTabAnnouncement(itemText) {
  * only when true and add nothing when false, never an explicit "not selected". Check (b)
  * below relies on exactly that asymmetry: the CURRENT tab must match this, and at least
  * one OTHER tab must not. The first real CI run is what confirms VoiceOver actually
- * follows that convention here — see the module header.
+ * follows that convention here — see the module header. Should a later VoiceOver ever
+ * speak "not selected", that reads as NOT selected rather than matching on the word
+ * inside it ("unselected" never matches: `\b` finds no boundary inside the word).
  */
 export function isAnnouncedSelected(itemText) {
-  return /\bselected\b/i.test(String(itemText ?? ''))
+  return /(?<!\bnot\s)\bselected\b/i.test(String(itemText ?? ''))
 }
 
 /** One PASS/FAIL line. Every result line states what ran it, that it approximates and
@@ -508,48 +519,46 @@ export async function runChecks({ voiceOver, garmentName }) {
       : `no level-1 heading announcing "${garmentName}" found within ${HEADING_SEARCH_LIMIT} headings walked forward`,
   })
 
-  // Check (b) must start from a known position, not wherever the search above left the
-  // cursor. MEASURED 2026-09-23: when that forward search does not find the heading, it
-  // does not fail loudly — VoiceOver stops ADVANCING at the last heading on the page
-  // (its own spoken phrase says "Last heading") and stays there for every further
-  // nextHeading() call. Starting the control search from that position walks forward
-  // from near the BOTTOM of the page, which cannot exhibit the colourway tabs (they sit
-  // near the top, by the product identity) regardless of whether they are otherwise
-  // reachable — so a failure measured from there proves nothing about the tabs
-  // themselves. If the forward search above already found the heading, the cursor is
-  // already the right place and this is a no-op; otherwise it searches BACKWARD with the
-  // identical predicate, using `previousHeading()` — the documented reverse of
-  // `nextHeading()` on the same `VoiceOver` class, not a new or unverified command.
-  let atKnownHeading = headingFoundForward
-  for (let i = 0; !atKnownHeading && i < HEADING_SEARCH_LIMIT; i++) {
-    await voiceOver.previousHeading()
-    const { spokenPhrase } = await record(`backward heading candidate ${i + 1}`)
-    if (isGarmentHeading(spokenPhrase)) atKnownHeading = true
-  }
-
-  // Check (b): colourway tabs.
-  const tabTexts = []
-  for (let i = 0; i < CONTROL_SEARCH_LIMIT; i++) {
-    await voiceOver.perform(voiceOver.keyboardCommands.findNextControl)
-    const { itemText: controlItemText } = await record(`control candidate ${i + 1}`)
-    if (isTabAnnouncement(controlItemText)) {
-      tabTexts.push(controlItemText)
-      if (tabTexts.length >= EXPECTED_COLOURWAY_COUNT) break
+  // Check (b): the colourway tabs, walked the way a person reads the page — one item at
+  // a time (VO-Right), from the TOP of the web content, judged on the SPOKEN phrase as
+  // check (a) is.
+  //
+  // MEASURED 2026-09-23, runs 35860297572 and 35862712717. `findNextControl`
+  // (VO-Command-J) cannot find these tabs. Started from the product heading, which sits
+  // ABOVE the tablist in the two-column layout (App.tsx: `.stage__aside` renders
+  // <ProductIdentity> and then <ColourwayTabs>), it went straight to the "HOW WE BUILD YOUR
+  // PRODUCT" button in `.content` and then answered "Last form element" every time.
+  // VoiceOver's form-control navigation does not stop on `role="tab"` buttons. Before
+  // that, started wherever a failed heading search left the cursor (the page's last
+  // heading), it could not have found them either, so both of the earlier readings of
+  // that failure were right about different runs.
+  //
+  // The TOP of the web content, not the heading, because in the one-column layout the
+  // heading renders in `.content`, BELOW the stage and its tablist, where a forward walk
+  // from it would never meet a tab.
+  await voiceOver.perform(voiceOver.keyboardCommands.moveToAreaTop)
+  await record('top of the web content (VO-Shift-Home)')
+  const tabPhrases = []
+  for (let i = 0; i < ITEM_SEARCH_LIMIT; i++) {
+    await voiceOver.next()
+    const { spokenPhrase } = await record(`item ${i + 1}`)
+    if (isTabAnnouncement(spokenPhrase)) {
+      tabPhrases.push(spokenPhrase)
+      if (tabPhrases.length >= EXPECTED_COLOURWAY_COUNT) break
     }
   }
-  const selectedTabs = tabTexts.filter(isAnnouncedSelected)
-  const unselectedTabs = tabTexts.filter((text) => !isAnnouncedSelected(text))
-  const tabsPass = tabTexts.length >= 2 && selectedTabs.length >= 1 && unselectedTabs.length >= 1
+  const selectedTabs = tabPhrases.filter(isAnnouncedSelected)
+  const unselectedTabs = tabPhrases.filter((text) => !isAnnouncedSelected(text))
+  const tabsPass = tabPhrases.length >= 2 && selectedTabs.length >= 1 && unselectedTabs.length >= 1
   results.push({
     name: 'colourway tabs announced as tabs, current one announced as selected',
     pass: tabsPass,
     message: tabsPass
-      ? `${tabTexts.length} tab(s) found; selected example: ${JSON.stringify(selectedTabs[0])}; ` +
+      ? `${tabPhrases.length} tab(s) found; selected example: ${JSON.stringify(selectedTabs[0])}; ` +
         `not-selected example: ${JSON.stringify(unselectedTabs[0])}`
-      : `found ${tabTexts.length} tab announcement(s) within ${CONTROL_SEARCH_LIMIT} controls ` +
-        `(need ≥2 tabs, ≥1 selected, ≥1 not selected), searched from ` +
-        `${atKnownHeading ? 'the garment heading' : 'an UNKNOWN position — neither the forward nor backward heading search found it'}: ` +
-        `${JSON.stringify(tabTexts)}`,
+      : `found ${tabPhrases.length} tab announcement(s) within ${ITEM_SEARCH_LIMIT} items read ` +
+        `from the top of the web content (need ≥2 tabs, ≥1 selected, ≥1 not selected): ` +
+        `${JSON.stringify(tabPhrases)}`,
   })
 
   return { results, fullLog }

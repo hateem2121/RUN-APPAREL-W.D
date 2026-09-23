@@ -281,6 +281,17 @@ describe('isTabAnnouncement', () => {
     expect(isTabAnnouncement('')).toBe(false)
     expect(isTabAnnouncement(undefined)).toBe(false)
   })
+
+  it('does not count the TABLIST itself ("tab group") as a tab — negative control', () => {
+    // ColourwayTabs.tsx's container is role="tablist", which VoiceOver names "tab group".
+    // Counted as a tab it would stand in for a second, not-selected tab.
+    expect(isTabAnnouncement('Select colorway, tab group')).toBe(false)
+    expect(isTabAnnouncement('Select colorway tab group')).toBe(false)
+  })
+
+  it('still counts a real tab whose phrase also names the group it sits in', () => {
+    expect(isTabAnnouncement('Wine, selected, tab, 1 of 5, Select colorway, tab group')).toBe(true)
+  })
 })
 
 describe('isAnnouncedSelected', () => {
@@ -296,6 +307,13 @@ describe('isAnnouncedSelected', () => {
     expect(isAnnouncedSelected('Blush, tab, 2 of 5')).toBe(false)
     expect(isAnnouncedSelected('')).toBe(false)
     expect(isAnnouncedSelected(undefined)).toBe(false)
+  })
+
+  it('reads "not selected" and "unselected" as NOT selected — negative control', () => {
+    // The convention is silence for a tab that is not selected, but a phrase that says so
+    // outright must not be counted as the current tab.
+    expect(isAnnouncedSelected('Blush, tab, not selected, 2 of 5')).toBe(false)
+    expect(isAnnouncedSelected('Blush, tab, unselected, 2 of 5')).toBe(false)
   })
 })
 
