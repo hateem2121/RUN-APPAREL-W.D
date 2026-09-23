@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { TRAINING_ONLY_UAS } from '../htmlLimitedBots.mjs'
-import { CONTENT_SIGNAL } from './lib/robotsTxt'
+import { agentsOf, CONTENT_SIGNAL, lower, robotsTxtGroups } from './lib/robotsTxt'
 
 /**
  * The viewer host's robots.txt is a static file (apps/viewer/public/robots.txt), while the
@@ -10,23 +10,16 @@ import { CONTENT_SIGNAL } from './lib/robotsTxt'
  * (2026-09-11), so this reads the viewer's file and fails when the two drift. Audit L-09:
  * measured live 2026-09-16, the viewer refused nobody, carried no signal and did not point
  * at the site's sitemap.
+ *
+ * The parsing helpers (`robotsTxtGroups`/`agentsOf`/`lower`) moved into `lib/robotsTxt.ts`
+ * (FI-07) so `scripts/public-security-probe.mjs` can check the LIVE file the same way
+ * this test checks the repo's copy, without a second robots.txt parser.
  */
 const text = readFileSync(
   fileURLToPath(new URL('../../viewer/public/robots.txt', import.meta.url)),
   'utf8',
 )
-const directives = (block: string) =>
-  block
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith('#'))
-const groups = text
-  .split(/\n\s*\n/)
-  .map(directives)
-  .filter((lines) => lines.some((line) => line.startsWith('User-agent:')))
-const agentsOf = (lines: string[]) =>
-  lines.filter((line) => line.startsWith('User-agent:')).map((line) => line.slice(11).trim())
-const lower = (list: readonly string[]) => list.map((item) => item.toLowerCase()).sort()
+const groups = robotsTxtGroups(text)
 const refused = groups.find((lines) => lines.includes('Disallow: /')) ?? []
 const wildcard = groups.find((lines) => agentsOf(lines).includes('*')) ?? []
 
