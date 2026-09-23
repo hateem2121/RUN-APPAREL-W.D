@@ -80,6 +80,9 @@ jobs:
       # both returned acf1a64cc26292ebe0db6a28d1341bd1bae93c65, and the ref's own
       # `object.type` is "commit" (not "tag") — this tag is not annotated, so there is no
       # tag-object indirection to fall into.
+      # Upstream's own tag is `0.21.0`, with no "v" — the `# v0.21.0` below is this
+      # repo's OWN comment convention (`workflowHardening.test.ts` requires the literal
+      # `# vX.Y.Z` form on every pin), not a claim that the tag is spelled that way.
       - name: Set up the VoiceOver automation environment
         uses: guidepup/setup-action@acf1a64cc26292ebe0db6a28d1341bd1bae93c65 # v0.21.0
 
@@ -116,6 +119,16 @@ jobs:
       # viewer fixture server" step — backgrounded and polled rather than slept for,
       # matching this repo's "poll a readiness endpoint, never sleep a fixed guess"
       # convention (ios-safari.mjs's startDriver).
+      #
+      # No PORT is set here, deliberately: serve.mjs defaults to 4173
+      # (`process.env.PORT ?? 4173`) and this job never sets one, so it always gets that
+      # default. This is UNLIKE `apps/viewer/playwright.config.ts`, which pins
+      # `env: { PORT: String(PORT) }` on its own webServer with a comment explaining why —
+      # that pin exists because a DEVELOPER'S SHELL may already export an unrelated `PORT`
+      # left over from another project, and without pinning it that value would be
+      # inherited instead of the fixture's own default. A GitHub-hosted runner starts with
+      # no ambient environment of that kind for every run, so there is nothing here for a
+      # pin to protect against.
       - name: Start the viewer fixture server
         run: |
           node apps/viewer/e2e/serve.mjs &
@@ -135,14 +148,24 @@ jobs:
       # for why — NODE_PATH does not reach an ESM import, measured on this repo's own dev
       # machine before relying on it here).
       #
-      # Versions and provenance, checked against the npm registry 2026-09-23:
+      # Supply-chain audit, per root CLAUDE.md's substitution for the 24h cooldown
+      # (b90ba70's Payload audit): npm bulk advisory API / GitHub Advisory Database,
+      # publisher is GitHub Actions OIDC rather than a personal token, signed provenance
+      # attestation present, no install script, and an unchanged dependency list. All
+      # five legs, checked against the npm registry 2026-09-23 (re-checked, both
+      # `registry.npmjs.org/-/npm/v1/security/advisories/bulk` and `api.osv.dev/v1/query`,
+      # during the pre-push fix round):
       #   @guidepup/guidepup@0.34.0 — published 2026-08-31 (23 days old). SLSA v1
       #     provenance attestation present; publisher is GitHub Actions OIDC (trustedPublisher
-      #     id "github"), not a personal token; no "install"/"postinstall" script.
+      #     id "github"), not a personal token; no "install"/"postinstall" script. Zero
+      #     advisories from either the npm bulk endpoint or OSV.dev. Depends on exactly two
+      #     packages, both small and well-known: debug@^4.4.3, plist@^4.0.0.
       #   playwright@1.63.0 — published 2026-09-04 (19 days old), the registry's "latest"
       #     dist-tag. Same provenance shape (SLSA v1, GitHub Actions OIDC publisher); no
       #     install/postinstall script — browser binaries are fetched by the explicit
-      #     `playwright install` step below, never automatically.
+      #     `playwright install` step below, never automatically. Zero advisories from
+      #     either source. Depends on exactly one package: playwright-core, pinned to the
+      #     identical 1.63.0 version (no version drift between the two).
       - name: Install Guidepup and Playwright for this run only
         run: |
           npm install --no-save --no-audit --no-fund \

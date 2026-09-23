@@ -56,8 +56,15 @@ export const VOICEOVER_CAVEAT =
   'WebKit window: it approximates, and never replaces, a person using VoiceOver. iPhone ' +
   'VoiceOver gestures are not covered — this is the desktop macOS screen reader only.'
 
+// FIX ROUND 1: this used to carry only the first of the brief's three required parts
+// ("real VoiceOver, GitHub macOS 26 runner"). "VoiceOver" names the SAME screen reader
+// on both macOS and iPhone, so a line pasted out of context — into a chat, an issue, a
+// summary — read as if it said something about iPhone VoiceOver coverage, which this
+// robot does not have. All three parts now appear on every PASS/FAIL line, terse but
+// complete: what ran it, what it does not claim, and what it does not cover.
 export const VOICEOVER_HONESTY_LABEL =
-  'real VoiceOver, GitHub macOS 26 runner — approximates a person'
+  'real VoiceOver, GitHub macOS 26 runner — approximates, never replaces, a person; ' +
+  'iPhone VoiceOver gestures not covered'
 
 // ─── Fixture-specific defaults ────────────────────────────────────────────────────────
 //
@@ -263,23 +270,75 @@ function removeMarker(markerId) {
 }
 
 /**
+ * The Item-Chooser dance inside `navigateToWebContent` below (cancel, close menus, open
+ * the chooser and confirm it opened, type "web content" one character at a time with a
+ * confirming read after each, back off and retry on a miss, Enter, interact, step to the
+ * first element — in this order, with the same 100ms delays between steps) is a PORT of
+ * `@guidepup/playwright`'s own `src/voiceOverTest.ts`, from the `guidepup/guidepup-playwright`
+ * GitHub repository, at tag `0.19.1`:
+ * https://github.com/guidepup/guidepup-playwright/blob/0.19.1/src/voiceOverTest.ts
+ *
+ * That file, and the package it is published as, carry the following licence, copied
+ * exactly from `LICENSE` in the same repository at the same tag
+ * (https://github.com/guidepup/guidepup-playwright/blob/0.19.1/LICENSE), reproduced here
+ * in full because what is ported below is a substantial portion of that file:
+ *
+ * MIT License
+ *
+ * Copyright (c) 2023 Craig Morten
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/**
  * Move the VoiceOver cursor into the page's web content, reliably, regardless of where
  * the cursor started.
  *
- * PORTED, not imported. This is a faithful adaptation of `@guidepup/playwright` 0.19.1's
- * own `src/voiceOverTest.ts` — the exact, current mechanism behind its documented
- * `voiceOver.navigateToWebContent()` fixture helper:
- * https://github.com/guidepup/guidepup-playwright/blob/0.19.1/src/voiceOverTest.ts
- * That helper is reachable only through Playwright's TEST RUNNER (`voiceOverTest`
- * attaches it to a fixture object `test.extend()` builds at test-start), and this repo's
- * other two device-lab robots (`scripts/android-chrome.mjs`, `scripts/ios-safari.mjs`)
- * are both plain `node`-invoked CLI scripts, not `playwright test` specs — so this
- * function reimplements the same, current, documented algorithm directly on
- * `@guidepup/guidepup`'s own public API (`voiceOver`, `macOSActivate`, `MacOSKeyCodes` —
- * all confirmed exported from `@guidepup/guidepup`'s `src/macOS/index.ts` at the pinned
- * 0.34.0 tag) plus a plain Playwright `Page` from the `playwright` package, which exposes
- * the identical `.bringToFront()` / `.locator()` / `.evaluate()` methods the original
- * closes over.
+ * HOW MUCH OF THIS IS VERBATIM. The command sequence is: it is the same VoiceOver
+ * commands, in the same order, with the same delays, as `voiceOverTest.ts` (0.19.1,
+ * licence above) — that helper is reachable only through Playwright's TEST RUNNER
+ * (`voiceOverTest` attaches it to a fixture object `test.extend()` builds at
+ * test-start), and this repo's other two device-lab robots
+ * (`scripts/android-chrome.mjs`, `scripts/ios-safari.mjs`) are both plain
+ * `node`-invoked CLI scripts, not `playwright test` specs, so the same algorithm had to
+ * be carried onto a plain function rather than left inside a fixture.
+ *
+ * EXACTLY THREE THINGS ARE DIFFERENT FROM THE ORIGINAL, and only these three:
+ *   1. **Bounded retries.** The original's two open-ended loops
+ *      (`while (true)` opening the Item Chooser, `while (!matched)` searching it) are
+ *      each capped here at `NAVIGATE_RETRY_LIMIT` attempts, throwing a named error on
+ *      exhaustion. In a CI job an unbounded loop is only ever stopped by the job's own
+ *      `timeout-minutes`, which reports as an opaque cancellation rather than a
+ *      diagnosable error — this does not change behaviour on the success path.
+ *   2. **Explicit parameters.** `voiceOver`, `macOSActivate`, `MacOSKeyCodes` and `page`
+ *      are ordinary function parameters here, not values closed over from a Playwright
+ *      fixture — there is no fixture in a plain CLI script.
+ *   3. **Dropped log housekeeping.** The original also clears VoiceOver's own
+ *      accumulated spoken-phrase/item-text logs around this dance and restores their
+ *      pre-navigation contents, so the item-chooser's own noise never appears in a
+ *      caller's `.spokenPhraseLog()`/`.itemTextLog()`. This script never calls those two
+ *      accumulating methods — `runChecks()` below reads `itemText()`/`lastSpokenPhrase()`
+ *      fresh after each of its own moves and builds its own transcript instead — so that
+ *      housekeeping has nothing to protect here and is dropped.
+ * Everything else — which commands, in which order, with which delays, and why the
+ * marker element and the character-by-character typing exist at all — is the original's,
+ * not reinvented.
  *
  * WHY IT IS THIS INVOLVED. VoiceOver reads OS focus, not the DOM — there is no direct
  * hand-off between "the browser navigated" and "the screen reader is looking at the right
@@ -289,14 +348,6 @@ function removeMarker(markerId) {
  * interact into it, then step to the first element. Skipping any of these steps is
  * exactly how an unmeasured shortcut would silently land the cursor on the browser's own
  * chrome — the tab bar, the address bar — instead of the page.
- *
- * SIMPLIFIED FROM THE ORIGINAL, DELIBERATELY: the original also clears VoiceOver's own
- * accumulated spoken-phrase/item-text logs around this dance and restores their
- * pre-navigation contents, so the item-chooser's own noise never appears in a caller's
- * `.spokenPhraseLog()`/`.itemTextLog()`. This script never calls those two accumulating
- * methods — `runChecks()` below reads `itemText()`/`lastSpokenPhrase()` fresh after each
- * of its own moves and builds its own transcript — so that housekeeping has nothing to
- * protect here and is omitted.
  */
 export async function navigateToWebContent({
   voiceOver,
@@ -454,6 +505,42 @@ export async function runChecks({ voiceOver, garmentName }) {
   return { results, fullLog }
 }
 
+/** Bounded so a page that never renders fails with a named, diagnosable error instead
+ *  of the item-chooser dance timing out forty steps later with no clue why. */
+const RENDER_WAIT_TIMEOUT_MS = 15_000
+
+/**
+ * FIX ROUND 1. Wait for the SPA to actually have rendered before VoiceOver goes
+ * hunting for web content.
+ *
+ * `page.goto(url, { waitUntil: 'load' })` resolves once the shell HTML/JS has arrived —
+ * apps/viewer is a client-rendered SPA (see App.tsx), so at that point React has not yet
+ * fetched the product payload or rendered the heading and colourway tabs check (a)/(b)
+ * are looking for. Without this wait, `navigateToWebContent` could start its Item
+ * Chooser search against an empty or loading page, which would read as this robot being
+ * broken rather than as the page still loading.
+ *
+ * Waits for the two elements the two real checks below actually need — the level-1
+ * heading (`apps/viewer/src/components/ProductIdentity.tsx`'s `<h1>`) and the colourway
+ * tablist (`apps/viewer/src/components/ColourwayTabs.tsx`'s `role="tablist"`) — rather
+ * than a generic "network idle" wait, which would still pass on a page that rendered an
+ * error state with neither element present.
+ */
+async function waitForPageToRender(page) {
+  try {
+    await page
+      .getByRole('heading', { level: 1 })
+      .waitFor({ state: 'visible', timeout: RENDER_WAIT_TIMEOUT_MS })
+    await page.getByRole('tablist').waitFor({ state: 'visible', timeout: RENDER_WAIT_TIMEOUT_MS })
+  } catch (error) {
+    throw new Error(
+      `The page never rendered its heading and colourway tablist within ` +
+        `${RENDER_WAIT_TIMEOUT_MS}ms of navigation — is the fixture server actually ` +
+        `serving product data for this URL? (${error.message})`,
+    )
+  }
+}
+
 // ─── CLI ────────────────────────────────────────────────────────────────────────────
 //
 // Run in CI once VoiceOver's environment is prepared and the two runtime deps are
@@ -482,7 +569,7 @@ async function main() {
     browser = await webkit.launch({ headless: false })
     const page = await browser.newPage()
     await page.goto(targetUrl, { waitUntil: 'load' })
-    await page.locator('body').waitFor()
+    await waitForPageToRender(page)
 
     await navigateToWebContent({
       voiceOver,
