@@ -58,6 +58,42 @@ const css = () => stripComments(read(FRONTEND, 'site.css'))
 const barCss = () =>
   stripComments(read(join(CMS_ROOT, '..', '..'), 'packages', 'ui', 'src', 'notch.css'))
 
+/**
+ * Rules that give the CLOSED menu list (`.notch__menu` as the subject, not `:popover-open`) a
+ * `display` outside the wide-screen block — the shape of mockup bug 1 (Phase 1b-B).
+ */
+function closedMenuDisplays(source: string): string[] {
+  const offenders: string[] = []
+  const stack: string[] = []
+  let start = 0
+  for (let index = 0; index < source.length; index++) {
+    const character = source[index]
+    if (character === '{') {
+      stack.push(source.slice(start, index).trim())
+      start = index + 1
+    } else if (character === '}') {
+      const selector = stack.pop() ?? ''
+      const body = source.slice(start, index)
+      start = index + 1
+      const closedList = selector.split(',').some((part) => {
+        const subject =
+          part
+            .trim()
+            .split(/[\s>+~]+/)
+            .pop() ?? ''
+        return /^\.notch__menu(?![\w-])/.test(subject) && !subject.includes(':popover-open')
+      })
+      const wide = stack.some(
+        (prelude) => prelude.startsWith('@media') && prelude.includes('width >= 720px'),
+      )
+      if (closedList && /(?:^|;)\s*display\s*:/.test(body) && !wide) {
+        offenders.push(selector.replace(/\s+/g, ' '))
+      }
+    }
+  }
+  return offenders
+}
+
 describe('the public site is indexable and the admin is not exposed by it', () => {
   it('the frontend layout derives robots from the switch and never hard-codes index', () => {
     // Until 2026-09-06 this asserted the ABSENCE of noindex: the pages exist to be
@@ -488,25 +524,47 @@ describe('the notch', () => {
     )
   })
 
-  it('needs no JavaScript to navigate — there is no disclosure to hydrate', () => {
-    // THE DEFECT THIS REPLACES. The bar used to hide its links behind a button whose
-    // open state lived in React: `.notch:not([data-open="true"]) .notch__nav` stayed in
-    // force until hydration, so with scripting disabled at 390px **0 of 2 links were
-    // reachable**, and likewise for the second or two before the bundle lands on a slow
-    // connection. Desktop never showed it.
-    //
-    // Two no-JS replacements were measured and rejected: `<details>` (CSS can reveal a
-    // closed one, but its links are absent from the accessibility tree and unreachable
-    // by keyboard in all three engines) and the checkbox pattern (announced as a
-    // checkbox). Removing the Catalogue CTA left two short links that FIT at every
-    // width, so the disclosure is gone rather than reimplemented.
+  it("keeps the phone menu free of JavaScript — the disclosure is the browser's own", () => {
+    // THE DEFECT THIS REPLACES (2026-09-05): a menu whose open state lived in React, so
+    // `.notch:not([data-open="true"]) .notch__nav` hid the links until hydration and 0 of
+    // 2 were reachable with scripting off. `<details>` and the checkbox pattern were measured
+    // and rejected the same day. The owner asked for a menu again on 2026-09-11: this one is
+    // `<button popovertarget>` + `popover="auto"` in the server's HTML, measured to open,
+    // close and navigate with scripting off in Chromium, WebKit and Firefox.
     const source = header()
     expect(source).not.toMatch(/'use client'/)
     expect(source).not.toMatch(/useState|useEffect|useRef/)
     expect(source).not.toMatch(/data-open/)
-    // and nothing in CSS may hide the links behind a state attribute again
+    expect(source).toMatch(/popoverTarget=\{SITE_MENU_ID\}/)
+    expect(source).toMatch(/id=\{SITE_MENU_ID\} popover="auto"/)
+    // The browser reports the open state itself; a hand-written one cannot follow it without
+    // script, and `menu` roles promise arrow-key behaviour a list of links does not have.
+    expect(source).not.toMatch(/aria-expanded|aria-haspopup|aria-controls|role="menu"/)
     expect(css() + barCss()).not.toMatch(/\.notch__nav\s*\{[^}]*visibility: hidden/)
     expect(css() + barCss()).not.toMatch(/data-open/)
+  })
+
+  it('gives the closed list no display of its own, except inline on a wide screen (mockup bug 1)', () => {
+    // An author `display` on a [popover] beats the browser's `[popover]:not(:popover-open)
+    // { display: none }` whatever the specificity (measured three engines, 2026-09-23): the
+    // mockup's inherited `.notch__nav { display: flex }` showed a "closed" menu open.
+    expect(closedMenuDisplays(barCss())).toEqual([])
+    // the matcher is not passing on nothing
+    expect(closedMenuDisplays('.notch__menu { display: flex; }')).toEqual(['.notch__menu'])
+    expect(
+      closedMenuDisplays('@media (width >= 720px) { .notch__menu { display: flex; } }'),
+    ).toEqual([])
+    expect(closedMenuDisplays('.notch__menu:popover-open { display: flex; }')).toEqual([])
+  })
+
+  it('sizes the open list by its two insets, never by the viewport (mockup bug 2)', () => {
+    // The browser styles [popover] `width: fit-content`; two insets alone gave 153-157px in
+    // three engines. `width: auto` is the cure; `100vw` includes a classic scrollbar.
+    const rule = /\.notch__menu:popover-open\s*\{[^}]*\}/.exec(barCss())?.[0] ?? ''
+    expect(rule, 'the open-menu rule is missing').not.toBe('')
+    expect(rule).toMatch(/inset-inline: 12px/)
+    expect(rule).toMatch(/width: auto/)
+    expect(barCss()).not.toMatch(/100vw/)
   })
 
   it('clears the fixed bar with a height derived from the bar, not a second guess', () => {
@@ -594,17 +652,19 @@ describe('the notch', () => {
     expect(barCss()).toMatch(/\.notch\s*\{[^}]*box-shadow: var\(--shadow-raised\)/)
   })
 
-  it('renders exactly ONE set of links, not a duplicate for mobile', () => {
-    // The popover route would need a second copy of the nav inside the popover, which a
-    // screen reader reads twice. There is one set, in one place.
-    //
-    // The links live in NavLinks.tsx since the current-page marker needed the pathname;
-    // this counts across BOTH files so moving them cannot quietly leave a copy behind.
-    const both =
+  it('renders exactly ONE set of links, from the one list both hosts share', () => {
+    // A popover must not carry a second copy of the nav (a screen reader reads it twice).
+    // Since Phase 1b-B the list lives in packages/shared, so the viewer's bar cannot drift.
+    const shared = code(join(CMS_ROOT, '..', '..'), 'packages', 'shared', 'src', 'siteBar.ts')
+    expect(shared.match(/href: '\/products'/g) ?? []).toHaveLength(1)
+    expect(shared.match(/href: '\/contact'/g) ?? []).toHaveLength(1)
+    const headerFiles =
       code(CMS_ROOT, 'src', 'components', 'site', 'SiteHeader.tsx') +
       code(CMS_ROOT, 'src', 'components', 'site', 'NavLinks.tsx')
-    expect(both.match(/href: '\/products'|href="\/products"/g) ?? []).toHaveLength(1)
-    expect(both.match(/href: '\/contact'|href="\/contact"/g) ?? []).toHaveLength(1)
+    expect(headerFiles).toMatch(/SITE_NAV_LINKS\.map/)
+    expect(headerFiles, 'a literal nav path in the header is a second copy').not.toMatch(
+      /['"]\/(products|contact)['"]/,
+    )
   })
 })
 

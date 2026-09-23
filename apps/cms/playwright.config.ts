@@ -61,6 +61,16 @@ export default defineConfig({
       testMatch: /fontSwap\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
+    /*
+     * WebKit for the menu bar's files: the engine behind iOS Safari, where a QR code scanned
+     * off a garment tag opens, and the owner's decision of 2026-09-11 asks for three engines.
+     * Scoped to these files for the reason Firefox's comment gives.
+     */
+    {
+      name: 'webkit',
+      testMatch: /(navbar|themeSwitch|siteBar)\.spec\.ts/,
+      use: { ...devices['Desktop Safari'] },
+    },
   ],
   webServer: {
     command: 'node e2e/prepare.mjs && node e2e/serve.mjs',

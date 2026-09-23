@@ -10,6 +10,7 @@ import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import type { Metadata, Viewport } from 'next'
 import Link from 'next/link'
 import { SiteFooter } from '../components/site/SiteFooter'
+import { SiteHeader } from '../components/site/SiteHeader'
 import { FALLBACK_SITE_SETTINGS } from '../lib/projectPublic'
 import { THEME_COLOR } from '../lib/themeColor'
 
@@ -57,6 +58,8 @@ import { THEME_COLOR } from '../lib/themeColor'
  * not. The shared defaults are the same values the CMS ships as its field defaults, so
  * the wordmark is identical in practice; if the owner ever renames the company it changes
  * here too, which `publicSite.test.ts` pins.
+ * The bar is the site's own SiteHeader (a server component taking this one string), so the
+ * 404 has the phone menu too — it was a hand-copied bar until Phase 1b-B.
  *
  * ⚠️ IT MUST NOT BE INDEXABLE. Next adds its own `noindex` to a not-found route, and the
  * `robots` below makes the second tag restrictive too — without it the page inherited
@@ -88,21 +91,7 @@ export default function NotFound() {
           Skip to main content
         </a>
 
-        <header className="notch-shell">
-          <div className="notch">
-            <Link className="notch__wordmark" href="/">
-              {wordmark}
-            </Link>
-            <nav className="notch__nav" aria-label="Main">
-              <Link className="nav-link" href="/products">
-                Products
-              </Link>
-              <Link className="nav-link" href="/contact">
-                Contact
-              </Link>
-            </nav>
-          </div>
-        </header>
+        <SiteHeader wordmark={wordmark} />
 
         <main id="main" className="site-main" tabIndex={-1}>
           <section className="site-hero">

@@ -324,9 +324,7 @@
 }
 
 /*
- * ⚠️ IF YOU EVER PUT A BUTTON BACK IN THE NOTCH, IT MUST INVERT. There is no button
- * here now — the owner removed the Catalogue CTA on 2026-09-05 — but the rule that
- * governed it is worth keeping, because the notch is a trap for buttons.
+ * ⚠️ A BUTTON IN THE NOTCH MUST INVERT, which is why the menu button below is volt on ink.
  *
  * `.btn--primary` is ink-background/volt-text in light mode, which is the same ink the
  * notch is painted in. Measured 2026-09-05: the button's computed background came back
@@ -339,39 +337,23 @@
  */
 
 /*
- * ⚠️ THERE IS NO MENU BUTTON, AND THAT IS THE FIX — 2026-09-05.
+ * ⚠️ THE PHONE MENU IS THE BROWSER'S OWN POPOVER — owner decisions 2026-09-11 (a menu button
+ * on phones: "in future we will add more pages") and 2026-09-23 (the Speed Lines icon).
  *
- * There was one: a real <button> with aria-expanded driving a `data-open` attribute,
- * plus Escape-to-close, click-outside and focus return. All of it correct, and all of
- * it dependent on React state — so `.notch:not([data-open="true"]) .notch__nav` stayed
- * in force until hydration. Measured: with JavaScript disabled at 390px, **0 of 2
- * navigation links were reachable**; on a slow connection the same holds for the second
- * or two before the bundle arrives. Desktop was unaffected, which is why it never
- * looked wrong.
+ * The menu deleted on 2026-09-05 was a real <button> with aria-expanded driving a `data-open`
+ * attribute — all React state, so with JavaScript off at 390px 0 of 2 links were reachable,
+ * and likewise before hydration. `<details>` revealed by CSS left its links out of the Tab
+ * order and the accessibility tree; the checkbox trick is announced as a checkbox.
  *
- * TWO REPLACEMENTS WERE TESTED AND REJECTED BEFORE THIS ONE:
+ * `<button popovertarget>` + `<div popover="auto">` fails none of those: the attributes are in
+ * the server's HTML, so the menu opens, closes on a second tap, on Escape and on a tap outside
+ * with scripting off and before hydration, and the browser itself reports it expanded or
+ * collapsed. Measured 2026-09-23 in Chromium, WebKit and Firefox; apps/cms/e2e/navbar.spec.ts
+ * re-measures it on every change.
  *
- *  - `<details>/<summary>`, the native no-JS disclosure. CSS *can* reveal a closed
- *    details' content — verified in all three engines — but the revealed links are
- *    **not keyboard-reachable and absent from the accessibility tree** (measured:
- *    tab order stayed on BODY, `ariaSnapshot()` showed `- navigation` with no links).
- *    It looks right and is invisible to exactly the users it exists for.
- *  - The checkbox-and-label pattern. Works without JS, but screen readers announce the
- *    menu control as a checkbox.
- *
- * What made the button unnecessary was removing the Catalogue CTA: two short links
- * remain, and they FIT. Measured at every width 320–720px — the bar needs 266px inside
- * 296px of usable space at 320px, its worst case, and gets narrower as the viewport
- * grows. So the links are simply always present, the whole disclosure is deleted, and
- * this component needs no browser JavaScript at all.
- *
- * (Those figures are for 10px links. At 12px — audit TY-07, 2026-09-11 — the name stopped fitting
- * below 334px and the bar needed the tighter spacing below 360px; see the TEMPORARY block after the
- * small-screen rules. The owner has asked for a phone menu as the lasting answer, because more
- * pages are coming — so the finding above has to be re-solved, not reverted.)
- *
- * ⚠️ If a third link or a longer wordmark is ever added, RE-MEASURE that fit before
- * assuming it still holds. `flex-wrap` below is the safety net, not a licence.
+ * ONE LIST, TWO PRESENTATIONS: a dropdown under the bar on phones, the same elements forced
+ * inline above the boundary. Browsers without popover (Chrome < 114, Firefox < 125, Safari
+ * < 17) skip the @supports block at the end of this file and keep the links in the bar.
  */
 
 /*
@@ -392,35 +374,6 @@
 
   .nav-link {
     padding-inline: 6px;
-  }
-}
-
-/*
- * ⚠️ TEMPORARY, UNTIL THE PHONE MENU — owner decision 2026-09-11.
- *
- * PR 2 raised `.nav-link` to 12px (audit TY-07), and the bar's measured fit moved with it: the name
- * needs 115px, and below 334px (337px in WebKit) the links left it less — 101px at 320px, where it
- * showed as "RUN APPA…". On the narrowest phones the links lose their side padding and the gap
- * between them grows from 4px to 6px, which buys back 22px: the name then fits from 312px (315px in
- * WebKit), each link stays wider than the 44px touch floor at the width of its own word, and from
- * 360px up nothing changes, because the normal spacing already fits there.
- *
- * Why these numbers and no others:
- *  - NOT `.notch`'s `padding-inline`, because the scroll response below animates it to 12px — a
- *    narrower resting value would widen the bar again as the page scrolls.
- *  - `0` and `6px`, not 2px, because apps/viewer/src/styles/tokens.test.ts allows only the
- *    documented spacing steps, and a temporary block is no reason to add a step.
- *
- * The owner chose a menu button for phones as the lasting fix, because more pages are coming, and
- * asked for it as its own update. That update replaces this block and the second-row rule below.
- */
-@media (max-width: 359.98px) {
-  .notch__nav {
-    gap: 6px;
-  }
-
-  .nav-link {
-    padding-inline: 0;
   }
 }
 
@@ -507,7 +460,8 @@
 }
 
 .nav-link:active,
-.notch__wordmark:active {
+.notch__wordmark:active,
+.notch__menu-btn:active {
   scale: 0.97;
 }
 
@@ -542,5 +496,167 @@
    */
   .notch {
     --notch-muted: light-dark(var(--paper), var(--text));
+  }
+}
+
+/* ═══════════════════════════════════════════════ the phone menu (Phase 1b-B) */
+
+/*
+ * THE RING IS VOLT INSIDE THE BAR, IN BOTH THEMES. The global ring is --focus-ring, which is
+ * --volt-deep in light mode: 3.16:1 on the bar's --ink — measured on the wordmark
+ * (2026-09-17) and again inside the open menu (2026-09-23), a pass by 5%. The bar is dark in
+ * both themes, so it takes the ring this site already gives its dark footer
+ * (`.footer-legal .nav-link:focus-visible` in site.css): volt, 13.06:1 on --ink and 8.95:1
+ * on --raised. Width and offset stay the global ones. apps/cms/e2e/navbar.spec.ts grades
+ * every ring in the bar at 4.5:1.
+ */
+.notch :focus-visible {
+  outline-color: var(--volt);
+}
+
+/* Hidden by default: without popover support the links stay in the bar. */
+.notch__menu-btn {
+  display: none;
+}
+
+/*
+ * THE SPEED LINES — the owner's pick, 2026-09-23 (phase1b icon options, Option B): three
+ * uneven lines that snap even and fold into an X while the menu is open. The open state is
+ * read off the popover itself through `:has(+ … :popover-open)`, so it needs no script.
+ *
+ * ⚠️ DRAWN WITH A TOP BORDER, NOT A BACKGROUND. Forced-colours mode repaints backgrounds as
+ * Canvas, which would leave an empty button there; a border takes the system text colour.
+ * ⚠️ `--radius-pill`, NOT `1px`: tokens.test.ts refuses a raw radius, and on a 2px line the
+ * two render identically.
+ */
+.notch__icon {
+  position: relative;
+  display: block;
+  width: 20px;
+  height: 16px;
+}
+
+.notch__icon-line {
+  position: absolute;
+  inset-inline-start: 0;
+  block-size: 0;
+  border-block-start: 2px solid currentColor;
+  border-radius: var(--radius-pill);
+}
+
+.notch__icon-line:nth-child(1) {
+  inset-block-start: 0;
+  width: 12px;
+}
+
+.notch__icon-line:nth-child(2) {
+  inset-block-start: 7px;
+  width: 20px;
+}
+
+.notch__icon-line:nth-child(3) {
+  inset-block-start: 14px;
+  width: 16px;
+}
+
+.notch__menu-btn:has(+ .notch__menu:popover-open) .notch__icon-line:nth-child(1) {
+  width: 20px;
+  transform: translateY(7px) rotate(45deg);
+}
+
+.notch__menu-btn:has(+ .notch__menu:popover-open) .notch__icon-line:nth-child(2) {
+  opacity: 0;
+}
+
+.notch__menu-btn:has(+ .notch__menu:popover-open) .notch__icon-line:nth-child(3) {
+  width: 20px;
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+@supports selector(:popover-open) {
+  /* Phones. Task 5 of Phase 1b-B adds the reader's text size to this query and the next. */
+  @media (width < 720px) {
+    /* A button in the notch must invert (the comment above): volt on ink. */
+    .notch__menu-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: var(--target-min);
+      height: var(--target-min);
+      border: none;
+      border-radius: var(--radius-panel);
+      background: var(--volt);
+      color: var(--ink);
+      cursor: pointer;
+      transition: scale var(--instant) var(--ease);
+    }
+
+    /*
+     * ⚠️ MOCKUP BUG 1, DESIGNED OUT: this is the ONLY rule that gives the list a display on a
+     * phone, and only while it is open. An author `display` on a [popover] beats the
+     * browser's `[popover]:not(:popover-open) { display: none }` whatever the specificity, so
+     * the mockup's inherited `.notch__nav { display: flex }` showed a "closed" menu open.
+     * publicSite.test.ts refuses any other rule that sets it.
+     *
+     * ⚠️ MOCKUP BUG 2, DESIGNED OUT: the browser styles [popover] `width: fit-content`, so two
+     * insets alone left the panel 153-157px wide in all three engines. `width: auto` restores
+     * the two-inset stretch: 366px of 366 in each (measured 2026-09-23). Never 100vw, which
+     * includes a classic scrollbar.
+     *
+     * Fixed under the bar at the height the bar is built from (--notch-h), not anchored: the
+     * bar is at the top of the viewport on both hosts, and anchor positioning was still being
+     * corrected in Safari 26.5.
+     */
+    .notch__menu:popover-open {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+      position: fixed;
+      inset-block-start: var(--notch-h);
+      inset-inline: 12px;
+      width: auto;
+      margin: 0;
+      padding: 12px;
+      border: none;
+      border-radius: var(--notch-r);
+      background: var(--notch-bg);
+      color: var(--notch-text);
+      box-shadow: var(--shadow-raised);
+      max-block-size: calc(100svh - var(--notch-h) - 12px);
+      overflow: auto;
+    }
+
+    /* Full-width rows, 44px tall, as the owner approved them. */
+    .notch__menu:popover-open .nav-link {
+      width: 100%;
+      justify-content: flex-start;
+    }
+  }
+
+  /* Wide screens: the SAME list, inline — the browser's hide rule undone. */
+  @media (width >= 720px) {
+    .notch__menu {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      position: static;
+      inset: auto;
+      width: auto;
+      height: auto;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: inherit;
+      overflow: visible;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .notch__menu:popover-open {
+    border: 1px solid CanvasText;
   }
 }
