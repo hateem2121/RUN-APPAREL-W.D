@@ -813,42 +813,45 @@ describe('apply()', () => {
       () => new Response(new TextEncoder().encode('<html>cloudflare challenge</html>')),
       'content-type is "", not image/webp',
     ],
-  ])('names the problem and stops before any write on %s — never "changed"', async (_label, badResponse, expectedMessage) => {
-    const { trim } = await fixtureTrim({ product: 'r-fix', colour: 'x' })
-    const currentUrl = 'https://media.wear-run.help/r-fix-x-poster.webp'
-    const productDoc = { id: 999, colourways: [row({ id: 1, slug: 'x', posterPreview: 10 })] }
-    const requests: Recorded[] = []
+  ])(
+    'names the problem and stops before any write on %s — never "changed"',
+    async (_label, badResponse, expectedMessage) => {
+      const { trim } = await fixtureTrim({ product: 'r-fix', colour: 'x' })
+      const currentUrl = 'https://media.wear-run.help/r-fix-x-poster.webp'
+      const productDoc = { id: 999, colourways: [row({ id: 1, slug: 'x', posterPreview: 10 })] }
+      const requests: Recorded[] = []
 
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (url: string, init?: RequestInit) => {
-        const method = init?.method ?? 'GET'
-        if (url.startsWith(CMS)) {
-          const path = url.slice(CMS.length)
-          requests.push({ method, path })
-          if (path.startsWith('/api/products?where')) {
-            return new Response(JSON.stringify({ docs: [productDoc] }))
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string, init?: RequestInit) => {
+          const method = init?.method ?? 'GET'
+          if (url.startsWith(CMS)) {
+            const path = url.slice(CMS.length)
+            requests.push({ method, path })
+            if (path.startsWith('/api/products?where')) {
+              return new Response(JSON.stringify({ docs: [productDoc] }))
+            }
+            if (path === '/api/media/10?depth=0') {
+              return new Response(JSON.stringify({ id: 10, url: currentUrl }))
+            }
+            throw new Error(`unexpected CMS path ${method} ${path}`)
           }
-          if (path === '/api/media/10?depth=0') {
-            return new Response(JSON.stringify({ id: 10, url: currentUrl }))
-          }
-          throw new Error(`unexpected CMS path ${method} ${path}`)
-        }
-        if (url === currentUrl) return badResponse()
-        throw new Error(`unexpected fetch ${method} ${url}`)
-      }),
-    )
-    vi.spyOn(console, 'log').mockImplementation(() => {})
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+          if (url === currentUrl) return badResponse()
+          throw new Error(`unexpected fetch ${method} ${url}`)
+        }),
+      )
+      vi.spyOn(console, 'log').mockImplementation(() => {})
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    await expect(apply('fake-test-key-not-real-1234', [trim])).rejects.toBeInstanceOf(Stop)
+      await expect(apply('fake-test-key-not-real-1234', [trim])).rejects.toBeInstanceOf(Stop)
 
-    expect(requests.some((r) => r.method === 'POST')).toBe(false)
-    expect(requests.some((r) => r.method === 'PATCH')).toBe(false)
-    const text = errorSpy.mock.calls.map((call) => String(call[0])).join(' ')
-    expect(text).toContain(expectedMessage)
-    expect(text).not.toContain('changed since this was written')
-  })
+      expect(requests.some((r) => r.method === 'POST')).toBe(false)
+      expect(requests.some((r) => r.method === 'PATCH')).toBe(false)
+      const text = errorSpy.mock.calls.map((call) => String(call[0])).join(' ')
+      expect(text).toContain(expectedMessage)
+      expect(text).not.toContain('changed since this was written')
+    },
+  )
 
   /**
    * M2 (2026-09-23): the FRESH-UPLOAD path — the one every one of the owner's
@@ -985,8 +988,6 @@ describe('apply()', () => {
     expect(
       errorSpy.mock.calls.some((call) => String(call[0]).includes('served bytes do not match')),
     ).toBe(true)
-    expect(
-      errorSpy.mock.calls.some((call) => String(call[0]).includes('NOT patched')),
-    ).toBe(true)
+    expect(errorSpy.mock.calls.some((call) => String(call[0]).includes('NOT patched'))).toBe(true)
   })
 })

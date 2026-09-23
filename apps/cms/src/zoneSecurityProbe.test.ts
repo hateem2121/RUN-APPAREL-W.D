@@ -345,11 +345,14 @@ describe('evaluate — pictures and models refuse other sites (IM-13)', () => {
     ['no HSTS header at all', { hstsHeader: null }],
     ['an HSTS max-age below one year', { hstsHeader: 'max-age=300; includeSubDomains' }],
     ['HSTS missing includeSubDomains', { hstsHeader: 'max-age=63072000' }],
-  ])('never silently skips IM-13 just because the HSTS read had a problem: %s', (_label, override) => {
-    const result = evaluate([{ ...healthyMedia(), ...override }])
-    expect(result.lines.join('\n')).toContain('poster CORP same-site ok')
-    expect(result.lines.join('\n')).toContain('model CORP same-site ok')
-  })
+  ])(
+    'never silently skips IM-13 just because the HSTS read had a problem: %s',
+    (_label, override) => {
+      const result = evaluate([{ ...healthyMedia(), ...override }])
+      expect(result.lines.join('\n')).toContain('poster CORP same-site ok')
+      expect(result.lines.join('\n')).toContain('model CORP same-site ok')
+    },
+  )
 
   it('never silently skips IM-13 even when TLS 1.2 itself never connected', () => {
     // The most extreme gate: this host told the TLS probe nothing at all, and
