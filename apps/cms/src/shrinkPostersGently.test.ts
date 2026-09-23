@@ -133,9 +133,23 @@ describe('reencode + reencodeProblems, against a synthetic poster', () => {
     expect(await reencodeProblems(original, opaque)).toEqual(['the result lost the alpha channel'])
   })
 
+  // The candidate here must be a FLAT-colour PNG, not garment()'s silhouette: a
+  // solid image deflates to a tiny size under any zlib, while garment()'s soft
+  // edge and per-pixel grain do not compress the same way everywhere. Measured
+  // from the identical source pixels, through each platform's own zlib: 4,771 B
+  // on this Mac (Node v26.8.2, arm64), 5,849 B on CI (ubuntu-latest x64, Node 24).
+  // On CI that outweighs the 5,520 B webp original, so this test's list gained a
+  // second, unrelated "not smaller" entry — a difference in the fixture's
+  // platform, not in scripts/shrink-posters-gently.mjs. The precondition below
+  // guards against that recurring: a future platform drift fails there, with a
+  // plain sentence, instead of as a confusing list mismatch here.
   it('flags a result that is not webp', async () => {
     const original = await reencode(garment(120, 150), PIPELINE_PRESET)
-    const rawPng = garment(120, 150)
+    const rawPng = png(120, 150, () => [180, 90, 110, 255])
+    expect(
+      rawPng.length,
+      'the flat-colour candidate must stay smaller than the original on every platform',
+    ).toBeLessThan(original.length)
     expect(await reencodeProblems(original, rawPng)).toEqual(['the result is png, not webp'])
   })
 
