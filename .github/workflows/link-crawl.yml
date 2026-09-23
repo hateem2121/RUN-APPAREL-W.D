@@ -1,0 +1,39 @@
+name: Link crawl
+
+on:
+  schedule:
+    # WEEKLY, deliberately — unlike a rare, human-triggered re-shrink (which gets a
+    # by-hand RUNBOOK check instead of a schedule), a link can break from several
+    # unrelated, ordinary changes: a CMS content edit, a footer fact update, a social
+    # link swap. A schedule is the right shape here.
+    #
+    # GitHub's own scheduled runs land 19-90 minutes late on this repo (measured,
+    # n=11, every one) — a cron here is a queue position, not a deadline.
+    - cron: '17 5 * * 1'
+  workflow_dispatch: {}
+
+# See uptime.yml's own comment on this block: it REPLACES the default grants rather
+# than adding to them, and omitting `contents: read` breaks `actions/checkout` outright.
+permissions:
+  contents: read
+
+jobs:
+  crawl:
+    # Same gate as the rest of this repo's scheduled network checks — nothing runs
+    # against production before go-live.
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    # ~106 requests at >=1.2s apart (crawl politeness) plus latency — measured 154.5s
+    # locally. Generous headroom for a slower run without threatening the job's budget.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      - name: Crawl every link from both hosts' entry points (FI-12, SE-18)
+        run: node scripts/link-crawl-probe.mjs
