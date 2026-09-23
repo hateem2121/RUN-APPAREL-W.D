@@ -147,8 +147,27 @@ jobs:
       # own "Install the WebKit browser" step below and the same reasoning
       # `android-chrome.yml`'s "Install the browser-install CLI" step records for the
       # identical choice.
+      #
+      # ⚠️ RETRIED AS A WHOLE, because the runner sometimes refuses the Apple Events this
+      # step needs. MEASURED 2026-09-23: run 35882226231 failed here, before the robot ever
+      # started, with `Failed to enable "Do not disturb" mode`, caused by osascript's "Not
+      # authorized to send Apple events to System Events". The same step, unchanged, had
+      # passed on the run before it (35880390762). The tool's own retry is 5 × 500 ms
+      # (`enableDoNotDisturb.js` in @guidepup/setup 0.25.3), too short for a permission grant
+      # that has not reached the asking process yet, so this waits 15 s between whole
+      # attempts. The step only writes preferences and permission entries, so repeating it
+      # is safe. A third failure is real and fails the job.
       - name: Prepare the OS for VoiceOver automation
-        run: node "${RUNNER_TEMP}/guidepup-deps/node_modules/@guidepup/setup/bin/guidepup" setup --ci
+        run: |
+          for attempt in 1 2 3; do
+            if node "${RUNNER_TEMP}/guidepup-deps/node_modules/@guidepup/setup/bin/guidepup" setup --ci; then
+              exit 0
+            fi
+            echo "::warning::VoiceOver OS setup failed on attempt ${attempt} of 3"
+            [ "${attempt}" -lt 3 ] && sleep 15
+          done
+          echo "::error::VoiceOver OS setup failed on all 3 attempts"
+          exit 1
 
       - run: pnpm install --frozen-lockfile
 
