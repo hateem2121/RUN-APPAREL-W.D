@@ -256,6 +256,11 @@ jobs:
       # apps/cms/src/diagnosticsDigest.test.ts runs this exact SQL. Our own tools are left
       # out, as in the digest query above. Only visits that carry a number are counted.
       #
+      # ONE base predicate. type/event/the 7-day window/the own-audit ua filter used to
+      # sit inline in five places — the outer FROM and all four percentile subqueries —
+      # so an edit to the filter could land in four of five copies and miss the fifth.
+      # `WITH w AS (...)` states it once below; every count and percentile reads FROM w.
+      #
       # Everything printed is a Number() or fixed words, never a row's text, so nothing a
       # stranger posts reaches the heredoc below. The node script uses no `$` and no
       # backticks, because it sits inside a double-quoted shell string.
@@ -271,7 +276,7 @@ jobs:
         run: |
           set -euo pipefail
           pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote \
-            --json --command "SELECT count(*) AS visits, count(DISTINCT ua) AS browsers, count(lcp_ms) AS lcp_n, (SELECT lcp_ms FROM events WHERE type = 'analytics' AND event = 'web_vitals' AND created_at > strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days') AND (ua IS NULL OR ua NOT LIKE '%run-apparel-%') AND lcp_ms IS NOT NULL ORDER BY lcp_ms LIMIT 1 OFFSET (SELECT (3 * count(*) + 3) / 4 - 1 FROM events WHERE type = 'analytics' AND event = 'web_vitals' AND created_at > strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days') AND (ua IS NULL OR ua NOT LIKE '%run-apparel-%') AND lcp_ms IS NOT NULL)) AS lcp_p75, count(cls) AS cls_n, (SELECT cls FROM events WHERE type = 'analytics' AND event = 'web_vitals' AND created_at > strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days') AND (ua IS NULL OR ua NOT LIKE '%run-apparel-%') AND cls IS NOT NULL ORDER BY cls LIMIT 1 OFFSET (SELECT (3 * count(*) + 3) / 4 - 1 FROM events WHERE type = 'analytics' AND event = 'web_vitals' AND created_at > strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days') AND (ua IS NULL OR ua NOT LIKE '%run-apparel-%') AND cls IS NOT NULL)) AS cls_p75 FROM events WHERE type = 'analytics' AND event = 'web_vitals' AND created_at > strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days') AND (ua IS NULL OR ua NOT LIKE '%run-apparel-%') AND (lcp_ms IS NOT NULL OR cls IS NOT NULL);" \
+            --json --command "WITH w AS (SELECT ua, lcp_ms, cls FROM events WHERE type = 'analytics' AND event = 'web_vitals' AND created_at > strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days') AND (ua IS NULL OR ua NOT LIKE '%run-apparel-%')) SELECT count(*) AS visits, count(DISTINCT ua) AS browsers, count(lcp_ms) AS lcp_n, (SELECT lcp_ms FROM w WHERE lcp_ms IS NOT NULL ORDER BY lcp_ms LIMIT 1 OFFSET (SELECT (3 * count(*) + 3) / 4 - 1 FROM w WHERE lcp_ms IS NOT NULL)) AS lcp_p75, count(cls) AS cls_n, (SELECT cls FROM w WHERE cls IS NOT NULL ORDER BY cls LIMIT 1 OFFSET (SELECT (3 * count(*) + 3) / 4 - 1 FROM w WHERE cls IS NOT NULL)) AS cls_p75 FROM w WHERE (lcp_ms IS NOT NULL OR cls IS NOT NULL);" \
             > vitals.json
           visits=$(node -e "const r=(require('./vitals.json')[0]?.results??[{}])[0]??{};console.log(Number(r.visits)||0)")
           echo "visits=$visits" >> "$GITHUB_OUTPUT"
