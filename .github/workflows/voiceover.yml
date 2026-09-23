@@ -16,7 +16,7 @@ name: VoiceOver (macOS)
 # macOS 27 as of 2026-09-10 (GitHub Changelog) and would hit the IDENTICAL
 # "no manifest asset for this platform" error this Mac's own macOS 27 does today. A fix
 # (guidepup/guidepup#151) is drafted but unmerged as of 2026-09-23 — do not "upgrade" this
-# runner to chase it. Full research: `phase0/voiceover-robot-research.md`.
+# runner to chase it.
 #
 # WHY workflow_dispatch AND pull_request, UNLIKE android-chrome.yml's dispatch-only. That
 # workflow deliberately has no automatic trigger because wiring a device-lab robot into a
@@ -65,8 +65,8 @@ jobs:
           persist-credentials: false
 
       # Enables VoiceOver to be scripted and pre-approves the calling process for
-      # Accessibility — the CI-only path `phase0/voiceover-robot-research.md` §2 documents
-      # (a headless runner has no human to click "Allow"). One step: this Action wraps BOTH
+      # Accessibility — the CI-only setup path Guidepup's own docs describe, since a
+      # headless runner has no human to click "Allow". One step: this Action wraps BOTH
       # of `@guidepup/setup`'s own `setup` and `install` subcommands — confirmed by reading
       # its own README at the pinned tag, which shows a single
       # `uses: guidepup/setup-action` with no separate install step, unlike the two-call
@@ -120,15 +120,7 @@ jobs:
       # matching this repo's "poll a readiness endpoint, never sleep a fixed guess"
       # convention (ios-safari.mjs's startDriver).
       #
-      # No PORT is set here, deliberately: serve.mjs defaults to 4173
-      # (`process.env.PORT ?? 4173`) and this job never sets one, so it always gets that
-      # default. This is UNLIKE `apps/viewer/playwright.config.ts`, which pins
-      # `env: { PORT: String(PORT) }` on its own webServer with a comment explaining why —
-      # that pin exists because a DEVELOPER'S SHELL may already export an unrelated `PORT`
-      # left over from another project, and without pinning it that value would be
-      # inherited instead of the fixture's own default. A GitHub-hosted runner starts with
-      # no ambient environment of that kind for every run, so there is nothing here for a
-      # pin to protect against.
+      # Started at serve.mjs's own default address, 127.0.0.1:4173 (the fixture's).
       - name: Start the viewer fixture server
         run: |
           node apps/viewer/e2e/serve.mjs &
@@ -152,9 +144,9 @@ jobs:
       # (b90ba70's Payload audit): npm bulk advisory API / GitHub Advisory Database,
       # publisher is GitHub Actions OIDC rather than a personal token, signed provenance
       # attestation present, no install script, and an unchanged dependency list. All
-      # five legs, checked against the npm registry 2026-09-23 (re-checked, both
-      # `registry.npmjs.org/-/npm/v1/security/advisories/bulk` and `api.osv.dev/v1/query`,
-      # during the pre-push fix round):
+      # five legs, checked against the npm registry 2026-09-23, and the advisory leg
+      # re-checked live against both `registry.npmjs.org/-/npm/v1/security/advisories/bulk`
+      # and `api.osv.dev/v1/query`:
       #   @guidepup/guidepup@0.34.0 — published 2026-08-31 (23 days old). SLSA v1
       #     provenance attestation present; publisher is GitHub Actions OIDC (trustedPublisher
       #     id "github"), not a personal token; no "install"/"postinstall" script. Zero

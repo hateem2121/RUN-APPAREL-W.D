@@ -15,8 +15,8 @@
  * imports only the pure decision functions below and never touches Guidepup or
  * Playwright), and the real VoiceOver session runs only in CI, on a GitHub-hosted
  * `macos-26` runner (Darwin 25.6.0 — inside the supported range). Never point this
- * workflow at `xcode-27` (macOS 27) or `macos-14` (deprecating) — see
- * `phase0/voiceover-robot-research.md` §3 and §5.
+ * workflow at `xcode-27` (it runs macOS 27 as of 2026-09-10 — the same unsupported
+ * ceiling as above) or `macos-14` (deprecating on GitHub-hosted runners).
  *
  * WHY THE RUNTIME IMPORTS ARE DYNAMIC, AND WHY THE PATH IS RESOLVED BY HAND. Per the
  * brief, `@guidepup/guidepup` and `playwright` are installed for the CI run only, into
@@ -27,8 +27,9 @@
  * resolver would find by walking up from `scripts/`, so a plain
  * `import { voiceOver } from '@guidepup/guidepup'` would throw `ERR_MODULE_NOT_FOUND` in
  * CI. It would ALSO throw the moment `apps/cms/src/voiceOver.test.ts` imported this file
- * locally, where neither package is installed at all — breaking the "no Guidepup import
- * needed here" contract the brief sets for that test file. `NODE_PATH` does not fix this:
+ * locally, where neither package is installed at all — and that file's own unit tests
+ * must run with neither package installed, so a static import here would break the one
+ * property they exist to prove. `NODE_PATH` does not fix this:
  * MEASURED on this Mac, Node v26.8.2, 2026-09-23 — it is honoured for CommonJS `require()`
  * but NOT for ESM `import`/`import()`, which is what this file and its test both are.
  * `resolveRuntimeDepsDir()` + `importFromDepsDir()` instead resolve an ABSOLUTE
@@ -56,11 +57,10 @@ export const VOICEOVER_CAVEAT =
   'WebKit window: it approximates, and never replaces, a person using VoiceOver. iPhone ' +
   'VoiceOver gestures are not covered — this is the desktop macOS screen reader only.'
 
-// FIX ROUND 1: this used to carry only the first of the brief's three required parts
-// ("real VoiceOver, GitHub macOS 26 runner"). "VoiceOver" names the SAME screen reader
-// on both macOS and iPhone, so a line pasted out of context — into a chat, an issue, a
-// summary — read as if it said something about iPhone VoiceOver coverage, which this
-// robot does not have. All three parts now appear on every PASS/FAIL line, terse but
+// The label once named only the runner ("real VoiceOver, GitHub macOS 26 runner").
+// "VoiceOver" is the same name on macOS and iPhone, so a line read out of context —
+// pasted into a chat, an issue, a summary — implied iPhone coverage, which this robot
+// does not have. All three parts now appear on every PASS/FAIL line, terse but
 // complete: what ran it, what it does not claim, and what it does not cover.
 export const VOICEOVER_HONESTY_LABEL =
   'real VoiceOver, GitHub macOS 26 runner — approximates, never replaces, a person; ' +
@@ -203,7 +203,8 @@ export function isAnnouncedSelected(itemText) {
   return /\bselected\b/i.test(String(itemText ?? ''))
 }
 
-/** One PASS/FAIL line, honesty label included on every line per the brief. */
+/** One PASS/FAIL line. Every result line states what ran it, that it approximates and
+ *  never replaces a person, and that iPhone gestures are not covered. */
 export function formatCheckLine({ pass, name, message }) {
   const status = pass ? 'PASS' : 'FAIL'
   return `${status} (${VOICEOVER_HONESTY_LABEL}): ${name} — ${message}`
@@ -510,8 +511,8 @@ export async function runChecks({ voiceOver, garmentName }) {
 const RENDER_WAIT_TIMEOUT_MS = 15_000
 
 /**
- * FIX ROUND 1. Wait for the SPA to actually have rendered before VoiceOver goes
- * hunting for web content.
+ * Wait for the SPA to actually have rendered before VoiceOver goes hunting for web
+ * content.
  *
  * `page.goto(url, { waitUntil: 'load' })` resolves once the shell HTML/JS has arrived —
  * apps/viewer is a client-rendered SPA (see App.tsx), so at that point React has not yet

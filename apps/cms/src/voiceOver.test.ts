@@ -294,13 +294,14 @@ describe('constants — drift guards for values other parts of this system must 
   })
 
   it('the short label on every PASS/FAIL line carries all three required parts, not just the runner', () => {
-    // FIX ROUND 1: this used to assert only /voiceover/i and /macos 26/i — both of which
-    // the OLD, too-short label ("real VoiceOver, GitHub macOS 26 runner", no more) also
-    // satisfied, so this test could not have caught the exact gap the pre-push review
-    // found. "VoiceOver" names the SAME screen reader on macOS and iPhone, so a line
-    // naming only the runner reads, out of context, as though it said something about
-    // iPhone coverage — which this robot does not have. All three parts the brief
-    // requires are pinned individually below, not just the word "voiceover".
+    // An earlier assertion here checked only /voiceover/i and /macos 26/i — both of
+    // which the OLD, too-short label ("real VoiceOver, GitHub macOS 26 runner", no more)
+    // also satisfied, so it could not have caught that gap. "VoiceOver" names the SAME
+    // screen reader on macOS and iPhone, so a line naming only the runner reads, out of
+    // context, as though it said something about iPhone coverage — which this robot does
+    // not have. The robot's honesty rule — every result line says what ran it, that it
+    // approximates and never replaces a person, and that iPhone gestures are not covered —
+    // is pinned individually below, not just the word "voiceover".
     expect(VOICEOVER_HONESTY_LABEL).toMatch(/real voiceover/i)
     expect(VOICEOVER_HONESTY_LABEL).toMatch(/macos 26/i)
     expect(VOICEOVER_HONESTY_LABEL).toMatch(/never replaces/i)
@@ -308,7 +309,7 @@ describe('constants — drift guards for values other parts of this system must 
   })
 
   it('the strengthened label test can actually fail on the old, too-short label — negative control', () => {
-    // The exact string this constant carried before this fix round. Proves the four
+    // The exact string this constant carried before it was lengthened. Proves the four
     // assertions above are not vacuous: the old label passes the first two (which is
     // exactly why they were not enough) and fails the last two.
     const OLD_TOO_SHORT_LABEL = 'real VoiceOver, GitHub macOS 26 runner — approximates a person'
@@ -318,7 +319,7 @@ describe('constants — drift guards for values other parts of this system must 
     expect(OLD_TOO_SHORT_LABEL).not.toMatch(/iphone voiceover gestures.{0,15}not covered/i)
   })
 
-  it('the default target is the fixture product the brief names', () => {
+  it('the default target is the e2e fixture product', () => {
     expect(DEFAULT_TARGET_URL).toBe('http://127.0.0.1:4173/n001/wine')
     expect(DEFAULT_GARMENT_NAME).toBe('Velocity Performance')
   })
