@@ -301,6 +301,64 @@ describe('design tokens', () => {
         'This is the gap `--stagger` sat in for three weeks and three audits.',
     ).toEqual([])
   })
+
+  /**
+   * A Markdown table keeps only the columns its header row names. GitHub drops every
+   * cell past that when it renders the page, and says nothing. The size-scale table
+   * (§3) had a two-column header over three-column rows, so each px value and each
+   * "used by" note was in the file and missing from the page — found 2026-09-17. The
+   * parser above reads only the first value cell, so it could not notice.
+   */
+  it('every table in docs/DESIGN.md gives each row as many cells as its header', () => {
+    const design = readFileSync(DESIGN_MD, 'utf8')
+    // A pipe inside backticks, or written as \|, is text rather than a cell boundary.
+    const cellCount = (line: string) =>
+      line
+        .replace(/\\\|/g, '')
+        .replace(/`[^`]*`/g, (code) => code.replace(/\|/g, ''))
+        .trim()
+        .replace(/^\||\|$/g, '')
+        .split('|').length
+
+    const mismatches: string[] = []
+    let tables = 0
+    let header: { cells: number; line: number } | null = null
+    let inFence = false
+    for (const [index, line] of design.split('\n').entries()) {
+      if (line.startsWith('```')) {
+        inFence = !inFence
+        header = null
+        continue
+      }
+      if (inFence || !line.trimStart().startsWith('|')) {
+        header = null
+        continue
+      }
+      if (header === null) {
+        header = { cells: cellCount(line), line: index + 1 }
+        tables += 1
+        continue
+      }
+      const cells = cellCount(line)
+      if (cells !== header.cells) {
+        mismatches.push(
+          `line ${index + 1}: ${cells} cells under the ${header.cells}-column header on line ${header.line}`,
+        )
+      }
+    }
+
+    // A scan that found no tables would pass forever; 13 tables exist on 2026-09-17.
+    expect(
+      tables,
+      'the table scan found almost nothing — it has stopped reading DESIGN.md',
+    ).toBeGreaterThan(10)
+    expect(
+      mismatches,
+      'a DESIGN.md table row has a different number of cells from its header. GitHub drops\n' +
+        'the extra cells without a warning, so the words are in the file and missing from the\n' +
+        'page. Make the header row (and the --- row under it) name every column.',
+    ).toEqual([])
+  })
 })
 
 /**

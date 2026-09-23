@@ -263,8 +263,8 @@ enforced globally in `base.css`, not per-component.
 
 ### The size scale
 
-| Token | Value |
-|---|---|
+| Token | Value | In px, and where it is used |
+|---|---|---|
 | `--text-body` | 1.0625rem | 17px at the 16px default |
 | `--text-sm` | 0.9375rem | 15px |
 | `--text-xs` | 0.8125rem | 13px |
@@ -589,7 +589,7 @@ and the CSS it then rejects is exactly the work involved.
 
 ## 7. Accessibility
 
-- `:focus-visible` — `2px solid var(--focus-ring)`, `2px` offset, `4px` radius,
+- `:focus-visible` — `2px solid var(--focus-ring)`, `2px` offset, `--radius-chip` (6px) radius,
   applied globally. `--focus-ring` is volt-deep in light and volt in dark, so it
   clears contrast in both.
 - `.visually-hidden` for screen-reader-only text.
