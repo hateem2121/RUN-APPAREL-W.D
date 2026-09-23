@@ -451,6 +451,23 @@ function explain(json) {
   return outer?.message || json?.raw || JSON.stringify(json).slice(0, 200)
 }
 
+/**
+ * Thrown in place of `process.exit()` everywhere inside dryRun()/apply()'s own
+ * logic, so a test can observe a stop (via `.rejects`) without killing the test
+ * process — `main()`, the real CLI entry, is the only place that still calls
+ * `process.exit`, translating a caught Stop into `process.exit(stop.code)`.
+ *
+ * Every message the owner sees has ALREADY been printed via console.error at the
+ * throw site, exactly as before this existed — a Stop carries only the exit code,
+ * never text to print, so nothing the owner sees on screen changes.
+ */
+export class Stop extends Error {
+  constructor(code) {
+    super(`stop (exit ${code})`)
+    this.code = code
+  }
+}
+
 function fail(response, doing) {
   console.error(`\nCould not finish ${doing} (${response.status}): ${explain(response.json)}`)
   if (response.status === 401 || response.status === 403) {
@@ -458,7 +475,7 @@ function fail(response, doing) {
     console.error('  (Reading needs only a recognised key — if reading also failed, the key')
     console.error("  itself isn't recognised at all, not just short of the right role.)")
   }
-  process.exit(1)
+  throw new Stop(1)
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -488,6 +505,15 @@ function groupByProduct(trims) {
  * Read-only; apply() calls it at most once per run, lazily, only once a colour
  * actually needs a re-encode.
  *
+ * Fixed 2026-09-23 (round 2): a failed page used to return whatever had been
+ * gathered so far, silently — every OTHER network call in this file fails loud
+ * (via `fail()`), and this was the one exception. An incomplete listing means
+ * findExistingUpload() can miss a genuine prior upload from a half-finished run
+ * and let a retry create the very duplicate this fix exists to prevent, with no
+ * message telling the owner the reuse check was skipped. So a failed page stops
+ * the WHOLE run here, before any upload or PATCH, and says plainly that nothing
+ * was changed.
+ *
  * @param {Record<string, string>} auth
  * @returns {Promise<import('./shrink-posters-gently.d.mts').MediaListing[]>}
  */
@@ -495,7 +521,13 @@ async function fetchMediaIndex(auth) {
   const docs = []
   for (let page = 1; ; page++) {
     const listed = await api(auth, 'GET', `/api/media?limit=100&depth=0&page=${page}`)
-    if (!listed.ok) return docs
+    if (!listed.ok) {
+      console.error(
+        `\nCould not list Media to check for a prior upload (${listed.status}): ${explain(listed.json)}`,
+      )
+      console.error('  The reuse check could not run. Nothing was uploaded or changed.')
+      throw new Stop(1)
+    }
     docs.push(...(listed.json?.docs ?? []))
     if (!listed.json?.hasNextPage) break
   }
@@ -515,13 +547,19 @@ async function fetchMediaIndex(auth) {
  * bytes match neither the known original nor the approved trim is reported as a
  * problem, because at that point this script no longer knows what picture it is
  * looking at.
+ *
+ * @param {import('./shrink-posters-gently.d.mts').GentleTrim[]} [trims] Defaults
+ *   to the real GENTLE_TRIMS; a test supplies its own small, self-contained list
+ *   instead, since GENTLE_TRIMS' hashes are real production bytes this file does
+ *   not have local copies of.
+ * @returns {Promise<import('./shrink-posters-gently.d.mts').DryRunRow[]>}
  */
-async function dryRun() {
+export async function dryRun(trims = GENTLE_TRIMS) {
   const rows = []
-  for (const [product, trims] of groupByProduct(GENTLE_TRIMS)) {
+  for (const [product, productTrims] of groupByProduct(trims)) {
     const response = await fetch(`${API_BASE}/api/public/viewer/${product}`)
     if (!response.ok) {
-      for (const trim of trims) {
+      for (const trim of productTrims) {
         rows.push({
           trim,
           url: null,
@@ -535,7 +573,7 @@ async function dryRun() {
     const posterUrlByColour = new Map(
       (body?.colourways ?? []).map((c) => [String(c.slug ?? ''), c.poster?.url]),
     )
-    for (const trim of trims) {
+    for (const trim of productTrims) {
       const url = posterUrlByColour.get(trim.colour)
       if (!url) {
         rows.push({
@@ -665,15 +703,30 @@ const readHidden = (promptText) =>
  * upload, the Media library is checked for an existing upload that already carries
  * the approved bytes (findExistingUpload()), so a retry after a half-finished run
  * never uploads the same trim twice.
+ *
+ * Fixed 2026-09-23 (round 2, testability): every fatal condition throws `Stop`
+ * instead of calling `process.exit` directly, and the key/trims this needs are
+ * now PARAMETERS rather than only the module's own `API_KEY`/`GENTLE_TRIMS` —
+ * both default to the real values, so the owner's invocation
+ * (`node scripts/shrink-posters-gently.mjs --apply`, no arguments) is byte-for-byte
+ * unchanged, while a test can call `apply('fake-test-key', [aTestTrim])` directly,
+ * skip the interactive prompt entirely, and catch a Stop instead of losing the
+ * test process to a real exit.
+ *
+ * @param {string} [providedKey] Supplied directly by a test; the owner's real
+ *   invocation never passes this, so the hidden prompt below runs exactly as it
+ *   always has.
+ * @param {import('./shrink-posters-gently.d.mts').GentleTrim[]} [trims]
+ * @returns {Promise<void>}
  */
-async function apply() {
+export async function apply(providedKey, trims = GENTLE_TRIMS) {
   // Step 1: the key, hidden, never on the command line — see the file header.
-  let key = API_KEY
+  let key = providedKey ?? API_KEY
   if (!key) {
     if (!process.stdin.isTTY) {
       console.error('\nNo key, and this is not an interactive terminal.')
       console.error('Run it in your own Terminal so it can ask, or set CMS_API_KEY.')
-      process.exit(2)
+      throw new Stop(2)
     }
     console.log('\nThe key is needed to upload posters and update products. It is not shown as')
     console.log(
@@ -682,17 +735,19 @@ async function apply() {
     key = (await readHidden('CMS API key (editor or admin): ')).trim()
     if (!key) {
       console.error('Nothing entered.')
-      process.exit(2)
+      throw new Stop(2)
     }
   }
   if (looksLikeInstructionText(key)) {
     console.error('\nThat looks like instruction text rather than a key:')
     console.error(`  ${key}`)
     console.error('Run without CMS_API_KEY set and the script will ask for it instead.')
-    process.exit(2)
+    throw new Stop(2)
   }
-  API_KEY = key
-  const auth = { Authorization: `users API-Key ${API_KEY}` }
+  // Only the real interactive/env path updates module state — a test's own key
+  // must never leak into a later call that expects to prompt for one.
+  if (!providedKey) API_KEY = key
+  const auth = { Authorization: `users API-Key ${key}` }
 
   // Fetched at most once, lazily, the first time a colour actually needs an
   // upload — most runs (a clean first pass, or a full re-run once everything is
@@ -700,7 +755,7 @@ async function apply() {
   let mediaIndexPromise = null
   const getMediaIndex = () => (mediaIndexPromise ??= fetchMediaIndex(auth))
 
-  for (const [product, trims] of groupByProduct(GENTLE_TRIMS)) {
+  for (const [product, productTrims] of groupByProduct(trims)) {
     console.log(`\n${product}:`)
 
     // Step 2.
@@ -713,7 +768,7 @@ async function apply() {
     const doc = found.json?.docs?.[0]
     if (!doc) {
       console.error(`  no product with slug "${product}"`)
-      process.exit(1)
+      throw new Stop(1)
     }
     const rowBySlug = new Map((doc.colourways ?? []).map((row) => [String(row.slug ?? ''), row]))
 
@@ -721,18 +776,18 @@ async function apply() {
     // relation (never a guessed filename) and classified.
     const currentBytesByColour = new Map()
     const states = []
-    for (const trim of trims) {
+    for (const trim of productTrims) {
       const row = rowBySlug.get(trim.colour)
       if (!row) {
         console.error(`  no colourway "${trim.colour}" on ${product}`)
-        process.exit(1)
+        throw new Stop(1)
       }
       const media = await api(auth, 'GET', `/api/media/${idOf(row.posterPreview)}?depth=0`)
       if (!media.ok) return fail(media, `reading the current poster for ${trim.colour}`)
       const currentUrl = media.json?.url
       if (!currentUrl) {
         console.error(`  ${trim.colour}: the current poster has no url. Stop.`)
-        process.exit(1)
+        throw new Stop(1)
       }
       const currentResponse = await fetch(currentUrl)
       const currentBytes = Buffer.from(await currentResponse.arrayBuffer())
@@ -743,7 +798,7 @@ async function apply() {
     const plan = planProductWrite(states)
     if (plan.problems.length > 0) {
       for (const problem of plan.problems) console.error(`  ${problem}`)
-      process.exit(1)
+      throw new Stop(1)
     }
     for (const done of plan.alreadyDone) {
       console.log(`  ${done.trim.colour}: already ${done.trim.approved.bytes} B — nothing to do.`)
@@ -764,7 +819,7 @@ async function apply() {
       const result = await reencode(currentBytes, trim.settings)
       if (sha256(result) !== trim.approved.sha256) {
         console.error(`  ${trim.colour}: computed bytes do not match the approved trim. Stop.`)
-        process.exit(1)
+        throw new Stop(1)
       }
 
       // Before uploading: has a previous, possibly interrupted run already put
@@ -807,7 +862,7 @@ async function apply() {
         if (sha256(readBackBytes) !== trim.approved.sha256) {
           console.error(`  ${trim.colour}: uploaded, but the served bytes do not match. Stop.`)
           console.error('  The product was NOT patched.')
-          process.exit(1)
+          throw new Stop(1)
         }
       }
 
@@ -829,7 +884,7 @@ async function apply() {
     if (problems.length > 0) {
       console.error(`  read-back mismatch on ${product}:`)
       for (const problem of problems) console.error(`    - ${problem}`)
-      process.exit(1)
+      throw new Stop(1)
     }
     console.log(`  ${product}: written and read back — every field matches.`)
 
@@ -891,6 +946,12 @@ async function main() {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error) => {
+    // A Stop already printed everything the owner needs to see, at the throw
+    // site — only the exit code is still owed. Anything else is unexpected, so
+    // it gets the generic wrapper it always has.
+    if (error instanceof Stop) {
+      process.exit(error.code)
+    }
     console.error(
       `shrink-posters-gently: ${error instanceof Error ? error.message : String(error)}`,
     )

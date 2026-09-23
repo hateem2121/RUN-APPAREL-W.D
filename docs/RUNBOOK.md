@@ -1635,12 +1635,16 @@ per product: skips any colour already at the approved bytes and, once every
 trimmed colour on a product is already done, sends no PATCH for it at all and says
 so. For a colour that still needs trimming, it checks the Media library for an
 upload a previous, half-finished run may already have made with the right bytes
-under a Payload-suffixed filename, and reuses it instead of uploading a duplicate.
-Only then does it upload, repoint `posterPreview` on the affected colourway rows,
-read the product back and compare every field, and poll the public payload for up
-to 120 s before moving to the next product. It deletes nothing — the superseded
-poster media documents stay in the CMS for `scripts/find-orphan-media.mjs` to
-report once nothing references them.
+under a Payload-suffixed filename, and reuses it instead of uploading a duplicate —
+**if that check itself cannot be completed** (the Media listing answers anything
+but 200), the whole run stops there, before any upload or PATCH, and says plainly
+that the reuse check could not run and nothing was changed; it never falls through
+to uploading a possible duplicate. Only when the check succeeds does it upload,
+repoint `posterPreview` on the affected colourway rows, read the product back and
+compare every field, and poll the public payload for up to 120 s before moving to
+the next product. It deletes nothing — the superseded poster media documents stay
+in the CMS for `scripts/find-orphan-media.mjs` to report once nothing references
+them.
 
 **The owner runs this, only after the deploy that ships it**, from their own
 Terminal:

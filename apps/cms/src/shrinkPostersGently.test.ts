@@ -2,8 +2,10 @@ import zlib from 'node:zlib'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { OWNER_EXCEPTIONS } from '../../../scripts/poster-sizes.mjs'
 import {
+  apply,
   candidateUploads,
   type ColourwayRow,
+  dryRun,
   findExistingUpload,
   GENTLE_TRIMS,
   idOf,
@@ -15,6 +17,7 @@ import {
   reencodeProblems,
   repointedColourways,
   sha256,
+  Stop,
   VEST,
 } from '../../../scripts/shrink-posters-gently.mjs'
 
@@ -531,5 +534,220 @@ describe('findExistingUpload', () => {
       vi.fn(async () => new Response(new Uint8Array(original))),
     )
     await expect(findExistingUpload(docs, trim)).resolves.toBeNull()
+  })
+})
+
+// ---- fix round 2 (2026-09-23): orchestration tests for dryRun()/apply()
+// themselves, not just their helpers — three promises made to the owner when
+// they chose "Fix it first": the check can say "already done"; a second full
+// run is a polite no-op; a retry after a half-finished run does not upload
+// twice. Every fetch here is stubbed; nothing reaches production. A test never
+// supplies GENTLE_TRIMS' own live entries — dryRun()/apply() now take `trims`
+// as a parameter for exactly this reason (see their doc comments in the .mjs).
+
+const CMS = 'https://cms.wear-run.help'
+
+/** One CMS request this batch of tests recorded — method + path, never the body,
+ * so "no POST happened" is a fact about the request LIST, not an inference from
+ * a return value. */
+type Recorded = { method: string; path: string }
+
+afterEach(() => vi.unstubAllGlobals())
+
+describe('dryRun()', () => {
+  it('reports done for a colour already at the approved bytes, and ready for one still at the original', async () => {
+    const done = await fixtureTrim({ product: 'r-fix', colour: 'done-colour' })
+    const ready = await fixtureTrim({ product: 'r-fix', colour: 'ready-colour' })
+    const trims = [done.trim, ready.trim]
+    const posterUrl = (t: { product: string; colour: string }) =>
+      `https://media.wear-run.help/${t.product}-${t.colour}-poster.webp`
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url === `${CMS}/api/public/viewer/r-fix`) {
+          return new Response(
+            JSON.stringify({
+              colourways: [
+                { slug: 'done-colour', poster: { url: posterUrl(done.trim) } },
+                { slug: 'ready-colour', poster: { url: posterUrl(ready.trim) } },
+              ],
+            }),
+            { headers: { 'content-type': 'application/json' } },
+          )
+        }
+        if (url === posterUrl(done.trim)) {
+          return new Response(new Uint8Array(done.approved), {
+            headers: { 'content-type': 'image/webp' },
+          })
+        }
+        if (url === posterUrl(ready.trim)) {
+          return new Response(new Uint8Array(ready.original), {
+            headers: { 'content-type': 'image/webp' },
+          })
+        }
+        throw new Error(`unexpected fetch ${url}`)
+      }),
+    )
+
+    const rows = await dryRun(trims)
+    expect(rows.find((r) => r.trim.colour === 'done-colour')?.status).toBe('done')
+    expect(rows.find((r) => r.trim.colour === 'ready-colour')?.status).toBe('ready')
+  })
+})
+
+describe('apply()', () => {
+  it('with every colour already done, makes no POST and no PATCH, and says so', async () => {
+    const a = await fixtureTrim({ product: 'r-fix', colour: 'a' })
+    const b = await fixtureTrim({ product: 'r-fix', colour: 'b' })
+    const trims = [a.trim, b.trim]
+    const posterUrlA = 'https://media.wear-run.help/r-fix-a-poster.webp'
+    const posterUrlB = 'https://media.wear-run.help/r-fix-b-poster.webp'
+    const productDoc = {
+      id: 999,
+      colourways: [
+        row({ id: 1, slug: 'a', displayName: 'A', posterPreview: 10 }),
+        row({ id: 2, slug: 'b', displayName: 'B', posterPreview: 20 }),
+      ],
+    }
+    const requests: Recorded[] = []
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const method = init?.method ?? 'GET'
+        if (url.startsWith(CMS)) {
+          const path = url.slice(CMS.length)
+          requests.push({ method, path })
+          if (path.startsWith('/api/products?where')) {
+            return new Response(JSON.stringify({ docs: [productDoc] }))
+          }
+          if (path === '/api/media/10?depth=0')
+            return new Response(JSON.stringify({ id: 10, url: posterUrlA }))
+          if (path === '/api/media/20?depth=0')
+            return new Response(JSON.stringify({ id: 20, url: posterUrlB }))
+          throw new Error(`unexpected CMS path ${method} ${path}`)
+        }
+        if (url === posterUrlA) return new Response(new Uint8Array(a.approved))
+        if (url === posterUrlB) return new Response(new Uint8Array(b.approved))
+        throw new Error(`unexpected fetch ${method} ${url}`)
+      }),
+    )
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await apply('fake-test-key-not-real-1234', trims)
+
+    expect(requests.some((r) => r.method === 'POST')).toBe(false)
+    expect(requests.some((r) => r.method === 'PATCH')).toBe(false)
+    expect(logSpy.mock.calls.some((call) => String(call[0]).includes('nothing to write'))).toBe(
+      true,
+    )
+  })
+
+  it('a retry with an already-uploaded trim in the media listing reuses it — no POST, one PATCH with only that colour repointed', async () => {
+    const { trim, original, approved } = await fixtureTrim({ product: 'r-fix', colour: 'x' })
+    const originalUrl = 'https://media.wear-run.help/r-fix-x-poster.webp'
+    const reuseUrl = 'https://media.wear-run.help/r-fix-x-poster-1.webp'
+    const rowX = row({ id: 1, slug: 'x', displayName: 'X', posterPreview: 10 })
+    const rowY = row({ id: 2, slug: 'y', displayName: 'Y', posterPreview: 99 }) // untouched decoy
+    const productDoc = { id: 999, colourways: [rowX, rowY] }
+    const requests: Recorded[] = []
+    // An object property, not a bare `let`: TypeScript narrows a closure-reassigned
+    // `let` back to `never` at the read site here, since the only assignment it can
+    // see is the `= null` initialiser — a property on an object typed up front has
+    // no such narrowing to fight.
+    const captured: { patchBody: { colourways: ColourwayRow[] } | null } = { patchBody: null }
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const method = init?.method ?? 'GET'
+        if (url.startsWith(CMS)) {
+          const path = url.slice(CMS.length)
+          requests.push({ method, path })
+          if (path.startsWith('/api/products?where')) {
+            return new Response(JSON.stringify({ docs: [productDoc] }))
+          }
+          if (path === '/api/media/10?depth=0')
+            return new Response(JSON.stringify({ id: 10, url: originalUrl }))
+          if (path === '/api/media?limit=100&depth=0&page=1') {
+            return new Response(
+              JSON.stringify({
+                docs: [
+                  { id: 10, filename: 'r-fix-x-poster.webp', url: originalUrl },
+                  { id: 11, filename: 'r-fix-x-poster-1.webp', url: reuseUrl },
+                ],
+                hasNextPage: false,
+              }),
+            )
+          }
+          if (path === '/api/products/999' && method === 'PATCH') {
+            captured.patchBody = JSON.parse(String(init?.body))
+            return new Response(JSON.stringify({ ok: true }))
+          }
+          if (path === '/api/products/999?depth=0') {
+            return new Response(
+              JSON.stringify({ colourways: [{ ...rowX, posterPreview: 11 }, rowY] }),
+            )
+          }
+          if (path === '/api/public/viewer/r-fix') {
+            return new Response(
+              JSON.stringify({ colourways: [{ slug: 'x', poster: { url: reuseUrl } }] }),
+            )
+          }
+          throw new Error(`unexpected CMS path ${method} ${path}`)
+        }
+        if (url === originalUrl) return new Response(new Uint8Array(original))
+        if (url === reuseUrl) return new Response(new Uint8Array(approved))
+        throw new Error(`unexpected fetch ${method} ${url}`)
+      }),
+    )
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await apply('fake-test-key-not-real-1234', [trim])
+
+    expect(requests.filter((r) => r.method === 'POST')).toEqual([])
+    expect(requests.filter((r) => r.method === 'PATCH')).toHaveLength(1)
+    expect(captured.patchBody).not.toBeNull()
+    expect(captured.patchBody?.colourways).toEqual([{ ...rowX, posterPreview: 11 }, rowY])
+  })
+
+  it('a failed media listing stops the run with its message — no POST, no PATCH', async () => {
+    const { trim, original } = await fixtureTrim({ product: 'r-fix', colour: 'x' })
+    const originalUrl = 'https://media.wear-run.help/r-fix-x-poster.webp'
+    const productDoc = { id: 999, colourways: [row({ id: 1, slug: 'x', posterPreview: 10 })] }
+    const requests: Recorded[] = []
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const method = init?.method ?? 'GET'
+        if (url.startsWith(CMS)) {
+          const path = url.slice(CMS.length)
+          requests.push({ method, path })
+          if (path.startsWith('/api/products?where')) {
+            return new Response(JSON.stringify({ docs: [productDoc] }))
+          }
+          if (path === '/api/media/10?depth=0')
+            return new Response(JSON.stringify({ id: 10, url: originalUrl }))
+          if (path.startsWith('/api/media?limit=100')) {
+            return new Response('service unavailable', { status: 503 })
+          }
+          throw new Error(`unexpected CMS path ${method} ${path}`)
+        }
+        if (url === originalUrl) return new Response(new Uint8Array(original))
+        throw new Error(`unexpected fetch ${method} ${url}`)
+      }),
+    )
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await expect(apply('fake-test-key-not-real-1234', [trim])).rejects.toBeInstanceOf(Stop)
+
+    expect(requests.some((r) => r.method === 'POST')).toBe(false)
+    expect(requests.some((r) => r.method === 'PATCH')).toBe(false)
+    expect(
+      errorSpy.mock.calls.some((call) => String(call[0]).includes('The reuse check could not run')),
+    ).toBe(true)
   })
 })

@@ -120,3 +120,39 @@ export declare function findExistingUpload(
   mediaDocs: MediaListing[],
   trim: GentleTrim,
 ): Promise<{ id: number | string; url: string } | null>
+
+/**
+ * Thrown by dryRun()/apply() in place of `process.exit()`, so a test can catch a
+ * stop (`.rejects.toBeInstanceOf(Stop)`) instead of losing the test process to a
+ * real exit. `code` is what `main()` passes to the real `process.exit` when this
+ * reaches the top, for the one real CLI invocation.
+ */
+export declare class Stop extends Error {
+  code: number
+  constructor(code: number)
+}
+
+/** One row of dryRun()'s report — one per trim, never aggregated. */
+export interface DryRunRow {
+  trim: GentleTrim
+  /** The live poster URL this row was judged from; null when it could not be found at all. */
+  url: string | null
+  status: 'done' | 'ready' | 'problem'
+  note: string
+}
+
+/**
+ * Round 2 (2026-09-23): now exported and takes `trims` as a parameter — see the
+ * .mjs file's own doc comment on `dryRun` for why a test cannot use the real
+ * GENTLE_TRIMS (its hashes are real production bytes with no local copy).
+ */
+export declare function dryRun(trims?: GentleTrim[]): Promise<DryRunRow[]>
+
+/**
+ * Round 2 (2026-09-23): now exported and takes the key and `trims` as parameters
+ * — see the .mjs file's own doc comment on `apply` for why (a test supplies its
+ * own fake key and skips the interactive prompt entirely; the owner's real
+ * invocation passes neither and is unchanged). Throws `Stop` on any fatal
+ * condition instead of calling `process.exit`.
+ */
+export declare function apply(providedKey?: string, trims?: GentleTrim[]): Promise<void>
