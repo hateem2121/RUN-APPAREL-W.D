@@ -1589,6 +1589,31 @@ them into the JPEG link cards under `apps/viewer/public/og/` and regenerates the
 the product's "Backup picture" takes any one of them. `scripts/smoke-viewer-payload.mjs`
 now fetches every colourway's poster after a deploy and fails on one that is not served.
 
+### Is a poster too heavy? — `scripts/poster-sizes.mjs`
+
+Since 2026-09-17 (audit L-11/IM-02) this reads every live product's poster and judges
+it against the median for its OWN `category` (Sportswear, Outerwear, …) — a Teamwear
+kit's poster legitimately carries more print than a plain tee, so the comparison is
+never against the whole catalogue. A poster at `FLAG_AT` (2×) its family's median or
+heavier is flagged, unless the product is named in `OWNER_EXCEPTIONS` — one entry
+today, `r-wzu`, ceiling 3×, the owner's 2026-09-17 call on "Shrink gently": *the vest
+keeps its detail*. Past its own ceiling an exception stops covering the product; it is
+flagged same as anything else.
+
+```bash
+node scripts/poster-sizes.mjs           # exits 1 if anything is flagged, 2 if anything
+                                         # could not be read, 0 otherwise
+node scripts/poster-sizes.mjs --report  # same table, always exits 0
+```
+
+Measured live 2026-09-17, before that day's trim: Teamwear & Uniforms median 63952 B
+(40 posters), Sportswear 50517 (20), Outerwear 46816 (10), Casual Wear 35502 (10).
+Exactly 7 posters were at or above 2× — all five `r-wzu` colourways (above even the
+3× exception ceiling) and two of `r-asb`'s. The next highest was `r-cch` blush at
+1.96×, comfortably under. `apps/cms/src/posterSizes.test.ts` pins the median rule, the
+exception ceiling and that measurement. The next section is the script that brought
+`r-wzu` and `r-asb` back under it.
+
 ## Re-processing a garment (the Retry tick-box)
 
 **When you need this:** the pipeline was fixed and you want the fix applied to a
