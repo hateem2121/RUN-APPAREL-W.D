@@ -1,0 +1,152 @@
+name: Android Chrome (emulator)
+
+# THE MISSING PHASE 0.2 ROBOT. The 100/100 plan's device lab asked for "a pretend
+# Android phone (emulator with Chrome on Linux runners with KVM)" alongside the iPhone
+# Safari driver (`scripts/ios-safari.mjs`, live since `56d38b9`). This is that half —
+# `scripts/android-chrome.mjs` drives real Chrome for Android on a KVM-accelerated
+# emulator via ChromeDriver's `androidPackage` capability, the Android analogue of
+# safaridriver's `safari:useSimulator`.
+#
+# WHY workflow_dispatch ONLY — NO schedule, NO pull_request. Two reasons. First, wiring
+# this into a nightly or pre-merge CADENCE is explicitly a Phase 2 decision the plan has
+# not made yet (`DECISIONS-AND-PROGRESS.md`, 2026-09-23 controller note: "the Android and
+# VoiceOver robots are built at the START of Phase 2" — built, not yet scheduled), and the
+# owner's standing rule is "never assume — if unsure, stop and ask". Second, this keeps
+# the promise made in the plan itself literally true today: a dispatch-only workflow
+# cannot slow a PR or gate the deploy, because nothing ever triggers it without a person
+# asking. Adding a cadence is a small, separate change once the harness has a track record.
+on:
+  workflow_dispatch:
+
+# Least privilege, stated explicitly — same reasoning as ci.yml's own block. This job
+# reads the checkout and runs local tools; it never calls the GitHub API and never writes
+# anywhere, so `contents: read` is enough. A `permissions:` block REPLACES the default
+# grants rather than adding to them (root CLAUDE.md, uptime.yml's 23-hour outage) — this
+# workflow does nothing that needs more.
+permissions:
+  contents: read
+
+concurrency:
+  group: android-chrome-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-chrome:
+    runs-on: ubuntu-latest
+    # An emulator cold boot plus install steps is the slow part of this job; 20 minutes
+    # is generous headroom over what a healthy run needs while still failing loudly
+    # rather than running to the 6-hour platform default if something hangs (the same
+    # reasoning ci.yml's own timeout-minutes comment records).
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Only the viewer needs building — this check reads a served page, not a 3D model,
+      # so no seeded GLB assets are needed (`pnpm seed:assets` is deliberately skipped).
+      - run: pnpm --filter @run-apparel/viewer build
+
+      # Standard recipe for granting a GitHub-hosted Ubuntu runner's own user access to
+      # /dev/kvm, which is not open by default. Without this the emulator still boots
+      # (android-emulator-runner supports software virtualization as a fallback) but far
+      # more slowly, and "on ubuntu-latest with KVM" is the capability Phase 0.2 asked for.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # Serves the build from the step above at the fixture's own default address (see
+      # apps/viewer/e2e/serve.mjs) — the same fixture the iPhone Safari driver was proven
+      # against on 2026-09-16, so this check is exercised the same way as the house
+      # pattern for the iOS half, against a fixture rather than production. Backgrounded
+      # and polled rather than slept for, matching this repo's own "poll a readiness
+      # endpoint, never sleep a fixed guess" convention (ios-safari.mjs's startDriver).
+      - name: Start the viewer fixture server
+        run: |
+          node apps/viewer/e2e/serve.mjs &
+          echo $! > "${RUNNER_TEMP}/serve.pid"
+          for _ in $(seq 1 40); do
+            curl -sf http://127.0.0.1:4173/ > /dev/null && exit 0
+            sleep 0.25
+          done
+          echo "::error::viewer fixture server did not answer on its default port within 10s"
+          exit 1
+
+      # `chromedriver`'s own version must be reasonably close to the on-device Chrome it
+      # drives, and — measured below — that cannot be decided before the emulator has
+      # booted. This step only installs the Chrome team's own browser/driver-management
+      # CLI ahead of time, so the emulator step's script can resolve the EXACT matching
+      # build once it knows the real on-device version.
+      #
+      # ⚠️ MEASURED 2026-09-23: `npx --yes @puppeteer/browsers@3.2.2 install …` fails
+      # with "sh: browsers: command not found" (exit 127) — reproduced both in this PR's
+      # own first CI run and locally on this Mac, with no local install present or absent.
+      # `npm view @puppeteer/browsers bin` correctly reports `{ browsers: 'lib/main-cli.js' }`
+      # and running that file directly with `node` works every time; it is npx's bin-name
+      # resolution for this scoped package that is unreliable on npm 11.19.1, not the
+      # package. Installing to an explicit `--prefix` and invoking the CLI file directly
+      # sidesteps npx's resolution entirely, which is the fix below.
+      - name: Install the browser-install CLI
+        run: npm install --no-save --no-audit --no-fund --prefix "${RUNNER_TEMP}/puppeteer-browsers" @puppeteer/browsers@3.2.2
+
+      # The emulator boot itself, then ONE first real check once it is ready. Suggested by
+      # the plan's own 2026-09-11 finding ("Android has no bundled Arial or Georgia, so a
+      # local() fallback face behaves differently there") as a good first check: does the
+      # real bundled webfont actually resolve on real Chrome for Android at all. See
+      # android-chrome.mjs's FONT_CHECK_SCRIPT doc comment for why it asserts two things,
+      # not one.
+      #
+      # google_apis_playstore, not plain google_apis: chosen because a Play Store-capable
+      # image is the one this session could be confident ships real com.android.chrome
+      # rather than only AOSP's plain Browser/WebView — general Android system-image
+      # research did not settle which "google_apis" images bundle Chrome. CONFIRMED by
+      # this workflow's own first successful boot: the dumpsys line below found a real,
+      # versioned com.android.chrome package.
+      #
+      # ⚠️ MEASURED 2026-09-23, and why chromedriver is resolved HERE rather than in the
+      # step above: this AVD image's Chrome build is FROZEN at 113.0.5672.136 — long
+      # before Chrome-for-Testing's catalog begins (it starts around Chrome 115) — so
+      # ChromeDriver "stable" (a current ~154.x build) refused the session outright:
+      # "This version of ChromeDriver only supports Chrome version 154. Current browser
+      # version is 113.0.5672.136." (android-chrome.mjs's readSessionId surfaced that
+      # message verbatim, exactly as it is designed to.) The on-device version cannot be
+      # known before boot, so `scripts/android-chrome-ci-check.sh` reads it from the
+      # device first and fetches a matching driver against the REAL version, never assumed
+      # — see that file's own header for the two sources it tries, in order.
+      #
+      # ⚠️ ALSO MEASURED 2026-09-23: this action's `script:` input does NOT run a
+      # multi-line block as one shell session — its log shows EACH LINE invoked as its own
+      # independent `sh -c`, so a variable set on one line is invisible on the next and an
+      # `if`/`fi` spanning lines fails with "Syntax error: end of file unexpected". That is
+      # why the real logic lives in `android-chrome-ci-check.sh` and this is a single line.
+      #
+      # `-no-window` is what makes this work headless on a runner with no display.
+      # `-gpu swiftshader_indirect` is software rendering: this repo's own plan research
+      # already found "no free GPU runners, so WebGL in free CI is SwiftShader" — this
+      # check draws no WebGL at all, so that limit does not even apply here, but the same
+      # flag keeps the emulator itself bootable on a runner with no real GPU.
+      - name: Boot the Android emulator and run the check
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 34
+          target: google_apis_playstore
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash scripts/android-chrome-ci-check.sh
+
+      - name: Stop the fixture server
+        if: always()
+        run: kill "$(cat "${RUNNER_TEMP}/serve.pid")" 2>/dev/null || true
