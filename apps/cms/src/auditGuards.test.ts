@@ -237,3 +237,57 @@ describe('FA-S-06 — the pre-deploy backup is taken AND proven to restore, befo
     )
   })
 })
+
+describe('XS-02 — one menu bar on both surfaces, styled once (Phase 1b-B)', () => {
+  /**
+   * Owner decision 2026-09-17: "Same menu bars everywhere. The one I prefer is at
+   * wear-run.help." The bar's rules moved VERBATIM from the site's stylesheet into
+   * packages/ui/src/notch.css, so the site and the 3D viewer draw one bar rather than two
+   * copies of it — the arrangement FA-Q-03 above already uses for the cursor.
+   *
+   * ⚠️ APPEARANCE ONLY, NOT EVERY MENTION. Each surface legitimately keeps its own
+   * POSITIONING (the site fixes the bar over the page; the viewer keeps it in the page flow
+   * so --header-h measures its stage), the site's scroll condense (an `animation`), its print
+   * block, and the footer's own `.footer-legal .nav-link` overrides. What must stay in one
+   * place is how the bar looks and lays out.
+   */
+  const NOTCH_CSS = join(REPO_ROOT, 'packages', 'ui', 'src', 'notch.css')
+  const BAR = /(?:^|[\s,>+~(])\.notch(?:-shell|__[a-z-]+)?(?![\w-])/
+  const LOOK =
+    /(?:^|;)\s*(?:display|flex(?:-[a-z]+)?|gap|row-gap|column-gap|(?:min-|max-)?(?:width|height)|padding(?:-[a-z]+)?|margin(?:-[a-z]+)?|border(?:-[a-z]+)?|background(?:-[a-z]+)?|color|font(?:-[a-z]+)?|letter-spacing|line-height|text-[a-z-]+|box-shadow|mask|scale|transition|outline(?:-[a-z]+)?|--notch-[a-z-]+)\s*:/
+  const restyles = (source: string) =>
+    [...source.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter(([, selector = '', body = '']) => {
+        const names = selector.split(',').map((part) => part.trim())
+        const bar = names.some((name) => BAR.test(` ${name}`))
+        const bareLink = names.some((name) => /^\.nav-link(?![\w-])/.test(name))
+        return (bar || bareLink) && LOOK.test(`;${body}`)
+      })
+      .map(([, selector = '']) => selector.trim().replace(/\s+/g, ' ').slice(0, 60))
+
+  it('draws the bar in packages/ui and nowhere else', () => {
+    expect(existsSync(NOTCH_CSS), 'packages/ui/src/notch.css is missing').toBe(true)
+    expect(read(NOTCH_CSS)).toMatch(/\.notch\s*\{/)
+    const offenders: string[] = []
+    for (const dir of [join(CMS_ROOT, 'src'), join(REPO_ROOT, 'apps', 'viewer', 'src')]) {
+      for (const file of walk(dir, ['.css'])) {
+        for (const selector of restyles(stripComments(readFileSync(file, 'utf8')))) {
+          offenders.push(`${file.slice(REPO_ROOT.length + 1)}: ${selector}`)
+        }
+      }
+    }
+    expect(
+      offenders,
+      'a surface restyled the shared bar — the two hosts now draw different bars. ' +
+        'Put the rule in packages/ui/src/notch.css.',
+    ).toEqual([])
+  })
+
+  it('sees a planted restyle, and allows what each surface keeps (negative control)', () => {
+    expect(restyles('.page .notch { color: red; }')).toEqual(['.page .notch'])
+    expect(restyles('.nav-link { padding-inline: 2px; }')).toEqual(['.nav-link'])
+    expect(restyles('.notch-shell { position: fixed; inset-block-start: 0; }')).toEqual([])
+    expect(restyles('.notch { animation: notch-condense linear both; }')).toEqual([])
+    expect(restyles('.footer-legal .nav-link { padding-inline: 0; }')).toEqual([])
+  })
+})

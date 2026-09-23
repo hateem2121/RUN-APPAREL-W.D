@@ -31,6 +31,7 @@ import '@fontsource/instrument-serif/400-italic.css'
 // public site and the 3D reference cannot drift apart visually.
 import '@run-apparel/ui/tokens.css'
 import '@run-apparel/ui/base.css'
+import '@run-apparel/ui/notch.css'
 import './site.css'
 
 import type { Metadata, Viewport } from 'next'
