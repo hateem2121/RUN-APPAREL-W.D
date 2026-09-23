@@ -292,6 +292,20 @@ describe('isTabAnnouncement', () => {
   it('still counts a real tab whose phrase also names the group it sits in', () => {
     expect(isTabAnnouncement('Wine, selected, tab, 1 of 5, Select colorway, tab group')).toBe(true)
   })
+
+  it('does not count the TABPANEL ("tab panel") as a tab — negative control', () => {
+    // MEASURED on run 35880390762: the stage is role="tabpanel", read BEFORE the tablist,
+    // and VoiceOver spoke both its start and its end. Counted as tabs, those two phrases
+    // stood in for "not-selected tabs", so one real tab plus its panel would have passed.
+    expect(isTabAnnouncement('Wine tab panel')).toBe(false)
+    expect(isTabAnnouncement('end of Wine tab panel')).toBe(false)
+  })
+
+  it('counts the real tabs exactly as that run spoke them', () => {
+    expect(isTabAnnouncement('Wine selected tab, 1 of 5')).toBe(true)
+    expect(isTabAnnouncement('Pebble / Optic White tab, 2 of 5')).toBe(true)
+    expect(isTabAnnouncement('Butter tab, 3 of 5')).toBe(true)
+  })
 })
 
 describe('isAnnouncedSelected', () => {

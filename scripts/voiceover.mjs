@@ -212,13 +212,16 @@ export function containsGarmentName(text, garmentName) {
  * it matches "Wine, tab, 1 of 5" but not "tablet" or "tabular" — negative-controlled in
  * apps/cms/src/voiceOver.test.ts.
  *
- * "tab group" is the TABLIST's own role name, not a tab, so it is excluded: counted as a
- * tab, the container announcement ("Select colorway, tab group") would pass for a second,
- * not-selected tab and could turn one real tab into a pass. A phrase that carries both a
- * real "tab," and a trailing "tab group" still matches, on the first.
+ * "tab group" is the TABLIST's own role name and "tab panel" the TABPANEL's, neither of
+ * them a tab, so both are excluded: counted as tabs, a container announcement would pass
+ * for a second, not-selected tab and could turn one real tab into a pass. MEASURED on run
+ * 35880390762: the stage is the tab panel, read BEFORE the tablist, and VoiceOver spoke
+ * "Wine tab panel" and "end of Wine tab panel"; before this exclusion both were counted,
+ * and the pass reported the first as its "not-selected example". A phrase that carries
+ * both a real "tab," and a trailing "tab group" still matches, on the first.
  */
 export function isTabAnnouncement(itemText) {
-  return /\btab\b(?!\s+group)/i.test(String(itemText ?? ''))
+  return /\btab\b(?!\s+(?:group|panel)\b)/i.test(String(itemText ?? ''))
 }
 
 /**
