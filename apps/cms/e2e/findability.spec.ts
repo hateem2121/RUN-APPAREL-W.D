@@ -406,6 +406,72 @@ test.describe('FA-N-16 / FA-N-17 — the machine-readable files are served as te
   })
 })
 
+/**
+ * IM-04 — one poster size for every screen, an honest proxy.
+ *
+ * This is a JUDGEMENT CALL, not a provable-true finding, and the test says so rather than
+ * hiding it. `ProductPoster.tsx`'s own comment already measures the trade-off: the
+ * pipeline emits exactly one 1200x1500 WebP per colourway, a `srcset` needs a second file
+ * to choose between, and making one costs either a `tools/asset-pipeline` change plus a
+ * re-run of all 55 live posters, or Cloudflare Image Resizing against a $5/month ceiling.
+ * A smaller variant would save roughly 25 KB on an image that is lazy-loaded and already
+ * off the critical path for every card but the first.
+ *
+ * ⚠️ WHAT THIS DOES NOT PROVE: that one size is the RIGHT trade-off for a desktop or a
+ * larger screen, which stays a human call between the owner and the cost above. What it
+ * proves is narrower and durable: the deliberate decision is still in force (no `srcset`
+ * silently reappeared, which would mean the trade-off was revisited without anyone
+ * updating this comment or the pipeline), and the one size that IS served still matches
+ * what a phone card actually needs.
+ */
+test.describe('IM-04 — no srcset, and the single size still fits a phone', () => {
+  test('no gallery poster carries a srcset or sizes attribute', async ({ request }) => {
+    const html = await (await request.get('/products')).text()
+    const images = [...html.matchAll(/<img[^>]*class="product-card__img"[^>]*>/g)].map((m) => m[0])
+    test.skip(images.length === 0, 'no garment with a poster in this database')
+    for (const img of images) {
+      expect(img, `a gallery poster now carries srcset:\n${img}`).not.toMatch(/\bsrcset=/)
+      expect(img, `a gallery poster now carries sizes:\n${img}`).not.toMatch(/\bsizes=/)
+    }
+  })
+
+  /**
+   * Asserts the DECLARED contract (the `width`/`height` markup attributes,
+   * `ProductPoster.tsx`'s own `1200`/`1500`), not the real file's bytes — deliberately.
+   *
+   * ⚠️ THIS FIXTURE'S POSTERS 404 BY DESIGN, SO A LIVE BYTE-PARSE HAS NOTHING TO READ
+   * HERE. `apps/cms/e2e/serve.mjs` documents at length why: `PUBLIC_MEDIA_BASE_URL` is
+   * same-origin (`http://localhost:<port>`) on purpose, to match production's URL SHAPE
+   * (off Payload's authenticated API route) without triggering the CSP/CORP failures a
+   * cross-origin or `media.wear-run.help` URL would hit locally — and "the seeded files
+   * are not served from this origin either, so each poster 404s and the DESIGNED
+   * placeholder renders" is the file's own words. `composition.spec.ts`'s "IM-05 / PF-20"
+   * test hits the identical wall. So the REAL bytes are never fetchable from this suite,
+   * in CI or locally, by construction — not a flake to route around.
+   *
+   * The declared attribute is still worth pinning: it is what a browser reserves layout
+   * space for before the file arrives, and it is a plain string in the SAME markup this
+   * test already parses for `srcset`, so a regression here (someone changing the
+   * component's `width={800}` without touching the pipeline, or the reverse) is exactly
+   * as visible as the `srcset` regression above. Proving the FILE ON DISK still matches
+   * is `scripts/media-content-probe.mjs`'s job, against live production — see the PR
+   * report for today's live confirmation.
+   */
+  test('the gallery declares the one size a phone needs: 1200 x 1500', async ({ request }) => {
+    const html = await (await request.get('/products')).text()
+    const images = [...html.matchAll(/<img[^>]*class="product-card__img"[^>]*>/g)].map((m) => m[0])
+    test.skip(images.length === 0, 'no garment with a poster in this database')
+    for (const img of images) {
+      expect(img, `a gallery poster no longer declares width=1200:\n${img}`).toMatch(
+        /\swidth="1200"/,
+      )
+      expect(img, `a gallery poster no longer declares height=1500:\n${img}`).toMatch(
+        /\sheight="1500"/,
+      )
+    }
+  })
+})
+
 test.describe('FA-N-18 — an AI crawler gets a finished head', () => {
   /*
    * ⚠️ THIS PASSES WITH AND WITHOUT THE FIX TODAY, AND IS KEPT ANYWAY. Measured
