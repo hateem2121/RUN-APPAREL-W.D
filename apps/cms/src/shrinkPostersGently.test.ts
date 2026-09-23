@@ -561,10 +561,20 @@ describe('dryRun()', () => {
     const trims = [done.trim, ready.trim]
     const posterUrl = (t: { product: string; colour: string }) =>
       `https://media.wear-run.help/${t.product}-${t.colour}-poster.webp`
+    // Every request dryRun() makes — method, path (the full URL: this test spans
+    // two hosts, CMS and media) and whether it carried a key. The dry run is
+    // read-only and needs no key at all, so this is a fact about the REQUESTS it
+    // sent, not an inference from the rows it returned.
+    const requests: (Recorded & { hasAuthHeader: boolean })[] = []
 
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: string) => {
+      vi.fn(async (url: string, init?: RequestInit) => {
+        requests.push({
+          method: init?.method ?? 'GET',
+          path: url,
+          hasAuthHeader: new Headers(init?.headers).has('Authorization'),
+        })
         if (url === `${CMS}/api/public/viewer/r-fix`) {
           return new Response(
             JSON.stringify({
@@ -593,6 +603,11 @@ describe('dryRun()', () => {
     const rows = await dryRun(trims)
     expect(rows.find((r) => r.trim.colour === 'done-colour')?.status).toBe('done')
     expect(rows.find((r) => r.trim.colour === 'ready-colour')?.status).toBe('ready')
+
+    expect(requests.length).toBeGreaterThan(0)
+    expect(requests.every((r) => r.method === 'GET')).toBe(true)
+    expect(requests.some((r) => r.method === 'POST' || r.method === 'PATCH')).toBe(false)
+    expect(requests.every((r) => !r.hasAuthHeader)).toBe(true)
   })
 })
 
