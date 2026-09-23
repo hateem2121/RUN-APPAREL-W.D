@@ -750,3 +750,91 @@ test.describe('TY-07 / SZ-03 — the words that take a visitor anywhere are read
     }
   })
 })
+
+test.describe('the Speed Lines move, and hold still for reduced motion (owner, 2026-09-23)', () => {
+  /*
+   * Read in the SAME task as the click: a transition that has finished is gone from
+   * getAnimations(), so reading it a round trip later would flake on a slow runner. The
+   * click is dispatched in-page for that reason; it is a real activation (a scripted click
+   * runs a button's popovertarget behaviour).
+   */
+  const clickAndRead = () =>
+    `(() => {
+      document.querySelector('.notch__menu-btn').click()
+      return [...document.querySelectorAll('.notch__menu-btn .notch__icon-line')].map((line) =>
+        line.getAnimations().map((animation) => {
+          const timing = animation.effect.getTiming()
+          return animation.transitionProperty + ':' + timing.duration + ':' + timing.delay
+        }).sort(),
+      )
+    })()`
+
+  test('with motion: each line moves on --ui, 0 / 20 / 40ms apart, and lands on the X', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.setViewportSize({ width: 390, height: 800 })
+    await page.goto('/')
+    expect(
+      await page.evaluate(() => matchMedia('(prefers-reduced-motion: no-preference)').matches),
+    ).toBe(true)
+    const running = await page.evaluate(clickAndRead())
+    expect(running).toEqual([
+      ['transform:220:0', 'width:220:0'],
+      ['opacity:220:20'],
+      ['transform:220:40', 'width:220:40'],
+    ])
+    await expect
+      .poll(() =>
+        page
+          .locator('.notch__menu-btn .notch__icon-line')
+          .evaluateAll((lines) => lines.map((line) => getComputedStyle(line).width)),
+      )
+      .toEqual(['20px', '20px', '20px'])
+  })
+
+  test('reduced motion: no line moves — the X arrives at once, with no in-between frame', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.setViewportSize({ width: 390, height: 800 })
+    await page.goto('/')
+    expect(
+      await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches),
+      'reduced motion never reached the page',
+    ).toBe(true)
+    /*
+     * base.css's reduced-motion block collapses every transition to 0.01ms with no stagger,
+     * reaching all three lines. Compared numerically, not against a literal string:
+     * getComputedStyle serializes 0.01ms as '1e-05s' in Chromium but '0.00001s' in Firefox
+     * and WebKit — same value, different notation (measured 2026-09-23, the first run of
+     * this file under all three engines). The 1ms threshold sits two orders of magnitude
+     * above the real 0.01ms and one below a 300ms plant, so motion that ignores the setting
+     * still fails this test.
+     */
+    const timing = await page.locator('.notch__menu-btn .notch__icon-line').evaluateAll((lines) =>
+      lines.map((line) => {
+        const style = getComputedStyle(line)
+        return [
+          Number.parseFloat(style.transitionDuration),
+          Number.parseFloat(style.transitionDelay),
+        ]
+      }),
+    )
+    for (const [duration, delay] of timing) {
+      expect(duration, 'transition-duration did not collapse under reduced motion').toBeLessThan(
+        0.001,
+      )
+      expect(delay, 'transition-delay did not collapse under reduced motion').toBe(0)
+    }
+    const running = await page.evaluate(clickAndRead())
+    for (const line of running) {
+      for (const entry of line) {
+        const [, duration] = entry.split(':')
+        expect(Number(duration), `${entry} still animates under reduced motion`).toBeLessThan(1)
+      }
+    }
+  })
+})

@@ -542,6 +542,16 @@
   block-size: 0;
   border-block-start: 2px solid currentColor;
   border-radius: var(--radius-pill);
+  /*
+   * --ui (220ms) on --ease, staggered 20ms a line (below): the owner's Speed Lines "snap
+   * even and fold into an X". Reduced motion needs nothing here — base.css collapses every
+   * transition to 0.01ms and every delay to 0s with !important, and navbar.spec.ts measures
+   * that it reaches these lines.
+   */
+  transition:
+    width var(--ui) var(--ease),
+    transform var(--ui) var(--ease),
+    opacity var(--ui) var(--ease);
 }
 
 .notch__icon-line:nth-child(1) {
@@ -552,11 +562,13 @@
 .notch__icon-line:nth-child(2) {
   inset-block-start: 7px;
   width: 20px;
+  transition-delay: 20ms;
 }
 
 .notch__icon-line:nth-child(3) {
   inset-block-start: 14px;
   width: 16px;
+  transition-delay: 40ms;
 }
 
 .notch__menu-btn:has(+ .notch__menu:popover-open) .notch__icon-line:nth-child(1) {
