@@ -22,7 +22,6 @@ development reference for partners, not a retail page.**
 | `apps/shrink` | The auto-shrink service — queue consumer Worker + Container that runs the asset pipeline on raw CLO uploads |
 | `packages/shared` | Shared types, size ceilings and the shrink job contract, used by all of the above |
 | `tools/asset-pipeline` | The GLB processing tool (merge colourways, decimate, validate, placeholders) |
-| `patches/` | A pnpm patch for `@payloadcms/storage-r2` — **do not remove**, see `docs/RAW-UPLOAD-PIPELINE.md` |
 | `docs/` | see the index below |
 
 First-time deployment: follow **`docs/CLOUDFLARE-SETUP.md`** once, top to bottom.

@@ -331,24 +331,42 @@ does not provide the compiler API required by Next.js"), and **Next 16.3.0 resol
 that on 2026-08-12**, so all five workspaces are now on one TypeScript. See
 `CLAUDE.md`.
 
-### The `@payloadcms/storage-r2` patch — when it can go
+### The `@payloadcms/storage-r2` patch — REMOVED 2026-09-23, upstream fixed it
 
-`patches/@payloadcms__storage-r2@3.88.0.patch` fixes the frozen-endpoint bug that
-meant this inbox never worked (see the ⚠️ banner). The patch is **re-keyed to the
-installed version on every Payload bump** — it was `@3.86.0.patch` until 2026-08-12
-— which is what `ERR_PNPM_UNUSED_PATCH` below enforces. Upstream has since fixed it
-themselves in **`@payloadcms/storage-r2@4.0.0-canary.17`** (`const getEndpoint =
-() => …`), but `latest` is still on the 3.x line and the 4.0 handler signature changed
-(`extra`→`props`, `serverHandlerPath`→`endpointPath`, new `name` field) — so
-dropping the patch is a **Payload 4.0 migration, not a version bump**.
+`patches/@payloadcms__storage-r2@3.88.0.patch` used to fix the frozen-endpoint bug
+that meant this inbox never worked (see the ⚠️ banner). It was **re-keyed to the
+installed version on every Payload bump** — `@3.86.0.patch` until 2026-08-12, then
+`@3.88.0.patch` — which is what `ERR_PNPM_UNUSED_PATCH` enforced each time.
 
-Two things keep it honest in the meantime:
-- pnpm 10 fails the install with `ERR_PNPM_UNUSED_PATCH` if the version key in
-  `patchedDependencies` stops matching anything. **Do not set
-  `allowUnusedPatches: true`** — that would downgrade it to a warning.
-- `apps/cms/src/collections/storageR2Patch.test.ts` asserts the *installed bytes*
-  in `node_modules` still contain the fix. That covers what pnpm cannot: the
-  patch being edited, removed, or silently applying to a file upstream changed.
+**Bumping to Payload 3.90.1 (the 2026-09-18 security release) broke that
+re-keying for a new reason: there was nothing left to re-key.** Read directly out
+of the installed `node_modules/@payloadcms/storage-r2/dist/client/
+R2ClientUploadHandler.js` at 3.90.1 — upstream fixed the exact bug itself,
+independently, somewhere before this version: the frozen `const endpoint =
+\`${baseURL}?...\`` string is now `const getEndpoint = () => \`${baseURL}?...\``, a
+function, called fresh as `fetch(getEndpoint(), …)` at all three call sites (init,
+each part, complete). This is the same fix our patch applied, under a different
+name, not the `4.0.0-canary.17` rewrite this section previously said was the only
+place it landed — that claim is now corrected.
+
+The patch's second, smaller fix (`extra: { chunkSize = … } = {}`, tolerating a
+missing `extra` object) is also moot at 3.90.1, and provably so rather than just
+untriggered: `@payloadcms/storage-r2`'s own `r2Storage()` plugin now always passes
+`extraClientHandlerProps: () => ({ useCompositePrefixes: … })` into
+`initClientUploads` (`@payloadcms/plugin-cloud-storage/dist/utilities/
+initClientUploads.js`), which sets `extra: extraClientHandlerProps ?
+extraClientHandlerProps(collection) : undefined` — since this repo's two
+`r2Storage()` calls in `payload.config.ts` are the only way this handler gets
+wired up, `extra` can never be `undefined` on this path; the fallback the patch
+added is structurally unreachable.
+
+**So the patch is gone, not re-keyed.** The patches directory no longer exists in this repo.
+`apps/cms/src/collections/storageR2Patch.test.ts` still exists as the regression
+guard, but now reads the plain, unpatched installed bytes and asserts the SAME
+invariant (a fresh endpoint per call) against upstream's own naming, so a future
+Payload release that reintroduces the frozen-string bug — under any name — still
+fails it. If Payload ever regresses this, the fix is once again a patch, keyed to
+whatever version regressed it; this section's history is the precedent for how.
 
 **Why a raw file can never go live:** the ingest bucket has no custom domain and no
 public access; `RawUploads` is admin/editor-only; the public viewer endpoint reads

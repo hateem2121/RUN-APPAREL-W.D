@@ -74,6 +74,10 @@ export const ALLOWED_ABSENT = new Map([
     'the version the patch carried when docs/SESSION-2026-07-27.md was written. It moved to 3.88.0 with Payload; the session log is a record of that day, not an index.',
   ],
   [
+    'patches/@payloadcms__storage-r2@3.88.0.patch',
+    'the version the patch carried immediately before the 2026-09-23 Payload 3.90.1 security bump, cited in RAW-UPLOAD-PIPELINE.md in the PAST TENSE. Unlike every earlier re-key, this one has no successor file: at 3.90.1 the installed R2ClientUploadHandler.js already computes its upload endpoint per call (verified directly against node_modules), so the patch this repo carried is gone, not renamed. patches/ no longer exists.',
+  ],
+  [
     'apps/viewer/dist',
     'gitignored BUILD OUTPUT, absent in a clean checkout by design — the root file cites it to say check-bundle-budget reads it and exits 1 unless `pnpm build` ran first, which is exactly why it is not committed. Added 2026-08-13 after this guard caught the citation in CI while a local `pnpm test` passed: dist existed on the machine that wrote the line. That asymmetry is the point — a citation to build output is only ever valid on a dirty tree, so it must be exempted here rather than "fixed" by building before the test.',
   ],

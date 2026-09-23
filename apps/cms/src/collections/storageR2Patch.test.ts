@@ -5,10 +5,11 @@ import { describe, expect, it } from 'vitest'
 
 /**
  * Regression guard for the defect that meant the raw-upload inbox had NEVER
- * worked (fixed 2026-07-27 by patches/@payloadcms__storage-r2@3.86.0.patch).
+ * worked (fixed for us 2026-07-27 by a pnpm patch, re-keyed at every Payload
+ * bump through @3.88.0.patch; REMOVED 2026-09-23 — see below).
  *
- * `@payloadcms/storage-r2`'s browser-side multipart handler computed its upload
- * endpoint ONCE, as a string:
+ * `@payloadcms/storage-r2`'s browser-side multipart handler used to compute its
+ * upload endpoint ONCE, as a string:
  *
  *     const endpoint = `${baseURL}?${String(new URLSearchParams(params))}`
  *
@@ -20,19 +21,25 @@ import { describe, expect, it } from 'vitest'
  * was still created, because Payload treats the resulting 404 as success.
  * Confirmed in production: 66 requests, zero carrying multipartId.
  *
- * WHY THIS TEST EXISTS. The fix lives in a pnpm patch, not in our source. It is
- * applied at `pnpm install` and baked into a Next.js client chunk at build time,
- * so if it ever stops applying, nothing fails — uploads just silently go back to
- * writing zero bytes, and we would not find out until someone tried to publish a
- * garment. pnpm 10 does raise ERR_PNPM_UNUSED_PATCH when the version key matches
- * nothing, but that does not cover the patch being edited, removed, or applied
- * to a file that upstream has since changed. Asserting the installed bytes does.
+ * THE PATCH IS GONE, NOT RE-KEYED. Verified directly against the installed
+ * `node_modules/@payloadcms/storage-r2` at 3.90.1 (the 2026-09-18 security
+ * release this repo took on 2026-09-23): upstream now builds the same URL as a
+ * function, `const getEndpoint = () => …`, called fresh at all three call sites
+ * — the same fix our patch applied, under a different name, landed in the 3.x
+ * line itself rather than only in `4.0.0-canary.17` as this comment used to say.
+ * The patch's second fix (tolerating a missing `extra` object) is also
+ * structurally moot now: `r2Storage()`'s own `extraClientHandlerProps` always
+ * supplies one (`@payloadcms/plugin-cloud-storage`'s `initClientUploads.js`), so
+ * `extra` can never be `undefined` on the only path this repo wires up.
+ * Full history: docs/RAW-UPLOAD-PIPELINE.md.
  *
- * WHEN THIS CAN GO. Upstream fixed it in @payloadcms/storage-r2 4.0.0-canary.17
- * (`const getEndpoint = () => …`). `latest` is still 3.86.0, and the 4.0 handler
- * signature changed (`extra`→`props`, `serverHandlerPath`→`endpointPath`), so the
- * patch must stay until Payload 4.0 is stable — that is a migration, not a bump.
- * See docs/RAW-UPLOAD-PIPELINE.md.
+ * WHY THIS TEST STILL EXISTS WITH NO PATCH TO GUARD. The fix now lives entirely
+ * in a dependency we do not control, and it is baked into a Next.js client chunk
+ * at build time — if a future Payload release reintroduces the frozen-string
+ * bug, under any variable name, nothing else here would fail. This asserts the
+ * INSTALLED bytes carry a fresh-per-call endpoint, the same property the patch
+ * used to guarantee, so that regression is still caught rather than discovered
+ * the next time someone tries to publish a garment.
  */
 
 const require_ = createRequire(import.meta.url)
@@ -41,24 +48,33 @@ const require_ = createRequire(import.meta.url)
 const packageRoot = dirname(dirname(require_.resolve('@payloadcms/storage-r2')))
 const handlerPath = join(packageRoot, 'dist', 'client', 'R2ClientUploadHandler.js')
 
-describe('@payloadcms/storage-r2 multipart patch', () => {
+describe('@payloadcms/storage-r2 multipart upload endpoint (was our patch; now upstream)', () => {
   const source = readFileSync(handlerPath, 'utf8')
 
   it('builds the upload endpoint per call, not once as a frozen string', () => {
-    expect(source).toMatch(/const endpoint = \(\) =>/)
-    // The exact shape of the bug: a `const endpoint = ` followed by a template
-    // literal rather than a function.
-    expect(source).not.toMatch(/const endpoint = `/)
+    // Match either name a fix might use — this repo's own patch called it
+    // `endpoint`, upstream's independent fix calls it `getEndpoint`. Either is
+    // fine; a bare template literal assigned once is not.
+    expect(source).toMatch(/const \w*endpoint = \(\)\s*=>/i)
+    expect(source).not.toMatch(/const \w*endpoint = `/i)
   })
 
   it('uses the freshly-built endpoint for init, every part, and complete', () => {
-    const calls = source.match(/fetch\(endpoint\(\)/g) ?? []
+    const endpointFn = /const (\w*endpoint) = \(\)\s*=>/i.exec(source)?.[1]
+    expect(endpointFn, 'no per-call endpoint function found at all').toBeTruthy()
+    const calls = source.match(new RegExp(`fetch\\(${endpointFn}\\(\\)`, 'g')) ?? []
     expect(calls).toHaveLength(3)
-    // No call may still read the frozen value.
-    expect(source).not.toMatch(/fetch\(endpoint,/)
+    // No call may still read a frozen value under the same name.
+    expect(source).not.toMatch(new RegExp(`fetch\\(${endpointFn},`))
   })
 
-  it('tolerates a missing `extra` object (the earlier clientUploads crash)', () => {
-    expect(source).toMatch(/extra: \{ chunkSize = 5 \* 1024 \* 1024 \} = \{\}/)
+  it('keeps the 5 MB default chunk size this repo depends on', () => {
+    // Not "must have `= {}`" any more — 3.90.1 dropped that fallback because
+    // r2Storage()'s own extraClientHandlerProps always supplies `extra` (see
+    // initClientUploads.js: `extra: extraClientHandlerProps ? … : undefined`,
+    // and this plugin's extraClientHandlerProps is never undefined). Assert the
+    // destructure still names `chunkSize` with its own default, which is the
+    // part this repo actually depends on (the 5 MB chunk size).
+    expect(source).toMatch(/extra: \{ chunkSize = 5 \* 1024 \* 1024/)
   })
 })
