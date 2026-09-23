@@ -367,12 +367,13 @@ describe('evaluate — robots-txt-parity (FI-07)', () => {
 
   it('FAILS and names the agent when the live file drops one crawler from the refused group', () => {
     const dropped = TRAINING_ONLY_UAS[0]
+    if (!dropped) throw new Error('TRAINING_ONLY_UAS is empty')
     const missingOne = LIVE_ROBOTS_TXT.split('\n')
       .filter((line) => line !== `User-agent: ${dropped}`)
       .join('\n')
     const result = evaluate([robotsParity({ body: missingOne })], NOW)
     expect(result.ok).toBe(false)
-    expect(result.failures[0].toLowerCase()).toContain(dropped.toLowerCase())
+    expect(result.failures[0]?.toLowerCase()).toContain(dropped.toLowerCase())
     expect(result.failures[0]).toContain('missing')
   })
 

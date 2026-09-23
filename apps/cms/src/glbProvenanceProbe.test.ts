@@ -106,7 +106,7 @@ describe('evaluate — negative controls, each reproducing a real defect', () =>
     })
     const result = evaluate([{ ...healthy(), jsonChunk: chunk }])
     expect(result.ok).toBe(false)
-    expect(result.failures[0].toLowerCase()).toContain('marvelous')
+    expect(result.failures[0]?.toLowerCase()).toContain('marvelous')
   })
 
   it.each(['clo3d', 'CLO Standalone', 'clo virtual', 'Style3D'])(

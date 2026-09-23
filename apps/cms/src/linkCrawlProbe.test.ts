@@ -111,7 +111,16 @@ describe('mixedContentIn — pure, no network', () => {
   })
 })
 
-const link = (over = {}) => ({
+type LinkObservation = {
+  kind: 'http' | 'mailto' | 'wa' | 'external'
+  url: string
+  foundOn?: string
+  status?: number
+  contentType?: string
+  error?: string
+}
+
+const link = (over: Partial<LinkObservation> = {}): LinkObservation => ({
   kind: 'http',
   url: 'https://wear-run.help/products',
   status: 200,
