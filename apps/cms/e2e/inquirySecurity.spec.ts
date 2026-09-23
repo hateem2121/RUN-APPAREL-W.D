@@ -126,9 +126,23 @@ test.describe('SE-13 — the rate limit', () => {
    * `next start` process. A distinct, test-reserved `cf-connecting-ip` — which the route
    * reads before `x-forwarded-for` — isolates this sequence from every other test's own
    * count within that shared state, rather than needing a fresh server process.
+   *
+   * ⚠️ THE ADDRESS PAIR IS RANDOM PER RUN, NOT FIXED, and a planted-fault proof is why:
+   * a fixed address means a Playwright RETRY of a genuinely failing attempt reuses the
+   * SAME server-side counter the first attempt already consumed, so the retry's own
+   * assertion failure is confusing (it fails one request earlier, for a second, different
+   * reason) even though the underlying finding was already correctly caught on attempt
+   * one. Measured while proving this test: `MAX_PER_IP` raised to 10 correctly failed
+   * attempt 1 at "the sixth request… expected error=too-many, got sent=1", then attempt 2
+   * (same IP, same still-open 10-minute window) failed at request 5/5 instead — a real
+   * but avoidable confusion. A fresh, random last octet per test run keeps a retry
+   * independent of whatever an earlier attempt already spent.
    */
-  const RATE_LIMIT_TEST_IP = '203.0.113.77' // TEST-NET-3 (RFC 5737) — never a real address
-  const OTHER_IP = '203.0.113.78'
+  // Both addresses stay inside 203.0.113.0/24 — TEST-NET-3, RFC 5737, never a real one —
+  // with two DISTINCT octets drawn from disjoint halves of the range so they cannot collide.
+  const randomOctet = (min: number, max: number) => min + Math.floor(Math.random() * (max - min))
+  const RATE_LIMIT_TEST_IP = `203.0.113.${randomOctet(10, 120)}`
+  const OTHER_IP = `203.0.113.${randomOctet(130, 240)}`
 
   test('the sixth inquiry from one address in the window is refused; a seventh from a different address is not', async ({
     request,
