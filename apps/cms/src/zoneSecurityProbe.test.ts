@@ -331,6 +331,34 @@ describe('evaluate — pictures and models refuse other sites (IM-13)', () => {
     expect(result.ok).toBe(true)
     expect(result.inconclusive).toEqual([])
   })
+
+  /**
+   * M5 (2026-09-23). Before this, IM-13 sat INSIDE the HSTS success path, so a 403
+   * on media.wear-run.help's own HSTS read (Bot Fight Mode, say) — or a missing
+   * header, or a short max-age, or even TLS 1.2 itself failing — meant the poster
+   * and model CORP lines never printed AT ALL, with no line of their own saying
+   * so. Each of these plants a DIFFERENT reason evaluate() used to give up before
+   * reaching IM-13; all four must still show the poster/model verdict.
+   */
+  it.each([
+    ['a 403 on the HSTS read (Bot Fight Mode)', { hstsStatus: 403, hstsHeader: null }],
+    ['no HSTS header at all', { hstsHeader: null }],
+    ['an HSTS max-age below one year', { hstsHeader: 'max-age=300; includeSubDomains' }],
+    ['HSTS missing includeSubDomains', { hstsHeader: 'max-age=63072000' }],
+  ])('never silently skips IM-13 just because the HSTS read had a problem: %s', (_label, override) => {
+    const result = evaluate([{ ...healthyMedia(), ...override }])
+    expect(result.lines.join('\n')).toContain('poster CORP same-site ok')
+    expect(result.lines.join('\n')).toContain('model CORP same-site ok')
+  })
+
+  it('never silently skips IM-13 even when TLS 1.2 itself never connected', () => {
+    // The most extreme gate: this host told the TLS probe nothing at all, and
+    // IM-13's own poster/model fetch is a plain HTTPS GET, an entirely different
+    // mechanism that may have succeeded regardless.
+    const result = evaluate([{ ...healthyMedia(), tls12: 'unknown' }])
+    expect(result.lines.join('\n')).toContain('poster CORP same-site ok')
+    expect(result.lines.join('\n')).toContain('model CORP same-site ok')
+  })
 })
 
 describe('samplesFromPayload (IM-13)', () => {
@@ -366,6 +394,24 @@ describe('samplesFromPayload (IM-13)', () => {
     ],
   ])('refuses %s rather than measuring the wrong thing', (_label, body) => {
     expect(samplesFromPayload(body)).toHaveProperty('error')
+  })
+
+  it('falls back to the colourway glbUrl in separate-file mode, where product.glbUrl is null by construction (M5)', () => {
+    // projectViewer.ts:139/164 — separateMode puts the model on the COLOURWAY and
+    // leaves product.glbUrl null on purpose. The "no model" case above still
+    // resolves to an error, because THAT fixture's selectedColourway carries no
+    // glbUrl at all — this is the genuinely-present case the fallback exists for.
+    const separateFileMode = {
+      product: { glbUrl: null },
+      selectedColourway: {
+        poster: { url: 'https://media.wear-run.help/rxps-wine-poster.webp' },
+        glbUrl: 'https://media.wear-run.help/rxps-wine.glb',
+      },
+    }
+    expect(samplesFromPayload(separateFileMode)).toEqual({
+      poster: 'https://media.wear-run.help/rxps-wine-poster.webp',
+      model: 'https://media.wear-run.help/rxps-wine.glb',
+    })
   })
 })
 

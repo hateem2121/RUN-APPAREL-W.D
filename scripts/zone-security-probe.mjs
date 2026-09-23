@@ -91,7 +91,11 @@ export const MEDIA_CORP = 'same-site'
 export function samplesFromPayload(body) {
   const payload = /** @type {any} */ (body)
   const poster = payload?.selectedColourway?.poster?.url
-  const model = payload?.product?.glbUrl
+  // Separate-file mode (projectViewer.ts) puts the model on the COLOURWAY, not the
+  // product — product.glbUrl is null there BY CONSTRUCTION, not a missing value
+  // (M5, 2026-09-23). Without the fallback, this probe goes inconclusive for good
+  // the day the default product switches mode.
+  const model = payload?.product?.glbUrl ?? payload?.selectedColourway?.glbUrl
   if (typeof poster !== 'string' || typeof model !== 'string') {
     return { error: 'the live payload named no poster or no model' }
   }
@@ -226,6 +230,60 @@ export function evaluate(observations) {
   for (const o of observations) {
     const label = o.host.padEnd(24)
 
+    /**
+     * IM-13, evaluated INDEPENDENTLY of every other check on this host (M5,
+     * 2026-09-23). It used to sit inside the HSTS success path below, so a 403 on
+     * the media host's HSTS read, a short max-age, or even TLS 1.2 itself failing
+     * to connect, silently skipped it with no line printed at all — the one host
+     * that carries this check must never go quiet just because a DIFFERENT header
+     * had a problem. It still prints its own explicit inconclusive line for
+     * anything it cannot judge; it is never silently absent.
+     */
+    if (o.expectMedia) {
+      for (const [what, status, corp, error] of [
+        ['poster', o.posterStatus, o.posterCorp, o.posterError],
+        ['model', o.modelStatus, o.modelCorp, o.modelError],
+      ]) {
+        if (error) {
+          inconclusive.push(`${o.host}: could not read a ${what}'s headers (${error}). NOT a pass.`)
+          lines.push(`  ${label} ${what} CORP unread — inconclusive`)
+          continue
+        }
+        if (status === undefined) {
+          inconclusive.push(`${o.host}: no ${what} was measured. NOT a pass.`)
+          lines.push(`  ${label} ${what} CORP not measured — inconclusive`)
+          continue
+        }
+        if (INCONCLUSIVE_STATUSES.has(status)) {
+          inconclusive.push(
+            `${o.host}: the ${what} answered HTTP ${status} — Bot Fight Mode, inconclusive rather than a failure.`,
+          )
+          lines.push(`  ${label} ${what} ${status} — inconclusive`)
+          continue
+        }
+        if (status < 200 || status >= 300) {
+          inconclusive.push(
+            `${o.host}: the ${what} answered HTTP ${status}, so no file was served to judge — ` +
+              'scripts/smoke-live-products.mjs reports that. NOT a pass.',
+          )
+          lines.push(`  ${label} ${what} ${status} — inconclusive`)
+          continue
+        }
+        if (corp !== MEDIA_CORP) {
+          failures.push(
+            `${o.host}: a ${what} answered cross-origin-resource-policy: ${corp ?? '(none)'}, not ${MEDIA_CORP}, ` +
+              'so another website can now show it (IM-13). Restore it in the Cloudflare response-header ' +
+              'Transform Rule "media headers …" on media.wear-run.help — docs/CLOUDFLARE-SETUP.md → ' +
+              '"Response-header Transform Rule — media.wear-run.help". Add it to THAT rule: headers from a ' +
+              'second rule are comma-joined.',
+          )
+          lines.push(`  ${label} ${what} CORP ${corp ?? '(none)'}  FAIL`)
+        } else {
+          lines.push(`  ${label} ${what} CORP ${MEDIA_CORP} ok`)
+        }
+      }
+    }
+
     // THE CONTROL, FIRST. If the modern handshake did not succeed, this host told us
     // nothing at all and its 1.0/1.1 refusals are worthless. Reporting them as a pass
     // is how "the network is down" becomes indistinguishable from "we are secure".
@@ -325,50 +383,7 @@ export function evaluate(observations) {
       } else {
         lines.push(`  ${label} timing-allow-origin ${o.timingAllowOrigin} ok`)
       }
-
-      // IM-13: the header that keeps our pictures and models off other sites.
-      for (const [what, status, corp, error] of [
-        ['poster', o.posterStatus, o.posterCorp, o.posterError],
-        ['model', o.modelStatus, o.modelCorp, o.modelError],
-      ]) {
-        if (error) {
-          inconclusive.push(`${o.host}: could not read a ${what}'s headers (${error}). NOT a pass.`)
-          lines.push(`  ${label} ${what} CORP unread — inconclusive`)
-          continue
-        }
-        if (status === undefined) {
-          inconclusive.push(`${o.host}: no ${what} was measured. NOT a pass.`)
-          lines.push(`  ${label} ${what} CORP not measured — inconclusive`)
-          continue
-        }
-        if (INCONCLUSIVE_STATUSES.has(status)) {
-          inconclusive.push(
-            `${o.host}: the ${what} answered HTTP ${status} — Bot Fight Mode, inconclusive rather than a failure.`,
-          )
-          lines.push(`  ${label} ${what} ${status} — inconclusive`)
-          continue
-        }
-        if (status < 200 || status >= 300) {
-          inconclusive.push(
-            `${o.host}: the ${what} answered HTTP ${status}, so no file was served to judge — ` +
-              'scripts/smoke-live-products.mjs reports that. NOT a pass.',
-          )
-          lines.push(`  ${label} ${what} ${status} — inconclusive`)
-          continue
-        }
-        if (corp !== MEDIA_CORP) {
-          failures.push(
-            `${o.host}: a ${what} answered cross-origin-resource-policy: ${corp ?? '(none)'}, not ${MEDIA_CORP}, ` +
-              'so another website can now show it (IM-13). Restore it in the Cloudflare response-header ' +
-              'Transform Rule "media headers …" on media.wear-run.help — docs/CLOUDFLARE-SETUP.md → ' +
-              '"Response-header Transform Rule — media.wear-run.help". Add it to THAT rule: headers from a ' +
-              'second rule are comma-joined.',
-          )
-          lines.push(`  ${label} ${what} CORP ${corp ?? '(none)'}  FAIL`)
-        } else {
-          lines.push(`  ${label} ${what} CORP ${MEDIA_CORP} ok`)
-        }
-      }
+      // IM-13 (poster/model CORP) is evaluated ABOVE, independently of HSTS.
     }
   }
 
@@ -555,7 +570,7 @@ if (isMain) {
   } else {
     console.log(
       `\n✓ ${measured}/${observations.length} hosts measured: TLS 1.0 and 1.1 refused, ` +
-        'TLS 1.2 negotiates, HSTS in force.',
+        `TLS 1.2 negotiates, HSTS in force, media CORP ${MEDIA_CORP} (M5).`,
     )
   }
 }
