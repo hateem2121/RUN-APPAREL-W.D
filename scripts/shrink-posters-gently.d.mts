@@ -73,11 +73,15 @@ export declare function looksLikeInstructionText(key: string): boolean
  * product/media relation, never a guessed filename: 'done' (already the approved
  * trim), 'ready' (still the known original, safe to re-encode), or 'changed'
  * (neither — stop).
+ *
+ * Named `TrimVerdict`, not `PosterVerdict` (M6, 2026-09-23) — `poster-sizes.d.mts`
+ * exports its OWN unrelated `PosterVerdict` ('ok' | 'excepted' | 'flagged'), and the
+ * two were never the same type despite sharing a name.
  */
-export type PosterVerdict = 'done' | 'ready' | 'changed'
+export type TrimVerdict = 'done' | 'ready' | 'changed'
 
 export interface PosterState {
-  state: PosterVerdict
+  state: TrimVerdict
   /** Byte length of the CURRENT poster this was judged from. */
   bytes: number
   /** sha256 of the CURRENT poster this was judged from. */

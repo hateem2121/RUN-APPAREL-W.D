@@ -789,7 +789,27 @@ export async function apply(providedKey, trims = GENTLE_TRIMS) {
         console.error(`  ${trim.colour}: the current poster has no url. Stop.`)
         throw new Stop(1)
       }
+      // M1 (2026-09-23): mirror dryRun()'s two checks on this same fetch (:587-606
+      // above). Before this, a 403/404/5xx body — or an HTML challenge page — was
+      // fed straight into posterState(), whose sha256 digest could not match
+      // either known hash, so it was classified 'changed' and reported with
+      // changedNote()'s wording: "It changed since this was written — re-run the
+      // dry run first." Safe (the run still stops before any write) but the wrong
+      // story — nothing changed, the fetch just failed. Name the status instead.
       const currentResponse = await fetch(currentUrl)
+      if (!currentResponse.ok) {
+        console.error(
+          `  ${trim.colour}: the current poster answered ${currentResponse.status}. Stop — re-run the dry run first.`,
+        )
+        throw new Stop(1)
+      }
+      const currentContentType = currentResponse.headers.get('content-type') ?? ''
+      if (!currentContentType.startsWith('image/webp')) {
+        console.error(
+          `  ${trim.colour}: the current poster's content-type is "${currentContentType}", not image/webp. Stop — re-run the dry run first.`,
+        )
+        throw new Stop(1)
+      }
       const currentBytes = Buffer.from(await currentResponse.arrayBuffer())
       currentBytesByColour.set(trim.colour, currentBytes)
       states.push({ trim, ...posterState(currentBytes, trim) })

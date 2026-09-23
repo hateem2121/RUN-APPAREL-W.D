@@ -643,8 +643,18 @@ describe('apply()', () => {
             return new Response(JSON.stringify({ id: 20, url: posterUrlB }))
           throw new Error(`unexpected CMS path ${method} ${path}`)
         }
-        if (url === posterUrlA) return new Response(new Uint8Array(a.approved))
-        if (url === posterUrlB) return new Response(new Uint8Array(b.approved))
+        // M1: apply() now checks the current-poster fetch's content-type too, the
+        // same as dryRun() always has — a real poster serves image/webp.
+        if (url === posterUrlA) {
+          return new Response(new Uint8Array(a.approved), {
+            headers: { 'content-type': 'image/webp' },
+          })
+        }
+        if (url === posterUrlB) {
+          return new Response(new Uint8Array(b.approved), {
+            headers: { 'content-type': 'image/webp' },
+          })
+        }
         throw new Error(`unexpected fetch ${method} ${url}`)
       }),
     )
@@ -712,7 +722,13 @@ describe('apply()', () => {
           }
           throw new Error(`unexpected CMS path ${method} ${path}`)
         }
-        if (url === originalUrl) return new Response(new Uint8Array(original))
+        // M1: apply()'s current-poster fetch (the posterPreview relation, id 10)
+        // now checks content-type — a real poster serves image/webp.
+        if (url === originalUrl) {
+          return new Response(new Uint8Array(original), {
+            headers: { 'content-type': 'image/webp' },
+          })
+        }
         if (url === reuseUrl) return new Response(new Uint8Array(approved))
         throw new Error(`unexpected fetch ${method} ${url}`)
       }),
@@ -750,7 +766,13 @@ describe('apply()', () => {
           }
           throw new Error(`unexpected CMS path ${method} ${path}`)
         }
-        if (url === originalUrl) return new Response(new Uint8Array(original))
+        // M1: apply()'s current-poster fetch now checks content-type too — a real
+        // poster serves image/webp.
+        if (url === originalUrl) {
+          return new Response(new Uint8Array(original), {
+            headers: { 'content-type': 'image/webp' },
+          })
+        }
         throw new Error(`unexpected fetch ${method} ${url}`)
       }),
     )
@@ -763,6 +785,208 @@ describe('apply()', () => {
     expect(requests.some((r) => r.method === 'PATCH')).toBe(false)
     expect(
       errorSpy.mock.calls.some((call) => String(call[0]).includes('The reuse check could not run')),
+    ).toBe(true)
+  })
+
+  /**
+   * M1 (2026-09-23). Before this, a fetch failure on the CURRENT poster (a 403,
+   * 404 or 5xx body, or a challenge page whose content-type is not image/webp)
+   * fell straight into posterState(), whose sha256 could not match either known
+   * hash — so it was classified 'changed' and reported with changedNote()'s
+   * wording ("It changed since this was written — re-run the dry run first."),
+   * naming a poster's bytes and sha256 that were really an error body. Safe
+   * either way (both stop before any write), but the wrong story. Name the
+   * status/content-type instead, and never route through 'changed' at all.
+   */
+  it.each([
+    [
+      'a non-ok status',
+      () => new Response('service unavailable', { status: 503 }),
+      'the current poster answered 503',
+    ],
+    [
+      'the wrong content-type',
+      // A byte body with no headers carries NO content-type at all (a string body
+      // would auto-default to text/plain, which is a different — and less
+      // representative — case: some real challenge/error responses omit the
+      // header entirely).
+      () => new Response(new TextEncoder().encode('<html>cloudflare challenge</html>')),
+      'content-type is "", not image/webp',
+    ],
+  ])('names the problem and stops before any write on %s — never "changed"', async (_label, badResponse, expectedMessage) => {
+    const { trim } = await fixtureTrim({ product: 'r-fix', colour: 'x' })
+    const currentUrl = 'https://media.wear-run.help/r-fix-x-poster.webp'
+    const productDoc = { id: 999, colourways: [row({ id: 1, slug: 'x', posterPreview: 10 })] }
+    const requests: Recorded[] = []
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const method = init?.method ?? 'GET'
+        if (url.startsWith(CMS)) {
+          const path = url.slice(CMS.length)
+          requests.push({ method, path })
+          if (path.startsWith('/api/products?where')) {
+            return new Response(JSON.stringify({ docs: [productDoc] }))
+          }
+          if (path === '/api/media/10?depth=0') {
+            return new Response(JSON.stringify({ id: 10, url: currentUrl }))
+          }
+          throw new Error(`unexpected CMS path ${method} ${path}`)
+        }
+        if (url === currentUrl) return badResponse()
+        throw new Error(`unexpected fetch ${method} ${url}`)
+      }),
+    )
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await expect(apply('fake-test-key-not-real-1234', [trim])).rejects.toBeInstanceOf(Stop)
+
+    expect(requests.some((r) => r.method === 'POST')).toBe(false)
+    expect(requests.some((r) => r.method === 'PATCH')).toBe(false)
+    const text = errorSpy.mock.calls.map((call) => String(call[0])).join(' ')
+    expect(text).toContain(expectedMessage)
+    expect(text).not.toContain('changed since this was written')
+  })
+
+  /**
+   * M2 (2026-09-23): the FRESH-UPLOAD path — the one every one of the owner's
+   * seven posters takes on their FIRST `--apply` — had no orchestration test at
+   * this level. "all done", "reuse" and "listing failed" above cover the other
+   * three branches; none of them ever POSTs.
+   */
+  it('a fresh upload: one POST per ready colour, multipart with the file and the _payload alt, then one PATCH, then the read-back', async () => {
+    const { trim, original, approved } = await fixtureTrim({ product: 'r-fix', colour: 'x' })
+    const currentUrl = 'https://media.wear-run.help/r-fix-x-poster.webp'
+    const uploadedUrl = 'https://media.wear-run.help/r-fix-x-poster-2.webp'
+    const rowX = row({
+      id: 1,
+      slug: 'x',
+      displayName: 'X',
+      posterPreview: 10,
+      altText: 'X alt text',
+    })
+    const productDoc = { id: 999, colourways: [rowX] }
+    const requests: Recorded[] = []
+    const uploads: FormData[] = []
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const method = init?.method ?? 'GET'
+        if (url.startsWith(CMS)) {
+          const path = url.slice(CMS.length)
+          requests.push({ method, path })
+          if (path.startsWith('/api/products?where')) {
+            return new Response(JSON.stringify({ docs: [productDoc] }))
+          }
+          if (path === '/api/media/10?depth=0') {
+            return new Response(JSON.stringify({ id: 10, url: currentUrl }))
+          }
+          // An empty listing: no previous run left anything to reuse.
+          if (path === '/api/media?limit=100&depth=0&page=1') {
+            return new Response(JSON.stringify({ docs: [], hasNextPage: false }))
+          }
+          if (path === '/api/media' && method === 'POST') {
+            uploads.push(init?.body as FormData)
+            return new Response(JSON.stringify({ doc: { id: 12, url: uploadedUrl } }))
+          }
+          if (path === '/api/products/999' && method === 'PATCH') {
+            return new Response(JSON.stringify({ ok: true }))
+          }
+          if (path === '/api/products/999?depth=0') {
+            return new Response(JSON.stringify({ colourways: [{ ...rowX, posterPreview: 12 }] }))
+          }
+          if (path === '/api/public/viewer/r-fix') {
+            return new Response(
+              JSON.stringify({ colourways: [{ slug: 'x', poster: { url: uploadedUrl } }] }),
+            )
+          }
+          throw new Error(`unexpected CMS path ${method} ${path}`)
+        }
+        if (url === currentUrl) {
+          return new Response(new Uint8Array(original), {
+            headers: { 'content-type': 'image/webp' },
+          })
+        }
+        if (url === uploadedUrl) return new Response(new Uint8Array(approved))
+        throw new Error(`unexpected fetch ${method} ${url}`)
+      }),
+    )
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await apply('fake-test-key-not-real-1234', [trim])
+
+    expect(requests.filter((r) => r.method === 'POST')).toHaveLength(1)
+    expect(requests.filter((r) => r.method === 'PATCH')).toHaveLength(1)
+    expect(requests.some((r) => r.path === '/api/products/999?depth=0')).toBe(true)
+
+    // The multipart body: the re-encoded FILE, and the _payload alt — not just
+    // that a POST happened.
+    expect(uploads).toHaveLength(1)
+    const alt = JSON.parse(String(uploads[0]!.get('_payload')))
+    expect(alt).toEqual({ alt: rowX.altText })
+    const file = uploads[0]!.get('file') as File
+    expect(file).toBeInstanceOf(File)
+    expect(file.name).toBe('r-fix-x-poster.webp')
+    expect(file.type).toBe('image/webp')
+    expect(sha256(Buffer.from(await file.arrayBuffer()))).toBe(trim.approved.sha256)
+  })
+
+  it('served bytes differ after the upload — a Stop, NOT patched, no PATCH', async () => {
+    const { trim, original } = await fixtureTrim({ product: 'r-fix', colour: 'x' })
+    const currentUrl = 'https://media.wear-run.help/r-fix-x-poster.webp'
+    const uploadedUrl = 'https://media.wear-run.help/r-fix-x-poster-2.webp'
+    const rowX = row({ id: 1, slug: 'x', displayName: 'X', posterPreview: 10 })
+    const productDoc = { id: 999, colourways: [rowX] }
+    const requests: Recorded[] = []
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const method = init?.method ?? 'GET'
+        if (url.startsWith(CMS)) {
+          const path = url.slice(CMS.length)
+          requests.push({ method, path })
+          if (path.startsWith('/api/products?where')) {
+            return new Response(JSON.stringify({ docs: [productDoc] }))
+          }
+          if (path === '/api/media/10?depth=0') {
+            return new Response(JSON.stringify({ id: 10, url: currentUrl }))
+          }
+          if (path === '/api/media?limit=100&depth=0&page=1') {
+            return new Response(JSON.stringify({ docs: [], hasNextPage: false }))
+          }
+          if (path === '/api/media' && method === 'POST') {
+            return new Response(JSON.stringify({ doc: { id: 12, url: uploadedUrl } }))
+          }
+          throw new Error(`unexpected CMS path ${method} ${path}`)
+        }
+        if (url === currentUrl) {
+          return new Response(new Uint8Array(original), {
+            headers: { 'content-type': 'image/webp' },
+          })
+        }
+        // The served bytes do not match what was uploaded — a corrupted or
+        // truncated round trip through R2/Payload. Reusing `original` guarantees
+        // a mismatch against trim.approved without inventing a third byte string.
+        if (url === uploadedUrl) return new Response(new Uint8Array(original))
+        throw new Error(`unexpected fetch ${method} ${url}`)
+      }),
+    )
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await expect(apply('fake-test-key-not-real-1234', [trim])).rejects.toBeInstanceOf(Stop)
+
+    expect(requests.filter((r) => r.method === 'POST')).toHaveLength(1)
+    expect(requests.some((r) => r.method === 'PATCH')).toBe(false)
+    expect(
+      errorSpy.mock.calls.some((call) => String(call[0]).includes('served bytes do not match')),
+    ).toBe(true)
+    expect(
+      errorSpy.mock.calls.some((call) => String(call[0]).includes('NOT patched')),
     ).toBe(true)
   })
 })

@@ -182,6 +182,12 @@ async function main() {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error) => {
     console.error(`poster-sizes: ${error instanceof Error ? error.message : String(error)}`)
-    process.exit(1)
+    // A thrown error here means something could not be READ — a fetch that never
+    // got a response, or response.json() failing on a non-JSON body (a Cloudflare
+    // challenge page, say) — never that a poster was judged too heavy. That is
+    // exactly the `unreadable` exit code below, not the `flagged` one (docs/RUNBOOK.md
+    // "Is a poster too heavy?": "2 if anything could not be read"). Before this fix
+    // both cases exited 1, so the RUNBOOK's own documented contract did not hold.
+    process.exit(2)
   })
 }

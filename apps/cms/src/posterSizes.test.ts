@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { spawn } from 'node:child_process'
+import { once } from 'node:events'
+import { createServer, type Server } from 'node:http'
+import { join } from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   FLAG_AT,
   judgePosters,
@@ -123,9 +127,89 @@ describe('judgePosters — before the trim', () => {
   })
 
   it('leaves the rest ok, including r-cch at 1.96× measured live (kept out of this fixture)', () => {
-    const { flagged } = judgePosters(BEFORE)
+    // M7 (2026-09-23): r-cch itself is NOT one of the 20 BEFORE rows (see the module
+    // doc above) — this test's own name promised it and never actually included it,
+    // so it only re-asserted the count the previous test's exact list already
+    // implies. Added HERE as a local addition, not to the shared BEFORE fixture,
+    // so the 20-row count and the 50517 median pinned elsewhere in this file stay
+    // the exact 2026-09-17 measurement. Inserting one value above BEFORE's 12th-
+    // ranked entry (52024) never moves the median's INDEX, so the recomputed
+    // 21-poster median is 50934 (BEFORE's already-unchanged 11th-ranked value)
+    // regardless of the exact byte count chosen here — 50517 was the 20-poster figure.
+    const nearMissBytes = Math.round(50934 * 1.96) // 99831 — RUNBOOK's own "1.96×"
+    const { flagged, rows } = judgePosters([...BEFORE, row('r-cch', 'blush', nearMissBytes)])
     expect(flagged).toHaveLength(7)
+    // The real boundary assertion: a near-miss just under FLAG_AT is 'ok', not
+    // merely absent from a length count that would also pass if it were dropped
+    // from the fixture entirely.
+    expect(rows.find((r) => r.slug === 'r-cch')?.verdict).toBe('ok')
   })
+})
+
+describe('poster-sizes CLI — exit codes (#14)', () => {
+  const SCRIPT = join(import.meta.dirname, '..', '..', '..', 'scripts', 'poster-sizes.mjs')
+  let server: Server | undefined
+
+  afterEach(async () => {
+    if (!server) return
+    await new Promise((resolve) => server!.close(resolve))
+    server = undefined
+  })
+
+  /**
+   * docs/RUNBOOK.md's own documented contract is "2 if anything could not be
+   * read" — distinct from 1, "flagged". Before this fix, a THROWN error (a fetch
+   * that never got a response, or response.json() failing on a non-JSON body,
+   * such as a Cloudflare challenge page) fell into the top-level `.catch()`,
+   * which exited 1 — the same code as "a poster is too heavy", a verdict this run
+   * never reached at all.
+   */
+  it('exits 2 on a thrown read error, not 1 — a non-JSON body such as a challenge page', async () => {
+    server = createServer((_req, res) => {
+      res.writeHead(200, { 'content-type': 'text/html' })
+      res.end('<html>cloudflare challenge</html>')
+    })
+    server.listen(0, '127.0.0.1')
+    await once(server, 'listening')
+    const port = (server.address() as { port: number }).port
+
+    const child = spawn(process.execPath, [SCRIPT], {
+      env: { ...process.env, CMS_API_BASE: `http://127.0.0.1:${port}` },
+    })
+    let output = ''
+    child.stdout.on('data', (chunk) => (output += chunk))
+    child.stderr.on('data', (chunk) => (output += chunk))
+    const [code] = (await once(child, 'exit')) as [number]
+
+    expect(code).toBe(2)
+    expect(output).toContain('poster-sizes:')
+  }, 30_000)
+
+  /**
+   * The negative control: an ordinary handled failure (a non-200 response) is
+   * "unreadable" too, and already exited 2 before this fix — proving THAT path
+   * alone would not have caught a regression back to exit 1 on the THROWN path
+   * this finding is actually about.
+   */
+  it('also exits 2 on a plain non-200 (the pre-existing, already-handled path)', async () => {
+    server = createServer((_req, res) => {
+      res.writeHead(503, { 'content-type': 'text/plain' })
+      res.end('service unavailable')
+    })
+    server.listen(0, '127.0.0.1')
+    await once(server, 'listening')
+    const port = (server.address() as { port: number }).port
+
+    const child = spawn(process.execPath, [SCRIPT], {
+      env: { ...process.env, CMS_API_BASE: `http://127.0.0.1:${port}` },
+    })
+    let output = ''
+    child.stdout.on('data', (chunk) => (output += chunk))
+    child.stderr.on('data', (chunk) => (output += chunk))
+    const [code] = (await once(child, 'exit')) as [number]
+
+    expect(code).toBe(2)
+  }, 30_000)
 })
 
 describe('judgePosters — after the trim', () => {
