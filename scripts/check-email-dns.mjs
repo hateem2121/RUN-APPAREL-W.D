@@ -7,8 +7,8 @@
  * only symptom is mail quietly going to spam — weeks later, in someone else's inbox,
  * where nobody here can see it.
  *
- * WHAT IT CHECKS, and why exactly these four. Each is something a bad edit breaks and
- * nothing else would report:
+ * WHAT IT CHECKS, and why exactly these six (SO-04/SO-04b added MX and CAA). Each is
+ * something a bad edit breaks and nothing else would report:
  *
  *   1. The apex SPF exists and contains EXACTLY the includes intended. An extra
  *      include is a sender you did not authorise; a missing one silently fails your
@@ -21,6 +21,14 @@
  *      every signature with it.
  *   4. TLS-RPT exists, because it is the only thing that would ever tell you a
  *      sending server could not negotiate TLS to your MX.
+ *   5. At least one MX record exists AND every target it names actually resolves. An
+ *      MX pointing at a dead host is a silent failure mode: the record is present,
+ *      looks correct on a casual read, and mail addressed to this domain has nowhere
+ *      to go.
+ *   6. At least one CAA `issue`/`issuewild` record exists. Zero CAA records is not "no
+ *      opinion" — it is the same as authorising every certificate authority on the
+ *      internet to issue for this domain. The exact list of authorised issuers is not
+ *      pinned here; that can change legitimately without being a regression.
  *
  * ⚠️ OWNERSHIP (recorded 2026-09-17). DMARC and TLS-RPT on this domain are managed by the
  * separate email-signature project (Worker `run-domain-edge`), which also owns
@@ -61,6 +69,34 @@ export function dmarcPolicy(record) {
   return m ? m[2].toLowerCase() : null
 }
 
+/**
+ * The unique MX target hostnames, from raw `dig +short MX` lines like
+ * `"5 mx1.hostinger.com."`. Priority is not read — this check only cares that a target
+ * exists and resolves, not which one is preferred.
+ */
+export function mxHosts(lines) {
+  const hosts = (lines ?? [])
+    .map((line) => line.trim().split(/\s+/)[1] ?? '')
+    .map((host) => host.replace(/\.$/, ''))
+    .filter(Boolean)
+  return [...new Set(hosts)]
+}
+
+/**
+ * The CAA property tags present, from raw `dig +short CAA` lines like
+ * `'0 issue "letsencrypt.org"'`. `iodef` is a real, legal CAA tag (where to report a
+ * violation) and does not authorise any issuer on its own — it must not count toward
+ * "a CAA record exists that permits issuance".
+ */
+export function caaTags(lines) {
+  const tags = new Set()
+  for (const line of lines ?? []) {
+    const m = /^\d+\s+(issue|issuewild|iodef)\b/i.exec(line.trim())
+    if (m) tags.add(m[1].toLowerCase())
+  }
+  return tags
+}
+
 /** The `include:` / `redirect=` targets, in order. */
 export function spfIncludes(record) {
   const out = []
@@ -76,7 +112,8 @@ export function spfIncludes(record) {
  * Judge a set of already-resolved records. Pure, so the tests never touch DNS.
  *
  * @param {{spf?: string|null, dmarc?: string|null, dkim?: Record<string,string|null>,
- *          tlsrpt?: string|null, spfLookups?: number|null}} found
+ *          tlsrpt?: string|null, spfLookups?: number|null, mx?: string[]|null,
+ *          mxResolves?: Record<string,boolean|null>, caa?: string[]|null}} found
  */
 export function evaluateEmailDns(found) {
   const problems = []
@@ -127,6 +164,29 @@ export function evaluateEmailDns(found) {
     notes.push('TLS-RPT: present')
   }
 
+  const mx = found.mx ?? []
+  if (mx.length === 0) {
+    problems.push(`No MX record on ${DOMAIN}. Mail sent to this domain has nowhere to go.`)
+  } else {
+    const dead = mx.filter((host) => found.mxResolves?.[host] === false)
+    if (dead.length) {
+      problems.push(
+        `MX target(s) do not resolve: ${dead.join(', ')}. Mail routed to them will fail.`,
+      )
+    } else {
+      notes.push(`MX: ${mx.join(', ')}`)
+    }
+  }
+
+  const caa = caaTags(found.caa)
+  if (!caa.has('issue') && !caa.has('issuewild')) {
+    problems.push(
+      `No issue/issuewild CAA record on ${DOMAIN} — any certificate authority may issue for it.`,
+    )
+  } else {
+    notes.push(`CAA: ${[...caa].sort().join(', ')}`)
+  }
+
   return { ok: problems.length === 0, problems, notes }
 }
 
@@ -139,6 +199,24 @@ async function dig(type, name) {
       .map((l) => l.trim().replace(/^"|"$/g, ''))
       .filter(Boolean)
     return lines.length ? lines.join('') : ''
+  } catch {
+    return null // resolver unavailable — INCONCLUSIVE, not a failure
+  }
+}
+
+/**
+ * Multiple DNS lines, each its own record. Unlike `dig()` above, these must NOT be
+ * joined: `dig()` concatenates lines because a single TXT value can be split into
+ * quoted chunks that belong together, but MX and CAA return one line PER DISTINCT
+ * RECORD — joining those would smoosh unrelated records into one unparseable string.
+ */
+async function digLines(type, name) {
+  try {
+    const { stdout } = await run('dig', ['+short', type, name], { timeout: 10_000 })
+    return stdout
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
   } catch {
     return null // resolver unavailable — INCONCLUSIVE, not a failure
   }
@@ -188,12 +266,39 @@ async function main() {
     dkim[selector] = txt || null
   }
 
+  const mxLines = await digLines('MX', DOMAIN)
+  if (mxLines === null) {
+    console.log('[check-email-dns] INCONCLUSIVE: no resolver available.')
+    process.exit(2)
+  }
+  const mx = mxHosts(mxLines)
+  const mxResolves = {}
+  for (const host of mx) {
+    // A alone: an MX target is required to have an address record (RFC 5321 §5.1), so
+    // AAAA-only is not a valid configuration this needs to also accept.
+    const a = await dig('A', host)
+    if (a === null) {
+      console.log('[check-email-dns] INCONCLUSIVE: no resolver available.')
+      process.exit(2)
+    }
+    mxResolves[host] = a !== ''
+  }
+
+  const caaLines = await digLines('CAA', DOMAIN)
+  if (caaLines === null) {
+    console.log('[check-email-dns] INCONCLUSIVE: no resolver available.')
+    process.exit(2)
+  }
+
   const found = {
     spf,
     dmarc: await dig('TXT', `_dmarc.${DOMAIN}`),
     tlsrpt: await dig('TXT', `_smtp._tls.${DOMAIN}`),
     dkim,
     spfLookups: await countLookups(DOMAIN),
+    mx,
+    mxResolves,
+    caa: caaLines,
   }
 
   const { ok, problems, notes } = evaluateEmailDns(found)
@@ -203,7 +308,9 @@ async function main() {
     console.error(`\n[check-email-dns] ${problems.length} problem(s) with ${DOMAIN}'s email DNS.`)
     process.exit(1)
   }
-  console.log(`[check-email-dns] ${DOMAIN}: SPF, DMARC, both DKIM selectors and TLS-RPT all sound.`)
+  console.log(
+    `[check-email-dns] ${DOMAIN}: SPF, DMARC, both DKIM selectors, TLS-RPT, MX and CAA all sound.`,
+  )
 }
 
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
