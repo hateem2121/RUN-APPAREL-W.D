@@ -29,10 +29,30 @@
  * reported as "the previews are broken".
  */
 
+import { execFileSync } from 'node:child_process'
 import http from 'node:http'
 import https from 'node:https'
 import zlib from 'node:zlib'
-import { DEFAULT_PRODUCT, squashCode } from './live-products.mjs'
+import { DEFAULT_PRODUCT, LIVE_PRODUCTS, squashCode } from './live-products.mjs'
+
+/**
+ * Mirrors `apps/viewer/worker/crawlerCacheHeaders.ts`'s two predicates of the same name.
+ * Not imported: that file is TypeScript inside a workspace package this repo-root script
+ * has no build step for, and this repo's own convention for a predicate this small is to
+ * duplicate it with a citation rather than force a cross-runtime import (the same choice
+ * `og.test.ts`'s JPEG parse and `findability.spec.ts`'s PNG/WebP parses make independently
+ * of each other). Keep the two in step by eye; neither is likely to change without the
+ * other, since both exist for the one crawler-rewrite code path.
+ */
+function carriesNoTransform(cacheControl) {
+  return (cacheControl ?? '').includes('no-transform')
+}
+function variesOnUserAgent(vary) {
+  return (vary ?? '')
+    .split(',')
+    .map((part) => part.trim())
+    .includes('User-Agent')
+}
 
 const [, , baseArg, productArg, colourArg] = process.argv
 
@@ -315,6 +335,28 @@ async function runChecks() {
       } else {
         console.log('   navigation request → rewritten too')
       }
+
+      // SO-02 / SO-03: the rewritten response must say its body depends on the
+      // User-Agent, and must refuse Cloudflare's own injection — see
+      // apps/viewer/worker/crawlerCacheHeaders.ts for both reasons in full. The
+      // browser path (check 5 above) goes through a DIFFERENT mechanism
+      // (withNoTransform in noTransform.ts) that never sets Vary, since a plain
+      // visitor's response does not depend on their user-agent — so this is
+      // asserted only here, on the crawler path.
+      if (!variesOnUserAgent(nav.headers.vary)) {
+        fail(
+          `${url} answered vary: ${nav.headers.vary ?? '(none)'} to a rewritten crawler ` +
+            'request — expected it to include User-Agent (SO-02), so a cache in front of ' +
+            'this can never hand a crawler copy to a visitor.',
+        )
+      }
+      if (!carriesNoTransform(nav.headers['cache-control'])) {
+        fail(
+          `${url} answered cache-control: ${nav.headers['cache-control'] ?? '(none)'} to a ` +
+            'rewritten crawler request — expected no-transform (SO-03), or Cloudflare may ' +
+            'inject into a response this Worker built by hand.',
+        )
+      }
     }
   }
 
@@ -402,6 +444,78 @@ async function runChecks() {
       console.log(
         `⚠️  ${url} returned ${nav.status} to a browser navigation — INCONCLUSIVE, as above.`,
       )
+    }
+  }
+
+  // 9. SO-02 / SO-03: the crawler path costs a synchronous CMS call; a browser gets the
+  //    static shell straight from Cloudflare's asset router with no such hop. Measured
+  //    2026-09-07 (apps/viewer/CLAUDE.md): the viewer's own static HTML is 0.106-0.155s to
+  //    first byte, and the CMS payload endpoint is 1.77-2.27s — neither edge-cached.
+  //
+  //    ⚠️ A JUST-TOUCHED SLUG READS WARM AND ERASES THE ASYMMETRY — a documented false
+  //    negative from measuring this the naive way: reusing PRODUCT/COLOUR above means the
+  //    payload the crawler branch needs has already been fetched once this run and may
+  //    still be warm wherever the CMS caches it, so the SECOND timing read of the SAME
+  //    slug can come back misleadingly fast and this check would pass even if the real
+  //    cold path is slow. A slug this script has not touched anywhere above is required —
+  //    LIVE_PRODUCTS[1] unless that happens to be the slug already under test.
+  //
+  //    curl, not fetch (Global Constraints) — this needs to look like a real request AND
+  //    time it, and `-w` is the one thing `fetch` cannot report at all.
+  {
+    const timingProduct = LIVE_PRODUCTS.find((p) => p.slug !== PRODUCT) ?? LIVE_PRODUCTS[1]
+    const timingUrl = `${BASE}/${timingProduct.slug}/${timingProduct.colourway}`
+
+    const timed = (headers) => {
+      const headerArgs = Object.entries(headers).flatMap(([k, v]) => ['-H', `${k}: ${v}`])
+      const out = execFileSync(
+        'curl',
+        [
+          '-s',
+          '-o',
+          '/dev/null',
+          '-w',
+          '%{http_code} %{time_starttransfer}',
+          ...headerArgs,
+          timingUrl,
+        ],
+        { encoding: 'utf8' },
+      ).trim()
+      const [status, seconds] = out.split(' ')
+      return { status: Number(status), seconds: Number.parseFloat(seconds) }
+    }
+
+    const crawler = timed({
+      'user-agent': CRAWLER_UA,
+      accept: 'text/html',
+      'sec-fetch-mode': 'navigate',
+      'sec-fetch-dest': 'document',
+      'sec-fetch-site': 'none',
+    })
+    const browser = timed({ 'user-agent': BROWSER_UA, accept: 'text/html' })
+
+    if ([crawler.status, browser.status].some((s) => s === 403 || s === 429)) {
+      console.log(
+        `⚠️  timing check on ${timingUrl} got a 403/429 (crawler ${crawler.status}, ` +
+          `browser ${browser.status}) — INCONCLUSIVE, as above.`,
+      )
+    } else {
+      console.log(
+        `   timing (${timingProduct.slug}/${timingProduct.colourway}, cold): ` +
+          `crawler ${crawler.seconds.toFixed(2)}s vs browser ${browser.seconds.toFixed(2)}s`,
+      )
+      // A wide, deliberately loose margin (not an exact pin — this is server-response
+      // timing over a real network and this repo's own docs warn it jitters), set well
+      // under the measured spread of 0.66-2.29s crawler vs ~0.08s browser: it fails only
+      // if the synchronous CMS call stopped happening, never on ordinary variance.
+      const MARGIN_SECONDS = 0.2
+      if (crawler.seconds < browser.seconds + MARGIN_SECONDS) {
+        fail(
+          `the crawler path (${crawler.seconds.toFixed(2)}s) is not meaningfully slower ` +
+            `than the browser path (${browser.seconds.toFixed(2)}s) on ${timingUrl} — ` +
+            'expected the synchronous CMS call the crawler rewrite makes to show.',
+        )
+      }
     }
   }
 
