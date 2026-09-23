@@ -191,6 +191,24 @@ jobs:
         env:
           VITE_API_BASE_URL: ''
 
+      # ⚠️ PLANTED FAULT, a one-commit negative control. The very next commit removes it.
+      # It strips `aria-selected` from the BUILT viewer, so no colourway tab is announced as
+      # selected: check (b) must FAIL, naming itself, and check (a) must still PASS. It
+      # edits this run's build output only, never a source file, so nothing it does can
+      # reach production. Measured 2026-09-23: the built JS carries exactly one occurrence,
+      # the colourway tab's `"aria-selected":e.slug===t.slug`.
+      - name: 'PLANTED FAULT (negative control): strip aria-selected from the built viewer'
+        run: |
+          before=$(cat apps/viewer/dist/assets/*.js | grep -o 'aria-selected' | wc -l | tr -d ' ')
+          perl -pi -e 's/aria-selected/data-planted-fault/g' apps/viewer/dist/assets/*.js
+          after=$(cat apps/viewer/dist/assets/*.js | grep -o 'aria-selected' | wc -l | tr -d ' ')
+          echo "PLANTED: aria-selected in the built JS, before=${before} after=${after}"
+          perl -ne 'print "PLANTED LINE: $1\n" while /(.{0,40}data-planted-fault.{0,30})/g' apps/viewer/dist/assets/*.js
+          if [ "${before}" -lt 1 ] || [ "${after}" -ne 0 ]; then
+            echo "::error::the plant did not land, so this run would prove nothing"
+            exit 1
+          fi
+
       # Same fixture server, same polling pattern, as android-chrome.yml's own "Start the
       # viewer fixture server" step — backgrounded and polled rather than slept for,
       # matching this repo's "poll a readiness endpoint, never sleep a fixed guess"
