@@ -149,8 +149,10 @@ test.describe('TY-02 — every live headline keeps its lines when Archivo arrive
    * its own calls across four `page.goto('/n001/wine')` reached 1 and never moved past it;
    * the identical probe with `serviceWorkers: 'block'` reached 4. An explicit
    * `cache-control: no-store` on the fulfilled response did NOT fix it, which rules out the
-   * HTTP disk cache — this is Playwright's documented WebKit/service-worker interaction
-   * (recommended fix: block service workers when the test relies on routing). Without this,
+   * HTTP disk cache. Measured in WebKit only (#8, 2026-09-23) — Chromium and Firefox
+   * were never tested under this same pattern, so this is not stated as a documented
+   * Playwright rule, only as what was found here. The fix: block service workers
+   * when the test relies on routing. Without this,
    * every navigation after the first silently serves the FIXTURE's raw default name
    * ("Velocity Performance Tee") past both this test's font route AND its identity mock —
    * caught here by the `text`/`archivoLoaded` controls below, not by a `.soft` line-count

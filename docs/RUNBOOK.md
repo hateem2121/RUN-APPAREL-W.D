@@ -1647,13 +1647,26 @@ in the CMS for `scripts/find-orphan-media.mjs` to report once nothing references
 them.
 
 **The owner runs this, only after the deploy that ships it**, from their own
-Terminal:
+Terminal. **Run the dry run first — no flag — and read all seven rows: only once
+every one says `done` or `ready`, never `problem`, move on to `--apply`** (M9 +
+Recommendation 4, 2026-09-23).
 
 ```bash
 cd ~/Sites/Model-Viewer-main && git switch main && git pull --ff-only && \
   npx --yes pnpm@10.34.5 install --frozen-lockfile && \
-  node scripts/shrink-posters-gently.mjs --apply
+  node scripts/shrink-posters-gently.mjs
 ```
+
+Once all seven read `done` or `ready`:
+
+```bash
+node scripts/shrink-posters-gently.mjs --apply
+```
+
+**Do not edit `r-asb` or `r-wzu` in the admin while this runs.** Each product's
+PATCH sends back the WHOLE `colourways` array, read at the start of that product's
+own turn — an edit made in the window before it writes is silently overwritten,
+and the read-back would still pass, because it compares against what THIS run sent.
 
 Afterwards, `node scripts/poster-sizes.mjs` should exit 0 with 5 excepted and 0
 flagged. `apps/cms/src/shrinkPostersGently.test.ts` pins every settings/bytes/sha256
