@@ -153,27 +153,51 @@ export function resolveEsmEntry(packageJson) {
 }
 
 /**
- * Does a VoiceOver item's text announce it as a LEVEL-1 heading?
+ * Does a VoiceOver item's SPOKEN phrase announce it as a LEVEL-1 heading?
  *
- * Shape confirmed against `@guidepup/playwright`'s own README example (0.19.1, live
- * fetched 2026-09-23): `voiceOver.itemText()` on a heading returns text of the form
- * `"<name> heading level 1"`. Tolerant of an optional comma before "heading" and any
- * casing, since neither was pinned down as certain by that one example — the real CI run
- * is what confirms the exact phrase (see the module header and the report this task
- * writes). `\b` after the digit stops "level 1" matching inside "level 10"+.
+ * MEASURED 2026-09-23, this repo's own first real CI run: `voiceOver.lastSpokenPhrase()`
+ * on the product heading read `"heading level 1 velocity PERFORMANCE TEE 2 items"` — the
+ * phrase itself leads with "heading level 1", which is what this checks for. Tolerant of
+ * an optional comma before "heading" and any casing, since VoiceOver's exact punctuation
+ * on other pages is not something this one measurement pins down. `\b` after the digit
+ * stops "level 1" matching inside "level 10"+.
  */
-export function isHeadingLevel1Announcement(itemText) {
-  return /heading,?\s*level\s*1\b/i.test(String(itemText ?? ''))
+export function isHeadingLevel1Announcement(spokenPhrase) {
+  return /heading,?\s*level\s*1\b/i.test(String(spokenPhrase ?? ''))
 }
 
-/** Case-insensitive substring match — `headingWithAccent(text, 'first')`
- *  (apps/viewer/src/components/SerifAccent.tsx) lowercases the product name's first
- *  word in the DOM, so an exact-case comparison would be wrong by design, not just
- *  overly strict. */
-export function containsGarmentName(text, garmentName) {
+/**
+ * Collapses any RUN of whitespace or punctuation to exactly one space, and lowercases.
+ * For comparing a SPOKEN phrase, never a raw DOM string: two words with NO separator
+ * between them at all — the actual shape of a real accessibility fault — stay stuck
+ * together and still fail a comparison built on this, which is the point of collapsing
+ * existing separators rather than stripping them.
+ *
+ * MEASURED 2026-09-23, this repo's own first real CI run:
+ * `voiceOver.itemText()` on the product heading read `"velocityPERFORMANCE TEE heading
+ * level 1"` (no space at the `<span>` boundary `apps/viewer/src/components/
+ * SerifAccent.tsx` renders) — but `voiceOver.lastSpokenPhrase()` for that SAME item read
+ * `"heading level 1 velocity PERFORMANCE TEE 2 items"`, with a real space. The DOM does
+ * contain a space there (a same-line JSX text node), and `.serif-accent`
+ * (`packages/ui/src/base.css`) sets only font/style properties, no `display` change — so
+ * itemText's missing space is an artifact of how VoiceOver's caption API joins two text
+ * runs, not something a person hears. Checks below judge the SPOKEN phrase for exactly
+ * this reason; itemText is kept in the log purely as a diagnostic.
+ */
+function normalizeSpokenText(text) {
   return String(text ?? '')
     .toLowerCase()
-    .includes(String(garmentName ?? '').toLowerCase())
+    .replace(/[\s,;.!?]+/g, ' ')
+    .trim()
+}
+
+/** Case-insensitive, separator-normalised substring match — see `normalizeSpokenText`
+ *  for why this does not simply strip whitespace. `headingWithAccent(text, 'first')`
+ *  (apps/viewer/src/components/SerifAccent.tsx) also lowercases the product name's
+ *  first word in the DOM, so an exact-case comparison would be wrong by design on top
+ *  of the spacing question. */
+export function containsGarmentName(text, garmentName) {
+  return normalizeSpokenText(text).includes(normalizeSpokenText(garmentName))
 }
 
 /**
@@ -438,8 +462,9 @@ export async function navigateToWebContent({
  *     selected, and at least one other announced WITHOUT "selected".
  *
  * Returns `{ results, fullLog }` — `results` is one `{ name, pass, message }` per check,
- * `fullLog` is every item visited along the way, for the CI run to print in full (the
- * brief: "Do not assume the words: record the phrase log VoiceOver actually produced").
+ * `fullLog` is every item visited along the way, printed in full by the CI run: the
+ * words a real VoiceOver session actually produces are the evidence, not an assumption
+ * about what they should be.
  */
 export async function runChecks({ voiceOver, garmentName }) {
   const fullLog = []
@@ -451,40 +476,62 @@ export async function runChecks({ voiceOver, garmentName }) {
       .lastSpokenPhrase()
       .catch((error) => `<lastSpokenPhrase() failed: ${error.message}>`)
     fullLog.push({ label, itemText, spokenPhrase })
-    return itemText
+    return { itemText, spokenPhrase }
   }
 
   await record('cursor position before navigating into web content')
 
   const results = []
 
-  // Check (a): the garment name as a level-1 heading.
-  let headingItemText = ''
-  let headingFound = false
+  // Check (a): the garment name as a level-1 heading, judged on the SPOKEN phrase (see
+  // isHeadingLevel1Announcement's own comment for why) — walking FORWARD from the top of
+  // web content, the realistic shape of a person tabbing/arrowing through the page on
+  // arrival.
+  const isGarmentHeading = (spokenPhrase) =>
+    isHeadingLevel1Announcement(spokenPhrase) && containsGarmentName(spokenPhrase, garmentName)
+
+  let headingSpokenPhrase = ''
+  let headingFoundForward = false
   for (let i = 0; i < HEADING_SEARCH_LIMIT; i++) {
     await voiceOver.nextHeading()
-    headingItemText = await record(`heading candidate ${i + 1}`)
-    if (
-      isHeadingLevel1Announcement(headingItemText) &&
-      containsGarmentName(headingItemText, garmentName)
-    ) {
-      headingFound = true
+    ;({ spokenPhrase: headingSpokenPhrase } = await record(`forward heading candidate ${i + 1}`))
+    if (isGarmentHeading(headingSpokenPhrase)) {
+      headingFoundForward = true
       break
     }
   }
   results.push({
     name: 'garment name announced as a level-1 heading',
-    pass: headingFound,
-    message: headingFound
-      ? `heading announced: ${JSON.stringify(headingItemText)}`
-      : `no level-1 heading announcing "${garmentName}" found within ${HEADING_SEARCH_LIMIT} headings`,
+    pass: headingFoundForward,
+    message: headingFoundForward
+      ? `heading announced: ${JSON.stringify(headingSpokenPhrase)}`
+      : `no level-1 heading announcing "${garmentName}" found within ${HEADING_SEARCH_LIMIT} headings walked forward`,
   })
+
+  // Check (b) must start from a known position, not wherever the search above left the
+  // cursor. MEASURED 2026-09-23: when that forward search does not find the heading, it
+  // does not fail loudly — VoiceOver stops ADVANCING at the last heading on the page
+  // (its own spoken phrase says "Last heading") and stays there for every further
+  // nextHeading() call. Starting the control search from that position walks forward
+  // from near the BOTTOM of the page, which cannot exhibit the colourway tabs (they sit
+  // near the top, by the product identity) regardless of whether they are otherwise
+  // reachable — so a failure measured from there proves nothing about the tabs
+  // themselves. If the forward search above already found the heading, the cursor is
+  // already the right place and this is a no-op; otherwise it searches BACKWARD with the
+  // identical predicate, using `previousHeading()` — the documented reverse of
+  // `nextHeading()` on the same `VoiceOver` class, not a new or unverified command.
+  let atKnownHeading = headingFoundForward
+  for (let i = 0; !atKnownHeading && i < HEADING_SEARCH_LIMIT; i++) {
+    await voiceOver.previousHeading()
+    const { spokenPhrase } = await record(`backward heading candidate ${i + 1}`)
+    if (isGarmentHeading(spokenPhrase)) atKnownHeading = true
+  }
 
   // Check (b): colourway tabs.
   const tabTexts = []
   for (let i = 0; i < CONTROL_SEARCH_LIMIT; i++) {
     await voiceOver.perform(voiceOver.keyboardCommands.findNextControl)
-    const controlItemText = await record(`control candidate ${i + 1}`)
+    const { itemText: controlItemText } = await record(`control candidate ${i + 1}`)
     if (isTabAnnouncement(controlItemText)) {
       tabTexts.push(controlItemText)
       if (tabTexts.length >= EXPECTED_COLOURWAY_COUNT) break
@@ -500,7 +547,9 @@ export async function runChecks({ voiceOver, garmentName }) {
       ? `${tabTexts.length} tab(s) found; selected example: ${JSON.stringify(selectedTabs[0])}; ` +
         `not-selected example: ${JSON.stringify(unselectedTabs[0])}`
       : `found ${tabTexts.length} tab announcement(s) within ${CONTROL_SEARCH_LIMIT} controls ` +
-        `(need ≥2 tabs, ≥1 selected, ≥1 not selected): ${JSON.stringify(tabTexts)}`,
+        `(need ≥2 tabs, ≥1 selected, ≥1 not selected), searched from ` +
+        `${atKnownHeading ? 'the garment heading' : 'an UNKNOWN position — neither the forward nor backward heading search found it'}: ` +
+        `${JSON.stringify(tabTexts)}`,
   })
 
   return { results, fullLog }

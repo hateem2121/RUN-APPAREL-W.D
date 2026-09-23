@@ -208,6 +208,11 @@ describe('isHeadingLevel1Announcement', () => {
     expect(isHeadingLevel1Announcement('Guidepup heading level 1')).toBe(true)
     expect(isHeadingLevel1Announcement('Velocity Performance Tee, heading level 1')).toBe(true)
     expect(isHeadingLevel1Announcement('HEADING LEVEL 1')).toBe(true)
+    // Verbatim `lastSpokenPhrase()` on the first real CI run (macos-26, 2026-09-23):
+    // VoiceOver SPEAKS the role first, where the caption API puts it last.
+    expect(isHeadingLevel1Announcement('heading level 1 velocity PERFORMANCE TEE 2 items')).toBe(
+      true,
+    )
   })
 
   it('does not match a different heading level or an unrelated item — negative control', () => {
@@ -234,6 +239,31 @@ describe('containsGarmentName', () => {
   it('does not match unrelated text — negative control', () => {
     expect(containsGarmentName('Sample Without Model', 'Velocity Performance')).toBe(false)
     expect(containsGarmentName(undefined, 'Velocity Performance')).toBe(false)
+  })
+
+  it('matches the SPOKEN phrase measured on the first real CI run, and any separator between the words', () => {
+    // Verbatim `lastSpokenPhrase()` for the fixture's product heading, macos-26 runner,
+    // 2026-09-23 — the words a person actually hears.
+    expect(
+      containsGarmentName(
+        'heading level 1 velocity PERFORMANCE TEE 2 items',
+        'Velocity Performance',
+      ),
+    ).toBe(true)
+    // A pause VoiceOver renders as punctuation, or a run of spaces, is still a separator.
+    expect(containsGarmentName('velocity, PERFORMANCE TEE', 'Velocity Performance')).toBe(true)
+    expect(containsGarmentName('velocity   PERFORMANCE TEE', 'Velocity Performance')).toBe(true)
+  })
+
+  it('FAILS when the words are run together — the real fault this check exists to catch — negative control', () => {
+    // The same run's `itemText()` joined the two text runs of the heading with no space
+    // ("velocityPERFORMANCE TEE"). If the SPOKEN phrase ever did that, a VoiceOver user
+    // would hear one invented word, so the comparison must collapse separators, never
+    // strip them: stripping would pass this line and hide the fault.
+    expect(
+      containsGarmentName('heading level 1 velocityPERFORMANCE TEE', 'Velocity Performance'),
+    ).toBe(false)
+    expect(containsGarmentName('velocityperformance tee', 'Velocity Performance')).toBe(false)
   })
 })
 
