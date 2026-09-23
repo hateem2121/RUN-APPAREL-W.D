@@ -107,9 +107,20 @@ jobs:
       # If the two versions ever drift too far apart to interoperate, chromedriver's own
       # session-creation error says so — android-chrome.mjs's readSessionId prints it
       # verbatim rather than translating it into a guess.
+      #
+      # ⚠️ MEASURED 2026-09-23: `npx --yes @puppeteer/browsers@3.2.2 install …` fails
+      # with "sh: browsers: command not found" (exit 127) — reproduced both in this PR's
+      # own first CI run and locally on this Mac, with no local install present or absent.
+      # `npm view @puppeteer/browsers bin` correctly reports `{ browsers: 'lib/main-cli.js' }`
+      # and running that file directly with `node` works every time; it is npx's bin-name
+      # resolution for this scoped package that is unreliable on npm 11.19.1, not the
+      # package. Installing to an explicit `--prefix` and invoking the CLI file directly
+      # sidesteps npx's resolution entirely, which is the fix below.
       - name: Install a matching chromedriver
         run: |
-          npx --yes @puppeteer/browsers@3.2.2 install chromedriver@stable --path "${RUNNER_TEMP}/chromedriver"
+          npm install --no-save --no-audit --no-fund --prefix "${RUNNER_TEMP}/puppeteer-browsers" @puppeteer/browsers@3.2.2
+          node "${RUNNER_TEMP}/puppeteer-browsers/node_modules/@puppeteer/browsers/lib/main-cli.js" \
+            install chromedriver@stable --path "${RUNNER_TEMP}/chromedriver"
           driver_dir=$(dirname "$(find "${RUNNER_TEMP}/chromedriver" -type f -name chromedriver | head -1)")
           echo "${driver_dir}" >> "${GITHUB_PATH}"
 
