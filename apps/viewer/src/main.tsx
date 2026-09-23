@@ -25,7 +25,9 @@ import { initWebVitals } from './lib/webVitals'
 initErrorTracking()
 initTelemetry()
 
-// Reported when the page is hidden, on the flush telemetry already performs.
+// Reported when the page is hidden. Not on a flush this ordering happens to
+// provide — telemetry.ts's `enqueue()` flushes a `web_vitals` item immediately,
+// by name, regardless of which of these two runs first (I2, 2026-09-23).
 initWebVitals()
 
 // Offline shell only — no garment is cached, deliberately. The four measured reasons

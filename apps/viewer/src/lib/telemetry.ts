@@ -91,6 +91,29 @@ function flush(): void {
 
 function enqueue(item: QueuedEvent): void {
   queue.push(item)
+  /**
+   * I2 (2026-09-23): a page-speed report is only ever emitted once, at the end of
+   * the visit (webVitals.ts's `visibilitychange`/`pagehide` reporter) — there is no
+   * second chance to send it. `initTelemetry()`'s OWN `visibilitychange` flush
+   * (below) runs on the same event, but it flushes whatever is ALREADY queued, and
+   * this item was not queued yet when that ran — it only exists because the report
+   * just fired. Left to the ordinary FLUSH_AT/FLUSH_MS path, it would ride the
+   * 10-second timer, and a hidden page's timers may be throttled or never run
+   * again at all: an iPhone suspends Safari the moment the screen locks or another
+   * app comes forward, which is the commonest way a QR visit ends. So flush THIS
+   * enqueue immediately whenever the item is the report itself, or whenever the
+   * page is already hidden by the time anything is queued — never wait on a timer
+   * that a hidden page may not get to run.
+   *
+   * Do NOT "fix" this by reordering initTelemetry()/initWebVitals() in main.tsx
+   * instead: that only works as long as nobody reorders them again, and does not
+   * even close the pagehide-only gap (a `pagehide` with no preceding
+   * `visibilitychange` never touches telemetry's own hide-flush at all).
+   */
+  if (item.event === 'web_vitals' || document.visibilityState === 'hidden') {
+    flush()
+    return
+  }
   if (queue.length >= FLUSH_AT) {
     flush()
     return
