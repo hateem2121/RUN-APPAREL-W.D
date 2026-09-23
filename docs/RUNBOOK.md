@@ -1614,6 +1614,35 @@ Exactly 7 posters were at or above 2× — all five `r-wzu` colourways (above ev
 exception ceiling and that measurement. The next section is the script that brought
 `r-wzu` and `r-asb` back under it.
 
+### "Shrink gently" — `scripts/shrink-posters-gently.mjs`
+
+The script that answers the median check above. `GENTLE_TRIMS` names the seven
+posters the owner looked at and approved on 2026-09-17 (`r-asb` blush and pebble;
+all five `r-wzu` colourways) with the exact settings for each — chosen by looking at
+the rendered picture, never by tuning against file size (root CLAUDE.md's standing
+rule). The dry run (the default, read-only) fetches each live poster and either
+finds it already at the approved bytes or re-encodes it in memory and checks the
+result against the approved sha256; nothing is uploaded. `--apply` asks for a CMS
+key with a hidden prompt (never on the command line — same reason as
+`scripts/apply-footer-facts.mjs`), uploads each re-encoded poster, repoints only
+`posterPreview` on the affected colourway rows, reads the product back and compares
+every field, then polls the public payload for up to 120 s before moving to the next
+product. It deletes nothing — the superseded poster media documents stay in the CMS
+for `scripts/find-orphan-media.mjs` to report once nothing references them.
+
+**The owner runs this, only after the deploy that ships it**, from their own
+Terminal:
+
+```bash
+cd ~/Sites/Model-Viewer-main && git switch main && git pull --ff-only && \
+  npx --yes pnpm@10.34.5 install --frozen-lockfile && \
+  node scripts/shrink-posters-gently.mjs --apply
+```
+
+Afterwards, `node scripts/poster-sizes.mjs` should exit 0 with 5 excepted and 0
+flagged. `apps/cms/src/shrinkPostersGently.test.ts` pins every settings/bytes/sha256
+triple above.
+
 ## Re-processing a garment (the Retry tick-box)
 
 **When you need this:** the pipeline was fixed and you want the fix applied to a
