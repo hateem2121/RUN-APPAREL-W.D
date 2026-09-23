@@ -17,6 +17,20 @@ name: Android Chrome (emulator)
 # asking. Adding a cadence is a small, separate change once the harness has a track record.
 on:
   workflow_dispatch:
+  # ⚠️ TEMPORARY — FOR THIS DRAFT PR'S CI VERIFICATION ONLY, REMOVED BEFORE THE PR IS
+  # LEFT IN ITS FINAL STATE. `workflow_dispatch` cannot be triggered remotely until this
+  # file exists on the repository's DEFAULT branch — a GitHub Actions platform
+  # constraint, confirmed here by `gh workflow run` answering 404 "workflow not found on
+  # the default branch" — and this task is explicitly forbidden from merging to reach
+  # that state. `pull_request`, scoped to only the files this change touches, is the
+  # standard, safe way to exercise a brand-new workflow from its own branch without
+  # merging. See the report for the exact commits this was added and removed in.
+  pull_request:
+    paths:
+      - '.github/workflows/android-chrome.yml'
+      - 'scripts/android-chrome.mjs'
+      - 'scripts/android-chrome.d.mts'
+      - 'packages/ui/src/tokens.css'
 
 # Least privilege, stated explicitly — same reasoning as ci.yml's own block. This job
 # reads the checkout and runs local tools; it never calls the GitHub API and never writes
