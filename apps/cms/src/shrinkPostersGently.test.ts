@@ -1,5 +1,5 @@
 import zlib from 'node:zlib'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OWNER_EXCEPTIONS } from '../../../scripts/poster-sizes.mjs'
 import {
   apply,
@@ -612,6 +612,36 @@ describe('dryRun()', () => {
 })
 
 describe('apply()', () => {
+  // Console-spy teardown (2026-09-23): every test below spies on console.log
+  // and/or console.error via vi.spyOn(...).mockImplementation(...) inline, with
+  // no per-test cleanup — unlike findExistingUpload()'s own local afterEach above
+  // and this file's root-level afterEach, neither of which touches a console spy.
+  // Confirmed by planting a fault (deleting the afterEach below) and red-running:
+  // the SECOND test's beforeEach guard fails because console.log/console.error
+  // are still the mock objects the first test installed — vi.spyOn does not scope
+  // a mock to the test that created it, so its .mock.calls accumulate across the
+  // whole file's run until something restores it.
+  //
+  // restoreAllMocks(), not clearAllMocks()/resetAllMocks(): per the INSTALLED
+  // vitest's own docs (node_modules/vitest/dist/index.d.ts and
+  // @vitest/spy/dist/index.d.ts), only restoreAllMocks "restore[s] original
+  // descriptors of spied-on objects" — i.e. actually undoes vi.spyOn back to the
+  // real console.log/console.error. clearAllMocks only empties `.mock` state and
+  // leaves the mock installed; resetAllMocks resets the implementation but still
+  // does not restore the descriptor — either would leave console silently mocked
+  // (and, after a reset, permanently silenced) for the rest of the file's run.
+  beforeEach(() => {
+    // Durable guard: if the afterEach below is ever removed, THIS goes red on the
+    // next test that runs after one which spied on console, instead of passing
+    // silently with leaked mock state.
+    expect(vi.isMockFunction(console.log)).toBe(false)
+    expect(vi.isMockFunction(console.error)).toBe(false)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('with every colour already done, makes no POST and no PATCH, and says so', async () => {
     const a = await fixtureTrim({ product: 'r-fix', colour: 'a' })
     const b = await fixtureTrim({ product: 'r-fix', colour: 'b' })
