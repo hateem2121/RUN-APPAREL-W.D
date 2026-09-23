@@ -305,7 +305,9 @@
   --z-footer-glow: 6; /* .footer-glow — the light, blended over the slab's content */
 
   --font-display: "Archivo Variable", "Archivo", system-ui, sans-serif;
-  --font-body: "Archivo Variable", "Archivo", system-ui, sans-serif;
+  /* PLANTED FAULT — proving the android-chrome.yml robot in a draft PR (2026-09-23).
+     Reverted in the next commit. See android-robot-report.md. */
+  --font-body: system-ui, sans-serif;
   --font-serif: "Instrument Serif", Georgia, serif;
   --font-mono:
     ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
