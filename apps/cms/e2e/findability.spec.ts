@@ -430,8 +430,19 @@ test.describe('IM-04 — no srcset, and the single size still fits a phone', () 
     const images = [...html.matchAll(/<img[^>]*class="product-card__img"[^>]*>/g)].map((m) => m[0])
     test.skip(images.length === 0, 'no garment with a poster in this database')
     for (const img of images) {
-      expect(img, `a gallery poster now carries srcset:\n${img}`).not.toMatch(/\bsrcset=/)
-      expect(img, `a gallery poster now carries sizes:\n${img}`).not.toMatch(/\bsizes=/)
+      /*
+       * ⚠️ CASE-INSENSITIVE, MEASURED. React's SSR string renderer serialises `srcSet`
+       * and `fetchPriority` verbatim in this Next.js version — `curl`'d live:
+       * `srcSet="…" fetchPriority="high"`, camelCase, while `loading="eager"` on the same
+       * tag is correctly lowercased. `composition.spec.ts`'s "IM-05 / PF-20" test already
+       * matches `fetchpriority` case-insensitively for the identical reason. A
+       * case-sensitive `/\bsrcset=/` here would never match the real attribute in either
+       * direction — it looked like a negative control and could not have failed on a
+       * real regression, which is exactly the class of instrument the root CLAUDE.md
+       * warns measures nothing.
+       */
+      expect(img, `a gallery poster now carries srcset:\n${img}`).not.toMatch(/\bsrcset=/i)
+      expect(img, `a gallery poster now carries sizes:\n${img}`).not.toMatch(/\bsizes=/i)
     }
   })
 
