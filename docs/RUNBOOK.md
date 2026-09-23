@@ -1765,6 +1765,15 @@ as of this writing, still unrendered.
 Until that screenshot exists, the artwork issue stays open regardless of what the
 tests say.
 
+**After attaching the re-shrunk model, before telling the owner it is live**, run
+`node scripts/glb-provenance-probe.mjs <product>/<colourway>` — confirms
+`asset.copyright` is set and the file carries no CLO/Marvelous Designer leftover
+string. This checks ONE model, by hand, on the same rare occasion a human already
+attaches one; it is not a scheduled job, because provenance changes only when a
+garment is re-shrunk. The CLI stays runnable against every live product at once
+with no argument, so a spot-check any other time is `node
+scripts/glb-provenance-probe.mjs`.
+
 ## API + media domain cutover
 
 > **Status (2026-07-22): MEDIA HALF DONE, API HALF BLOCKED on the free plan.**

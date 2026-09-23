@@ -30,6 +30,53 @@ import { LIVE_PRODUCTS } from './live-products.mjs'
 const API_BASE = (process.env.CMS_API_BASE || 'https://cms.wear-run.help').replace(/\/+$/, '')
 const REPORT = process.argv.includes('--report')
 
+/**
+ * Pure: pull the model URL a real viewer load would use out of an already-fetched
+ * live payload.
+ *
+ * Same fallback `zone-security-probe.mjs`'s `samplesFromPayload` uses
+ * (scripts/zone-security-probe.mjs:91-112): `product.glbUrl` is the shared URL
+ * single-GLB-variants mode writes; in separate-file mode the model sits on the
+ * COLOURWAY instead, and `product.glbUrl` is null there BY CONSTRUCTION, not a
+ * missing value. Without the fallback this silently stops resolving anything the
+ * day a product switches mode.
+ *
+ * @param {unknown} body `GET /api/public/viewer/<product>/<colourway>`
+ * @returns {{ url: string } | { error: string }}
+ */
+export function modelUrlFromPayload(body) {
+  const payload = /** @type {any} */ (body)
+  const url = payload?.product?.glbUrl ?? payload?.selectedColourway?.glbUrl
+  if (typeof url !== 'string' || url.length === 0) {
+    return { error: 'the live payload named no model' }
+  }
+  return { url }
+}
+
+/**
+ * Fetch one product+colourway's viewer payload and resolve its model URL.
+ *
+ * SHARED HELPER — a live-model-URL resolver two separate pieces of work both need
+ * and neither found already built. Exported by this exact name and signature so a
+ * second caller can import it rather than re-deriving it: `resolveLiveModelUrl(slug,
+ * colourway, { apiBase? }) => Promise<{ url: string } | { error: string }>`.
+ *
+ * @param {string} slug
+ * @param {string} colourway
+ * @param {{ apiBase?: string }} [options]
+ * @returns {Promise<{ url: string } | { error: string }>}
+ */
+export async function resolveLiveModelUrl(slug, colourway, { apiBase = API_BASE } = {}) {
+  try {
+    const response = await fetch(`${apiBase}/api/public/viewer/${slug}/${colourway}`)
+    if (!response.ok) return { error: `viewer payload answered ${response.status}` }
+    const body = await response.json()
+    return modelUrlFromPayload(body)
+  } catch (error) {
+    return { error: error.message ?? String(error) }
+  }
+}
+
 /** A poster this many times (or more) its family's median is worth a look. */
 export const FLAG_AT = 2
 
