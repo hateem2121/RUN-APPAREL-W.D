@@ -519,6 +519,52 @@ async function runChecks() {
     }
   }
 
+  // 10. SO-11: the 404 triad, live. apps/viewer/worker/notFound.ts has strong unit
+  //     coverage (notFound.test.ts) for the DECISION function; this confirms the
+  //     DEPLOYED Worker still produces the three real-world outcomes it decides between.
+  //     Re-measured live 2026-09-24: unlike this row's own planning note, a plain GET of
+  //     /manifest.webmanifest already 404s WITHOUT Sec-Fetch-Mode: navigate today (the
+  //     run_worker_first array, live since 2026-09-07, puts the Worker in front of every
+  //     request regardless) — sent anyway, harmlessly, as the header a real navigation
+  //     always carries and the shape this exact bug class hid behind historically.
+  {
+    const cases = [
+      { label: 'a malformed path (3 segments)', path: '/a/b/c', expectHtml404: true },
+      {
+        label: 'a well-formed but nonexistent product (SPA fallback)',
+        path: '/nope/wine',
+        expectHtml404: false,
+      },
+      {
+        label: 'a single-segment file request (manifest)',
+        path: '/manifest.webmanifest',
+        expectHtml404: true,
+        navigate: true,
+      },
+    ]
+    for (const { label, path, expectHtml404, navigate } of cases) {
+      const target = `${BASE}${path}`
+      const headers = { 'user-agent': BROWSER_UA, accept: 'text/html' }
+      if (navigate) {
+        headers['sec-fetch-mode'] = 'navigate'
+        headers['sec-fetch-dest'] = 'document'
+      }
+      const res = await rawGet(target, headers)
+      if (res.status === 403 || res.status === 429) {
+        console.log(`⚠️  ${target} returned ${res.status} — INCONCLUSIVE, as above.`)
+        continue
+      }
+      const is404 = res.status === 404
+      if (is404 !== expectHtml404) {
+        fail(
+          `${label} (${target}) answered ${res.status}, expected ${expectHtml404 ? '404' : '200 (SPA fallback)'} (SO-11).`,
+        )
+      } else {
+        console.log(`   404 triad: ${label} -> ${res.status}`)
+      }
+    }
+  }
+
   return { title, canonical }
 }
 
