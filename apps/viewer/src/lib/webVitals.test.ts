@@ -29,6 +29,10 @@ function start() {
 }
 
 class FakeObserver {
+  // I1 (2026-09-23): a real engine's CLS gate checks this static, so a fake that
+  // omits it silently fails every test in this file that expects a cls — this is
+  // what the '0.070' case at :108 needs to keep passing.
+  static supportedEntryTypes = ['largest-contentful-paint', 'layout-shift']
   private cb: Cb
   constructor(cb: Cb) {
     this.cb = cb
@@ -134,6 +138,28 @@ describe('initWebVitals', () => {
     emit('largest-contentful-paint', [{ startTime: 900 }])
     window.dispatchEvent(new Event('pagehide'))
     expect(seen[0]?.lcpMs).toBe('900')
+    // I1: before the fix this was '0.000' — a throw was silently reported as a
+    // perfectly steady page. cls must be ABSENT, not zero.
+    expect(seen[0]?.cls).toBeUndefined()
+  })
+
+  it('reports no cls when the engine accepts observe() but silently has no such entries (I1)', () => {
+    // The spec's OTHER failure shape: an engine may accept
+    // observe({ type: 'layout-shift' }) without throwing and simply never emit an
+    // entry for it — a silent "I do not have this", not "nothing shifted". Every
+    // iPhone visit was exactly this case, since Safari has no Layout Instability
+    // API at all, and it was indistinguishable from a real 0.000 before this fix.
+    class SilentlyUnsupported extends FakeObserver {
+      static override supportedEntryTypes = ['largest-contentful-paint']
+    }
+    vi.stubGlobal('PerformanceObserver', SilentlyUnsupported)
+    const seen = trackedEvents()
+    start()
+    emit('largest-contentful-paint', [{ startTime: 900 }])
+    // No layout-shift entry is ever emitted — the engine simply never calls back.
+    window.dispatchEvent(new Event('pagehide'))
+    expect(seen[0]?.lcpMs).toBe('900')
+    expect(seen[0]?.cls).toBeUndefined()
   })
 
   it('does nothing at all where PerformanceObserver is absent', () => {

@@ -186,6 +186,10 @@ describe('initTelemetry — the page-speed numbers (PF-05b)', () => {
     type Cb = (list: { getEntries: () => unknown[] }) => void
     const callbacks: Record<string, Cb> = {}
     class FakeObserver {
+      // I1 (2026-09-23): webVitals.ts now checks this static before ever attaching
+      // a cls to the report — without it every visit here would silently lose cls,
+      // exactly the bug I1 fixes.
+      static supportedEntryTypes = ['largest-contentful-paint', 'layout-shift']
       private cb: Cb
       constructor(cb: Cb) {
         this.cb = cb
