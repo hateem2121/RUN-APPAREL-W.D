@@ -26,10 +26,12 @@ const DOM_SUITE = /(webgl|render|camera-settle)\.spec\.ts/
 
 /**
  * `fontSwap.spec.ts` (TY-02) needs two engines, not four: Chromium, the only one with the
- * Layout Instability API, and desktop WebKit, which counts the headline's lines. It lays out
- * every live headline several times, and CI's `e2e` job already measured about 21 of its 30
- * minutes on 2026-09-07; Firefox and mobile Safari would add minutes and no reading these two
- * do not give.
+ * Layout Instability API, and desktop WebKit, which counts the headline's lines — Mac only
+ * (owner ruling, 2026-09-23): `system-ui` only reads as an iPhone's on a Mac, so the WebKit
+ * half skips itself on CI's Linux image and runs locally, before every push, on this project.
+ * It lays out every live headline several times, and CI's `e2e` job already measured about 21
+ * of its 30 minutes on 2026-09-07; Firefox and mobile Safari would add minutes and no reading
+ * these two do not give.
  */
 const TWO_ENGINE_SUITE = /fontSwap\.spec\.ts/
 

@@ -15,7 +15,10 @@ import { LIVE_PRODUCTS } from '../../../scripts/live-products.mjs'
  * Two engines, set in playwright.config.ts: Chromium alone has the Layout Instability API, and
  * WebKit — the engine behind a QR scan on an iPhone — counts the lines. On a phone the headline
  * sits below the first screen, where CLS cannot see it, so the line count is the headline
- * guard and CLS the first-screen guard.
+ * guard and CLS the first-screen guard. The WebKit half only reads as an iPhone's where
+ * `system-ui` IS Apple's system font — a Mac — so it is Mac-only (owner ruling, 2026-09-23):
+ * it runs locally before every push and is skipped on CI's Linux image, with the reason on
+ * the test itself.
  *
  * ⚠️ THE NAMES ARE THE LIVE PAYLOAD'S (2026-09-17), SERVED IN PLACE OF THE FIXTURE'S. A rename in
  * the CMS does not break this, it only leaves it measuring the old words; a newly published
@@ -167,6 +170,20 @@ test.describe('TY-02 — every live headline keeps its lines when Archivo arrive
       browserName,
     }) => {
       test.skip(browserName !== 'webkit', 'the lines are counted in WebKit, which a QR scan opens')
+      // Mac only (owner ruling, 2026-09-23, verbatim: "Mac only for that half"). Root cause:
+      // while Archivo is late, the headline paints in system-ui (this file's own header says
+      // so), and this WebKit half is only an iPhone's reading when system-ui IS Apple's system
+      // font, which only macOS has — on CI's Linux image system-ui resolves to a narrower Linux
+      // font no iPhone has. Measured on run 35832864346: 8 of the 16 live names went from one
+      // line before Archivo to two after, at both 390px and 1440px (r-afp, r-wzu, r-css, r-asb,
+      // r-cch, r-gtd, r-et too) — a difference in the CI image's fonts, not in the page. The
+      // Safari half now runs on the Mac, where the backup font matches an iPhone's, including
+      // before every push, and is skipped on Linux with the reason recorded here; the Chromium
+      // half (the layout-shift score, below) keeps running on GitHub unchanged. Follow-up:
+      // real-visitor page-steadiness numbers start arriving in the Monday digest after this
+      // release — a metric-matched fallback face is the next step if they show jumps, not a
+      // wider skip.
+      test.skip(process.platform !== 'darwin', 'the iPhone-matched fallback font is macOS only')
       test.setTimeout(240_000)
       let current = ''
       await serveLiveName(page, () => current)
