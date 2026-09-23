@@ -1,7 +1,8 @@
 import { VIEWER_ANALYTICS_EVENTS } from '@run-apparel/shared'
 import type { PayloadRequest } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
-import { MAX_EVENT_BATCH, eventsEndpoint, sanitizeEvents } from './events'
+import { Events } from '../collections/Events'
+import { MAX_CLS, MAX_EVENT_BATCH, MAX_LCP_MS, eventsEndpoint, sanitizeEvents } from './events'
 import { MAX_EVENTS_PER_IP } from './eventsRateLimit'
 
 /**
@@ -352,5 +353,26 @@ describe('sanitizeEvents — the two page-speed numbers (PF-05b)', () => {
       collection: 'events',
       data: { event: 'web_vitals', lcpMs: 2400, cls: 0.012 },
     })
+  })
+})
+
+/**
+ * M4 (2026-09-23). collections/Events.ts used to repeat these two bounds as
+ * literals — if the two ever drifted, the FIELD could end up tighter than the
+ * endpoint, and payload.create would fail validation and drop the whole row
+ * silently (the catch in eventsEndpoint's write loop above), which contradicts
+ * "drop the number, never the row". Both fields now import MAX_LCP_MS/MAX_CLS from
+ * this module, so this test is really pinning that the import stayed wired up.
+ */
+describe('Events collection field bounds match this endpoint (M4)', () => {
+  const field = (name: string) =>
+    Events.fields.find((f) => 'name' in f && f.name === name) as { max?: number } | undefined
+
+  it('lcpMs', () => {
+    expect(field('lcpMs')?.max).toBe(MAX_LCP_MS)
+  })
+
+  it('cls', () => {
+    expect(field('cls')?.max).toBe(MAX_CLS)
   })
 })

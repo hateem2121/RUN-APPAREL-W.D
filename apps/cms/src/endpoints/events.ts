@@ -45,10 +45,18 @@ const BOT_UA = /bot|crawler|spider|headless|preview|scan|lighthouse|monitor|run-
  * layout-shift score of 10 far past any real page. Outside them the NUMBER is dropped,
  * never the row — the visit still counts. Text is refused too: the viewer converts both
  * to numbers before sending (apps/viewer/src/lib/telemetry.ts), so a string here did
- * not come from the viewer. Collections/Events.ts repeats the bounds.
+ * not come from the viewer.
+ *
+ * Exported (M4, 2026-09-23) so collections/Events.ts's field `min`/`max` can import
+ * the same values instead of repeating them as literals — the two drifting would let
+ * the FIELD end up tighter than the endpoint, and `payload.create` would then fail
+ * validation and drop the whole row silently (events.ts's own catch below), which
+ * contradicts "drop the number, never the row". This module has no Payload-config
+ * side effects (no collection import, nothing Payload-specific at module scope), so
+ * importing it from a collection file costs nothing extra at that file's load time.
  */
-const MAX_LCP_MS = 600_000
-const MAX_CLS = 10
+export const MAX_LCP_MS = 600_000
+export const MAX_CLS = 10
 const WEB_VITALS = 'web_vitals'
 
 const bounded = (value: unknown, max: number): number | undefined =>

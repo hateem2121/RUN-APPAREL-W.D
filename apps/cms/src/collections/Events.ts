@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { isAdmin } from '../access/roles'
+import { MAX_CLS, MAX_LCP_MS } from '../endpoints/events'
 
 /**
  * First-party viewer telemetry sink — analytics events, diagnostics and
@@ -60,14 +61,17 @@ export const Events: CollectionConfig = {
     /*
      * A page-speed report's two numbers (audit PF-05b, 2026-09-17). Set ONLY on
      * `analytics` / `web_vitals` rows, and bounded, by endpoints/events.ts; every other
-     * row leaves them empty. The bounds are repeated here so an out-of-range number is
-     * refused even if a future write skips the endpoint.
+     * row leaves them empty. The bounds are IMPORTED from there (M4, 2026-09-23),
+     * not repeated as literals, so an out-of-range number is refused even if a
+     * future write skips the endpoint, and the two can never quietly drift apart —
+     * a field tighter than the endpoint would fail payload.create and drop the
+     * whole row silently.
      */
     {
       name: 'lcpMs',
       type: 'number',
       min: 0,
-      max: 600_000,
+      max: MAX_LCP_MS,
       admin: {
         description:
           'Page speed (web vitals only): milliseconds until the largest element painted.',
@@ -77,7 +81,7 @@ export const Events: CollectionConfig = {
       name: 'cls',
       type: 'number',
       min: 0,
-      max: 10,
+      max: MAX_CLS,
       admin: {
         description: 'Page steadiness (web vitals only): the layout-shift score for the visit.',
       },
