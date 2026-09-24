@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './offlineMedia'
 
 /**
  * The privacy page's visit-records paragraph (D37, approved by the owner 2026-09-15; the
