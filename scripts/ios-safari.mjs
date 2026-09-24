@@ -145,6 +145,19 @@ export async function evaluate(port, sessionId, script, args = []) {
   return payload?.value
 }
 
+/**
+ * The standard W3C "Take Screenshot" — base64-encoded PNG of the current page, exactly
+ * as real Safari drew it. Added for the two audit lines that need a human to judge a
+ * picture (a colourway's rendered hue, a glyph's fallback face) rather than an assertion:
+ * this returns the CAPTURE, never a pass/fail — the judgement stays a person's.
+ */
+export async function screenshot(port, sessionId) {
+  const payload = await json(`http://127.0.0.1:${port}/session/${sessionId}/screenshot`, {
+    method: 'GET',
+  })
+  return payload?.value
+}
+
 /** Always call this, even on failure — a leaked session holds the simulator's Safari. */
 export async function closeSession(port, sessionId) {
   await fetch(`http://127.0.0.1:${port}/session/${sessionId}`, { method: 'DELETE' })
