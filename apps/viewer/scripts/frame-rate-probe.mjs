@@ -103,6 +103,13 @@ async function main() {
 
   const driver = await startDriver(DRIVER_PORT)
   let sessionId
+  // ⚠️ NEVER `process.exit()` INSIDE THE TRY BELOW. It was tried here and
+  // skipped the `finally`, leaving safaridriver's one session paired with
+  // Safari — the NEXT run then failed outright with "The Safari instance is
+  // already paired with another WebDriver session", discovered while proving
+  // this file's own negative control. `exitCode` is set instead and the
+  // process exits only after cleanup has run.
+  let exitCode = 0
   try {
     const opened = await openSession(DRIVER_PORT, {})
     sessionId = opened.sessionId
@@ -123,36 +130,42 @@ async function main() {
     }
     if (!loaded) {
       console.error('[frame-rate-probe] model-viewer never reported loaded within 60s')
-      process.exit(2)
+      exitCode = 2
+    } else {
+      await evaluate(DRIVER_PORT, sessionId, `return (${startSweepInPage.toString()})(${SWEEP_MS})`)
+      await new Promise((resolve) => setTimeout(resolve, SWEEP_MS + 1000))
+      const sweep = await evaluate(
+        DRIVER_PORT,
+        sessionId,
+        `return (${readSweepResult.toString()})()`,
+      )
+
+      if (sweep?.error) {
+        console.error(`[frame-rate-probe] ${sweep.error}`)
+        exitCode = 2
+      } else {
+        const classified = classifyFrameGaps(sweep.frames ?? [])
+        // Ceilings are measured, not guessed — see the task report for the real
+        // run this file's own comment cites once one exists.
+        const judged = evaluateFrameGaps(classified, { maxLongFrames: 20, maxWorstGapMs: 500 })
+
+        console.log(
+          `[frame-rate-probe] ${classified.sampleCount} frames, ` +
+            `${classified.longFrameCount} long (>50ms), worst ${classified.worstGapMs.toFixed(0)}ms`,
+        )
+        if (!judged.ok) {
+          for (const p of judged.problems) console.error(`::error::${p}`)
+          exitCode = 1
+        } else {
+          console.log('[frame-rate-probe] within ceilings (simulator proxy — not a device number).')
+        }
+      }
     }
-
-    await evaluate(DRIVER_PORT, sessionId, `return (${startSweepInPage.toString()})(${SWEEP_MS})`)
-    await new Promise((resolve) => setTimeout(resolve, SWEEP_MS + 1000))
-    const sweep = await evaluate(DRIVER_PORT, sessionId, `return (${readSweepResult.toString()})()`)
-
-    if (sweep?.error) {
-      console.error(`[frame-rate-probe] ${sweep.error}`)
-      process.exit(2)
-    }
-
-    const classified = classifyFrameGaps(sweep.frames ?? [])
-    // Ceilings are measured, not guessed — see the task report for the real run
-    // this file's own comment cites once one exists.
-    const judged = evaluateFrameGaps(classified, { maxLongFrames: 20, maxWorstGapMs: 500 })
-
-    console.log(
-      `[frame-rate-probe] ${classified.sampleCount} frames, ` +
-        `${classified.longFrameCount} long (>50ms), worst ${classified.worstGapMs.toFixed(0)}ms`,
-    )
-    if (!judged.ok) {
-      for (const p of judged.problems) console.error(`::error::${p}`)
-      process.exit(1)
-    }
-    console.log('[frame-rate-probe] within ceilings (simulator proxy — not a device number).')
   } finally {
     if (sessionId) await closeSession(DRIVER_PORT, sessionId).catch(() => {})
     driver.stop()
   }
+  process.exitCode = exitCode
 }
 
 if (process.argv[1]?.endsWith('frame-rate-probe.mjs')) {
