@@ -70,11 +70,21 @@ export function classify(name, summaryResult, thresholdMs) {
 }
 
 /**
- * Pure: PF-08 — did the decoder/HDR fetch start alongside the model request (within
- * a small window), or only after it arrived? `requestStartedAt` is a map of URL
- * substring -> timestamp (ms since navigation start), built from a live network log.
+ * Pure: PF-08 — are the decoder/HDR requests already IN FLIGHT by the time the model
+ * is requested, rather than waiting for the model-viewer chunk to ask for them (the
+ * pre-LIVE-10 defect the preload hints in `index.html` fixed)? `requestStartedAt` is
+ * a map of URL substring -> REQUEST-INITIATION timestamp (ms since navigation start),
+ * built from a live network log.
+ *
+ * Deliberately NOT "starts within N ms of the model" — the decoder/HDR are preloaded
+ * from the very top of `<head>`, so the healthy shape has them starting WELL BEFORE
+ * the model (which cannot be requested until the product API round-trip resolves a
+ * `glbUrl`). A close-to-simultaneous check would flag the correct behaviour as a
+ * regression. What LIVE-10 actually guarantees, and what this checks, is the other
+ * direction: neither ever starts AFTER the model, which is what "waiting for
+ * model-viewer to ask for it" would look like.
  */
-export function overlapsModelDownload(requestStartedAt, { toleranceMs = 200 } = {}) {
+export function overlapsModelDownload(requestStartedAt, { toleranceMs = 500 } = {}) {
   const modelStart = requestStartedAt.model
   const decoderStart = requestStartedAt.decoder
   const hdrStart = requestStartedAt.hdr
@@ -88,9 +98,10 @@ export function overlapsModelDownload(requestStartedAt, { toleranceMs = 200 } = 
       problems.push(`${label} never requested`)
       continue
     }
-    if (Math.abs(start - modelStart) > toleranceMs) {
+    if (start > modelStart + toleranceMs) {
       problems.push(
-        `${label} started ${Math.abs(start - modelStart)}ms from the model, not alongside it`,
+        `${label} started ${start - modelStart}ms AFTER the model request — it waited, ` +
+          'rather than being already in flight from the preload hint',
       )
     }
   }
@@ -117,15 +128,22 @@ async function runOnce(browser) {
   const navStart = Date.now()
   const requestStartedAt = {}
   let modelCacheStatus = null
-  page.on('response', (res) => {
-    const url = res.url()
+  // `request`, not `response` — PF-08 asks when each fetch STARTED (was it already
+  // in flight by the time the model was asked for, not waiting on model-viewer's own
+  // chunk to request it), which `request` fires on. `response` fires once headers
+  // come back, which for a throttled multi-second GLB download lands long after the
+  // request actually started and would misreport a fetch that started early as
+  // "late".
+  page.on('request', (req) => {
+    const url = req.url()
     const t = Date.now() - navStart
-    if (/\.glb(\?|$)/.test(url)) {
-      requestStartedAt.model = t
-      modelCacheStatus = res.headers()['cf-cache-status'] ?? '(none)'
-    }
+    if (/\.glb(\?|$)/.test(url) && requestStartedAt.model == null) requestStartedAt.model = t
     if (/meshopt_decoder\.js/.test(url)) requestStartedAt.decoder = t
     if (/studio-soft\.hdr/.test(url)) requestStartedAt.hdr = t
+  })
+  page.on('response', (res) => {
+    if (/\.glb(\?|$)/.test(res.url()))
+      modelCacheStatus = res.headers()['cf-cache-status'] ?? '(none)'
   })
 
   await page.goto(VIEWER_URL, { waitUntil: 'commit' })

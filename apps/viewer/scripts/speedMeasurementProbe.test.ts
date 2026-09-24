@@ -67,6 +67,14 @@ describe('overlapsModelDownload — PF-08', () => {
     expect(r.ok).toBe(true)
   })
 
+  it('accepts decoder and HDR requests that start well BEFORE the model — the real, healthy shape', () => {
+    // The decoder/HDR are preloaded from the top of <head>; the model cannot be
+    // requested until the product API round-trip resolves a glbUrl, so the model
+    // is normally the LATEST of the three, not the earliest.
+    const r = overlapsModelDownload({ model: 3000, decoder: 50, hdr: 80 })
+    expect(r.ok).toBe(true)
+  })
+
   it('flags a decoder that starts long after the model (fetched only once asked for)', () => {
     const r = overlapsModelDownload({ model: 500, decoder: 4500, hdr: 540 })
     expect(r.ok).toBe(false)
