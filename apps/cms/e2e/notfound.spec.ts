@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './offlineMedia'
 
 /**
  * The 404 page — and the two ways it has been broken.

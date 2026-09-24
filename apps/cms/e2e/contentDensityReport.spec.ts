@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import { expect, test } from '@playwright/test'
+import { expect, test } from './offlineMedia'
 
 const execFileAsync = promisify(execFile)
 

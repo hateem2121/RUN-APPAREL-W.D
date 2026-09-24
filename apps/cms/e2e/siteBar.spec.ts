@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './offlineMedia'
 import {
   SITE_BAR_WORDMARK,
   SITE_MENU_ID,

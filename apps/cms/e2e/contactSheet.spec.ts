@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import { expect, test } from '@playwright/test'
+import { expect, test } from './offlineMedia'
 import { combinations } from '../scripts/contact-sheet.mjs'
 
 const execFileAsync = promisify(execFile)
