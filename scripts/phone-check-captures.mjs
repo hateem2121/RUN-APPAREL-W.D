@@ -1,15 +1,15 @@
 /**
- * CAPTURE ONLY, for the two audit lines `SPEC-100 §4.2` designed as owner phone checks —
- * CO-11 (does the BUTTER colourway on `rxps` render its panels as blue, on a phone?) and
- * TY-10 (which face does the № glyph fall back to, on a phone?).
+ * CAPTURE ONLY, for the two checks that need a person to look at a phone screen —
+ * CO-11 (what colour do the BUTTER colourway's panels on `rxps` actually render as, on a
+ * phone?) and TY-10 (which face does the № glyph fall back to, on a phone?).
  *
  * This does NOT judge either question. It drives real Safari on the iOS 26.5 Simulator
  * over `scripts/ios-safari.mjs` (do not reimplement that driver here), takes one
  * screenshot per target, and writes it to disk — a person still looks at the picture and
  * decides. `SIMULATOR_CAVEAT` applies: rendering, DOM and CSS are real Safari; a
- * Simulator's GPU and thermal envelope are not a phone's, and this is not a substitute
- * for `SPEC-100 §4.2`'s own Mac-local, real-device robot. What this buys is not having to
- * hold the owner's phone to answer either question.
+ * Simulator's GPU and thermal envelope are not a phone's, and it is not a substitute
+ * for a check on a real device. What this buys is not having to hold the owner's phone to
+ * answer either question.
  *
  * ⚠️ PRODUCTION IS READ-ONLY. Every request this script makes is a plain page load (a
  * GET) of a public page — nothing here writes, and nothing here uses a plain, unflagged
@@ -44,8 +44,7 @@ const TARGETS = {
     readySelector: 'h1',
     file: 'co-11-butter-colourway.png',
     question:
-      'Do the panels that should read as BUTTER (a pale yellow) instead read as blue in ' +
-      'this capture?',
+      'What colour are the panels that should read as BUTTER (a pale yellow) in this ' + 'capture?',
   },
   'ty-10': {
     label: 'TY-10 — the № glyph, site home page',
