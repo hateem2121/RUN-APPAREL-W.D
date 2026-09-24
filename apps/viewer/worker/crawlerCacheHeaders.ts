@@ -16,8 +16,9 @@
  * `withNoTransform()`, because that helper's first line refuses anything that already
  * carries the directive — safe for a response coming straight from Static Assets, wrong
  * here where the directive may or may not already be present on the object this hand-built
- * `Response` was copied from. `carriesNoTransform` below is the shared predicate so the two
- * files cannot drift on what "already has it" means.
+ * `Response` was copied from. `carriesNoTransform` below is exported for its tests and is
+ * mirrored in `scripts/smoke-viewer-preview.mjs`, which checks the deployed response;
+ * `noTransform.ts` keeps its own check.
  */
 
 /** True once `cacheControl` already carries the `no-transform` directive, in any position. */
