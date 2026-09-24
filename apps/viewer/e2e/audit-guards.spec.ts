@@ -2310,9 +2310,14 @@ test.describe('SC-09 — the page continues below the fold without needing a col
  * model, which `apps/viewer/CLAUDE.md`'s own trap on this exact property warns about.
  */
 test.describe('SC-13 — touch-action is none on the canvas, and nowhere else scrollable', () => {
-  test('the canvas refuses browser gestures; <body> does not', async ({ page }) => {
+  test('the canvas refuses browser gestures; <body> does not', async ({ page, browserName }) => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    // No WebGL (CI's Firefox) means poster fallback and no <model-viewer> at all: the first
+    // CI run waited 30s for one and timed out (2026-09-25). Chromium on CI has WebGL and
+    // still runs this, as SC-08's identical guard relies on.
+    const fallback = await page.locator('.stage__error:not([hidden])').count()
+    test.skip(fallback > 0, `${browserName}: no WebGL here, the stage is in poster fallback`)
 
     /*
      * ⚠️ THE ATTRIBUTE, NOT `getComputedStyle`. Measured while writing this test:
