@@ -1226,3 +1226,37 @@ test.describe('LA-02 — home-page input facts (an honest proxy, not a judgement
     // own comment on the same fact) and this test exists only to record the number.
   })
 })
+
+/**
+ * LA-12 — the gallery (`.product-grid`, `auto-fill, minmax(260px, 1fr)`, 24px gap,
+ * `site.css:1242-1249`) genuinely reaches 1/2/3/4 columns as the content column widens,
+ * including the ≥1600px fourth column the owner added deliberately (FA-E-04). Reads the
+ * ACTUAL rendered column count off `getComputedStyle`, never assumed from a viewport
+ * width formula, per this batch's "measured never computed" rule.
+ */
+test.describe('LA-12 — the gallery genuinely reaches 1/2/3/4 columns', () => {
+  const CASES = [
+    { width: 375, columns: 1 },
+    { width: 700, columns: 2 },
+    { width: 1280, columns: 3 },
+    { width: 1920, columns: 4 },
+  ] as const
+
+  for (const { width, columns } of CASES) {
+    test(`${columns} column${columns === 1 ? '' : 's'} at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 1000 })
+      await page.goto('/products')
+      await settle(page)
+
+      const grid = page.locator('.product-grid')
+      if ((await grid.count()) === 0) test.skip(true, 'no product grid in this environment')
+
+      const tracks = await grid.evaluate(
+        (el) => getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length,
+      )
+      expect(tracks, `${width}px: expected ${columns} column(s), the grid reports ${tracks}`).toBe(
+        columns,
+      )
+    })
+  }
+})

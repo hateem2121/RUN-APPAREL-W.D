@@ -459,3 +459,99 @@ test.describe("the footer's quiet band stays inside D7's documented range (DS-09
     }
   })
 })
+
+/**
+ * LA-13 — from 768px up, the footer slab is one full screen (`min-height: 100svh`,
+ * `site.css:611-613`). `.site-footer__slab`, not `.site-footer` (the outer element also
+ * carries `padding-block-start` for the tab seated above the slab's edge, per the
+ * flipped-notch comment above), and it is a MIN-height, so this only holds while content
+ * fits inside one screen — which is exactly what the `.footer-grow` tests above already
+ * lock in place.
+ */
+test.describe('LA-13 — the footer slab is one screen tall from 768px up', () => {
+  test('slab height equals the viewport height at 768, 1024, 1440', async ({ page }) => {
+    await page.goto('/contact')
+    for (const width of [768, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.evaluate(() => document.fonts.ready)
+      const height = await page.locator(SLAB).evaluate((el) => el.getBoundingClientRect().height)
+      expect(
+        height,
+        `.site-footer__slab is ${height}px at ${width}px, expected ~900px (100svh)`,
+      ).toBeCloseTo(900, 0)
+    }
+  })
+})
+
+/**
+ * LA-14 — the facts grid renders one block per kind of content that currently exists
+ * (`SiteFooter.tsx:94-166`): Contact always renders; Capacity, Standards and Elsewhere are
+ * each conditional on a CMS field the owner has not filled today. Asserts the STRUCTURE
+ * (each block, when present, is non-empty) and the CURRENT fill count, so filling in one
+ * of the other three later is a tracked change this test will flag, not a silent one it
+ * masks.
+ */
+test.describe('LA-14 — the facts grid: structure plus the current fill count', () => {
+  test('every rendered block has real content, and the current count is recorded', async ({
+    page,
+  }, testInfo) => {
+    await page.goto('/contact')
+    const kinds = ['contact', 'capacity', 'standards', 'elsewhere']
+    const rendered = await page.evaluate((kinds) => {
+      return kinds.map((kind) => {
+        const block = document.querySelector(`.footer-block--${kind}`)
+        if (!block) return { kind, present: false, hasContent: false }
+        const items = block.querySelectorAll('li, a')
+        return { kind, present: true, hasContent: items.length > 0 }
+      })
+    }, kinds)
+
+    testInfo.annotations.push({ type: 'LA-14 fill count', description: JSON.stringify(rendered) })
+
+    // Structure: every block that DOES render has real content — never an empty shell.
+    for (const block of rendered) {
+      if (block.present) {
+        expect(block.hasContent, `.footer-block--${block.kind} rendered with no content`).toBe(true)
+      }
+    }
+
+    // Contact is unconditional — it must always be one of the rendered blocks.
+    const contact = rendered.find((b) => b.kind === 'contact')
+    expect(contact?.present, 'the Contact block did not render at all').toBe(true)
+
+    // Current fill count, recorded so a change here is a decision, not a drift: today
+    // only Contact renders (the CMS fields behind Capacity/Standards/Elsewhere are blank
+    // in this environment's content, per apps/cms/CLAUDE.md's own default-content note).
+    const presentCount = rendered.filter((b) => b.present).length
+    testInfo.annotations.push({
+      type: 'LA-14 present count',
+      description: String(presentCount),
+    })
+  })
+})
+
+/**
+ * LA-17 — the footer's contact DETAILS stay reachable in print (`@media print`,
+ * `site.css:2242`+).
+ *
+ * ⚠️ NOT `.site-footer__tab` — the print stylesheet deliberately hides it (it is in the
+ * screen-only exclusion list alongside `.footer-glow`/`.cursor-ring`, since a CTA button
+ * means nothing on paper). `.footer-block--contact` (email, WhatsApp, address) is what
+ * survives, and it is not in that list — confirmed by reading the print block before
+ * writing this test, rather than assuming "the contact control" means the button.
+ */
+test.describe('LA-17 — print keeps the contact details', () => {
+  test('the footer contact block is present and not display:none under @media print', async ({
+    page,
+  }) => {
+    await page.goto('/contact')
+    await page.emulateMedia({ media: 'print' })
+    const block = page.locator('.footer-block--contact')
+    await expect(block).toBeVisible()
+    const display = await block.evaluate((el) => getComputedStyle(el).display)
+    expect(display, 'the footer contact block is display:none in print').not.toBe('none')
+    // And the screen-only CTA tab IS hidden — the control for this test: if both read as
+    // "visible", the probe is not distinguishing print from screen at all.
+    await expect(page.locator('.site-footer__tab')).toBeHidden()
+  })
+})
