@@ -12,15 +12,17 @@ import { describe, expect, it } from 'vitest'
  *
  * ⚠️ THIS PROOF GENUINELY NEEDS A BUILD STEP FIRST. `pnpm
  * build` runs AFTER `test:coverage` in this repo's own gate order (root CLAUDE.md), so
- * the very first time this suite runs in CI there is no `dist`/`.next` yet. This test
- * SKIPS (does not fail) when the built output is absent, and only asserts once it
- * exists — run `pnpm --filter @run-apparel/viewer build` and `pnpm --filter
- * @run-apparel/cms build` (or the repo's own `seed:assets && build`) first to exercise
- * it for real.
+ * the very first time this suite runs in CI there is no `dist`/`.next` yet. Locally this
+ * test SKIPS (does not fail) when the built output is absent, so `pnpm test` stays fast —
+ * run `pnpm --filter @run-apparel/viewer build` and `pnpm --filter @run-apparel/cms build`
+ * (or the repo's own `seed:assets && build`) first to exercise it for real. `test:built-config`
+ * runs it again with `REQUIRE_BUILD_ARTIFACTS=1` after CI's own build step, same shape as
+ * `hostRulesManifest.test.ts`, so a missing build there is a hard failure, not a silent skip.
  */
 
 const VIEWER_DIST = join(import.meta.dirname, '..', '..', 'viewer', 'dist', 'assets')
 const CMS_CHUNKS = join(import.meta.dirname, '..', '.next', 'static', 'chunks')
+const REQUIRE_BUILD = process.env.REQUIRE_BUILD_ARTIFACTS === '1'
 
 /**
  * Every `dvh` occurrence NOT inside a `/* ... *\/` comment. Simple on purpose (SZ-12's
@@ -51,35 +53,44 @@ describe('SZ-12 — the built CSS never ships a real dvh, on either surface', ()
   // alphabetically, so scan every chunk rather than assume a single file.
   const cmsChunkDir = existsSync(CMS_CHUNKS) ? CMS_CHUNKS : null
 
-  it.skipIf(!viewerCssPath)('the viewer bundle has zero real dvh and at least one svh', () => {
-    const css = readFileSync(viewerCssPath as string, 'utf8')
-    expect(nonCommentDvhCount(css), `${viewerCssPath} contains a real dvh declaration`).toBe(0)
+  it('a CI step that forgot to build cannot pass this file', () => {
     expect(
-      /svh\b/.test(css),
-      `${viewerCssPath} has no svh at all — the control for this test`,
-    ).toBe(true)
+      REQUIRE_BUILD && !viewerCssPath,
+      'REQUIRE_BUILD_ARTIFACTS=1 but no viewer CSS bundle was found under dist/assets',
+    ).toBe(false)
+    expect(
+      REQUIRE_BUILD && !cmsChunkDir,
+      'REQUIRE_BUILD_ARTIFACTS=1 but no CMS CSS chunk directory was found under .next',
+    ).toBe(false)
   })
 
-  it.skipIf(!cmsChunkDir)('the site bundle has zero real dvh and at least one svh', () => {
-    const files = readdirSync(cmsChunkDir as string).filter((name) => name.endsWith('.css'))
-    expect(files.length, 'no CSS chunks were emitted at all').toBeGreaterThan(0)
+  it.skipIf(!viewerCssPath && !REQUIRE_BUILD)(
+    'the viewer bundle has zero real dvh and at least one svh',
+    () => {
+      const css = readFileSync(viewerCssPath as string, 'utf8')
+      expect(nonCommentDvhCount(css), `${viewerCssPath} contains a real dvh declaration`).toBe(0)
+      expect(
+        /svh\b/.test(css),
+        `${viewerCssPath} has no svh at all — the control for this test`,
+      ).toBe(true)
+    },
+  )
 
-    let dvhCount = 0
-    let sawSvh = false
-    for (const file of files) {
-      const css = readFileSync(join(cmsChunkDir as string, file), 'utf8')
-      dvhCount += nonCommentDvhCount(css)
-      if (/svh\b/.test(css)) sawSvh = true
-    }
-    expect(dvhCount, 'a real dvh declaration was found across the built CSS chunks').toBe(0)
-    expect(sawSvh, 'no svh was found anywhere — the control for this test').toBe(true)
-  })
+  it.skipIf(!cmsChunkDir && !REQUIRE_BUILD)(
+    'the site bundle has zero real dvh and at least one svh',
+    () => {
+      const files = readdirSync(cmsChunkDir as string).filter((name) => name.endsWith('.css'))
+      expect(files.length, 'no CSS chunks were emitted at all').toBeGreaterThan(0)
 
-  if (!viewerCssPath || !cmsChunkDir) {
-    it('SKIPPED — build artifacts absent', () => {
-      // Documents WHY the two cases above skipped, so a CI log reads as "not run yet"
-      // rather than "silently passed". See this file's own header.
-      expect(true).toBe(true)
-    })
-  }
+      let dvhCount = 0
+      let sawSvh = false
+      for (const file of files) {
+        const css = readFileSync(join(cmsChunkDir as string, file), 'utf8')
+        dvhCount += nonCommentDvhCount(css)
+        if (/svh\b/.test(css)) sawSvh = true
+      }
+      expect(dvhCount, 'a real dvh declaration was found across the built CSS chunks').toBe(0)
+      expect(sawSvh, 'no svh was found anywhere — the control for this test').toBe(true)
+    },
+  )
 })
