@@ -70,3 +70,33 @@ describe('stagePhase', () => {
     expect(stagePhase(dead, { type: 'swap-started' }).kind).toBe('poster')
   })
 })
+
+/**
+ * TRY 3D AGAIN — issue #41. A stalled download is the ONE poster a visitor may leave: a network route can
+ * recover, a device that has no WebGL or lost its context cannot, so those stay terminal exactly as before.
+ */
+describe('retry', () => {
+  it('leaves a stalled poster for loading', () => {
+    expect(stagePhase({ kind: 'poster', reason: 'stalled' }, { type: 'retry' })).toEqual({ kind: 'loading' })
+  })
+
+  it.each(['no-model', 'no-webgl', 'module-failed', 'context-lost', 'load-failed'] as const)(
+    'cannot resurrect a %s poster',
+    (reason) => {
+      expect(stagePhase({ kind: 'poster', reason }, { type: 'retry' })).toEqual({ kind: 'poster', reason })
+    },
+  )
+
+  it('is ignored outside a poster', () => {
+    expect(stagePhase({ kind: 'loading' }, { type: 'retry' })).toEqual({ kind: 'loading' })
+    expect(stagePhase({ kind: 'live' }, { type: 'retry' })).toEqual({ kind: 'live' })
+    expect(stagePhase({ kind: 'swapping' }, { type: 'retry' })).toEqual({ kind: 'swapping' })
+  })
+
+  it('reaches a stalled poster through load-failed, like every other reason', () => {
+    expect(stagePhase({ kind: 'loading' }, { type: 'load-failed', reason: 'stalled' })).toEqual({
+      kind: 'poster',
+      reason: 'stalled',
+    })
+  })
+})
