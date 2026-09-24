@@ -1,5 +1,6 @@
 import { expect, request, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { calibratedThrottleRate, cpuBenchmarkInPage } from '@run-apparel/shared'
 import { evaluateInteractionWalkthrough } from '../scripts/interaction-metrics.mjs'
 
 /**
@@ -195,8 +196,15 @@ test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interac
     // `@media (width < 720px)` rule; at desktop width the button is `display: none`.
     // A phone width is also representative here: a QR tag is scanned with a phone.
     await page.setViewportSize({ width: 375, height: 812 })
+    // Score this host UNTHROTTLED, then throttle it to imitate the reference host at 4x
+    // (see calibratedThrottleRate): a flat 4x read ~2.2x higher on CI than on the Mac.
+    await page.goto('about:blank')
+    const scores: number[] = []
+    for (let i = 0; i < 5; i++) scores.push(await page.evaluate(cpuBenchmarkInPage))
+    const score = scores.sort((a, b) => a - b)[2] as number
+    const rate = calibratedThrottleRate(score)
     const client = await page.context().newCDPSession(page)
-    await client.send('Emulation.setCPUThrottlingRate', { rate: 4 })
+    await client.send('Emulation.setCPUThrottlingRate', { rate })
 
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -236,11 +244,12 @@ test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interac
       await page.locator('.theme-toggle').click()
     })
 
-    // Measured on a LOADED garment, 4x CPU throttle, chromium, this Mac (2026-09-25, six
-    // runs, then 147-166 / 128-146 / 144-160 on three more). 300ms is ~1.8x the Mac's worst
-    // reading. NOT looser, measured: at 600/500 a planted 300ms freeze in the colourway
-    // tab's onClick read tbt=396 inpProxy=440 and PASSED; at 300/300 it fails on both. The
-    // load race this replaced read 786-903ms for ONE task, so its return fails too.
+    // Measured on a LOADED garment at the reference host's 4x (chromium, 2026-09-25): tbt
+    // 133-205ms, inpProxy 136-184ms over eleven runs. 300ms is ~1.5x the worst reading. NOT
+    // looser, measured: at 600/500 a planted 300ms freeze in the colourway tab's onClick
+    // read tbt=396 inpProxy=440 and PASSED; at 300/300 it fails on both. The load race this
+    // replaced read 786-903ms for ONE task, so its return fails too. The throttle is
+    // CALIBRATED per host above, so these ceilings mean the same thing on CI's runner.
     const result = evaluateInteractionWalkthrough(samples, {
       tbtCeilingMs: 300,
       inpCeilingMs: 300,
@@ -248,7 +257,7 @@ test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interac
     // Printed on a pass too, so CI's own numbers are readable in the job log.
     console.log(
       `PF-04/05 measured: tbt=${result.tbt.toFixed(0)}ms worstTask=${result.worstTask.toFixed(0)}ms ` +
-        `inpProxy=${result.inpProxy.toFixed(0)}ms`,
+        `inpProxy=${result.inpProxy.toFixed(0)}ms (host benchmark ${score}, throttle ${rate.toFixed(2)}x)`,
     )
     expect(
       result.ok,
@@ -284,9 +293,13 @@ test.describe('PF-18 — JS heap after the 3D model has loaded (hard to automate
     // proves nothing root CLAUDE.md warns about.
     await client.send('Performance.enable')
     await page.goto('/n001/wine')
-    await page.waitForFunction(() => Boolean(document.querySelector('model-viewer')?.loaded), {
-      timeout: 30000,
-    })
+    // Options are the THIRD argument; the second is the page function's own `arg`, so
+    // `{ timeout }` there is silently ignored (found in review 2026-09-25).
+    await page.waitForFunction(
+      () => Boolean(document.querySelector('model-viewer')?.loaded),
+      undefined,
+      { timeout: 30000 },
+    )
     // Let any post-load allocation (materials, textures) settle before reading.
     await page.waitForTimeout(1000)
 

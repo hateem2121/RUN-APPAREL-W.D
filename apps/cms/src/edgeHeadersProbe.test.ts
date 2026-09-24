@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   evaluateCacheControl,
   extractHashedAssetPath,
+  isRefusal,
   hasH3AltSvc,
 } from '../../../scripts/edge-headers-probe.mjs'
 
@@ -79,5 +80,15 @@ describe('evaluateCacheControl', () => {
 
   it('throws on an unknown kind rather than judging silently', () => {
     expect(() => evaluateCacheControl('bogus', 'public')).toThrow(/unknown kind/)
+  })
+})
+
+describe('isRefusal', () => {
+  it('reads Bot Fight Mode refusals (403, 429) as inconclusive, never as a failed check', () => {
+    expect(isRefusal(403)).toBe(true)
+    expect(isRefusal(429)).toBe(true)
+  })
+  it('treats every real answer, good or bad, as a result to judge', () => {
+    for (const status of [200, 206, 301, 404, 500]) expect(isRefusal(status)).toBe(false)
   })
 })

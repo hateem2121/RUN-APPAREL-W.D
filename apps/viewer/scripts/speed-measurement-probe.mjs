@@ -170,7 +170,10 @@ async function runOnce(browser) {
   )
 
   const garmentReady = await page
-    .waitForFunction(() => Boolean(document.querySelector('model-viewer')?.loaded), {
+    // Options are the THIRD argument; the second is the page function's own `arg`. Passed
+    // second, `{ timeout: 45000 }` was ignored and the 30s default applied, so a garment
+    // ready at 31-45s under this throttle read as never ready (found in review 2026-09-25).
+    .waitForFunction(() => Boolean(document.querySelector('model-viewer')?.loaded), undefined, {
       timeout: 45000,
     })
     .then(() => Date.now() - navStart)

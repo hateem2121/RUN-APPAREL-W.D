@@ -24,6 +24,11 @@ export const API_URL = `https://cms.wear-run.help/api/public/viewer/${DEFAULT_PR
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+/** Pure: Bot Fight Mode's refusal of a robot — inconclusive, never a failed assertion. */
+export function isRefusal(status) {
+  return status === 403 || status === 429
+}
+
 /** Pure: pick the first hashed entry-chunk path out of the viewer's built HTML. */
 export function extractHashedAssetPath(html) {
   const match = html.match(/<script[^>]*\ssrc="(\/assets\/index-[^"]+\.js)"/)
@@ -88,7 +93,7 @@ export function evaluateCacheControl(kind, cacheControl) {
 async function probeOne(label, url, kind, { range, requireH3 = true } = {}) {
   const headers = range ? { range } : {}
   const res = await fetch(url, { headers })
-  if (res.status === 403 || res.status === 429) {
+  if (isRefusal(res.status)) {
     return { label, url, inconclusive: true, status: res.status }
   }
   const cacheControl = res.headers.get('cache-control')
@@ -115,7 +120,17 @@ async function main() {
   // 1. Viewer HTML page.
   const viewerRes = await fetch(VIEWER_PAGE_URL)
   const viewerHtml = await viewerRes.text()
-  {
+  // A 403/429 is Bot Fight Mode refusing a robot, not the edge's answer — INCONCLUSIVE,
+  // the same as probeOne() treats it (found in review 2026-09-25: only three of the five
+  // requests did).
+  if (isRefusal(viewerRes.status)) {
+    results.push({
+      label: 'viewer HTML',
+      url: VIEWER_PAGE_URL,
+      inconclusive: true,
+      status: viewerRes.status,
+    })
+  } else {
     const cc = evaluateCacheControl('html', viewerRes.headers.get('cache-control'))
     const h3 = hasH3AltSvc(viewerRes.headers.get('alt-svc'))
     results.push({
@@ -186,15 +201,19 @@ async function main() {
   // 5. One CMS HTML page.
   {
     const res = await fetch(CMS_PAGE_URL)
-    const cc = evaluateCacheControl('html', res.headers.get('cache-control'))
-    const h3 = hasH3AltSvc(res.headers.get('alt-svc'))
-    results.push({
-      label: 'CMS HTML',
-      url: CMS_PAGE_URL,
-      status: res.status,
-      ok: cc.ok && h3,
-      problems: [...cc.problems, ...(h3 ? [] : ['no h3 alt-svc'])],
-    })
+    if (isRefusal(res.status)) {
+      results.push({ label: 'CMS HTML', url: CMS_PAGE_URL, inconclusive: true, status: res.status })
+    } else {
+      const cc = evaluateCacheControl('html', res.headers.get('cache-control'))
+      const h3 = hasH3AltSvc(res.headers.get('alt-svc'))
+      results.push({
+        label: 'CMS HTML',
+        url: CMS_PAGE_URL,
+        status: res.status,
+        ok: cc.ok && h3,
+        problems: [...cc.problems, ...(h3 ? [] : ['no h3 alt-svc'])],
+      })
+    }
   }
 
   let failed = false

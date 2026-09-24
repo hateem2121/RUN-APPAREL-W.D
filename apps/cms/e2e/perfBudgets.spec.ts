@@ -1,3 +1,4 @@
+import { calibratedThrottleRate, cpuBenchmarkInPage } from '@run-apparel/shared'
 import { expect, type Page, test } from './offlineMedia'
 import { evaluateInteractionWalkthrough } from '../scripts/interaction-metrics.mjs'
 
@@ -157,8 +158,16 @@ test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interac
     // Most visitors here reach this page from a QR-scanned phone, so a phone width is
     // also the representative shape, not just what makes the element clickable.
     await page.setViewportSize({ width: 375, height: 812 })
+    // Score this machine UNTHROTTLED, then throttle it to imitate the reference machine at
+    // 4x (packages/shared/src/cpuCalibration.ts): a flat 4x read ~2.2x higher on CI's
+    // runner than on the Mac for the viewer's copy of this walkthrough.
+    await page.goto('about:blank')
+    const scores: number[] = []
+    for (let i = 0; i < 5; i++) scores.push(await page.evaluate(cpuBenchmarkInPage))
+    const score = scores.sort((a, b) => a - b)[2] as number
+    const rate = calibratedThrottleRate(score)
     const client = await page.context().newCDPSession(page)
-    await client.send('Emulation.setCPUThrottlingRate', { rate: 4 })
+    await client.send('Emulation.setCPUThrottlingRate', { rate })
 
     await page.goto('/contact')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -171,13 +180,20 @@ test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interac
     })
 
     // Measured fresh against this fixture, 4x CPU throttle, chromium (2026-09-24):
-    // tbt=0ms, worstTask=0ms, inpProxy=32ms. Ceilings below give real headroom —
-    // Google's own INP "needs improvement" line is 200ms, "poor" is 500ms+ — without
-    // being so loose the assertion could not catch a real regression.
+    // tbt=0ms, worstTask=0ms, inpProxy=32ms. 150ms is ~4.7x that INP reading — room for
+    // CI's runner, measured ~2.2x slower than the Mac on the viewer's walkthrough — and
+    // under Google's 200ms INP "good" line. NOT 300, measured 2026-09-25: a planted 300ms
+    // freeze in ThemeSwitch's onClick read tbt=260 inpProxy=320 and failed only by 20ms
+    // on INP, so a slightly shorter one would have passed.
     const result = evaluateInteractionWalkthrough(samples, {
-      tbtCeilingMs: 300,
-      inpCeilingMs: 300,
+      tbtCeilingMs: 150,
+      inpCeilingMs: 150,
     })
+    // Printed on a pass too, so CI's own numbers are readable in the job log.
+    console.log(
+      `CMS PF-04/05 measured: tbt=${result.tbt.toFixed(0)}ms worstTask=${result.worstTask.toFixed(0)}ms ` +
+        `inpProxy=${result.inpProxy.toFixed(0)}ms (host benchmark ${score}, throttle ${rate.toFixed(2)}x)`,
+    )
     expect(
       result.ok,
       `${result.problems.join('; ')} (tbt=${result.tbt.toFixed(0)}ms, ` +
