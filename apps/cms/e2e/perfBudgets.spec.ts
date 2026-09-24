@@ -1,4 +1,6 @@
 import { expect, request, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { evaluateInteractionWalkthrough } from '../scripts/interaction-metrics.mjs'
 
 /**
  * Performance-budget robots for the site pages — the CMS-side half of `where: both`
@@ -81,5 +83,98 @@ test.describe('PF-16 — the first poster on /products is eager and high priorit
     ).toBeTruthy()
     expect(firstImg).toMatch(/loading="eager"/)
     expect(firstImg).toMatch(/fetchPriority="high"/)
+  })
+})
+
+/**
+ * Collects Long Task and Event Timing samples for whatever `act` does, under
+ * whatever CPU throttle the caller already set on the page's own CDP session.
+ * Mirrors `apps/viewer/e2e/perfBudgets.spec.ts`'s copy — see that file's own
+ * `interaction-metrics.mjs` header for why the two are not shared via one module.
+ */
+async function collectInteractionMetrics(
+  page: Page,
+  act: () => Promise<void>,
+): Promise<{ longTasks: number[]; events: number[] }> {
+  await page.evaluate(() => {
+    type Perf = { longTasks: number[]; events: number[] }
+    ;(window as unknown as { __pf: Perf }).__pf = { longTasks: [], events: [] }
+    const log = (window as unknown as { __pf: Perf }).__pf
+    try {
+      new PerformanceObserver((list) => {
+        for (const e of list.getEntries()) log.longTasks.push(e.duration)
+      }).observe({ type: 'longtask', buffered: false })
+    } catch {
+      // engine without the entry type — samples stay empty, caller treats as absent.
+    }
+    try {
+      new PerformanceObserver((list) => {
+        for (const e of list.getEntries()) {
+          const ei = e as PerformanceEntry & { interactionId?: number }
+          if (ei.interactionId) log.events.push(e.duration)
+        }
+      }).observe({
+        type: 'event',
+        buffered: false,
+        durationThreshold: 16,
+      } as PerformanceObserverInit)
+    } catch {
+      // engine without Event Timing — samples stay empty, caller treats as absent.
+    }
+  })
+
+  await act()
+  await page.waitForTimeout(500)
+
+  return page.evaluate(
+    () => (window as unknown as { __pf: { longTasks: number[]; events: number[] } }).__pf,
+  )
+}
+
+/**
+ * PF-04 (long tasks / Total Blocking Time) + PF-05 (an INP proxy) — the site-side
+ * half of `where: both`. Two real, scripted interactions on `/contact`: the theme
+ * toggle (behind the header's popover menu, shared markup with the viewer's) and
+ * typing into the enquiry form's name field. Not the original audit's full six —
+ * this codebase has no accordion component, and `/products`' filter chips are real
+ * navigations (`next/link`), which this in-page sample collector cannot safely
+ * straddle.
+ */
+test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interactions', () => {
+  test('the theme toggle and typing into the enquiry form stay under the ceilings', async ({
+    page,
+  }) => {
+    // The menu button (and the theme toggle behind it) only exists in the DOM's
+    // visible sense below 720px — `packages/ui/src/notch.css`'s own
+    // `@media (width < 720px)` rule; at desktop width the button is `display: none`.
+    // Most visitors here reach this page from a QR-scanned phone, so a phone width is
+    // also the representative shape, not just what makes the element clickable.
+    await page.setViewportSize({ width: 375, height: 812 })
+    const client = await page.context().newCDPSession(page)
+    await client.send('Emulation.setCPUThrottlingRate', { rate: 4 })
+
+    await page.goto('/contact')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const samples = await collectInteractionMetrics(page, async () => {
+      await page.locator('.notch__menu-btn').click()
+      await page.locator('.theme-toggle').click()
+      await page.locator('input[name="name"]').click()
+      await page.locator('input[name="name"]').fill('Perf Budget Robot')
+    })
+
+    // Measured fresh against this fixture, 4x CPU throttle, chromium (2026-09-24):
+    // tbt=0ms, worstTask=0ms, inpProxy=32ms. Ceilings below give real headroom —
+    // Google's own INP "needs improvement" line is 200ms, "poor" is 500ms+ — without
+    // being so loose the assertion could not catch a real regression.
+    const result = evaluateInteractionWalkthrough(samples, {
+      tbtCeilingMs: 300,
+      inpCeilingMs: 300,
+    })
+    expect(
+      result.ok,
+      `${result.problems.join('; ')} (tbt=${result.tbt.toFixed(0)}ms, ` +
+        `worstTask=${result.worstTask.toFixed(0)}ms, inpProxy=${result.inpProxy.toFixed(0)}ms)`,
+    ).toBe(true)
   })
 })

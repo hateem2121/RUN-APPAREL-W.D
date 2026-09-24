@@ -1,4 +1,6 @@
 import { expect, request, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { evaluateInteractionWalkthrough } from '../scripts/interaction-metrics.mjs'
 
 /**
  * Performance-budget robots for the viewer's own page.
@@ -112,5 +114,102 @@ test.describe('PF-11 — fonts are split so a visitor downloads only the ranges 
       nonLatin,
       `a non-Latin font subset was requested for a Latin-only page: ${nonLatin.join(', ')}`,
     ).toEqual([])
+  })
+})
+
+/**
+ * Collects Long Task and Event Timing samples for whatever `act` does, under
+ * whatever CPU throttle the caller already set on the page's own CDP session.
+ *
+ * `durationThreshold: 16` on the `event` observer matches the browser's own INP
+ * measurement floor — entries shorter than one frame are not interaction delay in
+ * any meaningful sense.
+ */
+async function collectInteractionMetrics(
+  page: Page,
+  act: () => Promise<void>,
+): Promise<{ longTasks: number[]; events: number[] }> {
+  await page.evaluate(() => {
+    type Perf = { longTasks: number[]; events: number[] }
+    ;(window as unknown as { __pf: Perf }).__pf = { longTasks: [], events: [] }
+    const log = (window as unknown as { __pf: Perf }).__pf
+    try {
+      new PerformanceObserver((list) => {
+        for (const e of list.getEntries()) log.longTasks.push(e.duration)
+      }).observe({ type: 'longtask', buffered: false })
+    } catch {
+      // engine without the entry type — samples stay empty, caller treats as absent.
+    }
+    try {
+      new PerformanceObserver((list) => {
+        for (const e of list.getEntries()) {
+          const ei = e as PerformanceEntry & { interactionId?: number }
+          if (ei.interactionId) log.events.push(e.duration)
+        }
+      }).observe({
+        type: 'event',
+        buffered: false,
+        durationThreshold: 16,
+      } as PerformanceObserverInit)
+    } catch {
+      // engine without Event Timing — samples stay empty, caller treats as absent.
+    }
+  })
+
+  await act()
+  // Long-task and event-timing entries can arrive a frame or two after the
+  // interaction that caused them; give them room to land before reading the log.
+  await page.waitForTimeout(500)
+
+  return page.evaluate(
+    () => (window as unknown as { __pf: { longTasks: number[]; events: number[] } }).__pf,
+  )
+}
+
+/**
+ * PF-04 (long tasks / Total Blocking Time) + PF-05 (an INP proxy).
+ *
+ * Two real, scripted interactions — colourway tab switch and the theme toggle
+ * (behind the header's popover menu). NOT the original audit's full six: this
+ * codebase has no accordion component to click, and a scripted camera drag is
+ * excluded on purpose — `apps/viewer/CLAUDE.md`'s own measured finding is that
+ * synthetic `PointerEvent`s do nothing to model-viewer (0 `camera-change` events on
+ * a scripted pinch), so a "camera" interaction here would silently measure nothing
+ * and read as a pass. Real touch input only exists in the iOS Simulator (PF-21's
+ * own task), which this Playwright-only spec cannot reach.
+ *
+ * Ceilings are re-measured fresh against this fixture (not the original audit's own
+ * numbers, which were for a different build): see the task report for the run that
+ * produced them.
+ */
+test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interactions', () => {
+  test('colourway tab switch and the theme toggle stay under the ceilings', async ({ page }) => {
+    // The menu button (and the theme toggle behind it) only exists in the DOM's
+    // visible sense below 720px — `packages/ui/src/notch.css`'s own
+    // `@media (width < 720px)` rule; at desktop width the button is `display: none`.
+    // A phone width is also representative here: a QR tag is scanned with a phone.
+    await page.setViewportSize({ width: 375, height: 812 })
+    const client = await page.context().newCDPSession(page)
+    await client.send('Emulation.setCPUThrottlingRate', { rate: 4 })
+
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const samples = await collectInteractionMetrics(page, async () => {
+      await page.getByRole('tab').nth(1).click()
+      await page.waitForTimeout(150)
+      await page.locator('.notch__menu-btn').click()
+      await page.locator('.theme-toggle').click()
+    })
+
+    const result = evaluateInteractionWalkthrough(samples, {
+      tbtCeilingMs: 1500,
+      inpCeilingMs: 600,
+    })
+    expect(
+      result.ok,
+      `${result.problems.join('; ')} (tbt=${result.tbt.toFixed(0)}ms, ` +
+        `worstTask=${result.worstTask.toFixed(0)}ms, inpProxy=${result.inpProxy.toFixed(0)}ms)`,
+    ).toBe(true)
   })
 })
