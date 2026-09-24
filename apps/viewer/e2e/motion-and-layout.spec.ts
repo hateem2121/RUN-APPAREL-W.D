@@ -1379,17 +1379,20 @@ test.describe('layout invariants', () => {
           `poster must not change the band's size`,
       ).toBeLessThanOrEqual(1)
 
-      // Pin the mechanism: the band's floor is the viewport minus the real header,
-      // never the poster. The header is measured fresh, the same way "the header
-      // token matches the real header" does above, rather than trusting the token.
-      const realHeaderHeight = await page.evaluate(
-        () => document.querySelector('.header')?.getBoundingClientRect().height ?? 0,
+      // Pin the mechanism: the band's floor is the viewport minus EVERYTHING above
+      // it (the bar and the label row under it), never the poster. Measured fresh,
+      // the same way "the header token matches where the stage band starts" measures
+      // it above, rather than trusting the token.
+      const aboveBand = await page.evaluate(
+        () =>
+          (document.querySelector('.stage-block')?.getBoundingClientRect().top ?? 0) +
+          window.scrollY,
       )
-      const floor = height - realHeaderHeight
+      const floor = height - aboveBand
       expect(
         withoutPoster?.height ?? 0,
         `the stage band is ${withoutPoster?.height}px against a floor of ${floor}px ` +
-          `(viewport ${height}px minus a ${realHeaderHeight}px header) — ` +
+          `(viewport ${height}px minus the ${aboveBand}px above the band) — ` +
           `.stage-block's min-height is calc(100svh - var(--header-h)); if this is ` +
           `short, that rule stopped governing the band's size`,
       ).toBeGreaterThanOrEqual(floor - 1)
