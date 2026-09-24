@@ -120,17 +120,12 @@ jobs:
           # be a false alarm. Known limit: it also runs after every CI run on main and
           # its job is SKIPPED when CI failed — a skipped run still counts as completed,
           # so a stretch of red CI could hide a dead weekly schedule.
-          # r2-budget.yml (added 2026-09-24) is watched for COMPLETION for the same
-          # reason: `scripts/r2-budget-probe.mjs` exits 1 once usage crosses 80% of R2's
-          # free tier, so failing is its job. A month spent over the line must read as
-          # "usage is high", never as "the check stopped running".
           WATCHED="
           uptime.yml:36:completed:daily at 07:23 UTC
           nightly-backup.yml:36:success:nightly
           diagnostics-digest.yml:192:success:weekly on Mondays
           perf-watch.yml:192:success:weekly on Mondays
           lighthouse-live.yml:192:completed:weekly on Tuesdays, and after each deploy
-          r2-budget.yml:192:completed:weekly on Mondays
           "
 
           # perf-watch.yml was NOT watched until 2026-08-30 — it could have stopped
