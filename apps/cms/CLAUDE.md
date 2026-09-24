@@ -7,7 +7,7 @@ reason the viewer traps moved on 2026-08-10 and the pipeline's on 2026-08-12: th
 root file is loaded into *every* session in this repo, and these are only ever
 needed by a session actually touching the CMS. They load automatically the moment
 you touch `apps/cms/`. Paths below are repo-root-relative, as they were before the
-move. Nothing below was reworded.
+move.
 
 Root `CLAUDE.md` still holds the cross-cutting CMS material — the D1 pragma trap,
 `fileColours` being deliberately outside `GATED_FIELDS`, and
@@ -110,10 +110,9 @@ root file first.
   NOT cleared on save, so a CMS edit can take a minute to appear — owner's decision
   2026-09-05 over an R2 incremental cache plus a D1 tag table. Failures are never cached.
 
-- **`apps/viewer/src/styles/tokens.test.ts` now scans JSX too**, so a literal
-  `style={{ padding: '20px' }}` in a `.tsx` fails the build. It previously read only `.css`
-  and three such values had walked past it. A `var()` or computed value is still fine.
-  (Documented here because that file's own CLAUDE.md has 59 characters of headroom.)
+- **`apps/viewer/src/styles/tokens.test.ts` scans JSX as well as CSS**, so a literal
+  `style={{ padding: '20px' }}` in a `.tsx` fails the build — three had walked past a
+  CSS-only scan. A `var()` or computed value is fine.
 
 - **🟡 THE SITE ANSWERS ON THREE HOSTNAMES AND ONLY `has: host` RULES TELL THEM APART.**
   `wear-run.help` is the site; `www.` 308s to it; `cms.wear-run.help` is the admin and
@@ -132,10 +131,22 @@ root file first.
   **`--local-upstream <host>` is the one that works**, and it pins every request to
   that host, so proving all three takes three previews, one per hostname.
 
+## The site's look is the shared design system
+
+Build the public site's UI from `packages/ui/src/tokens.css` and `packages/ui/src/base.css`,
+the same "Paper & Ink" system the viewer ships (`docs/DESIGN.md` is its prose index; the CSS
+wins if they disagree). Site-only layout lives in `apps/cms/src/app/(frontend)/site.css`,
+which `apps/viewer/src/styles/tokens.test.ts` scans. Use only the colours, type, spacing and
+durations those files define. No Tailwind, shadcn/ui or MUI; behaviour a screen needs
+(dialogs, popovers, menus) comes from `base-ui`, which ships no CSS
+(`docs/DECISION-UI-LIBRARIES.md`). The paper ground, the one italic serif word per headline
+and the mono labels ARE the brand, so an instruction to "avoid a generic AI look" must not
+remove them.
+
 ## Browser tests for the public site
 
-`pnpm --filter @run-apparel/cms test:e2e` — 100 tests, Chromium + Firefox, added 2026-09-05
-because nothing loaded `/`, `/products` or `/contact` in a browser and three blank pages
+`pnpm --filter @run-apparel/cms test:e2e` — Chromium, Firefox and WebKit (608 tests listed on
+2026-09-24), added 2026-09-05 because nothing loaded `/`, `/products` or `/contact` in a browser and three blank pages
 would have passed every gate. Runs in CI as a **step inside the existing `e2e` job**, not a
 job of its own: a new job would need adding to `deploy.needs` AND the required-checks list,
 and `.github/CLAUDE.md` records that splitting those silently stops a red gate blocking.
@@ -203,8 +214,8 @@ physical QR tags; `Products.ts` and `fields/colourways.ts` both enforce
 suggest-never-correct. `productCode` and `sortOrder` are safe — neither is in a
 URL. Send `sortOrder` too, or a re-run will not converge on your dataset.
 
-**The whole printed catalogue is imported as of 2026-08-17** — the CMS holds
-🟢 **67 products, not one**. 66 are drafts with no colourways, deliberately: the CLO
+**The whole printed catalogue was imported on 2026-08-17** — 🟢 **67 products, not
+one**, 66 of them then drafts with no colourways, deliberately: the CLO
 file names the colours (`ImportColoursFromFile`), so guessing 335 tag slugs was
 refused. Three defects are in the PDF itself, not the data: its product codes are
 unusable (67 products share 26; `R-XPB` alone is printed on 26 garments, so the

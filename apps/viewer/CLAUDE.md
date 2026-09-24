@@ -11,8 +11,8 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
 ## Traps — each of these has already cost a session
 
 - **🟡 model-viewer BAKES the draco and ktx2 decoder locations at MODULE-EVALUATION
-  time, and there is NO equivalent line for meshopt — which is exactly why meshopt
-  has always worked here and draco never has.** `lib/features/loading.js` runs, at
+  time, and there is NO equivalent line for meshopt — which is why meshopt always
+  worked here and draco rendered nothing until `Stage.tsx` seeded the global.** `lib/features/loading.js` runs, at
   import:
 
   ```js
@@ -30,13 +30,12 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   = `/meshopt_decoder.js`. **A draco garment therefore rendered nothing in
   production** — the CSP correctly refused gstatic — and fell back to its poster.
   `Stage.tsx` now seeds `self.ModelViewerElement` before the dynamic import, per
-  model-viewer's own docs. 🟡 **UNVERIFIED**: it could not be reproduced locally
-  because a harness using the `dist` build registers its own global and behaves
-  differently from the ESM `lib/` the app bundles (`dist` reads `undefined`, live
-  reads gstatic). Production stays on `--meshopt`
-  (`packages/shared/src/shrink.ts`); **before re-enabling `--draco`, load the
-  deployed site cold and check
-  `customElements.get('model-viewer').dracoDecoderLocation === '/draco/'`.**
+  model-viewer's own docs — 🟢 **verified live 2026-09-24**: a cold load of
+  `viewer.wear-run.help/rxps/wine` reads `/draco/`. A local harness cannot show it: the
+  `dist` build registers its own global (`dist` reads `undefined`, live read gstatic).
+  Production stays on `--meshopt` (`packages/shared/src/shrink.ts`) for size and GPU
+  weight (LIVE-08); **before re-enabling `--draco`, re-run that check cold on the
+  deployed site: `customElements.get('model-viewer').dracoDecoderLocation === '/draco/'`.**
   🟡 Three wrong diagnoses preceded the right one, all plausible, all disproved by
   measurement: "it is set on the instance not the class" (it is the class — the local
   is just named `element`), "model-viewer is duplicated across chunks" (only one
@@ -169,10 +168,9 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   against `test:e2e`, not against an injected style on the live page** — it measures
   Chromium, WebKit, Firefox and mobile Safari at once.
 
-  🟡 **THE SECOND HALF OF THIS PARAGRAPH WAS FALSE UNTIL 2026-08-20, AND IT IS THE
-  REASON THE SUITE WAS TRUSTED.** It said Playwright "sets `reducedMotion: 'reduce'`
-  … so there is no transform to pollute it". `playwright.config.ts` does set it, and
-  it never reached the page. Measured on Playwright 1.62.1, all four engines:
+  🟡 **`reducedMotion: 'reduce'` IN `playwright.config.ts` NEVER REACHES THE PAGE**, so
+  the suite was trusted while the reveal's transform sat in every layout number.
+  Measured on Playwright 1.62.1, all four engines:
 
   ```
   info.project.use.reducedMotion        "reduce"   <- the config resolved it
@@ -428,13 +426,11 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   in `apps/viewer/scripts/csp.mjs` with tests; `apps/viewer/scripts/gen-headers.mjs`
   is only the I/O around it.
 
-  🟢 Those three were written without their `apps/viewer/` prefix until 2026-08-12,
-  and a repo-root `scripts/` **also exists** — so each cited path resolved to a real
-  directory that does not contain them, which is why eyeballing it never caught it.
-  Same shape as the `--keep`-resolves-against-CWD and `eval:artwork:real -- raw/x.glb`
-  traps in the root file: a relative path is only unambiguous next to a statement of
-  what it is relative to. Qualify package paths; `apps/cms/src/claudeMd.test.ts`
-  now fails on a citation that resolves to nothing.
+  🟢 **Qualify package paths.** A repo-root `scripts/` also exists, so a viewer script
+  cited without its `apps/viewer/` prefix resolves to a real directory that does not
+  contain it, and eyeballing never catches that. Same shape as the
+  `--keep`-resolves-against-CWD and `eval:artwork:real -- raw/x.glb` traps in
+  `tools/asset-pipeline/CLAUDE.md`. `apps/cms/src/claudeMd.test.ts` fails on a citation that resolves to nothing.
 
 - **The e2e fixture must serve the SAME colourway count production ships — it
   serves FIVE today (since 2026-08-30)**, and one tab is the difference between a

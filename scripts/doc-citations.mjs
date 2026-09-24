@@ -322,11 +322,11 @@ export async function documentsToCheck(root) {
   const all = await walkDocuments(root)
   const docsDir = join(root, 'docs')
   // A path-scoped rule carries the same trap prose as a CLAUDE.md and must be read on
-  // the same terms — added 2026-08-20, when the viewer's seven headers/CSP/edge traps
-  // moved into one and took 176 lines of citation-dense prose with them. Without this
-  // line that prose left the guard entirely, which is the failure the header above
-  // describes: splitting a memory file creates a second copy of the truth, and the copy
-  // is the part that decays.
+  // the same terms — added 2026-08-20 with the rule for the viewer's headers/CSP/edge
+  // traps. Those traps still live in apps/viewer/CLAUDE.md (the rule points at them);
+  // when they move, this line is what keeps their citations under the guard, which is
+  // the failure the header above describes: splitting a memory file creates a second
+  // copy of the truth, and the copy is the part that decays.
   //
   // Scoped to rules/ and NOT to all of .claude/ deliberately. That directory also holds
   // .claude/skills/README.md and .claude/agents/docs-drift.md, plus symlinks into
@@ -342,10 +342,23 @@ export async function documentsToCheck(root) {
     // instructing every reviewer to run a list of commands and capture a URL — so its
     // citations could rot silently, and one had: it named the dead `n001` slug months
     // after that product started 404ing. A document that tells people what to run is
-    // exactly the kind whose paths must resolve.
-    return ['README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'PULL_REQUEST_TEMPLATE.md'].includes(
-      name,
-    )
+    // exactly the kind whose paths must resolve. ⚠️ It was listed as a bare
+    // 'PULL_REQUEST_TEMPLATE.md' until 2026-09-24, and the file lives in .github/, so
+    // this line matched nothing and the template was never checked: `name` is a
+    // repo-relative PATH, not a file name.
+    //
+    // The root AGENTS.md added 2026-09-24: it is the signpost Antigravity (and any other
+    // tool that does not read CLAUDE.md) follows to the CLAUDE.md files, so a path in it
+    // that stopped resolving would send those tools nowhere, silently. Only the ROOT
+    // file: the vendored skills under .claude/skills/ ship their own AGENTS.md, which
+    // this repo does not own.
+    return [
+      'README.md',
+      'CONTRIBUTING.md',
+      'SECURITY.md',
+      '.github/PULL_REQUEST_TEMPLATE.md',
+      'AGENTS.md',
+    ].includes(name)
   })
 }
 

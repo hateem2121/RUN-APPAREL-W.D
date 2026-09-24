@@ -37,8 +37,8 @@ are explicit that imported files "load at launch", so an import moves bytes betw
 files and saves no context. What *does* work is on-demand loading: the sub-file split
 above, and path-scoped rules (a `paths:` frontmatter block in a rules file under
 `.claude/rules/`), which load only when Claude reads a matching file.
-⚠️ **Path-scoped rules are NOT yet trustworthy for anything load-bearing — measured
-again 2026-08-20 and STILL not adopted.** A rule fires when Claude *reads* a matching
+⚠️ **Path-scoped rules fire for a rule present at session start (measured 2026-09-05),
+and are still not adopted for traps.** A rule fires when Claude *reads* a matching
 file, so **creating** a new file never triggers it (anthropics/claude-code#63142).
 Four upstream fixes have since shipped (symlink matching v2.1.198, an invalid pattern
 no longer breaking Read v2.1.207, `--setting-sources` respected v2.1.211, the
@@ -50,9 +50,15 @@ reading two files matching its globs produced `nested_traversal` for
 `apps/viewer/CLAUDE.md` and **no `path_glob_match` at all**. That negative is
 AMBIGUOUS — it shows a rule created mid-session does not fire in that session, not
 that a rule present at session start fails — which is exactly why no prose moved.
-**The ten-second check and both branches are written at the top of that rule file.
-Run it before adding anything there.** Until it passes, the nested CLAUDE.md pattern
-(`.github/`, `tools/asset-pipeline/`, `apps/cms/`) is the only proven one here.
+✅ **The follow-up check passed on 2026-09-05.** `.claude/instructions-loaded.log` then
+held **7** `path_glob_match` lines for the rule across four dates (2026-08-30, 09-03,
+09-04 and twice on 09-05); the last came from a session that opened
+`apps/viewer/worker/securityHeaders.ts` with the Read tool while editing
+`apps/viewer/scripts/csp.mjs` — the two-directory case the rule exists for, which a
+nested CLAUDE.md cannot cover. So a rule present at session start fires, and one created
+mid-session does not fire in that session. The viewer's headers/CSP/edge traps have not
+moved into it yet; the rule points at them in `apps/viewer/CLAUDE.md`, and moving them
+means updating the root file's trap count in the same commit.
 ⚠️ **All on-demand loading carries one caveat**: only the project-root CLAUDE.md is
 re-injected after `/compact` — nested files and path-scoped rules reload only when a
 matching file is next read, so a trap that moved out of this file can be absent from a

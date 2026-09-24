@@ -14,15 +14,10 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
 ## Traps
 
 - **🟡 The `secrets` job runs the MIT gitleaks BINARY, not `gitleaks/gitleaks-action`.
-  Do not "restore" the Action.** Two reasons, both measured 2026-08-18. LICENCE: it
-  is free for personal accounts and **paid for organisations**, and this repo moved
-  into the RUN-APPAREL org that day — `[RUN-APPAREL] is an organization. License key
-  is required.` No `GITLEAKS_LICENSE` secret exists on the REPO — but one was created
-  at the ORG level on 2026-08-18, visible to all three repositories including the two
-  PUBLIC ones, and no workflow in any of them references it. It is a leftover from the
-  Action this trap replaced. Verified 2026-08-30 by code search across all three repos:
-  the only hit is this sentence. COVERAGE, which
-  matters more: run 32140573361 invoked it with `--log-opts=-1` and reported *"1
+  Do not "restore" the Action.** Two reasons, both measured 2026-08-18. LICENCE: the
+  Action is **paid for organisations**, and the repo sat in the RUN-APPAREL org until
+  2026-09-02 (`[RUN-APPAREL] is an organization. License key is required.`). COVERAGE,
+  which still holds and matters more: run 32140573361 invoked it with `--log-opts=-1` and reported *"1
   commits scanned. scanned ~60 bytes ... no leaks found"* — sixty bytes, under a
   checkout that sets `fetch-depth: 0` precisely because "a secret is usually in an
   older commit". A green gate that scanned almost nothing, the same defect class as
@@ -40,12 +35,11 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   blocking the shrink deploy was inert and green. Both files now run the binary.
   **Generalises past gitleaks: this repo has TWO workflows that deliberately
   duplicate the same gates, so a fix to one is only half a fix. Grep the other.**
-- **🟢 `playwright install-deps` is bounded at 8 minutes and NON-FATAL on purpose — it
-  is preparation, not a gate.** 🟢 **`ci.yml` NO LONGER CONTAINS THIS STEP AT ALL.**
-  `artwork` and `e2e` both run in `mcr.microsoft.com/playwright:v1.62.1-noble` as of
-  2026-08-20, which ships the browsers and their system libraries, so the only apt path
-  left in this repo is `.github/workflows/deploy-shrink.yml`. Everything below is that
-  file's remaining risk, and the history that produced the container decision.
+- **🟢 No workflow runs `playwright install-deps` any more — and while one did, it was
+  bounded at 8 minutes and NON-FATAL on purpose: it is preparation, not a gate.**
+  `ci.yml`'s `artwork` and `e2e` moved into `mcr.microsoft.com/playwright:v1.62.1-noble`
+  on 2026-08-20 and `deploy-shrink.yml` on 2026-08-30; the image ships the browsers and
+  their system libraries. Below is the history that produced that decision.
   Measured normal cost 24 seconds. On 2026-08-18 a degraded Azure Ubuntu
   mirror — the log repeats `Ign: http://azure.archive.ubuntu.com/ubuntu noble
   InRelease` before falling back to the far slower `archive.ubuntu.com` — made it
@@ -58,8 +52,8 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   not debugged as a flaky test — that warning fired four minutes before the
   `browserType.launch` failure it predicted.
 - **🟡 `main` is guarded by ruleset `22763709` — read 2026-09-11: no deletion or
-  force-push, a PR with 0 approvals, `code_scanning`, NO bypass actors, and five
-  required checks.** The rules below carry its history. It first existed as org ruleset
+  force-push, a PR with 0 approvals, `code_scanning`, NO bypass actors, and six
+  required checks (listed below).** The rules below carry its history. It first existed as org ruleset
   `21016174` (APPLIED 2026-08-19, while the repo sat in the RUN-APPAREL org on GitHub
   ENTERPRISE), alongside `production` restricted to protected branches and
   `sha_pinning_required: true`, which the repo already satisfied so it cost nothing.
@@ -94,19 +88,17 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   retention setting also CAPS every `retention-days` (measured 2026-09-10: an artifact
   asking for 90 days was given the repository's 30; the setting was put back to 90 the
   same day).
-  🟡 **THE REQUIRED-CHECKS LIST IS A SECOND COPY OF `deploy.needs`. IT IS NOT
-  UNREADABLE — that claim was false and cost a session (L8-07).** It is repository
-  config under the ordinary `repo` scope, and one command prints it:
+  🟡 **THE REQUIRED-CHECKS LIST IS A SECOND COPY OF `deploy.needs`, and one command
+  prints it** — it is repository config under the ordinary `repo` scope:
   ```bash
   gh api repos/hateem2121/RUN-APPAREL-W.D/rulesets \
     --jq '.[].id'   # then: gh api repos/hateem2121/RUN-APPAREL-W.D/rulesets/<id> \
     --jq '[.rules[]|select(.type=="required_status_checks").parameters.required_status_checks[].context]'
   ```
-  It still cannot be a CI GATE — `GITHUB_TOKEN` has no `administration` permission —
-  but "no test can read it" and "no test can read it FROM CI" are different claims,
-  and the first one talked people out of running the command at all. It was four checks until 2026-08-20, five until
-  2026-08-31, six until the org died on 2026-09-02, five on the re-created repo, and
-  🟡 **six** again since 2026-09-11 — the Actions jobs `verify`, `e2e`, `audit`, `secrets`
+  Since the repo went public it is readable without any token (an anonymous `GET` of
+  `rulesets/22763709` returned all six on 2026-09-24), so a CI check comparing it with
+  `deploy.needs` is possible; none exists yet. It holds
+  🟡 **six** checks (read 2026-09-24) — the Actions jobs `verify`, `e2e`, `audit`, `secrets`
   and `artwork`, all bound to integration 15368, plus **`Socket Security: Pull Request
   Alerts`** (integration 156372, added for L8-05 so a malicious-dependency finding can
   stop a merge). 🟡 **Socket had to be REINSTALLED on 2026-09-11** — it had been an org
@@ -132,27 +124,23 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   goes through a PR.
   🟡 ORDER MATTERS: setting `production` to protected-branches-only *before* `main`
   is protected blocks every deploy. Create the ruleset first.
-- **Editing a workflow? `apps/cms/src/workflowHardening.test.ts` gates it.** Since
-  2026-08-13 every workflow must declare a top-level `permissions:` block that
-  includes `contents`; every `uses:` must be a 40-hex SHA with a `# vX.Y.Z`
-  comment (Dependabot maintains both); every `actions/checkout` must set
-  `persist-credentials: false`; no `run:` block may interpolate
-  `${{ github.event.* }}` or `${{ github.head_ref }}` — carry it in `env:` and
-  test `"$VAR"`; and every `pnpm <script>` a workflow invokes must exist. **Three
-  more since 2026-08-13:** every job declares `timeout-minutes` (all 12 had none,
-  so a hang ran to the 6-hour default — ci.yml records a step measured at 49s that
-  ran 30+ minutes), no `pull_request_target`, and no `${{ secrets.* }}` inside a
-  `run:` block. **Two more on 2026-08-20**, with the first container job: a Playwright
-  `container: image:` tag must equal the declared `@playwright/test` version, and every
-  job must appear in `deploy.needs` unless it is on a written non-gating allow-list.
-  🟡 **Five more since:** a parse guard for a key nested under a key
-  that already has a value, every workflow `heartbeat.yml` watches must exist and parse,
-  `DEPLOY_MESSAGE` may not contain a space, and the vulnerability audit retries only on
-  the network signature and within its job's timeout. 🟡 **One more on 2026-09-24:** a
-  job that reads a secret in its `env:` or a step's `env:`/`with:` must declare
-  `environment: production`. Every secret here lives ONLY in that environment, so a job
-  without it gets an EMPTY string and still goes green. Sixteen rules; ten have their own
-  negative control, and a failure names the file and line. 🟡 A `permissions:` block **REPLACES** the defaults rather than adding to
+- **Editing a workflow? `apps/cms/src/workflowHardening.test.ts` gates it — sixteen
+  rules, ten with their own negative control.** Every workflow declares a top-level
+  `permissions:` block that includes `contents`; every `uses:` is a 40-hex SHA with a
+  `# vX.Y.Z` comment (Dependabot maintains both); every `actions/checkout` sets
+  `persist-credentials: false`; no `run:` block interpolates `${{ github.event.* }}`,
+  `${{ github.head_ref }}` or `${{ secrets.* }}` — carry it in `env:` and test
+  `"$VAR"`; every `pnpm <script>` a workflow invokes exists; every job declares
+  `timeout-minutes` (without it a hang runs to the 6-hour default — ci.yml records a
+  step measured at 49s that ran 30+ minutes); no `pull_request_target`; a Playwright
+  `container: image:` tag equals the declared `@playwright/test` version; every job is
+  in `deploy.needs` unless it is on the written non-gating allow-list; no key nests
+  under a key that already has a value; every workflow `heartbeat.yml` watches exists
+  and parses; `DEPLOY_MESSAGE` has no space; the vulnerability audit retries only on
+  the network signature, within its job's timeout; and 🟡 a job that reads a secret in
+  its `env:` or a step's `env:`/`with:` declares `environment: production` — every
+  secret lives ONLY there, so a job without it gets an EMPTY string and still goes
+  green. A failure names the file and line. 🟡 A `permissions:` block **REPLACES** the defaults rather than adding to
   them — omitting `contents: read` breaks `actions/checkout` with a **404** on
   what was then a private repo, which is how uptime.yml died silently for 23 hours. The
   injection rule was not theoretical: `uptime.yml` was pasting a dispatch input

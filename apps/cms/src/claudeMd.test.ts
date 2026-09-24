@@ -143,6 +143,9 @@ const NUMBER_WORDS = new Map([
  * was a missing word ("Two more live in", without "traps"). Both failures share a
  * shape — the guard did not fail, it stopped looking — which is why the negative
  * control below asserts the parser matches the real claims, not merely that it runs.
+ * The missing-word case stayed open until 2026-09-24: TRAP_CLAIM_LOOSE needs the word
+ * "traps" too, so a sentence without it was invisible to BOTH counts and they still
+ * agreed (measured: "Eleven more live in" passed). INDEX_SENTENCE below closes it.
  */
 function parseNumberWord(word: string): number {
   const direct = NUMBER_WORDS.get(word.toLowerCase())
@@ -166,6 +169,15 @@ const TRAP_CLAIM = /\*\*([\w-]+) more traps live in `([^`]+)`\*\*/g
  * the claim, so counting the CLAIMS separately from the MATCHES is what catches it.
  */
 const TRAP_CLAIM_LOOSE = /more traps live in `([^`]+)`/g
+
+/**
+ * Looser still: any "… more … live in `<path>/CLAUDE.md`" sentence, with or without the
+ * word "traps" and however it is bolded ("Two more **live** in" was the 2026-08-17
+ * form). It must count exactly as many as TRAP_CLAIM_LOOSE; a sentence that dropped
+ * "traps" is counted here and nowhere else, which is the failure this catches.
+ */
+const INDEX_SENTENCE =
+  /more\s+(?:\*\*)?(?:traps\s+)?(?:\*\*)?live(?:\*\*)?\s+in\s+`([^`]+CLAUDE\.md)`/g
 
 /**
  * The instruction files have a hard ceiling, and until 2026-08-29 nothing in this repo
@@ -308,15 +320,19 @@ describe('CLAUDE.md', () => {
     const wrong: string[] = []
     let claimsChecked = 0
     let claimsPresent = 0
+    let indexSentences = 0
+    const claimedTargets: string[] = []
 
     for (const file of files) {
       const source = await readFile(file, 'utf8')
       claimsPresent += [...source.matchAll(TRAP_CLAIM_LOOSE)].length
+      indexSentences += [...source.matchAll(INDEX_SENTENCE)].length
       for (const match of source.matchAll(TRAP_CLAIM)) {
         const claimedWord = match[1]
         const target = match[2]
         if (!claimedWord || !target) continue
         claimsChecked++
+        claimedTargets.push(target)
         const claimed = parseNumberWord(claimedWord)
         const targetPath = join(REPO_ROOT, target)
         if (!resolves(REPO_ROOT, target)) {
@@ -339,6 +355,30 @@ describe('CLAUDE.md', () => {
         'number was never checked. Do not "fix" this by rewording the prose until it\n' +
         'matches — widen TRAP_CLAIM. A guard that stops looking reports green.',
     ).toBe(claimsPresent)
+    expect(
+      indexSentences,
+      'A sentence points at another CLAUDE.md with "… more … live in" but without the word\n' +
+        '"traps", so neither count above sees it and its number is never checked. Write it as\n' +
+        '"**<Number> more traps live in `<path>`**".',
+    ).toBe(claimsPresent)
+
+    // The three counts above only see sentences that keep a claim's shape. A claim
+    // reworded out of it entirely ("… more traps now live in …") vanishes from all three,
+    // and they still agree. So check from the other end as well: every nested CLAUDE.md
+    // that HAS traps must be claimed exactly once.
+    const rootFile = join(REPO_ROOT, 'CLAUDE.md')
+    const needClaims: string[] = []
+    for (const file of files) {
+      if (file === rootFile) continue
+      if (countTrapBullets(await readFile(file, 'utf8')) > 0)
+        needClaims.push(file.slice(REPO_ROOT.length + 1))
+    }
+    expect(
+      [...claimedTargets].sort(),
+      'Every nested CLAUDE.md with a "## Traps" section needs exactly one\n' +
+        '"**<Number> more traps live in `<path>`**" claim. A file missing from this list lost\n' +
+        'its claim to a rewording, so its trap count is no longer checked.',
+    ).toEqual([...needClaims].sort())
     expect(
       wrong,
       "A CLAUDE.md's trap count is out of date. Update the number AND the list of topics beside\n" +
@@ -390,12 +430,30 @@ describe('the doc-citations command', () => {
     expect(covered.some((path) => path.endsWith('audit-ci.jsonc'))).toBe(true)
   })
 
+  it('covers the root AGENTS.md and the PR template, by their real repo paths', async () => {
+    // The root AGENTS.md (2026-09-24) is the signpost Antigravity and other tools that do
+    // not read CLAUDE.md follow to the CLAUDE.md files, so its paths must resolve. The
+    // vendored skills under .claude/skills/ ship their own AGENTS.md; this repo does not own
+    // those (they are pinned upstream copies), so a looser `endsWith('AGENTS.md')` must not
+    // pull them in.
+    // The PR template sits at .github/, and the list named it 'PULL_REQUEST_TEMPLATE.md'
+    // from 2026-08-30 until 2026-09-24, so it was never checked while its comment said it
+    // was: a repo-relative name has to be the real path.
+    const covered = (await documentsToCheck(REPO_ROOT)).map((path) =>
+      path.slice(REPO_ROOT.length + 1),
+    )
+    expect(covered).toContain('AGENTS.md')
+    expect(covered.filter((path) => path.endsWith('AGENTS.md'))).toEqual(['AGENTS.md'])
+    expect(covered).toContain(join('.github', 'PULL_REQUEST_TEMPLATE.md'))
+  })
+
   it('covers .claude/rules/ — a rule file holds trap prose no other guard reads', async () => {
-    // Path-scoped rules became load-bearing on 2026-08-20, when the viewer's seven
-    // headers/CSP/edge traps moved into one because they span apps/viewer/worker/ AND
-    // apps/viewer/scripts/ and a nested CLAUDE.md keys on ONE directory. That move
-    // carried 176 lines of citation-dense prose out from under this guard, which is
-    // exactly the "the copy is the part that decays" failure the header describes.
+    // A path-scoped rule exists since 2026-08-20 for the viewer's headers/CSP/edge traps,
+    // which span apps/viewer/worker/ AND apps/viewer/scripts/ while a nested CLAUDE.md
+    // keys on ONE directory. The traps themselves have not moved into it yet (the rule
+    // points at apps/viewer/CLAUDE.md), but the move would carry a block of citation-dense
+    // prose out from under this guard — exactly the "the copy is the part that decays"
+    // failure the header describes — so rules/ is covered before it happens.
     //
     // Scoped to rules/ and NOT to all of .claude/: that directory also holds
     // .claude/skills/README.md and .claude/agents/docs-drift.md, plus symlinks into
