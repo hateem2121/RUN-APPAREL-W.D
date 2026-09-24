@@ -105,6 +105,57 @@ describe('buildCsp — origins the live viewer cannot work without', () => {
   })
 })
 
+/**
+ * Every third-party (non-wear-run.help) https origin the policy admits, across every
+ * directive — PF-15. Only the Cloudflare beacon and Sentry are meant to ever appear
+ * here; a future addition (a new analytics vendor, a CDN, an embed) would slip in
+ * silently unless something enumerates the WHOLE policy rather than checking one
+ * directive at a time, which is what every other test in this file does.
+ *
+ * `new URL(token).origin` normalises `report-uri`'s full path down to its origin, so
+ * it dedupes against the same host's `connect-src` entry rather than counting twice.
+ */
+function thirdPartyOrigins(csp: string): string[] {
+  const origins = new Set<string>()
+  for (const directive of csp.split('; ')) {
+    for (const token of directive.split(' ').slice(1)) {
+      if (!/^https?:\/\//.test(token)) continue
+      let origin: string
+      try {
+        origin = new URL(token).origin
+      } catch {
+        continue
+      }
+      // The app's own zone (the API origin and media.wear-run.help alike) — first
+      // party, not what this test is about.
+      if (origin.endsWith('wear-run.help')) continue
+      origins.add(origin)
+    }
+  }
+  return [...origins].sort()
+}
+
+describe('buildCsp — third-party allow-list (PF-15)', () => {
+  const DSN = 'https://abc123@o4511868350496768.ingest.us.sentry.io/4509876'
+
+  it('the policy admits no third party beyond the beacon and Sentry', () => {
+    const csp = buildCsp({ html: THEME_BOOTSTRAP, apiBaseUrl: API, sentryDsn: DSN })
+    expect(thirdPartyOrigins(csp)).toEqual([
+      'https://cloudflareinsights.com',
+      'https://o4511868350496768.ingest.us.sentry.io',
+      'https://static.cloudflareinsights.com',
+    ])
+  })
+
+  it('is exactly the beacon when no Sentry DSN is configured', () => {
+    const csp = buildCsp({ html: THEME_BOOTSTRAP, apiBaseUrl: API })
+    expect(thirdPartyOrigins(csp)).toEqual([
+      'https://cloudflareinsights.com',
+      'https://static.cloudflareinsights.com',
+    ])
+  })
+})
+
 describe('buildCsp — the standing rules', () => {
   // CLAUDE.md: never widen to 'unsafe-inline' to make an inline script work. That
   // is the shortcut this policy exists to refuse, and the one a future session
