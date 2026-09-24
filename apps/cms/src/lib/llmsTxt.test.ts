@@ -130,7 +130,7 @@ describe('it is a text file', () => {
   })
 })
 
-describe('it passes Lighthouse 13.4.1’s llms-txt audit (FI-08)', () => {
+describe('it passes Lighthouse 13.5.0’s llms-txt audit (FI-08)', () => {
   it('has an H1, at least one Markdown link, and enough text', () => {
     expect(llmsTxtProblems(text)).toEqual([])
   })
