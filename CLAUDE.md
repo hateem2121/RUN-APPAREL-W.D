@@ -500,8 +500,8 @@ and `productCode` are different fields whose values merely coincided.
 
 🔴 **Do not push twice in a row, and read `conclusion` not the exit code.** `ci.yml`'s
 `ci-${{ github.ref }}` group cancels in progress on every branch EXCEPT `main`, so a
-second push to a pull request kills that branch's running CI. On `main` it has not since
-the 2026-08-31 fix — a second merge cancelled a deploy mid-flight, and that job migrates
+second push to a pull request kills that branch's running CI. On `main` it has not
+cancelled since the 2026-08-31 fix — a second merge cancelled a deploy mid-flight, and that job migrates
 D1 before it deploys — so a second merge now WAITS, and a third REPLACES the waiting run,
 which ends `cancelled` without ever starting (GitHub keeps one run waiting per group by
 default). And `gh run watch --exit-status`

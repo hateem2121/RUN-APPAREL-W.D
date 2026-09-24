@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
- * PreToolUse guard — a bare `pnpm` is not on PATH here, so rewrite it (or refuse).
+ * PreToolUse guard — a bare `pnpm` does not reliably run here, so rewrite it (or refuse).
  *
- * WHY THIS EXISTS. It is the first trap in CLAUDE.md, and the reason it is worth
- * a mechanical guard rather than a paragraph is *where the failure surfaces*:
+ * WHY THIS EXISTS. It is the pnpm note under "What this is" in the root CLAUDE.md,
+ * and the reason it is worth a mechanical guard rather than a paragraph is *where
+ * the failure surfaces*:
  *
  *   "Bare `pnpm` fails with exit 127 … `apps/viewer/e2e/prepare.mjs` shells out to
  *    `pnpm build`, so the whole e2e suite dies as `Timed out waiting 120000ms from
