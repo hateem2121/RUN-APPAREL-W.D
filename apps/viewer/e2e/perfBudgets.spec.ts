@@ -75,3 +75,42 @@ test.describe('PF-16 — render-blocking discipline (viewer product page)', () =
     ).toBe(3)
   })
 })
+
+/**
+ * PF-11 — fonts are split so a visitor downloads only the ranges they need.
+ *
+ * `unicode-range` decides which of the build's seven font files the browser fetches,
+ * based on the characters that actually get LAID OUT on the page — not on
+ * `Accept-Language` or `document.lang`, which is why this test needs no locale
+ * fixture: a Latin-only product page should never pull the latin-ext or vietnamese
+ * subsets, whatever the visitor's browser locale is. `scripts/preload.test.ts` already
+ * pins the two Latin PRELOAD HINTS; this proves the split actually holds for every
+ * font REQUEST the page makes, hinted or not.
+ */
+test.describe('PF-11 — fonts are split so a visitor downloads only the ranges they need', () => {
+  test('only the Latin subset is ever requested for a Latin-text product page', async ({
+    page,
+  }) => {
+    const fontRequests: string[] = []
+    page.on('request', (req) => {
+      const url = req.url()
+      if (/\.woff2(\?|$)/.test(url)) fontRequests.push(url.split('/').pop() ?? url)
+    })
+
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    // The browser only fetches a font once it has laid out text that needs it; give
+    // one settle tick so a speculative fetch triggered by late layout is not missed.
+    await page.waitForTimeout(500)
+
+    expect(
+      fontRequests.length,
+      'no .woff2 request observed at all — did the page render?',
+    ).toBeGreaterThan(0)
+    const nonLatin = fontRequests.filter((f) => /latin-ext|vietnamese/.test(f))
+    expect(
+      nonLatin,
+      `a non-Latin font subset was requested for a Latin-only page: ${nonLatin.join(', ')}`,
+    ).toEqual([])
+  })
+})
