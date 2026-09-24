@@ -749,7 +749,7 @@ test.describe('IM-05 / PF-20 — the first gallery poster is requested first', (
  * carries two shapes of the same idea: `.serif-accent` spans on the home page
  * (`packages/ui/src/base.css:224-251`, shared with the viewer) and the footer's own
  * `.footer-q em` (`site.css:1271-1276`). Both must be italic Instrument Serif, and no
- * heading may carry more than the 2-word docs/DESIGN.md budget — every current caller
+ * heading may carry more than the 2-accent docs/DESIGN.md budget — every current caller
  * uses exactly one, so this guards a future regression rather than a fact about today's
  * copy.
  */
@@ -793,7 +793,7 @@ test.describe('the serif accent stays within its style and its budget (TY-09)', 
     const overBudget = measured.counts.filter((count) => count > 2)
     expect(
       overBudget,
-      `a heading exceeds the 2-word docs/DESIGN.md budget for serif accents (counts: ${measured.counts.join(', ')})`,
+      `a heading exceeds the 2-accent docs/DESIGN.md budget for serif accents (counts: ${measured.counts.join(', ')})`,
     ).toEqual([])
   })
 })
@@ -832,9 +832,9 @@ test.describe('the facts grid genuinely collapses to one column at 320px (SZ-02)
 /*
  * ══ every interactive control clears 24px at a DESKTOP width too (SZ-04) ══
  *
- * `navbar.spec.ts` already proves the 44px phone floor; it is on Phase 1b-B's file map,
- * so the desktop-width WCAG 2.5.8 24px floor is proven here instead, reusing the same
- * detection logic `motion-and-layout.spec.ts` established for the viewer.
+ * `navbar.spec.ts` already proves the 44px phone floor, so the desktop-width WCAG 2.5.8
+ * 24px floor is proven here instead, reusing the same detection logic
+ * `motion-and-layout.spec.ts` established for the viewer.
  */
 test.describe('every interactive control clears 24px at a desktop width too (SZ-04)', () => {
   for (const path of PAGES) {
@@ -923,7 +923,11 @@ test.describe('the content column stays capped at ultrawide (SZ-15)', () => {
     const measured = await page.evaluate(() => ({
       heroWidth: document.querySelector('.site-hero')?.getBoundingClientRect().width ?? 0,
       containerWidth: document.querySelector('.site-container')?.getBoundingClientRect().width ?? 0,
-      viewportWidth: window.innerWidth,
+      // document.documentElement.clientWidth, NOT window.innerWidth: innerWidth includes a
+      // classic scrollbar's track (documented above — Firefox reserves 15px for it), which
+      // the hero's full-bleed box does not paint under. At 2560x1200 both pages scroll, so
+      // a classic scrollbar made this floor overshoot the real content width (I5).
+      viewportWidth: document.documentElement.clientWidth,
     }))
 
     expect(
@@ -942,7 +946,7 @@ test.describe('the content column stays capped at ultrawide (SZ-15)', () => {
  *
  * The site relies on Next's own default rather than an explicit tag (`layout.tsx:54`
  * only sets `themeColor`) — never asserted against a rendered page before. Not compared
- * byte-for-byte against the viewer's own tag: this plan's own live re-check found them
+ * byte-for-byte against the viewer's own tag: a live check on 2026-09-23 found them
  * legitimately different (`viewport-fit=cover` is viewer-only, for its notch handling).
  */
 test.describe('the rendered viewport meta tag is present and sane (SZ-13)', () => {
@@ -983,8 +987,14 @@ test.describe('the mono/caps register is genuinely uppercase everywhere (CR-06)'
         }))
       })
 
-      // The control: a page with none of these classes would pass vacuously.
-      test.skip(measured.length === 0, `${path} has no .mono/.label/.section-number element`)
+      // The control: a page with none of these classes would pass vacuously. A skip here
+      // (rather than a failure) would silently stop covering a class rename — every page in
+      // PAGES renders a `.label` today (page.tsx:98, products/page.tsx:116, contact/page.tsx:74),
+      // so this must be a hard requirement, not an opt-out (M1).
+      expect(
+        measured.length,
+        `${path} has no .mono/.label/.section-number element`,
+      ).toBeGreaterThan(0)
 
       const wrong = measured.filter((m) => m.textTransform !== 'uppercase')
       expect(
@@ -1050,45 +1060,86 @@ test.describe('the hero vertical rhythm is exactly 10 / 16 / 24px (DS-03)', () =
  *
  * `.site-hero` and `.site-section` (site.css:409-411,417-425) use different `clamp()`
  * formulas (9vw vs 11vw, 120px vs 160px ceilings) for structurally the same idea — a
- * section's own breathing room. This holds together only if the RENDERED gaps still
- * cluster to a small, deliberate set rather than drifting into a long tail of near-misses.
+ * section's own breathing room. That breathing room is `padding-block` INSIDE each box:
+ * the sections are adjacent siblings with no margin between them on screen (only print,
+ * site.css:2827-2829), so the gap BETWEEN boxes is always 0 and cannot see either
+ * formula, let alone the two drifting apart — measured directly, not assumed (I3).
+ *
+ * "At most two rhythms" is checked PER WIDTH rather than pooled across the whole sweep:
+ * `padding-block` is a `vw`-based clamp, so its own resolved pixel value legitimately
+ * differs at every width in the sweep (390px and 1920px do not share a number even on
+ * unmodified CSS) — pooling every width's reading into one Set would always exceed 2,
+ * telling you nothing. Read per width, "at most 2" means what it says: no THIRD value
+ * (e.g. one mis-set section) joins the shared hero/section pair at that viewport.
  */
 test.describe('section spacing has at most two distinct rhythms across a width sweep (DS-04)', () => {
-  test('the set of distinct inter-section gaps has at most 2 members', async ({ page }) => {
+  test('every .site-section agrees with its siblings, and with the hero at no more than 2 rhythms', async ({
+    page,
+  }) => {
     /*
      * ⚠️ MEASURED FLAKY ONCE WITHOUT THIS, ON CHROMIUM: a resize-only sweep (one
-     * navigation, `setViewportSize` per width) reported a spurious extra pair of values
-     * (a 0px and a 4px gap alongside the real two), which a `data-site-reveal` section
-     * mid-transition explains — the same "measuring a transform, not a margin" trap
-     * `apps/viewer/CLAUDE.md` documents for its own `[data-reveal]`. FA-D-04 above avoids
-     * it by giving each width its OWN `test()` with a fresh `page.goto`; this reuses that
-     * same fix (a fresh navigation per width) rather than trusting resize alone.
+     * navigation, `setViewportSize` per width) reported spurious extra values, which a
+     * `data-site-reveal` section mid-transition explains — the same "measuring a
+     * transform, not a margin" trap `apps/viewer/CLAUDE.md` documents for its own
+     * `[data-reveal]`. FA-D-04 above avoids it by giving each width its OWN `test()` with
+     * a fresh `page.goto`; this reuses that same fix (a fresh navigation per width)
+     * rather than trusting resize alone.
      */
     await page.emulateMedia({ reducedMotion: 'reduce' })
 
-    const gaps = new Set<number>()
     for (const width of [390, 768, 1024, 1440, 1920]) {
       await page.setViewportSize({ width, height: 900 })
       await page.goto('/')
       await settle(page)
-      const values = await page.evaluate(() => {
-        const sections = [...document.querySelectorAll('.site-hero, .site-section')]
-        const out: number[] = []
-        for (let i = 0; i < sections.length - 1; i++) {
-          const a = sections[i]?.getBoundingClientRect()
-          const b = sections[i + 1]?.getBoundingClientRect()
-          if (a && b) out.push(Math.round(b.top - a.bottom))
-        }
-        return out
+      const measured = await page.evaluate(() => {
+        const sectionPadding = [...document.querySelectorAll('.site-section')].map((el) => {
+          const style = getComputedStyle(el)
+          return {
+            top: Number.parseFloat(style.paddingTop),
+            bottom: Number.parseFloat(style.paddingBottom),
+          }
+        })
+        const hero = document.querySelector('.site-hero')
+        const heroPaddingBottom = hero
+          ? Number.parseFloat(getComputedStyle(hero).paddingBottom)
+          : null
+        return { sectionPadding, heroPaddingBottom }
       })
-      for (const value of values) gaps.add(value)
-    }
 
-    expect(gaps.size, 'no inter-section gap was measured at all').toBeGreaterThan(0)
-    expect(
-      gaps.size,
-      `the inter-section gaps span ${gaps.size} distinct values across the width sweep: ` +
-        `${[...gaps].join(', ')} — the two clamp() formulas have drifted apart`,
-    ).toBeLessThanOrEqual(2)
+      expect(measured.sectionPadding.length, `${width}px: no .site-section found`).toBeGreaterThan(
+        0,
+      )
+      expect(measured.heroPaddingBottom, `${width}px: no .site-hero found`).not.toBeNull()
+
+      // "one rhythm": every .site-section reports the same padding-block as its siblings,
+      // at this width — a single shared CSS rule should always agree with itself.
+      const sectionValues = new Set(
+        measured.sectionPadding.flatMap(({ top, bottom }) => [Math.round(top), Math.round(bottom)]),
+      )
+      expect(
+        [...sectionValues],
+        `${width}px: .site-section elements disagree on padding-block: ${[...sectionValues].join(', ')}`,
+      ).toHaveLength(1)
+      const [sectionRhythm] = [...sectionValues]
+
+      // The hero breathes at least as much as an ordinary section (11vw/160px ceiling vs
+      // 9vw/120px), never less, at every width — including the shared 64px floor.
+      expect(
+        measured.heroPaddingBottom,
+        `${width}px: .site-hero padding-bottom (${measured.heroPaddingBottom}px) is under .site-section's (${sectionRhythm}px)`,
+      ).toBeGreaterThanOrEqual(sectionRhythm as number)
+
+      // "at most two distinct rhythms" AT THIS WIDTH: the hero's own formula plus the
+      // section's shared one — never a third. This is what the planted fault below trips:
+      // one section padded away from its siblings adds a third value to this same set.
+      const rhythmsAtThisWidth = new Set([
+        sectionRhythm,
+        Math.round(measured.heroPaddingBottom as number),
+      ])
+      expect(
+        rhythmsAtThisWidth.size,
+        `${width}px: padding-block spans ${rhythmsAtThisWidth.size} distinct rhythms (${[...rhythmsAtThisWidth].join(', ')}) — more than hero + section`,
+      ).toBeLessThanOrEqual(2)
+    }
   })
 })
