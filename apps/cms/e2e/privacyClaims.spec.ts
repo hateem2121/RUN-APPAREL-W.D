@@ -28,8 +28,9 @@ test.describe('the privacy notice says what it does (SE-09, SE-10)', () => {
     expect(response.status()).toBe(200)
     const body = await response.text()
     expect(body).toContain(
-      'No cookies, no local storage, no tracking identifiers — on this site or on our 3D ' +
-        'reference pages. That is why you are not being asked to accept anything.',
+      'No cookies and no tracking identifiers, on this site or on our 3D reference pages. The ' +
+        'one thing your browser keeps is the light or dark setting, and only after you press ' +
+        'that switch. That is why you are not being asked to accept anything.',
     )
   })
 

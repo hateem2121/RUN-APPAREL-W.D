@@ -128,7 +128,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
     )
 
     await page.goto('/n001/wine')
-    const wordmark = page.locator('a.header__wordmark')
+    const wordmark = page.locator('a.notch__wordmark')
     // ⚠️ Both halves. "/" is the value that rendered UnavailableState, and it is
     // what a future "simplification" back to a same-origin home would reach for.
     await expect(wordmark).toHaveAttribute('href', 'https://wear-run.help')
@@ -249,12 +249,24 @@ test.describe('RUN APPAREL 3D viewer', () => {
   test('theme toggle persists an explicit manual choice', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' })
     await page.goto('/n001/wine')
+    // On a phone the switch is inside the menu (owner, 2026-09-23): open it first.
+    // ⚠️ `isVisible()` does NOT wait. Asked before the bar painted, it said "no menu" on
+    // CI's WebKit (both attempts, 2026-09-24), so the test waited 30s for a switch shut
+    // inside the closed menu. Wait for the bar, then let CSS say which layout it chose —
+    // the breakpoint also moves with text size, so a fixed width would be wrong.
+    await expect(page.locator('.notch')).toBeVisible()
+    const menu = page.getByRole('button', { name: 'Menu', exact: true })
+    if (await menu.isVisible()) await menu.click()
     await page.getByRole('button', { name: /switch to dark mode/i }).click()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark', {
       timeout: 15_000,
     })
     // Also written inside the deferred `apply()`, so read it only after the
     // attribute has landed — reading first would race the same frame.
+    expect(
+      await page.evaluate(() => Object.keys(localStorage)),
+      'a press kept more than the one key the privacy page names',
+    ).toEqual(['run-theme'])
     const stored = await page.evaluate(() => localStorage.getItem('run-theme'))
     expect(stored).toBe('dark')
     await page.reload()

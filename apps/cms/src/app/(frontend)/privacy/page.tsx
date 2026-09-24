@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = buildMetadata({
   title: 'Privacy',
   description:
-    'What RUN APPAREL does with personal data. This website sets no cookies and stores nothing on your device.',
+    'What RUN APPAREL does with personal data. This website sets no cookies, and keeps nothing on your device except a light or dark choice you make.',
   path: '/privacy',
 })
 
@@ -29,6 +29,11 @@ export const metadata: Metadata = buildMetadata({
  * visitor's device, and there is none. Cloudflare Web Analytics is cookieless by design.
  * Most sites cannot say this. Anything that adds device storage makes this page wrong AND
  * puts a banner on every page of the site.
+ *
+ * Since the shared menu bar (2026-09-24) one key, `run-theme`, is written when a visitor
+ * PRESSES the light/dark switch on either host, and never on a plain visit; the page says
+ * so in words the owner approved on 2026-09-23. e2e/themeSwitch.spec.ts fails if a press
+ * ever keeps anything else.
  *
  * ⚠️ CLOUDFLARE ANALYTICS IS DESCRIBED IN THE PRESENT TENSE ON PURPOSE. The marketing site
  * contacts nobody today only because `CF_ANALYTICS_TOKEN` is unset, so `Analytics.tsx`
@@ -51,11 +56,12 @@ export default async function PrivacyPage() {
         <div className="site-container">
           <p className="label">[ PRIVACY ]</p>
           <h1 className="display display--hero">
-            We store nothing <span className="serif-accent">on your&nbsp;device.</span>
+            We store nothing <span className="serif-accent">you did not&nbsp;choose.</span>
           </h1>
           <p className="site-lede">
-            No cookies, no local storage, no tracking identifiers — on this site or on our 3D
-            reference pages. That is why you are not being asked to accept anything.
+            No cookies and no tracking identifiers, on this site or on our 3D reference pages. The
+            one thing your browser keeps is the light or dark setting, and only after you press that
+            switch. That is why you are not being asked to accept anything.
           </p>
         </div>
       </section>

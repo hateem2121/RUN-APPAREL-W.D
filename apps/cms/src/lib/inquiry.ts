@@ -18,9 +18,10 @@
  *
  * ⚠️ AND WHY NOT A CAPTCHA: Turnstile would be free and effective, and it is a
  * third-party script on a site whose privacy notice currently gets to say it contacts
- * nobody and stores nothing on the visitor's device. That claim is measured (FA-O-74) and
- * worth more than the marginal spam it would stop on a B2B inquiry form. Revisit if the
- * spam is ever real rather than anticipated.
+ * nobody and stores nothing on a plain visit (FA-O-74) — one key, `run-theme`, only
+ * after the light/dark switch is pressed. That claim is measured and worth more than
+ * the marginal spam it would stop on a B2B inquiry form. Revisit if the spam is ever
+ * real rather than anticipated.
  */
 
 export const MAX_LENGTHS = {

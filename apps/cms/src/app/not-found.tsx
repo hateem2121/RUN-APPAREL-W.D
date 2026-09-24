@@ -1,14 +1,17 @@
 import '@fontsource-variable/archivo/wdth.css'
 import '@fontsource/instrument-serif/400-italic.css'
-// ORDER IS LOAD-BEARING — the same three-import cascade (frontend)/layout.tsx uses.
+// ORDER IS LOAD-BEARING — the same four-import cascade (frontend)/layout.tsx uses.
 import '@run-apparel/ui/tokens.css'
 import '@run-apparel/ui/base.css'
+import '@run-apparel/ui/notch.css'
 import './(frontend)/site.css'
 
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import type { Metadata, Viewport } from 'next'
 import Link from 'next/link'
 import { SiteFooter } from '../components/site/SiteFooter'
+import { SiteHeader } from '../components/site/SiteHeader'
+import { ThemeBoot } from '../components/site/ThemeBoot'
 import { FALLBACK_SITE_SETTINGS } from '../lib/projectPublic'
 import { THEME_COLOR } from '../lib/themeColor'
 
@@ -56,6 +59,8 @@ import { THEME_COLOR } from '../lib/themeColor'
  * not. The shared defaults are the same values the CMS ships as its field defaults, so
  * the wordmark is identical in practice; if the owner ever renames the company it changes
  * here too, which `publicSite.test.ts` pins.
+ * The bar is the site's own SiteHeader (a server component taking this one string), so the
+ * 404 has the phone menu too — it was a hand-copied bar until 2026-09-24.
  *
  * ⚠️ IT MUST NOT BE INDEXABLE. Next adds its own `noindex` to a not-found route, and the
  * `robots` below makes the second tag restrictive too — without it the page inherited
@@ -80,28 +85,17 @@ export const viewport: Viewport = { themeColor: THEME_COLOR }
 export default function NotFound() {
   const wordmark = DEFAULT_SITE_SETTINGS.temporaryWordmark
 
+  // suppressHydrationWarning: ThemeBoot sets data-theme on <html> before React hydrates it.
+  // It silences that one element; its children are still checked.
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
+        <ThemeBoot />
         <a className="skip-link" href="#main">
           Skip to main content
         </a>
 
-        <header className="notch-shell">
-          <div className="notch">
-            <Link className="notch__wordmark" href="/">
-              {wordmark}
-            </Link>
-            <nav className="notch__nav" aria-label="Main">
-              <Link className="nav-link" href="/products">
-                Products
-              </Link>
-              <Link className="nav-link" href="/contact">
-                Contact
-              </Link>
-            </nav>
-          </div>
-        </header>
+        <SiteHeader wordmark={wordmark} />
 
         <main id="main" className="site-main" tabIndex={-1}>
           <section className="site-hero">

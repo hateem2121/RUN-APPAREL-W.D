@@ -1,0 +1,729 @@
+/*
+ * THE MENU BAR — ONE BAR FOR THE PUBLIC SITE AND THE 3D VIEWER.
+ *
+ * Owner decisions: 2026-09-11 (phones get the full name and a menu button, because more pages
+ * are coming), 2026-09-17 ("Same menu bars everywhere. The one I prefer is at wear-run.help"),
+ * 2026-09-23 (the button is the "Speed Lines" icon; its name stays "Menu").
+ *
+ * These rules were the site's own (apps/cms/src/app/(frontend)/site.css) until 2026-09-24 moved
+ * them here verbatim, so the viewer draws the SAME bar rather than a copy of it. Each app keeps
+ * only its surface's business: the site FIXES the bar over the page and condenses it on scroll;
+ * the viewer keeps it in the page flow, so --header-h still measures where its 3D stage starts.
+ * apps/cms/src/auditGuards.test.ts fails if either app restyles the bar itself.
+ */
+
+:root {
+  --notch-pad-y: 8px;
+  /*
+   * ⚠️ HOW MANY ROWS THE BAR IS — THE ONE DIAL, AND THE HEIGHT AND THE CLEARANCE BOTH
+   * READ IT. See "the bar at large browser text" below for why a second row exists at
+   * all. Two numbers that had to agree is exactly the shape that has come out wrong four
+   * times in this file, so there is only one.
+   */
+  --notch-lines: 1;
+  --notch-row-gap: 16px;
+  --notch-h: calc(
+    var(--target-min) *
+    var(--notch-lines) +
+    var(--notch-pad-y) *
+    2 +
+    (var(--notch-lines) - 1) *
+    var(--notch-row-gap)
+  );
+  /*
+   * ⚠️ AT :root, NOT ON .notch — the shell reads it too, to reserve room for the fillets.
+   * It lived on `.notch` and the shell's `padding-inline: calc(12px + var(--notch-r))`
+   * silently resolved to nothing, so the whole declaration was dropped and the bar ran
+   * to the viewport edge. Exactly the failure `--notch-muted` carries a fallback for,
+   * and tokens.test.ts cannot see it: the property IS defined, just not in that scope.
+   */
+  --notch-r: var(--radius-panel);
+}
+
+/* ----------------------------------------------------------------- notch */
+
+/*
+ * The notch: a dark bar carved into the top edge of the page.
+ *
+ * STUDIED FROM THREE REFERENCES, 2026-09-05. supaste.com draws its concave corners
+ * with two 20x20 divs holding inline SVG data-URIs; Framer University uses SVG shapes
+ * because Framer frames are rectangular. Neither needs to here — `mask` does it in one
+ * declaration, and the carved-away part stays genuinely TRANSPARENT, so the blueprint
+ * grid behind the hero shows through it. A `box-shadow` fillet would paint a solid
+ * patch of page colour and cut a hole in that grid.
+ *
+ * Measured on supaste 2026-09-05: its notch never moves — same width, height and
+ * offset at scrollY 0, 600 and 2000. Ours condenses slightly, by owner decision, and
+ * does it with a scroll-driven animation rather than a scroll listener.
+ */
+
+.notch-shell {
+  z-index: var(--z-header);
+  display: flex;
+  justify-content: center;
+  /*
+   * The fillets are pseudo-elements OUTSIDE the bar's box, one --notch-r wide each, so
+   * the bar cannot be allowed to grow to the full viewport or they render off-screen.
+   * Reserving their width here — rather than subtracting it from the bar's own
+   * max-width — keeps the arithmetic in one place and lets the bar simply be `100%`.
+   * The wordmark comes from the CMS, so a long one is a real input, not a hypothetical.
+   */
+  /* EXACTLY the fillet width, no more. An earlier version added 12px of breathing room
+     on top and that cost 36px of bar width — enough that even the default 11-character
+     wordmark truncated at 320px. At this value the fillets sit flush to the viewport
+     edge when the bar is at its widest, and are never clipped. */
+  padding-inline: var(--notch-r);
+  /*
+   * The shell spans the viewport so the bar can centre itself, but only the bar may
+   * catch the pointer. Without this a full-width invisible strip sits over the hero
+   * and swallows clicks on everything beneath it — including the first CTA.
+   */
+  pointer-events: none;
+}
+
+.notch {
+  --notch-bg: light-dark(var(--ink), var(--raised));
+  --notch-text: light-dark(var(--paper), var(--text));
+  --notch-muted: light-dark(rgba(241, 239, 234, 0.7), rgba(236, 235, 228, 0.7));
+
+  position: relative;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  /*
+   * ⚠️ nowrap, AND min-width: 0 — together they make the bar's height UNBREAKABLE.
+   *
+   * The page's top spacing is derived from this bar being one line (--notch-clearance).
+   * With `flex-wrap: wrap` the nav dropped to a second line the moment the wordmark grew,
+   * taking the bar to 112px against an 84px clearance — reintroducing the overlap that
+   * clearance exists to prevent, from a CMS text field, with nothing failing.
+   *
+   * Measured 2026-09-05 at 320px, the narrowest phone in use: the fit broke at THIRTEEN
+   * characters, and "RUN APPAREL" is eleven. One character of headroom is not a margin.
+   * So the wordmark truncates instead of wrapping — a bounded, visible degradation
+   * rather than a silent geometric one — and the bar is 60px at every width and every
+   * input. `min-width: 0` is required or the flex item refuses to shrink below its
+   * min-content width and overflows instead.
+   */
+  flex-wrap: nowrap;
+  min-width: 0;
+  gap: 16px;
+  /*
+   * `100%`, NOT `100vw`. The shell is fixed with `inset-inline: 0`, so its width is the
+   * viewport MINUS any classic scrollbar, while `100vw` includes that scrollbar. On
+   * Windows and Linux, where scrollbars take real width, `calc(100vw - 24px)` therefore
+   * resolves WIDER than the space the bar actually has. Not observable on this machine —
+   * macOS overlay scrollbars are zero-width — which is exactly why it is worth fixing
+   * from the spec rather than waiting to see it.
+   */
+  max-width: 100%;
+  padding-block: var(--notch-pad-y);
+  padding-inline: 18px;
+  background: var(--notch-bg);
+  color: var(--notch-text);
+  border-end-start-radius: var(--notch-r);
+  border-end-end-radius: var(--notch-r);
+  /*
+   * Measured 2026-09-05: in dark mode the bar sits at 1.47:1 against the page
+   * (--raised #363c2f on --bg #1c1f18), because --raised is already the lightest
+   * surface the system has — there is no darker-page/lighter-bar pair left to reach
+   * for. --shadow-raised exists for exactly this: its own comment in tokens.css
+   * records the floating colourway preview losing "its only separation from the rail
+   * behind it" over the same --bg, and the 0.5 alpha is the value that fixed it.
+   *
+   * Not a border: the fillets are pseudo-elements outside this element's border box,
+   * so a border would stop dead where the carved arcs begin.
+   */
+  box-shadow: var(--shadow-raised);
+}
+
+/*
+ * The two concave fillets, one either side, flush with the top edge.
+ *
+ * Geometry: each is a --notch-r square painted in the bar's colour, with a quarter
+ * disc of that same radius removed from the corner FURTHEST from the bar. What is
+ * left is the arc that sweeps from the page's top edge down into the bar, which is
+ * what makes the bar read as carved rather than stuck on.
+ */
+.notch::before,
+.notch::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 0;
+  width: var(--notch-r);
+  height: var(--notch-r);
+  background: var(--notch-bg);
+  pointer-events: none;
+}
+
+.notch::before {
+  inset-inline-end: 100%;
+  mask: radial-gradient(circle at 0 100%, #0000 var(--notch-r), #000 calc(var(--notch-r) + 0.5px));
+}
+
+.notch::after {
+  inset-inline-start: 100%;
+  mask: radial-gradient(
+    circle at 100% 100%,
+    #0000 var(--notch-r),
+    #000 calc(var(--notch-r) + 0.5px)
+  );
+}
+
+/*
+ * ⚠️ NO `corner-shape: scoop` ENHANCEMENT HERE, DELIBERATELY.
+ *
+ * It is the native property for exactly this arc and it was the obvious upgrade, so
+ * it was written first — and then rendered. Chrome DOES support it (139+), which
+ * meant the @supports block was live in the majority browser, and the combination of
+ * `corner-shape` with the box-shadow that fills the region outside the arc drew two
+ * white triangles either side of the bar. Screenshotted 2026-09-05.
+ *
+ * The mask below already works in every engine. An enhancement that is only
+ * exercised where it is broken is worse than no enhancement, so this stays one
+ * technique. Revisit only with a rendered screenshot, never with @supports alone —
+ * `@supports` proves the property parses, not that the result looks right.
+ */
+
+.notch__wordmark {
+  /*
+   * ⚠️ `block` + `line-height`, NOT `inline-flex` + `align-items`. Both centre the text
+   * on the 44px touch target, but `text-overflow: ellipsis` is ignored on a flex
+   * container — the text becomes an anonymous flex item. Measured 2026-09-05: an
+   * over-long wordmark cut mid-word to "RUN APPARI" with no ellipsis, which reads as a
+   * typo rather than as a shortened name.
+   */
+  display: block;
+  line-height: var(--target-min);
+  min-height: var(--target-min);
+  /* Shrinks and truncates rather than forcing the bar wider. flex-shrink here affects
+     WIDTH only — this is a row container, so the min-height above is unaffected. */
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-wordmark-sm);
+  /*
+   * ⚠️ `--tracking-wordmark`, NOT `--tracking-display-sm`. This element's SIZE is fixed at
+   * `--text-wordmark-sm` (16px), and `--tracking-display-sm` is
+   * `clamp(-1.38px, -0.1vw, -0.26px)` — tracking that changes with window width on text
+   * that does not (audit FA-C-51). At 1440 it resolved to -1.38px, which is -0.086em on a
+   * 16px face and four times tighter than the viewer renders the same name.
+   *
+   * `--tracking-wordmark` is the token written for exactly this — "fixed: display type
+   * with no optical range" — and since 2026-09-24 the viewer draws this same element,
+   * so the company's name is set identically on both surfaces (FA-Q-04).
+   *
+   * ⚠️ `.footer-q` KEEPS `--tracking-display-sm` AND THAT IS CORRECT. Its font-size is
+   * `clamp(27px, 4.3vw, 52px)` — genuinely fluid — so tracking that scales with the
+   * viewport is the right pairing there. The finding is about fixed-size text only.
+   */
+  letter-spacing: var(--tracking-wordmark);
+  text-decoration: none;
+  color: var(--notch-text);
+}
+
+.notch__nav {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+/*
+ * Shared by the notch and the footer, which is why both colours carry a FALLBACK.
+ *
+ * ⚠️ `--notch-muted` is declared on `.notch`, so in the footer it does not resolve and
+ * a bare `var(--notch-muted)` would drop the whole declaration — the colour would
+ * silently fall back to `inherit`, which is how the skip link once rendered at 1.00:1
+ * contrast (see tokens.test.ts). The token test cannot catch this one: the property IS
+ * defined, just not in scope here, and the test only knows about names it never sees
+ * defined at all. The two-argument form makes the out-of-scope case explicit instead.
+ */
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  flex-shrink: 0;
+  padding-inline: 10px;
+  font-family: var(--font-mono);
+  /* 12px, not 10 (audit TY-07): PRODUCTS and CONTACT are how a visitor gets anywhere,
+     so they are not chips. The 10px chip size stays on labels and section numbers. */
+  font-size: var(--text-mono-lg);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps-snug);
+  text-decoration: none;
+  color: var(--notch-muted, var(--muted));
+  /* `scale` rides in this list rather than a rule of its own: `transition` is a
+     shorthand, so a second declaration would replace the colour transition instead of
+     adding to it. --instant is the token named for press feedback (tokens.css). */
+  transition:
+    color var(--fast) var(--ease),
+    scale var(--instant) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nav-link:hover {
+    color: var(--notch-text, var(--text));
+  }
+}
+
+/*
+ * ⚠️ THE CURRENT PAGE IS MARKED BY AN UNDERLINE, NOT ONLY BY COLOUR.
+ *
+ * This rule existed from the start and had never once applied — nothing set
+ * `aria-current`, so it was dead CSS that looked correct in the file. Turning it on
+ * exposed a second problem: measured 2026-09-05, the only difference between current
+ * and non-current was alpha 0.7 → 1.0 on the SAME colour. That is a colour-only
+ * distinction (WCAG 1.4.1) and, at 30% opacity apart on one hue, barely perceptible
+ * even to someone who sees colour normally.
+ *
+ * `text-decoration` rather than a positioned pseudo-element: it tracks the text at any
+ * padding, needs no `position: relative`, and survives Windows High Contrast mode —
+ * where colours are replaced wholesale and an underline is one of the few cues that
+ * still carries meaning.
+ */
+.nav-link[aria-current="page"] {
+  color: var(--notch-text, var(--text));
+  text-decoration: underline;
+  text-decoration-color: var(--volt);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+
+/*
+ * WINDOWS HIGH CONTRAST — nothing handled this before.
+ *
+ * In forced-colors mode the browser replaces every colour with the user's palette and
+ * ignores backgrounds on most elements. Two things here break without help: the bar's
+ * carved fillets are pseudo-elements whose ONLY content is a background colour, so they
+ * vanish and the bar loses the shape it is named for; and the volt underline above is
+ * stripped, taking the current-page cue with it.
+ *
+ * `forced-color-adjust: none` is deliberately NOT used to force the brand palette back
+ * — that overrides a setting someone chose for legibility. The fillets are simply
+ * allowed to disappear (they are decoration, and the bar is still a bar) while the
+ * underline is restored in a system colour that is guaranteed to contrast.
+ */
+@media (forced-colors: active) {
+  .nav-link[aria-current="page"] {
+    text-decoration-color: LinkText;
+  }
+
+  .notch {
+    border: 1px solid CanvasText;
+  }
+
+  .notch::before,
+  .notch::after {
+    display: none;
+  }
+}
+
+/*
+ * ⚠️ A BUTTON IN THE NOTCH MUST INVERT, which is why the menu button below is volt on ink.
+ *
+ * `.btn--primary` is ink-background/volt-text in light mode, which is the same ink the
+ * notch is painted in. Measured 2026-09-05: the button's computed background came back
+ * rgb(29,31,26) against a notch of rgb(29,31,26), so the site's primary call to action
+ * rendered as bare volt text with no button at all. Every automated check was green;
+ * only the screenshot showed it. That is the SAME SYMPTOM the sibling website repo
+ * shipped — "every primary call to action rendered black-on-black, including the header
+ * Request a quote" — reached by a different route. A new button needs
+ * `background: var(--volt); color: var(--ink);` and a rendered screenshot, not a test.
+ */
+
+/*
+ * ⚠️ THE PHONE MENU IS THE BROWSER'S OWN POPOVER — owner decisions 2026-09-11 (a menu button
+ * on phones: "in future we will add more pages") and 2026-09-23 (the Speed Lines icon).
+ *
+ * The menu deleted on 2026-09-05 was a real <button> with aria-expanded driving a `data-open`
+ * attribute — all React state, so with JavaScript off at 390px 0 of 2 links were reachable,
+ * and likewise before hydration. `<details>` revealed by CSS left its links out of the Tab
+ * order and the accessibility tree; the checkbox trick is announced as a checkbox.
+ *
+ * `<button popovertarget>` + `<div popover="auto">` fails none of those: the attributes are in
+ * the server's HTML, so the menu opens, closes on a second tap, on Escape and on a tap outside
+ * with scripting off and before hydration, and the browser itself reports it expanded or
+ * collapsed. Measured 2026-09-23 in Chromium, WebKit and Firefox; apps/cms/e2e/navbar.spec.ts
+ * re-measures it on every change.
+ *
+ * ONE LIST, TWO PRESENTATIONS: a dropdown under the bar on phones, the same elements forced
+ * inline above the boundary. Browsers without popover (Chrome < 114, Firefox < 125, Safari
+ * < 17) skip the @supports block at the end of this file and keep the links in the bar.
+ */
+
+/*
+ * SMALL SCREENS — the same bar, tightened.
+ *
+ * Nothing collapses and nothing hides: the wordmark and both links sit in one row at
+ * every width. `flex-wrap` is a safety net for a wordmark longer than the measured
+ * fit — it wraps to a second line rather than overflowing the bar — not an expected
+ * state. The gap and link padding tighten so the fit keeps its headroom.
+ */
+@media (max-width: 720px) {
+  .notch {
+    gap: 8px;
+    /* Buys back the width the fillet reservation costs, so the measured fit still
+       holds at 320px — the narrowest phone still in use. */
+    padding-inline: 12px;
+  }
+
+  .nav-link {
+    padding-inline: 6px;
+  }
+}
+
+/*
+ * ------------------------------- the bar at large browser text (audit FA-E-03)
+ *
+ * ⚠️ THE COMPANY'S NAME WAS BEING CUT OFF ON THE COMMONEST PHONE WIDTHS. Measured
+ * 2026-09-07 in Chromium and Firefox on `/`: at 150% text on a 390px phone the name needed
+ * 173px and got 141px, because everything in the bar is in `rem` and the bar is not. WCAG
+ * 1.4.4 asks for 200% without loss of content. Until 2026-09-24 the answer was a second row
+ * for the links, fitted to "name + two inline links".
+ *
+ * ⚠️ SINCE 2026-09-24 THE MENU IS THE ANSWER, and its boundary follows text size, not
+ * pixels. Fitted on the live site 2026-09-23, binary-searching the narrowest width at which
+ * the name is whole, one row, per root size:
+ *
+ *   root size                      16    20    24    28    32    36    40    44    48    56
+ *   name + links + switch (inline) 382   441   501   560   620   679   775   835   893  1013
+ *   name + menu button             227   256   285   313   342   371   400
+ *
+ * WebKit needs 3px more for the inline row at 16px (385); Firefox matches Chromium at 16 and
+ * 32. Above 720px the inline row follows `180.7px + 14.857rem` (every point within 0.6px), so
+ * the phone query adds `(width < calc(184px + 14.9rem))`: 2-5px early at every measured root,
+ * never late, and inert at the default size (422px < 720px). Name + button follow
+ * `111.6px + 7.208rem`, so the second row is `(width < calc(114px + 7.25rem))`.
+ *
+ * ⚠️ `rem` IN A MEDIA QUERY IS THE BROWSER'S DEFAULT FONT SIZE, NOT `html { font-size }`,
+ * AND THAT IS THE WHOLE MECHANISM. It is what tracks the reader's text-size setting;
+ * verified both ways 2026-09-07. A test that fakes the setting with a stylesheet exercises
+ * none of this — `apps/cms/e2e/textSize.spec.ts` uses the real setting (CDP in Chromium, a
+ * profile preference in Firefox) and asserts the layout this table predicts.
+ */
+
+.nav-link:active,
+.notch__wordmark:active,
+.notch__menu-btn:active {
+  scale: 0.97;
+}
+
+/*
+ * The wordmark was the one header link with no pointer response at all (FA-R-03) — it
+ * sits beside two nav links that both lighten on hover. It cannot answer with colour:
+ * it already renders at `--notch-text`, the strongest value available, so there is
+ * nowhere brighter to go and dimming reads as disabled. An underline is the same cue the
+ * nav uses for the current page, in the same volt, and survives Windows High Contrast
+ * where colour is replaced wholesale.
+ */
+.notch__wordmark {
+  transition: scale var(--instant) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .notch__wordmark:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--volt);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 5px;
+  }
+}
+
+@media (prefers-contrast: more) {
+  /*
+   * ⚠️ ON `.notch`, BECAUSE THAT IS WHERE IT IS DECLARED. `--notch-muted` is a local
+   * custom property on the bar, so a `:root` override would not reach it — the same
+   * scoping trap `--notch-muted`'s own two-argument `var()` fallback exists for. The
+   * nav links go to full opacity: the bar's ink is already the highest-contrast pair
+   * the palette has, so 0.7 alpha was the only thing costing anything.
+   */
+  .notch {
+    --notch-muted: light-dark(var(--paper), var(--text));
+  }
+}
+
+/* ═══════════════════════════════════════════════ the phone menu (since 2026-09-24) */
+
+/*
+ * THE RING IS VOLT INSIDE THE BAR, IN BOTH THEMES. The global ring is --focus-ring, which is
+ * --volt-deep in light mode: 3.16:1 on the bar's --ink — measured on the wordmark
+ * (2026-09-17) and again inside the open menu (2026-09-23), a pass by 5%. The bar is dark in
+ * both themes, so it takes the ring this site already gives its dark footer
+ * (`.footer-legal .nav-link:focus-visible` in site.css): volt, 13.06:1 on --ink and 8.95:1
+ * on --raised. Width and offset stay the global ones. apps/cms/e2e/navbar.spec.ts grades
+ * every ring in the bar at 4.5:1.
+ */
+.notch :focus-visible {
+  outline-color: var(--volt);
+}
+
+/* Hidden by default: without popover support the links stay in the bar. */
+.notch__menu-btn {
+  display: none;
+}
+
+/*
+ * THE SPEED LINES — the owner's pick, 2026-09-23 (the second of the icon options shown to
+ * the owner): three uneven lines that snap even and fold into an X while the menu is open.
+ * The open state is read off the popover itself through `:has(+ … :popover-open)`, so it
+ * needs no script.
+ *
+ * ⚠️ DRAWN WITH A TOP BORDER, NOT A BACKGROUND. Forced-colours mode repaints backgrounds as
+ * Canvas, which would leave an empty button there; a border takes the system text colour.
+ * ⚠️ `--radius-pill`, NOT `1px`: tokens.test.ts refuses a raw radius, and on a 2px line the
+ * two render identically.
+ */
+.notch__icon {
+  position: relative;
+  display: block;
+  width: 20px;
+  height: 16px;
+}
+
+.notch__icon-line {
+  position: absolute;
+  inset-inline-start: 0;
+  block-size: 0;
+  border-block-start: 2px solid currentColor;
+  border-radius: var(--radius-pill);
+  /*
+   * --ui (220ms) on --ease, staggered 20ms a line (below): the owner's Speed Lines "snap
+   * even and fold into an X". Reduced motion needs nothing here — base.css collapses every
+   * transition to 0.01ms and every delay to 0s with !important, and navbar.spec.ts measures
+   * that it reaches these lines.
+   */
+  transition:
+    width var(--ui) var(--ease),
+    transform var(--ui) var(--ease),
+    opacity var(--ui) var(--ease);
+}
+
+.notch__icon-line:nth-child(1) {
+  inset-block-start: 0;
+  width: 12px;
+}
+
+.notch__icon-line:nth-child(2) {
+  inset-block-start: 7px;
+  width: 20px;
+  transition-delay: 20ms;
+}
+
+.notch__icon-line:nth-child(3) {
+  inset-block-start: 14px;
+  width: 16px;
+  transition-delay: 40ms;
+}
+
+.notch__menu-btn:has(+ .notch__menu:popover-open) .notch__icon-line:nth-child(1) {
+  width: 20px;
+  transform: translateY(7px) rotate(45deg);
+}
+
+.notch__menu-btn:has(+ .notch__menu:popover-open) .notch__icon-line:nth-child(2) {
+  opacity: 0;
+}
+
+.notch__menu-btn:has(+ .notch__menu:popover-open) .notch__icon-line:nth-child(3) {
+  width: 20px;
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+@supports selector(:popover-open) {
+  /* Phones — and any width too narrow for the inline row at the reader's text size (below). */
+  @media (width < 720px), (width < calc(184px + 14.9rem)) {
+    /* A button in the notch must invert (the comment above): volt on ink. */
+    .notch__menu-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: var(--target-min);
+      height: var(--target-min);
+      border: none;
+      border-radius: var(--radius-panel);
+      background: var(--volt);
+      color: var(--ink);
+      cursor: pointer;
+      transition: scale var(--instant) var(--ease);
+    }
+
+    /*
+     * ⚠️ BUG 1, DESIGNED OUT: this is the ONLY rule that gives the list a display on a
+     * phone, and only while it is open. An author `display` on a [popover] beats the
+     * browser's `[popover]:not(:popover-open) { display: none }` whatever the specificity, so
+     * the old inherited `.notch__nav { display: flex }` showed a "closed" menu open.
+     * publicSite.test.ts refuses any other rule that sets it.
+     *
+     * ⚠️ BUG 2, DESIGNED OUT: the browser styles [popover] `width: fit-content`, so two
+     * insets alone left the panel 153-157px wide in all three engines. `width: auto` restores
+     * the two-inset stretch: 366px of 366 in each (measured 2026-09-23). Never 100vw, which
+     * includes a classic scrollbar.
+     *
+     * Fixed under the bar at the height the bar is built from (--notch-h), not anchored: the
+     * bar is at the top of the viewport on both hosts, and anchor positioning was still being
+     * corrected in Safari 26.5.
+     */
+    .notch__menu:popover-open {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+      position: fixed;
+      inset-block-start: var(--notch-h);
+      inset-inline: 12px;
+      width: auto;
+      margin: 0;
+      padding: 12px;
+      border: none;
+      border-radius: var(--notch-r);
+      background: var(--notch-bg);
+      color: var(--notch-text);
+      box-shadow: var(--shadow-raised);
+      max-block-size: calc(100svh - var(--notch-h) - 12px);
+      overflow: auto;
+    }
+
+    /* Full-width rows, 44px tall, as the owner approved them. */
+    .notch__menu:popover-open .nav-link,
+    .notch__menu:popover-open .theme-toggle {
+      width: 100%;
+      justify-content: flex-start;
+    }
+  }
+
+  /* Wide screens: the SAME list, inline — the browser's hide rule undone. */
+  @media (width >= 720px) and (width >= calc(184px + 14.9rem)) {
+    .notch__menu {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      position: static;
+      inset: auto;
+      width: auto;
+      height: auto;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: inherit;
+      overflow: visible;
+    }
+  }
+
+  /*
+   * ⚠️ THE ONE PLACE A SECOND ROW SURVIVES. On a narrow phone at very large text even the
+   * name and the 44px button do not fit one row: measured 2026-09-23 on the live site, they
+   * need `111.6px + 7.208rem` (227px at the 16px default, 342px at 200%), so at 320-345px
+   * and ~190% text or more the name would be cut. The button drops to a second row there,
+   * and `--notch-lines` moves the bar's height, the page's clearance (site.css) and the open
+   * menu's top together — the one dial the comment on :root describes.
+   */
+  @media (width < calc(114px + 7.25rem)) {
+    :root {
+      --notch-lines: 2;
+    }
+
+    .notch {
+      flex-wrap: wrap;
+      row-gap: var(--notch-row-gap);
+    }
+
+    .notch__wordmark {
+      flex-basis: 100%;
+    }
+  }
+}
+
+/*
+ * THE THEME SWITCH, IN THE BAR — owner decision 2026-09-17 ("the theme switch sits INSIDE the
+ * bar"; in the phone menu on 2026-09-23). The viewer's control, restyled for the bar: the bar
+ * is dark in BOTH themes, so the switch takes the bar's text colour (14.47:1 light, 9.53:1
+ * dark, measured 2026-09-17) and inverts WITHIN the bar on hover — the page's own
+ * `--text`/`--bg` inversion would be ink on ink here, the trap the comment on buttons in the
+ * notch describes. The border stays `--line`, exactly as the owner's approved pictures show it.
+ * `flex-shrink: 0` is what makes the 44px a floor (docs/DESIGN.md §4, Targets).
+ */
+.notch .theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--target-min);
+  height: var(--target-min);
+  border-radius: var(--radius-pill);
+  border: 1.4px solid var(--line);
+  color: var(--notch-text);
+  transition:
+    scale var(--instant) var(--ease),
+    background-color var(--ui) var(--ease),
+    color var(--ui) var(--ease);
+}
+
+.notch .theme-toggle svg {
+  transition: transform var(--ui) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .notch .theme-toggle:hover {
+    background: var(--notch-text);
+    color: var(--notch-bg);
+  }
+
+  .notch .theme-toggle:hover svg {
+    transform: rotate(18deg);
+  }
+}
+
+/*
+ * WHICH FACE SHOWS FOLLOWS THE PAGE'S THEME, IN CSS: `data-theme` when the visitor chose,
+ * the phone's preference otherwise — the same two-step `.grain` uses in base.css. The hidden
+ * face is `display: none`, so it is out of the accessible name as well as out of sight.
+ */
+.theme-toggle__face {
+  display: inline-flex;
+}
+
+.theme-toggle__face--to-light {
+  display: none;
+}
+
+:root[data-theme="dark"] .theme-toggle__face--to-dark {
+  display: none;
+}
+
+:root[data-theme="dark"] .theme-toggle__face--to-light {
+  display: inline-flex;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-toggle__face--to-dark {
+    display: none;
+  }
+
+  :root:not([data-theme="light"]) .theme-toggle__face--to-light {
+    display: inline-flex;
+  }
+}
+
+/*
+ * ⚠️ WITH SCRIPTING OFF THE SWITCH IS NOT OFFERED. It needs script to work, and a button that
+ * does nothing when pressed is worse than none. `scripting: none` was measured to apply under
+ * Playwright's `javaScriptEnabled: false` in Chromium, WebKit and Firefox (2026-09-23).
+ */
+@media (scripting: none) {
+  .notch .theme-toggle {
+    display: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .notch__menu:popover-open {
+    border: 1px solid CanvasText;
+  }
+}

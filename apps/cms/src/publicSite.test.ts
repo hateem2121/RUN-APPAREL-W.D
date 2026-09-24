@@ -54,6 +54,46 @@ const code = (...parts: string[]) => stripComments(read(...parts))
  */
 const css = () => stripComments(read(FRONTEND, 'site.css'))
 
+/** The bar's stylesheet — shared with the 3D viewer since 2026-09-24 — comments blanked. */
+const barCss = () =>
+  stripComments(read(join(CMS_ROOT, '..', '..'), 'packages', 'ui', 'src', 'notch.css'))
+
+/**
+ * Rules that give the CLOSED menu list (`.notch__menu` as the subject, not `:popover-open`) a
+ * `display` outside the wide-screen block — the shape of bug 1, designed out.
+ */
+function closedMenuDisplays(source: string): string[] {
+  const offenders: string[] = []
+  const stack: string[] = []
+  let start = 0
+  for (let index = 0; index < source.length; index++) {
+    const character = source[index]
+    if (character === '{') {
+      stack.push(source.slice(start, index).trim())
+      start = index + 1
+    } else if (character === '}') {
+      const selector = stack.pop() ?? ''
+      const body = source.slice(start, index)
+      start = index + 1
+      const closedList = selector.split(',').some((part) => {
+        const subject =
+          part
+            .trim()
+            .split(/[\s>+~]+/)
+            .pop() ?? ''
+        return /^\.notch__menu(?![\w-])/.test(subject) && !subject.includes(':popover-open')
+      })
+      const wide = stack.some(
+        (prelude) => prelude.startsWith('@media') && prelude.includes('width >= 720px'),
+      )
+      if (closedList && /(?:^|;)\s*display\s*:/.test(body) && !wide) {
+        offenders.push(selector.replace(/\s+/g, ' '))
+      }
+    }
+  }
+  return offenders
+}
+
 describe('the public site is indexable and the admin is not exposed by it', () => {
   it('the frontend layout derives robots from the switch and never hard-codes index', () => {
     // Until 2026-09-06 this asserted the ABSENCE of noindex: the pages exist to be
@@ -173,7 +213,7 @@ describe('touch targets', () => {
 
   it('the notch wordmark and links clear it too', () => {
     for (const selector of ['.notch__wordmark', '.nav-link']) {
-      const rule = new RegExp(`\\${selector}\\s*\\{[^}]*\\}`).exec(css())?.[0] ?? ''
+      const rule = new RegExp(`\\${selector}\\s*\\{[^}]*\\}`).exec(barCss())?.[0] ?? ''
       expect(rule, `${selector} rule is missing`).not.toBe('')
       expect(rule, `${selector} does not pin the touch floor`).toContain(
         'min-height: var(--target-min)',
@@ -416,8 +456,8 @@ describe('the notch', () => {
     // cut a visible hole in the hero's blueprint grid. The mask leaves the carved-away
     // quarter genuinely transparent. supaste.com uses two SVG data-URI divs for this;
     // one declaration replaces both.
-    expect(css()).toMatch(/\.notch::before[\s\S]{0,400}mask: radial-gradient/)
-    expect(css()).toMatch(/\.notch::after[\s\S]{0,400}mask: radial-gradient/)
+    expect(barCss()).toMatch(/\.notch::before[\s\S]{0,400}mask: radial-gradient/)
+    expect(barCss()).toMatch(/\.notch::after[\s\S]{0,400}mask: radial-gradient/)
   })
 
   it('never ships a corner-shape enhancement without a rendered check', () => {
@@ -425,7 +465,7 @@ describe('the notch', () => {
     // so an @supports block using it runs in the majority browser. The first attempt
     // drew two white triangles either side of the bar. @supports proves a property
     // parses, never that the result looks right.
-    expect(css()).not.toMatch(/@supports\s*\(corner-shape/)
+    expect(css() + barCss()).not.toMatch(/@supports\s*\(corner-shape/)
   })
 
   it('sends no visitor to the catalogue from any public page', () => {
@@ -449,7 +489,7 @@ describe('the notch', () => {
     }
     // And the rule that styled it is gone too, rather than left behind as dead CSS —
     // which is the defect this audit found in the `aria-current` rule.
-    expect(css()).not.toMatch(/\.notch__cta\s*\{/)
+    expect(css() + barCss()).not.toMatch(/\.notch__cta\s*\{/)
   })
 
   it('never hands the settings object to the client component', () => {
@@ -470,8 +510,8 @@ describe('the notch', () => {
     // bare var() would drop the declaration and fall back to `inherit` — how the skip
     // link once shipped at 1.00:1. tokens.test.ts cannot catch this: the property IS
     // defined, just not in scope here.
-    expect(css()).toMatch(/color: var\(--notch-muted, var\(--muted\)\)/)
-    expect(css()).toMatch(/color: var\(--notch-text, var\(--text\)\)/)
+    expect(barCss()).toMatch(/color: var\(--notch-muted, var\(--muted\)\)/)
+    expect(barCss()).toMatch(/color: var\(--notch-text, var\(--text\)\)/)
   })
 
   it('puts the scroll response behind @supports, so Firefox keeps the resting notch', () => {
@@ -484,25 +524,47 @@ describe('the notch', () => {
     )
   })
 
-  it('needs no JavaScript to navigate — there is no disclosure to hydrate', () => {
-    // THE DEFECT THIS REPLACES. The bar used to hide its links behind a button whose
-    // open state lived in React: `.notch:not([data-open="true"]) .notch__nav` stayed in
-    // force until hydration, so with scripting disabled at 390px **0 of 2 links were
-    // reachable**, and likewise for the second or two before the bundle lands on a slow
-    // connection. Desktop never showed it.
-    //
-    // Two no-JS replacements were measured and rejected: `<details>` (CSS can reveal a
-    // closed one, but its links are absent from the accessibility tree and unreachable
-    // by keyboard in all three engines) and the checkbox pattern (announced as a
-    // checkbox). Removing the Catalogue CTA left two short links that FIT at every
-    // width, so the disclosure is gone rather than reimplemented.
+  it("keeps the phone menu free of JavaScript — the disclosure is the browser's own", () => {
+    // THE DEFECT THIS REPLACES (2026-09-05): a menu whose open state lived in React, so
+    // `.notch:not([data-open="true"]) .notch__nav` hid the links until hydration and 0 of
+    // 2 were reachable with scripting off. `<details>` and the checkbox pattern were measured
+    // and rejected the same day. The owner asked for a menu again on 2026-09-11: this one is
+    // `<button popovertarget>` + `popover="auto"` in the server's HTML, measured to open,
+    // close and navigate with scripting off in Chromium, WebKit and Firefox.
     const source = header()
     expect(source).not.toMatch(/'use client'/)
     expect(source).not.toMatch(/useState|useEffect|useRef/)
     expect(source).not.toMatch(/data-open/)
-    // and nothing in CSS may hide the links behind a state attribute again
-    expect(css()).not.toMatch(/\.notch__nav\s*\{[^}]*visibility: hidden/)
-    expect(css()).not.toMatch(/data-open/)
+    expect(source).toMatch(/popoverTarget=\{SITE_MENU_ID\}/)
+    expect(source).toMatch(/id=\{SITE_MENU_ID\} popover="auto"/)
+    // The browser reports the open state itself; a hand-written one cannot follow it without
+    // script, and `menu` roles promise arrow-key behaviour a list of links does not have.
+    expect(source).not.toMatch(/aria-expanded|aria-haspopup|aria-controls|role="menu"/)
+    expect(css() + barCss()).not.toMatch(/\.notch__nav\s*\{[^}]*visibility: hidden/)
+    expect(css() + barCss()).not.toMatch(/data-open/)
+  })
+
+  it('gives the closed list no display of its own, except inline on a wide screen (bug 1)', () => {
+    // An author `display` on a [popover] beats the browser's `[popover]:not(:popover-open)
+    // { display: none }` whatever the specificity (measured three engines, 2026-09-23): the
+    // old inherited `.notch__nav { display: flex }` showed a "closed" menu open.
+    expect(closedMenuDisplays(barCss())).toEqual([])
+    // the matcher is not passing on nothing
+    expect(closedMenuDisplays('.notch__menu { display: flex; }')).toEqual(['.notch__menu'])
+    expect(
+      closedMenuDisplays('@media (width >= 720px) { .notch__menu { display: flex; } }'),
+    ).toEqual([])
+    expect(closedMenuDisplays('.notch__menu:popover-open { display: flex; }')).toEqual([])
+  })
+
+  it('sizes the open list by its two insets, never by the viewport (bug 2)', () => {
+    // The browser styles [popover] `width: fit-content`; two insets alone gave 153-157px in
+    // three engines. `width: auto` is the cure; `100vw` includes a classic scrollbar.
+    const rule = /\.notch__menu:popover-open\s*\{[^}]*\}/.exec(barCss())?.[0] ?? ''
+    expect(rule, 'the open-menu rule is missing').not.toBe('')
+    expect(rule).toMatch(/inset-inline: 12px/)
+    expect(rule).toMatch(/width: auto/)
+    expect(barCss()).not.toMatch(/100vw/)
   })
 
   it('clears the fixed bar with a height derived from the bar, not a second guess', () => {
@@ -519,7 +581,7 @@ describe('the notch', () => {
     // `flex-wrap: nowrap` comment describes is a 120px bar against a 60px reservation.
     // Whitespace is collapsed first: the expression is long enough that the formatter
     // breaks it over seven lines.
-    const flat = css().replace(/\s+/g, ' ')
+    const flat = barCss().replace(/\s+/g, ' ')
     expect(flat).toContain(
       '--notch-h: calc( var(--target-min) * var(--notch-lines) + var(--notch-pad-y) * 2 + ' +
         '(var(--notch-lines) - 1) * var(--notch-row-gap) )',
@@ -532,15 +594,15 @@ describe('the notch', () => {
       /padding-block-start: max\(clamp\(64px, 11vw, 160px\), var\(--notch-clearance\)\)/,
     )
     // the bar must use the same padding token the clearance is derived from
-    expect(css()).toMatch(/\.notch\s*\{[\s\S]*?padding-block: var\(--notch-pad-y\)/)
+    expect(barCss()).toMatch(/\.notch\s*\{[\s\S]*?padding-block: var\(--notch-pad-y\)/)
   })
 
   it('sizes the bar against the shell, not the viewport, so a scrollbar cannot overflow it', () => {
     // `100vw` includes a classic scrollbar; the fixed shell's width excludes it. On
     // Windows and Linux `calc(100vw - 24px)` therefore resolves wider than the space
     // the bar has. Invisible on macOS, where overlay scrollbars are zero-width.
-    expect(css()).toMatch(/\.notch\s*\{[\s\S]*?max-width: 100%/)
-    expect(css()).not.toMatch(/max-width: calc\(100vw/)
+    expect(barCss()).toMatch(/\.notch\s*\{[\s\S]*?max-width: 100%/)
+    expect(css() + barCss()).not.toMatch(/max-width: calc\(100vw/)
   })
 
   it('reserves the fillets width on the shell, with a token BOTH scopes can read', () => {
@@ -551,12 +613,12 @@ describe('the notch', () => {
     //
     // tokens.test.ts cannot catch this shape: the property IS defined, just not where it
     // is read. Same blind spot `--notch-muted` carries an explicit fallback for.
-    expect(css()).toMatch(/:root\s*\{[\s\S]*?--notch-r: var\(--radius-panel\)/)
+    expect(barCss()).toMatch(/:root\s*\{[\s\S]*?--notch-r: var\(--radius-panel\)/)
     // EXACTLY the fillet width. An earlier `calc(12px + var(--notch-r))` cost 36px of
     // bar width — enough that the default 11-character wordmark truncated at 320px.
-    expect(css()).toMatch(/\.notch-shell\s*\{[\s\S]*?padding-inline: var\(--notch-r\)/)
+    expect(barCss()).toMatch(/\.notch-shell\s*\{[\s\S]*?padding-inline: var\(--notch-r\)/)
     // and it must NOT be re-declared on .notch, which would reopen the scope trap
-    expect(css()).not.toMatch(/\.notch\s*\{[^}]*--notch-r:/)
+    expect(barCss()).not.toMatch(/\.notch\s*\{[^}]*--notch-r:/)
   })
 
   it('keeps the bar one line tall whatever the CMS wordmark says', () => {
@@ -565,10 +627,10 @@ describe('the notch', () => {
     // 84px clearance, reintroducing the overlap from a CMS text field with nothing
     // failing. Measured at 320px: the fit broke at THIRTEEN characters and the default
     // wordmark is eleven.
-    expect(css()).toMatch(/\.notch\s*\{[\s\S]*?flex-wrap: nowrap/)
-    expect(css()).toMatch(/\.notch__wordmark\s*\{[^}]*text-overflow: ellipsis/)
+    expect(barCss()).toMatch(/\.notch\s*\{[\s\S]*?flex-wrap: nowrap/)
+    expect(barCss()).toMatch(/\.notch__wordmark\s*\{[^}]*text-overflow: ellipsis/)
     // min-width: 0 is required or the flex item refuses to shrink and overflows instead
-    expect(css()).toMatch(/\.notch__wordmark\s*\{[^}]*min-width: 0/)
+    expect(barCss()).toMatch(/\.notch__wordmark\s*\{[^}]*min-width: 0/)
   })
 
   it('keeps the card placeholder off --wash, which fails AA by two hundredths', () => {
@@ -587,20 +649,35 @@ describe('the notch', () => {
     // for. --shadow-raised is the token that exists for this; tokens.css records the
     // floating colourway preview hitting the same wall over the same --bg. Drop the
     // shadow and the bar stops reading as a distinct object on dark.
-    expect(css()).toMatch(/\.notch\s*\{[^}]*box-shadow: var\(--shadow-raised\)/)
+    expect(barCss()).toMatch(/\.notch\s*\{[^}]*box-shadow: var\(--shadow-raised\)/)
   })
 
-  it('renders exactly ONE set of links, not a duplicate for mobile', () => {
-    // The popover route would need a second copy of the nav inside the popover, which a
-    // screen reader reads twice. There is one set, in one place.
-    //
-    // The links live in NavLinks.tsx since the current-page marker needed the pathname;
-    // this counts across BOTH files so moving them cannot quietly leave a copy behind.
-    const both =
+  it('renders exactly ONE set of links, from the one list both hosts share', () => {
+    // A popover must not carry a second copy of the nav (a screen reader reads it twice).
+    // Since 2026-09-24 the list lives in packages/shared, so the viewer's bar cannot drift.
+    const shared = code(join(CMS_ROOT, '..', '..'), 'packages', 'shared', 'src', 'siteBar.ts')
+    expect(shared.match(/href: '\/products'/g) ?? []).toHaveLength(1)
+    expect(shared.match(/href: '\/contact'/g) ?? []).toHaveLength(1)
+    const headerFiles =
       code(CMS_ROOT, 'src', 'components', 'site', 'SiteHeader.tsx') +
       code(CMS_ROOT, 'src', 'components', 'site', 'NavLinks.tsx')
-    expect(both.match(/href: '\/products'|href="\/products"/g) ?? []).toHaveLength(1)
-    expect(both.match(/href: '\/contact'|href="\/contact"/g) ?? []).toHaveLength(1)
+    expect(headerFiles).toMatch(/SITE_NAV_LINKS\.map/)
+    expect(headerFiles, 'a literal nav path in the header is a second copy').not.toMatch(
+      /['"]\/(products|contact)['"]/,
+    )
+  })
+
+  it('switches between the phone menu and the inline bar at the fitted boundary', () => {
+    // Fitted on the live site 2026-09-23 (the plan's appendix B): 720px, or earlier when the
+    // reader's text is large enough that the inline row would cut the name; and a second row
+    // for the button when even name + button do not fit. Range syntax, so the phone and wide
+    // blocks are exact complements with no fractional gap between them.
+    const flat = barCss().replace(/\s+/g, ' ')
+    expect(flat).toContain('@media (width < 720px), (width < calc(184px + 14.9rem))')
+    expect(flat).toContain('@media (width >= 720px) and (width >= calc(184px + 14.9rem))')
+    expect(flat).toContain('@media (width < calc(114px + 7.25rem))')
+    // the old rule, fitted to two inline links, is gone
+    expect(flat).not.toContain('calc(80px + 14.9rem)')
   })
 })
 
@@ -700,7 +777,7 @@ describe('location and contrast cues', () => {
     // Measured 2026-09-05 once the attribute was live: the ONLY difference between
     // current and non-current was alpha 0.7 → 1.0 on the same colour. That is a
     // colour-only distinction (WCAG 1.4.1) and barely perceptible at that.
-    const rule = /\.nav-link\[aria-current="page"\]\s*\{[^}]*\}/.exec(css())?.[0] ?? ''
+    const rule = /\.nav-link\[aria-current="page"\]\s*\{[^}]*\}/.exec(barCss())?.[0] ?? ''
     expect(rule, 'the aria-current rule is missing').not.toBe('')
     expect(rule).toContain('text-decoration: underline')
   })
@@ -710,12 +787,12 @@ describe('location and contrast cues', () => {
     // fillets are pseudo-elements whose only content is a background, so they vanish
     // and the bar loses the shape it is named for; and the volt underline is stripped,
     // taking the current-page cue with it.
-    const block = /@media \(forced-colors: active\)\s*\{[\s\S]*?\n\}/.exec(css())?.[0] ?? ''
+    const block = /@media \(forced-colors: active\)\s*\{[\s\S]*?\n\}/.exec(barCss())?.[0] ?? ''
     expect(block, 'no forced-colors block').not.toBe('')
     expect(block).toMatch(/text-decoration-color: LinkText/)
     expect(block).toMatch(/\.notch\s*\{[^}]*border: 1px solid CanvasText/)
     // and the brand palette must NOT be forced back over the user's chosen one
-    expect(css()).not.toMatch(/forced-color-adjust:\s*none/)
+    expect(css() + barCss()).not.toMatch(/forced-color-adjust:\s*none/)
   })
 
   it('gives the skip link a focusable target without ringing the whole page', () => {
@@ -732,15 +809,17 @@ describe('location and contrast cues', () => {
     )
   })
 
-  it('keeps the client boundary to the links alone', () => {
+  it('keeps the client boundary to the links and the switch, neither taking a prop', () => {
     // SiteHeader must stay a server component: Next serialises every prop of a client
     // component into the HTML, which is how the whole settings global — catalogueUrl
     // included — reached the page source on 2026-09-05.
     expect(code(site('SiteHeader.tsx'))).not.toMatch(/'use client'/)
     expect(code(site('SiteFooter.tsx'))).not.toMatch(/'use client'/)
-    expect(read(site('NavLinks.tsx')).startsWith("'use client'")).toBe(true)
-    // NavLinks takes no props at all, so there is nothing to serialise
-    expect(code(site('NavLinks.tsx'))).toMatch(/export function NavLinks\(\)/)
+    for (const island of ['NavLinks', 'ThemeSwitch']) {
+      expect(read(site(`${island}.tsx`)).startsWith("'use client'"), island).toBe(true)
+      // no props at all, so there is nothing to serialise
+      expect(code(site(`${island}.tsx`))).toMatch(new RegExp(`export function ${island}\\(\\)`))
+    }
   })
 })
 

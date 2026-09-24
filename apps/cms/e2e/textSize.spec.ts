@@ -1,5 +1,16 @@
 import { expect, test } from '@playwright/test'
 
+/*
+ * The bar's layout at a given width and ROOT size — the fitted formulas in
+ * packages/ui/src/notch.css (measured on the live site 2026-09-23: the inline row
+ * keeps the name whole from 180.7px + 14.857rem with desktop spacing; name + button from
+ * 111.6px + 7.208rem). Duplicated here ON PURPOSE: a change to one without the other fails.
+ */
+const layoutAt = (width: number, rootPx: number) => ({
+  phone: width < 720 || width < 184 + 14.9 * rootPx,
+  twoRows: width < 114 + 7.25 * rootPx,
+})
+
 /**
  * FA-E-03 — the header at large BROWSER TEXT (not page zoom).
  *
@@ -82,6 +93,26 @@ test.describe('FA-E-03 — the company name survives the reader turning text up'
             text: mark.textContent ?? '',
             gap: bar && first ? Number((first.top - bar.bottom).toFixed(2)) : Number.NaN,
             barHeight: bar ? Number(bar.height.toFixed(1)) : Number.NaN,
+            buttonShown: (() => {
+              const button = document.querySelector('.notch__menu-btn')
+              return Boolean(button && button.getClientRects().length > 0)
+            })(),
+            linksInBar: (() => {
+              const bar = document.querySelector('.notch')?.getBoundingClientRect()
+              const links = [...document.querySelectorAll('#site-menu a')]
+              return (
+                links.length > 0 &&
+                links.every((link) => {
+                  const box = link.getBoundingClientRect()
+                  return bar && box.width > 0 && box.top >= bar.top && box.bottom <= bar.bottom
+                })
+              )
+            })(),
+            buttonBelowName: (() => {
+              const mark = document.querySelector('.notch__wordmark')?.getBoundingClientRect()
+              const button = document.querySelector('.notch__menu-btn')?.getBoundingClientRect()
+              return Boolean(mark && button && button.top >= mark.bottom - 1)
+            })(),
           }
         })
 
@@ -102,6 +133,19 @@ test.describe('FA-E-03 — the company name survives the reader turning text up'
           `${width}px at ${scale}% text: the ${m.barHeight}px bar leaves ${m.gap}px above ` +
             'the first line — the clearance no longer follows the row count',
         ).toBeGreaterThanOrEqual(0)
+
+        const expected = layoutAt(width, size)
+        expect(
+          m.buttonShown,
+          `${width}px at ${scale}% text: the menu button should ${expected.phone ? '' : 'NOT '}show`,
+        ).toBe(expected.phone)
+        expect(m.linksInBar, `${width}px at ${scale}% text: the links inline`).toBe(!expected.phone)
+        if (expected.phone) {
+          expect(
+            m.buttonBelowName,
+            `${width}px at ${scale}% text: the button should sit ${expected.twoRows ? 'under' : 'beside'} the name`,
+          ).toBe(expected.twoRows)
+        }
       }
     })
   }
@@ -213,4 +257,63 @@ test.describe('TY-11 — the footer keeps every word at 200% text on a phone', (
       expect(await clipped(page)).toEqual([])
     })
   }
+})
+
+test.describe('FA-E-03 past 200% — the menu takes over before the inline row would cut the name', () => {
+  test('250% text: the button at 768px, the words inline at 800px, the name whole at both', async ({
+    page,
+    context,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'Page.setFontSizes is a CDP command')
+    const cdp = await context.newCDPSession(page)
+    await cdp.send('Page.setFontSizes', { fontSizes: { standard: 40, fixed: 40 } })
+    await page.goto('/')
+    await page.evaluate(() => document.fonts.ready)
+    // the inline row needs 775px at a 40px root (measured); the clause switches below 780px
+    for (const [width, phone] of [
+      [768, true],
+      [800, false],
+      [1440, false],
+    ] as const) {
+      await page.setViewportSize({ width, height: 900 })
+      const m = await page.evaluate(() => {
+        const mark = document.querySelector('.notch__wordmark') as HTMLElement
+        const button = document.querySelector('.notch__menu-btn')
+        return {
+          root: getComputedStyle(document.documentElement).fontSize,
+          whole: mark.scrollWidth <= mark.clientWidth,
+          buttonShown: Boolean(button && button.getClientRects().length > 0),
+        }
+      })
+      expect(m.root).toBe('40px')
+      expect(m.whole, `the name is cut at ${width}px`).toBe(true)
+      expect(m.buttonShown, `the menu button at ${width}px`).toBe(phone)
+    }
+  })
+
+  test('200% text on a 390px phone: the open menu fits the screen and scrolls inside itself', async ({
+    page,
+    context,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'Page.setFontSizes is a CDP command')
+    const cdp = await context.newCDPSession(page)
+    await cdp.send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 32 } })
+    await page.setViewportSize({ width: 390, height: 640 })
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Menu', exact: true }).click()
+    const m = await page.evaluate(() => {
+      const panel = document.getElementById('site-menu')
+      const box = panel?.getBoundingClientRect()
+      return panel && box
+        ? { bottom: box.bottom, overflow: getComputedStyle(panel).overflowY, height: innerHeight }
+        : null
+    })
+    if (!m) throw new Error('the menu did not open')
+    expect(m.bottom, 'the open menu runs off the screen (WCAG 1.4.10)').toBeLessThanOrEqual(
+      m.height - 11,
+    )
+    expect(m.overflow).toBe('auto')
+  })
 })

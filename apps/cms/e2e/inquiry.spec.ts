@@ -143,8 +143,8 @@ test.describe('the inquiry form', () => {
      * ⚠️ NOTHING THE VISITOR TYPED MAY APPEAR IN THE URL. A URL is written into browser
      * history, proxy logs and outbound Referer headers, and preserving the values across
      * the redirect would otherwise need a cookie — which would end this site's measured
-     * claim to store nothing on the visitor's device (FA-O-74) and put a consent banner
-     * on every page.
+     * claim to store nothing on a plain visit (FA-O-74; one key, `run-theme`, only after
+     * the light/dark switch is pressed) and put a consent banner on every page.
      */
     const url = page.url()
     for (const secret of ['Dana', 'Northfield', 'dana@northfield', 'training tops']) {

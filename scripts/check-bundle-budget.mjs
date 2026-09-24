@@ -120,6 +120,18 @@ const REPORT_ONLY = process.argv.includes('--report')
  * category that matches nothing with a 339,000 B ceiling would have waved through
  * a third of a megabyte in silence — the "gate measuring nothing" failure this repo
  * keeps paying for.
+ *
+ * ⚠️ CHANGED 2026-09-24 BY THE OWNER'S DECISION, FOR ONE COMPONENT. The website's menu bar
+ * went onto the 3D viewer (owner decision 2026-09-17, "Same menu bars everywhere"); its
+ * shared stylesheet, packages/ui/src/notch.css, is 1,759 B gzip on its own. Measured
+ * (`--report`, three identical builds):
+ *
+ *     stylesheet     6,681 B  ->  7,578 B     budget 7,000 -> 7,897
+ *
+ * The limit rose by exactly the measured growth (+897 B), so the 319 B of headroom it had
+ * before is unchanged. The old header's rules left page.css in the same change. Script
+ * went 407.4 -> 407.7 KB gzip (the new header's own code, inside its budget); decoder,
+ * wasm and font did not move.
  */
 const BUDGETS = {
   script: { bytes: 474_000, note: 'app chunks + the meshopt decoder every model needs' },
@@ -143,7 +155,7 @@ const BUDGETS = {
     expectEmpty: true,
   },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
-  stylesheet: { bytes: 7_000, note: 'CSS' },
+  stylesheet: { bytes: 7_897, note: 'CSS' },
 }
 
 /**

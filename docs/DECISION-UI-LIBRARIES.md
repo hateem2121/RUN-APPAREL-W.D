@@ -62,6 +62,20 @@ Verified 2026-08-15 against current sources, not from memory:
 - **shadcn/ui switched its own default to `base-ui` in July 2026.**
 - **It is tree-shakeable**, so the bundle budget only pays for imported components.
 
+## The first exception: the phone menu is the browser's own popover (2026-09)
+
+Rule 2 above says popovers come from `base-ui`. The phone menu does not, and the reason is a
+constraint the owner set when asking for it (2026-09-11): **its links must be reachable with
+JavaScript switched off and before the page hydrates.** A `base-ui` Popover is React state, so
+it cannot open before hydration; this repo already deleted one React-state menu for exactly
+that (0 of 2 links reachable with scripting off, measured 2026-09-05). The HTML Popover API —
+`<button popovertarget>` and `popover="auto"` — is declared in the server's HTML and was
+measured opening, closing on Escape and on a tap outside, and navigating with scripting off in
+Chromium, WebKit and Firefox (2026-09-23). It also needs no dependency.
+
+The rule stands for anything whose correctness still lives in script: a dialog that traps
+focus, a select, a combobox.
+
 ## What was rejected, and why
 
 | Option | Why not |

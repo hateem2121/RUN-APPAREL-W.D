@@ -7,11 +7,12 @@ import '@fontsource/instrument-serif/400-italic.css'
 // (apps/cms) renders from the SAME design system rather than a second copy of it.
 // biome.jsonc bans cross-app imports, so a shared workspace is the only way both
 // apps can read one source of truth. ORDER IS LOAD-BEARING — tokens define the
-// custom properties base.css and page.css read; swap these and every var() in the
-// two files below resolves to nothing, which is the exact failure mode
-// tokens.test.ts was written for (a dropped declaration is silent).
+// custom properties base.css, notch.css and page.css read; swap these and every
+// var() in the three files below resolves to nothing, which is the exact failure
+// mode tokens.test.ts was written for (a dropped declaration is silent).
 import '@run-apparel/ui/tokens.css'
 import '@run-apparel/ui/base.css'
+import '@run-apparel/ui/notch.css'
 import './styles/page.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'

@@ -30,7 +30,9 @@
     "The headroom is deliberately small. A first draft of these used 400 KB and",
     "120 KB — 3.5x and 6x the real figures — which would have passed through any",
     "regression short of a catastrophe and told nobody anything. CSS gets the",
-    "loosest ratio because a genuine design change moves it most."
+    "loosest ratio because a genuine design change moves it most.",
+    "",
+    "CHANGED 2026-09-24 BY THE OWNER'S DECISION: the website's menu bar on the viewer. Stylesheet transfer measured 29,664 -> 34,539 B (lhci, three identical runs); budget 30,000 -> 34,875."
   ],
   "ci": {
     "collect": {
@@ -47,7 +49,7 @@
         "categories:best-practices": ["warn", { "minScore": 0.9 }],
         "categories:seo": "off",
         "resource-summary:script:size": ["error", { "maxNumericValue": 1650000 }],
-        "resource-summary:stylesheet:size": ["error", { "maxNumericValue": 30000 }],
+        "resource-summary:stylesheet:size": ["error", { "maxNumericValue": 34875 }],
         "resource-summary:font:size": ["error", { "maxNumericValue": 140000 }]
       }
     },

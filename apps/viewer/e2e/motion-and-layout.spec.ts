@@ -1,4 +1,8 @@
 import { expect, type Page, test } from '@playwright/test'
+import { SITE_MENU_ID, SITE_MENU_NAME } from '../../../packages/shared/src/siteBar'
+
+const MENU = `#${SITE_MENU_ID}`
+const OPEN = `${MENU}:popover-open`
 
 /**
  * The two halves of the motion layer, and the layout invariants that no gate
@@ -545,100 +549,121 @@ test.describe('interaction feedback', () => {
   })
 })
 
-test.describe('the header survives a phone', () => {
+test.describe('the bar survives a phone', () => {
   for (const width of [320, 360, 375, 390, 414]) {
-    test(`controls keep their size and the nav stays on one line at ${width}px`, async ({
+    test(`the whole name, a 44px menu button, and 44px rows when open, at ${width}px`, async ({
       page,
     }) => {
+      /*
+       * The site's bar since 2026-09-24 (owner decision 2026-09-17). The old header's own
+       * history — a theme toggle crushed to 2.0px at 320px by `flex-shrink`, a wrap to 117px
+       * — is why every size here is asserted rather than assumed.
+       */
       await page.setViewportSize({ width, height: 720 })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-
-      /**
-       * `.header` had no flex-wrap and no shrink protection, so a declared width
-       * on a child acted as a MAXIMUM. Measured live 2026-08-14, before the fix:
-       * the theme toggle rendered 2.0px at 320, 21.1px at 360, 27.1px at 375,
-       * 30.7px at 390 and 36.6px at 414 — every one of those under the 44px this
-       * system states twice, and the first two under WCAG 2.5.8's 24x24 floor.
-       *
-       * 360px is called out because it is the commonest Android CSS width, and
-       * because the existing target-size test runs at 375 where the control is
-       * 27px — big enough to clear 24x24 and therefore invisible to that gate.
-       */
-      const toggle = await page.$eval('.theme-toggle', (el) => el.getBoundingClientRect().width)
-      expect(
-        Math.round(toggle),
-        `the theme toggle is ${toggle}px wide at ${width}px — docs/DESIGN.md §4 states 44`,
-      ).toBeGreaterThanOrEqual(44)
-
-      /**
-       * The "Back to Catalogue" button was REMOVED on 2026-09-04 (owner decision:
-       * search traffic must not be handed the catalogue), and with it the two
-       * assertions that used to live here — one counting the label's line-boxes,
-       * one bounding the button's height.
-       *
-       * They are deliberately not replaced with an equivalent on another element.
-       * What they were really protecting is the HEADER'S OWN HEIGHT: a wrapped
-       * label inflated the header from 69px to 81px, and at 320px the whole bar
-       * wrapped to two rows and stood 117px over the garment. That consequence is
-       * already asserted directly, and markup-independently, by "the header token
-       * matches the real header" below — which compares `--header-h` against the
-       * rendered height at every stage-band viewport with 1px of tolerance.
-       *
-       * Re-adding a bespoke per-element bound here would be a second, weaker
-       * measurement of the same thing, and the weaker one is what drifts.
-       */
+      const m = await page.evaluate(() => {
+        const mark = document.querySelector('.notch__wordmark') as HTMLElement
+        const button = document.querySelector('.notch__menu-btn')?.getBoundingClientRect()
+        return {
+          need: mark.scrollWidth,
+          have: mark.clientWidth,
+          markHeight: mark.getBoundingClientRect().height,
+          button: button ? [Math.round(button.width), Math.round(button.height)] : null,
+        }
+      })
+      expect(m.need, `the name is cut at ${width}px`).toBeLessThanOrEqual(m.have)
+      // SZ-03: the old wordmark was a 33px target; the bar's is 44px.
+      expect(m.markHeight, 'the wordmark is under the 44px floor').toBeGreaterThanOrEqual(43.95)
+      expect(m.button).toEqual([44, 44])
+      await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
+      await expect(page.locator(OPEN)).toHaveCount(1)
+      const rows = await page
+        .locator(`${MENU} a, ${MENU} button`)
+        .evaluateAll((elements) =>
+          elements.map((element) => element.getBoundingClientRect().height),
+        )
+      expect(rows, 'the open menu holds Products, Contact and the switch').toHaveLength(3)
+      for (const height of rows) expect(height).toBeGreaterThanOrEqual(43.95)
     })
   }
 
   test('the header offers no catalogue link at any width', async ({ page }) => {
-    // Replaces "shortening the label below 700px does not change its accessible
-    // name", which guarded the two-span responsive label on the catalogue button.
-    // Owner decision 2026-09-04 removed that button; this asserts the REMOVAL
-    // holds in a real browser, at the width where the short form used to appear.
-    // `src/catalogueLinks.test.ts` guards the source; this guards the render.
+    // Owner decision 2026-09-04; `src/catalogueLinks.test.ts` guards the source.
     await page.setViewportSize({ width: 360, height: 720 })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    await expect(page.locator('.header .btn')).toHaveCount(0)
     await expect(page.getByRole('link', { name: /catalogue/i })).toHaveCount(0)
-    // …and the wordmark is a link to the SITE, never to the catalogue. It was a
-    // plain <span> between 2026-09-04 and 2026-09-07; owner decision D5 restored
-    // the link once `wear-run.help` had ordinary pages to send anyone to. The
-    // catalogue assertion above is the one that must not move.
-    await expect(page.locator('a.header__wordmark')).toBeVisible()
-    await expect(page.locator('a.header__wordmark')).toHaveAttribute(
-      'href',
-      'https://wear-run.help',
-    )
+    await expect(page.locator('a.notch__wordmark')).toHaveAttribute('href', 'https://wear-run.help')
   })
 
-  test('the wordmark is a real target and keeps the header 69px tall', async ({ page }) => {
-    // Two things at once, because the second is what makes the first safe.
-    //
-    // ⚠️ THE TARGET-SIZE HALF PASSED BEFORE THE FIX — measured, not assumed. The
-    // link's box is 24.8px tall with no padding at all, i.e. 0.8px over WCAG
-    // 2.5.8's floor, on a number a font produces. The padding takes it to 32.8px;
-    // this assertion pins the FLOOR rather than the padding, and says so instead of
-    // pretending to be a regression test for something it cannot see.
-    //
-    // The header height is the assertion that bites: `--header-h` is subtracted
-    // from the stage band, and that budget has been wrong four times in this file's
-    // history by arithmetic instead of measurement. Making the wordmark taller than
-    // the 44px theme toggle grows the header and fails this.
-    await page.setViewportSize({ width: 375, height: 812 })
+  test('the bar is one 60px row and keeps its height while the page scrolls', async ({ page }) => {
+    // ⚠️ NO SCROLL CONDENSE HERE. The site's fixed bar shrinks 8px over the first 160px of
+    // scroll; in this page's flow that would move the 3D stage under a scrolling thumb.
+    for (const [width, height] of [
+      [390, 844],
+      [1440, 900],
+    ] as const) {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const at = () =>
+        page.evaluate(() =>
+          Math.round(document.querySelector('.notch')?.getBoundingClientRect().height ?? -1),
+        )
+      expect(await at(), `the bar at rest, ${width}px`).toBe(60)
+      await page.evaluate(() => window.scrollTo(0, 400))
+      await page.evaluate(
+        () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+      )
+      expect(await at(), `the bar after scrolling, ${width}px`).toBe(60)
+    }
+  })
+
+  test('widening past the phone layout closes an open menu', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-
-    const measured = await page.evaluate(() => {
-      const wordmark = document.querySelector('.header__wordmark')?.getBoundingClientRect()
-      const header = document.querySelector('.header')?.getBoundingClientRect()
-      return { w: wordmark?.width ?? 0, h: wordmark?.height ?? 0, header: header?.height ?? 0 }
-    })
-
-    expect(measured.h, `the wordmark link is ${measured.h}px tall`).toBeGreaterThanOrEqual(24)
-    expect(measured.header, 'the header grew: --header-h and the stage budget now lie').toBe(69)
+    await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
+    await expect(page.locator(OPEN)).toHaveCount(1)
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await expect(page.locator(OPEN)).toHaveCount(0)
   })
+})
+
+test.describe('the label row (owner decision 2026-09-17)', () => {
+  for (const [width, height] of [
+    [320, 640],
+    [390, 844],
+    [768, 1024],
+    [1440, 900],
+  ] as const) {
+    test(`[ 3D PRODUCT REFERENCE ] on its own line under the bar at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const tag = page.locator('main .viewer-tag .label')
+      await expect(tag).toHaveText('[ 3D PRODUCT REFERENCE ]')
+      await expect(tag).toBeVisible()
+      const m = await page.evaluate(() => {
+        const bar = document.querySelector('.notch')?.getBoundingClientRect()
+        const label = document.querySelector('main .viewer-tag .label')?.getBoundingClientRect()
+        return bar && label
+          ? {
+              below: label.top - bar.bottom,
+              centre: label.left + label.width / 2 - document.documentElement.clientWidth / 2,
+              oneLine: label.height < 30,
+            }
+          : null
+      })
+      if (!m) throw new Error('no bar or no label to measure')
+      expect(m.below, 'the label is not under the bar').toBeGreaterThanOrEqual(0)
+      expect(Math.abs(m.centre), 'the label is not centred on the page').toBeLessThanOrEqual(1)
+      expect(m.oneLine, 'the label wrapped').toBe(true)
+    })
+  }
 })
 
 test.describe('layout invariants', () => {
@@ -708,7 +733,7 @@ test.describe('layout invariants', () => {
       const top = await page.evaluate(() => ({
         scrollY: Math.round(window.scrollY),
         headerBottom: Math.round(
-          document.querySelector('.header')?.getBoundingClientRect().bottom ?? 0,
+          document.querySelector('header.notch-shell')?.getBoundingClientRect().bottom ?? 0,
         ),
         stageTop: Math.round(
           document.querySelector('.stage__canvas')?.getBoundingClientRect().top ?? 0,
@@ -1171,54 +1196,45 @@ test.describe('layout invariants', () => {
   }
 
   /**
-   * The token must equal the thing it describes.
+   * The token must equal the thing it describes — WHERE THE STAGE BAND STARTS.
    *
-   * `--header-h` is subtracted from the stage band's height. If the header
-   * changes and the token does not, the band is wrong by exactly the difference
-   * and the colourway rail slides under the action bar — which is the 2026-08-20
-   * defect this work exists to fix, arriving again by a new route.
+   * `--header-h` is subtracted from the band's height (`calc(100svh - var(--header-h))`).
+   * Until 2026-09-24 the header was the only thing above the band, so this compared the
+   * token with the header's height. Since then the bar (60px) is followed by the label row
+   * (owner decision 2026-09-17), so it compares the token with the band's own top at the top
+   * of the page — the quantity the calculation actually needs, whatever sits above it.
    *
-   * ⚠️ THIS GUARD IS THE WHOLE JUSTIFICATION FOR THE TOKEN. The six-part
-   * subtrahend it helps replace was re-derived by hand four times and was wrong
-   * every time, and the failure was never the arithmetic — it was that nothing
-   * ever compared the result against the page. A number nobody checks drifts, no
-   * matter how carefully it was worked out the first time.
-   *
-   * 1px of tolerance for sub-pixel rounding across four engines, and no more.
+   * ⚠️ THIS GUARD IS THE WHOLE JUSTIFICATION FOR THE TOKEN. The six-part subtrahend it helps
+   * replace was re-derived by hand four times and was wrong every time. 1px of tolerance for
+   * sub-pixel rounding across four engines, and no more.
    */
   for (const { name, width, height } of STAGE_BAND_VIEWPORTS) {
-    test(`the header token matches the real header at ${name} (${width}x${height})`, async ({
+    test(`the header token matches where the stage band starts at ${name} (${width}x${height})`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-
-      const measured = await page.evaluate(() => {
-        const header = document.querySelector('.header')
-        if (!header) return null
-        const token = getComputedStyle(document.documentElement).getPropertyValue('--header-h')
-        return {
-          real: Math.round(header.getBoundingClientRect().height),
-          token: Math.round(Number.parseFloat(token)),
-        }
-      })
-
-      expect(measured, 'no .header on the page').not.toBeNull()
-      const { real, token } = measured as { real: number; token: number }
-
+      // The focus hand-off can scroll; measure after it, at the top (see "the page opens at
+      // the very top").
+      await page.waitForFunction(() => document.activeElement?.id === 'viewer-top')
+      const m = await page.evaluate(() => ({
+        scrollY: Math.round(window.scrollY),
+        bandTop: document.querySelector('.stage-block')?.getBoundingClientRect().top ?? Number.NaN,
+        bar: document.querySelector('.notch')?.getBoundingClientRect().height ?? Number.NaN,
+        token: Number.parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue('--header-h'),
+        ),
+      }))
+      expect(m.scrollY, 'measure at the very top').toBe(0)
+      expect(Number.isFinite(m.token), '--header-h did not resolve (tokens.css)').toBe(true)
       expect(
-        Number.isFinite(token),
-        '--header-h did not resolve to a number. It is declared in tokens.css ' +
-          'with a 320px override in page.css; check both.',
-      ).toBe(true)
-
-      expect(
-        Math.abs(real - token),
-        `--header-h is ${token}px but the header renders ${real}px at ` +
-          `${width}x${height}. Re-measure and update the token in tokens.css, or ` +
-          `its max-width:359px override in page.css. Do not widen this tolerance.`,
+        Math.abs(Math.round(m.bandTop) - Math.round(m.token)),
+        `--header-h is ${m.token}px but the stage band starts at ${m.bandTop}px at ` +
+          `${width}x${height}. Re-measure and update the token in tokens.css. Do not widen this tolerance.`,
       ).toBeLessThanOrEqual(1)
+      // SZ-09's intent: the bar never doubles at the default text size.
+      expect(Math.round(m.bar), 'the bar is not one 60px row').toBe(60)
     })
   }
 
@@ -1363,17 +1379,20 @@ test.describe('layout invariants', () => {
           `poster must not change the band's size`,
       ).toBeLessThanOrEqual(1)
 
-      // Pin the mechanism: the band's floor is the viewport minus the real header,
-      // never the poster. The header is measured fresh, the same way "the header
-      // token matches the real header" does above, rather than trusting the token.
-      const realHeaderHeight = await page.evaluate(
-        () => document.querySelector('.header')?.getBoundingClientRect().height ?? 0,
+      // Pin the mechanism: the band's floor is the viewport minus EVERYTHING above
+      // it (the bar and the label row under it), never the poster. Measured fresh,
+      // the same way "the header token matches where the stage band starts" measures
+      // it above, rather than trusting the token.
+      const aboveBand = await page.evaluate(
+        () =>
+          (document.querySelector('.stage-block')?.getBoundingClientRect().top ?? 0) +
+          window.scrollY,
       )
-      const floor = height - realHeaderHeight
+      const floor = height - aboveBand
       expect(
         withoutPoster?.height ?? 0,
         `the stage band is ${withoutPoster?.height}px against a floor of ${floor}px ` +
-          `(viewport ${height}px minus a ${realHeaderHeight}px header) — ` +
+          `(viewport ${height}px minus the ${aboveBand}px above the band) — ` +
           `.stage-block's min-height is calc(100svh - var(--header-h)); if this is ` +
           `short, that rule stopped governing the band's size`,
       ).toBeGreaterThanOrEqual(floor - 1)
@@ -2595,30 +2614,24 @@ test.describe('the page composes on one grid', () => {
   const EDGE_WIDTHS = [390, 768, 1024, 1280, 1440, 1920] as const
 
   for (const width of EDGE_WIDTHS) {
-    test(`the header starts where the page's content column starts at ${width}px`, async ({
-      page,
-    }) => {
+    test(`the bar is centred on the page at ${width}px`, async ({ page }) => {
+      /*
+       * ⚠️ THIS TEST USED TO PIN THE WORDMARK TO THE CONTENT COLUMN (audit FA-D-08, 2026-09-07):
+       * the old full-bleed header and the 1200px column were two formulas for one edge. The
+       * owner chose the website's bar for the viewer on 2026-09-17 — a pill centred on the
+       * page, as the site's own `e2e/composition.spec.ts` measures it — so the edge it
+       * guarded no longer exists, and centring is the property that replaced it.
+       */
       await page.setViewportSize({ width, height: 900 })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-
-      const edges = await page.evaluate(() => {
-        const x = (sel: string) => {
-          const el = document.querySelector(sel)
-          return el ? Math.round(el.getBoundingClientRect().x * 10) / 10 : null
-        }
-        // `.footer__inner` is the same 1200px centred measure as `.content` and
-        // `.stage__inner`, and it is the one that is present at every width and in
-        // every layout branch — the other two move into the two-column band.
-        return { wordmark: x('.header__wordmark'), footer: x('.footer__inner') }
+      const offset = await page.evaluate(() => {
+        const bar = document.querySelector('.notch')?.getBoundingClientRect()
+        return bar
+          ? bar.left + bar.width / 2 - document.documentElement.clientWidth / 2
+          : Number.NaN
       })
-
-      expect(
-        edges.wordmark,
-        `the wordmark starts at ${edges.wordmark} and the page's own content at ` +
-          `${edges.footer}. Two independent inset formulas — see the third term on ` +
-          `.header's padding in page.css.`,
-      ).toBe(edges.footer)
+      expect(Math.abs(offset), `the bar sits ${offset}px off centre`).toBeLessThanOrEqual(0.5)
     })
   }
 
@@ -2928,7 +2941,7 @@ test.describe('the keyboard starts at the top of the document', () => {
 
     await page.keyboard.press('Tab')
     const second = await page.evaluate(() => document.activeElement?.className ?? '')
-    expect(second).toContain('header__wordmark')
+    expect(second).toContain('notch__wordmark')
   })
 
   test('the skip link still skips: it moves focus into <main>, not just the scroll', async ({

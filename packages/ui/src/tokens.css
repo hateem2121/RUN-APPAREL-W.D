@@ -167,8 +167,14 @@
      by anyone doing arithmetic. The six-part subtrahend this token helps replace
      was re-derived by hand four times and was wrong every time, and the reason
      was never the arithmetic — it was that nothing ever checked the result
-     against reality. */
-  --header-h: 69px;
+     against reality.
+
+     ⚠️ 2026-09-24: THE HEADER BECAME THE WEBSITE'S BAR (60px) AND THE LABEL ROW UNDER
+     IT (owner decision 2026-09-17). The band now starts at 92px — read off the page
+     by the guard, re-pointed that day from "the header's height" to "where the stage band
+     starts", because two things now sit above the band. On the live viewer, measured with
+     the new bar injected at eight viewports, the start moved 69 -> 92px everywhere. */
+  --header-h: 92px;
 
   /* ── Type ───────────────────────────────────────────────────────── */
   /* Sizes were added 2026-08-14 and DOCUMENT what already shipped — the same
@@ -207,8 +213,7 @@
      move no pixel. Named by REGISTER rather than by a t-shirt step, because the
      evens interleave the odds (18·17·16·15·14·13·12·11·10) and a `--text-md`
      between `--text-sm` and `--text-xs` would read as a scale that is not one. */
-  --text-wordmark: 1.125rem; /* 18px — .header__wordmark, wide */
-  --text-wordmark-sm: 1rem; /* 16px — .header__wordmark compact, .footer__brand, the site's .notch__wordmark */
+  --text-wordmark-sm: 1rem; /* 16px — the bar's .notch__wordmark, .footer__brand */
   --text-note: 0.875rem; /* 14px — .stage__error, .notice, .contact__micro */
   --text-mono-lg: 0.75rem; /* 12px — tracked caps one step above --text-mono */
 
@@ -238,7 +243,7 @@
      Added 2026-09-05, documenting 21 shipped values. Three steps carried 15 of
      them (0.1em x7, 0.12em x6, 0.14em x2) and were written as literals every
      time. The wordmark one is the one with a history: docs/DESIGN.md §3 records
-     that `.header__wordmark` and `.footer__brand` "must agree with each other,
+     that `.notch__wordmark` and `.footer__brand` "must agree with each other,
      which they did not until 2026-08-14" — a token is what stops that recurring.
 
      ⚠️ `--tracking-mono` is 0.11em and is NOT a rounding error to be folded into
@@ -288,7 +293,7 @@
      learn the stack was to grep two stylesheets. docs/DESIGN.md §4 carries the
      same table in reading order. */
   --z-stage-control: 1; /* .stage__ar — inside the stage, above the canvas */
-  --z-header: 40; /* the sticky header; the site's .notch-shell shares it */
+  --z-header: 40; /* the bar; both hosts' .notch-shell share it since 2026-09-24 */
   --z-action-bar: 50;
   --z-grain: 60; /* the full-page grain overlay */
   --z-cursor: 70; /* .cursor-ring — pointer devices only */

@@ -6,7 +6,8 @@
   "description": "The RUN APPAREL design system — semantic tokens and the shared component layer, consumed by both the viewer and the public site",
   "exports": {
     "./tokens.css": "./src/tokens.css",
-    "./base.css": "./src/base.css"
+    "./base.css": "./src/base.css",
+    "./notch.css": "./src/notch.css"
   },
   "files": [
     "src"

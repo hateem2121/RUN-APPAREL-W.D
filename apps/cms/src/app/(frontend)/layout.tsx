@@ -26,11 +26,12 @@
  */
 import '@fontsource-variable/archivo/wdth.css'
 import '@fontsource/instrument-serif/400-italic.css'
-// ORDER IS LOAD-BEARING — tokens define the custom properties the two files below
-// read. The same three-import cascade apps/viewer uses, from the same package, so the
+// ORDER IS LOAD-BEARING — tokens define the custom properties the files below
+// read. The same four-import cascade apps/viewer uses, from the same package, so the
 // public site and the 3D reference cannot drift apart visually.
 import '@run-apparel/ui/tokens.css'
 import '@run-apparel/ui/base.css'
+import '@run-apparel/ui/notch.css'
 import './site.css'
 
 import type { Metadata, Viewport } from 'next'
@@ -40,6 +41,7 @@ import { Cursor } from '../../components/site/Cursor'
 import { JsonLd } from '../../components/site/JsonLd'
 import { SiteFooter } from '../../components/site/SiteFooter'
 import { SiteHeader } from '../../components/site/SiteHeader'
+import { ThemeBoot } from '../../components/site/ThemeBoot'
 import { getSiteSettings } from '../../lib/content'
 import { robotsFor, searchVisibility } from '../../lib/searchVisibility'
 import { SITE_ORIGIN } from '../../lib/seo'
@@ -129,9 +131,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function FrontendLayout({ children }: { children: React.ReactNode }) {
   const settings = await getSiteSettings()
+  // suppressHydrationWarning: ThemeBoot sets data-theme on <html> before React hydrates it.
+  // It silences that one element; its children are still checked.
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
+        <ThemeBoot />
         {/* Site-wide, so every page carries the company identity a crawler or an AI
             reader resolves the rest of the page against. The other blocks reference
             this node by @id rather than redescribing the company. */}
