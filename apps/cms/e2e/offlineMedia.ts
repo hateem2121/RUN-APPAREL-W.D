@@ -15,7 +15,7 @@
  * `n001-wine-poster.webp` key, so `page.goto('/products')` timed out at 30s. CI stayed
  * green only because a runner's request to that same missing key happened to fail fast
  * instead of hanging — the suite was never actually independent of that host's mood.
- * See ~/.claude/projects/…/memory/cms-e2e-products-hangs-on-prod-media.md for the trace.
+ * The measurements are in issue #41.
  *
  * This fixture fulfils every request to that host locally, before it ever reaches the
  * network, so a stall, a slow edge or an outright outage on media.wear-run.help cannot
@@ -47,6 +47,11 @@ const IMAGE_CONTENT_TYPES: Record<string, string> = {
   '.avif': 'image/avif',
 }
 
+// Checked BEFORE the reads below, so a missing folder fails with this message rather than a bare ENOENT.
+if (!existsSync(FIXTURES)) {
+  throw new Error(`[cms-e2e] offlineMedia fixtures missing at ${FIXTURES}`)
+}
+
 // Real, decodable 2x2 images (not hand-rolled bytes) so a page that actually paints the
 // poster — rather than just reading its `src` — has something real to paint.
 const FIXTURE_BODIES: Record<string, Buffer> = {
@@ -57,10 +62,6 @@ const FIXTURE_BODIES: Record<string, Buffer> = {
 // content sniffing/Content-Type, not by trusting the URL's extension, so this is a
 // faithful stand-in without needing one real file per format.
 const FALLBACK_IMAGE_BODY = FIXTURE_BODIES['.png']
-
-if (!existsSync(FIXTURES)) {
-  throw new Error(`[cms-e2e] offlineMedia fixtures missing at ${FIXTURES}`)
-}
 
 async function fulfilOffline(route: Route) {
   const url = new URL(route.request().url())
