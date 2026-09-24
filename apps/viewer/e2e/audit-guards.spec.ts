@@ -1282,6 +1282,15 @@ test.describe('every colour swatch keeps a 3:1 ring against its tab (CO-12)', ()
  * without it, an engine that silently ignores the emulation would pass this test for
  * measuring nothing, exactly the "harness reports clean while measuring nothing" shape
  * this repo has hit before (root CLAUDE.md).
+ *
+ * ⚠️ MEASURED IN CI, 2026-09-24: `viewer-firefox` (headless Firefox has no WebGL context
+ * on this runner — `camera-settle.spec.ts`, `viewer.spec.ts` and `motion-and-layout.spec.ts`
+ * all document the same gap) failed on "no active camera button to measure", both
+ * attempts, not a fluke — `<StageControls>` is gated on `!fallback` in Stage.tsx, which
+ * `canRender3D()`'s real WebGL check drives, so no wait makes the row appear there. The
+ * colourway tab and swatch do not depend on WebGL and are checked as hard requirements
+ * regardless; only the camera-button half is skipped, with the measured evidence, the
+ * same `.stage__error:not([hidden])` signal `camera-settle.spec.ts` already uses.
  */
 test.describe('forced-colors substitutes real colour, on the viewer too (CO-09)', () => {
   test('the selected colourway tab and the active camera button keep a visible outline', async ({
@@ -1291,6 +1300,8 @@ test.describe('forced-colors substitutes real colour, on the viewer too (CO-09)'
     await page.emulateMedia({ forcedColors: 'active' })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const fallback = await page.locator('.stage__error:not([hidden])').count()
 
     const active = await page.evaluate(() => window.matchMedia('(forced-colors: active)').matches)
     test.skip(!active, `${browserName} does not emulate forced-colors`)
@@ -1338,10 +1349,9 @@ test.describe('forced-colors substitutes real colour, on the viewer too (CO-09)'
     )
     expect(measured.control.background).not.toBe('rgb(4, 5, 6)')
 
+    // Neither depends on WebGL, so both are hard requirements regardless of engine.
     expect(measured.foundTab, 'no selected colourway tab to measure').toBe(true)
-    expect(measured.foundBtn, 'no active camera button to measure').toBe(true)
     expect(measured.foundSwatch, 'no colourway swatch to measure').toBe(true)
-
     // page.css:2382 — 3px solid Highlight, offset -3px, on the two states colour alone
     // would otherwise mark.
     expect(
@@ -1349,13 +1359,21 @@ test.describe('forced-colors substitutes real colour, on the viewer too (CO-09)'
       'the selected colourway tab lost its outline under high contrast',
     ).toEqual(['3px', 'solid'])
     expect(
-      measured.btnOutline,
-      'the active camera button lost its outline under high contrast',
-    ).toEqual(['3px', 'solid'])
-    expect(
       measured.swatchAdjust,
       'the swatch is being recoloured by the browser instead of keeping its own paint',
     ).toBe('none')
+
+    test.skip(
+      fallback > 0,
+      `${browserName}: no WebGL here, the stage is in poster fallback — <StageControls> ` +
+        'never mounts, so there is no camera button to measure',
+    )
+
+    expect(measured.foundBtn, 'no active camera button to measure').toBe(true)
+    expect(
+      measured.btnOutline,
+      'the active camera button lost its outline under high contrast',
+    ).toEqual(['3px', 'solid'])
   })
 })
 
