@@ -12,7 +12,8 @@ import {
   CUE_SWEEP_DEGREES,
   offsetOrbitAzimuth,
 } from '../lib/interactionCue'
-import { fetchWithProgress } from '../lib/fetchWithProgress'
+import { downloadWithRetries, MAX_ATTEMPTS } from '../lib/downloadWithRetries'
+import { DownloadStalledError } from '../lib/fetchWithProgress'
 import { describeLoad, showsIndeterminateSweep, smoothRate } from '../lib/loadProgress'
 import { adaptivePanSensitivity, PAN_SENS_OUT, shouldWritePan } from '../lib/adaptive-pan'
 import { CAMERA_DECAY_MS } from '../lib/motion'
@@ -113,6 +114,19 @@ const VARIANT_NOTICE =
   'The color name, fabric and specifications on this page are for the colorway you selected.'
 const LOAD_NOTICE =
   'The 3D view is not available. ' +
+  'The colors, fabric and specifications on this page are correct, ' +
+  'and you can still send an inquiry below.'
+/**
+ * A download that answered and then stopped sending, three times running (issue #41). The owner chose the button
+ * label; the rest follows NN/g's error-message guidelines and LOAD_NOTICE's own shape: what happened, what to do,
+ * and what on the page is still true.
+ *
+ * ⚠️ IT DOES NOT BLAME THE VISITOR'S CONNECTION, ON PURPOSE. The stall this was written for (2026-09-24) was
+ * Cloudflare's Islamabad edge failing to fetch fresh copies during its Asia-Pacific incident — every visitor there
+ * saw it, on every connection. "Your connection may be slow" would have been false for all of them.
+ */
+const STALL_NOTICE =
+  'The 3D model stopped downloading. Press TRY 3D AGAIN, or come back later. ' +
   'The colors, fabric and specifications on this page are correct, ' +
   'and you can still send an inquiry below.'
 
@@ -316,6 +330,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   const fallback = isPoster(phase)
   const modelLoaded = isLive(phase)
   const swapping = isSwapping(phase)
+  const stalled = phase.kind === 'poster' && phase.reason === 'stalled'
   const [notice, setNotice] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<CameraView | null>('front')
   /**
@@ -377,6 +392,11 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   const [bytesLoaded, setBytesLoaded] = useState(0)
   const [bytesTotal, setBytesTotal] = useState(0)
   const [rate, setRate] = useState<number | null>(null)
+  // Which try the download is on, from 1. Above 1 the readout says "TRYING AGAIN (N OF 3)" — issue #41.
+  const [downloadAttempt, setDownloadAttempt] = useState(1)
+  // "STOPPED · TRYING AGAIN" only until the retry's first byte. Once bytes flow again the ordinary readout and
+  // its percentages take over: a moving bar under the word STOPPED would contradict itself.
+  const retryWaiting = downloadAttempt > 1 && bytesLoaded === 0
   /**
    * What <model-viewer> is actually given: a `blob:` URL once we have fetched the
    * file ourselves, or the plain URL if that failed.
@@ -914,9 +934,9 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
     let lastLoaded = 0
     downloadStartedAtRef.current = lastAt
 
-    fetchWithProgress(
-      glbUrl,
-      ({ loaded, total }) => {
+    downloadWithRetries(glbUrl, {
+      signal: controller.signal,
+      onProgress: ({ loaded, total }) => {
         if (cancelled) return
         setBytesLoaded(loaded)
         setBytesTotal(total)
@@ -932,15 +952,46 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
           lastLoaded = loaded
         }
       },
-      controller.signal,
-    )
+      onAttempt: (attempt) => {
+        if (cancelled) return
+        setDownloadAttempt(attempt)
+        if (attempt === 1) return
+        // A retry starts from byte 0, so the readout must too — otherwise it would
+        // hold the dead attempt's count, and the rate would be computed across the
+        // 12 s of silence and promise a countdown nobody could meet.
+        setBytesLoaded(0)
+        setBytesTotal(0)
+        setRate(null)
+        smoothed = null
+        lastAt = performance.now()
+        lastLoaded = 0
+      },
+      onStall: (attempt, bytes) => {
+        // Every stall, not only the last: a stall that a retry cured is the early
+        // warning, and on 2026-09-24 no signal of any kind reached us before a
+        // person noticed the garments were stuck.
+        diagnostic('model-download-stalled', {
+          product: product.productCode,
+          attempt: String(attempt),
+          bytes: String(bytes),
+        })
+      },
+    })
       .then((blob) => {
         if (cancelled) return
         objectUrl = URL.createObjectURL(blob)
         setResolvedSrc(objectUrl)
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (cancelled) return
+        // ⚠️ NOT the plain-URL fallback below. <model-viewer> would fetch the same
+        // file over the same route and stall the same way, with no readout at all —
+        // the exact screen this replaces. The visitor gets STALL_NOTICE and
+        // TRY 3D AGAIN instead.
+        if (error instanceof DownloadStalledError) {
+          dispatchPhase({ type: 'load-failed', reason: 'stalled' })
+          return
+        }
         diagnostic('model-prefetch-failed', {
           product: product.productCode,
           reason: 'falling back to direct model-viewer fetch',
@@ -1427,6 +1478,13 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
                 />
               </span>
               {load.detail && <span className="stage__loading-detail">{load.detail}</span>}
+              {/* Issue #41. The count is the point: "trying again" with no end in
+                  sight reads as the same stuck screen it replaces. */}
+              {retryWaiting && load.phase === 'downloading' && (
+                <span className="stage__loading-detail">
+                  {`DOWNLOAD STOPPED · TRYING AGAIN (${downloadAttempt} OF ${MAX_ATTEMPTS})`}
+                </span>
+              )}
             </div>
           )}
 
@@ -1436,13 +1494,36 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               classic silent case, and iOS VoiceOver — the browser a QR scan
               opens — is the least forgiving about it. `hidden` keeps it out of
               the layout and off screen while empty, without unmounting it. */}
-          <p
-            className="stage__error"
-            role="status"
-            hidden={!(notice ?? (fallback ? LOAD_NOTICE : null))}
-          >
-            {notice ?? (fallback ? LOAD_NOTICE : '')}
-          </p>
+          {/* The note and TRY 3D AGAIN stack in ONE positioned box, so the button can
+              never overlap a note that wraps to four lines on a 328px phone stage. */}
+          <div className="stage__failure">
+            <p
+              className="stage__error"
+              role="status"
+              hidden={!(notice ?? (fallback ? (stalled ? STALL_NOTICE : LOAD_NOTICE) : null))}
+            >
+              {notice ?? (fallback ? (stalled ? STALL_NOTICE : LOAD_NOTICE) : '')}
+            </p>
+            {/*
+            TRY 3D AGAIN — issue #41, the owner's label. Only after a stall: every
+            other failure is a device that cannot do 3D, where the button would be a
+            promise the page cannot keep. It starts three fresh tries. Focus is left
+            where it is: moving it would scroll the page (see `focus()` in
+            apps/viewer/CLAUDE.md) and announce nothing the status line above has not.
+          */}
+            {stalled && (
+              <button
+                type="button"
+                className="stage__retry"
+                onClick={() => {
+                  setDownloadAttempt(1)
+                  dispatchPhase({ type: 'retry' })
+                }}
+              >
+                TRY 3D AGAIN
+              </button>
+            )}
+          </div>
         </div>
 
         {/*
@@ -1487,9 +1568,11 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
           {loading
             ? load.phase === 'preparing'
               ? 'Download complete. Preparing the interactive 3D model.'
-              : announcedPercent === null
-                ? 'Loading the interactive 3D model.'
-                : `Loading the interactive 3D model, ${announcedPercent} percent.`
+              : retryWaiting
+                ? `The download stopped. Trying again, ${downloadAttempt} of ${MAX_ATTEMPTS}.`
+                : announcedPercent === null
+                  ? 'Loading the interactive 3D model.'
+                  : `Loading the interactive 3D model, ${announcedPercent} percent.`
             : modelLoaded
               ? `Showing ${product.productName} in ${selected.displayName}.`
               : ''}

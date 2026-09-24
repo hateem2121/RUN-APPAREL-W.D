@@ -171,7 +171,9 @@ describe('a download that stops sending (issue #41)', () => {
   it('rejects with DownloadStalledError once stallMs passes with no bytes', async () => {
     vi.useFakeTimers()
     silentAfterHeaders()
-    const p = fetchWithProgress('https://media.example/x.glb', () => {}, undefined, { stallMs: 12_000 })
+    const p = fetchWithProgress('https://media.example/x.glb', () => {}, undefined, {
+      stallMs: 12_000,
+    })
     const settled = expect(p).rejects.toBeInstanceOf(DownloadStalledError)
     await vi.advanceTimersByTimeAsync(12_000)
     await settled
@@ -217,7 +219,9 @@ describe('a download that stops sending (issue #41)', () => {
         }),
       })),
     )
-    const p = fetchWithProgress('https://media.example/x.glb', () => {}, undefined, { stallMs: 12_000 })
+    const p = fetchWithProgress('https://media.example/x.glb', () => {}, undefined, {
+      stallMs: 12_000,
+    })
     await vi.advanceTimersByTimeAsync(11_000 * 8)
     await expect(p).resolves.toBeInstanceOf(Blob)
   })
@@ -228,7 +232,9 @@ describe('a download that stops sending (issue #41)', () => {
     vi.useFakeTimers()
     silentAfterHeaders()
     const ac = new AbortController()
-    const p = fetchWithProgress('https://media.example/x.glb', () => {}, ac.signal, { stallMs: 12_000 })
+    const p = fetchWithProgress('https://media.example/x.glb', () => {}, ac.signal, {
+      stallMs: 12_000,
+    })
     ac.abort()
     await expect(p).rejects.not.toBeInstanceOf(DownloadStalledError)
   })
@@ -246,7 +252,9 @@ describe('a download that stops sending (issue #41)', () => {
           ),
       ),
     )
-    const p = fetchWithProgress('https://media.example/x.glb', () => {}, undefined, { stallMs: 12_000 })
+    const p = fetchWithProgress('https://media.example/x.glb', () => {}, undefined, {
+      stallMs: 12_000,
+    })
     const settled = expect(p).rejects.toBeInstanceOf(DownloadStalledError)
     await vi.advanceTimersByTimeAsync(12_000)
     await settled

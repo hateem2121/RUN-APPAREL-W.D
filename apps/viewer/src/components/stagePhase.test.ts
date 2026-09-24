@@ -77,13 +77,18 @@ describe('stagePhase', () => {
  */
 describe('retry', () => {
   it('leaves a stalled poster for loading', () => {
-    expect(stagePhase({ kind: 'poster', reason: 'stalled' }, { type: 'retry' })).toEqual({ kind: 'loading' })
+    expect(stagePhase({ kind: 'poster', reason: 'stalled' }, { type: 'retry' })).toEqual({
+      kind: 'loading',
+    })
   })
 
   it.each(['no-model', 'no-webgl', 'module-failed', 'context-lost', 'load-failed'] as const)(
     'cannot resurrect a %s poster',
     (reason) => {
-      expect(stagePhase({ kind: 'poster', reason }, { type: 'retry' })).toEqual({ kind: 'poster', reason })
+      expect(stagePhase({ kind: 'poster', reason }, { type: 'retry' })).toEqual({
+        kind: 'poster',
+        reason,
+      })
     },
   )
 
