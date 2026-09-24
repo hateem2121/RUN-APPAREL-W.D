@@ -7,7 +7,7 @@
  * swept by hand with a one-off script that was never committed, confirmed absent from
  * this repo: no durable version of it, or of
  * any contact-sheet sweep, exists anywhere in the repo-root `scripts/` or either app's
- * own `scripts/` directory). This is that missing durable version.
+ * own `scripts/` directory. This is that missing durable version.
  *
  * WHAT THIS DOES NOT DO. It does not judge composition, spacing or hierarchy — that
  * stays a human looking at the pictures, the same way the original audit worked. This

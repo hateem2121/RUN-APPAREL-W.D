@@ -6,8 +6,8 @@
  * WHY THIS EXISTS. The home page's density (DS-11), about 370 words and one picture over
  * 8.8 phone screens, was computed once, by hand. This recomputes it — a
  * REPORTING script, not a pass/fail gate, because no threshold has been set by the owner.
- * It feeds the Area-18 home-page density decision and proves nothing on its own about
- * whether the density is good.
+ * It feeds the home-page density decision and proves nothing on its own about whether the
+ * density is good.
  *
  * WHY IN `apps/cms/scripts/`, NOT THE REPO-ROOT `scripts/`. This needs a real rendered
  * page — word count and image count are cheap from static HTML, but "how many phone
@@ -20,10 +20,12 @@
  *
  * WHY PRODUCTION, NOT THE LOCAL FIXTURE. This is a reporting tool for a real editorial
  * decision, so it reports on the page the owner would actually see. Read-only: every
- * request is a plain navigation (a GET), and Playwright-driven Chromium sets
- * `navigator.webdriver = true` per the W3C spec — this repo's own telemetry already
- * no-ops on that flag (`apps/viewer/src/lib/telemetry.ts:142`), so this cannot record a
- * fake real-visitor sample. Pass `--base-url` to point it at a local server instead.
+ * request is a plain navigation (a GET). Playwright-driven Chromium sets
+ * `navigator.webdriver = true` per the W3C spec, which the VIEWER's own telemetry
+ * no-ops on (`apps/viewer/src/lib/telemetry.ts:142`) — but the pages this script loads
+ * are the SITE's, which embed Cloudflare's beacon (`Analytics.tsx:49`) instead, and how
+ * that beacon treats automation is not measured here. Pass `--base-url` to point it at a
+ * local server instead.
  *
  * Usage:
  *   node apps/cms/scripts/content-density-report.mjs [--base-url https://wear-run.help]
@@ -72,7 +74,7 @@ async function main() {
     console.log(`[content-density-report] ${BASE_URL}, phone viewport 390x${PHONE_HEIGHT}`)
     console.log(
       '[content-density-report] REPORTING ONLY — no threshold is set; this feeds the ' +
-        'Area-18 home-page density decision and proves nothing about whether it is good.',
+        'home-page density decision and proves nothing about whether it is good.',
     )
     for (const path of PAGES) {
       const m = await measurePage(page, path)
