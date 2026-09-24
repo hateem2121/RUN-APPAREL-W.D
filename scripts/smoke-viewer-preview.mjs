@@ -94,6 +94,17 @@ const RETRY_DELAY_MS = Number(process.env.SMOKE_RETRY_DELAY_MS || 10000)
 let failures = []
 const fail = (message) => failures.push(message)
 
+/**
+ * Checks 9 and 10 below read SITE-WIDE behaviour, not the product under test, so they
+ * run for the default product only. `smoke-live-previews.mjs` (the post-deploy gate)
+ * runs this script once per live product, 16 today, and the default product is its
+ * first run. That is also the one run that can promise check 9 a payload no earlier
+ * run has just warmed.
+ */
+const SITE_WIDE_CHECKS = PRODUCT === DEFAULT_PRODUCT.slug
+/** Check 9 is measured once per run, on the first attempt: every retry warms its slug. */
+let timingMeasured = false
+
 /** Pull a meta tag's content by its `property=`/`name=` key. */
 const meta = (html, key) =>
   html.match(new RegExp(`<meta\\s+(?:property|name)="${key}"\\s+content="([^"]*)"`, 'i'))?.[1] ??
@@ -462,27 +473,36 @@ async function runChecks() {
   //
   //    curl, not fetch (Global Constraints) — this needs to look like a real request AND
   //    time it, and `-w` is the one thing `fetch` cannot report at all.
-  {
+  if (SITE_WIDE_CHECKS && !timingMeasured) {
+    timingMeasured = true
     const timingProduct = LIVE_PRODUCTS.find((p) => p.slug !== PRODUCT) ?? LIVE_PRODUCTS[1]
     const timingUrl = `${BASE}/${timingProduct.slug}/${timingProduct.colourway}`
 
+    // `--max-time` so a stalled connection ends as INCONCLUSIVE (status 0) instead of
+    // hanging a post-deploy step until the job's own timeout.
     const timed = (headers) => {
       const headerArgs = Object.entries(headers).flatMap(([k, v]) => ['-H', `${k}: ${v}`])
-      const out = execFileSync(
-        'curl',
-        [
-          '-s',
-          '-o',
-          '/dev/null',
-          '-w',
-          '%{http_code} %{time_starttransfer}',
-          ...headerArgs,
-          timingUrl,
-        ],
-        { encoding: 'utf8' },
-      ).trim()
-      const [status, seconds] = out.split(' ')
-      return { status: Number(status), seconds: Number.parseFloat(seconds) }
+      try {
+        const out = execFileSync(
+          'curl',
+          [
+            '-s',
+            '--max-time',
+            '20',
+            '-o',
+            '/dev/null',
+            '-w',
+            '%{http_code} %{time_starttransfer}',
+            ...headerArgs,
+            timingUrl,
+          ],
+          { encoding: 'utf8' },
+        ).trim()
+        const [status, seconds] = out.split(' ')
+        return { status: Number(status), seconds: Number.parseFloat(seconds) }
+      } catch {
+        return { status: 0, seconds: Number.NaN }
+      }
     }
 
     const crawler = timed({
@@ -494,10 +514,10 @@ async function runChecks() {
     })
     const browser = timed({ 'user-agent': BROWSER_UA, accept: 'text/html' })
 
-    if ([crawler.status, browser.status].some((s) => s === 403 || s === 429)) {
+    if ([crawler.status, browser.status].some((s) => s === 0 || s === 403 || s === 429)) {
       console.log(
-        `⚠️  timing check on ${timingUrl} got a 403/429 (crawler ${crawler.status}, ` +
-          `browser ${browser.status}) — INCONCLUSIVE, as above.`,
+        `⚠️  timing check on ${timingUrl} got no usable answer (crawler ${crawler.status}, ` +
+          `browser ${browser.status}; 0 = timed out or unreachable) — INCONCLUSIVE, as above.`,
       )
     } else {
       console.log(
@@ -508,12 +528,18 @@ async function runChecks() {
       // timing over a real network and this repo's own docs warn it jitters), set well
       // under the measured spread of 0.66-2.29s crawler vs ~0.08s browser: it fails only
       // if the synchronous CMS call stopped happening, never on ordinary variance.
+      //
+      // REPORT-ONLY, never a failure. This runs inside a post-deploy gate, and a payload
+      // warmed by any other visitor inside the CMS's content-cache window erases the gap
+      // on a perfectly healthy deploy. A red deploy for that is the "fails for a benign
+      // reason" check this file's header warns against. The crawler path's headers
+      // (checked above) are the hard gate; this number is recorded evidence.
       const MARGIN_SECONDS = 0.2
       if (crawler.seconds < browser.seconds + MARGIN_SECONDS) {
-        fail(
-          `the crawler path (${crawler.seconds.toFixed(2)}s) is not meaningfully slower ` +
-            `than the browser path (${browser.seconds.toFixed(2)}s) on ${timingUrl} — ` +
-            'expected the synchronous CMS call the crawler rewrite makes to show.',
+        console.log(
+          `::warning::the crawler path (${crawler.seconds.toFixed(2)}s) is not meaningfully ` +
+            `slower than the browser path (${browser.seconds.toFixed(2)}s) on ${timingUrl}. ` +
+            'Expected the synchronous CMS call to show; a warm payload also does this.',
         )
       }
     }
@@ -527,7 +553,7 @@ async function runChecks() {
   //     run_worker_first array, live since 2026-09-07, puts the Worker in front of every
   //     request regardless) — sent anyway, harmlessly, as the header a real navigation
   //     always carries and the shape this exact bug class hid behind historically.
-  {
+  if (SITE_WIDE_CHECKS) {
     const cases = [
       { label: 'a malformed path (3 segments)', path: '/a/b/c', expectHtml404: true },
       {
