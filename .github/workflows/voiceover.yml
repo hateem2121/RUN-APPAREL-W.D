@@ -1,0 +1,265 @@
+name: VoiceOver (macOS)
+
+# THE LAST PHASE 0.2 DEVICE-LAB ROBOT. The 100/100 plan's device lab asked for a macOS
+# VoiceOver robot alongside the Android Chrome emulator (`.github/workflows/android-chrome.yml`)
+# and the iPhone Safari driver. `docs/OWNER-CHECKLIST.md`'s own "Not covered" table says so
+# in as many words: "Nobody has listened to these pages with VoiceOver or NVDA." This closes
+# that gap for VoiceOver — `scripts/voiceover.mjs` drives real VoiceOver, through Guidepup,
+# over a real Playwright-controlled WebKit window.
+#
+# ⚠️ WHY macos-26 AND NOT A NEWER IMAGE. `@guidepup/guidepup` 0.34.0's manifest supports
+# Darwin majors 21-25 (macOS Monterey through Tahoe) only — verified two independent ways
+# (guidepup/guidepup#149, opened 2026-09-15, and PR #150's own error-message fix, both
+# 2026-09-20) — and does NOT reach Darwin 26/27. `actions/runner-images`' own
+# `macos-26-Readme.md` (fetched 2026-09-23) reports that image as macOS 26.6.1, Darwin
+# 25.6.0 — squarely inside the supported range. The newer `xcode-27` preview image runs
+# macOS 27 as of 2026-09-10 (GitHub Changelog) and would hit the IDENTICAL
+# "no manifest asset for this platform" error this Mac's own macOS 27 does today. A fix
+# (guidepup/guidepup#151) is drafted but unmerged as of 2026-09-23 — do not "upgrade" this
+# runner to chase it.
+#
+# WHY workflow_dispatch AND pull_request, UNLIKE android-chrome.yml's dispatch-only. That
+# workflow deliberately has no automatic trigger because wiring a device-lab robot into a
+# cadence is a Phase 2 decision the plan had not made yet. This one is different on purpose:
+# its own files are what it protects, and re-testing itself the moment they change — never
+# at any other time, via `paths:` below — is the permanent design, not a placeholder. There
+# is no temporary trigger here at any point: the owner merges any PR, drafts included, the
+# moment its checks are green, so every commit this workflow's own history carries must be
+# safe to merge exactly as it stands.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/voiceover.yml'
+      - 'scripts/voiceover.mjs'
+      - 'scripts/voiceover.d.mts'
+      - 'apps/cms/src/voiceOver.test.ts'
+
+# Least privilege, stated explicitly — same reasoning as ci.yml's own block, and
+# android-chrome.yml's. This job reads the checkout, builds and serves the viewer locally,
+# and drives a local browser; it never calls the GitHub API and never writes anywhere, so
+# `contents: read` is enough. A `permissions:` block REPLACES the default grants rather
+# than adding to them (root CLAUDE.md, uptime.yml's 23-hour outage) — this workflow does
+# nothing that needs more.
+permissions:
+  contents: read
+
+concurrency:
+  group: voiceover-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  voiceover:
+    runs-on: macos-26
+    # A macOS runner is slower to provision than Linux, and VoiceOver automation is itself
+    # timing-sensitive (guidepup/guidepup#82's verbosity noise; the vendor's own examples
+    # favour long Playwright timeouts). 30 minutes is generous headroom over what a healthy
+    # run needs while still failing loudly rather than running to the 6-hour platform
+    # default if something hangs — the same reasoning ci.yml's own timeout-minutes comment
+    # records, and the same number of minutes android-chrome.yml budgets for its own,
+    # differently-shaped, slow first step (an emulator cold boot).
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # Installed for the run only, into $RUNNER_TEMP — the same isolation
+      # android-chrome.yml's own "Install the browser-install CLI" step uses for
+      # @puppeteer/browsers. This repo's pnpm-lock.yaml and every package.json stay
+      # untouched: scripts/voiceover.mjs never imports @guidepup/guidepup or playwright at
+      # module load time, only inside main() via an absolute-path dynamic import (see that
+      # file's own header for why — NODE_PATH does not reach an ESM import, measured on
+      # this repo's own dev machine before relying on it here).
+      #
+      # Supply-chain audit, per root CLAUDE.md's substitution for the 24h cooldown
+      # (b90ba70's Payload audit): npm bulk advisory API / GitHub Advisory Database,
+      # publisher is GitHub Actions OIDC rather than a personal token, signed provenance
+      # attestation present, no install script, and an unchanged dependency list. All
+      # five legs, checked against the npm registry 2026-09-23, and the advisory leg
+      # re-checked live against both `registry.npmjs.org/-/npm/v1/security/advisories/bulk`
+      # and `api.osv.dev/v1/query`:
+      #   @guidepup/guidepup@0.34.0 — published 2026-08-31 (23 days old). SLSA v1
+      #     provenance attestation present; publisher is GitHub Actions OIDC (trustedPublisher
+      #     id "github"), not a personal token; no "install"/"postinstall" script. Zero
+      #     advisories from either the npm bulk endpoint or OSV.dev. Depends on exactly two
+      #     packages, both small and well-known: debug@^4.4.3, plist@^4.0.0.
+      #   playwright@1.63.0 — published 2026-09-04 (19 days old), the registry's "latest"
+      #     dist-tag. Same provenance shape (SLSA v1, GitHub Actions OIDC publisher); no
+      #     install/postinstall script — browser binaries are fetched by the explicit
+      #     `playwright install` step below, never automatically. Zero advisories from
+      #     either source. Depends on exactly one package: playwright-core, pinned to the
+      #     identical 1.63.0 version (no version drift between the two).
+      #   @guidepup/setup@0.25.3 — published 2026-09-08 (15 days old). Same provenance
+      #     shape; zero advisories from either source. No install/postinstall/preinstall
+      #     script in its OWN package.json — checked against the downloaded tarball
+      #     directly, not only the registry's summary of it. Depends on five small,
+      #     well-known packages: chalk@^4.0.0, semver@^7.5.4, undici@^8.7.0,
+      #     unzipper@^0.12.5, commander@^15.0.0 — plus, transitively (@guidepup/record,
+      #     for the `--macos-record` option this workflow does not use), ffmpeg-static,
+      #     which DOES carry its own install script. None of the three packages this run
+      #     invokes needs a script — Playwright's own browser binaries come from the
+      #     explicit `cli.js install webkit` step below, not from npm — so `--ignore-scripts`
+      #     is passed, verified locally first (a fresh install with the flag: every CLI's
+      #     own `--help`/`--version` still loads and exits 0, and no ffmpeg binary is
+      #     written to disk — `ffmpeg-static`'s `install.js` never runs to fetch one).
+      #     Prepares the OS-level environment and downloads the VoiceOver driver assets —
+      #     see the next two steps.
+      - name: Install Guidepup for this run only
+        run: |
+          npm install --no-save --no-audit --no-fund --ignore-scripts \
+            --prefix "${RUNNER_TEMP}/guidepup-deps" \
+            @guidepup/guidepup@0.34.0 @guidepup/setup@0.25.3 playwright@1.63.0
+
+      # Enables VoiceOver to be scripted and pre-approves the calling process for
+      # Accessibility, on a headless runner with no human to click "Allow".
+      #
+      # ⚠️ NOT `guidepup/setup-action`. That Action VENDORS its own copy of
+      # `@guidepup/setup` inside its `node_modules`, committed to its repo rather than
+      # installed at run time — read directly at the pinned SHA:
+      #   node_modules/@guidepup/setup/package.json -> "version": "0.23.0"
+      # That version's `lib/index.js` (also read directly) calls `setup()` on darwin
+      # UNCONDITIONALLY — no subcommand parsing at all, so the Action's own step DOES
+      # correctly configure the OS ("Environment setup complete" in this workflow's own
+      # first PR run, 2026-09-23). What it does NOT have is an `install` command — that
+      # subcommand, and the sha256-pinned VoiceOver preference download it performs, were
+      # added later (confirmed present in the guidepup/setup repo at tag 0.24.0, absent at
+      # 0.23.0). So the very next step in that same run still failed with `Failed to mount
+      # Guidepup preferences` / "Please ensure you have run: `npx @guidepup/setup install`".
+      #
+      # The two calls below run `@guidepup/setup@0.25.3` directly instead — simply the
+      # latest release (2026-09-08) of the line that has had `install` since 0.24.0.
+      # Compatibility with the installed `@guidepup/guidepup@0.34.0` is not a version match
+      # (0.34.0 does not depend on @guidepup/setup at all) but a manifest-schema one:
+      # `install`'s own `resolve-manifest.js` accepts `SUPPORTED_SCHEMA_VERSIONS = [1]`, and
+      # 0.34.0's own `manifest.json` declares `"version": 1` — both confirmed by reading the
+      # installed files directly. `setup` here, `install` later (once the fixture is up,
+      # right before the check that needs it) — the same two-call shape
+      # `@guidepup/guidepup-playwright`'s own CI uses and is proven against. Run directly
+      # against the CLI's own bin file, not through `npx`, matching this workflow's
+      # own "Install the WebKit browser" step below and the same reasoning
+      # `android-chrome.yml`'s "Install the browser-install CLI" step records for the
+      # identical choice.
+      #
+      # ⚠️ RETRIED AS A WHOLE, because the runner sometimes refuses the Apple Events this
+      # step needs. MEASURED 2026-09-23: run 35882226231 failed here, before the robot ever
+      # started, with `Failed to enable "Do not disturb" mode`, caused by osascript's "Not
+      # authorized to send Apple events to System Events". The same step, unchanged, had
+      # passed on the run before it (35880390762). The tool's own retry is 5 × 500 ms
+      # (`enableDoNotDisturb.js` in @guidepup/setup 0.25.3), too short for a permission grant
+      # that has not reached the asking process yet, so this waits 15 s between whole
+      # attempts. The step only writes preferences and permission entries, so repeating it
+      # is safe. A third failure is real and fails the job.
+      - name: Prepare the OS for VoiceOver automation
+        run: |
+          for attempt in 1 2 3; do
+            if node "${RUNNER_TEMP}/guidepup-deps/node_modules/@guidepup/setup/bin/guidepup" setup --ci; then
+              exit 0
+            fi
+            echo "::warning::VoiceOver OS setup failed on attempt ${attempt} of 3"
+            [ "${attempt}" -lt 3 ] && sleep 15
+          done
+          echo "::error::VoiceOver OS setup failed on all 3 attempts"
+          exit 1
+
+      - run: pnpm install --frozen-lockfile
+
+      # Unlike android-chrome.yml's check (a page-wide font rule that needs no seeded
+      # product), this one targets a real product route (/n001/wine) and reads its heading
+      # and colourway tabs — the same route and the same two assertions
+      # `apps/viewer/e2e/a11y.spec.ts` already exercises, which itself depends on
+      # `pnpm seed:assets` having run (see `apps/viewer/e2e/prepare.mjs`). Skipping it would
+      # leave the model 404ing and put a needless error state in front of VoiceOver on every
+      # run, which is exactly the kind of avoidable noise this workflow exists to avoid
+      # reporting as though it were a real finding.
+      - run: pnpm seed:assets
+
+      # VITE_API_BASE_URL='' is required, not optional: apps/viewer/src/lib/api.ts defaults
+      # to the PRODUCTION API otherwise (apps/viewer/CLAUDE.md, "Driving the built app by
+      # hand needs VITE_API_BASE_URL=''"), and this robot must never reach a wear-run.help
+      # host — a live page write real visit rows into the owner's analytics, and would 404
+      # in any case (the n001 fixture slug is not the live product; the live one is rxps).
+      - name: Build the viewer against the local fixture API
+        run: pnpm --filter @run-apparel/viewer build
+        env:
+          VITE_API_BASE_URL: ''
+
+      # Same fixture server, same polling pattern, as android-chrome.yml's own "Start the
+      # viewer fixture server" step — backgrounded and polled rather than slept for,
+      # matching this repo's "poll a readiness endpoint, never sleep a fixed guess"
+      # convention (ios-safari.mjs's startDriver).
+      #
+      # Started at serve.mjs's own default address, 127.0.0.1:4173 (the fixture's).
+      - name: Start the viewer fixture server
+        run: |
+          node apps/viewer/e2e/serve.mjs &
+          echo $! > "${RUNNER_TEMP}/serve.pid"
+          for _ in $(seq 1 40); do
+            curl -sf http://127.0.0.1:4173/ > /dev/null && exit 0
+            sleep 0.25
+          done
+          echo "::error::viewer fixture server did not answer on its default port within 10s"
+          exit 1
+
+      # `npx`'s bin-name resolution for a package installed to a custom --prefix was
+      # MEASURED unreliable for a scoped package on this repo's own android-chrome.yml
+      # build — see that workflow's "Install the browser-install CLI" step, which records
+      # `npx @puppeteer/browsers@3.2.2 install` failing with "sh: browsers: command not
+      # found" (exit 127). Invoking the installed CLI's own entry file directly with
+      # `node` sidesteps npx entirely, the same fix that step applies.
+      # playwright's own package.json declares `"bin": { "playwright": "cli.js" }`.
+      #
+      # Only webkit: Guidepup's own documented example pairs VoiceOver specifically with
+      # WebKit (`devices["Desktop Safari"]` + the webkit engine, guidepup-playwright's
+      # README, "VoiceOver example" — NVDA is paired with Firefox instead), and
+      # `scripts/voiceover.mjs`'s WEBKIT_APPLICATION_NAME depends on Playwright's WebKit
+      # build specifically identifying itself as the macOS app named "Playwright".
+      - name: Install the WebKit browser Playwright will drive
+        run: node "${RUNNER_TEMP}/guidepup-deps/node_modules/playwright/cli.js" install webkit
+
+      # Downloads the VoiceOver driver asset `voiceOver.start()` needs. The previous step
+      # configures the OS; it does not fetch this — "setup" and "install" are different
+      # commands (see that step's own comment for why the Action this replaced could not
+      # do the second). Run late, right before the check that needs it, matching
+      # guidepup-playwright's own CI ordering (its `install` call is the last setup step
+      # before running tests).
+      #
+      # `working-directory` is load-bearing, not tidiness: read directly from the
+      # installed 0.25.3 package
+      # (node_modules/@guidepup/setup/lib/commands/install/resolve-manifest.js),
+      # `install` finds WHICH manifest.json to read via
+      # `require.resolve("@guidepup/guidepup/package.json", { paths: [process.cwd()] })` —
+      # so it must run from the directory @guidepup/guidepup was installed into, or it
+      # cannot find the manifest naming the asset and the sha256 to verify it against.
+      # Confirmed against the manifest itself (same install): the darwin/25 (macos-26)
+      # VoiceOver asset is `guidepup-voiceover-preferences-macos-26.dmg`,
+      # sha256 c46e353d4f2d4a717d3362211de638ee55fcb58dbec9cf9abd0170c35d41b225.
+      #
+      # "voiceover" named explicitly rather than a bare `install`: the manifest marks it
+      # `defaultDownload: true` for darwin, so a bare call would also resolve to it, but
+      # naming it is unambiguous and does not depend on that flag staying true.
+      - name: Install the VoiceOver driver assets
+        working-directory: ${{ runner.temp }}/guidepup-deps
+        run: node node_modules/@guidepup/setup/bin/guidepup install voiceover
+
+      # The real check. GUIDEPUP_DEPS_DIR points scripts/voiceover.mjs at the temp install
+      # above; the target is the fixture product from apps/viewer/e2e/serve.mjs, matching
+      # what apps/viewer/e2e/a11y.spec.ts already exercises with axe. Every PASS/FAIL line
+      # this prints carries VOICEOVER_HONESTY_LABEL, and the full spoken-phrase/item-text
+      # log for the run is printed after it — read this log, not just the PASS/FAIL lines,
+      # to see the words VoiceOver actually produced on this run.
+      - name: Run the VoiceOver robot against the fixture product page
+        run: node scripts/voiceover.mjs http://127.0.0.1:4173/n001/wine
+        env:
+          GUIDEPUP_DEPS_DIR: ${{ runner.temp }}/guidepup-deps
+
+      - name: Stop the fixture server
+        if: always()
+        run: kill "$(cat "${RUNNER_TEMP}/serve.pid")" 2>/dev/null || true

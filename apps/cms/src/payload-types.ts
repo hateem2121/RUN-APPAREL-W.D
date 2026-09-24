@@ -211,11 +211,13 @@ export interface User {
   enableAPIKey?: boolean | null;
   apiKey?: string | null;
   apiKeyIndex?: string | null;
+  hasAPIKey?: boolean | null;
   email: string;
   resetPasswordToken?: string | null;
   resetPasswordExpiration?: string | null;
   salt?: string | null;
   hash?: string | null;
+  resetPasswordRequestedAt?: string | null;
   loginAttempts?: number | null;
   lockUntil?: string | null;
   sessions?:
@@ -256,6 +258,7 @@ export interface Media {
    * Write why this file is acceptable despite the warning — e.g. “this garment has no printed artwork”. Any text here lets it publish, and it stays on the record.
    */
   artworkOverrideReason?: string | null;
+  _objectKey?: string | null;
   folder?: (number | null) | FolderInterface;
   updatedAt: string;
   createdAt: string;
@@ -327,6 +330,7 @@ export interface RawUpload {
    * The pipeline report: final size, the colour variants found in the file, and any warnings. Read this before publishing.
    */
   report?: string | null;
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -723,11 +727,13 @@ export interface UsersSelect<T extends boolean = true> {
   enableAPIKey?: T;
   apiKey?: T;
   apiKeyIndex?: T;
+  hasAPIKey?: T;
   email?: T;
   resetPasswordToken?: T;
   resetPasswordExpiration?: T;
   salt?: T;
   hash?: T;
+  resetPasswordRequestedAt?: T;
   loginAttempts?: T;
   lockUntil?: T;
   sessions?:
@@ -748,6 +754,7 @@ export interface MediaSelect<T extends boolean = true> {
   sizeWarning?: T;
   artworkVerdict?: T;
   artworkOverrideReason?: T;
+  _objectKey?: T;
   folder?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -772,6 +779,7 @@ export interface RawUploadsSelect<T extends boolean = true> {
   retry?: T;
   resultGlb?: T;
   report?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
