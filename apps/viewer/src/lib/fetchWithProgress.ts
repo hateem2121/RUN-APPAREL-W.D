@@ -6,25 +6,6 @@ export interface FetchProgress {
 }
 
 /**
- * Fetch a URL while counting the bytes as they arrive.
- *
- * This exists because `<model-viewer>` will not tell us. Its `progress` event
- * carries `{ totalProgress, reason }` and nothing else: inside
- * `CachingGLTFLoader` the real `event.loaded / event.total` is collapsed to a
- * ratio on one line and thrown away, and the number that does surface blends the
- * GLB with the environment HDR, so it is not even about the garment alone.
- * Verified against @google/model-viewer 4.3.1.
- *
- * `media.wear-run.help` makes this workable: it sends `content-length`
- * (28,271,780 for N001), sends no `content-encoding` so that figure is the real
- * transfer size, and allows the viewer origin to read it.
- *
- * ⚠️ The caller MUST treat a rejection as "use the plain URL instead", never as
- * an error to show. Every failure mode here — offline, CORS, a 5xx, an aborted
- * navigation — is one where handing the URL straight to `<model-viewer>` still
- * works, because that is exactly what shipped before this function existed.
- */
-/**
  * The download answered, then stopped sending bytes for `stallMs`.
  *
  * ⚠️ A DIFFERENT KIND OF FAILURE FROM EVERY OTHER ONE HERE, and the caller must NOT treat it like them. Every
@@ -44,6 +25,27 @@ export class DownloadStalledError extends Error {
   }
 }
 
+/**
+ * Fetch a URL while counting the bytes as they arrive.
+ *
+ * This exists because `<model-viewer>` will not tell us. Its `progress` event
+ * carries `{ totalProgress, reason }` and nothing else: inside
+ * `CachingGLTFLoader` the real `event.loaded / event.total` is collapsed to a
+ * ratio on one line and thrown away, and the number that does surface blends the
+ * GLB with the environment HDR, so it is not even about the garment alone.
+ * Verified against @google/model-viewer 4.3.1.
+ *
+ * `media.wear-run.help` makes this workable: it sends `content-length`
+ * (28,271,780 for N001), sends no `content-encoding` so that figure is the real
+ * transfer size, and allows the viewer origin to read it.
+ *
+ * ⚠️ The caller MUST treat a rejection as "use the plain URL instead", never as
+ * an error to show. Every failure mode here — offline, CORS, a 5xx, an aborted
+ * navigation — is one where handing the URL straight to `<model-viewer>` still
+ * works, because that is exactly what shipped before this function existed.
+ * The ONE exception is `DownloadStalledError` (above), and only when the caller
+ * passes `stallMs`.
+ */
 export async function fetchWithProgress(
   url: string,
   onProgress: (progress: FetchProgress) => void,
@@ -58,7 +60,12 @@ export async function fetchWithProgress(
    *
    * A NO-PROGRESS WINDOW, NOT A DEADLINE. The timer restarts on every chunk, so a phone on a poor connection that
    * takes 90 s and keeps moving is never cut off; only silence is. A total timeout cannot tell those two apart. It
-   * is armed before `fetch` too, because "no headers either" is the same silence one step earlier.
+   * is armed before `fetch` (no headers either is the same silence one step earlier) and again when the headers
+   * arrive, so a slow connection setup does not eat into the body's window.
+   *
+   * ⚠️ PAUSED WHILE THE PAGE IS HIDDEN. A visitor who scans the QR code and flips to WhatsApp for 15 s leaves a
+   * backgrounded tab whose reads are deferred; on return the overdue timer could fire before the chunks that
+   * arrived meanwhile are read, throwing away a healthy download. Silence we cannot observe is not a stall.
    *
    * The caller's own abort (a colourway change, an unmount) is forwarded and stays an abort: `stalled` is set
    * only by the timer, so a deliberate cancel is never retried as though the network had failed.
@@ -69,18 +76,24 @@ export async function fetchWithProgress(
   let loaded = 0
   let stalled = false
   let timer: ReturnType<typeof setTimeout> | undefined
+  const hidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden'
   const arm = () => {
     if (!options.stallMs) return
     clearTimeout(timer)
+    if (hidden()) return
     timer = setTimeout(() => {
       stalled = true
       internal.abort()
     }, options.stallMs)
   }
+  const onVisibility = () => (hidden() ? clearTimeout(timer) : arm())
+  if (options.stallMs && typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', onVisibility)
+  }
 
   try {
     arm()
-    return await readCounted(url, internal.signal, onProgress, (bytes) => {
+    return await readCounted(url, internal.signal, onProgress, arm, (bytes) => {
       loaded = bytes
       arm()
     })
@@ -89,6 +102,8 @@ export async function fetchWithProgress(
     throw error
   } finally {
     clearTimeout(timer)
+    if (typeof document !== 'undefined')
+      document.removeEventListener('visibilitychange', onVisibility)
   }
 }
 
@@ -96,9 +111,11 @@ async function readCounted(
   url: string,
   signal: AbortSignal,
   onProgress: (progress: FetchProgress) => void,
+  onHeaders: () => void,
   onChunk: (loaded: number) => void,
 ): Promise<Blob> {
   const response = await fetch(url, { signal })
+  onHeaders()
   if (!response.ok) {
     throw new Error(`fetchWithProgress: ${url} responded ${response.status}`)
   }

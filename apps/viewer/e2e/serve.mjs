@@ -370,6 +370,9 @@ const server = http.createServer((req, res) => {
   //   /fixtures/stall/<key>/<n>/<file>
   // Request n+1 for a key falls through to the real file below, which is what lets TRY 3D AGAIN be shown to
   // recover. The held response is released when the browser aborts it (the viewer's retry does exactly that).
+  // The FIRST request sends the file's first 64 KB before going silent, so the suite also covers a stall AFTER
+  // bytes arrived — the case where the readout must reset to 0 for "TRYING AGAIN" to show. Later ones send nothing:
+  // a prefix on every retry would satisfy "bytes arrived" and hide the retry line a moment after it appeared.
   const stallMatch = url.pathname.match(/^\/fixtures\/stall\/([\w-]+)\/(\d+)\/(.+)$/)
   if (stallMatch) {
     const [, key, n, rest] = stallMatch
@@ -378,6 +381,10 @@ const server = http.createServer((req, res) => {
     if (seen <= Number(n)) {
       res.writeHead(200, { 'content-type': 'model/gltf-binary' })
       res.flushHeaders()
+      if (seen === 1) {
+        const file = path.join(ASSETS, rest)
+        if (existsSync(file)) res.write(readFileSync(file).subarray(0, 64 * 1024))
+      }
       return
     }
     url.pathname = `/fixtures/${rest}`

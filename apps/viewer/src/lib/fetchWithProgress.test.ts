@@ -239,6 +239,37 @@ describe('a download that stops sending (issue #41)', () => {
     await expect(p).rejects.not.toBeInstanceOf(DownloadStalledError)
   })
 
+  it('does not count time while the page is hidden, and resumes when it is visible again', async () => {
+    // A QR visitor who flips to WhatsApp: a hidden tab's reads are deferred, so silence we cannot observe must not
+    // be called a stall. Both directions in one test — hidden for 60 s settles nothing, visible again stalls 12 s
+    // later — so a watchdog that simply never fired would fail the second half.
+    vi.useFakeTimers()
+    silentAfterHeaders()
+    let state: DocumentVisibilityState = 'hidden'
+    const spy = vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => state)
+    try {
+      let settled: unknown = null
+      fetchWithProgress('https://media.example/x.glb', () => {}, undefined, {
+        stallMs: 12_000,
+      }).then(
+        () => {
+          settled = 'resolved'
+        },
+        (error) => {
+          settled = error
+        },
+      )
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(settled).toBeNull()
+      state = 'visible'
+      document.dispatchEvent(new Event('visibilitychange'))
+      await vi.advanceTimersByTimeAsync(12_000)
+      expect(settled).toBeInstanceOf(DownloadStalledError)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
   it('stalls before the headers arrive, too', async () => {
     vi.useFakeTimers()
     vi.stubGlobal(

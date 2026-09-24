@@ -315,6 +315,8 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
   const displayed = displayedColourway(separateMode, preview, selected)
 
   const mvRef = useRef<ModelViewerEl | null>(null)
+  // Where keyboard focus goes when TRY 3D AGAIN unmounts itself on press (issue #41).
+  const canvasRef = useRef<HTMLDivElement | null>(null)
   /** Last `panSensitivity` written. See PAN_SENS_STEP — one gesture fires ~165 events. */
   const panSensRef = useRef<number | null>(null)
   const [libReady, setLibReady] = useState(false)
@@ -970,10 +972,12 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
         // Every stall, not only the last: a stall that a retry cured is the early
         // warning, and on 2026-09-24 no signal of any kind reached us before a
         // person noticed the garments were stuck.
+        // In `reason`, because telemetry.ts forwards only kind/product/variant and one
+        // message field — separate `attempt`/`bytes` keys were silently dropped, and
+        // "a retry cured it" could not be told apart from "gave up".
         diagnostic('model-download-stalled', {
           product: product.productCode,
-          attempt: String(attempt),
-          bytes: String(bytes),
+          reason: `attempt ${attempt} of ${MAX_ATTEMPTS}, ${bytes} bytes`,
         })
       },
     })
@@ -1175,7 +1179,7 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
       aria-label={fallback ? 'Product reference' : 'Interactive 3D product reference'}
     >
       <div className="stage__inner">
-        <div className="stage__canvas" data-lenis-prevent>
+        <div className="stage__canvas" data-lenis-prevent ref={canvasRef}>
           <svg
             className="stage__contours"
             aria-hidden="true"
@@ -1507,9 +1511,13 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
             {/*
             TRY 3D AGAIN — issue #41, the owner's label. Only after a stall: every
             other failure is a device that cannot do 3D, where the button would be a
-            promise the page cannot keep. It starts three fresh tries. Focus is left
-            where it is: moving it would scroll the page (see `focus()` in
-            apps/viewer/CLAUDE.md) and announce nothing the status line above has not.
+            promise the page cannot keep. It starts three fresh tries.
+
+            ⚠️ FOCUS: the press unmounts the button, which would drop a keyboard
+            visitor's focus to <body>. It goes to the stage instead — where the model
+            is about to appear — with `preventScroll`, because a `focus()` call is a
+            scroll call (apps/viewer/CLAUDE.md). The stage is made focusable only for
+            that moment (tabindex -1, removed on blur), so it never joins the tab order.
           */}
             {stalled && (
               <button
@@ -1518,6 +1526,13 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
                 onClick={() => {
                   setDownloadAttempt(1)
                   dispatchPhase({ type: 'retry' })
+                  const canvas = canvasRef.current
+                  if (!canvas) return
+                  canvas.tabIndex = -1
+                  canvas.focus({ preventScroll: true })
+                  canvas.addEventListener('blur', () => canvas.removeAttribute('tabindex'), {
+                    once: true,
+                  })
                 }}
               >
                 TRY 3D AGAIN

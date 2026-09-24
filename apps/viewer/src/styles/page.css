@@ -995,13 +995,20 @@ model-viewer.stage__model {
  * `border-radius` instead of drawing a square around a rounded box, which the
  * host (radius 0) could not do even unclipped.
  *
- * `.stage__canvas` holds exactly one focusable thing, the model-viewer; the
- * camera buttons live in `.stage__plinth`, outside it. So `:focus-within` here
- * cannot be triggered by anything else.
+ * `.stage__canvas` holds the model-viewer and, since then, two buttons of its own:
+ * the AR button and TRY 3D AGAIN (issue #41). The camera buttons live in
+ * `.stage__plinth`, outside it. A focused retry button already draws its own ring,
+ * so the canvas does not draw a second one around it.
  */
-.stage__canvas:focus-within {
+.stage__canvas:focus-within:not(:has(.stage__retry:focus)) {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+/* The canvas itself takes focus only when TRY 3D AGAIN hands it over. After a mouse
+   press that is not a keyboard visit, so no ring (the keyboard case keeps it). */
+.stage__canvas:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /*

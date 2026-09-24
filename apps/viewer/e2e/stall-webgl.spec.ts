@@ -7,7 +7,7 @@ import { expect, test } from '@playwright/test'
  * 0 body bytes. Before this, the stage read "LOADING 3D MODEL · 0.0 MB" for as long as the tab stayed open.
  *
  * `e2e/serve.mjs`'s stall route reproduces that exact shape — headers, then silence — for the first three requests
- * under a key, then serves the real file. The API response is rewritten here to point the model at a key unique to
+ * under a key (the first after 64 KB, the others after nothing), then serves the real file. The API response is rewritten here to point the model at a key unique to
  * this run, so parallel runs never share a counter.
  *
  * `page.clock` skips the three 12 s silences instead of waiting 36 s. It is resumed before TRY 3D AGAIN, so the
@@ -34,7 +34,10 @@ test('a download that stops sending retries, then offers TRY 3D AGAIN, which loa
   await page.goto('/n001/wine')
   await firstRequest
 
-  // The first silence: no retry line before it, then try 2 of 3.
+  // The first attempt stalls AFTER 64 KB (the fixture sends that much, then nothing), so the readout has moved
+  // off zero. That is what makes the next assertion mean something: "TRYING AGAIN" shows only once the retry has
+  // reset the count to 0, and a stale 0.1 MB would keep it hidden.
+  await expect(page.locator('.stage__loading-detail').first()).toHaveText('0.1 MB')
   const retryLine = page.locator('.stage__loading-detail', { hasText: 'DOWNLOAD STOPPED' })
   await expect(retryLine).toHaveCount(0)
   await page.clock.fastForward(12_500)
