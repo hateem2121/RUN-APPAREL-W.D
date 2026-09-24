@@ -738,6 +738,42 @@ test.describe('the custom cursor mounts as documented (FA-Q-03)', () => {
     // state above wearing the right class.
     expect(measured.dot?.hidden, 'the dot is mounted but hidden').not.toBe('true')
   })
+
+  /**
+   * MO-06 — the third leg. The mount test above SKIPS on a coarse pointer rather
+   * than asserting anything, and the automation-refusal test below only proves
+   * the webdriver leg in isolation. Neither exercises `polish/index.ts:72`'s
+   * `isCoarsePointer()` check with the OTHER two conditions satisfied (human,
+   * motion allowed) — which is exactly the gap a planted fault removing that one
+   * `||` clause would slip through undetected.
+   */
+  test('a coarse pointer refuses the cursor even as a human with motion allowed', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, 'this project is not a coarse-pointer device')
+
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.addInitScript(asAHuman)
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    // Same "the layer actually ran" proof the automation test uses, so an absent
+    // cursor cannot be mistaken for a page that never executed the polish layer.
+    await expect
+      .poll(() => page.locator('[data-reveal].is-inview').count(), {
+        message: 'the polish layer never ran, so the absence of a cursor proves nothing',
+        timeout: 10_000,
+      })
+      .toBeGreaterThan(0)
+
+    const state = await page.evaluate(() => ({
+      dot: document.querySelectorAll('.cursor-dot').length,
+      classed: document.documentElement.classList.contains('has-custom-cursor'),
+    }))
+    expect(state.dot, 'a cursor dot mounted on a coarse pointer').toBe(0)
+    expect(state.classed, 'has-custom-cursor was applied on a coarse pointer').toBe(false)
+  })
 })
 
 /* ══ FA-H-17 — rapid colourway switching settles correctly ══════════════════ */
@@ -1266,6 +1302,262 @@ test.describe('every colour swatch keeps a 3:1 ring against its tab (CO-12)', ()
           'Unselected rings use --line-control and the selected one currentColor; see ' +
           '.colourway-tab__swatch in apps/viewer/src/styles/page.css.',
       ).toEqual([])
+    })
+  }
+})
+
+/**
+ * AC-08 — the colourway rail is a real tablist, and the two ARIA states arrive
+ * together. `ColourwayTabs.tsx:130-158` already implements the arrow-key roving
+ * tabindex (Right/Left/Up/Down/Home/End) — unit-proven in `ColourwayTabs.test.tsx`
+ * ("moves focus with Right/Left and wraps at both ends" and its four siblings);
+ * PROVE ONLY there, not rebuilt as an e2e test. This is the one new e2e assertion:
+ * `role="tablist"` and `aria-selected` must both be present, not just one — a tab
+ * with `role="tab"` but no `aria-selected` anywhere would be valid-looking ARIA
+ * that tells a screen reader nothing about which colourway is active.
+ */
+test.describe('the colourway rail is a real tablist with a selected state (AC-08)', () => {
+  test('role="tablist"/"tab" and aria-selected are both present together', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const structure = await page.evaluate(() => {
+      const tablist = document.querySelector('[role="tablist"]')
+      const tabs = [...document.querySelectorAll('[role="tab"]')]
+      return {
+        hasTablist: Boolean(tablist),
+        tabCount: tabs.length,
+        withAriaSelected: tabs.filter((t) => t.hasAttribute('aria-selected')).length,
+      }
+    })
+    expect(structure.hasTablist, 'no [role="tablist"] on the page').toBe(true)
+    expect(structure.tabCount, 'no [role="tab"] elements on the page').toBeGreaterThan(0)
+    expect(
+      structure.withAriaSelected,
+      'a tab role exists without aria-selected — the tablist role alone tells a ' +
+        'screen reader nothing about which colourway is active',
+    ).toBe(structure.tabCount)
+  })
+})
+
+/**
+ * AC-16 — the selected colourway tab is never colour-only: `aria-selected="true"`
+ * carries the state for assistive technology, AND the same tab inverts its fill
+ * (`ColourwayTabs.tsx:256-263` — the selected tab's background moves to
+ * `--btn-primary-bg`, a 13-14:1 luminance swing, not a hue change alone). This is
+ * a REDUNDANCY check (both signals agree), separate from CO-12's ring-contrast
+ * grade above.
+ */
+test.describe('the selected colourway tab is never colour-only (AC-16)', () => {
+  test('aria-selected agrees with a real fill inversion, on exactly one tab', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const tabs = await page.evaluate(() =>
+      [...document.querySelectorAll('.colourway-tab')].map((el) => ({
+        selected: el.getAttribute('aria-selected') === 'true',
+        background: getComputedStyle(el).backgroundColor,
+      })),
+    )
+    expect(tabs.length, 'no colourway tabs found').toBeGreaterThan(1)
+
+    const selectedTabs = tabs.filter((t) => t.selected)
+    expect(selectedTabs, 'exactly one tab should carry aria-selected="true"').toHaveLength(1)
+
+    const selectedBg = selectedTabs[0].background
+    const unselectedBgs = new Set(tabs.filter((t) => !t.selected).map((t) => t.background))
+    expect(
+      unselectedBgs.has(selectedBg),
+      `the selected tab's background (${selectedBg}) does not differ from an unselected ` +
+        `tab's — aria-selected would be the ONLY signal of which colourway is active`,
+    ).toBe(false)
+  })
+})
+
+/**
+ * MO-14 — FRONT/BACK/SIDE each move the camera and settle. The drag-release half of
+ * MO-14 is already proven in `camera-settle.spec.ts` -> "a released drag comes to rest,
+ * and the tail is measured" — PROVE ONLY there, not rebuilt here. This is the missing
+ * half: no existing test presses a camera preset button at all.
+ *
+ * ⚠️ READS `getCameraOrbit()`, NEVER THE PROPERTY OR ATTRIBUTE. Per
+ * `apps/viewer/CLAUDE.md`'s camera-move trap: only the live method call reflects where
+ * the camera actually IS while a damper or transition is still running.
+ */
+test.describe('FRONT/BACK/SIDE each move the camera and settle (MO-14)', () => {
+  test('each preset changes the orbit and stabilises within the settle budget', async ({
+    page,
+    browserName,
+  }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const fallback = await page.locator('.stage__error:not([hidden])').count()
+    test.skip(
+      fallback > 0,
+      `${browserName}: no WebGL here, the stage is in poster fallback — no camera buttons to press`,
+    )
+
+    await page.waitForFunction(
+      () => {
+        const mv = document.querySelector('model-viewer') as (Element & { loaded?: boolean }) | null
+        return Boolean(mv?.loaded)
+      },
+      undefined,
+      { timeout: 40000 },
+    )
+
+    const readOrbit = () =>
+      page.evaluate(() => {
+        const mv = document.querySelector('model-viewer') as Element & {
+          getCameraOrbit?: () => { theta: number; phi: number; radius: number }
+        }
+        return mv.getCameraOrbit?.() ?? null
+      })
+
+    const settle = async () => {
+      // Poll until two consecutive reads match — same shape as camera-settle.spec.ts's
+      // "six consecutive frames" rule, loosened to two since this budget is generous
+      // (a preset jump, not a flung drag with momentum).
+      let previous = await readOrbit()
+      for (let i = 0; i < 60; i++) {
+        await page.waitForTimeout(50)
+        const current = await readOrbit()
+        if (
+          previous &&
+          current &&
+          Math.abs(current.theta - previous.theta) < 0.0001 &&
+          Math.abs(current.phi - previous.phi) < 0.0001
+        ) {
+          return current
+        }
+        previous = current
+      }
+      throw new Error('camera never settled within 3s')
+    }
+
+    for (const view of ['front', 'back', 'side'] as const) {
+      const before = await readOrbit()
+      await page.getByRole('button', { name: new RegExp(`^${view}$`, 'i') }).click()
+      const after = await settle()
+      expect(after, `${view}: getCameraOrbit() returned null after settling`).not.toBeNull()
+      if (before && after) {
+        const delta = Math.abs(after.theta - before.theta) + Math.abs(after.phi - before.phi)
+        // FRONT while already on FRONT is a legitimate no-op; only assert movement when
+        // the preset is not the one already active (first iteration is 'front' from
+        // load, so this correctly allows that single case to move zero).
+        if (view !== 'front') {
+          expect(delta, `${view}: the camera orbit did not change at all`).toBeGreaterThan(0.001)
+        }
+      }
+      await expect(
+        page.getByRole('button', { name: new RegExp(`^${view}$`, 'i') }),
+      ).toHaveAttribute('aria-pressed', 'true')
+    }
+  })
+})
+
+/**
+ * AC-14 — an arrow key rotates the garment. There is no app-level keyboard handler for
+ * this (confirmed by reading Stage.tsx: no `ArrowLeft`/`ArrowRight` case anywhere) — it
+ * is `<model-viewer camera-controls="">`'s OWN built-in keyboard support, reachable once
+ * the element has focus. So the mechanism under test, and the planted fault below, is
+ * that attribute, not an app key handler.
+ *
+ * ⚠️ ADAPTED FROM THE PLAN'S "12 deep-pass product pages": this e2e fixture serves only
+ * n001 (5 colourways) and n002 (no GLB, so no camera at all) — there is no 12-page set
+ * reachable in CI. This sweeps all 5 of n001's colourways, the full set this harness can
+ * reach, rather than inventing pages that do not exist here. r-xmp's single unresolved
+ * press (SPEC-100 §4.4) is a live-site page not in this fixture either way, so it was
+ * never reachable from CI regardless of this adaptation.
+ *
+ * ⚠️ `page.keyboard.press` dispatches TRUSTED input (via CDP), unlike
+ * `dispatchEvent(new KeyboardEvent(...))` — the same trusted-input requirement
+ * `apps/viewer/CLAUDE.md` documents for pointer/wheel gestures applies to keyboard too.
+ */
+test.describe('an arrow key rotates the garment, on every colourway this fixture serves (AC-14)', () => {
+  for (const slug of ['wine', 'blush', 'butter', 'lime', 'black']) {
+    test(`${slug}: ArrowLeft moves the camera`, async ({ page, browserName }) => {
+      await page.goto(`/n001/${slug}`)
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const fallback = await page.locator('.stage__error:not([hidden])').count()
+      test.skip(
+        fallback > 0,
+        `${browserName}: no WebGL here, the stage is in poster fallback — no camera to rotate`,
+      )
+
+      await page.waitForFunction(
+        () => {
+          const mv = document.querySelector('model-viewer') as
+            | (Element & { loaded?: boolean })
+            | null
+          return Boolean(mv?.loaded)
+        },
+        undefined,
+        { timeout: 40000 },
+      )
+
+      const readOrbit = () =>
+        page.evaluate(() => {
+          const mv = document.querySelector('model-viewer') as Element & {
+            getCameraOrbit?: () => { theta: number; phi: number; radius: number }
+          }
+          return mv.getCameraOrbit?.() ?? null
+        })
+
+      /*
+       * ⚠️ `.focus()` ON THE HOST ELEMENT DOES NOT WORK, MEASURED WHILE WRITING THIS
+       * TEST. `<model-viewer>` carries no `tabindex` attribute and its shadow root is
+       * not `delegatesFocus`, so a plain `.focus()` call is a silent no-op —
+       * `document.activeElement` stays wherever it already was. A real trusted CLICK on
+       * the canvas is what model-viewer's own pointer handler uses to focus itself
+       * (confirmed: `document.activeElement === modelViewerElement` only after a
+       * `page.mouse.click`, never after `.focus()`), which is also the one path that
+       * matches how a visitor would actually reach this — nobody reaches a 3D stage by
+       * Tab alone today.
+       */
+      const canvasBox = await page.locator('.stage__canvas').boundingBox()
+      if (!canvasBox) throw new Error(`${slug}: no .stage__canvas to click`)
+      await page.mouse.click(canvasBox.x + canvasBox.width / 2, canvasBox.y + canvasBox.height / 2)
+      await expect
+        .poll(() => page.evaluate(() => document.activeElement?.tagName), {
+          message: `${slug}: the canvas click never focused <model-viewer>`,
+        })
+        .toBe('MODEL-VIEWER')
+
+      const before = await readOrbit()
+
+      let cameraChangeFired = false
+      await page.exposeFunction('__acFourteenMark', () => {
+        cameraChangeFired = true
+      })
+      await page.evaluate(() => {
+        document.querySelector('model-viewer')?.addEventListener(
+          'camera-change',
+          () =>
+            (
+              window as unknown as {
+                __acFourteenMark: () => void
+              }
+            ).__acFourteenMark(),
+          { once: true },
+        )
+      })
+
+      await page.keyboard.press('ArrowLeft')
+      await page.waitForTimeout(400)
+
+      const after = await readOrbit()
+      expect(before, `${slug}: getCameraOrbit() returned null before the press`).not.toBeNull()
+      expect(after, `${slug}: getCameraOrbit() returned null after the press`).not.toBeNull()
+      if (before && after) {
+        const delta = Math.abs(after.theta - before.theta) + Math.abs(after.phi - before.phi)
+        expect(delta, `${slug}: ArrowLeft did not move the camera at all`).toBeGreaterThan(0.0001)
+      }
+      expect(cameraChangeFired, `${slug}: no camera-change event fired for the arrow press`).toBe(
+        true,
+      )
     })
   }
 })
