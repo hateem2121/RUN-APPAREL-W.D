@@ -287,7 +287,7 @@ test.describe('the numbers the design audit fixed', () => {
   }) => {
     await page.emulateMedia({ colorScheme: 'dark' })
     await page.goto('/contact')
-    // Migrated to the shared library (X1, Phase 0.1 Task 1): the local lum/parse/ratio
+    // Migrated to the shared library: the local lum/parse/ratio
     // trio computed the ratio INSIDE this evaluate callback, which `page.evaluate`
     // serialises into the page — so it could never call an imported function (same rule
     // `scripts/contrast-rules.mjs`'s header states for `measureContrastInPage`). The
@@ -419,18 +419,32 @@ test.describe("the footer's content edge agrees with the page's (DS-06)", () => 
  * D7 keeps `.footer-grow` (`site.css:1434-1437`) as deliberate empty space, documented at
  * "144-323px depending on width" — never measured by a test. MEASURED here, not assumed.
  *
- * ⚠️ 1px SUB-PIXEL TOLERANCE ON THE CEILING, MEASURED NOT GUESSED: at 768px this file's
- * own run reported 323.9666...px — Firefox's `getBoundingClientRect()` on a flex layout
- * losing a fraction of a pixel, the same class of artefact this file's header comment
- * already names for `boundingBox()`. 323 is D7's own documented figure; a bare `<= 323`
- * fails on that fraction alone, which is not the regression this test exists to catch.
+ * ⚠️ MEASURE AFTER THE WORDMARK'S FIT, NOT BEFORE. `.footer-grow` is `flex: 1 1 auto` in
+ * the same slab as `.footer-mark`, whose font-size FooterWordmark.tsx:26-34 refits after
+ * `document.fonts.ready` AND on every ResizeObserver tick — so a read straight after
+ * `goto`/`setViewportSize`, with no wait for either, races that refit. Both are awaited
+ * below before every measurement.
+ *
+ * ⚠️ THE CEILING NEEDS REAL HEADROOM, MEASURED ON BOTH ENGINES, NOT ONE READING PLUS AN
+ * EPSILON. Settled heights at 768px (the tightest of the three widths), waited for as
+ * above: chromium 322.92px, firefox 323.9666...px — Firefox's `getBoundingClientRect()`
+ * on this flex layout losing a fraction of a pixel, the same class of artefact this
+ * file's header comment already names for `boundingBox()`. Repeated 3x on each engine:
+ * identical every time, so this is a stable per-engine offset, not a race. 323 is D7's
+ * own documented figure; `CEILING_TOLERANCE_PX` below is 2px — genuine headroom above
+ * the ~1px artefact actually observed, not the previous 323 + 0.03px margin, which was
+ * the same measurement rounded rather than room to move.
  */
 test.describe("the footer's quiet band stays inside D7's documented range (DS-09)", () => {
-  const CEILING_TOLERANCE_PX = 1
+  const CEILING_TOLERANCE_PX = 2
   test('height stays within 144-323px across the documented width range', async ({ page }) => {
     await page.goto('/contact')
     for (const width of [768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 })
+      await page.evaluate(() => document.fonts.ready)
+      await page.evaluate(
+        () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
+      )
       const height = await page
         .locator('.footer-grow')
         .evaluate((el) => el.getBoundingClientRect().height)
