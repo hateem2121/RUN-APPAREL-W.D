@@ -40,7 +40,7 @@ describe('evaluate — the healthy case', () => {
 })
 
 describe('evaluate — negative controls, each reproducing a real defect', () => {
-  it('FAILS on a 200 — no redirect at all, the actual vulnerability this row guards against', () => {
+  it('FAILS on a 200 — no redirect at all, the actual vulnerability this check guards against', () => {
     const result = evaluate([{ ...healthy(), status: 200, location: null }])
     expect(result.ok).toBe(false)
     expect(result.failures[0]).toContain('did not redirect')
