@@ -141,7 +141,7 @@ async function main() {
       '\n   Restore with:\n' +
         REQUIRED_QUEUES.map(
           (n) =>
-            `     npx wrangler@4.122.0 queues update ${n} --message-retention-period-secs ${EXPECTED_RETENTION_SECONDS}`,
+            `     npx wrangler@4.137.0 queues update ${n} --message-retention-period-secs ${EXPECTED_RETENTION_SECONDS}`,
         ).join('\n'),
     )
     process.exit(1)

@@ -71,7 +71,7 @@
   // front of every asset request and `/assets/*.js` would lose the zero-overhead path it
   // had before the script existed. That reasoning was sound and the conclusion was wrong,
   // because it was reasoning about `run_worker_first: true`. Cloudflare's docs for
-  // Advanced routing control (wrangler >= 4.20.0; this repo pins 4.122.0):
+  // Advanced routing control (wrangler >= 4.20.0; this repo pins 4.137.0):
   //
   //   "you can use run_worker_first with an array of route patterns. This approach
   //    DISABLES the automatic Sec-Fetch-Mode: navigate detection and gives you explicit
