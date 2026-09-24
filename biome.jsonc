@@ -201,6 +201,29 @@
           }
         }
       }
+    },
+    {
+      // A spec that imports test/expect straight from @playwright/test skips
+      // e2e/offlineMedia.ts's context.route() fixture and goes back to depending on
+      // media.wear-run.help actually answering — which is exactly the bug measured
+      // 2026-09-24 (a Cloudflare Islamabad-area stall hung page.goto('/products') at
+      // 30s). Scoped to *.spec.ts only, so offlineMedia.ts itself (and any non-spec
+      // e2e helper) keeps importing @playwright/test directly, which it must.
+      "includes": ["apps/cms/e2e/**/*.spec.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@playwright/test": "Import test/expect from './offlineMedia' instead of '@playwright/test' — it fulfils media.wear-run.help requests locally so this suite cannot be blocked by a stall on that host (measured 2026-09-24). See apps/cms/e2e/offlineMedia.ts."
+                }
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }

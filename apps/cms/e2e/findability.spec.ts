@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './offlineMedia'
 
 /**
  * Findability and no-JavaScript guards for the 2026-09-06 beta-website audit (kept privately).

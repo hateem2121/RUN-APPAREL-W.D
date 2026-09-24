@@ -32,7 +32,7 @@ cached 404 shows up as a 404, for 1 KB.
 - **`FAIL model HTTP 404`** — not a cached miss any more: since 2026-09-03 every error
   from the media host is `no-store` (a missing `.glb` answered `BYPASS` on 2026-09-24).
   The object is missing or its key differs; confirm with
-  `npx --yes wrangler@4.122.0 r2 object get "run-apparel-viewer-media/<key>" --remote --file /tmp/r2-check`
+  `npx --yes wrangler@4.137.0 r2 object get "run-apparel-viewer-media/<key>" --remote --file /tmp/r2-check`
   (without `--remote` wrangler reads LOCAL storage and reports a real object as missing).
   Never a redeploy.
 - **`FAIL API ... HTTP 404`** — the slug is not served. Slugs are printed on physical

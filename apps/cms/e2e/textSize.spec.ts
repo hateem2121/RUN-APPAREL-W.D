@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './offlineMedia'
 
 /*
  * The bar's layout at a given width and ROOT size — the fitted formulas in

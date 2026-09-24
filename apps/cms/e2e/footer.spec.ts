@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './offlineMedia'
 import { contrastOf } from '../../../scripts/contrast-rules.mjs'
 
 /**

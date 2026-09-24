@@ -1238,7 +1238,7 @@ jobs:
         # that caused the 2026-08-28 apex drift. So `wrangler versions list` was a
         # column of UUIDs, and the only readable entry was the accident.
         # `--message` is a documented `wrangler deploy` flag (verified against
-        # `wrangler@4.122.0 deploy --help`), and opennextjs-cloudflare forwards its
+        # `wrangler@4.137.0 deploy --help`), and opennextjs-cloudflare forwards its
         # positional args straight through (`...args.wranglerArgs` in
         # dist/cli/commands/deploy.js). Changes no behaviour; makes a rollback
         # readable under pressure. Audit 2026-08-30 PM, finding L1-03.
@@ -1495,8 +1495,8 @@ jobs:
             echo "If this deploy is wrong, roll back the affected Worker:"
             echo
             echo '```bash'
-            echo "npx wrangler@4.122.0 versions list --name run-apparel-viewer-site"
-            echo "npx wrangler@4.122.0 rollback --name run-apparel-viewer-site -m 'why'"
+            echo "npx wrangler@4.137.0 versions list --name run-apparel-viewer-site"
+            echo "npx wrangler@4.137.0 rollback --name run-apparel-viewer-site -m 'why'"
             echo '```'
             echo
             echo "Workers: \`run-apparel-viewer-site\` (public viewer) · \`run-apparel-viewer-cms\` (admin + API) · \`run-apparel-viewer-shrink\` (processing only) · \`run-apparel-apex-404\` (apex catalogue + profile PDFs)"
