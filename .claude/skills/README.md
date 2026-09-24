@@ -1,9 +1,12 @@
 # Agent skills
 
-**`deploy-preflight/` is ours** — written here, not vendored, so nothing below
-about SHAs or the review date applies to it. Everything else in this directory is
-third-party and pinned; keep first-party skills clearly separated from vendored
-ones so the review below stays a review of *other people's* instructions.
+**`check-live/`, `deploy-preflight/` and `gates/` are ours** — written here, not
+vendored, so nothing below about SHAs or the review date applies to them (the first
+and last were added 2026-08-26). Everything else in this directory is third-party and
+pinned; keep first-party skills clearly separated from vendored ones so the review
+below stays a review of *other people's* instructions. `scripts/quoted-settings.mjs`
+keeps the same list as `FIRST_PARTY_SKILLS`, and a test fails if a skill folder is in
+neither that list nor the table below.
 
 ## Vendored agent skills
 

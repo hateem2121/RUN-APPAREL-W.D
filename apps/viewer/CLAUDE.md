@@ -97,7 +97,8 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   that React re-parents on a resize — which is exactly what `<ProductIdentity>`
   does when the viewport crosses `IDENTITY_IN_ASIDE_QUERY` — is a NEW element
   created after that scan, so it is never observed, never gets `.is-inview`, and
-  stays at `opacity: 0` for the rest of the session. The page would simply lose its
+  stays at `opacity: 0` (set in `packages/ui/src/base.css`) for the rest of the
+  session. The page would simply lose its
   own product name and description after one window resize, with no error anywhere.
   The product panel therefore carries NO `data-reveal` in either position; the fix
   is removing the attribute, not making the observer smarter, because reveal is the
