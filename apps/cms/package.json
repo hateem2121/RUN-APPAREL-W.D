@@ -23,7 +23,7 @@
     "seed": "PAYLOAD_LOCAL_D1=1 SEED_DEV_ADMIN=1 payload run src/seed/run.ts",
     "test:e2e": "playwright test",
     "test:routes": "REQUIRE_BUILD_ARTIFACTS=1 vitest run src/hostRulesManifest.test.ts",
-    "test:built-config": "REQUIRE_BUILD_ARTIFACTS=1 vitest run src/htmlLimitedBots.test.ts src/notFoundCsp.test.ts src/cspNonceMarker.test.ts src/cssDiscipline.test.ts"
+    "test:built-config": "REQUIRE_BUILD_ARTIFACTS=1 vitest run src/htmlLimitedBots.test.ts src/notFoundCsp.test.ts src/cspNonceMarker.test.ts src/cssDiscipline.test.ts src/servedCssMotionProbe.test.ts"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "5.3.0",
