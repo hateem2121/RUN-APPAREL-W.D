@@ -29,8 +29,9 @@
  *      ::warning::, and the output says which read answered when one did
  *   1  the lists disagree: ::error:: names each side
  *   2  the comparison could not run: the rules could not be read at all (token AND
- *      anonymous reads refused), or ci.yml could not be parsed. A permanent condition,
- *      so it fails instead of staying green and blind, and never as "disagree".
+ *      anonymous reads refused), ci.yml could not be parsed, or the rules answer was
+ *      not the list GitHub documents. It fails instead of staying green and blind, and
+ *      never as "disagree".
  */
 import { realpathSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -219,15 +220,9 @@ export async function readBranchRules({
 async function main() {
   const root = process.cwd()
   const repository = process.env.GITHUB_REPOSITORY || DEFAULT_REPOSITORY
-  let deployNeeds
-  try {
-    deployNeeds = parseDeployNeeds(await readFile(join(root, '.github/workflows/ci.yml'), 'utf8'))
-  } catch (error) {
-    // Exit 2, never the "disagree" code: an unreadable ci.yml compared nothing.
-    const message = error instanceof Error ? error.message : String(error)
-    console.error(`::error::COULD NOT COMPARE: ${message}. This is not a mismatch.`)
-    process.exit(2)
-  }
+  const deployNeeds = parseDeployNeeds(
+    await readFile(join(root, '.github/workflows/ci.yml'), 'utf8'),
+  )
 
   const read = await readBranchRules({
     repository,
@@ -286,5 +281,13 @@ async function main() {
 // never encodes a space, and node reports the module's REAL path while argv[1] keeps a
 // symlink (macOS `/tmp` is one, to `/private/tmp`). realpath + pathToFileURL fixes both.
 if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
-  await main()
+  try {
+    await main()
+  } catch (error) {
+    // Exit 2, never the "disagree" code: anything that throws compared nothing — an
+    // unparseable ci.yml, or a rules answer that is not the list GitHub documents.
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(`::error::COULD NOT COMPARE: ${message}. This is not a mismatch.`)
+    process.exit(2)
+  }
 }
