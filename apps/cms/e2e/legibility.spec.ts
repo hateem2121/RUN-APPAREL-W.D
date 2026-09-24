@@ -304,7 +304,6 @@ test.describe('CO-01 / CO-04 / CO-02 / CR-03 — text and control edges clear th
   // "lowest ratio among a row's pairs" this replaced. `measure()` below stays
   // self-contained (handed to `page.evaluate`, which serialises it and cannot reach
   // an import) — see `scripts/contrast-rules.mjs`'s own header for that rule.
-  type Row = { label: string; pairs: [number[], number[]][] }
 
   /**
    * In the page: each visible match's foreground — its text colour, or its top border — with
@@ -403,7 +402,9 @@ test.describe('CO-01 / CO-04 / CO-02 / CR-03 — text and control edges clear th
     const [good] = await measure(page, '#contrast-good', 'text')
     if (!bad || !badEdge || !good) throw new Error('the planted elements were not measured')
     expect(worstRatio(bad), 'grey on grey was not reported as a failure').toBeLessThan(1.5)
-    expect(worstRatio(badEdge), 'a grey edge on grey was not reported as a failure').toBeLessThan(1.5)
+    expect(worstRatio(badEdge), 'a grey edge on grey was not reported as a failure').toBeLessThan(
+      1.5,
+    )
     expect(worstRatio(good), 'black on white did not read 21:1').toBeCloseTo(21, 0)
   })
 
@@ -525,9 +526,10 @@ test.describe('TY-04 / TY-05 — the site tracks and leads its display type the 
           'The larger optical size must be tracked TIGHTER (TY-04).',
       ).toBeLessThan(s.trackingEm)
 
-      expect(h.leadingRatio, `the hero leads no tighter than the lede at ${width}px (TY-05)`).toBeLessThan(
-        l.leadingRatio,
-      )
+      expect(
+        h.leadingRatio,
+        `the hero leads no tighter than the lede at ${width}px (TY-05)`,
+      ).toBeLessThan(l.leadingRatio)
       expect(
         s.leadingRatio,
         `a section heading leads no tighter than the lede at ${width}px (TY-05)`,

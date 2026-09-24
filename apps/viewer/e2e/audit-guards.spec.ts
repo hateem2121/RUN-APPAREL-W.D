@@ -1344,14 +1344,14 @@ test.describe('forced-colors substitutes real colour, on the viewer too (CO-09)'
 
     // page.css:2382 — 3px solid Highlight, offset -3px, on the two states colour alone
     // would otherwise mark.
-    expect(measured.tabOutline, 'the selected colourway tab lost its outline under high contrast').toEqual([
-      '3px',
-      'solid',
-    ])
-    expect(measured.btnOutline, 'the active camera button lost its outline under high contrast').toEqual([
-      '3px',
-      'solid',
-    ])
+    expect(
+      measured.tabOutline,
+      'the selected colourway tab lost its outline under high contrast',
+    ).toEqual(['3px', 'solid'])
+    expect(
+      measured.btnOutline,
+      'the active camera button lost its outline under high contrast',
+    ).toEqual(['3px', 'solid'])
     expect(
       measured.swatchAdjust,
       'the swatch is being recoloured by the browser instead of keeping its own paint',
@@ -1486,10 +1486,13 @@ test.describe('the serif accent stays within its style and its budget (TY-09)', 
 
     // The control: a page with zero .serif-accent elements would pass every claim below
     // vacuously.
-    expect(measured.total, 'no .serif-accent element was found on the page at all').toBeGreaterThan(0)
-    expect(measured.unheaded, 'a .serif-accent has no heading-role ancestor to budget against').toBe(
+    expect(measured.total, 'no .serif-accent element was found on the page at all').toBeGreaterThan(
       0,
     )
+    expect(
+      measured.unheaded,
+      'a .serif-accent has no heading-role ancestor to budget against',
+    ).toBe(0)
 
     const wrongStyle = measured.perAccent.filter((m) => m.fontStyle !== 'italic')
     expect(wrongStyle, 'a serif accent is not italic').toEqual([])
@@ -1555,7 +1558,9 @@ test.describe('the two-column stage genuinely collapses to one column at 320px (
  * width instead.
  */
 test.describe('every interactive control clears 24px at a desktop width too (SZ-04)', () => {
-  test('no control is under 24x24 CSS px at 1280px, with no spacing exception', async ({ page }) => {
+  test('no control is under 24x24 CSS px at 1280px, with no spacing exception', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -1614,7 +1619,9 @@ test.describe('every rendered image carries its own dimensions (SZ-10)', () => {
     const missing = await page.evaluate(() =>
       [...document.querySelectorAll('img')]
         .filter((img) => !img.getAttribute('width') || !img.getAttribute('height'))
-        .map((img) => `${img.className || '(unclassed)'} src=${img.getAttribute('src')?.slice(0, 40)}`),
+        .map(
+          (img) => `${img.className || '(unclassed)'} src=${img.getAttribute('src')?.slice(0, 40)}`,
+        ),
     )
     expect(missing, 'an <img> has no explicit width/height').toEqual([])
   })
@@ -1727,14 +1734,11 @@ test.describe('the content column stays capped at ultrawide (SZ-15)', () => {
 test.describe('the rendered viewport meta tag is present and sane (SZ-13)', () => {
   test('content includes width=device-width', async ({ page }) => {
     await page.goto('/n001/wine')
-    const content = await page
-      .locator('meta[name="viewport"]')
-      .getAttribute('content')
+    const content = await page.locator('meta[name="viewport"]').getAttribute('content')
     expect(content, 'no <meta name="viewport"> rendered at all').not.toBeNull()
     expect(content).toContain('width=device-width')
   })
 })
-
 
 /*
  * ══ nothing above the fold outsizes the product name (DS-08, viewer half) ══
@@ -1778,9 +1782,10 @@ test.describe('nothing above the fold outsizes the product name (DS-08)', () => 
     })
 
     expect(louder.h1Top, 'the product name is not above the fold at all').toBeLessThan(900)
-    expect(louder.offenders, 'something above the fold shouts louder than the product name').toEqual(
-      [],
-    )
+    expect(
+      louder.offenders,
+      'something above the fold shouts louder than the product name',
+    ).toEqual([])
     expect(louder.h1Size).toBeGreaterThan(28)
   })
 })

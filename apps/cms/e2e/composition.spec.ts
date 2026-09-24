@@ -779,9 +779,10 @@ test.describe('the serif accent stays within its style and its budget (TY-09)', 
     })
 
     // The control: a page with zero accents would pass every claim below vacuously.
-    expect(measured.total, 'no .serif-accent/.footer-q em element was found at all').toBeGreaterThan(
-      0,
-    )
+    expect(
+      measured.total,
+      'no .serif-accent/.footer-q em element was found at all',
+    ).toBeGreaterThan(0)
     expect(measured.unheaded, 'an accent has no heading-role ancestor to budget against').toBe(0)
 
     const wrongStyle = measured.perAccent.filter((m) => m.fontStyle !== 'italic')
@@ -870,7 +871,9 @@ test.describe('every interactive control clears 24px at a desktop width too (SZ-
           })
           .map((el) => {
             const r = el.getBoundingClientRect()
-            const label = (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 30)
+            const label = (el.getAttribute('aria-label') || el.textContent || '')
+              .trim()
+              .slice(0, 30)
             return `${el.tagName.toLowerCase()} "${label}" ${Math.round(r.width)}x${Math.round(r.height)}`
           })
       })
@@ -894,7 +897,8 @@ test.describe('every rendered image carries its own dimensions (SZ-10)', () => {
         [...document.querySelectorAll('img')]
           .filter((img) => !img.getAttribute('width') || !img.getAttribute('height'))
           .map(
-            (img) => `${img.className || '(unclassed)'} src=${img.getAttribute('src')?.slice(0, 40)}`,
+            (img) =>
+              `${img.className || '(unclassed)'} src=${img.getAttribute('src')?.slice(0, 40)}`,
           ),
       )
       expect(missing, `${path}: an <img> has no explicit width/height`).toEqual([])
@@ -991,7 +995,6 @@ test.describe('the mono/caps register is genuinely uppercase everywhere (CR-06)'
   }
 })
 
-
 /*
  * ══ the hero's vertical rhythm is exactly 10 / 16 / 24px (DS-03) ══
  *
@@ -1026,15 +1029,18 @@ test.describe('the hero vertical rhythm is exactly 10 / 16 / 24px (DS-03)', () =
       expect(measured.headingToLede, 'no heading or lede rendered').not.toBeNaN()
       expect(measured.ledeToActions, 'no lede or actions rendered').not.toBeNaN()
 
-      expect(measured.labelToHeading, `label-to-heading gap is ${measured.labelToHeading}px, not 10px`).toBe(
-        10,
-      )
-      expect(measured.headingToLede, `heading-to-lede gap is ${measured.headingToLede}px, not 16px`).toBe(
-        16,
-      )
-      expect(measured.ledeToActions, `lede-to-actions gap is ${measured.ledeToActions}px, not 24px`).toBe(
-        24,
-      )
+      expect(
+        measured.labelToHeading,
+        `label-to-heading gap is ${measured.labelToHeading}px, not 10px`,
+      ).toBe(10)
+      expect(
+        measured.headingToLede,
+        `heading-to-lede gap is ${measured.headingToLede}px, not 16px`,
+      ).toBe(16)
+      expect(
+        measured.ledeToActions,
+        `lede-to-actions gap is ${measured.ledeToActions}px, not 24px`,
+      ).toBe(24)
     })
   }
 })

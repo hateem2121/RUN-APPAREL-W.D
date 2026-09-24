@@ -51,16 +51,14 @@ describe('SZ-12 — the built CSS never ships a real dvh, on either surface', ()
   // alphabetically, so scan every chunk rather than assume a single file.
   const cmsChunkDir = existsSync(CMS_CHUNKS) ? CMS_CHUNKS : null
 
-  it.skipIf(!viewerCssPath)(
-    'the viewer bundle has zero real dvh and at least one svh',
-    () => {
-      const css = readFileSync(viewerCssPath as string, 'utf8')
-      expect(nonCommentDvhCount(css), `${viewerCssPath} contains a real dvh declaration`).toBe(0)
-      expect(/svh\b/.test(css), `${viewerCssPath} has no svh at all — the control for this test`).toBe(
-        true,
-      )
-    },
-  )
+  it.skipIf(!viewerCssPath)('the viewer bundle has zero real dvh and at least one svh', () => {
+    const css = readFileSync(viewerCssPath as string, 'utf8')
+    expect(nonCommentDvhCount(css), `${viewerCssPath} contains a real dvh declaration`).toBe(0)
+    expect(
+      /svh\b/.test(css),
+      `${viewerCssPath} has no svh at all — the control for this test`,
+    ).toBe(true)
+  })
 
   it.skipIf(!cmsChunkDir)('the site bundle has zero real dvh and at least one svh', () => {
     const files = readdirSync(cmsChunkDir as string).filter((name) => name.endsWith('.css'))

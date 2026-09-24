@@ -36,7 +36,7 @@ describe('CO-13 — the viewer and the site import the same tokens.css', () => {
     ).toBe(true)
     expect(
       cmsSource.includes(SHARED_IMPORT),
-      "apps/cms/src/app/(frontend)/layout.tsx no longer imports the shared tokens.css",
+      'apps/cms/src/app/(frontend)/layout.tsx no longer imports the shared tokens.css',
     ).toBe(true)
   })
 
@@ -59,9 +59,6 @@ describe('CO-13 — the viewer and the site import the same tokens.css', () => {
     expect(textNames.length, 'no --text-* token was found at all').toBeGreaterThan(0)
 
     const missingOrEmpty = required.filter((name) => !declarations.get(name))
-    expect(
-      missingOrEmpty,
-      'these tokens are missing or declared with an empty value',
-    ).toEqual([])
+    expect(missingOrEmpty, 'these tokens are missing or declared with an empty value').toEqual([])
   })
 })

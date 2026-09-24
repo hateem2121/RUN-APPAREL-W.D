@@ -392,9 +392,7 @@ test.describe("the footer's content edge agrees with the page's (DS-06)", () => 
         const containerContentLeft =
           container.getBoundingClientRect().left +
           Number.parseFloat(getComputedStyle(container).paddingLeft)
-        return Number(
-          (inner.getBoundingClientRect().left - containerContentLeft).toFixed(2),
-        )
+        return Number((inner.getBoundingClientRect().left - containerContentLeft).toFixed(2))
       })
       results.push({ width, gap })
     }

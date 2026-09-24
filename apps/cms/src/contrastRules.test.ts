@@ -205,9 +205,10 @@ describe('DS-13 — the blueprint grid stays decoration, not a second reading of
     const light = contrastOf('rgba(29, 31, 26, 0.05)', PAPER)
     const dark = contrastOf('rgba(236, 235, 228, 0.05)', BG_DARK)
 
-    expect(light, `light: the grid reads at ${light.toFixed(2)}:1, no longer decoration`).toBeLessThan(
-      CEILING,
-    )
+    expect(
+      light,
+      `light: the grid reads at ${light.toFixed(2)}:1, no longer decoration`,
+    ).toBeLessThan(CEILING)
     expect(dark, `dark: the grid reads at ${dark.toFixed(2)}:1, no longer decoration`).toBeLessThan(
       CEILING,
     )

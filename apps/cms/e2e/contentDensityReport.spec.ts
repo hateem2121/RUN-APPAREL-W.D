@@ -21,6 +21,8 @@ test('content-density-report runs and reports on every page', async ({ baseURL }
       .find((row) => row.startsWith(`[content-density-report] ${path}:`))
     expect(line, `no report line for ${path}: full output was\n${output}`).toBeTruthy()
     expect(line, `${path}'s report line has no word count`).toMatch(/\d+ words/)
-    expect(line, `${path}'s report line has no phone-screen ratio`).toMatch(/over [\d.]+ phone screens/)
+    expect(line, `${path}'s report line has no phone-screen ratio`).toMatch(
+      /over [\d.]+ phone screens/,
+    )
   }
 })

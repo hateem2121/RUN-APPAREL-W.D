@@ -104,7 +104,9 @@ async function main() {
   const keys = which === 'all' ? Object.keys(TARGETS) : [which]
   for (const key of keys) {
     if (!TARGETS[key]) {
-      console.error(`Unknown target "${key}" — expected one of: all, ${Object.keys(TARGETS).join(', ')}`)
+      console.error(
+        `Unknown target "${key}" — expected one of: all, ${Object.keys(TARGETS).join(', ')}`,
+      )
       process.exitCode = 1
       return
     }

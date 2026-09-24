@@ -23,9 +23,10 @@ test('contact-sheet produces one screenshot per page x width x theme combination
     })
 
     const expectedCount = combinations().length
-    expect(expectedCount, 'combinations() itself returned nothing to check against').toBeGreaterThan(
-      0,
-    )
+    expect(
+      expectedCount,
+      'combinations() itself returned nothing to check against',
+    ).toBeGreaterThan(0)
 
     const files = readdirSync(outDir).filter((name) => name.endsWith('.png'))
     expect(files.length, `expected ${expectedCount} screenshots, found ${files.length}`).toBe(

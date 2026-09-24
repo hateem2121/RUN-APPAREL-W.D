@@ -32,7 +32,10 @@ import { chromium } from '@playwright/test'
 
 const BASE_URL = (() => {
   const flagIndex = process.argv.indexOf('--base-url')
-  return (flagIndex >= 0 ? process.argv[flagIndex + 1] : 'https://wear-run.help') ?? 'https://wear-run.help'
+  return (
+    (flagIndex >= 0 ? process.argv[flagIndex + 1] : 'https://wear-run.help') ??
+    'https://wear-run.help'
+  )
 })().replace(/\/+$/, '')
 
 const PAGES = ['/', '/products', '/contact']
