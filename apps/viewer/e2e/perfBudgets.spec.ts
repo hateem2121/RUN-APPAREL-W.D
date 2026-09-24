@@ -200,6 +200,34 @@ test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interac
 
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    // WAIT FOR THE GARMENT BEFORE INTERACTING — measured 2026-09-25. Interacting as soon as
+    // the <h1> shows raced the model's own load: an 786-903ms long task (the GLB decode)
+    // landed in the measurement window on a host-speed-dependent share, so this Mac read
+    // tbt ~1,000ms and CI's slower runner 2,656/2,676ms, and the number measured the RACE,
+    // not the interactions. Same runs with WebGL off: tbt 0 — the clicks alone cost
+    // nothing. Once `loaded` is true the same walkthrough reads tbt 133-139ms over six runs,
+    // which is the colourway swap's own material rebind (apps/viewer/CLAUDE.md records it
+    // at 121-131ms). Headless Chromium DOES have WebGL here (ANGLE → SwiftShader, on this
+    // Mac too), so the model loads; if it ever stops loading, fail loudly rather than
+    // measure an empty stage and call it fast.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(
+            () =>
+              (
+                document.querySelector('model-viewer') as
+                  | (HTMLElement & { loaded?: boolean })
+                  | null
+              )?.loaded === true,
+          ),
+        {
+          message:
+            'the 3D model never loaded — this test measures interactions on a loaded garment',
+          timeout: 60_000,
+        },
+      )
+      .toBe(true)
 
     const samples = await collectInteractionMetrics(page, async () => {
       await page.getByRole('tab').nth(1).click()
@@ -208,16 +236,20 @@ test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interac
       await page.locator('.theme-toggle').click()
     })
 
-    // Measured fresh against this fixture, 4x CPU throttle, chromium (2026-09-24):
-    // tbt=1046-1067ms, worstTask=950-962ms, inpProxy=144-152ms — the 3D page's own
-    // colourway swap and material rebind cost real main-thread time (apps/viewer/
-    // CLAUDE.md: "a colourway swap blocking the main thread for 121-131ms" is a
-    // separate, already-accepted cost). Ceilings give headroom without being loose
-    // enough to miss a real regression: Google's own INP "poor" line is 500ms+.
+    // Measured on a LOADED garment, 4x CPU throttle, chromium, this Mac (2026-09-25, six
+    // runs, then 147-166 / 128-146 / 144-160 on three more). 300ms is ~1.8x the Mac's worst
+    // reading. NOT looser, measured: at 600/500 a planted 300ms freeze in the colourway
+    // tab's onClick read tbt=396 inpProxy=440 and PASSED; at 300/300 it fails on both. The
+    // load race this replaced read 786-903ms for ONE task, so its return fails too.
     const result = evaluateInteractionWalkthrough(samples, {
-      tbtCeilingMs: 1500,
+      tbtCeilingMs: 300,
       inpCeilingMs: 300,
     })
+    // Printed on a pass too, so CI's own numbers are readable in the job log.
+    console.log(
+      `PF-04/05 measured: tbt=${result.tbt.toFixed(0)}ms worstTask=${result.worstTask.toFixed(0)}ms ` +
+        `inpProxy=${result.inpProxy.toFixed(0)}ms`,
+    )
     expect(
       result.ok,
       `${result.problems.join('; ')} (tbt=${result.tbt.toFixed(0)}ms, ` +

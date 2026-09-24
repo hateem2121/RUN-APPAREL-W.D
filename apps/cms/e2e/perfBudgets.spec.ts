@@ -1,12 +1,14 @@
-import { expect, request, test } from '@playwright/test'
-import type { Page } from '@playwright/test'
+import { expect, type Page, test } from './offlineMedia'
 import { evaluateInteractionWalkthrough } from '../scripts/interaction-metrics.mjs'
 
 /**
  * Performance-budget robots for the site pages — the CMS-side half of `where: both`
  * Performance rows. Own file rather than an existing spec: nothing here needs a real
- * browser, so it fetches the built HTML directly (via `request`, not `page.goto`),
- * which is also faster and cannot be confused by anything a script does after load.
+ * browser, so it fetches the built HTML directly (via Playwright's `request` fixture,
+ * not `page.goto`), which is also faster and cannot be confused by anything a script
+ * does after load. The fixture comes through `./offlineMedia`'s `test` like every CMS
+ * spec (biome forbids importing `@playwright/test` here); an API request never goes
+ * through `context.route()`, and these fetch only this server's own HTML anyway.
  */
 
 const PAGES = ['/', '/products', '/contact'] as const
@@ -25,10 +27,9 @@ for (const path of PAGES) {
   test.describe(`PF-16 — render-blocking discipline (${path})`, () => {
     test('every <script src> carries async, defer, type="module" or noModule', async ({
       baseURL,
+      request,
     }) => {
-      const ctx = await request.newContext()
-      const html = await (await ctx.get(`${baseURL}${path}`)).text()
-      await ctx.dispose()
+      const html = await (await request.get(`${baseURL}${path}`)).text()
 
       const scriptTags = [...html.matchAll(/<script\b[^>]*>/g)].map((m) => m[0])
       const withSrc = scriptTags.filter((tag) => /\bsrc="[^"]*"/.test(tag))
@@ -46,10 +47,11 @@ for (const path of PAGES) {
       ).toEqual([])
     })
 
-    test('preload + modulepreload count matches the measured baseline', async ({ baseURL }) => {
-      const ctx = await request.newContext()
-      const html = await (await ctx.get(`${baseURL}${path}`)).text()
-      await ctx.dispose()
+    test('preload + modulepreload count matches the measured baseline', async ({
+      baseURL,
+      request,
+    }) => {
+      const html = await (await request.get(`${baseURL}${path}`)).text()
 
       const preloadCount = (html.match(/rel="preload"/g) ?? []).length
       const modulePreloadCount = (html.match(/rel="modulepreload"/g) ?? []).length
@@ -71,10 +73,9 @@ for (const path of PAGES) {
 test.describe('PF-16 — the first poster on /products is eager and high priority', () => {
   test('the first product card image carries loading=eager + fetchPriority=high', async ({
     baseURL,
+    request,
   }) => {
-    const ctx = await request.newContext()
-    const html = await (await ctx.get(`${baseURL}/products`)).text()
-    await ctx.dispose()
+    const html = await (await request.get(`${baseURL}/products`)).text()
 
     const firstImg = html.match(/<img\b[^>]*class="product-card__img"[^>]*>/)?.[0]
     expect(
@@ -143,7 +144,13 @@ async function collectInteractionMetrics(
 test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interactions', () => {
   test('the theme toggle and typing into the enquiry form stay under the ceilings', async ({
     page,
+    browserName,
   }) => {
+    // CDP (the throttle and the long-task/event-timing plumbing it enables) is a
+    // Chromium-only protocol — same guard as the viewer's copy. Without it the firefox
+    // project fails at newCDPSession (measured 2026-09-25; CI never reached it because
+    // the viewer step failed first).
+    test.skip(browserName !== 'chromium', 'CDP is only available in Chromium')
     // The menu button (and the theme toggle behind it) only exists in the DOM's
     // visible sense below 720px — `packages/ui/src/notch.css`'s own
     // `@media (width < 720px)` rule; at desktop width the button is `display: none`.

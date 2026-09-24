@@ -1,5 +1,5 @@
 import { FOCUS_RING_CONTRACT, TOKEN_CONTRACT } from '@run-apparel/shared'
-import { expect, test } from '@playwright/test'
+import { expect, test } from './offlineMedia'
 
 /**
  * XS-04 — tokens and the focus ring are identical across hosts.
