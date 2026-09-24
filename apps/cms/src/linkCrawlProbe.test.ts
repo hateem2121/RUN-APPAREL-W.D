@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   classifyLink,
+  crawl,
   evaluate,
   extractLinks,
   mixedContentIn,
@@ -212,5 +213,109 @@ describe('evaluate — what must NOT be read as a pass or a fail', () => {
     })
     expect(result.ok).toBe(true)
     expect(result.lines.join('\n')).toContain('application/pdf')
+  })
+})
+
+/**
+ * `measured` — the guard against reporting "✓ 0 broken links" while having crawled
+ * nothing at all. It counts every http-kind link that got a real, judged answer
+ * (neither a fetch error nor 403/429/503), WHETHER IT PASSED OR FAILED — a 404 still
+ * counts, because the probe asked a question and got an answer.
+ */
+describe('evaluate — measured must never read a blocked run as "0 broken links"', () => {
+  it('measured=0 when the only observation is inconclusive — this is the ::warning:: condition, and it must still be ok:true', () => {
+    const result = evaluate({
+      links: [link({ status: 403, foundOn: '(entry point)' })],
+      mixedContent: [],
+    })
+    expect(result.ok).toBe(true) // ok means "no FAILURES", not "everything was measured"
+    expect(result.measured).toBe(0)
+  })
+
+  it('a FAILED http link still counts as measured — the probe got a real answer, it was just a bad one', () => {
+    const result = evaluate({ links: [link({ status: 404 })], mixedContent: [] })
+    expect(result.measured).toBe(1)
+  })
+
+  it('a passing http link counts as measured too', () => {
+    const result = evaluate({ links: [link()], mixedContent: [] })
+    expect(result.measured).toBe(1)
+  })
+})
+
+/**
+ * `crawl()` itself — every entry point is judged like any other link, mining only
+ * follows a healthy (2xx) body, and a stubbed `fetch` proves both directions without
+ * touching production. Never a real network call.
+ */
+describe('crawl — entry points are judged, not silently skipped', () => {
+  const LOCAL_HOST = new Set(['127.0.0.1'])
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('a seed answering 404 is reported as its own failure, not silently skipped', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response('<a href="http://127.0.0.1/should-not-be-mined">x</a>', { status: 404 }),
+      ),
+    )
+    const observed = await crawl(['http://127.0.0.1/broken-sitemap.xml'], {
+      crawlableHosts: LOCAL_HOST,
+    })
+    expect(observed.links).toEqual([
+      expect.objectContaining({ url: 'http://127.0.0.1/broken-sitemap.xml', status: 404 }),
+    ])
+    const result = evaluate(observed)
+    expect(result.ok).toBe(false)
+    expect(result.failures[0]).toContain('http://127.0.0.1/broken-sitemap.xml')
+  })
+
+  it('a seed answering 403 is inconclusive and its body is never mined for links (a Bot-Fight-Mode challenge page is not the site)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response('<a href="http://127.0.0.1/should-not-be-mined">x</a>', { status: 403 }),
+      ),
+    )
+    const observed = await crawl(['http://127.0.0.1/challenge'], { crawlableHosts: LOCAL_HOST })
+    // The seed itself only — nothing mined from a body behind a non-2xx status.
+    expect(observed.links).toHaveLength(1)
+    expect(observed.links[0]).toMatchObject({ url: 'http://127.0.0.1/challenge', status: 403 })
+    const result = evaluate(observed)
+    expect(result.ok).toBe(true) // inconclusive, never a failure
+    expect(result.measured).toBe(0)
+    expect(result.inconclusive[0]).toContain('403')
+  })
+
+  it('a healthy 200 seed is measured, and its links are mined and followed', async () => {
+    // A RELATIVE href, deliberately — matching how the real site actually links to
+    // itself, and sidestepping `mixedContentIn`'s own separately-tracked nit (it flags
+    // any literal `http://` attribute, so an absolute same-host link over plain HTTP —
+    // unavoidable for a local, unencrypted fixture server — would misreport as mixed
+    // content here, which this test is not about).
+    const bodies = new Map([
+      ['http://127.0.0.1/', '<a href="/products">Products</a>'],
+      ['http://127.0.0.1/products', 'ok'],
+    ])
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url) => {
+        const body = bodies.get(String(url))
+        if (body === undefined) return new Response('not found', { status: 404 })
+        return new Response(body, { status: 200, headers: { 'content-type': 'text/html' } })
+      }),
+    )
+    const observed = await crawl(['http://127.0.0.1/'], { crawlableHosts: LOCAL_HOST })
+    const result = evaluate(observed)
+    expect(result.ok).toBe(true)
+    expect(result.measured).toBe(2) // the seed itself, plus the one link it led to
+    expect(observed.links).toContainEqual(
+      expect.objectContaining({ url: 'http://127.0.0.1/products', status: 200 }),
+    )
   })
 })
