@@ -2216,13 +2216,14 @@ model-viewer.stage__model {
 
 .footer__brand {
   font-family: var(--font-display);
-  font-weight: 900;
-  font-stretch: 122%;
+  font-weight: 800;
   text-transform: uppercase;
   font-size: var(--text-wordmark-sm);
-  /* Matches `.header__wordmark`. The same wordmark was set two different ways on
-     one page: -0.02em in the header and 0 here, so the brand read as two
-     slightly different logotypes between the top and bottom of a single scroll. */
+  /* Matches the bar's `.notch__wordmark` (packages/ui/src/notch.css), owner decision
+     2026-09-24. The same wordmark was set two different ways on one page: a
+     different weight and stretch at the top than at the bottom, so the brand read
+     as two slightly different logotypes between the top and bottom of a single
+     scroll. */
   letter-spacing: var(--tracking-wordmark);
 }
 
