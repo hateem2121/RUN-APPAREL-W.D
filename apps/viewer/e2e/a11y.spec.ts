@@ -264,3 +264,331 @@ test('the notice live region exists before it has anything to say', async ({ pag
  * colour swap" now carries the assertion that the live region must not still
  * offer to rotate a model that is gone.
  */
+
+/**
+ * Task 9 — generic keyboard/focus/naming sweeps (AC-04, AC-05, AC-06, AC-07, AC-09,
+ * AC-11, AC-15, AC-17, MO-22), all against the product page's already-rendered DOM.
+ * Queried generically (whatever is focusable/rendered, in order) rather than against
+ * hard-coded header markup, per this batch's file-collision rule, so these keep
+ * passing unchanged across an unrelated header/chrome rewrite.
+ *
+ * ⚠️ C-N3: Chromium's raw CDP accessible name reflects `text-transform: uppercase`.
+ * Nothing here reads the CDP accessibility tree directly — every name comparison
+ * below goes through Playwright's own accessible-name computation (`getByRole`,
+ * `element.textContent`/`aria-label` read via `page.evaluate`), which does not carry
+ * that transform. Documented per the plan review's finding (I3), not because this
+ * file was observed to be bitten by it.
+ */
+test.describe('generic keyboard, focus and naming sweeps on the product page', () => {
+  test('AC-09: the notice live region exists before it has anything to say — prove only', async ({
+    page,
+  }) => {
+    // Already covered above ("the notice live region exists before it has anything to
+    // say"); this line exists only so the row is traceable to a test in this file.
+    await page.goto('/n001/wine')
+    expect(await page.locator('.stage__error[role="status"]').count()).toBe(1)
+  })
+
+  /**
+   * Walks Tab stops until either `max` presses or the same element-identity is seen
+   * twice (the tab order has cycled — going further would re-count the same stops,
+   * which is not a reading-order defect, just the natural wrap).
+   *
+   * ⚠️ EXCLUDES `tabIndex < 0`. `App.tsx`'s own comment: `<div className="page"
+   * tabIndex={-1}>` is focusable only PROGRAMMATICALLY (the preloader hand-off), and
+   * is deliberately EXCLUDED from sequential Tab navigation by that same -1. If it (or
+   * anything else with a negative tabIndex) ever becomes `document.activeElement`
+   * mid-walk, that is Tab reaching something outside the sequence by some other route
+   * — not a reading-order fact about this page's real stops — so it is dropped rather
+   * than measured.
+   *
+   * ⚠️ DOCUMENT-SPACE Y, NOT VIEWPORT-SPACE (`e2e-scroll-not-layout`). Each Tab press
+   * auto-scrolls the newly-focused element into view, so `getBoundingClientRect().top`
+   * alone is not comparable across stops — a first draft of this walk measured the
+   * SCROLL, not the layout, and reported the customisation trigger 1200px higher than
+   * its real position purely because the page had scrolled less to reach it. Adding
+   * `window.scrollY` gives a position that is stable regardless of which stop last
+   * moved the viewport.
+   */
+  async function walkTabStops(page: import('@playwright/test').Page, max: number) {
+    const stops: { id: string; x: number; y: number }[] = []
+    const seen = new Set<string>()
+    for (let i = 0; i < max; i++) {
+      await page.keyboard.press('Tab')
+      const stop = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement | null
+        if (!el || el === document.body) return null
+        if (el.tabIndex < 0) return null
+        const r = el.getBoundingClientRect()
+        return {
+          id: `${el.tagName}:${el.className}:${(el.textContent ?? '').slice(0, 24)}`,
+          x: r.left,
+          y: r.top + window.scrollY,
+        }
+      })
+      if (!stop) continue
+      if (seen.has(stop.id)) break
+      seen.add(stop.id)
+      stops.push(stop)
+    }
+    return stops
+  }
+
+  test('AC-04: Tab order reads top-to-bottom, left-to-right', async ({ page }) => {
+    /*
+     * ⚠️ SINGLE-COLUMN WIDTH, DELIBERATELY. Above `apps/viewer/CLAUDE.md`'s aside
+     * threshold (min-width 1100px AND min-height 720px) `<ProductIdentity>` moves
+     * into a side-by-side column next to the stage — an accepted, documented
+     * trade-off (`useIdentityInAside.ts`), not a reading-order defect: DOM order
+     * still reads sensibly, it just visits two columns rather than one, so a
+     * measurement of on-screen Y position alone would flag it as "out of order" for
+     * a layout that was never meant to read top-to-bottom in a single pass. At
+     * 390px the page is a single column throughout, which is the width this
+     * assertion is actually meaningful at.
+     */
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const positions = await walkTabStops(page, 40)
+    expect(positions.length, 'nothing became focused across 40 Tab presses').toBeGreaterThan(5)
+
+    // Reading order: each stop is not substantially ABOVE the previous one (some
+    // horizontal jitter within a row is normal; a real reading-order break is a stop
+    // whose top is clearly higher than the one before it — more than one line's worth).
+    const outOfOrder = positions.filter((pos, i) => i > 0 && pos.y < positions[i - 1].y - 20)
+    expect(
+      outOfOrder,
+      `${outOfOrder.length} of ${positions.length} tab stops read out of top-to-bottom order`,
+    ).toEqual([])
+  })
+
+  test('AC-05: every tab stop shows a visible focus indicator', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const unmarked: string[] = []
+    for (let i = 0; i < 15; i++) {
+      await page.keyboard.press('Tab')
+      const info = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement | null
+        if (!el || el === document.body) return null
+        // Same exclusion as walkTabStops above: a negative-tabIndex element (e.g.
+        // `<div className="page" tabIndex={-1}>`, focused only by the preloader
+        // hand-off) is not a real sequential Tab stop — EXCEPT `<model-viewer>`
+        // itself, whose HOST always reads tabIndex -1 (it takes real focus on an
+        // inner shadow element and the host is reported to the outer document by
+        // shadow retargeting), handled specially just below.
+        if (el.tabIndex < 0 && el.tagName !== 'MODEL-VIEWER') return null
+        /*
+         * `model-viewer` takes focus on an INNER shadow element — its host never
+         * matches `:focus-visible` (base.css's comment on `.stage__canvas` explains
+         * why), and the ring is drawn on `.stage__canvas` via `:focus-within` instead.
+         * Check that ancestor's style for exactly this one element.
+         */
+        const target =
+          el.tagName === 'MODEL-VIEWER' ? (el.closest('.stage__canvas') as HTMLElement | null) : el
+        if (!target) return { tag: el.tagName, cls: el.className, marked: false }
+        const style = getComputedStyle(target)
+        // `:focus-visible` matching alone can be true with `outline: none` — read the
+        // actual painted indicator instead.
+        const hasOutline =
+          style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0
+        const hasShadow = style.boxShadow !== 'none' && style.boxShadow !== ''
+        return {
+          tag: el.tagName,
+          cls: el.className,
+          marked: hasOutline || hasShadow,
+        }
+      })
+      if (info && !info.marked) unmarked.push(`${info.tag}.${info.cls}`)
+    }
+    expect(
+      unmarked,
+      `tab stops with no visible outline/box-shadow: ${unmarked.join(', ')}`,
+    ).toEqual([])
+  })
+
+  test('AC-06: no keyboard trap — Tab never gets stuck on the same element', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    // The trap shape: focus repeating the SAME element on consecutive Tab presses.
+    // Requiring a full cycle back to a specific start element would be a weaker test
+    // (a legitimately long page need not complete a cycle inside any fixed budget);
+    // getting stuck is the actual defect this exists to catch.
+    let stuckCount = 0
+    let previous: string | null = null
+    for (let i = 0; i < 40; i++) {
+      await page.keyboard.press('Tab')
+      const id = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement | null
+        return el ? `${el.tagName}:${el.className}:${el.textContent?.slice(0, 20)}` : null
+      })
+      if (id !== null && id === previous) stuckCount++
+      previous = id
+    }
+    expect(stuckCount, 'focus repeated the same element on consecutive Tab presses — a trap').toBe(
+      0,
+    )
+  })
+
+  /*
+   * ⚠️ PHONE VIEWPORT, DELIBERATELY. `CustomisationSection.tsx`'s `opensByDefault()`
+   * starts the accordion OPEN at >=900px — the default desktop viewport this project
+   * otherwise uses. A first draft of these two tests ran at that default width, so
+   * "SHARE YOUR STARTING POINT" was already visible before any key was pressed, and
+   * the assertion passed whether or not Enter/Space did anything at all. Below 900px
+   * it starts closed, so opening it is a real, observable effect of the key press.
+   */
+  test('AC-06: the customisation accordion opens with Enter', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/n001/wine')
+    const trigger = page.getByRole('button', { name: /how we build your product/i })
+    // The collapsed panel is `inert` with a 0-height clip, not display:none — its
+    // content still computes a non-empty box, so Playwright's own `toBeHidden()`
+    // reads it as visible regardless of the collapse. `inert` (the actual mechanism
+    // AC-10's task also keys on) is the real "before" signal.
+    await expect(page.locator('.steps-collapse')).toHaveJSProperty('inert', true)
+    await trigger.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.locator('.steps-collapse')).toHaveJSProperty('inert', false)
+  })
+
+  test('AC-06: the customisation accordion opens with Space', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/n001/wine')
+    const trigger = page.getByRole('button', { name: /how we build your product/i })
+    await expect(page.locator('.steps-collapse')).toHaveJSProperty('inert', true)
+    await trigger.focus()
+    await page.keyboard.press('Space')
+    await expect(page.locator('.steps-collapse')).toHaveJSProperty('inert', false)
+  })
+
+  test('AC-07: every icon-only control carries an accessible name', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const unnamed = await page.evaluate(() => {
+      const controls = [...document.querySelectorAll<HTMLElement>('button, [role="button"]')]
+      return controls
+        .filter((el) => (el.textContent ?? '').trim().length === 0)
+        .filter((el) => !el.hasAttribute('aria-label') && !el.hasAttribute('aria-labelledby'))
+        .map((el) => `${el.tagName}.${el.className}`)
+    })
+    expect(unnamed, `icon-only controls with no accessible name: ${unnamed.join(', ')}`).toEqual([])
+  })
+
+  test('AC-11: <html lang> is set, and every colourway URL gets a distinct document title', async ({
+    page,
+  }) => {
+    const titles = new Set<string>()
+    for (const slug of ['wine', 'blush', 'butter']) {
+      await page.goto(`/n001/${slug}`)
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const lang = await page.evaluate(() => document.documentElement.lang)
+      expect(lang, `${slug}: <html> has no lang attribute`).not.toBe('')
+      const title = await page.title()
+      expect(
+        titles.has(title),
+        `${slug}: document title "${title}" repeats an earlier colourway`,
+      ).toBe(false)
+      titles.add(title)
+    }
+  })
+
+  test('AC-15: every link name is unique, except the two accepted doubled contact buttons', async ({
+    page,
+  }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    // "Email Us" and "WhatsApp Us" render twice on purpose — action-bar and
+    // contact-rail both render <ContactSection> at different breakpoints
+    // (apps/viewer/src/components/Contact.tsx's own comment names this exactly).
+    const ACCEPTED_DOUBLES = new Set(['Email Us', 'WhatsApp Us'])
+
+    const names = await page.evaluate(() =>
+      [...document.querySelectorAll('a[href]')]
+        .map((a) => (a.textContent ?? '').trim())
+        .filter((name) => name.length > 0),
+    )
+    const counts = new Map<string, number>()
+    for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1)
+    const unexpectedDuplicates = [...counts.entries()].filter(
+      ([name, count]) => count > 1 && !ACCEPTED_DOUBLES.has(name),
+    )
+    expect(
+      unexpectedDuplicates,
+      `link names repeated more than once, outside the accepted doubles: ${JSON.stringify(unexpectedDuplicates)}`,
+    ).toEqual([])
+  })
+
+  test('AC-17: nothing flashes more than 3 times a second (no repeating CSS animation)', async ({
+    page,
+  }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const repeating = await page.evaluate(() => {
+      const offenders: string[] = []
+      for (const el of document.querySelectorAll<HTMLElement>('*')) {
+        const style = getComputedStyle(el)
+        if (style.animationName !== 'none' && style.animationIterationCount === 'infinite') {
+          offenders.push(`${el.tagName}.${el.className}`)
+        }
+      }
+      return offenders
+    })
+    expect(
+      repeating,
+      `elements with an infinite-iteration animation: ${repeating.join(', ')}`,
+    ).toEqual([])
+  })
+
+  test('MO-22: the 3D stage itself is a tab stop with a visible focus ring', async ({
+    page,
+    browserName,
+  }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const fallback = await page.locator('.stage__error:not([hidden])').count()
+    test.skip(fallback > 0, `${browserName}: no WebGL here, the stage is in poster fallback`)
+
+    // model-viewer's own inner focus target (`.userInput`, tabindex="0" in its shadow
+    // root) only exists once camera-controls has initialised — wait for the model to
+    // load first, the same wait every other camera test in this suite uses, or Tab
+    // walks past a stage that has nothing focusable in it yet.
+    await page.waitForFunction(
+      () => {
+        const mv = document.querySelector('model-viewer') as (Element & { loaded?: boolean }) | null
+        return Boolean(mv?.loaded)
+      },
+      undefined,
+      { timeout: 40000 },
+    )
+
+    let found = false
+    for (let i = 0; i < 30 && !found; i++) {
+      await page.keyboard.press('Tab')
+      found = await page.evaluate(() => document.activeElement?.tagName === 'MODEL-VIEWER')
+    }
+    expect(found, 'the stage was never reached by Tab within 30 presses').toBe(true)
+    // The ring is drawn on `.stage__canvas` (`:focus-within`), not the host — see
+    // page.css's own comment on why the host can never paint one (its outline would
+    // render outside `.stage__canvas`'s clip and be invisible).
+    const marked = await page.evaluate(() => {
+      const canvas = document.querySelector('.stage__canvas') as HTMLElement | null
+      if (!canvas) return false
+      const style = getComputedStyle(canvas)
+      return (
+        (style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0) ||
+        (style.boxShadow !== 'none' && style.boxShadow !== '')
+      )
+    })
+    expect(
+      marked,
+      '.stage__canvas has no visible outline/box-shadow while the stage is focused',
+    ).toBe(true)
+  })
+})
