@@ -427,7 +427,13 @@ test.describe('FA-N-16 / FA-N-17 — the machine-readable files are served as te
 test.describe('IM-04 — no srcset, and the single size still fits a phone', () => {
   test('no gallery poster carries a srcset or sizes attribute', async ({ request }) => {
     const html = await (await request.get('/products')).text()
-    const images = [...html.matchAll(/<img[^>]*class="product-card__img"[^>]*>/g)].map((m) => m[0])
+    // The class is matched as a WORD inside the attribute, here and below. An exact
+    // `class="product-card__img"` would stop matching the day a second class is added,
+    // and both tests would then take the skip below and read "no garment has a
+    // poster" instead of failing.
+    const images = [
+      ...html.matchAll(/<img[^>]*\bclass="[^"]*\bproduct-card__img\b[^"]*"[^>]*>/g),
+    ].map((m) => m[0])
     test.skip(images.length === 0, 'no garment with a poster in this database')
     for (const img of images) {
       /*
@@ -470,7 +476,9 @@ test.describe('IM-04 — no srcset, and the single size still fits a phone', () 
    */
   test('the gallery declares the one size a phone needs: 1200 x 1500', async ({ request }) => {
     const html = await (await request.get('/products')).text()
-    const images = [...html.matchAll(/<img[^>]*class="product-card__img"[^>]*>/g)].map((m) => m[0])
+    const images = [
+      ...html.matchAll(/<img[^>]*\bclass="[^"]*\bproduct-card__img\b[^"]*"[^>]*>/g),
+    ].map((m) => m[0])
     test.skip(images.length === 0, 'no garment with a poster in this database')
     for (const img of images) {
       expect(img, `a gallery poster no longer declares width=1200:\n${img}`).toMatch(
