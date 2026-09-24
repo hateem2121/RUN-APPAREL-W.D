@@ -234,9 +234,11 @@ the answer is "nothing that happens in production", it is not a test.
   `"types": ["node"]`. `@types/node` looks like the culprit and is not.
   🟡 **Bisect; do not revert the plausible one.** The split is deliberate and pinned by
   `dependencyPolicy.test.ts`, which asserts the hold in `apps/shrink` AND asserts it has
-  not widened again. wrangler 4.122.0 wants `^5.20260811.1`, so `apps/shrink` still
-  carries an unmet-peer warning on purpose — cosmetic, and **do not "fix" it by raising
-  workers-types**, which trades it for the real break.
+  not widened again. wrangler 4.137.0 wants `^5.20260921.1`, so `apps/cms` and
+  `apps/viewer` now carry the same unmet-peer warning as `apps/shrink` — cosmetic in all
+  three, but only `apps/shrink`'s is a real hold; cms/viewer could raise workers-types
+  safely, as a separate change. **Do not "fix" shrink's by raising workers-types**, which
+  trades it for the real break.
   Releasing it does not need Cloudflare: move `SIZE_WARNING_BYTES` and `GlbReport` into a
   node-free module and `readGlbGenerator` stops being reachable. History and the re-test:
   `docs/DEPENDENCY-HOLDS.md`.

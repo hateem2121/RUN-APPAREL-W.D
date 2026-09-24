@@ -24,7 +24,7 @@
   //   1. a Worker's own response does not pass through the edge cache by default;
   //   2. this Worker returned its own 206, and Cloudflare does not store a 206
   //      from a Worker. index.js now always returns 200 and lets the edge slice.
-  // Requires wrangler >= 4.69.0; this repo pins 4.122.0.
+  // Requires wrangler >= 4.69.0; this repo pins 4.137.0.
   "cache": { "enabled": true },
 
   // Explicit rather than inferred from the presence of `routes`. Both are already
