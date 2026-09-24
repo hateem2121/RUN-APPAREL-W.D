@@ -2059,9 +2059,8 @@ model-viewer.stage__model {
   /*
     Opaque, not 92%. At 92% with no blur, body copy scrolling underneath stayed
     fully legible through the bar and read as broken layout — the contact
-    paragraph collided with the buttons on a 390px viewport. The header solves
-    the same problem with backdrop-filter, but that is deliberately reserved
-    ("the single allowed blurred sticky header", above), so this one goes solid.
+    paragraph collided with the buttons on a 390px viewport. The bar above is
+    opaque too (the website's bar), so this one goes solid.
   */
   background: var(--bg);
   border-top: 1px solid var(--line);

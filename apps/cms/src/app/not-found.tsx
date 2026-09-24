@@ -1,6 +1,6 @@
 import '@fontsource-variable/archivo/wdth.css'
 import '@fontsource/instrument-serif/400-italic.css'
-// ORDER IS LOAD-BEARING — the same three-import cascade (frontend)/layout.tsx uses.
+// ORDER IS LOAD-BEARING — the same four-import cascade (frontend)/layout.tsx uses.
 import '@run-apparel/ui/tokens.css'
 import '@run-apparel/ui/base.css'
 import '@run-apparel/ui/notch.css'

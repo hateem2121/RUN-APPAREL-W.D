@@ -490,7 +490,7 @@ nothing moved — with one stated exception below.
 | `--z-stage-control` | 1 | `.stage__ar` — inside the stage, above the canvas |
 | `--z-footer-tab` | 2 | the site's `.site-footer__tab` — seated on the footer slab's top edge |
 | `--z-footer-glow` | 6 | the site's `.footer-glow` — the light, blended over the slab's content |
-| `--z-header` | 40 | the sticky header; the site's `.notch-shell` shares it |
+| `--z-header` | 40 | the bar; both hosts' `.notch-shell` share it since 2026-09-24 |
 | `--z-action-bar` | 50 | the persistent contact bar |
 | `--z-grain` | 60 | the full-page grain overlay |
 | `--z-cursor` | 70 | `.cursor-ring`, pointer devices only |

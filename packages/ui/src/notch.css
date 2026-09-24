@@ -214,8 +214,8 @@
    * 16px face and four times tighter than the viewer renders the same name.
    *
    * `--tracking-wordmark` is the token written for exactly this — "fixed: display type
-   * with no optical range" — and it is what the viewer's `.header__wordmark` already uses,
-   * so the company's name is now tracked identically on both surfaces (FA-Q-04).
+   * with no optical range" — and since 2026-09-24 the viewer draws this same element,
+   * so the company's name is set identically on both surfaces (FA-Q-04).
    *
    * ⚠️ `.footer-q` KEEPS `--tracking-display-sm` AND THAT IS CORRECT. Its font-size is
    * `clamp(27px, 4.3vw, 52px)` — genuinely fluid — so tracking that scales with the

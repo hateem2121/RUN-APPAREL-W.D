@@ -26,8 +26,8 @@
  */
 import '@fontsource-variable/archivo/wdth.css'
 import '@fontsource/instrument-serif/400-italic.css'
-// ORDER IS LOAD-BEARING — tokens define the custom properties the two files below
-// read. The same three-import cascade apps/viewer uses, from the same package, so the
+// ORDER IS LOAD-BEARING — tokens define the custom properties the files below
+// read. The same four-import cascade apps/viewer uses, from the same package, so the
 // public site and the 3D reference cannot drift apart visually.
 import '@run-apparel/ui/tokens.css'
 import '@run-apparel/ui/base.css'
