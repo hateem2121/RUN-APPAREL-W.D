@@ -183,7 +183,13 @@ async function collectInteractionMetrics(
  * produced them.
  */
 test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interactions', () => {
-  test('colourway tab switch and the theme toggle stay under the ceilings', async ({ page }) => {
+  test('colourway tab switch and the theme toggle stay under the ceilings', async ({
+    page,
+    browserName,
+  }) => {
+    // CDP (the throttle and the long-task/event-timing plumbing it enables) is a
+    // Chromium-only protocol; WebKit and Firefox have no equivalent session here.
+    test.skip(browserName !== 'chromium', 'CDP is only available in Chromium')
     // The menu button (and the theme toggle behind it) only exists in the DOM's
     // visible sense below 720px — `packages/ui/src/notch.css`'s own
     // `@media (width < 720px)` rule; at desktop width the button is `display: none`.
@@ -202,14 +208,67 @@ test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interac
       await page.locator('.theme-toggle').click()
     })
 
+    // Measured fresh against this fixture, 4x CPU throttle, chromium (2026-09-24):
+    // tbt=1046-1067ms, worstTask=950-962ms, inpProxy=144-152ms — the 3D page's own
+    // colourway swap and material rebind cost real main-thread time (apps/viewer/
+    // CLAUDE.md: "a colourway swap blocking the main thread for 121-131ms" is a
+    // separate, already-accepted cost). Ceilings give headroom without being loose
+    // enough to miss a real regression: Google's own INP "poor" line is 500ms+.
     const result = evaluateInteractionWalkthrough(samples, {
       tbtCeilingMs: 1500,
-      inpCeilingMs: 600,
+      inpCeilingMs: 300,
     })
     expect(
       result.ok,
       `${result.problems.join('; ')} (tbt=${result.tbt.toFixed(0)}ms, ` +
         `worstTask=${result.worstTask.toFixed(0)}ms, inpProxy=${result.inpProxy.toFixed(0)}ms)`,
     ).toBe(true)
+  })
+})
+
+/**
+ * PF-18 — JS heap after the 3D model has loaded. HARD TO AUTOMATE, an HONEST PROXY.
+ *
+ * CDP's `Performance.getMetrics` `JSHeapUsedSize` is the closest instrument
+ * available without a real device lab. It measures THIS MACHINE's V8 heap under
+ * THIS ONE SCRIPT's load — not a real visitor's phone under real memory pressure
+ * over a longer session with other tabs open. The assertion's own failure message
+ * says so, per root CLAUDE.md's honesty-labelling rule, so a failure here is never
+ * mistaken for a field measurement.
+ */
+// Measured fresh against this fixture, chromium (2026-09-24): 8.9-9.0MB — roughly
+// double the original audit's "4-5MB, small" note (a different build), still small.
+// 30MB gives real headroom without being loose enough to miss an actual leak.
+const PF18_CEILING_MB = 30
+
+test.describe('PF-18 — JS heap after the 3D model has loaded (hard to automate; a proxy)', () => {
+  test('JSHeapUsedSize stays under the measured ceiling', async ({ page, browserName }) => {
+    // Performance.getMetrics is CDP, Chromium-only.
+    test.skip(browserName !== 'chromium', 'CDP is only available in Chromium')
+    const client = await page.context().newCDPSession(page)
+    // Performance.getMetrics reports every value as 0 until the domain is enabled —
+    // measured directly: the first version of this test always read 0.0MB and
+    // "passed" a ceiling of any size, which is the exact shape of a measurement that
+    // proves nothing root CLAUDE.md warns about.
+    await client.send('Performance.enable')
+    await page.goto('/n001/wine')
+    await page.waitForFunction(() => Boolean(document.querySelector('model-viewer')?.loaded), {
+      timeout: 30000,
+    })
+    // Let any post-load allocation (materials, textures) settle before reading.
+    await page.waitForTimeout(1000)
+
+    const { metrics } = await client.send('Performance.getMetrics')
+    const heapBytes = metrics.find((m) => m.name === 'JSHeapUsedSize')?.value ?? 0
+    const heapMb = heapBytes / (1024 * 1024)
+
+    // Measured fresh against this fixture (2026-09-24), not the original audit's own
+    // "4-5MB, small" note — re-measured, not trusted, per the task report.
+    expect(
+      heapMb,
+      `JS heap ${heapMb.toFixed(1)}MB exceeds the ${PF18_CEILING_MB}MB ceiling. This measures ` +
+        "THIS MACHINE's heap under THIS ONE SCRIPT's load, not a real visitor's device under " +
+        'real memory pressure over a longer session — it is a proxy, not a field measurement.',
+    ).toBeLessThan(PF18_CEILING_MB)
   })
 })
