@@ -307,10 +307,11 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   the harness.
 
 - **🟡 `gh run rerun --failed` CAN CANCEL ITSELF ON THIS WORKFLOW, and reports `cancelled`
-  rather than an error.** Measured 2026-09-07. `ci.yml` sets
-  `concurrency: cancel-in-progress: true`, and a re-run of a job is placed in the SAME
-  concurrency group as the run it belongs to — so it queues, starts, collides with its own
-  parent and is cancelled. Nothing else had pushed; the branch was quiet.
+  rather than an error.** Measured 2026-09-07. `ci.yml` cancels in progress on every
+  branch except `main` (never there, since 2026-08-31), and a re-run of a job is placed in
+  the SAME concurrency group as the run it belongs to — so on a pull request it queues,
+  starts, collides with its own parent and is cancelled. Nothing else had pushed; the
+  branch was quiet.
   The trap is what that looks like: the run's conclusion FLIPS from `failure` to
   `cancelled`, so the evidence of the original failure is gone from `gh run list` and the
   obvious reading is "somebody pushed over it". **Then there is no way to re-run one job.**

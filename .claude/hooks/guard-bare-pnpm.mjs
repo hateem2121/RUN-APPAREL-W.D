@@ -219,18 +219,20 @@ process.stdin.on('end', () => {
       fixed,
       toolInput,
       preApproved ? 'allow' : 'ask',
-      `\`pnpm\` is not on PATH here (exit 127). Rewritten to:\n  ${fixed}`,
+      `Bare \`pnpm\` does not reliably run here (exit 127). Rewritten to:\n  ${fixed}`,
     )
   }
 
   deny(
-    'Blocked: `pnpm` is not on PATH on this machine, so this exits 127.\n\n' +
+    'Blocked: bare `pnpm` does not reliably run on this machine (it has measured absent,\n' +
+      'present, and present-but-broken), so this can exit 127.\n\n' +
       'Use `npx --yes pnpm@10.34.5 <script>` instead — that is what every documented\n' +
       '`pnpm <script>` in this repo means, and what .claude/settings.json allows.\n\n' +
       'This is guarded rather than remembered because of where the failure shows up:\n' +
       'e2e/prepare.mjs shells out to `pnpm build`, so a bare pnpm kills the whole e2e\n' +
       'suite as "Timed out waiting 120000ms from config.webServer" with the real\n' +
-      'status: 127 buried in a child process. See CLAUDE.md, first trap.\n\n' +
+      'status: 127 buried in a child process. See the pnpm note under "What this is" in\n' +
+      'the root CLAUDE.md.\n\n' +
       'This one was DENIED rather than rewritten because the command contains a quote\n' +
       'or a heredoc, where a separator can hide inside a string — rewriting there could\n' +
       'run a command nobody typed. Retype it with the npx form.',

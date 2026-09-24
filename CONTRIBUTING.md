@@ -104,9 +104,11 @@ beats "slightly off".
 - Branch off `main`; never commit directly to it.
 - Conventional-commit prefixes are used (`feat:`, `fix:`, `docs:`, `chore:`,
   `security:`, `merge:`).
-- **Do not push twice in a row.** `ci.yml` sets `cancel-in-progress: true`, so a
-  second push kills the first run mid-flight — and `gh run watch --exit-status`
-  returns **1** for a `cancelled` run exactly as it does for a `failure`. Check
+- **Do not push twice in a row.** On a pull request, a second push cancels the
+  running CI mid-flight (on `main` a second merge waits instead, since 2026-08-31,
+  because that run migrates the database and deploys) — and
+  `gh run watch --exit-status` returns **1** for a `cancelled` run exactly as it
+  does for a `failure`. Check
   `gh run view <id> --json conclusion -q .conclusion` before believing anything
   broke.
 
