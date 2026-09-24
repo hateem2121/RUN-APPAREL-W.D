@@ -107,7 +107,7 @@ describe('findPlaceholders', () => {
   })
 })
 
-describe('llmsTxtProblems — Lighthouse 13.4.1 core/audits/agentic/llms-txt.js:101-103', () => {
+describe('llmsTxtProblems — Lighthouse 13.5.0 core/audits/agentic/llms-txt.js:101-103', () => {
   it('accepts a heading, a Markdown link and enough text', () => {
     expect(
       llmsTxtProblems(

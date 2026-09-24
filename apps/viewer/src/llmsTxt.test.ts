@@ -69,7 +69,7 @@ describe('llms.txt states the live counts', () => {
   })
 })
 
-describe('llms.txt passes Lighthouse 13.4.1’s llms-txt audit', () => {
+describe('llms.txt passes Lighthouse 13.5.0’s llms-txt audit', () => {
   it('has an H1, a Markdown link and enough text', () => {
     expect(llmsTxtProblems(text())).toEqual([])
   })

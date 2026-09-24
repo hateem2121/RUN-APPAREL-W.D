@@ -42,10 +42,10 @@ type Shape = {
   url?: string
 }
 
-/** A report in the shape Lighthouse 13.4.1 writes, cut to the fields the robot reads. */
+/** A report in the shape the pinned Lighthouse writes, cut to the fields the robot reads. */
 const lhr = ({
   status = 200,
-  version = '13.4.1',
+  version = '13.5.0',
   formFactor = 'mobile',
   scores = {},
   below = [],
@@ -131,7 +131,7 @@ describe('readRun', () => {
     const run = readRun(lhr({ scores: HOME_SCORES, below: HOME_BELOW }))
     expect(run).toMatchObject({
       missing: false,
-      version: '13.4.1',
+      version: '13.5.0',
       status: 200,
       formFactor: 'mobile',
     })
@@ -176,7 +176,7 @@ describe('classifyRun', () => {
 
   it('refuses a report from another Lighthouse', () => {
     expect(classifyRun(readRun(lhr({ version: '12.6.1' }))).kind).toBe('wrong-version')
-    expect(LIGHTHOUSE_VERSION).toBe('13.4.1')
+    expect(LIGHTHOUSE_VERSION).toBe('13.5.0')
   })
 })
 
