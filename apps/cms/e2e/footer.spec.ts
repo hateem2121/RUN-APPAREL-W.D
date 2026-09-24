@@ -352,3 +352,98 @@ test.describe('without JavaScript', () => {
     await expect(page.locator('.cursor-dot')).toHaveCount(0)
   })
 })
+
+/*
+ * ══ the footer's content edge agrees with the page's (D7's own guard, DS-06) ══
+ *
+ * D7 (`docs/DECISIONS-BETA-WEBSITE.md`) keeps the footer's empty band and fixes the
+ * misalignment beside it — "a test asserts the footer's content edge agrees with the
+ * page container's at every audited width" is the decision's own guard, which had never
+ * been written.
+ *
+ * ⚠️ `.site-footer__inner` IS NOT NESTED INSIDE A `.site-container` — checked directly
+ * (`SiteFooter.tsx`): it sits in `<footer class="site-footer"><div class="site-footer__slab">
+ * <div class="site-footer__inner">`, no `.site-container` ancestor anywhere. The original
+ * FA-D-01 defect (the footer's left edge drifting up to 370px from the page's own left
+ * edge) was therefore always a comparison between the footer's OWN width mechanism
+ * (`--site-content`, `site.css:1061-1067` — the same `--site-max`/`--site-gutter` maths
+ * `.site-container` uses, computed independently) and `.site-container` as it appears
+ * IN THE PAGE'S OWN CONTENT above the footer — not a parent-child relationship. Confirmed
+ * by running this test first with `.closest()`: it returned null at every width.
+ *
+ * ⚠️ `.site-container`'S BORDER-BOX LEFT EDGE IS NOT ITS CONTENT EDGE. It carries its own
+ * `padding-inline: var(--site-gutter)` (`site.css:377-382`); `.site-footer__inner` carries
+ * NO padding of its own and is already sized to `--site-content` (`--site-max` minus TWO
+ * gutters). Comparing raw `getBoundingClientRect().left` on both therefore compares a
+ * padding-box to a content-box — measured first without the correction: the gap tracked
+ * `--site-gutter` exactly (20 / 38.4 / 51.2 / 64 / 64px at the five audited widths, i.e.
+ * `clamp(20px, 5vw, 64px)` itself), which is the padding this correction accounts for.
+ */
+test.describe("the footer's content edge agrees with the page's (DS-06)", () => {
+  test('left edges match at five widths', async ({ page }) => {
+    await page.goto('/contact')
+    const results: { width: number; gap: number }[] = []
+    for (const width of [320, 768, 1024, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 900 })
+      const gap = await page.evaluate(() => {
+        const inner = document.querySelector('.site-footer__inner') as HTMLElement
+        const container = document.querySelector('.site-container') as HTMLElement
+        if (!inner || !container) return Number.NaN
+        const containerContentLeft =
+          container.getBoundingClientRect().left +
+          Number.parseFloat(getComputedStyle(container).paddingLeft)
+        return Number(
+          (inner.getBoundingClientRect().left - containerContentLeft).toFixed(2),
+        )
+      })
+      results.push({ width, gap })
+    }
+
+    expect(
+      results.some((r) => Number.isNaN(r.gap)),
+      `no .site-footer__inner or .site-container to measure: ${JSON.stringify(results)}`,
+    ).toBe(false)
+
+    // The measured tolerance: sub-pixel float arithmetic on a flex/margin-auto layout,
+    // the same order of magnitude this file's own header note describes for `boundingBox()`.
+    const MEASURED_TOLERANCE_PX = 1
+    const offenders = results.filter((r) => Math.abs(r.gap) > MEASURED_TOLERANCE_PX)
+    expect(
+      offenders.map((r) => `${r.width}px: ${r.gap}px gap`),
+      `the footer's content edge drifted from the page container's edge`,
+    ).toEqual([])
+  })
+})
+
+/*
+ * ══ the footer's quiet band stays inside D7's documented range (DS-09) ══
+ *
+ * D7 keeps `.footer-grow` (`site.css:1434-1437`) as deliberate empty space, documented at
+ * "144-323px depending on width" — never measured by a test. MEASURED here, not assumed.
+ *
+ * ⚠️ 1px SUB-PIXEL TOLERANCE ON THE CEILING, MEASURED NOT GUESSED: at 768px this file's
+ * own run reported 323.9666...px — Firefox's `getBoundingClientRect()` on a flex layout
+ * losing a fraction of a pixel, the same class of artefact this file's header comment
+ * already names for `boundingBox()`. 323 is D7's own documented figure; a bare `<= 323`
+ * fails on that fraction alone, which is not the regression this test exists to catch.
+ */
+test.describe("the footer's quiet band stays inside D7's documented range (DS-09)", () => {
+  const CEILING_TOLERANCE_PX = 1
+  test('height stays within 144-323px across the documented width range', async ({ page }) => {
+    await page.goto('/contact')
+    for (const width of [768, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      const height = await page
+        .locator('.footer-grow')
+        .evaluate((el) => el.getBoundingClientRect().height)
+      expect(
+        height,
+        `.footer-grow is ${height}px tall at ${width}px, outside D7's documented 144-323px`,
+      ).toBeGreaterThanOrEqual(144)
+      expect(
+        height,
+        `.footer-grow is ${height}px tall at ${width}px, outside D7's documented 144-323px`,
+      ).toBeLessThanOrEqual(323 + CEILING_TOLERANCE_PX)
+    }
+  })
+})

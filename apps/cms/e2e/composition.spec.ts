@@ -990,3 +990,99 @@ test.describe('the mono/caps register is genuinely uppercase everywhere (CR-06)'
     })
   }
 })
+
+
+/*
+ * ══ the hero's vertical rhythm is exactly 10 / 16 / 24px (DS-03) ══
+ *
+ * FA-B-71 above already proves the ORDERING (each gap smaller than the next belongs to);
+ * D15 (`docs/DECISIONS-BETA-WEBSITE.md`) fixes the exact figures — `.label + *`
+ * (site.css:2070) 10px, `.site-lede` (site.css:474) 16px, `.site-actions` (site.css:483)
+ * 24px — and no test pinned the numbers themselves, at more than one width.
+ */
+test.describe('the hero vertical rhythm is exactly 10 / 16 / 24px (DS-03)', () => {
+  for (const width of [390, 1440]) {
+    test(`label-to-heading 10px, heading-to-lede 16px, lede-to-actions 24px at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/')
+      await settle(page)
+
+      const measured = await page.evaluate(() => {
+        const gap = (a: string, b: string) => {
+          const A = document.querySelector(a)?.getBoundingClientRect()
+          const B = document.querySelector(b)?.getBoundingClientRect()
+          return A && B ? Number((B.top - A.bottom).toFixed(1)) : Number.NaN
+        }
+        return {
+          labelToHeading: gap('.site-hero .label', '.site-hero h1'),
+          headingToLede: gap('.site-hero h1', '.site-hero .site-lede'),
+          ledeToActions: gap('.site-hero .site-lede', '.site-hero .site-actions'),
+        }
+      })
+
+      expect(measured.labelToHeading, 'no label or heading rendered').not.toBeNaN()
+      expect(measured.headingToLede, 'no heading or lede rendered').not.toBeNaN()
+      expect(measured.ledeToActions, 'no lede or actions rendered').not.toBeNaN()
+
+      expect(measured.labelToHeading, `label-to-heading gap is ${measured.labelToHeading}px, not 10px`).toBe(
+        10,
+      )
+      expect(measured.headingToLede, `heading-to-lede gap is ${measured.headingToLede}px, not 16px`).toBe(
+        16,
+      )
+      expect(measured.ledeToActions, `lede-to-actions gap is ${measured.ledeToActions}px, not 24px`).toBe(
+        24,
+      )
+    })
+  }
+})
+
+/*
+ * ══ section spacing has at most two distinct rhythms across a width sweep (DS-04) ══
+ *
+ * `.site-hero` and `.site-section` (site.css:409-411,417-425) use different `clamp()`
+ * formulas (9vw vs 11vw, 120px vs 160px ceilings) for structurally the same idea — a
+ * section's own breathing room. This holds together only if the RENDERED gaps still
+ * cluster to a small, deliberate set rather than drifting into a long tail of near-misses.
+ */
+test.describe('section spacing has at most two distinct rhythms across a width sweep (DS-04)', () => {
+  test('the set of distinct inter-section gaps has at most 2 members', async ({ page }) => {
+    /*
+     * ⚠️ MEASURED FLAKY ONCE WITHOUT THIS, ON CHROMIUM: a resize-only sweep (one
+     * navigation, `setViewportSize` per width) reported a spurious extra pair of values
+     * (a 0px and a 4px gap alongside the real two), which a `data-site-reveal` section
+     * mid-transition explains — the same "measuring a transform, not a margin" trap
+     * `apps/viewer/CLAUDE.md` documents for its own `[data-reveal]`. FA-D-04 above avoids
+     * it by giving each width its OWN `test()` with a fresh `page.goto`; this reuses that
+     * same fix (a fresh navigation per width) rather than trusting resize alone.
+     */
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+
+    const gaps = new Set<number>()
+    for (const width of [390, 768, 1024, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/')
+      await settle(page)
+      const values = await page.evaluate(() => {
+        const sections = [...document.querySelectorAll('.site-hero, .site-section')]
+        const out: number[] = []
+        for (let i = 0; i < sections.length - 1; i++) {
+          const a = sections[i]?.getBoundingClientRect()
+          const b = sections[i + 1]?.getBoundingClientRect()
+          if (a && b) out.push(Math.round(b.top - a.bottom))
+        }
+        return out
+      })
+      for (const value of values) gaps.add(value)
+    }
+
+    expect(gaps.size, 'no inter-section gap was measured at all').toBeGreaterThan(0)
+    expect(
+      gaps.size,
+      `the inter-section gaps span ${gaps.size} distinct values across the width sweep: ` +
+        `${[...gaps].join(', ')} — the two clamp() formulas have drifted apart`,
+    ).toBeLessThanOrEqual(2)
+  })
+})

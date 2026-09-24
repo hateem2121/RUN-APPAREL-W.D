@@ -1734,3 +1734,53 @@ test.describe('the rendered viewport meta tag is present and sane (SZ-13)', () =
     expect(content).toContain('width=device-width')
   })
 })
+
+
+/*
+ * ══ nothing above the fold outsizes the product name (DS-08, viewer half) ══
+ *
+ * `apps/cms/e2e/composition.spec.ts` -> "FA-A-71" already proves this for the site; the
+ * viewer has its own product-name heading and no equivalent.
+ */
+test.describe('nothing above the fold outsizes the product name (DS-08)', () => {
+  test('nothing above the fold is set larger than the h1', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const louder = await page.evaluate(() => {
+      const h1 = document.querySelector('h1') as HTMLElement
+      const h1Size = Number.parseFloat(getComputedStyle(h1).fontSize)
+      return {
+        h1Size,
+        h1Top: h1.getBoundingClientRect().top,
+        offenders: [...document.querySelectorAll<HTMLElement>('body *')]
+          .filter((el) => el !== h1 && !h1.contains(el) && !el.contains(h1))
+          .filter((el) => {
+            const box = el.getBoundingClientRect()
+            if (box.height === 0 || box.top >= window.innerHeight) return false
+            const style = getComputedStyle(el)
+            if (style.visibility === 'hidden' || style.display === 'none') return false
+            const own = [...el.childNodes]
+              .filter((node) => node.nodeType === Node.TEXT_NODE)
+              .map((node) => node.textContent?.trim() ?? '')
+              .join('')
+            return own.length > 0
+          })
+          .filter((el) => Number.parseFloat(getComputedStyle(el).fontSize) >= h1Size)
+          .map(
+            (el) =>
+              `${el.tagName}.${el.className} @ ${getComputedStyle(el).fontSize}: ` +
+              `${(el.textContent ?? '').trim().slice(0, 24)}`,
+          ),
+      }
+    })
+
+    expect(louder.h1Top, 'the product name is not above the fold at all').toBeLessThan(900)
+    expect(louder.offenders, 'something above the fold shouts louder than the product name').toEqual(
+      [],
+    )
+    expect(louder.h1Size).toBeGreaterThan(28)
+  })
+})
