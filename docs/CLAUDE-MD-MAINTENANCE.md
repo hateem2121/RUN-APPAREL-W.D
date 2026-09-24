@@ -22,7 +22,7 @@ the warning and still over the line target.
 
 ⚠️ **THIS SAID "treat 40,000 as the hard gate" UNTIL 2026-09-04, AND THAT NUMBER IS
 1,000 TOO HIGH.** 40,000 is Claude Code's *warning*; the gate that fails CI is
-**39,000** (`apps/cms/src/claudeMd.test.ts:199`), set deliberately low because a gate
+**39,000** (`apps/cms/src/claudeMd.test.ts:222`), set deliberately low because a gate
 firing at the ceiling fires after the harm. The argument for it was written only in
 that test file, which a session editing a CLAUDE.md has no reason to open — so every
 document a session actually reads stated a budget it did not have. Budget against
@@ -92,3 +92,23 @@ the way to verify the on-demand claims above instead of asserting them. This rep
 wires one at `.claude/hooks/log-instructions-loaded.mjs`; see `docs/RUNBOOK.md`.
 Free win nobody here uses yet: block-level `<!-- HTML comments -->` are stripped
 before injection, so pure provenance can stay legible to humans at zero context cost.
+
+**A quoted setting must still be in the file its sentence names (since 2026-09-24).**
+A backticked `key: value` in an instruction file must appear in a file named by the same
+paragraph or list item. That file can be given as `ci.yml`, as a path, or as a folder. If
+the paragraph names no file, the quote must appear in some tracked file.
+
+The instruction files checked are every CLAUDE.md, the root AGENTS.md, CONTRIBUTING.md,
+README.md, the agents and rules, our own skills, and the hook messages.
+
+`node scripts/quoted-settings.mjs` is the fast local check, and
+`apps/cms/src/claudeMd.test.ts` gates it in CI.
+
+It exists because `ci.yml` stopped cancelling runs on `main` on 2026-08-31, and four notes
+kept quoting `cancel-in-progress: true` for three weeks. One of them was a hook message.
+Every path they cited still resolved, so the citation gate stayed green. "Somewhere in the
+repo" would have passed them too, because three other workflows still set it.
+
+A quote that is true on purpose without a file goes in `ALLOWED_QUOTES` with its reason.
+That covers error messages, measured headers and rejected settings. The check proves the
+text only, not the reading: a sentence can still misread a setting it quotes correctly.

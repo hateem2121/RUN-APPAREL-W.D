@@ -127,6 +127,9 @@ reading as a tidy-up. See the comment in `RawUploads.ts`.
 - **Every document is citation-checked, not just CLAUDE.md** — README, CONTRIBUTING,
   SECURITY and all of `docs/`. A genuinely-gone path goes in `ALLOWED_ABSENT`
   🟡 **with the reason**; `file.ts:42` and extension-less citations resolve fine.
+  🟡 **A quoted setting must still be in the file its sentence names** (since
+  2026-09-24, `scripts/quoted-settings.mjs`): four notes kept quoting a `ci.yml` value
+  for three weeks after it changed, while every path they cited still resolved.
   🟡 **Never cite a gitignored GENERATED directory; a citation of one broke CI.**
   `public/draco/` is written at build time by `apps/viewer/scripts/copy-decoders.mjs`,
   so it exists locally from an earlier build and passes for you while a clean checkout
