@@ -2,11 +2,13 @@
 /**
  * Upload a LOCAL CLO export into the ingest bucket and start the shrink robot.
  *
- * WHY THIS EXISTS ALONGSIDE `ingest-from-archive.mjs`. That script starts a shrink from
- * an S3 `CopyObject`, which is the right tool when the bytes are already in R2 — it moves
- * 1.71 GiB in 110 s without touching this machine's uplink. It cannot help a NEW export
- * that exists only on the owner's Mac, which is what arrived on 2026-09-07: five garments,
- * 1.45 GB, none of them in the archive.
+ * WHY THIS EXISTS. Until 2026-09-24 this sat alongside `ingest-from-archive.mjs`, which
+ * started a shrink from an S3 `CopyObject` when the bytes were already in R2 — it moved
+ * 1.71 GiB in 110 s without touching this machine's uplink. That script was retired with
+ * the R2 archive bucket it copied from (owner decision — docs/BACKUP-RESTORE.md): every
+ * raw export now starts on the owner's Mac, which is what this script has always done —
+ * it is what arrived on 2026-09-07: five garments, 1.45 GB, uploaded straight from local
+ * disk.
  *
  * The documented alternative is a browser upload into the CMS. That re-sends the bytes
  * through a Worker, and at the uplink measured here on 2026-09-07 (595,739 B/s against
@@ -23,9 +25,9 @@
  *
  * ⚠️ THE ETAG OF A MULTIPART UPLOAD IS NOT A CONTENT HASH. It is a digest OF THE PART
  * DIGESTS with a `-N` suffix, so it cannot be compared against a local sha256 — the same
- * trap `ingest-from-archive.mjs` records for `ARISAN BRA`. The proof used here is the
- * stored object's SIZE read back with a HEAD after completion, which is also what
- * `RawUploads.beforeChange` checks.
+ * trap measured on `ARISAN BRA`'s upload to the (since-retired) R2 archive bucket. The
+ * proof used here is the stored object's SIZE read back with a HEAD after completion,
+ * which is also what `RawUploads.beforeChange` checks.
  *
  * ⚠️ THE FILENAME BECOMES THE PUBLIC MODEL URL. `apps/shrink/container/report.ts` derives
  * it with `suggestedFilename()` and appends `-optimized.glb`, so names here are lowercase
@@ -109,7 +111,7 @@ function accountEndpoint() {
 /**
  * S3 credentials from the Cloudflare API token: Access Key ID is the token's `id`, Secret
  * Access Key is the SHA-256 of the token value. The id is fetched rather than passed in,
- * so only the token itself is ever a secret. Identical to `ingest-from-archive.mjs`.
+ * so only the token itself is ever a secret.
  */
 async function s3Client(token) {
   const res = await fetch('https://api.cloudflare.com/client/v4/user/tokens/verify', {

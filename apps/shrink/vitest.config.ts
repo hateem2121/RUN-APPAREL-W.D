@@ -24,7 +24,7 @@ import { defineConfig } from 'vitest/config'
  * SINCE 2026-09-03 (fix plan Rank 13, audit Q-01) every VERDICT is out of index.ts:
  * `refusals.ts` (size, torn artwork, see-through artwork, the stripped colour map),
  * `specGate.ts`, `containerFailure.ts` (the expired upload), `orphanGuard.ts`,
- * `archiveRaw.ts`, `attach.ts`, `colourImport.ts`, `queueDecisions.ts`. What index.ts
+ * `attach.ts`, `colourImport.ts`, `queueDecisions.ts`. What index.ts
  * still holds is TRANSPORT — the container call, the CMS reads and writes, the R2
  * streams — and the order they run in. It cannot be imported under plain Node at all
  * (`@cloudflare/containers` pulls in `cloudflare:workers`), so covering the transport
