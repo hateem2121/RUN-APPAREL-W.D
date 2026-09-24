@@ -54,13 +54,13 @@ const code = (...parts: string[]) => stripComments(read(...parts))
  */
 const css = () => stripComments(read(FRONTEND, 'site.css'))
 
-/** The bar's stylesheet — shared with the 3D viewer since Phase 1b-B — comments blanked. */
+/** The bar's stylesheet — shared with the 3D viewer since 2026-09-24 — comments blanked. */
 const barCss = () =>
   stripComments(read(join(CMS_ROOT, '..', '..'), 'packages', 'ui', 'src', 'notch.css'))
 
 /**
  * Rules that give the CLOSED menu list (`.notch__menu` as the subject, not `:popover-open`) a
- * `display` outside the wide-screen block — the shape of mockup bug 1 (Phase 1b-B).
+ * `display` outside the wide-screen block — the shape of mockup bug 1.
  */
 function closedMenuDisplays(source: string): string[] {
   const offenders: string[] = []
@@ -654,7 +654,7 @@ describe('the notch', () => {
 
   it('renders exactly ONE set of links, from the one list both hosts share', () => {
     // A popover must not carry a second copy of the nav (a screen reader reads it twice).
-    // Since Phase 1b-B the list lives in packages/shared, so the viewer's bar cannot drift.
+    // Since 2026-09-24 the list lives in packages/shared, so the viewer's bar cannot drift.
     const shared = code(join(CMS_ROOT, '..', '..'), 'packages', 'shared', 'src', 'siteBar.ts')
     expect(shared.match(/href: '\/products'/g) ?? []).toHaveLength(1)
     expect(shared.match(/href: '\/contact'/g) ?? []).toHaveLength(1)
@@ -667,7 +667,7 @@ describe('the notch', () => {
     )
   })
 
-  it('switches between the phone menu and the inline bar at the fitted boundary (Phase 1b-B)', () => {
+  it('switches between the phone menu and the inline bar at the fitted boundary', () => {
     // Fitted on the live site 2026-09-23 (the plan's appendix B): 720px, or earlier when the
     // reader's text is large enough that the inline row would cut the name; and a second row
     // for the button when even name + button do not fit. Range syntax, so the phone and wide

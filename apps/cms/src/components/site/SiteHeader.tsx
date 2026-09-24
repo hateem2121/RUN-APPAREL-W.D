@@ -4,7 +4,7 @@ import { NavLinks } from './NavLinks'
 import { ThemeSwitch } from './ThemeSwitch'
 
 /**
- * The menu bar — the public site's only navigation, and since Phase 1b-B the 3D viewer's too:
+ * The menu bar — the public site's only navigation, and since 2026-09-24 the 3D viewer's too:
  * apps/viewer/src/components/Header.tsx renders the same markup, packages/ui/src/notch.css
  * styles both, and apps/cms/src/auditGuards.test.ts fails if either host restyles it.
  *
@@ -48,7 +48,7 @@ import { ThemeSwitch } from './ThemeSwitch'
  * `@media (prefers-color-scheme)`, so `:root[data-theme="dark"]` "moves nothing in the built
  * CSS". Measured 2026-09-23: Lightning CSS compiles that rule to ALSO set
  * `--lightningcss-light: ; --lightningcss-dark: initial`, the viewer's production stylesheet
- * carries exactly that, and this site's build (Phase 1b-B, Task 0) does too.
+ * carries exactly that, and this site's build (measured 2026-09-23) does too.
  * e2e/themeSwitch.spec.ts clicks the switch in the BUILT site and measures the page it paints.
  */
 export function SiteHeader({ wordmark }: { wordmark: string }) {

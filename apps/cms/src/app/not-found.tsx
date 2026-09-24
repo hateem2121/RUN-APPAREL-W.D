@@ -60,7 +60,7 @@ import { THEME_COLOR } from '../lib/themeColor'
  * the wordmark is identical in practice; if the owner ever renames the company it changes
  * here too, which `publicSite.test.ts` pins.
  * The bar is the site's own SiteHeader (a server component taking this one string), so the
- * 404 has the phone menu too — it was a hand-copied bar until Phase 1b-B.
+ * 404 has the phone menu too — it was a hand-copied bar until 2026-09-24.
  *
  * ⚠️ IT MUST NOT BE INDEXABLE. Next adds its own `noindex` to a not-found route, and the
  * `robots` below makes the second tag restrictive too — without it the page inherited

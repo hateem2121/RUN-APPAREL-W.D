@@ -5,7 +5,7 @@
  * are coming), 2026-09-17 ("Same menu bars everywhere. The one I prefer is at wear-run.help"),
  * 2026-09-23 (the button is the "Speed Lines" icon; its name stays "Menu").
  *
- * These rules were the site's own (apps/cms/src/app/(frontend)/site.css) until Phase 1b-B moved
+ * These rules were the site's own (apps/cms/src/app/(frontend)/site.css) until 2026-09-24 moved
  * them here verbatim, so the viewer draws the SAME bar rather than a copy of it. Each app keeps
  * only its surface's business: the site FIXES the bar over the page and condenses it on scroll;
  * the viewer keeps it in the page flow, so --header-h still measures where its 3D stage starts.
@@ -383,10 +383,10 @@
  * ⚠️ THE COMPANY'S NAME WAS BEING CUT OFF ON THE COMMONEST PHONE WIDTHS. Measured
  * 2026-09-07 in Chromium and Firefox on `/`: at 150% text on a 390px phone the name needed
  * 173px and got 141px, because everything in the bar is in `rem` and the bar is not. WCAG
- * 1.4.4 asks for 200% without loss of content. Until Phase 1b-B the answer was a second row
+ * 1.4.4 asks for 200% without loss of content. Until 2026-09-24 the answer was a second row
  * for the links, fitted to "name + two inline links".
  *
- * ⚠️ SINCE PHASE 1b-B THE MENU IS THE ANSWER, and its boundary follows text size, not
+ * ⚠️ SINCE 2026-09-24 THE MENU IS THE ANSWER, and its boundary follows text size, not
  * pixels. Fitted on the live site 2026-09-23, binary-searching the narrowest width at which
  * the name is whole, one row, per root size:
  *
@@ -447,7 +447,7 @@
   }
 }
 
-/* ═══════════════════════════════════════════════ the phone menu (Phase 1b-B) */
+/* ═══════════════════════════════════════════════ the phone menu (since 2026-09-24) */
 
 /*
  * THE RING IS VOLT INSIDE THE BAR, IN BOTH THEMES. The global ring is --focus-ring, which is
@@ -468,9 +468,10 @@
 }
 
 /*
- * THE SPEED LINES — the owner's pick, 2026-09-23 (phase1b icon options, Option B): three
- * uneven lines that snap even and fold into an X while the menu is open. The open state is
- * read off the popover itself through `:has(+ … :popover-open)`, so it needs no script.
+ * THE SPEED LINES — the owner's pick, 2026-09-23 (the second of the icon options shown to
+ * the owner): three uneven lines that snap even and fold into an X while the menu is open.
+ * The open state is read off the popover itself through `:has(+ … :popover-open)`, so it
+ * needs no script.
  *
  * ⚠️ DRAWN WITH A TOP BORDER, NOT A BACKGROUND. Forced-colours mode repaints backgrounds as
  * Canvas, which would leave an empty button there; a border takes the system text colour.

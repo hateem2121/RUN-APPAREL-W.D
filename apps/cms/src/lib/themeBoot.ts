@@ -1,6 +1,6 @@
 /**
  * A returning visitor's light/dark choice, applied BEFORE the first paint (audit XS-05,
- * Phase 1b-B).
+ * 2026-09-24).
  *
  * The site follows the phone's theme through `light-dark()` until the visitor presses the
  * switch in the bar; the press stores the choice under this key and sets `data-theme` on

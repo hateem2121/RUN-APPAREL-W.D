@@ -13,7 +13,7 @@ import { Header } from './Header'
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 /**
- * The website's bar, in the viewer (Phase 1b-B; owner decisions 2026-09-11, 2026-09-17 and
+ * The website's bar, in the viewer (since 2026-09-24; owner decisions 2026-09-11, 2026-09-17 and
  * 2026-09-23). The markup is the site's (apps/cms/src/components/site/SiteHeader.tsx);
  * apps/cms/src/auditGuards.test.ts checks both headers carry the same markers, and both
  * browser suites check the rendered accessibility tree against packages/shared.

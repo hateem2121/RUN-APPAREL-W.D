@@ -30,10 +30,10 @@ export const metadata: Metadata = buildMetadata({
  * Most sites cannot say this. Anything that adds device storage makes this page wrong AND
  * puts a banner on every page of the site.
  *
- * Since Phase 1b-B one key, `run-theme`, is written when a visitor PRESSES the light/dark
- * switch on either host, and never on a plain visit; the page says so in words the owner
- * approved on 2026-09-23. e2e/themeSwitch.spec.ts fails if a press ever keeps
- * anything else.
+ * Since the shared menu bar (2026-09-24) one key, `run-theme`, is written when a visitor
+ * PRESSES the light/dark switch on either host, and never on a plain visit; the page says
+ * so in words the owner approved on 2026-09-23. e2e/themeSwitch.spec.ts fails if a press
+ * ever keeps anything else.
  *
  * ⚠️ CLOUDFLARE ANALYTICS IS DESCRIBED IN THE PRESENT TENSE ON PURPOSE. The marketing site
  * contacts nobody today only because `CF_ANALYTICS_TOKEN` is unset, so `Analytics.tsx`

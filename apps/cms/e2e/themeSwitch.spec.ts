@@ -19,7 +19,7 @@ const ground = (page: Page) =>
  *
  * ⚠️ THE FIRST TEST MEASURES THE RENDERED PAGE, NOT THE ATTRIBUTE. SiteHeader.tsx recorded on
  * 2026-09-05 that the BUILT stylesheet would ignore `data-theme` (Lightning CSS downlevels
- * `light-dark()`). Measured while planning Phase 1b-B: Lightning CSS 1.33.0 makes
+ * `light-dark()`). Measured 2026-09-23: Lightning CSS 1.33.0 makes
  * `:root[data-theme="dark"]` set the polyfill's own variables, and the viewer's real build
  * carries exactly that rule. This suite runs against `next build` + `next start`, so it is
  * the authority either way.
@@ -59,8 +59,8 @@ test.describe('XS-05 — the light/dark switch on the site', () => {
     await page.goto('/')
     await page.getByRole('button', { name: THEME_SWITCH_NAMES.toDark, exact: true }).click()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark', { timeout: 15_000 })
-    // The privacy page names exactly ONE thing a press keeps (Question Q3 = A). Anything
-    // else kept makes that page wrong with nothing else going red.
+    // The privacy page names exactly ONE thing a press keeps (the owner's choice,
+    // 2026-09-23). Anything else kept makes that page wrong with nothing else going red.
     const kept = await page.evaluate(() => ({
       local: Object.fromEntries(Object.entries(localStorage)),
       session: Object.keys(sessionStorage),

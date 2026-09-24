@@ -430,7 +430,7 @@ describe('tokens added by the 2026-08-14 audit', () => {
       // The four added 2026-09-05, closing the gap the 2026-08-14 block named in
       // its own comment: it tokenised five of nine and said "nothing to stop a
       // tenth". Seventeen raw declarations were still in the two component sheets.
-      // --text-wordmark (18px) was deleted in Phase 1b-B with its only reader, the viewer's old header wordmark.
+      // --text-wordmark (18px) was deleted 2026-09-24 with its only reader, the viewer's old header wordmark.
       '--text-wordmark-sm: 1rem',
       '--text-note: 0.875rem',
       '--text-mono-lg: 0.75rem',

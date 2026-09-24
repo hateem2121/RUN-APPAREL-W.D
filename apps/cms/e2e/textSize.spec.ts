@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 /*
  * The bar's layout at a given width and ROOT size — the fitted formulas in
- * packages/ui/src/notch.css (Phase 1b-B, measured on the live site 2026-09-23: the inline row
+ * packages/ui/src/notch.css (measured on the live site 2026-09-23: the inline row
  * keeps the name whole from 180.7px + 14.857rem with desktop spacing; name + button from
  * 111.6px + 7.208rem). Duplicated here ON PURPOSE: a change to one without the other fails.
  */

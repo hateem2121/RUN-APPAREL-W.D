@@ -238,7 +238,7 @@ describe('FA-S-06 — the pre-deploy backup is taken AND proven to restore, befo
   })
 })
 
-describe('XS-02 — one menu bar on both surfaces, styled once (Phase 1b-B)', () => {
+describe('XS-02 — one menu bar on both surfaces, styled once', () => {
   /**
    * Owner decision 2026-09-17: "Same menu bars everywhere. The one I prefer is at
    * wear-run.help." The bar's rules moved VERBATIM from the site's stylesheet into

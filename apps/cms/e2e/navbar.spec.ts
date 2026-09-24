@@ -644,7 +644,7 @@ test.describe('rendering', () => {
     page.on('pageerror', (error) => {
       /*
        * ⚠️ BENIGN PER THE RESIZEOBSERVER SPEC, AND NEW TO THIS SUITE ONLY BECAUSE WEBKIT
-       * JOINED IT (Phase 1b-B). NavLinks.tsx observes the menu button so a widen past the
+       * JOINED IT (2026-09-24). NavLinks.tsx observes the menu button so a widen past the
        * phone boundary can close an open menu; when that observation and the resulting
        * layout settle inside one frame, the browser defers the notification and reports it —
        * WebKit as an uncaught page error, measured 2026-09-23, where Chromium and Firefox do
@@ -671,8 +671,8 @@ test.describe('rendering', () => {
        * A genuine script error still fails, which is what the test is for.
        */
       if (/Cross-Origin-Resource-Policy/i.test(message.text())) return
-      // WebKit phrases the SAME condition differently (measured 2026-09-23, Phase 1b-B's
-      // addition of WebKit to this file): "Cannot load image <url> due to access control
+      // WebKit phrases the SAME condition differently (measured 2026-09-23, when WebKit was
+      // added to this file): "Cannot load image <url> due to access control
       // checks." Same narrowing — only an image, never a script or stylesheet on this origin.
       if (/Cannot load image .* due to access control checks/i.test(message.text())) return
       scriptErrors.push(message.text())

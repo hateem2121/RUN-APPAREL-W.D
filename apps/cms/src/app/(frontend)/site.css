@@ -1524,7 +1524,7 @@ address.contact-block__value {
  * ⚠️ WHY THE CARD'S PRESS LIVES HERE AND THE BAR'S DOES NOT. `.product-card` and
  * `a.contact-block__value` exist only on this site, and base.css ships inside the
  * viewer's stylesheet budget, so site-only rules stay in the site-only sheet. The bar's
- * two links (`.nav-link`, `.notch__wordmark`) are on BOTH hosts since Phase 1b-B, so
+ * two links (`.nav-link`, `.notch__wordmark`) are on BOTH hosts since 2026-09-24, so
  * their press moved with the bar to packages/ui/src/notch.css.
  *
  * Reduced motion needs no gate here: base.css collapses every transition-duration to
@@ -1727,7 +1727,7 @@ a.contact-block__value:active {
 /*
  * ⚠️ AN OS THEME SWITCH AT SUNSET FLIPPED THE WHOLE PAGE IN ONE FRAME — near-white ground
  * to near-black, measured `instant: true` with `body`'s transition at the browser default
- * of 0s (audit FA-R-05). This eases the OS switching; since Phase 1b-B the switch in the bar
+ * of 0s (audit FA-R-05). This eases the OS switching; since 2026-09-24 the switch in the bar
  * cross-fades the whole page itself (a view transition, as in the viewer).
  *
  * `--settle` is the locked 500ms entrance duration; no new value. Guarded rather than

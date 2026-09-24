@@ -215,7 +215,7 @@ li {
 
 /* The wordmark is display type at a FIXED size, so it takes a fixed value —
    the two wordmarks (header and footer) must agree, which is VIS-14, and the header's is
-   `.notch__wordmark` in notch.css since Phase 1b-B, on the same token. */
+   `.notch__wordmark` in notch.css since 2026-09-24, on the same token. */
 .footer__brand {
   letter-spacing: var(--tracking-wordmark);
 }

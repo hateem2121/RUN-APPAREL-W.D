@@ -101,7 +101,7 @@
   }
 }
 
-/* ── Header: the website's bar, in this page's flow (Phase 1b-B) ──── */
+/* ── Header: the website's bar, in this page's flow (since 2026-09-24) ──── */
 /*
  * The bar itself is packages/ui/src/notch.css — the website's, by owner decision 2026-09-17
  * ("Same menu bars everywhere. The one I prefer is at wear-run.help"). Two things are this
@@ -128,7 +128,7 @@
 
 /*
  * `[ 3D PRODUCT REFERENCE ]` on its own line under the bar, at EVERY width — owner decision
- * 2026-09-17 (V1), phones included (it was hidden under 700px). The first line of <main>, so
+ * 2026-09-17, phones included (it was hidden under 700px). The first line of <main>, so
  * it scrolls away. Measured on the live viewer with the new bar injected, 2026-09-23, at eight
  * viewports from 320x640 to 1440x900: the band starts 23px lower than under the old 69px
  * header, the canvas gives up exactly those 23px, and the rail keeps its 17px over the action
@@ -184,7 +184,7 @@
  */
 .stage-block {
   /* Left/right safe-area for the same reason the old header carried it (its own rule
-     was deleted in Phase 1b-B when the bar moved to notch.css): `viewport-fit=cover`
+     was deleted 2026-09-24 when the bar moved to notch.css): `viewport-fit=cover`
      plus a two-column layout that is selected by a LANDSCAPE aspect ratio, which is
      exactly where a notch sits on a long edge. `max()`, not addition — the inset
      only needs to win when it is larger than the design's own gutter. */
@@ -507,10 +507,10 @@
    If a third control is ever added to the header, expect this override to come
    back — and get the number from that test, not from arithmetic.
 
-   PHASE 1b-B: the header became the website's bar (60px) with the label row under it, and
+   2026-09-24: the header became the website's bar (60px) with the label row under it, and
    the guard now compares --header-h with where the stage band starts rather than with the
    header's height — the number the band subtracts. It read 92px on every stage-band
-   viewport (Task 7); see tokens.css. */
+   viewport (measured 2026-09-24); see tokens.css. */
 
 /*
  * The compact garment name, portrait phones only.
@@ -2127,7 +2127,7 @@ model-viewer.stage__model {
  * (vestibular and low-vision), and this page has three translucent surfaces. The
  * camera controls went fully opaque on their own account above; the loading card is
  * translucent, so it needs this block to opt out (the blurred header it also served
- * was replaced by the website's opaque bar in Phase 1b-B).
+ * was replaced by the website's opaque bar on 2026-09-24).
  */
 @media (prefers-reduced-transparency: reduce) {
   .stage__loading {

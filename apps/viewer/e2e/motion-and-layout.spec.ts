@@ -555,7 +555,7 @@ test.describe('the bar survives a phone', () => {
       page,
     }) => {
       /*
-       * The site's bar since Phase 1b-B (owner decision 2026-09-17). The old header's own
+       * The site's bar since 2026-09-24 (owner decision 2026-09-17). The old header's own
        * history — a theme toggle crushed to 2.0px at 320px by `flex-shrink`, a wrap to 117px
        * — is why every size here is asserted rather than assumed.
        */
@@ -631,7 +631,7 @@ test.describe('the bar survives a phone', () => {
   })
 })
 
-test.describe('the label row (owner decision 2026-09-17, V1)', () => {
+test.describe('the label row (owner decision 2026-09-17)', () => {
   for (const [width, height] of [
     [320, 640],
     [390, 844],
@@ -1199,7 +1199,7 @@ test.describe('layout invariants', () => {
    * The token must equal the thing it describes — WHERE THE STAGE BAND STARTS.
    *
    * `--header-h` is subtracted from the band's height (`calc(100svh - var(--header-h))`).
-   * Until Phase 1b-B the header was the only thing above the band, so this compared the
+   * Until 2026-09-24 the header was the only thing above the band, so this compared the
    * token with the header's height. Since then the bar (60px) is followed by the label row
    * (owner decision 2026-09-17), so it compares the token with the band's own top at the top
    * of the page — the quantity the calculation actually needs, whatever sits above it.

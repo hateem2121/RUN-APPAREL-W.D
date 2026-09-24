@@ -54,7 +54,7 @@ describe('the menu bar, once, for both hosts', () => {
   })
 
   it("pins the wordmark to the site's setting (TY-08, XS-01)", () => {
-    // The viewer set it 900 and 22% wider until Phase 1b-B; "the one at wear-run.help"
+    // The viewer set it 900 and 22% wider until 2026-09-24; "the one at wear-run.help"
     // is what the owner chose, so the site's computed values are the contract.
     expect(SITE_BAR_WORDMARK).toEqual({
       fontWeight: '800',

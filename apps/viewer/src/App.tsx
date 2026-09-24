@@ -391,7 +391,7 @@ export default function App() {
         <main id="main-content" tabIndex={-1}>
           {/*
             The label on its own line under the bar, at EVERY width — owner decision
-            2026-09-17 (V1), phones included; it was hidden under 700px until Phase 1b-B.
+            2026-09-17, phones included; it was hidden under 700px until 2026-09-24.
             Inside <main>, so it scrolls away and only the 60px bar stays pinned. The stage
             band starts under it, which is what --header-h measures (tokens.css).
           */}
