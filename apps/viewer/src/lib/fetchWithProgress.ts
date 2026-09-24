@@ -24,10 +24,79 @@ export interface FetchProgress {
  * navigation — is one where handing the URL straight to `<model-viewer>` still
  * works, because that is exactly what shipped before this function existed.
  */
+/**
+ * The download answered, then stopped sending bytes for `stallMs`.
+ *
+ * ⚠️ A DIFFERENT KIND OF FAILURE FROM EVERY OTHER ONE HERE, and the caller must NOT treat it like them. Every
+ * other rejection means "hand the plain URL to `<model-viewer>`", which can still work. A stall would not: the
+ * element fetches the same file over the same route and stalls the same way, except with no readout at all.
+ * `downloadWithRetries` retries this error and nothing else.
+ */
+export class DownloadStalledError extends Error {
+  override readonly name = 'DownloadStalledError'
+  constructor(
+    readonly url: string,
+    /** Bytes that did arrive before the silence. */
+    readonly loaded: number,
+    readonly stallMs: number,
+  ) {
+    super(`fetchWithProgress: no bytes from ${url} for ${stallMs} ms (after ${loaded} bytes)`)
+  }
+}
+
 export async function fetchWithProgress(
   url: string,
   onProgress: (progress: FetchProgress) => void,
   signal?: AbortSignal,
+  options: { stallMs?: number } = {},
+): Promise<Blob> {
+  /**
+   * ⚠️ THE NO-PROGRESS WATCHDOG — issue #41. On 2026-09-24 Cloudflare's Islamabad edge answered `200` with the
+   * right headers and then sent 0 body bytes (its own analytics: 18 requests, status 499, 0 bytes). Nothing below
+   * could settle on that: no error, no `done`, so the stage read "LOADING 3D MODEL · 0.0 MB" for as long as the
+   * tab stayed open.
+   *
+   * A NO-PROGRESS WINDOW, NOT A DEADLINE. The timer restarts on every chunk, so a phone on a poor connection that
+   * takes 90 s and keeps moving is never cut off; only silence is. A total timeout cannot tell those two apart. It
+   * is armed before `fetch` too, because "no headers either" is the same silence one step earlier.
+   *
+   * The caller's own abort (a colourway change, an unmount) is forwarded and stays an abort: `stalled` is set
+   * only by the timer, so a deliberate cancel is never retried as though the network had failed.
+   */
+  const internal = new AbortController()
+  if (signal?.aborted) internal.abort(signal.reason)
+  else signal?.addEventListener('abort', () => internal.abort(signal.reason), { once: true })
+  let loaded = 0
+  let stalled = false
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const arm = () => {
+    if (!options.stallMs) return
+    clearTimeout(timer)
+    timer = setTimeout(() => {
+      stalled = true
+      internal.abort()
+    }, options.stallMs)
+  }
+
+  try {
+    arm()
+    return await readCounted(url, internal.signal, onProgress, (bytes) => {
+      loaded = bytes
+      arm()
+    })
+  } catch (error) {
+    if (stalled) throw new DownloadStalledError(url, loaded, options.stallMs as number)
+    throw error
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function readCounted(
+  url: string,
+  signal: AbortSignal,
+  onProgress: (progress: FetchProgress) => void,
+  onChunk: (loaded: number) => void,
 ): Promise<Blob> {
   const response = await fetch(url, { signal })
   if (!response.ok) {
@@ -91,6 +160,7 @@ export async function fetchWithProgress(
     // Cumulative. Reporting the chunk size instead would send the bar backwards
     // on every chunk after the first.
     loaded += value.byteLength
+    onChunk(loaded)
     onProgress({ loaded, total })
   }
   return new Blob(chunks as BlobPart[])
