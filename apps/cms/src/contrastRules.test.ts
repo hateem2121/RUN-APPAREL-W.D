@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   compositeOver,
@@ -190,30 +192,73 @@ describe('worstRatio', () => {
 
 describe('DS-13 — the blueprint grid stays decoration, not a second reading of contrast', () => {
   /**
-   * A pure arithmetic check against the token VALUES (`packages/ui/src/tokens.css`), not
-   * a live rendering — `.blueprint` (`base.css:399-404`) draws `--grid` as 1px lines at
-   * a 0.05 alpha over whichever surface it sits on: `--paper` (`#f1efea`, the same value
-   * `--bg` resolves to in light mode) in light, `--bg`'s own dark value (`#1c1f18`) in
-   * dark. The ceiling is 1.3:1 — comfortably below the 3:1 WCAG floor for anything
-   * meant to be read, because this motif is meant to be felt, not read.
+   * A pure arithmetic check against the token VALUES, read from `packages/ui/src/tokens.css`
+   * itself (M3) — not hand-typed copies, which a token change could not have turned red.
+   * `.blueprint` (`base.css:399-404`) draws `--grid` as 1px lines at a 0.05 alpha over
+   * whichever surface it sits on (`--bg`). The ceiling is 1.3:1 — comfortably below the
+   * 3:1 WCAG floor for anything meant to be read, because this motif is meant to be felt,
+   * not read.
    */
-  const PAPER = '#f1efea'
-  const BG_DARK = '#1c1f18'
+  const TOKENS_CSS = join(
+    import.meta.dirname,
+    '..',
+    '..',
+    '..',
+    'packages',
+    'ui',
+    'src',
+    'tokens.css',
+  )
+
+  // Same extraction `sharedTokens.test.ts:44-48` uses.
+  function readDeclarations(css: string): Map<string, string> {
+    const declarations = new Map<string, string>()
+    for (const match of css.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
+      const [, name, value] = match
+      if (name) declarations.set(name, (value ?? '').trim())
+    }
+    return declarations
+  }
+
+  // `light-dark(a, b)` split on its TOP-LEVEL comma only — `--grid`'s own arguments are
+  // `rgba(...)` calls that carry commas of their own.
+  function splitLightDark(value: string): [string, string] {
+    const inner = value.replace(/^light-dark\(/, '').replace(/\)$/, '')
+    let depth = 0
+    for (let i = 0; i < inner.length; i++) {
+      if (inner[i] === '(') depth++
+      else if (inner[i] === ')') depth--
+      else if (inner[i] === ',' && depth === 0) {
+        return [inner.slice(0, i).trim(), inner.slice(i + 1).trim()]
+      }
+    }
+    throw new Error(`light-dark(...) has no top-level comma: ${value}`)
+  }
+
+  const declarations = readDeclarations(readFileSync(TOKENS_CSS, 'utf8'))
+  const bg = declarations.get('--bg')
+  const grid = declarations.get('--grid')
+  if (!bg) throw new Error('--bg not found in packages/ui/src/tokens.css')
+  if (!grid) throw new Error('--grid not found in packages/ui/src/tokens.css')
+  const [paperLight, paperDark] = splitLightDark(bg)
+  const [gridLight, gridDark] = splitLightDark(grid)
+
   const CEILING = 1.3
 
   it('the grid line reads under 1.3:1 against its surface, in both themes', () => {
-    const light = contrastOf('rgba(29, 31, 26, 0.05)', PAPER)
-    const dark = contrastOf('rgba(236, 235, 228, 0.05)', BG_DARK)
+    const light = contrastOf(gridLight, paperLight)
+    const dark = contrastOf(gridDark, paperDark)
 
     expect(
       light,
-      `light: the grid reads at ${light.toFixed(2)}:1, no longer decoration`,
+      `light: the grid (${gridLight} on ${paperLight}) reads at ${light.toFixed(2)}:1, no longer decoration`,
     ).toBeLessThan(CEILING)
-    expect(dark, `dark: the grid reads at ${dark.toFixed(2)}:1, no longer decoration`).toBeLessThan(
-      CEILING,
-    )
+    expect(
+      dark,
+      `dark: the grid (${gridDark} on ${paperDark}) reads at ${dark.toFixed(2)}:1, no longer decoration`,
+    ).toBeLessThan(CEILING)
     // The control: a fixture value that should fail this ceiling must actually fail it,
-    // or the assertion above could be passing vacuously against any number.
-    expect(contrastOf('rgba(29, 31, 26, 0.55)', PAPER)).toBeGreaterThan(CEILING)
+    // or the assertions above could be passing vacuously against any number.
+    expect(contrastOf('rgba(29, 31, 26, 0.55)', paperLight)).toBeGreaterThan(CEILING)
   })
 })

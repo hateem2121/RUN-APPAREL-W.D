@@ -48,7 +48,7 @@ describe('CO-13 — the viewer and the site import the same tokens.css', () => {
       if (name) declarations.set(name, (value ?? '').trim())
     }
 
-    // At minimum, per this task: --ink, --paper, --volt, every --radius-*, every --text-*.
+    // At minimum: --ink, --paper, --volt, every --radius-*, every --text-*.
     const radiusNames = [...declarations.keys()].filter((name) => name.startsWith('--radius-'))
     const textNames = [...declarations.keys()].filter((name) => name.startsWith('--text-'))
     const required = ['--ink', '--paper', '--volt', ...radiusNames, ...textNames]
