@@ -103,6 +103,9 @@ rule — plus explicit `display: none` fallbacks for `[data-theme='light']`.
 - The reduced-motion block has to disable `::view-transition-old/new(root)`
   explicitly — the universal `*` selector does not reach view-transition pseudos.
   That is a real gap in the cascade, not belt-and-braces.
+- Both surfaces have the switch, in the menu bar (the site since 2026-09). The choice is
+  remembered per host (the site and the viewer are two origins), written only when the
+  visitor presses it, and applied before the first paint by a two-line inline script on each.
 
 ---
 
@@ -426,6 +429,27 @@ at **2.0px wide on a 320px viewport** and 21.1px at 360px — under WCAG 2.5.8's
 flex child with the browser-default `flex-shrink: 1` is a **maximum**. Cite the
 token *and* set `flex-shrink: 0`. Measured on the live page 2026-08-14.
 
+### The menu bar
+
+One bar on the public site and the 3D viewer since 2026-09 (owner decisions: 2026-09-11, a
+menu button on phones; 2026-09-17, "Same menu bars everywhere. The one I prefer is at
+wear-run.help"; 2026-09-23, the Speed Lines icon). Its stylesheet is
+[`packages/ui/src/notch.css`](../packages/ui/src/notch.css); its links and names are
+[`packages/shared/src/siteBar.ts`](../packages/shared/src/siteBar.ts); each app writes the
+same markup in its own framework, held together by `apps/cms/src/auditGuards.test.ts` and the
+two `e2e/siteBar.spec.ts` suites.
+
+| Width at the reader's text size | The bar |
+|---|---|
+| under 720px, or too narrow for the inline row (`184px + 14.9rem`) | the name and the Speed Lines button; the menu drops below the bar |
+| under `114px + 7.25rem` (very large text on a narrow phone) | the button moves to a second row under the name |
+| otherwise | the name, the links and the light/dark switch in one row |
+
+The menu is the browser's own popover: it opens and closes with scripting off, Escape and a
+tap outside close it, and the browser reports its state to assistive technology. The site's
+bar is fixed and condenses as the page scrolls; the viewer's is in the page flow and does not,
+so `--header-h` still measures where its 3D stage starts.
+
 ### Elevation
 
 `--shadow-raised` — one token, because this system has exactly one elevated
@@ -477,6 +501,10 @@ The exception: the site's notch bar shipped at a raw `20` and now reads `--z-hea
 (40). Its stylesheet declares no other stacking value between the two, and the
 shared cursor and skip link sit at 70 and 100 either way, so the order a visitor
 sees is unchanged — measured by grep of `site.css` and `base.css`, not assumed.
+
+**The open phone menu is in the browser's TOP LAYER, above every z-index here — the skip link
+and the cursor included.** It opens under the bar, so it never covers the skip link, which
+appears at the top-left; the cursor ring (fine pointers only) passes under it.
 
 **A z-index only means something against the others**, and until this table existed
 the only way to learn the stack was to grep two stylesheets and sort the results.
@@ -588,9 +616,11 @@ and the CSS it then rejects is exactly the work involved.
 
 ## 7. Accessibility
 
-- `:focus-visible` — `2px solid var(--focus-ring)`, `2px` offset, `--radius-chip` (6px) radius,
-  applied globally. `--focus-ring` is volt-deep in light and volt in dark, so it
-  clears contrast in both.
+- `:focus-visible` — `2px solid var(--focus-ring)`, `2px` offset, `--radius-chip` (6px)
+  radius, applied globally. `--focus-ring` is volt-deep in light and volt in dark, so it
+  clears contrast in both — except on the site's dark surfaces, which take volt in both
+  themes: the footer's links and, since 2026-09, everything in the menu bar (volt-deep
+  measured 3.16:1 on the bar's ink).
 - `.visually-hidden` for screen-reader-only text.
 - Touch targets ≥ 44px.
 - 60ch measure cap.
