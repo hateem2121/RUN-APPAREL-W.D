@@ -311,7 +311,7 @@
     "apex-flex-pullover": {
       "description": "APEX FLEX PULLOVER — the owner's production-ready master (\"File A\", CLO export 2026-09-02 15:00, \"Diffuse Color Combined on Texture\" ON). The FIRST of the FIXED GLBs to carry calibrated artwork views (fix plan Rank 4, audit C-05): two prints, the chest wordmark and the back \"RUN / THE EXTRA MILE\". The inside-collar care label was found by --find-views and deliberately NOT guarded: it is invisible from outside the collar at every zoom (candidate sheet 2026-09-02).",
       "localFile": "raw/apex-flex-pullover.glb",
-      "$localFileComment": "A copy of the archive object fixed-glbs/2026-09-02/APEX FLEX PULLOVER - File A.glb in run-apparel-archive (scripts/archive-manifest.json carries the same sha256). The owner's FIXED GLBs folder holds it zipped.",
+      "$localFileComment": "A copy of the archive object fixed-glbs/2026-09-02/APEX FLEX PULLOVER - File A.glb, once in R2 bucket run-apparel-archive (retired 2026-09-24 — docs/BACKUP-RESTORE.md; the manifest that carried the same sha256 was removed with it). The owner's FIXED GLBs folder holds it zipped.",
       "bytes": 18131368,
       "sha256": "62fda371006dd84a912ebab5448cf8904cbfb02ae5f9eff1aa0bc189f7d9621d",
       "views": [

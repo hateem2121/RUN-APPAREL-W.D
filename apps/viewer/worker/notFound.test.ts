@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseViewerPath } from '@run-apparel/shared'
-import { shouldReturnNotFound } from './notFound'
+import { isWellKnownPath, shouldReturnNotFound } from './notFound'
 
 /**
  * Every unknown URL on this host answered "200 OK" until 2026-09-04 — measured:
@@ -162,5 +162,76 @@ describe('a single segment carrying a dot is a missing FILE, not a product', () 
         contentType: 'text/html',
       }),
     ).toBe(false)
+  })
+})
+
+describe('isWellKnownPath', () => {
+  it('recognises the reserved prefix', () => {
+    expect(isWellKnownPath('/.well-known/ai-catalog.json')).toBe(true)
+    expect(isWellKnownPath('/.well-known/security.txt')).toBe(true)
+    expect(isWellKnownPath('/.well-known')).toBe(true)
+    expect(isWellKnownPath('/.well-known/')).toBe(true)
+    // A three-segment well-known path is still under the prefix, even though
+    // `parseViewerPath` would already reject it on segment count alone.
+    expect(isWellKnownPath('/.well-known/nested/thing.json')).toBe(true)
+  })
+
+  it('leaves an ordinary route alone — negative control', () => {
+    expect(isWellKnownPath('/rxps/wine')).toBe(false)
+    expect(isWellKnownPath('/rxps')).toBe(false)
+    expect(isWellKnownPath('/')).toBe(false)
+    // A dot elsewhere in the path is not the reserved prefix.
+    expect(isWellKnownPath('/manifest.webmanifest')).toBe(false)
+  })
+})
+
+describe('/.well-known/ is never a product page — 2026-09-24', () => {
+  /**
+   * ⚠️ MEASURED LIVE 2026-09-24: `GET /.well-known/ai-catalog.json` answered
+   * 200 with the SPA shell. `normalizeSlug('.well-known')` and
+   * `normalizeSlug('ai-catalog.json')` both strip their dot and come out as
+   * ordinary-looking slugs (`well-known` / `ai-catalog-json`), so
+   * `parseViewerPath` accepted the pair as a two-segment product route and
+   * `routeParsed` was TRUE — the same failure shape as the `/manifest.webmanifest`
+   * case above, just one directory up. Lighthouse 13.5.0's
+   * `agentic-browsing/ard-schema` audit fetches exactly this path and fails
+   * whenever it gets a 200.
+   */
+  it('404s regardless of what the shared parser makes of the path', () => {
+    // TRUE on purpose — this is the exact state that let the bug through: the
+    // dot-stripping in `normalizeSlug` makes `.well-known/...` look parseable.
+    expect(
+      shouldReturnNotFound({
+        pathname: '/.well-known/ai-catalog.json',
+        method: 'GET',
+        routeParsed: true,
+        contentType: 'text/html; charset=utf-8',
+      }),
+      '/.well-known/ai-catalog.json must 404 even though parseViewerPath accepts it',
+    ).toBe(true)
+    // The parser agrees it is unparseable in this case too — either way, 404.
+    expect(
+      shouldReturnNotFound({
+        pathname: '/.well-known/other.json',
+        method: 'GET',
+        routeParsed: parseViewerPath('/.well-known/other.json') !== null,
+        contentType: 'text/html; charset=utf-8',
+      }),
+    ).toBe(true)
+  })
+
+  it('agrees with parseViewerPath about the shape of the actual defect', () => {
+    // Pin the root cause: the shared parser really does accept this path as a
+    // route today. If this ever starts returning null, `isWellKnownPath` is
+    // still correct but the docblock's reasoning above is stale.
+    expect(parseViewerPath('/.well-known/ai-catalog.json')).toEqual({
+      productSlug: 'well-known',
+      colourSlug: 'ai-catalog-json',
+    })
+  })
+
+  it('does not touch a real product route that happens to contain a dot-free segment', () => {
+    expect(decide('/rxps/wine')).toBe(false)
+    expect(decide('/r-milo-pro/bottle-green')).toBe(false)
   })
 })

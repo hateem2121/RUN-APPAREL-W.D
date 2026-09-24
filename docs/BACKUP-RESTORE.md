@@ -1,16 +1,20 @@
 # Backup & Restore
 
-Everything the viewer depends on lives in **four** Cloudflare resources. The third
-was missing from this table until 2026-08-31, which is why 71.2 MB of customer-facing
-PDFs had no written recovery path; the fourth was missing until 2026-09-02, which is
-why 5.4 GB of master files existed once, on one disk (audit CI-02 / CI-08):
+Everything the viewer depends on lives in **three** Cloudflare resources, plus the
+**master files** — raw CLO exports and the owner's production-ready FIXED GLBs — which
+live on the owner's Mac only and have no off-site copy of any kind (owner decision,
+2026-09-24; see "The master files" below for the history). The third Cloudflare
+resource was missing from this table until 2026-08-31, which is why 71.2 MB of
+customer-facing PDFs had no written recovery path. A fourth row, an R2 bucket that
+mirrored the master files, existed from 2026-09-02 (audit CI-02 / CI-08) until the
+owner retired it 2026-09-24 — see below:
 
 | Resource | What it holds | Backed up by |
 |---|---|---|
 | **D1** `run-apparel-viewer-db` | all products, colourways, media rows, site settings, users, analytics events | `scripts/backup-d1.mjs` → `backups/d1/*.sql` |
 | **R2** `run-apparel-viewer-media` | every uploaded GLB model + poster image | `scripts/backup-r2.mjs` → `backups/r2/<stamp>/media/` |
 | **R2** `run-assets` | the two customer-facing PDFs behind the private catalogue and profile links (71.2 MB); the page pictures under `documents/` are regenerated from them and not backed up | `scripts/backup-r2.mjs` → `backups/r2/<stamp>/apex/` |
-| **R2** `run-apparel-archive` | the **master files**: the FIXED GLBs (five, plus three new exports added 2026-09-02, the two X-MILO PRO masters added 2026-09-03, and the same two masters re-exported that evening with the diffuse setting OFF under `fixed-glbs/2026-09-03-diffuse-off/`) and ten raw CLO exports (21 objects, 6.42 GB in the manifest; the ten superseded pre-diffuse-off copies are listed under `superseded` for the owner to delete) — the only off-machine copy | uploaded by hand with rclone (see below); byte counts verified nightly by `scripts/verify-archive.mjs` against `scripts/archive-manifest.json` |
+| **Owner's Mac only** | the **master files**: raw CLO exports and the FIXED GLBs (the owner's production-ready folder) | **nothing — no off-site copy.** An R2 bucket (`run-apparel-archive`) mirrored these from 2026-09-02 until the owner retired it 2026-09-24; see "The master files" below |
 
 ⚠️ **`run-assets` is SHARED with the separate `run-apparel` site**, which can write
 to and delete from it. It is not this project's private bucket, and that is the
@@ -34,14 +38,14 @@ Two numbers, in plain terms:
 | Cloudflare account lost | nightly SQL dump (the ENCRYPTED GitHub artifact — needs the owner's backup key) | **up to 24h** | **~1 day** | Estimate — never drilled, and it needs a new account, new domain binding, new secrets and the backup key |
 | Media (GLB/posters) deleted from R2 | weekly R2 mirror | **up to 7 days** | **~1h** | Estimate — mirror verified, restore never drilled end to end |
 | Bad deploy (code, not data) | rollback | **0** | **~5 min** | See RUNBOOK → "Undoing a bad deploy" |
-| Raw CLO export or FIXED GLB lost | **archive bucket** `run-apparel-archive` (and Time Machine, once the owner's drive is set up) | **since the last hand upload** — a new export is unprotected until it is uploaded and its manifest row added | **~1h** (a 1.5 GB download) | Uploaded and hash-checked 2026-09-02; sizes verified nightly; restore never drilled. Supersedes the 2026-08-08 "declined" decision, which predates the audit finding that the masters existed once, on one disk |
+| Raw CLO export or FIXED GLB lost from the Mac | **nothing** | **all of it** — there is no other copy anywhere | **n/a** — not recoverable through anything this repository controls | An R2 bucket (`run-apparel-archive`) covered this from 2026-09-02 until the owner retired it 2026-09-24 (owner decision: the masters live on the Mac only now, with no off-site copy); restore was never drilled while it existed. Time Machine is not set up as of 2026-09-24. Same outcome as the 2026-08-08 decision to decline an automated backup (RUNBOOK → "Keeping the copy safe"), which the bucket had superseded from 2026-09-02 to 2026-09-24 |
 
-**The weakest row is the R2 one**, and it is weak in an uninteresting way: the
-mirror runs weekly rather than nightly because a full media mirror costs egress
+**The weakest row is now the master-files one** — there is no copy at all. The media row
+is weaker than the table alone shows: the R2 mirror runs weekly rather than nightly because a full media mirror costs egress
 against a $5/month cap, and models change rarely. If a garment is re-shrunk on a
-Tuesday and R2 is lost on a Friday, that model is regenerable from the raw export
-— which is the row below it, and until 2026-09-02 the one with no backup at all.
-Those two rows are linked; do not read either alone.
+Tuesday and R2 is lost on a Friday, that model is regenerable only if the raw export
+is still on the owner's Mac — which is the row below it, and (again, since 2026-09-24)
+the one with no backup of its own. Those two rows are linked; do not read either alone.
 
 **RTO here excludes noticing.** Detection is a separate number and it is the
 larger one: see RUNBOOK → "Uptime alerts", where the *delivered* median gap
@@ -78,14 +82,17 @@ argue against.
 What this repository DOES back up: `run-apparel-viewer-db` (nightly D1 dump,
 restore-verified, kept in R2 under `run-private/run-apparel-viewer-db/` **and** as an
 age-encrypted GitHub artifact; the pre-deploy snapshot goes to R2 only, under
-`run-private/run-apparel-viewer-db/pre-deploy/`), the `run-apparel-viewer-media` bucket, the
-two apex PDFs from `run-assets`, and — verified rather than mirrored — the master
-files in `run-apparel-archive`.
+`run-private/run-apparel-viewer-db/pre-deploy/`), the `run-apparel-viewer-media` bucket, and the
+two apex PDFs from `run-assets`. **It does NOT back up the master files** — the raw CLO
+exports and the FIXED GLBs live on the owner's Mac only, with no off-site copy (owner
+decision, 2026-09-24; an R2 bucket held a copy of them from 2026-09-02 until that date,
+size-checked nightly rather than mirrored into an artifact — see "The master files" below).
 
-**Deliberately not in the archive — owner decision 2026-09-02:** CLO project files
-(`.zprj`, 19 GB in Documents/clo plus four in Documents/3D New Project) stay on local
-storage only, and the 110 older per-colourway exports in Documents/GLTF FILES (15.8 GB)
-are not archived. The FIXED GLBs folder is the canonical home of production-ready files.
+**Never backed up anywhere, by the same kind of owner decision that now covers every
+master file:** CLO project files (`.zprj`, 19 GB in Documents/clo plus four in
+Documents/3D New Project) stay on local storage only, and so do the 110 older
+per-colourway exports in Documents/GLTF FILES (15.8 GB) — recorded 2026-09-02, unchanged
+since. The FIXED GLBs folder remains the canonical home of production-ready files.
 
 ## Taking a backup
 
@@ -273,77 +280,40 @@ npx wrangler@4.122.0 r2 object get "run-apparel-viewer-media/_restore-drill.txt"
 npx wrangler@4.122.0 r2 object delete "run-apparel-viewer-media/_restore-drill.txt" --remote
 ```
 
-## The archive bucket — the master files
+## The master files — the archive bucket is retired
 
-`run-apparel-archive` (R2, Standard storage, no expiry rule, created 2026-09-02) holds
-the files that until then existed once, on one disk: the five FIXED GLBs (the owner's
-canonical production-ready folder) and the ten raw CLO exports from the repo's
-gitignored 3D Products folder — 15 objects, 5.15 GB, plus three masters the owner exported on
-1–2 September (APEX "File A", WOMEN ZIP-UP VEST, THE AGGRESSOR MEN JERSEY) under
-`fixed-glbs/2026-09-02/`, and the two X-MILO PRO masters (SKIN-SUIT, BIB) the owner
-re-exported on 3 September under `fixed-glbs/2026-09-03/`, and the same two masters
-re-exported that evening with "Diffuse Color Combined on Texture" OFF under
-`fixed-glbs/2026-09-03-diffuse-off/` (the export that carries a colour per colourway; the
-earlier copies are listed under `superseded` in the manifest for the owner to delete): the
-manifest verifies 21 objects, 6.42 GB; with the ten superseded copies still in the bucket it
-holds 8.74 GB of the 10 GB that Standard storage gives free (uploaded at the connection's
-~300 kB/s over the evening of 2026-09-03, hash-checked by `rclone check`). Standard storage rather
-than Infrequent Access because the free 10 GB applies only to Standard, and Infrequent
-Access adds a 30-day minimum and a retrieval fee (R2 pricing page, checked 2026-09-02).
+**Current state, 2026-09-24 on.** Raw CLO exports and the owner's FIXED GLBs (the
+production-ready folder) live on the owner's Mac only. There is **no off-site copy of
+any kind** — no R2 mirror, no Time Machine (not set up as of 2026-09-24) — and nothing
+in this repository can restore one. If the Mac's own copy of a master file is lost, the
+only way back is re-exporting it from CLO, if the original project file still exists;
+that is outside anything this repository's tooling covers.
 
-`scripts/archive-manifest.json` is the list: every key with the byte count and SHA-256
-measured on the local file before upload. The nightly check compares the bucket against
-it, so **a file added to the bucket without a manifest row is unverified** — the check
-prints such objects as "not in the manifest" rather than failing.
+**History, 2026-09-02 to 2026-09-24.** An R2 bucket, Standard storage with no expiry
+rule, held the files that until 2026-09-02 existed once, on one disk: the FIXED GLBs
+(the owner's canonical production-ready folder) and the raw CLO exports from the repo's
+gitignored 3D Products folder, later joined by masters added over the following days —
+by 2026-09-03 a committed manifest verified 21 objects, 6.42 GB (audit CI-02 / CI-08). A
+nightly workflow step compared the live bucket against that manifest by key and byte
+count (the manifest's SHA-256 was kept for a restore to check against; the nightly step
+never read the bytes), and failed on any missing or wrong-size object — and, deliberately, on an
+empty listing or an empty manifest, because a check that checked nothing must not exit
+green (proven both ways on 2026-09-02: a manifest with one byte count off by one failed
+naming the file, and an empty bucket failed with "ZERO objects"). Since 2026-09-03 the
+shrink robot also wrote its own copy of every successful run's raw export into the same
+bucket, best-effort and idempotent, with no manifest row of its own — the nightly check
+counted those separately rather than calling them unverified.
 
-**Verify** (one REST call; `.github/workflows/nightly-backup.yml` runs it every night):
-
-```bash
-CLOUDFLARE_API_TOKEN=… node scripts/verify-archive.mjs
-```
-
-It exits 1 if any object is missing or the wrong size, and — deliberately — if the
-listing or the manifest is empty, because a check that checked nothing must not exit
-green. Proven both ways on 2026-09-02: a manifest with one byte count off by one made it
-fail naming the file; pointed at an empty bucket it failed with "ZERO objects" and
-every file listed as missing; the real manifest passed 15 of 15 (18 of 18 after the second batch, 20 of 20 after the third, 21 of 21 after the diffuse-off re-export).
-
-**Restore.** `wrangler r2 object get` handles objects under 315 MB (wrangler's
-documented ceiling). The larger ones — ARISAN BRA at 1.54 GB, Cycling-Bib at 1.31 GB,
-the tennis dress, the skinsuit export — need rclone, which Cloudflare's docs recommend
-for large objects. Its credentials derive from the API token: the Access Key ID is the
-token's **id**, the secret is the **SHA-256 of the token's value**
-(developers.cloudflare.com/r2/api/tokens). Set them in the environment so nothing is
-written to disk:
-
-```bash
-export RCLONE_CONFIG_R2_TYPE=s3 RCLONE_CONFIG_R2_PROVIDER=Cloudflare RCLONE_CONFIG_R2_ACL=private \
-  RCLONE_CONFIG_R2_ENDPOINT=https://d357a1779c40da5f8c44931f12390cc8.r2.cloudflarestorage.com \
-  RCLONE_CONFIG_R2_ACCESS_KEY_ID=<the token id> \
-  RCLONE_CONFIG_R2_SECRET_ACCESS_KEY=$(printf '%s' "$CLOUDFLARE_API_TOKEN" | shasum -a 256 | cut -d' ' -f1)
-rclone copy r2:run-apparel-archive/fixed-glbs ./restored/fixed-glbs      # all five FIXED GLBs
-rclone check ./restored/fixed-glbs r2:run-apparel-archive/fixed-glbs     # hash comparison
-shasum -a 256 "./restored/fixed-glbs/ARISAN BRA.glb"                      # against the manifest's sha256
-```
-
-**Add a file.** `rclone copy <file> r2:run-apparel-archive/<prefix>/ --s3-upload-cutoff 100M --s3-chunk-size 100M`,
-then append a row to the manifest with `stat -f%z` and `shasum -a 256`, run the verify
-command, and commit both together.
-From this machine rclone reaches R2 at ~300 kB/s (2026-09-03: 17 MB in 62 s, 2.9 GB in
-~3 h). Upload the masters first with `--transfers 1`, log to a file (`--log-file`,
-`--stats 60s`), and if a stats line reads `0 B/s` twice, restart with
-`--s3-chunk-size 25M --s3-upload-concurrency 1` — files already landed are skipped.
-
-
-**The robot writes here too, since 2026-09-03 (fix plan Rank 12, audit CI-01).** After
-every successful shrink the Worker streams the raw CLO export from the ingest bucket
-into this one under `raw-exports/robot/<ingest key>`, with `rawUploadId` and
-`archivedAt` as custom metadata (`apps/shrink/src/archiveRaw.ts`; idempotent by key
-and size; best-effort, reported at the end of the upload's `Report`). These copies
-have no manifest row on purpose — nobody hand-verifies a robot's write — so
-`scripts/verify-archive.mjs` lists them as one counted line
-(`robot-archived raw exports … N object(s), X GB`) instead of "unverified". Anything
-else outside the manifest is still reported as unverified.
+**Retired 2026-09-24, owner decision.** The owner chose to keep the master files on the
+Mac only rather than maintain a second copy. Measured before that choice: 26 objects in
+the bucket (2.03 GB) had no exact-size match on the Mac (some may be held zipped or under
+another name, which a size match cannot see); the owner was shown this and decided
+anyway. The code that wrote to, verified, and
+restored from this bucket — the robot's copy step, the nightly verify step, its
+manifest, and the script that started a shrink from a copy already in the bucket — was
+removed from the repository in the same change that retired it here. The owner deletes
+the bucket itself, separately, once this change is live: nothing in this repository
+touches it again.
 
 ## After any restore
 

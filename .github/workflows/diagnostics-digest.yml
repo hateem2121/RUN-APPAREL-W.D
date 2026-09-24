@@ -298,6 +298,47 @@ jobs:
             echo 'VITALS'
           } >> "$GITHUB_OUTPUT"
 
+      # ── RO-11: does the 3D model actually load once the page does? ───────────
+      # `viewer_page_loaded` fires on every page open; `model_loaded` only once the
+      # GLB has actually decoded. A gap between the two — the page opened but the
+      # garment never appeared — is exactly the failure mode a QR scan cannot recover
+      # from by itself.
+      #
+      # Per DAY, not one weekly average: a single bad day inside an otherwise-clean
+      # week would be diluted below any sane threshold by the other six. Grouped in
+      # SQL (`strftime('%Y-%m-%d', created_at)`), same 7-day-window and own-audit
+      # exclusion as every other query on this page.
+      #
+      # THE FIRST AND LAST CALENDAR DAY OF THE WINDOW ARE DROPPED, not in SQL: both
+      # are necessarily partial (the window starts and ends mid-day relative to UTC
+      # midnight), so a quiet hour at either edge produces a ratio that says nothing
+      # about that day's real health.
+      #
+      # THE THRESHOLD AND THE PROSE LIVE IN `scripts/model-load-digest.mjs`, not
+      # inline here — see that file's own docblock for why (the page-speed section
+      # above is a single expression; this needed a threshold, an edge-day exclusion
+      # and a loop, which is easier to test as a real module than to extract back out
+      # of a YAML-and-shell-escaped string) and for the 85% threshold's derivation.
+      - name: Read the last 7 days of model loads
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        id: models
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote \
+            --json --command "WITH days AS (SELECT strftime('%Y-%m-%d', created_at) AS day, SUM(CASE WHEN event = 'viewer_page_loaded' THEN 1 ELSE 0 END) AS loads, SUM(CASE WHEN event = 'model_loaded' THEN 1 ELSE 0 END) AS models FROM events WHERE type = 'analytics' AND event IN ('viewer_page_loaded', 'model_loaded') AND created_at > strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days') AND (ua IS NULL OR ua NOT LIKE '%run-apparel-%') GROUP BY day) SELECT day, loads, models FROM days ORDER BY day;" \
+            > models.json
+          node scripts/model-load-digest.mjs models.json > models-summary.txt
+          days=$(head -n 1 models-summary.txt | sed 's/^days=//')
+          echo "days=$days" >> "$GITHUB_OUTPUT"
+          {
+            echo 'summary<<MODELS'
+            tail -n +2 models-summary.txt
+            echo 'MODELS'
+          } >> "$GITHUB_OUTPUT"
+
       # One rolling issue rather than one per week, so a quiet month does not
       # bury the tab — same shape as the outage alert in uptime.yml.
       #
@@ -305,7 +346,7 @@ jobs:
       # rows only, so an analytics flood leaves it at 0 and this step would never
       # run — which is precisely the gap H1 describes.
       - name: Open or update the digest issue
-        if: steps.read.outputs.rows != '0' || steps.growth.outputs.alert == 'true' || steps.vitals.outcome == 'failure' || (steps.vitals.outputs.visits != '' && steps.vitals.outputs.visits != '0')
+        if: steps.read.outputs.rows != '0' || steps.growth.outputs.alert == 'true' || steps.vitals.outcome == 'failure' || (steps.vitals.outputs.visits != '' && steps.vitals.outputs.visits != '0') || steps.models.outcome == 'failure' || (steps.models.outputs.days != '' && steps.models.outputs.days != '0')
         env:
           # Passed through the environment rather than interpolated with ${{ }},
           # for exactly the reason heartbeat.yml gives for its own STALE variable.
@@ -325,6 +366,7 @@ jobs:
           # still reaches the issue as a sentence, so a dead query cannot pass for a
           # quiet week.
           VITALS_SUMMARY: ${{ steps.vitals.outcome == 'success' && steps.vitals.outputs.summary || 'Page speed could not be read this week. See this run in the Actions tab.' }}
+          MODELS_SUMMARY: ${{ steps.models.outcome == 'success' && steps.models.outputs.summary || '3D model load rate could not be read this week. See this run in the Actions tab.' }}
         run: |
           set -euo pipefail
           # The label has to exist before EITHER command below touches it: `gh issue
@@ -341,10 +383,11 @@ jobs:
                              --description "Weekly viewer diagnostics digest" 2>&1); then
             grep -qi 'already exists' <<<"$label_out" || echo "::warning::gh label create failed: $label_out"
           fi
-          body=$(printf '%s\n\n%s\n\n%s\n\n%s\n\n%s\n' \
+          body=$(printf '%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n' \
             "Viewer diagnostics for the 7 days to $(date -u +%Y-%m-%d)." \
             "$DIGEST_TABLE" \
             "$VITALS_SUMMARY" \
+            "$MODELS_SUMMARY" \
             "$GROWTH_SUMMARY" \
             "\`model-load-error\` means a buyer opened a product and the 3D file did not load. \`variant-missing\` means a colour button pointed at a colour that is not inside the file. \`variants-unverified-while-published\` means a re-upload renamed the colours under a live product. \`viewer-load-failed\` means the product's details never reached the page. \`render-scale-degraded\` means a slow device drew the 3D at lower sharpness; the garment still showed. **browsers** is how many different browsers sent those rows, so one busy browser cannot pass for many buyers (- means the server wrote it). Left out on purpose: our own checks (user-agent \`run-apparel-…\`) and the harmless \`ResizeObserver loop\` browser notice. See docs/RUNBOOK.md.")
           existing=$(gh issue list --label diagnostics --state open --json number --jq '.[0].number // empty')

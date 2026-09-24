@@ -7,8 +7,10 @@ import {
   FLAG_AT,
   judgePosters,
   median,
+  modelUrlFromPayload,
   OWNER_EXCEPTIONS,
   type PosterSample,
+  resolveLiveModelUrl,
 } from '../../../scripts/poster-sizes.mjs'
 
 /**
@@ -263,5 +265,78 @@ describe('judgePosters — families are judged separately', () => {
     expect(spike?.ratio).toBeCloseTo(3.8, 5)
     expect(spike?.verdict).toBe('flagged')
     for (const r of rows.filter((r) => r.family === 'Family A')) expect(r.verdict).toBe('ok')
+  })
+})
+
+/**
+ * The shared live-model-URL resolver (SE-16's provenance probe needs it, and it is
+ * built to the exact contract a second caller can import by name — see the doc
+ * comment on `resolveLiveModelUrl` in poster-sizes.mjs).
+ */
+describe('modelUrlFromPayload — pure, no network', () => {
+  it('takes product.glbUrl when set (single-glb-variants mode)', () => {
+    const result = modelUrlFromPayload({
+      product: { glbUrl: 'https://media.wear-run.help/a.glb' },
+      selectedColourway: { glbUrl: null },
+    })
+    expect(result).toEqual({ url: 'https://media.wear-run.help/a.glb' })
+  })
+
+  it('falls back to selectedColourway.glbUrl in separate-file mode, where product.glbUrl is null by construction', () => {
+    const result = modelUrlFromPayload({
+      product: { glbUrl: null },
+      selectedColourway: { glbUrl: 'https://media.wear-run.help/b.glb' },
+    })
+    expect(result).toEqual({ url: 'https://media.wear-run.help/b.glb' })
+  })
+
+  it('names the error rather than throwing when neither is a real URL', () => {
+    const result = modelUrlFromPayload({ product: {}, selectedColourway: {} })
+    expect('error' in result && result.error).toContain('no model')
+  })
+
+  it('does not throw on a malformed payload', () => {
+    expect(() => modelUrlFromPayload(null)).not.toThrow()
+    expect(() => modelUrlFromPayload('not an object')).not.toThrow()
+  })
+})
+
+describe('resolveLiveModelUrl — the network half', () => {
+  let server: Server | undefined
+
+  afterEach(async () => {
+    if (server) await new Promise((resolve) => server?.close(resolve))
+    server = undefined
+  })
+
+  it('fetches the per-colourway payload and resolves the model URL', async () => {
+    server = createServer((req, res) => {
+      expect(req.url).toBe('/api/public/viewer/rxps/wine')
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ product: { glbUrl: 'https://media.wear-run.help/rxps-wine.glb' } }))
+    })
+    server.listen(0, '127.0.0.1')
+    await once(server, 'listening')
+    const port = (server.address() as { port: number }).port
+
+    const result = await resolveLiveModelUrl('rxps', 'wine', {
+      apiBase: `http://127.0.0.1:${port}`,
+    })
+    expect(result).toEqual({ url: 'https://media.wear-run.help/rxps-wine.glb' })
+  })
+
+  it('names a non-200 response rather than throwing', async () => {
+    server = createServer((_req, res) => {
+      res.writeHead(404, { 'content-type': 'text/plain' })
+      res.end('not found')
+    })
+    server.listen(0, '127.0.0.1')
+    await once(server, 'listening')
+    const port = (server.address() as { port: number }).port
+
+    const result = await resolveLiveModelUrl('nope', 'nope', {
+      apiBase: `http://127.0.0.1:${port}`,
+    })
+    expect('error' in result && result.error).toContain('404')
   })
 })
