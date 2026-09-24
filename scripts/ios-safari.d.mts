@@ -41,4 +41,6 @@ export declare function evaluate(
   script: string,
   args?: unknown[],
 ): Promise<unknown>
+/** Base64-encoded PNG of the current page. */
+export declare function screenshot(port: number, sessionId: string): Promise<string>
 export declare function closeSession(port: number, sessionId: string): Promise<void>

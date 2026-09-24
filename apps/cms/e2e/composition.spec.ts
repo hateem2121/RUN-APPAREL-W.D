@@ -302,6 +302,10 @@ test.describe('FA-R-09 / FA-H-12 — the footer tab reserves its arrow and never
         arrowOpacity: Number(getComputedStyle(arrow).opacity),
         arrowWidth: getComputedStyle(arrow).width,
         arrowText: (arrow.textContent ?? '').trim(),
+        // CR-01: the tab presses with COLOUR, never a corner-radius change — site.css:1122-1123
+        // declares the fillets once and the hover query (:1184-1211) never touches them.
+        radiusStart: getComputedStyle(el).borderStartStartRadius,
+        radiusEnd: getComputedStyle(el).borderStartEndRadius,
       }
     })
 
@@ -323,15 +327,16 @@ test.describe('FA-R-09 / FA-H-12 — the footer tab reserves its arrow and never
     await expect.poll(labelShift).toBe(0)
 
     const hovered = await page.evaluate(() => {
-      const box = (
-        document.querySelector('.site-footer__tab') as HTMLElement
-      ).getBoundingClientRect()
+      const el = document.querySelector('.site-footer__tab') as HTMLElement
+      const box = el.getBoundingClientRect()
       const arrow = document.querySelector('.site-footer__tab-arrow') as HTMLElement
       return {
         left: box.left,
         right: box.right,
         width: box.width,
         arrowOpacity: Number(getComputedStyle(arrow).opacity),
+        radiusStart: getComputedStyle(el).borderStartStartRadius,
+        radiusEnd: getComputedStyle(el).borderStartEndRadius,
       }
     })
 
@@ -340,6 +345,14 @@ test.describe('FA-R-09 / FA-H-12 — the footer tab reserves its arrow and never
     expect(Math.abs(hovered.width - rest.width), 'the tab resized on hover').toBeLessThan(0.05)
     expect(Math.abs(hovered.left - rest.left), 'the left fillet moved').toBeLessThan(0.05)
     expect(Math.abs(hovered.right - rest.right), 'the right fillet moved').toBeLessThan(0.05)
+    // CR-01: a direct measurement, not an inference from the width/fillet checks above —
+    // those would also pass if the tab pressed by resizing its corners symmetrically.
+    expect(hovered.radiusStart, 'the tab changed its corner radius on hover (CR-01)').toBe(
+      rest.radiusStart,
+    )
+    expect(hovered.radiusEnd, 'the tab changed its corner radius on hover (CR-01)').toBe(
+      rest.radiusEnd,
+    )
 
     // FA-H-12: the tab hints in the direction of travel, and can only do that if the
     // arrow is reserved at rest and revealed on hover.
@@ -726,5 +739,407 @@ test.describe('IM-05 / PF-20 — the first gallery poster is requested first', (
     expect(images.filter((img) => /fetchpriority="high"/i.test(img))).toHaveLength(1)
     if (images.length > 3)
       expect(images[3], 'the fourth poster is not lazy').toMatch(/loading="lazy"/)
+  })
+})
+
+/*
+ * ══ the serif accent stays within its style and its budget (TY-09, site half) ══
+ *
+ * The viewer's own proof is `apps/viewer/e2e/audit-guards.spec.ts` -> "TY-09". The site
+ * carries two shapes of the same idea: `.serif-accent` spans on the home page
+ * (`packages/ui/src/base.css:224-251`, shared with the viewer) and the footer's own
+ * `.footer-q em` (`site.css:1271-1276`). Both must be italic Instrument Serif, and no
+ * heading may carry more than the 2-accent docs/DESIGN.md budget — every current caller
+ * uses exactly one, so this guards a future regression rather than a fact about today's
+ * copy.
+ */
+test.describe('the serif accent stays within its style and its budget (TY-09)', () => {
+  test('every accent is italic Instrument Serif, and no heading exceeds two', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/')
+
+    const measured = await page.evaluate(() => {
+      const accents = [...document.querySelectorAll('.serif-accent, .footer-q em')]
+      const perAccent = accents.map((el) => {
+        const style = getComputedStyle(el)
+        return { fontStyle: style.fontStyle, fontFamily: style.fontFamily }
+      })
+      const headingCounts = new Map<Element, number>()
+      for (const el of accents) {
+        const heading = el.closest('h1, h2, h3, [role="heading"]')
+        if (!heading) continue
+        headingCounts.set(heading, (headingCounts.get(heading) ?? 0) + 1)
+      }
+      return {
+        total: accents.length,
+        perAccent,
+        counts: [...headingCounts.values()],
+        unheaded: accents.length - [...headingCounts.values()].reduce((a, b) => a + b, 0),
+      }
+    })
+
+    // The control: a page with zero accents would pass every claim below vacuously.
+    expect(
+      measured.total,
+      'no .serif-accent/.footer-q em element was found at all',
+    ).toBeGreaterThan(0)
+    expect(measured.unheaded, 'an accent has no heading-role ancestor to budget against').toBe(0)
+
+    const wrongStyle = measured.perAccent.filter((m) => m.fontStyle !== 'italic')
+    expect(wrongStyle, 'a serif accent is not italic').toEqual([])
+    const wrongFamily = measured.perAccent.filter((m) => !m.fontFamily.includes('Instrument Serif'))
+    expect(wrongFamily, 'a serif accent does not resolve through --font-serif').toEqual([])
+
+    const overBudget = measured.counts.filter((count) => count > 2)
+    expect(
+      overBudget,
+      `a heading exceeds the 2-accent docs/DESIGN.md budget for serif accents (counts: ${measured.counts.join(', ')})`,
+    ).toEqual([])
+  })
+})
+
+/*
+ * ══ the facts grid genuinely collapses to one column at 320px (SZ-02) ══
+ *
+ * FA-D-06 above already proves nothing scrolls sideways at 320px; it never asserted the
+ * REFLOW itself. `.facts-grid` (site.css:2258-2274) is explicitly 1 track by default and
+ * gains 2 at 560px, 3 at 900px — the multi-column region this test is about.
+ */
+test.describe('the facts grid genuinely collapses to one column at 320px (SZ-02)', () => {
+  test('one track at 320px, more than one at 1280px', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/')
+    await settle(page)
+    const wide = await page.evaluate(() => {
+      const el = document.querySelector('.facts-grid') as HTMLElement | null
+      return el ? getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length : null
+    })
+    expect(wide, 'no .facts-grid found at 1280px').not.toBeNull()
+    expect(wide, `.facts-grid is already one track at 1280px`).toBeGreaterThan(1)
+
+    await page.setViewportSize({ width: 320, height: 812 })
+    await page.goto('/')
+    await settle(page)
+    const narrow = await page.evaluate(() => {
+      const el = document.querySelector('.facts-grid') as HTMLElement | null
+      return el ? getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length : null
+    })
+    expect(narrow, 'no .facts-grid found at 320px').not.toBeNull()
+    expect(narrow, `.facts-grid did not collapse to one track at 320px`).toBe(1)
+  })
+})
+
+/*
+ * ══ every interactive control clears 24px at a DESKTOP width too (SZ-04) ══
+ *
+ * `navbar.spec.ts` already proves the 44px phone floor, so the desktop-width WCAG 2.5.8
+ * 24px floor is proven here instead, reusing the same detection logic
+ * `motion-and-layout.spec.ts` established for the viewer.
+ */
+test.describe('every interactive control clears 24px at a desktop width too (SZ-04)', () => {
+  for (const path of PAGES) {
+    test(`no control on ${path} is under 24x24 CSS px at 1280px`, async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 900 })
+      await page.goto(path)
+      await settle(page)
+
+      const undersized = await page.evaluate(() => {
+        const targets = [
+          ...document.querySelectorAll<HTMLElement>(
+            'a, button, [role="button"], [role="tab"], input, select, summary',
+          ),
+        ].filter((el) => {
+          const r = el.getBoundingClientRect()
+          return r.width > 0 && r.height > 0
+        })
+
+        return targets
+          .filter((el) => {
+            const r = el.getBoundingClientRect()
+            if (r.width >= 24 && r.height >= 24) return false
+            const cx = r.x + r.width / 2
+            const cy = r.y + r.height / 2
+            const nearest = Math.min(
+              ...targets
+                .filter((other) => other !== el)
+                .map((other) => {
+                  const q = other.getBoundingClientRect()
+                  return Math.hypot(cx - (q.x + q.width / 2), cy - (q.y + q.height / 2))
+                }),
+            )
+            return !(nearest >= 24)
+          })
+          .map((el) => {
+            const r = el.getBoundingClientRect()
+            const label = (el.getAttribute('aria-label') || el.textContent || '')
+              .trim()
+              .slice(0, 30)
+            return `${el.tagName.toLowerCase()} "${label}" ${Math.round(r.width)}x${Math.round(r.height)}`
+          })
+      })
+
+      expect(undersized, `${path}: controls below 24x24 CSS px with no spacing exception`).toEqual(
+        [],
+      )
+    })
+  }
+})
+
+/*
+ * ══ every rendered image carries its own dimensions (SZ-10) ══
+ */
+test.describe('every rendered image carries its own dimensions (SZ-10)', () => {
+  for (const path of PAGES) {
+    test(`no <img> on ${path} is missing width or height`, async ({ page }) => {
+      await page.goto(path)
+      await settle(page)
+      const missing = await page.evaluate(() =>
+        [...document.querySelectorAll('img')]
+          .filter((img) => !img.getAttribute('width') || !img.getAttribute('height'))
+          .map(
+            (img) =>
+              `${img.className || '(unclassed)'} src=${img.getAttribute('src')?.slice(0, 40)}`,
+          ),
+      )
+      expect(missing, `${path}: an <img> has no explicit width/height`).toEqual([])
+    })
+  }
+})
+
+/*
+ * ══ the content column stays capped at ultrawide, and the hero is not (SZ-15) ══
+ *
+ * `site.css:358,371-382`: `--site-max` is 1180px below 1600px viewport width and 1440px
+ * above it. `.site-hero` is the full-bleed section `.site-container` centres inside.
+ */
+test.describe('the content column stays capped at ultrawide (SZ-15)', () => {
+  test('the hero is full-bleed and .site-container stays at or under 1440px at 2560px', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 2560, height: 1200 })
+    await page.goto('/')
+    await settle(page)
+
+    const measured = await page.evaluate(() => ({
+      heroWidth: document.querySelector('.site-hero')?.getBoundingClientRect().width ?? 0,
+      containerWidth: document.querySelector('.site-container')?.getBoundingClientRect().width ?? 0,
+      // document.documentElement.clientWidth, NOT window.innerWidth: innerWidth includes a
+      // classic scrollbar's track (documented above — Firefox reserves 15px for it), which
+      // the hero's full-bleed box does not paint under. At 2560x1200 both pages scroll, so
+      // a classic scrollbar made this floor overshoot the real content width (I5).
+      viewportWidth: document.documentElement.clientWidth,
+    }))
+
+    expect(
+      measured.heroWidth,
+      `.site-hero is ${measured.heroWidth}px in a ${measured.viewportWidth}px viewport — it is not full-bleed`,
+    ).toBeGreaterThanOrEqual(measured.viewportWidth - 1)
+    expect(
+      measured.containerWidth,
+      `.site-container is ${measured.containerWidth}px wide at 2560px — it should stay at or under 1440px`,
+    ).toBeLessThanOrEqual(1440)
+  })
+})
+
+/*
+ * ══ the rendered viewport meta tag is present and sane (SZ-13) ══
+ *
+ * The site relies on Next's own default rather than an explicit tag (`layout.tsx:54`
+ * only sets `themeColor`) — never asserted against a rendered page before. Not compared
+ * byte-for-byte against the viewer's own tag: a live check on 2026-09-23 found them
+ * legitimately different (`viewport-fit=cover` is viewer-only, for its notch handling).
+ */
+test.describe('the rendered viewport meta tag is present and sane (SZ-13)', () => {
+  test('content includes width=device-width', async ({ page }) => {
+    await page.goto('/')
+    const content = await page.locator('meta[name="viewport"]').getAttribute('content')
+    expect(content, 'no <meta name="viewport"> rendered at all').not.toBeNull()
+    expect(content).toContain('width=device-width')
+  })
+})
+
+/*
+ * ══ the mono/caps register is genuinely uppercase everywhere it appears (CR-06) ══
+ *
+ * This register was judged visually once, over contact sheets. The mechanically-checkable
+ * HALF of that judgement: the
+ * three classes driving that register (`.mono`, `.label`, `.section-number`) genuinely
+ * apply `text-transform: uppercase` wherever they are used, on every sampled page.
+ *
+ * What this does NOT prove: that CMS-authored CONTENT never contains a stray bracket or
+ * an inconsistent abbreviation. That half stays a human judgement call over contact
+ * sheets — this test does not duplicate that infrastructure.
+ */
+test.describe('the mono/caps register is genuinely uppercase everywhere (CR-06)', () => {
+  for (const path of PAGES) {
+    test(`every .mono / .label / .section-number on ${path} is uppercase`, async ({ page }) => {
+      await page.goto(path)
+      await settle(page)
+
+      const measured = await page.evaluate(() => {
+        const els = [
+          ...document.querySelectorAll('.mono, .label, .section-number'),
+        ] as HTMLElement[]
+        return els.map((el) => ({
+          selector: `${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]}`,
+          textTransform: getComputedStyle(el).textTransform,
+          text: (el.textContent ?? '').trim().slice(0, 30),
+        }))
+      })
+
+      // The control: a page with none of these classes would pass vacuously. A skip here
+      // (rather than a failure) would silently stop covering a class rename — every page in
+      // PAGES renders a `.label` today (page.tsx:98, products/page.tsx:116, contact/page.tsx:74),
+      // so this must be a hard requirement, not an opt-out (M1).
+      expect(
+        measured.length,
+        `${path} has no .mono/.label/.section-number element`,
+      ).toBeGreaterThan(0)
+
+      const wrong = measured.filter((m) => m.textTransform !== 'uppercase')
+      expect(
+        wrong.map((m) => `${m.selector} is "${m.textTransform}": "${m.text}"`),
+        `${path}: an element in the mono/caps register is not text-transform: uppercase`,
+      ).toEqual([])
+    })
+  }
+})
+
+/*
+ * ══ the hero's vertical rhythm is exactly 10 / 16 / 24px (DS-03) ══
+ *
+ * FA-B-71 above already proves the ORDERING (each gap smaller than the next belongs to);
+ * D15 (`docs/DECISIONS-BETA-WEBSITE.md`) fixes the exact figures — `.label + *`
+ * (site.css:2070) 10px, `.site-lede` (site.css:474) 16px, `.site-actions` (site.css:483)
+ * 24px — and no test pinned the numbers themselves, at more than one width.
+ */
+test.describe('the hero vertical rhythm is exactly 10 / 16 / 24px (DS-03)', () => {
+  for (const width of [390, 1440]) {
+    test(`label-to-heading 10px, heading-to-lede 16px, lede-to-actions 24px at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/')
+      await settle(page)
+
+      const measured = await page.evaluate(() => {
+        const gap = (a: string, b: string) => {
+          const A = document.querySelector(a)?.getBoundingClientRect()
+          const B = document.querySelector(b)?.getBoundingClientRect()
+          return A && B ? Number((B.top - A.bottom).toFixed(1)) : Number.NaN
+        }
+        return {
+          labelToHeading: gap('.site-hero .label', '.site-hero h1'),
+          headingToLede: gap('.site-hero h1', '.site-hero .site-lede'),
+          ledeToActions: gap('.site-hero .site-lede', '.site-hero .site-actions'),
+        }
+      })
+
+      expect(measured.labelToHeading, 'no label or heading rendered').not.toBeNaN()
+      expect(measured.headingToLede, 'no heading or lede rendered').not.toBeNaN()
+      expect(measured.ledeToActions, 'no lede or actions rendered').not.toBeNaN()
+
+      expect(
+        measured.labelToHeading,
+        `label-to-heading gap is ${measured.labelToHeading}px, not 10px`,
+      ).toBe(10)
+      expect(
+        measured.headingToLede,
+        `heading-to-lede gap is ${measured.headingToLede}px, not 16px`,
+      ).toBe(16)
+      expect(
+        measured.ledeToActions,
+        `lede-to-actions gap is ${measured.ledeToActions}px, not 24px`,
+      ).toBe(24)
+    })
+  }
+})
+
+/*
+ * ══ section spacing has at most two distinct rhythms across a width sweep (DS-04) ══
+ *
+ * `.site-hero` and `.site-section` (site.css:409-411,417-425) use different `clamp()`
+ * formulas (9vw vs 11vw, 120px vs 160px ceilings) for structurally the same idea — a
+ * section's own breathing room. That breathing room is `padding-block` INSIDE each box:
+ * the sections are adjacent siblings with no margin between them on screen (only print,
+ * site.css:2827-2829), so the gap BETWEEN boxes is always 0 and cannot see either
+ * formula, let alone the two drifting apart — measured directly, not assumed (I3).
+ *
+ * "At most two rhythms" is checked PER WIDTH rather than pooled across the whole sweep:
+ * `padding-block` is a `vw`-based clamp, so its own resolved pixel value legitimately
+ * differs at every width in the sweep (390px and 1920px do not share a number even on
+ * unmodified CSS) — pooling every width's reading into one Set would always exceed 2,
+ * telling you nothing. Read per width, "at most 2" means what it says: no THIRD value
+ * (e.g. one mis-set section) joins the shared hero/section pair at that viewport.
+ */
+test.describe('section spacing has at most two distinct rhythms across a width sweep (DS-04)', () => {
+  test('every .site-section agrees with its siblings, and with the hero at no more than 2 rhythms', async ({
+    page,
+  }) => {
+    /*
+     * ⚠️ MEASURED FLAKY ONCE WITHOUT THIS, ON CHROMIUM: a resize-only sweep (one
+     * navigation, `setViewportSize` per width) reported spurious extra values, which a
+     * `data-site-reveal` section mid-transition explains — the same "measuring a
+     * transform, not a margin" trap `apps/viewer/CLAUDE.md` documents for its own
+     * `[data-reveal]`. FA-D-04 above avoids it by giving each width its OWN `test()` with
+     * a fresh `page.goto`; this reuses that same fix (a fresh navigation per width)
+     * rather than trusting resize alone.
+     */
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+
+    for (const width of [390, 768, 1024, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/')
+      await settle(page)
+      const measured = await page.evaluate(() => {
+        const sectionPadding = [...document.querySelectorAll('.site-section')].map((el) => {
+          const style = getComputedStyle(el)
+          return {
+            top: Number.parseFloat(style.paddingTop),
+            bottom: Number.parseFloat(style.paddingBottom),
+          }
+        })
+        const hero = document.querySelector('.site-hero')
+        const heroPaddingBottom = hero
+          ? Number.parseFloat(getComputedStyle(hero).paddingBottom)
+          : null
+        return { sectionPadding, heroPaddingBottom }
+      })
+
+      expect(measured.sectionPadding.length, `${width}px: no .site-section found`).toBeGreaterThan(
+        0,
+      )
+      expect(measured.heroPaddingBottom, `${width}px: no .site-hero found`).not.toBeNull()
+
+      // "one rhythm": every .site-section reports the same padding-block as its siblings,
+      // at this width — a single shared CSS rule should always agree with itself.
+      const sectionValues = new Set(
+        measured.sectionPadding.flatMap(({ top, bottom }) => [Math.round(top), Math.round(bottom)]),
+      )
+      expect(
+        [...sectionValues],
+        `${width}px: .site-section elements disagree on padding-block: ${[...sectionValues].join(', ')}`,
+      ).toHaveLength(1)
+      const [sectionRhythm] = [...sectionValues]
+
+      // The hero breathes at least as much as an ordinary section (11vw/160px ceiling vs
+      // 9vw/120px), never less, at every width — including the shared 64px floor.
+      expect(
+        measured.heroPaddingBottom,
+        `${width}px: .site-hero padding-bottom (${measured.heroPaddingBottom}px) is under .site-section's (${sectionRhythm}px)`,
+      ).toBeGreaterThanOrEqual(sectionRhythm as number)
+
+      // "at most two distinct rhythms" AT THIS WIDTH: the hero's own formula plus the
+      // section's shared one — never a third. This is what the planted fault below trips:
+      // one section padded away from its siblings adds a third value to this same set.
+      const rhythmsAtThisWidth = new Set([
+        sectionRhythm,
+        Math.round(measured.heroPaddingBottom as number),
+      ])
+      expect(
+        rhythmsAtThisWidth.size,
+        `${width}px: padding-block spans ${rhythmsAtThisWidth.size} distinct rhythms (${[...rhythmsAtThisWidth].join(', ')}) — more than hero + section`,
+      ).toBeLessThanOrEqual(2)
+    }
   })
 })

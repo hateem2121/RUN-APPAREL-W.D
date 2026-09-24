@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { contrastOf } from '../../../scripts/contrast-rules.mjs'
 
 /**
  * The footer, measured. Every number here was wrong at least once on the design
@@ -286,37 +287,22 @@ test.describe('the numbers the design audit fixed', () => {
   }) => {
     await page.emulateMedia({ colorScheme: 'dark' })
     await page.goto('/contact')
-    const numbers = await page.locator(SLAB).evaluate((slabEl) => {
-      const lum = (r: number, g: number, b: number) => {
-        const f = (c: number) => {
-          const v = c / 255
-          return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
-        }
-        return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
-      }
-      const parse = (s: string) => {
-        const m = (s.match(/[\d.]+/g) ?? []).map(Number)
-        return { r: m[0] ?? 0, g: m[1] ?? 0, b: m[2] ?? 0, a: m.length > 3 ? (m[3] ?? 1) : 1 }
-      }
-      const ratio = (fgS: string, bgS: string) => {
-        const bg = parse(bgS)
-        const f = parse(fgS)
-        const fg = {
-          r: f.r * f.a + bg.r * (1 - f.a),
-          g: f.g * f.a + bg.g * (1 - f.a),
-          b: f.b * f.a + bg.b * (1 - f.a),
-        }
-        const l1 = lum(fg.r, fg.g, fg.b)
-        const l2 = lum(bg.r, bg.g, bg.b)
-        return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05)
-      }
+    // Migrated to the shared library: the local lum/parse/ratio
+    // trio computed the ratio INSIDE this evaluate callback, which `page.evaluate`
+    // serialises into the page — so it could never call an imported function (same rule
+    // `scripts/contrast-rules.mjs`'s header states for `measureContrastInPage`). The
+    // browser side now returns only the raw colours; `contrastOf` (identical maths —
+    // composite fg's own alpha over bg, then WCAG ratio) runs out here instead.
+    const raw = await page.locator(SLAB).evaluate((slabEl) => {
       const bg = getComputedStyle(slabEl).backgroundColor
       const label = slabEl.querySelector('.footer-block h3') as HTMLElement
       return {
-        muted: ratio(getComputedStyle(label).color, bg),
+        labelColor: getComputedStyle(label).color,
+        bg,
         borderTop: getComputedStyle(slabEl).borderTopWidth,
       }
     })
+    const numbers = { muted: contrastOf(raw.labelColor, raw.bg), borderTop: raw.borderTop }
     expect(numbers.muted).toBeGreaterThanOrEqual(5)
     expect(numbers.borderTop).toBe('1px')
   })
@@ -364,5 +350,112 @@ test.describe('without JavaScript', () => {
     await expect(page.locator('.footer-clock__time span').first()).toHaveText('--:--')
     await expect(page.locator('.footer-status')).toHaveCount(0)
     await expect(page.locator('.cursor-dot')).toHaveCount(0)
+  })
+})
+
+/*
+ * ══ the footer's content edge agrees with the page's (D7's own guard, DS-06) ══
+ *
+ * D7 (`docs/DECISIONS-BETA-WEBSITE.md`) keeps the footer's empty band and fixes the
+ * misalignment beside it — "a test asserts the footer's content edge agrees with the
+ * page container's at every audited width" is the decision's own guard, which had never
+ * been written.
+ *
+ * ⚠️ `.site-footer__inner` IS NOT NESTED INSIDE A `.site-container` — checked directly
+ * (`SiteFooter.tsx`): it sits in `<footer class="site-footer"><div class="site-footer__slab">
+ * <div class="site-footer__inner">`, no `.site-container` ancestor anywhere. The original
+ * FA-D-01 defect (the footer's left edge drifting up to 370px from the page's own left
+ * edge) was therefore always a comparison between the footer's OWN width mechanism
+ * (`--site-content`, `site.css:1061-1067` — the same `--site-max`/`--site-gutter` maths
+ * `.site-container` uses, computed independently) and `.site-container` as it appears
+ * IN THE PAGE'S OWN CONTENT above the footer — not a parent-child relationship. Confirmed
+ * by running this test first with `.closest()`: it returned null at every width.
+ *
+ * ⚠️ `.site-container`'S BORDER-BOX LEFT EDGE IS NOT ITS CONTENT EDGE. It carries its own
+ * `padding-inline: var(--site-gutter)` (`site.css:377-382`); `.site-footer__inner` carries
+ * NO padding of its own and is already sized to `--site-content` (`--site-max` minus TWO
+ * gutters). Comparing raw `getBoundingClientRect().left` on both therefore compares a
+ * padding-box to a content-box — measured first without the correction: the gap tracked
+ * `--site-gutter` exactly (20 / 38.4 / 51.2 / 64 / 64px at the five audited widths, i.e.
+ * `clamp(20px, 5vw, 64px)` itself), which is the padding this correction accounts for.
+ */
+test.describe("the footer's content edge agrees with the page's (DS-06)", () => {
+  test('left edges match at five widths', async ({ page }) => {
+    await page.goto('/contact')
+    const results: { width: number; gap: number }[] = []
+    for (const width of [320, 768, 1024, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 900 })
+      const gap = await page.evaluate(() => {
+        const inner = document.querySelector('.site-footer__inner') as HTMLElement
+        const container = document.querySelector('.site-container') as HTMLElement
+        if (!inner || !container) return Number.NaN
+        const containerContentLeft =
+          container.getBoundingClientRect().left +
+          Number.parseFloat(getComputedStyle(container).paddingLeft)
+        return Number((inner.getBoundingClientRect().left - containerContentLeft).toFixed(2))
+      })
+      results.push({ width, gap })
+    }
+
+    expect(
+      results.some((r) => Number.isNaN(r.gap)),
+      `no .site-footer__inner or .site-container to measure: ${JSON.stringify(results)}`,
+    ).toBe(false)
+
+    // The measured tolerance: sub-pixel float arithmetic on a flex/margin-auto layout,
+    // the same order of magnitude this file's own header note describes for `boundingBox()`.
+    const MEASURED_TOLERANCE_PX = 1
+    const offenders = results.filter((r) => Math.abs(r.gap) > MEASURED_TOLERANCE_PX)
+    expect(
+      offenders.map((r) => `${r.width}px: ${r.gap}px gap`),
+      `the footer's content edge drifted from the page container's edge`,
+    ).toEqual([])
+  })
+})
+
+/*
+ * ══ the footer's quiet band stays inside D7's documented range (DS-09) ══
+ *
+ * D7 keeps `.footer-grow` (`site.css:1434-1437`) as deliberate empty space, documented at
+ * "144-323px depending on width" — never measured by a test. MEASURED here, not assumed.
+ *
+ * ⚠️ MEASURE AFTER THE WORDMARK'S FIT, NOT BEFORE. `.footer-grow` is `flex: 1 1 auto` in
+ * the same slab as `.footer-mark`, whose font-size FooterWordmark.tsx:26-34 refits after
+ * `document.fonts.ready` AND on every ResizeObserver tick — so a read straight after
+ * `goto`/`setViewportSize`, with no wait for either, races that refit. Both are awaited
+ * below before every measurement.
+ *
+ * ⚠️ THE CEILING NEEDS REAL HEADROOM, MEASURED ON BOTH ENGINES, NOT ONE READING PLUS AN
+ * EPSILON. Settled heights at 768px (the tightest of the three widths), waited for as
+ * above: chromium 322.92px, firefox 323.9666...px — Firefox's `getBoundingClientRect()`
+ * on this flex layout losing a fraction of a pixel, the same class of artefact this
+ * file's header comment already names for `boundingBox()`. Repeated 3x on each engine:
+ * identical every time, so this is a stable per-engine offset, not a race. 323 is D7's
+ * own documented figure; `CEILING_TOLERANCE_PX` below is 2px — genuine headroom above
+ * the ~1px artefact actually observed, not the previous 323 + 0.03px margin, which was
+ * the same measurement rounded rather than room to move.
+ */
+test.describe("the footer's quiet band stays inside D7's documented range (DS-09)", () => {
+  const CEILING_TOLERANCE_PX = 2
+  test('height stays within 144-323px across the documented width range', async ({ page }) => {
+    await page.goto('/contact')
+    for (const width of [768, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.evaluate(() => document.fonts.ready)
+      await page.evaluate(
+        () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
+      )
+      const height = await page
+        .locator('.footer-grow')
+        .evaluate((el) => el.getBoundingClientRect().height)
+      expect(
+        height,
+        `.footer-grow is ${height}px tall at ${width}px, outside D7's documented 144-323px`,
+      ).toBeGreaterThanOrEqual(144)
+      expect(
+        height,
+        `.footer-grow is ${height}px tall at ${width}px, outside D7's documented 144-323px`,
+      ).toBeLessThanOrEqual(323 + CEILING_TOLERANCE_PX)
+    }
   })
 })

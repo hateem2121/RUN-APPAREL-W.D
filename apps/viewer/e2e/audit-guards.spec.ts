@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import {
+  contrastOf,
   measureContrastInPage,
   parseCssColour,
   relativeLuminance,
@@ -1267,4 +1268,572 @@ test.describe('every colour swatch keeps a 3:1 ring against its tab (CO-12)', ()
       ).toEqual([])
     })
   }
+})
+
+/*
+ * ══ forced-colors substitutes real colour, on the viewer too (CO-09) ══
+ *
+ * `apps/cms/e2e/motion.spec.ts` -> "the browser substitutes, and the underline survives
+ * it" already proves this mechanism on the site; `page.css:2382`'s own
+ * `@media (forced-colors: active)` block is written from the specification rather than
+ * measured (its own comment says so), so this is the viewer's first browser-run proof
+ * of it. Same recipe as the CMS test, mirrored deliberately: the
+ * `test.skip(!active, …)` engine guard, and an injected probe as the POSITIVE control —
+ * without it, an engine that silently ignores the emulation would pass this test for
+ * measuring nothing, exactly the "harness reports clean while measuring nothing" shape
+ * this repo has hit before (root CLAUDE.md).
+ *
+ * ⚠️ MEASURED IN CI, 2026-09-24: `viewer-firefox` (headless Firefox has no WebGL context
+ * on this runner — `camera-settle.spec.ts`, `viewer.spec.ts` and `motion-and-layout.spec.ts`
+ * all document the same gap) failed on "no active camera button to measure", both
+ * attempts, not a fluke — `<StageControls>` is gated on `!fallback` in Stage.tsx, which
+ * `canRender3D()`'s real WebGL check drives, so no wait makes the row appear there. The
+ * colourway tab and swatch do not depend on WebGL and are checked as hard requirements
+ * regardless; only the camera-button half is skipped, with the measured evidence, the
+ * same `.stage__error:not([hidden])` signal `camera-settle.spec.ts` already uses.
+ */
+test.describe('forced-colors substitutes real colour, on the viewer too (CO-09)', () => {
+  test('the selected colourway tab and the active camera button keep a visible outline', async ({
+    page,
+    browserName,
+  }) => {
+    await page.emulateMedia({ forcedColors: 'active' })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const fallback = await page.locator('.stage__error:not([hidden])').count()
+
+    const active = await page.evaluate(() => window.matchMedia('(forced-colors: active)').matches)
+    test.skip(!active, `${browserName} does not emulate forced-colors`)
+
+    const measured = await page.evaluate(() => {
+      // The positive control: an element styled with colours no theme uses, read back
+      // AFTER forced-colors has had a chance to apply. If these come back unchanged,
+      // nothing below is a measurement of substitution — it is a measurement of CSS
+      // that would look identical whether or not the browser is honouring the request.
+      const probe = document.createElement('div')
+      probe.textContent = 'probe'
+      probe.style.color = 'rgb(1, 2, 3)'
+      probe.style.backgroundColor = 'rgb(4, 5, 6)'
+      document.body.appendChild(probe)
+      const probeStyle = getComputedStyle(probe)
+      const control = { color: probeStyle.color, background: probeStyle.backgroundColor }
+      probe.remove()
+
+      const tab = document.querySelector('.colourway-tab[aria-selected="true"]') as HTMLElement
+      const cameraBtn = document.querySelector('.camera-btn[aria-pressed="true"]') as HTMLElement
+      const swatch = document.querySelector('.colourway-tab__swatch') as HTMLElement
+      const tabStyle = tab && getComputedStyle(tab)
+      const btnStyle = cameraBtn && getComputedStyle(cameraBtn)
+      return {
+        control,
+        foundTab: Boolean(tab),
+        foundBtn: Boolean(cameraBtn),
+        foundSwatch: Boolean(swatch),
+        tabOutline: tabStyle && [tabStyle.outlineWidth, tabStyle.outlineStyle],
+        btnOutline: btnStyle && [btnStyle.outlineWidth, btnStyle.outlineStyle],
+        swatchAdjust: swatch && getComputedStyle(swatch).forcedColorAdjust,
+      }
+    })
+
+    // ⚠️ MEASURED 2026-09-24: WebKit and its mobile variant report `matches: true` for the
+    // forced-colors media query under Playwright's emulation WITHOUT actually substituting
+    // any colour — the `active` skip above is necessary but not sufficient. Skip on the
+    // STRONGER signal (the probe itself failed to recolour), rather than fail these two
+    // engines for a gap in what Playwright can emulate on them, which has nothing to do
+    // with this file's CSS. Chromium and Firefox both substitute for real.
+    const reallySubstituting = measured.control.color !== 'rgb(1, 2, 3)'
+    test.skip(
+      !reallySubstituting,
+      `${browserName} reports forced-colors active but does not substitute colour`,
+    )
+    expect(measured.control.background).not.toBe('rgb(4, 5, 6)')
+
+    // Neither depends on WebGL, so both are hard requirements regardless of engine.
+    expect(measured.foundTab, 'no selected colourway tab to measure').toBe(true)
+    expect(measured.foundSwatch, 'no colourway swatch to measure').toBe(true)
+    // page.css:2382 — 3px solid Highlight, offset -3px, on the two states colour alone
+    // would otherwise mark.
+    expect(
+      measured.tabOutline,
+      'the selected colourway tab lost its outline under high contrast',
+    ).toEqual(['3px', 'solid'])
+    expect(
+      measured.swatchAdjust,
+      'the swatch is being recoloured by the browser instead of keeping its own paint',
+    ).toBe('none')
+
+    test.skip(
+      fallback > 0,
+      `${browserName}: no WebGL here, the stage is in poster fallback — <StageControls> ` +
+        'never mounts, so there is no camera button to measure',
+    )
+
+    expect(measured.foundBtn, 'no active camera button to measure').toBe(true)
+    expect(
+      measured.btnOutline,
+      'the active camera button lost its outline under high contrast',
+    ).toEqual(['3px', 'solid'])
+  })
+})
+
+/*
+ * ══ prefers-contrast: more raises viewer ratios too (CO-10) ══
+ *
+ * `apps/cms/e2e/legibility.spec.ts` -> "FA-H-09" already proves this mechanism on the
+ * site; this is the viewer's own proof, against `page.css:2403`'s `@media
+ * (prefers-contrast: more)` block, which raises `--line`'s alpha (docs/DESIGN.md §1) and
+ * turns the header's blur off rather than let a translucent, moving surface fight the
+ * request for more contrast.
+ *
+ * ⚠️ `sample()` NAVIGATES AFTER EVERY EMULATION, the same shape FA-H-09's own `sample()`
+ * does (`legibility.spec.ts:196,199`) — call it once per `emulateMedia`, not once per
+ * test. A Firefox emulation set on about:blank is dropped, and reading computed style
+ * after a mid-page change with no reload is the CI-WebKit stale-computed-style shape
+ * `.github/CLAUDE.md` warns about; a fresh load after the emulation is already set
+ * sidesteps both rather than trusting either engine to re-cascade a live page.
+ *
+ * ⚠️ AN INJECTED PROBE IS THE POSITIVE CONTROL (matching CO-09 above): `matches` alone
+ * proves the media query was recognised, not that this page's CSS re-cascaded — a probe
+ * rule under the identical `@media (prefers-contrast: more)` condition, read back before
+ * and after, tells the two apart. Without one, an engine that reports `matches: true`
+ * while silently not applying the override would pass this test for measuring nothing.
+ *
+ * MEASURED after both fixes above: all four engines pass outright, Firefox included — the
+ * earlier Firefox skip was masking the missing per-emulation navigation, not a genuine
+ * engine limitation. The probe stays as the general-purpose evidence-gated skip should
+ * this recur on a future engine or page, rather than being removed as unneeded.
+ */
+test.describe('prefers-contrast: more raises viewer ratios too (CO-10)', () => {
+  const sample = async (page: import('@playwright/test').Page) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await page.evaluate(() => document.fonts.ready)
+    return page.evaluate(() => {
+      const header = document.querySelector('.header') as HTMLElement
+      return {
+        matches: matchMedia('(prefers-contrast: more)').matches,
+        line: getComputedStyle(document.documentElement).getPropertyValue('--line').trim(),
+        headerBorder: getComputedStyle(header).borderBottomColor,
+        headerBg: getComputedStyle(document.body).backgroundColor,
+        backdropFilter: getComputedStyle(header).backdropFilter,
+        probe: getComputedStyle(document.documentElement)
+          .getPropertyValue('--contrast-probe')
+          .trim(),
+      }
+    })
+  }
+
+  test('the header hairline gains real separation and drops its blur', async ({
+    page,
+    browserName,
+  }) => {
+    // The probe rule itself: a name no production stylesheet defines, under the exact
+    // condition this test relies on. `addInitScript` (not `addStyleTag`) so it survives
+    // `sample()`'s own navigation on every subsequent load, present from first paint.
+    // `document.head` does not exist yet at the point an init script runs, so the
+    // insert is deferred to DOMContentLoaded when it is not there already.
+    await page.addInitScript(() => {
+      const inject = () => {
+        const style = document.createElement('style')
+        style.textContent = '@media (prefers-contrast: more) { :root { --contrast-probe: 1; } }'
+        document.head.appendChild(style)
+      }
+      if (document.head) inject()
+      else document.addEventListener('DOMContentLoaded', inject)
+    })
+
+    await page.emulateMedia({ contrast: 'no-preference' })
+    const before = await sample(page)
+    test.skip(before.matches, `${browserName} cannot emulate prefers-contrast: no-preference here`)
+
+    await page.emulateMedia({ contrast: 'more' })
+    const after = await sample(page)
+
+    // The control: without this the whole test compares a page to itself.
+    expect(after.matches, `${browserName} did not apply prefers-contrast: more`).toBe(true)
+
+    // The positive control itself: skip, with the measured values, rather than fail an
+    // engine that matched the query but never re-cascaded this page's CSS for it — the
+    // same "confirm the setup took effect before asserting on it" rule
+    // `.github/CLAUDE.md`'s CI-WebKit trap states, applied generally rather than
+    // hardcoded to one previously-measured engine.
+    test.skip(
+      before.probe === after.probe,
+      `${browserName} matched prefers-contrast: more but did not re-cascade: probe ` +
+        `${before.probe || '(empty)'}/${after.probe || '(empty)'}`,
+    )
+
+    expect(before.line, 'the --line token did not move at all').not.toBe(after.line)
+
+    const borderBefore = contrastOf(before.headerBorder, before.headerBg)
+    const borderAfter = contrastOf(after.headerBorder, after.headerBg)
+    expect(
+      borderAfter,
+      `the header hairline went ${borderBefore.toFixed(2)}:1 -> ${borderAfter.toFixed(2)}:1`,
+    ).toBeGreaterThan(borderBefore)
+
+    expect(
+      after.backdropFilter,
+      'the header keeps blurring moving content behind it under a request for more contrast',
+    ).toBe('none')
+  })
+})
+
+/*
+ * ══ the serif accent stays within its style and its budget (TY-09, viewer half) ══
+ *
+ * `packages/ui/src/base.css:224-251`'s `.serif-accent` (used in `Contact.tsx`,
+ * `CustomisationSection.tsx` and via the shared `headingWithAccent()` helper) is styled
+ * but never asserted against a live page. `docs/DESIGN.md`'s own budget is 1-2 accented
+ * words per headline; every current caller uses exactly one, so the budget check is a
+ * guard against a FUTURE regression, not a fact about today's copy.
+ */
+test.describe('the serif accent stays within its style and its budget (TY-09)', () => {
+  test('every .serif-accent is italic Instrument Serif, and no heading exceeds two', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const measured = await page.evaluate(() => {
+      const accents = [...document.querySelectorAll('.serif-accent')]
+      const perAccent = accents.map((el) => {
+        const style = getComputedStyle(el)
+        return { fontStyle: style.fontStyle, fontFamily: style.fontFamily }
+      })
+      // Count siblings-under-one-heading by the nearest heading-role ancestor, the
+      // same grouping docs/DESIGN.md's "per headline" budget means.
+      const headingCounts = new Map<Element, number>()
+      for (const el of accents) {
+        const heading = el.closest('h1, h2, h3, [role="heading"]')
+        if (!heading) continue
+        headingCounts.set(heading, (headingCounts.get(heading) ?? 0) + 1)
+      }
+      return {
+        total: accents.length,
+        perAccent,
+        counts: [...headingCounts.values()],
+        unheaded: accents.length - [...headingCounts.values()].reduce((a, b) => a + b, 0),
+      }
+    })
+
+    // The control: a page with zero .serif-accent elements would pass every claim below
+    // vacuously.
+    expect(measured.total, 'no .serif-accent element was found on the page at all').toBeGreaterThan(
+      0,
+    )
+    expect(
+      measured.unheaded,
+      'a .serif-accent has no heading-role ancestor to budget against',
+    ).toBe(0)
+
+    const wrongStyle = measured.perAccent.filter((m) => m.fontStyle !== 'italic')
+    expect(wrongStyle, 'a serif accent is not italic').toEqual([])
+    const wrongFamily = measured.perAccent.filter((m) => !m.fontFamily.includes('Instrument Serif'))
+    expect(wrongFamily, 'a serif accent does not resolve through --font-serif').toEqual([])
+
+    const overBudget = measured.counts.filter((count) => count > 2)
+    expect(
+      overBudget,
+      `a heading carries more than the 2-accent docs/DESIGN.md budget for serif accents (counts: ${measured.counts.join(', ')})`,
+    ).toEqual([])
+  })
+})
+
+/*
+ * ══ the two-column stage genuinely collapses to one column at 320px (SZ-02) ══
+ *
+ * `apps/cms/e2e/composition.spec.ts` -> "FA-D-06 / FA-E-05" already proves the site's own
+ * multi-column regions collapse at 320px. The viewer has no catalogue-style content grid
+ * (it is a single-product page) — its own multi-column region is `.stage-block`, `row`
+ * under `TWO_COLUMN_QUERY` (page.css:845-847) and `column` otherwise (page.css:404-405),
+ * which only the no-overflow half (FA-D-06-shaped) had ever been asserted against, never
+ * the reflow itself.
+ *
+ * ⚠️ THE COLLAPSE MECHANISM AND THE IDENTITY-PLACEMENT MECHANISM ARE TWO DIFFERENT
+ * QUERIES. The product identity moves into `.stage__aside` under the narrower, JS-driven
+ * `IDENTITY_IN_ASIDE_QUERY` (`useIdentityInAside.ts`, 1100px + 720px height) — checking
+ * only whether the heading sits in `.stage__aside` cannot see `.stage-block` itself: if
+ * the CSS `row` layout leaked all the way down to 320px, the heading would still have
+ * left the aside (320px is below 1100px either way), and this test would pass while the
+ * page rendered two columns squeezed into a phone screen. `.stage-block`'s own
+ * `flex-direction` is what "collapses to one column" means, so that is what is read.
+ */
+test.describe('the two-column stage genuinely collapses to one column at 320px (SZ-02)', () => {
+  test('.stage-block is row layout at 1280px and column layout at 320px', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const wide = await page.evaluate(() => ({
+      flexDirection: getComputedStyle(document.querySelector('.stage-block') as HTMLElement)
+        .flexDirection,
+    }))
+    expect(wide.flexDirection, 'at 1280x900 .stage-block is not row layout').toBe('row')
+
+    await page.setViewportSize({ width: 320, height: 812 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const narrow = await page.evaluate(() => ({
+      flexDirection: getComputedStyle(document.querySelector('.stage-block') as HTMLElement)
+        .flexDirection,
+      // The control: the heading must still exist SOMEWHERE, or "column layout" is
+      // trivially true because nothing rendered at all.
+      headingExists: Boolean(document.querySelector('#product-heading')),
+    }))
+    expect(narrow.headingExists, 'the product heading did not render at 320px at all').toBe(true)
+    expect(
+      narrow.flexDirection,
+      'at 320px .stage-block is still row layout — the two-column stage did not collapse',
+    ).toBe('column')
+  })
+})
+
+/*
+ * ══ every interactive control clears 24px at a DESKTOP width too (SZ-04) ══
+ *
+ * `apps/viewer/e2e/motion-and-layout.spec.ts` -> "every interactive control meets the
+ * WCAG 2.5.8 target size" already proves this at 375px (a phone). Reimplemented here
+ * rather than imported, so this file stays self-contained — same detection logic (24px
+ * floor, with the spacing exception WCAG 2.5.8 itself allows), a desktop width instead.
+ */
+test.describe('every interactive control clears 24px at a desktop width too (SZ-04)', () => {
+  test('no control is under 24x24 CSS px at 1280px, with no spacing exception', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const undersized = await page.evaluate(() => {
+      const targets = [
+        ...document.querySelectorAll<HTMLElement>(
+          'a, button, [role="button"], [role="tab"], input, select, summary',
+        ),
+      ].filter((el) => {
+        const r = el.getBoundingClientRect()
+        return r.width > 0 && r.height > 0
+      })
+
+      return targets
+        .filter((el) => {
+          const r = el.getBoundingClientRect()
+          if (r.width >= 24 && r.height >= 24) return false
+          const cx = r.x + r.width / 2
+          const cy = r.y + r.height / 2
+          const nearest = Math.min(
+            ...targets
+              .filter((other) => other !== el)
+              .map((other) => {
+                const q = other.getBoundingClientRect()
+                return Math.hypot(cx - (q.x + q.width / 2), cy - (q.y + q.height / 2))
+              }),
+          )
+          return !(nearest >= 24)
+        })
+        .map((el) => {
+          const r = el.getBoundingClientRect()
+          const label = (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 30)
+          return `${el.tagName.toLowerCase()} "${label}" ${Math.round(r.width)}x${Math.round(r.height)}`
+        })
+    })
+
+    expect(undersized, 'controls below 24x24 CSS px with no spacing exception, at 1280px').toEqual(
+      [],
+    )
+  })
+})
+
+/*
+ * ══ every rendered image carries its own dimensions (SZ-10) ══
+ *
+ * Only one image (`placeholder-webgl.spec.ts:109-126`) was ever checked for this. A
+ * missing `width`/`height` is a Cumulative Layout Shift source the moment the image's
+ * network response is slower than the surrounding layout.
+ */
+test.describe('every rendered image carries its own dimensions (SZ-10)', () => {
+  test('no <img> is missing width or height', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const missing = await page.evaluate(() =>
+      [...document.querySelectorAll('img')]
+        .filter((img) => !img.getAttribute('width') || !img.getAttribute('height'))
+        .map(
+          (img) => `${img.className || '(unclassed)'} src=${img.getAttribute('src')?.slice(0, 40)}`,
+        ),
+    )
+    expect(missing, 'an <img> has no explicit width/height').toEqual([])
+  })
+})
+
+/*
+ * ══ the viewer stays usable at two short-viewport conditions (SZ-14) ══
+ *
+ * `apps/cms/e2e/composition.spec.ts`'s own FA-D-06 sweep already covers these two exact
+ * conditions for the site (1024x600, 1280x500 are two of its ten CONDITIONS). The viewer
+ * has no equivalent.
+ *
+ * Measured in DOCUMENT space, `elementBottom + scrollY <= documentHeight - barHeight`,
+ * with NO `scrollTo` anywhere in the assertion path — `motion-and-layout.spec.ts:2316-2323`
+ * and `apps/viewer/CLAUDE.md`'s "a layout assertion that scrolls first measures the
+ * scroll" record a version of this shape of check that scrolled first and so measured
+ * the scroll (passed locally by 1px, failed CI by up to 358px).
+ */
+test.describe('the viewer stays usable at two short-viewport conditions (SZ-14)', () => {
+  for (const { name, width, height } of [
+    { name: 'short laptop 1024x600', width: 1024, height: 600 },
+    { name: 'short desktop 1280x500', width: 1280, height: 500 },
+  ]) {
+    test(`no overflow, and the colourway rail and the contact controls both stay reachable at ${name}`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const measured = await page.evaluate(() => {
+        const doc = document.documentElement
+        const bar = document.querySelector('.action-bar') as HTMLElement | null
+        const barVisible = Boolean(bar) && getComputedStyle(bar as HTMLElement).display !== 'none'
+        const barHeight = barVisible ? (bar as HTMLElement).getBoundingClientRect().height : 0
+        const documentHeight = doc.scrollHeight
+        // In DOCUMENT space — the element's own rect plus however far the page has
+        // already scrolled — never `scrollTo` anywhere in this function.
+        const bottomInDocument = (el: Element | null) =>
+          el ? el.getBoundingClientRect().bottom + window.scrollY : null
+        return {
+          overflow: doc.scrollWidth > doc.clientWidth,
+          documentHeight,
+          barHeight,
+          railBottom: bottomInDocument(document.querySelector('.colourways')),
+          contactBottom: bottomInDocument(document.querySelector('.contact__buttons')),
+        }
+      })
+
+      expect(measured.overflow, `sideways scrolling at ${name}`).toBe(false)
+      expect(measured.railBottom, `no .colourways rail found at ${name}`).not.toBeNull()
+      expect(measured.contactBottom, `no .contact__buttons found at ${name}`).not.toBeNull()
+
+      const ceiling = measured.documentHeight - measured.barHeight
+      expect(
+        measured.railBottom,
+        `the colourway rail ends past the reachable document area at ${name} ` +
+          `(rail bottom ${measured.railBottom}, ceiling ${ceiling})`,
+      ).toBeLessThanOrEqual(ceiling + 1)
+      expect(
+        measured.contactBottom,
+        `the contact controls end past the reachable document area at ${name} ` +
+          `(contact bottom ${measured.contactBottom}, ceiling ${ceiling})`,
+      ).toBeLessThanOrEqual(ceiling + 1)
+    })
+  }
+})
+
+/*
+ * ══ the content column stays capped at ultrawide, and the page is not (SZ-15) ══
+ *
+ * `site.css:358,371-382` gives the site's own container a documented cap; the viewer
+ * repeats `max-width: 1200px` as a literal in five places with no test at 2560px on
+ * either surface. `.header` is the full-bleed proof (its own box spans the viewport;
+ * only its PADDING centres the 1200px content), which is the full-bleed case this test
+ * guards.
+ */
+test.describe('the content column stays capped at ultrawide (SZ-15)', () => {
+  test('the header is full-bleed and .content stays at or under 1200px at 2560px', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 2560, height: 1200 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const measured = await page.evaluate(() => ({
+      headerWidth: document.querySelector('.header')?.getBoundingClientRect().width ?? 0,
+      contentWidth: document.querySelector('.content')?.getBoundingClientRect().width ?? 0,
+      // document.documentElement.clientWidth, NOT window.innerWidth: innerWidth includes a
+      // classic scrollbar's track, which the full-bleed header does not paint under (I5,
+      // same fix as apps/cms/e2e/composition.spec.ts's SZ-15 — see that file's header for
+      // the measured Firefox-scrollbar-width note).
+      viewportWidth: document.documentElement.clientWidth,
+    }))
+
+    expect(
+      measured.headerWidth,
+      `.header is ${measured.headerWidth}px in a ${measured.viewportWidth}px viewport — it is not full-bleed`,
+    ).toBeGreaterThanOrEqual(measured.viewportWidth - 1)
+    expect(
+      measured.contentWidth,
+      `.content is ${measured.contentWidth}px wide at 2560px — it should stay at or under 1200px`,
+    ).toBeLessThanOrEqual(1200)
+  })
+})
+
+/*
+ * ══ the rendered viewport meta tag is present and sane (SZ-13) ══
+ *
+ * `index.html:5` sets it explicitly, including `viewport-fit=cover` for the notch —
+ * never asserted against a rendered page before. Not compared byte-for-byte against
+ * the site's own tag (SZ-13's own live re-check found them legitimately different).
+ */
+test.describe('the rendered viewport meta tag is present and sane (SZ-13)', () => {
+  test('content includes width=device-width', async ({ page }) => {
+    await page.goto('/n001/wine')
+    const content = await page.locator('meta[name="viewport"]').getAttribute('content')
+    expect(content, 'no <meta name="viewport"> rendered at all').not.toBeNull()
+    expect(content).toContain('width=device-width')
+  })
+})
+
+/*
+ * ══ nothing above the fold outsizes the product name (DS-08, viewer half) ══
+ *
+ * `apps/cms/e2e/composition.spec.ts` -> "FA-A-71" already proves this for the site; the
+ * viewer has its own product-name heading and no equivalent.
+ */
+test.describe('nothing above the fold outsizes the product name (DS-08)', () => {
+  test('nothing above the fold is set larger than the h1', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const louder = await page.evaluate(() => {
+      const h1 = document.querySelector('h1') as HTMLElement
+      const h1Size = Number.parseFloat(getComputedStyle(h1).fontSize)
+      return {
+        h1Size,
+        h1Top: h1.getBoundingClientRect().top,
+        offenders: [...document.querySelectorAll<HTMLElement>('body *')]
+          .filter((el) => el !== h1 && !h1.contains(el) && !el.contains(h1))
+          .filter((el) => {
+            const box = el.getBoundingClientRect()
+            if (box.height === 0 || box.top >= window.innerHeight) return false
+            const style = getComputedStyle(el)
+            if (style.visibility === 'hidden' || style.display === 'none') return false
+            const own = [...el.childNodes]
+              .filter((node) => node.nodeType === Node.TEXT_NODE)
+              .map((node) => node.textContent?.trim() ?? '')
+              .join('')
+            return own.length > 0
+          })
+          .filter((el) => Number.parseFloat(getComputedStyle(el).fontSize) >= h1Size)
+          .map(
+            (el) =>
+              `${el.tagName}.${el.className} @ ${getComputedStyle(el).fontSize}: ` +
+              `${(el.textContent ?? '').trim().slice(0, 24)}`,
+          ),
+      }
+    })
+
+    expect(louder.h1Top, 'the product name is not above the fold at all').toBeLessThan(900)
+    expect(
+      louder.offenders,
+      'something above the fold shouts louder than the product name',
+    ).toEqual([])
+    expect(louder.h1Size).toBeGreaterThan(28)
+  })
 })
