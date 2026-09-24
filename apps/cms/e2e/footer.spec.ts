@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { contrastOf } from '../../../scripts/contrast-rules.mjs'
 
 /**
  * The footer, measured. Every number here was wrong at least once on the design
@@ -286,37 +287,22 @@ test.describe('the numbers the design audit fixed', () => {
   }) => {
     await page.emulateMedia({ colorScheme: 'dark' })
     await page.goto('/contact')
-    const numbers = await page.locator(SLAB).evaluate((slabEl) => {
-      const lum = (r: number, g: number, b: number) => {
-        const f = (c: number) => {
-          const v = c / 255
-          return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
-        }
-        return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
-      }
-      const parse = (s: string) => {
-        const m = (s.match(/[\d.]+/g) ?? []).map(Number)
-        return { r: m[0] ?? 0, g: m[1] ?? 0, b: m[2] ?? 0, a: m.length > 3 ? (m[3] ?? 1) : 1 }
-      }
-      const ratio = (fgS: string, bgS: string) => {
-        const bg = parse(bgS)
-        const f = parse(fgS)
-        const fg = {
-          r: f.r * f.a + bg.r * (1 - f.a),
-          g: f.g * f.a + bg.g * (1 - f.a),
-          b: f.b * f.a + bg.b * (1 - f.a),
-        }
-        const l1 = lum(fg.r, fg.g, fg.b)
-        const l2 = lum(bg.r, bg.g, bg.b)
-        return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05)
-      }
+    // Migrated to the shared library (X1, Phase 0.1 Task 1): the local lum/parse/ratio
+    // trio computed the ratio INSIDE this evaluate callback, which `page.evaluate`
+    // serialises into the page — so it could never call an imported function (same rule
+    // `scripts/contrast-rules.mjs`'s header states for `measureContrastInPage`). The
+    // browser side now returns only the raw colours; `contrastOf` (identical maths —
+    // composite fg's own alpha over bg, then WCAG ratio) runs out here instead.
+    const raw = await page.locator(SLAB).evaluate((slabEl) => {
       const bg = getComputedStyle(slabEl).backgroundColor
       const label = slabEl.querySelector('.footer-block h3') as HTMLElement
       return {
-        muted: ratio(getComputedStyle(label).color, bg),
+        labelColor: getComputedStyle(label).color,
+        bg,
         borderTop: getComputedStyle(slabEl).borderTopWidth,
       }
     })
+    const numbers = { muted: contrastOf(raw.labelColor, raw.bg), borderTop: raw.borderTop }
     expect(numbers.muted).toBeGreaterThanOrEqual(5)
     expect(numbers.borderTop).toBe('1px')
   })

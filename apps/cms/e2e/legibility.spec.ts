@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { contrastOf, worstRatio } from '../../../scripts/contrast-rules.mjs'
 import { readability } from '../src/lib/readingLevel'
 
 /**
@@ -186,29 +187,10 @@ test.describe('FA-H-09 — a request for more contrast is answered', () => {
    * "14.47 -> 14.47". A translucent foreground has to be composited over its background
    * before it is a colour at all.
    */
-  const parse = (value: string) => {
-    const parts = (value.match(/[\d.]+/g) ?? ['0', '0', '0']).map(Number)
-    return {
-      rgb: [parts[0] ?? 0, parts[1] ?? 0, parts[2] ?? 0],
-      alpha: parts.length > 3 ? (parts[3] ?? 1) : 1,
-    }
-  }
-  const channel = (value: number) => {
-    const c = value / 255
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-  }
-  const luminance = (rgb: number[]) =>
-    0.2126 * channel(rgb[0] ?? 0) + 0.7152 * channel(rgb[1] ?? 0) + 0.0722 * channel(rgb[2] ?? 0)
-
-  const contrast = (fg: string, bg: string) => {
-    const front = parse(fg)
-    const back = parse(bg)
-    const flattened = front.rgb.map(
-      (value, index) => value * front.alpha + (back.rgb[index] ?? 0) * (1 - front.alpha),
-    )
-    const [light, dark] = [luminance(flattened), luminance(back.rgb)].sort((a, b) => b - a)
-    return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05)
-  }
+  // Migrated to the shared library (X1, Phase 0.1 Task 1): `contrastOf(fg, bg)` composites
+  // fg's own alpha over bg exactly as the four functions this replaced did — same maths,
+  // now in one place. See `scripts/contrast-rules.mjs`'s header for the two real defects
+  // (opacity-blind scoring) this module exists to keep catchable.
 
   const sample = async (page: import('@playwright/test').Page) => {
     await page.goto('/')
@@ -283,8 +265,8 @@ test.describe('FA-H-09 — a request for more contrast is answered', () => {
        */
       expect(after.pageBg, `${scheme}: the two samples are in different themes`).toBe(before.pageBg)
 
-      const ledeBefore = contrast(before.ledeText, before.pageBg)
-      const ledeAfter = contrast(after.ledeText, after.pageBg)
+      const ledeBefore = contrastOf(before.ledeText, before.pageBg)
+      const ledeAfter = contrastOf(after.ledeText, after.pageBg)
       expect(
         ledeAfter,
         `the lede went ${ledeBefore.toFixed(2)}:1 -> ${ledeAfter.toFixed(2)}:1`,
@@ -292,8 +274,8 @@ test.describe('FA-H-09 — a request for more contrast is answered', () => {
       // Comfortably past AA for body text, which is the point of the request.
       expect(ledeAfter).toBeGreaterThanOrEqual(7)
 
-      const navBefore = contrast(before.navText, before.barBg)
-      const navAfter = contrast(after.navText, after.barBg)
+      const navBefore = contrastOf(before.navText, before.barBg)
+      const navAfter = contrastOf(after.navText, after.barBg)
       expect(
         navAfter,
         `the nav links went ${navBefore.toFixed(2)}:1 -> ${navAfter.toFixed(2)}:1`,
@@ -318,18 +300,11 @@ test.describe('CO-01 / CO-04 / CO-02 / CR-03 — text and control edges clear th
    * their own — and a planted grey-on-grey must be reported as a failure before any real
    * number is trusted.
    */
-  const channel = (value: number) => {
-    const c = value / 255
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-  }
-  const luminance = (rgb: number[]) =>
-    0.2126 * channel(rgb[0] ?? 0) + 0.7152 * channel(rgb[1] ?? 0) + 0.0722 * channel(rgb[2] ?? 0)
-  const ratio = (a: number[], b: number[]) => {
-    const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x)
-    return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05)
-  }
+  // Migrated to the shared library (X1, Phase 0.1 Task 1): `worstRatio` is the same
+  // "lowest ratio among a row's pairs" this replaced. `measure()` below stays
+  // self-contained (handed to `page.evaluate`, which serialises it and cannot reach
+  // an import) — see `scripts/contrast-rules.mjs`'s own header for that rule.
   type Row = { label: string; pairs: [number[], number[]][] }
-  const worst = (row: Row) => Math.min(...row.pairs.map(([fg, bg]) => ratio(fg, bg)))
 
   /**
    * In the page: each visible match's foreground — its text colour, or its top border — with
@@ -427,9 +402,9 @@ test.describe('CO-01 / CO-04 / CO-02 / CR-03 — text and control edges clear th
     const [badEdge] = await measure(page, '#contrast-bad', 'border')
     const [good] = await measure(page, '#contrast-good', 'text')
     if (!bad || !badEdge || !good) throw new Error('the planted elements were not measured')
-    expect(worst(bad), 'grey on grey was not reported as a failure').toBeLessThan(1.5)
-    expect(worst(badEdge), 'a grey edge on grey was not reported as a failure').toBeLessThan(1.5)
-    expect(worst(good), 'black on white did not read 21:1').toBeCloseTo(21, 0)
+    expect(worstRatio(bad), 'grey on grey was not reported as a failure').toBeLessThan(1.5)
+    expect(worstRatio(badEdge), 'a grey edge on grey was not reported as a failure').toBeLessThan(1.5)
+    expect(worstRatio(good), 'black on white did not read 21:1').toBeCloseTo(21, 0)
   })
 
   for (const scheme of ['light', 'dark'] as const) {
@@ -437,8 +412,8 @@ test.describe('CO-01 / CO-04 / CO-02 / CR-03 — text and control edges clear th
       await settle(page, '/products', scheme)
       const rows = await measure(page, '.filter-chip__count', 'text')
       expect(rows.length, 'no filter-chip counts on /products to measure').toBeGreaterThan(0)
-      const failing = rows.filter((row) => worst(row) < 4.5)
-      expect(failing.map((row) => `${row.label} ${worst(row).toFixed(2)}:1`)).toEqual([])
+      const failing = rows.filter((row) => worstRatio(row) < 4.5)
+      expect(failing.map((row) => `${row.label} ${worstRatio(row).toFixed(2)}:1`)).toEqual([])
     })
 
     test(`${scheme}: the outline button and the form fields have a 3:1 edge`, async ({ page }) => {
@@ -448,8 +423,8 @@ test.describe('CO-01 / CO-04 / CO-02 / CR-03 — text and control edges clear th
       const fields = await measure(page, '.inquiry-form__input', 'border')
       expect(ghost.length, 'no outline button on the home page').toBeGreaterThan(0)
       expect(fields.length, 'no form fields on /contact').toBeGreaterThan(0)
-      const failing = [...ghost, ...fields].filter((row) => worst(row) < 3)
-      expect(failing.map((row) => `${row.label} ${worst(row).toFixed(2)}:1`)).toEqual([])
+      const failing = [...ghost, ...fields].filter((row) => worstRatio(row) < 3)
+      expect(failing.map((row) => `${row.label} ${worstRatio(row).toFixed(2)}:1`)).toEqual([])
     })
   }
 
