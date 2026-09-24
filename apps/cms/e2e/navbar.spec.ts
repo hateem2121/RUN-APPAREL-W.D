@@ -38,7 +38,7 @@ test.describe('navigation without JavaScript', () => {
       await page.goto(path)
       const links = page.locator(`${MENU} a`)
       await expect(links).toHaveCount(2)
-      // ⚠️ MOCKUP BUG 1: an author `display` beat the browser's hide rule, so the "closed"
+      // ⚠️ BUG 1, DESIGNED OUT: an author `display` beat the browser's hide rule, so the "closed"
       // menu showed its links. Closed must really be closed.
       await expect(page.locator(OPEN)).toHaveCount(0)
       for (let index = 0; index < 2; index++) await expect(links.nth(index)).toBeHidden()
@@ -95,9 +95,9 @@ test.describe('the open phone menu', () => {
   for (const width of [320, 390]) {
     test(`keeps a 12px gutter on BOTH sides and meets the bar at ${width}px`, async ({ page }) => {
       /*
-       * ⚠️ MOCKUP BUG 2. The browser styles [popover] `width: fit-content`, so two insets
+       * ⚠️ BUG 2, DESIGNED OUT. The browser styles [popover] `width: fit-content`, so two insets
        * alone left the panel 153-157px wide in all three engines (measured 2026-09-23), and
-       * the mockup's `calc(100vw - 24px)` sat flush against the right edge. `width: auto`
+       * the old rule's `calc(100vw - 24px)` sat flush against the right edge. `width: auto`
        * restores the two-inset stretch.
        */
       await page.setViewportSize({ width, height: 800 })
@@ -125,7 +125,7 @@ test.describe('the open phone menu', () => {
         expect(Math.round(m.left), `left gutter at scrollY ${scrollY}`).toBe(12)
         expect(
           Math.round(m.right),
-          `right gutter at scrollY ${scrollY}: the mockup sat flush`,
+          `right gutter at scrollY ${scrollY}: the old rule sat flush`,
         ).toBe(12)
         expect(Math.round(m.gap), 'the menu overlaps the bar').toBeGreaterThanOrEqual(0)
         expect(Math.round(m.gap), 'the menu hangs detached from the bar').toBeLessThanOrEqual(8)
@@ -197,9 +197,10 @@ test.describe('the open phone menu', () => {
         (node) => node.role?.value === 'button' && node.name?.value === SITE_MENU_NAME,
       )
       // Chromium's raw CDP tree reflects `.nav-link`'s `text-transform: uppercase` in the
-      // computed name (measured 2026-09-23: PRODUCTS, not the label text) — a real,
-      // spec-compliant difference from Playwright's own accessible-name computation, which
-      // is why toMatchAriaSnapshot elsewhere in this file compares "Products" and passes.
+      // computed name (measured 2026-09-23: PRODUCTS, not the label text) — a real
+      // difference from Playwright's own accessible-name computation, allowed by the
+      // accessible-name spec, which is why toMatchAriaSnapshot elsewhere in this file
+      // compares "Products" and passes.
       const products = nodes.filter(
         (node) =>
           !node.ignored &&

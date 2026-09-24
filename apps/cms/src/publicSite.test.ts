@@ -60,7 +60,7 @@ const barCss = () =>
 
 /**
  * Rules that give the CLOSED menu list (`.notch__menu` as the subject, not `:popover-open`) a
- * `display` outside the wide-screen block — the shape of mockup bug 1.
+ * `display` outside the wide-screen block — the shape of bug 1, designed out.
  */
 function closedMenuDisplays(source: string): string[] {
   const offenders: string[] = []
@@ -544,10 +544,10 @@ describe('the notch', () => {
     expect(css() + barCss()).not.toMatch(/data-open/)
   })
 
-  it('gives the closed list no display of its own, except inline on a wide screen (mockup bug 1)', () => {
+  it('gives the closed list no display of its own, except inline on a wide screen (bug 1)', () => {
     // An author `display` on a [popover] beats the browser's `[popover]:not(:popover-open)
     // { display: none }` whatever the specificity (measured three engines, 2026-09-23): the
-    // mockup's inherited `.notch__nav { display: flex }` showed a "closed" menu open.
+    // old inherited `.notch__nav { display: flex }` showed a "closed" menu open.
     expect(closedMenuDisplays(barCss())).toEqual([])
     // the matcher is not passing on nothing
     expect(closedMenuDisplays('.notch__menu { display: flex; }')).toEqual(['.notch__menu'])
@@ -557,7 +557,7 @@ describe('the notch', () => {
     expect(closedMenuDisplays('.notch__menu:popover-open { display: flex; }')).toEqual([])
   })
 
-  it('sizes the open list by its two insets, never by the viewport (mockup bug 2)', () => {
+  it('sizes the open list by its two insets, never by the viewport (bug 2)', () => {
     // The browser styles [popover] `width: fit-content`; two insets alone gave 153-157px in
     // three engines. `width: auto` is the cure; `100vw` includes a classic scrollbar.
     const rule = /\.notch__menu:popover-open\s*\{[^}]*\}/.exec(barCss())?.[0] ?? ''
