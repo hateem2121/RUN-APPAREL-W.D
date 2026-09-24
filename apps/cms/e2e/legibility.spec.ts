@@ -187,7 +187,7 @@ test.describe('FA-H-09 — a request for more contrast is answered', () => {
    * "14.47 -> 14.47". A translucent foreground has to be composited over its background
    * before it is a colour at all.
    */
-  // Migrated to the shared library (X1, Phase 0.1 Task 1): `contrastOf(fg, bg)` composites
+  // Migrated to the shared library: `contrastOf(fg, bg)` composites
   // fg's own alpha over bg exactly as the four functions this replaced did — same maths,
   // now in one place. See `scripts/contrast-rules.mjs`'s header for the two real defects
   // (opacity-blind scoring) this module exists to keep catchable.
@@ -300,7 +300,7 @@ test.describe('CO-01 / CO-04 / CO-02 / CR-03 — text and control edges clear th
    * their own — and a planted grey-on-grey must be reported as a failure before any real
    * number is trusted.
    */
-  // Migrated to the shared library (X1, Phase 0.1 Task 1): `worstRatio` is the same
+  // Migrated to the shared library: `worstRatio` is the same
   // "lowest ratio among a row's pairs" this replaced. `measure()` below stays
   // self-contained (handed to `page.evaluate`, which serialises it and cannot reach
   // an import) — see `scripts/contrast-rules.mjs`'s own header for that rule.
