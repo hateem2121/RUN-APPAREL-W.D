@@ -294,7 +294,7 @@ the answer is "nothing that happens in production", it is not a test.
 - **Sixteen more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
   of them moved there 2026-08-19 because they bite only while you are editing a
   workflow, which is exactly when that file loads. Enough to stop you: every workflow
-  is gated by `apps/cms/src/workflowHardening.test.ts` on fifteen rules, nine with their
+  is gated by `apps/cms/src/workflowHardening.test.ts` on sixteen rules, ten with their
   own negative control — an unparseable workflow is NOT a check, so CI goes green; a
   `permissions:` block **REPLACES** the defaults rather than
   adding to them — omitting `contents: read` killed uptime.yml for 23 hours with a 404.
