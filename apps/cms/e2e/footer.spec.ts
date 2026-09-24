@@ -555,3 +555,130 @@ test.describe('LA-17 — print keeps the contact details', () => {
     await expect(page.locator('.site-footer__tab')).toBeHidden()
   })
 })
+
+/**
+ * MO-08 — the footer light's 180ms LEAVE linger, tested standing still. The "hand-off
+ * does not flicker" test above already proves the ring/light position agree and that a
+ * SWEEP through the 2×2's gap does not toggle `data-over` more than once; this is the
+ * timing half: after the pointer leaves content and STOPS (no further move — which is
+ * exactly the case `FooterGlow.tsx`'s own comment says needed its own re-scheduled
+ * timer, since the cursor bus otherwise only re-fires on movement), `data-over` holds
+ * true for LINGER_MS (180ms) and then releases on its own.
+ */
+test.describe('MO-08 — the footer light lingers on content for ~180ms after leaving it', () => {
+  test('data-over stays true for a window around 180ms, then releases without further movement', async ({
+    page,
+    context,
+  }) => {
+    await liftAutomationGate(context)
+    await page.goto('/contact')
+    const slab = page.locator(SLAB)
+    await slab.scrollIntoViewIfNeeded()
+
+    const contactBox = await page.locator('.footer-block--contact').boundingBox()
+    const emptyBox = await page.locator('.footer-grow').boundingBox()
+    if (!contactBox || !emptyBox) throw new Error('no content/empty region to measure')
+
+    // Land ON content first, and give the trailed ring time to actually settle there
+    // (same shape as "the light rides with the ring" above) before trusting data-over.
+    await page.mouse.move(contactBox.x + 10, contactBox.y + 10)
+    await page.waitForTimeout(500)
+    await page.mouse.move(contactBox.x + 12, contactBox.y + 12)
+    await expect(slab).toHaveAttribute('data-over', 'true')
+
+    // One move to empty ground, then STOP — the linger timer, not further movement, has
+    // to carry this to release. The window this test grades is the FULL round trip
+    // (`releasedAfterMs` below) rather than an intermediate "still true" snapshot: under
+    // parallel test load a fixed short poll for "still true" can lose the race against
+    // the timer itself, which is a scheduler artefact, not evidence the linger is
+    // broken — the release-time window is both the more robust and the more direct
+    // measurement of LINGER_MS.
+    const leftAt = Date.now()
+    await page.mouse.move(emptyBox.x + emptyBox.width / 2, emptyBox.y + emptyBox.height / 2)
+
+    // Released within a window around 180ms — generous on both sides (real timer +
+    // rAF/setTimeout jitter, and CI scheduler slack), never snapping instantly and
+    // never lingering indefinitely.
+    await expect
+      .poll(() => slab.getAttribute('data-over'), {
+        message: 'data-over never released after leaving content',
+        timeout: 1000,
+      })
+      .toBe('false')
+    const releasedAfterMs = Date.now() - leftAt
+    expect(releasedAfterMs, `released after ${releasedAfterMs}ms, expected ~180ms`).toBeGreaterThan(
+      50,
+    )
+    expect(releasedAfterMs, `released after ${releasedAfterMs}ms, expected ~180ms`).toBeLessThan(
+      500,
+    )
+  })
+})
+
+/**
+ * MO-09 — a footer-hover sweep triggers no MORE layout work than the same sweep over
+ * the hero. Same CDP instrument the 2026-09 audit used (`Performance.getMetrics()`'s
+ * `LayoutCount`), re-derived rather than copied — the audit's own finding was a footer
+ * hover rule with a `width`/`top` transition costing 115 extra layouts; this is the
+ * regression test for that class of defect, not a re-assertion of its exact number.
+ *
+ * ⚠️ BOTH DELTAS MUST BE EXACTLY 0 — not merely equal to each other. A relative-equal
+ * fallback would let a real footer-specific regression through as long as it happened
+ * to match whatever the hero's own sweep measured that run (plan review edit 11).
+ */
+test.describe('MO-09 — a footer hover sweep costs no more layout than the hero (LayoutCount)', () => {
+  test('60-move sweep over the footer and over the hero both cost 0 extra layouts', async ({
+    page,
+    context,
+  }) => {
+    await liftAutomationGate(context)
+    const cdp = await context.newCDPSession(page)
+    await cdp.send('Performance.enable')
+
+    const layoutCount = async () => {
+      const { metrics } = await cdp.send('Performance.getMetrics')
+      const metric = metrics.find((m: { name: string; value: number }) => m.name === 'LayoutCount')
+      if (!metric) throw new Error('LayoutCount metric not reported by this engine')
+      return metric.value
+    }
+
+    const sweep = async (box: { x: number; y: number; width: number; height: number }) => {
+      const before = await layoutCount()
+      for (let i = 0; i < 60; i++) {
+        const x = box.x + (box.width * i) / 60
+        const y = box.y + box.height / 2
+        await page.mouse.move(x, y)
+      }
+      const after = await layoutCount()
+      return after - before
+    }
+
+    await page.goto('/contact')
+    // Warm-up: the FIRST pointer move on the page mounts the custom cursor (new DOM —
+    // .cursor-dot/.cursor-ring), which costs its own one-time layout unrelated to
+    // either region being measured. Spend that cost here, outside both sweeps, so
+    // neither delta is blamed for a mount cost the other would have paid instead had
+    // it swept first.
+    await page.mouse.move(10, 10)
+    await page.waitForTimeout(50)
+
+    const hero = await page.locator('.site-hero').boundingBox()
+    if (!hero) throw new Error('no .site-hero to sweep')
+    const heroDelta = await sweep(hero)
+
+    const slab = page.locator(SLAB)
+    await slab.scrollIntoViewIfNeeded()
+    // Same reasoning as the hero warm-up above: the scroll itself, and the cursor's
+    // first arrival at a new region's coordinate space, can each cost one settling
+    // layout. Spend it here, before this sweep's own "before" reading.
+    const settleBox = await slab.boundingBox()
+    if (settleBox) await page.mouse.move(settleBox.x + 5, settleBox.y + 5)
+    await page.waitForTimeout(50)
+    const footer = await slab.boundingBox()
+    if (!footer) throw new Error('no footer slab to sweep')
+    const footerDelta = await sweep(footer)
+
+    expect(heroDelta, `hero sweep cost ${heroDelta} layouts, expected 0`).toBe(0)
+    expect(footerDelta, `footer sweep cost ${footerDelta} layouts, expected 0`).toBe(0)
+  })
+})
