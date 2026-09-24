@@ -203,6 +203,54 @@ test.describe('FA-F-05 — the page comes back where it was left', () => {
   })
 })
 
+/**
+ * SC-01 — the other two return paths FA-F-05 above does not cover: typing a fresh
+ * address (a NEW navigation, not history traversal — correctly starts at the top,
+ * every time), and a plain reload (the browser's own `scrollRestoration: 'auto'`
+ * behaviour, same as FA-F-05 relies on, exercised via `page.reload()` instead of
+ * `page.goBack()`).
+ */
+test.describe('SC-01 — scroll restoration, the other two paths', () => {
+  test('typing a fresh address always starts at the top, never a remembered position', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/products')
+    const height = await page.evaluate(() => document.documentElement.scrollHeight)
+    expect(
+      height,
+      'the gallery is too short for this measurement to mean anything',
+    ).toBeGreaterThan(1900)
+    await page.evaluate(() => window.scrollTo(0, 1000))
+    await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBeGreaterThan(900)
+
+    // A fresh page.goto() is a NEW navigation, the same shape as typing an address in
+    // the bar — not history traversal, so nothing should be restored.
+    await page.goto('/products')
+    expect(await page.evaluate(() => Math.round(window.scrollY))).toBe(0)
+  })
+
+  test('a plain reload restores the scroll position, same as history back does', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/products')
+    const height = await page.evaluate(() => document.documentElement.scrollHeight)
+    expect(
+      height,
+      'the gallery is too short for this measurement to mean anything',
+    ).toBeGreaterThan(1900)
+    const target = 1000
+    await page.evaluate((to) => window.scrollTo(0, to), target)
+    await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBeGreaterThan(900)
+
+    await page.reload()
+    await expect
+      .poll(() => page.evaluate(() => Math.round(window.scrollY)), { timeout: 5_000 })
+      .toBeGreaterThan(target - 60)
+  })
+})
+
 test.describe('FA-H-10 — the skip link answers on --instant and actually moves', () => {
   /**
    * MEASURED 2026-09-06: the skip link is the one place the `--instant` token is honoured

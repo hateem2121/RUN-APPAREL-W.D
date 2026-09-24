@@ -290,7 +290,11 @@ test.describe('AC-12 — contact-form fields carry a real label and sensible aut
         return {
           name: el.name,
           hasLabel: Boolean(label && (label.textContent ?? '').trim().length > 0),
-          autocomplete: el.autocomplete,
+          // The ATTRIBUTE, not the `.autocomplete` property: measured 2026-09-25, Playwright's
+          // Firefox returns "" from the property for every autofill token (name,
+          // organization, email) while the attribute carries it; only "off" came through.
+          // The attribute is what the page ships and what autofill reads.
+          autocomplete: el.getAttribute('autocomplete') ?? '',
         }
       })
     })

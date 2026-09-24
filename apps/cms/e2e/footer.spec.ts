@@ -630,7 +630,11 @@ test.describe('MO-09 — a footer hover sweep costs no more layout than the hero
   test('60-move sweep over the footer and over the hero both cost 0 extra layouts', async ({
     page,
     context,
+    browserName,
   }) => {
+    // LayoutCount comes from CDP's Performance domain, which only Chromium has: without this
+    // guard the firefox project failed 4/4 at newCDPSession (measured 2026-09-25).
+    test.skip(browserName !== 'chromium', 'LayoutCount is read over CDP, which only Chromium has')
     await liftAutomationGate(context)
     const cdp = await context.newCDPSession(page)
     await cdp.send('Performance.enable')
@@ -680,5 +684,35 @@ test.describe('MO-09 — a footer hover sweep costs no more layout than the hero
 
     expect(heroDelta, `hero sweep cost ${heroDelta} layouts, expected 0`).toBe(0)
     expect(footerDelta, `footer sweep cost ${footerDelta} layouts, expected 0`).toBe(0)
+  })
+})
+
+/**
+ * MO-18 (site half) — the site's motion affordance inventory: a cursor-following
+ * glow, scoped to the footer slab only, nowhere else on the page. The viewer half
+ * (exactly dot + ring, nothing wider) is the matching describe in
+ * apps/viewer/e2e/audit-guards.spec.ts.
+ */
+test.describe('MO-18 (site) — the footer glow affordance is scoped to the slab, nowhere else', () => {
+  test('.footer-glow exists only inside .site-footer__slab', async ({ page, context }) => {
+    await liftAutomationGate(context)
+    await page.goto('/contact')
+    const counts = await page.evaluate(() => {
+      const glows = [...document.querySelectorAll('.footer-glow')]
+      return {
+        total: glows.length,
+        outsideSlab: glows.filter((el) => !el.closest('.site-footer__slab')).length,
+        // Anything ELSE glow/beam-shaped outside the footer would be inventory drift.
+        otherGlowLike: document.querySelectorAll(
+          '[class*="glow"]:not(.footer-glow), [class*="beam"]',
+        ).length,
+      }
+    })
+    expect(counts.total, 'no .footer-glow found at all').toBeGreaterThan(0)
+    expect(counts.outsideSlab, 'a .footer-glow rendered outside .site-footer__slab').toBe(0)
+    expect(
+      counts.otherGlowLike,
+      `found ${counts.otherGlowLike} glow/beam-like element(s) beyond the footer's — inventory drift`,
+    ).toBe(0)
   })
 })

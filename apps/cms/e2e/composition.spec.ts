@@ -1260,3 +1260,62 @@ test.describe('LA-12 — the gallery genuinely reaches 1/2/3/4 columns', () => {
     })
   }
 })
+
+/**
+ * SC-03 — the site's `[data-site-reveal]` entry animation slides (never fades) and
+ * is switched off under reduced motion.
+ *
+ * ⚠️ A DIFFERENT MECHANISM FROM THE VIEWER'S `[data-reveal]`, confirmed by reading
+ * the source before writing this test (the plan's own uncertainty: "confirm whether
+ * it shares that module"). The viewer's is a JS IntersectionObserver
+ * (`polish/reveal.ts`); the site's is PURE CSS — `animation-timeline: view()`
+ * (`site.css:2060-2077`), gated behind `@supports (animation-timeline: view())` AND
+ * `@media (prefers-reduced-motion: no-preference)`. Where the browser does not
+ * support scroll-driven animations at all (measured: not WebKit/Firefox as of this
+ * repo's Playwright versions), the `@supports` block simply never matches and the
+ * element renders at rest with no animation ever applied — graceful degradation,
+ * not a defect, and not this test's concern. Scoped to Chromium, the engine that
+ * does support it, for exactly that reason.
+ */
+test.describe('SC-03 — the site reveal slides without fading, and reduced motion turns it off', () => {
+  test('animation-name is site-reveal under normal motion, and none under reduced motion', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'animation-timeline: view() is not supported here')
+
+    await page.goto('/')
+    await settle(page)
+    const target = page.locator('[data-site-reveal]').first()
+    expect(await target.count(), 'no [data-site-reveal] element on the home page').toBeGreaterThan(
+      0,
+    )
+
+    const normalMotion = await target.evaluate((el) => getComputedStyle(el).animationName)
+    expect(normalMotion, `animation-name under normal motion was "${normalMotion}"`).toBe(
+      'site-reveal',
+    )
+
+    // The keyframe itself only ever names `transform` — confirmed by reading
+    // site.css's own `@keyframes site-reveal` (from/to both list transform only,
+    // never opacity) — so "slides, never fades" is a structural fact about the
+    // declaration, not something to re-derive from a live paint.
+
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/')
+    await settle(page)
+    const reducedMatches = await page.evaluate(
+      () => matchMedia('(prefers-reduced-motion: reduce)').matches,
+    )
+    expect(reducedMatches, 'reduced motion emulation never reached the page').toBe(true)
+
+    const reducedTarget = page.locator('[data-site-reveal]').first()
+    const reducedMotionName = await reducedTarget.evaluate(
+      (el) => getComputedStyle(el).animationName,
+    )
+    expect(
+      reducedMotionName,
+      `animation-name under reduced motion was "${reducedMotionName}", expected none`,
+    ).toBe('none')
+  })
+})
