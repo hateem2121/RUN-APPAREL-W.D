@@ -844,6 +844,12 @@
   right: 12px;
   top: 12px;
   z-index: var(--z-stage-control);
+}
+
+/* TRY 3D AGAIN (issue #41) shares the AR button's look. Shared, not copied: the viewer's stylesheet has a
+   measured Lighthouse budget (lighthouserc.json), and a second copy of these twelve lines cost 174 B over it. */
+.stage__ar,
+.stage__retry {
   display: inline-flex;
   align-items: center;
   min-height: var(--target-min);
@@ -1531,7 +1537,6 @@ model-viewer.stage__model {
   bottom: 72px;
   left: 50%;
   transform: translateX(-50%);
-  width: max-content;
   max-width: min(90%, 420px);
   display: flex;
   flex-direction: column;
@@ -1547,23 +1552,6 @@ model-viewer.stage__model {
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   padding: 10px 16px;
-}
-
-/* The look of `.stage__ar`, the stage's other text button, minus its corner placement. */
-.stage__retry {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--target-min);
-  padding: 10px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-  color: var(--dimension);
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
-  cursor: pointer;
 }
 
 /* ── Retired-colourway notice ──────────────────────────────────────── */
