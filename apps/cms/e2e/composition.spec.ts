@@ -1193,8 +1193,8 @@ test.describe('LA-02 — home-page input facts (an honest proxy, not a judgement
       const nav = document.querySelector('.notch__nav')
       const footer = document.querySelector('.site-footer')
       const words = document.body.innerText
-        .replace(nav ? nav.textContent ?? '' : '', '')
-        .replace(footer ? footer.textContent ?? '' : '', '')
+        .replace(nav ? (nav.textContent ?? '') : '', '')
+        .replace(footer ? (footer.textContent ?? '') : '', '')
         .trim()
         .split(/\s+/)
         .filter(Boolean).length

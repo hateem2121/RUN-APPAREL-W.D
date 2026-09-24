@@ -144,16 +144,42 @@ async function scan(page: Page, name: string) {
   ).toEqual([])
 }
 
+/**
+ * LA-04 — exactly one `<h1>`, and no skipped heading level, on whatever DOM this page
+ * state happens to have.
+ *
+ * Rides the SAME page visit `scan()` already makes — not a new navigation — so this is
+ * one extra assertion on a visit that already happens, per each test below.
+ */
+async function assertHeadingStructure(page: Page, name: string) {
+  const levels = await page.evaluate(() =>
+    [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].map((el) => Number(el.tagName.slice(1))),
+  )
+  const h1Count = levels.filter((level) => level === 1).length
+  expect(h1Count, `${name}: expected exactly one <h1>, found ${h1Count} (levels: ${levels})`).toBe(
+    1,
+  )
+  for (let i = 1; i < levels.length; i++) {
+    const jump = levels[i] - levels[i - 1]
+    expect(
+      jump,
+      `${name}: heading level jumps from h${levels[i - 1]} to h${levels[i]} (sequence: ${levels})`,
+    ).toBeLessThanOrEqual(1)
+  }
+}
+
 test('product page has no serious/critical structural a11y violations', async ({ page }) => {
   await page.goto('/n001/wine')
   await expect(page.getByRole('heading', { level: 1 })).toContainText(/Velocity Performance/i)
   await scan(page, 'product page')
+  await assertHeadingStructure(page, 'product page')
 })
 
 test('the unavailable state is usable with a screen reader', async ({ page }) => {
   await page.goto('/zzz9/none')
   await expect(page.getByText('[ REFERENCE UNAVAILABLE ]')).toBeVisible()
   await scan(page, 'unavailable state')
+  await assertHeadingStructure(page, 'unavailable state')
 })
 
 test('the retired-colourway notice is usable with a screen reader', async ({ page }) => {
@@ -163,6 +189,7 @@ test('the retired-colourway notice is usable with a screen reader', async ({ pag
   await page.goto('/n001/navy')
   await expect(page.getByText(/no longer active/i)).toBeVisible()
   await scan(page, 'retired colourway notice')
+  await assertHeadingStructure(page, 'retired colourway notice')
 })
 
 test('the notice-only fallback is usable with a screen reader', async ({ page }) => {
@@ -190,6 +217,7 @@ test('the notice-only fallback is usable with a screen reader', async ({ page })
   // 'Interactive 3D product reference' and proves nothing about the fallback.
   await expect(page.getByRole('region', { name: 'Product reference', exact: true })).toBeVisible()
   await scan(page, 'notice-only fallback')
+  await assertHeadingStructure(page, 'notice-only fallback')
 })
 
 test('the expanded customisation accordion is usable with a screen reader', async ({ page }) => {
@@ -199,6 +227,7 @@ test('the expanded customisation accordion is usable with a screen reader', asyn
   await page.getByRole('button', { name: /how we build your product/i }).click()
   await expect(page.getByText('SHARE YOUR STARTING POINT')).toBeVisible()
   await scan(page, 'customisation accordion expanded')
+  await assertHeadingStructure(page, 'customisation accordion expanded')
 })
 
 test('the notice live region exists before it has anything to say', async ({ page }) => {

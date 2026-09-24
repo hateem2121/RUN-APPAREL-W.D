@@ -34,6 +34,20 @@ test.describe('every page renders real content', () => {
       await expect(h1).toHaveCount(1)
       await expect(h1).toHaveText(page.heading)
 
+      // LA-04: no skipped heading level anywhere on the page (h1's uniqueness is
+      // already proven above) — built from the actual sequence, not assumed.
+      const levels = await browser.evaluate(() =>
+        [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].map((el) =>
+          Number(el.tagName.slice(1)),
+        ),
+      )
+      for (let i = 1; i < levels.length; i++) {
+        expect(
+          levels[i] - levels[i - 1],
+          `${page.path}: heading level jumps from h${levels[i - 1]} to h${levels[i]} (sequence: ${levels})`,
+        ).toBeLessThanOrEqual(1)
+      }
+
       // The chrome the layout is responsible for.
       await expect(browser.locator('.notch__nav a')).toHaveCount(2)
       await expect(browser.locator('main#main')).toBeVisible()
