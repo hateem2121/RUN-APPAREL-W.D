@@ -5,12 +5,11 @@ import { TARGETS, evaluate } from '../../../scripts/https-redirect-probe.mjs'
  * Tests for the plain-HTTP -> HTTPS redirect probe (SE-01).
  *
  * WHAT THIS GUARDS. A plain `http://` request to any customer-facing host must be
- * redirected to the `https://` version of the SAME host and path. The tracker's SE-01
- * note said this could not be measured from this sandbox at all ("the redirect itself
- * cannot be measured through my proxy"); re-tried 2026-09-23, plain HTTP to all three
+ * redirected to the `https://` version of the SAME host and path. This could not be
+ * measured at all on an earlier attempt; re-tried 2026-09-23, plain HTTP to all three
  * hosts checked (`wear-run.help`, `viewer.wear-run.help`, `cms.wear-run.help`) answered
  * a correct 301 with the matching `location:`. That measurement turns this from a
- * phone-only line into a robot.
+ * manual, one-off check into a robot.
  *
  * The failure this catches is a `200` — a plain-HTTP response that never redirects at
  * all, which is the actual vulnerability (credentials, session data or a garment

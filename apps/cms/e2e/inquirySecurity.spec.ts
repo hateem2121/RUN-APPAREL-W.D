@@ -4,15 +4,15 @@ import { expectedContactNotice } from '../../../scripts/contact-error-messages.m
 /**
  * Contact-form security and error-route robots — SE-11, SE-12, SE-13, SE-14, RO-09.
  *
- * A NEW FILE, never `apps/cms/e2e/inquiry.spec.ts` itself — that file is on Phase 1b-B's
- * File map for an unrelated comment edit, building in parallel on its own branch/worktree.
- * `inquiry.spec.ts` already covers most of SE-11/SE-12/SE-14's SURFACE; this file tags
- * those same assertions with their audit IDs, tightens one of them, and adds SE-13 (the
- * rate limit), which had no integration proof at all before this.
+ * A NEW FILE, never `apps/cms/e2e/inquiry.spec.ts` itself, which is being edited in
+ * parallel on its own branch. `inquiry.spec.ts` already covers most of SE-11/SE-12/
+ * SE-14's SURFACE; this file tags those same assertions with their audit IDs, tightens
+ * one of them, and adds SE-13 (the rate limit), which had no integration proof at all
+ * before this.
  *
- * SHARED-FILE NOTE for anyone extending this later (recorded 2026-09-24 per the
- * controller's own instruction): every `describe`/`test` name below is stable and may be
- * extended by name without editing this file's existing bodies. The honeypot- and
+ * SHARED-FILE NOTE for anyone extending this later (2026-09-24): every `describe`/`test`
+ * name below is stable and may be extended by name without editing this file's existing
+ * bodies. The honeypot- and
  * error-route helpers are deliberately NOT re-exported for reuse beyond
  * `scripts/contact-error-messages.mjs`, which is already a separate, shared module.
  *
@@ -164,22 +164,37 @@ test.describe('SE-13 — the rate limit', () => {
    * (same IP, same still-open 10-minute window) failed at request 5/5 instead — a real
    * but avoidable confusion. A fresh, random last octet per test run keeps a retry
    * independent of whatever an earlier attempt already spent.
+   *
+   * ⚠️ THE RANGE IS SPLIT BY PROJECT TOO, NOT ONLY RANDOM. Chromium and Firefox share
+   * ONE `next start` process and therefore one `checkInquiryRate` bucket per address, and
+   * each project picked its random octet independently — so roughly 1 run in 110 the two
+   * projects drew the SAME address, and whichever ran second saw the other's already-spent
+   * allowance (a flake, not a real finding). `test.info().project.name` is only readable
+   * from inside a running test, which is why the addresses are computed in the test body
+   * rather than at this describe block's top level.
    */
   // Both addresses stay inside 203.0.113.0/24 — TEST-NET-3, RFC 5737, never a real one —
-  // with two DISTINCT octets drawn from disjoint halves of the range so they cannot collide.
+  // in four disjoint 50-address bands (two per project) so neither project, and neither
+  // address within a project, can ever collide with another.
   const randomOctet = (min: number, max: number) => min + Math.floor(Math.random() * (max - min))
-  const RATE_LIMIT_TEST_IP = `203.0.113.${randomOctet(10, 120)}`
-  const OTHER_IP = `203.0.113.${randomOctet(130, 240)}`
+  function testAddresses(projectName: string) {
+    const [rateLimitBase, otherBase] = projectName === 'firefox' ? [60, 180] : [10, 130]
+    return {
+      rateLimitTestIp: `203.0.113.${randomOctet(rateLimitBase, rateLimitBase + 50)}`,
+      otherIp: `203.0.113.${randomOctet(otherBase, otherBase + 50)}`,
+    }
+  }
 
   test('the sixth inquiry from one address in the window is refused; a seventh from a different address is not', async ({
     request,
-  }) => {
+  }, testInfo) => {
+    const { rateLimitTestIp, otherIp } = testAddresses(testInfo.project.name)
     // MAX_PER_IP is 5 (apps/cms/src/lib/inquiryRate.ts) — five honeypot-clear, valid
     // submissions from the SAME address must all succeed.
     for (let i = 0; i < 5; i++) {
       const res = await request.post('/contact/submit', {
         form: validInquiry(`se13-a-${i}`),
-        headers: { 'cf-connecting-ip': RATE_LIMIT_TEST_IP },
+        headers: { 'cf-connecting-ip': rateLimitTestIp },
         maxRedirects: 0,
       })
       expect(res.status(), `request ${i + 1}/5 from the rate-limit address`).toBe(303)
@@ -191,7 +206,7 @@ test.describe('SE-13 — the rate limit', () => {
     // The sixth from the SAME address: refused.
     const sixth = await request.post('/contact/submit', {
       form: validInquiry('se13-a-6'),
-      headers: { 'cf-connecting-ip': RATE_LIMIT_TEST_IP },
+      headers: { 'cf-connecting-ip': rateLimitTestIp },
       maxRedirects: 0,
     })
     expect(sixth.status()).toBe(303)
@@ -200,7 +215,7 @@ test.describe('SE-13 — the rate limit', () => {
     // A seventh, from a DIFFERENT address: the ceiling is per-IP, not global.
     const seventh = await request.post('/contact/submit', {
       form: validInquiry('se13-b-7'),
-      headers: { 'cf-connecting-ip': OTHER_IP },
+      headers: { 'cf-connecting-ip': otherIp },
       maxRedirects: 0,
     })
     expect(seventh.status()).toBe(303)

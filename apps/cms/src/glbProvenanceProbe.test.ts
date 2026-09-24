@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { evaluate, extractGlbJsonChunk } from '../../../scripts/glb-provenance-probe.mjs'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { evaluate, extractGlbJsonChunk, probe } from '../../../scripts/glb-provenance-probe.mjs'
 
 /**
  * Tests for the live GLB provenance probe (SE-16).
@@ -143,6 +143,46 @@ describe('evaluate — what must NOT be read as a pass', () => {
     const result = evaluate([{ key: 'rxps/wine', error: 'fetch failed' }])
     expect(result.failures).toEqual([])
     expect(result.inconclusive[0]).toContain('fetch failed')
+    expect(result.measured).toBe(0)
+  })
+})
+
+/**
+ * `probe()` itself — a stubbed `fetch`, never production. Only a 206 proves the server
+ * honoured the Range header; a 200 answering the same request is the FULL body arriving
+ * instead of a bounded slice, and reading it would defeat the whole point of ranging a
+ * request against a model that can be tens of MB.
+ */
+describe('probe — a 200 answering a ranged request is never read as the whole file', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('reports it distinctly from a genuine failure, and never attempts to parse the body', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url) => {
+        const href = String(url)
+        if (href.includes('/api/public/viewer/')) {
+          return new Response(
+            JSON.stringify({ product: { glbUrl: 'https://media.wear-run.help/fake.glb' } }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          )
+        }
+        // The model URL itself: answers 200, ignoring the Range header, instead of 206.
+        return new Response('x'.repeat(1000), { status: 200 })
+      }),
+    )
+    const observations = await probe([{ key: 'fake/model', slug: 'fake', colourway: 'model' }])
+    const observation = observations[0]
+    if (!observation) throw new Error('expected exactly one observation')
+    expect(observation.status).toBe(200)
+    expect(observation.error).toContain('206')
+    expect(observation.jsonChunk).toBeUndefined()
+
+    const result = evaluate([observation])
+    expect(result.ok).toBe(true) // inconclusive, never a failure
+    expect(result.failures).toEqual([])
     expect(result.measured).toBe(0)
   })
 })

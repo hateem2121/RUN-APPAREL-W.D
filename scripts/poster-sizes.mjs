@@ -68,7 +68,9 @@ export function modelUrlFromPayload(body) {
  */
 export async function resolveLiveModelUrl(slug, colourway, { apiBase = API_BASE } = {}) {
   try {
-    const response = await fetch(`${apiBase}/api/public/viewer/${slug}/${colourway}`)
+    const response = await fetch(`${apiBase}/api/public/viewer/${slug}/${colourway}`, {
+      signal: AbortSignal.timeout(20_000),
+    })
     if (!response.ok) return { error: `viewer payload answered ${response.status}` }
     const body = await response.json()
     return modelUrlFromPayload(body)

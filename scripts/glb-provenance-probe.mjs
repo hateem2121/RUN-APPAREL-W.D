@@ -1,5 +1,5 @@
 /**
- * Assert every live GLB's provenance: `asset.copyright` present and no
+ * Assert each live product's GLB provenance: `asset.copyright` present and no
  * CLO/Marvelous Designer leftover string anywhere in its JSON chunk (SE-16).
  *
  * WHY THIS EXISTS. `tools/asset-pipeline/src/strip-live-metadata.ts` writes
@@ -36,6 +36,12 @@
  * WHAT IS INCONCLUSIVE, never a pass or a fail: a 403/429/503 (Bot Fight Mode), a
  * network error, or a chunk that could not be parsed as JSON at all (a genuinely
  * different problem from "no leftover text found" and must not read as clean).
+ *
+ * ⚠️ COVERAGE IS EACH PRODUCT'S DEFAULT COLOURWAY ONLY, not every colourway it has. In
+ * separate-file mode a product's OTHER colourways each carry their own `glbUrl` on
+ * `colourways[]` in the same payload, and `resolveLiveModelUrl` only ever resolves the
+ * one colourway `TARGETS` names (LIVE_PRODUCTS' default). A leftover string or a missing
+ * copyright on a non-default colourway's export is invisible to this run.
  */
 
 import { LIVE_PRODUCTS } from './live-products.mjs'
@@ -52,14 +58,18 @@ const BLOCKLIST = ['marvelous', 'clo3d', 'clo standalone', 'clo virtual', 'style
  * (2026-09-23): 409,272 (rxps/wine) · 380,600 (r-gtd/ash) · 358,836 (r-au/bone) ·
  * 287,980 · 283,608 · 277,896 · 269,644 · 263,256 · 244,228 · 205,736 · 191,616 ·
  * 152,824 · 146,440 · 125,032 · 123,300 · 99,544 bytes — largest is rxps/wine at
- * 409,272. The first version of this file guessed 300,000 (the plan's own
- * suggested default, unverified) and it silently truncated THREE of sixteen
+ * 409,272. The first version of this file guessed 300,000 (an unverified default)
+ * and it silently truncated THREE of sixteen
  * models' JSON chunks, which `extractGlbJsonChunk` correctly reported as
  * "truncated" but the CLI wrapper then swallowed into a generic "unparseable" —
  * fixed below. This constant carries ~45% headroom over the largest chunk seen
  * rather than a razor margin, because a future re-export growing the JSON chunk
- * (more colourways, more materials) must fail LOUDLY as "truncated", not silently
- * as "unparseable".
+ * (more colourways, more materials) must be reported, distinctly, as "truncated" —
+ * inconclusive rather than a pass, and naming the real cause by name — rather than
+ * folded silently into the generic "unparseable" a plain partial chunk would
+ * otherwise produce. Neither reading is a FAILURE: both mean this probe could not
+ * get a clean look, which a human resolves by raising this constant, not by
+ * treating the model itself as suspect.
  */
 const INITIAL_RANGE_BYTES = 600_000
 
@@ -200,8 +210,22 @@ async function probeOne(target) {
   } catch (error) {
     return { key: target.key, error: error.message ?? String(error) }
   }
-  if (!response.ok) {
+  // ⚠️ ONLY 206 PROVES THE SERVER HONOURED THE RANGE REQUEST. A 200 is still `.ok` —
+  // some servers answer a Range header with the FULL body instead of a 206 Partial
+  // Content — and reading that whole would defeat the ranged GET's entire purpose
+  // (a bounded download against a model that can be tens of MB). Cancelled and
+  // reported, never read, whichever status comes back.
+  if (response.status !== 206) {
     await response.body?.cancel()
+    if (response.status === 200) {
+      return {
+        key: target.key,
+        status: response.status,
+        error:
+          'the server answered 200 (not 206) to a ranged request — ignored the Range ' +
+          'header rather than honouring it, so the body was never read',
+      }
+    }
     return { key: target.key, status: response.status }
   }
   const bytes = new Uint8Array(await response.arrayBuffer())
@@ -222,7 +246,7 @@ export async function probe(targets = TARGETS) {
 const isMain = process.argv[1] && import.meta.url === `file://${process.argv[1]}`
 if (isMain) {
   // A single `<product>/<colourway>` argument runs one model — the RUNBOOK spot-check
-  // shape (Task 3, Step 5) — instead of the full catalogue.
+  // shape (docs/RUNBOOK.md) — instead of the full catalogue.
   const arg = process.argv[2]
   const targets = arg
     ? (() => {

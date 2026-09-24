@@ -281,7 +281,7 @@ describe('page speed query (PF-05b)', () => {
 })
 
 /**
- * MODEL LOAD RATE, PER DAY (RO-11, this batch). `viewer_page_loaded` fires on every
+ * MODEL LOAD RATE, PER DAY (RO-11). `viewer_page_loaded` fires on every
  * page open; `model_loaded` only once the GLB decoded. A gap between the two is the
  * failure mode a QR scan cannot recover from unassisted, and until now nothing
  * re-checked it recurringly — a one-off read of production (2026-09-23,
@@ -410,6 +410,29 @@ describe('model load rate — the summary and threshold logic (RO-11)', () => {
     ).not.toThrow()
     const { flagged } = summarizeModelLoadRate([{ day: '2026-09-20', loads: 0, models: 0 }], WINDOW)
     expect(flagged).toEqual([]) // excluded by loads > 0, not a false flag
+  })
+
+  /**
+   * ROWS existed (unlike the empty-array case below), but NONE qualified as a full day —
+   * every one was an edge day or had zero page loads. `flagged` is empty here for the
+   * same reason it is in the all-clean case, so without this branch the prose would
+   * print "All full days at or above 85%", which is vacuously true of zero days and
+   * reads as a clean week that was never actually measured.
+   */
+  it('says "no full day to judge" rather than a vacuous all-clean when every row is an edge day or empty', () => {
+    const { fullDays, summary } = summarizeModelLoadRate(
+      [{ day: '2026-09-20', loads: 0, models: 0 }],
+      WINDOW,
+    )
+    expect(fullDays).toBe(0)
+    expect(summary).toContain('No full day to judge')
+    expect(summary).not.toContain('All full days at or above')
+  })
+
+  it('names what the ratio counts, on every path', () => {
+    expect(
+      summarizeModelLoadRate([{ day: '2026-09-21', loads: 10, models: 10 }], WINDOW).summary,
+    ).toContain('model_loaded events against viewer_page_loaded events')
   })
 
   it('answers a quiet week with a sentence, not an empty string', () => {

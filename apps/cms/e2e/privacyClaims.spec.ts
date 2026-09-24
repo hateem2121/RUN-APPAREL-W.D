@@ -3,13 +3,13 @@ import { expect, test } from '@playwright/test'
 /**
  * Pin the privacy notice's substantive claims (SE-09, SE-10).
  *
- * SE-09's honest shape: the tracker calls it "hard to automate", and the LEGAL half is —
- * whether UK/Pakistan law requires a consent banner is a judgement call, not a testable
- * fact. What IS testable, and what the whole judgement rests on, is that the site still
- * (a) sets zero cookies/storage on a plain visit — already covered by
- * `apps/cms/e2e/headers.spec.ts`'s FA-O-13 test — and (b) still SAYS so, in the exact
- * words the reasoning cites. This file covers (b), in a NEW file so nothing here touches
- * `headers.spec.ts` (on Phase 1b-B's File map for an unrelated comment edit).
+ * SE-09's honest shape: whether UK/Pakistan law requires a consent banner is a
+ * judgement call, not a testable fact. What IS testable, and what the whole judgement
+ * rests on, is that the site still (a) sets zero cookies/storage on a plain visit —
+ * already covered by `apps/cms/e2e/headers.spec.ts`'s FA-O-13 test — and (b) still SAYS
+ * so, in the exact words the reasoning cites. This file covers (b), in a NEW file so
+ * nothing here touches `headers.spec.ts`, which is being edited in parallel on its own
+ * branch for an unrelated comment.
  *
  * SE-10 wants the page's substance robotted more generally — what is collected and by
  * whom. Built in the same file as SE-09 rather than a second one: they are the same page.

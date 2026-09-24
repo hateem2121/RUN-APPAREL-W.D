@@ -110,6 +110,18 @@ describe('mixedContentIn — pure, no network', () => {
   it('a clean page passes', () => {
     expect(mixedContentIn(`<a href="https://wear-run.help/products">ok</a>`, PAGE)).toEqual([])
   })
+
+  it('does NOT flag a plain <a href="http://…"> — navigation is not mixed content', () => {
+    // The browser does not fetch a navigation target; it only loads it if the visitor
+    // clicks, with no in-page padlock warning either way.
+    expect(mixedContentIn(`<a href="http://example.com/page">visit</a>`, PAGE)).toEqual([])
+  })
+
+  it('still flags an http:// stylesheet on <link href>, unlike a plain <a href>', () => {
+    const hits = mixedContentIn(`<link rel="stylesheet" href="http://example.com/x.css">`, PAGE)
+    expect(hits).toHaveLength(1)
+    expect(hits[0]).toContain('http://example.com/x.css')
+  })
 })
 
 type LinkObservation = {

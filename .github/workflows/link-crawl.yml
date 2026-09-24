@@ -12,6 +12,12 @@ on:
     - cron: '17 5 * * 1'
   workflow_dispatch: {}
 
+# WHY IT BLOCKS NOTHING. It runs on a schedule, with nothing downstream waiting on it. A
+# failure reaches the owner through GitHub's own workflow-failure notification — the same
+# choice perf-watch.yml and lighthouse-live.yml make, for the same reason: no third,
+# untested copy of the issue-opening shell that scripts/test-alert-shell.sh exists to
+# exercise.
+
 # See uptime.yml's own comment on this block: it REPLACES the default grants rather
 # than adding to them, and omitting `contents: read` breaks `actions/checkout` outright.
 permissions:

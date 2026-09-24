@@ -2,8 +2,8 @@
  * Assert that a plain-HTTP request to every customer-facing host redirects to HTTPS
  * (SE-01).
  *
- * WHY THIS EXISTS. An earlier session's sandbox could not open a plain-HTTP connection
- * to measure this at all. Re-tried 2026-09-23 from a different sandbox: plain `http://`
+ * WHY THIS EXISTS. A plain-HTTP connection to these hosts could not be measured at all
+ * on an earlier attempt. Re-tried 2026-09-23: plain `http://`
  * GETs to `wear-run.help`, `viewer.wear-run.help` and `cms.wear-run.help` all answered a
  * real `301` with the correct `location:`. Whatever blocked the earlier attempt does not
  * apply universally, and Cloudflare's edge behaviour is not something a code change in
@@ -31,6 +31,14 @@
  * connection failure (DNS, TLS, timeout). Measured=0 must never read as "everything is
  * secure" — see zone-security-probe.mjs's own comment on this, which this probe copies
  * rather than re-litigates.
+ *
+ * COVERAGE IS THE FOUR ZONE HOSTS ONLY (`ZONE_TARGETS` below) — not `www.`, `catalogue.`
+ * or `profile.`. `www.` is a plain redirect to the apex and adds nothing this probe would
+ * not already catch there; `catalogue.` and `profile.` serve `/<code>`, where the code is
+ * a Worker secret (root CLAUDE.md), so probing them means either hardcoding that secret
+ * into a public script or fetching the bare host with no path — neither is worth adding
+ * for a redirect rule that is the SAME Cloudflare-wide setting the four zone hosts already
+ * exercise. Left out on purpose, not an oversight.
  */
 
 import { TARGETS as ZONE_TARGETS } from './zone-security-probe.mjs'

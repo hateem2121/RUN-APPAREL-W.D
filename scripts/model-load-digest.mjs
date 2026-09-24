@@ -66,8 +66,17 @@ export function summarizeModelLoadRate(rows, { today, cutoff }) {
 
   const lines = [
     `**3D models load** (last 7 days, edge days excluded as partial): ${full.length} full day(s) measured.`,
+    // What the ratio actually counts, so a reader does not have to guess from the number
+    // alone: how many page opens got as far as a decoded model, not how many visitors
+    // clicked anything or how many garments exist.
+    'The ratio is model_loaded events against viewer_page_loaded events on the same day.',
   ]
-  if (flagged.length === 0) {
+  if (full.length === 0) {
+    // Rows existed (the `rows.length === 0` case above already returned), but every one
+    // was an edge day or had zero page loads — `flagged` is necessarily empty here too,
+    // and reporting "All full days at or above 85%" would be true of zero days for free.
+    lines.push('No full day to judge this week.')
+  } else if (flagged.length === 0) {
     lines.push(
       `All full days at or above ${Math.round(FLAG_BELOW * 100)}% (page opened -> model loaded).`,
     )

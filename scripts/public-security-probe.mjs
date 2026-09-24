@@ -293,7 +293,7 @@ export function evaluate(observations, now, { daily = false } = {}) {
     } else if (o.kind === 'robots-txt-parity') {
       // FI-07: the code-level test (apps/cms/src/viewerRobots.test.ts) already proves the
       // repo's copy is internally consistent; this proves PRODUCTION serves the same
-      // refused-agent set, using the SAME parser (lib/robotsTxt.ts) so a future crawler-list
+      // refused-agent set, using the SAME parser (lib/robotsTxtParse.ts) so a future crawler-list
       // change is asserted once and read twice.
       if (o.status !== 200) {
         problems.push(`HTTP ${o.status}, expected 200`)

@@ -7,7 +7,8 @@ import { type Page, expect, test } from '@playwright/test'
  * the marketing site — RO-07's site half is done. The viewer has no equivalent, despite
  * being the page a QR scan actually opens. A NEW file, deliberately: both
  * `apps/viewer/e2e/motion-and-layout.spec.ts` and `viewer.spec.ts` — the two files most
- * likely to already carry a reusable page-load fixture — are on Phase 1b-B's File map.
+ * likely to already carry a reusable page-load fixture — are being edited in parallel on
+ * their own branch.
  *
  * A KNOWN, RECORDED FALSE ALARM. `docs/VIEWER-CSP-BOT-FIGHT-MODE.md` documents a
  * Cloudflare-injected inline script that trips a CSP violation on the live site,
@@ -23,7 +24,6 @@ const KNOWN_ALLOWED_CSP_PATTERNS: RegExp[] = []
 
 async function watchPage(page: Page) {
   const scriptErrors: string[] = []
-  const cspViolations: string[] = []
   const brokenOwnResources: string[] = []
 
   await page.addInitScript(() => {
@@ -59,7 +59,10 @@ async function watchPage(page: Page) {
     brokenOwnResources.push(`${response.status()} ${new URL(response.url()).pathname}`)
   })
 
-  return { scriptErrors, cspViolations, brokenOwnResources }
+  // CSP violations are read separately, via `collectCsp()` reading `window.__csp` —
+  // the `addInitScript` listener above populates a page global, not a closure variable
+  // this function could return synchronously.
+  return { scriptErrors, brokenOwnResources }
 }
 
 async function collectCsp(page: Page): Promise<string[]> {

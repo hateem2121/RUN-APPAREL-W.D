@@ -17,11 +17,17 @@
  * this script by construction. Say that plainly rather than implying more coverage than
  * exists.
  *
- * NEVER FOLLOWS A LINK OFF THE FOUR CUSTOMER-FACING HOSTS. `mailto:` and `wa.me` (and any
- * other third-party host, e.g. Instagram) are validated for SHAPE only — a probe cannot
- * "test" an email address or a phone number without contacting a third party, and
- * fetching another site's own pages is not this repo's business and risks looking like
- * abuse from Cloudflare's perspective.
+ * NEVER *CLASSIFIES* A LINK OFF THE FOUR CUSTOMER-FACING HOSTS AS SOMETHING TO FOLLOW.
+ * `mailto:` and `wa.me` (and any other third-party host, e.g. Instagram) are validated
+ * for SHAPE only — a probe cannot "test" an email address or a phone number without
+ * contacting a third party, and fetching another site's own pages is not this repo's
+ * business and risks looking like abuse from Cloudflare's perspective.
+ * ⚠️ ONE CASE THIS DOES NOT COVER: a link whose OWN host is one of the four but which
+ * then REDIRECTS off-host is still fetched — `fetch()`'s default redirect behaviour
+ * follows it, and the final, off-host response is what gets judged. None of the four
+ * hosts is known to do this today; narrowing `fetchOne` to `redirect: 'manual'` would
+ * catch it but would also need every genuine on-host redirect (there are several,
+ * documented in `public-security-probe.mjs`) taught to this probe as an expected case.
  *
  * POLITE: one request at a time, with a pause between each — see `CRAWL_DELAY_MS`.
  *
@@ -99,11 +105,18 @@ export function extractLinks(text, baseUrl) {
 }
 
 /**
- * Every `http://` resource an HTML page loads — a real mixed-content risk — excluding
- * the two shapes measured live to be identifier strings, never fetched resources: the
- * sitemap/RSS XML namespace and a JSON-LD `@context` URI. A hand-built allowlist of
- * exactly these two, not a blanket "ignore anything that looks like a URI" rule, which
- * would silently hide a real one.
+ * Every `http://` SUB-RESOURCE an HTML page loads over its own connection — a real
+ * mixed-content risk — excluding plain navigation and the two shapes measured live to be
+ * identifier strings, never fetched resources: the sitemap/RSS XML namespace and a
+ * JSON-LD `@context` URI. A hand-built allowlist of exactly these two, not a blanket
+ * "ignore anything that looks like a URI" rule, which would silently hide a real one.
+ *
+ * ⚠️ `<a href="http://…">` IS NOT MIXED CONTENT — it is a navigation target, not
+ * something the CURRENT page fetches. The browser does not silently load it, and shows
+ * no padlock warning either way; a visitor only reaches it by clicking. Checked here:
+ * `src` on any element (an image, a script, an iframe, …) and `href` specifically on
+ * `<link>` (a stylesheet, a preload, an icon — genuinely fetched), plus a CSS `url()`.
+ * `href` on anything else, `<a>` above all, is never matched.
  *
  * @param {string} html
  * @param {string} pageUrl for the message only
@@ -111,9 +124,10 @@ export function extractLinks(text, baseUrl) {
  */
 export function mixedContentIn(html, pageUrl) {
   const hits = []
-  const resourceRe = /(?:href|src)\s*=\s*["'](http:\/\/[^"']+)["']/gi
+  const srcRe = /\bsrc\s*=\s*["'](http:\/\/[^"']+)["']/gi
+  const linkHrefRe = /<link\b[^>]*\bhref\s*=\s*["'](http:\/\/[^"']+)["']/gi
   const styleUrlRe = /url\(\s*(http:\/\/[^)'"]+)\s*\)/gi
-  for (const pattern of [resourceRe, styleUrlRe]) {
+  for (const pattern of [srcRe, linkHrefRe, styleUrlRe]) {
     for (const match of html.matchAll(pattern)) {
       const url = match[1]
       if (url.startsWith('http://www.sitemaps.org/')) continue // XML namespace, never fetched
@@ -151,9 +165,9 @@ function waNumberMatches(url) {
  * validation. Pure — used by both the CLI (to decide what to fetch) and tests.
  *
  * `crawlableHosts` defaults to the four real customer-facing hosts and is a parameter,
- * not baked in, for exactly one reason: `evaluate()`'s planted-fault proof runs this
- * probe's full `crawl()` against a LOCAL fixture server, never production (the plan's
- * own instruction), and a fixture on 127.0.0.1 must be classified 'http' too or the
+ * not baked in, for exactly one reason: this probe's own planted-fault proof runs the
+ * full `crawl()` against a LOCAL fixture server, never production, and a fixture on
+ * 127.0.0.1 must be classified 'http' too or the
  * fixture's own broken link is silently treated as 'external' and never followed —
  * which is exactly the bug a first version of this file had, caught by that proof.
  *
