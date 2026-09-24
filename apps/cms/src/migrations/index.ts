@@ -14,6 +14,7 @@ import * as migration_20260905_150000_footer_facts from './20260905_150000_foote
 import * as migration_20260907_120000_add_inquiries from './20260907_120000_add_inquiries'
 import * as migration_20260915_220451_add_document_visits from './20260915_220451_add_document_visits'
 import * as migration_20260917_120000_add_web_vitals_values from './20260917_120000_add_web_vitals_values'
+import * as migration_20260923_170000_add_reset_password_requested_at from './20260923_170000_add_reset_password_requested_at'
 
 export const migrations = [
   {
@@ -95,5 +96,10 @@ export const migrations = [
     up: migration_20260917_120000_add_web_vitals_values.up,
     down: migration_20260917_120000_add_web_vitals_values.down,
     name: '20260917_120000_add_web_vitals_values',
+  },
+  {
+    up: migration_20260923_170000_add_reset_password_requested_at.up,
+    down: migration_20260923_170000_add_reset_password_requested_at.down,
+    name: '20260923_170000_add_reset_password_requested_at',
   },
 ];

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   ANDROID_CAVEAT,
@@ -251,5 +253,73 @@ describe('fontCheckPassed — the two halves must agree with FONT_CHECK_SCRIPT',
     // be read as a failure, never silently ignored.
     const driftedResult = { fontFamilyName: 'Archivo Variable, sans-serif', loaded: true }
     expect(fontCheckPassed(driftedResult as never)).toBe(false)
+  })
+})
+
+/**
+ * `android-chrome.yml`'s viewer build must never bake in the production API.
+ *
+ * The workflow's own target today is a bare `/` (scripts/android-chrome.mjs), which
+ * calls no CMS endpoint — but apps/viewer/src/lib/api.ts falls back to the production
+ * API (https://cms.wear-run.help) whenever VITE_API_BASE_URL is unset, exactly the gap
+ * apps/viewer/e2e/prepare.mjs blanks it to avoid, and apps/viewer/CLAUDE.md pins the
+ * same rule for anyone driving a built copy by hand. Nothing exercises this today,
+ * which is precisely why a future product-route check added to this robot could start
+ * silently sending CI traffic at production with no test noticing — the
+ * fixtures-cannot-exhibit-the-failure shape the root CLAUDE.md warns about.
+ *
+ * WHY LINE-BASED, NOT A YAML PARSER: same reasoning as workflowHardening.test.ts's own
+ * header comment — no workspace here depends on a YAML library. This walks backward
+ * from the build command to its own step's opening line, the same step-boundary shape
+ * that file's persist-credentials rule walks forward across.
+ */
+describe('android-chrome.yml — viewer build stays off the production API', () => {
+  const WORKFLOW_PATH = join(
+    import.meta.dirname,
+    '..',
+    '..',
+    '..',
+    '.github',
+    'workflows',
+    'android-chrome.yml',
+  )
+
+  it('sets VITE_API_BASE_URL to the empty string on the viewer build step', () => {
+    const lines = readFileSync(WORKFLOW_PATH, 'utf8').split('\n')
+
+    const runLineIndex = lines.findIndex((l) =>
+      /^\s*(?:- )?run:\s*pnpm\s+--filter\s+@run-apparel\/viewer\s+build\s*$/.test(l),
+    )
+    expect(
+      runLineIndex,
+      'the viewer build step has moved, been renamed, or no longer matches',
+    ).toBeGreaterThan(-1)
+
+    const runLine = lines[runLineIndex]!
+    const runIndent = runLine.length - runLine.trimStart().length
+
+    // Walk back to this step's own opening line — a list item ("- ") shallower than
+    // the run: line itself — collecting everything from there through the run: line.
+    // Same step-boundary shape as workflowHardening.test.ts's persist-credentials
+    // rule, which walks the equivalent boundary forward instead of backward.
+    let stepStart = runLineIndex
+    for (let i = runLineIndex; i >= 0; i--) {
+      const line = lines[i]!
+      if (line.trim() === '') continue
+      const indent = line.length - line.trimStart().length
+      if (indent < runIndent && line.trimStart().startsWith('- ')) {
+        stepStart = i
+        break
+      }
+      if (indent < runIndent) break
+    }
+
+    const stepText = lines.slice(stepStart, runLineIndex + 1).join('\n')
+    expect(
+      stepText,
+      'The Android viewer build must set VITE_API_BASE_URL to the empty string — left ' +
+        'unset it defaults to the production API in apps/viewer/src/lib/api.ts, exactly ' +
+        'what apps/viewer/e2e/prepare.mjs blanks it to avoid.',
+    ).toMatch(/VITE_API_BASE_URL:\s*(['"])\1/)
   })
 })

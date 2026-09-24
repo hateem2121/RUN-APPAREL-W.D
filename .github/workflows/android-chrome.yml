@@ -54,7 +54,14 @@ jobs:
 
       # Only the viewer needs building — this check reads a served page, not a 3D model,
       # so no seeded GLB assets are needed (`pnpm seed:assets` is deliberately skipped).
-      - run: pnpm --filter @run-apparel/viewer build
+      #
+      # VITE_API_BASE_URL is deliberately blank, not left unset: apps/viewer/src/lib/api.ts
+      # falls back to the production API (https://cms.wear-run.help) when it is unset, and
+      # apps/viewer/e2e/prepare.mjs blanks it for the same reason. An empty value makes the
+      # built page call the local fixture server this job starts below, never production.
+      - env:
+          VITE_API_BASE_URL: ''
+        run: pnpm --filter @run-apparel/viewer build
 
       # Standard recipe for granting a GitHub-hosted Ubuntu runner's own user access to
       # /dev/kvm, which is not open by default. Without this the emulator still boots
@@ -65,6 +72,10 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+          if [ ! -e /dev/kvm ]; then
+            echo "::error::/dev/kvm does not exist after the udev reload — this runner has no KVM, and the emulator would silently fall back to slow software virtualization instead of failing with a named reason."
+            exit 1
+          fi
 
       # Serves the build from the step above at the fixture's own default address (see
       # apps/viewer/e2e/serve.mjs) — the same fixture the iPhone Safari driver was proven
@@ -144,6 +155,10 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
+          # Explicit rather than left to the action's own default (action.yml, same
+          # value) — 600s is half this job's `timeout-minutes: 20`, leaving the other
+          # half for checkout, install, the build above and the script's own work.
+          emulator-boot-timeout: 600
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash scripts/android-chrome-ci-check.sh
 
