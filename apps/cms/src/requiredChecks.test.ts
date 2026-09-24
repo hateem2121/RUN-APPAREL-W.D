@@ -1,4 +1,6 @@
-import { readFile } from 'node:fs/promises'
+import { spawnSync } from 'node:child_process'
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
@@ -40,9 +42,29 @@ const LIVE_RULES = [
 ]
 
 describe('parseDeployNeeds', () => {
-  it("reads the REAL ci.yml's deploy.needs", async () => {
+  it("reads the REAL ci.yml's deploy.needs: a non-empty list of declared jobs", async () => {
+    // The shape, not a third copy of the list: adding a gating job must not mean
+    // editing this test too. Every entry must be a job ci.yml actually declares.
     const source = await readFile(join(REPO_ROOT, '.github', 'workflows', 'ci.yml'), 'utf8')
-    expect(parseDeployNeeds(source)).toEqual(['verify', 'e2e', 'audit', 'secrets', 'artwork'])
+    const needs = parseDeployNeeds(source)
+    const declared = [...source.matchAll(/^ {2}([A-Za-z0-9_-]+):\s*(?:#.*)?$/gm)].map((m) => m[1])
+    expect(needs.length).toBeGreaterThan(0)
+    expect(new Set(needs).size).toBe(needs.length)
+    for (const job of needs) expect(declared).toContain(job)
+    expect(needs).not.toContain('deploy')
+  })
+
+  it('reads a job header with a trailing comment, past a column-0 comment', () => {
+    const source = [
+      'jobs:',
+      '  verify:  # the big one',
+      '    runs-on: ubuntu-latest',
+      '# ---- release ----',
+      '  deploy:',
+      '    needs: [verify]',
+      '',
+    ].join('\n')
+    expect(parseDeployNeeds(source)).toEqual(['verify'])
   })
 
   it('reads the block-list form and a job `name:`, which is what the check is called', () => {
@@ -131,11 +153,19 @@ describe('readBranchRules', () => {
   }
   const base = { repository: 'o/r', branch: 'main', delays: [0, 0] }
 
-  it('falls back to an anonymous read when the token is refused', async () => {
+  it('falls back to an anonymous read when the token is refused, and says so', async () => {
     const { fetchImpl, calls } = fakeFetch([{ status: 403 }, { status: 200, body: LIVE_RULES }])
     const read = await readBranchRules({ ...base, token: 't', fetchImpl })
-    expect(read.ok).toBe(true)
+    expect(read).toMatchObject({ ok: true, via: 'anonymous' })
     expect(calls).toEqual([{ authorized: true }, { authorized: false }])
+  })
+
+  it('reports the token as the reader when the token works', async () => {
+    const { fetchImpl } = fakeFetch([{ status: 200, body: LIVE_RULES }])
+    expect(await readBranchRules({ ...base, token: 't', fetchImpl })).toMatchObject({
+      ok: true,
+      via: 'token',
+    })
   })
 
   it('reports a refusal by BOTH as permanent — never as green (negative control)', async () => {
@@ -159,5 +189,40 @@ describe('readBranchRules', () => {
       ok: false,
       permanent: false,
     })
+  })
+
+  it("treats GitHub's SECONDARY rate limit as transient, on its own", async () => {
+    // A 403 with retry-after while requests still remain. Alone in the sequence, so a
+    // version that read it as a refusal would report `permanent: true` and fail here.
+    const secondary = {
+      status: 403,
+      headers: { 'retry-after': '60', 'x-ratelimit-remaining': '41' },
+    }
+    const { fetchImpl } = fakeFetch([secondary, secondary, secondary])
+    expect(await readBranchRules({ ...base, fetchImpl })).toMatchObject({
+      ok: false,
+      permanent: false,
+    })
+  })
+})
+
+describe('the command', () => {
+  it('exits 2, never 1, when ci.yml cannot be parsed — even from a path with a space', async () => {
+    // Two failures at once: a main() guard written as `file://${argv[1]}` never matches a
+    // path a URL must encode, so the script exited 0 having compared nothing; and a
+    // parse error escaping main() exited 1, the "lists disagree" code. It fails here
+    // before any network read.
+    const dir = await mkdtemp(join(tmpdir(), 'rc probe '))
+    try {
+      const script = join(dir, 'check-required-checks.mjs')
+      await copyFile(join(REPO_ROOT, 'scripts', 'check-required-checks.mjs'), script)
+      await mkdir(join(dir, '.github', 'workflows'), { recursive: true })
+      await writeFile(join(dir, '.github', 'workflows', 'ci.yml'), 'jobs:\n  verify:\n    x: 1\n')
+      const run = spawnSync(process.execPath, [script], { cwd: dir, encoding: 'utf8' })
+      expect(run.stderr).toContain('COULD NOT COMPARE')
+      expect(run.status).toBe(2)
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
   })
 })

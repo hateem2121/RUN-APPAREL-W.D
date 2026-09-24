@@ -25,13 +25,17 @@
  * disagreement means the ruleset needs updating, which the owner does in Settings.
  *
  * EXIT CODES. A failed read and a failed comparison must never look the same:
- *   0  the lists agree — or the read failed TRANSIENTLY (network, 5xx): ::warning::
+ *   0  the lists agree — or the read failed TRANSIENTLY (network, 5xx, a rate limit):
+ *      ::warning::, and the output says which read answered when one did
  *   1  the lists disagree: ::error:: names each side
- *   2  the rules could not be read at all (authenticated AND anonymous reads refused):
- *      a permanent condition, so it fails instead of staying green and blind
+ *   2  the comparison could not run: the rules could not be read at all (token AND
+ *      anonymous reads refused), or ci.yml could not be parsed. A permanent condition,
+ *      so it fails instead of staying green and blind, and never as "disagree".
  */
+import { realpathSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 /** The GitHub Actions app: every check a ci.yml job posts carries this integration id. */
 export const ACTIONS_INTEGRATION_ID = 15368
@@ -102,8 +106,9 @@ function jobBlocks(source) {
   let id = null
   let body = []
   for (const line of lines.slice(start + 1)) {
+    if (/^#/.test(line)) continue // a column-0 comment does not end `jobs:`
     if (/^\S/.test(line)) break
-    const header = line.match(/^ {2}([A-Za-z0-9_-]+):\s*$/)
+    const header = line.match(/^ {2}([A-Za-z0-9_-]+):\s*(?:#.*)?$/)
     if (header?.[1]) {
       if (id) blocks.set(id, body.join('\n'))
       id = header[1]
@@ -157,10 +162,12 @@ export function compareRequiredChecks({ deployNeeds, required }) {
 
 /**
  * Read the branch's rules: with the workflow token when there is one, then anonymously.
- * A refusal (4xx) from both is permanent; anything else that fails is transient.
+ * A refusal (4xx) from both is permanent; anything else that fails is transient. `via`
+ * says which read answered, so a token that is refused every day shows up in the log
+ * instead of hiding behind a working anonymous fallback.
  *
  * @param {{ repository: string, branch: string, token?: string, fetchImpl?: typeof fetch, delays?: number[] }} opts
- * @returns {Promise<{ ok: true, rules: unknown } | { ok: false, permanent: boolean, detail: string }>}
+ * @returns {Promise<{ ok: true, rules: unknown, via: 'token' | 'anonymous' } | { ok: false, permanent: boolean, detail: string }>}
  */
 export async function readBranchRules({
   repository,
@@ -184,13 +191,18 @@ export async function readBranchRules({
           },
           signal: AbortSignal.timeout(20_000),
         })
-        if (response.ok) return { ok: true, rules: await response.json() }
+        if (response.ok)
+          return { ok: true, rules: await response.json(), via: auth ? 'token' : 'anonymous' }
         lastDetail = `HTTP ${response.status} (${auth ? 'token' : 'anonymous'})`
         // A rate limit is a 403 or 429 that says so, and it is TRANSIENT: an anonymous
-        // read from a shared runner address can hit GitHub's 60-an-hour limit.
+        // read from a shared runner address can hit GitHub's 60-an-hour limit, and the
+        // SECONDARY limit answers 403 with `retry-after` while the remaining count is
+        // not zero.
         const rateLimited =
           response.status === 429 ||
-          (response.status === 403 && response.headers.get('x-ratelimit-remaining') === '0')
+          (response.status === 403 &&
+            (response.headers.get('x-ratelimit-remaining') === '0' ||
+              response.headers.has('retry-after')))
         if (!rateLimited && response.status >= 400 && response.status < 500) break // refused: try the next way in
         refusedByAll = false
       } catch (error) {
@@ -207,9 +219,15 @@ export async function readBranchRules({
 async function main() {
   const root = process.cwd()
   const repository = process.env.GITHUB_REPOSITORY || DEFAULT_REPOSITORY
-  const deployNeeds = parseDeployNeeds(
-    await readFile(join(root, '.github/workflows/ci.yml'), 'utf8'),
-  )
+  let deployNeeds
+  try {
+    deployNeeds = parseDeployNeeds(await readFile(join(root, '.github/workflows/ci.yml'), 'utf8'))
+  } catch (error) {
+    // Exit 2, never the "disagree" code: an unreadable ci.yml compared nothing.
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(`::error::COULD NOT COMPARE: ${message}. This is not a mismatch.`)
+    process.exit(2)
+  }
 
   const read = await readBranchRules({
     repository,
@@ -229,6 +247,7 @@ async function main() {
     return
   }
 
+  console.log(`rules for main read via: ${read.via}`)
   const required = requiredChecksFromBranchRules(read.rules)
   const { missingFromRuleset, notInDeployNeeds, external } = compareRequiredChecks({
     deployNeeds,
@@ -262,6 +281,10 @@ async function main() {
   )
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+// Run main() only when executed directly. Two ways this comparison silently failed to
+// match, each leaving the script to exit 0 having compared nothing: `file://${argv[1]}`
+// never encodes a space, and node reports the module's REAL path while argv[1] keeps a
+// symlink (macOS `/tmp` is one, to `/private/tmp`). realpath + pathToFileURL fixes both.
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   await main()
 }

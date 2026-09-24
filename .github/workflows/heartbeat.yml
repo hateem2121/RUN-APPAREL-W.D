@@ -125,6 +125,10 @@ jobs:
           # mixed-content hit, so failing is its job. A link that stays broken past the
           # budget must read as "the crawl found a broken link", never as "the crawl
           # stopped running".
+          # required-checks.yml (added 2026-09-24) is watched for COMPLETION too: it
+          # exits 1 when the main ruleset and ci.yml's deploy.needs disagree, and 2 when
+          # it cannot compare them, so failing is its job; heartbeat owns only whether
+          # its daily schedule still runs at all.
           WATCHED="
           uptime.yml:36:completed:daily at 07:23 UTC
           nightly-backup.yml:36:success:nightly
@@ -132,6 +136,7 @@ jobs:
           perf-watch.yml:192:success:weekly on Mondays
           lighthouse-live.yml:192:completed:weekly on Tuesdays, and after each deploy
           link-crawl.yml:192:completed:weekly on Mondays
+          required-checks.yml:36:completed:daily at 04:29 UTC, and after each ci.yml change on main
           "
 
           # perf-watch.yml was NOT watched until 2026-08-30 — it could have stopped
