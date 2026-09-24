@@ -1696,8 +1696,8 @@ test.describe('the viewer stays usable at two short-viewport conditions (SZ-14)'
  * `site.css:358,371-382` gives the site's own container a documented cap; the viewer
  * repeats `max-width: 1200px` as a literal in five places with no test at 2560px on
  * either surface. `.header` is the full-bleed proof (its own box spans the viewport;
- * only its PADDING centres the 1200px content), which is what the row's own finding
- * names.
+ * only its PADDING centres the 1200px content), which is the full-bleed case this test
+ * guards.
  */
 test.describe('the content column stays capped at ultrawide (SZ-15)', () => {
   test('the header is full-bleed and .content stays at or under 1200px at 2560px', async ({

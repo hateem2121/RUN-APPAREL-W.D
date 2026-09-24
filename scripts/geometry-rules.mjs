@@ -2,15 +2,14 @@
  * The tap-target floor, in ONE place, for every robot that asks whether a control is big
  * enough to hit.
  *
- * WHY A SHARED MODULE (Phase 0.1, PLAN-CLOSE-ALL §0.1's "geometry helpers" half — the
- * contrast half shipped as `contrast-rules.mjs`; this is the other half, built here).
+ * WHY A SHARED MODULE. The shared helpers come in two halves: the contrast half shipped as
+ * `contrast-rules.mjs`, and this is the geometry half.
  * `apps/cms/e2e/navbar.spec.ts` (`:178`, `:280`) and `apps/cms/e2e/inquiry.spec.ts` (`:77`)
  * each carry their own bare `43.95` literal with no shared constant between them — three
  * copies of the same measurement, unlinked, exactly the drift risk `contrast-rules.mjs`'s
- * own header describes for contrast. This module is built and unit-proven now; wiring it
- * into those three call sites is deferred (both files sit on Phase 1b-B's File map while
- * that batch is mid-build) to the small follow-up PR Phase 2 Batch A's plan already
- * schedules for the day 1b-B merges.
+ * own header describes for contrast. This module is built and unit-proven now. Wiring it
+ * into those three call sites follows in a separate change, after the shared menu-bar
+ * work that also edits those two files has merged.
  *
  * WHY 43.95, NOT 44. `getBoundingClientRect().height` is `bottom - top` in floating point.
  * Where an element sits at a fractional offset — which a fluid `clamp()` type above it

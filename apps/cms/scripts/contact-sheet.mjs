@@ -4,8 +4,8 @@
  * themes (DS-12).
  *
  * WHY THIS EXISTS. The original 2026-09-09/10 whole-site audit reviewed contact sheets
- * swept by hand (`scratchpad/shots-before-after.mjs`, per the tracker — a one-off,
- * uncommitted script, confirmed absent from this repo: no durable version of it, or of
+ * swept by hand with a one-off script that was never committed, confirmed absent from
+ * this repo: no durable version of it, or of
  * any contact-sheet sweep, exists anywhere in the repo-root `scripts/` or either app's
  * own `scripts/` directory). This is that missing durable version.
  *

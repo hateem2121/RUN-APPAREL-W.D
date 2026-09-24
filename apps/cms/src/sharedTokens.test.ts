@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 /**
  * CO-13: one shared token file, not a per-app copy that can silently diverge.
  *
- * Measured live 2026-09-23 (this batch's own re-check): the `:root` token block served
+ * Measured live 2026-09-23: the `:root` token block served
  * by `viewer.wear-run.help` and `wear-run.help` is BYTE-IDENTICAL, diffed directly. That
  * is not a coincidence to re-measure every time — it is architecturally guaranteed by
  * both entry points importing the exact same `@run-apparel/ui/tokens.css` module rather

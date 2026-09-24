@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
  * bundler or a future dependency could reintroduce `dvh` in a way `grep`-ing the source
  * alone would not catch.
  *
- * ⚠️ THE ONE ROW IN THIS BATCH WHOSE PROOF GENUINELY NEEDS A BUILD STEP FIRST. `pnpm
+ * ⚠️ THIS PROOF GENUINELY NEEDS A BUILD STEP FIRST. `pnpm
  * build` runs AFTER `test:coverage` in this repo's own gate order (root CLAUDE.md), so
  * the very first time this suite runs in CI there is no `dist`/`.next` yet. This test
  * SKIPS (does not fail) when the built output is absent, and only asserts once it

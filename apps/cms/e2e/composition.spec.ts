@@ -803,7 +803,7 @@ test.describe('the serif accent stays within its style and its budget (TY-09)', 
  *
  * FA-D-06 above already proves nothing scrolls sideways at 320px; it never asserted the
  * REFLOW itself. `.facts-grid` (site.css:2258-2274) is explicitly 1 track by default and
- * gains 2 at 560px, 3 at 900px — the multi-column region this row is about.
+ * gains 2 at 560px, 3 at 900px — the multi-column region this test is about.
  */
 test.describe('the facts grid genuinely collapses to one column at 320px (SZ-02)', () => {
   test('one track at 320px, more than one at 1280px', async ({ page }) => {
@@ -957,8 +957,8 @@ test.describe('the rendered viewport meta tag is present and sane (SZ-13)', () =
 /*
  * ══ the mono/caps register is genuinely uppercase everywhere it appears (CR-06) ══
  *
- * The tracker's own finding ("mono, uppercase, bracketed... nothing odd") was a visual
- * judgement made once, over contact sheets. The mechanically-checkable HALF of it: the
+ * This register was judged visually once, over contact sheets. The mechanically-checkable
+ * HALF of that judgement: the
  * three classes driving that register (`.mono`, `.label`, `.section-number`) genuinely
  * apply `text-transform: uppercase` wherever they are used, on every sampled page.
  *

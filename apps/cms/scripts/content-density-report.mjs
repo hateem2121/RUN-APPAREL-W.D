@@ -3,8 +3,8 @@
  * content-density-report.mjs — words, images and interactive controls per phone screen,
  * for each site page (DS-11).
  *
- * WHY THIS EXISTS. The tracker's own DS-11 finding ("~370 words and one picture over 8.8
- * phone screens" for the home page) was computed once, by hand. This recomputes it — a
+ * WHY THIS EXISTS. The home page's density (DS-11), about 370 words and one picture over
+ * 8.8 phone screens, was computed once, by hand. This recomputes it — a
  * REPORTING script, not a pass/fail gate, because no threshold has been set by the owner.
  * It feeds the Area-18 home-page density decision and proves nothing on its own about
  * whether the density is good.
@@ -40,8 +40,8 @@ const BASE_URL = (() => {
 
 const PAGES = ['/', '/products', '/contact']
 
-// A representative phone viewport height — the same shape of number the tracker's own
-// "8.8 phone screens" used.
+// A representative phone viewport height — the same kind of number as the "8.8 phone
+// screens" measurement above.
 const PHONE_HEIGHT = 812
 
 async function measurePage(page, path) {
