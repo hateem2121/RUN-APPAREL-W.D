@@ -1,5 +1,6 @@
 import { parseViewerPath } from '@run-apparel/shared'
 import { withCompression } from './compression'
+import { applyCrawlerCacheHeaders } from './crawlerCacheHeaders'
 import { withDocumentIsolation } from './documentHeaders'
 import { withNoTransform } from './noTransform'
 import type { ViewerApiSuccess } from '@run-apparel/shared'
@@ -418,22 +419,10 @@ export default {
       response,
       buildPreview(payload, { origin: url.origin, cards: OG_CARDS }),
     )
-    // The response body now depends on the User-Agent. Google documents Vary as
-    // the correct signal for user-agent-dependent serving, and it stops any cache
-    // in front of this handing a crawler's copy to a visitor.
-    const headers = new Headers(transformed.headers)
-    headers.append('Vary', 'User-Agent')
-    // Same reason as withNoTransform above, applied to the rewritten copy: this response is
-    // built by hand, so it does not pass through that helper. A crawler executes no
-    // JavaScript, so Cloudflare's injected bootstrap is pure weight here — and keeping the
-    // directive on every HTML route means one rule to reason about instead of two.
-    const crawlerCacheControl = headers.get('cache-control') ?? ''
-    if (!crawlerCacheControl.includes('no-transform')) {
-      headers.set(
-        'cache-control',
-        crawlerCacheControl ? `${crawlerCacheControl}, no-transform` : 'no-transform',
-      )
-    }
+    // The response body now depends on the User-Agent, and this copy must never be
+    // injected into (a crawler executes no JavaScript, so Cloudflare's bootstrap is
+    // pure weight here). See crawlerCacheHeaders.ts for both reasons in full.
+    const headers = applyCrawlerCacheHeaders(new Headers(transformed.headers))
     return withCompression(
       request,
       withDocumentIsolation(

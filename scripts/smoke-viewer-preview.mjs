@@ -29,10 +29,30 @@
  * reported as "the previews are broken".
  */
 
+import { execFileSync } from 'node:child_process'
 import http from 'node:http'
 import https from 'node:https'
 import zlib from 'node:zlib'
-import { DEFAULT_PRODUCT, squashCode } from './live-products.mjs'
+import { DEFAULT_PRODUCT, LIVE_PRODUCTS, squashCode } from './live-products.mjs'
+
+/**
+ * Mirrors `apps/viewer/worker/crawlerCacheHeaders.ts`'s two predicates of the same name.
+ * Not imported: that file is TypeScript inside a workspace package this repo-root script
+ * has no build step for, and this repo's own convention for a predicate this small is to
+ * duplicate it with a citation rather than force a cross-runtime import (the same choice
+ * `og.test.ts`'s JPEG parse and `findability.spec.ts`'s PNG/WebP parses make independently
+ * of each other). Keep the two in step by eye; neither is likely to change without the
+ * other, since both exist for the one crawler-rewrite code path.
+ */
+function carriesNoTransform(cacheControl) {
+  return (cacheControl ?? '').includes('no-transform')
+}
+function variesOnUserAgent(vary) {
+  return (vary ?? '')
+    .split(',')
+    .map((part) => part.trim())
+    .includes('User-Agent')
+}
 
 const [, , baseArg, productArg, colourArg] = process.argv
 
@@ -73,6 +93,17 @@ const RETRY_DELAY_MS = Number(process.env.SMOKE_RETRY_DELAY_MS || 10000)
 
 let failures = []
 const fail = (message) => failures.push(message)
+
+/**
+ * Checks 9 and 10 below read SITE-WIDE behaviour, not the product under test, so they
+ * run for the default product only. `smoke-live-previews.mjs` (the post-deploy gate)
+ * runs this script once per live product, 16 today, and the default product is its
+ * first run. That is also the one run that can promise check 9 a payload no earlier
+ * run has just warmed.
+ */
+const SITE_WIDE_CHECKS = PRODUCT === DEFAULT_PRODUCT.slug
+/** Check 9 is measured once per run, on the first attempt: every retry warms its slug. */
+let timingMeasured = false
 
 /** Pull a meta tag's content by its `property=`/`name=` key. */
 const meta = (html, key) =>
@@ -315,6 +346,28 @@ async function runChecks() {
       } else {
         console.log('   navigation request → rewritten too')
       }
+
+      // SO-02 / SO-03: the rewritten response must say its body depends on the
+      // User-Agent, and must refuse Cloudflare's own injection — see
+      // apps/viewer/worker/crawlerCacheHeaders.ts for both reasons in full. The
+      // browser path (check 5 above) goes through a DIFFERENT mechanism
+      // (withNoTransform in noTransform.ts) that never sets Vary, since a plain
+      // visitor's response does not depend on their user-agent — so this is
+      // asserted only here, on the crawler path.
+      if (!variesOnUserAgent(nav.headers.vary)) {
+        fail(
+          `${url} answered vary: ${nav.headers.vary ?? '(none)'} to a rewritten crawler ` +
+            'request — expected it to include User-Agent (SO-02), so a cache in front of ' +
+            'this can never hand a crawler copy to a visitor.',
+        )
+      }
+      if (!carriesNoTransform(nav.headers['cache-control'])) {
+        fail(
+          `${url} answered cache-control: ${nav.headers['cache-control'] ?? '(none)'} to a ` +
+            'rewritten crawler request — expected no-transform (SO-03), or Cloudflare may ' +
+            'inject into a response this Worker built by hand.',
+        )
+      }
     }
   }
 
@@ -402,6 +455,139 @@ async function runChecks() {
       console.log(
         `⚠️  ${url} returned ${nav.status} to a browser navigation — INCONCLUSIVE, as above.`,
       )
+    }
+  }
+
+  // 9. SO-02 / SO-03: the crawler path costs a synchronous CMS call; a browser gets the
+  //    static shell straight from Cloudflare's asset router with no such hop. Measured
+  //    2026-09-07 (apps/viewer/CLAUDE.md): the viewer's own static HTML is 0.106-0.155s to
+  //    first byte, and the CMS payload endpoint is 1.77-2.27s — neither edge-cached.
+  //
+  //    ⚠️ A JUST-TOUCHED SLUG READS WARM AND ERASES THE ASYMMETRY — a documented false
+  //    negative from measuring this the naive way: reusing PRODUCT/COLOUR above means the
+  //    payload the crawler branch needs has already been fetched once this run and may
+  //    still be warm wherever the CMS caches it, so the SECOND timing read of the SAME
+  //    slug can come back misleadingly fast and this check would pass even if the real
+  //    cold path is slow. A slug this script has not touched anywhere above is required —
+  //    LIVE_PRODUCTS[1] unless that happens to be the slug already under test.
+  //
+  //    curl, not fetch (Global Constraints) — this needs to look like a real request AND
+  //    time it, and `-w` is the one thing `fetch` cannot report at all.
+  if (SITE_WIDE_CHECKS && !timingMeasured) {
+    timingMeasured = true
+    const timingProduct = LIVE_PRODUCTS.find((p) => p.slug !== PRODUCT) ?? LIVE_PRODUCTS[1]
+    const timingUrl = `${BASE}/${timingProduct.slug}/${timingProduct.colourway}`
+
+    // `--max-time` so a stalled connection ends as INCONCLUSIVE (status 0) instead of
+    // hanging a post-deploy step until the job's own timeout.
+    const timed = (headers) => {
+      const headerArgs = Object.entries(headers).flatMap(([k, v]) => ['-H', `${k}: ${v}`])
+      try {
+        const out = execFileSync(
+          'curl',
+          [
+            '-s',
+            '--max-time',
+            '20',
+            '-o',
+            '/dev/null',
+            '-w',
+            '%{http_code} %{time_starttransfer}',
+            ...headerArgs,
+            timingUrl,
+          ],
+          { encoding: 'utf8' },
+        ).trim()
+        const [status, seconds] = out.split(' ')
+        return { status: Number(status), seconds: Number.parseFloat(seconds) }
+      } catch {
+        return { status: 0, seconds: Number.NaN }
+      }
+    }
+
+    const crawler = timed({
+      'user-agent': CRAWLER_UA,
+      accept: 'text/html',
+      'sec-fetch-mode': 'navigate',
+      'sec-fetch-dest': 'document',
+      'sec-fetch-site': 'none',
+    })
+    const browser = timed({ 'user-agent': BROWSER_UA, accept: 'text/html' })
+
+    if ([crawler.status, browser.status].some((s) => s === 0 || s === 403 || s === 429)) {
+      console.log(
+        `⚠️  timing check on ${timingUrl} got no usable answer (crawler ${crawler.status}, ` +
+          `browser ${browser.status}; 0 = timed out or unreachable) — INCONCLUSIVE, as above.`,
+      )
+    } else {
+      console.log(
+        `   timing (${timingProduct.slug}/${timingProduct.colourway}, untouched earlier in this run): ` +
+          `crawler ${crawler.seconds.toFixed(2)}s vs browser ${browser.seconds.toFixed(2)}s`,
+      )
+      // A wide, deliberately loose margin (not an exact pin — this is server-response
+      // timing over a real network and this repo's own docs warn it jitters), set well
+      // under the measured spread of 0.66-2.29s crawler vs ~0.08s browser: it fails only
+      // if the synchronous CMS call stopped happening, never on ordinary variance.
+      //
+      // REPORT-ONLY, never a failure. This runs inside a post-deploy gate, and a payload
+      // warmed by any other visitor inside the CMS's content-cache window erases the gap
+      // on a perfectly healthy deploy. A red deploy for that is the "fails for a benign
+      // reason" check this file's header warns against. The crawler path's headers
+      // (checked above) are the hard gate; this number is recorded evidence.
+      const MARGIN_SECONDS = 0.2
+      if (crawler.seconds < browser.seconds + MARGIN_SECONDS) {
+        console.log(
+          `::warning::the crawler path (${crawler.seconds.toFixed(2)}s) is not meaningfully ` +
+            `slower than the browser path (${browser.seconds.toFixed(2)}s) on ${timingUrl}. ` +
+            'Expected the synchronous CMS call to show; a warm payload also does this.',
+        )
+      }
+    }
+  }
+
+  // 10. SO-11: the 404 triad, live. apps/viewer/worker/notFound.ts has strong unit
+  //     coverage (notFound.test.ts) for the DECISION function; this confirms the
+  //     DEPLOYED Worker still produces the three real-world outcomes it decides between.
+  //     Re-measured live 2026-09-24: a plain GET of
+  //     /manifest.webmanifest already 404s WITHOUT Sec-Fetch-Mode: navigate today (the
+  //     run_worker_first array, live since 2026-09-07, puts the Worker in front of every
+  //     request regardless) — sent anyway, harmlessly, as the header a real navigation
+  //     always carries and the shape this exact bug class hid behind historically.
+  if (SITE_WIDE_CHECKS) {
+    const cases = [
+      { label: 'a malformed path (3 segments)', path: '/a/b/c', expectHtml404: true },
+      {
+        label: 'a well-formed but nonexistent product (SPA fallback)',
+        path: '/nope/wine',
+        expectHtml404: false,
+      },
+      {
+        label: 'a single-segment file request (manifest)',
+        path: '/manifest.webmanifest',
+        expectHtml404: true,
+        navigate: true,
+      },
+    ]
+    for (const { label, path, expectHtml404, navigate } of cases) {
+      const target = `${BASE}${path}`
+      const headers = { 'user-agent': BROWSER_UA, accept: 'text/html' }
+      if (navigate) {
+        headers['sec-fetch-mode'] = 'navigate'
+        headers['sec-fetch-dest'] = 'document'
+      }
+      const res = await rawGet(target, headers)
+      if (res.status === 403 || res.status === 429) {
+        console.log(`⚠️  ${target} returned ${res.status} — INCONCLUSIVE, as above.`)
+        continue
+      }
+      const is404 = res.status === 404
+      if (is404 !== expectHtml404) {
+        fail(
+          `${label} (${target}) answered ${res.status}, expected ${expectHtml404 ? '404' : '200 (SPA fallback)'} (SO-11).`,
+        )
+      } else {
+        console.log(`   404 triad: ${label} -> ${res.status}`)
+      }
     }
   }
 

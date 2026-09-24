@@ -27,6 +27,14 @@
  * ⚠️ REFUSES TO OVERWRITE unless `--force`, same guard as gen-env-hdr.mjs. These
  * outputs are committed; regenerating them silently on someone else's branch is how
  * a binary asset changes without anybody deciding to change it.
+ *
+ * ⚠️ DO NOT PASS A `density` TO sharp (IM-09, 2026-09-24). This script used to render
+ * at `density: 384` to get a clean raster from the OLD placeholder's tiny 32-unit
+ * viewBox. The real mark's viewBox is 8671 units (`apps/cms/public/icon.svg`), and
+ * sharp scales an SVG by density/72 — 384/72 * 8671 asks for a 46,245 pixel wide
+ * raster and sharp refuses outright with "Input image exceeds pixel limit". The
+ * default renders it at its natural size, which downsamples cleanly; `gen-icons.mjs`
+ * carries the same rule for the identical reason.
  */
 import { createRequire } from 'node:module'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -73,6 +81,12 @@ function markFromIndexHtml() {
 
 async function main() {
   const svg = markFromIndexHtml()
+  // A PNG/ICO holds pixels, not rules, so it cannot follow prefers-color-scheme —
+  // strip the dark-mode override before rasterising, the same way gen-icons.mjs
+  // does for the identical reason, and render in the ink colour (the light-tab
+  // case). The SVG output below keeps the query: it is what a modern browser
+  // actually reads.
+  const rasterSvg = svg.replace(/@media[^{]*\{[\s\S]*?\}\s*\}/, '')
   mkdirSync(PUBLIC_DIR, { recursive: true })
 
   const targets = [
@@ -82,7 +96,7 @@ async function main() {
   ]
 
   async function render(size) {
-    return sharp(Buffer.from(svg, 'utf8'), { density: 384 })
+    return sharp(Buffer.from(rasterSvg, 'utf8'))
       .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png({ compressionLevel: 9 })
       .toBuffer()
