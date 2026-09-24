@@ -1381,10 +1381,13 @@ test.describe('forced-colors substitutes real colour, on the viewer too (CO-09)'
  * ══ prefers-contrast: more raises viewer ratios too (CO-10) ══
  *
  * `apps/cms/e2e/legibility.spec.ts` -> "FA-H-09" already proves this mechanism on the
- * site; this is the viewer's own proof, against `page.css:2403`'s `@media
- * (prefers-contrast: more)` block, which raises `--line`'s alpha (docs/DESIGN.md §1) and
- * turns the header's blur off rather than let a translucent, moving surface fight the
- * request for more contrast.
+ * site; this is the viewer's own proof, against two rules under the same media query:
+ * `page.css`'s `@media (prefers-contrast: more)` block, which raises `--line`'s alpha
+ * (docs/DESIGN.md §1), and `packages/ui/src/notch.css`'s own block on `.notch`, which
+ * raises `--notch-muted` to full opacity so the nav links stop losing contrast to the
+ * bar. Since 2026-09-24 the bar (`.notch`) is the shared, always-opaque header for both
+ * hosts and carries no blur to drop, so the bar's own half of this proof is the nav
+ * link's contrast against it, not a border or a backdrop-filter.
  *
  * ⚠️ `sample()` NAVIGATES AFTER EVERY EMULATION, the same shape FA-H-09's own `sample()`
  * does (`legibility.spec.ts:196,199`) — call it once per `emulateMedia`, not once per
@@ -1410,13 +1413,14 @@ test.describe('prefers-contrast: more raises viewer ratios too (CO-10)', () => {
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await page.evaluate(() => document.fonts.ready)
     return page.evaluate(() => {
-      const header = document.querySelector('.header') as HTMLElement
+      const bar = document.querySelector('.notch') as HTMLElement
+      const navLink = document.querySelector('.nav-link') as HTMLElement
       return {
         matches: matchMedia('(prefers-contrast: more)').matches,
         line: getComputedStyle(document.documentElement).getPropertyValue('--line').trim(),
-        headerBorder: getComputedStyle(header).borderBottomColor,
-        headerBg: getComputedStyle(document.body).backgroundColor,
-        backdropFilter: getComputedStyle(header).backdropFilter,
+        navLinkColour: getComputedStyle(navLink).color,
+        barBg: getComputedStyle(bar).backgroundColor,
+        barBackdropFilter: getComputedStyle(bar).backdropFilter,
         probe: getComputedStyle(document.documentElement)
           .getPropertyValue('--contrast-probe')
           .trim(),
@@ -1424,7 +1428,7 @@ test.describe('prefers-contrast: more raises viewer ratios too (CO-10)', () => {
     })
   }
 
-  test('the header hairline gains real separation and drops its blur', async ({
+  test('the bar (shared with the site) gains real nav-link separation and never blurs', async ({
     page,
     browserName,
   }) => {
@@ -1466,16 +1470,17 @@ test.describe('prefers-contrast: more raises viewer ratios too (CO-10)', () => {
 
     expect(before.line, 'the --line token did not move at all').not.toBe(after.line)
 
-    const borderBefore = contrastOf(before.headerBorder, before.headerBg)
-    const borderAfter = contrastOf(after.headerBorder, after.headerBg)
+    const navContrastBefore = contrastOf(before.navLinkColour, before.barBg)
+    const navContrastAfter = contrastOf(after.navLinkColour, after.barBg)
     expect(
-      borderAfter,
-      `the header hairline went ${borderBefore.toFixed(2)}:1 -> ${borderAfter.toFixed(2)}:1`,
-    ).toBeGreaterThan(borderBefore)
+      navContrastAfter,
+      `the nav link's contrast against the bar went ` +
+        `${navContrastBefore.toFixed(2)}:1 -> ${navContrastAfter.toFixed(2)}:1`,
+    ).toBeGreaterThan(navContrastBefore)
 
     expect(
-      after.backdropFilter,
-      'the header keeps blurring moving content behind it under a request for more contrast',
+      after.barBackdropFilter,
+      'the bar blurs moving content behind it under a request for more contrast',
     ).toBe('none')
   })
 })
@@ -1739,12 +1744,12 @@ test.describe('the viewer stays usable at two short-viewport conditions (SZ-14)'
  *
  * `site.css:358,371-382` gives the site's own container a documented cap; the viewer
  * repeats `max-width: 1200px` as a literal in five places with no test at 2560px on
- * either surface. `.header` is the full-bleed proof (its own box spans the viewport;
- * only its PADDING centres the 1200px content), which is the full-bleed case this test
- * guards.
+ * either surface. `.notch-shell` is the full-bleed proof (its own box spans the
+ * viewport; only the bar's own padding centres the pill inside it), which is the
+ * full-bleed case this test guards. It replaces the old `.header`, removed 2026-09-24.
  */
 test.describe('the content column stays capped at ultrawide (SZ-15)', () => {
-  test('the header is full-bleed and .content stays at or under 1200px at 2560px', async ({
+  test('the bar shell is full-bleed and .content stays at or under 1200px at 2560px', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 2560, height: 1200 })
@@ -1752,10 +1757,10 @@ test.describe('the content column stays capped at ultrawide (SZ-15)', () => {
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
     const measured = await page.evaluate(() => ({
-      headerWidth: document.querySelector('.header')?.getBoundingClientRect().width ?? 0,
+      headerWidth: document.querySelector('.notch-shell')?.getBoundingClientRect().width ?? 0,
       contentWidth: document.querySelector('.content')?.getBoundingClientRect().width ?? 0,
       // document.documentElement.clientWidth, NOT window.innerWidth: innerWidth includes a
-      // classic scrollbar's track, which the full-bleed header does not paint under (I5,
+      // classic scrollbar's track, which the full-bleed bar shell does not paint under (I5,
       // same fix as apps/cms/e2e/composition.spec.ts's SZ-15 — see that file's header for
       // the measured Firefox-scrollbar-width note).
       viewportWidth: document.documentElement.clientWidth,
@@ -1763,7 +1768,7 @@ test.describe('the content column stays capped at ultrawide (SZ-15)', () => {
 
     expect(
       measured.headerWidth,
-      `.header is ${measured.headerWidth}px in a ${measured.viewportWidth}px viewport — it is not full-bleed`,
+      `.notch-shell is ${measured.headerWidth}px in a ${measured.viewportWidth}px viewport — it is not full-bleed`,
     ).toBeGreaterThanOrEqual(measured.viewportWidth - 1)
     expect(
       measured.contentWidth,
