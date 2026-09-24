@@ -96,8 +96,10 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
     --jq '[.rules[]|select(.type=="required_status_checks").parameters.required_status_checks[].context]'
   ```
   Since the repo went public it is readable without any token (an anonymous `GET` of
-  `rulesets/22763709` returned all six on 2026-09-24), so a CI check comparing it with
-  `deploy.needs` is possible; none exists yet. It holds
+  `rulesets/22763709` returned all six on 2026-09-24), and
+  `.github/workflows/required-checks.yml` now compares it with `deploy.needs` on `main`,
+  daily and after every `ci.yml` change (`scripts/check-required-checks.mjs`; it never
+  gates a pull request, for the ORDER reason below). It holds
   🟡 **six** checks (read 2026-09-24) — the Actions jobs `verify`, `e2e`, `audit`, `secrets`
   and `artwork`, all bound to integration 15368, plus **`Socket Security: Pull Request
   Alerts`** (integration 156372, added for L8-05 so a malicious-dependency finding can

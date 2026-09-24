@@ -17,9 +17,11 @@
  * real decimation chain and measures how much of it moved.
  *
  * ─── WHY IT DOES NOT USE THE RAW EXPORT ──────────────────────────────────────
- * `sweep-size-vs-artwork.mjs` is the authority on the real garment, and must
- * stay so — but it needs `raw/cycling-all-colours.glb`, which is 382 MB and
- * gitignored. Nothing that size can run on every pull request. So this builds a
+ * On the real garment the rendered check is `pnpm eval:artwork:real`
+ * (eval-artwork-real.mjs), and it needs `raw/cycling-all-colours.glb`, which is
+ * 382 MB and gitignored. (`sweep-size-vs-artwork.mjs` renders nothing: it is
+ * evidence about file size, never about letters — see tools/asset-pipeline/CLAUDE.md.)
+ * Nothing that size can run on every pull request. So this builds a
  * fixture instead, and the fixture is the whole risk: CLAUDE.md's central lesson
  * is that three production bugs survived because "the test fixtures could not
  * exhibit the failure".

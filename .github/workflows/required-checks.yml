@@ -1,0 +1,54 @@
+name: Required checks
+
+on:
+  schedule:
+    # Daily: the ruleset is edited by hand in Settings, so the two lists can drift on any
+    # day, and a daily run bounds how long a gate can go unenforced. GitHub's scheduled
+    # runs land 19-90 minutes late on this repo (measured, n=11) — fine for this.
+    - cron: '29 4 * * *'
+  push:
+    branches: [main]
+    # And straight after any merge that changes the gating jobs, so the owner hears
+    # that the ruleset needs updating before the next pull request finds out.
+    paths:
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/required-checks.yml'
+      - 'scripts/check-required-checks.mjs'
+  workflow_dispatch: {}
+
+# WHY IT BLOCKS NOTHING. The ruleset may list a job only AFTER a workflow on main posts
+# it (.github/CLAUDE.md, "ORDER MATTERS HERE TOO"), so a pull request that adds a gating
+# job disagrees with the ruleset until it merges, by design; this therefore runs on main,
+# not on pull requests. A failure reaches the owner through GitHub's own
+# workflow-failure notification, as perf-watch.yml and link-crawl.yml do.
+#
+# NOT behind vars.DEPLOY_ENABLED, unlike the scheduled production probes: it reads
+# GitHub's API, never production.
+
+# See uptime.yml's own comment on this block: it REPLACES the default grants rather
+# than adding to them, and omitting `contents: read` breaks `actions/checkout` outright.
+# The rules endpoint needs no more than that: the repository is public.
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    # One file parse and one API read, under 2 s locally (2026-09-24), plus up to two
+    # spaced retries on each of two ways in if GitHub is slow.
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      # No install step: the script uses `fetch` and node's built-ins only, so this
+      # workflow cannot break because of the lockfile.
+      - name: Compare the main ruleset's required checks with deploy.needs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/check-required-checks.mjs
