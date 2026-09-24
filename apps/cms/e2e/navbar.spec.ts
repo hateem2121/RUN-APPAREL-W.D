@@ -258,6 +258,19 @@ test.describe('the open phone menu', () => {
       await page.goto(path)
       await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
       await expect(page.locator(OPEN)).toHaveCount(1)
+      // ⚠️ The click itself shrinks the button (`:active` → `scale: 0.97`, notch.css) and it
+      // eases back afterwards. getBoundingClientRect counts `scale`, so a read mid-ease
+      // measured 43.9px on CI's WebKit (2026-09-24, passed on retry). Let every running
+      // TRANSITION land before measuring; the 44px floor itself stays exact. Transitions
+      // only: the bar's scroll-driven animation never "finishes", so waiting on it hangs.
+      await page.evaluate(() =>
+        Promise.all(
+          document
+            .getAnimations()
+            .filter((animation) => animation instanceof CSSTransition)
+            .map((animation) => animation.finished),
+        ),
+      )
       const m = await page.evaluate(() => {
         const shown = [...document.querySelectorAll('.notch a[href], .notch button')].filter(
           (element) => element.getBoundingClientRect().height > 0,
