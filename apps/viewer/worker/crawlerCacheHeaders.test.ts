@@ -73,7 +73,7 @@ describe('variesOnUserAgent', () => {
 
   /*
    * ⚠️ NOT A SUBSTRING MATCH. "User-Agent-Hint" or a case-mismatched header value must not
-   * satisfy this — a name close enough to look right is exactly the drift this row exists
+   * satisfy this — a name close enough to look right is exactly the drift this check exists
    * to catch, and a naive `.includes('User-Agent')` on the raw string would pass it.
    */
   it('is false for a header that merely contains the substring', () => {

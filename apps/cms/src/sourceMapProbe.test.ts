@@ -43,9 +43,9 @@ describe('evaluateMapResponse — genuine-404 host (the site)', () => {
 
 describe('evaluateMapResponse — spa-fallback host (the viewer)', () => {
   /**
-   * THE CASE THIS ROW EXISTS FOR. A 200 here is the SPA fallback and proves nothing on
+   * THE CASE THIS PROBE EXISTS FOR. A 200 here is the SPA fallback and proves nothing on
    * its own — only the body can. Feeding the evaluator a response shaped like a REAL
-   * leaked source map (the fixture this batch's plan asked for, built locally rather
+   * leaked source map (built locally rather
    * than by deploying one to production) proves the probe would catch a real leak, not
    * only today's safe case.
    */

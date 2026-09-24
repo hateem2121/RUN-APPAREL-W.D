@@ -80,7 +80,7 @@ describe('compareMarks', () => {
   })
 
   /**
-   * THE ACTUAL REGRESSION THIS ROW EXISTS FOR (negative control, both ways). The
+   * THE ACTUAL REGRESSION THIS PROBE EXISTS FOR (negative control, both ways). The
    * viewer's favicon was this exact placeholder — a lime square with a plain "R" —
    * for the eight days after the site got its real generated mark (2026-09-16) and
    * before this fix, and nothing was watching the gap. Feeding the probe the real

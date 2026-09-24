@@ -548,7 +548,7 @@ async function runChecks() {
   // 10. SO-11: the 404 triad, live. apps/viewer/worker/notFound.ts has strong unit
   //     coverage (notFound.test.ts) for the DECISION function; this confirms the
   //     DEPLOYED Worker still produces the three real-world outcomes it decides between.
-  //     Re-measured live 2026-09-24: unlike this row's own planning note, a plain GET of
+  //     Re-measured live 2026-09-24: a plain GET of
   //     /manifest.webmanifest already 404s WITHOUT Sec-Fetch-Mode: navigate today (the
   //     run_worker_first array, live since 2026-09-07, puts the Worker in front of every
   //     request regardless) — sent anyway, harmlessly, as the header a real navigation

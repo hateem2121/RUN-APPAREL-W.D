@@ -101,7 +101,7 @@ describe('caaTags', () => {
   /**
    * `iodef` names where to REPORT a violation — it says nothing about who may issue,
    * and must never be mistaken for an authorisation. An account with only an `iodef`
-   * record and no `issue`/`issuewild` is exactly the "zero CAA" case this row exists
+   * record and no `issue`/`issuewild` is exactly the "zero CAA" case this check exists
    * to catch, dressed up as one record present.
    */
   it('does not count iodef as an issuing authorisation', () => {

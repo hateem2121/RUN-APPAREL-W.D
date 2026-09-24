@@ -4,8 +4,8 @@ import { hasBeaconTag } from '../../../scripts/beacon-probe.mjs'
 /**
  * SO-12 — `hasBeaconTag` reads the WHOLE body rather than grepping line by line, because
  * the viewer's own embed (`apps/viewer/index.html`) writes `src=` and `data-cf-beacon=`
- * on separate lines of the same tag, and a single-line grep misses it entirely (the
- * false start this row's own research recorded).
+ * on separate lines of the same tag, and a single-line grep misses it entirely (a
+ * single-line grep was tried first, and missed it).
  */
 describe('hasBeaconTag', () => {
   it('finds a single-line embed', () => {
