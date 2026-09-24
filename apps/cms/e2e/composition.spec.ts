@@ -1249,7 +1249,12 @@ test.describe('LA-12 — the gallery genuinely reaches 1/2/3/4 columns', () => {
       await settle(page)
 
       const grid = page.locator('.product-grid')
-      if ((await grid.count()) === 0) test.skip(true, 'no product grid in this environment')
+      if ((await grid.count()) === 0) {
+        // CI seeds a published garment, so the grid MUST render there. Skipping would hide
+        // exactly the regression this exists for; same rule as skipUnlessProof above.
+        if (process.env.CI) throw new Error('no .product-grid on /products, and CI seeds one')
+        test.skip(true, 'no product grid in this local database')
+      }
 
       const tracks = await grid.evaluate(
         (el) => getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length,
