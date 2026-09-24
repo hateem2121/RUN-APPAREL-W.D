@@ -35,10 +35,29 @@ function validInquiry(tag: string) {
   }
 }
 
+/**
+ * A fresh TEST-NET-2 address (198.51.100.0/24, RFC 5737, never a real one) for a POST that
+ * must NOT share `checkInquiryRate`'s per-IP bucket with any other test.
+ *
+ * Measured 2026-09-24, both Chromium and Firefox together: with no address header, every
+ * fixture POST in this file and in `inquiry.spec.ts` falls back to the same socket address,
+ * so the two suites' empty-POST and malformed-email checks landed in ONE bucket alongside
+ * `inquiry.spec.ts`'s own empty-POST test. `MAX_PER_IP` is 5 per 10-minute window
+ * (`apps/cms/src/lib/inquiryRate.ts`), so the 6th counted POST in that window was answered
+ * `error=too-many` — Firefox's run of both these tests, in that order, both failed on
+ * exactly that: `expect(location).toContain('error=invalid')` received `error=too-many`.
+ * A disjoint block from SE-13's TEST-NET-3 (203.0.113.0/24) keeps the two describe blocks'
+ * addresses from ever colliding with each other either.
+ */
+function freshTestAddress() {
+  return `198.51.100.${1 + Math.floor(Math.random() * 254)}`
+}
+
 test.describe('SE-11 — a tripped honeypot is indistinguishable from success', () => {
   test('a tripped honeypot redirects exactly like a real success', async ({ request }) => {
     const res = await request.post('/contact/submit', {
       form: { ...validInquiry('se11-bot'), website: 'https://spam.example' },
+      headers: { 'cf-connecting-ip': freshTestAddress() },
       maxRedirects: 0,
     })
     expect(res.status()).toBe(303)
@@ -68,13 +87,20 @@ test.describe('SE-12 — a POST with nothing in it fails safely and specifically
    * ⚠️ TIGHTENED FROM `inquiry.spec.ts`'s OWN VERSION, which only checks the redirect
    * contains "error=" — true of every failure code, so it would not notice a truly empty
    * POST quietly starting to redirect to `error=storage` or `error=too-many` instead.
-   * `validateInquiry({})` (apps/cms/src/lib/inquiry.ts) fails on missing name/email/message
-   * before either of those branches runs, so `invalid` is the ONLY code a bare `{}` can
-   * produce — confirmed by reading route.ts's own ordering (honeypot, then rate limit,
-   * then validation).
+   *
+   * ⚠️ `error=invalid` IS ONLY GUARANTEED FROM AN ADDRESS THAT STILL HAS ALLOWANCE LEFT.
+   * The route checks the rate limit BEFORE validation (`contact/submit/route.ts:114-120`),
+   * so `validateInquiry({})`'s own refusal never runs for an address that has already used
+   * its five — that address gets `error=too-many` for an empty POST too. This request
+   * carries its own address (`freshTestAddress()`) for exactly that reason, rather than
+   * relying on the Playwright fixture's shared socket address staying under the limit.
    */
   test('a POST with nothing in it redirects to error=invalid specifically', async ({ request }) => {
-    const res = await request.post('/contact/submit', { form: {}, maxRedirects: 0 })
+    const res = await request.post('/contact/submit', {
+      form: {},
+      headers: { 'cf-connecting-ip': freshTestAddress() },
+      maxRedirects: 0,
+    })
     expect(res.status()).toBe(303)
     expect(res.headers().location).toContain('error=invalid')
   })
@@ -112,6 +138,7 @@ test.describe('SE-14 — validation runs on both sides, independently', () => {
   }) => {
     const res = await request.post('/contact/submit', {
       form: { ...validInquiry('se14-bad-email'), email: 'not-an-email-address' },
+      headers: { 'cf-connecting-ip': freshTestAddress() },
       maxRedirects: 0,
     })
     expect(res.status()).toBe(303)
