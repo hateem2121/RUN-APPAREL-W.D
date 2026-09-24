@@ -1101,4 +1101,225 @@ jobs:
     const withEnoaudit = bare.replace('audit-ci.jsonc', 'audit-ci.jsonc --pass-enoaudit')
     expect(auditSteps(withEnoaudit)[0]).toContain('--pass-enoaudit')
   })
+
+  /**
+   * SIXTEENTH RULE, added 2026-09-24 — a job that reads a secret must declare the
+   * environment the secret lives in.
+   *
+   * Every Actions secret in this repository lives ONLY in the `production` environment:
+   * `gh secret list` at repository level is empty, and `gh secret list --env production`
+   * holds all six. A job that references one without declaring `environment: production`
+   * is not refused. `${{ secrets.X }}` simply evaluates to an EMPTY STRING, and the job
+   * goes green. A weekly R2 budget robot drafted on 2026-09-24 had exactly this bug before
+   * it merged: every run would have called Cloudflare with no token, and the only symptom
+   * would have been a robot that never reported anything.
+   *
+   * ⚠️ ci.yml's deploy job calls its environment "a LABEL" that "still earns" only the
+   * deployment URL. Since the secrets moved into it, that is no longer the whole story:
+   * delete that block and every wrangler step in the deploy runs with no token. This rule
+   * is what stops the deletion going green.
+   *
+   * Scope: the job's own `env:`, and every step's `env:` and `with:`, which are the places
+   * a secret is read here (a secret inside `run:` is already refused above). A job-level
+   * `secrets:` passed to a reusable workflow is deliberately out of scope: `environment`
+   * cannot be declared on such a caller, only in the called workflow's own jobs.
+   * `secrets.GITHUB_TOKEN` is exempt, because GitHub mints it per job in no environment.
+   * Only a real `${{ … }}` expression counts; deploy-shrink.yml names a secret in a YAML
+   * comment, and prose is not a read.
+   */
+  type SecretRead = { job: string; line: number; secret: string; production: boolean }
+
+  function secretReads(source: string): SecretRead[] {
+    const lines = source.split('\n')
+    const jobsAt = lines.findIndex((l) => /^jobs:\s*$/.test(l))
+    if (jobsAt === -1) return []
+
+    const all: SecretRead[] = []
+    let job: string | null = null
+    let reads: { line: number; secret: string }[] = []
+    let production = false
+    // Mapping keys that are open above the current line, innermost last.
+    let open: { indent: number; key: string }[] = []
+    // Inside a `|` / `>` block scalar: the key's indent, and whether it sits under env:/with:.
+    let block: { indent: number; inScope: boolean } | null = null
+
+    const close = () => {
+      if (job === null) return
+      for (const r of reads) all.push({ job, ...r, production })
+    }
+    const collect = (text: string, line: number) => {
+      for (const expr of text.matchAll(/\$\{\{([\s\S]*?)\}\}/g)) {
+        for (const ref of (expr[1] ?? '').matchAll(
+          /\bsecrets\s*(?:\.\s*(\w+)|\[\s*['"]([^'"]+)['"]\s*\])/g,
+        )) {
+          const secret = ref[1] ?? ref[2] ?? ''
+          if (secret !== 'GITHUB_TOKEN') reads.push({ line, secret })
+        }
+      }
+    }
+    const inSecretScope = () => open.some((o) => o.key === 'env' || o.key === 'with')
+
+    for (let i = jobsAt + 1; i < lines.length; i++) {
+      const line = lines[i] ?? ''
+      // A non-indented line ends the jobs block entirely.
+      if (line.trim() !== '' && !/^\s/.test(line)) break
+      const header = /^ {2}([A-Za-z_][\w-]*):\s*$/.exec(line)
+      if (header) {
+        close()
+        job = header[1] ?? null
+        reads = []
+        production = false
+        open = []
+        block = null
+        continue
+      }
+      if (job === null || line.trim() === '') continue
+
+      const indent = line.search(/\S/)
+      if (block) {
+        // A block scalar under `with:` (github-script's `script: |`) is still an input.
+        if (indent > block.indent) {
+          if (block.inScope) collect(line, i + 1)
+          continue
+        }
+        block = null
+      }
+      if (line.trimStart().startsWith('#')) continue
+
+      // `- key: value` opens a list item whose keys sit two columns right of the dash.
+      const m = /^(\s*)(-\s+)?([\w.-]+):(?:\s+(.*?))?\s*$/.exec(line)
+      if (!m) {
+        if (inSecretScope()) collect(line, i + 1)
+        continue
+      }
+      const keyIndent = indent + (m[2]?.length ?? 0)
+      while ((open.at(-1)?.indent ?? -1) >= keyIndent) open.pop()
+      const key = m[3] ?? ''
+      const value = (m[4] ?? '').replace(/\s+#.*$/, '')
+
+      // Only a JOB-LEVEL `environment:` counts: an action input of the same name, under
+      // a step's `with:`, declares nothing.
+      if (open.length === 0 && key === 'environment') {
+        if (/^['"]?production['"]?$/.test(value)) production = true
+        if (/^\{.*\bname\s*:\s*['"]?production['"]?\s*[,}]/.test(value)) production = true
+      }
+      const parent = open.at(-1)
+      if (
+        open.length === 1 &&
+        parent?.key === 'environment' &&
+        key === 'name' &&
+        /^['"]?production['"]?$/.test(value)
+      ) {
+        production = true
+      }
+
+      const inScope = inSecretScope() || key === 'env' || key === 'with'
+      if (inScope) collect(line, i + 1)
+      if (/^[|>]/.test(value)) block = { indent: keyIndent, inScope }
+      else if (value === '') open.push({ indent: keyIndent, key })
+    }
+    close()
+    return all
+  }
+
+  it('declares environment: production on every job that reads a secret', async () => {
+    const offenders: string[] = []
+    let seen = 0
+
+    for (const file of await workflowFiles()) {
+      for (const r of secretReads(read(file))) {
+        seen++
+        if (!r.production) {
+          offenders.push(
+            `${file}:${r.line} job "${r.job}" reads secrets.${r.secret} but does not declare environment: production`,
+          )
+        }
+      }
+    }
+
+    // The guard must not pass by finding nothing: four workflows read secrets today.
+    expect(seen, 'no secret read was parsed out of any workflow').toBeGreaterThan(0)
+    expect(
+      offenders,
+      'Every secret in this repository lives ONLY in the `production` environment. A job\n' +
+        'that reads one without declaring `environment: production` gets an EMPTY string,\n' +
+        'and CI stays green. Add `environment: production` to the job.\n' +
+        `${offenders.join('\n')}`,
+    ).toEqual([])
+  })
+
+  it('the environment rule can actually fail (negative control)', () => {
+    const offendersOf = (source: string) =>
+      secretReads(source)
+        .filter((r) => !r.production)
+        .map(({ job, line, secret }) => ({ job, line, secret }))
+
+    // The shape the R2 budget robot had: secrets read through step env: and with:, no
+    // environment. `lint` reads nothing, and GITHUB_TOKEN is exempt, so only the two
+    // production secrets are reported — proving the parser distinguishes rather than
+    // returning [] (or everything) for every input.
+    const missing = `
+jobs:
+  budget:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # A comment naming secrets.PAYLOAD_SECRET is prose, not a read.
+      - name: query
+        env:
+          CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+        run: echo hi
+      - uses: example/action@0000000000000000000000000000000000000000 # v1.0.0
+        with:
+          environment: production
+          token: \${{ secrets.SENTRY_AUTH_TOKEN }}
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: echo hi
+`
+    // The step input named `environment` above must NOT satisfy the rule.
+    expect(offendersOf(missing)).toEqual([
+      { job: 'budget', line: 10, secret: 'CLOUDFLARE_API_TOKEN' },
+      { job: 'budget', line: 16, secret: 'SENTRY_AUTH_TOKEN' },
+    ])
+
+    const declare = (form: string) =>
+      missing.replace(
+        '    timeout-minutes: 5\n    steps:\n      # A',
+        `    timeout-minutes: 5\n${form}    steps:\n      # A`,
+      )
+
+    // All three legal spellings must pass, or the rule would be unfollowable.
+    for (const form of [
+      '    environment: production\n',
+      '    environment:\n      name: production\n      url: https://example.com\n',
+      '    environment: { name: production }\n',
+    ]) {
+      const fixed = declare(form)
+      expect(fixed, 'the replacement must actually have changed the source').not.toBe(missing)
+      expect(offendersOf(fixed), form).toEqual([])
+    }
+
+    // A different environment holds none of the secrets, so it is still a failure.
+    expect(offendersOf(declare('    environment: staging\n'))).toHaveLength(2)
+
+    // A job-level env: read is in scope too, not only a step's.
+    const jobEnv = [
+      'jobs:',
+      '  digest:',
+      '    runs-on: ubuntu-latest',
+      '    env:',
+      '      TOKEN: <read below>',
+      '    steps:',
+      '      - run: echo hi',
+    ]
+      .join('\n')
+      .replace('<read below>', `$${'{{'} secrets.CLOUDFLARE_API_TOKEN }}`)
+    expect(offendersOf(jobEnv)).toEqual([
+      { job: 'digest', line: 5, secret: 'CLOUDFLARE_API_TOKEN' },
+    ])
+  })
 })

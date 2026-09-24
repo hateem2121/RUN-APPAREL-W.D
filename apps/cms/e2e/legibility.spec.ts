@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { contrastOf, worstRatio } from '../../../scripts/contrast-rules.mjs'
 import { readability } from '../src/lib/readingLevel'
 
 /**
@@ -186,29 +187,10 @@ test.describe('FA-H-09 — a request for more contrast is answered', () => {
    * "14.47 -> 14.47". A translucent foreground has to be composited over its background
    * before it is a colour at all.
    */
-  const parse = (value: string) => {
-    const parts = (value.match(/[\d.]+/g) ?? ['0', '0', '0']).map(Number)
-    return {
-      rgb: [parts[0] ?? 0, parts[1] ?? 0, parts[2] ?? 0],
-      alpha: parts.length > 3 ? (parts[3] ?? 1) : 1,
-    }
-  }
-  const channel = (value: number) => {
-    const c = value / 255
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-  }
-  const luminance = (rgb: number[]) =>
-    0.2126 * channel(rgb[0] ?? 0) + 0.7152 * channel(rgb[1] ?? 0) + 0.0722 * channel(rgb[2] ?? 0)
-
-  const contrast = (fg: string, bg: string) => {
-    const front = parse(fg)
-    const back = parse(bg)
-    const flattened = front.rgb.map(
-      (value, index) => value * front.alpha + (back.rgb[index] ?? 0) * (1 - front.alpha),
-    )
-    const [light, dark] = [luminance(flattened), luminance(back.rgb)].sort((a, b) => b - a)
-    return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05)
-  }
+  // Migrated to the shared library: `contrastOf(fg, bg)` composites
+  // fg's own alpha over bg exactly as the four functions this replaced did — same maths,
+  // now in one place. See `scripts/contrast-rules.mjs`'s header for the two real defects
+  // (opacity-blind scoring) this module exists to keep catchable.
 
   const sample = async (page: import('@playwright/test').Page) => {
     await page.goto('/')
@@ -283,8 +265,8 @@ test.describe('FA-H-09 — a request for more contrast is answered', () => {
        */
       expect(after.pageBg, `${scheme}: the two samples are in different themes`).toBe(before.pageBg)
 
-      const ledeBefore = contrast(before.ledeText, before.pageBg)
-      const ledeAfter = contrast(after.ledeText, after.pageBg)
+      const ledeBefore = contrastOf(before.ledeText, before.pageBg)
+      const ledeAfter = contrastOf(after.ledeText, after.pageBg)
       expect(
         ledeAfter,
         `the lede went ${ledeBefore.toFixed(2)}:1 -> ${ledeAfter.toFixed(2)}:1`,
@@ -292,8 +274,8 @@ test.describe('FA-H-09 — a request for more contrast is answered', () => {
       // Comfortably past AA for body text, which is the point of the request.
       expect(ledeAfter).toBeGreaterThanOrEqual(7)
 
-      const navBefore = contrast(before.navText, before.barBg)
-      const navAfter = contrast(after.navText, after.barBg)
+      const navBefore = contrastOf(before.navText, before.barBg)
+      const navAfter = contrastOf(after.navText, after.barBg)
       expect(
         navAfter,
         `the nav links went ${navBefore.toFixed(2)}:1 -> ${navAfter.toFixed(2)}:1`,
@@ -318,18 +300,10 @@ test.describe('CO-01 / CO-04 / CO-02 / CR-03 — text and control edges clear th
    * their own — and a planted grey-on-grey must be reported as a failure before any real
    * number is trusted.
    */
-  const channel = (value: number) => {
-    const c = value / 255
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-  }
-  const luminance = (rgb: number[]) =>
-    0.2126 * channel(rgb[0] ?? 0) + 0.7152 * channel(rgb[1] ?? 0) + 0.0722 * channel(rgb[2] ?? 0)
-  const ratio = (a: number[], b: number[]) => {
-    const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x)
-    return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05)
-  }
-  type Row = { label: string; pairs: [number[], number[]][] }
-  const worst = (row: Row) => Math.min(...row.pairs.map(([fg, bg]) => ratio(fg, bg)))
+  // Migrated to the shared library: `worstRatio` is the same
+  // "lowest ratio among a row's pairs" this replaced. `measure()` below stays
+  // self-contained (handed to `page.evaluate`, which serialises it and cannot reach
+  // an import) — see `scripts/contrast-rules.mjs`'s own header for that rule.
 
   /**
    * In the page: each visible match's foreground — its text colour, or its top border — with
@@ -427,9 +401,11 @@ test.describe('CO-01 / CO-04 / CO-02 / CR-03 — text and control edges clear th
     const [badEdge] = await measure(page, '#contrast-bad', 'border')
     const [good] = await measure(page, '#contrast-good', 'text')
     if (!bad || !badEdge || !good) throw new Error('the planted elements were not measured')
-    expect(worst(bad), 'grey on grey was not reported as a failure').toBeLessThan(1.5)
-    expect(worst(badEdge), 'a grey edge on grey was not reported as a failure').toBeLessThan(1.5)
-    expect(worst(good), 'black on white did not read 21:1').toBeCloseTo(21, 0)
+    expect(worstRatio(bad), 'grey on grey was not reported as a failure').toBeLessThan(1.5)
+    expect(worstRatio(badEdge), 'a grey edge on grey was not reported as a failure').toBeLessThan(
+      1.5,
+    )
+    expect(worstRatio(good), 'black on white did not read 21:1').toBeCloseTo(21, 0)
   })
 
   for (const scheme of ['light', 'dark'] as const) {
@@ -437,8 +413,8 @@ test.describe('CO-01 / CO-04 / CO-02 / CR-03 — text and control edges clear th
       await settle(page, '/products', scheme)
       const rows = await measure(page, '.filter-chip__count', 'text')
       expect(rows.length, 'no filter-chip counts on /products to measure').toBeGreaterThan(0)
-      const failing = rows.filter((row) => worst(row) < 4.5)
-      expect(failing.map((row) => `${row.label} ${worst(row).toFixed(2)}:1`)).toEqual([])
+      const failing = rows.filter((row) => worstRatio(row) < 4.5)
+      expect(failing.map((row) => `${row.label} ${worstRatio(row).toFixed(2)}:1`)).toEqual([])
     })
 
     test(`${scheme}: the outline button and the form fields have a 3:1 edge`, async ({ page }) => {
@@ -448,8 +424,8 @@ test.describe('CO-01 / CO-04 / CO-02 / CR-03 — text and control edges clear th
       const fields = await measure(page, '.inquiry-form__input', 'border')
       expect(ghost.length, 'no outline button on the home page').toBeGreaterThan(0)
       expect(fields.length, 'no form fields on /contact').toBeGreaterThan(0)
-      const failing = [...ghost, ...fields].filter((row) => worst(row) < 3)
-      expect(failing.map((row) => `${row.label} ${worst(row).toFixed(2)}:1`)).toEqual([])
+      const failing = [...ghost, ...fields].filter((row) => worstRatio(row) < 3)
+      expect(failing.map((row) => `${row.label} ${worstRatio(row).toFixed(2)}:1`)).toEqual([])
     })
   }
 
@@ -480,4 +456,84 @@ test.describe('CO-01 / CO-04 / CO-02 / CR-03 — text and control edges clear th
     expect(selection.bg, 'the selection background is not --volt').toBe(selection.volt)
     expect(selection.fg, 'the selection text is not --ink').toBe(selection.ink)
   })
+})
+
+/*
+ * ══ the site's own display type follows the same tracking/leading curve (TY-04, TY-05) ══
+ *
+ * `apps/viewer/e2e/audit-guards.spec.ts` -> "FA-C-54" already proves this for the viewer;
+ * this is the site's own proof, against `.site-hero .display--hero` / `.site-section
+ * .display--section` (`packages/ui/src/base.css:206-213`'s shared `.display--hero`/
+ * `.display--section` classes, with `site.css:456`'s own font-size override for the hero).
+ *
+ * ⚠️ 360/1440 ARE NOT ASSUMED HERE — MEASURED FIRST, since the two apps' clamp ranges
+ * differ (`docs/DESIGN.md` §3). At 360px: hero 34px / section 26px. At 1440px: hero 72px
+ * (its clamp ceiling) / section 46px (its own ceiling, reached by 1280px already). Both
+ * widths give two genuinely different sizes for each class, so the viewer's own split
+ * carries over here too — a coincidence worth stating rather than assuming.
+ *
+ * Scoped to display type only, per this file's own convention: the mono/caps register
+ * (`.mono`, `.label`, `.section-number`) is tuned to constant optical tracking, not this
+ * inverse law, so it is deliberately not measured here.
+ */
+test.describe('TY-04 / TY-05 — the site tracks and leads its display type the same way', () => {
+  const WIDTHS = [360, 1440] as const
+
+  const read = async (page: import('@playwright/test').Page, width: number) => {
+    await page.setViewportSize({ width, height: 1200 })
+    await page.goto('/')
+    await page.evaluate(() => document.fonts.ready)
+    return page.evaluate(() => {
+      const metric = (el: Element | null, label: string) => {
+        if (!el) return null
+        const style = getComputedStyle(el)
+        const size = Number.parseFloat(style.fontSize)
+        const spacing =
+          style.letterSpacing === 'normal' ? 0 : Number.parseFloat(style.letterSpacing)
+        const leading =
+          style.lineHeight === 'normal' ? Number.NaN : Number.parseFloat(style.lineHeight)
+        return { label, size, trackingEm: spacing / size, leadingRatio: leading / size }
+      }
+      const hero = metric(document.querySelector('.site-hero .display--hero'), 'hero')
+      const section = metric(document.querySelector('.site-section .display--section'), 'section')
+      const lede = metric(document.querySelector('.site-lede'), 'lede')
+      return { hero, section, lede }
+    })
+  }
+
+  for (const width of WIDTHS) {
+    test(`the hero tracks tighter than a section heading at ${width}px, both tighter than lede`, async ({
+      page,
+    }) => {
+      const { hero, section, lede } = await read(page, width)
+
+      // The control: both elements must actually be found and at genuinely different
+      // sizes, or the pairwise claim below is vacuous.
+      expect(hero, `.site-hero .display--hero was not found at ${width}px`).not.toBeNull()
+      expect(section, `.site-section .display--section was not found at ${width}px`).not.toBeNull()
+      expect(lede, `.site-lede was not found at ${width}px`).not.toBeNull()
+      const [h, s, l] = [hero!, section!, lede!]
+      expect(
+        h.size,
+        `the hero (${h.size}px) is not larger than a section heading (${s.size}px) at ` +
+          `${width}px, so there is no optical range for the tracking curve to follow`,
+      ).toBeGreaterThan(s.size)
+
+      expect(
+        h.trackingEm,
+        `at ${width}px the hero renders at ${h.size}px tracked ${h.trackingEm.toFixed(4)}em ` +
+          `while a section heading renders at ${s.size}px tracked ${s.trackingEm.toFixed(4)}em. ` +
+          'The larger optical size must be tracked TIGHTER (TY-04).',
+      ).toBeLessThan(s.trackingEm)
+
+      expect(
+        h.leadingRatio,
+        `the hero leads no tighter than the lede at ${width}px (TY-05)`,
+      ).toBeLessThan(l.leadingRatio)
+      expect(
+        s.leadingRatio,
+        `a section heading leads no tighter than the lede at ${width}px (TY-05)`,
+      ).toBeLessThan(l.leadingRatio)
+    })
+  }
 })

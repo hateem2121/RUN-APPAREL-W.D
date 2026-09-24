@@ -5,7 +5,7 @@ import { withDocumentIsolation } from './documentHeaders'
 import { withNoTransform } from './noTransform'
 import type { ViewerApiSuccess } from '@run-apparel/shared'
 import { OG_CARDS } from './og-cards'
-import { shouldReturnNotFound } from './notFound'
+import { isWellKnownPath, shouldReturnNotFound } from './notFound'
 import { buildPreview, type Preview } from './preview'
 import { workerResponseHeaders } from './securityHeaders'
 import { securityTxtResponse } from './securityTxt'
@@ -320,7 +320,14 @@ export default {
     const securityTxt = securityTxtResponse(request)
     if (securityTxt) return securityTxt
 
-    const route = parseViewerPath(url.pathname)
+    // `/.well-known/` (RFC 8615) is reserved for site metadata and can never be a
+    // product page — but `normalizeSlug` strips the dot out of `.well-known` and
+    // whatever follows it, so the shared parser reads it as an ordinary two-segment
+    // route (measured 2026-09-24, see `isWellKnownPath`). Forcing `route` to null
+    // here, rather than only in `shouldReturnNotFound`, matters for a crawler UA
+    // too: a truthy `route` sends a matched crawler down the preview branch below,
+    // which never calls that guard and would answer 200 with the SPA shell.
+    const route = isWellKnownPath(url.pathname) ? null : parseViewerPath(url.pathname)
 
     /**
      * A MISSING PREVIEW IMAGE MUST BE A 404, NOT A PAGE.

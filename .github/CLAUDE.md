@@ -3,8 +3,8 @@
 🔴 = stops here, do not proceed. 🟡 = read before acting. 🟢 = context.
 
 Loads when you touch `.github/`. Every workflow change is gated by
-`apps/cms/src/workflowHardening.test.ts` — fifteen rules, nine with their own
-negative control (counted 2026-09-11), so a failure names the file and line. Run it before pushing a
+`apps/cms/src/workflowHardening.test.ts` — sixteen rules, ten with their own
+negative control (counted 2026-09-24), so a failure names the file and line. Run it before pushing a
 workflow edit:
 
 ```bash
@@ -148,7 +148,10 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   🟡 **Five more since:** a parse guard for a key nested under a key
   that already has a value, every workflow `heartbeat.yml` watches must exist and parse,
   `DEPLOY_MESSAGE` may not contain a space, and the vulnerability audit retries only on
-  the network signature and within its job's timeout. Fifteen rules; nine have their own
+  the network signature and within its job's timeout. 🟡 **One more on 2026-09-24:** a
+  job that reads a secret in its `env:` or a step's `env:`/`with:` must declare
+  `environment: production`. Every secret here lives ONLY in that environment, so a job
+  without it gets an EMPTY string and still goes green. Sixteen rules; ten have their own
   negative control, and a failure names the file and line. 🟡 A `permissions:` block **REPLACES** the defaults rather than adding to
   them — omitting `contents: read` breaks `actions/checkout` with a **404** on
   what was then a private repo, which is how uptime.yml died silently for 23 hours. The
