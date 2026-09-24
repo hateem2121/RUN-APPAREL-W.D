@@ -844,6 +844,12 @@
   right: 12px;
   top: 12px;
   z-index: var(--z-stage-control);
+}
+
+/* TRY 3D AGAIN (issue #41) shares the AR button's look. Shared, not copied: the viewer's stylesheet has a
+   measured Lighthouse budget (lighthouserc.json), and a second copy of these twelve lines cost 174 B over it. */
+.stage__ar,
+.stage__retry {
   display: inline-flex;
   align-items: center;
   min-height: var(--target-min);
@@ -995,13 +1001,20 @@ model-viewer.stage__model {
  * `border-radius` instead of drawing a square around a rounded box, which the
  * host (radius 0) could not do even unclipped.
  *
- * `.stage__canvas` holds exactly one focusable thing, the model-viewer; the
- * camera buttons live in `.stage__plinth`, outside it. So `:focus-within` here
- * cannot be triggered by anything else.
+ * `.stage__canvas` holds the model-viewer and, since then, two buttons of its own:
+ * the AR button and TRY 3D AGAIN (issue #41). The camera buttons live in
+ * `.stage__plinth`, outside it. A focused retry button already draws its own ring,
+ * so the canvas does not draw a second one around it.
  */
-.stage__canvas:focus-within {
+.stage__canvas:focus-within:not(:has(.stage__retry:focus)) {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+/* The canvas itself takes focus only when TRY 3D AGAIN hands it over. After a mouse
+   press that is not a keyboard visit, so no ring (the keyboard case keeps it). */
+.stage__canvas:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /*
@@ -1516,12 +1529,22 @@ model-viewer.stage__model {
   animation: preloader-sweep calc(var(--slow) * 2) linear infinite;
 }
 
-.stage__error {
+/* The note, and after a stalled download the TRY 3D AGAIN button under it (issue #41), share one positioned
+   box: two separately positioned elements would overlap on a 328px phone stage once the note wraps. The box is
+   where `.stage__error` alone used to sit. Empty while the note is `hidden`, so it covers nothing. */
+.stage__failure {
   position: absolute;
   bottom: 72px;
   left: 50%;
   transform: translateX(-50%);
   max-width: min(90%, 420px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.stage__error {
   text-align: center;
   font-size: var(--text-note);
   color: var(--muted);

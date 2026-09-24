@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './offlineMedia'
 
 /**
  * Pin the privacy notice's substantive claims (SE-09, SE-10).

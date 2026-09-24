@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test'
+import { expect, type Page, test } from './offlineMedia'
 
 /**
  * The page must not jump when the real fonts arrive.

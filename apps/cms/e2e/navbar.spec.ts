@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './offlineMedia'
 import { SITE_MENU_ID, SITE_MENU_NAME, SITE_NAV_LABEL } from '../../../packages/shared/src/siteBar'
 import { contrastOf, parseCssColour, relativeLuminance } from '../../../scripts/contrast-rules.mjs'
 

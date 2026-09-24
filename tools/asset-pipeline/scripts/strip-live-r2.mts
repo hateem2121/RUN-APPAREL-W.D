@@ -39,7 +39,7 @@ import { binChunkSha256, stripLiveMetadata } from '../src/strip-live-metadata'
 import { ASSET_COPYRIGHT } from '../src/strip-root-extras'
 
 const BUCKET = 'run-apparel-viewer-media'
-const WRANGLER = 'wrangler@4.122.0'
+const WRANGLER = 'wrangler@4.137.0'
 /** Read off the live objects before the first write, so nothing is invented. */
 const CONTENT_TYPE = 'model/gltf-binary'
 const CACHE_CONTROL = 'max-age=31536000'

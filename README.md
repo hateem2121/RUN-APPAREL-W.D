@@ -360,11 +360,13 @@ Dependencies are pinned to the latest stable releases. Deliberate exceptions:
   (`readGlbGenerator`), and it surfaces only there because `apps/shrink` sets
   `types: ["@cloudflare/workers-types"]` with no node types. **`apps/cms` and
   `apps/viewer` run `5.20260827.1`** and typecheck clean — the wider hold had frozen
-  24 days of updates across both for a fault neither has. wrangler 4.122.0 asks for a
-  newer one than `apps/shrink` carries, so the repo keeps a **permanent unmet-peer
-  warning on purpose**; it is cosmetic and verified so. Do not "fix" it by raising
-  workers-types. The split is enforced by `dependencyPolicy.test.ts`, which also
-  asserts the hold has not widened again. History: `docs/DEPENDENCY-HOLDS.md`.
+  24 days of updates across both for a fault neither has. wrangler 4.137.0 asks for a
+  newer one than any of the three carries, so **all three now show an unmet-peer
+  warning**; it is cosmetic and verified so everywhere, but only `apps/shrink`'s is a
+  real hold — `apps/cms`/`apps/viewer` could raise workers-types safely, as a separate
+  change. Do not "fix" shrink's by raising workers-types. The split is enforced by
+  `dependencyPolicy.test.ts`, which also asserts the hold has not widened again.
+  History: `docs/DEPENDENCY-HOLDS.md`.
 - `packageManager` stays pinned to **pnpm 10.33.0**. The `minimumReleaseAge`
   supply-chain policy that gated adopting pnpm 11 is now declared **in-repo**
   (`pnpm-workspace.yaml` → `minimumReleaseAge: 1440`, i.e. 24h, with the trusted
