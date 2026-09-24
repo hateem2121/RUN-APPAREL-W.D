@@ -47,51 +47,41 @@ pnpm lint                        # biome check .
 pnpm typecheck                   # 5 workspaces
 pnpm test:coverage               # the full suite + the coverage floors (see below)
 bash scripts/test-alert-shell.sh # the alert branch nothing else exercises
+node scripts/check-docs-index.mjs  # every maintained doc reachable from docs/README.md
 pnpm seed:assets && pnpm build   # build is the one that catches dependency breaks
 node scripts/check-bundle-budget.mjs  # deterministic shell weight; needs the build above
 pnpm eval:artwork                # separate CI job — gates the deploy
 pnpm --filter @run-apparel/viewer test:e2e  # separate CI job — ALSO gates the deploy
 ```
 
-🟢 **`e2e` is in `deploy.needs` and was absent from this list until 2026-08-21.**
-Slowest gate in CI (7m45s), fastest locally (**45s**, 352 tests, four engines) — run
-it before pushing a viewer change. Two CI round trips were spent learning that.
+🟢 **`e2e` gates the deploy (`deploy.needs`).** Slowest gate in CI (7m45s), fastest
+locally (**about 45s**, four engines) — run it before pushing a viewer change. Two CI
+round trips were spent learning that.
 
 🟢 Three of these are invisible from the workspace, and that is why "it passed
 locally" has failed twice: `apps/shrink/container` is not a pnpm member and gets
 its own `npm install --no-audit --no-fund && npx tsc --noEmit` step in CI,
 `eval:artwork` runs in a job of its own, and `check-bundle-budget` reads
 `apps/viewer/dist` so it exits 1 unless `pnpm build` has already run.
-🟢 Until 2026-08-13 this paragraph claimed README's "Local development" list omits
-some of these. It does not, and had not for some time — caught by running the
-commands rather than re-reading the sentence (same lesson as
-`eval:artwork:real -- raw/x.glb` below).
 
 🟡 **Playwright's browsers are NOT installed here, and a missing one fails at 0ms.**
 Found 2026-08-27: `test:e2e` reported four engines failing with `(0ms)`, which reads
 as broken code and is a browser that never launched. Install once —
 `npx --yes pnpm@10.34.5 --filter @run-apparel/viewer exec playwright install chromium webkit firefox`.
 `tools/asset-pipeline`'s render harness needs chromium too. With all four present:
-**355 passed, 6 skipped, 41.8s** — the 45s quoted above.
+**355 passed, 6 skipped, 41.8s** (measured 2026-08-27).
 
-🟡 **`pnpm` may not be on `PATH` — MEASURED BOTH WAYS; use `npx --yes pnpm@10.34.5`.**
-Absent in earlier sessions; 2026-08-21 it WAS there (`/opt/homebrew/bin/pnpm`, exactly
-10.33.0). Assume neither, and never let a script shell out to bare `pnpm`.
-🟡 **A THIRD STATE, 2026-08-27: the path EXISTS and does not run.**
-`/opt/homebrew/bin/pnpm` symlinks into a `node@24` Cellar that Node 26.7.0 replaced.
-`ls` succeeds; running it says `no such file or directory` naming the SYMLINK, not the
-missing target — so `command -v pnpm` finds it and still fails. When a child process
-needs a real one (`e2e/prepare.mjs` shells out to `pnpm build`), put a shim on `PATH`
-that execs `npx --yes pnpm@10.34.5 "$@"`.
- Bare `pnpm` fails with
-exit **127**, and the failure is worth naming because of *where* it surfaces:
-`apps/viewer/e2e/prepare.mjs` shells out to `pnpm build`, so the whole e2e suite
-dies as `Timed out waiting 120000ms from config.webServer` with the real
-`status: 127` buried inside a child process. `.claude/settings.json` and
-`.claude/launch.json` already use the `npx` form; this line is why.
-Since 2026-08-26 the PreToolUse guard **rewrites** a bare `pnpm` you type rather
-than refusing it — but it sees only the Bash tool's own command, never what a
-script shells out to, which is the case that actually cost the sessions above.
+🟡 **Use `npx --yes pnpm@10.34.5`, and never let a script shell out to bare `pnpm`.**
+Bare `pnpm` has measured absent, present, and present-but-broken on this Mac, so assume
+it does not work. `/opt/homebrew/bin/pnpm` can exist and still not run: it symlinks
+into a replaced `node@24` Cellar, and running it says `no such file or directory`
+naming the SYMLINK, so `command -v pnpm` is no test. The failure surfaces far from its cause: `apps/viewer/e2e/prepare.mjs`
+shells out to `pnpm build`, so exit **127** dies inside a child process and the e2e
+suite reports `Timed out waiting 120000ms from config.webServer`.
+`.claude/settings.json` and `.claude/launch.json` use the `npx` form for this reason.
+The PreToolUse guard **rewrites** a bare `pnpm` in the Bash tool's own command but
+never sees what a script runs; for that, put a shim on `PATH` that execs
+`npx --yes pnpm@10.34.5 "$@"`.
 
 🟡 **Running the CMS dev server DIRTIES the working tree and then `pnpm lint` fails.**
 Found 2026-08-09. `next dev` rewrites two committed generated files —
@@ -137,7 +127,7 @@ reading as a tidy-up. See the comment in `RawUploads.ts`.
 - **Every document is citation-checked, not just CLAUDE.md** — README, CONTRIBUTING,
   SECURITY and all of `docs/`. A genuinely-gone path goes in `ALLOWED_ABSENT`
   🟡 **with the reason**; `file.ts:42` and extension-less citations resolve fine.
-  🟡 **Never cite a gitignored GENERATED directory — this warning did, and broke CI.**
+  🟡 **Never cite a gitignored GENERATED directory; a citation of one broke CI.**
   `public/draco/` is written at build time by `apps/viewer/scripts/copy-decoders.mjs`,
   so it exists locally from an earlier build and passes for you while a clean checkout
   fails. Cite the generator.
@@ -145,16 +135,15 @@ reading as a tidy-up. See the comment in `RawUploads.ts`.
   pass with it present proves nothing, and that is what failed here twice. Note the
   gate is blind to URL-shaped references: it skips anything starting with `/`, so
   `/og/n001/wine.jpg` in RUNBOOK rotted unwatched through a slug rename.
-  🟡 **`node scripts/doc-citations.mjs` WORKS — this file claimed otherwise until
-  2026-08-19 and cost a session.** It prints each unresolved citation and exits **1**.
-  Use it as the fast local check; `apps/cms/src/claudeMd.test.ts` is still the CI gate
+  🟡 **`node scripts/doc-citations.mjs` is the fast local check**: it prints each
+  unresolved citation and exits **1**. `apps/cms/src/claudeMd.test.ts` is the CI gate
   and the authority, because only the test enforces the recursive walk and the
   negative control.
-  🟡 **Line RANGES resolve too, since 2026-08-18 — this said the opposite.** The regex
-  (`scripts/doc-citations.mjs:202`) strips `:42`, `:42:7` and `:42-80` alike. Prefer a
-  single line — the harness renders it as a clickable link — but a range is not a
+  🟡 **Line ranges resolve too**: the `clean =` step in `scripts/doc-citations.mjs`
+  strips `:42`, `:42:7` and `:42-80` alike, and checks the path, never the line. Prefer
+  a single line — the harness renders it as a clickable link — but a range is not a
   silent failure.
-- **`pnpm test` now also checks** the npm lockfile sync (above), the SBOM licence
+- **`pnpm test` also checks** the npm lockfile sync (above), the SBOM licence
   policy, that no two workspaces declare different versions of a shared dependency,
   and that `docs/RUNBOOK.md`'s rollback commands name the real Workers and the
   installed wrangler. That last one found the runbook pinned `wrangler@4.114.0`
@@ -214,8 +203,7 @@ the answer is "nothing that happens in production", it is not a test.
   than as a permissions problem. Verified by running the image: writes `/tmp`,
   refused `/app`, service starts and answers. The base image is **digest-pinned**
   for build reproducibility (sharp links against system libs).
-  🟡 **NOTHING AUTOMATED REFRESHES THAT PIN — this line claimed "Dependabot's `docker`
-  ecosystem updates it" until 2026-08-20, and that was never true.**
+  🟡 **NOTHING AUTOMATED REFRESHES THAT PIN.**
   `.github/dependabot.yml` declares no `docker` ecosystem at all, and the two it does
   declare (npm, github-actions) both sit at `open-pull-requests-limit: 0` by deliberate
   quiet-mode decision, so only security advisories open a PR. Bump the digest by hand.
@@ -281,15 +269,16 @@ the answer is "nothing that happens in production", it is not a test.
   `curl -o /dev/null -D -`. **After the shrink writes a model, fetch it the way a
   browser will — bare URL, plain GET — before pointing a product at it**; a
   `HEAD`, the filesize, `artworkVerdict: ok` and the `{OPAQUE, MASK}` census were
-  ALL green while the file was unreachable. Fix is a Custom Purge of that one URL.
+  ALL green while the file was unreachable. That day's fix was a Custom Purge of that one URL.
+  ✅ The 30-day exposure is closed: the media Cache Rule caps 4xx/5xx at 10s at the edge
+  since 2026-08-31, and since 2026-09-03 a Cache Response Rule marks every error from that
+  host `no-store`, so a miss is not cached at all (measured 2026-09-24: `404 no-store
+  BYPASS`; `scripts/zone-security-probe.mjs` checks it daily). The GET/HEAD divergence is
+  unaffected and is why this stays. Full incident: `docs/HARDENING-LOG.md`.
 
 - **A Cloudflare API write with inline JSON is refused by the auto-mode classifier.**
   Write the body to a file and `curl … -d @/tmp/body.json` — same request, accepted.
   Cost three blocked attempts on 2026-08-31 (rate-limit, compression, push ruleset).
-  ✅ The 30-day exposure was capped on 2026-08-31: the media Cache Rule now carries
-  `status_code_ttl` of 10s for 4xx/5xx, so a cached miss lasts seconds rather than
-  a month. The GET/HEAD divergence is unaffected and is why this stays. Full
-  incident: `docs/HARDENING-LOG.md`.
 
 - **Sixteen more traps live in `.github/CLAUDE.md`** (loads on touching `.github/`) — two
   of them moved there 2026-08-19 because they bite only while you are editing a
@@ -302,9 +291,9 @@ the answer is "nothing that happens in production", it is not a test.
   it as *inconclusive*, never as a failed assertion, and use `HEAD`.
   And **`timeout-minutes` kills the step's SHELL, not the `apt-get` it started** — the
   orphan keeps the dpkg lock, so retrying races it and exits 100 in five seconds while
-  waiting longer only spends the job's headroom. All of `ci.yml` stopped depending on
-  apt on 2026-08-20 (`artwork`, then `e2e` when it was split out of `verify`); only
-  `deploy-shrink.yml` still does.
+  waiting longer only spends the job's headroom. No workflow runs apt any more:
+  `ci.yml` stopped on 2026-08-20 and `deploy-shrink.yml` on 2026-08-30, both by moving
+  into the Playwright container.
   And **GitHub's scheduled runs are 19–90 minutes LATE — measured n=11, every one** —
   so a `cron:` is a queue position, not a deadline; a watchdog built on one being
   punctual is wrong on every cycle, which is worse than no watchdog.
@@ -350,7 +339,7 @@ the answer is "nothing that happens in production", it is not a test.
   glTF** for want of an `EXT_texture_webp` declaration, which `<model-viewer>` renders
   anyway; **`prune()` renumbers UV sets and updates only the DEFAULT material**,
   leaving colourway-only ones pointing at an attribute that no longer exists; and
-  🟡 **`pnpm eval:artwork` PASSES on macOS since 2026-08-29** (this said the opposite until 2026-09-03) — a local failure is real; do NOT raise the ceiling.
+  🟡 **`pnpm eval:artwork` PASSES on macOS** (measured 2026-08-29) — a local failure is real; do NOT raise the ceiling.
   🟢 **Added 2026-09-03:** every UV set is moved into 0..1 and stored 16-bit, so a finished
   file's raw UV span means nothing — read it through `uvSpanInPatternSpace`.
   🟢 These are hooks, not the traps; after `/compact` only THIS file is re-injected —
@@ -389,9 +378,7 @@ the answer is "nothing that happens in production", it is not a test.
   overrides any header you set in a handler, why **`pnpm build` passing does not mean the
   app can be DEPLOYED**, a 60s content cache, and a style gate that now reads JSX; it also
   carries "Before you change a migration", the site's browser tests, and how to write
-  products from a script. 🟢 This said "Two more
-  **live** in" until 2026-08-17 — without the word "traps",
-  `claudeMd.test.ts`'s counter silently skipped it. **"Before you delete anything in the
+  products from a script. **"Before you delete anything in the
   CMS" below deliberately did NOT move**: it governs `apps/shrink/src/cms.ts` and
   `scripts/find-orphan-media.mjs` too, and under `apps/cms/` it would stop loading
   for exactly the half that deletes files.
@@ -458,14 +445,14 @@ unused variable, on the day it was added.
 
 ## Deploying
 
-🟡 **`git user.email` is UNSET on this machine, and that DEADLOCKS the merge.**
-Found 2026-08-25, mid-deploy. With neither a local nor a global value git falls back
+🟡 **An unset `git user.email` DEADLOCKS the merge.**
+Found 2026-08-25, mid-deploy, when this Mac had none. With neither a local nor a global value git falls back
 to `user@hostname`, which matches no GitHub account, so `main`'s ruleset rule
 `require_extra_approval_for_unattributed_changes` demands an approving review — and
 at one filled seat the author cannot approve their own PR. Every status check green,
 `mergeable: MERGEABLE`, `mergeStateStatus: BLOCKED`, and `gh pr merge` answers only
-"the base branch policy prohibits the merge". Set it before the first commit of a
-session; all 372 commits here use the same address:
+"the base branch policy prohibits the merge". Check it (`git config user.email`)
+before the first commit of a session; commits here use this address:
 
 ```bash
 git config --local user.email hateemjamshaid@gmail.com
@@ -484,7 +471,7 @@ before/after diff is what caught the last data-loss incident when the migration
 logs said success. See `docs/BACKUP-RESTORE.md`. `.claude/skills/deploy-preflight/`
 walks the whole sequence and is `disable-model-invocation: true` on purpose.
 
-🟢 **The live product is `rxps`, and this line said `n001` until 2026-08-15.**
+🟢 **The live product is `rxps`; it was `n001` until the rename on 2026-08-15.**
 Measured that day: `GET /api/public/viewer/n001/wine` → **404 not_found**;
 `rxps/wine` → the real 5-colourway payload and a 27.0 MB model. The rename had
 already broken **both post-deploy gates** in `ci.yml` —
@@ -492,8 +479,8 @@ already broken **both post-deploy gates** in `ci.yml` —
 `n001` and each exited 1 against production — so any merge to `main` would have
 deployed and then gone red at verification. Fixed in the same change.
 **`uptime.yml` stayed GREEN through all of it**, six consecutive successes in the
-two hours before it was found, because it probes
-`viewer.wear-run.help/n001/wine` and the viewer is an **SPA**: any path returns
+two hours before it was found, because it probed
+`viewer.wear-run.help/n001/wine` (it probes `/rxps/wine` now) and the viewer is an **SPA**: any path returns
 200 HTML and renders "REFERENCE UNAVAILABLE" on the client. A status check there
 proves a web server answered, nothing more. `apps/viewer/e2e/serve.mjs` still
 fixtures `n001`, correctly — that server *is* the fixture. RUNBOOK's four
@@ -530,8 +517,8 @@ not only from a second push.** On 2026-08-18 a degraded Ubuntu mirror made
 twice, then `verify` at 30m21s — with nothing in the repository changed. Raising a
 ceiling only moved which job died. See `.github/CLAUDE.md`.
 
-🟡 **The apex serves the SITE; the PDFs are PRIVATE LINKS (decided 2026-09-11, live from
-the merge that deploys it).** `wear-run.help/*`
+🟡 **The apex serves the SITE; the PDFs are PRIVATE LINKS (decided 2026-09-11, live since
+2026-09-16).** `wear-run.help/*`
 and `www.` go to the CMS Worker. `infra/apex-404/` serves `catalogue.` and `profile.` on
 BOTH `wear-run.help` and `wear-run.com` (`/<code>`; pictures + the PDF, from the **shared**
 `run-assets` bucket) and 410s the old `/catalogue` and `/profile`. The rest of
@@ -540,8 +527,8 @@ email-signature project: never list or delete one (`docs/CLOUDFLARE-SETUP.md` 11
 never commit, log or print one** — ci.yml refuses to deploy without both. Workers
 Caching keys on path, NOT host, so all cacheable output sits under the code. **Do not
 delete the apex DNS record** (zone routes need it proxied). CI deploys this Worker FIRST;
-it once DRIFTED after a dashboard edit. Decided 2026-09-15, live from the merge that
-deploys it: it also writes a visit row into the CMS database after each response, in
+it once DRIFTED after a dashboard edit. Since 2026-09-16 it also writes a visit row
+into the CMS database after each response, in
 `ctx.waitUntil`. The page's own `cache-control` is `no-store` so every open reaches the
 Worker, while pictures stay cached, so a cache HIT still never runs it. How-tos:
 `docs/RUNBOOK.md`.

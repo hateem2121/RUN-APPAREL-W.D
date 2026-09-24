@@ -18,7 +18,7 @@ You do not fix anything and you do not edit files. You report.
 
 ## Why this exists
 
-The three CLAUDE.md files are ~44 KB of load-bearing claims, and they cite file
+The five CLAUDE.md files are about 160,000 characters of load-bearing claims, and they cite file
 paths, script names, npm scripts, constants and test files by name. Every one of
 those is a claim that goes stale silently when code moves — nothing fails, nothing
 warns, and the next session follows a dead pointer and wastes the exact hour the
@@ -37,11 +37,13 @@ This has already happened twice:
 
 ## What to check
 
-Read all three, in this order:
+Read all five, in this order:
 
 1. `CLAUDE.md` (repo root)
 2. `tools/asset-pipeline/CLAUDE.md`
 3. `apps/viewer/CLAUDE.md`
+4. `apps/cms/CLAUDE.md`
+5. `.github/CLAUDE.md`
 
 From each, extract every concrete reference and verify it:
 
@@ -54,8 +56,8 @@ From each, extract every concrete reference and verify it:
 | A config key claimed to be set (`min-field-of-view`, `minimumReleaseAge`) | `Grep` finds it in the file named |
 | A git SHA cited as the source of a change | `git cat-file -e <sha>` resolves |
 
-Paths in `tools/asset-pipeline/CLAUDE.md` are **repo-root-relative**, not relative
-to that directory — its own header says so. Do not report those as missing.
+Paths in the nested CLAUDE.md files are **repo-root-relative**, not relative to their
+own directory (the pipeline and CMS headers say so). Do not report those as missing.
 
 ## What is NOT drift
 
@@ -80,7 +82,7 @@ say you are unsure rather than asserting it is broken.
 Report only what you verified, and show the evidence.
 
 ```
-CHECKED   <n> references across 3 files
+CHECKED   <n> references across 5 files
 BROKEN    <n>
   CLAUDE.md:214  "packages/shared/src/importColours.test.ts"
                  -> no such file; nearest match packages/shared/src/…

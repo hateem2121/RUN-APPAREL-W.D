@@ -39,15 +39,13 @@ because **none of them run `npm ci`**. The root `CLAUDE.md` already says
 step"; the typecheck step was never the gap. `npm ci` is, and it lives one
 directory away, here.
 
-✅ **CAUGHT LOCALLY SINCE 2026-08-13 — this paragraph said until then that "the
-only thing that executes this path is the Docker build triggered by a push to
-`main`", and that is no longer true.** `scripts/check-lockfile-sync.mjs`
+✅ **CAUGHT LOCALLY.** `scripts/check-lockfile-sync.mjs`
 reproduces `npm ci`'s own sync rule with no npm, no network and no install, and
 runs inside `pnpm test` via `apps/cms/src/lockfileSync.test.ts`. It also fails on
 the `"resolved": "file:"` paths that appear when the lockfile is regenerated
 inside the pnpm workspace — the other half of the procedure below. **Still
-regenerate by hand when you change `package.json`;** what changed is that
-forgetting now costs seconds instead of a deploy.
+regenerate by hand when you change `package.json`;** the check only makes
+forgetting cost seconds instead of a deploy.
 
 Regenerate 🟡 **in a temp dir, never in the workspace** — pnpm's symlinked
 `node_modules` makes npm write `file:` paths that do not exist inside the image
@@ -158,8 +156,7 @@ wrangler r2 object get "run-apparel-viewer-ingest/cycling all colours.glb" \
 ```
 
 🟡 **The R2 key contains SPACES.** It is `cycling all colours.glb`, not the
-hyphenated `cycling-all-colours.glb` that everyone types from memory and that this
-very file documented until 2026-08-07. The hyphenated form is the *local*
+hyphenated `cycling-all-colours.glb` that everyone types from memory. The hyphenated form is the *local*
 filename, deliberately renamed on download so nothing downstream deals with spaces
 in a path; it is not the key. Quote it, or an unquoted expansion splits it into
 three arguments and wrangler reports a confusing bucket error.
@@ -233,7 +230,7 @@ flags are literals from `shrinkFlagsFor` (`packages/shared/src/shrink.ts`).
 Moved out of the repo-root `CLAUDE.md` on 2026-08-19, when that file measured 44,993
 characters against Claude Code's 40,000-character warning — the threshold at which it
 prints `Large CLAUDE.md will impact performance` and, per Anthropic's own guidance,
-adherence to *every* rule in the file starts dropping. These twelve are the ones only a
+adherence to *every* rule in the file starts dropping. These are the ones only a
 session touching `tools/asset-pipeline/` needs, so paying for them in every session was
 buying worse compliance with the rest.
 
@@ -370,8 +367,7 @@ only the root's one-liners. Open this file before changing anything here.
   test suite alongside every case read a *uniform* ~0.48pp low (2026-08-07, three
   idle runs identical to three decimals) — the baseline render, not decimation.
   🟡 **Do not "fix" a small absolute difference; re-run idle first.**
-  🟡 **Correction while building that: "the sweep remains the authority on a real
-  garment" — stated here until 2026-08-06 — was wrong.**
+  🟡 **The sweep is NOT the authority on a real garment.**
   `sweep-size-vs-artwork.mjs` imports no renderer and renders nothing; it measures
   file size, `artworkAtRisk`, `findArtworkAlphaProblems` and the alpha census. Its
   own recorded output (`output/sweep/sweep.json`) reports `wouldShip: true` for all
@@ -423,11 +419,9 @@ only the root's one-liners. Open this file before changing anything here.
   which the CSP correctly blocks. On a cold live page
   `ModelViewerElement.dracoDecoderLocation` reads the gstatic default while
   `meshoptDecoderLocation` correctly reads `/meshopt_decoder.js`. Cause is in
-  model-viewer itself and is documented in `apps/viewer/CLAUDE.md`; the fix attempt
-  lives in `Stage.tsx` and is **unverified**.
-  🟢 **This bullet said the exact opposite until the same day** — "smaller AND faster
-  … so this needed no viewer change" — which would have shipped an unloadable model.
-    The SPEED measurement (4× throttle: meshopt 31.0 MB / 1168 ms vs draco 20.6 MB /
+  model-viewer itself and is documented in `apps/viewer/CLAUDE.md`; the fix lives in
+  `Stage.tsx`, and a cold load of the live site read `/draco/` on 2026-09-24.
+  The SPEED measurement (4× throttle: meshopt 31.0 MB / 1168 ms vs draco 20.6 MB /
   908 ms) is parked: on the wire and the GPU, LIVE-08 measured Draco worse. **Checking that code
   is committed and deployed is NOT checking that it works** — the decoder line was
   both, and was inert.
@@ -551,16 +545,14 @@ size** in RSS (573 MB → 1,955 MB), while `describeGlb` reads only the JSON chu
 1.25 GB Cycling Bib costs what a 5 MB one costs. `SPEC_MAX_BYTES` is 768 MB and the two
 exports over it are **skipped by name** — a skip must never read as a pass.
 
-🟡 **`pnpm eval:artwork` PASSES ON macOS — this said the opposite until 2026-08-29.**
-The old wording: *"FAILS ON macOS AND PASSES IN CI. Local 15.290 / 16.070 / 18.760
-against a 5.000% ceiling."* **Re-run 2026-08-29 on this machine: 1.680 / 3.100 / 9.390
-with the control at 3.0x the shipped preset — a clean pass**, matching what the
-2026-08-28 audit independently measured. A commit between those dates fixed the
-baseline (`c405537`, "give eval:artwork the same baseline its optimized runs get").
-🟡 **So do NOT dismiss a local failure as a platform artefact** — that is what this note
-told you to do, and it would now hide a real regression. If it fails locally, treat it
-as a failure. CI runs it inside `mcr.microsoft.com/playwright:v1.62.1-noble`, and
-🟡 **do not raise the ceiling to make anything green** — that part always held.
+🟡 **`pnpm eval:artwork` PASSES ON macOS.** Measured 2026-08-29 on this machine:
+**fidelity 1.680 / balanced 3.100 against the 5.000% ceiling, and CONTROL 9.390 — 3.0x
+the shipped preset, above the ceiling as a negative control must be: a clean pass**,
+matching the 2026-08-28 audit; `c405537` ("give eval:artwork the same baseline its
+optimized runs get") fixed the baseline. 🟡 **So do NOT dismiss a local failure as a
+platform artefact** — it would hide a real regression. CI runs it inside
+`mcr.microsoft.com/playwright:v1.62.1-noble`, and 🟡 **do not raise the ceiling to make
+anything green.**
 
 🟡 **`review-server.ts` and `apps/viewer` are DIFFERENT PAGES.** A fix in one is not in the
 other; the review viewer kept flickering after the product was fixed, which read as "the

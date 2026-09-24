@@ -1066,3 +1066,134 @@ now checks them daily from `uptime.yml`:
 ruleset (write nothing inline — the auto-mode classifier refuses inline JSON bodies, so
 `-d @file` for any PUT). Neither rule touches a 2xx on the media host or any other host,
 and the probe's negative controls reproduce the exact pre-rule readings.
+
+## Instruction-file history moved here, not deleted (2026-09-24)
+
+The Opus 5.5 prompt audit took out every sentence in which an instruction file described
+its OWN earlier wording ("this said X until DATE"). The model reading those files never saw
+the earlier wording, so each sentence pointed it at a rule that no longer exists. PR #22's
+rule is that history is never deleted, so the sentences are recorded here, verbatim, beside
+the current statement that replaced them.
+
+**Root `CLAUDE.md`**
+
+- "`e2e` is in `deploy.needs` and was absent from this list until 2026-08-21" and "(**45s**,
+  352 tests, four engines)" → "`e2e` gates the deploy"; "about 45s, four engines". The 352
+  disagreed with the "355 passed, 6 skipped" two paragraphs later.
+- "Until 2026-08-13 this paragraph claimed README's "Local development" list omits some of
+  these. It does not, and had not for some time — caught by running the commands rather than
+  re-reading the sentence" → removed; it carried no current rule.
+- "`pnpm` may not be on `PATH` — MEASURED BOTH WAYS … Absent in earlier sessions; 2026-08-21 it
+  WAS there (`/opt/homebrew/bin/pnpm`, exactly 10.33.0) … A THIRD STATE, 2026-08-27: the path
+  EXISTS and does not run … `node@24` Cellar that Node 26.7.0 replaced … Since 2026-08-26 the
+  PreToolUse guard rewrites a bare `pnpm` you type rather than refusing it" → one paragraph
+  stating the three observed states, the child-process 127, and the guard's blind spot.
+- "`node scripts/doc-citations.mjs` WORKS — this file claimed otherwise until 2026-08-19 and
+  cost a session" → "is the fast local check".
+- "Line RANGES resolve too, since 2026-08-18 — this said the opposite. The regex
+  (`scripts/doc-citations.mjs:202`)" → "Line ranges resolve too: the `clean =` step". The
+  line pin had rotted to line 248; the gate checks paths, never line numbers.
+- "NOTHING AUTOMATED REFRESHES THAT PIN — this line claimed "Dependabot's `docker` ecosystem
+  updates it" until 2026-08-20, and that was never true" → "NOTHING AUTOMATED REFRESHES THAT
+  PIN."
+- "(this said the opposite until 2026-09-03)", beside `eval:artwork` passing on macOS → removed.
+  It also disagreed with the pipeline file, which dated the same correction 2026-08-29.
+- "This said "Two more **live** in" until 2026-08-17 — without the word "traps",
+  `claudeMd.test.ts`'s counter silently skipped it" → removed, and ENFORCED instead: the
+  lesson had never been. The looser count needs the word "traps" too, so a sentence without
+  it was invisible to both counts, which still agreed (measured: "Eleven more live in"
+  passed). `claudeMd.test.ts` now also counts every "… more … live in" index sentence
+  (`INDEX_SENTENCE`) and fails when one lacks "traps".
+- "The live product is `rxps`, and this line said `n001` until 2026-08-15" → "it was `n001`
+  until the rename on 2026-08-15".
+- "`git user.email` is UNSET on this machine" and "all 372 commits here use the same address" →
+  "An unset `git user.email` DEADLOCKS the merge … when this Mac had none". Both the global
+  and the local value were set when this was re-read.
+- Stale facts corrected in the same pass, not history: "only `deploy-shrink.yml` still does"
+  (apt; it stopped on 2026-08-30), "because it probes `viewer.wear-run.help/n001/wine`"
+  (`uptime.yml` probes `/rxps/wine`), and "live from the merge that deploys it" twice (live
+  since 2026-09-16, PR #12).
+
+**`tools/asset-pipeline/CLAUDE.md`**
+
+- "CAUGHT LOCALLY SINCE 2026-08-13 — this paragraph said until then that "the only thing that
+  executes this path is the Docker build triggered by a push to `main`", and that is no longer
+  true" → "CAUGHT LOCALLY."
+- "… `cycling-all-colours.glb` that everyone types from memory and that this very file
+  documented until 2026-08-07" → the clause after "memory" removed.
+- "Correction while building that: "the sweep remains the authority on a real garment" —
+  stated here until 2026-08-06 — was wrong" → "The sweep is NOT the authority on a real
+  garment."
+- "This bullet said the exact opposite until the same day — "smaller AND faster … so this
+  needed no viewer change" — which would have shipped an unloadable model" → removed, with
+  "the fix attempt … is **unverified**": a cold load of the live site read `/draco/` on
+  2026-09-24.
+- "`pnpm eval:artwork` PASSES ON macOS — this said the opposite until 2026-08-29. The old
+  wording: *"FAILS ON macOS AND PASSES IN CI. Local 15.290 / 16.070 / 18.760 against a 5.000%
+  ceiling."*" and "that is what this note told you to do" → the 2026-08-29 numbers (kept
+  exactly, now labelled fidelity / balanced / CONTROL beside the 5.000% ceiling, so the
+  control reads as the negative control it is) and the two rules, reworded.
+- "These twelve are the ones" → "These are the ones": the section holds twenty-four.
+
+**`apps/viewer/CLAUDE.md`**
+
+- "UNVERIFIED: it could not be reproduced locally …" and "draco never has" → verified live
+  2026-09-24 (`customElements.get('model-viewer').dracoDecoderLocation` read `/draco/`).
+- "THE SECOND HALF OF THIS PARAGRAPH WAS FALSE UNTIL 2026-08-20, AND IT IS THE REASON THE SUITE
+  WAS TRUSTED. It said Playwright "sets `reducedMotion: 'reduce'` … so there is no transform to
+  pollute it"" → "`reducedMotion: 'reduce'` IN `playwright.config.ts` NEVER REACHES THE PAGE".
+- "Those three were written without their `apps/viewer/` prefix until 2026-08-12" → "Qualify
+  package paths."
+
+**`.github/CLAUDE.md`**
+
+- "No `GITLEAKS_LICENSE` secret exists on the REPO — but one was created at the ORG level on
+  2026-08-18, visible to all three repositories including the two PUBLIC ones, and no workflow
+  in any of them references it. It is a leftover from the Action this trap replaced. Verified
+  2026-08-30 by code search across all three repos: the only hit is this sentence." → removed:
+  the org, and the secret with it, were deleted on 2026-09-02. The coverage reason stands.
+- "IT IS NOT UNREADABLE — that claim was false and cost a session (L8-07)" and ""no test can
+  read it" and "no test can read it FROM CI" are different claims, and the first one talked
+  people out of running the command at all" → "one command prints it … run the command".
+- "It was four checks until 2026-08-20, five until 2026-08-31, six until the org died on
+  2026-09-02, five on the re-created repo, and six again since 2026-09-11" → "It holds six
+  checks (read 2026-09-24)". The ruleset line above it said "five required checks"; it holds
+  six.
+- The hardening rules listed by the date each was added ("Since 2026-08-13 … Three more since
+  2026-08-13 … all 12 had none … Two more on 2026-08-20, with the first container job … Five
+  more since … One more on 2026-09-24") → one list of the sixteen rules.
+- "`ci.yml` NO LONGER CONTAINS THIS STEP AT ALL … so the only apt path left in this repo is
+  `.github/workflows/deploy-shrink.yml`. Everything below is that file's remaining risk" → "No
+  workflow runs `playwright install-deps` any more" (deploy-shrink followed on 2026-08-30).
+
+**`apps/cms/CLAUDE.md`**
+
+- "Nothing below was reworded." → removed; the file has been edited since the split.
+- "`tokens.test.ts` now scans JSX too … It previously read only `.css` … (Documented here
+  because that file's own CLAUDE.md has 59 characters of headroom.)" → the rule, with its
+  reason.
+- "100 tests, Chromium + Firefox" → "Chromium, Firefox and WebKit (608 tests listed on
+  2026-09-24)". "The whole printed catalogue is imported as of 2026-08-17 — the CMS holds 67
+  products … 66 are drafts" → "was imported on 2026-08-17 … 66 of them then drafts".
+
+**`.claude/skills/deploy-preflight/SKILL.md`**
+
+- "THIS FILE SAID `n001` UNTIL 2026-08-17 AND THAT MADE THIS WHOLE STEP A NO-OP. Measured that
+  day: `n001/wine` returns 404, 84 bytes …; `rxps/wine` returns the real 5-colourway payload at
+  4,264 bytes … The rename happened on 2026-08-15 and the scripts and `uptime.yml` were fixed
+  the same day; this file was missed." → "THE SLUG IS `rxps`, and a wrong one makes this whole
+  step a no-op", with the reason.
+- "This said `~4477 bytes` until then. The payload GREW because the per-garment sales copy
+  landed (`customisationIntro`, `performanceFeatures`); nothing was lost." and "This line said
+  `RXPS ... ~4264 bytes` until then. `productCode` went `RXPS` -> `R-XPS` on 2026-08-17 while the
+  SLUG stayed `rxps`, so that rename has now rotted this file TWICE" → "Longer is fine; SHORTER,
+  or a non-zero exit, is a stop", and "Re-measure this line whenever `slug` or `productCode`
+  changes". The expected value, re-measured 2026-09-24, was unchanged: `R-XPS 5 colourways, 5265
+  bytes`.
+- "`pnpm` is not on PATH here … and a guard will refuse the bare one" (it has rewritten since
+  2026-08-26) and "a miss recorded before the file existed is served for weeks" (errors on the
+  media host are `no-store` since 2026-09-03) → corrected.
+
+**`.claude/rules/viewer-headers.md`** kept only its pointer and its reason. The record of the
+2026-09-05 check that proved path-scoped rules fire moved to `docs/CLAUDE-MD-MAINTENANCE.md`,
+which until then still reported only the ambiguous 2026-08-20 negative.
