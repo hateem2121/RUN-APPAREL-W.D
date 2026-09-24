@@ -38,9 +38,10 @@ test.describe('PF-16 — render-blocking discipline (viewer product page)', () =
       (tag) => !/\basync\b|\bdefer\b|\btype="module"|\bnoModule\b/.test(tag),
     )
 
-    expect(withSrc.length, 'no <script src> at all — the assertion below would pass vacuously').toBeGreaterThan(
-      0,
-    )
+    expect(
+      withSrc.length,
+      'no <script src> at all — the assertion below would pass vacuously',
+    ).toBeGreaterThan(0)
     expect(
       blocking,
       `classic blocking <script src> found on the viewer product page: ${blocking.join('\n')}`,

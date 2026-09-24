@@ -75,7 +75,10 @@ test.describe('PF-16 — the first poster on /products is eager and high priorit
     await ctx.dispose()
 
     const firstImg = html.match(/<img\b[^>]*class="product-card__img"[^>]*>/)?.[0]
-    expect(firstImg, 'no product card image found on /products — is the fixture seeded?').toBeTruthy()
+    expect(
+      firstImg,
+      'no product card image found on /products — is the fixture seeded?',
+    ).toBeTruthy()
     expect(firstImg).toMatch(/loading="eager"/)
     expect(firstImg).toMatch(/fetchPriority="high"/)
   })
