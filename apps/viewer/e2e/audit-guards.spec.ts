@@ -1503,3 +1503,234 @@ test.describe('the serif accent stays within its style and its budget (TY-09)', 
     ).toEqual([])
   })
 })
+
+/*
+ * ══ the two-column stage genuinely collapses to one column at 320px (SZ-02) ══
+ *
+ * `apps/cms/e2e/composition.spec.ts` -> "FA-D-06 / FA-E-05" already proves the site's own
+ * multi-column regions collapse at 320px. The viewer has no catalogue-style content grid
+ * (it is a single-product page) — its own multi-column region is the stage band moving
+ * the product identity into `.stage__aside` beside the garment
+ * (`apps/viewer/src/lib/useIdentityInAside.ts`), which only the no-overflow half
+ * (FA-D-06-shaped) had ever been asserted against, never the reflow itself.
+ */
+test.describe('the two-column stage genuinely collapses to one column at 320px (SZ-02)', () => {
+  test('the product identity sits beside the garment at 1280px and stacks above it at 320px', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const wide = await page.evaluate(() => ({
+      inAside: Boolean(document.querySelector('.stage__aside #product-heading')),
+    }))
+    expect(wide.inAside, 'at 1280x900 the identity never moved beside the garment').toBe(true)
+
+    await page.setViewportSize({ width: 320, height: 812 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const narrow = await page.evaluate(() => ({
+      inAside: Boolean(document.querySelector('.stage__aside #product-heading')),
+      // The control: the heading must still exist SOMEWHERE, or "not in the aside"
+      // is trivially true because nothing rendered at all.
+      headingExists: Boolean(document.querySelector('#product-heading')),
+    }))
+    expect(narrow.headingExists, 'the product heading did not render at 320px at all').toBe(true)
+    expect(
+      narrow.inAside,
+      'at 320px the identity is still a second column beside the garment, not stacked above it',
+    ).toBe(false)
+  })
+})
+
+/*
+ * ══ every interactive control clears 24px at a DESKTOP width too (SZ-04) ══
+ *
+ * `apps/viewer/e2e/motion-and-layout.spec.ts` -> "every interactive control meets the
+ * WCAG 2.5.8 target size" already proves this at 375px (a phone). Reimplemented here
+ * rather than imported, since that file is on Phase 1b-B's file map — same detection
+ * logic (24px floor, with the spacing exception WCAG 2.5.8 itself allows), a desktop
+ * width instead.
+ */
+test.describe('every interactive control clears 24px at a desktop width too (SZ-04)', () => {
+  test('no control is under 24x24 CSS px at 1280px, with no spacing exception', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const undersized = await page.evaluate(() => {
+      const targets = [
+        ...document.querySelectorAll<HTMLElement>(
+          'a, button, [role="button"], [role="tab"], input, select, summary',
+        ),
+      ].filter((el) => {
+        const r = el.getBoundingClientRect()
+        return r.width > 0 && r.height > 0
+      })
+
+      return targets
+        .filter((el) => {
+          const r = el.getBoundingClientRect()
+          if (r.width >= 24 && r.height >= 24) return false
+          const cx = r.x + r.width / 2
+          const cy = r.y + r.height / 2
+          const nearest = Math.min(
+            ...targets
+              .filter((other) => other !== el)
+              .map((other) => {
+                const q = other.getBoundingClientRect()
+                return Math.hypot(cx - (q.x + q.width / 2), cy - (q.y + q.height / 2))
+              }),
+          )
+          return !(nearest >= 24)
+        })
+        .map((el) => {
+          const r = el.getBoundingClientRect()
+          const label = (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 30)
+          return `${el.tagName.toLowerCase()} "${label}" ${Math.round(r.width)}x${Math.round(r.height)}`
+        })
+    })
+
+    expect(undersized, 'controls below 24x24 CSS px with no spacing exception, at 1280px').toEqual(
+      [],
+    )
+  })
+})
+
+/*
+ * ══ every rendered image carries its own dimensions (SZ-10) ══
+ *
+ * Only one image (`placeholder-webgl.spec.ts:109-126`) was ever checked for this. A
+ * missing `width`/`height` is a Cumulative Layout Shift source the moment the image's
+ * network response is slower than the surrounding layout.
+ */
+test.describe('every rendered image carries its own dimensions (SZ-10)', () => {
+  test('no <img> is missing width or height at 1280px', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const missing = await page.evaluate(() =>
+      [...document.querySelectorAll('img')]
+        .filter((img) => !img.getAttribute('width') || !img.getAttribute('height'))
+        .map((img) => `${img.className || '(unclassed)'} src=${img.getAttribute('src')?.slice(0, 40)}`),
+    )
+    expect(missing, 'an <img> has no explicit width/height').toEqual([])
+  })
+})
+
+/*
+ * ══ the viewer stays usable at two short-viewport conditions (SZ-14) ══
+ *
+ * `apps/cms/e2e/composition.spec.ts`'s own FA-D-06 sweep already covers these two exact
+ * conditions for the site (1024x600, 1280x500 are two of its ten CONDITIONS). The viewer
+ * has no equivalent.
+ *
+ * A-N2, BINDING: measured in DOCUMENT space, `elementBottom + scrollY <= documentHeight -
+ * barHeight`, with NO `scrollTo` anywhere in the assertion path —
+ * `e2e-scroll-not-layout.md` records a version of this shape of check that scrolled
+ * first and so measured the scroll (passed locally by 1px, failed CI by up to 358px).
+ */
+test.describe('the viewer stays usable at two short-viewport conditions (SZ-14)', () => {
+  for (const { name, width, height } of [
+    { name: 'short laptop 1024x600', width: 1024, height: 600 },
+    { name: 'short desktop 1280x500', width: 1280, height: 500 },
+  ]) {
+    test(`no overflow, and the colourway rail and the contact controls both stay reachable at ${name}`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const measured = await page.evaluate(() => {
+        const doc = document.documentElement
+        const bar = document.querySelector('.action-bar') as HTMLElement | null
+        const barVisible = Boolean(bar) && getComputedStyle(bar as HTMLElement).display !== 'none'
+        const barHeight = barVisible ? (bar as HTMLElement).getBoundingClientRect().height : 0
+        const documentHeight = doc.scrollHeight
+        // In DOCUMENT space — the element's own rect plus however far the page has
+        // already scrolled — never `scrollTo` anywhere in this function.
+        const bottomInDocument = (el: Element | null) =>
+          el ? el.getBoundingClientRect().bottom + window.scrollY : null
+        return {
+          overflow: doc.scrollWidth > doc.clientWidth,
+          documentHeight,
+          barHeight,
+          railBottom: bottomInDocument(document.querySelector('.colourways')),
+          contactBottom: bottomInDocument(document.querySelector('.contact__buttons')),
+        }
+      })
+
+      expect(measured.overflow, `sideways scrolling at ${name}`).toBe(false)
+      expect(measured.railBottom, `no .colourways rail found at ${name}`).not.toBeNull()
+      expect(measured.contactBottom, `no .contact__buttons found at ${name}`).not.toBeNull()
+
+      const ceiling = measured.documentHeight - measured.barHeight
+      expect(
+        measured.railBottom,
+        `the colourway rail ends past the reachable document area at ${name} ` +
+          `(rail bottom ${measured.railBottom}, ceiling ${ceiling})`,
+      ).toBeLessThanOrEqual(ceiling + 1)
+      expect(
+        measured.contactBottom,
+        `the contact controls end past the reachable document area at ${name} ` +
+          `(contact bottom ${measured.contactBottom}, ceiling ${ceiling})`,
+      ).toBeLessThanOrEqual(ceiling + 1)
+    })
+  }
+})
+
+/*
+ * ══ the content column stays capped at ultrawide, and the page is not (SZ-15) ══
+ *
+ * `site.css:358,371-382` gives the site's own container a documented cap; the viewer
+ * repeats `max-width: 1200px` as a literal in five places with no test at 2560px on
+ * either surface. `.header` is the full-bleed proof (its own box spans the viewport;
+ * only its PADDING centres the 1200px content), which is what the row's own finding
+ * names.
+ */
+test.describe('the content column stays capped at ultrawide (SZ-15)', () => {
+  test('the header is full-bleed and .content stays at or under 1200px at 2560px', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 2560, height: 1200 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const measured = await page.evaluate(() => ({
+      headerWidth: document.querySelector('.header')?.getBoundingClientRect().width ?? 0,
+      contentWidth: document.querySelector('.content')?.getBoundingClientRect().width ?? 0,
+      viewportWidth: window.innerWidth,
+    }))
+
+    expect(
+      measured.headerWidth,
+      `.header is ${measured.headerWidth}px in a ${measured.viewportWidth}px viewport — it is not full-bleed`,
+    ).toBeGreaterThanOrEqual(measured.viewportWidth - 1)
+    expect(
+      measured.contentWidth,
+      `.content is ${measured.contentWidth}px wide at 2560px — it should stay at or under 1200px`,
+    ).toBeLessThanOrEqual(1200)
+  })
+})
+
+/*
+ * ══ the rendered viewport meta tag is present and sane (SZ-13) ══
+ *
+ * `index.html:5` sets it explicitly, including `viewport-fit=cover` for the notch —
+ * never asserted against a rendered page before. Not compared byte-for-byte against
+ * the site's own tag (SZ-13's own live re-check found them legitimately different).
+ */
+test.describe('the rendered viewport meta tag is present and sane (SZ-13)', () => {
+  test('content includes width=device-width', async ({ page }) => {
+    await page.goto('/n001/wine')
+    const content = await page
+      .locator('meta[name="viewport"]')
+      .getAttribute('content')
+    expect(content, 'no <meta name="viewport"> rendered at all').not.toBeNull()
+    expect(content).toContain('width=device-width')
+  })
+})

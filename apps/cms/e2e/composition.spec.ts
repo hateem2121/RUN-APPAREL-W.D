@@ -783,3 +783,156 @@ test.describe('the serif accent stays within its style and its budget (TY-09)', 
     ).toEqual([])
   })
 })
+
+/*
+ * ══ the facts grid genuinely collapses to one column at 320px (SZ-02) ══
+ *
+ * FA-D-06 above already proves nothing scrolls sideways at 320px; it never asserted the
+ * REFLOW itself. `.facts-grid` (site.css:2258-2274) is explicitly 1 track by default and
+ * gains 2 at 560px, 3 at 900px — the multi-column region this row is about.
+ */
+test.describe('the facts grid genuinely collapses to one column at 320px (SZ-02)', () => {
+  test('one track at 320px, more than one at 1280px', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/')
+    await settle(page)
+    const wide = await page.evaluate(() => {
+      const el = document.querySelector('.facts-grid') as HTMLElement | null
+      return el ? getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length : null
+    })
+    expect(wide, 'no .facts-grid found at 1280px').not.toBeNull()
+    expect(wide, `.facts-grid is already one track at 1280px`).toBeGreaterThan(1)
+
+    await page.setViewportSize({ width: 320, height: 812 })
+    await page.goto('/')
+    await settle(page)
+    const narrow = await page.evaluate(() => {
+      const el = document.querySelector('.facts-grid') as HTMLElement | null
+      return el ? getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length : null
+    })
+    expect(narrow, 'no .facts-grid found at 320px').not.toBeNull()
+    expect(narrow, `.facts-grid did not collapse to one track at 320px`).toBe(1)
+  })
+})
+
+/*
+ * ══ every interactive control clears 24px at a DESKTOP width too (SZ-04) ══
+ *
+ * `navbar.spec.ts` already proves the 44px phone floor; it is on Phase 1b-B's file map,
+ * so the desktop-width WCAG 2.5.8 24px floor is proven here instead, reusing the same
+ * detection logic `motion-and-layout.spec.ts` established for the viewer.
+ */
+test.describe('every interactive control clears 24px at a desktop width too (SZ-04)', () => {
+  for (const path of PAGES) {
+    test(`no control on ${path} is under 24x24 CSS px at 1280px`, async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 900 })
+      await page.goto(path)
+      await settle(page)
+
+      const undersized = await page.evaluate(() => {
+        const targets = [
+          ...document.querySelectorAll<HTMLElement>(
+            'a, button, [role="button"], [role="tab"], input, select, summary',
+          ),
+        ].filter((el) => {
+          const r = el.getBoundingClientRect()
+          return r.width > 0 && r.height > 0
+        })
+
+        return targets
+          .filter((el) => {
+            const r = el.getBoundingClientRect()
+            if (r.width >= 24 && r.height >= 24) return false
+            const cx = r.x + r.width / 2
+            const cy = r.y + r.height / 2
+            const nearest = Math.min(
+              ...targets
+                .filter((other) => other !== el)
+                .map((other) => {
+                  const q = other.getBoundingClientRect()
+                  return Math.hypot(cx - (q.x + q.width / 2), cy - (q.y + q.height / 2))
+                }),
+            )
+            return !(nearest >= 24)
+          })
+          .map((el) => {
+            const r = el.getBoundingClientRect()
+            const label = (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 30)
+            return `${el.tagName.toLowerCase()} "${label}" ${Math.round(r.width)}x${Math.round(r.height)}`
+          })
+      })
+
+      expect(undersized, `${path}: controls below 24x24 CSS px with no spacing exception`).toEqual(
+        [],
+      )
+    })
+  }
+})
+
+/*
+ * ══ every rendered image carries its own dimensions (SZ-10) ══
+ */
+test.describe('every rendered image carries its own dimensions (SZ-10)', () => {
+  for (const path of PAGES) {
+    test(`no <img> on ${path} is missing width or height`, async ({ page }) => {
+      await page.goto(path)
+      await settle(page)
+      const missing = await page.evaluate(() =>
+        [...document.querySelectorAll('img')]
+          .filter((img) => !img.getAttribute('width') || !img.getAttribute('height'))
+          .map(
+            (img) => `${img.className || '(unclassed)'} src=${img.getAttribute('src')?.slice(0, 40)}`,
+          ),
+      )
+      expect(missing, `${path}: an <img> has no explicit width/height`).toEqual([])
+    })
+  }
+})
+
+/*
+ * ══ the content column stays capped at ultrawide, and the hero is not (SZ-15) ══
+ *
+ * `site.css:358,371-382`: `--site-max` is 1180px below 1600px viewport width and 1440px
+ * above it. `.site-hero` is the full-bleed section `.site-container` centres inside.
+ */
+test.describe('the content column stays capped at ultrawide (SZ-15)', () => {
+  test('the hero is full-bleed and .site-container stays at or under 1440px at 2560px', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 2560, height: 1200 })
+    await page.goto('/')
+    await settle(page)
+
+    const measured = await page.evaluate(() => ({
+      heroWidth: document.querySelector('.site-hero')?.getBoundingClientRect().width ?? 0,
+      containerWidth: document.querySelector('.site-container')?.getBoundingClientRect().width ?? 0,
+      viewportWidth: window.innerWidth,
+    }))
+
+    expect(
+      measured.heroWidth,
+      `.site-hero is ${measured.heroWidth}px in a ${measured.viewportWidth}px viewport — it is not full-bleed`,
+    ).toBeGreaterThanOrEqual(measured.viewportWidth - 1)
+    expect(
+      measured.containerWidth,
+      `.site-container is ${measured.containerWidth}px wide at 2560px — it should stay at or under 1440px`,
+    ).toBeLessThanOrEqual(1440)
+  })
+})
+
+/*
+ * ══ the rendered viewport meta tag is present and sane (SZ-13) ══
+ *
+ * The site relies on Next's own default rather than an explicit tag (`layout.tsx:54`
+ * only sets `themeColor`) — never asserted against a rendered page before. Not compared
+ * byte-for-byte against the viewer's own tag: this plan's own live re-check found them
+ * legitimately different (`viewport-fit=cover` is viewer-only, for its notch handling).
+ */
+test.describe('the rendered viewport meta tag is present and sane (SZ-13)', () => {
+  test('content includes width=device-width', async ({ page }) => {
+    await page.goto('/')
+    const content = await page.locator('meta[name="viewport"]').getAttribute('content')
+    expect(content, 'no <meta name="viewport"> rendered at all').not.toBeNull()
+    expect(content).toContain('width=device-width')
+  })
+})
