@@ -290,4 +290,49 @@ describe('XS-02 — one menu bar on both surfaces, styled once (Phase 1b-B)', ()
     expect(restyles('.notch { animation: notch-condense linear both; }')).toEqual([])
     expect(restyles('.footer-legal .nav-link { padding-inline: 0; }')).toEqual([])
   })
+
+  it('renders the same bar on both hosts: every shared marker is in both headers', () => {
+    // The two headers are written in two frameworks (a Next server component with client
+    // islands; a Vite client component), so the markup exists twice. These markers are what
+    // the stylesheet, the popover and the contract suites depend on. Whitespace is collapsed
+    // so the formatter's line breaks cannot matter.
+    const flat = (source: string) => stripComments(source).replace(/\s+/g, ' ')
+    const siteDir = join(CMS_ROOT, 'src', 'components', 'site')
+    const site = flat(
+      ['SiteHeader.tsx', 'NavLinks.tsx', 'ThemeSwitch.tsx']
+        .map((name) => read(siteDir, name))
+        .join('\n'),
+    )
+    const viewer = flat(read(REPO_ROOT, 'apps', 'viewer', 'src', 'components', 'Header.tsx'))
+    const MARKERS = [
+      'className="notch-shell"',
+      'className="notch"',
+      'className="notch__wordmark"',
+      'className="notch__nav" aria-label={SITE_NAV_LABEL}',
+      'className="notch__menu-btn" popoverTarget={SITE_MENU_ID}',
+      'className="notch__icon" aria-hidden="true"',
+      '<span className="visually-hidden">{SITE_MENU_NAME}</span>',
+      'className="notch__menu" id={SITE_MENU_ID} popover="auto"',
+      'SITE_NAV_LINKS.map',
+      'className="nav-link"',
+      'className="theme-toggle"',
+      'theme-toggle__face theme-toggle__face--to-dark',
+      'theme-toggle__face theme-toggle__face--to-light',
+      '<span className="visually-hidden">{THEME_SWITCH_NAMES.toDark}</span>',
+      '<span className="visually-hidden">{THEME_SWITCH_NAMES.toLight}</span>',
+    ]
+    for (const [host, source] of [
+      ['the site', site],
+      ['the viewer', viewer],
+    ] as const) {
+      expect(
+        MARKERS.filter((marker) => !source.includes(marker)),
+        `${host}'s bar lost a shared marker`,
+      ).toEqual([])
+      expect(
+        source.match(/className="notch__icon-line"/g) ?? [],
+        `${host}: three Speed Lines`,
+      ).toHaveLength(3)
+    }
+  })
 })
