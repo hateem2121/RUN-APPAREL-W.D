@@ -198,7 +198,7 @@ Measured at the ends after the change: **320px viewport → -0.015em**,
 **1440px → -0.030em**. The old flat value sat in the middle, so this is looser
 where it was tight and tighter where it was loose.
 
-The wordmark (`.header__wordmark`, `.footer__brand`) keeps a fixed `-0.02em`: it
+The wordmark (`.notch__wordmark`, `.footer__brand`) keeps a fixed `-0.02em`: it
 is display type at a FIXED size, so it has no optical range to follow — and the
 two must agree with each other, which they did not until 2026-08-14.
 
@@ -270,8 +270,7 @@ enforced globally in `base.css`, not per-component.
 | `--text-xs` | 0.8125rem | 13px |
 | `--text-mono` | 0.6875rem | 11px |
 | `--text-mono-sm` | 0.625rem | 10px |
-| `--text-wordmark` | 1.125rem | 18px — `.header__wordmark`, wide |
-| `--text-wordmark-sm` | 1rem | 16px — `.header__wordmark` compact, `.footer__brand`, the marketing site's `.notch__wordmark` |
+| `--text-wordmark-sm` | 1rem | 16px — the bar's `.notch__wordmark`, `.footer__brand` |
 | `--text-note` | 0.875rem | 14px — `.stage__error`, `.notice`, `.contact__micro` |
 | `--text-mono-lg` | 0.75rem | 12px — tracked caps one step above `--text-mono`; since 2026-09-11 also `.btn` and the site's `.nav-link` (audit TY-07) |
 | `--text-card-title` | 1.125rem | 18px — the marketing site's `.product-card__name`; the wordmark's size in a different role |
@@ -330,7 +329,7 @@ and it shipped as 21 literals until 2026-09-05.
 | `--tracking-caps-wide` | 0.14em | `.section-number`, `.footer__line`; the site's `.footer-clock__time small` |
 | `--tracking-caps-compact` | 0.06em | the colourway rail below its 500px container; the site's `.footer-clock__time` |
 | `--tracking-mono` | 0.11em | `.mono` — see the warning below |
-| `--tracking-wordmark` | -0.02em | `.header__wordmark`, `.footer__brand`, the site's `.notch__wordmark`, and the aside heading that borrows it |
+| `--tracking-wordmark` | -0.02em | the bar's `.notch__wordmark`, `.footer__brand`, and the aside heading that borrows it |
 | `--tracking-card-title` | -0.02em | the site's `.product-card__name` |
 | `--tracking-caps-snug` | 0.08em | the marketing site: `.nav-link`, `.product-card__img` alt text, `.product-card__placeholder` |
 | `--tracking-caps-spaced` | 0.16em | the site footer's facts headings, `.footer-block h3`, and the open light `.footer-status` |
@@ -359,7 +358,7 @@ not evidence one is a typo — collapsing them would move `.mono` to 1.32px, a r
 change made to tidy a table.
 
 **`--tracking-wordmark` is the one with a history.** *Display* above records that
-`.header__wordmark` and `.footer__brand` "must agree with each other, which they
+`.notch__wordmark` and `.footer__brand` "must agree with each other, which they
 did not until 2026-08-14". They agreed as two literals for a year; a token is what
 stops the third divergence.
 

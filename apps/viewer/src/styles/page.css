@@ -101,252 +101,43 @@
   }
 }
 
-/* ── Header ────────────────────────────────────────────────────────── */
+/* ── Header: the website's bar, in this page's flow (Phase 1b-B) ──── */
 /*
- * ⚠️ THE SHRINK PROTECTION BELOW IS LOAD-BEARING. Measured live 2026-08-14.
+ * The bar itself is packages/ui/src/notch.css — the website's, by owner decision 2026-09-17
+ * ("Same menu bars everywhere. The one I prefer is at wear-run.help"). Two things are this
+ * page's own.
  *
- * This row had no `flex-wrap` and no shrink protection on any child, so below
- * roughly 430px every child took the browser-default `flex-shrink: 1` and was
- * crushed. Three separate auditors reported this as three separate defects:
+ * ⚠️ STICKY, NOT FIXED. The site fixes its bar over the page; here it stays in the flow, so
+ * the stage band starts where the bar and the label row under it end, and --header-h
+ * (tokens.css) is that start, read off the page by e2e/motion-and-layout.spec.ts ("the
+ * header token matches where the stage band starts"). A fixed bar would need a second
+ * clearance number — the shape this file's stage budget has got wrong four times.
  *
- *   .theme-toggle  44px declared → rendered 2.0px at 320px, 21.1px at 360px
- *                  (under WCAG 2.5.8's 24x24 floor on the commonest Android width)
- *   .header .btn   wrapped to two line-boxes at 320/360/375/390/414, which is
- *                  what inflated the header from 69px to 81px on a phone
- *   the document   scrollWidth 352 vs clientWidth 320 — WCAG 1.4.10 Reflow (AA)
+ * ⚠️ NO SCROLL CONDENSE. The site's bar shrinks 8px over the first 160px of scroll; in the
+ * flow that would move the 3D stage under a thumb that is scrolling it. e2e asserts the bar
+ * keeps its 60px here.
  *
- * It is ONE cause. A declared `width` on a shrinkable flex child is a MAXIMUM,
- * not a floor. Removing `flex-shrink: 0` from either child below puts all three
- * back, and only the 320px row of the e2e matrix will notice — 375 is where the
- * contents happen to still fit, which is why the gate was green for months.
+ * The old header's lessons still hold inside the bar: every control's 44px is a floor only
+ * with `flex-shrink: 0` (a declared width on a shrinkable flex child is a MAXIMUM — the
+ * theme toggle once rendered 2.0px wide at 320px), and notch.css carries both.
  */
-.header {
+.page > .notch-shell {
   position: sticky;
-  top: 0;
-  z-index: var(--z-header);
+  inset-block-start: 0;
+}
+
+/*
+ * `[ 3D PRODUCT REFERENCE ]` on its own line under the bar, at EVERY width — owner decision
+ * 2026-09-17 (V1), phones included (it was hidden under 700px). The first line of <main>, so
+ * it scrolls away. Measured on the live viewer with the new bar injected, 2026-09-23, at eight
+ * viewports from 320x640 to 1440x900: the band starts 23px lower than under the old 69px
+ * header, the canvas gives up exactly those 23px, and the rail keeps its 17px over the action
+ * bar (a best case — a desktop browser at a phone's width has no URL bar).
+ */
+.viewer-tag {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 14px;
-  row-gap: 8px;
-  /*
-   * ⚠️ LEFT AND RIGHT INSETS, ADDED 2026-09-04. `index.html` sets
-   * `viewport-fit=cover`, which tells the browser to lay out UNDER the notch and
-   * the home indicator. The BOTTOM edge was protected in three places from the
-   * start; the sides never were — and the sides are the ones that matter in
-   * LANDSCAPE, where the notch moves to whichever edge the phone was rotated
-   * towards.
-   *
-   * That is not a hypothetical orientation here: the two-column layout is
-   * deliberately selected by `(min-width: 700px) and (min-aspect-ratio: 3/2)`,
-   * i.e. a phone held sideways, and this header spans the full width above it.
-   * `env()` is 0 on every device without a cutout, so this costs nothing anywhere
-   * else — which is also why it is easy to forget and impossible to notice on a
-   * desktop.
-   *
-   * `max()` rather than adding the two: the clamp is already the design's own
-   * gutter, and the inset only needs to WIN when it is larger. Adding them would
-   * push content 16px further in than intended on every notched phone.
-   */
-  /*
-   * ⚠️ THE THIRD TERM IS THE CONTENT COLUMN, ADDED 2026-09-07 (audit FA-D-08).
-   *
-   * This row is full-bleed and everything under it is a 1200px measure centred in
-   * the page, and the two insets were computed independently. They agree until the
-   * viewport passes 1200px and then diverge — measured on the built app, x of the
-   * wordmark against x of `.footer__inner` (which is the same 1200px measure):
-   *
-   *     390   16.0 / 16.0     768   30.7 / 30.7     1024  41.0 / 41.0
-   *     1280  48.0 / 48.0     1440  48.0 / 120.0    1920  48.0 / 360.0
-   *
-   * So from 1200px up the wordmark hung 72px to the left of the page it sits on,
-   * growing to 312px on a 1920 monitor. `max()` of the clamp and the half-gutter is
-   * exactly the footer's own edge at every one of those widths — the two formulas
-   * are equal below 1296px, where the clamp's 48px ceiling and (100% - 1200) / 2
-   * cross — so nothing below 1200 moves.
-   *
-   * The `env()` term stays outermost for the reason above: it must WIN when a notch
-   * is wider than either, and `max()` of all three is the only ordering that does
-   * that regardless of which one is largest.
-   */
-  padding-top: 12px;
-  padding-bottom: 12px;
-  padding-left: max(
-    clamp(16px, 4vw, 48px),
-    calc((100% - 1200px) / 2),
-    env(safe-area-inset-left, 0px)
-  );
-  padding-right: max(
-    clamp(16px, 4vw, 48px),
-    calc((100% - 1200px) / 2),
-    env(safe-area-inset-right, 0px)
-  );
-  background: color-mix(in oklab, var(--bg) 88%, transparent);
-  backdrop-filter: blur(8px); /* the single allowed blurred sticky header */
-  border-bottom: 1px solid var(--line);
-}
-
-/*
- * ⚠️ THIS IS AN <a> AGAIN SINCE 2026-09-07 (owner decision D5) — the four-step
- * history is on the element itself in `Header.tsx`. The rule already carried
- * `text-decoration: none` and `color: var(--text)` from the last time it was a
- * link, so the only thing that changes here is the press/hover/target treatment.
- *
- * `padding-block`, and the numbers are measured rather than reasoned — the first
- * version of this comment claimed the link's box was 19px and needed rescuing. It
- * did not. Measured in the built app at 375x812, all four engines:
- *
- *     without padding-block   24.8 x 143.5   header 69.0
- *     with    padding-block   32.8 x 143.5   header 69.0
- *
- * So it already cleared WCAG 2.5.8's 24px floor — by 0.8px, on a number produced
- * by a font's line box. That is a coincidence, not an invariant, and this file's
- * history is a list of margins that thin being spent by the next change. 8px of
- * padding costs the header NOTHING (the 44px theme toggle sets the row's height)
- * and costs the width nothing (`padding-block` only), which is what the
- * 351px-of-343px arithmetic above depends on.
- */
-.header__wordmark {
-  display: inline-flex;
-  align-items: center;
-  padding-block: 4px;
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-stretch: 122%;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wordmark);
-  font-size: var(--text-wordmark);
-  color: var(--text);
-  text-decoration: none;
-  white-space: nowrap;
-  transition: color var(--ui) var(--ease);
-}
-
-/* Pointer-gated like every other hover in this file: an ungated :hover STICKS
-   after a tap on a phone, which is the device a QR tag is scanned with. */
-@media (hover: hover) and (pointer: fine) {
-  .header__wordmark:hover {
-    color: var(--dimension);
-  }
-}
-
-.header__tag {
-  display: none;
-}
-
-.header__spacer {
-  flex: 1;
-}
-
-.header .btn {
-  flex-shrink: 0; /* see the block comment on .header */
-  white-space: nowrap;
-  /* ⚠️ 40px -> the token, 2026-08-20. `--target-min` is declared 44px under a
-     comment about a control that once shipped 2px wide, and was then overridden
-     to 40 by THREE rules — a floor overridden everywhere it is inconvenient is
-     not a floor. Measured before changing it: this costs the header 0px, because
-     the theme toggle is already 44 and sets the row's height. It was free. */
-  min-height: var(--target-min);
-  padding: 10px 16px;
-}
-
-/*
- * `.header__cta-short` / `.header__cta-long` were DELETED on 2026-09-04, with the
- * "Back to Catalogue" button they styled (owner decision: search traffic must not
- * be handed the catalogue).
- *
- * The pattern is recorded because it solved a real problem and would be the right
- * answer again: the label shortened below 700px rather than wrapping, and the
- * accessible name stayed constant at every width because the LONG form moved
- * offscreen rather than unmounting while the short form was aria-hidden. The
- * naive version — swapping the text — silently changes what a screen reader
- * announces as the viewport changes. `.header__tag` directly above still uses the
- * same breakpoint for the same reason.
- */
-
-/*
- * ⚠️ THE HEADER WAS 117px TALL ON A 375px PHONE — 14% of the viewport, above the
- * garment, on the device this product is opened with. Measured 2026-08-17.
- *
- * The block comment on `.header` above records a 2026-08-14 fix for the same
- * area and states the result as "69px to 81px". Both numbers were stale, and the
- * two bugs are NOT the same one: that fix stopped the label wrapping to two
- * LINE-BOXES inside the button. This is the button itself wrapping to a second
- * FLEX ROW, which `flex-shrink: 0` cannot prevent — it is what makes the items
- * refuse to shrink, so when they do not fit they wrap instead.
- *
- * The arithmetic, at 375px: 343px of content box against
- * 161 (wordmark) + 44 (toggle) + 104 (catalogue) + 3x14 gaps = 351. **Eight
- * pixels short.** Two changes buy 30 of them and neither is visible as a
- * compromise:
- *
- *   column-gap 14 -> 10   (row-gap is left at 8; `gap` shorthand would reset it)
- *   wordmark 18px -> 16px (measured 161px -> 143px wide)
- *
- * Result, measured: 117px -> **69px at both 360px and 375px**, the two commonest
- * phone widths. Those 48px go straight to the garment.
- *
- * ⚠️ It still wraps at 320px, and that is accepted rather than missed. Fitting
- * one row there needs the wordmark under ~124px — a 13.9px logotype — which is
- * not a trade worth making for a width no current phone ships. `--header-h` in
- * tokens.css carries the resulting height, and the stage band subtracts it.
- *
- * ⚠️ THE WRAPPED HEIGHT IS 117px, AND THIS LINE SAID 119px until 2026-08-20.
- * Measured that day against the BUILT app at ten widths: 117.0 at 320, and 69.0
- * at every one of 360, 375, 402, 414, 844, 768, 1280, 1440 and 2560. Two pixels
- * is nothing on its own; it matters because the 320px `--header-h` override
- * below is derived from it, and because a recorded number nobody re-measures is
- * how this file's stage budget went wrong four times.
- */
-@media (max-width: 699px) {
-  .header {
-    column-gap: 10px;
-  }
-
-  .header__wordmark {
-    font-size: var(--text-wordmark-sm);
-  }
-}
-
-@media (min-width: 700px) {
-  .header__tag {
-    display: inline-block;
-  }
-}
-
-/* ── Theme toggle ──────────────────────────────────────────────────── */
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
   justify-content: center;
-  /* flex-shrink: 0 is what makes --target-min a FLOOR. Without it this rendered
-     2.0px wide at 320px — see the block comment on .header. */
-  flex-shrink: 0;
-  width: var(--target-min);
-  height: var(--target-min);
-  border-radius: var(--radius-pill);
-  border: 1.4px solid var(--line);
-  color: var(--text);
-  /* ⚠️ `scale` TAKES --instant AND IS IN THIS LIST RATHER THAN A RULE OF ITS OWN.
-     `base.css` sets `:active { scale: 0.97 }` for this control, and until 2026-09-07
-     no transition covered it, so both edges of the press were hard cuts at 0ms —
-     measured six frames at 0.97 after pointerdown and six at `none` after pointerup
-     (audit FA-H-31). tokens.css names --instant "focus responses and press
-     feedback"; the focus half honoured it and the press half did not.
-     It CANNOT be a separate declaration: `transition` is a shorthand, and a second
-     one REPLACES this list rather than adding to it — which would silently drop the
-     colour transitions above. Same fix, same wording, as `.btn` in base.css. */
-  transition:
-    scale var(--instant) var(--ease),
-    background-color var(--ui) var(--ease),
-    color var(--ui) var(--ease);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .theme-toggle:hover {
-    background: var(--text);
-    color: var(--bg);
-  }
+  padding-block: 8px 0;
 }
 
 /* ── 3D stage ──────────────────────────────────────────────────────── */
@@ -392,7 +183,8 @@
  * than into hidden product. That is the whole design.
  */
 .stage-block {
-  /* Left/right safe-area for the same reason as `.header` above: `viewport-fit=cover`
+  /* Left/right safe-area for the same reason the old header carried it (its own rule
+     was deleted in Phase 1b-B when the bar moved to notch.css): `viewport-fit=cover`
      plus a two-column layout that is selected by a LANDSCAPE aspect ratio, which is
      exactly where a notch sits on a long edge. `max()`, not addition — the inset
      only needs to win when it is larger than the design's own gutter. */
@@ -713,7 +505,12 @@
    in this file's history has been wrong; this one was read off the page.
 
    If a third control is ever added to the header, expect this override to come
-   back — and get the number from that test, not from arithmetic. */
+   back — and get the number from that test, not from arithmetic.
+
+   PHASE 1b-B: the header became the website's bar (60px) with the label row under it, and
+   the guard now compares --header-h with where the stage band starts rather than with the
+   header's height — the number the band subtracts. It read 92px on every stage-band
+   viewport (Task 7); see tokens.css. */
 
 /*
  * The compact garment name, portrait phones only.
@@ -1452,7 +1249,7 @@ model-viewer.stage__model {
 
 .camera-btn {
   min-width: 64px;
-  /* The token, not 40px — see `.header .btn` above. Measured cost: the plinth
+  /* The token, not 40px — the same floor the bar's own controls use (notch.css). Measured cost: the plinth
      goes 44px -> 46px (the pill's own 1px hairline top and bottom), so the
      garment gives up 2px. Against a garment this work has already grown by ~30%
      on the same screens, that is worth an honest floor. */
@@ -2328,16 +2125,11 @@ model-viewer.stage__model {
  * It answered `prefers-color-scheme` and `prefers-reduced-motion` and no other —
  * verified by grep 2026-08-14. Transparency is a real accessibility need
  * (vestibular and low-vision), and this page has three translucent surfaces. The
- * camera controls went fully opaque on their own account above; the header is
- * deliberately translucent and blurred ("the single allowed blurred sticky
- * header"), so it needs this block to opt out.
+ * camera controls went fully opaque on their own account above; the loading card is
+ * translucent, so it needs this block to opt out (the blurred header it also served
+ * was replaced by the website's opaque bar in Phase 1b-B).
  */
 @media (prefers-reduced-transparency: reduce) {
-  .header {
-    background: var(--bg);
-    backdrop-filter: none;
-  }
-
   .stage__loading {
     background: var(--surface);
   }
@@ -2404,13 +2196,6 @@ model-viewer.stage__model {
   :root {
     --line: light-dark(rgba(29, 31, 26, 0.55), rgba(241, 239, 234, 0.55));
     --dimension: var(--text);
-  }
-
-  /* A translucent bar over moving content is the one surface where "more contrast"
-     and "blurred material" are in direct conflict. Contrast wins. */
-  .header {
-    background: var(--bg);
-    backdrop-filter: none;
   }
 }
 
@@ -2635,15 +2420,6 @@ model-viewer.stage__model {
     transform: none;
   }
 }
-.theme-toggle svg {
-  transition: transform var(--ui) var(--ease);
-}
-@media (hover: hover) and (pointer: fine) {
-  .theme-toggle:hover svg {
-    transform: rotate(18deg);
-  }
-}
-
 /*
  * On a phone the rail becomes a WRAPPING GRID — roughly three across, two rows.
  *

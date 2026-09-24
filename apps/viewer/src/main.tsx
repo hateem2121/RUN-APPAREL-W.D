@@ -12,6 +12,7 @@ import '@fontsource/instrument-serif/400-italic.css'
 // tokens.test.ts was written for (a dropped declaration is silent).
 import '@run-apparel/ui/tokens.css'
 import '@run-apparel/ui/base.css'
+import '@run-apparel/ui/notch.css'
 import './styles/page.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'

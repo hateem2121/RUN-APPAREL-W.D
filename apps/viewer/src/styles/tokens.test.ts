@@ -430,7 +430,7 @@ describe('tokens added by the 2026-08-14 audit', () => {
       // The four added 2026-09-05, closing the gap the 2026-08-14 block named in
       // its own comment: it tokenised five of nine and said "nothing to stop a
       // tenth". Seventeen raw declarations were still in the two component sheets.
-      '--text-wordmark: 1.125rem',
+      // --text-wordmark (18px) was deleted in Phase 1b-B with its only reader, the viewer's old header wordmark.
       '--text-wordmark-sm: 1rem',
       '--text-note: 0.875rem',
       '--text-mono-lg: 0.75rem',
@@ -982,7 +982,7 @@ describe('user preferences the stylesheets answer', () => {
   const REQUIRED = [
     ['prefers-color-scheme', 'the light/dark palette'],
     ['prefers-reduced-motion', 'reveals, the cursor, Lenis and the loading sweep'],
-    ['prefers-reduced-transparency', 'the blurred sticky header and the loading card'],
+    ['prefers-reduced-transparency', 'the loading card'],
     ['forced-colors', 'colourway and camera selection, which is fill-inversion only'],
     ['prefers-contrast', 'the 18%-opacity hairlines every panel is separated by'],
   ] as const

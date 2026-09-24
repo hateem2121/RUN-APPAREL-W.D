@@ -128,7 +128,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
     )
 
     await page.goto('/n001/wine')
-    const wordmark = page.locator('a.header__wordmark')
+    const wordmark = page.locator('a.notch__wordmark')
     // ⚠️ Both halves. "/" is the value that rendered UnavailableState, and it is
     // what a future "simplification" back to a same-origin home would reach for.
     await expect(wordmark).toHaveAttribute('href', 'https://wear-run.help')
@@ -249,6 +249,9 @@ test.describe('RUN APPAREL 3D viewer', () => {
   test('theme toggle persists an explicit manual choice', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' })
     await page.goto('/n001/wine')
+    // On a phone the switch is inside the menu (owner, 2026-09-23): open it first.
+    const menu = page.getByRole('button', { name: 'Menu', exact: true })
+    if (await menu.isVisible()) await menu.click()
     await page.getByRole('button', { name: /switch to dark mode/i }).click()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark', {
       timeout: 15_000,
