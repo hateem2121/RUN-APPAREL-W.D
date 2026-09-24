@@ -272,6 +272,9 @@ const PRODUCTS = {
   n002: { productCode: 'N002', productName: 'Sample Without Model', hasGlb: false },
 }
 
+// Per-key request counts for the stall route below. Keyed so tests running in parallel never share a counter.
+const STALL_COUNTS = new Map()
+
 function viewerPayload(origin, colourSlug, productSlug = 'n001') {
   const meta = PRODUCTS[productSlug]
   const colourways = COLOURWAYS.map((c) => colourwayPayload(origin, c))
@@ -359,6 +362,25 @@ const server = http.createServer((req, res) => {
     }
     res.end(JSON.stringify(viewerPayload(origin, apiMatch[2] ?? null, apiMatch[1])))
     return
+  }
+
+  // A model request that answers 200 with its headers and then sends NOTHING, for the first N requests per key —
+  // exactly what Cloudflare's Islamabad edge did on 2026-09-24 (issue #41; its analytics logged status 499, 0
+  // bytes). Not a slow file and not a 5xx: both of those settle on their own, and this must not.
+  //   /fixtures/stall/<key>/<n>/<file>
+  // Request n+1 for a key falls through to the real file below, which is what lets TRY 3D AGAIN be shown to
+  // recover. The held response is released when the browser aborts it (the viewer's retry does exactly that).
+  const stallMatch = url.pathname.match(/^\/fixtures\/stall\/([\w-]+)\/(\d+)\/(.+)$/)
+  if (stallMatch) {
+    const [, key, n, rest] = stallMatch
+    const seen = (STALL_COUNTS.get(key) ?? 0) + 1
+    STALL_COUNTS.set(key, seen)
+    if (seen <= Number(n)) {
+      res.writeHead(200, { 'content-type': 'model/gltf-binary' })
+      res.flushHeaders()
+      return
+    }
+    url.pathname = `/fixtures/${rest}`
   }
 
   // Pipeline assets
