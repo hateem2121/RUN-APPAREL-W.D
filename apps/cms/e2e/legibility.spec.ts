@@ -456,3 +456,82 @@ test.describe('CO-01 / CO-04 / CO-02 / CR-03 — text and control edges clear th
     expect(selection.fg, 'the selection text is not --ink').toBe(selection.ink)
   })
 })
+
+/*
+ * ══ the site's own display type follows the same tracking/leading curve (TY-04, TY-05) ══
+ *
+ * `apps/viewer/e2e/audit-guards.spec.ts` -> "FA-C-54" already proves this for the viewer;
+ * this is the site's own proof, against `.site-hero .display--hero` / `.site-section
+ * .display--section` (`packages/ui/src/base.css:206-213`'s shared `.display--hero`/
+ * `.display--section` classes, with `site.css:456`'s own font-size override for the hero).
+ *
+ * ⚠️ 360/1440 ARE NOT ASSUMED HERE — MEASURED FIRST, since the two apps' clamp ranges
+ * differ (`docs/DESIGN.md` §3). At 360px: hero 34px / section 26px. At 1440px: hero 72px
+ * (its clamp ceiling) / section 46px (its own ceiling, reached by 1280px already). Both
+ * widths give two genuinely different sizes for each class, so the viewer's own split
+ * carries over here too — a coincidence worth stating rather than assuming.
+ *
+ * Scoped to display type only, per this file's own convention: the mono/caps register
+ * (`.mono`, `.label`, `.section-number`) is tuned to constant optical tracking, not this
+ * inverse law, so it is deliberately not measured here.
+ */
+test.describe('TY-04 / TY-05 — the site tracks and leads its display type the same way', () => {
+  const WIDTHS = [360, 1440] as const
+
+  const read = async (page: import('@playwright/test').Page, width: number) => {
+    await page.setViewportSize({ width, height: 1200 })
+    await page.goto('/')
+    await page.evaluate(() => document.fonts.ready)
+    return page.evaluate(() => {
+      const metric = (el: Element | null, label: string) => {
+        if (!el) return null
+        const style = getComputedStyle(el)
+        const size = Number.parseFloat(style.fontSize)
+        const spacing =
+          style.letterSpacing === 'normal' ? 0 : Number.parseFloat(style.letterSpacing)
+        const leading =
+          style.lineHeight === 'normal' ? Number.NaN : Number.parseFloat(style.lineHeight)
+        return { label, size, trackingEm: spacing / size, leadingRatio: leading / size }
+      }
+      const hero = metric(document.querySelector('.site-hero .display--hero'), 'hero')
+      const section = metric(document.querySelector('.site-section .display--section'), 'section')
+      const lede = metric(document.querySelector('.site-lede'), 'lede')
+      return { hero, section, lede }
+    })
+  }
+
+  for (const width of WIDTHS) {
+    test(`the hero tracks tighter than a section heading at ${width}px, both tighter than lede`, async ({
+      page,
+    }) => {
+      const { hero, section, lede } = await read(page, width)
+
+      // The control: both elements must actually be found and at genuinely different
+      // sizes, or the pairwise claim below is vacuous.
+      expect(hero, `.site-hero .display--hero was not found at ${width}px`).not.toBeNull()
+      expect(section, `.site-section .display--section was not found at ${width}px`).not.toBeNull()
+      expect(lede, `.site-lede was not found at ${width}px`).not.toBeNull()
+      const [h, s, l] = [hero!, section!, lede!]
+      expect(
+        h.size,
+        `the hero (${h.size}px) is not larger than a section heading (${s.size}px) at ` +
+          `${width}px, so there is no optical range for the tracking curve to follow`,
+      ).toBeGreaterThan(s.size)
+
+      expect(
+        h.trackingEm,
+        `at ${width}px the hero renders at ${h.size}px tracked ${h.trackingEm.toFixed(4)}em ` +
+          `while a section heading renders at ${s.size}px tracked ${s.trackingEm.toFixed(4)}em. ` +
+          'The larger optical size must be tracked TIGHTER (TY-04).',
+      ).toBeLessThan(s.trackingEm)
+
+      expect(h.leadingRatio, `the hero leads no tighter than the lede at ${width}px (TY-05)`).toBeLessThan(
+        l.leadingRatio,
+      )
+      expect(
+        s.leadingRatio,
+        `a section heading leads no tighter than the lede at ${width}px (TY-05)`,
+      ).toBeLessThan(l.leadingRatio)
+    })
+  }
+})

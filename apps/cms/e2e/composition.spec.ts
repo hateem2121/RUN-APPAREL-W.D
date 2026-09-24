@@ -728,3 +728,58 @@ test.describe('IM-05 / PF-20 — the first gallery poster is requested first', (
       expect(images[3], 'the fourth poster is not lazy').toMatch(/loading="lazy"/)
   })
 })
+
+/*
+ * ══ the serif accent stays within its style and its budget (TY-09, site half) ══
+ *
+ * The viewer's own proof is `apps/viewer/e2e/audit-guards.spec.ts` -> "TY-09". The site
+ * carries two shapes of the same idea: `.serif-accent` spans on the home page
+ * (`packages/ui/src/base.css:224-251`, shared with the viewer) and the footer's own
+ * `.footer-q em` (`site.css:1271-1276`). Both must be italic Instrument Serif, and no
+ * heading may carry more than the 2-word docs/DESIGN.md budget — every current caller
+ * uses exactly one, so this guards a future regression rather than a fact about today's
+ * copy.
+ */
+test.describe('the serif accent stays within its style and its budget (TY-09)', () => {
+  test('every accent is italic Instrument Serif, and no heading exceeds two', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/')
+
+    const measured = await page.evaluate(() => {
+      const accents = [...document.querySelectorAll('.serif-accent, .footer-q em')]
+      const perAccent = accents.map((el) => {
+        const style = getComputedStyle(el)
+        return { fontStyle: style.fontStyle, fontFamily: style.fontFamily }
+      })
+      const headingCounts = new Map<Element, number>()
+      for (const el of accents) {
+        const heading = el.closest('h1, h2, h3, [role="heading"]')
+        if (!heading) continue
+        headingCounts.set(heading, (headingCounts.get(heading) ?? 0) + 1)
+      }
+      return {
+        total: accents.length,
+        perAccent,
+        counts: [...headingCounts.values()],
+        unheaded: accents.length - [...headingCounts.values()].reduce((a, b) => a + b, 0),
+      }
+    })
+
+    // The control: a page with zero accents would pass every claim below vacuously.
+    expect(measured.total, 'no .serif-accent/.footer-q em element was found at all').toBeGreaterThan(
+      0,
+    )
+    expect(measured.unheaded, 'an accent has no heading-role ancestor to budget against').toBe(0)
+
+    const wrongStyle = measured.perAccent.filter((m) => m.fontStyle !== 'italic')
+    expect(wrongStyle, 'a serif accent is not italic').toEqual([])
+    const wrongFamily = measured.perAccent.filter((m) => !m.fontFamily.includes('Instrument Serif'))
+    expect(wrongFamily, 'a serif accent does not resolve through --font-serif').toEqual([])
+
+    const overBudget = measured.counts.filter((count) => count > 2)
+    expect(
+      overBudget,
+      `a heading exceeds the 2-word docs/DESIGN.md budget for serif accents (counts: ${measured.counts.join(', ')})`,
+    ).toEqual([])
+  })
+})
