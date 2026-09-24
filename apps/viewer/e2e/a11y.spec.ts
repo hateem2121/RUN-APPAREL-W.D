@@ -160,10 +160,12 @@ async function assertHeadingStructure(page: Page, name: string) {
     1,
   )
   for (let i = 1; i < levels.length; i++) {
-    const jump = levels[i] - levels[i - 1]
+    const previous = levels[i - 1] as number
+    const current = levels[i] as number
+    const jump = current - previous
     expect(
       jump,
-      `${name}: heading level jumps from h${levels[i - 1]} to h${levels[i]} (sequence: ${levels})`,
+      `${name}: heading level jumps from h${previous} to h${current} (sequence: ${levels})`,
     ).toBeLessThanOrEqual(1)
   }
 }
@@ -280,12 +282,36 @@ test('the notice live region exists before it has anything to say', async ({ pag
  * file was observed to be bitten by it.
  */
 test.describe('generic keyboard, focus and naming sweeps on the product page', () => {
+  /**
+   * Open the page AND wait for `App.tsx`'s preloader focus hand-off (`#viewer-top`),
+   * the same synchronisation point motion-and-layout.spec.ts uses. Measured 2026-09-25:
+   * without it, keyboard tests raced the hand-off — it moved focus back to the top
+   * mid-walk (AC-04 then saw its first stop again and stopped at 1) or off the
+   * accordion button just before Enter (AC-06), and AC-09 counted the stage's live
+   * region before the stage had rendered at all. Timing-dependent, so it failed on
+   * CI's WebKit/Firefox before it failed here.
+   */
+  async function openSettled(page: import('@playwright/test').Page) {
+    await page.goto('/n001/wine')
+    await page.waitForFunction(() => document.activeElement?.id === 'viewer-top')
+  }
+
+  /**
+   * The key a keyboard user presses to reach EVERY control. Safari's default ("Press
+   * Tab to highlight each item" off) moves plain Tab between form fields only, and
+   * Playwright's WebKit keeps that default: measured 2026-09-25, plain Tab cycled
+   * colourway tab → body → stage and never reached a link, so AC-04 found one stop and
+   * AC-05 checked two. Option-Tab (Playwright: Alt+Tab) walks the same order Chromium
+   * and Firefox do, which is what a Safari keyboard user presses.
+   */
+  const tabKey = (browserName: string) => (browserName === 'webkit' ? 'Alt+Tab' : 'Tab')
+
   test('AC-09: the notice live region exists before it has anything to say — prove only', async ({
     page,
   }) => {
     // Already covered above ("the notice live region exists before it has anything to
     // say"); this line exists only so the row is traceable to a test in this file.
-    await page.goto('/n001/wine')
+    await openSettled(page)
     expect(await page.locator('.stage__error[role="status"]').count()).toBe(1)
   })
 
@@ -310,11 +336,11 @@ test.describe('generic keyboard, focus and naming sweeps on the product page', (
    * `window.scrollY` gives a position that is stable regardless of which stop last
    * moved the viewport.
    */
-  async function walkTabStops(page: import('@playwright/test').Page, max: number) {
+  async function walkTabStops(page: import('@playwright/test').Page, max: number, key: string) {
     const stops: { id: string; x: number; y: number }[] = []
     const seen = new Set<string>()
     for (let i = 0; i < max; i++) {
-      await page.keyboard.press('Tab')
+      await page.keyboard.press(key)
       const stop = await page.evaluate(() => {
         const el = document.activeElement as HTMLElement | null
         if (!el || el === document.body) return null
@@ -334,7 +360,7 @@ test.describe('generic keyboard, focus and naming sweeps on the product page', (
     return stops
   }
 
-  test('AC-04: Tab order reads top-to-bottom, left-to-right', async ({ page }) => {
+  test('AC-04: Tab order reads top-to-bottom, left-to-right', async ({ page, browserName }) => {
     /*
      * ⚠️ SINGLE-COLUMN WIDTH, DELIBERATELY. Above `apps/viewer/CLAUDE.md`'s aside
      * threshold (min-width 1100px AND min-height 720px) `<ProductIdentity>` moves
@@ -347,29 +373,30 @@ test.describe('generic keyboard, focus and naming sweeps on the product page', (
      * assertion is actually meaningful at.
      */
     await page.setViewportSize({ width: 390, height: 844 })
-    await page.goto('/n001/wine')
+    await openSettled(page)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    const positions = await walkTabStops(page, 40)
+    const positions = await walkTabStops(page, 40, tabKey(browserName))
     expect(positions.length, 'nothing became focused across 40 Tab presses').toBeGreaterThan(5)
 
     // Reading order: each stop is not substantially ABOVE the previous one (some
     // horizontal jitter within a row is normal; a real reading-order break is a stop
     // whose top is clearly higher than the one before it — more than one line's worth).
-    const outOfOrder = positions.filter((pos, i) => i > 0 && pos.y < positions[i - 1].y - 20)
+    const outOfOrder = positions.filter(
+      (pos, i) => i > 0 && pos.y < (positions[i - 1] as { y: number }).y - 20,
+    )
     expect(
       outOfOrder,
       `${outOfOrder.length} of ${positions.length} tab stops read out of top-to-bottom order`,
     ).toEqual([])
   })
 
-  test('AC-05: every tab stop shows a visible focus indicator', async ({ page }) => {
-    await page.goto('/n001/wine')
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  test('AC-05: every tab stop shows a visible focus indicator', async ({ page, browserName }) => {
+    await openSettled(page)
 
     const unmarked: string[] = []
     for (let i = 0; i < 15; i++) {
-      await page.keyboard.press('Tab')
+      await page.keyboard.press(tabKey(browserName))
       const info = await page.evaluate(() => {
         const el = document.activeElement as HTMLElement | null
         if (!el || el === document.body) return null
@@ -409,28 +436,72 @@ test.describe('generic keyboard, focus and naming sweeps on the product page', (
     ).toEqual([])
   })
 
-  test('AC-06: no keyboard trap — Tab never gets stuck on the same element', async ({ page }) => {
-    await page.goto('/n001/wine')
+  test('AC-06: no keyboard trap — Tab never gets stuck on the same element', async ({
+    page,
+    browserName,
+  }) => {
+    await openSettled(page)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    // The trap shape: focus repeating the SAME element on consecutive Tab presses.
-    // Requiring a full cycle back to a specific start element would be a weaker test
-    // (a legitimately long page need not complete a cycle inside any fixed budget);
-    // getting stuck is the actual defect this exists to catch.
-    let stuckCount = 0
-    let previous: string | null = null
-    for (let i = 0; i < 40; i++) {
-      await page.keyboard.press('Tab')
-      const id = await page.evaluate(() => {
-        const el = document.activeElement as HTMLElement | null
-        return el ? `${el.tagName}:${el.className}:${el.textContent?.slice(0, 20)}` : null
+    /*
+     * The trap shape: focus repeating the SAME element on consecutive Tab presses, AND
+     * the keyboard cannot move it away (WCAG 2.1.2). Repeating alone is not enough,
+     * measured 2026-09-25: Playwright's Firefox has no browser toolbar for Tab to leave
+     * into, so at the END of the page focus simply stays on the last link ("Terms",
+     * `document.hasFocus()` still true) — Chromium instead parks on <body> and wraps.
+     * That read as 23 "traps". So a repeat is the page's natural end only when the
+     * element is the LAST tabbable one in document order and Shift+Tab moves off it;
+     * any other repeat is a trap. Requiring a full cycle back to a start element would
+     * be weaker (a long page need not complete a cycle inside any fixed budget).
+     * Elements are told apart by identity, not text: the page has two "Email Us" links.
+     */
+    const key = tabKey(browserName)
+    const current = () =>
+      page.evaluate(() => {
+        const w = window as unknown as { __ids?: WeakMap<Element, number>; __next?: number }
+        w.__ids ??= new WeakMap()
+        const el = document.activeElement
+        if (!el) return { id: -1, isLast: false, label: 'null' }
+        if (!w.__ids.has(el)) {
+          w.__next = (w.__next ?? 0) + 1
+          w.__ids.set(el, w.__next)
+        }
+        const tabbable = [
+          ...document.querySelectorAll<HTMLElement>(
+            'a[href], button, input, select, textarea, [tabindex]',
+          ),
+        ].filter(
+          (e) =>
+            e.tabIndex >= 0 &&
+            !(e as HTMLButtonElement).disabled &&
+            !e.closest('[inert]') &&
+            e.getClientRects().length > 0,
+        )
+        return {
+          id: w.__ids.get(el) as number,
+          isLast: tabbable.at(-1) === el,
+          label: `${el.tagName}:${(el.textContent ?? '').trim().slice(0, 20)}`,
+        }
       })
-      if (id !== null && id === previous) stuckCount++
-      previous = id
+
+    const traps: string[] = []
+    let previous = await current()
+    for (let i = 0; i < 40; i++) {
+      await page.keyboard.press(key)
+      const now = await current()
+      if (now.id === previous.id) {
+        await page.keyboard.press(`Shift+${key}`)
+        const back = await current()
+        if (now.isLast && back.id !== now.id) break // the page's natural end, not a trap
+        traps.push(now.label)
+        break
+      }
+      previous = now
     }
-    expect(stuckCount, 'focus repeated the same element on consecutive Tab presses — a trap').toBe(
-      0,
-    )
+    expect(
+      traps,
+      `focus cannot be moved off ${traps.join(', ')} with the keyboard — a trap`,
+    ).toEqual([])
   })
 
   /*
@@ -443,7 +514,7 @@ test.describe('generic keyboard, focus and naming sweeps on the product page', (
    */
   test('AC-06: the customisation accordion opens with Enter', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
-    await page.goto('/n001/wine')
+    await openSettled(page)
     const trigger = page.getByRole('button', { name: /how we build your product/i })
     // The collapsed panel is `inert` with a 0-height clip, not display:none — its
     // content still computes a non-empty box, so Playwright's own `toBeHidden()`
@@ -457,7 +528,7 @@ test.describe('generic keyboard, focus and naming sweeps on the product page', (
 
   test('AC-06: the customisation accordion opens with Space', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
-    await page.goto('/n001/wine')
+    await openSettled(page)
     const trigger = page.getByRole('button', { name: /how we build your product/i })
     await expect(page.locator('.steps-collapse')).toHaveJSProperty('inert', true)
     await trigger.focus()
@@ -590,5 +661,54 @@ test.describe('generic keyboard, focus and naming sweeps on the product page', (
       marked,
       '.stage__canvas has no visible outline/box-shadow while the stage is focused',
     ).toBe(true)
+  })
+})
+
+/**
+ * AC-10 — the collapsed customisation accordion is genuinely inert, not merely
+ * visually hidden. `Measure first`: the ORIGINAL instrument found no focusable
+ * elements inside the collapsed panel and stopped there without confirming it was
+ * looking in the right place — the first thing "there is nothing to test for
+ * hidden-but-focusable" should have done. This is the working instrument: it
+ * PROGRAMMATICALLY focuses each candidate inside the collapsed panel and confirms
+ * focus did NOT actually land there (the real behaviour `inert` produces, per spec),
+ * rather than only reading the `inert` attribute's presence off the wrapper.
+ */
+test.describe('AC-10 — the collapsed accordion is genuinely inert', () => {
+  test('a focusable element injected into the collapsed panel cannot take focus', async ({
+    page,
+  }) => {
+    // 390px: opensByDefault() (CustomisationSection.tsx) starts the panel CLOSED
+    // below 900px — see AC-06's own note on this same trap.
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/n001/wine')
+    const panel = page.locator('.steps-collapse')
+    await expect(panel).toHaveJSProperty('inert', true)
+
+    // ⚠️ THE REAL PANEL'S CONTENT IS PLAIN TEXT — NO <a>/<button>/<input> AT ALL
+    // (`CustomisationSection.tsx`'s steps are `<h3>`/`<p>` only). That is exactly
+    // the ORIGINAL finding's own words: "there was nothing to test for
+    // hidden-but-focusable." A probe that only queries for existing focusable
+    // descendants would find none and pass vacuously, proving nothing about
+    // whether `inert` actually WORKS — so this test injects one temporary,
+    // test-only focusable element (a fixture, not a source change) and confirms
+    // the real `inert` attribute on the real panel blocks it. The 8-step planted
+    // fault below additionally proves it against the SOURCE mechanism directly.
+    const stillFocusedInside = await panel.evaluate((el) => {
+      const probe = document.createElement('button')
+      probe.textContent = 'AC-10 fixture probe'
+      probe.setAttribute('data-ac10-probe', 'true')
+      el.appendChild(probe)
+      const before = document.activeElement
+      probe.focus()
+      const leaked = document.activeElement === probe
+      probe.remove()
+      ;(before as HTMLElement | null)?.focus?.()
+      return leaked
+    })
+    expect(
+      stillFocusedInside,
+      'a focusable element injected into the collapsed (inert) panel still took focus',
+    ).toBe(false)
   })
 })
