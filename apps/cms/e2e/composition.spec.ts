@@ -302,6 +302,10 @@ test.describe('FA-R-09 / FA-H-12 — the footer tab reserves its arrow and never
         arrowOpacity: Number(getComputedStyle(arrow).opacity),
         arrowWidth: getComputedStyle(arrow).width,
         arrowText: (arrow.textContent ?? '').trim(),
+        // CR-01: the tab presses with COLOUR, never a corner-radius change — site.css:1122-1123
+        // declares the fillets once and the hover query (:1184-1211) never touches them.
+        radiusStart: getComputedStyle(el).borderStartStartRadius,
+        radiusEnd: getComputedStyle(el).borderStartEndRadius,
       }
     })
 
@@ -323,15 +327,16 @@ test.describe('FA-R-09 / FA-H-12 — the footer tab reserves its arrow and never
     await expect.poll(labelShift).toBe(0)
 
     const hovered = await page.evaluate(() => {
-      const box = (
-        document.querySelector('.site-footer__tab') as HTMLElement
-      ).getBoundingClientRect()
+      const el = document.querySelector('.site-footer__tab') as HTMLElement
+      const box = el.getBoundingClientRect()
       const arrow = document.querySelector('.site-footer__tab-arrow') as HTMLElement
       return {
         left: box.left,
         right: box.right,
         width: box.width,
         arrowOpacity: Number(getComputedStyle(arrow).opacity),
+        radiusStart: getComputedStyle(el).borderStartStartRadius,
+        radiusEnd: getComputedStyle(el).borderStartEndRadius,
       }
     })
 
@@ -340,6 +345,14 @@ test.describe('FA-R-09 / FA-H-12 — the footer tab reserves its arrow and never
     expect(Math.abs(hovered.width - rest.width), 'the tab resized on hover').toBeLessThan(0.05)
     expect(Math.abs(hovered.left - rest.left), 'the left fillet moved').toBeLessThan(0.05)
     expect(Math.abs(hovered.right - rest.right), 'the right fillet moved').toBeLessThan(0.05)
+    // CR-01: a direct measurement, not an inference from the width/fillet checks above —
+    // those would also pass if the tab pressed by resizing its corners symmetrically.
+    expect(hovered.radiusStart, 'the tab changed its corner radius on hover (CR-01)').toBe(
+      rest.radiusStart,
+    )
+    expect(hovered.radiusEnd, 'the tab changed its corner radius on hover (CR-01)').toBe(
+      rest.radiusEnd,
+    )
 
     // FA-H-12: the tab hints in the direction of travel, and can only do that if the
     // arrow is reserved at rest and revealed on hover.
@@ -935,4 +948,45 @@ test.describe('the rendered viewport meta tag is present and sane (SZ-13)', () =
     expect(content, 'no <meta name="viewport"> rendered at all').not.toBeNull()
     expect(content).toContain('width=device-width')
   })
+})
+
+/*
+ * ══ the mono/caps register is genuinely uppercase everywhere it appears (CR-06) ══
+ *
+ * The tracker's own finding ("mono, uppercase, bracketed... nothing odd") was a visual
+ * judgement made once, over contact sheets. The mechanically-checkable HALF of it: the
+ * three classes driving that register (`.mono`, `.label`, `.section-number`) genuinely
+ * apply `text-transform: uppercase` wherever they are used, on every sampled page.
+ *
+ * What this does NOT prove: that CMS-authored CONTENT never contains a stray bracket or
+ * an inconsistent abbreviation. That half stays a human judgement call over contact
+ * sheets — this test does not duplicate that infrastructure.
+ */
+test.describe('the mono/caps register is genuinely uppercase everywhere (CR-06)', () => {
+  for (const path of PAGES) {
+    test(`every .mono / .label / .section-number on ${path} is uppercase`, async ({ page }) => {
+      await page.goto(path)
+      await settle(page)
+
+      const measured = await page.evaluate(() => {
+        const els = [
+          ...document.querySelectorAll('.mono, .label, .section-number'),
+        ] as HTMLElement[]
+        return els.map((el) => ({
+          selector: `${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]}`,
+          textTransform: getComputedStyle(el).textTransform,
+          text: (el.textContent ?? '').trim().slice(0, 30),
+        }))
+      })
+
+      // The control: a page with none of these classes would pass vacuously.
+      test.skip(measured.length === 0, `${path} has no .mono/.label/.section-number element`)
+
+      const wrong = measured.filter((m) => m.textTransform !== 'uppercase')
+      expect(
+        wrong.map((m) => `${m.selector} is "${m.textTransform}": "${m.text}"`),
+        `${path}: an element in the mono/caps register is not text-transform: uppercase`,
+      ).toEqual([])
+    })
+  }
 })
