@@ -68,8 +68,7 @@ export function missingRawExport(detail: string): string | null {
   return (
     'The uploaded file has expired from the upload store, so there is nothing to shrink — ' +
     'uploads are kept for 14 days and this one is older. Upload the CLO export again as a new ' +
-    'raw upload (a successful run now also copies the export into the archive bucket, so a ' +
-    'garment processed after 2026-09-03 keeps a permanent copy).'
+    'raw upload.'
   )
 }
 

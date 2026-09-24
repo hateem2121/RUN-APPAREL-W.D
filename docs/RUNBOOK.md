@@ -1703,11 +1703,13 @@ file. And before queuing anything the hook asks the ingest bucket whether the fi
 still there: after the 14 days it writes *"This file has expired from the upload
 store … Upload the CLO export again"* into `Report`, sets Failed, and queues nothing
 (`apps/cms/src/collections/rawUploadRetry.ts`). The robot answers the same way if
-the file expires while a job waits. To stop the loss happening again, **every
-successful run now copies the raw export into the archive bucket** under
-`raw-exports/robot/<key>` (`apps/shrink/src/archiveRaw.ts`) and says so at the end of
-`Report`; that copy has no expiry, so a garment processed after 2026-09-03 can always
-be re-run from it.
+the file expires while a job waits. **There is no off-machine copy to fall back on**:
+an R2 bucket once covered this gap by keeping every successful run's raw export under
+its own copy with no expiry, but that bucket existed only from 2026-09-02 to
+2026-09-24, when the owner retired it (docs/BACKUP-RESTORE.md). After the 14 days the
+only way back is the path every first-time garment already uses: upload the CLO export
+again as a new raw upload, from the owner's own copy (kept on the Mac only), and point
+it at the same product.
 
 **This is the only way to start a re-run.** The job is enqueued by an `afterChange`
 hook on the collection (`apps/cms/src/collections/RawUploads.ts`), which fires only

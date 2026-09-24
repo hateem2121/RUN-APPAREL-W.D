@@ -293,12 +293,16 @@ events endpoint is under load.
 - **`sortOrder` is a plain `number` with no uniqueness rule**, so **10.5** inserts a product
   between 10 and 11 without renumbering the other 67. That is how `R-AJM` landed directly
   after `R-AJ`.
-- **🟢 A corrected export is usually already in R2** under
-  `run-apparel-archive/fixed-glbs/…`, so `scripts/ingest-from-archive.mjs` starts a shrink
-  from an S3 `CopyObject` — measured 16.9 MB in 4.9 s and 1.71 GiB in 110 s, inside
-  Cloudflare — instead of a browser re-upload up a link measured at ~300 kB/s. 🟢 Its
-  `clientUploadContext` must be TRUTHY, or `@payloadcms/storage-r2` skips its own >50 MB
-  short-circuit and the CMS Worker tries to buffer the whole object to satisfy a create.
+- **🟢 A corrected export now starts from local disk, always.** Until 2026-09-24 one
+  usually already sat in R2 under `run-apparel-archive/fixed-glbs/…`, and
+  scripts/ingest-from-archive.mjs started a shrink from an S3 `CopyObject` there —
+  measured 16.9 MB in 4.9 s and 1.71 GiB in 110 s, inside Cloudflare. That archive bucket
+  was retired by owner decision (docs/BACKUP-RESTORE.md); the script is gone with it, so
+  every re-ingestion is now a fresh upload from the owner's Mac, the same as a first-time
+  garment — `scripts/ingest-local-glb.mjs`, or a browser upload through the CMS at
+  ~300 kB/s. 🟢 Its `clientUploadContext` must be TRUTHY, or `@payloadcms/storage-r2`
+  skips its own >50 MB short-circuit and the CMS Worker tries to buffer the whole object
+  to satisfy a create.
 
 ## The public site footer
 
