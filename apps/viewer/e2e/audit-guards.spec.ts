@@ -2191,8 +2191,10 @@ test.describe('SC-05 — one wheel tick settles quickly', () => {
     )
     const final = samples.at(-1)?.y ?? 0
     const firstMove = samples.find((s) => s.y !== samples[0]?.y)?.t ?? 0
-    let lastFar = 0
-    for (const s of samples) if (Math.abs(s.y - final) >= 1) lastFar = s.t
+    let lastFar = firstMove
+    // Only frames AFTER movement began: an instant (one-frame) scroll has no far sample
+    // after it and settles in 0ms — the first version read -8 to -48ms here (2026-09-25).
+    for (const s of samples) if (s.t >= firstMove && Math.abs(s.y - final) >= 1) lastFar = s.t
     const settleMs = Math.round(lastFar - firstMove)
     console.log(`SC-05 measured: moved ${final}px, settled ${settleMs}ms after it started`)
     expect(
