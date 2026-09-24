@@ -259,3 +259,93 @@ test.describe('RO-09 — every contact-form error route renders its own message'
     await expect(page.locator('.form-notice')).toHaveCount(0)
   })
 })
+
+/**
+ * AC-12 — every contact-form field has a real `<label>` (not just a placeholder,
+ * per `page.tsx`'s own comment on why it carries none) and a sensible `autocomplete`
+ * value.
+ *
+ * ⚠️ "REQUIRED FIELDS ARE MARKED IN WORDS" IS NOT ASSERTED HERE — a real gap, not an
+ * oversight: today only Company carries an explicit "(optional)" word; Name, Email
+ * and Message have no visible "(required)"/asterisk text at all, only the native
+ * `required` attribute. Adding that word is a visible-copy change, which this batch's
+ * brief reserves for an owner decision rather than an invented string — flagged in
+ * the build report, not guessed at here.
+ */
+test.describe('AC-12 — contact-form fields carry a real label and sensible autocomplete', () => {
+  test('every input/textarea has an associated label and a non-empty autocomplete', async ({
+    page,
+  }) => {
+    await page.goto('/contact')
+    const fields = await page.evaluate(() => {
+      const controls = [
+        ...document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+          '.inquiry-form input, .inquiry-form textarea',
+        ),
+        // The honeypot deliberately shares the same label pattern — included so a
+        // regression there is caught by the same sweep, not a separate one.
+      ].filter((el) => el.type !== 'submit')
+      return controls.map((el) => {
+        const label = el.closest('label') ?? document.querySelector(`label[for="${el.id}"]`)
+        return {
+          name: el.name,
+          hasLabel: Boolean(label && (label.textContent ?? '').trim().length > 0),
+          autocomplete: el.autocomplete,
+        }
+      })
+    })
+    expect(fields.length, 'no form fields found on /contact').toBeGreaterThan(0)
+    const unlabelled = fields.filter((f) => !f.hasLabel)
+    expect(
+      unlabelled,
+      `fields with no associated <label> text: ${JSON.stringify(unlabelled)}`,
+    ).toEqual([])
+    // The honeypot's autocomplete is "off" on purpose (page.tsx's own comment). "message"
+    // is excluded too — a free-text "what are you making?" field has no applicable
+    // WHATWG autocomplete token at all (name/email/tel/organization etc. are for a
+    // known, structured PURPOSE; free prose is not one), so requiring a value there
+    // would be inventing a requirement the spec itself does not make. Every other,
+    // structured field must carry a real, non-empty, non-"off" value.
+    const missingAutocomplete = fields.filter(
+      (f) =>
+        !['website', 'message'].includes(f.name) && (!f.autocomplete || f.autocomplete === 'off'),
+    )
+    expect(
+      missingAutocomplete,
+      `fields with no sensible autocomplete: ${JSON.stringify(missingAutocomplete)}`,
+    ).toEqual([])
+  })
+})
+
+/**
+ * AC-13 — the honeypot is imperceptible on BOTH axes together: `aria-hidden="true"`
+ * (already proven in SE-11 above, by ancestor) AND visually imperceptible via the
+ * `.inquiry-form__trap` clip pattern (`site.css`'s own comment: "VISUALLY HIDDEN, NOT
+ * display: none" — a bot that skips CSS-hidden fields still fills this one in). Both
+ * together, not just one: a field that is only `aria-hidden` but visually normal-sized
+ * could still be filled in by a SIGHTED human tabbing past it by accident (it has
+ * `tabIndex={-1}` too, but this test is about the visual half specifically).
+ */
+test.describe('AC-13 — the honeypot is imperceptible on both axes', () => {
+  test('aria-hidden AND a near-zero, clipped visual footprint, together', async ({ page }) => {
+    await page.goto('/contact')
+    const trap = page.locator('.inquiry-form__trap')
+    const state = await trap.evaluate((el) => {
+      const style = getComputedStyle(el)
+      const box = el.getBoundingClientRect()
+      return {
+        ariaHidden: el.getAttribute('aria-hidden'),
+        width: box.width,
+        height: box.height,
+        overflow: style.overflow,
+        position: style.position,
+      }
+    })
+    expect(state.ariaHidden, 'the honeypot wrapper lost aria-hidden').toBe('true')
+    expect(state.width, `honeypot width is ${state.width}px, not near-zero`).toBeLessThanOrEqual(2)
+    expect(state.height, `honeypot height is ${state.height}px, not near-zero`).toBeLessThanOrEqual(
+      2,
+    )
+    expect(state.overflow, 'the honeypot is not clipped').toBe('hidden')
+  })
+})
