@@ -578,6 +578,14 @@ describe('quoted settings', () => {
     expect(check('CLAUDE.md', note('deno')).map((s) => s.quote)).toEqual(['types: ["deno"]'])
   })
 
+  it('reads a CSS custom property, both ways', () => {
+    // apps/viewer/CLAUDE.md quotes `--reveal-y: 24px`, the token packages/ui/src/tokens.css
+    // sets. Without the leading `--` in the pattern that quote would not be read at all.
+    const note = (px: number) => `Offset \`--reveal-y: ${px}px\` (\`packages/ui/src/tokens.css\`).`
+    expect(check('CLAUDE.md', note(24))).toEqual([])
+    expect(check('CLAUDE.md', note(99)).map((s) => s.quote)).toEqual(['--reveal-y: 99px'])
+  })
+
   it('NEGATIVE CONTROL: an allowed quote is allowed only in its own note', () => {
     // Allowed in CLAUDE.md, where it records gh output; the same words anywhere else are
     // checked like any other quote.

@@ -19,9 +19,10 @@
  * can quote JSON the way YAML is written.
  *
  * Markdown counts only through its frontmatter, which is where an agent's `model:` and a
- * skill's `disable-model-invocation:` live. A note's frontmatter backs its own sentences,
- * and another note's only when a sentence names that file. Otherwise notes are never
- * evidence for each other, because two notes can repeat the same stale quote.
+ * skill's `disable-model-invocation:` live. A note's own frontmatter backs its sentences
+ * that name no file. Another note's frontmatter counts only for a sentence that names that
+ * note. Otherwise notes are never evidence for each other, because two notes can repeat
+ * the same stale quote.
  *
  * WHY THE NAMED FILE MATTERS. `cancel-in-progress: true` is still true of three other
  * workflows (android-chrome, lighthouse-live and voiceover). "Somewhere in the repo"
