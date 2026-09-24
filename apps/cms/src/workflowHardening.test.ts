@@ -662,15 +662,16 @@ jobs:
    * 2026-08-30, AND THAT WAS WRONG IN A WAY THAT MATTERED. It is a REPOSITORY
    * ruleset — `gh api repos/hateem2121/RUN-APPAREL-W.D/rulesets/<id>` (the org ruleset
    * 21016174 died with the organisation on 2026-09-02; see .github/CLAUDE.md) returns
-   * `"source_type": "Repository"` and its five contexts under the ordinary `repo`
+   * `"source_type": "Repository"` and its contexts under the ordinary `repo`
    * scope. So the manual check is one command, not an impossibility, and believing
    * otherwise is why it was never made part of the routine.
    *
-   * It still cannot be automated HERE: the endpoint needs Administration:read, and
-   * `GITHUB_TOKEN` has no `administration` permission, so a workflow cannot read it
-   * either. A test that reached the network would also be the wrong trade. The
-   * correct conclusion is "check it by hand, here is the command" — not "it cannot
-   * be checked".
+   * It is automated since 2026-09-24, but NOT here: a unit test must not reach the
+   * network. The repo is public, so GitHub's rules-for-a-branch endpoint answers with
+   * no admin rights, and .github/workflows/required-checks.yml runs
+   * scripts/check-required-checks.mjs on `main` (daily, and after every ci.yml change)
+   * to compare the two lists. It runs on main and not on pull requests because a check
+   * may join the ruleset only after a workflow on main posts it.
    */
   it('gates the deploy on every job except the declared non-gating ones', async () => {
     // `lighthouse` is deliberately non-gating and ci.yml says why: its category scores
@@ -685,9 +686,9 @@ jobs:
 
     expect(
       ungated,
-      'A ci.yml job does not gate the deploy. Add it to `deploy.needs` — AND to the\n' +
-        "`main` ruleset's required status checks, which this test cannot see — or add it\n" +
-        'to NON_GATING here with the reason written beside the job.\n' +
+      'A ci.yml job does not gate the deploy. Add it to `deploy.needs` — AND, once it is\n' +
+        "on main, to the `main` ruleset's required status checks (required-checks.yml\n" +
+        'reports that half) — or add it to NON_GATING here with the reason beside the job.\n' +
         `${ungated.join('\n')}`,
     ).toEqual([])
   })

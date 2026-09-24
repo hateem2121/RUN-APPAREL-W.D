@@ -96,8 +96,10 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
     --jq '[.rules[]|select(.type=="required_status_checks").parameters.required_status_checks[].context]'
   ```
   Since the repo went public it is readable without any token (an anonymous `GET` of
-  `rulesets/22763709` returned all six on 2026-09-24), so a CI check comparing it with
-  `deploy.needs` is possible; none exists yet. It holds
+  `rulesets/22763709` returned all six on 2026-09-24), and
+  `.github/workflows/required-checks.yml` now compares it with `deploy.needs` on `main`,
+  daily and after every `ci.yml` change (`scripts/check-required-checks.mjs`; it never
+  gates a pull request, for the ORDER reason below). It holds
   🟡 **six** checks (read 2026-09-24) — the Actions jobs `verify`, `e2e`, `audit`, `secrets`
   and `artwork`, all bound to integration 15368, plus **`Socket Security: Pull Request
   Alerts`** (integration 156372, added for L8-05 so a malicious-dependency finding can
@@ -305,10 +307,11 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   the harness.
 
 - **🟡 `gh run rerun --failed` CAN CANCEL ITSELF ON THIS WORKFLOW, and reports `cancelled`
-  rather than an error.** Measured 2026-09-07. `ci.yml` sets
-  `concurrency: cancel-in-progress: true`, and a re-run of a job is placed in the SAME
-  concurrency group as the run it belongs to — so it queues, starts, collides with its own
-  parent and is cancelled. Nothing else had pushed; the branch was quiet.
+  rather than an error.** Measured 2026-09-07. `ci.yml` cancels in progress on every
+  branch except `main` (never there, since 2026-08-31), and a re-run of a job is placed in
+  the SAME concurrency group as the run it belongs to — so on a pull request it queues,
+  starts, collides with its own parent and is cancelled. Nothing else had pushed; the
+  branch was quiet.
   The trap is what that looks like: the run's conclusion FLIPS from `failure` to
   `cancelled`, so the evidence of the original failure is gone from `gh run list` and the
   obvious reading is "somebody pushed over it". **Then there is no way to re-run one job.**

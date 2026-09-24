@@ -498,9 +498,13 @@ Both sides now compare with non-alphanumerics stripped. **Before changing any
 product identity field, grep `scripts/smoke-*.mjs` and `ci.yml` for it** — `slug`
 and `productCode` are different fields whose values merely coincided.
 
-🔴 **Do not push twice in a row, and read `conclusion` not the exit code.** A second merge cancelled a deploy mid-flight until the 2026-08-31 fix. `ci.yml`
-sets `concurrency: cancel-in-progress: true` on `ci-${{ github.ref }}`, so a second
-push to `main` kills the first run mid-flight — and `gh run watch --exit-status`
+🔴 **Do not push twice in a row, and read `conclusion` not the exit code.** `ci.yml`'s
+`ci-${{ github.ref }}` group cancels in progress on every branch EXCEPT `main`, so a
+second push to a pull request kills that branch's running CI. On `main` it has not
+cancelled since the 2026-08-31 fix — a second merge cancelled a deploy mid-flight, and that job migrates
+D1 before it deploys — so a second merge now WAITS, and a third REPLACES the waiting run,
+which ends `cancelled` without ever starting (GitHub keeps one run waiting per group by
+default). And `gh run watch --exit-status`
 returns **1 for a `cancelled` run exactly as it does for a `failure`**. On
 2026-08-12 that sent a session debugging a perfectly healthy `verify` job whose
 only error line was `##[error]The operation was canceled`. Check

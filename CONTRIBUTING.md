@@ -23,7 +23,7 @@ them were invisible to anyone reading only this page:
   unparseable workflow is not a failed check and a `permissions:` block REPLACES
   the defaults rather than adding to them
 
-## `pnpm` is not on PATH here
+## Bare `pnpm` does not reliably run here
 
 Every documented `pnpm <script>` in this repository means:
 
@@ -31,12 +31,14 @@ Every documented `pnpm <script>` in this repository means:
 npx --yes pnpm@10.34.5 <script>
 ```
 
-Bare `pnpm` fails with exit **127**, and the failure surfaces somewhere
-misleading: `apps/viewer/e2e/prepare.mjs` shells out to `pnpm build`, so the
-whole e2e suite dies as `Timed out waiting 120000ms from config.webServer` with
-the real `status: 127` buried in a child process. A PreToolUse hook
-(`.claude/hooks/guard-bare-pnpm.mjs`) blocks bare `pnpm` for AI sessions; humans
-have to remember.
+Bare `pnpm` has measured absent, present, and present-but-broken on the
+maintainer's Mac. When it does not run it fails with exit **127**, and the
+failure surfaces somewhere misleading: `apps/viewer/e2e/prepare.mjs` shells out
+to `pnpm build`, so the whole e2e suite dies as `Timed out waiting 120000ms from
+config.webServer` with the real `status: 127` buried in a child process. A
+PreToolUse hook (`.claude/hooks/guard-bare-pnpm.mjs`) rewrites a bare `pnpm` in
+an AI session's command to the `npx` form, and refuses one hidden in quotes or a
+heredoc; humans have to remember.
 
 ## The gates, in CI's order
 
@@ -104,9 +106,11 @@ beats "slightly off".
 - Branch off `main`; never commit directly to it.
 - Conventional-commit prefixes are used (`feat:`, `fix:`, `docs:`, `chore:`,
   `security:`, `merge:`).
-- **Do not push twice in a row.** `ci.yml` sets `cancel-in-progress: true`, so a
-  second push kills the first run mid-flight — and `gh run watch --exit-status`
-  returns **1** for a `cancelled` run exactly as it does for a `failure`. Check
+- **Do not push twice in a row.** On a pull request, a second push cancels the
+  running CI mid-flight (on `main` a second merge waits instead, since 2026-08-31,
+  because that run migrates the database and deploys) — and
+  `gh run watch --exit-status` returns **1** for a `cancelled` run exactly as it
+  does for a `failure`. Check
   `gh run view <id> --json conclusion -q .conclusion` before believing anything
   broke.
 

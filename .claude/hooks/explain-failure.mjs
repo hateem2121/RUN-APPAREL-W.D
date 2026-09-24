@@ -73,8 +73,9 @@ const EXPLANATIONS = [
       'A cancelled run is NOT a failed one, and `gh run watch --exit-status` returns 1 for both.\n' +
       'Confirm which it was before debugging anything:\n' +
       '  gh run view <id> --json conclusion -q .conclusion\n' +
-      'Two known causes: ci.yml sets `cancel-in-progress: true`, so a second push kills the first\n' +
-      'run; or the job hit its OWN timeout-minutes. Raising a ceiling only moves which job dies.',
+      'Three known causes: a second push to a pull request (ci.yml cancels in progress on every\n' +
+      'branch but `main`); on `main`, a third merge replacing a run that was still waiting; or\n' +
+      'the job hit its OWN timeout-minutes. Raising a ceiling only moves which job dies.',
   },
   {
     name: 'container-npm-ci',
