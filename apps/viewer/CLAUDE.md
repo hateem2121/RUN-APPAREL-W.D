@@ -97,7 +97,7 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   that React re-parents on a resize — which is exactly what `<ProductIdentity>`
   does when the viewport crosses `IDENTITY_IN_ASIDE_QUERY` — is a NEW element
   created after that scan, so it is never observed, never gets `.is-inview`, and
-  stays at `opacity: 0` (set in `packages/ui/src/base.css`) for the rest of the
+  stays at `opacity: 0` (`packages/ui/src/base.css`) for the rest of the
   session. The page would simply lose its
   own product name and description after one window resize, with no error anywhere.
   The product panel therefore carries NO `data-reveal` in either position; the fix
@@ -161,8 +161,8 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   in the simulator, or accept that your number is the best case.**
 
 - **`[data-reveal]` makes every live-page layout measurement 24px wrong until the
-  reveal has run.** `.colourways` sits under `transform: translateY(24px)` while
-  un-revealed, with a computed `margin-top` of **0** — so the offset presents as a
+  reveal has run.** `.colourways` is moved down by `--reveal-y: 24px`
+  (`packages/ui/src/tokens.css`) while un-revealed, with a computed `margin-top` of **0** — so the offset presents as a
   24px gap "from nowhere" between two elements that have no margin between them.
   Sweeping candidate stage heights on the live site this way produced a subtrahend
   that then FAILED e2e on all three engines with 4-6px of clearance. **Tune layout

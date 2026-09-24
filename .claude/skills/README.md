@@ -5,8 +5,8 @@ vendored, so nothing below about SHAs or the review date applies to them (the fi
 and last were added 2026-08-26). Everything else in this directory is third-party and
 pinned; keep first-party skills clearly separated from vendored ones so the review
 below stays a review of *other people's* instructions. `scripts/quoted-settings.mjs`
-keeps the same list as `FIRST_PARTY_SKILLS`, and a test fails if a skill folder is in
-neither that list nor the table below.
+keeps the same list as `FIRST_PARTY_SKILLS`. A test fails on any skill here, copied or
+linked, that is in none of that list, the table below and `skills-lock.json`.
 
 ## Vendored agent skills
 

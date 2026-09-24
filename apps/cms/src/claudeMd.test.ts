@@ -558,6 +558,34 @@ describe('quoted settings', () => {
     expect(check('CLAUDE.md', note('maybe')).map((s) => s.quote)).toEqual(['active: maybe'])
   })
 
+  it('NEGATIVE CONTROL: another note is no evidence, but a note’s own frontmatter is', () => {
+    // An agent moved to sonnet whose text still says haiku, naming no file. The other
+    // agents' frontmatter says `model: haiku`, and must not vouch for it.
+    const planted = '---\nname: planted\nmodel: sonnet\n---\n\nThis agent runs on `model: haiku`.\n'
+    expect(check('.claude/agents/planted.md', planted).map((s) => s.quote)).toEqual([
+      'model: haiku',
+    ])
+    // docs-drift.md's own frontmatter does back its own sentence.
+    expect(check('.claude/agents/docs-drift.md', 'It runs on `model: haiku`.')).toEqual([])
+  })
+
+  it('reads a JSON setting whether its key is quoted or bare, both ways', () => {
+    // tools/asset-pipeline/tsconfig.json sets "types": ["node"], and README quotes such a
+    // setting with a bare key.
+    const note = (value: string) =>
+      `It sets \`types: ["${value}"]\` (\`tools/asset-pipeline/tsconfig.json\`).`
+    expect(check('CLAUDE.md', note('node'))).toEqual([])
+    expect(check('CLAUDE.md', note('deno')).map((s) => s.quote)).toEqual(['types: ["deno"]'])
+  })
+
+  it('NEGATIVE CONTROL: an allowed quote is allowed only in its own note', () => {
+    // Allowed in CLAUDE.md, where it records gh output; the same words anywhere else are
+    // checked like any other quote.
+    const note = 'The pull request showed `mergeable: MERGEABLE`.'
+    expect(check('CLAUDE.md', note)).toEqual([])
+    expect(check('README.md', note).map((s) => s.quote)).toEqual(['mergeable: MERGEABLE'])
+  })
+
   it('reads every note a session loads, and no vendored skill', () => {
     const notes = noteFiles(tracked)
     for (const file of [
@@ -579,28 +607,41 @@ describe('quoted settings', () => {
     expect(notes.filter((file) => file.endsWith('.test.mjs'))).toEqual([])
   })
 
-  it('every skill folder is either ours or a vendored row in .claude/skills/README.md', async () => {
-    // A first-party skill missing from FIRST_PARTY_SKILLS would be skipped in silence.
+  it('every skill is ours, or vendored in the README table or skills-lock.json', async () => {
+    // A first-party skill missing from FIRST_PARTY_SKILLS would be skipped in silence. Eight
+    // vendored skills are tracked as LINKS into .agents/skills/, so a skill is any entry
+    // under .claude/skills/, not only a folder of files.
     const readme = await readFile(join(REPO_ROOT, '.claude', 'skills', 'README.md'), 'utf8')
-    const folders = [
+    const lock = JSON.parse(await readFile(join(REPO_ROOT, 'skills-lock.json'), 'utf8')) as {
+      skills: Record<string, unknown>
+    }
+    const skills = [
       ...new Set(
-        tracked.map((file) => file.match(/^\.claude\/skills\/([^/]+)\//)?.[1]).filter(Boolean),
+        tracked
+          .map((file) => file.match(/^\.claude\/skills\/([^/]+)(?:\/|$)/)?.[1])
+          .filter((name): name is string => name !== undefined && !name.endsWith('.md')),
       ),
-    ] as string[]
-    const unaccounted = folders.filter(
-      (skill) => !FIRST_PARTY_SKILLS.includes(skill) && !readme.includes(`| \`${skill}\` |`),
+    ]
+    expect(skills, 'the linked skills must be seen too').toContain('animate')
+    const unaccounted = skills.filter(
+      (skill) =>
+        !FIRST_PARTY_SKILLS.includes(skill) &&
+        !readme.includes(`| \`${skill}\` |`) &&
+        !(skill in lock.skills),
     )
     expect(unaccounted).toEqual([])
-    for (const skill of FIRST_PARTY_SKILLS) expect(folders).toContain(skill)
+    for (const skill of FIRST_PARTY_SKILLS) expect(skills).toContain(skill)
   })
 
-  it('every allowed quote is still made by some note, so the allow-list cannot rot', async () => {
-    const quoted = new Set<string>()
-    for (const file of noteFiles(tracked)) {
+  it('every allowed quote is still made by the note it is allowed in, so the list cannot rot', async () => {
+    const dead: string[] = []
+    for (const { file, quote } of ALLOWED_QUOTES) {
       const text = await readFile(join(REPO_ROOT, file), 'utf8')
-      for (const { quote } of quotesIn(file, text)) quoted.add(quote)
+      if (!quotesIn(file, text).some((found) => found.quote === quote)) {
+        dead.push(`${file}: ${quote}`)
+      }
     }
-    expect([...ALLOWED_QUOTES.keys()].filter((quote) => !quoted.has(quote))).toEqual([])
+    expect(dead).toEqual([])
   })
 
   it('the command reads notes and says how many, rather than passing in silence', () => {
@@ -615,6 +656,12 @@ describe('quoted settings', () => {
     // Assembled from fragments because a literal `$`+`{{` in a TS string trips biome's
     // noTemplateCurlyInString, as workflowHardening.test.ts records.
     const onlyOffMain = `$${'{{'} github.ref != 'refs/heads/main' }}`
+    // Git exports GIT_DIR, GIT_INDEX_FILE and the like to its hooks (githooks(5)), so a
+    // test run from inside one would aim these commands at the REAL repository and stage
+    // the planted note there. The throwaway repository gets none of them.
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')),
+    ) as NodeJS.ProcessEnv
     try {
       await mkdir(join(dir, '.github', 'workflows'), { recursive: true })
       await writeFile(
@@ -622,9 +669,9 @@ describe('quoted settings', () => {
         `concurrency:\n  cancel-in-progress: ${onlyOffMain}\n`,
       )
       await writeFile(join(dir, 'CLAUDE.md'), '`ci.yml` sets `cancel-in-progress: true`.\n')
-      expect(spawnSync('git', ['init', '-q'], { cwd: dir }).status).toBe(0)
-      expect(spawnSync('git', ['add', '.'], { cwd: dir }).status).toBe(0)
-      const run = spawnSync(process.execPath, [script], { cwd: dir, encoding: 'utf8' })
+      expect(spawnSync('git', ['init', '-q'], { cwd: dir, env }).status).toBe(0)
+      expect(spawnSync('git', ['add', '.'], { cwd: dir, env }).status).toBe(0)
+      const run = spawnSync(process.execPath, [script], { cwd: dir, encoding: 'utf8', env })
       expect(run.status).toBe(1)
       expect(run.stdout).toContain('CLAUDE.md:1  `cancel-in-progress: true`')
       expect(run.stdout).toContain('.github/workflows/ci.yml')

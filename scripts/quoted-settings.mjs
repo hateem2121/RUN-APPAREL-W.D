@@ -14,16 +14,29 @@
  * one message string, however many `+` lines it spans. If a unit NAMES files (a path, a
  * folder, or a bare name such as ci.yml), each quote in it must appear in one of those
  * files, with whitespace normalised. A named test file also covers the file it tests. If a
- * unit names no file, the quote must appear in some tracked file. Markdown counts only
- * through its frontmatter, which is where an agent's `model:` lives. Notes are never
+ * unit names no file, the quote must appear in some tracked file that is not a note. A key
+ * may be quoted or bare (`"types": […]` and `types: […]` are the same setting), so a note
+ * can quote JSON the way YAML is written.
+ *
+ * Markdown counts only through its frontmatter, which is where an agent's `model:` and a
+ * skill's `disable-model-invocation:` live. A note's frontmatter backs its own sentences,
+ * and another note's only when a sentence names that file. Otherwise notes are never
  * evidence for each other, because two notes can repeat the same stale quote.
  *
  * WHY THE NAMED FILE MATTERS. `cancel-in-progress: true` is still true of three other
  * workflows (android-chrome, lighthouse-live and voiceover). "Somewhere in the repo"
  * would therefore have passed all four of those stale notes.
  *
- * LIMITS. It proves the text is in the file the sentence names. It cannot prove the
- * sentence reads that text correctly. Fenced code blocks and code comments are not read.
+ * LIMITS.
+ * - It proves the text is in the file the sentence names. It cannot prove the sentence
+ *   reads that text correctly.
+ * - Evidence is a file's whole text, COMMENTS INCLUDED, so a comment that repeats a quote
+ *   keeps it green. Quote the setting itself, in the file that sets it.
+ * - A nested list item, a paragraph after a blank line inside a list item, and a hook
+ *   message joined from an array are units of their own, so a file named only by the
+ *   text around them does not reach them: their quotes are checked against every
+ *   tracked file instead.
+ * - Fenced code blocks, and the comments in a hook, are not read as notes.
  */
 import { execFileSync } from 'node:child_process'
 import { readFileSync, realpathSync } from 'node:fs'
@@ -32,73 +45,145 @@ import { pathToFileURL } from 'node:url'
 
 /**
  * The skills written for THIS repo. Everything else under .claude/skills/ is vendored
- * third-party text, listed in .claude/skills/README.md. Its quotes are generic CSS and
- * React examples, not claims about this repo.
+ * third-party text, listed in .claude/skills/README.md or skills-lock.json. Its quotes are
+ * generic CSS and React examples, not claims about this repo.
  */
 export const FIRST_PARTY_SKILLS = ['check-live', 'deploy-preflight', 'gates']
 
 /**
- * Quotes that no file holds, on purpose, each with its reason. The test fails on an
- * entry that no note quotes any more, so this list cannot rot.
+ * Quotes that no file holds, on purpose. Each is allowed only in the note beside it, so
+ * the same words in any other note are still checked. The test fails on an entry its note
+ * no longer makes, so this list cannot rot.
  */
-export const ALLOWED_QUOTES = new Map([
+export const ALLOWED_QUOTES = [
   // GitHub settings and `gh` output: read from GitHub, held by no file here.
-  ['sha_pinning_required: true', "the old org's Actions policy (.github/CLAUDE.md)"],
-  ['required_approving_review_count: 0', "main's ruleset, set in GitHub (.github/CLAUDE.md)"],
-  ['status: pending', 'a dismissal request as the API reported it (.github/CLAUDE.md)'],
-  ['mergeable: MERGEABLE', 'gh pr view during the 2026-08-25 merge deadlock (CLAUDE.md)'],
-  ['mergeStateStatus: BLOCKED', 'gh pr view during the 2026-08-25 merge deadlock (CLAUDE.md)'],
-  ['uses: repo@<sha>', 'a pattern with a placeholder, not a value (.github/CLAUDE.md)'],
+  {
+    file: '.github/CLAUDE.md',
+    quote: 'sha_pinning_required: true',
+    reason: "the old org's Actions policy",
+  },
+  {
+    file: '.github/CLAUDE.md',
+    quote: 'required_approving_review_count: 0',
+    reason: "main's ruleset, set in GitHub",
+  },
+  {
+    file: '.github/CLAUDE.md',
+    quote: 'status: pending',
+    reason: 'a dismissal request as the API reported it',
+  },
+  {
+    file: 'CLAUDE.md',
+    quote: 'mergeable: MERGEABLE',
+    reason: 'gh pr view during the 2026-08-25 merge deadlock',
+  },
+  {
+    file: 'CLAUDE.md',
+    quote: 'mergeStateStatus: BLOCKED',
+    reason: 'gh pr view during the 2026-08-25 merge deadlock',
+  },
+  {
+    file: '.github/CLAUDE.md',
+    quote: 'uses: repo@<sha>',
+    reason: 'a pattern with a placeholder, not a value',
+  },
+  {
+    file: '.github/CLAUDE.md',
+    quote: '"type": "tag"',
+    reason: 'what the GitHub API returns for an annotated tag',
+  },
+  {
+    file: 'tools/asset-pipeline/CLAUDE.md',
+    quote: '"resolved": "file:"',
+    reason: 'the lockfile entry shape scripts/check-lockfile-sync.mjs rejects; a pattern',
+  },
   // Error messages and log lines, quoted so that a search for them finds the note.
-  [
-    'CAPIError: 400 The requested model is not supported',
-    "the error GitHub's AI-findings check printed (.github/CLAUDE.md)",
-  ],
-  [
-    'libevent-2.1.so.7: cannot open shared object file',
-    'a WebKit launch error (.github/CLAUDE.md)',
-  ],
-  ['curl: (3) bad range in URL', "curl's error when zsh globs a URL (apps/cms/CLAUDE.md)"],
-  [
-    'TypeError: escapeHtml(...)…camera is not a function',
-    'a runtime error (tools/asset-pipeline/CLAUDE.md)',
-  ],
-  ['status: 127', "how Playwright's webServer error shows a child's exit (CONTRIBUTING.md)"],
-  [
-    'geometry: none',
-    'the line tools/asset-pipeline/src/cli.ts logs when no geometry flag arrived (tools/asset-pipeline/CLAUDE.md)',
-  ],
+  {
+    file: '.github/CLAUDE.md',
+    quote: 'CAPIError: 400 The requested model is not supported',
+    reason: "the error GitHub's AI-findings check printed",
+  },
+  {
+    file: '.github/CLAUDE.md',
+    quote: 'libevent-2.1.so.7: cannot open shared object file',
+    reason: 'a WebKit launch error',
+  },
+  {
+    file: 'apps/cms/CLAUDE.md',
+    quote: 'curl: (3) bad range in URL',
+    reason: "curl's error when zsh globs a URL",
+  },
+  {
+    file: 'tools/asset-pipeline/CLAUDE.md',
+    quote: 'TypeError: escapeHtml(...)…camera is not a function',
+    reason: 'a runtime error',
+  },
+  {
+    file: 'CONTRIBUTING.md',
+    quote: 'status: 127',
+    reason: "how Playwright's webServer error shows a child's exit",
+  },
+  {
+    file: 'tools/asset-pipeline/CLAUDE.md',
+    quote: 'geometry: none',
+    reason: 'the line tools/asset-pipeline/src/cli.ts logs when no geometry flag arrived',
+  },
   // Values measured on the day: what a response, a record or a render showed.
-  ['cf-cache-status: MISS', 'a response header after a fresh upload (apps/cms/CLAUDE.md)'],
-  [
-    'sec-fetch-mode: navigate',
-    'the browser request header that reproduces a CSP report (apps/viewer/CLAUDE.md)',
-  ],
-  [
-    'X-Worker-Ran: yes',
-    'a probe route used once to prove the Worker ran; not in the code (apps/viewer/CLAUDE.md)',
-  ],
-  [
-    'Vary: Origin, Sec-CH-Prefers-Color-Scheme',
-    'the header in HTTP form, as the 2026-08-18 fix set it; publicViewerHeaders.mjs writes JS (apps/cms/CLAUDE.md)',
-  ],
-  ['scrollY: 0', 'what an early assertion measured (apps/viewer/CLAUDE.md)'],
-  [
-    'artworkVerdict: ok',
-    "a garment's Media field on the day its model was unreachable (CLAUDE.md)",
-  ],
-  [
-    'wouldShip: true',
-    "the sweep's recorded output; output/ is gitignored (tools/asset-pipeline/CLAUDE.md)",
-  ],
-  [
-    'alphaMode: BLEND',
-    'a glTF material value inside exported garments (tools/asset-pipeline/CLAUDE.md)',
-  ],
+  {
+    file: 'apps/cms/CLAUDE.md',
+    quote: 'cf-cache-status: MISS',
+    reason: 'a response header after a fresh upload',
+  },
+  {
+    file: 'apps/viewer/CLAUDE.md',
+    quote: 'sec-fetch-mode: navigate',
+    reason: 'the browser request header that reproduces a CSP report',
+  },
+  {
+    file: 'apps/viewer/CLAUDE.md',
+    quote: 'X-Worker-Ran: yes',
+    reason: 'a probe route used once to prove the Worker ran; not in the code',
+  },
+  {
+    file: 'apps/cms/CLAUDE.md',
+    quote: 'Vary: Origin, Sec-CH-Prefers-Color-Scheme',
+    reason:
+      'the header in HTTP form, as the 2026-08-18 fix set it; publicViewerHeaders.mjs writes JS',
+  },
+  {
+    file: 'apps/viewer/CLAUDE.md',
+    quote: 'scrollY: 0',
+    reason: 'what an early assertion measured',
+  },
+  {
+    file: 'CLAUDE.md',
+    quote: 'artworkVerdict: ok',
+    reason: "a garment's Media field on the day its model was unreachable",
+  },
+  {
+    file: 'tools/asset-pipeline/CLAUDE.md',
+    quote: 'wouldShip: true',
+    reason: "the sweep's recorded output; output/ is gitignored",
+  },
+  {
+    file: 'tools/asset-pipeline/CLAUDE.md',
+    quote: 'alphaMode: BLEND',
+    reason: 'a glTF material value inside exported garments',
+  },
   // Settings that were tried and rejected, quoted so nobody tries them again.
-  ['min-height: 700px', 'the extrapolated floor that broke 900x700 (apps/viewer/CLAUDE.md)'],
-  ["runtime: 'edge'", 'tried on the CMS and refused by the Cloudflare build (apps/cms/CLAUDE.md)'],
-])
+  {
+    file: 'apps/viewer/CLAUDE.md',
+    quote: 'min-height: 700px',
+    reason: 'the extrapolated floor that broke 900x700',
+  },
+  {
+    file: 'apps/cms/CLAUDE.md',
+    quote: "runtime: 'edge'",
+    reason: 'tried on the CMS and refused by the Cloudflare build',
+  },
+]
+
+const ALLOWED = new Set(ALLOWED_QUOTES.map(({ file, quote }) => `${file}\n${quote}`))
 
 /**
  * Never evidence: this file holds the allow-list, and the test holds the planted negative
@@ -108,12 +193,20 @@ const NOT_EVIDENCE = new Set(['scripts/quoted-settings.mjs', 'apps/cms/src/claud
 const UNREADABLE =
   /(^|\/)(pnpm-lock\.yaml|package-lock\.json)$|\.(png|jpe?g|webp|avif|gif|ico|glb|gltf|bin|ktx2|pdf|woff2?|ttf|otf|mp4|webm|zip|gz)$/i
 
-const QUOTE = /`([A-Za-z_][\w.-]*: [^`]{1,80})`/g
+// A key, optionally in JSON's double quotes, or a CSS custom property (`--reveal-y`).
+const QUOTE = /`("?(?:--)?[A-Za-z_][\w.-]*"?: [^`]{1,80})`/g
 const CODE_TOKEN = /`([^`\s]+)`/g
 const BARE_FILE =
   /(?<![\w./-])([\w-][\w.-]*\.(?:ya?ml|jsonc?|toml|mjs|cjs|js|ts|tsx|sh))(?![\w.-])/g
 
 const normalise = (text) => text.replace(/\s+/g, ' ').trim()
+
+/** The same setting with its key bare and in double quotes: a note may quote JSON as YAML. */
+function spellings(quote) {
+  const parts = quote.match(/^"?((?:--)?[A-Za-z_][\w.-]*)"?: (.*)$/)
+  if (!parts) return [quote]
+  return [...new Set([quote, `${parts[1]}: ${parts[2]}`, `"${parts[1]}": ${parts[2]}`])]
+}
 
 /**
  * The files a session loads or follows as instructions: every CLAUDE.md, the root
@@ -254,7 +347,8 @@ export function evidenceText(file, raw) {
  *   `read` returns a file's evidence text (see evidenceText)
  */
 export function staleQuotes({ notes, tracked, read }) {
-  const noteSet = new Set(notes.map((note) => note.file))
+  // Whether a file is a note depends on the file, not on which notes this call checks.
+  const noteSet = new Set([...noteFiles(tracked), ...notes.map((note) => note.file)])
   const isEvidence = (file) =>
     !NOT_EVIDENCE.has(file) &&
     !UNREADABLE.test(file) &&
@@ -265,10 +359,14 @@ export function staleQuotes({ notes, tracked, read }) {
   for (const { file, text } of notes) {
     for (const { quote, line, unit } of quotesIn(file, text)) {
       checked++
-      if (ALLOWED_QUOTES.has(quote)) continue
+      if (ALLOWED.has(`${file}\n${quote}`)) continue
       const named = namedFiles(unit, tracked).filter((f) => f !== file && isEvidence(f))
-      const within = named.length > 0 ? named : everywhere
-      if (within.some((f) => read(f).includes(quote))) continue
+      // Naming nothing, a sentence is backed by its own frontmatter or by a file that is
+      // not a note: another note saying the same thing is no evidence it is still true.
+      const within =
+        named.length > 0 ? named : everywhere.filter((f) => f === file || !noteSet.has(f))
+      const forms = spellings(quote)
+      if (within.some((f) => forms.some((form) => read(f).includes(form)))) continue
       stale.push({ file, line, quote, checkedIn: named.length > 0 ? named : null })
     }
   }
@@ -315,13 +413,13 @@ function main() {
   for (const { file, line, quote, checkedIn } of stale) {
     const where = checkedIn
       ? `${checkedIn.slice(0, 3).join(', ')}${checkedIn.length > 3 ? ` and ${checkedIn.length - 3} more` : ''}`
-      : 'any tracked file'
+      : 'any tracked file that is not a note'
     console.log(`${file}:${line}  \`${quote}\`  is not in ${where}`)
   }
   if (stale.length > 0) {
     console.log(
       `\n✗ ${stale.length} of ${checked} quoted settings are not in the file their sentence names. ` +
-        'Correct the note, or add the quote to ALLOWED_QUOTES in scripts/quoted-settings.mjs with the reason.',
+        'Correct the note, or add it to ALLOWED_QUOTES in scripts/quoted-settings.mjs with the reason.',
     )
     process.exit(1)
   }
