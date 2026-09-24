@@ -210,6 +210,11 @@ The four Worker names:
 | `run-apparel-viewer-shrink` | garment processing only; the live site is unaffected |
 | `run-apparel-apex-404` | the private catalogue and profile links, and the retired apex PDF paths |
 
+⚠️ **Once `run-apparel-archive` is deleted, `run-apparel-viewer-shrink` cannot be rolled back
+to any version deployed between 2026-09-03 and the archive's retirement** — those versions
+bind that bucket, and Cloudflare refuses a rollback to a version whose R2 binding names a
+bucket that no longer exists. For that Worker use `git revert` + push.
+
 Rolling back the **viewer** is the safe one — it holds no data and reads only the
 public API.
 
@@ -646,13 +651,11 @@ byte-identical across the change.
 
 ### Keeping the copy safe
 
-**The owner keeps their own external copies of the raw exports** — stated
-2026-08-08, when an automated backup into the nightly-mirrored media bucket was
-offered and **declined**, on the grounds that it would duplicate storage they
-already maintain. Do not re-propose one; this is a settled decision, not an
-oversight, and the earlier text here ("one copy on one disk is not a copy",
-written when the copy was believed to be laptop-only) no longer describes the
-arrangement.
+**The raw exports and FIXED GLBs live on the owner's Mac only, with no off-site copy** —
+owner decision 2026-09-24 (`docs/BACKUP-RESTORE.md` → "The master files"). An automated
+backup into the nightly-mirrored media bucket was offered on 2026-08-08 and **declined**.
+An R2 archive bucket held copies from 2026-09-02 until it was retired on 2026-09-24. Do
+not re-propose one; this is a settled decision, not an oversight.
 
 What that decision does **not** cover, and what this repo still owes:
 `raw/CANONICAL.json` is the only thing that makes an externally-held copy
@@ -662,7 +665,7 @@ different geometry, and would produce a perfectly plausible damage number for a
 garment nobody calibrated. Keep the manifest current — it is the half of this
 that external storage cannot replace.
 
-After 2026-08-19 the R2 original is gone, so if an external copy is ever lost the
+After 2026-08-19 the R2 original is gone, so if the Mac's copy is ever lost the
 only route back is a fresh CLO export, which is byte-different and needs
 re-calibrating from scratch (see "Replacing or adding a garment" above — that is
 now a followable procedure rather than a research task).
@@ -1703,11 +1706,13 @@ file. And before queuing anything the hook asks the ingest bucket whether the fi
 still there: after the 14 days it writes *"This file has expired from the upload
 store … Upload the CLO export again"* into `Report`, sets Failed, and queues nothing
 (`apps/cms/src/collections/rawUploadRetry.ts`). The robot answers the same way if
-the file expires while a job waits. To stop the loss happening again, **every
-successful run now copies the raw export into the archive bucket** under
-`raw-exports/robot/<key>` (`apps/shrink/src/archiveRaw.ts`) and says so at the end of
-`Report`; that copy has no expiry, so a garment processed after 2026-09-03 can always
-be re-run from it.
+the file expires while a job waits. **There is no off-machine copy to fall back on**:
+an R2 bucket once covered this gap by keeping every successful run's raw export under
+its own copy with no expiry, but that bucket existed only from 2026-09-02 to
+2026-09-24, when the owner retired it (docs/BACKUP-RESTORE.md). After the 14 days the
+only way back is the path every first-time garment already uses: upload the CLO export
+again as a new raw upload, from the owner's own copy (kept on the Mac only), and point
+it at the same product.
 
 **This is the only way to start a re-run.** The job is enqueued by an `afterChange`
 hook on the collection (`apps/cms/src/collections/RawUploads.ts`), which fires only
@@ -1764,6 +1769,15 @@ as of this writing, still unrendered.
 
 Until that screenshot exists, the artwork issue stays open regardless of what the
 tests say.
+
+**After attaching the re-shrunk model, before telling the owner it is live**, run
+`node scripts/glb-provenance-probe.mjs <product>/<colourway>` — confirms
+`asset.copyright` is set and the file carries no CLO/Marvelous Designer leftover
+string. This checks ONE model, by hand, on the same rare occasion a human already
+attaches one; it is not a scheduled job, because provenance changes only when a
+garment is re-shrunk. The CLI stays runnable against every live product at once
+with no argument, so a spot-check any other time is `node
+scripts/glb-provenance-probe.mjs`.
 
 ## API + media domain cutover
 

@@ -1333,6 +1333,70 @@ test.describe('layout invariants', () => {
   }
 
   /**
+   * IM-06 — a missing poster must not change the stage band's size.
+   *
+   * ⚠️ CORRECTING THE FINDING'S OWN WORDING: it described the band as holding a 4:5
+   * aspect ratio while the poster loads. There is no such hold — `.stage-block`
+   * never reads the poster's dimensions at all. Its floor is
+   * `min-height: calc(100svh - var(--header-h))`, a base rule in `page.css` with no
+   * aspect-ratio or poster involved, and `.stage__canvas` is a `flex: 1 1 auto`
+   * child of it. `Stage.tsx` mounts the poster preview as `.stage__placeholder`,
+   * `position: absolute; inset: 0`, which is why the poster's own intrinsic size —
+   * present or 404'd — can never reach the parent's layout calculation. A missing
+   * poster has nothing to subtract from.
+   *
+   * The fixture proves it for free: only the `black` colourway's poster file exists
+   * on disk (`apps/viewer/e2e/serve.mjs:141`); `wine` — the default colourway,
+   * loaded by every other test in this file — 404s on every run.
+   *
+   * Two assertions: the band is the same size with a working poster and a 404'd one
+   * (the finding itself), and separately its height never falls short of the
+   * viewport-derived floor the CSS declares (pins the MECHANISM, so a change that
+   * swapped the min-height for something poster- or content-driven would still be
+   * caught even on a viewport where the two colourways happened to still agree by
+   * coincidence).
+   */
+  for (const { name, width, height } of STAGE_BAND_VIEWPORTS) {
+    test(`the stage band is unaffected by a 404'd poster at ${name} (${width}x${height})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+
+      await page.goto('/n001/black') // the one colourway whose poster is a real 200
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const withPoster = await page.locator('.stage-block').boundingBox()
+      expect(withPoster, 'no .stage-block on the black colourway').not.toBeNull()
+
+      await page.goto('/n001/wine') // the default colourway; its poster 404s
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const withoutPoster = await page.locator('.stage-block').boundingBox()
+      expect(withoutPoster, 'no .stage-block on the wine colourway').not.toBeNull()
+
+      expect(
+        Math.abs((withoutPoster?.height ?? 0) - (withPoster?.height ?? 0)),
+        `the stage band is ${withPoster?.height}px with a poster and ` +
+          `${withoutPoster?.height}px without one at ${width}x${height} — a 404'd ` +
+          `poster must not change the band's size`,
+      ).toBeLessThanOrEqual(1)
+
+      // Pin the mechanism: the band's floor is the viewport minus the real header,
+      // never the poster. The header is measured fresh, the same way "the header
+      // token matches the real header" does above, rather than trusting the token.
+      const realHeaderHeight = await page.evaluate(
+        () => document.querySelector('.header')?.getBoundingClientRect().height ?? 0,
+      )
+      const floor = height - realHeaderHeight
+      expect(
+        withoutPoster?.height ?? 0,
+        `the stage band is ${withoutPoster?.height}px against a floor of ${floor}px ` +
+          `(viewport ${height}px minus a ${realHeaderHeight}px header) — ` +
+          `.stage-block's min-height is calc(100svh - var(--header-h)); if this is ` +
+          `short, that rule stopped governing the band's size`,
+      ).toBeGreaterThanOrEqual(floor - 1)
+    })
+  }
+
+  /**
    * A visitor must always have somewhere to swipe.
    *
    * `Stage.tsx` sets `touch-action: none` on the model, so a one-finger drag

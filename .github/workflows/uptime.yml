@@ -209,6 +209,12 @@ jobs:
             # a run that reached NO host emits a ::warning:: rather than a silent green
             # tick, because "everything blocked" must not read as "everything secure".
             node scripts/zone-security-probe.mjs || ok=false
+
+            # Plain-HTTP must still redirect to HTTPS on every host (SE-01). Cloudflare's own
+            # edge behaviour, not something a code change here can break — but nothing else in
+            # this repo measures it, so this notices if it is ever undone. Same 403/429/503
+            # inconclusive discipline as its siblings above.
+            node scripts/https-redirect-probe.mjs || ok=false
           fi
           echo "ok=$ok" >> "$GITHUB_OUTPUT"
 

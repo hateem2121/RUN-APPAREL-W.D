@@ -61,5 +61,4 @@ export function retryBoxVisible(status: unknown): boolean {
 export const EXPIRED_UPLOAD_REPORT =
   'This file has expired from the upload store, so there is nothing to shrink — uploads are ' +
   'kept for 14 days after they arrive, and this one is older. Nothing was queued. Upload the CLO ' +
-  'export again as a new raw upload. (A successful run now also copies the export into the ' +
-  'archive bucket, so garments processed after 2026-09-03 keep a permanent copy.)'
+  'export again as a new raw upload.'

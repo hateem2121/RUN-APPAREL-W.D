@@ -140,6 +140,19 @@ test.describe('search visibility defaults to hidden', () => {
     expect(response.status()).toBe(200)
     expect(await response.text()).not.toContain('<loc>')
   })
+
+  /**
+   * SO-06 — a machine file's CONTENT-TYPE, not just its body. `robots.txt` and
+   * `llms.txt` already have this in `findability.spec.ts`'s FA-N-16/17 block;
+   * `sitemap.xml` did not. This app's own `withPayload` trap (a header set on a
+   * route handler's `Response` can be silently overridden by the LAST matching rule)
+   * is exactly why a body-only test is not enough here — the body can be perfect XML
+   * while a crawler receives it labelled as something else and declines to parse it.
+   */
+  test('the sitemap is served as XML, not a web page', async ({ request }) => {
+    const response = await request.get('/sitemap.xml')
+    expect(response.headers()['content-type']).toContain('application/xml')
+  })
 })
 
 test.describe('FA-P-09 — the empty gallery is a designed state, reached on purpose', () => {

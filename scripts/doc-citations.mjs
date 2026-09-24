@@ -184,6 +184,10 @@ export const ALLOWED_ABSENT = new Map([
     'docs/BUYER-EVIDENCE-YYYY-MM-DD.md',
     'a TEMPLATE filename, not a file — docs/BUYER-JOURNEY-PROTOCOL.md instructs the reader to create one evidence file per run date, substituting the date. Same shape as the apps/cms/.env entry above: prose that tells you to write the file cites it correctly before it exists, and it must never exist until a real session runs. Each created file gets its own index row when it lands.',
   ],
+  [
+    'scripts/ingest-from-archive.mjs',
+    'existed; retired 2026-09-24 by owner decision and deleted with the R2 archive bucket it copied from. Cited in the PAST TENSE by apps/cms/CLAUDE.md, which says so in the same sentence.',
+  ],
 ])
 
 /**
