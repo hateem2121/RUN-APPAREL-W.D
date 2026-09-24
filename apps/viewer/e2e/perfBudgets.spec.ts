@@ -1,6 +1,6 @@
 import { expect, request, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { calibratedThrottleRate, cpuBenchmarkInPage } from '@run-apparel/shared'
+import { calibratedThrottleRate, cpuBenchmarkInPage, isReferenceClass } from '@run-apparel/shared'
 import { evaluateInteractionWalkthrough } from '../scripts/interaction-metrics.mjs'
 
 /**
@@ -244,20 +244,27 @@ test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interac
       await page.locator('.theme-toggle').click()
     })
 
-    // Measured on a LOADED garment at the reference host's 4x (chromium, 2026-09-25): tbt
-    // 133-205ms, inpProxy 136-184ms over eleven runs. 300ms is ~1.5x the worst reading. NOT
-    // looser, measured: at 600/500 a planted 300ms freeze in the colourway tab's onClick
-    // read tbt=396 inpProxy=440 and PASSED; at 300/300 it fails on both. The load race this
-    // replaced read 786-903ms for ONE task, so its return fails too. The throttle is
-    // CALIBRATED per host above, so these ceilings mean the same thing on CI's runner.
+    // TWO TIERS, by the machine's own score (packages/shared/src/cpuCalibration.ts):
+    //   reference-class (this Mac, score ~580) — 300/300. Clean on a LOADED garment:
+    //     tbt 139-235ms, inpProxy 136-200ms. A planted 300ms freeze in the colourway tab's
+    //     onClick read tbt 393-405 / inp 432-448 and fails. At 600/500 it PASSED.
+    //   slower (CI's runner, scores 104-171) — 550/550. Clean, measured on CI 2026-09-25:
+    //     tbt 331-373ms, inpProxy 352-400ms (the software 3D here is not slowed by the
+    //     throttle, so no rate brings CI down to the reference). The same freeze added a
+    //     steady ~+280-300ms at every rate tried on the Mac (8x/10x/12x), so on CI it lands
+    //     at >= ~630 and still fails; the load race this replaced read 2,656ms there.
+    // The tight tier runs wherever the suite runs on a reference-class machine, i.e. before
+    // every push from the Mac (root CLAUDE.md: run the viewer e2e before pushing).
+    const referenceClass = isReferenceClass(score)
+    const ceiling = referenceClass ? 300 : 550
     const result = evaluateInteractionWalkthrough(samples, {
-      tbtCeilingMs: 300,
-      inpCeilingMs: 300,
+      tbtCeilingMs: ceiling,
+      inpCeilingMs: ceiling,
     })
     // Printed on a pass too, so CI's own numbers are readable in the job log.
     console.log(
       `PF-04/05 measured: tbt=${result.tbt.toFixed(0)}ms worstTask=${result.worstTask.toFixed(0)}ms ` +
-        `inpProxy=${result.inpProxy.toFixed(0)}ms (host benchmark ${score}, throttle ${rate.toFixed(2)}x)`,
+        `inpProxy=${result.inpProxy.toFixed(0)}ms (host benchmark ${score}, throttle ${rate.toFixed(2)}x, ${referenceClass ? 'reference-class' : 'slower'} tier, ceiling ${ceiling}ms)`,
     )
     expect(
       result.ok,

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   calibratedThrottleRate,
   cpuBenchmarkInPage,
+  isReferenceClass,
   REFERENCE_BENCHMARK,
   TARGET_SLOWDOWN,
 } from './cpuCalibration'
@@ -32,5 +33,17 @@ describe('cpuBenchmarkInPage', () => {
     // throw ReferenceError here, exactly as it would inside the browser.
     const rebuilt = new Function(`return (${cpuBenchmarkInPage.toString()})()`) as () => number
     expect(rebuilt()).toBeGreaterThan(0)
+  })
+})
+
+describe('isReferenceClass', () => {
+  it('counts the reference and anything within 20% of it', () => {
+    expect(isReferenceClass(REFERENCE_BENCHMARK)).toBe(true)
+    expect(isReferenceClass(REFERENCE_BENCHMARK * 0.8)).toBe(true)
+  })
+  it("does NOT count CI's measured runners (scores 104 and 171), even where a rate exists", () => {
+    expect(isReferenceClass(104)).toBe(false)
+    expect(isReferenceClass(171)).toBe(false)
+    expect(calibratedThrottleRate(171)).toBeGreaterThan(1)
   })
 })

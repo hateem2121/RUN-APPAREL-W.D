@@ -1,4 +1,4 @@
-import { calibratedThrottleRate, cpuBenchmarkInPage } from '@run-apparel/shared'
+import { calibratedThrottleRate, cpuBenchmarkInPage, isReferenceClass } from '@run-apparel/shared'
 import { expect, type Page, test } from './offlineMedia'
 import { evaluateInteractionWalkthrough } from '../scripts/interaction-metrics.mjs'
 
@@ -179,20 +179,26 @@ test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interac
       await page.locator('input[name="name"]').fill('Perf Budget Robot')
     })
 
-    // Measured fresh against this fixture, 4x CPU throttle, chromium (2026-09-24):
-    // tbt=0ms, worstTask=0ms, inpProxy=32ms. 150ms is ~4.7x that INP reading — room for
-    // CI's runner, measured ~2.2x slower than the Mac on the viewer's walkthrough — and
-    // under Google's 200ms INP "good" line. NOT 300, measured 2026-09-25: a planted 300ms
-    // freeze in ThemeSwitch's onClick read tbt=260 inpProxy=320 and failed only by 20ms
-    // on INP, so a slightly shorter one would have passed.
+    // TWO TIERS, by the machine's own score (packages/shared/src/cpuCalibration.ts):
+    //   reference-class (this Mac) — 150/150. Clean at 4x: tbt 0-14ms, inpProxy 56-72ms.
+    //     NOT 300, measured 2026-09-25: at 300 a planted 300ms freeze in ThemeSwitch's
+    //     onClick read tbt 260 / inp 320 and failed only by 20ms on INP. At 150 it fails on
+    //     both; 150 is also under Google's 200ms INP "good" line.
+    //   slower (CI's runner, scores 104-171 on the viewer's run) — 300/300, the ceiling this
+    //     test shipped with. CI has not yet printed this page's numbers (its viewer step
+    //     failed first on every run so far), so this tier is the conservative one: this page
+    //     draws no 3D, so the throttle's calibration applies to nearly all of its work, and
+    //     the planted freeze alone reads inp 320.
+    const referenceClass = isReferenceClass(score)
+    const ceiling = referenceClass ? 150 : 300
     const result = evaluateInteractionWalkthrough(samples, {
-      tbtCeilingMs: 150,
-      inpCeilingMs: 150,
+      tbtCeilingMs: ceiling,
+      inpCeilingMs: ceiling,
     })
     // Printed on a pass too, so CI's own numbers are readable in the job log.
     console.log(
       `CMS PF-04/05 measured: tbt=${result.tbt.toFixed(0)}ms worstTask=${result.worstTask.toFixed(0)}ms ` +
-        `inpProxy=${result.inpProxy.toFixed(0)}ms (host benchmark ${score}, throttle ${rate.toFixed(2)}x)`,
+        `inpProxy=${result.inpProxy.toFixed(0)}ms (host benchmark ${score}, throttle ${rate.toFixed(2)}x, ${referenceClass ? 'reference-class' : 'slower'} tier, ceiling ${ceiling}ms)`,
     )
     expect(
       result.ok,

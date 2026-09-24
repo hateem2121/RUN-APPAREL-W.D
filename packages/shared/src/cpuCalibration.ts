@@ -33,6 +33,25 @@ export function calibratedThrottleRate(benchmarkScore: number): number {
 }
 
 /**
+ * Can this machine stand in for the reference at all? At least 80% of the reference's
+ * score counts; anything slower is judged against its own, wider ceilings.
+ *
+ * ⚠️ WHY A TIER AND NOT JUST THE RATE, measured 2026-09-25. The throttle only slows the
+ * page's main thread. On the viewer the walkthrough's cost is dominated by SOFTWARE 3D
+ * (SwiftShader), which runs in the GPU process that CDP throttling never touches: this
+ * Mac read tbt 139-235ms at 4x and still only 229-283ms at 12x. CI's runner scored 104
+ * and 171 (3.4-5.6x slower) and read 331-373ms even UNTHROTTLED, so no rate could make it
+ * imitate the reference, and the unclamped-rate test (`score >= reference / 4`, i.e. 145)
+ * would have counted its 171-score run as able to. So a slower machine is recognised by
+ * its score and given ceilings measured ON it, rather than pretending the rate fixed it.
+ */
+export const REFERENCE_CLASS_FRACTION = 0.8
+
+export function isReferenceClass(benchmarkScore: number): boolean {
+  return benchmarkScore >= REFERENCE_BENCHMARK * REFERENCE_CLASS_FRACTION
+}
+
+/**
  * The benchmark. SELF-CONTAINED on purpose: `page.evaluate` serialises the function's
  * source, so it may reference nothing outside its own body. Counts fixed string-and-sort
  * work units finished in 250ms; run it UNTHROTTLED. `performance` is reached through
