@@ -72,6 +72,10 @@ export const REACHABLE_ELSEWHERE = new Map([
   ['apps/viewer/CLAUDE.md', 'loaded automatically on touching apps/viewer/'],
   ['tools/asset-pipeline/CLAUDE.md', 'loaded automatically on touching tools/asset-pipeline/'],
   ['.github/CLAUDE.md', 'loaded automatically on touching .github/'],
+  [
+    'AGENTS.md',
+    'loaded automatically by Antigravity and other coding tools that read no CLAUDE.md',
+  ],
   ['CONTRIBUTING.md', 'GitHub surfaces it on every pull request'],
   ['SECURITY.md', 'GitHub surfaces it under the Security tab'],
   ['CHANGELOG.md', 'ordered by release, not by topic'],

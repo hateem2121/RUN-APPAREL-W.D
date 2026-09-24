@@ -47,6 +47,7 @@ pnpm lint                        # biome check .
 pnpm typecheck                   # 5 workspaces
 pnpm test:coverage               # the full suite + the coverage floors (see below)
 bash scripts/test-alert-shell.sh # the alert branch nothing else exercises
+node scripts/check-docs-index.mjs  # every maintained doc reachable from docs/README.md
 pnpm seed:assets && pnpm build   # build is the one that catches dependency breaks
 node scripts/check-bundle-budget.mjs  # deterministic shell weight; needs the build above
 pnpm eval:artwork                # separate CI job — gates the deploy
