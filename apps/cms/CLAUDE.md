@@ -295,7 +295,7 @@ events endpoint is under load.
   after `R-AJ`.
 - **🟢 A corrected export now starts from local disk, always.** Until 2026-09-24 one
   usually already sat in R2 under `run-apparel-archive/fixed-glbs/…`, and
-  scripts/ingest-from-archive.mjs started a shrink from an S3 `CopyObject` there —
+  `scripts/ingest-from-archive.mjs` started a shrink from an S3 `CopyObject` there —
   measured 16.9 MB in 4.9 s and 1.71 GiB in 110 s, inside Cloudflare. That archive bucket
   was retired by owner decision (docs/BACKUP-RESTORE.md); the script is gone with it, so
   every re-ingestion is now a fresh upload from the owner's Mac, the same as a first-time

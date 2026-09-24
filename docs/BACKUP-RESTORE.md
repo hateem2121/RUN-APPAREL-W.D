@@ -38,10 +38,10 @@ Two numbers, in plain terms:
 | Cloudflare account lost | nightly SQL dump (the ENCRYPTED GitHub artifact — needs the owner's backup key) | **up to 24h** | **~1 day** | Estimate — never drilled, and it needs a new account, new domain binding, new secrets and the backup key |
 | Media (GLB/posters) deleted from R2 | weekly R2 mirror | **up to 7 days** | **~1h** | Estimate — mirror verified, restore never drilled end to end |
 | Bad deploy (code, not data) | rollback | **0** | **~5 min** | See RUNBOOK → "Undoing a bad deploy" |
-| Raw CLO export or FIXED GLB lost from the Mac | **nothing** | **all of it** — there is no other copy anywhere | **n/a** — not recoverable through anything this repository controls | An R2 bucket (`run-apparel-archive`) covered this from 2026-09-02 until the owner retired it 2026-09-24 (owner decision: the masters live on the Mac only now, with no off-site copy); restore was never drilled while it existed. Time Machine is not set up as of 2026-09-24. Supersedes the 2026-08-08 "declined" decision, which predates the audit finding that the masters existed once, on one disk |
+| Raw CLO export or FIXED GLB lost from the Mac | **nothing** | **all of it** — there is no other copy anywhere | **n/a** — not recoverable through anything this repository controls | An R2 bucket (`run-apparel-archive`) covered this from 2026-09-02 until the owner retired it 2026-09-24 (owner decision: the masters live on the Mac only now, with no off-site copy); restore was never drilled while it existed. Time Machine is not set up as of 2026-09-24. Same outcome as the 2026-08-08 decision to decline an automated backup (RUNBOOK → "Keeping the copy safe"), which the bucket had superseded from 2026-09-02 to 2026-09-24 |
 
-**The weakest row is the R2 one**, and it is weaker than the table alone shows: the
-mirror runs weekly rather than nightly because a full media mirror costs egress
+**The weakest row is now the master-files one** — there is no copy at all. The media row
+is weaker than the table alone shows: the R2 mirror runs weekly rather than nightly because a full media mirror costs egress
 against a $5/month cap, and models change rarely. If a garment is re-shrunk on a
 Tuesday and R2 is lost on a Friday, that model is regenerable only if the raw export
 is still on the owner's Mac — which is the row below it, and (again, since 2026-09-24)
@@ -85,8 +85,8 @@ age-encrypted GitHub artifact; the pre-deploy snapshot goes to R2 only, under
 `run-private/run-apparel-viewer-db/pre-deploy/`), the `run-apparel-viewer-media` bucket, and the
 two apex PDFs from `run-assets`. **It does NOT back up the master files** — the raw CLO
 exports and the FIXED GLBs live on the owner's Mac only, with no off-site copy (owner
-decision, 2026-09-24; an R2 bucket verified rather than mirrored them from 2026-09-02
-until that date — see "The master files" below).
+decision, 2026-09-24; an R2 bucket held a copy of them from 2026-09-02 until that date,
+size-checked nightly rather than mirrored into an artifact — see "The master files" below).
 
 **Never backed up anywhere, by the same kind of owner decision that now covers every
 master file:** CLO project files (`.zprj`, 19 GB in Documents/clo plus four in
@@ -294,8 +294,9 @@ rule, held the files that until 2026-09-02 existed once, on one disk: the FIXED 
 (the owner's canonical production-ready folder) and the raw CLO exports from the repo's
 gitignored 3D Products folder, later joined by masters added over the following days —
 by 2026-09-03 a committed manifest verified 21 objects, 6.42 GB (audit CI-02 / CI-08). A
-nightly workflow step compared the live bucket against that manifest by key, byte count
-and SHA-256, and failed on any missing or wrong-size object — and, deliberately, on an
+nightly workflow step compared the live bucket against that manifest by key and byte
+count (the manifest's SHA-256 was kept for a restore to check against; the nightly step
+never read the bytes), and failed on any missing or wrong-size object — and, deliberately, on an
 empty listing or an empty manifest, because a check that checked nothing must not exit
 green (proven both ways on 2026-09-02: a manifest with one byte count off by one failed
 naming the file, and an empty bucket failed with "ZERO objects"). Since 2026-09-03 the
@@ -303,9 +304,11 @@ shrink robot also wrote its own copy of every successful run's raw export into t
 bucket, best-effort and idempotent, with no manifest row of its own — the nightly check
 counted those separately rather than calling them unverified.
 
-**Retired 2026-09-24, owner decision.** The owner chose to stop mirroring the master
-files rather than keep maintaining a second home for files that already exist once,
-correctly, on a machine only they control. The code that wrote to, verified, and
+**Retired 2026-09-24, owner decision.** The owner chose to keep the master files on the
+Mac only rather than maintain a second copy. Measured before that choice: 26 objects in
+the bucket (2.03 GB) had no exact-size match on the Mac (some may be held zipped or under
+another name, which a size match cannot see); the owner was shown this and decided
+anyway. The code that wrote to, verified, and
 restored from this bucket — the robot's copy step, the nightly verify step, its
 manifest, and the script that started a shrink from a copy already in the bucket — was
 removed from the repository in the same change that retired it here. The owner deletes

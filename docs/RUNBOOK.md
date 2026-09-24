@@ -210,6 +210,11 @@ The four Worker names:
 | `run-apparel-viewer-shrink` | garment processing only; the live site is unaffected |
 | `run-apparel-apex-404` | the private catalogue and profile links, and the retired apex PDF paths |
 
+⚠️ **Once `run-apparel-archive` is deleted, `run-apparel-viewer-shrink` cannot be rolled back
+to any version deployed between 2026-09-03 and the archive's retirement** — those versions
+bind that bucket, and Cloudflare refuses a rollback to a version whose R2 binding names a
+bucket that no longer exists. For that Worker use `git revert` + push.
+
 Rolling back the **viewer** is the safe one — it holds no data and reads only the
 public API.
 
@@ -646,13 +651,11 @@ byte-identical across the change.
 
 ### Keeping the copy safe
 
-**The owner keeps their own external copies of the raw exports** — stated
-2026-08-08, when an automated backup into the nightly-mirrored media bucket was
-offered and **declined**, on the grounds that it would duplicate storage they
-already maintain. Do not re-propose one; this is a settled decision, not an
-oversight, and the earlier text here ("one copy on one disk is not a copy",
-written when the copy was believed to be laptop-only) no longer describes the
-arrangement.
+**The raw exports and FIXED GLBs live on the owner's Mac only, with no off-site copy** —
+owner decision 2026-09-24 (`docs/BACKUP-RESTORE.md` → "The master files"). An automated
+backup into the nightly-mirrored media bucket was offered on 2026-08-08 and **declined**.
+An R2 archive bucket held copies from 2026-09-02 until it was retired on 2026-09-24. Do
+not re-propose one; this is a settled decision, not an oversight.
 
 What that decision does **not** cover, and what this repo still owes:
 `raw/CANONICAL.json` is the only thing that makes an externally-held copy
@@ -662,7 +665,7 @@ different geometry, and would produce a perfectly plausible damage number for a
 garment nobody calibrated. Keep the manifest current — it is the half of this
 that external storage cannot replace.
 
-After 2026-08-19 the R2 original is gone, so if an external copy is ever lost the
+After 2026-08-19 the R2 original is gone, so if the Mac's copy is ever lost the
 only route back is a fresh CLO export, which is byte-different and needs
 re-calibrating from scratch (see "Replacing or adding a garment" above — that is
 now a followable procedure rather than a research task).
