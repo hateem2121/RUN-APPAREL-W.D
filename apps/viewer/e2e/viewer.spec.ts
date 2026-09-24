@@ -250,6 +250,11 @@ test.describe('RUN APPAREL 3D viewer', () => {
     await page.emulateMedia({ colorScheme: 'light' })
     await page.goto('/n001/wine')
     // On a phone the switch is inside the menu (owner, 2026-09-23): open it first.
+    // ⚠️ `isVisible()` does NOT wait. Asked before the bar painted, it said "no menu" on
+    // CI's WebKit (both attempts, 2026-09-24), so the test waited 30s for a switch shut
+    // inside the closed menu. Wait for the bar, then let CSS say which layout it chose —
+    // the breakpoint also moves with text size, so a fixed width would be wrong.
+    await expect(page.locator('.notch')).toBeVisible()
     const menu = page.getByRole('button', { name: 'Menu', exact: true })
     if (await menu.isVisible()) await menu.click()
     await page.getByRole('button', { name: /switch to dark mode/i }).click()
