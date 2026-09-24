@@ -1,4 +1,25 @@
 /**
+ * Whether a path lives under the `/.well-known/` prefix RFC 8615 reserves for
+ * site metadata — so it can never be a product or colourway page, whatever
+ * `parseViewerPath` makes of it.
+ *
+ * ⚠️ MEASURED 2026-09-24: `GET /.well-known/ai-catalog.json` answered 200 with
+ * the SPA shell, because `normalizeSlug` strips the dot out of `.well-known`
+ * and out of `ai-catalog.json` before checking the slug pattern, so each
+ * segment comes out looking like an ordinary (if unpublished) slug —
+ * `well-known` / `ai-catalog-json` — and `parseViewerPath` accepted the pair as
+ * a two-segment product route. Lighthouse 13.5.0's `agentic-browsing/
+ * ard-schema` audit fetches exactly that path and turned the live Lighthouse
+ * robot (`lighthouse-live.yml`) red on every run: a 200 whose body is never the
+ * ARD manifest the audit expects is a failure, where a 404 is "not applicable".
+ * `/.well-known/security.txt` never reaches this function — `worker/index.ts`
+ * answers it earlier, before any route is parsed.
+ */
+export function isWellKnownPath(pathname: string): boolean {
+  return pathname.split('/').filter(Boolean)[0] === '.well-known'
+}
+
+/**
  * Whether a request that reached the SPA fallback should carry a 404 status.
  *
  * ⚠️ EVERY UNKNOWN URL ON THIS HOST ANSWERED "200 OK" UNTIL 2026-09-04. Measured:
@@ -41,6 +62,11 @@ export function shouldReturnNotFound(args: {
   if (pathname === '/') return false
   if (method !== 'GET') return false
   if (!(contentType ?? '').includes('text/html')) return false
+  // RFC 8615's reserved prefix is never a product page, however the shared
+  // slug parser happened to read it — see `isWellKnownPath` above. Checked
+  // ahead of `routeParsed` because that is exactly the flag this defect
+  // defeated.
+  if (isWellKnownPath(pathname)) return true
   // A single segment carrying a dot is a FILE somebody asked for and we do not
   // have — never a product page.
   //
