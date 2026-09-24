@@ -521,7 +521,7 @@ async function runChecks() {
       )
     } else {
       console.log(
-        `   timing (${timingProduct.slug}/${timingProduct.colourway}, cold): ` +
+        `   timing (${timingProduct.slug}/${timingProduct.colourway}, untouched earlier in this run): ` +
           `crawler ${crawler.seconds.toFixed(2)}s vs browser ${browser.seconds.toFixed(2)}s`,
       )
       // A wide, deliberately loose margin (not an exact pin — this is server-response
