@@ -98,6 +98,16 @@ function refusedGroup(agents: readonly string[]): string {
  */
 export const ANSWERING_UAS = AI_CRAWLER_UAS.filter((agent) => !TRAINING_ONLY_UAS.includes(agent))
 
+/**
+ * Re-exported so a robots.txt parser is written once and read twice: `viewerRobots.test.ts`
+ * (the repo's copy of the viewer's static file) and `scripts/public-security-probe.mjs`
+ * (the LIVE file, so production is checked to actually serve what the repo says it should
+ * — FI-07) both call the same functions rather than each keeping its own copy that could
+ * drift. Defined in `robotsTxtParse.ts`, not here, because that file has no other imports
+ * and this one does (`./seo`) — see that file's own docblock for why the split matters.
+ */
+export { agentsOf, lower, robotsTxtGroups } from './robotsTxtParse'
+
 export function buildRobotsTxt(): string {
   return `# What may be done with this content: ${CONTENT_SIGNAL}
 # https://contentsignals.org — a stated preference, not a technical block.

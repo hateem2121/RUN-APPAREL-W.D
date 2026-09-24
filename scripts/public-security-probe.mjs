@@ -31,7 +31,10 @@
  * Same discipline as scripts/apex-probe.mjs: a 403/429/503 from a runner, or a request that
  * never completed, is INCONCLUSIVE, never a pass and never a failure.
  */
+import { resolveTxt } from 'node:dns/promises'
 import { SECURITY_TXT, securityTxtProblems } from '../packages/shared/src/securityTxt.ts'
+import { TRAINING_ONLY_UAS } from '../apps/cms/htmlLimitedBots.mjs'
+import { agentsOf, lower, robotsTxtGroups } from '../apps/cms/src/lib/robotsTxtParse.ts'
 
 const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
 
@@ -46,9 +49,12 @@ export const REDIRECT_HEADERS = [
 /**
  * @typedef {{
  *   name: string,
- *   url: string,
- *   kind: 'security-txt' | 'redirect' | 'page-csp' | 'admin-csp',
+ *   url?: string,
+ *   kind: 'security-txt' | 'redirect' | 'page-csp' | 'admin-csp' | 'robots-txt-parity' | 'host-redirect' | 'dns-txt',
  *   expectStatus?: number,
+ *   expectLocation?: string,
+ *   bodyContains?: string,
+ *   dnsHost?: string,
  * }} SecurityTarget
  */
 
@@ -85,6 +91,55 @@ export const TARGETS = [
     expectStatus: 404,
   },
   { name: 'admin policy', url: 'https://cms.wear-run.help/admin', kind: 'admin-csp' },
+
+  // FI-07: the code-level drift test (apps/cms/src/viewerRobots.test.ts) guards that the
+  // FILE IN THE REPO is internally consistent; this guards that PRODUCTION actually
+  // serves it, post-deploy, same discipline as every other target above.
+  {
+    name: 'viewer robots.txt parity',
+    url: 'https://viewer.wear-run.help/robots.txt',
+    kind: 'robots-txt-parity',
+  },
+
+  // FI-13: redirects and host rewrites were confirmed correct live but unrobotted.
+  // `/products` stands in for the four public-path host-rule redirects on cms. — `/`,
+  // `/contact` and `/sitemap.xml` share the same rule in siteHostRules.mjs and are not
+  // independently re-measured here, to avoid four near-duplicate assertions for one rule.
+  {
+    name: 'www. -> apex (host-rule)',
+    url: 'https://www.wear-run.help/',
+    kind: 'host-redirect',
+    expectStatus: 308,
+    expectLocation: 'https://wear-run.help/',
+  },
+  {
+    name: 'cms. /products -> apex',
+    url: 'https://cms.wear-run.help/products',
+    kind: 'host-redirect',
+    expectStatus: 308,
+    expectLocation: 'https://wear-run.help/products',
+  },
+  // Both answer the SITE's branded 404, never Payload's real admin or a raw API response —
+  // the host-rule rewrite working. "Page not found" is the branded page's own <title>.
+  {
+    name: 'apex /admin is the branded 404, not the real admin',
+    url: 'https://wear-run.help/admin',
+    kind: 'host-redirect',
+    expectStatus: 404,
+    bodyContains: 'Page not found',
+  },
+  {
+    name: 'apex /api/products is the branded 404, not a raw API response',
+    url: 'https://wear-run.help/api/products',
+    kind: 'host-redirect',
+    expectStatus: 404,
+    bodyContains: 'Page not found',
+  },
+
+  // FI-15: a zero-credential proxy for "Search Console access has not been revoked" — the
+  // real API needs a one-time OAuth credential, deliberately deferred until a scoped-down
+  // path is confirmed. This checks only that the verification TXT record still exists.
+  { name: 'wear-run.help Search Console TXT', kind: 'dns-txt', dnsHost: 'wear-run.help' },
 ]
 
 /** The admin's own policy. The guard must never touch it (apps/cms/cspNonce.mjs → nonceable). */
@@ -114,11 +169,15 @@ const scriptTags = (html) => html.match(/<script\b[^>]*>/gi) ?? []
  * @typedef {{
  *   name: string,
  *   kind: SecurityTarget['kind'],
- *   status: number,
+ *   status?: number,
  *   expectStatus?: number,
+ *   expectLocation?: string,
+ *   bodyContains?: string,
  *   contentType?: string,
  *   body?: string,
+ *   location?: string | null,
  *   headers?: Record<string, string>,
+ *   records?: string[][],
  *   error?: string,
  * }} Observation
  */
@@ -227,17 +286,57 @@ export function evaluate(observations, now, { daily = false } = {}) {
       if (!/\bno-store\b/.test(o.headers?.['cache-control'] ?? '')) {
         problems.push('the page is cacheable, so its nonce could be reused')
       }
-    } else {
+    } else if (o.kind === 'admin-csp') {
       if (o.status !== 200) problems.push(`HTTP ${o.status}, expected 200`)
       const policy = o.headers?.['content-security-policy'] ?? '(none)'
       if (policy !== ADMIN_CSP) problems.push(`the admin policy changed: "${policy}"`)
+    } else if (o.kind === 'robots-txt-parity') {
+      // FI-07: the code-level test (apps/cms/src/viewerRobots.test.ts) already proves the
+      // repo's copy is internally consistent; this proves PRODUCTION serves the same
+      // refused-agent set, using the SAME parser (lib/robotsTxtParse.ts) so a future crawler-list
+      // change is asserted once and read twice.
+      if (o.status !== 200) {
+        problems.push(`HTTP ${o.status}, expected 200`)
+      } else {
+        const groups = robotsTxtGroups(o.body ?? '')
+        const refused = groups.find((lines2) => lines2.includes('Disallow: /')) ?? []
+        const live = lower(agentsOf(refused))
+        const expected = lower(TRAINING_ONLY_UAS)
+        const missing = expected.filter((agent) => !live.includes(agent))
+        const extra = live.filter((agent) => !expected.includes(agent))
+        if (missing.length > 0 || extra.length > 0) {
+          problems.push(
+            `the live refused-agent set differs from TRAINING_ONLY_UAS ` +
+              `(missing: ${missing.join(', ') || 'none'}; extra: ${extra.join(', ') || 'none'})`,
+          )
+        }
+      }
+    } else if (o.kind === 'host-redirect') {
+      // FI-13: correct redirects/host rewrites were confirmed live but unrobotted.
+      const expectStatus = o.expectStatus ?? 200
+      if (o.status !== expectStatus) problems.push(`HTTP ${o.status}, expected ${expectStatus}`)
+      if (o.expectLocation !== undefined && o.location !== o.expectLocation) {
+        problems.push(`redirected to "${o.location ?? '(none)'}", expected "${o.expectLocation}"`)
+      }
+      if (o.bodyContains && !(o.body ?? '').includes(o.bodyContains)) {
+        problems.push(
+          `the body does not contain "${o.bodyContains}" — is this really the site's branded page?`,
+        )
+      }
+    } else if (o.kind === 'dns-txt') {
+      // FI-15: a zero-credential proxy for "Search Console access has not been revoked".
+      const joined = (o.records ?? []).map((parts) => parts.join(''))
+      const hit = joined.find((record) => record.startsWith('google-site-verification='))
+      if (!hit || hit === 'google-site-verification=') {
+        problems.push('no non-empty google-site-verification TXT record found on this host')
+      }
     }
 
     if (problems.length > 0) {
       failures.push(`${o.name}: ${problems.join('; ')}.`)
-      lines.push(`  ${label} ${o.status}    FAIL  ${problems.join('; ')}`)
+      lines.push(`  ${label} ${o.status ?? 'DNS'}    FAIL  ${problems.join('; ')}`)
     } else {
-      lines.push(`  ${label} ${o.status}    ok`)
+      lines.push(`  ${label} ${o.status ?? 'DNS'}    ok`)
     }
   }
 
@@ -249,22 +348,46 @@ export function evaluate(observations, now, { daily = false } = {}) {
  * @returns {Promise<Observation>}
  */
 async function probe(target) {
+  // dns-txt is not an HTTP fetch at all — a DNS lookup, evaluated the same way any other
+  // network call here is: an error is inconclusive, never a pass or a fail.
+  if (target.kind === 'dns-txt') {
+    try {
+      const records = await resolveTxt(target.dnsHost)
+      return { name: target.name, kind: target.kind, records }
+    } catch (error) {
+      return {
+        name: target.name,
+        kind: target.kind,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
+  }
+
+  const manual = target.kind === 'redirect' || target.kind === 'host-redirect'
   try {
     const response = await fetch(target.url, {
-      redirect: target.kind === 'redirect' ? 'manual' : 'follow',
+      redirect: manual ? 'manual' : 'follow',
       headers: { 'user-agent': 'run-apparel-security-probe-bot/1.0' },
     })
     const body = await response.text().catch(() => '')
     /** @type {Record<string, string>} */
     const headers = {}
     for (const [name, value] of response.headers) headers[name.toLowerCase()] = value
+    const keepsBody =
+      target.kind === 'security-txt' ||
+      target.kind === 'page-csp' ||
+      target.kind === 'robots-txt-parity' ||
+      target.kind === 'host-redirect'
     return {
       name: target.name,
       kind: target.kind,
       status: response.status,
       expectStatus: target.expectStatus,
+      expectLocation: target.expectLocation,
+      bodyContains: target.bodyContains,
       contentType: response.headers.get('content-type') ?? undefined,
-      body: target.kind === 'security-txt' || target.kind === 'page-csp' ? body : undefined,
+      body: keepsBody ? body : undefined,
+      location: manual ? response.headers.get('location') : undefined,
       headers,
     }
   } catch (error) {

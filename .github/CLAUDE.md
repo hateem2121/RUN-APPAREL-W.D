@@ -332,9 +332,10 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   nothing. So try it first, then read the run's `conclusion`. Push an empty commit only if
   it comes back `cancelled`.
 
-- **`DEPLOY_ENABLED=false` pauses EIGHT workflows, not just deploys:** `ci`'s deploy,
+- **`DEPLOY_ENABLED=false` pauses NINE workflows, not just deploys:** `ci`'s deploy,
   `deploy-shrink`, `nightly-backup`, `uptime`, `heartbeat`, `diagnostics-digest`,
-  `perf-watch` and `lighthouse-live` (the eighth, added 2026-09-16). Off means no backups
+  `perf-watch`, `lighthouse-live` (added 2026-09-16) and `link-crawl` (the ninth, added
+  2026-09-23). Off means no backups
   and no monitoring — measured 2026-09-10, after the
   switch had been off since the public re-creation. Re-count with
   `grep -l 'vars.DEPLOY_ENABLED' .github/workflows/*.yml`.

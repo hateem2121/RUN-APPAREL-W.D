@@ -126,7 +126,7 @@ export function findPlaceholders(text) {
 }
 
 /**
- * What Lighthouse 13.4.1's `llms-txt` audit checks (core/audits/agentic/llms-txt.js:101-103):
+ * What Lighthouse 13.5.0's `llms-txt` audit checks (core/audits/agentic/llms-txt.js:101-103):
  * an H1, at least one Markdown link, and at least 50 characters. `[]` means it passes.
  */
 export function llmsTxtProblems(content) {

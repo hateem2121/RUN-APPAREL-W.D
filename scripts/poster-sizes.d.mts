@@ -40,3 +40,12 @@ export declare function judgePosters(
   posters: PosterSample[],
   options?: { exceptions?: OwnerException[] },
 ): PosterJudgement
+
+export type ModelUrlResolution = { url: string } | { error: string }
+
+export declare function modelUrlFromPayload(body: unknown): ModelUrlResolution
+export declare function resolveLiveModelUrl(
+  slug: string,
+  colourway: string,
+  options?: { apiBase?: string },
+): Promise<ModelUrlResolution>

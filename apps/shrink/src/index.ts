@@ -20,7 +20,6 @@ import { planColourImport } from './colourImport'
 import { DEAD_LETTER_QUEUE, deadLetterReport } from './deadLetter'
 import { type ShrinkFailure, reportFailure } from './sentry'
 import { decodeReportHeader, missingRawExport, readContainerFailure } from './containerFailure'
-import { archiveRawExport } from './archiveRaw'
 import { appendToError, retireOrphanedMedia } from './orphanGuard'
 import { alphaRefusal, artworkRefusal, repairRefusal, sizeRefusal } from './refusals'
 
@@ -84,13 +83,15 @@ interface Env {
   R2_INGEST_ACCESS_KEY_ID: string
   R2_INGEST_SECRET_ACCESS_KEY: string
   /**
-   * The ingest and archive buckets, bound directly (fix plan Rank 12, audit CI-01) so a
-   * successful run can stream the raw export into `run-apparel-archive`, which has no
-   * expiry rule. Optional: a Worker deployed from a wrangler.jsonc without them still
-   * runs every job and merely reports "not archived".
+   * The ingest bucket, bound directly (fix plan Rank 12, audit CI-01). Added alongside
+   * `R2_ARCHIVE` so a successful run could stream the raw export into an off-machine
+   * archive bucket; that archive was retired 2026-09-24 (owner decision — the master
+   * files now live on the owner's Mac only, see docs/BACKUP-RESTORE.md), so this binding
+   * is currently unused. Kept rather than removed: the S3-credentials comment below
+   * already names it as the durable fix for a separate, still-open fragility. Optional so
+   * a Worker deployed from a wrangler.jsonc without it still runs every job.
    */
   R2_INGEST?: R2Bucket
-  R2_ARCHIVE?: R2Bucket
   /**
    * Optional. Absent means no alerting, which is the state everything ran in until
    * 2026-08-29 — so a missing secret must degrade to that rather than break a job.
@@ -414,7 +415,9 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
          * own S3 credentials in here — that swaps a read-only, single-bucket
          * credential for one with 384 permission groups. The durable fix is to
          * delete these two secrets entirely and stream the object through the
-         * Worker's native `R2_INGEST` binding, which `archiveRaw.ts` already uses.
+         * Worker's native `R2_INGEST` binding, already declared in wrangler.jsonc
+         * (unused since the raw-export archive step that exercised it was retired
+         * 2026-09-24).
          */
         s3: {
           endpoint: env.R2_INGEST_S3_ENDPOINT,
@@ -695,21 +698,8 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
     job.rawUploadId,
   )
 
-  // 5. Keep the raw export (fix plan Rank 12, audit CI-01). The ingest bucket expires
-  //    it after 14 days and is in no backup; the archive bucket has no expiry. Best
-  //    effort and idempotent — see archiveRaw.ts — and reported either way.
-  const archiveNote =
-    env.R2_INGEST && env.R2_ARCHIVE
-      ? (
-          await archiveRawExport({ ingest: env.R2_INGEST, archive: env.R2_ARCHIVE }, key, {
-            rawUploadId: job.rawUploadId,
-          })
-        ).note
-      : '⚠️ Not archived: the archive bucket is not bound to this robot yet, so the raw export ' +
-        'still expires from the upload store after 14 days. Keep your own copy.'
-
   await patchRawUpload(env, job.rawUploadId, {
-    report: `${report.text}${fileColoursNote}${colourImportNote}${attachNote}${supersededNote}\n\n${archiveNote}`,
+    report: `${report.text}${fileColoursNote}${colourImportNote}${attachNote}${supersededNote}`,
   }).catch(() => {
     // The model is saved and the status is 'ready'; these are notes, not state.
   })
