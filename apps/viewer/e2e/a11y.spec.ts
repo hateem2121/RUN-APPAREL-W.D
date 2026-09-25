@@ -548,6 +548,23 @@ test.describe('generic keyboard, focus and naming sweeps on the product page', (
         .map((el) => `${el.tagName}.${el.className}`)
     })
     expect(unnamed, `icon-only controls with no accessible name: ${unnamed.join(', ')}`).toEqual([])
+
+    /*
+     * ⚠️ AND THE NAME THE BROWSER ACTUALLY COMPUTES, because `textContent` counts text a
+     * screen reader never hears. The theme switch is the case: its name is a
+     * visually-hidden span inside one of two faces, and CSS hides the other face. Hide
+     * the span itself (or both faces) and `textContent` is unchanged, so the sweep
+     * above still passes on a button that is announced as just "button". Every button
+     * in the accessibility tree must have a non-blank computed name.
+     */
+    const buttons = page.getByRole('button')
+    const count = await buttons.count()
+    expect(count, 'no buttons found: the sweep below would pass on nothing').toBeGreaterThan(0)
+    for (let index = 0; index < count; index += 1) {
+      const button = buttons.nth(index)
+      const label = await button.evaluate((el) => `${el.tagName}.${el.className}`)
+      await expect(button, `${label} has no accessible name`).toHaveAccessibleName(/\S/)
+    }
   })
 
   test('AC-11: <html lang> is set, and every colourway URL gets a distinct document title', async ({
