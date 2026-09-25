@@ -3464,28 +3464,53 @@ test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', 
   test('the cue is absent at the moment the model loads, and waits its idle pause', async ({
     page,
   }) => {
+    // Recorded once per DRAWN FRAME from before the app runs, so neither moment can fall
+    // between two polls. ⚠️ Not a page.evaluate promise on the 'load' event: <model-viewer>
+    // arrives by a dynamic import, so the element can be absent when that runs, and the
+    // promise then never settles (it timed out that way on 2026-09-25).
+    await page.addInitScript(() => {
+      const log = { loadedAt: -1, hintAt: -1, hintAtLoad: false }
+      ;(window as unknown as { __cue: typeof log }).__cue = log
+      const tick = () => {
+        const mv = document.querySelector('model-viewer') as { loaded?: boolean } | null
+        const hint = document.querySelector('.stage__hint')
+        const now = performance.now()
+        if (mv?.loaded && log.loadedAt < 0) {
+          log.loadedAt = now
+          log.hintAtLoad = hint !== null
+        }
+        if (hint && log.hintAt < 0) log.hintAt = now
+        if (log.hintAt < 0) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     const fallback = await page.locator('.stage__error:not([hidden])').count()
     test.skip(fallback > 0, 'no WebGL on this engine — the stage is in poster fallback')
-    const loadedAt = await page.evaluate(
-      () =>
-        new Promise<number>((done) => {
-          const mv = document.querySelector('model-viewer') as
-            | (HTMLElement & { loaded?: boolean })
-            | null
-          if (mv?.loaded) return done(performance.now())
-          mv?.addEventListener('load', () => done(performance.now()), { once: true })
-        }),
+    const readCue = () =>
+      page.evaluate(
+        () =>
+          (
+            window as unknown as {
+              __cue: { loadedAt: number; hintAt: number; hintAtLoad: boolean }
+            }
+          ).__cue,
+      )
+    await expect
+      .poll(async () => (await readCue()).hintAt, {
+        message: 'the cue never appeared',
+        timeout: 40_000,
+      })
+      .toBeGreaterThan(0)
+    const cue = await readCue()
+    console.log(
+      `MO-12: model loaded ${Math.round(cue.loadedAt)}ms, cue ${Math.round(cue.hintAt)}ms`,
     )
-    await expect(
-      page.locator('.stage__hint'),
-      'the cue shows the instant the model loads',
-    ).toHaveCount(0)
-    await expect(page.locator('.stage__hint')).toBeVisible({ timeout: 30_000 })
-    const shownAfter = (await page.evaluate(() => performance.now())) - loadedAt
+    expect(cue.loadedAt, 'the model never loaded').toBeGreaterThan(0)
+    expect(cue.hintAtLoad, 'the cue shows the instant the model loads').toBe(false)
     expect(
-      shownAfter,
+      cue.hintAt - cue.loadedAt,
       'the cue did not wait its idle pause (CUE_IDLE_MS, 3000)',
     ).toBeGreaterThanOrEqual(2900)
   })
