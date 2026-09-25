@@ -46,6 +46,8 @@ export interface PageRuns {
   runs: Run[]
   machine?: MeasuringMachine
   floors?: Record<string, number>
+  /** Audits allowed to fail on this page; defaults to `EXPECTED_BELOW_ONE[page]`. */
+  expectedBelowOne?: string[]
 }
 export interface PageVerdict {
   key: string
