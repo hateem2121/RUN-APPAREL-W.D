@@ -1439,6 +1439,26 @@ test.describe('FRONT/BACK/SIDE each move the camera and settle (MO-14)', () => {
     for (const view of ['front', 'back', 'side'] as const) {
       const before = await readOrbit()
       await page.getByRole('button', { name: new RegExp(`^${view}$`, 'i') }).click()
+      // WAIT FOR THE MOVE TO START before waiting for it to settle. Measured 2026-09-25:
+      // settle() takes two equal reads 50ms apart as "settled", and on a slower engine the
+      // camera had not STARTED moving yet, so it returned the pre-click orbit ('back: the
+      // camera orbit did not change at all', flaky on CI's WebKit). With the click delayed
+      // 300ms on purpose, the old order failed every run. FRONT is already active at load,
+      // so it is a legitimate no-op and has nothing to wait for.
+      if (view !== 'front' && before) {
+        await expect
+          .poll(
+            async () => {
+              const now = await readOrbit()
+              return now ? Math.abs(now.theta - before.theta) + Math.abs(now.phi - before.phi) : 0
+            },
+            { message: `${view}: the camera never moved to the preset`, timeout: 5_000 },
+          )
+          // 0.5 rad, not "any change": the idle interaction cue (CUE_SWEEP_DEGREES, 14°,
+          // ~0.24 rad) moves the camera by itself, and with the preset buttons planted dead
+          // it satisfied a 0.001 threshold (2026-09-25). BACK and SIDE turn 90-180°.
+          .toBeGreaterThan(0.5)
+      }
       const after = await settle()
       expect(after, `${view}: getCameraOrbit() returned null after settling`).not.toBeNull()
       if (before && after) {
@@ -1447,7 +1467,7 @@ test.describe('FRONT/BACK/SIDE each move the camera and settle (MO-14)', () => {
         // the preset is not the one already active (first iteration is 'front' from
         // load, so this correctly allows that single case to move zero).
         if (view !== 'front') {
-          expect(delta, `${view}: the camera orbit did not change at all`).toBeGreaterThan(0.001)
+          expect(delta, `${view}: the camera did not turn to the preset`).toBeGreaterThan(0.5)
         }
       }
       await expect(
