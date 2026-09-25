@@ -1154,7 +1154,7 @@ test.describe('section spacing has at most two distinct rhythms across a width s
  * ORDER, and the `№0N` prefix is the one thing on the page that already encodes it.
  */
 test.describe('LA-01 — the home page section order is locked', () => {
-  test('hero first, then №01 through №04 in DOM order', async ({ page }) => {
+  test('hero first, then №01 through №05 in DOM order', async ({ page }) => {
     await page.goto('/')
     await settle(page)
 
@@ -1174,6 +1174,7 @@ test.describe('LA-01 — the home page section order is locked', () => {
       '№02',
       '№03',
       '№04',
+      '№05',
     ])
   })
 })
@@ -1212,7 +1213,7 @@ test.describe('LA-02 — home-page input facts (an honest proxy, not a judgement
     // Everything else is recorded (annotation above), not graded — LA-02 is an input
     // fact for other areas' work (LA-12's column context, the owner's home-page
     // question), not a pass/fail judgement in itself.
-    expect(facts.sectionCount, 'home page rendered without its 5 sections').toBe(5)
+    expect(facts.sectionCount, 'home page rendered without its 6 sections').toBe(6)
     expect(facts.words, 'home page rendered almost no text').toBeGreaterThan(50)
   })
 

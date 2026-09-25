@@ -1,16 +1,22 @@
+import { FACTORY_PHOTOS } from '../src/lib/factoryPhotos'
 import { expect, type Page, test } from './offlineMedia'
 
 /**
- * IM-12 — the home page carries no photograph, and its one picture is a real garment
- * that opens the 3D viewer.
+ * IM-12 — the home page's pictures are a real garment and the owner's factory, and nothing
+ * else: no photograph in the hero, no stock image, no picture from a stylesheet.
  *
  * What the audit found, and what is kept: the hero is words and the blueprint grid; the
- * one picture on the page is `ProofGarment` (`src/app/(frontend)/page.tsx`) in section
- * №02 — a poster read from the CMS, a still rather than a live model by the owner's
- * decision of 2026-09-07 (FA-A-04), linked to the viewer, which decision D2 keeps as the
- * product detail page (docs/DECISIONS-BETA-WEBSITE.md). Its comment says why it is a
- * real product and not a file: a fixed picture goes stale the first time a garment is
- * retired, and nothing would say so.
+ * garment picture is `ProofGarment` (`src/app/(frontend)/page.tsx`) in section №02 — a
+ * poster read from the CMS, a still rather than a live model by the owner's decision of
+ * 2026-09-07 (FA-A-04), linked to the viewer, which decision D2 keeps as the product detail
+ * page (docs/DECISIONS-BETA-WEBSITE.md). Its comment says why it is a real product and not a
+ * file: a fixed picture goes stale the first time a garment is retired, and nothing would say
+ * so.
+ *
+ * ⚠️ UNTIL 2026-09-25 THIS PINNED EXACTLY ONE PICTURE. The owner then chose a strip of their
+ * own factory photos below The works (OI-3, section №04), so the count is now the poster plus
+ * the strip's list (`src/lib/factoryPhotos.ts`), each served from `/factory/`. A picture
+ * anywhere else still fails — which is the point the one-picture rule was making.
  *
  * src/publicSite.test.ts pins that every viewer link carries the caption (XS-09); this
  * pins what is ON the page. Counted in the rendered DOM, not in source, because a
@@ -40,7 +46,7 @@ async function picturesUnder(page: Page, selector: string) {
   })
 }
 
-test.describe('IM-12 — one picture on the home page, and it is a garment', () => {
+test.describe('IM-12 — the home page shows a garment and the factory, nothing else', () => {
   test('the hero carries no photograph', async ({ page }) => {
     await page.goto('/')
     // The control that the region exists: an empty match would pass on nothing.
@@ -49,16 +55,16 @@ test.describe('IM-12 — one picture on the home page, and it is a garment', () 
 
     expect(
       await picturesUnder(page, '.site-hero'),
-      "the home page hero paints a picture. The page's only picture is the garment " +
-        'poster in section №02, linked to the 3D viewer (IM-12).',
+      'the home page hero paints a picture. The garment poster lives in section №02 and ' +
+        'the factory photos in №04 (IM-12).',
     ).toEqual([])
   })
 
-  test('the whole page paints exactly one picture: a poster that opens the 3D viewer', async ({
+  test('the page paints the garment poster and the factory strip, and nothing else', async ({
     page,
   }) => {
     await page.goto('/')
-    const posters = page.locator('main img')
+    const posters = page.locator('main .proof__figure img')
     if ((await posters.count()) === 0) {
       if (process.env.CI) {
         throw new Error(
@@ -71,7 +77,16 @@ test.describe('IM-12 — one picture on the home page, and it is a garment', () 
     }
 
     const everything = await picturesUnder(page, 'body')
-    expect(everything, `the home page paints ${everything.length} pictures`).toHaveLength(1)
+    const factory = await page
+      .locator('.factory-grid img')
+      .evaluateAll((images) => images.map((img) => img.getAttribute('src') ?? ''))
+    expect(factory, 'the factory strip is not the list in src/lib/factoryPhotos.ts').toEqual(
+      FACTORY_PHOTOS.map((photo) => expect.stringMatching(new RegExp(`^/factory/${photo.slug}-`))),
+    )
+    expect(
+      everything,
+      `the home page paints ${everything.length} pictures: the poster plus ${factory.length} factory photos expected`,
+    ).toHaveLength(1 + factory.length)
 
     const poster = posters.first()
     await expect(poster).toHaveAttribute('src', /^https:\/\/media\./)

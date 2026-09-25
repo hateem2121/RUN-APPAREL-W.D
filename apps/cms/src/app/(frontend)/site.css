@@ -2439,6 +2439,73 @@ a.contact-block__value:active {
   }
 }
 
+/* ------------------------------------------------ inside the factory (OI-3, 2026-09-25) */
+
+/*
+ * ⚠️ EVERY PICTURE IS ONE HEIGHT, SET FROM THE COLUMN WIDTH — NOT BY `aspect-ratio`. A wide
+ * tile spans two columns AND the gap between them, so an 8:5 ratio on it comes out
+ * `gap / 1.6` (15px) taller than a 4:5 single beside it, and a mixed row's bottoms and
+ * captions no longer line up. Here the grid is a size container and every picture is
+ * `1.25 ×` one column tall, whatever it spans; a wide picture is cropped ~1% more by
+ * `object-fit` to fit, on a file `scripts/build-factory-photos.mjs` already cut to 8:5.
+ *
+ * Two columns below 900px, four from 900px: the two counts at which the committed order in
+ * `lib/factoryPhotos.ts` leaves no hole (`src/factoryPhotos.test.ts` checks both). No
+ * `grid-auto-flow: dense` — it would fill a hole by moving a picture out of reading order.
+ */
+.factory-grid {
+  --factory-columns: 2;
+  --factory-gap: 24px;
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: repeat(var(--factory-columns), minmax(0, 1fr));
+  gap: var(--factory-gap);
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 900px) {
+  .factory-grid {
+    --factory-columns: 4;
+  }
+}
+
+.factory-tile--wide {
+  grid-column: span 2;
+}
+
+/* The same reset `.proof__figure` carries: a UA `<figure>` margin shrinks and shifts it. */
+.factory-tile__figure {
+  margin: 0;
+}
+
+/*
+ * The explicit height reserves the tile before the picture arrives (the CLS rule
+ * `.proof__frame` states).
+ */
+.factory-tile__img {
+  display: block;
+  width: 100%;
+  height: calc(
+    (100cqi - (var(--factory-columns) - 1) * var(--factory-gap)) /
+    var(--factory-columns) *
+    1.25
+  );
+  object-fit: cover;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+
+.factory-tile__caption {
+  margin-block-start: 10px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 /*
  * ------------------------------------- more contrast, when it is asked for (FA-H-09)
  *

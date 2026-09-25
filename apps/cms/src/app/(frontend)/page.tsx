@@ -1,6 +1,7 @@
 import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { FactoryPhotos } from '../../components/site/FactoryPhotos'
 import { JsonLd } from '../../components/site/JsonLd'
 import { ProductPoster } from '../../components/site/ProductPoster'
 import { ViewerCue } from '../../components/site/ViewerCue'
@@ -134,7 +135,7 @@ export default async function HomePage() {
         all; the first version of that probe put quoted family names inside an HTML
         `style` attribute, terminated it early, and measured a proportional font.
 
-        Two digits, not three, on both surfaces: there are four sections here and three
+        Two digits, not three, on both surfaces: there are five sections here and three
         there, and `003` implies a scale that does not exist.
       */}
           <p className="section-number">№01 — What we make</p>
@@ -228,9 +229,28 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/*
+        ⚠️ BELOW THE WORKS AND ABOVE THE CONTACT, BY THE OWNER'S CHOICE (OI-3, 2026-09-25: "a
+        photo strip below"). The introduction and the 3D section keep their places (D6), and
+        the page still ends on the one thing it asks a buyer to do.
+      */}
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <p className="section-number">№04 — Talk to us</p>
+          <p className="section-number">№04 — Inside the factory</p>
+          <h2 className="display display--section">
+            Where your order <span className="serif-accent">is&nbsp;made.</span>
+          </h2>
+          <p className="site-lede">
+            One building in Sialkot, from the first stitch to the sealed bag. These are the rooms
+            your order passes through.
+          </p>
+          <FactoryPhotos />
+        </div>
+      </section>
+
+      <section className="site-section" data-site-reveal>
+        <div className="site-container">
+          <p className="section-number">№05 — Talk to us</p>
           <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
           <p className="site-lede">
             Send the styles, quantities and specs you have — a sketch is enough to start. We reply

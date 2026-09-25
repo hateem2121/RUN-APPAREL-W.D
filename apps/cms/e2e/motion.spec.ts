@@ -461,14 +461,15 @@ test.describe('FA-G-52 — Windows High Contrast is answered, not fought', () =>
 })
 
 /**
- * MO-17, the site half: the home page reveals exactly four sections on scroll, and by
+ * MO-17, the site half: the home page reveals exactly five sections on scroll (four until the
+ * factory strip joined as №04 on 2026-09-25, OI-3), and by
  * RISING alone — `site-reveal` animates `transform` and never `opacity`. The fade was taken
  * out on purpose: text mid-fade failed contrast checks (7 violations on the home page, 0
  * without it; see `site.css`). The viewer's half, fade AND rise, is in
  * apps/viewer/e2e/motion-and-layout.spec.ts.
  */
 test.describe('MO-17 — the site reveals by rising alone', () => {
-  test('four home sections reveal, and the keyframes never touch opacity', async ({ page }) => {
+  test('five home sections reveal, and the keyframes never touch opacity', async ({ page }) => {
     await page.goto('/')
     const found = await page.evaluate(() => {
       const properties = new Set<string>()
@@ -499,7 +500,7 @@ test.describe('MO-17 — the site reveals by rising alone', () => {
         properties: [...properties].sort(),
       }
     })
-    expect(found.sections, 'the home page reveals a different number of sections').toBe(4)
+    expect(found.sections, 'the home page reveals a different number of sections').toBe(5)
     expect(found.keyframes, 'no `site-reveal` keyframes in the served CSS').toBeGreaterThan(0)
     expect(found.properties, 'the site reveal animates something besides a rise').toEqual([
       'transform',
