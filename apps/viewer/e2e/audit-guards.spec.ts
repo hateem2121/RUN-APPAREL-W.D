@@ -532,6 +532,33 @@ test.describe('keyboard scrolling survives Lenis (FA-F-10)', () => {
 
     await page.locator('body').click({ position: { x: 5, y: 5 } })
 
+    /*
+     * ⚠️ LET EACH KEY'S SCROLL FINISH BEFORE THE NEXT KEY. Measured 2026-09-25: the
+     * browser ANIMATES keyboard scrolling itself, and a key pressed while that animation is
+     * still running can be lost. Home pressed right after End ended at the BOTTOM on WebKit
+     * 3/3, and 100ms into the glide it stopped ~50px short, WITH OR WITHOUT Lenis (a control
+     * run with the smooth layer never imported gave the same numbers). So it is the
+     * platform, not a keyboard-swallowing smooth layer. The End check passes within 1px of
+     * the bottom, before the animation has formally ended, which is how 'Home did not return
+     * to the top' failed on CI's WebKit (both attempts, main run 36079665099; 1 in 20 here).
+     * Still = the same scrollY over three reads 100ms apart, and no lenis-scrolling class.
+     */
+    const waitForStill = async () => {
+      let last = -1
+      let same = 0
+      for (let i = 0; i < 50 && same < 3; i++) {
+        await page.waitForTimeout(100)
+        const now = await page.evaluate(() =>
+          document.documentElement.classList.contains('lenis-scrolling')
+            ? -2
+            : Math.round(window.scrollY),
+        )
+        same = now >= 0 && now === last ? same + 1 : 0
+        last = now
+      }
+      if (same < 3) throw new Error('the page never came to rest within 5s')
+    }
+
     /**
      * ⚠️ THE BOTTOM IS COMPUTED AT READ TIME, NOT BEFORE THE KEY PRESS, and that
      * is not fussiness — a first draft that captured it beforehand failed by
@@ -562,6 +589,7 @@ test.describe('keyboard scrolling survives Lenis (FA-F-10)', () => {
         },
       )
       .toBeLessThanOrEqual(1)
+    await waitForStill()
 
     await page.keyboard.press('Home')
     await expect
@@ -570,6 +598,7 @@ test.describe('keyboard scrolling survives Lenis (FA-F-10)', () => {
         timeout: 5_000,
       })
       .toBe(0)
+    await waitForStill()
 
     await page.keyboard.press('PageDown')
     await expect
