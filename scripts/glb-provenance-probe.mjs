@@ -82,7 +82,7 @@ export function findLeftovers(gltf) {
   const hits = []
   const walk = (node, path, place) => {
     if (Array.isArray(node)) {
-      node.forEach((value, index) => walk(value, `${path}[${index}]`, place))
+      for (const [index, value] of node.entries()) walk(value, `${path}[${index}]`, place)
       return
     }
     if (node && typeof node === 'object') {
