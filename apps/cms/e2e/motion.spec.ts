@@ -457,3 +457,50 @@ test.describe('FA-G-52 — Windows High Contrast is answered, not fought', () =>
     ).toEqual([])
   })
 })
+
+/**
+ * MO-17, the site half: the home page reveals exactly four sections on scroll, and by
+ * RISING alone — `site-reveal` animates `transform` and never `opacity`. The fade was taken
+ * out on purpose: text mid-fade failed contrast checks (7 violations on the home page, 0
+ * without it; see `site.css`). The viewer's half, fade AND rise, is in
+ * apps/viewer/e2e/motion-and-layout.spec.ts.
+ */
+test.describe('MO-17 — the site reveals by rising alone', () => {
+  test('four home sections reveal, and the keyframes never touch opacity', async ({ page }) => {
+    await page.goto('/')
+    const found = await page.evaluate(() => {
+      const properties = new Set<string>()
+      let keyframes = 0
+      const walk = (rules: CSSRuleList) => {
+        for (const rule of rules) {
+          if (rule instanceof CSSKeyframesRule && rule.name === 'site-reveal') {
+            keyframes++
+            for (const frame of rule.cssRules) {
+              const style = (frame as CSSKeyframeRule).style
+              for (let i = 0; i < style.length; i++) properties.add(style.item(i))
+            }
+          } else if ('cssRules' in rule) {
+            walk((rule as CSSGroupingRule).cssRules)
+          }
+        }
+      }
+      for (const sheet of document.styleSheets) {
+        try {
+          walk(sheet.cssRules)
+        } catch {
+          // a cross-origin sheet: not ours
+        }
+      }
+      return {
+        sections: document.querySelectorAll('[data-site-reveal]').length,
+        keyframes,
+        properties: [...properties].sort(),
+      }
+    })
+    expect(found.sections, 'the home page reveals a different number of sections').toBe(4)
+    expect(found.keyframes, 'no `site-reveal` keyframes in the served CSS').toBeGreaterThan(0)
+    expect(found.properties, 'the site reveal animates something besides a rise').toEqual([
+      'transform',
+    ])
+  })
+})

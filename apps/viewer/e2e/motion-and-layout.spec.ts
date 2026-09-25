@@ -3191,3 +3191,178 @@ test.describe('the spec callouts never sit over the no-3D notice (LA-16)', () =>
     }
   })
 })
+
+/**
+ * Batch C, PR 2 — the motion layer's contracts, read off the running page rather than the
+ * stylesheet's text: what a reduced-motion visitor gets, what a press does, and exactly
+ * which blocks reveal and how.
+ */
+test.describe('the motion layer keeps its contracts (MO-03, MO-04, MO-17)', () => {
+  /**
+   * MO-03: under reduced motion EVERY transition and animation on the page, pseudo-elements
+   * included, resolves to at most 0.01ms with no delay, and every reveal is already shown on
+   * arrival. `base.css`'s universal rule is what promises this; the test above only proved
+   * the reveals were not left at opacity 0.
+   */
+  test('reduced motion: every duration is 0.01ms and every reveal is already shown', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    expect(
+      await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches),
+      'reduced motion was not actually emulated',
+    ).toBe(true)
+    const found = await page.evaluate(() => {
+      const ms = (v: string) => {
+        const n = Number.parseFloat(v)
+        if (Number.isNaN(n)) return 0 // `auto`: no time-based duration at all
+        return v.trim().endsWith('ms') ? n : n * 1000
+      }
+      const worst = (list: string) => Math.max(...list.split(',').map(ms))
+      const slow: string[] = []
+      let checked = 0
+      for (const el of document.querySelectorAll('*')) {
+        for (const pseudo of [null, '::before', '::after']) {
+          const cs = getComputedStyle(el, pseudo)
+          checked++
+          const d = Math.max(worst(cs.transitionDuration), worst(cs.animationDuration))
+          const delay = Math.max(worst(cs.transitionDelay), worst(cs.animationDelay))
+          if (d > 0.0101 || delay > 0) {
+            slow.push(
+              `${el.tagName.toLowerCase()}.${el.getAttribute('class') ?? ''}${pseudo ?? ''}: ` +
+                `transition ${cs.transitionDuration} +${cs.transitionDelay}, ` +
+                `animation ${cs.animationDuration} +${cs.animationDelay}`,
+            )
+          }
+        }
+      }
+      const reveals = [...document.querySelectorAll('[data-reveal]')].map((el) => {
+        const cs = getComputedStyle(el)
+        return { opacity: cs.opacity, transform: cs.transform }
+      })
+      return { checked, slow: slow.slice(0, 8), reveals }
+    })
+    expect(found.checked, 'the sweep read nothing').toBeGreaterThan(300)
+    expect(found.slow, 'something still moves for a reader who asked it not to').toEqual([])
+    expect(found.reveals.length, 'no reveal blocks on the page').toBeGreaterThan(0)
+    for (const r of found.reveals) {
+      expect(r, 'a reveal is not already in place on arrival').toEqual({
+        opacity: '1',
+        transform: 'none',
+      })
+    }
+  })
+
+  /**
+   * MO-04: a press shrinks the control to exactly 0.97 with the standalone `scale`
+   * property, promptly, and never through `transform` — which the cursor's
+   * magnet owns on the same elements, and a `transform: scale()` would fight
+   * (apps/viewer/CLAUDE.md, the translate → rotate → scale → transform order). The test
+   * above proves the transition is declared; this one presses a real tab and reads the
+   * frames.
+   */
+  test('a press shrinks the control to 0.97 through `scale`, promptly', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const tab = page.locator('.colourway-tab').nth(1)
+    await tab.scrollIntoViewIfNeeded()
+    const box = await tab.boundingBox()
+    expect(box, 'no second colourway tab to press').not.toBeNull()
+    await page.mouse.move(
+      (box?.x ?? 0) + (box?.width ?? 0) / 2,
+      (box?.y ?? 0) + (box?.height ?? 0) / 2,
+    )
+    await page.evaluate(() => {
+      const el = document.querySelectorAll('.colourway-tab')[1] as HTMLElement
+      const w = window as unknown as {
+        __press: { t: number; scale: string; transform: string }[]
+        __down: number
+      }
+      w.__press = []
+      w.__down = -1
+      el.addEventListener('pointerdown', () => (w.__down = performance.now()), { once: true })
+      const start = performance.now()
+      const tick = () => {
+        const cs = getComputedStyle(el)
+        w.__press.push({ t: performance.now(), scale: cs.scale, transform: cs.transform })
+        if (performance.now() - start < 1500) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+    await page.mouse.down()
+    await page.waitForTimeout(400)
+    const { frames, down, instant } = await page.evaluate(() => {
+      const w = window as unknown as {
+        __press: { t: number; scale: string; transform: string }[]
+        __down: number
+      }
+      const v = getComputedStyle(document.documentElement).getPropertyValue('--instant').trim()
+      return {
+        frames: w.__press,
+        down: w.__down,
+        instant: v.endsWith('ms') ? Number.parseFloat(v) : Number.parseFloat(v) * 1000,
+      }
+    })
+    await page.mouse.up()
+    expect(down, 'the press never reached the tab').toBeGreaterThan(0)
+    const after = frames.filter((f) => f.t >= down)
+    const started = after.find((f) => f.scale !== 'none')
+    const pressed = after.find((f) => f.scale === '0.97')
+    console.log(
+      `MO-04 press: starts ${Math.round((started?.t ?? Number.NaN) - down)}ms, lands ${Math.round((pressed?.t ?? Number.NaN) - down)}ms (--instant ${instant}ms)`,
+    )
+    expect(
+      pressed,
+      `the tab never read scale 0.97 while held; frames saw ${[...new Set(after.map((f) => f.scale))].join(', ')}`,
+    ).toBeDefined()
+    // Measured 2026-09-25, 20 runs across the four engines in parallel: the shrink starts
+    // 3-56ms after pointerdown and lands 120-214ms after it (headless Chromium's first frame
+    // after input comes late). The exact duration is pinned by the test above; these bounds
+    // catch a press that does not answer, or one eased on a far slower token.
+    expect(
+      (started?.t ?? Number.POSITIVE_INFINITY) - down,
+      'the press did not start answering within 100ms',
+    ).toBeLessThanOrEqual(100)
+    expect(
+      (pressed?.t ?? Number.POSITIVE_INFINITY) - down,
+      `the press took longer than --instant (${instant}ms) + 150ms to land`,
+    ).toBeLessThanOrEqual(instant + 150)
+    expect(
+      after.filter((f) => f.transform !== 'none').map((f) => f.transform),
+      'the press moved `transform`, which the cursor magnet owns',
+    ).toEqual([])
+  })
+
+  /**
+   * MO-17, the viewer half: exactly four blocks reveal on scroll — colourways, customise,
+   * contact, footer — and each by fading AND rising (opacity + transform). The site's half,
+   * rise only, is in apps/cms/e2e/motion.spec.ts. A fifth reveal, or one that lost its
+   * fade, is a change to the design this pins.
+   */
+  test('four blocks reveal, each by fading and rising', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const inventory = await page.evaluate(() =>
+      [...document.querySelectorAll('[data-reveal]')].map((el) => ({
+        block: el.classList[0] ?? el.tagName.toLowerCase(),
+        properties: getComputedStyle(el)
+          .transitionProperty.split(',')
+          .map((p) => p.trim()),
+      })),
+    )
+    expect(inventory.map((r) => r.block).sort()).toEqual([
+      'colourways',
+      'contact',
+      'customise',
+      'footer',
+    ])
+    for (const r of inventory) {
+      expect(r.properties, `${r.block} does not fade`).toContain('opacity')
+      expect(r.properties, `${r.block} does not rise`).toContain('transform')
+    }
+  })
+})
