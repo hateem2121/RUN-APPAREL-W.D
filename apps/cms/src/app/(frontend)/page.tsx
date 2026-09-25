@@ -234,7 +234,7 @@ export default async function HomePage() {
           <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
           <p className="site-lede">
             Send the styles, quantities and specs you have — a sketch is enough to start. We reply
-            within 2 business days.
+            within 24 hours.
           </p>
           <div className="site-actions">
             <a className="btn btn--primary" href={`mailto:${settings.email}`}>

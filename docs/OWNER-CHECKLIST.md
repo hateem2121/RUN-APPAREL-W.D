@@ -48,7 +48,7 @@ Check each of these and tell me if any is wrong:
 | `+923361777313` | Contact page, footer, WhatsApp links |
 | `RUN APPAREL (PVT) LTD` | Footer, and the structured data |
 | ~~**"EST. LINEAGE 1889"**~~ — **answered 2026-09-07**, being reworded | Home page headline strip |
-| **"We reply within 2 business days"** | Home and Contact — this is a promise; it should be one you can keep |
+| **"We reply within 24 hours"** | Home, Contact, Privacy and the footer. Your choice (15 Sept, confirmed 25 Sept); the footer line is the CMS field Site Settings → CTA promise |
 | **"100% B2B manufacturer"** | Home page |
 
 The 2-day reply is the one worth pausing on: it is a commitment in writing.

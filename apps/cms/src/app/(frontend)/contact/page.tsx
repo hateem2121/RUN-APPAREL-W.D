@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = buildMetadata({
   title: 'Contact',
   description:
-    'Get in touch with RUN APPAREL — a private label apparel manufacturer in Sialkot, Pakistan. We reply within 2 business days.',
+    'Get in touch with RUN APPAREL — a private label apparel manufacturer in Sialkot, Pakistan. We reply within 24 hours.',
   path: '/contact',
 })
 
@@ -118,7 +118,7 @@ export default async function ContactPage({
           </p>
           {sent ? (
             <p className="form-notice form-notice--ok" role="status">
-              Thank you — your inquiry is with us. We reply within 2 business days.
+              Thank you — your inquiry is with us. We reply within 24 hours.
             </p>
           ) : null}
           {error ? (

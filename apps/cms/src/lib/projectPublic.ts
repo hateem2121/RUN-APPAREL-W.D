@@ -59,7 +59,7 @@ export const EMPTY_FOOTER: FooterSettings = {
   ctaLabel: 'Start an inquiry',
   ctaQuestion: 'Have a garment that needs making properly?',
   ctaSubline: 'Send a tech pack, a sketch, or just the idea.',
-  ctaPromise: 'Reply within 2 business days',
+  ctaPromise: 'Reply within 24 hours',
   capacity: { moq: '', leadTime: '', hours: null },
   worksCoordinates: '',
   certifications: [],
