@@ -2545,6 +2545,25 @@ test.describe('text follows the browser text-size setting', () => {
   }
 })
 
+/**
+ * ⚠️ WAIT UNTIL THE STAGE HAS PICKED ITS BRANCH BEFORE ASKING WHICH ONE IT PICKED
+ * (2026-09-25). The no-3D notice is decided AFTER the heading shows, so a fallback check
+ * read straight after the heading finds neither state, the test goes on as if 3D were live,
+ * and then waits 30 s for a cue a fallback stage never draws. That was the one hard failure
+ * that stopped `main`'s deploy after #66, on CI's Firefox, which has no WebGL on a runner
+ * (and does here, so the branch is CI-only — apps/viewer/CLAUDE.md). The same wait already
+ * guards the Save-Data case above, after mobile Safari was caught still deciding.
+ */
+async function waitForStageToSettle(page: import('@playwright/test').Page) {
+  await page.waitForFunction(
+    () =>
+      Boolean((document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded) ||
+      document.querySelector('.stage__error:not([hidden])') !== null,
+    undefined,
+    { timeout: 40_000 },
+  )
+}
+
 test.describe('the interaction cue tells a visitor the garment is not a photograph', () => {
   /**
    * "On first glance it looks like an image so some visitors ignore it thinking
@@ -2574,23 +2593,26 @@ test.describe('the interaction cue tells a visitor the garment is not a photogra
    * load-bearing.
    */
   const skipUnless3D = async (page: import('@playwright/test').Page) => {
+    await waitForStageToSettle(page)
     const fallback = await page.locator('.stage__error:not([hidden])').count()
     test.skip(fallback > 0, 'no WebGL on this engine — the stage is in poster fallback')
   }
 
   test('it is absent on arrival and appears only after an idle pause', async ({ page }) => {
+    test.slow()
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    await skipUnless3D(page)
-    // Immediately after the model loads there is nothing to nag about — the
-    // visitor has not had time to be confused yet.
+    // On arrival there is nothing to nag about — the visitor has not had time to be
+    // confused yet. True on either branch, so it is read before the stage settles.
     await expect(page.locator(CUE)).toBeHidden()
+    await skipUnless3D(page)
     // Generous: the idle timer only STARTS once the model has loaded, and a CI
     // runner decoding a GLB in software takes far longer than this machine.
     await expect(page.locator(CUE)).toBeVisible({ timeout: 30000 })
   })
 
   test('it is legible: not the 10px muted corner label it replaced', async ({ page }) => {
+    test.slow()
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await skipUnless3D(page)
@@ -2630,6 +2652,7 @@ test.describe('the interaction cue tells a visitor the garment is not a photogra
   })
 
   test('one drag dismisses it for good', async ({ page }) => {
+    test.slow()
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await skipUnless3D(page)
@@ -3609,6 +3632,7 @@ test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', 
   test('the cue is absent at the moment the model loads, and waits its idle pause', async ({
     page,
   }) => {
+    test.slow()
     // Recorded once per DRAWN FRAME from before the app runs, so neither moment can fall
     // between two polls. ⚠️ Not a page.evaluate promise on the 'load' event: <model-viewer>
     // arrives by a dynamic import, so the element can be absent when that runs, and the
@@ -3631,6 +3655,7 @@ test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', 
     })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await waitForStageToSettle(page)
     const fallback = await page.locator('.stage__error:not([hidden])').count()
     test.skip(fallback > 0, 'no WebGL on this engine — the stage is in poster fallback')
     const readCue = () =>
