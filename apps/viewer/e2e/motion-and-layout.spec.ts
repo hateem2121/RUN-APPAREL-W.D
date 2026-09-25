@@ -3283,6 +3283,30 @@ test.describe('the spec callouts never sit over the no-3D notice (LA-16)', () =>
       await page.setViewportSize({ width, height: 900 })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      /*
+       * ⚠️ WAIT FOR THE STAGE TO SHOW ONE OF ITS TWO STATES, then branch (2026-09-25). Read
+       * once, straight after the heading, CI's Firefox found NEITHER the no-3D notice NOR a
+       * drawn callout at 1000px, twice in a row: red on `main` after #60 (a unit-test-only
+       * change) and flaky on #62, on runners where that engine's 3D tests were also timing
+       * out waiting for models to load. The cause is NOT established — no snapshot was kept,
+       * this Mac cannot reproduce it (also tried inside CI's image, with the 3D library's
+       * download delayed 3s), and in the code a fallback always shows the notice. So this
+       * waits up to 20s for callouts or the notice; a stage that shows neither now fails
+       * with "the stage never settled", which names the real question.
+       */
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() => {
+              if (document.querySelector('.stage__error:not([hidden])')) return 'fallback'
+              const drawn = [...document.querySelectorAll('.stage__callouts .callout')].filter(
+                (el) => el.getBoundingClientRect().width > 0,
+              ).length
+              return drawn > 0 ? 'callouts' : 'pending'
+            }),
+          { message: `the stage never settled at ${width}px`, timeout: 20_000 },
+        )
+        .not.toBe('pending')
       const fallback = await page.locator('.stage__error:not([hidden])').count()
       test.skip(fallback > 0, `${browserName}: no WebGL here, so there is no garment to frame`)
       const m = await measure(page)

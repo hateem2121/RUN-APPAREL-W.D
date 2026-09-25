@@ -149,7 +149,7 @@ export const SiteSettings: GlobalConfig = {
       type: 'text',
       required: true,
       maxLength: 48,
-      defaultValue: 'Reply within 2 business days',
+      defaultValue: 'Reply within 24 hours',
       admin: {
         description:
           'Drawn as a measurement line under the question. This is a promise in writing.',
