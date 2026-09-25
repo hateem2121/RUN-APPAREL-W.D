@@ -45,13 +45,110 @@
  */
 
 import { LIVE_PRODUCTS } from './live-products.mjs'
-import { resolveLiveModelUrl } from './poster-sizes.mjs'
+import { judgePosters } from './poster-sizes.mjs'
+
+const API_BASE = (process.env.CMS_API_BASE || 'https://cms.wear-run.help').replace(/\/+$/, '')
 
 /** Statuses that mean "ask again later", not "the model is broken" — same set every probe here uses. */
 const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
 
 /** A leftover string from the authoring tool has no business shipping to a customer. */
 const BLOCKLIST = ['marvelous', 'clo3d', 'clo standalone', 'clo virtual', 'style3d']
+
+/**
+ * CLO's own keys (IM-10). A text blocklist cannot see these: they are structure, not
+ * words, and each is what `tools/asset-pipeline/src/strip-live-metadata.ts` removes.
+ */
+export const LEFTOVER_KEYS = ['globalMap', 'PhysicalPropertyList', 'SeamLinePairList', 'MetaData']
+
+/**
+ * The ONLY `extras` keys a finished model may carry, each where our own pipeline writes
+ * it. Allow-listed by name AND place, never `extras` wholesale, so a real future leak
+ * cannot hide behind them. Measured on all 16 live models 2026-09-25: `depthBias` 183
+ * times (material extras, `overlay-annotate.ts`, the decal protection) and `uvRemap`
+ * 1,592 times (mesh-primitive extras, `uv-remap.ts`); nothing else.
+ */
+export const ALLOWED_EXTRAS = { materials: ['depthBias'], primitives: ['uvRemap'] }
+
+/** A raw Windows drive path (`D:/…`, `C:\\…`) is a CLO export leaking the author's disk. */
+const DRIVE_PATH = /^[A-Za-z]:[\\/]/
+
+/**
+ * Pure: every CLO leftover in a parsed glTF JSON chunk, as readable paths.
+ * @param {unknown} gltf
+ * @returns {string[]}
+ */
+export function findLeftovers(gltf) {
+  const hits = []
+  const walk = (node, path, place) => {
+    if (Array.isArray(node)) {
+      for (const [index, value] of node.entries()) walk(value, `${path}[${index}]`, place)
+      return
+    }
+    if (node && typeof node === 'object') {
+      for (const [key, value] of Object.entries(node)) {
+        const at = path ? `${path}.${key}` : key
+        if (LEFTOVER_KEYS.includes(key)) hits.push(`${at} (a CLO key)`)
+        if (key === 'extras' && value && typeof value === 'object') {
+          const allowed = ALLOWED_EXTRAS[place] ?? []
+          for (const extra of Object.keys(value)) {
+            if (!allowed.includes(extra)) hits.push(`${at}.${extra} (unexpected extras key)`)
+          }
+        }
+        const nextPlace =
+          key === 'materials' ? 'materials' : key === 'primitives' ? 'primitives' : place
+        walk(value, at, key === 'extras' ? place : nextPlace)
+      }
+      return
+    }
+    if (typeof node === 'string' && DRIVE_PATH.test(node)) hits.push(`${path} (a raw drive path)`)
+  }
+  walk(gltf, '', 'root')
+  return hits
+}
+
+/**
+ * Pure: every distinct model file a product serves. Single-GLB-variants mode shares
+ * `product.glbUrl` across colourways; separate-file mode puts one on each colourway and
+ * leaves `product.glbUrl` null BY CONSTRUCTION. Both are read, so every colourway's file
+ * is covered, not only the default's (measured 2026-09-25: all 16 live products serve
+ * one shared file).
+ * @param {unknown} body `GET /api/public/viewer/<product>`
+ * @returns {string[]}
+ */
+export function modelUrlsFromPayload(body) {
+  const payload = /** @type {any} */ (body)
+  const urls = [
+    payload?.product?.glbUrl,
+    payload?.selectedColourway?.glbUrl,
+    ...(payload?.colourways ?? []).map((colourway) => colourway?.glbUrl),
+  ]
+  return [...new Set(urls.filter((url) => typeof url === 'string' && url.length > 0))]
+}
+
+/**
+ * Pure: IM-02b for models. The posters' own rule (`judgePosters`: each file against its
+ * family's median, flagged at 2x), with no owner exceptions: none has been granted for
+ * a model. Measured 2026-09-25: 1.89-8.14 MB, worst 1.66x its family median, 0 flagged.
+ * @param {Observation[]} observations
+ */
+export function judgeModelSizes(observations) {
+  const samples = observations
+    .filter((o) => typeof o.bytes === 'number' && o.bytes > 0 && o.family)
+    // `slug` is the PRODUCT (r-wzu), not the label (r-wzu/blush): exceptions are keyed on
+    // the product, so only a product slug makes `exceptions: []` the thing that refuses the
+    // vest's poster exception. With the label here that test passed with the guard removed.
+    .map((o) => ({
+      slug: String(o.slug ?? o.key),
+      colour: o.slug ? o.key.slice(o.slug.length + 1) : '',
+      family: String(o.family),
+      bytes: Number(o.bytes),
+    }))
+  return judgePosters(samples, { exceptions: [] })
+}
+
+/** A second GET must come from the edge; one MISS alone is a cold file, not a fault. */
+const CACHED = new Set(['HIT', 'REVALIDATED'])
 
 /**
  * MEASURED, not guessed, against every live model's own chunk-length header
@@ -120,15 +217,26 @@ export function extractGlbJsonChunk(bytes) {
 }
 
 /**
- * Turn observations into a verdict. Pure — no network, so a planted fault can be
- * proven against a synthetic chunk rather than a live model.
+ * One model file as the probe saw it. Every field but `key` is optional: an unreadable
+ * file carries only `error`, a unit fixture only what it models.
  *
- * @param {{
+ * @typedef {{
  *   key: string,
+ *   slug?: string,
+ *   family?: string,
  *   status?: number,
  *   jsonChunk?: string,
  *   error?: string,
- * }[]} observations
+ *   bytes?: number,
+ *   cache?: string[],
+ * }} Observation
+ */
+
+/**
+ * Turn observations into a verdict. Pure — no network, so a planted fault can be
+ * proven against a synthetic chunk rather than a live model.
+ *
+ * @param {Observation[]} observations
  * @returns {{ ok: boolean, measured: number, failures: string[], inconclusive: string[], lines: string[] }}
  */
 export function evaluate(observations) {
@@ -190,25 +298,71 @@ export function evaluate(observations) {
       continue
     }
 
-    lines.push(`  ${label} copyright "${copyright}" ok, no leftover strings`)
+    const leftovers = findLeftovers(parsed)
+    if (leftovers.length > 0) {
+      failures.push(`${o.key}: CLO leftovers in the model: ${leftovers.slice(0, 5).join('; ')}.`)
+      lines.push(`  ${label} ${leftovers.length} leftover(s)  FAIL`)
+      continue
+    }
+
+    // Read off the GETs' own headers, never a HEAD (root CLAUDE.md). Absent in unit
+    // fixtures that do not model caching, so only judged when present.
+    if (Array.isArray(o.cache) && !o.cache.some((status) => CACHED.has(String(status)))) {
+      failures.push(
+        `${o.key}: not served from the edge cache on a repeat GET (cf-cache-status ` +
+          `${o.cache.join(' then ')}); every visitor would pull the model from R2.`,
+      )
+      lines.push(`  ${label} cache ${o.cache.join('/')}  FAIL`)
+      continue
+    }
+
+    const size = typeof o.bytes === 'number' ? ` ${(o.bytes / 1e6).toFixed(2)} MB,` : ''
+    const cache = Array.isArray(o.cache) ? ` cache ${o.cache.join('/')},` : ''
+    lines.push(`  ${label}${size}${cache} copyright "${copyright}" ok, no leftovers`)
   }
 
   return { ok: failures.length === 0, measured, failures, inconclusive, lines }
 }
 
-/** One target's ranged GET, model URL resolved live, chunk extracted. */
+/** One product: its payload, then every distinct model file it serves. */
+/** @returns {Promise<Observation[]>} */
 async function probeOne(target) {
-  const resolved = await resolveLiveModelUrl(target.slug, target.colourway)
-  if ('error' in resolved) return { key: target.key, error: resolved.error }
+  let body
+  try {
+    const response = await fetch(
+      `${API_BASE}/api/public/viewer/${target.slug}/${target.colourway}`,
+      {
+        signal: AbortSignal.timeout(20_000),
+      },
+    )
+    if (!response.ok)
+      return [{ key: target.key, error: `viewer payload answered ${response.status}` }]
+    body = await response.json()
+  } catch (error) {
+    return [{ key: target.key, error: error.message ?? String(error) }]
+  }
+  const urls = modelUrlsFromPayload(body)
+  if (urls.length === 0) return [{ key: target.key, error: 'the live payload named no model' }]
+  const family = String(/** @type {any} */ (body)?.product?.category ?? '')
+  const observations = []
+  for (const [index, url] of urls.entries()) {
+    const key = urls.length === 1 ? target.key : `${target.key}#${index + 1}`
+    observations.push({ ...(await probeUrl(key, url)), family, slug: target.slug })
+  }
+  return observations
+}
 
+/** One model file: a ranged GET for the JSON chunk and size, then a 1-byte GET for the cache. */
+/** @returns {Promise<Observation>} */
+async function probeUrl(key, url) {
   let response
   try {
-    response = await fetch(resolved.url, {
+    response = await fetch(url, {
       headers: { range: `bytes=0-${INITIAL_RANGE_BYTES - 1}` },
       signal: AbortSignal.timeout(20_000),
     })
   } catch (error) {
-    return { key: target.key, error: error.message ?? String(error) }
+    return { key, error: error.message ?? String(error) }
   }
   // ⚠️ ONLY 206 PROVES THE SERVER HONOURED THE RANGE REQUEST. A 200 is still `.ok` —
   // some servers answer a Range header with the FULL body instead of a 206 Partial
@@ -219,28 +373,49 @@ async function probeOne(target) {
     await response.body?.cancel()
     if (response.status === 200) {
       return {
-        key: target.key,
+        key,
         status: response.status,
         error:
           'the server answered 200 (not 206) to a ranged request — ignored the Range ' +
           'header rather than honouring it, so the body was never read',
       }
     }
-    return { key: target.key, status: response.status }
+    return { key, status: response.status }
   }
+  const total = Number((response.headers.get('content-range') ?? '').split('/')[1])
+  const firstCache = response.headers.get('cf-cache-status') ?? 'none'
   const bytes = new Uint8Array(await response.arrayBuffer())
   const extracted = extractGlbJsonChunk(bytes)
   // A truncated/malformed chunk is a DIFFERENT problem from "no leftover text found" and
   // must say so by name — folding it into an empty jsonChunk (-> generic "unparseable")
   // hid a real bug here: three of sixteen live models' JSON chunks turned out larger than
   // the first INITIAL_RANGE_BYTES guess, measured 2026-09-23.
-  if ('error' in extracted)
-    return { key: target.key, status: response.status, error: extracted.error }
-  return { key: target.key, status: response.status, jsonChunk: extracted.text }
+  if ('error' in extracted) return { key, status: response.status, error: extracted.error }
+
+  // The first GET can be the one that warms a cold file; the second must be a HIT.
+  let secondCache = 'none'
+  try {
+    const again = await fetch(url, {
+      headers: { range: 'bytes=0-0' },
+      signal: AbortSignal.timeout(20_000),
+    })
+    secondCache = again.headers.get('cf-cache-status') ?? 'none'
+    await again.body?.cancel()
+  } catch {
+    secondCache = 'unreadable'
+  }
+  return {
+    key,
+    status: response.status,
+    jsonChunk: extracted.text,
+    bytes: Number.isFinite(total) && total > 0 ? total : undefined,
+    cache: [firstCache, secondCache],
+  }
 }
 
+/** @returns {Promise<Observation[]>} */
 export async function probe(targets = TARGETS) {
-  return Promise.all(targets.map(probeOne))
+  return (await Promise.all(targets.map(probeOne))).flat()
 }
 
 const isMain = process.argv[1] && import.meta.url === `file://${process.argv[1]}`
@@ -256,9 +431,20 @@ if (isMain) {
     : TARGETS
 
   const observations = await probe(targets)
-  const { ok, measured, failures, inconclusive, lines } = evaluate(observations)
+  const { ok: provenanceOk, measured, failures, inconclusive, lines } = evaluate(observations)
+  // IM-02b: each model against its family's median, the posters' own rule.
+  const sizes = judgeModelSizes(observations)
+  for (const row of sizes.flagged)
+    failures.push(`${row.slug} ${row.colour}: model size ${row.note}.`)
+  const ok = provenanceOk && sizes.flagged.length === 0
 
-  console.log('glb provenance probe — copyright present, no CLO/Marvelous Designer leftovers\n')
+  console.log(
+    'glb provenance probe — copyright, no CLO leftovers, edge-cached, size within its family\n',
+  )
+  for (const [family, value] of Object.entries(sizes.medians)) {
+    console.log(`  ${family.padEnd(20)} median ${(value / 1e6).toFixed(2)} MB`)
+  }
+  console.log()
   for (const line of lines) console.log(line)
 
   if (inconclusive.length) {

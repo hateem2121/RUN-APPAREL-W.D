@@ -5,12 +5,14 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   FLAG_AT,
+  judgePosterContent,
   judgePosters,
   median,
   modelUrlFromPayload,
   OWNER_EXCEPTIONS,
   type PosterSample,
   resolveLiveModelUrl,
+  webpDimensions,
 } from '../../../scripts/poster-sizes.mjs'
 
 /**
@@ -338,5 +340,82 @@ describe('resolveLiveModelUrl — the network half', () => {
       apiBase: `http://127.0.0.1:${port}`,
     })
     expect('error' in result && result.error).toContain('404')
+  })
+})
+
+/**
+ * IM-03 — what every poster must BE. Built from a real WebP container header (RIFF, then a
+ * VP8X chunk carrying width-1 and height-1 as 24-bit little-endian), the layout all 80 live
+ * posters use (measured 2026-09-25).
+ */
+function vp8xHeader(width: number, height: number): Uint8Array {
+  const bytes = new Uint8Array(30)
+  const ascii = (offset: number, text: string) => {
+    for (let i = 0; i < text.length; i++) bytes[offset + i] = text.charCodeAt(i)
+  }
+  const u24 = (offset: number, value: number) => {
+    bytes[offset] = value & 0xff
+    bytes[offset + 1] = (value >> 8) & 0xff
+    bytes[offset + 2] = (value >> 16) & 0xff
+  }
+  ascii(0, 'RIFF')
+  ascii(8, 'WEBP')
+  ascii(12, 'VP8X')
+  bytes[16] = 10
+  u24(24, width - 1)
+  u24(27, height - 1)
+  return bytes
+}
+
+const LIVE_POSTER = {
+  head: vp8xHeader(1200, 1500),
+  contentType: 'image/webp',
+  cacheControl: 'max-age=604800',
+  cache: ['HIT'],
+}
+
+describe('webpDimensions — the pixel size read from the bytes (IM-03)', () => {
+  it('reads a VP8X header', () => {
+    expect(webpDimensions(vp8xHeader(1200, 1500))).toEqual({ width: 1200, height: 1500 })
+  })
+
+  it('is null for bytes that are not a WebP, e.g. a JPEG served under the same name', () => {
+    const jpeg = new Uint8Array(30)
+    jpeg.set([0xff, 0xd8, 0xff, 0xe0])
+    expect(webpDimensions(jpeg)).toBeNull()
+  })
+})
+
+describe('judgePosterContent — WebP, 1200x1500, 7-day cache, edge-cached (IM-03)', () => {
+  it('passes a poster exactly as the live ones measure', () => {
+    expect(judgePosterContent(LIVE_POSTER)).toEqual([])
+  })
+
+  it('passes a cold file whose SECOND GET comes from the edge', () => {
+    expect(judgePosterContent({ ...LIVE_POSTER, cache: ['MISS', 'HIT'] })).toEqual([])
+  })
+
+  it('FAILS a poster whose bytes say another size, whatever its name says', () => {
+    expect(judgePosterContent({ ...LIVE_POSTER, head: vp8xHeader(1200, 1200) })).toEqual([
+      '1200x1200, not 1200x1500',
+    ])
+  })
+
+  it('FAILS a poster served as a JPEG', () => {
+    expect(judgePosterContent({ ...LIVE_POSTER, contentType: 'image/jpeg' }).join(' ')).toContain(
+      'not image/webp',
+    )
+  })
+
+  it('FAILS a shorter cache lifetime than the measured 7 days', () => {
+    expect(
+      judgePosterContent({ ...LIVE_POSTER, cacheControl: 'max-age=3600' }).join(' '),
+    ).toContain('under 7 days')
+  })
+
+  it('FAILS a poster the edge never caches', () => {
+    expect(judgePosterContent({ ...LIVE_POSTER, cache: ['MISS', 'MISS'] }).join(' ')).toContain(
+      'not served from the edge cache',
+    )
   })
 })

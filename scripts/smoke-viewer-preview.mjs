@@ -33,6 +33,7 @@ import { execFileSync } from 'node:child_process'
 import http from 'node:http'
 import https from 'node:https'
 import zlib from 'node:zlib'
+import { canonicalHrefs } from './canonical-tags.mjs'
 import { DEFAULT_PRODUCT, LIVE_PRODUCTS, squashCode } from './live-products.mjs'
 
 /**
@@ -239,6 +240,15 @@ async function runChecks() {
   const canonical = html.match(/<link\s+rel="canonical"\s+href="([^"]*)"/i)?.[1] ?? null
   if (ogUrl !== url) fail(`og:url is ${ogUrl}, expected ${url}.`)
   if (canonical !== url) fail(`canonical is ${canonical}, expected ${url}.`)
+  //    …and it is the ONLY one (FI-02). Counted with comments removed, as a crawler parses
+  //    it: index.html's own comment names `<link rel="canonical">` in prose, which is what
+  //    an audit once counted as a second, empty tag.
+  const canonicals = canonicalHrefs(html)
+  if (canonicals.length !== 1) {
+    fail(
+      `the page carries ${canonicals.length} canonical tags (${JSON.stringify(canonicals)}), expected exactly 1.`,
+    )
+  }
 
   // 4. The picture is absolute and really fetchable. A relative og:image is the most
   //    common way a preview fails, and a 404 here shows as a card with a blank slot.

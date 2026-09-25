@@ -49,3 +49,17 @@ export declare function resolveLiveModelUrl(
   colourway: string,
   options?: { apiBase?: string },
 ): Promise<ModelUrlResolution>
+
+export declare const POSTER_WIDTH: number
+export declare const POSTER_HEIGHT: number
+export declare const MIN_MAX_AGE_SECONDS: number
+
+export interface PosterContent {
+  head: Uint8Array
+  contentType: string | null
+  cacheControl: string | null
+  cache: string[]
+}
+
+export declare function webpDimensions(bytes: Uint8Array): { width: number; height: number } | null
+export declare function judgePosterContent(poster: PosterContent): string[]

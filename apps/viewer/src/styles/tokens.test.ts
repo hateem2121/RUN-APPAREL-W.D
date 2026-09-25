@@ -635,26 +635,95 @@ describe('raw values in component stylesheets', () => {
    * display sizes and `.serif-accent`'s `1.07em` are exempt because
    * docs/DESIGN.md §3 says ranges and ratios are not scale steps. Emptying an
    * allowlist to "finish the job" would reverse that.
+   *
+   * TY-03 (2026-09-25): the exemption used to be "any clamp() and any em", which let a
+   * sixth display size — or a `0.9em` body size — through without anyone deciding it.
+   * It is now the five ranges below, BY SELECTOR, and the one ratio. Each range must
+   * also be named in docs/DESIGN.md §3, so the prose index cannot drift from the CSS.
    */
-  it('every font-size cites a token, a range, or a ratio', () => {
-    const offenders: string[] = []
+  const DISPLAY_RANGES = [
+    { file: 'base.css', selector: '.display--hero', value: 'clamp(2.125rem, 5.4vw, 4.5rem)' },
+    {
+      file: 'base.css',
+      selector: '.display--section',
+      value: 'clamp(1.625rem, 4vw, 2.875rem)',
+    },
+    {
+      file: 'page.css',
+      selector: '.product-info--aside .display--hero',
+      value: 'clamp(1.5625rem, 9.5cqi, 2.5rem)',
+    },
+    {
+      file: 'site.css',
+      selector: '.site-hero .display--hero',
+      value: 'clamp(min(2.125rem, 9.6vw), 5.4vw, 4.5rem)',
+    },
+    { file: 'site.css', selector: '.footer-q', value: 'clamp(27px, 4.3vw, 52px)' },
+  ] as const
+  const RATIOS = [{ file: 'base.css', selector: '.serif-accent', value: '1.07em' }] as const
+
+  function rawFontSizes(): Array<{ at: string; file: string; selector: string; value: string }> {
+    const found: Array<{ at: string; file: string; selector: string; value: string }> = []
     for (const { name, source } of components()) {
       for (const match of source.matchAll(DECL('font-size'))) {
         const value = (match[1] ?? '').trim()
         if (isTokenised(value)) continue
-        // A clamp() is a RANGE and an em is a RATIO — neither is a step on a
-        // scale, and docs/DESIGN.md §3 exempts both by name.
-        if (value.startsWith('clamp(')) continue
-        if (/^[\d.]+em$/.test(value)) continue
         const line = source.slice(0, match.index).split('\n').length
-        offenders.push(`${name}:${line} — font-size: ${value}`)
+        found.push({
+          at: `${name}:${line}`,
+          file: name,
+          selector: enclosingSelector(source, match.index),
+          value,
+        })
       }
     }
+    return found
+  }
+
+  it('every font-size cites a token, a range, or a ratio', () => {
+    const allowed = [...DISPLAY_RANGES, ...RATIOS]
+    const offenders = rawFontSizes()
+      .filter(
+        (size) =>
+          !allowed.some(
+            (entry) =>
+              entry.file === size.file &&
+              entry.selector === size.selector &&
+              entry.value === size.value,
+          ),
+      )
+      .map((size) => `${size.at} ${size.selector} — font-size: ${size.value}`)
     expect(
       offenders,
       'Use a --text-* token. Nine sizes ship (10-18px) and all nine are declared;\n' +
         'if a tenth is genuinely needed, add it to tokens.css AND to the table in\n' +
-        'docs/DESIGN.md §3 — the drift test above reads that table.',
+        'docs/DESIGN.md §3 — the drift test above reads that table. A new display\n' +
+        'range is a design decision: add it to DISPLAY_RANGES here AND to §3.',
+    ).toEqual([])
+  })
+
+  it('TY-03 — every allowed range and ratio is still in use and named in docs/DESIGN.md', () => {
+    const sizes = rawFontSizes()
+    const design = readFileSync(DESIGN_MD, 'utf8')
+    const stale: string[] = []
+    for (const entry of [...DISPLAY_RANGES, ...RATIOS]) {
+      const used = sizes.some(
+        (size) =>
+          size.file === entry.file &&
+          size.selector === entry.selector &&
+          size.value === entry.value,
+      )
+      if (!used) stale.push(`${entry.file} ${entry.selector} no longer sets ${entry.value}`)
+      // The FULL selector, scope included: §3 names `.site-hero .display--hero` and
+      // `.product-info--aside .display--hero` as the two narrower variants by those names.
+      if (!design.includes(entry.selector)) {
+        stale.push(`docs/DESIGN.md never names ${entry.selector}`)
+      }
+    }
+    expect(
+      stale,
+      'An allowed font-size range is no longer where this test says it is, or the\n' +
+        'design index stopped describing it. Update the list and docs/DESIGN.md §3 together.',
     ).toEqual([])
   })
 
@@ -1142,5 +1211,475 @@ describe('spacing written into JSX', () => {
     for (const [index, count] of counts.entries()) {
       expect(count, `${COMPONENT_DIRS[index]} yielded no .tsx files`).toBeGreaterThan(0)
     }
+  })
+})
+
+/*
+ * ── Colour and type discipline: CO-06, CO-07, CO-08, TY-01 (2026-09-25) ──────────────
+ *
+ * Four properties of the design system that were true when audited and held only by hand.
+ * Each check below reads EVERY scanned stylesheet (the shared package, the viewer's
+ * page.css and the site's site.css), so it covers both surfaces from one place.
+ */
+
+type Rgba = { r: number; g: number; b: number; a: number }
+
+const NAMED_COLOURS: Record<string, Rgba> = {
+  white: { r: 255, g: 255, b: 255, a: 1 },
+  black: { r: 0, g: 0, b: 0, a: 1 },
+  transparent: { r: 0, g: 0, b: 0, a: 0 },
+}
+
+/** `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa` (never an HTML entity such as `&#8470;`, the № sign), `rgb()`/`rgba()`, `hsl()`/`hsla()`, and the three named colours this system uses. */
+const COLOUR_LITERAL =
+  /(?<![&\w])#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3})\b|rgba?\([^)]*\)|hsla?\([^)]*\)|\b(?:white|black|transparent)\b/gi
+
+function parseColour(text: string): Rgba | null {
+  const lower = text.toLowerCase()
+  if (lower in NAMED_COLOURS) return NAMED_COLOURS[lower] ?? null
+  if (lower.startsWith('#')) {
+    let hex = lower.slice(1)
+    if (hex.length <= 4) hex = [...hex].map((c) => c + c).join('')
+    const channel = (i: number) => Number.parseInt(hex.slice(i, i + 2), 16)
+    return {
+      r: channel(0),
+      g: channel(2),
+      b: channel(4),
+      a: hex.length === 8 ? channel(6) / 255 : 1,
+    }
+  }
+  const numbers = (lower.match(/-?[\d.]+%?/g) ?? []).map((n) =>
+    n.endsWith('%') ? Number(n.slice(0, -1)) / 100 : Number(n),
+  )
+  if (lower.startsWith('rgb')) {
+    const [r = 0, g = 0, b = 0, a = 1] = numbers
+    return { r, g, b, a }
+  }
+  // hsl(h, s%, l%[, a]) — percentages already divided by 100 above.
+  const [h = 0, s = 0, l = 0, a = 1] = numbers
+  const k = (n: number) => (n + h / 30) % 12
+  const f = (n: number) =>
+    l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))
+  return { r: Math.round(f(0) * 255), g: Math.round(f(8) * 255), b: Math.round(f(4) * 255), a }
+}
+
+/** Hue in degrees and HSL saturation (0-1). A grey has saturation 0 and no meaningful hue. */
+function hueAndSaturation({ r, g, b }: Rgba): { hue: number; saturation: number } {
+  const [R, G, B] = [r / 255, g / 255, b / 255]
+  const max = Math.max(R, G, B)
+  const min = Math.min(R, G, B)
+  const delta = max - min
+  const lightness = (max + min) / 2
+  if (delta === 0) return { hue: 0, saturation: 0 }
+  const saturation = delta / (1 - Math.abs(2 * lightness - 1))
+  let hue: number
+  if (max === R) hue = ((G - B) / delta) % 6
+  else if (max === G) hue = (B - R) / delta + 2
+  else hue = (R - G) / delta + 4
+  hue *= 60
+  return { hue: hue < 0 ? hue + 360 : hue, saturation }
+}
+
+const hexOf = ({ r, g, b }: Rgba) =>
+  `#${[r, g, b].map((c) => Math.round(c).toString(16).padStart(2, '0')).join('')}`
+
+/** Every custom property definition in every scanned stylesheet, ALL of them — a token redefined under a media query or a theme contributes every value it can take. */
+function customPropertyDefinitions(): Map<string, string[]> {
+  const defs = new Map<string, string[]>()
+  for (const { source } of cssFiles()) {
+    for (const match of source.matchAll(/(--[\w-]+)\s*:\s*([^;{}]+)[;}]/g)) {
+      const [, name, value] = match
+      if (!name) continue
+      defs.set(name, [...(defs.get(name) ?? []), (value ?? '').trim()])
+    }
+  }
+  return defs
+}
+
+/** Every literal colour a CSS value can resolve to: its own literals plus, recursively, those of every token it reads. */
+function resolvedColours(value: string, defs: Map<string, string[]>, seen = new Set<string>()) {
+  const out: Array<{ text: string; rgba: Rgba }> = []
+  for (const match of value.matchAll(COLOUR_LITERAL)) {
+    const rgba = parseColour(match[0])
+    if (rgba) out.push({ text: match[0], rgba })
+  }
+  for (const match of value.matchAll(/var\(\s*(--[\w-]+)/g)) {
+    const token = match[1]
+    if (!token || seen.has(token)) continue
+    seen.add(token)
+    for (const definition of defs.get(token) ?? []) {
+      out.push(...resolvedColours(definition, defs, seen))
+    }
+  }
+  return out
+}
+
+/** The full argument of every `*-gradient(` in a source, balanced on parentheses. */
+function gradients(source: string): Array<{ index: number; text: string }> {
+  const found: Array<{ index: number; text: string }> = []
+  for (const match of source.matchAll(/(?:repeating-)?(?:linear|radial|conic)-gradient\(/g)) {
+    let depth = 0
+    let end = match.index
+    for (let i = match.index; i < source.length; i++) {
+      if (source[i] === '(') depth++
+      else if (source[i] === ')') {
+        depth--
+        if (depth === 0) {
+          end = i
+          break
+        }
+      }
+    }
+    found.push({ index: match.index, text: source.slice(match.index, end + 1) })
+  }
+  return found
+}
+
+/** A chromatic colour whose hue sits in the purple-blue band an "AI default" gradient uses. */
+const isPurpleBlue = (rgba: Rgba) => {
+  if (rgba.a === 0) return false
+  const { hue, saturation } = hueAndSaturation(rgba)
+  return saturation >= 0.15 && hue >= 220 && hue <= 300
+}
+
+describe('CO-06 — both surfaces declare the colour schemes they support', () => {
+  /*
+   * `color-scheme` is what tells the browser to draw its OWN parts — scrollbars, form
+   * controls, the canvas behind an unpainted page — in the matching theme, and what
+   * `light-dark()` resolves against. Both apps import the same tokens.css
+   * (`apps/cms/src/sharedTokens.test.ts`, CO-13), so this pins the declarations there:
+   * `light dark` by default, and each forced theme narrowing it to one.
+   */
+  it('declares exactly: light dark by default, light and dark when the toggle forces one', () => {
+    const declarations: string[] = []
+    for (const { name, source } of cssFiles()) {
+      for (const match of source.matchAll(/(?<![\w-])color-scheme\s*:\s*([^;{}]+)[;}]/g)) {
+        declarations.push(
+          `${name} ${enclosingSelector(source, match.index)}: ${(match[1] ?? '').trim()}`,
+        )
+      }
+    }
+    expect(
+      declarations.sort(),
+      'The color-scheme declarations changed. A page without `light dark` at :root draws\n' +
+        'browser chrome (scrollbars, inputs) in the wrong theme, and light-dark() stops\n' +
+        'following the visitor. A forced theme must narrow it to that one scheme.',
+    ).toEqual(
+      [
+        'tokens.css :root: light dark',
+        'tokens.css :root[data-theme="light"]: light',
+        'tokens.css :root[data-theme="dark"]: dark',
+      ].sort(),
+    )
+  })
+})
+
+describe('CO-07 (VC-01, VC-02, VC-03) — no purple-blue gradients, no gradient text, one documented grain', () => {
+  it('the gradient scanner resolves tokens and sees a purple-blue stop (negative control)', () => {
+    const defs = new Map([['--accent', ['light-dark(#1d1f1a, #6d28d9)']]])
+    const planted = gradients(
+      'a { background: linear-gradient(90deg, var(--accent), #cdf345 60%); }',
+    )
+    expect(planted).toHaveLength(1)
+    const colours = resolvedColours(planted[0]?.text ?? '', defs)
+    expect(colours.map((c) => c.text)).toEqual(['#cdf345', '#1d1f1a', '#6d28d9'])
+    expect(colours.filter((c) => isPurpleBlue(c.rgba)).map((c) => c.text)).toEqual(['#6d28d9'])
+    // …and the volt and the ink, which the real gradients use, are not in the band.
+    expect(isPurpleBlue(parseColour('rgba(205, 243, 69, 0.42)') as Rgba)).toBe(false)
+    expect(isPurpleBlue(parseColour('hsl(260, 80%, 50%)') as Rgba)).toBe(true)
+  })
+
+  it('VC-01: no gradient stop, resolved through its tokens, has a hue of 220-300°', () => {
+    const defs = customPropertyDefinitions()
+    const offenders: string[] = []
+    let stops = 0
+    for (const { name, source } of cssFiles()) {
+      for (const gradient of gradients(source)) {
+        const line = source.slice(0, gradient.index).split('\n').length
+        for (const colour of resolvedColours(gradient.text, defs)) {
+          stops++
+          if (isPurpleBlue(colour.rgba)) {
+            offenders.push(`${name}:${line} ${colour.text} (${hexOf(colour.rgba)})`)
+          }
+        }
+      }
+    }
+    // The control: the blueprint grid, the glow and the footer light are real gradients
+    // with real stops. A scan that found none measured nothing.
+    expect(stops, 'no gradient colour stop was found in any stylesheet').toBeGreaterThan(10)
+    expect(
+      offenders,
+      'A gradient reaches the purple-blue band (hue 220-300°) — the generic "AI" gradient\n' +
+        'this system deliberately never uses. Its only gradients are the blueprint grid,\n' +
+        'the volt glow and the footer light (docs/DESIGN.md §4 "Motifs").',
+    ).toEqual([])
+  })
+
+  it('VC-02: no text is painted with a gradient (background-clip: text, -webkit- prefixed or not), in CSS or JSX', () => {
+    const offenders: string[] = []
+    for (const { name, source } of cssFiles()) {
+      for (const match of source.matchAll(/background-clip\s*:\s*text/g)) {
+        offenders.push(`${name}:${source.slice(0, match.index).split('\n').length}`)
+      }
+    }
+    for (const dir of COMPONENT_DIRS) {
+      for (const { name, source } of tsxFiles(dir)) {
+        if (/[Bb]ackgroundClip\s*:\s*['"]text['"]|background-clip\s*:\s*text/.test(source)) {
+          offenders.push(name)
+        }
+      }
+    }
+    expect(offenders, 'Gradient text is not part of this design system.').toEqual([])
+  })
+
+  it('VC-03: the only grain/noise overlay is `.grain`: 5% opacity, dark mode only', () => {
+    const uses: string[] = []
+    for (const { name, source } of cssFiles()) {
+      for (const match of source.matchAll(/feTurbulence/g)) {
+        uses.push(`${name} ${enclosingSelector(source, match.index)}`)
+      }
+    }
+    for (const dir of COMPONENT_DIRS) {
+      for (const { name, source } of tsxFiles(dir)) {
+        if (/feTurbulence/i.test(source)) uses.push(name)
+      }
+    }
+    expect(uses, 'a second grain/noise overlay appeared').toEqual(['base.css .grain'])
+    // …and no raster noise either: a texture image is the other way to lay grain over a page.
+    const rasterNoise: string[] = []
+    for (const { name, source } of cssFiles()) {
+      for (const match of source.matchAll(/url\(\s*["']?([^"')]*)/g)) {
+        if (/noise|grain|grit|texture/i.test(match[1] ?? ''))
+          rasterNoise.push(`${name}: ${match[1]}`)
+      }
+    }
+    expect(rasterNoise, 'a noise/grain image is laid over the page').toEqual([])
+
+    const base = cssFiles().find(({ name }) => name === 'base.css')?.source ?? ''
+    const rule = base.match(/\n\.grain\s*\{([^}]*)\}/)?.[1] ?? ''
+    expect(rule, 'the .grain rule was not found').toContain('feTurbulence')
+    const opacity = Number(rule.match(/(?<![\w-])opacity\s*:\s*([\d.]+)/)?.[1] ?? Number.NaN)
+    expect(
+      opacity,
+      'the grain is a whisper — docs/DESIGN.md §4 fixes it at 0.05',
+    ).toBeLessThanOrEqual(0.05)
+    // Hidden in light mode both ways the page can be light: forced by the toggle, and by
+    // the visitor's own preference when no theme is forced.
+    expect(base).toMatch(/:root\[data-theme="light"\]\s*\.grain\s*\{\s*display:\s*none/)
+    expect(base).toMatch(
+      /@media \(prefers-color-scheme: light\)\s*\{\s*:root:not\(\[data-theme="dark"\]\)\s*\.grain\s*\{\s*display:\s*none/,
+    )
+  })
+})
+
+describe('CO-08 — every literal colour is on the palette, or a named exception', () => {
+  /*
+   * "A small, disciplined set of colours": the palette is whatever tokens.css declares —
+   * read from the file, never copied here — and every OTHER literal colour in a component
+   * stylesheet must equal one of those colours (a token's rgba() at a different alpha is
+   * the same colour) or be one of the exceptions below, each explained where it lives.
+   */
+  const EXCEPTIONS = [
+    {
+      file: 'site.css',
+      colours: ['#b3261e', '#f2b8b5'],
+      why: 'the contact form error colour, --danger — contrast measured beside it',
+    },
+    {
+      file: 'site.css',
+      colours: ['#111111', '#333333', '#999999'],
+      why: 'the printed footer (@media print) — paper has no dark theme',
+    },
+    {
+      file: 'site.css',
+      colours: ['#44473e', '#cfd2c2'],
+      why: '--muted raised for prefers-contrast: more',
+    },
+  ] as const
+
+  /** Every literal colour in a declaration, skipping `mask`/`mask-image`, whose #000/#0000 stops are alpha, not colour. */
+  function literalColoursIn(source: string) {
+    const out: Array<{ index: number; text: string; rgba: Rgba }> = []
+    for (const declaration of source.matchAll(/([\w-]+)\s*:\s*([^;{}]+)[;}]/g)) {
+      if (/^(?:-webkit-)?mask(?:-image)?$/.test(declaration[1] ?? '')) continue
+      for (const match of (declaration[2] ?? '').matchAll(COLOUR_LITERAL)) {
+        const rgba = parseColour(match[0])
+        if (!rgba || rgba.a === 0) continue
+        out.push({ index: declaration.index, text: match[0], rgba })
+      }
+    }
+    return out
+  }
+
+  const palette = () => {
+    const tokens = cssFiles().find(({ name }) => name === 'tokens.css')?.source ?? ''
+    return new Set(literalColoursIn(tokens).map((c) => hexOf(c.rgba)))
+  }
+
+  it('reads a real palette from tokens.css (control)', () => {
+    const colours = palette()
+    // The ink, the paper and the volt are the brand; if these are not found, the scan is broken.
+    for (const brand of ['#1d1f1a', '#f1efea', '#cdf345']) expect(colours).toContain(brand)
+    expect(colours.size, 'the palette is small by design').toBeLessThanOrEqual(20)
+  })
+
+  it('no component stylesheet introduces a colour the palette does not have', () => {
+    const known = palette()
+    const offenders: string[] = []
+    const used = new Set<string>()
+    for (const { name, source } of cssFiles()) {
+      if (name === 'tokens.css') continue
+      for (const colour of literalColoursIn(source)) {
+        const hex = hexOf(colour.rgba)
+        if (known.has(hex)) continue
+        const exception = EXCEPTIONS.find(
+          (entry) => entry.file === name && (entry.colours as readonly string[]).includes(hex),
+        )
+        if (exception) {
+          used.add(`${name} ${hex}`)
+          continue
+        }
+        const line = source.slice(0, colour.index).split('\n').length
+        offenders.push(`${name}:${line} ${colour.text} (${hex}) is on no palette`)
+      }
+    }
+    for (const dir of COMPONENT_DIRS) {
+      for (const { name, source } of tsxFiles(dir)) {
+        const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+        for (const match of code.matchAll(COLOUR_LITERAL)) {
+          if (/^(?:white|black|transparent)$/i.test(match[0])) continue // English words in JSX copy
+          const rgba = parseColour(match[0])
+          if (rgba && !known.has(hexOf(rgba)))
+            offenders.push(`${name}: ${match[0]} is on no palette`)
+        }
+      }
+    }
+    expect(
+      offenders,
+      'An off-palette colour. Use a token (docs/DESIGN.md §1), or — if this is a genuine\n' +
+        'new need like the form error colour — add it to EXCEPTIONS with the reason.',
+    ).toEqual([])
+    // A stale exception is a hole waiting for a colour to fall through it.
+    const stale = EXCEPTIONS.flatMap((entry) =>
+      entry.colours
+        .filter((hex) => !used.has(`${entry.file} ${hex}`))
+        .map((hex) => `${entry.file} ${hex}`),
+    )
+    expect(stale, 'an exception names a colour that is no longer used there').toEqual([])
+  })
+})
+
+describe('TY-01 (VC-05, VC-06) — two brand typefaces and a system mono; no Inter, no Space Grotesk', () => {
+  /*
+   * The two faces the brand is set in, the system monospace stack for labels, and the
+   * generic families each stack ends on. Every OTHER family a stylesheet names must be a
+   * metric-matched stand-in declared with `@font-face` in these same files and built from
+   * `local()` fonts only — it downloads nothing and exists to stop layout shift
+   * (docs/DESIGN.md §3). The fonts an AI-generated page reaches for by default are named
+   * separately so a failure says what went wrong, not just that something did.
+   */
+  const BRAND = ['Archivo Variable', 'Archivo', 'Instrument Serif']
+  const SYSTEM = [
+    'ui-monospace',
+    'SF Mono',
+    'SFMono-Regular',
+    'Menlo',
+    'Consolas',
+    'Liberation Mono',
+    'monospace',
+    'system-ui',
+    'sans-serif',
+    'serif',
+    'Georgia',
+  ]
+  const AI_DEFAULTS =
+    /\b(?:Inter|Space Grotesk|Roboto|Poppins|Montserrat|Open Sans|Lato|Geist|DM Sans|Manrope|Plus Jakarta Sans|Outfit|IBM Plex)\b/i
+
+  const familiesOf = (value: string) =>
+    value
+      .split(',')
+      .map((family) => family.trim().replace(/^["']|["']$/g, ''))
+      .filter(Boolean)
+
+  function standIns(): Map<string, string> {
+    const faces = new Map<string, string>()
+    for (const { source } of cssFiles()) {
+      for (const block of source.matchAll(/@font-face\s*\{([^}]*)\}/g)) {
+        const family = block[1]?.match(/font-family:\s*["']([^"']+)["']/)?.[1]
+        if (family) faces.set(family, block[1]?.match(/src:\s*([^;]+);/)?.[1] ?? '')
+      }
+    }
+    return faces
+  }
+
+  it('every family in every font stack is a brand face, the system stack, or a local stand-in', () => {
+    const faces = standIns()
+    expect(faces.size, 'no @font-face stand-in was found — the scan is broken').toBeGreaterThan(0)
+    const offenders: string[] = []
+    for (const { name, source } of cssFiles()) {
+      const outside = source.replace(/@font-face\s*\{[^}]*\}/g, (block) =>
+        block.replace(/[^\n]/g, ' '),
+      )
+      for (const match of outside.matchAll(/(--font-[\w-]+|font-family)\s*:\s*([^;{}]+)[;}]/g)) {
+        const value = (match[2] ?? '').trim()
+        if (/^var\(--font-[\w-]+\)$/.test(value) || value === 'inherit') continue
+        const line = outside.slice(0, match.index).split('\n').length
+        for (const family of familiesOf(value)) {
+          if (AI_DEFAULTS.test(family)) {
+            offenders.push(`${name}:${line} names ${family}, a generic default face`)
+          } else if (!BRAND.includes(family) && !SYSTEM.includes(family) && !faces.has(family)) {
+            offenders.push(`${name}:${line} names ${family}, which is not part of the type system`)
+          }
+        }
+      }
+    }
+    for (const [family, src] of faces) {
+      if (!/^\s*local\(/.test(src) || /url\(/.test(src)) {
+        offenders.push(`@font-face "${family}" downloads a file — a stand-in must be local() only`)
+      }
+    }
+    expect(offenders, 'docs/DESIGN.md §3: two families plus a system mono stack.').toEqual([])
+  })
+
+  it('each stack starts with its brand face, wherever it is redefined', () => {
+    const first = new Map<string, Set<string>>()
+    for (const { source } of cssFiles()) {
+      for (const match of source.matchAll(/(--font-(?:display|body|serif))\s*:\s*([^;{}]+)[;}]/g)) {
+        const token = match[1] ?? ''
+        first.set(token, (first.get(token) ?? new Set()).add(familiesOf(match[2] ?? '')[0] ?? ''))
+      }
+    }
+    expect(Object.fromEntries([...first].map(([token, set]) => [token, [...set]]))).toEqual({
+      '--font-display': ['Archivo Variable'],
+      '--font-body': ['Archivo Variable'],
+      '--font-serif': ['Instrument Serif'],
+    })
+  })
+
+  it('the only webfonts either app installs or imports are Archivo and Instrument Serif', () => {
+    const imported = new Set<string>()
+    const entries = [
+      join(REPO_ROOT, 'apps', 'viewer', 'src', 'main.tsx'),
+      join(REPO_ROOT, 'apps', 'cms', 'src', 'app', '(frontend)', 'layout.tsx'),
+      join(REPO_ROOT, 'apps', 'cms', 'src', 'app', 'not-found.tsx'),
+    ]
+    for (const file of entries) {
+      for (const match of readFileSync(file, 'utf8').matchAll(
+        /['"]@fontsource(?:-variable)?\/([\w-]+)/g,
+      )) {
+        if (match[1]) imported.add(match[1])
+      }
+    }
+    for (const pkg of ['apps/viewer/package.json', 'apps/cms/package.json']) {
+      const json = JSON.parse(readFileSync(join(REPO_ROOT, pkg), 'utf8')) as Record<
+        string,
+        Record<string, string> | undefined
+      >
+      for (const dep of Object.keys({ ...json.dependencies, ...json.devDependencies })) {
+        const match = dep.match(/^@fontsource(?:-variable)?\/([\w-]+)$/)
+        if (match?.[1]) imported.add(match[1])
+      }
+    }
+    expect([...imported].sort()).toEqual(['archivo', 'instrument-serif'])
   })
 })

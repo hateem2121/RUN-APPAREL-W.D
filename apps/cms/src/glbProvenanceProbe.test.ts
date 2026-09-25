@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { evaluate, extractGlbJsonChunk, probe } from '../../../scripts/glb-provenance-probe.mjs'
+import {
+  evaluate,
+  extractGlbJsonChunk,
+  findLeftovers,
+  judgeModelSizes,
+  modelUrlsFromPayload,
+  probe,
+} from '../../../scripts/glb-provenance-probe.mjs'
 
 /**
  * Tests for the live GLB provenance probe (SE-16).
@@ -184,5 +191,145 @@ describe('probe — a 200 answering a ranged request is never read as the whole 
     expect(result.ok).toBe(true) // inconclusive, never a failure
     expect(result.failures).toEqual([])
     expect(result.measured).toBe(0)
+  })
+})
+
+/**
+ * IM-10 — CLO's leftover KEYS, which the text blocklist cannot see. The allow-list is by
+ * name AND place: `depthBias` on a material, `uvRemap` on a mesh primitive, each written by
+ * our own pipeline (measured on all 16 live models 2026-09-25: 183 and 1,592 of them, and
+ * nothing else in any `extras`).
+ */
+describe('findLeftovers — structure a string search cannot see (IM-10)', () => {
+  const clean = {
+    asset: { version: '2.0', copyright: '© RUN Apparel. All rights reserved.' },
+    materials: [{ name: 'Print', extras: { depthBias: -8 } }],
+    meshes: [{ primitives: [{ attributes: {}, extras: { uvRemap: { offset: [0, 0] } } }] }],
+    images: [{ uri: 'texture.webp' }],
+  }
+
+  it('passes a model carrying only our own two extras keys, each in its own place', () => {
+    expect(findLeftovers(clean)).toEqual([])
+  })
+
+  it('FAILS on a CLO key anywhere, e.g. a MetaData block', () => {
+    const hits = findLeftovers({ ...clean, extras: { MetaData: { author: 'x' } } })
+    expect(hits.join(' ')).toContain('MetaData')
+  })
+
+  it('FAILS on each CLO key it names', () => {
+    for (const key of ['globalMap', 'PhysicalPropertyList', 'SeamLinePairList', 'MetaData']) {
+      expect(findLeftovers({ scenes: [{ [key]: {} }] }).join(' ')).toContain(key)
+    }
+  })
+
+  it("FAILS on a raw drive path, the author's disk leaking into the file", () => {
+    const hits = findLeftovers({ ...clean, images: [{ uri: 'D:/CLO/export/print.png' }] })
+    expect(hits).toEqual(['images[0].uri (a raw drive path)'])
+  })
+
+  it('FAILS on an allowed key in the WRONG place: depthBias on a primitive', () => {
+    const hits = findLeftovers({
+      ...clean,
+      meshes: [{ primitives: [{ extras: { depthBias: -8 } }] }],
+    })
+    expect(hits.join(' ')).toContain('meshes[0].primitives[0].extras.depthBias')
+  })
+
+  it('FAILS on any other extras key, so extras is never allow-listed wholesale', () => {
+    const hits = findLeftovers({
+      ...clean,
+      materials: [{ extras: { depthBias: -8, cloFabric: 3 } }],
+    })
+    expect(hits).toEqual(['materials[0].extras.cloFabric (unexpected extras key)'])
+  })
+})
+
+describe('modelUrlsFromPayload — every colourway, not only the default (IM-10)', () => {
+  it('reads the shared file in single-GLB mode, once', () => {
+    expect(
+      modelUrlsFromPayload({
+        product: { glbUrl: 'https://m/a.glb' },
+        colourways: [{ glbUrl: null }, { glbUrl: null }],
+      }),
+    ).toEqual(['https://m/a.glb'])
+  })
+
+  it("reads each colourway's own file in separate-file mode", () => {
+    expect(
+      modelUrlsFromPayload({
+        product: { glbUrl: null },
+        colourways: [{ glbUrl: 'https://m/1.glb' }, { glbUrl: 'https://m/2.glb' }],
+      }),
+    ).toEqual(['https://m/1.glb', 'https://m/2.glb'])
+  })
+
+  it('is empty when the payload names no model', () => {
+    expect(modelUrlsFromPayload({ product: {} })).toEqual([])
+  })
+})
+
+describe("judgeModelSizes — the posters' family-median rule, for models (IM-02b)", () => {
+  const MB = 1e6
+  it('passes the live catalogue as measured 2026-09-25 (worst 1.66x its family median)', () => {
+    const live = [
+      ['rxps', 'Teamwear', 3.84],
+      ['r-xmp', 'Teamwear', 8.14],
+      ['r-mm', 'Teamwear', 4.42],
+      ['r-aj', 'Teamwear', 5.14],
+      ['r-ajm', 'Teamwear', 7.83],
+      ['r-css', 'Teamwear', 5.05],
+      ['r-gtd', 'Teamwear', 5.11],
+      ['r-au', 'Teamwear', 7.85],
+      ['r-afp', 'Sportswear', 1.89],
+      ['r-wzu', 'Sportswear', 4.23],
+      ['r-asb', 'Sportswear', 2.58],
+      ['r-ect', 'Sportswear', 5.64],
+    ] as const
+    const result = judgeModelSizes(
+      live.map(([key, family, mb]) => ({ key, family, bytes: mb * MB })),
+    )
+    expect(result.flagged).toEqual([])
+  })
+
+  it('FLAGS a model three times its family median', () => {
+    const result = judgeModelSizes([
+      { key: 'a', family: 'Sportswear', bytes: 2 * MB },
+      { key: 'b', family: 'Sportswear', bytes: 2 * MB },
+      { key: 'c', family: 'Sportswear', bytes: 6 * MB },
+    ])
+    expect(result.flagged.map((row) => row.slug)).toEqual(['c'])
+  })
+
+  it("never lets the vest's poster exception excuse a model", () => {
+    const result = judgeModelSizes([
+      { key: 'r-wzu/blush', slug: 'r-wzu', family: 'Sportswear', bytes: 5 * MB },
+      { key: 'x', family: 'Sportswear', bytes: 2 * MB },
+      { key: 'y', family: 'Sportswear', bytes: 2 * MB },
+    ])
+    // 2.5x its family median: inside the poster exception's 3x, so only `exceptions: []`
+    // flags it.
+    expect(result.flagged.map((row) => row.slug)).toEqual(['r-wzu'])
+  })
+})
+
+describe('evaluate — leftovers and the edge cache (IM-10)', () => {
+  const ok = { key: 'p/c', status: 206, jsonChunk: HEALTHY_JSON }
+
+  it('passes a clean model served from the edge on the repeat GET', () => {
+    expect(evaluate([{ ...ok, cache: ['MISS', 'HIT'] }]).ok).toBe(true)
+  })
+
+  it('FAILS a model the edge never caches', () => {
+    const result = evaluate([{ ...ok, cache: ['MISS', 'MISS'] }])
+    expect(result.ok).toBe(false)
+    expect(result.failures.join(' ')).toContain('not served from the edge cache')
+  })
+
+  it('FAILS a model carrying a CLO key, even with a clean copyright', () => {
+    const chunk = JSON.stringify({ ...JSON.parse(HEALTHY_JSON), globalMap: {} })
+    const result = evaluate([{ ...ok, jsonChunk: chunk, cache: ['HIT', 'HIT'] }])
+    expect(result.ok).toBe(false)
+    expect(result.failures.join(' ')).toContain('globalMap')
   })
 })
