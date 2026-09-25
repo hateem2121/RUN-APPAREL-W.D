@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 /**
@@ -136,7 +136,7 @@ describe('the Latin fonts are preloaded, and only those', () => {
 })
 
 describe('the head', () => {
-  it('preloads the meshopt decoder as a script and the lighting map as a CORS fetch (Rank 6)', () => {
+  it('leaves the meshopt decoder and the lighting map to the app, not the head (Rank 6, RO-08)', () => {
     /**
      * Both used to start only after the model-viewer chunk arrived and asked for them
      * (audit LIVE-10). The decoder is injected as a classic <script>, so `as="script"`;
@@ -144,13 +144,16 @@ describe('the head', () => {
      * fetch preload without it is a second connection, not a hint.
      */
     const html = readFileSync(SOURCE_INDEX, 'utf8')
-    expect(html).toMatch(/<link rel="preload" href="\/meshopt_decoder\.js" as="script" \/>/)
-    expect(html).toMatch(
-      /<link rel="preload" href="\/env\/studio-soft\.hdr" as="fetch" crossorigin="anonymous" \/>/,
-    )
-    // The negative shape: no fetch preload may ship without the attribute.
+    // RO-08 (2026-09-25): no longer tags in index.html, where they shared slow 3G with the
+    // stylesheet the loading screen waits for. The app asks for them right after mount
+    // (src/lib/preload3d.ts, attributes pinned in its own test).
+    expect(html).not.toMatch(/<link rel="preload" href="\/meshopt_decoder\.js"/)
+    expect(html).not.toMatch(/<link rel="preload" href="\/env\/studio-soft\.hdr"/)
+    const main = readFileSync(join(dirname(SOURCE_INDEX), 'src/main.tsx'), 'utf8')
+    expect(main, 'main.tsx no longer asks for the 3D files').toMatch(/^preload3DAssets\(\)$/m)
+    // The negative shape: no fetch preload may ship here without the attribute. None does
+    // today; the lighting map's crossorigin is pinned in src/lib/preload3d.test.ts.
     const fetchPreloads = html.match(/<link rel="preload"[^>]*as="fetch"[^>]*>/g) ?? []
-    expect(fetchPreloads.length).toBeGreaterThan(0)
     for (const line of fetchPreloads) expect(line).toMatch(/crossorigin/)
   })
 

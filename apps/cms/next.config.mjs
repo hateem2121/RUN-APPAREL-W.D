@@ -103,6 +103,22 @@ const nextConfig = {
    */
   htmlLimitedBots: HTML_LIMITED_BOTS,
   transpilePackages: ['@run-apparel/shared'],
+  /*
+   * RO-08 — THE STYLESHEET INSIDE THE PAGE, so first paint does not wait for a second
+   * download. Measured live 2026-09-25 on Chrome's Slow 3G (400 ms, 50,000 B/s), five
+   * runs: the home page painted at 3.13 s median against a 3 s target, and the one
+   * blocking stylesheet (10.2 KB zstd) finished just before paint every time. With this
+   * on, the local harness went 2.32 s → 1.10 s (five runs each, within 12 ms);
+   * `e2e/firstPaint.spec.ts` holds the ceiling and fails if a stylesheet link returns.
+   *
+   * ⚠️ NEXT PUTS THE CSS IN THE PAGE THREE TIMES — once as `<style>`, twice escaped in the
+   * RSC payload — so the RAW home page grew 45 → 176 KB. That is not the wire cost:
+   * Cloudflare serves zstd, whose window spans all three copies, and the home page is
+   * ~18 KB zstd against 9.9 KB of HTML + 10.2 KB of CSS before. The admin's first load
+   * fell from 15.8 KB + 109 KB of CSS to ~86 KB. A gzip-only client pays more (gzip's
+   * 32 KB window cannot reach the repeats): 35 KB for the home page.
+   */
+  experimental: { inlineCss: true },
   async headers() {
     return [{ source: '/:path*', headers: SECURITY_HEADERS }]
   },

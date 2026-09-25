@@ -2401,6 +2401,16 @@ model-viewer.stage__model {
   animation: preloader-sweep calc(var(--slow) * 2) linear infinite;
 }
 
+/*
+ * …and the copy of the preloader drawn from index.html before React runs (RO-08) carries
+ * the element regardless, so under reduced motion CSS hides it: the same frozen-bar reason.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .preloader__rule--indeterminate {
+    display: none;
+  }
+}
+
 @keyframes preloader-sweep {
   0% {
     transform: translateX(-100%);
