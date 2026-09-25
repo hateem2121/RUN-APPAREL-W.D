@@ -2545,6 +2545,28 @@ test.describe('text follows the browser text-size setting', () => {
   }
 })
 
+/**
+ * ⚠️ WAIT UNTIL THE STAGE HAS PICKED ITS BRANCH BEFORE ASKING WHICH ONE IT PICKED
+ * (2026-09-25). The stage can reach its no-3D notice LONG after the heading shows: a model
+ * download that stops arriving is aborted by the viewer's stall watchdog, retried, and only
+ * then reported ("The 3D model stopped downloading…"). Measured here with the fixture's GLB
+ * held back 32 s: `requestfailed … ERR_ABORTED` three times, and the notice at ~36 s. Read
+ * straight after the heading, the fallback check saw neither state, so the old tests waited
+ * 30 s for a cue that never comes and failed with "element(s) not found" — the exact error
+ * that stopped `main`'s deploy after #66 on CI's Firefox. With this wait they see the
+ * notice and skip. Whether CI's runs were stalls or merely slow loads is not established;
+ * the wait covers both. The Save-Data case above already waits the same way.
+ */
+async function waitForStageToSettle(page: import('@playwright/test').Page) {
+  await page.waitForFunction(
+    () =>
+      Boolean((document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded) ||
+      document.querySelector('.stage__error:not([hidden])') !== null,
+    undefined,
+    { timeout: 60_000, polling: 250 },
+  )
+}
+
 test.describe('the interaction cue tells a visitor the garment is not a photograph', () => {
   /**
    * "On first glance it looks like an image so some visitors ignore it thinking
@@ -2574,23 +2596,26 @@ test.describe('the interaction cue tells a visitor the garment is not a photogra
    * load-bearing.
    */
   const skipUnless3D = async (page: import('@playwright/test').Page) => {
+    await waitForStageToSettle(page)
     const fallback = await page.locator('.stage__error:not([hidden])').count()
     test.skip(fallback > 0, 'no WebGL on this engine — the stage is in poster fallback')
   }
 
   test('it is absent on arrival and appears only after an idle pause', async ({ page }) => {
+    test.slow()
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    await skipUnless3D(page)
-    // Immediately after the model loads there is nothing to nag about — the
-    // visitor has not had time to be confused yet.
+    // On arrival there is nothing to nag about — the visitor has not had time to be
+    // confused yet. True on either branch, so it is read before the stage settles.
     await expect(page.locator(CUE)).toBeHidden()
+    await skipUnless3D(page)
     // Generous: the idle timer only STARTS once the model has loaded, and a CI
     // runner decoding a GLB in software takes far longer than this machine.
     await expect(page.locator(CUE)).toBeVisible({ timeout: 30000 })
   })
 
   test('it is legible: not the 10px muted corner label it replaced', async ({ page }) => {
+    test.slow()
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await skipUnless3D(page)
@@ -2630,6 +2655,7 @@ test.describe('the interaction cue tells a visitor the garment is not a photogra
   })
 
   test('one drag dismisses it for good', async ({ page }) => {
+    test.slow()
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await skipUnless3D(page)
@@ -3609,6 +3635,7 @@ test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', 
   test('the cue is absent at the moment the model loads, and waits its idle pause', async ({
     page,
   }) => {
+    test.slow()
     // Recorded once per DRAWN FRAME from before the app runs, so neither moment can fall
     // between two polls. ⚠️ Not a page.evaluate promise on the 'load' event: <model-viewer>
     // arrives by a dynamic import, so the element can be absent when that runs, and the
@@ -3631,6 +3658,7 @@ test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', 
     })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await waitForStageToSettle(page)
     const fallback = await page.locator('.stage__error:not([hidden])').count()
     test.skip(fallback > 0, 'no WebGL on this engine — the stage is in poster fallback')
     const readCue = () =>
