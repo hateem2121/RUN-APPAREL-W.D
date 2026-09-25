@@ -1644,6 +1644,18 @@ model-viewer.stage__model {
   .spec-list {
     display: none;
   }
+
+  /*
+   * …EXCEPT WITHOUT 3D (LA-16). The callouts are drawn only around a garment, so while the
+   * no-3D notice shows they are gone, and this list is the only copy left. Keyed on the
+   * notice itself, `.stage__error:not([hidden])`, the same marker every fallback test here
+   * uses (the element is always mounted; `hidden` is what changes). Without this rule a wide
+   * screen with no 3D showed the fabric, weight, fit and performance facts nowhere at all
+   * (caught by "the spec facts render once at every width", 2026-09-25).
+   */
+  body:has(.stage__error:not([hidden])) .spec-list {
+    display: grid;
+  }
 }
 
 .spec-list div {
