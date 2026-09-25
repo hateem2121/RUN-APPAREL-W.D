@@ -91,6 +91,8 @@ test.describe('FA-E-03 — the company name survives the reader turning text up'
             need: mark.scrollWidth,
             have: mark.clientWidth,
             text: mark.textContent ?? '',
+            clockRight: document.querySelector('.footer-clock')?.getBoundingClientRect().right ?? 0,
+            viewport: document.documentElement.clientWidth,
             gap: bar && first ? Number((first.top - bar.bottom).toFixed(2)) : Number.NaN,
             barHeight: bar ? Number(bar.height.toFixed(1)) : Number.NaN,
             buttonShown: (() => {
@@ -124,6 +126,14 @@ test.describe('FA-E-03 — the company name survives the reader turning text up'
           m.need,
           `${width}px at ${scale}% text: "${m.text}" needs ${m.need}px and has ${m.have}px`,
         ).toBeLessThanOrEqual(m.have)
+
+        // The footer clock was `nowrap` whole, and at 200% on a 320px phone its caption ran
+        // 40.8px past the screen edge (0.8px at 360) — clipped, so nothing scrolled and no
+        // other check saw it (LA-06 sweep, 2026-09-25). site.css lets the caption wrap.
+        expect(
+          m.clockRight,
+          `${width}px at ${scale}% text: the footer clock runs off the screen`,
+        ).toBeLessThanOrEqual(m.viewport + 0.5)
 
         // The other half, and the trap: a taller bar that the page does not reserve for
         // covers the top of the hero. `--notch-lines` drives both, and this is what says

@@ -926,3 +926,60 @@ test.describe('the Speed Lines move, and hold still for reduced motion (owner, 2
     }
   })
 })
+
+/**
+ * LA-06 — at normal text the bar is ONE 60px row at every width.
+ *
+ * The audit's rule was "wordmark plus two links"; phones now get a menu button instead, and
+ * the re-check it asked for is this sweep. Below 720px the links live in the closed menu;
+ * from 720px both sit INSIDE the bar's box. A second row is the failure — the links wrapping
+ * under the wordmark — and the height and the in-bar check each catch it. Measured
+ * 2026-09-25 at 17 widths: 60px everywhere, button below 720, two links in the bar from 720.
+ *
+ * ⚠️ ENLARGED TEXT IS NOT TESTED HERE, ON PURPOSE: there the bar is DESIGNED to take a second
+ * row, and only the browser's own text size moves the `rem` in its media query — an injected
+ * `html { font-size }` does not. e2e/textSize.spec.ts sweeps that case with the right
+ * instrument.
+ */
+test.describe('LA-06 — at normal text the bar is one 60px row at every width', () => {
+  const WIDTHS = [
+    320, 360, 375, 390, 414, 430, 600, 719, 720, 768, 820, 900, 1024, 1100, 1280, 1440, 1920,
+  ]
+  test('one row, the right controls, no sideways scroll', async ({ page }) => {
+    const problems: string[] = []
+    await page.goto('/')
+    for (const width of WIDTHS) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.evaluate(
+        () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+      )
+      const m = await page.evaluate(() => {
+        const bar = (document.querySelector('.notch') as HTMLElement).getBoundingClientRect()
+        const button = document.querySelector('.notch__menu-btn') as HTMLElement | null
+        const links = [...document.querySelectorAll('.notch__nav a')]
+          .map((a) => a.getBoundingClientRect())
+          .filter((r) => r.width > 0 && r.height > 0)
+        return {
+          height: Math.round(bar.height),
+          button: !!button && button.getBoundingClientRect().width > 0,
+          links: links.length,
+          inBar: links.filter((r) => r.top >= bar.top - 1 && r.bottom <= bar.bottom + 1).length,
+          sideways: document.documentElement.scrollWidth - window.innerWidth,
+        }
+      })
+      const phone = width < 720
+      if (m.height !== 60)
+        problems.push(`${width}px: the bar is ${m.height}px tall, not one 60px row`)
+      if (m.button !== phone)
+        problems.push(`${width}px: menu button ${m.button ? 'shown' : 'hidden'}`)
+      if (!phone && (m.links !== 2 || m.inBar !== 2))
+        problems.push(
+          `${width}px: ${m.links} links visible, ${m.inBar} inside the bar (want 2 and 2)`,
+        )
+      if (phone && m.links !== 0)
+        problems.push(`${width}px: ${m.links} links outside the closed menu`)
+      if (m.sideways > 0) problems.push(`${width}px: the page scrolls sideways by ${m.sideways}px`)
+    }
+    expect(problems).toEqual([])
+  })
+})

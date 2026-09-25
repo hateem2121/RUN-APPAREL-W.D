@@ -854,10 +854,19 @@ html {
 }
 
 /* ── the clock, corner-bracketed ───────────────────────────────────────── */
+/*
+ * ⚠️ `max-width: 100%` AND A CAPTION THAT MAY WRAP (LA-06 sweep, 2026-09-25). With the whole
+ * clock on `nowrap`, a reader at 200% text on a 320px phone lost the last 40.8px of
+ * "SIALKOT · HQ & WORKS" off the right edge (0.8px at 360), and WebKit let the page slide
+ * sideways by 3px. The time stays on one line; only the caption breaks, between words.
+ * Measured with the browser's own text size (`Page.setFontSizes`), not an injected
+ * `html { font-size }` — e2e/textSize.spec.ts explains why only the first is real.
+ */
 .footer-clock {
   position: relative;
   display: inline-grid;
   gap: 4px;
+  max-width: 100%;
   padding: 10px 14px 8px;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -908,6 +917,7 @@ html {
 }
 
 .footer-clock__city {
+  white-space: normal;
   font-size: var(--text-mono-sm);
   letter-spacing: var(--tracking-clock-caption);
   color: var(--footer-muted);
