@@ -3008,14 +3008,14 @@ test.describe('the page keeps its structure (LA-03, LA-11, LA-15)', () => {
       const missing = Object.entries(parts)
         .filter(([, el]) => !el)
         .map(([name]) => name)
-      const names = Object.keys(parts) as (keyof typeof parts)[]
+      const entries = Object.entries(parts)
       const wrong: string[] = []
-      for (let i = 1; i < names.length; i++) {
-        const [a, b] = [parts[names[i - 1]], parts[names[i]]]
+      entries.slice(1).forEach(([name, b], i) => {
+        const [previous, a] = entries[i] ?? ['', null]
         if (a && b && !(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)) {
-          wrong.push(`${names[i]} comes before ${names[i - 1]}`)
+          wrong.push(`${name} comes before ${previous}`)
         }
-      }
+      })
       const main = document.querySelector('main')
       return {
         missing,
@@ -3127,4 +3127,67 @@ test.describe('the page keeps its structure (LA-03, LA-11, LA-15)', () => {
       ).toBeLessThanOrEqual(ceiling + 1)
     })
   }
+})
+
+/**
+ * LA-16 — the four spec callouts are decoration around a GARMENT. When 3D cannot run
+ * (Save-Data, no WebGL, a stalled download), the stage holds the notice instead, and the
+ * callouts were still drawn over the same box: measured 2026-09-25 before the fix, at five
+ * widths from 1000px, see the PR. `Stage.tsx` now renders them only when `!fallback`, the
+ * guard the cue and the camera controls already use. The same facts stay on the page in
+ * `.spec-list`, so nothing is lost.
+ */
+test.describe('the spec callouts never sit over the no-3D notice (LA-16)', () => {
+  const WIDTHS = [1000, 1100, 1280, 1440, 1920] as const
+  const measure = (page: Page) =>
+    page.evaluate(() => {
+      const failure = document.querySelector('.stage__failure')?.getBoundingClientRect()
+      const callouts = [...document.querySelectorAll('.stage__callouts .callout')]
+        .map((el) => el.getBoundingClientRect())
+        .filter((r) => r.width > 0 && r.height > 0)
+      const overlaps = failure
+        ? callouts.filter(
+            (r) =>
+              r.left < failure.right &&
+              failure.left < r.right &&
+              r.top < failure.bottom &&
+              failure.top < r.bottom,
+          ).length
+        : 0
+      return { shown: callouts.length, overlaps }
+    })
+
+  for (const width of WIDTHS) {
+    test(`none is drawn while the notice shows, at ${width}px`, async ({ page }) => {
+      // Save-Data is the fallback every engine can reach: `canRender3D()` refuses 3D on it.
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, 'connection', {
+          configurable: true,
+          value: { saveData: true },
+        })
+      })
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.locator('.stage__error:not([hidden])')).toBeVisible()
+      const m = await measure(page)
+      console.log(
+        `LA-16 fallback ${width}px: ${m.shown} callouts drawn, ${m.overlaps} over the notice`,
+      )
+      expect(m.overlaps, `${m.overlaps} callouts sit over the no-3D notice`).toBe(0)
+      expect(m.shown, 'callouts are decoration around a garment that is not here').toBe(0)
+    })
+  }
+
+  test('with 3D available they still render at every width', async ({ page, browserName }) => {
+    for (const width of WIDTHS) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const fallback = await page.locator('.stage__error:not([hidden])').count()
+      test.skip(fallback > 0, `${browserName}: no WebGL here, so there is no garment to frame`)
+      const m = await measure(page)
+      expect(m.shown, `no callouts at ${width}px with 3D available`).toBe(4)
+    }
+  })
 })
