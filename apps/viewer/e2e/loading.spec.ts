@@ -224,3 +224,92 @@ test.describe('MO-21 — placeholder photo during download, gone on load — pro
     expect(true).toBe(true)
   })
 })
+
+/**
+ * CR-05 — the progress fill GLIDES to each new value on `--fast` (200 ms); it does not step.
+ *
+ * The audit read "no transition while loading" on all 12 pages. Two things it could have
+ * read, and both are correct by design: the outer `.stage__loading-bar` (it never carries
+ * the transition; its inner span does), or the indeterminate phase (`transition: none` on
+ * purpose, a looping animation instead, when there is no size to count against). So this
+ * reads the FILL, only while the bar is determinate, and judges what is DRAWN: every frame's
+ * computed scale against the inline target the page last set. A stepped fill lands on each
+ * target in the frame it is set; an eased one shows frames strictly between the old target
+ * and the new one.
+ */
+test.describe('CR-05 — the progress fill eases to each value, it does not step', () => {
+  test.setTimeout(120_000)
+
+  test('while determinate, the fill transitions transform on --fast and draws in-between frames', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(
+      browserName !== 'chromium',
+      'the network is slowed through CDP, which only Chromium has; the CSS is the same in every engine',
+    )
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('Network.enable')
+    await cdp.send('Network.emulateNetworkConditions', SLOW)
+    await page.route('**/fixtures/n001.glb', (route) =>
+      route.continue({ url: `${route.request().url()}?with-length=1` }),
+    )
+    // Every drawn frame: the target the page set (inline scaleX) and what was painted.
+    await page.addInitScript(() => {
+      const log: { target: number; drawn: number; transition: string }[] = []
+      ;(window as unknown as { __fill: typeof log }).__fill = log
+      const tick = () => {
+        const bar = document.querySelector('.stage__loading-bar')
+        const fill = bar?.querySelector('span') as HTMLElement | null
+        if (fill && bar && !bar.classList.contains('stage__loading-bar--indeterminate')) {
+          const target = /scaleX\(([\d.]+)\)/.exec(fill.style.transform)
+          const matrix = /matrix\(([-\d.e]+)/.exec(getComputedStyle(fill).transform)
+          if (target && matrix) {
+            const cs = getComputedStyle(fill)
+            log.push({
+              target: Number(target[1]),
+              drawn: Number(matrix[1]),
+              transition: `${cs.transitionProperty} ${cs.transitionDuration}`,
+            })
+          }
+        }
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 60_000 })
+    test.skip(
+      (await page.locator('.stage__error:not([hidden])').count()) > 0,
+      `${browserName}: no WebGL here, the stage is in poster fallback`,
+    )
+    await expect(page.locator('.stage__loading')).toHaveCount(0, { timeout: 90_000 })
+
+    const frames = await page.evaluate(
+      () =>
+        (window as unknown as { __fill: { target: number; drawn: number; transition: string }[] })
+          .__fill,
+    )
+    expect(
+      frames.length,
+      'no determinate frame was drawn, so this measured nothing',
+    ).toBeGreaterThanOrEqual(10)
+    expect(
+      [...new Set(frames.map((f) => f.transition))],
+      'the determinate fill does not transition transform on --fast (200ms)',
+    ).toEqual(['transform 0.2s'])
+
+    // A stepped fill is computed AT its target in every frame (with `transition: none` the
+    // computed transform is the inline one). A frame drawn away from its target is a frame of
+    // the glide toward it.
+    const between = frames.filter((f) => Math.abs(f.drawn - f.target) > 0.001).length
+    const targets = new Set(frames.map((f) => f.target)).size
+    console.log(
+      `CR-05: ${frames.length} determinate frames, ${targets} targets, ${between} in-between`,
+    )
+    expect(targets, 'the fill was never retargeted, so there was nothing to ease').toBeGreaterThan(
+      2,
+    )
+    expect(between, 'every frame landed exactly on its target: the fill steps').toBeGreaterThan(0)
+  })
+})
