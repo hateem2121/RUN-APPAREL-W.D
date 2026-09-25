@@ -1,3 +1,4 @@
+import { canonicalHrefs } from '../../../scripts/canonical-tags.mjs'
 import { expect, test } from './offlineMedia'
 
 /**
@@ -64,6 +65,12 @@ test.describe('FA-N-04 — every page names itself', () => {
         head.match(/<link href="([^"]*)" rel="canonical"/)?.[1] ??
         ''
       expect(canonical, `${page.path} has no canonical`).toMatch(/^https:\/\//)
+      // FI-02: exactly ONE, counted as a crawler parses the page (comments removed). Two
+      // canonicals that disagree tell a search engine nothing; Google then picks its own.
+      expect(
+        canonicalHrefs(await response.text()),
+        `${page.path} carries more than one canonical tag`,
+      ).toEqual([canonical])
       const suffix = page.path === '/' ? '' : page.path
       expect(
         new URL(canonical).pathname.replace(/\/$/, ''),
