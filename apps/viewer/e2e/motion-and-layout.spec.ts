@@ -3366,3 +3366,127 @@ test.describe('the motion layer keeps its contracts (MO-03, MO-04, MO-17)', () =
     }
   })
 })
+
+/**
+ * Batch C, PR 2 — the entrance and the idle cue, timed on a real load.
+ */
+test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', () => {
+  /**
+   * MO-10: the preloader stays at least PRELOADER_MIN_DWELL_MS (400) before it leaves, its
+   * clip-path wipe runs for --slow (800ms) and it unmounts only after the wipe, and it
+   * carries one sentence a screen reader can reach (not a live region: the whole page
+   * behind it is aria-hidden, and a region whose text never changes says nothing —
+   * Preloader.tsx). Recorded by a MutationObserver installed before the app runs, so no
+   * moment is missed between polls.
+   */
+  test('the preloader stays 400ms, wipes over 800ms, and says one sentence', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    // As a HUMAN: Preloader.tsx treats `navigator.webdriver` like reduced motion and skips
+    // the wipe, so without this the exit is never recorded (measured 2026-09-25: exit -1,
+    // "dwell" negative). Same override as audit-guards.spec.ts's `asAHuman`.
+    await page.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, 'webdriver', {
+        get: () => false,
+        configurable: true,
+      })
+    })
+    await page.addInitScript(() => {
+      const log: {
+        appear: number
+        exit: number
+        gone: number
+        transition: string
+        sentence: string
+      } = { appear: -1, exit: -1, gone: -1, transition: '', sentence: '' }
+      ;(window as unknown as { __preloader: typeof log }).__preloader = log
+      new MutationObserver(() => {
+        const el = document.querySelector('.preloader')
+        const now = performance.now()
+        if (el && log.appear < 0) {
+          log.appear = now
+          const cs = getComputedStyle(el)
+          log.transition = `${cs.transitionProperty} ${cs.transitionDuration}`
+          // Readable = has text and neither it nor an ancestor is aria-hidden.
+          log.sentence = [...el.querySelectorAll('*')]
+            .filter((n) => n.children.length === 0 && !n.closest('[aria-hidden="true"]'))
+            .map((n) => n.textContent?.trim() ?? '')
+            .filter(Boolean)
+            .join(' | ')
+        }
+        if (el?.classList.contains('preloader--exit') && log.exit < 0) log.exit = now
+        if (!el && log.appear >= 0 && log.gone < 0) log.gone = now
+      }).observe(document, { subtree: true, childList: true, attributes: true })
+    })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.locator('.preloader')).toHaveCount(0, { timeout: 10_000 })
+    const p = await page.evaluate(
+      () =>
+        (
+          window as unknown as {
+            __preloader: {
+              appear: number
+              exit: number
+              gone: number
+              transition: string
+              sentence: string
+            }
+          }
+        ).__preloader,
+    )
+    console.log(
+      `MO-10: dwell ${Math.round(p.exit - p.appear)}ms, wipe-to-unmount ${Math.round(p.gone - p.exit)}ms, ` +
+        `transition "${p.transition}", sentence "${p.sentence}"`,
+    )
+    expect(p.appear, 'the preloader never appeared').toBeGreaterThanOrEqual(0)
+    expect(p.exit, 'the preloader never began its exit').toBeGreaterThan(p.appear)
+    // 16ms of slack: the observer fires on the mutation's microtask, not the timer's tick.
+    expect(p.exit - p.appear, 'the preloader left before its 400ms floor').toBeGreaterThanOrEqual(
+      384,
+    )
+    expect(p.transition, 'the wipe is not clip-path over --slow').toBe('clip-path 0.8s')
+    expect(
+      p.gone - p.exit,
+      'the preloader unmounted before its 800ms wipe finished',
+    ).toBeGreaterThanOrEqual(784)
+    expect(p.sentence, 'the preloader says nothing a screen reader can reach').toBe(
+      'Loading the product reference.',
+    )
+  })
+
+  /**
+   * MO-12, the part a robot can reach: the cue is absent at the moment the MODEL has loaded,
+   * not only before it. The older test above asserts absence as soon as the heading shows,
+   * when the model has not loaded and the cue cannot show anyway, so a cue that appeared
+   * the instant the model arrived would pass it. The 14° sweep's timing and its 900ms
+   * return stay on the owner's phone list: a software-rendered runner cannot time them.
+   */
+  test('the cue is absent at the moment the model loads, and waits its idle pause', async ({
+    page,
+  }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const fallback = await page.locator('.stage__error:not([hidden])').count()
+    test.skip(fallback > 0, 'no WebGL on this engine — the stage is in poster fallback')
+    const loadedAt = await page.evaluate(
+      () =>
+        new Promise<number>((done) => {
+          const mv = document.querySelector('model-viewer') as
+            | (HTMLElement & { loaded?: boolean })
+            | null
+          if (mv?.loaded) return done(performance.now())
+          mv?.addEventListener('load', () => done(performance.now()), { once: true })
+        }),
+    )
+    await expect(
+      page.locator('.stage__hint'),
+      'the cue shows the instant the model loads',
+    ).toHaveCount(0)
+    await expect(page.locator('.stage__hint')).toBeVisible({ timeout: 30_000 })
+    const shownAfter = (await page.evaluate(() => performance.now())) - loadedAt
+    expect(
+      shownAfter,
+      'the cue did not wait its idle pause (CUE_IDLE_MS, 3000)',
+    ).toBeGreaterThanOrEqual(2900)
+  })
+})
