@@ -50,8 +50,8 @@ for (const path of PAGES) {
       const { css } = await load(page, path)
       const rules = extractLeafRules(css)
       expect(rules.length, 'no CSS was collected, so nothing was checked').toBeGreaterThan(50)
-      expect(findColouredEdges(rules), 'a coloured accent stripe (VC-07)').toEqual([])
-      expect(findBackdropFilters(rules), 'a backdrop-filter (VC-08)').toEqual([])
+      expect.soft(findColouredEdges(rules), 'a coloured accent stripe (VC-07)').toEqual([])
+      expect.soft(findBackdropFilters(rules), 'a backdrop-filter (VC-08)').toEqual([])
     })
 
     test('VC-12 / VC-13: no Lucide, Tailwind, Radix or shadcn trace in what was served', async ({
@@ -62,7 +62,7 @@ for (const path of PAGES) {
       const found = [{ url: path, text: html }, ...bodies].flatMap((b) =>
         findUiKitFingerprints(b.text).map((f) => `${f.kit} in ${b.url}: …${f.context}…`),
       )
-      expect(found).toEqual([])
+      expect.soft(found, 'a UI-kit fingerprint (VC-12 / VC-13)').toEqual([])
     })
 
     test('VC-10 / VC-11: no row of icon boxes, no pill badge above the headline', async ({
@@ -71,7 +71,7 @@ for (const path of PAGES) {
       await load(page, path)
       const groups = await page.evaluate(collectIconBoxGroups, 'main')
       expect(groups.length, 'the page had no multi-child containers to check').toBeGreaterThan(0)
-      expect(findIconBoxRows(groups), 'three icon boxes in a row (VC-10)').toEqual([])
+      expect.soft(findIconBoxRows(groups), 'three icon boxes in a row (VC-10)').toEqual([])
       const neighbours = await page.evaluate(collectHeadlineNeighbours)
       expect(findHeadlineBadges(neighbours), 'a badge above the headline (VC-11)').toEqual([])
     })

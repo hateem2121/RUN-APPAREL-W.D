@@ -37,24 +37,22 @@ test.describe('the viewer does not look machine-made', () => {
     const css = bodies.filter((b) => /\.css(\?|$)/.test(b.url)).map((b) => b.text)
     const rules = extractLeafRules(css.join('\n'))
     expect(rules.length, 'no CSS was collected, so nothing was checked').toBeGreaterThan(50)
-    expect(findColouredEdges(rules), 'a coloured accent stripe (VC-07)').toEqual([])
-    // The one allowed use is really served, so an empty result below means the list held.
-    // A Set: the build adds a `-webkit-` copy of the same blur to the same rule.
-    expect([...new Set(findBackdropFilters(rules, []).map((r) => r.selector))]).toEqual([
-      '.stage__ar',
-    ])
-    expect(findBackdropFilters(rules), 'a backdrop-filter (VC-08)').toEqual([])
+    expect.soft(findColouredEdges(rules), 'a coloured accent stripe (VC-07)').toEqual([])
+    // The one allowed use is really served, so an empty VC-08 result means the list held
+    // rather than that no blur was read. Any OTHER blur is VC-08's to report.
+    expect.soft(findBackdropFilters(rules, []).map((r) => r.selector)).toContain('.stage__ar')
+    expect.soft(findBackdropFilters(rules), 'a backdrop-filter (VC-08)').toEqual([])
 
     const scripts = bodies.filter((b) => !/\.css(\?|$)/.test(b.url))
     expect(scripts.length, 'no script response was collected').toBeGreaterThan(0)
     const found = [{ url: page.url(), text: await page.content() }, ...bodies].flatMap((b) =>
       findUiKitFingerprints(b.text).map((f) => `${f.kit} in ${b.url}: …${f.context}…`),
     )
-    expect(found, 'a UI-kit fingerprint (VC-12 / VC-13)').toEqual([])
+    expect.soft(found, 'a UI-kit fingerprint (VC-12 / VC-13)').toEqual([])
 
     const groups = await page.evaluate(collectIconBoxGroups, 'main')
     expect(groups.length, 'the page had no multi-child containers to check').toBeGreaterThan(0)
-    expect(findIconBoxRows(groups), 'three icon boxes in a row (VC-10)').toEqual([])
+    expect.soft(findIconBoxRows(groups), 'three icon boxes in a row (VC-10)').toEqual([])
     const neighbours = await page.evaluate(collectHeadlineNeighbours)
     expect(
       neighbours.length,
