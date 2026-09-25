@@ -133,7 +133,7 @@ export default async function PrivacyPage() {
             <a className="prose__link" href={`mailto:${settings.email}`}>
               {settings.email}
             </a>{' '}
-            and we will reply within 2 business days.
+            and we will reply within 24 hours.
           </p>
         </div>
       </section>
