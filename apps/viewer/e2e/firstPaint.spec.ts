@@ -45,5 +45,17 @@ test.describe('RO-08 — first paint on slow 3G', () => {
     const median = sorted[Math.floor(SAMPLES / 2)] ?? Number.POSITIVE_INFINITY
     console.log(`RO-08 viewer first paint on slow 3G: ${sorted.join(', ')} ms (median ${median})`)
     expect(median, 'no sample recorded a first paint').toBeGreaterThan(0)
+    /*
+     * The ceiling is for THIS harness, not the live site: the fixture server sends
+     * everything uncompressed, so its numbers run ~1.8x the live ones (the same page read
+     * 12.3 s here and 6.9 s live before the fix). Under CDP throttling the samples are near
+     * deterministic: 4,436-4,500 ms across ten runs on 2026-09-25. 4,800 fails both known
+     * regressions: no loading screen in index.html (12.3 s) and the 3D preloads back in
+     * index.html, sharing the first seconds with the stylesheet (5.2 s).
+     */
+    expect(
+      median,
+      `first paint on slow 3G took ${median} ms (samples ${sorted.join(', ')})`,
+    ).toBeLessThanOrEqual(4_800)
   })
 })
