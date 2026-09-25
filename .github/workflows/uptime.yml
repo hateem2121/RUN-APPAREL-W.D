@@ -215,6 +215,13 @@ jobs:
             # this repo measures it, so this notices if it is ever undone. Same 403/429/503
             # inconclusive discipline as its siblings above.
             node scripts/https-redirect-probe.mjs || ok=false
+
+            # The edge's cache and HTTP/3 headers on the site, the viewer, the API and a model
+            # (PF-12, PF-14; a ranged 1-byte GET for the model), and the cookie-free visitor
+            # beacon on both sites (SO-12). Both closed audit rows and then sat in no workflow,
+            # which is a robot nobody runs. Same 403/429 inconclusive rule as their siblings.
+            node scripts/edge-headers-probe.mjs || ok=false
+            node scripts/beacon-probe.mjs || ok=false
           fi
           echo "ok=$ok" >> "$GITHUB_OUTPUT"
 

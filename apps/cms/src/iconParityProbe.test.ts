@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CHANNEL_TOLERANCE,
   compareMarks,
+  isRefusal,
   MAX_DIFFERING_FRACTION,
 } from '../../../scripts/icon-parity-probe.mjs'
 
@@ -100,5 +101,12 @@ describe('compareMarks', () => {
     )
     const result = await compareMarks(SITE_ICON, viewerFavicon)
     expect(result.ok, `${result.differingPixels}/${result.totalPixels} pixels differ`).toBe(true)
+  })
+})
+
+describe('isRefusal — a blocked robot is inconclusive, since the probe runs on a schedule', () => {
+  it('reads 403 and 429 as a refusal, and a real error or success as an answer', () => {
+    expect([403, 429].map(isRefusal)).toEqual([true, true])
+    expect([200, 404, 500, 503].map(isRefusal)).toEqual([false, false, false, false])
   })
 })

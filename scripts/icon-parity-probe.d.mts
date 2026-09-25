@@ -7,6 +7,7 @@ export interface IconParityResult {
   differingFraction: number
 }
 
+export declare function isRefusal(status: number): boolean
 export declare const SITE_ICON_URL: string
 export declare const VIEWER_ICON_URL: string
 export declare const COMPARE_SIZE: number

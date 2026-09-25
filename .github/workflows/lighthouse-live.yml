@@ -92,3 +92,9 @@ jobs:
           export CHROME_PATH
           echo "Lighthouse will drive $CHROME_PATH"
           node scripts/lighthouse-robot.mjs
+      - name: Both sites show the same tab icon
+        # IM-09's live check. Here and not in uptime.yml because it rasterises with sharp,
+        # which needs the install above. It runs whatever Lighthouse concluded: one red
+        # robot must not hide the other. A 403/429 from the edge is inconclusive.
+        if: ${{ !cancelled() }}
+        run: node scripts/icon-parity-probe.mjs
