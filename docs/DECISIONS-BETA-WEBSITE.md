@@ -446,6 +446,29 @@ not be until someone turns the Cloudflare switch on AND submits the domain.
 **Guard:** none, and that is correct — this is a decision not to act on a setting that
 lives outside the repository. `docs/OWNER-CHECKLIST.md` §8 carries it.
 
+### D22 · The site smooth-scrolls like the viewer — `FA-F-06`, `XS-06`, `OI-2`
+
+**Decision: one site, one feel. Owner's decision 5, approved with the fix plan on
+2026-09-16; built 2026-09-25.** This REVERSES the 2026-08-21 and 2026-09-07 records that the
+marketing site scrolls natively and Lenis is the viewer's alone.
+
+The site now runs the viewer's smooth scroll: the same Lenis version, the same 1.1 s
+ease-out glide and the same trusted-wheel predicate (`apps/cms/src/components/site/SmoothScroll.tsx`).
+What made the old decision right still holds as guards, each proven by a planted fault in
+`apps/cms/e2e/smoothScroll.spec.ts`: automation and reduced motion never load it; a wheel
+event no person rolled is refused; touch stays the browser's own; End, Home and PageDown
+stay the keyboard's; Back, Reload and the back-forward cache return to the same place.
+
+⚠️ **Two bugs the viewer's version never showed, found by that spec on the first run.**
+Lenis ignores native scrolling while it glides and writes its own position every frame, so
+End pressed mid-glide was pulled back up, and a link clicked mid-glide left the NEW page at
+the old page's target (Next put it at the top, the next frame put it back). The site's
+version ends a glide at the moment of intent: a pointer press, a scrolling key, Back/Forward.
+
+**Guard:** `apps/cms/src/auditGuards.test.ts` (FA-F-06 / XS-06: one file, dynamic import,
+the viewer's version and duration, the predicate, no `scroll-behavior: smooth`) and the
+browser spec above.
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap

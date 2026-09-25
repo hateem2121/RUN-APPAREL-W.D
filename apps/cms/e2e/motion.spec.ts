@@ -160,11 +160,11 @@ test.describe('FA-F-05 — the page comes back where it was left', () => {
    * (top) → back → **1199**. `history.scrollRestoration` is `auto`.
    *
    * ⚠️ THIS IS THE ONE THAT BREAKS BY ACCIDENT. It is not implemented by anything here —
-   * it is the browser's default, kept by NOT reaching for a scroll library and NOT
-   * setting `scrollRestoration = 'manual'`, which is exactly what a smooth-scroll
-   * integration or a scroll-progress effect asks you to do first. FA-F-06's source gate
-   * covers the library; this covers the behaviour a reader notices, which is losing
-   * their place in a 3,900px gallery.
+   * it is the browser's default, kept by NOT setting `scrollRestoration = 'manual'`, which
+   * is exactly what a smooth-scroll integration or a scroll-progress effect asks you to do
+   * first. The site smooth-scrolls since D22; this runs under automation (layer off), and
+   * e2e/smoothScroll.spec.ts repeats it as a person with the layer on — where a planted
+   * `'manual'` failed both it and the back-forward-cache case.
    */
   test('going back to the gallery restores the scroll position', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
@@ -204,8 +204,10 @@ test.describe('FA-F-05 — the page comes back where it was left', () => {
 })
 
 /**
- * SC-05 (site half) — one trusted wheel tick settles fast. The site has no smooth-scroll
- * library (Lenis is the viewer's alone), so a tick is the browser's own scroll. The
+ * SC-05 (site half, AUTOMATION PATH) — one trusted wheel tick settles fast when the smooth
+ * layer is off, which it is under automation and reduced motion (D22 in
+ * docs/DECISIONS-BETA-WEBSITE.md). The glide a person gets is measured with the webdriver
+ * flag lifted in e2e/smoothScroll.spec.ts. Here a tick is the browser's own scroll. The
  * viewer's half, in apps/viewer/e2e/audit-guards.spec.ts, explains the instrument: scrollY
  * is sampled on every animation frame IN the page, never polled over the protocol, and
  * "settled" means within 1px of where it finished.
