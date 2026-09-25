@@ -178,7 +178,12 @@ do — swapping the import silently flattens every headline back to normal width
                   line-height 0.92 · colour --headline · text-wrap balance
 .display--hero    clamp(34px, 5.4vw, 72px) · --tracking-display-lg
 .display--section clamp(26px, 4vw, 46px)  · --tracking-display-sm
+.footer-q         clamp(27px, 4.3vw, 52px) · --tracking-display-sm · the site footer's question
 ```
+
+These ranges, and the two narrower variants below, are the only `clamp()` font sizes the
+stylesheets may use: `apps/viewer/src/styles/tokens.test.ts` (TY-03) lists each one by
+selector and fails on a sixth, or on one of these five that this file stops naming.
 
 **The marketing site lowers the hero floor on the narrowest phones (owner decision
 2026-09-11).** Its `.site-hero .display--hero` is `clamp(min(34px, 9.6vw), 5.4vw, 72px)`:
