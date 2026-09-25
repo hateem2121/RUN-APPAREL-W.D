@@ -646,6 +646,23 @@ test.describe('MO-09 — a footer hover sweep costs no more layout than the hero
       return metric.value
     }
 
+    // Wait until LayoutCount stops moving (three equal reads 100ms apart), not a fixed pause.
+    // Measured 2026-09-25: the fixed 50ms warm-ups let a late settling layout (fonts, the
+    // wordmark fit) land inside the hero sweep on CI's slower runner — 'hero sweep cost 1
+    // layouts' once on CI, and 3 of 10 runs here under a 6x CPU throttle. A page that never
+    // goes quiet fails loudly rather than being measured mid-settle.
+    const waitForLayoutQuiet = async () => {
+      let last = await layoutCount()
+      let stable = 0
+      for (let i = 0; i < 50 && stable < 3; i++) {
+        await page.waitForTimeout(100)
+        const now = await layoutCount()
+        stable = now === last ? stable + 1 : 0
+        last = now
+      }
+      if (stable < 3) throw new Error('LayoutCount never went quiet within 5s')
+    }
+
     const sweep = async (box: { x: number; y: number; width: number; height: number }) => {
       const before = await layoutCount()
       for (let i = 0; i < 60; i++) {
@@ -658,13 +675,28 @@ test.describe('MO-09 — a footer hover sweep costs no more layout than the hero
     }
 
     await page.goto('/contact')
-    // Warm-up: the FIRST pointer move on the page mounts the custom cursor (new DOM —
-    // .cursor-dot/.cursor-ring), which costs its own one-time layout unrelated to
-    // either region being measured. Spend that cost here, outside both sweeps, so
-    // neither delta is blamed for a mount cost the other would have paid instead had
-    // it swept first.
-    await page.mouse.move(10, 10)
-    await page.waitForTimeout(50)
+    // Warm-up: the custom cursor ARMING (the `has-custom-cursor` class on <html>, added on
+    // the first pointer move after its dynamically imported component mounts) costs its own
+    // one-time layout, unrelated to either region being measured. Spend it here, outside
+    // both sweeps. Measured 2026-09-25: one blind move at (10,10) often landed BEFORE the
+    // component was listening, so the cursor armed on the hero sweep's first move instead
+    // ('hero sweep cost 1 layouts': once on CI, 6 of 6 here at 6x CPU, always at move 0) —
+    // the same trap the viewer's "custom cursor mounts" test records. So: wait for the
+    // cursor, move until it has armed, then wait for layout to go quiet.
+    await page.locator('.cursor-dot').waitFor({ state: 'attached' })
+    await expect
+      .poll(
+        async () => {
+          await page.mouse.move(10, 10)
+          await page.mouse.move(20, 20)
+          return page.evaluate(() =>
+            document.documentElement.classList.contains('has-custom-cursor'),
+          )
+        },
+        { message: 'the custom cursor never armed — the sweeps below would measure its arming' },
+      )
+      .toBe(true)
+    await waitForLayoutQuiet()
 
     const hero = await page.locator('.site-hero').boundingBox()
     if (!hero) throw new Error('no .site-hero to sweep')
@@ -677,7 +709,7 @@ test.describe('MO-09 — a footer hover sweep costs no more layout than the hero
     // layout. Spend it here, before this sweep's own "before" reading.
     const settleBox = await slab.boundingBox()
     if (settleBox) await page.mouse.move(settleBox.x + 5, settleBox.y + 5)
-    await page.waitForTimeout(50)
+    await waitForLayoutQuiet()
     const footer = await slab.boundingBox()
     if (!footer) throw new Error('no footer slab to sweep')
     const footerDelta = await sweep(footer)
