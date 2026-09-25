@@ -203,6 +203,105 @@ test.describe('FA-F-05 — the page comes back where it was left', () => {
   })
 })
 
+/**
+ * SC-05 (site half) — one trusted wheel tick settles fast. The site has no smooth-scroll
+ * library (Lenis is the viewer's alone), so a tick is the browser's own scroll. The
+ * viewer's half, in apps/viewer/e2e/audit-guards.spec.ts, explains the instrument: scrollY
+ * is sampled on every animation frame IN the page, never polled over the protocol, and
+ * "settled" means within 1px of where it finished.
+ */
+test.describe('SC-05 (site) — one wheel tick settles quickly', () => {
+  test('scrollY settles within a few hundred ms of one wheel tick', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'a phone has no mouse wheel')
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/products')
+    const header = await page.locator('header').first().boundingBox()
+    if (!header) throw new Error('no header to wheel over')
+    await page.mouse.move(header.x + header.width / 2, header.y + header.height / 2)
+    await page.evaluate(() => {
+      const w = window as unknown as { __sc05: { t: number; y: number }[] }
+      w.__sc05 = []
+      const t0 = performance.now()
+      const tick = () => {
+        const t = performance.now() - t0
+        w.__sc05.push({ t, y: window.scrollY })
+        if (t < 2000) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+    await page.mouse.wheel(0, 120)
+    await page.waitForTimeout(2200)
+    const samples = await page.evaluate(
+      () => (window as unknown as { __sc05: { t: number; y: number }[] }).__sc05,
+    )
+    const final = samples.at(-1)?.y ?? 0
+    const firstMove = samples.find((x) => x.y !== samples[0]?.y)?.t ?? 0
+    let lastFar = firstMove
+    // Only frames AFTER movement began: an instant (one-frame) scroll has no far sample
+    // after it and settles in 0ms — the first version read -8 to -48ms here (2026-09-25).
+    for (const x of samples) if (x.t >= firstMove && Math.abs(x.y - final) >= 1) lastFar = x.t
+    const settleMs = Math.round(lastFar - firstMove)
+    console.log(`SC-05 (site) measured: moved ${final}px, settled ${settleMs}ms after it started`)
+    expect(
+      final,
+      'the wheel tick moved nothing at all — the probe measured no scroll',
+    ).toBeGreaterThan(0)
+    // Measured 2026-09-25: 0ms, eight runs — the browser's own wheel scroll lands in one
+    // frame here. 300ms leaves room for a browser that animates it, and still fails the
+    // regression that matters: a script (or a smooth-scroll library) taking over the wheel
+    // and gliding the page, planted as a 1s glide and caught.
+    expect(settleMs, `settled ${settleMs}ms after it started moving`).toBeLessThan(300)
+  })
+})
+
+/**
+ * SC-01 — the other two return paths FA-F-05 above does not cover: typing a fresh
+ * address (a NEW navigation, not history traversal — correctly starts at the top,
+ * every time), and a plain reload (the browser's own `scrollRestoration: 'auto'`
+ * behaviour, same as FA-F-05 relies on, exercised via `page.reload()` instead of
+ * `page.goBack()`).
+ */
+test.describe('SC-01 — scroll restoration, the other two paths', () => {
+  test('typing a fresh address always starts at the top, never a remembered position', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/products')
+    const height = await page.evaluate(() => document.documentElement.scrollHeight)
+    expect(
+      height,
+      'the gallery is too short for this measurement to mean anything',
+    ).toBeGreaterThan(1900)
+    await page.evaluate(() => window.scrollTo(0, 1000))
+    await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBeGreaterThan(900)
+
+    // A fresh page.goto() is a NEW navigation, the same shape as typing an address in
+    // the bar — not history traversal, so nothing should be restored.
+    await page.goto('/products')
+    expect(await page.evaluate(() => Math.round(window.scrollY))).toBe(0)
+  })
+
+  test('a plain reload restores the scroll position, same as history back does', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/products')
+    const height = await page.evaluate(() => document.documentElement.scrollHeight)
+    expect(
+      height,
+      'the gallery is too short for this measurement to mean anything',
+    ).toBeGreaterThan(1900)
+    const target = 1000
+    await page.evaluate((to) => window.scrollTo(0, to), target)
+    await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBeGreaterThan(900)
+
+    await page.reload()
+    await expect
+      .poll(() => page.evaluate(() => Math.round(window.scrollY)), { timeout: 5_000 })
+      .toBeGreaterThan(target - 60)
+  })
+})
+
 test.describe('FA-H-10 — the skip link answers on --instant and actually moves', () => {
   /**
    * MEASURED 2026-09-06: the skip link is the one place the `--instant` token is honoured

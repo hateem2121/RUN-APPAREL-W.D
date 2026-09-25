@@ -1,7 +1,7 @@
 // E2E fixture server: serves the built viewer (SPA fallback) plus a mock
 // public viewer API shaped exactly like the CMS endpoint, with assets from
 // the asset-pipeline output (run `pnpm seed:assets` first).
-import { createReadStream, existsSync, readFileSync } from 'node:fs'
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -422,7 +422,17 @@ const server = http.createServer((req, res) => {
        * needs real coverage, find out WHY that test regresses first — the answer is
        * probably worth knowing on its own. The phase's decision logic is unit-tested
        * in the meantime: `showsIndeterminateSweep` in lib/loadProgress.ts.
+       *
+       * OPT-IN ONLY: `?with-length=1` sends the header for THAT request, so the one test
+       * that needs a real percentage (`loading.spec.ts`, MO-20, which routes its own model
+       * request here) gets it while every other request stays exactly as measured above.
+       * A test-side `route.fulfill` with the header was tried first (2026-09-25): it
+       * reached PREPARING, but a fulfilled body arrives in one piece, outside the
+       * throttled network, so no percentage was ever on screen to read.
        */
+      if (url.searchParams.get('with-length') === '1') {
+        res.setHeader('content-length', String(statSync(file).size))
+      }
       createReadStream(file).pipe(res)
       return
     }

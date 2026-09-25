@@ -1143,3 +1143,184 @@ test.describe('section spacing has at most two distinct rhythms across a width s
     }
   })
 })
+
+/**
+ * LA-01 / LA-02 — the home page's section order stays locked, and its input facts
+ * (word count, image count, phone screens of scroll) get a robot so a future change is
+ * a tracked decision rather than a silent drift.
+ *
+ * ⚠️ THE ORDER CHECK READS `.section-number` PREFIXES, NOT SECTION TITLES. A copy change
+ * to a heading must not false-fail this — decision D6 ("introduction first") is about
+ * ORDER, and the `№0N` prefix is the one thing on the page that already encodes it.
+ */
+test.describe('LA-01 — the home page section order is locked', () => {
+  test('hero first, then №01 through №04 in DOM order', async ({ page }) => {
+    await page.goto('/')
+    await settle(page)
+
+    const order = await page.evaluate(() => {
+      const sections = [...document.querySelectorAll('section')]
+      return sections.map((section) => {
+        if (section.classList.contains('site-hero')) return 'hero'
+        const label = section.querySelector('.section-number')?.textContent ?? ''
+        const match = label.match(/№(\d+)/)
+        return match ? `№${match[1]}` : null
+      })
+    })
+
+    expect(order, `section order was: ${JSON.stringify(order)}`).toEqual([
+      'hero',
+      '№01',
+      '№02',
+      '№03',
+      '№04',
+    ])
+  })
+})
+
+test.describe('LA-02 — home-page input facts (an honest proxy, not a judgement)', () => {
+  test('section, word, image and phone-scroll-screen counts, at 390x844', async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    await settle(page)
+
+    const facts = await page.evaluate(() => {
+      const sectionCount = document.querySelectorAll('section').length
+      // Visible text only, minus the chrome the layout owns rather than the argument the
+      // page makes — the same exclusion `pages.spec.ts` uses for its "not blank" check.
+      const nav = document.querySelector('.notch__nav')
+      const footer = document.querySelector('.site-footer')
+      const words = document.body.innerText
+        .replace(nav ? (nav.textContent ?? '') : '', '')
+        .replace(footer ? (footer.textContent ?? '') : '', '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean).length
+      const imageCount = document.querySelectorAll('img').length
+      const screensOfScroll = document.documentElement.scrollHeight / window.innerHeight
+      return { sectionCount, words, imageCount, screensOfScroll }
+    })
+
+    testInfo.annotations.push({
+      type: 'LA-02 home-page facts',
+      description: JSON.stringify(facts),
+    })
+
+    // The one hard assertion: the page has real content, not a collapsed/blank render.
+    // Everything else is recorded (annotation above), not graded — LA-02 is an input
+    // fact for other areas' work (LA-12's column context, the owner's home-page
+    // question), not a pass/fail judgement in itself.
+    expect(facts.sectionCount, 'home page rendered without its 5 sections').toBe(5)
+    expect(facts.words, 'home page rendered almost no text').toBeGreaterThan(50)
+  })
+
+  test('Products card count, at 390x844 (context for LA-12)', async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/products')
+    await settle(page)
+    const cardCount = await page.locator('.product-card').count()
+    testInfo.annotations.push({ type: 'LA-02 products card count', description: String(cardCount) })
+    // No strict assertion here — card count is environment-dependent (see pages.spec.ts's
+    // own comment on the same fact) and this test exists only to record the number.
+  })
+})
+
+/**
+ * LA-12 — the gallery (`.product-grid`, `auto-fill, minmax(260px, 1fr)`, 24px gap,
+ * `site.css:1242-1249`) genuinely reaches 1/2/3/4 columns as the content column widens,
+ * including the ≥1600px fourth column the owner added deliberately (FA-E-04). Reads the
+ * ACTUAL rendered column count off `getComputedStyle`, never assumed from a viewport
+ * width formula, per this batch's "measured never computed" rule.
+ */
+test.describe('LA-12 — the gallery genuinely reaches 1/2/3/4 columns', () => {
+  const CASES = [
+    { width: 375, columns: 1 },
+    { width: 700, columns: 2 },
+    { width: 1280, columns: 3 },
+    { width: 1920, columns: 4 },
+  ] as const
+
+  for (const { width, columns } of CASES) {
+    test(`${columns} column${columns === 1 ? '' : 's'} at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 1000 })
+      await page.goto('/products')
+      await settle(page)
+
+      const grid = page.locator('.product-grid')
+      if ((await grid.count()) === 0) {
+        // CI seeds a published garment, so the grid MUST render there. Skipping would hide
+        // exactly the regression this exists for; same rule as skipUnlessProof above.
+        if (process.env.CI) throw new Error('no .product-grid on /products, and CI seeds one')
+        test.skip(true, 'no product grid in this local database')
+      }
+
+      const tracks = await grid.evaluate(
+        (el) => getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length,
+      )
+      expect(tracks, `${width}px: expected ${columns} column(s), the grid reports ${tracks}`).toBe(
+        columns,
+      )
+    })
+  }
+})
+
+/**
+ * SC-03 — the site's `[data-site-reveal]` entry animation slides (never fades) and
+ * is switched off under reduced motion.
+ *
+ * ⚠️ A DIFFERENT MECHANISM FROM THE VIEWER'S `[data-reveal]`, confirmed by reading
+ * the source before writing this test (the plan's own uncertainty: "confirm whether
+ * it shares that module"). The viewer's is a JS IntersectionObserver
+ * (`polish/reveal.ts`); the site's is PURE CSS — `animation-timeline: view()`
+ * (`site.css:2060-2077`), gated behind `@supports (animation-timeline: view())` AND
+ * `@media (prefers-reduced-motion: no-preference)`. Where the browser does not
+ * support scroll-driven animations at all (measured: not WebKit/Firefox as of this
+ * repo's Playwright versions), the `@supports` block simply never matches and the
+ * element renders at rest with no animation ever applied — graceful degradation,
+ * not a defect, and not this test's concern. Scoped to Chromium, the engine that
+ * does support it, for exactly that reason.
+ */
+test.describe('SC-03 — the site reveal slides without fading, and reduced motion turns it off', () => {
+  test('animation-name is site-reveal under normal motion, and none under reduced motion', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'animation-timeline: view() is not supported here')
+
+    await page.goto('/')
+    await settle(page)
+    const target = page.locator('[data-site-reveal]').first()
+    expect(await target.count(), 'no [data-site-reveal] element on the home page').toBeGreaterThan(
+      0,
+    )
+
+    const normalMotion = await target.evaluate((el) => getComputedStyle(el).animationName)
+    expect(normalMotion, `animation-name under normal motion was "${normalMotion}"`).toBe(
+      'site-reveal',
+    )
+
+    // The keyframe itself only ever names `transform` — confirmed by reading
+    // site.css's own `@keyframes site-reveal` (from/to both list transform only,
+    // never opacity) — so "slides, never fades" is a structural fact about the
+    // declaration, not something to re-derive from a live paint.
+
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/')
+    await settle(page)
+    const reducedMatches = await page.evaluate(
+      () => matchMedia('(prefers-reduced-motion: reduce)').matches,
+    )
+    expect(reducedMatches, 'reduced motion emulation never reached the page').toBe(true)
+
+    const reducedTarget = page.locator('[data-site-reveal]').first()
+    const reducedMotionName = await reducedTarget.evaluate(
+      (el) => getComputedStyle(el).animationName,
+    )
+    expect(
+      reducedMotionName,
+      `animation-name under reduced motion was "${reducedMotionName}", expected none`,
+    ).toBe('none')
+  })
+})

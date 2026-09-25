@@ -459,3 +459,260 @@ test.describe("the footer's quiet band stays inside D7's documented range (DS-09
     }
   })
 })
+
+/**
+ * LA-13 — from 768px up, the footer slab is one full screen (`min-height: 100svh`,
+ * `site.css:611-613`). `.site-footer__slab`, not `.site-footer` (the outer element also
+ * carries `padding-block-start` for the tab seated above the slab's edge, per the
+ * flipped-notch comment above), and it is a MIN-height, so this only holds while content
+ * fits inside one screen — which is exactly what the `.footer-grow` tests above already
+ * lock in place.
+ */
+test.describe('LA-13 — the footer slab is one screen tall from 768px up', () => {
+  test('slab height equals the viewport height at 768, 1024, 1440', async ({ page }) => {
+    await page.goto('/contact')
+    for (const width of [768, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.evaluate(() => document.fonts.ready)
+      const height = await page.locator(SLAB).evaluate((el) => el.getBoundingClientRect().height)
+      expect(
+        height,
+        `.site-footer__slab is ${height}px at ${width}px, expected ~900px (100svh)`,
+      ).toBeCloseTo(900, 0)
+    }
+  })
+})
+
+/**
+ * LA-14 — the facts grid renders one block per kind of content that currently exists
+ * (`SiteFooter.tsx:94-166`): Contact always renders; Capacity, Standards and Elsewhere are
+ * each conditional on a CMS field the owner has not filled today. Asserts the STRUCTURE
+ * (each block, when present, is non-empty) and the CURRENT fill count, so filling in one
+ * of the other three later is a tracked change this test will flag, not a silent one it
+ * masks.
+ */
+test.describe('LA-14 — the facts grid: structure plus the current fill count', () => {
+  test('every rendered block has real content, and the current count is recorded', async ({
+    page,
+  }, testInfo) => {
+    await page.goto('/contact')
+    const kinds = ['contact', 'capacity', 'standards', 'elsewhere']
+    const rendered = await page.evaluate((kinds) => {
+      return kinds.map((kind) => {
+        const block = document.querySelector(`.footer-block--${kind}`)
+        if (!block) return { kind, present: false, hasContent: false }
+        const items = block.querySelectorAll('li, a')
+        return { kind, present: true, hasContent: items.length > 0 }
+      })
+    }, kinds)
+
+    testInfo.annotations.push({ type: 'LA-14 fill count', description: JSON.stringify(rendered) })
+
+    // Structure: every block that DOES render has real content — never an empty shell.
+    for (const block of rendered) {
+      if (block.present) {
+        expect(block.hasContent, `.footer-block--${block.kind} rendered with no content`).toBe(true)
+      }
+    }
+
+    // Contact is unconditional — it must always be one of the rendered blocks.
+    const contact = rendered.find((b) => b.kind === 'contact')
+    expect(contact?.present, 'the Contact block did not render at all').toBe(true)
+
+    // Current fill count, recorded so a change here is a decision, not a drift: today
+    // only Contact renders (the CMS fields behind Capacity/Standards/Elsewhere are blank
+    // in this environment's content, per apps/cms/CLAUDE.md's own default-content note).
+    const presentCount = rendered.filter((b) => b.present).length
+    testInfo.annotations.push({
+      type: 'LA-14 present count',
+      description: String(presentCount),
+    })
+  })
+})
+
+/**
+ * LA-17 — the footer's contact DETAILS stay reachable in print (`@media print`,
+ * `site.css:2242`+).
+ *
+ * ⚠️ NOT `.site-footer__tab` — the print stylesheet deliberately hides it (it is in the
+ * screen-only exclusion list alongside `.footer-glow`/`.cursor-ring`, since a CTA button
+ * means nothing on paper). `.footer-block--contact` (email, WhatsApp, address) is what
+ * survives, and it is not in that list — confirmed by reading the print block before
+ * writing this test, rather than assuming "the contact control" means the button.
+ */
+test.describe('LA-17 — print keeps the contact details', () => {
+  test('the footer contact block is present and not display:none under @media print', async ({
+    page,
+  }) => {
+    await page.goto('/contact')
+    await page.emulateMedia({ media: 'print' })
+    const block = page.locator('.footer-block--contact')
+    await expect(block).toBeVisible()
+    const display = await block.evaluate((el) => getComputedStyle(el).display)
+    expect(display, 'the footer contact block is display:none in print').not.toBe('none')
+    // And the screen-only CTA tab IS hidden — the control for this test: if both read as
+    // "visible", the probe is not distinguishing print from screen at all.
+    await expect(page.locator('.site-footer__tab')).toBeHidden()
+  })
+})
+
+/**
+ * MO-08 — the footer light's 180ms LEAVE linger, tested standing still. The "hand-off
+ * does not flicker" test above already proves the ring/light position agree and that a
+ * SWEEP through the 2×2's gap does not toggle `data-over` more than once; this is the
+ * timing half: after the pointer leaves content and STOPS (no further move — which is
+ * exactly the case `FooterGlow.tsx`'s own comment says needed its own re-scheduled
+ * timer, since the cursor bus otherwise only re-fires on movement), `data-over` holds
+ * true for LINGER_MS (180ms) and then releases on its own.
+ */
+test.describe('MO-08 — the footer light lingers on content for ~180ms after leaving it', () => {
+  test('data-over stays true for a window around 180ms, then releases without further movement', async ({
+    page,
+    context,
+  }) => {
+    await liftAutomationGate(context)
+    await page.goto('/contact')
+    const slab = page.locator(SLAB)
+    await slab.scrollIntoViewIfNeeded()
+
+    const contactBox = await page.locator('.footer-block--contact').boundingBox()
+    const emptyBox = await page.locator('.footer-grow').boundingBox()
+    if (!contactBox || !emptyBox) throw new Error('no content/empty region to measure')
+
+    // Land ON content first, and give the trailed ring time to actually settle there
+    // (same shape as "the light rides with the ring" above) before trusting data-over.
+    await page.mouse.move(contactBox.x + 10, contactBox.y + 10)
+    await page.waitForTimeout(500)
+    await page.mouse.move(contactBox.x + 12, contactBox.y + 12)
+    await expect(slab).toHaveAttribute('data-over', 'true')
+
+    // One move to empty ground, then STOP — the linger timer, not further movement, has
+    // to carry this to release. The window this test grades is the FULL round trip
+    // (`releasedAfterMs` below) rather than an intermediate "still true" snapshot: under
+    // parallel test load a fixed short poll for "still true" can lose the race against
+    // the timer itself, which is a scheduler artefact, not evidence the linger is
+    // broken — the release-time window is both the more robust and the more direct
+    // measurement of LINGER_MS.
+    const leftAt = Date.now()
+    await page.mouse.move(emptyBox.x + emptyBox.width / 2, emptyBox.y + emptyBox.height / 2)
+
+    // Released within a window around 180ms — generous on both sides (real timer +
+    // rAF/setTimeout jitter, and CI scheduler slack), never snapping instantly and
+    // never lingering indefinitely.
+    await expect
+      .poll(() => slab.getAttribute('data-over'), {
+        message: 'data-over never released after leaving content',
+        timeout: 1000,
+      })
+      .toBe('false')
+    const releasedAfterMs = Date.now() - leftAt
+    expect(releasedAfterMs, `released after ${releasedAfterMs}ms, expected ~180ms`).toBeGreaterThan(
+      50,
+    )
+    expect(releasedAfterMs, `released after ${releasedAfterMs}ms, expected ~180ms`).toBeLessThan(
+      500,
+    )
+  })
+})
+
+/**
+ * MO-09 — a footer-hover sweep triggers no MORE layout work than the same sweep over
+ * the hero. Same CDP instrument the 2026-09 audit used (`Performance.getMetrics()`'s
+ * `LayoutCount`), re-derived rather than copied — the audit's own finding was a footer
+ * hover rule with a `width`/`top` transition costing 115 extra layouts; this is the
+ * regression test for that class of defect, not a re-assertion of its exact number.
+ *
+ * ⚠️ BOTH DELTAS MUST BE EXACTLY 0 — not merely equal to each other. A relative-equal
+ * fallback would let a real footer-specific regression through as long as it happened
+ * to match whatever the hero's own sweep measured that run (plan review edit 11).
+ */
+test.describe('MO-09 — a footer hover sweep costs no more layout than the hero (LayoutCount)', () => {
+  test('60-move sweep over the footer and over the hero both cost 0 extra layouts', async ({
+    page,
+    context,
+    browserName,
+  }) => {
+    // LayoutCount comes from CDP's Performance domain, which only Chromium has: without this
+    // guard the firefox project failed 4/4 at newCDPSession (measured 2026-09-25).
+    test.skip(browserName !== 'chromium', 'LayoutCount is read over CDP, which only Chromium has')
+    await liftAutomationGate(context)
+    const cdp = await context.newCDPSession(page)
+    await cdp.send('Performance.enable')
+
+    const layoutCount = async () => {
+      const { metrics } = await cdp.send('Performance.getMetrics')
+      const metric = metrics.find((m: { name: string; value: number }) => m.name === 'LayoutCount')
+      if (!metric) throw new Error('LayoutCount metric not reported by this engine')
+      return metric.value
+    }
+
+    const sweep = async (box: { x: number; y: number; width: number; height: number }) => {
+      const before = await layoutCount()
+      for (let i = 0; i < 60; i++) {
+        const x = box.x + (box.width * i) / 60
+        const y = box.y + box.height / 2
+        await page.mouse.move(x, y)
+      }
+      const after = await layoutCount()
+      return after - before
+    }
+
+    await page.goto('/contact')
+    // Warm-up: the FIRST pointer move on the page mounts the custom cursor (new DOM —
+    // .cursor-dot/.cursor-ring), which costs its own one-time layout unrelated to
+    // either region being measured. Spend that cost here, outside both sweeps, so
+    // neither delta is blamed for a mount cost the other would have paid instead had
+    // it swept first.
+    await page.mouse.move(10, 10)
+    await page.waitForTimeout(50)
+
+    const hero = await page.locator('.site-hero').boundingBox()
+    if (!hero) throw new Error('no .site-hero to sweep')
+    const heroDelta = await sweep(hero)
+
+    const slab = page.locator(SLAB)
+    await slab.scrollIntoViewIfNeeded()
+    // Same reasoning as the hero warm-up above: the scroll itself, and the cursor's
+    // first arrival at a new region's coordinate space, can each cost one settling
+    // layout. Spend it here, before this sweep's own "before" reading.
+    const settleBox = await slab.boundingBox()
+    if (settleBox) await page.mouse.move(settleBox.x + 5, settleBox.y + 5)
+    await page.waitForTimeout(50)
+    const footer = await slab.boundingBox()
+    if (!footer) throw new Error('no footer slab to sweep')
+    const footerDelta = await sweep(footer)
+
+    expect(heroDelta, `hero sweep cost ${heroDelta} layouts, expected 0`).toBe(0)
+    expect(footerDelta, `footer sweep cost ${footerDelta} layouts, expected 0`).toBe(0)
+  })
+})
+
+/**
+ * MO-18 (site half) — the site's motion affordance inventory: a cursor-following
+ * glow, scoped to the footer slab only, nowhere else on the page. The viewer half
+ * (exactly dot + ring, nothing wider) is the matching describe in
+ * apps/viewer/e2e/audit-guards.spec.ts.
+ */
+test.describe('MO-18 (site) — the footer glow affordance is scoped to the slab, nowhere else', () => {
+  test('.footer-glow exists only inside .site-footer__slab', async ({ page, context }) => {
+    await liftAutomationGate(context)
+    await page.goto('/contact')
+    const counts = await page.evaluate(() => {
+      const glows = [...document.querySelectorAll('.footer-glow')]
+      return {
+        total: glows.length,
+        outsideSlab: glows.filter((el) => !el.closest('.site-footer__slab')).length,
+        // Anything ELSE glow/beam-shaped outside the footer would be inventory drift.
+        otherGlowLike: document.querySelectorAll(
+          '[class*="glow"]:not(.footer-glow), [class*="beam"]',
+        ).length,
+      }
+    })
+    expect(counts.total, 'no .footer-glow found at all').toBeGreaterThan(0)
+    expect(counts.outsideSlab, 'a .footer-glow rendered outside .site-footer__slab').toBe(0)
+    expect(
+      counts.otherGlowLike,
+      `found ${counts.otherGlowLike} glow/beam-like element(s) beyond the footer's — inventory drift`,
+    ).toBe(0)
+  })
+})

@@ -738,6 +738,42 @@ test.describe('the custom cursor mounts as documented (FA-Q-03)', () => {
     // state above wearing the right class.
     expect(measured.dot?.hidden, 'the dot is mounted but hidden').not.toBe('true')
   })
+
+  /**
+   * MO-06 — the third leg. The mount test above SKIPS on a coarse pointer rather
+   * than asserting anything, and the automation-refusal test below only proves
+   * the webdriver leg in isolation. Neither exercises `polish/index.ts:72`'s
+   * `isCoarsePointer()` check with the OTHER two conditions satisfied (human,
+   * motion allowed) — which is exactly the gap a planted fault removing that one
+   * `||` clause would slip through undetected.
+   */
+  test('a coarse pointer refuses the cursor even as a human with motion allowed', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, 'this project is not a coarse-pointer device')
+
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.addInitScript(asAHuman)
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    // Same "the layer actually ran" proof the automation test uses, so an absent
+    // cursor cannot be mistaken for a page that never executed the polish layer.
+    await expect
+      .poll(() => page.locator('[data-reveal].is-inview').count(), {
+        message: 'the polish layer never ran, so the absence of a cursor proves nothing',
+        timeout: 10_000,
+      })
+      .toBeGreaterThan(0)
+
+    const state = await page.evaluate(() => ({
+      dot: document.querySelectorAll('.cursor-dot').length,
+      classed: document.documentElement.classList.contains('has-custom-cursor'),
+    }))
+    expect(state.dot, 'a cursor dot mounted on a coarse pointer').toBe(0)
+    expect(state.classed, 'has-custom-cursor was applied on a coarse pointer').toBe(false)
+  })
 })
 
 /* ══ FA-H-17 — rapid colourway switching settles correctly ══════════════════ */
@@ -1266,6 +1302,262 @@ test.describe('every colour swatch keeps a 3:1 ring against its tab (CO-12)', ()
           'Unselected rings use --line-control and the selected one currentColor; see ' +
           '.colourway-tab__swatch in apps/viewer/src/styles/page.css.',
       ).toEqual([])
+    })
+  }
+})
+
+/**
+ * AC-08 — the colourway rail is a real tablist, and the two ARIA states arrive
+ * together. `ColourwayTabs.tsx:130-158` already implements the arrow-key roving
+ * tabindex (Right/Left/Up/Down/Home/End) — unit-proven in `ColourwayTabs.test.tsx`
+ * ("moves focus with Right/Left and wraps at both ends" and its four siblings);
+ * PROVE ONLY there, not rebuilt as an e2e test. This is the one new e2e assertion:
+ * `role="tablist"` and `aria-selected` must both be present, not just one — a tab
+ * with `role="tab"` but no `aria-selected` anywhere would be valid-looking ARIA
+ * that tells a screen reader nothing about which colourway is active.
+ */
+test.describe('the colourway rail is a real tablist with a selected state (AC-08)', () => {
+  test('role="tablist"/"tab" and aria-selected are both present together', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const structure = await page.evaluate(() => {
+      const tablist = document.querySelector('[role="tablist"]')
+      const tabs = [...document.querySelectorAll('[role="tab"]')]
+      return {
+        hasTablist: Boolean(tablist),
+        tabCount: tabs.length,
+        withAriaSelected: tabs.filter((t) => t.hasAttribute('aria-selected')).length,
+      }
+    })
+    expect(structure.hasTablist, 'no [role="tablist"] on the page').toBe(true)
+    expect(structure.tabCount, 'no [role="tab"] elements on the page').toBeGreaterThan(0)
+    expect(
+      structure.withAriaSelected,
+      'a tab role exists without aria-selected — the tablist role alone tells a ' +
+        'screen reader nothing about which colourway is active',
+    ).toBe(structure.tabCount)
+  })
+})
+
+/**
+ * AC-16 — the selected colourway tab is never colour-only: `aria-selected="true"`
+ * carries the state for assistive technology, AND the same tab inverts its fill
+ * (`ColourwayTabs.tsx:256-263` — the selected tab's background moves to
+ * `--btn-primary-bg`, a 13-14:1 luminance swing, not a hue change alone). This is
+ * a REDUNDANCY check (both signals agree), separate from CO-12's ring-contrast
+ * grade above.
+ */
+test.describe('the selected colourway tab is never colour-only (AC-16)', () => {
+  test('aria-selected agrees with a real fill inversion, on exactly one tab', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const tabs = await page.evaluate(() =>
+      [...document.querySelectorAll('.colourway-tab')].map((el) => ({
+        selected: el.getAttribute('aria-selected') === 'true',
+        background: getComputedStyle(el).backgroundColor,
+      })),
+    )
+    expect(tabs.length, 'no colourway tabs found').toBeGreaterThan(1)
+
+    const selectedTabs = tabs.filter((t) => t.selected)
+    expect(selectedTabs, 'exactly one tab should carry aria-selected="true"').toHaveLength(1)
+
+    const selectedBg = (selectedTabs[0] as { background: string }).background
+    const unselectedBgs = new Set(tabs.filter((t) => !t.selected).map((t) => t.background))
+    expect(
+      unselectedBgs.has(selectedBg),
+      `the selected tab's background (${selectedBg}) does not differ from an unselected ` +
+        `tab's — aria-selected would be the ONLY signal of which colourway is active`,
+    ).toBe(false)
+  })
+})
+
+/**
+ * MO-14 — FRONT/BACK/SIDE each move the camera and settle. The drag-release half of
+ * MO-14 is already proven in `camera-settle.spec.ts` -> "a released drag comes to rest,
+ * and the tail is measured" — PROVE ONLY there, not rebuilt here. This is the missing
+ * half: no existing test presses a camera preset button at all.
+ *
+ * ⚠️ READS `getCameraOrbit()`, NEVER THE PROPERTY OR ATTRIBUTE. Per
+ * `apps/viewer/CLAUDE.md`'s camera-move trap: only the live method call reflects where
+ * the camera actually IS while a damper or transition is still running.
+ */
+test.describe('FRONT/BACK/SIDE each move the camera and settle (MO-14)', () => {
+  test('each preset changes the orbit and stabilises within the settle budget', async ({
+    page,
+    browserName,
+  }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const fallback = await page.locator('.stage__error:not([hidden])').count()
+    test.skip(
+      fallback > 0,
+      `${browserName}: no WebGL here, the stage is in poster fallback — no camera buttons to press`,
+    )
+
+    await page.waitForFunction(
+      () => {
+        const mv = document.querySelector('model-viewer') as (Element & { loaded?: boolean }) | null
+        return Boolean(mv?.loaded)
+      },
+      undefined,
+      { timeout: 40000 },
+    )
+
+    const readOrbit = () =>
+      page.evaluate(() => {
+        const mv = document.querySelector('model-viewer') as Element & {
+          getCameraOrbit?: () => { theta: number; phi: number; radius: number }
+        }
+        return mv.getCameraOrbit?.() ?? null
+      })
+
+    const settle = async () => {
+      // Poll until two consecutive reads match — same shape as camera-settle.spec.ts's
+      // "six consecutive frames" rule, loosened to two since this budget is generous
+      // (a preset jump, not a flung drag with momentum).
+      let previous = await readOrbit()
+      for (let i = 0; i < 60; i++) {
+        await page.waitForTimeout(50)
+        const current = await readOrbit()
+        if (
+          previous &&
+          current &&
+          Math.abs(current.theta - previous.theta) < 0.0001 &&
+          Math.abs(current.phi - previous.phi) < 0.0001
+        ) {
+          return current
+        }
+        previous = current
+      }
+      throw new Error('camera never settled within 3s')
+    }
+
+    for (const view of ['front', 'back', 'side'] as const) {
+      const before = await readOrbit()
+      await page.getByRole('button', { name: new RegExp(`^${view}$`, 'i') }).click()
+      const after = await settle()
+      expect(after, `${view}: getCameraOrbit() returned null after settling`).not.toBeNull()
+      if (before && after) {
+        const delta = Math.abs(after.theta - before.theta) + Math.abs(after.phi - before.phi)
+        // FRONT while already on FRONT is a legitimate no-op; only assert movement when
+        // the preset is not the one already active (first iteration is 'front' from
+        // load, so this correctly allows that single case to move zero).
+        if (view !== 'front') {
+          expect(delta, `${view}: the camera orbit did not change at all`).toBeGreaterThan(0.001)
+        }
+      }
+      await expect(
+        page.getByRole('button', { name: new RegExp(`^${view}$`, 'i') }),
+      ).toHaveAttribute('aria-pressed', 'true')
+    }
+  })
+})
+
+/**
+ * AC-14 — an arrow key rotates the garment. There is no app-level keyboard handler for
+ * this (confirmed by reading Stage.tsx: no `ArrowLeft`/`ArrowRight` case anywhere) — it
+ * is `<model-viewer camera-controls="">`'s OWN built-in keyboard support, reachable once
+ * the element has focus. So the mechanism under test, and the planted fault below, is
+ * that attribute, not an app key handler.
+ *
+ * ⚠️ ADAPTED FROM THE PLAN'S "12 deep-pass product pages": this e2e fixture serves only
+ * n001 (5 colourways) and n002 (no GLB, so no camera at all) — there is no 12-page set
+ * reachable in CI. This sweeps all 5 of n001's colourways, the full set this harness can
+ * reach, rather than inventing pages that do not exist here. r-xmp's single unresolved
+ * press (SPEC-100 §4.4) is a live-site page not in this fixture either way, so it was
+ * never reachable from CI regardless of this adaptation.
+ *
+ * ⚠️ `page.keyboard.press` dispatches TRUSTED input (via CDP), unlike
+ * `dispatchEvent(new KeyboardEvent(...))` — the same trusted-input requirement
+ * `apps/viewer/CLAUDE.md` documents for pointer/wheel gestures applies to keyboard too.
+ */
+test.describe('an arrow key rotates the garment, on every colourway this fixture serves (AC-14)', () => {
+  for (const slug of ['wine', 'blush', 'butter', 'lime', 'black']) {
+    test(`${slug}: ArrowLeft moves the camera`, async ({ page, browserName }) => {
+      await page.goto(`/n001/${slug}`)
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+      const fallback = await page.locator('.stage__error:not([hidden])').count()
+      test.skip(
+        fallback > 0,
+        `${browserName}: no WebGL here, the stage is in poster fallback — no camera to rotate`,
+      )
+
+      await page.waitForFunction(
+        () => {
+          const mv = document.querySelector('model-viewer') as
+            | (Element & { loaded?: boolean })
+            | null
+          return Boolean(mv?.loaded)
+        },
+        undefined,
+        { timeout: 40000 },
+      )
+
+      const readOrbit = () =>
+        page.evaluate(() => {
+          const mv = document.querySelector('model-viewer') as Element & {
+            getCameraOrbit?: () => { theta: number; phi: number; radius: number }
+          }
+          return mv.getCameraOrbit?.() ?? null
+        })
+
+      /*
+       * ⚠️ `.focus()` ON THE HOST ELEMENT DOES NOT WORK, MEASURED WHILE WRITING THIS
+       * TEST. `<model-viewer>` carries no `tabindex` attribute and its shadow root is
+       * not `delegatesFocus`, so a plain `.focus()` call is a silent no-op —
+       * `document.activeElement` stays wherever it already was. A real trusted CLICK on
+       * the canvas is what model-viewer's own pointer handler uses to focus itself
+       * (confirmed: `document.activeElement === modelViewerElement` only after a
+       * `page.mouse.click`, never after `.focus()`), which is also the one path that
+       * matches how a visitor would actually reach this — nobody reaches a 3D stage by
+       * Tab alone today.
+       */
+      const canvasBox = await page.locator('.stage__canvas').boundingBox()
+      if (!canvasBox) throw new Error(`${slug}: no .stage__canvas to click`)
+      await page.mouse.click(canvasBox.x + canvasBox.width / 2, canvasBox.y + canvasBox.height / 2)
+      await expect
+        .poll(() => page.evaluate(() => document.activeElement?.tagName), {
+          message: `${slug}: the canvas click never focused <model-viewer>`,
+        })
+        .toBe('MODEL-VIEWER')
+
+      const before = await readOrbit()
+
+      let cameraChangeFired = false
+      await page.exposeFunction('__acFourteenMark', () => {
+        cameraChangeFired = true
+      })
+      await page.evaluate(() => {
+        document.querySelector('model-viewer')?.addEventListener(
+          'camera-change',
+          () =>
+            (
+              window as unknown as {
+                __acFourteenMark: () => void
+              }
+            ).__acFourteenMark(),
+          { once: true },
+        )
+      })
+
+      await page.keyboard.press('ArrowLeft')
+      await page.waitForTimeout(400)
+
+      const after = await readOrbit()
+      expect(before, `${slug}: getCameraOrbit() returned null before the press`).not.toBeNull()
+      expect(after, `${slug}: getCameraOrbit() returned null after the press`).not.toBeNull()
+      if (before && after) {
+        const delta = Math.abs(after.theta - before.theta) + Math.abs(after.phi - before.phi)
+        expect(delta, `${slug}: ArrowLeft did not move the camera at all`).toBeGreaterThan(0.0001)
+      }
+      expect(cameraChangeFired, `${slug}: no camera-change event fired for the arrow press`).toBe(
+        true,
+      )
     })
   }
 })
@@ -1840,5 +2132,314 @@ test.describe('nothing above the fold outsizes the product name (DS-08)', () => 
       'something above the fold shouts louder than the product name',
     ).toEqual([])
     expect(louder.h1Size).toBeGreaterThan(28)
+  })
+})
+
+/**
+ * SC-05 — one trusted wheel tick over the page settles when the design says it does
+ * (SCROLL_DURATION_S, 1.1s; the "~47ms" this row was drafted with is not this page's glide). Uses `page.mouse.wheel()` — TRUSTED input, per
+ * this repo's own rule that a synthetic `dispatchEvent(new WheelEvent(...))` is
+ * refused by Lenis's own `virtualScroll: ({event}) => event.isTrusted` predicate
+ * (FA-F-12, proven above) and would prove nothing here either.
+ */
+test.describe('SC-05 — one wheel tick settles quickly', () => {
+  test('scrollY stops moving within a few hundred ms of one wheel tick', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'a phone has no mouse wheel (Playwright: not supported in mobile WebKit)')
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.addInitScript(asAHuman)
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.classList.contains('lenis')), {
+        timeout: 10_000,
+      })
+      .toBe(true)
+
+    // Over the HEADER, never the middle of the screen: at 1280x900 the middle is the 3D
+    // stage, where a wheel zooms the garment and the page does not move (SC-08) — the
+    // first draft wheeled there and measured "moved nothing" (2026-09-25).
+    const header = await page.locator('header.notch-shell').boundingBox()
+    if (!header) throw new Error('no header to wheel over')
+    await page.mouse.move(header.x + header.width / 2, header.y + header.height / 2)
+    // Sample scrollY on EVERY animation frame, inside the page, for 3s after the tick,
+    // then find when it came within 1px of where it finished. Measured 2026-09-25: the
+    // first draft polled over CDP every ~50ms and called two equal reads "settled", so
+    // Lenis's eased sub-pixel tail and the polling's own latency read 2,218ms on one of
+    // two identical runs. The eased glide is BY DESIGN — SCROLL_DURATION_S is 1.1s in
+    // src/lib/motion.ts, cubic ease-out — so "quickly" means "ends when the design says",
+    // not "tens of ms".
+    await page.evaluate(() => {
+      const w = window as unknown as { __sc05: { t: number; y: number }[] }
+      w.__sc05 = []
+      const t0 = performance.now()
+      const tick = () => {
+        const t = performance.now() - t0
+        w.__sc05.push({ t, y: window.scrollY })
+        if (t < 3000) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+    await page.mouse.wheel(0, 120)
+    await page.waitForTimeout(3200)
+    const samples = await page.evaluate(
+      () => (window as unknown as { __sc05: { t: number; y: number }[] }).__sc05,
+    )
+    const final = samples.at(-1)?.y ?? 0
+    const firstMove = samples.find((s) => s.y !== samples[0]?.y)?.t ?? 0
+    let lastFar = firstMove
+    // Only frames AFTER movement began: an instant (one-frame) scroll has no far sample
+    // after it and settles in 0ms — the first version read -8 to -48ms here (2026-09-25).
+    for (const s of samples) if (s.t >= firstMove && Math.abs(s.y - final) >= 1) lastFar = s.t
+    const settleMs = Math.round(lastFar - firstMove)
+    console.log(`SC-05 measured: moved ${final}px, settled ${settleMs}ms after it started`)
+    expect(
+      final,
+      'the wheel tick moved nothing at all — the probe measured no scroll',
+    ).toBeGreaterThan(0)
+    expect(
+      settleMs,
+      `settled ${settleMs}ms after it started moving; the designed glide is 1.1s`,
+    ).toBeLessThan(1500)
+  })
+})
+
+/**
+ * SC-08 — a wheel over the 3D canvas zooms the CAMERA, and does not scroll the page.
+ * `page.mouse.wheel()` again for the trusted-input reason above.
+ */
+test.describe('SC-08 — wheel over the canvas zooms, page does not scroll', () => {
+  test('camera-change fires and window.scrollY is unchanged', async ({
+    page,
+    browserName,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'a phone has no mouse wheel (Playwright: not supported in mobile WebKit)')
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const fallback = await page.locator('.stage__error:not([hidden])').count()
+    test.skip(fallback > 0, `${browserName}: no WebGL here, the stage is in poster fallback`)
+
+    await page.waitForFunction(
+      () => {
+        const mv = document.querySelector('model-viewer') as (Element & { loaded?: boolean }) | null
+        return Boolean(mv?.loaded)
+      },
+      undefined,
+      { timeout: 40000 },
+    )
+
+    let cameraChangeFired = false
+    await page.exposeFunction('__scEightMark', () => {
+      cameraChangeFired = true
+    })
+    await page.evaluate(() => {
+      document
+        .querySelector('model-viewer')
+        ?.addEventListener(
+          'camera-change',
+          () => (window as unknown as { __scEightMark: () => void }).__scEightMark(),
+          { once: true },
+        )
+    })
+
+    const before = await page.evaluate(() => window.scrollY)
+    const canvasBox = await page.locator('.stage__canvas').boundingBox()
+    if (!canvasBox) throw new Error('no .stage__canvas to wheel over')
+    await page.mouse.move(canvasBox.x + canvasBox.width / 2, canvasBox.y + canvasBox.height / 2)
+    await page.mouse.wheel(0, -100)
+    await page.waitForTimeout(300)
+    const after = await page.evaluate(() => window.scrollY)
+
+    expect(cameraChangeFired, 'no camera-change event fired for the wheel over the canvas').toBe(
+      true,
+    )
+    expect(after, `page scrolled from ${before} to ${after} on a wheel over the canvas`).toBe(
+      before,
+    )
+  })
+})
+
+/**
+ * SC-09 — no scroll cue exists, and none is needed: the tracker's own finding is
+ * that the next section's heading is already visible above the fold at 390x844, so
+ * this asserts that structural fact rather than a cue's contrast (there is no cue).
+ */
+/**
+ * SC-09 — the page's own continuation cue (`.stage__more`, `App.tsx`'s own comment:
+ * "The only thing on the first screen that says the page continues… it shows WHAT
+ * is below") sits WITHIN the first screen, not below it. Read from the actual
+ * mechanism rather than assuming "the next section's heading" is what carries this
+ * — `#customise-heading` measured well below the 844px fold on first read (this
+ * fixture's product-info content pushes it down), which is a fact about THAT
+ * heading, not evidence a cue is missing: `.stage__more` is the cue, and it is
+ * inside the stage band by construction (`App.tsx`'s own comment: "This sits
+ * INSIDE the ~88px the band already reserves for the bar").
+ */
+test.describe('SC-09 — the page continues below the fold without needing a colour-contrast scroll cue', () => {
+  test('.stage__more sits above the fold at 390x844, on arrival, unscrolled', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const rect = await page.evaluate(() => {
+      const el = document.querySelector('.stage__more')
+      if (!el) return null
+      const r = el.getBoundingClientRect()
+      return { top: r.top, bottom: r.bottom, scrollY: window.scrollY }
+    })
+    expect(rect, 'no .stage__more on the page').not.toBeNull()
+    if (rect) {
+      expect(rect.scrollY, 'the page had already scrolled before this measurement').toBe(0)
+      expect(
+        rect.bottom,
+        `.stage__more bottom is at ${rect.bottom}px, below the 844px fold on arrival`,
+      ).toBeLessThanOrEqual(844)
+    }
+  })
+})
+
+/**
+ * SC-13 — the 3D canvas refuses the browser's own scroll gestures (`touch-action:
+ * none`, DISABLE_TAP's neighbour in Stage.tsx), and every OTHER scrollable region
+ * does not — a canvas-wide `none` would trap a phone visitor with no way past the
+ * model, which `apps/viewer/CLAUDE.md`'s own trap on this exact property warns about.
+ */
+test.describe('SC-13 — touch-action is none on the canvas, and nowhere else scrollable', () => {
+  test('the canvas refuses browser gestures; <body> does not', async ({ page, browserName }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    // No WebGL (CI's Firefox) means poster fallback and no <model-viewer> at all: the first
+    // CI run waited 30s for one and timed out (2026-09-25). Chromium on CI has WebGL and
+    // still runs this, as SC-08's identical guard relies on.
+    const fallback = await page.locator('.stage__error:not([hidden])').count()
+    test.skip(fallback > 0, `${browserName}: no WebGL here, the stage is in poster fallback`)
+
+    /*
+     * ⚠️ THE ATTRIBUTE, NOT `getComputedStyle`. Measured while writing this test:
+     * model-viewer 4.3.1 does not rely on the browser's own CSS `touch-action` on
+     * the HOST element at all — its own source says so directly ("We implement our
+     * own version of the browser's CSS touch-action, enforced by [JS]") and applies
+     * the real behaviour internally, in its shadow root, from the `touch-action`
+     * ATTRIBUTE. `getComputedStyle(hostElement).touchAction` reads the CSS cascade's
+     * default ("auto") regardless of what the attribute says, which would make this
+     * test pass on a host that CANNOT actually turn the garment via touch — the
+     * same "read the mechanism the code actually uses" lesson as the
+     * `camera-orbit`/`poster` traps in apps/viewer/CLAUDE.md.
+     */
+    const canvasTouchAction = await page
+      .locator('.stage__canvas model-viewer')
+      .getAttribute('touch-action')
+    expect(
+      canvasTouchAction,
+      `the canvas's touch-action attribute is "${canvasTouchAction}", not none`,
+    ).toBe('none')
+
+    const bodyTouchAction = await page.evaluate(() => getComputedStyle(document.body).touchAction)
+    expect(bodyTouchAction, 'the page body itself refuses touch scrolling').not.toBe('none')
+  })
+})
+
+/**
+ * MO-18 (viewer half) — the cursor's motion affordance inventory: exactly the
+ * dot-and-ring pair, no third, wider "beam" element. A drift guard, not a judgement
+ * — no removal proposed. The site half (the footer glow, scoped to its slab) is the
+ * matching describe in footer.spec.ts.
+ */
+test.describe('MO-18 (viewer) — the cursor affordance inventory is exactly dot + ring', () => {
+  test('exactly one .cursor-dot and one .cursor-ring, nothing else cursor-shaped', async ({
+    page,
+    context,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'the cursor never mounts on a coarse pointer, by design')
+    await page.addInitScript(asAHuman)
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    // Wait for the dynamically imported cursor BEFORE moving the mouse — the same trap
+    // "the custom cursor mounts as documented" above records: moves that land before
+    // its listener exists never mount it.
+    await page.locator('.cursor-dot').waitFor({ state: 'attached' })
+    await page.mouse.move(640, 450)
+    await page.mouse.move(660, 460, { steps: 4 })
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.documentElement.classList.contains('has-custom-cursor')),
+      )
+      .toBe(true)
+
+    const counts = await page.evaluate(() => ({
+      dot: document.querySelectorAll('.cursor-dot').length,
+      ring: document.querySelectorAll('.cursor-ring').length,
+      // A generic sweep for anything ELSE cursor-shaped that might get added as a
+      // "beam" or similar without updating this inventory.
+      otherCursorLike: document.querySelectorAll(
+        '[class*="cursor-"]:not(.cursor-dot):not(.cursor-ring)',
+      ).length,
+    }))
+    expect(counts.dot, 'expected exactly one .cursor-dot').toBe(1)
+    expect(counts.ring, 'expected exactly one .cursor-ring').toBe(1)
+    expect(
+      counts.otherCursorLike,
+      `found ${counts.otherCursorLike} cursor-* element(s) beyond dot+ring — inventory drift`,
+    ).toBe(0)
+    void context
+  })
+})
+
+/**
+ * MO-23 — the five named motion affordances are all present in the built page: smooth
+ * scroll (Lenis), arrival reveals, the interaction cue, the colour rail and the camera
+ * buttons. A structural presence check, not a subjective "does it keep visitors
+ * longer" judgement.
+ */
+test.describe('MO-23 — all five named motion affordances are present', () => {
+  test('smooth scroll, reveals, the interaction cue, the colour rail and camera buttons all exist', async ({
+    page,
+    browserName,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.addInitScript(asAHuman)
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    // Smooth scroll: Lenis adds this class to <html> once it starts.
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.classList.contains('lenis')), {
+        timeout: 10_000,
+      })
+      .toBe(true)
+
+    // The interaction cue renders only once the model has LOADED and the visitor has
+    // been idle for CUE_IDLE_MS (Stage.tsx: `!fallback && modelLoaded && !swapping &&
+    // cueVisible`), so it cannot exist on a stage in poster fallback (no WebGL on CI's
+    // Firefox) and does not exist yet when the <h1> appears.
+    const fallback = await page.locator('.stage__error:not([hidden])').count()
+    test.skip(fallback > 0, `${browserName}: no WebGL here, the stage is in poster fallback`)
+    await expect(page.locator('.stage__hint')).toBeAttached({ timeout: 40_000 })
+
+    const present = await page.evaluate(() => ({
+      reveals: document.querySelectorAll('[data-reveal]').length > 0,
+      interactionCue: document.querySelectorAll('.stage__hint').length > 0,
+      colourRail: document.querySelectorAll('[role="tablist"]').length > 0,
+      cameraButtons: document.querySelectorAll('.stage__controls .camera-btn').length > 0,
+    }))
+    expect(present.reveals, 'no [data-reveal] elements — arrival reveals affordance missing').toBe(
+      true,
+    )
+    expect(present.interactionCue, 'no .stage__hint — interaction cue affordance missing').toBe(
+      true,
+    )
+    expect(present.colourRail, 'no [role="tablist"] — colour rail affordance missing').toBe(true)
+    expect(
+      present.cameraButtons,
+      'no .stage__controls .camera-btn — camera buttons affordance missing',
+    ).toBe(true)
   })
 })
