@@ -34,14 +34,18 @@ jobs:
       #
       # WHAT IT DOES NOT DO, and why, because both are counter-intuitive:
       #
-      #   * It never GETs the model. 1.9-8.2 MB against a $5/month R2 egress cap
-      #     (measured 2026-09-05; ~27 MB before the 2026-09-03 re-exports), and a
-      #     weekly GET is affordable only until someone tightens the schedule.
-      #   * It therefore cannot report the model's cache status, because
-      #     `cf-cache-status` is only trustworthy when read from a GET's own headers.
+      #   * It never GETs the whole model (1.9-8.1 MB, measured 2026-09-25). The model
+      #     step below reads only each file's first 600 KB and then 1 byte.
+      #     ⚠️ This used to say "against a $5/month R2 egress cap". There is no such cap:
+      #     R2 egress is free at any volume (developers.cloudflare.com/r2/pricing/,
+      #     re-read 2026-09-25), and a cached model is served from the edge without
+      #     touching R2 at all. The only R2 cost of a read is a Class B operation, and
+      #     only on a cache MISS.
+      #   * `cf-cache-status` is only trustworthy when read from a GET's own headers.
       #     Measured on 2026-08-13, same URL, same minute: GET said HIT (age 49431),
       #     HEAD said DYNAMIC. A probe using `curl -I` here would conclude the model
-      #     is never cached — a convincing and completely false finding.
+      #     is never cached — a convincing and completely false finding. The model
+      #     step reads it off its GETs.
       #
       # A 403/429/503 is reported as INCONCLUSIVE and the run stays green. Free-plan
       # Bot Fight Mode intermittently blocks datacenter traffic; it already forced an
@@ -50,6 +54,13 @@ jobs:
       # and a muted alert is how the outage path stayed silent for 17 days.
       - name: Probe live response times
         run: node scripts/perf-probe.mjs
+
+      # IM-10 and IM-02b, weekly: every live model's copyright, no CLO leftovers (text,
+      # keys, drive paths, extras outside depthBias/uvRemap), served from the edge cache
+      # on a repeat GET, and its size within 2x its family's median. Same exit contract
+      # as above: a 403/429/503 is inconclusive and stays green.
+      - name: Check every live model's provenance, cache and size
+        run: node scripts/glb-provenance-probe.mjs
 
       # DELIBERATELY NO `gh issue create` STEP.
       #

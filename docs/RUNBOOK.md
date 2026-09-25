@@ -1772,12 +1772,13 @@ tests say.
 
 **After attaching the re-shrunk model, before telling the owner it is live**, run
 `node scripts/glb-provenance-probe.mjs <product>/<colourway>` — confirms
-`asset.copyright` is set and the file carries no CLO/Marvelous Designer leftover
-string. This checks ONE model, by hand, on the same rare occasion a human already
-attaches one; it is not a scheduled job, because provenance changes only when a
-garment is re-shrunk. The CLI stays runnable against every live product at once
-with no argument, so a spot-check any other time is `node
-scripts/glb-provenance-probe.mjs`.
+`asset.copyright` is set, the file carries no CLO/Marvelous Designer leftover (text,
+CLO keys such as `MetaData`, raw drive paths, or an `extras` key other than
+`depthBias` on a material and `uvRemap` on a mesh primitive), a repeat GET is served
+from the edge cache, and the model is within 2x its family's median size. With no
+argument it checks every file every live product serves, and since 2026-09-25
+`perf-watch.yml` runs it that way every Monday (it reads 600 KB of each file, and R2
+egress is free).
 
 ## API + media domain cutover
 
