@@ -608,7 +608,13 @@ describe('raw values in component stylesheets', () => {
       // Shorthand only. `transition-duration: 0.01ms !important` in the
       // reduced-motion block is a longhand override and is deliberately exempt —
       // it is the mechanism that disables motion, not a duration choice.
-      for (const match of source.matchAll(/^\s*(transition|animation):\s*([^;]+);/gm)) {
+      //
+      // ⚠️ NOT ANCHORED TO A LINE START (MO-01, 2026-09-25): `.x { transition: opacity
+      // 300ms; }` on one line walked straight past `^\s*transition:`. The formatter
+      // refuses that shape today, so two gates each held half of the rule; now this one
+      // holds all of it. The declaration may follow `{`, `;` or whitespace, and may end
+      // at `}` as well as `;` — the DECL() fix above, applied here.
+      for (const match of source.matchAll(/(?:^|[{;\s])(transition|animation):\s*([^;}]+)[;}]/gm)) {
         const value = match[2] ?? ''
         if (!/\b\d+(?:\.\d+)?m?s\b/.test(value)) continue
         const line = source.slice(0, match.index).split('\n').length
