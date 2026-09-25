@@ -562,3 +562,48 @@ test.describe('CO-05 — the phone browser bar follows the page', () => {
     })
   }
 })
+
+/**
+ * IM-01 — every picture on the gallery has alt text, and a garment poster says WHICH
+ * garment. Live on 2026-09-25 all 16 read "<PRODUCT NAME> in <Colour>" (e.g. "X-MILO PRO
+ * SKIN-SUIT in Wine"). The colour half is not pinned: the seeded fixture uses the documented
+ * fallback "<name> — 3D product reference" (src/lib/projectPublic.ts). What is pinned is
+ * what a screen-reader user needs from a card: the picture names the product the card is
+ * about, and no <img> is missing the attribute (an empty alt is a deliberate "decorative";
+ * a missing one reads the file name aloud).
+ */
+test.describe('IM-01 — gallery pictures have alt text that names the garment', () => {
+  test("every <img> carries alt, and every poster names its own card's product", async ({
+    page,
+  }) => {
+    await page.goto('/products')
+    const cards = await page.locator('.product-card').evaluateAll((nodes) =>
+      nodes.map((card) => ({
+        name: card.querySelector('.product-card__name')?.textContent?.trim() ?? '',
+        alt: card.querySelector('img.product-card__img')?.getAttribute('alt') ?? null,
+        hasPoster: card.querySelector('img.product-card__img') !== null,
+      })),
+    )
+    // The control that there is something to judge: an empty gallery passes everything.
+    expect(
+      cards.filter((card) => card.hasPoster).length,
+      'no card on the gallery shows a poster, so this checks nothing',
+    ).toBeGreaterThan(0)
+
+    const missing = await page
+      .locator('img')
+      .evaluateAll((images) =>
+        images.filter((img) => !img.hasAttribute('alt')).map((img) => img.getAttribute('src')),
+      )
+    expect(missing, 'pictures with no alt attribute at all').toEqual([])
+
+    const unnamed = cards
+      .filter((card) => card.hasPoster)
+      .filter(
+        (card) =>
+          !card.alt || !card.name || !card.alt.toLowerCase().includes(card.name.toLowerCase()),
+      )
+      .map((card) => `"${card.name}" shows a poster with alt "${card.alt}"`)
+    expect(unnamed, 'posters whose alt text does not name the garment on their card').toEqual([])
+  })
+})
