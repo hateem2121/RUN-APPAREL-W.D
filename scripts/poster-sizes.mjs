@@ -158,15 +158,78 @@ export function judgePosters(posters, { exceptions = OWNER_EXCEPTIONS } = {}) {
 }
 
 /**
+ * IM-03: what every poster must BE, read from its bytes and its own GET's headers, never
+ * from a filename or a CMS field. Measured on all 80 live posters 2026-09-25: image/webp,
+ * 1200x1500 (VP8X header), `max-age=604800`, served from the edge. The lifetime floor is
+ * that measured 7 days: a shorter one is a regression, not a choice this check should
+ * bless.
+ */
+export const POSTER_WIDTH = 1200
+export const POSTER_HEIGHT = 1500
+export const MIN_MAX_AGE_SECONDS = 604_800
+
+/**
+ * Pure: a WebP's pixel size from its first 30 bytes (RIFF header, then a VP8X, VP8 or
+ * VP8L chunk, per Google's WebP container spec). `null` when it is not a WebP.
+ * @param {Uint8Array} bytes
+ * @returns {{ width: number, height: number } | null}
+ */
+export function webpDimensions(bytes) {
+  if (bytes.length < 30) return null
+  const text = (offset, length) => String.fromCharCode(...bytes.slice(offset, offset + length))
+  if (text(0, 4) !== 'RIFF' || text(8, 4) !== 'WEBP') return null
+  const u24 = (o) => bytes[o] | (bytes[o + 1] << 8) | (bytes[o + 2] << 16)
+  const chunk = text(12, 4)
+  if (chunk === 'VP8X') return { width: 1 + u24(24), height: 1 + u24(27) }
+  if (chunk === 'VP8 ') {
+    return {
+      width: (bytes[26] | (bytes[27] << 8)) & 0x3fff,
+      height: (bytes[28] | (bytes[29] << 8)) & 0x3fff,
+    }
+  }
+  if (chunk === 'VP8L') {
+    const bits = bytes[21] | (bytes[22] << 8) | (bytes[23] << 16) | (bytes[24] << 24)
+    return { width: (bits & 0x3fff) + 1, height: ((bits >>> 14) & 0x3fff) + 1 }
+  }
+  return null
+}
+
+/**
+ * Pure: every way one poster falls short, as readable sentences. Empty = fine.
+ * @param {{ head: Uint8Array, contentType: string | null, cacheControl: string | null, cache: string[] }} poster
+ * @returns {string[]}
+ */
+export function judgePosterContent({ head, contentType, cacheControl, cache }) {
+  const problems = []
+  if (!String(contentType ?? '').startsWith('image/webp')) {
+    problems.push(`served as ${contentType ?? 'no content-type'}, not image/webp`)
+  }
+  const size = webpDimensions(head)
+  if (!size) problems.push('the bytes are not a WebP image')
+  else if (size.width !== POSTER_WIDTH || size.height !== POSTER_HEIGHT) {
+    problems.push(`${size.width}x${size.height}, not ${POSTER_WIDTH}x${POSTER_HEIGHT}`)
+  }
+  const maxAge = Number(/max-age=(\d+)/.exec(cacheControl ?? '')?.[1] ?? 0)
+  if (maxAge < MIN_MAX_AGE_SECONDS) {
+    problems.push(`cache-control "${cacheControl ?? ''}" keeps it under 7 days`)
+  }
+  if (!cache.some((status) => status === 'HIT' || status === 'REVALIDATED')) {
+    problems.push(`not served from the edge cache (cf-cache-status ${cache.join(' then ')})`)
+  }
+  return problems
+}
+
+/**
  * All network lives here. Every LIVE_PRODUCTS row's viewer payload, then a plain
  * GET of each colourway's poster bytes — the same request shape a browser makes,
  * so `cf-cache-status` and friends read the way root CLAUDE.md says to trust them.
  *
- * @returns {Promise<{ posters: import('./poster-sizes.d.mts').PosterSample[], unreadable: string[] }>}
+ * @returns {Promise<{ posters: import('./poster-sizes.d.mts').PosterSample[], unreadable: string[], contentProblems: string[] }>}
  */
 async function collectPosters() {
   const posters = []
   const unreadable = []
+  const contentProblems = []
   for (const { slug } of LIVE_PRODUCTS) {
     const response = await fetch(`${API_BASE}/api/public/viewer/${slug}`)
     if (!response.ok) {
@@ -187,11 +250,26 @@ async function collectPosters() {
         unreadable.push(`${slug} ${colour}: poster answered ${posterResponse.status}`)
         continue
       }
-      const bytes = (await posterResponse.arrayBuffer()).byteLength
-      posters.push({ slug, colour, family, bytes })
+      const body = new Uint8Array(await posterResponse.arrayBuffer())
+      // Read off this GET's own headers (root CLAUDE.md: never a HEAD). A first MISS only
+      // means the file was cold; a second, one-byte GET must then come from the edge.
+      const cache = [posterResponse.headers.get('cf-cache-status') ?? 'none']
+      if (cache[0] !== 'HIT') {
+        const again = await fetch(url, { headers: { range: 'bytes=0-0' } })
+        cache.push(again.headers.get('cf-cache-status') ?? 'none')
+        await again.body?.cancel()
+      }
+      const problems = judgePosterContent({
+        head: body.slice(0, 64),
+        contentType: posterResponse.headers.get('content-type'),
+        cacheControl: posterResponse.headers.get('cache-control'),
+        cache,
+      })
+      for (const problem of problems) contentProblems.push(`${slug} ${colour}: ${problem}`)
+      posters.push({ slug, colour, family, bytes: body.byteLength })
     }
   }
-  return { posters, unreadable }
+  return { posters, unreadable, contentProblems }
 }
 
 function printTable(rows) {
@@ -204,7 +282,7 @@ function printTable(rows) {
 }
 
 async function main() {
-  const { posters, unreadable } = await collectPosters()
+  const { posters, unreadable, contentProblems } = await collectPosters()
   const { rows, medians, flagged, excepted } = judgePosters(posters)
 
   console.log(`poster weight — per-family median (${new Date().toISOString().slice(0, 10)})\n`)
@@ -219,13 +297,18 @@ async function main() {
     console.log('\nunreadable:')
     for (const line of unreadable) console.log(`  - ${line}`)
   }
+  if (contentProblems.length > 0) {
+    console.log('\nposter content (IM-03: WebP, 1200x1500, 7-day cache, edge-cached):')
+    for (const line of contentProblems) console.log(`  - ${line}`)
+  }
   console.log(
-    `\n${flagged.length} flagged, ${excepted.length} excepted, ${unreadable.length} unreadable.`,
+    `\n${flagged.length} flagged, ${excepted.length} excepted, ${unreadable.length} unreadable, ` +
+      `${contentProblems.length} content problem(s) across ${posters.length} posters.`,
   )
 
   if (REPORT) process.exit(0)
   if (unreadable.length > 0) process.exit(2)
-  if (flagged.length > 0) process.exit(1)
+  if (flagged.length > 0 || contentProblems.length > 0) process.exit(1)
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
