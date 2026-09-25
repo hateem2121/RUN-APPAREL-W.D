@@ -130,12 +130,20 @@ export function modelUrlsFromPayload(body) {
  * Pure: IM-02b for models. The posters' own rule (`judgePosters`: each file against its
  * family's median, flagged at 2x), with no owner exceptions: none has been granted for
  * a model. Measured 2026-09-25: 1.89-8.14 MB, worst 1.66x its family median, 0 flagged.
- * @param {Array<{ key: string, family?: string, bytes?: number }>} observations
+ * @param {Array<{ key: string, slug?: string, family?: string, bytes?: number }>} observations
  */
 export function judgeModelSizes(observations) {
   const samples = observations
     .filter((o) => typeof o.bytes === 'number' && o.bytes > 0 && o.family)
-    .map((o) => ({ slug: o.key, colour: '', family: String(o.family), bytes: Number(o.bytes) }))
+    // `slug` is the PRODUCT (r-wzu), not the label (r-wzu/blush): exceptions are keyed on
+    // the product, so only a product slug makes `exceptions: []` the thing that refuses the
+    // vest's poster exception. With the label here that test passed with the guard removed.
+    .map((o) => ({
+      slug: String(o.slug ?? o.key),
+      colour: o.slug ? o.key.slice(o.slug.length + 1) : '',
+      family: String(o.family),
+      bytes: Number(o.bytes),
+    }))
   return judgePosters(samples, { exceptions: [] })
 }
 
@@ -327,7 +335,7 @@ async function probeOne(target) {
   const observations = []
   for (const [index, url] of urls.entries()) {
     const key = urls.length === 1 ? target.key : `${target.key}#${index + 1}`
-    observations.push({ ...(await probeUrl(key, url)), family })
+    observations.push({ ...(await probeUrl(key, url)), family, slug: target.slug })
   }
   return observations
 }
@@ -412,7 +420,8 @@ if (isMain) {
   const { ok: provenanceOk, measured, failures, inconclusive, lines } = evaluate(observations)
   // IM-02b: each model against its family's median, the posters' own rule.
   const sizes = judgeModelSizes(observations)
-  for (const row of sizes.flagged) failures.push(`${row.slug}: model size ${row.note}.`)
+  for (const row of sizes.flagged)
+    failures.push(`${row.slug} ${row.colour}: model size ${row.note}.`)
   const ok = provenanceOk && sizes.flagged.length === 0
 
   console.log(

@@ -303,11 +303,13 @@ describe("judgeModelSizes — the posters' family-median rule, for models (IM-02
 
   it("never lets the vest's poster exception excuse a model", () => {
     const result = judgeModelSizes([
-      { key: 'r-wzu/blush', family: 'Sportswear', bytes: 5 * MB },
+      { key: 'r-wzu/blush', slug: 'r-wzu', family: 'Sportswear', bytes: 5 * MB },
       { key: 'x', family: 'Sportswear', bytes: 2 * MB },
       { key: 'y', family: 'Sportswear', bytes: 2 * MB },
     ])
-    expect(result.flagged.map((row) => row.slug)).toEqual(['r-wzu/blush'])
+    // 2.5x its family median: inside the poster exception's 3x, so only `exceptions: []`
+    // flags it.
+    expect(result.flagged.map((row) => row.slug)).toEqual(['r-wzu'])
   })
 })
 
