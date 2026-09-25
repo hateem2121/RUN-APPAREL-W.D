@@ -47,7 +47,11 @@ export interface BudgetResult {
 }
 
 export declare const FREE_TIER: { storageBytes: number; classA: number; classB: number }
-export declare const PRICE: { perGBMonth: number; perMillionClassA: number; perMillionClassB: number }
+export declare const PRICE: {
+  perGBMonth: number
+  perMillionClassA: number
+  perMillionClassB: number
+}
 export declare const WARN_AT_FRACTION: number
 export declare const CLASS_A_ACTIONS: Set<string>
 export declare const CLASS_B_ACTIONS: Set<string>

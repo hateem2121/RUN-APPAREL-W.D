@@ -297,7 +297,9 @@ async function main() {
   console.log(`  storage billed   ${gb(billedBytes)} GB-month (30-day average of daily peaks)`)
   console.log(`  Class A, 30 days ${classA} of 1,000,000 free`)
   console.log(`  Class B, 30 days ${classB} of 10,000,000 free`)
-  console.log(`  cost at today's usage ${usd(r.atCurrentRate)} / month; last 30 days ${usd(r.trailing)}`)
+  console.log(
+    `  cost at today's usage ${usd(r.atCurrentRate)} / month; last 30 days ${usd(r.trailing)}`,
+  )
   if (unclassified.length > 0) {
     console.log(
       `  ⚠️  unclassified action type(s), counted as Class A: ${[...new Set(unclassified)].join(', ')}`,
