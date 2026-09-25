@@ -33,7 +33,9 @@ describe('the reply promise is 24 hours everywhere', () => {
   it('no site source promises a reply in business days', () => {
     const files = [...walk(CMS_SRC), join(REPO, 'scripts', 'contact-error-messages.mjs')]
     const offenders = files
-      .filter((file) => /business days?/i.test(readFileSync(file, 'utf8')))
+      // `\s+`, not a space: JSX wraps prose, and the contact page's own lede kept
+      // "2 business\n            days" live for a day after this test went green (2026-09-25).
+      .filter((file) => /business\s+days?/i.test(readFileSync(file, 'utf8')))
       .map((file) => file.slice(REPO.length + 1))
     expect(offenders).toEqual([])
   })
