@@ -844,75 +844,87 @@ test.describe('layout invariants', () => {
     })
   }
 
-  test('the garment and its colourway picker fit one phone screen, unscrolled', async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 375, height: 812 })
-    await page.goto('/n001/wine')
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  /**
+   * LA-08: FOUR phone sizes, not one. This ran at 375x812 alone until 2026-09-25, while the
+   * audit line names 320, 375, 390 and 402x714 — the iPhone 17's real visible height, which
+   * is 98px shorter than a desktop browser at 375x812 reports (apps/viewer/CLAUDE.md, svh).
+   */
+  for (const [width, height] of [
+    [320, 640],
+    [375, 812],
+    [390, 844],
+    [402, 714],
+  ] as const) {
+    test(`the garment and its colourway picker fit one phone screen, unscrolled, at ${width}x${height}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    /**
-     * Measured on the live site 2026-08-13, before this test existed: the canvas
-     * ended at y=674 and the colourway rail began at y=1360 — 686px of product
-     * copy in between, because <ColourwayTabs> was rendered inside `.content`
-     * AFTER the 613px-tall product panel. Scrolling the rail into view put the
-     * canvas 306px above the top of the viewport, so **zero pixels** of the
-     * garment were on screen at the moment a visitor chose its colour. Pick a
-     * colour blind, scroll back up, discover what you picked.
-     *
-     * The invariant is deliberately "unscrolled", not "eventually both visible".
-     * A weaker assertion — that some scroll position shows both — is satisfied by
-     * a layout where the two are 400px apart on a 812px screen, which is the same
-     * bug wearing a smaller number. What the visitor is owed is that the garment
-     * is already on screen when they reach for the swatches.
-     *
-     * The fixed action bar is subtracted rather than ignored: it is 72px of
-     * EMAIL / WHATSAPP painted over the bottom of the viewport, so a rail that
-     * "fits" underneath it does not fit at all.
-     */
-    const fit = await page.evaluate(() => {
-      const box = (selector: string) => {
-        const el = document.querySelector(selector)
-        if (!el) return null
-        const r = el.getBoundingClientRect()
-        return { top: Math.round(r.top), bottom: Math.round(r.bottom) }
+      /**
+       * Measured on the live site 2026-08-13, before this test existed: the canvas
+       * ended at y=674 and the colourway rail began at y=1360 — 686px of product
+       * copy in between, because <ColourwayTabs> was rendered inside `.content`
+       * AFTER the 613px-tall product panel. Scrolling the rail into view put the
+       * canvas 306px above the top of the viewport, so **zero pixels** of the
+       * garment were on screen at the moment a visitor chose its colour. Pick a
+       * colour blind, scroll back up, discover what you picked.
+       *
+       * The invariant is deliberately "unscrolled", not "eventually both visible".
+       * A weaker assertion — that some scroll position shows both — is satisfied by
+       * a layout where the two are 400px apart on a 812px screen, which is the same
+       * bug wearing a smaller number. What the visitor is owed is that the garment
+       * is already on screen when they reach for the swatches.
+       *
+       * The fixed action bar is subtracted rather than ignored: it is 72px of
+       * EMAIL / WHATSAPP painted over the bottom of the viewport, so a rail that
+       * "fits" underneath it does not fit at all.
+       */
+      const fit = await page.evaluate(() => {
+        const box = (selector: string) => {
+          const el = document.querySelector(selector)
+          if (!el) return null
+          const r = el.getBoundingClientRect()
+          return { top: Math.round(r.top), bottom: Math.round(r.bottom) }
+        }
+        const bar = document.querySelector('.action-bar')
+        return {
+          scrollY: Math.round(window.scrollY),
+          usableBottom: bar ? Math.round(bar.getBoundingClientRect().top) : window.innerHeight,
+          canvas: box('.stage__canvas'),
+          rail: box('[role="tablist"]'),
+        }
+      })
+
+      expect(fit.canvas, 'no .stage__canvas on the page').not.toBeNull()
+      expect(fit.rail, 'no colourway tablist on the page').not.toBeNull()
+      const { canvas, rail, usableBottom } = fit as {
+        canvas: { top: number; bottom: number }
+        rail: { top: number; bottom: number }
+        usableBottom: number
       }
-      const bar = document.querySelector('.action-bar')
-      return {
-        scrollY: Math.round(window.scrollY),
-        usableBottom: bar ? Math.round(bar.getBoundingClientRect().top) : window.innerHeight,
-        canvas: box('.stage__canvas'),
-        rail: box('[role="tablist"]'),
-      }
+
+      expect(
+        canvas.bottom,
+        `the garment is cut off: canvas ends at ${canvas.bottom}, ` +
+          `usable viewport ends at ${usableBottom}`,
+      ).toBeLessThanOrEqual(usableBottom)
+
+      expect(
+        rail.bottom,
+        `the colourway rail is off screen at rest: it ends at ${rail.bottom}, ` +
+          `usable viewport ends at ${usableBottom} — a visitor must scroll the ` +
+          `garment away to change its colour`,
+      ).toBeLessThanOrEqual(usableBottom)
+
+      expect(
+        rail.top,
+        `the colourway rail sits above the garment (rail top ${rail.top}, ` +
+          `canvas bottom ${canvas.bottom})`,
+      ).toBeGreaterThanOrEqual(canvas.bottom)
     })
-
-    expect(fit.canvas, 'no .stage__canvas on the page').not.toBeNull()
-    expect(fit.rail, 'no colourway tablist on the page').not.toBeNull()
-    const { canvas, rail, usableBottom } = fit as {
-      canvas: { top: number; bottom: number }
-      rail: { top: number; bottom: number }
-      usableBottom: number
-    }
-
-    expect(
-      canvas.bottom,
-      `the garment is cut off: canvas ends at ${canvas.bottom}, ` +
-        `usable viewport ends at ${usableBottom}`,
-    ).toBeLessThanOrEqual(usableBottom)
-
-    expect(
-      rail.bottom,
-      `the colourway rail is off screen at rest: it ends at ${rail.bottom}, ` +
-        `usable viewport ends at ${usableBottom} — a visitor must scroll the ` +
-        `garment away to change its colour`,
-    ).toBeLessThanOrEqual(usableBottom)
-
-    expect(
-      rail.top,
-      `the colourway rail sits above the garment (rail top ${rail.top}, ` +
-        `canvas bottom ${canvas.bottom})`,
-    ).toBeGreaterThanOrEqual(canvas.bottom)
-  })
+  }
 
   /**
    * The rail must clear the action bar by a MARGIN, not by zero.
@@ -2962,4 +2974,157 @@ test.describe('the keyboard starts at the top of the document', () => {
     const landed = await page.evaluate(() => document.activeElement?.id ?? '')
     expect(landed).toBe('main-content')
   })
+})
+
+/**
+ * Batch C, PR 2 — the page's structure after the shared menu bar (#38) landed.
+ *
+ * Reduced motion first, in every test: `.footer` and other blocks carry `data-reveal`, whose
+ * 24px offset sits in every layout number until the reveal runs, and the config's own
+ * `reducedMotion` never reaches the page (apps/viewer/CLAUDE.md).
+ */
+test.describe('the page keeps its structure (LA-03, LA-11, LA-15)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+  })
+
+  /**
+   * LA-03: header, stage, colourway rail, details, footer — in DOCUMENT order, which is what
+   * a screen reader and a keyboard follow. Visual position could be faked by a CSS reorder;
+   * `compareDocumentPosition` cannot. The details are content inside <main>, not a landmark of
+   * their own, so they are asserted as inside <main> and before the footer.
+   */
+  test('the document reads header, stage, colourway rail, details, footer', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const order = await page.evaluate(() => {
+      const parts = {
+        header: document.querySelector('header.notch-shell'),
+        stage: document.querySelector('.stage-block .stage'),
+        rail: document.querySelector('[role="tablist"]'),
+        details: document.querySelector('main .content'),
+        footer: document.querySelector('footer.footer'),
+      }
+      const missing = Object.entries(parts)
+        .filter(([, el]) => !el)
+        .map(([name]) => name)
+      const names = Object.keys(parts) as (keyof typeof parts)[]
+      const wrong: string[] = []
+      for (let i = 1; i < names.length; i++) {
+        const [a, b] = [parts[names[i - 1]], parts[names[i]]]
+        if (a && b && !(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+          wrong.push(`${names[i]} comes before ${names[i - 1]}`)
+        }
+      }
+      const main = document.querySelector('main')
+      return {
+        missing,
+        wrong,
+        stageInMain: Boolean(main?.contains(parts.stage)),
+        detailsInMain: Boolean(main?.contains(parts.details)),
+        footerOutsideMain: !main?.contains(parts.footer),
+      }
+    })
+    expect(order.missing, 'a part of the page is missing').toEqual([])
+    expect(order.wrong, 'the document order is wrong').toEqual([])
+    expect(order.stageInMain, 'the stage is outside <main>').toBe(true)
+    expect(order.detailsInMain, 'the details are outside <main>').toBe(true)
+    expect(order.footerOutsideMain, 'the footer is inside <main>').toBe(true)
+  })
+
+  /**
+   * LA-11: an email AND a WhatsApp control on screen, unscrolled, at EVERY width from 320 to
+   * 1920 in 50px steps, plus 899 and 900 — the seam where `.action-bar` hands over to the
+   * two-column controls. The fixed matrix above (844, 950, 1280, 1440) is what let a
+   * 900–1099px gap with NO contact control live for four days; a sweep cannot miss a band.
+   * One navigation per width: a resize leaves viewport units stale.
+   */
+  test('a contact control is on screen at every width from 320 to 1920', async ({ page }) => {
+    test.setTimeout(180_000)
+    const widths = [...Array.from({ length: 33 }, (_, i) => 320 + i * 50), 899, 900].sort(
+      (a, b) => a - b,
+    )
+    const gaps: string[] = []
+    for (const width of widths) {
+      await page.setViewportSize({ width, height: 800 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const seen = await page.evaluate(() => {
+        const inView = (el: Element) => {
+          const r = el.getBoundingClientRect()
+          const cs = getComputedStyle(el)
+          if (cs.display === 'none' || cs.visibility === 'hidden') return false
+          return r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight
+        }
+        const persistent = [
+          ...document.querySelectorAll('.contact-rail a, .action-bar a, .stage__contact a'),
+        ].filter(inView)
+        return {
+          email: persistent.some((a) => a.getAttribute('href')?.startsWith('mailto:')),
+          whatsapp: persistent.some((a) => a.getAttribute('href')?.includes('wa.me')),
+        }
+      })
+      if (!seen.email) gaps.push(`${width}px: no email control on screen`)
+      if (!seen.whatsapp) gaps.push(`${width}px: no WhatsApp control on screen`)
+    }
+    expect(gaps, `checked ${widths.length} widths`).toEqual([])
+  })
+
+  /**
+   * LA-15: the pinned chrome never sits over content. The bar is sticky at the top and the
+   * action bar is fixed at the bottom below 900px; each can hide content only if the page
+   * forgets to reserve room for it. Top: at rest, <main> starts where the bar ends. Bottom:
+   * the footer's last pixel is reachable above the action bar, in DOCUMENT space
+   * (`bottom + scrollY <= documentHeight - barHeight`) with no scroll in the measurement,
+   * because a check that scrolls first measures the scroll (e2e-scroll-not-layout).
+   */
+  for (const [width, height] of [
+    [320, 640],
+    [375, 812],
+    [768, 1024],
+    [1280, 800],
+  ] as const) {
+    test(`the pinned bars never cover content at ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      // Measured 2026-09-25: read straight after the heading, the bar was still in the
+      // fallback font (74.25px) while the reserve sat on its 4.5rem floor, so the footer's
+      // bottom padding read 2.7px under it. Once the webfont swaps in, the bar is 73.6px and
+      // `--action-bar-h` (74px) follows it. A visitor never reaches the bottom inside that
+      // first instant, so measure the settled page: fonts in, then two frames for the
+      // ResizeObserver's write to land.
+      await page.evaluate(() =>
+        document.fonts.ready.then(
+          () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+        ),
+      )
+      const m = await page.evaluate(() => {
+        const bar = document.querySelector('.action-bar') as HTMLElement | null
+        const barShown = Boolean(bar) && getComputedStyle(bar as HTMLElement).display !== 'none'
+        return {
+          scrollY: window.scrollY,
+          headerBottom: document.querySelector('header.notch-shell')?.getBoundingClientRect()
+            .bottom,
+          mainTop: document.querySelector('main')?.getBoundingClientRect().top,
+          barHeight: barShown ? (bar as HTMLElement).getBoundingClientRect().height : 0,
+          documentHeight: document.documentElement.scrollHeight,
+          footerBottom:
+            (document.querySelector('footer.footer')?.getBoundingClientRect().bottom ??
+              Number.NaN) + window.scrollY,
+        }
+      })
+      expect(m.scrollY, 'the page must be at rest for the top check').toBe(0)
+      expect(
+        m.mainTop,
+        `<main> starts under the bar: bar ends at ${m.headerBottom}, main starts at ${m.mainTop}`,
+      ).toBeGreaterThanOrEqual((m.headerBottom ?? Number.POSITIVE_INFINITY) - 0.5)
+      const ceiling = m.documentHeight - m.barHeight
+      expect(
+        m.footerBottom,
+        `the footer ends under the action bar: footer bottom ${m.footerBottom}, ` +
+          `reachable ceiling ${ceiling} (document ${m.documentHeight} − bar ${m.barHeight})`,
+      ).toBeLessThanOrEqual(ceiling + 1)
+    })
+  }
 })
