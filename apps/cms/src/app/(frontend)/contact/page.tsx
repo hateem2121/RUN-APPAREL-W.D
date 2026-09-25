@@ -74,8 +74,7 @@ export default async function ContactPage({
           <p className="label">[ CONTACT ]</p>
           <h1 className="display display--hero">Let&rsquo;s talk production.</h1>
           <p className="site-lede">
-            Reach us directly — email or WhatsApp, whichever suits you. We reply within 2 business
-            days.
+            Reach us directly — email or WhatsApp, whichever suits you. We reply within 24 hours.
           </p>
         </div>
       </section>
