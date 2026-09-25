@@ -548,6 +548,27 @@ test.describe('generic keyboard, focus and naming sweeps on the product page', (
         .map((el) => `${el.tagName}.${el.className}`)
     })
     expect(unnamed, `icon-only controls with no accessible name: ${unnamed.join(', ')}`).toEqual([])
+
+    /*
+     * ⚠️ AND THE NAME THE BROWSER ACTUALLY COMPUTES, because `textContent` counts text a
+     * screen reader never hears. The theme switch is the case: its name is a
+     * visually-hidden span inside whichever of two faces CSS shows, with a `title` as the
+     * fallback. Hide that span and drop the title, and `textContent` is unchanged, so the
+     * sweep above still passes on a button that is announced as just "button". Every
+     * button in the accessibility tree must have a non-blank computed name.
+     *
+     * One snapshot of the tree, not a loop over live locators: buttons come and go while
+     * the stage loads, and a locator taken before its button left waited for it until the
+     * test timed out (measured on Chromium, 2026-09-25).
+     */
+    const tree = await page.locator('body').ariaSnapshot()
+    const buttonLines = tree.split('\n').filter((line) => /^\s*- button\b/.test(line))
+    expect(
+      buttonLines.length,
+      'no buttons in the tree: the check below would pass on nothing',
+    ).toBeGreaterThan(0)
+    const nameless = buttonLines.filter((line) => !/^\s*- button "[^"]*\S[^"]*"/.test(line))
+    expect(nameless, `buttons with no computed name:\n${nameless.join('\n')}`).toEqual([])
   })
 
   test('AC-11: <html lang> is set, and every colourway URL gets a distinct document title', async ({

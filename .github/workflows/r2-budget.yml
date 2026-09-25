@@ -1,0 +1,51 @@
+name: R2 budget
+
+on:
+  schedule:
+    # Weekly is plenty: R2's free tier resets monthly (developers.cloudflare.com/r2/pricing/),
+    # and this account's usage moves slowly (SO-15). GitHub's scheduled runs arrive
+    # 19-90 minutes late, sometimes worse (.github/CLAUDE.md) — this is a queue
+    # position, not a deadline, and nothing here treats it as one.
+    - cron: '15 8 * * 1'
+  workflow_dispatch: {}
+
+# A `permissions:` block REPLACES the default token grants, not adds to them —
+# uptime.yml's own history (23 hours silently dead) is why `contents: read` is
+# never left out of one of these.
+permissions:
+  contents: read
+
+jobs:
+  budget:
+    # Same gate as every other scheduled monitor in this repo — only after go-live.
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The Cloudflare secrets live ONLY in the production environment. Without this line
+    # they resolve to empty strings, and the first version of this workflow (2026-09-24)
+    # would have ended INCONCLUSIVE on every run while looking wired up.
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          # ⚠️ NO CACHE: this job holds the production Cloudflare token. The same two
+          # lines in ci.yml's `deploy` job say why a restored cache does not belong in a
+          # job that holds a production credential (apps/cms/src/publicRepoGuards.test.ts).
+          cache: ''
+          package-manager-cache: false
+
+      # Read-only: a single GraphQL `query` (never a mutation) against Cloudflare's
+      # Analytics API. scripts/r2-budget-probe.mjs exits 1 only when TODAY's usage,
+      # carried for a month, would be billed; a bill already in the last 30 days is a
+      # `::warning::`, not a failure. Exit 2 = it could not measure. The script's
+      # header has the prices, the billing rule and why.
+      - name: Check R2 usage against the free tier
+        run: node scripts/r2-budget-probe.mjs
