@@ -2547,12 +2547,15 @@ test.describe('text follows the browser text-size setting', () => {
 
 /**
  * ⚠️ WAIT UNTIL THE STAGE HAS PICKED ITS BRANCH BEFORE ASKING WHICH ONE IT PICKED
- * (2026-09-25). The no-3D notice is decided AFTER the heading shows, so a fallback check
- * read straight after the heading finds neither state, the test goes on as if 3D were live,
- * and then waits 30 s for a cue a fallback stage never draws. That was the one hard failure
- * that stopped `main`'s deploy after #66, on CI's Firefox, which has no WebGL on a runner
- * (and does here, so the branch is CI-only — apps/viewer/CLAUDE.md). The same wait already
- * guards the Save-Data case above, after mobile Safari was caught still deciding.
+ * (2026-09-25). The stage can reach its no-3D notice LONG after the heading shows: a model
+ * download that stops arriving is aborted by the viewer's stall watchdog, retried, and only
+ * then reported ("The 3D model stopped downloading…"). Measured here with the fixture's GLB
+ * held back 32 s: `requestfailed … ERR_ABORTED` three times, and the notice at ~36 s. Read
+ * straight after the heading, the fallback check saw neither state, so the old tests waited
+ * 30 s for a cue that never comes and failed with "element(s) not found" — the exact error
+ * that stopped `main`'s deploy after #66 on CI's Firefox. With this wait they see the
+ * notice and skip. Whether CI's runs were stalls or merely slow loads is not established;
+ * the wait covers both. The Save-Data case above already waits the same way.
  */
 async function waitForStageToSettle(page: import('@playwright/test').Page) {
   await page.waitForFunction(
@@ -2560,7 +2563,7 @@ async function waitForStageToSettle(page: import('@playwright/test').Page) {
       Boolean((document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded) ||
       document.querySelector('.stage__error:not([hidden])') !== null,
     undefined,
-    { timeout: 40_000 },
+    { timeout: 60_000, polling: 250 },
   )
 }
 
