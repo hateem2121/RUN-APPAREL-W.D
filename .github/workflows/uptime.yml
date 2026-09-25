@@ -222,6 +222,12 @@ jobs:
             # which is a robot nobody runs. Same 403/429 inconclusive rule as their siblings.
             node scripts/edge-headers-probe.mjs || ok=false
             node scripts/beacon-probe.mjs || ok=false
+
+            # The owner's footer facts still SHOW (CT-07, CT-07b). A blank CMS field renders no
+            # block at all, by design, so a field emptied by a bad save breaks nothing visibly;
+            # the block just disappears. The probe reads the live footer against
+            # scripts/apply-footer-facts.mjs, never a retyped copy.
+            node scripts/footer-facts-probe.mjs || ok=false
           fi
           echo "ok=$ok" >> "$GITHUB_OUTPUT"
 
