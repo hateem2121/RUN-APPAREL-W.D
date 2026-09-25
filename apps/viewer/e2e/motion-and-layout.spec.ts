@@ -844,75 +844,87 @@ test.describe('layout invariants', () => {
     })
   }
 
-  test('the garment and its colourway picker fit one phone screen, unscrolled', async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 375, height: 812 })
-    await page.goto('/n001/wine')
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  /**
+   * LA-08: FOUR phone sizes, not one. This ran at 375x812 alone until 2026-09-25, while the
+   * audit line names 320, 375, 390 and 402x714 — the iPhone 17's real visible height, which
+   * is 98px shorter than a desktop browser at 375x812 reports (apps/viewer/CLAUDE.md, svh).
+   */
+  for (const [width, height] of [
+    [320, 640],
+    [375, 812],
+    [390, 844],
+    [402, 714],
+  ] as const) {
+    test(`the garment and its colourway picker fit one phone screen, unscrolled, at ${width}x${height}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    /**
-     * Measured on the live site 2026-08-13, before this test existed: the canvas
-     * ended at y=674 and the colourway rail began at y=1360 — 686px of product
-     * copy in between, because <ColourwayTabs> was rendered inside `.content`
-     * AFTER the 613px-tall product panel. Scrolling the rail into view put the
-     * canvas 306px above the top of the viewport, so **zero pixels** of the
-     * garment were on screen at the moment a visitor chose its colour. Pick a
-     * colour blind, scroll back up, discover what you picked.
-     *
-     * The invariant is deliberately "unscrolled", not "eventually both visible".
-     * A weaker assertion — that some scroll position shows both — is satisfied by
-     * a layout where the two are 400px apart on a 812px screen, which is the same
-     * bug wearing a smaller number. What the visitor is owed is that the garment
-     * is already on screen when they reach for the swatches.
-     *
-     * The fixed action bar is subtracted rather than ignored: it is 72px of
-     * EMAIL / WHATSAPP painted over the bottom of the viewport, so a rail that
-     * "fits" underneath it does not fit at all.
-     */
-    const fit = await page.evaluate(() => {
-      const box = (selector: string) => {
-        const el = document.querySelector(selector)
-        if (!el) return null
-        const r = el.getBoundingClientRect()
-        return { top: Math.round(r.top), bottom: Math.round(r.bottom) }
+      /**
+       * Measured on the live site 2026-08-13, before this test existed: the canvas
+       * ended at y=674 and the colourway rail began at y=1360 — 686px of product
+       * copy in between, because <ColourwayTabs> was rendered inside `.content`
+       * AFTER the 613px-tall product panel. Scrolling the rail into view put the
+       * canvas 306px above the top of the viewport, so **zero pixels** of the
+       * garment were on screen at the moment a visitor chose its colour. Pick a
+       * colour blind, scroll back up, discover what you picked.
+       *
+       * The invariant is deliberately "unscrolled", not "eventually both visible".
+       * A weaker assertion — that some scroll position shows both — is satisfied by
+       * a layout where the two are 400px apart on a 812px screen, which is the same
+       * bug wearing a smaller number. What the visitor is owed is that the garment
+       * is already on screen when they reach for the swatches.
+       *
+       * The fixed action bar is subtracted rather than ignored: it is 72px of
+       * EMAIL / WHATSAPP painted over the bottom of the viewport, so a rail that
+       * "fits" underneath it does not fit at all.
+       */
+      const fit = await page.evaluate(() => {
+        const box = (selector: string) => {
+          const el = document.querySelector(selector)
+          if (!el) return null
+          const r = el.getBoundingClientRect()
+          return { top: Math.round(r.top), bottom: Math.round(r.bottom) }
+        }
+        const bar = document.querySelector('.action-bar')
+        return {
+          scrollY: Math.round(window.scrollY),
+          usableBottom: bar ? Math.round(bar.getBoundingClientRect().top) : window.innerHeight,
+          canvas: box('.stage__canvas'),
+          rail: box('[role="tablist"]'),
+        }
+      })
+
+      expect(fit.canvas, 'no .stage__canvas on the page').not.toBeNull()
+      expect(fit.rail, 'no colourway tablist on the page').not.toBeNull()
+      const { canvas, rail, usableBottom } = fit as {
+        canvas: { top: number; bottom: number }
+        rail: { top: number; bottom: number }
+        usableBottom: number
       }
-      const bar = document.querySelector('.action-bar')
-      return {
-        scrollY: Math.round(window.scrollY),
-        usableBottom: bar ? Math.round(bar.getBoundingClientRect().top) : window.innerHeight,
-        canvas: box('.stage__canvas'),
-        rail: box('[role="tablist"]'),
-      }
+
+      expect(
+        canvas.bottom,
+        `the garment is cut off: canvas ends at ${canvas.bottom}, ` +
+          `usable viewport ends at ${usableBottom}`,
+      ).toBeLessThanOrEqual(usableBottom)
+
+      expect(
+        rail.bottom,
+        `the colourway rail is off screen at rest: it ends at ${rail.bottom}, ` +
+          `usable viewport ends at ${usableBottom} — a visitor must scroll the ` +
+          `garment away to change its colour`,
+      ).toBeLessThanOrEqual(usableBottom)
+
+      expect(
+        rail.top,
+        `the colourway rail sits above the garment (rail top ${rail.top}, ` +
+          `canvas bottom ${canvas.bottom})`,
+      ).toBeGreaterThanOrEqual(canvas.bottom)
     })
-
-    expect(fit.canvas, 'no .stage__canvas on the page').not.toBeNull()
-    expect(fit.rail, 'no colourway tablist on the page').not.toBeNull()
-    const { canvas, rail, usableBottom } = fit as {
-      canvas: { top: number; bottom: number }
-      rail: { top: number; bottom: number }
-      usableBottom: number
-    }
-
-    expect(
-      canvas.bottom,
-      `the garment is cut off: canvas ends at ${canvas.bottom}, ` +
-        `usable viewport ends at ${usableBottom}`,
-    ).toBeLessThanOrEqual(usableBottom)
-
-    expect(
-      rail.bottom,
-      `the colourway rail is off screen at rest: it ends at ${rail.bottom}, ` +
-        `usable viewport ends at ${usableBottom} — a visitor must scroll the ` +
-        `garment away to change its colour`,
-    ).toBeLessThanOrEqual(usableBottom)
-
-    expect(
-      rail.top,
-      `the colourway rail sits above the garment (rail top ${rail.top}, ` +
-        `canvas bottom ${canvas.bottom})`,
-    ).toBeGreaterThanOrEqual(canvas.bottom)
-  })
+  }
 
   /**
    * The rail must clear the action bar by a MARGIN, not by zero.
@@ -1661,35 +1673,72 @@ test.describe('layout invariants', () => {
    * only rendering there and must stay visible. That band is the easiest thing to
    * delete by accident while "tidying up the duplication".
    */
-  test('the spec facts render once at every width', async ({ page }) => {
-    await page.goto('/n001/wine')
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  /*
+   * Both branches, on every engine. With 3D the callouts carry the facts above 1000px and the
+   * list below it. Without 3D (LA-16) no callout is drawn, so the list must carry them at
+   * EVERY width: the first version of LA-16 left a wide screen with no 3D showing the facts
+   * nowhere, and only CI's Firefox (no WebGL on a runner) took that branch. Save-Data forces
+   * it everywhere: `canRender3D()` refuses 3D on it.
+   */
+  for (const mode of ['as it loads', 'without 3D (Save-Data)'] as const) {
+    test(`the spec facts render once at every width, ${mode}`, async ({ page }) => {
+      if (mode !== 'as it loads') {
+        await page.addInitScript(() => {
+          Object.defineProperty(navigator, 'connection', {
+            configurable: true,
+            value: { saveData: true },
+          })
+        })
+      }
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      // Which branch is decided AFTER the heading shows (mobile Safari was still deciding when
+      // this first read it, 2026-09-25), so wait for the stage to settle either way.
+      await page.waitForFunction(
+        () =>
+          Boolean(
+            (document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded,
+          ) || document.querySelector('.stage__error:not([hidden])') !== null,
+        undefined,
+        { timeout: 40_000 },
+      )
+      const noThreeD = (await page.locator('.stage__error:not([hidden])').count()) > 0
+      if (mode !== 'as it loads') {
+        expect(noThreeD, 'Save-Data did not put the stage in its no-3D state').toBe(true)
+      }
 
-    const shown = async () => {
-      const callouts = await page.locator('.stage__callouts .callout').count()
-      const listVisible = await page.locator('.spec-list').isVisible()
-      const calloutsVisible = await page.locator('.stage__callouts').isVisible()
-      return { callouts, listVisible, calloutsVisible }
-    }
+      const shown = async () => {
+        const callouts = await page.locator('.stage__callouts .callout').count()
+        const listVisible = await page.locator('.spec-list').isVisible()
+        const calloutsVisible = await page.locator('.stage__callouts').isVisible()
+        return { callouts, listVisible, calloutsVisible }
+      }
 
-    await page.setViewportSize({ width: 1280, height: 800 })
-    expect(await shown(), 'above 1000px the callouts say it and the list must not').toMatchObject({
-      calloutsVisible: true,
-      listVisible: false,
+      await page.setViewportSize({ width: 1280, height: 800 })
+      expect(
+        await shown(),
+        noThreeD
+          ? 'above 1000px without 3D no callout is drawn, so the list must carry the facts'
+          : 'above 1000px the callouts say it and the list must not',
+      ).toMatchObject(
+        noThreeD
+          ? { callouts: 0, listVisible: true }
+          : { calloutsVisible: true, listVisible: false },
+      )
+
+      await page.setViewportSize({ width: 960, height: 800 })
+      expect(
+        await shown(),
+        'between 900 and 1000 the callouts are off, so the list is the ONLY copy',
+      ).toMatchObject({ calloutsVisible: false, listVisible: true })
+
+      await page.setViewportSize({ width: 375, height: 812 })
+      expect(await shown(), 'on a phone the list is the only copy').toMatchObject({
+        calloutsVisible: false,
+        listVisible: true,
+      })
     })
-
-    await page.setViewportSize({ width: 960, height: 800 })
-    expect(
-      await shown(),
-      'between 900 and 1000 the callouts are off, so the list is the ONLY copy',
-    ).toMatchObject({ calloutsVisible: false, listVisible: true })
-
-    await page.setViewportSize({ width: 375, height: 812 })
-    expect(await shown(), 'on a phone the list is the only copy').toMatchObject({
-      calloutsVisible: false,
-      listVisible: true,
-    })
-  })
+  }
 
   test('every interactive control meets the WCAG 2.5.8 target size', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
@@ -2641,6 +2690,11 @@ test.describe('the page composes on one grid', () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    test.skip(
+      (await page.locator('.stage__error:not([hidden])').count()) > 0,
+      'no 3D here (CI Firefox has no WebGL): the callouts are not drawn at all by design ' +
+        '(LA-16), so there are no baselines to compare',
+    )
 
     const tops = await page.evaluate(() =>
       [...document.querySelectorAll('.callout')].map((c) => ({
@@ -2961,5 +3015,603 @@ test.describe('the keyboard starts at the top of the document', () => {
     // walks back through exactly the links the visitor asked to skip.
     const landed = await page.evaluate(() => document.activeElement?.id ?? '')
     expect(landed).toBe('main-content')
+
+    /**
+     * AC-03, the missing half: where the NEXT Tab goes. Focus on <main> is only useful if
+     * the keyboard continues from there, into the page's first control, and not back to
+     * the top chrome or out to <body>. The first control is derived in the page (document
+     * order, tabbable, drawn), not named, so a reordered page is judged on what it is.
+     *
+     * ⚠️ WAIT FOR THE STAGE TO FINISH FIRST. <model-viewer> becomes a Tab stop only once it
+     * has loaded; pressed earlier, Tab correctly skips to the colourway tabs, and the stop
+     * appears a moment later, so the "first control" read after the key press named the
+     * garment 3 runs in 20 (measured 2026-09-25). Loaded, or the no-3D notice, then Tab.
+     */
+    await page.waitForFunction(
+      () =>
+        Boolean((document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded) ||
+        document.querySelector('.stage__error:not([hidden])') !== null,
+      undefined,
+      { timeout: 40_000 },
+    )
+    await page.keyboard.press('Tab')
+    const next = await page.evaluate(() => {
+      const main = document.getElementById('main-content')
+      const describe = (el: Element | null) =>
+        el
+          ? `${el.tagName.toLowerCase()}${el.className ? `.${String(el.className).split(' ')[0]}` : ''}`
+          : 'none'
+      const first = main
+        ? ([...main.querySelectorAll<HTMLElement>('*')].find(
+            (el) =>
+              // A custom element can keep its Tab stop in its shadow root: <model-viewer>'s
+              // host reads tabIndex -1 while the keyboard stops on it (measured 2026-09-25).
+              (el.tabIndex >= 0 ||
+                el.shadowRoot?.querySelector('[tabindex]:not([tabindex="-1"])') != null) &&
+              !(el as HTMLButtonElement).disabled &&
+              el.getClientRects().length > 0 &&
+              getComputedStyle(el).visibility !== 'hidden' &&
+              !el.closest('[inert]'),
+          ) ?? null)
+        : null
+      return {
+        active: describe(document.activeElement),
+        first: describe(first),
+        same: first !== null && document.activeElement === first,
+        insideMain: Boolean(main?.contains(document.activeElement)),
+      }
+    })
+    console.log(
+      `AC-03: Tab after the skip link -> ${next.active}; first control in <main>: ${next.first}`,
+    )
+    expect(
+      next.insideMain,
+      `the Tab after the skip link left <main> (landed on ${next.active})`,
+    ).toBe(true)
+    expect(
+      next.same,
+      `the Tab after the skip link landed on ${next.active}, not <main>'s first control ${next.first}`,
+    ).toBe(true)
+  })
+})
+
+/**
+ * Batch C, PR 2 — the page's structure after the shared menu bar (#38) landed.
+ *
+ * Reduced motion first, in every test: `.footer` and other blocks carry `data-reveal`, whose
+ * 24px offset sits in every layout number until the reveal runs, and the config's own
+ * `reducedMotion` never reaches the page (apps/viewer/CLAUDE.md).
+ */
+test.describe('the page keeps its structure (LA-03, LA-11, LA-15)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+  })
+
+  /**
+   * LA-03: header, stage, colourway rail, details, footer — in DOCUMENT order, which is what
+   * a screen reader and a keyboard follow. Visual position could be faked by a CSS reorder;
+   * `compareDocumentPosition` cannot. The details are content inside <main>, not a landmark of
+   * their own, so they are asserted as inside <main> and before the footer.
+   */
+  test('the document reads header, stage, colourway rail, details, footer', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const order = await page.evaluate(() => {
+      const parts = {
+        header: document.querySelector('header.notch-shell'),
+        stage: document.querySelector('.stage-block .stage'),
+        rail: document.querySelector('[role="tablist"]'),
+        details: document.querySelector('main .content'),
+        footer: document.querySelector('footer.footer'),
+      }
+      const missing = Object.entries(parts)
+        .filter(([, el]) => !el)
+        .map(([name]) => name)
+      const entries = Object.entries(parts)
+      const wrong: string[] = []
+      entries.slice(1).forEach(([name, b], i) => {
+        const [previous, a] = entries[i] ?? ['', null]
+        if (a && b && !(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+          wrong.push(`${name} comes before ${previous}`)
+        }
+      })
+      const main = document.querySelector('main')
+      return {
+        missing,
+        wrong,
+        stageInMain: Boolean(main?.contains(parts.stage)),
+        detailsInMain: Boolean(main?.contains(parts.details)),
+        footerOutsideMain: !main?.contains(parts.footer),
+      }
+    })
+    expect(order.missing, 'a part of the page is missing').toEqual([])
+    expect(order.wrong, 'the document order is wrong').toEqual([])
+    expect(order.stageInMain, 'the stage is outside <main>').toBe(true)
+    expect(order.detailsInMain, 'the details are outside <main>').toBe(true)
+    expect(order.footerOutsideMain, 'the footer is inside <main>').toBe(true)
+  })
+
+  /**
+   * LA-11: an email AND a WhatsApp control on screen, unscrolled, at EVERY width from 320 to
+   * 1920 in 50px steps, plus 899 and 900 — the seam where `.action-bar` hands over to the
+   * two-column controls. The fixed matrix above (844, 950, 1280, 1440) is what let a
+   * 900–1099px gap with NO contact control live for four days; a sweep cannot miss a band.
+   * One navigation per width: a resize leaves viewport units stale.
+   */
+  test('a contact control is on screen at every width from 320 to 1920', async ({ page }) => {
+    test.setTimeout(180_000)
+    const widths = [...Array.from({ length: 33 }, (_, i) => 320 + i * 50), 899, 900].sort(
+      (a, b) => a - b,
+    )
+    const gaps: string[] = []
+    for (const width of widths) {
+      await page.setViewportSize({ width, height: 800 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const seen = await page.evaluate(() => {
+        const inView = (el: Element) => {
+          const r = el.getBoundingClientRect()
+          const cs = getComputedStyle(el)
+          if (cs.display === 'none' || cs.visibility === 'hidden') return false
+          return r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight
+        }
+        const persistent = [
+          ...document.querySelectorAll('.contact-rail a, .action-bar a, .stage__contact a'),
+        ].filter(inView)
+        return {
+          email: persistent.some((a) => a.getAttribute('href')?.startsWith('mailto:')),
+          whatsapp: persistent.some((a) => a.getAttribute('href')?.includes('wa.me')),
+        }
+      })
+      if (!seen.email) gaps.push(`${width}px: no email control on screen`)
+      if (!seen.whatsapp) gaps.push(`${width}px: no WhatsApp control on screen`)
+    }
+    expect(gaps, `checked ${widths.length} widths`).toEqual([])
+  })
+
+  /**
+   * LA-15: the pinned chrome never sits over content. The bar is sticky at the top and the
+   * action bar is fixed at the bottom below 900px; each can hide content only if the page
+   * forgets to reserve room for it. Top: at rest, <main> starts where the bar ends. Bottom:
+   * the footer's last pixel is reachable above the action bar, in DOCUMENT space
+   * (`bottom + scrollY <= documentHeight - barHeight`) with no scroll in the measurement,
+   * because a check that scrolls first measures the scroll (e2e-scroll-not-layout).
+   */
+  for (const [width, height] of [
+    [320, 640],
+    [375, 812],
+    [768, 1024],
+    [1280, 800],
+  ] as const) {
+    test(`the pinned bars never cover content at ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      // Measured 2026-09-25: read straight after the heading, the bar was still in the
+      // fallback font (74.25px) while the reserve sat on its 4.5rem floor, so the footer's
+      // bottom padding read 2.7px under it. Once the webfont swaps in, the bar is 73.6px and
+      // `--action-bar-h` (74px) follows it. A visitor never reaches the bottom inside that
+      // first instant, so measure the settled page: fonts in, then two frames for the
+      // ResizeObserver's write to land.
+      await page.evaluate(() =>
+        document.fonts.ready.then(
+          () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+        ),
+      )
+      const m = await page.evaluate(() => {
+        const bar = document.querySelector('.action-bar') as HTMLElement | null
+        const barShown = Boolean(bar) && getComputedStyle(bar as HTMLElement).display !== 'none'
+        return {
+          scrollY: window.scrollY,
+          headerBottom: document.querySelector('header.notch-shell')?.getBoundingClientRect()
+            .bottom,
+          mainTop: document.querySelector('main')?.getBoundingClientRect().top,
+          barHeight: barShown ? (bar as HTMLElement).getBoundingClientRect().height : 0,
+          documentHeight: document.documentElement.scrollHeight,
+          footerBottom:
+            (document.querySelector('footer.footer')?.getBoundingClientRect().bottom ??
+              Number.NaN) + window.scrollY,
+        }
+      })
+      expect(m.scrollY, 'the page must be at rest for the top check').toBe(0)
+      expect(
+        m.mainTop,
+        `<main> starts under the bar: bar ends at ${m.headerBottom}, main starts at ${m.mainTop}`,
+      ).toBeGreaterThanOrEqual((m.headerBottom ?? Number.POSITIVE_INFINITY) - 0.5)
+      const ceiling = m.documentHeight - m.barHeight
+      expect(
+        m.footerBottom,
+        `the footer ends under the action bar: footer bottom ${m.footerBottom}, ` +
+          `reachable ceiling ${ceiling} (document ${m.documentHeight} − bar ${m.barHeight})`,
+      ).toBeLessThanOrEqual(ceiling + 1)
+    })
+  }
+})
+
+/**
+ * LA-16 — the four spec callouts are decoration around a GARMENT. When 3D cannot run
+ * (Save-Data, no WebGL, a stalled download), the stage holds the notice instead, and the
+ * callouts were still drawn over the same box: measured 2026-09-25 before the fix, at five
+ * widths from 1000px, see the PR. `Stage.tsx` now renders them only when `!fallback`, the
+ * guard the cue and the camera controls already use. The same facts stay on the page in
+ * `.spec-list`, so nothing is lost.
+ */
+test.describe('the spec callouts never sit over the no-3D notice (LA-16)', () => {
+  const WIDTHS = [1000, 1100, 1280, 1440, 1920] as const
+  const measure = (page: Page) =>
+    page.evaluate(() => {
+      const failure = document.querySelector('.stage__failure')?.getBoundingClientRect()
+      const callouts = [...document.querySelectorAll('.stage__callouts .callout')]
+        .map((el) => el.getBoundingClientRect())
+        .filter((r) => r.width > 0 && r.height > 0)
+      const overlaps = failure
+        ? callouts.filter(
+            (r) =>
+              r.left < failure.right &&
+              failure.left < r.right &&
+              r.top < failure.bottom &&
+              failure.top < r.bottom,
+          ).length
+        : 0
+      return { shown: callouts.length, overlaps }
+    })
+
+  for (const width of WIDTHS) {
+    test(`none is drawn while the notice shows, at ${width}px`, async ({ page }) => {
+      // Save-Data is the fallback every engine can reach: `canRender3D()` refuses 3D on it.
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, 'connection', {
+          configurable: true,
+          value: { saveData: true },
+        })
+      })
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.locator('.stage__error:not([hidden])')).toBeVisible()
+      const m = await measure(page)
+      console.log(
+        `LA-16 fallback ${width}px: ${m.shown} callouts drawn, ${m.overlaps} over the notice`,
+      )
+      expect(m.overlaps, `${m.overlaps} callouts sit over the no-3D notice`).toBe(0)
+      expect(m.shown, 'callouts are decoration around a garment that is not here').toBe(0)
+    })
+  }
+
+  test('with 3D available they still render at every width', async ({ page, browserName }) => {
+    for (const width of WIDTHS) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const fallback = await page.locator('.stage__error:not([hidden])').count()
+      test.skip(fallback > 0, `${browserName}: no WebGL here, so there is no garment to frame`)
+      const m = await measure(page)
+      expect(m.shown, `no callouts at ${width}px with 3D available`).toBe(4)
+    }
+  })
+})
+
+/**
+ * Batch C, PR 2 — the motion layer's contracts, read off the running page rather than the
+ * stylesheet's text: what a reduced-motion visitor gets, what a press does, and exactly
+ * which blocks reveal and how.
+ */
+test.describe('the motion layer keeps its contracts (MO-03, MO-04, MO-17)', () => {
+  /**
+   * MO-03: under reduced motion EVERY transition and animation on the page, pseudo-elements
+   * included, resolves to at most 0.01ms with no delay, and every reveal is already shown on
+   * arrival. `base.css`'s universal rule is what promises this; the test above only proved
+   * the reveals were not left at opacity 0.
+   */
+  test('reduced motion: every duration is 0.01ms and every reveal is already shown', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    expect(
+      await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches),
+      'reduced motion was not actually emulated',
+    ).toBe(true)
+    const found = await page.evaluate(() => {
+      const ms = (v: string) => {
+        const n = Number.parseFloat(v)
+        if (Number.isNaN(n)) return 0 // `auto`: no time-based duration at all
+        return v.trim().endsWith('ms') ? n : n * 1000
+      }
+      const worst = (list: string) => Math.max(...list.split(',').map(ms))
+      const slow: string[] = []
+      let checked = 0
+      for (const el of document.querySelectorAll('*')) {
+        for (const pseudo of [null, '::before', '::after']) {
+          const cs = getComputedStyle(el, pseudo)
+          checked++
+          const d = Math.max(worst(cs.transitionDuration), worst(cs.animationDuration))
+          const delay = Math.max(worst(cs.transitionDelay), worst(cs.animationDelay))
+          if (d > 0.0101 || delay > 0) {
+            slow.push(
+              `${el.tagName.toLowerCase()}.${el.getAttribute('class') ?? ''}${pseudo ?? ''}: ` +
+                `transition ${cs.transitionDuration} +${cs.transitionDelay}, ` +
+                `animation ${cs.animationDuration} +${cs.animationDelay}`,
+            )
+          }
+        }
+      }
+      const reveals = [...document.querySelectorAll('[data-reveal]')].map((el) => {
+        const cs = getComputedStyle(el)
+        return { opacity: cs.opacity, transform: cs.transform }
+      })
+      return { checked, slow: slow.slice(0, 8), reveals }
+    })
+    expect(found.checked, 'the sweep read nothing').toBeGreaterThan(300)
+    expect(found.slow, 'something still moves for a reader who asked it not to').toEqual([])
+    expect(found.reveals.length, 'no reveal blocks on the page').toBeGreaterThan(0)
+    for (const r of found.reveals) {
+      expect(r, 'a reveal is not already in place on arrival').toEqual({
+        opacity: '1',
+        transform: 'none',
+      })
+    }
+  })
+
+  /**
+   * MO-04: a press shrinks the control to 0.97 with the standalone `scale`
+   * property, promptly, and never through `transform` — which the cursor's
+   * magnet owns on the same elements, and a `transform: scale()` would fight
+   * (apps/viewer/CLAUDE.md, the translate → rotate → scale → transform order). The test
+   * above proves the transition is declared; this one presses a real tab and reads the
+   * frames.
+   */
+  test('a press shrinks the control to 0.97 through `scale`, promptly', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const tab = page.locator('.colourway-tab').nth(1)
+    await tab.scrollIntoViewIfNeeded()
+    const box = await tab.boundingBox()
+    expect(box, 'no second colourway tab to press').not.toBeNull()
+    await page.mouse.move(
+      (box?.x ?? 0) + (box?.width ?? 0) / 2,
+      (box?.y ?? 0) + (box?.height ?? 0) / 2,
+    )
+    await page.evaluate(() => {
+      const el = document.querySelectorAll('.colourway-tab')[1] as HTMLElement
+      const w = window as unknown as {
+        __press: { t: number; scale: string; transform: string }[]
+        __down: number
+      }
+      w.__press = []
+      w.__down = -1
+      el.addEventListener('pointerdown', () => (w.__down = performance.now()), { once: true })
+      const start = performance.now()
+      const tick = () => {
+        const cs = getComputedStyle(el)
+        w.__press.push({ t: performance.now(), scale: cs.scale, transform: cs.transform })
+        if (performance.now() - start < 1500) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+    await page.mouse.down()
+    await page.waitForTimeout(400)
+    const { frames, down, instant } = await page.evaluate(() => {
+      const w = window as unknown as {
+        __press: { t: number; scale: string; transform: string }[]
+        __down: number
+      }
+      const v = getComputedStyle(document.documentElement).getPropertyValue('--instant').trim()
+      return {
+        frames: w.__press,
+        down: w.__down,
+        instant: v.endsWith('ms') ? Number.parseFloat(v) : Number.parseFloat(v) * 1000,
+      }
+    })
+    await page.mouse.up()
+    expect(down, 'the press never reached the tab').toBeGreaterThan(0)
+    const after = frames.filter((f) => f.t >= down)
+    const started = after.find((f) => f.scale !== 'none')
+    // Within 0.001, not `=== '0.97'`: an eased value approaches its end and the last exact
+    // frame need not be sampled. CI's Chromium read 0.970186 then 0.970024 and never the
+    // literal string, twice (2026-09-25), on a press that had plainly arrived.
+    const pressed = after.find((f) => Math.abs(Number.parseFloat(f.scale) - 0.97) < 0.001)
+    console.log(
+      `MO-04 press: starts ${Math.round((started?.t ?? Number.NaN) - down)}ms, lands ${Math.round((pressed?.t ?? Number.NaN) - down)}ms (--instant ${instant}ms)`,
+    )
+    expect(
+      pressed,
+      `the tab never read scale 0.97 while held; frames saw ${[...new Set(after.map((f) => f.scale))].join(', ')}`,
+    ).toBeDefined()
+    // The START is bounded; the LANDING is not. Measured 2026-09-25: the shrink starts 3-56ms
+    // after pointerdown on the Mac and 8-63ms on CI, but lands 120-214ms on the Mac and
+    // 128-339ms on CI — the runner's frame pacing, not the page (apps/viewer/CLAUDE.md: frame
+    // rates are not obtainable there). The duration itself is pinned by the test above, which
+    // reads the declared `scale` transition off the stylesheet; landing inside the 400ms hold
+    // is what "promptly" still asserts here.
+    expect(
+      (started?.t ?? Number.POSITIVE_INFINITY) - down,
+      'the press did not start answering within 100ms',
+    ).toBeLessThanOrEqual(100)
+    expect(
+      after.filter((f) => f.transform !== 'none').map((f) => f.transform),
+      'the press moved `transform`, which the cursor magnet owns',
+    ).toEqual([])
+  })
+
+  /**
+   * MO-17, the viewer half: exactly four blocks reveal on scroll — colourways, customise,
+   * contact, footer — and each by fading AND rising (opacity + transform). The site's half,
+   * rise only, is in apps/cms/e2e/motion.spec.ts. A fifth reveal, or one that lost its
+   * fade, is a change to the design this pins.
+   */
+  test('four blocks reveal, each by fading and rising', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const inventory = await page.evaluate(() =>
+      [...document.querySelectorAll('[data-reveal]')].map((el) => ({
+        block: el.classList[0] ?? el.tagName.toLowerCase(),
+        properties: getComputedStyle(el)
+          .transitionProperty.split(',')
+          .map((p) => p.trim()),
+      })),
+    )
+    expect(inventory.map((r) => r.block).sort()).toEqual([
+      'colourways',
+      'contact',
+      'customise',
+      'footer',
+    ])
+    for (const r of inventory) {
+      expect(r.properties, `${r.block} does not fade`).toContain('opacity')
+      expect(r.properties, `${r.block} does not rise`).toContain('transform')
+    }
+  })
+})
+
+/**
+ * Batch C, PR 2 — the entrance and the idle cue, timed on a real load.
+ */
+test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', () => {
+  /**
+   * MO-10: the preloader stays at least PRELOADER_MIN_DWELL_MS (400) before it leaves, its
+   * clip-path wipe runs for --slow (800ms) and it unmounts only after the wipe, and it
+   * carries one sentence a screen reader can reach (not a live region: the whole page
+   * behind it is aria-hidden, and a region whose text never changes says nothing —
+   * Preloader.tsx). Recorded by a MutationObserver installed before the app runs, so no
+   * moment is missed between polls.
+   */
+  test('the preloader stays 400ms, wipes over 800ms, and says one sentence', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    // As a HUMAN: Preloader.tsx treats `navigator.webdriver` like reduced motion and skips
+    // the wipe, so without this the exit is never recorded (measured 2026-09-25: exit -1,
+    // "dwell" negative). Same override as audit-guards.spec.ts's `asAHuman`.
+    await page.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, 'webdriver', {
+        get: () => false,
+        configurable: true,
+      })
+    })
+    await page.addInitScript(() => {
+      const log: {
+        appear: number
+        exit: number
+        gone: number
+        transition: string
+        sentence: string
+      } = { appear: -1, exit: -1, gone: -1, transition: '', sentence: '' }
+      ;(window as unknown as { __preloader: typeof log }).__preloader = log
+      new MutationObserver(() => {
+        const el = document.querySelector('.preloader')
+        const now = performance.now()
+        if (el && log.appear < 0) {
+          log.appear = now
+          const cs = getComputedStyle(el)
+          log.transition = `${cs.transitionProperty} ${cs.transitionDuration}`
+          // Readable = has text and neither it nor an ancestor is aria-hidden.
+          log.sentence = [...el.querySelectorAll('*')]
+            .filter((n) => n.children.length === 0 && !n.closest('[aria-hidden="true"]'))
+            .map((n) => n.textContent?.trim() ?? '')
+            .filter(Boolean)
+            .join(' | ')
+        }
+        if (el?.classList.contains('preloader--exit') && log.exit < 0) log.exit = now
+        if (!el && log.appear >= 0 && log.gone < 0) log.gone = now
+      }).observe(document, { subtree: true, childList: true, attributes: true })
+    })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.locator('.preloader')).toHaveCount(0, { timeout: 10_000 })
+    const p = await page.evaluate(
+      () =>
+        (
+          window as unknown as {
+            __preloader: {
+              appear: number
+              exit: number
+              gone: number
+              transition: string
+              sentence: string
+            }
+          }
+        ).__preloader,
+    )
+    console.log(
+      `MO-10: dwell ${Math.round(p.exit - p.appear)}ms, wipe-to-unmount ${Math.round(p.gone - p.exit)}ms, ` +
+        `transition "${p.transition}", sentence "${p.sentence}"`,
+    )
+    expect(p.appear, 'the preloader never appeared').toBeGreaterThanOrEqual(0)
+    expect(p.exit, 'the preloader never began its exit').toBeGreaterThan(p.appear)
+    // 16ms of slack: the observer fires on the mutation's microtask, not the timer's tick.
+    expect(p.exit - p.appear, 'the preloader left before its 400ms floor').toBeGreaterThanOrEqual(
+      384,
+    )
+    expect(p.transition, 'the wipe is not clip-path over --slow').toBe('clip-path 0.8s')
+    expect(
+      p.gone - p.exit,
+      'the preloader unmounted before its 800ms wipe finished',
+    ).toBeGreaterThanOrEqual(784)
+    expect(p.sentence, 'the preloader says nothing a screen reader can reach').toBe(
+      'Loading the product reference.',
+    )
+  })
+
+  /**
+   * MO-12, the part a robot can reach: the cue is absent at the moment the MODEL has loaded,
+   * not only before it. The older test above asserts absence as soon as the heading shows,
+   * when the model has not loaded and the cue cannot show anyway, so a cue that appeared
+   * the instant the model arrived would pass it. The 14° sweep's timing and its 900ms
+   * return stay on the owner's phone list: a software-rendered runner cannot time them.
+   */
+  test('the cue is absent at the moment the model loads, and waits its idle pause', async ({
+    page,
+  }) => {
+    // Recorded once per DRAWN FRAME from before the app runs, so neither moment can fall
+    // between two polls. ⚠️ Not a page.evaluate promise on the 'load' event: <model-viewer>
+    // arrives by a dynamic import, so the element can be absent when that runs, and the
+    // promise then never settles (it timed out that way on 2026-09-25).
+    await page.addInitScript(() => {
+      const log = { loadedAt: -1, hintAt: -1, hintAtLoad: false }
+      ;(window as unknown as { __cue: typeof log }).__cue = log
+      const tick = () => {
+        const mv = document.querySelector('model-viewer') as { loaded?: boolean } | null
+        const hint = document.querySelector('.stage__hint')
+        const now = performance.now()
+        if (mv?.loaded && log.loadedAt < 0) {
+          log.loadedAt = now
+          log.hintAtLoad = hint !== null
+        }
+        if (hint && log.hintAt < 0) log.hintAt = now
+        if (log.hintAt < 0) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const fallback = await page.locator('.stage__error:not([hidden])').count()
+    test.skip(fallback > 0, 'no WebGL on this engine — the stage is in poster fallback')
+    const readCue = () =>
+      page.evaluate(
+        () =>
+          (
+            window as unknown as {
+              __cue: { loadedAt: number; hintAt: number; hintAtLoad: boolean }
+            }
+          ).__cue,
+      )
+    await expect
+      .poll(async () => (await readCue()).hintAt, {
+        message: 'the cue never appeared',
+        timeout: 40_000,
+      })
+      .toBeGreaterThan(0)
+    const cue = await readCue()
+    console.log(
+      `MO-12: model loaded ${Math.round(cue.loadedAt)}ms, cue ${Math.round(cue.hintAt)}ms`,
+    )
+    expect(cue.loadedAt, 'the model never loaded').toBeGreaterThan(0)
+    expect(cue.hintAtLoad, 'the cue shows the instant the model loads').toBe(false)
+    expect(
+      cue.hintAt - cue.loadedAt,
+      'the cue did not wait its idle pause (CUE_IDLE_MS, 3000)',
+    ).toBeGreaterThanOrEqual(2900)
   })
 })

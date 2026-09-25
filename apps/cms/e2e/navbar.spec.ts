@@ -334,6 +334,80 @@ test.describe('the menu closes itself when the page moves on', () => {
     await expect(page.locator(OPEN), 'the menu stayed open over the next page').toHaveCount(0)
   })
 
+  /**
+   * SC-11: the page is never left scroll-locked after the menu. The menu is the browser's
+   * own popover and locks nothing today; this guards the visitor's side of it, so a later
+   * "lock the page behind the menu" that forgets one way of closing it is caught. Every
+   * way the menu closes is tried, and after each the page must still move under a real
+   * wheel, the input a visitor uses, not only under `scrollTo`.
+   */
+  test('the page still scrolls after every way the menu closes (SC-11)', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 })
+    await page.goto('/')
+    const button = page.getByRole('button', { name: SITE_MENU_NAME, exact: true })
+
+    const stillScrolls = async (after: string) => {
+      await page.evaluate(() => window.scrollTo(0, 0))
+      await expect.poll(() => page.evaluate(() => Math.round(scrollY))).toBe(0)
+      const overflow = await page.evaluate(() => [
+        getComputedStyle(document.documentElement).overflowY,
+        getComputedStyle(document.body).overflowY,
+      ])
+      expect(overflow, `${after}: <html> or <body> is left overflow hidden`).not.toContain('hidden')
+      // Over the bar, which stays in view and is not a scroll container of its own.
+      const bar = await page.locator('.notch').boundingBox()
+      if (!bar) throw new Error('no bar to wheel over')
+      await page.mouse.move(bar.x + 8, bar.y + bar.height / 2)
+      await page.mouse.wheel(0, 400)
+      await expect
+        .poll(() => page.evaluate(() => scrollY), {
+          message: `${after}: a wheel no longer scrolls the page`,
+        })
+        .toBeGreaterThan(0)
+    }
+
+    // The instrument first: without this, a wheel that never scrolls would read as a lock.
+    await stillScrolls('before the menu ever opened')
+
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await button.click()
+    await expect(page.locator(OPEN)).toHaveCount(1)
+    await button.click()
+    await expect(page.locator(OPEN)).toHaveCount(0)
+    await stillScrolls('closed by its own button')
+
+    await button.click()
+    await expect(page.locator(OPEN)).toHaveCount(1)
+    await page.keyboard.press('Escape')
+    await expect(page.locator(OPEN)).toHaveCount(0)
+    await stillScrolls('closed by Escape')
+
+    await button.click()
+    await expect(page.locator(OPEN)).toHaveCount(1)
+    // An inert point under the open panel, found as the tap-outside test above finds one,
+    // so the tap closes the menu instead of following a link.
+    const point = await page.evaluate((selector) => {
+      const panel = document.querySelector(selector)?.getBoundingClientRect()
+      if (!panel) return null
+      for (let y = Math.ceil(panel.bottom) + 16; y < innerHeight - 8; y += 8) {
+        const hit = document.elementFromPoint(24, y)
+        if (hit && !hit.closest('a, button, input, textarea, select, label')) return { x: 24, y }
+      }
+      return null
+    }, MENU)
+    if (!point) throw new Error('found no inert point under the open menu to tap')
+    await page.mouse.click(point.x, point.y)
+    await expect(page.locator(OPEN), 'a tap outside did not close the menu').toHaveCount(0)
+    await expect(page, 'the tap outside followed a link').toHaveURL(/\/$/)
+    await stillScrolls('closed by a tap outside')
+
+    await button.click()
+    await expect(page.locator(OPEN)).toHaveCount(1)
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await expect(page.locator(OPEN)).toHaveCount(0)
+    await stillScrolls('closed by widening past the phone layout')
+  })
+
   test('widening past the phone layout closes it, and the links return to the bar', async ({
     page,
   }) => {

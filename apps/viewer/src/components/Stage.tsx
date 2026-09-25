@@ -1317,20 +1317,27 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
            * one — it is simply never painted here.
            */}
 
-          <div className="stage__callouts" aria-hidden="true">
-            {product.fabricComposition && (
-              <div className="callout" style={{ top: '14%', left: '3%' }}>
-                <span className="label">[ FABRIC ]</span>
-                <div className="callout__value">{product.fabricComposition}</div>
-              </div>
-            )}
-            {product.gsm && (
-              <div className="callout callout--right" style={{ top: '14%', right: '3%' }}>
-                <span className="label">[ WEIGHT ]</span>
-                <div className="callout__value">{product.gsm}</div>
-              </div>
-            )}
-            {/*
+          {/*
+            Only around a garment (LA-16). In a fallback the stage holds the notice, and
+            the callouts were drawn over the same box: measured 2026-09-25 with Save-Data,
+            4 callouts drawn and 1-2 of them over the notice at every width from 1000 to
+            1920px. The same facts stay on the page in `.spec-list`.
+          */}
+          {!fallback && (
+            <div className="stage__callouts" aria-hidden="true">
+              {product.fabricComposition && (
+                <div className="callout" style={{ top: '14%', left: '3%' }}>
+                  <span className="label">[ FABRIC ]</span>
+                  <div className="callout__value">{product.fabricComposition}</div>
+                </div>
+              )}
+              {product.gsm && (
+                <div className="callout callout--right" style={{ top: '14%', right: '3%' }}>
+                  <span className="label">[ WEIGHT ]</span>
+                  <div className="callout__value">{product.gsm}</div>
+                </div>
+              )}
+              {/*
               ⚠️ THE BOTTOM PAIR IS ONE ROW, NOT TWO ABSOLUTE BOXES — 2026-09-07,
               audit FA-D-07. They were `bottom: 18%` each, which pins their BOTTOM
               edges and lets their chips float apart by however many lines of text
@@ -1349,23 +1356,24 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
               either half can be absent, and `.callout--right`'s `margin-left: auto`
               keeps a lone right-hand block on the right.
             */}
-            {(product.garmentFit || performanceSummary) && (
-              <div className="stage__callouts-bottom">
-                {product.garmentFit && (
-                  <div className="callout">
-                    <span className="label">[ FIT ]</span>
-                    <div className="callout__value">{product.garmentFit}</div>
-                  </div>
-                )}
-                {performanceSummary && (
-                  <div className="callout callout--right">
-                    <span className="label">[ PERFORMANCE ]</span>
-                    <div className="callout__value">{performanceSummary}</div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+              {(product.garmentFit || performanceSummary) && (
+                <div className="stage__callouts-bottom">
+                  {product.garmentFit && (
+                    <div className="callout">
+                      <span className="label">[ FIT ]</span>
+                      <div className="callout__value">{product.garmentFit}</div>
+                    </div>
+                  )}
+                  {performanceSummary && (
+                    <div className="callout callout--right">
+                      <span className="label">[ PERFORMANCE ]</span>
+                      <div className="callout__value">{performanceSummary}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Only once there is something to drag. It used to show throughout the
               download, inviting the visitor to rotate a garment that had not

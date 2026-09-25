@@ -43,15 +43,26 @@ export function Preloader({ done, onExited }: PreloaderProps) {
     }
     const wait = Math.max(0, PRELOADER_MIN_DWELL_MS - (performance.now() - startRef.current))
     const toExit = window.setTimeout(() => setExiting(true), wait)
-    // 760 until 2026-08-14, against a wipe CSS runs for --slow (800ms) — the
-    // hand-off fired 40ms before the animation it was waiting for finished.
-    // Derived now, so the two cannot disagree again.
-    const toDone = window.setTimeout(onExited, wait + PRELOADER_WIPE_MS)
-    return () => {
-      clearTimeout(toExit)
-      clearTimeout(toDone)
-    }
+    return () => clearTimeout(toExit)
   }, [done, reduce, onExited])
+
+  /*
+   * The hand-off waits for the wipe FROM THE MOMENT THE WIPE BEGINS (MO-10).
+   *
+   * It was scheduled beside the exit, at `wait + PRELOADER_WIPE_MS` from the same instant,
+   * and a busy main thread fired both overdue timers back to back. Measured 2026-09-25 in
+   * Chromium: one 913ms long task right after the page appears (the 3D engine loading), the
+   * exit landing at 1028ms instead of ~440, and the unmount at 1221 — a 193ms wipe, or 1ms
+   * in five test runs out of five. A phone decoding a large model can do the same. Timing
+   * the hand-off from `exiting` keeps the whole 800ms whatever the thread was doing.
+   * 760 until 2026-08-14, against a wipe CSS runs for --slow (800ms): derived, so the two
+   * cannot disagree again.
+   */
+  useEffect(() => {
+    if (!exiting) return
+    const toDone = window.setTimeout(onExited, PRELOADER_WIPE_MS)
+    return () => clearTimeout(toDone)
+  }, [exiting, onExited])
 
   return (
     /*
