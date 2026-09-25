@@ -1,4 +1,3 @@
-import type { Page } from '@playwright/test'
 import {
   collectHeadlineNeighbours,
   collectIconBoxGroups,
@@ -9,7 +8,7 @@ import {
   findIconBoxRows,
   findUiKitFingerprints,
 } from '../../../scripts/vibecoded-rules.mjs'
-import { expect, test } from './offlineMedia'
+import { expect, type Page, test } from './offlineMedia'
 
 /**
  * VC-07, VC-08, VC-10, VC-11, VC-12, VC-13 on the site — what a browser RECEIVES on each
