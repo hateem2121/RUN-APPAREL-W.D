@@ -552,10 +552,10 @@ test.describe('generic keyboard, focus and naming sweeps on the product page', (
     /*
      * ⚠️ AND THE NAME THE BROWSER ACTUALLY COMPUTES, because `textContent` counts text a
      * screen reader never hears. The theme switch is the case: its name is a
-     * visually-hidden span inside one of two faces, and CSS hides the other face. Hide
-     * the span itself (or both faces) and `textContent` is unchanged, so the sweep
-     * above still passes on a button that is announced as just "button". Every button
-     * in the accessibility tree must have a non-blank computed name.
+     * visually-hidden span inside whichever of two faces CSS shows, with a `title` as the
+     * fallback. Hide that span and drop the title, and `textContent` is unchanged, so the
+     * sweep above still passes on a button that is announced as just "button". Every
+     * button in the accessibility tree must have a non-blank computed name.
      */
     const buttons = page.getByRole('button')
     const count = await buttons.count()
