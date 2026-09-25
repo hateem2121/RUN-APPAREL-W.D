@@ -116,6 +116,101 @@ test.describe('MO-20 — the stage readout is correct for its phase', () => {
 })
 
 /**
+ * SPEC §5.1 — screen readers hear the download "now and then, not on every tick".
+ *
+ * `Stage.tsx` feeds its `role="status"` line `announcedPercent`, the percentage floored to
+ * 25% steps, so VoiceOver hears at most four numbers while the visible title changes
+ * several times a second. Until 2026-09-25 nothing tested that: delete the flooring and
+ * every suite stayed green while the old preloader's failure (~90 announcements in under
+ * two seconds) came back. MO-20's sampler above polls every 60 ms and would MISS
+ * announcements between polls, so this one records every change with a
+ * MutationObserver installed before the page's own scripts run.
+ *
+ * Proven both ways on 2026-09-25: with `announcedPercent = load.percent` planted, the
+ * announced numbers stop being multiples of 25 and this fails; restored, it passes.
+ */
+test.describe('SPEC §5.1 — screen readers hear the progress now and then', () => {
+  test.setTimeout(120_000)
+
+  test('on a slowed real download the spoken line moves in 25% steps while the screen counts every percent', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(
+      browserName !== 'chromium',
+      'the network is slowed through CDP, which only Chromium has; the throttle is the same JavaScript in every engine',
+    )
+    await page.addInitScript(() => {
+      const log: { spoken: string[]; shown: string[] } = { spoken: [], shown: [] }
+      ;(window as unknown as { __readout: typeof log }).__readout = log
+      const push = (list: string[], text: string) => {
+        if (text && list[list.length - 1] !== text) list.push(text)
+      }
+      new MutationObserver(() => {
+        for (const el of document.querySelectorAll('[role="status"]')) {
+          push(log.spoken, el.textContent?.trim() ?? '')
+        }
+        push(log.shown, document.querySelector('.stage__loading-title')?.textContent ?? '')
+      }).observe(document, { subtree: true, childList: true, characterData: true })
+    })
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('Network.enable')
+    await cdp.send('Network.emulateNetworkConditions', SLOW)
+    await page.route('**/fixtures/n001.glb', (route) =>
+      route.continue({ url: `${route.request().url()}?with-length=1` }),
+    )
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 60_000 })
+    const fallback = await page.locator('.stage__error:not([hidden])').count()
+    test.skip(fallback > 0, `${browserName}: no WebGL here, the stage is in poster fallback`)
+
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() =>
+            Boolean(
+              (document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded,
+            ),
+          ),
+        { timeout: 90_000 },
+      )
+      .toBe(true)
+
+    const { spoken, shown } = await page.evaluate(
+      () => (window as unknown as { __readout: { spoken: string[]; shown: string[] } }).__readout,
+    )
+    const shownPercents = shown.filter((t) => /\d+%/.test(t))
+    const spokenLoading = spoken.filter((t) => t.startsWith('Loading the interactive 3D model'))
+    const spokenPercents = spokenLoading
+      .map((t) => /(\d+) percent/.exec(t))
+      .filter((m): m is RegExpExecArray => m !== null)
+      .map((m) => Number(m[1]))
+    console.log(
+      `SPEC §5.1 observed: screen showed ${shownPercents.length} percentages; spoken: ${spokenLoading.join(' | ')}`,
+    )
+
+    // Not vacuous: the screen really did tick many times, and the spoken line really did
+    // speak numbers during the download. Without both, "few announcements" proves nothing.
+    expect(
+      shownPercents.length,
+      `the visible title showed only ${shownPercents.length} percentages — too quick a download to judge throttling`,
+    ).toBeGreaterThanOrEqual(8)
+    expect(
+      spokenPercents.length,
+      'the spoken line never said a percentage during the download',
+    ).toBeGreaterThanOrEqual(2)
+
+    for (const n of spokenPercents) {
+      expect(n % 25, `the screen reader was told "${n} percent" — not a 25% step`).toBe(0)
+    }
+    // A bare "Loading…" plus 0, 25, 50 and 75 at most. 100 is never announced: at 100 the
+    // phase is already "preparing", which has its own sentence.
+    expect(spokenLoading.length, spokenLoading.join(' | ')).toBeLessThanOrEqual(5)
+    expect(spokenLoading.length).toBeLessThan(shownPercents.length)
+  })
+})
+
+/**
  * MO-21 — the placeholder photo shows during the download and is gone once the
  * model is live. Already thoroughly proven, WITH its own negative control, in
  * `placeholder-webgl.spec.ts` ("is on the stage, blurred, under the readout — then
