@@ -76,8 +76,9 @@ export function evaluateCacheControl(kind, cacheControl) {
 /**
  * One GET, classified. Never a HEAD — see the file header.
  *
- * `range` requests `bytes=0-0` for the model: a full GET of a live 1.9-8.2 MB GLB
- * would burn real R2 egress against the $5/month cap for no reason this check needs.
+ * `range` requests `bytes=0-0` for the model: a full GET of a live 1.9-8.2 MB GLB is
+ * weight on every scheduled run for no reason this check needs. (Not an R2 bill: R2
+ * egress is free, re-read on its pricing page 2026-09-25.)
  * A ranged GET still returns real cache-control/alt-svc headers on its 206, but
  * CANNOT show content-encoding — this probe never reads that header, on purpose.
  *
@@ -89,6 +90,16 @@ export function evaluateCacheControl(kind, cacheControl) {
  * (root CLAUDE.md: no Cloudflare/DNS/settings changes). This probe therefore states
  * the finding plainly rather than either hiding it (treating h3 as universal) or
  * failing the build on something nobody here is allowed to fix.
+ *
+ * ⚠️ PF-14, SETTLED 2026-09-25: THERE IS NO SETTING TO FLIP. A Chromium forced onto QUIC
+ * for the media host (`--origin-to-force-quic-on=media.wear-run.help:443`) fails with
+ * `net::ERR_QUIC_PROTOCOL_ERROR`, while the same run against `wear-run.help` lands on
+ * `h3`. Cloudflare's HTTP/3 is ONE zone-wide toggle, free on every plan, and it is on —
+ * three hosts of this zone advertise it. The R2 custom domain simply does not speak QUIC.
+ * Fronting it with a Worker route (Workers do) was rejected: every poster and model
+ * request would run a Worker, adding a failure point to the one host that must not fail,
+ * to save one handshake on objects that are edge-cache HITs. If this probe ever reports
+ * h3 on media, the platform changed; flip `requireH3` back to true for it.
  */
 async function probeOne(label, url, kind, { range, requireH3 = true } = {}) {
   const headers = range ? { range } : {}

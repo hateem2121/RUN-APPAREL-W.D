@@ -57,6 +57,11 @@ export const CHANNEL_TOLERANCE = 24
 /** Past this fraction of differing pixels, the two marks are not the same picture. */
 export const MAX_DIFFERING_FRACTION = 0.02
 
+/** Pure: Bot Fight Mode's refusal of a robot — inconclusive, never a failed comparison. */
+export function isRefusal(status) {
+  return status === 403 || status === 429
+}
+
 function stripMediaQuery(svg) {
   return svg.replace(/@media[^{]*\{[\s\S]*?\}\s*\}/, '')
 }
@@ -120,6 +125,15 @@ async function fetchMarks() {
     fetch(SITE_ICON_URL),
     fetch(VIEWER_ICON_URL),
   ])
+  // Bot Fight Mode refuses datacenter robots intermittently (.github/CLAUDE.md): a 403 or
+  // 429 is INCONCLUSIVE, never a failed comparison, or a scheduled run goes red on a
+  // healthy site.
+  for (const [url, response] of [
+    [SITE_ICON_URL, siteResponse],
+    [VIEWER_ICON_URL, viewerResponse],
+  ]) {
+    if (isRefusal(response.status)) return { refused: `${url} answered ${response.status}` }
+  }
   if (!siteResponse.ok) {
     throw new Error(`${SITE_ICON_URL} answered ${siteResponse.status}`)
   }
@@ -131,7 +145,12 @@ async function fetchMarks() {
 }
 
 async function main() {
-  const { site, viewer } = await fetchMarks()
+  const marks = await fetchMarks()
+  if (marks.refused) {
+    console.log(`::warning::icon-parity-probe: inconclusive — ${marks.refused} (a robot refusal)`)
+    return
+  }
+  const { site, viewer } = marks
   const result = await compareMarks(site, viewer)
 
   console.log(
