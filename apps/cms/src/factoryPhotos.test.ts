@@ -18,20 +18,23 @@ import {
 
 const DIR = join(import.meta.dirname, '../public/factory')
 
-/** Width and height from a WebP's own header — lossy (VP8), lossless (VP8L) or extended (VP8X). */
-function webpSize(bytes: Buffer): { width: number; height: number } {
-  if (bytes.toString('ascii', 0, 4) !== 'RIFF' || bytes.toString('ascii', 8, 12) !== 'WEBP') {
-    throw new Error('not a WebP file')
-  }
-  const chunk = bytes.toString('ascii', 12, 16)
-  if (chunk === 'VP8X') {
-    return { width: bytes.readUIntLE(24, 3) + 1, height: bytes.readUIntLE(27, 3) + 1 }
-  }
+/**
+ * Width and height from a WebP's own header — lossy (VP8), lossless (VP8L) or extended (VP8X).
+ * Through a DataView, not Buffer's read methods: this package types `Buffer` from the Workers
+ * types, which do not declare them.
+ */
+function webpSize(file: Uint8Array): { width: number; height: number } {
+  const view = new DataView(file.buffer, file.byteOffset, file.byteLength)
+  const ascii = (start: number) => String.fromCharCode(...file.subarray(start, start + 4))
+  const uint24 = (at: number) => view.getUint16(at, true) | (view.getUint8(at + 2) << 16)
+  if (ascii(0) !== 'RIFF' || ascii(8) !== 'WEBP') throw new Error('not a WebP file')
+  const chunk = ascii(12)
+  if (chunk === 'VP8X') return { width: uint24(24) + 1, height: uint24(27) + 1 }
   if (chunk === 'VP8 ') {
-    return { width: bytes.readUInt16LE(26) & 0x3fff, height: bytes.readUInt16LE(28) & 0x3fff }
+    return { width: view.getUint16(26, true) & 0x3fff, height: view.getUint16(28, true) & 0x3fff }
   }
   if (chunk === 'VP8L') {
-    const bits = bytes.readUInt32LE(21)
+    const bits = view.getUint32(21, true)
     return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 }
   }
   throw new Error(`unknown WebP chunk ${chunk}`)
