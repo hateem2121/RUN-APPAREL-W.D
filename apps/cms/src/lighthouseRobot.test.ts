@@ -75,11 +75,14 @@ const lhr = ({
   },
 })
 
+/**
+ * The home page as measured 2026-09-16, minus `seo/is-crawlable`: that one failed only while
+ * the launch switch kept the site out of search, and the switch flipped on 2026-09-25.
+ */
 const HOME_BELOW = [
   'performance/first-contentful-paint',
   'performance/largest-contentful-paint',
   'performance/speed-index',
-  'seo/is-crawlable',
 ]
 const HOME_SCORES = { performance: 0.85, seo: 0.69 }
 /** What the real 404 report had failing, beyond `is-crawlable`. */
@@ -252,13 +255,26 @@ describe('judgePage', () => {
   })
 
   it('fails when an expected failure stops failing, so the exemption cannot hide a return', () => {
+    // The pre-launch exemption, passed explicitly: the real list is empty since 2026-09-25.
     const verdict = judgePage({
       page: 'home',
       formFactor: 'mobile',
       machine: 'local',
-      runs: runs(5, { scores: { performance: 0.85 }, below: HOME_BELOW.slice(0, 3) }),
+      expectedBelowOne: ['seo/is-crawlable'],
+      runs: runs(5, { scores: { performance: 0.85 }, below: HOME_BELOW }),
     })
     expect(verdict.failures.join()).toMatch(/seo\/is-crawlable was expected to fail and now passes/)
+  })
+
+  it('fails a noindex that comes back after launch (L-21)', () => {
+    expect(EXPECTED_BELOW_ONE).toEqual({})
+    const verdict = judgePage({
+      page: 'home',
+      formFactor: 'mobile',
+      machine: 'local',
+      runs: runs(5, { scores: HOME_SCORES, below: [...HOME_BELOW, 'seo/is-crawlable'] }),
+    })
+    expect(verdict.failures).toEqual(['home.mobile: seo/is-crawlable fails in 5 of 5 valid runs.'])
   })
 
   it('fails a performance median below the floor, and passes one above it', () => {

@@ -112,10 +112,12 @@ describe('the public site is indexable and the admin is not exposed by it', () =
     )
   })
 
-  it('the switch ships HIDDEN in wrangler.jsonc, and the sitemap follows it', () => {
-    // A Worker deployed with this var missing is ALSO hidden (the parser fails closed),
-    // but the file must say so explicitly, or the next reader assumes the default is open.
-    expect(read(CMS_ROOT, 'wrangler.jsonc')).toMatch(/"SITE_INDEXING":\s*"hidden"/)
+  it('the switch ships VISIBLE in wrangler.jsonc (launched 2026-09-25), and the sitemap follows it', () => {
+    // Hidden until the owner launched the site on 2026-09-25 (tracker L-21). A Worker
+    // deployed with this var missing is STILL hidden (the parser fails closed, and
+    // e2e/pages.spec.ts proves it on a server with no var), so the file must name the
+    // value it means rather than rely on a default.
+    expect(read(CMS_ROOT, 'wrangler.jsonc')).toMatch(/"SITE_INDEXING":\s*"visible"/)
     expect(code(join(CMS_ROOT, 'src', 'app'), 'sitemap.ts')).toMatch(
       /sitemapFor\(await searchVisibility\(\), SITE_ORIGIN\)/,
     )

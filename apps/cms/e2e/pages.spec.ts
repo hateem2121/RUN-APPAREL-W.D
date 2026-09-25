@@ -133,26 +133,37 @@ test.describe('accessibility', () => {
   }
 })
 
-test.describe('search visibility defaults to hidden', () => {
+test.describe('search visibility follows the committed switch: visible since launch', () => {
   /*
-   * SITE_INDEXING is unset for this server — exactly as in CI's cold checkout — and
-   * absent means hidden. Owner decision 2026-09-06: the beta launches on its real
-   * address and stays out of search results until called final.
+   * ⚠️ THIS SERVER READS `SITE_INDEXING` FROM `wrangler.jsonc`, NOT FROM AN EMPTY
+   * ENVIRONMENT. Until 2026-09-25 this block said the var was "unset for this server", and
+   * it was not: OpenNext hands `next start` the file's `vars` through `getCloudflareContext`,
+   * which `searchVisibility()` reads first. Measured when the switch flipped: with
+   * `wrangler.jsonc` saying "visible" and no SITE_INDEXING in the environment, the old
+   * "defaults to hidden" tests failed 4 of 4. So this block tests what ships. The fail-closed
+   * rule (absent, blank or misspelt means hidden) is proven in src/lib/searchVisibility.test.ts.
+   *
+   * The owner launched the site on 2026-09-25 (tracker L-21): no public page asks to be left
+   * out of search, and the sitemap offers every page. Setting the file back to "hidden"
+   * turns these red, which is the control.
    */
   for (const page of PAGES) {
-    test(`${page.name} carries noindex`, async ({ page: browser }) => {
+    test(`${page.name} does not carry noindex`, async ({ page: browser }) => {
       await browser.goto(page.path)
-      await expect(browser.locator('meta[name="robots"]').first()).toHaveAttribute(
-        'content',
-        /noindex/,
-      )
+      const robots = await browser
+        .locator('meta[name="robots"]')
+        .evaluateAll((tags) => tags.map((tag) => tag.getAttribute('content') ?? ''))
+      expect(robots.filter((content) => /noindex/i.test(content))).toEqual([])
     })
   }
 
-  test('the sitemap lists nothing', async ({ request }) => {
+  test('the sitemap lists the five public pages', async ({ request }) => {
     const response = await request.get('/sitemap.xml')
     expect(response.status()).toBe(200)
-    expect(await response.text()).not.toContain('<loc>')
+    const locs = [...(await response.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map(
+      (m) => new URL(m[1] ?? '').pathname,
+    )
+    expect(locs.sort()).toEqual(['/', '/contact', '/privacy', '/products', '/terms'])
   })
 
   /**

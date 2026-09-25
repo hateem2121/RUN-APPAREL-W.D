@@ -130,9 +130,10 @@
   "vars": {
     // Search engines. `hidden` = every public page carries noindex and the sitemap is
     // empty; ONLY the exact word `visible` opens the site. Absent also means hidden.
-    // Owner decision 2026-09-06: a deploy-time switch, not an admin field. To launch
-    // for real: change this to "visible", PR, merge. See src/lib/searchVisibility.ts.
-    "SITE_INDEXING": "hidden",
+    // Owner decision 2026-09-06: a deploy-time switch, not an admin field. LAUNCHED
+    // 2026-09-25 on the owner's word ("Now"). To hide the site again: change this back to
+    // "hidden", PR, merge. See src/lib/searchVisibility.ts.
+    "SITE_INDEXING": "visible",
     // Public URL of this CMS worker (used to absolutise media URLs when R2 public access is not configured).
     "CMS_PUBLIC_URL": "https://cms.wear-run.help",
     // Public base URL for R2 media. Media is served direct from R2 at

@@ -90,7 +90,10 @@ notpdf() { case "$(ctype "$1")" in *application/pdf*) echo pdf;; *) echo ok;; es
 
 chk "GET / on the apex is the site"        200 "$(code https://wear-run.help/)"
 chk "apex / is HTML, not a PDF or a 404"   ok  "$(ishtml https://wear-run.help/)"
-chk "apex / carries noindex while hidden"  ok  "$(curl -s https://wear-run.help/ | grep -q 'name="robots" content="noindex"' && echo ok || echo missing)"
+# Launched 2026-09-25 (SITE_INDEXING=visible): the home page must no longer ask to be left
+# out of search, and the sitemap must list the site's pages rather than nothing.
+chk "apex / no longer carries noindex"     ok  "$(curl -s https://wear-run.help/ | grep -q 'content="noindex' && echo noindex || echo ok)"
+chk "apex sitemap lists the pages"         ok  "$(curl -s https://wear-run.help/sitemap.xml | grep -qF '<loc>https://wear-run.help/products</loc>' && echo ok || echo empty)"
 chk "www -> apex, same path"               "308 https://wear-run.help/products" "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' https://www.wear-run.help/products)"
 chk "cms public page -> apex"              "308 https://wear-run.help/products" "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' https://cms.wear-run.help/products)"
 chk "apex /admin is the site's 404"        404 "$(code https://wear-run.help/admin)"

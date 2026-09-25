@@ -94,15 +94,11 @@ export const PAGES = [
 export const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
 
 /**
- * Audits that fail on purpose. `is-crawlable` fails while `SITE_INDEXING` keeps the site
- * out of search; delete these three entries when the launch switch flips (the robot will
- * say so).
+ * Audits that fail on purpose, by page. Empty since the launch switch flipped on
+ * 2026-09-25: until then `is-crawlable` failed on home, products and contact while
+ * `SITE_INDEXING` kept the site out of search. A `noindex` coming back now fails the robot.
  */
-export const EXPECTED_BELOW_ONE = {
-  home: ['seo/is-crawlable'],
-  products: ['seo/is-crawlable'],
-  contact: ['seo/is-crawlable'],
-}
+export const EXPECTED_BELOW_ONE = {}
 
 /*
  * ⚠️ A CSP ISSUE FAILS LIKE ANY OTHER AUDIT, AND UNTIL 2026-09-16 ONE DID NOT. That day
@@ -273,6 +269,7 @@ export function judgePage({
   runs,
   machine = measuringMachine(),
   floors = PERFORMANCE_FLOORS[machine],
+  expectedBelowOne = EXPECTED_BELOW_ONE[page] ?? [],
 }) {
   const key = `${page}.${formFactor}`
   const failures = []
@@ -326,7 +323,7 @@ export function judgePage({
   }
   const majority = Math.floor(valid.length / 2) + 1
   const failing = new Set([...counts].filter(([, count]) => count >= majority).map(([id]) => id))
-  const expected = EXPECTED_BELOW_ONE[page] ?? []
+  const expected = expectedBelowOne
 
   // Performance is judged by its floor, below; every other category by its failing audits.
   const judged = (id) => !id.startsWith('performance/')
