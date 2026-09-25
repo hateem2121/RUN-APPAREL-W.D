@@ -2973,6 +2973,63 @@ test.describe('the keyboard starts at the top of the document', () => {
     // walks back through exactly the links the visitor asked to skip.
     const landed = await page.evaluate(() => document.activeElement?.id ?? '')
     expect(landed).toBe('main-content')
+
+    /**
+     * AC-03, the missing half: where the NEXT Tab goes. Focus on <main> is only useful if
+     * the keyboard continues from there, into the page's first control, and not back to
+     * the top chrome or out to <body>. The first control is derived in the page (document
+     * order, tabbable, drawn), not named, so a reordered page is judged on what it is.
+     *
+     * ⚠️ WAIT FOR THE STAGE TO FINISH FIRST. <model-viewer> becomes a Tab stop only once it
+     * has loaded; pressed earlier, Tab correctly skips to the colourway tabs, and the stop
+     * appears a moment later, so the "first control" read after the key press named the
+     * garment 3 runs in 20 (measured 2026-09-25). Loaded, or the no-3D notice, then Tab.
+     */
+    await page.waitForFunction(
+      () =>
+        Boolean((document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded) ||
+        document.querySelector('.stage__error:not([hidden])') !== null,
+      undefined,
+      { timeout: 40_000 },
+    )
+    await page.keyboard.press('Tab')
+    const next = await page.evaluate(() => {
+      const main = document.getElementById('main-content')
+      const describe = (el: Element | null) =>
+        el
+          ? `${el.tagName.toLowerCase()}${el.className ? `.${String(el.className).split(' ')[0]}` : ''}`
+          : 'none'
+      const first = main
+        ? ([...main.querySelectorAll<HTMLElement>('*')].find(
+            (el) =>
+              // A custom element can keep its Tab stop in its shadow root: <model-viewer>'s
+              // host reads tabIndex -1 while the keyboard stops on it (measured 2026-09-25).
+              (el.tabIndex >= 0 ||
+                el.shadowRoot?.querySelector('[tabindex]:not([tabindex="-1"])') != null) &&
+              !(el as HTMLButtonElement).disabled &&
+              el.getClientRects().length > 0 &&
+              getComputedStyle(el).visibility !== 'hidden' &&
+              !el.closest('[inert]'),
+          ) ?? null)
+        : null
+      return {
+        active: describe(document.activeElement),
+        first: describe(first),
+        same: first !== null && document.activeElement === first,
+        insideMain: Boolean(main?.contains(document.activeElement)),
+      }
+    })
+    console.log(
+      `AC-03: Tab after the skip link -> ${next.active}; first control in <main>: ${next.first}`,
+    )
+    expect(
+      next.insideMain,
+      `the Tab after the skip link left <main> (landed on ${next.active})`,
+    ).toBe(true)
+    expect(
+      next.same,
+      `the Tab after the skip link landed on ${next.active}, not <main>'s first control ${next.first}`,
+    ).toBe(true)
   })
 })
 
