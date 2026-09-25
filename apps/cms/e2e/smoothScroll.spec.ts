@@ -63,9 +63,10 @@ test.describe('the site smooth-scrolls like the viewer (XS-06, OI-2)', () => {
     await page.addInitScript(asAHuman)
     await page.goto('/products', { waitUntil: 'networkidle' })
     await page.waitForTimeout(500)
-    expect(await page.evaluate(() => document.documentElement.classList.contains('lenis'))).toBe(
-      false,
-    )
+    expect(
+      await page.evaluate(() => document.documentElement.classList.contains('lenis')),
+      'smooth scroll started for a visitor who asked for reduced motion',
+    ).toBe(false)
     // `lenis-smooth` is a class name only the library itself writes.
     expect(
       bodies.filter((b) => b.includes('lenis-smooth')),
