@@ -152,7 +152,9 @@ describe('fetchViewerData — the retry-timeout ceiling (RO-04)', () => {
 
     let settled: 'pending' | 'resolved' | 'rejected' = 'pending'
     let reason: unknown
-    const attempt = fetchViewerData('rxps', 'wine').then(
+    // Not awaited: a request that is still waiting at 16 s is the failure being tested
+    // for, and awaiting it would turn that into a bare test timeout.
+    void fetchViewerData('rxps', 'wine').then(
       () => {
         settled = 'resolved'
       },
@@ -177,7 +179,6 @@ describe('fetchViewerData — the retry-timeout ceiling (RO-04)', () => {
     expect(settled, 'the request settled before 16 s').toBe('pending')
 
     await vi.advanceTimersByTimeAsync(1)
-    await attempt
     expect(
       settled,
       'still waiting at 16 s: a longer timeout or another retry keeps the visitor on the ' +
