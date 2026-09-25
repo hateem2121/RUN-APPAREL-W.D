@@ -58,8 +58,33 @@ export function startSmoothScroll(): () => void {
   })
   instance = lenis
 
+  /*
+   * ⚠️ ANY OTHER WAY OF MOVING THE PAGE ENDS THE GLIDE (2026-09-25). Lenis ignores native
+   * scroll while it glides and writes its own position every frame, so End pressed mid-glide
+   * was pulled back up: measured on this fixture, 817px short of the bottom in Chromium and
+   * Firefox (`audit-guards.spec.ts` -> FA-F-10 mid-glide case). Found building the site's
+   * copy (apps/cms/src/components/site/SmoothScroll.tsx, which also has to survive
+   * client-side navigation). stop() + start() is Lenis's public reset: its target snaps to
+   * wherever the page really is.
+   */
+  const endGlide = () => {
+    if (lenis.isScrolling !== 'smooth') return
+    lenis.stop()
+    lenis.start()
+  }
+  const onKey = (event: KeyboardEvent) => {
+    if (SCROLL_KEYS.has(event.key)) endGlide()
+  }
+  window.addEventListener('pointerdown', endGlide, { capture: true })
+  window.addEventListener('keydown', onKey, { capture: true })
+
   return () => {
+    window.removeEventListener('pointerdown', endGlide, { capture: true })
+    window.removeEventListener('keydown', onKey, { capture: true })
     lenis.destroy()
     instance = null
   }
 }
+
+/** Keys whose default action scrolls the page; the browser performs it, never Lenis. */
+const SCROLL_KEYS = new Set(['End', 'Home', 'PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', ' '])

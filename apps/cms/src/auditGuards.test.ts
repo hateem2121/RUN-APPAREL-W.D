@@ -54,39 +54,66 @@ function walk(dir: string, extensions: string[]): string[] {
   return out
 }
 
-describe('FA-F-06 — the marketing site scrolls natively; Lenis is the viewer only', () => {
+describe('FA-F-06 / XS-06 — the site smooth-scrolls exactly as the viewer does, from one file', () => {
   /**
-   * MEASURED 2026-09-06: the site's scroll is the browser's, and every scroll-linked
-   * effect it has (the notch condense) is CSS `animation-timeline` with no listener.
-   *
-   * Nothing stopped that changing. Lenis is already in the monorepo for the 3D pages,
-   * so adding it here is one import away — and it is the wrong thing here twice over:
-   * `docs/DESIGN.md` splits the two surfaces deliberately, and the viewer's own audit
-   * rows record what smoothed scrolling costs (FA-F-08: one wheel tick takes 1046 ms to
-   * settle). A marketing page that answers a wheel tick a second later is not the same
-   * page.
+   * ⚠️ THIS GUARD USED TO FORBID LENIS ON THE SITE (2026-09-06), and the owner reversed that
+   * (decision 5; XS-06, OI-2; amendment dated 2026-09-25 in docs/DECISIONS-BETA-WEBSITE.md):
+   * one site, one feel. What it guards now is that the site's smooth scroll stays the
+   * VIEWER'S — same library version, same glide, same trusted-wheel predicate — and stays in
+   * one place, loaded only after the automation / reduced-motion gate. The behaviour itself
+   * (keys, back button, touch, reduced motion) is proven in a browser by
+   * e2e/smoothScroll.spec.ts; this file holds only what a source read can.
    */
-  it('declares no smooth-scroll dependency', () => {
-    const manifest = JSON.parse(read(CMS_ROOT, 'package.json')) as {
-      dependencies?: Record<string, string>
-      devDependencies?: Record<string, string>
-    }
-    const declared = Object.keys({ ...manifest.dependencies, ...manifest.devDependencies })
-    expect(declared.filter((name) => /lenis/i.test(name))).toEqual([])
+  const SMOOTH = join(CMS_ROOT, 'src', 'components', 'site', 'SmoothScroll.tsx')
+  const VIEWER_MOTION = join(REPO_ROOT, 'apps', 'viewer', 'src', 'lib', 'motion.ts')
+
+  it("declares the viewer's exact Lenis version", () => {
+    const version = (dir: string) =>
+      (JSON.parse(read(dir, 'package.json')) as { dependencies?: Record<string, string> })
+        .dependencies?.lenis
+    expect(version(CMS_ROOT)).toBeDefined()
+    expect(version(CMS_ROOT)).toBe(version(join(REPO_ROOT, 'apps', 'viewer')))
   })
 
-  it('never constructs one, and never sets scroll-behavior: smooth', () => {
+  it('names Lenis in one file only, and loads it only by a dynamic import', () => {
+    const offenders: string[] = []
+    for (const file of walk(join(CMS_ROOT, 'src'), ['.ts', '.tsx', '.css'])) {
+      if (file === SMOOTH || /\.test\.tsx?$/.test(file)) continue
+      const source = stripComments(readFileSync(file, 'utf8'))
+      if (/\blenis\b/i.test(source)) offenders.push(file.slice(REPO_ROOT.length + 1))
+    }
+    expect(offenders, 'Lenis spread beyond SmoothScroll.tsx').toEqual([])
+    const source = stripComments(read(SMOOTH))
+    // `import type` is erased at build; a VALUE import would put the library in every
+    // visitor's download, reduced-motion ones included (the viewer's 2026-09-04 trap).
+    expect(source).not.toMatch(/^import\s+(?!type\b)[^;]*from\s+'lenis'/m)
+    expect(source).toMatch(/import\('lenis'\)/)
+  })
+
+  it('glides like the viewer and takes only a wheel a person rolled', () => {
+    const source = stripComments(read(SMOOTH))
+    const viewerDuration = /SCROLL_DURATION_S\s*=\s*([\d.]+)/.exec(read(VIEWER_MOTION))?.[1]
+    const siteDuration = /SITE_SCROLL_DURATION_S\s*=\s*([\d.]+)/.exec(source)?.[1]
+    expect(siteDuration).toBeDefined()
+    expect(siteDuration).toBe(viewerDuration)
+    expect(source).toMatch(/virtualScroll:\s*\(\{\s*event\s*\}\)\s*=>\s*event\.isTrusted/)
+    // The gate runs before the import, not inside the library's options.
+    const gate = source.search(/navigator\.webdriver/)
+    const load = source.search(/import\('lenis'\)/)
+    expect(gate).toBeGreaterThan(-1)
+    expect(gate).toBeLessThan(load)
+  })
+
+  it('never sets scroll-behavior: smooth', () => {
     const offenders: string[] = []
     for (const file of walk(join(CMS_ROOT, 'src'), ['.ts', '.tsx', '.css'])) {
       const source = stripComments(readFileSync(file, 'utf8'))
-      const name = file.slice(REPO_ROOT.length + 1)
-      if (/\blenis\b/i.test(source)) offenders.push(`${name}: names Lenis`)
-      // The hand-rolled version of the same thing. `scroll-behavior: smooth` retargets
-      // every in-page jump, including the skip link, which is the one navigation a
-      // keyboard user has.
-      if (/scroll-behavior:\s*smooth/i.test(source)) offenders.push(`${name}: scroll-behavior`)
+      // `scroll-behavior: smooth` retargets every in-page jump, including the skip link,
+      // which is the one navigation a keyboard user has — and it would fight Lenis.
+      if (/scroll-behavior:\s*smooth/i.test(source))
+        offenders.push(file.slice(REPO_ROOT.length + 1))
     }
-    expect(offenders, 'the marketing site took over the scroll').toEqual([])
+    expect(offenders).toEqual([])
   })
 })
 

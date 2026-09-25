@@ -878,6 +878,55 @@ test.describe('rapid colourway switching settles correctly (FA-H-17)', () => {
   })
 })
 
+test.describe('keyboard scrolling survives a glide in progress (FA-F-10, mid-glide)', () => {
+  test('End pressed while a wheel glide is running still reaches the bottom', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'a phone has no mouse wheel')
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.addInitScript(asAHuman)
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.classList.contains('lenis')), {
+        timeout: 10_000,
+      })
+      .toBe(true)
+    // Let the preloader hand-off and first layout settle before starting the glide.
+    await page.waitForTimeout(1500)
+    // Over the header, never the 3D stage, where a wheel zooms the garment (SC-08).
+    const header = await page.locator('header.notch-shell').boundingBox()
+    if (!header) throw new Error('no header to wheel over')
+    await page.mouse.move(header.x + header.width / 2, header.y + header.height / 2)
+    await page.mouse.wheel(0, 300)
+    await page.waitForTimeout(120)
+    expect(
+      await page.evaluate(() => document.documentElement.classList.contains('lenis-smooth')),
+      'no glide was running when End was pressed, so this case tests nothing',
+    ).toBe(true)
+    await page.keyboard.press('End')
+    // Measured 2026-09-25 before the fix: 817px short, in Chromium and Firefox alike.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() =>
+            Math.round(document.documentElement.scrollHeight - window.innerHeight - window.scrollY),
+          ),
+        { message: 'End pressed mid-glide was pulled back by the glide', timeout: 5_000 },
+      )
+      .toBeLessThanOrEqual(1)
+    await page.waitForTimeout(1500)
+    expect(
+      await page.evaluate(() =>
+        Math.round(document.documentElement.scrollHeight - window.innerHeight - window.scrollY),
+      ),
+      'the page reached the bottom and then the glide dragged it back',
+    ).toBeLessThanOrEqual(1)
+  })
+})
+
 /* ══ FA-F-12 — the smooth layer refuses a wheel event nobody rolled ══════════ */
 
 /**
