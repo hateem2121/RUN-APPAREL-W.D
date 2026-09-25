@@ -556,15 +556,19 @@ test.describe('generic keyboard, focus and naming sweeps on the product page', (
      * fallback. Hide that span and drop the title, and `textContent` is unchanged, so the
      * sweep above still passes on a button that is announced as just "button". Every
      * button in the accessibility tree must have a non-blank computed name.
+     *
+     * One snapshot of the tree, not a loop over live locators: buttons come and go while
+     * the stage loads, and a locator taken before its button left waited for it until the
+     * test timed out (measured on Chromium, 2026-09-25).
      */
-    const buttons = page.getByRole('button')
-    const count = await buttons.count()
-    expect(count, 'no buttons found: the sweep below would pass on nothing').toBeGreaterThan(0)
-    for (let index = 0; index < count; index += 1) {
-      const button = buttons.nth(index)
-      const label = await button.evaluate((el) => `${el.tagName}.${el.className}`)
-      await expect(button, `${label} has no accessible name`).toHaveAccessibleName(/\S/)
-    }
+    const tree = await page.locator('body').ariaSnapshot()
+    const buttonLines = tree.split('\n').filter((line) => /^\s*- button\b/.test(line))
+    expect(
+      buttonLines.length,
+      'no buttons in the tree: the check below would pass on nothing',
+    ).toBeGreaterThan(0)
+    const nameless = buttonLines.filter((line) => !/^\s*- button "[^"]*\S[^"]*"/.test(line))
+    expect(nameless, `buttons with no computed name:\n${nameless.join('\n')}`).toEqual([])
   })
 
   test('AC-11: <html lang> is set, and every colourway URL gets a distinct document title', async ({
