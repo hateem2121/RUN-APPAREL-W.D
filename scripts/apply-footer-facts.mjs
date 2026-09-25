@@ -35,6 +35,8 @@
  * exported, for CI; it is no longer what anyone is handed.
  */
 
+import { pathToFileURL } from 'node:url'
+
 const API_BASE = (process.env.CMS_API_BASE || 'https://cms.wear-run.help').replace(/\/+$/, '')
 /** `let`, not `const`: the prompt in main() assigns the key when the variable is unset. */
 let API_KEY = process.env.CMS_API_KEY || ''
@@ -349,7 +351,12 @@ async function main() {
   console.log('The public site caches content for up to 60 seconds, so give it a minute.')
 }
 
-main().catch((error) => {
-  console.error(`apply-footer-facts: ${error instanceof Error ? error.message : String(error)}`)
-  process.exit(1)
-})
+// Only when run, never when imported: apps/cms/src/footerFacts.test.ts and
+// scripts/footer-facts-probe.mjs import FOOTER_FACTS, and an unguarded main() started a
+// dry run against the live CMS inside each of them.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(`apply-footer-facts: ${error instanceof Error ? error.message : String(error)}`)
+    process.exit(1)
+  })
+}
