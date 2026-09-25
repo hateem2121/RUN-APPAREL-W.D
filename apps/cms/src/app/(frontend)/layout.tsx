@@ -38,6 +38,7 @@ import type { Metadata, Viewport } from 'next'
 import type React from 'react'
 import { Analytics } from '../../components/site/Analytics'
 import { Cursor } from '../../components/site/Cursor'
+import { SmoothScroll } from '../../components/site/SmoothScroll'
 import { JsonLd } from '../../components/site/JsonLd'
 import { SiteFooter } from '../../components/site/SiteFooter'
 import { SiteHeader } from '../../components/site/SiteHeader'
@@ -161,6 +162,8 @@ export default async function FrontendLayout({ children }: { children: React.Rea
         <Analytics />
         {/* The viewer's dot-and-ring cursor, dependency-free; fine pointers only. */}
         <Cursor />
+        {/* The viewer's smooth scroll: trusted wheels only, off under reduced motion. */}
+        <SmoothScroll />
       </body>
     </html>
   )
