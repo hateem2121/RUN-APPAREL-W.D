@@ -22,6 +22,7 @@ import { registerServiceWorker } from './lib/registerServiceWorker'
 import { initErrorTracking } from './lib/sentry'
 import { initTelemetry } from './lib/telemetry'
 import { initWebVitals } from './lib/webVitals'
+import { preload3DAssets } from './lib/preload3d'
 
 initErrorTracking()
 initTelemetry()
@@ -90,3 +91,6 @@ root.render(
     </ErrorBoundary>
   </StrictMode>,
 )
+
+// After mount, not in index.html: see src/lib/preload3d.ts (RO-08).
+preload3DAssets()
