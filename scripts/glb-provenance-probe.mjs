@@ -130,7 +130,7 @@ export function modelUrlsFromPayload(body) {
  * Pure: IM-02b for models. The posters' own rule (`judgePosters`: each file against its
  * family's median, flagged at 2x), with no owner exceptions: none has been granted for
  * a model. Measured 2026-09-25: 1.89-8.14 MB, worst 1.66x its family median, 0 flagged.
- * @param {Array<{ key: string, slug?: string, family?: string, bytes?: number }>} observations
+ * @param {Observation[]} observations
  */
 export function judgeModelSizes(observations) {
   const samples = observations
@@ -217,15 +217,26 @@ export function extractGlbJsonChunk(bytes) {
 }
 
 /**
- * Turn observations into a verdict. Pure — no network, so a planted fault can be
- * proven against a synthetic chunk rather than a live model.
+ * One model file as the probe saw it. Every field but `key` is optional: an unreadable
+ * file carries only `error`, a unit fixture only what it models.
  *
- * @param {{
+ * @typedef {{
  *   key: string,
+ *   slug?: string,
+ *   family?: string,
  *   status?: number,
  *   jsonChunk?: string,
  *   error?: string,
- * }[]} observations
+ *   bytes?: number,
+ *   cache?: string[],
+ * }} Observation
+ */
+
+/**
+ * Turn observations into a verdict. Pure — no network, so a planted fault can be
+ * proven against a synthetic chunk rather than a live model.
+ *
+ * @param {Observation[]} observations
  * @returns {{ ok: boolean, measured: number, failures: string[], inconclusive: string[], lines: string[] }}
  */
 export function evaluate(observations) {
@@ -314,6 +325,7 @@ export function evaluate(observations) {
 }
 
 /** One product: its payload, then every distinct model file it serves. */
+/** @returns {Promise<Observation[]>} */
 async function probeOne(target) {
   let body
   try {
@@ -341,6 +353,7 @@ async function probeOne(target) {
 }
 
 /** One model file: a ranged GET for the JSON chunk and size, then a 1-byte GET for the cache. */
+/** @returns {Promise<Observation>} */
 async function probeUrl(key, url) {
   let response
   try {
@@ -400,6 +413,7 @@ async function probeUrl(key, url) {
   }
 }
 
+/** @returns {Promise<Observation[]>} */
 export async function probe(targets = TARGETS) {
   return (await Promise.all(targets.map(probeOne))).flat()
 }
