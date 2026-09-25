@@ -1444,25 +1444,48 @@ test.describe('FRONT/BACK/SIDE each move the camera and settle (MO-14)', () => {
         return mv.getCameraOrbit?.() ?? null
       })
 
-    const settle = async () => {
-      // Poll until two consecutive reads match — same shape as camera-settle.spec.ts's
-      // "six consecutive frames" rule, loosened to two since this budget is generous
-      // (a preset jump, not a flung drag with momentum).
-      let previous = await readOrbit()
-      for (let i = 0; i < 60; i++) {
-        await page.waitForTimeout(50)
-        const current = await readOrbit()
-        if (
-          previous &&
-          current &&
-          Math.abs(current.theta - previous.theta) < 0.0001 &&
-          Math.abs(current.phi - previous.phi) < 0.0001
-        ) {
-          return current
-        }
-        previous = current
+    // Count still frames INSIDE requestAnimationFrame, i.e. only frames the browser drew.
+    //
+    // ⚠️ NOT "two equal reads 50ms apart", which is what this was until 2026-09-25 and
+    // what failed main's WebKit twice after #51 ('side: the camera did not turn to the
+    // preset', delta 0.197 and 0.182). Two reads with NO FRAME BETWEEN THEM are equal
+    // because nothing was drawn, not because the camera stopped. CI's WebKit renders in
+    // software, so a frame can take longer than 50ms. Reproduced by delaying every frame
+    // 60ms with the page idle: the old helper called BACK settled at θ 3.046 (final
+    // 3.142) and SIDE at θ 2.490 (final 1.571). A BACK "settled" halfway round leaves SIDE
+    // (90°) starting ~101°, only ~0.19 rad from its goal, which is the CI number. A frame
+    // that never arrives cannot count as still here. Six frames, as in camera-settle.spec.ts:
+    // a damper can pass through one near-zero step on its way down.
+    await page.evaluate(() => {
+      const w = window as Window & { __mo14Quiet?: number }
+      const mv = document.querySelector('model-viewer') as Element & {
+        getCameraOrbit?: () => { theta: number; phi: number }
       }
-      throw new Error('camera never settled within 3s')
+      let last = mv.getCameraOrbit?.()
+      w.__mo14Quiet = 0
+      const tick = () => {
+        const now = mv.getCameraOrbit?.()
+        if (now && last) {
+          const still =
+            Math.abs(now.theta - last.theta) < 0.0001 && Math.abs(now.phi - last.phi) < 0.0001
+          w.__mo14Quiet = still ? (w.__mo14Quiet ?? 0) + 1 : 0
+        }
+        last = now
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+
+    const settle = async () => {
+      // Called only after the move has STARTED (the poll below), so every quiet frame it
+      // counts comes after motion: the counter resets to 0 on any frame that moves.
+      await expect
+        .poll(
+          () => page.evaluate(() => (window as Window & { __mo14Quiet?: number }).__mo14Quiet ?? 0),
+          { message: 'camera never settled within 3s', timeout: 3_000, intervals: [50] },
+        )
+        .toBeGreaterThanOrEqual(6)
+      return readOrbit()
     }
 
     for (const view of ['front', 'back', 'side'] as const) {
