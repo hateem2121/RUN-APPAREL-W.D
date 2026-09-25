@@ -219,6 +219,17 @@ test.describe('the site smooth-scrolls like the viewer (XS-06, OI-2)', () => {
 })
 
 test.describe('touch stays the browser’s own scroll (XS-06)', () => {
+  /*
+   * ⚠️ THIS CASE CAN ONLY RUN WHERE THE BROWSER SCROLLS ON A SYNTHESIZED TOUCH. Measured
+   * 2026-09-25: CI's Linux Chromium (mcr.microsoft.com/playwright:v1.62.1-noble, reproduced
+   * on this Mac in that image) moves the page 0px for `Input.synthesizeScrollGesture` with a
+   * touch source, with and without `hasTouch`; macOS Chromium scrolls it. A 0px gesture is
+   * the setup not landing, so the case skips WITH that number rather than asserting on a
+   * page that never moved (the rule .github/CLAUDE.md records for CI's WebKit). On macOS it
+   * is a real check: `syncTouch: true` planted in SmoothScroll.tsx turned it red.
+   */
+  test.use({ hasTouch: true })
+
   test('a finger scroll never runs a smooth glide; a wheel does (the control)', async ({
     page,
     browserName,
@@ -248,7 +259,9 @@ test.describe('touch stays the browser’s own scroll (XS-06)', () => {
       gestureSourceType: 'touch',
     })
     await page.waitForTimeout(1600)
-    expect(await scrollY(page), 'the touch gesture did not scroll at all').toBeGreaterThan(100)
+    const moved = await scrollY(page)
+    test.skip(moved === 0, 'this browser moved 0px for a synthesized touch; nothing to judge')
+    expect(moved, 'the touch gesture barely scrolled').toBeGreaterThan(100)
     expect(await glided(), 'a finger scroll was taken over by the smooth layer').toBe(false)
 
     await waitForStill(page)
