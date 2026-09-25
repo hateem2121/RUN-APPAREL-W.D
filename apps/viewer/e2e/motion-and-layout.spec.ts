@@ -3490,20 +3490,40 @@ test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', 
         configurable: true,
       })
     })
+    /*
+     * ⚠️ TWO `.preloader` ELEMENTS, ONE AFTER THE OTHER (RO-08, 2026-09-25). index.html
+     * paints a static copy inside #root so slow 3G shows something before React arrives;
+     * React's first render replaces it with the component that times and wipes. So the
+     * floor is timed from when the element that WIPES appeared (`mount`), which is when
+     * Preloader.tsx starts its 400ms, and the transition and sentence are read as it
+     * begins to leave, when the stylesheet has certainly applied. Read at the first
+     * appearance instead, the static copy is still unstyled ("all 0s") and the floor would
+     * include however long the JavaScript took, so a deleted dwell timer would still pass.
+     * `appear` stays the first paint a visitor sees, reported but not asserted.
+     */
     await page.addInitScript(() => {
       const log: {
         appear: number
+        mount: number
         exit: number
         gone: number
         transition: string
         sentence: string
-      } = { appear: -1, exit: -1, gone: -1, transition: '', sentence: '' }
+      } = { appear: -1, mount: -1, exit: -1, gone: -1, transition: '', sentence: '' }
       ;(window as unknown as { __preloader: typeof log }).__preloader = log
+      let current: Element | null = null
+      let currentSince = -1
       new MutationObserver(() => {
         const el = document.querySelector('.preloader')
         const now = performance.now()
-        if (el && log.appear < 0) {
-          log.appear = now
+        if (el && log.appear < 0) log.appear = now
+        if (el && el !== current) {
+          current = el
+          currentSince = now
+        }
+        if (el?.classList.contains('preloader--exit') && log.exit < 0) {
+          log.exit = now
+          log.mount = currentSince
           const cs = getComputedStyle(el)
           log.transition = `${cs.transitionProperty} ${cs.transitionDuration}`
           // Readable = has text and neither it nor an ancestor is aria-hidden.
@@ -3513,7 +3533,6 @@ test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', 
             .filter(Boolean)
             .join(' | ')
         }
-        if (el?.classList.contains('preloader--exit') && log.exit < 0) log.exit = now
         if (!el && log.appear >= 0 && log.gone < 0) log.gone = now
       }).observe(document, { subtree: true, childList: true, attributes: true })
     })
@@ -3526,6 +3545,7 @@ test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', 
           window as unknown as {
             __preloader: {
               appear: number
+              mount: number
               exit: number
               gone: number
               transition: string
@@ -3535,13 +3555,14 @@ test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', 
         ).__preloader,
     )
     console.log(
-      `MO-10: dwell ${Math.round(p.exit - p.appear)}ms, wipe-to-unmount ${Math.round(p.gone - p.exit)}ms, ` +
+      `MO-10: first paint to exit ${Math.round(p.exit - p.appear)}ms, dwell ${Math.round(p.exit - p.mount)}ms, ` +
+        `wipe-to-unmount ${Math.round(p.gone - p.exit)}ms, ` +
         `transition "${p.transition}", sentence "${p.sentence}"`,
     )
     expect(p.appear, 'the preloader never appeared').toBeGreaterThanOrEqual(0)
-    expect(p.exit, 'the preloader never began its exit').toBeGreaterThan(p.appear)
+    expect(p.exit, 'the preloader never began its exit').toBeGreaterThan(p.mount)
     // 16ms of slack: the observer fires on the mutation's microtask, not the timer's tick.
-    expect(p.exit - p.appear, 'the preloader left before its 400ms floor').toBeGreaterThanOrEqual(
+    expect(p.exit - p.mount, 'the preloader left before its 400ms floor').toBeGreaterThanOrEqual(
       384,
     )
     expect(p.transition, 'the wipe is not clip-path over --slow').toBe('clip-path 0.8s')

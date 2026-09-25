@@ -57,6 +57,12 @@ test.describe('PF-16 — render-blocking discipline (viewer product page)', () =
    * different (production-shaped) page. 4 `rel="preload"` (meshopt decoder, the HDR
    * environment map, 2 font subsets) + 3 `rel="modulepreload"` (rolldown-runtime,
    * react, preload-helper) = 7.
+   *
+   * Re-measured 2026-09-25 after RO-08: 2 `rel="preload"` (the 2 font subsets) + the same
+   * 3 = 5. The meshopt decoder and the HDR map left index.html on purpose: on slow 3G they
+   * shared the first seconds with the one blocking stylesheet and held first paint back
+   * (5.2 s against 4.4 s on this harness). `src/lib/preload3d.ts` adds both from the app
+   * after its first render, and `scripts/preload.test.ts` pins that they are not here.
    */
   test('preload + modulepreload count matches the measured baseline', async ({ baseURL }) => {
     const ctx = await request.newContext()
@@ -70,7 +76,7 @@ test.describe('PF-16 — render-blocking discipline (viewer product page)', () =
       preloadCount,
       `preload count drifted (${preloadCount}) — re-measure before changing this number, ` +
         'do not just raise it',
-    ).toBe(4)
+    ).toBe(2)
     expect(
       modulePreloadCount,
       `modulepreload count drifted (${modulePreloadCount}) — re-measure before changing this ` +
