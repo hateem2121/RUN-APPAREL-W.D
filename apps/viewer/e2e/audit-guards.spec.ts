@@ -493,8 +493,8 @@ test.describe('the e2e fixture stays production-shaped (FA-T-10)', () => {
 /* ══ FA-F-10 — keyboard scrolling survives Lenis ════════════════════════════ */
 
 /**
- * End → 1413 (scrollHeight 2313 − viewport 900, the true bottom), Home → 0,
- * PageDown → 860, with the keydown counter asserted first.
+ * End → the true bottom (1094 at 1280x900 on 2026-09-26: scrollHeight 1994 − viewport
+ * 900; it was 1413 before the page got shorter), Home → 0, PageDown → past 100.
  *
  * ⚠️ THIS IS THE TEST THAT MOST EASILY MEASURES NOTHING, and the reason is in
  * `polish/index.ts`: Lenis is not merely disabled under automation, it is never
@@ -538,8 +538,9 @@ test.describe('keyboard scrolling survives Lenis (FA-F-10)', () => {
      * CI's own image here never did. So the evidence has to come from CI: every change of scroll
      * position, page height, Lenis state and focused element, and every key with whether any
      * handler prevented its default, goes into the failure message. The owner chose to keep
-     * investigating rather than retry a lost key (2026-09-26); read that log before changing the
-     * test.
+     * investigating rather than retry a lost key (2026-09-26). The Home cause was then found
+     * the same day (see `waitForStill` below); the recorder stays so the next failure, if
+     * any, arrives explained. Read that log before changing the test.
      */
     await page.evaluate(() => {
       const w = window as unknown as { __fl: string[] }
@@ -598,19 +599,34 @@ test.describe('keyboard scrolling survives Lenis (FA-F-10)', () => {
      * platform, not a keyboard-swallowing smooth layer. The End check passes within 1px of
      * the bottom, before the animation has formally ended, which is how 'Home did not return
      * to the top' failed on CI's WebKit (both attempts, main run 36079665099; 1 in 20 here).
-     * Still = the same scrollY over three reads 100ms apart, and no lenis-scrolling class.
+     *
+     * 🔴 AND A STILL scrollY IS NOT A STILL PAGE — this was the flake's root cause (found
+     * 2026-09-26 from CI's 'Home did not return to the top', Received 1094/1095 three times,
+     * which is the BOTTOM: Home had done nothing). End brings the contact block and footer
+     * into view, their `[data-reveal]` slide starts 24px low, and that offset makes the
+     * document 24px LONGER until it lands. WebKit scrolls to that longer bottom (1118) and
+     * then HOLDS scrollY frozen for the whole 0.8s slide, so three equal reads 100ms apart
+     * pass mid-slide. When the slide lands WebKit trims the page and snaps to 1094 — and
+     * that snap CANCELS a keyboard scroll that has just started. Measured in CI's image by
+     * pressing Home at fixed delays after End: lost 5 of 28 around 775–890ms (Home
+     * elsewhere: 0 lost), and 7 of 28 with Lenis's chunk refused by the network, so it is
+     * the platform, not the smooth layer. Chromium instead follows the shrinking page frame
+     * by frame. So "still" now also means: page height unchanged across the reads, and no
+     * reveal transition running.
      */
     const waitForStill = async () => {
-      let last = -1
+      let last = ''
       let same = 0
       for (let i = 0; i < 50 && same < 3; i++) {
         await page.waitForTimeout(100)
-        const now = await page.evaluate(() =>
-          document.documentElement.classList.contains('lenis-scrolling')
-            ? -2
-            : Math.round(window.scrollY),
-        )
-        same = now >= 0 && now === last ? same + 1 : 0
+        const now = await page.evaluate(() => {
+          const sliding = [...document.querySelectorAll('[data-reveal]')].some((el) =>
+            el.getAnimations().some((a) => a.playState === 'running'),
+          )
+          if (sliding || document.documentElement.classList.contains('lenis-scrolling')) return ''
+          return `${Math.round(window.scrollY)}/${document.documentElement.scrollHeight}`
+        })
+        same = now !== '' && now === last ? same + 1 : 0
         last = now
       }
       if (same < 3) throw new Error('the page never came to rest within 5s')
