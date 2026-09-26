@@ -3485,10 +3485,22 @@ test.describe('the motion layer keeps its contracts (MO-03, MO-04, MO-17)', () =
     // rates are not obtainable there). The duration itself is pinned by the test above, which
     // reads the declared `scale` transition off the stylesheet; landing inside the 400ms hold
     // is what "promptly" still asserts here.
+    // ⚠️ THE START IS COUNTED IN FRAMES, NOT MILLISECONDS (2026-09-26). It asked "within 100ms"
+    // and failed CI's WebKit at 151 and 268ms (runs 36149983039, 36157796251) while the Mac read
+    // 3-56ms: on a loaded runner the FRAMES are that far apart, so the first sample after the
+    // press is late however promptly the page answered — the same frame pacing the landing note
+    // above already excuses. "The next frame or the one after" is what a prompt press looks like
+    // at any frame rate; a real delay (a planted 150ms `transition-delay` is ~9 frames here) still
+    // fails it.
+    const startFrame = after.findIndex((f) => f.scale !== 'none')
     expect(
-      (started?.t ?? Number.POSITIVE_INFINITY) - down,
-      'the press did not start answering within 100ms',
-    ).toBeLessThanOrEqual(100)
+      startFrame,
+      `the press did not start answering within 2 frames (first change ${Math.round((started?.t ?? Number.NaN) - down)}ms after pointerdown)`,
+    ).toBeGreaterThanOrEqual(0)
+    expect(
+      startFrame,
+      `the press did not start answering within 2 frames (first change ${Math.round((started?.t ?? Number.NaN) - down)}ms after pointerdown)`,
+    ).toBeLessThanOrEqual(2)
     expect(
       after.filter((f) => f.transform !== 'none').map((f) => f.transform),
       'the press moved `transform`, which the cursor magnet owns',
