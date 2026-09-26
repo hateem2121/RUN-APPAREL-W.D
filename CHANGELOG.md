@@ -35,6 +35,7 @@ timeline
 ### Fixed
 
 - The script that draws the website's sharing picture runs again after the test-tool upgrade.
+- The shrink robot's container gets the same small updates the rest of the code got.
 
 ## [2026.09.25] — the website launch
 
