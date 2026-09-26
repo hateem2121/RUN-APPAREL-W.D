@@ -15,6 +15,22 @@ import { expect, test } from './offlineMedia'
  * tests around `validateInquiry` and by the route handler's own ordering, which puts the
  * `payload.create` before the `fetch` to Resend.
  */
+
+/**
+ * ⚠️ EVERY POST THAT REACHES THE RATE LIMIT CARRIES ITS OWN ADDRESS (2026-09-26). Without
+ * one, `checkInquiryRate` buckets on the socket address, and Chromium and Firefox share one
+ * `next start`. Until Playwright 1.63 that worked by accident: its Firefox 153 connected as
+ * `::ffff:127.0.0.1` and Chromium as `::1`, two buckets. 1.63's Firefox 155 connects as
+ * `::1` too, so the six header-less POSTs of one run (three tests x two projects) met
+ * `MAX_PER_IP` = 5 and the sixth read `error=too-many`, every run, whichever test was
+ * last. TEST-NET-1 (192.0.2.0/24, RFC 5737) in one band per project, so these can never
+ * meet each other or `inquirySecurity.spec.ts`'s TEST-NET-2 and TEST-NET-3 addresses.
+ */
+function ownAddress(projectName: string) {
+  const base = projectName === 'firefox' ? 130 : 10
+  return `192.0.2.${base + Math.floor(Math.random() * 100)}`
+}
+
 test.describe('the inquiry form', () => {
   test('renders with a label on every field and no honeypot in reach', async ({ page }) => {
     await page.goto('/contact')
@@ -125,7 +141,8 @@ test.describe('the inquiry form', () => {
     await expect(page).toHaveURL(/\/contact$/)
   })
 
-  test('a complete inquiry is accepted and the visitor is told so', async ({ page }) => {
+  test('a complete inquiry is accepted and the visitor is told so', async ({ page }, testInfo) => {
+    await page.setExtraHTTPHeaders({ 'cf-connecting-ip': ownAddress(testInfo.project.name) })
     await page.goto('/contact')
     await page.fill('.inquiry-form [name="name"]', 'Dana Okafor')
     await page.fill('.inquiry-form [name="company"]', 'Northfield Athletic')
@@ -171,9 +188,13 @@ test.describe('the inquiry form', () => {
     expect(res.headers().location).toContain('sent=1')
   })
 
-  test('a POST with nothing in it does not 500', async ({ request }) => {
+  test('a POST with nothing in it does not 500', async ({ request }, testInfo) => {
     // A hand-crafted request can send anything; the handler must answer, not crash.
-    const res = await request.post('/contact/submit', { form: {}, maxRedirects: 0 })
+    const res = await request.post('/contact/submit', {
+      form: {},
+      headers: { 'cf-connecting-ip': ownAddress(testInfo.project.name) },
+      maxRedirects: 0,
+    })
     expect(res.status()).toBe(303)
     expect(res.headers().location).toContain('error=')
   })
@@ -181,7 +202,8 @@ test.describe('the inquiry form', () => {
   test.describe('with scripting off', () => {
     test.use({ javaScriptEnabled: false })
 
-    test('the form is a real form and still submits', async ({ page }) => {
+    test('the form is a real form and still submits', async ({ page }, testInfo) => {
+      await page.setExtraHTTPHeaders({ 'cf-connecting-ip': ownAddress(testInfo.project.name) })
       await page.goto('/contact')
       const action = await page.locator('.inquiry-form').getAttribute('action')
       const method = await page.locator('.inquiry-form').getAttribute('method')
