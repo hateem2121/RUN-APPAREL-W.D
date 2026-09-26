@@ -35,6 +35,7 @@ import { resolveTxt } from 'node:dns/promises'
 import { SECURITY_TXT, securityTxtProblems } from '../packages/shared/src/securityTxt.ts'
 import { TRAINING_ONLY_UAS } from '../apps/cms/htmlLimitedBots.mjs'
 import { agentsOf, lower, robotsTxtGroups } from '../apps/cms/src/lib/robotsTxtParse.ts'
+import { realpathSync } from 'node:fs'
 
 const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
 
@@ -418,6 +419,6 @@ async function main() {
   )
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   await main()
 }

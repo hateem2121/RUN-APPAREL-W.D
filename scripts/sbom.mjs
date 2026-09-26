@@ -50,7 +50,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { writeFileSync } from 'node:fs'
+import { realpathSync, writeFileSync } from 'node:fs'
 
 /**
  * Licences that must never appear. Strong copyleft and source-available licences
@@ -195,6 +195,6 @@ function main() {
   console.log('[sbom] licence policy passed.')
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main()
 }

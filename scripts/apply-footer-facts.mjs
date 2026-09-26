@@ -35,7 +35,7 @@
  * exported, for CI; it is no longer what anyone is handed.
  */
 
-import { pathToFileURL } from 'node:url'
+import { realpathSync } from 'node:fs'
 
 const API_BASE = (process.env.CMS_API_BASE || 'https://cms.wear-run.help').replace(/\/+$/, '')
 /** `let`, not `const`: the prompt in main() assigns the key when the variable is unset. */
@@ -354,7 +354,7 @@ async function main() {
 // Only when run, never when imported: apps/cms/src/footerFacts.test.ts and
 // scripts/footer-facts-probe.mjs import FOOTER_FACTS, and an unguarded main() started a
 // dry run against the live CMS inside each of them.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(`apply-footer-facts: ${error instanceof Error ? error.message : String(error)}`)
     process.exit(1)

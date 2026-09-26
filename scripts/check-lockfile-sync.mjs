@@ -26,7 +26,7 @@
  * tools/asset-pipeline/CLAUDE.md.
  */
 
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -135,7 +135,7 @@ export function check(root = REPO_ROOT, targets = NPM_LOCKED) {
   )
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   const problems = check()
   if (problems.length > 0) {
     for (const problem of problems) console.error(`::error::${problem}`)

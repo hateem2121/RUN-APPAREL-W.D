@@ -31,6 +31,7 @@
  *   node apps/cms/scripts/content-density-report.mjs [--base-url https://wear-run.help]
  */
 import { chromium } from '@playwright/test'
+import { realpathSync } from 'node:fs'
 
 const BASE_URL = (() => {
   const flagIndex = process.argv.indexOf('--base-url')
@@ -90,7 +91,7 @@ async function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(error)
     process.exitCode = 1

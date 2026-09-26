@@ -23,6 +23,8 @@
  * measured and above where a single slow visitor could ever move the number on a
  * busy day, so it flags a real gap without firing on ordinary variance.
  */
+import { realpathSync } from 'node:fs'
+
 export const FLAG_BELOW = 0.85
 
 /**
@@ -94,7 +96,7 @@ export function summarizeModelLoadRate(rows, { today, cutoff }) {
   return { fullDays: full.length, flagged, summary: lines.join('\n') }
 }
 
-const isMain = process.argv[1] && import.meta.url === `file://${process.argv[1]}`
+const isMain = process.argv[1] && import.meta.filename === realpathSync(process.argv[1])
 if (isMain) {
   const { readFileSync } = await import('node:fs')
   const path = process.argv[2]

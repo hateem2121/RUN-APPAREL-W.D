@@ -32,8 +32,7 @@
  * Exit: 0 all within limits (or, with --self-test, the injected jank was caught);
  * 1 a phase over its limit (or the self-test caught nothing); 2 the probe itself broke.
  */
-import { writeFileSync } from 'node:fs'
-import { pathToFileURL } from 'node:url'
+import { realpathSync, writeFileSync } from 'node:fs'
 import { chromium } from '@playwright/test'
 
 export const DEFAULT_URL = 'https://wear-run.help/'
@@ -197,7 +196,7 @@ async function main() {
   process.exit(verdict.entrance.ok && verdict.scroll.ok ? 0 : 1)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(
       `frame-smoothness-probe: ${error instanceof Error ? error.message : String(error)}`,

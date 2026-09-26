@@ -26,7 +26,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -142,4 +142,4 @@ function main() {
   console.log('✓ every maintained document is reachable from docs/README.md.')
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) main()
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) main()

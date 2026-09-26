@@ -34,7 +34,7 @@
  */
 
 import { DatabaseSync } from 'node:sqlite'
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 
 /**
  * Tables that must contain at least one row for the backup to be worth keeping.
@@ -314,6 +314,6 @@ function main() {
   console.log(`[verify-backup] restored cleanly: ${rows.length} tables, 0 foreign-key violations.`)
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main()
 }

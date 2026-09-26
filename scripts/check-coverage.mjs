@@ -24,7 +24,7 @@
  * check. `--max-age-minutes` exists for that and CI passes it.
  */
 
-import { readFileSync, statSync } from 'node:fs'
+import { readFileSync, realpathSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -152,6 +152,6 @@ function main() {
 }
 
 // Only run when invoked directly, so the test can import `evaluate`.
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main()
 }

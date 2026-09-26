@@ -45,6 +45,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { realpathSync } from 'node:fs'
 
 // ─── Honesty label — printed once in full, then a short tag on every PASS/FAIL line ──
 //
@@ -662,7 +663,7 @@ async function main() {
   process.exitCode = exitCode
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(error)
     process.exitCode = 1

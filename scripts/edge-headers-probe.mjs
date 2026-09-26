@@ -15,8 +15,8 @@
  *
  *   node scripts/edge-headers-probe.mjs
  */
-import { pathToFileURL } from 'node:url'
 import { DEFAULT_PRODUCT } from './live-products.mjs'
+import { realpathSync } from 'node:fs'
 
 export const VIEWER_PAGE_URL = `https://viewer.wear-run.help/${DEFAULT_PRODUCT.slug}/${DEFAULT_PRODUCT.colourway}`
 export const CMS_PAGE_URL = 'https://wear-run.help/'
@@ -243,7 +243,7 @@ async function main() {
   process.exit(failed ? 1 : 0)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(`edge-headers-probe: ${error instanceof Error ? error.message : String(error)}`)
     process.exit(2)

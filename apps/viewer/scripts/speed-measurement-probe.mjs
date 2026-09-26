@@ -29,9 +29,9 @@
  *
  *   node apps/viewer/scripts/speed-measurement-probe.mjs
  */
-import { pathToFileURL } from 'node:url'
 import { chromium } from '@playwright/test'
 import { DEFAULT_PRODUCT } from '../../../scripts/live-products.mjs'
+import { realpathSync } from 'node:fs'
 
 export const VIEWER_URL = `https://viewer.wear-run.help/${DEFAULT_PRODUCT.slug}/${DEFAULT_PRODUCT.colourway}`
 export const RUNS = 5
@@ -225,7 +225,7 @@ async function main() {
   console.log(JSON.stringify(summary, null, 2))
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(
       `speed-measurement-probe: ${error instanceof Error ? error.message : String(error)}`,

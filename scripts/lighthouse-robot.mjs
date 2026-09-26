@@ -55,10 +55,10 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 import { DEFAULT_PRODUCT } from './live-products.mjs'
 
 export const LIGHTHOUSE_VERSION = '13.5.0'
@@ -479,7 +479,7 @@ async function main() {
   if (!ok && !args.report) process.exit(1)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(`::error::${error instanceof Error ? error.message : String(error)}`)
     process.exit(1)

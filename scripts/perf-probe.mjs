@@ -38,6 +38,7 @@
  */
 
 import { LIVE_PRODUCTS } from './live-products.mjs'
+import { realpathSync } from 'node:fs'
 
 /**
  * Thresholds, from the live measurements recorded in docs/QA-CHECKLIST.md.
@@ -201,6 +202,6 @@ async function main() {
   console.log('[perf-probe] within thresholds.')
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   await main()
 }

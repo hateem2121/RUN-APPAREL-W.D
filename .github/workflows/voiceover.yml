@@ -184,7 +184,7 @@ jobs:
       # VITE_API_BASE_URL='' is required, not optional: apps/viewer/src/lib/api.ts defaults
       # to the PRODUCTION API otherwise (apps/viewer/CLAUDE.md, "Driving the built app by
       # hand needs VITE_API_BASE_URL=''"), and this robot must never reach a wear-run.help
-      # host — a live page write real visit rows into the owner's analytics, and would 404
+      # host — a live page would write real visit rows into the owner's analytics, and would 404
       # in any case (the n001 fixture slug is not the live product; the live one is rxps).
       - name: Build the viewer against the local fixture API
         run: pnpm --filter @run-apparel/viewer build

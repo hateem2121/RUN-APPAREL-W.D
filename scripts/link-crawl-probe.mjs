@@ -42,6 +42,7 @@
 // plain Node (it is a CLI, not bundled), and the package name is resolvable only from
 // inside a workspace member's own node_modules, not from scripts/ at the repo root.
 import { DEFAULT_SITE_SETTINGS } from '../packages/shared/src/defaults.ts'
+import { realpathSync } from 'node:fs'
 
 /** Statuses that mean "ask again later", not "the link is broken" — same set every probe here uses. */
 const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
@@ -364,7 +365,7 @@ export async function crawl(seeds = SEEDS, { crawlableHosts = CRAWLABLE_HOSTS } 
   return { links, mixedContent }
 }
 
-const isMain = process.argv[1] && import.meta.url === `file://${process.argv[1]}`
+const isMain = process.argv[1] && import.meta.filename === realpathSync(process.argv[1])
 if (isMain) {
   const started = Date.now()
   const observed = await crawl()
