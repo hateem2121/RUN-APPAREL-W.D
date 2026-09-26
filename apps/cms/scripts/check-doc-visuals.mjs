@@ -97,7 +97,13 @@ async function renderAll(files) {
 // a URL comparison breaks on a path with a space.
 if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
-  const files = execFileSync('git', ['ls-files', '*.md'], { cwd: root, encoding: 'utf8' })
+  // `-c safe.directory`: in CI this runs as root inside the Playwright container, where
+  // actions/checkout marks the workspace safe only in a TEMPORARY config it then drops,
+  // so a plain `git ls-files` can refuse with "dubious ownership" and fail the e2e job.
+  const files = execFileSync('git', ['-c', `safe.directory=${root}`, 'ls-files', '*.md'], {
+    cwd: root,
+    encoding: 'utf8',
+  })
     .split('\n')
     .filter((f) => f && !f.startsWith('docs/archive/'))
     .map((f) => join(root, f))
