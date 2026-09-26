@@ -41,11 +41,12 @@ const MAX_BREADCRUMBS = 20
 /**
  * Strip everything that could carry a visitor rather than a fault.
  *
- * Written as belt-and-braces: no query string is used by this app today, and
- * `sendDefaultPii: false` already suppresses most of this. Both of those are
- * facts about the CURRENT code, and this function is what keeps the guarantee if
- * either changes — a future filter or share link in the URL would otherwise start
- * flowing to a third party silently.
+ * Written as belt-and-braces: no query string is used by this app today. Since the
+ * Sentry 11 upgrade (2026-09-26) the SDK's wider defaults are on, so this is now the
+ * ONLY thing keeping cookies, headers, bodies, `user` and the query string out of an
+ * event — it does not stop the IP address, which Sentry infers at ingestion (see
+ * `dataCollection` below). A future filter or share link in the URL would otherwise
+ * start flowing to a third party silently.
  */
 export function scrub(event: Record<string, unknown>): Record<string, unknown> {
   delete event.user
@@ -201,7 +202,14 @@ export function initErrorTracking(): void {
       // Errors only — no performance/replay traffic, to stay comfortably inside
       // the free tier and send nothing the viewer doesn't need.
       tracesSampleRate: 0,
-      sendDefaultPii: false,
+      // ⚠️ `dataCollection` IS LEFT UNSET ON PURPOSE — owner's decision, 2026-09-26, at the
+      // Sentry 10 -> 11 upgrade, asked twice. v11 removed `sendDefaultPii` and its defaults
+      // are wider: `userInfo: true` makes the browser client send `infer_ip: "auto"`, so
+      // Sentry's ingestion records the visitor's IP address (v10 with `sendDefaultPii: false`
+      // sent "never"). `scrub` below cannot undo that: the flag rides in the SDK metadata,
+      // not in the event it edits. The privacy page (apps/cms/src/app/(frontend)/privacy)
+      // says so in the same change. Setting `dataCollection: { userInfo: false }` restores
+      // the old behaviour — change that page back in the SAME commit if you do.
       maxBreadcrumbs: MAX_BREADCRUMBS,
       // Crawler and extension noise, dropped by the SDK before it costs quota.
       ignoreErrors: IGNORED_ERRORS,

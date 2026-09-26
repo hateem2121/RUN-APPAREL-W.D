@@ -37,27 +37,33 @@ const BIN = 'codebase-memory-mcp'
  * moves the whole project to a different build, and the first sign of it is a
  * graph that answers differently. Dependabot does not watch any of this.
  *
- * Everything docs/AI-TOOLING.md states as measured — 1,446 nodes / ~2,550 edges,
- * the 8-tools-at-startup handshake, the `.cbmignore` node counts, the ADR
- * lifecycle table — was measured on 0.9.0. A different build invalidates those
- * numbers without changing a single line of this repo.
+ * docs/AI-TOOLING.md states which numbers were measured on which build. 0.9.0 ->
+ * 0.11.0 (2026-09-26, owner-approved) changed three of them on the same tree: startup
+ * tools 8 -> 17, edges 18,088 -> 22,838 (a new CALL_REFERENCE edge class), and the cli
+ * output contract (see `cli` below). A different build invalidates those numbers
+ * without changing a single line of this repo.
  *
- * Upstream's only newer release is the `0.9.1-rc.1` prerelease (2026-07-30),
- * described as rearchitecting the backend around a coordination daemon. Bumping
- * is a deliberate act: change this constant, re-run `pnpm index:ai --cold`, and
- * re-measure the numbers in docs/AI-TOOLING.md in the same commit.
+ * Bumping is a deliberate act: change this constant, re-run `pnpm index:ai --cold`,
+ * and re-measure the numbers in docs/AI-TOOLING.md in the same commit.
  */
-const PINNED_VERSION = '0.9.0'
+const PINNED_VERSION = '0.11.0'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 const cold = process.argv.includes('--cold')
 
-/** Run a cli tool and return its parsed JSON result (the last JSON line of stdout). */
+/**
+ * Run a cli tool and return its structured result.
+ *
+ * ⚠️ 0.11 CHANGED THE CONTRACT (measured 2026-09-26). Arguments are one JSON object, not
+ * `--key value` flags, and a tool answers in an indented TEXT tree unless asked otherwise:
+ * `--json` prints the MCP result envelope, and tools that take `format` put the data in
+ * `structuredContent` only with `format: 'json'`. Under the 0.9 parser below every call
+ * would have thrown "returned no JSON result".
+ */
 function cli(tool, args) {
-  const flags = Object.entries(args).flatMap(([k, v]) => [`--${k}`, v])
   let out
   try {
-    out = execFileSync(BIN, ['cli', tool, ...flags], {
+    out = execFileSync(BIN, ['cli', '--json', tool, JSON.stringify(args)], {
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -66,20 +72,25 @@ function cli(tool, args) {
     if (err.code === 'ENOENT') {
       throw new Error(
         `${BIN} is not on your PATH. Install it once per machine:\n` +
-          `  npm install -g codebase-memory-mcp@0.9.0\n` +
+          `  npm install -g codebase-memory-mcp@${PINNED_VERSION}\n` +
           `See docs/AI-TOOLING.md.`,
       )
     }
     throw new Error(`${tool} failed: ${err.stderr?.toString().trim() || err.message}`)
   }
-  // The binary interleaves `level=…` log lines with the JSON result.
+  // Last `{` line, in case a log line ever reaches stdout ahead of the envelope.
   const line = out
     .trim()
     .split('\n')
     .filter((l) => l.startsWith('{'))
     .pop()
   if (!line) throw new Error(`${tool} returned no JSON result`)
-  return JSON.parse(line)
+  const envelope = JSON.parse(line)
+  if (envelope.isError) throw new Error(`${tool} failed: ${envelope.content?.[0]?.text}`)
+  // A tool left on its default `format: 'tree'` answers in text only — refuse that
+  // loudly rather than read `undefined` counts as an empty project.
+  if (!envelope.structuredContent) throw new Error(`${tool} returned no structured result`)
+  return envelope.structuredContent
 }
 
 /**
@@ -110,7 +121,7 @@ function assertPinnedVersion() {
     )
   }
 
-  // Reported as "codebase-memory-mcp 0.9.0" — match the version token, not the
+  // Reported as "codebase-memory-mcp 0.11.0" — match the version token, not the
   // whole string, so a change to the banner does not read as a version drift.
   const found = reported.match(/\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?/)?.[0]
   if (found !== PINNED_VERSION) {
@@ -131,7 +142,7 @@ function assertPinnedVersion() {
 // The project name is derived from the absolute path, so it differs per machine.
 // Resolve it by matching root_path rather than hard-coding it.
 function resolveProjectName() {
-  const { projects = [] } = cli('list_projects', {})
+  const { projects = [] } = cli('list_projects', { format: 'json' })
   return projects.find((p) => p.root_path === repoRoot)?.name ?? null
 }
 
@@ -147,16 +158,16 @@ if (cold) {
   }
 }
 
-const result = cli('index_repository', { 'repo-path': repoRoot, mode: 'full' })
+const result = cli('index_repository', { repo_path: repoRoot, mode: 'full' })
 console.log(`indexed: ${result.nodes} nodes / ${result.edges} edges`)
 
 const project = resolveProjectName()
 if (!project) throw new Error(`indexed, but no project matches ${repoRoot}`)
 
-cli('manage_adr', { project, mode: 'update', content: adr })
+cli('manage_adr', { project, mode: 'update', content: adr, format: 'json' })
 
 // Re-read rather than trust the write: this is the step that silently regresses.
-const { sections = [] } = cli('manage_adr', { project, mode: 'sections' })
+const { sections = [] } = cli('manage_adr', { project, mode: 'sections', format: 'json' })
 if (sections.length === 0) throw new Error('ADR re-seed reported success but read back empty')
 console.log(`ADR re-seeded from CLAUDE.md: ${sections.length} sections`)
 console.log(`project: ${project}`)

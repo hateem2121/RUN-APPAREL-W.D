@@ -249,6 +249,11 @@ test.describe('CR-05 — the progress fill eases to each value, it does not step
       browserName !== 'chromium',
       'the network is slowed through CDP, which only Chromium has; the CSS is the same in every engine',
     )
+    // ⚠️ MOTION MUST BE ASKED FOR. playwright.config.ts sets `reducedMotion: 'reduce'`,
+    // which 1.62.1 silently ignored and 1.63.0 applies (its new `testOptions.reducedMotion`).
+    // Under `reduce`, base.css collapses every transition to 0.01ms, so this test read
+    // `transform 1e-05s` 3/3 on 1.63 (2026-09-26) while the fill itself was unchanged.
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
     const cdp = await page.context().newCDPSession(page)
     await cdp.send('Network.enable')
     await cdp.send('Network.emulateNetworkConditions', SLOW)

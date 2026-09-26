@@ -54,7 +54,7 @@
     "og:cards": "pnpm --filter @run-apparel/asset-pipeline og:cards"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.8",
+    "@biomejs/biome": "2.5.14",
     "@lhci/cli": "0.15.1",
     "audit-ci": "7.1.0",
     "lighthouse": "13.5.0"

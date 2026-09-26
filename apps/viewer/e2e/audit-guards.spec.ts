@@ -32,10 +32,11 @@ import { stageFallsBack } from './stage'
  * tests therefore asserts the feature is RUNNING before it asserts anything about
  * how it behaves.
  *
- * ⚠️ And `reducedMotion: 'reduce'` in playwright.config.ts DOES NOT REACH THE
- * PAGE — measured on 1.62.1, all four engines. `emulateMedia` does. Every test
- * here that cares about the media state sets it explicitly, per
- * `motion-and-layout.spec.ts`.
+ * ⚠️ And `reducedMotion: 'reduce'` in playwright.config.ts DID NOT REACH THE
+ * PAGE on 1.62.1 (all four engines); since 1.63.0 it does (measured 2026-09-26).
+ * Every test here that cares about the media state sets it explicitly with
+ * `emulateMedia`, per `motion-and-layout.spec.ts` — which is why only CR-05, in
+ * `loading.spec.ts`, broke when the setting started working.
  */
 
 /** Lift the automation flag before any app code runs. */
@@ -588,6 +589,14 @@ test.describe('keyboard scrolling survives Lenis (FA-F-10)', () => {
       }
     }
 
+    /*
+     * ⚠️ NO KEY WHILE THE PRELOADER IS UP (2026-09-26, Playwright 1.63). Its Firefox 155
+     * drops End pressed over the preloader: y stayed 0 at 0/300/600ms after the <h1>, and
+     * reached the bottom from 900ms, when App.tsx hands focus to the page. Chromium and
+     * WebKit scroll either way, and so did 1.62.1's Firefox 153 (10/10 here; the same run
+     * on 155 failed 10/10). A visitor meets the page after the wipe, so the test does too.
+     */
+    await expect(page.locator('.preloader')).toHaveCount(0, { timeout: 10_000 })
     await page.locator('body').click({ position: { x: 5, y: 5 } })
 
     /*

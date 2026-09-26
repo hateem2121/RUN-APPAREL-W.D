@@ -75,8 +75,9 @@ on open.
 once per machine, at the pinned version:
 
 ```bash
-npm install -g codebase-memory-mcp@0.9.0
-codebase-memory-mcp --version   # expect: codebase-memory-mcp 0.9.0
+npm install -g codebase-memory-mcp@0.11.0
+codebase-memory-mcp --version   # expect: codebase-memory-mcp 0.11.0
+codebase-memory-mcp daemon start   # optional, recommended: see "Verified behaviour"
 ```
 
 Upstream also ships a one-line installer that fetches the same pinned binary
@@ -259,11 +260,37 @@ impact analysis ("what touches `buildVariantId`?") rather than on context saving
 Keep an eye on whether it actually gets used. To remove it: delete `.mcp.json`,
 `.cbmignore`, `.codebase-memory.json`, `scripts/index-ai.mjs` and the `index:ai`
 script from `package.json`, then `npm uninstall -g codebase-memory-mcp` and
-`rm -rf ~/.cache/codebase-memory-mcp` to reclaim the ~270 MB binary and the index.
+`rm -rf ~/.cache/codebase-memory-mcp` to reclaim the ~300 MB binary (0.11.0: 302,755,632 bytes) and the index. Run
+`codebase-memory-mcp daemon stop` first if the helper is running.
 Nothing else in the repo depends on any of it.
 
 ### Verified behaviour
 
+**Re-measured on 0.11.0, 2026-09-26** (owner-approved upgrade from 0.9.0), on the
+`upgrades` worktree, same tree for both builds:
+
+| | 0.9.0 | 0.11.0 | 0.11.0 + `daemon start` |
+| --- | --- | --- | --- |
+| tools at startup (stdio handshake) | 8 | **17** | 17 |
+| full index (`pnpm index:ai --cold`) | 1.5 s, 7,975 nodes / 18,088 edges | 28.4 s, 8,004 / 22,840 | — |
+| incremental index (`pnpm index:ai`) | — | 19.2 s | 8.6 s |
+| one `cli search_graph` | — | 4.2 s | 1.7 s |
+
+- Protocol `2025-06-18`, `capabilities.tools.listChanged: false`. The 17: the 8 below
+  plus `get_file_outline`, `compare_graphs`, `list_projects`, `delete_project`,
+  `index_status`, `check_index_coverage`, `detect_changes`, `manage_adr`, `ingest_traces`.
+- The extra edges are 0.10.0's new `CALL_REFERENCE` class. Upstream says warm re-index
+  is "still slower than v0.9.0-era"; the table agrees.
+- ⚠️ **The `cli` contract changed**: one JSON argument object instead of `--key value`
+  flags, and text output unless `--json` plus `format: 'json'` — see `cli()` in
+  `scripts/index-ai.mjs`, which the 0.9 version of would have failed on every call.
+- **The daemon** (`codebase-memory-mcp daemon start|stop|status`) is optional and
+  **permanent** once started — it survives session ends until stopped or the Mac
+  restarts. Measured: ~12 MB of memory, 0.4% CPU; it also serves a local graph UI on
+  port 9749. It sends nothing anywhere and spends no model tokens: it only cuts each
+  command's startup cost. Owner chose to run it (2026-09-26).
+
+The 0.9.0 measurements below are kept as the history of how the index was tuned.
 Checked against this repo on 2026-07-27 and re-verified 2026-08-01, so the claims
 here are measured rather than quoted from upstream:
 
@@ -347,11 +374,12 @@ this cannot).
 
 ### Upgrading
 
-`0.9.0` (published 2026-07-08) is the current **stable** release. Checked 2026-08-01
-against the full release list, not just `latest`: a prerelease **`v0.9.1-rc.1`**
-exists (2026-07-30). Upstream describes it as rearchitecting the backend around a
-coordination daemon — "deeper than a normal point release" — and asks for feedback
-before the final tag. **Stay on 0.9.0**; there is no stable upgrade to take.
+**Pinned at `0.11.0`** (published 2026-09-15; upgraded 2026-09-26 from 0.9.0, which had
+been the stable release since 2026-07-08). Before bumping again, read every release's
+notes between the two: 0.10.0 added the daemon and a 43-client installer (the npm
+`postinstall` only downloads and checksum-verifies the binary; the installer is the
+separate `codebase-memory-mcp install` command, not run here), and 0.11.0 rebuilt the
+index format once (ADRs preserved) and changed the `cli` output contract.
 
 **`.mcp.json` cannot pin the version.** That file invokes the binary by bare name
 (`"args": []`), so whatever is on your `PATH` is what runs — for the MCP server and

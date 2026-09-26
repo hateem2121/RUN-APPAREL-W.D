@@ -19,6 +19,14 @@ It had been applied to all three workspaces that declare it. Measured that day:
 | `apps/viewer` | **5.20260827.1** | passes |
 | `apps/shrink` | 5.20260804.1 (held) | passes — and fails on 5.20260827.1 |
 
+**Re-measured 2026-09-26** with the procedure below, in a real worktree:
+
+| workspace | version | typecheck |
+| --- | --- | --- |
+| `apps/cms` | **5.20260925.1** (raised that day) | passes |
+| `apps/viewer` | **5.20260925.1** (raised that day) | passes |
+| `apps/shrink` | 5.20260804.1 (held) | passes — and fails on 5.20260925.1 with the same four errors in `readGlbGenerator` |
+
 Negative control run in both directions: bumping `apps/shrink` too produces exactly
 four errors, all in `tools/asset-pipeline/src/validate.ts` lines 47-50, which is
 `readGlbGenerator`. Restoring the hold clears them. So the break is real, and it is
@@ -82,10 +90,10 @@ fails. Both directions have controls.
   the container typecheck all exit 0. **Do not "fix" the warning by raising
   workers-types** — that trades a cosmetic warning for the real `readUInt32LE`
   break above, i.e. the same bad trade in the opposite direction.
-  ⚠️ **wrangler 4.137.0 raised the peer to `^5.20260921.1`, so the same cosmetic
-  warning now also shows in `apps/cms` and `apps/viewer`** (both on `5.20260827.1`)
-  — only `apps/shrink`'s is a real hold; the other two could raise workers-types
-  safely, as a separate change.
+  ✅ **wrangler 4.137.0 raised the peer to `^5.20260921.1` and 4.140.0 to `^5.20260923.1`,
+  which briefly put the same cosmetic warning on `apps/cms` and `apps/viewer`.** Both were
+  raised to `5.20260925.1` on 2026-09-26, so the warning is back to `apps/shrink` alone —
+  the real hold.
 
 ---
 
@@ -97,3 +105,19 @@ fails. Both directions have controls.
    reproduce the passing baseline, and correctly discarded its own result.
 2. Then bump to the newest release older than 24h and run the same command.
 3. Replace the measurement above with what you got, and say which version you tested.
+
+---
+
+## Held because another package's own range forbids the newer one (2026-09-26)
+
+Not faults of ours: in each case a package we depend on declares a version range, and the
+newest release sits outside it. Installing past it would trade a stale package for a broken
+one. Measured from the installed `package.json` files on 2026-09-26.
+
+| held | at | newest | why | release it when |
+| --- | --- | --- | --- | --- |
+| `graphql` (`apps/cms`) | 16.14.2, newest 16 | 17.0.2 | `payload` 3.90.2 and `@payloadcms/next` 3.90.2 both declare `graphql: ^16.8.1` | a Payload release widens that range to include 17 |
+| `three` (`apps/viewer`, `tools/asset-pipeline`) | 0.183.2 | 0.186.1 | `@google/model-viewer` 4.3.1, its newest release, declares `three: ^0.183.0` | a model-viewer release accepts a newer `three` |
+
+To re-check either: `npm view payload peerDependencies.graphql` and
+`npm view @google/model-viewer peerDependencies.three`, against the newest versions.

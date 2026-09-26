@@ -169,7 +169,8 @@ Root `CLAUDE.md` still holds the cross-cutting traps — read it first.
   against `test:e2e`, not against an injected style on the live page** — it measures
   Chromium, WebKit, Firefox and mobile Safari at once.
 
-  🟡 **`reducedMotion: 'reduce'` IN `playwright.config.ts` NEVER REACHES THE PAGE**, so
+  🟡 **UNTIL PLAYWRIGHT 1.63, `reducedMotion: 'reduce'` IN `playwright.config.ts` NEVER
+  REACHED THE PAGE** (1.63 applies it; a test needing motion must `emulateMedia` it — CR-05), so
   the suite was trusted while the reveal's transform sat in every layout number.
   Measured on Playwright 1.62.1, all four engines:
 

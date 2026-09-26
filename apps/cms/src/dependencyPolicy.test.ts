@@ -70,13 +70,14 @@ const HOLDS = [
      * because it sets types: ["node"].
      *
      * So holding three packages froze 24 days of updates across apps/cms and
-     * apps/viewer for a fault neither of them has. Both now run 5.20260827.1, and all
-     * five workspaces plus the container typecheck clean - measured, not assumed.
+     * apps/viewer for a fault neither of them has. Both ran 5.20260827.1 from 2026-08-29
+     * and 5.20260925.1 from 2026-09-26; each time all five workspaces typechecked clean -
+     * measured, not assumed.
      */
     scope: ['apps/shrink'],
     /** What the unaffected workspaces run, asserted so the narrowing cannot un-narrow. */
-    elsewhere: '5.20260827.1',
-    why: 'every release from 5.20260808.1 on fails the apps/shrink typecheck with "Property readUInt32LE does not exist on type NonSharedBuffer" x3 plus one arity error, ALL in readGlbGenerator (validate.ts:44-52). Bisected 2026-08-12 across 0804/0808/0809/0810; re-measured 2026-08-18 on 5.20260817.1 and again 2026-08-29 on 5.20260827.1, still broken. It surfaces ONLY in apps/shrink, which sets types:["@cloudflare/workers-types"] with no node types.',
+    elsewhere: '5.20260925.1',
+    why: 'every release from 5.20260808.1 on fails the apps/shrink typecheck with "Property readUInt32LE does not exist on type NonSharedBuffer" x3 plus one arity error, ALL in readGlbGenerator (validate.ts:44-52). Bisected 2026-08-12 across 0804/0808/0809/0810; re-measured 2026-08-18 on 5.20260817.1 and again 2026-08-29 on 5.20260827.1 and 2026-09-26 on 5.20260925.1, still broken. It surfaces ONLY in apps/shrink, which sets types:["@cloudflare/workers-types"] with no node types.',
     releaseWhen:
       'either the Buffer typings settle upstream, or readGlbGenerator stops being reachable from the apps/shrink program. container/report.ts imports SIZE_WARNING_BYTES from validate.ts as a VALUE, so moving that constant and the GlbReport type into a node-free module would release the hold without waiting on Cloudflare. Retry with the apps/shrink typecheck specifically, never pnpm typecheck alone.',
   },

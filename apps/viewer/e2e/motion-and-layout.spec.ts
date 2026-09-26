@@ -46,9 +46,11 @@ const OPEN = `${MENU}:popover-open`
  * phone. The rail test below already used 320; the document never did.
  */
 /**
- * ⚠️ `reducedMotion: 'reduce'` IN playwright.config.ts DOES NOT REACH THE PAGE,
- * and every layout number in this file was measured through a live animation
- * until 2026-08-20.
+ * ⚠️ `reducedMotion: 'reduce'` IN playwright.config.ts DID NOT REACH THE PAGE before
+ * Playwright 1.63 (it does since 1.63.0's `testOptions.reducedMotion`, measured in all
+ * four engines 2026-09-26), and every layout number in this file was measured through a
+ * live animation until 2026-08-20. The explicit `emulateMedia` calls stay: they say
+ * which state a test depends on instead of inheriting it.
  *
  * `apps/viewer/CLAUDE.md` states as settled fact that "Playwright sets
  * `reducedMotion: 'reduce'`, `base.css` gates the reveal on
@@ -3114,8 +3116,8 @@ test.describe('the keyboard starts at the top of the document', () => {
  * Batch C, PR 2 — the page's structure after the shared menu bar (#38) landed.
  *
  * Reduced motion first, in every test: `.footer` and other blocks carry `data-reveal`, whose
- * 24px offset sits in every layout number until the reveal runs, and the config's own
- * `reducedMotion` never reaches the page (apps/viewer/CLAUDE.md).
+ * 24px offset sits in every layout number until the reveal runs, and before Playwright 1.63
+ * the config's own `reducedMotion` never reached the page (apps/viewer/CLAUDE.md).
  */
 test.describe('the page keeps its structure (LA-03, LA-11, LA-15)', () => {
   test.beforeEach(async ({ page }) => {

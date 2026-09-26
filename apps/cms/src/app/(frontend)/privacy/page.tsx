@@ -95,8 +95,8 @@ export default async function PrivacyPage() {
           <p>
             <strong>When something breaks.</strong> Our 3D reference pages report technical faults
             to Sentry, a service based in the United States, so that we can fix them. A report
-            contains the error and the page it happened on. We have configured it not to send
-            personal details.
+            contains the error, the page it happened on and your IP address, which Sentry records
+            with the report. It does not include your name, cookies or anything you type.
           </p>
           <p>
             <strong>When you contact us.</strong> If you email us, message us on WhatsApp or send an
