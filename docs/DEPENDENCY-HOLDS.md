@@ -105,3 +105,19 @@ fails. Both directions have controls.
    reproduce the passing baseline, and correctly discarded its own result.
 2. Then bump to the newest release older than 24h and run the same command.
 3. Replace the measurement above with what you got, and say which version you tested.
+
+---
+
+## Held because another package's own range forbids the newer one (2026-09-26)
+
+Not faults of ours: in each case a package we depend on declares a version range, and the
+newest release sits outside it. Installing past it would trade a stale package for a broken
+one. Measured from the installed `package.json` files on 2026-09-26.
+
+| held | at | newest | why | release it when |
+| --- | --- | --- | --- | --- |
+| `graphql` (`apps/cms`) | 16.14.2, newest 16 | 17.0.2 | `payload` 3.90.2 and `@payloadcms/next` 3.90.2 both declare `graphql: ^16.8.1` | a Payload release widens that range to include 17 |
+| `three` (`apps/viewer`, `tools/asset-pipeline`) | 0.183.2 | 0.186.1 | `@google/model-viewer` 4.3.1, its newest release, declares `three: ^0.183.0` | a model-viewer release accepts a newer `three` |
+
+To re-check either: `npm view payload peerDependencies.graphql` and
+`npm view @google/model-viewer peerDependencies.three`, against the newest versions.
