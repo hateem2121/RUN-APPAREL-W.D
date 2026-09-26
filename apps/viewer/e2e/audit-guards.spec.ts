@@ -531,6 +531,62 @@ test.describe('keyboard scrolling survives Lenis (FA-F-10)', () => {
       'the page is not tall enough to scroll',
     ).toBeGreaterThan(200)
 
+    /*
+     * 🟡 A FLIGHT RECORDER, BECAUSE THIS TEST'S REMAINING FAILURE COULD NOT BE REPRODUCED
+     * (2026-09-26). CI failed it twice in ~13 runs, each time passing on the retry — Home
+     * stopping at 1095 on mobile Safari, PageDown moving nothing on Chromium — and 105 tries in
+     * CI's own image here never did. So the evidence has to come from CI: every change of scroll
+     * position, page height, Lenis state and focused element, and every key with whether any
+     * handler prevented its default, goes into the failure message. The owner chose to keep
+     * investigating rather than retry a lost key (2026-09-26); read that log before changing the
+     * test.
+     */
+    await page.evaluate(() => {
+      const w = window as unknown as { __fl: string[] }
+      w.__fl = []
+      const t0 = performance.now()
+      const at = () => `${Math.round(performance.now() - t0)}ms`
+      const focusName = () => {
+        const a = document.activeElement
+        return a
+          ? `${a.tagName.toLowerCase()}${a.className ? `.${String(a.className).split(' ')[0]}` : ''}`
+          : 'none'
+      }
+      let last = ''
+      const tick = () => {
+        const lenis = [...document.documentElement.classList]
+          .filter((c) => c.startsWith('lenis'))
+          .join('+')
+        const state = `y=${Math.round(scrollY)} h=${document.documentElement.scrollHeight} ${lenis} focus=${focusName()}`
+        if (state !== last) w.__fl.push(`${at()} ${state}`)
+        last = state
+        if (w.__fl.length < 2000) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+      window.addEventListener(
+        'keydown',
+        (e) => w.__fl.push(`${at()} keydown ${e.key} target=${focusName()}`),
+        {
+          capture: true,
+        },
+      )
+      window.addEventListener('keydown', (e) =>
+        w.__fl.push(`${at()} keydown ${e.key} defaultPrevented=${e.defaultPrevented}`),
+      )
+    })
+    const withFlightLog = async (label: string, step: () => Promise<void>) => {
+      try {
+        await step()
+      } catch (error) {
+        const log = await page.evaluate(() =>
+          (window as unknown as { __fl: string[] }).__fl.slice(-150),
+        )
+        throw new Error(
+          `${(error as Error).message}\n--- flight log, ${label} (last ${log.length}) ---\n${log.join('\n')}`,
+        )
+      }
+    }
+
     await page.locator('body').click({ position: { x: 5, y: 5 } })
 
     /*
@@ -574,40 +630,46 @@ test.describe('keyboard scrolling survives Lenis (FA-F-10)', () => {
      * `apps/viewer/CLAUDE.md`). Both terms have to come from the same frame.
      */
     await page.keyboard.press('End')
-    await expect
-      .poll(
-        () =>
-          page.evaluate(() => {
-            const bottom = document.documentElement.scrollHeight - window.innerHeight
-            return Math.round(bottom - window.scrollY)
-          }),
-        {
-          message:
-            'End did not reach the bottom of the document — a smooth-scroll layer ' +
-            'that swallows the keyboard leaves a keyboard-only visitor unable to ' +
-            'reach the enquiry buttons at all. See audit FA-F-10.',
-          timeout: 5_000,
-        },
-      )
-      .toBeLessThanOrEqual(1)
+    await withFlightLog('End', () =>
+      expect
+        .poll(
+          () =>
+            page.evaluate(() => {
+              const bottom = document.documentElement.scrollHeight - window.innerHeight
+              return Math.round(bottom - window.scrollY)
+            }),
+          {
+            message:
+              'End did not reach the bottom of the document — a smooth-scroll layer ' +
+              'that swallows the keyboard leaves a keyboard-only visitor unable to ' +
+              'reach the enquiry buttons at all. See audit FA-F-10.',
+            timeout: 5_000,
+          },
+        )
+        .toBeLessThanOrEqual(1),
+    )
     await waitForStill()
 
     await page.keyboard.press('Home')
-    await expect
-      .poll(() => page.evaluate(() => Math.round(window.scrollY)), {
-        message: 'Home did not return to the top of the document',
-        timeout: 5_000,
-      })
-      .toBe(0)
+    await withFlightLog('Home', () =>
+      expect
+        .poll(() => page.evaluate(() => Math.round(window.scrollY)), {
+          message: 'Home did not return to the top of the document',
+          timeout: 5_000,
+        })
+        .toBe(0),
+    )
     await waitForStill()
 
     await page.keyboard.press('PageDown')
-    await expect
-      .poll(() => page.evaluate(() => Math.round(window.scrollY)), {
-        message: 'PageDown moved the document nowhere',
-        timeout: 5_000,
-      })
-      .toBeGreaterThan(100)
+    await withFlightLog('PageDown', () =>
+      expect
+        .poll(() => page.evaluate(() => Math.round(window.scrollY)), {
+          message: 'PageDown moved the document nowhere',
+          timeout: 5_000,
+        })
+        .toBeGreaterThan(100),
+    )
   })
 })
 
