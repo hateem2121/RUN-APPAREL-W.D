@@ -346,6 +346,14 @@ jobs:
         env:
           HOME: /root
         run: pnpm --filter @run-apparel/viewer test:e2e
+      # EVERY PICTURE DESCRIBED, EVERY MERMAID DIAGRAM DRAWS (owner, 2026-09-26: human
+      # pages carry pictures for 5th-grade readers). In THIS job because it needs a
+      # browser to draw the diagrams and `verify` has none; a step, not a job, for the
+      # reason given below for the marketing site.
+      - name: Doc pictures and diagrams
+        env:
+          HOME: /root
+        run: node apps/cms/scripts/check-doc-visuals.mjs
       # THE PUBLIC MARKETING SITE, added 2026-09-05.
       #
       # ⚠️ A STEP IN THIS JOB RATHER THAN A JOB OF ITS OWN, DELIBERATELY. A new job
