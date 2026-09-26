@@ -32,6 +32,7 @@ export function FactoryPhotos() {
         return (
           <li className={`factory-tile factory-tile--${photo.shape}`} key={photo.slug}>
             <figure className="factory-tile__figure">
+              {/* biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize (ProductPoster.tsx measures why); the two widths are pre-built files, picked by srcSet. */}
               <img
                 className="factory-tile__img"
                 src={factoryPhotoSrc(photo, small)}
