@@ -48,7 +48,7 @@
  *
  *   CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... node scripts/r2-budget-probe.mjs
  */
-import { pathToFileURL } from 'node:url'
+import { realpathSync } from 'node:fs'
 
 const GB = 1e9
 
@@ -322,7 +322,7 @@ async function main() {
   console.log(`[r2-budget-probe] ${r.verdict}`)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(`r2-budget-probe: ${error instanceof Error ? error.message : String(error)}`)
     process.exit(2)

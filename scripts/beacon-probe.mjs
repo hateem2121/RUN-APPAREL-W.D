@@ -15,7 +15,7 @@
  *
  *   node scripts/beacon-probe.mjs
  */
-import { pathToFileURL } from 'node:url'
+import { realpathSync } from 'node:fs'
 
 export const HOSTS = ['https://wear-run.help', 'https://viewer.wear-run.help']
 export const BEACON_SRC = 'static.cloudflareinsights.com/beacon.min.js'
@@ -61,7 +61,7 @@ async function main() {
   console.log('beacon-probe: OK')
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(`beacon-probe: ${error instanceof Error ? error.message : String(error)}`)
     process.exit(2)

@@ -39,6 +39,8 @@
  * tier maxes at 24 h, so this number is plan-dependent and cannot simply be copied
  * onto a new account.
  */
+import { realpathSync } from 'node:fs'
+
 export const EXPECTED_RETENTION_SECONDS = 1_209_600
 
 /** Cloudflare's own default. Named so a drifted value can say WHICH kind of wrong. */
@@ -153,5 +155,5 @@ async function main() {
   console.log(`OK    both queues retain messages for 14 days.`)
 }
 
-const isMain = process.argv[1] && import.meta.url === `file://${process.argv[1]}`
+const isMain = process.argv[1] && import.meta.filename === realpathSync(process.argv[1])
 if (isMain) await main()

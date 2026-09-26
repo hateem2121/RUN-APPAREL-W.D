@@ -23,7 +23,7 @@
  * Defaults to `all` and `output/phone-check-captures/`.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   closeSession,
@@ -137,7 +137,7 @@ async function main() {
   console.log(`[phone-check-captures] done — ${written.length} capture(s) in ${outDir}`)
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(error)
     process.exitCode = 1

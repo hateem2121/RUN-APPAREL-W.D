@@ -47,6 +47,7 @@
  */
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { realpathSync } from 'node:fs'
 
 const run = promisify(execFile)
 
@@ -313,6 +314,6 @@ async function main() {
   )
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main()
 }

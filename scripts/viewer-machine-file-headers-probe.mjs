@@ -17,7 +17,7 @@
  *
  *   node scripts/viewer-machine-file-headers-probe.mjs
  */
-import { pathToFileURL } from 'node:url'
+import { realpathSync } from 'node:fs'
 
 export const VIEWER_ORIGIN = 'https://viewer.wear-run.help'
 
@@ -70,7 +70,7 @@ async function main() {
   console.log('viewer-machine-file-headers-probe: OK')
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(
       `viewer-machine-file-headers-probe: ${error instanceof Error ? error.message : String(error)}`,

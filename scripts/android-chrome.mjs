@@ -45,6 +45,7 @@
  */
 
 import { spawn } from 'node:child_process'
+import { realpathSync } from 'node:fs'
 
 /** Print this beside any measurement taken through this module. */
 export const ANDROID_CAVEAT =
@@ -277,7 +278,7 @@ async function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(error)
     process.exitCode = 1

@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test'
 import { SITE_MENU_ID, SITE_MENU_NAME } from '../../../packages/shared/src/siteBar'
+import { stageFallsBack } from './stage'
 
 const MENU = `#${SITE_MENU_ID}`
 const OPEN = `${MENU}:popover-open`
@@ -1519,6 +1520,14 @@ test.describe('layout invariants', () => {
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      /*
+       * Judge the page once the stage has decided (see e2e/stage.ts). Measured 2026-09-26 in CI's
+       * image, Firefox (no WebGL), 1 failure in 240 runs: the read landed 10 ms after
+       * `render3d-unavailable`, with email on screen and WhatsApp not. Every rAF sample on either
+       * side — 6 runs on a starved CPU — had the WhatsApp button at bottom 378 of 390. A state no
+       * visitor can see for a frame is not the invariant; the settled page is.
+       */
+      await stageFallsBack(page)
 
       const reachable = await page.evaluate(() => {
         const inView = (el: Element) => {
@@ -2717,7 +2726,7 @@ test.describe('the page composes on one grid', () => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     test.skip(
-      (await page.locator('.stage__error:not([hidden])').count()) > 0,
+      await stageFallsBack(page),
       'no 3D here (CI Firefox has no WebGL): the callouts are not drawn at all by design ' +
         '(LA-16), so there are no baselines to compare',
     )
@@ -3437,12 +3446,56 @@ test.describe('the motion layer keeps its contracts (MO-03, MO-04, MO-17)', () =
       const tick = () => {
         const cs = getComputedStyle(el)
         w.__press.push({ t: performance.now(), scale: cs.scale, transform: cs.transform })
-        if (performance.now() - start < 1500) requestAnimationFrame(tick)
+        if (performance.now() - start < 5000) requestAnimationFrame(tick)
       }
       requestAnimationFrame(tick)
     })
+    /*
+     * ⚠️ "PROMPT" IS READ OFF THE TRANSITION THE ELEMENT CARRIES, NOT A STOPWATCH (2026-09-26).
+     * It asked "first changed frame within 100ms after pointerdown" and failed CI's WebKit at 151
+     * and 268ms (runs 36149983039, 36157796251) while the Mac read 3-56ms: on a loaded runner the
+     * FRAMES are that far apart. Two frame-based replacements were tried the same day and both
+     * were blind or flaky: during a transition-delay every engine reports `scale: 1`, not `none`,
+     * so a planted 150ms delay "started" at 10ms; and `getAnimations()` missed a 120ms transition
+     * that finished between two starved frames. The computed `transition-*` lists are what the
+     * browser will run, cascade and overrides included, and reading them needs no frame at all:
+     * the planted `transition-delay: 150ms` read 150 here in every engine.
+     */
+    const timing = await page.evaluate(() => {
+      const cs = getComputedStyle(document.querySelectorAll('.colourway-tab')[1] as HTMLElement)
+      const list = (v: string) => v.split(',').map((x) => x.trim())
+      const ms = (v: string) =>
+        v.endsWith('ms') ? Number.parseFloat(v) : Number.parseFloat(v) * 1000
+      const props = list(cs.transitionProperty)
+      const i = props.findIndex((p) => p === 'scale' || p === 'all')
+      if (i < 0) return null
+      const at = (v: string) => {
+        const items = list(v)
+        return items[i % items.length] ?? '0s'
+      }
+      return { delay: ms(at(cs.transitionDelay)), duration: ms(at(cs.transitionDuration)) }
+    })
     await page.mouse.down()
-    await page.waitForTimeout(400)
+    // Held until a DRAWN frame shows the press (up to 3s), not for a fixed 400ms: on a starved
+    // runner no frame may fall inside 400ms at all, which is frame pacing, not the page.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const w = window as unknown as {
+              __press: { t: number; scale: string }[]
+              __down: number
+            }
+            return w.__press.some(
+              (f) => f.t >= w.__down && Math.abs(Number.parseFloat(f.scale) - 0.97) < 0.001,
+            )
+          }),
+        { timeout: 3_000 },
+      )
+      .toBe(true)
+      .catch(() => {
+        // Reported by the assertion below, with the frames it saw.
+      })
     const { frames, down, instant } = await page.evaluate(() => {
       const w = window as unknown as {
         __press: { t: number; scale: string; transform: string }[]
@@ -3458,28 +3511,20 @@ test.describe('the motion layer keeps its contracts (MO-03, MO-04, MO-17)', () =
     await page.mouse.up()
     expect(down, 'the press never reached the tab').toBeGreaterThan(0)
     const after = frames.filter((f) => f.t >= down)
-    const started = after.find((f) => f.scale !== 'none')
     // Within 0.001, not `=== '0.97'`: an eased value approaches its end and the last exact
     // frame need not be sampled. CI's Chromium read 0.970186 then 0.970024 and never the
     // literal string, twice (2026-09-25), on a press that had plainly arrived.
     const pressed = after.find((f) => Math.abs(Number.parseFloat(f.scale) - 0.97) < 0.001)
     console.log(
-      `MO-04 press: starts ${Math.round((started?.t ?? Number.NaN) - down)}ms, lands ${Math.round((pressed?.t ?? Number.NaN) - down)}ms (--instant ${instant}ms)`,
+      `MO-04 press: delay ${timing?.delay}ms, duration ${timing?.duration}ms, lands ${Math.round((pressed?.t ?? Number.NaN) - down)}ms (--instant ${instant}ms)`,
     )
     expect(
       pressed,
       `the tab never read scale 0.97 while held; frames saw ${[...new Set(after.map((f) => f.scale))].join(', ')}`,
     ).toBeDefined()
-    // The START is bounded; the LANDING is not. Measured 2026-09-25: the shrink starts 3-56ms
-    // after pointerdown on the Mac and 8-63ms on CI, but lands 120-214ms on the Mac and
-    // 128-339ms on CI — the runner's frame pacing, not the page (apps/viewer/CLAUDE.md: frame
-    // rates are not obtainable there). The duration itself is pinned by the test above, which
-    // reads the declared `scale` transition off the stylesheet; landing inside the 400ms hold
-    // is what "promptly" still asserts here.
-    expect(
-      (started?.t ?? Number.POSITIVE_INFINITY) - down,
-      'the press did not start answering within 100ms',
-    ).toBeLessThanOrEqual(100)
+    expect(timing, 'no transition covers `scale` on the tab').not.toBeNull()
+    expect(timing?.delay, 'the press waits before it starts answering').toBeLessThanOrEqual(0)
+    expect(timing?.duration, 'the press is not on the --instant duration').toBeCloseTo(instant, 0)
     expect(
       after.filter((f) => f.transform !== 'none').map((f) => f.transform),
       'the press moved `transform`, which the cursor magnet owns',

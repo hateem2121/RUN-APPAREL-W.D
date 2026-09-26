@@ -52,6 +52,7 @@
 
 import tls from 'node:tls'
 import { DEFAULT_PRODUCT } from './live-products.mjs'
+import { realpathSync } from 'node:fs'
 
 /**
  * Lowering OpenSSL's security level is what lets a TLS 1.0 ClientHello onto the wire
@@ -534,7 +535,7 @@ export async function probe(targets = TARGETS) {
   )
 }
 
-const isMain = process.argv[1] && import.meta.url === `file://${process.argv[1]}`
+const isMain = process.argv[1] && import.meta.filename === realpathSync(process.argv[1])
 if (isMain) {
   const observations = await probe()
   const { ok, measured, failures, inconclusive, lines } = evaluate(observations)

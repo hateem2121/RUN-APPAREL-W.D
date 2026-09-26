@@ -41,7 +41,8 @@
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
+import { realpathSync } from 'node:fs'
 
 /** The repo root, derived from this file's own location — never hard-coded. */
 const REPO = fileURLToPath(new URL('..', import.meta.url))
@@ -964,7 +965,7 @@ async function main() {
   if (problems.length > 0) process.exit(1)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     // A Stop already printed everything the owner needs to see, at the throw
     // site — only the exit code is still owed. Anything else is unexpected, so

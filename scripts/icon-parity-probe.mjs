@@ -28,7 +28,8 @@
  */
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
+import { realpathSync } from 'node:fs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..') // this script lives at repo-root scripts/, one hop from the root
@@ -168,7 +169,7 @@ async function main() {
   console.log('icon-parity-probe: OK — both hosts show the same mark')
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(`icon-parity-probe: ${error instanceof Error ? error.message : String(error)}`)
     process.exit(2)

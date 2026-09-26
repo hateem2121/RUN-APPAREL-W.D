@@ -12,10 +12,9 @@
  * `media.wear-run.help` all look like paths.
  */
 
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
 
 /** Top-level directories a citation may start with. `output/` is gitignored build output. */
 export const ANCHORS = new Set([
@@ -399,6 +398,6 @@ export async function reportBrokenCitations(root) {
   return broken
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   process.exit((await reportBrokenCitations(process.cwd())) ? 1 : 0)
 }

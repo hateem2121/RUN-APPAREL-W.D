@@ -7,6 +7,7 @@ import {
   toHex,
   worstRatio,
 } from '../../../scripts/contrast-rules.mjs'
+import { stageFallsBack } from './stage'
 
 /**
  * Guards for the things the 2026-09-06 whole-site audit found ALREADY CORRECT.
@@ -492,8 +493,8 @@ test.describe('the e2e fixture stays production-shaped (FA-T-10)', () => {
 /* ══ FA-F-10 — keyboard scrolling survives Lenis ════════════════════════════ */
 
 /**
- * End → 1413 (scrollHeight 2313 − viewport 900, the true bottom), Home → 0,
- * PageDown → 860, with the keydown counter asserted first.
+ * End → the true bottom (1094 at 1280x900 on 2026-09-26: scrollHeight 1994 − viewport
+ * 900; it was 1413 before the page got shorter), Home → 0, PageDown → past 100.
  *
  * ⚠️ THIS IS THE TEST THAT MOST EASILY MEASURES NOTHING, and the reason is in
  * `polish/index.ts`: Lenis is not merely disabled under automation, it is never
@@ -530,6 +531,63 @@ test.describe('keyboard scrolling survives Lenis (FA-F-10)', () => {
       'the page is not tall enough to scroll',
     ).toBeGreaterThan(200)
 
+    /*
+     * 🟡 A FLIGHT RECORDER, BECAUSE THIS TEST'S REMAINING FAILURE COULD NOT BE REPRODUCED
+     * (2026-09-26). CI failed it twice in ~13 runs, each time passing on the retry — Home
+     * stopping at 1095 on mobile Safari, PageDown moving nothing on Chromium — and 105 tries in
+     * CI's own image here never did. So the evidence has to come from CI: every change of scroll
+     * position, page height, Lenis state and focused element, and every key with whether any
+     * handler prevented its default, goes into the failure message. The owner chose to keep
+     * investigating rather than retry a lost key (2026-09-26). The Home cause was then found
+     * the same day (see `waitForStill` below); the recorder stays so the next failure, if
+     * any, arrives explained. Read that log before changing the test.
+     */
+    await page.evaluate(() => {
+      const w = window as unknown as { __fl: string[] }
+      w.__fl = []
+      const t0 = performance.now()
+      const at = () => `${Math.round(performance.now() - t0)}ms`
+      const focusName = () => {
+        const a = document.activeElement
+        return a
+          ? `${a.tagName.toLowerCase()}${a.className ? `.${String(a.className).split(' ')[0]}` : ''}`
+          : 'none'
+      }
+      let last = ''
+      const tick = () => {
+        const lenis = [...document.documentElement.classList]
+          .filter((c) => c.startsWith('lenis'))
+          .join('+')
+        const state = `y=${Math.round(scrollY)} h=${document.documentElement.scrollHeight} ${lenis} focus=${focusName()}`
+        if (state !== last) w.__fl.push(`${at()} ${state}`)
+        last = state
+        if (w.__fl.length < 2000) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+      window.addEventListener(
+        'keydown',
+        (e) => w.__fl.push(`${at()} keydown ${e.key} target=${focusName()}`),
+        {
+          capture: true,
+        },
+      )
+      window.addEventListener('keydown', (e) =>
+        w.__fl.push(`${at()} keydown ${e.key} defaultPrevented=${e.defaultPrevented}`),
+      )
+    })
+    const withFlightLog = async (label: string, step: () => Promise<void>) => {
+      try {
+        await step()
+      } catch (error) {
+        const log = await page.evaluate(() =>
+          (window as unknown as { __fl: string[] }).__fl.slice(-150),
+        )
+        throw new Error(
+          `${(error as Error).message}\n--- flight log, ${label} (last ${log.length}) ---\n${log.join('\n')}`,
+        )
+      }
+    }
+
     await page.locator('body').click({ position: { x: 5, y: 5 } })
 
     /*
@@ -541,19 +599,34 @@ test.describe('keyboard scrolling survives Lenis (FA-F-10)', () => {
      * platform, not a keyboard-swallowing smooth layer. The End check passes within 1px of
      * the bottom, before the animation has formally ended, which is how 'Home did not return
      * to the top' failed on CI's WebKit (both attempts, main run 36079665099; 1 in 20 here).
-     * Still = the same scrollY over three reads 100ms apart, and no lenis-scrolling class.
+     *
+     * 🔴 AND A STILL scrollY IS NOT A STILL PAGE — this was the flake's root cause (found
+     * 2026-09-26 from CI's 'Home did not return to the top', Received 1094/1095 three times,
+     * which is the BOTTOM: Home had done nothing). End brings the contact block and footer
+     * into view, their `[data-reveal]` slide starts 24px low, and that offset makes the
+     * document 24px LONGER until it lands. WebKit scrolls to that longer bottom (1118) and
+     * then HOLDS scrollY frozen for the whole 0.8s slide, so three equal reads 100ms apart
+     * pass mid-slide. When the slide lands WebKit trims the page and snaps to 1094 — and
+     * that snap CANCELS a keyboard scroll that has just started. Measured in CI's image by
+     * pressing Home at fixed delays after End: lost 5 of 28 around 775–890ms (Home
+     * elsewhere: 0 lost), and 7 of 28 with Lenis's chunk refused by the network, so it is
+     * the platform, not the smooth layer. Chromium instead follows the shrinking page frame
+     * by frame. So "still" now also means: page height unchanged across the reads, and no
+     * reveal transition running.
      */
     const waitForStill = async () => {
-      let last = -1
+      let last = ''
       let same = 0
       for (let i = 0; i < 50 && same < 3; i++) {
         await page.waitForTimeout(100)
-        const now = await page.evaluate(() =>
-          document.documentElement.classList.contains('lenis-scrolling')
-            ? -2
-            : Math.round(window.scrollY),
-        )
-        same = now >= 0 && now === last ? same + 1 : 0
+        const now = await page.evaluate(() => {
+          const sliding = [...document.querySelectorAll('[data-reveal]')].some((el) =>
+            el.getAnimations().some((a) => a.playState === 'running'),
+          )
+          if (sliding || document.documentElement.classList.contains('lenis-scrolling')) return ''
+          return `${Math.round(window.scrollY)}/${document.documentElement.scrollHeight}`
+        })
+        same = now !== '' && now === last ? same + 1 : 0
         last = now
       }
       if (same < 3) throw new Error('the page never came to rest within 5s')
@@ -573,40 +646,46 @@ test.describe('keyboard scrolling survives Lenis (FA-F-10)', () => {
      * `apps/viewer/CLAUDE.md`). Both terms have to come from the same frame.
      */
     await page.keyboard.press('End')
-    await expect
-      .poll(
-        () =>
-          page.evaluate(() => {
-            const bottom = document.documentElement.scrollHeight - window.innerHeight
-            return Math.round(bottom - window.scrollY)
-          }),
-        {
-          message:
-            'End did not reach the bottom of the document — a smooth-scroll layer ' +
-            'that swallows the keyboard leaves a keyboard-only visitor unable to ' +
-            'reach the enquiry buttons at all. See audit FA-F-10.',
-          timeout: 5_000,
-        },
-      )
-      .toBeLessThanOrEqual(1)
+    await withFlightLog('End', () =>
+      expect
+        .poll(
+          () =>
+            page.evaluate(() => {
+              const bottom = document.documentElement.scrollHeight - window.innerHeight
+              return Math.round(bottom - window.scrollY)
+            }),
+          {
+            message:
+              'End did not reach the bottom of the document — a smooth-scroll layer ' +
+              'that swallows the keyboard leaves a keyboard-only visitor unable to ' +
+              'reach the enquiry buttons at all. See audit FA-F-10.',
+            timeout: 5_000,
+          },
+        )
+        .toBeLessThanOrEqual(1),
+    )
     await waitForStill()
 
     await page.keyboard.press('Home')
-    await expect
-      .poll(() => page.evaluate(() => Math.round(window.scrollY)), {
-        message: 'Home did not return to the top of the document',
-        timeout: 5_000,
-      })
-      .toBe(0)
+    await withFlightLog('Home', () =>
+      expect
+        .poll(() => page.evaluate(() => Math.round(window.scrollY)), {
+          message: 'Home did not return to the top of the document',
+          timeout: 5_000,
+        })
+        .toBe(0),
+    )
     await waitForStill()
 
     await page.keyboard.press('PageDown')
-    await expect
-      .poll(() => page.evaluate(() => Math.round(window.scrollY)), {
-        message: 'PageDown moved the document nowhere',
-        timeout: 5_000,
-      })
-      .toBeGreaterThan(100)
+    await withFlightLog('PageDown', () =>
+      expect
+        .poll(() => page.evaluate(() => Math.round(window.scrollY)), {
+          message: 'PageDown moved the document nowhere',
+          timeout: 5_000,
+        })
+        .toBeGreaterThan(100),
+    )
   })
 })
 
@@ -894,7 +973,9 @@ test.describe('keyboard scrolling survives a glide in progress (FA-F-10, mid-gli
         timeout: 10_000,
       })
       .toBe(true)
-    // Let the preloader hand-off and first layout settle before starting the glide.
+    // Let the stage decide (its no-3D notice changes the page's height, which would move the
+    // bottom mid-measurement — e2e/stage.ts), then the preloader hand-off and first layout.
+    await stageFallsBack(page)
     await page.waitForTimeout(1500)
     // Over the header, never the 3D stage, where a wheel zooms the garment (SC-08).
     const header = await page.locator('header.notch-shell').boundingBox()
@@ -1470,9 +1551,9 @@ test.describe('FRONT/BACK/SIDE each move the camera and settle (MO-14)', () => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    const fallback = await page.locator('.stage__error:not([hidden])').count()
+    const fallback = await stageFallsBack(page)
     test.skip(
-      fallback > 0,
+      fallback,
       `${browserName}: no WebGL here, the stage is in poster fallback — no camera buttons to press`,
     )
 
@@ -1602,9 +1683,9 @@ test.describe('an arrow key rotates the garment, on every colourway this fixture
       await page.goto(`/n001/${slug}`)
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-      const fallback = await page.locator('.stage__error:not([hidden])').count()
+      const fallback = await stageFallsBack(page)
       test.skip(
-        fallback > 0,
+        fallback,
         `${browserName}: no WebGL here, the stage is in poster fallback — no camera to rotate`,
       )
 
@@ -1714,7 +1795,7 @@ test.describe('forced-colors substitutes real colour, on the viewer too (CO-09)'
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    const fallback = await page.locator('.stage__error:not([hidden])').count()
+    const fallback = await stageFallsBack(page)
 
     const active = await page.evaluate(() => window.matchMedia('(forced-colors: active)').matches)
     test.skip(!active, `${browserName} does not emulate forced-colors`)
@@ -1777,7 +1858,7 @@ test.describe('forced-colors substitutes real colour, on the viewer too (CO-09)'
     ).toBe('none')
 
     test.skip(
-      fallback > 0,
+      fallback,
       `${browserName}: no WebGL here, the stage is in poster fallback — <StageControls> ` +
         'never mounts, so there is no camera button to measure',
     )
@@ -2342,8 +2423,8 @@ test.describe('SC-08 — wheel over the canvas zooms, page does not scroll', () 
     test.skip(isMobile, 'a phone has no mouse wheel (Playwright: not supported in mobile WebKit)')
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    const fallback = await page.locator('.stage__error:not([hidden])').count()
-    test.skip(fallback > 0, `${browserName}: no WebGL here, the stage is in poster fallback`)
+    const fallback = await stageFallsBack(page)
+    test.skip(fallback, `${browserName}: no WebGL here, the stage is in poster fallback`)
 
     await page.waitForFunction(
       () => {
@@ -2437,8 +2518,8 @@ test.describe('SC-13 — touch-action is none on the canvas, and nowhere else sc
     // No WebGL (CI's Firefox) means poster fallback and no <model-viewer> at all: the first
     // CI run waited 30s for one and timed out (2026-09-25). Chromium on CI has WebGL and
     // still runs this, as SC-08's identical guard relies on.
-    const fallback = await page.locator('.stage__error:not([hidden])').count()
-    test.skip(fallback > 0, `${browserName}: no WebGL here, the stage is in poster fallback`)
+    const fallback = await stageFallsBack(page)
+    test.skip(fallback, `${browserName}: no WebGL here, the stage is in poster fallback`)
 
     /*
      * ⚠️ THE ATTRIBUTE, NOT `getComputedStyle`. Measured while writing this test:
@@ -2541,8 +2622,8 @@ test.describe('MO-23 — all five named motion affordances are present', () => {
     // been idle for CUE_IDLE_MS (Stage.tsx: `!fallback && modelLoaded && !swapping &&
     // cueVisible`), so it cannot exist on a stage in poster fallback (no WebGL on CI's
     // Firefox) and does not exist yet when the <h1> appears.
-    const fallback = await page.locator('.stage__error:not([hidden])').count()
-    test.skip(fallback > 0, `${browserName}: no WebGL here, the stage is in poster fallback`)
+    const fallback = await stageFallsBack(page)
+    test.skip(fallback, `${browserName}: no WebGL here, the stage is in poster fallback`)
     await expect(page.locator('.stage__hint')).toBeAttached({ timeout: 40_000 })
 
     const present = await page.evaluate(() => ({

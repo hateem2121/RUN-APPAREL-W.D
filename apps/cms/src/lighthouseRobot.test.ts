@@ -461,6 +461,51 @@ describe('each measuring machine has its own floors', () => {
     )
   })
 
+  // The 2026-09-26 re-baseline (lighthouse-robot.mjs, "RE-TAKEN 2026-09-26"): the worst median
+  // of nine scheduled runs after the speed work, and the floors it replaced.
+  const WORST_MEDIAN_2026_09_25 = {
+    'home.mobile': 0.88,
+    'home.desktop': 0.99,
+    'products.mobile': 0.88,
+    'products.desktop': 0.99,
+    'contact.mobile': 0.94,
+    'contact.desktop': 0.99,
+    'viewer-rxps-wine.mobile': 0.42,
+    'viewer-rxps-wine.desktop': 0.58,
+  }
+  const FLOORS_2026_09_17 = {
+    'home.mobile': 0.79,
+    'home.desktop': 0.95,
+    'products.mobile': 0.83,
+    'products.desktop': 0.96,
+    'contact.mobile': 0.91,
+    'contact.desktop': 0.98,
+    'viewer-rxps-wine.mobile': 0.4,
+    'viewer-rxps-wine.desktop': 0.49,
+  }
+
+  it('runner floors sit under every median measured after the speed work, and never loosen', () => {
+    const floors = PERFORMANCE_FLOORS['github-runner'] as Record<string, number>
+    for (const [key, worst] of Object.entries(WORST_MEDIAN_2026_09_25)) {
+      expect(floors[key], `${key} would fail the site as it is today`).toBeLessThanOrEqual(worst)
+      expect(floors[key], `${key} was loosened`).toBeGreaterThanOrEqual(
+        FLOORS_2026_09_17[key as keyof typeof FLOORS_2026_09_17],
+      )
+    }
+  })
+
+  it('catches a phone home page slowing to 0.82, which the 2026-09-17 floor let through', () => {
+    const verdict = judgePage({
+      page: 'home',
+      formFactor: 'mobile',
+      machine: 'github-runner',
+      runs: runs(5, { scores: { ...HOME_SCORES, performance: 0.82 }, below: HOME_BELOW }),
+    })
+    expect(verdict.failures.join()).toMatch(
+      /performance median 0\.82 is below the github-runner floor of 0\.85/,
+    )
+  })
+
   it('prints every run and the median slowest round-trip, so a failure explains itself', () => {
     const scored = [0.61, 0.58, 0.55, 0.9, 0.82].map((performance, index) => ({
       ...readRun(lhr({ scores: { ...HOME_SCORES, performance }, below: HOME_BELOW })),

@@ -55,10 +55,10 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 import { DEFAULT_PRODUCT } from './live-products.mjs'
 
 export const LIGHTHOUSE_VERSION = '13.5.0'
@@ -137,6 +137,17 @@ export const EXPECTED_BELOW_ONE = {}
  * viewer. If a runner image change moves every page at once, re-take this baseline rather
  * than loosening one number.
  *
+ * ⚠️ RE-TAKEN 2026-09-26, TIGHTER, AFTER THE SPEED WORK — the step this header promised "area
+ * 3" would take and nothing took. The 2026-09-17 floors were the worst SINGLE run from before
+ * the speed work, so a phone home page could fall from 0.94 to 0.80 and still pass. The nine
+ * scheduled runs after RO-08 went live (2026-09-25, 12:04–17:24 UTC, 45 runs per page) gave
+ * worst MEDIANS of: home 0.88 / 0.99, products 0.88 / 0.99, contact 0.94 / 0.99, viewer
+ * 0.42 / 0.58 (phone / computer). Each floor is that worst median minus 0.03 on a phone and
+ * 0.01 on a computer, and never below its 2026-09-17 value: nine medians is a small sample,
+ * and the ten-percent chance that a tenth lands below the worst of nine is a false alarm, not
+ * a regression. The owner chose this on 2026-09-26 ("keep the look, lock in today") over
+ * trimming the site's motion to chase a phone 100. `lighthouseRobot.test.ts` pins both bounds.
+ *
  * ⚠️ Keyed by page name. A different default product is a different page with a different
  * model, so its missing floor FAILS the robot rather than borrowing this one — measure it.
  */
@@ -154,14 +165,14 @@ const LOCAL_FLOORS = {
 export const PERFORMANCE_FLOORS = {
   local: LOCAL_FLOORS,
   'github-runner': {
-    'home.mobile': 0.79,
-    'home.desktop': 0.95,
-    'products.mobile': 0.83,
-    'products.desktop': 0.96,
+    'home.mobile': 0.85,
+    'home.desktop': 0.98,
+    'products.mobile': 0.85,
+    'products.desktop': 0.98,
     'contact.mobile': 0.91,
     'contact.desktop': 0.98,
     'viewer-rxps-wine.mobile': 0.4,
-    'viewer-rxps-wine.desktop': 0.49,
+    'viewer-rxps-wine.desktop': 0.57,
   },
 }
 
@@ -468,7 +479,7 @@ async function main() {
   if (!ok && !args.report) process.exit(1)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(`::error::${error instanceof Error ? error.message : String(error)}`)
     process.exit(1)

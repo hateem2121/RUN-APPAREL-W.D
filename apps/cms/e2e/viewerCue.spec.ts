@@ -93,17 +93,38 @@ test.describe('XS-09 — every link to the 3D viewer says so', () => {
 
   test('the contrast probe fails a planted pale caption (negative control)', async ({ page }) => {
     await page.goto('/products')
-    await page.evaluate(() => {
-      const planted = document.createElement('span')
-      planted.className = 'planted-cue'
-      planted.textContent = 'planted'
-      planted.style.color = '#e9e7e2'
-      document.querySelector('main')?.append(planted)
-    })
-    const [row] = await page.evaluate(measureContrastInPage, {
-      selector: '.planted-cue',
-      part: 'text' as const,
-    })
+    /*
+     * ⚠️ PLANT UNTIL IT STAYS (2026-09-26). `goto` returns at `load`, and React can still be
+     * hydrating <main> then: a node it did not render is dropped, and the probe found nothing —
+     * "the planted caption was not measured" on CI's Chromium once (run 36149983039). Each poll
+     * re-plants if the node is gone and measures; a planted caption that survives hydration is
+     * the one the assertion below is about.
+     */
+    const plantAndMeasure = async () => {
+      await page.evaluate(() => {
+        if (document.querySelector('.planted-cue')) return
+        const planted = document.createElement('span')
+        planted.className = 'planted-cue'
+        planted.textContent = 'planted'
+        planted.style.color = '#e9e7e2'
+        document.querySelector('main')?.append(planted)
+      })
+      const [measured] = await page.evaluate(measureContrastInPage, {
+        selector: '.planted-cue',
+        part: 'text' as const,
+      })
+      return measured
+    }
+    let row: Awaited<ReturnType<typeof plantAndMeasure>>
+    await expect
+      .poll(
+        async () => {
+          row = await plantAndMeasure()
+          return Boolean(row)
+        },
+        { message: 'the planted caption was not measured', timeout: 5_000 },
+      )
+      .toBe(true)
     if (!row) throw new Error('the planted caption was not measured')
     expect(
       worstRatio(row),

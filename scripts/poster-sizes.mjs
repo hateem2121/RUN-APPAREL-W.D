@@ -24,8 +24,8 @@
  *   node scripts/poster-sizes.mjs             # exits 1 if anything is flagged
  *   node scripts/poster-sizes.mjs --report     # same table, always exits 0
  */
-import { pathToFileURL } from 'node:url'
 import { LIVE_PRODUCTS } from './live-products.mjs'
+import { realpathSync } from 'node:fs'
 
 const API_BASE = (process.env.CMS_API_BASE || 'https://cms.wear-run.help').replace(/\/+$/, '')
 const REPORT = process.argv.includes('--report')
@@ -311,7 +311,7 @@ async function main() {
   if (flagged.length > 0 || contentProblems.length > 0) process.exit(1)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(`poster-sizes: ${error instanceof Error ? error.message : String(error)}`)
     // A thrown error here means something could not be READ — a fetch that never

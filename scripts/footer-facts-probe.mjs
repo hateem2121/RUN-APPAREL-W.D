@@ -16,8 +16,8 @@
  *
  * Usage: node scripts/footer-facts-probe.mjs [siteUrl]
  */
-import { pathToFileURL } from 'node:url'
 import { FOOTER_FACTS } from './apply-footer-facts.mjs'
+import { realpathSync } from 'node:fs'
 
 export const SITE_URL = 'https://wear-run.help/'
 
@@ -96,7 +96,7 @@ async function main() {
   console.log(`footer-facts-probe: OK — all ${n} approved footer facts show on ${url}`)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(`footer-facts-probe: ${error instanceof Error ? error.message : String(error)}`)
     process.exit(2)

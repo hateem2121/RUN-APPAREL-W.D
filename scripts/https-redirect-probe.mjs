@@ -42,6 +42,7 @@
  */
 
 import { TARGETS as ZONE_TARGETS } from './zone-security-probe.mjs'
+import { realpathSync } from 'node:fs'
 
 /** Statuses that mean "ask again later", not "the host is broken" — same set every probe here uses. */
 const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
@@ -141,7 +142,7 @@ export async function probe(targets = TARGETS) {
   return Promise.all(targets.map(probeOne))
 }
 
-const isMain = process.argv[1] && import.meta.url === `file://${process.argv[1]}`
+const isMain = process.argv[1] && import.meta.filename === realpathSync(process.argv[1])
 if (isMain) {
   const observations = await probe()
   const { ok, measured, failures, inconclusive, lines } = evaluate(observations)

@@ -16,8 +16,8 @@
  *   node scripts/apply-plain-descriptions.mjs              # dry run, no key needed
  *   CMS_API_KEY=… node scripts/apply-plain-descriptions.mjs --apply   (export it first; see RUNBOOK)
  */
-import { pathToFileURL } from 'node:url'
 import { toAmerican } from './copy-rules.mjs'
+import { realpathSync } from 'node:fs'
 
 /** slug -> the live text on 2026-09-25, and the approved rewrite. */
 export const PLAIN_DESCRIPTIONS = {
@@ -190,7 +190,7 @@ async function main() {
   if (tally.failed > 0) process.exit(1)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(
       `apply-plain-descriptions: ${error instanceof Error ? error.message : String(error)}`,

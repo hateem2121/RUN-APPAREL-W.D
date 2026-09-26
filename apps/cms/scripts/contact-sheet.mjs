@@ -21,7 +21,7 @@
  * Usage:
  *   node apps/cms/scripts/contact-sheet.mjs [--base-url https://wear-run.help] [--out DIR]
  */
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from '@playwright/test'
 
@@ -92,7 +92,7 @@ async function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(error)
     process.exitCode = 1

@@ -32,6 +32,8 @@
  */
 
 /** Words the not-active page always contains. */
+import { realpathSync } from 'node:fs'
+
 export const MESSAGE = 'no longer active'
 
 /** A custom domain can take a moment after the deploy that creates it. */
@@ -260,6 +262,6 @@ async function main() {
   )
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   await main()
 }

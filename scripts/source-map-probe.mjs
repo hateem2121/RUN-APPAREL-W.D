@@ -15,7 +15,7 @@
  *
  *   node scripts/source-map-probe.mjs
  */
-import { pathToFileURL } from 'node:url'
+import { realpathSync } from 'node:fs'
 
 export const SITE_ORIGIN = 'https://wear-run.help'
 export const VIEWER_ORIGIN = 'https://viewer.wear-run.help'
@@ -90,7 +90,7 @@ async function main() {
   console.log('source-map-probe: OK — no source map reachable on either host')
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(`source-map-probe: ${error instanceof Error ? error.message : String(error)}`)
     process.exit(2)

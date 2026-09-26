@@ -73,9 +73,19 @@ export default async function ContactPage({
         <div className="site-container">
           <p className="label">[ CONTACT ]</p>
           <h1 className="display display--hero">Let&rsquo;s talk production.</h1>
+          {/*
+           * ⚠️ THE WORDING IS MEASURED, NOT JUST WRITTEN (2026-09-26). "Reach us directly — email
+           * or WhatsApp, whichever suits you. We reply within 24 hours." failed CI's font-swap
+           * test (e2e/fontSwap.spec.ts, CLS 0.022 at 390px): Chromium on Linux draws every glyph
+           * at a whole pixel, which widened its second line to 353px in Archivo and 349px in the
+           * stand-in face, against a 350px column, so the swap added a line. Every other engine,
+           * on Linux and macOS, measured both fonts within 2px and under 350. This wording breaks
+           * the same in both fonts in Chromium, Firefox and WebKit at nine widths, 320–1680px.
+           * Re-run that test in CI's image after any change to this sentence.
+           */}
           <p className="site-lede">
-            Reach us directly — email or WhatsApp, whichever suits you. We reply within 2 business
-            days.
+            Reach us directly — by email or on WhatsApp, whichever suits you. We reply within 24
+            hours.
           </p>
         </div>
       </section>

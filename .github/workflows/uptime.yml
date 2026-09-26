@@ -228,6 +228,14 @@ jobs:
             # the block just disappears. The probe reads the live footer against
             # scripts/apply-footer-facts.mjs, never a retyped copy.
             node scripts/footer-facts-probe.mjs || ok=false
+
+            # Every live garment page describes ITSELF, and the CMS text follows the copy rules,
+            # American spelling included (CT-05, CT-09, CT-10). The CMS is edited by hand, so a
+            # save can bring a British spelling or a blank description back with no deploy
+            # behind it, which no gate sees. One attempt: its retries exist to wait out a fresh
+            # deploy's rollout, and six of them against a real finding took about four minutes
+            # (measured 2026-09-25) of this job's ten. Same 403/429 inconclusive rule.
+            SMOKE_ATTEMPTS=1 node scripts/smoke-live-copy.mjs || ok=false
           fi
           echo "ok=$ok" >> "$GITHUB_OUTPUT"
 

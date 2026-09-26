@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { type Page, expect, test } from '@playwright/test'
+import { stageFallsBack } from './stage'
 
 // Automated accessibility check (axe-core, MPL-2.0). The e2e mock server
 // (serve.mjs) supplies real product JSON, so this runs against the same DOM a
@@ -644,8 +645,8 @@ test.describe('generic keyboard, focus and naming sweeps on the product page', (
   }) => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    const fallback = await page.locator('.stage__error:not([hidden])').count()
-    test.skip(fallback > 0, `${browserName}: no WebGL here, the stage is in poster fallback`)
+    const fallback = await stageFallsBack(page)
+    test.skip(fallback, `${browserName}: no WebGL here, the stage is in poster fallback`)
 
     // model-viewer's own inner focus target (`.userInput`, tabindex="0" in its shadow
     // root) only exists once camera-controls has initialised — wait for the model to

@@ -46,6 +46,7 @@
 
 import { LIVE_PRODUCTS } from './live-products.mjs'
 import { judgePosters } from './poster-sizes.mjs'
+import { realpathSync } from 'node:fs'
 
 const API_BASE = (process.env.CMS_API_BASE || 'https://cms.wear-run.help').replace(/\/+$/, '')
 
@@ -418,7 +419,7 @@ export async function probe(targets = TARGETS) {
   return (await Promise.all(targets.map(probeOne))).flat()
 }
 
-const isMain = process.argv[1] && import.meta.url === `file://${process.argv[1]}`
+const isMain = process.argv[1] && import.meta.filename === realpathSync(process.argv[1])
 if (isMain) {
   // A single `<product>/<colourway>` argument runs one model — the RUNBOOK spot-check
   // shape (docs/RUNBOOK.md) — instead of the full catalogue.

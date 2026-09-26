@@ -14,7 +14,7 @@
  *
  *   node scripts/preconnect-probe.mjs
  */
-import { pathToFileURL } from 'node:url'
+import { realpathSync } from 'node:fs'
 
 export const PAGE_URL = 'https://wear-run.help/products'
 export const EXPECTED_HOST = 'media.wear-run.help'
@@ -74,7 +74,7 @@ async function main() {
   console.log('preconnect-probe: OK')
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   main().catch((error) => {
     console.error(`preconnect-probe: ${error instanceof Error ? error.message : String(error)}`)
     process.exit(2)
