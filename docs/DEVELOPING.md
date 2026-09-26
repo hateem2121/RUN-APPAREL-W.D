@@ -3,6 +3,69 @@
 **In plain words:** this page is for people who change the code.
 It lists the tools you need, the checks to run, and how a change goes live.
 
+## What's in this repository
+
+| Folder | What it is |
+|---|---|
+| `apps/viewer` | The public viewer site (Cloudflare Worker + Static Assets, `viewer.wear-run.help`) |
+| `apps/cms` | Payload CMS — private admin + public read-only API (Cloudflare Workers, `cms.wear-run.help`) |
+| `apps/shrink` | The auto-shrink service — queue consumer Worker + Container that runs the asset pipeline on raw CLO uploads |
+| `packages/shared` | Shared types, size ceilings and the shrink job contract, used by all of the above |
+| `tools/asset-pipeline` | The GLB processing tool (merge colourways, decimate, validate, placeholders) |
+| `docs/` | see the index below |
+
+First-time deployment: follow **`docs/CLOUDFLARE-SETUP.md`** once, top to bottom.
+
+### Documentation index
+
+**Start here, depending on what you're doing:**
+
+| I want to… | Read |
+|---|---|
+| Get this running on my machine for the first time | [`docs/ONBOARDING.md`](ONBOARDING.md) — a timed 30-minute path |
+| Upload a garment and get it on the site | [`docs/FIRST-GARMENT-UPLOAD.md`](FIRST-GARMENT-UPLOAD.md) — plain English, no code |
+| Set the project up on Cloudflare for the first time | [`docs/CLOUDFLARE-SETUP.md`](CLOUDFLARE-SETUP.md) |
+| Deploy, migrate, rotate a secret, or fix something live | [`docs/RUNBOOK.md`](RUNBOOK.md) |
+| Understand the raw-upload → auto-shrink pipeline | [`docs/RAW-UPLOAD-PIPELINE.md`](RAW-UPLOAD-PIPELINE.md) |
+| Check the site before announcing anything | [`docs/QA-CHECKLIST.md`](QA-CHECKLIST.md) |
+| Process a GLB by hand | [`tools/asset-pipeline/README.md`](../tools/asset-pipeline/README.md) |
+| Know *why* something is built the way it is | [`docs/HARDENING-LOG.md`](HARDENING-LOG.md) |
+| Add UI — which library, and why we are not on Tailwind | [`docs/DECISION-UI-LIBRARIES.md`](DECISION-UI-LIBRARIES.md) |
+| Know whether to buy Zaraz or Log Explorer (we are not) | [`docs/DECISION-ZARAZ-AND-LOG-EXPLORER.md`](DECISION-ZARAZ-AND-LOG-EXPLORER.md) |
+| Know why the 90-day backup artifact stays that long | [`docs/DECISION-BACKUP-RETENTION.md`](DECISION-BACKUP-RETENTION.md) |
+| Back up or restore the database | [`docs/BACKUP-RESTORE.md`](BACKUP-RESTORE.md) |
+| Deploy without the command line | [`docs/DEPLOY-BY-CLICKING.md`](DEPLOY-BY-CLICKING.md) |
+| See how the AI agent tooling is wired | [`docs/AI-TOOLING.md`](AI-TOOLING.md) |
+| Work on this repo (human or AI) — the traps that cost sessions | [`CLAUDE.md`](../CLAUDE.md) |
+| Diagnose damaged printed artwork | [`docs/OPEN-ISSUE-ARTWORK.md`](OPEN-ISSUE-ARTWORK.md) |
+| Contribute a change — the full gate list, and the rules that are not style | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
+| Report a security problem (**do not open an issue**) | [`SECURITY.md`](../SECURITY.md) |
+| **See every document in `docs/`, including the ones not listed above** | [`docs/README.md`](README.md) |
+
+**No working documents live at the repository root.** The last one, a hand-off
+prompt for the next AI session, was archived on 2026-09-26 with the old
+instruction files in [`docs/archive/agent-memory/`](archive/agent-memory/README.md).
+
+**Maintainer** — [@hateem2121](https://github.com/hateem2121), sole maintainer.
+
+**Getting help** — for the live site (a deploy, a rollback, a rotated secret, a
+garment that will not process) start at [`docs/RUNBOOK.md`](RUNBOOK.md). For a
+change to this repository, [`CONTRIBUTING.md`](../CONTRIBUTING.md) has the full gate
+list. For anything that looks like a security problem, follow
+[`SECURITY.md`](../SECURITY.md) and **do not open an issue**.
+
+**Session logs** — narrative records of expensive debugging, kept because
+re-deriving them costs days: [`docs/SESSION-2026-07-27.md`](SESSION-2026-07-27.md)
+(why raw uploads never worked) · [`docs/SESSION-2026-07-28.md`](SESSION-2026-07-28.md)
+(audit of those fixes; texture-aware decimation; CI token scope) ·
+[`docs/SESSION-2026-07-29.md`](SESSION-2026-07-29.md) (the first real
+garment; five first-run bugs; a data-loss incident) ·
+[`docs/SESSION-2026-07-31.md`](SESSION-2026-07-31.md) (artwork fixes, and
+why fixtures that cannot fail keep letting bugs through) ·
+[`docs/SESSION-2026-08-03.md`](SESSION-2026-08-03.md) (production audit —
+the live site was serving the wrong garment in wrongly-named colours with a torn
+wordmark; automatic colour naming and a blocking artwork gate).
+
 ## For developers
 
 ### How work ships (pull requests into `main`)
