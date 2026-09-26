@@ -52,7 +52,7 @@ check('names bare pnpm for the Playwright timeout that does not name it', () => 
   const got = run(
     bashFailure('Exit code 1\nError: Timed out waiting 120000ms from config.webServer'),
   )
-  if (!got.includes('npx --yes pnpm@10.34.5')) throw new Error('did not mention the npx form')
+  if (!got.includes('npx --yes pnpm@12.6.0')) throw new Error('did not mention the npx form')
 })
 
 check('tells you to read `conclusion`, not the exit code, on a cancelled run', () => {

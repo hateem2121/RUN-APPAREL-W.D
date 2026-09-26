@@ -27,7 +27,7 @@
  *
  *   pnpm build                      -> rewritten
  *   FOO=1 pnpm -r test              -> rewritten (env assignments are skipped)
- *   npx --yes pnpm@10.34.5 build    -> untouched (the token is `pnpm@10.34.5`)
+ *   npx --yes pnpm@12.6.0 build    -> untouched (the token is `pnpm@12.6.0`)
  *   cat pnpm-lock.yaml              -> untouched (different token, not in command position)
  *   grep pnpm docs/RUNBOOK.md       -> untouched (`pnpm` is an argument, not the command)
  *   git commit -m "use pnpm"        -> untouched (quoted, and not in command position)
@@ -35,7 +35,7 @@
  * WHAT CHANGED 2026-08-26: IT REWRITES RATHER THAN REFUSES, WHERE IT SAFELY CAN.
  * PreToolUse supports `updatedInput` under `hookSpecificOutput`, which "replaces a
  * tool's arguments before it runs" — so `pnpm test` simply becomes
- * `npx --yes pnpm@10.34.5 test` instead of costing a turn to retype. The protection
+ * `npx --yes pnpm@12.6.0 test` instead of costing a turn to retype. The protection
  * is identical; only the friction is gone, and a gate with no friction is a gate
  * nobody learns to route around.
  *
@@ -64,7 +64,7 @@ import { join } from 'node:path'
 import { segments, tokenize } from './shell.mjs'
 
 /** The one form that works here. A constant so the uses below cannot drift apart. */
-const PNPM = 'npx --yes pnpm@10.34.5'
+const PNPM = 'npx --yes pnpm@12.6.0'
 
 /**
  * The token actually being executed in this segment, or undefined.
@@ -143,7 +143,7 @@ function rewrite(command) {
 
 /**
  * The repo's own pre-approved Bash rules, read from settings rather than duplicated.
- * `Bash(npx --yes pnpm@10.34.5 test:*)` becomes the prefix `npx --yes pnpm@10.34.5 test`.
+ * `Bash(npx --yes pnpm@12.6.0 test:*)` becomes the prefix `npx --yes pnpm@12.6.0 test`.
  */
 function approvedBashPrefixes(root) {
   try {
@@ -227,7 +227,7 @@ process.stdin.on('end', () => {
   deny(
     'Blocked: bare `pnpm` does not reliably run on this machine (it has measured absent,\n' +
       'present, and present-but-broken), so this can exit 127.\n\n' +
-      'Use `npx --yes pnpm@10.34.5 <script>` instead — that is what every documented\n' +
+      'Use `npx --yes pnpm@12.6.0 <script>` instead — that is what every documented\n' +
       '`pnpm <script>` in this repo means, and what .claude/settings.json allows.\n\n' +
       'This is guarded rather than remembered because of where the failure shows up:\n' +
       'e2e/prepare.mjs shells out to `pnpm build`, so a bare pnpm kills the whole e2e\n' +

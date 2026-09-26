@@ -136,7 +136,7 @@ Still supported and sometimes the right answer — from any machine with real up
 bandwidth, with Docker running:
 
 ```bash
-CLOUDFLARE_API_TOKEN=$(cat ~/cf_token.txt) DOCKER_DEFAULT_PLATFORM=linux/amd64 npx --yes pnpm@10.34.5 --filter @run-apparel/shrink exec wrangler deploy
+CLOUDFLARE_API_TOKEN=$(cat ~/cf_token.txt) DOCKER_DEFAULT_PLATFORM=linux/amd64 npx --yes pnpm@12.6.0 --filter @run-apparel/shrink exec wrangler deploy
 ```
 
 ⚠️ `DOCKER_DEFAULT_PLATFORM` is **not optional on an Apple Silicon Mac**. Cloudflare
@@ -397,8 +397,9 @@ pull request:
   to the allowlist in `.gitleaks.toml`.
 - **Dependency vulnerabilities** — `audit-ci` (config `audit-ci.jsonc`) fails on
   **high/critical** advisories and **gates the deploy** (the `deploy` job needs
-  it). To clear one: bump the dependency, add a `pnpm.overrides` pin for a fixed
-  transitive version (how the `tmp` advisory was resolved), or — only if
+  it). To clear one: bump the dependency, add an `overrides` pin in
+  `pnpm-workspace.yaml` for a fixed transitive version (how the `tmp` advisory
+  was resolved), or — only if
   unfixable and not exploitable here — add the `GHSA-…` id to `allowlist` in
   `audit-ci.jsonc` with a dated reason.
 - **Artwork legibility** — `pnpm eval:artwork` (the `artwork` job) renders the real
@@ -791,7 +792,7 @@ Do all of it in one sitting, in this order, with `CLOUDFLARE_API_TOKEN` and
    in a later step cannot lose the value:
 
    ```bash
-   s="$(openssl rand -hex 32)" && security add-generic-password -U -a payload -s run-apparel-payload-secret -w "$s" && printf '%s' "$s" | npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec wrangler secret put PAYLOAD_SECRET && printf '%s' "$s" | gh secret set PAYLOAD_SECRET --env production && unset s
+   s="$(openssl rand -hex 32)" && security add-generic-password -U -a payload -s run-apparel-payload-secret -w "$s" && printf '%s' "$s" | npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec wrangler secret put PAYLOAD_SECRET && printf '%s' "$s" | gh secret set PAYLOAD_SECRET --env production && unset s
    ```
 
    Read the value back later with
@@ -802,7 +803,7 @@ Do all of it in one sitting, in this order, with `CLOUDFLARE_API_TOKEN` and
    the key was generated but not saved, and `users.updated_at` stayed at the day the
    robot was created. Check that *Last Modified* changed.
 4. Give the SAVED key to the robot, pasting it at the prompt:
-   `npx --yes pnpm@10.34.5 --filter @run-apparel/shrink exec wrangler secret put CMS_ROBOT_API_KEY`
+   `npx --yes pnpm@12.6.0 --filter @run-apparel/shrink exec wrangler secret put CMS_ROBOT_API_KEY`
 5. **Only then**, tick *Try this again* on a finished raw upload whose product is already
    published (the robot will not attach to it), and wait for **Ready to review**.
    Ticking it before step 4 strands the row on Queued.
@@ -814,7 +815,7 @@ one only if something actually uses it.
 enqueues nothing, then retry it from the admin:
 
 ```bash
-npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "UPDATE raw_uploads SET status = 'failed' WHERE id = <id> AND status = 'queued'"
+npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "UPDATE raw_uploads SET status = 'failed' WHERE id = <id> AND status = 'queued'"
 ```
 
 ## security.txt — renewing it once a year
@@ -1574,9 +1575,9 @@ the colourway's poster in the CMS (`posterPreview`), falling back to the product
 "Backup picture". Posters are rendered locally, free, from the finished model:
 
 ```bash
-npx --yes pnpm@10.34.5 pipeline posters output/<garment>.glb --product rxps \
+npx --yes pnpm@12.6.0 pipeline posters output/<garment>.glb --product rxps \
   --colours "Colorway 2=wine,Colorway 3=blush,Colorway 4=butter,Colorway 5=lime,Colorway 6=black"
-npx --yes pnpm@10.34.5 og:cards rxps
+npx --yes pnpm@12.6.0 og:cards rxps
 ```
 
 Judge the set on one sheet before uploading anything — the posters are transparent, so
@@ -1661,7 +1662,7 @@ Recommendation 4, 2026-09-23).
 
 ```bash
 cd ~/Sites/Model-Viewer-main && git switch main && git pull --ff-only && \
-  npx --yes pnpm@10.34.5 install --frozen-lockfile && \
+  npx --yes pnpm@12.6.0 install --frozen-lockfile && \
   node scripts/shrink-posters-gently.mjs
 ```
 

@@ -4,13 +4,13 @@
     {
       "name": "viewer",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["--yes", "pnpm@10.34.5", "--filter", "@run-apparel/viewer", "dev"],
+      "runtimeArgs": ["--yes", "pnpm@12.6.0", "--filter", "@run-apparel/viewer", "dev"],
       "port": 5173
     },
     {
       "name": "cms",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["--yes", "pnpm@10.34.5", "--filter", "@run-apparel/cms", "dev"],
+      "runtimeArgs": ["--yes", "pnpm@12.6.0", "--filter", "@run-apparel/cms", "dev"],
       "port": 3000,
       "autoPort": true
     },
@@ -19,7 +19,7 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": [
         "--yes",
-        "pnpm@10.34.5",
+        "pnpm@12.6.0",
         "pipeline",
         "review",
         "output/review",
@@ -33,7 +33,7 @@
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
-        "PORT=3100 PAYLOAD_LOCAL_D1=1 NODE_ENV=production npx --yes pnpm@10.34.5 --filter @run-apparel/cms start"
+        "PORT=3100 PAYLOAD_LOCAL_D1=1 NODE_ENV=production npx --yes pnpm@12.6.0 --filter @run-apparel/cms start"
       ],
       "port": 3100
     }

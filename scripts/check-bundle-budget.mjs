@@ -200,7 +200,7 @@ function fmt(bytes) {
 if (!existsSync(DIST)) {
   console.error(
     `✗ ${relative(REPO_ROOT, DIST)} does not exist.\n` +
-      `  Run the build first:  npx --yes pnpm@10.34.5 --filter @run-apparel/viewer build`,
+      `  Run the build first:  npx --yes pnpm@12.6.0 --filter @run-apparel/viewer build`,
   )
   process.exit(1)
 }

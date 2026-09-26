@@ -320,7 +320,7 @@ here are measured rather than quoted from upstream:
 The whole CI `verify` chain was run locally, last on the post-merge tree (PRs
 #14/#15) under Node 24.18.1 — the same major CI pins. **pnpm is not on this machine's
 `PATH`**, but every dependency and Playwright's browsers are, so
-`npx --yes pnpm@10.34.5 <script>` runs the real commands without installing anything
+`npx --yes pnpm@12.6.0 <script>` runs the real commands without installing anything
 globally.
 
 | Gate | Result |
@@ -465,7 +465,7 @@ the cookbook is the reference for how to call it — not a thing to copy wholesa
 
 | File | Committed | What it does |
 |---|---|---|
-| `launch.json` | yes | Dev-server definitions for viewer (5173) and cms (3000). Invokes pnpm via `npx --yes pnpm@10.34.5`, because pnpm is not necessarily on `PATH` — see the note under "Full-suite verification". |
+| `launch.json` | yes | Dev-server definitions for viewer (5173) and cms (3000). Invokes pnpm via `npx --yes pnpm@12.6.0`, because pnpm is not necessarily on `PATH` — see the note under "Full-suite verification". |
 | `settings.json` | yes | Permission allowlist for read-only commands, plus the guard hook below. |
 | `settings.local.json` | **no** (gitignored) | `CBM_ALLOWED_ROOT`. Machine-specific; see above. |
 | `hooks/guard-pipeline-input.mjs` | yes | The guard below. |

@@ -3,36 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "description": "RUN APPAREL — QR-deep-linkable 3D apparel product viewer (viewer + Payload CMS + asset pipeline)",
-  "packageManager": "pnpm@10.34.5",
+  "packageManager": "pnpm@12.6.0",
   "engines": {
     "node": ">=24"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@sentry/cli",
-      "esbuild",
-      "sharp",
-      "workerd"
-    ],
-    "overrides": {
-      "sharp": "0.35.4",
-      "tmp": "^0.2.4",
-      "postcss": "^8.5.23",
-      "dompurify": "^3.4.13",
-      "brace-expansion@1": "^1.1.18",
-      "brace-expansion@2": "^2.1.4",
-      "brace-expansion@5": "^5.0.9",
-      "undici": "^7.29.0",
-      "@esbuild-kit/core-utils>esbuild": "^0.25.0",
-      "@lhci/cli>uuid": "^11.1.1",
-      "fast-uri": "^3.1.6",
-      "ip-address": "^10.3.1",
-      "qs": "^6.16.0",
-      "js-yaml@3": "^3.15.2",
-      "js-yaml@4": "^4.3.2",
-      "baseline-browser-mapping": "^2.11.0",
-      "nanoid": "^3.3.18"
-    }
   },
   "scripts": {
     "build": "pnpm -r build",

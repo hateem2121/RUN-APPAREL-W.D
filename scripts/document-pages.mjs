@@ -19,9 +19,9 @@
  * ⚠️ --md5 IS THE R2 OBJECT'S ETAG. Pictures made from any file other than the one the
  * Download button serves would show pages the download does not contain, so a mismatch
  * stops the run.
- * ⚠️ `sharp` IS NOT A ROOT DEPENDENCY: the root package.json names it only under
- * `pnpm.overrides`, and `tools/asset-pipeline` declares it. It is loaded from there,
- * inside `main()`, so tests import the pure functions without it.
+ * ⚠️ `sharp` IS NOT A ROOT DEPENDENCY: the root pins its version only as an `overrides`
+ * entry in pnpm-workspace.yaml, and `tools/asset-pipeline` declares it. It is loaded
+ * from there, inside `main()`, so tests import the pure functions without it.
  * ⚠️ Ghostscript must be on PATH (10.08.0 on the owner's Mac, 2026-09-11). CI runners do
  * not have it, which is why rendering is verified locally rather than in CI.
  */

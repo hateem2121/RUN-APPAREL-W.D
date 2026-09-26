@@ -63,6 +63,6 @@ round trips were spent learning that.
 🟡 **Playwright's browsers are NOT installed here, and a missing one fails at 0ms.**
 Found 2026-08-27: `test:e2e` reported four engines failing with `(0ms)`, which reads
 as broken code and is a browser that never launched. Install once —
-`npx --yes pnpm@10.34.5 --filter @run-apparel/viewer exec playwright install chromium webkit firefox`.
+`npx --yes pnpm@12.6.0 --filter @run-apparel/viewer exec playwright install chromium webkit firefox`.
 `tools/asset-pipeline`'s render harness needs chromium too. With all four present:
 **355 passed, 6 skipped, 41.8s** (measured 2026-08-27).

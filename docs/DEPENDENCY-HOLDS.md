@@ -102,7 +102,7 @@ fails. Both directions have controls.
 ## How to re-test the hold
 
 1. **Negative control first.** In a real `git worktree` at the held version, run
-   `npx --yes pnpm@10.34.5 --filter @run-apparel/shrink typecheck` and confirm it exits 0.
+   `npx --yes pnpm@12.6.0 --filter @run-apparel/shrink typecheck` and confirm it exits 0.
    A synthetic harness is not good enough — the 2026-08-17 audit built one, could not
    reproduce the passing baseline, and correctly discarded its own result.
 2. Then bump to the newest release older than 24h and run the same command.

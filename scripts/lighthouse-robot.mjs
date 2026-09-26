@@ -415,7 +415,7 @@ const LIGHTHOUSE_BIN = fileURLToPath(new URL('../node_modules/.bin/lighthouse', 
 function runLighthouse(url, formFactor, file) {
   if (!existsSync(LIGHTHOUSE_BIN)) {
     throw new Error(
-      `Lighthouse is not installed at ${LIGHTHOUSE_BIN}; run \`npx --yes pnpm@10.34.5 install\`. ` +
+      `Lighthouse is not installed at ${LIGHTHOUSE_BIN}; run \`npx --yes pnpm@12.6.0 install\`. ` +
         'It is a pinned devDependency on purpose, and this robot will not fetch it with npx.',
     )
   }

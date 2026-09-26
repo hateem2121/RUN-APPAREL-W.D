@@ -130,7 +130,7 @@ file is kept at `docs/archive/agent-memory/2026-09-26-root-CLAUDE.md`.
 | 🔴 Public repository | Root |
 | The gates, in CI's order; the three invisible gates | Root |
 | `e2e` gates the deploy; Playwright browsers not installed | `.claude/rules/tests-and-fixtures.md` (root keeps the command) |
-| Use `npx --yes pnpm@10.34.5` | Root ("The pnpm note"); `guard-bare-pnpm.mjs` enforces it |
+| Use `npx --yes pnpm@12.6.0` | Root ("The pnpm note"); `guard-bare-pnpm.mjs` enforces it |
 | The CMS dev server dirties the tree; `admin.hidden` gates routes | `apps/cms/CLAUDE.md` traps (11 → 13) |
 | Coverage floors are measured | `.claude/rules/tests-and-fixtures.md` |
 | Module boundaries are lint-enforced | Root, one bullet |

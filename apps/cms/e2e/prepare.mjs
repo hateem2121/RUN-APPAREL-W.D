@@ -4,7 +4,7 @@
  * Runs inside Playwright's `webServer.command`, before the readiness poll, so `.next/`
  * always exists by the time serve.mjs answers. Mirrors apps/viewer/e2e/prepare.mjs.
  *
- * ⚠️ `npx --yes pnpm@10.34.5`, NEVER A BARE `pnpm`. This is the exact shape that cost
+ * ⚠️ `npx --yes pnpm@12.6.0`, NEVER A BARE `pnpm`. This is the exact shape that cost
  * two sessions: `pnpm` may not be on PATH, and on this machine it has been present,
  * absent, AND present-but-broken (a symlink into a Node cellar a later Node replaced —
  * `command -v` finds it and running it fails). A bare `pnpm` here exits 127 inside a
@@ -22,7 +22,7 @@ const REPO = join(CMS, '..', '..')
 
 const run = (label, args) => {
   process.stdout.write(`[cms-e2e] ${label}\n`)
-  const result = spawnSync('npx', ['--yes', 'pnpm@10.34.5', ...args], {
+  const result = spawnSync('npx', ['--yes', 'pnpm@12.6.0', ...args], {
     cwd: REPO,
     stdio: 'inherit',
     // ⚠️ Strip a PORT inherited from the developer's shell. `next build` does not read
