@@ -3,6 +3,21 @@
 **In plain words:** this page is for people who change the code.
 It lists the tools you need, the checks to run, and how a change goes live.
 
+## What this is (the README's introduction, moved word for word)
+
+One reusable, QR-deep-linkable 3D apparel viewer for B2B buyers, plus the private
+CMS that feeds it. A buyer scans a QR code on a garment tag (or in the PDF
+catalogue) and lands directly on e.g.:
+
+```
+https://viewer.wear-run.help/rxps/wine
+```
+
+They see an instant static render, the interactive 3D garment loads behind it,
+and they can rotate, zoom, switch colourways, jump back to the catalogue, or
+contact RUN by email/WhatsApp. **No shop, no cart, no prices — this is a
+development reference for partners, not a retail page.**
+
 ## What's in this repository
 
 | Folder | What it is |
