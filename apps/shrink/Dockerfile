@@ -23,13 +23,13 @@
 # a `docker` ecosystem — it would either sit at 0 and change nothing, or break
 # the quiet mode on purpose. See the same correction in the root CLAUDE.md.
 #
-# PINNED-ON: 2026-08-29
+# PINNED-ON: 2026-09-26
 # ⚠️ That line is READ BY A TEST (apps/cms/src/baseImageAge.test.ts), which fails once
 # the pin is older than the refresh window. Base images are rebuilt mainly to pick up
 # operating-system security fixes, so pinning is correct and never refreshing is not —
 # and until 2026-08-29 nothing anywhere measured the age. Update the date in the SAME
 # commit as the digest, or the gate is measuring a lie.
-FROM node:24-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e
+FROM node:24-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
 
 WORKDIR /app
 
