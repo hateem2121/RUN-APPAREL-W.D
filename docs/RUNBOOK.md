@@ -190,15 +190,15 @@ top of your rollback.
 
 ### The commands
 
-Verified against the pinned wrangler **4.137.0** (`wrangler rollback --help`), not
+Verified against the pinned wrangler **4.140.0** (`wrangler rollback --help`), not
 recalled:
 
 ```bash
 # 1. See what you can go back to (10 most recent):
-npx wrangler@4.137.0 versions list --name run-apparel-viewer-site
+npx wrangler@4.140.0 versions list --name run-apparel-viewer-site
 
 # 2. Roll back. Omit the version-id to take the previous one:
-npx wrangler@4.137.0 rollback <version-id> --name run-apparel-viewer-site -m "why"
+npx wrangler@4.140.0 rollback <version-id> --name run-apparel-viewer-site -m "why"
 ```
 
 The four Worker names:
@@ -250,7 +250,7 @@ the schema back with `migrate:remote:down` before the Worker.
 likely to turn a visible outage into a data problem.** Check first:
 
 ```bash
-npx wrangler@4.137.0 d1 migrations list run-apparel-viewer-db --remote
+npx wrangler@4.140.0 d1 migrations list run-apparel-viewer-db --remote
 ```
 
 ### Not yet verified here
@@ -899,7 +899,7 @@ external uptime monitors, nowhere else.
 2. Set the secret to the chosen words — the words alone, not the whole link — through the
    Cloudflare API (`PUT /accounts/{account_id}/workers/scripts/run-apparel-apex-404/secrets`
    with `{"name": "CATALOGUE_CODE", "text": "<code>", "type": "secret_text"}`), or with
-   `npx wrangler@4.137.0 secret put CATALOGUE_CODE --name run-apparel-apex-404`. Either
+   `npx wrangler@4.140.0 secret put CATALOGUE_CODE --name run-apparel-apex-404`. Either
    creates and deploys a new Worker version.
 3. Check with a plain GET, never HEAD, **on both addresses** (`.help` and `.com`): the old
    link must answer **404** and the new one **200**. If the old one still opens, run `pnpm deploy:apex` from a clean, up-to-date
@@ -916,7 +916,7 @@ external uptime monitors, nowhere else.
    Open `<dir>/contact-sheet.jpg`; if a spread's artwork crosses its red centre line,
    re-run with `--whole <page numbers>`.
 2. Upload every `<dir>/<version>/*.webp` to `run-assets/documents/<doc>/<version>/` with
-   `npx wrangler@4.137.0 r2 object put run-assets/<key> --file <file> --content-type image/webp --remote`,
+   `npx wrangler@4.140.0 r2 object put run-assets/<key> --file <file> --content-type image/webp --remote`,
    then list that prefix and check the count is three per part in the manifest.
 3. Upload the new PDF over the SAME key — `RUN PRODUCT CATALOUGE.pdf` or
    `Company Profile.pdf`, spelled exactly — and confirm its etag equals the `--md5` you
@@ -940,7 +940,7 @@ external uptime monitors, nowhere else.
   the word rule, decided 2026-09-15 — it starts with the retired word `catalogue` or
   `profile`, or equals the other document's own secret. Only the Worker's own
   `[apex] … cannot be served` log line says which of these it is.
-  `npx wrangler@4.137.0 secret list --name run-apparel-apex-404` shows names only.
+  `npx wrangler@4.140.0 secret list --name run-apparel-apex-404` shows names only.
 - **"Temporarily unavailable" (503):** the manifest is missing or invalid, or a file it
   lists is missing. Workers Logs carry the reason (`[apex] … manifest rejected: …`).
   ⚠️ **Workers Logs' REQUEST lines carry the full address, words included** — if you

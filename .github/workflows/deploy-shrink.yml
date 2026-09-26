@@ -164,16 +164,16 @@ jobs:
     # here runs apt any more. .github/CLAUDE.md's trap is updated to say so — and
     # kept, because its reasoning is what stops the next one being added.
     #
-    # ⚠️ NO `container:` BLOCK SINCE 2026-09-08 — THE RUNNER *IS* THAT IMAGE.
-    # `infra/ci-runner/Dockerfile` is built `FROM mcr.microsoft.com/playwright:v1.62.1-noble`,
-    # the same image this job used to pull per run, so the browsers are already present
-    # and there is no Docker-in-Docker to go wrong. The tag is still not decorative: it
-    # must equal the declared `@playwright/test` version or the render harness fails at
-    # runtime with `browser not found at /ms-playwright/...`, and
-    # apps/cms/src/workflowHardening.test.ts asserts the Dockerfile's FROM and the
-    # package version agree. Bumping @playwright/test means REBUILDING that image.
+    # The job runs INSIDE the Playwright image, so the browsers are already present.
+    # (From 2026-09-08 to 2026-09-09 it ran on a self-hosted Mac runner built from
+    # `infra/ci-runner/Dockerfile` instead; both were retired in 23524ae when the repo
+    # went public and GitHub's runners became free again — this comment said otherwise
+    # until 2026-09-26.) The tag is not decorative: it must equal the declared
+    # `@playwright/test` version or the render harness fails at runtime with
+    # `browser not found at /ms-playwright/...`, and apps/cms/src/workflowHardening.test.ts
+    # asserts the two agree. Bump them together.
     container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -550,8 +550,8 @@ exports over it are **skipped by name** — a skip must never read as a pass.
 the shipped preset, above the ceiling as a negative control must be: a clean pass**,
 matching the 2026-08-28 audit; `c405537` ("give eval:artwork the same baseline its
 optimized runs get") fixed the baseline. 🟡 **So do NOT dismiss a local failure as a
-platform artefact** — it would hide a real regression. CI runs it inside
-`mcr.microsoft.com/playwright:v1.62.1-noble`, and 🟡 **do not raise the ceiling to make
+platform artefact** — it would hide a real regression. CI runs it inside the
+`mcr.microsoft.com/playwright` image matching `@playwright/test`, and 🟡 **do not raise the ceiling to make
 anything green.**
 
 🟡 **`review-server.ts` and `apps/viewer` are DIFFERENT PAGES.** A fix in one is not in the

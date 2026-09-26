@@ -223,9 +223,9 @@ the answer is "nothing that happens in production", it is not a test.
   since 2026-08-29.** Every release from `5.20260808.1` on fails that package's typecheck
   with `Property 'readUInt32LE' does not exist on type 'NonSharedBuffer'` x3 plus one
   arity error — **all four in one 15-line function**, `readGlbGenerator`
-  (`tools/asset-pipeline/src/validate.ts:45`). Re-measured on `5.20260827.1`: still
+  (`tools/asset-pipeline/src/validate.ts:45`). Re-measured on `5.20260925.1` (2026-09-26): still
   broken, so the hold stands where it applies.
-  **It applies nowhere else.** `apps/cms` and `apps/viewer` run `5.20260827.1` and
+  **It applies nowhere else.** `apps/cms` and `apps/viewer` run `5.20260925.1` (raised 2026-09-26) and
   typecheck clean; the hold had frozen 24 days of updates across both for a fault
   neither has. It surfaces only in `apps/shrink` because that package sets
   `"types": ["@cloudflare/workers-types"]` with no node types, and its tsconfig reaches
@@ -234,10 +234,9 @@ the answer is "nothing that happens in production", it is not a test.
   `"types": ["node"]`. `@types/node` looks like the culprit and is not.
   🟡 **Bisect; do not revert the plausible one.** The split is deliberate and pinned by
   `dependencyPolicy.test.ts`, which asserts the hold in `apps/shrink` AND asserts it has
-  not widened again. wrangler 4.137.0 wants `^5.20260921.1`, so `apps/cms` and
-  `apps/viewer` now carry the same unmet-peer warning as `apps/shrink` — cosmetic in all
-  three, but only `apps/shrink`'s is a real hold; cms/viewer could raise workers-types
-  safely, as a separate change. **Do not "fix" shrink's by raising workers-types**, which
+  not widened again. wrangler 4.140.0 wants `^5.20260923.1`; `apps/cms` and `apps/viewer`
+  were raised to `5.20260925.1` on 2026-09-26 and satisfy it, so only `apps/shrink` still
+  shows the unmet-peer warning — and that one is the real hold. **Do not "fix" shrink's by raising workers-types**, which
   trades it for the real break.
   Releasing it does not need Cloudflare: move `SIZE_WARNING_BYTES` and `GlbReport` into a
   node-free module and `readGlbGenerator` stops being reachable. History and the re-test:

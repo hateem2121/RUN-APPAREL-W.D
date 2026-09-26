@@ -37,7 +37,8 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   duplicate the same gates, so a fix to one is only half a fix. Grep the other.**
 - **🟢 No workflow runs `playwright install-deps` any more — and while one did, it was
   bounded at 8 minutes and NON-FATAL on purpose: it is preparation, not a gate.**
-  `ci.yml`'s `artwork` and `e2e` moved into `mcr.microsoft.com/playwright:v1.62.1-noble`
+  `ci.yml`'s `artwork` and `e2e` moved into the `mcr.microsoft.com/playwright` image (its
+  tag must equal `@playwright/test`'s version; `workflowHardening.test.ts` enforces it)
   on 2026-08-20 and `deploy-shrink.yml` on 2026-08-30; the image ships the browsers and
   their system libraries. Below is the history that produced that decision.
   Measured normal cost 24 seconds. On 2026-08-18 a degraded Azure Ubuntu
@@ -193,7 +194,7 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   which is why 32294473409 ended on a lock error instead of finishing.
   ✅ **ALL OF `ci.yml` stopped depending on apt on 2026-08-20** — `artwork` first, then
   `e2e` when it was split out of `verify`, both running in
-  `mcr.microsoft.com/playwright:v1.62.1-noble`. Measured: `artwork` 142s against a
+  the `mcr.microsoft.com/playwright` image. Measured: `artwork` 142s against a
   107s baseline (+35s per run), and `e2e` 417s while `verify` fell 470s -> 159s by
   shedding it, so the RUN's long pole went 470s -> 417s — billed minutes up,
   wall-clock down. The image pull is 36-40s with a 60s tail (seven pulls).
@@ -202,7 +203,7 @@ npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/workflowHar
   (`playwright install --with-deps` on a cache miss, `install-deps` on a hit) at a
   🟢 **20-minute** ceiling while ci.yml had already been raised to 30 *and* then moved
   to the container — so the file most exposed to the mirror outage was the one with
-  the least headroom. It now uses the same `mcr.microsoft.com/playwright:v1.62.1-noble`
+  the least headroom. It now uses the same `mcr.microsoft.com/playwright`
   image and installs no browser at all.
   🟢 **KEEP THIS TRAP ANYWAY.** Everything above is the reasoning, not the residue:
   it is why raising a ceiling is the wrong fix, why a retry races an orphan holding

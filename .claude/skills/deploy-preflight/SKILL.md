@@ -132,7 +132,7 @@ that key — `--remote` is required, or wrangler reads LOCAL storage and reports
 object as missing (`<key>` is the URL's path without the leading `/`):
 
 ```bash
-npx --yes wrangler@4.137.0 r2 object get "run-apparel-viewer-media/<key>" --remote --file /tmp/r2-check
+npx --yes wrangler@4.140.0 r2 object get "run-apparel-viewer-media/<key>" --remote --file /tmp/r2-check
 ```
 
 A **Custom Purge of that one URL** should not be needed for a 404 any more; it still
