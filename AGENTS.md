@@ -1,17 +1,21 @@
 # AGENTS.md
 
-This project's rules live in its `CLAUDE.md` files. They apply to
-every AI coding tool, not only Claude Code, so read them even
-though their name says "Claude".
+The rules for AI coding tools working in this repository. Claude Code reads `CLAUDE.md`
+directly and skips this file whenever a `CLAUDE.md` exists; Antigravity and other tools
+read this one.
 
-This file only points at them. It does not copy them, because a
-copy goes stale, and Antigravity cuts any rule file off at 24,000
-bytes, which is smaller than the root `CLAUDE.md`.
+The main rules are the root `CLAUDE.md`, included below with Antigravity's
+`@[label](path)` include, so there is one copy and it cannot drift. The expanded file is
+about 12 KB, inside Antigravity's 24,000-byte limit for a rule file (the root stays under
+200 lines, which keeps it there).
 
-Before you change anything:
+@[The root CLAUDE.md](CLAUDE.md)
 
-1. Read `CLAUDE.md` at the repository root.
-2. Then read the `CLAUDE.md` of the folder you are about to change:
+Where those rules name a Claude Code feature (hooks, skills, path rules in
+`.claude/rules/`, `/compact`, the Read tool), the rule still applies to you. Only the
+mechanism is Claude's: read the named file yourself when you work in its area.
+
+Before you change anything in these folders, also read their own rules:
 
 | When you work in        | Also read                        |
 | :---------------------- | :------------------------------- |
@@ -19,7 +23,3 @@ Before you change anything:
 | `apps/viewer/`          | `apps/viewer/CLAUDE.md`          |
 | `tools/asset-pipeline/` | `tools/asset-pipeline/CLAUDE.md` |
 | `.github/`              | `.github/CLAUDE.md`              |
-
-Where those files describe a Claude Code feature (hooks, skills,
-subagents, `/compact`), the rule still applies to you. Only the
-mechanism is Claude's.

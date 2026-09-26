@@ -94,6 +94,7 @@ const GATES = [
 const HOOK_TESTS = [
   'guard-bare-pnpm',
   'guard-pipeline-input',
+  'guard-main-branch',
   'log-instructions-loaded',
   'explain-failure',
   'recall-nested-instructions',

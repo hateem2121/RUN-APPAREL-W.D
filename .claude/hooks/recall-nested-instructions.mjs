@@ -43,6 +43,23 @@ function findClaudeMd(dir, root, found = []) {
   return found
 }
 
+/**
+ * Every path rule in `.claude/rules/`, repo-relative. Added 2026-09-26, when the root
+ * file's cross-cutting traps moved into nine such rules: they are no more re-injected
+ * after `/compact` than a nested CLAUDE.md is, so they belong in the same reminder.
+ * Discovered, not listed, for the same reason as findClaudeMd.
+ */
+function findRules(root) {
+  try {
+    return readdirSync(join(root, '.claude/rules'), { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+      .map((entry) => `.claude/rules/${entry.name}`)
+      .sort()
+  } catch {
+    return []
+  }
+}
+
 async function readStdin() {
   try {
     const chunks = []
@@ -61,7 +78,8 @@ try {
   rmSync(marker, { force: true })
 
   const nested = findClaudeMd(root, root).filter((p) => p !== 'CLAUDE.md')
-  if (nested.length === 0) process.exit(0)
+  const rules = findRules(root)
+  if (nested.length === 0 && rules.length === 0) process.exit(0)
 
   const rows = nested
     .map((p) => {
@@ -81,10 +99,14 @@ try {
         hookEventName: 'UserPromptSubmit',
         additionalContext:
           'Context was just compacted. Only the ROOT CLAUDE.md is re-injected, so the ' +
-          'nested instruction files below are NOT in context right now — each holds traps ' +
-          'the root file only summarises in one line:\n\n' +
-          `${rows}\n\n` +
-          'Read the relevant one BEFORE changing anything in its directory. The root file ' +
+          'instruction files below are NOT in context right now — each holds traps the ' +
+          'root file only indexes:\n\n' +
+          `${rows}\n` +
+          (rules.length > 0
+            ? '\nPath rules (each reloads only when the Read tool opens a file its `paths:` ' +
+              `names):\n${rules.map((p) => `  ${p}`).join('\n')}\n`
+            : '') +
+          '\nRead the relevant one BEFORE changing anything in its area. The root file ' +
           'says this about itself, but says it from the only file that survived.',
       },
     }),

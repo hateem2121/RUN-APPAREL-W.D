@@ -79,7 +79,7 @@ first failure.
 
 ## How work is done here
 
-- **Branch off `main`; never commit to it.** Commit messages are plain English,
+- **Branch off `main`; never commit to it** (a hook refuses both). Commit messages are plain English,
   "Area: what changed" — e.g. *Viewer — retry a model download that stops sending*.
   Why: the owner is not a developer and reads the history.
 - **Comments explain *why*, citing the incident.** Several traps are discoverable only
@@ -119,6 +119,7 @@ is missed:
 |---|---|
 | `guard-bare-pnpm.mjs` | Rewrites a bare `pnpm` to the `npx` form, or refuses it |
 | `guard-pipeline-input.mjs` | Refuses to run the pipeline on its own output |
+| `guard-main-branch.mjs` | Refuses a commit made on `main` and a push to `main` |
 | `format-edited-file.mjs` | Runs Biome on each file you edit |
 | `check-doc-citations.mjs` | Re-checks citations after each Markdown edit |
 | `explain-failure.mjs` | Names the real cause when an error blames the wrong thing |

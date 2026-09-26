@@ -89,6 +89,18 @@ check('discovery is a glob, not a list — a NEW nested file is named without an
   if (!got.includes('apps/brand-new/CLAUDE.md')) throw new Error(`hardcoded list: ${got}`)
 })
 
+check('names the path rules in .claude/rules/ too, discovered rather than listed', () => {
+  // Added 2026-09-26: the root file's cross-cutting traps moved into path rules, which
+  // are no more re-injected after /compact than a nested CLAUDE.md is.
+  const dir = fixture()
+  mkdirSync(join(dir, '.claude/rules'), { recursive: true })
+  writeFileSync(join(dir, '.claude/rules/invented-rule.md'), '---\npaths:\n  - "x/**"\n---\n')
+  run(NOTE, dir, { hook_event_name: 'PostCompact', trigger: 'auto' })
+  const got = run(RECALL, dir, { hook_event_name: 'UserPromptSubmit', prompt: 'hi' })
+  if (!got.includes('.claude/rules/invented-rule.md')) throw new Error(`missed the rule: ${got}`)
+  if (!got.includes('apps/viewer/CLAUDE.md')) throw new Error(`lost the nested files: ${got}`)
+})
+
 check('fires ONCE — the marker is cleared, so the next prompt is quiet', () => {
   const dir = fixture()
   run(NOTE, dir, { hook_event_name: 'PostCompact', trigger: 'auto' })
