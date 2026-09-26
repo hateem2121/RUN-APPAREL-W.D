@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test'
 import { SITE_MENU_ID, SITE_MENU_NAME } from '../../../packages/shared/src/siteBar'
+import { stageFallsBack } from './stage'
 
 const MENU = `#${SITE_MENU_ID}`
 const OPEN = `${MENU}:popover-open`
@@ -1519,6 +1520,14 @@ test.describe('layout invariants', () => {
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      /*
+       * Judge the page once the stage has decided (see e2e/stage.ts). Measured 2026-09-26 in CI's
+       * image, Firefox (no WebGL), 1 failure in 240 runs: the read landed 10 ms after
+       * `render3d-unavailable`, with email on screen and WhatsApp not. Every rAF sample on either
+       * side — 6 runs on a starved CPU — had the WhatsApp button at bottom 378 of 390. A state no
+       * visitor can see for a frame is not the invariant; the settled page is.
+       */
+      await stageFallsBack(page)
 
       const reachable = await page.evaluate(() => {
         const inView = (el: Element) => {
@@ -2717,7 +2726,7 @@ test.describe('the page composes on one grid', () => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     test.skip(
-      (await page.locator('.stage__error:not([hidden])').count()) > 0,
+      await stageFallsBack(page),
       'no 3D here (CI Firefox has no WebGL): the callouts are not drawn at all by design ' +
         '(LA-16), so there are no baselines to compare',
     )

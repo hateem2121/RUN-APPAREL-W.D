@@ -7,6 +7,7 @@ import {
   toHex,
   worstRatio,
 } from '../../../scripts/contrast-rules.mjs'
+import { stageFallsBack } from './stage'
 
 /**
  * Guards for the things the 2026-09-06 whole-site audit found ALREADY CORRECT.
@@ -1470,9 +1471,9 @@ test.describe('FRONT/BACK/SIDE each move the camera and settle (MO-14)', () => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    const fallback = await page.locator('.stage__error:not([hidden])').count()
+    const fallback = await stageFallsBack(page)
     test.skip(
-      fallback > 0,
+      fallback,
       `${browserName}: no WebGL here, the stage is in poster fallback — no camera buttons to press`,
     )
 
@@ -1602,9 +1603,9 @@ test.describe('an arrow key rotates the garment, on every colourway this fixture
       await page.goto(`/n001/${slug}`)
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-      const fallback = await page.locator('.stage__error:not([hidden])').count()
+      const fallback = await stageFallsBack(page)
       test.skip(
-        fallback > 0,
+        fallback,
         `${browserName}: no WebGL here, the stage is in poster fallback — no camera to rotate`,
       )
 
@@ -1714,7 +1715,7 @@ test.describe('forced-colors substitutes real colour, on the viewer too (CO-09)'
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    const fallback = await page.locator('.stage__error:not([hidden])').count()
+    const fallback = await stageFallsBack(page)
 
     const active = await page.evaluate(() => window.matchMedia('(forced-colors: active)').matches)
     test.skip(!active, `${browserName} does not emulate forced-colors`)
@@ -1777,7 +1778,7 @@ test.describe('forced-colors substitutes real colour, on the viewer too (CO-09)'
     ).toBe('none')
 
     test.skip(
-      fallback > 0,
+      fallback,
       `${browserName}: no WebGL here, the stage is in poster fallback — <StageControls> ` +
         'never mounts, so there is no camera button to measure',
     )
@@ -2342,8 +2343,8 @@ test.describe('SC-08 — wheel over the canvas zooms, page does not scroll', () 
     test.skip(isMobile, 'a phone has no mouse wheel (Playwright: not supported in mobile WebKit)')
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    const fallback = await page.locator('.stage__error:not([hidden])').count()
-    test.skip(fallback > 0, `${browserName}: no WebGL here, the stage is in poster fallback`)
+    const fallback = await stageFallsBack(page)
+    test.skip(fallback, `${browserName}: no WebGL here, the stage is in poster fallback`)
 
     await page.waitForFunction(
       () => {
@@ -2437,8 +2438,8 @@ test.describe('SC-13 — touch-action is none on the canvas, and nowhere else sc
     // No WebGL (CI's Firefox) means poster fallback and no <model-viewer> at all: the first
     // CI run waited 30s for one and timed out (2026-09-25). Chromium on CI has WebGL and
     // still runs this, as SC-08's identical guard relies on.
-    const fallback = await page.locator('.stage__error:not([hidden])').count()
-    test.skip(fallback > 0, `${browserName}: no WebGL here, the stage is in poster fallback`)
+    const fallback = await stageFallsBack(page)
+    test.skip(fallback, `${browserName}: no WebGL here, the stage is in poster fallback`)
 
     /*
      * ⚠️ THE ATTRIBUTE, NOT `getComputedStyle`. Measured while writing this test:
@@ -2541,8 +2542,8 @@ test.describe('MO-23 — all five named motion affordances are present', () => {
     // been idle for CUE_IDLE_MS (Stage.tsx: `!fallback && modelLoaded && !swapping &&
     // cueVisible`), so it cannot exist on a stage in poster fallback (no WebGL on CI's
     // Firefox) and does not exist yet when the <h1> appears.
-    const fallback = await page.locator('.stage__error:not([hidden])').count()
-    test.skip(fallback > 0, `${browserName}: no WebGL here, the stage is in poster fallback`)
+    const fallback = await stageFallsBack(page)
+    test.skip(fallback, `${browserName}: no WebGL here, the stage is in poster fallback`)
     await expect(page.locator('.stage__hint')).toBeAttached({ timeout: 40_000 })
 
     const present = await page.evaluate(() => ({

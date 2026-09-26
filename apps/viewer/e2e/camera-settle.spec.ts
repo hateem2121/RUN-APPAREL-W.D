@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { stageFallsBack } from './stage'
 
 /**
  * FA-H-28 — how long the camera takes to stop after a real drag release.
@@ -36,8 +37,8 @@ test.describe('FA-H-28 — the camera settles after a drag', () => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    const fallback = await page.locator('.stage__error:not([hidden])').count()
-    test.skip(fallback > 0, 'no WebGL on this engine — the stage is in poster fallback')
+    const fallback = await stageFallsBack(page)
+    test.skip(fallback, 'no WebGL on this engine — the stage is in poster fallback')
 
     // The model has to be live, or the drag lands on a poster and moves nothing.
     await page.waitForFunction(

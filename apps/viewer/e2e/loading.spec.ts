@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { stageFallsBack } from './stage'
 
 /**
  * MO-20 — the stage's loading readout is CORRECT FOR ITS PHASE across a real download.
@@ -45,8 +46,8 @@ test.describe('MO-20 — the stage readout is correct for its phase', () => {
     )
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 60_000 })
-    const fallback = await page.locator('.stage__error:not([hidden])').count()
-    test.skip(fallback > 0, `${browserName}: no WebGL here, the stage is in poster fallback`)
+    const fallback = await stageFallsBack(page)
+    test.skip(fallback, `${browserName}: no WebGL here, the stage is in poster fallback`)
 
     const samples: { text: string; percent: number | null; scaleX: number | null }[] = []
     const deadline = Date.now() + 90_000
@@ -161,8 +162,8 @@ test.describe('SPEC §5.1 — screen readers hear the progress now and then', ()
     )
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 60_000 })
-    const fallback = await page.locator('.stage__error:not([hidden])').count()
-    test.skip(fallback > 0, `${browserName}: no WebGL here, the stage is in poster fallback`)
+    const fallback = await stageFallsBack(page)
+    test.skip(fallback, `${browserName}: no WebGL here, the stage is in poster fallback`)
 
     await expect
       .poll(
@@ -280,7 +281,7 @@ test.describe('CR-05 — the progress fill eases to each value, it does not step
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 60_000 })
     test.skip(
-      (await page.locator('.stage__error:not([hidden])').count()) > 0,
+      await stageFallsBack(page),
       `${browserName}: no WebGL here, the stage is in poster fallback`,
     )
     await expect(page.locator('.stage__loading')).toHaveCount(0, { timeout: 90_000 })
