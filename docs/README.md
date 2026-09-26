@@ -39,8 +39,10 @@ date, and correct to leave exactly as it is. Editing one to keep it "current" wo
 destroy the only thing it is for. The 0.63 MB of manifests is addressed by name by the
 tooling and read by a person about never.
 
-**Records live in:** `docs/AUDIT-*.md`, `docs/superpowers/plans/`,
-`docs/superpowers/specs/` and `NEXT-SESSION-PROMPT.md`.
+**Records live in:** `docs/superpowers/plans/`, `docs/superpowers/specs/` and
+`docs/archive/` (the instruction files as they were before the 2026-09-26 rebuild —
+[index](archive/agent-memory/README.md)). The audit reports that used to sit at
+`docs/AUDIT-*.md` are private since 2026-09-10 (see below).
 The 2026-08-30 Cloudflare + GitHub infrastructure audits are kept privately and
 are not part of this public repository — they record live account, monitor and
 application identifiers. Nothing in those
@@ -131,11 +133,8 @@ Newest first.
 ## Audit working files
 
 The two Cloudflare + GitHub audits each keep their evidence beside the report, so a
-claim can be checked rather than believed. **These are working material, not
-guidance** — read the report, and come here only to verify something in it.
-
-| What | Where |
-|---|---|
+claim can be checked rather than believed. **Both the reports and their evidence are
+private since 2026-09-10**, so nothing is listed here; the owner holds them.
 
 ⚠️ **The private audit's "do not change" section is the one to read before
 "tidying" anything.** It lists 153 things that were checked and found CORRECT,
@@ -152,7 +151,7 @@ code disagree, the code is right and the plan simply landed differently.
 | Every implementation plan (CMS UX redesign, audit remediations, CI sizing, viewer layout, garment-pipeline defects) | [superpowers/plans/](superpowers/plans/) |
 | The design spec behind each of those plans | [superpowers/specs/](superpowers/specs/) |
 | A post-merge review kept as a worked example | [reviews/2026-08-12-post-merge-8927062.md](reviews/2026-08-12-post-merge-8927062.md) |
-| **In-progress** plans live at the repository ROOT, not here — see the README | [../README.md](../README.md) |
+| **In-progress** plans are kept privately by the owner, not in this public repository | — |
 
 ## Not in this folder
 
