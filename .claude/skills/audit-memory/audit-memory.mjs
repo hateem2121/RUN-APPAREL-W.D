@@ -138,23 +138,34 @@ export function reasoningRequests() {
   return hits
 }
 
-/** Private notes naming a repo path that no longer exists. Names only, never content. */
+/**
+ * Private notes naming a repo path that no longer exists. Names only, never content.
+ *
+ * A note whose `History label (…)` line names every missing path has been reviewed and
+ * marked as a record (the owner chose labelling over deleting, 2026-09-26), so it is
+ * counted apart. A path missing LATER that the label does not name makes the note stale
+ * again — a label covers what was reviewed, not whatever breaks next.
+ */
 export function staleNotes() {
   const dir = memoryDir()
-  if (!existsSync(dir)) return { checked: 0, stale: [] }
+  if (!existsSync(dir)) return { checked: 0, stale: [], labelled: 0 }
   const stale = []
+  let labelled = 0
   const notes = readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'MEMORY.md')
   for (const note of notes) {
     const text = readFileSync(join(dir, note), 'utf8')
+    const labels = [...text.matchAll(/^> \*\*History label \([^)]*\):\*\*.*$/gm)].join('\n')
     const missing = new Set()
     for (const m of text.matchAll(
       /`((?:apps|packages|tools|scripts|docs|infra|\.claude|\.github)\/[\w./@()-]+\.[a-z]{2,5})(?::\d+)?`/g,
     )) {
       if (!existsSync(join(REPO, m[1]))) missing.add(m[1])
     }
-    if (missing.size > 0) stale.push({ note, missing: [...missing] })
+    const unreviewed = [...missing].filter((path) => !labels.includes(`\`${path}\``))
+    if (unreviewed.length > 0) stale.push({ note, missing: unreviewed })
+    else if (missing.size > 0) labelled++
   }
-  return { checked: notes.length, stale }
+  return { checked: notes.length, stale, labelled }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
@@ -182,7 +193,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.ar
   console.log(
     `ASKS TO SHOW REASONING (Opus 5.5 tip 06): ${reasoning.length ? reasoning.join(', ') : 'none'}`,
   )
-  console.log(`PRIVATE NOTES naming a missing repo path: ${notes.stale.length} of ${notes.checked}`)
+  console.log(
+    `PRIVATE NOTES naming a missing repo path: ${notes.stale.length} of ${notes.checked}` +
+      ` (plus ${notes.labelled} already labelled as history)`,
+  )
   for (const s of notes.stale) console.log(`  ${s.note}: ${s.missing.join(', ')}`)
   console.log(
     problems.length
