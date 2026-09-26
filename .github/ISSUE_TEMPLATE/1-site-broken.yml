@@ -1,0 +1,48 @@
+name: "🚧 The site is broken"
+description: A page will not open, shows an error, or a button does not work.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        🔒 **Security problem? Don't use this form — report it privately:** https://github.com/hateem2121/RUN-APPAREL-W.D/security/policy
+
+        Thank you for telling us. Short answers are fine.
+  - type: input
+    id: page
+    attributes:
+      label: Which page?
+      description: Copy the web address from the top of your browser.
+      placeholder: https://viewer.wear-run.help/rxps/wine
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Tell us what you saw, step by step.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: false
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot
+      description: Drag a picture of the screen into this box, if you can.
+    validations:
+      required: false
+  - type: dropdown
+    id: device
+    attributes:
+      label: Phone or computer?
+      options:
+        - Phone
+        - Tablet
+        - Computer
+    validations:
+      required: false

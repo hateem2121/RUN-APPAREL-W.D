@@ -1,14 +1,17 @@
-## What this changes
+<!-- Title: plain English, "Area: what changed" — e.g. "Viewer: retry a model download
+     that stops". The owner is not a developer and reads these. -->
 
-<!-- One or two sentences. What moved, and why. -->
+## ✏️ What changed (plain words)
 
-## Why
+<!-- One or two short sentences a non-developer can follow. -->
+
+## 🤔 Why
 
 <!-- The problem or incident that motivated it. If a number changed, say what
      measurement justifies the new value — "it passed" is not a justification
      for a threshold. -->
 
-## Gates run locally
+## ✅ Checks I ran
 
 `pnpm` below means `npx --yes pnpm@10.34.5` — bare `pnpm` exits 127 here.
 
@@ -18,6 +21,8 @@
 - [ ] `pnpm test:coverage` ← NOT `pnpm test`: vitest only evaluates the coverage
       floors when coverage is on, so the bare runner enforces none of them
 - [ ] `bash scripts/test-alert-shell.sh`
+- [ ] `node scripts/check-docs-index.mjs` and `node apps/cms/scripts/check-doc-visuals.mjs`
+      ← every doc reachable, every picture described, every diagram draws
 - [ ] `pnpm --filter @run-apparel/viewer test:e2e` ← its OWN required check since
       2026-08-20, and the slowest gate in CI (~7 min there, ~45 s locally)
 - [ ] `pnpm seed:assets && pnpm build` ← the one that catches dependency breaks
@@ -26,7 +31,7 @@
 - [ ] `cd apps/shrink/container && npm install --no-audit --no-fund && npx tsc --noEmit`
       ← not a workspace member; `pnpm -r` skips it
 
-## Risk checklist
+## ⚠️ Risk checklist
 
 Tick only what applies. Each line is here because it has already gone wrong.
 
@@ -46,14 +51,14 @@ Tick only what applies. Each line is here because it has already gone wrong.
 - [ ] **Changes a workflow** — permissions are still least-privilege and every
       `uses:` is still SHA-pinned (`workflowHardening.test.ts` will tell me).
 
-## Deploy impact
+## 🚀 Deploy impact
 
 - [ ] This merges to `main` and therefore **deploys to production**. I have taken
       a D1 backup and captured `GET /api/public/viewer/rxps/wine`.
       See `.claude/skills/deploy-preflight/`.
 - [ ] No deploy impact (docs, tests, or tooling only).
 
-## Evidence
+## 🔍 Evidence
 
 <!-- Paste the output that proves it works: the failing-then-passing test, the
      measured numbers, the screenshot. "Should be fine" is not evidence. -->

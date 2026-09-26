@@ -1,0 +1,39 @@
+name: "👕 A garment looks wrong"
+description: A logo is blurry, a colour is wrong, or the 3D garment is missing.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        🔒 **Security problem? Don't use this form — report it privately:** https://github.com/hateem2121/RUN-APPAREL-W.D/security/policy
+
+        Tip: the page [When something looks wrong](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/main/docs/guide/when-something-looks-wrong.md) may fix it faster.
+  - type: input
+    id: product
+    attributes:
+      label: Product code
+      description: Both the product and the colour are printed on the QR tag.
+      placeholder: rxps
+    validations:
+      required: true
+  - type: input
+    id: colour
+    attributes:
+      label: Colour
+      placeholder: wine
+    validations:
+      required: true
+  - type: textarea
+    id: what-looks-wrong
+    attributes:
+      label: What looks wrong?
+      description: For example, "the chest logo is blurry" or "it shows the wrong colour".
+    validations:
+      required: true
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot
+      description: Zoom in on the problem, then drag a picture of it here.
+    validations:
+      required: false

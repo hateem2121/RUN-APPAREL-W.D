@@ -168,6 +168,8 @@ code disagree, the code is right and the plan simply landed differently.
 | Traps that have cost sessions — **read first** | [../CLAUDE.md](../CLAUDE.md) |
 | How to contribute, and the full gate list | [../CONTRIBUTING.md](../CONTRIBUTING.md) |
 | Reporting a security problem (**not** an issue) | [../SECURITY.md](../SECURITY.md) |
+| Where to get help, question by question | [../SUPPORT.md](../SUPPORT.md) |
+| How we treat each other, and how to report a problem | [../CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md) |
 | Licences of files copied in from other projects | [../THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md) |
 | Processing a GLB by hand | [../tools/asset-pipeline/README.md](../tools/asset-pipeline/README.md) |
 | Per-area traps | `apps/*/CLAUDE.md`, `.github/CLAUDE.md`, `tools/asset-pipeline/CLAUDE.md` |

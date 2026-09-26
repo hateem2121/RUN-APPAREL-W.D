@@ -142,8 +142,11 @@ export function wordsOf(sentence) {
 
 function splitSentences(text) {
   const protectedText = text.replace(/\b(e\.g|i\.e|etc|vs|approx)\./gi, '$1')
+  // An emoji can open a sentence too: the picture-first pages lead lines with one
+  // (2026-09-26), and without it five short lines in the code-of-conduct box were
+  // read as ONE 41-word sentence.
   return protectedText
-    .split(/(?<=[.!?])\s+(?=[A-Z0-9"“(*`[])/)
+    .split(/(?<=[.!?])\s+(?=[A-Z0-9"“(*`[]|\p{Extended_Pictographic})/u)
     .map((s) => s.trim())
     .filter((s) => wordsOf(s).length > 0)
 }
