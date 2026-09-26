@@ -63,7 +63,7 @@ them were invisible to anyone reading only this page:
 Every documented `pnpm <script>` in this repository means:
 
 ```bash
-npx --yes pnpm@10.34.5 <script>
+npx --yes pnpm@12.6.0 <script>
 ```
 
 Bare `pnpm` has measured absent, present, and present-but-broken on the
@@ -82,16 +82,16 @@ workspace root, and "it passed locally" has failed here twice because of exactly
 that.
 
 ```bash
-npx --yes pnpm@10.34.5 install --frozen-lockfile   # the lockfile moves often
-npx --yes pnpm@10.34.5 lint                        # biome check .
-npx --yes pnpm@10.34.5 typecheck                   # 5 workspaces
-npx --yes pnpm@10.34.5 test:coverage                # NOT `test` — see below
+npx --yes pnpm@12.6.0 install --frozen-lockfile   # the lockfile moves often
+npx --yes pnpm@12.6.0 lint                        # biome check .
+npx --yes pnpm@12.6.0 typecheck                   # 5 workspaces
+npx --yes pnpm@12.6.0 test:coverage                # NOT `test` — see below
 bash scripts/test-alert-shell.sh                   # the alert branch nothing else exercises
-npx --yes pnpm@10.34.5 --filter @run-apparel/viewer test:e2e   # its OWN required check
-npx --yes pnpm@10.34.5 seed:assets
-npx --yes pnpm@10.34.5 build                       # catches dependency breaks typecheck misses
+npx --yes pnpm@12.6.0 --filter @run-apparel/viewer test:e2e   # its OWN required check
+npx --yes pnpm@12.6.0 seed:assets
+npx --yes pnpm@12.6.0 build                       # catches dependency breaks typecheck misses
 node scripts/check-bundle-budget.mjs               # deterministic shell-weight gate
-npx --yes pnpm@10.34.5 eval:artwork                # separate CI job — gates the deploy
+npx --yes pnpm@12.6.0 eval:artwork                # separate CI job — gates the deploy
 
 # NOT a workspace member — pnpm -r skips it entirely, CI runs it separately:
 cd apps/shrink/container && npm install --no-audit --no-fund && npx tsc --noEmit

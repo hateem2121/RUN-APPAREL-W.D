@@ -228,7 +228,11 @@ describe('mergeVariants', () => {
       PLACEHOLDER_COLOURWAYS.map((c) => c.variantId),
     )
     expect(check).toEqual({ ok: true, missing: [], extra: [] })
-  })
+    // 60s, like the other tests here that run a real encoder. Measured on CI on
+    // 2026-09-26: 1.2-2.1 s under pnpm 10, 2.5-5.0 s under pnpm 12, whose `pnpm -r`
+    // no longer holds apps/cms and apps/viewer back until this package finishes, so
+    // all three share one runner. Two of these timed out on the 5 s default.
+  }, 60_000)
 
   it('reports variants in FILE order as well as sorted', async () => {
     // The CMS shows `variantsInFileOrder` back to the owner so they can say which
@@ -248,7 +252,7 @@ describe('mergeVariants', () => {
     expect(report.variants).toEqual(VARIANT_IDS_SORTED)
     // Same set, different order — never a different set.
     expect([...report.variantsInFileOrder].sort()).toEqual(report.variants)
-  })
+  }, 60_000) // encoder test: see the note above
 
   it('reports no file-order variants for a raw export that binds none', async () => {
     const report = await inspectGlb(join(dir, 'placeholders', `n001-${FIRST.slug}.glb`))

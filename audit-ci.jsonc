@@ -27,7 +27,8 @@
   // advisory stays blocking for any path not listed here, so if one of these
   // packages ever reaches runtime code the gate fails again instead of staying
   // silently suppressed. Re-check each entry when its parent package is bumped.
-  // TWO ENTRIES since 2026-09-10, both extract-zip (at the bottom). One from
+  // FOUR ENTRIES since 2026-09-26: two extract-zip advisories x two routes (at the
+  // bottom). Two from 2026-09-10 to 2026-09-26. One from
   // 2026-08-13, empty from 2026-08-12 before that; getting back to empty is the goal.
   //
   // Two GHSA-mh99-v99m-4gvg (brace-expansion DoS) paths lived here from
@@ -195,8 +196,23 @@
   // archive @puppeteer/browsers extracts is the Chrome build it downloads from
   // Google's CDN. DELETE WITH the entry above — both go the day
   // `pnpm why extract-zip -r` stops reporting this path.
+  //
+  // ── the same two advisories by a SECOND route, added 2026-09-26 ────────────
+  // Nothing in the dependency tree changed; the reporter did. Moving pnpm
+  // 10.34.5 → 12.6.0 left the lockfile's package section byte-identical, yet
+  // `pnpm audit` now reports each advisory by TWO routes where pnpm 10 reported
+  // one: the route above AND `@lhci/cli>@lhci/utils>lighthouse>…`. Measured the
+  // same day on the same lockfile: pnpm 10 → "Passed", pnpm 12 → failed on the
+  // @lhci/utils route alone. The route is real — the lockfile has
+  // `@lhci/utils@0.15.1: dependencies: lighthouse: 12.6.1`, the SAME lighthouse
+  // copy @lhci/cli uses — and it sits inside the same root devDependency, so
+  // the safety argument above covers it unchanged. Listed path by path, like
+  // the others, so any route outside @lhci/cli still fails the gate; the owner
+  // chose this over an advisory-wide entry. DELETE WITH the entries above.
   "allowlist": [
     "GHSA-jmr9-qjv8-65gv|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
-    "GHSA-7pqw-9j4j-h8q3|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip"
+    "GHSA-7pqw-9j4j-h8q3|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
+    "GHSA-jmr9-qjv8-65gv|@lhci/cli>@lhci/utils>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
+    "GHSA-7pqw-9j4j-h8q3|@lhci/cli>@lhci/utils>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip"
   ]
 }

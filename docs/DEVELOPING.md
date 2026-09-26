@@ -200,28 +200,27 @@ Dependencies are pinned to the latest stable releases. Deliberate exceptions:
   **only `apps/shrink` shows an unmet-peer warning** — the real hold. Do not "fix" shrink's by raising workers-types. The split is enforced by
   `dependencyPolicy.test.ts`, which also asserts the hold has not widened again.
   History: `docs/DEPENDENCY-HOLDS.md`.
-- `packageManager` stays pinned to **pnpm 10.33.0**. The `minimumReleaseAge`
-  supply-chain policy that gated adopting pnpm 11 is now declared **in-repo**
+- `packageManager` is pinned to **pnpm 12.6.0** (since 2026-09-26; 10.34.5 before).
+  The `minimumReleaseAge` supply-chain policy is declared **in-repo**
   (`pnpm-workspace.yaml` → `minimumReleaseAge: 1440`, i.e. 24h, with the trusted
-  fast-moving build toolchain excluded), so the pin is a deliberate,
-  version-controlled choice rather than an artefact of a machine-global config.
-  `--frozen-lockfile` installs (CI/deploy) are never affected; if a
+  fast-moving build toolchain excluded), so it does not depend on a machine-global
+  config. `--frozen-lockfile` installs (CI/deploy) are never affected; if a
   `pnpm add`/update is ever blocked by a too-fresh version, wait out the cooldown
   or add that package to `minimumReleaseAgeExclude`.
 
-  > **Correction (2026-07-27):** this section previously called moving to pnpm 11
-  > "a safe, isolated follow-up". **It is not.** pnpm 11 no longer reads the
-  > `pnpm` field in `package.json` and silently ignores it, warning only once:
-  > `The "pnpm" field in package.json is no longer read by pnpm.` That field
-  > currently carries `overrides` (the `sharp` de-duplication pin),
-  > `onlyBuiltDependencies`, **and `patchedDependencies` — the load-bearing
-  > `@payloadcms/storage-r2` patch.** Upgrading without first migrating all three
-  > into `pnpm-workspace.yaml` would silently un-apply the patch and drop the
-  > version pins. The upgrade also purges `node_modules` (store-layout change),
-  > so it needs `CI=true` or `confirmModulesPurge=false` to run non-interactively.
-  > Treat pnpm 11 as its own change with a full re-verify, not a version bump.
+  > **Every pnpm setting lives in `pnpm-workspace.yaml`, never in `package.json`.**
+  > From pnpm 11 on, the `pnpm` field in `package.json` is not read at all — pnpm
+  > says so once (`The "pnpm" field in package.json is no longer read by pnpm.`)
+  > and carries on, so the security `overrides` put there would silently stop
+  > applying. The move to 12.6.0 migrated them, and `onlyBuiltDependencies`
+  > became the `allowBuilds` map. Measured on the move: with the overrides left
+  > only in `package.json`, `install --frozen-lockfile` stopped with
+  > `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`; the lockfile's `overrides:` block is what
+  > catches it. (The `@payloadcms/storage-r2` patch this note once warned about
+  > was retired with Payload 3.90.1 in #29, before the move.)
 
-`sharp` is de-duplicated to a single version via a `pnpm.overrides` pin (it is a
+`sharp` is de-duplicated to a single version via an `overrides` pin in
+`pnpm-workspace.yaml` (it is a
 build-time/optional dependency — image transforms are unavailable on Workers, so
 posters are optimised by the asset pipeline before upload). CI additionally runs
 secret scanning (gitleaks), a dependency-vulnerability gate (audit-ci, high/

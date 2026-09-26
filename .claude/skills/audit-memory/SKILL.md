@@ -17,7 +17,7 @@ that disagree make Claude pick one arbitrarily (Anthropic's memory docs).
 node .claude/skills/audit-memory/audit-memory.mjs
 node scripts/doc-citations.mjs
 node scripts/quoted-settings.mjs
-npx --yes pnpm@10.34.5 --filter @run-apparel/cms exec vitest run src/claudeMd.test.ts
+npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/claudeMd.test.ts
 ```
 
 The first prints sizes against each limit, rules without `paths:`, pinned-version drift,

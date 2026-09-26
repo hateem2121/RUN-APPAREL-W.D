@@ -170,7 +170,11 @@ describe('compressTexturesForArtwork', () => {
     const image = document.getRoot().listTextures()[0]?.getImage()
     const { width } = await sharp(image!).metadata()
     expect(width).toBe(2048)
-  })
+    // 60s, like the other tests here that run a real encoder. Measured on CI on
+    // 2026-09-26: 1.2-2.1 s under pnpm 10, 2.5-5.0 s under pnpm 12, whose `pnpm -r`
+    // no longer holds apps/cms and apps/viewer back until this package finishes, so
+    // all three share one runner. Two of these timed out on the 5 s default.
+  }, 60_000)
 
   it('encodes artwork larger than the same image at standard quality', async () => {
     // A direct measurement of the fidelity the artwork path buys, on an image
@@ -193,7 +197,7 @@ describe('compressTexturesForArtwork', () => {
     const artworkBytes = artworkDoc.getRoot().listTextures()[0]?.getImage()?.byteLength ?? 0
     const standardBytes = standardDoc.getRoot().listTextures()[0]?.getImage()?.byteLength ?? 0
     expect(artworkBytes).toBeGreaterThan(standardBytes)
-  })
+  }, 60_000) // encoder test: see the note above
 
   it('reports artwork it had to shrink, because that is lost lettering', async () => {
     // Artwork above the 4096 cap still gets resized. That is the right trade for
@@ -216,7 +220,7 @@ describe('compressTexturesForArtwork', () => {
     )
 
     expect(result!.artworkResized).toEqual(['big-logo'])
-  })
+  }, 60_000) // encoder test: see the note above
 
   it('says nothing when the artwork fitted', async () => {
     const document = new Document()

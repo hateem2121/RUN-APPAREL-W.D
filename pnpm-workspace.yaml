@@ -27,3 +27,38 @@ minimumReleaseAgeExclude:
   - 'lightningcss-*'
   - esbuild
   - '@esbuild/*'
+
+# Moved here from package.json's `pnpm` field on 2026-09-26 for pnpm 12: from
+# pnpm 11 on, that field is NOT READ AT ALL — left in place, all 17 security
+# overrides below would silently stop applying while every install still
+# succeeded. The lockfile's own `overrides:` block records what was applied, and
+# a frozen install refuses to run when the two disagree, so it is the check.
+# Each pin's reason lives in audit-ci.jsonc and docs/DEPENDENCY-HOLDS.md.
+overrides:
+  sharp: 0.35.4
+  tmp: ^0.2.4
+  postcss: ^8.5.23
+  dompurify: ^3.4.13
+  brace-expansion@1: ^1.1.18
+  brace-expansion@2: ^2.1.4
+  brace-expansion@5: ^5.0.9
+  undici: ^7.29.0
+  '@esbuild-kit/core-utils>esbuild': ^0.25.0
+  '@lhci/cli>uuid': ^11.1.1
+  fast-uri: ^3.1.6
+  ip-address: ^10.3.1
+  qs: ^6.16.0
+  js-yaml@3: ^3.15.2
+  js-yaml@4: ^4.3.2
+  baseline-browser-mapping: ^2.11.0
+  nanoid: ^3.3.18
+
+# Which dependencies may run install scripts (pnpm 11 replaced
+# `onlyBuiltDependencies` with this map). `true` = allowed, the same four that
+# were allowed before. pnpm 11+ FAILS an install when a package with an install
+# script is in neither list, where pnpm 10 skipped it with a warning.
+allowBuilds:
+  '@sentry/cli': true
+  esbuild: true
+  sharp: true
+  workerd: true

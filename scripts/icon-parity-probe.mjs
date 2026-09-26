@@ -42,7 +42,7 @@ try {
 } catch (error) {
   console.error(
     'icon-parity-probe: sharp could not be resolved from tools/asset-pipeline.\n' +
-      '  Run `npx --yes pnpm@10.34.5 install --frozen-lockfile` first.\n' +
+      '  Run `npx --yes pnpm@12.6.0 install --frozen-lockfile` first.\n' +
       `  ${error instanceof Error ? error.message : String(error)}`,
   )
   process.exit(2)

@@ -19,10 +19,28 @@ if (!PORT) {
   )
 }
 
-const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
+const CMS = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-const child = spawn('npx', ['--yes', 'pnpm@10.34.5', '--filter', '@run-apparel/cms', 'start'], {
-  cwd: REPO,
+/*
+ * ⚠️ `next start` DIRECTLY, NEVER THROUGH pnpm — OR THE SERVER OUTLIVES THE SUITE.
+ *
+ * This used to be `npx pnpm --filter @run-apparel/cms start`. From pnpm 11 on, pnpm
+ * starts a script in a PROCESS GROUP OF ITS OWN. Playwright stops a webServer by
+ * SIGKILLing its group, which a signal-forwarder cannot pass on, so `next-server` was
+ * left running, re-parented to PID 1, still answering on the port and still holding
+ * Playwright's stdout pipe — and Playwright waits for that pipe before it prints a
+ * summary. Measured 2026-09-26 on PR #74 (pnpm 12.6.0): the last test started at
+ * 16:32:42, then ten silent minutes until the e2e job's 30-minute limit cancelled
+ * it; reproduced here with the same group SIGKILL (`next-server` in its own group,
+ * port still 200). pnpm 10.34.5 kept the script in the caller's group and died with it.
+ *
+ * `next` is the whole of the `start` script (`apps/cms/package.json`), and running
+ * its CLI with this Node keeps the server in the group Playwright kills.
+ */
+const NEXT_CLI = join(CMS, 'node_modules', 'next', 'dist', 'bin', 'next')
+
+const child = spawn(process.execPath, [NEXT_CLI, 'start'], {
+  cwd: CMS,
   stdio: 'inherit',
   env: {
     ...process.env,

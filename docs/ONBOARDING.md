@@ -16,7 +16,7 @@ before.
 ## Before you start — the thing that wastes the most time here
 
 **`pnpm` is probably not on your PATH. Every documented `pnpm <script>` in this
-repository means `npx --yes pnpm@10.34.5 <script>`.**
+repository means `npx --yes pnpm@12.6.0 <script>`.**
 
 Bare `pnpm` fails with exit **127**, and the failure surfaces somewhere unhelpful:
 `apps/viewer/e2e/prepare.mjs` shells out to `pnpm build`, so the whole end-to-end
@@ -24,7 +24,7 @@ suite dies two minutes later as `Timed out waiting 120000ms from config.webServe
 with the real error buried in a child process.
 
 ```bash
-npx --yes pnpm@10.34.5 --version   # expect 10.33.0
+npx --yes pnpm@12.6.0 --version   # expect 10.33.0
 node --version                     # expect v24.x
 ```
 
@@ -33,7 +33,7 @@ node --version                     # expect v24.x
 ## 1. Install (≈2 min)
 
 ```bash
-npx --yes pnpm@10.34.5 install --frozen-lockfile
+npx --yes pnpm@12.6.0 install --frozen-lockfile
 ```
 
 `--frozen-lockfile` always. Run it again after every merge — the lockfile moves
@@ -45,9 +45,9 @@ Run the gates in CI's order. If these pass, your machine is fine and anything th
 breaks later is something you did.
 
 ```bash
-npx --yes pnpm@10.34.5 lint
-npx --yes pnpm@10.34.5 typecheck
-npx --yes pnpm@10.34.5 test:coverage
+npx --yes pnpm@12.6.0 lint
+npx --yes pnpm@12.6.0 typecheck
+npx --yes pnpm@12.6.0 test:coverage
 ```
 
 Expect: lint clean across ~248 files, typecheck clean in 5 workspaces, 750+ tests
@@ -56,8 +56,8 @@ passing, and a coverage summary ending `Coverage gate passed.`
 ## 3. Build, and check the page weight (≈3 min)
 
 ```bash
-npx --yes pnpm@10.34.5 seed:assets
-npx --yes pnpm@10.34.5 build
+npx --yes pnpm@12.6.0 seed:assets
+npx --yes pnpm@12.6.0 build
 node scripts/check-bundle-budget.mjs
 ```
 
@@ -69,9 +69,9 @@ colourways — the same shape a real garment has. `check-bundle-budget.mjs` read
 
 ```bash
 echo "PAYLOAD_SECRET=$(openssl rand -hex 32)" > apps/cms/.env
-npx --yes pnpm@10.34.5 --filter @run-apparel/cms migrate   # first run only
-npx --yes pnpm@10.34.5 seed:cms
-npx --yes pnpm@10.34.5 dev:cms
+npx --yes pnpm@12.6.0 --filter @run-apparel/cms migrate   # first run only
+npx --yes pnpm@12.6.0 seed:cms
+npx --yes pnpm@12.6.0 dev:cms
 ```
 
 Admin at <http://localhost:3000>. `seed:cms` creates product **N001**, its
@@ -88,7 +88,7 @@ colourways, the site settings and a dev admin user.
 In a second terminal:
 
 ```bash
-npx --yes pnpm@10.34.5 dev:viewer
+npx --yes pnpm@12.6.0 dev:viewer
 ```
 
 Viewer at <http://localhost:5173>. Go to **<http://localhost:5173/n001/navy>** — that
@@ -98,7 +98,7 @@ resolves to.
 ## 6. Run the browser suite (≈5 min)
 
 ```bash
-cd apps/viewer && npx --yes pnpm@10.34.5 test:e2e
+cd apps/viewer && npx --yes pnpm@12.6.0 test:e2e
 ```
 
 Five browsers including WebKit. WebKit is not optional: a QR code is scanned with a
@@ -113,7 +113,7 @@ has failed here twice because of exactly that.
 
 ```bash
 bash scripts/test-alert-shell.sh                  # the alert branch nothing else exercises
-npx --yes pnpm@10.34.5 eval:artwork               # artwork legibility — gates the deploy
+npx --yes pnpm@12.6.0 eval:artwork               # artwork legibility — gates the deploy
 cd apps/shrink/container && npm install --no-audit --no-fund && npx tsc --noEmit
 ```
 

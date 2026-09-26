@@ -53,7 +53,7 @@ const EXPLANATIONS = [
     note:
       'This error names Playwright and usually means something else. The recorded cause cost two\n' +
       'sessions: a bare `pnpm`. e2e/prepare.mjs shells out to `pnpm build`, so exit 127 dies\n' +
-      'inside a child process and surfaces only as this timeout. Use `npx --yes pnpm@10.34.5`,\n' +
+      'inside a child process and surfaces only as this timeout. Use `npx --yes pnpm@12.6.0`,\n' +
       'and check this BEFORE reading any code.',
   },
   {
@@ -63,7 +63,7 @@ const EXPLANATIONS = [
       (text.includes('pnpm') && text.includes('exit code 127')),
     note:
       '`pnpm` is not reliably on PATH here — it has MEASURED BOTH WAYS on this machine, so assume\n' +
-      'neither. Every documented `pnpm <script>` in this repo means `npx --yes pnpm@10.34.5 <script>`.',
+      'neither. Every documented `pnpm <script>` in this repo means `npx --yes pnpm@12.6.0 <script>`.',
   },
   {
     name: 'ci-run-cancelled',
