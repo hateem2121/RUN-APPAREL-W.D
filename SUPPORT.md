@@ -26,8 +26,8 @@ flowchart TB
 
 ## ⏱️ When will I hear back?
 
-This project has one maintainer.
-We try to reply within 3 working days.
+We reply within 24 hours, like everywhere else on our website.
+Security reports follow their own steps in [SECURITY.md](SECURITY.md).
 
 ## 🧵 Why it matters
 

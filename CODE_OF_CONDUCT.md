@@ -10,12 +10,12 @@
 >
 > 🛟 If someone makes you feel unsafe, tell us. We will listen.
 >
-> ✉️ Email **team@wear-run.com** with `CONDUCT` in the subject line. We reply within 3 working days.
+> ✉️ Email **team@wear-run.com** with `CONDUCT` in the subject line. We reply within 24 hours.
 
 ```mermaid
 flowchart TB
   A["😟 You see a problem"] --> B["✉️ Email team@wear-run.com<br/>subject: CONDUCT"]
-  B --> C["👀 We read it and reply<br/>within 3 working days"]
+  B --> C["👀 We read it and reply<br/>within 24 hours"]
   C --> D["🤝 We work out a fair fix"]
 ```
 
