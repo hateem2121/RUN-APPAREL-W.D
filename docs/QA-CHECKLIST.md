@@ -1,5 +1,7 @@
 # QA Checklist — RUN APPAREL 3D Product Viewer
 
+**In plain words:** What to check on the live site before we tell anyone about it.
+
 Run through this list before announcing any new product, colourway or deployment.
 Test on **iOS Safari, Android Chrome, desktop Chrome/Safari/Edge**, and once on a
 throttled "Slow 4G" network profile.

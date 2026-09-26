@@ -1,5 +1,7 @@
 # AI tooling
 
+**In plain words:** The helper tools set up for AI coding assistants, and how to use them.
+
 What is wired up for AI coding agents working on this repository, and how to use
 it. Nothing here is required to build, test or deploy the project — CI does not
 depend on any of it.

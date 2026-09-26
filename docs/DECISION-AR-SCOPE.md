@@ -1,5 +1,7 @@
 # Decision — AR is iOS Quick Look only, and Android is blocked by the loader
 
+**In plain words:** Why "see it in your room" works only on iPhones and iPads for now.
+
 **Decided 2026-09-05 by the owner, on the evidence below.** Finding #26 of the
 2026-09-04 product-page audit (kept privately since 2026-09-10) left "View in your
 space" open. This records

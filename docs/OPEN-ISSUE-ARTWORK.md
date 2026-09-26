@@ -1,5 +1,7 @@
 # Printed artwork on the shrunk model — CLOSED 2026-08-05
 
+**In plain words:** How blurry printed logos were tracked down and fixed. The case is closed.
+
 <!--
   THE FILENAME IS DELIBERATELY STILL `OPEN-ISSUE-ARTWORK.md`.
 

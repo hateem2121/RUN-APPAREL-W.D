@@ -1,5 +1,7 @@
 # Maintaining the CLAUDE.md files
 
+**In plain words:** How the AI instruction files are kept short, split up and loaded.
+
 How the instruction files in this repo are sized, split and loaded. Extracted from
 the root `CLAUDE.md` on 2026-08-26 because it is 5 KB that every session paid for and
 only a session **editing a CLAUDE.md** needs. The root file was 42,646 characters at

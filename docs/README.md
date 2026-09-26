@@ -1,5 +1,7 @@
 # docs/ — the full index
 
+**In plain words:** The list of every document in this folder, grouped by what you want to do.
+
 The [root README](../README.md) links the dozen documents you need for a *task*
 ("I want to deploy", "I want to upload a garment"). This file lists **everything**,
 including the records the task table deliberately leaves out.

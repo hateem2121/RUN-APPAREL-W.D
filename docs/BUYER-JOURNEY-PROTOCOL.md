@@ -1,5 +1,7 @@
 # Buyer Journey Protocol — the 10 tag scans
 
+**In plain words:** A plan for watching ten buyers scan a tag, so we learn what confuses them.
+
 **Status (2026-09-22): PROTOCOL READY.** Ten sessions not yet run; the outreach
 template in §7 is what starts them. Results go in dated, pseudonymised evidence
 files (`docs/BUYER-EVIDENCE-YYYY-MM-DD.md`), never in this one.

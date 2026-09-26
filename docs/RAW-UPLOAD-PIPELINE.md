@@ -1,5 +1,7 @@
 # Raw upload → auto-shrink pipeline
 
+**In plain words:** How an uploaded 3D file travels to the shrink robot and back.
+
 **In one line:** upload a big raw CLO export into the CMS, and it comes back as a
 small, correct GLB you review and publish — the heavy shrinking runs on a
 Cloudflare Container, and a raw file can never reach customers.

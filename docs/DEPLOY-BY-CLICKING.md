@@ -1,5 +1,7 @@
 # Deploying — the simple version
 
+**In plain words:** How to put a new version live using buttons, with no typing.
+
 **You almost never need this file.** Once the one-time setup is done, deploying
 is automatic: **push to `main` and GitHub Actions builds, tests, and deploys.**
 Watch the **Actions** tab of the `RUN-APPAREL/run-apparel-viewer` repo.

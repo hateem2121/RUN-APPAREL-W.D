@@ -1,5 +1,7 @@
 # Garment catalogue — measured baseline
 
+**In plain words:** Measurements of every raw 3D garment file, taken on 2026-08-26.
+
 Produced by `pnpm pipeline describe`, 2026-08-26, over the 28 raw CLO exports.
 
 ⚠️ **The raw exports are local-only and are deliberately not cited by path.** They

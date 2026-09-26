@@ -1,5 +1,7 @@
 # 3D pipeline investigation — 1–2 September 2026
 
+**In plain words:** A summary of a check on the 3D file robot, done on 1–2 September 2026.
+
 > **STATUS: COMPLETE, report only.** No repository code was changed by this
 > investigation. This file is the summary. The full report, the evidence and the
 > reproduction scripts are kept privately and are not part of this public

@@ -1,5 +1,7 @@
 # Deep-read notes (Track A1)
 
+**In plain words:** Notes from reading the most important code files one by one.
+
 Read-and-annotate record for the master plan's A1 backlog: one section per
 file — what it does, the invariants it holds, warnings found, and whether the
 measurements its comments cite hold up.

@@ -1,5 +1,7 @@
 # Runbook — operating the RUN APPAREL viewer
 
+**In plain words:** How to run the live site: go live, undo a change, fix a problem.
+
 Day-to-day operations for the live stack. For first-time setup see
 [CLOUDFLARE-SETUP.md](CLOUDFLARE-SETUP.md); for backups see
 [BACKUP-RESTORE.md](BACKUP-RESTORE.md); for the July 2026 hardening history,

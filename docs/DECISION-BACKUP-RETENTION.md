@@ -1,5 +1,7 @@
 # DECISION — the 90-day backup artifact stays, and why an audit finding was refused
 
+**In plain words:** Why we keep each database backup for 90 days.
+
 > ⚠️ **SUPERSEDED IN PART, 2026-09-10 — the repository became public.** This file names
 > exactly that event as the trigger to revisit, and the owner decided: the nightly
 > artifact STAYS at 90 days, but it is now ENCRYPTED with `age` to a key only the owner

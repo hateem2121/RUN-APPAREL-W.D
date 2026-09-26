@@ -1,5 +1,7 @@
 # Decision — offline support is shell-only, and the models are deliberately excluded
 
+**In plain words:** Why the viewer works offline only partly, and the 3D files do not.
+
 **Decided 2026-09-05 by the owner, on the evidence below.** Recorded so this does not
 reopen as an untriaged to-do every time someone greps for `serviceWorker` and finds
 nothing.
