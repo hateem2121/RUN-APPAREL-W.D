@@ -627,6 +627,21 @@ test.describe('the 3D view shows a focus ring', () => {
       undefined,
       { timeout: 30_000 },
     )
+    // `loaded` is NOT "focusable": model-viewer keeps its focusable inner node at
+    // `display: none` until the model is shown, a moment later, and `focus()` on a
+    // hidden node is a silent no-op. Measured 2026-09-26 on Playwright 1.63: 6 of 20
+    // runs focused nothing (activeElement stayed on the page, inner display "none"),
+    // which read as "the ring is missing". Wait for the node the test will focus.
+    await page.waitForFunction(
+      () => {
+        const inner = document
+          .querySelector('model-viewer')
+          ?.shadowRoot?.querySelector<HTMLElement>('[tabindex="0"]')
+        return inner != null && getComputedStyle(inner).display !== 'none'
+      },
+      undefined,
+      { timeout: 30_000 },
+    )
 
     const result = await page.evaluate(() => {
       const mv = document.querySelector('model-viewer') as
