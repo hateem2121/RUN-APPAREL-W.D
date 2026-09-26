@@ -1140,7 +1140,10 @@ CSP auto-allows the DSN's ingest origin at build time.
    `project:releases`). Without all three, no maps are uploaded *and none are
    generated* — see the coupling note in `vite.config.ts`.
 
-**What the code already guarantees:** `sendDefaultPii: false`; `beforeSend`
+**What the code already guarantees:** since the Sentry 11 upgrade (2026-09-26)
+`dataCollection` is left at Sentry's defaults by the owner's decision, so Sentry
+records the visitor's IP address (the privacy page says so; step 2's dashboard
+switch still decides whether it is stored); `beforeSend`
 strips `user`, cookies, headers, request bodies, and reduces the URL to origin +
 pathname so query and fragment can never carry anything; `tracesSampleRate: 0`;
 tags limited to release, environment, product slug, colourway slug, WebGL

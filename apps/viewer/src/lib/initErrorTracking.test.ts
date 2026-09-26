@@ -10,8 +10,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
  * own comment block is the only thing currently asserting any of it. Three of those
  * options fail silently and irreversibly:
  *
- *   - `sendDefaultPii: false` — flipping it starts sending IP addresses and request
- *     headers to a third party. Nothing in the app looks different.
+ *   - `dataCollection` — unset since the Sentry 11 upgrade (2026-09-26, owner's call), so
+ *     Sentry records the visitor's IP address and the privacy page says so. Changing it
+ *     changes what a third party receives while nothing in the app looks different.
  *   - Session Replay — @sentry/browser SHIPS it, and enabling it records the DOM.
  *     The comment says it is "deliberately not enabled"; a comment cannot stop
  *     someone adding `replayIntegration()` while following a Sentry tutorial.
@@ -74,9 +75,15 @@ describe('initErrorTracking', () => {
     })
   })
 
-  it('never sends default PII', async () => {
+  it('leaves dataCollection at the Sentry 11 defaults the privacy page describes', async () => {
     await loadWithDsn('https://key@example.ingest.sentry.io/1')
-    expect(init.mock.calls[0]?.[0]?.sendDefaultPii).toBe(false)
+    const options = init.mock.calls[0]?.[0] as Record<string, unknown>
+    // Owner's decision at the v11 upgrade (2026-09-26): defaults, IP address included, and
+    // the privacy page says so. Either change here must move with that page's wording.
+    expect(options.dataCollection).toBeUndefined()
+    // Removed in v11 and ignored if passed — its presence would read as a guarantee it no
+    // longer gives.
+    expect('sendDefaultPii' in options).toBe(false)
   })
 
   it('sends no performance traffic, so the free tier is not consumed by traces', async () => {
