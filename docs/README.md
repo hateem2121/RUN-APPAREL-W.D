@@ -70,6 +70,11 @@ the exclusion list silently stops being checked.
 | Upload a garment and get it live | [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md) |
 | The RUN team's everyday steps, in detail (moved from the root README) | [STAFF-GUIDE.md](STAFF-GUIDE.md) |
 | The RUN team's picture guide — short pages, no code | [guide/README.md](guide/README.md) |
+| … see the whole trip, from design to phone | [guide/how-it-works.md](guide/how-it-works.md) |
+| … upload a garment, in four pictures | [guide/upload-a-garment.md](guide/upload-a-garment.md) |
+| … fix a garment that looks wrong | [guide/when-something-looks-wrong.md](guide/when-something-looks-wrong.md) |
+| … look up a word | [guide/glossary.md](guide/glossary.md) |
+| … check our brand colours and words | [guide/brand.md](guide/brand.md) |
 | Set up Cloudflare from scratch | [CLOUDFLARE-SETUP.md](CLOUDFLARE-SETUP.md) |
 | Deploy, migrate, rotate a secret, fix something live | [RUNBOOK.md](RUNBOOK.md) |
 | Deploy without a command line | [DEPLOY-BY-CLICKING.md](DEPLOY-BY-CLICKING.md) |
