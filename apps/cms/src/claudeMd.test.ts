@@ -587,10 +587,10 @@ describe('quoted settings', () => {
   })
 
   it('NEGATIVE CONTROL: an allowed quote is allowed only in its own note', () => {
-    // Allowed in CLAUDE.md, where it records gh output; the same words anywhere else are
-    // checked like any other quote.
+    // Allowed in the deploy rule, where it records gh output (it moved there from the root
+    // CLAUDE.md on 2026-09-26); the same words anywhere else are checked like any other quote.
     const note = 'The pull request showed `mergeable: MERGEABLE`.'
-    expect(check('CLAUDE.md', note)).toEqual([])
+    expect(check('.claude/rules/deploy-and-live-checks.md', note)).toEqual([])
     expect(check('README.md', note).map((s) => s.quote)).toEqual(['mergeable: MERGEABLE'])
   })
 

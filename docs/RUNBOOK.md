@@ -2159,8 +2159,9 @@ useful column, and it distinguishes exactly the cases the claims are about:
 `compact` is what actually survived. If a nested file shows up there, this repo's
 compaction paragraph in `CLAUDE.md` is wrong and should be corrected — that is the
 reason to log it rather than to re-read the docs. If `tools/asset-pipeline/CLAUDE.md`
-appears only with `nested_traversal` and never with `compact`, the paragraph is right
-and the one-line hooks left in the root file are doing the work they were left to do.
+appears only with `nested_traversal` and never with `compact`, the paragraph is right,
+and the root file's one-line index of each nested file (plus the
+`recall-nested-instructions.mjs` reminder) is what carries a session across it.
 
 The hook never blocks and never fails a session: the `InstructionsLoaded` exit code is
 ignored by design, so it exits 0 on every path, including malformed input. Its cases

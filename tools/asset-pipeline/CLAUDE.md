@@ -12,10 +12,9 @@ repo-root-relative, as they were before the move.
 The pipeline 🟡 **traps** moved here on 2026-08-19 and are now at the bottom of this file:
 `--simplify-error` vs `--simplify`, the `opaque` default mismatch, the three blocking
 gates and what they do not catch, the `fieldOfView` floor, N001's three calibrated
-prints. The root `CLAUDE.md` keeps a one-line hook for each — enough to warn a session
-that arrives from a source comment — plus the one trap that must fire before you get
-here at all (**never run the pipeline on its own output**). Read both; this file is the
-authority on the detail.
+prints. The root `CLAUDE.md` indexes this file in one line, and keeps the one trap that
+must fire before you get here at all (**never run the pipeline on its own output**).
+Read both; this file is the authority on the detail.
 
 ## This directory has TWO lockfiles, and only one of them pnpm maintains
 
@@ -34,7 +33,7 @@ and package-lock.json are in sync"*.
 
 🟢 **Note where it did not surface — this was the whole trap.** `lint`, `typecheck`
 5/5, 621 tests, `build`, and the container's own `tsc --noEmit` were *all green*,
-because **none of them run `npm ci`**. The root `CLAUDE.md` already says
+because **none of them run `npm ci`**. `.claude/rules/shrink-container.md` already says
 `apps/shrink/container` "is not a workspace member… it has its own CI typecheck
 step"; the typecheck step was never the gap. `npm ci` is, and it lives one
 directory away, here.
@@ -96,7 +95,8 @@ curl -s https://cms.wear-run.help/api/public/viewer/rxps/wine \
 ```
 
 Cache it locally for repeated use — one 27 MB GET is nothing, but the 15-minute
-uptime job is what the root file's R2-egress warning is actually about.
+uptime job is why `.github/CLAUDE.md` has CI check models with `HEAD` (weight, not an
+R2 bill — R2 egress is free).
 
 🟡 **For a material/alphaMode census you do NOT need the file — RANGE-FETCH the header.**
 A GLB's JSON chunk is at the front and is length-prefixed, so two range requests read
@@ -234,14 +234,14 @@ adherence to *every* rule in the file starts dropping. These are the ones only a
 session touching `tools/asset-pipeline/` needs, so paying for them in every session was
 buying worse compliance with the rest.
 
-Each one keeps a **one-line hook in the root file**, so a session that arrives from a
-source comment is still warned; only the detail moved.
+Since 2026-09-26 the root file only **indexes** this file in one line; the one-line
+teaser per trap it used to carry is in `docs/archive/agent-memory/2026-09-26-root-CLAUDE.md`.
 
 🟢 One consequence to know, because it is the cost of this split: after `/compact`, only
 the project-root `CLAUDE.md` is re-read from disk and re-injected. This file reloads the
 next time Claude reads a file under `tools/asset-pipeline/` — which is exactly when you
-need it, but it does mean a compacted session that has not yet opened this directory has
-only the root's one-liners. Open this file before changing anything here.
+need it, and a hook (`recall-nested-instructions.mjs`) names it after every compaction.
+Open this file before changing anything here.
 
 - **`prune()` renumbers texCoords** via `shiftTexCoords`, so a lone second UV set
   becomes `TEXCOORD_0` before decimation. The real hazard is a material sampling

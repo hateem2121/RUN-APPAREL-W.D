@@ -9,15 +9,35 @@ needed by a session actually touching the CMS. They load automatically the momen
 you touch `apps/cms/`. Paths below are repo-root-relative, as they were before the
 move.
 
-Root `CLAUDE.md` still holds the cross-cutting CMS material — the D1 pragma trap,
-`fileColours` being deliberately outside `GATED_FIELDS`, and
-**"Before you delete anything in the CMS"**, which stayed there on purpose because
-it governs `apps/shrink/src/cms.ts` and `scripts/find-orphan-media.mjs` as well as
-this app, and would stop loading for the shrink half if it moved here. Read the
-root file first.
+The cross-cutting CMS material moved from the root `CLAUDE.md` into path rules on
+2026-09-26, because each one spans more than this directory: the D1 pragma trap
+(`.claude/rules/d1-migrations.md`), `fileColours` being deliberately outside
+`GATED_FIELDS` (`.claude/rules/products-and-colours.md`), and **"Before you delete
+anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also governs
+`apps/shrink/src/cms.ts` and `scripts/find-orphan-media.mjs`. Read the root file first.
 
 ## Traps
 
+- **🟡 Running the CMS dev server DIRTIES the working tree and then `pnpm lint` fails.**
+  Found 2026-08-09. `next dev` rewrites two committed generated files —
+  `apps/cms/src/app/(payload)/admin/importMap.js` (Payload regenerates it, in its
+  own formatting, not Biome's) and `apps/cms/next-env.d.ts` (`./.next/types/…` →
+  `./.next/dev/types/…`). The import map's *content* is unchanged — same 27 keys,
+  verified — but the quote style and line wrapping are not, so `biome check .`
+  fails on formatting alone and the diff looks alarming. **Stop the dev server
+  first, then `git checkout --` both files**; restoring while it is still running
+  just loses the race, which is how this cost a cycle. Do not "fix" it by
+  reformatting the generated file into the repo. *(Moved from the root 2026-09-26.)*
+- **🟢 `admin.hidden` on a collection gates the admin ROUTES, not just the sidebar
+  entry.** Measured 2026-08-09 on payload 3.86.0: with `hidden: true`,
+  `/admin/collections/raw-uploads` renders the "Nothing found" page; with the
+  admin-only function it renders the normal list — same URL, same user. The REST
+  API is unaffected (`/api/raw-uploads` → 200), so a robot is never at risk, but
+  `docs/RUNBOOK.md` → "Re-processing a garment" links straight to
+  `/admin/collections/raw-uploads/<id>` and calls it *"the only way to start a
+  re-run"*. Hiding that collection removes the documented recovery path while
+  reading as a tidy-up. See the comment in `RawUploads.ts`. *(Moved from the root
+  2026-09-26.)*
 - **🔴 Any Payload CLI task touching production D1 must set `NODE_ENV=production`**,
   or Payload runs a dev-mode schema push against it. Incident 2026-07-22: a dev-mode schema push ran against production D1 during the first gated deploy (`docs/HARDENING-LOG.md`).
 - **Put nothing but migrations in `apps/cms/src/migrations/`.** Payload's

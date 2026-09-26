@@ -38,7 +38,8 @@ files and saves no context. What *does* work is on-demand loading: the sub-file 
 above, and path-scoped rules (a `paths:` frontmatter block in a rules file under
 `.claude/rules/`), which load only when Claude reads a matching file.
 ⚠️ **Path-scoped rules fire for a rule present at session start (measured 2026-09-05),
-and are still not adopted for traps.** A rule fires when Claude *reads* a matching
+and since 2026-09-26 they hold traps** — nine rules took the root file's cross-cutting
+traps (table at the end). The history below is how the mechanism was proven first. A rule fires when Claude *reads* a matching
 file, so **creating** a new file never triggers it (anthropics/claude-code#63142).
 Four upstream fixes have since shipped (symlink matching v2.1.198, an invalid pattern
 no longer breaking Read v2.1.207, `--setting-sources` respected v2.1.211, the
@@ -63,7 +64,8 @@ means updating the root file's trap count in the same commit.
 re-injected after `/compact` — nested files and path-scoped rules reload only when a
 matching file is next read, so a trap that moved out of this file can be absent from a
 compacted session until something touches its directory. That is the price paid for
-the pipeline split above, and why each moved trap kept a one-line hook here.
+the pipeline split above, and why each moved trap kept a one-line hook here until
+2026-09-26, when the root switched to one index line per nested file.
 ⚠️ **AND A BASH-FIRST SESSION NEVER TRIGGERS IT AT ALL — MEASURED 2026-08-26 with the
 hook below, which is what it was installed for.** `nested_traversal` fires on the
 Read TOOL; `cat`, `sed` and a python heredoc do not count.
@@ -112,3 +114,43 @@ repo" would have passed them too, because three other workflows still set it.
 A quote that is true on purpose without a file goes in `ALLOWED_QUOTES` with its reason.
 That covers error messages, measured headers and rejected settings. The check proves the
 text only, not the reading: a sentence can still misread a setting it quotes correctly.
+
+## Where the root file's rules went (2026-09-26)
+
+The root `CLAUDE.md` was rebuilt on 2026-09-26: **550 lines and 37,375 characters became
+188 lines and about 10,950**. No rule was dropped. Each one either stayed in the root in
+a shorter form, or moved word for word to the place that loads when it applies. The old
+file is kept at `docs/archive/agent-memory/2026-09-26-root-CLAUDE.md`.
+
+| Old section or trap | Where it is now |
+|---|---|
+| What this is, the layout, the path a garment takes | Root, shorter; the layout now names `packages/ui` and `infra/apex-404` |
+| 🔴 Public repository | Root |
+| The gates, in CI's order; the three invisible gates | Root |
+| `e2e` gates the deploy; Playwright browsers not installed | `.claude/rules/tests-and-fixtures.md` (root keeps the command) |
+| Use `npx --yes pnpm@10.34.5` | Root ("The pnpm note"); `guard-bare-pnpm.mjs` enforces it |
+| The CMS dev server dirties the tree; `admin.hidden` gates routes | `apps/cms/CLAUDE.md` traps (11 → 13) |
+| Coverage floors are measured | `.claude/rules/tests-and-fixtures.md` |
+| Module boundaries are lint-enforced | Root, one bullet |
+| Every document is citation-checked | `.claude/rules/docs-and-instructions.md` |
+| What `pnpm test` also checks | `.claude/rules/dependencies.md` |
+| `node:sqlite` is built in | `.claude/rules/d1-migrations.md` |
+| The one pattern that keeps causing incidents; negative controls | Root, short; full text in `.claude/rules/tests-and-fixtures.md` |
+| 🔴 Never run the pipeline on its own output | Root; `guard-pipeline-input.mjs` enforces it |
+| `PRAGMA foreign_keys=OFF` is a no-op on D1 | `.claude/rules/d1-migrations.md` |
+| `apps/shrink/container` is not a workspace member; `npm ci`; uid 1000; the digest pin | `.claude/rules/shrink-container.md` (Dependabot sentence corrected) |
+| Run `pnpm build` before pushing a dependency change; the `workers-types` hold; the 24h cooldown | `.claude/rules/dependencies.md` |
+| `fileColours` is not in `GATED_FIELDS`; colour names read from the file | `.claude/rules/products-and-colours.md`; root keeps the QR-slug and row-order rules |
+| Read `cf-cache-status` off the GET | Root, short; full incident in `.claude/rules/deploy-and-live-checks.md` |
+| Cloudflare API writes with inline JSON | Root, short; `.claude/rules/deploy-and-live-checks.md` |
+| The one-line teasers for `.github/`, viewer and pipeline traps | Dropped from the root; the traps themselves are unchanged in their own files, and the root indexes each file in one line |
+| A CLO 7.0 export is one GLB per colourway | `.claude/rules/shrink-container.md` and `tools/asset-pipeline/CLAUDE.md` |
+| A settled decision can be invisible (`.agents/`) | Root, short; the count is corrected to two skills |
+| Before you change the pipeline | Root keeps "judge by the rendered print"; the procedure is in `tools/asset-pipeline/CLAUDE.md` |
+| Before you delete anything in the CMS | `.claude/rules/cms-media-deletion.md` |
+| Git identity; repairing commits | Root, short; full text in `.claude/rules/deploy-and-live-checks.md` |
+| D1 backup and the `rxps/wine` capture | Root; `.claude/skills/deploy-preflight/` |
+| The `rxps` rename and the second rename | Root, short; `.claude/rules/deploy-and-live-checks.md` |
+| Do not push twice; reading a cancelled run | Root, short; `.claude/rules/deploy-and-live-checks.md` |
+| The apex site and the private PDF links | Root keeps the two 🔴 lines; `.claude/rules/apex-and-private-pdfs.md` |
+| Style: comments explain why | Root |

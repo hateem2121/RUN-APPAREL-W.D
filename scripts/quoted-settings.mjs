@@ -74,12 +74,12 @@ export const ALLOWED_QUOTES = [
     reason: 'a dismissal request as the API reported it',
   },
   {
-    file: 'CLAUDE.md',
+    file: '.claude/rules/deploy-and-live-checks.md',
     quote: 'mergeable: MERGEABLE',
     reason: 'gh pr view during the 2026-08-25 merge deadlock',
   },
   {
-    file: 'CLAUDE.md',
+    file: '.claude/rules/deploy-and-live-checks.md',
     quote: 'mergeStateStatus: BLOCKED',
     reason: 'gh pr view during the 2026-08-25 merge deadlock',
   },
@@ -157,7 +157,7 @@ export const ALLOWED_QUOTES = [
     reason: 'what an early assertion measured',
   },
   {
-    file: 'CLAUDE.md',
+    file: '.claude/rules/deploy-and-live-checks.md',
     quote: 'artworkVerdict: ok',
     reason: "a garment's Media field on the day its model was unreachable",
   },
