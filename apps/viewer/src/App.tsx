@@ -1,6 +1,6 @@
 import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
 import { isViewerApiError } from '@run-apparel/shared'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { COLOURWAY_PANEL_ID, ColourwayTabs, colourwayTabId } from './components/ColourwayTabs'
 import { ContactSection, MobileActionBar, StageContact } from './components/Contact'
 import { CustomisationSection } from './components/CustomisationSection'
@@ -191,8 +191,16 @@ export default function App() {
    * offline should not also make them find a button. `online` fires on the window
    * when the OS regains a connection; it is not a promise that anything is
    * reachable, so this is exactly the same attempt the button makes.
+   *
+   * ⚠️ `useLayoutEffect`, NOT `useEffect`: the listener must exist the moment "[ NO CONNECTION ]"
+   * does. A passive effect runs after the browser has had the chance to paint, so an `online`
+   * event in that gap was lost and the page stayed offline until a tap. Measured 2026-09-26: that
+   * gap failed e2e/viewer.spec.ts "it comes back on its own…" on CI's mobile Safari (both
+   * attempts, run 36173627945), which fires `online` as soon as the message is visible. A layout
+   * effect runs in the same task as the commit, so no script — the OS's event included — can
+   * observe the message without the listener.
    */
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (state.kind !== 'unreachable') return
     const onOnline = () => void retry()
     window.addEventListener('online', onOnline)
