@@ -10,7 +10,8 @@
 # docs/, and the two issues that actually get opened here are created by robots
 # (`outage` from uptime.yml, `monitoring` from heartbeat.yml) which use
 # `gh issue create` and bypass templates entirely. Forms would add ceremony to a
-# private repo with one member and catch nothing.
+# single-maintainer repo and catch nothing. (It said "private" until 2026-09-26; the
+# repo has been public since 2026-09-10, which is revisited in the docs rebuild.)
 #
 # Blank issues stay enabled for that reason.
 blank_issues_enabled: true

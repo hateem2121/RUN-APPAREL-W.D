@@ -103,9 +103,13 @@ beats "slightly off".
 
 ## Branches, commits and merges
 
-- Branch off `main`; never commit directly to it.
-- Conventional-commit prefixes are used (`feat:`, `fix:`, `docs:`, `chore:`,
-  `security:`, `merge:`).
+- Branch off `main`; never commit directly to it. A hook
+  (`.claude/hooks/guard-main-branch.mjs`) refuses a commit made on `main` and a push to it.
+- Commit messages are plain English: **"Area: what changed"**, for example
+  *Viewer — retry a model download that stops sending*. The owner reads the history and
+  is not a developer, so a subject should make sense without knowing the code. (Until
+  2026-09-26 this line said conventional prefixes such as `feat:` were used; only 16 of
+  the 100 commits before that date did, so the rule now describes what is done.)
 - **Do not push twice in a row.** On a pull request, a second push cancels the
   running CI mid-flight (on `main` a second merge waits instead, since 2026-08-31,
   because that run migrates the database and deploys) — and
