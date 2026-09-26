@@ -2,7 +2,6 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-// @ts-expect-error — plain .mjs script, no types
 import { findVisualProblems, mermaidBlocks } from '../scripts/check-doc-visuals.mjs'
 
 /**
