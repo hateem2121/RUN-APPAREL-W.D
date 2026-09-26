@@ -895,7 +895,9 @@ test.describe('keyboard scrolling survives a glide in progress (FA-F-10, mid-gli
         timeout: 10_000,
       })
       .toBe(true)
-    // Let the preloader hand-off and first layout settle before starting the glide.
+    // Let the stage decide (its no-3D notice changes the page's height, which would move the
+    // bottom mid-measurement — e2e/stage.ts), then the preloader hand-off and first layout.
+    await stageFallsBack(page)
     await page.waitForTimeout(1500)
     // Over the header, never the 3D stage, where a wheel zooms the garment (SC-08).
     const header = await page.locator('header.notch-shell').boundingBox()
