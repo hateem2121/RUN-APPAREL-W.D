@@ -140,7 +140,11 @@ describe('repairDeadTextures', () => {
     const binBefore = broken.subarray(before.start + before.length)
     const binAfter = bytes.subarray(after.start + after.length)
     expect(Buffer.from(binAfter).equals(Buffer.from(binBefore))).toBe(true)
-  })
+    // 60s, like the other tests here that run a real encoder. Measured on CI on
+    // 2026-09-26: 1.2-2.1 s under pnpm 10, 2.5-5.0 s under pnpm 12, whose `pnpm -r`
+    // no longer holds apps/cms and apps/viewer back until this package finishes, so
+    // all three share one runner. Two of these timed out on the 5 s default.
+  }, 60_000)
 })
 
 describe('readGlb', () => {
