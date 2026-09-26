@@ -49,7 +49,14 @@ import { pathToFileURL } from 'node:url'
  * third-party text, listed in .claude/skills/README.md or skills-lock.json. Its quotes are
  * generic CSS and React examples, not claims about this repo.
  */
-export const FIRST_PARTY_SKILLS = ['check-live', 'deploy-preflight', 'gates']
+export const FIRST_PARTY_SKILLS = [
+  'check-live',
+  'deploy-preflight',
+  'gates',
+  '5th-grade-check',
+  'audit-memory',
+  'doc-refresh',
+]
 
 /**
  * Quotes that no file holds, on purpose. Each is allowed only in the note beside it, so

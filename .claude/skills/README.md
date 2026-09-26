@@ -1,8 +1,11 @@
 # Agent skills
 
-**`check-live/`, `deploy-preflight/` and `gates/` are ours** — written here, not
-vendored, so nothing below about SHAs or the review date applies to them (the first
-and last were added 2026-08-26). Everything else in this directory is third-party and
+**`check-live/`, `deploy-preflight/`, `gates/`, `5th-grade-check/`, `audit-memory/` and
+`doc-refresh/` are ours** — written here, not vendored, so nothing below about SHAs or
+the review date applies to them (the first and third were added 2026-08-26; the last
+three on 2026-09-26, all owner-invoked only: `/5th-grade-check <file>` scores a document
+against the 5th-grader standard, `/audit-memory` is the monthly instruction-file check,
+`/doc-refresh` re-checks documents against the code). Everything else in this directory is third-party and
 pinned; keep first-party skills clearly separated from vendored ones so the review
 below stays a review of *other people's* instructions. `scripts/quoted-settings.mjs`
 keeps the same list as `FIRST_PARTY_SKILLS`. A test fails on any skill here, copied or
