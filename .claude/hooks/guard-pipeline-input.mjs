@@ -160,7 +160,8 @@ process.stdin.on('end', () => {
     `Blocked: this runs the asset pipeline on its own output (${offenders.join(', ')}).\n\n` +
       'Meshopt quantizes vertex attributes, so simplify-textured.ts takes the ' +
       'position-only fallback and SILENTLY drops artwork protection — the run ' +
-      'still succeeds and every gate still passes. See CLAUDE.md, trap #1.\n\n' +
+      'still succeeds and every gate still passes. See the root CLAUDE.md, "How work\n' +
+      'is done here" (start the pipeline from the raw CLO export).\n\n' +
       'Start from the raw CLO export instead (raw/*.glb).\n' +
       'Reading from output/ is fine for render / compare / textures / validate — ' +
       'only optimize and merge are blocked, and only on their inputs.',

@@ -1,5 +1,7 @@
 # docs/ — the full index
 
+**In plain words:** The list of every document in this folder, grouped by what you want to do.
+
 The [root README](../README.md) links the dozen documents you need for a *task*
 ("I want to deploy", "I want to upload a garment"). This file lists **everything**,
 including the records the task table deliberately leaves out.
@@ -39,8 +41,10 @@ date, and correct to leave exactly as it is. Editing one to keep it "current" wo
 destroy the only thing it is for. The 0.63 MB of manifests is addressed by name by the
 tooling and read by a person about never.
 
-**Records live in:** `docs/AUDIT-*.md`, `docs/superpowers/plans/`,
-`docs/superpowers/specs/` and `NEXT-SESSION-PROMPT.md`.
+**Records live in:** `docs/superpowers/plans/`, `docs/superpowers/specs/` and
+`docs/archive/` (the instruction files as they were before the 2026-09-26 rebuild —
+[index](archive/agent-memory/README.md)). The audit reports that used to sit at
+`docs/AUDIT-*.md` are private since 2026-09-10 (see below).
 The 2026-08-30 Cloudflare + GitHub infrastructure audits are kept privately and
 are not part of this public repository — they record live account, monitor and
 application identifiers. Nothing in those
@@ -64,7 +68,15 @@ the exclusion list silently stops being checked.
 | I want to… | Read |
 |---|---|
 | Run this locally for the first time | [ONBOARDING.md](ONBOARDING.md) |
+| Build, test and ship a code change (moved from the root README) | [DEVELOPING.md](DEVELOPING.md) |
 | Upload a garment and get it live | [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md) |
+| The RUN team's everyday steps, in detail (moved from the root README) | [STAFF-GUIDE.md](STAFF-GUIDE.md) |
+| The RUN team's picture guide — short pages, no code | [guide/README.md](guide/README.md) |
+| … see the whole trip, from design to phone | [guide/how-it-works.md](guide/how-it-works.md) |
+| … upload a garment, in four pictures | [guide/upload-a-garment.md](guide/upload-a-garment.md) |
+| … fix a garment that looks wrong | [guide/when-something-looks-wrong.md](guide/when-something-looks-wrong.md) |
+| … look up a word | [guide/glossary.md](guide/glossary.md) |
+| … check our brand colours and words | [guide/brand.md](guide/brand.md) |
 | Set up Cloudflare from scratch | [CLOUDFLARE-SETUP.md](CLOUDFLARE-SETUP.md) |
 | Deploy, migrate, rotate a secret, fix something live | [RUNBOOK.md](RUNBOOK.md) |
 | Deploy without a command line | [DEPLOY-BY-CLICKING.md](DEPLOY-BY-CLICKING.md) |
@@ -131,11 +143,8 @@ Newest first.
 ## Audit working files
 
 The two Cloudflare + GitHub audits each keep their evidence beside the report, so a
-claim can be checked rather than believed. **These are working material, not
-guidance** — read the report, and come here only to verify something in it.
-
-| What | Where |
-|---|---|
+claim can be checked rather than believed. **Both the reports and their evidence are
+private since 2026-09-10**, so nothing is listed here; the owner holds them.
 
 ⚠️ **The private audit's "do not change" section is the one to read before
 "tidying" anything.** It lists 153 things that were checked and found CORRECT,
@@ -152,7 +161,7 @@ code disagree, the code is right and the plan simply landed differently.
 | Every implementation plan (CMS UX redesign, audit remediations, CI sizing, viewer layout, garment-pipeline defects) | [superpowers/plans/](superpowers/plans/) |
 | The design spec behind each of those plans | [superpowers/specs/](superpowers/specs/) |
 | A post-merge review kept as a worked example | [reviews/2026-08-12-post-merge-8927062.md](reviews/2026-08-12-post-merge-8927062.md) |
-| **In-progress** plans live at the repository ROOT, not here — see the README | [../README.md](../README.md) |
+| **In-progress** plans are kept privately by the owner, not in this public repository | — |
 
 ## Not in this folder
 
@@ -161,6 +170,9 @@ code disagree, the code is right and the plan simply landed differently.
 | Traps that have cost sessions — **read first** | [../CLAUDE.md](../CLAUDE.md) |
 | How to contribute, and the full gate list | [../CONTRIBUTING.md](../CONTRIBUTING.md) |
 | Reporting a security problem (**not** an issue) | [../SECURITY.md](../SECURITY.md) |
+| Where to get help, question by question | [../SUPPORT.md](../SUPPORT.md) |
+| How we treat each other, and how to report a problem | [../CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md) |
+| What changed, version by version | [../CHANGELOG.md](../CHANGELOG.md) |
 | Licences of files copied in from other projects | [../THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md) |
 | Processing a GLB by hand | [../tools/asset-pipeline/README.md](../tools/asset-pipeline/README.md) |
 | Per-area traps | `apps/*/CLAUDE.md`, `.github/CLAUDE.md`, `tools/asset-pipeline/CLAUDE.md` |

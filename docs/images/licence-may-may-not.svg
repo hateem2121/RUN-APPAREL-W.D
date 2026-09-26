@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 380" width="720" height="380" role="img" aria-labelledby="t d">
+  <title id="t">What the licence lets you do, in plain words</title>
+  <desc id="d">You may: read the code on GitHub, and fork it on GitHub. You may not, without RUN APPAREL's written permission: copy or share it anywhere else, change it or build on it, sell or rent it, take it apart to see how it works, or remove the copyright notice. The garment designs, artwork and photos belong to RUN APPAREL too. This picture is a summary, not the legal text; the LICENSE file is what counts.</desc>
+  <!-- Solid Paper & Ink colours (packages/ui/src/tokens.css) so it reads the same on
+       GitHub's light and dark themes. Every line mirrors a clause in LICENSE; the
+       ✓ / ✗ marks carry the meaning, never the colour alone. -->
+  <rect width="720" height="380" fill="#f1efea"/>
+  <g font-family="system-ui, -apple-system, Segoe UI, sans-serif" fill="#1d1f1a">
+    <rect x="20" y="20" width="260" height="290" rx="14" fill="#faf9f6" stroke="#1d1f1a" stroke-width="2"/>
+    <rect x="20" y="20" width="260" height="52" rx="14" fill="#cdf345" stroke="#1d1f1a" stroke-width="2"/>
+    <text x="150" y="54" font-size="20" font-weight="800" text-anchor="middle">✓  You MAY</text>
+    <g font-size="16">
+      <text x="44" y="112">✓  Read the code on GitHub</text>
+      <text x="44" y="148">✓  Fork it on GitHub</text>
+    </g>
+
+    <rect x="300" y="20" width="400" height="290" rx="14" fill="#faf9f6" stroke="#1d1f1a" stroke-width="2"/>
+    <rect x="300" y="20" width="400" height="52" rx="14" fill="#1d1f1a"/>
+    <text x="500" y="54" font-size="20" font-weight="800" text-anchor="middle" fill="#f1efea">✗  You may NOT (without asking)</text>
+    <g font-size="16">
+      <text x="324" y="112">✗  Copy or share it anywhere else</text>
+      <text x="324" y="148">✗  Change it or build on it</text>
+      <text x="324" y="184">✗  Sell it or rent it</text>
+      <text x="324" y="220">✗  Take it apart to see how it works</text>
+      <text x="324" y="256">✗  Remove the copyright notice</text>
+      <text x="324" y="292" font-size="14" fill="#63665b">Ask first: partner@wear-run.com</text>
+    </g>
+
+    <text x="360" y="340" font-size="14" text-anchor="middle">Garment designs, artwork and photos belong to RUN APPAREL too.</text>
+    <text x="360" y="362" font-size="13" text-anchor="middle" fill="#63665b">A summary, not the legal text. The LICENSE file is what counts.</text>
+  </g>
+</svg>

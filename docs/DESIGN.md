@@ -1,5 +1,7 @@
 # DESIGN.md — "PAPER & INK" (Olive Ink)
 
+**In plain words:** Our screen design rules: the Paper and Ink colours, fonts and spacing.
+
 The viewer's locked design system. Light mode is **"The Workshop"**, dark mode is
 **"The Night Shift"**, and both are first-class — neither is a tinted afterthought
 of the other.

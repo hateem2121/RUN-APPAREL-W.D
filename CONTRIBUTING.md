@@ -1,6 +1,41 @@
 # Contributing
 
-This is a small, private, single-maintainer repository. The point of this file is
+> **What is this?** How to help with this project, in plain words first.
+> The full rules come after the short part.
+
+## 🙋 Who can help
+
+- **Anyone** can report a problem. Open an issue and pick the form that fits.
+- **To change the code**, email team@wear-run.com first. The code is not open source (see [LICENSE](LICENSE)).
+- **Security problems** go by private email only. See [SECURITY.md](SECURITY.md).
+
+## ✍️ How we name commits
+
+Write what changed, in plain English: **"Area: what changed"**.
+
+| ✅ Like this | ❌ Not like this |
+| --- | --- |
+| Viewer: retry a model download that stops | fix(viewer): retry dl |
+| Docs: a picture guide for RUN staff | docs: add guide |
+
+The owner is not a developer and reads the history, so plain words matter.
+
+## 🌿 One branch per job
+
+```mermaid
+flowchart TB
+  A["🌿 Make a branch from main"] --> B["✏️ Make one change"]
+  B --> C["✅ Run the checks"]
+  C --> D["📬 Open a pull request"]
+  D --> E["👀 The owner reviews and merges"]
+```
+
+Never change `main` directly. A robot refuses it.
+How to run the checks is in [docs/DEVELOPING.md](docs/DEVELOPING.md).
+
+## 📜 The full rules
+
+This is a small, public, single-maintainer repository. The point of this file is
 not process for its own sake — it is to stop the three things that have actually
 cost time here: running the wrong command, running a *subset* of the gates and
 believing it was all of them, and changing a number that only a rendered image
@@ -103,9 +138,13 @@ beats "slightly off".
 
 ## Branches, commits and merges
 
-- Branch off `main`; never commit directly to it.
-- Conventional-commit prefixes are used (`feat:`, `fix:`, `docs:`, `chore:`,
-  `security:`, `merge:`).
+- Branch off `main`; never commit directly to it. A hook
+  (`.claude/hooks/guard-main-branch.mjs`) refuses a commit made on `main` and a push to it.
+- Commit messages are plain English: **"Area: what changed"**, for example
+  *Viewer — retry a model download that stops sending*. The owner reads the history and
+  is not a developer, so a subject should make sense without knowing the code. (Until
+  2026-09-26 this line said conventional prefixes such as `feat:` were used; only 16 of
+  the 100 commits before that date did, so the rule now describes what is done.)
 - **Do not push twice in a row.** On a pull request, a second push cancels the
   running CI mid-flight (on `main` a second merge waits instead, since 2026-08-31,
   because that run migrates the database and deploys) — and

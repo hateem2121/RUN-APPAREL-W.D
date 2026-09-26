@@ -1,5 +1,7 @@
 # Uploading your first garment — the plain-English guide
 
+**In plain words:** Your first garment upload, click by click, with no code.
+
 This is the owner's guide. No code, no jargon. If you want the technical version,
 read [RAW-UPLOAD-PIPELINE.md](RAW-UPLOAD-PIPELINE.md) instead.
 

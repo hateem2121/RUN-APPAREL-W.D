@@ -1,5 +1,7 @@
 # Project scorecard — 2026-08-08
 
+**In plain words:** A health check of the whole project on 2026-08-08, written for the owner.
+
 Plain-English health check on RUN APPAREL. Written for the owner, not for a
 developer.
 

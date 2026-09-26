@@ -1,5 +1,7 @@
 # The CSP violation on every page load — full record
 
+**In plain words:** The full story of a browser security warning on every page, and its fix.
+
 Moved out of `apps/viewer/CLAUDE.md` on 2026-08-29 for room under the 39,000-character
 gate. **RESOLVED 2026-08-06.** The live rule stayed in that file's Traps section; what is
 here is the diagnosis, the API fix, and the two alternatives that were rejected.

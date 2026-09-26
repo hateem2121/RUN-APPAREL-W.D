@@ -1,5 +1,7 @@
 # Backup & Restore
 
+**In plain words:** How we copy the database and files to safety, and how to bring them back.
+
 Everything the viewer depends on lives in **three** Cloudflare resources, plus the
 **master files** — raw CLO exports and the owner's production-ready FIXED GLBs — which
 live on the owner's Mac only and have no off-site copy of any kind (owner decision,

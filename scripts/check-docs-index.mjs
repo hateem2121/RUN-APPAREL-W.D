@@ -36,10 +36,17 @@ const REPO = join(dirname(fileURLToPath(import.meta.url)), '..')
  * Write-once records. Each is about a state of the world on a date, and editing one to
  * keep it "current" destroys the only thing it is for.
  */
-export const RECORD_TREES = ['docs/superpowers/plans/', 'docs/superpowers/specs/']
+export const RECORD_TREES = [
+  'docs/superpowers/plans/',
+  'docs/superpowers/specs/',
+  // Snapshots of the instruction files taken before the 2026-09-26 rebuild, each named
+  // by the date its content was true. Kept so a moved or reworded rule can be traced
+  // back to its original wording; nobody is expected to keep them current.
+  'docs/archive/',
+]
 
 /** Single files that are records rather than trees. */
-export const RECORD_FILES = [/^docs\/AUDIT-[\w.-]+\.md$/, /^NEXT-SESSION-PROMPT\.md$/]
+export const RECORD_FILES = [/^docs\/AUDIT-[\w.-]+\.md$/]
 
 /**
  * Trees addressed BY NAME by tooling rather than browsed by a person.

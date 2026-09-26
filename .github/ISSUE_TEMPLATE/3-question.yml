@@ -1,0 +1,23 @@
+name: "❓ A question"
+description: Ask how something works.
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        🔒 **Security problem? Don't use this form — report it privately:** https://github.com/hateem2121/RUN-APPAREL-W.D/security/policy
+
+        The [picture guide](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/main/docs/guide/README.md) may already have the answer.
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried already?
+      description: Pages you read or steps you took. "Nothing yet" is fine.
+    validations:
+      required: false

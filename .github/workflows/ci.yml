@@ -346,6 +346,14 @@ jobs:
         env:
           HOME: /root
         run: pnpm --filter @run-apparel/viewer test:e2e
+      # EVERY PICTURE DESCRIBED, EVERY MERMAID DIAGRAM DRAWS (owner, 2026-09-26: human
+      # pages carry pictures for 5th-grade readers). In THIS job because it needs a
+      # browser to draw the diagrams and `verify` has none; a step, not a job, for the
+      # reason given below for the marketing site.
+      - name: Doc pictures and diagrams
+        env:
+          HOME: /root
+        run: node apps/cms/scripts/check-doc-visuals.mjs
       # THE PUBLIC MARKETING SITE, added 2026-09-05.
       #
       # ⚠️ A STEP IN THIS JOB RATHER THAN A JOB OF ITS OWN, DELIBERATELY. A new job
@@ -1022,10 +1030,11 @@ jobs:
     # "five jobs" until 2026-08-07, which double-counted it.
     #
     # What the environment still earns is the deployment URL on the commit and in
-    # the Deployments tab.
+    # the Deployments tab. It points at the website (it was the viewer until the
+    # owner's choice on 2026-09-26, to match the repo's About link).
     environment:
       name: production
-      url: https://viewer.wear-run.help
+      url: https://wear-run.help
     concurrency:
       group: deploy-production
       cancel-in-progress: false

@@ -1,5 +1,7 @@
 # Dependency holds — the full history
 
+**In plain words:** The few outside packages we keep on an older version on purpose, and why.
+
 Moved out of the root `CLAUDE.md` on 2026-08-29, when that file needed room under the
 39,000-character gate. **The live rule stayed in `CLAUDE.md` → Traps.** What is here is
 the evidence: every re-measurement, the bisect, and why the hold is as wide as it is.

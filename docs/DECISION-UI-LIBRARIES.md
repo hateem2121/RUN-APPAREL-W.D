@@ -1,5 +1,7 @@
 # DECISION — UI libraries, and why we are not on Tailwind
 
+**In plain words:** Which building blocks we use for screens, and why not Tailwind.
+
 **Decided 2026-08-15.** Short version:
 
 > **Behaviour comes from `base-ui`. Appearance stays hand-written in

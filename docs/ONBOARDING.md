@@ -1,5 +1,7 @@
 # Onboarding — from a clean checkout to a running site
 
+**In plain words:** How a new developer gets the site running on their own computer.
+
 **Target: 30 minutes.** Every command below is the real one, copied from a run that
 worked on 2026-08-13, not reconstructed from memory. If a step takes materially
 longer than its stated time, that is a bug in this page — say so.

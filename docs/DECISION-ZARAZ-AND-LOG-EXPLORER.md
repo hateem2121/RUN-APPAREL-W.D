@@ -1,5 +1,7 @@
 # DECISION — Zaraz and Log Explorer, and why we are buying neither
 
+**In plain words:** Why we are not paying for two extra Cloudflare tools.
+
 **Decided 2026-08-30.** Short version:
 
 > **No Zaraz: we have zero third-party tags for it to manage, and adopting it would

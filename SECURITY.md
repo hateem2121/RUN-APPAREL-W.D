@@ -1,5 +1,22 @@
 # Security policy
 
+> **In short.** These are plain words. The full policy below is what counts.
+>
+> 🔍 Found a way to break in, or a leak? Email **team@wear-run.com** with `SECURITY` in the subject line.
+>
+> 🚫 **Do not** open a public GitHub issue. Everyone can read those.
+>
+> 📨 We say "got it" within 3 working days.
+>
+> 🙏 Please test kindly. No load tests, and do not touch other people's data.
+
+```mermaid
+flowchart TB
+  A["🔍 You find a security problem"] --> B["✉️ Email team@wear-run.com<br/>subject: SECURITY"]
+  B --> C["📨 We reply within 3 working days"]
+  C --> D["🛠️ We fix it and thank you"]
+```
+
 ## Reporting a vulnerability
 
 **Email `team@wear-run.com` with `SECURITY` in the subject line.**

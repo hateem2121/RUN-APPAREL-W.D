@@ -49,7 +49,14 @@ import { pathToFileURL } from 'node:url'
  * third-party text, listed in .claude/skills/README.md or skills-lock.json. Its quotes are
  * generic CSS and React examples, not claims about this repo.
  */
-export const FIRST_PARTY_SKILLS = ['check-live', 'deploy-preflight', 'gates']
+export const FIRST_PARTY_SKILLS = [
+  'check-live',
+  'deploy-preflight',
+  'gates',
+  '5th-grade-check',
+  'audit-memory',
+  'doc-refresh',
+]
 
 /**
  * Quotes that no file holds, on purpose. Each is allowed only in the note beside it, so
@@ -74,12 +81,12 @@ export const ALLOWED_QUOTES = [
     reason: 'a dismissal request as the API reported it',
   },
   {
-    file: 'CLAUDE.md',
+    file: '.claude/rules/deploy-and-live-checks.md',
     quote: 'mergeable: MERGEABLE',
     reason: 'gh pr view during the 2026-08-25 merge deadlock',
   },
   {
-    file: 'CLAUDE.md',
+    file: '.claude/rules/deploy-and-live-checks.md',
     quote: 'mergeStateStatus: BLOCKED',
     reason: 'gh pr view during the 2026-08-25 merge deadlock',
   },
@@ -157,7 +164,7 @@ export const ALLOWED_QUOTES = [
     reason: 'what an early assertion measured',
   },
   {
-    file: 'CLAUDE.md',
+    file: '.claude/rules/deploy-and-live-checks.md',
     quote: 'artworkVerdict: ok',
     reason: "a garment's Media field on the day its model was unreachable",
   },

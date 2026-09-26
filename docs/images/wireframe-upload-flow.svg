@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 600" width="720" height="600" role="img" aria-labelledby="t d">
+  <title id="t">Drawing of the four steps to put a garment online</title>
+  <desc id="d">Step 1: save one file with every colour from CLO 3D. Step 2: on the product page in the CMS, open the 3D file tab and add the file. Step 3: on the Colours tab, say which colour in the file is which. Step 4: set the status to Published, save, and check the garment on your phone.</desc>
+  <!-- Solid Paper & Ink colours (packages/ui/src/tokens.css) so the drawing reads the
+       same on GitHub's light and dark themes. Steps follow docs/FIRST-GARMENT-UPLOAD.md. -->
+  <rect width="720" height="600" fill="#f1efea"/>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#1d1f1a"/>
+    </marker>
+  </defs>
+  <g font-family="system-ui, -apple-system, Segoe UI, sans-serif" fill="#1d1f1a">
+    <!-- Card frames -->
+    <g fill="#faf9f6" stroke="#1d1f1a" stroke-width="2">
+      <rect x="20" y="20" width="320" height="260" rx="14"/>
+      <rect x="380" y="20" width="320" height="260" rx="14"/>
+      <rect x="20" y="320" width="320" height="260" rx="14"/>
+      <rect x="380" y="320" width="320" height="260" rx="14"/>
+    </g>
+    <!-- Arrows between the steps -->
+    <g stroke="#1d1f1a" stroke-width="2.5" fill="none" marker-end="url(#arrow)">
+      <line x1="344" y1="150" x2="374" y2="150"/>
+      <path d="M540 284 V300 H180 V314"/>
+      <line x1="344" y1="450" x2="374" y2="450"/>
+    </g>
+    <!-- Step numbers + titles -->
+    <g font-weight="700" font-size="15">
+      <circle cx="46" cy="46" r="14"/><text x="46" y="51" text-anchor="middle" fill="#cdf345">1</text>
+      <text x="70" y="51">Save one file from CLO 3D</text>
+      <circle cx="406" cy="46" r="14"/><text x="406" y="51" text-anchor="middle" fill="#cdf345">2</text>
+      <text x="430" y="51">Add it to the product page</text>
+      <circle cx="46" cy="346" r="14"/><text x="46" y="351" text-anchor="middle" fill="#cdf345">3</text>
+      <text x="70" y="351">Say which colour is which</text>
+      <circle cx="406" cy="346" r="14"/><text x="406" y="351" text-anchor="middle" fill="#cdf345">4</text>
+      <text x="430" y="351">Publish, then check on a phone</text>
+    </g>
+
+    <!-- 1: one file, every colour inside -->
+    <path d="M140 80 h60 l24 24 v100 h-84 z" fill="#e4e1d8" stroke="#1d1f1a" stroke-width="2"/>
+    <path d="M200 80 v24 h24" fill="none" stroke="#1d1f1a" stroke-width="2"/>
+    <text x="182" y="150" font-size="14" font-weight="700" text-anchor="middle">.glb</text>
+    <g stroke="#1d1f1a" stroke-width="1">
+      <circle cx="158" cy="180" r="7" fill="#7a2e35"/><circle cx="176" cy="180" r="7" fill="#f2c4c8"/>
+      <circle cx="194" cy="180" r="7" fill="#f6f0b8"/><circle cx="212" cy="180" r="7" fill="#8fd35c"/>
+    </g>
+    <text x="180" y="236" font-size="13" text-anchor="middle">ONE file with every colour inside.</text>
+    <text x="180" y="256" font-size="13" text-anchor="middle" fill="#63665b">Colour names in CLO do not matter.</text>
+
+    <!-- 2: CMS product page, 3D file tab -->
+    <rect x="400" y="72" width="280" height="150" rx="6" fill="#ffffff" stroke="#1d1f1a" stroke-opacity="0.4"/>
+    <text x="414" y="94" font-size="12" fill="#63665b">Products › your garment</text>
+    <text x="414" y="118" font-size="12">Details</text>
+    <text x="474" y="118" font-size="12" font-weight="700">3D file</text>
+    <line x1="472" y1="123" x2="520" y2="123" stroke="#1d1f1a" stroke-width="2"/>
+    <text x="534" y="118" font-size="12">Colours</text>
+    <rect x="414" y="134" width="252" height="40" rx="6" fill="none" stroke="#1d1f1a" stroke-dasharray="5 4"/>
+    <text x="540" y="159" font-size="12" text-anchor="middle">Your CLO files  ＋ Add</text>
+    <text x="414" y="200" font-size="12">Detail:</text>
+    <rect x="460" y="186" width="84" height="22" rx="4" fill="#cdf345" stroke="#1d1f1a"/>
+    <text x="502" y="201" font-size="12" text-anchor="middle">Balanced</text>
+    <text x="540" y="246" font-size="13" text-anchor="middle">Keep the tab open while it uploads.</text>
+    <text x="540" y="266" font-size="13" text-anchor="middle" fill="#63665b">A robot then shrinks the file.</text>
+
+    <!-- 3: Colours tab -->
+    <rect x="40" y="372" width="280" height="150" rx="6" fill="#ffffff" stroke="#1d1f1a" stroke-opacity="0.4"/>
+    <text x="54" y="394" font-size="12" font-weight="700">Colours</text>
+    <g font-size="12">
+      <circle cx="62" cy="422" r="8" fill="#7a2e35" stroke="#1d1f1a"/>
+      <text x="78" y="426">Wine</text>
+      <rect x="150" y="410" width="156" height="24" rx="4" fill="none" stroke="#1d1f1a"/>
+      <text x="160" y="426">Colorway 1 ▾</text>
+      <circle cx="62" cy="458" r="8" fill="#f2c4c8" stroke="#1d1f1a"/>
+      <text x="78" y="462">Blush</text>
+      <rect x="150" y="446" width="156" height="24" rx="4" fill="none" stroke="#1d1f1a"/>
+      <text x="160" y="462">Colorway 2 ▾</text>
+      <circle cx="62" cy="494" r="8" fill="#f6f0b8" stroke="#1d1f1a"/>
+      <text x="78" y="498">Butter</text>
+      <rect x="150" y="482" width="156" height="24" rx="4" fill="none" stroke="#1d1f1a"/>
+      <text x="160" y="498">Colorway 3 ▾</text>
+    </g>
+    <text x="180" y="546" font-size="13" text-anchor="middle">Pick the CLO colour for each name.</text>
+    <text x="180" y="566" font-size="13" text-anchor="middle" fill="#63665b">The first row is the colour people see first.</text>
+
+    <!-- 4: publish + phone -->
+    <rect x="400" y="372" width="170" height="150" rx="6" fill="#ffffff" stroke="#1d1f1a" stroke-opacity="0.4"/>
+    <text x="414" y="398" font-size="12">Status:</text>
+    <rect x="414" y="408" width="140" height="24" rx="4" fill="none" stroke="#1d1f1a"/>
+    <text x="424" y="424" font-size="12">Published ▾</text>
+    <rect x="414" y="450" width="80" height="30" rx="6" fill="#1d1f1a"/>
+    <text x="454" y="470" font-size="12" text-anchor="middle" fill="#cdf345">Save</text>
+    <rect x="596" y="372" width="84" height="150" rx="14" fill="#faf9f6" stroke="#1d1f1a" stroke-width="2"/>
+    <path d="M626 410 l-14 7 l4 11 l6 -2 v36 h28 v-36 l6 2 l4 -11 l-14 -7 q-10 6 -20 0 z" fill="#7a2e35" stroke="#1d1f1a"/>
+    <g fill="#1d1f1a">
+      <rect x="620" y="478" width="10" height="10"/><rect x="644" y="478" width="10" height="10"/>
+      <rect x="620" y="498" width="10" height="10"/><rect x="636" y="492" width="6" height="6"/>
+      <rect x="648" y="500" width="6" height="6"/>
+    </g>
+    <text x="540" y="546" font-size="13" text-anchor="middle">Zoom right in on a printed logo.</text>
+    <text x="540" y="566" font-size="13" text-anchor="middle" fill="#63665b">The print is the product: it must be sharp.</text>
+  </g>
+</svg>

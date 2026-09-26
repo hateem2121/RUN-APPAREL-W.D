@@ -73,9 +73,10 @@ h1 em{font-family:Instrument,serif;font-style:italic;font-weight:400;font-stretc
 </div>
 </body></html>`
 
-const { chromium } = require(
-  join(REPO, 'node_modules/.pnpm/playwright@1.62.1/node_modules/playwright'),
-)
+// Resolved through apps/cms's own @playwright/test, never a versioned .pnpm path: this
+// line named `playwright@1.62.1` until 2026-09-26, and the Playwright 1.63 upgrade left
+// it loading a stale copy whose browser was gone (a clean checkout has no such folder).
+const { chromium } = require('@playwright/test')
 
 const out = join(HERE, '..', 'public', 'og-default.png')
 const tmp = join(HERE, '..', 'public', '.og-source.html')

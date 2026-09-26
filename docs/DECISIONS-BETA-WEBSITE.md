@@ -1,5 +1,7 @@
 # Settled decisions — the beta website
 
+**In plain words:** The choices already made for our public website, so nobody re-decides them.
+
 Every row here is an **owner decision**, taken on the date shown, with the evidence
 that was in front of them at the time. They are recorded for the reason
 `docs/DECISION-UI-LIBRARIES.md` exists: on 2026-08-15 a session researched a

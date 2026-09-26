@@ -1,5 +1,7 @@
 # Customization copy — draft for all eleven garments, 2026-09-04
 
+**In plain words:** Draft words about customising each garment, written for the CMS but not added yet.
+
 **Status: DRAFT. Nothing here has been written to the CMS.** Paste each block into
 the matching product's `Customisation intro` and `Customisation steps` fields, or
 ask for the API script and it can be applied in one pass.

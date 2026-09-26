@@ -1,5 +1,7 @@
 # Cloudflare Setup — Manual Steps
 
+**In plain words:** The one-time steps to set up our hosting on Cloudflare, top to bottom.
+
 Everything in this file happens in the Cloudflare dashboard or with `wrangler` —
 it cannot be automated from the repository. All of it fits inside the **$5/month
 Workers Paid plan** (D1 and R2 usage at this scale sit in the free allowances).

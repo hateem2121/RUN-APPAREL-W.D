@@ -232,7 +232,7 @@ process.stdin.on('end', () => {
       'This is guarded rather than remembered because of where the failure shows up:\n' +
       'e2e/prepare.mjs shells out to `pnpm build`, so a bare pnpm kills the whole e2e\n' +
       'suite as "Timed out waiting 120000ms from config.webServer" with the real\n' +
-      'status: 127 buried in a child process. See the pnpm note under "What this is" in\n' +
+      'status: 127 buried in a child process. See "The pnpm note" under "Commands" in\n' +
       'the root CLAUDE.md.\n\n' +
       'This one was DENIED rather than rewritten because the command contains a quote\n' +
       'or a heredoc, where a separator can hide inside a string — rewriting there could\n' +

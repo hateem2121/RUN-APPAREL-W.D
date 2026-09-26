@@ -1,5 +1,7 @@
 # Production Hardening — Engineering Log & Retrospective
 
+**In plain words:** The story of how the site was made safer and sturdier, and what we learned.
+
 A record of the July 2026 hardening pass: what changed, what went wrong, and what
 was learned. Written so a future maintainer (or a future session) can pick up with
 full context. Operational how-tos live in [RUNBOOK.md](RUNBOOK.md) and

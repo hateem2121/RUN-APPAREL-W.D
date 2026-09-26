@@ -1,18 +1,10 @@
-# Deliberately NOT a set of issue forms.
+# Forms added 2026-09-26 by the owner's decision, reversing the 2026-08-30 'links only'
+# choice; robots still open issues with gh and bypass forms.
 #
-# An audit on 2026-08-30 flagged the absence of issue templates. Its own challenger
-# REFUTED the premise — the claim was that SECURITY.md's "do not open an issue"
-# instruction was undiscoverable without a template, and GitHub already surfaces a
-# repository's security policy on the new-issue screen. So the gap was smaller than
-# reported.
-#
-# What was genuinely missing is signposting: this repo answers most questions in
-# docs/, and the two issues that actually get opened here are created by robots
-# (`outage` from uptime.yml, `monitoring` from heartbeat.yml) which use
-# `gh issue create` and bypass templates entirely. Forms would add ceremony to a
-# private repo with one member and catch nothing.
-#
-# Blank issues stay enabled for that reason.
+# The three forms (1-site-broken, 2-garment-looks-wrong, 3-question) each open with the
+# private security link, and the security contact link stays FIRST below, so nobody is
+# led to report a vulnerability in public. Blank issues stay enabled: the robots
+# (`outage` from uptime.yml, `monitoring` from heartbeat.yml) use `gh issue create`.
 blank_issues_enabled: true
 
 contact_links:
