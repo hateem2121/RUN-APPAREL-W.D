@@ -69,6 +69,7 @@ the exclusion list silently stops being checked.
 | Build, test and ship a code change (moved from the root README) | [DEVELOPING.md](DEVELOPING.md) |
 | Upload a garment and get it live | [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md) |
 | The RUN team's everyday steps, in detail (moved from the root README) | [STAFF-GUIDE.md](STAFF-GUIDE.md) |
+| The RUN team's picture guide — short pages, no code | [guide/README.md](guide/README.md) |
 | Set up Cloudflare from scratch | [CLOUDFLARE-SETUP.md](CLOUDFLARE-SETUP.md) |
 | Deploy, migrate, rotate a secret, fix something live | [RUNBOOK.md](RUNBOOK.md) |
 | Deploy without a command line | [DEPLOY-BY-CLICKING.md](DEPLOY-BY-CLICKING.md) |

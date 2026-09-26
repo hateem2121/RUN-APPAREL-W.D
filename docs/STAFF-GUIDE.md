@@ -1,7 +1,7 @@
 # Staff guide — the everyday steps, in detail
 
 **In plain words:** these are the exact steps the RUN team uses every day.
-A simpler picture guide for the same jobs is coming next.
+The [picture guide](guide/README.md) explains the same jobs more simply.
 
 ## Everyday guide (for the RUN team)
 
