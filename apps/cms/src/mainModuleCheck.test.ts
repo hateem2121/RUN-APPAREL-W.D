@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  type Dirent,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -44,7 +52,7 @@ const SCRIPT_DIRS = [
 function scriptFiles(): string[] {
   const out: string[] = []
   const step = (dir: string) => {
-    let entries: ReturnType<typeof readdirSync<{ withFileTypes: true }>>
+    let entries: Dirent[]
     try {
       entries = readdirSync(dir, { withFileTypes: true })
     } catch {
