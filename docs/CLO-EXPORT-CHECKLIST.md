@@ -1,6 +1,6 @@
 # CLO export checklist — before you send a garment
 
-**In plain words:** Ten settings to check in CLO before exporting a garment, so its 3D page comes out right the first time.
+**In plain words:** Eleven things to check in CLO before exporting a garment, so its 3D page comes out right the first time.
 
 Written 2026-09-27 for the owner, from the census of all 43 garment exports and the
 3D-quality investigation of the same day. Each item says **what to do**, **why**, and
@@ -83,7 +83,19 @@ If CLO lists a texture with no image behind it, fix or remove it before export.
   Vest*, *Structure Polo Set* and *Terra Active Zip* — one empty texture each (all were
   shading maps, so they still process).
 
-### 9. Faded prints come out bold
+### 9. Keep the export under 4 GB
+
+Before exporting, shrink very large texture pictures (or export them as JPEG) so the finished
+`.glb` stays well under 4 GB.
+
+- **Why:** the glTF file format stores sizes as 32-bit numbers, so it cannot hold more than
+  4 GB. CLO writes a bigger export anyway, and silently leaves out whatever does not fit —
+  the file opens, but those pictures are simply not in it, so nothing can process it.
+- **Seen on:** *Athletic V-Neck Jersey* (2026-09-27) — its pictures add up to 4,318,896,259
+  bytes, over the 4,294,967,296 limit; CLO kept 256 MB and dropped 91 of its 103 textures. It
+  stays a draft until it is re-exported.
+
+### 10. Faded prints come out bold
 
 A soft, faded print (a brush stroke, a watercolour, a marble effect) looks stronger on the
 website than in CLO's render.
@@ -95,7 +107,7 @@ website than in CLO's render.
 
 ## After you export
 
-### 10. Render one picture per colour, named by colourway
+### 11. Render one picture per colour, named by colourway
 
 Save CLO's studio render for **each** colourway as `NAME_Colorway N.png`, at least 2000
 pixels tall, in the garment's folder.
