@@ -1,0 +1,36 @@
+# What sits IN FRONT of each nudged print, searched out to 10 mm (the detector searches 2 mm). scripts/local/ahead.mjs on the SHIPPED files.
+
+m0/p7 Material_Graphic_5133235 [OPAQUE] triangles=17488 area=1115.8 cm2
+   in front: m0/p25 Default Fabric_2900 [OPAQUE]                          covers 43.8% of it  gap median 2.54 mm (min 0.64, p90 3.96)  facing 1.000
+   in front: m0/p0 Cotton_Canvas_2942 [OPAQUE]                            covers 15.8% of it  gap median 2.50 mm (min 1.80, p90 2.90)  facing 1.000
+   in front: m0/p6 Default Fabric_2900 [OPAQUE]                           covers 1.4% of it  gap median 2.20 mm (min 0.00, p90 5.80)  facing -0.756
+   in front: m0/p8 Default Topstitch_3137 [MASK]                          covers 1.0% of it  gap median 0.16 mm (min 0.12, p90 0.19)  facing 1.000
+   in front: m0/p24 Zipper 1_TapeFabric_3430036 [OPAQUE]                  covers 0.1% of it  gap median 2.93 mm (min 2.87, p90 2.94)  facing 1.000
+   in front: m8/p0 Zipper 1_Teeth_3430047 [OPAQUE]                        covers 0.1% of it  gap median 2.57 mm (min 2.51, p90 2.82)  facing -0.726
+   in front: m0/p23 Zipper 1_TapeFabric_3430036 [OPAQUE]                  covers 0.1% of it  gap median 2.92 mm (min 2.90, p90 2.95)  facing 1.000
+   in front: m7/p0 Zipper 1_Teeth_3430047 [OPAQUE]                        covers 0.1% of it  gap median 2.57 mm (min 2.54, p90 2.64)  facing -0.740
+
+m0/p21 Material_Graphic_5133235 [OPAQUE] triangles=16892 area=1079.2 cm2
+   in front: m0/p25 Default Fabric_2900 [OPAQUE]                          covers 49.5% of it  gap median 2.67 mm (min 0.86, p90 4.99)  facing 1.000
+   in front: m0/p0 Cotton_Canvas_2942 [OPAQUE]                            covers 15.8% of it  gap median 2.63 mm (min 2.05, p90 2.82)  facing 1.000
+   in front: m0/p20 Default Fabric_2900 [OPAQUE]                          covers 1.7% of it  gap median 2.50 mm (min 0.08, p90 6.65)  facing -0.661
+   in front: m0/p22 Default Topstitch_3137 [MASK]                         covers 1.1% of it  gap median 0.16 mm (min 0.13, p90 0.18)  facing 1.000
+   in front: m0/p26 Material_Graphic_5133235 [OPAQUE]                     covers 0.0% of it  gap median 2.57 mm (min 2.57, p90 2.57)  facing 0.999
+
+m0/p55 Material_Graphic_13531104 [OPAQUE] triangles=16956 area=1075.8 cm2
+   in front: m0/p57 SPONSOR & NUMBER GRAPHICS_4107514 [MASK]              covers 45.5% of it  gap median 0.20 mm (min 0.17, p90 0.21)  facing 1.000
+   in front: m0/p56 SPONSOR & NUMBER GRAPHICS_4107511 [MASK]              covers 5.9% of it  gap median 0.20 mm (min 0.17, p90 0.21)  facing 1.000
+
+m0/p84 Material_Graphic_13531104__overlay [OPAQUE] triangles=14252 area=927.7 cm2
+   in front: m0/p20 Knit_Pique_Jersey_4107475 [OPAQUE]                    covers 4.2% of it  gap median 5.31 mm (min 2.86, p90 7.22)  facing 0.953
+   in front: m0/p85 Teamwear Logo_4107493 [MASK]                          covers 2.1% of it  gap median 0.20 mm (min 0.17, p90 0.21)  facing 1.000
+   in front: m0/p86 RUN LOGO_4107502 [MASK]                               covers 1.5% of it  gap median 0.20 mm (min 0.18, p90 0.21)  facing 1.000
+   in front: m0/p1 Material_Graphic_13531104__overlay [OPAQUE]            covers 0.1% of it  gap median 8.47 mm (min 6.69, p90 9.92)  facing -0.859
+
+m0/p103 Material_Graphic_13531104__overlay [OPAQUE] triangles=33896 area=1808.3 cm2
+   in front: m0/p107 SPONSOR & NUMBER GRAPHICS_4107514 [MASK]             covers 26.3% of it  gap median 0.20 mm (min 0.16, p90 0.21)  facing 1.000
+   in front: m0/p106 RUN LOGO_4107502 [MASK]                              covers 3.0% of it  gap median 0.20 mm (min 0.18, p90 0.22)  facing 1.000
+   in front: m0/p104 TO NEVER LOOK BACK (Slogan)_4107499 [MASK]           covers 0.8% of it  gap median 0.20 mm (min 0.18, p90 0.21)  facing 1.000
+   in front: m0/p105 Teamwear Logo Copy 1_4107496 [MASK]                  covers 0.5% of it  gap median 0.20 mm (min 0.18, p90 0.21)  facing 1.000
+   in front: m0/p8 Material_Graphic_13531104__overlay [OPAQUE]            covers 0.1% of it  gap median 9.74 mm (min 5.26, p90 9.77)  facing -0.883
+   in front: m0/p20 Knit_Pique_Jersey_4107475 [OPAQUE]                    covers 0.0% of it  gap median 5.93 mm (min 5.93, p90 5.93)  facing 0.829

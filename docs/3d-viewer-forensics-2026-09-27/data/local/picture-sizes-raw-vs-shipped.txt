@@ -1,0 +1,61 @@
+# Picture sizes per material and slot, raw CLO export -> shipped file. Supplier fabric codes replaced with 'fabric A/B'. A row reading MISSING was merged with an identical material and renamed (checked piece by piece: no artwork changed).
+== mm
+  Cotton_Canvas                    color  raw   1853x1853 -> shipped    1853x1853 572KB 100.0% px
+  Cotton_Canvas                    normal raw   1853x1853 -> shipped    1024x1024 381KB  30.5% px
+  Default Fabric                   color  raw   1024x1024 -> shipped    1024x1024 224KB 100.0% px
+  Default Fabric                   normal raw   1024x1024 -> shipped    1024x1024 195KB 100.0% px
+  Default Topstitch                color  raw    983x1642 -> shipped      983x1642 87KB 100.0% px
+  LOGO Team wear Embridory gold go color  raw     100x100 -> shipped        100x100 3KB 100.0% px
+  LOGO Team wear Embridory gold go normal raw     100x100 -> shipped        100x100 4KB 100.0% px
+  Material_Graphic                 color  raw   1200x1800 -> shipped    1200x1800 120KB 100.0% px
+  Material_Graphic                 normal raw   1024x1024 -> shipped    1024x1024 195KB 100.0% px
+  RUN LOGO                         color  raw     469x127 -> shipped        469x127 1KB 100.0% px
+  RUN LOGO                         normal raw     469x127 -> shipped       469x127 19KB 100.0% px
+  THE EXTRA MILE (Slogan)          color  raw    5148x310 -> shipped      4096x247 42KB  63.4% px
+  THE EXTRA MILE (Slogan)          normal raw    5148x310 -> shipped       1024x62 13KB   4.0% px
+  Zipper 1_BottomStopper           color  raw     640x640 -> shipped        640x640 3KB 100.0% px
+  Zipper 1_Puller                  color  raw     512x512 -> shipped        512x512 3KB 100.0% px
+  Zipper 1_Slider                  color  raw     640x640 -> shipped        640x640 3KB 100.0% px
+  Zipper 1_TapeFabric              color  raw     283x561 -> shipped       283x561 23KB 100.0% px
+  Zipper 1_TapeFabric              normal raw     283x561 -> shipped      283x561 106KB 100.0% px
+  Zipper 1_TopStopper              color  raw     640x640 -> shipped            MISSING 
+== css
+  Activewear Neck Label            color  raw   1800x1200 -> shipped     1800x1200 29KB 100.0% px
+  Default Topstitch                color  raw    1630x173 -> shipped      1630x173 25KB 100.0% px
+  Knit_Pique_Jersey                color  raw   2158x1798 -> shipped    2048x1706 277KB  90.0% px
+  Knit_Pique_Jersey                normal raw   2158x1798 -> shipped     1024x853 254KB  22.5% px
+  Knit_Pique_Jersey                rough  raw   2158x1798 -> shipped     1024x853 218KB  22.5% px
+  Material_Graphic                 color  raw   2048x2048 -> shipped    2048x2048 267KB 100.0% px
+  Material_Graphic                 normal raw   2158x1798 -> shipped     1024x853 254KB  22.5% px
+  Material_Graphic                 rough  raw   2158x1798 -> shipped     1024x853 218KB  22.5% px
+  Neck Tape                        color  raw    6179x210 -> shipped      4096x139 44KB  43.9% px
+  Neck Tape                        normal raw    6179x210 -> shipped        1024x35 8KB   2.8% px
+  Neck Tape                        rough  raw    6179x210 -> shipped        1024x35 5KB   2.8% px
+  RUN LOGO                         color  raw    2031x550 -> shipped      2031x550 15KB 100.0% px
+  RUN LOGO Copy 1                  color  raw    2031x550 -> shipped            MISSING 
+  SPONSOR & NUMBER GRAPHICS        color  raw    3746x345 -> shipped      3746x345 28KB 100.0% px
+  SPONSOR & NUMBER GRAPHICS Copy 1 color  raw     626x665 -> shipped            MISSING 
+  TO NEVER LOOK BACK (Slogan)      color  raw    1862x103 -> shipped      1862x103 15KB 100.0% px
+  Teamwear Logo                    color  raw   1823x1288 -> shipped     1823x1288 29KB 100.0% px
+  Teamwear Logo Copy 1             color  raw   1823x1288 -> shipped     1823x1288 29KB 100.0% px
+== xmp
+  fabric B                  color  raw   2070x1883 -> shipped    2048x1863 255KB  97.9% px
+  fabric B                  normal raw   2070x1883 -> shipped     1024x931 375KB  24.5% px
+  fabric A (dobby)                    color  raw   2871x2730 -> shipped   2048x1947 1833KB  50.9% px
+  fabric A (dobby)                    normal raw   2871x2730 -> shipped     1024x974 403KB  12.7% px
+  fabric A (dobby)                    rough  raw   2871x2730 -> shipped     1024x974 117KB  12.7% px
+  Material_Graphic                 color  raw   4952x7014 -> shipped   1446x2048 1443KB   8.5% px
+  RUN LOGO                         color  raw     378x117 -> shipped        378x117 1KB 100.0% px
+  RUN LOGO                         normal raw     378x117 -> shipped       378x117 21KB 100.0% px
+  THE EXTRA MILE (Slogan)          color  raw    2550x159 -> shipped      2550x159 10KB 100.0% px
+  THE EXTRA MILE (Slogan)          normal raw    2550x159 -> shipped       1024x64 21KB  16.2% px
+  Teamwear Logo                    color  raw     322x287 -> shipped        322x287 2KB 100.0% px
+  Teamwear Logo                    normal raw     322x287 -> shipped       322x287 43KB 100.0% px
+  Teamwear Logo Copy 1             color  raw     317x224 -> shipped        317x224 2KB 100.0% px
+  Teamwear Logo Copy 1             normal raw     317x224 -> shipped       317x224 32KB 100.0% px
+  Topstitch 2                      color  raw    983x1642 -> shipped      983x1642 73KB 100.0% px
+  White Black Bold Minimalist Clot color  raw     598x290 -> shipped       598x290 25KB 100.0% px
+  White Black Bold Minimalist Clot normal raw     598x290 -> shipped       598x290 66KB 100.0% px
+  White Black Bold Minimalist Clot rough  raw     598x290 -> shipped       598x290 20KB 100.0% px
+  cotton_interlock_190gsm          color  raw   2070x1883 -> shipped    2048x1863 255KB  97.9% px
+  cotton_interlock_190gsm          normal raw   2070x1883 -> shipped     1024x931 375KB  24.5% px

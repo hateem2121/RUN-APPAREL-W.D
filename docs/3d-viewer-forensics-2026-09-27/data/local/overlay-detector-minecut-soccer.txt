@@ -1,0 +1,126 @@
+# pnpm pipeline overlays <file> --json, raw CLO export vs shipped file. Thread and zipper rows omitted.
+
+== raw-mm: measured 51, overlay readings 18, flagged materials 30, held for review 3, thread ignored 10, clones 0
+  m0/p0 Cotton_Canvas_2942                 OPAQUE layered=0.43 frontness=0.022 gap=1.890mm align=0.9967 confidence=0.00 overlay=False behind=Material_Graphic_5133235
+  m0/p1 THE EXTRA MILE (Slogan)_5133196    BLEND  layered=1.00 frontness=1.000 gap=0.300mm align=1.0000 confidence=0.00 overlay=True behind=Cotton_Canvas_2942
+  m0/p6 Default Fabric_2900                OPAQUE layered=1.00 frontness=0.002 gap=0.042mm align=0.8627 confidence=0.00 overlay=False behind=Material_Graphic_5133235
+  m0/p7 Material_Graphic_5133235           OPAQUE layered=1.11 frontness=0.902 gap=0.100mm align=1.0000 confidence=0.90 overlay=True behind=Default Fabric_2900
+  m0/p11 Default Fabric_2900                OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p12 Material_Graphic_5133244           OPAQUE layered=1.03 frontness=0.975 gap=0.100mm align=1.0000 confidence=0.97 overlay=True behind=Default Fabric_2900
+  m0/p15 LOGO Team wear Embridory gold gold BLEND  layered=1.00 frontness=1.000 gap=0.300mm align=1.0000 confidence=0.00 overlay=True behind=Cotton_Canvas_2942
+  m0/p16 RUN LOGO_5133292                   BLEND  layered=1.00 frontness=1.000 gap=0.300mm align=1.0000 confidence=0.00 overlay=True behind=Cotton_Canvas_2942
+  m0/p20 Default Fabric_2900                OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p21 Material_Graphic_5133331           OPAQUE layered=1.06 frontness=0.939 gap=0.100mm align=1.0000 confidence=0.94 overlay=True behind=Default Fabric_2900
+  m0/p25 Default Fabric_2900                OPAQUE layered=1.01 frontness=0.014 gap=1.891mm align=0.9998 confidence=0.00 overlay=False behind=Material_Graphic_5133235
+  m0/p26 Material_Graphic_5133340           OPAQUE layered=1.00 frontness=1.000 gap=0.100mm align=1.0000 confidence=1.00 overlay=True behind=Default Fabric_2900
+  m0/p27 Default Fabric_2900                OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p28 Material_Graphic_5133349           OPAQUE layered=1.00 frontness=1.000 gap=0.100mm align=1.0000 confidence=1.00 overlay=True behind=Default Fabric_2900
+  HELD FOR REVIEW: THE EXTRA MILE (Slogan)_5133196 0.00 BLEND
+  HELD FOR REVIEW: LOGO Team wear Embridory gold gold_5133253 0.00 BLEND
+  HELD FOR REVIEW: RUN LOGO_5133292 0.00 BLEND
+
+== shipped-mm: measured 51, overlay readings 17, flagged materials 5, held for review 2, thread ignored 10, clones 0
+  m0/p0 Cotton_Canvas_2942                 OPAQUE layered=0.44 frontness=0.013 gap=1.948mm align=0.9949 confidence=0.00 overlay=False behind=Material_Graphic_5133235
+  m0/p1 THE EXTRA MILE (Slogan)_5133196    MASK   layered=1.00 frontness=1.000 gap=0.298mm align=1.0000 confidence=0.01 overlay=True behind=Cotton_Canvas_2942
+  m0/p6 Default Fabric_2900                OPAQUE layered=0.99 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p7 Material_Graphic_5133235           OPAQUE layered=1.09 frontness=0.916 gap=0.099mm align=1.0000 confidence=0.92 overlay=True behind=Default Fabric_2900
+  m0/p11 Default Fabric_2900                OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p12 Material_Graphic_5133235           OPAQUE layered=1.02 frontness=0.981 gap=0.099mm align=1.0000 confidence=0.98 overlay=True behind=Default Fabric_2900
+  m0/p15 LOGO Team wear Embridory gold gold MASK   layered=1.00 frontness=1.000 gap=0.300mm align=1.0000 confidence=0.00 overlay=False behind=Cotton_Canvas_2942
+  m0/p16 RUN LOGO_5133292                   MASK   layered=1.00 frontness=1.000 gap=0.289mm align=1.0000 confidence=0.07 overlay=True behind=Cotton_Canvas_2942
+  m0/p20 Default Fabric_2900                OPAQUE layered=1.00 frontness=0.002 gap=0.124mm align=0.9271 confidence=0.00 overlay=False behind=Material_Graphic_5133235
+  m0/p21 Material_Graphic_5133235           OPAQUE layered=1.05 frontness=0.953 gap=0.098mm align=1.0000 confidence=0.95 overlay=True behind=Default Fabric_2900
+  m0/p25 Default Fabric_2900                OPAQUE layered=1.02 frontness=0.020 gap=1.544mm align=0.9957 confidence=0.00 overlay=False behind=Material_Graphic_5133235
+  m0/p26 Material_Graphic_5133235           OPAQUE layered=1.00 frontness=1.000 gap=0.097mm align=1.0000 confidence=1.00 overlay=True behind=Default Fabric_2900
+  m0/p27 Default Fabric_2900                OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p28 Material_Graphic_5133235           OPAQUE layered=1.00 frontness=1.000 gap=0.098mm align=1.0000 confidence=1.00 overlay=True behind=Default Fabric_2900
+  HELD FOR REVIEW: THE EXTRA MILE (Slogan)_5133196 0.01 MASK
+  HELD FOR REVIEW: RUN LOGO_5133292 0.07 MASK
+
+== raw-css: measured 124, overlay readings 20, flagged materials 72, held for review 8, thread ignored 0, clones 0
+  m0/p0 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p1 Material_Graphic_13531104          OPAQUE layered=1.00 frontness=1.000 gap=0.100mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p7 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p8 Material_Graphic_13531136          OPAQUE layered=1.00 frontness=1.000 gap=0.100mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p29 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p30 Material_Graphic_13531215          OPAQUE layered=1.00 frontness=1.000 gap=0.100mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p33 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p34 Material_Graphic_13531245          OPAQUE layered=1.00 frontness=1.000 gap=0.100mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p43 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p44 Material_Graphic_13531275          OPAQUE layered=1.00 frontness=1.000 gap=0.100mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p50 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p51 Material_Graphic_13531305          OPAQUE layered=1.00 frontness=1.000 gap=0.100mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p54 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p55 Material_Graphic_13531335          OPAQUE layered=1.50 frontness=0.668 gap=0.100mm align=1.0000 confidence=0.00 overlay=False behind=Knit_Pique_Jersey_4107468
+  m0/p56 SPONSOR & NUMBER GRAPHICS_4107511  BLEND  layered=1.00 frontness=1.000 gap=0.200mm align=1.0000 confidence=0.67 overlay=True behind=Material_Graphic_13531335
+  m0/p57 SPONSOR & NUMBER GRAPHICS_4107514  BLEND  layered=1.00 frontness=1.000 gap=0.200mm align=1.0000 confidence=0.67 overlay=True behind=Material_Graphic_13531335
+  m0/p62 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p63 Material_Graphic_13531365          OPAQUE layered=1.00 frontness=1.000 gap=0.100mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p74 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p75 Material_Graphic_13531395          OPAQUE layered=1.00 frontness=1.000 gap=0.100mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p83 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p84 Material_Graphic_13531425          OPAQUE layered=1.03 frontness=0.970 gap=0.100mm align=1.0000 confidence=0.97 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p85 Teamwear Logo_4107493              BLEND  layered=1.00 frontness=1.000 gap=0.200mm align=1.0000 confidence=0.67 overlay=True behind=Material_Graphic_13531425
+  m0/p86 RUN LOGO_4107502                   BLEND  layered=1.00 frontness=1.000 gap=0.200mm align=1.0000 confidence=0.67 overlay=True behind=Material_Graphic_13531425
+  m0/p102 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p103 Material_Graphic_13531455          OPAQUE layered=1.30 frontness=0.769 gap=0.100mm align=1.0000 confidence=0.77 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p104 TO NEVER LOOK BACK (Slogan)_410749 BLEND  layered=1.00 frontness=1.000 gap=0.200mm align=1.0000 confidence=0.67 overlay=True behind=Material_Graphic_13531455
+  m0/p105 Teamwear Logo Copy 1_4107496       BLEND  layered=1.00 frontness=1.000 gap=0.200mm align=1.0000 confidence=0.67 overlay=True behind=Material_Graphic_13531455
+  m0/p106 RUN LOGO Copy 1_4107517            BLEND  layered=1.00 frontness=1.000 gap=0.200mm align=1.0000 confidence=0.67 overlay=True behind=Material_Graphic_13531455
+  m0/p107 SPONSOR & NUMBER GRAPHICS Copy 1_4 BLEND  layered=1.00 frontness=1.000 gap=0.200mm align=1.0000 confidence=0.67 overlay=True behind=Material_Graphic_13531455
+  m0/p113 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p114 Material_Graphic_13531485          OPAQUE layered=1.00 frontness=1.000 gap=0.100mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p117 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p118 Material_Graphic_13531515          OPAQUE layered=1.00 frontness=1.000 gap=0.100mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  HELD FOR REVIEW: SPONSOR & NUMBER GRAPHICS_4107511 0.67 BLEND
+  HELD FOR REVIEW: SPONSOR & NUMBER GRAPHICS_4107514 0.67 BLEND
+  HELD FOR REVIEW: Teamwear Logo_4107493 0.67 BLEND
+  HELD FOR REVIEW: RUN LOGO_4107502 0.67 BLEND
+  HELD FOR REVIEW: TO NEVER LOOK BACK (Slogan)_4107499 0.67 BLEND
+  HELD FOR REVIEW: Teamwear Logo Copy 1_4107496 0.67 BLEND
+  HELD FOR REVIEW: RUN LOGO Copy 1_4107517 0.67 BLEND
+  HELD FOR REVIEW: SPONSOR & NUMBER GRAPHICS Copy 1_4107508 0.67 BLEND
+
+== shipped-css: measured 124, overlay readings 20, flagged materials 5, held for review 8, thread ignored 0, clones 0
+  m0/p0 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p1 Material_Graphic_13531104__overlay OPAQUE layered=1.00 frontness=1.000 gap=0.099mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p7 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p8 Material_Graphic_13531104__overlay OPAQUE layered=1.00 frontness=1.000 gap=0.099mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p29 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p30 Material_Graphic_13531104__overlay OPAQUE layered=1.00 frontness=1.000 gap=0.100mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p33 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p34 Material_Graphic_13531104__overlay OPAQUE layered=1.00 frontness=1.000 gap=0.102mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p43 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p44 Material_Graphic_13531104__overlay OPAQUE layered=1.00 frontness=1.000 gap=0.099mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p50 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p51 Material_Graphic_13531104__overlay OPAQUE layered=1.00 frontness=1.000 gap=0.099mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p54 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p55 Material_Graphic_13531104          OPAQUE layered=1.52 frontness=0.656 gap=0.099mm align=1.0000 confidence=0.00 overlay=False behind=Knit_Pique_Jersey_4107468
+  m0/p56 SPONSOR & NUMBER GRAPHICS_4107511  MASK   layered=1.00 frontness=1.000 gap=0.198mm align=1.0000 confidence=0.68 overlay=True behind=Material_Graphic_13531104
+  m0/p57 SPONSOR & NUMBER GRAPHICS_4107514  MASK   layered=1.00 frontness=1.000 gap=0.198mm align=1.0000 confidence=0.68 overlay=True behind=Material_Graphic_13531104
+  m0/p62 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p63 Material_Graphic_13531104__overlay OPAQUE layered=1.00 frontness=1.000 gap=0.099mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p74 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p75 Material_Graphic_13531104__overlay OPAQUE layered=1.00 frontness=1.000 gap=0.099mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p83 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p84 Material_Graphic_13531104__overlay OPAQUE layered=1.04 frontness=0.959 gap=0.099mm align=1.0000 confidence=0.96 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p85 Teamwear Logo_4107493              MASK   layered=1.00 frontness=1.000 gap=0.201mm align=1.0000 confidence=0.66 overlay=True behind=Material_Graphic_13531104__o
+  m0/p86 RUN LOGO_4107502                   MASK   layered=1.00 frontness=1.000 gap=0.201mm align=1.0000 confidence=0.66 overlay=True behind=Material_Graphic_13531104__o
+  m0/p102 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p103 Material_Graphic_13531104__overlay OPAQUE layered=1.29 frontness=0.775 gap=0.099mm align=1.0000 confidence=0.77 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p104 TO NEVER LOOK BACK (Slogan)_410749 MASK   layered=1.00 frontness=1.000 gap=0.198mm align=1.0000 confidence=0.68 overlay=True behind=Material_Graphic_13531104__o
+  m0/p105 Teamwear Logo Copy 1_4107496       MASK   layered=1.00 frontness=1.000 gap=0.197mm align=1.0000 confidence=0.68 overlay=True behind=Material_Graphic_13531104__o
+  m0/p106 RUN LOGO_4107502                   MASK   layered=1.00 frontness=1.000 gap=0.200mm align=1.0000 confidence=0.67 overlay=True behind=Material_Graphic_13531104__o
+  m0/p107 SPONSOR & NUMBER GRAPHICS_4107514  MASK   layered=1.00 frontness=1.000 gap=0.199mm align=1.0000 confidence=0.67 overlay=True behind=Material_Graphic_13531104__o
+  m0/p113 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p114 Material_Graphic_13531104__overlay OPAQUE layered=1.00 frontness=1.000 gap=0.099mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  m0/p117 Knit_Pique_Jersey_4107468          OPAQUE layered=1.00 frontness=0.000 gap=NaNmm align=NaN confidence=0.00 overlay=False behind=None
+  m0/p118 Material_Graphic_13531104__overlay OPAQUE layered=1.00 frontness=1.000 gap=0.099mm align=1.0000 confidence=1.00 overlay=True behind=Knit_Pique_Jersey_4107468
+  HELD FOR REVIEW: SPONSOR & NUMBER GRAPHICS_4107511 0.68 MASK
+  HELD FOR REVIEW: SPONSOR & NUMBER GRAPHICS_4107514 0.68 MASK
+  HELD FOR REVIEW: Teamwear Logo_4107493 0.66 MASK
+  HELD FOR REVIEW: RUN LOGO_4107502 0.66 MASK
+  HELD FOR REVIEW: TO NEVER LOOK BACK (Slogan)_4107499 0.68 MASK
+  HELD FOR REVIEW: Teamwear Logo Copy 1_4107496 0.68 MASK
+  HELD FOR REVIEW: RUN LOGO_4107502 0.67 MASK
+  HELD FOR REVIEW: SPONSOR & NUMBER GRAPHICS_4107514 0.67 MASK

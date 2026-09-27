@@ -14,6 +14,7 @@ Nothing in the code, the database or the live site was changed. This folder is a
 |---|---|
 | `report.html` | The interactive report: charts, pictures, severity table and checklist. Open it in a browser. |
 | [LOCAL-SESSION-PROMPT.md](LOCAL-SESSION-PROMPT.md) | The prompt for a local session that continues with the raw CLO exports |
+| [local-session-2026-09-27.md](local-session-2026-09-27.md) | What that local session found, with its own evidence, data and scripts under `local/` subfolders |
 | `evidence/` | The before/after pictures cited below |
 | `data/` | Raw measurements from the render runs |
 | `scripts/` | The exact scripts that produced them (Playwright against the live site) |

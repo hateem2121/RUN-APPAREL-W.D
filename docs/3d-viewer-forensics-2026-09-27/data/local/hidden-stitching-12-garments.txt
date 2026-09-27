@@ -1,0 +1,25 @@
+# Stitch pixels that return when thread is drawn soft (BLEND) instead of cut-out (MASK 0.5), default colourway, front view, 2x.
+thread-xps materials Default Topstitch_3203:ttrue:a0
+RESULT xps thread pixels restored by soft blend: 0 = 0.00% of garment pixels
+thread-xmp materials Topstitch 2_3181:tfalse:a0.5
+RESULT xmp thread pixels restored by soft blend: 24232 = 2.88% of garment pixels
+thread-afp materials Topstitch 1_2988:tfalse:a0.5
+RESULT afp thread pixels restored by soft blend: 0 = 0.00% of garment pixels
+thread-wzu materials Default Topstitch_3155:tfalse:a0.5
+RESULT wzu thread pixels restored by soft blend: 4698 = 0.64% of garment pixels
+thread-ajm materials Default Topstitch_3532:tfalse:a0.5
+RESULT ajm thread pixels restored by soft blend: 5166 = 0.79% of garment pixels
+thread-asb materials Default Topstitch_3234:tfalse:a0.5
+RESULT asb thread pixels restored by soft blend: 660 = 0.16% of garment pixels
+thread-au materials Default Topstitch_7757:tfalse:a0.5
+RESULT au thread pixels restored by soft blend: 16483 = 2.51% of garment pixels
+thread-cch materials ISO_101_Single_Thread_Chainstitch_1_8 Copy 1_3094:tfalse:a0.5 ISO_101_Single_Thread_Chainstitch_1_8
+RESULT cch thread pixels restored by soft blend: 1683 = 0.41% of garment pixels
+thread-css materials Default Topstitch_4107520:tfalse:a0.5
+RESULT css thread pixels restored by soft blend: 8 = 0.00% of garment pixels
+thread-ect materials Default Topstitch_3379:tfalse:a0.5
+RESULT ect thread pixels restored by soft blend: 2269 = 0.69% of garment pixels
+thread-mm materials Default Topstitch_3091:tfalse:a0.5
+RESULT mm thread pixels restored by soft blend: 5652 = 0.75% of garment pixels
+thread-gtd materials Topstitch 1_3320:tfalse:a0.5
+RESULT gtd thread pixels restored by soft blend: 12466 = 2.54% of garment pixels

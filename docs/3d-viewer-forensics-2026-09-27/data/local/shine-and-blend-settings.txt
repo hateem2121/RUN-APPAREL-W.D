@@ -1,0 +1,60 @@
+# Shine settings of the largest materials, raw CLO export vs shipped.
+== atj raw
+  Bull Leather                   tris=  91583 metal=0.10000000149011612 rough=0.3999999761581421 MRtex=False normal=True spec=0.6000000238418579 specColor=- specTex=False alpha=OPAQUE
+  Default Topstitch              tris=  88352 metal=0.0 rough=0.5 MRtex=False normal=False spec=0.15000000596046448 specColor=- specTex=False alpha=BLEND
+  Button 2                       tris=   3840 metal=ABSENT(=1) rough=0.10000002384185791 MRtex=False normal=False spec=- specColor=- specTex=False alpha=OPAQUE
+  Button 1                       tris=   2256 metal=ABSENT(=1) rough=0.10000002384185791 MRtex=False normal=False spec=- specColor=- specTex=False alpha=OPAQUE
+  Zipper 1_BottomStopper         tris=   1696 metal=0.0 rough=0.6981493830680847 MRtex=False normal=False spec=0.15000000596046448 specColor=- specTex=False alpha=OPAQUE
+  Zipper 2_BottomStopper         tris=   1696 metal=ABSENT(=1) rough=0.10000002384185791 MRtex=False normal=False spec=- specColor=- specTex=False alpha=OPAQUE
+  Zipper 4_BottomStopper         tris=   1696 metal=0.0 rough=0.6981493830680847 MRtex=False normal=False spec=0.15000000596046448 specColor=- specTex=False alpha=OPAQUE
+== atj shipped
+  Default Topstitch              tris= 174464 metal=0 rough=0.5 MRtex=False normal=False spec=0.15000000596046448 specColor=- specTex=False alpha=BLEND
+  Bull Leather                   tris=  91583 metal=0 rough=0.5 MRtex=False normal=True spec=0.6000000238418579 specColor=- specTex=False alpha=OPAQUE
+  Zipper 1_Slider                tris=   7210 metal=ABSENT(=1) rough=0.10000002384185791 MRtex=False normal=False spec=- specColor=- specTex=False alpha=OPAQUE
+  Zipper 1_TopStopper            tris=   4182 metal=0 rough=0.6981493830680847 MRtex=False normal=False spec=0.15000000596046448 specColor=- specTex=False alpha=OPAQUE
+  Zipper 4_TopStopper            tris=   4182 metal=0 rough=0.6981493830680847 MRtex=False normal=False spec=0.15000000596046448 specColor=- specTex=False alpha=OPAQUE
+  Button 2                       tris=   3840 metal=ABSENT(=1) rough=0.10000002384185791 MRtex=False normal=False spec=- specColor=- specTex=False alpha=OPAQUE
+  Button 1                       tris=   2256 metal=ABSENT(=1) rough=0.10000002384185791 MRtex=False normal=False spec=- specColor=- specTex=False alpha=OPAQUE
+  Zipper 4_Slider                tris=   1514 metal=ABSENT(=1) rough=0.10000002384185791 MRtex=False normal=False spec=- specColor=- specTex=False alpha=OPAQUE
+== xps raw
+  Default Topstitch              tris= 104800 metal=0.0 rough=0.5 MRtex=False normal=False spec=0.15000000596046448 specColor=- specTex=False alpha=BLEND
+  Zipper 2_Teeth                 tris=  43164 metal=0.0 rough=0.19999998807907104 MRtex=False normal=False spec=0.6000000238418579 specColor=- specTex=False alpha=OPAQUE
+  FABRIC 3                       tris=   9833 metal=0.0 rough=0.5 MRtex=False normal=True spec=0.15000000596046448 specColor=- specTex=False alpha=OPAQUE
+  FABRIC 5                       tris=   6704 metal=0.0 rough=0.5 MRtex=False normal=True spec=0.15000000596046448 specColor=- specTex=False alpha=OPAQUE
+== xps shipped
+  Default Topstitch              tris= 104800 metal=0 rough=0.5 MRtex=False normal=False spec=0.15000000596046448 specColor=- specTex=False alpha=MASK
+  Zipper 2_Teeth                 tris=  43164 metal=0 rough=0.19999998807907104 MRtex=False normal=False spec=0.6000000238418579 specColor=- specTex=False alpha=OPAQUE
+  FABRIC 3                       tris=   9833 metal=0 rough=0.5 MRtex=False normal=True spec=0.15000000596046448 specColor=- specTex=False alpha=OPAQUE
+  Zipper 2_Slider                tris=   8150 metal=0 rough=0.19999998807907104 MRtex=False normal=False spec=0.6000000238418579 specColor=- specTex=False alpha=OPAQUE
+  FABRIC 5                       tris=   6704 metal=0 rough=0.5 MRtex=False normal=True spec=0.15000000596046448 specColor=- specTex=False alpha=OPAQUE
+  Zipper 2_TopStopper            tris=   4182 metal=0 rough=0.6981493830680847 MRtex=False normal=False spec=0.15000000596046448 specColor=- specTex=False alpha=OPAQUE
+
+== Bib halftone print (Material_Graphic), raw vs shipped
+#1 Material_Graphic_3045 alpha=BLEND cutoff=None dbl=None factor=[0.019917838275432587, 1.9792429156950675e-05, 1.9792429156950675e-05, 1.0] rough=0.5 metal=0.0 normal=False ext=['KHR_materials_specular'] extras=[]
+   baseColor tex #2 image/png (4952, 7014) mode=RGBA alpha: 0=72.6% 1-254=8.3% 255=19.1%  mean alpha of ink(>0)=215  rgb mean(ink)=[242. 242. 242.] texCoordTransform={'offset': [0.0, 1.0], 'scale': [0.00238509732298553, 0.001683918060734868]}
+#1 Material_Graphic_3045 alpha=MASK cutoff=0.5 dbl=None factor=[0.019917838275432587, 1.9792429156950675e-05, 1.9792429156950675e-05, 1] rough=0.5 metal=0 normal=False ext=['KHR_materials_specular'] extras=['depthBias']
+   baseColor tex #2 image/webp (1446, 2048) mode=RGBA alpha: 0=47.3% 1-254=45.3% 255=7.4%  mean alpha of ink(>0)=112  rgb mean(ink)=[243. 243. 243.] texCoordTransform={'offset': [-1.0898571491222953, -0.6350996481474454], 'scale': [2.1797142982445905, 2.070668940210652]}
+
+== Blend prints, raw vs shipped
+-- gtd raw
+#112 Asset 2_3081 alpha=BLEND cutoff=None dbl=None factor=[0.09740285575389862, 0.11129941791296005, 0.05172737315297127, 0.1599999964237213] rough=0.28999996185302734 metal=0.0 normal=False ext=['KHR_materials_specular'] extras=[]
+   baseColor tex #31 image/png (1533, 4982) mode=RGBA alpha: 0=46.9% 1-254=0.5% 255=52.6%  mean alpha of ink(>0)=254  rgb mean(ink)=[230. 230. 230.] texCoordTransform={'offset': [0.0, 1.0]}
+-- gtd shipped
+#87 Asset 2_3081 alpha=BLEND cutoff=None dbl=True factor=[0.09740285575389862, 0.11129941791296005, 0.05172737315297127, 0.1599999964237213] rough=0.28999996185302734 metal=0 normal=False ext=['KHR_materials_specular'] extras=['depthBias']
+   baseColor tex #24 image/webp (1260, 4096) mode=RGBA alpha: 0=46.1% 1-254=2.2% 255=51.8%  mean alpha of ink(>0)=250  rgb mean(ink)=[231. 231. 231.] texCoordTransform={'offset': [-0.8553942441940308, -1.0358684062957764], 'scale': [2.7107731103897095, 0.9754111766815186]}
+-- mm raw
+#4 Material_Graphic_5133235 alpha=OPAQUE cutoff=None dbl=None factor=[0.1332085132598877, 0.1332085132598877, 0.1332085132598877, 1.0] rough=0.5 metal=0.0 normal=True ext=['KHR_materials_specular'] extras=[]
+   baseColor tex #7 image/png (1200, 1800) mode=RGB alpha: 0=0.0% 1-254=0.0% 255=100.0%  mean alpha of ink(>0)=255  rgb mean(ink)=[228. 228. 228.] texCoordTransform={'offset': [0.0, 1.0], 'scale': [0.0023616666439920664, 0.0015744444681331515]}
+-- mm shipped
+#4 Material_Graphic_5133235 alpha=OPAQUE cutoff=None dbl=None factor=[0.1332085132598877, 0.1332085132598877, 0.1332085132598877, 1] rough=0.5 metal=0 normal=True ext=['KHR_materials_specular'] extras=['depthBias']
+   baseColor tex #7 image/webp (1200, 1800) mode=RGB alpha: 0=0.0% 1-254=0.0% 255=100.0%  mean alpha of ink(>0)=255  rgb mean(ink)=[228. 228. 228.] texCoordTransform={'offset': [-1.4829718410271369, 0.06927057369721012], 'scale': [3.374263506014813, 2.1265287446281533]}
+-- asb raw
+#6 RUN BRUSH LOGO_323443 alpha=BLEND cutoff=None dbl=None factor=[0.18698850274085999, 0.16286620497703552, 0.11692949384450912, 0.19999998807907104] rough=0.5 metal=0.0 normal=True ext=['KHR_materials_specular'] extras=[]
+   baseColor tex #9 image/png (2531, 2217) mode=RGBA alpha: 0=88.1% 1-254=11.9% 255=0.0%  mean alpha of ink(>0)=82  rgb mean(ink)=[241. 241. 241.] texCoordTransform={'offset': [0.0, 1.0]}
+-- asb shipped
+#6 RUN BRUSH LOGO_323443 alpha=BLEND cutoff=None dbl=None factor=[0.18698850274085999, 0.16286620497703552, 0.11692949384450912, 0.19999998807907104] rough=0.5 metal=0 normal=True ext=['KHR_materials_specular'] extras=['depthBias']
+   baseColor tex #8 image/webp (2531, 2217) mode=RGBA alpha: 0=88.1% 1-254=11.9% 255=0.0%  mean alpha of ink(>0)=82  rgb mean(ink)=[242. 242. 242.] texCoordTransform={'offset': [0.10089969635009766, 0], 'scale': [0.5255759954452515, 0.5698086619377136]}
+-- aj raw
+#54 Material_Graphic_3163 alpha=BLEND cutoff=None dbl=None factor=[1.0, 1.0, 1.0, 0.1899999976158142] rough=0.5 metal=0.0 normal=False ext=['KHR_materials_specular'] extras=[]
+   baseColor tex #2 image/png (1472, 2616) mode=RGBA alpha: 0=0.0% 1-254=0.0% 255=100.0%  mean alpha of ink(>0)=255  rgb mean(ink)=[29. 30. 49.] texCoordTransform={'offset': [0.0, 1.0], 'scale': [0.001925271819345653, 0.0010833333944901824]}
+-- aj shipped
