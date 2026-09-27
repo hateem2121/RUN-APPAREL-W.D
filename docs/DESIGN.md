@@ -486,7 +486,7 @@ Pure black is wrong in both halves of this system for the same reason `--ink` is
 
 ### Layering
 
-Seven stacking contexts in the viewer, in reading order from the canvas upward, and
+Eight stacking contexts in the viewer, in reading order from the canvas upward, and
 three more that only the marketing site uses. Added as tokens 2026-09-05 (the
 viewer's) and 2026-09-06 (the site's); the numbers are exactly what shipped, so
 nothing moved — with one stated exception below.
@@ -500,6 +500,7 @@ nothing moved — with one stated exception below.
 | `--z-header` | 40 | the bar; both hosts' `.notch-shell` share it since 2026-09-24 |
 | `--z-action-bar` | 50 | the persistent contact bar |
 | `--z-grain` | 60 | the full-page grain overlay |
+| `--z-dialog` | 65 | the HD image dialog (2026-09-27) — above the grain, so the studio render is never dimmed; under the cursor |
 | `--z-cursor` | 70 | `.cursor-ring`, pointer devices only |
 | `--z-preloader` | 80 | the opening curtain |
 | `--z-skip-link` | 100 | must beat everything, the preloader included |

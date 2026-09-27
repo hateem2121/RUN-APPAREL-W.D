@@ -1229,17 +1229,34 @@ model-viewer.stage__model {
  * own `min-height`), and every one of those pixels is charged to the stage-band
  * budget below — 6px of decorative padding here cost 12px of garment there.
  */
+/*
+ * ⚠️ SINCE 2026-09-27 THIS IS A ROW OF PILLS, not the pill itself. The camera buttons
+ * keep their pill (`.stage__views`); the HD IMAGE button is a second, one-button pill
+ * beside it. Measured at 320x640 before the split, with all four in one pill: the row
+ * was 318px inside a 301px plinth at the default text size, and 335-388px at Chrome's
+ * "Large" / "Very Large" text — the page scrolled sideways. As two pills the row can
+ * WRAP: at the default size they share one line (the HD label shortens to "HD" below
+ * 22rem, see `.hd-image-btn__more`), and enlarged text drops the HD pill onto a line of
+ * its own instead of pushing the page wider than the screen. hd-image.spec.ts measures
+ * both against the plinth, not just the page edge.
+ */
 .stage__controls {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
+  /* The plinth is a centring flex box, so without a width this item shrinks to its
+     content — and inline-size containment makes that content 0 wide (measured: 0px,
+     both pills wrapped, at every viewport). It takes the plinth's width instead. */
+  flex: 1 1 100%;
+  container-type: inline-size;
+}
+
+.stage__views,
+.hd-image-btn {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
-  /* Hugs its buttons rather than spanning the measure — it is a control cluster,
-     not a bar. `margin-inline: auto` is what centres it once it is `width: fit`. */
-  width: fit-content;
-  margin-inline: auto;
 }
 
 /*
@@ -1305,6 +1322,193 @@ model-viewer.stage__model {
   .camera-btn:not(:disabled):hover {
     background: var(--btn-primary-bg);
     color: var(--btn-primary-text);
+  }
+}
+
+/*
+ * The camera buttons' own group inside the pill, so the HD IMAGE button can share the
+ * pill without being announced as a fourth camera position (2026-09-27).
+ */
+.stage__views {
+  display: flex;
+  gap: 8px;
+}
+
+/* The word "IMAGE" only where the row has room for it: rem, so the test grows with the
+   visitor's text size (20rem is the row's own measured width at the default size). */
+.hd-image-btn__more {
+  display: none;
+}
+
+@container (min-width: 22rem) {
+  .hd-image-btn__more {
+    display: inline;
+  }
+}
+
+/* ── HD IMAGE: the button and its full-screen studio render (2026-09-27) ──────── */
+.hd-image-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  /* Its border is its own, where the camera buttons sit INSIDE a bordered pill: +2px
+     so the two pills are the same height side by side (measured 44 against 46). */
+  min-height: calc(var(--target-min) + 2px);
+}
+
+.hd-image__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  background: var(--bg);
+}
+
+/* Full screen: Baymard's finding is that a small lightbox on a phone is the common
+   failure, so the picture gets every pixel the bar and the arrows leave. */
+.hd-image {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+.hd-image__backdrop,
+.hd-image {
+  transition: opacity var(--ui) var(--ease);
+}
+
+.hd-image__backdrop[data-starting-style],
+.hd-image__backdrop[data-ending-style],
+.hd-image[data-starting-style],
+.hd-image[data-ending-style] {
+  opacity: 0;
+}
+
+.hd-image__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px 8px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.hd-image__title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  font-weight: 400;
+}
+
+.hd-image__close,
+.hd-image__step {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.hd-image__frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+}
+
+.hd-image__viewport {
+  position: relative;
+  overflow: hidden;
+  /* Every gesture on the picture is ours: pinch, pan and double-tap. The page behind
+     is scroll-locked by the dialog, so nothing is trapped. */
+  touch-action: none;
+  cursor: zoom-in;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.hd-image__layer {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.hd-image__layer[data-animate="true"] {
+  transition: transform var(--ui) var(--ease);
+}
+
+.hd-image__poster,
+.hd-image__render {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.hd-image__poster {
+  filter: blur(12px);
+}
+
+.hd-image__render {
+  opacity: 0;
+  transition: opacity var(--ui) var(--ease);
+}
+
+.hd-image__render[data-loaded="true"] {
+  opacity: 1;
+}
+
+.hd-image__status {
+  position: absolute;
+  bottom: 16px;
+  inset-inline: 0;
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.hd-image__steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 8px 16px 12px;
+}
+
+.hd-image__count {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps);
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hd-image__backdrop,
+  .hd-image,
+  .hd-image__layer[data-animate="true"],
+  .hd-image__render {
+    transition: none;
   }
 }
 

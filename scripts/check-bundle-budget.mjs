@@ -132,6 +132,15 @@ const REPORT_ONLY = process.argv.includes('--report')
  * before is unchanged. The old header's rules left page.css in the same change. Script
  * went 407.4 -> 407.7 KB gzip (the new header's own code, inside its budget); decoder,
  * wasm and font did not move.
+ *
+ * ⚠️ CHANGED 2026-09-27 FOR THE HD IMAGE BUTTON, the same way and for the same kind of
+ * reason: an owner-approved feature (the garment-rollout plan) with its own styles — the
+ * button, the full-screen dialog, its zoom surface. Measured by building the same tree
+ * with and without those rules (gzip level 9, the one CSS file Vite emits):
+ *     stylesheet     7,632 B  ->  8,059 B     budget 7,897 -> 8,324
+ * +427 B, so the 265 B of headroom is unchanged. The dialog's SCRIPT is a lazy chunk
+ * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
+ * existing budget: 439.6 of 462.9 KB.
  */
 const BUDGETS = {
   script: { bytes: 474_000, note: 'app chunks + the meshopt decoder every model needs' },
@@ -155,7 +164,7 @@ const BUDGETS = {
     expectEmpty: true,
   },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
-  stylesheet: { bytes: 7_897, note: 'CSS' },
+  stylesheet: { bytes: 8_324, note: 'CSS' },
 }
 
 /**

@@ -296,6 +296,7 @@
   --z-header: 40; /* the bar; both hosts' .notch-shell share it since 2026-09-24 */
   --z-action-bar: 50;
   --z-grain: 60; /* the full-page grain overlay */
+  --z-dialog: 65; /* the HD image dialog — above the grain so it never dims the render */
   --z-cursor: 70; /* .cursor-ring — pointer devices only */
   --z-preloader: 80; /* the opening curtain */
   --z-skip-link: 100; /* must beat everything, including the preloader */

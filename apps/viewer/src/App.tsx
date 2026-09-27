@@ -474,7 +474,12 @@ export default function App() {
               aria-labelledby={colourwayTabId(selected.slug)}
               tabIndex={-1}
             >
-              <Stage data={data} selected={selected} preview={previewedColourway} />
+              <Stage
+                data={data}
+                selected={selected}
+                preview={previewedColourway}
+                onSelectColourway={onSelectColourway}
+              />
             </div>
             {/*
               The aside is a WRAPPER, not a relocation. `.stage__aside` is a

@@ -150,6 +150,7 @@ const COLOURWAYS = [
     slug: 'wine',
     displayName: 'Wine',
     variantId: 'N001-WINE',
+    hasRender: true,
     hexSwatch: '#825353',
     sequence: 1,
     isDefault: true,
@@ -176,6 +177,7 @@ const COLOURWAYS = [
     slug: 'blush',
     displayName: 'Pebble / Optic White',
     variantId: 'N001-BLUSH',
+    hasRender: true,
     hexSwatch: '#F7CDCD',
     sequence: 2,
     isDefault: false,
@@ -200,6 +202,7 @@ const COLOURWAYS = [
     slug: 'lime',
     displayName: 'Lime',
     variantId: 'N001-LIME',
+    hasRender: true,
     hexSwatch: '#D6F26B',
     sequence: 4,
     isDefault: false,
@@ -237,6 +240,20 @@ function colourwayPayload(origin, c) {
       height: 1500,
       mimeType: 'image/webp',
     },
+    // THREE of five colours carry an HD studio render (2026-09-27), because production
+    // has both kinds on one garment (Aggressor Uniform: 3 renders for 5 colours) and a
+    // fixture where every colour had one could never show the button's absence. The
+    // path is its own, never a poster's, so a test can prove the page asks for no
+    // render before the visitor does.
+    render: c.hasRender
+      ? {
+          url: `${origin}/fixtures/renders/n001-${c.slug}.png`,
+          alt: `Velocity Performance Tee in ${c.displayName}, studio render`,
+          width: 1200,
+          height: 1500,
+          mimeType: 'image/png',
+        }
+      : null,
     glbUrl: null,
     isDefault: c.isDefault,
     altText: `Velocity Performance Tee in ${c.displayName}`,
@@ -404,6 +421,10 @@ const server = http.createServer((req, res) => {
     }
     url.pathname = `/fixtures/${rest}`
   }
+
+  // HD studio renders: the seeded poster PNGs, served under a path of their own.
+  const renderMatch = url.pathname.match(/^\/fixtures\/renders\/(n001-[a-z]+)\.png$/)
+  if (renderMatch) url.pathname = `/fixtures/placeholders/${renderMatch[1]}-poster.png`
 
   // Pipeline assets
   if (url.pathname.startsWith('/fixtures/')) {
