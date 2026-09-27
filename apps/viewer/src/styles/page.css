@@ -2272,9 +2272,8 @@ model-viewer.stage__model {
 .footer__meta {
   display: flex;
   flex-wrap: wrap;
-  /* Row gap drops to 4px because the link below now carries 6px of vertical
-     padding of its own; 16px on both axes would double-space a wrapped row. */
-  gap: 4px 16px;
+  /* No row gap: each link below is 44px tall already, so a wrapped row needs no more. */
+  gap: 0 16px;
   align-items: center;
   font-size: var(--text-xs);
   color: var(--muted);
@@ -2292,11 +2291,14 @@ model-viewer.stage__model {
  * Passing on an exemption is not the same as being comfortable to hit, and the
  * exemption evaporates the moment a second link is added to this row. 6px of
  * vertical padding takes it to 32px and costs the footer nothing.
+ *
+ * 44px since 2026-09-26, the floor the site's own footer holds (`navbar.spec.ts`):
+ * five links share this row now, and it was the one place a thumb got less.
  */
 .footer__meta a {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
+  min-height: 44px;
   padding-block: 6px;
 }
 
