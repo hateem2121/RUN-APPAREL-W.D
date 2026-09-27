@@ -174,6 +174,41 @@ describe('GET /api/public/viewer/:productSlug/:colourSlug', () => {
     expect(find, 'a malformed link must not cost a D1 query').not.toHaveBeenCalled()
   })
 
+  /**
+   * HOSTILE LINKS REACH THE DATABASE ONLY AS A PLAIN SLUG. This is the one public door that
+   * turns URL text into a query, and the 2026-09-26 audit could only spot-check it. The
+   * query is parameterised by Payload's adapter anyway; this pins the layer in front of
+   * it, so a later "just pass the param through" cannot quietly widen what reaches D1.
+   */
+  const SAFE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+  const slugsQueried = (find: ReturnType<typeof vi.fn>): unknown[] => {
+    const where = find.mock.calls[0]?.[0]?.where as { and: Record<string, { equals: unknown }>[] }
+    return where.and.flatMap((clause) => ('slug' in clause ? [clause.slug?.equals] : []))
+  }
+
+  it.each([
+    "rxps' OR '1'='1",
+    'rxps"; DROP TABLE products;--',
+    'rxps/../../users',
+    'rxps%27%20OR%201=1',
+    '<script>alert(1)</script>',
+  ])('passes %j to the database only as a plain slug, still published-only', async (hostile) => {
+    // Negative control first: the raw input really is unsafe, so the assertion below is
+    // measuring the handler's cleaning and not a harmless string.
+    expect(SAFE_SLUG.test(hostile)).toBe(false)
+
+    const { req, find } = makeReq({ productSlug: hostile, colourSlug: 'navy' }, { product: null })
+    const res = await withColour(req)
+
+    expect(res.status).toBe(404)
+    const queried = slugsQueried(find)
+    expect(queried).toHaveLength(1)
+    expect(String(queried[0])).toMatch(SAFE_SLUG)
+    expect(String(queried[0])).not.toBe(hostile)
+    const where = find.mock.calls[0]?.[0]?.where as { and?: Record<string, unknown>[] }
+    expect(JSON.stringify(where.and)).toContain('"status":{"equals":"published"}')
+  })
+
   it('404s when the product is not published or does not exist', async () => {
     const { req } = makeReq({ productSlug: 'nope', colourSlug: 'navy' }, { product: null })
     const res = await withColour(req)
