@@ -16,6 +16,7 @@ import * as migration_20260915_220451_add_document_visits from './20260915_22045
 import * as migration_20260917_120000_add_web_vitals_values from './20260917_120000_add_web_vitals_values'
 import * as migration_20260923_170000_add_reset_password_requested_at from './20260923_170000_add_reset_password_requested_at'
 import * as migration_20260926_200000_add_product_versions from './20260926_200000_add_product_versions';
+import * as migration_20260927_120000_colourway_render_image from './20260927_120000_colourway_render_image';
 
 export const migrations = [
   {
@@ -107,5 +108,10 @@ export const migrations = [
     up: migration_20260926_200000_add_product_versions.up,
     down: migration_20260926_200000_add_product_versions.down,
     name: '20260926_200000_add_product_versions',
+  },
+  {
+    up: migration_20260927_120000_colourway_render_image.up,
+    down: migration_20260927_120000_colourway_render_image.down,
+    name: '20260927_120000_colourway_render_image',
   },
 ];

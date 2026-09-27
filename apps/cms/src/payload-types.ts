@@ -31,6 +31,10 @@ export type ProductColourway =
        */
       posterPreview?: (number | null) | Media;
       /**
+       * A large, sharp picture of this colour from CLO. Buyers can open it full-screen from the “HD image” button. Leave empty and the button stays hidden.
+       */
+      renderImage?: (number | null) | Media;
+      /**
        * Describe the photo in a sentence, for people who use a screen reader. e.g. “Velocity Performance Tee in Navy”.
        */
       altText?: string | null;
@@ -849,6 +853,7 @@ export interface ProductColourwaySelect<T extends boolean = true> {
   slug?: T;
   variantId?: T;
   posterPreview?: T;
+  renderImage?: T;
   altText?: T;
   hexSwatch?: T;
   glbAsset?: T;

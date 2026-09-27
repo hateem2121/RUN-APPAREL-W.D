@@ -99,6 +99,8 @@ export const MEDIA_REFERENCE_PATHS = [
   'posterFallback',
   'colourways.posterPreview',
   'colourways.glbAsset',
+  // The HD studio render behind the "HD IMAGE" button (2026-09-27).
+  'colourways.renderImage',
 ] as const
 
 /** Count matching docs, treating anything unexpected as "cannot rule it out". */
