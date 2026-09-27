@@ -1,0 +1,2 @@
+phone-mm {"nudged":{"MASK":4,"OPAQUE":1,"BLEND":0},"nudge":{"front-105%":1.951,"front-200%":3.132,"side-200%":3.17,"back-105%":1.307,"back-200%":2.455},"blink":{},"canvas":{"cssW":366.625,"cssH":506.5,"dpr":3},"counts":{"drawn":17,"mask":4,"blend":1,"blendBiased":0,"opaqueBiased":1}}
+phone-css {"nudged":{"MASK":7,"OPAQUE":1,"BLEND":0},"nudge":{"front-105%":0.232,"front-200%":0.725,"side-200%":0.552,"back-105%":0.113,"back-200%":0.387},"blink":{},"canvas":{"cssW":366.625,"cssH":481.5,"dpr":3},"counts":{"drawn":30,"mask":7,"blend":2,"blendBiased":0,"opaqueBiased":1}}
