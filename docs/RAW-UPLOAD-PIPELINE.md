@@ -52,7 +52,7 @@ Cloudflare Container, and a raw file can never reach customers.
 > | 2026-08-06 | 364.4 MB → **27.0 MB** at the adopted `balanced` preset | Media #17 `cycling-all-colours-optimized-4.glb`, 28,271,780 bytes — **live** |
 >
 > Both were rendered and inspected before shipping, which is the only evidence
-> this repo accepts about printed artwork. See `docs/SESSION-2026-08-05.md` §1 and
+> this repo accepts about printed artwork. See `docs/archive/sessions/SESSION-2026-08-05.md` §1 and
 > §10. The table below is kept as the 2026-07-28 deployment record; only row 8 has
 > changed.
 >

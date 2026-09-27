@@ -144,6 +144,15 @@ Set **status** on the product: *Published* makes it live; *Draft* or *Archived*
 hides it — visitors then get the branded “reference unavailable” page with
 catalogue and contact links. The public API only ever exposes published data.
 
+**Your change is not on the live pages instantly.** The site keeps short-lived copies of
+each page for speed, and nothing clears them when you save, so an edit usually shows
+within a minute or two. Allow up to about six minutes before deciding it did not work.
+
+**Undoing a mistake.** Since 2026-09-26 every save keeps a copy (the last 25 per product):
+open the product → **Versions** → pick one → **Restore**. ⚠️ A restore brings back that
+version's colour list *exactly*: a colour added since then disappears, and its QR tag is
+already printed. After restoring, check the colours are all still there before you leave.
+
 ### 9. Custom domain for the viewer
 
 One-time step: in Cloudflare dashboard → Workers & Pages → the

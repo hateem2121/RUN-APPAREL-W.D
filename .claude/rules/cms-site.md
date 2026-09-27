@@ -1,0 +1,99 @@
+---
+paths:
+  - "apps/cms/src/app/(frontend)/**"
+  - "apps/cms/src/app/not-found.tsx"
+  - "apps/cms/src/components/site/**"
+  - "apps/cms/e2e/**"
+  - "apps/cms/playwright.config.ts"
+---
+
+# The public website: its look, its footer and its browser tests
+
+Moved from `apps/cms/CLAUDE.md` on 2026-09-26, word for word, so it loads only when you open
+the files it governs (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechanism).
+
+## The site's look is the shared design system
+
+Build the public site's UI from `packages/ui/src/tokens.css` and `packages/ui/src/base.css`,
+the same "Paper & Ink" system the viewer ships (`docs/DESIGN.md` is its prose index; the CSS
+wins if they disagree). Site-only layout lives in `apps/cms/src/app/(frontend)/site.css`,
+which `apps/viewer/src/styles/tokens.test.ts` scans. Use only the colours, type, spacing and
+durations those files define. No Tailwind, shadcn/ui or MUI; behaviour a screen needs
+(dialogs, popovers, menus) comes from `base-ui`, which ships no CSS
+(`docs/DECISION-UI-LIBRARIES.md`). The paper ground, the one italic serif word per headline
+and the mono labels ARE the brand, so an instruction to "avoid a generic AI look" must not
+remove them.
+
+## Browser tests for the public site
+
+`pnpm --filter @run-apparel/cms test:e2e` — Chromium, Firefox and WebKit (608 tests listed on
+2026-09-24), added 2026-09-05 because nothing loaded `/`, `/products` or `/contact` in a browser and three blank pages
+would have passed every gate. Runs in CI as a **step inside the existing `e2e` job**, not a
+job of its own: a new job would need adding to `deploy.needs` AND the required-checks list,
+and `.github/CLAUDE.md` records that splitting those silently stops a red gate blocking.
+
+🟡 **`e2e/prepare.mjs` SKIPS THE REBUILD LOCALLY**, so a source edit does not reach
+`next start` and a negative control passes without testing anything. Use `CI=1` when
+breaking something on purpose.
+
+🟢 The port is owned by `playwright.config.ts` (4174) and `e2e/serve.mjs` THROWS if it is
+unset.
+
+🟢 **FIREFOX RUNS WITH `Cross-Origin-Opener-Policy` SWITCHED OFF, ON PURPOSE (2026-09-18).**
+Every page sends that header, and it makes Playwright's Firefox driver lose a navigation
+(microsoft/playwright#42731): `page.goto` times out waiting for "load" on a page that has
+finished loading. That hit 25 of 40 CI runs; the retry hid it until PR #17 failed on it.
+`e2e/firefoxPrefs.mjs` has the mechanism and the numbers, and `src/firefoxPrefs.test.ts`
+pins it. Keep it until `node e2e/firefox-coop-hang.mjs --prefs=none` shows 0 stuck on a
+newer Playwright.
+
+🟡 **`next start` NEVER RUNS `worker.mjs`, THE SCRIPT GUARD (SE-04, 2026-09-18).** This suite
+therefore tests the fallback policy (`PUBLIC_PAGE_CSP`, still with `'unsafe-inline'`) and never
+the nonce. To see the guard:
+1. Run `opennextjs-cloudflare build`.
+2. Put a throwaway `PAYLOAD_SECRET` in a `.dev.vars` (gitignored) and run
+   `opennextjs-cloudflare preview --local-upstream wear-run.help`.
+3. Run `node e2e/csp-nonce-edge.mjs`: 3 engines × 6 page types.
+
+After a deploy, run it with `--origin=https://wear-run.help`. 🟡 A control that skips the nonce
+on an EXTERNAL script proves nothing: `'self'` still admits it, correctly. Only a missing nonce
+on an INLINE script breaks a page, so plant the fault there. 🟡 A local `curl` without
+`--compressed` counts ZERO scripts: the local runtime gzips a page the way Cloudflare's edge
+does, AFTER the guard (measured 2026-09-22). OpenNext hands the guard plain text.
+
+🟡 **CI's `e2e` job has NO `PAYLOAD_SECRET`, and local runs always do** (`.env`). So a
+"passes locally" run proves nothing about the CI step: measured 2026-09-06 with `.env`
+moved aside, Payload never initialised, `/admin` and `/api/*` answered 500, and four tests
+failed while every page test stayed green. `e2e/serve.mjs` now supplies a throwaway
+secret when the environment has none. To reproduce CI here, move `.env` and `.dev.vars`
+aside and run with `CI=1`. And `/api/media` answers **403** to anonymous requests since
+main narrowed `Media.read` — the catch-all test expects that, not 200.
+
+## The public site footer
+
+Built 2026-09-05 from an approved design — `docs/superpowers/specs/2026-09-05-site-footer-quiet-room-design.md`.
+Four things that bit while building it:
+
+- **The CTA tab sits ON the slab's top edge, OUTSIDE the clipped box.** `<footer>` is
+  unclipped; the inner slab carries `overflow: hidden` for the cropped wordmark. Put the
+  tab inside the clipped element and it is invisible — the first draft did, and the fillets
+  curved into an edge that was already behind them.
+- **The wordmark is fitted by measuring the rendered text**, after `document.fonts.ready`.
+  Two fixed sizes both ran the name off the edge; the name is a CMS field, so its length is
+  an input. `apps/cms/src/lib/wordmarkFit.ts`.
+- **🟡 The cursor honours `navigator.webdriver`** (as the viewer's does), so Playwright never
+  sees it unless the test lifts the flag with `addInitScript`. `apps/cms/e2e/footer.spec.ts`
+  does, and also asserts the honest default — absent under automation.
+- **🟡 The footer's light is positioned from the cursor ring's TRAILED point** (`apps/cms/src/lib/cursorBus.ts`),
+  never the raw pointer, and its 180ms linger needs its own timer tick: the bus publishes
+  only while the ring moves, so without one a hand-off caught inside the window stayed lit
+  over empty ground for good. The browser suite found that on its first run.
+
+🟡 Two gates to know about here: `navbar.spec.ts` measures EVERY link on every page against
+the 44px touch floor (the first footer shipped 16px rows — real 44px rows, never a
+padding/negative-margin trick, which overlaps neighbours and hides the miss); and
+`publicSite.test.ts` forbids `data-open` anywhere in the site's CSS, so the clock's light
+is `data-state`. The seven claim fields (`capacity.*`, `worksCoordinates`, `certifications`,
+`socialLinks`) carry **no defaults on purpose**; `projectFooter()` renders nothing for a
+blank claim. `vitest.config.ts` compiles JSX through **oxc** — Vite 8 ignores the `esbuild`
+option when both are set, and the first attempt changed nothing.

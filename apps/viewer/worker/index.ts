@@ -1,4 +1,5 @@
-import { parseViewerPath } from '@run-apparel/shared'
+import { parseViewerPath, viewerApiPath } from '@run-apparel/shared'
+import { CMS_API_ORIGIN, withApiPreload } from './apiPreload'
 import { withCompression } from './compression'
 import { applyCrawlerCacheHeaders } from './crawlerCacheHeaders'
 import { withDocumentIsolation } from './documentHeaders'
@@ -130,12 +131,9 @@ async function loadPayload(
   ctx: ExecutionContext,
 ): Promise<ViewerApiSuccess | null> {
   // The colour segment is dropped rather than sent empty — `/n001/` and
-  // `/n001/null` are both read by the API as a mangled colour and 404. Same rule
-  // as src/lib/api.ts, and the reason that file documents it.
-  const path =
-    route.colourSlug === null
-      ? `/api/public/viewer/${encodeURIComponent(route.productSlug)}`
-      : `/api/public/viewer/${encodeURIComponent(route.productSlug)}/${encodeURIComponent(route.colourSlug)}`
+  // `/n001/null` are both read by the API as a mangled colour and 404. The shared
+  // `viewerApiPath` carries that rule for the app, this and the preload alike.
+  const path = viewerApiPath(route.productSlug, route.colourSlug)
 
   // Keyed on the viewer's OWN origin so the entry is unambiguously in this zone.
   // It cannot leak: every request to this host reaches the Worker before the
@@ -153,7 +151,7 @@ async function loadPayload(
   }
 
   try {
-    const res = await env.CMS.fetch(`https://cms.wear-run.help${path}`, {
+    const res = await env.CMS.fetch(`${CMS_API_ORIGIN}${path}`, {
       headers: { accept: 'application/json' },
       signal: AbortSignal.timeout(CMS_TIMEOUT_MS),
     })
@@ -411,7 +409,10 @@ export default {
         )
       }
 
-      return withCompression(request, withDocumentIsolation(withNoTransform(asset)))
+      // A garment page for a person: tell the browser to start the API request now
+      // (`apiPreload.ts`). `route` is non-null on every garment URL that reaches here.
+      const page = route && request.method === 'GET' ? withApiPreload(asset, route) : asset
+      return withCompression(request, withDocumentIsolation(withNoTransform(page)))
     }
 
     const [response, payload] = await Promise.all([

@@ -32,7 +32,7 @@
  * reach, and only where reach is the problem.
  *
  * ⚠️ THE ZOOMED-OUT END MUST NOT MOVE, and this is the whole safety argument.
- * `PAN_SENSITIVITY`'s block in `Stage.tsx` records a three-point sweep on a real
+ * `PAN_SENSITIVITY`'s block in `stageConfig.ts` records a three-point sweep on a real
  * device: at `1.0` an asymmetric pinch (thumb anchored at x=141, index finger
  * 261 -> 341) moved the target to -0.0979 and **shoved the garment off screen with
  * its edge clipped**; at `0.3` it stayed centred. That is the owner's own
@@ -83,13 +83,13 @@
  * complaint. `touchModeZoom` runs `movePan(dx, dy)` in the same handler as the
  * zoom, so an anchored-thumb slide still zooms rather than slides. Separating them
  * needs a custom gesture layer above model-viewer; `disable-pan` is NOT the escape
- * (it would take the deliberate pan with it — see `DISABLE_TAP` in `Stage.tsx`).
+ * (it would take the deliberate pan with it — see `DISABLE_TAP` in `stageConfig.ts`).
  */
 
 /** The field of view every product starts at — all 11 live payloads say `30deg`. */
 export const PAN_FOV_OUT = 30
 
-/** `MIN_FIELD_OF_VIEW` in Stage.tsx. The tightest crop a visitor can reach. */
+/** `MIN_FIELD_OF_VIEW` in stageConfig.ts. The tightest crop a visitor can reach. */
 export const PAN_FOV_IN = 1
 
 /**

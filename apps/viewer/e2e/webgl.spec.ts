@@ -121,7 +121,7 @@ test('3D model loads and switching colourway changes the KHR material variant', 
    * `panSensitivity` — a pinch is also a pan, so an asymmetric one slides the
    * garment sideways. Measured: 1.0 pushed it off the screen edge, 0.3 keeps it
    * centred while a two-finger stroke still moves the view 17.5% of the frame at
-   * a 4.82deg zoom. See PAN_SENSITIVITY in Stage.tsx for the full table and for
+   * a 4.82deg zoom. See PAN_SENSITIVITY in stageConfig.ts for the full table and for
    * why 0 is not an option.
    *
    * ⚠️ THIS ASSERTED `panSensitivity <= 0.3` UNTIL 2026-09-05. It could not

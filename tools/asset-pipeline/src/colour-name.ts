@@ -138,7 +138,7 @@ const PALETTE: { name: string; hex: string }[] = [
   // Sand respectively (measured against the palette below, before this
   // change). Confirmed N001 ships exactly wine, blush, butter, lime, black —
   // no coral — three ways: docs/FIRST-GARMENT-UPLOAD.md (corrected
-  // 2026-08-08), docs/SESSION-2026-08-05.md, and a live fetch of
+  // 2026-08-08), docs/archive/sessions/SESSION-2026-08-05.md, and a live fetch of
   // `GET /api/public/viewer/n001/wine`, which all agree. At a 100+ garment
   // catalogue an unmapped colour is the common case, not the edge. These are
   // canonical published values, per the note on GREY_RAMP above — not hexes

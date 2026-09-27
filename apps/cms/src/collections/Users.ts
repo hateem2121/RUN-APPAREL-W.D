@@ -41,9 +41,9 @@ export const Users: CollectionConfig = {
      * ⚠️ THE UNPATCHED PAYLOAD ADVISORY, CLOSED BY CONFIGURATION — audit FA-O-71.
      *
      * GHSA-jg8r-5jh2-v2xj, "default account-unlock access allows authenticated users to
-     * reset other accounts' lockouts". Affects `payload <= 3.88.0`; this app runs 3.88.0
-     * and **`first_patched_version` is NONE** — read off the GitHub advisory API
-     * 2026-09-07, not inferred. There is no upgrade to take.
+     * reset other accounts' lockouts". Affects `payload <= 3.88.0`; this app ran 3.88.0
+     * then (3.90.2 since) and **`first_patched_version` was NONE** — read off the GitHub
+     * advisory API 2026-09-07. Keep this key whatever a later release patches.
      *
      * ⚠️ AND IT APPLIED HERE ONLY BECAUSE THIS KEY WAS ABSENT. Payload's own source:
      * `collections/config/defaults.js` assigns `unlock: defaultAccess`, and

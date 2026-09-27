@@ -67,6 +67,15 @@ A backup nobody has restored is a hypothesis. Add a row each time one is run.
 **Next drill due: 2026-11-05** (quarterly). The one worth doing next is the R2
 media restore, because it is the only row above whose RTO is a guess.
 
+🟡 **This drill cannot be handed to a scheduled workflow, and that is by design.**
+Considered and rejected 2026-09-27: the weekly mirror is `r2-mirror.tar.age`, encrypted to
+the owner's backup key (below), and only the owner holds the private half. A workflow
+that could restore from it would need that private key as a repository secret, in a
+public repository, which undoes the reason the artifacts are encrypted at all. A drill
+that restores something else (a throwaway key, an unencrypted copy) would not exercise
+the path a real restore takes. So it stays a person's job: the owner, on their own
+machine, with the key, following "Restoring R2" below.
+
 ## ⚠️ What this document does NOT cover
 
 **`run-apparel-db` — the OTHER site's database — is out of scope here.** It lives in

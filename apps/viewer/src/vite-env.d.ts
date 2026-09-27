@@ -33,8 +33,8 @@ interface ModelViewerAttributes {
    * Floors how tight `field-of-view` can go — model-viewer's own default is
    * 12deg and it SILENTLY ignores anything tighter (see apps/viewer/CLAUDE.md;
    * tools/asset-pipeline/src/render.ts hit this on 2026-08-08 and lost the
-   * ability to photograph any print smaller than roughly a hand). Stage.tsx
-   * sets 1deg for exactly that reason — see MIN_FIELD_OF_VIEW there.
+   * ability to photograph any print smaller than roughly a hand). The viewer
+   * sets 1deg for exactly that reason — see MIN_FIELD_OF_VIEW in stageConfig.ts.
    */
   'min-field-of-view'?: string
   'min-camera-orbit'?: string
@@ -44,12 +44,12 @@ interface ModelViewerAttributes {
   'touch-action'?: string
   /**
    * Turns off model-viewer's tap-to-recenter. Defaults to OFF (i.e. tap IS
-   * live) — see DISABLE_TAP in Stage.tsx for why this page sets it.
+   * live) — see DISABLE_TAP in stageConfig.ts for why this page sets it.
    */
   'disable-tap'?: boolean | ''
   'disable-pan'?: boolean | ''
   /**
-   * Scales two-finger pan. Defaults to 1; see PAN_SENSITIVITY in Stage.tsx for
+   * Scales two-finger pan. Defaults to 1; see PAN_SENSITIVITY in stageConfig.ts for
    * the measured reason this page lowers it rather than disabling pan.
    */
   'pan-sensitivity'?: string | number

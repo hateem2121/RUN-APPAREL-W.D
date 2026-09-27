@@ -215,7 +215,7 @@ const INDEX_SENTENCE =
  * — enough to notice, not enough to drift.
  *
  * When this fails, DEMOTE a section to docs/ rather than raising the limit. Three
- * examples of the move are docs/SESSION-2026-08-27.md, docs/DEPENDENCY-HOLDS.md and
+ * examples of the move are docs/archive/sessions/SESSION-2026-08-27.md, docs/DEPENDENCY-HOLDS.md and
  * docs/VIEWER-CSP-BOT-FIGHT-MODE.md — each keeps the live rule in CLAUDE.md and moves
  * only the evidence.
  */

@@ -133,12 +133,12 @@ matching file — `cat` or `sed` in Bash does not trigger them, so in a Bash-fir
 read the matching file yourself before changing anything. After `/compact` only this
 file comes back; a hook names the others.
 
-- **Thirty-four more traps live in `apps/viewer/CLAUDE.md`** — the viewer, its Worker,
-  its headers and its layout.
-- **Twenty-four more traps live in `tools/asset-pipeline/CLAUDE.md`** — read it before
-  changing any preset, threshold or export setting.
-- **Thirteen more traps live in `apps/cms/CLAUDE.md`** — Payload, the website, and
-  writing products from a script.
+- **The viewer's 34 traps are in four `viewer-*` path rules** (table below);
+  `apps/viewer/CLAUDE.md` indexes them and keeps what every viewer session needs.
+- **The pipeline's 24 traps are in three `pipeline-*` path rules** (table below); read
+  `tools/asset-pipeline/CLAUDE.md` before changing any preset, threshold or export setting.
+- **Thirteen more traps live in `apps/cms/CLAUDE.md`** — Payload and its gotchas; the
+  website and scripted product writes are in `cms-*` path rules.
 - **Sixteen more traps live in `.github/CLAUDE.md`** — workflows, the ruleset, and
   reading CI.
 
@@ -146,9 +146,12 @@ Path rules in `.claude/rules/`:
 
 | Rule | Loads when you open |
 |---|---|
-| `viewer-headers.md` | `apps/viewer/worker/`, `apps/viewer/scripts/`, `apps/viewer/public/` |
+| `viewer-headers.md`, `viewer-model-viewer.md`, `viewer-layout.md`, `viewer-bundling.md` | the viewer's matching files — table in `apps/viewer/CLAUDE.md` |
+| `pipeline-materials.md`, `pipeline-geometry.md`, `pipeline-evals.md` | the pipeline's matching files and `packages/shared/src/shrink.ts` — table in `tools/asset-pipeline/CLAUDE.md` |
+| `cms-site.md` | the website's pages, `components/site/`, the CMS `e2e/` |
+| `cms-scripted-writes.md` | `scripts/`, `apps/cms/scripts/`, `apps/shrink/src/cms.ts` |
 | `cms-media-deletion.md` | `apps/shrink/src/cms.ts`, `scripts/find-orphan-media.mjs`, CMS collections |
-| `d1-migrations.md` | migrations, the migration replay, the D1 backup scripts |
+| `d1-migrations.md` | migrations, the migration replay, the D1 backup scripts (and reading production D1) |
 | `products-and-colours.md` | `Products.ts`, colourway fields, colour naming |
 | `shrink-container.md` | anything in `apps/shrink/`, the pipeline's `package.json` |
 | `dependencies.md` | any `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml` |

@@ -1,5 +1,5 @@
 import type { CollectionConfig } from 'payload'
-import { isAdmin, isAuthenticated } from '../access/roles'
+import { isAdmin, isSignedInPerson } from '../access/roles'
 
 /**
  * Inquiries sent through the contact form.
@@ -30,10 +30,11 @@ export const Inquiries: CollectionConfig = {
   slug: 'inquiries',
   labels: { singular: 'Inquiry', plural: 'Inquiries' },
   access: {
-    read: isAuthenticated,
+    // People only: the robot's API key has no business reading customers' messages.
+    read: isSignedInPerson,
     // See the warning above — the form writes through the local API, not through this.
     create: () => false,
-    update: isAuthenticated,
+    update: isSignedInPerson,
     delete: isAdmin,
   },
   admin: {

@@ -2516,7 +2516,7 @@ test.describe('SC-09 — the page continues below the fold without needing a col
 
 /**
  * SC-13 — the 3D canvas refuses the browser's own scroll gestures (`touch-action:
- * none`, DISABLE_TAP's neighbour in Stage.tsx), and every OTHER scrollable region
+ * none`, DISABLE_TAP's neighbour in stageConfig.ts), and every OTHER scrollable region
  * does not — a canvas-wide `none` would trap a phone visitor with no way past the
  * model, which `apps/viewer/CLAUDE.md`'s own trap on this exact property warns about.
  */

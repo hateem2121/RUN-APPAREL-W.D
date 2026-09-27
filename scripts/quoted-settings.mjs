@@ -101,7 +101,7 @@ export const ALLOWED_QUOTES = [
     reason: 'what the GitHub API returns for an annotated tag',
   },
   {
-    file: 'tools/asset-pipeline/CLAUDE.md',
+    file: '.claude/rules/shrink-container.md',
     quote: '"resolved": "file:"',
     reason: 'the lockfile entry shape scripts/check-lockfile-sync.mjs rejects; a pattern',
   },
@@ -117,12 +117,12 @@ export const ALLOWED_QUOTES = [
     reason: 'a WebKit launch error',
   },
   {
-    file: 'apps/cms/CLAUDE.md',
+    file: '.claude/rules/cms-scripted-writes.md',
     quote: 'curl: (3) bad range in URL',
     reason: "curl's error when zsh globs a URL",
   },
   {
-    file: 'tools/asset-pipeline/CLAUDE.md',
+    file: '.claude/rules/pipeline-evals.md',
     quote: 'TypeError: escapeHtml(...)…camera is not a function',
     reason: 'a runtime error',
   },
@@ -132,23 +132,23 @@ export const ALLOWED_QUOTES = [
     reason: "how Playwright's webServer error shows a child's exit",
   },
   {
-    file: 'tools/asset-pipeline/CLAUDE.md',
+    file: '.claude/rules/pipeline-geometry.md',
     quote: 'geometry: none',
     reason: 'the line tools/asset-pipeline/src/cli.ts logs when no geometry flag arrived',
   },
   // Values measured on the day: what a response, a record or a render showed.
   {
-    file: 'apps/cms/CLAUDE.md',
+    file: '.claude/rules/cms-scripted-writes.md',
     quote: 'cf-cache-status: MISS',
     reason: 'a response header after a fresh upload',
   },
   {
-    file: 'apps/viewer/CLAUDE.md',
+    file: '.claude/rules/viewer-headers.md',
     quote: 'sec-fetch-mode: navigate',
     reason: 'the browser request header that reproduces a CSP report',
   },
   {
-    file: 'apps/viewer/CLAUDE.md',
+    file: '.claude/rules/viewer-headers.md',
     quote: 'X-Worker-Ran: yes',
     reason: 'a probe route used once to prove the Worker ran; not in the code',
   },
@@ -159,7 +159,7 @@ export const ALLOWED_QUOTES = [
       'the header in HTTP form, as the 2026-08-18 fix set it; publicViewerHeaders.mjs writes JS',
   },
   {
-    file: 'apps/viewer/CLAUDE.md',
+    file: '.claude/rules/viewer-layout.md',
     quote: 'scrollY: 0',
     reason: 'what an early assertion measured',
   },
@@ -169,18 +169,18 @@ export const ALLOWED_QUOTES = [
     reason: "a garment's Media field on the day its model was unreachable",
   },
   {
-    file: 'tools/asset-pipeline/CLAUDE.md',
+    file: '.claude/rules/pipeline-evals.md',
     quote: 'wouldShip: true',
     reason: "the sweep's recorded output; output/ is gitignored",
   },
   {
-    file: 'tools/asset-pipeline/CLAUDE.md',
+    file: '.claude/rules/pipeline-geometry.md',
     quote: 'alphaMode: BLEND',
     reason: 'a glTF material value inside exported garments',
   },
   // Settings that were tried and rejected, quoted so nobody tries them again.
   {
-    file: 'apps/viewer/CLAUDE.md',
+    file: '.claude/rules/viewer-layout.md',
     quote: 'min-height: 700px',
     reason: 'the extrapolated floor that broke 900x700',
   },
