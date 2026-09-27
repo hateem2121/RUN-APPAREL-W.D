@@ -1,6 +1,7 @@
 ---
 paths:
   - "apps/viewer/src/components/Stage.tsx"
+  - "apps/viewer/src/components/stageConfig.ts"
   - "apps/viewer/src/lib/**"
   - "apps/viewer/e2e/webgl.spec.ts"
   - "tools/asset-pipeline/src/review-server.ts"
@@ -86,7 +87,7 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
 
 - **model-viewer treats a 2px tap as a COMMAND, and the miss branch zooms right
   out.** `disable-tap` is set since 2026-08-19; the reasoning, including why
-  `disable-pan` is deliberately NOT used, is on `DISABLE_TAP` in `Stage.tsx`.
+  `disable-pan` is deliberately NOT used, is on `DISABLE_TAP` in `stageConfig.ts`.
 
 - **model-viewer's CAMERA reads the ATTRIBUTE, and setting the property silently did
   nothing.** Measured 2026-08-27 while framing a decal: `mv.cameraOrbit = '68deg 90deg

@@ -60,7 +60,7 @@ export const MIN_NEAR = 0.01
 
 /**
  * The production environment map, held equal to ENVIRONMENT_IMAGE in
- * `apps/viewer/src/components/Stage.tsx`. Served from `apps/viewer/public/env/` when
+ * `apps/viewer/src/components/stageConfig.ts`. Served from `apps/viewer/public/env/` when
  * that tree is present; a page falls back to `neutral` when it is not, so the shrink
  * container — which has no `apps/` and never renders — cannot break on it.
  */

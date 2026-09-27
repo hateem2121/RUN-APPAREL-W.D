@@ -16,7 +16,7 @@ session. **Working through Bash? `cat` the rule for the files you are about to c
 
 | Rule in `.claude/rules/` | Traps | Loads when you open |
 |---|---|---|
-| `viewer-model-viewer.md` | 10 | `Stage.tsx`, `src/lib/`, `webgl.spec.ts`, the review server |
+| `viewer-model-viewer.md` | 10 | `Stage.tsx`, `stageConfig.ts`, `src/lib/`, `webgl.spec.ts`, the review server |
 | `viewer-layout.md` | 16 | `src/styles/`, `src/components/`, `App.tsx`, `src/polish/`, `e2e/`, `packages/ui/` |
 | `viewer-headers.md` | 6 | `worker/`, `scripts/`, `public/` |
 | `viewer-bundling.md` | 2 | `vite.config.ts`, `main.tsx`, `src/polish/`, the bundle budget |
