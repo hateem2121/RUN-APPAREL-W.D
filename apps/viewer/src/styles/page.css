@@ -1446,7 +1446,10 @@ model-viewer.stage__model {
   position: absolute;
   inset: 0;
   transform-origin: 0 0;
-  will-change: transform;
+  /* NO will-change, deliberately: it would rasterise the render once at the fitted
+     size and then STRETCH that bitmap when zoomed — a blurry "HD" image. Without it the
+     browser re-rasterises at the zoomed scale. (servedCssMotionProbe.test.ts also
+     refuses a will-change outside its allow-list.) */
 }
 
 .hd-image__layer[data-animate="true"] {
