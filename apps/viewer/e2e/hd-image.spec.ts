@@ -150,6 +150,11 @@ test('a double-tap zooms in at the finger, and a second one zooms back out', asy
   await viewport.tap({ position: at })
   await viewport.tap({ position: at })
   await expect.poll(scale).toBeCloseTo(2.5, 2)
+  // iOS Safari can follow a touch double-tap with its own dblclick; Playwright never
+  // sends one, so the test does. It must not undo the zoom (HdImageDialog.tsx).
+  await viewport.dispatchEvent('dblclick', { clientX: vb.x + at.x, clientY: vb.y + at.y })
+  await page.waitForTimeout(300)
+  expect(await scale()).toBeCloseTo(2.5, 2)
   await viewport.tap({ position: at })
   await viewport.tap({ position: at })
   await expect.poll(scale).toBe(1)

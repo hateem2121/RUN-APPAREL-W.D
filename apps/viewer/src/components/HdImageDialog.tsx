@@ -112,6 +112,15 @@ export default function HdImageDialog({
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const pressStart = useRef<{ x: number; y: number; moved: boolean } | null>(null)
   const lastTap = useRef<{ t: number; x: number; y: number } | null>(null)
+  /**
+   * ⚠️ WHICH KIND OF POINTER PRESSED LAST. iOS Safari can follow a touch double-tap with
+   * its OWN `dblclick` once the page has turned off double-tap-to-zoom (touch-action:
+   * none does). Handled by both paths, the pointer path zooms in and the dblclick zooms
+   * straight back out — a double-tap that visibly does nothing. Playwright's phone
+   * emulation never sends that dblclick, so only a guard written for it can hold; the
+   * double-click path therefore answers to a mouse only.
+   */
+  const lastPointerType = useRef<string>('mouse')
 
   const local = (clientX: number, clientY: number) => {
     const rect = layerEl?.getBoundingClientRect()
@@ -129,6 +138,7 @@ export default function HdImageDialog({
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId)
+    lastPointerType.current = event.pointerType
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
     pressStart.current =
       pointers.current.size === 1 ? { x: event.clientX, y: event.clientY, moved: false } : null
@@ -289,6 +299,7 @@ export default function HdImageDialog({
                 onPointerUp={onPointerUp}
                 onPointerCancel={onPointerCancel}
                 onDoubleClick={(event) => {
+                  if (lastPointerType.current !== 'mouse') return
                   setAnimate(true)
                   setView((v) => toggleZoomAt(v, local(event.clientX, event.clientY), box))
                 }}

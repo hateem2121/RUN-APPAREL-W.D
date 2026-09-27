@@ -90,7 +90,12 @@ export function HdImageButton({
             strokeWidth="1.5"
           />
         </svg>
-        HD<span className="hd-image-btn__more">&nbsp;IMAGE</span>
+        {/* ONE inline box for the label: in an inline-flex button each loose text run is
+            its own flex item, so the 6px gap landed ON TOP of the word space — "HD   IMAGE",
+            seen on the iPhone simulator 2026-09-27. */}
+        <span>
+          HD<span className="hd-image-btn__more">&nbsp;IMAGE</span>
+        </span>
       </button>
       {mounted && (
         <Suspense fallback={null}>
