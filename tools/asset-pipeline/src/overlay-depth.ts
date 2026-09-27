@@ -102,6 +102,15 @@ export const OVERLAY_BIAS_FACTOR = 0
 export const OVERLAY_BIAS_UNITS = -64
 
 /**
+ * What a flagged CUT-OUT (MASK) or soft (BLEND) print is recorded with: the viewer's own
+ * cut-out nudge, unchanged. 0/-64 above was measured on SOLID layers only; a cut-out
+ * already gets -8/-8 from the viewer's alphaTest rule, and moving it was never measured.
+ * Seen on the re-processed Bib (2026-09-27): without this, 7 cut-out prints changed.
+ */
+export const CUTOUT_OVERLAY_BIAS_FACTOR = -8
+export const CUTOUT_OVERLAY_BIAS_UNITS = -8
+
+/**
  * The bands the viewer will honour (`readOverlayBias` in apps/viewer). Units: -8 to -64,
  * never -1 (measured too weak) and never positive. Factor: 0 to -64, never positive (that
  * pushes the print BEHIND its cloth). Old files carry -8/-8, which both bands still accept.

@@ -1,5 +1,7 @@
 import { isThreadOrHardwareName } from './artwork-geometry'
 import {
+  CUTOUT_OVERLAY_BIAS_FACTOR,
+  CUTOUT_OVERLAY_BIAS_UNITS,
   isFactorInBand,
   isUnitsInBand,
   MAX_ABS_BIAS,
@@ -322,8 +324,10 @@ export function annotateGlbOverlays(
     const material = materials[index]
     if (!material) continue
     const override = overrideFor(reading.materialName)
-    const factor = override?.factor ?? OVERLAY_BIAS_FACTOR
-    const units = override?.units ?? OVERLAY_BIAS_UNITS
+    // The material's OWN mode, so a colourway-only material is judged on itself.
+    const solid = (material.alphaMode ?? 'OPAQUE') === 'OPAQUE'
+    const factor = override?.factor ?? (solid ? OVERLAY_BIAS_FACTOR : CUTOUT_OVERLAY_BIAS_FACTOR)
+    const units = override?.units ?? (solid ? OVERLAY_BIAS_UNITS : CUTOUT_OVERLAY_BIAS_UNITS)
     if (!isFactorInBand(factor))
       throw new Error(
         `override factor ${factor} for "${reading.materialName}" is outside the ` +

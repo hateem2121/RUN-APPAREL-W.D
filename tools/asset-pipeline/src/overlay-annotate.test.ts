@@ -143,6 +143,26 @@ describe('annotateGlbOverlays', () => {
     expect(opaqueOnly.result.skippedByAlphaMode).toBe(1)
   })
 
+  it('⚠️ writes the new fixed nudge only on SOLID layers; a flagged cut-out keeps -8/-8', () => {
+    // 2026-09-27: factor 0 / units -64 was measured on solid (OPAQUE) printed layers only.
+    // A cut-out is already nudged -8/-8 by the viewer's own rule, and 0/-64 on one was
+    // never measured — found by reading the drawn offsets on a re-processed Bib, where 7
+    // cut-out prints would otherwise have changed.
+    const scene = {
+      ...SCENE,
+      materials: [
+        { name: 'Material_Graphic_330411', alphaMode: 'MASK', alphaCutoff: 0.5 },
+        { name: 'Default Fabric_2915' },
+        { name: 'Material_Graphic_331044' },
+      ],
+    }
+    const { bytes } = annotateGlbOverlays(buildGlb(scene), [reading()])
+    const { materials } = parseJson(bytes)
+    expect(materials[0]?.extras?.depthBias).toMatchObject({ factor: -8, units: -8 })
+    // NEGATIVE CONTROL in the same file: the solid colourway material gets the new value.
+    expect(materials[2]?.extras?.depthBias).toMatchObject({ factor: 0, units: -64 })
+  })
+
   it('ignores THREAD and HARDWARE by name, and counts them (found the day the alpha filter opened)', () => {
     // AERO's flat BLEND topstitch ribbons measure as 56 stacked layers at 0.26 mm.
     // Thread is never a print; a nudge on it was never measured.
