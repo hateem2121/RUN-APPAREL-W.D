@@ -51,7 +51,9 @@ Do not leave a leather or coated fabric at a single low roughness number.
 - **Why:** a low number makes it look like shiny patent leather under the website's light.
 - **Seen on:** *Armor-Tech Jacket* — roughness 0.40 with specular 0.6 in the export. The
   pipeline already raises it to 0.50; more than that has to come from CLO (a roughness
-  map, or a higher number).
+  map, or a higher number). *Aurora Longline Jacket* and *Vanta Core Jacket* (2026-09-27):
+  the puffer fabric is roughness 0.20, so both look far glossier than CLO's own render —
+  the pipeline leaves it, because it only corrects a fabric it has to fix for false metal.
 
 ### 6. Give printed logos their own ink colour
 
