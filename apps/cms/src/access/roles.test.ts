@@ -1,6 +1,12 @@
 import type { Access, FieldAccess } from 'payload'
 import { describe, expect, it } from 'vitest'
-import { isAdmin, isAdminFieldLevel, isAdminOrEditor, isAuthenticated } from './roles'
+import {
+  isAdmin,
+  isAdminFieldLevel,
+  isAdminOrEditor,
+  isAuthenticated,
+  isSignedInPerson,
+} from './roles'
 
 /**
  * The whole authorisation surface of the CMS, asserted as a matrix.
@@ -25,7 +31,7 @@ import { isAdmin, isAdminFieldLevel, isAdminOrEditor, isAuthenticated } from './
  * key), so "an object that is not a user" is a real state rather than a hypothetical.
  */
 
-type Actor = { role?: unknown } | null
+type Actor = { role?: unknown; _strategy?: string } | null
 
 const call = (fn: Access | FieldAccess, user: Actor): unknown =>
   (fn as (args: { req: { user: Actor } }) => unknown)({ req: { user } })
@@ -86,5 +92,15 @@ describe('role access matrix', () => {
     expect(call(isAuthenticated, { role: null })).toBe(true)
     expect(call(isAuthenticated, {})).toBe(true)
     expect(call(isAuthenticated, null)).toBe(false)
+  })
+
+  it('isSignedInPerson admits people and refuses the robot API key that isAuthenticated admits', () => {
+    const robot = { role: 'editor', _strategy: 'api-key' }
+    expect(call(isSignedInPerson, { role: 'editor', _strategy: 'local-jwt' })).toBe(true)
+    expect(call(isSignedInPerson, { role: 'admin' })).toBe(true)
+    expect(call(isSignedInPerson, robot)).toBe(false)
+    expect(call(isSignedInPerson, null)).toBe(false)
+    // Negative control: the rule it replaced on Inquiries lets the same key straight in.
+    expect(call(isAuthenticated, robot)).toBe(true)
   })
 })

@@ -22,6 +22,14 @@ export const isAdminOrEditor: Access = ({ req }) => {
 /** No anonymous access — the public reads only via the dedicated viewer endpoint. */
 export const isAuthenticated: Access = ({ req }) => Boolean(req.user)
 
+/**
+ * A person signed in through the admin, never an API key. The shrink robot signs in as
+ * an editor with `users API-Key`, so `isAuthenticated` let its key read every customer's
+ * name, email and message (audit 2026-09-26) — data it has no use for.
+ */
+export const isSignedInPerson: Access = ({ req }) =>
+  Boolean(req.user) && (req.user as { _strategy?: string })._strategy !== 'api-key'
+
 export const isAdminFieldLevel: FieldAccess = ({ req }) => roleOf(req.user) === 'admin'
 
 /**

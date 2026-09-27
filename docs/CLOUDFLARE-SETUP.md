@@ -201,9 +201,10 @@ Cloudflare creates the DNS record automatically because the zone is on the same 
 
 ## 7. CORS check
 
-`VIEWER_ALLOWED_ORIGINS` in `wrangler.jsonc` must include `https://viewer.wear-run.help`
-(and `http://localhost:5173` for local development). Redeploy the worker after
-changes. (`https://run-apparel-viewer.pages.dev` was removed 2026-07-22 when the
+`VIEWER_ALLOWED_ORIGINS` in `wrangler.jsonc` must include `https://viewer.wear-run.help`,
+and only production origins. `http://localhost:5173` is added by `payload.config.ts` itself,
+outside production only: until 2026-09-26 it sat in this list, so the live CMS trusted a
+developer's laptop address with credentials. Redeploy the worker after changes. (`https://run-apparel-viewer.pages.dev` was removed 2026-07-22 when the
 Pages project was deleted.) The R2 bucket CORS policy mirrors this list — update
 both together, and purge the `media.wear-run.help` hostname cache after editing
 the bucket policy.

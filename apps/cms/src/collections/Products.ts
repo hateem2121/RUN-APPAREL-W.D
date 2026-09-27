@@ -96,11 +96,12 @@ async function readCatalogueDefaults(req: PayloadRequest): Promise<CatalogueDefa
  */
 export const Products: CollectionConfig = {
   slug: 'products',
-  // Explicit even though `false` is the 3.x default: Payload v4 flips the
-  // default to ON, which would silently add a `_products_v` table to D1 and
-  // double the row-writes per save. Stating it pins today's behaviour through
-  // that upgrade. Remove deliberately if versioning is ever wanted.
-  versions: false,
+  // History ON since 2026-09-26 (owner's decision): before it, a mistaken save could be
+  // undone only by restoring the whole database. It doubles the row-writes per save —
+  // negligible at ~20 garments. No drafts: a draft's URL must keep 404ing (see below).
+  // ⚠️ Restoring a version brings back THAT version's colour rows exactly, so a colour
+  // added since would vanish while its QR tag stays printed; docs/STAFF-GUIDE.md says so.
+  versions: { maxPerDoc: 25, drafts: false },
   admin: {
     useAsTitle: 'productName',
     defaultColumns: ['productCode', 'productName', 'category', 'status'],

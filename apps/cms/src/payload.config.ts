@@ -24,6 +24,11 @@ import { BuildProcess } from './globals/BuildProcess'
 import { CatalogueDefaults } from './globals/CatalogueDefaults'
 import { SiteSettings } from './globals/SiteSettings'
 
+const CMS_TRUSTED = {
+  admin: 'https://cms.wear-run.help',
+  viewer: 'https://viewer.wear-run.help',
+} as const
+
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
@@ -103,14 +108,28 @@ const mediaBaseUrl = (
   ''
 ).replace(/\/$/, '')
 
-const allowedOrigins = (
-  env?.VIEWER_ALLOWED_ORIGINS ??
-  process.env.VIEWER_ALLOWED_ORIGINS ??
-  'https://viewer.wear-run.help,http://localhost:5173'
-)
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean)
+/*
+ * Local-development origins join these lists only outside production. Until 2026-09-26 the
+ * live CMS answered `http://localhost:5173` with `access-control-allow-credentials: true`
+ * (audit 2026-09-26): a developer's laptop address trusted by production.
+ */
+const isProduction = process.env.NODE_ENV === 'production'
+
+const allowedOrigins = [
+  ...(env?.VIEWER_ALLOWED_ORIGINS ?? process.env.VIEWER_ALLOWED_ORIGINS ?? CMS_TRUSTED.viewer)
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+  ...(isProduction ? [] : ['http://localhost:5173']),
+]
+
+/*
+ * Payload accepts its login cookie only from these origins. Empty (the default until
+ * 2026-09-26) meant "any origin", leaving SameSite=Lax as the only guard against a forged
+ * admin request. `next start`, `opennextjs-cloudflare preview` and CI are production builds,
+ * so signing in to one of those locally needs its origin added here.
+ */
+const csrfOrigins = [CMS_TRUSTED.admin, ...(isProduction ? [] : ['http://localhost:3000'])]
 
 // Transactional email (password resets, admin notifications). Configured only
 // when a Resend API key is present, so local dev / builds without one fall back
@@ -168,6 +187,7 @@ export default buildConfig({
     pipelinePlanEndpoint,
   ],
   cors: allowedOrigins,
+  csrf: csrfOrigins,
   editor: lexicalEditor(),
   ...(resendApiKey
     ? {

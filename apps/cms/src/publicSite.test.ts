@@ -950,13 +950,14 @@ describe('the 404, the policy, and analytics', () => {
    */
   it('no collection but `users` is readable without authentication', () => {
     /*
-     * ⚠️ ANY OF THE THREE GATES, NOT `isAuthenticated` SPECIFICALLY. The first version of
+     * ⚠️ ANY OF THE GATES, NOT `isAuthenticated` SPECIFICALLY. The first version of
      * this test demanded that exact helper and failed immediately — on three collections
      * that are STRICTER than it: `RawUploads` is `isAdminOrEditor` and `Events` is
      * `isAdmin`. Asserting the tightest rule would have made a future tightening fail the
      * build, which is the wrong direction for a security guard to point.
      */
-    const GATED = ['isAuthenticated', 'isAdminOrEditor', 'isAdmin']
+    // `isSignedInPerson` (2026-09-26) is `isAuthenticated` minus API keys, so stricter still.
+    const GATED = ['isAuthenticated', 'isSignedInPerson', 'isAdminOrEditor', 'isAdmin']
     const roles = code(join(CMS_ROOT, 'src', 'access'), 'roles.ts')
     for (const helper of GATED) expect(roles).toContain(`export const ${helper}`)
 
