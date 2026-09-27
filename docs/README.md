@@ -196,3 +196,4 @@ document and not adding its row is the failure this section is named for.
 | [OWNER-CHECKLIST.md](OWNER-CHECKLIST.md) | The things only the owner can do, and what is already done |
 | [PIPELINE-INVESTIGATION-2026-09-01.md](PIPELINE-INVESTIGATION-2026-09-01.md) | The pipeline investigation of 2026-09-01 |
 | [3d-viewer-forensics-2026-09-27/README.md](3d-viewer-forensics-2026-09-27/README.md) | The 3D viewer forensics of 2026-09-27: why parts vanish when zoomed out, the flicker, blend prints and quality — a dated record, with its evidence and the local follow-up prompt |
+| [3d-viewer-forensics-2026-09-27/LOCAL-SESSION-PROMPT.md](3d-viewer-forensics-2026-09-27/LOCAL-SESSION-PROMPT.md) | The prompt that continues that investigation on the owner's Mac, with the raw CLO exports and CLO renders |
