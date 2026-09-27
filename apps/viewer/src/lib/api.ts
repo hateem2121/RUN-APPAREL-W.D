@@ -1,4 +1,4 @@
-import type { ViewerApiResponse } from '@run-apparel/shared'
+import { type ViewerApiResponse, viewerApiPath } from '@run-apparel/shared'
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'https://cms.wear-run.help').replace(
   /\/$/,
@@ -92,16 +92,19 @@ function transportKind(): ViewerFetchFailure {
  * `colourSlug: null` is "/n001" — no colour named. The segment is dropped rather
  * than sent empty or stringified: `/n001/null` and `/n001/` are both read by the
  * API as a mangled colour and 404, which is the bug this path exists to fix.
+ *
+ * ⚠️ THE FIRST CALL IS USUALLY ANSWERED BY A PRELOAD (2026-09-27). The Worker sends
+ * `Link: <this url>; rel=preload; as=fetch; crossorigin` with the page, so the request is
+ * already under way before this code runs (`worker/apiPreload.ts`). The browser reuses it
+ * only if this `fetch` matches it: same URL (hence the shared `viewerApiPath`), CORS mode
+ * and default credentials. Do not add `credentials`, `mode` or `cache` options here without
+ * re-running `e2e/apiPreload.spec.ts`, which counts the requests on every engine.
  */
 export async function fetchViewerData(
   productSlug: string,
   colourSlug: string | null,
 ): Promise<ViewerApiResponse> {
-  const path =
-    colourSlug === null
-      ? `/api/public/viewer/${encodeURIComponent(productSlug)}`
-      : `/api/public/viewer/${encodeURIComponent(productSlug)}/${encodeURIComponent(colourSlug)}`
-  const url = `${API_BASE}${path}`
+  const url = `${API_BASE}${viewerApiPath(productSlug, colourSlug)}`
 
   let lastError: unknown
   for (let attempt = 0; attempt <= RETRY_ATTEMPTS; attempt++) {
