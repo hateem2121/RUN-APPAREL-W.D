@@ -13,6 +13,7 @@ Nothing in the code, the database or the live site was changed. This folder is a
 | File | What it is |
 |---|---|
 | `report.html` | The interactive report: charts, pictures, severity table and checklist. Open it in a browser. |
+| `final-report.html` | The merged final report of both sessions (cloud and local), in plain English, using the pictures in `evidence/` and `evidence/local/`. Open it in a browser. |
 | [LOCAL-SESSION-PROMPT.md](LOCAL-SESSION-PROMPT.md) | The prompt for a local session that continues with the raw CLO exports |
 | [local-session-2026-09-27.md](local-session-2026-09-27.md) | What that local session found, with its own evidence, data and scripts under `local/` subfolders |
 | `evidence/` | The before/after pictures cited below |

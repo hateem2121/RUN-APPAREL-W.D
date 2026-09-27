@@ -1,0 +1,594 @@
+<title>Garment Viewer Forensics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap">
+<style>
+  :root {
+    --bg: #f1efea;
+    --surface: #faf9f6;
+    --wash: #e4e1d8;
+    --text: #1d1f1a;
+    --muted: #63665b;
+    --line: rgba(29, 31, 26, 0.18);
+    --grid: rgba(29, 31, 26, 0.05);
+    --gridline: rgba(29, 31, 26, 0.12);
+    --label-bg: #cdf345;
+    --label-text: #1d1f1a;
+    --headline: #1d1f1a;
+    --bar: #5f7414;
+    --bar2: #9aa38a;
+    --crit: #a4281c;
+    --crit-bg: #f6ddd8;
+    --warn: #8a5a00;
+    --warn-bg: #f5e7c7;
+    --ok: #3f6212;
+    --ok-bg: #e3edcd;
+    --info: #3b4a63;
+    --info-bg: #dfe4ec;
+    --font: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #1c1f18; --surface: #23271f; --wash: #2c3126; --text: #ecebe4; --muted: #a2a695;
+      --line: rgba(236, 235, 228, 0.18); --grid: rgba(236, 235, 228, 0.05); --gridline: rgba(236, 235, 228, 0.14);
+      --label-bg: transparent; --label-text: #cdf345; --headline: #cdf345;
+      --bar: #cdf345; --bar2: #7f8770;
+      --crit: #f2a196; --crit-bg: #3d2320; --warn: #e9c46a; --warn-bg: #3a3120;
+      --ok: #b7d97a; --ok-bg: #2a3420; --info: #b3c2dc; --info-bg: #262d38;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #1c1f18; --surface: #23271f; --wash: #2c3126; --text: #ecebe4; --muted: #a2a695;
+    --line: rgba(236, 235, 228, 0.18); --grid: rgba(236, 235, 228, 0.05); --gridline: rgba(236, 235, 228, 0.14);
+    --label-bg: transparent; --label-text: #cdf345; --headline: #cdf345;
+    --bar: #cdf345; --bar2: #7f8770;
+    --crit: #f2a196; --crit-bg: #3d2320; --warn: #e9c46a; --warn-bg: #3a3120;
+    --ok: #b7d97a; --ok-bg: #2a3420; --info: #b3c2dc; --info-bg: #262d38;
+  }
+
+  body {
+    background-color: var(--bg);
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 32px 32px;
+    color: var(--text); font-family: var(--font); font-size: 16px; line-height: 1.6;
+    padding-inline: 16px; padding-block: 32px 72px;
+  }
+  .page { max-width: 900px; margin-inline: auto; display: grid; gap: 64px; }
+  .prose { max-width: 68ch; }
+  h1, h2, h3 { color: var(--headline); line-height: 1.15; text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; letter-spacing: -0.02em; }
+  h2 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; }
+  h3 { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+  p, li { margin: 0; }
+  a { color: inherit; text-underline-offset: 3px; }
+  a:focus-visible, summary:focus-visible, button:focus-visible { outline: 2px solid var(--headline); outline-offset: 3px; border-radius: 4px; }
+  code { font-family: var(--mono); font-size: 0.85em; background: var(--wash); padding: 0.1em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
+  pre.code { font-family: var(--mono); font-size: 0.82rem; background: var(--wash); padding: 12px 14px; border-radius: 8px; overflow-x: auto; margin: 0; }
+
+  .tag { display: inline-block; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; background: var(--label-bg); color: var(--label-text); padding: 0.25em 0.6em; border-radius: 6px; border: 1px solid var(--label-text); justify-self: start; }
+  .meta { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); letter-spacing: 0.03em; }
+  header { display: grid; gap: 16px; }
+  .lede { font-size: 1.15rem; max-width: 64ch; }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; font-family: var(--mono); font-size: 0.8rem; }
+  nav.toc a { color: var(--muted); }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 20px; font-family: var(--mono); font-size: 0.82rem; }
+  .facts b { color: var(--headline); font-size: 1rem; }
+
+  section { display: grid; gap: 20px; scroll-margin-top: 16px; }
+  .stack { display: grid; gap: 12px; }
+  ul.plain { list-style: none; padding: 0; display: grid; gap: 10px; }
+  ul.dots { padding-left: 1.2em; display: grid; gap: 8px; }
+
+  .verdicts { display: grid; border-top: 1px solid var(--line); }
+  .verdict { display: grid; grid-template-columns: 2.2rem 1fr; gap: 12px; padding-block: 14px; border-bottom: 1px solid var(--line); }
+  .verdict .n { font-family: var(--mono); font-size: 0.85rem; color: var(--muted); padding-top: 0.2em; }
+
+  .chip { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.15em 0.55em; border-radius: 999px; white-space: nowrap; font-weight: 600; display: inline-block; }
+  .c-crit { color: var(--crit); background: var(--crit-bg); }
+  .c-warn { color: var(--warn); background: var(--warn-bg); }
+  .c-ok { color: var(--ok); background: var(--ok-bg); }
+  .c-info { color: var(--info); background: var(--info-bg); }
+  .new { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--label-text); background: var(--label-bg); border: 1px solid var(--label-text); padding: 0 0.4em; border-radius: 4px; margin-right: 4px; }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  td.num, th.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+
+  figure { margin: 0; display: grid; gap: 8px; }
+  figure img { width: 100%; height: auto; display: block; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); }
+  figcaption { font-size: 0.88rem; color: var(--muted); max-width: 72ch; }
+
+  details.finding { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+  details.finding > summary { cursor: pointer; padding: 16px 18px; display: grid; grid-template-columns: 2rem 1fr auto; gap: 12px; align-items: baseline; list-style: none; }
+  details.finding > summary::-webkit-details-marker { display: none; }
+  details.finding > summary .t { font-weight: 700; font-size: 1.05rem; }
+  details.finding > summary .s { display: block; color: var(--muted); font-size: 0.9rem; font-weight: 400; }
+  details.finding > summary .n { font-family: var(--mono); color: var(--muted); }
+  .body { padding: 0 18px 20px; display: grid; gap: 18px; }
+  .kid { background: var(--wash); border-radius: 8px; padding: 12px 14px; }
+  .kid b { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+  ul.claims { list-style: none; padding: 0; display: grid; gap: 10px; }
+  ul.claims li { display: grid; grid-template-columns: 1.6rem 1fr; gap: 8px; }
+  ul.claims li > span:first-child { font-weight: 700; text-align: center; }
+  .k-v { color: var(--ok); } .k-l { color: var(--warn); } .k-g { color: var(--info); } .k-x { color: var(--crit); }
+  .test { border-left: 3px solid var(--bar); padding: 4px 0 4px 12px; }
+  .test b { display: block; }
+
+  details.plainbox { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+  details.plainbox > summary { cursor: pointer; padding: 12px 16px; font-weight: 600; }
+  details.plainbox > div { padding: 0 16px 16px; display: grid; gap: 16px; }
+
+  .chart { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 16px 18px; display: grid; gap: 10px; }
+  .chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .chart svg text { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+  .chart svg text.lab { fill: var(--text); font-family: var(--font); font-size: 12px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
+
+  .scores { display: grid; gap: 12px; }
+  .score { display: grid; grid-template-columns: minmax(140px, 200px) 1fr 3.2rem; gap: 12px; align-items: center; }
+  .score .bar { height: 12px; background: var(--wash); border-radius: 4px; overflow: hidden; }
+  .score .bar i { display: block; height: 100%; background: var(--bar); border-radius: 4px; }
+  .score .v { font-family: var(--mono); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+  .score .why { grid-column: 1 / -1; color: var(--muted); font-size: 0.86rem; margin-top: -6px; }
+
+  pre.mermaid { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; overflow-x: auto; margin: 0; }
+
+  .who { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+
+  @media (max-width: 560px) {
+    details.finding > summary { grid-template-columns: 1.6rem 1fr; }
+    details.finding > summary .chip { grid-column: 2; justify-self: start; }
+    .score { grid-template-columns: 1fr 3rem; }
+    .score .bar { grid-column: 1 / -1; order: 3; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    details[open] > .body, details[open] > div { animation: open 180ms ease-out; }
+    @keyframes open { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  }
+</style>
+
+<main class="page">
+
+<header>
+  <span class="tag">[ 3D product reference · forensics · final ]</span>
+  <h1>Why garments look wrong in the 3D viewer</h1>
+  <p class="lede">The complete record of a read-only investigation into RUN APPAREL's 16 live garments on 27 September 2026. A cloud session worked from the code, the live files and the live site. A second session on the owner's Mac added the raw CLO exports, the CLO renders and a real iPhone simulator. Both are merged here. Nothing in the code, the database or the live site was changed.</p>
+  <div class="facts">
+    <span><b>16</b> garments</span><span><b>16</b> shrink reports</span><span><b>80</b> live colourways vs CLO</span><span><b>7</b> raw files vs shipped</span><span><b>13</b> fix candidates tested</span><span><b>0</b> files changed</span>
+  </div>
+  <p class="meta">Labels: ✓ proven by code, a file or a render · ◎ strong evidence · ? untested idea · ✕ checked and ruled out. <span class="new">new</span> marks what the Mac session added or corrected. The written record is in the repository under docs/3d-viewer-forensics-2026-09-27/ (draft pull request #76).</p>
+  <nav class="toc" aria-label="Contents">
+    <a href="#short">Short version</a><a href="#flow">How a garment travels</a><a href="#rank">Worst garments</a><a href="#findings">Findings</a><a href="#charts">Charts</a><a href="#fixes">Fix options</a><a href="#scores">Scores</a><a href="#pictures">Pictures</a><a href="#check">Checklist</a><a href="#questions">Questions</a><a href="#method">Method</a>
+  </nav>
+</header>
+
+<section id="short" aria-labelledby="short-h">
+  <h2 id="short-h">The short version</h2>
+  <div class="verdicts">
+    <div class="verdict"><span class="n">1</span><p><b>Parts vanish because the anti-flicker nudge over-reaches.</b> On Minecut Motion it pushes the marble print over the "EXTRA" waistband; on the Classic Soccer Shirt it pushes the pink print through the collar. <span class="new">new</span>This happens at the normal starting view too, on every screen and in real iOS Safari, not only when zoomed out. The root cause: the pipeline only looks 2&nbsp;mm above a print for anything covering it, and those layers sit 2.5–7&nbsp;mm above.</p></div>
+    <div class="verdict"><span class="n">2</span><p><b>Four garments still flicker, each for its own reason:</b> the X-Milo Pro Bib's cut-out side-panel print, the Soccer Shirt's knit bump texture, the Armor-Tech Jacket's see-through stitching, and the Women Zip-Up Vest's stitching plus cut-out edges. The old fixes (near plane, nudge) are working.</p></div>
+    <div class="verdict"><span class="n">3</span><p><b>Soft "blend" prints are lost inside CLO's export,</b> before the robot sees the file. <span class="new">new</span>Traced end to end for three prints: the raw CLO file already renders Geovent's pattern and Minecut's marble bold, and Arisan's brush strokes at about 6% strength. The pipeline keeps each one exactly as exported.</p></div>
+    <div class="verdict"><span class="n">4</span><p><b>File size is not what limits quality</b> (1.8–7.8&nbsp;MB against a 40&nbsp;MB ceiling). The real limits are the per-picture size cap and phone graphics memory. <span class="new">new</span>Two pipeline losses were found: thin stitch lines are cut away on 12 of 15 garments with thread, and the Bib's halftone was shrunk to 8.5% of its pixels.</p></div>
+    <div class="verdict"><span class="n">5</span><p><span class="new">new</span><b>Shine and colour differences come from CLO's export values,</b> not the pipeline. The pipeline made the Armor-Tech leather slightly less shiny.</p></div>
+    <div class="verdict"><span class="n">6</span><p><span class="new">new</span><b>A fix for the waistband and collar works in testing:</b> a nudge with no "per screen dot" part restored both completely (0.0–0.1% left) with no extra flicker. Not built; it needs a phone check first.</p></div>
+    <div class="verdict"><span class="n">7</span><p><span class="new">new</span><b>Apex Flex Pullover and Capsule Core Hoodie were processed by the normal robot.</b> Their reports exist; only the links to their files are broken. The cloud session's "processed outside the robot" is corrected.</p></div>
+  </div>
+</section>
+
+<section id="flow" aria-labelledby="flow-h">
+  <h2 id="flow-h">How a garment travels, and where each problem enters</h2>
+  <p class="prose">The designer saves a large 3D file from CLO. A robot shrinks it so it loads on a phone, turning CLO's materials into simpler ones, checks a few safety rules and files it in the showroom store. When a buyer scans the tag, the viewer shows it, with two helpers that stop printed layers fighting with the cloth. The red boxes mark where each problem enters.</p>
+  <pre class="mermaid">
+flowchart LR
+  A[CLO 3D export] --> B[CMS upload]
+  B --> C[(Upload store<br/>kept 14 days)]
+  C --> D[Shrink robot<br/>picks settings]
+  D --> E[Pipeline<br/>solid / cut-out / see-through]
+  E --> F[Pictures squeezed<br/>max 2048-4096 px]
+  F --> G[Overlay scan<br/>writes nudge notes]
+  G --> H{Safety gates}
+  H -- pass --> I[(Showroom store)]
+  H -- fail --> X[Not saved]
+  I --> J[Viewer<br/>model-viewer + three.js]
+  J --> K[Near-plane fix]
+  J --> L[Depth nudge]
+  L --> M[Buyer's phone]
+  K --> M
+  P3[Blend and colour<br/>lost in export] -.-> A
+  P5[Thread cut away] -.-> E
+  P4[Print cap<br/>Bib halftone] -.-> F
+  P6[Scan looks only<br/>2 mm ahead] -.-> G
+  P1[Nudge too strong] -.-> L
+  P2[Knit sparkle] -.-> J
+  classDef prob fill:#f6ddd8,stroke:#a4281c,color:#1d1f1a
+  class P1,P2,P3,P4,P5,P6 prob
+  </pre>
+</section>
+
+<section id="rank" aria-labelledby="rank-h">
+  <h2 id="rank-h">The worst garments</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th class="num">#</th><th>Garment</th><th>What a buyer sees</th><th>Cause</th><th>Severity</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>Minecut Motion</td><td>"EXTRA" waistband missing, from the first view; a white slash on the skirt</td><td>Nudge over-reach</td><td><span class="chip c-crit">High</span></td></tr>
+        <tr><td class="num">2</td><td>X-Milo Pro Bib</td><td>Side panels blocky, dark and crawling as it turns; stitching missing</td><td>Halftone shrunk and cut out; thread cut away</td><td><span class="chip c-crit">High</span></td></tr>
+        <tr><td class="num">3</td><td>Classic Soccer Shirt</td><td>Pink print through the collar; glittery blinking over the number</td><td>Nudge over-reach; knit bump texture</td><td><span class="chip c-crit">High</span></td></tr>
+        <tr><td class="num">4</td><td>Geovent Tennis Dress</td><td>Chest outline stitching missing; bold bands where CLO shows faint chevrons</td><td>Thread cut away; CLO export</td><td><span class="chip c-warn">Medium</span></td></tr>
+        <tr><td class="num">5</td><td>The Aggressor Uniform</td><td>Stitching missing; highest phone memory (224&nbsp;MB)</td><td>Thread cut away; picture load</td><td><span class="chip c-warn">Medium</span></td></tr>
+        <tr><td class="num">6</td><td>Arisan Sports Bra</td><td>Brush-stroke print nearly invisible</td><td>CLO export</td><td><span class="chip c-warn">Medium</span></td></tr>
+        <tr><td class="num">7</td><td>Armor-Tech Jacket</td><td>Patent-leather shine; stitching blinks on some screens</td><td>CLO roughness value; see-through thread</td><td><span class="chip c-info">Low</span></td></tr>
+        <tr><td class="num">8</td><td>Women Zip-Up Vest</td><td>Zip tape light where CLO shows it dark; stitching blinks</td><td>Not yet investigated; thread and cut-out edges</td><td><span class="chip c-info">Low</span></td></tr>
+        <tr><td class="num">9</td><td>Apex Flex Pullover</td><td>Chest logo looks like a shiny glaze</td><td>Ink the same colour as the cloth, gloss 0.20 (CLO)</td><td><span class="chip c-info">Low</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="meta">The other seven look close to their CLO renders.</p>
+
+  <h3>What matters most for the business</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Problem</th><th>What a buyer sees</th><th>Business impact</th><th>Urgency</th></tr></thead>
+      <tbody>
+        <tr><td>Nudge hides parts (Minecut, Soccer Shirt)</td><td>Waistband and collar missing or cut, at the normal view</td><td>High: the print is the product</td><td><span class="chip c-crit">Now</span></td></tr>
+        <tr><td>Cut-out print shimmer (Bib)</td><td>Side panels crawl and blink as it turns</td><td>Medium-high: looks faulty</td><td><span class="chip c-crit">Now</span></td></tr>
+        <tr><td>Knit sparkle (Soccer Shirt)</td><td>Glittery blinking over the number print</td><td>Medium-high: looks faulty</td><td><span class="chip c-crit">Now</span></td></tr>
+        <tr><td><span class="new">new</span>Stitching cut away (12 garments)</td><td>Seams and outlines missing, worst on Bib, Geovent, Uniform</td><td>Medium: the garment looks less made</td><td><span class="chip c-warn">Soon</span></td></tr>
+        <tr><td>Stitch blinking (Jacket, Vest)</td><td>Stitch lines blink as it turns</td><td>Medium</td><td><span class="chip c-warn">Soon</span></td></tr>
+        <tr><td>Ink reads as bare cloth (230 pairs)</td><td>Logos nearly invisible in some colours</td><td>Medium: may be intended tone-on-tone</td><td><span class="chip c-info">Your call</span></td></tr>
+        <tr><td>Prints shrunk to fit (9 garments, Bib worst)</td><td>Softer lettering and blocky dots up close</td><td>Medium</td><td><span class="chip c-warn">Soon</span></td></tr>
+        <tr><td>Blend lost in CLO export</td><td>Prints look like flat stickers, or vanish</td><td>Medium: misrepresents the finish</td><td><span class="chip c-warn">Soon</span></td></tr>
+        <tr><td>Phone memory near the limit (Aggressor ×3)</td><td>3D view can vanish on older iPhones</td><td>Medium, and rises if limits are raised</td><td><span class="chip c-info">Check</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="findings" aria-labelledby="findings-h">
+  <h2 id="findings-h">Findings</h2>
+  <p class="prose">Each finding opens to show what happens in plain words, every claim with its label, the evidence, the one test that settles it, and the fix options.</p>
+
+  <details class="finding" open>
+    <summary><span class="n">1</span><span class="t">Parts disappear: the nudge over-reaches<span class="s">Minecut waistband, Soccer Shirt collar</span></span><span class="chip c-ok">Proven · 95%</span></summary>
+    <div class="body">
+      <div class="kid"><b>In plain words</b>A print sits a hair above the cloth, so the computer cannot always tell which is in front. The fix gives the print a small push toward you, measured in screen dots. Where the cloth curves away from you each dot covers several millimetres, so the push can be centimetres. The pipeline picks which prints get the push by checking for anything lying on top of them, but it only looks 2&nbsp;mm up. Minecut's waistband sits 2.5&nbsp;mm up, so the check missed it, the marble got the push, and it jumped in front of the waistband.</div>
+      <figure><img src="evidence/local/ios-minecut-waistband.webp" alt="Two iPhone screenshots of Minecut Motion: at the start view only part of the EXTRA waistband shows; after a pinch-out almost none of it does." loading="lazy"><figcaption><span class="new">new</span>Real iOS Safari (iPhone 17 Pro simulator, real two-finger pinch). Left: the start view. Right: zoomed out.</figcaption></figure>
+      <ul class="claims">
+        <li><span class="k-v">✓</span><span>Switching off only the marble print's nudge gives exactly the same picture as switching off every nudge. That one nudge is the cause.</span></li>
+        <li><span class="k-v">✓</span><span><span class="new">new</span>It happens at the <b>normal starting view</b>, at 1×, 2× and 3× screen sharpness and in real iOS Safari, not only when zoomed out. Zooming out makes it worse.</span></li>
+        <li><span class="k-v">✓</span><span><span class="new">new</span><b>Root cause:</b> the overlay scan casts its "is anything on top of me?" ray only 2&nbsp;mm (<code>SEARCH_MM</code>, <code>overlay-depth.ts:226</code>). On Minecut the white waistband covers 15.7% of the marble panel and an outer skirt layer covers 43.6%, both about 2.5&nbsp;mm up. The scan saw almost none of it and scored the panel 90% "on top".</span></li>
+        <li><span class="k-v">✓</span><span><span class="new">new</span>On the Soccer Shirt, the fold-over collar sits 2.9–7&nbsp;mm above the front print (median 5.3&nbsp;mm) and covers 4.2% of it. Hiding that one piece removes the whole collar, so it is the collar.</span></li>
+        <li><span class="k-v">✓</span><span><span class="new">new</span>The code's safety argument (<code>overlay-depth.ts:121-126</code>) assumes anything on top of a nudged print is nudged too. That is only true within 0.3&nbsp;mm; a layer 2.5&nbsp;mm up is never nudged, so it loses.</span></li>
+        <li><span class="k-v">✓</span><span><span class="new">new</span>Proof by elimination: the raw CLO file has no nudge note. Rendered the same way, it shows the waistband and a clean collar; the shipped file loses both.</span></li>
+        <li><span class="k-v">✓</span><span>The nudge has two parts. The "per screen dot" part (factor −8) does all the work; the fixed part (units −8) changes nothing measurable. At full zoom-out each screen dot covers about 3.4&nbsp;mm of garment, against about 1.8&nbsp;mm at the default view.</span></li>
+        <li><span class="k-v">✓</span><span>Against a sharp reference with the nudge off, the zoomed-out Minecut is wrong on 6.28% of the garment, 91% of it too pale. With the nudge off it drops to 3.55%, the rest being edge smoothing and skirt-edge speckle.</span></li>
+        <li><span class="k-v">✓</span><span>Minecut is affected from the front, side and back (2.8–6.5% of the garment changes) and in every colour. The Soccer Shirt changes 0.68% at the default view and 1.27% zoomed out.</span></li>
+        <li><span class="k-v">✓</span><span>All 16 garments were tested. Only Minecut and the Soccer Shirt carry a nudge on a big solid print. On Geovent the nudge helps (without it the see-through camouflage print breaks into holes). On the other 13 it changes under 1% and nothing visibly goes missing.</span></li>
+        <li><span class="k-v">✓</span><span><span class="new">new</span>"Held for review" does not mean "left alone": every held print is a cut-out, and the viewer nudges all cut-outs anyway (<code>decal-depth-bias.ts:252</code>). Minecut held 3 prints (confidence 0.00–0.07, their gap sits exactly on the 0.3&nbsp;mm edge), the Soccer Shirt 8 (0.66–0.68).</span></li>
+        <li><span class="k-v">✓</span><span>Why the tests missed it: the strength −8 was tuned "from a fixed camera" (<code>decal-depth-bias.ts:125</code>), the safety check used a garment with no nudged solid print, and the browser test checks that the nudge is applied, not how the garment looks.</span></li>
+        <li><span class="k-x">✕</span><span>Ruled out: parts hidden as "off screen" (model-viewer turns that off), the far plane (always at least twice the camera distance), level-of-detail swaps (none exist), depth precision (the near-plane fix is live), smaller picture copies (turning them off moved the error only from 6.28% to 6.08%).</span></li>
+      </ul>
+      <figure><img src="evidence/local/minecut-clo-raw-shipped.webp" alt="Minecut in the CLO render, from the raw file and from the shipped file; only the shipped file loses the waistband." loading="lazy"><figcaption><span class="new">new</span>CLO render, raw CLO file, shipped file. Only the shipped file carries the nudge note, and only it loses the waistband.</figcaption></figure>
+      <figure><img src="evidence/minecut-zoom-series.webp" alt="Minecut at five zoom levels, nudge on and off." loading="lazy"><figcaption>Cloud session: Minecut (Sage) at five zoom levels. Top: live. Bottom: the marble print's nudge switched off.</figcaption></figure>
+      <figure><img src="evidence/local/minecut-waistband-1x-2x-3x.webp" alt="Waistband close-ups at three screen densities, live versus nudge off." loading="lazy"><figcaption><span class="new">new</span>Live vs nudge off at 1×, 2× and 3×, at the normal view and zoomed out.</figcaption></figure>
+      <figure><img src="evidence/soccer-series.webp" alt="Classic Soccer Shirt, nudge on and off." loading="lazy"><figcaption>Cloud session: Classic Soccer Shirt (Blush). Top: live, the pink print through the blue collar. Bottom: nudge off.</figcaption></figure>
+      <figure><img src="evidence/local/soccer-collar-1x-2x.webp" alt="Soccer collar close-ups at 1x and 2x, live and nudge off." loading="lazy"><figcaption><span class="new">new</span>The collar at the normal view, a higher angle and zoomed out, at 1× and 2×.</figcaption></figure>
+      <div class="test"><b>The test that settled it</b>Render the raw file (no nudge note) and the shipped file the same way: only the shipped one loses the waistband and collar.</div>
+      <div class="test"><b>Fix options</b>See <a href="#fixes">Fix options</a>: a nudge with no per-dot part (tested best), a weaker per-dot part, or a scan that looks further up (tested, leaves a little behind).</div>
+    </div>
+  </details>
+
+  <details class="finding">
+    <summary><span class="n">2</span><span class="t">Flicker: four garments, four causes<span class="s">Measured on all 16; the rest blink under 0.2%</span></span><span class="chip c-ok">Proven · 85%</span></summary>
+    <div class="body">
+      <div class="kid"><b>In plain words</b>Turn a garment a tiny bit at a time and count dots that change and change back. Plain movement does not do that, so it isolates flicker. Then hide one part at a time to find which part the blinking lives on, like finding the faulty bulb in a string of lights.</div>
+      <ul class="claims">
+        <li><span class="k-v">✓</span><span>The old fixes are live and working: the near plane reads 0.85&nbsp;m at the default view and 1.89&nbsp;m zoomed out, and on Minecut the nudge cuts blinking from 0.27% to 0.02% (cloud setup).</span></li>
+        <li><span class="k-v">✓</span><span><b>X-Milo Pro Bib</b>, the worst: its cut-out side-panel print. Hiding it drops blinking to 0.004%. <span class="new">new</span>Why that print flickers: it was shrunk from 4952×7014 to 1446×2048 pixels and then cut out at half strength, so each blurred dot is chopped differently every frame. Seen in real iOS frames too.</span></li>
+        <li><span class="k-v">✓</span><span><b>Classic Soccer Shirt:</b> the knit bump texture. Switching it off drops blinking by 95% (cloud) and 96% (Mac). three.js calms sparkle using only the shape's own surface, never the bump texture.</span></li>
+        <li><span class="k-v">✓</span><span><b>Armor-Tech Jacket:</b> its stitching, stored as thin see-through strips. Hiding it drops blinking to 0.01%.</span></li>
+        <li><span class="k-v">✓</span><span><b>Women Zip-Up Vest:</b> no single part. The stitching and cut-out edges share it; the zip parts themselves change nothing.</span></li>
+        <li><span class="k-l">◎</span><span><span class="new">new</span><b>The numbers depend on the device.</b> The cloud measured with software graphics at 1× sharpness; the Mac used its real graphics card at 2×. The Bib reads 0.94% vs 2.23%, the Jacket 0.54% vs 0.09%, and alpha-to-coverage cut the Bib's blinking 91% vs 15%. Both are shown in the chart below. Phones decide.</span></li>
+        <li><span class="k-v">✓</span><span>Risk to watch: on 10 of 14 garments a print sits closer to its cloth than two steps of the file's storage grid. <span class="new">new</span>Capsule Core Hoodie's closest print is 0.009&nbsp;mm up (0.2 steps). The nudge is all that keeps these apart.</span></li>
+        <li><span class="k-x">✕</span><span>Making surfaces less shiny changed nothing on the Bib, the Jacket or the Vest.</span></li>
+        <li><span class="k-x">✕</span><span>An early count of "151 see-through prints with no nudge" was wrong: only about 12 of the 151 are prints; the rest are fabric, thread, tape and labels.</span></li>
+      </ul>
+      <figure><img src="evidence/blink-soccer-vest.webp" alt="Blink maps for the Soccer Shirt and Vest, weave on and off." loading="lazy"><figcaption>Cloud session: pink = a dot that blinked while turning. Left live, right with weave maps off. The Soccer Shirt's blinking nearly disappears; the Vest's does not.</figcaption></figure>
+      <figure><img src="evidence/blink-bib-jacket.webp" alt="Blink maps for the Bib and the Armor-Tech Jacket." loading="lazy"><figcaption>Cloud session: the Bib blinks on its side-panel print; the Jacket along its stitching.</figcaption></figure>
+      <figure><img src="evidence/local/bib-ios-side-panel.webp" alt="The Bib side panel in three iOS frames; the dot pattern shifts." loading="lazy"><figcaption><span class="new">new</span>The Bib's side panel in three real iOS frames a few points of drag apart: the dots rearrange.</figcaption></figure>
+      <div class="test"><b>The test that settles the fixes</b>Repeat the blink test for each fix on the iOS simulator and one real phone, since the two desktop setups disagree.</div>
+    </div>
+  </details>
+
+  <details class="finding">
+    <summary><span class="n">3</span><span class="t">"Blend" prints look wrong<span class="s">Lost inside CLO's export, not in the robot</span></span><span class="chip c-ok">Proven · 85%</span></summary>
+    <div class="body">
+      <div class="kid"><b>In plain words</b>The 3D file type the viewer uses knows three kinds of sticker: solid, cut-out (a stencil) and see-through glass. It has no "mix with the fabric" sticker. When CLO saves the file it also changes how some prints look. By the time the robot sees the file, the soft look is already gone, and the robot keeps what it was given.</div>
+      <ul class="claims">
+        <li><span class="k-v">✓</span><span>In all 16 shrink reports almost every print arrived at "opacity 100%". Only The Aggressor Jersey and Geovent list faint prints; Arisan's brush print and the Aggressor "Skull" are also faint.</span></li>
+        <li><span class="k-v">✓</span><span>glTF has exactly three modes, and its see-through mode is the normal "paint over" operation. There is no multiply or blend mode.</span></li>
+        <li><span class="k-v">✓</span><span><span class="new">new</span><b>Geovent pattern</b> (<code>Asset 2</code>, 16%): kept exactly; the live material reads the same colour and 16% opacity; hiding it removes the pattern. The raw CLO file already renders wide bold bands where CLO's own render shows faint vertical chevrons.</span></li>
+        <li><span class="k-v">✓</span><span><span class="new">new</span><b>Minecut marble:</b> solid in the raw file and the shipped one; both render bold where CLO's render is soft.</span></li>
+        <li><span class="k-l">◎</span><span><span class="new">new</span><b>Arisan brush strokes</b> (20% and 5%): kept exactly, but the picture itself is soft, so the result is about 6% strength, nearly invisible. 85%: the 1.83&nbsp;GB raw file was not rendered.</span></li>
+        <li><span class="k-v">✓</span><span><span class="new">new</span><b>The Aggressor Jersey's 19% overlay</b> survives at about CLO's strength up close.</span></li>
+        <li><span class="k-v">✓</span><span>How the robot sorted CLO's see-through materials across 14 garments: 180 made solid, 440 cut-outs, 188 kept see-through. Faint prints stay faint ("Skull" 13%, "Asset 2" 16%).</span></li>
+        <li><span class="k-l">◎</span><span>140 of 447 print materials carry no fabric bump map, so fabric cannot show through them (every print on the Skin-Suit, Soccer Shirt, Windbreaker and Apex).</span></li>
+        <li><span class="k-x">✕</span><span><span class="new">new</span>Double-sided drawing of the Geovent print was ruled out (it changes the darkening only from −21.1 to −20.7 out of 255).</span></li>
+      </ul>
+      <figure><img src="evidence/local/blend-candidates.webp" alt="Three pairs of CLO render and live screenshot: Geovent, Minecut and Arisan." loading="lazy"><figcaption><span class="new">new</span>CLO render (black background) vs live for the three traced prints.</figcaption></figure>
+      <figure><img src="evidence/local/geovent-hide-each-layer.webp" alt="Geovent with each suspect layer hidden; hiding Asset 2 removes the pattern." loading="lazy"><figcaption><span class="new">new</span>Geovent (lime), hiding one layer at a time: only hiding <code>Asset 2</code> removes the pattern.</figcaption></figure>
+      <figure><img src="evidence/local/geovent-skirt-clo-vs-live.webp" alt="Skirt close-ups: CLO shows narrow vertical chevrons, live shows wide horizontal bands." loading="lazy"><figcaption><span class="new">new</span>Geovent skirt, CLO vs live.</figcaption></figure>
+      <figure><img src="evidence/local/geovent-raw-vs-shipped.webp" alt="Geovent from the raw file and the shipped file; both show the bold bands." loading="lazy"><figcaption><span class="new">new</span>Raw CLO file vs shipped file: the bold bands are already in the raw file.</figcaption></figure>
+      <figure><img src="evidence/local/aggressor-overlay-closeup.webp" alt="Aggressor Jersey chest close-ups in CLO and live, grunge overlay visible in both." loading="lazy"><figcaption><span class="new">new</span>The Aggressor Jersey's 19% overlay survives.</figcaption></figure>
+      <div class="test"><b>Fix options</b>Only in CLO: bake the soft look into the print picture itself before export, and give the print the fabric's bump map. Untested.</div>
+    </div>
+  </details>
+
+  <details class="finding">
+    <summary><span class="n">4</span><span class="t">Lower quality than CLO<span class="s">File size is not the limit; three real losses found</span></span><span class="chip c-ok">Proven · 80%</span></summary>
+    <div class="body">
+      <div class="kid"><b>In plain words</b>The suitcase is not full: every file is 1.8–7.8&nbsp;MB against a 40&nbsp;MB limit. What squeezes quality is a size cap on each print picture and the phone's graphics memory, which iPhones run out of at about 256&nbsp;MB. Making everything bigger would mostly fill phone memory. Two specific losses do matter: thin stitching cut away, and one print shrunk far too much.</div>
+      <ul class="claims">
+        <li><span class="k-v">✓</span><span><span class="new">new</span><b>Stitching cut away:</b> 12 of 15 garments with thread ship it as a cut-out. From a normal distance a one-dot stitch is mostly background, so it is cut. Drawing it soft brings back 2.88% of the Bib, 2.54% of Geovent, 2.51% of the Uniform, and 0.4–0.8% on five more. On Geovent the hexagon outline and princess seams return.</span></li>
+        <li><span class="k-v">✓</span><span><span class="new">new</span><b>Bib halftone:</b> 4952×7014 in the raw file, 1446×2048 shipped (8.5% of the pixels). Soft pixels rise from 8.3% to 45.3%. The pipeline's own notes record this trap and name <code>--max-texture 4096</code> as the lever.</span></li>
+        <li><span class="k-v">✓</span><span>All 16 reports stored "Balanced"; five were raised to Highest automatically because the raw file was under 50&nbsp;MB. The mesh trimmer ran on only 2 of 14.</span></li>
+        <li><span class="k-v">✓</span><span>A print was shrunk to the 4096 cap on 9 of 14 garments. Example: Minecut's slogan, 5148×310 to 4096 wide.</span></li>
+        <li><span class="k-v">✓</span><span>Phone graphics memory already reaches 224&nbsp;MB (Uniform), 201&nbsp;MB and 192&nbsp;MB (the two jerseys). One square 8192 print would add about 358&nbsp;MB.</span></li>
+        <li><span class="k-v">✓</span><span>Surface directions (normals) keep full precision; positions use a 14-bit grid and texture coordinates 16-bit.</span></li>
+        <li><span class="k-v">✓</span><span>No safety gate looks at the picture: the spec gate only asks "is this a valid file?". Shrunk prints, low ink contrast and phone memory are warnings.</span></li>
+        <li><span class="k-v">✓</span><span><span class="new">new</span>No artwork was swapped or lost: a print that looked missing had been merged with an identical twin.</span></li>
+        <li><span class="k-l">◎</span><span>Bump maps are mostly 1024&nbsp;px as CLO exported them, so fabric close-ups look soft.</span></li>
+      </ul>
+      <figure><img src="evidence/local/geovent-stitch-modes.webp" alt="Geovent chest in four versions; the hexagon stitch outline appears only with soft thread or a lower cutoff." loading="lazy"><figcaption><span class="new">new</span>Geovent chest: live (no outline), thread drawn soft (outline back), alpha-to-coverage (no help), cut-out threshold 0.25 (back but jagged).</figcaption></figure>
+      <div class="test"><b>The test that settles the Bib</b>Re-run the Bib from its raw export at <code>--max-texture 4096</code> and look at the side panel in close-up (4–7°).</div>
+    </div>
+  </details>
+
+  <details class="finding">
+    <summary><span class="n">5</span><span class="t">Shine, colour and low-contrast prints<span class="s">From CLO's export values</span></span><span class="chip c-warn">Strong evidence · 75%</span></summary>
+    <div class="body">
+      <ul class="claims">
+        <li><span class="k-v">✓</span><span><span class="new">new</span><b>Armor-Tech patent-leather shine:</b> CLO writes the leather at roughness 0.40 with no roughness map; the pipeline raised it to 0.50, slightly less shiny. The shine is not the pipeline's.</span></li>
+        <li><span class="k-l">◎</span><span><span class="new">new</span><b>Skin-Suit darker and glossier than CLO:</b> fabric settings are identical raw vs shipped, so the difference is CLO's renderer vs the viewer's lighting.</span></li>
+        <li><span class="k-v">✓</span><span><span class="new">new</span><b>Bib dots near-black:</b> the raw file already sets the ink to near-black red.</span></li>
+        <li><span class="k-v">✓</span><span><span class="new">new</span><b>Soccer Shirt contour lines:</b> CLO's render shows fine contour lines; the raw file already shows heavy cable-knit bumps instead.</span></li>
+        <li><span class="k-l">◎</span><span><b>Ink reads as bare cloth</b> in 230 print-and-colour pairs across 14 garments (the robot's contrast check). Worst: Soccer Shirt 75 of 110, Endurance Tracksuit 38 of 155, Aggressor Jersey 33 of 135, <span class="new">new</span>Apex 10 of 15, Capsule 13 of 30. These may be an intended tone-on-tone design.</span></li>
+        <li><span class="k-g">?</span><span>Prints saved at gloss 0.20 may look plasticky under the studio light (Apex's chest logo is an example).</span></li>
+        <li><span class="k-v">✓</span><span>The studio lighting itself is sensible: soft light map, neutral colour, exposure 1, soft shadow.</span></li>
+      </ul>
+      <figure><img src="evidence/local/soccer-clo-raw-shipped.webp" alt="Soccer Shirt: CLO render with contour lines, raw and shipped renders with cable-knit bumps." loading="lazy"><figcaption><span class="new">new</span>Soccer Shirt: CLO render and chest, then the raw and shipped files. The contour lines are gone already in the raw file.</figcaption></figure>
+    </div>
+  </details>
+
+  <details class="finding">
+    <summary><span class="n">6</span><span class="t">Apex Flex Pullover and Capsule Core Hoodie<span class="s">Normal robot; broken report links</span></span><span class="chip c-ok">Proven</span></summary>
+    <div class="body">
+      <ul class="claims">
+        <li><span class="k-v">✓</span><span><span class="new">new</span>Both went through the robot at "Balanced". The local CLO zips hold exactly the uploaded bytes.</span></li>
+        <li><span class="k-v">✓</span><span><span class="new">new</span><b>Apex:</b> report #2 exists, but its link to a result file is empty. The live file came from an earlier run of the same upload (04:36 on 4 Sep); the report describes a re-run that finished at 17:53 and was never attached. The live file matches the report's counts (10 nudge notes, 27 cut-outs).</span></li>
+        <li><span class="k-v">✓</span><span><span class="new">new</span><b>Capsule:</b> report #14 exists. The product points at an older copy of the robot's output that is byte-identical to the new one, so the report describes exactly what is live.</span></li>
+        <li><span class="k-x">✕</span><span>The cloud session's "processed outside the robot, can't be audited" is corrected: they just could not be joined to their reports.</span></li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="finding">
+    <summary><span class="n">7</span><span class="t">Other issues<span class="s">Transparency order, sheer fabrics, the zipper</span></span><span class="chip c-info">Mixed</span></summary>
+    <div class="body">
+      <ul class="claims">
+        <li><span class="k-v">✓</span><span>No order-independent transparency exists in three.js 0.183.2 or model-viewer 4.3.1. See-through parts are sorted as whole pieces, so two can swap order as a garment turns.</span></li>
+        <li><span class="k-l">◎</span><span>Some fabrics are kept see-through on the Women Zip-Up Vest and on two Aggressor garments. If they are not really sheer, the inside of the garment can show through.</span></li>
+        <li><span class="k-x">✕</span><span>The Armor-Tech Jacket's zipper teeth at 0% strength are an invisible zipper by design. Not a bug.</span></li>
+        <li><span class="k-g">?</span><span><span class="new">new</span>The Women Zip-Up Vest's zip tape is light live and dark in CLO. Not investigated.</span></li>
+      </ul>
+    </div>
+  </details>
+</section>
+
+<section id="charts" aria-labelledby="charts-h">
+  <h2 id="charts-h">The numbers</h2>
+  <p class="prose">Each chart has a table underneath. Where the two sessions measured the same thing on different setups, both are shown.</p>
+  <div class="chart" id="ch-nudge"><h3>What the nudge changes, per garment</h3><p class="meta">Largest share of the garment that changes when the nudge is switched off (front, side, back, two zooms). Cloud session.</p><div class="legend"><span><i style="background:var(--crit)"></i>hides real parts</span><span><i style="background:var(--ok)"></i>fixes a broken print</span><span><i style="background:var(--bar2)"></i>nothing visibly missing</span></div><div class="plot"></div></div>
+  <div class="chart" id="ch-blink"><h3>Blinking while the garment turns</h3><p class="meta">Share of garment dots that blink at the default front view. Lower is better.</p><div class="legend"><span><i style="background:var(--bar2)"></i>cloud: software graphics, 1×</span><span><i style="background:var(--bar)"></i>Mac: real graphics card, 2×</span></div><div class="plot"></div></div>
+  <div class="chart" id="ch-stitch"><h3>Stitching hidden by the cut-out rule</h3><p class="meta">Share of the garment that returns when the thread is drawn soft. Mac session, default colourway, front.</p><div class="plot"></div></div>
+  <div class="chart" id="ch-steps"><h3>How close each print sits to its cloth</h3><p class="meta">In steps of the file's storage grid. Under 2 steps (dashed line), only the nudge keeps print and cloth apart.</p><div class="plot"></div></div>
+  <div class="chart" id="ch-gpu"><h3>Phone graphics memory</h3><p class="meta">Megabytes of picture memory on the phone. iPhones drop the 3D view at about 256&nbsp;MB (dashed line).</p><div class="plot"></div></div>
+  <div class="chart" id="ch-ink"><h3>Prints that read as bare cloth</h3><p class="meta">Share of print-and-colour pairs the robot flagged as low contrast.</p><div class="plot"></div></div>
+</section>
+
+<section id="fixes" aria-labelledby="fixes-h">
+  <h2 id="fixes-h">Fix options</h2>
+  <p class="prose">Every option found by either session, with what was measured, where it would be made, and the trade-off. None of these were built; the measured ones were tried only as experiments in a browser tab. Numbers are from the Mac's graphics card at 2× unless marked.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Option</th><th>Where</th><th>Measured result</th><th>Trade-off</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td><b>Nudge with no per-dot part</b> (factor 0, units −64) on solid prints</td><td>Pipeline and viewer</td><td>Waistband and collar damage 100% → 0.0–0.1% at five views; flicker unchanged</td><td>The viewer currently refuses values below 8, so both sides change together</td><td><span class="chip c-ok">Best</span></td></tr>
+        <tr><td>Weaker per-dot part (factor −1)</td><td>Pipeline and viewer</td><td>0–2.9% damage left; flicker unchanged</td><td>Same band change as above</td><td><span class="chip c-ok">Good</span></td></tr>
+        <tr><td>Weaker per-dot part (factor −4)</td><td>Pipeline</td><td>13% (normal view) and 41% (zoomed out) of the damage left</td><td>Within today's band, but not enough</td><td><span class="chip c-crit">Not enough</span></td></tr>
+        <tr><td>Scan further up for covering layers (10&nbsp;mm)</td><td>Pipeline</td><td>Simulated: 0.1–6.6% damage left</td><td>Re-process affected garments from their raw exports</td><td><span class="chip c-warn">Partial</span></td></tr>
+        <tr><td>No nudge on solid prints at all</td><td>Pipeline</td><td>No extra flicker on the Mac; the cloud setup saw skirt-edge speckle return</td><td>Risky on garments whose prints sit under 2 grid steps from the cloth</td><td><span class="chip c-warn">Risky</span></td></tr>
+        <tr><td><b>Knit bumps at half strength</b></td><td>Viewer or pipeline</td><td>Soccer blink 0.79% → 0.17% front, 2.49% → 0.82% side; knit still visible, arguably closer to CLO</td><td>Slightly flatter fabric</td><td><span class="chip c-ok">Good</span></td></tr>
+        <tr><td>Knit bumps off</td><td>Viewer</td><td>Blink −96%</td><td>Fabric looks flat and plastic</td><td><span class="chip c-crit">Reject</span></td></tr>
+        <tr><td>Alpha-to-coverage on cut-out prints</td><td>Viewer</td><td>Cloud: Bib −91%. Mac: Bib −15%, and worse on five garments (Vest 0.31% → 0.69%)</td><td>Depends on the device's graphics</td><td><span class="chip c-crit">Reject for now</span></td></tr>
+        <tr><td><b>Thread drawn soft</b> (see-through, as CLO exported it)</td><td>Pipeline</td><td>Brings back hidden stitching (up to 2.88% of a garment); Vest blink 0.31% → 0.14%, Bib 2.23% → 1.77%</td><td>Soft thread blinks on some setups (Armor-Tech 0.54% in the cloud)</td><td><span class="chip c-warn">Promising</span></td></tr>
+        <tr><td>Thread cut-out at a lower threshold (0.25)</td><td>Pipeline</td><td>Stitching returns, jagged</td><td>Aliased lines</td><td><span class="chip c-warn">Fallback</span></td></tr>
+        <tr><td><b>Bib halftone at 4096</b> (<code>--max-texture 4096</code>)</td><td>Pipeline, re-run from raw</td><td>Not tested; four times the pixels of today</td><td>More phone memory (the Bib is at 86&nbsp;MB)</td><td><span class="chip c-warn">Test next</span></td></tr>
+        <tr><td>Raise the print cap only for long, thin prints; let phone memory set the cap</td><td>Pipeline</td><td>Minecut's slogan at full size costs about 8.5&nbsp;MB of phone memory</td><td>Raising every limit could crash iPhones</td><td><span class="chip c-warn">Your decision</span></td></tr>
+        <tr><td>Bake the blend into the print picture; give prints the fabric bump map</td><td>CLO</td><td>Not tested</td><td>Designer time per print</td><td><span class="chip c-info">Try on one print</span></td></tr>
+        <tr><td>Export bump maps at 2048</td><td>CLO</td><td>Not tested</td><td>Larger files, still well under limits</td><td><span class="chip c-info">Optional</span></td></tr>
+        <tr><td>Set print ink colours per colourway</td><td>CLO</td><td>The robot's contrast check lists 230 pairs</td><td>Only if tone-on-tone is not intended</td><td><span class="chip c-info">Your call</span></td></tr>
+        <tr><td>Point Capsule at its newest file; attach Apex's report to its file</td><td>CMS</td><td>Files are identical (Capsule) or equivalent (Apex)</td><td>Housekeeping only</td><td><span class="chip c-info">Optional</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <figure><img src="evidence/local/minecut-fix-candidates.webp" alt="Minecut in five versions at two zoom levels; every candidate restores the EXTRA waistband." loading="lazy"><figcaption><span class="new">new</span>Minecut: live, nudge off, factor −1, units-only −64, and un-nudging only the covered pieces. Every candidate restores the waistband and removes the white slash.</figcaption></figure>
+  <figure><img src="evidence/local/soccer-knit-bumps.webp" alt="Soccer Shirt chest: CLO render, live, half-strength bumps, bumps off." loading="lazy"><figcaption><span class="new">new</span>Soccer knit: CLO render, live, half-strength bumps, bumps off.</figcaption></figure>
+  <p class="prose meta">Negative control: planting a deliberate fight raised blink from 0.10% to 0.27%, so the flicker test can see the problem it measures.</p>
+</section>
+
+<section id="scores" aria-labelledby="scores-h">
+  <h2 id="scores-h">Scoreboard</h2>
+  <p class="prose">Out of 10, per part of the system. The cloud session's scores, with two lowered by the Mac session's findings.</p>
+  <div class="scores" id="scores-list"></div>
+</section>
+
+<section id="pictures" aria-labelledby="pictures-h">
+  <h2 id="pictures-h">More pictures</h2>
+  <div class="stack">
+    <details class="plainbox"><summary>Minecut: zoomed out against a sharp reference (cloud)</summary><div><img src="evidence/minecut-vs-reference.webp" alt="Minecut zoomed out compared with a sharp reference." loading="lazy"><p class="meta">Pink = dots that differ from a 4× sharper reference with the nudge off. Columns: live, nudge off, no smaller copies, alpha-to-coverage.</p></div></details>
+    <details class="plainbox"><summary>Minecut and Soccer Shirt on a phone-sized screen (cloud)</summary><div><img src="evidence/phone-minecut-soccer.webp" alt="Minecut and Soccer Shirt at phone size, nudge on and off." loading="lazy"></div></details>
+    <details class="plainbox"><summary>Minecut: hiding the waistband and outer layer (Mac)</summary><div><img src="evidence/local/minecut-hide-test.webp" alt="Minecut with the waistband hidden and the outer layer hidden." loading="lazy"></div></details>
+    <details class="plainbox"><summary>Soccer Shirt: hiding the collar (Mac)</summary><div><img src="evidence/local/soccer-collar-hide-test.webp" alt="Soccer Shirt with the collar piece hidden." loading="lazy"></div></details>
+  </div>
+  <h3>Every garment: CLO render (top) vs live (bottom)</h3>
+  <div class="stack">
+    <details class="plainbox"><summary>X-Milo Pro Skin-Suit</summary><div><img src="evidence/local/gallery-xps.webp" alt="X-Milo Pro Skin-Suit, CLO renders above and live colourways below." loading="lazy"></div></details>
+    <details class="plainbox"><summary>X-Milo Pro Bib</summary><div><img src="evidence/local/gallery-xmp.webp" alt="X-Milo Pro Bib, CLO renders above and live colourways below." loading="lazy"></div></details>
+    <details class="plainbox"><summary>Minecut Motion</summary><div><img src="evidence/local/gallery-mm.webp" alt="Minecut Motion, CLO renders above and live colourways below." loading="lazy"></div></details>
+    <details class="plainbox"><summary>Classic Soccer Shirt</summary><div><img src="evidence/local/gallery-css.webp" alt="Classic Soccer Shirt, CLO renders above and live colourways below." loading="lazy"></div></details>
+    <details class="plainbox"><summary>Geovent Tennis Dress</summary><div><img src="evidence/local/gallery-gtd.webp" alt="Geovent Tennis Dress, CLO renders above and live colourways below." loading="lazy"></div></details>
+    <details class="plainbox"><summary>Arisan Sports Bra</summary><div><img src="evidence/local/gallery-asb.webp" alt="Arisan Sports Bra, CLO renders above and live colourways below." loading="lazy"></div></details>
+    <details class="plainbox"><summary>Armor-Tech Jacket</summary><div><img src="evidence/local/gallery-atj.webp" alt="Armor-Tech Jacket, CLO renders above and live colourways below." loading="lazy"></div></details>
+    <details class="plainbox"><summary>Aero-Tech Windbreaker</summary><div><img src="evidence/local/gallery-atw.webp" alt="Aero-Tech Windbreaker, CLO renders above and live colourways below." loading="lazy"></div></details>
+    <details class="plainbox"><summary>Women Zip-Up Vest</summary><div><img src="evidence/local/gallery-wzu.webp" alt="Women Zip-Up Vest, CLO renders above and live colourways below." loading="lazy"></div></details>
+    <details class="plainbox"><summary>The Aggressor Jersey</summary><div><img src="evidence/local/gallery-aj.webp" alt="The Aggressor Jersey, CLO renders above and live colourways below." loading="lazy"></div></details>
+    <details class="plainbox"><summary>The Aggressor Jersey (Men)</summary><div><img src="evidence/local/gallery-ajm.webp" alt="The Aggressor Jersey (Men), CLO renders above and live colourways below." loading="lazy"></div></details>
+    <details class="plainbox"><summary>The Aggressor Uniform</summary><div><img src="evidence/local/gallery-au.webp" alt="The Aggressor Uniform, CLO renders above and live colourways below." loading="lazy"></div></details>
+    <details class="plainbox"><summary>Endura Crop Top</summary><div><img src="evidence/local/gallery-ect.webp" alt="Endura Crop Top, CLO renders above and live colourways below." loading="lazy"></div></details>
+    <details class="plainbox"><summary>Apex Flex Pullover (no CLO render)</summary><div><img src="evidence/local/gallery-afp.webp" alt="Apex Flex Pullover, live colourways." loading="lazy"></div></details>
+    <details class="plainbox"><summary>Capsule Core Hoodie (no CLO render)</summary><div><img src="evidence/local/gallery-cch.webp" alt="Capsule Core Hoodie, live colourways." loading="lazy"></div></details>
+    <details class="plainbox"><summary>Endurance Tracksuit (no CLO render)</summary><div><img src="evidence/local/gallery-et.webp" alt="Endurance Tracksuit, live colourways." loading="lazy"></div></details>
+  </div>
+</section>
+
+<section id="check" aria-labelledby="check-h">
+  <h2 id="check-h">Checklist</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Item</th><th>Who</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Find why parts vanish, and name the covering layers</td><td class="who">Investigation</td><td><span class="chip c-ok">Done</span></td></tr>
+        <tr><td>Measure flicker on all 16 and find each cause</td><td class="who">Investigation</td><td><span class="chip c-ok">Done</span></td></tr>
+        <tr><td>Compare every garment with its CLO render; raw vs shipped for 7</td><td class="who">Investigation</td><td><span class="chip c-ok">Done</span></td></tr>
+        <tr><td>Trace three blend prints end to end</td><td class="who">Investigation</td><td><span class="chip c-ok">Done</span></td></tr>
+        <tr><td>Confirm on real iOS Safari with real touch</td><td class="who">Investigation</td><td><span class="chip c-ok">Done</span></td></tr>
+        <tr><td>Test the candidate fixes as experiments</td><td class="who">Investigation</td><td><span class="chip c-ok">Done</span></td></tr>
+        <tr><td>Find how Apex and Capsule were processed</td><td class="who">Investigation</td><td><span class="chip c-ok">Done</span></td></tr>
+        <tr><td>Name the worst garments</td><td class="who">Investigation</td><td><span class="chip c-ok">Done</span></td></tr>
+        <tr><td>Measure the chosen nudge fix on the iOS simulator and a real phone, then build it</td><td class="who">Developer · urgent</td><td><span class="chip c-warn">Open</span></td></tr>
+        <tr><td>After the nudge fix, re-run the flicker test so skirt-edge speckle does not return</td><td class="who">Developer</td><td><span class="chip c-warn">Open</span></td></tr>
+        <tr><td>Re-run the Bib from its raw export at <code>--max-texture 4096</code> and judge the side panel up close</td><td class="who">Developer</td><td><span class="chip c-warn">Open</span></td></tr>
+        <tr><td>Decide how thread is stored (soft, or cut-out at a lower threshold), and re-test flicker</td><td class="who">Developer</td><td><span class="chip c-warn">Open</span></td></tr>
+        <tr><td>Calm the Soccer Shirt's knit sparkle (half-strength bumps tested best)</td><td class="who">Developer</td><td><span class="chip c-warn">Open</span></td></tr>
+        <tr><td>Render Arisan's 1.83&nbsp;GB raw export to close the last blend trace</td><td class="who">Developer</td><td><span class="chip c-warn">Open</span></td></tr>
+        <tr><td>Investigate the Vest's light zip tape</td><td class="who">Developer</td><td><span class="chip c-warn">Open</span></td></tr>
+        <tr><td>Test baking one blend print into its picture in CLO, then re-upload</td><td class="who">You</td><td><span class="chip c-warn">Open</span></td></tr>
+        <tr><td>Review the low-contrast prints, starting with the Soccer Shirt (75 of 110)</td><td class="who">You</td><td><span class="chip c-warn">Open</span></td></tr>
+        <tr><td>Approve raising the print cap only for long, thin prints</td><td class="who">You decide</td><td><span class="chip c-warn">Open</span></td></tr>
+        <tr><td>Open the three Aggressor garments on a real iPhone (192–224&nbsp;MB of graphics memory)</td><td class="who">You</td><td><span class="chip c-warn">Open</span></td></tr>
+        <tr><td>Confirm whether the see-through fabrics on the Vest and Aggressor garments are really sheer</td><td class="who">You</td><td><span class="chip c-warn">Open</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="questions" aria-labelledby="questions-h">
+  <h2 id="questions-h">Questions still open for you</h2>
+  <ul class="dots prose">
+    <li><b>Are the low-contrast prints intended?</b> For example, the Soccer Shirt's sponsor and number prints in 75 of 110 colour pairs. Tone-on-tone is a real design choice; the robot only flags it.</li>
+    <li><b>Are the see-through fabrics really sheer?</b> On the Women Zip-Up Vest and two Aggressor garments.</li>
+    <li><b>Which fixes should be built?</b> The table above ranks them; the nudge fix needs a phone check first.</li>
+  </ul>
+</section>
+
+<section id="method" aria-labelledby="method-h">
+  <h2 id="method-h">How this was checked</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>What</th><th>Cloud session</th><th>Mac session</th></tr></thead>
+      <tbody>
+        <tr><td>Code</td><td>The shrink robot, the pipeline, the viewer's two fixes, and the source of model-viewer 4.3.1, three.js 0.183.2 and glTF-Transform 4.5.0</td><td>The overlay scan, the nudge, the branch guard and the docs checks</td></tr>
+        <tr><td>Files</td><td>The settings section of all 16 live files and every picture size</td><td>7 raw CLO exports (copies) vs the shipped files, with the repo's own <code>pipeline overlays</code> and <code>pipeline render</code></td></tr>
+        <tr><td>Database</td><td>14 shrink reports, read-only</td><td>All 16 reports, read-only; every answer said the database was not changed</td></tr>
+        <tr><td>Live pages</td><td>Headless browser, software graphics, 1×, desktop and phone size</td><td>Browser on the Mac's graphics card at 2×; every colourway of all 16; hiding and switching single parts</td></tr>
+        <tr><td>Phone</td><td>Not possible</td><td>iPhone 17 Pro simulator, iOS 26.5, real touch</td></tr>
+        <tr><td>Reference</td><td>A 4× sharper render with the nudge off</td><td>The owner's CLO renders (13 garments; 3 have only a QR code)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Mistakes caught along the way</h3>
+  <ul class="dots prose">
+    <li>The cloud's first reference picture still had the nudge on and hid the waistband too (spotted by the owner); it was rebuilt.</li>
+    <li>In the cloud's full run three garments showed 28–41% changes because the camera had not settled; the settled numbers (0.01–0.10%) were used.</li>
+    <li>The Mac session's first idea for Geovent (the print drawn twice because it is double-sided) was tested and ruled out.</li>
+    <li>A "pattern strength" number for Geovent was abandoned because CLO's studio shadows on the pleats swamped it; close-ups were compared by eye instead.</li>
+    <li>A print that looked "missing" in a size table had been merged with an identical twin; no artwork was lost.</li>
+    <li>A blink number from the iPhone simulator was not used: a real finger drag turns the garment too far between frames for the metric to work.</li>
+  </ul>
+  <p class="meta">Sources: Khronos glTF material schema; I. Castaño, computing alpha mipmaps; CLO help pages on graphics and their options. Read-only investigation. No code, file or setting was changed.</p>
+</section>
+
+</main>
+
+<script>
+const NAMES = {xps:'X-Milo Pro Skin-Suit', xmp:'X-Milo Pro Bib', afp:'Apex Flex Pullover', atw:'Aero-Tech Windbreaker', atj:'Armor-Tech Jacket', wzu:'Women Zip-Up Vest', aj:'The Aggressor Jersey', ajm:'The Aggressor Jersey Men', asb:'Arisan Sports Bra', au:'The Aggressor Uniform', cch:'Capsule Core Hoodie', css:'Classic Soccer Shirt', ect:'Endura Crop Top', et:'Endurance Tracksuit', gtd:'Geovent Tennis Dress', mm:'Minecut Motion'};
+// Cloud session (nudge, blink 1x, steps, gpu, ink) plus the Mac session (blink 2x, stitching) and the Apex/Capsule reports read on the Mac.
+const NUDGE = [['mm',6.512,'crit'],['gtd',2.261,'ok'],['css',1.372,'crit'],['et',0.962,''],['ect',0.679,''],['au',0.409,''],['cch',0.303,''],['ajm',0.132,''],['aj',0.077,''],['atj',0.072,''],['asb',0.062,''],['xps',0.019,''],['afp',0.016,''],['wzu',0.009,''],['atw',0.004,''],['xmp',0,'']];
+const BLINK = [['xmp',0.941,2.23],['css',0.638,0.79],['atj',0.54,0.09],['wzu',0.268,0.31],['cch',0.18,0.19],['ect',0.075,0.11],['et',0.059,0.02],['aj',0.058,0.11],['ajm',0.056,0.10],['atw',0.055,0.04],['asb',0.046,0.06],['gtd',0.046,0.07],['au',0.032,0.08],['mm',0.024,0.20],['xps',0.01,0.01],['afp',0.003,0.00]];
+const STITCH = [['xmp',2.88],['gtd',2.54],['au',2.51],['ajm',0.79],['mm',0.75],['ect',0.69],['wzu',0.64],['cch',0.41],['asb',0.16],['css',0.00],['xps',0.00],['afp',0.00]];
+const STEPS = [['wzu',9.1],['atw',4.7],['asb',4.5],['afp',2.2],['xps',2.1],['atj',1.9],['ajm',1.5],['et',1.0],['ect',0.5],['mm',0.4],['au',0.4],['gtd',0.3],['xmp',0.3],['cch',0.2],['css',0.1],['aj',0.0]];
+const GPU = [['au',224],['aj',201],['ajm',192],['et',153],['xps',124],['ect',115],['wzu',102],['asb',97],['css',92],['atw',86],['xmp',86],['gtd',81],['atj',75],['mm',72],['cch',57],['afp',28]];
+const INK = [['afp',10,15],['css',75,110],['cch',13,30],['atj',10,25],['aj',33,135],['wzu',7,20],['xps',6,20],['et',38,155],['mm',9,40],['au',13,80],['atw',2,15],['ajm',10,110],['ect',3,70],['asb',1,40],['gtd',0,22],['xmp',0,11]];
+
+const NS = 'http://www.w3.org/2000/svg';
+const mk = (n, a, p) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e };
+const colorOf = (k) => k === 'crit' ? 'var(--crit)' : k === 'ok' ? 'var(--ok)' : k === 'b1' ? 'var(--bar2)' : k === 'mute' ? 'var(--bar2)' : 'var(--bar)';
+
+function chart(id, rows, opt) {
+  const host = document.getElementById(id); const plot = host.querySelector('.plot');
+  const series = rows[0].v.length; const barH = series > 1 ? 10 : 14; const rowH = series * barH + (series - 1) * 2 + 12;
+  const W = 720, L = 180, R = 60, top = 4, H = top + rows.length * rowH + 24;
+  const x = (v) => L + (W - L - R) * Math.min(v, opt.max) / opt.max;
+  const svg = mk('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': host.querySelector('h3').textContent });
+  for (const t of opt.ticks) { mk('line', { x1: x(t), x2: x(t), y1: top, y2: H - 20, style: 'stroke:var(--gridline)' }, svg); const tx = mk('text', { x: x(t), y: H - 6, 'text-anchor': 'middle' }, svg); tx.textContent = opt.fmt(t) }
+  if (opt.line != null) mk('line', { x1: x(opt.line), x2: x(opt.line), y1: top, y2: H - 20, style: 'stroke:var(--crit);stroke-width:1.5', 'stroke-dasharray': '4 3' }, svg);
+  rows.forEach((r, i) => {
+    const y0 = top + i * rowH;
+    const lab = mk('text', { x: L - 10, y: y0 + rowH / 2 - 2, 'text-anchor': 'end', class: 'lab', 'dominant-baseline': 'middle' }, svg); lab.textContent = r.label;
+    r.v.forEach((v, s) => {
+      const y = y0 + 4 + s * (barH + 2);
+      mk('rect', { x: L, y, width: Math.max(1, x(v) - L), height: barH, rx: 2, style: `fill:${colorOf(r.c[s])}` }, svg);
+      const t = mk('text', { x: x(v) + 6, y: y + barH / 2, 'dominant-baseline': 'middle' }, svg); t.textContent = opt.val(v, r, s);
+    });
+  });
+  plot.appendChild(svg);
+  const d = document.createElement('details'); d.className = 'plainbox';
+  d.innerHTML = `<summary>Show as table</summary><div><div class="table-wrap"><table><thead><tr><th>Garment</th>${opt.cols.map((c) => `<th class="num">${c}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr><td>${r.label}</td>${r.v.map((v, s) => `<td class="num">${opt.val(v, r, s)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+  host.appendChild(d);
+}
+
+chart('ch-nudge', NUDGE.map(([g, v, k]) => ({ label: NAMES[g], v: [v], c: [k === 'crit' ? 'crit' : k === 'ok' ? 'ok' : 'mute'] })), { max: 7, ticks: [0, 1, 2, 3, 4, 5, 6, 7], fmt: (t) => `${t}%`, val: (v) => `${v.toFixed(2)}%`, cols: ['Changes'] });
+chart('ch-blink', BLINK.map(([g, a, b]) => ({ label: NAMES[g], v: [a, b], c: ['b1', 'b2'] })), { max: 2.4, ticks: [0, 0.5, 1, 1.5, 2], fmt: (t) => `${t}%`, val: (v) => `${v.toFixed(2)}%`, cols: ['Cloud 1×', 'Mac 2×'] });
+chart('ch-stitch', STITCH.map(([g, v]) => ({ label: NAMES[g], v: [v], c: ['b2'] })), { max: 3, ticks: [0, 1, 2, 3], fmt: (t) => `${t}%`, val: (v) => `${v.toFixed(2)}%`, cols: ['Returns'] });
+chart('ch-steps', STEPS.map(([g, v]) => ({ label: NAMES[g], v: [v], c: [v < 2 ? 'crit' : 'b2'] })), { max: 10, ticks: [0, 2, 4, 6, 8, 10], line: 2, fmt: (t) => `${t}`, val: (v) => `${v.toFixed(1)} steps`, cols: ['Grid steps'] });
+chart('ch-gpu', GPU.map(([g, v]) => ({ label: NAMES[g], v: [v], c: [v >= 190 ? 'crit' : 'b2'] })), { max: 260, ticks: [0, 64, 128, 192, 256], line: 256, fmt: (t) => `${t}`, val: (v) => `${v} MB`, cols: ['MB'] });
+chart('ch-ink', INK.map(([g, a, b]) => ({ label: NAMES[g], v: [100 * a / b], c: ['b2'], a, b })), { max: 100, ticks: [0, 25, 50, 75, 100], fmt: (t) => `${t}%`, val: (v, r) => `${r.a} of ${r.b}`, cols: ['Pairs'] });
+
+const SC = [
+  ['Shrink robot', 8, 8, 'Runs every step, measures a lot and explains it in plain words; some scans fail quietly.'],
+  ['Loading', 8, 8, 'Picture first, decoders proven live, clear messages.'],
+  ['Lighting and studio', 6, 6, 'Sensible studio setup, but nothing calms knit sparkle.'],
+  ['Safety gates', 6, 6, 'Good structural refusals, and none that look at the picture.'],
+  ['Material handling', 5, 4, 'Careful see-through rules, but thin thread is cut away on 12 garments and one all-over print took the 2048 cap.'],
+  ['Overlay scan and viewer nudge', 5, 4, 'The near-plane fix works; the scan looks only 2 mm up and the nudge hides real parts at the normal view.'],
+  ['Transparency order', 3, 3, 'A built-in limit of the tools: see-through layers are sorted as whole pieces.']];
+document.getElementById('scores-list').innerHTML = SC.map(([n, before, v, w]) => `<div class="score"><span>${n}</span><span class="bar" role="img" aria-label="${n}: ${v} out of 10"><i style="width:${v * 10}%"></i></span><span class="v">${v}${before !== v ? `<small style="color:var(--muted);font-weight:400"> ←${before}</small>` : ''}</span><small class="why">${w}</small></div>`).join('');
+</script>
