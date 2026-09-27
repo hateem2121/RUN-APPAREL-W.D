@@ -125,20 +125,21 @@ date ("the 2026-09-05 product-page audit"), which is deliberate, not a broken li
 ## Session logs
 
 Narrative records of expensive debugging, kept because re-deriving them costs days.
-Newest first.
+Newest first. Moved into `docs/archive/sessions/` on 2026-09-26: they are records of a day,
+not documents anyone keeps current.
 
 | Date | What it covers |
 |---|---|
-| [2026-08-28](SESSION-2026-08-28.md) | CLO export settings and the catalogue census |
-| [2026-08-27](SESSION-2026-08-27.md) | The garment flicker, and what it actually was |
-| [2026-08-06](SESSION-2026-08-06.md) | The cached 404 — HEAD said 200 while GET said 404 |
-| [2026-08-05](SESSION-2026-08-05.md) | Artwork damage: found, rendered, fixed |
-| [2026-08-04](SESSION-2026-08-04.md) | Pipeline tuning |
-| [2026-08-03](SESSION-2026-08-03.md) | Every published colour name was wrong |
-| [2026-07-31](SESSION-2026-07-31.md) | Why fixtures that cannot fail keep letting bugs through |
-| [2026-07-29](SESSION-2026-07-29.md) | The first real garment; five bugs; a data-loss incident |
-| [2026-07-28](SESSION-2026-07-28.md) | Texture-aware decimation; CI token scope |
-| [2026-07-27](SESSION-2026-07-27.md) | Why raw uploads never worked |
+| [2026-08-28](archive/sessions/SESSION-2026-08-28.md) | CLO export settings and the catalogue census |
+| [2026-08-27](archive/sessions/SESSION-2026-08-27.md) | The garment flicker, and what it actually was |
+| [2026-08-06](archive/sessions/SESSION-2026-08-06.md) | The cached 404 — HEAD said 200 while GET said 404 |
+| [2026-08-05](archive/sessions/SESSION-2026-08-05.md) | Artwork damage: found, rendered, fixed |
+| [2026-08-04](archive/sessions/SESSION-2026-08-04.md) | Pipeline tuning |
+| [2026-08-03](archive/sessions/SESSION-2026-08-03.md) | Every published colour name was wrong |
+| [2026-07-31](archive/sessions/SESSION-2026-07-31.md) | Why fixtures that cannot fail keep letting bugs through |
+| [2026-07-29](archive/sessions/SESSION-2026-07-29.md) | The first real garment; five bugs; a data-loss incident |
+| [2026-07-28](archive/sessions/SESSION-2026-07-28.md) | Texture-aware decimation; CI token scope |
+| [2026-07-27](archive/sessions/SESSION-2026-07-27.md) | Why raw uploads never worked |
 
 ## Audit working files
 

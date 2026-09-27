@@ -11,7 +11,7 @@ import type { Document, Node as GNode, Primitive } from '@gltf-transform/core'
  * turns the skirt 100% white, exposing the layer behind it. The two fight for the depth
  * test, the winner changes per pixel and per frame, and the pale layer punches through.
  * It is NOT in any texture: every base-colour image was measured and none has light
- * flecks on a dark field. See docs/SESSION-2026-08-28.md section 0.
+ * flecks on a dark field. See docs/archive/sessions/SESSION-2026-08-28.md section 0.
  *
  * ⚠️ WHY NOT MATCH ON THE MATERIAL NAME. `Material_Graphic` is the name on the one
  * garment that was looked at, and this repo has already shipped a name-based artwork

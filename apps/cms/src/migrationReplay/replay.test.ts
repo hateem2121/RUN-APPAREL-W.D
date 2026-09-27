@@ -33,7 +33,7 @@ import {
  * about, which is exactly why it passed. So the assertion here is generic: seed
  * every table, then check every table.
  *
- * `docs/SESSION-2026-07-29.md` records this harness as the fix. It was never
+ * `docs/archive/sessions/SESSION-2026-07-29.md` records this harness as the fix. It was never
  * committed — this is it, arriving late.
  */
 

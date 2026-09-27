@@ -10,7 +10,7 @@
  * (blank fabric reads 1.05–1.20), 3.10 and 6.12 on the two that work.
  *
  * REPORT, NEVER GUESS. Two automatic fixes were tried and both painted the wrong prints
- * white (see docs/SESSION-2026-08-28.md): a white stencil × a dark factor is exactly how a
+ * white (see docs/archive/sessions/SESSION-2026-08-28.md): a white stencil × a dark factor is exactly how a
  * COLOURED print is authored, and "matches a cloth colour" is only wrong when it matches
  * the cloth BENEATH — Minecut's slogan sits on a white band and matches the grey skirt.
  * So this measures each print against the cloth immediately behind it, which only the

@@ -48,12 +48,13 @@ only the traps that have caused real incidents. **Four** more load automatically
 when you work in those directories — this said "two" until 2026-08-31, so half of
 them were invisible to anyone reading only this page:
 
-- [`apps/viewer/CLAUDE.md`](apps/viewer/CLAUDE.md) — CSP, `_headers`, the two
-  `<model-viewer>` DOM traps
+- [`apps/viewer/CLAUDE.md`](apps/viewer/CLAUDE.md) — the viewer's index: its 34 traps
+  (CSP, `_headers`, `<model-viewer>`, layout) are in four `viewer-*` rules it lists
 - [`tools/asset-pipeline/CLAUDE.md`](tools/asset-pipeline/CLAUDE.md) — the whole
-  pipeline procedure, the evals, the raw garment
-- [`apps/cms/CLAUDE.md`](apps/cms/CLAUDE.md) — Payload CLI against production D1,
-  migrations, and why `withPayload` overrides headers you set in a handler
+  pipeline procedure and the raw garment; its traps are in three `pipeline-*` rules
+- [`apps/cms/CLAUDE.md`](apps/cms/CLAUDE.md) — Payload CLI against production D1 and
+  why `withPayload` overrides headers you set in a handler; migrations, scripted writes
+  and the website are in `d1-migrations`, `cms-scripted-writes` and `cms-site` rules
 - [`.github/CLAUDE.md`](.github/CLAUDE.md) — the workflow traps, including that an
   unparseable workflow is not a failed check and a `permissions:` block REPLACES
   the defaults rather than adding to them

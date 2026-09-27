@@ -66,11 +66,11 @@ export const ALLOWED_ABSENT = new Map([
   ],
   [
     '.github/workflows/artwork-real.yml',
-    'cited in the past tense by docs/RUNBOOK.md and docs/SESSION-2026-08-06.md, both of which say it was DELETED on 2026-08-07 because the R2 copy it pulled expires after 14 days and the surviving copy is on a laptop no runner can reach.',
+    'cited in the past tense by docs/RUNBOOK.md and docs/archive/sessions/SESSION-2026-08-06.md, both of which say it was DELETED on 2026-08-07 because the R2 copy it pulled expires after 14 days and the surviving copy is on a laptop no runner can reach.',
   ],
   [
     'patches/@payloadcms__storage-r2@3.86.0.patch',
-    'the version the patch carried when docs/SESSION-2026-07-27.md was written. It moved to 3.88.0 with Payload; the session log is a record of that day, not an index.',
+    'the version the patch carried when docs/archive/sessions/SESSION-2026-07-27.md was written. It moved to 3.88.0 with Payload; the session log is a record of that day, not an index.',
   ],
   [
     'patches/@payloadcms__storage-r2@3.88.0.patch',

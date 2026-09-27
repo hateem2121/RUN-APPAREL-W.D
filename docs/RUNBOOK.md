@@ -691,7 +691,7 @@ hash) and logs no CSP error.
 > ⚠️ **This section stated the wrong cause and the wrong fix until 2026-08-08.**
 > It blamed Cloudflare **Web Analytics** "Automatic Setup" and told you to disable
 > it in the dashboard. Both were wrong, and the correction — made on 2026-08-06 in
-> `CLAUDE.md` and `docs/SESSION-2026-08-05.md` — never reached this file. Anyone
+> `CLAUDE.md` and `docs/archive/sessions/SESSION-2026-08-05.md` — never reached this file. Anyone
 > opening the runbook during an incident was sent to a toggle that does nothing.
 > Recorded rather than quietly deleted, because the wrong diagnosis is the
 > instructive part: it was **inferred from the beacon's presence** instead of read
@@ -1827,7 +1827,7 @@ egress is free).
 > The whole rollback above rests on **free Bot Fight Mode being ON**. It was
 > turned **OFF on 2026-08-06** — `fight_mode: false`, set and verified through the
 > zone `bot_management` endpoint — as a side effect of fixing the CSP violation
-> (`docs/SESSION-2026-08-06.md` §11 and CLAUDE.md). Nobody re-tested the cutover
+> (`docs/archive/sessions/SESSION-2026-08-06.md` §11 and CLAUDE.md). Nobody re-tested the cutover
 > afterwards, so "needs Cloudflare Pro (~$20/mo)" is a **conclusion drawn under
 > conditions that have since changed**, not a re-measured fact.
 >

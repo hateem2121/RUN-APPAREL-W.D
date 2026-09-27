@@ -156,3 +156,23 @@ file is kept at `docs/archive/agent-memory/2026-09-26-root-CLAUDE.md`.
 | Do not push twice; reading a cancelled run | Root, short; `.claude/rules/deploy-and-live-checks.md` |
 | The apex site and the private PDF links | Root keeps the two 🔴 lines; `.claude/rules/apex-and-private-pdfs.md` |
 | Style: comments explain why | Root |
+
+## Where the nested files' traps went (2026-09-26)
+
+The same day, three nested files moved their detail, word for word, into path rules that
+load only with the files they govern. Nothing was reworded or dropped; the originals are in
+`docs/archive/agent-memory/`. `.github/CLAUDE.md` was left whole on purpose: it already loads
+only for workflow edits, every one of its traps applies to them, and its central rule — two
+workflows duplicate the same gates — would be split across files by a move.
+
+| File | Before | After | Where the detail went |
+|---|---|---|---|
+| `apps/viewer/CLAUDE.md` | 576 lines, 34 traps | ~100 lines, an index | `viewer-model-viewer.md` (10), `viewer-layout.md` (16), `viewer-headers.md` (6), `viewer-bundling.md` (2) |
+| `tools/asset-pipeline/CLAUDE.md` | 577 lines, 24 traps | ~195 lines, an index | `pipeline-materials.md` (9), `pipeline-geometry.md` (8), `pipeline-evals.md` (7); the lockfile section to `shrink-container.md` |
+| `apps/cms/CLAUDE.md` | 365 lines, 13 traps | ~160 lines, the 13 traps | `cms-site.md`, `cms-scripted-writes.md`, and three migration sections to `d1-migrations.md` |
+
+Two things to know. The pipeline rules also load for `packages/shared/src/shrink.ts`, which
+sets the robot's flags and loaded none of these traps before. And `scripts/quoted-settings.mjs`
+reads only TRACKED files, so a new rule is unchecked until `git add` — a green run before that
+proves nothing about it (measured while making this move: 37 notes before staging, 45 after).
+

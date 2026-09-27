@@ -302,7 +302,7 @@ Brief: independently verify the four upload defects fixed on 2026-07-27, trustin
 nothing. All four held up, and were confirmed **live in production** rather than
 only in source. The audit then found two more defects downstream that would have
 made the first end-to-end run fail, plus one false claim in these very docs.
-Full narrative: [SESSION-2026-07-28.md](SESSION-2026-07-28.md).
+Full narrative: [archive/sessions/SESSION-2026-07-28.md](archive/sessions/SESSION-2026-07-28.md).
 
 ### 1. Decimation now weighs texture error, not mesh borders
 
@@ -327,7 +327,7 @@ synthetic surface. Leaving a floor costs a few lines and removes the possibility
 of a garment shape we have not anticipated coming out worse than before.
 
 Calibration table (synthetic 243 k-triangle draped surface, non-linear unwrap,
-control = 1.3e-6): see [SESSION-2026-07-28.md](SESSION-2026-07-28.md) and
+control = 1.3e-6): see [archive/sessions/SESSION-2026-07-28.md](archive/sessions/SESSION-2026-07-28.md) and
 `tools/asset-pipeline/README.md`. Headline: at equal size the texture-aware path
 has ~26 % lower p99 texture error, and it reaches comparable protection with
 2.9–4.8× fewer triangles.
@@ -494,7 +494,7 @@ production compresses, seed compressed. If production prints, seed a print.
 
 ### 4. The backlog
 
-**The migration replay harness did not exist.** `SESSION-2026-07-29.md` records
+**The migration replay harness did not exist.** `archive/sessions/SESSION-2026-07-29.md` records
 it as the fix for the data-loss incident; nothing was ever committed, so the
 incident could recur exactly as before. It now replays every migration against
 real SQLite with **foreign keys ON**, seeds every table generically, and fails if
@@ -710,7 +710,7 @@ builds green.
 
 # 2026-08-04 — the root cause, found by ticking Retry
 
-Full detail in [SESSION-2026-08-04.md](SESSION-2026-08-04.md). Ten commits.
+Full detail in [archive/sessions/SESSION-2026-08-04.md](archive/sessions/SESSION-2026-08-04.md). Ten commits.
 
 The session acted on the one recommendation the 2026-08-03 audit could not carry
 out itself, and the **refusal** that came back was the finding.
@@ -785,7 +785,7 @@ fix. One Retry tick on raw upload #1 tests the fix and replaces it. See
 
 # 2026-08-05 — the artwork issue closes, and what it was hiding
 
-Full detail in [SESSION-2026-08-05.md](SESSION-2026-08-05.md).
+Full detail in [archive/sessions/SESSION-2026-08-05.md](archive/sessions/SESSION-2026-08-05.md).
 
 ## Closed, and SEEN
 
@@ -851,7 +851,7 @@ builds. D1 backup and before/after payloads captured.
 # 2026-08-06 — the gates learn to read
 
 An agent-tooling audit that turned into closing the legibility gap. Full detail in
-`docs/SESSION-2026-08-06.md`; this is the retrospective.
+`docs/archive/sessions/SESSION-2026-08-06.md`; this is the retrospective.
 
 ## The shape of the day
 

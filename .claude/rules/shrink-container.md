@@ -41,3 +41,48 @@ Moved from the root `CLAUDE.md` on 2026-09-26, word for word except where marked
   enforcing the tag instead.
 - **🟢 A CLO 7.0 export arrives as one GLB PER COLOURWAY** (`_0.._N`); `pipeline merge`
   joins them, and **`apps/shrink` never calls it**. See `tools/asset-pipeline/CLAUDE.md`.
+
+## `tools/asset-pipeline/` has TWO lockfiles, and only one of them pnpm maintains
+
+**If you change `tools/asset-pipeline/package.json`, you must regenerate
+`package-lock.json` by hand, or the container deploy fails on `main`.**
+
+`pnpm-lock.yaml` is the workspace's. `package-lock.json` here is **npm's**, is
+consumed only by `apps/shrink/Dockerfile`, and **no workspace tooling ever touches
+it** — so a dependency bump made in the workspace desynchronises it silently.
+
+Measured 2026-08-12 on the dependency refresh merged as `9c22a2a`: five packages
+drifted (`@playwright/test` 1.62.0→1.62.1, `@types/node` 26.1.1→26.2.0, `tsx`
+4.23.1→4.23.12, `playwright` and `playwright-core` 1.62.0→1.62.1) and the Docker
+build died on `npm ci` with *"can only install packages when your package.json
+and package-lock.json are in sync"*.
+
+🟢 **Note where it did not surface — this was the whole trap.** `lint`, `typecheck`
+5/5, 621 tests, `build`, and the container's own `tsc --noEmit` were *all green*,
+because **none of them run `npm ci`**. `.claude/rules/shrink-container.md` already says
+`apps/shrink/container` "is not a workspace member… it has its own CI typecheck
+step"; the typecheck step was never the gap. `npm ci` is, and it lives one
+directory away, here.
+
+✅ **CAUGHT LOCALLY.** `scripts/check-lockfile-sync.mjs`
+reproduces `npm ci`'s own sync rule with no npm, no network and no install, and
+runs inside `pnpm test` via `apps/cms/src/lockfileSync.test.ts`. It also fails on
+the `"resolved": "file:"` paths that appear when the lockfile is regenerated
+inside the pnpm workspace — the other half of the procedure below. **Still
+regenerate by hand when you change `package.json`;** the check only makes
+forgetting cost seconds instead of a deploy.
+
+Regenerate 🟡 **in a temp dir, never in the workspace** — pnpm's symlinked
+`node_modules` makes npm write `file:` paths that do not exist inside the image
+(the reason is also stated in the Dockerfile above the failing line):
+
+```bash
+cd $(mktemp -d) && cp ~/Sites/Model-Viewer-main/tools/asset-pipeline/package.json . \
+  && npm install --package-lock-only
+```
+
+Then copy `package-lock.json` back and check three things before committing:
+every version matches `package.json`, `npm ci --omit=dev --no-audit --no-fund`
+exits 0, and `grep -c '"resolved": "file:' package-lock.json` returns 0.
+
+*(Moved from `tools/asset-pipeline/CLAUDE.md` on 2026-09-26, word for word.)*

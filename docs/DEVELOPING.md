@@ -70,14 +70,14 @@ list. For anything that looks like a security problem, follow
 [`SECURITY.md`](../SECURITY.md) and **do not open an issue**.
 
 **Session logs** — narrative records of expensive debugging, kept because
-re-deriving them costs days: [`docs/SESSION-2026-07-27.md`](SESSION-2026-07-27.md)
-(why raw uploads never worked) · [`docs/SESSION-2026-07-28.md`](SESSION-2026-07-28.md)
+re-deriving them costs days: [`docs/archive/sessions/SESSION-2026-07-27.md`](archive/sessions/SESSION-2026-07-27.md)
+(why raw uploads never worked) · [`docs/archive/sessions/SESSION-2026-07-28.md`](archive/sessions/SESSION-2026-07-28.md)
 (audit of those fixes; texture-aware decimation; CI token scope) ·
-[`docs/SESSION-2026-07-29.md`](SESSION-2026-07-29.md) (the first real
+[`docs/archive/sessions/SESSION-2026-07-29.md`](archive/sessions/SESSION-2026-07-29.md) (the first real
 garment; five first-run bugs; a data-loss incident) ·
-[`docs/SESSION-2026-07-31.md`](SESSION-2026-07-31.md) (artwork fixes, and
+[`docs/archive/sessions/SESSION-2026-07-31.md`](archive/sessions/SESSION-2026-07-31.md) (artwork fixes, and
 why fixtures that cannot fail keep letting bugs through) ·
-[`docs/SESSION-2026-08-03.md`](SESSION-2026-08-03.md) (production audit —
+[`docs/archive/sessions/SESSION-2026-08-03.md`](archive/sessions/SESSION-2026-08-03.md) (production audit —
 the live site was serving the wrong garment in wrongly-named colours with a torn
 wordmark; automatic colour naming and a blocking artwork gate).
 

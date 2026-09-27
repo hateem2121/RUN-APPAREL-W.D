@@ -43,7 +43,7 @@ describe('findVisualProblems', () => {
     expect(findVisualProblems('```md\n![](a.png)\n```', 'x.md', yes)).toEqual([])
   })
   it('ignores an <img> written as inline code, which is prose about a tag', () => {
-    // docs/SESSION-2026-08-05.md: "the `<img>` is a grid item" — found by the first run.
+    // docs/archive/sessions/SESSION-2026-08-05.md: "the `<img>` is a grid item" — found by the first run.
     expect(findVisualProblems('the `<img>` is a grid item', 'x.md', yes)).toEqual([])
     expect(findVisualProblems('write `![](a.png)` like this', 'x.md', yes)).toEqual([])
   })

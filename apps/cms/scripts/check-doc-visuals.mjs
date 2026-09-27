@@ -21,7 +21,7 @@ const GENERIC_ALT = /^(image|img|picture|photo|screenshot|diagram|figure|logo)\.
 /**
  * Blank out fenced AND inline code, keeping line breaks so line numbers stay true.
  * Inline code is prose about a tag, not a picture: the first run flagged "the `<img>`
- * is a grid item" in docs/SESSION-2026-08-05.md.
+ * is a grid item" in docs/archive/sessions/SESSION-2026-08-05.md.
  */
 function withoutFences(markdown) {
   const blank = (m) => m.replace(/[^\n]/g, ' ')
