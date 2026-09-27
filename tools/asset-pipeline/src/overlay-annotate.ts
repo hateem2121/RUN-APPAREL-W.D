@@ -1,6 +1,7 @@
 import { isThreadOrHardwareName } from './artwork-geometry'
 import {
-  isBiasInBand,
+  isFactorInBand,
+  isUnitsInBand,
   MAX_ABS_BIAS,
   MIN_ABS_BIAS,
   OVERLAY_AUTO_CONFIDENCE,
@@ -32,8 +33,11 @@ const MAGIC_GLTF = 0x46546c67
 const CHUNK_JSON = 0x4e4f534a
 const CHUNK_BIN = 0x004e4942
 
-/** Bumped when the detector's thresholds change, so a stale annotation is identifiable. */
-export const DETECTOR_VERSION = 'overlay-depth@1'
+/**
+ * Bumped when the detector's thresholds or the value it writes change, so a stale
+ * annotation is identifiable. @2 (2026-09-27): factor 0 / units -64 replaced -8/-8.
+ */
+export const DETECTOR_VERSION = 'overlay-depth@2'
 
 /** The default alpha-mode filter: none. See AnnotateOptions.alphaModes. */
 export const ALL_ALPHA_MODES: readonly string[] = ['OPAQUE', 'MASK', 'BLEND']
@@ -65,6 +69,8 @@ export interface OverlayOverride {
   material: string
   force: 'bias' | 'skip'
   factor?: number
+  /** Defaults to OVERLAY_BIAS_UNITS. Until 2026-09-27 an override's factor was copied here. */
+  units?: number
   note: string
 }
 
@@ -317,15 +323,21 @@ export function annotateGlbOverlays(
     if (!material) continue
     const override = overrideFor(reading.materialName)
     const factor = override?.factor ?? OVERLAY_BIAS_FACTOR
-    if (!isBiasInBand(factor))
+    const units = override?.units ?? OVERLAY_BIAS_UNITS
+    if (!isFactorInBand(factor))
       throw new Error(
         `override factor ${factor} for "${reading.materialName}" is outside the ` +
+          `[-${MAX_ABS_BIAS}, 0] band the viewer will obey`,
+      )
+    if (!isUnitsInBand(units))
+      throw new Error(
+        `override units ${units} for "${reading.materialName}" is outside the ` +
           `[-${MAX_ABS_BIAS}, -${MIN_ABS_BIAS}] band the viewer will obey`,
       )
     const bias: DepthBiasRecord = {
       ...record,
       factor,
-      units: factor,
+      units,
       reason: override ? `override: ${override.note}` : reading.verdict.reason,
       confidence: override ? 1 : reading.verdict.confidence,
       supportPrimitive: reading.supportPrimitive,

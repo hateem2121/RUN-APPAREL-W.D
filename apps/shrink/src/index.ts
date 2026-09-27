@@ -223,7 +223,14 @@ interface ShrinkReport {
   }
   fold?: { folded: { name: string; width: number; height: number; gpuBytes: number }[] }
   /** How each translucent material was resolved. Absent from an older container. */
-  solidify?: { opaqued: number; masked: number; keptBlend: number; doubleSided: number }
+  solidify?: {
+    opaqued: number
+    masked: number
+    keptBlend: number
+    /** Absent from a container older than 2026-09-27. */
+    threadSoft?: number
+    doubleSided: number
+  }
   text: string
   error?: string
 }

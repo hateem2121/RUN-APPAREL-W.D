@@ -167,6 +167,21 @@ describe('buildReportText — the artwork block', () => {
     )
   })
 
+  it('says how much stitch thread it kept soft, and stays quiet when none', () => {
+    const solidify = { opaqued: 4, masked: 2, keptBlend: 1, threadSoft: 3, doubleSided: 5 }
+    const text = buildReportText(opt({ solidify }), glb(), 'x.glb')
+    expect(text).toContain('1 kept see-through.')
+    expect(text).toContain('3 stitch thread material(s) drawn soft')
+    const none = buildReportText(opt({ solidify: { ...solidify, threadSoft: 0 } }), glb(), 'x.glb')
+    expect(none).not.toContain('stitch thread')
+  })
+
+  it('says when fabric bumps were weakened, and only then', () => {
+    const text = buildReportText(opt({ normalScale: { factor: 0.5, scaled: 4 } }), glb(), 'x.glb')
+    expect(text).toContain('Fabric bumps: 4 material(s) drawn at 50% strength')
+    expect(buildReportText(opt(), glb(), 'x.glb')).not.toContain('Fabric bumps')
+  })
+
   it('stays silent about artwork when none was at risk', () => {
     const text = buildReportText(
       opt({

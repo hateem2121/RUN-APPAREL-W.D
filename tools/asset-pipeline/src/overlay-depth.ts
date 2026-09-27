@@ -79,17 +79,33 @@ export const OVERLAY_MIN_ALIGNMENT = 0.98
 export const OVERLAY_AUTO_CONFIDENCE = 0.7
 
 /**
- * Pulled TOWARD the camera so the printed layer wins the depth test against the cloth.
+ * Pulled TOWARD the camera so the printed layer wins the depth test against the cloth —
+ * by a CONSTANT step (`units`), with NO slope term (`factor` 0).
  *
- * The SAME value the cut-out bias uses, and for the same measured reason. Biasing
- * `Material_Graphic` on Minecut Motion: none 5.196% white specks, -1 1.586%, -4 0.173%,
- * -8 0.002%, -16 0.000%. -8 is the start of a wide plateau, not a knife edge. On n001,
- * nothing changes at -8 or -64 (0.000% of pixels); the first change is 0.009% at -512.
+ * ⚠️ IT WAS -8/-8 UNTIL 2026-09-27, AND THE SLOPE TERM HID WHOLE LAYERS. A polygon
+ * offset is `factor x depth slope + units x smallest depth step`. The slope grows as a
+ * panel turns away from the camera, so on a curved skirt -8 pulled Minecut's marble print
+ * forward by more than the 2.5 mm to the white waistband in front of it: the waistband
+ * vanished at the normal view on every screen, iOS included, and the Soccer print pierced
+ * a collar 5.3 mm ahead. The detector cannot see those layers (SEARCH_MM is 2 mm), and the
+ * safety argument on classifyOverlay holds only inside the 0.3 mm z-fight window.
+ * Measured on the Mac GPU (docs/3d-viewer-forensics-2026-09-27, local session section 5):
+ * factor 0 / units -64 took Minecut and Soccer damage from 100% to 0.0-0.1% at the
+ * default, side, oblique, close and zoomed-out views, with blink unchanged; factor -4
+ * still left 13-41%. The z-fight it exists for is a 0.05-0.30 mm tie, which a constant
+ * step wins without reaching a layer millimetres away.
+ *
+ * History: -8 replaced -1 on 2026-08-28 (Minecut white specks: none 5.196%, -1 1.586%,
+ * -8 0.002%) — measured before the adaptive near plane, which now carries most of that.
  */
-export const OVERLAY_BIAS_FACTOR = -8
-export const OVERLAY_BIAS_UNITS = -8
+export const OVERLAY_BIAS_FACTOR = 0
+export const OVERLAY_BIAS_UNITS = -64
 
-/** The band the viewer will honour. Never -1 (measured too weak), never positive. */
+/**
+ * The bands the viewer will honour (`readOverlayBias` in apps/viewer). Units: -8 to -64,
+ * never -1 (measured too weak) and never positive. Factor: 0 to -64, never positive (that
+ * pushes the print BEHIND its cloth). Old files carry -8/-8, which both bands still accept.
+ */
 export const MIN_ABS_BIAS = 8
 export const MAX_ABS_BIAS = 64
 
@@ -164,9 +180,14 @@ export function classifyOverlay(m: OverlayMetrics): OverlayVerdict {
   }
 }
 
-/** Is a depth bias value one the viewer is allowed to obey? */
-export function isBiasInBand(value: number): boolean {
+/** Is a depth bias `units` value one the viewer is allowed to obey? */
+export function isUnitsInBand(value: number): boolean {
   return Number.isFinite(value) && value <= -MIN_ABS_BIAS && value >= -MAX_ABS_BIAS
+}
+
+/** Is a depth bias `factor` (the slope term) one the viewer is allowed to obey? */
+export function isFactorInBand(value: number): boolean {
+  return Number.isFinite(value) && value <= 0 && value >= -MAX_ABS_BIAS
 }
 
 // ---------------------------------------------------------------------------

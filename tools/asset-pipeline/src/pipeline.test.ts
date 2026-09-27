@@ -23,7 +23,7 @@ import {
   buildPlaceholderTee,
   generatePlaceholders,
 } from './placeholders'
-import { findArtworkAlphaProblems } from './texture-artwork'
+import { auditArtworkAlpha, findArtworkAlphaProblems } from './texture-artwork'
 import { CUTOUT_MID_FRACTION, CUTOUT_MIN_TRANSPARENT, profileAlpha } from './textures'
 import { checkVariants, inspectGlb } from './validate'
 
@@ -418,6 +418,78 @@ describe('optimizeGlb — the artwork guards engage on the real chain', () => {
    * from `transforms`, if it is pushed after the final write, or if a later pass
    * puts extras back.
    */
+  it('⚠️ --normal-scale weakens the knit bumps on the real chain, thread excepted (2026-09-27)', async () => {
+    // Soccer knit at half strength: blink 0.79% -> 0.17% front, 2.49% -> 0.82% side
+    // (docs/3d-viewer-forensics-2026-09-27, local session section 5). The experiment
+    // halved every non-thread normal map; this is the same, and it must RUN on the chain.
+    const tee = await buildPlaceholderTee(PLACEHOLDER_COLOURWAYS[0]!)
+    // A PATTERNED map, like a real knit: prune() drops a single-colour picture outright
+    // (glTF-Transform's keepSolidTextures defaults off), so a flat test map never reached
+    // the pass at all — measured while writing this test.
+    const knitRaw = Buffer.alloc(16 * 16 * 3)
+    for (let i = 0; i < 16 * 16; i++) {
+      knitRaw[i * 3] = 128 + ((i * 37) % 40) - 20
+      knitRaw[i * 3 + 1] = 128 + ((i * 53) % 40) - 20
+      knitRaw[i * 3 + 2] = 255
+    }
+    const normalPng = new Uint8Array(
+      await sharp(knitRaw, { raw: { width: 16, height: 16, channels: 3 } })
+        .png()
+        .toBuffer(),
+    )
+    const materials = tee.getRoot().listMaterials()
+    const fabric = materials[0]!
+    const knit = tee.createTexture('knit').setImage(normalPng).setMimeType('image/png')
+    fabric.setNormalTexture(knit).setNormalScale(1)
+    // Thread with a normal map of its own, on a primitive so prune keeps it.
+    const thread = tee
+      .createMaterial('Default Topstitch_3155')
+      .setNormalTexture(knit)
+      .setNormalScale(1)
+    const threadPrim = tee
+      .getRoot()
+      .listMeshes()[0]!
+      .listPrimitives()[0]!
+      .clone()
+      .setMaterial(thread)
+    tee.getRoot().listMeshes()[0]!.addPrimitive(threadPrim)
+    const src = join(dir, 'normal-scale-src.glb')
+    await writeFile(src, await (await createIO()).writeBinary(tee))
+
+    const scaleOf = async (file: string, name: string) => {
+      const { document } = await readGlb(file)
+      return document
+        .getRoot()
+        .listMaterials()
+        .find((m) => m.getName() === name)
+        ?.getNormalScale()
+    }
+    const out = join(dir, 'normal-scale-out.glb')
+    const { options } = parseOptimizeArgs([src, '--out', out, '--meshopt', '--normal-scale', '0.5'])
+    const result = await optimizeGlb(src, out, options)
+    expect(result.normalScale, 'the pass did not run on the chain').toMatchObject({
+      factor: 0.5,
+      scaled: 1,
+    })
+    expect(await scaleOf(out, fabric.getName())).toBeCloseTo(0.5)
+    expect(await scaleOf(out, 'Default Topstitch_3155')).toBeCloseTo(1)
+
+    // NEGATIVE CONTROL: without the flag nothing moves, so the assertion above can fail.
+    const plain = join(dir, 'normal-scale-plain.glb')
+    const { options: noFlag } = parseOptimizeArgs([src, '--out', plain, '--meshopt'])
+    expect((await optimizeGlb(src, plain, noFlag)).normalScale).toBeUndefined()
+    expect(await scaleOf(plain, fabric.getName())).toBeCloseTo(1)
+  }, 60_000)
+
+  it('--normal-scale only ever WEAKENS, and refuses garbage', () => {
+    // Nothing was measured above 1; a stronger bump is more flicker, not less.
+    for (const bad of ['0', '-0.5', '1.5', 'half']) {
+      expect(() => parseOptimizeArgs(['x.glb', '--normal-scale', bad]), bad).toThrow()
+    }
+    expect(parseOptimizeArgs(['x.glb', '--normal-scale', '1']).options.normalScale).toBe(1)
+    expect(() => assertFlagsOnly(['--normal-scale', '0.5'])).not.toThrow()
+  })
+
   it('strips CLO root extras on the real chain, not just in isolation', async () => {
     const tee = await buildPlaceholderTee(PLACEHOLDER_COLOURWAYS[0]!)
     // The shape a real CLO export carries — see strip-root-extras.ts for the census.
@@ -1246,6 +1318,76 @@ describe('solidifyMaterials (opaque + double-sided)', () => {
     expect(decal.getAlphaMode()).toBe('MASK')
     expect(decal.getAlphaCutoff()).toBe(0.5)
     expect(result).toMatchObject({ opaqued: 0, masked: 1, keptBlend: 0 })
+  })
+
+  it('⚠️ keeps CLO topstitch THREAD soft (BLEND) instead of cutting it out (2026-09-27)', async () => {
+    // A 1-pixel stitch seen from a normal distance is mostly background, so MASK at 0.5
+    // cut whole lines away: 12 of the 15 garments with thread lost it, up to 2.88% of the
+    // Bib's pixels (docs/3d-viewer-forensics-2026-09-27, local session section 2). The
+    // names are the three real CLO spellings measured there.
+    const doc = new Document()
+    const image = await decalImage()
+    const make = (name: string) =>
+      doc
+        .createMaterial(name)
+        .setAlphaMode('BLEND')
+        .setDoubleSided(false)
+        .setBaseColorTexture(
+          doc.createTexture(`${name}-tex`).setImage(image).setMimeType('image/png'),
+        )
+    const threads = [
+      make('Default Topstitch_3155'),
+      make('Topstitch 1_3320'),
+      make('ISO_101_Single_Thread_Chainstitch_1_8 Copy 1_3094'),
+    ]
+    // NEGATIVE CONTROLS: the SAME picture on a print, and on zipper hardware, still cuts out.
+    const print = make('RUN LOGO')
+    const zip = make('Zipper_Tape_2201')
+
+    const result = await solidifyMaterials(doc)
+
+    for (const thread of threads) {
+      expect(thread.getAlphaMode(), thread.getName()).toBe('BLEND')
+      // Sidedness is left as CLO wrote it, exactly as it was while thread was MASK.
+      expect(thread.getDoubleSided(), thread.getName()).toBe(false)
+    }
+    expect(print.getAlphaMode()).toBe('MASK')
+    expect(zip.getAlphaMode()).toBe('MASK')
+    expect(result).toMatchObject({ threadSoft: 3, masked: 2, keptBlend: 0 })
+  })
+
+  it('thread that was ALREADY soft (graded alpha) keeps its old treatment, double-siding included', async () => {
+    // Armor-Tech's thread was soft before 2026-09-27 and measured 0.09% blink; the thread
+    // change must not reach it.
+    const doc = new Document()
+    const texture = doc
+      .createTexture('t')
+      .setImage(await sheerImage())
+      .setMimeType('image/png')
+    const thread = doc
+      .createMaterial('Default Topstitch_3303')
+      .setAlphaMode('BLEND')
+      .setDoubleSided(false)
+      .setBaseColorTexture(texture)
+
+    const result = await solidifyMaterials(doc)
+
+    expect(thread.getAlphaMode()).toBe('BLEND')
+    expect(thread.getDoubleSided()).toBe(true)
+    expect(result).toMatchObject({ threadSoft: 0, keptBlend: 1 })
+  })
+
+  it('⚠️ the blocking gate does not refuse thread it kept soft', async () => {
+    // The gate asks resolveBlendAlpha "should this BLEND have changed?" of artwork. A
+    // thread name is never artwork (NOT_ARTWORK_NAME), so soft thread cannot be refused.
+    const doc = new Document()
+    const texture = doc
+      .createTexture('t')
+      .setImage(await decalImage())
+      .setMimeType('image/png')
+    doc.createMaterial('Topstitch 2_3181').setAlphaMode('BLEND').setBaseColorTexture(texture)
+    await solidifyMaterials(doc)
+    expect((await auditArtworkAlpha(doc)).problems).toEqual([])
   })
 
   it('leaves genuinely graded alpha on BLEND rather than destroying it', async () => {

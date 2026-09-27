@@ -53,6 +53,11 @@ import type { GlbDescription, GlbFamily } from './describe'
 const TEXTURE_FAMILY_FLAGS: readonly string[] = [
   '--max-texture',
   '2048',
+  // A cut-out's picture is spared the 2048 above (2026-09-27): the X-MILO PRO BIB's
+  // halftone went 4952x7014 -> 1446x2048 under it, and the 0.5 cut chopped every blurred
+  // dot blocky. Artwork already had 4096; this is the one kind of print that did not.
+  '--cutout-max-texture',
+  '4096',
   '--data-max-texture',
   '1024',
   '--quality',

@@ -89,8 +89,8 @@ describe('annotateGlbOverlays', () => {
     for (const index of [0, 2]) {
       expect(materials[index]?.extras?.depthBias).toMatchObject({
         enabled: true,
-        factor: -8,
-        units: -8,
+        factor: 0,
+        units: -64,
         detector: DETECTOR_VERSION,
         supportPrimitive: 'Default Fabric_2915',
       })
@@ -239,24 +239,45 @@ describe('annotateGlbOverlays', () => {
     it('⚠️ REFUSES an override outside the band the viewer will obey', () => {
       // An override the viewer silently ignores is worse than no override: the file
       // says the garment is repaired and it is not.
-      for (const factor of [-1, -4, 8, -512]) {
+      for (const factor of [1, 8, -65, -512]) {
         expect(() =>
           annotateGlbOverlays(buildGlb(SCENE), [reading()], {
             garment: 'Minecut Motion',
             overrides: [override({ material: 'Material_Graphic_330411', factor })],
           }),
-        ).toThrow(/outside the/)
+        ).toThrow(/override factor .* outside the/)
+      }
+      for (const units of [0, -1, -4, 8, -512]) {
+        expect(() =>
+          annotateGlbOverlays(buildGlb(SCENE), [reading()], {
+            garment: 'Minecut Motion',
+            overrides: [override({ material: 'Material_Graphic_330411', units })],
+          }),
+        ).toThrow(/override units .* outside the/)
       }
     })
 
     it('accepts an override inside the band and writes that value', () => {
       const { bytes } = annotateGlbOverlays(buildGlb(SCENE), [reading()], {
         garment: 'Minecut Motion',
-        overrides: [override({ material: 'Material_Graphic_330411', factor: -32 })],
+        overrides: [override({ material: 'Material_Graphic_330411', factor: -8, units: -32 })],
       })
       expect(parseJson(bytes).materials[0]?.extras?.depthBias).toMatchObject({
-        factor: -32,
+        factor: -8,
         units: -32,
+      })
+    })
+
+    it('⚠️ an override naming only a factor keeps the default units (they were once copied)', () => {
+      // Until 2026-09-27 `units` was set equal to the override's factor. With a factor
+      // of 0 that would write units 0 — no nudge at all, refused by the viewer.
+      const { bytes } = annotateGlbOverlays(buildGlb(SCENE), [reading()], {
+        garment: 'Minecut Motion',
+        overrides: [override({ material: 'Material_Graphic_330411', factor: 0 })],
+      })
+      expect(parseJson(bytes).materials[0]?.extras?.depthBias).toMatchObject({
+        factor: 0,
+        units: -64,
       })
     })
   })

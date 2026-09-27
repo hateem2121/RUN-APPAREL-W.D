@@ -176,6 +176,60 @@ describe('compressTexturesForArtwork', () => {
     // all three share one runner. Two of these timed out on the 5 s default.
   }, 60_000)
 
+  /**
+   * A halftone in miniature: soft-edged dots on clear, too soft to read as a decal and
+   * too square to read as a wordmark — so the artwork check calls it fabric, exactly as
+   * it does the X-MILO PRO BIB's 4952x7014 `Material_Graphic`.
+   */
+  async function halftonePng(width: number, height: number): Promise<Uint8Array> {
+    const raw = Buffer.alloc(width * height * 4)
+    for (let y = 0; y < height; y++)
+      for (let x = 0; x < width; x++) {
+        const dx = (x % 16) - 8
+        const dy = (y % 16) - 8
+        const d = Math.sqrt(dx * dx + dy * dy)
+        const i = (y * width + x) * 4
+        raw[i] = 20
+        raw[i + 1] = 0
+        raw[i + 2] = 0
+        raw[i + 3] = Math.round(255 * Math.max(0, Math.min(1, (6 - d) / 3)))
+      }
+    return new Uint8Array(
+      await sharp(raw, { raw: { width, height, channels: 4 } })
+        .png()
+        .toBuffer(),
+    )
+  }
+
+  it('⚠️ keeps a CUT-OUT print at the cut-out cap, not the fabric cap (2026-09-27)', async () => {
+    // Texture-heavy garments get --max-texture 2048 (strategy.ts). The Bib's halftone
+    // is a cut-out the artwork check reads as fabric, so it shipped at 1446x2048 —
+    // 8.5% of its pixels; the dots blurred, and the 0.5 cut chopped each one blocky
+    // (docs/3d-viewer-forensics-2026-09-27, local session section 2).
+    const image = await halftonePng(2200, 2400)
+    const build = (mode: 'MASK' | 'OPAQUE') => {
+      const document = new Document()
+      const texture = document.createTexture('tex_09').setImage(image).setMimeType('image/png')
+      document.createMaterial('Material_Graphic').setAlphaMode(mode).setBaseColorTexture(texture)
+      return document
+    }
+    const heightOf = async (document: Document) =>
+      (await sharp(document.getRoot().listTextures()[0]!.getImage()!).metadata()).height
+
+    const cutout = build('MASK')
+    await cutout.transform(compressTexturesForArtwork({ ...options, cutoutMaxSize: 4096 }))
+    expect(await heightOf(cutout)).toBe(2400)
+
+    // NEGATIVE CONTROLS: without the option it is capped as before, and the same picture
+    // on an OPAQUE material is fabric and still takes the fabric cap.
+    const before = build('MASK')
+    await before.transform(compressTexturesForArtwork(options))
+    expect(await heightOf(before)).toBe(2048)
+    const opaque = build('OPAQUE')
+    await opaque.transform(compressTexturesForArtwork({ ...options, cutoutMaxSize: 4096 }))
+    expect(await heightOf(opaque)).toBe(2048)
+  }, 120_000) // encoder test: see the note above
+
   it('encodes artwork larger than the same image at standard quality', async () => {
     // A direct measurement of the fidelity the artwork path buys, on an image
     // with the saturated edges 4:2:0 chroma bleeds.

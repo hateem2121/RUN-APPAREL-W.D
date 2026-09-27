@@ -13,7 +13,7 @@ import {
   type FoldResult,
   type GpuEstimate,
 } from './texture-fold'
-import { censusRawDocument, type RawCensus } from './raw-census'
+import { censusRawDocument, type RawCensus, THREAD_MATERIAL_NAME } from './raw-census'
 import type { DeadTextureRepair } from './repair-dead-textures'
 import { remapUvRanges, UV_QUANTIZE_BITS, type UvRemapResult } from './uv-remap'
 import { alignVariantTexCoords } from './variant-texcoord'
@@ -194,6 +194,18 @@ export interface OptimizeOptions {
    * texture-artwork.ts.
    */
   dataMaxTextureSize?: number | undefined
+  /**
+   * Resize cap for the picture of a cut-out (MASK) material that is not artwork — an
+   * all-over halftone. Never below `maxTextureSize`; unset changes nothing. See
+   * `cutoutMaxSize` in texture-artwork.ts for why a cut-out cannot take the fabric cap.
+   */
+  cutoutMaxTextureSize?: number | undefined
+  /**
+   * Multiply every non-thread material's normal-map strength by this, 0 < n <= 1. Unset
+   * changes nothing. Chosen PER GARMENT by a browser blink measurement, never by default
+   * — see `scaleNormalMaps`.
+   */
+  normalScale?: number | undefined
 }
 
 export const DEFAULT_MAX_TEXTURE = 2048
@@ -269,8 +281,47 @@ export interface SolidifyResult {
   masked: number
   /** Materials left on BLEND because their alpha is genuinely graded. */
   keptBlend: number
+  /**
+   * Topstitch thread left on BLEND that would otherwise have become MASK (2026-09-27):
+   * a cut-out stitch line a pixel wide vanishes from a normal distance.
+   */
+  threadSoft: number
   /** Total materials made double-sided. */
   doubleSided: number
+}
+
+export interface NormalScaleResult {
+  factor: number
+  /** Materials whose normal-map strength was multiplied by `factor`. */
+  scaled: number
+}
+
+/**
+ * Weaken the fabric's bump (normal) maps, leaving thread alone.
+ *
+ * ⚠️ WHY, AND WHY ONLY ON REQUEST (2026-09-27). A fine knit bump flickers as the garment
+ * turns: three.js smooths specular highlights from the geometric normal only, so the
+ * map's high-frequency detail aliases. On the Classic Soccer Shirt, half strength took
+ * blink 0.79% -> 0.17% front and 2.49% -> 0.82% side with the knit still visible and
+ * closer to CLO's own render; removing the map entirely went flat
+ * (docs/3d-viewer-forensics-2026-09-27, local session section 5). It is NOT a default:
+ * most garments do not blink, and the pipeline cannot measure blink — a browser can. So
+ * the Mac run measures it and, only above 0.5%, re-runs the garment FROM RAW with this
+ * flag. It never edits a finished file.
+ *
+ * Every material in the root is reached, so colourway-only materials are scaled too
+ * (the variants lesson in .claude/rules/pipeline-geometry.md). Thread is excluded, as in
+ * the measured experiment.
+ */
+export function scaleNormalMaps(document: Document, factor: number): NormalScaleResult {
+  let scaled = 0
+  for (const material of document.getRoot().listMaterials()) {
+    if (!material.getNormalTexture()) continue
+    if (THREAD_MATERIAL_NAME.test(material.getName())) continue
+    material.setNormalScale(material.getNormalScale() * factor)
+    scaled++
+  }
+  return { factor, scaled }
 }
 
 // The BLEND decision — OPAQUE_FACTOR_THRESHOLD, the DECORATIVE_ALPHA_* trio, the cutout
@@ -320,9 +371,17 @@ export interface SolidifyResult {
  */
 export async function solidifyMaterials(document: Document): Promise<SolidifyResult> {
   const materials = document.getRoot().listMaterials()
-  const result: SolidifyResult = { opaqued: 0, masked: 0, keptBlend: 0, doubleSided: 0 }
+  const result: SolidifyResult = {
+    opaqued: 0,
+    masked: 0,
+    keptBlend: 0,
+    threadSoft: 0,
+    doubleSided: 0,
+  }
 
   for (const material of materials) {
+    // Set only for thread THIS step would have cut out and now keeps soft.
+    let threadKeptSoft = false
     if (material.getAlphaMode() === 'BLEND') {
       const image = material.getBaseColorTexture()?.getImage()
       // An untextured material has no pixels to profile: zero of everything, so
@@ -336,8 +395,14 @@ export async function solidifyMaterials(document: Document): Promise<SolidifyRes
       // it. 'keep' is deliberate translucency (soft-edged alpha, an explicit sheer
       // factor, or a picture that would not decode) and the report says so; the
       // operator can still decide the garment is not sheer and re-export it.
-      const resolution = resolveBlendAlpha(alpha, factor)
-      if (resolution === 'keep') {
+      const thread = THREAD_MATERIAL_NAME.test(material.getName())
+      const resolution = resolveBlendAlpha(alpha, factor, { thread })
+      if (resolution === 'keep' && thread && resolveBlendAlpha(alpha, factor) === 'MASK') {
+        // Counted apart from keptBlend: the report calls that "kept see-through", and
+        // soft thread is not a sheer panel.
+        result.threadSoft++
+        threadKeptSoft = true
+      } else if (resolution === 'keep') {
         result.keptBlend++
       } else if (resolution === 'MASK') {
         // A real cutout. Keep the shape, lose the sorting problem.
@@ -378,7 +443,10 @@ export async function solidifyMaterials(document: Document): Promise<SolidifyRes
     const baseColour = material.getBaseColorTexture()
     const isPrintedArtwork =
       isArtworkMaterialByName(material) || (baseColour ? isArtworkTextureByName(baseColour) : false)
-    if (material.getAlphaMode() !== 'MASK' && !isPrintedArtwork) {
+    // Thread kept soft keeps CLO's sidedness, exactly as it did while it was MASK: only
+    // its transparency was measured changing (2026-09-27). Thread that was ALREADY soft
+    // (graded alpha, e.g. Armor-Tech's) is untouched by that change.
+    if (material.getAlphaMode() !== 'MASK' && !isPrintedArtwork && !threadKeptSoft) {
       material.setDoubleSided(true)
       result.doubleSided++
     }
@@ -415,6 +483,8 @@ export interface OptimizeTelemetry {
   gpu?: GpuEstimate
   /** Present only when the opaque/solidify pass ran. */
   solidify?: SolidifyResult
+  /** Present only when `--normal-scale` was given. */
+  normalScale?: NormalScaleResult
   /** CLO's internal design database, removed from the document root (2026-09-05). */
   rootExtras?: StripRootExtrasResult
   /** Present only when the topstitch pass ran. */
@@ -496,6 +566,13 @@ export async function buildOptimizeTransforms(
     })
   }
 
+  if (options.normalScale !== undefined) {
+    const factor = options.normalScale
+    transforms.push((document: Document) => {
+      telemetry.normalScale = scaleNormalMaps(document, factor)
+    })
+  }
+
   // FOLD BEFORE ENCODING (fix plan Rank 10, audit TEX-06): a 2048² roughness map that
   // holds eight values costs 21 MB of phone memory for two numbers a factor expresses.
   // Folded first, it is never encoded, never de-duplicated, never counted.
@@ -521,6 +598,9 @@ export async function buildOptimizeTransforms(
         ...(options.dataMaxTextureSize === undefined
           ? {}
           : { dataMaxSize: options.dataMaxTextureSize }),
+        ...(options.cutoutMaxTextureSize === undefined
+          ? {}
+          : { cutoutMaxSize: options.cutoutMaxTextureSize }),
         onResult: (result) => {
           telemetry.textures = result
         },
@@ -748,6 +828,8 @@ export interface OptimizeResult {
   pbr?: PbrNormalizeResult
   /** How each translucent material was resolved, when the opaque pass ran. */
   solidify?: SolidifyResult
+  /** Present only when `--normal-scale` was given (2026-09-27). */
+  normalScale?: NormalScaleResult
   /**
    * CLO's internal design database, removed from the document root (2026-09-05).
    *
@@ -819,6 +901,7 @@ export async function optimizeGlb(
     ...(telemetry.gpu ? { gpu: telemetry.gpu } : {}),
     ...(telemetry.pbr ? { pbr: telemetry.pbr } : {}),
     ...(telemetry.solidify ? { solidify: telemetry.solidify } : {}),
+    ...(telemetry.normalScale ? { normalScale: telemetry.normalScale } : {}),
     // ⚠️ THIS LINE WAS MISSING UNTIL 2026-09-05, and the omission was invisible.
     // `rootExtras` was declared on OptimizeTelemetry and assigned in
     // optimizeDocument, but never spread here — so the strip ran and its result was
@@ -885,6 +968,8 @@ const VALUE_TAKING_FLAGS = new Set([
   '--stitch',
   '--stitch-error',
   '--data-max-texture',
+  '--cutout-max-texture',
+  '--normal-scale',
   // `pnpm pipeline review --port 4180`. Listed here so assertFlagsOnly does not
   // read the port NUMBER as a bare positional and reject the command.
   '--port',
@@ -944,6 +1029,8 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
   let stitch: number | undefined
   let stitchError: number | undefined
   let dataMaxTextureSize: number | undefined
+  let cutoutMaxTextureSize: number | undefined
+  let normalScale: number | undefined
 
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]!
@@ -968,7 +1055,14 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
     else if (arg === '--stitch-error') stitchError = finiteNumber(rest[++i], '--stitch-error')
     else if (arg === '--data-max-texture')
       dataMaxTextureSize = finiteNumber(rest[++i], '--data-max-texture')
-    else if (arg === '--opaque') opaque = true
+    else if (arg === '--cutout-max-texture')
+      cutoutMaxTextureSize = finiteNumber(rest[++i], '--cutout-max-texture')
+    else if (arg === '--normal-scale') {
+      normalScale = finiteNumber(rest[++i], '--normal-scale')
+      // Only ever weaker: nothing above 1 was measured, and a stronger bump flickers more.
+      if (!(normalScale > 0 && normalScale <= 1))
+        throw new Error(`--normal-scale must be above 0 and at most 1 (got ${normalScale}).`)
+    } else if (arg === '--opaque') opaque = true
     else if (arg === '--no-opaque' || arg === '--keep-transparency') opaque = false
     else if (arg === '--no-pbr-normalize') normalizePbrOption = false
     else if (arg === '--decimate-artwork') decimateArtwork = true
@@ -997,6 +1091,8 @@ export function parseOptimizeArgs(rest: string[]): ParsedOptimizeArgs {
       stitch,
       stitchError,
       dataMaxTextureSize,
+      cutoutMaxTextureSize,
+      normalScale,
     },
   }
 }
