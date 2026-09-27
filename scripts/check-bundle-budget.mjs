@@ -138,7 +138,15 @@ const REPORT_ONLY = process.argv.includes('--report')
  * button, the full-screen dialog, its zoom surface. Measured by building the same tree
  * with and without those rules (gzip level 9, the one CSS file Vite emits):
  *     stylesheet     7,632 B  ->  8,059 B     budget 7,897 -> 8,324
- * +427 B, so the 265 B of headroom is unchanged. The dialog's SCRIPT is a lazy chunk
+ * +427 B, so the 265 B of headroom is unchanged.
+ *   ⚠️ RE-CUT THE SAME DAY: lighthouse (which measures what the PAGE loads) failed on it, so
+ *   the dialog's rules moved into their own file that loads with the lazy dialog. Now:
+ *       page CSS       7,632 -> 7,703 B   (+71, the button itself — what every visit pays)
+ *       dialog CSS          0 ->   807 B   (only when a visitor opens the picture)
+ *       stylesheet     7,632 -> 8,510 B   budget 7,897 -> 8,775 (headroom 265, unchanged)
+ *   This category adds every .css in dist, so a split file costs its own gzip overhead here
+ *   even though no single visit downloads more than before plus the button.
+ * The dialog's SCRIPT is a lazy chunk
  * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
  * existing budget: 439.6 of 462.9 KB.
  */
@@ -164,7 +172,7 @@ const BUDGETS = {
     expectEmpty: true,
   },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
-  stylesheet: { bytes: 8_324, note: 'CSS' },
+  stylesheet: { bytes: 8_775, note: 'CSS' },
 }
 
 /**

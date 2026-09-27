@@ -1,0 +1,168 @@
+/*
+ * The HD image dialog (2026-09-27) — loaded WITH the dialog, never with the page.
+ *
+ * ⚠️ WHY A FILE OF ITS OWN. `HdImageDialog.tsx` imports it, and that component is a
+ * dynamic import, so Vite emits these rules beside the dialog's lazy chunk and a visitor
+ * downloads them only when they ask for the picture. In page.css they cost every QR scan
+ * ~3 KB of CSS for a dialog most never open, and lighthouse's stylesheet budget caught
+ * exactly that on PR #77: 37,505 B against 34,875. The button's own rules stay in
+ * page.css, because the button is on the page.
+ */
+
+.hd-image__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  background: var(--bg);
+}
+
+/* Full screen: Baymard's finding is that a small lightbox on a phone is the common
+   failure, so the picture gets every pixel the bar and the arrows leave. */
+.hd-image {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+.hd-image__backdrop,
+.hd-image {
+  transition: opacity var(--ui) var(--ease);
+}
+
+.hd-image__backdrop[data-starting-style],
+.hd-image__backdrop[data-ending-style],
+.hd-image[data-starting-style],
+.hd-image[data-ending-style] {
+  opacity: 0;
+}
+
+.hd-image__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px 8px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.hd-image__title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  font-weight: 400;
+}
+
+.hd-image__close,
+.hd-image__step {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.hd-image__frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+}
+
+.hd-image__viewport {
+  position: relative;
+  overflow: hidden;
+  /* Every gesture on the picture is ours: pinch, pan and double-tap. The page behind
+     is scroll-locked by the dialog, so nothing is trapped. */
+  touch-action: none;
+  cursor: zoom-in;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.hd-image__layer {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  /* NO will-change, deliberately: it would rasterise the render once at the fitted
+     size and then STRETCH that bitmap when zoomed — a blurry "HD" image. Without it the
+     browser re-rasterises at the zoomed scale. (servedCssMotionProbe.test.ts also
+     refuses a will-change outside its allow-list.) */
+}
+
+.hd-image__layer[data-animate="true"] {
+  transition: transform var(--ui) var(--ease);
+}
+
+.hd-image__poster,
+.hd-image__render {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.hd-image__poster {
+  filter: blur(12px);
+}
+
+.hd-image__render {
+  opacity: 0;
+  transition: opacity var(--ui) var(--ease);
+}
+
+.hd-image__render[data-loaded="true"] {
+  opacity: 1;
+}
+
+.hd-image__status {
+  position: absolute;
+  bottom: 16px;
+  inset-inline: 0;
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.hd-image__steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 8px 16px 12px;
+}
+
+.hd-image__count {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps);
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hd-image__backdrop,
+  .hd-image,
+  .hd-image__layer[data-animate="true"],
+  .hd-image__render {
+    transition: none;
+  }
+}

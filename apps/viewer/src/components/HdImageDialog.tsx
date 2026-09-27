@@ -2,6 +2,8 @@ import { Dialog } from '@base-ui/react/dialog'
 import type { ViewerColourway } from '@run-apparel/shared'
 import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { type Box, IDENTITY, panBy, toggleZoomAt, type View, zoomAt } from '../lib/zoomPan'
+// Loaded with this lazy chunk only — see the header of hd-image.css.
+import '../styles/hd-image.css'
 
 interface HdImageDialogProps {
   open: boolean

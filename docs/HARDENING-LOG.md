@@ -1222,8 +1222,11 @@ camera buttons; nothing is downloaded until the visitor shows intent, and the di
 lazy) opens full screen with pinch, double-tap and wheel zoom. The row had to become two pills:
 with all four buttons in one it measured **318 px inside a 301 px plinth** at 320 px wide, and
 335–388 px at large text sizes, pushing the page sideways — `apps/viewer/e2e/hd-image.spec.ts`
-now measures the pills against the plinth, not the page edge. Stylesheet budget +427 B, exactly
-the measured growth (`scripts/check-bundle-budget.mjs`).
+now measures the pills against the plinth, not the page edge. The dialog's styles load WITH the
+lazy dialog (`apps/viewer/src/styles/hd-image.css`), after lighthouse's stylesheet budget failed
+PR #77 with them on the page (37,505 B against 34,875); the page now carries only the button's
++308 B raw / +71 B gzip. Both budgets rose by exactly that measured growth (`lighthouserc.json`,
+`scripts/check-bundle-budget.mjs`).
 
 **Processing on the Mac.** Owner decision: garments are processed on the owner's Mac ($0), by
 `scripts/process-local.mjs`, which runs the robot's own `shrinkFile`
