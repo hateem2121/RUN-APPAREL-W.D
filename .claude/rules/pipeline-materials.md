@@ -75,11 +75,25 @@ rendered print is the only judge (its "Before you change the pipeline").
   `--data-max-texture` (half `--max-texture`) is invisible and saves 5.5 MB.
   **Quartering was tried and REFUSED**: 1.67% of pixels moved by >8/255 and it
   visibly flattens the white fabric's weave, for one more megabyte.
+  🟡 **`--normal-scale <n>` (2026-09-27) is a PER-GARMENT flag, never a default.** It
+  halves a fine knit's bump strength where the weave flickers as the camera moves — Soccer
+  blink 0.79 → 0.17% front, 2.49 → 0.82% side. The pipeline cannot measure blink, so a
+  garment gets it only after a browser measurement above 0.5%, and is then RE-RUN FROM
+  RAW with the flag (`scripts/process-local.mjs --flags`); the output is never edited.
 - **🟡 An all-over print on `BLEND` is classified as sheer FABRIC and takes the 2048
   cap.** The Cycling-Bib halftone is 4952×7014 and got squashed to 1446×2048 (0.29×),
   turning round dots into blocky squares. **`--max-texture 4096` is the safe lever.**
   Do NOT instead widen `isArtworkTexture`: since 2026-09-02 it feeds the compression
   budget only, but its aspect-ratio rule is exactly what misread thread as a wordmark.
+  🟢 **Since 2026-09-27 the robot passes `--cutout-max-texture 4096` itself** for a
+  texture-family garment (`tools/asset-pipeline/src/strategy.ts`), so a cut-out print keeps
+  up to 4096 px: the Bib's halftone 1446×2048 → 2892×4096, GPU 131 MB, inside the phone
+  budget. Fabric keeps its cap.
+  🟡 **And stitch THREAD stays soft (BLEND), never MASK, since the same day**
+  (`textures.ts`, the `thread` option): a topstitch strip IS a cut-out by its pixels, and
+  MASK at 0.5 erased the thin lines on 12 of 15 garments (Bib 2.88% of its pixels,
+  Geovent 2.54%, Uniform 2.51%). A thread name is `NOT_ARTWORK_NAME`, so the artwork gate
+  still never judges it.
 - **KTX2 came out SMALLER here (20.3 MB vs 22.2 MB) and must still be REFUSED.**
   ETC1S turned the clean white bib panel **grey and blotchy**; the letters survived,
   the fabric did not — seen only by cropping the same region from both renders.

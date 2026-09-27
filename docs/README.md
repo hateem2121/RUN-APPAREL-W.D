@@ -70,6 +70,7 @@ the exclusion list silently stops being checked.
 | Run this locally for the first time | [ONBOARDING.md](ONBOARDING.md) |
 | Build, test and ship a code change (moved from the root README) | [DEVELOPING.md](DEVELOPING.md) |
 | Upload a garment and get it live | [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md) |
+| Check a CLO export before sending it — ten settings | [CLO-EXPORT-CHECKLIST.md](CLO-EXPORT-CHECKLIST.md) |
 | The RUN team's everyday steps, in detail (moved from the root README) | [STAFF-GUIDE.md](STAFF-GUIDE.md) |
 | The RUN team's picture guide — short pages, no code | [guide/README.md](guide/README.md) |
 | … see the whole trip, from design to phone | [guide/how-it-works.md](guide/how-it-works.md) |

@@ -144,3 +144,18 @@ zooming OUT cut the margin over CLO's 0.100 mm print offset to **1.5×** (5.1× 
 OVERRIDE since model-viewer rewrites `near` every camera change. KEEP the pipeline
 `depthBias` path: p001 at 0.001 mm still lands ~4×. Logos never fought — BLEND never
 writes depth.
+
+🟡 **`-8/-8` IS HISTORY FOR SOLID LAYERS SINCE 2026-09-27.** Its slope term grows with
+the surface's tilt, so on a zoomed-out camera it pulled Minecut's print through the white
+waistband 2.5 mm IN FRONT of it and pierced the Soccer collar — damage 100% at the band,
+0.0–0.1% after. A SOLID (OPAQUE) printed layer now carries factor **0**, units **−64**;
+`readOverlayBias` accepts factor −64…0 and units −64…−8, never positive, so old −8/−8
+files keep working until they are re-processed. **Cut-outs (MASK/BLEND) keep −8/−8**
+(`CUTOUT_OVERLAY_BIAS_*` in `tools/asset-pipeline/src/overlay-depth.ts`): the new value
+was measured on solid layers only, and re-processing the Bib would have moved 7 cut-outs
+nobody measured. `apps/viewer/e2e/covered-print-webgl.spec.ts` renders the covered print
+with both records in one run — the old one must punch through, the new one must not.
+🟡 **The viewer applies the nudge on `load` but schedules NO redraw**, so the first
+frame is drawn un-nudged until anything moves (the camera settle hides it). Writing a
+three.js property never schedules a frame — that spec forces one with
+`setAlphaCutoff(getAlphaCutoff())`, or both files measured identical. REPORTED, not fixed.
