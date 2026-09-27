@@ -24,3 +24,12 @@ export function sourceReferenceFor(input: {
   commit: string
   now: Date
 }): string
+
+export function withNamePlan<
+  C extends { variantId: string; name: string; slug: string; confidence: 'high' | 'low' },
+>(
+  fileColours: C[],
+  plan:
+    | { colours?: Array<{ variantId?: unknown; displayName?: unknown; slug?: unknown }> }
+    | undefined,
+): { colours: C[] } | { error: string }

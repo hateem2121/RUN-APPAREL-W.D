@@ -69,6 +69,7 @@ import {
   sourceReferenceFor,
   squashName,
   versionMismatches,
+  withNamePlan,
 } from './process-local-lib.mjs'
 
 const REPO = fileURLToPath(new URL('..', import.meta.url))
@@ -333,6 +334,21 @@ async function main() {
         `spec ${report.spec?.errors ?? '?'} errors, variants ${JSON.stringify(report.variantsInFileOrder ?? report.variants)}`,
     )
     if (refusal) refuse(`the robot would refuse this file:\n${refusal}`)
+
+    // The colour words: the owner's plan where one exists (see withNamePlan), checked on a
+    // dry run too, so a plan that does not fit the file is caught before anything is written.
+    const { toFileColours, buildImportedRow } = await import('../packages/shared/src/index.ts')
+    const namePlan = JSON.parse(readFileSync(join(REPO, 'scripts', 'colourway-names.json'), 'utf8'))
+      .products?.[slug]
+    const named = withNamePlan(toFileColours(report.variantColours), namePlan)
+    if ('error' in named) refuse(`scripts/colourway-names.json: ${named.error}`)
+    const previewRows = []
+    for (const c of named.colours) previewRows.push(buildImportedRow(c, previewRows))
+    console.log(
+      `${slug}: colour rows ${namePlan ? 'from scripts/colourway-names.json' : "from the robot's sampler (no plan)"}: ` +
+        previewRows.map((r) => `${r.variantId}=${r.slug || '(blank)'}`).join(', '),
+    )
+
     if (!APPLY) {
       console.log(
         `${slug}: dry run — nothing written to the CMS. Report: ${join(SCRATCH_ROOT, 'reports', `${slug}.txt`)}`,
@@ -343,7 +359,6 @@ async function main() {
     // 9. The Media doc, exactly as the robot creates it, then read back.
     const { describeModel, planModelAttach } = await import('../apps/shrink/src/attach.ts')
     const { planColourImport } = await import('../apps/shrink/src/colourImport.ts')
-    const { toFileColours } = await import('../packages/shared/src/index.ts')
     const filename = String(report.suggestedFilename)
     const sourceReference = sourceReferenceFor({ zipName: zip.name, zipBytes, sha256, commit, now })
     const form = new FormData()
@@ -411,7 +426,7 @@ async function main() {
       }
     }
 
-    const colourPlan = planColourImport(target, toFileColours(report.variantColours))
+    const colourPlan = planColourImport(target, named.colours)
     if (colourPlan.rows?.length) {
       await patchProduct(fresh.id, { colourways: colourPlan.rows })
       const back = await readProduct()

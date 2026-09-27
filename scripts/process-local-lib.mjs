@@ -118,3 +118,58 @@ export function sourceReferenceFor({ zipName, zipBytes, sha256, commit, now }) {
     `raw GLB sha256 ${sha256.slice(0, 16)}…).`
   )
 }
+
+/**
+ * The owner's chosen colour names, applied BEFORE the colour import runs.
+ *
+ * WHY. The import (`buildImportedRow`, packages/shared/src/importColours.ts) writes the
+ * sampler's name AND SLUG for every high-confidence colour, and a slug is never changed
+ * afterwards: it becomes the web address on a printed QR tag, and `publish-garment.mjs` only
+ * fills a BLANK one. On 2026-09-27 the sampler read THE KINETIC MATRIX JACKET's yellow, pink,
+ * teal, lime and orange colourways as "Black #000000", all at high confidence — so without
+ * this the jacket's five permanent addresses would have been black, black-2 … black-5. The
+ * owner delegated the colour words ("you choose"), so the choice lives in the committed
+ * `scripts/colourway-names.json` and is in place before anything is written.
+ *
+ * No plan → the robot's colours, untouched. A plan must name exactly the file's colours,
+ * each once, with a unique web-address slug; anything else is refused, never half-applied.
+ * The HEX stays the one measured off the file; only the words come from the plan.
+ *
+ * @param {Array<{ variantId: string, hex: string, name: string, slug: string, deltaE: number, confidence: 'high' | 'low' }>} fileColours
+ * @param {{ colours?: Array<{ variantId?: unknown, displayName?: unknown, slug?: unknown }> } | undefined} plan
+ */
+export function withNamePlan(fileColours, plan) {
+  if (!plan) return { colours: fileColours }
+  const planned = Array.isArray(plan.colours) ? plan.colours : []
+  const byVariant = new Map()
+  for (const entry of planned) {
+    const variantId = String(entry?.variantId ?? '')
+    if (byVariant.has(variantId)) return { error: `the plan names "${variantId}" twice` }
+    byVariant.set(variantId, entry)
+  }
+  const fileIds = new Set(fileColours.map((c) => c.variantId))
+  const missing = [...fileIds].filter((id) => !byVariant.has(id))
+  const extra = [...byVariant.keys()].filter((id) => !fileIds.has(id))
+  if (missing.length || extra.length) {
+    return {
+      error:
+        `the plan does not match the file's colours` +
+        (missing.length ? ` — missing ${missing.join(', ')}` : '') +
+        (extra.length ? ` — not in the file: ${extra.join(', ')}` : ''),
+    }
+  }
+  const seen = new Set()
+  const colours = []
+  for (const colour of fileColours) {
+    const entry = byVariant.get(colour.variantId)
+    const name = String(entry.displayName ?? '').trim()
+    const slug = String(entry.slug ?? '')
+    if (!name) return { error: `"${colour.variantId}" has no name in the plan` }
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug))
+      return { error: `"${slug}" (${colour.variantId}) is not a web-address word` }
+    if (seen.has(slug)) return { error: `the slug "${slug}" is used twice` }
+    seen.add(slug)
+    colours.push({ ...colour, name, slug, confidence: 'high' })
+  }
+  return { colours }
+}
