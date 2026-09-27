@@ -270,6 +270,21 @@ const PRODUCTS = {
       'bonded shoulder seams and a dropped back hem that stays put at speed.',
   },
   n002: { productCode: 'N002', productName: 'Sample Without Model', hasGlb: false },
+  // A printed layer under a band 2.5 mm in front of it (tools/asset-pipeline/src/placeholders.ts
+  // → buildCoverFixture), with the print nudge the pipeline writes today and with the -8/-8
+  // that hid the Minecut waistband. covered-print-webgl.spec.ts renders both (2026-09-27).
+  'zcover-new': {
+    productCode: 'ZCOVER-NEW',
+    productName: 'Covered Print Fixture',
+    hasGlb: true,
+    glbFile: 'placeholders/cover-new.glb',
+  },
+  'zcover-old': {
+    productCode: 'ZCOVER-OLD',
+    productName: 'Covered Print Fixture',
+    hasGlb: true,
+    glbFile: 'placeholders/cover-old.glb',
+  },
 }
 
 // Per-key request counts for the stall route below. Keyed so tests running in parallel never share a counter.
@@ -294,7 +309,7 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
       shortDescription: meta.shortDescription ?? '',
       category: 'Sportswear',
       variantMode: 'single-glb-variants',
-      glbUrl: meta.hasGlb ? `${origin}/fixtures/n001.glb` : null,
+      glbUrl: meta.hasGlb ? `${origin}/fixtures/${meta.glbFile ?? 'n001.glb'}` : null,
       posterFallback: fallback.poster,
       fabricComposition: 'Recycled polyester / elastane',
       gsm: '160 GSM',

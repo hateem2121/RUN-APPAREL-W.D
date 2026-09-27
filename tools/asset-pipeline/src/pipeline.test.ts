@@ -183,7 +183,12 @@ const FIRST = PLACEHOLDER_COLOURWAYS[0]!
 describe('placeholder generation', () => {
   it('writes one GLB and two posters per colourway', async () => {
     const out = await generatePlaceholders(join(dir, 'placeholders'))
-    expect(out.glbFiles).toHaveLength(PLACEHOLDER_COLOURWAYS.length)
+    // One tee per colourway, plus the covered-print pair apps/viewer/e2e renders (2026-09-27).
+    expect(out.glbFiles).toHaveLength(PLACEHOLDER_COLOURWAYS.length + 2)
+    expect(out.glbFiles.slice(-2).map((f) => f.split('/').pop())).toEqual([
+      'cover-new.glb',
+      'cover-old.glb',
+    ])
     expect(out.posterFiles).toHaveLength(PLACEHOLDER_COLOURWAYS.length * 2)
     const report = await inspectGlb(out.glbFiles[0]!)
     // 4 fabric boxes + the printed chest graphic + one quad per real artwork
