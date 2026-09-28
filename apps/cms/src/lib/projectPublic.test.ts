@@ -1,6 +1,7 @@
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import { EMPTY_FOOTER, mergeSiteSettings, projectFooter, toProductCard } from './projectPublic'
+import { ADMIN_MEDIA_ORIGIN, SITE_MEDIA_ORIGIN as SITE_MEDIA } from './siteMedia'
 
 describe('mergeSiteSettings', () => {
   it('uses the shared defaults when the global has never been saved', () => {
@@ -18,7 +19,7 @@ describe('mergeSiteSettings', () => {
       const merged = mergeSiteSettings({
         logo: { url: 'https://media.wear-run.help/logo.png', mimeType: 'image/png' },
       })
-      expect(merged.logoUrl).toBe('https://media.wear-run.help/logo.png')
+      expect(merged.logoUrl).toBe(`${SITE_MEDIA}/logo.png`)
       expect(merged.logoMimeType).toBe('image/png')
     })
 
@@ -133,7 +134,8 @@ describe('toProductCard', () => {
      * was the failing case, dressed as the passing one. They are absolute now, as
      * production's are, and the refusal has a test of its own below.
      */
-    const MEDIA = 'https://media.wear-run.help'
+    // What Payload emits, and what a wear-run.com page must receive (lib/siteMedia.ts).
+    const MEDIA = ADMIN_MEDIA_ORIGIN
 
     it('prefers the default colourway poster', () => {
       const card = toProductCard(
@@ -144,7 +146,7 @@ describe('toProductCard', () => {
           posterFallback: { url: `${MEDIA}/fallback.webp`, alt: 'Fallback' },
         }),
       )
-      expect(card?.posterUrl).toBe(`${MEDIA}/colour.webp`)
+      expect(card?.posterUrl).toBe(`${SITE_MEDIA}/colour.webp`)
       expect(card?.posterAlt).toBe('Wine')
     })
 
@@ -152,7 +154,7 @@ describe('toProductCard', () => {
       const card = toProductCard(
         product({ posterFallback: { url: `${MEDIA}/fallback.webp`, alt: 'F' } }),
       )
-      expect(card?.posterUrl).toBe(`${MEDIA}/fallback.webp`)
+      expect(card?.posterUrl).toBe(`${SITE_MEDIA}/fallback.webp`)
     })
 
     /*
@@ -188,7 +190,7 @@ describe('toProductCard', () => {
           colourways: [{ slug: 'wine', posterPreview: { url: `${MEDIA}/x.webp`, alt: 'Wine' } }],
         }),
       )
-      expect(withAbsolute?.posterUrl).toBe(`${MEDIA}/x.webp`)
+      expect(withAbsolute?.posterUrl).toBe(`${SITE_MEDIA}/x.webp`)
     })
 
     it('falls THROUGH a relative colourway poster to an absolute product fallback', () => {
@@ -201,7 +203,7 @@ describe('toProductCard', () => {
           posterFallback: { url: `${MEDIA}/fallback.webp`, alt: 'F' },
         }),
       )
-      expect(card?.posterUrl).toBe(`${MEDIA}/fallback.webp`)
+      expect(card?.posterUrl).toBe(`${SITE_MEDIA}/fallback.webp`)
     })
 
     it('returns null rather than a broken image when there is no poster at all', () => {
@@ -236,7 +238,8 @@ describe('toProductCard', () => {
    * garments with none, R-AU with three of five — so a mixed product is the normal case.
    */
   describe('one picture per colour', () => {
-    const MEDIA = 'https://media.wear-run.help'
+    // What Payload emits, and what a wear-run.com page must receive (lib/siteMedia.ts).
+    const MEDIA = ADMIN_MEDIA_ORIGIN
 
     it('prefers the render, falls back to the poster, and keeps row order', () => {
       const card = toProductCard(
@@ -260,12 +263,20 @@ describe('toProductCard', () => {
         {
           slug: 'wine',
           name: 'Wine',
-          image: { url: `${MEDIA}/rxps-wine-render.webp`, alt: 'Studio render', kind: 'render' },
+          image: {
+            url: `${SITE_MEDIA}/rxps-wine-render.webp`,
+            alt: 'Studio render',
+            kind: 'render',
+          },
         },
         {
           slug: 'blush',
           name: 'Blush',
-          image: { url: `${MEDIA}/rxps-blush-poster.webp`, alt: 'Blush poster', kind: 'poster' },
+          image: {
+            url: `${SITE_MEDIA}/rxps-blush-poster.webp`,
+            alt: 'Blush poster',
+            kind: 'poster',
+          },
         },
       ])
     })
@@ -285,7 +296,7 @@ describe('toProductCard', () => {
           ],
         }),
       )
-      expect(card?.posterUrl).toBe(`${MEDIA}/p.webp`)
+      expect(card?.posterUrl).toBe(`${SITE_MEDIA}/p.webp`)
     })
 
     it('refuses a Payload-relative render and falls through to the poster', () => {
@@ -311,7 +322,7 @@ describe('toProductCard', () => {
         product({ posterFallback: { url: `${MEDIA}/fallback.webp`, alt: 'F' } }),
       )
       expect(card?.colours.map((colour) => colour.image?.url ?? null)).toEqual([
-        `${MEDIA}/fallback.webp`,
+        `${SITE_MEDIA}/fallback.webp`,
         null,
       ])
     })

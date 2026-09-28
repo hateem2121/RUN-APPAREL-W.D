@@ -126,6 +126,6 @@ export function validateCatalogueUrl(value: unknown): true | string {
   } catch {
     // The example is a plain host, not /catalogue — that path is now a retired 410
     // address, and this message must not point an editor at a dead link (2026-09-15).
-    return `“${value}” is not a complete web address. It needs to start with https:// — e.g. https://wear-run.help.`
+    return `“${value}” is not a complete web address. It needs to start with https:// — e.g. https://wear-run.com.`
   }
 }

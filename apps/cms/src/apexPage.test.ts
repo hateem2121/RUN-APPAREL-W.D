@@ -172,7 +172,7 @@ describe('reading markers', () => {
 
 describe('the privacy link', () => {
   it('appears once, in the footer, right after the download link', () => {
-    expect(PRIVACY_URL).toBe('https://wear-run.help/privacy')
+    expect(PRIVACY_URL).toBe('https://wear-run.com/privacy')
     expect(html.split(privacy)).toHaveLength(2)
     expect(/<footer class="bar">\n([\s\S]*?)\n<\/footer>/.exec(html)?.[1]).toBe(
       `${download}\n${privacy}`,
@@ -193,7 +193,7 @@ describe('the message page', () => {
       'This link is not complete or no longer active. Please contact RUN Apparel for the current link.',
     )
     expect(message).toContain(`<a class="button" href="${CONTACT_URL}">Contact RUN Apparel</a>`)
-    expect(CONTACT_URL).toBe('https://wear-run.help/contact')
+    expect(CONTACT_URL).toBe('https://wear-run.com/contact')
   })
 
   it('carries nothing from any document', () => {

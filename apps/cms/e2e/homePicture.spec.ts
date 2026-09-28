@@ -92,7 +92,8 @@ test.describe('IM-12 — the home page shows a garment and the factory, nothing 
     await expect(poster).toHaveAttribute('src', /^https:\/\/media\./)
     const link = poster.locator('xpath=ancestor::a[1]')
     await expect(link).toHaveCount(1)
-    // `/<product>/<colour>` on the viewer host — the same shape the gallery links to.
-    await expect(link).toHaveAttribute('href', /^https:\/\/viewer\.[^/]+\/[^/]+\/[^/]+$/)
+    // `/products/<product>/<colour>` — the same shape the gallery links to (domain move,
+    // 2026-09-28; it was the viewer's own host until then).
+    await expect(link).toHaveAttribute('href', /^https:\/\/[^/]+\/products\/[^/]+\/[^/]+$/)
   })
 })

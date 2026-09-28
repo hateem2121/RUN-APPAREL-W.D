@@ -26,7 +26,9 @@ import { SiteSettings } from './globals/SiteSettings'
 
 const CMS_TRUSTED = {
   admin: 'https://cms.wear-run.help',
-  viewer: 'https://viewer.wear-run.help',
+  // Only the fallback: wrangler.jsonc's VIEWER_ALLOWED_ORIGINS is the real list. The
+  // garment pages are on the website's own origin since the domain move (2026-09-28).
+  viewer: 'https://wear-run.com',
 } as const
 
 const filename = fileURLToPath(import.meta.url)

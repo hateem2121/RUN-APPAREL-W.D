@@ -60,8 +60,9 @@ export const TARGETS = [
   ...LIVE_PRODUCTS.flatMap(({ slug, colourway }) => [
     {
       name: `viewer ${slug}`,
-      path: `/${slug}/${colourway}`,
-      host: 'https://viewer.wear-run.help',
+      // The website's garment folder since the domain move (2026-09-28).
+      path: `/products/${slug}/${colourway}`,
+      host: 'https://wear-run.com',
       method: 'GET',
       // Measured 0.47–0.92 s. The checklist says treat > 1.5 s as a problem; 2.5 s is
       // the ALERT line, deliberately above it — this fires an issue, and the gap

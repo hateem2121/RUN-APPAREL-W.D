@@ -17,10 +17,12 @@
  */
 import { realpathSync } from 'node:fs'
 
-export const SITE_ORIGIN = 'https://wear-run.help'
-export const VIEWER_ORIGIN = 'https://viewer.wear-run.help'
+// One origin since the domain move (2026-09-28): the site hands the viewer's /assets/ to
+// the viewer Worker (apps/cms/viewerForward.mjs), so both apps' bundles answer here.
+export const SITE_ORIGIN = 'https://wear-run.com'
+export const VIEWER_ORIGIN = 'https://wear-run.com'
 export const SITE_PAGE = `${SITE_ORIGIN}/`
-export const VIEWER_PAGE = `${VIEWER_ORIGIN}/rxps/wine`
+export const VIEWER_PAGE = `${VIEWER_ORIGIN}/products/rxps/wine`
 
 /** A real, absolute-path script src from a page's HTML, or null. */
 export function findScriptSrc(html, pathPrefix) {

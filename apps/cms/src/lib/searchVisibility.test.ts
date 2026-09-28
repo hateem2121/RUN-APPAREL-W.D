@@ -60,14 +60,39 @@ describe('what the switch does', () => {
     expect(robotsFor('visible')).toBeUndefined()
   })
 
-  it('hidden means an empty sitemap; visible lists the three pages on the given origin', () => {
-    expect(sitemapFor('hidden', 'https://wear-run.help')).toEqual([])
-    expect(sitemapFor('visible', 'https://wear-run.help').map((e) => e.url)).toEqual([
-      'https://wear-run.help',
-      'https://wear-run.help/products',
-      'https://wear-run.help/contact',
-      'https://wear-run.help/privacy',
-      'https://wear-run.help/terms',
+  it('hidden means an empty sitemap; visible lists the site pages on the given origin', () => {
+    expect(sitemapFor('hidden', 'https://wear-run.com')).toEqual([])
+    expect(sitemapFor('visible', 'https://wear-run.com').map((e) => e.url)).toEqual([
+      'https://wear-run.com',
+      'https://wear-run.com/products',
+      'https://wear-run.com/contact',
+      'https://wear-run.com/privacy',
+      'https://wear-run.com/terms',
+    ])
+  })
+
+  /**
+   * THE GARMENTS JOINED THE SITEMAP ON 2026-09-28, when they moved onto the site's own
+   * host at /products/<product>/<colour>. Until then they lived on viewer.wear-run.help,
+   * and a sitemap may only speak for the host that serves it. One entry per colour, in the
+   * catalogue's own order — each colour page is its own canonical URL (the viewer Worker
+   * writes it) — and never the colourless /products/<product>, which is the default
+   * colour's page under a second address.
+   */
+  it('lists every colour of every garment when visible, and none when hidden', () => {
+    const garments = [
+      { slug: 'rxps', colours: [{ slug: 'wine' }, { slug: 'navy' }] },
+      { slug: 'r-xmp', colours: [{ slug: 'black' }] },
+    ]
+    expect(sitemapFor('hidden', 'https://wear-run.com', garments)).toEqual([])
+    expect(
+      sitemapFor('visible', 'https://wear-run.com', garments)
+        .map((e) => e.url)
+        .slice(5),
+    ).toEqual([
+      'https://wear-run.com/products/rxps/wine',
+      'https://wear-run.com/products/rxps/navy',
+      'https://wear-run.com/products/r-xmp/black',
     ])
   })
 })

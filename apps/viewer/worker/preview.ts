@@ -1,8 +1,4 @@
-import {
-  buildViewerPath,
-  type GARMENT_PATH_PREFIX,
-  type ViewerApiSuccess,
-} from '@run-apparel/shared'
+import { buildViewerPath, GARMENT_PATH_PREFIX, type ViewerApiSuccess } from '@run-apparel/shared'
 import type { OgCard } from './og-cards'
 
 /**
@@ -64,6 +60,11 @@ export interface Preview {
    * `applyPreview` receives only a Preview and never sees the payload.
    */
   jsonLd: string
+  /**
+   * schema.org BreadcrumbList, on the website's garment folder only (null on the old
+   * viewer host, which only forwards). See buildBreadcrumbJsonLd.
+   */
+  breadcrumbJsonLd: string | null
 }
 
 /**
@@ -225,7 +226,56 @@ export function buildPreview(payload: ViewerApiSuccess, options: PreviewOptions)
     url,
     image,
     jsonLd: buildProductJsonLd(payload, { url, image }),
+    breadcrumbJsonLd:
+      prefix === GARMENT_PATH_PREFIX ? buildBreadcrumbJsonLd(payload, { origin, url }) : null,
   }
+}
+
+/**
+ * The family filter's address for a category, spelled the way the website spells it:
+ * `Teamwear & Uniforms` → `teamwear-uniforms` (apps/cms/src/lib/families.ts, where each
+ * family's `name` is the category verbatim). `src/familySlugs.test.ts` reads that file and
+ * fails if the two spellings ever part.
+ */
+export function familySlug(category: string): string {
+  return category
+    .toLowerCase()
+    .replace(/&/g, ' ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/**
+ * Home › Products › <category> › <garment>, for search results (domain move, 2026-09-28).
+ *
+ * The owner kept the category OUT of the address — it is an editable dropdown, and the
+ * address is printed on QR tags — so this is where it lives for a search engine, pointing
+ * at the /products family filter a visitor can actually open. A garment with no category
+ * gets no invented step. The last item is the canonical URL, the page that loaded.
+ */
+function buildBreadcrumbJsonLd(
+  payload: ViewerApiSuccess,
+  context: { origin: string; url: string },
+): string {
+  const category = payload.product.category.trim()
+  const products = `${context.origin}${GARMENT_PATH_PREFIX}`
+  const steps: Array<[string, string]> = [
+    ['Home', `${context.origin}/`],
+    ['Products', products],
+  ]
+  if (category) steps.push([category, `${products}?family=${familySlug(category)}`])
+  steps.push([payload.product.productName, context.url])
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: steps.map(([name, item], index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name,
+      item,
+    })),
+  }
+  return JSON.stringify(data).replace(/</g, '\\u003c')
 }
 
 /**

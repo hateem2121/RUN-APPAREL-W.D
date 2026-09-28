@@ -62,8 +62,11 @@ export const REDIRECT_HEADERS = [
 /** @type {SecurityTarget[]} */
 export const TARGETS = [
   ...[
+    'wear-run.com',
+    // These three answer a 308 to the wear-run.com copy (the site moved there on
+    // 2026-09-28); followed here, as internet.nl follows it.
+    'www.wear-run.com',
     'wear-run.help',
-    // www. answers a 308 to the apex copy; followed here, as internet.nl follows it.
     'www.wear-run.help',
     'cms.wear-run.help',
     'viewer.wear-run.help',
@@ -76,18 +79,22 @@ export const TARGETS = [
     url: `https://${host}/.well-known/security.txt`,
     kind: /** @type {const} */ ('security-txt'),
   })),
-  { name: 'www. redirect', url: 'https://www.wear-run.help/', kind: 'redirect' },
+  // Since 2026-09-28 the site's Worker adds these itself (apps/cms/redirectHeaders.mjs), on
+  // both domains; before, a Transform Rule on the .help zone did it for www. and cms. only.
+  { name: 'www. redirect', url: 'https://www.wear-run.com/', kind: 'redirect' },
+  { name: 'old site redirect', url: 'https://wear-run.help/', kind: 'redirect' },
+  { name: 'old www. redirect', url: 'https://www.wear-run.help/', kind: 'redirect' },
   { name: 'cms. redirect', url: 'https://cms.wear-run.help/', kind: 'redirect' },
   // The script guard (SE-04, decided 2026-09-18). Every public page type, and / twice so that
   // a reused nonce is visible. The admin's own policy must stay exactly as it was.
   ...['/', '/products', '/contact', '/privacy', '/terms', '/'].map((pathname, i) => ({
     name: i === 5 ? 'site / again' : `site ${pathname}`,
-    url: `https://wear-run.help${pathname}`,
+    url: `https://wear-run.com${pathname}`,
     kind: /** @type {const} */ ('page-csp'),
   })),
   {
     name: 'site 404',
-    url: 'https://wear-run.help/definitely-not-a-page',
+    url: 'https://wear-run.com/definitely-not-a-page',
     kind: 'page-csp',
     expectStatus: 404,
   },
@@ -108,30 +115,53 @@ export const TARGETS = [
   // independently re-measured here, to avoid four near-duplicate assertions for one rule.
   {
     name: 'www. -> apex (host-rule)',
-    url: 'https://www.wear-run.help/',
+    url: 'https://www.wear-run.com/',
     kind: 'host-redirect',
     expectStatus: 308,
-    expectLocation: 'https://wear-run.help/',
+    expectLocation: 'https://wear-run.com/',
   },
   {
     name: 'cms. /products -> apex',
     url: 'https://cms.wear-run.help/products',
     kind: 'host-redirect',
     expectStatus: 308,
-    expectLocation: 'https://wear-run.help/products',
+    expectLocation: 'https://wear-run.com/products',
+  },
+  // The domain move (2026-09-28): every old address forwards to the same page, for ever,
+  // because printed QR tags and sent links carry them.
+  {
+    name: 'old site path -> wear-run.com',
+    url: 'https://wear-run.help/contact',
+    kind: 'host-redirect',
+    expectStatus: 308,
+    expectLocation: 'https://wear-run.com/contact',
+  },
+  {
+    name: 'old www. path -> wear-run.com',
+    url: 'https://www.wear-run.help/products',
+    kind: 'host-redirect',
+    expectStatus: 308,
+    expectLocation: 'https://wear-run.com/products',
+  },
+  {
+    name: 'printed QR tag -> its garment page',
+    url: 'https://viewer.wear-run.help/rxps/wine',
+    kind: 'host-redirect',
+    expectStatus: 301,
+    expectLocation: 'https://wear-run.com/products/rxps/wine',
   },
   // Both answer the SITE's branded 404, never Payload's real admin or a raw API response —
   // the host-rule rewrite working. "Page not found" is the branded page's own <title>.
   {
     name: 'apex /admin is the branded 404, not the real admin',
-    url: 'https://wear-run.help/admin',
+    url: 'https://wear-run.com/admin',
     kind: 'host-redirect',
     expectStatus: 404,
     bodyContains: 'Page not found',
   },
   {
     name: 'apex /api/products is the branded 404, not a raw API response',
-    url: 'https://wear-run.help/api/products',
+    url: 'https://wear-run.com/api/products',
     kind: 'host-redirect',
     expectStatus: 404,
     bodyContains: 'Page not found',

@@ -34,8 +34,11 @@ packages/ui           The shared "Paper & Ink" design system (tokens.css, base.c
 infra/apex-404        The Worker behind the private catalogue./profile. PDF links
 ```
 
-Hosts: `viewer.wear-run.help` (viewer), `cms.wear-run.help` (admin + API),
-`wear-run.help` (website), `media.wear-run.help` (models and posters).
+Hosts (since 2026-09-28): `wear-run.com` (website; garment pages at
+`/products/<product>/<colour>`, drawn by the viewer Worker), `cms.wear-run.help` (admin +
+API), `media.wear-run.com` (models and posters for public pages; the admin uses the
+same bucket's `media.wear-run.help`). `wear-run.help` and `viewer.wear-run.help` forward
+for ever: printed QR tags carry them.
 
 **The path a garment takes:** CLO export → CMS `RawUploads` → R2 **ingest** bucket →
 queue → `apps/shrink` → Container runs `tools/asset-pipeline` → GLB + posters to R2
@@ -182,8 +185,9 @@ and the viewer.
   product identity field (`slug`, `productCode`), grep `scripts/smoke-*.mjs` and
   `ci.yml` for it — renames have broken the post-deploy gates twice.
 - 🔴 **Each PDF link code is a Worker secret: never commit, log or print one.** The rest
-  of `wear-run.com`, `mta-sts.wear-run.help` and the `/map` + `/meeting` redirects belong
-  to the owner's email-signature project: never list or delete one.
+  of `wear-run.com` (all but the apex, `www.` and `media.`), `mta-sts.wear-run.help` and the
+  `/map` + `/meeting` redirects belong to the owner's email-signature project: never list or
+  delete one.
 
 ## Keeping this file useful
 

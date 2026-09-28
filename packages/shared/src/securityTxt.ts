@@ -1,7 +1,8 @@
 /**
  * The security.txt (RFC 9116) every host serves — decided 2026-09-18, live from the merge
  * that deploys it. ONE text, served by the documents Worker (catalogue./profile. on both
- * zones), the CMS (wear-run.help and cms.; www. redirects to the apex copy) and the viewer.
+ * zones), the CMS (wear-run.com and cms.; www. and the old wear-run.help redirect to the
+ * wear-run.com copy) and the viewer's old host.
  *
  * WHY ONE SOURCE. internet.nl recommended a security.txt on all six audited hosts. Three
  * separate copies would drift the day one is renewed and the others are not — and a stale
@@ -9,13 +10,13 @@
  *
  * ⚠️ RENEWING IT (once a year). Change SECURITY_TXT_EXPIRES (at most a year ahead) and
  * SECURITY_TXT_REVIEWED, then deploy. `scripts/public-security-probe.mjs` reads every host's
- * live copy daily and fails 30 days before the expiry, so nobody has to remember. The date
- * matches wear-run.com's own security.txt (run by the email-signature project), so both
- * domains renew together.
+ * live copy daily and fails 30 days before the expiry, so nobody has to remember. Until the
+ * domain move of 2026-09-28 wear-run.com's copy was the email-signature project's, with the
+ * same date; since then this file serves that address too.
  *
- * ⚠️ CANONICAL LISTS EVERY ADDRESS THAT SERVES IT DIRECTLY. www. is absent on purpose: it
- * answers a 308 to the apex copy, and internet.nl follows that redirect
- * (`checks/tasks/securitytxt.py`, read 2026-09-18).
+ * ⚠️ CANONICAL LISTS EVERY ADDRESS THAT SERVES IT DIRECTLY. www. and wear-run.help are
+ * absent on purpose: each answers a redirect to the wear-run.com copy, and internet.nl
+ * follows it (`checks/tasks/securitytxt.py`, read 2026-09-18).
  */
 
 export const SECURITY_TXT_CONTACT = 'mailto:team@wear-run.com'
@@ -29,7 +30,7 @@ export const SECURITY_TXT_REVIEWED = '2026-09-18'
 export const SECURITY_TXT_POLICY = 'https://github.com/hateem2121/RUN-APPAREL-W.D/security/policy'
 
 export const SECURITY_TXT_CANONICAL = [
-  'wear-run.help',
+  'wear-run.com',
   'cms.wear-run.help',
   'viewer.wear-run.help',
   'catalogue.wear-run.help',

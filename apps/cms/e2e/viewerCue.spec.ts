@@ -19,7 +19,9 @@ import {
  * space, the arrow and that selector.
  */
 const CUE = 'Opens the 3D viewer \u{2197}\u{FE0E}'
-const VIEWER_LINKS = 'a[href^="https://viewer."]'
+// The garment folder since the domain move (2026-09-28). The listing (`/products`) and
+// its family filters (`/products?family=`) have no slash after the folder, so never match.
+const VIEWER_LINKS = 'a[href*="/products/"]'
 
 /**
  * Emulate AFTER a navigation, then navigate again: Firefox drops emulation set on

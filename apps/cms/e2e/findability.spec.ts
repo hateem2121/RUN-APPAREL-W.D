@@ -405,11 +405,13 @@ test.describe('FA-N-16 / FA-N-17 — the machine-readable files are served as te
     }
   })
 
-  test('llms.txt points at both hosts and states the real capacity', async ({ request }) => {
+  test('llms.txt names the garment pages and states the real capacity', async ({ request }) => {
     const body = await (await request.get('/llms.txt')).text()
     expect(body).toContain('100,000')
     expect(body).toContain('/products?family=outerwear')
-    expect(body).toMatch(/viewer\.[\w.-]+\/llms\.txt/)
+    // One host since the domain move (2026-09-28): the garment pages are this site's own.
+    expect(body).toContain('/products/<product-code>/<colorway>')
+    expect(body).not.toContain('viewer.wear-run.help')
   })
 })
 

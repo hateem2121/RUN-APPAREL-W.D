@@ -190,10 +190,36 @@ describe('the apex route split (2026-09-06)', () => {
   const patterns = (source: string) =>
     [...source.matchAll(/"pattern":\s*"([^"]+)"/g)].map((m) => m[1]).sort()
 
-  it('the CMS Worker holds the custom domain AND both wildcards', () => {
-    expect(patterns(cms)).toEqual(['cms.wear-run.help', 'wear-run.help/*', 'www.wear-run.help/*'])
+  it('the CMS Worker holds the custom domains AND both old-site wildcards', () => {
+    expect(patterns(cms)).toEqual([
+      'cms.wear-run.help',
+      'wear-run.com',
+      'wear-run.help/*',
+      'www.wear-run.com',
+      'www.wear-run.help/*',
+    ])
     expect(cms).toMatch(/"pattern":\s*"wear-run\.help\/\*",\s*"zone_name":\s*"wear-run\.help"/)
     expect(cms).toMatch(/"pattern":\s*"www\.wear-run\.help\/\*",\s*"zone_name":\s*"wear-run\.help"/)
+  })
+
+  /**
+   * ⚠️ THE DOMAIN MOVE (2026-09-28) TOOK wear-run.com's FRONT DOOR, AND ONLY THAT.
+   * The owner handed the bare domain and www. over from the email-signature project's
+   * Worker (run-domain-edge). CI's `wrangler deploy` takes any custom domain listed here
+   * from whichever Worker holds it, without asking (see the note below), so go., assets.
+   * and mta-sts. — still that project's, and its mail runs through mta-sts. — must never
+   * appear in this file.
+   */
+  it('the CMS Worker names exactly the two wear-run.com hosts the owner handed over', () => {
+    // `customDomains` is declared further down this describe; the callback runs after it.
+    expect(customDomains(cms).filter((host) => (host ?? '').endsWith('wear-run.com'))).toEqual([
+      'wear-run.com',
+      'www.wear-run.com',
+    ])
+    expect(patterns(cms).filter((p) => /(^|\.)wear-run\.com(\/|$)/.test(p ?? ''))).toEqual([
+      'wear-run.com',
+      'www.wear-run.com',
+    ])
   })
 
   /**

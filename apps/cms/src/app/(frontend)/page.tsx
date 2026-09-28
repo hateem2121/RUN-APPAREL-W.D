@@ -10,7 +10,7 @@ import { getProductCards, type ProductCard } from '../../lib/content'
 import { getSiteSettings } from '../../lib/content'
 import { FAMILIES } from '../../lib/families'
 import { HOME_DESCRIPTION } from '../../lib/pageDescriptions'
-import { buildMetadata, VIEWER_ORIGIN } from '../../lib/seo'
+import { buildMetadata, GARMENT_PAGES } from '../../lib/seo'
 import { websiteJsonLd } from '../../lib/structuredData'
 
 /**
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
  */
 function ProofGarment({ product }: { product: ProductCard | null }) {
   if (!product?.posterUrl) return null
-  const href = `${VIEWER_ORIGIN}/${product.slug}/${product.defaultColourSlug}`
+  const href = `${GARMENT_PAGES}/${product.slug}/${product.defaultColourSlug}`
   return (
     <figure className="proof__figure">
       <a className="proof__link" href={href}>

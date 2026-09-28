@@ -70,8 +70,19 @@
   // this Worker. Only host-conditioned rules in next.config.mjs tell the hostnames
   // apart; see siteHostRules.mjs. The apex DNS record must stay proxied: zone routes
   // require it, and it is the same record the PDFs have always needed.
+  //
+  // ⚠️ THE SITE MOVED TO wear-run.com ON 2026-09-28. Its bare domain and www. are custom
+  // domains taken over from the email-signature project's Worker (run-domain-edge) by the
+  // owner's decision: the deploy that ships this moves them, because CI's `wrangler deploy`
+  // takes a listed custom domain from whichever Worker holds it. go., assets. and mta-sts.
+  // stay that project's and must never be listed here (src/workerConfigs.test.ts).
+  // UNDO: re-attach wear-run.com and www.wear-run.com to run-domain-edge, which still
+  // forwards every path to wear-run.help. The two wear-run.help routes stay so the old
+  // addresses reach this Worker and forward to wear-run.com (siteHostRules.mjs).
   "routes": [
     { "pattern": "cms.wear-run.help", "custom_domain": true },
+    { "pattern": "wear-run.com", "custom_domain": true },
+    { "pattern": "www.wear-run.com", "custom_domain": true },
     { "pattern": "wear-run.help/*", "zone_name": "wear-run.help" },
     { "pattern": "www.wear-run.help/*", "zone_name": "wear-run.help" }
   ],

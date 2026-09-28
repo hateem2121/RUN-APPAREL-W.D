@@ -409,7 +409,7 @@ describe('the page list and its floors cannot drift apart', () => {
   it('takes the viewer page from DEFAULT_PRODUCT, never a typed slug', () => {
     const viewer = PAGES.find((page) => page.name.startsWith('viewer-'))
     expect(viewer?.url).toBe(
-      `https://viewer.wear-run.help/${DEFAULT_PRODUCT.slug}/${DEFAULT_PRODUCT.colourway}`,
+      `https://wear-run.com/products/${DEFAULT_PRODUCT.slug}/${DEFAULT_PRODUCT.colourway}`,
     )
   })
 

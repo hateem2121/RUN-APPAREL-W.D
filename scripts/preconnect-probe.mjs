@@ -16,8 +16,9 @@
  */
 import { realpathSync } from 'node:fs'
 
-export const PAGE_URL = 'https://wear-run.help/products'
-export const EXPECTED_HOST = 'media.wear-run.help'
+export const PAGE_URL = 'https://wear-run.com/products'
+// The public pages name the bucket by its wear-run.com address since 2026-09-28.
+export const EXPECTED_HOST = 'media.wear-run.com'
 /** The page never same-page-fetches from here — it only LINKS to it. */
 export const UNEXPECTED_HOST = 'viewer.wear-run.help'
 

@@ -597,7 +597,7 @@ test.describe('the bar survives a phone', () => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await expect(page.getByRole('link', { name: /catalogue/i })).toHaveCount(0)
-    await expect(page.locator('a.notch__wordmark')).toHaveAttribute('href', 'https://wear-run.help')
+    await expect(page.locator('a.notch__wordmark')).toHaveAttribute('href', 'https://wear-run.com')
   })
 
   test('the bar is one 60px row and keeps its height while the page scrolls', async ({ page }) => {

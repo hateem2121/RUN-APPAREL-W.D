@@ -1,5 +1,6 @@
 import { DEFAULT_SITE_SETTINGS, type ViewerSiteSettings } from '@run-apparel/shared'
 import { isAddressableColourway } from './colourwayAccess'
+import { onSiteMedia } from './siteMedia'
 
 /**
  * Pure projections for the public marketing pages.
@@ -172,7 +173,7 @@ export function mergeSiteSettings(
   const logoDoc =
     logo && typeof logo === 'object' ? (logo as { url?: unknown; mimeType?: unknown }) : null
   return {
-    logoUrl: text(logoDoc?.url) || null,
+    logoUrl: onSiteMedia(text(logoDoc?.url)) || null,
     logoMimeType: text(logoDoc?.mimeType) || null,
     companyName: pick('companyName'),
     email: pick('email'),
@@ -258,7 +259,7 @@ function toCardColour(
   for (const [candidate, kind] of kinds) {
     if (!candidate || typeof candidate !== 'object') continue
     const media = candidate as { url?: unknown; alt?: unknown }
-    const url = text(media.url)
+    const url = onSiteMedia(text(media.url))
     if (!isPubliclyFetchable(url)) continue
     return {
       slug: text(colour.slug),
@@ -289,7 +290,7 @@ function pickPoster(
   for (const candidate of [colourPoster, product.posterFallback]) {
     if (!candidate || typeof candidate !== 'object') continue
     const media = candidate as { url?: unknown; alt?: unknown }
-    const url = text(media.url)
+    const url = onSiteMedia(text(media.url))
     if (isPubliclyFetchable(url)) return { url, alt: text(media.alt) }
   }
   return { url: null, alt: '' }

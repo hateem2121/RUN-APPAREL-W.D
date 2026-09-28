@@ -73,6 +73,13 @@ const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
 const API_BASE = 'https://cms.wear-run.help'
 
 /**
+ * The media bucket's address on the website's own domain, which is what the public payload
+ * names since the domain move of 2026-09-28 (apps/cms/src/lib/siteMedia.ts). The same bucket
+ * still answers on media.wear-run.help for the admin.
+ */
+export const SITE_MEDIA_HOST = 'media.wear-run.com'
+
+/**
  * What every picture and model on the media host must answer (audit IM-13).
  *
  * `same-site`, not `same-origin`: the viewer and the site share the registrable domain
@@ -107,13 +114,13 @@ export function samplesFromPayload(body) {
     } catch {
       return { error: `the live payload named "${url}", which is not an absolute address` }
     }
-    if (host !== 'media.wear-run.help') return { error: `${url} is not on media.wear-run.help` }
+    if (host !== SITE_MEDIA_HOST) return { error: `${url} is not on ${SITE_MEDIA_HOST}` }
   }
   return { poster, model }
 }
 
 /**
- * @typedef {{ host: string, hsts: boolean, media?: boolean }} ZoneTarget
+ * @typedef {{ host: string, hsts: boolean, subdomains?: boolean, media?: boolean }} ZoneTarget
  */
 
 /**
@@ -127,6 +134,8 @@ export function samplesFromPayload(body) {
  * @type {ZoneTarget[]}
  */
 export const TARGETS = [
+  // Only forwards since the domain move (2026-09-28) — but it is the host printed on the QR
+  // tags, so its TLS floor still matters most.
   { host: 'viewer.wear-run.help', hsts: true },
   { host: 'cms.wear-run.help', hsts: true },
   /**
@@ -139,8 +148,18 @@ export const TARGETS = [
    * `cross-origin-resource-policy: same-site` (audit IM-13), the header that keeps both
    * off other websites — see `MEDIA_CORP`.
    */
-  { host: 'media.wear-run.help', hsts: true, media: true },
+  { host: 'media.wear-run.com', hsts: true, subdomains: false, media: true },
+  // The admin's address for the same bucket (the site's moved to .com on 2026-09-28).
+  { host: 'media.wear-run.help', hsts: true },
   { host: 'wear-run.help', hsts: true },
+  /**
+   * ⚠️ `subdomains: false` ON wear-run.com, AND IT IS NOT AN OVERSIGHT. The zone's HSTS
+   * setting wins over the site's own header (measured 2026-09-28), and on wear-run.com it
+   * is a year WITHOUT includeSubDomains — that zone also carries the email-signature
+   * project's hosts (go., mta-sts.), which the owner has not asked to bind. A year's
+   * max-age is still required. Raising it is an owner decision, then flip these two.
+   */
+  { host: 'wear-run.com', hsts: true, subdomains: false },
 ]
 
 /**
@@ -207,6 +226,7 @@ export function parseHsts(header) {
  *   modelCorp?: string | null,
  *   modelError?: string,
  *   expectHsts: boolean,
+ *   expectSubdomains?: boolean,
  *   expectMedia?: boolean,
  * }[]} observations
  * @returns {{ ok: boolean, measured: number, failures: string[], inconclusive: string[], lines: string[] }}
@@ -274,7 +294,7 @@ export function evaluate(observations) {
           failures.push(
             `${o.host}: a ${what} answered cross-origin-resource-policy: ${corp ?? '(none)'}, not ${MEDIA_CORP}, ` +
               'so another website can now show it (IM-13). Restore it in the Cloudflare response-header ' +
-              'Transform Rule "media headers …" on media.wear-run.help — docs/CLOUDFLARE-SETUP.md → ' +
+              'Transform Rule "media headers …" on that host\'s zone — docs/CLOUDFLARE-SETUP.md → ' +
               '"Response-header Transform Rule — media.wear-run.help". Add it to THAT rule: headers from a ' +
               'second rule are comma-joined.',
           )
@@ -354,7 +374,7 @@ export function evaluate(observations) {
       lines.push(`  ${label} HSTS   max-age=${hsts.maxAge}  FAIL`)
       continue
     }
-    if (!hsts.includeSubDomains) {
+    if (!hsts.includeSubDomains && o.expectSubdomains !== false) {
       failures.push(`${o.host}: HSTS lacks includeSubDomains.`)
       lines.push(`  ${label} HSTS   no includeSubDomains  FAIL`)
       continue
@@ -527,6 +547,7 @@ export async function probe(targets = TARGETS) {
         tls11,
         tls12,
         expectHsts: target.hsts,
+        expectSubdomains: target.subdomains !== false,
         expectMedia: target.media === true,
         ...headers,
         ...media,

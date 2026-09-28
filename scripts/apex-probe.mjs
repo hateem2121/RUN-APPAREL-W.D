@@ -16,7 +16,7 @@
  *             the guessable link is open again.
  *   refused — a private host without a code answers anything but the 404 page, or drops
  *             `x-robots-tag: noindex`.
- *   site    — the apex no longer serves the site (the CMS Worker lost its wildcard route).
+ *   site    — wear-run.com no longer serves the site (the CMS Worker lost its custom domain).
  *   redirect — `wear-run.help/map` or `/meeting` no longer redirects to its host. Both are
  *             Cloudflare redirect rules that exist in no file (docs/CLOUDFLARE-SETUP.md →
  *             11.8), old emails link to them, and nothing else here would notice a
@@ -55,7 +55,31 @@ const REDIRECT_STATUSES = new Set([301, 302, 307, 308])
 
 /** @type {ApexTarget[]} */
 export const TARGETS = [
-  { name: 'apex root', url: 'https://wear-run.help/', kind: 'site' },
+  // The site moved to wear-run.com on 2026-09-28; wear-run.help forwards every path there,
+  // except the four that wear-run.com hands BACK to it (apps/cms/siteHostRules.mjs,
+  // HANDED_BACK_TO_HELP): the retired PDF paths and the two email redirects, which live on
+  // the .help zone. Both halves are checked, so a loop or a lost rule shows here.
+  { name: 'site root', url: 'https://wear-run.com/', kind: 'site' },
+  { name: 'old site root', url: 'https://wear-run.help/', kind: 'redirect', to: 'wear-run.com' },
+  {
+    name: 'com catalogue path',
+    url: 'https://wear-run.com/catalogue',
+    kind: 'redirect',
+    to: 'wear-run.help',
+  },
+  {
+    name: 'com profile path',
+    url: 'https://wear-run.com/profile',
+    kind: 'redirect',
+    to: 'wear-run.help',
+  },
+  { name: 'com map path', url: 'https://wear-run.com/map', kind: 'redirect', to: 'wear-run.help' },
+  {
+    name: 'com meeting path',
+    url: 'https://wear-run.com/meeting',
+    kind: 'redirect',
+    to: 'wear-run.help',
+  },
   { name: 'old catalogue', url: 'https://wear-run.help/catalogue', kind: 'retired' },
   { name: 'old profile', url: 'https://wear-run.help/profile', kind: 'retired' },
   { name: 'old www catalogue', url: 'https://www.wear-run.help/catalogue', kind: 'retired' },
@@ -153,7 +177,7 @@ export function evaluate(observations) {
       if (o.status !== 200) {
         problems.push(
           `HTTP ${o.status}, expected 200 — the marketing site should answer here. A 404 means ` +
-            'the CMS Worker no longer holds the wear-run.help/* wildcard route',
+            'the CMS Worker no longer holds the wear-run.com custom domain',
         )
       } else {
         if (!html)

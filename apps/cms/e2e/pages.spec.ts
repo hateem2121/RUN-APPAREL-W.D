@@ -77,13 +77,13 @@ test.describe('the product gallery', () => {
     await expect(first.locator('.product-card__name')).not.toBeEmpty()
 
     /*
-     * ⚠️ CARDS MUST LINK TO THE VIEWER HOST, NEVER TO THIS ONE. The garment is served by
-     * a different Worker reached from printed QR tags; a relative link would 404 because
-     * nothing here serves that shape. Pinned because both sides would otherwise stay
-     * green while a buyer met "[ REFERENCE UNAVAILABLE ]".
+     * ⚠️ CARDS MUST LINK TO THE GARMENT FOLDER, `/products/<product>/<colour>`. Since the
+     * domain move (2026-09-28) the site's Worker hands exactly that shape to the viewer's;
+     * the old bare `/<product>/<colour>` would 404 here. Pinned because both sides would
+     * otherwise stay green while a buyer met "[ REFERENCE UNAVAILABLE ]".
      */
     const href = await first.locator('a.product-card__link').getAttribute('href')
-    expect(href).toMatch(/^https:\/\/viewer\./)
+    expect(href).toMatch(/^https:\/\/[^/]+\/products\/[^/]+\/[^/]+$/)
 
     // Every card shows a poster OR the placeholder — never an empty box.
     for (let index = 0; index < Math.min(count, 4); index++) {
@@ -125,7 +125,7 @@ test.describe('the product gallery', () => {
      * that proves it, in the only place it can be proven: a real browser.
      */
     await page.route('**/api/media/**', (route) => route.fulfill({ status: 404, body: '' }))
-    await page.route('**media.wear-run.help/**', (route) =>
+    await page.route('**media.wear-run.{help,com}/**', (route) =>
       route.fulfill({ status: 404, body: '' }),
     )
     await page.goto('/products')

@@ -1,7 +1,7 @@
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import { EMPTY_FOOTER, type ProductCard, type PublicSiteSettings } from './projectPublic'
-import { SITE_ORIGIN, VIEWER_ORIGIN } from './seo'
+import { GARMENT_PAGES, SITE_ORIGIN } from './seo'
 import {
   contactPageJsonLd,
   formatAddress,
@@ -83,15 +83,14 @@ describe('the website (FI-10)', () => {
 })
 
 describe('the product list', () => {
-  it('points every item at the VIEWER host, never at this one', () => {
-    // The garment is served by a different Worker. Claiming these URLs here would
-    // advertise pages this site does not serve — the same reason sitemap.ts lists three
-    // pages and no garments.
+  it('points every item at its garment page in the /products folder', () => {
+    // The garment pages moved onto this site on 2026-09-28 (they were on
+    // viewer.wear-run.help); each item names the page the card links to.
     const list = productListJsonLd([card(), card({ slug: 'r-xmp', defaultColourSlug: 'navy' })])
     for (const item of list.itemListElement) {
-      expect(item.url.startsWith(VIEWER_ORIGIN)).toBe(true)
-      expect(item.url.startsWith(SITE_ORIGIN)).toBe(false)
+      expect(item.url.startsWith(`${GARMENT_PAGES}/`)).toBe(true)
     }
+    expect(list.itemListElement[1]?.url).toBe(`${SITE_ORIGIN}/products/r-xmp/navy`)
   })
 
   it('numbers positions from 1 and counts what it lists', () => {

@@ -68,5 +68,7 @@ paths = [
 regexes = [
   '''41e20361-1a5f-4c87-b5ca-781c57c9b3f4''',
   '''cfd98c6043ce4fd2a594010af6b80c75''',
+  # The wear-run.com Web Analytics site tag (2026-09-28, the domain move) — public, like the one above.
+  '''17250268831a423ea902fe766fa5feed''',
   '''rxps-2026-09-03-optimized\.glb''',
 ]

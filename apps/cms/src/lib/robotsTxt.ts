@@ -1,5 +1,5 @@
 import { AI_CRAWLER_UAS, TRAINING_ONLY_UAS } from '../../htmlLimitedBots.mjs'
-import { SITE_ORIGIN, VIEWER_ORIGIN } from './seo'
+import { SITE_ORIGIN } from './seo'
 
 /**
  * `/robots.txt` for the public marketing site.
@@ -138,14 +138,9 @@ ${group(ANSWERING_UAS)}
 # engines a buyer actually asks — and it would read as tightening security.
 ${refusedGroup(TRAINING_ONLY_UAS)}
 
-# ⚠️ BOTH HOSTS, AND THAT IS OWNER DECISION D11 OF 2026-09-07 (FA-N-13).
-# The garments live on a different host with its own sitemap, and a SITEMAP may only list
-# URLs on the host that serves it — which is why sitemap.ts lists no garments. robots.txt
-# is the one file that may point a crawler at a sitemap on another host, and doing so is
-# what tells a search engine these two origins are one business rather than two unrelated
-# sites. It is a hint, not a grant: a crawler trusts a cross-host sitemap only when both
-# hosts are verified in the same Search Console account, which is the other half of D11.
+# ONE SITEMAP SINCE THE DOMAIN MOVE OF 2026-09-28. Owner decision D11 (2026-09-07) named a
+# second one here because the garments then lived on another host with its own sitemap. They
+# are pages of this site now, at /products/<product>/<colour>, and this sitemap lists them.
 Sitemap: ${SITE_ORIGIN}/sitemap.xml
-Sitemap: ${VIEWER_ORIGIN}/sitemap.xml
 `
 }

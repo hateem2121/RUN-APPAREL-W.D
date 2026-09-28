@@ -54,14 +54,14 @@ import { ViewerCue } from './ViewerCue'
 export function CardGallery({
   productSlug,
   productName,
-  viewerOrigin,
+  garmentPages,
   colours,
   index,
   children,
 }: {
   productSlug: string
   productName: string
-  viewerOrigin: string
+  garmentPages: string
   colours: CardColour[]
   /** The card's position in the gallery, for the first picture's loading priority. */
   index: number
@@ -83,7 +83,7 @@ export function CardGallery({
     want(active)
   }
   const showing = colours[active] ?? colours[0]
-  const href = colourHref(viewerOrigin, productSlug, showing?.slug ?? '')
+  const href = colourHref(garmentPages, productSlug, showing?.slug ?? '')
 
   const onScroll = () => {
     const el = strip.current
@@ -116,7 +116,7 @@ export function CardGallery({
             <a
               key={colour.slug}
               className="card-gallery__slide"
-              href={colourHref(viewerOrigin, productSlug, colour.slug)}
+              href={colourHref(garmentPages, productSlug, colour.slug)}
               tabIndex={slide === active ? 0 : -1}
               data-kind={colour.image?.kind ?? 'none'}
             >

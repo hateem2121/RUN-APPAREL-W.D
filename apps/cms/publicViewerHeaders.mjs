@@ -96,7 +96,7 @@ export const PUBLIC_PAGE_CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: https://media.wear-run.help",
+  "img-src 'self' data: https://media.wear-run.com https://media.wear-run.help",
   "font-src 'self'",
   "connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com",
   "object-src 'none'",

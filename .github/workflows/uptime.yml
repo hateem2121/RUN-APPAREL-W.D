@@ -99,7 +99,7 @@ jobs:
       # "REFERENCE UNAVAILABLE" on the client. A status check on this URL proves a
       # web server answered, not that a garment exists. The real assertion in this
       # job is the `smoke-viewer-payload.mjs` step below, which reads the API.
-      VIEWER_URL: https://viewer.wear-run.help/rxps/wine
+      VIEWER_URL: https://wear-run.com/products/rxps/wine
       # CATALOGUE_URL was here until 2026-08-30. It is gone deliberately: it was a
       # second copy of `siteSettings.catalogueUrl`, which the CMS owns and which is
       # overridable per product. scripts/apex-probe.mjs reads it from the live

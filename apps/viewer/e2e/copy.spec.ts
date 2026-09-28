@@ -25,11 +25,11 @@ test.describe('the footer', () => {
     const meta = page.locator('.footer__meta')
     await expect(meta.getByRole('link', { name: 'Privacy', exact: true })).toHaveAttribute(
       'href',
-      'https://wear-run.help/privacy',
+      'https://wear-run.com/privacy',
     )
     await expect(meta.getByRole('link', { name: 'Terms', exact: true })).toHaveAttribute(
       'href',
-      'https://wear-run.help/terms',
+      'https://wear-run.com/terms',
     )
     await expect(meta).toContainText(formatAddress())
   })

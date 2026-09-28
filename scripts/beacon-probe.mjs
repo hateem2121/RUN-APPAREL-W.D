@@ -1,23 +1,25 @@
 #!/usr/bin/env node
 /**
- * SO-12 — the Cloudflare Web Analytics beacon is present on both hosts, and cookieless.
+ * SO-12 — the Cloudflare Web Analytics beacon is present on the site and on a garment page,
+ * and cookieless. Both embed it MANUALLY as a `<script src>` — the site from
+ * apps/cms/src/components/site/Analytics.tsx (token: the CMS Worker's CF_ANALYTICS_TOKEN),
+ * the garment pages from apps/viewer/index.html, split across two attribute lines
+ * (`apps/viewer/CLAUDE.md`'s own trap notes a single-line grep can miss a tag written that
+ * way, which is exactly why this reads the WHOLE body rather than grepping line by line).
+ * (This header said "automatic setup" for the site until 2026-09-28; the Analytics API
+ * reads auto_install: false for both analytics sites.)
  *
- * The viewer embeds it manually (a `<script src>` in index.html, split across two
- * attribute lines — `apps/viewer/CLAUDE.md`'s own trap notes a single-line grep can miss
- * a tag written that way, which is exactly why this reads the WHOLE body rather than
- * grepping line by line). The site carries no such source line at all: confirmed live
- * 2026-09-24 it still serves the identical script, which means Cloudflare's AUTOMATIC
- * setup is doing it there — a different mechanism
- * (`apps/viewer/CLAUDE.md`: "a manual embed POSTs to cloudflareinsights.com while
- * automatic setup posts to your own origin"), but the same visible tag either way.
- *
+ * ⚠️ A PRESENT TAG IS NOT A COUNTED VISIT. Cloudflare checks the page's hostname against
+ * the site the token was made for, by suffix (Web Analytics FAQ, read 2026-09-28), so a
+ * wear-run.help token on a wear-run.com page is dropped without an error anywhere.
  * Read-only: two page GETs and one script GET.
  *
  *   node scripts/beacon-probe.mjs
  */
 import { realpathSync } from 'node:fs'
 
-export const HOSTS = ['https://wear-run.help', 'https://viewer.wear-run.help']
+/** The home page and one garment page, both on wear-run.com since the domain move (2026-09-28). */
+export const PAGES = ['https://wear-run.com/', 'https://wear-run.com/products/rxps/wine']
 export const BEACON_SRC = 'static.cloudflareinsights.com/beacon.min.js'
 
 /** Pure: does this (whole-body) HTML contain a beacon `<script src>` tag? */
@@ -28,17 +30,17 @@ export function hasBeaconTag(html) {
 async function main() {
   const failures = []
 
-  for (const host of HOSTS) {
-    const res = await fetch(`${host}/`, { headers: { accept: 'text/html' } })
+  for (const page of PAGES) {
+    const res = await fetch(page, { headers: { accept: 'text/html' } })
     if (res.status === 403 || res.status === 429) {
-      console.log(`⚠️  ${host}/ returned ${res.status} — INCONCLUSIVE (Bot Fight Mode).`)
+      console.log(`⚠️  ${page} returned ${res.status} — INCONCLUSIVE (Bot Fight Mode).`)
       continue
     }
     const html = await res.text()
     if (!hasBeaconTag(html)) {
-      failures.push(`${host}/ carries no Cloudflare beacon script tag.`)
+      failures.push(`${page} carries no Cloudflare beacon script tag.`)
     } else {
-      console.log(`   ${host}/ carries the beacon tag`)
+      console.log(`   ${page} carries the beacon tag`)
     }
   }
 

@@ -1,4 +1,5 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare'
+import { buildViewerPath, GARMENT_PATH_PREFIX } from '@run-apparel/shared'
 import type { Metadata, MetadataRoute } from 'next'
 
 /**
@@ -41,8 +42,16 @@ export function robotsFor(visibility: SearchVisibility): Metadata['robots'] | un
 }
 
 /**
- * The site's own pages and never the garments — those live on viewer.wear-run.help, which
- * has its own sitemap, and a sitemap may only speak for the host that serves it.
+ * The site's own pages, then one entry per garment colour.
+ *
+ * ⚠️ THE GARMENTS JOINED ON 2026-09-28. Until then they lived on viewer.wear-run.help with
+ * its own sitemap, and a sitemap may only speak for the host that serves it. Since the
+ * domain move they are pages of this host, at `/products/<product>/<colour>`. Each colour
+ * page is its own canonical URL (the viewer Worker writes it); the colourless
+ * `/products/<product>` is the default colour's page under a second address and is
+ * deliberately not listed. Built from the live catalogue, so a new garment is offered to
+ * crawlers the moment it is published — the hand-kept viewer sitemap it replaces had
+ * silently missed 45 of 55 garment pages once (2026-09-04).
  * No `lastModified`: a date nobody updates is worse than none.
  *
  * ⚠️ A NEW PUBLIC PAGE MUST BE ADDED HERE OR IT IS NEVER OFFERED TO A CRAWLER, and
@@ -54,7 +63,11 @@ export function robotsFor(visibility: SearchVisibility): Metadata['robots'] | un
  * a privacy notice nobody can reach is not much of a notice — but they are not what this
  * site is for, and a crawler that treats them as important is spending its budget wrongly.
  */
-export function sitemapFor(visibility: SearchVisibility, origin: string): MetadataRoute.Sitemap {
+export function sitemapFor(
+  visibility: SearchVisibility,
+  origin: string,
+  garments: ReadonlyArray<{ slug: string; colours: ReadonlyArray<{ slug: string }> }> = [],
+): MetadataRoute.Sitemap {
   if (visibility === 'hidden') return []
   return [
     { url: origin, changeFrequency: 'monthly', priority: 1 },
@@ -62,5 +75,12 @@ export function sitemapFor(visibility: SearchVisibility, origin: string): Metada
     { url: `${origin}/contact`, changeFrequency: 'yearly', priority: 0.5 },
     { url: `${origin}/privacy`, changeFrequency: 'yearly', priority: 0.2 },
     { url: `${origin}/terms`, changeFrequency: 'yearly', priority: 0.2 },
+    ...garments.flatMap((garment) =>
+      garment.colours.map((colour) => ({
+        url: `${origin}${buildViewerPath(garment.slug, colour.slug, GARMENT_PATH_PREFIX)}`,
+        changeFrequency: 'monthly' as const,
+        priority: 0.7,
+      })),
+    ),
   ]
 }

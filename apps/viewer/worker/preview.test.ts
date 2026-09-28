@@ -558,3 +558,57 @@ describe('schema.org Product JSON-LD', () => {
     expect(data.url).toBe(`${ORIGIN}/n001/lime`)
   })
 })
+
+/**
+ * The garment's place on the website, for search results (domain move, 2026-09-28). The
+ * category is deliberately NOT in the address — it is an editable dropdown and the address
+ * is printed on QR tags — so it lives here, as data, and as the /products family filter.
+ */
+describe('buildPreview — breadcrumbs on the website', () => {
+  const SITE = 'https://wear-run.com'
+  const onSite = (p: ViewerApiSuccess) =>
+    buildPreview(p, { origin: SITE, cards: CARDS, prefix: '/products' })
+
+  it('walks Home › Products › the category › the garment, ending at the canonical URL', () => {
+    const preview = onSite(payload({}))
+    const data = JSON.parse(preview.breadcrumbJsonLd ?? 'null')
+    expect(data['@type']).toBe('BreadcrumbList')
+    expect(
+      data.itemListElement.map((item: { position: number; name: string; item: string }) => [
+        item.position,
+        item.name,
+        item.item,
+      ]),
+    ).toEqual([
+      [1, 'Home', `${SITE}/`],
+      [2, 'Products', `${SITE}/products`],
+      [3, 'Sportswear', `${SITE}/products?family=sportswear`],
+      [4, 'Velocity Performance Skinsuit', preview.url],
+    ])
+  })
+
+  it('makes the family filter address the way the site spells it', () => {
+    const data = JSON.parse(
+      onSite(payload({ product: { category: 'Teamwear & Uniforms' as never } })).breadcrumbJsonLd ??
+        'null',
+    )
+    expect(data.itemListElement[2].item).toBe(`${SITE}/products?family=teamwear-uniforms`)
+  })
+
+  it('skips the category step when a garment has none, rather than inventing one', () => {
+    const data = JSON.parse(
+      onSite(payload({ product: { category: '' as never } })).breadcrumbJsonLd ?? 'null',
+    )
+    expect(data.itemListElement.map((item: { name: string }) => item.name)).toEqual([
+      'Home',
+      'Products',
+      'Velocity Performance Skinsuit',
+    ])
+    expect(data.itemListElement.at(-1).position).toBe(3)
+  })
+
+  // The old viewer host only forwards; a breadcrumb there would name a site it is not on.
+  it('says nothing on the old viewer host', () => {
+    expect(build(payload({})).breadcrumbJsonLd).toBeNull()
+  })
+})

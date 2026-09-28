@@ -40,7 +40,7 @@ const PORT = 9622
 const TARGETS = {
   'co-11': {
     label: 'CO-11 — the BUTTER colourway, rxps',
-    url: 'https://viewer.wear-run.help/rxps/butter',
+    url: 'https://wear-run.com/products/rxps/butter',
     readySelector: 'h1',
     file: 'co-11-butter-colourway.png',
     question:
@@ -48,7 +48,7 @@ const TARGETS = {
   },
   'ty-10': {
     label: 'TY-10 — the № glyph, site home page',
-    url: 'https://wear-run.help/',
+    url: 'https://wear-run.com/',
     readySelector: '.section-number',
     file: 'ty-10-numero-glyph.png',
     question:

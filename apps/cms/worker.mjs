@@ -24,6 +24,7 @@
  */
 import openNext from './.open-next/worker.js'
 import { newNonce, nonceable, noncedHeaders } from './cspNonce.mjs'
+import { withRedirectHeaders } from './redirectHeaders.mjs'
 import { forwardsToViewer } from './viewerForward.mjs'
 
 export * from './.open-next/worker.js'
@@ -38,6 +39,9 @@ export default {
 
     const response = await openNext.fetch(request, env, ctx)
     try {
+      // The old addresses and www. answer redirects, which OpenNext sends bare
+      // (redirectHeaders.mjs). A redirect is never a page, so the nonce guard has no work.
+      if (response.status >= 300 && response.status < 400) return withRedirectHeaders(response)
       if (!nonceable(response)) return response
       const nonce = newNonce()
       const headers = noncedHeaders(response.headers, nonce)

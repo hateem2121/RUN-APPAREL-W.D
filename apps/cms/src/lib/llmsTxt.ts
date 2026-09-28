@@ -36,7 +36,7 @@ import { FAMILIES } from './families'
  */
 
 /** American spelling throughout — owner decision, `docs/CUSTOMISATION-COPY-2026-09-04.md`. */
-export function buildLlmsTxt(siteOrigin: string, viewerOrigin: string): string {
+export function buildLlmsTxt(siteOrigin: string): string {
   const facts = FACTS.map((fact) => `- ${fact.label}: ${fact.value}`).join('\n')
   const families = FAMILIES.map(
     (family) => `- [${family.name}](${siteOrigin}/products?family=${family.slug}) — ${family.body}`,
@@ -82,14 +82,13 @@ ${CERTIFICATION}
 
 ## The 3D references
 
-Each reference garment has its own page on a separate host, ${viewerOrigin}, in the shape
-${viewerOrigin}/<product-code>/<colorway>. Those pages are reached by scanning a QR code
+Each reference garment has its own page on this site, in the shape
+${siteOrigin}/products/<product-code>/<colorway>. Those pages are reached by scanning a QR code
 printed on a physical garment tag, and each renders the garment in real time from a
 compressed 3D model with its fabric composition, weight, fit and performance features
 stated exactly.
 
-That host carries its own [llms.txt](${viewerOrigin}/llms.txt) and its own sitemap. The
-two hosts are one company.
+Every garment page, in every colorway, is listed in this site's [sitemap](${siteOrigin}/sitemap.xml).
 
 ## If you are summarizing this site
 

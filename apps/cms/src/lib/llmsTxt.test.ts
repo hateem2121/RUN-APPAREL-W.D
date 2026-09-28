@@ -17,8 +17,7 @@ import { buildLlmsTxt } from './llmsTxt'
  */
 
 const SITE = 'https://example.test'
-const VIEWER = 'https://viewer.example.test'
-const text = buildLlmsTxt(SITE, VIEWER)
+const text = buildLlmsTxt(SITE)
 
 describe('every confirmed fact reaches the file', () => {
   for (const fact of FACTS) {
@@ -61,12 +60,13 @@ describe('the origins come from configuration, not from typing', () => {
     expect(text).toContain(`${SITE}/products`)
     expect(text).toContain(`${SITE}/contact`)
     expect(text).toContain(`${SITE}/robots.txt`)
-    expect(text).toContain(`${VIEWER}/llms.txt`)
-    expect(text).not.toContain('wear-run.help')
+    expect(text).not.toContain('wear-run.')
   })
 
-  it('describes the viewer URL shape a QR tag actually produces', () => {
-    expect(text).toContain(`${VIEWER}/<product-code>/<colorway>`)
+  // The garment pages moved into the site at /products on 2026-09-28 (domain move).
+  it('describes the garment URL shape a QR tag actually produces, on this site', () => {
+    expect(text).toContain(`${SITE}/products/<product-code>/<colorway>`)
+    expect(text).not.toContain('separate host')
   })
 })
 
@@ -139,7 +139,7 @@ describe('it passes Lighthouse 13.5.0’s llms-txt audit (FI-08)', () => {
     for (const path of ['', '/products', '/contact', '/privacy', '/terms', '/robots.txt']) {
       expect(text).toContain(`](${SITE}${path})`)
     }
-    expect(text).toContain(`](${VIEWER}/llms.txt)`)
+    expect(text).toContain(`](${SITE}/sitemap.xml)`)
     for (const family of FAMILIES) {
       expect(text).toContain(`[${family.name}](${SITE}/products?family=${family.slug})`)
     }

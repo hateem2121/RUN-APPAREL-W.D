@@ -16,10 +16,14 @@
  * `apps/cms/siteHostRules.mjs` as `SITE_HOST` and in the deploy's zone routes.
  * `src/siteLinks.test.ts` asserts the two spellings agree.
  *
- * No trailing slash: these are concatenated, and `wear-run.help//products` is a
+ * No trailing slash: these are concatenated, and `wear-run.com//products` is a
  * different URL to a crawler.
+ *
+ * `wear-run.com` since the domain move of 2026-09-28 (it was `wear-run.help`, which now
+ * forwards every path here). The viewer's own pages live on this origin too, at
+ * `/products/<product>/<colour>`; worker/oldViewerHost.ts forwards the old host to it.
  */
-export const SITE_ORIGIN = 'https://wear-run.help'
+export const SITE_ORIGIN = 'https://wear-run.com'
 
 /** The reference index — every published garment, one ordinary indexable page. */
 export const SITE_PRODUCTS_URL = `${SITE_ORIGIN}/products`

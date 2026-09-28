@@ -127,8 +127,10 @@ function thirdPartyOrigins(csp: string): string[] {
         continue
       }
       // The app's own zone (the API origin and media.wear-run.help alike) — first
-      // party, not what this test is about.
-      if (origin.endsWith('wear-run.help')) continue
+      // party, not what this test is about. So is the one wear-run.com host the policy
+      // names since the domain move (2026-09-28), the same media bucket; that zone's
+      // other hosts are the email project's, so it is named exactly, not by suffix.
+      if (origin.endsWith('wear-run.help') || origin === 'https://media.wear-run.com') continue
       origins.add(origin)
     }
   }

@@ -4,11 +4,14 @@
 > colorway, rendered in real time from a compressed 3D model, so a buyer can turn
 > it, zoom into the printed artwork and read the specification before ordering.
 
-Most pages here are reached by scanning a QR code printed on a physical garment
-tag: a page exists for a garment a buyer is already holding. There is no search on
-this host, and no index of the garments — that lives on the company's main site,
-[wear-run.help](https://wear-run.help), whose [/products](https://wear-run.help/products)
-page lists every published reference and links to the page for each one.
+These pages moved on 2026-09-28. They were served here, at viewer.wear-run.help, and
+are now part of the company's main site, [wear-run.com](https://wear-run.com): every
+address on this host answers with a permanent (301) redirect to the same garment and
+colorway there. The [/products](https://wear-run.com/products) page lists every
+published reference and links to the page for each one.
+
+Most pages are reached by scanning a QR code printed on a physical garment tag: a page
+exists for a garment a buyer is already holding.
 
 ## What a page contains
 
@@ -20,17 +23,15 @@ page lists every published reference and links to the page for each one.
 
 ## Where this sits
 
-- The company's main site is [wear-run.help](https://wear-run.help) — who they are,
-  how to make contact, and the reference index at
-  [wear-run.help/products](https://wear-run.help/products), which lists every
-  published garment and links to its page here. This host serves only those 3D
-  garment pages.
-- The two are one company on two hosts, and each carries its own sitemap.
+- The company's main site is [wear-run.com](https://wear-run.com) — who they are,
+  how to make contact, the reference index at
+  [wear-run.com/products](https://wear-run.com/products), and each garment's 3D page
+  one folder below it. One host, one sitemap.
 
 ## Structure
 
-- Product pages: https://viewer.wear-run.help/<product-code>/<colorway>
-- Every page is listed in [the sitemap](https://viewer.wear-run.help/sitemap.xml)
+- Product pages: https://wear-run.com/products/<product-code>/<colorway>
+- Every page is listed in [the sitemap](https://wear-run.com/sitemap.xml)
   (200 pages, 40 garments x 5 colorways).
 - Each page carries schema.org Product structured data as JSON-LD.
 
@@ -48,7 +49,7 @@ price you state would be invented.
 
 Inquiries go through the Email or WhatsApp buttons on any garment page; the
 address and number are also printed in the footer of every page here, and the
-main site has a [contact page](https://wear-run.help/contact).
+main site has a [contact page](https://wear-run.com/contact).
 
 ## Notes for crawlers
 

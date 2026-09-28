@@ -25,9 +25,40 @@ import { sourceMatches } from './publicViewerHeaders.mjs'
  * production while every localhost test stayed green. Next itself anchors; OpenNext
  * does not; the pattern satisfies both.
  */
-export const SITE_HOST = 'wear-run.help'
-export const WWW_HOST = 'www.wear-run.help'
+/*
+ * ⚠️ THE SITE MOVED TO wear-run.com ON 2026-09-28 (owner decisions that day: one site on
+ * one domain, the 3D garment pages inside it at /products/<product>/<colour>, the back
+ * ends — cms., media., the document links — staying on .help). The old addresses forward
+ * every path to the same path here, for ever: printed QR tags and sent links must never
+ * break. The admin and the API keep their one login hostname, cms.wear-run.help.
+ */
+export const SITE_HOST = 'wear-run.com'
+export const WWW_HOST = 'www.wear-run.com'
 export const CMS_HOST = 'cms.wear-run.help'
+
+/** The site's addresses until 2026-09-28. Each forwards every path to SITE_HOST. */
+export const OLD_SITE_HOSTS = ['wear-run.help', 'www.wear-run.help']
+
+/**
+ * Paths wear-run.com hands BACK to wear-run.help, where whatever answers them still lives.
+ *
+ * Until the move the email-signature project's Worker (`run-domain-edge`) forwarded ALL of
+ * wear-run.com to wear-run.help; these are the paths that relied on it. On wear-run.help,
+ * "Map" and "Book Meeting" are zone redirect rules that run BEFORE any Worker
+ * (docs/CLOUDFLARE-SETUP.md 11.8), and `/catalogue*` + `/profile*` are the PDF Worker's
+ * more specific routes answering 410 — so none of them ever reaches the old-address
+ * forward below, and handing them back cannot loop. `scripts/apex-probe.mjs` checks both
+ * ends.
+ */
+export const HANDED_BACK_TO_HELP = [
+  '/map',
+  '/meeting',
+  '/catalogue',
+  '/catalogue/:path*',
+  '/profile',
+  '/profile/:path*',
+]
+const OLD_SITE_HOME = 'https://wear-run.help'
 
 export const hostPattern = (host) => `^${host.replace(/\./g, '\\.')}$`
 
@@ -60,6 +91,23 @@ const onHost = (host) => [{ type: 'host', value: hostPattern(host) }]
 
 export function siteRedirects() {
   return [
+    ...HANDED_BACK_TO_HELP.map((source) => ({
+      source,
+      has: onHost(SITE_HOST),
+      destination: `${OLD_SITE_HOME}${source}`,
+      permanent: true,
+    })),
+    // Same shape as the www. pair below, and the root needs its own rule for the same
+    // measured reason.
+    ...OLD_SITE_HOSTS.flatMap((host) => [
+      { source: '/', has: onHost(host), destination: `https://${SITE_HOST}`, permanent: true },
+      {
+        source: '/:path*',
+        has: onHost(host),
+        destination: `https://${SITE_HOST}/:path*`,
+        permanent: true,
+      },
+    ]),
     /*
      * ⚠️ THE ROOT NEEDS ITS OWN RULE, AND THE MODEL DID NOT SAY SO. Measured in workerd
      * on 2026-09-07: with only the `/:path*` rule below, `GET www.wear-run.help/`

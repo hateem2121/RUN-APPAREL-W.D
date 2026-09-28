@@ -148,10 +148,10 @@ describe('TARGETS', () => {
     .filter((t): t is { url: string; kind: string } => typeof t.url === 'string')
     .map((t) => new URL(t.url))
 
-  it('checks security.txt on all eight addresses and both redirects', () => {
+  it('checks security.txt on all ten addresses and all four redirects', () => {
     const kinds = (TARGETS as { kind: string }[]).map((t) => t.kind)
-    expect(kinds.filter((k) => k === 'security-txt')).toHaveLength(8)
-    expect(kinds.filter((k) => k === 'redirect')).toHaveLength(2)
+    expect(kinds.filter((k) => k === 'security-txt')).toHaveLength(10)
+    expect(kinds.filter((k) => k === 'redirect')).toHaveLength(4)
     expect([...new Set(urls.map((u) => u.hostname))].sort()).toEqual([
       'catalogue.wear-run.com',
       'catalogue.wear-run.help',
@@ -159,7 +159,9 @@ describe('TARGETS', () => {
       'profile.wear-run.com',
       'profile.wear-run.help',
       'viewer.wear-run.help',
+      'wear-run.com',
       'wear-run.help',
+      'www.wear-run.com',
       'www.wear-run.help',
     ])
   })
@@ -175,14 +177,17 @@ describe('TARGETS', () => {
       '/privacy',
       '/products',
       '/robots.txt',
+      '/rxps/wine',
       '/terms',
     ])
   })
 
-  it('has exactly one robots-txt-parity, four host-redirect and one dns-txt target', () => {
+  it('has exactly one robots-txt-parity, seven host-redirect and one dns-txt target', () => {
     const kinds = (TARGETS as { kind: string }[]).map((t) => t.kind)
     expect(kinds.filter((k) => k === 'robots-txt-parity')).toHaveLength(1)
-    expect(kinds.filter((k) => k === 'host-redirect')).toHaveLength(4)
+    // Four until the domain move (2026-09-28) added the two old site addresses and the
+    // printed QR tag.
+    expect(kinds.filter((k) => k === 'host-redirect')).toHaveLength(7)
     expect(kinds.filter((k) => k === 'dns-txt')).toHaveLength(1)
   })
 

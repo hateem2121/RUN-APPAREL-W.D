@@ -5,6 +5,7 @@ import { cameraFields } from '../fields/camera'
 import { colourwaysField } from '../fields/colourways'
 import { deriveSlug } from '../fields/deriveSlug'
 import { validateCatalogueUrl } from '../lib/privateDocumentLinks'
+import { GARMENT_PAGES } from '../lib/seo'
 import type { CatalogueDefault } from '../payload-types'
 import { IMAGE_MIME_TYPES, MODEL_MIME_TYPES } from './mediaRules'
 import {
@@ -135,9 +136,9 @@ export const Products: CollectionConfig = {
         const rows = Array.isArray(data?.colourways) ? data.colourways : []
         const first = rows.find((row) => row?.active !== false) ?? rows[0]
         const colour = typeof first?.slug === 'string' ? first.slug.trim() : ''
-        return colour === ''
-          ? `https://viewer.wear-run.help/${slug}`
-          : `https://viewer.wear-run.help/${slug}/${colour}`
+        // The garment's page on the website since the domain move (2026-09-28) — the
+        // address the new QR tags carry. The viewer's `_headers` let cms. frame it.
+        return colour === '' ? `${GARMENT_PAGES}/${slug}` : `${GARMENT_PAGES}/${slug}/${colour}`
       },
     },
   },

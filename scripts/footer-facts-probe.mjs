@@ -19,7 +19,7 @@
 import { FOOTER_FACTS } from './apply-footer-facts.mjs'
 import { realpathSync } from 'node:fs'
 
-export const SITE_URL = 'https://wear-run.help/'
+export const SITE_URL = 'https://wear-run.com/'
 
 /** Pure: Bot Fight Mode's refusal of a robot — inconclusive, never a failed check. */
 export function isRefusal(status) {
