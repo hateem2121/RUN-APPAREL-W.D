@@ -461,11 +461,20 @@ export function handshake(host, version) {
   })
 }
 
-/** Fetch one host's response headers, tolerating every way that can fail. */
+/**
+ * Fetch one host's response headers, tolerating every way that can fail.
+ *
+ * ⚠️ `redirect: 'manual'`: the HOST's own answer, never the one it forwards to. Since the
+ * domain move (2026-09-28) `/` on wear-run.help, cms. and viewer. forwards to wear-run.com,
+ * so a followed redirect read wear-run.com's HSTS for all three and failed them for lacking
+ * includeSubDomains — while each sent `max-age=63072000; includeSubDomains` itself. A
+ * browser records HSTS from the response of the host it asked, redirect or not.
+ */
 async function readHeaders(host) {
   try {
     const response = await fetch(`https://${host}/`, {
       method: 'GET',
+      redirect: 'manual',
       headers: { range: 'bytes=0-0' },
       signal: AbortSignal.timeout(20_000),
     })
