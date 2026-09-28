@@ -175,7 +175,23 @@ test('in landscape the whole picture fits on screen', async ({ page }) => {
   await page.setViewportSize({ width: 844, height: 390 })
   await openReady(page, 'wine')
   await hdButton(page).click()
-  const picture = await page.locator('.hd-image__viewport').boundingBox()
+  /*
+   * ⚠️ WAIT FOR THE SETTLED FRAME, NOT THE FIRST ONE. The dialog is a lazy chunk with its
+   * own stylesheet (hd-image.css), and its code can render before that sheet arrives. The
+   * frame is then measured unstyled — 26px tall — and a ResizeObserver corrects it when
+   * the sheet lands. Reading the box straight after the click raced that correction: it
+   * failed once in Firefox under a full-suite run (2026-09-28, "Received: 26") and passed
+   * 10/10 alone. Reproduced on every engine by holding back only that stylesheet for
+   * 1.5 s (with the service worker blocked, or the delay never applies): exactly 26 again.
+   * A picture that STAYS too small still fails here, when the poll times out.
+   */
+  const viewport = page.locator('.hd-image__viewport')
+  await expect
+    .poll(async () => (await viewport.boundingBox())?.height ?? 0, {
+      message: 'the picture never grew to its fitted size',
+    })
+    .toBeGreaterThan(200)
+  const picture = await viewport.boundingBox()
   expect(picture, 'no picture frame').not.toBeNull()
   if (!picture) return
   expect(picture.y).toBeGreaterThanOrEqual(0)
