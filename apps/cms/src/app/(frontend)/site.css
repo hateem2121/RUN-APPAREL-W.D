@@ -1440,8 +1440,22 @@ html {
   padding: 4px 12px 0 20px;
 }
 
+/*
+ * ⚠️ THE DOTS WRAP AS ONE GROUP, NEVER ONE BY ONE (2026-09-28). With the dots as loose flex
+ * items, "WINE / BLACK" on a 333px desktop card left four dots beside the name and the
+ * fifth alone on the next row, measured live. `.card-gallery__pick` never wraps inside
+ * itself, so a name too long for the row sends the whole set of dots down together, and
+ * the name keeps every letter (no ellipsis: it is the only place the colour is written).
+ * `e2e/pages.spec.ts` writes a long name into a card and checks the dots share one row.
+ */
+.card-gallery__pick {
+  display: flex;
+  flex-wrap: nowrap;
+  margin-inline-start: auto;
+}
+
 .card-gallery__colour {
-  margin-inline-end: auto;
+  margin-inline-end: 12px;
   font-family: var(--font-mono);
   font-size: var(--text-mono-sm);
   letter-spacing: var(--tracking-caps-snug);

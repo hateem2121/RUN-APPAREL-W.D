@@ -152,16 +152,20 @@ export function CardGallery({
           <span className="card-gallery__colour" aria-live="polite">
             {showing?.name}
           </span>
-          {colours.map((colour, slide) => (
-            <button
-              key={colour.slug}
-              type="button"
-              className="card-gallery__dot"
-              aria-label={`Show ${colour.name}`}
-              aria-pressed={slide === active}
-              onClick={() => show(slide)}
-            />
-          ))}
+          {/* One unbreakable group, so a long colour name moves ALL the dots down together
+              rather than stranding the last one on a row of its own (site.css). */}
+          <span className="card-gallery__pick">
+            {colours.map((colour, slide) => (
+              <button
+                key={colour.slug}
+                type="button"
+                className="card-gallery__dot"
+                aria-label={`Show ${colour.name}`}
+                aria-pressed={slide === active}
+                onClick={() => show(slide)}
+              />
+            ))}
+          </span>
         </div>
       ) : null}
       <a className="product-card__link" href={href}>
