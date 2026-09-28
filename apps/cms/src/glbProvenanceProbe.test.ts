@@ -271,25 +271,71 @@ describe('modelUrlsFromPayload — every colourway, not only the default (IM-10)
 
 describe("judgeModelSizes — the posters' family-median rule, for models (IM-02b)", () => {
   const MB = 1e6
-  it('passes the live catalogue as measured 2026-09-25 (worst 1.66x its family median)', () => {
-    const live = [
-      ['rxps', 'Teamwear', 3.84],
-      ['r-xmp', 'Teamwear', 8.14],
-      ['r-mm', 'Teamwear', 4.42],
-      ['r-aj', 'Teamwear', 5.14],
-      ['r-ajm', 'Teamwear', 7.83],
-      ['r-css', 'Teamwear', 5.05],
-      ['r-gtd', 'Teamwear', 5.11],
-      ['r-au', 'Teamwear', 7.85],
+  const live40 = () =>
+    [
+      ['r-cch', 'Casual Wear', 3.63],
+      ['r-csp', 'Casual Wear', 7.77],
+      ['r-et', 'Casual Wear', 4.64],
+      ['r-taz', 'Casual Wear', 2.21],
+      ['r-alj', 'Outerwear', 5.72],
+      ['r-atj', 'Outerwear', 5.68],
+      ['r-atw', 'Outerwear', 4.47],
+      ['r-kmj', 'Outerwear', 8.19],
+      ['r-mss', 'Outerwear', 6.4],
+      ['r-pps', 'Outerwear', 2.44],
+      ['r-vcj', 'Outerwear', 6.77],
       ['r-afp', 'Sportswear', 1.89],
-      ['r-wzu', 'Sportswear', 4.23],
       ['r-asb', 'Sportswear', 2.58],
-      ['r-ect', 'Sportswear', 5.64],
+      ['r-cat', 'Sportswear', 7.12],
+      ['r-ect', 'Sportswear', 7.84],
+      ['r-hfj', 'Sportswear', 6.29],
+      ['r-ifs', 'Sportswear', 6.9],
+      ['r-prs', 'Sportswear', 2.87],
+      ['r-wct', 'Sportswear', 4.96],
+      ['r-wzu', 'Sportswear', 4.23],
+      ['r-zt', 'Sportswear', 4.81],
+      ['r-aj', 'Teamwear & Uniforms', 5.14],
+      ['r-ajm', 'Teamwear & Uniforms', 7.83],
+      ['r-au', 'Teamwear & Uniforms', 7.85],
+      ['r-bcd', 'Teamwear & Uniforms', 4.11],
+      ['r-css', 'Teamwear & Uniforms', 5.05],
+      ['r-cvn', 'Teamwear & Uniforms', 5.43],
+      ['r-fft', 'Teamwear & Uniforms', 6.53],
+      ['r-gtd', 'Teamwear & Uniforms', 5.11],
+      ['r-mm', 'Teamwear & Uniforms', 4.42],
+      ['r-mrp', 'Teamwear & Uniforms', 2.71],
+      ['r-mxt', 'Teamwear & Uniforms', 6.12],
+      ['r-snp', 'Teamwear & Uniforms', 4.72],
+      ['r-srs', 'Teamwear & Uniforms', 3.28],
+      ['r-ttp', 'Teamwear & Uniforms', 6.94],
+      ['r-vpj', 'Teamwear & Uniforms', 6.75],
+      ['r-wsa', 'Teamwear & Uniforms', 3.99],
+      ['r-xmp', 'Teamwear & Uniforms', 8.14],
+      ['r-xmt', 'Teamwear & Uniforms', 6.05],
+      ['rxps', 'Teamwear & Uniforms', 3.84],
     ] as const
+  it('passes the live catalogue as measured 2026-09-28 (40 garments, worst 1.88x its family median)', () => {
+    // Sizes are the served files after the 2026-09-28 rollout: 24 new garments, 11 live ones
+    // re-processed from raw, and the five not swapped (r-atw r-atj r-aj r-et came out identical;
+    // r-xmp is held — see the next test). Families are the products' real `category` values.
+    const live = live40()
     const result = judgeModelSizes(
       live.map(([key, family, mb]) => ({ key, family, bytes: mb * MB })),
     )
     expect(result.flagged).toEqual([])
+  })
+
+  it('FLAGS the X-Milo Bib re-processed with the 4096 halftone cap — why it was not swapped', () => {
+    // 2026-09-28: fix 2c keeps the Bib's halftone print at 4096 px and the file grew 8.14 -> 10.34 MB,
+    // 2.01x the Teamwear & Uniforms median. The rule has no model exceptions, so the owner decides;
+    // until then the live Bib keeps its 8.14 MB file (the row above).
+    const catalogue = live40().map((row) =>
+      row[0] === 'r-xmp' ? (['r-xmp', row[1], 10.34] as const) : row,
+    )
+    const result = judgeModelSizes(
+      catalogue.map(([key, family, mb]) => ({ key, family, bytes: mb * MB })),
+    )
+    expect(result.flagged.map((row) => row.slug)).toEqual(['r-xmp'])
   })
 
   it('FLAGS a model three times its family median', () => {

@@ -167,6 +167,153 @@ export const LIVE_PRODUCTS = [
     colourways: ['cream', 'blush', 'sky', 'sage', 'burgundy'],
     productCode: 'R-ET',
   },
+  // Added 2026-09-28 with the 24 garments processed on the owner's Mac (scripts/process-local.mjs).
+  // Same order as 2026-09-07: every slug was read back out of the CMS after the colour words were
+  // set and switched on, while each garment was still a draft — never typed.
+  {
+    slug: 'r-srs',
+    colourway: 'powder-blue',
+    colourways: ['powder-blue', 'cream', 'mint', 'butter', 'charcoal'],
+    productCode: 'R-SRS',
+  },
+  {
+    slug: 'r-snp',
+    colourway: 'olive',
+    colourways: ['olive', 'teal', 'blue', 'mauve', 'rust'],
+    productCode: 'R-SNP',
+  },
+  {
+    slug: 'r-pps',
+    colourway: 'maroon',
+    colourways: ['maroon', 'blush', 'peach', 'olive', 'teal'],
+    productCode: 'R-PPS',
+  },
+  {
+    slug: 'r-prs',
+    colourway: 'red',
+    colourways: ['red', 'powder-blue', 'olive', 'periwinkle', 'pink'],
+    productCode: 'R-PRS',
+  },
+  {
+    slug: 'r-hfj',
+    colourway: 'lime',
+    colourways: ['lime', 'blush', 'orange', 'mustard', 'aqua'],
+    productCode: 'R-HFJ',
+  },
+  {
+    slug: 'r-vcj',
+    colourway: 'burgundy',
+    colourways: ['burgundy', 'sky', 'fuchsia', 'green', 'navy'],
+    productCode: 'R-VCJ',
+  },
+  {
+    slug: 'r-xmt',
+    colourway: 'wine',
+    colourways: ['wine', 'cream', 'lime', 'denim', 'slate'],
+    productCode: 'R-XMT',
+  },
+  {
+    slug: 'r-ttp',
+    colourway: 'blush',
+    colourways: ['blush', 'orange', 'lime', 'teal', 'lilac'],
+    productCode: 'R-TTP',
+  },
+  {
+    slug: 'r-mrp',
+    colourway: 'magenta',
+    colourways: ['magenta', 'aqua', 'mustard', 'green', 'purple'],
+    productCode: 'R-MRP',
+  },
+  {
+    slug: 'r-taz',
+    colourway: 'coral',
+    colourways: ['coral', 'charcoal', 'teal', 'yellow', 'navy'],
+    productCode: 'R-TAZ',
+  },
+  {
+    slug: 'r-kmj',
+    colourway: 'yellow',
+    colourways: ['yellow', 'pink', 'teal', 'lime', 'orange'],
+    productCode: 'R-KMJ',
+  },
+  {
+    slug: 'r-alj',
+    colourway: 'navy',
+    colourways: ['navy', 'pink', 'green', 'teal', 'burgundy'],
+    productCode: 'R-ALJ',
+  },
+  {
+    slug: 'r-wct',
+    colourway: 'lilac',
+    colourways: ['lilac', 'burgundy', 'powder-blue', 'green', 'white'],
+    productCode: 'R-WCT',
+  },
+  {
+    slug: 'r-mss',
+    colourway: 'lilac',
+    colourways: ['lilac', 'olive', 'crimson', 'sky', 'yellow'],
+    productCode: 'R-MSS',
+  },
+  {
+    slug: 'r-zt',
+    colourway: 'blush',
+    colourways: ['blush', 'butter', 'powder-blue', 'lilac', 'burgundy'],
+    productCode: 'R-ZT',
+  },
+  {
+    slug: 'r-bcd',
+    colourway: 'pink',
+    colourways: ['pink', 'terracotta', 'mustard', 'mint', 'denim'],
+    productCode: 'R-BCD',
+  },
+  {
+    slug: 'r-mxt',
+    colourway: 'blush',
+    colourways: ['blush', 'green', 'teal', 'lilac', 'slate'],
+    productCode: 'R-MXT',
+  },
+  {
+    slug: 'r-vpj',
+    colourway: 'blue',
+    colourways: ['blue', 'magenta', 'orange', 'lime', 'purple'],
+    productCode: 'R-VPJ',
+  },
+  {
+    slug: 'r-csp',
+    colourway: 'powder-blue',
+    colourways: ['powder-blue', 'mauve', 'navy', 'sage', 'wine'],
+    productCode: 'R-CSP',
+  },
+  {
+    slug: 'r-cat',
+    colourway: 'maroon',
+    colourways: ['maroon', 'teal', 'rust', 'sage', 'blush'],
+    productCode: 'R-CAT',
+  },
+  {
+    slug: 'r-fft',
+    colourway: 'lime',
+    colourways: ['lime', 'aqua', 'pink', 'orange', 'indigo'],
+    productCode: 'R-FFT',
+  },
+  {
+    slug: 'r-wsa',
+    colourway: 'plum',
+    colourways: ['plum', 'blush', 'olive', 'sky', 'cream'],
+    productCode: 'R-WSA',
+  },
+  {
+    slug: 'r-ifs',
+    colourway: 'olive',
+    colourways: ['olive', 'powder-blue', 'wine', 'navy', 'purple'],
+    productCode: 'R-IFS',
+  },
+  {
+    slug: 'r-cvn',
+    colourway: 'plum',
+    colourways: ['plum', 'blush', 'terracotta', 'sand', 'powder-blue'],
+    productCode: 'R-CVN',
+  },
 ]
 
 /**
