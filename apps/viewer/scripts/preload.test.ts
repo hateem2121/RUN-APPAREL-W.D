@@ -160,8 +160,9 @@ describe('the head', () => {
   it('preconnects to both cross-origin hosts on the critical path', () => {
     /**
      * The page's critical path runs through two cross-origin hosts —
-     * `cms.wear-run.help` for the product payload and `media.wear-run.help` for
-     * the 27 MB model — and neither had a preconnect. Each therefore paid DNS +
+     * `cms.wear-run.help` for the product payload and `media.wear-run.com` for
+     * the 27 MB model (on `.help` until the domain move of 2026-09-28) — and
+     * neither had a preconnect. Each therefore paid DNS +
      * TCP + TLS serially at the moment it was first needed, on a phone that has
      * just scanned a QR tag.
      *
@@ -173,7 +174,7 @@ describe('the head', () => {
      * than having no hint at all.
      */
     const html = readFileSync(SOURCE_INDEX, 'utf8')
-    for (const host of ['cms.wear-run.help', 'media.wear-run.help']) {
+    for (const host of ['cms.wear-run.help', 'media.wear-run.com']) {
       const tag = new RegExp(`<link[^>]*rel="preconnect"[^>]*${escapeRegex(host)}[^>]*>`)
       const match = html.match(tag)
       expect(match, `no preconnect for ${host}`).not.toBeNull()

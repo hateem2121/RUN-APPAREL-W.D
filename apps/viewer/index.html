@@ -108,7 +108,7 @@
 
     <!--
       The whole critical path runs through these two hosts and neither had a
-      hint: cms.wear-run.help serves the product payload and media.wear-run.help
+      hint: cms.wear-run.help serves the product payload and media.wear-run.com
       serves the model. Each paid DNS + TCP + TLS serially at the moment it was
       first needed, on a phone that had just scanned a QR tag.
 
@@ -134,7 +134,7 @@
       hint at all. apps/viewer/scripts/preload.test.ts pins both halves.
     -->
     <link rel="preconnect" href="https://cms.wear-run.help" crossorigin />
-    <link rel="preconnect" href="https://media.wear-run.help" crossorigin />
+    <link rel="preconnect" href="https://media.wear-run.com" crossorigin />
     <!--
       The meshopt decoder and the lighting map are preloaded by the APP, not here, since
       RO-08 (2026-09-25): src/lib/preload3d.ts, called from main.tsx right after mount. As
