@@ -75,7 +75,8 @@ const ONLY = onlyAt === -1 ? null : args[onlyAt + 1]
  * pages. Nothing went red, because the fallback renders fine and this script was
  * never re-run. Raise it in the same change that publishes a garment.
  */
-const EXPECTED_PRODUCTS = 16
+// 16 -> 40 on 2026-09-28: the 24 garments processed on the owner's Mac (sections 17-40).
+const EXPECTED_PRODUCTS = 40
 const EXPECTED_STEPS = 4
 
 /** `| a | b | c |` -> ['a','b','c'], with escaped pipes preserved. */

@@ -421,6 +421,452 @@ after MOQ, so that is the next-biggest gap — see the end of this file.
 
 ---
 
+## Added 2026-09-28 — the 24 garments processed on the owner's Mac
+
+Same method and the same rules as the sixteen above; these are the 24: every material claim is read from
+that garment's own CMS record (fabric, GSM, fit, features, description — imported from
+the printed catalogue on 2026-08-17), and nothing is invented. **Where the record names no
+decoration method, step 3 names none** and says the method is agreed at specification.
+Where a record contradicts the garment's own 3D export (the catalogue's known defects,
+`.claude/rules/cms-scripted-writes.md`), the copy says neither version: SHORT RAGNAL
+SLEEVE's "V-shaped collar" (the export has a round neck) and CHEVRON V-NECK SOCCER
+JERSEY's "white chevron" and "polyester" (the export has neither; the record says nylon)
+are left out. The 50-piece fact appears in every intro, worded differently each time.
+
+---
+
+## 17. SHORT RAGNAL SLEEVE — `r-srs` (R-SRS)
+
+**Intro**
+
+> A six-panel soccer tee in a 100% polyester jersey interlock, cut for a squad that
+> trains in it as often as it plays in it. We make custom soccer shirts to your
+> specification, from a crest and two team colors or from a full tech pack.
+> An opening order can be 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | Club colors, a crest, a sponsor list or last season's shirt. The six panels are the canvas, so it helps to decide early which colors sit on the body and which on the arm gussets. |
+| 2 | LOCK THE SPECIFICATION | We fix the 100% polyester interlock at 140–180 GSM, the six-panel construction with matching side panels and arm gussets, the self-fabric sleeve piping, and the folded sleeve and waist hems. That becomes the reference every shirt is checked against. |
+| 3 | ADD YOUR BRAND | Crest, numbers and sponsor marks are placed against the panel lines so a logo never straddles a seam. The decoration method is agreed at specification, matched to the jersey rather than chosen afterwards. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development shirt is worn in a training session. Sleeve piping and hem length are the usual adjustments; you approve a reference sample and production is made to it. |
+
+---
+
+## 18. SCUBA-NECK PERFORMANCE — `r-snp` (R-SNP)
+
+**Intro**
+
+> A scuba suit in laminated high-stretch neoprene, 88% polychloroprene and 12% nylon,
+> engineered for a low-bulk anatomical fit. We produce custom scuba and dive suits for
+> clubs, schools and brands, developed from your brief.
+> A first run can start at 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | How the suit will be used — training, instruction or recreation — and any colors or marks you need. Water temperature and use decide more of this garment than its looks do, so that comes first. |
+| 2 | LOCK THE SPECIFICATION | We fix the laminated neoprene at 1400–1600 GSM, the ergonomic neckline, the anatomically engineered panels, the reinforced chest and shoulder zones, and the flatlock and bonded seams. Seam type is agreed once and held for every suit. |
+| 3 | ADD YOUR BRAND | The tonal geometric design is part of the panel layout, and your marks are placed where the neoprene stretches least, so they keep their shape on a body. The decoration method is agreed at specification. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development suit is tried in the water, not only on a stand, because fit at the neckline and shoulders only shows in use. You approve a reference suit and production follows it. |
+
+---
+
+## 19. PRO-PILE SHERPA JACKET — `r-pps` (R-PPS)
+
+**Intro**
+
+> A men's sherpa jacket in a high-loft thermal fleece with a bonded mesh lining and
+> ripstop overlays, made for outdoor work, commuting and layering. We manufacture custom
+> fleece jackets for brands and teams, from a sketch, a sample or a tech pack.
+> You can begin with 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | A reference jacket, a color story or a sketch. Decide early where the ripstop overlays go, because they carry both the durability and most of the jacket's visual structure. |
+| 2 | LOCK THE SPECIFICATION | We fix the 80% cotton / 20% polyester sherpa at 320–440 GSM, the bonded mesh lining, the ripstop overlays, the zippered chest pocket, the elasticated cuffs and hem, and the relaxed athletic fit. |
+| 3 | ADD YOUR BRAND | High-loft pile does not take every method equally, so branding usually goes on the smooth ripstop overlays or the chest-pocket area. The method is agreed at specification. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development jacket is checked for sleeve articulation and hem grip, then worn. Double-needle stitching is inspected at the stress points before you approve the reference sample. |
+
+---
+
+## 20. PACEZIP RUNNING SHIRT — `r-prs` (R-PRS)
+
+**Intro**
+
+> A quarter-zip running shirt in 100% recycled polyester, mixing mesh and piqué knit
+> panels so the wearer can open it up as the pace rises. We make custom running shirts
+> for clubs, events and brands, to your design.
+> Test orders start as low as 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | A club identity, an event, or a shirt you already run in. Say how it will be worn — racing, training or everyday — because that sets where the mesh goes. |
+| 2 | LOCK THE SPECIFICATION | We fix the 100% recycled polyester at 180–220 GSM, the mesh and piqué knit panels, the quarter-zip with its metal zip, and the side pocket. Recycled content is part of the specification, not a substitute found later. |
+| 3 | ADD YOUR BRAND | Logos and event marks go on the piqué panels, which hold a mark more cleanly than open mesh. The decoration method is agreed at specification. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development shirt is run in. Zip length and pocket placement are the usual corrections; you approve the reference sample and production matches it. |
+
+---
+
+## 21. HYDRA-FIT JERSEY — `r-hfj` (R-HFJ)
+
+**Intro**
+
+> A men's full-sleeve training jersey that goes from the gym to the street, with power
+> knit and waffle knit panels for drape and hand-feel. We produce custom training
+> jerseys for brands and teams from your artwork or tech pack.
+> The minimum for a first order is 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | Artwork, a brand palette or a jersey you like the cut of. Decide which panels carry color and which carry texture — the two knits read differently in the same shade. |
+| 2 | LOCK THE SPECIFICATION | We fix the 95% polyester / 5% spandex stretch at 160–210 GSM, the power knit and waffle knit panels, the upper stitch detailing, and the sleek athletic cut. |
+| 3 | ADD YOUR BRAND | A DTF print carries the logo cleanly across the smooth panels without stiffening the stretch. Placement is set so the mark sits flat on the chest rather than across the waffle knit. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development jersey is worn through a session and washed. Sleeve length and print hand-feel are checked before you approve the reference sample for production. |
+
+---
+
+## 22. VANTA CORE JACKET — `r-vcj` (R-VCJ)
+
+**Intro**
+
+> A men's tech jacket in a high-density bonded softshell with a DWR weather-resistant
+> finish and an adjustable scuba hood. We manufacture custom softshell jackets for
+> warm-ups, teams and brands, from a sketch or a tech pack.
+> Production can start from 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | How and where it will be worn — warm-ups, commuting or outdoor use — and your colors. The hood system and cuffs matter more than anything else here, so they are discussed first. |
+| 2 | LOCK THE SPECIFICATION | We fix the 100% polyester softshell at 220–260 GSM with its DWR finish, the adjustable scuba hood, the tactical chest zippers, the dual-layer storm cuffs, the thermal regulation lining and the 3D engineered panelling. |
+| 3 | ADD YOUR BRAND | Marks are placed so they do not interrupt the chest zippers or the panel seams. The decoration method is agreed at specification against the DWR finish. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development jacket is checked for hood adjustment, cuff seal and bar-tack strength, then worn. You approve the reference jacket and production follows it. |
+
+---
+
+## 23. X-MILO TRAINING VEST — `r-xmt` (R-XMT)
+
+**Intro**
+
+> A men's hybrid training vest in a lightweight quick-dry fabric with breathable mesh
+> panels, built for gym, running, CrossFit and cycling. We make custom training vests
+> for teams and brands from your artwork or brief.
+> A trial batch can be 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | Team artwork, a palette or a single logo. Because the whole vest is printed, the design can run edge to edge — tell us where the mesh panels should sit so the graphic works with them. |
+| 2 | LOCK THE SPECIFICATION | We fix the 90% polyester / 10% spandex at 180–220 GSM, the breathable mesh panels, the sleeveless ergonomic construction, the flatlock stitching and the flexible compression fit. |
+| 3 | ADD YOUR BRAND | A full sublimation print carries color and graphics into the fabric itself, across every panel, so nothing cracks or peels at the armholes. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development vest is trained in and washed. Armhole depth and print alignment at the side seams are the usual checks before you approve the reference sample. |
+
+---
+
+## 24. TIGER TAIL PROFLEX — `r-ttp` (R-TTP)
+
+**Intro**
+
+> A tennis dress inspired by the tiger tail butterfly, made in a recycled interlock knit
+> with digital sublimation across the body. We manufacture custom tennis dresses for
+> clubs, academies and brands, developed from your design.
+> An order can start at 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | Club colors, a pattern idea, or this dress as it is. The butterfly-wing graphic can carry your own colors, so it helps to share them before anything is redrawn. |
+| 2 | LOCK THE SPECIFICATION | We fix the 100% recycled polyester interlock at 170–240 GSM and the dress construction, so every unit matches the approved reference. |
+| 3 | ADD YOUR BRAND | Digital sublimation puts the full graphic into the fabric before cutting, so the pattern stays clear through stretch and wash. Your marks are placed within that graphic. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development dress is played in, because movement on court is where fit shows. You approve a reference dress and production is made to it. |
+
+---
+
+## 25. MANTRA RAY PROFLEX — `r-mrp` (R-MRP)
+
+**Intro**
+
+> A tennis and pickleball court shirt whose upper pattern follows the giant oceanic
+> manta ray, made in a recycled polyester single jersey. We produce custom court shirts
+> for clubs, leagues and brands from your artwork.
+> You can start with a 50-piece order.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | Club colors, league marks, or this design recolored. Tell us whether it is for tennis, pickleball or both — it changes nothing in the cut, but it changes where teams want their marks. |
+| 2 | LOCK THE SPECIFICATION | We fix the 100% recycled polyester single jersey at 170–240 GSM and the upper panel and sleeve layout that carries the manta ray pattern. |
+| 3 | ADD YOUR BRAND | Screen printing lays down the manta ray graphic and your marks in solid, opaque color. Each color is its own screen, so the palette is agreed before sampling. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development shirt is played in and washed. Print registration on the upper pattern is checked before you approve the reference sample. |
+
+---
+
+## 26. TERRA ACTIVE ZIP — `r-taz` (R-TAZ)
+
+**Intro**
+
+> A men's half-zip polo in a tech-piqué power knit with a blade collar and a
+> semi-auto lock zipper placket, for golf, team travel and the office. We make custom
+> polos for teams, clubs and brands to your specification.
+> The first order can be as small as 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | Club colors, a crest, or a polo you want matched. Say where it will be worn — course, travel or office — because that decides how loud the branding should be. |
+| 2 | LOCK THE SPECIFICATION | We fix the 90% nylon / 10% spandex tech-piqué at 140–180 GSM, the blade collar, the semi-auto lock zipper placket, the split hem and the reinforced shoulder seams, in an athletic tapered fit. |
+| 3 | ADD YOUR BRAND | This polo is made ready for custom sublimation or embroidery — sublimation for an all-over or tonal design, embroidery for a crest that should look stitched rather than printed. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development polo is worn and washed. Collar shape and placket length are the usual checks before you approve the reference sample. |
+
+---
+
+## 27. THE KINETIC MATRIX JACKET — `r-kmj` (R-KMJ)
+
+**Intro**
+
+> A men's technical jacket in a hydro-repellent softshell with a structural scuba hood
+> and integrated visor. We manufacture custom technical jackets for brands and teams,
+> developed from your brief or tech pack.
+> A first production run can be 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | Your colors and how the jacket will be used — training, commuting or weather protection. The bold wave graphic can carry your palette, so share it early. |
+| 2 | LOCK THE SPECIFICATION | We fix the 82% recycled polyester / 18% spandex softshell at 250 GSM, the scuba hood with visor, the core ventilation system, the waterproof zippers, the adjustable cuffs, the shock-cord hem and the reinforced bonded seams. |
+| 3 | ADD YOUR BRAND | Marks are placed clear of the ventilation openings and the bonded seams. The decoration method is agreed at specification against the hydro-repellent face. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development jacket is checked for hood fit, visor shape and seam sealing, then worn. You approve the reference jacket and production follows it. |
+
+---
+
+## 28. AURORA LONGLINE JACKET — `r-alj` (R-ALJ)
+
+**Intro**
+
+> A men's longline jacket in a weather-resistant bonded softshell with a high-neck scuba
+> hood, cut long for commuter coverage. We produce custom longline and puffer jackets
+> for brands, from a sketch, a sample or a tech pack.
+> Orders begin at 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | A reference coat, a color story or a sketch. Length is the defining decision on this jacket, so we agree it before anything else. |
+| 2 | LOCK THE SPECIFICATION | We fix the 100% nylon shell, the high-neck scuba hood with toggles, the dual-entry utility pockets, the adjustable storm cuffs, the matte memory-shine finish and the extended commuter fit. |
+| 3 | ADD YOUR BRAND | Branding usually sits at the chest or the upper sleeve, where the quilting is flattest. The decoration method is agreed at specification. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development jacket is worn and its finish checked in daylight, because a memory-shine surface reads differently indoors. You approve the reference jacket and production follows it. |
+
+---
+
+## 29. WORKOUT CROPPED TOP — `r-wct` (R-WCT)
+
+**Intro**
+
+> A cropped training top in a compression interlock and moisture-wicking athletic
+> spandex, made for lifting, conditioning and yoga. We manufacture custom women's
+> activewear for private-label brands from your design.
+> A test order can be just 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | A brand palette, a logo, or a top you want matched. Crop length is the first decision, because it sets how the top pairs with your leggings. |
+| 2 | LOCK THE SPECIFICATION | We fix the 75% nylon / 25% spandex compression interlock at 180–260 GSM, the ventilated cropped cut and the contrast panels, and hold that specification for every unit. |
+| 3 | ADD YOUR BRAND | A DTF print places your logo cleanly on the chest without stiffening the compression fabric. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development top is trained in and washed. Compression and crop length are checked before you approve the reference sample. |
+
+---
+
+## 30. METRO-SHIELD SUIT — `r-mss` (R-MSS)
+
+**Intro**
+
+> A men's commuter suit in a weather-resistant ripstop softshell with a tech fleece
+> lining, a windproof membrane and taped waterproof seams. We make custom rain and
+> commuter suits for brands and teams from your brief.
+> Start with as few as 50 sets.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | Your colors, and how the suit will be used — commuting, travel or outdoor work. The two-tone panel layout is where your palette goes, so share it early. |
+| 2 | LOCK THE SPECIFICATION | We fix the 100% polyester Taslon shell with 100% polyester taffeta lining and 40–60 GSM insulation, the high-neck scuba hood, the utility zipper pockets, the reinforced knee panels, the toggle hem and cuffs, and the taped seams, in a tapered urban fit. |
+| 3 | ADD YOUR BRAND | Marks are placed away from the taped seams so the waterproofing is never broken. The decoration method is agreed at specification. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development suit is checked for seam taping, hood fit and knee articulation, then worn. You approve the reference set and production follows it. |
+
+---
+
+## 31. ZENMOVE TIGHTS — `r-zt` (R-ZT)
+
+**Intro**
+
+> Women's yoga tights in a poly stretch knit with squat-proof opacity and color-lock
+> dyeing that resists fading and pilling. We produce custom yoga tights for
+> private-label brands, to your specification.
+> Your first order can be 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | A brand palette, a pair you want matched, or a list of must-haves. Opacity is the first thing we agree, because it is what a customer tests in the fitting room. |
+| 2 | LOCK THE SPECIFICATION | We fix the 90% polyester / 10% spandex knit at 160–250 GSM, the squat-proof opacity, the color-lock dyeing, the EVA padding and the skinny fit. |
+| 3 | ADD YOUR BRAND | Your logo is placed at the waistband or hip, where the knit stretches least. The decoration method is agreed at specification. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development pair goes through a squat test and a wash test. You approve the reference pair and production is made to it. |
+
+---
+
+## 32. BEEFLEX COURT DRESS — `r-bcd` (R-BCD)
+
+**Intro**
+
+> A tennis bra and skirt set whose structure follows the geometry of a bee hive, in a
+> poly-stretch interlock chosen for flexibility. We manufacture custom tennis sets for
+> clubs, academies and brands.
+> A first set order can be 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | Club colors, marks, or this set recolored. The contrast panels are where two colors meet, so choose the pair before anything else. |
+| 2 | LOCK THE SPECIFICATION | We fix the 88% polyester / 12% spandex interlock at 160–220 GSM and the bra and skirt construction, so every set matches the approved reference. |
+| 3 | ADD YOUR BRAND | A DTF print places your mark cleanly on the bra panel and holds up to stretch on court. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development set is played in. Strap and skirt fit are the usual adjustments; you approve the reference set and production follows it. |
+
+---
+
+## 33. MOTION-X TRAINING ZIPPER — `r-mxt` (R-MXT)
+
+**Intro**
+
+> A men's training top in a performance stretch fabric with a full-length front zipper
+> for ventilation, made for gym work, running and warm-ups. We make custom training
+> jackets for teams and brands.
+> A team order can start at 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | Team colors, a sponsor sheet or a crest. The side panels are the second color, so we agree the pair before the logos. |
+| 2 | LOCK THE SPECIFICATION | We fix the 88% polyester / 12% spandex at 220–260 GSM, the full-length front zipper, the invisible side zip panels, the flatlock stitching and the athletic fit with ergonomic panels. |
+| 3 | ADD YOUR BRAND | Two methods are specified: DTF print for sponsor marks and graphics, and embroidery for a crest that should look stitched. Placement is set clear of the front zipper. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development top is worn through a warm-up and washed. Zipper length and sleeve fit are checked before you approve the reference sample. |
+
+---
+
+## 34. VELOCITY PERFORMANCE JERSEY — `r-vpj` (R-VPJ)
+
+**Intro**
+
+> A soccer jersey with a tonal abstract geometric sublimation across the body and a
+> clean V-neck, with diagonal panels that leave room for sponsors. We produce custom
+> soccer jerseys for clubs and leagues from your artwork.
+> A club order can begin at 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | Club colors, a sponsor list and numbering needs. The diagonal panels are made for sponsor placement, so bring the sponsor list at the start. |
+| 2 | LOCK THE SPECIFICATION | We fix the 90% polyester / 10% spandex interlock at 150–180 GSM, the V-neck, the diagonal chest and shoulder panels, and the modern athletic fit. |
+| 3 | ADD YOUR BRAND | Sublimation printing carries the geometric pattern, your colors, crest and sponsors into the fabric itself, so nothing lifts after a season of washing. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development jersey is played in. Pattern alignment across the diagonal panels is checked before you approve the reference sample. |
+
+---
+
+## 35. CRIMSON STRIDE PULLOVER — `r-csp` (R-CSP)
+
+**Intro**
+
+> A men's half-zip midlayer with a brushed thermal fleece interior and a stand-up mock
+> neck, made for training, sideline recovery and travel. We manufacture custom
+> pullovers and midlayers for teams and brands.
+> You can order from 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | Team colors, a crest, or a pullover you want matched. The large chest graphic can carry your palette, so share it early. |
+| 2 | LOCK THE SPECIFICATION | We fix the 95% cotton / 5% spandex fleece at 210–260 GSM, the brushed thermal interior, the stand-up mock neck, the half zip, the ribbed cuffs and hem, and the double-stitch construction, in a relaxed athletic fit. |
+| 3 | ADD YOUR BRAND | Your marks are placed on the chest, clear of the half zip. The decoration method is agreed at specification. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development pullover is worn and washed, because a cotton fleece moves on the first wash. You approve the reference sample and production follows it. |
+
+---
+
+## 36. CORE ALIGN TIGHTS — `r-cat` (R-CAT)
+
+**Intro**
+
+> Women's yoga tights built on a compression architecture, with a high-rise ergonomic
+> waistband and a puri knit that holds its shape and opacity. We make custom yoga and
+> training tights for private-label brands.
+> 50 pieces is enough for a first order.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | A brand palette, a pair you want matched, or the level of compression you are after. Compression is agreed first, because it defines the garment. |
+| 2 | LOCK THE SPECIFICATION | We fix the 90% nylon / 10% spandex puri knit at 160–240 GSM, the compression architecture, the high-rise ergonomic waistband, the hydrophobic fibers and the skinny fit. |
+| 3 | ADD YOUR BRAND | The waistband carries your mark, where it sits flat and stays visible. The decoration method is agreed at specification. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development pair is tested in a hot session and washed, to check shape and opacity retention. You approve the reference pair and production is made to it. |
+
+---
+
+## 37. FLEX FITTED TRAINING VEST — `r-fft` (R-FFT)
+
+**Intro**
+
+> A training bib for drills, scrimmages and sessions where players need telling apart
+> fast, in an aero liner mesh with adjustable sides. We manufacture custom training bibs
+> for clubs and academies.
+> A squad order can start at 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | How many teams you need to tell apart, and in which colors. That sets the number of colorways before any logo is discussed. |
+| 2 | LOCK THE SPECIFICATION | We fix the 100% polyester aero liner mesh at 80–100 GSM and the adjustable sides that give a more secure fit than a loose bib. |
+| 3 | ADD YOUR BRAND | Screen printing lays down numbers, crests and sponsor marks in solid, opaque color that stays readable across the pitch. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development bib is worn in a drill. Side adjustment and print opacity on the mesh are checked before you approve the reference sample. |
+
+---
+
+## 38. WOMEN'S ATHLETIC TENNIS DRESS — `r-wsa` (R-WSA)
+
+**Intro**
+
+> A tennis dress drawn from the Great Pyramid, with digital sublimation across the bra,
+> a conical skirt and a textured compression belt. We produce custom tennis dresses for
+> clubs, academies and brands.
+> The minimum first order is 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | Club colors, marks, or this dress recolored. The printed bra panel and the textured belt are the two features that carry a design. |
+| 2 | LOCK THE SPECIFICATION | We fix the 90% nylon / 10% spandex interlock at 160–240 GSM, the textured compression belt and the conical skirt construction. |
+| 3 | ADD YOUR BRAND | Digital sublimation carries the moon-texture graphic and your colors into the bra panel itself, so it stays clear through stretch. Your marks are placed within it. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development dress is played in. Belt compression and skirt movement are checked before you approve the reference dress. |
+
+---
+
+## 39. INDIGO FLOW SWEATSHIRT — `r-ifs` (R-IFS)
+
+**Intro**
+
+> A crew-neck sweatshirt in a soft, durable flex jersey with precision-finished cuffs and
+> hem, for warm-ups, travel and everyday wear. We manufacture custom sweatshirts for teams
+> and brands from your artwork.
+> A first run can be 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | Artwork, a palette, or this design recolored. The all-over pattern can carry your colors, so share them before it is redrawn. |
+| 2 | LOCK THE SPECIFICATION | We fix the 90% nylon / 10% spandex flex jersey at 160–240 GSM, the crew neckline, the precision-finished cuffs and hem, and the relaxed, refined fit. |
+| 3 | ADD YOUR BRAND | Digital printing carries the all-over pattern and your marks across the body, including the raglan sleeves. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development sweatshirt is worn and washed to check fade resistance. You approve the reference sample and production follows it. |
+
+---
+
+## 40. CHEVRON V-NECK SOCCER JERSEY — `r-cvn` (R-CVN)
+
+**Intro**
+
+> A soccer jersey in a lightweight, quick-dry flex jersey knit with contrast sleeve
+> panels, made for matches and training. We make custom soccer jerseys for clubs,
+> schools and leagues from your design.
+> Orders can start from 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | Club colors, a crest, a sponsor list and numbering. The contrast sleeves are a second color decision in their own right. |
+| 2 | LOCK THE SPECIFICATION | We fix the 90% nylon / 10% spandex flex jersey at 160–240 GSM, the contrast sleeve panels and the ergonomic athletic fit. |
+| 3 | ADD YOUR BRAND | A DTF print places crests, numbers and sponsor marks cleanly on the body and holds up through match washing. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development jersey is played in. Number placement and sleeve fit are checked before you approve the reference sample. |
+
+---
+
 ## Garment fit values — owner-confirmed 2026-09-04
 
 Four products had an empty `garmentFit`, so the `[ FIT ]` annotation on the stage
