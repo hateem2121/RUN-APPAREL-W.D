@@ -456,13 +456,13 @@ test.describe('FA-A-04 — a real garment on the home page', () => {
     await expect(figure).toHaveCount(1)
 
     /*
-     * The link goes to the VIEWER's host, not this one. Nothing here serves
-     * `/{slug}/{colour}`, so a same-origin href would 404 — the same trap the gallery
-     * cards carry a warning about.
+     * The link goes to the garment's page in the site's own garment folder,
+     * `/products/<product>/<colour>` (domain move, 2026-09-28; it was the viewer's own
+     * host until then). A bare `/<product>/<colour>` would be the OLD shape, which this
+     * site does not serve — the same trap the gallery cards carry a warning about.
      */
     const href = await figure.locator('a.proof__link').getAttribute('href')
-    expect(href).toMatch(/^https?:\/\/[^/]+\/[^/]+\/[^/]+$/)
-    expect(new URL(href ?? '').origin).not.toBe(new URL(page.url()).origin)
+    expect(href).toMatch(/^https:\/\/[^/]+\/products\/[^/]+\/[^/]+$/)
   })
 
   /*
