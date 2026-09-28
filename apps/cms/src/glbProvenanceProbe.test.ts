@@ -271,7 +271,7 @@ describe('modelUrlsFromPayload — every colourway, not only the default (IM-10)
 
 describe("judgeModelSizes — the posters' family-median rule, for models (IM-02b)", () => {
   const MB = 1e6
-  const live37 = () =>
+  const live40 = () =>
     [
       ['r-cch', 'Casual Wear', 3.63],
       ['r-csp', 'Casual Wear', 7.77],
@@ -286,6 +286,7 @@ describe("judgeModelSizes — the posters' family-median rule, for models (IM-02
       ['r-vcj', 'Outerwear', 6.77],
       ['r-afp', 'Sportswear', 1.89],
       ['r-asb', 'Sportswear', 2.58],
+      ['r-cat', 'Sportswear', 7.12],
       ['r-ect', 'Sportswear', 7.84],
       ['r-hfj', 'Sportswear', 6.29],
       ['r-ifs', 'Sportswear', 6.9],
@@ -298,6 +299,7 @@ describe("judgeModelSizes — the posters' family-median rule, for models (IM-02
       ['r-au', 'Teamwear & Uniforms', 7.85],
       ['r-bcd', 'Teamwear & Uniforms', 4.11],
       ['r-css', 'Teamwear & Uniforms', 5.05],
+      ['r-cvn', 'Teamwear & Uniforms', 5.43],
       ['r-fft', 'Teamwear & Uniforms', 6.53],
       ['r-gtd', 'Teamwear & Uniforms', 5.11],
       ['r-mm', 'Teamwear & Uniforms', 4.42],
@@ -305,34 +307,45 @@ describe("judgeModelSizes — the posters' family-median rule, for models (IM-02
       ['r-mxt', 'Teamwear & Uniforms', 6.12],
       ['r-snp', 'Teamwear & Uniforms', 4.72],
       ['r-srs', 'Teamwear & Uniforms', 3.28],
+      ['r-ttp', 'Teamwear & Uniforms', 6.94],
       ['r-vpj', 'Teamwear & Uniforms', 6.75],
       ['r-wsa', 'Teamwear & Uniforms', 3.99],
-      ['r-xmp', 'Teamwear & Uniforms', 8.14],
+      ['r-xmp', 'Teamwear & Uniforms', 10.34],
       ['r-xmt', 'Teamwear & Uniforms', 6.05],
       ['rxps', 'Teamwear & Uniforms', 3.84],
     ] as const
-  it('passes the live catalogue as measured 2026-09-28 (37 garments, worst 1.88x its family median)', () => {
-    // Sizes are the served files after the 2026-09-28 rollout: 21 new garments (r-cat, r-cvn and r-ttp stay drafts), 11 live ones
+  it('passes the live catalogue as measured 2026-09-28 (40 garments, worst 1.88x its family median)', () => {
+    // Sizes are the served files after the 2026-09-28 rollout: 24 new garments, 11 live ones
     // re-processed from raw, and the five not swapped (r-atw r-atj r-aj r-et came out identical;
-    // r-xmp is held — see the next test). Families are the products' real `category` values.
-    const live = live37()
+    // r-xmp swapped to its 10.34 MB file under the owner's exception — see the next test). Families are the products' real `category` values.
+    const live = live40()
     const result = judgeModelSizes(
       live.map(([key, family, mb]) => ({ key, family, bytes: mb * MB })),
     )
     expect(result.flagged).toEqual([])
   })
 
-  it('FLAGS the X-Milo Bib re-processed with the 4096 halftone cap — why it was not swapped', () => {
+  it("excuses the X-Milo Bib's 4096-halftone file under the owner's exception, and only the Bib", () => {
     // 2026-09-28: fix 2c keeps the Bib's halftone print at 4096 px and the file grew 8.14 -> 10.34 MB,
-    // 2.01x the Teamwear & Uniforms median. The rule has no model exceptions, so the owner decides;
-    // until then the live Bib keeps its 8.14 MB file (the row above).
-    const catalogue = live37().map((row) =>
-      row[0] === 'r-xmp' ? (['r-xmp', row[1], 10.34] as const) : row,
-    )
-    const result = judgeModelSizes(
-      catalogue.map(([key, family, mb]) => ({ key, family, bytes: mb * MB })),
-    )
-    expect(result.flagged.map((row) => row.slug)).toEqual(['r-xmp'])
+    // 2.01x the Teamwear & Uniforms median. The owner chose the sharper file (MODEL_OWNER_EXCEPTIONS).
+    const rows = (bib: number, other = 5.14) =>
+      live40().map((row) =>
+        row[0] === 'r-xmp'
+          ? (['r-xmp', row[1], bib] as const)
+          : row[0] === 'r-aj'
+            ? (['r-aj', row[1], other] as const)
+            : row,
+      )
+    const judge = (list: ReturnType<typeof rows>) =>
+      judgeModelSizes(list.map(([key, family, mb]) => ({ key, family, bytes: mb * MB })))
+    const bib = judge(rows(10.34))
+    expect(bib.flagged).toEqual([])
+    expect(bib.rows.find((row) => row.slug === 'r-xmp')?.verdict).toBe('excepted')
+    // The exception has a ceiling: past it the Bib is flagged like anything else.
+    expect(judge(rows(13)).flagged.map((row) => row.slug)).toEqual(['r-xmp'])
+    // Negative control: over 2x on ANOTHER garment is still flagged. 11.5 MB, because moving r-aj
+    // off 5.14 MB moves the median too (to 5.43 MB), and 10.34 MB would then be only 1.90x.
+    expect(judge(rows(8.14, 11.5)).flagged.map((row) => row.slug)).toEqual(['r-aj'])
   })
 
   it('FLAGS a model three times its family median', () => {

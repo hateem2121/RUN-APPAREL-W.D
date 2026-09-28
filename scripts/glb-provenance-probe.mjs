@@ -128,24 +128,42 @@ export function modelUrlsFromPayload(body) {
 }
 
 /**
+ * The owner's exceptions for MODELS — a list of its own, never the posters' (the vest's
+ * poster exception must not excuse a model). Same shape and the same rule: one product, its
+ * own ceiling, and past that ceiling it is flagged like anything else.
+ *
+ * r-xmp, 2026-09-28: fix 2c keeps the Bib's halftone print at 4096 px (it was capped at 2048
+ * and went blocky when zoomed), and the re-processed file measured 10.34 MB, 2.01x the Teamwear
+ * & Uniforms median. Asked "swap it in, or keep the 8.14 MB file?", the owner chose the sharper
+ * file. 2.25x leaves room for the median moving as the catalogue changes, not for a bigger file.
+ */
+export const MODEL_OWNER_EXCEPTIONS = [
+  {
+    product: 'r-xmp',
+    maxRatio: 2.25,
+    reason: "owner's choice on 2026-09-28: the Bib keeps its 4096 px halftone print sharp",
+  },
+]
+
+/**
  * Pure: IM-02b for models. The posters' own rule (`judgePosters`: each file against its
- * family's median, flagged at 2x), with no owner exceptions: none has been granted for
- * a model. Measured 2026-09-25: 1.89-8.14 MB, worst 1.66x its family median, 0 flagged.
+ * family's median, flagged at 2x), with the models' own owner exceptions above. Measured
+ * 2026-09-28 on the 40-garment catalogue: 1.89-10.34 MB, worst un-excepted 1.88x.
  * @param {Observation[]} observations
  */
 export function judgeModelSizes(observations) {
   const samples = observations
     .filter((o) => typeof o.bytes === 'number' && o.bytes > 0 && o.family)
     // `slug` is the PRODUCT (r-wzu), not the label (r-wzu/blush): exceptions are keyed on
-    // the product, so only a product slug makes `exceptions: []` the thing that refuses the
-    // vest's poster exception. With the label here that test passed with the guard removed.
+    // the product, so only a product slug makes MODEL_OWNER_EXCEPTIONS (which has no r-wzu) the
+    // thing that refuses the vest's poster exception. With the label here that test passed with the guard removed.
     .map((o) => ({
       slug: String(o.slug ?? o.key),
       colour: o.slug ? o.key.slice(o.slug.length + 1) : '',
       family: String(o.family),
       bytes: Number(o.bytes),
     }))
-  return judgePosters(samples, { exceptions: [] })
+  return judgePosters(samples, { exceptions: MODEL_OWNER_EXCEPTIONS })
 }
 
 /** A second GET must come from the edge; one MISS alone is a cold file, not a fault. */
