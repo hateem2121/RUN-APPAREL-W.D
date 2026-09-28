@@ -172,6 +172,17 @@ export async function seed(payload: Payload, assetsDir: string): Promise<void> {
     colourGlbIds[colourway.slug] = glb.id
   }
 
+  // One studio render, on the DEFAULT colour only. Production mixes rendered and
+  // poster-only colours on one garment (103 renders over 40 garments, 2026-09-28), and the
+  // gallery's colour strip (`components/site/CardGallery.tsx`) is only exercised by the
+  // public-site suite when the seeded garment does the same.
+  const [firstColour] = COLOURWAYS
+  const render = await payload.create({
+    collection: 'media',
+    data: { alt: `Studio render: Velocity Performance Tee in ${firstColour!.displayName}` },
+    filePath: path.join(placeholderDir, `n001-${firstColour!.slug}-poster.webp`),
+  })
+
   // ── Product ──────────────────────────────────────────────────────────
   // One create, published outright. The old two-phase dance (save as draft →
   // create the colourway documents → patch the product's default → publish)
@@ -195,6 +206,7 @@ export async function seed(payload: Payload, assetsDir: string): Promise<void> {
         slug: colourway.slug,
         variantId: colourway.variantId,
         posterPreview: posterIds[colourway.slug]!,
+        ...(colourway.slug === firstColour!.slug ? { renderImage: render.id } : {}),
         glbAsset: colourGlbIds[colourway.slug]!,
         active: true,
         // Deliberately CONSISTENT with productName above — and that consistency

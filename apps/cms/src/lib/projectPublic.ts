@@ -138,6 +138,18 @@ export interface ProductCard {
   defaultColourSlug: string
   /** Colour NAMES. Never hex — see the warning on `toProductCard`. */
   colourNames: string[]
+  /** One swipeable picture per addressable colourway, in row order. */
+  colours: CardColour[]
+}
+
+/**
+ * One colour on a gallery card: the studio render where the colour has one, else its 3D
+ * poster (owner's call, 2026-09-28). `image: null` draws the placeholder for that colour.
+ */
+export interface CardColour {
+  slug: string
+  name: string
+  image: { url: string; alt: string; kind: 'render' | 'poster' } | null
 }
 
 const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
@@ -216,7 +228,45 @@ export function toProductCard(
     posterAlt: poster.alt || `${productName} — 3D product reference`,
     defaultColourSlug: text(colourways[0]?.slug),
     colourNames: colourways.map((colour) => text(colour.displayName) || text(colour.slug)),
+    colours: colourways.map((colour, index) =>
+      toCardColour(colour, productName, index === 0 ? product.posterFallback : undefined),
+    ),
   }
+}
+
+/**
+ * ⚠️ ONLY THE DEFAULT COLOUR MAY BORROW `posterFallback`. It is one picture of the garment
+ * in one colour; under any other colour's name it would label that colour with somebody
+ * else's picture. The other colours draw the placeholder instead.
+ *
+ * ⚠️ THE RENDER IS HEAVY, ON THE OWNER'S SAY-SO. Measured 2026-09-28 on media.wear-run.help:
+ * `r-mrp-magenta-render.webp` 516,234 B and `rxps-wine-render.webp` 700,668 B, against
+ * 34,118 B for the same colour's poster. The owner chose the full render over a smaller
+ * card copy; `CardGallery` loads only the picture a visitor is looking at.
+ */
+function toCardColour(
+  colour: Record<string, unknown>,
+  productName: string,
+  fallback: unknown,
+): CardColour {
+  const name = text(colour.displayName) || text(colour.slug)
+  const kinds: Array<[unknown, 'render' | 'poster']> = [
+    [colour.renderImage, 'render'],
+    [colour.posterPreview, 'poster'],
+    [fallback, 'poster'],
+  ]
+  for (const [candidate, kind] of kinds) {
+    if (!candidate || typeof candidate !== 'object') continue
+    const media = candidate as { url?: unknown; alt?: unknown }
+    const url = text(media.url)
+    if (!isPubliclyFetchable(url)) continue
+    return {
+      slug: text(colour.slug),
+      name,
+      image: { url, alt: text(media.alt) || `${productName} in ${name}`, kind },
+    }
+  }
+  return { slug: text(colour.slug), name, image: null }
 }
 
 /**

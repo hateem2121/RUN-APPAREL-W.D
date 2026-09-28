@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { JsonLd } from '../../../components/site/JsonLd'
-import { ProductPoster } from '../../../components/site/ProductPoster'
+import { CardGallery } from '../../../components/site/CardGallery'
 import { ViewerCue } from '../../../components/site/ViewerCue'
 import { getProductCards, type ProductCard } from '../../../lib/content'
 import { FAMILIES, familyBySlug } from '../../../lib/families'
@@ -91,7 +91,9 @@ function crossOriginPosterHost(products: ProductCard[]): string | null {
  * Filters were chosen over pagination precisely so that `/products` keeps all 67 garments
  * in one document — a crawler sees the whole catalogue at one URL, and the page still
  * works with scripting off, because each chip is an ordinary link to an ordinary server
- * -rendered page. There is no client component here and nothing to hydrate.
+ * -rendered page. The filters have no client component and nothing to hydrate; the one
+ * client component on a card is `CardGallery`, for its colour dots, and a card still
+ * swipes and links with scripting off.
  */
 export default async function ProductsPage({ searchParams }: PageProps) {
   const family = familyBySlug((await searchParams).family)
@@ -184,20 +186,22 @@ export default async function ProductsPage({ searchParams }: PageProps) {
   )
 }
 
+/*
+ * The pictures, dots and link live in `CardGallery` (a client component, for the dots);
+ * the text below is still rendered here and handed to it as children.
+ */
 function Card({ product, index }: { product: ProductCard; index: number }) {
-  const href = `${VIEWER_ORIGIN}/${product.slug}/${product.defaultColourSlug}`
   const colours = product.colourNames.length
 
   return (
     <li className="product-card">
-      <a className="product-card__link" href={href}>
-        <figure className="product-card__figure">
-          {product.posterUrl ? (
-            <ProductPoster src={product.posterUrl} alt={product.posterAlt} index={index} />
-          ) : (
-            <span className="product-card__placeholder">[ 3D reference ]</span>
-          )}
-        </figure>
+      <CardGallery
+        productSlug={product.slug}
+        productName={product.productName}
+        viewerOrigin={VIEWER_ORIGIN}
+        colours={product.colours}
+        index={index}
+      >
         <div className="product-card__body">
           <h2 className="product-card__name">{product.productName}</h2>
           <p className="product-card__meta">
@@ -212,7 +216,7 @@ function Card({ product, index }: { product: ProductCard; index: number }) {
             <p className="product-card__desc">{product.shortDescription}</p>
           ) : null}
         </div>
-      </a>
+      </CardGallery>
     </li>
   )
 }
