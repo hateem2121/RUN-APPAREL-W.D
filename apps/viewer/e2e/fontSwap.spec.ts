@@ -62,7 +62,6 @@ const HEADLINES: Readonly<Record<string, string>> = {
   'r-hfj': 'HYDRA-FIT JERSEY',
   'r-vcj': 'VANTA CORE JACKET',
   'r-xmt': 'X-MILO TRAINING VEST',
-  'r-ttp': 'TIGER TAIL PROFLEX',
   'r-mrp': 'MANTRA RAY PROFLEX',
   'r-taz': 'TERRA ACTIVE ZIP',
   'r-kmj': 'THE KINETIC MATRIX JACKET',
@@ -74,11 +73,9 @@ const HEADLINES: Readonly<Record<string, string>> = {
   'r-mxt': 'MOTION-X TRAINING ZIPPER',
   'r-vpj': 'VELOCITY PERFORMANCE JERSEY',
   'r-csp': 'CRIMSON STRIDE PULLOVER',
-  'r-cat': 'CORE ALIGN TIGHTS',
   'r-fft': 'FLEX FITTED TRAINING VEST',
   'r-wsa': 'WOMEN’S ATHLETIC TENNIS DRESS',
   'r-ifs': 'INDIGO FLOW SWEATSHIRT',
-  'r-cvn': 'CHEVRON V-NECK SOCCER JERSEY',
 }
 
 /** Serve the fixture garment under a live product's name and code; `slug()` says which. */

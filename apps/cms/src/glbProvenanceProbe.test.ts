@@ -271,7 +271,7 @@ describe('modelUrlsFromPayload — every colourway, not only the default (IM-10)
 
 describe("judgeModelSizes — the posters' family-median rule, for models (IM-02b)", () => {
   const MB = 1e6
-  const live40 = () =>
+  const live37 = () =>
     [
       ['r-cch', 'Casual Wear', 3.63],
       ['r-csp', 'Casual Wear', 7.77],
@@ -286,7 +286,6 @@ describe("judgeModelSizes — the posters' family-median rule, for models (IM-02
       ['r-vcj', 'Outerwear', 6.77],
       ['r-afp', 'Sportswear', 1.89],
       ['r-asb', 'Sportswear', 2.58],
-      ['r-cat', 'Sportswear', 7.12],
       ['r-ect', 'Sportswear', 7.84],
       ['r-hfj', 'Sportswear', 6.29],
       ['r-ifs', 'Sportswear', 6.9],
@@ -299,7 +298,6 @@ describe("judgeModelSizes — the posters' family-median rule, for models (IM-02
       ['r-au', 'Teamwear & Uniforms', 7.85],
       ['r-bcd', 'Teamwear & Uniforms', 4.11],
       ['r-css', 'Teamwear & Uniforms', 5.05],
-      ['r-cvn', 'Teamwear & Uniforms', 5.43],
       ['r-fft', 'Teamwear & Uniforms', 6.53],
       ['r-gtd', 'Teamwear & Uniforms', 5.11],
       ['r-mm', 'Teamwear & Uniforms', 4.42],
@@ -307,18 +305,17 @@ describe("judgeModelSizes — the posters' family-median rule, for models (IM-02
       ['r-mxt', 'Teamwear & Uniforms', 6.12],
       ['r-snp', 'Teamwear & Uniforms', 4.72],
       ['r-srs', 'Teamwear & Uniforms', 3.28],
-      ['r-ttp', 'Teamwear & Uniforms', 6.94],
       ['r-vpj', 'Teamwear & Uniforms', 6.75],
       ['r-wsa', 'Teamwear & Uniforms', 3.99],
       ['r-xmp', 'Teamwear & Uniforms', 8.14],
       ['r-xmt', 'Teamwear & Uniforms', 6.05],
       ['rxps', 'Teamwear & Uniforms', 3.84],
     ] as const
-  it('passes the live catalogue as measured 2026-09-28 (40 garments, worst 1.88x its family median)', () => {
-    // Sizes are the served files after the 2026-09-28 rollout: 24 new garments, 11 live ones
+  it('passes the live catalogue as measured 2026-09-28 (37 garments, worst 1.88x its family median)', () => {
+    // Sizes are the served files after the 2026-09-28 rollout: 21 new garments (r-cat, r-cvn and r-ttp stay drafts), 11 live ones
     // re-processed from raw, and the five not swapped (r-atw r-atj r-aj r-et came out identical;
     // r-xmp is held — see the next test). Families are the products' real `category` values.
-    const live = live40()
+    const live = live37()
     const result = judgeModelSizes(
       live.map(([key, family, mb]) => ({ key, family, bytes: mb * MB })),
     )
@@ -329,7 +326,7 @@ describe("judgeModelSizes — the posters' family-median rule, for models (IM-02
     // 2026-09-28: fix 2c keeps the Bib's halftone print at 4096 px and the file grew 8.14 -> 10.34 MB,
     // 2.01x the Teamwear & Uniforms median. The rule has no model exceptions, so the owner decides;
     // until then the live Bib keeps its 8.14 MB file (the row above).
-    const catalogue = live40().map((row) =>
+    const catalogue = live37().map((row) =>
       row[0] === 'r-xmp' ? (['r-xmp', row[1], 10.34] as const) : row,
     )
     const result = judgeModelSizes(

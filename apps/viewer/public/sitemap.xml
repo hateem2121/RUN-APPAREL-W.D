@@ -35,9 +35,9 @@
         | python3 -c "import json,sys;d=json.load(sys.stdin);[print(d['product']['slug']+'/'+c['slug']) for c in d['colourways']]"
     done
 
-  ⚠️ UPDATED 2026-09-28: 80 -> 200. The 24 garments processed on the owner's Mac went live
-  together; their 120 pages were read back out of the CMS (each garment's colour rows, in
-  order), and the same 200 match apps/viewer/worker/og-cards.ts and apps/viewer/public/og/.
+  ⚠️ UPDATED 2026-09-28: 80 -> 185. 21 of the 24 garments processed on the owner's Mac went live
+  together; their 105 pages were read back out of the CMS (each garment's colour rows, in
+  order), and the same 185 match apps/viewer/worker/og-cards.ts and apps/viewer/public/og/.
 
   No <lastmod>: a date nobody updates is worse than no date, because a crawler
   believes it. No <priority>: Google has ignored it since 2015.
@@ -504,26 +504,6 @@
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://viewer.wear-run.help/r-ttp/blush</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://viewer.wear-run.help/r-ttp/orange</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://viewer.wear-run.help/r-ttp/lime</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://viewer.wear-run.help/r-ttp/teal</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://viewer.wear-run.help/r-ttp/lilac</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
     <loc>https://viewer.wear-run.help/r-mrp/magenta</loc>
     <changefreq>monthly</changefreq>
   </url>
@@ -744,26 +724,6 @@
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://viewer.wear-run.help/r-cat/maroon</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://viewer.wear-run.help/r-cat/teal</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://viewer.wear-run.help/r-cat/rust</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://viewer.wear-run.help/r-cat/sage</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://viewer.wear-run.help/r-cat/blush</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
     <loc>https://viewer.wear-run.help/r-fft/lime</loc>
     <changefreq>monthly</changefreq>
   </url>
@@ -821,26 +781,6 @@
   </url>
   <url>
     <loc>https://viewer.wear-run.help/r-ifs/purple</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://viewer.wear-run.help/r-cvn/plum</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://viewer.wear-run.help/r-cvn/blush</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://viewer.wear-run.help/r-cvn/terracotta</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://viewer.wear-run.help/r-cvn/sand</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-  <url>
-    <loc>https://viewer.wear-run.help/r-cvn/powder-blue</loc>
     <changefreq>monthly</changefreq>
   </url>
 </urlset>
