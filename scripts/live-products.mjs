@@ -167,8 +167,7 @@ export const LIVE_PRODUCTS = [
     colourways: ['cream', 'blush', 'sky', 'sage', 'burgundy'],
     productCode: 'R-ET',
   },
-  // Added 2026-09-28 with 21 of the 24 garments processed on the owner's Mac (scripts/process-local.mjs).
-  // r-cat, r-cvn and r-ttp stay drafts: their names re-wrap when Archivo arrives (fontSwap.spec.ts TY-02).
+  // Added 2026-09-28 with the 24 garments processed on the owner's Mac (scripts/process-local.mjs).
   // Same order as 2026-09-07: every slug was read back out of the CMS after the colour words were
   // set and switched on, while each garment was still a draft — never typed.
   {
@@ -212,6 +211,12 @@ export const LIVE_PRODUCTS = [
     colourway: 'wine',
     colourways: ['wine', 'cream', 'lime', 'denim', 'slate'],
     productCode: 'R-XMT',
+  },
+  {
+    slug: 'r-ttp',
+    colourway: 'blush',
+    colourways: ['blush', 'orange', 'lime', 'teal', 'lilac'],
+    productCode: 'R-TTP',
   },
   {
     slug: 'r-mrp',
@@ -280,6 +285,12 @@ export const LIVE_PRODUCTS = [
     productCode: 'R-CSP',
   },
   {
+    slug: 'r-cat',
+    colourway: 'maroon',
+    colourways: ['maroon', 'teal', 'rust', 'sage', 'blush'],
+    productCode: 'R-CAT',
+  },
+  {
     slug: 'r-fft',
     colourway: 'lime',
     colourways: ['lime', 'aqua', 'pink', 'orange', 'indigo'],
@@ -296,6 +307,12 @@ export const LIVE_PRODUCTS = [
     colourway: 'olive',
     colourways: ['olive', 'powder-blue', 'wine', 'navy', 'purple'],
     productCode: 'R-IFS',
+  },
+  {
+    slug: 'r-cvn',
+    colourway: 'plum',
+    colourways: ['plum', 'blush', 'terracotta', 'sand', 'powder-blue'],
+    productCode: 'R-CVN',
   },
 ]
 

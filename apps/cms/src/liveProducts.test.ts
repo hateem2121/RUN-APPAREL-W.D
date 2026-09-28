@@ -21,7 +21,7 @@ describe('live products', () => {
     // which reported `published: 0` because REST returns the draft version.
     //
     // Went 11 -> 16 on 2026-09-07: r-cch, r-gtd, r-au, r-ect and r-et, from the five CLO
-    // exports dated that day. 16 -> 37 on 2026-09-28: 21 of the 24 garments processed on the owner's
+    // exports dated that day. 16 -> 40 on 2026-09-28: the 24 garments processed on the owner's
     // Mac. The list is widened in the SAME change that publishes them,
     // which is what `publish-garment.mjs` now refuses to let anyone skip.
     expect(LIVE_PRODUCTS.map((p) => p.slug).sort()).toEqual(
@@ -49,6 +49,7 @@ describe('live products', () => {
         'r-hfj',
         'r-vcj',
         'r-xmt',
+        'r-ttp',
         'r-mrp',
         'r-taz',
         'r-kmj',
@@ -60,9 +61,11 @@ describe('live products', () => {
         'r-mxt',
         'r-vpj',
         'r-csp',
+        'r-cat',
         'r-fft',
         'r-wsa',
         'r-ifs',
+        'r-cvn',
       ].sort(),
     )
   })
