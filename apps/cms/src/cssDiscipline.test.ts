@@ -40,14 +40,24 @@ function nonCommentDvhCount(css: string): number {
   return (withoutComments.match(/dvh\b/g) ?? []).length
 }
 
-function firstCssFile(dir: string): string | null {
-  if (!existsSync(dir)) return null
-  const file = readdirSync(dir).find((name) => name.endsWith('.css'))
-  return file ? join(dir, file) : null
+/**
+ * EVERY built CSS file, never "the first one". Until 2026-09-27 this read
+ * `readdirSync(dir).find(…)` — fine while Vite emitted one stylesheet. The HD image
+ * dialog's styles then became their own lazy file, `HdImageDialog-*.css`, which sorts
+ * BEFORE `index-*.css`, so the check read the dialog's 3 KB and never the page: CI failed
+ * on the svh control (PR #77), and the dvh half had quietly stopped reading the page's
+ * stylesheet at all.
+ */
+function allCssFiles(dir: string): string[] {
+  if (!existsSync(dir)) return []
+  return readdirSync(dir)
+    .filter((name) => name.endsWith('.css'))
+    .map((name) => join(dir, name))
 }
 
 describe('SZ-12 — the built CSS never ships a real dvh, on either surface', () => {
-  const viewerCssPath = firstCssFile(VIEWER_DIST)
+  const viewerCssPaths = allCssFiles(VIEWER_DIST)
+  const viewerCssPath = viewerCssPaths[0] ?? null
   // The CMS ships one CSS rule per <dvh>-bearing declaration across several chunks;
   // the one carrying `prefers-contrast`/`svh` is not guaranteed to be the first
   // alphabetically, so scan every chunk rather than assume a single file.
@@ -67,11 +77,15 @@ describe('SZ-12 — the built CSS never ships a real dvh, on either surface', ()
   it.skipIf(!viewerCssPath && !REQUIRE_BUILD)(
     'the viewer bundle has zero real dvh and at least one svh',
     () => {
-      const css = readFileSync(viewerCssPath as string, 'utf8')
-      expect(nonCommentDvhCount(css), `${viewerCssPath} contains a real dvh declaration`).toBe(0)
+      let sawSvh = false
+      for (const path of viewerCssPaths) {
+        const css = readFileSync(path, 'utf8')
+        expect(nonCommentDvhCount(css), `${path} contains a real dvh declaration`).toBe(0)
+        if (/svh\b/.test(css)) sawSvh = true
+      }
       expect(
-        /svh\b/.test(css),
-        `${viewerCssPath} has no svh at all — the control for this test`,
+        sawSvh,
+        `no svh in any of ${viewerCssPaths.length} viewer CSS file(s) — the control for this test`,
       ).toBe(true)
     },
   )

@@ -9,7 +9,8 @@ import {
   OVERLAY_MIN_ALIGNMENT,
   OVERLAY_MIN_FRONTNESS,
   classifyOverlay,
-  isBiasInBand,
+  isFactorInBand,
+  isUnitsInBand,
   measureOverlays,
   type OverlayMetrics,
 } from './overlay-depth'
@@ -115,11 +116,13 @@ describe('classifyOverlay — a printed layer, told from the cloth it sits on', 
 })
 
 describe('the bias value the pipeline writes', () => {
-  it('⚠️ is -8, not the -1 that shipped and left the print destroyed', () => {
-    // Minecut white specks: none 5.196%, -1 1.586%, -4 0.173%, -8 0.002%, -16 0.000%.
-    // -8 is the start of a plateau, which is why it is not -4.
-    expect(OVERLAY_BIAS_FACTOR).toBe(-8)
-    expect(OVERLAY_BIAS_UNITS).toBe(-8)
+  it('⚠️ is a constant nudge with NO slope term — factor 0, units -64 (2026-09-27)', () => {
+    // -8/-8 hid Minecut's waistband and pierced the Soccer collar: the slope term grows
+    // on a panel seen at an angle until the print jumps a layer 2.5-5.3 mm in front of it.
+    // Factor 0 / units -64 took that damage from 100% to 0.0-0.1% with blink unchanged
+    // (docs/3d-viewer-forensics-2026-09-27, local session section 5).
+    expect(OVERLAY_BIAS_FACTOR).toBe(0)
+    expect(OVERLAY_BIAS_UNITS).toBe(-64)
   })
 
   it('⚠️ is the same band apps/viewer will obey — a wider one would be ignored', () => {
@@ -128,16 +131,28 @@ describe('the bias value the pipeline writes', () => {
     // the shrink container. review-server.test.ts pins the viewer's own copy.
     expect(MIN_ABS_BIAS).toBe(8)
     expect(MAX_ABS_BIAS).toBe(64)
-    expect(isBiasInBand(OVERLAY_BIAS_FACTOR)).toBe(true)
+    expect(isFactorInBand(OVERLAY_BIAS_FACTOR)).toBe(true)
+    expect(isUnitsInBand(OVERLAY_BIAS_UNITS)).toBe(true)
+    // Files already live carry -8/-8 and must keep working until they are replaced.
+    expect(isFactorInBand(-8)).toBe(true)
+    expect(isUnitsInBand(-8)).toBe(true)
   })
 
-  it('⚠️ NEGATIVE CONTROL — refuses -1, a positive value, and anything past -64', () => {
-    expect(isBiasInBand(-1)).toBe(false)
-    expect(isBiasInBand(-4)).toBe(false)
-    expect(isBiasInBand(8)).toBe(false)
-    expect(isBiasInBand(512)).toBe(false)
-    expect(isBiasInBand(-512)).toBe(false)
-    expect(isBiasInBand(Number.NaN)).toBe(false)
+  it('⚠️ NEGATIVE CONTROL — units: refuses -1, a positive value, 0 and anything past -64', () => {
+    expect(isUnitsInBand(-1)).toBe(false)
+    expect(isUnitsInBand(-4)).toBe(false)
+    expect(isUnitsInBand(0)).toBe(false)
+    expect(isUnitsInBand(8)).toBe(false)
+    expect(isUnitsInBand(-512)).toBe(false)
+    expect(isUnitsInBand(Number.NaN)).toBe(false)
+  })
+
+  it('⚠️ NEGATIVE CONTROL — factor: refuses any positive value and anything past -64', () => {
+    // A positive factor pushes the print BEHIND the cloth it is printed on.
+    expect(isFactorInBand(1)).toBe(false)
+    expect(isFactorInBand(512)).toBe(false)
+    expect(isFactorInBand(-65)).toBe(false)
+    expect(isFactorInBand(Number.NaN)).toBe(false)
   })
 })
 

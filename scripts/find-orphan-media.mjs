@@ -49,6 +49,8 @@ const REFERENCE_PATHS = [
   'posterFallback',
   'colourways.posterPreview',
   'colourways.glbAsset',
+  // The HD studio render behind the "HD IMAGE" button (2026-09-27).
+  'colourways.renderImage',
 ]
 
 function parseArgs(argv) {

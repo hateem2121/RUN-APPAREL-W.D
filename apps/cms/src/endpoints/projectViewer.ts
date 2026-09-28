@@ -136,6 +136,8 @@ export function buildViewerResponse(
       // colour never leaves a gap in the tab order.
       sequence: colourways.length + 1,
       poster: poster ?? null,
+      // The HD studio render behind the "HD IMAGE" button; null hides the button.
+      render: toMediaAsset(doc.renderImage, origin),
       glbUrl: separateMode ? (toMediaAsset(doc.glbAsset, origin)?.url ?? null) : null,
       isDefault: colourways.length === 0,
       altText: String(doc.altText ?? ''),

@@ -315,9 +315,9 @@ async function main(): Promise<void> {
       }
     }
     if (result.solidify) {
-      const { opaqued, masked, keptBlend, doubleSided } = result.solidify
+      const { opaqued, masked, keptBlend, threadSoft, doubleSided } = result.solidify
       console.log(
-        `  materials:  ${opaqued} → OPAQUE, ${masked} → MASK (cutout kept), ${keptBlend} left BLEND (sheer), ${doubleSided} double-sided`,
+        `  materials:  ${opaqued} → OPAQUE, ${masked} → MASK (cutout kept), ${keptBlend} left BLEND (sheer), ${threadSoft} thread kept soft, ${doubleSided} double-sided`,
       )
     } else {
       console.log('  materials:  transparency kept (--keep-transparency)')

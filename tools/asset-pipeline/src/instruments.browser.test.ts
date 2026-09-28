@@ -5,9 +5,10 @@ import { join } from 'node:path'
 import { Document, NodeIO } from '@gltf-transform/core'
 import { type Browser, chromium } from '@playwright/test'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { OVERLAY_BIAS_FACTOR, OVERLAY_BIAS_UNITS } from './overlay-depth'
 import { renderHarnessPage, startHarnessServer } from './render'
 import { type ReviewServerHandle, startReviewServer } from './review-server'
-import { DECAL_OFFSET_FACTOR, MIN_NEAR } from './viewer-page'
+import { DECAL_OFFSET_FACTOR, DECAL_OFFSET_UNITS, MIN_NEAR } from './viewer-page'
 
 /**
  * THE INSTRUMENTS, DRIVEN IN A REAL BROWSER — audit HR-7, 2026-09-02.
@@ -79,7 +80,9 @@ async function fixtureGlb(dir: string): Promise<string> {
     .setAlphaCutoff(0.5)
   const overlay = doc.createMaterial('OPAQUE OVERLAY').setBaseColorFactor([0.1, 0.1, 0.9, 1])
   overlay.setExtras({
-    depthBias: { enabled: true, factor: DECAL_OFFSET_FACTOR, units: DECAL_OFFSET_FACTOR },
+    // What the pipeline writes (overlay-depth.ts), not the cut-out constant: since
+    // 2026-09-27 that is factor 0 / units -64, which the old band would have refused.
+    depthBias: { enabled: true, factor: OVERLAY_BIAS_FACTOR, units: OVERLAY_BIAS_UNITS },
   })
   const a = quad('panel', 0, 0.5)
   a.prim.setMaterial(fabric)
@@ -128,7 +131,7 @@ const PROBE = `(() => {
   const biased = []
   for (const m of mv.model ? mv.model.materials : []) {
     const b = backingOf(m)
-    if (b && b.polygonOffset === true) biased.push(m.name + '@' + b.polygonOffsetFactor)
+    if (b && b.polygonOffset === true) biased.push(m.name + '@' + b.polygonOffsetFactor + '/' + b.polygonOffsetUnits)
   }
   return {
     hasInstruments: inst !== null,
@@ -197,8 +200,8 @@ describe.skipIf(!chromiumAvailable)('the instruments, read back from a real brow
     expect(p.near).toBeGreaterThanOrEqual(MIN_NEAR)
     expect(p.bias).toMatchObject({ biased: 2, overlays: 1, unreachable: 0 })
     expect(p.biased.sort()).toEqual([
-      `OPAQUE OVERLAY@${DECAL_OFFSET_FACTOR}`,
-      `RUN LOGO@${DECAL_OFFSET_FACTOR}`,
+      `OPAQUE OVERLAY@${OVERLAY_BIAS_FACTOR}/${OVERLAY_BIAS_UNITS}`,
+      `RUN LOGO@${DECAL_OFFSET_FACTOR}/${DECAL_OFFSET_UNITS}`,
     ])
   }, 120_000)
 

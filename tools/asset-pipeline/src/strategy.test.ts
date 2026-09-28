@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { shrinkFlagsFor } from '../../../packages/shared/src/shrink'
+import { assertFlagsOnly, parseOptimizeArgs } from './optimize'
 import {
   refineFlags,
   refineFlagsForFamily,
@@ -49,6 +50,19 @@ describe('refineFlagsForFamily', () => {
     expect(out[out.indexOf('--data-max-texture') + 1]).toBe('1024')
     expect(out[out.indexOf('--quality') + 1]).toBe('70')
     expect(out[out.indexOf('--artwork-quality') + 1]).toBe('95')
+  })
+
+  it('⚠️ spares a CUT-OUT print the 2048 fabric cap (2026-09-27)', () => {
+    // The Bib's halftone is a cut-out read as fabric; at 2048 its dots went blocky.
+    const out = refineFlagsForFamily(BALANCED, 'texture')
+    expect(out[out.indexOf('--cutout-max-texture') + 1]).toBe('4096')
+    // The robot's own safety filter must accept it (it throws on an unknown bare value),
+    // and the parser must carry it through rather than drop it.
+    expect(() => assertFlagsOnly(out)).not.toThrow()
+    expect(parseOptimizeArgs(['in.glb', ...out]).options.cutoutMaxTextureSize).toBe(4096)
+    expect(() => parseOptimizeArgs(['in.glb', '--cutout-max-texture', '4O96'])).toThrow()
+    // Other families already run at --max-texture 4096 and need no exemption.
+    expect(refineFlagsForFamily(BALANCED, 'mixed')).not.toContain('--cutout-max-texture')
   })
 
   it('keeps the geometry codec — --draco does not load on the deployed viewer', () => {

@@ -4,13 +4,16 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createIO } from './io'
 import { PLACEHOLDER_COLOURWAYS, buildPlaceholderTee } from './placeholders'
+import { OVERLAY_BIAS_FACTOR, OVERLAY_BIAS_UNITS } from './overlay-depth'
 import { viewerAssetMap } from './render'
+import { instrumentsScript } from './viewer-page'
 import { GLB_HARD_MAX_BYTES as SHARED_HARD_MAX_BYTES } from '../../../packages/shared/src/media'
 import {
   MAX_ABS_OVERLAY_BIAS as VIEWER_MAX_ABS_OVERLAY_BIAS,
   MIN_ABS_OVERLAY_BIAS as VIEWER_MIN_ABS_OVERLAY_BIAS,
   OFFSET_FACTOR as VIEWER_OFFSET_FACTOR,
   OFFSET_UNITS as VIEWER_OFFSET_UNITS,
+  readOverlayBias as viewerReadOverlayBias,
 } from '../../../apps/viewer/src/lib/decal-depth-bias'
 import {
   MIN_NEAR as VIEWER_MIN_NEAR,
@@ -306,5 +309,51 @@ describe('⚠️ the viewer must never show a STALE garment', () => {
   it('sends it on the PAGE too, so a stale shell cannot pin an old bias', async () => {
     const res = await fetch(`${handle.url}g/0/0`)
     expect(res.headers.get('cache-control')).toContain('no-store')
+  })
+})
+
+describe('the overlay record — pipeline, product and review page agree on what is obeyed', () => {
+  /*
+   * ⚠️ WHY A BEHAVIOUR TEST AND NOT ANOTHER CONSTANT CHECK. On 2026-09-27 the pipeline
+   * began writing factor 0 / units -64, and the viewer's band had to be split to accept
+   * it (a factor of 0 was outside the old shared band, so a FIXED file would have been
+   * refused and drawn with no nudge). The constants did not change; the RULE did. The
+   * drift tests above compare constants, so they could not have seen either side move.
+   */
+  const pageStart = instrumentsScript().indexOf('const MIN_ABS_OVERLAY_BIAS')
+  const pageEnd = instrumentsScript().indexOf('const reportInstruments')
+  const pageReadOverlayBias = new Function(
+    `${instrumentsScript().slice(pageStart, pageEnd)}; return readOverlayBias`,
+  )() as (backing: unknown) => unknown
+  const backing = (factor: number, units: number) => ({
+    alphaTest: 0,
+    polygonOffset: false,
+    polygonOffsetFactor: 0,
+    polygonOffsetUnits: 0,
+    needsUpdate: false,
+    userData: { depthBias: { enabled: true, factor, units } },
+  })
+
+  it('the viewer obeys the record the pipeline writes', () => {
+    expect(viewerReadOverlayBias(backing(OVERLAY_BIAS_FACTOR, OVERLAY_BIAS_UNITS))).toMatchObject({
+      factor: OVERLAY_BIAS_FACTOR,
+      units: OVERLAY_BIAS_UNITS,
+    })
+  })
+
+  it('⚠️ the review page accepts and refuses exactly what the product does', () => {
+    const values = [1, 0, -1, -7, -8, -9, -32, -64, -65, Number.NaN]
+    let accepted = 0
+    for (const factor of values)
+      for (const units of values) {
+        const b = backing(factor, units)
+        const product = viewerReadOverlayBias(b) !== null
+        expect(pageReadOverlayBias(b) !== null, `factor ${factor}, units ${units}`).toBe(product)
+        if (product) accepted++
+      }
+    // NEGATIVE CONTROL for the instrument: a grid that everything refused (or accepted)
+    // would pass this comparison while testing nothing.
+    expect(accepted).toBeGreaterThan(0)
+    expect(accepted).toBeLessThan(values.length ** 2)
   })
 })

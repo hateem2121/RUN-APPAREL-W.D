@@ -164,8 +164,19 @@ export function buildReportText(
     // that is a CLO export to fix rather than a setting to change.
     opt.solidify
       ? `Transparency: ${opt.solidify.opaqued} made solid, ${opt.solidify.masked} kept as cut-out shapes, ` +
-        `${opt.solidify.keptBlend} kept see-through.`
+        `${opt.solidify.keptBlend} kept see-through.` +
+        // Thread is kept soft on purpose since 2026-09-27: as a cut-out, a stitch line a
+        // pixel wide vanished from a normal distance on 12 of 15 garments.
+        (opt.solidify.threadSoft
+          ? ` ${opt.solidify.threadSoft} stitch thread material(s) drawn soft, so thin stitching stays visible.`
+          : '')
       : 'Transparency: left untouched for this job.',
+    // Only on request (--normal-scale), chosen per garment by a blink measurement.
+    ...(opt.normalScale
+      ? [
+          `Fabric bumps: ${opt.normalScale.scaled} material(s) drawn at ${Math.round(opt.normalScale.factor * 100)}% strength, to stop a fine knit flickering as the garment turns.`,
+        ]
+      : []),
     opt.textures
       ? `Textures: ${opt.textures.artwork} treated as printed artwork (encoded at high fidelity), ` +
         `${opt.textures.standard} as fabric.` +

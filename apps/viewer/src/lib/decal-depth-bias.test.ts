@@ -24,15 +24,15 @@ const target = (alphaTest: number, depthBias?: unknown): DepthBiasTarget => ({
 })
 
 /** What tools/asset-pipeline writes into a flagged material's glTF `extras`. */
-const flag = (factor = -8) => ({
+const flag = (factor = -8, units = factor) => ({
   enabled: true,
   factor,
-  units: factor,
+  units,
   reason: 'sits 0.101 mm in front of an aligned surface (frontness 0.99)',
   confidence: 0.987,
   supportPrimitive: 'Default Fabric_2915',
   distanceMm: 0.1014,
-  detector: 'overlay-depth@1',
+  detector: 'overlay-depth@2',
 })
 
 describe('applyDecalDepthBias', () => {
@@ -317,6 +317,37 @@ describe('overlay bias — a printed OPAQUE layer flagged by the pipeline', () =
     expect(readOverlayBias(target(0, flag(-64)))).not.toBeNull()
     expect(readOverlayBias(target(0, flag(-7)))).toBeNull()
     expect(readOverlayBias(target(0, flag(-65)))).toBeNull()
+  })
+
+  it('⚠️ OBEYS the pipeline record since 2026-09-27 — factor 0, units -64, exactly', () => {
+    // A constant nudge with no slope term. -8/-8 hid Minecut's waistband 2.5 mm in front
+    // of the print (docs/3d-viewer-forensics-2026-09-27, local session section 5). Before
+    // this change the band refused factor 0, so a fixed file would have been IGNORED.
+    const graphic = target(0, flag(0, -64))
+    const result = applyDecalDepthBias([{ name: 'Material_Graphic' }], () => graphic)
+    expect(graphic.polygonOffset).toBe(true)
+    expect(graphic.polygonOffsetFactor).toBe(0)
+    expect(graphic.polygonOffsetUnits).toBe(-64)
+    expect(result.overlays).toEqual(['Material_Graphic'])
+    expect(result.rejected).toBe(0)
+  })
+
+  it('still obeys -8/-8, which every file live before 2026-09-27 carries', () => {
+    const graphic = target(0, flag(-8, -8))
+    applyDecalDepthBias([{ name: 'Material_Graphic' }], () => graphic)
+    expect(graphic.polygonOffsetFactor).toBe(-8)
+    expect(graphic.polygonOffsetUnits).toBe(-8)
+  })
+
+  it('⚠️ NEGATIVE CONTROL — factor and units have SEPARATE bands', () => {
+    // Factor: 0..-64, never positive. Units: -8..-64 — units 0 would be no nudge at all.
+    expect(readOverlayBias(target(0, flag(0, -64)))).not.toBeNull()
+    expect(readOverlayBias(target(0, flag(-64, -8)))).not.toBeNull()
+    expect(readOverlayBias(target(0, flag(1, -64)))).toBeNull()
+    expect(readOverlayBias(target(0, flag(-65, -64)))).toBeNull()
+    expect(readOverlayBias(target(0, flag(0, 0)))).toBeNull()
+    expect(readOverlayBias(target(0, flag(0, -7)))).toBeNull()
+    expect(readOverlayBias(target(0, flag(0, -65)))).toBeNull()
   })
 
   it('ignores a record that is disabled, malformed, or not an object', () => {

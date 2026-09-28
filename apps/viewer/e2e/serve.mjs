@@ -150,6 +150,7 @@ const COLOURWAYS = [
     slug: 'wine',
     displayName: 'Wine',
     variantId: 'N001-WINE',
+    hasRender: true,
     hexSwatch: '#825353',
     sequence: 1,
     isDefault: true,
@@ -176,6 +177,7 @@ const COLOURWAYS = [
     slug: 'blush',
     displayName: 'Pebble / Optic White',
     variantId: 'N001-BLUSH',
+    hasRender: true,
     hexSwatch: '#F7CDCD',
     sequence: 2,
     isDefault: false,
@@ -200,6 +202,7 @@ const COLOURWAYS = [
     slug: 'lime',
     displayName: 'Lime',
     variantId: 'N001-LIME',
+    hasRender: true,
     hexSwatch: '#D6F26B',
     sequence: 4,
     isDefault: false,
@@ -237,6 +240,20 @@ function colourwayPayload(origin, c) {
       height: 1500,
       mimeType: 'image/webp',
     },
+    // THREE of five colours carry an HD studio render (2026-09-27), because production
+    // has both kinds on one garment (Aggressor Uniform: 3 renders for 5 colours) and a
+    // fixture where every colour had one could never show the button's absence. The
+    // path is its own, never a poster's, so a test can prove the page asks for no
+    // render before the visitor does.
+    render: c.hasRender
+      ? {
+          url: `${origin}/fixtures/renders/n001-${c.slug}.png`,
+          alt: `Velocity Performance Tee in ${c.displayName}, studio render`,
+          width: 1200,
+          height: 1500,
+          mimeType: 'image/png',
+        }
+      : null,
     glbUrl: null,
     isDefault: c.isDefault,
     altText: `Velocity Performance Tee in ${c.displayName}`,
@@ -270,6 +287,21 @@ const PRODUCTS = {
       'bonded shoulder seams and a dropped back hem that stays put at speed.',
   },
   n002: { productCode: 'N002', productName: 'Sample Without Model', hasGlb: false },
+  // A printed layer under a band 2.5 mm in front of it (tools/asset-pipeline/src/placeholders.ts
+  // → buildCoverFixture), with the print nudge the pipeline writes today and with the -8/-8
+  // that hid the Minecut waistband. covered-print-webgl.spec.ts renders both (2026-09-27).
+  'zcover-new': {
+    productCode: 'ZCOVER-NEW',
+    productName: 'Covered Print Fixture',
+    hasGlb: true,
+    glbFile: 'placeholders/cover-new.glb',
+  },
+  'zcover-old': {
+    productCode: 'ZCOVER-OLD',
+    productName: 'Covered Print Fixture',
+    hasGlb: true,
+    glbFile: 'placeholders/cover-old.glb',
+  },
 }
 
 // Per-key request counts for the stall route below. Keyed so tests running in parallel never share a counter.
@@ -294,7 +326,7 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
       shortDescription: meta.shortDescription ?? '',
       category: 'Sportswear',
       variantMode: 'single-glb-variants',
-      glbUrl: meta.hasGlb ? `${origin}/fixtures/n001.glb` : null,
+      glbUrl: meta.hasGlb ? `${origin}/fixtures/${meta.glbFile ?? 'n001.glb'}` : null,
       posterFallback: fallback.poster,
       fabricComposition: 'Recycled polyester / elastane',
       gsm: '160 GSM',
@@ -389,6 +421,10 @@ const server = http.createServer((req, res) => {
     }
     url.pathname = `/fixtures/${rest}`
   }
+
+  // HD studio renders: the seeded poster PNGs, served under a path of their own.
+  const renderMatch = url.pathname.match(/^\/fixtures\/renders\/(n001-[a-z]+)\.png$/)
+  if (renderMatch) url.pathname = `/fixtures/placeholders/${renderMatch[1]}-poster.png`
 
   // Pipeline assets
   if (url.pathname.startsWith('/fixtures/')) {

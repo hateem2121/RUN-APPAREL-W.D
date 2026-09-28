@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 export type CameraView = 'front' | 'back' | 'side'
 
 export const CAMERA_VIEWS = ['front', 'back', 'side'] as const
@@ -12,6 +14,18 @@ interface StageControlsProps {
    * 2026-09-04, so it is shorter, not gone. See rendering-while-disabled below.
    */
   disabled: boolean
+  /**
+   * False in the poster branch, where there is no camera to point. The row still
+   * renders when `extra` is set: a device that cannot draw 3D is exactly the one the
+   * HD studio render helps most (2026-09-27).
+   */
+  showCameras?: boolean
+  /**
+   * The HD IMAGE button, when the colour has a render. It sits in the same pill but
+   * OUTSIDE the "Camera positions" group, because it is not a camera position — a
+   * screen reader would otherwise announce it as the fourth view.
+   */
+  extra?: ReactNode
 }
 
 /**
@@ -45,22 +59,34 @@ interface StageControlsProps {
  * visitor tapping BACK during the download got no camera move and no
  * explanation.
  */
-export function StageControls({ activeView, onSelect, disabled }: StageControlsProps) {
+export function StageControls({
+  activeView,
+  onSelect,
+  disabled,
+  showCameras = true,
+  extra = null,
+}: StageControlsProps) {
+  if (!showCameras && extra === null) return null
   return (
-    <div className="stage__controls" role="group" aria-label="Camera positions">
-      {CAMERA_VIEWS.map((view) => (
-        <button
-          key={view}
-          type="button"
-          className="camera-btn"
-          // Kept unconditional, as it was: this is real state, not a hover hint.
-          aria-pressed={activeView === view}
-          disabled={disabled}
-          onClick={() => onSelect(view)}
-        >
-          {view}
-        </button>
-      ))}
+    <div className="stage__controls">
+      {showCameras && (
+        <div className="stage__views" role="group" aria-label="Camera positions">
+          {CAMERA_VIEWS.map((view) => (
+            <button
+              key={view}
+              type="button"
+              className="camera-btn"
+              // Kept unconditional, as it was: this is real state, not a hover hint.
+              aria-pressed={activeView === view}
+              disabled={disabled}
+              onClick={() => onSelect(view)}
+            >
+              {view}
+            </button>
+          ))}
+        </div>
+      )}
+      {extra}
     </div>
   )
 }

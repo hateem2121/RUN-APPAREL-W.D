@@ -146,13 +146,23 @@ export const OFFSET_FACTOR = -8
 export const OFFSET_UNITS = -8
 
 /**
- * The band a pipeline-supplied bias must fall in for this viewer to obey it.
+ * The bands a pipeline-supplied bias must fall in for this viewer to obey it: `units`
+ * -8..-64, `factor` 0..-64.
  *
- * ⚠️ -1 IS DELIBERATELY OUTSIDE IT. That is what shipped on 2026-08-27 and it left p001
- * destroyed; the value was eight times too weak and no test caught it, because every
- * assertion checked that a bias was APPLIED and none checked it was STRONG ENOUGH.
- * A POSITIVE value is outside it too, and in the opposite and worse direction: it pushes
+ * ⚠️ -1 IS DELIBERATELY OUTSIDE THE UNITS BAND. That is what shipped on 2026-08-27 and it
+ * left p001 destroyed; the value was eight times too weak and no test caught it, because
+ * every assertion checked that a bias was APPLIED and none checked it was STRONG ENOUGH.
+ * A POSITIVE value is outside both, and in the opposite and worse direction: it pushes
  * the decal AWAY from the camera, behind the cloth it is printed on.
+ *
+ * ⚠️ FACTOR 0 IS INSIDE ITS BAND SINCE 2026-09-27, AND THE PIPELINE NOW WRITES IT. The
+ * factor multiplies the surface's depth SLOPE, which grows as a panel turns away from the
+ * camera: at -8 Minecut's marble print jumped the white waistband 2.5 mm in front of it at
+ * the normal view on every screen, and the Soccer print pierced its collar. Factor 0 /
+ * units -64 took that damage from 100% to 0.0-0.1% with blink unchanged
+ * (docs/3d-viewer-forensics-2026-09-27, local session section 5). Until this band was
+ * split, a fixed file would have been REFUSED here and rendered with no nudge at all.
+ * Files published before then carry -8/-8, which both bands still accept.
  */
 export const MIN_ABS_OVERLAY_BIAS = 8
 export const MAX_ABS_OVERLAY_BIAS = 64
@@ -179,8 +189,9 @@ export function readOverlayBias(target: DepthBiasTarget): OverlayBiasRecord | nu
   if (record.enabled !== true) return null
   const { factor, units } = record
   if (typeof factor !== 'number' || typeof units !== 'number') return null
-  const inBand = (n: number) => n <= -MIN_ABS_OVERLAY_BIAS && n >= -MAX_ABS_OVERLAY_BIAS
-  if (!inBand(factor) || !inBand(units)) return null
+  const unitsInBand = units <= -MIN_ABS_OVERLAY_BIAS && units >= -MAX_ABS_OVERLAY_BIAS
+  const factorInBand = factor <= 0 && factor >= -MAX_ABS_OVERLAY_BIAS
+  if (!unitsInBand || !factorInBand) return null
   return { enabled: true, factor, units }
 }
 

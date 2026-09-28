@@ -207,6 +207,8 @@ describe('buildViewerResponse', () => {
         'slug',
         'sequence',
         'poster',
+        // The HD studio render (2026-09-27): a public product picture, like the poster.
+        'render',
         'glbUrl',
         'isDefault',
         'altText',
@@ -272,6 +274,32 @@ describe('buildViewerResponse', () => {
     expect(body!.colourways[0]!.poster).toBeNull()
     // The rest of the payload is unaffected — this is the whole point.
     expect(body!.colourways[0]!.hexSwatch).toBe('#123456')
+  })
+
+  it('serves a colour’s HD studio render, with its size, and null where there is none', () => {
+    // The "HD IMAGE" button (2026-09-27) appears only on a colour whose `render` is set;
+    // width and height let the dialog reserve the picture's space so nothing jumps.
+    const body = buildViewerResponse(
+      product(),
+      [
+        colourway({ renderImage: media('/media/n001-navy-render.webp') }),
+        colourway({ variantId: 'N001-WINE', slug: 'wine', displayName: 'Wine' }),
+      ],
+      {},
+      origin,
+      'navy',
+      deps,
+    )!
+    expect(body.colourways[0]!.render).toEqual({
+      url: 'https://cms.example/media/n001-navy-render.webp',
+      alt: 'a',
+      width: 1200,
+      height: 1500,
+      mimeType: 'image/webp',
+    })
+    // NEGATIVE CONTROL: no render uploaded → null, never an empty object the viewer would
+    // read as "has a render" and draw a button that opens nothing.
+    expect(body.colourways[1]!.render).toBeNull()
   })
 
   it('single-glb: product.glbUrl set, colourway.glbUrl null', () => {

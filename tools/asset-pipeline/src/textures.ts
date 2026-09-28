@@ -454,10 +454,22 @@ export type BlendResolution = 'keep' | 'MASK' | 'OPAQUE'
  *   - anything else → OPAQUE. No alpha channel, or every pixel solid: the CLO
  *                    stray-opacity case this step was built for.
  */
-export function resolveBlendAlpha(alpha: AlphaProfile, factor: number): BlendResolution {
+export function resolveBlendAlpha(
+  alpha: AlphaProfile,
+  factor: number,
+  options: { thread?: boolean } = {},
+): BlendResolution {
   if (alpha.character === 'unknown') return 'keep'
   if (factor < OPAQUE_FACTOR_THRESHOLD) return 'keep'
-  if (isCutoutProfile(alpha)) return 'MASK'
+  // ⚠️ THREAD STAYS SOFT, since 2026-09-27. A topstitch strip IS a cut-out by its pixels,
+  // but it is a line a pixel or two wide: seen from a normal distance each screen pixel
+  // is mostly background, so MASK at 0.5 discarded whole stitch lines. 12 of the 15
+  // garments with thread lost it — Bib 2.88% of its pixels, Geovent 2.54%, Uniform 2.51%
+  // — and drawing it BLEND, as CLO exported it, brought it back and lowered blink (Vest
+  // 0.31% -> 0.14%; docs/3d-viewer-forensics-2026-09-27, local session sections 2 and 5).
+  // Only the cut-out branch changes: that is the only one measured. The gate never sees
+  // this material — a thread name is NOT_ARTWORK_NAME in artwork-geometry.ts.
+  if (isCutoutProfile(alpha)) return options.thread ? 'keep' : 'MASK'
   if (
     alpha.transparentFraction < DECORATIVE_ALPHA_MAX_TRANSPARENT &&
     alpha.sheerFraction < DECORATIVE_ALPHA_MAX_SHEER &&

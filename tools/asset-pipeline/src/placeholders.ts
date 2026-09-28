@@ -4,6 +4,7 @@ import { Document, type Material, type Mesh } from '@gltf-transform/core'
 import { KHRTextureTransform } from '@gltf-transform/extensions'
 import sharp from 'sharp'
 import { createIO } from './io'
+import { OVERLAY_BIAS_FACTOR, OVERLAY_BIAS_UNITS } from './overlay-depth'
 
 /**
  * Placeholder seed assets for product N001. Real products replace these
@@ -754,6 +755,76 @@ export interface PlaceholderOutput {
 }
 
 /** Generate raw per-colourway GLBs (simulating CLO exports) + poster images. */
+/**
+ * A printed layer COVERED by a band 2.5 mm in front of it — the Minecut waistband and Soccer
+ * collar geometry that the -8/-8 print nudge broke (docs/3d-viewer-forensics-2026-09-27).
+ *
+ * A cloth panel turned 70 degrees from the camera, a solid print 0.1 mm in front of it (the
+ * z-fight the nudge exists for), and a band 2.5 mm in front of the print over its left half.
+ * The slope term of a polygon offset grows with the on-screen size of a pixel, so zoomed
+ * out, -8/-8 pulls the print through the band; the fixed 0/-64 does not. Measured on the
+ * render page before this was written: the old record shows the print over the band at the
+ * default framing, the new one shows the band — so apps/viewer/e2e can assert both ways.
+ */
+export function buildCoverFixture(record: { factor: number; units: number }): Document {
+  const doc = new Document()
+  doc.createBuffer()
+  const scene = doc.createScene('scene')
+  const tilt = (70 * Math.PI) / 180
+  const n = [Math.sin(tilt), 0, Math.cos(tilt)] as const
+  const u = [Math.cos(tilt), 0, -Math.sin(tilt)] as const
+  const layer = (
+    name: string,
+    offsetM: number,
+    x: [number, number],
+    y: [number, number],
+    colour: [number, number, number, number],
+    extras?: Record<string, unknown>,
+  ) => {
+    const p = (px: number, py: number) => [
+      u[0] * px + n[0] * offsetM,
+      py,
+      u[2] * px + n[2] * offsetM,
+    ]
+    const positions = [
+      p(x[0], y[0]),
+      p(x[1], y[0]),
+      p(x[1], y[1]),
+      p(x[0], y[0]),
+      p(x[1], y[1]),
+      p(x[0], y[1]),
+    ].flat()
+    const material = doc
+      .createMaterial(name)
+      .setBaseColorFactor(colour)
+      .setMetallicFactor(0)
+      .setRoughnessFactor(0.9)
+      .setDoubleSided(true)
+    if (extras) material.setExtras(extras)
+    const primitive = doc
+      .createPrimitive()
+      .setAttribute(
+        'POSITION',
+        doc.createAccessor().setType('VEC3').setArray(new Float32Array(positions)),
+      )
+      .setAttribute(
+        'NORMAL',
+        doc
+          .createAccessor()
+          .setType('VEC3')
+          .setArray(new Float32Array(Array.from({ length: 6 }, () => [...n]).flat())),
+      )
+      .setMaterial(material)
+    scene.addChild(doc.createNode(name).setMesh(doc.createMesh(name).addPrimitive(primitive)))
+  }
+  layer('Cloth_Panel', 0, [-0.3, 0.3], [-0.4, 0.4], [0.12, 0.12, 0.14, 1])
+  layer('Material_Graphic', 0.0001, [-0.2, 0.2], [-0.3, 0.3], [0.95, 0.95, 0.95, 1], {
+    depthBias: { enabled: true, ...record, detector: 'fixture' },
+  })
+  layer('Waistband', 0.0026, [-0.25, 0], [-0.35, 0.35], [0.1, 0.35, 0.9, 1])
+  return doc
+}
+
 export async function generatePlaceholders(outDir: string): Promise<PlaceholderOutput> {
   const io = await createIO()
   await mkdir(outDir, { recursive: true })
@@ -771,6 +842,17 @@ export async function generatePlaceholders(outDir: string): Promise<PlaceholderO
     await sharp(svg).webp({ quality: 82 }).toFile(webpFile)
     await sharp(svg).png().toFile(pngFile)
     posterFiles.push(webpFile, pngFile)
+  }
+
+  // The covered-print pair for apps/viewer/e2e: what the pipeline writes today, and the
+  // -8/-8 that hid the Minecut waistband (the negative control).
+  for (const [name, record] of [
+    ['cover-new', { factor: OVERLAY_BIAS_FACTOR, units: OVERLAY_BIAS_UNITS }],
+    ['cover-old', { factor: -8, units: -8 }],
+  ] as const) {
+    const glbFile = join(outDir, `${name}.glb`)
+    await io.write(glbFile, buildCoverFixture(record))
+    glbFiles.push(glbFile)
   }
 
   await writeFile(

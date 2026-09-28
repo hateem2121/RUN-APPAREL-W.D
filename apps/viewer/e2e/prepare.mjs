@@ -13,7 +13,12 @@ import { fileURLToPath } from 'node:url'
 const viewerDir = join(dirname(fileURLToPath(import.meta.url)), '..')
 const repoRoot = join(viewerDir, '..', '..')
 
-if (!existsSync(join(repoRoot, 'tools', 'asset-pipeline', 'output', 'n001.glb'))) {
+// cover-new.glb joined the seed on 2026-09-27: a checkout seeded before then has n001.glb
+// and not it, and would 404 the covered-print fixture instead of re-seeding.
+const seeded = ['n001.glb', join('placeholders', 'cover-new.glb')].every((f) =>
+  existsSync(join(repoRoot, 'tools', 'asset-pipeline', 'output', f)),
+)
+if (!seeded) {
   execSync('pnpm seed:assets', { cwd: repoRoot, stdio: 'inherit' })
 }
 execSync('pnpm build', {

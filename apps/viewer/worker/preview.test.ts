@@ -63,6 +63,7 @@ function colourway(overrides: Partial<ViewerColourway> = {}): ViewerColourway {
     slug: 'wine',
     sequence: 1,
     poster: { ...BASE_POSTER },
+    render: null,
     glbUrl: null,
     isDefault: true,
     altText: 'Velocity Performance Skinsuit in Wine',

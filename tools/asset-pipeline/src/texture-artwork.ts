@@ -93,6 +93,20 @@ export interface ArtworkTextureOptions {
    * and it visibly flattened the white fabric's weave, for one more megabyte.
    */
   dataMaxSize?: number
+  /**
+   * Resize cap for the base-colour picture of a CUT-OUT (MASK) material that the
+   * artwork check reads as fabric — an all-over halftone. Optional; falls back to
+   * `maxSize`, and never goes BELOW it.
+   *
+   * ⚠️ WHY CUT-OUTS NEED THEIR OWN CAP (2026-09-27). A cut-out keeps a pixel only where
+   * alpha >= 0.5, so shrinking the picture first blurs every dot's edge and the cut then
+   * eats into it. The X-MILO PRO BIB's 4952x7014 halftone took the texture-family 2048
+   * cap (strategy.ts) and shipped at 1446x2048, 8.5% of its pixels: soft pixels 8.3% ->
+   * 45.3%, and the dots came out blocky and flickering
+   * (docs/3d-viewer-forensics-2026-09-27, local session section 2). Fabric keeps the
+   * saving; only a cut-out's picture is spared it.
+   */
+  cutoutMaxSize?: number
   onResult?: (result: TextureArtworkResult) => void
 }
 
@@ -566,11 +580,14 @@ export function compressTexturesForArtwork(options: ArtworkTextureOptions): Tran
         // also somebody's baseColor keeps the full colour cap and is never
         // silently downsampled underneath the artwork that shares it.
         const data = !artwork && isDataTexture(texture)
+        const cutout = !artwork && !data && cutoutTextures.has(texture)
         const maxSize = artwork
           ? options.artworkMaxSize
           : data
             ? (options.dataMaxSize ?? options.maxSize)
-            : options.maxSize
+            : cutout
+              ? Math.max(options.maxSize, options.cutoutMaxSize ?? options.maxSize)
+              : options.maxSize
         const quality = artwork ? options.artworkQuality : options.quality
 
         try {

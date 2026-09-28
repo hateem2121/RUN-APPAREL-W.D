@@ -140,6 +140,7 @@ export const Media: CollectionConfig = {
                   { posterFallback: { equals: id } },
                   { 'colourways.posterPreview': { equals: id } },
                   { 'colourways.glbAsset': { equals: id } },
+                  { 'colourways.renderImage': { equals: id } },
                 ],
               },
             ],

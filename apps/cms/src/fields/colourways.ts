@@ -185,6 +185,21 @@ export const colourwaysField: ArrayField = {
       },
     },
     {
+      // The "HD IMAGE" button on the product page (2026-09-27): a full-resolution CLO
+      // studio render, opened full-screen with zoom, and fetched only when a visitor asks.
+      // Optional and never part of the publish gate — the button simply does not appear
+      // on a colour without one (apps/viewer/src/components/StageControls.tsx).
+      name: 'renderImage',
+      type: 'upload',
+      relationTo: 'media',
+      label: 'HD studio render (optional)',
+      filterOptions: { mimeType: { in: [...IMAGE_MIME_TYPES] } },
+      admin: {
+        description:
+          'A large, sharp picture of this colour from CLO. Buyers can open it full-screen from the “HD image” button. Leave empty and the button stays hidden.',
+      },
+    },
+    {
       name: 'altText',
       type: 'text',
       label: 'Photo description',

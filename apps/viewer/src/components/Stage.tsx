@@ -19,6 +19,7 @@ import { CAMERA_DECAY_MS } from '../lib/motion'
 import { placeholderAsset, placeholderBlurPx, placeholderLeaveMs } from '../lib/placeholder'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
+import { HdImageButton } from './HdImageButton'
 import { type CameraView, StageControls } from './StageControls'
 import {
   applyAdaptivePan,
@@ -51,9 +52,20 @@ interface StageProps {
    * a thumbnail.
    */
   onModelReadyChange?: (ready: boolean) => void
+  /**
+   * Picks a colourway for the whole page. The HD image dialog's arrows use it, so
+   * closing the dialog lands on the colour the visitor was last looking at.
+   */
+  onSelectColourway?: (colourway: ViewerColourway) => void
 }
 
-export function Stage({ data, selected, preview = null, onModelReadyChange }: StageProps) {
+export function Stage({
+  data,
+  selected,
+  preview = null,
+  onModelReadyChange,
+  onSelectColourway,
+}: StageProps) {
   const { product } = data
   const separateMode = product.variantMode === 'separate-glb-per-colour'
   const glbUrl = separateMode ? selected.glbUrl : product.glbUrl
@@ -1322,13 +1334,25 @@ export function Stage({ data, selected, preview = null, onModelReadyChange }: St
           {/* `!fallback` because the poster branch has no camera to point;
               `disabled` rather than unmounted while the model downloads, so the
               row cannot shove the page around 23 seconds late. */}
-          {!fallback && (
-            <StageControls
-              activeView={activeView}
-              onSelect={applyView}
-              disabled={!modelLoaded || swapping}
-            />
-          )}
+          {/* The HD IMAGE button rides in the same pill, and keeps the row alive
+              in the poster branch: a device that cannot draw 3D is the one the
+              studio render helps most (2026-09-27). */}
+          <StageControls
+            activeView={activeView}
+            onSelect={applyView}
+            disabled={!modelLoaded || swapping}
+            showCameras={!fallback}
+            extra={
+              selected.render ? (
+                <HdImageButton
+                  productName={product.productName}
+                  colourways={data.colourways}
+                  selected={selected}
+                  onSelectColourway={onSelectColourway}
+                />
+              ) : null
+            }
+          />
         </div>
 
         {/* Coarse on purpose — see `announcedPercent`. This string changes at most

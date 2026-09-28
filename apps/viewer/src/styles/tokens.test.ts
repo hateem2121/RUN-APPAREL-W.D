@@ -455,6 +455,7 @@ describe('tokens added by the 2026-08-14 audit', () => {
       '--z-header: 40',
       '--z-action-bar: 50',
       '--z-grain: 60',
+      '--z-dialog: 65',
       '--z-cursor: 70',
       '--z-preloader: 80',
       '--z-skip-link: 100',
@@ -477,6 +478,10 @@ describe('tokens added by the 2026-08-14 audit', () => {
     expect(value('--z-skip-link')).toBeGreaterThan(value('--z-preloader'))
     expect(value('--z-preloader')).toBeGreaterThan(value('--z-cursor'))
     expect(value('--z-grain')).toBeGreaterThan(value('--z-action-bar'))
+    // The HD image dialog covers the page: above the grain, which would dim the
+    // render, and under the cursor ring, which must stay visible over it.
+    expect(value('--z-dialog')).toBeGreaterThan(value('--z-grain'))
+    expect(value('--z-cursor')).toBeGreaterThan(value('--z-dialog'))
     expect(value('--z-action-bar')).toBeGreaterThan(value('--z-header'))
   })
 })

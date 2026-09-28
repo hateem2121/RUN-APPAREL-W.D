@@ -1199,3 +1199,40 @@ the current statement that replaced them.
 **`.claude/rules/viewer-headers.md`** kept only its pointer and its reason. The record of the
 2026-09-05 check that proved path-scoped rules fire moved to `docs/CLAUDE-MD-MAINTENANCE.md`,
 which until then still reported only the ambiguous 2026-08-20 negative.
+
+## The 3D forensics fixes, an HD image button, and Mac processing (2026-09-27)
+
+The 2026-09-27 forensics found rendering defects on the live garments that no gate had seen.
+What changed, and what each was measured against:
+
+| Fix | Before | After | Guarded by |
+|---|---|---|---|
+| Solid printed layers nudged by a fixed step (factor 0, units −64), cut-outs keep −8/−8 | Minecut's print drawn through the waistband 2.5 mm in front of it; Soccer collar pierced — 100% damage at the band | 0.0–0.1% | `apps/viewer/e2e/covered-print-webgl.spec.ts` (old record must fail, new must pass, one run) |
+| Stitch thread stays soft (BLEND) | Thin stitch lines erased on 12 of 15 garments (Bib 2.88% of pixels) | Continuous stitching, soft like CLO's render | `tools/asset-pipeline/src/texture-artwork.test.ts` |
+| Cut-out prints up to 4096 px on texture-family garments | Bib halftone squashed 4952×7014 → 1446×2048, dots blocky | 2892×4096, round dots, GPU 131 MB | `tools/asset-pipeline/src/strategy.test.ts` |
+| `--normal-scale`, per garment, after a blink measurement | Soccer weave blink 0.79% front / 2.49% side | 0.17% / 0.82% | `tools/asset-pipeline/src/pipeline.test.ts` |
+
+**Rejected, with the measurement:** alpha-to-coverage (worse on the Vest, Arisan, Capsule, the
+men's jersey and Apex), and raising every texture limit. **Removed from the plan:** "fix the
+Armor-Tech shine" — CLO wrote the leather at roughness 0.40, the pipeline already raises it to
+0.50, so the rest is a CLO setting ([CLO-EXPORT-CHECKLIST.md](CLO-EXPORT-CHECKLIST.md) item 5).
+
+**The HD IMAGE button.** A colour with a CLO studio render shows an HD IMAGE button beside the
+camera buttons; nothing is downloaded until the visitor shows intent, and the dialog (base-ui,
+lazy) opens full screen with pinch, double-tap and wheel zoom. The row had to become two pills:
+with all four buttons in one it measured **318 px inside a 301 px plinth** at 320 px wide, and
+335–388 px at large text sizes, pushing the page sideways — `apps/viewer/e2e/hd-image.spec.ts`
+now measures the pills against the plinth, not the page edge. The dialog's styles load WITH the
+lazy dialog (`apps/viewer/src/styles/hd-image.css`), after lighthouse's stylesheet budget failed
+PR #77 with them on the page (37,505 B against 34,875); the page now carries only the button's
++308 B raw / +71 B gzip. Both budgets rose by exactly that measured growth (`lighthouserc.json`,
+`scripts/check-bundle-budget.mjs`).
+
+**Processing on the Mac.** Owner decision: garments are processed on the owner's Mac ($0), by
+`scripts/process-local.mjs`, which runs the robot's own `shrinkFile`
+(`apps/shrink/container/shrink-file.ts`) with the robot's flags and refusals, and refuses
+pipeline output, a version drift from the container's lockfile, and a live garment whose raw
+export does not match `raw/CANONICAL.json`.
+
+**Reported, not fixed:** the viewer applies the print nudge on `load` but schedules no redraw,
+so the very first frame is drawn un-nudged until anything moves.

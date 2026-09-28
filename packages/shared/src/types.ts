@@ -56,6 +56,12 @@ export interface ViewerColourway {
    * apps/viewer/worker/preview.ts, which already falls back when it is absent.
    */
   poster: ViewerMediaAsset | null
+  /**
+   * A full-resolution CLO studio render for the "HD IMAGE" button (2026-09-27). Null when
+   * none was uploaded — the viewer then shows no button, so a buyer is never offered a
+   * picture that does not exist. Fetched only when a visitor asks for it.
+   */
+  render: ViewerMediaAsset | null
   /** Dedicated GLB — populated only when the parent product uses "separate-glb-per-colour". */
   glbUrl: string | null
   isDefault: boolean
@@ -142,6 +148,8 @@ export const VIEWER_ANALYTICS_EVENTS = [
   'whatsapp_clicked',
   'catalogue_clicked',
   'retired_colourway_fallback',
+  // A visitor opened the "HD IMAGE" studio render (2026-09-27).
+  'hd_image_opened',
   /*
    * Core Web Vitals, one report per visit, sent when the page is hidden.
    *

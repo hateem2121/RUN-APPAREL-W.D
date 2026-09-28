@@ -328,7 +328,8 @@ export function instrumentsScript(): string {
   // Kept equal to readOverlayBias() in apps/viewer/src/lib/decal-depth-bias.ts.
   // Validated, not trusted: a record that is disabled, mis-typed, too weak (-1
   // shipped and did nothing) or the wrong sign (positive pushes the print BEHIND
-  // the cloth) is refused.
+  // the cloth) is refused. Units -8..-64; factor 0..-64 since 2026-09-27, when the
+  // pipeline began writing factor 0 (the slope term hid Minecut's waistband).
   const MIN_ABS_OVERLAY_BIAS = ${MIN_ABS_OVERLAY_BIAS}
   const MAX_ABS_OVERLAY_BIAS = ${MAX_ABS_OVERLAY_BIAS}
   const readOverlayBias = (backing) => {
@@ -336,8 +337,9 @@ export function instrumentsScript(): string {
     if (!raw || typeof raw !== 'object') return null
     if (raw.enabled !== true) return null
     if (typeof raw.factor !== 'number' || typeof raw.units !== 'number') return null
-    const inBand = (n) => n <= -MIN_ABS_OVERLAY_BIAS && n >= -MAX_ABS_OVERLAY_BIAS
-    if (!inBand(raw.factor) || !inBand(raw.units)) return null
+    const unitsInBand = raw.units <= -MIN_ABS_OVERLAY_BIAS && raw.units >= -MAX_ABS_OVERLAY_BIAS
+    const factorInBand = raw.factor <= 0 && raw.factor >= -MAX_ABS_OVERLAY_BIAS
+    if (!unitsInBand || !factorInBand) return null
     return { factor: raw.factor, units: raw.units }
   }
 
