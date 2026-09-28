@@ -226,11 +226,31 @@ test.describe('FA-D-06 / FA-E-05 — nothing scrolls sideways, in 30 conditions'
           document.documentElement.style.fontSize = `${root}px`
           const doc = document.documentElement
           // Read after the write, in the same task, so the reflow has happened.
+          /*
+           * ⚠️ A SLIDE WAITING BESIDE AN ON-SCREEN SCROLL STRIP IS NOT OVERFLOW (2026-09-28).
+           * Each gallery card's colour strip is a sideways scroller whose later slides sit
+           * past the frame BY DESIGN, and `scrollWidth` above already proves the page itself
+           * does not scroll sideways. So an element is excused only when its nearest
+           * `overflow-x: auto|scroll` ancestor is itself fully on screen — the strip is
+           * still measured as an element in its own right, and a strip that overflowed would
+           * still fail. `overflow: hidden` does NOT excuse anything: clipped text is exactly
+           * the kind of break this test exists to find.
+           */
+          const insideOnScreenScroller = (el: HTMLElement) => {
+            for (let up = el.parentElement; up; up = up.parentElement) {
+              const x = getComputedStyle(up).overflowX
+              if (x !== 'auto' && x !== 'scroll') continue
+              const strip = up.getBoundingClientRect()
+              return strip.left >= -1 && strip.right <= doc.clientWidth + 1
+            }
+            return false
+          }
           const overflowing = [...document.querySelectorAll<HTMLElement>('body *')]
             .filter((el) => {
               const box = el.getBoundingClientRect()
               if (box.width === 0 || box.height === 0) return false
-              return box.right > doc.clientWidth + 1 || box.left < -1
+              if (!(box.right > doc.clientWidth + 1 || box.left < -1)) return false
+              return !insideOnScreenScroller(el)
             })
             .map((el) => `${el.tagName}.${String(el.className).slice(0, 30)}`)
           const bar = document.querySelector('.notch')?.getBoundingClientRect()

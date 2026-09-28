@@ -33,6 +33,25 @@ async function lineLengths(page: import('@playwright/test').Page) {
       const lines = new Map<number, string>()
       let node = walker.nextNode()
       while (node) {
+        /*
+         * ⚠️ ONLY TEXT A READER CAN SEE (2026-09-28). A gallery card's colour strip holds a
+         * visually-hidden caption per slide and slides waiting beside the frame, all at the
+         * same height — counted, they joined into one 110-character "line" nobody sees.
+         * So skip `.visually-hidden` text, and text scrolled outside its sideways strip.
+         */
+        const parent = node.parentElement
+        if (parent?.closest('.visually-hidden')) {
+          node = walker.nextNode()
+          continue
+        }
+        let strip: DOMRect | null = null
+        for (let up = parent; up && up !== el; up = up.parentElement) {
+          const overflowX = getComputedStyle(up).overflowX
+          if (overflowX === 'auto' || overflowX === 'scroll') {
+            strip = up.getBoundingClientRect()
+            break
+          }
+        }
         const value = node.nodeValue ?? ''
         for (let i = 0; i < value.length; i++) {
           const range = document.createRange()
@@ -40,6 +59,7 @@ async function lineLengths(page: import('@playwright/test').Page) {
           range.setEnd(node, i + 1)
           const rect = range.getBoundingClientRect()
           if (rect.width === 0 && rect.height === 0) continue
+          if (strip && (rect.right <= strip.left || rect.left >= strip.right)) continue
           const key = Math.round(rect.top)
           lines.set(key, (lines.get(key) ?? '') + value[i])
         }

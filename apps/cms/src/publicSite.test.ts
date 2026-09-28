@@ -364,11 +364,22 @@ describe('copy rules', () => {
     // `/{slug}/{colour}` on this host serves nothing — the 3D reference is a separate
     // Worker on viewer.wear-run.help reached from printed QR tags. A relative link
     // here would 404 for every card.
+    //
+    // Since 2026-09-28 a card's links are built by `CardGallery` (one per colour, via
+    // `colourHref`, whose URL shape has its own test in lib/cardGallery.test.ts), so what
+    // is pinned here is that the page hands it the VIEWER's origin and the product slug,
+    // and that the gallery builds every href through `colourHref` from what it was given.
     const page = code(FRONTEND, 'products', 'page.tsx')
-    expect(page).toContain('VIEWER_ORIGIN')
-    expect(page).toMatch(
-      /\$\{VIEWER_ORIGIN\}\/\$\{product\.slug\}\/\$\{product\.defaultColourSlug\}/,
+    expect(page).toContain('viewerOrigin={VIEWER_ORIGIN}')
+    expect(page).toContain('productSlug={product.slug}')
+    const gallery = stripComments(
+      readFileSync(join(CMS_ROOT, 'src', 'components', 'site', 'CardGallery.tsx'), 'utf8'),
     )
+    const hrefs = gallery.match(/href=\{[^}]*\}/g) ?? []
+    expect(hrefs.length, 'the matcher found no hrefs in CardGallery').toBeGreaterThan(0)
+    for (const href of hrefs)
+      expect(href).toMatch(/^href=\{(href|colourHref\(viewerOrigin, productSlug, )/)
+    expect(gallery).toContain('colourHref(viewerOrigin, productSlug, showing?.slug')
   })
 
   /**
@@ -391,7 +402,13 @@ describe('copy rules', () => {
         const source = stripComments(readFileSync(file, 'utf8'))
         return {
           file: file.slice(CMS_ROOT.length + 1),
-          links: (source.match(/\$\{VIEWER_ORIGIN\}\//g) ?? []).length,
+          // A card that hands the viewer's origin to `CardGallery` builds its link there
+          // (2026-09-28), so that counts as a link to the viewer from this file.
+          links:
+            (source.match(/\$\{VIEWER_ORIGIN\}\//g) ?? []).length +
+            (source.match(/viewerOrigin=\{VIEWER_ORIGIN\}/g) ?? []).length +
+            // ...and each picture link CardGallery builds is one more.
+            (source.match(/href=\{colourHref\(/g) ?? []).length,
           cues: (source.match(/<ViewerCue \/>/g) ?? []).length,
         }
       })
@@ -402,6 +419,7 @@ describe('copy rules', () => {
     expect(counted.map((row) => row.file).sort()).toEqual([
       'src/app/(frontend)/page.tsx',
       'src/app/(frontend)/products/page.tsx',
+      'src/components/site/CardGallery.tsx',
     ])
     for (const row of counted) {
       expect(

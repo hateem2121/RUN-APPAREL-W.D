@@ -1281,10 +1281,17 @@ html {
   }
 }
 
+/*
+ * ⚠️ `flex: 1`, NOT `height: 100%`, SINCE 2026-09-28. The link used to wrap the whole card;
+ * now the picture strip and its dots sit ABOVE it as siblings (`CardGallery.tsx`), so a
+ * full-height link would be pushed past the card's bottom edge and clipped by its
+ * `overflow: hidden`. Growing into the space that is left keeps equal-height cards in a
+ * row lined up at the bottom, as before.
+ */
 .product-card__link {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1 1 auto;
   text-decoration: none;
   color: inherit;
 }
@@ -1367,6 +1374,107 @@ html {
   font-size: var(--text-mono-sm);
   text-transform: uppercase;
   letter-spacing: var(--tracking-caps-snug);
+}
+
+/*
+ * ⚠️ THE COLOUR STRIP IS A NATIVE SCROLL-SNAP ROW (`CardGallery.tsx` says why: no gesture
+ * handler can fight the page's vertical scroll, and it swipes with scripting off).
+ *
+ * `overscroll-behavior-x: contain` stops a swipe past the last colour from turning into
+ * the browser's back-navigation gesture — on a phone that swipe is exactly the one a
+ * visitor makes at the end of the strip. The scrollbar is hidden because the dots below
+ * say where you are; a scrollbar across a product photograph reads as a rendering fault.
+ *
+ * ⚠️ `position: absolute; inset: 0`, NOT `height: 100%`. With the strip in the normal flow,
+ * a loaded picture stretched the 4:5 figure — `aspect-ratio` lets content grow a box past
+ * its ratio (its automatic minimum size), and a percentage height inside it resolves to
+ * `auto`. Measured 2026-09-28 at 1280px: the card with a render drew its figure 435px tall
+ * against 417px for its placeholder neighbours. Out of the flow, the figure's size comes
+ * from its ratio alone.
+ */
+/*
+ * ⚠️ `overflow-anchor: none` — OR A RELOAD LOSES THE VISITOR'S PLACE ON THE PAGE. Measured
+ * 2026-09-28 in Chromium at 1280x800: scrolled to 1000, reloaded, the browser restored 1000
+ * and ~30ms later jumped to 585 — every run, with the page height unchanged throughout.
+ * Chrome's scroll anchoring picked a node inside the strip (a slide's picture) as the anchor
+ * and "corrected" for it. Hiding the pictures, or `overflow-anchor: none` on the strip or on
+ * the whole page, each restored 1000 three runs out of three; turning off scroll-snap did
+ * not. Scoped to the strip so the rest of the site keeps the browser's anchoring.
+ * `e2e/motion.spec.ts` (SC-01, a plain reload) is the test that caught it.
+ */
+.card-gallery {
+  overflow-anchor: none;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.card-gallery::-webkit-scrollbar {
+  display: none;
+}
+
+.card-gallery__slide {
+  position: relative;
+  flex: 0 0 100%;
+  height: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+/*
+ * The dots row. Each dot is a real 44px button (`--target-min`) with the visible dot drawn
+ * inside it — never a small button with padding or negative margins, which overlaps its
+ * neighbours and hides the miss (`e2e/navbar.spec.ts` records the footer that shipped
+ * 16px rows). The colour's name sits at the start of the row, so the row says WHICH
+ * colour, not just which position.
+ */
+.card-gallery__dots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 4px 12px 0 20px;
+}
+
+.card-gallery__colour {
+  margin-inline-end: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.card-gallery__dot {
+  display: grid;
+  place-items: center;
+  inline-size: var(--target-min);
+  block-size: var(--target-min);
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.card-gallery__dot::before {
+  content: "";
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--muted);
+  transition:
+    background-color var(--ui) var(--ease),
+    border-color var(--ui) var(--ease);
+}
+
+.card-gallery__dot[aria-pressed="true"]::before {
+  background: var(--headline);
+  border-color: var(--headline);
 }
 
 .product-card__body {
@@ -1542,7 +1650,9 @@ address.contact-block__value {
  * 0.01ms under `prefers-reduced-motion: reduce`, so the press becomes instantaneous
  * rather than absent — which is the correct outcome. The feedback still exists.
  */
-.product-card:active {
+/* Not while a colour dot is pressed: choosing a colour is not opening the garment, and the
+   whole card shrinking under a 44px dot read as a mis-tap (2026-09-28). */
+.product-card:active:not(:has(.card-gallery__dots :active)) {
   scale: 0.97;
 }
 

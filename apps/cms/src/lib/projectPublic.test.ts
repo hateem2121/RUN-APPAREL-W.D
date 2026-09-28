@@ -228,6 +228,112 @@ describe('toProductCard', () => {
       expect(card?.posterAlt).toBe('Velocity Performance Cycling Suit — 3D product reference')
     })
   })
+
+  /*
+   * The owner's call on 2026-09-28: a card shows each colour's studio render where one
+   * exists, the 3D poster where it does not, and a visitor swipes between colours. The
+   * live catalogue has both kinds side by side — 103 renders across 40 garments, some
+   * garments with none, R-AU with three of five — so a mixed product is the normal case.
+   */
+  describe('one picture per colour', () => {
+    const MEDIA = 'https://media.wear-run.help'
+
+    it('prefers the render, falls back to the poster, and keeps row order', () => {
+      const card = toProductCard(
+        product({
+          colourways: [
+            {
+              slug: 'wine',
+              displayName: 'Wine',
+              renderImage: { url: `${MEDIA}/rxps-wine-render.webp`, alt: 'Studio render' },
+              posterPreview: { url: `${MEDIA}/rxps-wine-poster.webp`, alt: 'Wine poster' },
+            },
+            {
+              slug: 'blush',
+              displayName: 'Blush',
+              posterPreview: { url: `${MEDIA}/rxps-blush-poster.webp`, alt: 'Blush poster' },
+            },
+          ],
+        }),
+      )
+      expect(card?.colours).toEqual([
+        {
+          slug: 'wine',
+          name: 'Wine',
+          image: { url: `${MEDIA}/rxps-wine-render.webp`, alt: 'Studio render', kind: 'render' },
+        },
+        {
+          slug: 'blush',
+          name: 'Blush',
+          image: { url: `${MEDIA}/rxps-blush-poster.webp`, alt: 'Blush poster', kind: 'poster' },
+        },
+      ])
+    })
+
+    it('leaves the poster fields alone, because structured data and the home page read them', () => {
+      // posterUrl feeds productListJsonLd and the homepage proof figure. A render
+      // leaking into it would change what search engines are told without anyone
+      // deciding that.
+      const card = toProductCard(
+        product({
+          colourways: [
+            {
+              slug: 'wine',
+              renderImage: { url: `${MEDIA}/r.webp` },
+              posterPreview: { url: `${MEDIA}/p.webp`, alt: 'P' },
+            },
+          ],
+        }),
+      )
+      expect(card?.posterUrl).toBe(`${MEDIA}/p.webp`)
+    })
+
+    it('refuses a Payload-relative render and falls through to the poster', () => {
+      // FA-O-10 again: /api/media/file/* is a 403 for every visitor.
+      const card = toProductCard(
+        product({
+          colourways: [
+            {
+              slug: 'wine',
+              renderImage: { url: '/api/media/file/rxps-wine-render.webp' },
+              posterPreview: { url: `${MEDIA}/p.webp`, alt: 'P' },
+            },
+          ],
+        }),
+      )
+      expect(card?.colours[0]?.image?.kind).toBe('poster')
+    })
+
+    it('only the DEFAULT colour borrows the product fallback poster', () => {
+      // The fallback is one picture of the garment in one colour. Showing it under the
+      // name "Blush" would label a colour with somebody else's picture.
+      const card = toProductCard(
+        product({ posterFallback: { url: `${MEDIA}/fallback.webp`, alt: 'F' } }),
+      )
+      expect(card?.colours.map((colour) => colour.image?.url ?? null)).toEqual([
+        `${MEDIA}/fallback.webp`,
+        null,
+      ])
+    })
+
+    it('writes alt text from the product and colour when the media row has none', () => {
+      const card = toProductCard(
+        product({
+          colourways: [
+            { slug: 'wine', displayName: 'Wine', renderImage: { url: `${MEDIA}/r.webp` } },
+          ],
+        }),
+      )
+      expect(card?.colours[0]?.image?.alt).toBe('Velocity Performance Cycling Suit in Wine')
+    })
+
+    it('ignores numeric IDs from a depth-0 read', () => {
+      const card = toProductCard(
+        product({ colourways: [{ slug: 'wine', renderImage: 9, posterPreview: 12 }] }),
+      )
+      expect(card?.colours[0]?.image).toBeNull()
+    })
+  })
 })
 
 describe('projectFooter', () => {
