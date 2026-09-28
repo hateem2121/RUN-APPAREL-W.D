@@ -20,7 +20,15 @@
     "was named \"Beige\" CONFIDENTLY and wrongly (the garment is pale sage green), so it was",
     "renamed and its slug moved off /beige while the product was still an unpublished draft.",
     "That is the 2026-08-03 failure in miniature: a confident wrong name beats a blank one only",
-    "if the arithmetic and the picture agree. LOOK AT THE RENDER."
+    "if the arithmetic and the picture agree. LOOK AT THE RENDER.",
+    "",
+    "ADDED 2026-09-27: the 24 garments processed on the owner's Mac (scripts/process-local.mjs, which",
+    "applies these words BEFORE the colour import, so a slug is never the sampler's guess). The owner",
+    "delegated the colour words (\"my QR codes point at the garment only, so you choose\"). Each name was",
+    "chosen by LOOKING at a front render of that colourway beside CLO's own render where one exists;",
+    "`hex` is the fabric colour measured off the file and `robotName` the palette's nearest word, kept",
+    "for the record. The sampler read two garments (r-kmj, r-mss) as \"Black #000000\" on all five",
+    "colourways at high confidence — see withNamePlan in scripts/process-local-lib.mjs."
   ],
   "products": {
     "r-afp": {
@@ -815,6 +823,1206 @@
             "name": "Mauve",
             "areaShare": 22
           }
+        }
+      ]
+    },
+    "r-srs": {
+      "productName": "SHORT RAGNAL SLEEVE",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Powder Blue",
+          "slug": "powder-blue",
+          "hex": "#90BBC3",
+          "robotName": "Powder Blue",
+          "deltaE": 9.15,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Cream",
+          "slug": "cream",
+          "hex": "#F1ECD7",
+          "robotName": "Cream",
+          "deltaE": 2.27,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Mint",
+          "slug": "mint",
+          "hex": "#AEDCBE",
+          "robotName": "Sage",
+          "deltaE": 13.02,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Butter",
+          "slug": "butter",
+          "hex": "#F8E895",
+          "robotName": "Butter",
+          "deltaE": 4.74,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Charcoal",
+          "slug": "charcoal",
+          "hex": "#343536",
+          "robotName": "Charcoal",
+          "deltaE": 2.76,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-snp": {
+      "productName": "SCUBA-NECK PERFORMANCE",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Olive",
+          "slug": "olive",
+          "hex": "#A2AB62",
+          "robotName": "Sage",
+          "deltaE": 8.93,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Teal",
+          "slug": "teal",
+          "hex": "#528275",
+          "robotName": "Teal",
+          "deltaE": 11.15,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Blue",
+          "slug": "blue",
+          "hex": "#90A1C7",
+          "robotName": "Lilac",
+          "deltaE": 11.74,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Mauve",
+          "slug": "mauve",
+          "hex": "#B69AC0",
+          "robotName": "Mauve",
+          "deltaE": 3.97,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Rust",
+          "slug": "rust",
+          "hex": "#92463C",
+          "robotName": "Rust",
+          "deltaE": 7.39,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-pps": {
+      "productName": "PRO-PILE SHERPA JACKET",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Maroon",
+          "slug": "maroon",
+          "hex": "#361B22",
+          "robotName": "Mocha",
+          "deltaE": 9.33,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Blush",
+          "slug": "blush",
+          "hex": "#C8949D",
+          "robotName": "Blush",
+          "deltaE": 8.93,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Peach",
+          "slug": "peach",
+          "hex": "#F6B171",
+          "robotName": "Peach",
+          "deltaE": 6.79,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Olive",
+          "slug": "olive",
+          "hex": "#858151",
+          "robotName": "Olive",
+          "deltaE": 14.24,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Teal",
+          "slug": "teal",
+          "hex": "#4FB3AC",
+          "robotName": "Turquoise",
+          "deltaE": 11.62,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-prs": {
+      "productName": "PACEZIP RUNNING SHIRT",
+      "colours": [
+        {
+          "variantId": "Default Colorway",
+          "displayName": "Red",
+          "slug": "red",
+          "hex": "#926565",
+          "robotName": "Rust",
+          "deltaE": 15.87,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Powder Blue",
+          "slug": "powder-blue",
+          "hex": "#A2E7FF",
+          "robotName": "Powder Blue",
+          "deltaE": 6.44,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Olive",
+          "slug": "olive",
+          "hex": "#616C44",
+          "robotName": "Olive",
+          "deltaE": 6.03,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Periwinkle",
+          "slug": "periwinkle",
+          "hex": "#AFC6FF",
+          "robotName": "Sky",
+          "deltaE": 13.57,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Pink",
+          "slug": "pink",
+          "hex": "#FFAFFE",
+          "robotName": "Mauve",
+          "deltaE": 11.85,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-hfj": {
+      "productName": "HYDRA-FIT JERSEY",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Lime",
+          "slug": "lime",
+          "hex": "#71921A",
+          "robotName": "Sage",
+          "deltaE": 17.7,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Blush",
+          "slug": "blush",
+          "hex": "#E69DA6",
+          "robotName": "Blush",
+          "deltaE": 6.38,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Orange",
+          "slug": "orange",
+          "hex": "#A04530",
+          "robotName": "Rust",
+          "deltaE": 2.41,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Mustard",
+          "slug": "mustard",
+          "hex": "#EAC03D",
+          "robotName": "Mustard",
+          "deltaE": 8.23,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Aqua",
+          "slug": "aqua",
+          "hex": "#5CAFBB",
+          "robotName": "Sky",
+          "deltaE": 11.11,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-vcj": {
+      "productName": "VANTA CORE JACKET",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Burgundy",
+          "slug": "burgundy",
+          "hex": "#582C36",
+          "robotName": "Burgundy",
+          "deltaE": 6.41,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Sky",
+          "slug": "sky",
+          "hex": "#7CC3DD",
+          "robotName": "Sky",
+          "deltaE": 5.67,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Fuchsia",
+          "slug": "fuchsia",
+          "hex": "#DE6685",
+          "robotName": "Fuchsia",
+          "deltaE": 3.4,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Green",
+          "slug": "green",
+          "hex": "#64774E",
+          "robotName": "Olive",
+          "deltaE": 10.05,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Navy",
+          "slug": "navy",
+          "hex": "#043A58",
+          "robotName": "Navy",
+          "deltaE": 9.82,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-xmt": {
+      "productName": "X-MILO TRAINING VEST",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Wine",
+          "slug": "wine",
+          "hex": "#724C54",
+          "robotName": "Wine",
+          "deltaE": 9.95,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Cream",
+          "slug": "cream",
+          "hex": "#FFE2BE",
+          "robotName": "Cream",
+          "deltaE": 7.33,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Lime",
+          "slug": "lime",
+          "hex": "#F0FFA3",
+          "robotName": "Butter",
+          "deltaE": 10.27,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Denim",
+          "slug": "denim",
+          "hex": "#2B4A69",
+          "robotName": "Denim",
+          "deltaE": 6.07,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Slate",
+          "slug": "slate",
+          "hex": "#556162",
+          "robotName": "Slate",
+          "deltaE": 3.45,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-ttp": {
+      "productName": "TIGER TAIL PROFLEX",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Blush",
+          "slug": "blush",
+          "hex": "#F19A9A",
+          "robotName": "Blush",
+          "deltaE": 8.44,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Orange",
+          "slug": "orange",
+          "hex": "#F9B152",
+          "robotName": "Mustard",
+          "deltaE": 12.11,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Lime",
+          "slug": "lime",
+          "hex": "#D1E589",
+          "robotName": "Lime",
+          "deltaE": 7.84,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Teal",
+          "slug": "teal",
+          "hex": "#065D69",
+          "robotName": "Teal",
+          "deltaE": 8.19,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Lilac",
+          "slug": "lilac",
+          "hex": "#AC9DCC",
+          "robotName": "Lilac",
+          "deltaE": 3.23,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-mrp": {
+      "productName": "MANTRA RAY PROFLEX",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Magenta",
+          "slug": "magenta",
+          "hex": "#A83855",
+          "robotName": "Magenta",
+          "deltaE": 5.27,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Aqua",
+          "slug": "aqua",
+          "hex": "#D8FFFF",
+          "robotName": "Powder Blue",
+          "deltaE": 7.5,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Mustard",
+          "slug": "mustard",
+          "hex": "#DBB10F",
+          "robotName": "Mustard",
+          "deltaE": 5.02,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Green",
+          "slug": "green",
+          "hex": "#224D1E",
+          "robotName": "Forest Green",
+          "deltaE": 6.35,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Purple",
+          "slug": "purple",
+          "hex": "#5C4D82",
+          "robotName": "Amethyst",
+          "deltaE": 7.04,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-taz": {
+      "productName": "TERRA ACTIVE ZIP",
+      "colours": [
+        {
+          "variantId": "Default Colorway",
+          "displayName": "Coral",
+          "slug": "coral",
+          "hex": "#EE7F73",
+          "robotName": "Terracotta",
+          "deltaE": 5.46,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Charcoal",
+          "slug": "charcoal",
+          "hex": "#666666",
+          "robotName": "Slate",
+          "deltaE": 5.65,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Teal",
+          "slug": "teal",
+          "hex": "#289B9B",
+          "robotName": "Mint",
+          "deltaE": 15.88,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Yellow",
+          "slug": "yellow",
+          "hex": "#D7D161",
+          "robotName": "Butter",
+          "deltaE": 10.8,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Navy",
+          "slug": "navy",
+          "hex": "#00143E",
+          "robotName": "Navy",
+          "deltaE": 7.33,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-kmj": {
+      "productName": "THE KINETIC MATRIX JACKET",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Yellow",
+          "slug": "yellow",
+          "hex": "#000000",
+          "robotName": "Black",
+          "deltaE": 3.2,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Pink",
+          "slug": "pink",
+          "hex": "#000000",
+          "robotName": "Black",
+          "deltaE": 3.2,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Teal",
+          "slug": "teal",
+          "hex": "#000000",
+          "robotName": "Black",
+          "deltaE": 3.2,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Lime",
+          "slug": "lime",
+          "hex": "#000000",
+          "robotName": "Black",
+          "deltaE": 3.2,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Orange",
+          "slug": "orange",
+          "hex": "#000000",
+          "robotName": "Black",
+          "deltaE": 3.2,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-alj": {
+      "productName": "AURORA LONGLINE JACKET",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Navy",
+          "slug": "navy",
+          "hex": "#253550",
+          "robotName": "Navy",
+          "deltaE": 4.11,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Pink",
+          "slug": "pink",
+          "hex": "#EF808D",
+          "robotName": "Fuchsia",
+          "deltaE": 10.3,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Green",
+          "slug": "green",
+          "hex": "#2C4536",
+          "robotName": "Forest Green",
+          "deltaE": 13.14,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Teal",
+          "slug": "teal",
+          "hex": "#00636F",
+          "robotName": "Teal",
+          "deltaE": 6.69,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Burgundy",
+          "slug": "burgundy",
+          "hex": "#582A45",
+          "robotName": "Burgundy",
+          "deltaE": 8.74,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-wct": {
+      "productName": "WORKOUT CROPPED TOP",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Lilac",
+          "slug": "lilac",
+          "hex": "#D7D6FF",
+          "robotName": "Lilac",
+          "deltaE": 12.01,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Burgundy",
+          "slug": "burgundy",
+          "hex": "#8D3759",
+          "robotName": "Burgundy",
+          "deltaE": 9.77,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Powder Blue",
+          "slug": "powder-blue",
+          "hex": "#B7E0FF",
+          "robotName": "Powder Blue",
+          "deltaE": 10.46,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Green",
+          "slug": "green",
+          "hex": "#00876A",
+          "robotName": "Bottle Green",
+          "deltaE": 10.24,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "White",
+          "slug": "white",
+          "hex": "#FFFFFF",
+          "robotName": "Optic White",
+          "deltaE": 0,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-mss": {
+      "productName": "METRO-SHIELD SUIT",
+      "colours": [
+        {
+          "variantId": "Colorway A",
+          "displayName": "Lilac",
+          "slug": "lilac",
+          "hex": "#000000",
+          "robotName": "Black",
+          "deltaE": 3.2,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Olive",
+          "slug": "olive",
+          "hex": "#000000",
+          "robotName": "Black",
+          "deltaE": 3.2,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Crimson",
+          "slug": "crimson",
+          "hex": "#000000",
+          "robotName": "Black",
+          "deltaE": 3.2,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Sky",
+          "slug": "sky",
+          "hex": "#000000",
+          "robotName": "Black",
+          "deltaE": 3.2,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Yellow",
+          "slug": "yellow",
+          "hex": "#000000",
+          "robotName": "Black",
+          "deltaE": 3.2,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-zt": {
+      "productName": "ZENMOVE TIGHTS",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Blush",
+          "slug": "blush",
+          "hex": "#FFC6C6",
+          "robotName": "Blush",
+          "deltaE": 4.98,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Butter",
+          "slug": "butter",
+          "hex": "#FFFEBC",
+          "robotName": "Butter",
+          "deltaE": 6.24,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Powder Blue",
+          "slug": "powder-blue",
+          "hex": "#CDFFFF",
+          "robotName": "Powder Blue",
+          "deltaE": 7.03,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Lilac",
+          "slug": "lilac",
+          "hex": "#DED7FF",
+          "robotName": "Lilac",
+          "deltaE": 11.93,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Burgundy",
+          "slug": "burgundy",
+          "hex": "#543247",
+          "robotName": "Burgundy",
+          "deltaE": 10.61,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-bcd": {
+      "productName": "BEEFLEX COURT DRESS",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Pink",
+          "slug": "pink",
+          "hex": "#9A5669",
+          "robotName": "Magenta",
+          "deltaE": 11.54,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Terracotta",
+          "slug": "terracotta",
+          "hex": "#EE683E",
+          "robotName": "Terracotta",
+          "deltaE": 5.8,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Mustard",
+          "slug": "mustard",
+          "hex": "#CDBF5F",
+          "robotName": "Mustard",
+          "deltaE": 10.25,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Mint",
+          "slug": "mint",
+          "hex": "#93DFC1",
+          "robotName": "Turquoise",
+          "deltaE": 9.27,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Denim",
+          "slug": "denim",
+          "hex": "#46699A",
+          "robotName": "Denim",
+          "deltaE": 5.93,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-mxt": {
+      "productName": "MOTION-X TRAINING ZIPPER",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Blush",
+          "slug": "blush",
+          "hex": "#F5DCDC",
+          "robotName": "Blush",
+          "deltaE": 11.27,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Green",
+          "slug": "green",
+          "hex": "#00AD98",
+          "robotName": "Mint",
+          "deltaE": 7.37,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Teal",
+          "slug": "teal",
+          "hex": "#6FCBCD",
+          "robotName": "Turquoise",
+          "deltaE": 9.05,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Lilac",
+          "slug": "lilac",
+          "hex": "#F5E5FF",
+          "robotName": "Lilac",
+          "deltaE": 16.15,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Slate",
+          "slug": "slate",
+          "hex": "#696F78",
+          "robotName": "Slate",
+          "deltaE": 6.84,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-vpj": {
+      "productName": "VELOCITY PERFORMANCE JERSEY",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Blue",
+          "slug": "blue",
+          "hex": "#3351BE",
+          "robotName": "Royal Blue",
+          "deltaE": 3.28,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Magenta",
+          "slug": "magenta",
+          "hex": "#A12044",
+          "robotName": "Magenta",
+          "deltaE": 7.22,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Orange",
+          "slug": "orange",
+          "hex": "#FF8738",
+          "robotName": "Coral",
+          "deltaE": 7.37,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Lime",
+          "slug": "lime",
+          "hex": "#C7FF33",
+          "robotName": "Lime",
+          "deltaE": 11.37,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Purple",
+          "slug": "purple",
+          "hex": "#8F96EE",
+          "robotName": "Lilac",
+          "deltaE": 13.14,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-csp": {
+      "productName": "CRIMSON STRIDE PULLOVER",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Powder Blue",
+          "slug": "powder-blue",
+          "hex": "#9DD0E3",
+          "robotName": "Powder Blue",
+          "deltaE": 6.3,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Mauve",
+          "slug": "mauve",
+          "hex": "#C8AFCD",
+          "robotName": "Mauve",
+          "deltaE": 4.59,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Navy",
+          "slug": "navy",
+          "hex": "#06344D",
+          "robotName": "Petrol",
+          "deltaE": 9.34,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Sage",
+          "slug": "sage",
+          "hex": "#A6D7B3",
+          "robotName": "Sage",
+          "deltaE": 11.73,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Wine",
+          "slug": "wine",
+          "hex": "#622E36",
+          "robotName": "Wine",
+          "deltaE": 3.98,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-cat": {
+      "productName": "CORE ALIGN TIGHTS",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Maroon",
+          "slug": "maroon",
+          "hex": "#5C1B1B",
+          "robotName": "Maroon",
+          "deltaE": 5.61,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Teal",
+          "slug": "teal",
+          "hex": "#146767",
+          "robotName": "Teal",
+          "deltaE": 2.43,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Rust",
+          "slug": "rust",
+          "hex": "#984528",
+          "robotName": "Rust",
+          "deltaE": 3.53,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Sage",
+          "slug": "sage",
+          "hex": "#8F9563",
+          "robotName": "Sage",
+          "deltaE": 9.25,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Blush",
+          "slug": "blush",
+          "hex": "#EAAAC2",
+          "robotName": "Blush",
+          "deltaE": 6.93,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-fft": {
+      "productName": "FLEX FITTED TRAINING VEST",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Lime",
+          "slug": "lime",
+          "hex": "#C9FF00",
+          "robotName": "Lime",
+          "deltaE": 12.51,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Aqua",
+          "slug": "aqua",
+          "hex": "#8DFFFF",
+          "robotName": "Turquoise",
+          "deltaE": 10.21,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Pink",
+          "slug": "pink",
+          "hex": "#E69DA6",
+          "robotName": "Blush",
+          "deltaE": 6.38,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Orange",
+          "slug": "orange",
+          "hex": "#FF6331",
+          "robotName": "Coral",
+          "deltaE": 5.68,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Indigo",
+          "slug": "indigo",
+          "hex": "#5A5C96",
+          "robotName": "Denim",
+          "deltaE": 8.23,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-wsa": {
+      "productName": "WOMEN’S ATHLETIC TENNIS DRESS",
+      "colours": [
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Plum",
+          "slug": "plum",
+          "hex": "#805963",
+          "robotName": "Wine",
+          "deltaE": 13.61,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Blush",
+          "slug": "blush",
+          "hex": "#F2A5A7",
+          "robotName": "Blush",
+          "deltaE": 5.7,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Olive",
+          "slug": "olive",
+          "hex": "#585C3E",
+          "robotName": "Olive",
+          "deltaE": 5.79,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Sky",
+          "slug": "sky",
+          "hex": "#7EA2BB",
+          "robotName": "Sky",
+          "deltaE": 7.85,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 6",
+          "displayName": "Cream",
+          "slug": "cream",
+          "hex": "#F2EAD9",
+          "robotName": "Cream",
+          "deltaE": 2.17,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-ifs": {
+      "productName": "INDIGO FLOW SWEATSHIRT",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Olive",
+          "slug": "olive",
+          "hex": "#7F855E",
+          "robotName": "Sage",
+          "deltaE": 13.58,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Powder Blue",
+          "slug": "powder-blue",
+          "hex": "#ABD6D6",
+          "robotName": "Powder Blue",
+          "deltaE": 3.37,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Wine",
+          "slug": "wine",
+          "hex": "#673C46",
+          "robotName": "Wine",
+          "deltaE": 6.64,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Navy",
+          "slug": "navy",
+          "hex": "#24415E",
+          "robotName": "Navy",
+          "deltaE": 8.84,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Purple",
+          "slug": "purple",
+          "hex": "#69638A",
+          "robotName": "Denim",
+          "deltaE": 12.65,
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-cvn": {
+      "productName": "CHEVRON V-NECK SOCCER JERSEY",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Plum",
+          "slug": "plum",
+          "hex": "#442E36",
+          "robotName": "Mocha",
+          "deltaE": 6.41,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Blush",
+          "slug": "blush",
+          "hex": "#EFD9D7",
+          "robotName": "Blush",
+          "deltaE": 11.69,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Terracotta",
+          "slug": "terracotta",
+          "hex": "#E17250",
+          "robotName": "Terracotta",
+          "deltaE": 3.28,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Sand",
+          "slug": "sand",
+          "hex": "#EACFA7",
+          "robotName": "Sand",
+          "deltaE": 4.48,
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Powder Blue",
+          "slug": "powder-blue",
+          "hex": "#C8F6FF",
+          "robotName": "Powder Blue",
+          "deltaE": 5.19,
+          "needsOwnerEye": false
         }
       ]
     }

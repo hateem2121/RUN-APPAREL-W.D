@@ -54,6 +54,28 @@ const HEADLINES: Readonly<Record<string, string>> = {
   'r-au': 'THE AGGRESSOR UNIFORM',
   'r-ect': 'ENDURA CROP TOP',
   'r-et': 'ENDURANCE TRACKSUIT',
+  // Added 2026-09-28, as the CMS stores them (the public API serves productName unchanged).
+  'r-srs': 'SHORT RAGNAL SLEEVE',
+  'r-snp': 'SCUBA-NECK PERFORMANCE',
+  'r-pps': 'PRO-PILE SHERPA JACKET',
+  'r-prs': 'PACEZIP RUNNING SHIRT',
+  'r-hfj': 'HYDRA-FIT JERSEY',
+  'r-vcj': 'VANTA CORE JACKET',
+  'r-xmt': 'X-MILO TRAINING VEST',
+  'r-mrp': 'MANTRA RAY PROFLEX',
+  'r-taz': 'TERRA ACTIVE ZIP',
+  'r-kmj': 'THE KINETIC MATRIX JACKET',
+  'r-alj': 'AURORA LONGLINE JACKET',
+  'r-wct': 'WORKOUT CROPPED TOP',
+  'r-mss': 'METRO-SHIELD SUIT',
+  'r-zt': 'ZENMOVE TIGHTS',
+  'r-bcd': 'BEEFLEX COURT DRESS',
+  'r-mxt': 'MOTION-X TRAINING ZIPPER',
+  'r-vpj': 'VELOCITY PERFORMANCE JERSEY',
+  'r-csp': 'CRIMSON STRIDE PULLOVER',
+  'r-fft': 'FLEX FITTED TRAINING VEST',
+  'r-wsa': 'WOMEN’S ATHLETIC TENNIS DRESS',
+  'r-ifs': 'INDIGO FLOW SWEATSHIRT',
 }
 
 /** Serve the fixture garment under a live product's name and code; `slug()` says which. */

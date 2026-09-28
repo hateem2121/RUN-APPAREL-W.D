@@ -59,6 +59,8 @@ export const SYLLABLES: Readonly<Record<string, string>> = {
   lavender: 'lav-en-der',
   magenta: 'ma-genta',
   mustard: 'mus-tard',
+  // Added 2026-09-28: PACEZIP RUNNING SHIRT's `periwinkle` (r-prs).
+  periwinkle: 'peri-win-kle',
   scarlet: 'scar-let',
   tangerine: 'tan-ger-ine',
   terracotta: 'ter-ra-cotta',

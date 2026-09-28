@@ -99,7 +99,9 @@ describe('softHyphenate (SZ-06)', () => {
 
   it.each([
     ['Cranberry', 'Cran|berry'],
-    ['Periwinkle', 'Peri|winkle'],
+    // Periwinkle was the example here until 2026-09-28, when it became a live colour (r-prs)
+    // and so a dictionary word; Cornflower is a colour word no garment uses.
+    ['Cornflower', 'Corn|flower'],
     ['Aquamarine', 'Aqua|marine'],
     ['Champagne', 'Cham|pagne'],
     ['Midnight', 'Mid|night'],
