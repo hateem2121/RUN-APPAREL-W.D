@@ -292,6 +292,18 @@ describe('buildPreview — canonical url', () => {
     // NOT the slug from the URL — that one 404s at the API.
     expect(build(p).url).toBe('https://viewer.wear-run.help/n001/wine')
   })
+
+  // On wear-run.com the page lives at /products/<product>/<colour> (2026-09-28). The
+  // canonical URL must name THAT page; the bare shape there is not a garment page at all.
+  it('names the /products page when the visitor is on the website', () => {
+    const preview = buildPreview(payload({}), {
+      origin: 'https://wear-run.com',
+      cards: CARDS,
+      prefix: '/products',
+    })
+    expect(preview.url).toBe('https://wear-run.com/products/n001/wine')
+    expect(preview.image!.url).toBe('https://wear-run.com/og/n001/wine.jpg')
+  })
 })
 
 describe('buildPreview — image', () => {

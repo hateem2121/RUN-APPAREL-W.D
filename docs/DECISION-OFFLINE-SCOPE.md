@@ -16,7 +16,7 @@ and the reason is the **audience**, not the byte count.
 
 A service worker that caches, at most:
 
-- the SPA shell (`/`, `index.html`, the hashed JS and CSS)
+- the SPA shell (the hashed JS and CSS, and the page itself — see below)
 - `/meshopt_decoder.js` — every model needs it
 - `/env/studio-soft.hdr` — the lighting file
 
@@ -26,6 +26,13 @@ is gone rather than slow.
 
 **An offline visitor gets the branded shell and the honest "reference unavailable"
 path, not a broken page.** They do not get the garment.
+
+**The page kept for offline is the garment page the visitor opened (since 2026-09-28).**
+It used to be `/`, which was right while the viewer owned its whole host. When the garment
+pages moved into the website at `wear-run.com/products/<product>/<colour>`, `/` became the
+website's home page, so the worker now registers with scope `/products/` there and keeps
+the page it was installed from (`apps/viewer/scripts/sw.mjs`). Every garment page is the
+viewer's own `index.html` under its address, so any of them is a correct shell.
 
 ## What is deliberately NOT being built, and why
 

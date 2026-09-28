@@ -24,6 +24,8 @@
  * that ever loaded the site, serving its cache from a file that no longer exists.
  */
 
+import { GARMENT_PATH_PREFIX, isGarmentPagePath } from '@run-apparel/shared'
+
 /** Exported for the test; the browser has exactly one. */
 export const SERVICE_WORKER_URL = '/sw.js'
 
@@ -39,6 +41,21 @@ interface RegisterOptions {
   production?: boolean
   /** Defaults to `window`. `null` asserts the absent case; see above. */
   windowLike?: Pick<Window, 'addEventListener'> | null
+  /** Defaults to `window.location.pathname`. */
+  pathname?: string
+}
+
+/**
+ * The folder the worker looks after.
+ *
+ * ⚠️ ON wear-run.com THE VIEWER SHARES ITS HOST WITH THE WEBSITE (2026-09-28). A worker
+ * at `/sw.js` defaults to scope `/`, which would put it in front of every WEBSITE page
+ * and answer them offline with a garment shell. A scope NARROWER than the script's own
+ * folder needs no `Service-Worker-Allowed` header, so `/products/` is simply asked for.
+ * On the old viewer host the viewer owns the whole origin and keeps the default.
+ */
+function scopeFor(pathname: string): RegistrationOptions | undefined {
+  return isGarmentPagePath(pathname) ? { scope: `${GARMENT_PATH_PREFIX}/` } : undefined
 }
 
 /**
@@ -50,6 +67,7 @@ export function registerServiceWorker(options: RegisterOptions = {}): boolean {
     navigatorLike = typeof navigator === 'undefined' ? undefined : navigator,
     production = import.meta.env.PROD,
     windowLike = typeof window === 'undefined' ? undefined : window,
+    pathname = typeof window === 'undefined' ? '/' : window.location.pathname,
   } = options
 
   if (!production) return false
@@ -62,7 +80,7 @@ export function registerServiceWorker(options: RegisterOptions = {}): boolean {
     // A rejected registration must never reach the error boundary. Offline caching
     // is an enhancement; the page works without it, and a visitor whose browser
     // refuses the worker should see the garment, not a branded failure screen.
-    navigatorLike.serviceWorker.register(SERVICE_WORKER_URL).catch(() => {})
+    navigatorLike.serviceWorker.register(SERVICE_WORKER_URL, scopeFor(pathname)).catch(() => {})
   })
   return true
 }

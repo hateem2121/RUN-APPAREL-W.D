@@ -24,11 +24,18 @@
  */
 import openNext from './.open-next/worker.js'
 import { newNonce, nonceable, noncedHeaders } from './cspNonce.mjs'
+import { forwardsToViewer } from './viewerForward.mjs'
 
 export * from './.open-next/worker.js'
 
 export default {
   async fetch(request, env, ctx) {
+    // Garment pages and the viewer's files go to the viewer Worker unchanged, BEFORE
+    // OpenNext (viewerForward.mjs says which, and why). Its response carries its own CSP
+    // from `_headers`, so the nonce guard below must never see it. Without the binding
+    // (a local preview) the request falls through to Next and 404s, which is honest.
+    if (env.VIEWER && forwardsToViewer(new URL(request.url))) return env.VIEWER.fetch(request)
+
     const response = await openNext.fetch(request, env, ctx)
     try {
       if (!nonceable(response)) return response

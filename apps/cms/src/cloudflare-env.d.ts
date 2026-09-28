@@ -11,6 +11,8 @@ declare global {
     // Producer queue: a raw upload enqueues a shrink job consumed by apps/shrink.
     SHRINK_QUEUE?: Queue
     ASSETS: Fetcher
+    // The viewer Worker: worker.mjs forwards garment pages and its files to it (2026-09-28).
+    VIEWER?: Fetcher
     CMS_PUBLIC_URL?: string
     PUBLIC_MEDIA_BASE_URL?: string
     VIEWER_ALLOWED_ORIGINS?: string

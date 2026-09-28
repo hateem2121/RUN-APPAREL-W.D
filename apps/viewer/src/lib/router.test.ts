@@ -27,6 +27,15 @@ describe('setColourwayUrl', () => {
     setColourwayUrl('n001', 'crimson', true)
     expect(window.location.pathname).toBe('/n001/crimson')
   })
+  // On wear-run.com the garment pages live under /products (2026-09-28). A colour change
+  // there must stay there: dropping the folder would send the visitor to a website path
+  // that is not a garment page at all.
+  it('keeps the /products folder when the visitor is in it', () => {
+    window.history.pushState({}, '', '/products/n001/navy')
+    expect(currentRoute()).toEqual({ productSlug: 'n001', colourSlug: 'navy' })
+    setColourwayUrl('n001', 'black')
+    expect(window.location.pathname).toBe('/products/n001/black')
+  })
   it('is a no-op when the path is unchanged', () => {
     window.history.pushState({}, '', '/n001/navy')
     const spy = vi.spyOn(window.history, 'pushState')

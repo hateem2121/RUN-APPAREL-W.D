@@ -114,6 +114,17 @@
       "bucket_name": "run-apparel-viewer-ingest"
     }
   ],
+  // The garment pages live inside the website at /products/<product>/<colour> since the
+  // domain move (2026-09-28); worker.mjs forwards them, and the viewer's own files, to the
+  // viewer Worker over this binding — same account, no public hop. The viewer binds back
+  // to this Worker as `CMS` for its payload; both Workers already exist, which is all a
+  // pair of bindings needs (a binding to a Worker that does not exist fails the deploy).
+  "services": [
+    {
+      "binding": "VIEWER",
+      "service": "run-apparel-viewer-site"
+    }
+  ],
   // Producer binding: a raw upload enqueues a shrink job. The consumer + the
   // Container that runs the asset pipeline live in the separate apps/shrink
   // Worker (kept out of this OpenNext Worker, which cannot host a Durable
@@ -147,7 +158,11 @@
     // Comma-separated origins allowed to call the public viewer API.
     // (run-apparel-viewer.pages.dev removed 2026-07-22 — the Pages project was
     // deleted after the viewer moved to the run-apparel-viewer-site Worker.)
-    "VIEWER_ALLOWED_ORIGINS": "https://viewer.wear-run.help",
+    // The two site addresses joined on 2026-09-28 (domain move): the garment pages now
+    // also load inside the website at /products/<product>/<colour>, first on
+    // wear-run.help to prove it, then on wear-run.com. Each is our own page, and the
+    // media bucket's CORS policy lists the same origins.
+    "VIEWER_ALLOWED_ORIGINS": "https://viewer.wear-run.help,https://wear-run.help,https://wear-run.com",
     // Transactional email "From" identity (password resets / notifications). The
     // address's domain must be verified in Resend. The API key itself is a
     // secret: `wrangler secret put RESEND_API_KEY` — email is off until it is set.

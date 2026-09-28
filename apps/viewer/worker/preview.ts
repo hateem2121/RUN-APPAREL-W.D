@@ -1,4 +1,8 @@
-import type { ViewerApiSuccess } from '@run-apparel/shared'
+import {
+  buildViewerPath,
+  type GARMENT_PATH_PREFIX,
+  type ViewerApiSuccess,
+} from '@run-apparel/shared'
 import type { OgCard } from './og-cards'
 
 /**
@@ -198,17 +202,22 @@ export interface PreviewOptions {
   /** The origin the visitor used, so a preview URL is never hard-coded to one host. */
   origin: string
   cards: Record<string, OgCard>
+  /**
+   * `/products` when the visitor is on the website's garment folder (wear-run.com,
+   * 2026-09-28), `''` on the old viewer host — the canonical URL names the page that loaded.
+   */
+  prefix?: '' | typeof GARMENT_PATH_PREFIX
 }
 
 export function buildPreview(payload: ViewerApiSuccess, options: PreviewOptions): Preview {
-  const { origin, cards } = options
+  const { origin, cards, prefix = '' } = options
   // selectedColourway, NOT the slug the visitor asked for. A QR tag pointing at
   // a retired colour resolves to the default one, and the preview has to
   // describe the page that will actually load — otherwise the canonical URL
   // advertises a colourway that 404s at the API and the card names a colour the
   // visitor will never see. The JSON-LD reuses both values for the same reason:
   // structured data must describe the page that loads, not the one requested.
-  const url = `${origin}/${payload.product.slug}/${payload.selectedColourway.slug}`
+  const url = `${origin}${buildViewerPath(payload.product.slug, payload.selectedColourway.slug, prefix)}`
   const image = pickImage(payload, origin, cards)
   return {
     title: buildTitle(payload),
