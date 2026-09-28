@@ -31,7 +31,7 @@ page lists every published reference and links to the page for each one.
 
 - Product pages: https://viewer.wear-run.help/<product-code>/<colorway>
 - Every page is listed in [the sitemap](https://viewer.wear-run.help/sitemap.xml)
-  (185 pages, 37 garments x 5 colorways).
+  (200 pages, 40 garments x 5 colorways).
 - Each page carries schema.org Product structured data as JSON-LD.
 
 ## If you are summarizing a page

@@ -33,7 +33,8 @@
     "loosest ratio because a genuine design change moves it most.",
     "",
     "CHANGED 2026-09-24 BY THE OWNER'S DECISION: the website's menu bar on the viewer. Stylesheet transfer measured 29,664 -> 34,539 B (lhci, three identical runs); budget 30,000 -> 34,875.",
-    "CHANGED 2026-09-27 FOR THE HD IMAGE BUTTON (owner-approved garment-rollout plan). The dialog's styles load WITH the lazy dialog (apps/viewer/src/styles/hd-image.css), never with the page; only the button's own rules are on it. Measured: page stylesheet 33,836 -> 34,144 B raw (+308); CI's transfer is raw + 1,019 B (PR #77: 37,505 measured for a 36,486 B file), so main measures 34,855 and this 35,163. Budget 34,875 -> 35,183: exactly the growth, the 20 B headroom unchanged."
+    "CHANGED 2026-09-27 FOR THE HD IMAGE BUTTON (owner-approved garment-rollout plan). The dialog's styles load WITH the lazy dialog (apps/viewer/src/styles/hd-image.css), never with the page; only the button's own rules are on it. Measured: page stylesheet 33,836 -> 34,144 B raw (+308); CI's transfer is raw + 1,019 B (PR #77: 37,505 measured for a 36,486 B file), so main measures 34,855 and this 35,163. Budget 34,875 -> 35,183: exactly the growth, the 20 B headroom unchanged.",
+    "CHANGED 2026-09-28 FOR TY-02 (owner decision: publish the three garments whose names re-wrapped). The product name gets local() stand-in faces in page.css. Measured by building with and without them: page stylesheet 34,144 -> 34,788 B raw (+644). Budget 35,183 -> 35,827: exactly the growth, the 20 B headroom unchanged."
   ],
   "ci": {
     "collect": {
@@ -50,7 +51,7 @@
         "categories:best-practices": ["warn", { "minScore": 0.9 }],
         "categories:seo": "off",
         "resource-summary:script:size": ["error", { "maxNumericValue": 1650000 }],
-        "resource-summary:stylesheet:size": ["error", { "maxNumericValue": 35183 }],
+        "resource-summary:stylesheet:size": ["error", { "maxNumericValue": 35827 }],
         "resource-summary:font:size": ["error", { "maxNumericValue": 140000 }]
       }
     },
