@@ -1,5 +1,5 @@
 import { buildLlmsTxt } from '../../lib/llmsTxt'
-import { SITE_ORIGIN, VIEWER_ORIGIN } from '../../lib/seo'
+import { SITE_ORIGIN } from '../../lib/seo'
 
 /**
  * `/llms.txt`.
@@ -21,7 +21,7 @@ import { SITE_ORIGIN, VIEWER_ORIGIN } from '../../lib/seo'
 export const dynamic = 'force-static'
 
 export function GET(): Response {
-  return new Response(buildLlmsTxt(SITE_ORIGIN, VIEWER_ORIGIN), {
+  return new Response(buildLlmsTxt(SITE_ORIGIN), {
     headers: {
       'content-type': 'text/plain; charset=utf-8',
       'cache-control': 'public, max-age=3600, stale-while-revalidate=86400',

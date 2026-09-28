@@ -123,7 +123,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
     // a real navigation here would make the suite depend on the live marketing site
     // being up, which is precisely the kind of test that goes red for someone else's
     // reason. The click is still real.
-    await page.route('https://wear-run.help/', (route) =>
+    await page.route('https://wear-run.com/', (route) =>
       route.fulfill({ contentType: 'text/html', body: '<!doctype html><h1>RUN APPAREL</h1>' }),
     )
 
@@ -131,7 +131,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
     const wordmark = page.locator('a.notch__wordmark')
     // ⚠️ Both halves. "/" is the value that rendered UnavailableState, and it is
     // what a future "simplification" back to a same-origin home would reach for.
-    await expect(wordmark).toHaveAttribute('href', 'https://wear-run.help')
+    await expect(wordmark).toHaveAttribute('href', 'https://wear-run.com')
     await expect(wordmark).not.toHaveAttribute('href', '/')
 
     await wordmark.click()

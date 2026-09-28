@@ -558,6 +558,56 @@ and daily, by host, so the target's path can still change.
 
 ---
 
+### 11.9 The domain move to `wear-run.com` (2026-09-28)
+
+Owner decisions that day: one site on one domain, the garment pages at
+`wear-run.com/products/<product>/<colour>`, every old address forwarding for ever (printed QR
+tags carry them), and the back ends (`cms.`, the API, the document hosts, shrink, ingest)
+staying on `.help`. Plan and live reads: the owner's plan file, not in this repository.
+
+**The front door.** `wear-run.com` and `www.wear-run.com` are custom domains of the CMS Worker
+(`apps/cms/wrangler.jsonc`). Until the deploy that shipped them they belonged to the
+email-signature project's Worker `run-domain-edge`, which forwarded every path to
+`wear-run.help`; `wrangler deploy` moves a listed custom domain without asking. That
+project's other `wear-run.com` hosts (`go.`, `assets.`, `mta-sts.`) are untouched and must
+never be listed here (`apps/cms/src/workerConfigs.test.ts`).
+**Undo:** re-attach `wear-run.com` and `www.wear-run.com` to `run-domain-edge` (Workers →
+`run-domain-edge` → Settings → Domains & Routes), which restores the old forward exactly,
+then revert the pull request.
+
+**`media.wear-run.com`** is a second custom domain on the SAME bucket
+(`run-apparel-viewer-media`), because the media host answers
+`Cross-Origin-Resource-Policy: same-site` and `wear-run.com` is a different site from
+`wear-run.help`. Public pages name it (`apps/cms/src/lib/siteMedia.ts`); the admin keeps
+`media.wear-run.help`. The `.help` media controls were copied into the `wear-run.com` zone,
+and each copy must follow any change to its original:
+
+| On `wear-run.com` | Copy of |
+|---|---|
+| Response-header Transform Rule on `media.wear-run.com` (CORP `same-site`, `Timing-Allow-Origin: https://wear-run.com`, `no-store` on a miss) | the rule in "Response-header Transform Rule — `media.wear-run.help`" below |
+| WAF custom rule: a `.glb` with a Referer not starting `https://wear-run.com/` or `https://cms.wear-run.help/` is blocked | "WAF custom rule — hotlinked models" below |
+| Cache rule, 30-day edge TTL on `media.wear-run.com` | the `.help` media cache rule |
+| `model/gltf-binary` compression | the `.help` compression rule |
+| Bucket CORS allows `https://wear-run.com` | (the bucket's CORS is shared by both names) |
+
+Checked daily by `scripts/zone-security-probe.mjs` (TLS floor, CORP, `no-store`,
+`Timing-Allow-Origin`) — an R2 custom domain carries its own minimum TLS, which read 1.2 on
+creation.
+
+**Zone differences, measured 2026-09-28 and deliberately not changed.** The `wear-run.com`
+zone's HSTS is a year WITHOUT `includeSubDomains` (the zone value wins over the site's own
+header); adding it would bind the email project's hosts, so it is an owner decision and the
+probe waives only that for the two `.com` hosts. Browser Integrity Check, Hotlink Protection
+and Early Hints are on for `.help` and off for `.com`. Email Obfuscation and Rocket Loader are
+OFF on `.com`, as the nonce CSP requires (section 11.7).
+
+**Web Analytics validates the page's hostname by suffix** (Cloudflare's FAQ): the token made
+for `wear-run.help` drops every visit on `wear-run.com` without an error. The site and the
+garment pages therefore report to a second Web Analytics site, host `wear-run.com`, created
+2026-09-28 host-only with `auto_install: false` (nothing is injected into that shared zone;
+our pages embed the tag themselves). Its token is in `apps/viewer/index.html` and, from the
+moment the switch went live, in the CMS Worker's `CF_ANALYTICS_TOKEN` secret.
+
 ## Protecting the 3D models (added 2026-09-05)
 
 Two controls, deployed by hand in the dashboard. They are **not in git** — nothing in

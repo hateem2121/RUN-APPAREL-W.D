@@ -1,23 +1,28 @@
+import { GARMENT_PATH_PREFIX } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 
 /**
- * Canonical origin for the public site.
+ * Canonical origin for the public site — `wear-run.com` since the domain move of
+ * 2026-09-28 (it was `wear-run.help`, which now forwards every path here).
  *
- * ⚠️ NOT `viewer.wear-run.help`. That host serves the 3D reference and is reached from
- * printed QR tags; the marketing pages are a different surface and must not claim its
- * canonical URLs. Overridable so a preview deploy does not advertise production URLs
- * to crawlers — a wrong canonical is worse than none, because it points Google at a
- * page this deployment is not serving.
+ * Overridable so a preview deploy does not advertise production URLs to crawlers — a
+ * wrong canonical is worse than none, because it points Google at a page this deployment
+ * is not serving.
  */
-export const SITE_ORIGIN = (process.env.NEXT_PUBLIC_SITE_ORIGIN ?? 'https://wear-run.help').replace(
+export const SITE_ORIGIN = (process.env.NEXT_PUBLIC_SITE_ORIGIN ?? 'https://wear-run.com').replace(
   /\/$/,
   '',
 )
 
-/** Where a garment's 3D reference lives. Cards and CTAs link out to it. */
-export const VIEWER_ORIGIN = (
-  process.env.NEXT_PUBLIC_VIEWER_ORIGIN ?? 'https://viewer.wear-run.help'
-).replace(/\/$/, '')
+/**
+ * Where the garment pages live: `<SITE_ORIGIN>/products/<product>/<colour>`, the address
+ * printed on the QR tags since 2026-09-28. Cards and CTAs link here.
+ *
+ * ⚠️ IT WAS `viewer.wear-run.help` (a separate host, and `VIEWER_ORIGIN`) until the domain
+ * move. The pages are still drawn by the viewer Worker — worker.mjs forwards them to it —
+ * but they are pages of THIS site now, one folder below the /products listing.
+ */
+export const GARMENT_PAGES = `${SITE_ORIGIN}${GARMENT_PATH_PREFIX}`
 
 const SITE_NAME = 'RUN APPAREL'
 

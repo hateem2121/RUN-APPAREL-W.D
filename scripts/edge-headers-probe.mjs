@@ -18,8 +18,11 @@
 import { DEFAULT_PRODUCT } from './live-products.mjs'
 import { realpathSync } from 'node:fs'
 
-export const VIEWER_PAGE_URL = `https://viewer.wear-run.help/${DEFAULT_PRODUCT.slug}/${DEFAULT_PRODUCT.colourway}`
-export const CMS_PAGE_URL = 'https://wear-run.help/'
+// Both on wear-run.com since the domain move (2026-09-28): the garment pages are the
+// website's /products/<product>/<colour>, served by the viewer Worker through the site's.
+export const SITE_ORIGIN = 'https://wear-run.com'
+export const VIEWER_PAGE_URL = `${SITE_ORIGIN}/products/${DEFAULT_PRODUCT.slug}/${DEFAULT_PRODUCT.colourway}`
+export const CMS_PAGE_URL = `${SITE_ORIGIN}/`
 export const API_URL = `https://cms.wear-run.help/api/public/viewer/${DEFAULT_PRODUCT.slug}/${DEFAULT_PRODUCT.colourway}`
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -159,11 +162,7 @@ async function main() {
   const assetPath = extractHashedAssetPath(viewerHtml)
   if (assetPath) {
     results.push(
-      await probeOne(
-        'hashed viewer asset',
-        `https://viewer.wear-run.help${assetPath}`,
-        'hashed-immutable',
-      ),
+      await probeOne('hashed viewer asset', `${SITE_ORIGIN}${assetPath}`, 'hashed-immutable'),
     )
   } else {
     results.push({

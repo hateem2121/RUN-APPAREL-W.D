@@ -6,7 +6,7 @@ import { ViewerCue } from '../../../components/site/ViewerCue'
 import { getProductCards, type ProductCard } from '../../../lib/content'
 import { FAMILIES, familyBySlug } from '../../../lib/families'
 import { productsDescription } from '../../../lib/pageDescriptions'
-import { buildMetadata, SITE_ORIGIN, VIEWER_ORIGIN } from '../../../lib/seo'
+import { buildMetadata, SITE_ORIGIN, GARMENT_PAGES } from '../../../lib/seo'
 import { productListJsonLd } from '../../../lib/structuredData'
 
 export const dynamic = 'force-dynamic'
@@ -198,7 +198,7 @@ function Card({ product, index }: { product: ProductCard; index: number }) {
       <CardGallery
         productSlug={product.slug}
         productName={product.productName}
-        viewerOrigin={VIEWER_ORIGIN}
+        garmentPages={GARMENT_PAGES}
         colours={product.colours}
         index={index}
       >

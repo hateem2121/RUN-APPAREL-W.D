@@ -52,6 +52,8 @@ const CRAWL_DELAY_MS = 1200
 
 /** The only hosts this script will ever fetch. Anything else is shape-checked, never followed. */
 const CRAWLABLE_HOSTS = new Set([
+  'wear-run.com',
+  'media.wear-run.com',
   'wear-run.help',
   'viewer.wear-run.help',
   'cms.wear-run.help',
@@ -62,12 +64,13 @@ const CRAWLABLE_HOSTS = new Set([
 const PINNED_WHATSAPP_NUMBER = DEFAULT_SITE_SETTINGS.whatsappNumber.replace(/[^\d]/g, '')
 
 /** Where the crawl starts. Every one of these is itself an entry point a visitor or crawler reaches. */
+// One site since the domain move (2026-09-28): its sitemap lists every garment page too.
+// The old viewer host's sitemap stays up for search engines to find the 301s, but crawling
+// it here would fetch every garment twice through a redirect and prove nothing new.
 export const SEEDS = [
-  'https://wear-run.help/',
-  'https://viewer.wear-run.help/sitemap.xml',
-  'https://wear-run.help/sitemap.xml',
-  'https://wear-run.help/llms.txt',
-  'https://viewer.wear-run.help/llms.txt',
+  'https://wear-run.com/',
+  'https://wear-run.com/sitemap.xml',
+  'https://wear-run.com/llms.txt',
 ]
 
 /**

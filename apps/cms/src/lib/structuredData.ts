@@ -1,6 +1,6 @@
 import { normalizeWhatsAppNumber, POSTAL_ADDRESS } from '@run-apparel/shared'
 import type { ProductCard, PublicSiteSettings } from './projectPublic'
-import { SITE_ORIGIN, VIEWER_ORIGIN } from './seo'
+import { SITE_ORIGIN, GARMENT_PAGES } from './seo'
 
 /**
  * JSON-LD builders for the public marketing site.
@@ -123,7 +123,7 @@ export function productListJsonLd(products: ProductCard[]) {
       '@type': 'ListItem',
       position: index + 1,
       name: product.productName,
-      url: `${VIEWER_ORIGIN}/${product.slug}/${product.defaultColourSlug}`,
+      url: `${GARMENT_PAGES}/${product.slug}/${product.defaultColourSlug}`,
     })),
   }
 }

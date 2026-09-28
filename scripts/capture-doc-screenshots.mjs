@@ -21,19 +21,19 @@ const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'docs', 'images'
 const SHOTS = [
   {
     file: 'viewer-phone-light.png',
-    url: 'https://viewer.wear-run.help/rxps/wine',
+    url: 'https://wear-run.com/products/rxps/wine',
     device: 'iPhone 15',
     scheme: 'light',
   },
   {
     file: 'viewer-phone-dark.png',
-    url: 'https://viewer.wear-run.help/rxps/wine',
+    url: 'https://wear-run.com/products/rxps/wine',
     device: 'iPhone 15',
     scheme: 'dark',
   },
   {
     file: 'site-home-desktop.png',
-    url: 'https://wear-run.help/',
+    url: 'https://wear-run.com/',
     viewport: { width: 1280, height: 800 },
     scheme: 'light',
   },

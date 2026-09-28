@@ -24,8 +24,8 @@ test('with JavaScript off, the page names itself and links the contact page', as
   await expect(
     page.locator('p', { hasText: 'This 3D garment reference needs JavaScript.' }),
   ).toBeVisible()
-  await expect(page.getByRole('link', { name: 'wear-run.help/contact' })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'wear-run.com/contact' })).toHaveAttribute(
     'href',
-    'https://wear-run.help/contact',
+    'https://wear-run.com/contact',
   )
 })

@@ -35,7 +35,8 @@ import { join } from 'node:path'
 import { LIVE_PRODUCTS } from './live-products.mjs'
 
 const SMOKE = join(import.meta.dirname, 'smoke-viewer-preview.mjs')
-const viewerBase = process.argv[2] ?? 'https://viewer.wear-run.help'
+// The garment folder on the website since the domain move of 2026-09-28.
+const viewerBase = process.argv[2] ?? 'https://wear-run.com/products'
 
 const failed = []
 

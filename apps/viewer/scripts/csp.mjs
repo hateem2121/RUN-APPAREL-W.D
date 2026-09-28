@@ -42,9 +42,13 @@ const CF_CONNECT = 'https://cloudflareinsights.com https://static.cloudflareinsi
 
 /**
  * Covers media served from cms/api/media.wear-run.help regardless of which host the
- * build points `VITE_API_BASE_URL` at.
+ * build points `VITE_API_BASE_URL` at — and, since the domain move of 2026-09-28,
+ * `media.wear-run.com`: the same R2 bucket under a second address, because a page on
+ * wear-run.com may only show a picture whose host is on its OWN site (the media host
+ * answers `Cross-Origin-Resource-Policy: same-site`). Named exactly rather than as
+ * `*.wear-run.com`, whose other hosts belong to the email-signature project.
  */
-const ZONE = 'https://*.wear-run.help'
+const ZONE = 'https://*.wear-run.help https://media.wear-run.com'
 
 /**
  * sha256 hashes for every inline <script> in `html`, formatted for a CSP source list.

@@ -171,7 +171,7 @@ test.describe('FA-O-13 — nothing is stored, and nothing is told', () => {
      * Anything NOT on this list still fails: one embedded map, one chat widget, one CDN
      * font, and the privacy notice's claims stop being true with nothing else going red.
      */
-    const FIRST_PARTY_HOSTS = [origin.host, 'media.wear-run.help']
+    const FIRST_PARTY_HOSTS = [origin.host, 'media.wear-run.com', 'media.wear-run.help']
 
     page.on('request', (request) => {
       const url = new URL(request.url())

@@ -18,7 +18,8 @@ import https from 'node:https'
 import { headProblems, payloadCopyProblems, readHead, runVerdict } from './live-copy.mjs'
 import { LIVE_PRODUCTS } from './live-products.mjs'
 
-const VIEWER = (process.argv[2] || 'https://viewer.wear-run.help').replace(/\/+$/, '')
+// The website's garment folder since the domain move of 2026-09-28.
+const VIEWER = (process.argv[2] || 'https://wear-run.com/products').replace(/\/+$/, '')
 const CMS = (process.argv[3] || 'https://cms.wear-run.help').replace(/\/+$/, '')
 const CRAWLER_UA = 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
 const BROWSER_UA =

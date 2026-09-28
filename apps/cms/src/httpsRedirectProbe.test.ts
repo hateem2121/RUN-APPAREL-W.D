@@ -98,7 +98,14 @@ describe('evaluate — what must NOT be read as a pass or a fail', () => {
 describe('TARGETS', () => {
   it('covers every customer-facing host, imported from zone-security-probe so the two cannot drift', () => {
     expect(TARGETS.map((t) => t.host).sort()).toEqual(
-      ['cms.wear-run.help', 'media.wear-run.help', 'viewer.wear-run.help', 'wear-run.help'].sort(),
+      [
+        'cms.wear-run.help',
+        'media.wear-run.com',
+        'media.wear-run.help',
+        'viewer.wear-run.help',
+        'wear-run.com',
+        'wear-run.help',
+      ].sort(),
     )
   })
 })

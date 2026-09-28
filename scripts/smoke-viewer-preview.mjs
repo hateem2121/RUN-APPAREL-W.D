@@ -57,7 +57,9 @@ function variesOnUserAgent(vary) {
 
 const [, , baseArg, productArg, colourArg] = process.argv
 
-const BASE = (baseArg || 'https://viewer.wear-run.help').replace(/\/+$/, '')
+// The website's garment folder since the domain move of 2026-09-28 (it was the viewer's own
+// host, viewer.wear-run.help, which now forwards here). Each page is BASE/<product>/<colour>.
+const BASE = (baseArg || 'https://wear-run.com/products').replace(/\/+$/, '')
 // ⚠️ `n001` until 2026-08-15, by which time that product 404'd in production — see
 // the block in smoke-viewer-payload.mjs. Against the dead slug this reported "the
 // per-garment rewrite did not run", which reads as a broken Worker and was a

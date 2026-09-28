@@ -59,6 +59,16 @@ describe('absolutize', () => {
     expect(absolutize(null, origin)).toBeNull()
     expect(toMediaAsset(null, origin)).toBeNull()
   })
+  // The garment pages are on wear-run.com since 2026-09-28, and the media host answers
+  // `same-site`: a .help poster on a .com page is blocked (lib/siteMedia.ts).
+  it('names production media by its wear-run.com address, model and poster alike', () => {
+    expect(toMediaAsset({ url: 'https://media.wear-run.help/rxps.glb' }, origin)?.url).toBe(
+      'https://media.wear-run.com/rxps.glb',
+    )
+    expect(absolutize('https://media.wear-run.help/rxps-wine-poster.webp', origin)).toBe(
+      'https://media.wear-run.com/rxps-wine-poster.webp',
+    )
+  })
 })
 
 describe('the customisation copy comes from the product, and only the product', () => {

@@ -109,8 +109,30 @@ describe('a single segment carrying a dot is a missing FILE, not a product', () 
     })
   }
 
+  // The website hands /products/<product>[/<colour>] to this Worker since the domain move
+  // (2026-09-28), so a missing file one folder down is two segments, not one. Measured the
+  // first time a smoke asked for /products/manifest.webmanifest: 200 text/html.
+  for (const pathname of ['/products/manifest.webmanifest', '/products/favicon.ico']) {
+    it(`404s ${pathname} under the website's garment folder`, () => {
+      expect(
+        shouldReturnNotFound({
+          pathname,
+          method: 'GET',
+          routeParsed: true,
+          contentType: 'text/html; charset=utf-8',
+        }),
+      ).toBe(true)
+    })
+  }
+
   it('does NOT 404 a real product page, which has no dot (negative control)', () => {
-    for (const pathname of ['/rxps/wine', '/rxps', '/r-milo-pro/bottle-green']) {
+    for (const pathname of [
+      '/rxps/wine',
+      '/rxps',
+      '/r-milo-pro/bottle-green',
+      '/products/rxps/wine',
+      '/products/rxps',
+    ]) {
       expect(
         shouldReturnNotFound({
           pathname,

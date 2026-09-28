@@ -5,6 +5,7 @@ import {
   type ViewerMediaAsset,
 } from '@run-apparel/shared'
 import { isAddressableColourway } from '../lib/colourwayAccess'
+import { onSiteMedia } from '../lib/siteMedia'
 
 /**
  * Pure projection from CMS documents to the public ViewerApiSuccess shape.
@@ -16,7 +17,9 @@ import { isAddressableColourway } from '../lib/colourwayAccess'
 
 export const absolutize = (url: string | null | undefined, origin: string): string | null => {
   if (!url) return null
-  if (/^https?:\/\//.test(url)) return url
+  // The garment pages are on wear-run.com since 2026-09-28: name the media bucket by its
+  // address on that site, or `same-site` blocks every poster (lib/siteMedia.ts).
+  if (/^https?:\/\//.test(url)) return onSiteMedia(url)
   return `${origin}${url.startsWith('/') ? '' : '/'}${url}`
 }
 

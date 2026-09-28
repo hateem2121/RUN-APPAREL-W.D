@@ -3,6 +3,7 @@ import {
   BLOCKED_PREFIX,
   CMS_HOST,
   hostPattern,
+  OLD_SITE_HOSTS,
   routeFor,
   SITE_HOST,
   siteRedirects,
@@ -23,13 +24,14 @@ import {
 describe('host patterns are anchored and escaped', () => {
   it('matches exactly the host, as OpenNext evaluates it', () => {
     const apex = new RegExp(hostPattern(SITE_HOST))
-    expect(apex.test('wear-run.help')).toBe(true)
+    expect(apex.test('wear-run.com')).toBe(true)
     for (const other of [
-      'cms.wear-run.help',
-      'www.wear-run.help',
-      'xwear-run.help',
-      'wear-runxhelp',
-      'wear-run.help.evil',
+      'www.wear-run.com',
+      'go.wear-run.com',
+      'xwear-run.com',
+      'wear-runxcom',
+      'wear-run.com.evil',
+      'wear-run.help',
     ]) {
       expect(apex.test(other), `${other} must not match the apex pattern`).toBe(false)
     }
@@ -62,12 +64,7 @@ describe('routeFor — what each hostname does with a path', () => {
     // so the wildcard alone emitted a literal `https://wear-run.help/:path*` in workerd
     // (measured 2026-09-07). siteHostRules.mjs carries the account.
     expect(routeFor(WWW_HOST, '/')).toEqual({ kind: 'redirect', to: `https://${SITE_HOST}` })
-    // Never reached in production — the PDF Worker's narrower www route wins first —
-    // but if it were, it would still land on the PDF.
-    expect(routeFor(WWW_HOST, '/catalogue')).toEqual({
-      kind: 'redirect',
-      to: `https://${SITE_HOST}/catalogue`,
-    })
+    expect(WWW_HOST).toBe('www.wear-run.com')
   })
 
   it('the cms host redirects its public pages and keeps everything else', () => {
@@ -115,6 +112,59 @@ describe('routeFor — what each hostname does with a path', () => {
     })
     // and a path that merely STARTS with the word is not the admin
     expect(routeFor(SITE_HOST, '/administration')).toEqual({ kind: 'serve' })
+  })
+
+  /**
+   * THE DOMAIN MOVE, 2026-09-28. The site now lives on wear-run.com; wear-run.help and
+   * its www. forward every path to the same path there, for ever (owner decision:
+   * printed tags and old links must never break).
+   */
+  it('the old addresses forward every path to the same path on the new one', () => {
+    for (const host of OLD_SITE_HOSTS) {
+      expect(routeFor(host, '/')).toEqual({ kind: 'redirect', to: `https://${SITE_HOST}` })
+      expect(routeFor(host, '/products')).toEqual({
+        kind: 'redirect',
+        to: `https://${SITE_HOST}/products`,
+      })
+      expect(routeFor(host, '/products/rxps/wine')).toEqual({
+        kind: 'redirect',
+        to: `https://${SITE_HOST}/products/rxps/wine`,
+      })
+      // /admin on an old address lands on the new one, where it is hidden as before.
+      expect(routeFor(host, '/admin')).toEqual({
+        kind: 'redirect',
+        to: `https://${SITE_HOST}/admin`,
+      })
+    }
+    expect(SITE_HOST).toBe('wear-run.com')
+    expect(OLD_SITE_HOSTS).toEqual(['wear-run.help', 'www.wear-run.help'])
+  })
+
+  /**
+   * ⚠️ THESE STAY ANSWERED ON wear-run.help, and wear-run.com hands them back.
+   * Until the move, the email project's Worker forwarded ALL of wear-run.com to
+   * wear-run.help, which is the only reason `wear-run.com/map` or an old
+   * `wear-run.com/catalogue` link worked. On wear-run.help, "Map" and "Book Meeting" are
+   * zone redirect rules that run BEFORE any Worker, and `/catalogue*` + `/profile*` are
+   * the PDF Worker's more specific routes — so the old-address forward below never sees
+   * them there, and the hand-back cannot loop.
+   */
+  it('hands /map, /meeting and the retired document paths back to wear-run.help', () => {
+    for (const path of [
+      '/map',
+      '/meeting',
+      '/catalogue',
+      '/catalogue/x',
+      '/profile',
+      '/profile/x',
+    ]) {
+      expect(routeFor(SITE_HOST, path), path).toEqual({
+        kind: 'redirect',
+        to: `https://wear-run.help${path}`,
+      })
+    }
+    // A page that merely starts with the word stays on the site.
+    expect(routeFor(SITE_HOST, '/mapping')).toEqual({ kind: 'serve' })
   })
 
   it('localhost matches no rule at all — the browser suite assumes this', () => {

@@ -1,19 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { SITE_ORIGIN, VIEWER_ORIGIN, buildMetadata } from './seo'
+import { GARMENT_PAGES, SITE_ORIGIN, buildMetadata } from './seo'
 
 describe('origins', () => {
-  it('the public site and the 3D viewer are DIFFERENT hosts', () => {
-    // The viewer is reached from printed QR tags and is a separate Worker. If the
-    // marketing pages ever claimed canonical URLs on that host, Google would be told
-    // the garment page and the marketing page are the same document.
-    expect(SITE_ORIGIN).not.toBe(VIEWER_ORIGIN)
-    expect(VIEWER_ORIGIN).toContain('viewer.')
-    expect(SITE_ORIGIN).not.toContain('viewer.')
+  /**
+   * ONE SITE ON ONE DOMAIN SINCE 2026-09-28 (owner decision). The garment pages moved
+   * from viewer.wear-run.help into the site's own /products folder, so the listing at
+   * /products and each garment page below it are parts of one address structure.
+   */
+  it('the garment pages live on the site itself, in its /products folder', () => {
+    expect(SITE_ORIGIN).toBe('https://wear-run.com')
+    expect(GARMENT_PAGES).toBe(`${SITE_ORIGIN}/products`)
+    expect(GARMENT_PAGES).not.toContain('viewer.')
   })
 
-  it('neither origin carries a trailing slash, so joins never double up', () => {
+  it('neither carries a trailing slash, so joins never double up', () => {
     expect(SITE_ORIGIN.endsWith('/')).toBe(false)
-    expect(VIEWER_ORIGIN.endsWith('/')).toBe(false)
+    expect(GARMENT_PAGES.endsWith('/')).toBe(false)
   })
 })
 

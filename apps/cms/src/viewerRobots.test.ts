@@ -65,9 +65,9 @@ describe('the viewer host’s robots.txt matches the site’s policy (L-09, FI-0
     expect(lower(agentsOf(refused))).not.toContain(agent.toLowerCase())
   })
 
-  it('names both sitemaps, so a crawler treats the two hosts as one business', () => {
+  it('names its old sitemap, for the move, and the site that replaced it', () => {
     const sitemaps = text.split('\n').filter((line) => line.startsWith('Sitemap:'))
     expect(sitemaps).toContain('Sitemap: https://viewer.wear-run.help/sitemap.xml')
-    expect(sitemaps).toContain('Sitemap: https://wear-run.help/sitemap.xml')
+    expect(sitemaps).toContain('Sitemap: https://wear-run.com/sitemap.xml')
   })
 })

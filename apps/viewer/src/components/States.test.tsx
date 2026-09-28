@@ -146,7 +146,7 @@ describe('UnavailableState', () => {
     const browse = [...host.querySelectorAll<HTMLAnchorElement>('a')].find((a) =>
       (a.getAttribute('href') ?? '').includes('/products'),
     )
-    expect(browse?.getAttribute('href')).toBe('https://wear-run.help/products')
+    expect(browse?.getAttribute('href')).toBe('https://wear-run.com/products')
     expect(browse?.textContent).toMatch(/browse/i)
     // …and it did not smuggle the catalogue back in under a different label.
     expect(browse?.getAttribute('href')).not.toContain('catalogue')

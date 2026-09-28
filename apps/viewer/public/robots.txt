@@ -39,8 +39,9 @@ User-agent: Amazonbot
 Content-Signal: search=yes, ai-input=yes, ai-train=no
 Disallow: /
 
-# Both hosts (owner decision D11): this host's sitemap lists the 80 garment pages, and the
-# site's lists its own. Naming both here, as the site's file does, tells a search engine
-# the two hosts are one business.
+# This host only forwards since the domain move (2026-09-28): every page answers a 301 to
+# wear-run.com/products/<product>/<colour>. Its old sitemap stays so a search engine finds
+# the old addresses and sees the 301s (Google's site-move guidance); wear-run.com's lists
+# every page, garments included.
 Sitemap: https://viewer.wear-run.help/sitemap.xml
-Sitemap: https://wear-run.help/sitemap.xml
+Sitemap: https://wear-run.com/sitemap.xml

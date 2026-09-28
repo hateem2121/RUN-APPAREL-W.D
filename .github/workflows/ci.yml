@@ -1034,7 +1034,7 @@ jobs:
     # owner's choice on 2026-09-26, to match the repo's About link).
     environment:
       name: production
-      url: https://wear-run.help
+      url: https://wear-run.com
     concurrency:
       group: deploy-production
       cancel-in-progress: false
@@ -1472,7 +1472,7 @@ jobs:
       # the coverage is nearly free. A fake twelfth row exits 1.
       - name: Post-deploy link-preview smoke test
         if: vars.VIEWER_DEPLOY_TARGET != 'pages'
-        run: node scripts/smoke-live-previews.mjs https://viewer.wear-run.help
+        run: node scripts/smoke-live-previews.mjs https://wear-run.com/products
 
       - name: Post-deploy apex assertion (site, retired PDF paths, private hosts)
         run: node scripts/apex-probe.mjs

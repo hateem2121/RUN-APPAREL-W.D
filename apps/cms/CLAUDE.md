@@ -134,10 +134,15 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   `style={{ padding: '20px' }}` in a `.tsx` fails the build — three had walked past a
   CSS-only scan. A `var()` or computed value is fine.
 
-- **🟡 THE SITE ANSWERS ON THREE HOSTNAMES AND ONLY `has: host` RULES TELL THEM APART.**
-  `wear-run.help` is the site; `www.` 308s to it; `cms.wear-run.help` is the admin and
-  the API and 308s its four public paths to the apex; `/admin` and `/api` on the apex
-  rewrite to the branded 404 so the login has ONE hostname. The rules live in
+- **🟡 THE SITE ANSWERS ON FIVE HOSTNAMES AND ONLY `has: host` RULES TELL THEM APART.**
+  `wear-run.com` is the site (since the domain move of 2026-09-28); `www.wear-run.com`,
+  `wear-run.help` and `www.wear-run.help` 308 every path to it, except the four paths
+  wear-run.com hands BACK to `.help` (`/map`, `/meeting`, `/catalogue*`, `/profile*`, which
+  live on that zone — `HANDED_BACK_TO_HELP`); `cms.wear-run.help` is the admin and the API
+  and 308s its four public paths to the site; `/admin` and `/api` on the site rewrite to the
+  branded 404 so the login has ONE hostname. `worker.mjs` hands `/products/<p>[/<c>]` and
+  the viewer's files to the viewer Worker BEFORE Next (`viewerForward.mjs`), and gives every
+  redirect its security headers (`redirectHeaders.mjs`; OpenNext sends redirects bare). The rules live in
   `siteHostRules.mjs` and are proven in `.next/routes-manifest.json` by
   `src/hostRulesManifest.test.ts`, never in a handler. 🟡 OpenNext tests a host value
   UNANCHORED — a bare `wear-run.help` also matches `cms.wear-run.help` and the admin

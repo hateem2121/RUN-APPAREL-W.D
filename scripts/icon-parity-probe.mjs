@@ -48,8 +48,10 @@ try {
   process.exit(2)
 }
 
-export const SITE_ICON_URL = 'https://wear-run.help/icon.svg'
-export const VIEWER_ICON_URL = 'https://viewer.wear-run.help/favicon.svg'
+// Both on wear-run.com since the domain move (2026-09-28); the website hands /favicon.svg to
+// the viewer's Worker (apps/cms/viewerForward.mjs), so the two files still differ in origin.
+export const SITE_ICON_URL = 'https://wear-run.com/icon.svg'
+export const VIEWER_ICON_URL = 'https://wear-run.com/favicon.svg'
 
 /** Square side, in pixels, both marks are rasterised to before comparing. */
 export const COMPARE_SIZE = 128

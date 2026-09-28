@@ -119,7 +119,7 @@ describe('the public site is indexable and the admin is not exposed by it', () =
     // value it means rather than rely on a default.
     expect(read(CMS_ROOT, 'wrangler.jsonc')).toMatch(/"SITE_INDEXING":\s*"visible"/)
     expect(code(join(CMS_ROOT, 'src', 'app'), 'sitemap.ts')).toMatch(
-      /sitemapFor\(await searchVisibility\(\), SITE_ORIGIN\)/,
+      /sitemapFor\(await searchVisibility\(\), SITE_ORIGIN, await getProductCards\(\)\)/,
     )
   })
 
@@ -360,17 +360,18 @@ describe('copy rules', () => {
     })
   }
 
-  it('the products page links garments to the viewer host, never to a local path', () => {
-    // `/{slug}/{colour}` on this host serves nothing — the 3D reference is a separate
-    // Worker on viewer.wear-run.help reached from printed QR tags. A relative link
-    // here would 404 for every card.
+  it('the products page links garments to their garment pages, never to a bare local path', () => {
+    // `/{slug}/{colour}` on this host serves nothing: the garment pages live one folder
+    // down, at `/products/<product>/<colour>` (the domain move, 2026-09-28; until then a
+    // separate host, viewer.wear-run.help). Every link comes from `GARMENT_PAGES`, so a
+    // hand-typed path cannot miss the folder.
     //
     // Since 2026-09-28 a card's links are built by `CardGallery` (one per colour, via
     // `colourHref`, whose URL shape has its own test in lib/cardGallery.test.ts), so what
-    // is pinned here is that the page hands it the VIEWER's origin and the product slug,
+    // is pinned here is that the page hands it the garment pages' base and the product slug,
     // and that the gallery builds every href through `colourHref` from what it was given.
     const page = code(FRONTEND, 'products', 'page.tsx')
-    expect(page).toContain('viewerOrigin={VIEWER_ORIGIN}')
+    expect(page).toContain('garmentPages={GARMENT_PAGES}')
     expect(page).toContain('productSlug={product.slug}')
     const gallery = stripComments(
       readFileSync(join(CMS_ROOT, 'src', 'components', 'site', 'CardGallery.tsx'), 'utf8'),
@@ -378,8 +379,8 @@ describe('copy rules', () => {
     const hrefs = gallery.match(/href=\{[^}]*\}/g) ?? []
     expect(hrefs.length, 'the matcher found no hrefs in CardGallery').toBeGreaterThan(0)
     for (const href of hrefs)
-      expect(href).toMatch(/^href=\{(href|colourHref\(viewerOrigin, productSlug, )/)
-    expect(gallery).toContain('colourHref(viewerOrigin, productSlug, showing?.slug')
+      expect(href).toMatch(/^href=\{(href|colourHref\(garmentPages, productSlug, )/)
+    expect(gallery).toContain('colourHref(garmentPages, productSlug, showing?.slug')
   })
 
   /**
@@ -402,11 +403,11 @@ describe('copy rules', () => {
         const source = stripComments(readFileSync(file, 'utf8'))
         return {
           file: file.slice(CMS_ROOT.length + 1),
-          // A card that hands the viewer's origin to `CardGallery` builds its link there
+          // A card that hands the garment pages' base to `CardGallery` builds its link there
           // (2026-09-28), so that counts as a link to the viewer from this file.
           links:
-            (source.match(/\$\{VIEWER_ORIGIN\}\//g) ?? []).length +
-            (source.match(/viewerOrigin=\{VIEWER_ORIGIN\}/g) ?? []).length +
+            (source.match(/\$\{GARMENT_PAGES\}\//g) ?? []).length +
+            (source.match(/garmentPages=\{GARMENT_PAGES\}/g) ?? []).length +
             // ...and each picture link CardGallery builds is one more.
             (source.match(/href=\{colourHref\(/g) ?? []).length,
           cues: (source.match(/<ViewerCue \/>/g) ?? []).length,
@@ -741,12 +742,13 @@ describe('findability', () => {
     expect(robots).toMatch(/Sitemap:/)
   })
 
-  it('the sitemap speaks only for this host', () => {
-    // Cards link to viewer.wear-run.help, a different host with its own sitemap. A
-    // sitemap may only speak for the host serving it, so listing garments here would be
-    // ignored at best. It also means this file needs no database.
+  it('the sitemap lists the garments, now pages of this host', () => {
+    // Until the domain move (2026-09-28) cards linked to viewer.wear-run.help, a different
+    // host with its own sitemap, so this file listed no garments. They are pages of this
+    // host now, read from the catalogue through `getProductCards`, which never throws.
     const sitemap = code(appDir, 'sitemap.ts')
-    expect(sitemap).not.toMatch(/VIEWER_ORIGIN|getProductCards/)
+    expect(sitemap).toMatch(/getProductCards/)
+    expect(sitemap).not.toMatch(/VIEWER_ORIGIN/)
     expect(sitemap).not.toMatch(/lastModified/)
   })
 

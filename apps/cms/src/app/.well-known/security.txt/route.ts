@@ -5,8 +5,9 @@ import { SECURITY_TXT } from '@run-apparel/shared'
  * deploys it. The text lives in `packages/shared/src/securityTxt.ts`, the one source the
  * documents Worker and the viewer serve too, so the copies cannot drift apart.
  *
- * It answers on wear-run.help and directly on cms.wear-run.help (both listed as Canonical).
- * www. answers a 308 to the apex copy, which internet.nl follows.
+ * It answers on wear-run.com and directly on cms.wear-run.help (both listed as Canonical).
+ * www.wear-run.com and the old wear-run.help redirect to the wear-run.com copy, which
+ * internet.nl follows.
  *
  * ⚠️ AT `src/app/`, OUTSIDE BOTH ROUTE GROUPS, for the reason `/robots.txt` and
  * `/llms.txt` are: `(frontend)/layout.tsx` is a full HTML document, and a text file wrapped

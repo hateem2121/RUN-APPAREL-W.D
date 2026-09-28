@@ -2,7 +2,7 @@
  * Proves the script guard (SE-04) in REAL browsers against the REAL Worker (worker.mjs).
  *
  *   node e2e/csp-nonce-edge.mjs                                # opennextjs-cloudflare preview on :8787
- *   node e2e/csp-nonce-edge.mjs --origin=https://wear-run.help # production, after a deploy
+ *   node e2e/csp-nonce-edge.mjs --origin=https://wear-run.com  # production, after a deploy
  *
  * For every page type, in Chromium, Firefox and WebKit, it checks four things:
  * - the policy carries a nonce;

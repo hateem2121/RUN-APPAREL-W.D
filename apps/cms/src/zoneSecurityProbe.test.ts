@@ -142,6 +142,22 @@ describe('evaluate — negative controls, each reproducing a real defect', () =>
     expect(result.ok).toBe(false)
     expect(result.failures[0]).toContain('includeSubDomains')
   })
+
+  // wear-run.com's zone HSTS has no includeSubDomains, by the owner's email project's
+  // setting (2026-09-28). Those targets waive THAT and nothing else.
+  it('passes a waived host without includeSubDomains, and still fails its short max-age', () => {
+    const waived = { ...healthy('wear-run.com'), expectSubdomains: false }
+    expect(evaluate([{ ...waived, hstsHeader: 'max-age=31536000' }]).ok).toBe(true)
+    expect(evaluate([{ ...waived, hstsHeader: 'max-age=300' }]).ok).toBe(false)
+  })
+
+  it('waives includeSubDomains only on the two wear-run.com hosts', () => {
+    expect(
+      TARGETS.filter((t: { subdomains?: boolean }) => t.subdomains === false).map(
+        (t: { host: string }) => t.host,
+      ),
+    ).toEqual(['media.wear-run.com', 'wear-run.com'])
+  })
 })
 
 /**
@@ -367,15 +383,15 @@ describe('evaluate — pictures and models refuse other sites (IM-13)', () => {
 describe('samplesFromPayload (IM-13)', () => {
   const live = {
     product: {
-      glbUrl: 'https://media.wear-run.help/x-milo-pro-skin-suit-2026-09-03-optimized.glb',
+      glbUrl: 'https://media.wear-run.com/x-milo-pro-skin-suit-2026-09-03-optimized.glb',
     },
-    selectedColourway: { poster: { url: 'https://media.wear-run.help/rxps-wine-poster.webp' } },
+    selectedColourway: { poster: { url: 'https://media.wear-run.com/rxps-wine-poster.webp' } },
   }
 
   it('takes the poster and the model the viewer really loads', () => {
     expect(samplesFromPayload(live)).toEqual({
-      poster: 'https://media.wear-run.help/rxps-wine-poster.webp',
-      model: 'https://media.wear-run.help/x-milo-pro-skin-suit-2026-09-03-optimized.glb',
+      poster: 'https://media.wear-run.com/rxps-wine-poster.webp',
+      model: 'https://media.wear-run.com/x-milo-pro-skin-suit-2026-09-03-optimized.glb',
     })
   })
 
@@ -407,13 +423,13 @@ describe('samplesFromPayload (IM-13)', () => {
     const separateFileMode = {
       product: { glbUrl: null },
       selectedColourway: {
-        poster: { url: 'https://media.wear-run.help/rxps-wine-poster.webp' },
-        glbUrl: 'https://media.wear-run.help/rxps-wine.glb',
+        poster: { url: 'https://media.wear-run.com/rxps-wine-poster.webp' },
+        glbUrl: 'https://media.wear-run.com/rxps-wine.glb',
       },
     }
     expect(samplesFromPayload(separateFileMode)).toEqual({
-      poster: 'https://media.wear-run.help/rxps-wine-poster.webp',
-      model: 'https://media.wear-run.help/rxps-wine.glb',
+      poster: 'https://media.wear-run.com/rxps-wine-poster.webp',
+      model: 'https://media.wear-run.com/rxps-wine.glb',
     })
   })
 })
@@ -432,8 +448,9 @@ describe('TARGETS', () => {
   })
 
   it('asks the media host, and only the media host, for the two Rank 8 headers', () => {
+    // The public payload's address for the bucket since the domain move (2026-09-28).
     expect(TARGETS.filter((t) => t.media === true).map((t) => t.host)).toEqual([
-      'media.wear-run.help',
+      'media.wear-run.com',
     ])
   })
 

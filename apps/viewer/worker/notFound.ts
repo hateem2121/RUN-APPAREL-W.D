@@ -1,3 +1,5 @@
+import { GARMENT_PATH_PREFIX } from '@run-apparel/shared'
+
 /**
  * Whether a path lives under the `/.well-known/` prefix RFC 8615 reserves for
  * site metadata — so it can never be a product or colourway page, whatever
@@ -90,7 +92,11 @@ export function shouldReturnNotFound(args: {
   // A dot cannot appear in a real product or colourway slug: they are kebab-case
   // identifiers printed on QR tags, and `normalizeSlug` strips a dot to a hyphen
   // rather than preserving it, so no live URL can reach this branch.
-  const segments = pathname.split('/').filter(Boolean)
+  //
+  // The website's garment folder (`/products/<file>`, since the domain move of 2026-09-28)
+  // is looked past first, or a missing file there is two segments and escapes this rule.
+  const all = pathname.split('/').filter(Boolean)
+  const segments = `/${all[0]}` === GARMENT_PATH_PREFIX ? all.slice(1) : all
   if (segments.length === 1 && segments[0]?.includes('.')) return true
   if (routeParsed) return false
   return true

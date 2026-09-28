@@ -17,12 +17,12 @@ const text = block
 describe('the page with JavaScript off (RO-06)', () => {
   it('says what the page is and how to reach the company', () => {
     expect(text).toBe(
-      'This 3D garment reference needs JavaScript. Turn it on to see the garment, or contact RUN APPAREL at wear-run.help/contact.',
+      'This 3D garment reference needs JavaScript. Turn it on to see the garment, or contact RUN APPAREL at wear-run.com/contact.',
     )
   })
 
   it('links the contact page', () => {
-    expect(block).toContain('<a href="https://wear-run.help/contact">wear-run.help/contact</a>')
+    expect(block).toContain('<a href="https://wear-run.com/contact">wear-run.com/contact</a>')
   })
 
   it('sits in the body, before the app root', () => {

@@ -146,4 +146,6 @@ const before = product.colourways.map((c) => c.slug || '(blank)').join(',')
 console.log(`[publish]    rows before: ${before}`)
 console.log(`[publish]    rows after : ${order}`)
 if (doc.status === 'published')
-  console.log(`[publish]    live at https://viewer.wear-run.help/${slug}/${doc.colourways[0].slug}`)
+  console.log(
+    `[publish]    live at https://wear-run.com/products/${slug}/${doc.colourways[0].slug}`,
+  )

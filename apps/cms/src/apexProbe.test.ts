@@ -122,10 +122,10 @@ describe('evaluate', () => {
     expect(result.inconclusive).toEqual([])
   })
 
-  it('names the lost wildcard when the apex stops serving the site', () => {
+  it('names the lost custom domain when wear-run.com stops serving the site', () => {
     const result = evaluate([site({ status: 404 })])
     expect(result.failures[0]).toContain('expected 200')
-    expect(result.failures[0]).toContain('wildcard')
+    expect(result.failures[0]).toContain('custom domain')
   })
 
   it('FAILS a 200 at the apex that is not the site', () => {
@@ -170,12 +170,13 @@ describe('evaluate', () => {
 })
 
 describe('TARGETS', () => {
-  it('covers the site, four retired addresses, five refusals and two redirects', () => {
+  it('covers the site, four retired addresses, five refusals and seven redirects', () => {
     const kinds = TARGETS.map((t: { kind: string }) => t.kind)
     expect(kinds.filter((k: string) => k === 'site')).toHaveLength(1)
     expect(kinds.filter((k: string) => k === 'retired')).toHaveLength(4)
     expect(kinds.filter((k: string) => k === 'refused')).toHaveLength(5)
-    expect(kinds.filter((k: string) => k === 'redirect')).toHaveLength(2)
+    // Two email redirects, the old site root, and the four paths wear-run.com hands back.
+    expect(kinds.filter((k: string) => k === 'redirect')).toHaveLength(7)
   })
 
   it('never carries a code — its log is public — only fixed paths no link uses', () => {
@@ -197,6 +198,7 @@ describe('TARGETS', () => {
       'catalogue.wear-run.help',
       'profile.wear-run.com',
       'profile.wear-run.help',
+      'wear-run.com',
       'wear-run.help',
       'www.wear-run.help',
     ])
@@ -209,11 +211,29 @@ describe('TARGETS', () => {
    */
   it('checks each email redirect against the host it has always pointed at', () => {
     const redirects = (TARGETS as { kind: string; url: string; to?: string }[]).filter(
-      (t) => t.kind === 'redirect',
+      (t) => t.kind === 'redirect' && new URL(t.url).hostname === 'wear-run.help',
     )
     expect(redirects.map((t) => [new URL(t.url).pathname, t.to])).toEqual([
+      ['/', 'wear-run.com'],
       ['/map', 'maps.app.goo.gl'],
       ['/meeting', 'app.apollo.io'],
+    ])
+  })
+
+  /**
+   * The domain move (2026-09-28): wear-run.com hands these four paths back to wear-run.help,
+   * which forwards everything else the other way. Checking both directions is what makes a
+   * redirect loop between the two domains visible here.
+   */
+  it('checks that wear-run.com hands the PDF and email paths back to wear-run.help', () => {
+    const handedBack = (TARGETS as { kind: string; url: string; to?: string }[]).filter(
+      (t) => t.kind === 'redirect' && new URL(t.url).hostname === 'wear-run.com',
+    )
+    expect(handedBack.map((t) => [new URL(t.url).pathname, t.to])).toEqual([
+      ['/catalogue', 'wear-run.help'],
+      ['/profile', 'wear-run.help'],
+      ['/map', 'wear-run.help'],
+      ['/meeting', 'wear-run.help'],
     ])
   })
 

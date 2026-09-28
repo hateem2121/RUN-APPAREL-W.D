@@ -15,9 +15,9 @@
 
 import { WIDTHS, pictureFileName } from './manifest.js'
 
-export const CONTACT_URL = 'https://wear-run.help/contact'
+export const CONTACT_URL = 'https://wear-run.com/contact'
 /** The footer's Privacy link (owner decision D37, 2026-09-15). */
-export const PRIVACY_URL = 'https://wear-run.help/privacy'
+export const PRIVACY_URL = 'https://wear-run.com/privacy'
 export const MESSAGE_HEADLINE = 'This link is not complete or no longer active.'
 export const MESSAGE_BODY = 'Please contact RUN Apparel for the current link.'
 

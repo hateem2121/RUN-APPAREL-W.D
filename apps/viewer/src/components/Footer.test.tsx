@@ -76,8 +76,8 @@ describe('Footer', () => {
     // Audit FA-W-01: six anchors, three destinations, and every one of them either
     // an enquiry or the skip link. This is the secondary action for the buyer who
     // is interested and not yet ready to email.
-    const home = links().find((a) => a.getAttribute('href') === 'https://wear-run.help')
-    expect(home?.textContent).toBe('wear-run.help')
+    const home = links().find((a) => a.getAttribute('href') === 'https://wear-run.com')
+    expect(home?.textContent).toBe('wear-run.com')
   })
 
   it('still shows the legal line', () => {
@@ -91,8 +91,8 @@ describe('Footer', () => {
     // Both surfaces process visitor data, and the notice says it covers these pages; a
     // visitor looks for it in the footer of the page they are on.
     const byText = (label: string) => links().find((a) => a.textContent === label)
-    expect(byText('Privacy')?.getAttribute('href')).toBe('https://wear-run.help/privacy')
-    expect(byText('Terms')?.getAttribute('href')).toBe('https://wear-run.help/terms')
+    expect(byText('Privacy')?.getAttribute('href')).toBe('https://wear-run.com/privacy')
+    expect(byText('Terms')?.getAttribute('href')).toBe('https://wear-run.com/terms')
   })
 
   it('prints the postal address the site footer prints', () => {

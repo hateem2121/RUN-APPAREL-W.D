@@ -81,12 +81,12 @@ export const CATEGORIES = [
  */
 const VIEWER_NAME = `viewer-${DEFAULT_PRODUCT.slug}-${DEFAULT_PRODUCT.colourway}`
 export const PAGES = [
-  { name: 'home', url: 'https://wear-run.help/' },
-  { name: 'products', url: 'https://wear-run.help/products' },
-  { name: 'contact', url: 'https://wear-run.help/contact' },
+  { name: 'home', url: 'https://wear-run.com/' },
+  { name: 'products', url: 'https://wear-run.com/products' },
+  { name: 'contact', url: 'https://wear-run.com/contact' },
   {
     name: VIEWER_NAME,
-    url: `https://viewer.wear-run.help/${DEFAULT_PRODUCT.slug}/${DEFAULT_PRODUCT.colourway}`,
+    url: `https://wear-run.com/products/${DEFAULT_PRODUCT.slug}/${DEFAULT_PRODUCT.colourway}`,
   },
 ]
 

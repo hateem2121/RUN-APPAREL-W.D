@@ -125,7 +125,7 @@ test.describe('the product gallery', () => {
      * that proves it, in the only place it can be proven: a real browser.
      */
     await page.route('**/api/media/**', (route) => route.fulfill({ status: 404, body: '' }))
-    await page.route('**media.wear-run.help/**', (route) =>
+    await page.route('**media.wear-run.{help,com}/**', (route) =>
       route.fulfill({ status: 404, body: '' }),
     )
     await page.goto('/products')

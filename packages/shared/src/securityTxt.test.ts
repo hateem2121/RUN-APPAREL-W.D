@@ -36,7 +36,7 @@ describe('the security.txt every host serves', () => {
 
   it('lists every address that serves it as Canonical — no more, no fewer', () => {
     expect(SECURITY_TXT_CANONICAL).toEqual([
-      'https://wear-run.help/.well-known/security.txt',
+      'https://wear-run.com/.well-known/security.txt',
       'https://cms.wear-run.help/.well-known/security.txt',
       'https://viewer.wear-run.help/.well-known/security.txt',
       'https://catalogue.wear-run.help/.well-known/security.txt',

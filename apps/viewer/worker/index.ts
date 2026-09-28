@@ -11,6 +11,7 @@ import { withDocumentIsolation } from './documentHeaders'
 import { withNoTransform } from './noTransform'
 import type { ViewerApiSuccess } from '@run-apparel/shared'
 import { OG_CARDS } from './og-cards'
+import { oldViewerHostRedirect } from './oldViewerHost'
 import { isWellKnownPath, shouldReturnNotFound } from './notFound'
 import { buildPreview, type Preview } from './preview'
 import { workerResponseHeaders } from './securityHeaders'
@@ -263,7 +264,11 @@ function applyPreview(response: Response, preview: Preview): Response {
             // strings are escaped. APPENDED, never overwriting a tag in
             // index.html: there is no ld+json block there to match, and an
             // HTMLRewriter selector that matches nothing is a silent no-op.
-            `<script type="application/ld+json">${preview.jsonLd}</script>`,
+            `<script type="application/ld+json">${preview.jsonLd}</script>` +
+            // Home › Products › category › garment, on the website only (preview.ts).
+            (preview.breadcrumbJsonLd
+              ? `<script type="application/ld+json">${preview.breadcrumbJsonLd}</script>`
+              : ''),
           { html: true },
         )
       },
@@ -322,6 +327,11 @@ export default {
     // two segments and would otherwise be read as a product/colour pair below.
     const securityTxt = securityTxtResponse(request)
     if (securityTxt) return securityTxt
+
+    // The old viewer host forwards everything to wear-run.com/products/… (domain move,
+    // 2026-09-28). After security.txt, so that host still answers its own RFC 9116 file.
+    const moved = oldViewerHostRedirect(request)
+    if (moved) return moved
 
     // `/.well-known/` (RFC 8615) is reserved for site metadata and can never be a
     // product page — but `normalizeSlug` strips the dot out of `.well-known` and

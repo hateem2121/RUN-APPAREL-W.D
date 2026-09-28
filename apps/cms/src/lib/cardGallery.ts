@@ -20,9 +20,9 @@ export function slideAt(scrollLeft: number, slideWidth: number, count: number): 
   return Math.min(Math.max(index, 0), count - 1)
 }
 
-/** The 3D viewer URL for one colour — the same shape printed QR tags use. */
-export function colourHref(viewerOrigin: string, productSlug: string, colourSlug: string): string {
-  return `${viewerOrigin}/${productSlug}/${colourSlug}`
+/** One colour's garment page, `<GARMENT_PAGES>/<product>/<colour>` — the address printed on the QR tags. */
+export function colourHref(garmentPages: string, productSlug: string, colourSlug: string): string {
+  return `${garmentPages}/${productSlug}/${colourSlug}`
 }
 
 /**

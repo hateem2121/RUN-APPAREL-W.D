@@ -34,7 +34,8 @@ import { test as base, expect, type Route } from '@playwright/test'
 
 // Matches the convention already used ad hoc in pages.spec.ts's own `page.route()` call,
 // kept identical so the two never silently diverge in what they consider "the media host".
-const MEDIA_HOST_PATTERN = '**media.wear-run.help/**'
+// Both addresses of the one media bucket: `.com` since the domain move (2026-09-28).
+const MEDIA_HOST_PATTERN = '**media.wear-run.{help,com}/**'
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures')
 

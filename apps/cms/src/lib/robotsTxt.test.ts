@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { AI_CRAWLER_UAS, TRAINING_ONLY_UAS } from '../../htmlLimitedBots.mjs'
 import { ANSWERING_UAS, buildRobotsTxt, CONTENT_SIGNAL, DISALLOW } from './robotsTxt'
-import { SITE_ORIGIN, VIEWER_ORIGIN } from './seo'
+import { SITE_ORIGIN } from './seo'
 
 /**
  * `/robots.txt` — audit FA-N-17, plus the owner's reuse policy of 2026-09-07.
@@ -162,9 +162,10 @@ describe('who is welcomed and who is refused', () => {
 })
 
 describe('the sitemaps', () => {
-  it('offers both hosts, in order', () => {
+  // One host since the domain move (2026-09-28): the garments are listed in this sitemap.
+  it('offers the one sitemap, on this host', () => {
     const sitemaps = [...text.matchAll(/^Sitemap:\s*(.+)$/gm)].map((m) => m[1]?.trim())
-    expect(sitemaps).toEqual([`${SITE_ORIGIN}/sitemap.xml`, `${VIEWER_ORIGIN}/sitemap.xml`])
+    expect(sitemaps).toEqual([`${SITE_ORIGIN}/sitemap.xml`])
   })
 
   it('hardcodes neither host', () => {

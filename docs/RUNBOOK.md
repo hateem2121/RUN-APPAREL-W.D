@@ -286,7 +286,7 @@ every gate. **When you have the minutes to spare, prefer it.**
 
 ### After any rollback
 
-1. Load `https://viewer.wear-run.help/rxps/wine` in a browser and confirm the
+1. Load `https://wear-run.com/products/rxps/wine` in a browser and confirm the
    garment renders — not just that the URL returns 200. This deployment serves
    `index.html` with **HTTP 200 for every unmatched path**
    (`not_found_handling: single-page-application`), so a status code proves
@@ -858,7 +858,7 @@ probe fails with "the page is cut off or garbled".
   feature off for `wear-run.help`.
 - **Roll back:** set `"main"` in `apps/cms/wrangler.jsonc` back to `".open-next/worker.js"` and
   deploy through a PR. Pages then use the fallback policy immediately.
-- **Prove it:** `node apps/cms/e2e/csp-nonce-edge.mjs --origin=https://wear-run.help` checks
+- **Prove it:** `node apps/cms/e2e/csp-nonce-edge.mjs --origin=https://wear-run.com` checks
   3 browser engines × 6 page types.
 
 ## Private document links (catalogue and profile)
@@ -1401,7 +1401,7 @@ you.** About five minutes, and it costs nothing.
 
    | | URL | Keyword it must find |
    |---|---|---|
-   | The page a customer sees | `https://viewer.wear-run.help/rxps/wine` | `RUN APPAREL` |
+   | The page a customer sees | `https://wear-run.com/products/rxps/wine` | `RUN APPAREL` |
    | The data behind it | `https://cms.wear-run.help/api/public/viewer/rxps/wine` | `"productCode":"R-XPS"` |
 
 3. Set alerts to your **email**, and add your phone if you want a push. Do not
@@ -1896,7 +1896,7 @@ break mid-flight (each config flip is a one-liner already commented in
    both jobs.
 6. **Verify:** the CSP already allows `*.wear-run.help`, so no viewer change is
    needed. Check `curl` on the API + a `media.wear-run.help/...` URL (long
-   `cache-control`), then load `viewer.wear-run.help/rxps/wine`; run the QA
+   `cache-control`), then load `wear-run.com/products/rxps/wine`; run the QA
    checklist. Roll back by reverting step 4 and re-pointing `VITE_API_BASE_URL`
    at the workers.dev URL if anything regresses.
 
@@ -1953,7 +1953,7 @@ link-preview smoke test is skipped when `VIEWER_DEPLOY_TARGET=pages`.
 
 ## Link previews — what a shared link looks like
 
-Paste `https://viewer.wear-run.help/rxps/wine` into WhatsApp, email or LinkedIn
+Paste `https://wear-run.com/products/rxps/wine` into WhatsApp, email or LinkedIn
 and the recipient sees a card: the garment's own picture, "N001 Velocity
 Performance Skinsuit — Wine", and its fabric and fit. Every colourway gets its
 own card.
@@ -1986,13 +1986,13 @@ channels you are most likely to send a link on.
 One garment:
 
 ```bash
-node scripts/smoke-viewer-preview.mjs https://viewer.wear-run.help rxps wine
+node scripts/smoke-viewer-preview.mjs https://wear-run.com/products rxps wine
 ```
 
 All of them — this is what CI runs after every deploy, since 2026-09-04:
 
 ```bash
-node scripts/smoke-live-previews.mjs https://viewer.wear-run.help
+node scripts/smoke-live-previews.mjs https://wear-run.com/products
 ```
 
 Either asserts the card names the garment, that `og:url`/`canonical` are
