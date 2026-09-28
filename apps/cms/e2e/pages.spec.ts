@@ -94,6 +94,28 @@ test.describe('the product gallery', () => {
     }
   })
 
+  /*
+   * ⚠️ A LONG COLOUR NAME MUST NOT STRAND ONE DOT ON A LINE OF ITS OWN (2026-09-28). Live at
+   * 1280px, "WINE / BLACK" on the X-Milo Pro Bib pushed the fifth dot onto a second row while
+   * the other four stayed beside the name. The CI seed's colour names are short, so the
+   * test writes a long one into the card itself before measuring.
+   */
+  test('keeps a card’s colour dots on one row, whatever the colour is called', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/products')
+    const card = page.locator('.product-card', { has: page.locator('.card-gallery__dot') }).first()
+    if ((await card.count()) === 0) test.skip(true, 'no card with more than one colour here')
+    const tops = await card.evaluate((element) => {
+      const name = element.querySelector('.card-gallery__colour')
+      if (name) name.textContent = 'LAVENDER / INDIGO'
+      return [...element.querySelectorAll('.card-gallery__dot')].map((dot) =>
+        Math.round(dot.getBoundingClientRect().top),
+      )
+    })
+    expect(tops.length, 'the card has no dots to measure').toBeGreaterThan(1)
+    expect(new Set(tops).size, `dot rows at ${tops.join(', ')}`).toBe(1)
+  })
+
   test('falls back to the placeholder when every poster fails', async ({ page }) => {
     /*
      * The poster `error` event fires while the HTML is still parsing — BEFORE React
