@@ -53,12 +53,14 @@ describe('shellFromBundle', () => {
     expect(shell).toContain('/assets/index-EEEE.css')
   })
 
-  it('caches "/" and not "/index.html"', () => {
-    // A navigation requests `/`. Storing the literal `/index.html` would cache a
-    // document no navigation ever asks for by that name, so the offline fallback
-    // would miss while looking successful.
+  it('precaches no document: neither "/" nor "/index.html"', () => {
+    // ⚠️ `/` WAS HERE UNTIL 2026-09-28, and on wear-run.com it is the WEBSITE's home
+    // page, not the viewer — the offline fallback would have shown the wrong site. The
+    // offline document is now the garment page the visitor opened (see
+    // serviceWorkerSource). `/index.html` was never right: no navigation asks for it
+    // by that name, so the fallback would miss while looking successful.
     const shell = shellFromBundle(bundle())
-    expect(shell).toContain('/')
+    expect(shell).not.toContain('/')
     expect(shell).not.toContain('/index.html')
   })
 
@@ -161,6 +163,27 @@ describe('serviceWorkerSource', () => {
     expect(fetchAt, 'the navigation branch must call fetch').toBeGreaterThanOrEqual(0)
     expect(cacheAt, 'the navigation branch must have a cache fallback').toBeGreaterThan(fetchAt)
     expect(navigation).toContain('.catch(')
+  })
+
+  /**
+   * The offline page is the garment page the visitor OPENED, fetched at install.
+   *
+   * On wear-run.com the worker's scope is `/products/` and `/` is the website's home
+   * page (2026-09-28), so a fixed `/` would show the wrong site offline. Every garment
+   * page is the viewer's own index.html under its address, so the page the visitor is
+   * on is a correct shell by construction. Only the old viewer host, whose scope is the
+   * origin root, may fall back to `/` — there it IS the viewer.
+   */
+  it('keeps the page the visitor opened as the offline page, inside its own scope', () => {
+    const text = source()
+    expect(text).toContain('self.clients.matchAll')
+    expect(text).toContain('client.url.startsWith(self.registration.scope)')
+    expect(text).toContain("scopePath === '/' ? '/' : null")
+    // A redirected or foreign response replayed for a navigation is refused by the
+    // browser, so only a plain same-origin 200 may become the offline page.
+    expect(text).toContain('!response.redirected')
+    const navigation = text.slice(text.indexOf("request.mode === 'navigate'"))
+    expect(navigation).toContain('caches.match(OFFLINE_DOCUMENT')
   })
 
   it('ignores cross-origin requests, which is where every garment and payload lives', () => {

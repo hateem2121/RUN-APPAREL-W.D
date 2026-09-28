@@ -1,4 +1,9 @@
-import { buildViewerPath, parseViewerPath } from '@run-apparel/shared'
+import {
+  buildViewerPath,
+  GARMENT_PATH_PREFIX,
+  isGarmentPagePath,
+  parseViewerPath,
+} from '@run-apparel/shared'
 
 export interface Route {
   productSlug: string
@@ -16,7 +21,10 @@ export function currentRoute(): Route | null {
  * `replace` is used for the silent retired-colourway normalisation.
  */
 export function setColourwayUrl(productSlug: string, colourSlug: string, replace = false): void {
-  const path = buildViewerPath(productSlug, colourSlug)
+  // Stay on the address shape the visitor arrived on: `/products/…` on the website,
+  // the bare shape on the old viewer host.
+  const prefix = isGarmentPagePath(window.location.pathname) ? GARMENT_PATH_PREFIX : ''
+  const path = buildViewerPath(productSlug, colourSlug, prefix)
   if (window.location.pathname === path) return
   if (replace) {
     window.history.replaceState({}, '', path)

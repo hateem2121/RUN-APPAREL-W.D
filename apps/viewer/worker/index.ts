@@ -1,4 +1,9 @@
-import { parseViewerPath, viewerApiPath } from '@run-apparel/shared'
+import {
+  GARMENT_PATH_PREFIX,
+  isGarmentPagePath,
+  parseViewerPath,
+  viewerApiPath,
+} from '@run-apparel/shared'
 import { CMS_API_ORIGIN, withApiPreload } from './apiPreload'
 import { withCompression } from './compression'
 import { applyCrawlerCacheHeaders } from './crawlerCacheHeaders'
@@ -425,7 +430,13 @@ export default {
 
     const transformed = applyPreview(
       response,
-      buildPreview(payload, { origin: url.origin, cards: OG_CARDS }),
+      buildPreview(payload, {
+        origin: url.origin,
+        cards: OG_CARDS,
+        // The website hands its /products/<product>/<colour> pages to this Worker
+        // unchanged (apps/cms/viewerForward.mjs), so the path says which shape loaded.
+        prefix: isGarmentPagePath(url.pathname) ? GARMENT_PATH_PREFIX : '',
+      }),
     )
     // The response body now depends on the User-Agent, and this copy must never be
     // injected into (a crawler executes no JavaScript, so Cloudflare's bootstrap is

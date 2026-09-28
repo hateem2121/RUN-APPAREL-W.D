@@ -70,10 +70,10 @@ export function shellFromBundle(bundle) {
     for (const css of chunk.viteMetadata?.importedCss ?? []) seen.add(css)
   }
 
-  // `/` rather than `/index.html`: it is the URL a navigation actually requests,
-  // and Workers Static Assets serves the SPA fallback from it. Caching the literal
-  // `/index.html` would store a document no navigation ever asks for by that name.
-  return ['/', ...UNHASHED_SHELL, ...[...seen].map((name) => `/${name}`)].sort()
+  // NO DOCUMENT. `/` was here until 2026-09-28, and on wear-run.com `/` is the WEBSITE's
+  // home page — the offline fallback would have shown the wrong site. The offline page is
+  // now the garment page the visitor opened, fetched at install (serviceWorkerSource).
+  return [...UNHASHED_SHELL, ...[...seen].map((name) => `/${name}`)].sort()
 }
 
 /**
@@ -121,9 +121,41 @@ const SHELL = [
    either by content hash (/assets/) or by version (the other two). */
 const IMMUTABLE = ['/assets/', '/meshopt_decoder.js', '/env/']
 
+/* The page shown when there is no signal: the garment page the visitor opened. Every
+   garment page is the viewer's own index.html under its address, so it is a correct shell
+   by construction. A fixed '/' was right while the viewer owned its whole host; on
+   wear-run.com the scope is /products/ and '/' is the WEBSITE's home page (2026-09-28).
+   Stored under one fixed key inside the scope; the key is never requested by anyone. */
+const OFFLINE_DOCUMENT = new URL('__offline-document', self.registration.scope).href
+
+function cacheOfflineDocument(cache) {
+  return self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    .then((clients) => {
+      const opened = clients.find((client) => client.url.startsWith(self.registration.scope))
+      const scopePath = new URL(self.registration.scope).pathname
+      /* Only the old viewer host, whose scope is the origin root, may fall back to '/':
+         there it IS the viewer. */
+      const source = opened ? opened.url : scopePath === '/' ? '/' : null
+      if (!source) return undefined
+      return fetch(source).then((response) => {
+        /* A redirected or foreign response replayed for a navigation is refused by the
+           browser, so only a plain same-origin 200 may become the offline page. */
+        if (response.ok && response.type === 'basic' && !response.redirected) {
+          return cache.put(OFFLINE_DOCUMENT, response)
+        }
+        return undefined
+      })
+    })
+    /* Offline caching is an enhancement: a failure here must never fail the install. */
+    .catch(() => undefined)
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()),
+    caches
+      .open(CACHE)
+      .then((cache) => cache.addAll(SHELL).then(() => cacheOfflineDocument(cache)))
+      .then(() => self.skipWaiting()),
   )
 })
 
@@ -161,7 +193,7 @@ self.addEventListener('fetch', (event) => {
        navigation from cache returns 200 and bypasses the Worker's 404 semantics. */
     event.respondWith(
       fetch(request).catch(() =>
-        caches.match('/', { cacheName: CACHE }).then((cached) => cached || Response.error()),
+        caches.match(OFFLINE_DOCUMENT, { cacheName: CACHE }).then((cached) => cached || Response.error()),
       ),
     )
     return

@@ -33,7 +33,22 @@ describe('registerServiceWorker', () => {
     // NOT before load — registration competes for the connection the shell is on.
     expect(h.register).not.toHaveBeenCalled()
     h.fireLoad()
-    expect(h.register).toHaveBeenCalledWith(SERVICE_WORKER_URL)
+    expect(h.register).toHaveBeenCalledWith(SERVICE_WORKER_URL, undefined)
+  })
+
+  // On wear-run.com the viewer shares its host with the website (2026-09-28). Its
+  // worker must look after the garment folder only: with the default scope it would
+  // sit in front of every website page and answer them offline with a garment shell.
+  it('limits itself to the /products folder on the website', () => {
+    const h = harness()
+    registerServiceWorker({
+      production: true,
+      navigatorLike: h.navigatorLike,
+      windowLike: h.windowLike,
+      pathname: '/products/n001/wine',
+    })
+    h.fireLoad()
+    expect(h.register).toHaveBeenCalledWith(SERVICE_WORKER_URL, { scope: '/products/' })
   })
 
   /**
