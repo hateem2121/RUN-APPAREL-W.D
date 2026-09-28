@@ -146,6 +146,9 @@ const REPORT_ONLY = process.argv.includes('--report')
  *       stylesheet     7,632 -> 8,510 B   budget 7,897 -> 8,775 (headroom 265, unchanged)
  *   This category adds every .css in dist, so a split file costs its own gzip overhead here
  *   even though no single visit downloads more than before plus the button.
+ *   ⚠️ 2026-09-28, TY-02: the product name's stand-in faces (page.css, two `local()` @font-face
+ *   rules and one scoped stack) — measured by building with and without them:
+ *       page CSS       7,722 -> 7,898 B gzip   (+176)   budget 8,775 -> 8,951 (headroom 265)
  * The dialog's SCRIPT is a lazy chunk
  * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
  * existing budget: 439.6 of 462.9 KB.
@@ -172,7 +175,7 @@ const BUDGETS = {
     expectEmpty: true,
   },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
-  stylesheet: { bytes: 8_775, note: 'CSS' },
+  stylesheet: { bytes: 8_951, note: 'CSS' },
 }
 
 /**

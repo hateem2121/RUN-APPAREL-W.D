@@ -7,8 +7,10 @@ import { LIVE_PRODUCTS } from '../../../scripts/live-products.mjs'
  * Measured live 2026-09-17 on rxps/wine alone, in Chromium: CLS 0 at 390px and 0.00023 at
  * 1440px with the fonts held back 1.5 s, while a planted 300px block read 0.19–0.31. That was
  * one headline in one engine. Unlike the marketing site (apps/cms/e2e/fontSwap.spec.ts), the
- * viewer has no metric-matched stand-in face: a late Archivo paints first in plain
- * `system-ui`, so whether a headline re-wraps depends on the NAME. This lays out every live
+ * viewer had no metric-matched stand-in face until 2026-09-28: a late Archivo painted first in
+ * plain `system-ui`, so whether a headline re-wrapped depended on the NAME — and three new names
+ * did (r-ttp, r-cat, r-cvn). The product name now has local() stand-ins (page.css, scoped to
+ * `.product-info .display--hero`), and this test is what proves they hold for every live name. This lays out every live
  * name both ways. Three sampled live the same day (rxps, r-ajm, r-atw) kept two lines both ways
  * at both widths.
  *
@@ -62,6 +64,7 @@ const HEADLINES: Readonly<Record<string, string>> = {
   'r-hfj': 'HYDRA-FIT JERSEY',
   'r-vcj': 'VANTA CORE JACKET',
   'r-xmt': 'X-MILO TRAINING VEST',
+  'r-ttp': 'TIGER TAIL PROFLEX',
   'r-mrp': 'MANTRA RAY PROFLEX',
   'r-taz': 'TERRA ACTIVE ZIP',
   'r-kmj': 'THE KINETIC MATRIX JACKET',
@@ -73,9 +76,11 @@ const HEADLINES: Readonly<Record<string, string>> = {
   'r-mxt': 'MOTION-X TRAINING ZIPPER',
   'r-vpj': 'VELOCITY PERFORMANCE JERSEY',
   'r-csp': 'CRIMSON STRIDE PULLOVER',
+  'r-cat': 'CORE ALIGN TIGHTS',
   'r-fft': 'FLEX FITTED TRAINING VEST',
   'r-wsa': 'WOMEN’S ATHLETIC TENNIS DRESS',
   'r-ifs': 'INDIGO FLOW SWEATSHIRT',
+  'r-cvn': 'CHEVRON V-NECK SOCCER JERSEY',
 }
 
 /** Serve the fixture garment under a live product's name and code; `slug()` says which. */
