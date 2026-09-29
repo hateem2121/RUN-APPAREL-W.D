@@ -2,6 +2,7 @@ import { withPayload } from '@payloadcms/next/withPayload'
 import { describe, expect, it } from 'vitest'
 import {
   effectiveHeader,
+  PUBLIC_PAGE_SOURCES,
   PUBLIC_VIEWER_VARY,
   withPublicViewerVary,
 } from '../publicViewerHeaders.mjs'
@@ -86,5 +87,37 @@ describe('public viewer Vary header', () => {
     const rules = await rulesOf(withPublicViewerVary(withPayload(appConfig())))
 
     expect(effectiveHeader(rules, VIEWER_PATH, 'X-Content-Type-Options')).toBe('nosniff')
+  })
+})
+
+/*
+ * The hidden second fetch (2026-09-29). Payload's blanket rule sends
+ * `Critical-CH: Sec-CH-Prefers-Color-Scheme` on every path, for the admin's theme. On a FIRST
+ * visit Chrome has not sent that hint, so it throws the page away and fetches it again:
+ * Lighthouse (mobile) showed the live /products as a 307 to itself costing 0.7–3.0 s before
+ * the first byte. The public pages never read the hint — their theme is CSS — so they send an
+ * empty Critical-CH (nothing is critical, nothing to retry for), while the admin keeps Payload's.
+ */
+describe('public pages: no Critical-CH retry', () => {
+  it("NEGATIVE CONTROL: without the wrapper, every public page inherits Payload's Critical-CH", async () => {
+    const rules = await rulesOf(withPayload(appConfig()))
+    for (const page of PUBLIC_PAGE_SOURCES) {
+      expect(effectiveHeader(rules, page, 'Critical-CH'), page).toBe('Sec-CH-Prefers-Color-Scheme')
+    }
+  })
+
+  it('every public page sends an empty Critical-CH, because its rule is appended last', async () => {
+    const rules = await rulesOf(withPublicViewerVary(withPayload(appConfig())))
+    for (const page of PUBLIC_PAGE_SOURCES) {
+      expect(effectiveHeader(rules, page, 'Critical-CH'), page).toBe('')
+    }
+  })
+
+  it("leaves /admin on Payload's own Critical-CH, so its theme detection is untouched", async () => {
+    const rules = await rulesOf(withPublicViewerVary(withPayload(appConfig())))
+    expect(effectiveHeader(rules, '/admin', 'Critical-CH')).toBe('Sec-CH-Prefers-Color-Scheme')
+    expect(effectiveHeader(rules, '/admin/collections/products', 'Critical-CH')).toBe(
+      'Sec-CH-Prefers-Color-Scheme',
+    )
   })
 })
