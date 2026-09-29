@@ -3453,6 +3453,8 @@ a.contact-block__value:active {
 .inquiry-form__phone {
   display: grid;
   grid-template-columns: minmax(0, 9rem) minmax(0, 1fr);
+  /* "Country code (optional)" wraps to two lines in its 9rem column; the boxes line up anyway. */
+  align-items: end;
   gap: 16px;
   margin-block-start: 16px;
 }

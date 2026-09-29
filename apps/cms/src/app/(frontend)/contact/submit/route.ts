@@ -162,10 +162,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
    */
   if (isHoneypotTripped(raw)) return back(request, '?sent=1')
 
-  const ip =
-    request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown'
-  if (!checkInquiryRate(ip, Date.now())) return back(request, '?error=too-many')
-
   const result = validateInquiry(raw)
   if (!result.ok)
     return back(request, `?error=invalid&fields=${Object.keys(result.errors).join(',')}`)
@@ -180,6 +176,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const files = await checkFiles(attached)
   if (!files.ok) return back(request, `?error=files&reason=${files.reason}`)
 
+  /*
+   * ⚠️ THE ALLOWANCE IS SPENT ONLY BY AN INQUIRY THAT PASSED EVERY CHECK (final review,
+   * 2026-09-29). It used to be checked first, so a buyer whose tries were refused — a missing
+   * field, a mislabelled file — could be locked out of the one that was right. The form is
+   * already read by this point either way, so checking later costs nothing, and a refused
+   * attempt stores nothing and sends nothing to limit.
+   */
+  const ip =
+    request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown'
+  if (!checkInquiryRate(ip, Date.now())) return back(request, '?error=too-many')
+
   const receivedAt = new Date()
   let created: { id: string | number } | null = null
   try {
@@ -187,8 +194,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     /*
      * ⚠️ `overrideAccess: true` IS WHAT LETS THIS WRITE AT ALL, and it is why
      * `Inquiries.access.create` is closed to everyone. The only path into that collection
-     * is this function, which has already checked the honeypot, the rate limit and the
-     * shape of the input. Opening `create` instead would put the collection's REST
+     * is this function, which has already checked the honeypot, the shape of the input,
+     * the files and the rate limit. Opening `create` instead would put the collection's REST
      * endpoint on the internet with none of those.
      */
     created = await payload.create({

@@ -221,6 +221,32 @@ test.describe('SE-13 — the rate limit', () => {
     expect(seventh.status()).toBe(303)
     expect(seventh.headers().location).toContain('sent=1')
   })
+
+  /*
+   * Final review, 2026-09-29: the allowance was spent BEFORE the form was checked, so a buyer
+   * whose attempts were refused (a missing field, a mislabelled file) could be locked out of the
+   * one that was right. Only an inquiry that passes every check is counted now. Its own band
+   * (203.0.113.231–254) so it cannot meet the test above.
+   */
+  test('refused forms do not use up the allowance: after six refusals a good inquiry still goes', async ({
+    request,
+  }, testInfo) => {
+    const ip = `203.0.113.${testInfo.project.name === 'firefox' ? randomOctet(243, 254) : randomOctet(231, 242)}`
+    for (let i = 0; i < 6; i++) {
+      const refused = await request.post('/contact/submit', {
+        form: { ...validInquiry(`se13-c-${i}`), email: 'not-an-address' },
+        headers: { 'cf-connecting-ip': ip },
+        maxRedirects: 0,
+      })
+      expect(refused.headers().location, `refusal ${i + 1}/6`).toContain('error=invalid')
+    }
+    const good = await request.post('/contact/submit', {
+      form: validInquiry('se13-c-good'),
+      headers: { 'cf-connecting-ip': ip },
+      maxRedirects: 0,
+    })
+    expect(good.headers().location).toContain('sent=1')
+  })
 })
 
 test.describe('RO-09 — every contact-form error route renders its own message', () => {

@@ -51,7 +51,7 @@ export function PhoneField() {
 
       <div className="inquiry-form__phone">
         <label className="inquiry-form__field">
-          <span className="inquiry-form__label">Country code</span>
+          <span className="inquiry-form__label">Country code (optional)</span>
           <input
             ref={code}
             className="inquiry-form__input"

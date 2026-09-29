@@ -73,7 +73,7 @@ test.describe('the inquiry form', () => {
       const label = await field.evaluate(
         (el) => el.closest('label')?.textContent ?? el.getAttribute('aria-label') ?? '',
       )
-      expect(label, `${name} does not say it is optional`).toMatch(/\(optional\)|country code/i)
+      expect(label, `${name} does not say it is optional`).toMatch(/\(optional\)/i)
       expect(
         await field.evaluate((el) => (el as HTMLInputElement).required),
         `${name} is required`,
