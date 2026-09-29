@@ -54,7 +54,7 @@ jobs:
     # purpose, and alerting that they have not run would be noise about a deliberate
     # state rather than a fault.
     if: vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

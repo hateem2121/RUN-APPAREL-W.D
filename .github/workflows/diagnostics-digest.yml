@@ -41,7 +41,7 @@ permissions:
 jobs:
   digest:
     if: vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     # ⚠️ STEP ONE OF TWO, AND THE ORDER IS LOAD-BEARING. This job reads
     # CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, which are still REPO-level

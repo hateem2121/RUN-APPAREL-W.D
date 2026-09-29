@@ -3,8 +3,8 @@
 🔴 = stops here, do not proceed. 🟡 = read before acting. 🟢 = context.
 
 Loads when you touch `.github/`. Every workflow change is gated by
-`apps/cms/src/workflowHardening.test.ts` — sixteen rules, ten with their own
-negative control (counted 2026-09-24), so a failure names the file and line. Run it before pushing a
+`apps/cms/src/workflowHardening.test.ts` — seventeen rules, eleven with their own
+negative control (counted 2026-09-29), so a failure names the file and line. Run it before pushing a
 workflow edit:
 
 ```bash
@@ -127,15 +127,19 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   goes through a PR.
   🟡 ORDER MATTERS: setting `production` to protected-branches-only *before* `main`
   is protected blocks every deploy. Create the ruleset first.
-- **Editing a workflow? `apps/cms/src/workflowHardening.test.ts` gates it — sixteen
-  rules, ten with their own negative control.** Every workflow declares a top-level
+- **Editing a workflow? `apps/cms/src/workflowHardening.test.ts` gates it — seventeen
+  rules, eleven with their own negative control.** Every workflow declares a top-level
   `permissions:` block that includes `contents`; every `uses:` is a 40-hex SHA with a
   `# vX.Y.Z` comment (Dependabot maintains both); every `actions/checkout` sets
   `persist-credentials: false`; no `run:` block interpolates `${{ github.event.* }}`,
   `${{ github.head_ref }}` or `${{ secrets.* }}` — carry it in `env:` and test
   `"$VAR"`; every `pnpm <script>` a workflow invokes exists; every job declares
   `timeout-minutes` (without it a hang runs to the 6-hour default — ci.yml records a
-  step measured at 49s that ran 30+ minutes); no `pull_request_target`; a Playwright
+  step measured at 49s that ran 30+ minutes); no `pull_request_target`; every
+  `runs-on` names a fixed image, never a `*-latest` label GitHub moves on its own
+  schedule (`ubuntu-26.04` since 2026-09-29; actionlint 1.7.12 needed it listed in
+  `.github/actionlint.yaml`, and `verify`'s first step fails by name if the image
+  lacks a tool a workflow relies on); a Playwright
   `container: image:` tag equals the declared `@playwright/test` version; every job is
   in `deploy.needs` unless it is on the written non-gating allow-list; no key nests
   under a key that already has a value; every workflow `heartbeat.yml` watches exists

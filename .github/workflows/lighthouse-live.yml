@@ -60,7 +60,7 @@ jobs:
     # `workflow_run` also fires for CI runs that a pull request started, and `branches:`
     # matches the HEAD branch — which a fork may name `main`. Only a green PUSH counts.
     if: vars.DEPLOY_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # 40 runs took ~17 minutes on an M4 Pro; a hosted runner is two to three times slower.
     timeout-minutes: 60
     steps:

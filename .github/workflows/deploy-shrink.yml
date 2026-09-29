@@ -2,7 +2,7 @@ name: Deploy shrink service
 
 # Deploys the separate GLB shrink Worker + Container (apps/shrink). Kept out of
 # the main ci.yml deploy job because `wrangler deploy` builds a Docker image here
-# (ubuntu-latest has Docker), which is slower and only needs to run when the
+# (GitHub's Ubuntu image has Docker), which is slower and only needs to run when the
 # shrink service itself changes.
 #
 # PREREQUISITES (one-time go-live, see docs/RAW-UPLOAD-PIPELINE.md):
@@ -91,7 +91,7 @@ jobs:
   # e2e flake blocking a pipeline fix.
   shrink-verify:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -154,7 +154,7 @@ jobs:
   # reason the `verify` job above is a copy — see the note there.
   shrink-artwork:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # 30, matching ci.yml. It was 20 here while ci.yml had already been raised —
     # and the raise was itself recorded there as the WRONG fix, which is why the
     # container below is the actual one.
@@ -214,7 +214,7 @@ jobs:
   # was never true for the container.
   shrink-audit:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # 20, not 10 — same reason as ci.yml's audit job: the retry needs room, and this is
     # the job that gates `shrink-deploy`, so a slow runner here blocks the container.
     timeout-minutes: 20
@@ -430,7 +430,7 @@ jobs:
   # different workflow and therefore cannot block this deploy.
   # No fork-skip `if:` since 2026-09-29, matching ci.yml's `secrets` (the reason is there).
   shrink-secrets:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -555,7 +555,7 @@ jobs:
     # 2026-08-08; before that this deploy was gated on `verify` alone.
     needs: [shrink-verify, shrink-artwork, shrink-audit, shrink-secrets]
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true' && vars.SHRINK_DEPLOY_FROM_CI == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     environment:
       name: production

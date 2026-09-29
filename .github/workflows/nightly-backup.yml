@@ -27,7 +27,7 @@ jobs:
   backup:
     # Only after go-live (remote D1/R2 exist + secrets set): Phase 10.
     if: vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     # ⚠️ STEP ONE OF TWO, AND THE ORDER IS LOAD-BEARING. This job reads
     # CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, which are still REPO-level

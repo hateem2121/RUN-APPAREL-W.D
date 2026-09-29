@@ -19,7 +19,7 @@ jobs:
   budget:
     # Same gate as every other scheduled monitor in this repo — only after go-live.
     if: vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     # The Cloudflare secrets live ONLY in the production environment. Without this line
     # they resolve to empty strings, and the first version of this workflow (2026-09-24)

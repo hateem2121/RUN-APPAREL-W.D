@@ -33,7 +33,7 @@ permissions:
 
 jobs:
   compare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # One file parse and one API read, under 2 s locally (2026-09-24), plus up to two
     # spaced retries on each of two ways in if GitHub is slow.
     timeout-minutes: 5
