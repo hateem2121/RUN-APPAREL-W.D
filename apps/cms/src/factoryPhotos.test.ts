@@ -2,11 +2,15 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { cropBox, SHAPES, SOURCES } from '../../../scripts/build-factory-photos.mjs'
+import { HERO_SOURCES } from '../../../scripts/build-factory-photos.mjs'
 import {
   FACTORY_PHOTO_ASPECT,
   FACTORY_PHOTO_WIDTHS,
   FACTORY_PHOTOS,
   type FactoryPhoto,
+  HERO_PHOTO,
+  HERO_SHAPES,
+  heroPhotoSrc,
 } from './lib/factoryPhotos'
 
 /**
@@ -87,11 +91,16 @@ describe('the factory strip (OI-3)', () => {
   })
 
   it('no picture sits in public/factory that the page does not show', () => {
-    const named = new Set(
-      FACTORY_PHOTOS.flatMap((photo) =>
+    const named = new Set([
+      ...FACTORY_PHOTOS.flatMap((photo) =>
         FACTORY_PHOTO_WIDTHS[photo.shape].map((width) => `${photo.slug}-${width}.webp`),
       ),
-    )
+      ...HERO_SHAPES.flatMap((shape) =>
+        HERO_PHOTO.widths[shape].map((width) =>
+          heroPhotoSrc(shape, width).slice('/factory/'.length),
+        ),
+      ),
+    ])
     expect(readdirSync(DIR).filter((file) => !named.has(file))).toEqual([])
   })
 
@@ -124,6 +133,53 @@ describe('the factory strip (OI-3)', () => {
       expect(photo.alt.length, photo.slug).toBeGreaterThan(20)
       expect(photo.caption.length, photo.slug).toBeGreaterThan(3)
       expect(photo.alt.toLowerCase()).not.toContain(photo.caption.toLowerCase())
+    }
+  })
+
+  /*
+   * The home hero (owner, 2026-09-29: "Factory photo"). Two crops of the stitching floor —
+   * 16:9 for wide screens, 4:5 for phones — so a phone never downloads a panorama to show
+   * its middle third.
+   */
+  it('every hero file the page names exists at its declared size', () => {
+    const wrong: string[] = []
+    for (const shape of HERO_SHAPES) {
+      for (const width of HERO_PHOTO.widths[shape]) {
+        const file = heroPhotoSrc(shape, width).slice('/factory/'.length)
+        let size: { width: number; height: number }
+        try {
+          size = webpSize(readFileSync(join(DIR, file)))
+        } catch (error) {
+          wrong.push(`${file}: ${error instanceof Error ? error.message : String(error)}`)
+          continue
+        }
+        const height = Math.round(width / HERO_PHOTO.aspect[shape])
+        if (size.width !== width || size.height !== height) {
+          wrong.push(
+            `${file} is ${size.width}x${size.height}, the page reserves ${width}x${height}`,
+          )
+        }
+      }
+    }
+    expect(wrong, 'rebuild with scripts/build-factory-photos.mjs').toEqual([])
+  })
+
+  it('the build script writes the hero at the widths and ratios the page declares', () => {
+    for (const shape of HERO_SHAPES) {
+      const source = HERO_SOURCES.find((entry) => entry.shape === shape)
+      expect(source, shape).toBeDefined()
+      expect(SHAPES[shape].widths).toEqual([...HERO_PHOTO.widths[shape]])
+      expect(SHAPES[shape].aspect).toBe(HERO_PHOTO.aspect[shape])
+    }
+  })
+
+  /*
+   * The hero is the first thing every visitor downloads (Largest Contentful Paint). 180 KB is
+   * the budget for the 1280 and phone files; measured sizes are in the commit that built them.
+   */
+  it('the hero files a first visit downloads stay small', () => {
+    for (const file of ['hero-wide-1280.webp', 'hero-tall-640.webp', 'hero-tall-1080.webp']) {
+      expect(readFileSync(join(DIR, file)).byteLength, file).toBeLessThanOrEqual(180 * 1024)
     }
   })
 

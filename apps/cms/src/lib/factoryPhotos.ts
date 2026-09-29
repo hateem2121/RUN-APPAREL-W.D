@@ -102,6 +102,36 @@ export const FACTORY_PHOTOS: readonly FactoryPhoto[] = [
   },
 ]
 
+/**
+ * The home page hero (owner, 2026-09-29: a factory photo under the headline) — the stitching
+ * floor, cut twice by `scripts/build-factory-photos.mjs`: 16:9 for wide screens and 4:5 for
+ * phones, so a phone never downloads a 2:1 panorama to show its middle.
+ *
+ * ⚠️ IT IS THE PAGE'S LARGEST PAINT, so it loads eagerly with high fetch priority on the
+ * `<img>` itself (never a `<link rel=preload>`: `e2e/perfBudgets.spec.ts` pins one preload per
+ * page), and `factoryPhotos.test.ts` holds the files a first visit downloads under 180 KB.
+ */
+export type HeroShape = 'heroWide' | 'heroTall'
+
+export const HERO_SHAPES: readonly HeroShape[] = ['heroWide', 'heroTall']
+
+export const HERO_PHOTO = {
+  alt: 'Rows of sewing machines on the stitching floor, operators in red shirts at work, red crates of cut pieces in the aisle.',
+  widths: { heroWide: [1280, 1920, 2560], heroTall: [640, 1080] },
+  aspect: { heroWide: 16 / 9, heroTall: 4 / 5 },
+} as const satisfies {
+  alt: string
+  widths: Record<HeroShape, readonly number[]>
+  aspect: Record<HeroShape, number>
+}
+
+const HERO_FILE: Record<HeroShape, string> = { heroWide: 'hero-wide', heroTall: 'hero-tall' }
+
+/** `/factory/hero-wide-<width>.webp` or `/factory/hero-tall-<width>.webp`. */
+export function heroPhotoSrc(shape: HeroShape, width: number): string {
+  return `/factory/${HERO_FILE[shape]}-${width}.webp`
+}
+
 /** `/factory/<slug>-<width>.webp`, the path `public/` serves it at. */
 export function factoryPhotoSrc(photo: FactoryPhoto, width: number): string {
   return `/factory/${photo.slug}-${width}.webp`

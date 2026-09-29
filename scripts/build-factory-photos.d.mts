@@ -2,12 +2,22 @@
  * Types for `build-factory-photos.mjs`, so `apps/cms/src/factoryPhotos.test.ts` can check the
  * script and the page agree — the same reason `vibecoded-rules.d.mts` exists.
  */
-export declare const SHAPES: Record<'wide' | 'single', { aspect: number; widths: number[] }>
+export declare const SHAPES: Record<
+  'wide' | 'single' | 'heroWide' | 'heroTall',
+  { aspect: number; widths: number[] }
+>
 
 export declare const SOURCES: {
   slug: string
   file: string
   shape: 'wide' | 'single'
+  focus: [number, number]
+}[]
+
+export declare const HERO_SOURCES: {
+  slug: string
+  file: string
+  shape: 'heroWide' | 'heroTall'
   focus: [number, number]
 }[]
 

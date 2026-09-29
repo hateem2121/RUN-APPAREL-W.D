@@ -28,7 +28,30 @@ import { join, resolve } from 'node:path'
 export const SHAPES = {
   wide: { aspect: 8 / 5, widths: [640, 1200] },
   single: { aspect: 4 / 5, widths: [400, 800] },
+  // The home page hero (owner, 2026-09-29): wide screens, and phones.
+  heroWide: { aspect: 16 / 9, widths: [1280, 1920, 2560] },
+  heroTall: { aspect: 4 / 5, widths: [640, 1080] },
 }
+
+/**
+ * The hero's two crops of the stitching floor (a 4875x2403 original). The tall crop sits right
+ * of centre, where the nearest operators are, so a phone shows people rather than crates.
+ * Their files are `hero-wide-<w>.webp` / `hero-tall-<w>.webp` (`heroPhotoSrc` in the page's list).
+ */
+export const HERO_SOURCES = [
+  {
+    slug: 'hero-wide',
+    file: 'Apparel Stitching Department.png',
+    shape: 'heroWide',
+    focus: [0.55, 0.5],
+  },
+  {
+    slug: 'hero-tall',
+    file: 'Apparel Stitching Department.png',
+    shape: 'heroTall',
+    focus: [0.68, 0.55],
+  },
+]
 
 export const SOURCES = [
   { slug: 'exterior', file: 'factory exterior image.png', shape: 'wide', focus: [0.5, 0.6] },
@@ -72,7 +95,7 @@ async function main() {
   )
   const out = resolve(import.meta.dirname, '../apps/cms/public/factory')
   mkdirSync(out, { recursive: true })
-  for (const source of SOURCES) {
+  for (const source of [...SOURCES, ...HERO_SOURCES]) {
     const shape = SHAPES[source.shape]
     const { width, height } = await sharp(join(from, source.file)).metadata()
     const box = cropBox(width, height, shape.aspect, source.focus)
