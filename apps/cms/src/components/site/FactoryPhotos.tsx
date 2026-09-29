@@ -32,18 +32,20 @@ export function FactoryPhotos() {
         return (
           <li className={`factory-tile factory-tile--${photo.shape}`} key={photo.slug}>
             <figure className="factory-tile__figure">
-              {/* biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize (ProductPoster.tsx measures why); the two widths are pre-built files, picked by srcSet. */}
-              <img
-                className="factory-tile__img"
-                src={factoryPhotoSrc(photo, small)}
-                srcSet={`${factoryPhotoSrc(photo, small)} ${small}w, ${factoryPhotoSrc(photo, large)} ${large}w`}
-                sizes={SIZES[photo.shape]}
-                width={small}
-                height={Math.round(small / FACTORY_PHOTO_ASPECT[photo.shape])}
-                alt={photo.alt}
-                loading="lazy"
-                decoding="async"
-              />
+              <span className="factory-tile__frame photo-wipe">
+                {/* biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize (ProductPoster.tsx measures why); the two widths are pre-built files, picked by srcSet. */}
+                <img
+                  className="factory-tile__img photo-parallax"
+                  src={factoryPhotoSrc(photo, small)}
+                  srcSet={`${factoryPhotoSrc(photo, small)} ${small}w, ${factoryPhotoSrc(photo, large)} ${large}w`}
+                  sizes={SIZES[photo.shape]}
+                  width={small}
+                  height={Math.round(small / FACTORY_PHOTO_ASPECT[photo.shape])}
+                  alt={photo.alt}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </span>
               <figcaption className="factory-tile__caption">{photo.caption}</figcaption>
             </figure>
           </li>

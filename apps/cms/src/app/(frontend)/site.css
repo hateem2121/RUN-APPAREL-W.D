@@ -2609,6 +2609,16 @@ a.contact-block__value:active {
  * The explicit height reserves the tile before the picture arrives (the CLS rule
  * `.proof__frame` states).
  */
+/* The clipping frame the scroll wipe and drift work inside (the section above). */
+.factory-tile__frame {
+  display: block;
+  overflow: hidden;
+  /* On the frame, not the picture: the drift scales the picture, which would scale its
+     border out of the clip. */
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+
 .factory-tile__img {
   display: block;
   width: 100%;
@@ -2618,8 +2628,6 @@ a.contact-block__value:active {
     1.25
   );
   object-fit: cover;
-  background: var(--bg);
-  border: 1px solid var(--line);
 }
 
 .factory-tile__caption {
@@ -3022,4 +3030,79 @@ a.contact-block__value:active {
 /* `.product-card__placeholder` is absolutely placed and draws its own blueprint grid. */
 .family-card__media--empty {
   position: relative;
+}
+
+/* ------------------------------------------------ scroll motion (owner's points 2 and 6) */
+
+/*
+ * The order timeline's line draws itself as the section is read, and each factory photo
+ * wipes open as it arrives and drifts slightly against the page (the owner, 2026-09-29: the
+ * photos "make the website feel static").
+ *
+ * The SAME contract as `site-reveal` above, for the same reasons: scroll-driven CSS rather
+ * than script, so a browser that runs no JavaScript still gets the finished page; inside
+ * `@supports (animation-timeline: view())`, so a browser without scroll timelines never enters
+ * the block and shows everything drawn and open; and only with `prefers-reduced-motion:
+ * no-preference`. No keyframe touches `opacity` (the axe contrast trap recorded above).
+ *
+ * ⚠️ THE DRIFT NEEDS HEADROOM. The picture is scaled 1.12 inside a frame that clips, so a 5%
+ * move never shows an edge; the frame keeps its reserved size, so nothing around it moves.
+ */
+@keyframes timeline-draw {
+  from {
+    scale: 1 0;
+  }
+  to {
+    scale: 1 1;
+  }
+}
+
+@keyframes photo-wipe {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes photo-drift {
+  from {
+    translate: 0 -5%;
+  }
+  to {
+    translate: 0 5%;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .timeline__line {
+      animation: timeline-draw var(--slow) linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 70%;
+    }
+
+    .photo-wipe {
+      animation: photo-wipe var(--slow) var(--ease-out-expo) both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 80%;
+    }
+
+    .photo-parallax {
+      scale: 1.12;
+      animation: photo-drift var(--slow) linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+    }
+  }
+}
+
+@media print {
+  .timeline__line,
+  .photo-wipe,
+  .photo-parallax {
+    animation: none;
+    scale: none;
+  }
 }

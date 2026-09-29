@@ -1,4 +1,4 @@
-import { expect, test } from './offlineMedia'
+import { expect, type Page, test } from './offlineMedia'
 
 /**
  * Motion and preference guards for the 2026-09-06 beta-website audit (kept privately).
@@ -559,5 +559,62 @@ test.describe('№05 — the numbers count up, and only when they may', () => {
     // A screen reader is told the final figure, never a digit mid-roll.
     await expect(page.locator(`${feature} .visually-hidden`)).toHaveText('100,000')
     await expect(page.locator(`${feature} [aria-hidden="true"]`)).toHaveCount(1)
+  })
+})
+
+/**
+ * The scroll motion (owner, 2026-09-29): the timeline draws, the photos wipe open and drift.
+ * What would have to break: motion for someone who asked for none, or a photo left half-clipped
+ * once it is on screen — which is how a scroll animation turns into missing content.
+ */
+test.describe('scroll motion — the timeline draws, the photos open and drift', () => {
+  const targets = {
+    '.timeline__line': 'timeline-draw',
+    '.factory-grid .photo-wipe': 'photo-wipe',
+    '.factory-grid .photo-parallax': 'photo-drift',
+  } as const
+
+  const names = (page: Page) =>
+    page.evaluate(
+      (selectors) =>
+        selectors.map((selector) => {
+          const element = document.querySelector(selector)
+          return element ? getComputedStyle(element).animationName : 'MISSING'
+        }),
+      Object.keys(targets),
+    )
+
+  test('with motion allowed, each is attached to the scroll', async ({ page, browserName }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.goto('/')
+    const supported = await page.evaluate(() => CSS.supports('animation-timeline: view()'))
+    test.skip(
+      !supported,
+      `${browserName} has no scroll-driven animations: it shows the finished page`,
+    )
+    expect(await names(page)).toEqual(Object.values(targets))
+  })
+
+  test('under reduced motion none of them runs', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/')
+    expect(await names(page)).toEqual(['none', 'none', 'none'])
+  })
+
+  test('a photo scrolled into view is fully open, whatever the engine', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.goto('/')
+    const frame = page.locator('.factory-grid .photo-wipe').first()
+    await frame.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    // "Fully open" is `none` or an inset whose every edge is zero — Chromium writes the
+    // animation's end as `inset(0px 0px 0%)`.
+    const isOpen = (clip: string) =>
+      clip === 'none' ||
+      (clip.startsWith('inset(') && (clip.match(/-?[\d.]+/g) ?? []).every((v) => Number(v) === 0))
+    await expect
+      .poll(async () =>
+        isOpen(await frame.evaluate((element) => getComputedStyle(element).clipPath)),
+      )
+      .toBe(true)
   })
 })
