@@ -87,7 +87,21 @@ test.describe('№03 — the live 3D garment', () => {
       { timeout: 30000 },
     )
     await expect(page.locator('.live-garment model-viewer')).toHaveCount(1)
+    await expect(page.locator('.live-garment model-viewer')).toHaveAttribute('auto-rotate', '')
     expect(errors.filter((e) => /setMeshoptDecoder/.test(e))).toEqual([])
+  })
+
+  test('under reduced motion the model is shown but does not turn by itself', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await serveModel(page, true)
+    await openWithGarment(page)
+    await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    await expect(page.locator('.live-garment')).toHaveAttribute('data-phase', 'shown', {
+      timeout: 30000,
+    })
+    const model = page.locator('.live-garment model-viewer')
+    await expect(model).not.toHaveAttribute('auto-rotate')
+    // NEGATIVE CONTROL lives in the real-model test above: without reduced motion it turns.
   })
 
   test('a model that fails to load leaves the picture exactly as it was', async ({ page }) => {
@@ -112,6 +126,27 @@ test.describe('№03 — the live 3D garment', () => {
     await page.waitForTimeout(500)
     expect(requested, 'the model downloaded on the first screen').toEqual([])
     await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    await expect.poll(() => requested.length, { timeout: 15000 }).toBeGreaterThan(0)
+  })
+
+  test('on a 2G connection nothing downloads until the visitor asks', async ({ page }) => {
+    const requested: string[] = []
+    page.on('request', (request) => {
+      if (request.url().endsWith('.glb')) requested.push(request.url())
+    })
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'connection', {
+        get: () => ({ saveData: false, effectiveType: '2g' }),
+      })
+    })
+    await serveModel(page, false)
+    await openWithGarment(page)
+    await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    const offer = page.getByRole('button', { name: 'Turn it in 3D' })
+    await expect(offer).toBeVisible()
+    await page.waitForTimeout(500)
+    expect(requested).toEqual([])
+    await offer.click()
     await expect.poll(() => requested.length, { timeout: 15000 }).toBeGreaterThan(0)
   })
 

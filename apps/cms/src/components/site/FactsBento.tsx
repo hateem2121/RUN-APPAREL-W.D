@@ -9,9 +9,10 @@ import { CountUp } from './CountUp'
  * `.facts-grid` has always kept: three rows of two on a tablet, two rows of three on a desktop,
  * no empty cell at any width.
  *
- * ⚠️ THE FINAL NUMBER IS IN THE HTML. `<data value>` carries it for machines and the text for
- * people, so a visitor with scripting off, a crawler and `/llms.txt`'s parity test all read the
- * real figure; the count-up (`CountUp`) only animates what is already there.
+ * ⚠️ THE FINAL NUMBER IS IN THE HTML, AS TEXT. `CountUp` renders the figure itself on the server,
+ * so a visitor with scripting off, a crawler and `/llms.txt`'s parity test all read the real
+ * number; the count-up only animates what is already there. (An earlier note here promised a
+ * `<data value>` element; none is rendered — corrected 2026-09-29.)
  */
 export function FactsBento() {
   return (
