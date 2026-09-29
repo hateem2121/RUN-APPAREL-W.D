@@ -116,6 +116,16 @@ function playwrightImageVersions(source: string): string[] {
 }
 
 /**
+ * Playwright image references (a workflow `image:` or a Dockerfile `FROM`) that carry no
+ * `@sha256:` digest. Pure, so the negative control can prove it fires.
+ */
+function playwrightImagesWithoutDigest(source: string): string[] {
+  return [...source.matchAll(/(?:image:|FROM)\s*(\S*playwright:v\d+\.\d+\.\d+\S*)/g)]
+    .map((m) => m[1] ?? '')
+    .filter((ref) => !/@sha256:[0-9a-f]{64}$/.test(ref))
+}
+
+/**
  * Job keys (two-space indent under `jobs:`) that declare no `timeout-minutes`.
  *
  * Exported shape kept simple — takes a source string, returns job names — so the
@@ -200,6 +210,25 @@ function floatingRunnerLabels(source: string): number[] {
     if (/^\s*runs-on:.*\b(?:ubuntu|macos|windows)-latest\b/.test(line)) out.push(i + 1)
   })
   return out
+}
+
+/**
+ * Jobs whose FIRST step is not the StepSecurity Harden-Runner network guard, skipping
+ * `container:` jobs (it needs sudo on the VM, so it cannot run inside one — its own
+ * docs/limitations.md). Pure, so the negative control can run it on a synthetic workflow.
+ */
+function jobsWithoutNetworkGuard(source: string): string[] {
+  const offenders: string[] = []
+  for (const [id, text] of jobBlocks(source)) {
+    if (/^ {4}container:/m.test(text)) continue
+    const afterSteps = text.split(/^ {4}steps:\s*$/m)[1]
+    if (afterSteps === undefined) continue // a reusable-workflow call has no steps
+    const firstStep = afterSteps.split(/^ {6}- /m)[1] ?? ''
+    if (!/^(?:name:[^\n]*\n\s+)?uses:\s*step-security\/harden-runner@/m.test(firstStep)) {
+      offenders.push(id)
+    }
+  }
+  return offenders
 }
 
 describe('workflow hardening', () => {
@@ -522,6 +551,53 @@ jobs:
    * random run at a time, with nothing in this repository changed. Every job therefore
    * names its image, and a move to a new one is a reviewed, tested PR.
    */
+  /**
+   * Every job that can host it runs the StepSecurity Harden-Runner network guard FIRST
+   * (owner decision 2026-09-29: watch mode everywhere, then block on every job that
+   * holds a production password). First, because it can only see traffic that starts
+   * after it: a step above it — an install, a checkout — could reach anywhere unrecorded.
+   * Its reports are what the block-mode allow-list is built from.
+   */
+  it('runs the network guard as the first step of every job that can host it', async () => {
+    const offenders: string[] = []
+    for (const file of await workflowFiles()) {
+      for (const job of jobsWithoutNetworkGuard(read(file))) offenders.push(`${file} → ${job}`)
+    }
+    expect(
+      offenders,
+      'These jobs do not start with step-security/harden-runner. Add it as step 1 (see any ' +
+        `other job), or give the job a container, which it cannot run in.\n${offenders.join('\n')}`,
+    ).toEqual([])
+  })
+
+  it('negative control: the network-guard rule fires on a missing or late guard, not on a container job', () => {
+    const source = [
+      'jobs:',
+      '  guarded:',
+      '    runs-on: ubuntu-26.04',
+      '    steps:',
+      '      - name: Network guard (Harden-Runner, watch mode)',
+      '        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1',
+      '      - run: echo ok',
+      '  late:',
+      '    runs-on: ubuntu-26.04',
+      '    steps:',
+      '      - run: curl https://example.com',
+      '      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1',
+      '  missing:',
+      '    runs-on: ubuntu-26.04',
+      '    steps:',
+      '      - run: echo no guard',
+      '  boxed:',
+      '    runs-on: ubuntu-26.04',
+      '    container:',
+      '      image: example/image:1',
+      '    steps:',
+      '      - run: echo in a container',
+    ].join('\n')
+    expect(jobsWithoutNetworkGuard(source)).toEqual(['late', 'missing'])
+  })
+
   it('names a fixed runner image, never a moving *-latest label', async () => {
     const offenders: string[] = []
     for (const file of await workflowFiles()) {
@@ -611,9 +687,14 @@ jobs:
    * `apps/shrink/container` lockfile trap: two files that must agree, with no tooling
    * that makes them.
    *
-   * A TAG and not a digest, deliberately: `.github/dependabot.yml` declares no docker
-   * ecosystem, so a digest pin would go stale in silence with nothing to notice. The
-   * tag is legible and this test is what keeps it honest.
+   * A TAG AND A DIGEST since 2026-09-29 (owner decision). Until then it was the tag
+   * alone, deliberately: `.github/dependabot.yml` declares no docker ecosystem, so a
+   * digest pin would go stale in silence. That reasoning holds for the digest and the
+   * tag alike — nothing refreshes either, and a Playwright bump here is always made by
+   * hand — while a tag can be REPUBLISHED under the same name and a digest cannot. So
+   * the bump that edits the tag re-reads the digest (`docker-content-digest` of the
+   * manifest index, which covers amd64 and arm64), and the rule below refuses an image
+   * without one. zizmor's `unpinned-images` asks the same.
    */
   it('pins every Playwright container image to the declared @playwright/test version', async () => {
     const declared = new Set<string>()
@@ -647,6 +728,9 @@ jobs:
         if (found !== expected)
           offenders.push(`${file}: Playwright image v${found} != @playwright/test ${expected}`)
       }
+      for (const ref of playwrightImagesWithoutDigest(source)) {
+        offenders.push(`${file}: Playwright image ${ref} has no @sha256: digest`)
+      }
     }
 
     // ⚠️ FINDING NOTHING IS A FAILURE, NOT A PASS, AND IT MUST BE CHECKED PER FILE.
@@ -676,7 +760,7 @@ jobs:
       offenders,
       'A Playwright image and @playwright/test have drifted. The image SHIPS the browsers;\n' +
         'a mismatch fails at runtime with "browser not found at /ms-playwright/...".\n' +
-        'Bump the image tag AND the package together.\n' +
+        'Bump the image tag AND the package together, and re-read the digest.\n' +
         `${offenders.join('\n')}`,
     ).toEqual([])
   })
@@ -696,6 +780,16 @@ jobs:
     expect(playwrightImageVersions(drifted)).toEqual(['1.60.0'])
     expect(playwrightImageVersions(drifted.replace('v1.60.0', 'v1.62.1'))).toEqual(['1.62.1'])
     expect(playwrightImageVersions('jobs:\n  a:\n    runs-on: ubuntu-latest\n')).toEqual([])
+
+    // The digest half: a tag alone is reported, the same tag with a digest is not.
+    expect(playwrightImagesWithoutDigest(drifted)).toEqual([
+      'mcr.microsoft.com/playwright:v1.60.0-noble',
+    ])
+    expect(
+      playwrightImagesWithoutDigest(
+        drifted.replace('v1.60.0-noble', `v1.60.0-noble@sha256:${'a'.repeat(64)}`),
+      ),
+    ).toEqual([])
 
     // The Dockerfile form, which is where the pin actually lives since 2026-09-08. Read
     // both ways: a drifted FROM must be SEEN, and a file with no image must yield [] so

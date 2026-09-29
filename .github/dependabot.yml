@@ -16,6 +16,13 @@ updates:
       day: monday
     # 0 = no routine version-update PRs (security-update PRs still open).
     open-pull-requests-limit: 0
+    # Inert while the limit above is 0 — cooldown governs VERSION updates only, and
+    # GitHub's options reference says it "does not apply to security updates". Set so
+    # that re-enabling routine updates cannot skip the same 7-day wait the actions below
+    # get (zizmor's dependabot-cooldown, 2026-09-29). pnpm's own minimumReleaseAge
+    # (pnpm-workspace.yaml) still applies to every install.
+    cooldown:
+      default-days: 7
     groups:
       minor-and-patch:
         update-types:
@@ -36,14 +43,16 @@ updates:
   # GitHub's secure-use guide says Dependabot "will not create alerts for actions
   # pinned to SHA values". So the pinned actions received neither alerts nor updates.
   #
-  # ⚠️ NO `cooldown:` HERE, AND NOT BY OVERSIGHT. The Dependabot options reference
-  # (checked 2026-09-10) lists the ecosystems that support `cooldown`, and
-  # `github-actions` is not among them. The owner asked for a 7-day wait anyway, so it
-  # is a MANUAL check: before merging one of these PRs, confirm the new release is at
-  # least 7 days old and that nothing has been reported against it.
+  # THE OWNER'S 7-DAY WAIT IS A SETTING SINCE 2026-09-29. On 2026-09-10 the Dependabot
+  # options reference did not list `github-actions` among the ecosystems supporting
+  # `cooldown`, so the wait was a manual check. Re-read 2026-09-29, it does ("GitHub
+  # Actions" is in the list), and zizmor's dependabot-cooldown audit asked for it. Still
+  # check by hand that nothing has been reported against a release before merging.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
       day: monday
     open-pull-requests-limit: 1
+    cooldown:
+      default-days: 7

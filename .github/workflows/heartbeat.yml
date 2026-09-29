@@ -42,11 +42,9 @@ on:
 # grants, so the moment someone adds `actions/checkout` to this file — exactly what
 # happened to uptime.yml in 8301e60 — it would 404 with "Repository not found" and
 # this monitor would join the list of things that fail silently. The irony would be
-# total. `actions: read` is what `gh run list` actually needs.
+# total. `actions: read`, which `gh run list` actually needs, is on the job below.
 permissions:
   contents: read
-  actions: read
-  issues: write
 
 jobs:
   check:
@@ -54,12 +52,23 @@ jobs:
     # purpose, and alerting that they have not run would be noise about a deliberate
     # state rather than a fault.
     if: vars.DEPLOY_ENABLED == 'true'
+    # The one job here that files an issue gets `issues: write`, not the whole
+    # workflow (zizmor excessive-permissions, 2026-09-29). A job-level block
+    # REPLACES the workflow's, so `contents: read` is restated.
+    permissions:
+      contents: read
+      actions: read
+      issues: write
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
     steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
       - name: Check each scheduled workflow has succeeded recently
         id: check
         run: |

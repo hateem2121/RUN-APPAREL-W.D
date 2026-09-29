@@ -51,12 +51,17 @@ on:
 # all, for ~23 hours, while the failures looked like ordinary uptime alerts.
 permissions:
   contents: read
-  issues: write
 
 jobs:
   ping:
     # Only after go-live (Phase 10).
     if: vars.DEPLOY_ENABLED == 'true'
+    # The one job here that files an issue gets `issues: write`, not the whole
+    # workflow (zizmor excessive-permissions, 2026-09-29). A job-level block
+    # REPLACES the workflow's, so `contents: read` is restated.
+    permissions:
+      contents: read
+      issues: write
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     env:
@@ -115,6 +120,10 @@ jobs:
       # are inert no matter what the value contains.
       TARGET_OVERRIDE: ${{ github.event.inputs.target }}
     steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: github.event.inputs.target == ''
         with:
