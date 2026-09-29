@@ -62,6 +62,11 @@ export default defineConfig({
   // gives the opposite trade: flakes and genuine breakage are indistinguishable,
   // and the usual response to a red deploy nobody trusts is to stop reading it.
   retries: process.env.CI ? 1 : 0,
+  // A stray `test.only` must FAIL in CI, not shrink the suite. Measured 2026-09-29: one
+  // probe file holding `test.only` made `CI=1 playwright test --project=viewer` run
+  // "1 test using 1 worker" instead of 283 and pass green, while `biome check` only
+  // WARNS on it (noFocusedTests, exit 0). apps/cms/playwright.config.ts already had this.
+  forbidOnly: !!process.env.CI,
   use: {
     baseURL: ORIGIN,
     // Force reduced motion so the Phase 7 motion layer (CSS + JS, which both
