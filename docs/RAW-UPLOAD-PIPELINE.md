@@ -268,7 +268,8 @@ Owner reviews + publishes (publishGating.ts unchanged)
 - `tools/asset-pipeline/src/simplify-textured.ts` — texture-aware decimation.
 - `apps/shrink/` — the shrink Worker (`src/index.ts`), the Container
   (`container/server.ts` + `Dockerfile`), and its `wrangler.jsonc`.
-- `.github/workflows/deploy-shrink.yml` — builds + deploys the shrink service.
+- `.github/workflows/ci.yml` → the `deploy-shrink` job — builds + deploys the shrink
+  service (a workflow of its own, `deploy-shrink.yml`, until 2026-09-29).
 
 ### Two design decisions worth not re-deriving
 
@@ -493,7 +494,7 @@ existing 40 MB guardrail applies.
    pnpm --filter @run-apparel/shrink exec wrangler deploy   # builds + pushes the image (needs Docker)
    ```
    The container image build needs Docker — run it in CI
-   (`deploy-shrink.yml`) or on a machine with Docker (arm64 Macs:
+   (ci.yml's `deploy-shrink` job) or on a machine with Docker (arm64 Macs:
    build for `linux/amd64`).
 
 8. **Smoke test.** Nothing has ever flowed through this end to end, so the first

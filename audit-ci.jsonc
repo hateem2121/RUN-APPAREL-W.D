@@ -17,7 +17,7 @@
   //
   // Kept at 3 rather than deleted: it costs nothing, it is correct for npm/yarn, and it
   // becomes live the moment upstream fills that array in. The real retry lives in the
-  // workflow step (ci.yml / deploy-shrink.yml), scoped to `ERR_SOCKET_TIMEOUT` so it can
+  // workflow step (ci.yml's `audit` job), scoped to `ERR_SOCKET_TIMEOUT` so it can
   // never turn a finding into a pass.
   "retry-count": 3,
   // Allowlist specific advisories that are unfixable / not exploitable in this

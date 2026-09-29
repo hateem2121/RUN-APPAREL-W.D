@@ -65,7 +65,9 @@ function declaredJobs(source: string): string[] {
 }
 
 /**
- * Every job the `deploy` job waits for, DIRECTLY OR THROUGH ANOTHER JOB.
+ * Every job a DEPLOY job waits for, DIRECTLY OR THROUGH ANOTHER JOB. The deploy jobs are
+ * `deploy` (the site) and, since 2026-09-29, `deploy-shrink` (moved in from
+ * deploy-shrink.yml); `changes` and `shrink-image-audit` gate only the latter.
  *
  * Since 2026-09-29 the browser tests run as `e2e-shard` (a matrix) behind a small `e2e`
  * job that deploy.needs names; `e2e-shard` gates the deploy through `e2e`, and a rule
@@ -77,7 +79,10 @@ function declaredJobs(source: string): string[] {
 function gatingJobs(source: string): Set<string> {
   const jobs = jobBlocks(source)
   const seen = new Set<string>()
-  const queue = jobNeeds(jobs.get('deploy') ?? '')
+  const queue = [
+    ...jobNeeds(jobs.get('deploy') ?? ''),
+    ...jobNeeds(jobs.get('deploy-shrink') ?? ''),
+  ]
   while (queue.length > 0) {
     const id = queue.shift()!
     if (seen.has(id)) continue
@@ -838,8 +843,8 @@ jobs:
     // `lighthouse` is deliberately non-gating and ci.yml says why: its category scores
     // swung 0.64/0.88/0.87 across three runs of an identical build, and "a Chrome flake
     // must never block a live release". Anything else added here needs the same kind of
-    // written reason beside the job.
-    const NON_GATING = new Set(['deploy', 'lighthouse'])
+    // written reason beside the job. `deploy-shrink` is a deploy itself, like `deploy`.
+    const NON_GATING = new Set(['deploy', 'deploy-shrink', 'lighthouse'])
 
     const source = read('ci.yml')
     const gating = gatingJobs(source)
@@ -1321,8 +1326,8 @@ jobs:
    * `secrets:` passed to a reusable workflow is deliberately out of scope: `environment`
    * cannot be declared on such a caller, only in the called workflow's own jobs.
    * `secrets.GITHUB_TOKEN` is exempt, because GitHub mints it per job in no environment.
-   * Only a real `${{ … }}` expression counts; deploy-shrink.yml names a secret in a YAML
-   * comment, and prose is not a read.
+   * Only a real `${{ … }}` expression counts; a workflow may name a secret in a YAML
+   * comment (deploy-shrink.yml did), and prose is not a read.
    */
   type SecretRead = { job: string; line: number; secret: string; production: boolean }
 

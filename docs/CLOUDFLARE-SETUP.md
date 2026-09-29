@@ -384,8 +384,8 @@ check a claim against, and prose drifts (finding L7-01, still open).
 `apps/shrink` is a queue consumer that drives a Container running
 `tools/asset-pipeline`. `wrangler deploy` from that package builds the Dockerfile
 locally and pushes the image to Cloudflare's registry, which a plain
-"Edit Cloudflare Workers" token **cannot** do — see the token-scope note at the top
-of `.github/workflows/deploy-shrink.yml`. The container runs as **uid 1000** and can
+"Edit Cloudflare Workers" token **cannot** do — see the token-scope note above the
+`deploy-shrink` job in `.github/workflows/ci.yml`. The container runs as **uid 1000** and can
 write only under `/tmp`.
 
 ### 11.4 The apex Worker (both private document links)

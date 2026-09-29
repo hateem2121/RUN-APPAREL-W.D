@@ -33,8 +33,12 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   fix, which at least managed 1 commit and ~60 bytes. Unlicensed, the Action degrades
   to a commit range resolving to nothing rather than failing loudly, so the gate
   blocking the shrink deploy was inert and green. Both files now run the binary.
-  **Generalises past gitleaks: this repo has TWO workflows that deliberately
-  duplicate the same gates, so a fix to one is only half a fix. Grep the other.**
+  **Generalises past gitleaks: this repo had TWO workflows that deliberately
+  duplicated the same gates, so a fix to one was only half a fix.** 🟢 Resolved
+  2026-09-29: the shrink deploy moved into ci.yml as the `deploy-shrink` job, which
+  `needs:` ci.yml's own `verify`, `artwork`, `audit` and `secrets`, and
+  `deploy-shrink.yml` was deleted. If a second copy of a gate ever appears again, the
+  lesson holds: grep the other.
 - **🟢 No workflow runs `playwright install-deps` any more — and while one did, it was
   bounded at 8 minutes and NON-FATAL on purpose: it is preparation, not a gate.**
   `ci.yml`'s `artwork` and `e2e` moved into the `mcr.microsoft.com/playwright` image (its
@@ -341,13 +345,15 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   nothing. So try it first, then read the run's `conclusion`. Push an empty commit only if
   it comes back `cancelled`.
 
-- **`DEPLOY_ENABLED=false` pauses NINE workflows, not just deploys:** `ci`'s deploy,
-  `deploy-shrink`, `nightly-backup`, `uptime`, `heartbeat`, `diagnostics-digest`,
-  `perf-watch`, `lighthouse-live` (added 2026-09-16) and `link-crawl` (the ninth, added
-  2026-09-23). Off means no backups
+- **`DEPLOY_ENABLED=false` pauses NINE workflows, not just deploys:** `ci`'s two deploy
+  jobs (`deploy`, and `deploy-shrink` since it moved into ci.yml on 2026-09-29),
+  `nightly-backup`, `uptime`, `heartbeat`, `diagnostics-digest`, `perf-watch`,
+  `lighthouse-live` (added 2026-09-16), `link-crawl` (added 2026-09-23) and `r2-budget`
+  (missing from this list until 2026-09-29). Off means no backups
   and no monitoring — measured 2026-09-10, after the
   switch had been off since the public re-creation. Re-count with
-  `grep -l 'vars.DEPLOY_ENABLED' .github/workflows/*.yml`.
+  `grep -l 'vars.DEPLOY_ENABLED' .github/workflows/*.yml` — and discount
+  `required-checks.yml`, which names it only in a comment saying it is NOT gated by it.
 
 - **🔴 ON A PUBLIC REPO EVERY ACTIONS LOG IS PUBLIC, and `wrangler d1 export` prints a
   one-hour download link to the WHOLE database.** 2026-09-11, the first nightly-backup
