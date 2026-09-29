@@ -36,10 +36,19 @@ on:
     # CLAUDE.md, so c0a6728 (2026-08-12) built and pushed a Docker image for a
     # docs-only commit. Order matters — a later `!` excludes an earlier match.
     # `**.md` not `**/*.md`: '**.js' is GitHub's documented extension idiom.
+    #
+    # packages/shared and the two pnpm files were MISSING until 2026-09-29. The Worker
+    # (apps/shrink/src) imports `@run-apparel/shared` — GLB_HARD_MAX_BYTES,
+    # SHRINK_DETAIL_LEVELS — and wrangler bundles it at deploy, so a change there shipped
+    # to the CMS and viewer while the live shrink kept the old values; a dependency bump
+    # in the lockfile never reached it at all.
     paths:
       - 'apps/shrink/**'
       - 'tools/asset-pipeline/**'
       - '!tools/asset-pipeline/**.md'
+      - 'packages/shared/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - '.github/workflows/deploy-shrink.yml'
   workflow_dispatch:
 
@@ -419,8 +428,8 @@ jobs:
   # that cannot be named in a `needs:` list is not a gate. This job exists so the
   # shrink deploy has one, rather than relying on ci.yml's, which runs in a
   # different workflow and therefore cannot block this deploy.
+  # No fork-skip `if:` since 2026-09-29, matching ci.yml's `secrets` (the reason is there).
   shrink-secrets:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
