@@ -3140,10 +3140,17 @@ a.contact-block__value:active {
   letter-spacing: var(--tracking-card-title);
 }
 
+/*
+ * ⚠️ 50ch, NOT `--site-measure` (55ch): CI COUNTED 77 CHARACTERS ON ONE LINE. At 768 px the
+ * timeline is one column and the body reaches its cap, 495 px at 55ch. This Mac fitted that in
+ * 75 characters; CI's Linux Chromium set the same copy at 77 (PR #94, legibility.spec.ts FA-C-52,
+ * ceiling 75). 50ch is 450 px, about 70 characters there. From 900 px the copy column is at
+ * most 420 px, so the cap only matters in one-column layouts.
+ */
 .timeline__body {
   font-size: var(--text-sm);
   color: var(--muted);
-  max-width: var(--site-measure);
+  max-width: 50ch;
 }
 
 /* ------------------------------------------------ №05 the numbers, as a bento */
