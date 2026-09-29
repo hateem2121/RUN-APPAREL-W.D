@@ -1,3 +1,7 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { expect, type Page, test } from './offlineMedia'
 
 /**
@@ -21,9 +25,73 @@ async function openWithGarment(page: Page) {
   }
 }
 
-test.describe('№03 — the live 3D garment', () => {
-  test('a model that fails to load leaves the picture exactly as it was', async ({ page }) => {
+/*
+ * ⚠️ A REAL, MESHOPT-COMPRESSED MODEL, BECAUSE THE TESTS ABOVE COULD NOT FAIL THE WAY PRODUCTION
+ * DID. Every other test here serves a 404, and "the model failed, the picture stayed" is exactly
+ * what a broken decoder set-up ALSO produces. Found 2026-09-29 against a copy of production: the
+ * element was rendered before model-viewer's module had finished loading, the module upgraded it
+ * on definition and it fetched its model at once — before `meshoptDecoderLocation` was set on the
+ * next line — so every production GLB failed with "setMeshoptDecoder must be called before
+ * loading compressed files" and the home page showed only the picture. The seeded n001.glb
+ * (`pnpm seed:assets`, which CI's site shards run) carries EXT_meshopt_compression like every
+ * production model; the decoder is the viewer's own source (`copy-decoders.mjs`), and the
+ * lighting file is committed.
+ */
+const REPO = fileURLToPath(new URL('../../../', import.meta.url))
+const SEEDED_MODEL = join(REPO, 'tools/asset-pipeline/output/n001.glb')
+const viewerRequire = createRequire(join(REPO, 'apps/viewer/package.json'))
+
+/**
+ * The decoder and the lighting file, served as production serves them (the viewer Worker, which
+ * `next start` does not run). Every test needs them: model-viewer fetches the Meshopt decoder
+ * BEFORE the model, so without it the model is never even requested — which the two request-
+ * counting tests below only "passed" while the bug above fetched the model too early.
+ */
+async function serveViewerFiles(page: Page) {
+  await page.route('**/meshopt_decoder.js', (route) =>
+    route.fulfill({
+      body: readFileSync(viewerRequire.resolve('meshoptimizer/decoder.cjs')),
+      contentType: 'text/javascript',
+    }),
+  )
+  await page.route('**/env/studio-soft.hdr', (route) =>
+    route.fulfill({ body: readFileSync(join(REPO, 'apps/viewer/public/env/studio-soft.hdr')) }),
+  )
+}
+
+async function serveModel(page: Page, found: boolean) {
+  await serveViewerFiles(page)
+  if (!found) {
     await page.route('**/*.glb', (route) => route.fulfill({ status: 404, body: '' }))
+    return
+  }
+  if (!existsSync(SEEDED_MODEL))
+    throw new Error(`run \`pnpm seed:assets\`: ${SEEDED_MODEL} is missing`)
+  await page.route('**/*.glb', (route) =>
+    route.fulfill({ body: readFileSync(SEEDED_MODEL), contentType: 'model/gltf-binary' }),
+  )
+}
+
+test.describe('№03 — the live 3D garment', () => {
+  test('a real Meshopt-compressed model loads and is shown', async ({ page }) => {
+    const errors: string[] = []
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text())
+    })
+    await serveModel(page, true)
+    await openWithGarment(page)
+    await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    await expect(page.locator('.live-garment'), errors.join('\n')).toHaveAttribute(
+      'data-phase',
+      'shown',
+      { timeout: 30000 },
+    )
+    await expect(page.locator('.live-garment model-viewer')).toHaveCount(1)
+    expect(errors.filter((e) => /setMeshoptDecoder/.test(e))).toEqual([])
+  })
+
+  test('a model that fails to load leaves the picture exactly as it was', async ({ page }) => {
+    await serveModel(page, false)
     await openWithGarment(page)
     await page.locator('.proof__figure').scrollIntoViewIfNeeded()
     await expect(page.locator('.live-garment')).toHaveAttribute('data-phase', 'failed', {
@@ -39,7 +107,7 @@ test.describe('№03 — the live 3D garment', () => {
     page.on('request', (request) => {
       if (request.url().endsWith('.glb')) requested.push(request.url())
     })
-    await page.route('**/*.glb', (route) => route.fulfill({ status: 404, body: '' }))
+    await serveModel(page, false)
     await openWithGarment(page)
     await page.waitForTimeout(500)
     expect(requested, 'the model downloaded on the first screen').toEqual([])
@@ -57,7 +125,7 @@ test.describe('№03 — the live 3D garment', () => {
         get: () => ({ saveData: true, effectiveType: '4g' }),
       })
     })
-    await page.route('**/*.glb', (route) => route.fulfill({ status: 404, body: '' }))
+    await serveModel(page, false)
     await openWithGarment(page)
     await page.locator('.proof__figure').scrollIntoViewIfNeeded()
     const offer = page.getByRole('button', { name: 'Turn it in 3D' })

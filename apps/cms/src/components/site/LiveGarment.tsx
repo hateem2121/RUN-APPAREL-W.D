@@ -36,7 +36,7 @@ import { LIVE_RENDER } from '../../lib/render/liveRender'
  * past the garment; a sideways drag turns it. Zoom and pan are off — this is a showcase, and the
  * link beneath opens the full viewer.
  */
-type Phase = 'waiting' | 'offer' | 'loading' | 'shown' | 'failed'
+type Phase = 'waiting' | 'offer' | 'preparing' | 'loading' | 'shown' | 'failed'
 
 type ModelViewerElement = HTMLElement & {
   variantName: string | null
@@ -70,9 +70,21 @@ export function LiveGarment({ model, label }: { model: LiveModel; label: string 
   const layer = useRef<HTMLDivElement>(null)
   const reduced = useRef(false)
 
+  /*
+   * ⚠️ THE ELEMENT IS RENDERED ONLY AFTER THE LIBRARY HAS LOADED, NOT WHILE IT LOADS. Rendered
+   * any earlier, `<model-viewer src>` sits in the page as an unknown tag; model-viewer's module
+   * defines the element as it evaluates, the waiting tag upgrades on the spot and fetches its
+   * model — all before `loadLibrary`'s `.then` sets `meshoptDecoderLocation`. Every production
+   * GLB is Meshopt-compressed, so every one failed ("setMeshoptDecoder must be called before
+   * loading compressed files") and the home page showed only the picture. Found 2026-09-29
+   * against a copy of production; `e2e/liveGarment.spec.ts` now loads a real compressed model.
+   */
   const start = useCallback(() => {
-    setPhase('loading')
-    loadLibrary().catch(() => setPhase('failed'))
+    setPhase('preparing')
+    loadLibrary().then(
+      () => setPhase('loading'),
+      () => setPhase('failed'),
+    )
   }, [])
 
   useEffect(() => {
