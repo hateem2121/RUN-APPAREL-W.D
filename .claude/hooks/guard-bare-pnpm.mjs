@@ -10,6 +10,9 @@
  *    `pnpm build`, so the whole e2e suite dies as `Timed out waiting 120000ms from
  *    config.webServer` with the real `status: 127` buried inside a child process."
  *
+ * (Both e2e prepare scripts use the npx form since 2026-09-29; the viewer's was the
+ * last bare one. The guard still matters for every command typed by hand.)
+ *
  * So the error message names a Playwright timeout and says nothing about pnpm.
  *
  * Verified on this machine 2026-08-12: `command -v pnpm` exits 1,
@@ -230,7 +233,7 @@ process.stdin.on('end', () => {
       'Use `npx --yes pnpm@12.6.0 <script>` instead — that is what every documented\n' +
       '`pnpm <script>` in this repo means, and what .claude/settings.json allows.\n\n' +
       'This is guarded rather than remembered because of where the failure shows up:\n' +
-      'e2e/prepare.mjs shells out to `pnpm build`, so a bare pnpm kills the whole e2e\n' +
+      'e2e/prepare.mjs shelled out to `pnpm build` (npx form since 2026-09-29), so a bare pnpm killed the whole e2e\n' +
       'suite as "Timed out waiting 120000ms from config.webServer" with the real\n' +
       'status: 127 buried in a child process. See "The pnpm note" under "Commands" in\n' +
       'the root CLAUDE.md.\n\n' +
