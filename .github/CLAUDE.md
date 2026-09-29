@@ -116,7 +116,12 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   out of `verify`, where it had been gating by living inside a job that gates. `needs:`
   stops the DEPLOY; this list stops the MERGE. Split or rename a gating job and you
   must edit BOTH, or a red gate silently stops blocking. The deploy-gating rule in
-  `apps/cms/src/workflowHardening.test.ts` covers the `needs:` half only.
+  `apps/cms/src/workflowHardening.test.ts` covers the `needs:` half only (and since
+  2026-09-29 follows `needs:` through other jobs). 🟡 **Splitting a gate WITHOUT editing
+  either list is how `e2e` was sharded on 2026-09-29:** the tests run as the matrix job
+  `e2e-shard`, and a small job keeping the id `e2e` merges their reports and fails unless
+  `needs.e2e-shard.result == 'success'`. That last step is load-bearing — without it a
+  failed shard makes `e2e` SKIPPED, and a skipped required check counts as passed.
   🟡 ORDER MATTERS HERE TOO, the same way it does for `production` below: add a check
   to this list only AFTER a workflow exists on `main` that produces it, or every PR
   blocks forever waiting on a check that never runs.

@@ -9,18 +9,26 @@ decisions, and lessons learned see [HARDENING-LOG.md](HARDENING-LOG.md).
 
 ## How deploys work
 
-The repo has a **single `main` branch** and no pull requests. Pushing to `main`
-triggers `.github/workflows/ci.yml`:
+Every change reaches `main` through a pull request: the `main` ruleset refuses a direct
+push and requires the checks `verify`, `e2e`, `audit`, `secrets`, `artwork` and Socket's
+*Pull Request Alerts*. *(This said "a single `main` branch and no pull requests" until
+2026-09-29; that stopped being true on 2026-08-19.)* Each pull request, and each merge to
+`main`, runs `.github/workflows/ci.yml`:
 
-1. **verify** — install, typecheck, all unit tests, build, Playwright e2e.
-2. **deploy** (only if verify passes *and* `vars.DEPLOY_ENABLED == 'true'`) —
-   deploys the CMS worker, builds + deploys the viewer to the
-   **`run-apparel-viewer-site` Worker** (Static Assets; selected by the
-   `VIEWER_DEPLOY_TARGET=worker` repo variable since the 2026-07-22 cutover),
-   then hits `/api/health` as a gate.
+1. **The gates**, in parallel — `verify` (lint, typecheck, unit tests with coverage,
+   build, bundle weight), `e2e` (the browser tests; since 2026-09-29 they run on five
+   `e2e-shard` machines and `e2e` passes only if every one did), `audit`, `secrets`
+   and `artwork`.
+2. **deploy**, on `main` only, when every gate passed *and*
+   `vars.DEPLOY_ENABLED == 'true'` — backs up D1 and proves the backup restores,
+   applies migrations, deploys the apex Worker and the CMS worker, builds + deploys
+   the viewer to the **`run-apparel-viewer-site` Worker** (Static Assets; selected by
+   the `VIEWER_DEPLOY_TARGET=worker` repo variable since the 2026-07-22 cutover), then
+   runs the live checks.
 
-So: **commit to `main`, push, watch the Actions tab.** A red build never
-deploys. `gh run watch` follows the latest run from the CLI.
+So: **open a PR, let the gates go green, merge, watch the Actions tab.** A red gate
+never deploys. `gh run watch` follows the latest run from the CLI — and judge a run by
+its `conclusion`, since `--exit-status` returns 1 for `cancelled` as well.
 
 **Manual deploy fallback** (if CI is unavailable):
 

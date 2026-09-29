@@ -267,166 +267,138 @@ jobs:
   # E2E IN A REAL BROWSER. Split out of `verify` on 2026-08-20 and containerised for
   # the same measured reason `artwork` was: `playwright install-deps` is an apt-get,
   # and a degraded Azure Ubuntu mirror twice consumed whole job budgets with nothing
-  # in this repository changed. The image below carries the browsers AND their system
-  # libraries, so no apt runs here at all.
+  # in this repository changed. The container below carries the browsers AND their
+  # system libraries, so no apt runs here at all.
   #
-  # WHY THIS IS ITS OWN JOB rather than `verify` gaining a `container:`. That job runs
-  # `scripts/test-alert-shell.sh`, which needs `jq` — and this image does not have it
-  # (checked by running the image, not by reading about it). The script cannot be
-  # ported to node either: it evaluates the REAL `--jq` filter strings lifted out of
-  # uptime.yml and heartbeat.yml, so it needs something that parses jq syntax. That
-  # single missing binary is the whole reason for the split — and the split is a
-  # genuine seam anyway, since the static gates and the browser gates need different
-  # machines.
+  # WHY IT IS NOT PART OF `verify`. That job runs `scripts/test-alert-shell.sh`, which
+  # needs `jq` — and the Playwright container does not have it (checked by running it).
+  # The script evaluates the REAL `--jq` filter strings lifted out of uptime.yml and
+  # heartbeat.yml, so it needs something that parses jq syntax. The static gates and the
+  # browser gates need different machines anyway.
   #
-  # ⚠️ IT IS IN `deploy.needs` AND IN THE `main` RULESET. Both. `needs:` stops the
-  # deploy; the ruleset stops the merge, and it is org config that no test in this
-  # repo can see. `apps/cms/src/workflowHardening.test.ts` enforces the `needs:` half
-  # — see the tenth rule there. Splitting a gate into a new job and forgetting either
-  # one is how a gate silently stops gating, which has happened here twice already
-  # (2026-08-15 and 2026-08-17, both renames).
+  # SPLIT ACROSS FIVE MACHINES SINCE 2026-09-29, BEHIND ONE `e2e` JOB.
+  #
+  # Until then one job ran the viewer suite and THEN the public-site suite on one
+  # machine: run 36285360710 took 13.0 min (1,013 passed, 2 workers) plus 7.1 min
+  # (692 passed), so every pull request waited ~21.5 min on this job while every other
+  # job was done in under 5. And a red viewer suite meant the site suite never ran —
+  # it sat dark from 2026-09-06 to 2026-09-07 that way.
+  #
+  # `e2e-shard` is one matrix job: the viewer suite in thirds, the site suite in halves,
+  # all at once, each with `--shard=i/n`. Both configs are `fullyParallel`, so a shard
+  # is a slice of TESTS, not of files (listed 2026-09-29: viewer 379/379/378 of 1,136,
+  # site 368/368 of 736). ONE matrix job, not one per suite, because
+  # workflowHardening.test.ts allows ci.yml exactly two Playwright containers (this and
+  # `artwork`), so neither can drift.
+  #
+  # `e2e` is the job deploy.needs and the `main` ruleset name — the same id and check
+  # name as before, so neither list changed. It merges the shards' reports and then
+  # decides. ⚠️ IT MUST CHECK THE SHARDS' RESULT ITSELF: with a plain `needs:`, a failed
+  # shard makes `e2e` SKIPPED, and GitHub documents that a skipped job "will not prevent
+  # a pull request from merging, even if it is a required check". Hence
+  # `if: !cancelled()` and the verdict step at its end.
   #
   # WebKit is not optional. A QR code on a garment tag is scanned with a phone camera,
   # which opens iOS Safari — and until 2026-08-03 CI installed Chromium only, so the
   # suite ran Chromium twice and the single most likely browser for this product had
   # never executed a line of it. Firefox is cheap once the matrix exists.
   #
-  # ⚠️ THE `HOME=/root` WORKAROUND IS GONE — AND KNOW WHY, BEFORE REINSTATING A CONTAINER.
-  # Kept because it comes straight back the moment a `container:` returns here.
-  #
-  # Measured on run 32349283297, when this job ran `container: playwright:...`:
-  # 176 tests passed, 57 failed, every one of them `viewer-firefox`, all on
-  # `browserType.launch: Failed to launch the browser process`:
+  # ⚠️ EVERY STEP THAT LAUNCHES A BROWSER HERE SETS `HOME: /root`, SCOPED TO THE STEP.
+  # Measured on run 32349283297, the first time this ran in a container: 176 tests
+  # passed and 57 failed, every one `viewer-firefox`, all on `browserType.launch`:
   #
   #     Running Nightly as root in a regular user's session is not supported.
   #     ($HOME is /github/home which is owned by pwuser.)
   #
-  # The cause was never the user. GitHub forces `HOME=/github/home` into every CONTAINER
-  # job — visible in the `docker create` line as `-e "HOME=/github/home"` — mounted from
-  # the host, while inside the image it is owned by `pwuser` (uid 1000). Firefox refuses
-  # when the process owner and $HOME's owner differ, so root broke it AND `--user 1001`
-  # broke it differently (`Can't find profile directory`,
-  # microsoft/playwright#31685). Chromium and WebKit do not check; only Firefox does,
-  # which is why `artwork` never saw it.
-  #
-  # Since 2026-09-08 there is NO container: the self-hosted runner IS that image
-  # (infra/ci-runner/Dockerfile), so the job runs as `pwuser` with `HOME=/home/pwuser`
-  # — owner and $HOME agree, and nothing needs overriding. Verified by running the
-  # image: `whoami=pwuser HOME=/home/pwuser`. If a `container:` is ever added back,
-  # `HOME: /root` must come back with it, scoped to the STEP and not the job.
-  e2e:
+  # GitHub forces `HOME=/github/home` into every container job (visible in the
+  # `docker create` line), mounted from the host and owned inside the image by `pwuser`
+  # (uid 1000). Firefox refuses when the process owner and $HOME's owner differ, so root
+  # broke it AND `--user 1001` broke it differently (`Can't find profile directory`,
+  # microsoft/playwright#31685). Chromium and WebKit do not check. (A self-hosted runner
+  # built from the same image made this moot from 2026-09-08 until it was retired; this
+  # job is back in the container, so the override is back with it.)
+  e2e-shard:
+    name: e2e (${{ matrix.suite }} ${{ matrix.shard }}/${{ matrix.total }})
     runs-on: ubuntu-26.04
-    # ⚠️ 30, RAISED FROM 20 ON 2026-09-07 BECAUSE THE WORK GREW, NOT BECAUSE A CEILING WAS
-    # INCONVENIENT. Measured, this job, five consecutive runs:
-    #
-    #   89b611c  success    15.0 min
-    #   d653c5b  failure    15.3 min
-    #   d2696f3  failure    16.0 min
-    #   f9eb442  CANCELLED  20.1 min   <- hit this ceiling
-    #   986b051  CANCELLED  20.1 min   <- hit this ceiling
-    #
-    # ⚠️ AND A JOB THAT HITS ITS OWN `timeout-minutes` REPORTS `cancelled`, NOT `failure` —
-    # which reads exactly like the concurrency cancellation this file documents above, and
-    # cost a round trip to tell apart. The tell is that ONE job is cancelled while the
-    # others succeed; a concurrency cancel takes the whole run.
-    #
-    # The runner does 636 viewer tests then 312 CMS tests at ONE worker (`Running 636 tests
-    # using 1 worker` in the log): 14.0 min and ~6 min respectively, plus install. That is
-    # ~21 minutes of real work against a 20-minute budget — it did not fit, and the two
-    # green runs above only fitted because the suites were 75 tests smaller. `verify`
-    # already sits at 30 for the same reason.
-    #
-    # Raising this is NOT the answer to a slow external dependency — see the apt-mirror
-    # account earlier in this file, where lifting one ceiling only moved which job died.
-    # It is the answer when the ceiling is smaller than the measured work, which is this.
-    timeout-minutes: 30
+    # 20 against an expected ~5-6 min of tests per shard (a third of 13.0 min, or half of
+    # 7.1 min, plus ~1.5 min of image pull and install). The single job needed 30 because
+    # 21 minutes of work did not fit in 20 (runs f9eb442 and 986b051, both CANCELLED at
+    # 20.1 min). ⚠️ A job that hits its own `timeout-minutes` reports `cancelled`, NOT
+    # `failure`, which reads like a concurrency cancellation; the tell is ONE job
+    # cancelled while the others finish.
+    timeout-minutes: 20
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
+    strategy:
+      # Every shard reports, so one failure never hides another's.
+      fail-fast: false
+      matrix:
+        include:
+          - { suite: viewer, dir: apps/viewer, shard: 1, total: 3 }
+          - { suite: viewer, dir: apps/viewer, shard: 2, total: 3 }
+          - { suite: viewer, dir: apps/viewer, shard: 3, total: 3 }
+          - { suite: site, dir: apps/cms, shard: 1, total: 2 }
+          - { suite: site, dir: apps/cms, shard: 2, total: 2 }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       # No `actions/setup-node` here either, for the reason measured beside `artwork`
-      # above: the image ships the pinned Node 24, and the pnpm store cache costs more
+      # below: the image ships the pinned Node 24, and the pnpm store cache costs more
       # to save than it saves on install — every feature branch pays the miss, because
       # Actions caches are branch-scoped.
       - run: pnpm install --frozen-lockfile
       # ONE SECOND OF DIAGNOSTIC, for the same reason the deleted `ldd` check existed:
-      # a browser that cannot LAUNCH must not be debugged as a flaky test. GitHub does
-      # not document what HOME is inside a job container, and Firefox's known container
-      # failure is precisely a HOME/profile-directory problem — so print it rather than
-      # infer it. If e2e ever dies in `browserType.launch`, read this step first.
+      # a browser that cannot LAUNCH must not be debugged as a flaky test. If a shard
+      # ever dies in `browserType.launch`, read this step first.
       - name: Container facts (user, HOME, browsers)
         run: |
           echo "whoami=$(whoami)  uid=$(id -u)  HOME=$HOME"
           echo "PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-unset}"
           ls "${PLAYWRIGHT_BROWSERS_PATH:-/ms-playwright}" || true
-      # `prepare.mjs` runs `pnpm seed:assets` and `pnpm build` itself, through
-      # Playwright's `webServer` command, so this one step is the whole suite.
-      #
-      # MEASURED, run 32350036354, all three browsers green: this job 417s total —
-      # pull 60s + setup 42s + the suite itself 310s. Against it, `verify` fell from
-      # 470s to 159s by shedding this work, and the two now run in PARALLEL, so the
-      # RUN's long pole went 470s -> 417s. Billed minutes rise (159 + 417 against 470)
-      # while wall-clock falls. The apt path that cost 23 webkit tests on run
-      # 32248711203 is gone from this file entirely.
-      - name: e2e
-        env:
-          HOME: /root
-        run: pnpm --filter @run-apparel/viewer test:e2e
       # EVERY PICTURE DESCRIBED, EVERY MERMAID DIAGRAM DRAWS (owner, 2026-09-26: human
-      # pages carry pictures for 5th-grade readers). In THIS job because it needs a
-      # browser to draw the diagrams and `verify` has none; a step, not a job, for the
-      # reason given below for the marketing site.
+      # pages carry pictures for 5th-grade readers). Needs Chromium and node_modules and
+      # nothing else, so it runs once, on one shard, and FIRST, so a red test cannot
+      # hide it.
       - name: Doc pictures and diagrams
+        if: matrix.suite == 'viewer' && matrix.shard == 1
         env:
           HOME: /root
         run: node apps/cms/scripts/check-doc-visuals.mjs
-      # THE PUBLIC MARKETING SITE, added 2026-09-05.
+      # `prepare.mjs` runs `seed:assets` and the viewer build itself, through Playwright's
+      # `webServer` command, so this one step is this shard's whole suite.
       #
-      # ⚠️ A STEP IN THIS JOB RATHER THAN A JOB OF ITS OWN, DELIBERATELY. A new job
-      # would have to be added to `deploy.needs` AND to the required-checks list, which
-      # is a second copy of it — and this file's own notes record that splitting or
-      # renaming a gating job without editing both silently stops a red gate blocking.
-      # As a step it inherits `e2e`'s existing place in both, and reuses the container's
-      # browsers instead of a second pull.
+      # ⚠️ `exec playwright test`, NEVER `test:e2e -- --shard`: an argument passed through
+      # the script shortcut was silently dropped once (apps/viewer/CLAUDE.md: `--grep`
+      # "runs the WHOLE suite", 252 tests where 20 were asked for). Check the
+      # "Running N tests …, shard i of n" line in this step's log.
+      - name: e2e (viewer, this shard)
+        if: matrix.suite == 'viewer'
+        env:
+          HOME: /root
+          SHARD: ${{ matrix.shard }}/${{ matrix.total }}
+        run: pnpm --filter @run-apparel/viewer exec playwright test --shard="$SHARD"
+      # THE PUBLIC MARKETING SITE, added 2026-09-05. Until then nothing in the repo loaded
+      # /, /products or /contact in a browser: all 54 CMS test files read source text or
+      # exercise pure functions, so three blank pages would have gone green through every
+      # gate. Its own `webServer` runs `next build` from the cold checkout.
       #
-      # WHAT IT CLOSES: until this existed, nothing in the repo loaded /, /products or
-      # /contact in a browser. All 54 CMS test files read source text or exercise pure
-      # functions, so three blank pages would have gone green through every gate. Found by
-      # the 2026-09-05 site-pages audit (kept privately).
+      # ⚠️ IT NEEDS A DATABASE, EVERY SHARD ITS OWN. `serve.mjs` starts the built CMS
+      # against the local D1 emulation, which on a fresh machine has no tables at all
+      # (`D1_ERROR: no such table: site_settings`, 2026-09-07). The content helpers
+      # degrade to defaults by design, so most pages still render — which is why eleven
+      # failures hid among 285 passes. Specs that need real content THROW under `CI` if
+      # the catalogue is empty. Each shard is a separate machine, so each seeds; the
+      # tests only append inquiry rows, so nothing is shared. This is the documented
+      # first run from docs/ONBOARDING.md: seed:assets measured 7 s, migrate and seed ~4 s.
       #
-      # Its own `webServer` runs `next build` from the cold checkout, so this step needs
-      # no separate build step and no seeded database — the content helpers fall back to
-      # defaults, and the gallery assertions cover both the populated and empty states.
-      # It needs no secret either: apps/cms/e2e/serve.mjs supplies a throwaway
-      # PAYLOAD_SECRET when the environment has none. Measured 2026-09-06 under these
-      # exact conditions: without that fallback Payload never initialises, `/admin` and
-      # `/api/*` answer 500, and four tests fail — while the page tests stay green.
-      # ⚠️ THE PUBLIC-SITE SUITE NEEDS A DATABASE, AND UNTIL 2026-09-07 CI GAVE IT NONE.
-      #
-      # `serve.mjs` starts the built CMS against the local D1 emulation, and on a fresh
-      # runner that database has no tables at all — the server log filled with
-      # `D1_ERROR: no such table: site_settings`. The content helpers degrade to defaults
-      # by design, so most pages still rendered and 285 tests passed, which is exactly why
-      # nobody noticed: the eleven that failed were the ones that need real content —
-      # the ItemList, the scroll restore, and both inquiry tests, which cannot store a row
-      # in a table that does not exist.
-      #
-      # ⚠️ AND THE SUITE HAD BEEN DARK SINCE 2026-09-06. It is the LAST step of this job,
-      # so every run whose viewer step failed first meant this never executed at all. Two
-      # blind spots had to be open together for that to hide, and both were.
-      #
-      # This is the documented first-run from docs/ONBOARDING.md, in order. It is not
-      # optional and it is not slow: seed:assets measured 7s, migrate and seed ~4s.
-      #
-      # PAYLOAD_SECRET: this job deliberately holds no real one (only the deploy job
-      # does), and Payload refuses to initialise without any. A per-run throwaway is
-      # correct here for the same reason serve.mjs supplies one — there is nothing behind
-      # this database worth protecting — and a literal is avoided so the secrets scanner
+      # PAYLOAD_SECRET: no real one here (only the deploy job has one), and Payload will
+      # not initialise without any. A per-run throwaway is correct — nothing behind this
+      # database is worth protecting — and a literal is avoided so the secrets scanner
       # has nothing to match.
       - name: Seed the database the public-site suite reads
+        if: matrix.suite == 'site'
         env:
           HOME: /root
           PAYLOAD_SECRET: ci-e2e-${{ github.run_id }}
@@ -434,11 +406,99 @@ jobs:
           pnpm seed:assets
           pnpm --filter @run-apparel/cms migrate
           pnpm seed:cms
-
-      - name: e2e (public site)
+      - name: e2e (public site, this shard)
+        if: matrix.suite == 'site'
         env:
           HOME: /root
-        run: pnpm --filter @run-apparel/cms test:e2e
+          SHARD: ${{ matrix.shard }}/${{ matrix.total }}
+        run: pnpm --filter @run-apparel/cms exec playwright test --shard="$SHARD"
+      # The shard's `blob` report (playwright.config.ts: `reporter` in CI) for `e2e` to
+      # merge. Kept one day: only the merged report is for reading.
+      - name: Keep this shard's report for the merge
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: blob-${{ matrix.suite }}-${{ matrix.shard }}
+          path: ${{ matrix.dir }}/blob-report
+          retention-days: 1
+          if-no-files-found: warn
+
+  # THE GATE THE DEPLOY AND THE RULESET NAME (see `e2e-shard` above for why it exists).
+  # It merges every shard's report into one HTML report per suite — screenshots and
+  # the retry's trace for each failure — kept 14 days, then passes ONLY if every shard
+  # passed. The report steps may fail without changing the verdict; the verdict step
+  # runs last so the report exists whenever it is needed most.
+  #
+  # The report is public, like every artifact on this repository: it holds pages served
+  # by the local test servers, their mock data and a per-run throwaway database. The
+  # seeded admin's password is the dev default already printed in apps/cms/src/seed/seed.ts.
+  e2e:
+    needs: [e2e-shard]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          # Same reasoning as `verify`'s setup-node above.
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
+      - run: pnpm install --frozen-lockfile
+      - name: Collect the viewer shards' reports
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: blob-viewer-*
+          path: ${{ runner.temp }}/blob/viewer
+          merge-multiple: true
+      - name: Collect the public-site shards' reports
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: blob-site-*
+          path: ${{ runner.temp }}/blob/site
+          merge-multiple: true
+      - name: Merge the viewer report
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: ${{ runner.temp }}/report/viewer
+          PLAYWRIGHT_HTML_OPEN: never
+          BLOBS: ${{ runner.temp }}/blob/viewer
+        run: pnpm --filter @run-apparel/viewer exec playwright merge-reports --reporter html "$BLOBS"
+      - name: Merge the public-site report
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: ${{ runner.temp }}/report/site
+          PLAYWRIGHT_HTML_OPEN: never
+          BLOBS: ${{ runner.temp }}/blob/site
+        run: pnpm --filter @run-apparel/cms exec playwright merge-reports --reporter html "$BLOBS"
+      - name: Keep the merged report (14 days)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: ${{ runner.temp }}/report
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Every shard passed (the verdict)
+        env:
+          SHARDS: ${{ needs.e2e-shard.result }}
+        run: |
+          echo "e2e-shard result: ${SHARDS}"
+          if [ "${SHARDS}" != "success" ]; then
+            echo "::error::a browser-test shard did not pass (result: ${SHARDS}). The merged report is the 'playwright-report-<sha>' artifact of this run."
+            exit 1
+          fi
 
   # Dependency vulnerability gate. Runs in parallel with verify and gates the
   # deploy: a HIGH/CRITICAL advisory blocks production until it is fixed or
@@ -1012,6 +1072,8 @@ jobs:
     # what keeps that true. ⚠️ The `main` ruleset's required-status-checks list is a
     # SECOND place that has to name it, and forgetting it means a red e2e no longer
     # blocks a merge. `apps/cms/src/workflowHardening.test.ts` enforces this half.
+    # Since 2026-09-29 `e2e` is the small job behind the `e2e-shard` matrix (see there);
+    # it kept its id so that neither this list nor the ruleset had to change.
     #
     # ⚠️ THIS SAID THE RULESET IS "org config no test here can read" UNTIL 2026-08-30.
     # It is not org config — `gh api repos/hateem2121/RUN-APPAREL-W.D/rulesets/<id>` (the

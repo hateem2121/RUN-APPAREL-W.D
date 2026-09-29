@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { jobBlocks, jobNeeds } from '../../../scripts/check-required-checks.mjs'
 
 /**
  * Guard the CI/CD workflows against silently losing the hardening added 2026-08-12.
@@ -63,13 +64,27 @@ function declaredJobs(source: string): string[] {
   return out
 }
 
-function deployNeeds(source: string): string[] {
-  const match = /^\s*needs:\s*\[([^\]]*)\]/m.exec(source)
-  if (!match?.[1]) return []
-  return match[1]
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
+/**
+ * Every job the `deploy` job waits for, DIRECTLY OR THROUGH ANOTHER JOB.
+ *
+ * Since 2026-09-29 the browser tests run as `e2e-shard` (a matrix) behind a small `e2e`
+ * job that deploy.needs names; `e2e-shard` gates the deploy through `e2e`, and a rule
+ * that only read deploy.needs itself would call it ungated. Walks `needs:` with the
+ * parser scripts/check-required-checks.mjs already uses, scoped to each job — the copy
+ * this replaced read the FIRST `needs: [` anywhere in the file, so `e2e`'s own list,
+ * which sits above `deploy`, would have been taken for the deploy's.
+ */
+function gatingJobs(source: string): Set<string> {
+  const jobs = jobBlocks(source)
+  const seen = new Set<string>()
+  const queue = jobNeeds(jobs.get('deploy') ?? '')
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    if (seen.has(id)) continue
+    seen.add(id)
+    queue.push(...jobNeeds(jobs.get(id) ?? ''))
+  }
+  return seen
 }
 
 /**
@@ -733,15 +748,19 @@ jobs:
     const NON_GATING = new Set(['deploy', 'lighthouse'])
 
     const source = read('ci.yml')
-    const needs = new Set(deployNeeds(source))
-    const ungated = declaredJobs(source).filter((job) => !NON_GATING.has(job) && !needs.has(job))
+    const gating = gatingJobs(source)
+    expect(
+      gating.size,
+      'no job reachable from deploy.needs — the parser read nothing',
+    ).toBeGreaterThan(0)
+    const ungated = declaredJobs(source).filter((job) => !NON_GATING.has(job) && !gating.has(job))
 
     expect(
       ungated,
-      'A ci.yml job does not gate the deploy. Add it to `deploy.needs` — AND, once it is\n' +
-        "on main, to the `main` ruleset's required status checks (required-checks.yml\n" +
-        'reports that half) — or add it to NON_GATING here with the reason beside the job.\n' +
-        `${ungated.join('\n')}`,
+      'A ci.yml job does not gate the deploy. Add it to `deploy.needs` (or to the needs of\n' +
+        "a job the deploy waits for) — AND, if deploy.needs names it, to the `main` ruleset's\n" +
+        'required status checks (required-checks.yml reports that half) — or add it to\n' +
+        `NON_GATING here with the reason beside the job.\n${ungated.join('\n')}`,
     ).toEqual([])
   })
 
@@ -759,11 +778,42 @@ jobs:
     runs-on: ubuntu-latest
 `
     expect(declaredJobs(source)).toEqual(['verify', 'e2e', 'lighthouse', 'deploy'])
-    expect(deployNeeds(source)).toEqual(['verify'])
+    expect([...gatingJobs(source)]).toEqual(['verify'])
     // e2e is ungated and must be reported; lighthouse and deploy are allow-listed.
     const NON_GATING = new Set(['deploy', 'lighthouse'])
-    const needs = new Set(deployNeeds(source))
-    expect(declaredJobs(source).filter((j) => !NON_GATING.has(j) && !needs.has(j))).toEqual(['e2e'])
+    const gating = gatingJobs(source)
+    expect(declaredJobs(source).filter((j) => !NON_GATING.has(j) && !gating.has(j))).toEqual([
+      'e2e',
+    ])
+  })
+
+  it('negative control: gating is followed through an aggregator, and an earlier `needs:` is not the deploy’s', () => {
+    // The shape ci.yml has since 2026-09-29: a matrix of shards behind an `e2e` job whose
+    // OWN flow-style `needs:` sits above `deploy`. The replaced parser returned
+    // ['e2e-shard'] here — the first list in the file — and called verify ungated.
+    const source = `
+jobs:
+  verify:
+    runs-on: ubuntu-26.04
+  e2e-shard:
+    runs-on: ubuntu-26.04
+  e2e:
+    needs: [e2e-shard]
+    runs-on: ubuntu-26.04
+  orphan:
+    runs-on: ubuntu-26.04
+  deploy:
+    needs:
+      - verify
+      - e2e
+    runs-on: ubuntu-26.04
+`
+    expect([...gatingJobs(source)].sort()).toEqual(['e2e', 'e2e-shard', 'verify'])
+    const NON_GATING = new Set(['deploy', 'lighthouse'])
+    const gating = gatingJobs(source)
+    expect(declaredJobs(source).filter((j) => !NON_GATING.has(j) && !gating.has(j))).toEqual([
+      'orphan',
+    ])
   })
 
   /**

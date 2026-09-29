@@ -23,10 +23,14 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? 'line' : 'list',
+  // CI writes a `blob` report per shard for ci.yml's `e2e` job to merge into one HTML
+  // report, kept 14 days (2026-09-29). Until then these traces were retained on failure
+  // and then thrown away with the runner: nothing uploaded them.
+  reporter: process.env.CI ? [['blob'], ['line']] : 'list',
   use: {
     baseURL: ORIGIN,
     trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
