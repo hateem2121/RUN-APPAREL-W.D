@@ -524,6 +524,42 @@ the viewer's file by one character, or if the lighting drifts.
 **Guard:** `apps/cms/e2e/liveGarment.spec.ts` (a failed model keeps the picture; nothing loads
 before the section is near; nothing loads on a data-saving connection until asked).
 
+### D25 · The footer shows the certification bodies' real logos — amends the 2026-09-16 ruling
+
+**Decision: each "Standards" entry draws the logos of the bodies it names, beside its text.
+Owner, 2026-09-29**, after being told the marks' usage rules: GOTS, OEKO-TEX and Textile
+Exchange each reserve the right to act on misuse of their marks; SMETA is an audit method, not
+a certificate. That is why the heading stays "Standards" and every entry keeps its qualifier
+text ("Parent: …", "Suppliers: …") — the picture says which body, the words say who holds it.
+
+The artwork is the owner's own vector files, converted to plain SVG paths and trimmed to the
+mark (`apps/cms/public/standards/`, 3.7–22.6 KB each; `apps/cms/src/lib/standardsLogos.ts`
+records each one's source file). Seven marks, and only these:
+
+- **Parent (DURUS INDUSTRIES):** Sedex, SMETA, ISO 9001.
+- **Suppliers:** OEKO-TEX STANDARD 100, GOTS, GRS, amfori BSCI.
+
+Three of the owner's choices are rulings, not oversights:
+
+- **ISO 9001 only.** The owner's file is a combined badge (9001 beside 22000); the 22000 half
+  is not in the repository, and "ISO 22000" in an entry draws nothing.
+- **SECP is text only.** It is a regulator, and its emblem beside a supplier list would read as
+  an endorsement.
+- **BSCI is the suppliers'.** The owner's file is the older mark (before the body became
+  amfori), so the picture reads "Business Social Compliance Initiative" while the alt text says
+  "amfori BSCI".
+
+The folder holds other marks (ISO 22000, Made in Green, RCS/OCS, sgi). The company does not
+claim them and none has a record. An entry that names no body draws no picture, and a word that
+merely contains a body's name ("GRSX") does not count.
+
+⚠️ **The chip is paper in BOTH themes.** The footer slab is ink in light mode and `--raised` in
+dark, so the dark-on-transparent marks need a paper chip in each, not only in dark mode.
+
+**Guard:** `apps/cms/src/lib/standardsLogos.test.ts` (whole words, order, no duplicates, no
+22000, no SECP, every file present at its recorded size) and `SiteFooter.test.ts` (text kept,
+images lazy with a reserved size, no picture for an entry naming no body).
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap

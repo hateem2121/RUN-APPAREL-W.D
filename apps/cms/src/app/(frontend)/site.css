@@ -1061,6 +1061,43 @@ html {
   font-size: var(--text-mono-sm);
 }
 
+/*
+ * The certification bodies' logos, drawn under the entry that names them (D25). They are
+ * pictures, never links, so the 44px floor above does not apply to them; the <li> keeps its
+ * 44px minimum and simply grows with the marks.
+ *
+ * ⚠️ THE SLAB IS DARK IN BOTH THEMES — `--footer-bg` is ink in light mode and `--raised` in
+ * dark — and the marks are dark-on-transparent artwork (grey and near-black wordmarks), so
+ * every one sits on a paper chip, in light mode as well as dark. `--paper` is the one
+ * ground that does not flip; a chip built from `--bg` would go dark with the theme and take
+ * the wordmarks with it. The chip is a wrapper around each mark's own width and height
+ * attributes, which reserve the box before the lazy image loads.
+ */
+.footer-standard {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  padding-block: 8px;
+}
+
+.footer-standard__logos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer-logo {
+  display: block;
+  box-sizing: content-box;
+  max-width: 100%;
+  height: auto;
+  padding: 6px 8px;
+  background: var(--paper);
+  border-radius: var(--radius-chip);
+}
+
 @media (hover: hover) and (pointer: fine) {
   .footer-block a:hover {
     color: var(--volt);

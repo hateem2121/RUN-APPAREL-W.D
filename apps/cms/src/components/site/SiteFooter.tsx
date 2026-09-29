@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { splitLastWord } from '../../lib/footerCopy'
 import { formatHours } from '../../lib/footerHours'
 import type { PublicSiteSettings } from '../../lib/projectPublic'
+import { logosFor } from '../../lib/standardsLogos'
 import { formatAddress } from '../../lib/structuredData'
 import { FooterClock } from './FooterClock'
 import { FooterGlow } from './FooterGlow'
@@ -145,9 +146,38 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
               <div className="footer-block footer-block--standards">
                 <h3>Standards</h3>
                 <ul>
-                  {f.certifications.map((name) => (
-                    <li key={name}>{name}</li>
-                  ))}
+                  {f.certifications.map((name) => {
+                    const logos = logosFor(name)
+                    return (
+                      <li key={name} className={logos.length > 0 ? 'footer-standard' : undefined}>
+                        {/*
+                         * ⚠️ THE TEXT LINE STAYS BESIDE THE MARKS (owner's ruling 2026-09-16,
+                         * kept when he chose real logos on 2026-09-29, D25). A logo alone says
+                         * "certified"; the qualifier says who holds it — the parent, or the
+                         * suppliers — and SMETA is an audit, not a certificate. An entry that
+                         * names no body gets no picture, so nothing here is drawn from a guess.
+                         */}
+                        <span>{name}</span>
+                        {logos.length > 0 ? (
+                          <span className="footer-standard__logos">
+                            {logos.map((logo) => (
+                              // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, and these are already-optimised SVGs of a few KB, which next/image would pass through unchanged (ProductPoster.tsx measures why).
+                              <img
+                                key={logo.slug}
+                                className="footer-logo"
+                                src={logo.src}
+                                width={logo.width}
+                                height={logo.height}
+                                alt={logo.alt}
+                                loading="lazy"
+                                decoding="async"
+                              />
+                            ))}
+                          </span>
+                        ) : null}
+                      </li>
+                    )
+                  })}
                 </ul>
               </div>
             ) : null}

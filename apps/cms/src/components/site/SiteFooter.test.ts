@@ -111,6 +111,71 @@ describe('SiteFooter', () => {
     expect(out).not.toMatch(/certified/i)
   })
 
+  /*
+   * The bodies' logos (owner, 2026-09-29, D25). Each entry keeps its text line AND gains the
+   * marks it names, in the order it names them. The strings are the two production prints,
+   * not a bare standard name (see the fixture note above).
+   */
+  it("draws each entry's logos beside its text, lazily and at a reserved size", () => {
+    const out = html({
+      ...base,
+      footer: {
+        ...EMPTY_FOOTER,
+        certifications: [
+          'Parent: SEDEX-registered, SMETA-audited',
+          'Suppliers: OEKO-TEX, GOTS, GRS',
+        ],
+      },
+    })
+    // the qualifier text stays, unchanged
+    expect(out).toContain('>Parent: SEDEX-registered, SMETA-audited<')
+    expect(out).toContain('>Suppliers: OEKO-TEX, GOTS, GRS<')
+    // five marks, each an image with a reserved size, lazy and async, named for its body
+    const imgs = out.match(/<img [^>]*>/g) ?? []
+    expect(imgs).toHaveLength(5)
+    for (const img of imgs) {
+      expect(img).toContain('loading="lazy"')
+      expect(img).toContain('decoding="async"')
+      expect(img).toMatch(/width="\d+"/)
+      expect(img).toMatch(/height="\d+"/)
+      expect(img).toContain('class="footer-logo"')
+    }
+    expect(imgs.map((img) => img.match(/alt="([^"]*)"/)?.[1])).toEqual([
+      'Sedex',
+      'SMETA',
+      'OEKO-TEX',
+      'GOTS',
+      'GRS',
+    ])
+    expect(imgs[0]).toContain('src="/standards/sedex.svg"')
+    // the heading stays "Standards" beside real logos: SMETA is an audit, not a certificate
+    expect(out).toContain('<h3>Standards</h3>')
+    expect(out).not.toMatch(/certified/i)
+    // a picture is never a control: nothing here is a link, so the 44px floor never applies
+    const block = out.slice(out.indexOf('footer-block--standards'), out.indexOf('footer-legal'))
+    expect(block).not.toContain('<a ')
+  })
+
+  // NEGATIVE CONTROL: an entry naming no body draws no picture. The company's own third
+  // line ("fully prepared to pursue any program-specific certifications") must not borrow a mark.
+  it('draws no logo for an entry that names no body', () => {
+    const out = html({
+      ...base,
+      footer: {
+        ...EMPTY_FOOTER,
+        certifications: ['Program-specific standards on request', 'Suppliers: GRSX'],
+      },
+    })
+    expect(out).toContain('>Program-specific standards on request<')
+    expect(out).toContain('>Suppliers: GRSX<')
+    expect(out).not.toContain('<img')
+    expect(out).not.toContain('footer-standard')
+  })
+
+  it('draws no logo at all when there are no entries', () => {
+    expect(html(base)).not.toContain('/standards/')
+  })
+
   it('renders the wordmark twice, both decorative, from the same field as the top bar', () => {
     const out = html({ ...base, temporaryWordmark: 'RUN APPAREL' })
     expect(out.match(/footer-mark__layer[^>]*aria-hidden="true"[^>]*>RUN APPAREL</g)).toHaveLength(
