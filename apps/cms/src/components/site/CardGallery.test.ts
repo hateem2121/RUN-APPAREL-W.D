@@ -34,7 +34,7 @@ describe('CardGallery: the card draws a card-sized picture (owner, 2026-09-29)',
   it('asks Cloudflare for the card size of a media.wear-run.com render, with every width', () => {
     const img = firstImg('https://media.wear-run.com/r-xmp-wine-render.webp')
     expect(img).toContain(
-      'src="https://media.wear-run.com/cdn-cgi/image/fit=scale-down,width=720,height=900,format=auto,onerror=redirect/r-xmp-wine-render.webp"',
+      'src="https://media.wear-run.com/cdn-cgi/image/fit=scale-down,width=720,height=900,quality=95,format=auto,onerror=redirect/r-xmp-wine-render.webp"',
     )
     expect(img).toMatch(
       /srcSet="[^"]*width=400[^"]* 400w, [^"]*width=720[^"]* 720w, [^"]*width=1080[^"]* 1080w"/,

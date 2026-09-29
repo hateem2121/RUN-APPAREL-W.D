@@ -7,7 +7,7 @@ describe('cardImage: a card-sized copy of a gallery picture (owner, 2026-09-29)'
   it('resizes a media.wear-run.com picture through Cloudflare, fitting the 4:5 card box', () => {
     const image = cardImage(RENDER)
     expect(image.src).toBe(
-      'https://media.wear-run.com/cdn-cgi/image/fit=scale-down,width=720,height=900,format=auto,onerror=redirect/r-xmp-wine-render.webp',
+      'https://media.wear-run.com/cdn-cgi/image/fit=scale-down,width=720,height=900,quality=95,format=auto,onerror=redirect/r-xmp-wine-render.webp',
     )
     expect(image.sizes).toBe(CARD_SIZES)
   })
@@ -18,7 +18,7 @@ describe('cardImage: a card-sized copy of a gallery picture (owner, 2026-09-29)'
     expect(candidates).toHaveLength(CARD_WIDTHS.length)
     CARD_WIDTHS.forEach((width, i) => {
       expect(candidates[i]).toBe(
-        `https://media.wear-run.com/cdn-cgi/image/fit=scale-down,width=${width},height=${width * 1.25},format=auto,onerror=redirect/r-xmp-wine-render.webp ${width}w`,
+        `https://media.wear-run.com/cdn-cgi/image/fit=scale-down,width=${width},height=${width * 1.25},quality=95,format=auto,onerror=redirect/r-xmp-wine-render.webp ${width}w`,
       )
     })
   })

@@ -6,7 +6,8 @@
  * 369 x 460 CSS px. Measured with Lighthouse 13.5.0 (mobile) on the live page, 2026-09-29: the
  * first card's 791 KB render made Largest Contentful Paint 8.3–9.3 s and the score 0.67–0.74;
  * with the renders blocked the same page scored 0.88–0.90. Resized to fit 720 x 900 the first
- * three cards weigh 166 KB instead of 1.86 MB, and still carry more pixels than a phone shows.
+ * three cards weigh about 312 KB instead of 1.86 MB (quality 95, below), and still carry more
+ * pixels than a phone shows.
  *
  * ⚠️ ONLY media.wear-run.com, WHERE THE OWNER SWITCHED RESIZING ON. Cloudflare Images on the
  * free plan: 5,000 unique resizes a month at no charge, and past that a new resize FAILS rather
@@ -32,8 +33,17 @@ export const CARD_SIZES = '(max-width: 599px) calc(100vw - 42px), 340px'
 const RESIZING_ORIGIN = 'https://media.wear-run.com/'
 const DEFAULT_WIDTH = 720
 
+/*
+ * ⚠️ QUALITY 95, CHOSEN BY LOOKING (owner, 2026-09-29). The print and logos were sharp at every
+ * setting; the FABRIC GRAIN was not. At Cloudflare's default (~85) and at 90 the weave on the
+ * rxps chest panel was smoothed flat; at 95 it came back close to the original. Measured at the
+ * 720 card size, AVIF: r-xmp-wine 38 / 60 / 115 KB, rxps-wine 31 / 49 / 123 KB at default / 90 /
+ * 95 — still a sixth of the 700–791 KB renders. Do not lower it to win a score.
+ */
+const QUALITY = 95
+
 const resized = (key: string, width: number) =>
-  `${RESIZING_ORIGIN}cdn-cgi/image/fit=scale-down,width=${width},height=${width * 1.25},format=auto,onerror=redirect/${key}`
+  `${RESIZING_ORIGIN}cdn-cgi/image/fit=scale-down,width=${width},height=${width * 1.25},quality=${QUALITY},format=auto,onerror=redirect/${key}`
 
 export function cardImage(url: string): { src: string; srcSet?: string; sizes?: string } {
   if (!url.startsWith(RESIZING_ORIGIN)) return { src: url }
