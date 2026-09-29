@@ -50,10 +50,24 @@ export function FactoryLightbox() {
     return () => grid.removeEventListener('click', onClick)
   }, [])
 
+  /*
+   * ⚠️ WHILE THE LIGHTBOX SCROLLS ITSELF, THE STRIP'S OWN SCROLL EVENTS ARE IGNORED (2026-09-29).
+   * "Next" on the last photo used to smooth-scroll back across all ten; every step on the way
+   * fired `onScroll`, which set the counter to the photo passing by and re-rendered the slides,
+   * and Firefox then abandoned the smooth scroll and snapped to the nearest one — the counter
+   * read "6 / 10" for good (`e2e/lightbox.spec.ts`, failing in the full suite). So `target`
+   * holds where a button or key sent the strip until it gets there, and a wrap round the end
+   * jumps rather than sweeping back through every photo. A second at most: a visitor who swipes
+   * mid-scroll takes the counter back, even in a browser without `scrollend`.
+   */
+  const target = useRef<{ at: number; until: number } | null>(null)
+
   const show = useCallback((at: number, animate: boolean) => {
-    const smooth = animate && !matchMedia('(prefers-reduced-motion: reduce)').matches
     const count = FACTORY_PHOTOS.length
     const next = (at + count) % count
+    const wraps = next !== at
+    const smooth = animate && !wraps && !matchMedia('(prefers-reduced-motion: reduce)').matches
+    target.current = smooth ? { at: next, until: performance.now() + 1000 } : null
     setIndex(next)
     const slide = strip.current?.children[next] as HTMLElement | undefined
     slide?.scrollIntoView({
@@ -75,7 +89,13 @@ export function FactoryLightbox() {
   const onScroll = useCallback(() => {
     const row = strip.current
     if (!row || row.clientWidth === 0) return
-    setIndex(Math.round(row.scrollLeft / row.clientWidth))
+    const at = Math.round(row.scrollLeft / row.clientWidth)
+    const heading = target.current
+    if (heading) {
+      if (at !== heading.at && performance.now() < heading.until) return
+      target.current = null
+    }
+    setIndex(at)
   }, [])
 
   const photo = FACTORY_PHOTOS[index]
