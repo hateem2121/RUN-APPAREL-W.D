@@ -61,6 +61,11 @@ for (const path of PAGES) {
       // `id`) on every page today — none of the three pages preloads an image via a
       // <link>; /products' first poster instead gets eager loading + fetchPriority on
       // the <img> itself, asserted separately below.
+      // ⚠️ React 19 ADDS a `<link rel="preload" as="image">` for every non-lazy <img> with a
+      // srcSet that is NOT inside a <picture>. With the cards' resized sizes (2026-09-29) that
+      // was one per eager card — 3 on the live catalogue, 2 on CI's — competing on a phone with
+      // the one picture that is on screen. The card picture sits in a <picture> for that
+      // reason (ProductPoster.tsx); this count is what catches it coming back.
       expect(
         preloadCount,
         `${path} now hints ${preloadCount} preloads — re-measure before changing this number, ` +

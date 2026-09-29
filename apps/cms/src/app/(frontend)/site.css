@@ -1383,6 +1383,11 @@ html {
  * it — measured, a 16px pad put a visible margin around every poster that loaded
  * correctly. Changing the normal case to improve the failure case is the wrong trade.
  */
+/* The <picture> around a resized card picture (ProductPoster.tsx) adds no box of its own. */
+.product-card__picture {
+  display: contents;
+}
+
 .product-card__img {
   width: 100%;
   height: 100%;

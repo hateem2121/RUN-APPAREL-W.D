@@ -87,13 +87,51 @@ export const FLAG_AT = 2
  * Still judged — see judgePosters: past `maxRatio`, the exception stops covering it
  * and the row is flagged same as anything else.
  */
+const REVIEWED_2026_09_29 = 'owner reviewed the print on 2026-09-29 and kept it: '
+
 export const OWNER_EXCEPTIONS = [
   {
     product: 'r-wzu',
     maxRatio: 3,
     reason: 'owner\'s choice on 2026-09-17, "Shrink gently": the vest keeps its detail',
   },
+  /*
+   * 2026-09-29: the nine posters the first frozen-baseline run flagged. The owner looked at each,
+   * with a gentler re-encode beside it (quality 75, the vest's settings), and kept all nine. The
+   * re-encode left r-ifs and r-xmp identical but smoothed the knit texture on r-cch and r-csp, and
+   * r-asb is already the owner's 2026-09-17 trim — a second lossy pass would compound it. Each
+   * ceiling sits just above the ratio measured that day, so a heavier re-export still flags.
+   */
+  { product: 'r-csp', maxRatio: 3, reason: `${REVIEWED_2026_09_29}knit texture (2.84–2.93×)` },
+  { product: 'r-ifs', maxRatio: 2.5, reason: `${REVIEWED_2026_09_29}all-over print (navy 2.24×)` },
+  { product: 'r-xmp', maxRatio: 2.5, reason: `${REVIEWED_2026_09_29}dot print on white (2.14×)` },
+  { product: 'r-cch', maxRatio: 2.5, reason: `${REVIEWED_2026_09_29}rib texture (blush 2.14×)` },
+  {
+    product: 'r-asb',
+    maxRatio: 2.5,
+    reason: `${REVIEWED_2026_09_29}already trimmed 2026-09-17 (2.12×)`,
+  },
+  { product: 'r-pps', maxRatio: 2.5, reason: `${REVIEWED_2026_09_29}fleece texture (peach 2.10×)` },
 ]
+
+/**
+ * The family medians every poster is judged against, FROZEN on the day they were measured: all
+ * 200 live posters, 2026-09-29.
+ *
+ * ⚠️ WHY FROZEN. A median taken live moves every time garments are added. The rollout of
+ * 2026-09-27/28 added lighter Sportswear posters, the Sportswear median fell from 50,517 B
+ * (2026-09-17) to 46,635 B, and r-asb's two trims — unchanged files the owner had approved at
+ * 1.96× — became 2.12× and "flagged". A tripwire that fires because OTHER garments arrived
+ * measures the catalogue, not the poster. A family not listed here (a new category) is judged
+ * against its live median until someone measures it and adds it.
+ */
+export const BASELINE_MEDIANS = {
+  'Teamwear & Uniforms': 53096,
+  Sportswear: 46635,
+  Outerwear: 47106,
+  'Casual Wear': 32510,
+}
+export const BASELINE_MEASURED = '2026-09-29'
 
 /**
  * @param {number[]} values
@@ -113,10 +151,12 @@ export function median(values) {
  * against fixed numbers instead of a live fetch.
  *
  * @param {import('./poster-sizes.d.mts').PosterSample[]} posters
- * @param {{ exceptions?: import('./poster-sizes.d.mts').OwnerException[] }} [options]
+ * `baseline` (family -> bytes) replaces a family's live median; the CLI passes BASELINE_MEDIANS.
+ *
+ * @param {{ exceptions?: import('./poster-sizes.d.mts').OwnerException[], baseline?: Record<string, number> }} [options]
  * @returns {import('./poster-sizes.d.mts').PosterJudgement}
  */
-export function judgePosters(posters, { exceptions = OWNER_EXCEPTIONS } = {}) {
+export function judgePosters(posters, { exceptions = OWNER_EXCEPTIONS, baseline = {} } = {}) {
   const byFamily = new Map()
   for (const poster of posters) {
     const bucket = byFamily.get(poster.family) ?? []
@@ -124,7 +164,7 @@ export function judgePosters(posters, { exceptions = OWNER_EXCEPTIONS } = {}) {
     byFamily.set(poster.family, bucket)
   }
   const medians = {}
-  for (const [family, values] of byFamily) medians[family] = median(values)
+  for (const [family, values] of byFamily) medians[family] = baseline[family] ?? median(values)
 
   const rows = posters.map((poster) => {
     const familyMedian = medians[poster.family] ?? 0
@@ -281,15 +321,29 @@ function printTable(rows) {
   }
 }
 
+/** What `main()` judges with: the frozen medians. Exported so a test pins that it does. */
+export function judgeLive(posters) {
+  return judgePosters(posters, { baseline: BASELINE_MEDIANS })
+}
+
+/**
+ * One line per family, saying whether its median is the frozen one or measured live (a family
+ * missing from BASELINE_MEDIANS). The count is today's posters, not the baseline's.
+ */
+export function medianLines(medians, posters) {
+  return Object.entries(medians).map(([family, value]) => {
+    const count = posters.filter((poster) => poster.family === family).length
+    const source = family in BASELINE_MEDIANS ? `frozen ${BASELINE_MEASURED}` : 'live'
+    return `  ${family.padEnd(20)} median ${value} B (${source})  ${count} posters today`
+  })
+}
+
 async function main() {
   const { posters, unreadable, contentProblems } = await collectPosters()
-  const { rows, medians, flagged, excepted } = judgePosters(posters)
+  const { rows, medians, flagged, excepted } = judgeLive(posters)
 
-  console.log(`poster weight — per-family median (${new Date().toISOString().slice(0, 10)})\n`)
-  for (const [family, value] of Object.entries(medians)) {
-    const count = posters.filter((poster) => poster.family === family).length
-    console.log(`  ${family.padEnd(20)} median ${value} B  (${count} posters)`)
-  }
+  console.log(`poster weight — per-family median (run ${new Date().toISOString().slice(0, 10)})\n`)
+  for (const line of medianLines(medians, posters)) console.log(line)
   console.log()
   printTable(rows)
 
