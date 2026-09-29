@@ -117,6 +117,58 @@ async function openHarness(page: Page, options: Options = {}) {
 }
 
 const canvasOf = (page: Page) => page.locator('.contact-globe__canvas')
+
+/*
+ * ⚠️ NOTHING IS BUILT UNTIL THE GLOBE IS NEAR THE SCREEN (2026-09-29). Built at page load, cobe's
+ * 16,000-sample sphere was one long task that blocked the main thread for 175 ms while a visitor
+ * at the top of /contact was toggling the theme and typing their name — e2e/perfBudgets.spec.ts
+ * PF-04 failed on it every run, and read 0 ms with the globe switched off. The contact page puts
+ * the globe last, so on arrival it is screens away.
+ */
+test('the globe is not built until it is near the screen', async ({ page }) => {
+  const html = await globeHarnessHtml()
+  await page.route('**/__globe-harness', (route) =>
+    route.fulfill({ contentType: 'text/html', body: html }),
+  )
+  await page.addInitScript(
+    (props) => {
+      ;(window as unknown as { __GLOBE_PROPS: unknown }).__GLOBE_PROPS = props
+      const w = window as unknown as { __draws: number }
+      w.__draws = 0
+      for (const name of ['WebGL2RenderingContext', 'WebGLRenderingContext'] as const) {
+        const proto = (window as unknown as Record<string, { prototype: Record<string, unknown> }>)[
+          name
+        ]?.prototype
+        if (!proto) continue
+        const original = proto.drawArrays as ((...args: unknown[]) => unknown) | undefined
+        if (!original) continue
+        proto.drawArrays = function (this: unknown, ...args: unknown[]) {
+          w.__draws += 1
+          return original.apply(this, args)
+        }
+      }
+      // Three screens of page above the globe, as /contact has above its last section.
+      document.addEventListener('DOMContentLoaded', () => {
+        document.body.style.paddingTop = '300vh'
+      })
+    },
+    { coordinates: COORDINATES, address: ADDRESS },
+  )
+  await page.goto('/__globe-harness')
+  const hasWebgl = await page.evaluate(() => {
+    const probe = document.createElement('canvas')
+    return !!(probe.getContext('webgl2') ?? probe.getContext('webgl'))
+  })
+  test.skip(!hasWebgl, 'this browser build has no WebGL, so cobe cannot draw here')
+  await page.waitForTimeout(1000)
+  expect(await page.evaluate(() => (window as unknown as { __draws: number }).__draws)).toBe(0)
+  await expect(page.locator('.contact-globe__stage')).not.toHaveAttribute('data-globe', 'ready')
+  // NEGATIVE CONTROL: once it is near, it is built and drawn.
+  await page.locator('.contact-globe').scrollIntoViewIfNeeded()
+  await expect(page.locator('.contact-globe__stage')).toHaveAttribute('data-globe', 'ready', {
+    timeout: 15_000,
+  })
+})
 const frame = (page: Page) => canvasOf(page).screenshot()
 
 /** What a frame contains, read in the page: how much is not paper, and where the accent is. */

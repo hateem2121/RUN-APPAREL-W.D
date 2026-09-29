@@ -249,6 +249,8 @@ function startGlobe(
 export function ContactGlobe({ coordinates, address }: { coordinates: string; address: string }) {
   const works = useMemo<LatLon | null>(() => parseCoordinates(coordinates), [coordinates])
   const [live, setLive] = useState(false)
+  const [near, setNear] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
   const stage = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
 
@@ -257,8 +259,31 @@ export function ContactGlobe({ coordinates, address }: { coordinates: string; ad
     if (works && webglAvailable()) setLive(true)
   }, [works])
 
+  /*
+   * ⚠️ NOTHING IS LOADED OR BUILT UNTIL THE GLOBE IS WITHIN HALF A SCREEN (2026-09-29). Built at
+   * page load, cobe's 16,000-sample sphere was one long task — 175 ms of blocked main thread,
+   * worst task 225 ms, on the reference phone profile — landing while a visitor at the top of
+   * /contact was typing their name (e2e/perfBudgets.spec.ts PF-04; 0 ms with the globe off). The
+   * globe is the page's last section, so on arrival it is screens away.
+   */
   useEffect(() => {
-    if (!live || !works) return
+    if (!live || near) return
+    const element = root.current
+    if (!element) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return
+        observer.disconnect()
+        setNear(true)
+      },
+      { rootMargin: '50% 0px' },
+    )
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [live, near])
+
+  useEffect(() => {
+    if (!live || !near || !works) return
     let cancelled = false
     let teardown: (() => void) | undefined
     // Loaded now, not at page load: the library is ~5 KB and only this page's canvas wants it.
@@ -274,10 +299,10 @@ export function ContactGlobe({ coordinates, address }: { coordinates: string; ad
       cancelled = true
       teardown?.()
     }
-  }, [live, works])
+  }, [live, near, works])
 
   return (
-    <div className="contact-globe">
+    <div className="contact-globe" ref={root}>
       <div className="contact-globe__copy">
         <address className="contact-globe__address">{address}</address>
         {works ? <p className="contact-globe__coords">{coordinates}</p> : null}
