@@ -1,3 +1,5 @@
+import type { ProductCard } from './projectPublic'
+
 /**
  * The five product families, in one place.
  *
@@ -57,4 +59,35 @@ export const FAMILIES: readonly Family[] = [
 export function familyBySlug(slug: string | undefined): Family | null {
   if (!slug) return null
   return FAMILIES.find((family) => family.slug === slug) ?? null
+}
+
+export type FamilyPicture = { url: string; alt: string }
+
+/**
+ * One picture per family for the home page's cards (owner, 2026-09-29: "these cards should
+ * display product images so visitors know what type of products are included").
+ *
+ * The first product of the family in CMS order — the gallery's own order, so the card shows
+ * what the filtered gallery opens with — using its default colour's studio render where it
+ * has one, else the card's poster. A family with nothing to show gets `null`: the card then
+ * draws no picture at all, never a broken one. Sports Accessories has no product yet, and
+ * the owner chose to build without a stand-in photo.
+ *
+ * ⚠️ `category === name`, EXACTLY, for the same reason the gallery filter uses it — see the
+ * warning at the top of this file.
+ */
+export function familyPictures(
+  cards: readonly ProductCard[],
+): Record<string, FamilyPicture | null> {
+  const pictures: Record<string, FamilyPicture | null> = {}
+  for (const family of FAMILIES) {
+    const card = cards.find((entry) => entry.category === family.name)
+    const image = card?.colours[0]?.image
+    pictures[family.slug] = image
+      ? { url: image.url, alt: image.alt }
+      : card?.posterUrl
+        ? { url: card.posterUrl, alt: card.posterAlt }
+        : null
+  }
+  return pictures
 }

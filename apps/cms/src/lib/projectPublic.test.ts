@@ -347,6 +347,42 @@ describe('toProductCard', () => {
   })
 })
 
+/*
+ * The home page's live 3D garment (owner, 2026-09-29) needs the default colour's model. It
+ * mirrors `projectViewer.ts`: one GLB for the product in single mode, one per colour in
+ * separate mode — and never a URL a visitor is 403ed from.
+ */
+describe('the card carries its 3D model address', () => {
+  const MEDIA = ADMIN_MEDIA_ORIGIN
+
+  it('single-model products use the product GLB', () => {
+    const card = toProductCard(product({ glbAsset: { url: `${MEDIA}/rxps.glb` } }))
+    expect(card?.modelUrl).toBe(`${SITE_MEDIA}/rxps.glb`)
+  })
+
+  it('one-model-per-colour products use the default colour GLB', () => {
+    const card = toProductCard(
+      product({
+        variantMode: 'separate-glb-per-colour',
+        glbAsset: { url: `${MEDIA}/ignored.glb` },
+        colourways: [
+          { slug: 'wine', displayName: 'Wine', glbAsset: { url: `${MEDIA}/rxps-wine.glb` } },
+          { slug: 'blush', displayName: 'Blush', glbAsset: { url: `${MEDIA}/rxps-blush.glb` } },
+        ],
+      }),
+    )
+    expect(card?.modelUrl).toBe(`${SITE_MEDIA}/rxps-wine.glb`)
+  })
+
+  it('is null for a Payload-relative URL, a depth-0 id, or no model', () => {
+    expect(toProductCard(product({ glbAsset: { url: '/api/media/file/x.glb' } }))?.modelUrl).toBe(
+      null,
+    )
+    expect(toProductCard(product({ glbAsset: 42 }))?.modelUrl).toBe(null)
+    expect(toProductCard(product())?.modelUrl).toBe(null)
+  })
+})
+
 describe('projectFooter', () => {
   it('projects nothing but copy defaults from an empty global', () => {
     expect(projectFooter(null)).toEqual(EMPTY_FOOTER)

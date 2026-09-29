@@ -141,6 +141,11 @@ export interface ProductCard {
   colourNames: string[]
   /** One swipeable picture per addressable colourway, in row order. */
   colours: CardColour[]
+  /**
+   * The default colour's 3D model, for the home page's live garment (2026-09-29). `null`
+   * keeps the still poster — never a URL a visitor cannot fetch.
+   */
+  modelUrl: string | null
 }
 
 /**
@@ -232,7 +237,25 @@ export function toProductCard(
     colours: colourways.map((colour, index) =>
       toCardColour(colour, productName, index === 0 ? product.posterFallback : undefined),
     ),
+    modelUrl: pickModel(product, colourways[0]),
   }
+}
+
+/**
+ * The default colour's model, chosen exactly as `endpoints/projectViewer.ts` chooses it:
+ * one GLB on the product in single mode, one per colour in `separate-glb-per-colour` mode.
+ * The URL goes through the same public-host rewrite and the same refusal of Payload-relative
+ * URLs as the posters (`isPubliclyFetchable` below).
+ */
+function pickModel(
+  product: Record<string, unknown>,
+  defaultColour: Record<string, unknown> | undefined,
+): string | null {
+  const holder =
+    product.variantMode === 'separate-glb-per-colour' ? defaultColour?.glbAsset : product.glbAsset
+  if (!holder || typeof holder !== 'object') return null
+  const url = onSiteMedia(text((holder as { url?: unknown }).url))
+  return isPubliclyFetchable(url) ? url : null
 }
 
 /**
