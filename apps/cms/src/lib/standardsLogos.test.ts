@@ -109,8 +109,8 @@ describe('logosFor', () => {
 describe('marksFor: the one row of marks under the footer facts (owner, 2026-09-29)', () => {
   const PRODUCTION = [
     'Parent: SEDEX-registered, SMETA-audited',
-    'Parent: ISO 9001-certified',
-    'Suppliers: OEKO-TEX, GOTS, GRS, amfori BSCI',
+    'Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS',
+    'Suppliers: amfori BSCI audits',
     'Group: registered with the SECP',
   ]
 

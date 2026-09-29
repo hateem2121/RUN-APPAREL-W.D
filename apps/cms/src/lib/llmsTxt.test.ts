@@ -43,13 +43,13 @@ describe('every confirmed fact reaches the file', () => {
     // The owner's wording of 2026-09-29: the holder is still named — the parent for
     // SEDEX/SMETA, the suppliers for OEKO-TEX, GOTS and GRS.
     expect(text).toContain('operates under our parent company, DURUS INDUSTRIES')
-    expect(text).toContain('our fabric and trim suppliers hold OEKO-TEX, GOTS, and GRS')
     expect(text).toContain('SMETA-audited')
-    // Added by the owner 2026-09-29: ISO 9001 is the PARENT's, amfori BSCI the SUPPLIERS',
-    // and both companies are registered with the SECP (a regulator, so named, never a logo).
-    expect(text).toContain(
-      'DURUS INDUSTRIES, which is SEDEX-registered, SMETA-audited, and ISO 9001-certified',
-    )
+    // Owner, 2026-09-29 (corrected the same evening): ISO 9001 and amfori BSCI are the
+    // SUPPLIERS', not DURUS's; both companies are registered with the SECP (a regulator, so
+    // named, never a logo).
+    expect(text).toContain('DURUS INDUSTRIES, which is SEDEX-registered and SMETA-audited.')
+    expect(text).toContain('our fabric and trim suppliers hold ISO 9001, OEKO-TEX, GOTS, and GRS')
+    expect(text).not.toMatch(/DURUS[^.]*ISO 9001/)
     expect(text).toContain('as well as amfori BSCI audits')
     expect(text).toContain(
       'Both companies are registered with the Securities and Exchange Commission of Pakistan (SECP)',

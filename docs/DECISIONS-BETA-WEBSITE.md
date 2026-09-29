@@ -539,8 +539,10 @@ The artwork is the owner's own vector files, converted to plain SVG paths and tr
 mark (`apps/cms/public/standards/`, 3.7–22.6 KB each; `apps/cms/src/lib/standardsLogos.ts`
 records each one's source file). Six marks, and only these:
 
-- **Parent (DURUS INDUSTRIES):** Sedex, SMETA, ISO 9001.
-- **Suppliers:** OEKO-TEX STANDARD 100, GOTS, GRS. amfori BSCI stays in the text only.
+- **Parent (DURUS INDUSTRIES):** Sedex, SMETA.
+- **Suppliers:** ISO 9001, OEKO-TEX STANDARD 100, GOTS, GRS. amfori BSCI stays in the text only.
+  (ISO 9001 was first recorded as the parent's; the owner corrected it the same evening and
+  chose to keep the badge.)
 
 **One row, not marks under each entry (owner, the same evening).** The first build drew each
 entry's marks under its line; with the production entries that grew the footer slab from one

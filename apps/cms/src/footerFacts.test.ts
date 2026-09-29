@@ -87,11 +87,11 @@ describe('the footer facts the owner supplied, 2026-09-16', () => {
      */
     expect(FOOTER_FACTS.certifications.map((r) => r.name)).toEqual([
       'Parent: SEDEX-registered, SMETA-audited',
-      // Owner, 2026-09-29: ISO 9001 is the parent's, amfori BSCI the suppliers', and both
-      // companies are SECP-registered. ISO has its own row: with SEDEX and SMETA it is 49
-      // characters, one over the field's 48.
-      'Parent: ISO 9001-certified',
-      'Suppliers: OEKO-TEX, GOTS, GRS, amfori BSCI',
+      // Owner, 2026-09-29 (corrected the same evening): ISO 9001 and amfori BSCI are the
+      // SUPPLIERS', and both companies are SECP-registered. Two supplier rows, because one
+      // would be 53 characters, five over the field's 48.
+      'Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS',
+      'Suppliers: amfori BSCI audits',
       'Group: registered with the SECP',
     ])
     expect(

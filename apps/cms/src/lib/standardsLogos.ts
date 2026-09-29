@@ -4,9 +4,8 @@
  *
  * ⚠️ THIS IS AN ALLOW-LIST OF WHAT THE COMPANY MAY SHOW, NOT A LIBRARY OF EVERY MARK ON
  * DISK. RUN APPAREL holds no certification in its own name (`lib/companyFacts.ts`
- * CERTIFICATION): the parent, DURUS INDUSTRIES, is SEDEX-registered, SMETA-audited and
- * ISO 9001-certified, and the fabric and trim suppliers hold OEKO-TEX, GOTS, GRS and
- * amfori BSCI. Each record below is a body the owner has named for one of those, so a
+ * CERTIFICATION): the parent, DURUS INDUSTRIES, is SEDEX-registered and SMETA-audited, and
+ * the fabric and trim suppliers hold ISO 9001, OEKO-TEX, GOTS, GRS and amfori BSCI. Each record below is a body the owner has named for one of those, so a
  * mark appears only when an entry names it.
  *
  * ⚠️ amfori BSCI IS TEXT ONLY (owner, 2026-09-29). The only file on hand was the OLD
@@ -99,7 +98,8 @@ export const STANDARDS_LOGOS: readonly StandardLogoEntry[] = [
     words: word('GRS'),
   },
   {
-    // ISO 9001 ONLY, held by the parent DURUS (owner, 2026-09-29). The owner's file is a
+    // ISO 9001 ONLY, held by the SUPPLIERS (owner, 2026-09-29; first recorded as the parent's
+    // and corrected that evening — the owner chose to keep the badge). The owner's file is a
     // combined badge, ISO 9001 beside ISO 22000; the 9001 half was separated at its own
     // group (no path straddles the gap) and the 22000 half is NOT in this repo. "ISO 22000"
     // names no record, and a test pins that.
