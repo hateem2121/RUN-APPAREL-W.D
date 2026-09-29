@@ -45,6 +45,16 @@ describe('every confirmed fact reaches the file', () => {
     expect(text).toContain('operates under our parent company, DURUS INDUSTRIES')
     expect(text).toContain('our fabric and trim suppliers hold OEKO-TEX, GOTS, and GRS')
     expect(text).toContain('SMETA-audited')
+    // Added by the owner 2026-09-29: ISO 9001 is the PARENT's, amfori BSCI the SUPPLIERS',
+    // and both companies are registered with the SECP (a regulator, so named, never a logo).
+    expect(text).toContain(
+      'DURUS INDUSTRIES, which is SEDEX-registered, SMETA-audited, and ISO 9001-certified',
+    )
+    expect(text).toContain('as well as amfori BSCI audits')
+    expect(text).toContain(
+      'Both companies are registered with the Securities and Exchange Commission of Pakistan (SECP)',
+    )
+    expect(text).not.toContain('ISO 22000')
     expect(text).not.toContain('SMETA-certified')
   })
 })

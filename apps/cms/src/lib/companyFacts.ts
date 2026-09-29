@@ -55,12 +55,21 @@ export const SHIPS_TO = 'Worldwide — wherever your team is.'
  * certification in its own name" but keeps every holder named — the parent for SEDEX and
  * SMETA, the suppliers for OEKO-TEX, GOTS and GRS — which is the part the compliance check
  * above depends on. `llmsTxt.test.ts` pins both halves.
+ *
+ * EXTENDED BY THE OWNER THE SAME DAY: ISO 9001 is DURUS's (only 9001 — their badge file also
+ * says ISO 22000, a food-safety standard that is not held), amfori BSCI audits are the
+ * SUPPLIERS', and BOTH companies are registered with the SECP. The owner left the sentence to
+ * us; the ruling kept every holder named and put the SECP in a sentence of its own, because a
+ * regulator's registration is a legal fact about the companies, not a standard they meet —
+ * which is also why the footer shows it as text and never as a logo.
  */
 export const CERTIFICATION =
-  'RUN APPAREL operates under our parent company, DURUS INDUSTRIES, which is SEDEX-registered ' +
-  'and SMETA-audited. We operate within the same facility, and our fabric and trim suppliers ' +
-  'hold OEKO-TEX, GOTS, and GRS certifications. We are fully prepared to pursue any ' +
-  'program-specific certifications required for your needs.'
+  'RUN APPAREL operates under our parent company, DURUS INDUSTRIES, which is SEDEX-registered, ' +
+  'SMETA-audited, and ISO 9001-certified. We operate within the same facility, and our fabric ' +
+  'and trim suppliers hold OEKO-TEX, GOTS, and GRS certifications, as well as amfori BSCI ' +
+  'audits. Both companies are registered with the Securities and Exchange Commission of ' +
+  'Pakistan (SECP). We are fully prepared to pursue any program-specific certifications ' +
+  'required for your needs.'
 
 /**
  * ⚠️ 1889 IS A FAMILY TRADE, NOT A COMPANY FOUNDING DATE — which is why no `foundingDate`

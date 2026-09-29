@@ -68,7 +68,11 @@ export const FOOTER_FACTS = {
   worksCoordinates: '32.41° N · 74.46° E',
   certifications: [
     { name: 'Parent: SEDEX-registered, SMETA-audited' },
-    { name: 'Suppliers: OEKO-TEX, GOTS, GRS' },
+    // Owner, 2026-09-29. ISO 9001 has its own row: joined to the one above it is 49
+    // characters, one over the CMS field's 48. SECP is a regulator: "Group" (both companies).
+    { name: 'Parent: ISO 9001-certified' },
+    { name: 'Suppliers: OEKO-TEX, GOTS, GRS, amfori BSCI' },
+    { name: 'Group: registered with the SECP' },
   ],
   socialLinks: [
     { label: 'LinkedIn', url: 'https://www.linkedin.com/company/run-apparel-pvt-ltd' },
