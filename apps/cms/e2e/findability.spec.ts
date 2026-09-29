@@ -486,7 +486,9 @@ test.describe('IM-04 — card sizes only where Cloudflare resizes, and the size 
    * is `scripts/media-content-probe.mjs`'s job, against live production — see the PR
    * report for today's live confirmation.
    */
-  test('the gallery declares the one size a phone needs: 1200 x 1500', async ({ request }) => {
+  test('the gallery reserves a 4:5 box for every card picture: 1200 x 1500', async ({
+    request,
+  }) => {
     const html = await (await request.get('/products')).text()
     const images = [
       ...html.matchAll(/<img[^>]*\bclass="[^"]*\bproduct-card__img\b[^"]*"[^>]*>/g),

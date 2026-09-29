@@ -47,5 +47,14 @@ describe('cardImage: a card-sized copy of a gallery picture (owner, 2026-09-29)'
   it('never resizes a picture twice', () => {
     const once = cardImage(RENDER).src
     expect(cardImage(once)).toEqual({ src: once })
+    // The branch that matters: an absolute resize URL ON the media host is left alone too.
+    const onHost = 'https://media.wear-run.com/cdn-cgi/image/width=100/r-xmp-wine-render.webp'
+    expect(cardImage(onHost)).toEqual({ src: onHost })
+  })
+
+  // Two columns start at 586 px (2 x 260 px cards + a 24 px gap + 42 px of gutters), so a
+  // full-width `sizes` above that over-fetches.
+  it('treats the page as one column only below 586 px', () => {
+    expect(cardImage(RENDER).sizes).toBe('(max-width: 585px) calc(100vw - 42px), 340px')
   })
 })

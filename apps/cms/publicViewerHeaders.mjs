@@ -144,7 +144,9 @@ export const PUBLIC_PAGE_ISOLATION = [
  * (mobile) on the live /products, 2026-09-29: a 307 from the page to itself before every run,
  * costing 0.7–3.0 s before the first byte; sending the hint up front removed it and brought
  * First Contentful Paint from 1.8–2.2 s to 1.4–1.6 s. The public pages never read the hint —
- * their theme is CSS, `prefers-color-scheme` — so here nothing is critical. `Accept-CH` and
+ * their theme is CSS, `prefers-color-scheme` — so here nothing is critical. ⚠️ Measured on the
+ * OpenNext build: the empty value is DROPPED, so the page carries no `critical-ch` header at all.
+ * That is equally correct; a `curl -I` that shows none is this rule working, not missing. `Accept-CH` and
  * `Vary` stay as Payload set them, and /admin keeps its own Critical-CH (the rule is scoped to
  * the five pages, like the policy above).
  */

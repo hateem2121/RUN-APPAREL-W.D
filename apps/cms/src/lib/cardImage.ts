@@ -13,24 +13,32 @@
  * free plan: 5,000 unique resizes a month at no charge, and past that a new resize FAILS rather
  * than bills. `onerror=redirect` then sends the browser to the original file, so the worst case
  * is today's page, never a broken card. This page asks for ~3 sizes x ~200 pictures. The admin's
- * media.wear-run.help is another zone and a local build serves Payload's relative path, so both
- * pass through untouched.
+ * media.wear-run.help passes through untouched: resizing works there too (measured), but a
+ * picture from that host is blocked on a wear-run.com page by its same-site resource policy, so
+ * the public pages never carry one. A local build's relative Payload paths pass through as well.
  *
  * `fit=scale-down` never enlarges, and fits the picture INSIDE a 4:5 box, as the card's
  * `object-fit: contain` does — a tall render is bounded by the height, a wide one by the width.
  */
 
+import { SITE_MEDIA_ORIGIN } from './siteMedia'
+
 /** The card box widths offered, 4:5 each: 400 for 1x screens, 720 and 1,080 for 2x and 3x phones. */
 export const CARD_WIDTHS = [400, 720, 1080] as const
 
 /**
- * How wide a card draws: one column below ~600 px (`.product-grid` is auto-fill minmax(260px, 1fr)
- * inside the page gutters), else ~310–340 px. Measured on the live page 2026-09-29: 348 px at
- * 390, 369 at 412, 332 at 768, 333 at 1280, 308 at 1920.
+ * How wide a card draws: one column below 586 px (`.product-grid` is auto-fill minmax(260px, 1fr):
+ * two 260 px cards, a 24 px gap and 42 px of gutters need 586), else ~310–340 px. Measured on the
+ * live page 2026-09-29: 348 px at 390, 369 at 412, 332 at 768, 333 at 1280, 308 at 1920.
+ *
+ * The `w` numbers describe the 4:5 BOX, not the picture inside it. A render taller than 4:5 comes
+ * back narrower than the box, but it is height-bound in the card too (`object-fit: contain`), so
+ * the height it needs is what the box gives: a 3x phone's 434 px-tall card needs 1,302 px, and
+ * the 1,080 box is 1,350 px tall.
  */
-export const CARD_SIZES = '(max-width: 599px) calc(100vw - 42px), 340px'
+export const CARD_SIZES = '(max-width: 585px) calc(100vw - 42px), 340px'
 
-const RESIZING_ORIGIN = 'https://media.wear-run.com/'
+const RESIZING_ORIGIN = `${SITE_MEDIA_ORIGIN}/`
 const DEFAULT_WIDTH = 720
 
 /*
