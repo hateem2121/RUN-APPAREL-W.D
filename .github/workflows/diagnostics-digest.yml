@@ -36,11 +36,16 @@ on:
 # written to end.
 permissions:
   contents: read
-  issues: write
 
 jobs:
   digest:
     if: vars.DEPLOY_ENABLED == 'true'
+    # The one job here that files an issue gets `issues: write`, not the whole
+    # workflow (zizmor excessive-permissions, 2026-09-29). A job-level block
+    # REPLACES the workflow's, so `contents: read` is restated.
+    permissions:
+      contents: read
+      issues: write
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     # ⚠️ STEP ONE OF TWO, AND THE ORDER IS LOAD-BEARING. This job reads
@@ -61,6 +66,10 @@ jobs:
       # sit here are now scoped to the two steps that need them — see below.
       GH_TOKEN: ${{ github.token }}
     steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
       # Aligned to the versions every other workflow here already proves in
       # production: ci.yml, deploy-shrink.yml and nightly-backup.yml all run green
       # on checkout@v7 + setup-node@v7. This file had drifted to v5/v6.

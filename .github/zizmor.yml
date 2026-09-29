@@ -1,0 +1,36 @@
+# zizmor config: the REVIEWED exceptions to its findings, each with its reason.
+# Read by the `zizmor (workflow security)` step in ci.yml's `verify` (`--config`).
+#
+# Lives in .github/, NOT .github/workflows/: every .yml there is treated as a workflow
+# by apps/cms/src/workflowHardening.test.ts.
+#
+# An entry here is a decision, not a silencer. Each one names the file (never a whole
+# audit), so the same finding anywhere else still fails the build. Measured 2026-09-29
+# against zizmor 1.30.1, default persona: 4 findings — these three, and a template
+# injection in ci.yml that was FIXED rather than listed.
+rules:
+  # lighthouse-live.yml runs on `workflow_run`, which zizmor flags on sight because such
+  # a run holds the base repository's token while a pull request's CI may have started
+  # it. Reviewed 2026-09-29 and safe here, for three reasons in that file:
+  #   - its job acts only on a green PUSH to main (`workflow_run.event == 'push'`), so a
+  #     fork whose branch is also called `main` does not qualify;
+  #   - it checks out the default branch, never the triggering run's head, so no
+  #     pull request's code runs;
+  #   - its token is `contents: read` and the job reads no secret.
+  # It is a separate workflow so its ~17-minute measurement never holds ci.yml's deploy
+  # queue (the reason is written at the top of that file).
+  dangerous-triggers:
+    ignore:
+      - lighthouse-live.yml
+
+  # Two by-hand test rigs install one-off tools with `npm install --prefix $RUNNER_TEMP`
+  # instead of from the lockfile. Reviewed 2026-09-29: every package is pinned to an
+  # exact version, installed into a throwaway directory for that run only, neither job
+  # holds a secret, and android-chrome.yml runs only by hand (voiceover.yml also on a
+  # pull request that edits its own files). voiceover.yml records the design: installed
+  # "for the run only, into $RUNNER_TEMP", so "this repo's pnpm-lock.yaml and every
+  # package.json stay untouched".
+  adhoc-packages:
+    ignore:
+      - android-chrome.yml
+      - voiceover.yml

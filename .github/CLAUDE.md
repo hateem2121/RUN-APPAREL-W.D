@@ -3,7 +3,7 @@
 🔴 = stops here, do not proceed. 🟡 = read before acting. 🟢 = context.
 
 Loads when you touch `.github/`. Every workflow change is gated by
-`apps/cms/src/workflowHardening.test.ts` — seventeen rules, eleven with their own
+`apps/cms/src/workflowHardening.test.ts` — eighteen rules, twelve with their own
 negative control (counted 2026-09-29), so a failure names the file and line. Run it before pushing a
 workflow edit:
 
@@ -67,6 +67,12 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   asserts the 40-hex FORMAT and a version comment, both of which a tag object
   satisfies. It cannot assert more without a network call, and a unit test that
   reaches the network is a worse trade — so this is a doc rule, deliberately.
+  🟢 **Since 2026-09-29 a CI step makes network calls of this kind:** `verify` runs
+  zizmor with the job's token, whose online audits check pinned SHAs against each
+  action's own repository (`impostor-commit`; `ref-version-mismatch` compares the
+  `# vX.Y.Z` comment with the commit). Whether they name a tag-OBJECT SHA was NOT
+  proven when it was added (the API was unreachable from that session), so keep
+  dereferencing by hand. Reviewed zizmor exceptions live in `.github/zizmor.yml`.
   Dereference before pinning, and verify:
   ```bash
   gh api /repos/OWNER/REPO/commits/vX.Y.Z --jq .sha        # always the commit
@@ -132,8 +138,8 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   goes through a PR.
   🟡 ORDER MATTERS: setting `production` to protected-branches-only *before* `main`
   is protected blocks every deploy. Create the ruleset first.
-- **Editing a workflow? `apps/cms/src/workflowHardening.test.ts` gates it — seventeen
-  rules, eleven with their own negative control.** Every workflow declares a top-level
+- **Editing a workflow? `apps/cms/src/workflowHardening.test.ts` gates it — eighteen
+  rules, twelve with their own negative control.** Every workflow declares a top-level
   `permissions:` block that includes `contents`; every `uses:` is a 40-hex SHA with a
   `# vX.Y.Z` comment (Dependabot maintains both); every `actions/checkout` sets
   `persist-credentials: false`; no `run:` block interpolates `${{ github.event.* }}`,
@@ -145,7 +151,9 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   schedule (`ubuntu-26.04` since 2026-09-29; actionlint 1.7.12 needed it listed in
   `.github/actionlint.yaml`, and `verify`'s first step fails by name if the image
   lacks a tool a workflow relies on); a Playwright
-  `container: image:` tag equals the declared `@playwright/test` version; every job is
+  `container: image:` tag equals the declared `@playwright/test` version and carries a
+  `@sha256:` digest (since 2026-09-29); every job that can host it starts with the
+  Harden-Runner network guard (it cannot run in a `container:` job); every job is
   in `deploy.needs` unless it is on the written non-gating allow-list; no key nests
   under a key that already has a value; every workflow `heartbeat.yml` watches exists
   and parses; `DEPLOY_MESSAGE` has no space; the vulnerability audit retries only on

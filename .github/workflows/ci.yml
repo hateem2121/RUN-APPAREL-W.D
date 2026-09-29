@@ -43,7 +43,11 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
-      # RUNNER IMAGE FACTS, FIRST, SO A MISSING TOOL FAILS BY NAME. Every job here names
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      # RUNNER IMAGE FACTS, EARLY, SO A MISSING TOOL FAILS BY NAME. Every job here names
       # its image (ubuntu-26.04 since 2026-09-29; the rule is in workflowHardening.test.ts),
       # and GitHub says a new image carries tools "updated, and in some cases removed".
       # These are the preinstalled ones this repository leans on without saying so:
@@ -53,13 +57,14 @@ jobs:
       #   shellcheck    actionlint only shell-checks `run:` blocks when it is on PATH, so
       #                 without it the lint below gets WEAKER and stays green
       #   GNU date -d   deploy-shrink's "did the container image move" drift check
+      #   unzip         takes the zizmor binary out of its wheel, below
       # Same image as the deploy and scheduled jobs, so this job is their canary too.
       - name: Runner image has the tools the workflows rely on
         run: |
           set -euo pipefail
           . /etc/os-release && echo "runner image: ${PRETTY_NAME}"
           missing=0
-          for tool in docker gh google-chrome shellcheck curl git tar sha256sum; do
+          for tool in docker gh google-chrome shellcheck curl git tar sha256sum unzip; do
             if path="$(command -v "$tool")"; then
               echo "ok  $tool → $path"
             else
@@ -168,6 +173,45 @@ jobs:
           # with a clear message rather than as an ambiguous clean run.
           /tmp/actionlint --version
           /tmp/actionlint
+
+      # WORKFLOW SECURITY, BY THE TOOL BUILT FOR IT (zizmor, added 2026-09-29). actionlint
+      # checks that a workflow is VALID; zizmor checks that it is SAFE — template
+      # injection, over-broad tokens, dangerous triggers, and, with a token, pinned
+      # `uses:` SHAs against each action's own repository (`impostor-commit`,
+      # `ref-version-mismatch`) — the network call workflowHardening.test.ts
+      # deliberately does not make (.github/CLAUDE.md, the pinning trap).
+      #
+      # Installed like gitleaks and actionlint — pinned, downloaded TO A FILE, checked,
+      # version printed — but from PyPI, whose release carries a published SHA-256 per
+      # file (zizmor's GitHub release publishes no checksum). The wheel is a zip holding
+      # the one static binary; unzip takes it out, no Python involved.
+      #
+      # Default persona. Reviewed exceptions live in .github/zizmor.yml, each with its
+      # reason. Measured against these workflows before it was added: 4 findings, fixed or
+      # recorded there; the stricter `pedantic` persona's errors were fixed too.
+      - name: zizmor (workflow security)
+        env:
+          ZIZMOR_VERSION: 1.30.1
+          ZIZMOR_SHA256_X64: eee12266b793cb87ad4a7e3af2e72404f8a63e3de5eb099b80bf7b1cfd232a8e
+          ZIZMOR_URL_X64: https://files.pythonhosted.org/packages/63/55/1900b53d34dcebc207cf3ceb7957b3748e8bb40958f062e3853ab72f2395/zizmor-1.30.1-py3-none-manylinux_2_28_x86_64.whl
+          ZIZMOR_SHA256_ARM64: 92906f448365672ebb657fb50d36f997290a3aaba8cac723214741ea9054845d
+          ZIZMOR_URL_ARM64: https://files.pythonhosted.org/packages/37/9c/43764a6e9eb5ad5a332202afc3e63622e3380669ecf7079b6b0de892e474/zizmor-1.30.1-py3-none-manylinux_2_24_aarch64.whl
+          # For the online audits (impostor-commit, known-vulnerable-actions). The job's
+          # own read-only token; nothing here writes.
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            x86_64|amd64) ZZ_URL="${ZIZMOR_URL_X64}"; ZZ_SHA="${ZIZMOR_SHA256_X64}" ;;
+            aarch64|arm64) ZZ_URL="${ZIZMOR_URL_ARM64}"; ZZ_SHA="${ZIZMOR_SHA256_ARM64}" ;;
+            *) echo "::error::unsupported arch $(uname -m) — add its zizmor wheel and checksum"; exit 1 ;;
+          esac
+          curl -sSfL --retry 5 --retry-delay 3 --retry-all-errors -o /tmp/zizmor.whl "${ZZ_URL}"
+          echo "${ZZ_SHA}  /tmp/zizmor.whl" | sha256sum -c -
+          unzip -p /tmp/zizmor.whl "zizmor-${ZIZMOR_VERSION}.data/scripts/zizmor" > /tmp/zizmor
+          chmod +x /tmp/zizmor
+          /tmp/zizmor --version
+          /tmp/zizmor --config .github/zizmor.yml --format github .
 
       - run: pnpm typecheck
 
@@ -328,7 +372,7 @@ jobs:
     # cancelled while the others finish.
     timeout-minutes: 20
     container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
     strategy:
       # Every shard reports, so one failure never hides another's.
       fail-fast: false
@@ -438,6 +482,10 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -516,6 +564,10 @@ jobs:
     # normal case this job still finishes in about two minutes.
     timeout-minutes: 20
     steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -677,6 +729,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -801,6 +857,10 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -988,7 +1048,7 @@ jobs:
     # in silence. ⚠️ Bumping the tag needs the runner image REBUILT to take effect —
     # see infra/ci-runner/README.md.
     container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1130,6 +1190,10 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -1214,7 +1278,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: node scripts/backup-d1.mjs --stamp="pre-deploy-${{ github.sha }}"
+        run: node scripts/backup-d1.mjs --stamp="pre-deploy-${GITHUB_SHA}"
 
       # ⚠️ THE ONE BACKUP NOBODY CHECKED, TAKEN AT THE ONE MOMENT IT MATTERS MOST.
       #
@@ -1541,12 +1605,15 @@ jobs:
         # minutes would buy nothing. See check 4 in the script.
         env:
           SMOKE_BROWSER_GET: '1'
+          # In `env:`, not pasted into `run:` — zizmor's template-injection rule
+          # (2026-09-29). A repository variable is ours, but the habit is the point.
+          API_BASE: ${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}
         # Loops EVERY live product since 2026-08-30. It ran only `rxps` before, so
         # the second live garment (`r-xmp`, X-MILO PRO BIB) was verified by nothing.
         # ⚠️ The list itself narrowed again on 2026-09-04 — nine garments were published
         # and scripts/live-products.mjs still named two, so this step gated 2 of 11.
         # Now eleven: 37 s measured, all green, and a fake twelfth row exits 1.
-        run: node scripts/smoke-live-products.mjs "${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}"
+        run: node scripts/smoke-live-products.mjs "$API_BASE"
 
       # The per-garment link preview is produced by an HTMLRewriter in
       # apps/viewer/worker/index.ts, and HTMLRewriter does not exist under vitest —
