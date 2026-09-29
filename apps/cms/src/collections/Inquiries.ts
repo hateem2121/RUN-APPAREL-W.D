@@ -1,5 +1,42 @@
-import type { CollectionConfig } from 'payload'
+import type {
+  CollectionAfterDeleteHook,
+  CollectionBeforeDeleteHook,
+  CollectionConfig,
+} from 'payload'
 import { isAdmin, isSignedInPerson } from '../access/roles'
+
+/*
+ * ⚠️ AN INQUIRY'S FILES GO WITH IT (owner, 2026-09-29: "keep until deleted"), IN TWO HALVES.
+ * The file rows are found BEFORE the delete, because the database nulls their `inquiry`
+ * column as the inquiry row goes (`ON DELETE set null`), after which nothing links them. They
+ * are deleted AFTER it, so a delete that fails leaves the files with their inquiry rather
+ * than an inquiry whose files are gone. Deleting each through Payload is what removes the
+ * object from R2 too (the storage adapter's own afterDelete).
+ */
+const FILES_TO_DELETE = 'inquiryFilesToDelete'
+
+export const rememberFilesToDelete: CollectionBeforeDeleteHook = async ({ id, req }) => {
+  const { docs } = await req.payload.find({
+    collection: 'inquiry-files',
+    where: { inquiry: { equals: id } },
+    depth: 0,
+    limit: 0,
+    pagination: false,
+    overrideAccess: true,
+    req,
+  })
+  const pending = (req.context[FILES_TO_DELETE] ?? {}) as Record<string, (string | number)[]>
+  pending[String(id)] = docs.map((doc) => doc.id)
+  req.context[FILES_TO_DELETE] = pending
+}
+
+export const deleteRememberedFiles: CollectionAfterDeleteHook = async ({ id, req }) => {
+  const pending = (req.context[FILES_TO_DELETE] ?? {}) as Record<string, (string | number)[]>
+  for (const fileId of pending[String(id)] ?? []) {
+    await req.payload.delete({ collection: 'inquiry-files', id: fileId, overrideAccess: true, req })
+  }
+  delete pending[String(id)]
+}
 
 /**
  * Inquiries sent through the contact form.
@@ -46,11 +83,46 @@ export const Inquiries: CollectionConfig = {
     // Payload's own `createdAt` is the received time; a second field would drift from it.
     disableCopyToLocale: true,
   },
+  hooks: {
+    beforeDelete: [rememberFilesToDelete],
+    afterDelete: [deleteRememberedFiles],
+  },
   fields: [
     { name: 'name', type: 'text', required: true, admin: { readOnly: true } },
     { name: 'company', type: 'text', admin: { readOnly: true } },
     { name: 'email', type: 'email', required: true, admin: { readOnly: true } },
     { name: 'message', type: 'textarea', required: true, admin: { readOnly: true } },
+    // The optional details added to the form on 2026-09-29 (owner). Read-only like the rest:
+    // what the buyer sent is a record, not a draft.
+    { name: 'jobTitle', type: 'text', admin: { readOnly: true } },
+    { name: 'country', type: 'text', admin: { readOnly: true } },
+    {
+      name: 'phone',
+      type: 'text',
+      admin: { readOnly: true, description: 'Stored as typed, with the country code first.' },
+    },
+    { name: 'subject', type: 'text', admin: { readOnly: true } },
+    /*
+     * A JOIN, NOT A STORED LIST: each file row names its inquiry (`InquiryFiles.inquiry`), and
+     * this reads them back. So attaching a file is ONE write — no second update of this row that
+     * could fail after the file is already stored and leave it unlisted.
+     */
+    {
+      name: 'files',
+      type: 'join',
+      collection: 'inquiry-files',
+      on: 'inquiry',
+      admin: { description: 'Files attached to this inquiry. They download when opened.' },
+    },
+    {
+      name: 'filesError',
+      type: 'text',
+      admin: {
+        readOnly: true,
+        description:
+          'Why an attached file could not be saved, if one could not. The message itself was saved.',
+      },
+    },
     {
       name: 'status',
       type: 'select',

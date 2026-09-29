@@ -2,7 +2,8 @@
 
 **In plain words:** How we copy the database and files to safety, and how to bring them back.
 
-Everything the viewer depends on lives in **three** Cloudflare resources, plus the
+Everything the viewer depends on lives in **three** Cloudflare resources (a fourth, the
+contact form's private files bucket, joined on 2026-09-29), plus the
 **master files** — raw CLO exports and the owner's production-ready FIXED GLBs — which
 live on the owner's Mac only and have no off-site copy of any kind (owner decision,
 2026-09-24; see "The master files" below for the history). The third Cloudflare
@@ -15,6 +16,7 @@ owner retired it 2026-09-24 — see below:
 |---|---|---|
 | **D1** `run-apparel-viewer-db` | all products, colourways, media rows, site settings, users, analytics events | `scripts/backup-d1.mjs` → `backups/d1/*.sql` |
 | **R2** `run-apparel-viewer-media` | every uploaded GLB model + poster image | `scripts/backup-r2.mjs` → `backups/r2/<stamp>/media/` |
+| **R2** `run-apparel-inquiry-files` (since 2026-09-29) | the files buyers attach to the contact form — customers' own documents; PRIVATE, no public address, kept until their inquiry is deleted | `scripts/backup-r2.mjs` → `backups/r2/<stamp>/inquiry-files/` (weekly, encrypted like the rest) |
 | **R2** `run-assets` | the two customer-facing PDFs behind the private catalogue and profile links (71.2 MB); the page pictures under `documents/` are regenerated from them and not backed up | `scripts/backup-r2.mjs` → `backups/r2/<stamp>/apex/` |
 | **Owner's Mac only** | the **master files**: raw CLO exports and the FIXED GLBs (the owner's production-ready folder) | **nothing — no off-site copy.** An R2 bucket (`run-apparel-archive`) mirrored these from 2026-09-02 until the owner retired it 2026-09-24; see "The master files" below |
 
@@ -110,7 +112,7 @@ since. The FIXED GLBs folder remains the canonical home of production-ready file
 ```bash
 # production (needs Cloudflare auth: wrangler login, or CLOUDFLARE_API_TOKEN)
 node scripts/backup-d1.mjs            # → backups/d1/run-apparel-viewer-db-<timestamp>.sql
-node scripts/backup-r2.mjs            # → backups/r2/<timestamp>/{media,apex}/
+node scripts/backup-r2.mjs            # → backups/r2/<timestamp>/{media,inquiry-files,apex}/
 node scripts/backup-r2.mjs --apex-only # → just the two customer PDFs (71 MB)
 
 # against the local dev database/bucket instead
@@ -224,7 +226,9 @@ curl -f https://cms.wear-run.help/api/health     # confirm the CMS is back
 
 ## Restoring R2
 
-⚠️ **A BACKUP HAS TWO FOLDERS AND THEY GO TO TWO DIFFERENT BUCKETS.**
+⚠️ **A BACKUP HAS THREE FOLDERS AND THEY GO TO THREE DIFFERENT BUCKETS.** Since
+2026-09-29 there is a third, `inquiry-files/` → `run-apparel-inquiry-files` (step 3 below);
+it may be empty, because most inquiries attach nothing.
 `scripts/backup-r2.mjs` writes `backups/r2/<stamp>/media/…` **and**
 `backups/r2/<stamp>/apex/…`. The version of this section that ran until
 2026-08-31 looped over `<stamp>/*`, which after that layout change yields two
@@ -242,6 +246,7 @@ BASE=../../backups/r2/<timestamp>
 find "$BASE" -maxdepth 1 -mindepth 1 -type d
 find "$BASE/media" -type f | wc -l     # expect the media-object count
 find "$BASE/apex"  -type f | wc -l     # expect 2
+find "$BASE/inquiry-files" -type f | wc -l  # expect the inquiry_files row count; 0 is normal
 ```
 
 ```bash
@@ -261,6 +266,16 @@ done
 find "$BASE/apex" -type f | while read -r f; do
   key="${f#"$BASE/apex/"}"
   npx wrangler@4.140.0 r2 object put "run-assets/$key" --file "$f" --remote
+done
+```
+
+```bash
+# 3. Files buyers attached to inquiries -> run-apparel-inquiry-files. Customers' own
+#    documents: restore them only into this PRIVATE bucket, never into media, whose
+#    objects are public on media.wear-run.com.
+find "$BASE/inquiry-files" -type f | while read -r f; do
+  key="${f#"$BASE/inquiry-files/"}"
+  npx wrangler@4.140.0 r2 object put "run-apparel-inquiry-files/$key" --file "$f" --remote
 done
 ```
 

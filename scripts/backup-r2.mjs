@@ -29,6 +29,12 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const cmsDir = join(root, 'apps', 'cms')
 const DB = 'run-apparel-viewer-db'
 const BUCKET = 'run-apparel-viewer-media'
+/**
+ * The files buyers attach to the contact form (owner, 2026-09-29: "Create it + back it up").
+ * Enumerated from the `inquiry_files` table exactly as media is from `media`. These are
+ * customers' own documents, which is why the workflow's lock step matters here most of all.
+ */
+const INQUIRY_BUCKET = 'run-apparel-inquiry-files'
 
 /**
  * The apex PDFs, in the bucket the separate `run-apparel` site also uses.
@@ -101,30 +107,52 @@ const wrangler = (args, opts = {}) => {
   throw lastError
 }
 
+/**
+ * Object keys and sizes from one upload collection's table. `filesize` as well as `filename`,
+ * so each written file can be CHECKED rather than assumed. See `save()` below.
+ */
+const listObjects = (table) => {
+  const raw = wrangler([
+    'd1',
+    'execute',
+    DB,
+    mode,
+    '--json',
+    '--command',
+    `SELECT filename, filesize FROM ${table} WHERE filename IS NOT NULL`,
+  ])
+  const jsonStart = raw.search(/[[{]/)
+  const parsed = JSON.parse(jsonStart >= 0 ? raw.slice(jsonStart) : raw)
+  const results = Array.isArray(parsed) ? (parsed[0]?.results ?? []) : (parsed.results ?? [])
+  return results
+    .filter((r) => r.filename)
+    .map((r) => ({
+      name: r.filename,
+      size: typeof r.filesize === 'number' ? r.filesize : null,
+    }))
+}
+
 // 1. Enumerate object keys from the media table. Skipped entirely under --apex-only.
-const filenames = APEX_ONLY
+const filenames = APEX_ONLY ? [] : listObjects('media')
+
+/*
+ * ⚠️ ZERO INQUIRY FILES IS NORMAL, UNLIKE ZERO MEDIA — most inquiries attach nothing — so the
+ * empty-enumeration error below is for `media` only. A MISSING TABLE is tolerated for one
+ * reason: on the day this ships, `main` carries this script a few minutes before the deploy
+ * job migrates production, and a backup that went red for that window would teach people to
+ * ignore it. Any other error still stops the run.
+ */
+const inquiryFiles = APEX_ONLY
   ? []
   : (() => {
-      const raw = wrangler([
-        'd1',
-        'execute',
-        DB,
-        mode,
-        '--json',
-        '--command',
-        // `filesize` as well as `filename`, so each written file can be CHECKED rather
-        // than assumed. See `save()` below.
-        'SELECT filename, filesize FROM media WHERE filename IS NOT NULL',
-      ])
-      const jsonStart = raw.search(/[[{]/)
-      const parsed = JSON.parse(jsonStart >= 0 ? raw.slice(jsonStart) : raw)
-      const results = Array.isArray(parsed) ? (parsed[0]?.results ?? []) : (parsed.results ?? [])
-      return results
-        .filter((r) => r.filename)
-        .map((r) => ({
-          name: r.filename,
-          size: typeof r.filesize === 'number' ? r.filesize : null,
-        }))
+      try {
+        return listObjects('inquiry_files')
+      } catch (error) {
+        const text = `${error?.stdout ?? ''}${error?.stderr ?? ''}${error?.message ?? ''}`
+        if (!/no such table: inquiry_files/.test(text)) throw error
+        console.warn('[backup-r2] the inquiry_files table does not exist yet; skipping it.')
+        return []
+      }
     })()
 
 console.log(
@@ -217,11 +245,13 @@ const save = (bucket, key, subdir, expectedSize = null) => {
 }
 
 for (const { name, size } of filenames) save(BUCKET, name, 'media', size)
+console.log(`[backup-r2] ${inquiryFiles.length} inquiry files to back up from ${INQUIRY_BUCKET}`)
+for (const { name, size } of inquiryFiles) save(INQUIRY_BUCKET, name, 'inquiry-files', size)
 
 console.log(`[backup-r2] ${APEX_KEYS.length} apex PDFs to back up from ${APEX_BUCKET}`)
 for (const key of APEX_KEYS) save(APEX_BUCKET, key, 'apex')
 
-const expectedSaves = filenames.length + APEX_KEYS.length
+const expectedSaves = filenames.length + inquiryFiles.length + APEX_KEYS.length
 console.log(
   `[backup-r2] done: ${ok} saved, ${fail} failed` +
     (unverified > 0 ? `, ${unverified} saved but size-unverified` : '') +

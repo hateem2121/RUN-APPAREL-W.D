@@ -124,6 +124,7 @@ export interface Config {
     products: Product;
     events: Event;
     inquiries: Inquiry;
+    'inquiry-files': InquiryFile;
     'document-visits': DocumentVisit;
     'document-visit-salts': DocumentVisitSalt;
     'document-visit-emails': DocumentVisitEmail;
@@ -137,6 +138,9 @@ export interface Config {
     products: {
       rawUploads: 'raw-uploads';
     };
+    inquiries: {
+      files: 'inquiry-files';
+    };
     'payload-folders': {
       documentsAndFolders: 'payload-folders' | 'media';
     };
@@ -148,6 +152,7 @@ export interface Config {
     products: ProductsSelect<false> | ProductsSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
     inquiries: InquiriesSelect<false> | InquiriesSelect<true>;
+    'inquiry-files': InquiryFilesSelect<false> | InquiryFilesSelect<true>;
     'document-visits': DocumentVisitsSelect<false> | DocumentVisitsSelect<true>;
     'document-visit-salts': DocumentVisitSaltsSelect<false> | DocumentVisitSaltsSelect<true>;
     'document-visit-emails': DocumentVisitEmailsSelect<false> | DocumentVisitEmailsSelect<true>;
@@ -542,6 +547,25 @@ export interface Inquiry {
   company?: string | null;
   email: string;
   message: string;
+  jobTitle?: string | null;
+  country?: string | null;
+  /**
+   * Stored as typed, with the country code first.
+   */
+  phone?: string | null;
+  subject?: string | null;
+  /**
+   * Files attached to this inquiry. They download when opened.
+   */
+  files?: {
+    docs?: (number | InquiryFile)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * Why an attached file could not be saved, if one could not. The message itself was saved.
+   */
+  filesError?: string | null;
   /**
    * The one field on this screen you are meant to change.
    */
@@ -556,6 +580,26 @@ export interface Inquiry {
   notifyError?: string | null;
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * Files buyers attached to the contact form. Each belongs to one inquiry and is deleted with it. They download to your computer rather than opening here, because anyone can send one.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "inquiry-files".
+ */
+export interface InquiryFile {
+  id: number;
+  inquiry?: (number | null) | Inquiry;
+  _objectKey?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
 }
 /**
  * One line per person, per document, per day (Pakistan time). Counts of people are approximate. WhatsApp visits usually show as Safari or Chrome. Email scanners such as Outlook Safe Links can look like a person. Lines older than 12 months are deleted automatically.
@@ -660,6 +704,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'inquiries';
         value: number | Inquiry;
+      } | null)
+    | ({
+        relationTo: 'inquiry-files';
+        value: number | InquiryFile;
       } | null)
     | ({
         relationTo: 'document-visits';
@@ -887,11 +935,34 @@ export interface InquiriesSelect<T extends boolean = true> {
   company?: T;
   email?: T;
   message?: T;
+  jobTitle?: T;
+  country?: T;
+  phone?: T;
+  subject?: T;
+  files?: T;
+  filesError?: T;
   status?: T;
   notified?: T;
   notifyError?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "inquiry-files_select".
+ */
+export interface InquiryFilesSelect<T extends boolean = true> {
+  inquiry?: T;
+  _objectKey?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
