@@ -76,6 +76,8 @@ backups/
 # test artifacts
 playwright-report/
 test-results/
+# Per-shard reports CI's `e2e` job merges (playwright.config.ts `reporter` in CI).
+blob-report/
 # Playwright MCP scratch output (console logs, page snapshots). Same class as
 # test-results/ above: regenerated on every run, never read by a gate.
 .playwright-mcp/

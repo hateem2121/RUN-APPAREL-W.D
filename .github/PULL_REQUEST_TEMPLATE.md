@@ -24,7 +24,8 @@
 - [ ] `node scripts/check-docs-index.mjs` and `node apps/cms/scripts/check-doc-visuals.mjs`
       ← every doc reachable, every picture described, every diagram draws
 - [ ] `pnpm --filter @run-apparel/viewer test:e2e` ← its OWN required check since
-      2026-08-20, and the slowest gate in CI (~7 min there, ~45 s locally)
+      2026-08-20, and the slowest gate in CI (split across five machines there since
+      2026-09-29; ~45 s locally)
 - [ ] `pnpm seed:assets && pnpm build` ← the one that catches dependency breaks
 - [ ] `node scripts/check-bundle-budget.mjs`
 - [ ] `pnpm eval:artwork`

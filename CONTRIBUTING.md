@@ -106,7 +106,8 @@ catches a package dropping out of the measurement entirely. The same slip was li
 in `.github/workflows/deploy-shrink.yml` until that date.
 
 ⚠️ **`e2e` IS ITS OWN REQUIRED CHECK**, split out of `verify` on 2026-08-20, and it
-was missing from this list. It is the slowest gate in CI (~7 m 45 s) and among the
+was missing from this list. It is the slowest gate in CI (21.5 min on one machine on
+2026-09-27, split across five machines since 2026-09-29) and among the
 fastest locally (~45 s, 352 tests, four engines) — so run it here, not there. Two CI
 round trips were spent learning that.
 
