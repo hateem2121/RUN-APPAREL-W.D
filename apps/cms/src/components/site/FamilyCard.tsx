@@ -1,5 +1,19 @@
 import Link from 'next/link'
+import { cardImage } from '../../lib/cardImage'
 import type { Family, FamilyPicture } from '../../lib/families'
+
+/**
+ * How wide a family card draws, from `.family-grid` in site.css: one column below 560 px, two
+ * up to 1,179 (each `(100vw - 42 px of gutters - a 24 px gap) / 2`), five across above that at
+ * about 191 px. Only a hint: the picture it picks is one of `cardImage`'s three card sizes, the
+ * only ones the wear-run.com firewall rule lets through.
+ *
+ * The fifth card spans both columns between 560 and 1,179 px, so it draws wider than this says.
+ * Today that is Sports Accessories, which has no picture; if it gets one there, the browser
+ * picks a smaller copy and the picture is softer there, never broken.
+ */
+export const FAMILY_SIZES =
+  '(max-width: 559px) calc(100vw - 42px), (max-width: 1179px) calc(50vw - 33px), 200px'
 
 /**
  * One of the five family cards on the home page.
@@ -12,8 +26,13 @@ import type { Family, FamilyPicture } from '../../lib/families'
  *
  * The picture is a real product of that family (`familyPictures`), so a visitor sees what the
  * family holds. No picture → no `<img>` at all, never a broken one.
+ *
+ * ⚠️ A CARD-SIZED COPY, NOT THE STUDIO RENDER (2026-09-30). The renders are the ones /products
+ * showed before PR #93, 365–791 KB each for a box at most 369 px wide. The same Cloudflare resize
+ * serves them here (`cardImage`), and a picture from any other address is left as it is.
  */
 export function FamilyCard({ family, picture }: { family: Family; picture: FamilyPicture | null }) {
+  const image = picture ? cardImage(picture.url) : null
   return (
     <li className="panel family-card">
       <Link className="family-card__link" href={`/products?family=${family.slug}`}>
@@ -22,7 +41,9 @@ export function FamilyCard({ family, picture }: { family: Family; picture: Famil
             {/* biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize (ProductPoster.tsx measures why). */}
             <img
               className="family-card__img"
-              src={picture.url}
+              src={image?.src}
+              srcSet={image?.srcSet}
+              sizes={image?.srcSet ? FAMILY_SIZES : undefined}
               alt={picture.alt}
               width={1200}
               height={1500}
